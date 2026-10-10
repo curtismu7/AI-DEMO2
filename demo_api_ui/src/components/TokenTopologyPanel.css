@@ -6,7 +6,7 @@
   height: 100%;
   background: #0d1117;
   color: #ffffff;
-  font-family: 'Inter', system-ui, sans-serif;
+  font-family: "Montserrat", 'Inter', system-ui, sans-serif;
   font-size: var(--font-size-sm);
   overflow: hidden;
 }
@@ -1218,3 +1218,18 @@
 .ttp-insp-font-control { display: inline-flex; gap: 2px; margin-left: auto; margin-right: 8px; }
 .ttp-insp-font-control button { border: 1px solid #475569; border-radius: var(--radius-sm); background: transparent; color: inherit; padding: 2px 6px; font-size: var(--font-size-3xs); cursor: pointer; }
 .ttp-insp-font-control button[aria-pressed="true"] { background: #1e40af; color: #fff; border-color: #1e40af; }
+
+/* "+N hops not in this run" — the collapse chip (same shape as the rail's). */
+.ttp-skipped-chip {
+  display: inline-block;
+  margin: 0.35rem 0.75rem;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.72rem;
+  border: 1px dashed var(--th-text-muted, #94a3b8);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--th-text-muted, #64748b);
+  cursor: pointer;
+}
+
+.ttp-skipped-chip[aria-expanded="true"] { border-style: solid; }

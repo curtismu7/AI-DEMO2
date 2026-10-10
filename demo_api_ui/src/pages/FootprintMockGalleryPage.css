@@ -29,7 +29,7 @@
   min-height: calc(100vh - 64px);
   background: var(--bg);
   color: var(--ink);
-  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
   padding: 24px 28px 48px;
 }
 

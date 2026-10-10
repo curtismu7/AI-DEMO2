@@ -34,10 +34,10 @@
   --rd2-positive: #1a6b49;
   --rd2-negative: #a33020;
 
-  /* Typography */
-  --rd2-font-body:    "Inter", ui-sans-serif, system-ui, sans-serif;
-  --rd2-font-display: "Fraunces", Georgia, serif;
-  --rd2-font-figure:  "Newsreader", Georgia, serif;
+  /* Typography — Montserrat is the Ping brand font (brand.pingidentity.com) */
+  --rd2-font-body:    "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  --rd2-font-display: "Montserrat", Georgia, serif;
+  --rd2-font-figure:  "Montserrat", Georgia, serif;
   --rd2-font-mono:    "IBM Plex Mono", ui-monospace, monospace;
 
   /* Shape */
@@ -433,7 +433,7 @@
 }
 /* Title */
 .rd2-dock .embedded-agent-dock__title {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: .96rem;
   font-weight: 600;
   letter-spacing: -.01em;
@@ -457,7 +457,7 @@
 .banking-agent-fab {
   background: var(--theme-accent, #1b3a6b) !important;
   color: #ffffff !important;
-  font-family: "Inter", sans-serif !important;
+  font-family: "Montserrat", sans-serif !important;
   font-size: .88rem !important;
   font-weight: 600 !important;
   border: none !important;
@@ -513,7 +513,7 @@
   border-bottom: 1px solid var(--rd2-line-1, var(--th-border)) !important;
 }
 .banking-agent-panel .ba-title {
-  font-family: "Fraunces", serif !important;
+  font-family: "Montserrat", Georgia, serif !important;
   font-weight: 600 !important;
   font-size: .96rem !important;
   letter-spacing: -.01em !important;
@@ -531,7 +531,7 @@
   border-radius: 999px !important;
   background: var(--rd2-surface-2, #f3f3f1) !important;
   padding: 7px 14px !important;
-  font-family: "Inter", ui-sans-serif, sans-serif !important;
+  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
   font-size: .88rem !important;
   color: var(--rd2-ink-1, #111110) !important;
 }
@@ -555,14 +555,14 @@
 .banking-agent-panel .ba-suggestion {
   border-color: var(--theme-accent, #1b3a6b) !important;
   color: var(--theme-accent, #1b3a6b) !important;
-  font-family: "Inter", ui-sans-serif, sans-serif !important;
+  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
   font-size: .8rem !important;
   border-radius: 999px !important;
 }
 .banking-agent-panel .ba-action-item {
   background: var(--rd2-surface-2, #f3f3f1) !important;
   border-color: var(--rd2-line-1, #e4e4e0) !important;
-  font-family: "Inter", ui-sans-serif, sans-serif !important;
+  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
   font-size: .8rem !important;
   border-radius: 8px !important;
   color: var(--rd2-ink-1, #111110) !important;
@@ -599,7 +599,7 @@
   background: var(--rd2-positive, #1a6b49);
 }
 .ba-embedded-bottom-dock .ba-dock-identity__name {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: 1.05rem; font-weight: 600; letter-spacing: -.015em;
   color: var(--rd2-ink-1, #111110); margin-bottom: 3px;
 }
@@ -642,7 +642,7 @@
   border: 1px solid var(--rd2-line-2, #d5d5d0) !important;
   color: var(--rd2-ink-1, #111110) !important;
   border-radius: 999px !important;
-  font-family: "Inter", ui-sans-serif, sans-serif !important;
+  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
   font-size: .8rem !important;
   font-weight: 500 !important;
 }
@@ -656,7 +656,7 @@
   border: 1px solid var(--rd2-line-1, #e4e4e0) !important;
   color: var(--rd2-ink-1, #111110) !important;
   border-radius: 999px !important;
-  font-family: "Inter", ui-sans-serif, sans-serif !important;
+  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
   font-size: .8rem !important;
 }
 /* Composer / input row */
@@ -674,7 +674,7 @@
 .ba-embedded-bottom-dock .ba-input {
   background: transparent !important;
   border: none !important;
-  font-family: "Inter", ui-sans-serif, sans-serif !important;
+  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
   font-size: .9rem !important;
   color: var(--rd2-ink-1, #111110) !important;
 }
@@ -715,7 +715,7 @@
   padding: 20px clamp(16px, 4vw, 48px);
 }
 [data-rd-v2] .ud-quick-actions__title {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -740,7 +740,7 @@
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   border-radius: var(--rd2-r-md, 8px);
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .75rem;
   font-weight: 500;
   letter-spacing: .03em;
@@ -819,7 +819,7 @@
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -859,7 +859,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: 1.2rem;
   font-weight: 700;
   color: #ffffff;
@@ -871,7 +871,7 @@
   gap: 4px;
 }
 [data-rd-v2] .ud-profile-card__name {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -950,7 +950,7 @@
   margin-bottom: 4px;
 }
 [data-rd-v2] .account-card__name {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -999,7 +999,7 @@
   margin-bottom: 0;
 }
 [data-rd-v2] .form-group label {
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1011,7 +1011,7 @@
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-2, #d5d5d0);
   border-radius: 6px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .9rem;
   color: var(--rd2-ink-1, #111110);
   transition: all 150ms ease-out;
@@ -1036,7 +1036,7 @@
   padding: 10px 20px;
   border: none;
   border-radius: 6px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1075,7 +1075,7 @@
   background: transparent;
 }
 [data-rd-v2] .ud-token-rail__title {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: .95rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1162,7 +1162,7 @@
   border-bottom: 1px solid var(--rd2-line-1, #e4e4e0);
 }
 [data-rd-v2] .otp-step-up-modal__title {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1193,7 +1193,7 @@
   flex: 1;
 }
 [data-rd-v2] .otp-step-up-modal__lead {
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .9rem;
   line-height: 1.5;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1235,7 +1235,7 @@
 
 /* Error message */
 [data-rd-v2] .otp-step-up-modal__error {
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .8rem;
   color: var(--rd2-negative, #c92a2a);
   margin: 8px 0 0 0;
@@ -1243,7 +1243,7 @@
 
 /* Hint text */
 [data-rd-v2] .otp-step-up-modal__hint {
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .8rem;
   color: var(--rd2-ink-3, #8c8c88);
   margin: 16px 0 0 0;
@@ -1264,7 +1264,7 @@
   color: #ffffff;
   border: none;
   border-radius: 6px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1285,7 +1285,7 @@
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   color: var(--rd2-ink-1, #111110);
   border-radius: 6px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1338,7 +1338,7 @@
 }
 
 [data-rd-v2] .landing-logo-title {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1365,7 +1365,7 @@
   padding: 10px 20px;
   border: 1px solid transparent;
   border-radius: 6px;
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1405,7 +1405,7 @@
 }
 
 [data-rd-v2] .landing-hero-headline {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: clamp(1.8rem, 5vw, 2.8rem);
   font-weight: 700;
   letter-spacing: -.02em;
@@ -1415,7 +1415,7 @@
 }
 
 [data-rd-v2] .landing-hero-subheadline {
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: 1.1rem;
   line-height: 1.6;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1441,7 +1441,7 @@
 }
 
 [data-rd-v2] .landing-features-heading h2 {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: 1.8rem;
   font-weight: 700;
   letter-spacing: -.015em;
@@ -1450,7 +1450,7 @@
 }
 
 [data-rd-v2] .landing-features-heading p {
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: 1rem;
   color: var(--rd2-ink-2, #4c4c48);
   margin: 0;
@@ -1484,7 +1484,7 @@
 }
 
 [data-rd-v2] .landing-feature-title {
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1493,7 +1493,7 @@
 }
 
 [data-rd-v2] .landing-feature-description {
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .9rem;
   line-height: 1.5;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1508,7 +1508,7 @@
 }
 
 [data-rd-v2] .landing-footer p {
-  font-family: "Inter", ui-sans-serif, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, sans-serif;
   font-size: .85rem;
   color: var(--rd2-ink-2, #4c4c48);
   margin: 0;
@@ -1600,7 +1600,7 @@ body {
 }
 
 [data-rd-v2] .rd2-agent-card__title {
-  font-family: var(--rd2-font-display, "Fraunces", serif);
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif);
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1627,7 +1627,7 @@ body {
 }
 
 [data-rd-v2] .rd2-agent-card__desc {
-  font-family: var(--rd2-font-body, "Inter", sans-serif);
+  font-family: var(--rd2-font-body, "Montserrat", sans-serif);
   font-size: .9rem;
   color: var(--rd2-ink-2, #4c4c48);
   margin: 0 0 12px 0;
@@ -1705,7 +1705,7 @@ body {
   }
 }
 
-/* ── Hero section: balance display with Newsreader serif ────── */
+/* ── Hero section: balance display with Montserrat ────── */
 /* (consolidated with earlier .ud-hero rules — see line 57) */
 
 [data-rd-v2] .ud-hero__eyebrow {
@@ -1718,14 +1718,14 @@ body {
 }
 
 [data-rd-v2] .ud-hero__balance-label {
-  font-family: var(--rd2-font-body, "Inter", sans-serif);
+  font-family: var(--rd2-font-body, "Montserrat", sans-serif);
   font-size: .9rem;
   color: var(--rd2-ink-2, #4c4c48);
   margin: 0 0 6px 0;
 }
 
 [data-rd-v2] .ud-hero__balance {
-  font-family: var(--rd2-font-figure, "Newsreader", serif);
+  font-family: var(--rd2-font-figure, "Montserrat", Georgia, serif);
   font-size: clamp(2.4rem, 5vw, 3.4rem);
   font-weight: 400;
   line-height: 1.1;
@@ -1739,14 +1739,14 @@ body {
 }
 
 [data-rd-v2] .ud-hero__insight {
-  font-family: var(--rd2-font-body, "Inter", sans-serif);
+  font-family: var(--rd2-font-body, "Montserrat", sans-serif);
   font-size: .85rem;
   color: var(--rd2-ink-2, #4c4c48);
   margin: 12px 0 0 0;
 }
 
 [data-rd-v2] .ud-hero__debt {
-  font-family: var(--rd2-font-body, "Inter", sans-serif);
+  font-family: var(--rd2-font-body, "Montserrat", sans-serif);
   margin-top: 16px;
   padding-top: 16px;
   border-top: 1px solid var(--rd2-line-1, #e4e4e0);

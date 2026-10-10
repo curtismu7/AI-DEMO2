@@ -40,7 +40,7 @@
     0 8px 24px rgba(2, 6, 23, 0.1), 0 4px 10px rgba(2, 6, 23, 0.06);
   --lp-radius: 10px;
   --lp-radius-lg: 14px;
-  --lp-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --lp-font: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* Note: when [data-rd-v2] is present, refinedDashboardV2.css overrides these styles */
@@ -57,7 +57,7 @@
 .landing-page[data-rd-v2] {
   background-color: #f7f7f5 !important;
   color: #111110 !important;
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif !important;
 }
 
 /* ========== Header (logged-out only) ========== */
@@ -544,7 +544,7 @@
 [data-rd-v2].landing-page {
   background: var(--rd2-bg, #f7f7f5) !important;
   color: var(--rd2-ink-1, #111110) !important;
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif) !important;
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
 }
 
 [data-rd-v2] .landing-header {
@@ -555,7 +555,7 @@
 
 [data-rd-v2] .landing-logo-title {
   color: var(--rd2-ink-1, #111110) !important;
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
 }
 
 [data-rd-v2] .landing-logo p {
@@ -565,7 +565,7 @@
 
 [data-rd-v2] .landing-btn,
 [data-rd-v2] .btn {
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif) !important;
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
 }
 
 [data-rd-v2] .btn-primary {
@@ -621,7 +621,7 @@
 }
 
 [data-rd-v2] .landing-hero-headline {
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
   color: var(--rd2-ink-1, #111110) !important;
   font-size: 52px !important;
   font-weight: 600 !important;
@@ -629,7 +629,7 @@
 }
 
 [data-rd-v2] .landing-hero-zero-trust {
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
   color: var(--rd2-ink-1, #111110) !important;
   font-size: 64px !important;
   font-weight: 700 !important;
@@ -648,7 +648,7 @@
 
 [data-rd-v2] .landing-hero-subheadline {
   color: var(--rd2-ink-2, #4c4c48) !important;
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif) !important;
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
 }
 
 [data-rd-v2] .hero-cta-primary {
@@ -690,7 +690,7 @@
 }
 
 .landing-callout-lead {
-  font-family: var(--rd2-font-display, "Fraunces", serif);
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif);
   font-size: 26px;
   font-weight: 600;
   line-height: 1.35;
@@ -705,7 +705,7 @@
 }
 
 .landing-callout-body {
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif);
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif);
   font-size: 16px;
   line-height: 1.65;
   color: var(--rd2-accent-text, #ffffff);
@@ -732,7 +732,7 @@
 }
 
 [data-rd-v2] .landing-features-heading h2 {
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
   color: var(--rd2-ink-1, #111110) !important;
   font-size: 34px !important;
   font-weight: 600 !important;
@@ -740,7 +740,7 @@
 
 [data-rd-v2] .landing-features-heading p {
   color: var(--rd2-ink-2, #4c4c48) !important;
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif) !important;
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
 }
 
 [data-rd-v2] .landing-feature-card {
@@ -760,14 +760,14 @@
 }
 
 [data-rd-v2] .landing-feature-title {
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
   color: var(--rd2-ink-1, #111110) !important;
   font-weight: 600 !important;
 }
 
 [data-rd-v2] .landing-feature-description {
   color: var(--rd2-ink-2, #4c4c48) !important;
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif) !important;
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
 }
 
 [data-rd-v2] .landing-token-chain {
@@ -776,7 +776,7 @@
 }
 
 [data-rd-v2] .landing-token-chain-heading h2 {
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
   color: var(--rd2-ink-1, #111110) !important;
   font-weight: 600 !important;
 }

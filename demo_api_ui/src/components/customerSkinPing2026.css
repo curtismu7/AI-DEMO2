@@ -7,23 +7,23 @@
    B1: token shell only — visual rules added in B2.
    ============================================================================ */
 
-/* ── Design tokens (Ping2026 palette) ─────────────────────────────────────── */
+/* ── Design tokens (Ping 2026 brand palette — brand.pingidentity.com) ─────── */
 .customer-skin-p1 {
-  --csp-bg:            #f4f6f9;
+  --csp-bg:            #f7f8f8;   /* Gray 200 */
   --csp-surface:       #ffffff;
-  --csp-border:        #e2e6ea;
-  --csp-primary:       #1a5276;
+  --csp-border:        #e0e2e4;   /* Gray 400 */
+  --csp-primary:       #051727;   /* Core Dark */
   --csp-primary-text:  #ffffff;
-  --csp-accent:        #b3282d;
-  --csp-text-primary:  #23242a;
-  --csp-text-secondary:#5a6472;
+  --csp-accent:        #d20e0f;   /* Ping Red */
+  --csp-text-primary:  #051727;   /* Core Dark */
+  --csp-text-secondary:#5c646b;   /* Gray 700 */
   --csp-radius:        8px;
   --csp-shadow:        0 1px 4px rgba(0,0,0,0.10);
 }
 
 /* ── Canvas ────────────────────────────────────────────────────────────────── */
 .customer-skin-p1 {
-  background: var(--csp-bg, #f4f6f9);
+  background: var(--csp-bg, #f7f8f8);
   min-height: 100vh;
 }
 
@@ -41,8 +41,8 @@
 .customer-skin-p1 .ud-hero {
   background: linear-gradient(
     135deg,
-    var(--csp-primary, #1a5276) 0%,
-    color-mix(in srgb, var(--accent, #b3282d) 60%, var(--csp-primary) 40%) 100%
+    var(--csp-primary, #051727) 0%,
+    color-mix(in srgb, var(--accent, #d20e0f) 60%, var(--csp-primary) 40%) 100%
   );
   color: #fff;
   border: none;
@@ -91,12 +91,12 @@
 /* ── Hero accent CTA button ────────────────────────────────────────────────── */
 /* Standard QA buttons stay PingOne-blue; only the --accent CTA uses vertical accent */
 .customer-skin-p1 .ud-qa-btn--accent {
-  background: var(--accent, #b3282d);
+  background: var(--accent, #d20e0f);
   color: #fff;
 }
 
 .customer-skin-p1 .ud-qa-btn--accent:hover {
-  background: color-mix(in srgb, var(--accent, #b3282d) 85%, #000 15%);
+  background: color-mix(in srgb, var(--accent, #d20e0f) 85%, #000 15%);
 }
 
 /* ── Trust strip ───────────────────────────────────────────────────────────── */
