@@ -39,13 +39,13 @@ export default function TokenFlowDiagram() {
 
           <div className="utfi-claim-column">
             <span className="utfi-claim-num">①</span>
-            <span>act: agent-001</span>
+            <span>act: {'{sub: agent-001}'}</span>
           </div>
           <div className="utfi-claim-spacer"></div>
 
           <div className="utfi-claim-column">
             <span className="utfi-claim-num">①</span>
-            <span>act: [agent-001, user-123]</span>
+            <span>act: {'{sub: mcp-agent, act: {sub: agent-001}}'}</span>
           </div>
         </div>
 

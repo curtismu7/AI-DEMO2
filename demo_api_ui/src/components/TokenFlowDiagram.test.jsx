@@ -100,10 +100,12 @@ describe('TokenFlowDiagram', () => {
     const { container } = render(<TokenFlowDiagram />);
     const text = container.textContent;
 
-    // Check for sub claim progression
+    // Check for sub claim progression — act is RFC 8693 §4.1: a nested object,
+    // outermost act.sub = current actor, each nested act = the prior actor.
+    // The subject (user-123) stays top-level sub, never an actor.
     expect(text).toContain('sub: user-123');
-    expect(text).toContain('act: agent-001');
-    expect(text).toContain('act: [agent-001, user-123]');
+    expect(text).toContain('act: {sub: agent-001}');
+    expect(text).toContain('act: {sub: mcp-agent, act: {sub: agent-001}}');
   });
 
   it('shows scope narrowing from user to MCP token', () => {

@@ -1,6 +1,23 @@
 # RFC 8693 Act Claim: Nested Object -> Flat Array Migration — Implementation Plan
 
-> **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
+> **⚠️ SUPERSEDED — DO NOT EXECUTE (2026-10-10).** Web research (RFC 8693 §4.1 + vendor survey:
+> Auth0 OBO mints nested `act` and auto-maintains it across exchanges, capped at 5 levels;
+> Microsoft Entra Agent ID, Okta, and AWS all decline `act` entirely in favor of proprietary
+> per-hop claims) confirmed that **no implementer mints `act` as an array.** RFC 8693 defines
+> `act` as a nested JSON object — outermost `act` = current actor, each nested `act` = the
+> prior actor — and resource servers MUST authorize only on top-level claims plus the
+> current (outermost) actor. This repo already mints the nested shape everywhere (PingOne
+> SpEL composer, mock authz `token.js`, `agentDelegation.js` fallback), so the codebase is
+> already standards-compliant and this migration was never started (zero code landed).
+> Tasks 7, 8, and 2b would have introduced NON-compliant array mints on the wire and would
+> teach demo viewers a shape no vendor produces. What survives from this plan, if anything
+> is ever wanted: the *internal normalization* insight (a `normalizeActChain` at decode
+> boundaries to protect the hardcoded-depth walkers) is harmless but unnecessary — the
+> existing recursive `countActDepth`/`actChainDepth` walkers are correct for nested shape.
+> The education copy in `TokenFlowDiagram.jsx` that showed the wrong array shape was fixed
+> directly (see worktree-act-claim-rfc8693-alignment).
+>
+> **For agentic workers:** the instruction below is retained only for historical context — do not follow it. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Convert the RFC 8693 `act` (actor) claim from today's recursively-nested object shape (`act:{sub:agent2, act:{sub:agent1}}`) to a flat, ordered array of delegation hops (`act:[{sub:agent1},{sub:agent2}]`, index 0 = first/oldest delegate, last index = current/most-recent actor) everywhere the claim is minted or read across the demo stack, while leaving PingOne's own live-tenant SpEL minting untouched.
 
