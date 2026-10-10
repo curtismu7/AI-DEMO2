@@ -39,4 +39,20 @@ describe("DemoSummaryPage", () => {
     expect(screen.getByRole("link", { name: /Weather MCP/i })).toBeInTheDocument();
     expect(screen.queryByRole("link", { name: /Security Dashboard/i })).not.toBeInTheDocument();
   });
+
+  it("offers a way to bring the side nav back when it is hidden", () => {
+    localStorage.setItem("adminSideNav.hidden", "1");
+    renderPage();
+    const restore = screen.getByRole("button", { name: /show side menu/i });
+    fireEvent.click(restore);
+    expect(localStorage.getItem("adminSideNav.hidden")).toBe("0");
+    localStorage.removeItem("adminSideNav.hidden");
+  });
+
+  it("does not offer the restore button when the side nav is visible", () => {
+    localStorage.setItem("adminSideNav.hidden", "0");
+    renderPage();
+    expect(screen.queryByRole("button", { name: /show side menu/i })).not.toBeInTheDocument();
+    localStorage.removeItem("adminSideNav.hidden");
+  });
 });
