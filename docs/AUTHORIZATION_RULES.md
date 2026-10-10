@@ -247,6 +247,18 @@ The gate evaluates:
 
 After MFA step-up (`acr` looks strong), the consent gate is suppressed — no double-gate.
 
+### Per-user consent enforcement (may_act re-architecture, 2026-10-10)
+
+Agent-mediated tools additionally require the signed-in user's bridged consent to match the acting agent — enforced identically on all three engines:
+
+| Engine | Where | Escape hatch |
+|---|---|---|
+| Mock PDP (demo_authz_server) | `decision.js` Rule 2.6 (`no_user_consent` / `may_act_mismatch` denies) | `REQUIRE_USER_CONSENT=false` |
+| BFF simulated engine | `simulatedAuthorizeService.js` consent guard (same two deny codes) | `REQUIRE_USER_CONSENT=false` |
+| Cloud P1AZ policy | `UserConsentMissing` / `UserConsentMismatch` rules in the MCP Delegation policy | Import a snapshot generated with the rule (no runtime toggle) |
+
+Carve-outs (all engines): A2A-delegated tools (the act chain is their authorization, Rule 1c) and named customer workload agents (`PINGONE_WORKLOAD_AGENT_CLIENT_IDS`, UC38/44 — their own identity authorizes them). The consent value is the session's `may_act.sub`, bridged per call via `X-May-Act-Sub`.
+
 ---
 
 ## 9. Delegation and Delegate User Rules

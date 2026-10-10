@@ -682,21 +682,52 @@ test('3h: two deny rules mirror Rule 2.6 — absent consent and mismatched conse
     STMT.consentMismatch, 'may_act_mismatch');
 });
 
-test('3h: the workload-agent OR is never empty — an empty list would deny every agent call', () => {
+test('3h: no non-DSL keys leak into consent conditions; carve-out only when declared', () => {
   // The carve-out branch is `NOT (ActClientId equals <each workload id>)`. With
   // no ids declared, `NOT (or [])` in this DSL would evaluate as NOT(false) =
   // true, inverting the carve-out into a deny-all. The generator must emit the
   // branch ONLY when at least one id exists — same stance as the empty-audience
   // abort in step 0, but inert-skip rather than abort, because the consent rule
   // without the carve-out is still a correct (just stricter) policy.
+  //
+  // ALSO: condition nodes may carry ONLY DSL keys (and/or/not/comparison/
+  // reference). The generator once marked the carve-out with a
+  // 'workload-agent-consent-carve-out' sibling key — PingOne's tolerance for
+  // unknown condition-node properties is unverified, so any non-DSL key inside
+  // a condition is a deploy-time trap. This walks every consent condition and
+  // fails on any stray key.
+  // A DSL node is EXACTLY one of: {and:{conditions}}, {or:{conditions}},
+  // {not:{condition}}, {comparison:{left:{attribute:{id},op,right:{constant:{value}}}}},
+  // {reference:{id}}. Any OTHER key on any node (the generator once stamped a
+  // 'workload-agent-consent-carve-out' marker beside `not`) is a leak —
+  // PingOne's import tolerance for unknown condition-node keys is unverified.
+  // The walk descends ONLY through the DSL's own slots, so it never inspects
+  // the structural keys inside {left}/{right}/{constant} — those are leaf
+  // value objects, not nodes.
+  const NODE_KEYS = new Set(['and', 'or', 'not', 'comparison', 'reference', 'conditions', 'condition']);
+  const walkNodes = (node, out) => {
+    if (!node || typeof node !== 'object' || Array.isArray(node)) return;
+    for (const k of Object.keys(node)) {
+      if (!NODE_KEYS.has(k)) out.push(k);
+    }
+    if (node.and) (node.and.conditions || []).forEach((n) => walkNodes(n, out));
+    if (node.or) (node.or.conditions || []).forEach((n) => walkNodes(n, out));
+    if (node.not) walkNodes(node.not.condition, out);
+  };
   const snap = reconciled();
+  const noWorkloadDeclared = (process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS || '').trim() === '';
   for (const condId of [COND.UserConsentMissing, COND.UserConsentMismatch]) {
     const cond = findById(snap, condId);
-    const workloadNot = cond.condition.and.conditions.find((c) =>
-      c.not && JSON.stringify(c.not).includes(ATTR.ActClientId)
-      && JSON.stringify(c.not).includes('workload-agent-consent-carve-out'));
-    if ((process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS || '').trim() === '') {
-      assert.strictEqual(workloadNot, undefined,
+    const stray = [];
+    walkNodes(cond.condition, stray);
+    assert.deepStrictEqual(stray, [],
+      `${cond.name}: non-DSL keys leaked into the condition tree — PingOne import tolerance for unknown keys is unverified`);
+
+    const workloadBranch = cond.condition.and.conditions.find((c) =>
+      c.not && JSON.stringify(c).includes(ATTR.ActClientId)
+      && JSON.stringify(c).includes('constant') && c.not.condition.or);
+    if (noWorkloadDeclared) {
+      assert.strictEqual(workloadBranch, undefined,
         `${cond.name}: no workload agents declared → the carve-out branch must be OMITTED, not an empty NOT-OR`);
     }
   }

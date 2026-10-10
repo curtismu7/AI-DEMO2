@@ -114,3 +114,22 @@ test('Rule 2.6 skips non-agent-mediated tools', async () => {
   const r = await decide(readParams({ ToolName: 'get_my_accounts', MayActSub: '', TokenScopes: 'read accounts:read' }));
   assert.notStrictEqual(r.decision, 'DENY', `non-agent-mediated call must not hit Rule 2.6: ${r.reason}`);
 });
+
+test('Rule 2.6 fires on the BFF context too (McpFirstTool, not just McpToolCall)', async () => {
+  // docs §5.5: the BFF sends McpFirstTool; gating on McpToolCall alone would
+  // skip the rule for every BFF-originated call.
+  const r = await decide(readParams({ DecisionContext: 'McpFirstTool', MayActSub: '' }));
+  assert.strictEqual(r.decision, 'DENY');
+  assert.match(r.reason, /no_user_consent/);
+});
+
+test('Rule 2.6: REQUIRE_USER_CONSENT=false opts out (flag-ON legacy mode escape)', async () => {
+  process.env.REQUIRE_USER_CONSENT = 'false';
+  fresh();
+  try {
+    const r = await decide(readParams({ MayActSub: '' }));
+    assert.notStrictEqual(r.decision, 'DENY', `escape must disable the guard: ${r.reason}`);
+  } finally {
+    delete process.env.REQUIRE_USER_CONSENT;
+  }
+});

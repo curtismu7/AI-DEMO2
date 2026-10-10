@@ -13,8 +13,9 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
           <p style={{ color: "#374151", marginBottom: "1rem" }}>
             The delegation lifecycle starts with explicit user consent. The agent identifies itself with its
             own credential at token exchange, and your <code>may_act</code> consent is checked by PingOne
-            Authorize on <strong>every</strong> tool call — revoke it and the very next call is denied,
-            no token re-mint needed. (An optional compatibility mode — <code>ff_may_act_seed</code> — seeds
+            Authorize on <strong>every</strong> tool call — revoke it and calls are denied without waiting
+            for the delegated token to expire (the revoke triggers a silent re-auth, which refreshes the
+            bridged consent). (An optional compatibility mode — <code>ff_may_act_seed</code> — seeds
             the <code>act</code> claim from <code>may_act</code> at mint time instead, the pre-2026-10
             behavior.)
           </p>

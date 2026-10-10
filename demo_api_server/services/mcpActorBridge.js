@@ -31,7 +31,14 @@ const configStore = require('./configStore');
  *   bridged so the PDP's per-user rule (Rule 2.6) can match it against the actor;
  *   empty/absent-as-'' → header OMITTED (bridging a static id here would fabricate
  *   consent). Absent-as-undefined keeps the legacy static resolution for callers
- *   not yet plumbed per-user.
+ *   not yet plumbed per-user. KNOWN UNPLUMBED CALLERS (all internal, non-session
+ *   surfaces — they present no user token, so Rule 2.6's consent check is not the
+ *   control under test; enumerated 2026-10-10 so the debt is countable, and
+ *   flipping the fallback to omit = fail closed when the last one is plumbed):
+ *   attackSimulatorService.js (all gateway-call sims), devTools.js,
+ *   mcpToolRegistry.js callMcpToolInternal, gatewayPostureCheck.js,
+ *   mcpGatewayConfig.js probes, pingAiTestLab.js, mcpInspectorBridge
+ *   mcpCallToolWithFrames.
  * @returns {Record<string,string>} headers to merge onto the outbound MCP request
  *   (`X-Act-Client-Id` and `X-May-Act-Sub`), or {} when unconfigured.
  */

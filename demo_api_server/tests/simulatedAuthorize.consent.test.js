@@ -68,4 +68,36 @@ describe('evaluateMcpFirstTool — Rule 2.6 parity (per-user consent)', () => {
     }));
     expect(String(out.raw?.reason || out.reason || '')).not.toMatch(/no_user_consent/);
   });
+
+  // Parity with mock Rule 2.6 (demo_authz_server) and the P1AZ snapshot rules:
+  // a named workload agent (UC38/44) is authorized by its own identity, not by
+  // user consent — same carve-out, all three engines.
+  test('skips named workload agents (PINGONE_WORKLOAD_AGENT_CLIENT_IDS)', async () => {
+    const prev = process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS;
+    process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS = 'workload-agent-1';
+    try {
+      const out = await evaluateMcpFirstTool(baseParams({
+        actClientId: 'workload-agent-1',
+        mayActSub: null,
+      }));
+      expect(out.decision).not.toBe('DENY');
+      expect(String(out.raw?.reason || out.reason || '')).not.toMatch(/no_user_consent|may_act_mismatch/);
+    } finally {
+      if (prev === undefined) delete process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS;
+      else process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS = prev;
+    }
+  });
+
+  test('REQUIRE_USER_CONSENT=false disables the guard (escape hatch parity)', async () => {
+    const prev = process.env.REQUIRE_USER_CONSENT;
+    process.env.REQUIRE_USER_CONSENT = 'false';
+    try {
+      const out = await evaluateMcpFirstTool(baseParams({ mayActSub: null }));
+      expect(out.decision).not.toBe('DENY');
+      expect(String(out.raw?.reason || out.reason || '')).not.toMatch(/no_user_consent/);
+    } finally {
+      if (prev === undefined) delete process.env.REQUIRE_USER_CONSENT;
+      else process.env.REQUIRE_USER_CONSENT = prev;
+    }
+  });
 });

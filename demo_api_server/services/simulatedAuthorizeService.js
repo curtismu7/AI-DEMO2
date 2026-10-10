@@ -593,11 +593,18 @@ async function evaluateMcpFirstTool({
   // gate enforces consent HERE, before the challenge rules: on agent-mediated
   // tools the acting agent must equal the signed-in user's bridged consent
   // (mayActSub, from the session via buildMcpDecisionFacts). Absent → fail
-  // closed. A2A-delegated tools skip (act chain is their authorization, same
-  // as the A2A guard above). mayActSub undefined (caller not plumbed —
+  // closed. Carve-outs mirror the mock exactly: A2A-delegated tools skip (act
+  // chain is their authorization, same as the A2A guard above) and named
+  // workload agents (UC38/44) are authorized by their own identity.
+  // REQUIRE_USER_CONSENT=false opts out (flag-ON legacy mode, where may_act
+  // still gates minting upstream). mayActSub undefined (caller not plumbed —
   // legacy/test callers) keeps the pre-consent behavior.
-  if (mayActSub !== undefined && scopeTopology.isAgentMediatedTool(toolName)
+  const requireUserConsentSim = process.env.REQUIRE_USER_CONSENT !== 'false';
+  if (requireUserConsentSim && mayActSub !== undefined && scopeTopology.isAgentMediatedTool(toolName)
       && actClientId && !scopeTopology.isA2aDelegatedTool(toolName)) {
+    const isNamedWorkloadAgentSim = (process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS || '')
+      .split(',').map((id) => id.trim()).filter(Boolean).includes(actClientId);
+    if (!isNamedWorkloadAgentSim) {
     if (!mayActSub) {
       const noConsentOut = {
         decision: 'DENY',
@@ -635,6 +642,7 @@ async function evaluateMcpFirstTool({
       };
       recordSimulatedDecision(mismatchOut);
       return mismatchOut;
+    }
     }
   }
 

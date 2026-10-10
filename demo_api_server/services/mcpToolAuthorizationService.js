@@ -589,11 +589,13 @@ async function decodeMcpTokenFacts({ req, agentToken, userSub }) {
   const tokenKidKnown = tokenKidIssuerMatches
     ? await jwksService.hasKid(tokenKid)
     : null;
-  // Per-user consent (may_act re-architecture, Task 4): prefer the SESSION's
-  // may_act (stored at login from the user token, refreshed on /refresh) —
-  // the presented MCP token never carries may_act on Exchange #2 hops. The
-  // token's own may_act, when present, stays authoritative (parity with the
-  // gateway path, which bridges the token claim when it has one). Distinguish
+  // Per-user consent (may_act re-architecture, Task 4): the SESSION's may_act
+  // WINS when present (stored at login from the user token, refreshed on
+  // /refresh) — it is the freshest consent state, and the presented MCP token
+  // never carries may_act on Exchange #2 hops anyway. The token's own may_act
+  // is consulted only when the session has none (or no session exists),
+  // matching the gateway path's merge order (session value replaces a missing
+  // token claim; a present token claim is never overridden). Distinguish
   // "session exists" (evaluate consent) from "no session" (undefined → the
   // simulated engine's consent guard stays inert for legacy callers).
   const tokenMayActSub = claims.may_act && typeof claims.may_act === 'object' && claims.may_act.sub

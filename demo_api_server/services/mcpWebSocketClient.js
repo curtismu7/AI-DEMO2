@@ -312,7 +312,7 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
         try {
           wsTlsOpts.headers = {
             ...(wsTlsOpts.headers || {}),
-            ...require('./mcpActorBridge').buildActorBridgeHeaders({ userMayActSub: opts && opts.userMayActSub !== undefined ? opts.userMayActSub : undefined }),
+            ...require('./mcpActorBridge').buildActorBridgeHeaders({ userMayActSub: opts?.userMayActSub }),
           };
         } catch (_) { /* best-effort header */ }
         // Authorization on the WS UPGRADE: the gateway extracts the Bearer from the

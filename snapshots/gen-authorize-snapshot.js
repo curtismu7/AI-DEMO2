@@ -1170,18 +1170,27 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   const workloadAgentIds = (process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS || '')
     .split(',').map((id) => id.trim()).filter(Boolean);
   if (workloadAgentIds.length) {
-    // The test identifies this branch by the marker key below.
     consentShared.push({ not: { condition: { or: { conditions: workloadAgentIds.map((id) => ({
       comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
-    })) } } }, 'workload-agent-consent-carve-out': true });
+    })) } } } });
   }
   const consentBase = consentShared;
+  // The carve-out is NAMED in the description, never as an extra key inside the
+  // condition tree — PingOne's tolerance for unknown condition-node properties
+  // is unverified, and a non-DSL key inside a condition is a deploy-time trap
+  // (authorizeSnapshotCloudDelta.test.js 'no non-DSL keys leak' walks for this).
+  const workloadCarveOutNote = workloadAgentIds.length
+    ? ` Named customer workload agents (${workloadAgentIds.length}, from PINGONE_WORKLOAD_AGENT_CLIENT_IDS) are ` +
+      'carved out — their own identity authorizes them (UC38/44), so the condition carries an extra ' +
+      'NOT(ActClientId in workload-ids) branch.'
+    : ' No workload agents declared (PINGONE_WORKLOAD_AGENT_CLIENT_IDS empty), so the ' +
+      'workload-agent carve-out branch is OMITTED — an empty NOT-OR would invert into a deny-all.';
 
   upsert(conditionDef(COND.UserConsentMissing, 'UserConsentMissing',
     `Agent-driven call to one of the ${loadSot().consentTools.length} consent-gated tools (agent-mediated, NOT ` +
-    'A2A-delegated — generated from scope-topology.json) with an acting agent (ActClientId present) that is not ' +
-    "a named workload agent, and NO user consent bridged (MayActSub = ''). Mirrors mock Rule 2.6 absent branch. " +
-    'Generated — do not hand-edit.',
+    'A2A-delegated — generated from scope-topology.json) with an acting agent (ActClientId present), and NO user ' +
+    "consent bridged (MayActSub = ''). Mirrors mock Rule 2.6 absent branch. " + workloadCarveOutNote +
+    ' Generated — do not hand-edit.',
     { and: { conditions: [
       ...consentBase,
       { comparison: { left: { attribute: { id: ATTR.MayActSub } }, op: 'Equals', right: { constant: { value: '' } } } },
@@ -1189,7 +1198,7 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   upsert(conditionDef(COND.UserConsentMismatch, 'UserConsentMismatch',
     "Agent-driven consent-gated tool call whose bridged consent names a DIFFERENT agent (MayActSub present, " +
     '≠ ActClientId). Mirrors mock Rule 2.6 mismatch branch; attribute-to-attribute NotEquals, the ' +
-    'ResourceOwnerMismatch shape. Generated — do not hand-edit.',
+    'ResourceOwnerMismatch shape. ' + workloadCarveOutNote + ' Generated — do not hand-edit.',
     { and: { conditions: [
       ...consentBase,
       { comparison: { left: { attribute: { id: ATTR.MayActSub } }, op: 'NotEquals', right: { constant: { value: '' } } } },

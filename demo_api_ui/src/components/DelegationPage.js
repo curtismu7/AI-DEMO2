@@ -169,7 +169,7 @@ function AgentAuthorizationCard() {
       </p>
       {enforced && (
         <p style={{ fontSize: 12, color: '#374151', margin: '0 0 16px 0' }}>
-          Enforcement on — your consent is checked on every call, so a revoked agent is blocked from acting on your behalf immediately.
+          Enforcement on — your consent is checked on every call, so a revoked agent is blocked without waiting for the delegated token to expire.
         </p>
       )}
       <button
@@ -490,7 +490,7 @@ function DemoTalkTrackPanel() {
               num: 3,
               heading: 'Stage 2 — User to AI agent',
               text: 'Go to the agent. Ask "show my balance", then attempt a ~$300 transfer to trigger the consent gate.',
-              quote: 'The agent identifies itself with its own credential — Ping mints act={agent} from the actor token. Maya\'s may_act consent is checked on every call, so revoking her authorization denies the very next request. It cannot exceed the granted scope, and high-value writes still stop for her consent.',
+              quote: 'The agent identifies itself with its own credential — Ping mints act={agent} from the actor token. Maya\'s may_act consent is checked on every call, so revoking her authorization takes effect without waiting for the delegated token to expire. It cannot exceed the granted scope, and high-value writes still stop for her consent.',
             },
             {
               num: 4,
