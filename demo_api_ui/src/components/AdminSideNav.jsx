@@ -1114,6 +1114,7 @@ export default function AdminSideNav({
       label: "Diagrams",
       icon: "arc",
       children: [
+        { label: "Demo Map", path: "/demo-map", icon: "arc" },
         { label: "All Diagrams", path: "/diagrams", icon: "arc" },
         { label: "Use-case diagrams", path: "/use-case-diagrams", icon: "arc" },
         { label: "Server Topology (Interactive)", path: "/architecture/server-topology", icon: "arc" },
@@ -1353,6 +1354,7 @@ export default function AdminSideNav({
       { label: "Agent Privilege · A2A Review", path: "/privilege-mcp-client?view=demo&tab=a2a", icon: "lnk" },
       { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
       { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
+      { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },
       "Protected RAG",
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),

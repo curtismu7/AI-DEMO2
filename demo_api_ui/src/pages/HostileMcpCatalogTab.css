@@ -64,6 +64,193 @@
   color: var(--th-text-invert);
 }
 
+/* ── Live Privilege runner ─────────────────────────────────────────────── */
+
+.hmc-runner {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  padding: 12px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hmc-runner-head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.hmc-runner-head h3 {
+  margin: 0 0 4px;
+  font-size: var(--font-size-base);
+  color: var(--th-text);
+}
+
+.hmc-runner-lede {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+  line-height: 1.5;
+  max-width: 62ch;
+}
+
+.hmc-runner-runall {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  white-space: nowrap;
+}
+
+.hmc-runner-tally {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+.hmc-runway {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 8px;
+  padding: 8px 10px;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+}
+
+.hmc-runway-note {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+.hmc-runway-note a {
+  color: var(--th-status-info);
+}
+
+.hmc-pill {
+  font-size: var(--font-size-sm);
+  padding: 3px 10px;
+  border-radius: var(--radius-pill);
+  border: 1px solid var(--th-border);
+  color: var(--th-text-muted);
+}
+
+.hmc-pill--ok {
+  color: var(--th-status-success-text);
+  border-color: var(--th-status-success);
+}
+
+.hmc-btn {
+  border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-invert);
+  border-radius: var(--radius-sm);
+  padding: 6px 14px;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.hmc-btn:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+.hmc-btn--danger {
+  border-color: var(--th-status-error);
+  background: var(--th-status-error);
+  color: var(--th-text-invert);
+}
+
+.hmc-btn--run {
+  padding: 4px 12px;
+}
+
+.hmc-error {
+  margin: 0;
+  color: var(--th-status-error-text);
+  font-size: var(--font-size-sm);
+}
+
+.hmc-verdict {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  padding: 2px 8px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--th-border);
+  color: var(--th-text-muted);
+  white-space: nowrap;
+}
+
+.hmc-verdict-denied {
+  color: var(--th-status-success-text);
+  border-color: var(--th-status-success);
+}
+
+.hmc-verdict-allowed {
+  color: var(--th-status-warning-text);
+  border-color: var(--th-status-warning);
+}
+
+.hmc-verdict-expected-deny-missed,
+.hmc-verdict-error {
+  color: var(--th-status-error-text);
+  border-color: var(--th-status-error);
+}
+
+.hmc-verdict-flip {
+  color: var(--th-status-error-text);
+  border-color: var(--th-status-error);
+}
+
+.hmc-livetest {
+  border-top: 1px dashed var(--th-border);
+  padding-top: 8px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.hmc-livetest-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  flex-wrap: wrap;
+}
+
+.hmc-livetest-label {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+  flex: 1;
+}
+
+.hmc-livetest-why {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+  line-height: 1.45;
+}
+
+.hmc-observed {
+  border-left-color: var(--th-status-info);
+}
+
+.hmc-evidence summary {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+  cursor: pointer;
+}
+
+.hmc-evidence pre {
+  margin-top: 6px;
+}
+
+/* ── Card list (existing) ──────────────────────────────────────────────── */
+
 .hmc-list {
   display: flex;
   flex-direction: column;

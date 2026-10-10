@@ -193,3 +193,15 @@
     margin-bottom: 0.75rem;
   }
 }
+
+/* The admin sign-in inside the PF-required notice — styled like the old link. */
+.idjag-admin-signin {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--th-status-info-text, #4f7df3);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}

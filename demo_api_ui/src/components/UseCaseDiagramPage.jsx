@@ -117,8 +117,8 @@ export default function UseCaseDiagramPage() {
             ← Back to dashboard
           </Link>
           {stepNum != null && (
-            <Link to="/dashboard" className="ucd-cue" title={`Open Mission Control — this diagram is step ${stepNum} of the demo script`}>
-              Step {stepNum} of the demo script
+            <Link to={`/use-cases#${cfg.id}`} className="ucd-cue" title={`Run this step live on /use-cases — it is step ${stepNum} of the demo script`}>
+              Run this step ↗
             </Link>
           )}
           <h1 data-testid="ucd-title">{guide?.title || cfg.id}</h1>

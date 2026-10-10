@@ -171,3 +171,15 @@
   border-radius: var(--radius-sm);
   padding: 1px 4px;
 }
+
+/* The sign-in trigger in the demo header — styled like the old link. */
+.priv-demo-signin {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--th-status-info-text, #4f7df3);
+  font: inherit;
+  font-weight: 600;
+  text-decoration: underline;
+  cursor: pointer;
+}

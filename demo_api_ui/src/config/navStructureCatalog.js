@@ -12,6 +12,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "AI Guard", "Protocol Playground", "AI Guard Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
     "Agent Privilege Guide", "Agent Gateway Authorization", "Agent Privilege Diagrams", "Agent IAM Core",
     "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege · A2A", "Agent Privilege · A2A Review", "Agent Privilege Topologies", "Agent Privilege · MCP",
+    "Malicious MCP Catalog",
     "Protected RAG", "Agent Privilege Demo",
   ] },
   { label: "DaVinci", children: [
@@ -67,7 +68,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Transaction Trace", "MCP Observability", "Grafana",
   ] },
   { label: "Diagrams", children: [
-    "All Diagrams", "Server Topology (Interactive)", "PingFederate ID-JAG (Node)",
+    "Demo Map", "All Diagrams", "Server Topology (Interactive)", "PingFederate ID-JAG (Node)",
     "System Diagram (Node)", "Overview Diagram (Node)", "Token Flow (Interactive) (Node)",
     "Token Chain Architecture (Node)", "Interactive Flow (Node)", "Sequence Diagram (Node)", "Canvas Diagram (Node)",
     "Delegated Access Proof", "Demo Steps Lifeline Audit",

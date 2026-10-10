@@ -64,7 +64,12 @@ describe('HostileMcpCatalogTab', () => {
 
   it('links to the live-fire tab via the tab query param', () => {
     renderTab();
-    const link = screen.getByRole('link', { name: /Malicious MCP tab/ });
-    expect(link.getAttribute('href')).toBe('/llm-gateway?tab=hostile');
+    // Two links point there (header + the runner's relay note) — assert all of
+    // them carry the hostile tab param.
+    const links = screen.getAllByRole('link', { name: /Malicious MCP tab/ });
+    expect(links.length).toBeGreaterThanOrEqual(1);
+    for (const link of links) {
+      expect(link.getAttribute('href')).toBe('/llm-gateway?tab=hostile');
+    }
   });
 });

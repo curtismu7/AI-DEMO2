@@ -1,6 +1,6 @@
 import { useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { navigateWithOverlay } from "../utils/navigateWithOverlay";
+import { openSignIn, openAdminSignIn } from "../utils/signInService";
 import "./LandingPage.css";
 
 function IconShield() {
@@ -128,7 +128,7 @@ export default function LandingPage({ user, hasTopNav }) {
     if (user?.role === "admin") {
       navigate("/admin");
     } else {
-      window.location.href = "/api/auth/oauth/login";
+      openAdminSignIn({ returnTo: "/admin" });
     }
   };
 
@@ -142,7 +142,7 @@ export default function LandingPage({ user, hasTopNav }) {
     if (user) {
       navigate("/use-cases/live");
     } else {
-      navigateWithOverlay("/api/auth/oauth/user/login?return_to=/use-cases/live", { message: "Signing in..." });
+      openSignIn({ returnTo: "/use-cases/live" });
     }
   };
 

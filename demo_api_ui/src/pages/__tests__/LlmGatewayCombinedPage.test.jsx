@@ -16,6 +16,13 @@ function mockFetch() {
 }
 
 describe("LLM Gateway combined page", () => {
+  // The wrapper remembers the viewer's last tab (sessionStorage) so the
+  // Privilege OAuth bounce — whose returnTo carries no query — lands back on
+  // it. Tests below pin the DEFAULT behavior, so start each with no memory.
+  beforeEach(() => {
+    try { sessionStorage.clear(); } catch { /* jsdom: always available in practice */ }
+  });
+
   it("defaultTab='chat' opens the chat console, matching a bookmarked /llm-gateway", () => {
     mockFetch();
     render(<LlmGatewayCombinedPage defaultTab="chat" />);
@@ -55,6 +62,22 @@ describe("LLM Gateway combined page", () => {
 
     expect(await screen.findByLabelText(/^lane$/i)).toBeInTheDocument();
     expect(screen.queryByLabelText(/^prompt$/i)).not.toBeInTheDocument();
+  });
+
+  it("remembers the last tab across a bounce with no tab param (Privilege OAuth returnTo)", () => {
+    mockFetch();
+    const first = render(<LlmGatewayCombinedPage defaultTab="chat" />);
+    fireEvent.click(screen.getByRole("tab", { name: /malicious mcp — catalog/i }));
+    first.unmount();
+
+    // The OAuth callback lands on /llm-gateway?auth=success — no tab param.
+    renderUi(
+      <MemoryRouter initialEntries={["/llm-gateway?auth=success"]}>
+        <LlmGatewayCombinedPage defaultTab="chat" />
+      </MemoryRouter>,
+    );
+
+    expect(screen.getByRole("tab", { name: /malicious mcp — catalog/i })).toHaveAttribute("aria-selected", "true");
   });
 
   it("shows the Privilege denial scenario in the Malicious MCP tab", async () => {

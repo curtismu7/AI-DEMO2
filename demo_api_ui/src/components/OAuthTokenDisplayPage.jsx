@@ -2,8 +2,7 @@
 import React, { useState, useEffect, useCallback, useRef } from 'react';
 import bffAxios from '../services/bffAxios';
 import { fetchEnrichedUserInfo } from '../services/userInfoService';
-import { startEmbeddedSignInFromUrl, submitPassword } from '../lib/embeddedPiFlow';
-import { navigateWithOverlay } from '../utils/navigateWithOverlay';
+import { openSignIn } from '../utils/signInService';
 import './OAuthTokenDisplayPage.css';
 import TokenCard from './TokenCard';
 import JsonHighlight from './shared/JsonHighlight';
@@ -41,14 +40,6 @@ function compareClaims(idPayload, userinfo) {
     });
 }
 
-/** Step states for the unauthenticated in-page PingOne flow. */
-const PI_FLOW_STEPS = {
-  idle: null,
-  starting: { label: 'Starting PingOne pi.flow…' },
-  credentials: { label: 'Complete PingOne sign-in in this window.' },
-  exchanging: { label: 'The BFF is exchanging the authorization code…' },
-};
-
 export default function OAuthTokenDisplayPage() {
   const [sessionStatus, setSessionStatus] = useState(null);
   const [tokenClaims, setTokenClaims] = useState(null);
@@ -68,14 +59,7 @@ export default function OAuthTokenDisplayPage() {
   const toggleSection = (section) => {
     setExpandedSections(prev => ({ ...prev, [section]: !prev[section] }));
   };
-  const [piFlowSession, setPiFlowSession] = useState(null);
-  const [piFlowBusy, setPiFlowBusy] = useState(false);
-  const [piFlowStep, setPiFlowStep] = useState('idle');
-  const [piFlowError, setPiFlowError] = useState(null);
-  const [username, setUsername] = useState('');
-  const [password, setPassword] = useState('');
   const mountedRef = useRef(true);
-
   // Check both session types before reading decoded claims. Exposed as a
   // callback so the error screen's Try Again button can rerun it in place.
   const fetchTokenData = useCallback(async () => {
@@ -175,99 +159,6 @@ export default function OAuthTokenDisplayPage() {
     return () => { cancelled = true; };
   }, [sessionStatus?.authenticated, sessionStatus?.sessionType]);
 
-  const finishPiFlow = useCallback(async ({ code, state }, callbackPath) => {
-    if (!code || !state || !callbackPath) {
-      throw new Error('PingOne did not return the authorization code needed to finish sign-in.');
-    }
-    setPiFlowStep('exchanging');
-    const callbackUrl = new URL(callbackPath, window.location.origin);
-    if (callbackUrl.origin !== window.location.origin) {
-      throw new Error('The sign-in callback must stay on this application.');
-    }
-    callbackUrl.searchParams.set('code', code);
-    callbackUrl.searchParams.set('state', state);
-    const callbackResponse = await fetch(callbackUrl.toString(), {
-      credentials: 'include',
-      redirect: 'manual',
-    });
-    // A successful BFF callback redirects after saving the session. With
-    // redirect: 'manual', same-origin fetch exposes that 3xx as !ok, so only
-    // treat server errors as a failed exchange and confirm the session below.
-    if (callbackResponse.status >= 400) {
-      throw new Error('The BFF could not exchange the PingOne authorization code.');
-    }
-    const authenticated = await fetchTokenData();
-    if (!authenticated) {
-      throw new Error('PingOne completed sign-in, but the BFF session was not established.');
-    }
-    setPiFlowSession(null);
-    setPiFlowStep('idle');
-    setPiFlowError(null);
-    setUsername('');
-    setPassword('');
-    window.dispatchEvent(new CustomEvent('userAuthenticated'));
-  }, [fetchTokenData]);
-
-  const startPiFlow = useCallback(async () => {
-    setPiFlowBusy(true);
-    setPiFlowError(null);
-    setPiFlowStep('starting');
-    try {
-      const startRes = await bffAxios.get('/api/auth/oauth/user/login?mode=pi.flow');
-      const flow = await startEmbeddedSignInFromUrl(startRes.data?.authorizeUrl, { allowImmediateCompletion: true });
-      if (flow.code && flow.state) {
-        await finishPiFlow(flow, startRes.data?.callbackPath);
-      } else {
-        setPiFlowSession({ flow, callbackPath: startRes.data?.callbackPath });
-        setPiFlowStep('credentials');
-      }
-    } catch (err) {
-      if (err.response?.status === 409) {
-        const refreshed = await fetchTokenData();
-        if (refreshed) return;
-        setSessionStatus((current) => ({
-          ...current,
-          authenticated: false,
-          sessionType: 'admin',
-          adminSessionBlocked: true,
-        }));
-        setError('no_session');
-        setPiFlowError(null);
-        setPiFlowStep('idle');
-        return;
-      }
-      setPiFlowError(err.response?.data?.message || err.message || 'Could not start PingOne pi.flow.');
-      setPiFlowStep('idle');
-    } finally {
-      setPiFlowBusy(false);
-    }
-  }, [fetchTokenData, finishPiFlow]);
-
-  const submitPiFlowCredentials = useCallback(async (event) => {
-    event.preventDefault();
-    if (!piFlowSession) return;
-    const typedPassword = password;
-    setPassword('');
-    setPiFlowBusy(true);
-    setPiFlowError(null);
-    try {
-      const authorization = await submitPassword(piFlowSession.flow, username, typedPassword);
-      await finishPiFlow(authorization, piFlowSession.callbackPath);
-    } catch (err) {
-      setPiFlowError(err.message || 'PingOne sign-in failed.');
-      setPiFlowStep('credentials');
-    } finally {
-      setPiFlowBusy(false);
-    }
-  }, [finishPiFlow, password, piFlowSession, username]);
-
-  const cancelPiFlow = useCallback(() => {
-    setPiFlowSession(null);
-    setPiFlowStep('idle');
-    setPiFlowError(null);
-    setPassword('');
-  }, []);
-
   // Live countdown for the access token's expiry.
   const expiresAt = refreshInfo?.expiresAt;
   useEffect(() => {
@@ -325,7 +216,6 @@ export default function OAuthTokenDisplayPage() {
   }
 
   if (error === 'no_session') {
-    const step = PI_FLOW_STEPS[piFlowStep];
     const adminSessionBlocked = sessionStatus?.sessionType === 'admin' && !sessionStatus.authenticated;
     const staleAdminSession = adminSessionBlocked && sessionStatus.staleSession;
     return (
@@ -341,99 +231,19 @@ export default function OAuthTokenDisplayPage() {
               ? 'An Admin session was found, but its OAuth token is no longer active. Renew that Admin session, then reopen this panel.'
               : adminSessionBlocked
                 ? 'An Admin session is present, but this panel could not confirm its active token. Check the session status before signing in.'
-                : 'Sign-in stays in this window. PingOne returns the authorization code through pi.flow, then the BFF exchanges it and keeps the access token in the server session.'}
+                : 'Sign in with the branded pi.flow modal — PingOne returns the authorization code, then the BFF exchanges it and keeps the access token in the server session.'}
           </p>
 
-          {/* Step flow diagram */}
-          <div className="otdp-flow-steps">
-            <div className={`otdp-flow-step ${piFlowStep === 'starting' ? 'otdp-flow-step--active' : ''} ${['credentials','exchanging'].includes(piFlowStep) ? 'otdp-flow-step--done' : ''}`}>
-              <span className="otdp-flow-step-num">1</span>
-              <div>
-                <div className="otdp-flow-step-title">PingOne /as/authorize</div>
-                <div className="otdp-flow-step-sub">response_mode=pi.flow</div>
-              </div>
-            </div>
-            <div className="otdp-flow-arrow">→</div>
-            <div className={`otdp-flow-step ${piFlowStep === 'credentials' ? 'otdp-flow-step--active otdp-flow-step--warn' : ''} ${piFlowStep === 'exchanging' ? 'otdp-flow-step--done' : ''}`}>
-              <span className="otdp-flow-step-num">2</span>
-              <div>
-                <div className="otdp-flow-step-title">PingOne sign-in</div>
-                <div className="otdp-flow-step-sub">Credentials go directly to PingOne</div>
-              </div>
-            </div>
-            <div className="otdp-flow-arrow">→</div>
-            <div className={`otdp-flow-step ${piFlowStep === 'exchanging' ? 'otdp-flow-step--active otdp-flow-step--ok' : ''}`}>
-              <span className="otdp-flow-step-num">3</span>
-              <div>
-                <div className="otdp-flow-step-title">BFF code exchange</div>
-                <div className="otdp-flow-step-sub">PKCE verifier and tokens stay server-side</div>
-              </div>
-            </div>
-          </div>
-
-          {step && (
-            <div className="otdp-flow-status" role="status">
-              {step.label}
-            </div>
-          )}
-
-          {piFlowError && <p className="otdp-flow-error" role="alert">{piFlowError}</p>}
           {adminSessionBlocked ? (
             <button type="button" className="otdp-retry-btn" onClick={fetchTokenData}>Check Admin session again</button>
-          ) : piFlowSession ? (
-            <form onSubmit={submitPiFlowCredentials}>
-              <p className="otdp-flow-desc">Enter your PingOne credentials. They are sent directly to PingOne from this browser.</p>
-              <div className="otdp-field">
-                <label htmlFor="otdp-pi-flow-username">Username</label>
-                <input
-                  id="otdp-pi-flow-username"
-                  autoComplete="username"
-                  required
-                  value={username}
-                  onChange={(event) => setUsername(event.target.value)}
-                />
-              </div>
-              <div className="otdp-field">
-                <label htmlFor="otdp-pi-flow-password">Password</label>
-                <input
-                  id="otdp-pi-flow-password"
-                  type="password"
-                  autoComplete="current-password"
-                  required
-                  value={password}
-                  onChange={(event) => setPassword(event.target.value)}
-                />
-              </div>
-              <div className="otdp-flow-actions">
-                <button type="submit" className="otdp-flow-login-btn" disabled={piFlowBusy}>
-                  {piFlowBusy ? 'Signing in…' : 'Continue with PingOne'}
-                </button>
-                <button type="button" className="otdp-flow-link-btn" onClick={cancelPiFlow} disabled={piFlowBusy}>
-                  Cancel
-                </button>
-              </div>
-            </form>
           ) : (
             <div className="otdp-flow-actions">
-              {/* The redirect sign-in works everywhere; the in-page pi.flow one
-                  below needs CORS on the PingOne end-user app (TECH_DEBT.md). */}
               <button
                 type="button"
                 className="otdp-flow-login-btn"
-                onClick={() => {
-                  navigateWithOverlay(`/api/auth/oauth/user/login?return_to=${encodeURIComponent(window.location.pathname)}`, { message: 'Signing in...', assign: true });
-                }}
-                disabled={piFlowBusy}
+                onClick={() => openSignIn({ returnTo: window.location.pathname })}
               >
                 Sign in with PingOne
-              </button>
-              <button
-                type="button"
-                className="otdp-flow-link-btn"
-                onClick={startPiFlow}
-                disabled={piFlowBusy}
-              >
-                {piFlowBusy ? 'Starting…' : 'Sign In with PingOne here'}
               </button>
             </div>
           )}

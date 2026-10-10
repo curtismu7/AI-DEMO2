@@ -4,6 +4,7 @@ import { useThemeOptional } from "../context/ThemeContext";
 import apiClient from "../services/apiClient";
 import { resolveApiBaseUrl } from "../utils/resolveApiBaseUrl";
 import { pingOneConsoleUrl } from "../utils/pingOneConsoleUrl";
+import { openSignIn } from "../utils/signInService";
 // Toasts intentionally disabled on this page — they obscured the inline diagnostic
 // panels. Status is conveyed by the on-page result/diagnostic cards instead.
 const notifyError = () => {};
@@ -1223,12 +1224,13 @@ function PingOneTestPageContent() {
 							Not logged in
 						</span>
 					)}
-					<a
-						href={`/api/auth/oauth/user/login?return_to=/pingone-test${loginType ? "&force=true" : ""}`}
+					<button
+						type="button"
+						onClick={() => openSignIn({ returnTo: "/pingone-test", force: Boolean(loginType) })}
 						className="pingone-test-button pingone-test-button--secondary pingone-test-identity__switch"
 					>
 						{loginType ? "Switch user" : "Login to PingOne"}
-					</a>
+					</button>
 				</div>
 				<div className="pingone-test-meta">
 					<div className="pingone-test-status">
@@ -1681,7 +1683,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 											config={TEST_CONFIG.authzToken}
 											loginUrl={
 												authzTokenStatus !== "passed"
-													? "/api/auth/oauth/user/login?return_to=/pingone-test"
+													? "/pingone-test"
 													: null
 											}
 										/>
@@ -1783,12 +1785,13 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 									Token exchange requires a user access token. Log in to
 									PingOne first using the Authorization Code + PKCE flow.
 								</span>
-								<a
-									href="/api/auth/oauth/user/login?return_to=/pingone-test"
+								<button
+									type="button"
+									onClick={() => openSignIn({ returnTo: "/pingone-test" })}
 									className="pingone-test-button pingone-test-button--primary pingone-test-login-banner__btn"
 								>
 									Login to PingOne →
-								</a>
+								</button>
 							</div>
 						)}
 					<ApiCallPreviewCard
@@ -2945,12 +2948,13 @@ const TestCard = ({
 			)}
 			<div className="test-card-actions">
 				{loginUrl && (
-					<a
-						href={loginUrl}
+					<button
+						type="button"
+						onClick={() => openSignIn({ returnTo: loginUrl })}
 						className="pingone-test-button pingone-test-button--primary"
 					>
 						Login to PingOne →
-					</a>
+					</button>
 				)}
 				{onTest && (
 					<button

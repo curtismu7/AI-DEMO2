@@ -3,6 +3,10 @@
 
 import { clearStatusCache } from '../services/cachedStatusService';
 import { navigateWithOverlay } from './navigateWithOverlay';
+// Circular by design: signInService imports this module's *Raw redirect legs,
+// this module's public navigateTo*Login delegate to signInService.openSignIn.
+// ESM hoists the function declarations, so both sides resolve.
+import { openSignIn } from './signInService';
 
 /** Dispatched with `detail: { message, role: 'admin' | 'customer' }` so `App` can show an on-page banner. */
 export const SESSION_REAUTH_EVENT = 'banking-session-reauth';
@@ -338,24 +342,19 @@ export function errorMessageSuggestsLogin(message) {
 /** Dispatched by navigateToCustomerOAuthLogin; PiFlowSignInModal sets `detail.handled = true`. */
 export const PI_FLOW_SIGNIN_EVENT = 'banking-pi-flow-signin';
 
-let piFlowSignInAvailable = false;
-/** Set by PiFlowSignInModal once it has read the BFF config and is listening. */
-export function setPiFlowSignInAvailable(value) {
-  piFlowSignInAvailable = Boolean(value);
-}
-
-let adminPiFlowSignInAvailable = false;
-/** Set by PiFlowSignInModal when the BFF reports admin pi.flow enabled. */
-export function setAdminPiFlowSignInAvailable(value) {
-  adminPiFlowSignInAvailable = Boolean(value);
-}
-
 /**
  * Redirect to customer (end-user) OAuth Backend-for-Frontend (BFF) route.
  * @param {string} [returnTo] - app path to land on after login (BFF `return_to`).
  *   If not provided, defaults to current page unless on landing page (redirects to /dashboard).
  */
 export function navigateToCustomerOAuthLogin(returnTo) {
+  openSignIn({ role: 'customer', returnTo });
+}
+
+// Redirect-only leg (no modal event). signInService's openSignIn falls back to
+// these when the BFF reports pi.flow unavailable; pages bypassing the service
+// must not import them directly.
+export function navigateToCustomerOAuthLoginRaw(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
@@ -363,15 +362,6 @@ export function navigateToCustomerOAuthLogin(returnTo) {
   if (!destination && typeof window !== 'undefined') {
     const currentPath = window.location.pathname;
     destination = currentPath === '/' ? '/dashboard' : currentPath;
-  }
-
-  // Redirect-free sign-in: PiFlowSignInModal (mounted in App) flips this on when
-  // the BFF has pi.flow enabled for PingOne. If nothing handles the event, fall
-  // through to the ordinary redirect below.
-  if (piFlowSignInAvailable && typeof window !== 'undefined') {
-    const detail = { returnTo: destination, handled: false };
-    window.dispatchEvent(new CustomEvent(PI_FLOW_SIGNIN_EVENT, { detail }));
-    if (detail.handled) return;
   }
 
   const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';
@@ -386,6 +376,10 @@ export function navigateToCustomerOAuthLogin(returnTo) {
  *   which is what made a session expiry lose your place mid-task.
  */
 export function navigateToCustomerOAuthForceLogin(returnTo) {
+  openSignIn({ role: 'customer', returnTo, force: true });
+}
+
+export function navigateToCustomerOAuthForceLoginRaw(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
@@ -397,13 +391,6 @@ export function navigateToCustomerOAuthForceLogin(returnTo) {
 
   // force=true is already in the query, so return_to joins with &.
   const suffix = destination ? `&return_to=${encodeURIComponent(destination)}` : '';
-  // The modal can drive a forced re-auth too (prompt=login is sent server-side);
-  // fall back to the redirect when it is not available or does not handle it.
-  if (piFlowSignInAvailable && typeof window !== 'undefined') {
-    const detail = { returnTo: destination, force: true, handled: false };
-    window.dispatchEvent(new CustomEvent(PI_FLOW_SIGNIN_EVENT, { detail }));
-    if (detail.handled) return;
-  }
   navigateWithOverlay(`${apiUrl}/api/auth/oauth/user/login?force=true${suffix}`, { message: 'Signing in...' });
 }
 
@@ -412,6 +399,10 @@ export function navigateToCustomerOAuthForceLogin(returnTo) {
  * @param {string} [returnTo] - app path to land on after login (BFF `return_to`).
  */
 export function navigateToAdminOAuthLogin(returnTo) {
+  openSignIn({ role: 'admin', returnTo });
+}
+
+export function navigateToAdminOAuthLoginRaw(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
@@ -419,14 +410,6 @@ export function navigateToAdminOAuthLogin(returnTo) {
   if (!destination && typeof window !== 'undefined') {
     const currentPath = window.location.pathname;
     destination = currentPath === '/' ? '/dashboard' : currentPath;
-  }
-
-  // Same redirect-free path as the customer sign-in when PiFlowSignInModal has
-  // admin pi.flow available (setAdminPiFlowSignInAvailable); otherwise redirect.
-  if (adminPiFlowSignInAvailable && typeof window !== 'undefined') {
-    const detail = { returnTo: destination, role: 'admin', handled: false };
-    window.dispatchEvent(new CustomEvent(PI_FLOW_SIGNIN_EVENT, { detail }));
-    if (detail.handled) return;
   }
 
   const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';
