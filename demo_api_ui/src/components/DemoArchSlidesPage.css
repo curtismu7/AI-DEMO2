@@ -261,7 +261,7 @@
 .das-fs12 { font-size: 12px; }
 .das-fs11 { font-size: 11px; }
 .das-on-red { fill: #fff; }
-.das-red-box { fill: #b3282d; }
+.das-red-box { fill: #d20e0f; }
 .das-grey-box { fill: #5b6670; }
 .das-pink-box { fill: #e39a9d; }
 .das-pink-ink { fill: #3a1c1e; }
@@ -288,7 +288,7 @@
 .das-outline-ok { stroke: var(--th-status-success); }
 .das-chip { fill: var(--th-bg-inset); stroke: var(--th-border); stroke-width: 1; }
 .das-chip-ink { fill: var(--th-text); }
-.das-bus { stroke: #b3282d; stroke-width: 1.6; fill: none; }
+.das-bus { stroke: #d20e0f; stroke-width: 1.6; fill: none; }
 .das-band-info { fill: var(--th-status-info-bg); }
 .das-band-ok { fill: var(--th-status-success-bg); }
 .das-band-warn { fill: var(--th-status-warning-bg); }
@@ -304,7 +304,7 @@
   stroke-linecap: round;
   stroke-linejoin: round;
 }
-.das-ico-red { stroke: #b3282d; stroke-width: 2; fill: none; }
+.das-ico-red { stroke: #d20e0f; stroke-width: 2; fill: none; }
 .das-ico-ok { stroke: var(--th-status-success); stroke-width: 2; fill: none; }
 .das-dotfill { fill: var(--th-bg-inset); }
 .das-cur { fill: currentColor; }
