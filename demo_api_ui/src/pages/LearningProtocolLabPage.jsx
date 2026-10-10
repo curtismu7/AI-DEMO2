@@ -98,6 +98,23 @@ function JwtClientAuthLab() {
         <button type="button" className="learning-lab__secondary" onClick={() => { setInvalidIssuer(true); setValidated(false); }}>Use invalid issuer</button>
       </div>
       {result && <Result kind={invalidIssuer ? "danger" : "success"}><strong>{result}</strong></Result>}
+
+      <h2 id="jwt-lab-live">This one is live in the demo</h2>
+      <p>
+        The simulated validator above teaches the check; the demo also runs the real thing.
+        The BFF's RFC 8693 token exchange (UC1 and every MCP hop) can authenticate with a
+        dedicated application whose token-endpoint auth method is <code>private_key_jwt</code>:
+        the BFF signs a short-lived RS256 assertion (iss = sub = its client id, aud = the token
+        endpoint, exp 60s) with an RSA key provisioned on that app as a JWKS — no client secret
+        crosses the wire.
+      </p>
+      <p>
+        Verified live 2026-10-10: the dedicated exchanger performed a client-credentials
+        grant and a full RFC 8693 exchange, both authenticated by the signed assertion.
+        Watch it run: <Link to="/config">/config</Link> (flag <code>ff_private_key_jwt_token_exchange</code>)
+        and the Token Exchange dashboard's <code>dedicated-app</code> facet records each
+        assertion-authenticated exchange.
+      </p>
     </section>
   );
 }
