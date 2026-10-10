@@ -73,10 +73,11 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
         return res.status(502).json({ error: 'pi_flow_unavailable' });
       }
       req.session.oauthPiFlow = { flowId: flow.id, provider, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r), status: flow.status };
-      // PingFederate binds the flow to the authorize request's login_hint ("Username must
-      // match the provided username hint"), so hand it to the SPA to prefill, as the hosted
-      // login page does. PingOne does not bind it, so nothing is sent for PingOne.
-      const usernameHint = provider === 'pingfederate' ? new URL(authorizeUrl).searchParams.get('login_hint') : null;
+      // Echo the authorize request's login_hint so the SPA can prefill, as the
+      // hosted login page does. PingFederate BINDS the flow to the hint
+      // ("Username must match the provided username hint"); for PingOne the
+      // hint is advisory prefill only — signing in as someone else is fine.
+      const usernameHint = new URL(authorizeUrl).searchParams.get('login_hint') || null;
       return req.session.save((err) => {
         if (err) return res.status(500).json({ error: 'session_save_failed' });
         return res.json({ flowId: flow.id, status: flow.status, ...(usernameHint ? { usernameHint } : {}) });

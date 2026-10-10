@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import FloatingPanel from "./FloatingPanel";
-import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useIndustryBranding } from "../context/IndustryBrandingContext";
@@ -31,6 +30,7 @@ import UseCaseRunContextCard from './UseCaseRunContextCard';
 import OpikTracePanel from './OpikTracePanel';
 import ProofStrip from './ProofStrip';
 import { navigateToCustomerOAuthForceLogin, requestSilentReauth, isAuthRequiredApiError, notifySessionExpiredIfNeeded, USER_SESSION_EXPIRED_MESSAGE } from "../utils/authUi";
+import { openSignIn, openAdminSignIn } from "../utils/signInService";
 import { setAgentAuthorization } from "../services/agentAuthorizationService";
 import {
   AGENT_CONSENT_BLOCK_USER_MESSAGE,
@@ -4021,24 +4021,14 @@ export default function BankingAgent({
       const authInFlight = pendingUcAuthRef.current;
       if (authInFlight) sessionStorage.setItem(BX_AGENT_PENDING_AUTH_KEY, authInFlight);
     } catch (_) {}
-    const apiUrl = process.env.REACT_APP_API_URL || window.location.origin;
     if (actionId === "login_admin") {
       setTimeout(() => {
-        window.location.href = `${apiUrl}/api/auth/oauth/login`;
+        if (typeof window === "undefined") return;
+        openAdminSignIn({ returnTo: (window.location.pathname || "").replace(/\/$/, "") || "/" });
       }, 150);
       return;
     }
     if (actionId === "login_user") {
-      let usePiFlow = false;
-      try {
-        const r = await fetch("/api/admin/config", { credentials: "include" });
-        const j = await r.json();
-        const cfg = j?.config || {};
-        if (cfg.marketing_customer_login_mode === "slide_pi_flow")
-          usePiFlow = true;
-      } catch (_) {
-        /* keep default redirect */
-      }
       setTimeout(() => {
         // This fires 150ms after the click, which can be AFTER a unit test's
         // jsdom environment is torn down — the timer is deliberately not
@@ -4048,35 +4038,16 @@ export default function BankingAgent({
         // reports as `Errors 1` and a NON-ZERO exit alongside "447 passed":
         // a red build with a green-looking summary, intermittently.
         if (typeof window === "undefined") return;
-        const p = (location.pathname || "").replace(/\/$/, "") || "/";
-        const params = new URLSearchParams();
-        if (isPublicMarketingAgentPath(p))
-          params.set("return_to", p === "/dashboard" ? "/dashboard" : "/");
-        if (usePiFlow) params.set("use_pi_flow", "1");
-        const q = params.toString();
-        navigateWithOverlay(`${apiUrl}/api/auth/oauth/user/login${q ? `?${q}` : ""}`, { message: "Signing in..." });
+        const p = (window.location.pathname || "").replace(/\/$/, "") || "/";
+        openSignIn({ returnTo: isPublicMarketingAgentPath(p) ? (p === "/dashboard" ? "/dashboard" : "/") : undefined });
       }, 150);
       return;
     }
     // Default behavior for other action IDs
-    let usePiFlow = false;
-    try {
-      const r = await fetch("/api/admin/config", { credentials: "include" });
-      const j = await r.json();
-      const cfg = j?.config || {};
-      if (cfg.marketing_customer_login_mode === "slide_pi_flow")
-        usePiFlow = true;
-    } catch (_) {
-      /* keep default redirect */
-    }
     setTimeout(() => {
-      const p = (location.pathname || "").replace(/\/$/, "") || "/";
-      const params = new URLSearchParams();
-      if (isPublicMarketingAgentPath(p))
-        params.set("return_to", p === "/dashboard" ? "/dashboard" : "/");
-      if (usePiFlow) params.set("use_pi_flow", "1");
-      const q = params.toString();
-      window.location.href = `${apiUrl}/api/auth/oauth/user/login${q ? `?${q}` : ""}`;
+      if (typeof window === "undefined") return;
+      const p = (window.location.pathname || "").replace(/\/$/, "") || "/";
+      openSignIn({ returnTo: isPublicMarketingAgentPath(p) ? (p === "/dashboard" ? "/dashboard" : "/") : undefined });
     }, 150);
   }
 
@@ -5751,9 +5722,6 @@ export default function BankingAgent({
           normalized.authChallenge &&
           normalized.authChallenge.authorizationUrl
         ) {
-          const loginUrl =
-            (process.env.REACT_APP_API_URL || "") +
-            "/api/auth/oauth/user/login";
           pendingAuthChallengeActionRef.current = { actionId, form };
           // Persist to sessionStorage so it survives the PingOne full-page redirect
           PendingActionManager.save({ actionId, form });
@@ -5762,12 +5730,13 @@ export default function BankingAgent({
             ` Login required.\n\nThis operation requires you to be signed in. Click the button below — your request will resume automatically after you authenticate.`,
             actionId,
           );
+          // The branded pi.flow modal — same card the chip prompts use, so the
+          // sign-in resumes the pending action on return either way.
           addMessage(
             "assistant",
-            '<a href="' +
-              loginUrl +
-              '" style="display:inline-block;margin-top:8px;padding:8px 16px;background:#4f7df3;color:#fff;border-radius:6px;text-decoration:none;font-weight:600;">Sign in →</a>',
+            "Sign in to continue — your request will resume after you authenticate.",
             actionId,
+            { showLoginPromptAction: true, loginActionId: "login_user" },
           );
           toast.dismiss(toastId);
           setLoading(false);

@@ -14,6 +14,7 @@ import { fireEvent, render, screen, act, waitFor } from "@testing-library/react"
 import "@testing-library/jest-dom";
 import { MemoryRouter } from "react-router-dom";
 import apiClient from "../../services/apiClient";
+import { PI_FLOW_SIGNIN_EVENT } from "../../utils/authUi";
 
 const originalLocation = window.location;
 
@@ -180,18 +181,22 @@ describe("PingOneTestPage — PingFederate provider warning", () => {
     expect(apiClient.post).not.toHaveBeenCalled();
   });
 
-  it("switches to PingOne, clears an active PF session, then redirects to PingOne sign-in", async () => {
+  it("switches to PingOne, clears an active PF session, then opens the sign-in modal", async () => {
     stubLocation();
     selectPingFederate({ authenticated: true });
+    const handled = vi.fn((e) => { e.detail.handled = true; });
+    window.addEventListener(PI_FLOW_SIGNIN_EVENT, handled);
     await renderPage();
 
     fireEvent.click(await screen.findByRole("button", { name: "Continue to PingOne" }));
-    await waitFor(() => expect(window.location.href).toBe("/api/auth/oauth/user/login?return_to=/pingone-test"));
+    await waitFor(() => expect(handled).toHaveBeenCalled());
+    expect(handled.mock.calls[0][0].detail.returnTo).toBe("/pingone-test");
 
     expect(apiClient.post.mock.calls).toEqual([
       ["/api/admin/config", { oauth_provider: "pingone" }],
       ["/api/auth/clear-session"],
     ]);
+    window.removeEventListener(PI_FLOW_SIGNIN_EVENT, handled);
   });
 
   it("starts PingOne sign-in without clearing when there is no active PF session", async () => {
@@ -199,12 +204,15 @@ describe("PingOneTestPage — PingFederate provider warning", () => {
     selectPingFederate();
     await renderPage();
 
+    const handled = vi.fn((e) => { e.detail.handled = true; });
+    window.addEventListener(PI_FLOW_SIGNIN_EVENT, handled);
     fireEvent.click(await screen.findByRole("button", { name: "Continue to PingOne" }));
-    await waitFor(() => expect(window.location.href).toBe("/api/auth/oauth/user/login?return_to=/pingone-test"));
+    await waitFor(() => expect(handled).toHaveBeenCalled());
 
     expect(apiClient.post.mock.calls).toEqual([
       ["/api/admin/config", { oauth_provider: "pingone" }],
     ]);
+    window.removeEventListener(PI_FLOW_SIGNIN_EVENT, handled);
   });
 
   it("leaves the PF session intact when switching providers is rejected", async () => {

@@ -207,7 +207,7 @@
 .tet-btn--secondary:hover { background: #0f172a; }
 .tet-btn--secondary:is(:link, :visited) { color: #fff; }
 
-.tet-no-session a {
+.tet-no-session button {
   color: var(--th-status-info-text);
   font-weight: 600;
 }

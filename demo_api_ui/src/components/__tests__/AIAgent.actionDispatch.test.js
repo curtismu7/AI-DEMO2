@@ -30,6 +30,7 @@ import * as demoAgentService from "../../services/demoAgentService";
 import * as agentAccessConsent from "../../services/agentAccessConsent";
 import { useVertical } from "../../vertical/useVertical";
 import { clearIdJagRunState, ID_JAG_REPLAYED_KEY, ID_JAG_USE_CASE_ID, ID_JAG_VALIDATED_CALLBACK_KEY } from "../../utils/idJagRunMode";
+import { PI_FLOW_SIGNIN_EVENT } from "../../utils/authUi";
 
 const simpleStepperPanelMock = vi.hoisted(() => ({ props: [] }));
 
@@ -382,3 +383,31 @@ describe("Suggested prompts — admin list", () => {
 // behind RFC info), so role:"error" cards — including the admin-token-on-
 // customer "Log in as customer" card from maybeHandleCustomerLogin — were
 // added to state but never rendered. The agent looked like it gave NO response.
+
+// ─── Sign-in triggers route through the pi.flow modal ────────────────────────
+// The agent's login chips dispatch PI_FLOW_SIGNIN_EVENT (the branded modal);
+// they never redirect straight to a BFF login endpoint.
+describe("Sign-in chips open the pi.flow modal", () => {
+  test("the guest sign-in prompt opens the modal, not a redirect", async () => {
+    const handled = vi.fn((e) => { e.detail.handled = true; });
+    window.addEventListener(PI_FLOW_SIGNIN_EVENT, handled);
+    const assign = vi.fn();
+    Object.defineProperty(window, "location", {
+      configurable: true,
+      value: { origin: "https://app.test", pathname: "/", href: "", assign },
+    });
+    renderAgent({ user: null, mode: "inline" });
+    // An auth-gated chip as a guest → the assistant offers "Sign in to continue".
+    await act(async () => {
+      fireEvent.click(screen.getByText("Check Balance"));
+    });
+    await act(async () => {
+      fireEvent.click(await screen.findByRole("button", { name: "Sign in to continue" }));
+    });
+    // handleLoginAction defers 150ms before navigating.
+    await act(async () => { await new Promise((r) => setTimeout(r, 200)); });
+    expect(handled).toHaveBeenCalled();
+    expect(window.location.href).toBe("");
+    window.removeEventListener(PI_FLOW_SIGNIN_EVENT, handled);
+  });
+});

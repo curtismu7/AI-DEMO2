@@ -8,6 +8,7 @@ import {
   useNavigate,
 } from "react-router-dom";
 import { ToastContainer } from "react-toastify";
+import { initSignInService } from "./utils/signInService";
 import { MdSwapHoriz } from "react-icons/md";
 import "react-toastify/dist/ReactToastify.css";
 
@@ -389,6 +390,9 @@ function AppWithAuth() {
   const { downServers, markAllUp, dismissForSession } = useServerHealthCheck();
   useOAuthUrlCleanup();
   const navigate = useNavigate();
+
+  // Warm the sign-in service's cached availability before any CTA can click.
+  useEffect(() => { initSignInService(); }, []);
 
   // Kill-switch modal state lives here, not in whatever page/component
   // triggers it, because a successful kill destroys the session — which

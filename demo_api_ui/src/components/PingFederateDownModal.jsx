@@ -2,8 +2,8 @@ import { useEffect, useRef, useState } from "react";
 import apiClient from "../services/apiClient";
 import DraggableModal from "./DraggableModal";
 import { PF_UNREACHABLE_ERROR } from "../utils/endUserOAuthErrorToast";
+import { openSignIn } from "../utils/signInService";
 
-const LOGIN_URL = "/api/auth/oauth/user/login";
 const POLL_MS = 3000;
 const POLL_TRIES = 30;
 
@@ -34,7 +34,7 @@ export default function PingFederateDownModal() {
     setOpen(false);
   };
   const goToLogin = () => {
-    window.location.href = LOGIN_URL;
+    openSignIn({ returnTo: window.location.pathname });
   };
   const fail = (err, fallback) => {
     setBusy(false);

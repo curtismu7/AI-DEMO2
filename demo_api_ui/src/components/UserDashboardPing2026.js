@@ -523,7 +523,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const autoInitiateTimerRef = useRef(null); // [t1, t2, t3] setTimeout IDs
   const handleCibaStepUpRef = useRef(null); // stays current — avoids stale closure
   const handleInitiateOtpRef = useRef(null); // stays current — avoids stale closure
-  const stepUpVerifyHrefRef = useRef(null); // stays current — avoids stale closure
   const fetchingRef = React.useRef(false);
   const inFlightRef = React.useRef(null);
   const agentPlacementInitRef = React.useRef(true);
@@ -1119,15 +1118,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     }
   }, [user?.email, cibaAcr]);
 
-  const stepUpVerifyHref = useMemo(
-    () =>
-      `/api/auth/oauth/user/stepup?return_to=${encodeURIComponent(
-        (process.env.REACT_APP_CLIENT_URL || window.location.origin) +
-          "/dashboard",
-      )}`,
-    [],
-  );
-
   /** Initiate PingOne MFA challenge and route to correct modal by device type. */
   const handleInitiateOtp = useCallback(async () => {
     setMfaChallengeExpired(false);
@@ -1620,10 +1610,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     }, 3000);
     return () => clearInterval(interval);
   }, [pushDaId, pushPolling]); // eslint-disable-line react-hooks/exhaustive-deps
-  useEffect(() => {
-    stepUpVerifyHrefRef.current = stepUpVerifyHref;
-  }, [stepUpVerifyHref]);
-
   /** Cancel the auto-initiate countdown (agent-triggered flows). */
   const cancelAutoInitiate = useCallback(() => {
     if (autoInitiateTimerRef.current) {
@@ -1912,7 +1898,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     cibaStatus,
     handleCibaStepUp,
     dismissStepUp,
-    stepUpVerifyHref,
     agentTriggeredStepUp,
     agentCountdown,
     cancelAutoInitiate,

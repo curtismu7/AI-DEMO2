@@ -158,6 +158,8 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'oauth_role_claim_is_array',
   // pi.flow / misc behavior
   'admin_pingone_authorize_pi_flow', 'user_pingone_authorize_pi_flow',
+  // login-hint prefill memory (per-role convenience, not env identity)
+  'last_login_hint_customer', 'last_login_hint_admin',
   // pingone-prefixed behavioral aliases in FIELD_DEFS
   'pingone_admin_authorize_pi_flow', 'pingone_user_authorize_pi_flow',
   'pingone_authorize_enabled',
