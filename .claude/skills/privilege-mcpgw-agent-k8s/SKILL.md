@@ -145,15 +145,27 @@ calling "initialize": sending "initialize": Unauthorized
 ```
 
 which reads like an auth fault and usually is not one. Tools stay empty and
-**policy creation is disabled** until discovery succeeds. Discovery re-runs when
-the gateway restarts or a re-scan is forced (`MCP force-sync app=<name>` in the
-log):
+**policy creation is disabled** until discovery succeeds.
 
-```bash
-kubectl rollout restart deployment/agentless-mcpgw -n ping-devops-curtismuir
-```
+**The EntryPath is STICKY — restarts do not fix a wrong one.** Discovery
+re-runs when the gateway restarts or a re-scan is forced (`MCP force-sync
+app=<name>` in the log), but that only refreshes the tool list. The entry path
+was computed at registration and is stored in the control plane's FrontEnd
+node; on boot the gateway **replays the stored node** (log shows
+`Created frontend node: … CreatedAt:<original time>`), wrong path and all.
+Measured 2026-10-10: the `hostile-mcp` app sat on EntryPath `/sse` through two
+gateway restarts and a force-sync; only editing the app's URL in the console
+(delete + re-register counts) recomputed it. Budget for that console step in
+every registration fix.
 
 Full test record: `privilege/GATEWAY-REGISTERING-AN-MCP-SERVER.md`.
+
+**A gateway restart costs ~10 minutes at the load balancer.** The `mcpgw-lb`
+HAProxy uses `rise 60` with 10-second checks: a restarted gateway is marked UP
+again only after 60 consecutive successful checks. Until then every call to
+`mcpgw.ai-demo…` answers `503 node=<NOSRV>` — that is the LB holding the node
+out of rotation, not a broken gateway. Wait it out (or probe the gateway svc
+directly) before diagnosing; restarting the gateway again makes it worse.
 
 **Backend vs client URL are different ends of the hop.** `svc.cluster.local`
 resolves only inside the cluster — Postman/LM Studio failing on it is correct,

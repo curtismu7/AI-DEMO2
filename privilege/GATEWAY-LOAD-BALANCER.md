@@ -335,6 +335,15 @@ The gateway's own log is a file, not stdout: for a crash loop read it from a run
 Read `node=` in `kubectl logs deploy/mcpgw-lb` to see which node answered a request; to force a
 node, park the others as in section 00.
 
+**A restarted gateway spends ~10 minutes answering `503 node=<NOSRV>`.** The HAProxy
+backend uses `rise 60` with 10-second checks, so a node re-enters rotation only after
+60 consecutive healthy checks. Until then every call through `mcpgw…` gets 503 with
+`node=<NOSRV>` — no backend is marked UP, which looks exactly like a total outage while
+both gateways are actually fine. Measured 2026-10-10 after a double rollout: 503s from
+18:08 to ~18:17, then clean 401s. Wait out the window (or probe the gateway svc
+directly) before diagnosing anything else; do not restart a gateway to "fix" a 503 —
+that resets the rise timer.
+
 The container in gateway 3's pod is named `agentless-mcpgw3`, not `agentless-mcpgw`: use
 `kubectl exec deploy/agentless-mcpgw3 -c agentless-mcpgw3 ...` for its log.
 

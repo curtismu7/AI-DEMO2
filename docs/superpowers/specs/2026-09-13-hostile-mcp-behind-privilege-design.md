@@ -24,7 +24,8 @@ Agent Privilege**, and demonstrate the **full chain**:
 The `privilege-mcpgw-agent-k8s` skill forces a sidecar only for **catalog** apps,
 which pin their backend to `localhost:8080/mcp`. A **custom** Agentic App (Add
 Application → MCP Server) takes an explicit backend URL — exactly how
-`opensearch-mcp-server` is registered (`…svc.cluster.local/sse`). So we host the
+`opensearch-mcp-server` is registered (now `…svc.cluster.local/mcp`; it spent
+2026-09-08–10 wrongly on `/sse`). So we host the
 hostile server as its **own Deployment + Service** and register a custom app.
 
 This keeps us **entirely off the `agentless-mcpgw` Helm chart** — the chart whose
@@ -39,9 +40,22 @@ Streamable HTTP on `/`. So the server gains an **SSE transport** (`GET /sse` +
 `POST /messages`) **alongside** the existing Streamable HTTP `POST /` (which the
 standalone agent and scanner keep using) and a `GET /health`.
 
-Register the backend with **`/sse`**, never `/mcp` — `/mcp` answers 200 but the
-handshake never completes ("Gateway Unreachable … initialize: Unauthorized",
-which is not an auth fault).
+> **2026-10-10 correction — register with `/mcp`.** This section said `/sse`,
+> never `/mcp`, based on that August-era discovery behavior. Current gateway
+> builds discover by **POSTing `initialize`** to the registered path (measured
+> v1.260906+; see `privilege/CURRENT-CONFIGURATION.md` and the
+> `privilege-mcpgw-agent-k8s` skill), and the registered path becomes the app's
+> **EntryPath** — the gateway rejects every other client-facing path with
+> `outside entry path "/sse"`. Registering this app on `/sse` is exactly what
+> broke the public `/hostile-mcp/mcp` door for good on 2026-10-10: the entry
+> path is stored in the control plane's FrontEnd and **survives gateway
+> restarts and force-syncs** — only a console re-register recomputes it.
+> The server now serves Streamable HTTP on `/mcp` as well (PR #1113), so the
+> registration below works and the door path matches the rest of the demo.
+
+Register the backend with **`/mcp`** (the server answers `POST /mcp` with the
+streamable transport; `/sse` + `/messages` remain for SSE-era clients and the
+older August builds' discovery).
 
 ## The harmful tool
 
@@ -61,19 +75,19 @@ Served tools: `get_weather` (poisoned metadata), `search_docs` (poisoned schema)
 | Server v2 | me | SSE transport + `/health` + `create_transfer`; Dockerfile; tests |
 | Image | me | `ghcr.io/cmuir_pingcorp/hostile-mcp-server:<sha>` + `:latest` |
 | Deployment + Service | me | `hostile-mcp-server` in `ping-devops-curtismuir`, port 80→8899 |
-| In-cluster `/sse` check | me | prove the `endpoint` event fires before registering |
+| In-cluster `/mcp` check | me | prove `POST /mcp` completes the streamable handshake before registering |
 | Gateway restart | me | `kubectl rollout restart deployment/agentless-mcpgw -n ping-devops-curtismuir` |
-| **Agentic App registration** | **you (console)** | custom MCP server → backend `/sse` URL |
+| **Agentic App registration** | **you (console)** | custom MCP server → backend `/mcp` URL (never `/sse` — it becomes the app's EntryPath, see the correction above) |
 | **Deny policy** | **you (console)** | deny `create_transfer` for the demo user |
 | Proof | shared | victim agent (direct) + gateway deny (Privilege door) |
 
 ## Console runbook (the manual steps)
 
-After the Deployment is up and `/sse` verified, and the gateway restarted:
+After the Deployment is up and `POST /mcp` verified, and the gateway restarted:
 
 1. Privilege console → **Agentic Apps → Add Application → MCP Server**
    - Application Name: `hostile-mcp`
-   - MCP Server URL: `http://hostile-mcp-server.ping-devops-curtismuir.svc.cluster.local/sse`
+   - MCP Server URL: `http://hostile-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp`
    - Mesh Cluster: `ai-demo-cmuir`
    - Auth Mode: `None`
 2. Wait for discovery to succeed (Tools populated; policy creation enabled). If it
