@@ -10,15 +10,16 @@ const SECTIONS = [
     label: "Customer deliverables",
     docs: [
       {
-        title: "Personal Agents at United",
-        path: "docs/united/United-Personal-Agent-Security.md",
+        title: "On users' personal agent design",
+        path: "docs/personal-agent/On-Users-Personal-Agent-Design.md",
+        pdfInRepo: "docs/personal-agent/On-Users-Personal-Agent-Design.pdf",
         covers:
-          "MileagePlus members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between: the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, United's as-built assistant, the gap analysis, and the recommended design. Working draft, 2026-10-09, prepared for United's AI team.",
+          "The personal-agent security architecture, built on United's MileagePlus review: members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between — the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, the as-built assistant, the gap analysis, and the recommended design. Top of page maps the design to Agent Privilege and links the demo surfaces and diagrams.",
       },
       {
         title: "United 431 Request Header Size Guidance",
         path: null,
-        pdfInRepo: "docs/united/United 431 Request Header Size Guidance.pdf",
+        pdfInRepo: "docs/personal-agent/United 431 Request Header Size Guidance.pdf",
         covers:
           "Investigating and mitigating HTTP 431 “Request Header Fields Too Large” in United's browser-based headless Ping SDK / DaVinci flow on the custom domain: cookie-scope and intermediary causes, five remediation options, and the HAR-capture diagnostic sequence.",
       },

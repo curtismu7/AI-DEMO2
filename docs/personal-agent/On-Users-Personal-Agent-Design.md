@@ -1,7 +1,25 @@
-# Personal Agents at United
+# On users' personal agent design
 
 MileagePlus, the customer's own agent, and the security between them  
 Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 * revised after the 1 October joint architecture review (the Facade and token architecture)
+
+> **This design runs on PingOne Privilege.** The components named here map to
+> it: the MCP door and policy layer are the **Agent Privilege gateway**
+> (discovery, registration, per-tool policies -- see the
+> [Agent mode end to end](../../privilege/AGENT-MODE-END-TO-END.md) guide for
+> the workstation-agent side), the token exchange is **Agent IAM Core** with
+> RFC 8693 semantics, and the risk decisions are **PingOne Authorize +
+> Protect**. Live demo surfaces this doc's patterns run on:
+> the [MCP client](https://ai-demo.ping-devops.com/privilege-mcp-client)
+> (discovery-gated `tools/list`, the policy union in action),
+> the [LLM gateway page](https://ai-demo.ping-devops.com/llm-gateway)
+> (guardrails, virtual keys, the
+> [malicious MCP catalog](https://ai-demo.ping-devops.com/llm-gateway?tab=catalog)),
+> and the diagrams in
+> [`privilege/diagrams/`](../../privilege/diagrams/) — start with
+> [agentic-trust-control-plane.png](../../privilege/diagrams/agentic-trust-control-plane.png)
+> (the five-part control plane this architecture sits on) and the four
+> rendered MCP flows.
 
 One scenario, end to end: a MileagePlus member hands a task to an AI agent they brought themselves -- ChatGPT in a browser, a coding CLI, anything MCP-capable -- and the task ends with United spending the member's value: miles, a fare, a seat. This document shows the architecture that lets that work without ever trusting the agent, what United has already built toward it, and the specific controls between the two. It is a working draft for discussion with United's AI and identity teams.
 

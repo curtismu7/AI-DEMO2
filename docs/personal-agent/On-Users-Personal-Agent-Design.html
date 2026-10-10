@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>Personal Agents at United — MileagePlus and the customer's own agent</title>
+<title>On users' personal agent design — MileagePlus and the customer's own agent</title>
 <style>
 :root{--ink:#1c2230;--mut:#5a6271;--ac:#6b46ff;--line:#e3e6ec;--bg:#fff;--soft:#f6f7fa;--code:#f0f1f5}
 *{box-sizing:border-box}
@@ -24,9 +24,12 @@ hr{border:0;border-top:1px solid var(--line);margin:2.5em 0}
 </head>
 <body>
 <main>
-<h1>Personal Agents at United</h1>
+<h1>On users' personal agent design</h1>
 <p>MileagePlus, the customer's own agent, and the security between them<br />
 Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 * revised after the 1 October joint architecture review (the Facade and token architecture)</p>
+<blockquote>
+<p><strong>This design runs on PingOne Privilege.</strong> The components named here map to it: the MCP door and policy layer are the <strong>Agent Privilege gateway</strong> (discovery, registration, per-tool policies — see the <a href="../../privilege/AGENT-MODE-END-TO-END.md">Agent mode end to end</a> guide for the workstation-agent side), the token exchange is <strong>Agent IAM Core</strong> with RFC 8693 semantics, and the risk decisions are <strong>PingOne Authorize + Protect</strong>. Live demo surfaces this doc's patterns run on: the <a href="https://ai-demo.ping-devops.com/privilege-mcp-client">MCP client</a> (discovery-gated <code>tools/list</code>, the policy union in action), the <a href="https://ai-demo.ping-devops.com/llm-gateway">LLM gateway page</a> (guardrails, virtual keys, the <a href="https://ai-demo.ping-devops.com/llm-gateway?tab=catalog">malicious MCP catalog</a>), and the diagrams in <a href="../../privilege/diagrams/"><code>privilege/diagrams/</code></a> — start with <a href="../../privilege/diagrams/agentic-trust-control-plane.png">agentic-trust-control-plane.png</a> (the five-part control plane this architecture sits on) and the four rendered MCP flows.</p>
+</blockquote>
 <p>One scenario, end to end: a MileagePlus member hands a task to an AI agent they brought themselves -- ChatGPT in a browser, a coding CLI, anything MCP-capable -- and the task ends with United spending the member's value: miles, a fare, a seat. This document shows the architecture that lets that work without ever trusting the agent, what United has already built toward it, and the specific controls between the two. It is a working draft for discussion with United's AI and identity teams.</p>
 <h2>The scenario</h2>
 <p>The human is a <strong>customer</strong> of the enterprise, the agent is whatever they brought -- ChatGPT in a browser, a mobile assistant, a coding CLI -- and United controls none of it, before, during or after. The running example: a MileagePlus member asks their own agent &quot;how many miles do I have, and can you use them for the SFO-HNL trip in March?&quot; United's job is to let that work without ever trusting the agent.</p>
