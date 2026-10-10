@@ -213,9 +213,10 @@ router.get('/login', (req, res) => {
       {
         ...(req.query.force === 'true' ? { forceLogin: true } : {}),
         ...(piFlowLogin ? { forcePiFlow: true } : {}),
-        // Passwordless sign-in selects the identifier-first policy by name (see
-        // routes/oauthUser.js — the app's first-match policy is password-first).
-        ...(piFlowLogin && req.query.passwordless === '1' ? { acrValues: 'Multi_Factor' } : {}),
+        // Passwordless sign-in selects the passwordless policy by name (see
+        // routes/oauthUser.js — the policy must carry only an MFA action, and
+        // be assigned to this app, or PingOne still prompts for the password).
+        ...(piFlowLogin && req.query.passwordless === '1' ? { acrValues: 'mfa_only' } : {}),
       },
     ) + resourceParam;
 

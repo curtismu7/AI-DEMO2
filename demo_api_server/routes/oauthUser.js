@@ -592,11 +592,11 @@ router.get('/login', (req, res) => {
         ...(piFlowLogin ? { forcePiFlow: true } : {}),
         // Test hook: the only acr the modal login may request, so MFA can be exercised on demand.
         ...(piFlowLogin && req.query.mfa === '1' ? { acr_values: 'Multi_Factor' } : {}),
-        // Passwordless sign-in: the device-first flow. The passwordless sign-on
-        // policy (identifier-first + MFA) is not the app's first-match policy, so
-        // selecting it needs acr_values; without it the flow opens password-first
-        // and the username-only step 409s.
-        ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'Multi_Factor' } : {}),
+        // Passwordless sign-in: the device-first flow. acr_values selects the
+        // passwordless policy by name — it must carry only an MFA action (no
+        // login step), or PingOne still demands the password after
+        // user.lookup. The policy must also be assigned to this app.
+        ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'mfa_only' } : {}),
         // Session-derived hint wins (fresher); the role's stored hint is the
         // fallback. Forced re-login still prefills — the user chose to sign in
         // again, and PingFederate only locks the field when a hint is sent.
