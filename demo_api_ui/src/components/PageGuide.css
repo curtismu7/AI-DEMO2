@@ -28,3 +28,14 @@
 .page-guide__steps li { margin-bottom: 12px; }
 .page-guide__steps p { margin: 4px 0; }
 .page-guide__demo { color: var(--th-text-muted); }
+
+/* Clickable page names inside walkthrough prose (LinkedText). */
+.page-guide__body a {
+  color: var(--th-status-info-text, #2563eb);
+  text-decoration: underline;
+  font-weight: 600;
+}
+.page-guide__body a:focus-visible {
+  outline: 2px solid var(--th-status-info, #2563eb);
+  outline-offset: 2px;
+}

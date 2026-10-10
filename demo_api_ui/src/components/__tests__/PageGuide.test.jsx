@@ -21,6 +21,15 @@ test("every mapped lesson id exists", () => {
   for (const g of Object.values(PAGE_GUIDES)) for (const id of g.lessons || []) expect(getLesson(id)).not.toBeNull();
 });
 
+test("walkthrough prose that names a page links to it (Privilege Gateway Topologies)", () => {
+  // The privilege-a2a lesson's "Give each agent its own key" step names the
+  // topologies page; PageGuide must render it as a link, not dictation.
+  at("/privilege-gateway-topologies");
+  fireEvent.click(screen.getByText("Guide"));
+  const link = screen.getByRole("link", { name: "Privilege Gateway Topologies" });
+  expect(link.getAttribute("href")).toBe("/privilege-gateway-topologies");
+});
+
 test("every guide has content and inline guides render", () => {
   for (const [route, g] of Object.entries(PAGE_GUIDES)) {
     expect(g.lessons || g.body || g.walkthrough?.length, route).toBeTruthy();

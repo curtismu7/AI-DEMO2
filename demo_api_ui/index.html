@@ -32,6 +32,12 @@
         document.documentElement.setAttribute('data-theme', 'dark');
       }
     } catch (e) { /* storage disabled: boot light, ThemeContext decides after mount */ }
+    // Font scale: re-apply the stored dial before first paint so the page never
+    // flashes small-then-big. Default 1.125; ThemeContext re-applies after mount.
+    try {
+      var s = Number(localStorage.getItem('ba_font_scale'));
+      document.documentElement.style.zoom = (s === 1 || s === 1.125 || s === 1.25 || s === 1.375) ? String(s) : '1.125';
+    } catch (e) { /* storage disabled: boot at the default dial */ }
     // /privilege-mcp-client keeps its own light/dark (cur_priv_theme, default dark),
     // so its boot skeleton must match the page, not the app theme: a light skeleton
     // here read as a big white screen before the dark page painted.
@@ -43,6 +49,14 @@
     } catch (e) { /* storage disabled: boot light */ }
   </script>
   <style>
+    /* Global type dial: inline here because the CSS pipeline (vite 8 +
+       lightningcss) strips `zoom` from minified stylesheets. The boot script
+       sets the stored scale (default 1.125 — demo-projector friendly);
+       ThemeContext owns it after mount via the TopNav sizer. */
+    html {
+      zoom: 1.125;
+    }
+
     * {
       margin: 0;
       padding: 0;

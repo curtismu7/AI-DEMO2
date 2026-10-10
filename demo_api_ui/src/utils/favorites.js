@@ -11,6 +11,7 @@ const AGENT_IDENTITY_ACADEMY_FAVORITE = {
 
 // Seeded on first use so a fresh browser already has the primary demo lanes.
 const DEFAULT_FAVORITES = [
+  { label: 'Demo Map', path: '/demo-map' },
   { label: 'AI Guard', path: '/llm-gateway' },
   { label: 'AI Guard Client', path: '/privilege-mcp-client' },
   AGENT_IDENTITY_ACADEMY_FAVORITE,
@@ -21,6 +22,7 @@ const DEFAULT_FAVORITES = [
 // acronyms a naive Title Case would mangle (llm -> LLM, not Llm).
 const ACRONYMS = { llm: 'LLM', mcp: 'MCP', ai: 'AI', api: 'API', ui: 'UI', oauth: 'OAuth', hitl: 'HITL', a2a: 'A2A' };
 const FAVORITE_LABELS = {
+  '/demo-map': 'Demo Map',
   '/llm-gateway': 'AI Guard',
   '/privilege-mcp-client': 'AI Guard Client',
   [LEGACY_AGENT_IDENTITY_ACADEMY_PATH]: 'Agent Identity Academy',

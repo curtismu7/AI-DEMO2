@@ -110,8 +110,16 @@ export default function DemoStepsLifelineAuditPage() {
           <span>Nothing run live</span>
         </div>
         <p className="dsla-note">
-          Audited before UC29, UC46, UC47, UC-MUSE1 and UC-MUSE2 joined the demo script —
-          those steps are on the <Link to="/use-case-diagrams">use-case diagrams</Link> but not in this board.
+          Audited when the script had 24 steps. Five joined since and are not re-audited here —
+          each has a walkthrough diagram:{["UC29", "UC46", "UC47", "UC-MUSE1", "UC-MUSE2"].map((id, i, all) => (
+            <span key={id}>
+              {i > 0 && (i === all.length - 1 ? " and " : ", ")}
+              {getConfig(id)
+                ? <Link to={useCaseDiagramPath(id)}>{id}</Link>
+                : id}
+            </span>
+          ))}
+          . The steps in the board below also link their diagram and live step.
         </p>
         <div className="dsla-lanes" aria-label="Diagram lanes referenced in this audit">
           {LANES.map((l) => <span key={l} className={`dsla-lane dsla-lane--${l}`}>{l.toUpperCase()}</span>)}

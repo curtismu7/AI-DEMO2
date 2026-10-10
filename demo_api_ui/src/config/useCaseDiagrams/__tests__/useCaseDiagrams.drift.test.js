@@ -12,6 +12,12 @@ import { demoStepNumber } from "../../demoStepNumbers";
 // here if it is NOT in CONFIGS; the last two tests enforce both directions.
 // 2026-10-08: the step-diagram scenes were ported to UC configs — PENDING is
 // empty and the "all covered" ratchet below is live.
+// 2026-10-10: 41 configs now cover every primary step plus every Learning Hub
+// chip. The remaining step ids (attack variants of diagrammed stories, guided
+// learning pages with no token flow, admin utilities) stay diagramless by
+// decision — their demo surfaces are their own pages, and a near-duplicate
+// diagram adds maintenance without demo value. Add one only when a presenter
+// needs to draw that specific story.
 const PENDING = new Set([]);
 
 const byId = new Map(CONFIGS.map((c) => [c.id, c]));

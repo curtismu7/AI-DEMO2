@@ -1,12 +1,36 @@
 import { lazy, Suspense, useEffect, useState, useSyncExternalStore } from "react";
-import { useLocation } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import DraggableModal from "./DraggableModal";
 import { getPageGuide } from "../config/pageGuides";
 import { headerButtonCount, onOpenPageGuide, subscribeHeaderButtons } from "./pageGuideStore";
 import { getLesson } from "../learning/lessonCatalog";
+import { LINKED_ROUTES } from "./linkedRoutes";
 import DemoStepsGuide from "./DemoStepsGuide";
 import A2aReference from "./A2aReference";
 import "./PageGuide.css";
+
+// Walkthrough prose names pages ("open the Agent-to-agent tab on Privilege
+// Gateway Topologies"). Linkify the first exact occurrence of each mapped
+// phrase so the instruction becomes a click instead of dictation.
+function LinkedText({ text }) {
+  const hits = LINKED_ROUTES.map(([phrase, to]) => {
+    const at = text.indexOf(phrase);
+    return at === -1 ? null : { phrase, to, at };
+  })
+    .filter(Boolean)
+    .sort((a, b) => a.at - b.at)
+    .filter((h, i, all) => i === 0 || h.at >= all[i - 1].at + all[i - 1].phrase.length);
+  if (hits.length === 0) return text;
+  const parts = [];
+  let cursor = 0;
+  hits.forEach(({ phrase, to, at }) => {
+    if (at > cursor) parts.push(text.slice(cursor, at));
+    parts.push(<Link key={to + at} to={to}>{phrase}</Link>);
+    cursor = at + phrase.length;
+  });
+  if (cursor < text.length) parts.push(text.slice(cursor));
+  return parts;
+}
 
 const IntentBindingLearningPage = lazy(() => import("../pages/IntentBindingLearningPage"));
 const BODIES = { "intent-binding": IntentBindingLearningPage, "demo-steps": DemoStepsGuide };
@@ -27,8 +51,8 @@ function LessonGuide({ lesson, heading = true }) {
         {lesson.walkthrough.map((s) => (
           <li key={s.title}>
             <strong>{s.title}</strong>
-            <p>{s.explain}</p>
-            <p className="page-guide__demo">Try it: {s.demonstrate}</p>
+            <p><LinkedText text={s.explain} /></p>
+            <p className="page-guide__demo">Try it: <LinkedText text={s.demonstrate} /></p>
           </li>
         ))}
       </ol>

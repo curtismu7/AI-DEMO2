@@ -38,7 +38,7 @@ export default function TopNav({ user, onLogout }) {
   const { pageManifest } = useVertical();
   const identity = pageManifest?.identity;
   const { tokenSecondsLeft, tokenLoading, sessionType, staleSession, hasRefreshToken, hasActiveToken, openTokenModal } = useSessionToken();
-  const { darkMode, toggleDarkMode } = useTheme();
+  const { darkMode, toggleDarkMode, fontScale, cycleFontScale } = useTheme();
   // Dashboard split-column mode: the Command Dock owns these demo controls
   // (vertical switcher, Configuration, thresholds, Reset Demo, P1/PF), so the
   // top bar drops them to keep one home per control. Any other route or
@@ -423,6 +423,22 @@ export default function TopNav({ user, onLogout }) {
             aria-label={darkMode ? 'Switch to light mode' : 'Switch to dark mode'}
           >
             {darkMode ? '☀️' : '🌙'}
+          </button>
+
+          {/* Font sizer — demo-projector dial. Cycles the page zoom (ThemeContext
+              owns the scale and applies it to <html>); the label shows the current
+              step so the presenter knows where they are. Always visible, same
+              reasoning as the theme toggle. */}
+          <button
+            type="button"
+            className="topnav-font-size-btn"
+            onClick={cycleFontScale}
+            title={`Page text size: ${Math.round(fontScale * 100)}% — click to step larger (wraps to 100%)`}
+            aria-label={`Page text size ${Math.round(fontScale * 100)} percent, click to step larger`}
+            data-testid="topnav-font-size-btn"
+          >
+            <span aria-hidden="true">A</span>
+            <span className="topnav-font-size-value">{Math.round(fontScale * 100)}%</span>
           </button>
 
           {/* Always-visible session actions — Switch + Sign Out/Sign In never

@@ -244,6 +244,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "MCP Server Discovery",
         description: "How agents discover and register MCP servers",
         icon: "🔍",
+        demoStep: { useCaseId: "UC40" },
       },
       {
         label: "MCP: MFA Gate on Tools",
@@ -388,6 +389,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Token Chain (edu)",
         description: "How tokens flow through the system",
         icon: "🔗",
+        demoStep: { useCaseId: "UC1" },
       },
       {
         label: "Sensitive Data & Disclosure",
@@ -440,6 +442,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "LLM Landscape",
         description: "Available large language models",
         icon: "🧠",
+        demoStep: { useCaseId: "UC-TOOL3" },
       },
       {
         label: "AI Platform Landscape",
@@ -543,7 +546,7 @@ export default function LearningHub() {
       "MCP Protocol": () => openEdu(EDU.MCP_PROTOCOL, "what"),
       "Agent-to-Agent (A2A)": () => navigate("/a2a-protocol-learning"),
       "Jev: Decision Model": () => navigate("/jev-learning"),
-      "MCP Server Discovery": () => openEdu(EDU.MCP_PROTOCOL, "discovery"),
+      "MCP Server Discovery": () => navigate("/mcp-discovery"),
       "MCP: MFA Gate on Tools": () => openEdu(EDU.MCP_PROTOCOL, "mfa-gate"),
       "MCP Elicitation": () => openEdu(EDU.MCP_ELICITATION, "what"),
       "Agent Gateway": () => navigate("/agent-gateway-authorization"),
@@ -598,7 +601,7 @@ export default function LearningHub() {
     special: {
       "Glean + PingOne": () => openEdu(EDU.GLEAN, "overview"),
       "WebMCP (Google)": () => (window.location.href = "/webmcp"),
-      AuthZEN: () => openEdu(EDU.AUTHZEN, "overview"),
+      AuthZEN: () => navigate("/pingone-authorize?tab=guided"),
       "Agentic Trust": () => (window.location.href = "/agentic-trust"),
       "Agent Guardrails": () => (window.location.href = "/agent-guardrails"),
       "OWASP Agentic": () => (window.location.href = "/owasp"),
@@ -693,6 +696,9 @@ export default function LearningHub() {
                   </Link>
                   <Link className="learning-hub__academy-secondary" to="/academy/demos">
                     Open standalone demos
+                  </Link>
+                  <Link className="learning-hub__academy-secondary" to="/demo-map" title="Every demo step, inspector, diagram, and learning topic on one page">
+                    Open the demo map
                   </Link>
                 </div>
               </div>

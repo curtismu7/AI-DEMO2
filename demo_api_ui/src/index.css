@@ -511,6 +511,9 @@ textarea::placeholder {
 
 html {
   height: 100%;
+  /* The page-zoom dial lives inline in index.html: lightningcss (vite 8's css
+     minifier) silently strips `zoom` from built stylesheets, so this file is
+     the wrong home for it. */
 }
 
 body {

@@ -1826,6 +1826,7 @@ export default function PrivilegeMcpClientPage() {
               diagrams that draw it. */}
           <Link className="cur-flow-trigger" to="/use-cases#UC17" title="The JIT credentials demo step that runs here">Demo step</Link>
           <Link className="cur-flow-trigger" to="/use-case-diagrams/UC46" title="Privilege A2A access review diagram">Diagram</Link>
+          <Link className="cur-flow-trigger" to="/privilege-gateway-topologies" title="Three gateway topologies plus the agent-to-agent sequence the lesson walks">Topologies</Link>
           <a className="cur-flow-trigger" href={KIBANA_URL} target="_blank" rel="noopener noreferrer" title="Open Privilege SIEM logs in Kibana">Logs</a>
           <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">Settings</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>

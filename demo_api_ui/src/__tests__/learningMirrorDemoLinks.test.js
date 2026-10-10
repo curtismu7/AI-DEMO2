@@ -44,4 +44,29 @@ describe("learning-mirror demo-link include", () => {
       .filter((k) => k !== "TOPIC_ROUTES" && !k.startsWith("//"));
     expect(keys.length).toBeGreaterThanOrEqual(40);
   });
+
+  it("every TOPIC_ROUTES value is a route the app actually serves (the 404 ratchet)", () => {
+    const src = fs.readFileSync(INCLUDE, "utf8");
+    const routes = [...src.matchAll(/^\s*"[a-z0-9-]+":\s*"([^"]+)"/gm)].map((m) => m[1]);
+    expect(routes.length).toBeGreaterThanOrEqual(40);
+
+    const app = fs.readFileSync(path.resolve(__dirname, "../App.js"), "utf8");
+    const appPaths = [...app.matchAll(/path="([^"]+)"/g)].map((m) => m[1]);
+    const staticPaths = new Set(appPaths.filter((p) => !p.includes(":")));
+    const paramPrefixes = appPaths
+      .filter((p) => p.includes(":"))
+      .map((p) => p.split(":")[0]); // "/learning-lab/:lab" -> "/learning-lab/"
+    // Wildcard mounts ("/architecture/*") serve their children by prefix.
+    const wildcardPrefixes = appPaths
+      .filter((p) => p.endsWith("/*"))
+      .map((p) => p.slice(0, -1)); // "/architecture/*" -> "/architecture/"
+
+    const dead = routes.filter((route) => {
+      const base = route.split("?")[0].replace(/\/+$/, "") || "/";
+      if (staticPaths.has(base)) return false; // literal route exists — alive
+      if (paramPrefixes.some((prefix) => base.startsWith(prefix))) return false;
+      return !wildcardPrefixes.some((prefix) => base.startsWith(prefix)); // no mount serves it — dead
+    });
+    expect(dead, `demo-links.js points at routes App.js does not serve: ${dead.join(", ")}`).toEqual([]);
+  });
 });

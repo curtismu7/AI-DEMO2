@@ -396,6 +396,35 @@
   background: rgba(255, 255, 255, 0.08);
 }
 
+/* Font sizer — same chrome as the theme toggle, plus a % readout so the
+   presenter can see which step the dial is on. */
+.topnav-font-size-btn {
+  flex-shrink: 0;
+  display: inline-flex;
+  align-items: baseline;
+  gap: 2px;
+  background: transparent;
+  border: none;
+  color: #ffffff;
+  cursor: pointer;
+  padding: 8px 10px;
+  border-radius: 4px;
+  font-size: 0.95rem;
+  line-height: 1;
+  transition:
+    background 0.15s ease,
+    color 0.15s ease;
+}
+
+.topnav-font-size-btn:hover {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.topnav-font-size-value {
+  font-size: 0.68rem;
+  opacity: 0.85;
+}
+
 .topnav-search-input {
   padding: 8px 12px;
   border: 1px solid #e0e0e0;

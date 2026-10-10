@@ -15,7 +15,11 @@ export default function UseCaseDiagramsGalleryPage() {
     <main className="ucd-page ucd-gallery" data-testid="ucd-gallery">
       <header className="ucd-head">
         <h1>Use-case diagrams</h1>
-        <p>One walkthrough per demo step: play it, pause it, walk the arrows.</p>
+        <p>
+          One walkthrough per demo step: play it, pause it, walk the arrows. For the
+          whole demo — steps, inspectors, diagrams, learning topics on one page — open the{' '}
+          <Link to="/demo-map" className="ucd-cue">Demo Map</Link>.
+        </p>
       </header>
       <ul className="ucd-gallery__grid">
         {CONFIGS.map((c) => {

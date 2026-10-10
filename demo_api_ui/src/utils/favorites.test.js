@@ -7,15 +7,17 @@ describe('favorites', () => {
   it('seeds the demo lanes and Agent Identity Academy on first use', () => {
     const favs = getFavorites();
     expect(favs.map((f) => f.path)).toEqual([
+      '/demo-map',
       '/llm-gateway',
       '/privilege-mcp-client',
       '/academy/identity',
       '/academy/journey',
     ]);
-    expect(favs[0].label).toBe('AI Guard');
-    expect(favs[1].label).toBe('AI Guard Client');
-    expect(favs[2].label).toBe('Agent Identity Academy');
-    expect(favs[3].label).toBe('Guided Demo Tour');
+    expect(favs[0].label).toBe('Demo Map');
+    expect(favs[1].label).toBe('AI Guard');
+    expect(favs[2].label).toBe('AI Guard Client');
+    expect(favs[3].label).toBe('Agent Identity Academy');
+    expect(favs[4].label).toBe('Guided Demo Tour');
   });
 
   it('adds a page and does not duplicate it', () => {
@@ -53,6 +55,7 @@ describe('favorites', () => {
     removeFavorite('/llm-gateway');
     expect(isFavorite('/llm-gateway')).toBe(false);
     expect(getFavorites().map((f) => f.path)).toEqual([
+      '/demo-map',
       '/privilege-mcp-client',
       '/academy/identity',
       '/academy/journey',
