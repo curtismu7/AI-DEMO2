@@ -19,6 +19,14 @@ jest.mock('../services/pingOneUserService', () => ({
   })),
   ensureAdminRoleAssignments: jest.fn().mockResolvedValue({ assigned: true }),
 }));
+jest.mock('../services/mfaService', () => ({
+  ensureEmailDevice: jest.fn().mockResolvedValue({ status: 'created', deviceId: 'd-e' }),
+  ensureSmsDevice: jest.fn().mockResolvedValue({ status: 'created', deviceId: 'd-s' }),
+}));
+jest.mock('../utils/logger', () => {
+  const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(), logErrorHandling: jest.fn() };
+  return { logger, LOG_CATEGORIES: { USER_MANAGEMENT: 'user_management' } };
+});
 
 const express = require('express');
 const request = require('supertest');
@@ -38,11 +46,12 @@ function makeApp(user) {
 }
 
 const basePayload = {
-  email: 'newuser@example.com',
+  email: 'newuser@pingone.com',
   username: 'newuser1',
   firstName: 'New',
   lastName: 'User',
   password: 'Password123',
+  phone: '+12065551234',
 };
 
 beforeEach(() => {
@@ -89,7 +98,7 @@ describe('POST /api/self-service/users — admin-role escalation gate', () => {
 
     const res = await request(app)
       .post('/api/self-service/users')
-      .send({ ...basePayload, email: 'newadmin@example.com', username: 'newadmin1', role: 'admin' });
+      .send({ ...basePayload, email: 'newadmin@pingone.com', username: 'newadmin1', role: 'admin' });
 
     expect(res.status).toBe(201);
     expect(pingOneUserService.createPingOneUser).toHaveBeenCalledWith(
@@ -117,7 +126,7 @@ describe('POST /api/self-service/users — admin-role escalation gate', () => {
 
     const res = await request(app)
       .post('/api/self-service/users')
-      .send({ ...basePayload, email: 'another@example.com', username: 'another1', role: 'customer' });
+      .send({ ...basePayload, email: 'another@pingone.com', username: 'another1', role: 'customer' });
 
     expect(res.status).toBe(201);
     expect(res.body.user.role).toBe('customer');

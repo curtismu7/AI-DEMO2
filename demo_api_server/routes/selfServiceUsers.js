@@ -37,7 +37,8 @@ router.post('/',
     body('email')
       .isEmail()
       .normalizeEmail()
-      .withMessage('Valid email is required'),
+      .matches(/^[^+]+@(pingidentity\.com|pingone\.com)$/i)
+      .withMessage('Email must be @pingidentity.com or @pingone.com (plus-addressing is not supported)'),
     body('username')
       .isLength({ min: 3, max: 50 })
       .matches(/^[a-zA-Z0-9_-]+$/)
@@ -59,9 +60,8 @@ router.post('/',
       .isIn(['customer', 'admin'])
       .withMessage('Role must be either "customer" or "admin"'),
     body('phone')
-      .optional()
       .isMobilePhone()
-      .withMessage('Invalid phone number format'),
+      .withMessage('A valid phone number is required (enrolled as an MFA device)'),
     body('address')
       .optional()
       .isObject()
@@ -186,6 +186,19 @@ router.post('/',
         mfaEmailDevice = { status: 'failed', error: mfaError.message };
       }
 
+      // A second device class makes passwordless robust (an email device alone
+      // leaves SMS-only policies unusable). Non-fatal like the email device.
+      let mfaSmsDevice;
+      try {
+        mfaSmsDevice = await mfaService.ensureSmsDevice(user.id, phone);
+      } catch (smsError) {
+        logger.warn(LOG_CATEGORIES.USER_MANAGEMENT, 'Could not enroll SMS MFA device for new user', {
+          userId: user.id,
+          error: smsError.message
+        });
+        mfaSmsDevice = { status: 'failed', error: smsError.message };
+      }
+
       res.status(201).json({
         message: 'User created successfully',
         user: {
@@ -198,7 +211,8 @@ router.post('/',
           createdAt: user.createdAt
         },
         adminRoles,
-        mfaEmailDevice
+        mfaEmailDevice,
+        mfaSmsDevice
       });
     } catch (error) {
       logger.error(LOG_CATEGORIES.USER_MANAGEMENT, 'Failed to create user via self-service', {
