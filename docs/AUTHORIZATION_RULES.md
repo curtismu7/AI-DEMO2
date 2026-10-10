@@ -161,7 +161,9 @@ Exchange #2 — MCP Gateway performs:
 
 ### may_act claim rules
 
-The `may_act` claim must be set on the **Demo API** resource token policy using PingOne SpEL.
+`may_act` is the user's **consent declaration** (RFC 8693 §4.2): who the user authorizes to act for them. It lives on user access tokens and is checked by the authorization policy on **every** tool call — it is NOT what mints `act` in default mode (since 2026-10-10, `act` is minted from the actor token; `ff_may_act_seed` ON restores the legacy may_act-seeded mint).
+
+The `may_act` claim is set on the **Demo API** resource token policy using PingOne SpEL.
 
 | Resource | Attribute | SpEL Value |
 |---|---|---|
@@ -302,6 +304,7 @@ These flags are runtime-configurable via `/api/admin/feature-flags`.
 | `ff_authorize_real` | Uses local policy simulation instead of PingOne Authorize |
 | `ff_oidc_only_authorize` | Strips banking scopes from authorize request; disables scope gates (OIDC-only mode) |
 | `ff_inject_may_act` | Synthetically injects `may_act` claim for demo (never use in production) |
+| `ff_may_act_seed` | Legacy mint mode: seeds `act` from the user's `may_act` at exchange. Default OFF — `act` mints from the actor token and consent (may_act) is enforced per call by the policy |
 | `ff_skip_token_exchange` | Bypasses RFC 8693 exchange (demo bypass — never production) |
 
 > **Important:** `GET` and `PATCH /api/admin/feature-flags` are intentionally unauthenticated (demo ergonomics).
