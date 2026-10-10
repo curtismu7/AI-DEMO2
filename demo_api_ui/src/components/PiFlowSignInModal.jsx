@@ -107,6 +107,25 @@ export default function PiFlowSignInModal() {
   const roleRef = useRef("customer");
   const forceRef = useRef(false);
   const providerRef = useRef("pingone");
+  // Remember who is signing in as: 800 ms after the last keystroke in a
+  // username field, store the value as the role's login hint so the next
+  // sign-in prefills it. The sign-in callback also stores it; this covers a
+  // value typed then abandoned. Prefill only — never an auth decision.
+  const hintTimerRef = useRef(null);
+  const apiForRoleRef = useRef(() => USER_API);
+  const queueHintWrite = (value) => {
+    clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = setTimeout(() => {
+      const trimmed = String(value || "").trim();
+      if (!trimmed) return;
+      fetch(`${apiBase()}${apiForRoleRef.current()}/login-hint`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: trimmed }),
+      }).catch(() => { /* prefill loss is not the user's problem */ });
+    }, 800);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -145,6 +164,8 @@ export default function PiFlowSignInModal() {
     returnToRef.current = target;
     roleRef.current = role;
     forceRef.current = Boolean(detail.force);
+    apiForRoleRef.current = () => (role === "admin" ? ADMIN_API : USER_API);
+    clearTimeout(hintTimerRef.current);
     setStep("password");
     passkeyOptionsRef.current = null;
     setError("");
@@ -562,7 +583,7 @@ export default function PiFlowSignInModal() {
                   autoComplete="username"
                   autoFocus
                   value={deviceUsername}
-                  onChange={(e) => setDeviceUsername(e.target.value)}
+                  onChange={(e) => { setDeviceUsername(e.target.value); queueHintWrite(e.target.value); }}
                 />
                 {error ? (
                   <p className="signin-modal__text" role="alert">
@@ -600,7 +621,7 @@ export default function PiFlowSignInModal() {
             autoComplete="username"
             autoFocus
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => { setUsername(e.target.value); queueHintWrite(e.target.value); }}
           />
           <label className="pi-flow-signin__label" htmlFor="pi-flow-password">
             Password

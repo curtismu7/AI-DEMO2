@@ -641,3 +641,59 @@ describe('PiFlowSignInModal', () => {
     });
   });
 });
+
+describe('PiFlowSignInModal login-hint persistence', () => {
+  // Local mounts: the shared helpers are scoped inside the main describe.
+  async function mountAndClickLocal() {
+    render(<PiFlowSignInModal />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
+  }
+  async function mountAndClickAdminLocal() {
+    render(<PiFlowSignInModal />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
+    await act(async () => { await Promise.resolve(); });
+    await act(async () => { navigateToAdminOAuthLogin('/admin'); });
+  }
+
+  test('username prefills from the open response usernameHint and typing PUTs it to /login-hint after the debounce', async () => {
+    vi.useFakeTimers();
+    mockBff({
+      config: ON,
+      login: () => ok({ flowId: 'f1', usernameHint: 'stored@pingone.com' }),
+      credentials: () => ok({ error: 'invalid_credentials', message: 'no' }, 401),
+    });
+    await mountAndClickLocal();
+    const box = await screen.findByLabelText('Username');
+    expect(box.value).toBe('stored@pingone.com'); // prefilled from the open response
+    fireEvent.change(box, { target: { value: 'typed@pingone.com' } });
+    await act(async () => { vi.advanceTimersByTime(900); });
+    const put = global.fetch.mock.calls.find(([u, i]) => String(u).includes('/login-hint') && i?.method === 'PUT');
+    expect(put).toBeTruthy();
+    expect(JSON.parse(put[1].body)).toEqual({ value: 'typed@pingone.com' });
+    vi.useRealTimers();
+  });
+
+  test('admin role PUTs to the admin login-hint path', async () => {
+    vi.useFakeTimers();
+    // mockAdminBff lives in the 'admin pi.flow' describe's scope; inline the
+    // same arms here for the admin router's URL set.
+    const adminCfg = { ...ON, PINGONE_ADMIN_AUTHORIZE_PI_FLOW: 'true' };
+    global.fetch = vi.fn((url) => {
+      if (String(url).includes('/api/admin/config')) return ok({ config: adminCfg });
+      if (String(url).includes('/pi-flow/credentials')) return ok({ error: 'invalid_credentials', message: 'no' }, 401);
+      if (String(url).includes('/oauth/login')) return ok({ flowId: 'fa', usernameHint: 'storedAdmin@pingone.com' });
+      return ok({}, 404);
+    });
+    await mountAndClickAdminLocal();
+    const box = await screen.findByLabelText('Username');
+    expect(box.value).toBe('storedAdmin@pingone.com');
+    fireEvent.change(box, { target: { value: 'typedAdmin@pingone.com' } });
+    await act(async () => { vi.advanceTimersByTime(900); });
+    const put = global.fetch.mock.calls.find(([u, i]) => String(u).includes('/api/auth/oauth/login-hint') && i?.method === 'PUT');
+    expect(put).toBeTruthy();
+    expect(JSON.parse(put[1].body)).toEqual({ value: 'typedAdmin@pingone.com' });
+    vi.useRealTimers();
+  });
+});
