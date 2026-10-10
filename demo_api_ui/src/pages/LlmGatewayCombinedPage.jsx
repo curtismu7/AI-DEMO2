@@ -42,6 +42,20 @@ const TABS = [
 // regardless of component boundaries.
 const SCALED_TOKENS = ['--font-size-sm', '--font-size-base', '--font-size-2xl'];
 const STORAGE_KEY = 'ai_guard_font_scale';
+// Last tab this viewer had open, so the Privilege OAuth bounce — whose
+// returnTo keeps only the bare path (the BFF rejects query strings) — comes
+// back to the tab the user left, not the default. sessionStorage: per-viewer
+// convenience, per the artifact/browser-storage rule.
+const LAST_TAB_KEY = 'lgw_last_tab';
+
+function rememberedTab() {
+  try {
+    const saved = sessionStorage.getItem(LAST_TAB_KEY);
+    return TABS.some((item) => item.key === saved) ? saved : null;
+  } catch {
+    return null; // sessionStorage can throw in a locked-down browser context
+  }
+}
 const MIN_SCALE = 0.85;
 const MAX_SCALE = 1.6;
 const STEP = 0.15;
@@ -58,7 +72,11 @@ function loadScale() {
 export default function LlmGatewayCombinedPage({ defaultTab = 'chat' }) {
   const [searchParams, setSearchParams] = useSearchParams();
   const requestedTab = searchParams.get('tab');
-  const initialTab = TABS.some((item) => item.key === requestedTab) ? requestedTab : defaultTab;
+  // No explicit tab in the URL: prefer the viewer's last tab (OAuth-bounce
+  // case) over the route's default, so the bounce lands where they left off.
+  const initialTab = TABS.some((item) => item.key === requestedTab)
+    ? requestedTab
+    : rememberedTab() || defaultTab;
   const [tab, setTab] = useState(initialTab);
   const [scale, setScale] = useState(loadScale);
 
@@ -67,6 +85,10 @@ export default function LlmGatewayCombinedPage({ defaultTab = 'chat' }) {
       setTab(requestedTab);
     }
   }, [requestedTab, tab]);
+
+  useEffect(() => {
+    try { sessionStorage.setItem(LAST_TAB_KEY, tab); } catch { /* per-viewer convenience only */ }
+  }, [tab]);
 
   // Base px values read once from the real stylesheet rather than hardcoded,
   // so this keeps working if THEMING.md's scale ever changes those numbers.

@@ -12,6 +12,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "AI Guard", "Protocol Playground", "AI Guard Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
     "Agent Privilege Guide", "Agent Gateway Authorization", "Agent Privilege Diagrams", "Agent IAM Core",
     "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege · A2A", "Agent Privilege · A2A Review", "Agent Privilege Topologies", "Agent Privilege · MCP",
+    "Malicious MCP Catalog",
     "Protected RAG", "Agent Privilege Demo",
   ] },
   { label: "DaVinci", children: [
