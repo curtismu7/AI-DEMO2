@@ -15,11 +15,12 @@ vi.mock('../../utils/passkeyCeremony', () => ({ authenticateWebAuthn: vi.fn() })
 
 const ok = (body, status = 200) => Promise.resolve({ ok: status < 400, status, json: async () => body });
 
-function mockBff({ config, login, credentials, assertion }) {
+function mockBff({ config, login, credentials, assertion, passwordless }) {
   global.fetch = vi.fn((url) => {
     if (String(url).includes('/api/admin/config')) return ok({ config });
     if (String(url).includes('/pi-flow/assertion')) return assertion();
     if (String(url).includes('/pi-flow/credentials')) return credentials();
+    if (String(url).includes('/pi-flow/passwordless')) return passwordless?.() ?? ok({}, 404);
     if (String(url).includes('/oauth/user/login')) return login();
     return ok({}, 404);
   });
@@ -53,15 +54,25 @@ describe('PiFlowSignInModal', () => {
     await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
   }
 
-  test('flag on: opens the form instead of redirecting, then goes to the BFF callback on success', async () => {
+  // The modal's default step is the device-only (passwordless) form. Tests that
+  // exercise the password path click through to it explicitly; the switch
+  // re-opens the flow without the passwordless selector.
+  async function mountAndClickPassword(identity) {
+    await mountAndClick(identity);
+    fireEvent.click(await screen.findByRole('button', { name: 'Use your password instead' }));
+    await waitFor(() => expect(screen.getByLabelText('Password')).toBeInTheDocument());
+    return screen.getByLabelText('Username');
+  }
+
+  test('flag on: opens the modal, the password path goes to the BFF callback on success', async () => {
     mockBff({
       config: ON,
       login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
       credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' }),
     });
-    await mountAndClick();
+    await mountAndClickPassword();
     expect(window.location.href).toBe('');
-    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
@@ -86,8 +97,8 @@ describe('PiFlowSignInModal', () => {
       login: () => ok({ flowId: 'f1' }),
       credentials: () => ok({ error: 'invalid_credentials', message: 'Username or password is incorrect.' }, 401),
     });
-    await mountAndClick();
-    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+    await mountAndClickPassword();
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'bad' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     expect(await screen.findByRole('alert')).toHaveTextContent('Username or password is incorrect.');
@@ -101,8 +112,8 @@ describe('PiFlowSignInModal', () => {
       login: () => ok({ flowId: 'f1' }),
       credentials: () => ok({ fallback: true, status: 'DEVICE_SELECTION_REQUIRED' }),
     });
-    await mountAndClick();
-    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+    await mountAndClickPassword();
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fdashboard'));
@@ -114,8 +125,8 @@ describe('PiFlowSignInModal', () => {
       login: () => ok({ flowId: 'f1' }),
       credentials: () => ok({ error: 'pi_flow_failed' }, 502),
     });
-    await mountAndClick();
-    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+    await mountAndClickPassword();
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     const alert = await screen.findByRole('alert');
@@ -139,8 +150,8 @@ describe('PiFlowSignInModal', () => {
       if (String(url).includes('/pi-flow/otp')) return ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' });
       return inner(url, init);
     });
-    await mountAndClick();
-    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+    await mountAndClickPassword();
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     fireEvent.change(await screen.findByLabelText('Verification code'), { target: { value: '123456' } });
@@ -178,7 +189,9 @@ describe('PiFlowSignInModal', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
     await act(async () => { await Promise.resolve(); });
     await act(async () => { navigateToCustomerOAuthForceLogin('/dashboard'); });
-    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+    fireEvent.click(await screen.findByRole('button', { name: 'Use your password instead' }));
+    await waitFor(() => expect(screen.getByLabelText('Password')).toBeInTheDocument());
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
@@ -202,9 +215,9 @@ describe('PiFlowSignInModal', () => {
       login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
       credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' }),
     });
-    await mountAndClick();
+    await mountAndClickPassword();
     expect(window.location.href).toBe('');
-    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demouser' } });
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demouser' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
@@ -248,8 +261,8 @@ describe('PiFlowSignInModal', () => {
         credentials: () => ok({ step: 'passkey', publicKeyCredentialRequestOptions: OPTIONS }),
         ...extra,
       });
-      await mountAndClick();
-      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+      await mountAndClickPassword();
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
       fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
       fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
       return screen.findByRole('button', { name: 'Verify with passkey' });
@@ -326,7 +339,9 @@ describe('PiFlowSignInModal', () => {
         credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/callback?code=c&state=s' }),
       });
       await mountAndClickAdmin();
-      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demoAdmin' } });
+      fireEvent.click(await screen.findByRole('button', { name: 'Use your password instead' }));
+      await waitFor(() => expect(screen.getByLabelText('Password')).toBeInTheDocument());
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demoAdmin' } });
       fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
       fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
       await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/callback?code=c&state=s'));
@@ -372,17 +387,13 @@ describe('PiFlowSignInModal', () => {
       });
     }
 
+    // The device-only form is the modal's default step; just open the modal.
     async function toDeviceStep() {
       await mountAndClick();
-      fireEvent.click(await screen.findByRole('button', { name: 'Use a device instead' }));
-      // The switch re-opens the flow (passwordless=1) before showing the form.
-      await waitFor(() => expect(
-        global.fetch.mock.calls.some(([u]) => String(u).includes('passwordless=1')),
-      ).toBe(true));
       return screen.findByLabelText('Username');
     }
 
-    test('the password form offers "Use a device instead"; switching shows the device form', async () => {
+    test('the device form is the default; it offers "Use your password instead" and no password box', async () => {
       mockPasswordlessBff({ passwordless: () => ok({}) });
       await toDeviceStep();
       expect(screen.getByRole('button', { name: 'Use your password instead' })).toBeInTheDocument();
@@ -417,8 +428,8 @@ describe('PiFlowSignInModal', () => {
         if (String(url).includes('/oauth/user/login')) return ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' });
         return ok({}, 404);
       });
-      await mountAndClick();
-      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+      await mountAndClickPassword();
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
       fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
       fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
       // Picker renders both devices
@@ -445,8 +456,8 @@ describe('PiFlowSignInModal', () => {
         if (String(url).includes('/oauth/user/login')) return ok({ flowId: 'f1' });
         return ok({}, 404);
       });
-      await mountAndClick();
-      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+      await mountAndClickPassword();
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
       fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
       fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
       await screen.findByLabelText('Verification code');
@@ -464,10 +475,6 @@ describe('PiFlowSignInModal', () => {
       await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
       await act(async () => { await Promise.resolve(); });
       await act(async () => { navigateToAdminOAuthLogin('/admin'); });
-      fireEvent.click(await screen.findByRole('button', { name: 'Use a device instead' }));
-      await waitFor(() => expect(
-        global.fetch.mock.calls.some(([u]) => String(u).includes('passwordless=1')),
-      ).toBe(true));
       fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demoAdmin' } });
       fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).pop());
       await waitFor(() => {
@@ -489,8 +496,8 @@ describe('PiFlowSignInModal', () => {
 
     test('"Use your password instead" switches back, preserving username and password, and re-opens the password-first flow', async () => {
       mockPasswordlessBff({ passwordless: () => ok({}) });
-      await mountAndClick();
-      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+      await mountAndClickPassword();
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
       fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
       fireEvent.click(screen.getByRole('button', { name: 'Use a device instead' }));
       await screen.findByRole('button', { name: 'Use your password instead' });
@@ -642,26 +649,42 @@ describe('PiFlowSignInModal', () => {
   });
 });
 
+// File-scope mounts (the shared helpers live inside the main describe). Each
+// appended describe stubs window.location itself — the main describe's
+// beforeEach does not reach them.
+async function mountAndClickLocal() {
+  render(<PiFlowSignInModal />);
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
+  await act(async () => { await Promise.resolve(); });
+  await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
+}
+async function mountAndClickAdminLocal() {
+  render(<PiFlowSignInModal />);
+  await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
+  await act(async () => { await Promise.resolve(); });
+  await act(async () => { navigateToAdminOAuthLogin('/admin'); });
+}
+
+function stubLocation() {
+  const assign = vi.fn();
+  Object.defineProperty(window, 'location', {
+    configurable: true,
+    value: { origin: 'https://app.test', pathname: '/dashboard', href: '', assign },
+  });
+  return assign;
+}
+
 describe('PiFlowSignInModal login-hint persistence', () => {
-  // Local mounts: the shared helpers are scoped inside the main describe.
-  async function mountAndClickLocal() {
-    render(<PiFlowSignInModal />);
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
-    await act(async () => { await Promise.resolve(); });
-    await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
-  }
-  async function mountAndClickAdminLocal() {
-    render(<PiFlowSignInModal />);
-    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
-    await act(async () => { await Promise.resolve(); });
-    await act(async () => { navigateToAdminOAuthLogin('/admin'); });
-  }
+  let assign;
+  beforeEach(() => {
+    assign = stubLocation();
+  });
 
   test('username prefills from the open response usernameHint and typing PUTs it to /login-hint after the debounce', async () => {
     vi.useFakeTimers();
     mockBff({
       config: ON,
-      login: () => ok({ flowId: 'f1', usernameHint: 'stored@pingone.com' }),
+      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED', usernameHint: 'stored@pingone.com' }),
       credentials: () => ok({ error: 'invalid_credentials', message: 'no' }, 401),
     });
     await mountAndClickLocal();
@@ -683,7 +706,7 @@ describe('PiFlowSignInModal login-hint persistence', () => {
     global.fetch = vi.fn((url) => {
       if (String(url).includes('/api/admin/config')) return ok({ config: adminCfg });
       if (String(url).includes('/pi-flow/credentials')) return ok({ error: 'invalid_credentials', message: 'no' }, 401);
-      if (String(url).includes('/oauth/login')) return ok({ flowId: 'fa', usernameHint: 'storedAdmin@pingone.com' });
+      if (String(url).includes('/oauth/login')) return ok({ flowId: 'fa', status: 'USERNAME_PASSWORD_REQUIRED', usernameHint: 'storedAdmin@pingone.com' });
       return ok({}, 404);
     });
     await mountAndClickAdminLocal();
@@ -695,5 +718,78 @@ describe('PiFlowSignInModal login-hint persistence', () => {
     expect(put).toBeTruthy();
     expect(JSON.parse(put[1].body)).toEqual({ value: 'typedAdmin@pingone.com' });
     vi.useRealTimers();
+  });
+});
+
+describe('PiFlowSignInModal passwordless-first default', () => {
+  let assign;
+  beforeEach(() => {
+    assign = stubLocation();
+  });
+
+  test('the modal opens on the device-only (passwordless) step with passwordless=1', async () => {
+    mockBff({
+      config: ON,
+      login: () => ok({ flowId: 'f1', status: 'SIGN_ON_REQUIRED' }),
+      credentials: () => ok({}),
+    });
+    await mountAndClickLocal();
+    const open = global.fetch.mock.calls.find(([u]) => String(u).includes('/login?') && String(u).includes('pi_flow=1'));
+    expect(String(open[0])).toContain('passwordless=1');
+    expect(await screen.findByText("We'll verify it's you with your registered device — no password needed.")).toBeInTheDocument();
+    expect(screen.queryByLabelText('Password')).toBeNull();
+  });
+
+  test('policy-absent 400 on the passwordless open snaps to the password form inside the modal', async () => {
+    let call = 0;
+    mockBff({
+      config: ON,
+      login: () => (++call === 1
+        ? ok({ error: 'invalid_sign_on_policy' }, 400)
+        : ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' })),
+      credentials: () => ok({}),
+    });
+    await mountAndClickLocal();
+    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+    expect(window.location.href).toBe('');
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  test('409 passwordless_unavailable keeps the typed username in the password form', async () => {
+    mockBff({
+      config: ON,
+      login: () => ok({ flowId: 'f1', status: 'SIGN_ON_REQUIRED' }),
+      passwordless: () => ok({ error: 'passwordless_unavailable', message: 'This account requires a password.' }, 409),
+      credentials: () => ok({}),
+    });
+    await mountAndClickLocal();
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'keepme@pingone.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+    expect(screen.getByLabelText('Username')).toHaveValue('keepme@pingone.com');
+  });
+
+  test('passkey ceremony failure keeps the password one click away (no dead end)', async () => {
+    // FIDO2-only user whose authenticator is missing: the passkey step's error
+    // state must still offer the path back to the password form.
+    mockBff({
+      config: ON,
+      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
+      credentials: () => ok({ step: 'passkey', publicKeyCredentialRequestOptions: { challenge: 'abc' } }),
+      assertion: () => ok({ error: 'pi_flow_failed' }, 502),
+      passwordless: () => ok({ error: 'passwordless_unavailable', message: 'This account requires a password.' }, 409),
+    });
+    await mountAndClickLocal();
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'fidouser@pingone.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText(/This account requires a password/i)).toBeInTheDocument();
+    // switch to password, sign in, land on the passkey step, see the retry affordances
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText(/Verify it is you with your passkey/i)).toBeInTheDocument();
+    vi.mocked(authenticateWebAuthn).mockRejectedValueOnce(Object.assign(new Error('denied'), { name: 'NotAllowedError' }));
+    fireEvent.click(screen.getByRole('button', { name: /verify with passkey/i }));
+    expect(await screen.findByText(/No passkey was used/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Use another method' })).toBeInTheDocument();
   });
 });

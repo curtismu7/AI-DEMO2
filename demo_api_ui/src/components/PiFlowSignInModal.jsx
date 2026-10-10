@@ -166,8 +166,11 @@ export default function PiFlowSignInModal() {
     forceRef.current = Boolean(detail.force);
     apiForRoleRef.current = () => (role === "admin" ? ADMIN_API : USER_API);
     clearTimeout(hintTimerRef.current);
-    setStep("password");
+    // Passwordless first: the device-only step is the modal's default. The
+    // flow opens under the mfa_only policy; if the policy does not exist yet
+    // the open snaps back to the password form inside the modal.
     passkeyOptionsRef.current = null;
+    setStep("device");
     setError("");
     setUsername("");
     setPassword("");
@@ -177,7 +180,7 @@ export default function PiFlowSignInModal() {
     setSelectedDeviceId(null);
     setBusy(true);
     setOpen(true);
-    openFlow(target, role);
+    openFlow(target, role, { passwordless: true });
   }, []);
 
   // Opens the pi.flow on the BFF. `passwordless` selects the identifier-first
@@ -196,9 +199,22 @@ export default function PiFlowSignInModal() {
         if (!res.ok) throw new Error("pi.flow unavailable");
         // PingFederate locks the flow to a username hint; prefill it like the hosted page does.
         const flow = await res.json().catch(() => ({}));
-        if (flow && typeof flow.usernameHint === "string") setUsername(flow.usernameHint);
+        if (flow && typeof flow.usernameHint === "string") {
+          setUsername(flow.usernameHint);
+          setDeviceUsername(flow.usernameHint); // the device step is the first screen
+        }
         setBusy(false);
-      } catch {
+      } catch (openErr) {
+        if (passwordless) {
+          // The mfa_only policy may not exist yet (400 on open). Snap to the
+          // password-first flow INSIDE the modal — the default step never
+          // redirects to the hosted page.
+          setError("Device sign-in is not available yet — use your password.");
+          setStep("password");
+          setDeviceUsername(username);
+          openFlow(target, role, {});
+          return;
+        }
         setOpen(false);
         redirectLogin(target, role, forceRef.current);
       }
