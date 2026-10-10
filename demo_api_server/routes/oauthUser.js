@@ -1577,6 +1577,19 @@ router.post('/refresh', async (req, res) => {
       expiresAt:    Date.now() + ((tokenData.expires_in || 3600) * 1000),
       tokenType:    tokenData.token_type    || 'Bearer',
     };
+    // may_act is read from the access token (session.mayAct is the bridge's
+    // per-user consent signal). A refreshed token re-projects the user's
+    // CURRENT PingOne mayAct attribute — so a grant/revoke that happened since
+    // login takes effect here without a full re-auth. Best-effort: a decode
+    // failure leaves the old value; the PDP treats a stale grant the same as
+    // today's pre-refresh behavior.
+    try {
+      const rParts = (tokenData.access_token || '').split('.');
+      if (rParts.length === 3) {
+        const rClaims = JSON.parse(Buffer.from(rParts[1], 'base64url').toString('utf8'));
+        req.session.mayAct = rClaims.may_act || null;
+      }
+    } catch (_) { /* keep previous */ }
     req.session.save((err) => {
       if (err) console.error('[refresh] Session save error:', err?.stack || String(err));
     });

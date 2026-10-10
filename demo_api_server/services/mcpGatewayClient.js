@@ -434,7 +434,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     // call and PERMITted. Skipping it is what lets an act-less call reach Authorize with
     // an empty actor and be denied by HasValidActorChain.
     if (!opts.omitActorBridge) {
-        Object.assign(headers, require('./mcpActorBridge').buildActorBridgeHeaders({ workloadActorClientId: opts.workloadActorClientId }));
+        Object.assign(headers, require('./mcpActorBridge').buildActorBridgeHeaders({ workloadActorClientId: opts.workloadActorClientId, userMayActSub: opts.userMayActSub }));
     }
 
     // Caller-supplied headers (privilege-first sends the user's token here as
