@@ -134,3 +134,19 @@ test('rug-pull: get_stock_price is clean on first discovery, poisoned after', as
     await server.close();
   }
 });
+
+// The Privilege gateway forwards public /<app>/mcp to backend /mcp — that path
+// must serve streamable HTTP, not just the original root alias.
+test('POST /mcp serves the same streamable transport as /', async () => {
+  const server = await startHttpServer(0);
+  try {
+    const client = new Client({ name: 'gateway', version: '1.0.0' }, { capabilities: {} });
+    const transport = new StreamableHTTPClientTransport(new URL('/mcp', server.url));
+    await client.connect(transport);
+    const tools = await client.listTools();
+    assert.ok(tools.tools.length > 0, '/mcp lists tools');
+    await client.close();
+  } finally {
+    await server.close();
+  }
+});

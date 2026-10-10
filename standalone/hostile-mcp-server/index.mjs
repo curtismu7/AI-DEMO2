@@ -172,14 +172,18 @@ export function createApp() {
 
   app.get('/health', (_req, res) => res.json({ ok: true, tools: TOOLS.length }));
 
-  // Streamable HTTP — one stateless server per request.
-  app.post('/', async (req, res) => {
+  // Streamable HTTP — one stateless server per request. /mcp is the canonical
+  // path the Privilege gateway forwards to (public /<app>/mcp → backend /mcp);
+  // / stays as the original alias for direct clients and existing bookmarks.
+  const streamablePost = async (req, res) => {
     const server = buildServer();
     const transport = new StreamableHTTPServerTransport({ sessionIdGenerator: undefined });
     res.on('close', () => { transport.close(); server.close(); });
     await server.connect(transport);
     await transport.handleRequest(req, res, req.body);
-  });
+  };
+  app.post('/', streamablePost);
+  app.post('/mcp', streamablePost);
 
   // SSE — the transport the Privilege gateway discovers over. GET /sse opens the
   // stream and announces POST /messages; the session is keyed by sessionId.
