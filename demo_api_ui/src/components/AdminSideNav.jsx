@@ -1416,6 +1416,7 @@ export default function AdminSideNav({
       "Health Check",
     ], "tool"),
     productGroup("AI Experiences", [
+      { label: "Demo Summary", path: "/demo-summary", icon: "demo" },
       "Weather MCP",
       "Brave Search MCP",
       "Use Cases",

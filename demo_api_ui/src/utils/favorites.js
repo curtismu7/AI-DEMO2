@@ -8,10 +8,15 @@ const AGENT_IDENTITY_ACADEMY_FAVORITE = {
   label: 'Agent Identity Academy',
   path: '/academy/identity',
 };
+// Same one-time-insert pattern as the Academy favorite: added to the seed for
+// fresh browsers and inserted once into every existing browser's saved list.
+const DEMO_SUMMARY_MIGRATION_KEY = 'demo_header_favorites_demo_summary_v1';
+const DEMO_SUMMARY_FAVORITE = { label: 'Demo Summary', path: '/demo-summary' };
 
 // Seeded on first use so a fresh browser already has the primary demo lanes.
 const DEFAULT_FAVORITES = [
   { label: 'Demo Map', path: '/demo-map' },
+  DEMO_SUMMARY_FAVORITE,
   { label: 'AI Guard', path: '/llm-gateway' },
   { label: 'AI Guard Client', path: '/privilege-mcp-client' },
   AGENT_IDENTITY_ACADEMY_FAVORITE,
@@ -72,7 +77,7 @@ export function getFavorites() {
       saveFavorites(normalized);
     }
     if (localStorage.getItem(AGENT_IDENTITY_ACADEMY_MIGRATION_KEY) === '1') {
-      return normalized;
+      return migrateDemoSummary(normalized);
     }
 
     const migrated = normalized.some((f) => f.path === AGENT_IDENTITY_ACADEMY_FAVORITE.path)
@@ -81,10 +86,30 @@ export function getFavorites() {
     // Mark the migration only after the migrated list is durable. Otherwise a
     // quota failure could suppress every future migration attempt.
     if (saveFavorites(migrated)) markAcademyMigrationComplete();
-    return migrated;
+    return migrateDemoSummary(migrated);
   } catch {
     return [...DEFAULT_FAVORITES];
   }
+}
+
+// One-time insert of the Demo Summary favorite into an existing browser's
+// saved list; removal afterwards sticks (no re-seed), like the Academy entry.
+function migrateDemoSummary(list) {
+  if (
+    localStorage.getItem(DEMO_SUMMARY_MIGRATION_KEY) === '1' ||
+    list.some((f) => f.path === DEMO_SUMMARY_FAVORITE.path)
+  ) {
+    return list;
+  }
+  const next = [...list, DEMO_SUMMARY_FAVORITE];
+  if (saveFavorites(next)) {
+    try {
+      localStorage.setItem(DEMO_SUMMARY_MIGRATION_KEY, '1');
+    } catch {
+      /* storage unavailable — retry migration on a later read */
+    }
+  }
+  return next;
 }
 
 function markAcademyMigrationComplete() {

@@ -12,10 +12,11 @@ const mockSessionToken = vi.hoisted(() => ({
   openTokenModal: null,
 }));
 const mockOAuthProviderToggle = vi.hoisted(() => vi.fn(() => null));
+const mockNavigate = vi.hoisted(() => vi.fn());
 
 vi.mock("react-router-dom", () => ({
   useLocation: () => ({ pathname: "/dashboard" }),
-  useNavigate: () => vi.fn(),
+  useNavigate: () => mockNavigate,
 }));
 
 vi.mock("../../context/SessionTokenContext", () => ({
@@ -109,6 +110,14 @@ describe("TopNav Favorites dropdown", () => {
     expect(logo.parentElement).toHaveClass("topnav-ping-identity");
   });
 
+  it("the brand logo click opens the Demo Summary page", () => {
+    mockNavigate.mockClear();
+    render(<TopNav user={null} onLogout={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Demo Summary/i }));
+    expect(mockNavigate).toHaveBeenCalledWith("/demo-summary");
+  });
+
   it("keeps the Ping mark on Ping surfaces (/setup, /admin)", () => {
     const { unmount } = render(<TopNav user={null} onLogout={vi.fn()} />);
     // Default mock location is /dashboard with a manifest lacking an id — the
@@ -117,19 +126,23 @@ describe("TopNav Favorites dropdown", () => {
     unmount();
   });
 
-  it("a customer vertical page swaps the Ping mark for the vertical logo and makes it the sidenav magic link", () => {
+  it("a customer vertical page swaps the Ping mark for the vertical logo; the logo opens Demo Summary", () => {
     mockVertical.manifest = {
       id: "airlines",
       identity: { displayName: "United Airlines", logoPath: "https://cdn.brandfetch.io/x/theme/light/logo.svg" },
     };
     const toggles = vi.fn();
     window.addEventListener("admin-sidenav-hidden-toggle", toggles);
+    mockNavigate.mockClear();
     render(<TopNav user={null} onLogout={vi.fn()} />);
 
     expect(screen.queryByRole("img", { name: "Ping Identity" })).not.toBeInTheDocument();
-    const brandBtn = screen.getByRole("button", { name: "Toggle side navigation" });
+    // The logo now opens Demo Summary on every surface; the sidenav toggle
+    // moved to Ctrl+Shift+B only (App.js key handler still dispatches it).
+    const brandBtn = screen.getByRole("button", { name: "Demo Summary" });
     fireEvent.click(brandBtn);
-    expect(toggles).toHaveBeenCalledTimes(1);
+    expect(mockNavigate).toHaveBeenCalledWith("/demo-summary");
+    expect(toggles).not.toHaveBeenCalled();
     window.removeEventListener("admin-sidenav-hidden-toggle", toggles);
     mockVertical.manifest = { identity: { displayName: "Test" } };
   });

@@ -8,16 +8,18 @@ describe('favorites', () => {
     const favs = getFavorites();
     expect(favs.map((f) => f.path)).toEqual([
       '/demo-map',
+      '/demo-summary',
       '/llm-gateway',
       '/privilege-mcp-client',
       '/academy/identity',
       '/academy/journey',
     ]);
     expect(favs[0].label).toBe('Demo Map');
-    expect(favs[1].label).toBe('AI Guard');
-    expect(favs[2].label).toBe('AI Guard Client');
-    expect(favs[3].label).toBe('Agent Identity Academy');
-    expect(favs[4].label).toBe('Guided Demo Tour');
+    expect(favs[1].label).toBe('Demo Summary');
+    expect(favs[2].label).toBe('AI Guard');
+    expect(favs[3].label).toBe('AI Guard Client');
+    expect(favs[4].label).toBe('Agent Identity Academy');
+    expect(favs[5].label).toBe('Guided Demo Tour');
   });
 
   it('adds a page and does not duplicate it', () => {
@@ -44,9 +46,11 @@ describe('favorites', () => {
       JSON.stringify([{ label: 'Agent Identity Academy', path: '/academy-identity-preview.html' }]),
     );
     localStorage.setItem('demo_header_favorites_agent_identity_academy_v1', '1');
-
+    // The Demo Summary migration key is NOT yet set, so this read also inserts
+    // the Demo Summary favorite before asserting the Academy move.
     expect(getFavorites()).toEqual([
       { label: 'Agent Identity Academy', path: '/academy/identity' },
+      { label: 'Demo Summary', path: '/demo-summary' },
     ]);
   });
 
@@ -56,10 +60,22 @@ describe('favorites', () => {
     expect(isFavorite('/llm-gateway')).toBe(false);
     expect(getFavorites().map((f) => f.path)).toEqual([
       '/demo-map',
+      '/demo-summary',
       '/privilege-mcp-client',
       '/academy/identity',
       '/academy/journey',
     ]);
+  });
+
+  it('adds Demo Summary to existing browser favorites once (migration)', () => {
+    localStorage.setItem(
+      'demo_header_favorites',
+      JSON.stringify([{ label: 'Demo Map', path: '/demo-map' }]),
+    );
+    localStorage.setItem('demo_header_favorites_agent_identity_academy_v1', '1');
+    expect(getFavorites().map((f) => f.path)).toEqual(['/demo-map', '/demo-summary']);
+    // Second read does not duplicate it.
+    expect(getFavorites().filter((f) => f.path === '/demo-summary')).toHaveLength(1);
   });
 
   it('migrates existing favorites once and respects a later removal', () => {
@@ -71,10 +87,11 @@ describe('favorites', () => {
     expect(getFavorites().map((f) => f.path)).toEqual([
       '/audit-agent',
       '/academy/identity',
+      '/demo-summary',
     ]);
 
     removeFavorite('/academy/identity');
-    expect(getFavorites().map((f) => f.path)).toEqual(['/audit-agent']);
+    expect(getFavorites().map((f) => f.path)).toEqual(['/audit-agent', '/demo-summary']);
   });
 
   it.each([
@@ -87,6 +104,7 @@ describe('favorites', () => {
     removeFavorite('/academy/identity');
 
     expect(getFavorites().some((f) => f.path === '/academy/identity')).toBe(false);
+    expect(getFavorites().some((f) => f.path === '/demo-summary')).toBe(true);
   });
 
   it('derives a readable label, handling acronyms', () => {
