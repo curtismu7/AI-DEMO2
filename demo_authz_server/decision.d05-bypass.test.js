@@ -58,6 +58,7 @@ function params(extra = {}) {
     // claim; AI_AGENT_ACTOR satisfies Rule 2's authorized-actor check. Without
     // it every case DENYs on missing_act and never reaches the D-05 rule.
     ActClientId:       AI_AGENT_ACTOR,
+    MayActSub:         AI_AGENT_ACTOR,  // Rule 2.6 per-user consent: granted user bridges their own may_act.sub
     TokenScopes:       'read write transfer',
     TokenAudience:     GATEWAY_AUD,
     TokenAudActual:    GATEWAY_AUD,

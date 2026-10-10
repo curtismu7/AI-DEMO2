@@ -76,6 +76,7 @@ function baseWriteParams(extra) {
     ToolName: 'update_contact_email',
     ClientId: 'user-alice',
     ActClientId: 'agent-1',
+    MayActSub: 'agent-1',  // Rule 2.6 per-user consent: granted user bridges their own may_act.sub
     TokenScopes: 'write',
     TokenAudience: 'test-aud',
     TokenAudActual: 'test-aud',
