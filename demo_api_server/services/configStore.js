@@ -279,6 +279,11 @@ const FIELD_DEFS = {
   // See https://developer.pingidentity.com/pingone-api/auth/auth-config-options/browserless-authentication-flow-options.html
   PINGONE_ADMIN_AUTHORIZE_PI_FLOW: { public: true, default: 'false' },
   PINGONE_USER_AUTHORIZE_PI_FLOW:  { public: true, default: 'false' },
+  // Last username each role signed in with — prefills the pi.flow modal's
+  // username field next time that role signs in. Convenience only, never an
+  // auth decision. Written by the role's OAuth callback after token exchange.
+  last_login_hint_customer: { public: true, default: '' },
+  last_login_hint_admin:    { public: true, default: '' },
   /** Marketing home: redirect (standard code+PKCE) vs slide-over panel + authorize with use_pi_flow=1 */
   marketing_customer_login_mode:   { public: true, default: 'redirect' },
   marketing_demo_username_hint:    { public: true, default: '' },

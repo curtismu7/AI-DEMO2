@@ -1129,6 +1129,15 @@ router.get('/callback', async (req, res) => {
     console.log('End user OAuth login successful for:', authedUser.username);
     appEventService.logEvent('auth_lifecycle', 'info', `User authenticated: ${authedUser.username}`, { tag: 'oauth/user/callback', username: authedUser.username });
 
+    // Remember who signed in so the next sign-in prefills their username.
+    // Never fatal: a persistence failure costs a prefill, not a session.
+    try {
+      const hintUser = authedUser?.username || authedUser?.email;
+      if (hintUser) await configStore.setConfig({ last_login_hint_customer: String(hintUser) });
+    } catch (hintErr) {
+      console.warn('[oauth/user/callback] login hint write failed:', hintErr.message);
+    }
+
     // Regenerate session before storing credentials to prevent session fixation.
     // P3 — failure is now fatal (abort login) to eliminate the session fixation risk.
     req.session.regenerate((regenErr) => {

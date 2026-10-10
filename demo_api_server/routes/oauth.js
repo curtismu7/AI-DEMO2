@@ -465,6 +465,15 @@ router.get('/callback', async (req, res) => {
     const hostedLoginAudit = req.session.hostedLoginAudit || null;
     const hostedLoginAudits = req.session.hostedLoginAudits || null;
 
+    // Remember who signed in so the next admin sign-in prefills their username.
+    // Never fatal: a persistence failure costs a prefill, not a session.
+    try {
+      const hintUser = authedUser?.username || authedUser?.email;
+      if (hintUser) await configStore.setConfig({ last_login_hint_admin: String(hintUser) });
+    } catch (hintErr) {
+      console.warn('[oauth/callback] admin login hint write failed:', hintErr.message);
+    }
+
     // P3 — Session regenerate failure is now fatal (prevents session fixation).
     // If regenerate fails the user retries sign-in once; the UX cost is acceptable
     // compared to serving the pre-login session ID after authentication.
