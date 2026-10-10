@@ -169,7 +169,7 @@ function AgentAuthorizationCard() {
       </p>
       {enforced && (
         <p style={{ fontSize: 12, color: '#374151', margin: '0 0 16px 0' }}>
-          Enforcement on — a revoked agent is blocked from acting on your behalf.
+          Enforcement on — your consent is checked on every call, so a revoked agent is blocked from acting on your behalf immediately.
         </p>
       )}
       <button
@@ -490,7 +490,7 @@ function DemoTalkTrackPanel() {
               num: 3,
               heading: 'Stage 2 — User to AI agent',
               text: 'Go to the agent. Ask "show my balance", then attempt a ~$300 transfer to trigger the consent gate.',
-              quote: 'Maya authorizes the agent once with may_act. Ping exchanges her token for a delegated one carrying act={agent}. It cannot exceed the granted scope, and high-value writes still stop for her consent.',
+              quote: 'The agent identifies itself with its own credential — Ping mints act={agent} from the actor token. Maya\'s may_act consent is checked on every call, so revoking her authorization denies the very next request. It cannot exceed the granted scope, and high-value writes still stop for her consent.',
             },
             {
               num: 4,
@@ -747,7 +747,7 @@ export default function DelegationPage({ user }) {
       <div style={S.inner}>
         {pageError && <div style={S.errorBanner}>{pageError}</div>}
 
-        {/* AI agent authorization (RFC 8693 act claim, gated by the PingOne may_act attribute) */}
+        {/* AI agent authorization (RFC 8693 act claim; consent enforced per call via may_act) */}
         <AgentAuthorizationCard />
 
         {/* How it works — top explainer */}

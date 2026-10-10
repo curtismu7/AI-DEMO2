@@ -11,7 +11,12 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
       content: (
         <>
           <p style={{ color: "#374151", marginBottom: "1rem" }}>
-            The delegation lifecycle starts with explicit user consent. If you haven't authorized the agent, PingOne will not issue a delegated token — no consent means no delegation.
+            The delegation lifecycle starts with explicit user consent. The agent identifies itself with its
+            own credential at token exchange, and your <code>may_act</code> consent is checked by PingOne
+            Authorize on <strong>every</strong> tool call — revoke it and the very next call is denied,
+            no token re-mint needed. (An optional compatibility mode — <code>ff_may_act_seed</code> — seeds
+            the <code>act</code> claim from <code>may_act</code> at mint time instead, the pre-2026-10
+            behavior.)
           </p>
           <p>
             When you grant the AI agent permission to act on your behalf, the system performs an{' '}
