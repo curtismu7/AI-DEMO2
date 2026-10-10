@@ -98,7 +98,14 @@ export default function AgentConsentModal({
       : "Allow AI Agent Access";
 
   const requiresCheckbox = !!(hitlContext || transaction);
-  const defaultModalHeight = requiresCheckbox ? 680 : 600;
+  // Cap to the viewport so the footer (Allow/Cancel) is always on-screen; the
+  // body scrolls when content exceeds it.
+  const defaultModalHeight =
+    typeof window !== "undefined"
+      ? Math.min(requiresCheckbox ? 680 : 600, window.innerHeight - 40)
+      : requiresCheckbox
+        ? 680
+        : 600;
 
   const footer = (
     <>
@@ -127,11 +134,11 @@ export default function AgentConsentModal({
       onClose={onDismiss}
       title={title}
       footer={footer}
-      placement="right"
-      className="acm-side-drawer"
+      placement="center"
+      className="acm-modal"
       defaultWidth={560}
       defaultHeight={defaultModalHeight}
-      storageKey="agent-consent-modal-v6"
+      storageKey="agent-consent-modal-v7"
       zIndex={100070}
       backdropClose={false}
     >

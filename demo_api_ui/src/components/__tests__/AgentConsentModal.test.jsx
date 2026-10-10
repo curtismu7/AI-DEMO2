@@ -29,7 +29,7 @@ describe('AgentConsentModal — HITL mode (hitlContext)', () => {
 
   beforeEach(() => { vi.clearAllMocks(); });
 
-  it('uses the right-side drawer placement for approval requests', () => {
+  it('uses the centered modal placement for approval requests', () => {
     render(
       <AgentConsentModal
         hitlContext={{ tool: 'create_transfer' }}
@@ -40,7 +40,7 @@ describe('AgentConsentModal — HITL mode (hitlContext)', () => {
 
     expect(screen.getByTestId('modal-title').parentElement).toHaveAttribute(
       'data-placement',
-      'right',
+      'center',
     );
   });
 
