@@ -1539,6 +1539,7 @@ export default function AdminSideNav({
     ], "arc"),
     productGroup("Architecture & Learning", [
       "Learning Hub",
+      "Learning Hub (Web Mirror)",
       "Privilege Docs Index",
       { label: "Page Catalog", path: "/page-catalog" },
       "SPIFFE → PingOne Bridge (TODO)",
