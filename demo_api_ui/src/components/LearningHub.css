@@ -131,6 +131,14 @@
   font-weight: 600;
 }
 
+/* Guest notice under the signed-in feature panels — muted, not an error. */
+.learning-hub__rag-guest {
+  color: var(--th-text-muted, var(--th-text));
+  opacity: 0.75;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
 .learning-hub__rag-answer {
   margin-top: 1.25rem;
   padding: 1rem;
