@@ -63,7 +63,7 @@ const SECTIONS = [
         title: "Agent configuration",
         path: "privilege/AGENT-CONFIGURATION.md",
         covers:
-          "Operating the Agent-authenticated OpenSearch deployment in ping-devops-curtismuir.",
+          "⚠️ Stale-bannered 2026-10-10: describes the removed cm-mcpgw deployment — kept for the console-side operating method. Current state in Agent mode end to end.",
       },
       {
         title: "Current configuration index",
