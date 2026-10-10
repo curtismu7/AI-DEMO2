@@ -3,8 +3,6 @@ import DraggableModal from "./DraggableModal";
 import { ForgotPasswordLink } from "./ForgotPasswordFlow";
 import {
   PI_FLOW_SIGNIN_EVENT,
-  setPiFlowSignInAvailable,
-  setAdminPiFlowSignInAvailable,
 } from "../utils/authUi";
 import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
@@ -101,6 +99,11 @@ export default function PiFlowSignInModal() {
   // "password" -> "passkey" | "otp" | "device" as the flow (or the user) asks.
   const [step, setStep] = useState("password");
   const passkeyOptionsRef = useRef(null);
+  // This modal's own config gate: a dispatched sign-in event is handled only
+  // when the BFF reports the role's pi.flow drivable; otherwise the event's
+  // sender falls back to the redirect login.
+  const [userDrivable, setUserDrivable] = useState(false);
+  const [adminDrivable, setAdminDrivable] = useState(false);
   // Lets pickDevice trigger the passkey ceremony after the passkey step renders.
   const verifyPasskeyRef = useRef(null);
   const returnToRef = useRef(undefined);
@@ -135,13 +138,13 @@ export default function PiFlowSignInModal() {
         const cfg = (await res.json())?.config || {};
         // Both providers the BFF can drive (PingOne, PingFederate); anything else keeps the redirect.
         const provider = cfg.oauth_provider || "pingone";
-        providerRef.current = provider;
         const drivable = provider === "pingone" || provider === "pingfederate";
         const userOn = ["true", "1"].includes(String(cfg.PINGONE_USER_AUTHORIZE_PI_FLOW).toLowerCase());
         const adminOn = ["true", "1"].includes(String(cfg.PINGONE_ADMIN_AUTHORIZE_PI_FLOW).toLowerCase());
         if (!cancelled) {
-          setPiFlowSignInAvailable(userOn && drivable);
-          setAdminPiFlowSignInAvailable(adminOn && drivable);
+          providerRef.current = provider;
+          setUserDrivable(drivable && userOn);
+          setAdminDrivable(drivable && adminOn);
         }
       } catch {
         /* keep the redirect login */
@@ -151,7 +154,6 @@ export default function PiFlowSignInModal() {
       cancelled = true;
     };
   }, []);
-
   const begin = useCallback((detail) => {
     const target = detail.returnTo;
     const role = detail.role === "admin" ? "admin" : "customer";
@@ -234,12 +236,14 @@ export default function PiFlowSignInModal() {
 
   useEffect(() => {
     const onSignIn = (e) => {
+      const forAdmin = e.detail.role === "admin";
+      if (forAdmin ? !adminDrivable : !userDrivable) return; // sender redirects
       e.detail.handled = true;
       begin(e.detail);
     };
     window.addEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
     return () => window.removeEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
-  }, [begin]);
+  }, [begin, userDrivable, adminDrivable]);
 
   const apiForRole = () => (roleRef.current === "admin" ? ADMIN_API : USER_API);
 
