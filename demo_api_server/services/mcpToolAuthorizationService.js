@@ -589,9 +589,23 @@ async function decodeMcpTokenFacts({ req, agentToken, userSub }) {
   const tokenKidKnown = tokenKidIssuerMatches
     ? await jwksService.hasKid(tokenKid)
     : null;
-  const mayActSub = claims.may_act && typeof claims.may_act === 'object' && claims.may_act.sub
+  // Per-user consent (may_act re-architecture, Task 4): prefer the SESSION's
+  // may_act (stored at login from the user token, refreshed on /refresh) —
+  // the presented MCP token never carries may_act on Exchange #2 hops. The
+  // token's own may_act, when present, stays authoritative (parity with the
+  // gateway path, which bridges the token claim when it has one). Distinguish
+  // "session exists" (evaluate consent) from "no session" (undefined → the
+  // simulated engine's consent guard stays inert for legacy callers).
+  const tokenMayActSub = claims.may_act && typeof claims.may_act === 'object' && claims.may_act.sub
     ? String(claims.may_act.sub)
     : null;
+  let mayActSub;
+  if (req?.session && 'mayAct' in req.session) {
+    const sessionMayAct = req.session.mayAct;
+    mayActSub = (sessionMayAct && sessionMayAct.sub) || tokenMayActSub || '';
+  } else if (tokenMayActSub) {
+    mayActSub = tokenMayActSub; // token carries its own consent — honor it
+  } // else leave undefined: no session, no token consent → guard inert (legacy callers)
   // Role as a policy INPUT, replacing the removed admin code-level bypass (F5).
   const userRole = req.session?.user?.role || null;
 
@@ -874,6 +888,9 @@ async function buildMcpFirstToolGateInputs({ req, tool, agentToken, userSub, use
     // same call, which is finding F3 (the two evaluations can legitimately
     // disagree) reproduced inside the failover path. Consumed by WS-D.
     userRole,
+    // Per-user consent (Rule 2.6 parity) — same value the live path sends as
+    // MayActSub via mayActSub above.
+    mayActSub,
   };
 
   // Live PingOne selected but no MCP decision endpoint is configured. Honor the

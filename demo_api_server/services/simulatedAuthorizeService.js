@@ -215,6 +215,12 @@ async function evaluateMcpFirstTool({
   // → rarMaxAmount (ceiling), `payee` → rarPermittedPayees (normalised to array).
   rarMaxAmount = null,       // granted ceiling from RAR intent (azd.authorization_details[0].amount)
   rarPermittedPayees = null, // allowed payee list from RAR intent (azd.authorization_details[0].payee, normalised to array)
+  // Per-user consent (Rule 2.6 parity): the signed-in user's may_act.sub,
+  // resolved by the caller (mcpToolAuthorizationService) from the SESSION —
+  // not the presented token, which on Exchange #2 hops never carries may_act.
+  // `undefined` = caller not plumbed (legacy callers keep pre-consent
+  // behavior); `''`/null-with-undefined-check = no consent → fail closed.
+  mayActSub,
   toAccountId = null,        // payee from the tool call params (checked against rarPermittedPayees)
   useCaseId = null,          // launcher-supplied catalog slug (UC21 tier demo, etc.)
   // Signing-key identity, resolved by the caller against the live JWKS.
@@ -579,6 +585,57 @@ async function evaluateMcpFirstTool({
     };
     recordSimulatedDecision(uc16Out);
     return uc16Out;
+  }
+
+  // ── Rule 2.6 parity: per-user consent (may_act re-architecture, Task 4) ───
+  // Parity with demo_authz_server/routes/decision.js Rule 2.6. Default mode
+  // mints `act` from the actor token (no may_act gate at mint), so the BFF
+  // gate enforces consent HERE, before the challenge rules: on agent-mediated
+  // tools the acting agent must equal the signed-in user's bridged consent
+  // (mayActSub, from the session via buildMcpDecisionFacts). Absent → fail
+  // closed. A2A-delegated tools skip (act chain is their authorization, same
+  // as the A2A guard above). mayActSub undefined (caller not plumbed —
+  // legacy/test callers) keeps the pre-consent behavior.
+  if (mayActSub !== undefined && scopeTopology.isAgentMediatedTool(toolName)
+      && actClientId && !scopeTopology.isA2aDelegatedTool(toolName)) {
+    if (!mayActSub) {
+      const noConsentOut = {
+        decision: 'DENY',
+        denyReason: 'no_user_consent',
+        stepUpRequired: false,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: {
+          ...rawBase,
+          decision: 'DENY',
+          deny_reason: 'no_user_consent',
+          reason:
+            `no_user_consent: the signed-in user has not authorized an agent to act for them ` +
+            `(may_act absent). Authorize the agent and retry.`,
+        },
+      };
+      recordSimulatedDecision(noConsentOut);
+      return noConsentOut;
+    }
+    if (mayActSub !== actClientId) {
+      const mismatchOut = {
+        decision: 'DENY',
+        denyReason: 'may_act_mismatch',
+        stepUpRequired: false,
+        hitlRequired: false,
+        path: 'simulated',
+        decisionId,
+        raw: {
+          ...rawBase,
+          decision: 'DENY',
+          deny_reason: 'may_act_mismatch',
+          reason: `may_act_mismatch: user consent names "${mayActSub}" but the acting agent is "${actClientId}"`,
+        },
+      };
+      recordSimulatedDecision(mismatchOut);
+      return mismatchOut;
+    }
   }
 
   // ── RAR amount/payee enforcement (NNP-1, UC14) ───────────────────────────────────────────
