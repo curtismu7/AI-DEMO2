@@ -282,8 +282,8 @@ const FIELD_DEFS = {
   // Last username each role signed in with — prefills the pi.flow modal's
   // username field next time that role signs in. Convenience only, never an
   // auth decision. Written by the role's OAuth callback after token exchange.
-  last_login_hint_customer: { public: true, default: '' },
-  last_login_hint_admin:    { public: true, default: '' },
+  last_login_hint_customer: { public: false, default: '' }, // a tenant username — not for anonymous GET /config
+  last_login_hint_admin:    { public: false, default: '' }, // a tenant username — not for anonymous GET /config
   /** Marketing home: redirect (standard code+PKCE) vs slide-over panel + authorize with use_pi_flow=1 */
   marketing_customer_login_mode:   { public: true, default: 'redirect' },
   marketing_demo_username_hint:    { public: true, default: '' },

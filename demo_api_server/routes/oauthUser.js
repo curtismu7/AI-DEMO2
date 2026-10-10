@@ -597,14 +597,17 @@ router.get('/login', (req, res) => {
         // login step), or PingOne still demands the password after
         // user.lookup. The policy must also be assigned to this app.
         ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'mfa_only' } : {}),
-        // Session-derived hint wins (fresher); the role's stored hint is the
-        // fallback. Forced re-login still prefills — the user chose to sign in
-        // again, and PingFederate only locks the field when a hint is sent.
+        // Session-derived hint wins (fresher). The role's STORED hint is
+        // PINGONE-only: PingOne treats the hint as advisory prefill, but
+        // PingFederate BINDS the flow to it ("username must match the hint"),
+        // so a stored hint would lock a shared demo machine to the previous
+        // person's username. The stored hint also never rides a forced
+        // re-login — force means a DIFFERENT person may be signing in.
         // On a PINGONE pi.flow login with NEITHER source, send null explicitly:
         // the service's demoUser default is for the hosted redirect page, and
         // the modal should prefill nothing when the app knows nobody. PF keeps
         // its own demouser default (the PF demo wants the locked-field demo).
-        ...((knownLoginHint(req) || storedHint('customer'))
+        ...((!forceLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate' && (knownLoginHint(req) || storedHint('customer')))
           ? { login_hint: knownLoginHint(req) || storedHint('customer') }
           : (piFlowLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate'
             ? { login_hint: null } : {})),

@@ -7,7 +7,6 @@ import React, {
 } from "react";
 import { createPortal } from "react-dom";
 import FloatingPanel from "./FloatingPanel";
-import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useIndustryBranding } from "../context/IndustryBrandingContext";

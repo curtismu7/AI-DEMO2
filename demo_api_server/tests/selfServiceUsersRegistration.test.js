@@ -68,6 +68,13 @@ describe('POST /api/self-service/users — registration device + email rules', (
     expect(res.status).toBe(400);
   });
 
+  test('a display-formatted phone is normalized to E.164 for the SMS device', async () => {
+    const res = await request(app).post('/api/self-service/users')
+      .send({ ...validBody(), phone: '+1 (206) 555-1234' });
+    expect(res.status).toBe(201);
+    expect(mfaService.ensureSmsDevice).toHaveBeenCalledWith('u-1', '+12065551234');
+  });
+
   test('SMS enrollment failure does not fail registration', async () => {
     mfaService.ensureSmsDevice.mockRejectedValueOnce(new Error('pingone 503'));
     const res = await request(app).post('/api/self-service/users').send(validBody());

@@ -800,3 +800,45 @@ describe('PiFlowSignInModal passwordless-first default', () => {
     expect(screen.getByRole('button', { name: 'Use another method' })).toBeInTheDocument();
   });
 });
+
+// ── Review-fix pins ──────────────────────────────────────────────────────────
+describe('PiFlowSignInModal review-fix pins', () => {
+  let assign;
+  beforeEach(() => {
+    assign = vi.fn();
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { origin: 'https://app.test', pathname: '/dashboard', href: '', assign },
+    });
+  });
+
+  test('PF passwordless 409 (pi_flow_step_unsupported) snaps to the password form inside the modal', async () => {
+    mockBff({
+      config: { PINGONE_USER_AUTHORIZE_PI_FLOW: 'true', oauth_provider: 'pingfederate' },
+      login: () => ok({ flowId: 'pf1', usernameHint: 'demouser' }),
+      credentials: () => ok({}),
+      passwordless: () => ok({ error: 'pi_flow_step_unsupported' }, 409),
+    });
+    await mountAndClickLocal();
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demouser' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).pop());
+    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+    expect(window.location.href).toBe(''); // no full-page redirect
+    expect(assign).not.toHaveBeenCalled();
+  });
+
+  test('?signin=mfa does not send passwordless=1 (the mfa selector owns acr_values)', async () => {
+    window.location.search = '?signin=mfa';
+    mockBff({
+      config: { PINGONE_USER_AUTHORIZE_PI_FLOW: 'true', oauth_provider: 'pingone' },
+      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
+      credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' }),
+    });
+    // This pin only inspects the OPEN call — the dispatch alone is enough; no
+    // need to reach the password form (mountAndClickPassword is main-scope).
+    await mountAndClickLocal();
+    const open = global.fetch.mock.calls.find(([u]) => String(u).includes('/login?') && String(u).includes('pi_flow=1'));
+    expect(String(open[0])).toContain('mfa=1');
+    expect(String(open[0])).not.toContain('passwordless=1');
+  });
+});

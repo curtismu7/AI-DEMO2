@@ -201,12 +201,19 @@ router.get('/login', (req, res) => {
     
     // The role's remembered username (configStore) prefills the modal via the
     // authorize URL's login_hint; the undefined-default (demoAdmin) keeps
-    // working when nothing is stored. Force still sends prompt=login AND the
-    // stored hint — the admin asked to sign in again, prefill helps.
-    const storedAdminHint = req.query.force === 'true' ? null : (() => {
-      const v = configStore.getEffective('last_login_hint_admin');
-      return (typeof v === 'string' && v.trim()) ? v.trim() : undefined;
-    })();
+    // working when nothing is stored. Two guards, both deliberate:
+    // - A forced re-auth DROPS the stored hint — force means a different admin
+    //   may be signing in (pinned test; deviation from spec §4, which said
+    //   force still sends the hint).
+    // - The stored hint is PINGONE-only: PingFederate BINDS the flow to the
+    //   hint, so a stored username would lock the admin login to whoever
+    //   signed in last. PF keeps its demouser default.
+    const storedAdminHint = req.query.force === 'true'
+      || (configStore.getOAuthProvider?.() || 'pingone') === 'pingfederate'
+      ? null : (() => {
+        const v = configStore.getEffective('last_login_hint_admin');
+        return (typeof v === 'string' && v.trim()) ? v.trim() : undefined;
+      })();
     const authUrl = oauthService.generateAuthorizationUrl(
       state, codeVerifier, redirectUri, nonce,
       req.query.force === 'true' ? null : storedAdminHint,

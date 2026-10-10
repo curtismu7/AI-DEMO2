@@ -643,3 +643,45 @@ describe('stored login hint at flow open', () => {
     expect(res.body.usernameHint).toBeUndefined();
   });
 });
+
+// ── Review-fix pins: the STORED hint is PingOne-only and never on force ──────
+describe('stored login hint is PingOne-only and force-suppressed', () => {
+  let fetchMock;
+  beforeEach(() => {
+    fetchMock = jest.fn();
+    global.fetch = fetchMock;
+  });
+
+  test('PingFederate never receives the stored hint (it binds the flow to it)', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    // Full PF config (a prior describe may have left its own impl installed).
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_environment_id: 'test-env-id',
+      user_pingone_authorize_pi_flow: 'true',
+      pf_authorization_endpoint: 'https://pf.example:9031/as/authorization.oauth2',
+      pf_token_endpoint: 'https://pingfederate.internal:9031/as/token.oauth2',
+      pf_user_client_id: 'pf-client',
+      last_login_hint_customer: 'person-a@pingone.com',
+    })[key]);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+    const res = await request(app).get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    const authorizeUrl = fetchMock.mock.calls[0][0];
+    expect(authorizeUrl).not.toContain('login_hint=person-a');
+  });
+
+  test('forced re-auth on PingOne drops the stored hint (a different person may sign in)', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingone');
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_environment_id: 'test-env-id',
+      user_client_id: 'test-client-id',
+      user_client_secret: 'test-secret',
+      user_pingone_authorize_pi_flow: 'true',
+      last_login_hint_customer: 'person-a@pingone.com',
+    })[key]);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
+    await request(app).get('/api/auth/oauth/user/login?pi_flow=1&force=true').expect(200);
+    const authorizeUrl = fetchMock.mock.calls[0][0];
+    expect(authorizeUrl).toContain('prompt=login');
+    expect(authorizeUrl).not.toContain('login_hint=person-a');
+  });
+});

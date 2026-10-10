@@ -413,7 +413,7 @@ const SelfServicePage = () => {
                       className="ssp-input"
                       value={formData.phone}
                       onChange={(e) => handleInputChange('phone', e.target.value)}
-                      placeholder="+1-555-0100"
+                      placeholder="+1 206-555-1234"
                     />
                     {formErrors.phone && (
                       <div className="ssp-error-text">{formErrors.phone}</div>

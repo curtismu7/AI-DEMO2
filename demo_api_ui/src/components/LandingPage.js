@@ -128,7 +128,7 @@ export default function LandingPage({ user, hasTopNav }) {
     if (user?.role === "admin") {
       navigate("/admin");
     } else {
-      openAdminSignIn({ returnTo: window.location.pathname });
+      openAdminSignIn({ returnTo: "/admin" });
     }
   };
 

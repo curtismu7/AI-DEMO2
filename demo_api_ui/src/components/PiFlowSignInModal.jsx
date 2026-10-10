@@ -176,7 +176,10 @@ export default function PiFlowSignInModal() {
     setSelectedDeviceId(null);
     setBusy(true);
     setOpen(true);
-    openFlow(target, role, { passwordless: true });
+    // ?signin=mfa is itself the acr selector (Multi_Factor): sending
+    // passwordless=1 alongside would silently win the last-spread and turn
+    // the on-demand MFA demo into the device-first policy.
+    openFlow(target, role, { passwordless: !mfaRequested() });
   }, []);
 
   // Opens the pi.flow on the BFF. `passwordless` selects the identifier-first
@@ -396,8 +399,11 @@ export default function PiFlowSignInModal() {
         body: JSON.stringify({ username: deviceUsername }),
       });
       const body = await res.json().catch(() => ({}));
-      if (res.status === 409 && body.error === "passwordless_unavailable") {
-        setError(body.message || "This account requires a password. Sign in with your password.");
+      if (res.status === 409 && (body.error === "passwordless_unavailable" || body.error === "pi_flow_step_unsupported")) {
+        // The policy needs a password (PingOne) or the provider cannot drive
+        // passwordless at all (PingFederate): snap INSIDE the modal — never a
+        // full-page redirect for the app's first screen.
+        setError(body.message || (body.error === "pi_flow_step_unsupported" ? "Passwordless sign-in is not available for this provider — use your password." : "This account requires a password. Sign in with your password."));
         setUsername(deviceUsername);
         setStep("password");
         setBusy(false);

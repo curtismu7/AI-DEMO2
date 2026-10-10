@@ -91,14 +91,3 @@ describe('sign-in guardrail', () => {
   });
 });
 
-// These components' sign-in triggers route through openSignIn like every other
-// page (de-bypassed in the Task 9 fix pass the census initially missed).
-const EXTRA_DE_BYPASS = [
-  'components/AdminRequiredModal.jsx',
-  'components/DemoSetupPanel.js',
-  'components/OASDemoPage.jsx',
-  'components/PingOneTestPage.jsx',
-  'components/ProtocolPlayground/ActivityPanel.jsx',
-  'pages/EnterpriseMcpDemoPage.jsx',
-  'pages/PrivilegeDemoPage.jsx',
-];

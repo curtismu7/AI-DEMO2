@@ -211,7 +211,7 @@ export function VerticalEditorPage() {
       });
       const body = await res.json().catch(() => ({}));
       if (res.status === 401 || res.status === 403) {
-        openAdminSignIn({ returnTo: '/admin-editor' });
+        openAdminSignIn({ returnTo: '/admin/verticals' });
         return;
       }
       if (!res.ok) {

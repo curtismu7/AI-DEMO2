@@ -190,7 +190,10 @@ router.post('/',
       // leaves SMS-only policies unusable). Non-fatal like the email device.
       let mfaSmsDevice;
       try {
-        mfaSmsDevice = await mfaService.ensureSmsDevice(user.id, phone);
+        // PingOne expects E.164; isMobilePhone() accepts display formats
+        // ("+1 (206) 555-1234") that the device API would reject.
+        const e164Phone = `+${String(phone).replace(/\D/g, '')}`;
+        mfaSmsDevice = await mfaService.ensureSmsDevice(user.id, e164Phone);
       } catch (smsError) {
         logger.warn(LOG_CATEGORIES.USER_MANAGEMENT, 'Could not enroll SMS MFA device for new user', {
           userId: user.id,
