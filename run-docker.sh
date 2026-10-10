@@ -1117,17 +1117,22 @@ _verify_core_running() {
     [[ ${#fixed[@]} -gt 0 ]] && ok "Recovered: ${fixed[*]}"
   fi
 
-  # The UI has no healthcheck, so Running is not enough — confirm Vite bound the
-  # port. A dead dev server here renders a blank dashboard with no other signal.
+  # The UI has no healthcheck, so Running is not enough — confirm the server
+  # bound its port. A dead dev server here renders a blank dashboard with no
+  # other signal. In dev mode (override active) Vite listens on 4300 (dev's own
+  # host port — 4000 is reserved for the PROD_MODE nginx build); in prod mode
+  # nginx listens on 4000.
   if printf '%s\n' "${_CORE_UP[@]}" | grep -qx 'ui'; then
-    if ! docker exec ai-demo-ui sh -c 'netstat -tln 2>/dev/null | grep -q ":4000 "' 2>/dev/null; then
-      warn "UI container is up but Vite is not listening on :4000 (it can lose the race with the BFF) — restarting it"
+    UI_HEALTH_PORT=4000
+    [[ "${PROD_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]] && UI_HEALTH_PORT=4300
+    if ! docker exec ai-demo-ui sh -c "netstat -tln 2>/dev/null | grep -q ':${UI_HEALTH_PORT} '" 2>/dev/null; then
+      warn "UI container is up but the server is not listening on :${UI_HEALTH_PORT} (it can lose the race with the BFF) — restarting it"
       docker restart ai-demo-ui >/dev/null 2>&1 || true
       sleep 12
-      if docker exec ai-demo-ui sh -c 'netstat -tln 2>/dev/null | grep -q ":4000 "' 2>/dev/null; then
-        ok "UI recovered — Vite listening on :4000"
+      if docker exec ai-demo-ui sh -c "netstat -tln 2>/dev/null | grep -q ':${UI_HEALTH_PORT} '" 2>/dev/null; then
+        ok "UI recovered — listening on :${UI_HEALTH_PORT}"
       else
-        warn "UI still not serving :4000 — check: ./run-docker.sh logs ui"
+        warn "UI still not serving :${UI_HEALTH_PORT} — check: ./run-docker.sh logs ui"
       fi
     fi
   fi

@@ -6,7 +6,7 @@
 #
 #   - ui:              Vite dev server (HMR) instead of the nginx static build.
 #                      Edits to demo_api_ui/src/** reflect in the browser instantly,
-#                      no rebuild. Served HTTPS on :4000 via the same mkcert certs,
+#                      no rebuild. Served HTTPS on :4300 via the same mkcert certs,
 #                      proxying /api, /ws and /health to the BFF (see vite.config.js).
 #   - demo-api-server: NO auto-restart. It runs the image default (`npm start` →
 #                      `node server.js`). It used to run `node --watch`, which was
@@ -26,7 +26,7 @@
 #   docker compose up
 #
 # Prefer ./run-docker.sh restart ui (not raw docker compose) — it runs
-# scripts/ensure-dev-certs.sh so https://api.ping.demo:4000 keeps working.
+# scripts/ensure-dev-certs.sh so https://api.ping.demo:4300 keeps working.
 #
 # To run the production-equivalent stack (nginx UI, no watch), bypass the override:
 #   docker compose -f docker-compose.yml up
@@ -40,22 +40,27 @@ services:
   # bind-mounted main checkout made every merge restart the BFF mid-demo.
 
   # UI — Vite dev server with HMR (Dockerfile `dev` stage) instead of nginx.
+  #
+  # Dev listens on HOST PORT 4300, not 4000: 4000 is the demo/prod surface and
+  # must only ever serve a PROD_MODE build from a known SHA. Both used to share
+  # 4000, so any plain `docker compose up` (or a PROD_MODE-less run-docker.sh)
+  # silently replaced the prod UI with a dev server bound to whichever tree the
+  # session ran from — a worktree's uncommitted WIP included. Moving dev to
+  # 4300 makes that accident impossible: 4000 = nginx prod, 4300 = dev + HMR.
   ui:
     build:
       target: dev
-    command: npm start          # = vite (listens on :4000 per vite.config.js)
-    # No ports override needed: the base ui mapping is 4000:4000 (nginx prod and
-    # the Vite dev server both listen on 4000), so the dev server is reachable
-    # through the inherited mapping. (Avoids the Compose `!override` tag, which
-    # needs Compose >= 2.24 and would otherwise break `docker compose up` on
-    # older versions.)
+    command: npm start          # = vite (listens on :4300 via PORT per vite.config.js)
+    ports: !override
+      - "4300:4300"
     environment:
+      PORT: 4300
       # Proxy /api and /ws to the BFF by compose service DNS (vite.config.js builds
       # the target from REACT_APP_API_HOST). secure:false there tolerates the cert
       # CN mismatch on demo-api-server.
       REACT_APP_API_HOST: demo-api-server
       REACT_APP_KIBANA_URL: ${REACT_APP_KIBANA_URL:-http://localhost:4180}
-      # Exit at boot if mkcert files are missing — never serve HTTP-only on :4000 silently.
+      # Exit at boot if mkcert files are missing — never serve HTTP-only on :4300 silently.
       REQUIRE_DEV_TLS: "1"
     volumes:
       # Whole UI tree mounted so src/, vite.config.js, index.html and public/ are all
