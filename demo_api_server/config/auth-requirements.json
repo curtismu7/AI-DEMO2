@@ -209,6 +209,7 @@
     "/demo-data": "public",
     "/demo-guide-popout": "public",
     "/demo-track": "public",
+    "/demo-summary": "public",
     "/demo/:shellSlug": "public",
     "/demo/enterprise-mcp": "public",
     "/demo/footprint-mocks": "user",
