@@ -256,6 +256,7 @@ module.exports = async function decisionHandler(req, res) {
     IntentDriftScore = '',
     ActChainDepth = '',
     NestedActClientId = '',
+    MayActSub = '',
     RarAuthorizationDetails = '',
     ResourceOwnerId = '',
     RequiredGroup = '',
@@ -722,13 +723,12 @@ module.exports = async function decisionHandler(req, res) {
   // Exchanger (the terminal actor of the standard two-exchange flow) or the
   // AI Agent (a single-hop terminal actor). When neither is configured, any
   // delegation is denied (fail-closed). Empty ActClientId means no
-  // delegation (simple exchange) — allowed. This used to have a second mode
-  // (ENFORCE_MAY_ACT) that cross-referenced the user's may_act.sub instead of
-  // checking the actor identity directly — removed in favor of act-only
-  // validation; the permitted identity set is unchanged (same two client ids
-  // the old may_act branch's "single-hop" and "2-exchange" cases allowed).
-  // Rule 2.5 below is what actually requires an act claim to be present at
-  // all for agent-mediated tools.
+  // delegation (simple exchange) — allowed. The former ENFORCE_MAY_ACT mode
+  // (cross-referencing the user's may_act.sub here) was removed in favor of
+  // act-only validation, then RESTORED as Rule 2.6 below — per-user consent
+  // on the same tool set as Rule 2.5 — when the may_act re-architecture made
+  // consent a decision-time check (2026-10-10). See docs/ACT_CLAIM_VERIFICATION.md.
+  // Rule 2.5 below is what requires an act claim to be present at all.
   const authorizedActor = ruleStore.getAuthorizedActorClientId();
   const authorizedAiAgent = process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID || '';
   if (a2aDelegated) {
@@ -762,6 +762,36 @@ module.exports = async function decisionHandler(req, res) {
     if (scopeTopology.isAgentMediatedTool(ToolName) && !ActClientId) {
       warn(`[AuthzServer/decision] DENY — missing_act: tool "${ToolName}" requires agent delegation`);
       return deny(res, `missing_act: tool "${ToolName}" requires an act claim (agent delegation). Impersonation is not permitted.`);
+    }
+  }
+
+  // ── Rule 2.6: per-user consent (may_act re-architecture, 2026-10-10) ──────
+  // Default mode mints `act` from the ACTOR TOKEN (pingoneProvisionService
+  // actAttributeValue, ff_may_act_seed OFF) — so may_act no longer gates
+  // minting, and consent must be enforced HERE, on every tool call:
+  // MayActSub (bridged from the signed-in user's session may_act via
+  // X-May-Act-Sub) must be present and equal the acting agent. A missing or
+  // stale grant denies immediately — no token-expiry window.
+  //
+  // Carve-outs mirror Rule 2's: A2A-delegated calls are authorized by the act
+  // chain (Rule 1c), named workload agents by their own identity (UC38/44).
+  // Fires on the same tool set as Rule 2.5 (agent-mediated only, both
+  // tool-call contexts). Set REQUIRE_USER_CONSENT=false to opt out (flag-ON
+  // mode, where may_act still gates minting upstream).
+  const requireUserConsent = process.env.REQUIRE_USER_CONSENT !== 'false';
+  if (requireUserConsent && MCP_TOOL_CALL_CONTEXTS.has(DecisionContext)
+      && !a2aDelegated && scopeTopology.isAgentMediatedTool(ToolName) && ActClientId) {
+    const isNamedWorkloadAgent26 = (process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS || '')
+      .split(',').map((id) => id.trim()).filter(Boolean).includes(ActClientId);
+    if (!isNamedWorkloadAgent26) {
+      if (!MayActSub) {
+        warn(`[AuthzServer/decision] DENY — no_user_consent: tool "${ToolName}" acting agent "${ActClientId}" has no bridged user consent`);
+        return deny(res, `no_user_consent: the signed-in user has not authorized an agent to act for them (may_act absent). Authorize the agent and retry.`);
+      }
+      if (MayActSub !== ActClientId) {
+        warn(`[AuthzServer/decision] DENY — may_act_mismatch: consented actor "${MayActSub}" != acting agent "${ActClientId}"`);
+        return deny(res, `may_act_mismatch: user consent names "${MayActSub}" but the acting agent is "${ActClientId}"`);
+      }
     }
   }
 

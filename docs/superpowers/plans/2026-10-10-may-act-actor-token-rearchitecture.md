@@ -52,7 +52,7 @@ the config UI description).
 
 ## 3. Changes per subsystem
 
-### 3.1 `demo_api_server/services/pingoneProvisionService.js` (mint side)
+### Task 1: `demo_api_server/services/pingoneProvisionService.js` (mint side)
 
 - Read `ff_may_act_seed` (configStore) where steps 23.5 / agent-gw-act / a2a-intermediate-act wire SpEL.
 - **Flag OFF:**
@@ -68,7 +68,7 @@ the config UI description).
 - **Flag ON:** current SpEL, byte-identical.
 - Step messages say which mode wired what (setup wizard transcript).
 
-### 3.2 `demo_api_server/services/mcpActorBridge.js` + callers (per-user consent signal)
+### Task 2: `demo_api_server/services/mcpActorBridge.js` + callers (per-user consent signal)
 
 - `buildActorBridgeHeaders({ workloadActorClientId, userMayActSub })`:
   - `X-Act-Client-Id` unchanged (names the agent — static is correct).
@@ -82,7 +82,7 @@ the config UI description).
     header; no gateway change needed for the bridge itself.
 - `routes/authorize.js:884` audit: confirm its bridge usage is consent-irrelevant or thread too.
 
-### 3.3 `demo_authz_server/routes/decision.js` (mock parity — the new rule)
+### Task 3: `demo_authz_server/routes/decision.js` (mock parity — the new rule)
 
 New **Rule 2.6 — per-user consent** (mirrors what the P1AZ snapshot will enforce):
 
@@ -97,20 +97,20 @@ New **Rule 2.6 — per-user consent** (mirrors what the P1AZ snapshot will enfor
   `MayActSub` (see 3.4) or every agent-mediated BFF call denies.
 - `ENFORCE_MAY_ACT` comment block: replace the stale "removed" note with the live rule reference.
 
-### 3.4 `demo_api_server/services/mcpToolAuthorizationService.js` (BFF-gate parity)
+### Task 4: `demo_api_server/services/mcpToolAuthorizationService.js` (BFF-gate parity)
 
 - `decodeMcpTokenFacts` / `buildMcpDelegationParameters`: add `MayActSub` from the
   session user token's `may_act.sub` (same per-user source as 3.2) so the BFF's own
   P1AZ decision evaluates consent identically to the gateway path.
 
-### 3.5 P1AZ snapshot (live tenant parity)
+### Task 5: P1AZ snapshot (live tenant parity)
 
 - `p1az-import-generator` skill: add `MayActSub` `AttributeDefinition` + `ConditionDefinition`
   + rule ("agent-mediated tool && MayActSub ≠ ActClientId → DENY"), mirroring Rule 2.6.
 - Produces a new import file; **live import is a deployment step, gated on the user** —
   do not push to the tenant from this work unilaterally.
 
-### 3.6 Teaching copy (default mode reframe)
+### Task 6: Teaching copy (default mode reframe)
 
 - `config/useCases.js` UC3 (`may-act-gate`): default copy teaches
   "the actor token identifies the agent; PingOne Authorize checks the user's consent
@@ -121,7 +121,7 @@ New **Rule 2.6 — per-user consent** (mirrors what the P1AZ snapshot will enfor
 - `DelegationPage.js` Maya narrative: same reframe.
 - Emoji allowlist (REGRESSION_PLAN §0) applies.
 
-### 3.7 Unchanged (explicitly)
+### Task 7: Unchanged (explicitly)
 
 - `agentAuthorization.js` grant/revoke: clears `mayAct` + RFC 7009 revocation + reauth — works in both modes (in default mode the PDP rule is the second layer).
 - A2A nested composer, `X-Act-Client-Id` bridge, Rule 2 (actor allowlist), Rule 2.5, PF
