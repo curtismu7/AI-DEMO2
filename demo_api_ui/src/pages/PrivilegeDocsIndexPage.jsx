@@ -385,6 +385,13 @@ const SECTIONS = [
         covers:
           "The two-agent demo (aigwdemo) from the source up: three processes, the six legs and which cross the gateway, the four ADK traps the demo solves (A2A bearer, card object, transportOptions, GatewayGemini), the seeded findings, the UI's eight detector groups, and the runbook condensed (source-verified 2026-10-09, not yet run).",
       },
+      {
+        title: "Policies in depth",
+        path: "privilege/PRIVILEGE-POLICIES-IN-DEPTH.md",
+        pdf: true,
+        covers:
+          "What tool policies do when there is more than one: the union model (create adds, expiry silently subtracts, delete subtracts identically, edit-down does nothing), discovery-gating and why the client never sees denied, the four indistinguishable 403s, groups (documented, not reproduced), per-app scope, and when a policy problem isn't one — every step measured live 2026-10-10.",
+      },
     ],
   },
   {
@@ -427,7 +434,6 @@ const SECTIONS = [
 ];
 
 const PLANNED = [
-  ["Policies in depth", "Expiry, several policies adding up, groups, per-tool grants", "Partly — needs console changes"],
   ["Agent mode end to end", "The Privilege Agent on a workstation, device-bound identity, how it differs from agentless", "Partly — needs the agent paired on a Mac"],
 ];
 
