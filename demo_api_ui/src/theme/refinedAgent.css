@@ -58,7 +58,7 @@
 
 /* Title — serif display, ink, no uppercase shoutiness. */
 .global-embedded-agent-dock-wrap.refined-dock .embedded-agent-dock__title {
-  font-family: var(--rd-font-display, "Fraunces", Georgia, serif);
+  font-family: var(--rd-font-display, "Montserrat", Georgia, serif);
   font-weight: 600;
   letter-spacing: -0.01em;
   text-transform: none;

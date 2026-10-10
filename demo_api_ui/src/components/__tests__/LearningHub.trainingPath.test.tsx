@@ -3,6 +3,7 @@ import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
 import LearningHub from "../LearningHub";
+import { SessionTokenProvider } from "../../context/SessionTokenContext";
 
 vi.mock("../../context/ThemeContext", () => ({
   useThemeOptional: () => ({ darkMode: false, toggleDarkMode: vi.fn() }),
@@ -19,9 +20,9 @@ vi.mock("../TokenChainTraceRail", () => ({ default: () => null }));
 describe("LearningHub training path", () => {
   it("exposes the live customer story in sequence", () => {
     render(
-      <MemoryRouter initialEntries={["/learning"]}>
+      <SessionTokenProvider><MemoryRouter initialEntries={["/learning"]}>
         <LearningHub />
-      </MemoryRouter>,
+      </MemoryRouter></SessionTokenProvider>,
     );
 
     expect(screen.getByRole("heading", { name: /secure one agent action from identity to evidence/i })).toBeInTheDocument();
@@ -45,9 +46,9 @@ describe("LearningHub training path", () => {
 
   it("puts the working AI Security Academy journey beside the learning path", () => {
     render(
-      <MemoryRouter initialEntries={["/learning"]}>
+      <SessionTokenProvider><MemoryRouter initialEntries={["/learning"]}>
         <LearningHub />
-      </MemoryRouter>,
+      </MemoryRouter></SessionTokenProvider>,
     );
 
     expect(screen.getByText("AI Security Academy", { exact: true })).toBeInTheDocument();
@@ -64,9 +65,9 @@ describe("LearningHub training path", () => {
 
   it("labels cards by execution status and searches protocol metadata", () => {
     render(
-      <MemoryRouter initialEntries={["/learning"]}>
+      <SessionTokenProvider><MemoryRouter initialEntries={["/learning"]}>
         <LearningHub />
-      </MemoryRouter>,
+      </MemoryRouter></SessionTokenProvider>,
     );
 
     expect(screen.getByRole("button", { name: /agent gateway authorization.*live/i })).toBeInTheDocument();
@@ -82,12 +83,12 @@ describe("LearningHub training path", () => {
 
   it("routes simulated topics to a runnable lab", () => {
     render(
-      <MemoryRouter initialEntries={["/learning"]}>
+      <SessionTokenProvider><MemoryRouter initialEntries={["/learning"]}>
         <Routes>
           <Route path="/learning" element={<LearningHub />} />
           <Route path="/learning-lab/:lab" element={<div>Runnable protocol lab</div>} />
         </Routes>
-      </MemoryRouter>,
+      </MemoryRouter></SessionTokenProvider>,
     );
 
     fireEvent.click(screen.getByRole("button", { name: /rar \(rfc 9396\).*simulated/i }));
@@ -96,9 +97,9 @@ describe("LearningHub training path", () => {
 
   it("keeps the Academy entry visible for whitespace-only searches", () => {
     render(
-      <MemoryRouter initialEntries={["/learning"]}>
+      <SessionTokenProvider><MemoryRouter initialEntries={["/learning"]}>
         <LearningHub />
-      </MemoryRouter>,
+      </MemoryRouter></SessionTokenProvider>,
     );
 
     fireEvent.change(screen.getByRole("textbox", { name: /search learning topics/i }), {

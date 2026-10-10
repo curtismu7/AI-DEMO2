@@ -421,7 +421,7 @@
 }
 
 .tracing-graph-node-label {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
   pointer-events: none;
 }
 
@@ -430,7 +430,7 @@
 }
 
 .tracing-graph-edge-label text {
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
 }
 
 /* Dim highlighting when a node/edge is selected. */
@@ -449,7 +449,7 @@
   border-radius: 6px;
   background: #0f172a;
   color: #ffffff;
-  font-family: ui-sans-serif, system-ui, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
   font-size: var(--font-size-2xs);
   line-height: 1.5;
   white-space: pre-wrap;

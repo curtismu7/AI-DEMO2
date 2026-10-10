@@ -8,6 +8,10 @@ const definitions = [
   {
     id: 'personal-agent',
     product: 'Identity for AI & NHI',
+    learning: [
+      { label: 'Agent landscape and identity' },
+      { label: 'Computer Use Agent (CUA)' },
+    ],
     inspectors: [
       link('Agent Registry & NHI', '/agent-registry'),
       link('Agent & Token Flow History', '/agent-flow-inspector'),
@@ -23,6 +27,11 @@ const definitions = [
   {
     id: 'digital-assistant',
     product: 'Identity for AI & NHI',
+    learning: [
+      { label: 'Actor Token (Agent)' },
+      { label: 'Step-up MFA' },
+      { label: 'CIBA (OOB)' },
+    ],
     inspectors: [
       link('Agent & Token Flow History', '/agent-flow-inspector'),
       link('P1AZ Inspector', '/pingone-authorize'),
@@ -37,6 +46,10 @@ const definitions = [
   {
     id: 'consumer-partner',
     product: 'Identity for AI & NHI',
+    learning: [
+      { label: 'OAuth: CIMD' },
+      { label: 'Agent IAM Core' },
+    ],
     inspectors: [
       link('Consumer & Partner Agent Builder', '/agent-builder'),
       link('Agent Registry & NHI', '/agent-registry'),
@@ -64,6 +77,10 @@ const definitions = [
   {
     id: 'workload-agent',
     product: 'PingOne AI Agent Gateway',
+    learning: [
+      { label: 'MCP: MFA Gate on Tools' },
+      { label: 'Enterprise-Managed Auth (EMA)' },
+    ],
     routes: [link('Open Workload Agents', '/workload-agents')],
     inspectors: [
       link('Agent Gateway Authorization', '/agent-gateway-authorization'),
@@ -79,6 +96,9 @@ const definitions = [
   {
     id: 'agent-network',
     product: 'PingOne AI Agent Gateway',
+    learning: [
+      { label: 'Agent-to-Agent (A2A)' },
+    ],
     inspectors: [
       link('Agent Gateway Inspector', '/agent-gateway-inspector'),
       link('Agent & Token Flow History', '/agent-flow-inspector'),
@@ -92,6 +112,10 @@ const definitions = [
   {
     id: 'discover',
     product: 'MCP Runtime & Discovery',
+    learning: [
+      { label: 'MCP Protocol' },
+      { label: 'MCP Server Discovery' },
+    ],
     inspectors: [
       link('MCP Discovery', '/mcp-discovery'),
       link('MCP Runtime Inventory', '/mcp-discovery'),
@@ -102,6 +126,10 @@ const definitions = [
   {
     id: 'register',
     product: 'Identity for AI & NHI',
+    learning: [
+      { label: 'Agent landscape and identity' },
+      { label: 'Enterprise-Managed Auth (EMA)' },
+    ],
     inspectors: [
       link('Agent Onboarding Flow', '/agent-onboarding-flow'),
       link('CIMD Simulation', '/client-registration'),
@@ -112,6 +140,11 @@ const definitions = [
   {
     id: 'authenticate',
     product: 'Identity for AI & NHI',
+    learning: [
+      { label: 'Auth Code + PKCE' },
+      { label: 'Token Exchange (RFC 8693)' },
+      { label: 'may_act / act claims' },
+    ],
     inspectors: [
       link('Login Flow Diagram', '/login-flow'),
       link('Token Exchange', '/monitoring/token-exchange'),
@@ -125,6 +158,12 @@ const definitions = [
   {
     id: 'authorize',
     product: 'PingOne Authorize',
+    learning: [
+      { label: 'PingOne Authorize' },
+      { label: 'PAR (RFC 9126)' },
+      { label: 'RAR (RFC 9396)' },
+      { label: 'Gateway vs P1AZ Decision Split' },
+    ],
     inspectors: [
       link('P1AZ Inspector', '/pingone-authorize'),
       link('Policy Decision Trace', '/policy-decision-trace'),
@@ -139,6 +178,11 @@ const definitions = [
   {
     id: 'privilege',
     product: 'PingOne Privilege & Privilege for AI',
+    learning: [
+      { label: 'Privilege for AI — MCP' },
+      { label: 'Privilege for AI — A2A' },
+      { label: 'Privilege for AI — LLM' },
+    ],
     inspectors: [
       link('Privilege Demo — Request Access', '/privilege-demo?tab=script'),
       link('Privilege MCP Client', '/privilege-mcp-client'),
@@ -155,6 +199,10 @@ const definitions = [
   {
     id: 'govern',
     product: 'Evidence & Governance',
+    learning: [
+      { label: 'Agent Kill Switch' },
+      { label: 'Jev: Decision Model' },
+    ],
     inspectors: [
       link('Governance Timeline', '/governance-timeline'),
       link('Audit Trail', '/audit-trail'),

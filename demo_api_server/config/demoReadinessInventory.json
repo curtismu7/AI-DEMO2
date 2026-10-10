@@ -1,35 +1,124 @@
 {
   "schemaVersion": 1,
   "primary": [
-    "UC24", "UC1", "UC8", "UC7", "UC14b", "UC14", "UC12", "UC6",
-    "UC2", "UC2.5", "UC2.7", "UC22", "UC5", "UC10", "UC13", "UC11",
-    "UC20", "UC18", "UC30", "UC31", "UC32", "UC40", "UC38", "UC-TOOL1", "UC46", "UC47", "UC-MUSE1", "UC-MUSE2"
+    "UC24", "UC1", "UC8", "UC7",
+    "UC14b", "UC14", "UC12", "UC6",
+    "UC2", "UC2.5", "UC2.7", "UC22",
+    "UC5", "UC10", "UC13", "UC11",
+    "UC20", "UC18", "UC29", "UC30",
+    "UC31", "UC32", "UC40", "UC38",
+    "UC-TOOL1", "UC46", "UC47", "UC-MUSE1",
+    "UC-MUSE2"
   ],
   "advanced": [],
-  "ciam": ["UC43", "UC44", "UC45", "UC48", "UC2", "UC2.6"],
+  "ciam": [
+    "UC43", "UC44", "UC45", "UC48",
+    "UC2", "UC2.6"
+  ],
   "privilege": [
-    "UC17", "UC25", "UC40", "UC-PAM-SETUP", "UC-PAM-SCRIPT", "UC-LEARN11", "UC-TOOL3"
+    "UC17", "UC25", "UC40", "UC-PAM-SETUP",
+    "UC-PAM-SCRIPT", "UC-LEARN11", "UC-TOOL3"
   ],
   "admin": [
-    "ADMIN1", "ADMIN2", "ADMIN3", "ADMIN4", "ADMIN5", "ADMIN6", "ADMIN7",
-    "ADMIN8", "ADMIN9", "ADMIN10", "ADMIN11", "ADMIN12", "ADMIN13"
+    "ADMIN1", "ADMIN2", "ADMIN3", "ADMIN4",
+    "ADMIN5", "ADMIN6", "ADMIN7", "ADMIN8",
+    "ADMIN9", "ADMIN10", "ADMIN11", "ADMIN12",
+    "ADMIN13"
   ],
   "excluded": {
     "ADMIN13": "navigation-only"
   },
-  "allowedCrossLaneOverlaps": ["UC2", "UC40"],
+  "allowedCrossLaneOverlaps": [
+    "UC2", "UC40"
+  ],
   "adminExpectations": {
-    "ADMIN1": { "expectedAction": "call_pingone_tool", "expectedTool": "listApplications", "expectedArguments": {} },
-    "ADMIN2": { "expectedAction": "call_pingone_tool", "expectedTool": "listUsers", "expectedArguments": {} },
-    "ADMIN3": { "expectedAction": "call_pingone_tool", "expectedTool": "listPopulations", "expectedArguments": {} },
-    "ADMIN4": { "expectedAction": "call_pingone_tool", "expectedTool": "getEnvironment", "expectedArguments": {} },
-    "ADMIN5": { "expectedAction": "call_pingone_tool", "expectedTool": "listUsers", "expectedArguments": { "filter": "username sw \"curt\"" }, "queryInput": "curt" },
-    "ADMIN6": { "expectedAction": "call_pingone_tool", "expectedTool": "listApplications", "expectedArguments": { "filter": "name sw \"Demo\"" }, "queryInput": "Demo" },
-    "ADMIN7": { "expectedAction": "list_pingone_tools", "expectedTool": null, "expectedArguments": {}, "expectedFilter": "user", "queryInput": "user" },
-    "ADMIN8": { "expectedAction": "call_pingone_tool", "expectedTool": "listResources", "expectedArguments": {} },
-    "ADMIN9": { "expectedAction": "call_pingone_tool", "expectedTool": "getEnvironmentServices", "expectedArguments": {} },
-    "ADMIN10": { "expectedAction": "call_pingone_tool", "expectedTool": "listDavinciFlows", "expectedArguments": {} },
-    "ADMIN11": { "expectedAction": "call_pingone_tool", "expectedTool": "listDavinciApplications", "expectedArguments": {} },
-    "ADMIN12": { "expectedAction": "call_pingone_tool", "expectedTool": "listDavinciConnectors", "expectedArguments": {} }
+    "ADMIN1": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "listApplications",
+      "expectedArguments": {
+        
+      }
+    },
+    "ADMIN2": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "listUsers",
+      "expectedArguments": {
+        
+      }
+    },
+    "ADMIN3": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "listPopulations",
+      "expectedArguments": {
+        
+      }
+    },
+    "ADMIN4": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "getEnvironment",
+      "expectedArguments": {
+        
+      }
+    },
+    "ADMIN5": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "listUsers",
+      "expectedArguments": {
+        "filter": "username sw \"curt\""
+      },
+      "queryInput": "curt"
+    },
+    "ADMIN6": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "listApplications",
+      "expectedArguments": {
+        "filter": "name sw \"Demo\""
+      },
+      "queryInput": "Demo"
+    },
+    "ADMIN7": {
+      "expectedAction": "list_pingone_tools",
+      "expectedTool": null,
+      "expectedArguments": {
+        
+      },
+      "expectedFilter": "user",
+      "queryInput": "user"
+    },
+    "ADMIN8": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "listResources",
+      "expectedArguments": {
+        
+      }
+    },
+    "ADMIN9": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "getEnvironmentServices",
+      "expectedArguments": {
+        
+      }
+    },
+    "ADMIN10": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "listDavinciFlows",
+      "expectedArguments": {
+        
+      }
+    },
+    "ADMIN11": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "listDavinciApplications",
+      "expectedArguments": {
+        
+      }
+    },
+    "ADMIN12": {
+      "expectedAction": "call_pingone_tool",
+      "expectedTool": "listDavinciConnectors",
+      "expectedArguments": {
+        
+      }
+    }
   }
 }

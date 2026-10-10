@@ -363,7 +363,7 @@
   padding: 0 12px;
   background: var(--claude-title);
   border-bottom: 1px solid var(--claude-line);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .afm-claude-title strong { flex: 1; text-align: center; font-weight: 600; }
@@ -374,7 +374,7 @@
   padding: 14px 10px;
   background: var(--claude-rail);
   border-right: 1px solid var(--claude-line);
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 .afm-claude-new {
@@ -393,7 +393,7 @@
 .afm-claude-thread.is-on { color: var(--claude-ink); background: var(--claude-thread-selected); }
 .afm-claude-project { margin: 18px 8px 0; padding-top: 14px; border-top: 1px solid var(--claude-project-line); color: var(--claude-muted); font-size: var(--font-size-2xs); }
 .afm-claude-main { flex: 1; display: flex; flex-direction: column; min-width: 0; background: var(--claude-main); }
-.afm-claude-chat-head { height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid var(--claude-line); font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
+.afm-claude-chat-head { height: 54px; display: flex; align-items: center; justify-content: space-between; padding: 0 18px; border-bottom: 1px solid var(--claude-line); font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif; }
 .afm-claude-chat-head div { display: flex; flex-direction: column; gap: 2px; }
 .afm-claude-chat-head strong { font-size: var(--font-size-body); }
 .afm-claude-chat-head div span { color: var(--claude-muted); font-size: var(--font-size-xs); }
@@ -535,7 +535,7 @@
   min-height: 320px;
   border: 1px solid #d8dce3;
   overflow: hidden;
-  font-family: "Segoe UI", system-ui, sans-serif;
+  font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
   font-size: var(--font-size-2xs);
   background: #f4f6f8;
   /* A vendor costume is a fixed look on a fixed ground, so its ink is fixed too.
@@ -651,7 +651,7 @@
   padding: 0 10px;
   background: #161b22;
   border-bottom: 1px solid #30363d;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   flex-shrink: 0;
 }
 
@@ -722,7 +722,7 @@
   justify-content: space-between;
   padding: 0 10px;
   border-bottom: 1px solid #30363d;
-  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
   font-weight: 600;
   font-size: var(--font-size-xs);
 }
@@ -736,7 +736,7 @@
   background: #0b1220;
   color: #ffffff;
   border: 1px solid #1e293b;
-  font-family: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  font-family: "Montserrat", "Segoe UI", system-ui, sans-serif;
   overflow: hidden;
 }
 

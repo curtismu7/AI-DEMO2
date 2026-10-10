@@ -47,7 +47,7 @@ Content-Type: application/x-www-form-urlencoded
 
 grant_type=authorization_code&amp;code=...
 &amp;client_assertion_type=urn:ietf:params:oauth:client-assertion-type:jwt-bearer
-&amp;client_assertion=eyJhbGciOi...  // signed JWT: iss/sub = client_id, aud = token endpoint</pre></section>
+&amp;client_assertion=eyJhbGciOi...  // signed JWT: iss/sub = client_id, aud = token endpoint</pre><div style="margin: 14px 0 0; padding: 12px 16px; border: 1px solid rgba(22,163,74,0.5); border-radius: 10px; background: rgba(22,163,74,0.06);"><p style="margin: 0 0 4px; font-weight: 700; font-size: 0.92rem;">Live in the demo since 2026-10-10</p><p style="margin: 0 0 4px; font-size: 0.83rem; color: #374151;">A dedicated PingOne application (Private Key JWT Exchanger) now performs the demo&#39;s RFC 8693 token exchange, authenticated entirely by a signed client assertion — no secret on the wire. Verified live: a client-credentials grant and a full exchange, both accepted with the RS256 assertion (iss = sub = client id, aud = token endpoint, exp 60s). Provisioned by <code>scripts/provision-private-key-jwt-exchanger.js</code> (pairs with <code>gen-exchanger-jwt-key.js</code>); watch exchanges on the Token Exchange dashboard&#39;s <code>dedicated-app</code> facet. The lab page keeps its simulated validator as the teaching surface.</p></div></section>
 </div></div>
 <div class="snap-foot">The AI Demo Learning Hub · <a href="index.html">back to index</a></div>
 <style>

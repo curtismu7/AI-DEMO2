@@ -30,6 +30,9 @@ export default function UseCaseDiagramsGalleryPage() {
                 <span className="ucd-card__title">{g?.title || c.id}</span>
                 <span className="ucd-card__what">{g?.what || ""}</span>
               </Link>
+              <Link className="ucd-card__run" to={`/use-cases#${c.id}`}>
+                Run this step ↗
+              </Link>
             </li>
           );
         })}

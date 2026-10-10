@@ -1,6 +1,7 @@
 import { createRequire } from "node:module";
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import LlmGatewayPage from "../LlmGatewayPage";
+import { MemoryRouter } from "react-router-dom";
 import { GUARDRAIL_ATTACKS } from "../../config/guardrailAttackCatalog";
 
 const require = createRequire(import.meta.url);
@@ -53,7 +54,7 @@ describe("UC-LEARN11 readiness evidence from the real LLM Gateway route", () => 
     });
 
     window.history.replaceState({}, "", "/llm-gateway?attack=prompt_injection");
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
     const attackSelect = await screen.findByLabelText(/attack library/i);
     const promptBox = screen.getByLabelText(/^prompt$/i);

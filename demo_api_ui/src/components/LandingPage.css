@@ -31,7 +31,7 @@
   --lp-navy-2: #334155;
   --lp-accent: #0369a1;
   --lp-accent-hover: #0284c7;
-  --lp-destructive: #dc2626;
+  --lp-destructive: #d20e0f;
   --lp-shadow-sm:
     0 1px 3px rgba(2, 6, 23, 0.08), 0 1px 2px rgba(2, 6, 23, 0.06);
   --lp-shadow-md:
@@ -40,7 +40,7 @@
     0 8px 24px rgba(2, 6, 23, 0.1), 0 4px 10px rgba(2, 6, 23, 0.06);
   --lp-radius: 10px;
   --lp-radius-lg: 14px;
-  --lp-font: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+  --lp-font: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
 }
 
 /* Note: when [data-rd-v2] is present, refinedDashboardV2.css overrides these styles */
@@ -57,7 +57,7 @@
 .landing-page[data-rd-v2] {
   background-color: #f7f7f5 !important;
   color: #111110 !important;
-  font-family: "Inter", ui-sans-serif, system-ui, sans-serif !important;
+  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif !important;
 }
 
 /* ========== Header (logged-out only) ========== */
@@ -170,10 +170,17 @@
 
 /* ========== Hero Section ========== */
 .landing-hero {
-  background: var(--lp-surface);
+  /* Brand-hub arcs pattern (public/branding/pattern-arcs.jpg) anchored to the
+     top-right, over the surface color — whisper-light texture, never noise. */
+  background:
+    url('/branding/pattern-arcs.jpg') right top / 720px auto no-repeat,
+    var(--lp-surface);
   border-bottom: 1px solid var(--lp-border);
   padding: 96px 32px 88px;
   text-align: center;
+}
+@media (max-width: 720px) {
+  .landing-hero { background-image: none; }
 }
 .landing-hero-content {
   max-width: 720px;
@@ -231,14 +238,14 @@
   line-height: 1.4;
 }
 .hero-cta-primary {
-  background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+  background: linear-gradient(180deg, #d20e0f 0%, #aa0005 100%);
   color: var(--th-text-invert);
-  border-color: #7f1d1d;
+  border-color: #7c0003;
   box-shadow: var(--lp-shadow-sm);
 }
 .hero-cta-primary:hover {
-  background: linear-gradient(180deg, #b91c1c 0%, #991b1b 100%);
-  border-color: #7f1d1d;
+  background: linear-gradient(180deg, #aa0005 0%, #8f0004 100%);
+  border-color: #7c0003;
   box-shadow: var(--lp-shadow-md);
 }
 .hero-cta-secondary {
@@ -544,7 +551,7 @@
 [data-rd-v2].landing-page {
   background: var(--rd2-bg, #f7f7f5) !important;
   color: var(--rd2-ink-1, #111110) !important;
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif) !important;
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
 }
 
 [data-rd-v2] .landing-header {
@@ -555,7 +562,7 @@
 
 [data-rd-v2] .landing-logo-title {
   color: var(--rd2-ink-1, #111110) !important;
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
 }
 
 [data-rd-v2] .landing-logo p {
@@ -565,7 +572,7 @@
 
 [data-rd-v2] .landing-btn,
 [data-rd-v2] .btn {
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif) !important;
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
 }
 
 [data-rd-v2] .btn-primary {
@@ -593,7 +600,14 @@
 
 /* V2: Hero section with warm background and serif headline */
 [data-rd-v2] .landing-hero {
-  background: transparent !important;
+  /* V2 transparentizes the base hero ground but keeps the brand-hub arcs
+     pattern (it sits on the page surface, not the hero's own fill).
+     multiply makes the JPEG's white ground disappear into the surface —
+     no rectangular seam. */
+  background:
+    url('/branding/pattern-arcs.jpg') right top / 720px auto no-repeat,
+    transparent !important;
+  background-blend-mode: multiply;
   border-bottom: 1px solid var(--rd2-line-1, #e4e4e0) !important;
   padding: 96px 32px 88px !important;
 }
@@ -621,7 +635,7 @@
 }
 
 [data-rd-v2] .landing-hero-headline {
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
   color: var(--rd2-ink-1, #111110) !important;
   font-size: 52px !important;
   font-weight: 600 !important;
@@ -629,7 +643,7 @@
 }
 
 [data-rd-v2] .landing-hero-zero-trust {
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
   color: var(--rd2-ink-1, #111110) !important;
   font-size: 64px !important;
   font-weight: 700 !important;
@@ -648,7 +662,7 @@
 
 [data-rd-v2] .landing-hero-subheadline {
   color: var(--rd2-ink-2, #4c4c48) !important;
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif) !important;
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
 }
 
 [data-rd-v2] .hero-cta-primary {
@@ -690,7 +704,7 @@
 }
 
 .landing-callout-lead {
-  font-family: var(--rd2-font-display, "Fraunces", serif);
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif);
   font-size: 26px;
   font-weight: 600;
   line-height: 1.35;
@@ -700,12 +714,14 @@
 }
 
 .landing-callout-lead em {
-  font-style: italic;
+  /* Brand rule: avoid italics for emphasis — heavier weight instead */
+  font-style: normal;
+  font-weight: 700;
   color: var(--rd2-accent-text, #ffffff);
 }
 
 .landing-callout-body {
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif);
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif);
   font-size: 16px;
   line-height: 1.65;
   color: var(--rd2-accent-text, #ffffff);
@@ -714,6 +730,15 @@
 
 .landing-callout-body:last-child {
   margin-bottom: 0;
+}
+
+/* Brand-hub boilerplate closing line — slightly quieter than the lead copy */
+.landing-callout-boilerplate {
+  font-size: 13.5px;
+  opacity: 0.88;
+  max-width: 620px;
+  margin-left: auto;
+  margin-right: auto;
 }
 
 @media (max-width: 640px) {
@@ -732,7 +757,7 @@
 }
 
 [data-rd-v2] .landing-features-heading h2 {
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
   color: var(--rd2-ink-1, #111110) !important;
   font-size: 34px !important;
   font-weight: 600 !important;
@@ -740,7 +765,7 @@
 
 [data-rd-v2] .landing-features-heading p {
   color: var(--rd2-ink-2, #4c4c48) !important;
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif) !important;
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
 }
 
 [data-rd-v2] .landing-feature-card {
@@ -760,14 +785,14 @@
 }
 
 [data-rd-v2] .landing-feature-title {
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
   color: var(--rd2-ink-1, #111110) !important;
   font-weight: 600 !important;
 }
 
 [data-rd-v2] .landing-feature-description {
   color: var(--rd2-ink-2, #4c4c48) !important;
-  font-family: var(--rd2-font-body, "Inter", ui-sans-serif, sans-serif) !important;
+  font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif) !important;
 }
 
 [data-rd-v2] .landing-token-chain {
@@ -776,7 +801,7 @@
 }
 
 [data-rd-v2] .landing-token-chain-heading h2 {
-  font-family: var(--rd2-font-display, "Fraunces", serif) !important;
+  font-family: var(--rd2-font-display, "Montserrat", Georgia, serif) !important;
   color: var(--rd2-ink-1, #111110) !important;
   font-weight: 600 !important;
 }

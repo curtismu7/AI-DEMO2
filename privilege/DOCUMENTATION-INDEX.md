@@ -11,8 +11,8 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 
 | Document | PDF | What it covers |
 |---|---|---|
-| [Personal Agents at United](../docs/united/United-Personal-Agent-Security.md) | — | MileagePlus members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between: the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, United's as-built assistant, the gap analysis, and the recommended design. Working draft, 2026-10-09, prepared for United's AI team |
-| United 431 Request Header Size Guidance | [In repo](../docs/united/United%20431%20Request%20Header%20Size%20Guidance.pdf) | Investigating and mitigating HTTP 431 "Request Header Fields Too Large" in United's browser-based headless Ping SDK / DaVinci flow on the custom domain: cookie-scope and intermediary causes, five remediation options (BFF/proxy, cookie scope, credentialed-request limits, intermediary stripping, eTLD+1 domain), and the HAR-capture diagnostic sequence |
+| [On users' personal agent design](../docs/personal-agent/On-Users-Personal-Agent-Design.md) | [In repo](../docs/personal-agent/On-Users-Personal-Agent-Design.pdf) | The personal-agent security architecture, built on United's MileagePlus review: members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between — the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, the as-built assistant, the gap analysis, and the recommended design. Top of page maps the design to Agent Privilege and links the demo surfaces and diagrams. Working draft, 2026-10-09, prepared for United's AI team |
+| United 431 Request Header Size Guidance | [In repo](../docs/personal-agent/United%20431%20Request%20Header%20Size%20Guidance.pdf) | Investigating and mitigating HTTP 431 "Request Header Fields Too Large" in United's browser-based headless Ping SDK / DaVinci flow on the custom domain: cookie-scope and intermediary causes, five remediation options (BFF/proxy, cookie scope, credentialed-request limits, intermediary stripping, eTLD+1 domain), and the HAR-capture diagnostic sequence |
 
 ## Start here
 
@@ -23,7 +23,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [Lessons learned](LESSONS-LEARNED.md) | — | Behaviors that cost real time and aren't in Ping's docs: policy union, entry-path pinning, DCR statelessness, hosted-vs-self-hosted auth. Read before authoring a policy or debugging a 403/404 |
 | [Console steps](PRIVILEGE-MCP-CONSOLE-STEPS.md) | — | The console-side steps that cannot be automated or tested from the repo |
 | [Agentless configuration](AGENTLESS-CONFIGURATION.md) | — | Operating the live Agentless (OAuth/PKCE) gateway in `ping-devops-cmuir`: current source of truth for OAuth, routing and image values |
-| [Agent configuration](AGENT-CONFIGURATION.md) | — | Operating the Agent-authenticated OpenSearch deployment in `ping-devops-curtismuir` |
+| [Agent configuration](AGENT-CONFIGURATION.md) | — | ⚠️ Stale-bannered 2026-10-10: describes the removed `cm-mcpgw` deployment — kept for the console-side operating method. Current state in [Agent mode end to end](AGENT-MODE-END-TO-END.md) |
 | [Current configuration index](CURRENT-CONFIGURATION.md) | — | Choosing between Agentless and Agent modes, and comparing their current values side by side |
 | [Official Ping config reference](PingOne-Privilege-MCP-Gateway-Configuration.md) | Drive (SE) | Ping's own configuration checklist (received 2026-08-12). First doc to call out K8s ingress 443→8623 and the 8690 mesh port; the repo's K8s setup was audited against it |
 | [Technical summary v3](MCP%20Privilege%20Gateway%20Technical%20Summary%20v3.pdf) | [In repo](MCP%20Privilege%20Gateway%20Technical%20Summary%20v3.pdf) | Ping's own summary of the MCP gateway feature. PDF only; v1/v2 exports remain outside the repo |
@@ -98,6 +98,8 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [CIMD client documents](../docs/2026-10-07-cimd-privilege-client-documents.md) | Drive (SE) | CIMD (client metadata documents) for PingOne Privilege — flow, boundary, and client documents, with diagrams |
 | [MCP discovery-gating demo](MCP-DISCOVERY-DEMO.md) | Drive (SE) | SE demo script: an agent's `tools/list` returns only what its policy grants — permit door, deny-by-default door, grant change, agent key, aggregate; pre-demo check and troubleshooting (every claim measured 2026-10-02…04) |
 | [Ping's reference demo, explained](PINGS-REFERENCE-DEMO-EXPLAINED.md) | Drive (SE) | The two-agent demo (`aigwdemo`) from the source up: three processes, the six legs and which cross the gateway, the four ADK traps the demo solves (A2A bearer, card object, `transportOptions`, `GatewayGemini`), the seeded findings, the UI's eight detector groups, and the runbook condensed (source-verified 2026-10-09, not yet run) |
+| [Policies in depth](PRIVILEGE-POLICIES-IN-DEPTH.md) | Drive (SE) | What tool policies do when there is more than one: the union model (create adds, expiry silently subtracts, delete subtracts identically, edit-down does nothing), discovery-gating and why the client never sees "denied", the four indistinguishable 403s, groups (documented, not reproduced), per-app scope, and when a "policy problem" isn't one — every step measured live 2026-10-10 |
+| [Agent mode end to end](AGENT-MODE-END-TO-END.md) | Drive (SE) | The Privilege Agent on a Mac, measured: device-bound identity in the Secure Enclave, pairing and re-pairing order, the local console, the cloud frontend's 403 gate — and the reframe: the agent is an identity anchor, not an MCP transport (cm-mcpgw is gone; MCP runs through the agentless gateways). Stale-agent-doc corrections included; paired live 2026-10-10 |
 
 ## Reference & records
 
@@ -121,5 +123,3 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 
 | Guide | What it covers | Testable now? |
 |---|---|---|
-| Policies in depth | Expiry, several policies adding up, groups, per-tool grants | Partly — needs console changes |
-| Agent mode end to end | The Privilege Agent on a workstation, device-bound identity, how it differs from agentless | Partly — needs the agent paired on a Mac |

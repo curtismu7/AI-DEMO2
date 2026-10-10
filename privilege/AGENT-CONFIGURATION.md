@@ -3,6 +3,17 @@
 Verified 2026-08-20 against the working Agent deployment in
 `ping-devops-curtismuir`. This is the operational source of truth for Agent mode.
 
+> ⚠️ **Stale as of 2026-10-10 — read for method, not for values.** The
+> Agent-mode gateway this document describes (`cm-mcpgw`, mesh `ai-demo-agent`,
+> the legacy `privilege-proxy` image) is **gone** from both namespaces; the
+> agentless gateways now run `privilege-aigw:latest` everywhere. The agent
+> itself is a device-bound identity anchor, not an MCP transport — nothing
+> in-cluster serves the `:8643` frontend this doc describes. Current state:
+> [Agent mode end to end](AGENT-MODE-END-TO-END.md) (measured 2026-10-10) and
+> [Current configuration index](CURRENT-CONFIGURATION.md). The console-side
+> steps below remain the reference for how an Agent-authenticated gateway is
+> operated when one exists again.
+
 ## What Agent mode means
 
 The MCP client connects to a Privilege-hosted frontend name. The installed PingOne

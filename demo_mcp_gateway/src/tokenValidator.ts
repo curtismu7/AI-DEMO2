@@ -189,6 +189,27 @@ function _getCachedPublicKey(jwk: JwkKey): crypto.KeyObject {
 
 let _noJwksWarned = false;
 
+// UC29 demo sim hook: forces _decodeAndVerify to behave as if the JWKS endpoint
+// is unreachable — the same fail-closed shape as a real outage (validation
+// backend down) without touching real enforcement. Armed/disarmed at runtime
+// via POST /admin/config (jwksSimDown), mirroring introspectionSimDown on the
+// introspection path. Must be disarmed immediately by the caller — no TTL.
+let _jwksSimDown = false;
+export function setJwksSimDown(down: boolean): void {
+  _jwksSimDown = down;
+}
+
+/**
+ * HTTP status for a TokenValidationError. 503 only for `jwks_fetch_failed` —
+ * the signature-verification BACKEND being unreachable is a service outage
+ * (fail closed), not a rejected credential; everything else is a bad/expired
+ * token and stays 401. Unknown codes fall back to 401 so a future code can
+ * never accidentally widen 5xx semantics onto a credential failure.
+ */
+export function validationErrorHttpStatus(err: TokenValidationError): number {
+  return err.code === 'jwks_fetch_failed' ? 503 : 401;
+}
+
 // Parsed-key cache — avoids re-importing the same JWK on every request. Keyed
 // by kid (or n/e/x/y fallback), which is unique across JWKS sources in
 // practice — RSA/EC keys from unrelated signers don't collide on kid — so
@@ -297,6 +318,15 @@ export function isIdJagIssuedToken(decoded: DecodedGatewayToken): boolean {
 }
 
 async function _decodeAndVerify(token: string): Promise<DecodedGatewayToken> {
+  // UC29 sim arm: refuse BEFORE any fetch — validation backend unreachable,
+  // same TokenValidationError('jwks_fetch_failed') a real transport failure
+  // throws, so the caller's fail-closed mapping is identical.
+  if (_jwksSimDown) {
+    throw new TokenValidationError(
+      'Simulated JWKS outage (demo arm) — signature verification backend unreachable',
+      'jwks_fetch_failed',
+    );
+  }
   // ID-JAG filter: a token whose (unverified, for now) iss names oauth-mcp's
   // own embedded AS is checked against oauth-mcp's OWN JWKS, never PingOne's
   // — oauth-mcp signs with its own key, so PingOne's JWKS could never verify

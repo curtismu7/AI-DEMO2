@@ -5,6 +5,7 @@
 // cap unless it is one.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import LlmGatewayPage from "../LlmGatewayPage";
+import { MemoryRouter } from "react-router-dom";
 import { GUARDRAIL_ATTACKS } from "../../config/guardrailAttackCatalog";
 
 const CONFIG = {
@@ -52,7 +53,7 @@ describe("LLM Gateway console - layout and local models", () => {
   describe("resizable lanes and request layout", () => {
     it("defaults to wider Lanes and Request columns with one divider", () => {
       mockFetch(() => new Promise(() => {}));
-      const { container } = render(<LlmGatewayPage />);
+      const { container } = render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
       const grid = container.querySelector(".lgw-body");
       const lanes = container.querySelector('[aria-label="Lanes"]');
@@ -69,7 +70,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("dragging the left handle resizes the Lanes column", () => {
       mockFetch(() => new Promise(() => {}));
-      const { container } = render(<LlmGatewayPage />);
+      const { container } = render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       const [railHandle] = container.querySelectorAll(".lgw-resize-handle");
       const grid = container.querySelector(".lgw-body");
       const before = parseInt(grid.style.gridTemplateColumns.split(" ")[0], 10);
@@ -86,7 +87,7 @@ describe("LLM Gateway console - layout and local models", () => {
   describe("clear", () => {
     it("is disabled with an empty conversation", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(screen.getByRole("button", { name: /^clear$/i })).toBeDisabled();
@@ -101,7 +102,7 @@ describe("LLM Gateway console - layout and local models", () => {
           latencyMs: 300, reachedProvider: true,
         }),
       }));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await ask("capital of France?");
       await screen.findByText("Paris.");
       await screen.findByTestId("lgw-decision");
@@ -129,7 +130,7 @@ describe("LLM Gateway console - layout and local models", () => {
           latencyMs: 42, reachedProvider: true, providerLimits: null,
         }),
       }), CONFIG_WITH_LOCALS);
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
       const lmstudioName = await screen.findByText("LM Studio (local)");
       expect(screen.getAllByText("No key needed").length).toBeGreaterThan(0);
@@ -145,7 +146,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("does not appear when the backend reports no local lanes", async () => {
       mockFetch(() => new Promise(() => {}), CONFIG);
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(screen.queryByText("LM Studio (local)")).not.toBeInTheDocument();
@@ -162,7 +163,7 @@ describe("LLM Gateway console - layout and local models", () => {
           latencyMs: 42, reachedProvider: true, providerLimits: null,
         }),
       }), CONFIG_WITH_LOCALS);
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
       const llamacppName = await screen.findByText("llama.cpp (local)");
       expect(screen.getAllByText("No key needed").length).toBeGreaterThan(0);
@@ -181,7 +182,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("does not appear when the backend reports no local lanes", async () => {
       mockFetch(() => new Promise(() => {}), CONFIG);
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(screen.queryByText("llama.cpp (local)")).not.toBeInTheDocument();
@@ -192,7 +193,7 @@ describe("LLM Gateway console - layout and local models", () => {
     it("shows while a call is in flight and disappears once the reply lands", async () => {
       let resolveCall;
       mockFetch(() => new Promise((resolve) => { resolveCall = resolve; }));
-      const { container } = render(<LlmGatewayPage />);
+      const { container } = render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await ask("hello");
 
       expect(container.querySelector(".ping-spinner__mark")).toBeInTheDocument();
@@ -216,7 +217,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("remembers the last-picked attack across a remount", async () => {
       mockFetch(() => new Promise(() => {}));
-      const { unmount } = render(<LlmGatewayPage />);
+      const { unmount } = render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: "prompt_injection" } });
@@ -224,7 +225,7 @@ describe("LLM Gateway console - layout and local models", () => {
       unmount();
 
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(screen.getByLabelText(/attack library/i)).toHaveValue("prompt_injection");
@@ -235,7 +236,7 @@ describe("LLM Gateway console - layout and local models", () => {
     it("keeps a multi-line attack payload intact in the prompt box", async () => {
       const attack = GUARDRAIL_ATTACKS.find((a) => a.id === "hidden_instructions");
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attack.id } });
@@ -249,7 +250,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("sends on Enter", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       const box = await screen.findByLabelText(/^prompt$/i);
       await screen.findByText("/llm/anthropic/v1/messages");
 
@@ -261,7 +262,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("does not send on Shift+Enter, so a presenter can add a line", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       const box = await screen.findByLabelText(/^prompt$/i);
       await screen.findByText("/llm/anthropic/v1/messages");
 
@@ -279,7 +280,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("grows the prompt box to show the whole payload, and shrinks it back", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       const box = await screen.findByLabelText(/^prompt$/i);
       await screen.findByText("/llm/anthropic/v1/messages");
 
@@ -315,7 +316,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("shows no cue until the presenter turns notes on", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: "jailbreak" } });
@@ -327,7 +328,7 @@ describe("LLM Gateway console - layout and local models", () => {
     it("shows the picked attack's what-to-say cue once notes are on", async () => {
       const attack = GUARDRAIL_ATTACKS.find((a) => a.id === "jailbreak");
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.click(notesToggle());
@@ -338,13 +339,13 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("remembers notes are on across a reload", async () => {
       mockFetch(() => new Promise(() => {}));
-      const { unmount } = render(<LlmGatewayPage />);
+      const { unmount } = render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
       fireEvent.click(notesToggle());
       unmount();
 
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(notesToggle()).toHaveAttribute("aria-pressed", "true");
@@ -360,7 +361,7 @@ describe("LLM Gateway console - layout and local models", () => {
           latencyMs: 50, reachedProvider: false,
         }),
       }));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.click(notesToggle());
@@ -382,7 +383,7 @@ describe("LLM Gateway console - layout and local models", () => {
           latencyMs: 300, reachedProvider: true,
         }),
       }));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.click(notesToggle());
@@ -397,7 +398,7 @@ describe("LLM Gateway console - layout and local models", () => {
     // never happened, beside a decision reading "Reached the model: yes".
     it("shows no Say cue while a local lane is selected", async () => {
       mockFetch(() => new Promise(() => {}), CONFIG_WITH_LOCALS);
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       fireEvent.click((await screen.findByText("llama.cpp (local)")).closest("button"));
 
       fireEvent.click(notesToggle());
@@ -414,7 +415,7 @@ describe("LLM Gateway console - layout and local models", () => {
           latencyMs: 900, reachedProvider: true, providerLimits: null,
         }),
       }), CONFIG_WITH_LOCALS);
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       fireEvent.click((await screen.findByText("llama.cpp (local)")).closest("button"));
 
       fireEvent.click(notesToggle());
@@ -431,7 +432,7 @@ describe("LLM Gateway console - layout and local models", () => {
       window.localStorage.setItem("lgw-attack-choice", "retired_attack");
       window.localStorage.setItem("lgw-presenter-notes", "1");
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(screen.queryByTestId("lgw-talk-track")).not.toBeInTheDocument();
@@ -490,7 +491,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("is off by default, so a Send calls only the selected lane", async () => {
       mockCompare();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(compareToggle()).toHaveAttribute("aria-pressed", "false");
@@ -502,7 +503,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("sends one prompt through Privilege and both local models when on", async () => {
       mockCompare();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.click(compareToggle());
@@ -514,7 +515,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("shows protected, Llama, and LM Studio results side by side", async () => {
       mockCompare();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.click(compareToggle());
@@ -531,7 +532,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("shows a missing local lane instead of silently omitting it", async () => {
       mockCompare({ ...CONFIG, locals: CONFIG_WITH_LOCALS.locals.filter((l) => l.provider === "llamacpp") });
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.click(compareToggle());
@@ -543,7 +544,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("keeps the band on the guarded call, not the unguarded one", async () => {
       mockCompare();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.click(compareToggle());
@@ -555,7 +556,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("shows the unguarded call in Last decision when its result is clicked", async () => {
       mockCompare();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.click(compareToggle());
@@ -577,7 +578,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("can't be switched on when the stack reports no llama.cpp lane", async () => {
       mockCompare(CONFIG);
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(compareToggle()).toBeDisabled();
@@ -585,7 +586,7 @@ describe("LLM Gateway console - layout and local models", () => {
 
     it("can't be switched on while a local lane is the selected one", async () => {
       mockCompare();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       fireEvent.click((await screen.findByText("llama.cpp (local)")).closest("button"));
 
       expect(compareToggle()).toBeDisabled();

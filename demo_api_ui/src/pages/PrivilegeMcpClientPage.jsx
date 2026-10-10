@@ -1,7 +1,7 @@
 // demo_api_ui/src/pages/PrivilegeMcpClientPage.jsx
 // Cursor-IDE-styled MCP client for PingOne Privilege MCP Gateway.
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { useLocation, useSearchParams, useNavigate } from 'react-router-dom';
+import { useLocation, useSearchParams, useNavigate, Link } from 'react-router-dom';
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import { KIBANA_URL } from '../config/observabilityLinks';
 import PrivilegeA2aTab from '../features/privilegeA2aClient/PrivilegeA2aTab';
@@ -1821,6 +1821,11 @@ export default function PrivilegeMcpClientPage() {
           </button>
           <button className="cur-flow-trigger" onClick={clearActivity} title="Clear chat, events, and results for a fresh demo">Clear</button>
           <button className="cur-flow-trigger" onClick={() => setShowGuide(true)} title="Learning Guide">Guide</button>
+          {/* This client is the live surface for the privilege demo steps; these
+              links put it back in the story — the step that runs here, and the
+              diagrams that draw it. */}
+          <Link className="cur-flow-trigger" to="/use-cases#UC17" title="The JIT credentials demo step that runs here">Demo step</Link>
+          <Link className="cur-flow-trigger" to="/use-case-diagrams/UC46" title="Privilege A2A access review diagram">Diagram</Link>
           <a className="cur-flow-trigger" href={KIBANA_URL} target="_blank" rel="noopener noreferrer" title="Open Privilege SIEM logs in Kibana">Logs</a>
           <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">Settings</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
@@ -2023,7 +2028,17 @@ export default function PrivilegeMcpClientPage() {
               <span className="cur-rail__k">Tools</span>
               <span className="cur-rail__v">
                 {toolPolicy.total > 0
-                  ? <><strong>{toolPolicy.total}</strong> catalog · <strong className="cur-rail__ok-text">{toolPolicy.permitted}</strong> permitted · <strong className="cur-rail__bad-text">{toolPolicy.filtered}</strong> filtered</>
+                  ? (toolPolicy.filtered > 0
+                    // Facade path: the gateway reports denied tools in
+                    // result._meta.deniedTools, so a delivered-then-denied
+                    // count is real and worth showing.
+                    ? <><strong>{toolPolicy.total}</strong> catalog · <strong className="cur-rail__ok-text">{toolPolicy.permitted}</strong> permitted · <strong className="cur-rail__bad-text">{toolPolicy.filtered}</strong> filtered</>
+                    // MCPGW path: the gateway drops tools outside the policy
+                    // BEFORE responding (discovery-gating) — filtered is
+                    // structurally 0 here and "0 filtered" reads as "the
+                    // filter did nothing". Say what is true: the catalog
+                    // received IS the grant; the rest was never delivered.
+                    : <><strong className="cur-rail__ok-text">{toolPolicy.permitted}</strong> tool{toolPolicy.permitted === 1 ? '' : 's'} in your grant — tools outside the policy are undiscoverable</>)
                   : '—'}
               </span>
               {/* Façade relays on a server-side token that does not survive a

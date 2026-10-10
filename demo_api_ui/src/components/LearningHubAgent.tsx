@@ -1,5 +1,6 @@
 import React, { useRef, useState } from "react";
 import { askCodeSearch } from "../services/codeSearchAPI";
+import { useSessionToken } from "../context/SessionTokenContext";
 
 const PROMPTS = [
   "Which Learning Hub lessons explain OAuth token exchange?",
@@ -15,6 +16,10 @@ const PROMPTS = [
 ];
 
 export default function LearningHubAgent() {
+  // Signed-in feature: guests get the Hub to browse, not a 401. Disable the
+  // agent controls and say so in one line instead of surfacing the raw error.
+  const { sessionType, tokenLoading } = useSessionToken();
+  const guest = !tokenLoading && !sessionType;
   const [query, setQuery] = useState("");
   const [answer, setAnswer] = useState("");
   const [sources, setSources] = useState<any[]>([]);
@@ -25,7 +30,7 @@ export default function LearningHubAgent() {
 
   const ask = async (prompt: string) => {
     const value = prompt.trim();
-    if (!value || loading) return;
+    if (!value || loading || guest) return;
     historyRef.current.push(value);
     historyIndexRef.current = -1;
     setQuery("");
@@ -80,19 +85,20 @@ export default function LearningHubAgent() {
           value={query}
           onChange={(event) => { setQuery(event.target.value); historyIndexRef.current = -1; }}
           onKeyDown={handleKeyDown}
-          placeholder="Ask about OAuth, MCP, RAG, or agents..."
+          placeholder={guest ? "Sign in to ask the Learning Hub agent" : "Ask about OAuth, MCP, RAG, or agents..."}
           aria-label="Ask the Learning Hub agent"
-          disabled={loading}
+          disabled={loading || guest}
         />
-        <button type="submit" disabled={loading || !query.trim()}>{loading ? "Searching..." : "Ask agent"}</button>
+        <button type="submit" disabled={loading || guest || !query.trim()}>{loading ? "Searching..." : "Ask agent"}</button>
         {(answer || error) && <button type="button" className="learning-hub__rag-clear" onClick={clear}>Clear</button>}
       </form>
       <details className="learning-hub__rag-prompts">
         <summary><span aria-hidden="true">📚</span> Prompt library <span>{PROMPTS.length} prompts</span></summary>
         <div className="learning-hub__rag-prompt-grid">
-          {PROMPTS.map((prompt) => <button type="button" key={prompt} onClick={() => ask(prompt)} disabled={loading}>{prompt}</button>)}
+          {PROMPTS.map((prompt) => <button type="button" key={prompt} onClick={() => ask(prompt)} disabled={loading || guest}>{prompt}</button>)}
         </div>
       </details>
+      {guest && <p className="learning-hub__rag-guest">Sign in to ask the Learning Hub agent — browsing is open to everyone.</p>}
       {error && <p className="learning-hub__rag-error" role="alert">{error}</p>}
       {answer && <div className="learning-hub__rag-answer" aria-live="polite"><h3>Agent summary</h3><p>{answer}</p></div>}
       {sources.length > 0 && <div className="learning-hub__rag-results" aria-live="polite"><h3>Sources used</h3>{sources.map((result, index) => <article className="learning-hub__rag-result" key={`${result.file}-${result.line_start}-${index}`}><code>{result.file}:{result.line_start}-{result.line_end}</code><p>{result.snippet}</p></article>)}</div>}

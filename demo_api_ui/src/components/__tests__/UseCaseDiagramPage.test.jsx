@@ -53,10 +53,10 @@ describe("UseCaseDiagramPage", () => {
     expect(screen.getByTestId("ucd-result").textContent).toBe("PERMIT"); // from config result
   });
 
-  it("cues the demo-script step and links back to Mission Control", () => {
+  it("cues the live step and links to /use-cases#UCxx (the reverse of the hub's Diagram chip)", () => {
     renderAt("/use-case-diagrams/UC1");
-    const cue = screen.getByRole("link", { name: /step 2 of the demo script/i });
-    expect(cue.getAttribute("href")).toBe("/dashboard");
+    const cue = screen.getByRole("link", { name: /run this step/i });
+    expect(cue.getAttribute("href")).toBe("/use-cases#UC1");
   });
 
   it("always shows an explicit back-to-dashboard button in the header", () => {
@@ -106,5 +106,12 @@ describe("UseCaseDiagramPage", () => {
     // card accessible name is the guide title text; assert deep-link hrefs instead
     const links = screen.getAllByRole("link").filter((a) => a.getAttribute("href")?.startsWith("/use-case-diagrams/"));
     expect(links.map((a) => a.getAttribute("href"))).toEqual(expect.arrayContaining(["/use-case-diagrams/UC1", "/use-case-diagrams/UC7", "/use-case-diagrams/UC6"]));
+  });
+
+  it("gallery gives every card a Run-this-step reverse link to the live launcher", () => {
+    renderAt("/use-case-diagrams");
+    const runs = screen.getAllByRole("link").filter((a) => a.getAttribute("href")?.startsWith("/use-cases#"));
+    expect(runs.length).toBeGreaterThanOrEqual(29);
+    expect(runs.map((a) => a.getAttribute("href"))).toContain("/use-cases#UC1");
   });
 });

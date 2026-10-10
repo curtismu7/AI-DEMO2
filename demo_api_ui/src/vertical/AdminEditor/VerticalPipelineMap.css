@@ -112,7 +112,7 @@
 }
 
 .vpm-node--vertical {
-  background: var(--vpm-vertical-color, #1a5276);
+  background: var(--vpm-vertical-color, #051727);
   padding: 8px 14px;
   border-radius: 8px;
   min-width: 130px;

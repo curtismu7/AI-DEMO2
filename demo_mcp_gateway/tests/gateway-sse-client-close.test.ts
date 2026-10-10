@@ -77,6 +77,7 @@ const baseConfig: GatewayConfig = {
   rateLimitMaxRequests: 20,
   rateLimitWindowMs: 60000,
   introspectionSimDown: false,
+  jwksSimDown: false,
   enterpriseManagedMcpAuth: false,
   privilegeBridgeSecret: '',
 };

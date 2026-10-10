@@ -693,6 +693,23 @@ async function ensureEmailDevice(userId, email) {
 }
 
 /**
+ * Idempotent SMS enrollment for provisioning paths (registration, seeds):
+ * skips when an SMS device with the same phone already exists; otherwise
+ * enrolls with the WORKER token, which creates the device ACTIVE — no OTP
+ * verification loop, because registration precedes any session.
+ * @param {string} userId
+ * @param {string} phone - E.164, e.g. +12065551234
+ * @returns {{status: 'existing'|'created', deviceId: string, deviceStatus?: string}}
+ */
+async function ensureSmsDevice(userId, phone) {
+  const { devices } = await listMfaDevices(userId);
+  const existing = devices.find((d) => d.type === 'SMS' && (d.phone || '').replace(/\D/g, '') === String(phone).replace(/\D/g, ''));
+  if (existing) return { status: 'existing', deviceId: existing.id };
+  const device = await enrollSmsDevice(userId, phone);
+  return { status: 'created', deviceId: device.id, deviceStatus: device.status };
+}
+
+/**
  * Enroll an SMS OTP device for a user.
  * When called with the user's own access token, PingOne uses the user-facing enrollment
  * flow which sends an OTP and returns ACTIVATION_REQUIRED (phone verification required).
@@ -1389,6 +1406,7 @@ module.exports = {
   getFidoDeviceMetadata,
   enrollEmailDevice,
   ensureEmailDevice,
+  ensureSmsDevice,
   enrollSmsDevice,
   completeSmsEnrollment,
   completeEmailEnrollment,

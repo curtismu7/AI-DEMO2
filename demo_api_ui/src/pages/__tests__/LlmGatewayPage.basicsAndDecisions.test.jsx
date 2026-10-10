@@ -5,6 +5,7 @@
 // cap unless it is one.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import LlmGatewayPage from "../LlmGatewayPage";
+import { MemoryRouter } from "react-router-dom";
 import { GUARDRAIL_ATTACKS } from "../../config/guardrailAttackCatalog";
 
 const CONFIG = {
@@ -56,7 +57,7 @@ describe("LLM Gateway console - basics and decisions", () => {
     ["inter_agent_abuse", "/delegation-chain-value"],
   ])("routes %s to its real demo instead of sending it as a chat prompt", async (attackId, href) => {
     mockFetch(() => new Promise(() => {}));
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await screen.findByText("/llm/anthropic/v1/messages");
 
     fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attackId } });
@@ -68,7 +69,7 @@ describe("LLM Gateway console - basics and decisions", () => {
   it("does not restore a tool/agent attack as chat text after reload", async () => {
     window.localStorage.setItem("lgw-attack-choice", "tool_abuse");
     mockFetch(() => new Promise(() => {}));
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await screen.findByText("/llm/anthropic/v1/messages");
 
     expect(screen.getByLabelText(/^prompt$/i)).toHaveValue("");
@@ -85,7 +86,7 @@ describe("LLM Gateway console - basics and decisions", () => {
       status: 200,
       text: async () => JSON.stringify({ response: "Simulated alert rendered.", provider: "anthropic" }),
     }));
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await screen.findByText("/llm/anthropic/v1/messages");
     fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: "malicious_content" } });
 
@@ -101,7 +102,7 @@ describe("LLM Gateway console - basics and decisions", () => {
 
   it("lists each lane with its route and model, and names a missing key", async () => {
     mockFetch(() => new Promise(() => {}));
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
     expect(await screen.findByText("/llm/anthropic/v1/messages")).toBeInTheDocument();
     expect(screen.getByText("gemini-2.0-flash")).toBeInTheDocument();
@@ -124,7 +125,7 @@ describe("LLM Gateway console - basics and decisions", () => {
       if (u.endsWith("/llm/keys")) return Promise.resolve({ ok: true, status: 200, text: async () => JSON.stringify({ keys: KEYS }) });
       return new Promise(() => {});
     });
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
     expect(await screen.findByText("Privilege key caps · demo-anthropic")).toBeInTheDocument();
     expect(screen.getByText("models: claude-haiku-4-5-20251001 · 60 req/min · $25 budget per 30d")).toBeInTheDocument();
@@ -141,7 +142,7 @@ describe("LLM Gateway console - basics and decisions", () => {
         latencyMs: 60, reachedProvider: false,
       }),
     }));
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await ask("customer SSN 123-45-6789");
 
     const dec = await screen.findByTestId("lgw-decision");
@@ -161,7 +162,7 @@ describe("LLM Gateway console - basics and decisions", () => {
         latencyMs: 285, reachedProvider: true,
       }),
     }));
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await ask("hello");
 
     const dec = await screen.findByTestId("lgw-decision");
@@ -181,7 +182,7 @@ describe("LLM Gateway console - basics and decisions", () => {
         providerLimits: { requestsLimit: 10000, requestsRemaining: 9999, tokensLimit: 200000, tokensRemaining: 199997, resetRequests: "8.64s" },
       }),
     }));
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await ask("capital of France?");
 
     expect(await screen.findByText("Paris.")).toBeInTheDocument();
@@ -200,7 +201,7 @@ describe("LLM Gateway console - basics and decisions", () => {
         latencyMs: 1600, reachedProvider: true,
       }),
     }));
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await ask("capital of France?");
 
     const dec = await screen.findByTestId("lgw-decision");
@@ -223,7 +224,7 @@ describe("LLM Gateway console - basics and decisions", () => {
     it("seeds the box from the remembered attack on load", async () => {
       window.localStorage.setItem("lgw-attack-choice", ATTACK.id);
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
       expect(await screen.findByLabelText(/^prompt$/i)).toHaveValue(ATTACK.payload);
       expect(screen.getByLabelText(/attack library/i)).toHaveValue(ATTACK.id);
@@ -237,7 +238,7 @@ describe("LLM Gateway console - basics and decisions", () => {
           latencyMs: 40, reachedProvider: true,
         }),
       }));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
       const select = await screen.findByLabelText(/attack library/i);
       fireEvent.change(select, { target: { value: ATTACK.id } });
@@ -255,7 +256,7 @@ describe("LLM Gateway console - basics and decisions", () => {
 
     it("offers None for a hand-written prompt and clears a selected attack when chosen", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
       const select = await screen.findByLabelText(/attack library/i);
       fireEvent.change(select, { target: { value: ATTACK.id } });
@@ -268,7 +269,7 @@ describe("LLM Gateway console - basics and decisions", () => {
 
     it("clears the attack selection when the payload is edited by hand", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
       const select = await screen.findByLabelText(/attack library/i);
       fireEvent.change(select, { target: { value: ATTACK.id } });
@@ -279,7 +280,7 @@ describe("LLM Gateway console - basics and decisions", () => {
 
     it("gives the hand-written prompt its own full-width composer row", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
       const promptBox = await screen.findByLabelText(/^prompt$/i);
       expect(promptBox).toHaveClass("lgw-composer__prompt");
@@ -290,7 +291,7 @@ describe("LLM Gateway console - basics and decisions", () => {
   describe("who-stopped-it headline", () => {
     const send = async (res, prompt) => {
       mockFetch(() => res);
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await ask(prompt);
       return screen.findByTestId("lgw-who");
     };
@@ -373,7 +374,7 @@ describe("LLM Gateway console - basics and decisions", () => {
           route: "/v1/chat/completions", latencyMs: 30, reachedProvider: false,
         }),
       }));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await ask("capital of France?");
       await screen.findByTestId("lgw-decision");
 
@@ -403,7 +404,7 @@ describe("LLM Gateway console - basics and decisions", () => {
           latencyMs: 300, reachedProvider: true,
         }),
       }));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await ask("capital of France?");
 
       await screen.findByTestId("lgw-decision");
@@ -425,7 +426,7 @@ describe("LLM Gateway console - basics and decisions", () => {
           latencyMs: 42, reachedProvider: true, providerLimits: null,
         }),
       }), CONFIG_WITH_LOCALS);
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       fireEvent.click((await screen.findByText("llama.cpp (local)")).closest("button"));
       await ask("What is the capital of Texas?");
 
@@ -443,7 +444,7 @@ describe("LLM Gateway console - basics and decisions", () => {
           latencyMs: 60, reachedProvider: false,
         }),
       }));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await ask("customer SSN 123-45-6789");
 
       const dec = await screen.findByTestId("lgw-decision");
@@ -462,7 +463,7 @@ describe("LLM Gateway console - basics and decisions", () => {
   // Spend has no source anywhere, so the page must not imply one.
   it("shows no spend meter, and says why", async () => {
     mockFetch(() => new Promise(() => {}));
-    render(<LlmGatewayPage />);
+    render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
     await screen.findByText("/llm/anthropic/v1/messages");
 
     expect(screen.queryByText(/\$/)).not.toBeInTheDocument();

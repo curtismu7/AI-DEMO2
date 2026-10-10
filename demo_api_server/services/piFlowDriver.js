@@ -73,10 +73,11 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
         return res.status(502).json({ error: 'pi_flow_unavailable' });
       }
       req.session.oauthPiFlow = { flowId: flow.id, provider, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r), status: flow.status };
-      // PingFederate binds the flow to the authorize request's login_hint ("Username must
-      // match the provided username hint"), so hand it to the SPA to prefill, as the hosted
-      // login page does. PingOne does not bind it, so nothing is sent for PingOne.
-      const usernameHint = provider === 'pingfederate' ? new URL(authorizeUrl).searchParams.get('login_hint') : null;
+      // Echo the authorize request's login_hint so the SPA can prefill, as the
+      // hosted login page does. PingFederate BINDS the flow to the hint
+      // ("Username must match the provided username hint"); for PingOne the
+      // hint is advisory prefill only — signing in as someone else is fine.
+      const usernameHint = new URL(authorizeUrl).searchParams.get('login_hint') || null;
       return req.session.save((err) => {
         if (err) return res.status(500).json({ error: 'session_save_failed' });
         return res.json({ flowId: flow.id, status: flow.status, ...(usernameHint ? { usernameHint } : {}) });
@@ -103,7 +104,15 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
     });
-    return { step, body: await step.json().catch(() => ({})), cookies: mergePiFlowCookies(pending.cookies, step) };
+    const body = await step.json().catch(() => ({}));
+    // A non-ok PingOne answer used to vanish into a caller's bare 502 with the
+    // body discarded — undiagnosable post-hoc (a transient network blip read
+    // exactly like an unknown flow status). Log it once, at the one place every
+    // step response passes through.
+    if (!step.ok) {
+      console.warn('[oauth/pi-flow] step not ok: HTTP %s %s %s', step.status, body?.code || '(no code)', body?.details?.[0]?.message || '');
+    }
+    return { step, body, cookies: mergePiFlowCookies(pending.cookies, step) };
   }
 
   // COMPLETED flow -> authorization code -> the unchanged /callback.

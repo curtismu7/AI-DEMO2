@@ -1,6 +1,6 @@
 import { useLayoutEffect } from "react";
 import { useNavigate } from "react-router-dom";
-import { navigateWithOverlay } from "../utils/navigateWithOverlay";
+import { openSignIn, openAdminSignIn } from "../utils/signInService";
 import "./LandingPage.css";
 
 function IconShield() {
@@ -128,7 +128,7 @@ export default function LandingPage({ user, hasTopNav }) {
     if (user?.role === "admin") {
       navigate("/admin");
     } else {
-      window.location.href = "/api/auth/oauth/login";
+      openAdminSignIn({ returnTo: "/admin" });
     }
   };
 
@@ -142,7 +142,7 @@ export default function LandingPage({ user, hasTopNav }) {
     if (user) {
       navigate("/use-cases/live");
     } else {
-      navigateWithOverlay("/api/auth/oauth/user/login?return_to=/use-cases/live", { message: "Signing in..." });
+      openSignIn({ returnTo: "/use-cases/live" });
     }
   };
 
@@ -251,6 +251,13 @@ export default function LandingPage({ user, hasTopNav }) {
             <p className="landing-callout-body">
               No parallel identity stacks. No secret sprawl. Just a unified
               identity control plane built for the agentic enterprise.
+            </p>
+            {/* Closing line adapted from the Ping brand hub boilerplate
+                (brand.pingidentity.com/hub/39 → Written Guidelines → Boilerplate) */}
+            <p className="landing-callout-body landing-callout-boilerplate">
+              At Ping Identity, we make it possible to trust every digital
+              moment — across customers, employees, partners, and non-human
+              identities. With Ping, all digital experiences start with trust.
             </p>
           </div>
         </section>

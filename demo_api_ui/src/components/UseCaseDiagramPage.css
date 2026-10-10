@@ -44,6 +44,10 @@
 .ucd-card__top { display: flex; justify-content: space-between; align-items: center; }
 .ucd-card__title { font-weight: 700; color: var(--th-text); }
 .ucd-card__what { color: var(--th-text-body); font-size: 12.5px; }
+/* Reverse link: every gallery card also points at the live step it diagrams. */
+.ucd-card__run { color: var(--th-status-info); font-size: 12px; text-decoration: none; }
+.ucd-card__run:hover { text-decoration: underline; }
+.ucd-card__run:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
 
 /* Review finding 4: styled links need the sibling diagrams-index treatment —
    no underline, visible keyboard focus. */

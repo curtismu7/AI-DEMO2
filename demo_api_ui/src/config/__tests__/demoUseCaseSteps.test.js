@@ -34,6 +34,7 @@ describe('demoUseCaseSteps', () => {
       'UC11',
       'UC20',
       'UC18',
+      'UC29',
       'UC30',
       'UC31',
       'UC32',
@@ -164,15 +165,16 @@ describe('demoUseCaseSteps', () => {
     }
   });
 
-  it('primary list has 28 steps (all use cases visible)', () => {
-    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(28);
+  it('primary list has 29 steps (all use cases visible)', () => {
+    expect(DEMO_PRIMARY_USE_CASE_IDS).toHaveLength(29);
   });
 
-  // UC29 cannot fire on this deployment (Node gateway validates by JWKS, no
-  // introspection hook; PingOne Agent Gateway has no outage toggle) — it must not be
-  // put back into the script until that changes.
-  it('does not script UC29 (introspection outage is not demonstrable here)', () => {
-    expect(DEMO_PRIMARY_USE_CASE_IDS).not.toContain('UC29');
+  // UC29 became runnable 2026-10-09: the sim arms jwksSimDown on the Demo Agent
+  // Gateway (its validation backend is JWKS — GW_INTROSPECTION_ENABLED=false),
+  // producing the fail-closed 503. If the sim ever regresses to sim_not_applicable,
+  // demoReadinessCatalog will flag the step; do not silently drop it here.
+  it('scripts UC29 (token-validation outage, fail closed)', () => {
+    expect(DEMO_PRIMARY_USE_CASE_IDS).toContain('UC29');
   });
 
   it('advanced list is empty (nothing hidden)', () => {

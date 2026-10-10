@@ -26,11 +26,11 @@ export const DEMO_PRIMARY_USE_CASE_IDS = [
   'UC11',  // Bad client gateway
   'UC20',  // Agent observability / audit trail
   'UC18',  // Rate-limit / throttle burst
-  // UC29 (OAuth introspection outage) is deliberately NOT in the script: the
-  // Node gateway validates tokens by JWKS (GW_INTROSPECTION_ENABLED=false —
-  // RFC 7662 cannot cover its multi-issuer A2A tokens, see docker-compose.yml)
-  // and PingGateway has no outage toggle, so the sim cannot fire on this
-  // deployment. It stays in the catalog under Attacks, badged "Needs build".
+  // UC29 (token-validation outage, fail closed) IS runnable as of 2026-10-09:
+  // the sim arms jwksSimDown on the Demo Agent Gateway (its validation backend
+  // is JWKS signature verification — GW_INTROSPECTION_ENABLED=false), so the
+  // outage fires on the control that actually validates tokens → DENY_503.
+  'UC29',  // Token-validation outage — fail closed
   'UC30',  // Weather MCP — Texas permit
   'UC31',  // Weather MCP — out-of-scope deny
   'UC32',  // Weather MCP — live-reconfigure the gateway scope
@@ -47,14 +47,14 @@ export const DEMO_ADVANCED_USE_CASE_IDS = [];
 
 /**
  * Where a step goes when clicked, for the steps whose destination is easy to get wrong. Step 25 and 25A
- * share a number and a topic but differ: 25 leaves the agent for the A2A page, 25A runs in the agent.
+ * share a number and a topic but differ: 26 leaves the agent for the A2A page, 26A runs in the agent.
  * kind: 'page' (navigates away) | 'agent' (stays and runs here).
  */
 export const DEMO_STEP_DESTINATIONS = {
   UC46: {
     kind: 'page',
     label: 'Opens page',
-    title: 'Opens the A2A page (/privilege-mcp-client?view=demo&tab=a2a) and leaves the agent. Nothing runs here: use 25A to run the review in the agent.',
+    title: 'Opens the A2A page (/privilege-mcp-client?view=demo&tab=a2a) and leaves the agent. Nothing runs here: use 26A to run the review in the agent.',
   },
   UC46A: {
     kind: 'agent',
@@ -168,7 +168,7 @@ export const EXTRA_STEP_GROUPS = [
     id: 'abuse',
     label: 'Attacks & Abuse',
     tagline: 'what gets refused',
-    intro: 'Tampering, impersonation, token forwarding, consent bypass and an introspection outage, and how each is stopped.',
+    intro: 'Tampering, impersonation, token forwarding, consent bypass and a validation outage, and how each is stopped.',
     ids: ['UC15', 'UC16', 'UC16b', 'UC27', 'UC29'],
   },
   {
@@ -256,8 +256,8 @@ export const DEMO_MATURITY_GROUPS = [
     id: 'govern',
     label: 'Govern & prove activity',
     shortLabel: 'Govern',
-    description: 'Show auditability, throttling, and accountability.',
-    useCaseIds: ['UC18', 'UC20'],
+    description: 'Show auditability, throttling, resilience, and accountability.',
+    useCaseIds: ['UC18', 'UC20', 'UC29'],
   },
 ];
 

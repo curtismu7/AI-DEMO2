@@ -146,6 +146,7 @@ export const NAV_PAGE_PATHS = {
   "AI Agent Gateway (Preview)": "/privileges-gateway-preview",
   "Platform Gaps": "/platform-gaps",
   "Learning Hub": "/learning",
+  "Demo Map": "/demo-map",
   "Privilege Docs Index": "/privilege-docs-index",
   "Agentic Trust": "/agentic-trust",
   "Agent Guardrails": "/agent-guardrails",

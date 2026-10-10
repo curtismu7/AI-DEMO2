@@ -14,6 +14,14 @@ const { loginHintFor } = require('../services/loginHint');
 // The hint for a sign-in the app starts while it already knows who is in this session (a step-up, a re-login), as
 // the configured server spells them. Empty when nobody is known: the caller then keeps oauthUserService's default.
 const knownLoginHint = (req) => loginHintFor(req, configStore.getOAuthProvider?.() || 'pingone');
+
+// The role's remembered username from configStore (set by the OAuth callback
+// and the modal's PUT /login-hint). Advisory prefill for sign-ins where no
+// fresher session hint exists.
+const storedHint = (role) => {
+  const v = configStore.getEffective(`last_login_hint_${role}`);
+  return typeof v === 'string' && v.trim() ? v.trim() : '';
+};
 const dataStore = require('../data/store');
 const { determineClientType } = require('../middleware/auth');
 const { getFrontendOrigin, getUserRedirectUri, validateRedirectUriOrigin, getExpectedFrontendOrigin } = require('../services/oauthRedirectUris');
@@ -361,6 +369,28 @@ router.post('/pi-flow/passwordless', piFlowHandlers.handlePasswordlessStart);
 // ASSERTION_REQUIRED, which the existing endpoints drive.
 router.post('/pi-flow/device', piFlowHandlers.handleDeviceSelectStep);
 
+// The modal remembers who is signing in as: PUT stores the typed username as
+// the role's login hint so the next sign-in prefills it. Convenience prefill
+// only — validated with the same cleanName rule as the server's own hint
+// derivation, never an auth decision. Admin router (routes/oauth.js) mounts
+// the same handler for its role.
+const hintForStore = (value) => {
+  const text = String(value ?? '').trim();
+  return text && text.length <= 256 && !/[\u0000-\u001f\u007f]/.test(text) ? text : null;
+};
+const storeLoginHint = (key) => async (req, res) => {
+  const hint = hintForStore(req.body?.value);
+  if (!hint) return res.status(400).json({ error: 'invalid_hint' });
+  try {
+    await configStore.setConfig({ [key]: hint });
+    return res.status(204).end();
+  } catch (err) {
+    console.warn('[oauth/user] login-hint write failed:', err.message);
+    return res.status(204).end(); // prefill loss is not the user's problem
+  }
+};
+router.put('/login-hint', storeLoginHint('last_login_hint_customer'));
+
 router.get('/login', (req, res) => {
   try {
     // A regular login must not inherit a prior step-up transaction marker.
@@ -562,14 +592,25 @@ router.get('/login', (req, res) => {
         ...(piFlowLogin ? { forcePiFlow: true } : {}),
         // Test hook: the only acr the modal login may request, so MFA can be exercised on demand.
         ...(piFlowLogin && req.query.mfa === '1' ? { acr_values: 'Multi_Factor' } : {}),
-        // Passwordless sign-in: the device-first flow. The passwordless sign-on
-        // policy (identifier-first + MFA) is not the app's first-match policy, so
-        // selecting it needs acr_values; without it the flow opens password-first
-        // and the username-only step 409s.
-        ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'Multi_Factor' } : {}),
-        // Not on a forced re-login: the user chose to sign in again, possibly as someone else, and PingFederate
-        // locks the username field to the hint.
-        ...(!forceLogin && knownLoginHint(req) ? { login_hint: knownLoginHint(req) } : {}),
+        // Passwordless sign-in: the device-first flow. acr_values selects the
+        // passwordless policy by name — it must carry only an MFA action (no
+        // login step), or PingOne still demands the password after
+        // user.lookup. The policy must also be assigned to this app.
+        ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'mfa_only' } : {}),
+        // Session-derived hint wins (fresher). The role's STORED hint is
+        // PINGONE-only: PingOne treats the hint as advisory prefill, but
+        // PingFederate BINDS the flow to it ("username must match the hint"),
+        // so a stored hint would lock a shared demo machine to the previous
+        // person's username. The stored hint also never rides a forced
+        // re-login — force means a DIFFERENT person may be signing in.
+        // On a PINGONE pi.flow login with NEITHER source, send null explicitly:
+        // the service's demoUser default is for the hosted redirect page, and
+        // the modal should prefill nothing when the app knows nobody. PF keeps
+        // its own demouser default (the PF demo wants the locked-field demo).
+        ...((!forceLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate' && (knownLoginHint(req) || storedHint('customer')))
+          ? { login_hint: knownLoginHint(req) || storedHint('customer') }
+          : (piFlowLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate'
+            ? { login_hint: null } : {})),
       }) + resourceParam;
     if (piFlowMode) {
       const piFlowUrl = new URL(url);
@@ -1128,6 +1169,15 @@ router.get('/callback', async (req, res) => {
 
     console.log('End user OAuth login successful for:', authedUser.username);
     appEventService.logEvent('auth_lifecycle', 'info', `User authenticated: ${authedUser.username}`, { tag: 'oauth/user/callback', username: authedUser.username });
+
+    // Remember who signed in so the next sign-in prefills their username.
+    // Never fatal: a persistence failure costs a prefill, not a session.
+    try {
+      const hintUser = authedUser?.username || authedUser?.email;
+      if (hintUser) await configStore.setConfig({ last_login_hint_customer: String(hintUser) });
+    } catch (hintErr) {
+      console.warn('[oauth/user/callback] login hint write failed:', hintErr.message);
+    }
 
     // Regenerate session before storing credentials to prevent session fixation.
     // P3 — failure is now fatal (abort login) to eliminate the session fixation risk.
@@ -2039,6 +2089,7 @@ router.post('/agent-permissions', (req, res) => {
 
 module.exports = router;
 module.exports.sanitizePostLoginReturnPath = sanitizePostLoginReturnPath;
+module.exports.storeLoginHint = storeLoginHint;
 module.exports.setPendingIdJagRun = setPendingIdJagRun;
 module.exports.consumePendingIdJagRun = consumePendingIdJagRun;
 module.exports.clearPendingIdJagRun = clearPendingIdJagRun;

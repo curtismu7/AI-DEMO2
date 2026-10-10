@@ -652,9 +652,22 @@ router.get('/tools', async (req, res) => {
 
 // POST /api/mcp/inspector/invoke — tools/call with inspector metadata (demo); local handler when no MCP bearer or MCP down
 router.post('/invoke', express.json(), async (req, res) => {
-  const { tool, params, meta, profile: requestedProfileId } = req.body || {};
+  const { tool, params, meta, profile: requestedProfileId, flowTraceId } = req.body || {};
   if (!tool || typeof tool !== 'string') {
     return res.status(400).json({ error: 'tool name is required' });
+  }
+
+  // flowTraceId: the page opens GET /api/mcp/tool/events?trace=<id> BEFORE posting so it
+  // can receive mid-call phases — specifically elicitation_requested, which the gateway
+  // sends while this POST is still in flight. Same claim+publish pattern as the agent
+  // route (server.js agent invoke): claim binds the id to this session.
+  let emit;
+  if (flowTraceId && typeof flowTraceId === 'string' && flowTraceId.length <= 128) {
+    const { ensurePostTrace, publish } = require('../services/mcpFlowSseHub');
+    if (ensurePostTrace(flowTraceId, req.sessionID) !== 'ok') {
+      return res.status(403).json({ error: 'invalid_flow_trace' });
+    }
+    emit = (payload) => publish(flowTraceId, payload);
   }
 
   // Non-default profile: dispatch to its transport, bypassing the banking-
@@ -739,9 +752,13 @@ router.post('/invoke', express.json(), async (req, res) => {
       // Extra call args are only appended when meta is actually present, so the
       // arity callers/tests already depend on is unchanged in the common case.
       const invokeOpts = meta && typeof meta === 'object' ? { meta } : undefined;
-      const { result, frames } = invokeOpts
-        ? await mcpCallToolWithFrames(tool, params || {}, agentToken, userSub, undefined, invokeOpts)
-        : await mcpCallToolWithFrames(tool, params || {}, agentToken, userSub);
+      const { result, frames } = emit
+        ? (invokeOpts
+            ? await mcpCallToolWithFrames(tool, params || {}, agentToken, userSub, undefined, { ...invokeOpts, emit })
+            : await mcpCallToolWithFrames(tool, params || {}, agentToken, userSub, undefined, { emit }))
+        : (invokeOpts
+            ? await mcpCallToolWithFrames(tool, params || {}, agentToken, userSub, undefined, invokeOpts)
+            : await mcpCallToolWithFrames(tool, params || {}, agentToken, userSub));
       const durationMs = Date.now() - started;
       archEmit({ nodeId: 'n-mcp-server', edgeId: 'e-mcpgw-mcpserver', label: 'MCP Server executed tool' });
 

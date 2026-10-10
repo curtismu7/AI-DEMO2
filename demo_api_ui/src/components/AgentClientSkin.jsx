@@ -46,6 +46,40 @@ function ToolResultBlock({ toolName, data, colors }) {
 }
 
 const SKIN_CONFIG = {
+  cua: {
+    title: 'Computer Use Agent',
+    subtitle: 'simulated · scripted session · observes and acts on the UI',
+    placeholder: 'Message the computer-use agent…',
+    hint: 'Simulated CUA — the scripted session walks the demo UI; tokens still flow',
+    accentColor: '#7c3aed',
+    logo: () => (
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#7c3aed,#4c1d95)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
+          <rect x="1.5" y="2.5" width="13" height="9" rx="1.5" stroke="white" strokeWidth="1.4" />
+          <path d="M5 14h6M8 11.5V14" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
+        </svg>
+      </div>
+    ),
+    dark: {
+      bg: '#14101f', headerBg: '#191227', headerBorder: '#2a1f42',
+      titleColor: '#e4d8ff', subtitleColor: '#9a86c8',
+      agentBubbleBg: '#201735', agentBubbleColor: '#d8caff',
+      userBubbleBg: '#7c3aed', userBubbleColor: '#ffffff',
+      inputAreaBg: '#14101f', inputBorder: '#2a1f42', inputColor: '#d8caff',
+      toolBg: '#0e0a18', toolBorder: '#2a1f42', toolColor: '#a78bfa',
+      toolResultBg: '#0b0714', toolResultColor: '#8b6fd8',
+    },
+    light: {
+      bg: '#faf8ff', headerBg: '#ffffff', headerBorder: '#e4dcf5',
+      titleColor: '#3b2185', subtitleColor: '#7a68a8',
+      agentBubbleBg: '#ffffff', agentBubbleColor: '#3b2185',
+      userBubbleBg: '#7c3aed', userBubbleColor: '#ffffff',
+      inputAreaBg: '#f2eefc', inputBorder: '#e4dcf5', inputColor: '#3b2185',
+      toolBg: '#ece5fb', toolBorder: '#d0c2f0', toolColor: '#5b34b8',
+      toolResultBg: '#e2d8f8', toolResultColor: '#452a90',
+    },
+  },
+
   privilege: {
     title: 'Privilege AI Agent',
     subtitle: 'PingOne Authorize · Delegated Identity',

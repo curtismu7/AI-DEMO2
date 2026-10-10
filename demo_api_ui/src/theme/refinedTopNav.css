@@ -22,7 +22,7 @@
 /* Brand name */
 .topnav-brand-name {
   color: var(--brand-topnav-text, #ffffff) !important;
-  font-family: "Fraunces", serif;
+  font-family: "Montserrat", Georgia, serif;
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -0.015em;

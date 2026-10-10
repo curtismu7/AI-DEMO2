@@ -40,6 +40,18 @@ process.env.MCP_GW_ALLOW_UNVERIFIED_TOKENS = 'true';
 
 const GATEWAY_AUDIENCE = 'https://mcp-gateway.example.com';
 
+// Poll instead of a fixed sleep: the in-flight call's registration races the
+// 20 ms the old sleep assumed. Under load (CI runner, full-suite contention)
+// the request could still be mid-dispatch when the assert ran — a flake that
+// blocked merges. Same pattern gateway-server-hardening.test.ts uses.
+async function waitFor(cond: () => boolean, what: string, timeoutMs = 2000): Promise<void> {
+  const deadline = Date.now() + timeoutMs;
+  while (!cond()) {
+    if (Date.now() > deadline) throw new Error(`timed out after ${timeoutMs} ms waiting for ${what}`);
+    await new Promise((r) => setTimeout(r, 5));
+  }
+}
+
 const stubConfig: GatewayConfig = {
   port: 0,
   host: '127.0.0.1',
@@ -90,6 +102,7 @@ const stubConfig: GatewayConfig = {
   rateLimitMaxRequests: 20,
   rateLimitWindowMs: 60000,
   introspectionSimDown: false,
+  jwksSimDown: false,
 } as unknown as GatewayConfig;
 
 function makeToken(aud: string | string[], sub = 'user-123'): string {
@@ -177,7 +190,7 @@ describe('POST /mcp — HTTP transport Progress + Cancellation (invest/resource-
     // cancellation request below.
     callPromise.then(() => {}, () => {});
 
-    await new Promise((r) => setTimeout(r, 20));
+    await waitFor(() => capturedSignal !== undefined, 'the in-flight call to reach the proxy');
     expect(capturedSignal).toBeDefined();
 
     const cancelRes = await request
@@ -211,7 +224,7 @@ describe('POST /mcp — HTTP transport Progress + Cancellation (invest/resource-
       .send(JSON.stringify({ jsonrpc: '2.0', id: 42, method: 'resources/list', params: {} }));
     callPromise.then(() => {}, () => {});
 
-    await new Promise((r) => setTimeout(r, 20));
+    await waitFor(() => capturedSignal !== undefined, 'the in-flight call to reach the proxy');
     expect(capturedSignal).toBeDefined();
     expect(capturedSignal?.aborted).toBe(false);
 

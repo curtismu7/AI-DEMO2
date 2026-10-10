@@ -3,8 +3,8 @@ import { useNavigate } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import './OASDemoPage.css';
 import InlineSpinner from './shared/InlineSpinner';
+import { openSignIn } from '../utils/signInService';
 
-const LOGIN_URL = '/api/auth/oauth/user/login?return_to=/oas-demo';
 
 // Mirrors McpInspectorPage.jsx's coerceParam — same shape, kept local since
 // it's a small pure function and the two pages aren't otherwise coupled.
@@ -49,9 +49,9 @@ function TryItOut({ operationId, user, pingoneTools }) {
   if (!user) {
     return (
       <div className="oas-tryitout oas-tryitout--locked">
-        <a className="oas-tryitout-btn oas-tryitout-btn--disabled" href={LOGIN_URL}>
+        <button type="button" className="oas-tryitout-btn oas-tryitout-btn--disabled" onClick={() => openSignIn({ returnTo: "/oas-demo" })}>
           Sign in to try this
-        </a>
+        </button>
       </div>
     );
   }

@@ -27,7 +27,7 @@ const { validateIdToken, assertUserInfoSubjectMatches } = require('../services/o
 const posthog = require('../services/posthog');
 const archEmit = require('../services/archEventEmitter');
 const { terminateAllUserSessions } = require('../services/pingOneSessionService');
-const { sanitizePostLoginReturnPath } = require('./oauthUser');
+const { sanitizePostLoginReturnPath, storeLoginHint } = require('./oauthUser');
 const { makePiFlowHandlers, piFlowProvider } = require('../services/piFlowDriver');
 const { KNOWN_REDIRECT_ORIGINS } = require('../services/knownRedirectOrigins');
 const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, clearHostedAccessApproval } = require('../services/hostedAccessPolicy');
@@ -66,6 +66,11 @@ router.post('/pi-flow/device', async (req, res) => {
   if (!adminPiFlowEnabled()) return res.status(404).json({ error: 'pi_flow_disabled' });
   return adminPiFlow.handleDeviceSelectStep(req, res);
 });
+
+// The admin modal remembers who is signing in as: same handler as the user
+// router's /login-hint, storing the ADMIN role's hint. Convenience prefill
+// only — never an auth decision.
+router.put('/login-hint', storeLoginHint('last_login_hint_admin'));
 
 /**
  * GET /api/auth/oauth/redirect-info — implemented on app in server.js (before /api/auth mount).
@@ -194,18 +199,31 @@ router.get('/login', (req, res) => {
       );
     }
     
+    // The role's remembered username (configStore) prefills the modal via the
+    // authorize URL's login_hint; the undefined-default (demoAdmin) keeps
+    // working when nothing is stored. Two guards, both deliberate:
+    // - A forced re-auth DROPS the stored hint — force means a different admin
+    //   may be signing in (pinned test; deviation from spec §4, which said
+    //   force still sends the hint).
+    // - The stored hint is PINGONE-only: PingFederate BINDS the flow to the
+    //   hint, so a stored username would lock the admin login to whoever
+    //   signed in last. PF keeps its demouser default.
+    const storedAdminHint = req.query.force === 'true'
+      || (configStore.getOAuthProvider?.() || 'pingone') === 'pingfederate'
+      ? null : (() => {
+        const v = configStore.getEffective('last_login_hint_admin');
+        return (typeof v === 'string' && v.trim()) ? v.trim() : undefined;
+      })();
     const authUrl = oauthService.generateAuthorizationUrl(
       state, codeVerifier, redirectUri, nonce,
-      // Force re-auth must drop the login hint so a different admin can sign in,
-      // and send prompt=login (clearing the BFF session alone does not stop SSO
-      // silent re-auth) — mirrors the user side.
-      req.query.force === 'true' ? null : undefined,
+      req.query.force === 'true' ? null : storedAdminHint,
       {
         ...(req.query.force === 'true' ? { forceLogin: true } : {}),
         ...(piFlowLogin ? { forcePiFlow: true } : {}),
-        // Passwordless sign-in selects the identifier-first policy by name (see
-        // routes/oauthUser.js — the app's first-match policy is password-first).
-        ...(piFlowLogin && req.query.passwordless === '1' ? { acrValues: 'Multi_Factor' } : {}),
+        // Passwordless sign-in selects the passwordless policy by name (see
+        // routes/oauthUser.js — the policy must carry only an MFA action, and
+        // be assigned to this app, or PingOne still prompts for the password).
+        ...(piFlowLogin && req.query.passwordless === '1' ? { acrValues: 'mfa_only' } : {}),
       },
     ) + resourceParam;
 
@@ -464,6 +482,15 @@ router.get('/callback', async (req, res) => {
     const resolvedLoginProvider = loginProvider || selectedProvider;
     const hostedLoginAudit = req.session.hostedLoginAudit || null;
     const hostedLoginAudits = req.session.hostedLoginAudits || null;
+
+    // Remember who signed in so the next admin sign-in prefills their username.
+    // Never fatal: a persistence failure costs a prefill, not a session.
+    try {
+      const hintUser = authedUser?.username || authedUser?.email;
+      if (hintUser) await configStore.setConfig({ last_login_hint_admin: String(hintUser) });
+    } catch (hintErr) {
+      console.warn('[oauth/callback] admin login hint write failed:', hintErr.message);
+    }
 
     // P3 — Session regenerate failure is now fatal (prevents session fixation).
     // If regenerate fails the user retries sign-in once; the UX cost is acceptable

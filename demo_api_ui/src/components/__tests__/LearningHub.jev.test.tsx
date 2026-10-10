@@ -1,6 +1,7 @@
 import { render, screen, fireEvent, within } from "@testing-library/react";
 import { MemoryRouter, useLocation } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
+import { SessionTokenProvider } from "../../context/SessionTokenContext";
 import LearningHub from "../LearningHub";
 
 vi.mock("../../context/ThemeContext", () => ({
@@ -23,10 +24,12 @@ function LocationProbe() {
 describe("LearningHub Jev lesson", () => {
   it("lists the Jev decision-model lesson and opens /jev-learning", () => {
     render(
+      <SessionTokenProvider>
       <MemoryRouter initialEntries={["/learning"]}>
         <LearningHub />
         <LocationProbe />
       </MemoryRouter>,
+      </SessionTokenProvider>,
     );
 
     expect(screen.getByRole("button", { name: /jev: decision model/i })).toBeInTheDocument();
@@ -36,9 +39,11 @@ describe("LearningHub Jev lesson", () => {
 
   it("finds the lesson through Learning Hub search", () => {
     render(
+      <SessionTokenProvider>
       <MemoryRouter initialEntries={["/learning"]}>
         <LearningHub />
       </MemoryRouter>,
+      </SessionTokenProvider>,
     );
 
     fireEvent.change(screen.getByRole("textbox", { name: /search learning topics/i }), {
@@ -49,9 +54,11 @@ describe("LearningHub Jev lesson", () => {
 
   it("shows the lesson's demo step number and links to the use-cases launcher", () => {
     render(
+      <SessionTokenProvider>
       <MemoryRouter initialEntries={["/learning"]}>
         <LearningHub />
       </MemoryRouter>,
+      </SessionTokenProvider>,
     );
 
     // The number comes from the canonical demoStepNumbers module (not hardcoded

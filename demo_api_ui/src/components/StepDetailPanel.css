@@ -18,7 +18,7 @@
   margin-bottom: 10px;
   /* Keep the detail pane calm and editorial: technical values stay readable
      without switching the reader into a code-console typeface. */
-  font-family: "Inter", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: "Montserrat", ui-sans-serif, system-ui, -apple-system, sans-serif;
 }
 
 .sdp[data-font-size="small"] { zoom: 0.9; }

@@ -2,7 +2,7 @@ import React from 'react';
 import LoadingTip from './LoadingTip';
 import './LoadingOverlay.css';
 
-const DEFAULT_LOGO_SRC = '/branding/ping-logo.svg';
+const DEFAULT_LOGO_SRC = '/branding/ping-logo.png';
 const MIN_TIP_SIZE = 32;
 // Every stand-alone spinner draws at this size, whatever `size` a caller passes, so the
 // boot screen, the sign-in screen, the loading overlay and a modal wait are one picture.

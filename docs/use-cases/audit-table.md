@@ -36,6 +36,7 @@
 | UC16b | [Raw user-token forwarding blocked (Zero Trust)](./raw-user-token-forwarding-blocked.md) | attacks | ✅ works | 🛡️ T9 |  |
 | UC17 | [JIT / ephemeral credentials](./jit-ephemeral-credentials.md) | controls | ✅ works | 🛡️ T3, T9 |  |
 | UC18 | [Rate-limit / resource-overload defense](./rate-limit-defense.md) | attacks | ✅ works | 🛡️ T4 |  |
+| UC29 | [Token-validation outage — fail closed](./oauth-fail-closed.md) | attacks | ✅ works | 🛡️ T2 |  |
 | UC30 | [Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC31 | [Third-party MCP server — out-of-scope call denied](./weather-mcp-texas-deny.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC32 | [Live-reconfigure the gateway's scope policy](./weather-mcp-live-reconfigure.md) | controls | ✅ works | 🛡️ T6 |  |
@@ -68,6 +69,10 @@
 | UC-LEARN14 | [CIBA human approval — PingFederate or PingOne, by how you signed in](./ciba-by-signed-in-provider.md) | learn | ✅ works |  |  |
 | UC-LEARN15 | [Jev decision model — System One vs System Two](./jev-decision-model.md) | learn | ✅ works | 🛡️ T5 |  |
 | UC-LEARN11 | [Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) | learn | ✅ works | 🛡️ T5 |  |
+| UC-LEARN16 | [MFA Test — FIDO2 passkey ceremony](./mfa-test-harness.md) | learn | ✅ works |  |  |
+| UC-LEARN17 | [OAuth Debug — live token flow log](./oauth-debug-logs.md) | learn | ✅ works |  |  |
+| UC-LEARN18 | [LLM Test — raw provider chat](./llm-test-harness.md) | learn | ✅ works |  |  |
+| UC-LEARN19 | [Intent Inspector — PAR/RAR payloads](./intent-inspector-tool.md) | learn | ✅ works |  |  |
 | UC-LOGIN | [PingOne login (OIDC + PKCE)](./pingone-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC-LOGIN-PF | [PingFederate login (OIDC + PKCE)](./pingfederate-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC27 | [HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) | hitl | ✅ works | 🛡️ T5 |  |
@@ -97,14 +102,13 @@
 | ID | Title | Track | Maturity | OWASP | What to Enable |
 |---|---|---|---|---|---|
 | UC15 | [Intent-token tampering](./intent-token-tampering.md) | attacks | 🏗️ needs-build | 🛡️ T6, T8 | See plan |
-| UC29 | [OAuth introspection outage — fail closed](./oauth-fail-closed.md) | attacks | 🏗️ needs-build | 🛡️ T2 | See plan |
 
 ## Summary
 
 | Status | Count |
 |---|---|
-| ✅ Works | 67 |
+| ✅ Works | 72 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
-| 🏗️ Needs build | 2 |
-| **Total** | **79** |
+| 🏗️ Needs build | 1 |
+| **Total** | **83** |

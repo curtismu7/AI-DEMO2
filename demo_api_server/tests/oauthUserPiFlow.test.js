@@ -18,6 +18,7 @@ jest.mock('../services/configStore', () => ({
   })[key]),
   isUserOAuthConfigured: jest.fn(() => true),
   getOAuthProvider: jest.fn(() => 'pingone'),
+  setConfig: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../services/oauthRedirectUris', () => ({
   getFrontendOrigin: jest.fn(() => 'http://localhost:3000'),
@@ -78,10 +79,10 @@ describe('customer pi.flow sign-in', () => {
     expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBeNull();
   });
 
-  test('passwordless=1 selects the identifier-first policy via acr_values', async () => {
+  test('passwordless=1 selects the passwordless policy (mfa_only) via acr_values', async () => {
     fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
     await request.agent(app).get('/api/auth/oauth/user/login?pi_flow=1&passwordless=1').expect(200);
-    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBe('Multi_Factor');
+    expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBe('mfa_only');
     fetchMock.mockClear();
     await openFlow(request.agent(app));
     // The password path never asks for the policy.
@@ -137,6 +138,22 @@ describe('customer pi.flow sign-in', () => {
     const res = await agent.post('/api/auth/oauth/user/pi-flow/credentials')
       .send({ username: 'u', password: 'bad' }).expect(401);
     expect(res.body.error).toBe('invalid_credentials');
+  });
+
+  test('a non-ok PingOne step response is logged with its status and code, not a silent 502', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const agent = request.agent(app);
+    await openFlow(agent);
+    // PingOne answered (network fine) but refused the step: a 429 rate limit
+    // with a code, the shape that used to vanish into a bare { pi_flow_failed }.
+    fetchMock.mockResolvedValueOnce(json(429, { code: 'RATE_LIMITED' }));
+    await agent.post('/api/auth/oauth/user/pi-flow/credentials')
+      .send({ username: 'u', password: 'p' }).expect(502);
+    const warn = warnSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(warn).toContain('[oauth/pi-flow]');
+    expect(warn).toContain('429');
+    expect(warn).toContain('RATE_LIMITED');
+    warnSpy.mockRestore();
   });
 
   test('identifier-first flow (SIGN_ON_REQUIRED): identifies with user.lookup, then posts the password', async () => {
@@ -543,5 +560,128 @@ describe('/login?mode=pi.flow (session token modal)', () => {
     configStore.isUserOAuthConfigured.mockReturnValueOnce(false);
     const res = await request(modeApp).get('/api/auth/oauth/user/login?mode=pi.flow').expect(400);
     expect(res.body.error).toBe('not_configured');
+  });
+});
+
+describe('PUT /login-hint', () => {
+  test('stores a valid hint for the customer role', async () => {
+    const res = await request(app)
+      .put('/api/auth/oauth/user/login-hint')
+      .send({ value: 'someone@pingone.com' });
+    expect(res.status).toBe(204);
+    expect(configStore.setConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ last_login_hint_customer: 'someone@pingone.com' }));
+  });
+
+  test('rejects control characters and overlong values with 400', async () => {
+    const res1 = await request(app)
+      .put('/api/auth/oauth/user/login-hint').send({ value: 'bad\u0007name' });
+    expect(res1.status).toBe(400);
+    expect(res1.body.error).toBe('invalid_hint');
+    const res2 = await request(app)
+      .put('/api/auth/oauth/user/login-hint').send({ value: 'x'.repeat(257) });
+    expect(res2.status).toBe(400);
+  });
+
+  test('empty body is a 400, not a wiped hint', async () => {
+    const res = await request(app)
+      .put('/api/auth/oauth/user/login-hint').send({});
+    expect(res.status).toBe(400);
+  });
+});
+
+describe('stored login hint at flow open', () => {
+  let fetchMock;
+  beforeEach(() => {
+    fetchMock = jest.fn();
+    global.fetch = fetchMock;
+  });
+
+  test('pi_flow open includes the stored hint as usernameHint for PingOne too', async () => {
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_environment_id: 'test-env-id',
+      user_client_id: 'test-client-id',
+      user_client_secret: 'test-secret',
+      user_pingone_authorize_pi_flow: 'true',
+      last_login_hint_customer: 'stored-user@pingone.com',
+    })[key]);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
+    const res = await request(app).get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    expect(res.body.usernameHint).toBe('stored-user@pingone.com');
+    const authorizeUrl = fetchMock.mock.calls[0][0];
+    expect(authorizeUrl).toContain('login_hint=stored-user');
+  });
+
+  test('hint is advisory: signing in with a different username than the hint succeeds', async () => {
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_environment_id: 'test-env-id',
+      user_client_id: 'test-client-id',
+      user_client_secret: 'test-secret',
+      user_pingone_authorize_pi_flow: 'true',
+      last_login_hint_customer: 'stored-user@pingone.com',
+    })[key]);
+    const agent = request.agent(app);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+    await agent.get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    fetchMock
+      .mockResolvedValueOnce(json(200, { status: 'COMPLETED' }))
+      .mockResolvedValueOnce(json(200, { authorizeResponse: { code: 'c' } }));
+    // a DIFFERENT username than the stored hint completes fine
+    await agent.post('/api/auth/oauth/user/pi-flow/credentials')
+      .send({ username: 'other-user@pingone.com', password: 'p' }).expect(200);
+  });
+
+  test('no stored hint: open still works and sends no usernameHint', async () => {
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_environment_id: 'test-env-id',
+      user_client_id: 'test-client-id',
+      user_client_secret: 'test-secret',
+      user_pingone_authorize_pi_flow: 'true',
+    })[key]);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
+    const res = await request(app).get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    expect(res.body.usernameHint).toBeUndefined();
+  });
+});
+
+// ── Review-fix pins: the STORED hint is PingOne-only and never on force ──────
+describe('stored login hint is PingOne-only and force-suppressed', () => {
+  let fetchMock;
+  beforeEach(() => {
+    fetchMock = jest.fn();
+    global.fetch = fetchMock;
+  });
+
+  test('PingFederate never receives the stored hint (it binds the flow to it)', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    // Full PF config (a prior describe may have left its own impl installed).
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_environment_id: 'test-env-id',
+      user_pingone_authorize_pi_flow: 'true',
+      pf_authorization_endpoint: 'https://pf.example:9031/as/authorization.oauth2',
+      pf_token_endpoint: 'https://pingfederate.internal:9031/as/token.oauth2',
+      pf_user_client_id: 'pf-client',
+      last_login_hint_customer: 'person-a@pingone.com',
+    })[key]);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+    const res = await request(app).get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    const authorizeUrl = fetchMock.mock.calls[0][0];
+    expect(authorizeUrl).not.toContain('login_hint=person-a');
+  });
+
+  test('forced re-auth on PingOne drops the stored hint (a different person may sign in)', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingone');
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_environment_id: 'test-env-id',
+      user_client_id: 'test-client-id',
+      user_client_secret: 'test-secret',
+      user_pingone_authorize_pi_flow: 'true',
+      last_login_hint_customer: 'person-a@pingone.com',
+    })[key]);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
+    await request(app).get('/api/auth/oauth/user/login?pi_flow=1&force=true').expect(200);
+    const authorizeUrl = fetchMock.mock.calls[0][0];
+    expect(authorizeUrl).toContain('prompt=login');
+    expect(authorizeUrl).not.toContain('login_hint=person-a');
   });
 });

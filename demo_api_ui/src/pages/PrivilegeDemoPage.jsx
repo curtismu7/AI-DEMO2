@@ -1,6 +1,7 @@
 // demo_api_ui/src/pages/PrivilegeDemoPage.jsx
 import { useMemo } from 'react';
 import { Link } from 'react-router-dom';
+import { openSignIn } from '../utils/signInService';
 import PrivilegeMcpOAuthConfig from '../components/privilege/PrivilegeMcpOAuthConfig';
 import { PingProductChip } from '../components/PingProductChip';
 import { useThemeOptional } from '../context/ThemeContext';
@@ -38,7 +39,7 @@ export default function PrivilegeDemoPage() {
             <Link to="/setup">Banking demo setup</Link>
             <a href={KIBANA_URL} target="_blank" rel="noopener noreferrer">Kibana logs</a>
             <Link to={MCP_OBSERVABILITY_PATH}>MCP observability</Link>
-            <a href="/api/auth/oauth/user/login?return_to=%2Fprivilege-demo">Sign in</a>
+            <button type="button" className="priv-demo-signin" onClick={() => openSignIn({ returnTo: "/privilege-demo" })}>Sign in</button>
             <button
               type="button"
               className="pd-page__theme-toggle"

@@ -61,7 +61,7 @@ describe("LLM Gateway combined page", () => {
     mockFetch();
     render(<LlmGatewayCombinedPage defaultTab="chat" />);
 
-    fireEvent.click(screen.getByRole("tab", { name: /malicious mcp/i }));
+    fireEvent.click(screen.getByRole("tab", { name: /^malicious mcp$/i }));
 
     expect(await screen.findByRole("heading", { name: /content reaches the agent/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /run denial scenario/i })).toBeInTheDocument();
@@ -76,7 +76,7 @@ describe("LLM Gateway combined page", () => {
     );
 
     expect(await screen.findByRole("heading", { name: /content reaches the agent/i })).toBeInTheDocument();
-    expect(screen.getByRole("tab", { name: /malicious mcp/i })).toHaveAttribute("aria-selected", "true");
+    expect(screen.getByRole("tab", { name: /^malicious mcp$/i })).toHaveAttribute("aria-selected", "true");
   });
 
   describe("text size control", () => {

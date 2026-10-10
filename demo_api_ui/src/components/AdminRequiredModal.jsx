@@ -1,5 +1,6 @@
 import React from "react";
 import DraggableModal from "./DraggableModal";
+import { openAdminSignIn } from "../utils/signInService";
 import "./AdminRequiredModal.css";
 
 /**
@@ -51,12 +52,13 @@ export default function AdminRequiredModal({ wantedPath, isOpen, onClose }) {
         </p>
 
         <div className="arm-actions">
-          <a
+          <button
+            type="button"
             className="arm-btn arm-btn-primary"
-            href={`/api/auth/oauth/login?return_to=${encodeURIComponent(wantedPath)}`}
+            onClick={() => openAdminSignIn({ returnTo: wantedPath })}
           >
             Sign in as admin
-          </a>
+          </button>
           <button type="button" className="arm-btn arm-btn-secondary" onClick={onClose}>
             Stay here
           </button>

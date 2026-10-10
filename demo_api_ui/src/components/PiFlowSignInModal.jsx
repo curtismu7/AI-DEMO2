@@ -3,8 +3,6 @@ import DraggableModal from "./DraggableModal";
 import { ForgotPasswordLink } from "./ForgotPasswordFlow";
 import {
   PI_FLOW_SIGNIN_EVENT,
-  setPiFlowSignInAvailable,
-  setAdminPiFlowSignInAvailable,
 } from "../utils/authUi";
 import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
@@ -101,12 +99,36 @@ export default function PiFlowSignInModal() {
   // "password" -> "passkey" | "otp" | "device" as the flow (or the user) asks.
   const [step, setStep] = useState("password");
   const passkeyOptionsRef = useRef(null);
+  // This modal's own config gate: a dispatched sign-in event is handled only
+  // when the BFF reports the role's pi.flow drivable; otherwise the event's
+  // sender falls back to the redirect login.
+  const [userDrivable, setUserDrivable] = useState(false);
+  const [adminDrivable, setAdminDrivable] = useState(false);
   // Lets pickDevice trigger the passkey ceremony after the passkey step renders.
   const verifyPasskeyRef = useRef(null);
   const returnToRef = useRef(undefined);
   const roleRef = useRef("customer");
   const forceRef = useRef(false);
   const providerRef = useRef("pingone");
+  // Remember who is signing in as: 800 ms after the last keystroke in a
+  // username field, store the value as the role's login hint so the next
+  // sign-in prefills it. The sign-in callback also stores it; this covers a
+  // value typed then abandoned. Prefill only — never an auth decision.
+  const hintTimerRef = useRef(null);
+  const apiForRoleRef = useRef(() => USER_API);
+  const queueHintWrite = (value) => {
+    clearTimeout(hintTimerRef.current);
+    hintTimerRef.current = setTimeout(() => {
+      const trimmed = String(value || "").trim();
+      if (!trimmed) return;
+      fetch(`${apiBase()}${apiForRoleRef.current()}/login-hint`, {
+        method: "PUT",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ value: trimmed }),
+      }).catch(() => { /* prefill loss is not the user's problem */ });
+    }, 800);
+  };
 
   useEffect(() => {
     let cancelled = false;
@@ -116,13 +138,13 @@ export default function PiFlowSignInModal() {
         const cfg = (await res.json())?.config || {};
         // Both providers the BFF can drive (PingOne, PingFederate); anything else keeps the redirect.
         const provider = cfg.oauth_provider || "pingone";
-        providerRef.current = provider;
         const drivable = provider === "pingone" || provider === "pingfederate";
         const userOn = ["true", "1"].includes(String(cfg.PINGONE_USER_AUTHORIZE_PI_FLOW).toLowerCase());
         const adminOn = ["true", "1"].includes(String(cfg.PINGONE_ADMIN_AUTHORIZE_PI_FLOW).toLowerCase());
         if (!cancelled) {
-          setPiFlowSignInAvailable(userOn && drivable);
-          setAdminPiFlowSignInAvailable(adminOn && drivable);
+          providerRef.current = provider;
+          setUserDrivable(drivable && userOn);
+          setAdminDrivable(drivable && adminOn);
         }
       } catch {
         /* keep the redirect login */
@@ -132,21 +154,21 @@ export default function PiFlowSignInModal() {
       cancelled = true;
     };
   }, []);
-
   const begin = useCallback((detail) => {
     const target = detail.returnTo;
     const role = detail.role === "admin" ? "admin" : "customer";
-    // PF's MFA steps are not driven in the modal yet: go straight to the hosted step-up login rather than
-    // asking for the password here and then again there.
-    if (mfaRequested() && providerRef.current === "pingfederate") {
-      redirectLogin(target, role, detail.force);
-      return;
-    }
     returnToRef.current = target;
     roleRef.current = role;
     forceRef.current = Boolean(detail.force);
-    setStep("password");
+    apiForRoleRef.current = () => (role === "admin" ? ADMIN_API : USER_API);
+    clearTimeout(hintTimerRef.current);
+    // Customer signs in passwordless-first: the device-only step is the modal's
+    // default under the mfa_only policy. Admin is password-first (the admin
+    // app's own policy already pairs password with MFA), so it opens on the
+    // username/password form and MFA comes after. If the flow open fails with
+    // passwordless=1 the open snaps back to the password form in the modal.
     passkeyOptionsRef.current = null;
+    setStep(role === "admin" ? "password" : "device");
     setError("");
     setUsername("");
     setPassword("");
@@ -156,7 +178,10 @@ export default function PiFlowSignInModal() {
     setSelectedDeviceId(null);
     setBusy(true);
     setOpen(true);
-    openFlow(target, role);
+    // ?signin=mfa is itself the acr selector (Multi_Factor): sending
+    // passwordless=1 alongside would silently win the last-spread and turn
+    // the on-demand MFA demo into the device-first policy.
+    openFlow(target, role, { passwordless: !mfaRequested() && role !== "admin" });
   }, []);
 
   // Opens the pi.flow on the BFF. `passwordless` selects the identifier-first
@@ -175,9 +200,22 @@ export default function PiFlowSignInModal() {
         if (!res.ok) throw new Error("pi.flow unavailable");
         // PingFederate locks the flow to a username hint; prefill it like the hosted page does.
         const flow = await res.json().catch(() => ({}));
-        if (flow && typeof flow.usernameHint === "string") setUsername(flow.usernameHint);
+        if (flow && typeof flow.usernameHint === "string") {
+          setUsername(flow.usernameHint);
+          setDeviceUsername(flow.usernameHint); // the device step is the first screen
+        }
         setBusy(false);
-      } catch {
+      } catch (openErr) {
+        if (passwordless) {
+          // The mfa_only policy may not exist yet (400 on open). Snap to the
+          // password-first flow INSIDE the modal — the default step never
+          // redirects to the hosted page.
+          setError("Device sign-in is not available yet — use your password.");
+          setStep("password");
+          setDeviceUsername(username);
+          openFlow(target, role, {});
+          return;
+        }
         setOpen(false);
         redirectLogin(target, role, forceRef.current);
       }
@@ -197,12 +235,14 @@ export default function PiFlowSignInModal() {
 
   useEffect(() => {
     const onSignIn = (e) => {
+      const forAdmin = e.detail.role === "admin";
+      if (forAdmin ? !adminDrivable : !userDrivable) return; // sender redirects
       e.detail.handled = true;
       begin(e.detail);
     };
     window.addEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
     return () => window.removeEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
-  }, [begin]);
+  }, [begin, userDrivable, adminDrivable]);
 
   const apiForRole = () => (roleRef.current === "admin" ? ADMIN_API : USER_API);
 
@@ -251,7 +291,18 @@ export default function PiFlowSignInModal() {
         setBusy(false);
         return;
       }
-      // fallback:true (device selection, a policy screen), 409 (flow expired), 5xx
+      // A policy screen the BFF can't drive hands off to the hosted page, which
+      // offers every method. A 5xx (transient: PingOne unreachable, a step that
+      // errored) is NOT a policy — it happened after we already committed to
+      // pi.flow, and dumping the user onto the hosted login mid-sign-in both
+      // loses their place and, on a different host than the BFF's registered
+      // callback origin, loses the session cookie entirely (Invalid state on
+      // return). Stay here with a retryable error instead.
+      if (res.status >= 500) {
+        setError("Sign-in couldn't be completed just now. Please try again.");
+        setBusy(false);
+        return;
+      }
       redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
     } catch {
       redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
@@ -350,8 +401,11 @@ export default function PiFlowSignInModal() {
         body: JSON.stringify({ username: deviceUsername }),
       });
       const body = await res.json().catch(() => ({}));
-      if (res.status === 409 && body.error === "passwordless_unavailable") {
-        setError(body.message || "This account requires a password. Sign in with your password.");
+      if (res.status === 409 && (body.error === "passwordless_unavailable" || body.error === "pi_flow_step_unsupported")) {
+        // The policy needs a password (PingOne) or the provider cannot drive
+        // passwordless at all (PingFederate): snap INSIDE the modal — never a
+        // full-page redirect for the app's first screen.
+        setError(body.message || (body.error === "pi_flow_step_unsupported" ? "Passwordless sign-in is not available for this provider — use your password." : "This account requires a password. Sign in with your password."));
         setUsername(deviceUsername);
         setStep("password");
         setBusy(false);
@@ -551,7 +605,7 @@ export default function PiFlowSignInModal() {
                   autoComplete="username"
                   autoFocus
                   value={deviceUsername}
-                  onChange={(e) => setDeviceUsername(e.target.value)}
+                  onChange={(e) => { setDeviceUsername(e.target.value); queueHintWrite(e.target.value); }}
                 />
                 {error ? (
                   <p className="signin-modal__text" role="alert">
@@ -589,7 +643,7 @@ export default function PiFlowSignInModal() {
             autoComplete="username"
             autoFocus
             value={username}
-            onChange={(e) => setUsername(e.target.value)}
+            onChange={(e) => { setUsername(e.target.value); queueHintWrite(e.target.value); }}
           />
           <label className="pi-flow-signin__label" htmlFor="pi-flow-password">
             Password

@@ -36,7 +36,7 @@ import { GatewayConfig, isInternalSecretUsable } from '../config';
 import { adminConfigSafeView, applyAdminConfigUpdate, ADMIN_CONFIG_ALLOWED_KEYS } from '../adminConfig';
 import { McpTokenExchangeClient } from '../auth/McpTokenExchangeClient';
 import { GatewayIntrospectionClient } from '../auth/GatewayIntrospectionClient';
-import { extractBearerToken, validateInboundToken, TokenValidationError, type DecodedGatewayToken } from '../tokenValidator';
+import { extractBearerToken, validateInboundToken, setJwksSimDown, validationErrorHttpStatus, TokenValidationError, type DecodedGatewayToken } from '../tokenValidator';
 import { isPrivilegeBridgeBearer, transactionTokenHeaderState } from '../auth/privilegeBridge';
 import { guardToolsList } from '../pingAuthorizeGuard';
 import { getScopesForGatewayTool } from '../auth/toolScopes';
@@ -311,6 +311,60 @@ export class GatewayServer {
       return;
     }
 
+    // POST /access-eval — AuthZEN (draft-ietf-authzen-authz-api) shaped decision
+    // mock. Coverage-plan row "AuthZEN": the interop standard gets a demo surface
+    // by exposing this gateway's own authorization posture in the standard's
+    // request/response shape (subject/resource/action → decision). The DECISION
+    // here is deliberately simple and labeled as a mock posture echo — the real
+    // per-tool PDP decisions live on the MCP path (authorizeMcpRequest → P1AZ);
+    // this endpoint exists so an AuthZEN client can see the gateway answer.
+    if (url === '/access-eval') {
+      if (method !== 'POST') {
+        res.writeHead(405, { 'Content-Type': 'application/json', Allow: 'POST' });
+        res.end(JSON.stringify({ error: 'method_not_allowed' }));
+        return;
+      }
+      let evalBody: any;
+      try {
+        evalBody = JSON.parse((await this.readBody(req)).toString('utf-8') || '{}');
+      } catch {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({ error: 'invalid_json' }));
+        return;
+      }
+      const s = evalBody?.subject;
+      const r = evalBody?.resource;
+      const a = evalBody?.action;
+      const wellFormed =
+        s && typeof s === 'object' && typeof s.type === 'string' && typeof s.id === 'string' &&
+        r && typeof r === 'object' && typeof r.type === 'string' && typeof r.id === 'string' &&
+        a && typeof a === 'object' && typeof a.name === 'string';
+      if (!wellFormed) {
+        res.writeHead(400, { 'Content-Type': 'application/json' });
+        res.end(JSON.stringify({
+          error: 'invalid_request',
+          message: 'AuthZEN evaluation requires subject{type,id}, resource{type,id} and action{name}',
+        }));
+        return;
+      }
+      // Mock posture echo: the demo's real decisions are made per tool call on
+      // the MCP path; this endpoint reflects the gateway's enforcement posture
+      // (devBypass = the one state where the demo genuinely permits without
+      // evaluating) so an AuthZEN client never sees a fabricated PERMIT while
+      // the gateway is armed to deny.
+      const decision = this.config.devBypass ? 'permit' : 'deny';
+      res.writeHead(200, { 'Content-Type': 'application/json' });
+      res.end(JSON.stringify({
+        evaluationId: crypto.randomUUID(),
+        decision,
+        reason: this.config.devBypass
+          ? 'Mock AuthZEN surface: devBypass is on — the demo gateway is in its explicit permit-all posture'
+          : 'Mock AuthZEN surface: decisions are enforced per tool call on the MCP path; this echo denies by default',
+        pdp: 'mock',
+      }));
+      return;
+    }
+
     // GET /admin/config — read the gateway's live, in-memory config (no secrets).
     // Gated behind the shared internal secret (BL-01): the safe-view leaks live
     // routing URLs + the devBypass flag, useful reconnaissance for an attacker.
@@ -353,6 +407,12 @@ export class GatewayServer {
         return;
       }
       const result = applyAdminConfigUpdate(this.config, updates, process.env.NODE_ENV);
+      // UC29: the JWKS-outage sim lives in tokenValidator module state, so a
+      // runtime jwksSimDown push must bridge it there (mirrors how the
+      // introspection sim is read straight off config).
+      if (Object.prototype.hasOwnProperty.call(updates, 'jwksSimDown')) {
+        setJwksSimDown(updates.jwksSimDown === true);
+      }
       if (result.mutated) {
         console.log(
           '[GW] /admin/config updated:',
@@ -546,7 +606,7 @@ export class GatewayServer {
         await validateInboundToken(bearerToken, this.config.gatewayResourceUri);
       } catch (err) {
         if (err instanceof TokenValidationError) {
-          this.sendUnauthorized(req, res,err.code, err.message);
+          this.sendUnauthorized(req, res, err.code, err.message, validationErrorHttpStatus(err));
           return;
         }
         throw err;
@@ -584,7 +644,7 @@ export class GatewayServer {
         await validateInboundToken(bearerToken, this.config.gatewayResourceUri);
       } catch (err) {
         if (err instanceof TokenValidationError) {
-          this.sendUnauthorized(req, res,err.code, err.message);
+          this.sendUnauthorized(req, res, err.code, err.message, validationErrorHttpStatus(err));
           return;
         }
         throw err;
@@ -767,7 +827,7 @@ export class GatewayServer {
         decodedInboundToken = await validateInboundToken(bearerToken, this.config.gatewayResourceUri);
       } catch (err) {
         if (err instanceof TokenValidationError) {
-          this.sendUnauthorized(req, res,err.code, err.message);
+          this.sendUnauthorized(req, res, err.code, err.message, validationErrorHttpStatus(err));
           return;
         }
         throw err;
@@ -833,7 +893,7 @@ export class GatewayServer {
           decodedInboundToken = await validateInboundToken(bearerToken, this.config.gatewayResourceUri);
         } catch (err) {
           if (err instanceof TokenValidationError) {
-            this.sendUnauthorized(req, res, err.code, err.message);
+            this.sendUnauthorized(req, res, err.code, err.message, validationErrorHttpStatus(err));
             return;
           }
           throw err;
@@ -1336,14 +1396,16 @@ export class GatewayServer {
   // request's own scheme+host (e.g. http://api.ping.demo:3005), NOT from gatewayResourceUri,
   // which is the bare audience id (mcpgateway.ping.demo, no scheme/host) and is unreachable,
   // breaking MCP OAuth auto-discovery.
-  private sendUnauthorized(req: IncomingMessage, res: ServerResponse, errorCode: string, description: string): void {
+  private sendUnauthorized(req: IncomingMessage, res: ServerResponse, errorCode: string, description: string, status = 401): void {
     const realm = 'banking-mcp-gateway';
     const metadataUrl = `${selfBaseUrl(req, this.config.port)}/.well-known/oauth-protected-resource`;
     const safeDesc = sanitizeHeaderDescription(description);
     // RFC 6750 §3.1 SHOULD include scope= on 401 — advertise the minimum scope
-    // the gateway requires for any tool invocation.
+    // the gateway requires for any tool invocation. (A 503 — validation backend
+    // unreachable — is not a credential challenge; scope/WA headers stay for
+    // observability but the status carries the outage.)
     const baseScope = 'mcp:invoke';
-    res.writeHead(401, {
+    res.writeHead(status, {
       'Content-Type': 'application/json',
       'WWW-Authenticate': appendEnterpriseWwwAuthHint([
         `Bearer realm="${realm}"`,

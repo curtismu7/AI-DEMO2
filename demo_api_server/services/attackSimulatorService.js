@@ -1237,11 +1237,20 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
 
 /**
  * introspection-down sim (UC29):
- *   Arm GatewayIntrospectionClient into a simulated-down state via the
- *   existing live POST /admin/config push (same mechanism UC18 uses for
+ *   Arm the gateway's token-validation backend into a simulated-down state via
+ *   the existing live POST /admin/config push (same mechanism UC18 uses for
  *   rateLimitEnabled), fire one real call, capture the fail-closed 503,
  *   then immediately disarm — unlike rate-limiting, leaving this armed
  *   would block every subsequent call on the gateway container.
+ *
+ *   The backend on the Demo Agent Gateway is JWKS signature verification, NOT
+ *   RFC 7662 introspection: this deployment runs GW_INTROSPECTION_ENABLED=false
+ *   (introspection cannot work on a multi-issuer A2A gateway — see
+ *   docker-compose.yml), so introspectionSimDown is never reached and this sim
+ *   reported 501 sim_not_applicable (measured 2026-09-08/2026-10-09). The
+ *   equivalent outage on the control that ACTUALLY validates tokens is
+ *   jwksSimDown (tokenValidator.setJwksSimDown), which fails closed with
+ *   jwks_fetch_failed → HTTP 503. Same arm → call → disarm contract.
  */
 async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) {
   const sim = 'introspection-down';
@@ -1257,11 +1266,11 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
     };
   }
 
-  // PingGateway (IG) has no /admin/config and no introspectionSimDown toggle —
-  // this sim is Demo Agent Gateway-only (GatewayIntrospectionClient.ts), so it
-  // targets the Node gateway explicitly whichever gateway is active (see
-  // _nodeGatewayUrl). Skipping the arm under IG and calling IG instead gave a
-  // perimeter 403 labelled "FAILED CLOSED (503)".
+  // PingGateway (IG) has no /admin/config and no outage toggle — this sim is
+  // Demo Agent Gateway-only (tokenValidator.ts), so it targets the Node gateway
+  // explicitly whichever gateway is active (see _nodeGatewayUrl). Skipping the
+  // arm under IG and calling IG instead gave a perimeter 403 labelled
+  // "FAILED CLOSED (503)".
   let gatewayUrl;
   try {
     gatewayUrl = _nodeGatewayUrl();
@@ -1276,32 +1285,31 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
   }
 
   const { pushGatewayAdminConfig } = require('../routes/mcpGatewayConfig');
-  const armResult = await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: true });
+  const armResult = await pushGatewayAdminConfig(gatewayUrl, { jwksSimDown: true });
   if (!armResult.ok) {
     return {
       sim, useCaseId,
       status: 502,
       errorCode: 'gateway_push_failed',
-      reason: armResult.error || 'Could not arm the introspection-down sim on the gateway',
+      reason: armResult.error || 'Could not arm the validation-outage sim on the gateway',
       tokenChainEvents,
     };
   }
 
   tokenChainEvents.push(buildTokenEvent(
     'sim-introspection-armed',
-    'Introspection outage armed (UC29)',
+    'Token-validation outage armed (UC29)',
     'active',
     null,
-    'Pushed introspectionSimDown:true to the Demo Agent Gateway — the next call fails RFC 7662 introspection closed.',
+    'Pushed jwksSimDown:true to the Demo Agent Gateway — the next call fails signature-verification closed.',
   ));
 
   let exchangedToken;
   let result;
   try {
     // Exchange failure is a broken/misconfigured token exchange, not the
-    // gateway's introspection fail-closed behavior this sim tests for —
-    // keep it out of the fail-closed catch below so it can't be mislabeled
-    // "Verified (as expected)".
+    // gateway's fail-closed behavior this sim tests for — keep it out of the
+    // fail-closed catch below so it can't be mislabeled "Verified (as expected)".
     try {
       exchangedToken = await _exchangeSimToken(subjectToken, gatewayAud, ['read']);
     } catch (err) {
@@ -1319,21 +1327,17 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
     }
 
     await callToolViaGateway(gatewayUrl, exchangedToken, 'get_my_accounts', {});
-    // No throw means the gateway never introspected: the sim flag is the FIRST
-    // check in GatewayIntrospectionClient.introspect(), so a call that
-    // succeeds while armed can only mean introspection was not performed —
-    // this deployment runs the Demo Agent Gateway with
-    // GW_INTROSPECTION_ENABLED=false (local JWT signature validation). That is
-    // not a permit the control failed to stop; it is a control that does not
-    // exist here, and it must not render as PERMIT or DENY (measured live
-    // 2026-09-08: 200 "unexpected_permit" read as a green PERMIT).
-    const notPerformed = 'The Demo Agent Gateway did not introspect the token '
-      + '(GW_INTROSPECTION_ENABLED=false — it validates JWT signatures locally), so an '
-      + 'RFC 7662 introspection outage cannot be simulated on this deployment. Enable '
-      + 'introspection on the gateway to run UC29.';
+    // No throw means the gateway accepted a token while its validation backend
+    // was armed down — a fail-OPEN control, which must not render as PERMIT
+    // (measured live 2026-09-08: a mislabeled green PERMIT). With jwksSimDown
+    // armed this should be unreachable: the arm is the first check in
+    // _decodeAndVerify.
+    const notPerformed = 'The Demo Agent Gateway accepted a call while the validation '
+      + 'outage was armed — the fail-closed control did not fire. Check that the '
+      + 'gateway is running a build with jwksSimDown (tokenValidator.setJwksSimDown).';
     tokenChainEvents.push(buildTokenEvent(
       'sim-introspection-not-performed',
-      'Introspection not performed (sim not applicable)',
+      'Fail-closed control did not fire',
       'warning',
       null,
       notPerformed,
@@ -1359,7 +1363,7 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
   } finally {
     // Always disarm, even if the call above threw for an unrelated reason —
     // an armed sim left on would silently break every later demo step.
-    await pushGatewayAdminConfig(gatewayUrl, { introspectionSimDown: false });
+    await pushGatewayAdminConfig(gatewayUrl, { jwksSimDown: false });
   }
 
   stampUseCaseId(tokenChainEvents, useCaseId);

@@ -214,6 +214,16 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.queryByText(/Agentic Maturity Model/i)).toBeNull();
   });
 
+  it("renders the Learning Hub (Web Mirror) under Architecture & Learning", () => {
+    // The mirror is the public, guest-browsable entry point into every topic's
+    // live-demo link. It belongs in the learning section of the live nav — the
+    // legacy tree still has it under Learn & Present, which no longer renders.
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Architecture & Learning/ }));
+    const mirror = screen.getByText("Learning Hub (Web Mirror)");
+    expect(mirror).toBeTruthy();
+  });
+
   it("live-filters nav items by label", () => {
     renderNav();
     // present before filtering

@@ -57,6 +57,7 @@ export const DIAGRAMS_INDEX = [
 ];
 
 export const DIAGRAMS_MORE = [
+  D("Demo Map", "/demo-map", "Every demo step, inspector, diagram and learning topic on one page."),
   D("Privilege Gateway Topologies", "/privilege-gateway-topologies", "Three topologies plus a request-flow sequence."),
   D("MCP Gateway OAuth Flow", "/mcp-gateway-oauth-flow", "Architecture, then the OAuth sequence."),
   D("External Door", "/external-door-diagrams", "Topology and the dual-path sequence."),

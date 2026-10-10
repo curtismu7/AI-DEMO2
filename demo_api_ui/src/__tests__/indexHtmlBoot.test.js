@@ -67,7 +67,7 @@ describe('index.html boot screen', () => {
   it('draws the Ping mark on the HTML boot screen, as React does (no ring-then-mark swap)', () => {
     // PingIdentitySpinner is the spinner on AuthLoadingScreen. If the boot screen shows
     // something else, a refresh swaps one loading picture for another.
-    expect(html).toMatch(/<div class="boot-mark"><span class="boot-mark__ring"><\/span><img class="boot-mark__img" src="\/branding\/ping-logo\.svg"/);
+    expect(html).toMatch(/<div class="boot-mark"><span class="boot-mark__ring"><\/span><img class="boot-mark__img" src="\/branding\/ping-logo\.png"/);
     expect(html).toContain('animation: boot-dance');
     expect(html).not.toContain('#boot-spinner::after');
     expect(html).not.toMatch(/\.boot-skeleton::after/);

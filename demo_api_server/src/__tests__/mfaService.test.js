@@ -475,6 +475,36 @@ describe('ensureEmailDevice', () => {
   });
 });
 
+// ─── ensureSmsDevice ──────────────────────────────────────────────────────────
+
+describe('ensureSmsDevice', () => {
+  it('enrolls an SMS device (worker token → ACTIVE) when the user has none', async () => {
+    mockWorkerTokenSuccess();
+    axios.get.mockResolvedValueOnce({ data: {} });
+    mockWorkerTokenSuccess();
+    axios.post.mockResolvedValueOnce({ data: { id: 'dev-sms', type: 'SMS', status: 'ACTIVE' } });
+
+    const result = await mfaService.ensureSmsDevice('user-1', '+12065551234');
+
+    expect(result).toEqual({ status: 'created', deviceId: 'dev-sms', deviceStatus: 'ACTIVE' });
+    const [url, body] = axios.post.mock.calls[2]; // [0] and [1] are worker tokens
+    expect(url).toContain('users/user-1/devices');
+    expect(body).toEqual({ type: 'SMS', phone: '+12065551234' });
+  });
+
+  it('skips enrollment when an SMS device with the same phone exists', async () => {
+    mockWorkerTokenSuccess();
+    axios.get.mockResolvedValueOnce({
+      data: { _embedded: { devices: [{ id: 'd-sms-1', type: 'SMS', phone: '+1 (206) 555-1234', status: 'ACTIVE' }] } },
+    });
+
+    const result = await mfaService.ensureSmsDevice('user-1', '+12065551234');
+
+    expect(result).toEqual({ status: 'existing', deviceId: 'd-sms-1' });
+    expect(axios.post).toHaveBeenCalledTimes(1); // the worker token only; no device created
+  });
+});
+
 // ─── initFido2Registration ────────────────────────────────────────────────────
 
 describe('initFido2Registration', () => {

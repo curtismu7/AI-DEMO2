@@ -43,6 +43,7 @@ export const ADMIN_CONFIG_ALLOWED_KEYS: Array<keyof GatewayConfig> = [
   'rateLimitMaxRequests',
   'rateLimitWindowMs',
   'introspectionSimDown',
+  'jwksSimDown',
   'enterpriseManagedMcpAuth',
 ];
 
@@ -72,6 +73,7 @@ function safeView(config: GatewayConfig): Record<string, unknown> {
     rateLimitMaxRequests:  config.rateLimitMaxRequests,
     rateLimitWindowMs:     config.rateLimitWindowMs,
     introspectionSimDown:  config.introspectionSimDown,
+    jwksSimDown:           config.jwksSimDown,
     enterpriseManagedMcpAuth: config.enterpriseManagedMcpAuth,
     mcpServerPassthrough:  config.mcpServerPassthrough,
     // Phase 266/267 HTTP backend routes — non-secret addresses + logical
@@ -99,7 +101,7 @@ export function applyAdminConfigUpdate(
 ): AdminConfigResult {
   const hasDevBypass = Object.prototype.hasOwnProperty.call(updates, 'devBypass');
   const hasRateLimitEnabled = Object.prototype.hasOwnProperty.call(updates, 'rateLimitEnabled');
-  const boolKeys = ['requireActForAgentTools', 'intentTokenRequired', 'requireRarIntent', 'introspectionSimDown', 'p1azEnabled'] as const;
+  const boolKeys = ['requireActForAgentTools', 'intentTokenRequired', 'requireRarIntent', 'introspectionSimDown', 'jwksSimDown', 'p1azEnabled'] as const;
 
   // A — strict-boolean validation (all environments). Reject the whole
   // request on any non-boolean devBypass BEFORE the prod check / assignment.
@@ -178,7 +180,7 @@ export function applyAdminConfigUpdate(
       } else if (key === 'rateLimitEnabled') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any).rateLimitEnabled = updates.rateLimitEnabled === true;
-      } else if (key === 'requireActForAgentTools' || key === 'intentTokenRequired' || key === 'requireRarIntent' || key === 'introspectionSimDown' || key === 'p1azEnabled' || key === 'enterpriseManagedMcpAuth') {
+      } else if (key === 'requireActForAgentTools' || key === 'intentTokenRequired' || key === 'requireRarIntent' || key === 'introspectionSimDown' || key === 'jwksSimDown' || key === 'p1azEnabled' || key === 'enterpriseManagedMcpAuth') {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         (config as any)[key] = updates[key] === true;
       } else {

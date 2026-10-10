@@ -73,6 +73,7 @@ Project skills live in [`.claude/skills/`](.claude/skills/); Ping product packag
 - Match existing conventions (error shapes, date handling, import paths) — don't invent.
 - After code edits, run `graphify extract . --code-only --no-cluster --timing` to refresh code from the manifest without LLM extraction or community clustering. Run `graphify cluster-only .` when community, report, or visualization outputs need refreshing. Prefer `graphify query|path|explain` over raw grep when `graphify-out/graph.json` exists; use `graphify-out/wiki/index.md` for broad navigation when present.
 - **Ping product docs: start from <https://docs.pingidentity.com/llms.txt>.** Fetch that index first, then follow it to the specific page — don't guess a docs.pingidentity.com URL directly or fall back to general web search.
+- **Fonts and writing style come from the Ping brand hub, <https://brand.pingidentity.com/hub/39>** (SSO-gated). Montserrat is the app-wide font (loaded in `demo_api_ui/public/index.html`, tokenized as `--font-primary` in `demo_api_ui/src/index.css`); written-tone/copy rules live there too. Take new fonts or voice/copy conventions from the hub, never invent them — and don't reintroduce Inter, Fraunces, Newsreader, or IBM Plex Sans (IBM Plex Mono stays for code). Documented exceptions exist (THEMING.md §8.2, SVG-label narrow sans, vendor-mock chrome) — leave them alone.
 
 ## Knowledge bundles
 

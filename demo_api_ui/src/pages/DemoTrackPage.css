@@ -9,7 +9,7 @@
    there the literal accent goes unreadable on a dark card, so these read
    from the matching --th-status-*-text pair instead. */
 .dtp-root {
-  --dtp-red: #b3282d; --dtp-ink: var(--th-text); --dtp-muted: var(--th-text-muted);
+  --dtp-red: #d20e0f; --dtp-ink: var(--th-text); --dtp-muted: var(--th-text-muted);
   --dtp-line: var(--th-border); --dtp-bg: var(--th-bg-page); --dtp-card: var(--th-bg-card);
   --dtp-green: var(--th-status-success); --dtp-green-bg: var(--th-status-success-bg);
   --dtp-deny: var(--th-status-error); --dtp-deny-bg: var(--th-status-error-bg);

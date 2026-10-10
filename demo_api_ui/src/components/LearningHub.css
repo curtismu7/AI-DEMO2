@@ -131,6 +131,14 @@
   font-weight: 600;
 }
 
+/* Guest notice under the signed-in feature panels — muted, not an error. */
+.learning-hub__rag-guest {
+  color: var(--th-text-muted, var(--th-text));
+  opacity: 0.75;
+  font-size: 0.9rem;
+  margin-top: 0.5rem;
+}
+
 .learning-hub__rag-answer {
   margin-top: 1.25rem;
   padding: 1rem;
@@ -629,15 +637,38 @@
   flex: 1;
 }
 
+.learning-hub__card-links {
+  display: flex;
+  gap: 0.75rem;
+  align-items: baseline;
+  margin-top: 0.5rem;
+}
+
 .learning-hub__card-step {
   font-size: 0.8rem;
   color: var(--th-status-info-text);
   text-decoration: none;
-  margin-top: 0.5rem;
 }
 
 .learning-hub__card-step:hover {
   text-decoration: underline;
+}
+
+.learning-hub__card-diagram {
+  font-size: 0.8rem;
+  color: var(--th-status-info-text);
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.learning-hub__card-diagram:hover {
+  text-decoration: underline;
+}
+
+.learning-hub__card-step:focus-visible,
+.learning-hub__card-diagram:focus-visible {
+  outline: 2px solid var(--th-status-info);
+  outline-offset: 2px;
 }
 
 .learning-hub__no-results {
