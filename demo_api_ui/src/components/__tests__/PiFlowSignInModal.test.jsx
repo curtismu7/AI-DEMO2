@@ -339,15 +339,17 @@ describe('PiFlowSignInModal', () => {
       await act(async () => { navigateToAdminOAuthLogin('/admin'); });
     }
 
-    test('admin flag on: opens the modal on the admin route and posts admin credentials', async () => {
+    test('admin flag on: opens the PASSWORD form (username+password then MFA), no passwordless param', async () => {
       mockAdminBff({
         config: ADMIN_ON,
         login: () => ok({ flowId: 'fa', status: 'USERNAME_PASSWORD_REQUIRED' }),
         credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/callback?code=c&state=s' }),
       });
       await mountAndClickAdmin();
-      fireEvent.click(await screen.findByRole('button', { name: 'Use your password instead' }));
+      // Admin is password-first: no device step, no passwordless=1 on the open.
       await waitFor(() => expect(screen.getByLabelText('Password')).toBeInTheDocument());
+      const open = global.fetch.mock.calls.find(([u]) => String(u).includes('/oauth/login?') && String(u).includes('pi_flow=1'));
+      expect(String(open[0])).not.toContain('passwordless=1');
       fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demoAdmin' } });
       fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
       fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
@@ -471,22 +473,24 @@ describe('PiFlowSignInModal', () => {
       expect(screen.queryByRole('radiogroup')).toBeNull();
     });
 
-    test('admin role posts to the admin router path', async () => {
+    test('admin role on the password step posts to the admin router path', async () => {
       global.fetch = vi.fn((url) => {
         if (String(url).includes('/api/admin/config')) return ok({ config: { ...ON, PINGONE_ADMIN_AUTHORIZE_PI_FLOW: 'true' } });
-        if (String(url).includes('/pi-flow/passwordless')) return ok({ step: 'otp' });
-        if (String(url).includes('/oauth/login')) return ok({ flowId: 'fa', status: 'SIGN_ON_REQUIRED' });
+        if (String(url).includes('/pi-flow/credentials')) return ok({ step: 'otp' });
+        if (String(url).includes('/oauth/login')) return ok({ flowId: 'fa', status: 'USERNAME_PASSWORD_REQUIRED' });
         return ok({}, 404);
       });
       render(<PiFlowSignInModal />);
       await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
       await act(async () => { await Promise.resolve(); });
       await act(async () => { navigateToAdminOAuthLogin('/admin'); });
-      fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demoAdmin' } });
+      // Admin defaults to the password form (password-first, then MFA).
+      fireEvent.change(await screen.findByLabelText('Password'), { target: { value: 'pw' } });
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demoAdmin' } });
       fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).pop());
       await waitFor(() => {
-        const call = global.fetch.mock.calls.find(([u]) => String(u).includes('/pi-flow/passwordless'));
-        expect(String(call[0])).toContain('/api/auth/oauth/pi-flow/passwordless');
+        const call = global.fetch.mock.calls.find(([u]) => String(u).includes('/pi-flow/credentials'));
+        expect(String(call[0])).toContain('/api/auth/oauth/pi-flow/credentials');
       });
     });
 

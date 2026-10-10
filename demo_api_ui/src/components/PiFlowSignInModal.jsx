@@ -162,11 +162,13 @@ export default function PiFlowSignInModal() {
     forceRef.current = Boolean(detail.force);
     apiForRoleRef.current = () => (role === "admin" ? ADMIN_API : USER_API);
     clearTimeout(hintTimerRef.current);
-    // Passwordless first: the device-only step is the modal's default. The
-    // flow opens under the mfa_only policy; if the policy does not exist yet
-    // the open snaps back to the password form inside the modal.
+    // Customer signs in passwordless-first: the device-only step is the modal's
+    // default under the mfa_only policy. Admin is password-first (the admin
+    // app's own policy already pairs password with MFA), so it opens on the
+    // username/password form and MFA comes after. If the flow open fails with
+    // passwordless=1 the open snaps back to the password form in the modal.
     passkeyOptionsRef.current = null;
-    setStep("device");
+    setStep(role === "admin" ? "password" : "device");
     setError("");
     setUsername("");
     setPassword("");
@@ -179,7 +181,7 @@ export default function PiFlowSignInModal() {
     // ?signin=mfa is itself the acr selector (Multi_Factor): sending
     // passwordless=1 alongside would silently win the last-spread and turn
     // the on-demand MFA demo into the device-first policy.
-    openFlow(target, role, { passwordless: !mfaRequested() });
+    openFlow(target, role, { passwordless: !mfaRequested() && role !== "admin" });
   }, []);
 
   // Opens the pi.flow on the BFF. `passwordless` selects the identifier-first
