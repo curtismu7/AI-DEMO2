@@ -402,11 +402,17 @@ describe('PiFlowSignInModal', () => {
       return screen.findByLabelText('Username');
     }
 
-    test('the device form is the default; it offers "Use your password instead" and no password box', async () => {
+    test('the device form is the default; "Use your password instead" lives in the footer, below the form', async () => {
       mockPasswordlessBff({ passwordless: () => ok({}) });
       await toDeviceStep();
-      expect(screen.getByRole('button', { name: 'Use your password instead' })).toBeInTheDocument();
+      const link = screen.getByRole('button', { name: 'Use your password instead' });
+      expect(link).toBeInTheDocument();
       expect(screen.queryByLabelText('Password')).toBeNull();
+      // Footer placement: the link renders after (below) the scrollable form body.
+      const formBody = document.querySelector('.pi-flow-signin__form');
+      expect(formBody.compareDocumentPosition(link) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+      // ...and inside the footer actions row, next to Cancel.
+      expect(link.closest('.signin-modal__actions')).not.toBeNull();
     });
 
     test('device submit posts only the username to /pi-flow/passwordless; OTP_REQUIRED moves to the code form', async () => {

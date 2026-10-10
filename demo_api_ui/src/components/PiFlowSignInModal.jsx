@@ -526,6 +526,26 @@ export default function PiFlowSignInModal() {
                 {busy ? "Signing in" : "Sign in"}
               </button>
               {step !== "otp" && <ForgotPasswordLink />}
+              {/* Device step's way out lives at the bottom of the modal, next to
+                  Cancel — the form body stays just the username field. */}
+              {step === "device" && (
+                <button
+                  type="button"
+                  className="signin-prompt__btn signin-prompt__btn--ghost"
+                  onClick={() => {
+                    if (busy) return;
+                    // Back to the password form — and to the password-first flow the
+                    // session originally opened (the identifier-first flow is abandoned).
+                    setUsername(deviceUsername);
+                    setError("");
+                    setBusy(true);
+                    openFlow(returnToRef.current, roleRef.current);
+                    setStep("password");
+                  }}
+                >
+                  Use your password instead
+                </button>
+              )}
             </>
           )}
           <button
@@ -614,22 +634,6 @@ export default function PiFlowSignInModal() {
                 ) : null}
               </form>
             )}
-            <button
-              type="button"
-              className="signin-prompt__btn signin-prompt__btn--ghost"
-              onClick={() => {
-                if (busy) return;
-                // Back to the password form — and to the password-first flow the
-                // session originally opened (the identifier-first flow is abandoned).
-                setUsername(deviceUsername);
-                setError("");
-                setBusy(true);
-                openFlow(returnToRef.current, roleRef.current);
-                setStep("password");
-              }}
-            >
-              Use your password instead
-            </button>
           </div>
         ) : (
         <form id="pi-flow-signin-form" className="pi-flow-signin__form" onSubmit={submit}>
