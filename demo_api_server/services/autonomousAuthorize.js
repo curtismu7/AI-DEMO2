@@ -75,6 +75,10 @@ async function authorizeUnattendedTransfer({ agentName, amount, type = 'transfer
     TokenAudActual: '',
     TokenIss: '',
     ResourceOwnerId: '',
+    // Unattended: nobody signed in, so no user consent exists — '' says so. This
+    // route is a Transaction-context call anyway, so the consent denies (MCP
+    // policy) never see it; stated for the uniform request shape.
+    MayActSub: '',
     IntentTokenValid: '',
     IntentMatchesTool: '',
     IntentTokenError: '',

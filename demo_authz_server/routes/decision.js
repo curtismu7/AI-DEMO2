@@ -150,6 +150,13 @@ const DENY_CODE_BY_REASON_PREFIX = {
   tier_tool_not_allowed: 'mcp-tier-tool-not-allowed',
   tier_amount_exceeded: 'mcp-tier-amount-exceeded',
   invalid_kid: 'mcp-invalid-kid',
+  // Per-user consent (mock Rule 2.6, may_act re-architecture). The cloud carries
+  // dedicated rules whose statement codes match these reason strings exactly —
+  // same convention as rar_amount_exceeded. The mock's deny() maps the reason
+  // prefix to the same code, so a mock deny and its cloud twin classify
+  // identically at the BFF.
+  no_user_consent: 'no_user_consent',
+  may_act_mismatch: 'may_act_mismatch',
 };
 // Every deny without a specific cloud rule maps to the shared MCP deny statement
 // (the cloud snapshot multi-parents this one across all seven MCP deny rules).

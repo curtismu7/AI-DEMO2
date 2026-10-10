@@ -111,7 +111,10 @@ test('widening touches exactly one object — 157 in, 157 out, none added or rem
   // deny. Cloud twin of mock Rule 0m.
   // +2 (2026-10-02): the console-made Banking Account Context SERVICE and its
   // AccountContext ATTRIBUTE, copied in from a PingOne export.
-  assert.strictEqual(objectCount, 157, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
+  // +7 (2026-10-10): per-user consent (mock Rule 2.6) — the MayActSub
+  // ATTRIBUTE, UserConsentMissing + UserConsentMismatch CONDITIONs, a
+  // Statement+Rule pair each for no_user_consent and may_act_mismatch.
+  assert.strictEqual(objectCount, 164, 'snapshot object count drifted — see authorizeSnapshotCloudDelta.test.js');
 
   // Rebuild the pre-1e8619d09 state: the condition matched only the first two
   // contexts. Everything else in the snapshot is already reconciled.

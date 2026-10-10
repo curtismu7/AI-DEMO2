@@ -122,6 +122,12 @@ TransactionType: '12345678-0002-4321-abcd-000000000002',
   // exists so the deny payload and the recent-decisions log can name the key.
   // Default '' (absent), matching TokenAudActual / ResourceOwnerId.
   TokenKid: '12345678-0028-4321-abcd-000000000028',
+  // The signed-in user's bridged may_act consent (may_act re-architecture,
+  // 2026-10-10). The BFF/PEPs forward the user's session may_act.sub — who the
+  // USER authorized to act for them. Rules 3h read it; default '' (no consent
+  // bridged) is the inert side for the mismatch rule and the DENY side for the
+  // missing-consent rule, which is the fail-closed direction.
+  MayActSub: '12345678-0033-4321-abcd-000000000033',
 };
 // The accepted gateway identities (step 0) are DERIVED from the SoT: every
 // resource marked `"role": "mcp-gateway"`. These are the same identities the
@@ -202,6 +208,11 @@ const COND = {
   AdminRoleOnWriteTool: '23456789-0025-4321-abcd-000000000025',
   TokenAudTargetsUpstream: '23456789-0026-4321-abcd-000000000026',
   TokenKidUnpublished: '23456789-0027-4321-abcd-000000000027',
+  // Per-user consent (mock Rule 2.6, may_act re-architecture 2026-10-10). Two
+  // rules, two codes — absent consent denies differently from mismatched
+  // consent, exactly as the mock does.
+  UserConsentMissing: '23456789-0032-4321-abcd-000000000032',
+  UserConsentMismatch: '23456789-0033-4321-abcd-000000000033',
 };
 const STMT = {
   a2aDelegationRequired: '34567890-0010-4321-abcd-000000000010',   // code mcp-invalid-a2a-generalist (shared)
@@ -224,6 +235,10 @@ const STMT = {
   adminRole: '34567890-0022-4321-abcd-000000000022',         // NOT -0021 (retired)
   invalidKid: '34567890-0027-4321-abcd-000000000027',        // mcp-invalid-kid (DENY)
   invalidAudience: '34567890-0006-4321-abcd-000000000006',   // mcp-invalid-audience (DENY)
+  // Per-user consent (mock Rule 2.6). Codes match the mock's deny_reason strings
+  // exactly — the BFF surfaces them as deny_reason, same as rar_amount_exceeded.
+  noUserConsent: '34567890-0032-4321-abcd-000000000032',
+  consentMismatch: '34567890-0033-4321-abcd-000000000033',
 };
 const RULE = {
   mcpHitl: '45678901-0008-4321-abcd-000000000008',          // existing (generalized)
@@ -245,6 +260,9 @@ const RULE = {
   mcpDenyIntentMismatch: '45678901-0019-4321-abcd-000000000019',
   mcpDenyAdminRole: '45678901-0022-4321-abcd-000000000022',  // NOT -0021 (retired)
   mcpDenyInvalidKid: '45678901-0027-4321-abcd-000000000027',
+  // Per-user consent denies (mock Rule 2.6, may_act re-architecture).
+  mcpDenyNoUserConsent: '45678901-0032-4321-abcd-000000000032',
+  mcpDenyConsentMismatch: '45678901-0033-4321-abcd-000000000033',
 };
 const POLICY = { transaction: '56789012-0001-4321-abcd-000000000001', mcp: '56789012-0002-4321-abcd-000000000002' };
 const CONFIRM_USD = '250';
@@ -358,6 +376,7 @@ function deriveSot(sot) {
   const stepUp = [];
   const writeTools = [];
   const a2aDelegated = [];
+  const consentTools = [];
   for (const [name, meta] of Object.entries(tools)) {
     if (!meta || typeof meta !== 'object') continue;
     if (meta.challengeType === 'consent') consent.push(name);
@@ -367,8 +386,13 @@ function deriveSot(sot) {
     // UC2: tools reachable ONLY through a specialist delegation. Same flag the
     // mock reads via scopeTopology.isA2aDelegatedTool().
     if (meta.a2aDelegated === true) a2aDelegated.push(name);
+    // Per-user consent (mock Rule 2.6): tools an AGENT may drive only with the
+    // signed-in user's consent. Same two flags the mock's guard reads —
+    // isAgentMediatedTool() and NOT isA2aDelegatedTool() — because A2A calls
+    // are authorized by the act chain (Rule 1c), not by may_act.
+    if (meta.requiresAgentMediation === true && meta.a2aDelegated !== true) consentTools.push(name);
   }
-  consent.sort(); stepUp.sort(); writeTools.sort(); a2aDelegated.sort();
+  consent.sort(); stepUp.sort(); writeTools.sort(); a2aDelegated.sort(); consentTools.sort();
   // Step 0 — the accepted gateway identities, by resource NAME. A missing entry
   // must abort generation: emitting a partial OR would silently deny one
   // gateway's entire traffic on import.
@@ -413,7 +437,7 @@ function deriveSot(sot) {
     : null;
   return {
     consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences,
-    externalDoorIssuers, externalDoorAudience,
+    externalDoorIssuers, externalDoorAudience, consentTools,
   };
 }
 
@@ -1114,10 +1138,84 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     'Inert when TokenKidKnown is omitted — unknown is not "verified absent".',
     COND.TokenKidUnpublished, STMT.invalidKid), beforeFirstPolicyIdx);
 
+  // 8g) Per-user consent (mock Rule 2.6, may_act re-architecture 2026-10-10).
+  // Default mode mints `act` from the ACTOR TOKEN, so may_act no longer gates
+  // minting — consent must be enforced HERE, on every agent-driven tool call:
+  // MayActSub (the signed-in user's bridged consent, who they authorized to act
+  // for them) must be present and equal the acting agent. Two rules because the
+  // mock denies differently: absent consent (no_user_consent) vs consent naming
+  // a DIFFERENT agent (may_act_mismatch).
+  //
+  // Carve-outs mirror the mock's guard exactly: A2A-delegated tools are
+  // authorized by the act chain (Rule 1c) and named customer workload agents
+  // (UC38/44) by their own identity — both EXCLUDED from the consent tool set
+  // below via the SoT derivation. The workload-agent exclusion stays OUT of the
+  // condition when no ids are declared: an empty NOT-OR would invert the
+  // carve-out into a deny-all.
+  upsert(requestAttr(ATTR.MayActSub, 'MayActSub', 'STRING', '',
+    "The signed-in user's consent (may_act.sub), bridged by the BFF/PEPs from the user's session — who the USER "
+    + "authorized to act for them. Default '' means no consent was bridged. Read by the two per-user-consent "
+    + "denies (mock Rule 2.6): absent consent denies no_user_consent; consent naming a different agent denies "
+    + "may_act_mismatch. A2A-delegated tools and named workload agents are exempt — the act chain / workload "
+    + "identity authorizes them."), afterLastAttrIdx);
+
+  const consentShared = [
+    toolOr(loadSot().consentTools),
+    // An agent must be acting at all — a human-driven call has no ActClientId
+    // and never owes user consent.
+    { not: { condition: { comparison: {
+      left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: '' } },
+    } } } },
+  ];
+  const workloadAgentIds = (process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS || '')
+    .split(',').map((id) => id.trim()).filter(Boolean);
+  if (workloadAgentIds.length) {
+    // The test identifies this branch by the marker key below.
+    consentShared.push({ not: { condition: { or: { conditions: workloadAgentIds.map((id) => ({
+      comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
+    })) } } }, 'workload-agent-consent-carve-out': true });
+  }
+  const consentBase = consentShared;
+
+  upsert(conditionDef(COND.UserConsentMissing, 'UserConsentMissing',
+    `Agent-driven call to one of the ${loadSot().consentTools.length} consent-gated tools (agent-mediated, NOT ` +
+    'A2A-delegated — generated from scope-topology.json) with an acting agent (ActClientId present) that is not ' +
+    "a named workload agent, and NO user consent bridged (MayActSub = ''). Mirrors mock Rule 2.6 absent branch. " +
+    'Generated — do not hand-edit.',
+    { and: { conditions: [
+      ...consentBase,
+      { comparison: { left: { attribute: { id: ATTR.MayActSub } }, op: 'Equals', right: { constant: { value: '' } } } },
+    ] } }), beforeSepIdx);
+  upsert(conditionDef(COND.UserConsentMismatch, 'UserConsentMismatch',
+    "Agent-driven consent-gated tool call whose bridged consent names a DIFFERENT agent (MayActSub present, " +
+    '≠ ActClientId). Mirrors mock Rule 2.6 mismatch branch; attribute-to-attribute NotEquals, the ' +
+    'ResourceOwnerMismatch shape. Generated — do not hand-edit.',
+    { and: { conditions: [
+      ...consentBase,
+      { comparison: { left: { attribute: { id: ATTR.MayActSub } }, op: 'NotEquals', right: { constant: { value: '' } } } },
+      { comparison: { left: { attribute: { id: ATTR.MayActSub } }, op: 'NotEquals', right: { attribute: { id: ATTR.ActClientId } } } },
+    ] } }), beforeSepIdx);
+  upsert(denyStatement(STMT.noUserConsent, 'MCP Denied — No User Consent', 'no_user_consent',
+    'Per-user consent (mock Rule 2.6, absent branch): the signed-in user has not authorized an agent to act for ' +
+    'them (may_act absent). Default mode mints act from the actor token, so consent is enforced here, per call.',
+    `{"denied": true, "reason": "no_user_consent", "message": "The signed-in user has not authorized agent '{{${ATTR.ActClientId}}}' to act for them on '{{${ATTR.ToolName}}}'. Authorize the agent and retry.", "actClientId": "{{${ATTR.ActClientId}}}", "toolName": "{{${ATTR.ToolName}}}"}`), beforeFirstPolicyIdx);
+  upsert(denyStatement(STMT.consentMismatch, 'MCP Denied — Consent Mismatch', 'may_act_mismatch',
+    'Per-user consent (mock Rule 2.6, mismatch branch): user consent names a different agent than the one acting.',
+    `{"denied": true, "reason": "may_act_mismatch", "message": "User consent names '{{${ATTR.MayActSub}}}' but the acting agent is '{{${ATTR.ActClientId}}}'. Re-authorize the acting agent.", "consentedActor": "{{${ATTR.MayActSub}}}", "actClientId": "{{${ATTR.ActClientId}}}", "toolName": "{{${ATTR.ToolName}}}"}`), beforeFirstPolicyIdx);
+  upsert(denyRule(RULE.mcpDenyNoUserConsent, 'MCP Deny — No User Consent',
+    "DENY when an agent drives a consent-gated tool with no bridged user consent (UserConsentMissing). " +
+    'Mirrors mock Rule 2.6 absent branch; act-minting no longer consults may_act (ff_may_act_seed OFF), so this '
+    + 'is where consent is enforced.',
+    COND.UserConsentMissing, STMT.noUserConsent), beforeFirstPolicyIdx);
+  upsert(denyRule(RULE.mcpDenyConsentMismatch, 'MCP Deny — Consent Mismatch',
+    'DENY when the bridged consent names a different agent than the one acting (UserConsentMismatch). ' +
+    'Mirrors mock Rule 2.6 mismatch branch.',
+    COND.UserConsentMismatch, STMT.consentMismatch), beforeFirstPolicyIdx);
+
   for (const ruleId of [
     RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
-    RULE.mcpDenyInvalidKid,
+    RULE.mcpDenyInvalidKid, RULE.mcpDenyNoUserConsent, RULE.mcpDenyConsentMismatch,
   ]) {
     addChild(POLICY.mcp, ruleId, RULE.mcpPermitValid);
   }

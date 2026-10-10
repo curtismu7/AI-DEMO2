@@ -38,6 +38,14 @@ const clone = (o) => JSON.parse(JSON.stringify(o));
 const findById = (snap, id) => snap.find((o) => o.id === id);
 const reconciled = () => reconcile(clone(readSnapshot()), loadSot());
 
+/** ToolName-in-set OR as condition REFERENCES — matches the generator's toolRefOr. */
+function toolRefOr(tools) {
+  return { or: { conditions: tools.map((t) => ({
+    comparison: { left: { attribute: { id: ATTR.ToolName } }, op: 'Equals', right: { constant: { value: t } } },
+  })) } };
+}
+const toolOrRef = toolRefOr;
+
 /** Collect every `comparison` node in a condition tree. */
 function comparisons(node, out = []) {
   if (!node || typeof node !== 'object') return out;
@@ -609,6 +617,92 @@ test('kid: exactly one rule carries the invalid-kid statement, as a conditional 
 });
 
 // ─────────────────────────────────────────────────────────────────────────────
+// 3h — per-user consent (no_user_consent / may_act_mismatch, mock Rule 2.6)
+// ─────────────────────────────────────────────────────────────────────────────
+
+// The SoT-derived consent tool set: agent-mediated tools NOT reachable via A2A.
+// Mirrors demo_authz_server Rule 2.6's guard `!a2aDelegated && isAgentMediatedTool`.
+test('3h: loadSot derives the consent tool set (agent-mediated AND NOT A2A-delegated)', () => {
+  const { consentTools } = loadSot();
+  const tools = readSot().tools;
+  const expected = Object.keys(tools)
+    .filter((n) => tools[n].requiresAgentMediation === true && tools[n].a2aDelegated !== true)
+    .sort();
+  assert.deepStrictEqual(consentTools, expected);
+  assert.ok(consentTools.includes('create_transfer'), 'create_transfer must be consent-gated');
+  assert.ok(!consentTools.includes('get_my_accounts'), 'non-agent-mediated tools stay ungated');
+  assert.ok(!consentTools.includes('sensitive_holdings'),
+    'A2A-delegated tools are authorized by the act chain, not by may_act');
+});
+
+test('3h: MayActSub attribute — STRING defaulted to the inert empty string', () => {
+  assertAttr(reconciled(), ATTR.MayActSub, 'MayActSub', 'STRING', '');
+});
+
+test('3h: two deny rules mirror Rule 2.6 — absent consent and mismatched consent', () => {
+  const snap = reconciled();
+  const { consentTools } = loadSot();
+
+  // Shared guard: consent tool AND an agent is acting AND (when any are
+  // declared) that agent is not a named customer workload agent (UC38/44
+  // carve-out, parity with Rule 2.6). The workload branch is OMITTED when no
+  // ids are declared — an empty NOT-OR would invert it into a deny-all.
+  const baseConditions = [
+    toolOrRef(consentTools),
+    { not: { condition: { comparison: {
+      left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: '' } },
+    } } } },
+  ];
+  const workloadIds = (process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS || '')
+    .split(',').map((id) => id.trim()).filter(Boolean);
+  if (workloadIds.length) {
+    baseConditions.push({ not: { condition: { or: { conditions: workloadIds.map((id) => ({
+      comparison: { left: { attribute: { id: ATTR.ActClientId } }, op: 'Equals', right: { constant: { value: id } } },
+    })) } } } });
+  }
+
+  // Rule A — no_user_consent: no consent bridged at all.
+  const absent = findById(snap, COND.UserConsentMissing);
+  assert.deepStrictEqual(absent.condition, { and: { conditions: [
+    ...baseConditions,
+    { comparison: { left: { attribute: { id: ATTR.MayActSub } }, op: 'Equals', right: { constant: { value: '' } } } },
+  ] } });
+  assertDenyRule(snap, RULE.mcpDenyNoUserConsent, COND.UserConsentMissing,
+    STMT.noUserConsent, 'no_user_consent');
+
+  // Rule B — may_act_mismatch: consent names a DIFFERENT agent (attr-to-attr
+  // NotEquals, the ResourceOwnerMismatch shape).
+  const mismatch = findById(snap, COND.UserConsentMismatch);
+  assert.deepStrictEqual(mismatch.condition, { and: { conditions: [
+    ...baseConditions,
+    { comparison: { left: { attribute: { id: ATTR.MayActSub } }, op: 'NotEquals', right: { constant: { value: '' } } } },
+    { comparison: { left: { attribute: { id: ATTR.MayActSub } }, op: 'NotEquals', right: { attribute: { id: ATTR.ActClientId } } } },
+  ] } });
+  assertDenyRule(snap, RULE.mcpDenyConsentMismatch, COND.UserConsentMismatch,
+    STMT.consentMismatch, 'may_act_mismatch');
+});
+
+test('3h: the workload-agent OR is never empty — an empty list would deny every agent call', () => {
+  // The carve-out branch is `NOT (ActClientId equals <each workload id>)`. With
+  // no ids declared, `NOT (or [])` in this DSL would evaluate as NOT(false) =
+  // true, inverting the carve-out into a deny-all. The generator must emit the
+  // branch ONLY when at least one id exists — same stance as the empty-audience
+  // abort in step 0, but inert-skip rather than abort, because the consent rule
+  // without the carve-out is still a correct (just stricter) policy.
+  const snap = reconciled();
+  for (const condId of [COND.UserConsentMissing, COND.UserConsentMismatch]) {
+    const cond = findById(snap, condId);
+    const workloadNot = cond.condition.and.conditions.find((c) =>
+      c.not && JSON.stringify(c.not).includes(ATTR.ActClientId)
+      && JSON.stringify(c.not).includes('workload-agent-consent-carve-out'));
+    if ((process.env.PINGONE_WORKLOAD_AGENT_CLIENT_IDS || '').trim() === '') {
+      assert.strictEqual(workloadNot, undefined,
+        `${cond.name}: no workload agents declared → the carve-out branch must be OMITTED, not an empty NOT-OR`);
+    }
+  }
+});
+
+// ─────────────────────────────────────────────────────────────────────────────
 // Structure — exactly the intended delta, idempotent, committed
 // ─────────────────────────────────────────────────────────────────────────────
 
@@ -626,10 +720,13 @@ test('structure: the committed snapshot carries all 38 new objects (157 total) a
   // ATTRIBUTE it resolves. They were made in the PingOne console and existed
   // only there; copied in from an export, ids and versions unchanged, so the
   // file is the whole policy. The generator does not own them.
-  assert.strictEqual(committed.length, 157,
+  // +7 (2026-10-10): per-user consent (mock Rule 2.6, may_act re-architecture) —
+  // 1 attr (MayActSub), 2 conds, 2 stmts, 2 rules = 162 total.
+  assert.strictEqual(committed.length, 164,
     '73 pre-delta + 12 attrs + 9 conds + 9 stmts + 9 rules = 112, plus Agent Intent Governance ' +
     '(14 attrs + 11 conds + 8 stmts + 8 rules + 1 policy = 42) folded into the root set, ' +
-    'plus 2 console-made objects (AccountContext attribute and its service)');
+    'plus 2 console-made objects (AccountContext attribute and its service), ' +
+    'plus 7 per-user-consent objects (1 attr + 2 conds + 2 stmts + 2 rules) = 164');
   assert.deepStrictEqual(reconcile(clone(committed), loadSot()), committed,
     'committed snapshot is out of date — run: node snapshots/gen-authorize-snapshot.js');
 
@@ -645,20 +742,25 @@ test('structure: the committed snapshot carries all 38 new objects (157 total) a
     // Signing-key identity (mcp-invalid-kid).
     ATTR.TokenKidKnown, ATTR.TokenKid, COND.TokenKidUnpublished,
     STMT.invalidKid, RULE.mcpDenyInvalidKid,
+    // Per-user consent (mock Rule 2.6).
+    ATTR.MayActSub, COND.UserConsentMissing, COND.UserConsentMismatch,
+    STMT.noUserConsent, STMT.consentMismatch,
+    RULE.mcpDenyNoUserConsent, RULE.mcpDenyConsentMismatch,
   ];
-  assert.strictEqual(new Set(newIds).size, 30, 'the 30 new ids must be distinct');
+  assert.strictEqual(new Set(newIds).size, 37, 'the 37 new ids must be distinct');
   for (const id of newIds) assert.ok(findById(committed, id), `committed snapshot must contain ${id}`);
 });
 
-test('structure: all seven deny rules run before the MCP catch-all permit, in order', () => {
+test('structure: all nine deny rules run before the MCP catch-all permit, in order', () => {
   const mcpPolicy = findById(reconciled(), '56789012-0002-4321-abcd-000000000002');
   const childIds = mcpPolicy.children.map((c) => c.id);
   // The RAR deny landed first (on main, #611) so it sits ahead of the five
-  // round-3 denies added after it; the signing-key deny landed last.
+  // round-3 denies added after it; the signing-key deny landed last; the two
+  // per-user-consent denies (mock Rule 2.6) after that.
   const denies = [
     RULE.rarAmountExceeded, RULE.mcpDenyUpstreamAud, RULE.mcpDenyResourceOwner,
     RULE.mcpDenyIntentInvalid, RULE.mcpDenyIntentMismatch, RULE.mcpDenyAdminRole,
-    RULE.mcpDenyInvalidKid,
+    RULE.mcpDenyInvalidKid, RULE.mcpDenyNoUserConsent, RULE.mcpDenyConsentMismatch,
   ];
   const permitIdx = childIds.indexOf(RULE.mcpPermitValid);
   assert.strictEqual(permitIdx, childIds.length - 1, 'the catch-all permit stays last');
