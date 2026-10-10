@@ -108,6 +108,24 @@ describe('PiFlowSignInModal', () => {
     await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fdashboard'));
   });
 
+  test('a transient BFF 5xx on credentials shows a retryable error and stays in pi.flow', async () => {
+    mockBff({
+      config: ON,
+      login: () => ok({ flowId: 'f1' }),
+      credentials: () => ok({ error: 'pi_flow_failed' }, 502),
+    });
+    await mountAndClick();
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demo' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    const alert = await screen.findByRole('alert');
+    expect(alert).toHaveTextContent('try again');
+    // The point of this modal: a transient failure never dumps the user onto
+    // the hosted PingOne page mid-sign-in.
+    expect(window.location.href).toBe('');
+    expect(assign).not.toHaveBeenCalled();
+  });
+
   test('OTP_REQUIRED after the password: shows the code input and posts it to /pi-flow/otp', async () => {
     mockBff({
       config: ON,

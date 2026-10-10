@@ -103,7 +103,15 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
     });
-    return { step, body: await step.json().catch(() => ({})), cookies: mergePiFlowCookies(pending.cookies, step) };
+    const body = await step.json().catch(() => ({}));
+    // A non-ok PingOne answer used to vanish into a caller's bare 502 with the
+    // body discarded — undiagnosable post-hoc (a transient network blip read
+    // exactly like an unknown flow status). Log it once, at the one place every
+    // step response passes through.
+    if (!step.ok) {
+      console.warn('[oauth/pi-flow] step not ok: HTTP %s %s %s', step.status, body?.code || '(no code)', body?.details?.[0]?.message || '');
+    }
+    return { step, body, cookies: mergePiFlowCookies(pending.cookies, step) };
   }
 
   // COMPLETED flow -> authorization code -> the unchanged /callback.

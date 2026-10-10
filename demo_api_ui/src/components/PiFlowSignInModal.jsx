@@ -251,7 +251,18 @@ export default function PiFlowSignInModal() {
         setBusy(false);
         return;
       }
-      // fallback:true (device selection, a policy screen), 409 (flow expired), 5xx
+      // A policy screen the BFF can't drive hands off to the hosted page, which
+      // offers every method. A 5xx (transient: PingOne unreachable, a step that
+      // errored) is NOT a policy — it happened after we already committed to
+      // pi.flow, and dumping the user onto the hosted login mid-sign-in both
+      // loses their place and, on a different host than the BFF's registered
+      // callback origin, loses the session cookie entirely (Invalid state on
+      // return). Stay here with a retryable error instead.
+      if (res.status >= 500) {
+        setError("Sign-in couldn't be completed just now. Please try again.");
+        setBusy(false);
+        return;
+      }
       redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
     } catch {
       redirectLogin(returnToRef.current, roleRef.current, forceRef.current);

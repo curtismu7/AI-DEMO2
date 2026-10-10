@@ -139,6 +139,22 @@ describe('customer pi.flow sign-in', () => {
     expect(res.body.error).toBe('invalid_credentials');
   });
 
+  test('a non-ok PingOne step response is logged with its status and code, not a silent 502', async () => {
+    const warnSpy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    const agent = request.agent(app);
+    await openFlow(agent);
+    // PingOne answered (network fine) but refused the step: a 429 rate limit
+    // with a code, the shape that used to vanish into a bare { pi_flow_failed }.
+    fetchMock.mockResolvedValueOnce(json(429, { code: 'RATE_LIMITED' }));
+    await agent.post('/api/auth/oauth/user/pi-flow/credentials')
+      .send({ username: 'u', password: 'p' }).expect(502);
+    const warn = warnSpy.mock.calls.map((c) => c.join(' ')).join('\n');
+    expect(warn).toContain('[oauth/pi-flow]');
+    expect(warn).toContain('429');
+    expect(warn).toContain('RATE_LIMITED');
+    warnSpy.mockRestore();
+  });
+
   test('identifier-first flow (SIGN_ON_REQUIRED): identifies with user.lookup, then posts the password', async () => {
     const agent = request.agent(app);
     fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }, {}, ['ST=open; Path=/']));
