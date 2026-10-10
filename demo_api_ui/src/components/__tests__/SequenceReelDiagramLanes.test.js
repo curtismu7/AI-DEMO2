@@ -8,6 +8,8 @@
 // reproducing it through a mounted component would need a fixture per lane.
 const fs = require("node:fs");
 const path = require("node:path");
+const { applyStepVisibility } = require("../../services/tokenChainTrace/stepVisibility");
+const { deriveLifelineSteps } = require("../../services/tokenChainTrace/deriveLifelineSteps");
 
 const read = (p) => fs.readFileSync(path.resolve(__dirname, p), "utf8");
 const TRACE = read("../../services/tokenChainTrace/buildTraceSteps.js");
@@ -53,4 +55,24 @@ describe("SequenceReelDiagram lane colours", () => {
       expect(CSS).toMatch(new RegExp(`\\.srd-lane-${l}\\s*\\{[^}]*--srd-lane:`));
     }
   });
+});
+
+// The reel must route its lifeline through the shared visibility policy, not
+// its own HAPPENED filter. Static-source assertion (same style as above): the
+// component imports applyStepVisibility and no longer defines HAPPENED.
+test("the reel draws fired hops via the shared visibility policy", () => {
+  const REEL = read("../../components/SequenceReelDiagram.jsx");
+  expect(REEL).toContain("applyStepVisibility");
+  expect(REEL).not.toMatch(/const HAPPENED\b/);
+});
+
+test("completed run: notinpath hops draw no lifeline rows", () => {
+  const steps = [
+    { id: "website", status: "done", lane: "BROWSER", title: "Browser" },
+    { id: "gateway", status: "done", lane: "MCP", title: "Gateway" },
+    { id: "database", status: "notinpath", lane: "API", title: "Database" },
+  ];
+  const { visible } = applyStepVisibility(steps, { outcome: "ok", tokenEvents: [{ id: "e" }] });
+  const rows = deriveLifelineSteps(visible);
+  expect(rows.map((r) => r.id)).not.toContain("database");
 });

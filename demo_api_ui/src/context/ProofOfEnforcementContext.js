@@ -42,7 +42,7 @@ function isCallScopedEvent(e) {
   return !!(e && e.id && !SESSION_EVENT_IDS.has(e.id));
 }
 
-function firstUseCaseId(trace) {
+export function firstUseCaseId(trace) {
   // Prefer call-scoped token events, then authorize — never sticky session cards.
   const fromTokens = (trace.tokenEvents || []).find((e) => isCallScopedEvent(e) && e.useCaseId)?.useCaseId;
   if (fromTokens) return fromTokens;

@@ -1,8 +1,8 @@
 import { render, screen, fireEvent, act, waitFor } from "@testing-library/react";
 import TokenChainTraceRail, {
   buildA2aTokenChainSteps,
-  buildLiveTokenChainSteps,
 } from "../TokenChainTraceRail";
+import { applyStepVisibility } from "../../services/tokenChainTrace/stepVisibility";
 import TokenChainNodeRail from "../TokenChainNodeRail";
 import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
 
@@ -118,10 +118,28 @@ test("legend button opens the legend modal; inspect opens claims modal", () => {
 test("MCP tab shows the MCP panel and hides the full step list", () => {
   render(<TokenChainTraceRail />);
   openView("MCP");
-  expect(screen.getByText(/MCP server — tool executes/)).toBeInTheDocument();
+  // With no run activity the fired-only route is empty — the panel says so
+  // instead of drawing the whole fixed catalog as notinpath cards.
+  expect(screen.getByText(/No MCP tool call yet/i)).toBeInTheDocument();
   expect(screen.queryByText(/Sign-in — User Token acquired/)).not.toBeInTheDocument();
   expect(screen.queryByText(/Banking Agent composes reply/)).not.toBeInTheDocument();
-  expect(screen.getByText(/No MCP tool call yet/i)).toBeInTheDocument();
+});
+
+test("MCP tab shows the fired hops of a completed run, not the whole catalog", () => {
+  render(<TokenChainTraceRail />);
+  act(() => {
+    tokenChainTraceStore.beginTrace({ prompt: "show my balance" });
+    tokenChainTraceStore.ingestTokenEvents([
+      { id: "gw-introspection", status: "done" },
+      { id: "gw-authorize", status: "done", decision: "PERMIT" },
+    ]);
+    tokenChainTraceStore.ingestMcpResult({ tool: "get_my_accounts", result: { accounts: 2 } });
+    tokenChainTraceStore.completeTrace(true);
+  });
+  openView("MCP");
+  expect(screen.getByText(/MCP server — tool executes/)).toBeInTheDocument();
+  // A hop the run never reached stays off the tab.
+  expect(screen.queryByText(/Database — data query/)).not.toBeInTheDocument();
 });
 
 test("Classic selection persists as the emergency fallback", () => {
@@ -148,22 +166,33 @@ test("token summary accordion lists tokens with change rows", () => {
   expect(summary.textContent).toContain("rebound");
 });
 
-test("steps not in this run's path render struck-through with a Not in path badge once the trace completes", () => {
+test("completed run: unfired hops collapse behind the chip; expanding reveals them", () => {
   render(<TokenChainTraceRail />);
   act(() => tokenChainTraceStore.beginTrace({ prompt: "show my accounts" }));
   act(() => tokenChainTraceStore.ingestMcpResult({ tool: "get_accounts", result: { ok: true } }));
   act(() => tokenChainTraceStore.completeTrace(true));
 
+  // Fired hops still draw (the MCP result lights mcp and api).
+  const mcpStep = screen.getByText(/MCP server — tool executes/).closest("details");
+  expect(mcpStep).toHaveAttribute("data-status", "done");
+
+  // Unfired hops are hidden; the chip counts them.
+  expect(screen.queryByText(/Agent Gateway — token validated/)).not.toBeInTheDocument();
+  expect(screen.queryByText(/Step-up required/)).not.toBeInTheDocument();
+  const chip = screen.getAllByTestId("tctr-skipped-chip")[0];
+  expect(chip).toBeVisible();
+  expect(chip).toHaveTextContent(/\+\s*\d+ hops not in this run/);
+
+  // Expanding reveals them with their skip narratives.
+  fireEvent.click(chip);
   const gatewayStep = screen.getByText(/Agent Gateway — token validated/).closest("details");
   expect(gatewayStep).toHaveAttribute("data-status", "notinpath");
-  expect(gatewayStep.querySelector(".tctr-step-title--notinpath")).toBeInTheDocument();
-  expect(gatewayStep.textContent).toContain("Not in path");
-
+  expect(gatewayStep).toHaveTextContent("The Agent Gateway was not in this run's path.");
   const stepupStep = screen.getByText(/Step-up required/).closest("details");
   expect(stepupStep).toHaveAttribute("data-status", "notinpath");
 });
 
-test("Live draws observed steps during the run and reconciles skipped possibilities at completion", () => {
+test("Live draws observed steps during the run and hides unfired ones; completion offers the chip", () => {
   render(<TokenChainTraceRail />);
   act(() => tokenChainTraceStore.beginTrace({ prompt: "show my accounts" }));
   act(() => tokenChainTraceStore.ingestRoutingMode("heuristic", { action: "get_accounts" }));
@@ -172,17 +201,21 @@ test("Live draws observed steps during the run and reconciles skipped possibilit
   expect(screen.getByText(/Chatbot — prompt sent/)).toBeInTheDocument();
   expect(screen.queryByText(/Token exchange — delegation/)).not.toBeInTheDocument();
   expect(screen.queryByText(/PingOne Authorize — policy decision/)).not.toBeInTheDocument();
+  // Mid-run there is no chip: the run may still reach those hops.
+  expect(screen.queryByTestId("tctr-skipped-chip")).not.toBeInTheDocument();
 
   act(() => tokenChainTraceStore.completeTrace(true));
 
+  // After completion the unfired hops (exchange among them) collapse behind
+  // the chip; expanding reveals the exchange card with its skip narrative.
+  expect(screen.queryByText(/Token exchange — delegation/)).not.toBeInTheDocument();
+  const chip = screen.getByTestId("tctr-skipped-chip");
+  expect(chip).toBeVisible();
+  fireEvent.click(chip);
   const exchange = screen.getByText(/Token exchange — delegation/).closest("details");
-  const authorize = screen.getByText(/PingOne Authorize — policy decision/).closest("details");
-  expect(exchange).toHaveAttribute("data-status", "notinpath");
-  expect(authorize).toHaveAttribute("data-status", "notinpath");
-  fireEvent.click(exchange.querySelector("summary"));
-  fireEvent.click(authorize.querySelector("summary"));
+  // buildTraceSteps leaves a no-evidence exchange "pending" on a complete
+  // trace; the policy collapses it and stamps the skip narrative on reveal.
   expect(exchange).toHaveTextContent("Token exchange was skipped");
-  expect(authorize).toHaveTextContent("PingOne Authorize was skipped");
 });
 
 test("Live adds Resource Server and United SQL Database cards from backend evidence", () => {
@@ -197,16 +230,16 @@ test("Live adds Resource Server and United SQL Database cards from backend evide
   expect(screen.getByText(/SQL Database — United Airlines data/)).toBeInTheDocument();
 });
 
-test("Live projection preserves conditional observed steps and repeated decisions", () => {
-  const projected = buildLiveTokenChainSteps([
-    { id: "website", status: "done" },
+test("visibility projection preserves conditional observed steps and repeated decisions", () => {
+  const { visible } = applyStepVisibility([
+    { id: "website", status: "done", detail: {} },
     { id: "exchange", status: "pending", detail: {} },
-    { id: "authorize", status: "done" },
-    { id: "authorize:2", baseId: "authorize", status: "error" },
-    { id: "stepup", status: "active" },
+    { id: "authorize", status: "done", detail: {} },
+    { id: "authorize:2", baseId: "authorize", status: "error", detail: {} },
+    { id: "stepup", status: "active", detail: {} },
   ], { startedAt: 1 });
 
-  expect(projected.map((step) => step.id)).toEqual([
+  expect(visible.map((step) => step.id)).toEqual([
     "website", "authorize", "authorize:2", "stepup",
   ]);
 });
@@ -252,13 +285,18 @@ test("Live A2A chain shows the main and specialist agents as distinct steps", ()
   expect(a2aSteps.some((step) => step.title.includes("Specialist agent — Investment Advisor · client_credentials"))).toBe(true);
   expect(a2aSteps.some((step) => step.title.includes("POST message/send → result/toolError"))).toBe(true);
 
-  const projected = buildLiveTokenChainSteps([
-    { id: "website", title: "Website", lane: "BROWSER", status: "done" },
-    { id: "llm", title: "LLM", lane: "LLM", status: "done" },
+  const { visible: projected } = applyStepVisibility([
+    { id: "website", title: "Website", lane: "BROWSER", status: "done", detail: {} },
+    { id: "llm", title: "LLM", lane: "LLM", status: "done", detail: {} },
     { id: "gateway", title: "Gateway", lane: "GATEWAY", status: "pending", detail: {} },
   ], { startedAt: 1, tokenEvents });
+  // The rail splices A2A hops in BEFORE projecting; mirror that order here.
+  const spliced = [...projected];
+  const at = spliced.findIndex((step) => step.id === "llm");
+  spliced.splice(at + 1, 0, ...a2aSteps);
+  const { visible: finalProjected } = applyStepVisibility(spliced, { startedAt: 1, tokenEvents });
 
-  expect(projected.map((step) => step.id)).toEqual([
+  expect(finalProjected.map((step) => step.id)).toEqual([
     "website",
     "llm",
     "a2a-agent1-actor",

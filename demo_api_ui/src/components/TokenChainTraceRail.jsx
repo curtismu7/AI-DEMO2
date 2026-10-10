@@ -2,6 +2,7 @@
 // TokenChainModal. Single-column by construction (no viewport media queries).
 // Spec: docs/superpowers/specs/2026-07-02-token-chain-trace-rail-design.md
 import { buildPrivilegeA2aChainSteps } from "../services/tokenChainTrace/privilegeA2aChainSteps";
+import { applyStepVisibility, SKIP_REASONS } from "../services/tokenChainTrace/stepVisibility";
 import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
 import apiClient from "../services/apiClient";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
@@ -61,28 +62,9 @@ function readStoredViewMode() {
   }
 }
 
-const SKIPPED_STEP_REASONS = {
-  signin: "No sign-in token evidence was recorded for this run.",
-  agent: "The Banking Agent did not participate in this run.",
-  llm: "No LLM reasoning was used on this run.",
-  "agent-token": "No separate agent identity token was acquired.",
-  exchange: "Token exchange was skipped; no delegated token was issued.",
-  authorize: "PingOne Authorize was skipped; no policy decision was recorded.",
-  stepup: "No step-up or human approval challenge was required.",
-  "intent-binding": "No RAR intent-binding check was required.",
-  gateway: "The Agent Gateway was not in this run's path.",
-  "api-key-swap": "The run did not use the API-key credential-swap path.",
-  mcp: "No MCP tool call occurred.",
-  api: "No downstream resource-server call occurred.",
-  database: "No SQL database access was observed for this run.",
-  reply: "No final reply evidence was recorded.",
-  "a2a-agent1-actor": "The Banking Agent identity token was not observed.",
-  "a2a-exchange1": "The user-to-generalist exchange was not observed.",
-  "a2a-agent2-actor": "The specialist agent identity token was not observed.",
-  "a2a-exchange2": "The nested specialist delegation exchange was not observed.",
-  "a2a-agent-card": "Specialist Agent Card discovery was not observed.",
-  "a2a-protocol-message": "The A2A SendMessage handoff was not observed.",
-};
+// Skip narratives moved to stepVisibility.SKIP_REASONS (imported above) — the
+// shared policy module owns them now, and the a2a builder below still reads
+// them through the import.
 
 function statusFromA2aEvent(event) {
   if (!event) return "pending";
@@ -237,7 +219,7 @@ export function buildA2aTokenChainSteps(tokenEvents) {
       detail: {
         narrative: event
           ? `${title} was observed in this run.`
-          : SKIPPED_STEP_REASONS[id],
+          : SKIP_REASONS[id],
         claims: event?.claims,
         ...a2aEvidence(event),
         tokenEvent: event || undefined,
@@ -248,55 +230,9 @@ export function buildA2aTokenChainSteps(tokenEvents) {
 
 export { buildPrivilegeA2aChainSteps };
 
-export function buildLiveTokenChainSteps(steps, trace) {
-  // A Privilege chain run has no banking pipeline in it: show its hops alone.
-  const chainSteps = buildPrivilegeA2aChainSteps(trace?.tokenEvents);
-  if (chainSteps.length) return chainSteps.map((step, index) => ({ ...step, num: index + 1 }));
-  const source = Array.isArray(steps) ? steps.slice() : [];
-  const a2aSteps = buildA2aTokenChainSteps(trace?.tokenEvents);
-  if (a2aSteps.length) {
-    const insertAfter = source.findIndex((step) => step.id === "llm");
-    source.splice(insertAfter + 1, 0, ...a2aSteps);
-  }
-  const hasActivity = Boolean(
-    trace?.startedAt || trace?.prompt || trace?.tokenEvents?.length ||
-    trace?.phases?.length || trace?.mcpResult || trace?.authorize ||
-    trace?.llmDetail || trace?.llmReply || trace?.outcome || trace?.routingMode,
-  );
-  if (!hasActivity) return [];
-
-  const complete = ["ok", "error", "mock-success"].includes(trace?.outcome);
-  const projected = !complete
-    // `|| detail.notRequired`: a hop marked "not required" is notinpath, and
-    // this filter would drop it from an incomplete trace entirely — so the
-    // Exchange hop would silently VANISH mid-run instead of explaining itself,
-    // which is worse than the "in flight" it replaced. It has earned its place:
-    // it carries the reason the step did not run.
-    ? source.filter((step) => ["active", "done", "error"].includes(step.status)
-      || step.detail?.notRequired)
-    : source.map((step) => {
-    const baseId = step.baseId || step.id;
-    if (step.status === "notinpath" && SKIPPED_STEP_REASONS[baseId] && trace?.outcome !== "mock-success") {
-      return {
-        ...step,
-        detail: {
-          ...step.detail,
-          narrative: SKIPPED_STEP_REASONS[baseId],
-        },
-      };
-    }
-    if (step.status !== "pending") return step;
-    return {
-      ...step,
-      status: "notinpath",
-      detail: {
-        ...step.detail,
-        narrative: SKIPPED_STEP_REASONS[baseId] || "This possible step was not observed in the completed run.",
-      },
-    };
-  });
-  return projected.map((step, index) => ({ ...step, num: index + 1 }));
-}
+// The live/classic projection moved to stepVisibility.applyStepVisibility —
+// the shared policy every step-box surface now uses. The rail composes it in
+// its steps memo below.
 
 // ChainViewMenu names the views; the rail decides what one is. Its ids are
 // camelCase, the tab state is the rail's existing kebab vocabulary — the only
@@ -477,14 +413,45 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
   }, [tokenChain, mcpRouteOnly]);
 
   const { trace } = snap;
-  const classicSteps = useMemo(
+  // showSkipped drives the "hops not in this run" chip on completed Live runs —
+  // collapsed by default; expanding reveals the greyed, annotated hops.
+  const [showSkipped, setShowSkipped] = useState(false);
+  const [skippedCount, setSkippedCount] = useState(0);
+
+  // Raw store steps (mcpRouteOnly-filtered): Classic's fixed-catalog fallback,
+  // the MCP tab, and the mcpDone count all read this unfiltered list.
+  const rawSteps = useMemo(
     () => (mcpRouteOnly ? snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id)) : snap.steps),
     [snap.steps, mcpRouteOnly],
   );
-  const steps = useMemo(
-    () => (viewMode === "classic" ? classicSteps : buildLiveTokenChainSteps(classicSteps, trace)),
-    [viewMode, classicSteps, trace],
-  );
+
+  // Live composes the policy view: privilege hops stand alone, A2A splices in
+  // after the tool choice, then the shared visibility projection.
+  const liveProjection = useMemo(() => {
+    const chainSteps = buildPrivilegeA2aChainSteps(trace?.tokenEvents);
+    let source;
+    if (chainSteps.length) {
+      source = chainSteps.map((step, index) => ({ ...step, num: index + 1 }));
+    } else {
+      const a2aSteps = buildA2aTokenChainSteps(trace?.tokenEvents);
+      source = rawSteps;
+      if (a2aSteps.length) {
+        const insertAfter = source.findIndex((step) => step.id === "llm");
+        const spliced = source.slice();
+        spliced.splice(insertAfter + 1, 0, ...a2aSteps);
+        source = spliced;
+      }
+    }
+    const { visible, skipped: skippedHops, revealed } =
+      applyStepVisibility(source, trace, { collapsed: !showSkipped });
+    setSkippedCount(skippedHops.length);
+    return {
+      steps: [...visible, ...(showSkipped ? revealed : [])]
+        .map((step, index) => ({ ...step, num: index + 1 })),
+    };
+  }, [rawSteps, trace, showSkipped]);
+
+  const steps = viewMode === "classic" ? rawSteps : liveProjection.steps;
   // Clearing a run (or switching to a Live view that has not produced steps
   // yet) must drop both the selection and the presenter. Otherwise the flag
   // survives the empty state and the next run pops the full-screen projector
@@ -496,7 +463,17 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
     }
   }, [steps.length]);
 
-  const mcpDone = classicSteps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
+  // Status counts read the unfiltered store list — visibility must not change
+  // how "done" the MCP route reads.
+  const mcpDone = snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id) && s.status === "done").length;
+  // The MCP tab draws the fired-only route too: a completed run shows the hops
+  // the run performed, not the whole fixed MCP catalog with notinpath cards.
+  const mcpSteps = useMemo(
+    () => applyStepVisibility(
+      snap.steps.filter((s) => MCP_STEP_IDS.includes(s.id)), trace, { collapsed: true },
+    ).visible,
+    [snap.steps, trace],
+  );
   const showTrust = shouldShowTrustTab({
     ffDpop: trustFlags.ffDpop,
     ffRar: trustFlags.ffRar,
@@ -752,6 +729,23 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
             />
           ) : null}
 
+          {/* Completed Live runs collapse the hops that never fired behind this
+              chip; expanding reveals them greyed with their skip narratives.
+              Hidden on Classic (the fixed-catalog fallback exists to show all). */}
+          {viewMode === "live" && skippedCount > 0 && (
+            <button
+              type="button"
+              className="tctr-skipped-chip"
+              data-testid="tctr-skipped-chip"
+              aria-expanded={showSkipped}
+              onClick={() => setShowSkipped((v) => !v)}
+            >
+              {showSkipped
+                ? `− ${skippedCount} hops not in this run`
+                : `+ ${skippedCount} hops not in this run`}
+            </button>
+          )}
+
           {chainView === "detail" && steps.map((step) => (
             <TraceStepCard key={step.id} step={step} onInspect={onInspect} useCase={proofUseCase} />
           ))}
@@ -784,7 +778,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
       ) : tab === "demo-track" ? (
         <TokenChainDemoTrackTab />
       ) : (
-        <TraceMcpPanel steps={classicSteps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />
+        <TraceMcpPanel steps={mcpSteps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />
       )}
 
       <ClaimDetailsModal isOpen={!!inspectType} tokenType={inspectType || "user"}

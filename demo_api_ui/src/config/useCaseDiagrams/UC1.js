@@ -55,6 +55,18 @@ const walk = [
 
 export default {
   id: "UC1",
+  // Backend catalog useCaseId (config/useCases.js). Live overlay matching keys
+  // off this slug — shared across verticals by design.
+  slug: "delegated-access-with-proof",
+  // buildTraceSteps baseId -> this diagram's node ids. A live hop renders on
+  // the nodes it actually touched; hops without a hint stay off the overlay.
+  hopHints: {
+    signin: ["user"], prompt: ["user"], agent: ["agent"], llm: ["agent"],
+    "agent-token": ["agent"], exchange: ["gw", "p1"], "exchange-1": ["gw", "p1"],
+    authorize: ["gw", "p1"], gateway: ["gw"], "tools-list": ["agent", "gw"],
+    "tools-list-challenge": ["agent", "gw"], "tools-call-challenge": ["agent", "gw"],
+    mcp: ["gw", "acct"], api: ["acct"], reply: ["agent", "user"],
+  },
   result: { label: "PERMIT", tone: "ok" },
   GROUPS: G,
   NODES,

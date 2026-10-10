@@ -85,7 +85,7 @@ describe('buildA2aTopology', () => {
     expect(isUnfired({ status: 'error' })).toBe(false);
   });
 
-  it('starts empty, then draws the whole chain and un-dims hops as evidence arrives', () => {
+  it('draws fired hops live, collapses unfired ones behind the chip, reveals them ghosted', () => {
     const nameOf = (node) => node.querySelector('.ttp-name')?.textContent;
     const firedNames = (container) => [...container.querySelectorAll('.ttp-node:not(.ghost)')].map(nameOf);
 
@@ -103,13 +103,12 @@ describe('buildA2aTopology', () => {
       tokenChainTraceStore.beginTrace({ prompt: 'Show my accounts' });
     });
 
-    // The full chain is now drawn, including hops with no evidence yet — those
-    // render dimmed rather than being withheld, so the diagram can show where a
-    // control sits even before (or without) it firing.
+    // Mid-run only fired hops draw (the shared visibility policy); unfired
+    // ones are hidden — no chip yet, the run may still reach them.
     expect(screen.getByText('Website')).toBeInTheDocument();
     expect(screen.getByText('Chatbot')).toBeInTheDocument();
-    expect(screen.getByText('Sign-in')).toBeInTheDocument();
-    expect(screen.getByText('Banking Agent receives request')).toBeInTheDocument();
+    expect(screen.queryByText('Banking Agent receives request')).not.toBeInTheDocument();
+    expect(screen.queryByTestId('ttp-skipped-chip')).not.toBeInTheDocument();
     expect(firedNames(container)).toEqual(['Website', 'Chatbot']);
 
     act(() => {
@@ -120,8 +119,21 @@ describe('buildA2aTopology', () => {
     expect(screen.getAllByText('BANKING AGENT').length).toBeGreaterThan(0);
     expect(firedNames(container))
       .toEqual(['Website', 'Chatbot', 'Banking Agent receives request', 'Banking Agent · Generalist agent']);
-    // Sign-in still has no token evidence, so it stays dimmed.
-    expect(firedNames(container)).not.toContain('Sign-in');
+
+    act(() => {
+      tokenChainTraceStore.completeTrace(true);
+    });
+
+    // Completion collapses the hops that never fired behind the chip.
+    const chip = screen.getByTestId('ttp-skipped-chip');
+    expect(chip).toHaveTextContent(/\+\s*\d+ hops not in this run/);
+    expect(screen.queryByText('Sign-in')).not.toBeInTheDocument();
+
+    fireEvent.click(chip);
+
+    // Expanded: the unfired control points return, ghosted.
+    expect(screen.getByText('Sign-in')).toBeInTheDocument();
+    expect(container.querySelector('.ttp-node.ghost .ttp-name')?.textContent).toBe('Sign-in');
   });
 
   it('drops the tool-call hops onto a branch below the spine', () => {
@@ -134,11 +146,38 @@ describe('buildA2aTopology', () => {
     act(() => {
       tokenChainTraceStore.beginTrace({ prompt: 'Show my accounts' });
     });
+    // Light the run up to the tool call so the branch hops have fired
+    // evidence (the branch exists only once MCP ran).
+    act(() => {
+      tokenChainTraceStore.ingestRoutingMode('heuristic');
+    });
+    act(() => {
+      // Gateway evidence lights the gateway hop; the vault-key-inject token
+      // event lights Vault; a United api-key-path result (credentialPath in
+      // _meta) lights API-key-swap, and backendInfo + databaseInfo resolve, so
+      // the whole branch carries fired evidence.
+      tokenChainTraceStore.ingestTokenEvent({ id: 'gw-filter-chain', status: 'done', filterChain: [] });
+      tokenChainTraceStore.ingestTokenEvent({ id: 'vault-key-inject', status: 'done', label: 'Route-bound API key returned' });
+      // The challenge hop fired: the anonymous tools/call was refused.
+      tokenChainTraceStore.ingestTokenEvent({
+        id: 'mcp-challenge-tools-call', type: 'mcp_challenge', phase: 'tools/call', status: 401, challenged: true,
+      });
+      // Discovery ran before the call (the real lifecycle).
+      tokenChainTraceStore.ingestTokenEvent({
+        id: 'tools-list-discovery', type: 'tools_list_success', permittedCount: 4, deniedCount: 0, vertical: 'banking',
+      });
+      tokenChainTraceStore.ingestMcpResult({
+        tool: 'get_airline_bookings',
+        _meta: { credentialPath: 'api_key' },
+        result: { source: 'sqlite', upcomingTrips: 2 },
+      });
+    });
 
     const branchNames = [...container.querySelectorAll('.ttp-branch .ttp-name')].map((n) => n.textContent);
     // The tool call is two requests: the refused one and the authorized one.
-    // Both hang off the branch, in the order they went out.
-    expect(branchNames).toEqual(['tools/call 401', 'Agent Gateway', 'Vault', 'API-key path', 'MCP server', 'Resource server', 'Database']);
+    // Both hang off the branch, in the order they went out. The United fixture
+    // renames the resource-server and database hops (backend-specific labels).
+    expect(branchNames).toEqual(['tools/call 401', 'Agent Gateway', 'Vault', 'API-key path', 'MCP server', 'United Airlines backend app', 'SQL Database']);
     // Discovery belongs on the spine — and the MCP session handshake is part of
     // discovery, not of the tool call. Traced live 2026-08-18: the tool-call leg
     // produced initialize / notifications/initialized / tools/list on the MCP
@@ -147,9 +186,10 @@ describe('buildA2aTopology', () => {
     // session negotiated per tool call.
     expect(branchNames).not.toContain('initialize');
     expect(branchNames).not.toContain('notifications/initialized');
-    expect(branchNames).not.toContain('tools/list');
-    expect([...container.querySelectorAll('.ttp-spine .ttp-name')].map((n) => n.textContent))
-      .toContain('tools/list');
+    // buildObservedTopology names nodes from the step title's pre-" — " text,
+    // and the spine only carries fired hops — discovery needs evidence.
+    const spineNames = [...container.querySelectorAll('.ttp-spine .ttp-name')].map((n) => n.textContent);
+    expect(spineNames).toContain('tools/list');
   });
 
   it('enriches an already drawn node when detailed evidence arrives', async () => {

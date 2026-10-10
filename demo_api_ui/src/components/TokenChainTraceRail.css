@@ -633,3 +633,18 @@
 :root[data-theme="dark"] .tctr .tctr-trust__row strong { color: #ffffff; }
 
 :root[data-theme="dark"] .tctr .tctr-trust__row code { background: rgba(255, 255, 255, 0.06); }
+
+/* "+N hops not in this run" — the collapse chip for a completed Live run. */
+.tctr-skipped-chip {
+  display: inline-block;
+  margin: 0.5rem 0;
+  padding: 0.2rem 0.7rem;
+  font-size: 0.72rem;
+  border: 1px dashed var(--th-text-muted, #94a3b8);
+  border-radius: 999px;
+  background: transparent;
+  color: var(--th-text-muted, #64748b);
+  cursor: pointer;
+}
+
+.tctr-skipped-chip[aria-expanded="true"] { border-style: solid; }

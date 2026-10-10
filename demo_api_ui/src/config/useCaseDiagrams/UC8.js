@@ -62,6 +62,14 @@ const walk = [
 
 export default {
   id: "UC8",
+  slug: "hitl-consent",
+  hopHints: {
+    signin: ["user"], prompt: ["user"], agent: ["agent"], llm: ["agent"],
+    "agent-token": ["agent"], exchange: ["gw", "p1"], authorize: ["gw", "p1"],
+    stepup: ["gw", "user"], gateway: ["gw"], "tools-list": ["agent", "gw"],
+    "tools-list-challenge": ["agent", "gw"], "tools-call-challenge": ["agent", "gw"],
+    mcp: ["gw"], api: ["gw"], reply: ["agent", "user"],
+  },
   result: { label: "CONSENT", tone: "warn" },
   GROUPS: G,
   NODES,

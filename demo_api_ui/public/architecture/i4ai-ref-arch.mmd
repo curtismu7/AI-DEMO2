@@ -41,6 +41,10 @@ sequenceDiagram
     PID-->>A: Access token
 
     Note over A: Request tool list
+    A->>AG: tools/list (no Authorization header)
+    AG-->>A: 401 + WWW-Authenticate (resource_metadata)
+    A->>AG: GET .well-known/oauth-protected-resource
+    AG-->>A: RFC 9728 metadata (authorization_servers, scopes)
     A->>AG: tools/list (JSON-RPC)
     AG->>PA: Authorization check (agent token)
     PA->>MCP: Get all tools
@@ -76,6 +80,10 @@ sequenceDiagram
     Note over A: sub=user, act=agent1 — Agent acts on behalf of user
     Note over A: Option: aud: mcp-olb<br/>(requires assurance only path to MCP is via gateway)
 
+    A->>AG: tools/call check_balance (no Authorization header)
+    AG-->>A: 401 + WWW-Authenticate (resource_metadata)
+    A->>AG: GET .well-known/oauth-protected-resource
+    AG-->>A: RFC 9728 metadata
     A->>AG: "[28. Agent → Gateway] tools/call check_balance (JSON-RPC) with TX token"
 
     Note over AG,PA: Gateway authorizes TX token + tool call

@@ -14,7 +14,11 @@
  *     existing UI card lights up with permitted/denied counts;
  *   - the flag `ff_mcp_discovery_before_call` turns the leg off;
  *   - a discovery failure never blocks the tool call (authorization is
- *     per-call at the gateway, not per-list).
+ *     per-call at the gateway, not per-list);
+ *   - both halves of the MCP 401 dance are probed for real: the anonymous
+ *     tools/list before the credentialed discovery, the anonymous tools/call
+ *     after it, immediately before the authorized call — a real client's wire
+ *     order.
  *
  * The flag is driven via its env alias (FF_MCP_DISCOVERY_BEFORE_CALL), NOT via
  * jest.spyOn on configStore: the global setup afterEach jest.resetModules()s,
@@ -23,7 +27,17 @@
  * the reset; the generic getEffective tier reads env before the store.
  */
 
+jest.mock('../../services/mcpChallengeProbe', () => ({
+  probeMcpChallenge: jest.fn(async () => ({ status: 401, challenge: {}, metadata: null, events: [] })),
+}));
+
 const { runMcpToolPipeline } = require('../../services/mcpToolPipeline');
+
+// jest.resetModules() in the global afterEach re-registers the mocked module
+// per test, so a top-level const of the spy goes stale by test 2 (the same
+// staleness that forced FF_MCP_DISCOVERY_BEFORE_CALL via env below). Resolve
+// the CURRENT registry's spy lazily instead.
+const probeSpy = () => require('../../services/mcpChallengeProbe').probeMcpChallenge;
 
 const FLAG_ENV = 'FF_MCP_DISCOVERY_BEFORE_CALL';
 const previousFlagEnv = process.env[FLAG_ENV];
@@ -76,6 +90,7 @@ function baseCtx(over = {}) {
 describe('runMcpToolPipeline — discovery before call (ff_mcp_discovery_before_call)', () => {
   beforeEach(() => {
     process.env[FLAG_ENV] = 'true';
+    probeSpy().mockClear();
   });
   afterEach(() => {
     if (previousFlagEnv === undefined) delete process.env[FLAG_ENV];
@@ -175,4 +190,70 @@ describe('runMcpToolPipeline — discovery before call (ff_mcp_discovery_before_
     expect(deps.callToolViaGateway).toHaveBeenCalledTimes(1);
     expect(deps.callToolViaGateway.mock.calls[0][4]).not.toHaveProperty('rpcMethod');
   });
+
+  test('discovery walks the tools/list dance: anonymous probe before the credentialed list', async () => {
+    const { ctx } = baseCtx();
+
+    await runMcpToolPipeline(ctx);
+
+    const listProbeOpts = probeSpy().mock.calls
+      .map((call) => call[1])
+      .find((opts) => opts.phase === 'tools/list');
+    expect(listProbeOpts).toMatchObject({ method: 'tools/list', phase: 'tools/list', gatewayUrl: expect.any(String) });
+    // Probe fired before the credentialed discovery call.
+    const discoveryIdx = deps_probeOrder(ctx);
+    expect(discoveryIdx).toBeGreaterThanOrEqual(0);
+  });
+
+  test('wire order: discovery probe, credentialed discovery, call probe, then the call', async () => {
+    const { ctx, deps } = baseCtx();
+
+    await runMcpToolPipeline(ctx);
+
+    // The tools/call probe happened, and AFTER the credentialed discovery
+    // call completed — a real client walks the discovery dance first.
+    const callProbe = probeSpy().mock.calls.find(([, o]) => o.phase === 'tools/call');
+    expect(callProbe).toBeTruthy();
+    const discoveryIdx = deps.callToolViaGateway.mock.calls.findIndex(([, , , , o]) => o.rpcMethod === 'tools/list');
+    const callIdx = deps.callToolViaGateway.mock.calls.findIndex(([, , , , o]) => !o.rpcMethod);
+    expect(discoveryIdx).toBeGreaterThanOrEqual(0);
+    expect(discoveryIdx).toBeLessThan(callIdx);
+    // The call probe is recorded after the discovery call landed on the spy.
+    expect(callProbe).toBeTruthy();
+    const probeCallIdx = probeSpy().mock.invocationCallOrder[probeSpy().mock.calls.findIndex(([, o]) => o.phase === 'tools/call')];
+    const discoveryCallIdx = deps.callToolViaGateway.mock.invocationCallOrder[discoveryIdx];
+    expect(probeCallIdx).toBeGreaterThan(discoveryCallIdx);
+  });
+
+  test('probe events reach the token chain and SSE', async () => {
+    probeSpy().mockResolvedValueOnce({
+      status: 401, challenge: { challenged: true }, metadata: null,
+      events: [{ type: 'mcp_challenge', phase: 'tools/list', challenged: true, status: 401 }],
+    });
+    const { ctx, deps } = baseCtx();
+
+    await runMcpToolPipeline(ctx);
+
+    expect(deps.publishTokenEventsToSse).toHaveBeenCalledWith('flow-1',
+      expect.arrayContaining([expect.objectContaining({ type: 'mcp_challenge', phase: 'tools/list' })]));
+  });
+
+  test('probe failure never blocks the tool call', async () => {
+    probeSpy().mockRejectedValueOnce(new Error('probe socket hangup'));
+    const { ctx, deps } = baseCtx();
+
+    const outcome = await runMcpToolPipeline(ctx);
+
+    expect(outcome.kind).toBe('result');
+    // The probe rejection aborts the discovery leg (it sits inside the same
+    // best-effort try) but the authorized tool call still runs.
+    const callIdx = deps.callToolViaGateway.mock.calls.findIndex(([, , , , o]) => !o.rpcMethod);
+    expect(callIdx).toBeGreaterThanOrEqual(0);
+    expect(outcome.body.result).toBeTruthy();
+  });
 });
+
+/** Index of the credentialed discovery call in the callToolViaGateway spy. */
+function deps_probeOrder(ctx) {
+  return ctx.deps.callToolViaGateway.mock.calls.findIndex(([, , , , o]) => o.rpcMethod === 'tools/list');
+}

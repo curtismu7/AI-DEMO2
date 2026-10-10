@@ -29,6 +29,7 @@ import { laneLabel, isNativeIdJagTrace, isMockIdJagTrace, resolveTraceProvenance
 import { VerticalContext } from "../vertical/VerticalProvider";
 import { sequenceDiagramLabel } from "./sequenceDiagramLabels";
 import { buildA2aTokenChainSteps, buildPrivilegeA2aChainSteps } from "./TokenChainTraceRail";
+import { applyStepVisibility } from "../services/tokenChainTrace/stepVisibility";
 import TraceProvenanceBadge from "./TraceProvenanceBadge";
 import "./SequenceReelDiagram.css";
 
@@ -132,12 +133,10 @@ const writePref = (key, value) => {
   }
 };
 
-// A step only earns a row once it has actually happened. buildTraceSteps
-// returns the whole pipeline for every trace: steps with no evidence yet come
-// back "pending", and ones outside this run's path "notinpath" or "skipped".
-// This diagram has no styling for either, so drawing them showed a complete
-// flow on page load and made each new run look identical to the last.
-const HAPPENED = new Set(["done", "active", "error", "waiting"]);
+// A step only earns a row once it has actually happened — that filter is the
+// shared stepVisibility policy now (imported below). This diagram has no
+// styling for unfired hops, so drawing them showed a complete flow on page
+// load and made each new run look identical to the last.
 // Rows that exist before any run: the browser step is unconditionally done and
 // beginTrace carries sign-in across runs. Neither means a run has started.
 const SESSION_STEP_IDS = new Set(["website", "signin"]);
@@ -204,12 +203,22 @@ export default function SequenceReelDiagram({
   }, [externalSteps, snap.steps, snap.trace]);
 
   const allLifelineSteps = useMemo(() => {
-    const happened = steps.filter((step) => HAPPENED.has(step.status));
-    const failureIndex = happened.findIndex((step) => step.status === "error");
-    const visibleSteps = failureIndex === -1 ? happened : happened.slice(0, failureIndex + 1);
+    // The shared policy: fired hops only (in-flight and completed alike — the
+    // reel is a playback surface and renders no collapse chip).
+    // The recorded-trace pages (TransactionTraceEmbedPage et al) hand the reel
+    // externalSteps and never touch the token-chain store — the store trace is
+    // EMPTY_TRACE, with no activity for the policy's gate to see. A handed-in
+    // list is by definition the hops that happened: score it against a
+    // synthetic completed trace so the embed keeps drawing.
+    const trace = Array.isArray(externalSteps)
+      ? { ...snap.trace, startedAt: snap.trace?.startedAt || 1, outcome: snap.trace?.outcome || "ok" }
+      : snap.trace;
+    const { visible } = applyStepVisibility(steps, trace);
+    const failureIndex = visible.findIndex((step) => step.status === "error");
+    const visibleSteps = failureIndex === -1 ? visible : visible.slice(0, failureIndex + 1);
     if (!visibleSteps.some((step) => !SESSION_STEP_IDS.has(step.id))) return [];
     return deriveLifelineSteps(visibleSteps);
-  }, [steps]);
+  }, [steps, externalSteps, snap.trace]);
   const runId = externalRunId ?? snap.trace?.runId ?? null;
   const runProvenance = provenance || resolveTraceProvenance(snap.trace);
   const traceFinished = externalTraceFinished ?? (["ok", "error", "mock-success"].includes(snap.trace?.outcome));

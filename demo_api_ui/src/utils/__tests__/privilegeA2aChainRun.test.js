@@ -1,5 +1,6 @@
 import { chainHopToTokenEvent, runPrivilegeA2aChatRun, startPrivilegeA2aChainRun } from "../privilegeA2aChainRun";
-import { buildLiveTokenChainSteps, buildPrivilegeA2aChainSteps } from "../../components/TokenChainTraceRail";
+import { buildPrivilegeA2aChainSteps } from "../../services/tokenChainTrace/privilegeA2aChainSteps";
+import { applyStepVisibility } from "../../services/tokenChainTrace/stepVisibility";
 import { deriveLifelineParticipants, deriveLifelineSteps } from "../../services/tokenChainTrace/deriveLifelineSteps";
 import { buildTraceSteps, laneLabel } from "../../services/tokenChainTrace/buildTraceSteps";
 import { buildObservedTopology } from "../../components/TokenTopologyPanel";
@@ -96,9 +97,12 @@ test("each call is caller, gateway, callee; a refused call stops at the gateway"
     { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" },
     { id: "pa2a-1", kind: "error", from: "langchainagent", to: "refunds", status: "error", detail: "403: Forbidden" },
   ];
-  const bankingSkeleton = [{ id: "user-token", title: "Sign-in", status: "done" }, { id: "llm", title: "LLM", status: "pending" }];
-
-  const steps = buildLiveTokenChainSteps(bankingSkeleton, { tokenEvents, startedAt: 1 });
+  // The rail composes: privilege hops replace the banking skeleton, then the
+  // shared visibility policy fires only what happened. Privilege hops carry
+  // done/error statuses, so they all pass through.
+  const chainSteps = buildPrivilegeA2aChainSteps(tokenEvents);
+  const { visible } = applyStepVisibility(chainSteps, { tokenEvents, startedAt: 1 });
+  const steps = visible.map((step, index) => ({ ...step, num: index + 1 }));
 
   expect(steps.map((step) => [step.num, step.id, step.lane, step.status])).toEqual([
     [1, "pa2a-0-call", "MAIN-AGENT", "done"],
@@ -109,6 +113,17 @@ test("each call is caller, gateway, callee; a refused call stops at the gateway"
   ]);
   expect(steps[4].detail.narrative).toContain("403: Forbidden");
   expect(buildPrivilegeA2aChainSteps([{ id: "a2a-exchange1" }])).toEqual([]);
+});
+
+test("privilege chain hops pass through the visibility policy unemptied", () => {
+  const tokenEvents = [
+    { id: "pa2a-0", kind: "delegate", from: "main", to: "langchainagent", status: "ok" },
+    { id: "pa2a-1", kind: "result", from: "langchainagent", to: "main", status: "ok" },
+  ];
+  const chainSteps = buildPrivilegeA2aChainSteps(tokenEvents);
+  const { visible, skipped } = applyStepVisibility(chainSteps, { tokenEvents, startedAt: 1, outcome: "ok" });
+  expect(visible.map((s) => s.id)).toEqual(chainSteps.map((s) => s.id)); // every hop fired
+  expect(skipped).toEqual([]);
 });
 
 test("the sequence view gets one lifeline per agent with the gateway between them", () => {

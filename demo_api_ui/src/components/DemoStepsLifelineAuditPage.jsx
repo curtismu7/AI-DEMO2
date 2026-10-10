@@ -13,7 +13,7 @@ const BASIS = { checked: "Checked", agent: "Agent", mixed: "Mixed" };
 // [id, name, runs, reach, shown, gap, basis]
 const STEPS = [
   ["UC24", "Public catalog, no exchange", "Chat chip", "traced", false, "Says the agent answered from context and draws MCP and API as not in path, though the local tool ran. `token-exchange` (skipped) and `tool-dispatched` go unread.", "mixed"],
-  ["UC1", "Delegated access", "Chat chip", "traced", true, "API and database steps can't finish without the MCP result; `tools/call` challenge out of order; BFF introspection not drawn.", "checked"],
+  ["UC1", "Delegated access", "Chat chip", "traced", true, "Discovery now runs before the call and both 401 challenges draw in wire order (re-checked 9 Oct 2026). API and database steps can't finish without the MCP result; BFF introspection not drawn.", "checked"],
   ["UC8", "Consent (HITL)", "Chat chip", "traced", false, "The challenge draws, but approval runs through a consent modal and REST transfer outside the trace, so the run stays paused. `gateway_hitl_required` unread on gateway runs.", "mixed"],
   ["UC7", "MFA step-up", "Chat chip", "traced", false, "Gate emits a bare 428 `authorize_denied`; MFA phases only go to PostHog; the retry streams no live events.", "checked"],
   ["UC14b", "PAR within cap", "Simulator", "sim", false, "Quick result runs the offline RAR simulator — no PAR push. The live push is on the full page, which never feeds the diagram.", "checked"],
@@ -57,11 +57,12 @@ const BOARD_EDGES = STEPS.slice(1).map(([id], i) => [STEPS[i][0], id, "", { vert
 const LANES = ["browser", "pingone", "agent", "mcp", "bff"];
 
 const FIXES = [
+  ["Walk the MCP 401 dance on both legs", ["Ready · this work", "UI + BFF"], "Discovery runs for real before every gateway tool call, both anonymous probes (tools/list and tools/call) capture the live 401 + WWW-Authenticate and the RFC 9728 metadata, and every step-box surface shows only the hops the run performed — the rest collapse behind a count chip.", true],
   ["Merge PR #3233 — draw only what happened", ["Ready · draft", "UI"], "Stops the full flow appearing on page load, clears the diagram when a new run starts, and no longer auto-plays when slow mode is restored. Demos whose evidence isn't modelled will now look sparse instead of showing hops that never happened.", true],
   ["Clear the trace when a page-type Demo step opens its page", ["UI", "4 steps"], "UC2.7, UC32, UC40 and UC38 navigate away without starting or clearing a trace, so the dashboard still shows the previous run when you return."],
   ["Forward MCP results on the chat path", ["UI", "every chip"], "The chat stream handler passes token events and flow updates but never MCP result frames, so the API and database steps can't complete."],
   ["Make step-up visible", ["UI + BFF", "UC7 · UC8 · UC22"], "Treat a 428 `authorize_denied` as step-up started, emit MFA phases into the flow rather than only to PostHog, and stream live token events on the step-up and CIBA retries."],
-  ["Put gateway decisions on the gateway", ["Trace builder", "all gateway runs"], "Check a gateway denial before an authorize failure, count `gw-filter-chain` as gateway evidence, and draw the credential-less `tools/call` challenge before the gateway step it precedes."],
+  ["Put gateway decisions on the gateway", ["Trace builder", "all gateway runs"], "Check a gateway denial before an authorize failure and count `gw-filter-chain` as gateway evidence (landed on main since the audit); the credential-less `tools/call` challenge now draws in wire order (fixed 9 Oct 2026 with the discovery rework)."],
   ["Draw PAR", ["UI + builder", "UC14 · UC14b"], "Feed the live intent-binding run into the store and add PAR push and `request_uri` steps on the PingOne lane (RFC 9126)."],
   ["Draw agent-to-agent delegation", ["Builder + lanes", "UC2 · UC2.5 · UC2.7"], "Add a specialist-agent lane and steps for both RFC 8693 exchanges. The eight `a2a-*` events already arrive; nothing reads them."],
   ["Give simulators a flow id and read their events", ["UI + builder", "UC10 · UC13 · UC18"], "Sims post only `{ sim }`, so pipeline phases are dropped; the burst, rate-limit and cross-owner events are never read."],
@@ -77,10 +78,10 @@ const CLAIMS = [
 
 // [title, body, affects?] — all re-read in the code
 const GAPS = [
-  ["The diagram drew steps that hadn't happened", "The trace builder returns the whole pipeline on every trace, with no-evidence steps as `pending` and off-path steps as `notinpath`. The diagram had no styling for either, so it drew a complete flow on page load and made each new run look like the last. Fixed in PR #3233."],
+  ["The diagram drew steps that hadn't happened", "The trace builder returns the whole pipeline on every trace, with no-evidence steps as `pending` and off-path steps as `notinpath`. The diagram had no styling for either, so it drew a complete flow on page load and made each new run look like the last. Fixed in PR #3233, and reworked 9 Oct 2026: one shared visibility policy drives every step-box surface — a completed run shows only what happened, and the rest collapse behind a 'hops not in this run' chip."],
   ["Step-up never reaches the trace", "The BFF gate emits a bare `authorize_denied` with status 428 for step-up, adding `authorize_denied_hitl` only for HITL. MFA phases go only to PostHog. Retries carry just the gate outcome and stream no live events, so a finished step-up run reads “did not demand step-up” in the reel.", "UC7 · UC8 · UC22"],
   ["Gateway decisions are drawn as “not in path”", "The gateway step tests for an authorize failure before a gateway denial, so a deny enforced at the gateway blanks the gateway. A permit that arrives only as `gw-filter-chain` isn't counted as gateway evidence either.", "UC6 · UC13 · UC30"],
-  ["The credential-less `tools/call` challenge is out of order", "It's added after the gateway and API-key steps, so the refused anonymous call is drawn after the authorized call it came before.", "every gateway run"],
+  ["The credential-less `tools/call` challenge is out of order", "Fixed 9 Oct 2026: the `tools/call` probe now fires after discovery and immediately before the authorized call, and the discovery leg probes its own anonymous `tools/list` first — both dances draw in wire order. The static sequence page carries them as steps 5a/5b and 25a/25b.", "every gateway run"],
   ["MCP results never reach the store on the chat path", "The chat stream handler forwards token events and flow updates, not MCP result frames; the separate direct-tool path does dispatch them.", "every chat chip"],
   ["Simulators send no flow id", "The sim request carries only `{ sim }`. Without `flowTraceId` the pipeline's emit is a no-op, so pipeline-routed sims lose their phases.", "UC10 · UC13"],
   ["Evidence that arrives but nothing reads", "Token events `a2a-*` (eight ids), `ciba-poll`, `gw-backend-exchange`, `gw-mcp-audit`, `intent-token`, `token-exchange`, `tool-dispatched`, `sim-burst-*`, `sim-rate-limit-armed`, `sim-cross-owner-denied`. Phases `gateway_hitl_required`, `introspection_*`, `authorize_gate_skipped`."],
@@ -103,6 +104,7 @@ export default function DemoStepsLifelineAuditPage() {
         <div className="dsla-meta">
           <span>Read from code on <code>main</code> @ <code>1a84b4f</code></span>
           <span>Audited 13 Sep 2026</span>
+          <span>Re-checked 9 Oct 2026 — discovery + 401 dance rework</span>
           <span>Nothing run live</span>
         </div>
         <div className="dsla-lanes" aria-label="Diagram lanes referenced in this audit">

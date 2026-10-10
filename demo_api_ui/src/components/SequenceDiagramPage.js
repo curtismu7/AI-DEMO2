@@ -730,7 +730,7 @@ const PARTICIPANTS = [
 // ALL_STEPS: 1:1 with i4ai-ref-arch.mmd (see https://demo-api-server:3001/architecture/flow)
 // Each step/note references the corresponding Mermaid line in a comment.
 // description field: brief human-readable title for the left step panel (2-5 words)
-const ALL_STEPS = [
+export const ALL_STEPS = [
   // Note over U,CB: User submits prompt
   {
     type: "note",
@@ -904,6 +904,63 @@ const ALL_STEPS = [
     onError: [
       "Agent skips this step and hardcodes a tool list — fragile, won't reflect policy changes",
       "Agent caches the list too long and misses newly added or revoked tools",
+    ],
+  },
+  // A->>AG: tools/list with NO Authorization header (the 401 dance, leg 1)
+  {
+    step: "5a",
+    from: "A",
+    to: "AG",
+    label: "tools/list (no Authorization header)",
+    type: "request",
+    description: "Anonymous discovery attempt",
+    why: "A real MCP client that arrives holding nothing still tries discovery first. The gateway is an OAuth 2.1 protected resource: it refuses the credential-less call with 401 and a WWW-Authenticate challenge instead of answering it. The challenge is how the client learns which authorization server to go to.",
+    request: {
+      method: "POST",
+      url: "http://localhost:3036/jsonrpc",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: { jsonrpc: "2.0", id: 1, method: "tools/list", params: {} },
+    },
+    response: {
+      status: 401,
+      headers: {
+        "WWW-Authenticate": 'Bearer realm="mcp", resource_metadata="https://api.ping.demo:3036/.well-known/oauth-protected-resource"',
+      },
+      body: { jsonrpc: "2.0", id: 1, error: { code: -32001, message: "Unauthorized: missing bearer token" } },
+    },
+    onError: [
+      "Gateway answers 200 to an anonymous call — the protected-resource gate is off; fix before demoing enforcement",
+      "No WWW-Authenticate header on the 401 — the client cannot discover the authorization server (RFC 9728 pointer missing)",
+      "Probe timeout — the dance legs run live against the gateway; check it is up on 3036",
+    ],
+  },
+  // A->>AG: GET .well-known/oauth-protected-resource (the 401 dance, leg 2)
+  {
+    step: "5b",
+    from: "A",
+    to: "AG",
+    label: "GET .well-known/oauth-protected-resource",
+    type: "request",
+    description: "RFC 9728 metadata fetch",
+    why: "The 401 challenge pointed at the gateway's protected-resource metadata. Fetching it tells the client which authorization servers can issue tokens for this resource and which scopes exist — no hardcoding.",
+    request: {
+      method: "GET",
+      url: "https://api.ping.demo:3036/.well-known/oauth-protected-resource",
+      headers: { Accept: "application/json" },
+    },
+    response: {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+      body: {
+        resource: "https://api.ping.demo:3036/mcp",
+        authorization_servers: ["https://auth.ping.one/{ENV_ID}/as"],
+        scopes_supported: ["tools.list", "balance:read", "transfer:write"],
+        bearer_methods_supported: ["header"],
+      },
+    },
+    onError: [
+      "metadata URL unreachable — the challenge's resource_metadata pointer must match a live route",
+      "authorization_servers empty — the client has nowhere to send the user; check PingOne AS config",
     ],
   },
   // A->>AG: tools/list (JSON-RPC)
@@ -1982,6 +2039,62 @@ const ALL_STEPS = [
       "Mixing audiences across calls — confusing to operate; pick one model and stick to it",
     ],
   },
+  // A->>AG: tools/call check_balance with NO Authorization header (the 401 dance, invocation leg 1)
+  {
+    step: "25a",
+    from: "A",
+    to: "AG",
+    label: "tools/call check_balance (no Authorization header)",
+    type: "request",
+    description: "Anonymous invocation attempt",
+    why: "The same handshake on invocation: before presenting the delegated token, the first tools/call goes out bare. The gateway refuses it at its own edge — nothing reaches the MCP server on this leg.",
+    request: {
+      method: "POST",
+      url: "http://localhost:3036/jsonrpc",
+      headers: { "Content-Type": "application/json", Accept: "application/json" },
+      body: { jsonrpc: "2.0", id: 2, method: "tools/call", params: { name: "check_balance", arguments: {} } },
+    },
+    response: {
+      status: 401,
+      headers: {
+        "WWW-Authenticate": 'Bearer realm="mcp", resource_metadata="https://api.ping.demo:3036/.well-known/oauth-protected-resource"',
+      },
+      body: { jsonrpc: "2.0", id: 2, error: { code: -32001, message: "Unauthorized: missing bearer token" } },
+    },
+    onError: [
+      "Gateway forwards an anonymous tools/call — the per-call gate is off; nothing should reach the MCP server without a bearer",
+      "No WWW-Authenticate header on the 401 — the client cannot learn the metadata pointer (RFC 9728)",
+    ],
+  },
+  // A->>AG: GET .well-known/oauth-protected-resource (the 401 dance, invocation leg 2)
+  {
+    step: "25b",
+    from: "A",
+    to: "AG",
+    label: "GET .well-known/oauth-protected-resource (before the call)",
+    type: "request",
+    description: "RFC 9728 metadata fetch (invocation)",
+    why: "The invocation challenge carries the same resource_metadata pointer. A client that already fetched it at discovery may cache it; a client that has not fetches it now before re-trying with the delegated token.",
+    request: {
+      method: "GET",
+      url: "https://api.ping.demo:3036/.well-known/oauth-protected-resource",
+      headers: { Accept: "application/json" },
+    },
+    response: {
+      status: 200,
+      headers: { "Content-Type": "application/json" },
+      body: {
+        resource: "https://api.ping.demo:3036/mcp",
+        authorization_servers: ["https://auth.ping.one/{ENV_ID}/as"],
+        scopes_supported: ["tools.list", "balance:read", "transfer:write"],
+        bearer_methods_supported: ["header"],
+      },
+    },
+    onError: [
+      "metadata URL unreachable — the challenge's resource_metadata pointer must match a live route",
+      "authorization_servers empty — the client has nowhere to obtain the delegated token",
+    ],
+  },
   // A->>AG: tools/call check_balance (JSON-RPC) with TX token
   {
     step: 26,
@@ -2715,7 +2828,7 @@ const ALL_STEPS = [
   },
 ];
 
-const SCENARIOS = {
+export const SCENARIOS = {
   "full-flow": ALL_STEPS,
   "agent-init": ALL_STEPS.filter((s) => s.step && s.step <= 10),
   "no-subject-token": ALL_STEPS.filter(
@@ -2734,6 +2847,11 @@ const SCENARIOS = {
   "data-return": ALL_STEPS.filter(
     (s) => s.step && s.step >= 36 && s.step <= 47,
   ),
+
+  // The MCP authorization dance in isolation: both 401 challenges, both
+  // metadata fetches, and the credentialed calls that follow them.
+  "discovery-dance": ALL_STEPS.filter((s) =>
+    [4, 5, 6, 7, 8, 26].includes(s.step) || ["5a", "5b", "25a", "25b"].includes(String(s.step))),
 
   // Phase 266 R2: 3 credential-path scenarios (gateway divergence branches)
   "api-key-path": [
@@ -3403,6 +3521,7 @@ export default function SequenceDiagramPage() {
             <option value="token-exchanges">RFC 8693 Exchanges</option>
             <option value="full-auth">Full Auth (tools/call + PA)</option>
             <option value="data-return">Data Return (RS → Results)</option>
+            <option value="discovery-dance">401 Discovery Dance (both legs)</option>
             <option value="api-key-path">API-Key Path (Path A)</option>
             <option value="dual-token-path">Dual-Token Path (Path B)</option>
             <option value="oauth-bearer-path">

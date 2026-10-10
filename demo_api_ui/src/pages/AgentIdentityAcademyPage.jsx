@@ -1,7 +1,7 @@
 import { useCallback, useEffect, useRef } from "react";
 import { useTheme } from "../context/ThemeContext";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
-import { buildLiveTokenChainSteps } from "../components/TokenChainTraceRail";
+import { applyStepVisibility } from "../services/tokenChainTrace/stepVisibility";
 import "./AgentIdentityAcademyPage.css";
 
 export default function AgentIdentityAcademyPage() {
@@ -16,12 +16,14 @@ export default function AgentIdentityAcademyPage() {
   }, [darkMode]);
 
   // Real mode in the Academy mirrors the last run the agent made: the same steps the
-  // dashboard reel draws, sent as plain data so the static lesson page can render them.
+  // dashboard reel draws, sent as plain data so the static lesson page can render
+  // them. Same shared visibility policy as the rail: only the hops the run actually
+  // performed, in wire order.
   const syncTrace = useCallback(() => {
     const { steps, trace } = tokenChainTraceStore.getState();
     let plain = [];
     try {
-      plain = JSON.parse(JSON.stringify(buildLiveTokenChainSteps(steps, trace)));
+      plain = JSON.parse(JSON.stringify(applyStepVisibility(steps, trace).visible));
     } catch {
       plain = [];
     }
