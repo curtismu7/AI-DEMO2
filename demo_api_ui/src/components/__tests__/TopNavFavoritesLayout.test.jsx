@@ -118,6 +118,21 @@ describe("TopNav Favorites dropdown", () => {
     expect(mockNavigate).toHaveBeenCalledWith("/demo-summary");
   });
 
+  it("when the side nav is hidden, the logo click restores it and still opens Demo Summary", () => {
+    mockNavigate.mockClear();
+    localStorage.setItem("adminSideNav.hidden", "1");
+    render(<TopNav user={null} onLogout={vi.fn()} />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Demo Summary/i }));
+    // Restore: same event AdminSideNav listens for, and the flag cleared so
+    // the state sticks across navigations.
+    expect(localStorage.getItem("adminSideNav.hidden")).toBe("0");
+    expect(window.dispatchEvent).toBeTruthy();
+    // Navigate: the user still lands on Demo Summary.
+    expect(mockNavigate).toHaveBeenCalledWith("/demo-summary");
+    localStorage.removeItem("adminSideNav.hidden");
+  });
+
   it("keeps the Ping mark on Ping surfaces (/setup, /admin)", () => {
     const { unmount } = render(<TopNav user={null} onLogout={vi.fn()} />);
     // Default mock location is /dashboard with a manifest lacking an id — the

@@ -170,7 +170,18 @@ export default function TopNav({ user, onLogout }) {
           <button
             type="button"
             className="topnav-brand"
-            onClick={() => navigate('/demo-summary')}
+            onClick={() => {
+              // If the rail was hidden (old magic-link state or Ctrl+Shift+B),
+              // the logo brings it back too — a click that only navigates
+              // would leave the rail hidden with no visible way back.
+              try {
+                if (localStorage.getItem('adminSideNav.hidden') === '1') {
+                  localStorage.setItem('adminSideNav.hidden', '0');
+                  window.dispatchEvent(new CustomEvent('admin-sidenav-hidden-toggle'));
+                }
+              } catch { /* private mode — navigate only */ }
+              navigate('/demo-summary');
+            }}
             title="Demo Summary — everything you can demo"
             aria-label="Demo Summary"
           >
