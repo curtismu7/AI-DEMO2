@@ -157,12 +157,14 @@ Server — `routes/selfServiceUsers.js` + `services/mfaService.js`:
   contain `+`); role is
   `customer` (default) or `admin`. Convenience prefill only — never an auth decision.
 - **Read at flow open**: `openPiFlow` in `services/piFlowDriver.js` adds the role's stored hint
-  to the authorize URL for **both** providers (`login_hint=<value>` when present), and the
-  open response's `usernameHint` (currently PF-only) is returned for PingOne too, so the modal
-  prefills from storage. On a **forced** re-auth (`force=true`) the stored hint is still sent
-  (the user asked to re-sign-in, prefill helps); the *session-derived* `loginHintFor` logic
-  (spelling per provider) continues to apply for the hosted/redirect paths and keeps winning
-  over the stored hint when a session user exists (it is fresher).
+  to the authorize URL (PingOne only — PingFederate *binds* the flow to the hint, so a stored
+  username would lock a shared machine to the last signer-in), and the open response's
+  `usernameHint` (currently PF-only) is returned for PingOne too, so the modal prefills from
+  storage. On a **forced** re-auth (`force=true`) the stored hint is dropped (a different
+  person may be signing in; the session-derived `loginHintFor` still applies, fresher wins).
+  [Amended during the final review: the original text said the stored hint goes to both
+  providers and survives force — both were wrong against PF's binding behavior and the
+  pinned admin test.]
 - Same-browser different-role stays correct because the keys are per role.
 
 ### §5 Branding
