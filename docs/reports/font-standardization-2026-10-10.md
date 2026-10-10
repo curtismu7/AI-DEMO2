@@ -1,4 +1,4 @@
-# Montserrat font standardization — status 2026-10-10
+# Ping Brand Refresh 2026 adoption — status 2026-10-10
 
 Source: Ping Brand Refresh 2026 portal (https://brand.pingidentity.com/hub/39) — brand font is **Montserrat**.
 Loaded in `demo_api_ui/public/index.html` (Google Fonts, weights 300/400/500/600/700/800 + IBM Plex Mono 400/500 for code).
@@ -50,7 +50,13 @@ Verticals override these with their own `cssVars` from `demo_api_server/config/v
 
 ## Remaining / open items
 
-1. **Commit** — all font + palette changes are uncommitted in the working tree (mixed with unrelated WIP: demo-step contract changes, learning-mirror "See it in the demo" links, demo_mcp_gateway edits — NOT part of this work).
-2. **Ping logo SVGs** (`public/branding/`) — held until a call on committing official brand assets to this public repo.
-3. **Optional:** weight 800 is loaded but currently unused; drop from the font link if you want the payload smaller.
-4. **Purple Accent `#680754`** from the 2026 palette is not yet used anywhere — potential accent for admin surfaces if wanted.
+All shipped 2026-10-10. Font + palette in **#1087**; logo, gradients, boilerplate copy, spinner dance in **#1089**; brand-hub arcs pattern + legacy hex swaps (`#b3282d → #d20e0f`, `#1a5276 → #051727`) in **#1103**; V2 hero pattern-carry fix in **#1104**; `multiply` blend in **#1105**; JPEG edge-frame crop (final seam fix, −31% asset size) in **#1106**. All merged and deployed.
+
+Resolved along the way:
+
+1. ~~**Commit**~~ → #1087–#1106, all merged.
+2. ~~**Ping logo**~~ → official 2026 Square Primary committed as `public/branding/ping-logo.png` (PNG, not the placeholder SVG, which was deleted); favicons regenerated; used by spinner, boot screen, PiFlow modal, pingone-admin manifest.
+3. ~~**Weight 800 unused**~~ → now in use (App.css, OAuthProviderToggle.css); kept in the font link.
+4. ~~**Purple Accent `#680754`**~~ → deliberately unused per product decision (portal reserves it as sparse emphasis; we don't need it).
+
+No open items.
