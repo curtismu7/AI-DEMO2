@@ -97,6 +97,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [Demo script & setup](demo/privilege-demo-script.md) | — | The customer-facing demo script and setup (auto-generated from the use-case docs — do not hand-edit) |
 | [CIMD client documents](../docs/2026-10-07-cimd-privilege-client-documents.md) | Drive (SE) | CIMD (client metadata documents) for PingOne Privilege — flow, boundary, and client documents, with diagrams |
 | [MCP discovery-gating demo](MCP-DISCOVERY-DEMO.md) | Drive (SE) | SE demo script: an agent's `tools/list` returns only what its policy grants — permit door, deny-by-default door, grant change, agent key, aggregate; pre-demo check and troubleshooting (every claim measured 2026-10-02…04) |
+| [Ping's reference demo, explained](PINGS-REFERENCE-DEMO-EXPLAINED.md) | Drive (SE) | The two-agent demo (`aigwdemo`) from the source up: three processes, the six legs and which cross the gateway, the four ADK traps the demo solves (A2A bearer, card object, `transportOptions`, `GatewayGemini`), the seeded findings, the UI's eight detector groups, and the runbook condensed (source-verified 2026-10-09, not yet run) |
 
 ## Reference & records
 
@@ -120,6 +121,5 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 
 | Guide | What it covers | Testable now? |
 |---|---|---|
-| Ping's reference demo, explained | The two-agent demo (main agent, worker agent, MCP server) wired through the gateway | Partly — needs the demo running |
 | Policies in depth | Expiry, several policies adding up, groups, per-tool grants | Partly — needs console changes |
 | Agent mode end to end | The Privilege Agent on a workstation, device-bound identity, how it differs from agentless | Partly — needs the agent paired on a Mac |
