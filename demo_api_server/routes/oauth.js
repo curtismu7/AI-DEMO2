@@ -199,12 +199,17 @@ router.get('/login', (req, res) => {
       );
     }
     
+    // The role's remembered username (configStore) prefills the modal via the
+    // authorize URL's login_hint; the undefined-default (demoAdmin) keeps
+    // working when nothing is stored. Force still sends prompt=login AND the
+    // stored hint — the admin asked to sign in again, prefill helps.
+    const storedAdminHint = req.query.force === 'true' ? null : (() => {
+      const v = configStore.getEffective('last_login_hint_admin');
+      return (typeof v === 'string' && v.trim()) ? v.trim() : undefined;
+    })();
     const authUrl = oauthService.generateAuthorizationUrl(
       state, codeVerifier, redirectUri, nonce,
-      // Force re-auth must drop the login hint so a different admin can sign in,
-      // and send prompt=login (clearing the BFF session alone does not stop SSO
-      // silent re-auth) — mirrors the user side.
-      req.query.force === 'true' ? null : undefined,
+      req.query.force === 'true' ? null : storedAdminHint,
       {
         ...(req.query.force === 'true' ? { forceLogin: true } : {}),
         ...(piFlowLogin ? { forcePiFlow: true } : {}),

@@ -589,3 +589,57 @@ describe('PUT /login-hint', () => {
     expect(res.status).toBe(400);
   });
 });
+
+describe('stored login hint at flow open', () => {
+  let fetchMock;
+  beforeEach(() => {
+    fetchMock = jest.fn();
+    global.fetch = fetchMock;
+  });
+
+  test('pi_flow open includes the stored hint as usernameHint for PingOne too', async () => {
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_environment_id: 'test-env-id',
+      user_client_id: 'test-client-id',
+      user_client_secret: 'test-secret',
+      user_pingone_authorize_pi_flow: 'true',
+      last_login_hint_customer: 'stored-user@pingone.com',
+    })[key]);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
+    const res = await request(app).get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    expect(res.body.usernameHint).toBe('stored-user@pingone.com');
+    const authorizeUrl = fetchMock.mock.calls[0][0];
+    expect(authorizeUrl).toContain('login_hint=stored-user');
+  });
+
+  test('hint is advisory: signing in with a different username than the hint succeeds', async () => {
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_environment_id: 'test-env-id',
+      user_client_id: 'test-client-id',
+      user_client_secret: 'test-secret',
+      user_pingone_authorize_pi_flow: 'true',
+      last_login_hint_customer: 'stored-user@pingone.com',
+    })[key]);
+    const agent = request.agent(app);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+    await agent.get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    fetchMock
+      .mockResolvedValueOnce(json(200, { status: 'COMPLETED' }))
+      .mockResolvedValueOnce(json(200, { authorizeResponse: { code: 'c' } }));
+    // a DIFFERENT username than the stored hint completes fine
+    await agent.post('/api/auth/oauth/user/pi-flow/credentials')
+      .send({ username: 'other-user@pingone.com', password: 'p' }).expect(200);
+  });
+
+  test('no stored hint: open still works and sends no usernameHint', async () => {
+    configStore.getEffective.mockImplementation((key) => ({
+      pingone_environment_id: 'test-env-id',
+      user_client_id: 'test-client-id',
+      user_client_secret: 'test-secret',
+      user_pingone_authorize_pi_flow: 'true',
+    })[key]);
+    fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }));
+    const res = await request(app).get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+    expect(res.body.usernameHint).toBeUndefined();
+  });
+});

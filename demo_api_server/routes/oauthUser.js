@@ -14,6 +14,14 @@ const { loginHintFor } = require('../services/loginHint');
 // The hint for a sign-in the app starts while it already knows who is in this session (a step-up, a re-login), as
 // the configured server spells them. Empty when nobody is known: the caller then keeps oauthUserService's default.
 const knownLoginHint = (req) => loginHintFor(req, configStore.getOAuthProvider?.() || 'pingone');
+
+// The role's remembered username from configStore (set by the OAuth callback
+// and the modal's PUT /login-hint). Advisory prefill for sign-ins where no
+// fresher session hint exists.
+const storedHint = (role) => {
+  const v = configStore.getEffective(`last_login_hint_${role}`);
+  return typeof v === 'string' && v.trim() ? v.trim() : '';
+};
 const dataStore = require('../data/store');
 const { determineClientType } = require('../middleware/auth');
 const { getFrontendOrigin, getUserRedirectUri, validateRedirectUriOrigin, getExpectedFrontendOrigin } = require('../services/oauthRedirectUris');
@@ -589,9 +597,17 @@ router.get('/login', (req, res) => {
         // selecting it needs acr_values; without it the flow opens password-first
         // and the username-only step 409s.
         ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'Multi_Factor' } : {}),
-        // Not on a forced re-login: the user chose to sign in again, possibly as someone else, and PingFederate
-        // locks the username field to the hint.
-        ...(!forceLogin && knownLoginHint(req) ? { login_hint: knownLoginHint(req) } : {}),
+        // Session-derived hint wins (fresher); the role's stored hint is the
+        // fallback. Forced re-login still prefills — the user chose to sign in
+        // again, and PingFederate only locks the field when a hint is sent.
+        // On a PINGONE pi.flow login with NEITHER source, send null explicitly:
+        // the service's demoUser default is for the hosted redirect page, and
+        // the modal should prefill nothing when the app knows nobody. PF keeps
+        // its own demouser default (the PF demo wants the locked-field demo).
+        ...((knownLoginHint(req) || storedHint('customer'))
+          ? { login_hint: knownLoginHint(req) || storedHint('customer') }
+          : (piFlowLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate'
+            ? { login_hint: null } : {})),
       }) + resourceParam;
     if (piFlowMode) {
       const piFlowUrl = new URL(url);
