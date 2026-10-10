@@ -1114,7 +1114,6 @@ export default function AdminSideNav({
       label: "Diagrams",
       icon: "arc",
       children: [
-        { label: "Demo Map", path: "/demo-map", icon: "arc" },
         { label: "All Diagrams", path: "/diagrams", icon: "arc" },
         { label: "Use-case diagrams", path: "/use-case-diagrams", icon: "arc" },
         { label: "Server Topology (Interactive)", path: "/architecture/server-topology", icon: "arc" },
