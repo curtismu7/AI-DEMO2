@@ -1975,6 +1975,14 @@ cmd_start() {
   echo -e "${CYAN}${BOLD}━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━${RESET}"
   echo ""
 
+  # Open the demo summary page when the UI is running (skipped in CI/non-TTY,
+  # where there is no desktop to open a browser in).
+  if [[ -t 1 ]] \
+     && [[ "$(docker compose "${COMPOSE_FILES[@]}" ps --format '{{.State}}' ui 2>/dev/null | head -1 || true)" == "running" ]] \
+     && command -v open >/dev/null 2>&1; then
+    open "https://local.ping-devops.com:4000/demo-summary" || true
+  fi
+
   # Interactive log picker on TTY
   if [[ -t 1 ]]; then
     tail_logs

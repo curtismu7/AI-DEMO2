@@ -46,6 +46,7 @@ import UseCaseDiagramPage from "./components/UseCaseDiagramPage";
 import UseCaseDiagramsGalleryPage from "./components/UseCaseDiagramsGalleryPage";
 import ResourceServerCheckpointPage from "./components/ResourceServerCheckpointPage";
 import DemoTrackPage from "./pages/DemoTrackPage";
+import DemoSummaryPage from "./pages/DemoSummaryPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
 import McpShowcasePage from "./pages/McpShowcasePage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
@@ -2138,6 +2139,10 @@ function AppWithAuth() {
                             <Route
                               path="/demo-track"
                               element={<DemoTrackPage />}
+                            />
+                            <Route
+                              path="/demo-summary"
+                              element={<DemoSummaryPage />}
                             />
                             <Route
                               path="/delegation-chain-value"

@@ -1,0 +1,82 @@
+.dsum-page {
+  max-width: 980px;
+  margin: 0 auto;
+  padding: 2.5rem 1.5rem 4rem;
+}
+
+.dsum-head {
+  margin-bottom: 2rem;
+}
+
+.dsum-eyebrow {
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+  margin: 0 0 0.5rem;
+}
+
+.dsum-head h1 {
+  margin: 0 0 0.5rem;
+  font-size: 1.9rem;
+  color: var(--th-text);
+}
+
+.dsum-sub {
+  margin: 0 0 1rem;
+  color: var(--th-text-body);
+}
+
+.dsum-search {
+  width: 100%;
+  max-width: 480px;
+  padding: 0.55rem 0.9rem;
+  font-size: 0.95rem;
+  border: 1px solid var(--th-border);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+}
+
+.dsum-group {
+  margin-bottom: 2rem;
+}
+
+.dsum-group h2 {
+  font-size: 1.1rem;
+  margin: 0 0 0.75rem;
+  padding-bottom: 0.35rem;
+  border-bottom: 1px solid var(--th-border);
+  color: var(--th-text);
+}
+
+.dsum-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(420px, 1fr));
+  gap: 0.6rem 1.5rem;
+}
+
+.dsum-item {
+  padding: 0.5rem 0.75rem;
+  border-left: 3px solid var(--th-border-strong);
+}
+
+.dsum-link {
+  font-weight: 600;
+  text-decoration: none;
+  color: var(--th-text);
+}
+
+.dsum-link:hover {
+  text-decoration: underline;
+}
+
+.dsum-blurb {
+  margin: 0.2rem 0 0;
+  font-size: 0.85rem;
+  color: var(--th-text-body);
+}
