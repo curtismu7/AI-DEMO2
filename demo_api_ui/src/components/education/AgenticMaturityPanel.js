@@ -1,5 +1,117 @@
 // banking_api_ui/src/components/education/AgenticMaturityPanel.js
+import React from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
+import { stepLabel } from '../../config/demoStepNumbers';
+
+// Stage → demo steps (coverage plan row: the maturity model must point at the
+// numbered steps whose attack/defense runs each stage, not just describe it).
+// UC ids are drift-guarded by AgenticMaturityPanel.stage-map.test.jsx: a
+// renamed or retired UC fails that test instead of leaving a dead cite here.
+const STAGE_MAP = [
+  {
+    stage: 'Level 1 — Public, anonymous data',
+    control: 'No identity required',
+    rows: [
+      { uc: 'UC24', proves: 'public catalog with no token — progressive trust starts here, and stays public because the data is' },
+    ],
+  },
+  {
+    stage: 'Level 2 — Secure, domain data',
+    control: 'Token / credential — agent entitlement',
+    rows: [
+      { uc: 'UC1', proves: 'the agent earns its own token by RFC 8693 exchange — a bare user token would not do' },
+      { uc: 'UC43', proves: 'the agent client itself is registered (CIMD) before it can hold any token' },
+      { uc: 'UC11', proves: 'a bad or malformed client is refused at the gateway perimeter' },
+    ],
+  },
+  {
+    stage: 'Level 3 — Scope-based access (workload → workload)',
+    control: 'Downscoped exchange, no raw forwarding',
+    rows: [
+      { uc: 'UC16', proves: 'impersonation bypass attempt rejected — the RFC 8693 exchange is mandatory' },
+      { uc: 'UC16b', proves: 'raw user-token forwarding to MCP is blocked outright' },
+      { uc: 'UC2', proves: 'A2A delegation carries the nested act chain between agents' },
+      { uc: 'UC47', proves: 'a three-deep agent chain keeps identity intact at every hop' },
+      { uc: 'UC5', proves: 'insufficient scope is denied before the tool runs' },
+    ],
+  },
+  {
+    stage: 'Level 3 — Dynamic authorization',
+    control: 'Agent AND user entitlement',
+    rows: [
+      { uc: 'UC14b', proves: 'RAR intent with amount cap evaluated and permitted' },
+      { uc: 'UC14', proves: 'the same RAR request past its cap is denied — policy, not the token, decides' },
+      { uc: 'UC6', proves: 'authorization DENY: a valid token does not overrule policy' },
+      { uc: 'UC10', proves: 'cross-owner access refused — user entitlement binds the resource' },
+    ],
+  },
+  {
+    stage: 'Level 3 — HITL approvals',
+    control: 'Human sign-off before irreversible action',
+    rows: [
+      { uc: 'UC8', proves: 'the transfer consent gate halts the agent until the human approves' },
+      { uc: 'UC22', proves: 'CIBA out-of-band approval on the registered device, agent polling' },
+      { uc: 'UC7', proves: 'step-up MFA escalates the session before the sensitive call' },
+      { uc: 'UC27', proves: 'a client-supplied approved flag is rejected — consent cannot be forged' },
+      { uc: 'UC48', proves: 'the governed flight booking pauses for the customer even outside banking' },
+    ],
+  },
+  {
+    stage: 'Audit & fail-safe',
+    control: 'Attribution + fail closed',
+    rows: [
+      { uc: 'UC20', proves: 'the audit trail shows human sub, agent act.sub, scopes, tool, outcome' },
+      { uc: 'UC29', proves: 'when token validation is unreachable the gateway fails closed — no silent permit' },
+    ],
+  },
+];
+
+function StageMapCard() {
+  return (
+    <div style={{
+      background: 'rgba(37,99,235,0.05)',
+      border: '1px solid rgba(37,99,235,0.18)',
+      borderRadius: 10,
+      padding: '12px 16px',
+      marginBottom: 16,
+    }}>
+      <p style={{ margin: '0 0 4px', fontWeight: 700, fontSize: '0.92rem' }}>
+        Where each stage runs in the demo
+      </p>
+      <p style={{ margin: '0 0 8px', fontSize: '0.82rem', color: '#374151' }}>
+        Every stage of the model maps to numbered demo steps whose attack/defense fires the
+        control — run the step and the stage is on stage.
+      </p>
+      <table style={{ width: '100%', fontSize: '0.78rem', borderCollapse: 'collapse' }}>
+        <thead>
+          <tr>
+            <th style={{ padding: '4px 8px 4px 0', textAlign: 'left' }}>Stage</th>
+            <th style={{ padding: '4px 0', textAlign: 'left' }}>Steps that run it</th>
+          </tr>
+        </thead>
+        <tbody>
+          {STAGE_MAP.map((group) => (
+            <React.Fragment key={group.stage}>
+              <tr>
+                <td colSpan={2} style={{ padding: '8px 0 2px', fontWeight: 700, color: '#0369a1', borderBottom: '1px solid rgba(37,99,235,0.18)' }}>
+                  {group.stage} <span style={{ fontWeight: 400, color: '#6b7280' }}>({group.control})</span>
+                </td>
+              </tr>
+              {group.rows.map((row) => (
+                <tr key={row.uc}>
+                  <td style={{ padding: '3px 8px 3px 12px', whiteSpace: 'nowrap', fontWeight: 700, color: '#0369a1' }} data-stage-uc={row.uc}>
+                    {stepLabel(row.uc)}
+                  </td>
+                  <td style={{ padding: '3px 0', color: '#374151' }}>{row.proves}</td>
+                </tr>
+              ))}
+            </React.Fragment>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
 
 // ─── Small layout helpers ────────────────────────────────────────────────────
 
@@ -467,6 +579,8 @@ const tabs = [
           user delegation, and human-in-the-loop consent before executing sensitive financial operations.
           Here is where you see each maturity level in practice:
         </p>
+
+        <StageMapCard />
 
         <LevelCard level={1} emoji="🌐" title="Not applicable — no public data" color="green">
           <p>
