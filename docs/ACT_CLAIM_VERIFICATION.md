@@ -4,7 +4,7 @@
 
 This document explains how to verify that PingOne is correctly issuing `act` and `may_act` delegation claims in the token exchange flow (RFC 8693).
 
-> ## ✅ Verified status (updated 2026-06-19)
+> ## ✅ Verified status (updated 2026-06-19; act minting re-architected 2026-10-10)
 >
 > - **`may_act` works** via a **resource attribute mapping**. The user record carries a JSON-typed `mayAct` attribute (`{ "sub": "<actor-client-id>" }`) and the resource projects it with `${user.mayAct}`. Confirmed live: user access tokens carry `may_act = { sub: <AI Agent client_id> }`.
 > - **`act` works** — PingOne emits a native `act` claim via a resource attribute. The trick is the **`${…}` wrapper around the official SPEL**; earlier failures were a wrapper bug, not a PingOne limitation. The deployed value (type CUSTOM) is the **null-safe** form (guards against no-actor / no-`may_act` exchanges so the token mint never null-derefs):
@@ -12,9 +12,10 @@ This document explains how to verify that PingOne is correctly issuing `act` and
 >   ${(#root.context.requestData.actorToken != null and #root.context.requestData.subjectToken.may_act != null and #root.context.requestData.subjectToken.may_act.sub == #root.context.requestData.actorToken.client_id) ? #root.context.requestData.subjectToken.may_act : null}
 >   ```
 >   Confirmed live (2026-06-19): exchanging a `may_act`-bearing user token with an actor token whose `client_id == may_act.sub` produced `act = { "sub": "<AI Agent client_id>" }` (a real JSON object) on **both** the `mcpgateway` and `agentgateway` resources. When the actor doesn't match (or there's no actor), the expression returns `null` and the claim is omitted.
+> - **Default mode since 2026-10-10 (may_act re-architecture):** `act` is minted **from the actor token** — the provisioning SpEL (`pingoneProvisionService.actAttributeValue()`, flag `ff_may_act_seed` default OFF) evaluates `${{'sub': #root.context.requestData.actorToken.client_id}}`, so `act` no longer depends on the user's `may_act` at all. `may_act` remains on user tokens as the RFC-sanctioned **consent declaration**, enforced per call by the authorization policy (`MayActSub` bridged from the session; demo_authz_server Rule 2.6 and the P1AZ snapshot's two per-user-consent deny rules). Flag ON restores the legacy may_act-seeded mint above.
 > - **Rollout:** the null-safe `act` SPEL is now deployed on **all three** downstream resources — `mcpgateway`, `mcpserver`, and `agentgateway` (verified via the Management API). `enduser` carries `may_act`, not `act` (correct — it's the first hop).
 > - **Why prior attempts failed (corrected):** `${actor.client_id}` → 400 (wrong reference); `#{…}` wrapper → emitted **literally**; **bare** `(#root…)` (no wrapper) → emitted **literally**; **`${(#root…)}`** → **evaluated** ✅. So the long-standing "act is impossible / SPEL emitted literally" conclusion was a one-character wrapper bug.
-> - **Header bridge status (NOT redundant):** the `X-Act-Client-Id` / `X-May-Act-Sub` headers (`mcpActorBridge.buildActorBridgeHeaders()`) remain a **deliberate fallback**. The gateway **prefers a native token `act`** and falls back to the header on hops/flows where native `act` isn't guaranteed (no-actor exchanges, Exchange-#2, platform-connector mode). `X-May-Act-Sub` additionally carries the per-user `may_act.sub` for the `ENFORCE_MAY_ACT` decision gate — that has no native-claim equivalent. **Do not remove the bridge.**
+> - **Header bridge status (NOT redundant):** the `X-Act-Client-Id` / `X-May-Act-Sub` headers (`mcpActorBridge.buildActorBridgeHeaders()`) remain a **deliberate fallback**. The gateway **prefers a native token `act`** and falls back to the header on hops/flows where native `act` isn't guaranteed (no-actor exchanges, Exchange-#2, platform-connector mode). `X-May-Act-Sub` additionally carries the per-user `may_act.sub` consent for the per-user-consent decision gate (Rule 2.6) — that has no native-claim equivalent. **Do not remove the bridge.**
 
 ## Background
 
@@ -33,8 +34,8 @@ Without these claims, the delegation chain is invisible in audit logs, authoriza
 For the delegation chain you need:
 
 1. **Token Exchange Grant** enabled on the OAuth applications that perform exchanges
-2. **`may_act` resource attribute** that projects each user's `mayAct` declaration into their access token
-3. **`act` resource attribute** (the null-safe `${(#root…)}` SPEL below) on the audience resource — emits native `act` when the actor matches `may_act`. Deployed on `mcpgateway`, `mcpserver`, and `agentgateway`. The **`X-Act-Client-Id` header bridge** remains as a deliberate fallback (see status callout) — not removed.
+2. **`may_act` resource attribute** that projects each user's `mayAct` declaration into their access token (the consent declaration the PDP checks per call)
+3. **`act` resource attribute** on the audience resource — in default mode (`ff_may_act_seed` OFF) minted from the **actor token** (`${{'sub': #root.context.requestData.actorToken.client_id}}`, see `pingoneProvisionService.actAttributeValue()`); in legacy flag-ON mode, the null-safe `${(#root…)}` SPEL below (emits native `act` when the actor matches `may_act`). Deployed on `mcpgateway`, `mcpserver`, and `agentgateway`. The **`X-Act-Client-Id` header bridge** remains as a deliberate fallback (see status callout) — not removed.
 
 ### Configuration Steps
 
@@ -64,7 +65,13 @@ Result: user access tokens carry `may_act = { "sub": "<actor-client-id>" }`.
 
 #### 3. Configure the `act` resource attribute (this works)
 
-Add a CUSTOM attribute named `act` on the **audience resource** (the resource the exchanged token targets — e.g. Agent Gateway for the user→agent hop). The value is the official PingOne "Securing AI Agents" SPEL **wrapped in `${…}`** (the wrapper is what makes PingOne evaluate it), in its **null-safe** form (currently deployed on `mcpgateway`, `mcpserver`, and `agentgateway`):
+Add a CUSTOM attribute named `act` on the **audience resource** (the resource the exchanged token targets — e.g. Agent Gateway for the user→agent hop). **Default mode (`ff_may_act_seed` OFF)** mints `act` from the actor token — the provisioning code sets:
+
+```text
+${{'sub': #root.context.requestData.actorToken.client_id}}
+```
+
+**Legacy flag-ON mode** uses the official PingOne "Securing AI Agents" SPEL **wrapped in `${…}`** (the wrapper is what makes PingOne evaluate it), in its **null-safe** form (currently deployed on `mcpgateway`, `mcpserver`, and `agentgateway`):
 
 ```http
 POST /v1/environments/{envId}/resources/{resourceId}/attributes

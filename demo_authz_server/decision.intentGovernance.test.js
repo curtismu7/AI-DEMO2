@@ -51,6 +51,7 @@ async function decide(extra) {
     // create_transfer is a WRITE tool: earlier rules require a delegated actor
     // and a resolvable owner before Rule 4c is ever reached.
     ActClientId: 'agent-1',
+    MayActSub: 'agent-1',  // Rule 2.6 per-user consent: granted user bridges their own may_act.sub
     ActChainDepth: '1',
     // create_transfer is consent-gated, and the HITL rule returns before Rule 4c.
     // Discharging it here is not a convenience: the consented grant these tests

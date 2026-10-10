@@ -305,10 +305,14 @@ function mcpRpc(agentToken, followMethod, followParams, userSub, correlationId, 
         // server-to-server (loopback); external callers can't spoof it (nor hold the MCP
         // token). The gateway forwards these to the Authorization Server (PingOne Authorize /
         // mock) as ActClientId + MayActSub. Do not remove — not redundant.
+        // Per-user consent signal: opts.userMayActSub (the signed-in user's own
+        // may_act.sub) IS the X-May-Act-Sub value when supplied; '' = no consent,
+        // omit rather than fabricate. Falls back to the static agent id when the
+        // caller doesn't plumb it (legacy behavior). Do not remove — not redundant.
         try {
           wsTlsOpts.headers = {
             ...(wsTlsOpts.headers || {}),
-            ...require('./mcpActorBridge').buildActorBridgeHeaders(),
+            ...require('./mcpActorBridge').buildActorBridgeHeaders({ userMayActSub: opts?.userMayActSub }),
           };
         } catch (_) { /* best-effort header */ }
         // Authorization on the WS UPGRADE: the gateway extracts the Bearer from the

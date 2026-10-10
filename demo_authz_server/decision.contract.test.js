@@ -79,6 +79,10 @@ function baseParams(extra = {}) {
     ToolName: 'get_my_accounts',
     ClientId: 'user-1',
     ActClientId: ACTOR,
+    // Rule 2.6 (per-user consent): a granted user's session bridges
+    // MayActSub = the acting agent. Without it every agent-mediated call below
+    // would deny no_user_consent regardless of the behavior under test.
+    MayActSub: ACTOR,
     // 'read accounts:read' mirrors the real exchange grant (d07f83afc made
     // accounts:read the declared scope; 'read' rides along for back-compat).
     TokenScopes: 'read accounts:read',

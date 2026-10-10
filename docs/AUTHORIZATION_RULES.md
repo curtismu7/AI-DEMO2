@@ -161,7 +161,9 @@ Exchange #2 — MCP Gateway performs:
 
 ### may_act claim rules
 
-The `may_act` claim must be set on the **Demo API** resource token policy using PingOne SpEL.
+`may_act` is the user's **consent declaration** (RFC 8693 §4.2): who the user authorizes to act for them. It lives on user access tokens and is checked by the authorization policy on **every** tool call — it is NOT what mints `act` in default mode (since 2026-10-10, `act` is minted from the actor token; `ff_may_act_seed` ON restores the legacy may_act-seeded mint).
+
+The `may_act` claim is set on the **Demo API** resource token policy using PingOne SpEL.
 
 | Resource | Attribute | SpEL Value |
 |---|---|---|
@@ -245,6 +247,18 @@ The gate evaluates:
 
 After MFA step-up (`acr` looks strong), the consent gate is suppressed — no double-gate.
 
+### Per-user consent enforcement (may_act re-architecture, 2026-10-10)
+
+Agent-mediated tools additionally require the signed-in user's bridged consent to match the acting agent — enforced identically on all three engines:
+
+| Engine | Where | Escape hatch |
+|---|---|---|
+| Mock PDP (demo_authz_server) | `decision.js` Rule 2.6 (`no_user_consent` / `may_act_mismatch` denies) | `REQUIRE_USER_CONSENT=false` |
+| BFF simulated engine | `simulatedAuthorizeService.js` consent guard (same two deny codes) | `REQUIRE_USER_CONSENT=false` |
+| Cloud P1AZ policy | `UserConsentMissing` / `UserConsentMismatch` rules in the MCP Delegation policy | Import a snapshot generated with the rule (no runtime toggle) |
+
+Carve-outs (all engines): A2A-delegated tools (the act chain is their authorization, Rule 1c) and named customer workload agents (`PINGONE_WORKLOAD_AGENT_CLIENT_IDS`, UC38/44 — their own identity authorizes them). The consent value is the session's `may_act.sub`, bridged per call via `X-May-Act-Sub`.
+
 ---
 
 ## 9. Delegation and Delegate User Rules
@@ -302,6 +316,7 @@ These flags are runtime-configurable via `/api/admin/feature-flags`.
 | `ff_authorize_real` | Uses local policy simulation instead of PingOne Authorize |
 | `ff_oidc_only_authorize` | Strips banking scopes from authorize request; disables scope gates (OIDC-only mode) |
 | `ff_inject_may_act` | Synthetically injects `may_act` claim for demo (never use in production) |
+| `ff_may_act_seed` | Legacy mint mode: seeds `act` from the user's `may_act` at exchange. Default OFF — `act` mints from the actor token and consent (may_act) is enforced per call by the policy |
 | `ff_skip_token_exchange` | Bypasses RFC 8693 exchange (demo bypass — never production) |
 
 > **Important:** `GET` and `PATCH /api/admin/feature-flags` are intentionally unauthenticated (demo ergonomics).

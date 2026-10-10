@@ -12,7 +12,7 @@ An agent should only be allowed to act on a user's behalf if that user explicitl
 
 ## PingOne Solution
 
-PingOne seeds the exchanged token's act claim from the user's may_act attribute; the authorization server then evaluates act.sub against the authorized actor before every tool call — no match, no permit.
+PingOne mints the exchanged token's act claim from the actor token — the agent is identified at exchange time; the authorization server then checks the user's consent (may_act) on EVERY tool call: no matching consent, no permit. Revoking the user's agent authorization takes effect without waiting for the delegated token to expire (the revoke forces a silent re-auth, which refreshes the bridged consent). (Legacy mode seeds act from may_act at mint instead — ff_may_act_seed.)
 
 ## How to Run
 
@@ -21,7 +21,7 @@ PingOne seeds the exchanged token's act claim from the user's may_act attribute;
 
 ## What to Say
 
-> The act claim is the gate — no authorized actor, no tool call — may_act only seeds it at mint time.
+> The actor token identifies the agent; PingOne Authorize checks the user's consent (may_act) on every call — revoke and the next call is denied, without waiting for the delegated token to expire.
 
 ## Evidence
 

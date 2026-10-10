@@ -298,6 +298,25 @@ const FLAG_REGISTRY = [
     warnIfEnabled: false,
   },
 
+  {
+    id:           'ff_may_act_seed',
+    name:         'Legacy may_act act-seeding (pre-2026-10 mint mode)',
+    category:     'Agent Security',
+    description:
+      'When **ON**, PingOne seeds the exchanged token\'s `act` claim from the user\'s `may_act` attribute at ' +
+      'mint time (the pre-2026-10 behavior). Default **OFF**: `act` mints from the actor token — the agent ' +
+      'identifies itself with its own credential — and the user\'s `may_act` consent is enforced per call by ' +
+      'the authorization policy (Rule 2.6), so revoking consent does not require a token re-mint to take effect. ' +
+      '**Note:** flipping this flag changes what the PROVISIONING code writes to PingOne resource attributes ' +
+      '(pingoneProvisionService actAttributeValue); already-provisioned tenant resources keep their old SpEL ' +
+      'until re-provisioned.',
+    impact:
+      'OFF (default) = actor-token act minting; consent enforced per call. ' +
+      'ON = may_act seeds act at mint (legacy teaching mode); requires re-provisioning PingOne resources to take effect.',
+    type:         'boolean',
+    defaultValue: false,
+  },
+
   // ── A2A Delegation ──────────────────────────────────────────────────────────
   {
     id:           'ff_personal_agent_concierge',

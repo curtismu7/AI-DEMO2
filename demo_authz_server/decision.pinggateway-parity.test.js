@@ -56,7 +56,7 @@ function groovyParams(extra = {}) {
     ClientId:          'user-1',
     ActClientId:       'agent-1',
     ActChainDepth:     '0',
-    MayActSub:         '',
+    MayActSub:         'agent-1',  // Rule 2.6 per-user consent: granted user bridges their own may_act.sub
     TokenScopes:       'read write transfer',
     TokenAudience:     GATEWAY_AUD,
     TokenAudActual:    GATEWAY_AUD,

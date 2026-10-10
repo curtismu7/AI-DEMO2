@@ -357,8 +357,8 @@ export const DEMO_STEP_GUIDES = Object.fromEntries([
   // Agent Identity & Lifecycle
   ["UC3", "act gate",
     "The chip 'show my balance' runs a delegated balance lookup. The exchanged token carries an act claim, and the authorization server checks act.sub against the authorized actor before the tool call is permitted. The token chain shows the user-token, token-exchange and authorize-decision legs.",
-    "PingOne seeds the act claim from the user's may_act attribute when it mints the token. Authorization never reads may_act directly, so every tool call is gated on act.sub matching the authorized agent.",
-    "Users control which agents can act for them, and the gate is enforced on every call, not just at token mint. Adding or revoking an agent's authorization is a configuration change, not a deployment.",
+    "Token exchange mints act from the agent's own actor token; PingOne Authorize checks the user's may_act consent on every call — no matching consent, no permit. Revoking the user's agent authorization takes effect without waiting for the delegated token to expire (the revoke triggers a silent re-auth).",
+    "Users control which agents can act for them, and consent is enforced on every call — revoke it and calls are denied without waiting for the delegated token's expiry window. (Legacy mode seeds act from may_act at mint — ff_may_act_seed.)",
     "Sign in as a customer and type 'show my balance' (or use the card). Open the Token Chain and Activity panels to show the act claim and the authorize decision. No special setup."],
   ["UC19", "Non-human (agent) identity lifecycle",
     "'show my balance' runs as the live agent identity, so the token exchange succeeds and the token chain shows the exchange. The denial half is manual: retire or rotate the agent app in the PingOne console and run it again, and the exchange fails.",

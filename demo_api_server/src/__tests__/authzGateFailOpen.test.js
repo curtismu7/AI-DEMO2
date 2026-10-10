@@ -185,7 +185,11 @@ describe('MCP first-tool gate — fail-open hardening', () => {
       const args = pingOneAuthorizeService.evaluateMcpToolDelegation.mock.calls[0][0];
       expect(args.tokenScopes).toBeNull();
       expect(args.tokenExp).toBeNull();
-      expect(args.mayActSub).toBeNull();
+      // No session mayAct and no token may_act → undefined, NOT a fabricated
+      // consent value. The simulated engine's per-user consent guard (Rule 2.6
+      // parity) treats undefined as "caller not plumbed — guard inert", so a
+      // legacy caller without consent context keeps pre-consent behavior.
+      expect(args.mayActSub).toBeUndefined();
     });
   });
 

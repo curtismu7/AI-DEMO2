@@ -33,7 +33,7 @@ export const TOUR_STEPS = [
   },
   {
     title: "2-Exchange Delegation — act Claim",
-    body: "The default path runs two exchanges: (1) user token → AI agent token (carrying may_act), then (2) AI agent token → MCP token with a nested act claim. The act claim proves the agent acted on behalf of the user — verifiable by any downstream service.",
+    body: "The default path runs two exchanges: (1) user token → AI agent token, then (2) AI agent token → MCP token with an act claim minted from the agent's own actor token. The act claim proves the agent acted on behalf of the user — and the user's may_act consent is checked on every call, so revoking it takes effect without waiting for the delegated token to expire.",
     action: {
       hint: "Admin sidebar → Learning → Actor Token (Agent) to see the full token flow",
     },
@@ -91,7 +91,7 @@ export const DELEGATION_TOUR_STEPS = [
   },
   {
     title: "Stage 2 — User to AI agent",
-    body: "Maya authorizes the AI agent once (may_act). When it calls a banking tool, the BFF exchanges her token for a delegated agent token carrying act={agent}. The agent cannot exceed the granted scope, and high-value writes still stop for her consent.",
+    body: "The AI agent identifies itself with its own credential — the delegated token carries act={agent}. Maya's may_act consent is checked on every call, so revoking it takes effect without waiting for the delegated token to expire. The agent cannot exceed the granted scope, and high-value writes still stop for her consent.",
     action: {
       label: "Go to the agent",
       route: "/dashboard",

@@ -32,6 +32,7 @@ function baseParams(extra = {}) {
     ToolName: 'create_transfer',
     ClientId: 'user-1',
     ActClientId: 'agent-1',
+    MayActSub: 'agent-1',  // Rule 2.6 per-user consent: granted user bridges their own may_act.sub
     TokenScopes: 'read write transfer',
     TokenAudience: 'test-aud',
     TransactionAmount: '10',

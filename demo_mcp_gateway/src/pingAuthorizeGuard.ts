@@ -193,6 +193,9 @@ export async function guardToolsList(
         // resource-owner DENY on every tools/list.
         TransactionType: '',
         ResourceOwnerId: '',
+        // Discovery has no user-consent context (mock Rule 2.6) — '' says so and
+        // keeps both consent denies inert.
+        MayActSub: '',
         IntentTokenValid: '',
         IntentMatchesTool: '',
         IntentTokenError: '',

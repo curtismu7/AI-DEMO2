@@ -1600,6 +1600,10 @@ const KNOWN_STATEMENT_CODES = new Set([
   // Signing-key deny. Listed so a live decision carrying it does not trip the
   // F8 "unrecognised statement code" warning.
   'mcp-invalid-kid',
+  // Per-user consent denies (mock Rule 2.6, may_act re-architecture 2026-10-10).
+  // Same convention as rar_amount_exceeded: the statement code IS the deny_reason.
+  'no_user_consent',
+  'may_act_mismatch',
 ]);
 
 /**

@@ -47,6 +47,23 @@ function resolveAuditUserId(req, userSub) {
 }
 
 /**
+ * The signed-in user's OWN may_act.sub — the per-user consent signal the actor
+ * bridge forwards as X-May-Act-Sub (may_act re-architecture, Task 2). Read from
+ * the session (stored at login from the user token's may_act, refreshed on
+ * /refresh). `''` = no consent (never granted / revoked) — the bridge omits the
+ * header rather than fabricating one. `undefined` (no session / non-user path)
+ * keeps the legacy static bridging in mcpActorBridge.
+ */
+function _sessionMayActSub(req) {
+  if (!req?.session) return undefined;
+  // A session that has logged in has the key (null when not granted); a
+  // service-to-service path has no session at all.
+  if (!('mayAct' in req.session)) return undefined;
+  const mayAct = req.session.mayAct;
+  return (mayAct && mayAct.sub) || '';
+}
+
+/**
  * The Transaction/Amount secondary decision is a real live PingOne
  * Transaction-endpoint decision (`source: 'transaction-policy'`). The local
  * amount-ladder that used to synthesize one when that endpoint was unreachable
@@ -1058,6 +1075,7 @@ async function runMcpToolPipeline(ctx) {
                     vertical: sessionVertical,
                     useCaseId: ctx.useCaseId,
                     rpcMethod: 'tools/list',
+                    userMayActSub: _sessionMayActSub(req),
                 });
                 // Real protocol evidence the gateway produced on this leg: the
                 // initialize handshake it performed upstream before answering
@@ -1185,7 +1203,7 @@ async function runMcpToolPipeline(ctx) {
                 const _dbgClaims = decodeJwt(mcpAccessToken)?.claims || {};
                 console.warn(`[mcpToolPipeline][triage] tool=${tool} gatewayUrl=${gatewayHttpUrl} aud=${JSON.stringify(_dbgClaims.aud)} scope="${_dbgClaims.scope || ''}" act=${JSON.stringify(_dbgClaims.act || null)}`);
             } catch (_) { /* diagnostics only */ }
-            ({ result, gwAuditTrail, gwMcpHandshake } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId, userGroups: gatewayUserGroups, pinNodeGateway: a2aPinnedNodeGateway, workloadActorClientId: req.workloadAgentRuntime?.clientId || null }));
+            ({ result, gwAuditTrail, gwMcpHandshake } = await deps.callToolViaGateway(gatewayHttpUrl, mcpAccessToken, tool, params || {}, { correlationId: req.correlationId, vertical: sessionVertical, useCaseId: ctx.useCaseId, tratContextHeader, intentToken: req.intentToken || null, dpopKey: _dpopKey, testActClientId: req.body?._testActClientId, userGroups: gatewayUserGroups, pinNodeGateway: a2aPinnedNodeGateway, workloadActorClientId: req.workloadAgentRuntime?.clientId || null, userMayActSub: _sessionMayActSub(req) }));
         } else if (useHttp2) {
             const h2Session = deps.http2Bridge.createHttp2Session(mcpUrl, mcpAccessToken);
             result = await deps.http2Bridge.forwardToolCall(h2Session, tool, params || {}, mcpAccessToken, userSub, req.correlationId);
@@ -1195,7 +1213,7 @@ async function runMcpToolPipeline(ctx) {
             // notifications/initialized, then tools/call — and only the last
             // was ever surfaced.
             const mcpFrames = {};
-            result = await deps.mcpCallTool(tool, params || {}, mcpAccessToken, userSub, req.correlationId, { emit: deps.emit, frameSink: mcpFrames });
+            result = await deps.mcpCallTool(tool, params || {}, mcpAccessToken, userSub, req.correlationId, { emit: deps.emit, frameSink: mcpFrames, userMayActSub: _sessionMayActSub(req) });
             // The GATEWAY performed the MCP lifecycle upstream on this path — the
             // BFF speaks JSON-RPC over HTTP to the gateway and is not the MCP
             // client — so these events come off its X-Gw-Mcp-Handshake header
