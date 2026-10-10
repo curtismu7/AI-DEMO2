@@ -1,0 +1,239 @@
+/* demo_api_ui/src/pages/HostileMcpCatalogTab.css — tokens only, no literals. */
+.hmc {
+  --hmc-yes: var(--success, #1a7f37);
+  --hmc-no: var(--danger, #b42318);
+  --hmc-partly: var(--warning, #b54708);
+  color: var(--text-primary);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4, 16px);
+  padding: var(--space-4, 16px);
+  max-width: 980px;
+  margin: 0 auto;
+}
+
+.hmc-head h2 {
+  margin: 0 0 var(--space-2, 8px);
+  font-size: var(--font-size-2xl);
+}
+
+.hmc-lede {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.hmc-lede code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+}
+
+.hmc-see-live {
+  margin: var(--space-2, 8px) 0 0;
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+}
+
+.hmc-see-live a {
+  color: var(--accent);
+}
+
+.hmc-filters {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2, 8px);
+}
+
+.hmc-chip {
+  border: 1px solid var(--border-primary);
+  background: var(--bg-secondary);
+  color: var(--text-secondary);
+  border-radius: 999px;
+  padding: 4px 12px;
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.hmc-chip.hmc-on {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--text-on-accent, #fff);
+}
+
+.hmc-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2, 8px);
+}
+
+.hmc-card {
+  border: 1px solid var(--border-primary);
+  border-radius: 10px;
+  background: var(--bg-primary);
+  overflow: hidden;
+}
+
+.hmc-card-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 12px);
+  width: 100%;
+  padding: 10px 14px;
+  background: transparent;
+  border: 0;
+  cursor: pointer;
+  text-align: left;
+}
+
+.hmc-tool {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  color: var(--text-primary);
+  min-width: 220px;
+}
+
+.hmc-attack {
+  flex: 1;
+  font-weight: 600;
+}
+
+.hmc-kind {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  padding: 2px 8px;
+  border-radius: 4px;
+  border: 1px solid var(--border-primary);
+  color: var(--text-secondary);
+}
+
+.hmc-kind-metadata { color: var(--hmc-no); }
+.hmc-kind-dynamic { color: var(--hmc-partly); }
+.hmc-kind-action { color: var(--text-primary); }
+.hmc-kind-resource,
+.hmc-kind-prompt { color: var(--hmc-partly); }
+
+.hmc-card-body {
+  padding: 0 14px 14px;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-3, 12px);
+}
+
+.hmc-summary {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.5;
+}
+
+.hmc-poison-label,
+.hmc-findings-label {
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  margin-bottom: 4px;
+}
+
+.hmc-poison-text {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-sm);
+  background: var(--bg-secondary);
+  border: 1px solid var(--border-primary);
+  border-left: 3px solid var(--hmc-no);
+  border-radius: 6px;
+  padding: 8px 10px;
+  margin: 0 0 6px;
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.hmc-poison-text.hmc-sink {
+  border-left-color: var(--hmc-partly);
+}
+
+.hmc-findings ul {
+  margin: 4px 0 0;
+  padding-left: 18px;
+  font-size: var(--font-size-sm);
+}
+
+.hmc-findings-empty {
+  font-size: var(--font-size-sm);
+  color: var(--text-secondary);
+  font-style: italic;
+}
+
+.hmc-measured {
+  font-size: var(--font-size-sm);
+  border-left: 3px solid var(--accent);
+  padding: 6px 10px;
+  background: var(--bg-secondary);
+  border-radius: 6px;
+}
+
+.hmc-defense {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--font-size-sm);
+}
+
+.hmc-defense th {
+  text-align: left;
+  padding: 6px 8px;
+  border-bottom: 1px solid var(--border-primary);
+  font-size: 0.72rem;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-secondary);
+  width: 22%;
+}
+
+.hmc-defense th:last-child,
+.hmc-defense td:last-child { width: 34%; }
+
+.hmc-defense td {
+  vertical-align: top;
+  padding: 8px;
+  border-bottom: 1px solid var(--border-primary);
+  line-height: 1.45;
+}
+
+.hmc-defense tr:last-child td { border-bottom: 0; }
+
+.hmc-yes { color: var(--hmc-yes); }
+.hmc-no { color: var(--hmc-no); }
+.hmc-partly { color: var(--hmc-partly); }
+.hmc-gap { color: var(--text-secondary); font-style: italic; }
+
+.hmc-foot {
+  border-top: 1px solid var(--border-primary);
+  padding-top: var(--space-3, 12px);
+}
+
+.hmc-foot h3 {
+  margin: 0 0 6px;
+  font-size: var(--font-size-base);
+}
+
+.hmc-foot p {
+  margin: 0;
+  color: var(--text-secondary);
+  line-height: 1.55;
+}
+
+.hmc-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+}
+
+@media (max-width: 720px) {
+  .hmc-tool { min-width: 0; }
+  .hmc-card-head { flex-wrap: wrap; }
+  .hmc-defense th,
+  .hmc-defense td { display: block; width: 100% !important; }
+}
