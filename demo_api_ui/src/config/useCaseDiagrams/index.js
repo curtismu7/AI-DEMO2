@@ -7,6 +7,7 @@ import UC1 from "./UC1";
 import UC7 from "./UC7";
 import UC6 from "./UC6";
 import UC24 from "./UC24";
+import UC23 from "./UC23";
 import UC8 from "./UC8";
 import UC14b from "./UC14b";
 import UC14 from "./UC14";
@@ -14,6 +15,7 @@ import UC12 from "./UC12";
 import UC2 from "./UC2";
 import UC2_5 from "./UC2.5";
 import UC2_7 from "./UC2.7";
+import UC3 from "./UC3";
 import UC22 from "./UC22";
 import UC5 from "./UC5";
 import UC10 from "./UC10";
@@ -21,22 +23,33 @@ import UC13 from "./UC13";
 import UC11 from "./UC11";
 import UC20 from "./UC20";
 import UC18 from "./UC18";
+import UC17 from "./UC17";
 import UC29 from "./UC29";
 import UC30 from "./UC30";
 import UC31 from "./UC31";
 import UC32 from "./UC32";
 import UC40 from "./UC40";
 import UC38 from "./UC38";
+import UC43 from "./UC43";
 import UC_TOOL1 from "./UC-TOOL1";
+import UC44 from "./UC44";
 import UC46 from "./UC46";
 import UC47 from "./UC47";
 import UC_MUSE1 from "./UC-MUSE1";
 import UC_MUSE2 from "./UC-MUSE2";
+import UC_LEARN11 from "./UC-LEARN11";
+import UC16b from "./UC16b";
+import UC_LOGIN from "./UC-LOGIN";
+import UC37 from "./UC37";
+import UC_NHI1 from "./UC-NHI1";
+import UC_NHI2 from "./UC-NHI2";
+import UC_LEARN15 from "./UC-LEARN15";
 
 export const CONFIGS = [
-  UC1, UC7, UC6, UC24, UC8, UC14b, UC14, UC12, UC2, UC2_5, UC2_7, UC22,
-  UC5, UC10, UC13, UC11, UC20, UC18, UC29, UC30, UC31, UC32, UC40, UC38,
-  UC_TOOL1, UC46, UC47, UC_MUSE1, UC_MUSE2,
+  UC1, UC7, UC6, UC24, UC23, UC8, UC14b, UC14, UC12, UC2, UC2_5, UC2_7, UC3, UC22,
+  UC5, UC10, UC13, UC11, UC20, UC18, UC17, UC29, UC30, UC31, UC32, UC40, UC38,
+  UC_TOOL1, UC43, UC44, UC46, UC47, UC_MUSE1, UC_MUSE2, UC_NHI1, UC_NHI2, UC_LEARN11, UC_LEARN15, UC37, UC16b,
+  UC_LOGIN,
 ];
 
 export function getConfig(id) {

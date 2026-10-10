@@ -5,6 +5,7 @@
 // cap unless it is one.
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import LlmGatewayPage from "../LlmGatewayPage";
+import { MemoryRouter } from "react-router-dom";
 import { GUARDRAIL_ATTACKS } from "../../config/guardrailAttackCatalog";
 
 const CONFIG = {
@@ -97,7 +98,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
 
     it("fires only chat attacks and links tool/A2A entries to their own runners", async () => {
       const state = mockRunAll();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       runAll();
@@ -118,7 +119,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
 
     it("scores each row by what came back, with no flag when it matches the catalog", async () => {
       mockRunAll();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       runAll();
@@ -141,7 +142,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
     it("flags a row that disagrees with the catalog, and still runs the rest", async () => {
       const injection = GUARDRAIL_ATTACKS.find((a) => a.id === "prompt_injection");
       mockRunAll({ guarded: (p) => (p === injection.payload ? OK("Sure.") : faithful(p)) });
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       runAll();
@@ -156,7 +157,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
 
     it("previews only the first line of an unguarded reply until it is clicked", async () => {
       mockRunAll({ unguarded: () => OK("First line of the answer.\nimport os  # the rest of it") });
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       runAll();
@@ -186,7 +187,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
         }
         return new Promise(() => {});
       });
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       runAll();
@@ -201,7 +202,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
 
     it("can't be started without a llama.cpp lane to compare against", async () => {
       mockRunAll({ config: CONFIG });
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(screen.getByRole("button", { name: /run all chat attacks/i })).toBeDisabled();
@@ -211,7 +212,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
     // must not relabel a health check as a lane that was never tested.
     it("keeps the scorecard labelled with the lane the run went through after a lane switch", async () => {
       mockRunAll();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       runAll();
@@ -239,7 +240,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
         }
         return new Promise(() => {});
       });
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       runAll();
@@ -255,7 +256,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
 
     it("tells the user to enter a prompt instead of silently doing nothing", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
@@ -266,7 +267,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
 
     it("clears the message once the user types something", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
@@ -290,7 +291,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
           latencyMs: 50, reachedProvider: false,
         }),
       }));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attack.id } });
@@ -310,7 +311,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
           latencyMs: 50, reachedProvider: false,
         }),
       }));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await ask("something I typed myself");
 
       const note = await screen.findByTestId("lgw-denial-explanation");
@@ -328,14 +329,14 @@ describe("LLM Gateway console - attack runs and model picker", () => {
           latencyMs: 300, reachedProvider: true,
         }),
       }));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await ask("capital of France?");
       await screen.findByTestId("lgw-decision");
     }
 
     it("has no toggle before a decision exists", async () => {
       mockFetch(() => new Promise(() => {}));
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await screen.findByText("/llm/anthropic/v1/messages");
 
       expect(screen.queryByRole("button", { name: /^json$/i })).not.toBeInTheDocument();
@@ -397,7 +398,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
         return new Promise(() => {});
       });
 
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await ask("capital of France?");
       await screen.findByText("Paris.");
 
@@ -461,7 +462,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
 
     it("sends no model at all when the default option is left selected", async () => {
       mockWithCatalog();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       await picker();
       await ask("capital of France?");
       await screen.findByText("Paris.");
@@ -471,7 +472,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
 
     it("sends the picked model, and names it on the decision", async () => {
       mockWithCatalog();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       fireEvent.change(await picker(), { target: { value: "claude-opus-5" } });
       await ask("capital of France?");
       await screen.findByText("Paris.");
@@ -485,7 +486,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
     // only demonstrate calls that succeed, which is the opposite of the point.
     it("offers the whole catalog, with the default as the empty option", async () => {
       mockWithCatalog();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       const el = await picker();
 
       expect([...el.options].map((o) => o.value))
@@ -499,7 +500,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
     // provider error dressed up as the policy denial the demo is trying to show.
     it("does not carry one lane's model over to another", async () => {
       mockWithCatalog();
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
       fireEvent.change(await picker(), { target: { value: "claude-opus-5" } });
       fireEvent.click(screen.getByRole("button", { name: /google/i }));
 
@@ -515,7 +516,7 @@ describe("LLM Gateway console - attack runs and model picker", () => {
     // list is missing instead.
     it("says so when the catalog cannot be read, and still sends the default", async () => {
       mockWithCatalog(null);
-      render(<LlmGatewayPage />);
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
 
       expect(await screen.findByText(/model list could not be read/i)).toBeInTheDocument();
       expect(screen.getByLabelText(/model/i).options).toHaveLength(1);

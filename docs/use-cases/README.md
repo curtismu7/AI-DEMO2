@@ -63,7 +63,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC16** — Impersonation blocked (OBO required)](./impersonation-blocked.md) ✅ 🛡️
 - [**UC16b** — Raw user-token forwarding blocked (Zero Trust)](./raw-user-token-forwarding-blocked.md) ✅ 🛡️
 - [**UC18** — Rate-limit / resource-overload defense](./rate-limit-defense.md) ✅ 🛡️
-- [**UC29** — OAuth introspection outage — fail closed](./oauth-fail-closed.md) 🏗️ 🛡️
+- [**UC29** — Token-validation outage — fail closed](./oauth-fail-closed.md) ✅ 🛡️
 
 ## Hitl
 
@@ -104,3 +104,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC-LEARN14** — CIBA human approval — PingFederate or PingOne, by how you signed in](./ciba-by-signed-in-provider.md) ✅
 - [**UC-LEARN15** — Jev decision model — System One vs System Two](./jev-decision-model.md) ✅ 🛡️
 - [**UC-LEARN11** — Privilege LLM — prompt injection blocked](./privilege-llm-prompt-injection.md) ✅ 🛡️
+- [**UC-LEARN16** — MFA Test — FIDO2 passkey ceremony](./mfa-test-harness.md) ✅
+- [**UC-LEARN17** — OAuth Debug — live token flow log](./oauth-debug-logs.md) ✅
+- [**UC-LEARN18** — LLM Test — raw provider chat](./llm-test-harness.md) ✅
+- [**UC-LEARN19** — Intent Inspector — PAR/RAR payloads](./intent-inspector-tool.md) ✅

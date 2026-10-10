@@ -1,7 +1,9 @@
 import React from "react";
+import { Link } from "react-router-dom";
 import DiagramStepBar from "./DiagramStepBar";
 import StaticFlowDiagram from "./StaticFlowDiagram";
 import { useDiagramStepper } from "../hooks/useDiagramStepper";
+import { getConfig, useCaseDiagramPath } from "../config/useCaseDiagrams";
 import "./DemoStepsLifelineAuditPage.css";
 
 // Static audit report (read from code on main @ 1a84b4f, 13 Sep 2026). Backticks in strings render as <code>.
@@ -107,6 +109,10 @@ export default function DemoStepsLifelineAuditPage() {
           <span>Re-checked 9 Oct 2026 — discovery + 401 dance rework</span>
           <span>Nothing run live</span>
         </div>
+        <p className="dsla-note">
+          Audited before UC29, UC46, UC47, UC-MUSE1 and UC-MUSE2 joined the demo script —
+          those steps are on the <Link to="/use-case-diagrams">use-case diagrams</Link> but not in this board.
+        </p>
         <div className="dsla-lanes" aria-label="Diagram lanes referenced in this audit">
           {LANES.map((l) => <span key={l} className={`dsla-lane dsla-lane--${l}`}>{l.toUpperCase()}</span>)}
         </div>
@@ -190,7 +196,13 @@ export default function DemoStepsLifelineAuditPage() {
             <tbody>
               {STEPS.map(([id, name, runs, reach, ok, gap, basis], i) => (
                 <tr key={id} className={now(i).trim() || undefined}>
-                  <td className="dsla-step"><span className="dsla-id">{id}</span><span>{name}</span></td>
+                  <td className="dsla-step">
+                    <span className="dsla-id">{id}</span><span>{name}</span>
+                    <span className="dsla-step-links">
+                      {getConfig(id) && <Link to={useCaseDiagramPath(id)}>diagram</Link>}
+                      <Link to={`/use-cases#${id}`}>live step</Link>
+                    </span>
+                  </td>
                   <td className="dsla-runs">{runs}</td>
                   <td className="dsla-state">
                     <span className={`dsla-pill dsla-pill--${reach}`}>{REACH[reach]}</span>

@@ -8,6 +8,7 @@ import LearningHubAgent from "./LearningHubAgent";
 import LearningHubDocuments from "./LearningHubDocuments";
 import { useThemeOptional } from "../context/ThemeContext";
 import { demoStepLabel } from "../config/demoStepNumbers";
+import { getConfig, useCaseDiagramPath } from "../config/useCaseDiagrams";
 import "./LearningHub.css";
 
 interface LearningCategory {
@@ -178,6 +179,8 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Introspection (RFC 7662)",
         description: "Validate and inspect token contents",
         icon: "🔍",
+        // UC29 fails the token validation CLOSED (the live validation outage);
+        // it is the closest live evidence for token validation.
         demoStep: { useCaseId: "UC29" },
       },
       {
@@ -202,6 +205,8 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "JWT Client Auth (RFC 7523)",
         description: "Secure client authentication with JWTs",
         icon: "💳",
+        // No dedicated private_key_jwt run exists; UC22 (CIBA) is where the
+        // demo exercises signed client assertions. Primary action is the lab.
         demoStep: { useCaseId: "UC22" },
       },
       {
@@ -287,7 +292,9 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Agent Kill Switch",
         description: "Session-scoped revocation, active-run audit trail, and what's a concept vs. shipped",
         icon: "⚠️",
-        demoStep: { useCaseId: "UC-NHI1" },
+        // UC-NHI2 is the lifecycle/revocation export — the closest live
+        // evidence for kill-switch behavior. UC-NHI1 is inventory only.
+        demoStep: { useCaseId: "UC-NHI2" },
       },
       {
         label: "Shadow AI Detector",
@@ -334,7 +341,9 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Privilege for AI — MCP",
         description: "Protect MCP discovery, tools, resources, and invocations",
         icon: "🛠",
-        demoStep: { useCaseId: "UC13" },
+        // UC17 = JIT/ephemeral credentials, the MCP-privilege live run; UC13 is
+        // the confused-deputy attack, a different story.
+        demoStep: { useCaseId: "UC17" },
       },
     ],
   },
@@ -519,19 +528,16 @@ export default function LearningHub() {
         window.dispatchEvent(
           new CustomEvent("education-open-ciba", { detail: { tab: "what" } }),
         ),
-      "Token Exchange (RFC 8693)": () => openEdu(EDU.TOKEN_EXCHANGE, "why"),
+      "Token Exchange (RFC 8693)": () => navigate("/architecture/token-flow"),
       "may_act / act claims": () => openEdu(EDU.MAY_ACT, "what"),
-      "Actor Token (Agent)": () => openEdu(EDU.TOKEN_FLOW, "diagram"),
+      "Actor Token (Agent)": () => navigate("/architecture/token-chain"),
       "Step-up MFA": () => navigate(`/learning-lab/${LESSON_REGISTRY["Step-up MFA"].lab}`),
       "Introspection (RFC 7662)": () => openEdu(EDU.INTROSPECTION, "why"),
       "PingOne Authorize": () => openEdu(EDU.PINGONE_AUTHORIZE, "what"),
       "PAR (RFC 9126)": () => navigate(`/learning-lab/${LESSON_REGISTRY["PAR (RFC 9126)"].lab}`),
       "RAR (RFC 9396)": () => navigate(`/learning-lab/${LESSON_REGISTRY["RAR (RFC 9396)"].lab}`),
       "JWT Client Auth (RFC 7523)": () => navigate(`/learning-lab/${LESSON_REGISTRY["JWT Client Auth (RFC 7523)"].lab}`),
-      "OAuth: CIMD": () =>
-        window.dispatchEvent(
-          new CustomEvent("education-open-cimd", { detail: { tab: "what" } }),
-        ),
+      "OAuth: CIMD": () => navigate("/cimd-privilege"),
     },
     "mcp-agents": {
       "MCP Protocol": () => openEdu(EDU.MCP_PROTOCOL, "what"),
@@ -540,9 +546,9 @@ export default function LearningHub() {
       "MCP Server Discovery": () => openEdu(EDU.MCP_PROTOCOL, "discovery"),
       "MCP: MFA Gate on Tools": () => openEdu(EDU.MCP_PROTOCOL, "mfa-gate"),
       "MCP Elicitation": () => openEdu(EDU.MCP_ELICITATION, "what"),
-      "Agent Gateway": () => openEdu(EDU.AGENT_GATEWAY, "overview"),
+      "Agent Gateway": () => navigate("/agent-gateway-authorization"),
       "Agent Gateway Authorization": () => navigate("/agent-gateway-authorization"),
-      "Computer Use Agent (CUA)": () => openEdu(EDU.CUA, "what"),
+      "Computer Use Agent (CUA)": () => navigate("/personal-agent-design"),
       "Human-in-the-loop": () => openEdu(EDU.HUMAN_IN_LOOP, "what"),
       "PingOne Agent Gateway Security": () =>
         openEdu(EDU.PINGGATEWAY_MCP, "overview"),
@@ -553,7 +559,7 @@ export default function LearningHub() {
     },
     "ping-ai-products": {
       "Agent IAM Core": () => navigate("/ai-products/core"),
-      "Agent Gateway": () => navigate("/ai-products/gateway"),
+      "Agent Gateway": () => navigate("/privilege-mcp-diagrams"),
       "PingOne Authorize": () => navigate("/ai-products/authorize"),
       "Privilege for AI — LLM": () => navigate("/ai-products/privilege-llm"),
       "Privilege for AI — A2A": () => navigate("/ai-products/privilege-a2a"),
@@ -566,17 +572,14 @@ export default function LearningHub() {
       "IETF Standards: Agentic": () => openEdu(EDU.IETF_STANDARDS, "overview"),
       "SPIFFE / SVID Workload Identity": () => openEdu(EDU.SPIFFE, "what"),
       "ID-JAG / Cross-App Access": () => openEdu(EDU.ID_JAG, "overview"),
-      "Architecture Diagram": () =>
-        openEdu(EDU.ARCHITECTURE_DIAGRAM, "context"),
-      "Token Chain (edu)": () => openEdu(EDU.TOKEN_CHAIN, "overview"),
+      "Architecture Diagram": () => navigate("/architecture/system"),
+      "Token Chain (edu)": () => navigate("/architecture/token-chain"),
       "Sensitive Data & Disclosure": () =>
         openEdu(EDU.SENSITIVE_DATA, "least-data"),
-      "Gateway vs P1AZ Decision Split": () =>
-        openEdu(EDU.GATEWAY_POLICY_SPLIT, "overview"),
+      "Gateway vs P1AZ Decision Split": () => navigate("/gateway-enforcement-map"),
     },
     "project-reference": {
-      "Server Capabilities": () =>
-        openEdu(EDU.SERVER_CAPABILITIES, "map"),
+      "Server Capabilities": () => navigate("/architecture/server-topology"),
       "Agent Tech Comparison": () =>
         openEdu(EDU.AGENT_TECH_COMPARISON, "glance"),
     },
@@ -790,13 +793,24 @@ export default function LearningHub() {
                         </p>
                       )}
                       {item.demoStep && (
-                        <Link
-                          className="learning-hub__card-step"
-                          to={`/use-cases#${item.demoStep.useCaseId}`}
-                          onClick={(e) => e.stopPropagation()}
-                        >
-                          Demo step {item.demoStep.number ?? demoStepLabel(item.demoStep.useCaseId) ?? item.demoStep.useCaseId} · /use-cases
-                        </Link>
+                        <span className="learning-hub__card-links">
+                          <Link
+                            className="learning-hub__card-step"
+                            to={`/use-cases#${item.demoStep.useCaseId}`}
+                            onClick={(e) => e.stopPropagation()}
+                          >
+                            Demo step {item.demoStep.number ?? demoStepLabel(item.demoStep.useCaseId) ?? item.demoStep.useCaseId} · /use-cases
+                          </Link>
+                          {getConfig(item.demoStep.useCaseId) && (
+                            <Link
+                              className="learning-hub__card-diagram"
+                              to={useCaseDiagramPath(item.demoStep.useCaseId)}
+                              onClick={(e) => e.stopPropagation()}
+                            >
+                              Diagram ↗
+                            </Link>
+                          )}
+                        </span>
                       )}
                     </div>
                   </button>

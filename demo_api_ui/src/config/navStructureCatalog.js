@@ -67,7 +67,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Transaction Trace", "MCP Observability", "Grafana",
   ] },
   { label: "Diagrams", children: [
-    "All Diagrams", "Server Topology (Interactive)", "PingFederate ID-JAG (Node)",
+    "Demo Map", "All Diagrams", "Server Topology (Interactive)", "PingFederate ID-JAG (Node)",
     "System Diagram (Node)", "Overview Diagram (Node)", "Token Flow (Interactive) (Node)",
     "Token Chain Architecture (Node)", "Interactive Flow (Node)", "Sequence Diagram (Node)", "Canvas Diagram (Node)",
     "Delegated Access Proof", "Demo Steps Lifeline Audit",

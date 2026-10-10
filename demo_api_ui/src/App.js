@@ -33,6 +33,7 @@ import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
 import DemoArchSlidesPage from "./components/DemoArchSlidesPage";
 import DemoStepsLifelineAuditPage from "./components/DemoStepsLifelineAuditPage";
+import DemoMapPage from "./components/DemoMapPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
@@ -2180,6 +2181,10 @@ function AppWithAuth() {
                             <Route
                               path="/demo-steps-lifeline-audit"
                               element={<DemoStepsLifelineAuditPage />}
+                            />
+                            <Route
+                              path="/demo-map"
+                              element={<DemoMapPage />}
                             />
                             <Route
                               path="/gateway-enforcement-map"

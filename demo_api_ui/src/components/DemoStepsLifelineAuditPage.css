@@ -38,6 +38,11 @@
 }
 .dsla-lede { font-size: var(--font-size-md); }
 .dsla-meta { display: flex; flex-wrap: wrap; gap: 6px 20px; font-size: var(--font-size-sm); color: var(--th-text-muted); }
+.dsla-note { font-size: var(--font-size-sm); color: var(--th-text-muted); }
+.dsla-step-links { display: flex; gap: 10px; margin-top: 2px; font-size: 11.5px; }
+.dsla-step-links a { color: var(--th-status-info); text-decoration: none; }
+.dsla-step-links a:hover { text-decoration: underline; }
+.dsla-step-links a:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
 .dsla-lanes { display: flex; flex-wrap: wrap; gap: 6px; }
 .dsla-lane {
   padding: 1px 9px;

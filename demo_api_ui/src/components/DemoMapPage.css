@@ -1,0 +1,131 @@
+.demo-map {
+  max-width: 1180px;
+  margin: 0 auto;
+  padding: 24px 16px 64px;
+}
+
+.demo-map__eyebrow {
+  font-size: 11px;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.demo-map__header h1 {
+  margin: 6px 0 8px;
+}
+
+.demo-map__lede {
+  color: var(--th-text-body);
+  max-width: 70ch;
+}
+
+.demo-map__legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin-top: 12px;
+  font-size: 12px;
+  color: var(--th-text-muted);
+}
+
+.demo-map__legend b {
+  color: var(--th-text);
+}
+
+.demo-map__grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
+  gap: 14px;
+  margin-top: 20px;
+}
+
+.demo-map__group {
+  border: 1px solid var(--th-border);
+  border-radius: 12px;
+  padding: 14px;
+  background: var(--th-bg-card);
+}
+
+.demo-map__group-title {
+  display: flex;
+  align-items: baseline;
+  gap: 10px;
+  margin: 0 0 4px;
+  font-size: 15px;
+}
+
+.demo-map__product {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--th-text-muted);
+}
+
+.demo-map__group-desc {
+  margin: 0 0 10px;
+  font-size: 12.5px;
+  color: var(--th-text-body);
+}
+
+.demo-map__row {
+  display: grid;
+  grid-template-columns: 92px 1fr;
+  gap: 8px;
+  padding: 6px 0;
+  border-top: 1px solid var(--th-border);
+  font-size: 12.5px;
+}
+
+.demo-map__row-label {
+  color: var(--th-text-muted);
+  text-transform: uppercase;
+  font-size: 10.5px;
+  letter-spacing: 0.08em;
+  padding-top: 2px;
+}
+
+.demo-map__row-value {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 14px;
+}
+
+.demo-map__row-value a {
+  color: var(--th-status-info-text);
+  text-decoration: none;
+}
+
+.demo-map__row-value a:hover {
+  text-decoration: underline;
+}
+
+.demo-map__row-value a:focus-visible,
+.demo-map__step a:focus-visible {
+  outline: 2px solid var(--th-status-info);
+  outline-offset: 2px;
+}
+
+.demo-map__step {
+  display: inline-flex;
+  align-items: baseline;
+  gap: 5px;
+}
+
+.demo-map__step-num {
+  color: var(--th-status-info);
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+}
+
+.demo-map__step-diagram {
+  font-size: 11px;
+}
+
+.demo-map__planned {
+  margin-top: 24px;
+  border-top: 1px solid var(--th-border);
+  padding-top: 12px;
+  color: var(--th-text-muted);
+  font-size: 13px;
+}

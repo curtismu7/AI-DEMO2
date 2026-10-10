@@ -208,7 +208,9 @@ export const lessonCatalog = Object.freeze([
     category: "Consumer delegation",
     route: "/academy/multi-party-delegation/guided",
     standaloneRoute: "/academy/multi-party-delegation/standalone",
-    run: { action: "multi-party-delegation", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    // Observed through the live Authorize policy surface: its decision inputs
+    // are what distinguish consumer, delegate, and agent at runtime.
+    run: { action: "authorize-decision", exposesRawBearerToken: false, result: REDACTED_RESULT },
     evidence: { events: ["consumer", "delegate", "agent", "delegation", "policy", "approval", "outcome"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded multi-party delegation trace" },
     maturityStages: [MATURITY_STAGES.AUTHENTICATE, MATURITY_STAGES.AUTHORIZE, MATURITY_STAGES.GOVERN],
@@ -509,7 +511,9 @@ export const lessonCatalog = Object.freeze([
     category: "AI safety",
     route: "/use-cases/live",
     standaloneRoute: "/use-cases/live",
-    run: { action: "threat-defense", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    // Observed through the token-chain audit: it records which control
+    // stopped each request — this lesson's "stop and explain" beat.
+    run: { action: "audit-evidence", exposesRawBearerToken: false, result: REDACTED_RESULT },
     evidence: { events: ["malicious-input", "detection", "policy-deny"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.SIMULATED, label: "Simulated attack trace" },
     maturityStages: [MATURITY_STAGES.DISCOVER, MATURITY_STAGES.AUTHORIZE, MATURITY_STAGES.GOVERN],
