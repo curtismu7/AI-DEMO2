@@ -28,9 +28,27 @@ const TYPE_LABELS = {
 
 const TABS = [
   { key: 'scopes', label: 'Scopes' },
+  { key: 'identity', label: 'Identity' },
   { key: 'lifecycle', label: 'Lifecycle' },
   { key: 'raw', label: 'Raw' },
 ];
+
+/**
+ * The demo SPIFFE/SVID shape, from the bridge page's simulation
+ * (services/tokenChainTrace/spiffeBridgeSimulation.js — same spiffeId the
+ * bridge page shows being minted and verified). The SPIRE stack is opt-in
+ * (docker-compose profile "spiffe") and usually not running, so this card is
+ * the bridge simulation's identity, labeled as such — never a live attestation.
+ */
+const DEMO_SVID = {
+  spiffeId: 'spiffe://demo.local/ns/orders/sa/worker',
+  trustDomain: 'demo.local',
+  namespace: 'orders',
+  serviceAccount: 'worker',
+  parent: 'spiffe://demo.local/ns/spire/agent',
+  format: 'JWT-SVID',
+  ttl: '5 minutes',
+};
 
 export default function AgentRegistryPage() {
   const [registry, setRegistry] = useState(null);
@@ -183,6 +201,51 @@ export default function AgentRegistryPage() {
               <div>{(selected.expectedScopes || []).join(', ') || 'none declared'}</div>
             </div>
           </div>
+        )}
+
+        {selected && tab === 'identity' && (
+          selected.identityType === 'workload' && selected.source === 'demo-registry' ? (
+            <div data-testid="svid-card">
+              <p style={{ margin: '0 0 8px', fontWeight: 700 }}>SPIFFE workload identity</p>
+              <div className="inspector-shell-field">
+                <label>SPIFFE ID</label>
+                <div><code>{DEMO_SVID.spiffeId}</code></div>
+              </div>
+              <div className="inspector-shell-field">
+                <label>Trust domain</label>
+                <div>{DEMO_SVID.trustDomain}</div>
+              </div>
+              <div className="inspector-shell-field">
+                <label>Namespace / service account</label>
+                <div>{DEMO_SVID.namespace} / {DEMO_SVID.serviceAccount}</div>
+              </div>
+              <div className="inspector-shell-field">
+                <label>SVID format / TTL</label>
+                <div>{DEMO_SVID.format} · {DEMO_SVID.ttl}</div>
+              </div>
+              <div className="inspector-shell-field">
+                <label>Parent agent</label>
+                <div>{DEMO_SVID.parent}</div>
+              </div>
+              <p style={{ fontSize: '0.75rem', color: '#6b7280', margin: '8px 0' }}>
+                Simulated — this is the identity the{' '}
+                <a href="/spiffe-pingone-bridge">SPIFFE/SVID bridge</a> page mints and
+                verifies in its walkthrough (the SPIRE stack is opt-in). It is not a live
+                attestation of this row.
+              </p>
+            </div>
+          ) : (
+            <div>
+              <p>
+                No SPIFFE workload identity — this identity authenticates with an OAuth
+                credential ({selected.credentialType || 'unknown grant types'}), not an SVID.
+              </p>
+              <p style={{ fontSize: '0.78rem', color: '#6b7280' }}>
+                The <a href="/spiffe-pingone-bridge">SPIFFE/SVID bridge</a> page covers where
+                SVIDs do apply, and what PingOne can consume from them.
+              </p>
+            </div>
+          )
         )}
 
         {selected && tab === 'lifecycle' && (
