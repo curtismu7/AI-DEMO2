@@ -245,6 +245,34 @@ function pushGrantResultStep(steps, stepKey, label, results) {
 }
 
 /**
+ * The `act` resource-attribute value for the delegation-mint resources (Agent
+ * Gateway, A2A intermediates), selected by ff_may_act_seed.
+ *
+ * - Default (flag OFF): mint from the ACTOR TOKEN — the RFC 8693 actor_token's
+ *   client id, the same source the already-verified nested A2A composer uses.
+ *   Consent is then enforced per call by the PDP (Rule 2.6 + MayActSub), not
+ *   baked in at mint time.
+ * - Flag ON (legacy teaching): seed from the SUBJECT token's may_act — consent
+ *   checked once at mint; absence of the user attribute means no act at all.
+ *
+ * Inline-map SpEL form `${{...}}` (verified live 2026-06 for the nested
+ * composer; the one-hop subset below is verified as part of this plan's live
+ * gate). `#{...}` is NOT usable here — this tenant emits it verbatim.
+ */
+function actAttributeValue() {
+  let flag = 'false';
+  try {
+    // Late require: keeps the module importable before configStore is
+    // initialized (provisioning runs long after boot, but tests import both).
+    const configStore = require('./configStore');
+    flag = String(configStore.getEffective('ff_may_act_seed') || 'false');
+  } catch (_e) { /* default OFF */ }
+  return flag === 'true'
+    ? '${#root.context.requestData.subjectToken.may_act}'
+    : "${{'sub': #root.context.requestData.actorToken.client_id}}";
+}
+
+/**
  * Render a step message for createApplication's result. Surfaces drift info
  * so the user can see when an existing app was patched (and which fields).
  *
@@ -3367,21 +3395,23 @@ class PingOneProvisionService {
           }
           onStep(steps[steps.length - 1]);
 
-          // Wire act on this specialist's own intermediate resource — the SAME
-          // SPEL already live on the Agent Gateway resource (Exchange #1 target
-          // of the original two-exchange flow): copies the SUBJECT token's
-          // (the user token's) may_act claim onto this hop's act claim. Without
-          // this, Exchange #1's result carries no act at all, and Exchange #2's
-          // act SPEL — a straight passthrough of subjectToken.act — has nothing
-          // to propagate (confirmed live: actChainDepth stayed 0 until this was
+          // Wire act on this specialist's own intermediate resource — Exchange #1's
+          // act source, selected by ff_may_act_seed (see actAttributeValue): default
+          // mints from the actor token's client_id; flag ON seeds from the SUBJECT
+          // token's may_act (the legacy teaching form). Without SOME act source,
+          // Exchange #1's result carries no act at all, and Exchange #2's nested
+          // composer — a passthrough of subjectToken.act — has nothing to
+          // propagate (confirmed live: actChainDepth stayed 0 until this was
           // added; adding it alone brought depth to 1, actPresent true).
           try {
+            const actSpel = actAttributeValue();
             await this._setResourceAttribute(
               specResourceResult.resource.id,
               'act',
-              '${#root.context.requestData.subjectToken.may_act}',
+              actSpel,
             );
-            steps.push({ step: `a2a-${spec.appKey}-act`, icon: '✅', message: `${spec.specialistName} act wired on its own A2A Intermediate resource` });
+            const actMode = actSpel.includes('may_act') ? 'may_act seed (ff_may_act_seed)' : 'actor token';
+            steps.push({ step: `a2a-${spec.appKey}-act`, icon: '✅', message: `${spec.specialistName} act wired on its own A2A Intermediate resource (source: ${actMode})` });
           } catch (actErr) {
             steps.push({ step: `a2a-${spec.appKey}-act`, icon: '⚠️', message: `${spec.specialistName} act step: ${actErr.message}` });
           }
@@ -3984,6 +4014,7 @@ module.exports = {
   DEMO_PASSWORD,
   resolvePingEmail,
   isValidPingEmail,
+  actAttributeValue,
   provisionEnvironment: (config, onStep) => provisionService.provisionEnvironment(config, onStep),
   recreateResource: (config, resourceKey) => provisionService.recreateResource(config, resourceKey),
   // Caller MUST construct a fresh service instance for wipe — the module

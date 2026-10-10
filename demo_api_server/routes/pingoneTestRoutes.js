@@ -18,6 +18,7 @@ const pingOneUserService = require('../services/pingOneUserService');
 const apiCallTrackerService = require('../services/apiCallTrackerService');
 const sseHub = require('../services/pingoneTestSseHub');
 const scopeTopology = require('../services/scopeTopology');
+const { actAttributeValue } = require('../services/pingoneProvisionService');
 const http = require('http');
 const https = require('https');
 const { URL } = require('url');
@@ -1714,7 +1715,9 @@ router.post('/fix-mcp-exchange', async (req, res) => {
     const envId = configStore.getEffective('pingone_environment_id');
     const apiBase = `https://api.pingone.${region}/v1/environments/${envId}`;
     const mgmtHeaders = { Authorization: `Bearer ${workerToken}`, 'Content-Type': 'application/json' };
-    const ACT_SPEL = '${#root.context.requestData.subjectToken.may_act}';
+    // act source selected by ff_may_act_seed (see actAttributeValue): default mints
+    // from the actor token; flag ON seeds from the subject token's may_act.
+    const ACT_SPEL = actAttributeValue();
 
     try {
       const attrsRes = await axios.get(`${apiBase}/resources/${mcpRS.id}/attributes`, { headers: mgmtHeaders, timeout: 10000 });
