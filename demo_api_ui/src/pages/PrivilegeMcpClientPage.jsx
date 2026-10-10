@@ -2023,7 +2023,17 @@ export default function PrivilegeMcpClientPage() {
               <span className="cur-rail__k">Tools</span>
               <span className="cur-rail__v">
                 {toolPolicy.total > 0
-                  ? <><strong>{toolPolicy.total}</strong> catalog · <strong className="cur-rail__ok-text">{toolPolicy.permitted}</strong> permitted · <strong className="cur-rail__bad-text">{toolPolicy.filtered}</strong> filtered</>
+                  ? (toolPolicy.filtered > 0
+                    // Facade path: the gateway reports denied tools in
+                    // result._meta.deniedTools, so a delivered-then-denied
+                    // count is real and worth showing.
+                    ? <><strong>{toolPolicy.total}</strong> catalog · <strong className="cur-rail__ok-text">{toolPolicy.permitted}</strong> permitted · <strong className="cur-rail__bad-text">{toolPolicy.filtered}</strong> filtered</>
+                    // MCPGW path: the gateway drops tools outside the policy
+                    // BEFORE responding (discovery-gating) — filtered is
+                    // structurally 0 here and "0 filtered" reads as "the
+                    // filter did nothing". Say what is true: the catalog
+                    // received IS the grant; the rest was never delivered.
+                    : <><strong className="cur-rail__ok-text">{toolPolicy.permitted}</strong> tool{toolPolicy.permitted === 1 ? '' : 's'} in your grant — tools outside the policy are undiscoverable</>)
                   : '—'}
               </span>
               {/* Façade relays on a server-side token that does not survive a
