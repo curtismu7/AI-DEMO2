@@ -83,7 +83,7 @@
 
 .cur-model-badge {
   font-size: var(--font-size-base);
-  color: #a78bfa;
+  color: #fca5a5;
   background: #2d2640;
   padding: 2px 8px;
   border-radius: 4px;
@@ -413,7 +413,7 @@ select.cur-input { cursor: pointer; }
 }
 .scope-mcp { background: #1a3a26; color: #4ade80; border: 1px solid #16a34a44; }
 .scope-p1 { background: #1a2a4a; color: #60a5fa; border: 1px solid #3b82f644; }
-.scope-oidc { background: #2d2640; color: #a78bfa; border: 1px solid #7c3aed44; }
+.scope-oidc { background: #2d2640; color: #fca5a5; border: 1px solid #d20e0f44; }
 .scope-read { background: #1a3a42; color: #22d3ee; border: 1px solid #06b6d444; }
 .scope-write { background: #3a2a1a; color: #fb923c; border: 1px solid #f9731644; }
 .scope-default { background: #2a2a2a; color: #aaa; border: 1px solid #44444444; }
@@ -439,7 +439,7 @@ select.cur-input { cursor: pointer; }
 }
 .cur-tool-row:hover { background: #2a2d2e; border-left-color: #4ec9b0; }
 .cur-tool-row--selected { background: #2a2d2e; border-left-color: #6d9eeb; }
-.cur-ide[data-cur-theme="light"] .cur-tool-row--selected { background: #eef2ff; border-left-color: #2563eb; }
+.cur-ide[data-cur-theme="light"] .cur-tool-row--selected { background: #fee2e2; border-left-color: #2563eb; }
 .cur-tool-row-name {
   font-family: var(--font-mono);
   font-size: var(--font-size-body);
@@ -449,7 +449,7 @@ select.cur-input { cursor: pointer; }
   text-overflow: ellipsis;
 }
 .cur-tool-row-meta { font-size: 12px; color: #ffffff; flex-shrink: 0; }
-.cur-ide[data-cur-theme="light"] .cur-tool-row:hover { background: #eef2ff; border-left-color: #0a7d6b; }
+.cur-ide[data-cur-theme="light"] .cur-tool-row:hover { background: #fee2e2; border-left-color: #0a7d6b; }
 .cur-ide[data-cur-theme="light"] .cur-tool-row-name { color: #0a7d6b; }
 .cur-ide[data-cur-theme="light"] .cur-tool-row-meta { color: #444; }
 
@@ -634,7 +634,7 @@ select.cur-input { cursor: pointer; }
 .cur-msg--user { align-self: flex-end; background: #264f78; }
 .cur-msg--assistant { align-self: flex-start; background: #2a2a2a; border: 1px solid #3c3c3c; }
 .cur-msg--system { align-self: center; background: #1a2a3a; color: #7dd3fc; font-size: var(--font-size-body); border: 1px solid #1e3a5f; }
-.cur-msg--thinking { align-self: flex-start; background: #2d2640; color: #a78bfa; display: flex; align-items: center; gap: 8px; font-size: var(--font-size-body); }
+.cur-msg--thinking { align-self: flex-start; background: #2d2640; color: #fca5a5; display: flex; align-items: center; gap: 8px; font-size: var(--font-size-body); }
 
 .cur-msg-header { margin-bottom: 4px; }
 .cur-msg-role { font-size: var(--font-size-sm); font-weight: 600; color: #888; text-transform: uppercase; }
@@ -672,10 +672,10 @@ select.cur-input { cursor: pointer; }
   padding: 14px 20px;
   border-radius: 8px;
   background: #2d2640;
-  color: #a78bfa;
+  color: #fca5a5;
   font-size: var(--font-size-base);
 }
-.cur-ide[data-cur-theme="light"] .cur-switch-box { background: #ede9fe; color: #6d28d9; }
+.cur-ide[data-cur-theme="light"] .cur-switch-box { background: #fee2e2; color: #aa0005; }
 
 .cur-thinking-dots {
   display: flex;
@@ -685,7 +685,7 @@ select.cur-input { cursor: pointer; }
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: #a78bfa;
+  background: #fca5a5;
   animation: cur-pulse 1.2s infinite;
 }
 .cur-thinking-dots span:nth-child(2) { animation-delay: 0.2s; }
@@ -886,7 +886,7 @@ select.cur-input { cursor: pointer; }
   flex-shrink: 0;
 }
 .cur-terminal-badge--relay { background: #1a3a42; color: #22d3ee; }
-.cur-terminal-badge--oauth { background: #2d2640; color: #a78bfa; }
+.cur-terminal-badge--oauth { background: #2d2640; color: #fca5a5; }
 .cur-terminal-badge--config { background: #2a3a1a; color: #a3e635; }
 .cur-terminal-badge--mcp { background: #1a3a26; color: #4ade80; }
 .cur-terminal-badge--error { background: #3a1a1a; color: #f87171; }
@@ -1144,7 +1144,7 @@ select.cur-input { cursor: pointer; }
 .cur-flow-box:hover { border-color: #2f81f7; background: #21262d; }
 
 .cur-flow-box--browser { border-color: #3b82f6; border-left: 3px solid #3b82f6; }
-.cur-flow-box--bff { border-color: #8b5cf6; border-left: 3px solid #8b5cf6; }
+.cur-flow-box--bff { border-color: #d20e0f; border-left: 3px solid #d20e0f; }
 .cur-flow-box--privilege { border-color: #f59e0b; border-left: 3px solid #f59e0b; }
 .cur-flow-box--mcp { border-color: #10b981; border-left: 3px solid #10b981; }
 .cur-flow-box--auth { border-color: #ec4899; border-left: 3px solid #ec4899; }
@@ -1285,7 +1285,7 @@ select.cur-input { cursor: pointer; }
 
 /* Status pill + model badge */
 .cur-ide[data-cur-theme="light"] .cur-status { background: #e8e8e8; color: #555; }
-.cur-ide[data-cur-theme="light"] .cur-model-badge { background: #ede9fe; color: #6d28d9; }
+.cur-ide[data-cur-theme="light"] .cur-model-badge { background: #fee2e2; color: #aa0005; }
 
 /* Inputs, buttons, selects */
 .cur-ide[data-cur-theme="light"] .cur-input,
@@ -1318,12 +1318,12 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-msg--user { background: #d6e4f5; }
 .cur-ide[data-cur-theme="light"] .cur-msg--assistant { background: #f0f0f0; }
 .cur-ide[data-cur-theme="light"] .cur-msg--system { background: #e3f2fd; color: #0369a1; }
-.cur-ide[data-cur-theme="light"] .cur-msg--thinking { background: #ede9fe; color: #6d28d9; }
+.cur-ide[data-cur-theme="light"] .cur-msg--thinking { background: #fee2e2; color: #aa0005; }
 .cur-ide[data-cur-theme="light"] .cur-msg-meta { background: #f0f0f0; color: #666; }
 
 /* Tool list + detail + code output */
 .cur-ide[data-cur-theme="light"] .cur-tool-item { background: #f7f7f7; border-color: #e0e0e0; border-left-color: #0a7d6b; }
-.cur-ide[data-cur-theme="light"] .cur-tool-item:hover { background: #eef2ff; border-left-color: #0a9d86; }
+.cur-ide[data-cur-theme="light"] .cur-tool-item:hover { background: #fee2e2; border-left-color: #0a9d86; }
 .cur-ide[data-cur-theme="light"] .cur-tool-param { color: #0451a5; background: #eaf2fb; border-color: #cfe0f2; }
 .cur-ide[data-cur-theme="light"] .cur-tool-param--req { color: #8a5a00; background: #fdf3d9; border-color: #e6d29a; }
 .cur-ide[data-cur-theme="light"] .cur-tool-icon { background: #eee; color: #7a6a00; }
@@ -1336,7 +1336,7 @@ select.cur-input { cursor: pointer; }
 
 /* Terminal event badges — lighter fills, darker text */
 .cur-ide[data-cur-theme="light"] .cur-terminal-badge--relay { background: #cffafe; color: #0e7490; }
-.cur-ide[data-cur-theme="light"] .cur-terminal-badge--oauth { background: #ede9fe; color: #6d28d9; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--oauth { background: #fee2e2; color: #aa0005; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-badge--config { background: #ecfccb; color: #4d7c0f; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-badge--mcp { background: #dcfce7; color: #15803d; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-badge--error { background: #fee2e2; color: #b91c1c; }
@@ -1358,7 +1358,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-flow-claims { background: #f0f0f0; }
 .cur-ide[data-cur-theme="light"] .cur-flow-ck { color: #1d4ed8; }
 .cur-ide[data-cur-theme="light"] .cur-flow-cv { color: #333; }
-.cur-ide[data-cur-theme="light"] .cur-flow-cv--hi { color: #7c3aed; }
+.cur-ide[data-cur-theme="light"] .cur-flow-cv--hi { color: #d20e0f; }
 .cur-ide[data-cur-theme="light"] .cur-flow-cv--ok,
 .cur-ide[data-cur-theme="light"] .cur-flow-cv--aud { color: #15803d; }
 .cur-ide[data-cur-theme="light"] .cur-flow-line { background: #ccc; }
@@ -1546,7 +1546,7 @@ select.cur-input { cursor: pointer; }
   border-color: #e0e0e0;
   color: #1e1e1e;
 }
-.cur-ide[data-cur-theme="light"] .cur-mcp-item:hover { background: #eef2ff; }
+.cur-ide[data-cur-theme="light"] .cur-mcp-item:hover { background: #fee2e2; }
 .cur-ide[data-cur-theme="light"] .cur-mcp-empty { color: #666; }
 
 /* Titlebar switchers (Gateway, Door) — the label was #bbb on the light skin's
@@ -1574,7 +1574,7 @@ select.cur-input { cursor: pointer; }
   border-color: #e0e0e0;
   color: #1e1e1e;
 }
-.cur-ide[data-cur-theme="light"] .cur-console-tag { background: #eef2ff; color: #2563eb; }
+.cur-ide[data-cur-theme="light"] .cur-console-tag { background: #fee2e2; color: #2563eb; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    Responsive — on smaller displays the fixed IDE layout crushed the main pane

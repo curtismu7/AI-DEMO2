@@ -33,9 +33,9 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
       onClick={() => open(panelId, tabId)}
       style={{
         display: 'inline-block',
-        background: 'rgba(99,102,241,0.08)',
-        border: '1px solid rgba(99,102,241,0.35)',
-        color: '#4338ca',
+        background: 'rgba(210, 14, 15,0.08)',
+        border: '1px solid rgba(210, 14, 15,0.35)',
+        color: '#aa0005',
         borderRadius: 6,
         padding: '6px 10px',
         margin: '4px 6px 4px 0',
@@ -48,7 +48,7 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
     </button>
   );
 
-  const Callout = ({ color = '#6366f1', bg = 'rgba(99,102,241,0.08)', children }) => (
+  const Callout = ({ color = '#d20e0f', bg = 'rgba(210, 14, 15,0.08)', children }) => (
     <div style={{ background: bg, borderLeft: `3px solid ${color}`, padding: '8px 12px', borderRadius: 4, margin: '0.75rem 0' }}>
       {children}
     </div>
@@ -84,7 +84,7 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
             <code>act&#123;specialist, act&#123;generalist&#125;&#125;</code>. The resource server sees the{' '}
             <em>whole</em> chain of agents that acted on your behalf.
           </Callout>
-          <Callout color="#6366f1" bg="rgba(99,102,241,0.08)">
+          <Callout color="#d20e0f" bg="rgba(210, 14, 15,0.08)">
             <strong>This nested shape is the standard — not a Ping-specific invention.</strong>{' '}
             RFC 8693 §4.1 defines <code>act</code> as a nested object (outermost = current actor,
             each nested <code>act</code> = one hop back), and it is what other vendors emit too:

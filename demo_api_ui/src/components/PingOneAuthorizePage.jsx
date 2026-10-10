@@ -63,11 +63,11 @@ const S = {
   tabs: { display: 'flex', gap: '6px', marginBottom: '14px', alignItems: 'center' },
   tab: (active) => ({
     padding: '6px 14px', borderRadius: '7px', fontSize: '12px', fontWeight: 600, cursor: 'pointer',
-    border: `1px solid ${active ? '#c7d2fe' : '#e2e8f0'}`,
-    background: active ? '#eef2ff' : '#f8fafc',
+    border: `1px solid ${active ? '#fca5a5' : '#e2e8f0'}`,
+    background: active ? '#fee2e2' : '#f8fafc',
     color: active ? '#3730a3' : '#334155',
   }),
-  presetPill: { marginLeft: 'auto', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: '#3730a3', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '20px', padding: '2px 9px' },
+  presetPill: { marginLeft: 'auto', fontSize: '10px', fontWeight: 700, textTransform: 'uppercase', letterSpacing: '.04em', color: '#3730a3', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '20px', padding: '2px 9px' },
 
   formRow: { display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '12px', alignItems: 'end' },
   fieldGroup: { display: 'flex', flexDirection: 'column' },
@@ -75,13 +75,13 @@ const S = {
   formFoot: { display: 'flex', justifyContent: 'flex-end', marginTop: '14px' },
 
   resultBox: (decision) => ({
-    border: `1px solid ${{ PERMIT: '#bbf7d0', DENY: '#fecaca', INDETERMINATE: '#e9d5ff', STEP_UP: '#fde68a', CONSENT: '#bbf7d0' }[decision] || '#e2e8f0'}`,
+    border: `1px solid ${{ PERMIT: '#bbf7d0', DENY: '#fecaca', INDETERMINATE: '#fee2e2', STEP_UP: '#fde68a', CONSENT: '#bbf7d0' }[decision] || '#e2e8f0'}`,
     background: { PERMIT: '#f0fdf4', DENY: '#fef2f2', INDETERMINATE: '#faf5ff', STEP_UP: '#fffbeb', CONSENT: '#f0fdf4' }[decision] || '#f8fafc',
     borderRadius: '8px', padding: '14px 16px',
   }),
   resultDecision: (decision) => ({
     fontSize: '15px', fontWeight: 800,
-    color: { PERMIT: '#166534', DENY: '#991b1b', INDETERMINATE: '#6b21a8', STEP_UP: '#854d0e', CONSENT: '#166534' }[decision] || '#374151',
+    color: { PERMIT: '#166534', DENY: '#991b1b', INDETERMINATE: '#aa0005', STEP_UP: '#854d0e', CONSENT: '#166534' }[decision] || '#374151',
   }),
   resultSub: { fontSize: '11px', color: '#6b7280', fontFamily: 'monospace', marginBottom: '10px' },
   oblig: { display: 'flex', gap: '18px', fontSize: '12px', color: '#475569', marginBottom: '12px' },
@@ -95,8 +95,8 @@ const S = {
   tdMono: { padding: '8px 10px', borderBottom: '1px solid #f8fafc', fontFamily: 'monospace', fontSize: '11px', color: '#1e293b' },
   dBadge: (d) => ({
     display: 'inline-block', padding: '2px 8px', borderRadius: '20px', fontSize: '10px', fontWeight: 700,
-    background: { PERMIT: '#dcfce7', DENY: '#fee2e2', INDETERMINATE: '#f3e8ff', STEP_UP: '#fef9c3' }[d] || '#f3f4f6',
-    color: { PERMIT: '#166534', DENY: '#991b1b', INDETERMINATE: '#6b21a8', STEP_UP: '#854d0e' }[d] || '#374151',
+    background: { PERMIT: '#dcfce7', DENY: '#fee2e2', INDETERMINATE: '#fee2e2', STEP_UP: '#fef9c3' }[d] || '#f3f4f6',
+    color: { PERMIT: '#166534', DENY: '#991b1b', INDETERMINATE: '#aa0005', STEP_UP: '#854d0e' }[d] || '#374151',
   }),
   empty: { padding: '18px', textAlign: 'center', color: '#64748b', fontSize: '13px', background: '#f8fafc', border: '1px dashed #cbd5e1', borderRadius: '8px' },
   warning: { padding: '12px 16px', background: '#fffbeb', border: '1px solid #fde68a', borderRadius: '8px', color: '#92400e', fontSize: '13px', marginBottom: '16px' },
@@ -127,7 +127,7 @@ const S = {
   polTree: { display: 'flex', flexDirection: 'column', gap: '10px' },
   polNode: (kind) => ({
     border: '1px solid #e2e8f0',
-    borderLeft: `3px solid ${{ POLICY_SET: '#6366f1', POLICY: '#0ea5e9', RULE: '#cbd5e1' }[kind] || '#cbd5e1'}`,
+    borderLeft: `3px solid ${{ POLICY_SET: '#d20e0f', POLICY: '#0ea5e9', RULE: '#cbd5e1' }[kind] || '#cbd5e1'}`,
     borderRadius: '8px', padding: '10px 12px', background: '#fff',
   }),
   polHeadRow: { display: 'flex', alignItems: 'center', gap: '8px' },
@@ -139,7 +139,7 @@ const S = {
   polKind: (kind) => ({
     fontSize: '9.5px', fontWeight: 800, letterSpacing: '.05em', textTransform: 'uppercase',
     padding: '2px 7px', borderRadius: '5px',
-    background: { POLICY_SET: '#eef2ff', POLICY: '#e0f2fe', RULE: '#f1f5f9' }[kind] || '#f1f5f9',
+    background: { POLICY_SET: '#fee2e2', POLICY: '#e0f2fe', RULE: '#f1f5f9' }[kind] || '#f1f5f9',
     color: { POLICY_SET: '#3730a3', POLICY: '#0369a1', RULE: '#475569' }[kind] || '#475569',
   }),
   polName: { fontSize: '13px', fontWeight: 700, color: '#0f172a' },
@@ -172,11 +172,11 @@ const S = {
   },
   polSearchMeta: { fontSize: '11px', color: '#94a3b8', marginTop: '6px' },
   polNodeMatch: {
-    border: '1px solid #c7d2fe',
-    borderLeft: '3px solid #4f46e5',
-    borderRadius: '8px', padding: '10px 12px', background: '#eef2ff',
+    border: '1px solid #fca5a5',
+    borderLeft: '3px solid #d20e0f',
+    borderRadius: '8px', padding: '10px 12px', background: '#fee2e2',
   },
-  pendingLabel: { fontSize: '11px', fontWeight: 700, color: '#3730a3', background: '#eef2ff', border: '1px solid #c7d2fe', borderRadius: '6px', padding: '4px 10px', marginBottom: '10px', display: 'inline-block' },
+  pendingLabel: { fontSize: '11px', fontWeight: 700, color: '#3730a3', background: '#fee2e2', border: '1px solid #fca5a5', borderRadius: '6px', padding: '4px 10px', marginBottom: '10px', display: 'inline-block' },
 };
 
 const TX_TYPES = ['transfer', 'withdrawal', 'deposit'];

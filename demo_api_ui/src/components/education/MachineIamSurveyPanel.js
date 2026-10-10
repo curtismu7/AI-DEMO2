@@ -63,8 +63,8 @@ function MapRow({ finding, answer, links }) {
               type="button"
               onClick={() => open(panelId, tabId)}
               style={{
-                background: 'none', border: '1px solid #6366f1', borderRadius: 6,
-                color: '#4f46e5', padding: '3px 10px', fontSize: '0.78rem', fontWeight: 600,
+                background: 'none', border: '1px solid #d20e0f', borderRadius: 6,
+                color: '#d20e0f', padding: '3px 10px', fontSize: '0.78rem', fontWeight: 600,
                 cursor: 'pointer', marginRight: 6, marginTop: 4, display: 'inline-block',
               }}
             >
@@ -93,7 +93,7 @@ function FindingsTab() {
         gap: 10, margin: '14px 0 18px',
       }}>
         <Stat value="94%" label="report machine-identity growth" />
-        <Stat value="52%" label="say AI/ML adoption drives it" colour="#7c3aed" />
+        <Stat value="52%" label="say AI/ML adoption drives it" colour="#d20e0f" />
         <Stat value="71%" label="already manage AI agent identities" colour="#0369a1" />
         <Stat value="42%" label="have no formal machine IAM strategy" colour="#b45309" />
         <Stat value="58%" label="had AI-linked identity compromises" colour="#9f1239" />

@@ -52,8 +52,8 @@ function GateNotice({ kind, children }) {
     <div style={{
       display: 'flex', gap: '10px', padding: '10px 14px', borderRadius: '8px',
       marginBottom: '12px',
-      border: `1px solid ${isHitl ? '#fde68a' : '#c7d2fe'}`,
-      background: isHitl ? '#fffbeb' : '#eef2ff',
+      border: `1px solid ${isHitl ? '#fde68a' : '#fca5a5'}`,
+      background: isHitl ? '#fffbeb' : '#fee2e2',
     }}>
       <span>⚠️</span>
       <p style={{ margin: 0, fontSize: '0.82rem', color: isHitl ? '#92400e' : '#3730a3', lineHeight: 1.5 }}>
@@ -404,7 +404,7 @@ export default function McpTrafficPage({ embedded = false } = {}) {
                       <span style={{
                         display: 'inline-block', marginTop: '4px', padding: '1px 6px', borderRadius: '4px',
                         fontSize: '0.63rem', fontWeight: 700,
-                        background: '#eef2ff', color: '#3730a3', border: '1px solid #c7d2fe',
+                        background: '#fee2e2', color: '#3730a3', border: '1px solid #fca5a5',
                       }}>Requires step-up</span>
                     )}
                   </button>

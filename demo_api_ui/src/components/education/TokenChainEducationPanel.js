@@ -288,7 +288,7 @@ Step 5: Transfer executed
       <ul>
         <li><span style={{ color: 'var(--brand-navy)', fontWeight: 600 }}>●</span> <strong>user_token</strong> — initial login token</li>
         <li><span style={{ color: '#0891b2', fontWeight: 600 }}>●</span> <strong>user_token_introspection</strong> — RFC 7662: PingOne confirms session is active</li>
-        <li><span style={{ color: '#7c3aed', fontWeight: 600 }}>●</span> <strong>agent_token</strong> — agent's client_credentials token (2-exchange only)</li>
+        <li><span style={{ color: '#d20e0f', fontWeight: 600 }}>●</span> <strong>agent_token</strong> — agent's client_credentials token (2-exchange only)</li>
         <li><span style={{ color: '#059669', fontWeight: 600 }}>●</span> <strong>exchanged_token</strong> — delegated token after RFC 8693 exchange</li>
         <li><span style={{ color: '#15803d', fontWeight: 600 }}>●</span> <strong>*_verified</strong> — RFC 7515 (JWS) signature verified via RFC 7517 (JWKS): cryptographic signature check on each token</li>
         <li><span style={{ color: '#dc2626', fontWeight: 600 }}>●</span> <strong>error</strong> — exchange failure (invalid scope, expired token, etc.)</li>

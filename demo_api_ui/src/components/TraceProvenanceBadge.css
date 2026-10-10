@@ -19,9 +19,9 @@
 }
 
 .trace-provenance--recorded {
-  border-color: #6366f1;
+  border-color: #d20e0f;
   color: #3730a3;
-  background: #eef2ff;
+  background: #fee2e2;
 }
 
 .trace-provenance--live {
@@ -37,7 +37,7 @@
 
 :root[data-theme="dark"] .trace-provenance--recorded {
   color: #ffffff;
-  background: #1e1b4b;
+  background: #7f1d1d;
 }
 
 :root[data-theme="dark"] .trace-provenance--live {

@@ -156,7 +156,7 @@ function ArchitectureFlowContent() {
           [
             "2. BFF session check",
             "Express middleware validates session cookie",
-            "#8b5cf6",
+            "#d20e0f",
           ],
           [
             "3. RFC 8693 exchange",

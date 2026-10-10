@@ -26,7 +26,7 @@
   background: var(--ba-accent, #0b6e99);
 }
 
-.reasoning-phase--tool_selection { background: #7c3aed; }
+.reasoning-phase--tool_selection { background: #d20e0f; }
 .reasoning-phase--tool_execution { background: #b45309; }
 .reasoning-phase--synthesis { background: #047857; }
 

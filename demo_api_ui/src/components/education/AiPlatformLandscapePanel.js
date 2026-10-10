@@ -138,7 +138,7 @@ function IbmContent() {
 }
 
 function AnthropicContent() {
-  const c = '#7c3aed';
+  const c = '#d20e0f';
   return (
     <div>
       <VendorHeader emoji="●" name="Anthropic" tagline="AI safety focused — powerful, steerable, and honest" color={c} />
@@ -154,7 +154,7 @@ function AnthropicContent() {
         description="Anthropic's training methodology: models are trained to follow a 'constitution' of principles (harmlessness, helpfulness, honesty). RLHF guided by AI feedback rather than purely human labels — more scalable." />
       <ToolCard name="Model Card &amp; Eval Transparency" category="Safety &amp; Research" color={c}
         description="Published evals for jailbreaks, CBRN risk, autonomy, deception. Responsible Scaling Policy: capability thresholds trigger additional safety work before deployment." />
-      <div style={{ background: '#f5f3ff', border: '1px solid #ddd6fe', borderRadius: 6, padding: '0.65rem 0.85rem', marginTop: '0.5rem', fontSize: '0.82rem', color: '#4c1d95' }}>
+      <div style={{ background: '#fee2e2', border: '1px solid #fecaca', borderRadius: 6, padding: '0.65rem 0.85rem', marginTop: '0.5rem', fontSize: '0.82rem', color: '#7f1d1d' }}>
         <strong>Important note:</strong> Anthropic does not offer a full cloud AI platform — they are a model company. Their competitive advantage is frontier capability with safety-first training. Integrations via AWS Bedrock and Google Vertex AI cover enterprise deployment needs.
       </div>
     </div>
@@ -211,7 +211,7 @@ function ComparisonContent() {
     ['Microsoft', 'var(--brand-navy)', 'Office 365 / Teams shops that want enterprise copilots with Azure compliance.'],
     ['Google', '#16a34a', 'Very long context windows, multimodal (text/image/audio/video natively), or BigQuery ML.'],
     ['IBM', 'var(--brand-navy)', 'Banking, insurance, or healthcare needing auditable AI governance + regulatory compliance.'],
-    ['Anthropic', '#7c3aed', 'Safety-critical applications, or when Claude\'s instruction-following quality is essential.'],
+    ['Anthropic', '#d20e0f', 'Safety-critical applications, or when Claude\'s instruction-following quality is essential.'],
     ['OpenAI', '#059669', 'Largest developer ecosystem, most mature Assistants API, or real-time voice AI.'],
   ];
 

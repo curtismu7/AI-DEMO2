@@ -8,7 +8,7 @@ const STATUS_COLORS = {
   deny:     { bg: 'rgba(239,68,68,0.15)',   color: '#ef4444', iconBg: 'rgba(239,68,68,0.15)' },
 };
 
-const EVENT_DOT_COLORS = { success: '#22c55e', permit: '#22c55e', error: '#ef4444', acquiring: '#4f8ef7', exchanged: '#a78bfa', indeterminate: '#f59e0b' };
+const EVENT_DOT_COLORS = { success: '#22c55e', permit: '#22c55e', error: '#ef4444', acquiring: '#4f8ef7', exchanged: '#fca5a5', indeterminate: '#f59e0b' };
 
 export default function SecurityRail({ gates = [], actClaim = null, tokenEvents = [], onReplay }) {
   return (
@@ -40,9 +40,9 @@ export default function SecurityRail({ gates = [], actClaim = null, tokenEvents 
 
       {/* Act claim badge */}
       {actClaim && (
-        <div style={{ margin: '10px 16px', padding: '8px 12px', background: 'rgba(167,139,250,0.1)', border: '1px solid rgba(167,139,250,0.3)', borderRadius: 6, flexShrink: 0 }}>
-          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#a78bfa', marginBottom: 4 }}>Delegated Token — act claim (RFC 8693)</div>
-          <pre style={{ fontSize: 11, fontFamily: "'SF Mono','Fira Mono',monospace", color: '#c4b5fd', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(actClaim, null, 2)}</pre>
+        <div style={{ margin: '10px 16px', padding: '8px 12px', background: 'rgba(210, 14, 15,0.1)', border: '1px solid rgba(210, 14, 15,0.3)', borderRadius: 6, flexShrink: 0 }}>
+          <div style={{ fontSize: 10, fontWeight: 700, textTransform: 'uppercase', letterSpacing: '0.08em', color: '#fca5a5', marginBottom: 4 }}>Delegated Token — act claim (RFC 8693)</div>
+          <pre style={{ fontSize: 11, fontFamily: "'SF Mono','Fira Mono',monospace", color: '#fca5a5', lineHeight: 1.6, margin: 0, whiteSpace: 'pre-wrap' }}>{JSON.stringify(actClaim, null, 2)}</pre>
         </div>
       )}
 

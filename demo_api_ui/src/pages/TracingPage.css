@@ -321,7 +321,7 @@
 .tracing-span-bar--c0 { background: #3b82f6; }
 .tracing-span-bar--c1 { background: #10b981; }
 .tracing-span-bar--c2 { background: #f59e0b; }
-.tracing-span-bar--c3 { background: #8b5cf6; }
+.tracing-span-bar--c3 { background: #d20e0f; }
 .tracing-span-bar--c4 { background: #ef4444; }
 .tracing-span-bar--c5 { background: #06b6d4; }
 .tracing-span-bar--c6 { background: #ec4899; }
@@ -642,7 +642,7 @@
 }
 
 .tracing-step-icon--bell {
-  background: #fae8ff;
+  background: #fee2e2;
   color: #831843;
 }
 

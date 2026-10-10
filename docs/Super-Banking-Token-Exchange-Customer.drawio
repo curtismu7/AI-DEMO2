@@ -32,7 +32,7 @@
     </mxCell>
 
     <!-- Swim Lane: Resource Server / PingOne -->
-    <mxCell id="lane-rs" value="Resource Server (Banking API)" style="swimlane;startSize=30;fillColor=#fdf2f8;strokeColor=#a855f7;fontStyle=1;fontSize=13;fontColor=#7e22ce;" vertex="1" parent="1">
+    <mxCell id="lane-rs" value="Resource Server (Banking API)" style="swimlane;startSize=30;fillColor=#fdf2f8;strokeColor=#d20e0f;fontStyle=1;fontSize=13;fontColor=#aa0005;" vertex="1" parent="1">
       <mxGeometry x="20" y="640" width="1560" height="120" as="geometry" />
     </mxCell>
 
@@ -167,17 +167,17 @@
     <!-- STEP 5: Resource Server calls (both paths) -->
     <!-- ============================================================ -->
     <!-- 1-exchange call to RS -->
-    <mxCell id="rs-call-1ex" value="Resource Server call&#xa;(1-Exchange path)&#xa;Bearer MCP Token" style="rounded=1;arcSize=10;fillColor=#f3e8ff;strokeColor=#a855f7;fontSize=11;fontColor=#581c87;" vertex="1" parent="lane-rs">
+    <mxCell id="rs-call-1ex" value="Resource Server call&#xa;(1-Exchange path)&#xa;Bearer MCP Token" style="rounded=1;arcSize=10;fillColor=#fee2e2;strokeColor=#d20e0f;fontSize=11;fontColor=#7f1d1d;" vertex="1" parent="lane-rs">
       <mxGeometry x="890" y="35" width="180" height="60" as="geometry" />
     </mxCell>
 
     <!-- 2-exchange call to RS -->
-    <mxCell id="rs-call-2ex" value="Resource Server call&#xa;(2-Exchange path)&#xa;Bearer MCP Exchanged Token" style="rounded=1;arcSize=10;fillColor=#e9d5ff;strokeColor=#7c3aed;fontSize=11;fontColor=#4c1d95;" vertex="1" parent="lane-rs">
+    <mxCell id="rs-call-2ex" value="Resource Server call&#xa;(2-Exchange path)&#xa;Bearer MCP Exchanged Token" style="rounded=1;arcSize=10;fillColor=#fee2e2;strokeColor=#d20e0f;fontSize=11;fontColor=#7f1d1d;" vertex="1" parent="lane-rs">
       <mxGeometry x="1100" y="35" width="200" height="60" as="geometry" />
     </mxCell>
 
     <!-- Arrow: MCP Token 1ex → RS -->
-    <mxCell id="arrow-mcptoken1ex-rs" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#a855f7;" edge="1" parent="1">
+    <mxCell id="arrow-mcptoken1ex-rs" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#d20e0f;" edge="1" parent="1">
       <mxGeometry relative="1" as="geometry">
         <Array as="points">
           <mxPoint x="1005" y="380" />
@@ -189,7 +189,7 @@
     </mxCell>
 
     <!-- Arrow: MCP Token 2ex → RS -->
-    <mxCell id="arrow-mcptoken2ex-rs" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#7c3aed;" edge="1" parent="1">
+    <mxCell id="arrow-mcptoken2ex-rs" value="" style="edgeStyle=orthogonalEdgeStyle;rounded=0;strokeColor=#d20e0f;" edge="1" parent="1">
       <mxGeometry relative="1" as="geometry">
         <Array as="points">
           <mxPoint x="1170" y="640" />

@@ -202,7 +202,7 @@ function buildJourneyMermaid() {
 function buildJourneyGraph() {
   const groups = {
     entry: { label: 'Request', bg: '#0d9488' },
-    pdp: { label: 'P1AZ — business policy', bg: '#7c3aed' },
+    pdp: { label: 'P1AZ — business policy', bg: '#d20e0f' },
     checks: { label: 'PEP checks — enforced at the gateway', bg: '#059669' },
     out: { label: 'Decision', bg: '#0d9488' },
   };

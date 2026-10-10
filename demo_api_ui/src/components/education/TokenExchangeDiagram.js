@@ -141,7 +141,7 @@ function AgentToA2aFlow({ Actor, Arrow, Row }) {
     <Row>
       <Actor icon="🤖" label="Agent" />
       <Arrow label="Delegation" />
-      <Actor icon="🤖" label="Specialist" color="#8b5cf6" border="#6d28d9" />
+      <Actor icon="🤖" label="Specialist" color="#d20e0f" border="#aa0005" />
       <Arrow label="Delegated Token" dir="left" dashed />
     </Row>
   );
@@ -164,13 +164,13 @@ export default function TokenExchangeDiagram({ exchangeType = 'person-to-agent' 
   const C = {
     user:    { bg: '#0f2744', border: '#3b82f6', text: '#93c5fd' },
     bff:     { bg: '#14532d', border: '#22c55e', text: '#86efac' },
-    ping:    { bg: '#3b1a6e', border: '#a78bfa', text: '#c4b5fd' },
+    ping:    { bg: '#3b1a6e', border: '#fca5a5', text: '#fca5a5' },
     mcp:     { bg: '#1a2e1a', border: '#4ade80', text: '#86efac' },
     tok1:    { bg: '#1c1a0d', border: '#d97706', text: '#fcd34d' },  // User AT
-    tok2:    { bg: '#150d26', border: '#7c3aed', text: '#c4b5fd' },  // Intermediate
+    tok2:    { bg: '#150d26', border: '#d20e0f', text: '#fca5a5' },  // Intermediate
     tok3:    { bg: '#0d1a0d', border: '#16a34a', text: '#4ade80' },  // Final MCP
-    cc1:     { bg: '#1a1330', border: '#6d28d9', text: '#a78bfa' },  // AI Agent CC
-    cc2:     { bg: '#1a1330', border: '#6d28d9', text: '#a78bfa' },  // MCP Exchanger CC
+    cc1:     { bg: '#1a1330', border: '#aa0005', text: '#fca5a5' },  // AI Agent CC
+    cc2:     { bg: '#1a1330', border: '#aa0005', text: '#fca5a5' },  // MCP Exchanger CC
   };
 
   const renderDiagram = () => {

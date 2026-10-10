@@ -153,7 +153,7 @@ function CommercialContent() {
         name="Claude 5 — Opus 4.8 / Sonnet 5 / Haiku 4.5"
         maker="Anthropic"
         context="200K tokens"
-        color="#7c3aed"
+        color="#d20e0f"
         strengths="Claude 5 family (2026): Opus 4.8 is Anthropic's most capable general model; Sonnet 5 is the best price/performance sweet-spot; Haiku 4.5 is fastest/cheapest for high-volume tasks. The frontier line also ships specialized flagships, Claude Fable 5 and Claude Mythos 5. All support extended thinking mode."
         note="Claude 4.x (Opus 4.7, Sonnet 4.6) is now the previous generation. Exceptional instruction-following, 200K context, Constitutional AI safety, strong agentic tool use. Available via Anthropic API, AWS Bedrock, Google Vertex AI."
       />
@@ -243,7 +243,7 @@ function OpenSourceContent() {
         maker="DeepSeek"
         params="671B MoE / 37B active"
         context="128K tokens"
-        color="#4f46e5"
+        color="#d20e0f"
         strengths="Frontier-class quality at open-source pricing. DeepSeek R1 matches OpenAI o1 on math/coding benchmarks. MIT license enables distillation into smaller models."
         note="Data residency note: DeepSeek is a Chinese company — evaluate per your enterprise policy. R1 distillations (1.5B–70B) bring reasoning to consumer hardware."
       />

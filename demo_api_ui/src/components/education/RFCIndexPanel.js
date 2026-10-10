@@ -69,7 +69,7 @@ function statusStyle(status) {
     return { ...base, background: '#f1f5f9', color: '#475569', borderColor: '#e2e8f0' };
   }
   // BCP, Final, Living
-  return { ...base, background: '#e0e7ff', color: '#3730a3', borderColor: '#c7d2fe' };
+  return { ...base, background: '#fecaca', color: '#3730a3', borderColor: '#fca5a5' };
 }
 
 export default function RFCIndexPanel({ isOpen, onClose, initialTabId }) {

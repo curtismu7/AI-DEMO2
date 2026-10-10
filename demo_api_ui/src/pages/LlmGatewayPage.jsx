@@ -744,8 +744,6 @@ export default function LlmGatewayPage() {
         />
       </section>
 
-      <PromptGuardControlPanel />
-
       {loadError ? <p className="lgw-error" role="alert">{loadError}</p> : null}
 
       <div
@@ -1184,6 +1182,7 @@ export default function LlmGatewayPage() {
           client-credentials grant), so it loads on demand rather than firing a
           request nobody asked for on every page view. */}
       <GatewayVerdicts />
+      <PromptGuardControlPanel />
       <BlockAgreementModal isOpen={showBlockAgreement} onClose={() => setShowBlockAgreement(false)} />
     </div>
   );

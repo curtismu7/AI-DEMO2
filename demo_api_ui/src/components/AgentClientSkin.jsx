@@ -51,9 +51,9 @@ const SKIN_CONFIG = {
     subtitle: 'simulated · scripted session · observes and acts on the UI',
     placeholder: 'Message the computer-use agent…',
     hint: 'Simulated CUA — the scripted session walks the demo UI; tokens still flow',
-    accentColor: '#7c3aed',
+    accentColor: '#d20e0f',
     logo: () => (
-      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#7c3aed,#4c1d95)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <div style={{ width: 28, height: 28, borderRadius: 8, background: 'linear-gradient(135deg,#d20e0f,#7f1d1d)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <rect x="1.5" y="2.5" width="13" height="9" rx="1.5" stroke="white" strokeWidth="1.4" />
           <path d="M5 14h6M8 11.5V14" stroke="white" strokeWidth="1.4" strokeLinecap="round" />
@@ -61,19 +61,19 @@ const SKIN_CONFIG = {
       </div>
     ),
     dark: {
-      bg: '#14101f', headerBg: '#191227', headerBorder: '#2a1f42',
+      bg: '#14101f', headerBg: '#191227', headerBorder: '#331415',
       titleColor: '#e4d8ff', subtitleColor: '#9a86c8',
       agentBubbleBg: '#201735', agentBubbleColor: '#d8caff',
-      userBubbleBg: '#7c3aed', userBubbleColor: '#ffffff',
-      inputAreaBg: '#14101f', inputBorder: '#2a1f42', inputColor: '#d8caff',
-      toolBg: '#0e0a18', toolBorder: '#2a1f42', toolColor: '#a78bfa',
+      userBubbleBg: '#d20e0f', userBubbleColor: '#ffffff',
+      inputAreaBg: '#14101f', inputBorder: '#331415', inputColor: '#d8caff',
+      toolBg: '#1a0708', toolBorder: '#331415', toolColor: '#fca5a5',
       toolResultBg: '#0b0714', toolResultColor: '#8b6fd8',
     },
     light: {
       bg: '#faf8ff', headerBg: '#ffffff', headerBorder: '#e4dcf5',
       titleColor: '#3b2185', subtitleColor: '#7a68a8',
       agentBubbleBg: '#ffffff', agentBubbleColor: '#3b2185',
-      userBubbleBg: '#7c3aed', userBubbleColor: '#ffffff',
+      userBubbleBg: '#d20e0f', userBubbleColor: '#ffffff',
       inputAreaBg: '#f2eefc', inputBorder: '#e4dcf5', inputColor: '#3b2185',
       toolBg: '#ece5fb', toolBorder: '#d0c2f0', toolColor: '#5b34b8',
       toolResultBg: '#e2d8f8', toolResultColor: '#452a90',
@@ -257,7 +257,7 @@ const SKIN_CONFIG = {
       agentBubbleBg: 'transparent', agentBubbleColor: '#1a1a3a',
       userBubbleBg: '#f0f4ff', userBubbleColor: '#1a1a3a',
       inputAreaBg: '#f8f9fa', inputBorder: '#e8e8f0', inputColor: '#1a1a3a',
-      toolBg: '#eef2ff', toolBorder: '#c8d0f0', toolColor: '#1a73e8',
+      toolBg: '#fee2e2', toolBorder: '#c8d0f0', toolColor: '#1a73e8',
       toolResultBg: '#e8f0ff', toolResultColor: '#3c4043',
     },
   },

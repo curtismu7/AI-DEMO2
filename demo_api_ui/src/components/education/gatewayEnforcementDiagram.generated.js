@@ -29,7 +29,7 @@ export const GATEWAY_ENFORCEMENT_JOURNEY_GROUPS = {
   },
   "pdp": {
     "label": "P1AZ — business policy",
-    "bg": "#7c3aed"
+    "bg": "#d20e0f"
   },
   "checks": {
     "label": "PEP checks — enforced at the gateway",

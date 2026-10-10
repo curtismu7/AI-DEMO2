@@ -20,8 +20,8 @@ const S = {
   sectionLabel: { fontSize: '11px', fontWeight: 700, color: '#94a3b8', textTransform: 'uppercase', letterSpacing: '.05em', marginBottom: '8px' },
   badge: (d) => ({
     display: 'inline-block', padding: '2px 9px', borderRadius: '20px', fontSize: '10px', fontWeight: 700, letterSpacing: '.04em',
-    background: { PERMIT: '#dcfce7', DENY: '#fee2e2', INDETERMINATE: '#f3e8ff' }[d] || '#f1f5f9',
-    color:      { PERMIT: '#166534', DENY: '#991b1b', INDETERMINATE: '#6b21a8' }[d] || '#374151',
+    background: { PERMIT: '#dcfce7', DENY: '#fee2e2', INDETERMINATE: '#fee2e2' }[d] || '#f1f5f9',
+    color:      { PERMIT: '#166534', DENY: '#991b1b', INDETERMINATE: '#aa0005' }[d] || '#374151',
   }),
   toolChip: (write) => ({ padding: '3px 9px', borderRadius: '4px', fontSize: '11px', fontFamily: 'monospace', background: write ? '#fff7ed' : '#f0fdf4', border: `1px solid ${write ? '#fed7aa' : '#bbf7d0'}`, color: write ? '#92400e' : '#166534' }),
   scopePill: { padding: '2px 7px', borderRadius: '10px', fontSize: '10px', fontWeight: 600, background: '#dbeafe', color: '#1e40af', fontFamily: 'monospace' },
@@ -70,7 +70,7 @@ function DecisionResult({ result }) {
   const decision = result.decision || 'UNKNOWN';
   const icon = DECISION_ICON[decision] ?? null;
   const bgMap = { PERMIT: '#f0fdf4', DENY: '#fef2f2', INDETERMINATE: '#faf5ff' };
-  const borderMap = { PERMIT: '#bbf7d0', DENY: '#fecaca', INDETERMINATE: '#e9d5ff' };
+  const borderMap = { PERMIT: '#bbf7d0', DENY: '#fecaca', INDETERMINATE: '#fee2e2' };
 
   const reqBody = result.parametersUsed ? { parameters: result.parametersUsed } : null;
   const respBody = { decision: result.decision, reason: result.reason, decision_id: result.decision_id, policy_version: result.policy_version };

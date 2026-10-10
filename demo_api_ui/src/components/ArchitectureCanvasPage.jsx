@@ -18,8 +18,8 @@ const H = 86;
 // the light palette regardless of the app's theme (a downloaded diagram is a
 // standalone artifact, not a themed page).
 const LAYER_STYLE = {
-  client:   { fill: '#f0f4ff', stroke: '#4f46e5', label: '#1e1b4b', sub: '#6366f1', icon: '#4f46e5' },
-  gateway:  { fill: '#f5f3ff', stroke: '#7c3aed', label: '#2e1065', sub: '#8b5cf6', icon: '#7c3aed' },
+  client:   { fill: '#f0f4ff', stroke: '#d20e0f', label: '#7f1d1d', sub: '#d20e0f', icon: '#d20e0f' },
+  gateway:  { fill: '#fee2e2', stroke: '#d20e0f', label: '#7f1d1d', sub: '#d20e0f', icon: '#d20e0f' },
   agent:    { fill: '#f0fdf4', stroke: '#059669', label: '#064e3b', sub: '#10b981', icon: '#059669' },
   mcp:      { fill: '#fffbeb', stroke: '#d97706', label: '#78350f', sub: '#b45309', icon: '#d97706' },
   policy:   { fill: '#fdf2f8', stroke: '#db2777', label: '#831843', sub: '#ec4899', icon: '#db2777' },
@@ -28,8 +28,8 @@ const LAYER_STYLE = {
 };
 
 const LAYER_STYLE_DARK = {
-  client:   { fill: '#151a33', stroke: '#818cf8', label: '#e0e7ff', sub: '#a5b4fc', icon: '#818cf8' },
-  gateway:  { fill: '#1e1b3a', stroke: '#a78bfa', label: '#ede9fe', sub: '#c4b5fd', icon: '#a78bfa' },
+  client:   { fill: '#151a33', stroke: '#f87171', label: '#fecaca', sub: '#fca5a5', icon: '#f87171' },
+  gateway:  { fill: '#2a0909', stroke: '#fca5a5', label: '#fee2e2', sub: '#fca5a5', icon: '#fca5a5' },
   agent:    { fill: '#0f2a20', stroke: '#34d399', label: '#d1fae5', sub: '#6ee7b7', icon: '#34d399' },
   mcp:      { fill: '#2a1f0a', stroke: '#fbbf24', label: '#fef3c7', sub: '#fcd34d', icon: '#fbbf24' },
   policy:   { fill: '#2a1220', stroke: '#f472b6', label: '#fce7f3', sub: '#f9a8d4', icon: '#f472b6' },
@@ -107,7 +107,7 @@ const FLOWS = {
   },
   nl: {
     label: 'NL Mode · Agent service',
-    color: '#7c3aed',
+    color: '#d20e0f',
     steps: [
       { from: 'frontend',      to: 'bff',          desc: 'User sends a natural-language message. Browser POSTs to BFF (/api/demo-agent/message).', duration: 400 },
       { from: 'bff',           to: 'agent-service', desc: 'BFF dispatches to agent-service (/api/agent/reason) with tool schemas only — no user tokens leave the BFF.', duration: 1000 },

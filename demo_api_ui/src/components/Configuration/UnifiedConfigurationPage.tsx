@@ -1145,8 +1145,8 @@ const IdpSetupGuide: FC<{
           style={{
             fontSize: 11,
             fontWeight: 600,
-            background: "#ede9fe",
-            color: "#4338ca",
+            background: "#fee2e2",
+            color: "#aa0005",
             borderRadius: 4,
             padding: "2px 7px",
           }}
@@ -1276,13 +1276,13 @@ const IdpSetupGuide: FC<{
             style={{
               padding: "8px 14px",
               border: "none",
-              borderBottom: `2px solid ${activeTab === t.id ? "#4f46e5" : "transparent"}`,
+              borderBottom: `2px solid ${activeTab === t.id ? "#d20e0f" : "transparent"}`,
               marginBottom: -2,
               background: "none",
               cursor: "pointer",
               fontSize: 13,
               fontWeight: activeTab === t.id ? 700 : 500,
-              color: activeTab === t.id ? "#4f46e5" : "#6b7280",
+              color: activeTab === t.id ? "#d20e0f" : "#6b7280",
               whiteSpace: "nowrap",
             }}
           >
@@ -1352,7 +1352,7 @@ const IdpSetupGuide: FC<{
                 style={{
                   background: "none",
                   border: "none",
-                  color: "#4f46e5",
+                  color: "#d20e0f",
                   cursor: "pointer",
                   fontSize: 13,
                   fontWeight: 600,
@@ -1371,7 +1371,7 @@ const IdpSetupGuide: FC<{
                 style={{
                   background: "none",
                   border: "none",
-                  color: "#4f46e5",
+                  color: "#d20e0f",
                   cursor: "pointer",
                   fontSize: 13,
                   fontWeight: 600,
@@ -1412,7 +1412,7 @@ const IdpSetupGuide: FC<{
                 style={{
                   background: "none",
                   border: "none",
-                  color: "#4f46e5",
+                  color: "#d20e0f",
                   cursor: "pointer",
                   fontSize: 13,
                   fontWeight: 600,
@@ -1430,7 +1430,7 @@ const IdpSetupGuide: FC<{
                 style={{
                   background: "none",
                   border: "none",
-                  color: "#4f46e5",
+                  color: "#d20e0f",
                   cursor: "pointer",
                   fontSize: 13,
                   fontWeight: 600,
@@ -2801,7 +2801,7 @@ const UnifiedConfigurationPage: FC<{
             }
             options={[
               { value: "default", label: "Theme default (brand navy, colour varies per request)" },
-              { value: "#7c3aed", label: "Violet" },
+              { value: "#d20e0f", label: "Ping Red" },
               { value: "#059669", label: "Emerald" },
               { value: "#dc2626", label: "Red" },
               { value: "#d97706", label: "Amber" },

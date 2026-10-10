@@ -12,9 +12,9 @@ const BADGE_STYLES = {
   'STEP-UP':     { background: '#fef9c3', color: '#854d0e' },
   DENY:          { background: '#fee2e2', color: '#991b1b' },
   GATE:          { background: '#dbeafe', color: '#1e40af' },
-  HITL:          { background: '#f3e8ff', color: '#6b21a8' },
+  HITL:          { background: '#fee2e2', color: '#aa0005' },
   PERMIT:        { background: '#dcfce7', color: '#166534' },
-  INDETERMINATE: { background: '#f3e8ff', color: '#6b21a8' },
+  INDETERMINATE: { background: '#fee2e2', color: '#aa0005' },
   INTROSPECT:    { background: '#e0f2fe', color: '#0369a1' },
 };
 

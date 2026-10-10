@@ -900,7 +900,7 @@ export default function AgentGatewayTester({ twoStep = false }) {
                 <BusyTreeItem
                   busy={chainRunning}
                   onClick={runChain}
-                  dotColor="#6366f1"
+                  dotColor="#d20e0f"
                   label="Run chain (accounts → balance → sensitive)"
                   busyLabel="Running chain…"
                 />
@@ -913,7 +913,7 @@ export default function AgentGatewayTester({ twoStep = false }) {
                     busy={presetBusy === p.id}
                     disabled={!!presetBusy}
                     onClick={() => runPreset(p.id)}
-                    dotColor="#8b5cf6"
+                    dotColor="#d20e0f"
                     label={p.label}
                     busyLabel="Applying..."
                   />

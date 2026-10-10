@@ -369,8 +369,8 @@ export default function UserAccounts({ user }) {
         }
 
         .action-card:hover {
-          border-color: #4f46e5;
-          box-shadow: 0 2px 8px rgba(79, 70, 229, 0.1);
+          border-color: #d20e0f;
+          box-shadow: 0 2px 8px rgba(210, 14, 15, 0.1);
         }
 
         .action-icon {
@@ -402,22 +402,22 @@ export default function UserAccounts({ user }) {
         }
 
         .btn-primary {
-          background: #4f46e5;
+          background: #d20e0f;
           color: white;
         }
 
         .btn-primary:hover {
-          background: #4338ca;
+          background: #aa0005;
         }
 
         .user-accounts .btn.btn-outline {
           background: transparent;
           color: var(--th-text);
-          border: 1px solid #4f46e5;
+          border: 1px solid #d20e0f;
         }
 
         .user-accounts .btn.btn-outline:hover {
-          background: #4f46e5;
+          background: #d20e0f;
           color: white;
         }
 

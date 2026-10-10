@@ -121,7 +121,7 @@ function Badge({ color, children }) {
     amber:  { bg: 'rgba(217,119,6,0.10)',  border: '#d97706', text: '#78350f' },
     green:  { bg: 'rgba(22,163,74,0.10)',  border: '#16a34a', text: '#14532d' },
     blue:   { bg: 'rgba(37,99,235,0.10)',  border: 'var(--brand-navy)', text: 'var(--brand-navy)' },
-    purple: { bg: 'rgba(124,58,237,0.10)', border: '#7c3aed', text: '#4c1d95' },
+    purple: { bg: 'rgba(210, 14, 15,0.10)', border: '#d20e0f', text: '#7f1d1d' },
   };
   const c = colorMap[color] || colorMap.blue;
   return (
@@ -142,7 +142,7 @@ function Badge({ color, children }) {
 }
 
 function QuestionCard({ question, answer, color = 'blue' }) {
-  const borderColor = { red: '#dc2626', amber: '#d97706', green: '#16a34a', blue: 'var(--brand-navy)', purple: '#7c3aed' }[color] || 'var(--brand-navy)';
+  const borderColor = { red: "#dc2626", amber: "#d97706", green: "#16a34a", blue: "var(--brand-navy)", purple: "#d20e0f" }[color] || 'var(--brand-navy)';
   return (
     <div style={{
       border: `1px solid ${borderColor}33`,

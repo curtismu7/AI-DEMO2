@@ -330,7 +330,7 @@ function OpenSourceContent() {
         name="CrewAI"
         category="Role-based multi-agent orchestration"
         tagline="Crews of AI agents with roles, goals, and tasks"
-        color="#7c3aed"
+        color="#d20e0f"
       >
         <ul style={{ paddingLeft: 20, margin: 0 }}>
           <Bullet>
@@ -565,7 +565,7 @@ function CommercialContent() {
         name="Dify"
         category="Open-source + SaaS LLM app platform"
         tagline="LLM app platform with visual orchestration — open-source or cloud"
-        color="#7c3aed"
+        color="#d20e0f"
       >
         <ul style={{ paddingLeft: 20, margin: 0 }}>
           <Bullet>

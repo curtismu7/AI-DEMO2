@@ -356,7 +356,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
                   {
                     step: '② RFC 8693 Exchange',
                     token: 'RFC 8693 request to PingOne',
-                    color: '#7c3aed',
+                    color: '#d20e0f',
                     bg: '#150d26',
                     rows: [
                       ['subject_token', 'User AT (proves user identity)'],

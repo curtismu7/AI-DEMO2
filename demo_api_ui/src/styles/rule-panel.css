@@ -88,8 +88,8 @@
 }
 
 .rp-list-item--active {
-  border-left-color: #4f46e5;
-  background: #eef2ff;
+  border-left-color: #d20e0f;
+  background: #fee2e2;
 }
 
 .rp-list-item__name {
@@ -179,7 +179,7 @@
 
 .rp-test-form__input:focus {
   outline: none;
-  border-color: #4f46e5;
+  border-color: #d20e0f;
 }
 
 .rp-test-form__actions {

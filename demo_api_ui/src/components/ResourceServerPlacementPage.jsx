@@ -33,7 +33,7 @@ export const RSP_EDGES = [
 export const RSP_GROUPS = {
   upstream: { label: "Agent flow — each hop keeps its own token work", bg: "#2a313c" },
   hot: { label: "The Kong-mock checkpoint", bg: "#e0575c" },
-  pdp: { label: "P1AZ sideband (AAM)", bg: "#7c3aed" },
+  pdp: { label: "P1AZ sideband (AAM)", bg: "#d20e0f" },
 };
 
 const RSP_DETAILS = {

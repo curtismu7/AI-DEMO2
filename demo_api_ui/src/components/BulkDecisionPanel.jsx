@@ -25,7 +25,7 @@ const DECISION_COLORS = {
   DENY: { bg: '#fee2e2', fg: '#991b1b' },
   STEP_UP: { bg: '#fef9c3', fg: '#854d0e' },
   CONSENT: { bg: '#fef9c3', fg: '#854d0e' },
-  INDETERMINATE: { bg: '#f3e8ff', fg: '#6b21a8' },
+  INDETERMINATE: { bg: '#fee2e2', fg: '#aa0005' },
 };
 
 function decisionBadgeStyle(d) {

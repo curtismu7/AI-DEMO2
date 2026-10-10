@@ -947,18 +947,18 @@ function SecurityCenterContent({ user }) {
         .tab-btn.active {
           /* REGRESSION_PLAN.md §0 H1: was a tokenised background paired with
              a literal ink/border — the brand indigo below matches every
-             other #4f46e5 use in this file (a deliberate accent, THEMING.md
+             other #d20e0f use in this file (a deliberate accent, THEMING.md
              §3), so the background is now the same literal-tint idiom
              OAuthAcademyPage.css's --oa-accent-muted uses, not a token. */
-          background: rgba(79, 70, 229, 0.1);
-          border-bottom: 2px solid #4f46e5;
-          color: #4f46e5;
+          background: rgba(210, 14, 15, 0.1);
+          border-bottom: 2px solid #d20e0f;
+          color: #d20e0f;
           font-weight: 600;
         }
-        /* #4f46e5 on the dark tab bar measured 2.4:1. */
+        /* #d20e0f on the dark tab bar measured 2.4:1. */
         :root[data-theme="dark"] .tab-btn.active {
-          color: #a5b4fc;
-          border-bottom-color: #a5b4fc;
+          color: #fca5a5;
+          border-bottom-color: #fca5a5;
         }
 
         .tab-content {
@@ -1078,12 +1078,12 @@ function SecurityCenterContent({ user }) {
         }
 
         .btn-primary {
-          background: #4f46e5;
+          background: #d20e0f;
           color: white;
         }
 
         .btn-primary:hover {
-          background: #4338ca;
+          background: #aa0005;
         }
 
         .btn-primary:disabled {
@@ -1093,12 +1093,12 @@ function SecurityCenterContent({ user }) {
 
         .btn-outline {
           background: transparent;
-          color: #4f46e5;
-          border: 1px solid #4f46e5 !important;
+          color: #d20e0f;
+          border: 1px solid #d20e0f !important;
         }
 
         .btn-outline:hover {
-          background: #4f46e5;
+          background: #d20e0f;
           color: white;
         }
 

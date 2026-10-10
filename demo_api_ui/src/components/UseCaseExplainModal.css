@@ -132,7 +132,7 @@
 .ucem__pp--idp   { background: #e8f0fe; color: #1545b5; border-color: #bcd2fb; }
 .ucem__pp--mfa   { background: #fef3e2; color: #9a5b09; border-color: #f6d9a8; }
 .ucem__pp--gw    { background: #e6f7f4; color: #0a6b62; border-color: #a7e3da; }
-.ucem__pp--authz { background: #f1e9fe; color: #6b21a8; border-color: #d9c2f7; }
+.ucem__pp--authz { background: #f1e9fe; color: #aa0005; border-color: #d9c2f7; }
 .ucem__pp--protect { background: #e7f5ed; color: #166534; border-color: #b5dfc4; }
 .ucem__prod-row {
   display: flex;

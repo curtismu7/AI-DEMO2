@@ -112,9 +112,9 @@
 
 /* ─── Per-category pill colours ────────────────────────────────────────────── */
 .alp-cat--oauth         { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
-.alp-cat--mcp           { background: #ede9fe; color: #4c1d95; border-color: #c4b5fd; }
-.alp-cat--token_exchange{ background: #f3e8ff; color: #6b21a8; border-color: #d8b4fe; }
-.alp-cat--delegation    { background: #fae8ff; color: #86198f; border-color: #e879f9; }
+.alp-cat--mcp           { background: #fee2e2; color: #7f1d1d; border-color: #fca5a5; }
+.alp-cat--token_exchange{ background: #fee2e2; color: #aa0005; border-color: #fca5a5; }
+.alp-cat--delegation    { background: #fee2e2; color: #7f1d1d; border-color: #f87171; }
 .alp-cat--hitl          { background: #fef3c7; color: #78350f; border-color: #fcd34d; }
 .alp-cat--authorize     { background: #ffedd5; color: #7c2d12; border-color: #fdba74; }
 .alp-cat--gateway_path  { background: #ccfbf1; color: #134e4a; border-color: #5eead4; }
@@ -210,9 +210,9 @@
 
 /* ─── Per-category left border colours ─────────────────────────────────────── */
 .alp-cat-border--oauth          { border-left-color: #3b82f6; }
-.alp-cat-border--mcp            { border-left-color: #7c3aed; }
-.alp-cat-border--token_exchange { border-left-color: #9333ea; }
-.alp-cat-border--delegation     { border-left-color: #d946ef; }
+.alp-cat-border--mcp            { border-left-color: #d20e0f; }
+.alp-cat-border--token_exchange { border-left-color: #d20e0f; }
+.alp-cat-border--delegation     { border-left-color: #d20e0f; }
 .alp-cat-border--hitl           { border-left-color: #f59e0b; }
 .alp-cat-border--authorize      { border-left-color: #f97316; }
 .alp-cat-border--gateway_path   { border-left-color: #14b8a6; }

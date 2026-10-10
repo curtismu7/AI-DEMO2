@@ -96,7 +96,7 @@ npx ${INSPECTOR_NPM}@latest
 # For the npm package, follow the inspector README for connecting to your transport.`;
 
   return (
-    <div className="card" style={{ borderColor: '#c7d2fe', background: '#f8fafc' }}>
+    <div className="card" style={{ borderColor: '#fca5a5', background: '#f8fafc' }}>
       <div className="card-header" style={{ flexDirection: 'column', alignItems: 'flex-start', gap: '0.35rem' }}>
         <h2 className="card-title" style={{ margin: 0 }}>MCP Inspector setup</h2>
         <span style={{ fontSize: '0.85rem', color: '#475569', lineHeight: 1.5 }}>

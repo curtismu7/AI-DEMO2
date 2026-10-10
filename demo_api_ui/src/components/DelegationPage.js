@@ -209,7 +209,7 @@ function HowItWorksPanel() {
           <div style={S.flowRow}>
             <div style={S.flowBox('#1e40af')}>1. Look up / provision<br/>delegate in PingOne</div>
             <span style={S.flowArrow}>→</span>
-            <div style={S.flowBox('#7c3aed')}>2. Store delegation<br/>+ scopes in LMDB</div>
+            <div style={S.flowBox('#d20e0f')}>2. Store delegation<br/>+ scopes in LMDB</div>
             <span style={S.flowArrow}>→</span>
             <div style={S.flowBox('#0891b2')}>3. Send email via<br/>PingOne Messages API</div>
             <span style={S.flowArrow}>→</span>

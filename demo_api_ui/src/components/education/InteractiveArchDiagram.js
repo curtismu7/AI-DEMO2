@@ -331,7 +331,7 @@ export default function InteractiveArchDiagram() {
           ["#34d399", "BFF / AI Agent"],
           ["#f59e0b", "PingOne (OAuth AS)"],
           ["#f472b6", "LLM Provider"],
-          ["#a78bfa", "Agent Gateway"],
+          ["#fca5a5", "Agent Gateway"],
           ["#2dd4bf", "MCP servers (OLB / Invest)"],
           ["#94a3b8", "Mortgage svc (api_key)"],
         ].map(([color, label]) => (

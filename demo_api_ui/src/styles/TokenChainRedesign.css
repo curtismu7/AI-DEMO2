@@ -159,9 +159,9 @@
 }
 
 .tems-token-badge--agent {
-  background: #e9d5ff;
-  color: #7e22ce;
-  border: 1px solid #c084fc;
+  background: #fee2e2;
+  color: #aa0005;
+  border: 1px solid #f87171;
 }
 
 .tems-token-badge--mcp {
@@ -292,8 +292,8 @@
 }
 
 .tlm-swatch--agent {
-  background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
-  border: 2px solid #c084fc;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid #f87171;
 }
 
 .tlm-swatch--mcp {
@@ -727,8 +727,8 @@
 }
 
 .tlm-swatch--agent {
-  background: linear-gradient(135deg, #e9d5ff 0%, #ddd6fe 100%);
-  border: 2px solid #c084fc;
+  background: linear-gradient(135deg, #fee2e2 0%, #fecaca 100%);
+  border: 2px solid #f87171;
 }
 
 .tlm-swatch--mcp {

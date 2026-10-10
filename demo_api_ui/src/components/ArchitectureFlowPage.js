@@ -2209,7 +2209,7 @@ const URN_SHORT = {
 };
 const FLOW_ACCENT = {
   oauth: "#2563eb",
-  exchange: "#7c3aed",
+  exchange: "#d20e0f",
   permit: "#16a34a",
   hitl: "#d97706",
   idtoken: "#0891b2",

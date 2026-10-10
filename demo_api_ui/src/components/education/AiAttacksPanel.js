@@ -108,7 +108,7 @@ export default function AiAttacksPanel({ isOpen, onClose, initialTabId }) {
             display: 'inline-flex',
             alignItems: 'center',
             gap: 8,
-            background: '#4338ca',
+            background: '#aa0005',
             border: '1px solid #3730a3',
             color: '#fff',
             borderRadius: 8,
@@ -133,9 +133,9 @@ export default function AiAttacksPanel({ isOpen, onClose, initialTabId }) {
       onClick={() => open(panelId, tabId)}
       style={{
         display: 'inline-block',
-        background: 'rgba(99,102,241,0.08)',
-        border: '1px solid rgba(99,102,241,0.35)',
-        color: '#4338ca',
+        background: 'rgba(210, 14, 15,0.08)',
+        border: '1px solid rgba(210, 14, 15,0.35)',
+        color: '#aa0005',
         borderRadius: 6,
         padding: '6px 10px',
         margin: '4px 6px 4px 0',
@@ -482,8 +482,8 @@ async function evaluate({ req, tool, params = {}, hitlChallengeId = null }) {
           </p>
           <div
             style={{
-              background: 'rgba(99,102,241,0.08)',
-              borderLeft: '3px solid #6366f1',
+              background: 'rgba(210, 14, 15,0.08)',
+              borderLeft: '3px solid #d20e0f',
               padding: '8px 12px',
               borderRadius: 4,
             }}
@@ -539,7 +539,7 @@ return tools.filter(tool =>
             before executing. A scope mismatch returns an authorization challenge — the tool body
             never runs.
           </p>
-          <div style={{ background: 'rgba(99,102,241,0.08)', borderLeft: '3px solid #6366f1', padding: '8px 12px', borderRadius: 4 }}>
+          <div style={{ background: 'rgba(210, 14, 15,0.08)', borderLeft: '3px solid #d20e0f', padding: '8px 12px', borderRadius: 4 }}>
             <strong>Defence-in-depth:</strong> Control 1 stops discovery. Control 2 stops execution.
             Both must hold independently.
           </div>

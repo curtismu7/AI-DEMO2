@@ -271,7 +271,7 @@
   flex: 1;
   width: 2px;
   min-height: 0.65rem;
-  background: linear-gradient(180deg, #c7d2fe, #e0e7ff);
+  background: linear-gradient(180deg, #fca5a5, #fecaca);
   margin: 2px 0;
 }
 
@@ -755,7 +755,7 @@
 }
 
 .afd-tc-card--open {
-  border-color: #a5b4fc;
+  border-color: #fca5a5;
 }
 
 .afd-tc-card-header {

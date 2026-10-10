@@ -5,15 +5,15 @@
 
 const CATEGORY_HUES = {
   oauth: "#2563eb",
-  token_exchange: "#7c3aed",
+  token_exchange: "#d20e0f",
   mcp: "#0891b2",
   delegation: "#db2777",
   hitl: "#ea580c",
   authorize: "#059669",
-  gateway_path: "#4f46e5",
+  gateway_path: "#d20e0f",
   threshold: "#ca8a04",
   introspection: "#0d9488",
-  helix: "#9333ea",
+  helix: "#d20e0f",
   agent: "#0284c8",
   agent_prompt: "#0369a1",
   session: "#64748b",

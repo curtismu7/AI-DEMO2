@@ -146,7 +146,7 @@ const METHOD_COLORS = {
   GET:    '#22c55e',
   POST:   '#3b82f6',
   PUT:    '#f59e0b',
-  PATCH:  '#a855f7',
+  PATCH:  '#d20e0f',
   DELETE: '#ef4444',
 };
 

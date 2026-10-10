@@ -40,7 +40,7 @@
 .ptt-header-actions { display: flex; align-items: center; gap: 8px; }
 .ptt-present-btn {
   background: #2d2640;
-  color: #c4b5fd;
+  color: #fca5a5;
   border: 1px solid #4c3f6b;
   border-radius: 4px;
   padding: 6px 14px;
@@ -49,7 +49,7 @@
   cursor: pointer;
 }
 .ptt-present-btn:hover { background: #3a2f52; color: #ffffff; }
-.cur-ide[data-cur-theme="light"] .ptt-present-btn { background: #ede9fe; color: #6d28d9; border-color: #d6ccf5; }
+.cur-ide[data-cur-theme="light"] .ptt-present-btn { background: #fee2e2; color: #aa0005; border-color: #fca5a5; }
 .ptt-close {
   background: transparent;
   border: none;

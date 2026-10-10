@@ -53,7 +53,7 @@
 }
 .asim-node:hover { transform: translateY(-2px); box-shadow: 0 9px 20px rgba(15, 23, 42, 0.17); }
 .asim-node[data-category="browser"] { background: #dbeafe; border-color: #3b82f6; color: #1e3a8a; }
-.asim-node[data-category="bff"], .asim-node[data-category="vault"] { background: #ede9fe; border-color: #8b5cf6; color: #4c1d95; }
+.asim-node[data-category="bff"], .asim-node[data-category="vault"] { background: #fee2e2; border-color: #d20e0f; color: #7f1d1d; }
 .asim-node[data-category="mcp-gw"] { background: #ffedd5; border-color: #f97316; color: #7c2d12; }
 .asim-node[data-category="agent"], .asim-node[data-category="llm"] { background: #fce7f3; border-color: #ec4899; color: #831843; }
 .asim-node[data-category="pingone"], .asim-node[data-category="pingauthorize"] { background: #cffafe; border-color: #06b6d4; color: #164e63; }

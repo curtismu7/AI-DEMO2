@@ -111,7 +111,7 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
               issues more than what's requested AND allowed.
             </li>
           </ol>
-          <p style={{ background: 'rgba(99,102,241,0.08)', borderLeft: '3px solid #6366f1', padding: '8px 12px', borderRadius: 4 }}>
+          <p style={{ background: 'rgba(210, 14, 15,0.08)', borderLeft: '3px solid #d20e0f', padding: '8px 12px', borderRadius: 4 }}>
             These checks are enforced by PingOne automatically — the app doesn&apos;t need to implement them itself.
           </p>
         </>
@@ -162,7 +162,7 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
               ))}
             </tbody>
           </table>
-          <p style={{ fontSize: '0.82rem', color: '#374151', background: 'rgba(99,102,241,0.08)', borderLeft: '3px solid #6366f1', padding: '8px 12px', borderRadius: 4 }}>
+          <p style={{ fontSize: '0.82rem', color: '#374151', background: 'rgba(210, 14, 15,0.08)', borderLeft: '3px solid #d20e0f', padding: '8px 12px', borderRadius: 4 }}>
             The takeaway: <strong>every implementer that emits <code>act</code> uses the nested-object
             shape</strong> — outermost <code>act.sub</code> is the current actor, each nested{' '}
             <code>act</code> is the actor before them. The vendors without <code>act</code> flatten to
@@ -220,7 +220,7 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
             <li><code>none</code> — public client (PKCE only, no secret)</li>
           </ul>
 
-          <div style={{ background: 'rgba(99,102,241,0.08)', borderLeft: '3px solid #6366f1', padding: '8px 12px', borderRadius: 4, fontSize: '0.82rem', marginTop: '0.75rem' }}>
+          <div style={{ background: 'rgba(210, 14, 15,0.08)', borderLeft: '3px solid #d20e0f', padding: '8px 12px', borderRadius: 4, fontSize: '0.82rem', marginTop: '0.75rem' }}>
             <strong>Why this matters:</strong> if you configure an AI Agent app in PingOne and call its
             token endpoint with <code>Authorization: Basic …</code> (basic auth), PingOne returns{' '}
             <code>invalid_client: "Unsupported authentication method"</code>. Always use{' '}

@@ -92,9 +92,9 @@
 
 .btn-export { background: #0f172a; color: #ffffff; border: 1px solid #334155; }
 .btn-export:hover { background: #1e293b; color: var(--th-text-invert); }
-.btn-ping { background: #5b21b6; color: var(--th-text-invert); }
-.btn-ping:hover { background: #6d28d9; }
-.btn-ping.pinging { background: #a78bfa; cursor: default; }
+.btn-ping { background: #aa0005; color: var(--th-text-invert); }
+.btn-ping:hover { background: #aa0005; }
+.btn-ping.pinging { background: #fca5a5; cursor: default; }
 .btn-ping:disabled { opacity: 0.7; cursor: default; }
 
 /* Ping results bar */
@@ -165,15 +165,15 @@
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
   text-align: center;
 }
-.cv-card--client  { --cv-fill: #f0f4ff; --cv-stroke: #4f46e5; --cv-label: #1e1b4b; --cv-sub: #6366f1; }
-.cv-card--gateway { --cv-fill: #f5f3ff; --cv-stroke: #7c3aed; --cv-label: #2e1065; --cv-sub: #8b5cf6; }
+.cv-card--client  { --cv-fill: #f0f4ff; --cv-stroke: #d20e0f; --cv-label: #7f1d1d; --cv-sub: #d20e0f; }
+.cv-card--gateway { --cv-fill: #fee2e2; --cv-stroke: #d20e0f; --cv-label: #7f1d1d; --cv-sub: #d20e0f; }
 .cv-card--agent   { --cv-fill: #f0fdf4; --cv-stroke: #059669; --cv-label: #064e3b; --cv-sub: #10b981; }
 .cv-card--mcp     { --cv-fill: #fffbeb; --cv-stroke: #d97706; --cv-label: #78350f; --cv-sub: #b45309; }
 .cv-card--policy  { --cv-fill: #fdf2f8; --cv-stroke: #db2777; --cv-label: #831843; --cv-sub: #ec4899; }
 .cv-card--backend { --cv-fill: #f0f9ff; --cv-stroke: #0284c7; --cv-label: #0c4a6e; --cv-sub: #0ea5e9; }
 :root[data-theme="dark"] .cv-card { --cv-fill: #1b2540; --cv-stroke: #94a3b8; --cv-label: #e2e8f0; --cv-sub: #cbd5e1; }
-:root[data-theme="dark"] .cv-card--client  { --cv-fill: #151a33; --cv-stroke: #818cf8; --cv-label: #e0e7ff; --cv-sub: #a5b4fc; }
-:root[data-theme="dark"] .cv-card--gateway { --cv-fill: #1e1b3a; --cv-stroke: #a78bfa; --cv-label: #ede9fe; --cv-sub: #c4b5fd; }
+:root[data-theme="dark"] .cv-card--client  { --cv-fill: #151a33; --cv-stroke: #f87171; --cv-label: #fecaca; --cv-sub: #fca5a5; }
+:root[data-theme="dark"] .cv-card--gateway { --cv-fill: #2a0909; --cv-stroke: #fca5a5; --cv-label: #fee2e2; --cv-sub: #fca5a5; }
 :root[data-theme="dark"] .cv-card--agent   { --cv-fill: #0f2a20; --cv-stroke: #34d399; --cv-label: #d1fae5; --cv-sub: #6ee7b7; }
 :root[data-theme="dark"] .cv-card--mcp     { --cv-fill: #2a1f0a; --cv-stroke: #fbbf24; --cv-label: #fef3c7; --cv-sub: #fcd34d; }
 :root[data-theme="dark"] .cv-card--policy  { --cv-fill: #2a1220; --cv-stroke: #f472b6; --cv-label: #fce7f3; --cv-sub: #f9a8d4; }

@@ -1,7 +1,7 @@
 /* A2ATokenFlowDiagram.css — large, zoomable React Flow token-chain canvas.
  *
  * Theme tokens for surfaces/ink; actor colors are the shared diagram palette
- * (identity #7c3aed, runtime #004687, policy #dc2626, specialist #b45309,
+ * (identity #d20e0f, runtime #004687, policy #dc2626, specialist #b45309,
  * MCP #0e7490) — same literals ReactFlowPocPage/ReactFlowSequenceDiagram use,
  * they do not flip with theme.
  */

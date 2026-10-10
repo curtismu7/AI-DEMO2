@@ -41,10 +41,10 @@
 .ucph__presenter {
   margin: 0.55rem 0 0;
   padding-left: 10px;
-  border-left: 3px solid #7c3aed;
+  border-left: 3px solid #d20e0f;
   font-size: 0.84rem;
   font-style: italic;
   color: var(--th-text);
 }
-.ucph__presenter .ucph__k { font-style: normal; color: #7c3aed; }
-:root[data-theme="dark"] .ucph__presenter .ucph__k { color: #c4b5fd; }
+.ucph__presenter .ucph__k { font-style: normal; color: #d20e0f; }
+:root[data-theme="dark"] .ucph__presenter .ucph__k { color: #fca5a5; }

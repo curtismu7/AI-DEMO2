@@ -1167,8 +1167,8 @@ a.pingone-test-button--primary:visited {
 /* ── TokenLineageDiff (Phase 139 w3-3) ───────────────────────────── */
 .tld-wrapper {
   background: #fdf4ff;
-  border: 1px solid #e9d5ff;
-  border-left: 4px solid #9333ea;
+  border: 1px solid #fee2e2;
+  border-left: 4px solid #d20e0f;
   border-radius: 6px;
   margin-top: 0.75rem;
 }
@@ -1187,17 +1187,17 @@ a.pingone-test-button--primary:visited {
 }
 
 .tld-toggle:hover {
-  background: #f3e8ff;
+  background: #fee2e2;
   border-radius: 5px 5px 0 0;
 }
 
 .tld-icon {
-  color: #9333ea;
+  color: #d20e0f;
   font-size: 0.7rem;
 }
 
 .tld-label {
-  color: #6b21a8;
+  color: #aa0005;
   font-size: 0.82rem;
   font-weight: 600;
 }
@@ -1212,7 +1212,7 @@ a.pingone-test-button--primary:visited {
 }
 
 .tld-body {
-  border-top: 1px solid #e9d5ff;
+  border-top: 1px solid #fee2e2;
   padding: 0.6rem 1rem;
 }
 
@@ -1327,7 +1327,7 @@ a.pingone-test-button--primary:visited {
 }
 
 .tld-arrow {
-  color: #9333ea;
+  color: #d20e0f;
   font-size: 0.8rem;
   font-weight: 700;
 }

@@ -2586,7 +2586,7 @@ function openInNewWindow(event) {
           const highlight =
             {
               act: "#0f766e",
-              scope: "#6d28d9",
+              scope: "#aa0005",
               aud: "#166534",
             }[k] || "";
           const bg = highlight ? `background:${highlight}22;` : "";

@@ -47,9 +47,9 @@ function EduLink({ label, panelId, tabId, onClick }) {
       onClick={() => onClick(panelId, tabId)}
       style={{
         background: 'none',
-        border: '1px solid #6366f1',
+        border: '1px solid #d20e0f',
         borderRadius: 6,
-        color: '#4f46e5',
+        color: '#d20e0f',
         padding: '3px 10px',
         fontSize: '0.78rem',
         fontWeight: 600,
@@ -104,7 +104,7 @@ const PRACTICES = [
     title: 'Detect Agents',
     tagline: 'Identify when session is agentic',
     bullets: ['Apply specific IAM controls for CUA', 'Tag agent sessions'],
-    colour: '#7c3aed',
+    colour: '#d20e0f',
   },
   {
     id: 'delegate',

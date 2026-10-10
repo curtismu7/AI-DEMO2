@@ -71,7 +71,7 @@
 
 /* Filled by user */
 .copyable-value-field--filled {
-  border: 1.5px solid #6366f1;
+  border: 1.5px solid #d20e0f;
 }
 
 /* Auto-filled / read-only */
@@ -97,7 +97,7 @@
 
 /* Background tints per state */
 .copyable-value-field--required .copyable-value-input  { background: #fffbeb; color: #92400e; }
-.copyable-value-field--filled .copyable-value-input    { background: #eef2ff; color: #3730a3; }
+.copyable-value-field--filled .copyable-value-input    { background: #fee2e2; color: #3730a3; }
 .copyable-value-field--autofill .copyable-value-input  { background: #f0fdf4; color: #065f46; }
 
 .copyable-value-copy-btn {
@@ -114,9 +114,9 @@
 .copyable-value-copy-btn:hover { opacity: 0.8; }
 
 .copyable-value-field--filled .copyable-value-copy-btn {
-  background: #e0e7ff;
+  background: #fecaca;
   color: #3730a3;
-  border-left: 1px solid #c7d2fe;
+  border-left: 1px solid #fca5a5;
 }
 
 .copyable-value-field--autofill .copyable-value-copy-btn {
