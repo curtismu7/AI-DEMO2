@@ -122,6 +122,9 @@ export default function HostileMcpCatalogTab() {
   const onHostileDoor = (currentUrl || '').includes('hostile-mcp');
   const runwayReady = onHostileDoor && authed;
 
+  // One click for the demo: flipping the door also starts the Privilege sign-in —
+  // the OAuth bounce returns to this tab and the runway unlocks on landing.
+  // (signIn() navigates away, so relayBusy's finally never runs; that is fine.)
   const pointAtDoor = async () => {
     setRelayBusy(true);
     setRelayError('');
@@ -133,9 +136,10 @@ export default function HostileMcpCatalogTab() {
       setRuns({});
     } catch (err) {
       setRelayError(err.message);
-    } finally {
       setRelayBusy(false);
+      return;
     }
+    await signIn();
   };
 
   const signIn = async () => {
@@ -264,7 +268,7 @@ export default function HostileMcpCatalogTab() {
               className="hmc-btn hmc-btn--danger"
               disabled={relayBusy || !runwayReady}
               onClick={runAll}
-              title={runwayReady ? 'Run every test in sequence' : 'Point at the hostile door and sign in first'}
+              title={runwayReady ? 'Run every test in sequence' : 'One click: points the relay at the hostile door and starts the Privilege sign-in'}
             >
               {relayBusy ? 'Running…' : `Run all ${testPlan.length}`}
             </button>
@@ -284,14 +288,9 @@ export default function HostileMcpCatalogTab() {
             <span className={authed ? 'hmc-pill hmc-pill--ok' : 'hmc-pill'}>
               {authed ? '✓ Signed in with Privilege' : 'Not signed in with Privilege'}
             </span>
-            {!onHostileDoor && (
+            {!runwayReady && (
               <button type="button" className="hmc-btn" disabled={relayBusy || !doorUrl} onClick={pointAtDoor}>
-                Point at hostile door
-              </button>
-            )}
-            {!authed && (
-              <button type="button" className="hmc-btn" disabled={relayBusy || !onHostileDoor} onClick={signIn}>
-                Sign in with Privilege
+                {onHostileDoor ? 'Sign in with Privilege' : 'Point at hostile door & sign in'}
               </button>
             )}
             <span className="hmc-runway-note">
@@ -362,7 +361,7 @@ export default function HostileMcpCatalogTab() {
                             className="hmc-btn hmc-btn--run"
                             disabled={relayBusy || !runwayReady}
                             onClick={() => runTest(test)}
-                            title={runwayReady ? 'Fire this through the Privilege relay' : 'Point at the hostile door and sign in first'}
+                            title={runwayReady ? 'Fire this through the Privilege relay' : 'One click: points the relay at the hostile door and starts the Privilege sign-in'}
                           >
                             {run && relayBusy ? 'Running…' : 'Run'}
                           </button>
