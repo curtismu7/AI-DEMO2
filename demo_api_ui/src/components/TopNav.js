@@ -62,9 +62,6 @@ export default function TopNav({ user, onLogout }) {
     !pageManifest ||
     PING_SURFACE_VERTICALS.includes(pageManifest?.id) ||
     !identity?.logoPath;
-  // The vertical logo is a magic link: click toggles the side nav fully
-  // hidden/shown (same event the Ctrl+Shift+B sequence fires).
-  const toggleSidenav = () => window.dispatchEvent(new CustomEvent('admin-sidenav-hidden-toggle'));
 
   // Sign Out asks first — an accidental sign-out kills the token chain and
   // the live demo mid-run. The modal interposes; performLogout semantics
@@ -158,7 +155,8 @@ export default function TopNav({ user, onLogout }) {
       <div className="topnav-container">
 
         {/* Left: Brand — Ping mark on Ping surfaces, vertical logo elsewhere.
-            On a customer vertical the logo doubles as the sidenav magic link. */}
+            The brand button always opens the Demo Summary page (Ctrl+Shift+B
+            toggles the side nav). */}
         <div className="topnav-left">
           {showPingMark ? (
             <div className="topnav-ping-identity" aria-label="Ping Identity">
@@ -172,13 +170,9 @@ export default function TopNav({ user, onLogout }) {
           <button
             type="button"
             className="topnav-brand"
-            onClick={showPingMark
-              ? () => navigate(user?.role === 'admin' ? '/admin' : '/dashboard')
-              : toggleSidenav}
-            title={showPingMark
-              ? 'Go to dashboard'
-              : 'Toggle side navigation (Ctrl+Shift+B)'}
-            aria-label={showPingMark ? 'Go to dashboard' : 'Toggle side navigation'}
+            onClick={() => navigate('/demo-summary')}
+            title="Demo Summary — everything you can demo"
+            aria-label="Demo Summary"
           >
             {identity?.logoPath
               ? <img src={identity.logoPath} alt={identity.logoAlt || brandName} className="topnav-brand-logo" />

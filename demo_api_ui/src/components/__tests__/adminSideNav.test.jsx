@@ -224,6 +224,14 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(mirror).toBeTruthy();
   });
 
+  it("renders Demo Summary at the top of the AI Experiences group", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^AI Experiences/ }));
+    const link = screen.getByText("Demo Summary");
+    expect(link).toBeTruthy();
+    expect(link.closest("a")).toHaveAttribute("href", "/demo-summary");
+  });
+
   it("live-filters nav items by label", () => {
     renderNav();
     // present before filtering
