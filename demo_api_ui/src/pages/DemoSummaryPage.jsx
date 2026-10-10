@@ -1,4 +1,4 @@
-import React, { useMemo, useState } from "react";
+import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { parsePageCatalog } from "../utils/parsePageCatalog";
 import catalogMd from "../data/pageCatalog.md?raw";
@@ -51,6 +51,30 @@ const hasAppRoute = (p) => (p.route || "").startsWith("/");
 
 export default function DemoSummaryPage() {
   const [query, setQuery] = useState("");
+  // The logo opens this page — including for users whose side rail was
+  // hidden by the old magic-link behavior. Without a way back, the rail
+  // stays hidden forever (the only other restore is Ctrl+Shift+B).
+  const [navHidden, setNavHidden] = useState(false);
+  useEffect(() => {
+    const read = () => {
+      try {
+        setNavHidden(localStorage.getItem("adminSideNav.hidden") === "1");
+      } catch {
+        setNavHidden(false);
+      }
+    };
+    read();
+    window.addEventListener("admin-sidenav-hidden-toggle", read);
+    return () => window.removeEventListener("admin-sidenav-hidden-toggle", read);
+  }, []);
+  const showSideMenu = () => {
+    try {
+      localStorage.setItem("adminSideNav.hidden", "0");
+    } catch {
+      /* private mode — ignore */
+    }
+    window.dispatchEvent(new CustomEvent("admin-sidenav-hidden-toggle"));
+  };
 
   const groups = useMemo(() => {
     const q = query.trim().toLowerCase();
@@ -91,6 +115,11 @@ export default function DemoSummaryPage() {
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Filter demo pages"
         />
+        {navHidden ? (
+          <button type="button" className="dsum-restore" onClick={showSideMenu}>
+            Show side menu
+          </button>
+        ) : null}
       </header>
 
       {groups.map((g) => (

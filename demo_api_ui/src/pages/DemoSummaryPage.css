@@ -39,6 +39,23 @@
   color: var(--th-text);
 }
 
+.dsum-restore {
+  display: inline-block;
+  margin-top: 0.75rem;
+  padding: 0.45rem 1rem;
+  font-size: 0.9rem;
+  font-weight: 600;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  cursor: pointer;
+}
+
+.dsum-restore:hover {
+  background: var(--th-bg-hover);
+}
+
 .dsum-group {
   margin-bottom: 2rem;
 }
