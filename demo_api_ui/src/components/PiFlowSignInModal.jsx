@@ -157,12 +157,6 @@ export default function PiFlowSignInModal() {
   const begin = useCallback((detail) => {
     const target = detail.returnTo;
     const role = detail.role === "admin" ? "admin" : "customer";
-    // PF's MFA steps are not driven in the modal yet: go straight to the hosted step-up login rather than
-    // asking for the password here and then again there.
-    if (mfaRequested() && providerRef.current === "pingfederate") {
-      redirectLogin(target, role, detail.force);
-      return;
-    }
     returnToRef.current = target;
     roleRef.current = role;
     forceRef.current = Boolean(detail.force);

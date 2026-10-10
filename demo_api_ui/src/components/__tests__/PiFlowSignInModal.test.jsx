@@ -200,13 +200,20 @@ describe('PiFlowSignInModal', () => {
     expect(String(loginCall[0])).toContain('force=true');
   });
 
-  test('?signin=mfa on PingFederate goes straight to the hosted step-up login (no second password page)', async () => {
+  test('?signin=mfa on PingFederate drives OTP in the modal (no hosted detour)', async () => {
     window.location.search = '?signin=mfa';
-    mockBff({ config: { ...ON, oauth_provider: 'pingfederate' }, login: () => ok({ flowId: 'f1' }), credentials: () => ok({}) });
-    await mountAndClick();
-    await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/stepup?return_to=%2Fdashboard'));
-    expect(screen.queryByLabelText('Username')).toBeNull();
-    expect(global.fetch.mock.calls.some(([u]) => String(u).includes('/login?'))).toBe(false);
+    mockBff({
+      config: { PINGONE_USER_AUTHORIZE_PI_FLOW: 'true', oauth_provider: 'pingfederate' },
+      login: () => ok({ flowId: 'pf1', usernameHint: 'demouser' }),
+      credentials: () => ok({ step: 'otp', devices: [{ id: 'pf-otp-1', type: 'OTP' }] }),
+      assertion: () => ok({}),
+    });
+    await mountAndClickPassword();
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demouser' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByLabelText('Verification code')).toBeInTheDocument();
+    expect(window.location.href).toBe(''); // no redirect to /stepup
   });
 
   test('PingFederate selected: opens the same form (the BFF drives the PF flow)', async () => {
