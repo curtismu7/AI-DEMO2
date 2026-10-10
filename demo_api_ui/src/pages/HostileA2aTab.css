@@ -4,6 +4,9 @@
    family. Font sizes from the scale. */
 
 .ha2 {
+  /* Same wrapper gutter every sibling tab carries (.lgw, .hmc) — .main-content
+     supplies margin-left for the side nav only, never padding. */
+  padding: 1.25rem;
   color: var(--th-text);
   font-family: var(--font-primary);
 }
