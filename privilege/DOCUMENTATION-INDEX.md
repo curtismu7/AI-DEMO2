@@ -99,6 +99,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [MCP discovery-gating demo](MCP-DISCOVERY-DEMO.md) | Drive (SE) | SE demo script: an agent's `tools/list` returns only what its policy grants — permit door, deny-by-default door, grant change, agent key, aggregate; pre-demo check and troubleshooting (every claim measured 2026-10-02…04) |
 | [Ping's reference demo, explained](PINGS-REFERENCE-DEMO-EXPLAINED.md) | Drive (SE) | The two-agent demo (`aigwdemo`) from the source up: three processes, the six legs and which cross the gateway, the four ADK traps the demo solves (A2A bearer, card object, `transportOptions`, `GatewayGemini`), the seeded findings, the UI's eight detector groups, and the runbook condensed (source-verified 2026-10-09, not yet run) |
 | [Policies in depth](PRIVILEGE-POLICIES-IN-DEPTH.md) | Drive (SE) | What tool policies do when there is more than one: the union model (create adds, expiry silently subtracts, delete subtracts identically, edit-down does nothing), discovery-gating and why the client never sees "denied", the four indistinguishable 403s, groups (documented, not reproduced), per-app scope, and when a "policy problem" isn't one — every step measured live 2026-10-10 |
+| [Agent mode end to end](AGENT-MODE-END-TO-END.md) | Drive (SE) | The Privilege Agent on a Mac, measured: device-bound identity in the Secure Enclave, pairing and re-pairing order, the local console, the cloud frontend's 403 gate — and the reframe: the agent is an identity anchor, not an MCP transport (cm-mcpgw is gone; MCP runs through the agentless gateways). Stale-agent-doc corrections included; paired live 2026-10-10 |
 
 ## Reference & records
 
@@ -122,4 +123,3 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 
 | Guide | What it covers | Testable now? |
 |---|---|---|
-| Agent mode end to end | The Privilege Agent on a workstation, device-bound identity, how it differs from agentless | Partly — needs the agent paired on a Mac |
