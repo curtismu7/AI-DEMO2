@@ -18,6 +18,7 @@ jest.mock('../services/configStore', () => ({
   })[key]),
   isUserOAuthConfigured: jest.fn(() => true),
   getOAuthProvider: jest.fn(() => 'pingone'),
+  setConfig: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../services/oauthRedirectUris', () => ({
   getFrontendOrigin: jest.fn(() => 'http://localhost:3000'),
@@ -559,5 +560,32 @@ describe('/login?mode=pi.flow (session token modal)', () => {
     configStore.isUserOAuthConfigured.mockReturnValueOnce(false);
     const res = await request(modeApp).get('/api/auth/oauth/user/login?mode=pi.flow').expect(400);
     expect(res.body.error).toBe('not_configured');
+  });
+});
+
+describe('PUT /login-hint', () => {
+  test('stores a valid hint for the customer role', async () => {
+    const res = await request(app)
+      .put('/api/auth/oauth/user/login-hint')
+      .send({ value: 'someone@pingone.com' });
+    expect(res.status).toBe(204);
+    expect(configStore.setConfig).toHaveBeenCalledWith(
+      expect.objectContaining({ last_login_hint_customer: 'someone@pingone.com' }));
+  });
+
+  test('rejects control characters and overlong values with 400', async () => {
+    const res1 = await request(app)
+      .put('/api/auth/oauth/user/login-hint').send({ value: 'bad\u0007name' });
+    expect(res1.status).toBe(400);
+    expect(res1.body.error).toBe('invalid_hint');
+    const res2 = await request(app)
+      .put('/api/auth/oauth/user/login-hint').send({ value: 'x'.repeat(257) });
+    expect(res2.status).toBe(400);
+  });
+
+  test('empty body is a 400, not a wiped hint', async () => {
+    const res = await request(app)
+      .put('/api/auth/oauth/user/login-hint').send({});
+    expect(res.status).toBe(400);
   });
 });

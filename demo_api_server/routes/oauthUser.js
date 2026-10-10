@@ -361,6 +361,28 @@ router.post('/pi-flow/passwordless', piFlowHandlers.handlePasswordlessStart);
 // ASSERTION_REQUIRED, which the existing endpoints drive.
 router.post('/pi-flow/device', piFlowHandlers.handleDeviceSelectStep);
 
+// The modal remembers who is signing in as: PUT stores the typed username as
+// the role's login hint so the next sign-in prefills it. Convenience prefill
+// only — validated with the same cleanName rule as the server's own hint
+// derivation, never an auth decision. Admin router (routes/oauth.js) mounts
+// the same handler for its role.
+const hintForStore = (value) => {
+  const text = String(value ?? '').trim();
+  return text && text.length <= 256 && !/[\u0000-\u001f\u007f]/.test(text) ? text : null;
+};
+const storeLoginHint = (key) => async (req, res) => {
+  const hint = hintForStore(req.body?.value);
+  if (!hint) return res.status(400).json({ error: 'invalid_hint' });
+  try {
+    await configStore.setConfig({ [key]: hint });
+    return res.status(204).end();
+  } catch (err) {
+    console.warn('[oauth/user] login-hint write failed:', err.message);
+    return res.status(204).end(); // prefill loss is not the user's problem
+  }
+};
+router.put('/login-hint', storeLoginHint('last_login_hint_customer'));
+
 router.get('/login', (req, res) => {
   try {
     // A regular login must not inherit a prior step-up transaction marker.
@@ -2035,6 +2057,7 @@ router.post('/agent-permissions', (req, res) => {
 
 module.exports = router;
 module.exports.sanitizePostLoginReturnPath = sanitizePostLoginReturnPath;
+module.exports.storeLoginHint = storeLoginHint;
 module.exports.setPendingIdJagRun = setPendingIdJagRun;
 module.exports.consumePendingIdJagRun = consumePendingIdJagRun;
 module.exports.clearPendingIdJagRun = clearPendingIdJagRun;

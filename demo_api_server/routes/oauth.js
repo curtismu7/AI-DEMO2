@@ -27,7 +27,7 @@ const { validateIdToken, assertUserInfoSubjectMatches } = require('../services/o
 const posthog = require('../services/posthog');
 const archEmit = require('../services/archEventEmitter');
 const { terminateAllUserSessions } = require('../services/pingOneSessionService');
-const { sanitizePostLoginReturnPath } = require('./oauthUser');
+const { sanitizePostLoginReturnPath, storeLoginHint } = require('./oauthUser');
 const { makePiFlowHandlers, piFlowProvider } = require('../services/piFlowDriver');
 const { KNOWN_REDIRECT_ORIGINS } = require('../services/knownRedirectOrigins');
 const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, clearHostedAccessApproval } = require('../services/hostedAccessPolicy');
@@ -66,6 +66,11 @@ router.post('/pi-flow/device', async (req, res) => {
   if (!adminPiFlowEnabled()) return res.status(404).json({ error: 'pi_flow_disabled' });
   return adminPiFlow.handleDeviceSelectStep(req, res);
 });
+
+// The admin modal remembers who is signing in as: same handler as the user
+// router's /login-hint, storing the ADMIN role's hint. Convenience prefill
+// only — never an auth decision.
+router.put('/login-hint', storeLoginHint('last_login_hint_admin'));
 
 /**
  * GET /api/auth/oauth/redirect-info — implemented on app in server.js (before /api/auth mount).
