@@ -3,16 +3,27 @@ import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { describe, expect, it, vi, beforeEach } from "vitest";
 import DelegationChainValuePage from "../DelegationChainValuePage";
 import apiClient from "../../services/apiClient";
+import { sendAgentMessage } from "../../services/demoAgentService";
 
 vi.mock("../../services/apiClient", () => ({
   default: { post: vi.fn(), patch: vi.fn() },
+}));
+
+vi.mock("../../services/demoAgentService", () => ({
+  sendAgentMessage: vi.fn(),
+}));
+
+// TokenChainTraceRail reads the shared trace store on mount; isolate it from
+// whatever a previous test left in the store.
+vi.mock("../../components/TokenChainTraceRail", () => ({
+  default: () => <div data-testid="dcv-rail">token chain rail</div>,
 }));
 
 describe("DelegationChainValuePage", () => {
   beforeEach(() => {
     vi.clearAllMocks();
     apiClient.patch.mockResolvedValue({});
-    apiClient.post.mockResolvedValue({ data: { reply: "done", toolsCalled: ["sensitive_holdings"] } });
+    sendAgentMessage.mockResolvedValue({ reply: "done", toolsCalled: ["sensitive_holdings"] });
   });
 
   it("renders both scenario sections", () => {
@@ -29,9 +40,10 @@ describe("DelegationChainValuePage", () => {
     fireEvent.click(runButton);
 
     await waitFor(() =>
-      expect(apiClient.post).toHaveBeenCalledWith(
-        "/api/agent/invoke",
-        expect.objectContaining({ prompt: "hand off to a specialist" }),
+      expect(sendAgentMessage).toHaveBeenCalledWith(
+        "hand off to a specialist",
+        null,
+        expect.objectContaining({ forceHeuristic: true, vertical: "sporting-goods" }),
       ),
     );
   });
@@ -42,9 +54,10 @@ describe("DelegationChainValuePage", () => {
     fireEvent.click(runButtons[1]);
 
     await waitFor(() =>
-      expect(apiClient.post).toHaveBeenCalledWith(
-        "/api/agent/invoke",
-        expect.objectContaining({ prompt: "simulate an agent identity mismatch" }),
+      expect(sendAgentMessage).toHaveBeenCalledWith(
+        "simulate an agent identity mismatch",
+        null,
+        expect.objectContaining({ forceHeuristic: true, vertical: "sporting-goods" }),
       ),
     );
   });
@@ -69,10 +82,17 @@ describe("DelegationChainValuePage", () => {
   });
 
   it("surfaces a failed run instead of leaving the button spinning", async () => {
-    apiClient.post.mockRejectedValue(new Error("gateway unreachable"));
+    sendAgentMessage.mockRejectedValue(new Error("gateway unreachable"));
     render(<DelegationChainValuePage />);
     fireEvent.click(screen.getAllByText("Run")[0]);
 
     expect(await screen.findByText("gateway unreachable")).toBeInTheDocument();
+  });
+
+  it("mounts the token chain rail after a run — the page's pitch made visible", async () => {
+    render(<DelegationChainValuePage />);
+    expect(screen.queryByTestId("dcv-rail")).not.toBeInTheDocument();
+    fireEvent.click(screen.getAllByText("Run")[0]);
+    expect(await screen.findByTestId("dcv-rail")).toBeInTheDocument();
   });
 });

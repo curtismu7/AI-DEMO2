@@ -46,8 +46,11 @@ describe("AgentGatewayAuthorizationLessonPage", () => {
 
   it("updates the explanation when a flow stage is selected", () => {
     renderPage();
-    fireEvent.click(screen.getByRole("button", { name: /protected resource/i }));
-    expect(screen.getByText(/receives the request only after the gateway gets a permitted decision/i)).toBeInTheDocument();
+    // The flow is now a StaticFlowDiagram (shared reel); the stage detail below
+    // it is driven by the scenario outcome, so assert the default gateway
+    // explanation renders and the reel's Play/Step bar is present.
+    expect(screen.getByText(/the gateway is the enforcement point/i)).toBeInTheDocument();
+    expect(screen.getByTestId("agal-flow-steps")).toBeInTheDocument();
   });
 
   it("runs the selected request through the live MCP service", async () => {

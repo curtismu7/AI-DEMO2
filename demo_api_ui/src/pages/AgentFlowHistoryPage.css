@@ -187,6 +187,10 @@
   color: var(--th-text);
 }
 
+.afh-chain { margin-top: 20px; padding-top: 16px; border-top: 1px solid var(--th-border); }
+.afh-chain h2 { margin: 0 0 6px; font-size: var(--font-size-body); }
+.afh-chain p { margin: 0 0 12px; color: var(--th-text-muted); font-size: var(--font-size-sm); }
+
 .afh-detail-empty {
   padding: 32px 16px;
   color: var(--th-text-muted);

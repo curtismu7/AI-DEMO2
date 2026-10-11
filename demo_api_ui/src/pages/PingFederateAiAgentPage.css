@@ -231,6 +231,7 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
 .pf-ai-agent__explain { margin: 12px 0; padding: 10px 14px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-inset); font-size: var(--font-size-sm); line-height: 1.55; }
 .pf-ai-agent__explain summary { cursor: pointer; font-weight: 700; }
 .pf-ai-agent__explain p { margin: 8px 0 0; }
+.pf-ai-agent__sequence { margin-bottom: 14px; }
 .pf-ai-agent__proof { margin-top: 18px; padding-top: 16px; border-top: 1px solid var(--th-border); }
 .pf-ai-agent__proof h3 { margin: 0 0 8px; }
 .pf-ai-agent__proof-points { margin: 0 0 14px; padding-left: 20px; font-size: var(--font-size-sm); line-height: 1.55; }

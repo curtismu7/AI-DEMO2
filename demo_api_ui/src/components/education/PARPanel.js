@@ -2,8 +2,28 @@
 // Education drawer — Pushed Authorization Requests (RFC 9126)
 import React from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
+import FlowDiagram from '../FlowDiagram';
 import { EduImplIntro, SNIP_PAR_MOCK } from './educationImplementationSnippets';
 import ParRarComparison from './ParRarComparison';
+
+// The PAR + PKCE sequence, as a lifeline diagram: the browser never carries the
+// full parameter set — only the request_uri reference. FlowDiagram picks the
+// sequence renderer for sequenceDiagram text and attaches the shared movie reel.
+const PAR_SEQUENCE = `sequenceDiagram
+    participant C as Client (BFF)
+    participant B as Browser
+    participant AS as Authorization Server
+    C->>C: generate code_verifier + code_challenge (PKCE)
+    C->>AS: POST /as/par (all parameters, client auth)
+    AS->>C: 201 request_uri (short-lived reference)
+    C->>B: redirect with client_id + request_uri ONLY
+    B->>AS: GET /as/authorize?request_uri=…
+    AS->>B: authenticate the user
+    B->>AS: user signs in
+    AS->>B: redirect back with code
+    B->>C: callback with code
+    C->>AS: POST /as/token (code + code_verifier)
+    AS->>C: tokens`;
 
 const Code = ({ children }) => (
   <code style={{
@@ -102,6 +122,9 @@ client_id=myapp&response_type=code&scope=openid read
       content: (
         <>
           <h4 style={{ marginTop: 0 }}>PAR + PKCE end-to-end sequence</h4>
+          <div style={{ margin: '0.5rem 0 1rem' }}>
+            <FlowDiagram source={PAR_SEQUENCE} label="PAR + PKCE end-to-end sequence diagram" />
+          </div>
           <ol style={{ paddingLeft: '1.25rem', lineHeight: 1.7, fontSize: '0.88rem' }}>
             <li>Client generates <code>code_verifier</code> + <code>code_challenge</code> (PKCE).</li>
             <li>Client POSTs all parameters to <code>POST /as/par</code>, authenticating with its

@@ -9,6 +9,8 @@
 import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '../services/apiClient';
 import AgentRunTimeline from '../components/AgentRunTimeline';
+import TokenChainTraceRail from '../components/TokenChainTraceRail';
+import { replayRunIntoTrace } from '../services/tokenChainTrace/replayUnattendedRun';
 import useDividerDrag from '../hooks/useDividerDrag';
 import { useThemeOptional } from '../context/ThemeContext';
 import './AgentFlowHistoryPage.css';
@@ -87,6 +89,20 @@ export default function AgentFlowHistoryPage() {
     ? runs?.find((r) => r.runId === selectedRunId)
     : runs?.[0]) || null;
 
+  // Replay the selected run's stored token events into the trace store, which
+  // feeds the rail below the timeline. The same replay the unattended-runs
+  // panel uses, so a past run reads exactly like a live one. replayRunIntoTrace
+  // returns false for a run with no events — then only the timeline shows.
+  const [replayed, setReplayed] = useState(false);
+  useEffect(() => {
+    setReplayed(selectedRun
+      ? replayRunIntoTrace(selectedRun, {
+        prompt: selectedRun.prompt || `Run ${selectedRun.runId}`,
+        ok: selectedRun.success !== false,
+      })
+      : false);
+  }, [selectedRun]);
+
   return (
     <div className="agent-flow-history-page">
       <div className="afh-header">
@@ -156,7 +172,19 @@ export default function AgentFlowHistoryPage() {
 
         <main className="afh-detail">
           {selectedRun ? (
-            <AgentRunTimeline run={selectedRun} />
+            <>
+              <AgentRunTimeline run={selectedRun} />
+              {replayed && (
+                <section className="afh-chain" aria-label="Token chain replay">
+                  <h2>Token chain, replayed</h2>
+                  <p>
+                    The run's stored token events, walked in wire order — the same chain view
+                    a live run shows.
+                  </p>
+                  <TokenChainTraceRail />
+                </section>
+              )}
+            </>
           ) : (
             <div className="afh-detail-empty">
               {runs === null ? 'Loading…' : 'Select a run from the history list to inspect it.'}

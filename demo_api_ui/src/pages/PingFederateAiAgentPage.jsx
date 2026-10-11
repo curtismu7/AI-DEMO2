@@ -1,8 +1,10 @@
 import { useEffect, useMemo, useState } from "react";
 import DraggableModal from "../components/DraggableModal";
+import FlowDiagram from "../components/FlowDiagram";
 import ProtocolTrace from "../components/ProtocolTrace";
 import apiClient from "../services/apiClient";
 import { notifyError, notifySuccess } from "../utils/appToast";
+import { sequenceSource as pfSequenceSource } from "../utils/pfTraceSequence";
 import "./PingFederateAiAgentPage.css";
 
 function FeatureStatus({ ready }) {
@@ -255,6 +257,18 @@ function cibaOutcome(state) {
   }
 }
 
+// The shape of one captured flow, as a walkable sequence diagram above the
+// raw traffic. Empty trace -> no diagram (ProtocolTrace stays the evidence).
+function TraceSequenceDiagram({ steps, selfCall, testId }) {
+  const source = useMemo(() => pfSequenceSource(steps, { selfCall }), [steps, selfCall]);
+  if (!source) return null;
+  return (
+    <div className="pf-ai-agent__sequence" data-testid={testId}>
+      <FlowDiagram source={source} label="Request sequence" />
+    </div>
+  );
+}
+
 export default function PingFederateAiAgentPage({ user }) {
   const [status, setStatus] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -477,6 +491,7 @@ export default function PingFederateAiAgentPage({ user }) {
           {cimdResult?.trace?.length > 0 && (
             <div className="pf-ai-agent__proof" data-testid="cimd-proof">
               <h3>Proof: what was sent and what came back</h3>
+              <TraceSequenceDiagram steps={cimdResult.trace} testId="cimd-sequence" />
               <ul className="pf-ai-agent__proof-points">
                 <li>The client_id is a URL that serves its own metadata; nothing was registered in PingFederate beforehand.</li>
                 <li>The ID token says {cimdResult.subject} signed in at {cimdResult.issuer}.</li>
@@ -554,6 +569,7 @@ export default function PingFederateAiAgentPage({ user }) {
               {exchangeResult.trace?.length > 0 && (
                 <div className="pf-ai-agent__proof" data-testid="exchange-proof">
                   <h3>Proof: what was sent and what came back</h3>
+                  <TraceSequenceDiagram steps={exchangeResult.trace} selfCall testId="exchange-sequence" />
                   <ul className="pf-ai-agent__proof-points">
                     {exchangeProofPoints(exchangeResult).map((point) => <li key={point}>{point}</li>)}
                   </ul>
@@ -631,6 +647,7 @@ export default function PingFederateAiAgentPage({ user }) {
           {rarResult?.trace?.length > 0 && (
             <div className="pf-ai-agent__proof" data-testid="rar-proof">
               <h3>Proof: what was sent and what came back</h3>
+              <TraceSequenceDiagram steps={rarResult.trace} testId="rar-sequence" />
               <ul className="pf-ai-agent__proof-points">
                 {rarProofPoints(rarResult).map((point) => <li key={point}>{point}</li>)}
               </ul>
@@ -699,6 +716,7 @@ export default function PingFederateAiAgentPage({ user }) {
           {cibaState?.trace?.length > 0 && (
             <div className="pf-ai-agent__proof" data-testid="ciba-proof">
               <h3>Proof: what was sent and what came back</h3>
+              <TraceSequenceDiagram steps={cibaState.trace} testId="ciba-sequence" />
               <ul className="pf-ai-agent__proof-points">
                 {cibaProofPoints(cibaState).map((point) => <li key={point}>{point}</li>)}
               </ul>
