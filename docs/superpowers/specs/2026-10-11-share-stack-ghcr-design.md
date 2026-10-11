@@ -126,6 +126,30 @@ they pull `latest`.
 - End-to-end acceptance: on a recipient-like machine, three steps →
   `smoke.sh` all green.
 
+## Privilege / MCPGW independence (verified in code)
+
+The base demo does not require PingOne Privilege. `ping-mcpgw` ships at
+`replicas: 0`; `deploy.sh` scales it only when `ping-mcpgw-secrets` exists and
+otherwise warns; `create-secrets.sh` guards every Privilege file behind
+`if [ -f ]`. Recipients without a Privilege license lose only the governed
+MCPGW door (`*.mcpgw.ai-demo.ping-devops.com` per-app ingress, policy
+enforcement, session recording) and `mode mcpgw`.
+
+Two recipient hazards found during verification, both handled in
+`share-setup.sh`:
+
+1. **Procyon node sensor** — `deploy.sh` installs it by default on OrbStack
+   with the author's registered NHI audience as the default value, and its
+   rollout check is fatal (`|| die`). Recipients must set
+   `PROCYON_NODESENSOR_ENABLED=0` (or their own audience if they register an
+   NHI) or a deploy without Privilege can die at the sensor step.
+2. **Author-bound public hostnames** — `02-configmap.yaml` points
+   `PRIVILEGE_A2A_PUBLIC_URL` and `A2A_DELEGATE_TARGETS` at
+   `mcpgw.ai-demo.ping-devops.com` (the author's SE ingress). Harmless for
+   port-forward demos; A2A delegate features silently target the author's
+   door. Documented, not fixed — recipients doing A2A demos need their own
+   ingress and a configmap override.
+
 ## Open items for implementation
 
 - Exact small-overlay composition method (§2) — pick whichever touches no
@@ -134,3 +158,5 @@ they pull `latest`.
   manifests reviewed) — confirm during publish-script implementation.
 - GitHub org vs personal repos for the clone URL in docs (repo is currently
   under one account; the other account may host a mirror if needed).
+- `share-setup.sh` must export `PROCYON_NODESENSOR_ENABLED=0` by default and
+  surface the configmap hostname caveat in its final output.
