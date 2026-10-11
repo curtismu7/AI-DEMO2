@@ -15,7 +15,16 @@ verticalManifest.init();
 // Reads this session's own record of what it was granted — no signature check
 // needed, and none performed.
 const { decodeJwt } = require('../utils/tokenUtils');
-const { buildOperatorWriteChain } = require('../services/operatorTokenChain');
+const { buildOperatorWriteChain, buildOperatorDenialChain } = require('../services/operatorTokenChain');
+const supportDelegation = require('../services/supportDelegationService');
+const { fetchPingOneUserByUsername } = require('../services/pingOneUserLookupService');
+const demoTrackService = require('../services/demoTrackService');
+
+// The single real write scope on the enduser resource (scope-topology.json:
+// "Super Banking API"). The console's per-vertical permission labels
+// (transactions:write / general:write) are the client's advisory vocabulary;
+// the delegated token asks for THIS scope. One map, one place.
+const SUPPORT_WRITE_SCOPE = 'write';
 // Applied PER ROUTE, never as router.use(): other routers share the
 // /api/admin mount, and a router-level guard would 403 their traffic before
 // Express could fall through to them.
@@ -86,7 +95,7 @@ function isKnownUser(userId) {
 // from an unrelated slice — a shipment id passed to the work-order release —
 // and the fallback inside the mutator then writes to the wrong row anyway.
 function writeAction(plugin, verticalId, method, noun, sliceKey) {
-  return (req, res) => {
+  return async (req, res) => {
     const userId = req.body?.userId;
     const id = req.params.id;
     if (!userId) return res.status(400).json({ ok: false, error: 'userId is required' });
@@ -106,6 +115,40 @@ function writeAction(plugin, verticalId, method, noun, sliceKey) {
       .find((row) => String(row?.id) === String(id));
     if (!existing) return res.status(404).json({ ok: false, error: `${noun} not found` });
 
+    // Real delegation: exchange subject=customer + actor=admin client for a
+    // short-lived delegated token whose act claim names the operator's client.
+    // Exchange failure aborts the write BEFORE the mutator — nothing mutates
+    // under an unproven actor.
+    let delegated = null;
+    let exchangeEvent = null;
+    try {
+      const x = await supportDelegation.exchangeForWrite(req, { scope: SUPPORT_WRITE_SCOPE });
+      delegated = {
+        sub: x.delegatedClaims.sub || null,
+        actSub: x.delegatedClaims.act?.sub || null,
+        scope: x.delegatedClaims.scope || SUPPORT_WRITE_SCOPE,
+        jti: x.delegatedClaims.jti || null,
+        aud: x.delegatedClaims.aud || null,
+      };
+      exchangeEvent = supportDelegation.buildExchangeEvents({ delegatedClaims: x.delegatedClaims, request: x.request })[0];
+    } catch (e) {
+      demoTrackService.observeSupportEvent?.({ kind: 'exchange-failed' }, req.sessionID);
+      // The refusal chain: session, the (live) verification, and the failed
+      // exchange hop that stopped the write. Replaces the audit hop — the
+      // exchange outcome IS the audit here; the mutator never ran.
+      const tokenChain = buildOperatorDenialChain(req, {
+        vertical: verticalId, customerId: String(userId), action: `${req.method} ${req.originalUrl}`,
+      });
+      tokenChain.splice(2, 1, {
+        id: 'exchange', label: 'RFC 8693 exchange — act on behalf of', status: 'error',
+        vertical: verticalId, claims: {}, explanation: e.message || 'Exchange failed — the write did not proceed.',
+      });
+      return res.status(e.status || 502).json({ ok: false, error: e.code || 'exchange_failed', message: e.message, tokenChain });
+    }
+    // The success stamp sits AFTER the try — inside it, a track-service throw
+    // would land in the catch and abort a perfectly good exchange as 502.
+    try { demoTrackService.observeSupportEvent?.({ kind: 'exchange-ok', detail: { actSub: delegated.actSub } }, req.sessionID); } catch { /* track observation is optional */ }
+
     const item = store[method](String(userId), id);
     if (!item) return res.status(404).json({ ok: false, error: `${noun} not found` });
     // Second layer: the id existed, but the mutator still returned a different
@@ -119,6 +162,9 @@ function writeAction(plugin, verticalId, method, noun, sliceKey) {
       customerId: String(userId),
       outcome: 'ok',
     });
+    // Stamps are strictly best-effort: a track failure must not 500 a write
+    // the mutator and audit already committed.
+    try { demoTrackService.observeSupportEvent?.({ kind: 'write-ok' }, req.sessionID); } catch { /* track observation is optional */ }
     // The write's own token-chain evidence — session, verification, the row's
     // before/after, the audit. What the console rail renders; see
     // services/operatorTokenChain.js.
@@ -133,7 +179,19 @@ function writeAction(plugin, verticalId, method, noun, sliceKey) {
       request: { method: req.method, url: req.originalUrl },
       result: item,
     });
-    res.json({ ok: true, item, tokenChain });
+    // Insert the real-evidence hops: customer token + exchange, in wire order.
+    // Stamp vertical on them like the operator hops — the console hides a
+    // chain whose operator/ceremony events belong to a different vertical.
+    const signonTokenEvent = supportDelegation.buildCustomerTokenEvent(req.session.support);
+    const exchangeHop = { ...exchangeEvent, vertical: verticalId };
+    signonTokenEvent.vertical = verticalId;
+    tokenChain.splice(2, 0, signonTokenEvent, exchangeHop);
+    // The audit hop records the delegated token's provenance.
+    const audit = tokenChain[tokenChain.length - 1];
+    audit.claims.actSub = delegated.actSub;
+    audit.claims.jti = delegated.jti;
+    audit.claims.delegatedScope = delegated.scope;
+    res.json({ ok: true, item, delegated, tokenChain });
   };
 }
 
@@ -237,21 +295,51 @@ function isCustomerVerified(req, customerId) {
   return verificationExpiry(req, customerId) > Date.now();
 }
 
-// POST /<vertical>/verify/initiate — start a challenge against the customer's
-// registered device. The demo completes it synchronously; a deployment wired to
-// a real CIBA channel would flip `ok` to false and let the client poll /status.
-function verifyInitiate(req, res) {
+// POST /<vertical>/verify/initiate — open the customer's REAL sign-on
+// (headless pi.flow). The BFF submits the password from config; the flow
+// stops at the customer's OTP device. The operator's browser never sees a
+// token — only which masked contact the code went to.
+async function verifyInitiate(req, res) {
   const customerId = req.body?.customerId;
   if (!customerId) return res.status(400).json({ ok: false, error: 'customerId is required' });
-  if (!isKnownUser(customerId)) return res.status(404).json({ ok: false, error: 'unknown user' });
-  const expiresAt = markCustomerVerified(req, customerId);
-  res.json({
-    ok: true,
-    customerId: String(customerId),
-    channel: 'device-otp',
-    expiresIn: SUPPORT_VERIFY_TTL_MS,
-    expiresAt,
-  });
+  const local = dataStore.getUserById(String(customerId));
+  if (!local || local.role === 'admin') return res.status(404).json({ ok: false, error: 'unknown user' });
+  let pingOneUserId = local.oauthId || null;
+  if (!pingOneUserId) {
+    try {
+      const { user: linked } = await fetchPingOneUserByUsername(local.username);
+      pingOneUserId = linked?.id || null;
+    } catch (_) { pingOneUserId = null; }
+  }
+  if (!pingOneUserId) return res.status(409).json({ ok: false, error: 'customer_not_linked', message: `${local.username} has no PingOne account to sign on with.` });
+  try {
+    const out = await supportDelegation.openCustomerSignon(req, {
+      username: local.username, pingOneUserId, customerId: String(customerId),
+    });
+    res.json({ ok: true, customerId: String(customerId), ...out });
+  } catch (e) {
+    res.status(e.status || 502).json({ ok: false, error: e.code || 'pi_flow_failed', message: e.message });
+  }
+}
+
+// POST /<vertical>/verify/otp — complete the customer's sign-on with the
+// code from their device. Mints the customer token into session.support and
+// marks the customer verified (the gate flag the ADMIN_WRITE middleware reads;
+// Task 5 rewires it to liveSupportSession).
+async function verifyOtp(req, res) {
+  const verticalId = String(req.path || '').split('/').filter(Boolean)[0];
+  try {
+    const out = await supportDelegation.submitCustomerOtp(req, { otp: req.body?.otp });
+    if (out.verified) markCustomerVerified(req, req.session.support?.customerId);
+    // Stamp vertical like the write chain — the console hides foreign chains.
+    const chain = [
+      ...supportDelegation.buildSignonEvents(req.session.support),
+      out.tokenEvent,
+    ].map((e) => ({ ...e, vertical: verticalId }));
+    res.json({ ok: true, verified: out.verified, expiresAt: out.expiresAt, tokenChain: chain });
+  } catch (e) {
+    res.status(e.status || 502).json({ ok: false, error: e.code || 'pi_flow_failed', message: e.message });
+  }
 }
 
 // GET /<vertical>/verify/status?customerId=
@@ -326,7 +414,7 @@ const { makeRequireCustomerVerified } = require('../middleware/requireCustomerVe
 // This array was previously empty — the routes were open to any authenticated
 // user. Removing this middleware must turn the "verification is enforced"
 // tests red; that is the proof the gate is real and not decorative.
-const ADMIN_WRITE = [requireAdmin, makeRequireCustomerVerified({ isCustomerVerified, recordAudit })];
+const ADMIN_WRITE = [requireAdmin, makeRequireCustomerVerified({ isCustomerVerified, recordAudit, liveSupportSession: supportDelegation.liveSupportSession, observeSupportEvent: demoTrackService.observeSupportEvent })];
 
 // ── Capability-driven registration (T4) ──────────────────────────────────────
 // Route URLs, methods, and guards are unchanged from the pre-T4 hardcoded
@@ -362,6 +450,7 @@ for (const v of verticalManifest.listAll()) {
   const id = v.id;
 
   router.post(`/${id}/verify/initiate`, ...ADMIN_WRITE, verifyInitiate);
+  router.post(`/${id}/verify/otp`, ...ADMIN_WRITE, verifyOtp);
   router.get(`/${id}/verify/status`, ...ADMIN_WRITE, verifyStatus);
   router.get(`/${id}/permissions`, ...ADMIN_WRITE, permissionsFor);
   router.get(`/${id}/audit`, auditFor);

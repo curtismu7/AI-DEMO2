@@ -865,6 +865,48 @@ class OAuthService {
   }
 
   /**
+   * Client-credentials token for the ADMIN app (the operator BFF's own client).
+   * Actor token for support-console RFC 8693 exchanges: PingOne mints
+   * act.sub from this token's client_id (actAttributeValue default), so the
+   * delegated token records "the admin BFF, operated by the signed-in admin,
+   * acted for the customer". Minted per exchange, never persisted.
+   * @param {string} scope - single-resource scope (PingOne rejects multi-resource CC requests)
+   */
+  async getAdminClientCredentialsToken(scope) {
+    const clientId = this.config.clientId;
+    const clientSecret = this.config.clientSecret;
+    if (!clientId || !clientSecret) {
+      throw new Error('Admin client credentials not set. Set PINGONE_ADMIN_CLIENT_ID + PINGONE_ADMIN_CLIENT_SECRET.');
+    }
+    const tokenEndpoint = this.config.tokenEndpoint;
+    const order = authMethodOrder(
+      (process.env.PINGONE_ADMIN_TOKEN_ENDPOINT_AUTH
+        || configStore.getEffective('admin_token_endpoint_auth_method')
+        || 'basic').toLowerCase()
+    );
+    for (let i = 0; i < order.length; i++) {
+      const method = order[i];
+      const body = new URLSearchParams({ grant_type: 'client_credentials' });
+      if (scope) body.set('scope', scope);
+      if (method === 'post') body.set('client_id', clientId);
+      const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
+      applyTokenEndpointAuth(clientId, clientSecret, method, body, headers, tokenEndpoint);
+      try {
+        const response = await axios.post(tokenEndpoint, body.toString(), { headers });
+        const at = response.data.access_token;
+        if (!at) throw new Error('Admin client credentials response missing access_token');
+        return at;
+      } catch (error) {
+        if (!(isInvalidClientError(error) && i < order.length - 1)) {
+          const d = error.response?.data || {};
+          throw new Error(`Admin client credentials failed: ${d.error_description || d.error || error.message}`);
+        }
+      }
+    }
+    throw new Error('Admin client credentials failed for all auth methods');
+  }
+
+  /**
    * Client-credentials token for the MCP Token Exchanger app (PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID).
    * Used exclusively as actor_token in RFC 8693 token exchanges — distinct from
    * getAgentClientCredentialsToken which resolves to the management worker app first.

@@ -36,9 +36,63 @@ const SECOND_USER = {
 };
 jest.mock('../../data/store', () => ({
   getAllUsers: () => [DEMO_USER, SECOND_USER],
+  getUserById: (id) => [DEMO_USER, SECOND_USER].find((u) => String(u.id) === String(id)) || null,
+}));
+
+// The ceremony + its PingOne lookup are mocked: this suite tests the console's
+// route wiring and the vertical stores, not the pi.flow flow (that lives in the
+// supportDelegationService suites). verifyHelper completes the ceremony in one
+// call — initiate then otp — standing in for the two browser round-trips.
+jest.mock('../../services/supportDelegationService', () => ({
+  openCustomerSignon: jest.fn(async (req, { customerId } = {}) => {
+    req.session.support = {
+      customerId: String(customerId ?? 'u1'),
+      customerUsername: 'demo', pingOneUserId: 'ping-1',
+      verifiedUntil: 0,
+    };
+    return { step: 'otp', maskedContact: '••••42' };
+  }),
+  submitCustomerOtp: jest.fn(async (req) => {
+    req.session.support = {
+      ...(req.session.support || {}),
+      subjectToken: 'subject.jwt.value', subjectClaims: { sub: 'ping-1' },
+      verifiedUntil: Date.now() + 15 * 60 * 1000,
+    };
+    return {
+      verified: true, expiresAt: req.session.support.verifiedUntil,
+      tokenEvent: { id: 'customer-token-issued', label: 'Customer token issued', status: 'done', claims: { sub: 'ping-1' } },
+    };
+  }),
+  exchangeForWrite: jest.fn(async (req) => ({
+    delegatedToken: 'delegated.jwt.value',
+    delegatedClaims: { sub: 'ping-1', act: { sub: 'admin-client' }, scope: 'write', jti: 'j-route-test' },
+    request: { audience: 'enduser.ping.demo', scope: 'write', hasActor: true },
+  })),
+  buildSignonEvents: jest.fn(() => []),
+  buildCustomerTokenEvent: jest.fn(() => ({
+    id: 'customer-token-issued', label: 'Customer token issued', status: 'done', claims: { sub: 'ping-1' },
+  })),
+  buildExchangeEvents: jest.fn(() => [{
+    id: 'exchange', label: 'RFC 8693 exchange — act on behalf of', status: 'done',
+    claims: { sub: 'ping-1', 'act.sub': 'admin-client', scope: 'write', jti: 'j-route-test' },
+  }]),
+  liveSupportSession: jest.fn(),
+  SUPPORT_VERIFY_TTL_MS: 15 * 60 * 1000,
+}));
+jest.mock('../../services/pingOneUserLookupService', () => ({
+  fetchPingOneUserByUsername: jest.fn(async () => ({ user: { id: 'ping-1' }, error: null })),
 }));
 
 const adminVerticals = require('../../routes/adminVerticals');
+
+// The real ceremony is two browser round-trips (initiate → OTP from the
+// customer's device). The mock completes both in one call so every case that
+// used to `verify/initiate` keeps one-line setup. Any vertical's path works —
+// the session verification is customer-keyed, not vertical-keyed.
+async function verifyHelper(agent, customerId = 'u1', vertical = 'workforce') {
+  await request(agent).post(`/api/admin/${vertical}/verify/initiate`).send({ customerId });
+  await request(agent).post(`/api/admin/${vertical}/verify/otp`).send({ otp: '123456' });
+}
 
 function makeApp() {
   const app = express();
@@ -97,7 +151,7 @@ describe('admin vertical Ops — write actions', () => {
   // action itself.
   it.each(CASES)('%s: %s action mutates status then guards a settled item', async (vertical, slice, statusKey, terminal, pathFor, resolvedStatus) => {
     const agent = makeSessionApp();
-    await request(agent).post(`/api/admin/${vertical}/verify/initiate`).send({ customerId: 'u1' });
+    await verifyHelper(agent, 'u1', vertical);
 
     const look = await request(agent).get(`/api/admin/${vertical}/lookup?q=demo`);
     const item = actionable(look.body.data[slice], statusKey, terminal);
@@ -115,7 +169,7 @@ describe('admin vertical Ops — write actions', () => {
 
   it('workforce: deny expense sets Denied status', async () => {
     const agent = makeSessionApp();
-    await request(agent).post('/api/admin/workforce/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(agent);
 
     const look = await request(agent).get('/api/admin/workforce/lookup?q=demo');
     const exp = actionable(look.body.data.expenses, 'status', ['Approved', 'Denied', 'Reimbursed']);
@@ -134,8 +188,19 @@ describe('admin vertical Ops — write actions', () => {
 
   it('rejects an unknown userId with 404', async () => {
     // Seeded past the gate — verify/initiate would 404 on 'ghost' before the
-    // route's own unknown-user check could be reached.
-    const agent = makeSessionApp({ supportVerified: { ghost: Date.now() + 60_000 } });
+    // route's own unknown-user check could be reached. This suite mocks
+    // liveSupportSession as a bare jest.fn() (always falsy), so the gate's
+    // fallback is what must pass: the legacy flag AND the ceremony session
+    // with a subjectToken — the same state verifyHelper's OTP mock + the
+    // route's markCustomerVerified produce for real ceremonies.
+    const agent = makeSessionApp({
+      supportVerified: { ghost: Date.now() + 15 * 60 * 1000 },
+      support: {
+        customerId: 'ghost', customerUsername: 'ghost', pingOneUserId: 'ghost',
+        subjectToken: 'subject.jwt.value', subjectClaims: { sub: 'ghost' },
+        verifiedUntil: Date.now() + 15 * 60 * 1000,
+      },
+    });
     const r = await request(agent).post('/api/admin/retail/orders/1001/cancel').send({ userId: 'ghost' });
     expect(r.status).toBe(404);
     expect(r.body.error).toBe('unknown user');
@@ -143,7 +208,7 @@ describe('admin vertical Ops — write actions', () => {
 
   it('returns 404 when the target item id does not exist', async () => {
     const agent = makeSessionApp();
-    await request(agent).post('/api/admin/retail/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(agent, 'u1', 'retail');
     const r = await request(agent).post('/api/admin/retail/orders/does-not-exist/cancel').send({ userId: 'u1' });
     expect(r.status).toBe(404);
   });
@@ -174,13 +239,23 @@ describe('customer verification', () => {
     expect(r.body.verified).toBe(false);
   });
 
-  it('initiate then status reports verified', async () => {
+  it('initiate then otp completes and status reports verified', async () => {
     const a = makeSessionApp();
     const init = await request(a)
       .post('/api/admin/sporting-goods/verify/initiate')
       .send({ customerId: 'u1' });
     expect(init.status).toBe(200);
     expect(init.body.ok).toBe(true);
+    expect(init.body.step).toBe('otp');
+
+    const otp = await request(a)
+      .post('/api/admin/sporting-goods/verify/otp')
+      .send({ otp: '123456' });
+    expect(otp.status).toBe(200);
+    expect(otp.body.verified).toBe(true);
+    // This suite's ceremony mock returns no signon events, so the chain is the
+    // token hop alone; the delegation suite asserts the full two-hop shape.
+    expect(otp.body.tokenChain.map((e) => e.id)).toEqual(['customer-token-issued']);
 
     const r = await request(a).get('/api/admin/sporting-goods/verify/status?customerId=u1');
     expect(r.body.verified).toBe(true);
@@ -189,7 +264,7 @@ describe('customer verification', () => {
 
   it('verifying one customer does not verify another', async () => {
     const a = makeSessionApp();
-    await request(a).post('/api/admin/sporting-goods/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(a);
     const r = await request(a).get('/api/admin/sporting-goods/verify/status?customerId=u2');
     expect(r.body.verified).toBe(false);
   });
@@ -273,7 +348,7 @@ describe('verification is enforced on writes', () => {
     const appt = await firstActionableAppointment(a);
     expect(appt).toBeTruthy();
 
-    await request(a).post('/api/admin/healthcare/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(a);
 
     const r = await request(a)
       .post(`/api/admin/healthcare/appointments/${appt.id}/cancel`)
@@ -288,7 +363,7 @@ describe('verification is enforced on writes', () => {
     const appt = await firstActionableAppointment(a);
     expect(appt).toBeTruthy();
 
-    await request(a).post('/api/admin/healthcare/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(a);
 
     const r = await request(a)
       .post(`/api/admin/healthcare/appointments/${appt.id}/cancel`)
@@ -322,7 +397,7 @@ describe('verification is enforced on writes', () => {
     await request(a)
       .post(`/api/admin/healthcare/appointments/${appt.id}/cancel`)
       .send({ userId: 'u1' });
-    await request(a).post('/api/admin/healthcare/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(a);
     await request(a)
       .post(`/api/admin/healthcare/appointments/${appt.id}/cancel`)
       .send({ userId: 'u1' });
@@ -442,7 +517,7 @@ describe('Phase 2 verticals', () => {
   it('the read-only verticals register no write route', async () => {
     const agent = makeSessionApp();
     // Verified for u1, so a 404 here is "no such route", not the gate refusing.
-    await request(agent).post('/api/admin/investment/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(agent, 'u1', 'investment');
     for (const path of [
       '/api/admin/investment/trades/t1/buy',
       '/api/admin/investment/portfolios/p1/withdraw',
@@ -463,7 +538,7 @@ describe('Phase 2 verticals', () => {
     expect(denied.status).toBe(403);
     expect(denied.body.error).toBe('customer_not_verified');
 
-    await request(agent).post('/api/admin/government/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(agent, 'u1', 'government');
     const ok = await request(agent).post(`/api/admin/government/permits/${permit.id}/release`).send({ userId: 'u1' });
     expect(ok.status).toBe(200);
     expect(ok.body.ok).toBe(true);
@@ -476,7 +551,7 @@ describe('Phase 2 verticals', () => {
   // failure this phase refused to ship for the other mutators.
   it('a write against an unknown row id does not act on a different row', async () => {
     const agent = makeSessionApp();
-    await request(agent).post('/api/admin/manufacturing/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(agent, 'u1', 'manufacturing');
 
     const before = await request(agent).get('/api/admin/manufacturing/lookup?q=demo');
     const openOrders = before.body.data.workOrders.filter((w) => w.status !== 'Released');
@@ -497,7 +572,7 @@ describe('Phase 2 verticals', () => {
   // work order and the store would be written before any id comparison ran.
   it('an id from another slice does not release a work order', async () => {
     const agent = makeSessionApp();
-    await request(agent).post('/api/admin/manufacturing/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(agent, 'u1', 'manufacturing');
 
     const before = await request(agent).get('/api/admin/manufacturing/lookup?q=demo');
     const openBefore = before.body.data.workOrders.filter((w) => w.status !== 'Released').map((w) => w.id);
@@ -516,7 +591,7 @@ describe('Phase 2 verticals', () => {
 
   it('releasing a real work order still works and targets that order', async () => {
     const agent = makeSessionApp();
-    await request(agent).post('/api/admin/manufacturing/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(agent, 'u1', 'manufacturing');
     const look = await request(agent).get('/api/admin/manufacturing/lookup?q=demo');
     const wo = actionable(look.body.data.workOrders, 'status', ['Released']);
     expect(wo).toBeTruthy();
@@ -533,7 +608,7 @@ describe('Phase 2 verticals', () => {
   // would be worse than not offering it, so assert they stay unexposed.
   it('mutators that cannot honour a row id are not exposed as routes', async () => {
     const agent = makeSessionApp();
-    await request(agent).post('/api/admin/university/verify/initiate').send({ customerId: 'u1' });
+    await verifyHelper(agent, 'u1', 'university');
     for (const path of [
       '/api/admin/university/courses/C-1/register',
       '/api/admin/university/transcripts/T-1/release',
