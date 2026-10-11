@@ -27,14 +27,16 @@ BUGS.md
 CHANGELOG.md
 CLAUDE.md
 CODE_REVIEW.md
+# Standard repo-companion files added 2026-10-11 (PR that also enabled secret
+# scanning; see docs/runbooks/share-announcement.md).
 CONTRIBUTING.md
+LICENSE
 Connect to the PingOne Remote MCP Server.pdf
 DOCKER_STARTUP.md
 FEATURES.md
 HANDOFF-A2A-PF-SESSION-2026-09-26.md
 HANDOFF-UC38-demo-steps.md
 HANDOFF.md
-LICENSE
 # Dated cross-agent session handoff reports (docs/ is the canonical home for
 # NEW ones; these four landed at root on 2026-09-26 across parallel agent
 # sessions before the allowlist gate could catch them).
