@@ -601,31 +601,29 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
     project:  { ink: '#008300', stripe: '#f2f9f2' }
   };
   var INLINE = [
-    ['h1', 'font-family:Montserrat,sans-serif;font-weight:800;font-size:28px;color:#d20e0f;margin:0 0 6px;'],
-    ['h2', 'font-family:Montserrat,sans-serif;font-weight:700;font-size:20px;color:#d20e0f;padding-bottom:4px;margin:32px 0 8px;'],
-    ['h3', 'font-family:Montserrat,sans-serif;font-weight:700;font-size:15px;color:#d20e0f;margin:22px 0 6px;'],
-    ['p', 'font-family:-apple-system,Segoe UI,sans-serif;font-size:14px;color:#1b2733;line-height:1.5;margin:8px 0;'],
-    ['table', 'border-collapse:collapse;width:100%;font-family:-apple-system,Segoe UI,sans-serif;font-size:13px;color:#1b2733;margin:10px 0;'],
-    ['th', 'font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;text-align:left;background:#000000;color:#ffffff;padding:8px 12px;border:1px solid #d7dde3;white-space:nowrap;'],
-    ['td', 'padding:8px 12px;border:1px solid #d7dde3;vertical-align:top;color:#1b2733;'],
-    ['a .chip', 'text-decoration:none;'],
-    ['a', 'color:#d20e0f;'],
-    ['.chip', 'display:inline-block;font-family:Menlo,monospace;font-size:11px;font-weight:600;background:#fdeaea;color:#aa0005;border:1px solid #f0b9b9;border-radius:10px;padding:2px 8px;white-space:nowrap;'],
-    ['.chip.plain', 'font-family:-apple-system,sans-serif;background:#eef2f5;color:#5b6b7a;border:1px solid #d7dde3;'],
-    ['.chip.dash', 'background:none;border:none;color:#8a99a8;font-family:-apple-system,sans-serif;'],
-    ['span.mono, code', 'font-family:Menlo,monospace;font-size:12px;background:#f3f5f7;color:#14324a;padding:1px 4px;border-radius:3px;'],
-    ['ul.toc', 'list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;'],
-    ['ul.toc li', 'margin:0 4px 4px 0;'],
-    ['ul.toc .tocitem', 'font-family:Montserrat,sans-serif;font-size:11.5px;font-weight:600;text-decoration:none;border:1px solid #d7dde3;border-radius:10px;padding:3px 10px;display:inline-block;'],
-    ['.note', 'background:#fdeaea;border-left:3px solid #d20e0f;padding:10px 14px;margin:14px 0;font-size:13.5px;'],
-    ['.assets', 'background:#ffffff;border:1px solid #d7dde3;border-radius:8px;padding:12px 16px;font-size:13px;'],
+    ['h1', 'color:#d20e0f;font-size:28px;font-weight:bold;margin:0 0 6px;'],
+    ['h2', 'color:#d20e0f;font-size:20px;font-weight:bold;border-bottom:2px solid #d20e0f;padding-bottom:4px;margin:32px 0 8px;'],
+    ['h3', 'color:#d20e0f;font-size:15px;font-weight:bold;margin:22px 0 6px;'],
+    ['p', 'font-size:14px;color:#1b2733;margin:8px 0;'],
+    ['table', 'border:1px solid #d7dde3;font-size:13px;color:#1b2733;margin:10px 0;border-collapse:collapse;width:100%;'],
+    ['th', 'background-color:#051727;color:#ffffff;border:1px solid #d7dde3;font-size:11px;font-weight:bold;text-align:left;padding:8px 12px;'],
+    ['td', 'border:1px solid #d7dde3;color:#1b2733;padding:8px 12px;'],
+    ['a', 'color:#d20e0f;text-decoration:none;'],
+    ['td a', 'color:#d20e0f;font-weight:bold;'],
+    ['.chip', 'background-color:#fdeaea;color:#aa0005;border:1px solid #f0b9b9;font-size:11px;font-weight:bold;padding:2px 8px;'],
+    ['.chip.plain', 'background-color:#eef2f5;color:#5b6b7a;border:1px solid #d7dde3;'],
+    ['.chip.dash', 'color:#8a99a8;'],
+    ['span.mono, code', 'background-color:#f3f5f7;color:#14324a;font-size:12px;'],
+    ['tbody tr:nth-child(even) td', 'background-color:#f3f6f8;'],
+    ['.note', 'background-color:#fdeaea;border-left:3px solid #d20e0f;padding:10px 14px;margin:14px 0;font-size:13.5px;'],
+    ['.assets', 'border:1px solid #d7dde3;background-color:#ffffff;padding:12px 16px;font-size:13px;'],
     ['.footer-meta, .retired, .planned-empty', 'color:#5b6b7a;font-size:12.5px;'],
-    ['.count', 'font-size:12px;color:#5b6b7a;font-weight:600;'],
-    ['.eyebrow', 'font-family:Montserrat,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#5b6b7a;margin:0 0 8px;'],
-    ['.subtitle', 'font-family:Montserrat,sans-serif;font-weight:600;font-size:15px;color:#5b6b7a;margin:0 0 12px;'],
-    ['.meta', 'font-size:12.5px;color:#5b6b7a;margin:0 0 20px;'],
+    ['.count', 'color:#5b6b7a;font-size:12px;'],
+    ['.eyebrow', 'color:#5b6b7a;font-size:10.5px;font-weight:bold;'],
+    ['.subtitle', 'color:#5b6b7a;font-size:15px;font-weight:bold;'],
+    ['.meta', 'color:#5b6b7a;font-size:12.5px;'],
     ['.meta strong', 'color:#051727;'],
-    ['.warn', 'color:#d20e0f;font-weight:700;']
+    ['.warn', 'color:#d20e0f;font-weight:bold;']
   ];
   function bakeInline(root) {
     var clone = root.cloneNode(true);
@@ -635,6 +633,12 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
       if (sel === 'span.mono, code') nodes = clone.querySelectorAll('span.mono, code');
       else nodes = clone.querySelectorAll(sel);
       nodes.forEach(function (el) { el.style.cssText += css; });
+    });
+    // Confluence's paste sanitizer keeps bgcolor attributes even where it strips
+    // style properties — mirror th/td background-color onto bgcolor.
+    clone.querySelectorAll('th, td').forEach(function (el) {
+      var m = /background-color:\s*(#[0-9a-fA-F]{3,6})/.exec(el.style.cssText);
+      if (m) el.setAttribute('bgcolor', m[1]);
     });
     // Per-section color second pass: h2 underline, table top border, tinted
     // stripes, td links — all from the section ancestor's SEC entry.
