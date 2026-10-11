@@ -1,0 +1,615 @@
+<title>Skills I use with Claude (on my own machine)</title>
+<!--
+  Design plan — utilitarian Confluence source doc, Ping brand treatment.
+  Color: --bg Gray 100 #fcfcfc, --fg ink #1b2733, --accent Ping Red #d20e0f→#aa0005,
+         --surface white, --border cool hairline. Dark theme flips to Core Dark #051727.
+  Type:  Montserrat for display/headings (brand), Source Sans 3 for body, IBM Plex Mono for commands/IDs.
+  Layout: single-column document, red gradient masthead rule, section tables in scroll wrappers,
+         fixed "Copy for Confluence" action that puts text/html on the clipboard.
+-->
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@500;600;700;800&family=Source+Sans+3:ital,wght@0,400;0,600;0,700;1,400&family=IBM+Plex+Mono:wght@400;600&display=swap">
+<style>
+:root {
+  --bg: #fcfcfc;
+  --surface: #ffffff;
+  --fg: #1b2733;
+  --muted: #5b6b7a;
+  --border: #e3e7eb;
+  --accent: #d20e0f;
+  --accent-deep: #aa0005;
+  --accent-soft: #fdeaea;
+  --code-bg: #f3f5f7;
+  --code-fg: #14324a;
+  --row-alt: #f3f6f8;
+  --th-bg: #051727;
+  --th-fg: #ffffff;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #051727;
+    --surface: #0b2436;
+    --fg: #dfe7ee;
+    --muted: #93a7b8;
+    --border: rgba(255,255,255,0.14);
+    --accent: #f2554b;
+    --accent-deep: #ff7b72;
+    --accent-soft: rgba(210,14,15,0.16);
+    --code-bg: #062033;
+    --code-fg: #bcd6ea;
+    --row-alt: rgba(255,255,255,0.045);
+    --th-bg: #0e2c44;
+    --th-fg: #eaf2f8;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #051727;
+  --surface: #0b2436;
+  --fg: #dfe7ee;
+  --muted: #93a7b8;
+  --border: rgba(255,255,255,0.14);
+  --accent: #f2554b;
+  --accent-deep: #ff7b72;
+  --accent-soft: rgba(210,14,15,0.16);
+  --code-bg: #062033;
+  --code-fg: #bcd6ea;
+  color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  background: var(--bg);
+  color: var(--fg);
+  font-family: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  font-size: 15.5px;
+  line-height: 1.55;
+  padding: 0 20px 96px;
+}
+main { max-width: 880px; margin: 0 auto; }
+.masthead { padding-block: 36px 8px; }
+.eyebrow {
+  font-family: Montserrat, sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.14em;
+  text-transform: uppercase;
+  color: var(--muted);
+  margin: 0 0 10px;
+}
+h1 {
+  font-family: Montserrat, sans-serif;
+  font-weight: 800;
+  font-size: clamp(26px, 4.5vw, 36px);
+  line-height: 1.15;
+  letter-spacing: -0.01em;
+  margin: 0 0 6px;
+  text-wrap: balance;
+}
+.subtitle {
+  font-family: Montserrat, sans-serif;
+  font-weight: 600;
+  font-size: 16px;
+  color: var(--muted);
+  margin: 0 0 14px;
+}
+.masthead-rule {
+  height: 4px;
+  border: 0;
+  margin: 0 0 18px;
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
+  border-radius: 2px;
+  max-width: 220px;
+}
+.meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 18px;
+  font-size: 13.5px;
+  color: var(--muted);
+  margin: 0 0 26px;
+}
+.meta strong { color: var(--fg); font-weight: 600; }
+h2 {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-size: 22px;
+  letter-spacing: -0.005em;
+  margin: 44px 0 6px;
+  text-wrap: balance;
+}
+h3 {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-size: 16.5px;
+  margin: 30px 0 6px;
+  text-wrap: balance;
+}
+p { margin: 10px 0; max-width: 68ch; }
+a { color: var(--accent); text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 2px; }
+.note {
+  background: var(--accent-soft);
+  border-left: 3px solid var(--accent);
+  border-radius: 0 8px 8px 0;
+  padding: 12px 16px;
+  margin: 16px 0;
+  font-size: 14.5px;
+}
+.note p { margin: 6px 0; }
+.retired { color: var(--muted); font-size: 14px; }
+.toc {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin: 6px 0 10px;
+  padding: 0;
+  list-style: none;
+}
+.toc a {
+  display: inline-block;
+  font-family: Montserrat, sans-serif;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--fg);
+  text-decoration: none;
+  border: 1px solid var(--border);
+  background: var(--surface);
+  border-radius: 999px;
+  padding: 5px 13px;
+}
+.tablewrap { overflow-x: auto; margin: 12px 0 6px; }
+table {
+  border-collapse: collapse;
+  width: 100%;
+  font-size: 14px;
+  min-width: 560px;
+}
+th {
+  font-family: Montserrat, sans-serif;
+  font-size: 11.5px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  text-align: left;
+  color: var(--th-fg);
+  background: var(--th-bg);
+  border-bottom: 2px solid var(--border);
+  padding: 9px 12px 9px 10px;
+  white-space: nowrap;
+}
+td {
+  border-bottom: 1px solid var(--border);
+  padding: 9px 12px 9px 0;
+  vertical-align: top;
+}
+tbody tr:nth-child(even) td { background: var(--row-alt); }
+td:first-child { font-weight: 600; white-space: nowrap; }
+td.skillname { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; font-weight: 600; }
+td.install { white-space: nowrap; color: var(--muted); font-size: 13px; }
+ol.paths { padding-left: 0; list-style: none; counter-reset: path; margin: 14px 0; }
+ol.paths > li {
+  counter-increment: path;
+  position: relative;
+  padding: 0 0 4px 44px;
+  margin: 0 0 14px;
+}
+ol.paths > li::before {
+  content: counter(path);
+  position: absolute;
+  left: 0;
+  top: 1px;
+  width: 30px;
+  height: 30px;
+  border-radius: 8px;
+  background: var(--surface);
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-size: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.paths h3 { margin: 2px 0 4px; }
+pre {
+  background: var(--code-bg);
+  color: var(--code-fg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  overflow-x: auto;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 13px;
+  line-height: 1.5;
+  margin: 10px 0;
+}
+code {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 0.9em;
+  background: var(--code-bg);
+  border-radius: 4px;
+  padding: 1px 5px;
+}
+pre code { background: none; padding: 0; }
+.footer-meta {
+  margin-top: 52px;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+  color: var(--muted);
+  font-size: 13.5px;
+}
+.copybar {
+  position: fixed;
+  right: 18px;
+  bottom: calc(18px + env(safe-area-inset-bottom, 0px));
+  z-index: 10;
+}
+.copybar button {
+  font-family: Montserrat, sans-serif;
+  font-weight: 700;
+  font-size: 13.5px;
+  color: #fff;
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
+  border: 0;
+  border-radius: 999px;
+  padding: 11px 20px;
+  cursor: pointer;
+  box-shadow: 0 6px 18px rgba(210, 14, 15, 0.35);
+}
+.copybar button:focus-visible { outline: 3px solid var(--accent-deep); outline-offset: 2px; }
+.toast {
+  position: fixed;
+  left: 50%;
+  bottom: calc(78px + env(safe-area-inset-bottom, 0px));
+  transform: translateX(-50%);
+  background: var(--fg);
+  color: var(--bg);
+  font-size: 13.5px;
+  font-weight: 600;
+  border-radius: 8px;
+  padding: 9px 16px;
+  opacity: 0;
+  pointer-events: none;
+  transition: opacity 0.25s ease;
+  z-index: 11;
+  white-space: nowrap;
+}
+.toast.show { opacity: 1; }
+@media (prefers-reduced-motion: reduce) { .toast { transition: none; } }
+@media (max-width: 480px) {
+  body { font-size: 15px; padding: 0 16px 96px; }
+  td:first-child { white-space: normal; }
+}
+</style>
+
+<main>
+  <header class="masthead">
+    <p class="eyebrow">Curtis Muir · Claude Code</p>
+    <h1>Skills I use with Claude (on my own machine)</h1>
+    <p class="subtitle">Claude Code Shareable Skills</p>
+    <hr class="masthead-rule">
+    <div class="meta">
+      <span>Last updated <strong>10 October 2026</strong></span>
+      <span>Bundle rebuilt <strong>October 2026</strong> · 21 skills</span>
+      <span>GitHub: <a href="https://github.com/curtismu7/CDN/tree/96542ce632abfdffde215143183f77b1ab5fa908/claude-skills">curtismu7/CDN · claude-skills</a></span>
+    </div>
+  </header>
+
+  <p>Claude Code skills extend the AI with specialized knowledge, workflows, and tools — scoped to specific domains so the right guidance loads at the right time. Below are the skills I currently run, grouped by how they install. There is some overlap between sections as skills evolved; use at your own risk.</p>
+
+  <div class="note">
+    <p><strong>Privacy note:</strong> every skill in the downloadable bundle has been sanitized — no environment IDs, worker credentials, client secrets, decision-endpoint IDs, or other tenant-specific values. The PingOne skills reference values by their .env variable names only; supply your own. Re-verified and re-sanitized October 2026: a leaked worker credential in <code>pingone-authorize-configure</code> was found and that skill retired from the bundle — the credential has been rotated and is dead.</p>
+  </div>
+
+  <ul class="toc">
+    <li><a href="#install">Install</a></li>
+    <li><a href="#plugins">General · Plugins</a></li>
+    <li><a href="#manual">General · Manual</a></li>
+    <li><a href="#ping-plugin">Ping · Plugin</a></li>
+    <li><a href="#ping-bundle">Ping · Bundle</a></li>
+    <li><a href="#project">AI-DEMO2 Project Skills</a></li>
+  </ul>
+
+  <h2 id="install">How to Install Skills</h2>
+  <p>There are three install paths depending on the skill:</p>
+  <ol class="paths">
+    <li>
+      <h3>Official Plugins (Claude Code plugin system)</h3>
+      <p>Some skills ship as official Claude Code plugins. Install them inside Claude Code with:</p>
+      <pre><code>/plugin install &lt;plugin-name&gt;@&lt;marketplace&gt;</code></pre>
+      <p>Or via the command line:</p>
+      <pre><code>claude plugin install &lt;plugin-name&gt;@&lt;marketplace&gt;</code></pre>
+      <p>The plugin-based general skills below come from the superpowers, skill-creator, code-review, commit-commands, and other official marketplaces. Ping skills come from the official <code>ping-identity</code> marketplace.</p>
+    </li>
+    <li>
+      <h3>Manual Skills (copy to your skills directory)</h3>
+      <p>Download claude-skills-bundle.zip, unzip it, then copy the skill folder(s) you want into <code>~/.claude/skills/</code> and restart Claude Code.</p>
+      <pre><code>unzip claude-skills-bundle.zip
+cp -r claude-skills-bundle/general/graphify ~/.claude/skills/</code></pre>
+      <p>To install every manual skill at once:</p>
+      <pre><code>unzip claude-skills-bundle.zip
+cp -r claude-skills-bundle/general/* ~/.claude/skills/
+cp -r claude-skills-bundle/security/* ~/.claude/skills/
+cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
+    </li>
+    <li>
+      <h3>Project Skills (copy from the AI-DEMO2 repo)</h3>
+      <p>The AI-DEMO2 project skills live in the repo at <code>.claude/skills/</code>. Clone the repo and copy the folder(s) you want into your own project's <code>.claude/skills/</code> (or <code>~/.claude/skills/</code> to load them everywhere). Many are AI-DEMO2-specific but encode reusable Ping identity patterns.</p>
+    </li>
+  </ol>
+  <p>After copying, restart Claude Code so the new skills are discovered.</p>
+
+  <h2 id="plugins">General Purpose Skills — Plugins</h2>
+  <p>Useful to any Claude Code user regardless of project or stack. These install through the plugin system.</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Skill</th><th>Install</th><th>What It Does</th></tr></thead>
+      <tbody>
+        <tr><td class="skillname">verification-before-completion</td><td class="install">superpowers</td><td>Enforces evidence before success claims — requires running verification commands and confirming output before marking any work complete or creating a PR.</td></tr>
+        <tr><td class="skillname">brainstorming</td><td class="install">superpowers</td><td>Structured ideation before implementation. Explores options, constraints, tradeoffs, and success criteria before choosing an approach.</td></tr>
+        <tr><td class="skillname">test-driven-development</td><td class="install">superpowers</td><td>Guides red-green-refactor workflow: write failing tests first, implement the smallest fix, and refactor only after tests pass.</td></tr>
+        <tr><td class="skillname">systematic-debugging</td><td class="install">superpowers</td><td>Systematic debugging workflow for reproducing issues, forming hypotheses, adding diagnostics, isolating root causes, and verifying fixes.</td></tr>
+        <tr><td class="skillname">writing-plans / executing-plans</td><td class="install">superpowers</td><td>Turns a spec into a phased implementation plan, then executes it — inline or via subagents. The same plugin also covers git worktrees, parallel-agent dispatch, and code-review handoffs.</td></tr>
+        <tr><td class="skillname">skill-creator</td><td class="install">skill-creator</td><td>Create new skills from scratch, improve existing ones, run evals to test trigger accuracy, and benchmark skill performance.</td></tr>
+        <tr><td class="skillname">code-review</td><td class="install">code-review</td><td>Reviews the current diff or a PR for correctness bugs, plus reuse/simplification/efficiency cleanups, at a chosen effort level.</td></tr>
+        <tr><td class="skillname">code-simplifier</td><td class="install">code-simplifier</td><td>Refines recently modified code for clarity, consistency, and maintainability while preserving functionality.</td></tr>
+        <tr><td class="skillname">commit-commands</td><td class="install">commit-commands</td><td>Slash commands for creating commits, commit-push-PR, and cleaning gone branches — with consistent message conventions.</td></tr>
+        <tr><td class="skillname">mgrep</td><td class="install">mgrep</td><td>Semantic code/search replacement for Grep/Glob/WebSearch — meaning-based matching instead of keyword matching.</td></tr>
+        <tr><td class="skillname">playwright</td><td class="install">playwright</td><td>Drives a real browser: navigate, click, fill forms, screenshot, read console/network — for testing web apps end to end.</td></tr>
+        <tr><td class="skillname">context7</td><td class="install">context7</td><td>Pulls up-to-date library documentation into context so code suggestions use current API versions instead of training-data guesses.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="retired">Also installed and worth a look: <strong>ponytail</strong> (minimal-diff coding discipline), <strong>ralph-loop</strong> (long-running autonomous loops), <strong>watch</strong> (video), <strong>obsidian</strong> (vault integration), <strong>ui-ux-pro-max</strong> (design systems, branding, slide styling), <strong>tdd-guard</strong> (enforces TDD during edits).</p>
+
+  <h2 id="manual">General Purpose Skills — Manual</h2>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Skill</th><th>Install</th><th>What It Does</th></tr></thead>
+      <tbody>
+        <tr><td class="skillname">impeccable</td><td class="install">Bundle</td><td>Design, redesign, audit, or polish any frontend interface. UX review, visual hierarchy, accessibility, typography, color, motion, micro-interactions, and design systems — with real working code.</td></tr>
+        <tr><td class="skillname">frontend-design</td><td class="install">Manual</td><td>Create distinctive, production-grade frontend interfaces; avoids generic AI aesthetics when building pages and components.</td></tr>
+        <tr><td class="skillname">graphify</td><td class="install">Bundle</td><td>Turn any codebase, docs, papers, or media into a persistent knowledge graph with community detection, god nodes, and query/path/explain tools. Best entry point for architecture questions.</td></tr>
+        <tr><td class="skillname">mcp-builder</td><td class="install">Bundle</td><td>Build high-quality MCP (Model Context Protocol) servers — FastMCP (Python) and MCP SDK (TypeScript), tool design, error handling, integration patterns.</td></tr>
+        <tr><td class="skillname">static-analysis</td><td class="install">Bundle (security/)</td><td>Semgrep, CodeQL, and SARIF-parsing skills (plus scanner subagents) for running and interpreting static security analysis.</td></tr>
+        <tr><td class="skillname">agent-sandbox</td><td class="install">Manual</td><td>Operate E2B sandboxes from the CLI — run untrusted code, test packages, and inspect binaries in isolation.</td></tr>
+        <tr><td class="skillname">notebooklm</td><td class="install">Manual</td><td>Full programmatic API for Google NotebookLM — create notebooks, add sources, generate artifacts (including podcast-style outputs) beyond the web UI.</td></tr>
+        <tr><td class="skillname">supermemory</td><td class="install">Manual</td><td>Add persistent memory, user profiles, and semantic search to apps you build — the Supermemory API/SDK integration guide.</td></tr>
+        <tr><td class="skillname">webapp-testing</td><td class="install">Bundle</td><td>Playwright-based toolkit for testing local web applications — UI verification, screenshots, browser log inspection, DOM interaction.</td></tr>
+        <tr><td class="skillname">theme-factory</td><td class="install">Bundle</td><td>Apply professional font/color themes to any artifact — slides, docs, reports, HTML pages. 10 preset themes plus on-the-fly generation.</td></tr>
+        <tr><td class="skillname">docx</td><td class="install">Bundle</td><td>Create, read, and edit Word documents — formatting, tables, images, tracked changes.</td></tr>
+        <tr><td class="skillname">xlsx</td><td class="install">Bundle</td><td>Create, read, and edit spreadsheets — formulas, charts, data cleaning.</td></tr>
+        <tr><td class="skillname">pptx</td><td class="install">Bundle</td><td>Create, read, and edit PowerPoint decks — slides, templates, speaker notes.</td></tr>
+        <tr><td class="skillname">pdf</td><td class="install">Bundle</td><td>PDF processing — extract text/tables, merge/split, rotate, watermark, OCR, fill forms.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="retired">Note: the June bundle's tighten-prompt, cheapest-model, agent-tool, and supergoal skills have been retired from my setup (superseded by plugin equivalents and Claude Code's built-in Agent tooling).</p>
+
+  <h2>PingOne / Identity Skills</h2>
+
+  <h3 id="ping-plugin">Official Ping Identity Plugin (recommended starting point)</h3>
+  <p>Ping now ships an official Claude Code plugin from the <code>pingidentity</code> marketplace — it supersedes most of my original hand-built PingOne bundle:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Skill</th><th>What It Does</th></tr></thead>
+      <tbody>
+        <tr><td class="skillname">ping-foundation</td><td>Orientation and routing — "where do I start", which Ping product fits, migration guidance. Use before the other Ping skills when the platform is unknown.</td></tr>
+        <tr><td class="skillname">ping-quickstart</td><td>Set up, configure, and administer any Ping platform — PingOne, Advanced Identity Cloud, PingAM/PingFederate/PingAccess/PingDirectory/PingID. Tenant setup, app registration, worker apps, M2M service accounts.</td></tr>
+        <tr><td class="skillname">ping-identity-for-ai</td><td>AI agents + identity: agent machine identity, client credentials for agents, Verified Trust, PingGateway as MCP gateway, CIBA human-in-the-loop approvals, bot detection with PingOne Protect.</td></tr>
+        <tr><td class="skillname">ping-app-integration</td><td>App/SDK integration — Android/iOS/JavaScript SDKs, OIDC + PKCE flows, token management, ForgeRock SDK migration, redirect/CORS/refresh troubleshooting.</td></tr>
+        <tr><td class="skillname">ping-orchestration</td><td>Design authentication flows and orchestration — DaVinci flows, AIC journeys, PingAM trees, MFA/step-up/passwordless, social login.</td></tr>
+        <tr><td class="skillname">ping-universal-services</td><td>Shared services at policy level — PingOne Protect (risk), Verify (KYC), MFA, Credentials (verifiable credentials), IGA, Authorize, Privilege.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3 id="ping-bundle">Manual (bundle, sanitized — October 2026 rebuild)</h3>
+  <p>The zip bundle's Ping skills were re-verified in October 2026: real credentials removed, demo-specific skills retired, and the current user-level Ping skills added. 9 skills:</p>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Skill</th><th>What It Does</th></tr></thead>
+      <tbody>
+        <tr><td class="skillname">oauth-pingone</td><td>Authoritative PingOne OAuth 2.0 / OIDC guide for all grant types — Authorization Code + PKCE, Client Credentials, CIBA, Token Exchange, Device Authorization, refresh, revocation, introspection, PAR, act/may_act claims, DaVinci, error codes.</td></tr>
+        <tr><td class="skillname">ciba</td><td>CIBA (Client-Initiated Backchannel Authentication) — auth_req_id polling, binding_message, login_hint, acr_values for DaVinci, CIBA-gated step-up flows.</td></tr>
+        <tr><td class="skillname">pingone-mfa</td><td>MFA device lifecycle — create, list, activate, order, delete, rename devices. SMS, Email, TOTP, FIDO2/passkey, WebAuthn, WhatsApp, mobile-push, OTP activation, device-authentication-policies API.</td></tr>
+        <tr><td class="skillname">pingone-recognize</td><td>Recognize biometric face authentication — WebSDK integration, face enrollment, face authentication, enroll-from-image, unenroll, OTP fallback chain, REST endpoints, config.</td></tr>
+        <tr><td class="skillname">pingone-api-calls</td><td>Patterns for calling the PingOne Management API — user CRUD, attribute updates, worker tokens, endpoint structure, error handling, common service patterns.</td></tr>
+        <tr><td class="skillname">pingone-session-termination</td><td>Terminate active PingOne SSO sessions via Management API — logout flows that must kill PingOne sessions (not just revoke tokens), and when NOT to use this vs token revocation.</td></tr>
+        <tr><td class="skillname">pingone-mcp</td><td>Read/update PingOne resources through the hosted PingOne MCP server — apps, populations, users, DaVinci flows, env config. Covers connecting Claude Code/Cursor/VS Code, the MCP-first vs Management-API fallback rule, and interactive-OAuth vs worker client_credentials auth.</td></tr>
+        <tr><td class="skillname">pingone-sample-apps</td><td>Build, run, and troubleshoot the PingOne devdocs sample apps (custom-admin-role, m2m-credentials, mfa-demo, user-registration × go/js/python/react/angular) — worker roles, 401/403/406/415 handling, pi.flow architecture.</td></tr>
+        <tr><td class="skillname">par</td><td>PAR (Pushed Authorization Request, RFC 9126) — understand the flow, verify PingOne PAR endpoint configuration, and test authorization intent binding live.</td></tr>
+      </tbody>
+    </table>
+  </div>
+  <p class="retired">Retired from the bundle: <strong>authz-server</strong>, <strong>authz-server-parity</strong>, and <strong>pingone-authorize-configure</strong> (demo-specific, superseded by project skills — the latter also contained a real worker credential, since rotated and now dead). The AI-DEMO2 project skills cover this ground; <code>pingone-mcp-install</code> and <code>pingone-remote-mcp-connect</code> ship via the repo rather than the bundle.</p>
+
+  <h2 id="project">AI-DEMO2 Project Skills</h2>
+  <p>Repo-specific skills that encode hard-won patterns from building the AI-DEMO2 identity demo. Copy from <code>.claude/skills/</code> in the repo. Most are useful as templates even outside this project.</p>
+
+  <h3>Identity &amp; Ping Products</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Skill</th><th>What It Does</th></tr></thead>
+      <tbody>
+        <tr><td class="skillname">pingfederate-install</td><td>Stand up PingFederate (zip, Docker/Compose, or Kubernetes) — licence, ports, Java, admin console first-run, readiness checks.</td></tr>
+        <tr><td class="skillname">pingfederate-id-jag</td><td>Configure PingFederate 13.1+ to issue/accept ID-JAG (Identity Assertion JWT Authorization Grant, cross-app access) via RFC 8693 token exchange — processor policies, SP connections, JWT Bearer Grant debugging.</td></tr>
+        <tr><td class="skillname">creating-pingfederate-id-jag-resource-server</td><td>Build the resource-server side of ID-JAG enterprise-managed MCP authorization — receiving and validating exchanged tokens.</td></tr>
+        <tr><td class="skillname">pingid-ai-demo</td><td>PingID MFA — device enrollment, authentication policy, user experience, IdP integration.</td></tr>
+        <tr><td class="skillname">pingone-davinci-orchestration</td><td>DaVinci widget and Orchestration SDK flows — collectors, multi-screen progression, callbacks, PKCE, embedded/pop-out runners, safe flow debugging.</td></tr>
+        <tr><td class="skillname">pingone-protect-ai-demo</td><td>PingOne Protect / Signals risk integration — risk evaluations, risk policy inputs, risk-result handling.</td></tr>
+        <tr><td class="skillname">pingone-authorize-ea-api-build</td><td>Build PingOne Authorize policies, Trust Framework attributes, resolvers, and AAM rules against the Early Access Admin API — including sideband decision debugging with PingGateway/Kong. Captures many undocumented API behaviors.</td></tr>
+        <tr><td class="skillname">p1az-import-generator</td><td>Generate a PingOne Authorize snapshot import file from plain-language rules ("deny if amount over 2000", "require step-up MFA over 500") — produces schema-correct JSON.</td></tr>
+        <tr><td class="skillname">pingauthorize-aam-ai-demo</td><td>PingOne Authorize API Access Management — Sideband decisions, API services, operations, Gateway integration route.</td></tr>
+        <tr><td class="skillname">pingaccess-ai-demo</td><td>PingAccess as a web/API access enforcement layer, and how it differs from PingGateway.</td></tr>
+        <tr><td class="skillname">pingdirectory-ai-demo</td><td>Connect demos to PingDirectory — LDAP identity lookup, user/group data, schema, replication, TLS.</td></tr>
+        <tr><td class="skillname">a2a-protocol</td><td>Agent2Agent protocol work — distinguishes RFC 8693 nested-act identity from the Linux Foundation A2A wire protocol (Agent Cards, JSON-RPC handoff, bearer auth on the A2A hop).</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Agent &amp; AI</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Skill</th><th>What It Does</th></tr></thead>
+      <tbody>
+        <tr><td class="skillname">bedrock-agentcore-pingone</td><td>Deploy an AI agent to AWS Bedrock AgentCore Runtime with PingOne as OAuth IdP — both M2M (client_credentials) and user-federation (3LO login) flows. The gotchas here are from real debugging, not docs.</td></tr>
+        <tr><td class="skillname">oauth-teaching-agent</td><td>Teach or demonstrate OAuth 2.0/2.1, OIDC, scopes, token exchange, delegation, and human approval through an interactive teaching agent.</td></tr>
+        <tr><td class="skillname">agent-demo-triage</td><td>Diagnose demo-agent misbehavior — wrong-mode replies, unknown-action toasts, gateway 502/503s, scope denials — and review routing/flag/scope changes safely.</td></tr>
+        <tr><td class="skillname">chip-correctness-testing</td><td>Verify agent UI chips return the RIGHT answer — real values from the store, correct routing, identical results in heuristics and every LLM mode. Includes the traps that make chip tests silently prove nothing.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Ping Privilege</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Skill</th><th>What It Does</th></tr></thead>
+      <tbody>
+        <tr><td class="skillname">privilege-mcpgw-agent-k8s</td><td>Deploy, repair, and verify the PingOne Privilege AI Gateway on Kubernetes from the helm package — Agentic App registration, policy authoring, proving the chain from an MCP client.</td></tr>
+        <tr><td class="skillname">privilege-new-demo-environment</td><td>Stand up a fresh, separate Privilege demo environment — own PingOne env, own gateway, own apps/agents; turns a one-off setup into a repeatable handover.</td></tr>
+        <tr><td class="skillname">privilege-cloud-mcp</td><td>Privilege Cloud MCP integration — the Privilege Gateway, the BFF MCP client relay, and extension patterns.</td></tr>
+        <tr><td class="skillname">privilege-admin-config-ui</td><td>Recipe for building Privilege-facing admin/config pages — config store, thin Express route, themed React component wired into an existing page.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Demo Engineering</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Skill</th><th>What It Does</th></tr></thead>
+      <tbody>
+        <tr><td class="skillname">regression-guard</td><td>Enforce the demo's do-not-break contract before/during changes to OAuth/login, token exchange, BFF sessions, role enforcement, HITL consent, ports/hosts, or the UI — even for one-liners.</td></tr>
+        <tr><td class="skillname">verify-ai-demo2</td><td>Prove a code/env change actually took effect in the running stack — the repeat failure where a feature is merged but inert because the code sits where requests never go. Worktree-aware.</td></tr>
+        <tr><td class="skillname">generate-tests</td><td>Write new unit/integration tests in this repo — routes to the right runner per service, applies repo error-shape/mocking conventions, flags jest/vitest traps that cause false green/red runs.</td></tr>
+        <tr><td class="skillname">se-k8-deploy</td><td>Deploy/undeploy the demo to the SE DevOps Kubernetes cluster — build, GHCR push, kubectl context, health checks.</td></tr>
+        <tr><td class="skillname">inspector-template</td><td>Build or convert admin/dev-tool pages onto the shared MCP-Inspector-style layout (left tool tree, middle param form, right tabbed output) instead of re-hand-rolling it.</td></tr>
+        <tr><td class="skillname">karpathy-guidelines</td><td>Behavioral guidelines to reduce common LLM coding mistakes — surgical changes, no overcomplication, surfaced assumptions, verifiable success criteria.</td></tr>
+        <tr><td class="skillname">pingcli-demo-page</td><td>Build a UI demo page that showcases PingCLI commands — command display, live execution, terminal-style output pane, nav wiring.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h3>Workflow Skills (new — Oct 2026)</h3>
+  <div class="tablewrap">
+    <table>
+      <thead><tr><th>Skill</th><th>What It Does</th></tr></thead>
+      <tbody>
+        <tr><td class="skillname">docker-local-deploy</td><td>Local Docker deploy on OrbStack — run-docker.sh builds, PROD_MODE vs dev, and the three silent failures of a fresh checkout/worktree (gitignored certs/ and .env files, image-baked MCP config).</td></tr>
+        <tr><td class="skillname">brand-compliance</td><td>Ping Brand Refresh 2026 — Montserrat, official 2026 logo, Ping Red gradients, the three hardcoded font stacks that must stay in sync, and the documented exceptions.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <div class="footer-meta">
+    <p>Last updated: 10 October 2026 — 16 plugins, 14 manual general-purpose skills, 9 bundle Ping skills (21 skills in the October zip), and 29 AI-DEMO2 project skills. The zip bundle was rebuilt October 2026 (sanitized; retired skills removed; current user-level Ping skills added) and is awaiting push to GitHub. The June zip's leaked worker credential was rotated 2026-10-10 and is dead — replace the June zip on push.</p>
+  </div>
+</main>
+
+<div class="copybar">
+  <button id="copyBtn" type="button">Copy for Confluence</button>
+</div>
+<div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+(function () {
+  var btn = document.getElementById('copyBtn');
+  var toastEl = document.getElementById('toast');
+  var toastTimer = null;
+  function toast(msg) {
+    toastEl.textContent = msg;
+    toastEl.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(function () { toastEl.classList.remove('show'); }, 2600);
+  }
+
+  // Confluence's editor keeps only inline styles, so bake the light-theme
+  // colors onto every element as copy-time inline styles.
+  var INLINE = [
+    ['h1', 'font-family:Montserrat,sans-serif;font-weight:800;font-size:28px;color:#051727;margin:0 0 6px;'],
+    ['h2', 'font-family:Montserrat,sans-serif;font-weight:700;font-size:20px;color:#051727;border-bottom:2px solid #d20e0f;padding-bottom:4px;margin:32px 0 8px;'],
+    ['h3', 'font-family:Montserrat,sans-serif;font-weight:700;font-size:15px;color:#051727;margin:22px 0 6px;'],
+    ['p', 'font-family:-apple-system,Segoe UI,sans-serif;font-size:14px;color:#1b2733;line-height:1.5;margin:8px 0;'],
+    ['table', 'border-collapse:collapse;width:100%;font-family:-apple-system,Segoe UI,sans-serif;font-size:13px;color:#1b2733;margin:10px 0;'],
+    ['th', 'font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;text-align:left;background:#051727;color:#ffffff;padding:8px 12px;border:1px solid #d7dde3;white-space:nowrap;'],
+    ['td', 'padding:8px 12px;border:1px solid #d7dde3;vertical-align:top;color:#1b2733;'],
+    ['td > a, td a', 'color:#d20e0f;font-weight:600;text-decoration:none;'],
+    ['a', 'color:#d20e0f;'],
+    ['.chip', 'display:inline-block;font-family:Menlo,monospace;font-size:11px;font-weight:600;background:#fdeaea;color:#aa0005;border:1px solid #f0b9b9;border-radius:10px;padding:2px 8px;white-space:nowrap;'],
+    ['.chip.plain', 'font-family:-apple-system,sans-serif;background:#eef2f5;color:#5b6b7a;border:1px solid #d7dde3;'],
+    ['.chip.dash', 'background:none;border:none;color:#8a99a8;font-family:-apple-system,sans-serif;'],
+    ['span.mono, code', 'font-family:Menlo,monospace;font-size:12px;background:#f3f5f7;color:#14324a;padding:1px 4px;border-radius:3px;'],
+    ['tbody tr:nth-child(even) td', 'background:#f3f6f8;'],
+    ['ul.toc', 'list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;'],
+    ['ul.toc li', 'margin:0 4px 4px 0;'],
+    ['ul.toc a', 'font-family:Montserrat,sans-serif;font-size:11.5px;font-weight:600;color:#051727;text-decoration:none;border:1px solid #d7dde3;border-radius:10px;padding:3px 10px;display:inline-block;'],
+    ['.note', 'background:#fdeaea;border-left:3px solid #d20e0f;padding:10px 14px;margin:14px 0;font-size:13.5px;'],
+    ['.assets', 'background:#ffffff;border:1px solid #d7dde3;border-radius:8px;padding:12px 16px;font-size:13px;'],
+    ['.footer-meta, .retired, .planned-empty', 'color:#5b6b7a;font-size:12.5px;'],
+    ['.count', 'font-size:12px;color:#5b6b7a;font-weight:600;'],
+    ['.eyebrow', 'font-family:Montserrat,sans-serif;font-size:10.5px;font-weight:700;letter-spacing:0.12em;text-transform:uppercase;color:#5b6b7a;margin:0 0 8px;'],
+    ['.subtitle', 'font-family:Montserrat,sans-serif;font-weight:600;font-size:15px;color:#5b6b7a;margin:0 0 12px;'],
+    ['.meta', 'font-size:12.5px;color:#5b6b7a;margin:0 0 20px;'],
+    ['.meta strong', 'color:#051727;'],
+    ['.warn', 'color:#d20e0f;font-weight:700;']
+  ];
+  function bakeInline(root) {
+    var clone = root.cloneNode(true);
+    INLINE.forEach(function (rule) {
+      var sel = rule[0], css = rule[1];
+      var nodes;
+      if (sel === 'td > a, td a') nodes = clone.querySelectorAll('td a');
+      else if (sel === 'span.mono, code') nodes = clone.querySelectorAll('span.mono, code');
+      else if (sel === 'tbody tr:nth-child(even) td') {
+        clone.querySelectorAll('tbody').forEach(function (tb) {
+          Array.prototype.forEach.call(tb.children, function (tr, i) {
+            if (i % 2 === 1) tr.querySelectorAll('td').forEach(function (td) { td.style.cssText += css; });
+          });
+        });
+        return;
+      }
+      else nodes = clone.querySelectorAll(sel);
+      nodes.forEach(function (el) { el.style.cssText += css; });
+    });
+    return clone;
+  }
+
+  btn.addEventListener('click', function () {
+    var source = document.querySelector('main');
+    var baked = bakeInline(source);
+    var html = baked.outerHTML;
+    var text = source.innerText;
+    if (typeof ClipboardItem !== 'undefined' && navigator.clipboard && navigator.clipboard.write) {
+      var item = new ClipboardItem({
+        'text/html': new Blob([html], { type: 'text/html' }),
+        'text/plain': new Blob([text], { type: 'text/plain' })
+      });
+      navigator.clipboard.write([item]).then(function () {
+        toast('Copied with colors — paste into Confluence');
+      }).catch(function () { fallbackText(text); });
+    } else {
+      fallbackText(html, text);
+    }
+  });
+  function fallbackText(html, text) {
+    if (navigator.clipboard && navigator.clipboard.writeText) {
+      navigator.clipboard.writeText(html).then(function () {
+        toast('Copied styled HTML — paste into Confluence source view');
+      }).catch(function () { fallbackSelect(); });
+    } else {
+      fallbackSelect();
+    }
+  }
+  function fallbackSelect() {
+    var range = document.createRange();
+    range.selectNodeContents(document.querySelector('main'));
+    var sel = window.getSelection();
+    sel.removeAllRanges();
+    sel.addRange(range);
+    toast('Clipboard blocked — page selected, press Cmd/Ctrl+C');
+  }
+})();
+</script>
