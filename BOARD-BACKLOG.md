@@ -36,9 +36,10 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 - URL: https://ai-demo.ping-devops.com/scope-reference
 - Verify the page content matches what the code actually uses.
 
-### E3. `/settings` — verify all options work
+### E3. `/settings` — verify all options work — FIXED (audited 2026-10-11)
 - URL: https://ai-demo.ping-devops.com/settings
 - Audit every option on the page end-to-end.
+- Audit result: all 10 editable settings + 1 read-only status are live-read at enforcement time via `runtimeSettings.get()` (no stale env copies): step-up chain in `mcpLocalTools.js` + `sensitiveBanking.js` (enabled, threshold, ACR, types, method, withdrawals-always), `maxTransactionAmount` in `routes/admin.js`, agent stop limits in `agentTransactionTracker.js`, `authorizePolicyId` in `transactionAuthorizationService.js`. 184 test cases across the enforcement suites pass (runtime-settings-api 16, threshold bridge 2, amount-gate band, policy-HITL, ACR gates, HITL integration, RFC 9470, workload agents). Auth gate verified live: unauthenticated `/settings` renders the admin sign-in modal; `GET /api/admin/settings` answers 401. The four related-settings nav links and both education modals resolve. Live click-through of an actual save needs an admin MFA session (SMS) — the API surface itself is covered by the 16-case runtime-settings-api suite.
 
 ### E4. `/delegation` — real demo-user login flow — FIXED (partial)
 - Backend provisioning + credential card shipped 2026-07-12 (PingOne user creation, DEMO_PASSWORD, email notification).
