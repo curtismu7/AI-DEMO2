@@ -101,9 +101,11 @@ function normalizedRuns(runs) {
 function buildSnapshot({ repository, queuedRuns = [], runningRuns = [], completedRuns = [], jobsByRun = {}, now = new Date() }) {
   const queued = normalizedRuns(queuedRuns).sort(byCreatedAtAscending);
   const running = normalizedRuns(runningRuns).sort(byCreatedAtAscending);
-  const completed = normalizedRuns(completedRuns).sort(byCreatedAtDescending).slice(0, 5);
+  const completed = normalizedRuns(completedRuns).sort(byCreatedAtDescending);
+  const completedWindow = completed.slice(0, 100);
+  const displayedCompleted = completedWindow.slice(0, 5);
   const seen = new Set();
-  const runs = [...queued, ...running, ...completed]
+  const runs = [...queued, ...running, ...displayedCompleted]
     .filter((run) => {
       if (!Number.isSafeInteger(run.id) || run.id <= 0 || seen.has(run.id)) return false;
       seen.add(run.id);
@@ -118,7 +120,7 @@ function buildSnapshot({ repository, queuedRuns = [], runningRuns = [], complete
     });
   const promoted = runs.filter((run) => run.status === 'in_progress').length - running.length;
 
-  const completedCounts = completed.reduce((counts, run) => {
+  const completedCounts = completedWindow.reduce((counts, run) => {
     if (run.conclusion === 'success') counts.succeeded += 1;
     else if (['failure', 'cancelled', 'timed_out', 'action_required'].includes(run.conclusion)) counts.failed += 1;
     return counts;
@@ -288,7 +290,9 @@ function createGitHubReader({
   }
 
   async function readCompletedRuns(repository) {
-    const endpoint = `repos/${repository}/actions/runs?status=completed&per_page=5&page=1`;
+    // One page of recent history: the summary counts over this whole window,
+    // while the display keeps only the five newest cards.
+    const endpoint = `repos/${repository}/actions/runs?status=completed&per_page=${PAGE_SIZE}&page=1`;
     const response = parseJson(await callGh(['api', endpoint]));
     if (!Array.isArray(response.workflow_runs)) {
       throw new DashboardDataError('GH_RESPONSE', 'GitHub returned an unexpected workflow runs response.');
@@ -382,7 +386,9 @@ function createGitHubReader({
       repository,
       queuedRuns: allQueuedRuns,
       runningRuns,
-      completedRuns: selectedCompletedRuns,
+      // Summary counts span the whole fetched window; jobs load only for the
+      // five newest completed runs shown as cards.
+      completedRuns,
       jobsByRun: Object.fromEntries(jobsList),
       now: now(),
     });
