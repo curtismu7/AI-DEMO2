@@ -227,7 +227,7 @@ export default function SupportConsole({ vertical }) {
       )}
 
       <section className="vops__queue">
-        <SupportQueueRail vertical={vertical} onSelect={openFromQueue} />
+        <SupportQueueRail vertical={vertical} onSelect={openFromQueue} autoOpen />
       </section>
 
       {result?.customer && (

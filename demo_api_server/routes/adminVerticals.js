@@ -498,6 +498,12 @@ function queueFor(req, res) {
 
   const customers = dataStore.getAllUsers()
     .filter((u) => u.isActive !== false && u.role !== 'admin' && u.username);
+  // The console auto-opens the first row's customer, so the demo persona must
+  // lead: demoUser is the account every doc names and the only customer with
+  // a real PingOne link (OTP lands on its device). Seed order puts john.doe
+  // (id 1) first, and john.doe has no PingOne account — demoUser first, then
+  // everyone else in seed order.
+  customers.sort((a, b) => Number(b.username === 'demoUser') - Number(a.username === 'demoUser'));
 
   const rows = [];
   for (const u of customers) {

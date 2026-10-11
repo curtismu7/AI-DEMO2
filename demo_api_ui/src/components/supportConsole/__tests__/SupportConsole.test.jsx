@@ -217,6 +217,35 @@ it('opening queued work runs the ordinary lookup for that customer', async () =>
   await waitFor(() => expect(screen.getByText('Marcus Hall')).toBeInTheDocument());
 });
 
+it('auto-opens the queue lead on mount — the demo persona, never a blank slate', async () => {
+  // The queue's first row is the demo persona (the server leads with demoUser).
+  // The console used to open empty; the operator's first click then landed on
+  // john.doe, who has no PingOne account to verify. Opening the lead row puts
+  // the demo persona in the Verify strip straight away.
+  const QUEUE_ROW = {
+    customerId: 'u1', customerName: 'Marcus Hall', customerQuery: 'marcus',
+    category: 'support_tickets', categoryLabel: 'Support',
+    id: 'TKT-1', title: 'Exchange request', status: 'open',
+  };
+  bffAxios.get.mockImplementation((url) => {
+    if (url.endsWith('/permissions')) {
+      return Promise.resolve({ data: { scopes: ['transactions:write'], source: 'introspection' } });
+    }
+    if (url.endsWith('/queue')) return Promise.resolve({ data: { data: { rows: [QUEUE_ROW] } } });
+    if (url.includes('/lookup')) return Promise.resolve({ data: LOOKUP });
+    return Promise.resolve({ data: { data: { notes: [] } } });
+  });
+
+  render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
+
+  // No click: the lead row's customer opens on its own, through the ordinary
+  // lookup path (q=marcus), and the operator sees a customer, not a blank page.
+  await waitFor(() =>
+    expect(bffAxios.get).toHaveBeenCalledWith('/api/admin/sporting-goods/lookup', { params: { q: 'marcus' } }),
+  );
+  await waitFor(() => expect(screen.getByText('Marcus Hall')).toBeInTheDocument());
+});
+
 it('a slow earlier lookup does not overwrite a newer selection', async () => {
   // Two overlapping lookups, with the FIRST resolving last. Without a sequence
   // guard the stale response wins and the operator ends up viewing — and able

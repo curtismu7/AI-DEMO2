@@ -1,4 +1,4 @@
-import React, { useCallback, useEffect, useState } from 'react';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
 import bffAxios from '../../services/bffAxios';
 import './SupportQueueRail.css';
 import InlineSpinner from '../shared/InlineSpinner';
@@ -7,9 +7,15 @@ import InlineSpinner from '../shared/InlineSpinner';
 // console shows. Selecting a row hands its customer query back to the console,
 // which runs the ordinary lookup — the rail never becomes a second way to read
 // customer data.
-export default function SupportQueueRail({ vertical, onSelect }) {
+//
+// autoOpen: fire onSelect for the lead row once it loads, so the console opens
+// on a customer instead of a blank slate. The server leads the queue with the
+// demo persona (demoUser), the one customer with a real PingOne link — without
+// this the operator's first click tends to land on john.doe, who cannot verify.
+export default function SupportQueueRail({ vertical, onSelect, autoOpen = false }) {
   const [rows, setRows] = useState([]);
   const [state, setState] = useState('loading'); // loading | ready | error
+  const autoOpenedRef = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -28,6 +34,14 @@ export default function SupportQueueRail({ vertical, onSelect }) {
       });
     return () => { live = false; };
   }, [vertical]);
+
+  // One-shot per mount: the lead row opens itself; later rows don't steal focus.
+  useEffect(() => {
+    if (!autoOpen || state !== 'ready' || autoOpenedRef.current) return;
+    if (!rows.length || !onSelect) return;
+    autoOpenedRef.current = true;
+    onSelect(rows[0]);
+  }, [autoOpen, state, rows, onSelect]);
 
   const select = useCallback((row) => {
     if (onSelect) onSelect(row);
