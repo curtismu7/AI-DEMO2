@@ -1,36 +1,47 @@
 import React, { useCallback, useState } from 'react';
 import bffAxios from '../../services/bffAxios';
-import { notifyError, notifySuccess } from '../../utils/appToast';
+import { notifySuccess } from '../../utils/appToast';
 import './IdentityGate.css';
 
-// Shows whether THIS customer has been verified in THIS operator session, and
-// starts the challenge. The server refuses unverified writes regardless of what
-// this renders — the strip exists so the operator learns that before clicking,
-// not so the client decides it.
+// Verifies the CUSTOMER by having them complete a real sign-on: the BFF
+// drives PingOne (pi.flow) with the customer's credentials and the flow
+// stops at the customer's own OTP device. The operator enters the code the
+// customer reads out. On success the BFF holds the customer's token
+// server-side; this component only ever sees masked contacts and expiry.
 export default function IdentityGate({ vertical, customer, verified, onVerified }) {
-  const [sending, setSending] = useState(false);
+  const [phase, setPhase] = useState('idle'); // idle | otp
+  const [maskedContact, setMaskedContact] = useState('');
+  const [otp, setOtp] = useState('');
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState('');
 
-  const sendCode = useCallback(async () => {
+  const initiate = useCallback(async () => {
     if (!customer) return;
-    setSending(true);
+    setBusy(true); setError('');
     try {
-      const { data } = await bffAxios.post(
-        `/api/admin/${vertical}/verify/initiate`,
-        { customerId: customer.id },
-      );
+      const { data } = await bffAxios.post(`/api/admin/${vertical}/verify/initiate`, { customerId: customer.id });
+      setMaskedContact(data.maskedContact || "the customer's registered device");
+      setPhase('otp');
+    } catch (err) {
+      setError(err?.response?.data?.message || err?.response?.data?.error || 'Could not start the customer sign-on.');
+    } finally { setBusy(false); }
+  }, [vertical, customer]);
+
+  const submitOtp = useCallback(async () => {
+    setBusy(true); setError('');
+    try {
+      const { data } = await bffAxios.post(`/api/admin/${vertical}/verify/otp`, { otp });
       notifySuccess('Customer verified.');
       onVerified(data.expiresAt);
+      setPhase('idle');
     } catch (err) {
-      const status = err?.response?.status;
-      notifyError(
-        status === 401
-          ? 'Session expired — please sign in again.'
-          : err?.response?.data?.error || 'Verification failed.',
-      );
-    } finally {
-      setSending(false);
-    }
-  }, [vertical, customer, onVerified]);
+      setError(err?.response?.data?.message || 'Verification failed.');
+      // invalid_otp (401) leaves the flow alive server-side — keep the input
+      // open so the operator can retry. Anything else (expired flow, BFF
+      // failure) ends it; back to idle so Verify customer can start a new one.
+      if (err?.response?.status !== 401) setPhase('idle');
+    } finally { setBusy(false); }
+  }, [vertical, otp, onVerified]);
 
   if (!customer) return null;
 
@@ -41,14 +52,24 @@ export default function IdentityGate({ vertical, customer, verified, onVerified 
       </span>
       <span className="idgate__text">
         {verified
-          ? `${customer.name} confirmed it is them. Writes are enabled for this session.`
-          : `Read-only until ${customer.name} confirms it is them. Writes are disabled.`}
+          ? `${customer.name} completed a real sign-on (pi.flow + OTP). Writes run under a delegated token.`
+          : `${customer.name} must complete a real sign-on before writes are enabled.`}
       </span>
-      {!verified && (
-        <button type="button" className="idgate__btn" onClick={sendCode} disabled={sending}>
-          {sending ? 'Sending…' : 'Send one-time code'}
+      {!verified && phase === 'idle' && (
+        <button type="button" className="idgate__btn" onClick={initiate} disabled={busy}>
+          {busy ? 'Starting…' : 'Verify customer'}
         </button>
       )}
+      {!verified && phase === 'otp' && (
+        <span className="idgate__otp">
+          <label htmlFor="idgate-otp">One-time code sent to {maskedContact}</label>
+          <input id="idgate-otp" value={otp} onChange={(e) => setOtp(e.target.value)} inputMode="numeric" autoComplete="one-time-code" />
+          <button type="button" className="idgate__btn" onClick={submitOtp} disabled={busy || !otp.trim()}>
+            {busy ? 'Checking…' : 'Submit code'}
+          </button>
+        </span>
+      )}
+      {error && <span className="idgate__error" role="alert">{error}</span>}
     </div>
   );
 }

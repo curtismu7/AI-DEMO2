@@ -34,6 +34,9 @@ export default function SupportConsole({ vertical }) {
   const [scopes, setScopes] = useState([]);
   const [scopeSource, setScopeSource] = useState(null);
   const traceRef = useRef(null);
+  // The rail's imperative handle — openPipeline() opens the Pipeline accordion
+  // (the band lives inside it) and scrolls the chain into view.
+  const railRef = useRef(null);
   // Mirrors the global trace store so the rail can be scoped to THIS vertical.
   const [traceSnap, setTraceSnap] = useState(() => tokenChainTraceStore.getState());
   useEffect(() => tokenChainTraceStore.subscribe(setTraceSnap), []);
@@ -54,6 +57,9 @@ export default function SupportConsole({ vertical }) {
   const jumpToTrace = useCallback(() => {
     if (!traceRef.current) return;
     traceRef.current.open = true;
+    // Opens the Pipeline accordion (band + chain) before scrolling — without
+    // it the hero buttons land on a collapsed chevron.
+    railRef.current?.openPipeline?.();
     traceRef.current.scrollIntoView({ behavior: 'smooth', block: 'start' });
   }, []);
 
@@ -187,6 +193,9 @@ export default function SupportConsole({ vertical }) {
         <button type="button" className="vops__jumpbtn" onClick={jumpToTrace}>
           Jump to token chain ↓
         </button>
+        <button type="button" className="vops__demosteps-btn" onClick={jumpToTrace}>
+          Demo steps ↗
+        </button>
         <button
           type="button"
           onClick={toggleDarkMode}
@@ -223,6 +232,7 @@ export default function SupportConsole({ vertical }) {
 
       {result?.customer && (
         <IdentityGate
+          key={result.customer.id}
           vertical={vertical}
           customer={result.customer}
           verified={verified}
@@ -277,7 +287,7 @@ export default function SupportConsole({ vertical }) {
               call yet" under a "Jump to token chain" button. The rail is the
               console's own vertical's evidence only — a chain minted by another
               vertical's console is hidden, not shown. */}
-          {!traceIsForeign && <TokenChainTraceRail />}
+          {!traceIsForeign && <TokenChainTraceRail ref={railRef} trackId="support" />}
         </div>
       </details>
 
