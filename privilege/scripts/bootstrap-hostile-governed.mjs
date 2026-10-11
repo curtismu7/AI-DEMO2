@@ -113,18 +113,25 @@ const DENY_TOOLS = ['create_transfer', 'delete_all_records', 'grant_admin'];
     if (!DRY) await api('POST', `/api/${TENANT}/v1/applications`, clone);
   }
 
-  // 3. governed policy: one rule on the governed app. IssuedTo is omitted — the
-  //    ungoverned demo user hits the governed door through the same sign-in, and an
-  //    empty IssuedTo means "everyone" (same as no policy: the console issued no
-  //    restriction). Capabilities select ALL tools except the deny triple.
+  // 3. governed policy: one rule on the governed app. IssuedTo names the demo
+  //    user — measured 2026-10-11 on build v1.261009: no policy = DENY ALL, and
+  //    an IssuedTo the actor isn't in denies too. Separator trap, measured live:
+  //    a policy RULE's app ObjectRef encodes `tenant@@@default@@@<app>` (triple
+  //    @ both sides) while IssuedTo user refs encode `tenant@@default@@<user>`
+  //    (double @ both sides, same as ObjectMeta.ID). Wrong separator silently
+  //    matches nothing: the console accepts the POST, then every call 403s with
+  //    an empty "Access Denied for" reason. Capabilities select ALL tools
+  //    except the deny triple.
   const tools = (source.Status?.McpServerStatus?.Capabilities?.Tools || []).map((t) => t.name);
   if (!tools.length) throw new Error('hostile-mcp has no discovered tools in Status — trigger discovery in the console first');
   const allowedTools = tools.filter((t) => !DENY_TOOLS.includes(t));
   console.log('tools:', tools.join(', '));
   console.log('allowed tools:', allowedTools.join(', '));
 
+  const appRef = (name) => Buffer.from(`${TENANT}@@@default@@@${name}`).toString('base64');
+  const userRef = (uid) => Buffer.from(`${TENANT}@@default@@${uid}`).toString('base64');
   const rule = {
-    ObjectRef: { RefKind: 'Application', RefID: refID(governedName) },
+    ObjectRef: { RefKind: 'Application', RefID: appRef(governedName) },
     Principal: '',
     GcpRoleTarget: null,
     Services: { ObjectRef: [] },
@@ -150,9 +157,31 @@ const DENY_TOOLS = ['create_transfer', 'delete_all_records', 'grant_admin'];
       Name: 'hostile-mcp-governed-allow-except',
     },
     GivenName: 'hostile-mcp-governed — allow except transfers/admin',
+    IssuedTo: { ObjectRef: [{ RefKind: 'User', RefID: userRef(args['demo-user-id'] || '5d85b8bf-3f4d-471b-a4b3-cbb5d9385a1c') }] },
     Spec: {
       Description: 'Permit-selection for the governed hostile twin: every tool except create_transfer / delete_all_records / grant_admin; the account_review prompt and account-verification resource stay selectable for the demo.',
       ActionMap: { MCP: { PolicyRule: [rule] } },
+    },
+  };
+
+  // 4. the UNGOVERNED twin's policy: on build v1.261009 an app with NO policy
+  //    denies everything, so "ungoverned" = an explicit allow-all policy. Same
+  //    rule shape, all tools.
+  const allowAllRule = JSON.parse(JSON.stringify(rule));
+  allowAllRule.ObjectRef.RefID = appRef('hostile-mcp');
+  allowAllRule.Capabilities.Map.tools.Elems = [...tools];
+  const allowAllPolicy = {
+    ObjectMeta: {
+      Kind: 'PacPolicy',
+      Tenant: TENANT,
+      Namespace: 'default',
+      Name: 'hostile-mcp-allow-all',
+    },
+    GivenName: 'hostile-mcp — allow all (ungoverned twin)',
+    IssuedTo: governedPolicy.IssuedTo,
+    Spec: {
+      Description: 'Ungoverned twin: every operation permitted — the poison rides through unfiltered.',
+      ActionMap: { MCP: { PolicyRule: [allowAllRule] } },
     },
   };
 
@@ -163,8 +192,27 @@ const DENY_TOOLS = ['create_transfer', 'delete_all_records', 'grant_admin'];
     prompts: ['account_review'],
     resources: ['mcp://hostile/account-verification'],
   }));
-  if (!DRY) await api('POST', `/api/${TENANT}/v1/pacpolicys`, governedPolicy);
+  console.log('ungoverned policy:', JSON.stringify({
+    name: allowAllPolicy.ObjectMeta.Name,
+    app: 'hostile-mcp',
+    tools: tools.length,
+  }));
+  if (!DRY) {
+    // Policies cloned without the console's own owner metadata get reaped
+    // within minutes (measured 2026-10-11). Fetch an existing console-made
+    // policy and copy its Creator/owners onto ours before posting.
+    const existing = await api('GET', `/api/${TENANT}/v1/pacpolicys`);
+    const template = (existing.PacPolicys || []).find((p) => p.ObjectMeta?.WrOwners?.ObjectRef?.length);
+    for (const p of [governedPolicy, allowAllPolicy]) {
+      if (template) {
+        p.ObjectMeta.WrOwners = template.ObjectMeta.WrOwners;
+        p.ObjectMeta.RdOwners = template.ObjectMeta.RdOwners;
+        p.Creator = template.Creator;
+      }
+      await api('POST', `/api/${TENANT}/v1/pacpolicys`, p);
+    }
+  }
 
   console.log(DRY ? 'dry-run complete — nothing written'
-    : 'done: app + policy created. Give the gateway ~1 min to re-scan, then run the Catalog matrix against the governed door.');
+    : 'done: app + both policies created. Gateways take up to ~4 min to enforce; then run the Catalog matrix (ungoverned: all ALLOWED, governed: the three dangerous calls DENIED).');
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });
