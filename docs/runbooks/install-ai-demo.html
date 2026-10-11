@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Install the AI Demo</title>
+<style>
+  :root {
+    --bg: #ffffff; --elev: #f7f7f8; --ink: #1a1a1e; --muted: #5f5f66;
+    --line: #e3e3e6; --accent: #b01e48; --code-bg: #f2f2f4;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #141417; --elev: #1e1e23; --ink: #ececef; --muted: #9c9ca4;
+      --line: #32323a; --accent: #e8547e; --code-bg: #232329;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #141417; --elev: #1e1e23; --ink: #ececef; --muted: #9c9ca4;
+    --line: #32323a; --accent: #e85448; --code-bg: #232329;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0; padding: 32px 24px 64px;
+    background: var(--bg); color: var(--ink);
+    font: 14.5px/1.65 -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+    max-width: 800px; margin-inline: auto;
+  }
+  h1 { font-size: 26px; font-weight: 700; letter-spacing: -0.01em; margin: 0 0 6px; }
+  .lede { color: var(--muted); margin: 0 0 28px; }
+  h2 { font-size: 19px; font-weight: 700; margin: 36px 0 8px; }
+  h3 { font-size: 15px; font-weight: 650; margin: 24px 0 6px; }
+  p, li { margin: 8px 0; }
+  a { color: var(--accent); text-decoration: none; }
+  a:hover { text-decoration: underline; }
+  code {
+    font: 12.5px/1.5 ui-monospace, "SF Mono", Menlo, monospace;
+    background: var(--code-bg); padding: 1.5px 5px; border-radius: 4px;
+  }
+  pre {
+    background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px;
+    padding: 12px 14px; overflow-x: auto; margin: 10px 0;
+  }
+  pre code { background: none; padding: 0; }
+  table { border-collapse: collapse; width: 100%; margin: 12px 0; font-size: 13.5px; }
+  th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { font-weight: 650; color: var(--muted); font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em; }
+  .callout {
+    border-left: 3px solid var(--accent); background: var(--elev);
+    border-radius: 0 8px 8px 0; padding: 10px 14px; margin: 14px 0; font-size: 13.5px;
+  }
+  .callout b { color: var(--accent); }
+  .path { color: var(--muted); font-size: 12.5px; }
+  @media print {
+    body { padding: 0; max-width: none; }
+    a { color: inherit; }
+    h2 { break-after: avoid; }
+    pre, table, .callout { break-inside: avoid; }
+  }
+</style>
+</head>
+<body>
+
+<h1>Install the AI Demo</h1>
+<p class="lede">Three ways to run the Ping AI demo stack. Pick the first unless you
+need your own isolated instance or must work offline.</p>
+
+<h2>Choose your tier</h2>
+<table>
+  <tr><th>Tier</th><th>Best for</th><th>You install</th><th>Isolation</th></tr>
+  <tr>
+    <td><b>1 · Shared demo</b><br><span class="path">ai-demo.ping-devops.com</span></td>
+    <td>Walkthroughs, trying the demo, showing a customer</td>
+    <td>A browser</td>
+    <td>Shared with everyone — demo state is common</td>
+  </tr>
+  <tr>
+    <td><b>2 · Your own namespace</b><br><span class="path">&lt;slug&gt;.ai-demo.ping-devops.com</span></td>
+    <td>Developing the demo, running it for a specific audience, parallel sessions</td>
+    <td>Repo clone + kubectl + SE cluster access</td>
+    <td>Fully yours; the canonical URL stays untouched</td>
+  </tr>
+  <tr>
+    <td><b>3 · Your laptop</b><br><span class="path">localhost via port-forwards</span></td>
+    <td>Offline work, no cluster access, deep debugging</td>
+    <td>OrbStack + Homebrew (~23&nbsp;GB images pulled once)</td>
+    <td>Private; runs offline after first install</td>
+  </tr>
+</table>
+
+<h2>Tier 1 — use the shared demo</h2>
+<p>Open <a href="https://ai-demo.ping-devops.com">https://ai-demo.ping-devops.com</a> and sign in
+with your Ping SSO (<span class="path">@pingidentity.com</span> or
+<span class="path">@pingone.com</span> email). First visit: you'll be redirected to PingOne to
+authenticate, then back to the app.</p>
+<div class="callout"><b>If sign-in is refused:</b> your email's domain is in the allowlist
+(<span class="path">pingidentity.com</span>, <span class="path">pingone.com</span>), but access also requires
+membership of the demo access group in PingOne. Contact the demo owner (cmuir) to be added,
+then sign in again.</div>
+
+<h2>Tier 2 — deploy your own namespace on the SE cluster</h2>
+<p>Same cluster as the shared demo, but your own namespace, your own URL, your own state.
+Nothing you do touches the shared instance.</p>
+
+<h3>Prerequisites</h3>
+<ul>
+  <li>macOS with <b>Docker</b> (OrbStack or Docker Desktop) and <b>Homebrew</b></li>
+  <li><b>kubectl</b> + access to the SE cluster (<span class="path">ping-dev-aws-us-east-2</span>):
+  run <code>./run-pingaws.sh kubeconfig</code> to install it, or ask the SE DevOps team for the kubeconfig</li>
+  <li><b>GitHub CLI</b> authenticated (<code>gh auth login</code>) — with access to the AI-DEMO2 repo</li>
+  <li>Your <b>Ping email</b> (it names your namespace: <span class="path">jsmith@pingidentity.com</span> →
+  <span class="path">ping-devops-jsmith</span>)</li>
+  <li>A <b>PingOne worker app</b> in your own demo environment — the bootstrap creates one if you
+  have worker credentials for an environment you own</li>
+</ul>
+
+<h3>Install</h3>
+<pre><code>git clone https://github.com/cmuir_pingcorp/AI-DEMO2 &amp;&amp; cd AI-DEMO2
+./run-pingaws.sh kubeconfig          # one-time: SE kubeconfig into ~/.kube
+./run-pingaws.sh start               # build + push + deploy (~30 min first time)</code></pre>
+
+<p>When it finishes, the banner shows your URL:
+<b>https://&lt;slug&gt;.ai-demo.ping-devops.com</b> (derived from your namespace — e.g.
+<span class="path">jsmith</span> → <span class="path">jsmith.ai-demo.ping-devops.com</span>). No DNS or
+certificate work is needed; wildcard DNS routes your host to the cluster's shared ingress and
+cert-manager issues your cert automatically.</p>
+
+<h3>What runs where</h3>
+<p>Everything runs in the cluster — your laptop only builds and pushes images. The only
+host-side state is the repo clone, <span class="path">demo_api_server/.env</span> (PingOne
+credentials), and mkcert certificates under <span class="path">certs/</span>. Your namespace runs
+the full stack: app + BFF, agents, MCP servers + gateway, LLM tier (models download in-cluster
+from HuggingFace), and observability.</p>
+
+<h3>Day-2 commands</h3>
+<pre><code>./run-pingaws.sh status              # pods in your namespace
+./run-pingaws.sh update code bff     # rebuild + redeploy one service
+./run-pingaws.sh update pingone      # re-register OAuth redirects (after URL change)
+./run-pingaws.sh basic               # scale to dashboard/admin + login only
+./run-pingaws.sh undeploy            # delete YOUR namespace's workloads (asks first)</code></pre>
+
+<div class="callout"><b>Your namespace, your URL:</b> deploys derive
+<code>&lt;slug&gt;.ai-demo.ping-devops.com</code> from your namespace, so you never collide with the
+shared demo. Set <code>APP_HOST=</code> to override the derived hostname if you need a specific one.</div>
+
+<h2>Tier 3 — run on your laptop</h2>
+<p>Everything the SE cluster hosts, but on your machine via OrbStack's Kubernetes. Use when
+you can't reach the SE cluster or need to work offline.</p>
+
+<h3>Install</h3>
+<pre><code># 1. Install OrbStack and enable Kubernetes in its settings
+# 2. Then:
+git clone https://github.com/cmuir_pingcorp/AI-DEMO2 && cd AI-DEMO2
+./run-k8.sh build                    # ~23 GB of images, one-time
+./run-k8.sh                          # deploy + port-forward</code></pre>
+
+<p>The demo is then at <span class="path">https://local.ping-devops.com:4000</span>. Models
+download in-cluster from HuggingFace on first deploy. For 16&nbsp;GB Macs, add the small
+overlay: <code>kubectl apply -f k8s/overlays/small/</code>.</p>
+
+<div class="callout"><b>Laptop vs cluster differences:</b> the LLM tier runs llama.cpp
+in-cluster on both; on a laptop the MLX (Apple) agent mode can use host-side
+<code>mlx_lm.server</code> instead (optional, see k8s/README.md). Cluster deploys use GHCR
+images; laptop deploys build locally.</div>
+
+<h2>Troubleshooting</h2>
+<table>
+  <tr><th>Symptom</th><th>Fix</th></tr>
+  <tr><td>Tier 2 deploy: <code>HOSTED_ACCESS_REQUIRED_GROUP_ID must be set</code></td>
+      <td>The deploy reads it from <span class="path">demo_api_server/.env</span>. Run the PingOne
+      bootstrap first, or export it (value from the demo owner).</td></tr>
+  <tr><td>Tier 2: your URL doesn't resolve</td>
+      <td>Wildcard DNS covers <code>*.ai-demo.ping-devops.com</code> and
+      <code>*.ping-devops.com</code>. If <code>&lt;slug&gt;.ai-demo.ping-devops.com</code> fails, check
+      <code>kubectl get ingress -n ping-devops-&lt;slug&gt;</code> — the host must match the derived
+      one exactly.</td></tr>
+  <tr><td>Tier 2: cert not issued for the a2a host</td>
+      <td>The <span class="path">langchain-a2a</span> cert is two labels deep and uses
+      cert-manager (DNS-01). Check <code>kubectl get certificate -n ping-devops-&lt;slug&gt;</code>;
+      issuance takes a few minutes on first deploy.</td></tr>
+  <tr><td>Sign-in loops back to login</td>
+      <td>Your <code>PUBLIC_APP_URL</code> doesn't match the ingress host, so OAuth redirects
+      mismatch. Re-run <code>./run-pingaws.sh update pingone</code>, which re-derives both.</td></tr>
+  <tr><td>Tier 3: pods pending on memory</td>
+      <td>Apply the small overlay (above) and close other containers; the default profile
+      wants ~48&nbsp;Gi of RAM quota.</td></tr>
+  <tr><td>Tier 3: <code>Refusing local K8 operation on context</code></td>
+      <td>Switch to the local cluster: <code>kubectl config use-context orbstack</code>.</td></tr>
+</table>
+
+<h2>Where to look for more</h2>
+<ul>
+  <li><span class="path">k8s/README.md</span> — full deployment guide (profiles, MLX mode,
+  observability, Privilege gateway)</li>
+  <li><span class="path">docs/superpowers/specs/2026-10-11-share-stack-ghcr-design.md</span> — the
+  sharing architecture (GHCR image split across accounts, secret scanning, recipient setup)</li>
+  <li><span class="path">DOCKER_STARTUP.md</span> / <span class="path">NEW-MACHINE.md</span> —
+  local-Docker details and per-machine gaps</li>
+</ul>
+
+</body>
+</html>

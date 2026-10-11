@@ -55,6 +55,25 @@ Terraform handoff details, including the explicit Docker and SE commands, are in
 existing Compose stack through lifecycle commands, so Compose remains the source
 of truth; Terraform does not track each container as a separate resource.
 
+## Ways to run — shared demo, your own SE namespace, or your laptop
+
+Most people need none of the above. Three tiers, from zero-install to full local:
+
+1. **Shared demo (nothing to install)** — open
+   [https://ai-demo.ping-devops.com](https://ai-demo.ping-devops.com) and sign in with your
+   Ping SSO (`@pingidentity.com` / `@pingone.com`). Best for walkthroughs and trying the demo.
+2. **Your own namespace on the SE cluster (no laptop hosting)** — clone the repo and run
+   `./run-pingaws.sh start`. You get your own URL
+   (`https://<slug>.ai-demo.ping-devops.com`, derived from your namespace) with full state
+   isolation; the shared demo is untouched. Requires SE cluster access — run
+   `./run-pingaws.sh kubeconfig` once first.
+3. **Your laptop (offline)** — OrbStack + Kubernetes, `./run-k8.sh`. Same stack, local,
+   works offline after first install (~23 GB of images).
+
+Full instructions for all three tiers, prerequisites, day-2 commands, and troubleshooting:
+**[docs/runbooks/install-ai-demo.pdf](docs/runbooks/install-ai-demo.pdf)**
+(source: [docs/runbooks/install-ai-demo.html](docs/runbooks/install-ai-demo.html)).
+
 ## Components
 
 | Component | Port | Description |
