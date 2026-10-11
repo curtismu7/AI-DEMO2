@@ -38,6 +38,21 @@ test("non-operator events produce no steps (banking pipelines untouched)", () =>
   expect(buildOperatorChainSteps(undefined)).toEqual([]);
 });
 
+test("an agent run's seeded exchange placeholder does not claim the trace (regression: rail collapsed to 1 step)", () => {
+  // The AG-UI session preview seeds an id-'exchange' waiting placeholder on
+  // EVERY dashboard agent run (agentMcpTokenService.buildSessionPreviewTokenEvents).
+  // Without an operator- gate here that placeholder alone triggered this
+  // projection and buildTraceSteps early-returned it, collapsing the whole
+  // banking pipeline to one "BFF Exchange / waiting" node (live 2026-10-11).
+  const AGENT_RUN_SEED = [
+    { id: "intent-token", label: "Intent Token", status: "active", claims: {} },
+    { id: "user-token", label: "User access token", status: "active", claims: { sub: "u" } },
+    { id: "exchange", label: "Token exchange (RFC 8693)", status: "waiting", claims: null },
+    { id: "exchanged-token", label: "MCP access token (delegated)", status: "waiting", claims: null },
+  ];
+  expect(buildOperatorChainSteps(AGENT_RUN_SEED)).toEqual([]);
+});
+
 test("the store renders operator steps once ingested", () => {
   tokenChainTraceStore.beginTrace({ prompt: "Approve expense 204" });
   tokenChainTraceStore.ingestTokenEvents(WRITE_CHAIN);
