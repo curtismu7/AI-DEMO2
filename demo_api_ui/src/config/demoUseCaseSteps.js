@@ -213,6 +213,13 @@ export const EXTRA_STEP_GROUPS = [
     intro: 'A live person sign-in on PingOne or on PingFederate: the BFF switches the login provider, clears the session and starts a fresh OIDC + PKCE login.',
     ids: ['UC-LOGIN', 'UC-LOGIN-PF'],
   },
+  {
+    id: 'priv-policies',
+    label: 'Privilege policies in depth',
+    tagline: 'measured policy behaviors',
+    intro: 'Live-measured Agent Privilege policy behaviors (2026-10-10, POLICIES-IN-DEPTH-TEST-PLAN.md): discovery-gated per-tool grants, the union of several policies, and expiry subtracting silently. Diagram lanes — no chip runs them.',
+    ids: ['UC-PRIVB', 'UC-PRIVC', 'UC-PRIVD'],
+  },
 ];
 
 /** Maturity-model journey groups for the presenter drawer. */

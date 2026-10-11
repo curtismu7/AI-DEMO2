@@ -31,6 +31,23 @@ async function lookUpMarcus() {
   await waitFor(() => expect(screen.getByText('Marcus Hall')).toBeInTheDocument());
 }
 
+// Two-phase customer verification: initiate → otp step, otp → verified+expiry.
+// The mock chain order in every verify test below is initiate, otp, then any
+// action. Drive the actual two UI phases — click Verify customer, then submit
+// the code — the same way the operator does.
+function mockVerify() {
+  bffAxios.post
+    .mockResolvedValueOnce({ data: { ok: true, step: 'otp', maskedContact: '••••86' } })
+    .mockResolvedValueOnce({ data: { ok: true, verified: true, expiresAt: Date.now() + 900000, tokenChain: [] } });
+}
+
+async function verifyCustomer() {
+  fireEvent.click(screen.getByRole('button', { name: /verify customer/i }));
+  await waitFor(() => expect(screen.getByLabelText(/one-time code/i)).toBeInTheDocument());
+  fireEvent.change(screen.getByLabelText(/one-time code/i), { target: { value: '123456' } });
+  fireEvent.click(screen.getByRole('button', { name: /submit code/i }));
+}
+
 it('renders the vertical hero and applies the accent theme var', () => {
   mockGets();
   const { container } = render(<SupportConsole vertical="healthcare" user={{ role: 'user' }} />);
@@ -56,13 +73,12 @@ it('disables gated action buttons until the customer is verified', async () => {
 
 it('enables gated action buttons after verification', async () => {
   mockGets();
-  const expiresAt = Date.now() + 900000;
-  bffAxios.post.mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } });
+  mockVerify();
 
   render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
   await lookUpMarcus();
 
-  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+  await verifyCustomer();
   await waitFor(() =>
     expect(screen.getByRole('button', { name: /Cancel order/i })).toBeEnabled(),
   );
@@ -70,12 +86,11 @@ it('enables gated action buttons after verification', async () => {
 
 it('denies actions whose scope the operator does not hold, even when verified', async () => {
   mockGets({ scopes: ['general:read'] });
-  const expiresAt = Date.now() + 900000;
-  bffAxios.post.mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } });
+  mockVerify();
 
   render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
   await lookUpMarcus();
-  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+  await verifyCustomer();
 
   await waitFor(() => expect(screen.getByTestId('identity-gate')).toHaveAttribute('data-verified', 'true'));
   expect(screen.getByRole('button', { name: /Cancel order/i })).toBeDisabled();
@@ -90,21 +105,20 @@ it('says scopes could not be read rather than rendering a blanket denial', async
 
 it('keeps verification across the refresh that follows a successful write', async () => {
   mockGets();
-  const expiresAt = Date.now() + 900000;
-  // 1st post = verify/initiate, 2nd = the action itself.
+  mockVerify();
+  // 3rd post = the action itself.
   bffAxios.post
-    .mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } })
     .mockResolvedValueOnce({ data: { ok: true, item: { id: 'o1' } } });
 
   render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
   await lookUpMarcus();
-  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+  await verifyCustomer();
   await waitFor(() => expect(screen.getByRole('button', { name: /Cancel order/i })).toBeEnabled());
 
   // runAction re-runs doLookup to refresh. The server's verification for u1 is
   // still live, so the strip must not fall back to "Not verified".
   fireEvent.click(screen.getByRole('button', { name: /Cancel order/i }));
-  await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(3));
   await waitFor(() =>
     expect(screen.getByTestId('identity-gate')).toHaveAttribute('data-verified', 'true'),
   );
@@ -113,12 +127,11 @@ it('keeps verification across the refresh that follows a successful write', asyn
 
 it('drops verification when the lookup resolves a different customer', async () => {
   mockGets();
-  const expiresAt = Date.now() + 900000;
-  bffAxios.post.mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } });
+  mockVerify();
 
   render(<SupportConsole vertical="sporting-goods" user={{ role: 'admin' }} />);
   await lookUpMarcus();
-  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+  await verifyCustomer();
   await waitFor(() => expect(screen.getByTestId('identity-gate')).toHaveAttribute('data-verified', 'true'));
 
   // Same session, different person — verification must not carry over.
@@ -153,8 +166,7 @@ it('the drawer refuses an action the card refuses', async () => {
     }
     return Promise.resolve({ data: { data: { notes: [] } } });
   });
-  const expiresAt = Date.now() + 900000;
-  bffAxios.post.mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } });
+  mockVerify();
 
   render(<SupportConsole vertical="government" user={{ role: 'admin' }} />);
   fireEvent.change(screen.getByPlaceholderText(/Look up a constituent/i), { target: { value: 'dana' } });
@@ -163,7 +175,7 @@ it('the drawer refuses an action the card refuses', async () => {
 
   // Verify the customer, so the only thing still holding the action back is the
   // approval gate rather than the verification one.
-  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+  await verifyCustomer();
   await waitFor(() => expect(screen.getByTestId('identity-gate')).toHaveAttribute('data-verified', 'true'));
 
   const cardButton = screen.getByRole('button', { name: /Release record/i });

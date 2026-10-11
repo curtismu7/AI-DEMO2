@@ -39,3 +39,5 @@
   cursor: pointer;
 }
 .idgate__btn[disabled] { opacity: 0.5; cursor: not-allowed; }
+.idgate__otp { display: flex; align-items: center; gap: 8px; flex: none; }
+.idgate__error { flex: none; color: var(--th-status-error-text); font-weight: 600; }

@@ -401,6 +401,21 @@ export const DEMO_STEP_GUIDES = Object.fromEntries([
     "Each tool call is tagged with the use-case id and vertical across the token chain, the Authorize decision and the activity log, and a client-side engine compares the real trace to the use case's declared evidence.",
     "It turns 'trust the demo' into 'watch the proof': every enforcement claim in every other use case is visibly verified rather than asserted.",
     "Click the link card (/use-cases), trigger any other use case, and watch the proof strip, the Token Chain checklist and the Verified banner appear. No chip of its own and no special setup."],
+  ["UC-PRIVB", "Per-tool grants gate discovery (Privilege, measured 2026-10-10)",
+    "The /privilege-mcp-client asks the Agent Privilege gateway for tools/list on the opensearch22 Agentic App. The gateway removes every tool outside the policy BEFORE responding, so the client sees exactly the granted 2 of the backend's 9 tools — and zero denied reported, which is correct: they are undiscoverable, not denied.",
+    "Per-tool grants gate at discovery, not at call time — the gateway drops out-of-policy tools in GatewayServer.ts before the response is written, and _meta.deniedTools exists only on the WS transport. The catalog a client sees IS its privilege level.",
+    "Least privilege you can see: the client cannot call, or even name, a tool its policy does not grant — and the UI says 'tools outside the policy are undiscoverable' instead of a misleading '0 filtered' (PR #1091).",
+    "Diagram lane (measured live 2026-10-10, see POLICIES-IN-DEPTH-TEST-PLAN.md step B): no chip runs this — walk the diagram. Instruments: the client's tool list (2 catalog · 2 permitted) and the console policy edited down to 2 tools."],
+  ["UC-PRIVC", "Policies add up — the union (Privilege, measured 2026-10-10)",
+    "A second policy {B, C} is created on the same identity as policy #1 {A, B}. The effective grant becomes the union {A, B, C}: client tool count 3, not 4, with the shared tool appearing once.",
+    "The console's policy list is additive, not declarative — creating a policy adds to the effective grant, and delivery deduplicates: the union is a set, applied at discovery. Duplicates are real but live in the X-Procyon-Mcp-Cap REQUEST header (per-policy contributions echoed upstream), never in the client-visible tools/list.",
+    "Over-grant is understood as set arithmetic: the fix for a too-broad grant is deleting the extra policy — no amount of editing or layering shrinks the union while the broad policy lives (step E demonstrates).",
+    "Diagram lane (measured live 2026-10-10, see POLICIES-IN-DEPTH-TEST-PLAN.md step C): no chip runs this — walk the diagram. Instruments: the client's tool list (3 tools, no duplicated entries); the 2026-09 cap-header capture holds the duplicates evidence."],
+  ["UC-PRIVD", "Expiry subtracts silently (Privilege, measured 2026-10-10)",
+    "Policy #1's time window is set to expired while policy #2 stays live. The client count drops 3 → 2 — exactly policy #2's grant — and the page shows no hint the change was an expiry vs an edit vs a deletion.",
+    "The effective grant is the union of all non-expired policies, so an expired policy stops contributing entirely and leaves the others untouched — but nothing client-side distinguishes 'policy expired' from 'policy deleted' from 'policy never covered you'. The time window is a silent kill switch.",
+    "Time-bound grants retire themselves without an operator, and troubleshooting gets a rule: all three causes render as the smaller catalog (or a bare 403), so check the policy window before assuming an edit didn't take.",
+    "Diagram lane (measured live 2026-10-10, see POLICIES-IN-DEPTH-TEST-PLAN.md step D): no chip runs this — walk the diagram. Instruments: the client's tool list (3 → 2, no client-visible reason recorded)."],
 ].map(g));
 
 // How to present the A2A steps together. The order and the skip-when lines are

@@ -101,6 +101,24 @@ describe("DemoTrackPage", () => {
     expect(await screen.findByText("Wrong scope")).toBeInTheDocument();
   });
 
+  it("deep-links to the support track when ?track=support", async () => {
+    window.history.pushState({}, "", "/demo-track?track=support");
+    apiClient.get.mockImplementation((url) => {
+      if (url === "/api/demo-track?track=support") {
+        return Promise.resolve({ data: { track: { steps: [
+          { stepId: "support-verify", act: 1, title: "Verify the customer — real sign-on", capability: "pi.flow · MFA", slots: {}, proved: {} },
+        ] }, run: { activeStepId: "support-verify", slots: {} } } });
+      }
+      if (url === "/api/demo-track/runs") return Promise.resolve({ data: { runs: [] } });
+      return Promise.reject(new Error(`unexpected ${url}`));
+    });
+    render(<DemoTrackPage />);
+
+    expect(await screen.findByText("Verify the customer — real sign-on")).toBeInTheDocument();
+    // ...and the poll keeps hitting the support URL
+    await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith("/api/demo-track?track=support"));
+  });
+
   it("expands a step on click and shows its takeaway when both slots filled (history run)", async () => {
     render(<DemoTrackPage />);
     await screen.findByText("Delegated access");

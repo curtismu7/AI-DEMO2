@@ -42,7 +42,7 @@ function slotBadge(stamp, slot) {
   );
 }
 
-export default function TokenChainDemoTrackTab() {
+export default function TokenChainDemoTrackTab({ trackId = "main" }) {
   const [state, setState] = useState(null);
   const [error, setError] = useState(null);
   // "idle" | "busy" | "done" | "failed" — drives the Start-new-run button's
@@ -53,13 +53,13 @@ export default function TokenChainDemoTrackTab() {
 
   const load = useCallback(async () => {
     try {
-      const res = await apiClient.get("/api/demo-track");
+      const res = await apiClient.get(trackId === "main" ? "/api/demo-track" : `/api/demo-track?track=${trackId}`);
       setState(res.data);
       setError(null);
     } catch (e) {
       setError(e.message);
     }
-  }, []);
+  }, [trackId]);
 
   useEffect(() => {
     load();
@@ -72,15 +72,19 @@ export default function TokenChainDemoTrackTab() {
 
   const setActiveStep = useCallback(async (stepId) => {
     try {
-      await apiClient.post("/api/demo-track/active-step", { stepId });
+      await (trackId === "main"
+        ? apiClient.post("/api/demo-track/active-step", { stepId })
+        : apiClient.post("/api/demo-track/active-step", { stepId, track: trackId }));
       load();
     } catch { /* next poll recovers */ }
-  }, [load]);
+  }, [load, trackId]);
 
   const startRun = useCallback(async () => {
     setRunState("busy");
     try {
-      await apiClient.post("/api/demo-track/runs");
+      await (trackId === "main"
+        ? apiClient.post("/api/demo-track/runs")
+        : apiClient.post("/api/demo-track/runs", { track: trackId }));
       await load();
       setRunState("done");
     } catch {
@@ -88,14 +92,17 @@ export default function TokenChainDemoTrackTab() {
     }
     if (runFlashRef.current) clearTimeout(runFlashRef.current);
     runFlashRef.current = setTimeout(() => setRunState("idle"), 1800);
-  }, [load]);
+  }, [load, trackId]);
 
   if (error) return <div className="tct-error">Demo Track unavailable — {error}</div>;
   if (!state) return <div className="tct-loading"><InlineSpinner label="Loading demo track…" /></div>;
 
   const { track, run } = state;
-  const gauntletTotal = track.gauntletSims.length;
-  const gauntletBlocked = track.gauntletSims.filter(g => run.gauntlet[g.sim]?.blocked).length;
+  // The support track (config/supportDemoTrack.js) has no gauntlet — the field
+  // is absent, not empty, so a bare .length would throw.
+  const gauntletSims = Array.isArray(track.gauntletSims) ? track.gauntletSims : [];
+  const gauntletTotal = gauntletSims.length;
+  const gauntletBlocked = gauntletSims.filter(g => run.gauntlet[g.sim]?.blocked).length;
   const filled = Object.keys(run.slots).length;
 
   const renderStep = (step) => {
@@ -103,17 +110,18 @@ export default function TokenChainDemoTrackTab() {
     const red = run.slots[`${step.stepId}:red`];
     const isActive = run.activeStepId === step.stepId;
     const isGauntlet = step.stepId === "attack-gauntlet";
-    const complete = isGauntlet ? gauntletBlocked === gauntletTotal : Boolean((step.slots.green ? green : true) && (step.slots.red ? red : true));
+    const slots = step.slots || {};
+    const complete = isGauntlet ? gauntletBlocked === gauntletTotal : Boolean((slots.green ? green : true) && (slots.red ? red : true));
     return (
       <div key={step.stepId} className={`tct-step${isActive ? " tct-step--active" : ""}${complete ? " tct-step--done" : ""}`}>
         <button type="button" className="tct-step-head" onClick={() => setActiveStep(step.stepId)}>
           <span className="tct-step-title">{step.title}</span>
-          <span className="tct-step-ucs">{step.ucIds.join(" · ")}</span>
+          {Array.isArray(step.ucIds) && <span className="tct-step-ucs">{step.ucIds.join(" · ")}</span>}
         </button>
         {isGauntlet ? (
           <div className="tct-gauntlet">
             <span className="tct-gauntlet-score">{gauntletBlocked} / {gauntletTotal} blocked</span>
-            {track.gauntletSims.map(g => {
+            {gauntletSims.map(g => {
               const tile = run.gauntlet[g.sim];
               return (
                 <span key={g.sim} className={`tct-tile${tile?.blocked ? " tct-tile--blocked" : ""}`} title={tile?.reason || ""}>
@@ -125,10 +133,10 @@ export default function TokenChainDemoTrackTab() {
           </div>
         ) : (
           <div className="tct-slots">
-            {step.slots.green && <div className="tct-slot-row"><span className="tct-tag tct-tag--g">GREEN</span>{slotBadge(green, step.slots.green)}</div>}
+            {slots.green && <div className="tct-slot-row"><span className="tct-tag tct-tag--g">GREEN</span>{slotBadge(green, slots.green)}</div>}
             {green?.reason && <div className="tct-reason tct-reason--g">{green.reason}</div>}
             {green && <ChainStrip stamp={green} />}
-            {step.slots.red && <div className="tct-slot-row"><span className="tct-tag tct-tag--r">RED</span>{slotBadge(red, step.slots.red)}</div>}
+            {slots.red && <div className="tct-slot-row"><span className="tct-tag tct-tag--r">RED</span>{slotBadge(red, slots.red)}</div>}
             {red?.reason && (
               <div className="tct-reason tct-reason--r">
                 {red.errorCode ? <span className="tct-reason-code">{red.errorCode}</span> : null}
@@ -165,7 +173,7 @@ export default function TokenChainDemoTrackTab() {
             : runState === "failed" ? "✕ Failed — retry"
             : "Start new run"}
         </button>
-        <a className="tct-open-page" href="/demo-track">Open full track page ↗</a>
+        <a className="tct-open-page" href={trackId === "main" ? "/demo-track" : `/demo-track?track=${trackId}`}>Open full track page ↗</a>
       </div>
       <div className="tct-act">ACT 1 · THE CUSTOMER AGENT</div>
       {track.steps.filter(s => s.act === 1).map(renderStep)}

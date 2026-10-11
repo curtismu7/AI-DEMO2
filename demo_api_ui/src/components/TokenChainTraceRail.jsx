@@ -3,7 +3,7 @@
 // Spec: docs/superpowers/specs/2026-07-02-token-chain-trace-rail-design.md
 import { buildPrivilegeA2aChainSteps } from "../services/tokenChainTrace/privilegeA2aChainSteps";
 import { applyStepVisibility, SKIP_REASONS } from "../services/tokenChainTrace/stepVisibility";
-import React, { useEffect, useState, useCallback, useMemo, useRef } from "react";
+import React, { useEffect, useState, useCallback, useMemo, useRef, forwardRef, useImperativeHandle } from "react";
 import apiClient from "../services/apiClient";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import { MCP_STEP_IDS, buildRunStory, resolveTraceProvenance } from "../services/tokenChainTrace/buildTraceSteps";
@@ -276,7 +276,7 @@ function subscribeTrustFlags(setFlags) {
   };
 }
 
-export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomProp, onZoomChange }) {
+function TokenChainTraceRail({ mcpRouteOnly = false, trackId = "main", zoom: zoomProp, onZoomChange }, ref) {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   const [legendOpen, setLegendOpen] = useState(false);
   const [inspectType, setInspectType] = useState(null);
@@ -323,6 +323,18 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
   // embeds one; a document-wide query would open the other rail's card and
   // leave this one's shut.
   const railRef = useRef(null);
+  // The Pipeline accordion (second tctr-acc in the chain tab) — collapsed by
+  // default, so a host's "jump to the chain" must open it before scrolling or
+  // the user lands on a closed chevron.
+  const pipelineAccRef = useRef(null);
+  // Imperative handle for hosts (SupportConsole's hero buttons): open the
+  // pipeline accordion; the host does its own scrolling afterwards. A ref
+  // write, not state, so calling it before the accordion renders is a no-op.
+  useImperativeHandle(ref, () => ({
+    openPipeline: () => {
+      if (pipelineAccRef.current) pipelineAccRef.current.open = true;
+    },
+  }), []);
   const tokenChain = useTokenChainOptional();
   // Names the running use case in each step's pop-out. Optional: several rail
   // mounts (Monitoring routes, standalone pages) sit outside the Proof provider.
@@ -371,7 +383,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
   useEffect(() => {
     if (mcpRouteOnly) return undefined;
     let alive = true;
-    Promise.resolve(apiClient.get("/api/demo-track"))
+    Promise.resolve(apiClient.get(trackId === "main" ? "/api/demo-track" : `/api/demo-track?track=${trackId}`))
       .then((res) => {
         const serverSteps = res?.data?.track?.steps;
         if (!alive || !Array.isArray(serverSteps)) return;
@@ -388,16 +400,19 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
       })
       .catch(() => { /* no track available — the band renders nothing */ });
     return () => { alive = false; };
-  }, [mcpRouteOnly]);
+  }, [mcpRouteOnly, trackId]);
 
   // Report the presenter's position, the same way TokenChainDemoTrackTab does.
   const onTrackSelect = useCallback((index) => {
     setTrackIndex(index);
     const stepId = track[index]?.stepId;
     if (!stepId) return;
-    Promise.resolve(apiClient.post("/api/demo-track/active-step", { stepId }))
+    Promise.resolve(apiClient.post(
+      "/api/demo-track/active-step",
+      trackId === "main" ? { stepId } : { stepId, track: trackId },
+    ))
       .catch(() => { /* position is local either way */ });
-  }, [track]);
+  }, [track, trackId]);
 
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
   useEffect(() => subscribeTrustFlags(setTrustFlags), []);
@@ -652,7 +667,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
               consistently and the dashboard does not lead with a pipeline that
               is empty until an agent run happens. One click still expands it,
               and a run does not force it open — the user's choice sticks. */}
-          <details className="tctr-acc">
+          <details className="tctr-acc" ref={pipelineAccRef}>
             <summary>
               <span className="tctr-chev">▶</span>
               {trace.prompt
@@ -776,7 +791,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
       ) : tab === "detailed" ? (
         <DetailedStepper events={tokenChain?.events ?? []} />
       ) : tab === "demo-track" ? (
-        <TokenChainDemoTrackTab />
+        <TokenChainDemoTrackTab trackId={trackId} />
       ) : (
         <TraceMcpPanel steps={mcpSteps} trace={trace} onInspect={onInspect} useCase={proofUseCase} />
       )}
@@ -788,3 +803,7 @@ export default function TokenChainTraceRail({ mcpRouteOnly = false, zoom: zoomPr
     </div>
   );
 }
+
+// forwardRef: SupportConsole's hero buttons call openPipeline() through a ref;
+// every existing caller passes no ref and keeps today's behavior.
+export default forwardRef(TokenChainTraceRail);

@@ -23,7 +23,9 @@
  *   focusId      node id to ring while a page-driven walkthrough is on
  *
  * Nodes keep their hand-placed x/y; React Flow supplies pan/zoom and fit-to-view.
- * Interaction (drag, connect) is off — these are teaching graphs, not editors.
+ * Interaction: nodes are draggable so a presenter can nudge the layout clean;
+ * connect stays off — these are teaching graphs, not editors. Drag is
+ * view-only (positions reset on reload; nothing is saved).
  */
 import React, { useCallback, useMemo, useRef, useState } from "react";
 import {
@@ -132,7 +134,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
           id: n.id,
           type: "sfd",
           position: { x: n.x * SPREAD_X, y: n.y * SPREAD_Y },
-          draggable: false,
+          draggable: true,
           selectable: false,
           data: {
             n,
@@ -200,7 +202,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
         fitViewOptions={FIT}
         minZoom={0.2}
         maxZoom={2}
-        nodesDraggable={false}
+        nodesDraggable
         nodesConnectable={false}
         elementsSelectable={false}
         zoomOnScroll={false}
