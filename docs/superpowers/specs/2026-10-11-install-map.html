@@ -315,7 +315,7 @@
         <span class="cmd">./k8s/share-setup.sh</span>
         <p>Brew-installs <span class="mono">kubectl</span>, <span class="mono">helm</span>,
         <span class="mono">node</span> if missing → prompts for PingOne worker creds → runs the
-        PingOne bootstrap → creates cluster Secrets → deploys from public GHCR images →
+        PingOne bootstrap → creates cluster Secrets → deploys from GHCR images (access-granted) →
         seeds LLM models → runs smoke checks.</p>
       </div>
     </div>
@@ -425,7 +425,8 @@
           <rect x="800" y="112" width="248" height="72" rx="6" fill="var(--elev)" stroke="var(--line-strong)"/>
           <text class="card-t" x="812" y="132">ghcr.io — our images</text>
           <text class="card-s" x="812" y="149">curtismu7 · cmuir_pingcorp</text>
-          <text class="card-s" x="812" y="166">public, no auth to pull</text>
+          <text class="card-s" x="812" y="149">curtismu7 · cmuir_pingcorp</text>
+          <text class="card-s" x="812" y="166">private — access granted per user</text>
 
           <rect x="800" y="200" width="248" height="88" rx="6" fill="var(--elev)" stroke="var(--line-strong)"/>
           <text class="card-t" x="812" y="220">Upstream registries</text>
@@ -516,7 +517,7 @@
   </div>
 
   <h2><span class="kicker">Cluster inventory</span>In the namespace — 5 groups, ~30 pods</h2>
-  <p class="sub">Every pod is a pull from a public registry, tagged <span class="mono">v1.YYMMDD</span> for ours, digest-pinned for upstream. Nothing is built on the recipient's machine.</p>
+  <p class="sub">Every pod is a pull from a registry, tagged <span class="mono">v1.YYMMDD</span> for ours (GHCR, access-controlled — Ping's GitHub EMU policy keeps them private), digest-pinned for upstream. Nothing is built on the recipient's machine.</p>
   <div class="inv">
     <div class="inv-card">
       <span class="count">20 images</span>
@@ -574,7 +575,7 @@
     <table>
       <thead><tr><th>Endpoint</th><th>When</th><th>What crosses</th></tr></thead>
       <tbody>
-        <tr><td class="item">ghcr.io</td><td><span class="once">install · once</span></td><td>Our 20 public demo images. No credentials needed to pull.</td></tr>
+        <tr><td class="item">ghcr.io</td><td><span class="once">install · once</span></td><td>Our 20 demo images (private, EMU policy). Pull works after one-time access grant + <code>gh auth login</code>.</td></tr>
         <tr><td class="item">Upstream registries</td><td><span class="once">install · once</span></td><td>Pinned third-party images (llama.cpp, Grafana stack, Ping ECR, ForgeRock).</td></tr>
         <tr><td class="item">huggingface.co</td><td><span class="once">install · once</span></td><td>Public GGUF model files, downloaded by the in-cluster seed job.</td></tr>
         <tr><td class="item">github.com</td><td><span class="once">install · once</span></td><td><span class="mono">git clone</span> of the public repo.</td></tr>

@@ -833,8 +833,9 @@ kubectl config use-context us
 # 6. Check status
 ./run-pingaws.sh status
 
-# 7. Verify live
-curl https://ai-demo.ping-devops.com/api/health
+# 7. Verify live (owner namespaces use the canonical URL; yours is
+#    https://<slug>.ai-demo.ping-devops.com — the deploy banner prints it)
+curl https://<your-app-host>/api/health
 ```
 
 ### Debugging a Failed Deployment
