@@ -111,11 +111,12 @@ side: policies, decisions, recordings.
   Privilege identity sync + group membership so policies match)
 - [ ] After acceptance: grant both **PingOne Privilege Administrator**
 - [ ] Verify identity syncs into Privilege (no `user not found` on first policy hit)
-- [ ] Welcome wizard live before sending: `/welcome` needs the merged
-  frontend + BFF rebuild **and** the `/welcome` Exact path on
-  `ai-demo-oauth-bypass-ingress` (else the URL bounces to the hosted-access
-  login). Verify: `curl -sk -o /dev/null -w '%{http_code}' https://ai-demo.ping-devops.com/welcome`
-  should be 200, not 302.
+- [x] Welcome wizard live (verified 2026-10-11 ~19:00Z): PR #1166 merged,
+  frontend + demo-api-server on `sha-312461488934`, `/welcome` → 200 with the
+  wizard in the served bundle (`ww-backdrop` present), and
+  `POST /api/demo/provision-wizard` correctly gates to hosted-access login
+  (`return_to=/api/demo/provision-wizard`). (This checklist item pre-dates the
+  verification; if it renders unchecked in your copy, treat it as done.)
 - [ ] ~~GitHub: add both as read collaborators~~ **BLOCKED (2026-10-11):**
   `cmuir_pingcorp` is an Enterprise Managed User account — the API rejects
   outside collaborators with 422 "Cannot assign permission of read" even
