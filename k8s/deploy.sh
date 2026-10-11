@@ -365,7 +365,7 @@ install_procyon_nodesensor() {
     --set-string "controller.endpoint=$PROCYON_NODESENSOR_CONTROLLER_ENDPOINT"
   kubectl rollout status daemonset/procyon-nodesensor-procyon-nodesensor-chart \
     -n "$NS" --timeout=180s \
-    || die "Procyon Node Sensor failed to become ready — check: kubectl get pods -n $NS -l app.kubernetes.io/name=procyon-nodesensor-chart"
+    || warn "Procyon Node Sensor failed to become ready — the demo is unaffected; only Privilege NHI sensing is missing. Check: kubectl get pods -n $NS -l app.kubernetes.io/name=procyon-nodesensor-chart (set PROCYON_NODESENSOR_ENABLED=0 to skip)"
   success "Procyon Node Sensor ready."
 }
 

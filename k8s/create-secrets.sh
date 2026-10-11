@@ -145,23 +145,33 @@ fi
 # missing/wrong VAULT_PASSWORD aborts before this script touches the live
 # cluster at all (a vault failure discovered only at the first
 # secret_from_envfile() call would leave the tls-certs secret already applied
-# — a partial write). Fail closed: no vault script, no VAULT_PASSWORD → abort,
+# — a partial write).
+#
+# The vault is OPTIONAL when secrets.vault is absent (fresh clones by design —
+# the file is gitignored): every consumer below is guarded by vault_has_key()
+# and falls back to the service's own .env. With no vault, VAULT_PASSWORD is
+# not required and every key resolves from .env. When secrets.vault EXISTS,
+# the old fail-closed rules hold: no vault script or no VAULT_PASSWORD → abort,
 # don't silently fall back to .env for what should be vault-only secrets.
 VAULT_SCRIPT="$REPO_ROOT/demo_api_server/scripts/vault.js"
-[ -f "$VAULT_SCRIPT" ] || die "vault script not found at $VAULT_SCRIPT"
-# secrets.vault is gitignored, same worktree-fallback need as VAULT_PASSWORD
-# below — default to ASSET_ROOT (main checkout when run from a worktree)
-# rather than requiring every caller to export VAULT_PATH by hand.
 export VAULT_PATH="${VAULT_PATH:-$ASSET_ROOT/secrets.vault}"
-if [ -z "${VAULT_PASSWORD:-}" ] && [ -f "$ASSET_ROOT/demo_api_server/.env" ]; then
-  VAULT_PASSWORD="$(grep -E '^VAULT_PASSWORD=.+' "$ASSET_ROOT/demo_api_server/.env" | head -1 | cut -d= -f2- | tr -d '"')"
+VAULT_ENABLED=0
+if [ -f "$VAULT_PATH" ]; then
+  VAULT_ENABLED=1
+  [ -f "$VAULT_SCRIPT" ] || die "vault script not found at $VAULT_SCRIPT"
+  if [ -z "${VAULT_PASSWORD:-}" ] && [ -f "$ASSET_ROOT/demo_api_server/.env" ]; then
+    VAULT_PASSWORD="$(grep -E '^VAULT_PASSWORD=.+' "$ASSET_ROOT/demo_api_server/.env" | head -1 | cut -d= -f2- | tr -d '"')"
+  fi
+  [ -n "${VAULT_PASSWORD:-}" ] || die "secrets.vault present but VAULT_PASSWORD is required (export it, or set it in demo_api_server/.env)"
+  info "Reading vault key list..."
+  VAULT_KEYS="$(VAULT_PASSWORD="$VAULT_PASSWORD" node "$VAULT_SCRIPT" list)" \
+    || die "vault: failed to list keys — check VAULT_PASSWORD and secrets.vault"
+else
+  warn "secrets.vault not found at $VAULT_PATH — continuing without the vault; every key resolves from its service .env"
 fi
-[ -n "${VAULT_PASSWORD:-}" ] || die "VAULT_PASSWORD is required (export it, or set it in demo_api_server/.env)"
-info "Reading vault key list..."
-VAULT_KEYS="$(VAULT_PASSWORD="$VAULT_PASSWORD" node "$VAULT_SCRIPT" list)" \
-  || die "vault: failed to list keys — check VAULT_PASSWORD and secrets.vault"
-
 vault_has_key() {
+  # With no vault file, nothing is vault-managed and every lookup misses.
+  [ "$VAULT_ENABLED" = "1" ] || return 1
   # Exact-line match against the cached newline-separated key list.
   printf '%s\n' "$VAULT_KEYS" | grep -qxF -- "$1"
 }
