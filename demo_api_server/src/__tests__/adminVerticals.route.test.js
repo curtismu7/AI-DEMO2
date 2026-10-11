@@ -680,6 +680,19 @@ describe('support queue', () => {
       expect(row.categoryLabel).toBeTruthy();
     }
   });
+
+  it('leads with the demoUser persona, not the seed-order first customer', async () => {
+    // The console auto-opens the queue's first row's customer. getAllUsers()
+    // returns seed order (john.doe = id 1 first), but the demo's subject is
+    // the PingOne-linked demoUser — the operator must land on demoUser, never
+    // john.doe ("john.doe has no PingOne account to sign on with", 2026-10-11).
+    const r = await request(makeSessionApp()).get('/api/admin/workforce/queue');
+    expect(r.status).toBe(200);
+    expect(r.body.data.rows.length).toBeGreaterThan(0);
+    // The suite's user-store mock names its persona 'demo'; production seeds
+    // 'demoUser'. Assert the persona leads, by its mock-world username.
+    expect(r.body.data.rows[0].customerQuery).toBe(DEMO_USER.username);
+  });
 });
 
 describe('capability-driven registration (T4)', () => {
