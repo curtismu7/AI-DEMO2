@@ -9,6 +9,7 @@ import CaseNotes from './CaseNotes';
 import SupportQueueRail from './SupportQueueRail';
 import { resolvePermission, PERMISSION_LABEL } from './resolvePermission';
 import TokenChainTraceRail from '../TokenChainTraceRail';
+import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
 import { useThemeOptional } from '../../context/ThemeContext';
 import './SupportConsole.css';
 
@@ -33,6 +34,9 @@ export default function SupportConsole({ vertical }) {
   const [scopes, setScopes] = useState([]);
   const [scopeSource, setScopeSource] = useState(null);
   const traceRef = useRef(null);
+  // Mirrors the global trace store so the rail can be scoped to THIS vertical.
+  const [traceSnap, setTraceSnap] = useState(() => tokenChainTraceStore.getState());
+  useEffect(() => tokenChainTraceStore.subscribe(setTraceSnap), []);
 
   useEffect(() => {
     let live = true;
@@ -105,15 +109,32 @@ export default function SupportConsole({ vertical }) {
     try {
       const url = action.buildUrl(row, result?.customer, catId);
       const body = action.body ? action.body(row, result?.customer) : undefined;
-      if (action.method === 'delete') await bffAxios.delete(url);
-      else await bffAxios.post(url, body);
+      const { data } = action.method === 'delete'
+        ? { data: await bffAxios.delete(url) }
+        : await bffAxios.post(url, body);
+      // The write's own token chain (session → verification → write → audit),
+      // minted by the BFF. Rendered by the rail below; nothing else in this
+      // page's flow can produce one, so an absent chain just leaves the rail
+      // as-is.
+      if (Array.isArray(data?.tokenChain) && data.tokenChain.length) {
+        tokenChainTraceStore.beginTrace({ prompt: `${label} ${row?.title || row?.id || ''}`.trim() });
+        tokenChainTraceStore.ingestTokenEvents(data.tokenChain);
+        tokenChainTraceStore.completeTrace(true);
+      }
       notifySuccess(`${label} done.`);
       if (drawer) setDrawer(null);
       await doLookup({ preventDefault() {} });
     } catch (err) {
       // If the server disagrees with the client's idea of verification, the
-      // server wins and the strip flips back.
+      // server wins and the strip flips back. A refusal carries the denial
+      // chain — same rail, the control working, not a UI failure.
       if (err?.response?.data?.error === 'customer_not_verified') {
+        const denialChain = err.response.data.tokenChain;
+        if (Array.isArray(denialChain) && denialChain.length) {
+          tokenChainTraceStore.beginTrace({ prompt: `${label} — refused (customer not verified)` });
+          tokenChainTraceStore.ingestTokenEvents(denialChain);
+          tokenChainTraceStore.completeTrace(false);
+        }
         setVerifiedUntil(0);
         verifiedCustomerRef.current = null;
         notifyError('Verify the customer before making changes.');
@@ -144,6 +165,16 @@ export default function SupportConsole({ vertical }) {
   // rather than passed in literal — a hardcoded light pastel here would not
   // adapt to dark mode the way a mix against --th-bg-card does.
   const theme = { '--accent': cfg.theme.accent, '--accent2': cfg.theme.accent2 };
+
+  // The trace store is global — a run fired on another surface (or another
+  // vertical's console) would otherwise paint its chain here. When the store
+  // holds an operator chain from a DIFFERENT vertical, this console renders
+  // nothing rather than someone else's evidence. Chains minted before the
+  // server tagged events carry no vertical and still render (an old BFF
+  // behind a new UI must not blank the rail).
+  const traceHasOperatorSteps = traceSnap.steps.some((s) => s.id?.startsWith('operator-'));
+  const traceIsForeign = traceHasOperatorSteps && (traceSnap.trace.tokenEvents || [])
+    .some((e) => e?.id?.startsWith('operator-') && e.vertical && e.vertical !== vertical);
 
   return (
     <div className="vops" style={theme}>
@@ -237,10 +268,16 @@ export default function SupportConsole({ vertical }) {
         <CaseNotes vertical={vertical} customerId={result.customer.id} />
       )}
 
-      <details className="vops__trace" data-testid="vops-token-chain" ref={traceRef}>
-        <summary>Token Chain — MCP Route (Agent → MCP Server)</summary>
+      <details className="vops__trace" data-testid="vops-token-chain" ref={traceRef} hidden={traceIsForeign}>
+        <summary>Token Chain — Operator Write</summary>
         <div className="vops__tracebody">
-          <TokenChainTraceRail mcpRouteOnly />
+          {/* Full rail, not mcpRouteOnly: an operator write's chain is
+              session → verification → write → audit — none of those hops are
+              MCP steps, so the MCP-only variant rendered an empty "No MCP tool
+              call yet" under a "Jump to token chain" button. The rail is the
+              console's own vertical's evidence only — a chain minted by another
+              vertical's console is hidden, not shown. */}
+          {!traceIsForeign && <TokenChainTraceRail />}
         </div>
       </details>
 

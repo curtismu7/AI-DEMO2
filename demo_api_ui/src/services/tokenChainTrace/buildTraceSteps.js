@@ -2,6 +2,7 @@
 // TokenChainTraceRail. No I/O, no store access — unit-testable in isolation.
 
 import { buildPrivilegeA2aChainSteps } from "./privilegeA2aChainSteps";
+import { buildOperatorChainSteps } from "./operatorChainSteps";
 import { EDU } from "../../components/education/educationIds";
 import { isPause, pauseObligationKind } from "./pauseObligation";
 import { extractDenyDetail } from "./denyDetail";
@@ -930,6 +931,10 @@ export function buildTraceSteps(trace) {
   // whole story, for every view that reads the store's steps.
   const chainSteps = buildPrivilegeA2aChainSteps(trace?.tokenEvents);
   if (chainSteps.length) return chainSteps;
+  // Same for a support-console operator write: its events replace the banking
+  // pipeline the write never ran (no LLM, no RFC 8693, no gateway).
+  const operatorSteps = buildOperatorChainSteps(trace?.tokenEvents);
+  if (operatorSteps.length) return operatorSteps;
   const { prompt, routingMode, routingDetail, llmDetail, llmReply, phases, tokenEvents, mcpResult, authorize, authorizeEvaluations, outcome } = trace;
   const mockIdJag = isMockIdJagTrace(trace);
   const isHeuristic = routingMode === "heuristic";

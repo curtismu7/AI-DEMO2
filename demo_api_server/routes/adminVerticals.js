@@ -15,6 +15,7 @@ verticalManifest.init();
 // Reads this session's own record of what it was granted — no signature check
 // needed, and none performed.
 const { decodeJwt } = require('../utils/tokenUtils');
+const { buildOperatorWriteChain } = require('../services/operatorTokenChain');
 // Applied PER ROUTE, never as router.use(): other routers share the
 // /api/admin mount, and a router-level guard would 403 their traffic before
 // Express could fall through to them.
@@ -84,7 +85,7 @@ function isKnownUser(userId) {
 // check has to search every array in the customer's data, which accepts an id
 // from an unrelated slice — a shipment id passed to the work-order release —
 // and the fallback inside the mutator then writes to the wrong row anyway.
-function writeAction(plugin, method, noun, sliceKey) {
+function writeAction(plugin, verticalId, method, noun, sliceKey) {
   return (req, res) => {
     const userId = req.body?.userId;
     const id = req.params.id;
@@ -100,10 +101,10 @@ function writeAction(plugin, method, noun, sliceKey) {
     const searchable = sliceKey
       ? [owned[sliceKey]]
       : Object.values(owned);
-    const rowExists = searchable.some(
-      (slice) => Array.isArray(slice) && slice.some((row) => String(row?.id) === String(id)),
-    );
-    if (!rowExists) return res.status(404).json({ ok: false, error: `${noun} not found` });
+    const existing = searchable
+      .flatMap((slice) => (Array.isArray(slice) ? slice : []))
+      .find((row) => String(row?.id) === String(id));
+    if (!existing) return res.status(404).json({ ok: false, error: `${noun} not found` });
 
     const item = store[method](String(userId), id);
     if (!item) return res.status(404).json({ ok: false, error: `${noun} not found` });
@@ -112,12 +113,27 @@ function writeAction(plugin, method, noun, sliceKey) {
     if (item.id !== undefined && String(item.id) !== String(id)) {
       return res.status(404).json({ ok: false, error: `${noun} not found` });
     }
+    const action = `${req.method} ${req.originalUrl}`;
     recordAudit(req, {
-      action: `${req.method} ${req.originalUrl}`,
+      action,
       customerId: String(userId),
       outcome: 'ok',
     });
-    res.json({ ok: true, item });
+    // The write's own token-chain evidence — session, verification, the row's
+    // before/after, the audit. What the console rail renders; see
+    // services/operatorTokenChain.js.
+    const tokenChain = buildOperatorWriteChain(req, {
+      vertical: verticalId,
+      customerId: String(userId),
+      verifiedUntil: verificationExpiry(req, userId),
+      action,
+      row: item.id !== undefined ? item.id : id,
+      beforeStatus: existing.status ?? null,
+      afterStatus: item.status ?? null,
+      request: { method: req.method, url: req.originalUrl },
+      result: item,
+    });
+    res.json({ ok: true, item, tokenChain });
   };
 }
 
@@ -362,7 +378,7 @@ for (const v of verticalManifest.listAll()) {
       router.get(`/${id}/lookup`, requireAdmin, lookupAction(plugin, id, ops.lookupSlices));
       for (const w of ops.writes || []) {
         router[`${w.method}`](`/${id}/${w.route}`, ...ADMIN_WRITE,
-          writeAction(plugin, w.mutator, w.noun, w.sliceKey));
+          writeAction(plugin, id, w.mutator, w.noun, w.sliceKey));
       }
     }
   }
