@@ -50,6 +50,7 @@ import DemoSummaryPage from "./pages/DemoSummaryPage";
 import DelegationChainValuePage from "./pages/DelegationChainValuePage";
 import McpShowcasePage from "./pages/McpShowcasePage";
 import DiscoveryPreviewPage from "./components/agentStudioPreview/DiscoveryPreviewPage";
+import AgentStudioPreviewPage from "./components/agentStudioPreview/AgentStudioPreviewPage";
 import IgaForAiPage from "./components/agentStudioPreview/IgaForAiPage";
 import PrivilegesGatewayPreviewPage from "./components/agentStudioPreview/PrivilegesGatewayPreviewPage";
 import PlatformGapsPage from "./components/agentStudioPreview/PlatformGapsPage";
@@ -2238,6 +2239,10 @@ function AppWithAuth() {
                             <Route
                               path="/resource-server-checkpoint"
                               element={<ResourceServerCheckpointPage />}
+                            />
+                            <Route
+                              path="/agent-studio-preview"
+                              element={<AgentStudioPreviewPage />}
                             />
                             <Route
                               path="/discovery-preview"

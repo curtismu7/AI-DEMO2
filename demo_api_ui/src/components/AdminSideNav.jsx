@@ -1419,6 +1419,7 @@ export default function AdminSideNav({
     ], "tool"),
     productGroup("AI Experiences", [
       { label: "Demo Summary", path: "/demo-summary", icon: "demo" },
+      { label: "Agent Studio", path: "/agent-studio-preview", icon: "arc" },
       "Weather MCP",
       "Brave Search MCP",
       "Use Cases",

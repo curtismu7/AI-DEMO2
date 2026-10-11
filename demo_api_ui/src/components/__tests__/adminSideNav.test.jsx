@@ -232,6 +232,14 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(link.closest("a")).toHaveAttribute("href", "/demo-summary");
   });
 
+  // E7: the main Agent Studio page lands with its preview siblings in AI Experiences.
+  it("renders Agent Studio with the preview pages in AI Experiences", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^AI Experiences/ }));
+    const link = screen.getByText("Agent Studio", { exact: true });
+    expect(link.closest("a")).toHaveAttribute("href", "/agent-studio-preview");
+  });
+
   // E6: the four "Exploring" pages consolidate under one nav group, between
   // Delegation & Consent and Authorize.
   it("renders the Exploring group with the four board-named pages", () => {
