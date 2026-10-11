@@ -316,6 +316,7 @@
     "/privilege-docs-index": "public",
     "/privilege-mcp-learning": "public",
     "/privileges-gateway-preview": "public",
+    "/claude-skills": "public",
     "/profile": "public",
     "/protect-auth-demo": "public",
     "/protect-auth-demo/popout": "public",

@@ -1206,6 +1206,12 @@ export default function AdminSideNav({
         { label: "Learning Hub", path: "/learning", icon: "doc" },
         { label: "Privilege Docs Index", path: "/privilege-docs-index", icon: "doc" },
         {
+          label: "Claude Skills Index",
+          path: "/claude-skills",
+          icon: "doc",
+          searchAlias: "claude skills plugins bundle pingone privilege project skills install",
+        },
+        {
           label: "Learning Hub (Web Mirror)",
           icon: "doc",
           searchAlias: "learning hub static web mirror html standalone share offline",
@@ -1546,6 +1552,7 @@ export default function AdminSideNav({
       "Learning Hub",
       "Learning Hub (Web Mirror)",
       "Privilege Docs Index",
+      "Claude Skills Index",
       { label: "Page Catalog", path: "/page-catalog" },
       "SPIFFE → PingOne Bridge (TODO)",
       "llama-vscode Guide",

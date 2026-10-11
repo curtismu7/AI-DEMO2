@@ -25,6 +25,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [Agentless configuration](AGENTLESS-CONFIGURATION.md) | — | Operating the live Agentless (OAuth/PKCE) gateway in `ping-devops-cmuir`: current source of truth for OAuth, routing and image values |
 | [Agent configuration](AGENT-CONFIGURATION.md) | — | ⚠️ Stale-bannered 2026-10-10: describes the removed `cm-mcpgw` deployment — kept for the console-side operating method. Current state in [Agent mode end to end](AGENT-MODE-END-TO-END.md) |
 | [Current configuration index](CURRENT-CONFIGURATION.md) | — | Choosing between Agentless and Agent modes, and comparing their current values side by side |
+| [Tag policies in depth](TAG-POLICIES.md) | — | What tag policies are and what they are not: name-regex → tag-set rules that do NOT auto-tag (measured), the CTags PUT that actually applies tags, per-resource quirks (namespaced agent-key PUT, MCP-app display bug), and the live `demo-map-*` set with its maintenance rule |
 | [Official Ping config reference](PingOne-Privilege-MCP-Gateway-Configuration.md) | Drive (SE) | Ping's own configuration checklist (received 2026-08-12). First doc to call out K8s ingress 443→8623 and the 8690 mesh port; the repo's K8s setup was audited against it |
 | [Technical summary v3](MCP%20Privilege%20Gateway%20Technical%20Summary%20v3.pdf) | [In repo](MCP%20Privilege%20Gateway%20Technical%20Summary%20v3.pdf) | Ping's own summary of the MCP gateway feature. PDF only; v1/v2 exports remain outside the repo |
 

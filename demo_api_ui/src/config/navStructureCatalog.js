@@ -87,7 +87,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Workload Agents · 3rd-party MCP via ID-JAG", "Agentic Control Plane",
   ] },
   { label: "Architecture & Learning", children: [
-    "Learning Hub", "Privilege Docs Index", "Learning Hub (Web Mirror)", "Page Catalog",
+    "Learning Hub", "Privilege Docs Index", "Claude Skills Index", "Learning Hub (Web Mirror)", "Page Catalog",
     "SPIFFE → PingOne Bridge (TODO)", "llama-vscode Guide",
   ] },
   { label: "Administration", children: [
