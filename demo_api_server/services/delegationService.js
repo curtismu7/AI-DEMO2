@@ -5,7 +5,7 @@ const axios   = require('axios');
 const configStore = require('./configStore');
 const { logEvent: logAppEvent } = require('./appEventService');
 const { getManagementToken } = require('./pingOneClientService');
-const { fetchPingOneUserByUsername } = require('./pingOneUserLookupService');
+const { fetchPingOneUserByUsername, fetchPingOneUserByEmail } = require('./pingOneUserLookupService');
 const { fetchFirstPopulationId } = require('./pingoneBootstrapService');
 const { DEMO_PASSWORD } = require('./pingoneProvisionService');
 
@@ -143,11 +143,14 @@ async function grantDelegation({ delegatorUserId, delegatorEmail, delegateEmail,
     }
   }
 
-  // Look up delegate in PingOne
+  // Look up delegate in PingOne — the typed address may be stored as the
+  // username OR the email; missing both would provision a duplicate user.
   let delegateUserId = null;
   let credentials = null;
   let credentialsWarning = null;
-  const { user: existingUser } = await fetchPingOneUserByUsername(delegateEmail).catch(() => ({ user: null }));
+  const { user: byUsername } = await fetchPingOneUserByUsername(delegateEmail).catch(() => ({ user: null }));
+  const { user: byEmail } = byUsername ? { user: null } : await fetchPingOneUserByEmail(delegateEmail).catch(() => ({ user: null }));
+  const existingUser = byUsername || byEmail;
 
   if (existingUser) {
     delegateUserId = existingUser.id;
