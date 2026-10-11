@@ -1,0 +1,209 @@
+/* demo_api_ui/src/pages/SkillsIndexPage.css
+ *
+ * Same token conventions as PrivilegeDocsIndexPage.css — --th-* tokens only
+ * (they flip under :root[data-theme="dark"]; no dark block, no
+ * prefers-color-scheme). Font sizes come from the --font-size-* scale.
+ */
+
+.ski-page {
+  min-height: 100vh;
+  background: var(--th-bg-page);
+  color: var(--th-text-body);
+  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
+}
+
+.ski-header {
+  padding: 2rem 3rem 1.5rem;
+  border-bottom: 1px solid var(--th-border);
+  background: var(--th-bg-band);
+  color: var(--th-text-invert);
+}
+
+.ski-header-inner {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 0 1rem;
+}
+
+.ski-eyebrow {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.08em;
+  color: var(--th-text-invert);
+  opacity: 0.75;
+}
+
+.ski-header h1 {
+  margin: 0 0 0.5rem;
+  font-size: var(--font-size-h1);
+}
+
+.ski-sub {
+  margin: 0;
+  max-width: 78ch;
+  font-size: var(--font-size-sm);
+  opacity: 0.85;
+}
+
+.ski-sub a {
+  color: inherit;
+}
+
+.ski-sub code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  background: rgba(255, 255, 255, 0.14);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.35rem;
+}
+
+.ski-body {
+  max-width: 1080px;
+  margin: 0 auto;
+  padding: 1.5rem 1rem 3rem;
+}
+
+.ski-search input {
+  width: 100%;
+  padding: 0.5rem 0.75rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+
+.ski-search input:focus-visible {
+  outline: 2px solid var(--th-bg-emphasis);
+  outline-offset: 1px;
+}
+
+.ski-section h2 {
+  display: flex;
+  align-items: baseline;
+  gap: 0.5rem;
+  margin: 2rem 0 0.75rem;
+  padding-bottom: 0.4rem;
+  border-bottom: 1px solid var(--th-border);
+  font-size: var(--font-size-h3);
+  color: var(--th-text);
+}
+
+.ski-count {
+  font-size: var(--font-size-xs);
+  font-weight: 400;
+  color: var(--th-text-muted);
+}
+
+.ski-project-heading {
+  margin: 1.75rem 0 0.75rem;
+  font-size: var(--font-size-md);
+  color: var(--th-text);
+}
+
+.ski-install-path h3 {
+  margin: 1.25rem 0 0.35rem;
+  font-size: var(--font-size-md);
+  color: var(--th-text);
+}
+
+.ski-install-path p {
+  margin: 0.4rem 0;
+  max-width: 78ch;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-body);
+}
+
+.ski-install-path pre {
+  margin: 0.5rem 0;
+  padding: 0.65rem 0.9rem;
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  overflow-x: auto;
+}
+
+.ski-install-path code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  color: var(--th-text);
+}
+
+.ski-tablewrap {
+  overflow-x: auto;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+}
+
+.ski-tablewrap table {
+  border-collapse: collapse;
+  width: 100%;
+  min-width: 640px;
+}
+
+.ski-tablewrap th,
+.ski-tablewrap td {
+  padding: 0.65rem 0.9rem;
+  border-bottom: 1px solid var(--th-border);
+  vertical-align: top;
+  text-align: left;
+  font-size: var(--font-size-sm);
+}
+
+.ski-tablewrap thead th {
+  font-size: var(--font-size-xs);
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--th-text-muted);
+  background: var(--th-bg-inset);
+}
+
+.ski-tablewrap tbody th[scope="row"] {
+  font-weight: 600;
+  color: var(--th-text);
+  width: 28%;
+  min-width: 0;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  word-break: break-word;
+}
+
+.ski-tablewrap tbody tr:last-child th,
+.ski-tablewrap tbody tr:last-child td {
+  border-bottom: none;
+}
+
+.ski-note {
+  margin: 1rem 0 0;
+  max-width: 78ch;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+.ski-footer-meta {
+  margin: 2.5rem 0 0;
+  font-size: var(--font-size-xs);
+  color: var(--th-text-muted);
+}
+
+.ski-footer-meta code {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-xs);
+  background: var(--th-bg-inset);
+  border-radius: var(--radius-sm);
+  padding: 0.1rem 0.35rem;
+}
+
+.ski-visually-hidden {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  margin: -1px;
+  padding: 0;
+  overflow: hidden;
+  clip: rect(0 0 0 0);
+  white-space: nowrap;
+  border: 0;
+}

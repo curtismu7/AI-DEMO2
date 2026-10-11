@@ -29,6 +29,7 @@ import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
 import PrivilegeDocsIndexPage from "./pages/PrivilegeDocsIndexPage";
+import SkillsIndexPage from "./pages/SkillsIndexPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
 import DemoArchSlidesPage from "./components/DemoArchSlidesPage";
@@ -2132,6 +2133,10 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-docs-index"
                               element={<PrivilegeDocsIndexPage />}
+                            />
+                            <Route
+                              path="/claude-skills"
+                              element={<SkillsIndexPage />}
                             />
                             <Route
                               path="/privilege-gateway-topologies"
