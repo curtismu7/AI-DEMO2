@@ -15,6 +15,10 @@ export const NAV_STRUCTURE_CATALOG = [
     "Malicious MCP Catalog",
     "Agent Privilege Demo",
   ] },
+  { label: "Jev Demos", children: [
+    "Jev Decision Model", "PR Review", "Computer Use", "Internal Links", "Doc Sorting",
+    "Game Agent", "Context Compaction", "Trading Bot", "Paper Organizer",
+  ] },
   { label: "DaVinci", children: [
     "DaVinci Widget", "DaVinci Login", "DaVinci SDK Login", "DaVinci Orchestration",
     "DaVinci Orchestration SDK", "Orchestration SDK Guide", "DaVinci Orchestration Overview",

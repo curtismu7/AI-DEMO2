@@ -3,8 +3,10 @@
 /**
  * Jev learning-page route (public — the page it serves renders signed out).
  *
- * POST /api/demo/jev/evaluate  { scenario: 'injection'|'intent'|'risk', state: string }
+ * POST /api/demo/jev/evaluate  { scenario: 'injection'|'intent'|'risk'|…, state: string }
  *   -> { scenario, jev: {mode, model, latencyMs, answer}, heuristic: {latencyMs, answer} }
+ * POST /api/demo/jev/batch  { scenario, states: string[] }  (max 20)
+ *   -> { scenario, totalLatencyMs, jev: [...per-state results], heuristic: {latencyMs, answers: [...]} }
  * POST /api/demo/jev/langchain { scenario, state }
  *   -> { scenario, proxied, langchain: {mode, model, latency_ms, answer, usage},
  *        heuristic: {latencyMs, answer} }
@@ -19,7 +21,7 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
 const axios = require('axios');
-const { evaluate, heuristic, isConfigured } = require('../services/jevService');
+const { evaluate, heuristic, isConfigured, SCENARIOS } = require('../services/jevService');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { internalSecret } = require('../utils/internalSecret');
 
@@ -79,6 +81,48 @@ router.post('/evaluate', limiter, async (req, res) => {
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ error: 'invalid_request', message: err.message });
     console.error('[jev] evaluate failed:', err.message);
+    return res.status(502).json({ error: 'jev_upstream_failed', message: 'Jev did not answer; try again.' });
+  }
+});
+
+// Batch: one scenario, many states — the "14 checks in one call" pattern from
+// the PR-review demo. States ride in as an array of strings (capped); each is
+// judged through the same scenario lock as /evaluate. In simulated mode the
+// heuristic answers per state; in live mode the questions fan out in parallel.
+router.post('/batch', limiter, async (req, res) => {
+  const { scenario, states } = req.body || {};
+  if (!SCENARIOS[scenario]) {
+    return res.status(400).json({ error: 'invalid_request', message: 'Unknown scenario.' });
+  }
+  if (!Array.isArray(states) || !states.length) {
+    return res.status(400).json({ error: 'invalid_request', message: 'states must be a non-empty array.' });
+  }
+  if (states.length > 20) {
+    return res.status(400).json({ error: 'invalid_request', message: 'At most 20 states per batch.' });
+  }
+  try {
+    const t0 = Date.now();
+    const baseline = states.map((s) => heuristic(scenario, String(s || '')));
+    const heuristicMs = Date.now() - t0;
+    const started = Date.now();
+    const jevResults = await Promise.all(
+      states.map(async (s, i) => {
+        try {
+          const r = await evaluate(scenario, s);
+          return { index: i, ...r };
+        } catch (err) {
+          return { index: i, mode: 'error', error: err.message || 'failed' };
+        }
+      }),
+    );
+    return res.json({
+      scenario,
+      totalLatencyMs: Date.now() - started,
+      jev: jevResults,
+      heuristic: { latencyMs: heuristicMs, answers: baseline },
+    });
+  } catch (err) {
+    console.error('[jev] batch failed:', err.message);
     return res.status(502).json({ error: 'jev_upstream_failed', message: 'Jev did not answer; try again.' });
   }
 });

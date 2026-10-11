@@ -60,12 +60,128 @@ const SCENARIOS = {
         'Is this transfer request unusual or risky enough that the bank should ask for extra verification before sending it?',
     },
   },
+  // ---- Jev demo gallery scenarios (jevGalleryPages.js). Same trust boundary:
+  // the question lives HERE, the client may only pick a key and send text.
+  prCheck: {
+    key: 'prCheck',
+    question: {
+      type: 'noul',
+      instructions:
+        'Does this code change introduce the described risk? Answer for the diff snippet given.',
+    },
+  },
+  uiAction: {
+    key: 'uiAction',
+    question: {
+      type: 'choice',
+      instructions: 'Which single next action completes the stated goal on this screen?',
+      criteria: {
+        click: 'The next step is activating the described control',
+        type: 'The next step is entering text into the described field',
+        navigate: 'The next step is opening another screen or menu to reach the control',
+        done: 'The goal is already complete; nothing left to do',
+      },
+    },
+  },
+  linkPair: {
+    key: 'linkPair',
+    question: {
+      type: 'noul',
+      instructions:
+        'Would a reader of the first page plausibly want a link to the second page, anchored in context?',
+    },
+  },
+  docType: {
+    key: 'docType',
+    question: {
+      type: 'choice',
+      instructions: 'Which document type is this page?',
+      criteria: {
+        w2: 'Form W-2, wage and tax statement from an employer',
+        _1099_int: 'Form 1099-INT, interest income from a bank',
+        _1099_div: 'Form 1099-DIV, dividends and distributions',
+        _1099_misc: 'Form 1099-MISC, miscellaneous income',
+        receipt: 'A purchase receipt or expense receipt',
+        invoice: 'A bill or invoice requesting payment',
+        unknown: 'None of the listed types fit this page',
+      },
+    },
+  },
+  gameMove: {
+    key: 'gameMove',
+    question: {
+      type: 'choice',
+      instructions: 'Which action keeps the runner alive for the next stretch of track?',
+      criteria: {
+        stay: 'Stay in the current lane',
+        left: 'Move one lane left',
+        right: 'Move one lane right',
+        jump: 'Jump over the obstacle ahead',
+        slide: 'Slide under the obstacle ahead',
+      },
+    },
+  },
+  keepTurn: {
+    key: 'keepTurn',
+    question: {
+      type: 'noul',
+      instructions:
+        'Would an agent still need this exact item in a later turn of the conversation to do its job correctly?',
+    },
+  },
+  tradeSide: {
+    key: 'tradeSide',
+    question: {
+      type: 'choice',
+      instructions: 'Given this price move, which side should the bot take on the next block?',
+      criteria: {
+        buy: 'Momentum says the price is likely to keep rising',
+        sell: 'Momentum says the price is likely to keep falling',
+      },
+    },
+  },
+  paperTopic: {
+    key: 'paperTopic',
+    question: {
+      type: 'choice',
+      instructions: 'Which topic best fits this paper title and abstract?',
+      criteria: {
+        agents: 'Autonomous agents, planning, tool use, multi-agent systems',
+        alignment: 'Alignment, safety, oversight, interpretability',
+        evals: 'Evaluation, benchmarks, measurement of model behaviour',
+        rag: 'Retrieval, memory, grounding, external knowledge',
+        fine_tuning: 'Training methods, fine-tuning, adaptation, efficiency of training',
+        inference: 'Serving, quantization, decoding, inference-time speedups',
+        multimodal: 'Vision, audio, video, multimodal models',
+        reasoning: 'Chain of thought, search, test-time compute, formal reasoning',
+        security: 'Prompt injection, jailbreaks, model attacks and defences',
+        other: 'None of the listed topics fit',
+      },
+    },
+  },
 };
 
 const INJECTION_RE = /ignore (all |any )?(previous|prior|above)|disregard|system prompt|reveal|exfiltrat|send .* to .*@|bypass/i;
 const TRANSFER_RE = /\b(transfer|send|move|wire|pay)\b/i;
 const BALANCE_RE = /\b(balance|how much|statement|recent)\b/i;
 const RISK_RE = /\b(urgent|immediately|gift ?card|crypto|new payee|overseas|wire)\b|\$\s?\d{4,}/i;
+// Gallery heuristics — keyword baselines for the demo pages, same "brittle rules" role.
+const SECRET_RE = /(api[_-]?key|secret|password|token)\s*[:=]\s*['"][^'"]{8,}|(AKIA|ghp_|sk-)[A-Za-z0-9]{8,}/i;
+const SQLI_RE = /(\+\s*(req|params|body|input)|`\s*\+\s*\w+\s*`|['"]\s*\+\s*\w+\s*\+\s*['"]).*(select|insert|update|delete|where)|string concatenation in (a )?(sql|query)/i;
+const AUTH_RE = /auth|login|session|jwt|permission|rbac|oauth/i;
+const DELETED_TEST_RE = /-.*(describe|it|test)\(|removed tests|deleted tests/i;
+const PRICE_UP_RE = /\+/;
+const W2_RE = /w-?2|wage and tax/i;
+const INT_1099_RE = /1099-int|interest income/i;
+const DIV_1099_RE = /1099-div|dividend/i;
+const MISC_1099_RE = /1099-misc|misc(ellaneous)? income/i;
+const RECEIPT_RE = /receipt|total|paid|card ending/i;
+const INVOICE_RE = /invoice|amount due|net \d+|purchase order/i;
+const OBSTACLE_AHEAD_RE = /obstacle|barrier|train|hurdle/i;
+const LOW_CLEARANCE_RE = /overhead|low clearance|beam/i;
+const KEEP_HINT_RE = /error|assert|failing|test result|command (ran|executed)|exit code|stack trace/i;
+const RECENT_TURN_RE = /\[(?:t-?0|last)\]/i;
+const MOMENTUM_RE = /\+\d|\d up|rising|green|gaining/i;
 
 /** The deliberately naive baseline: what the demo had before a decision model. */
 function heuristic(scenarioKey, state) {
@@ -76,6 +192,96 @@ function heuristic(scenarioKey, state) {
   if (scenarioKey === 'risk') {
     const hit = RISK_RE.test(state);
     return { type: 'noul', probability: hit ? 1 : 0 };
+  }
+  if (scenarioKey === 'prCheck') {
+    const hit = SECRET_RE.test(state) || SQLI_RE.test(state) || (AUTH_RE.test(state) && DELETED_TEST_RE.test(state));
+    return { type: 'noul', probability: hit ? 1 : 0 };
+  }
+  if (scenarioKey === 'uiAction') {
+    const choice = /type|enter|input field/i.test(state)
+      ? 'type'
+      : /menu|another screen|navigate|open/i.test(state)
+        ? 'navigate'
+        : /already (done|complete)|nothing left/i.test(state)
+          ? 'done'
+          : 'click';
+    const probabilities = { click: 0, type: 0, navigate: 0, done: 0 };
+    probabilities[choice] = 1;
+    return { type: 'choice', choice, probabilities, confidence: 1 };
+  }
+  if (scenarioKey === 'linkPair') {
+    // Shares a rare keyword = "relevant". No notion of reader intent.
+    const words = (s) => new Set(String(s).toLowerCase().match(/[a-z]{5,}/g) || []);
+    const [a, b] = String(state).split('\n---\n');
+    const wa = words(a || ''), wb = words(b || '');
+    let overlap = 0;
+    wa.forEach((w) => { if (wb.has(w)) overlap += 1; });
+    return { type: 'noul', probability: overlap >= 2 ? 1 : 0 };
+  }
+  if (scenarioKey === 'docType') {
+    const choice = W2_RE.test(state)
+      ? 'w2'
+      : INT_1099_RE.test(state)
+        ? '_1099_int'
+        : DIV_1099_RE.test(state)
+          ? '_1099_div'
+          : MISC_1099_RE.test(state)
+            ? '_1099_misc'
+            : INVOICE_RE.test(state)
+              ? 'invoice'
+              : RECEIPT_RE.test(state)
+                ? 'receipt'
+                : 'unknown';
+    const probabilities = { w2: 0, _1099_int: 0, _1099_div: 0, _1099_misc: 0, receipt: 0, invoice: 0, unknown: 0 };
+    probabilities[choice] = 1;
+    return { type: 'choice', choice, probabilities, confidence: 1 };
+  }
+  if (scenarioKey === 'gameMove') {
+    const choice = LOW_CLEARANCE_RE.test(state)
+      ? 'slide'
+      : OBSTACLE_AHEAD_RE.test(state)
+        ? 'jump'
+        : /gap on the (left|right)/i.test(state)
+          ? (RegExp.$1.toLowerCase() === 'left' ? 'left' : 'right')
+          : 'stay';
+    const probabilities = { stay: 0, left: 0, right: 0, jump: 0, slide: 0 };
+    probabilities[choice] = 1;
+    return { type: 'choice', choice, probabilities, confidence: 1 };
+  }
+  if (scenarioKey === 'keepTurn') {
+    const hit = KEEP_HINT_RE.test(state) || RECENT_TURN_RE.test(state);
+    return { type: 'noul', probability: hit ? 1 : 0 };
+  }
+  if (scenarioKey === 'tradeSide') {
+    const choice = MOMENTUM_RE.test(state) ? 'buy' : 'sell';
+    const probabilities = { buy: 0, sell: 0 };
+    probabilities[choice] = 1;
+    return { type: 'choice', choice, probabilities, confidence: 1 };
+  }
+  if (scenarioKey === 'paperTopic') {
+    const choice = /agent|tool use|planning/i.test(state)
+      ? 'agents'
+      : /injection|jailbreak|attack/i.test(state)
+        ? 'security'
+        : /chain[- ]of[- ]thought|reasoning|test[- ]time/i.test(state)
+          ? 'reasoning'
+          : /retriev|memory|grounding/i.test(state)
+            ? 'rag'
+            : /benchmark|evaluation/i.test(state)
+              ? 'evals'
+              : /quantiz|inference|serving|decoding/i.test(state)
+                ? 'inference'
+                : /fine[- ]tun|training|lora/i.test(state)
+                  ? 'fine_tuning'
+                  : /vision|multimodal|video|audio/i.test(state)
+                    ? 'multimodal'
+                    : /align|safety|interpret/i.test(state)
+                      ? 'alignment'
+                      : 'other';
+    const probabilities = {};
+    for (const k of ['agents', 'alignment', 'evals', 'rag', 'fine_tuning', 'inference', 'multimodal', 'reasoning', 'security', 'other']) probabilities[k] = 0;
+    probabilities[choice] = 1;
+    return { type: 'choice', choice, probabilities, confidence: 1 };
   }
   const choice = TRANSFER_RE.test(state) ? 'transfer_money' : BALANCE_RE.test(state) ? 'check_balance' : 'other';
   const probabilities = { check_balance: 0, transfer_money: 0, other: 0 };

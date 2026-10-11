@@ -4,6 +4,7 @@ import { InspectorFieldProvider } from "../context/InspectorFieldContext";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
 import A2AProtocolLearningPage from "../pages/A2AProtocolLearningPage";
 import JevLearningPage from "../pages/JevLearningPage";
+import JevDemoGalleryPage from "../pages/JevDemoGalleryPage";
 import PrivilegeMcpLearningPage from "../pages/PrivilegeMcpLearningPage";
 import AgentGatewayCapabilitiesPage from "../pages/AgentGatewayCapabilitiesPage";
 import AgentGatewayAuthorizationLessonPage from "../pages/AgentGatewayAuthorizationLessonPage";
@@ -215,6 +216,14 @@ export function JevLearningPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <JevLearningPage />
+    </AppShell>
+  );
+}
+
+export function JevDemoGalleryPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <JevDemoGalleryPage />
     </AppShell>
   );
 }
