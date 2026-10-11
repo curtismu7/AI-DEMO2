@@ -190,6 +190,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         demoStep: { useCaseId: "UC6" },
       },
       {
+        label: "Group entitlement",
+        description: "Group membership in the PingOne directory decides access — scopes are not entitlements. Live on the group policy board.",
+        icon: "👥",
+        demoStep: { useCaseId: "UC9" },
+      },
+      {
         label: "PAR (RFC 9126)",
         description: "Pushed Authorization Requests",
         icon: "📄",

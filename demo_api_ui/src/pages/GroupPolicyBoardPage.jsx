@@ -1,8 +1,11 @@
-import React, { useCallback, useEffect, useState } from "react";
+import React, { useCallback, useEffect, useRef, useState } from "react";
+import apiClient from "../services/apiClient";
 import GroupMembershipToggle from "../components/GroupMembershipToggle";
 import PingIdentitySpinner from "../components/shared/PingIdentitySpinner";
 import { useThemeOptional } from "../context/ThemeContext";
 import "./GroupPolicyBoardPage.css";
+
+const GROUP_POLICY_FLAG = "ff_authorize_group_policy";
 
 /**
  * GroupPolicyBoardPage — one live PingOne Authorize decision per vertical, for
@@ -24,6 +27,50 @@ export default function GroupPolicyBoardPage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState(null);
 
+  // The flag is this demo step's own doing: the group decides nothing while
+  // ff_authorize_group_policy is off, so arriving here (step 9A) turns it ON,
+  // and leaving turns it back OFF — the demo never leaves the authorization
+  // surface changed behind it. A ref captures whether WE turned it on, so a
+  // presenter who had it on before the page never sees it switched off.
+  const armedFlagRef = useRef(false);
+  useEffect(() => {
+    let cancelled = false;
+    apiClient.get("/api/admin/feature-flags", { _silent: true })
+      .then(({ data: flagData }) => {
+        if (cancelled) return;
+        const current = flagData?.flags?.find((f) => f.id === GROUP_POLICY_FLAG)?.value;
+        if (current === true) return; // already on — not ours to restore
+        armedFlagRef.current = true;
+        return apiClient.patch(
+          "/api/admin/feature-flags",
+          { updates: { [GROUP_POLICY_FLAG]: true } },
+          { _noAuthBanner: true },
+        ).catch(() => { armedFlagRef.current = false; });
+      })
+      .catch(() => { /* read failed — the page still works and says the flag state */ });
+    return () => {
+      cancelled = true;
+      if (armedFlagRef.current) {
+        armedFlagRef.current = false;
+        apiClient.patch(
+          "/api/admin/feature-flags",
+          { updates: { [GROUP_POLICY_FLAG]: false } },
+          { _noAuthBanner: true },
+        ).catch(() => { /* best effort — Demo Config is the manual backstop */ });
+      }
+    };
+  }, []);
+  // Single group-check panel: the board can only ever ask about the signed-in
+  // user; this answers "is demoDelegate in Banking_Privileged?" live, without
+  // signing in as anyone else.
+  const [checkUser, setCheckUser] = useState('demoDelegate');
+  const [checkVertical, setCheckVertical] = useState('banking');
+  const [checking, setChecking] = useState(false);
+  const [checkResult, setCheckResult] = useState(null);
+  const [checkError, setCheckError] = useState(null);
+  const [toggling, setToggling] = useState(false);
+  const [toggleNote, setToggleNote] = useState(null);
+
   const load = useCallback(async () => {
     setLoading(true);
     setError(null);
@@ -40,6 +87,58 @@ export default function GroupPolicyBoardPage() {
   }, []);
 
   useEffect(() => { load(); }, [load]);
+
+  const runCheck = useCallback(async () => {
+    setChecking(true);
+    setCheckError(null);
+    try {
+      const params = new URLSearchParams({ username: checkUser, verticalId: checkVertical });
+      const res = await fetch(`/api/groups/check?${params}`, { credentials: "include" });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.message || `check failed (${res.status})`);
+      setCheckResult(body);
+      return body;
+    } catch (err) {
+      setCheckResult(null);
+      setCheckError(err.message);
+      return null;
+    } finally {
+      setChecking(false);
+    }
+  }, [checkUser, checkVertical]);
+
+  /**
+   * The demo IS the transition: write the picked user's membership live in
+   * PingOne, then re-run the check so the decision visibly flips. The server
+   * returns the post-write re-read — if PingOne accepted the call but did not
+   * apply it, the note says so instead of showing a confident wrong state.
+   */
+  const toggleMembership = useCallback(async (inGroup) => {
+    setToggling(true);
+    setCheckError(null);
+    setToggleNote(null);
+    try {
+      const res = await fetch("/api/groups/check/toggle", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ inGroup, username: checkUser, verticalId: checkVertical }),
+      });
+      const body = await res.json();
+      if (!res.ok) throw new Error(body?.message || `toggle failed (${res.status})`);
+      setToggleNote(
+        body.verified && body.inGroup !== inGroup
+          ? "PingOne accepted the change but the re-read does not match what was requested — membership may not have applied."
+          : `${body.username} is ${body.inGroup ? "now in" : "no longer in"} ${body.groupName}.`,
+      );
+      await runCheck();
+      load();
+    } catch (err) {
+      setCheckError(err.message);
+    } finally {
+      setToggling(false);
+    }
+  }, [checkUser, checkVertical, runCheck, load]);
 
   const rows = data?.rows || [];
   const permits = rows.filter((r) => r.decision === "PERMIT").length;
@@ -71,6 +170,112 @@ export default function GroupPolicyBoardPage() {
         {/* Re-uses the same component as the UC9 card, so there is one code path
             for the membership write rather than two that can disagree. */}
         <GroupMembershipToggle onChange={load} />
+      </section>
+
+      <section className="gpb-check" aria-label="Group check">
+        <h2>Run a group check</h2>
+        <p className="gpb-check-sub">
+          The board above can only ask about you. This runs the same live
+          PingOne Authorize decision for any demo user — pick one, pick a
+          vertical, fire. Add or remove them from the group and the very next
+          check flips: the directory changed, the token did not.
+        </p>
+        <div className="gpb-check-controls">
+          <label>
+            <span>User</span>
+            <select
+              value={checkUser}
+              onChange={(e) => setCheckUser(e.target.value)}
+              disabled={checking}
+            >
+              <option value="demoUser">demoUser</option>
+              <option value="demoAdmin">demoAdmin</option>
+              <option value="demoDelegate">demoDelegate</option>
+            </select>
+          </label>
+          <label>
+            <span>Vertical</span>
+            <select
+              value={checkVertical}
+              onChange={(e) => setCheckVertical(e.target.value)}
+              disabled={checking}
+            >
+              {(data?.rows || [{ verticalId: 'banking', displayName: 'Banking' }]).map((r) => (
+                <option key={r.verticalId} value={r.verticalId}>{r.displayName}</option>
+              ))}
+            </select>
+          </label>
+          <button
+            type="button"
+            className="gpb-check-run"
+            onClick={runCheck}
+            disabled={checking}
+          >
+            {checking ? "Checking…" : "Run check"}
+          </button>
+        </div>
+
+        {checkError ? (
+          <div className="gpb-error" role="alert">
+            <span>⚠️</span>
+            <div>
+              <div className="gpb-error-title">Check failed</div>
+              <div className="gpb-error-detail">{checkError}</div>
+            </div>
+          </div>
+        ) : null}
+
+        {checkResult ? (
+          <div className="gpb-check-result">
+            <span
+              className={`gpb-decision gpb-decision--${String(checkResult.decision).toLowerCase()}`}
+              data-testid="check-decision"
+            >
+              {checkResult.decision}
+            </span>
+            <span className="gpb-check-who">
+              {checkResult.username} · {checkResult.displayName}
+            </span>
+            <span className="gpb-check-group">
+              {checkResult.inRequiredGroup ? "✓" : "✕"} {checkResult.requiredGroup || "—"}
+            </span>
+            {checkResult.denyReason ? (
+              <span className="gpb-codes" data-testid="check-reason">{checkResult.denyReason}</span>
+            ) : null}
+            {checkResult.codes?.length ? (
+              <span className="gpb-codes">{checkResult.codes.join(" + ")}</span>
+            ) : null}
+            {checkResult.error ? (
+              <span className="gpb-codes" role="alert">{checkResult.error}</span>
+            ) : null}
+            {/* The transition control — the demo is add → permitted, remove →
+                denied, with the check re-run against the live directory each
+                time. Only offered once a check has answered for this user. */}
+            <button
+              type="button"
+              className={`gpb-check-toggle ${checkResult.inRequiredGroup ? "gpb-check-toggle--remove" : "gpb-check-toggle--add"}`}
+              onClick={() => toggleMembership(!checkResult.inRequiredGroup)}
+              disabled={toggling || checking}
+            >
+              {toggling
+                ? "Applying…"
+                : checkResult.inRequiredGroup
+                  ? `Remove from ${checkResult.requiredGroup}`
+                  : `Add to ${checkResult.requiredGroup}`}
+            </button>
+            {!checkResult.policyEnabled ? (
+              <span className="gpb-note gpb-note--warn">
+                ff_authorize_group_policy is OFF — the group decides nothing while it is off.
+              </span>
+            ) : null}
+            {checkResult.source === "manifest" ? (
+              <span className="gpb-note gpb-note--warn">
+                Membership came from the manifest, not the live directory.
+              </span>
+            ) : null}
+            {toggleNote ? <span className="gpb-check-note">{toggleNote}</span> : null}
+          </div>
+        ) : null}
       </section>
 
       <section className="gpb-board" aria-live="polite">

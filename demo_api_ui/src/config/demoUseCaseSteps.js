@@ -78,7 +78,7 @@ export const DEMO_STEP_DESTINATIONS = {
  * They sit outside the numbered lists on purpose, so adding one never renumbers the
  * steps after it (UC46A is Step 25A; Step 26 stays Step 26).
  */
-export const DEMO_SUB_STEP_IDS = { UC46: 'UC46A' };
+export const DEMO_SUB_STEP_IDS = { UC46: 'UC46A', UC9: 'UC9A' };
 
 /** Curated CIAM lane shown as its own live group on the use-case launcher. */
 export const CIAM_AGENT_TYPE_USE_CASE_IDS = [
@@ -129,6 +129,7 @@ export const DEMO_USE_CASE_SEARCH_TERMS = {
   'UC-TOOL3': ['privilege', 'privilege ai', 'llm gateway', 'prompt injection', 'virtual key'],
   UC46: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'anthropic', 'google', 'gemini', 'agent privilege', 'worker agent'],
   UC46A: ['privilege', 'a2a', 'agent-to-agent', 'access review', 'in the agent', 'reel', 'sequence'],
+  UC9A: ['group policy', 'group check', 'entitlement', 'decision board', 'membership', 'live decisions'],
   UC47: ['privilege', 'a2a', 'agent-to-agent', 'agent chain', 'three deep', 'agent privilege', 'langchain', 'specialist', 'delegation'],
   'UC-LEARN15': ['jev', 'decision model', 'system one', 'guardrail', 'intent routing', 'confidence', 'threshold', 'bake-off', 'langchain', 'von'],
 };

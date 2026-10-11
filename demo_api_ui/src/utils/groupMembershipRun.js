@@ -72,3 +72,36 @@ export function restoreGroupMembershipAfterRun(verticalId) {
   });
   return unsubscribe;
 }
+
+/**
+ * Flip ff_authorize_group_policy back OFF once THIS run reaches a terminal
+ * verdict — the flag side of the group demo. The launcher and AIAgent arm the
+ * flag ON at run start (requiredFlagsForUseCase → PATCH); without this the
+ * demo leaves the authorization surface changed behind it, and a later UC6
+ * (amount-ceiling deny) would also carry a group rule it does not declare.
+ *
+ * Same terminal-signal shape as restoreGroupMembershipAfterRun: the trace
+ * store's outcome, one run after this call, fired once.
+ *
+ * ponytail: if the chip is never dispatched the listener sits idle for the
+ * page's life; flipping the flag off in Demo Config is the manual backstop.
+ *
+ * @returns {() => void} unsubscribe, for a caller that wants to cancel
+ */
+export function restoreGroupPolicyFlagAfterRun() {
+  const armedRunId = tokenChainTraceStore.getState().trace.runId;
+  let done = false;
+  const unsubscribe = tokenChainTraceStore.subscribe(({ trace }) => {
+    if (done || !trace.outcome || trace.runId == null || trace.runId === armedRunId) return;
+    done = true;
+    queueMicrotask(() => unsubscribe());
+    // _noAuthBanner: a 401 here says nothing about the session — the arming
+    // PATCH already established it had one.
+    apiClient.patch(
+      '/api/admin/feature-flags',
+      { updates: { ff_authorize_group_policy: false } },
+      { _noAuthBanner: true },
+    ).catch(() => { /* best effort — Demo Config is the manual backstop */ });
+  });
+  return unsubscribe;
+}

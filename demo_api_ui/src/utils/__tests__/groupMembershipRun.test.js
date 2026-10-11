@@ -1,7 +1,7 @@
 import { vi } from 'vitest';
 import apiClient from '../../services/apiClient';
 import { tokenChainTraceStore } from '../../services/tokenChainTrace/tokenChainTraceStore';
-import { armGroupMembership, restoreGroupMembershipAfterRun } from '../groupMembershipRun';
+import { armGroupMembership, restoreGroupMembershipAfterRun, restoreGroupPolicyFlagAfterRun } from '../groupMembershipRun';
 
 vi.mock('../../services/apiClient', () => ({
   default: { post: vi.fn(), get: vi.fn(), patch: vi.fn() },
@@ -62,4 +62,29 @@ test('restore waits for the chip run to reach a terminal verdict', async () => {
   // Every later emit on the same run must not re-fire the restore.
   tokenChainTraceStore.completeTrace(false);
   expect(apiClient.post).toHaveBeenCalledTimes(1);
+});
+
+// The presenter asked for the flag to be a demo step's own doing: turn
+// ff_authorize_group_policy ON when the step runs, OFF again when it ends —
+// so the demo never leaves the authorization surface changed behind it.
+test('restoreGroupPolicyFlagAfterRun waits for the run verdict, then flips the flag off', async () => {
+  restoreGroupPolicyFlagAfterRun();
+  expect(apiClient.patch).not.toHaveBeenCalled();
+
+  // A run that has not settled must not restore yet.
+  tokenChainTraceStore.beginTrace({ prompt: 'check my sensitive account details' });
+  expect(apiClient.patch).not.toHaveBeenCalled();
+
+  tokenChainTraceStore.completeTrace(false);
+  await vi.waitFor(() => {
+    expect(apiClient.patch).toHaveBeenCalledWith(
+      '/api/admin/feature-flags',
+      { updates: { ff_authorize_group_policy: false } },
+      expect.anything(),
+    );
+  });
+
+  // Every later emit must not re-fire.
+  tokenChainTraceStore.completeTrace(false);
+  expect(apiClient.patch).toHaveBeenCalledTimes(1);
 });

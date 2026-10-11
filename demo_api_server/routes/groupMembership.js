@@ -369,6 +369,199 @@ router.get('/decision-board', requireSession, async (req, res) => {
 });
 
 /**
+ * GET /api/groups/check?username=&verticalId=
+ *
+ * One live Authorize decision for one picked user against one vertical's
+ * group-gated tool — the single-check counterpart of the decision board, which
+ * can only ask about the signed-in user. The group-check panel uses it to answer
+ * "is demoDelegate in Banking_Privileged, and what does policy say?" live,
+ * mid-demo, without signing in as anyone else.
+ *
+ * The decision is the same evaluate call the PEP makes, fed the picked user's
+ * REAL directory groups — the evidence chain is identical to the board's.
+ */
+router.get('/check', requireSession, async (req, res) => {
+  try {
+    await configStore.ensureInitialized();
+    verticalManifest.init();
+
+    const username = typeof req.query.username === 'string' ? req.query.username.trim() : '';
+    const verticalId = resolveVerticalId(req);
+    if (!username) {
+      return res.status(400).json({ error: 'username_required' });
+    }
+    const manifest = verticalManifest.resolver.resolve(verticalId);
+    if (!manifest) {
+      return res.status(404).json({ error: 'unknown_vertical', verticalId });
+    }
+
+    const { user: picked, error: lookupError } = await fetchPingOneUserByUsername(username);
+    if (!picked) {
+      return res.status(404).json({ error: 'user_not_found', message: lookupError || undefined });
+    }
+
+    const requiredGroup = groupPolicy.groupNameForCategory(verticalId, 'privileged');
+    if (!requiredGroup) {
+      return res.status(400).json({
+        error: 'unknown_group_category',
+        message: `vertical '${verticalId}' declares no 'privileged' group`,
+      });
+    }
+
+    // The vertical's group-gated tool — the first entry in the manifest's
+    // restrictedTools, the same source the decision board iterates.
+    const def = groupPolicy.listAllVerticalGroupDefinitions()
+      .find((d) => d.verticalId === verticalId);
+    const gatedTool = def && def.restrictedTools
+      ? Object.keys(def.restrictedTools)[0]
+      : null;
+
+    let groups = [];
+    let source = 'manifest';
+    if (pingOneGroupMembershipService.isReady()) {
+      const live = await pingOneGroupMembershipService.listUserGroupNamesForVertical(
+        picked.id, verticalId,
+      );
+      if (Array.isArray(live)) { groups = live; source = 'pingone'; }
+    }
+    const inRequiredGroup = groups.includes(requiredGroup);
+
+    try {
+      const r = await pingOneAuthorizeService.evaluateMcpToolDelegation({
+        userId: picked.id,
+        clientId: picked.id,
+        toolName: gatedTool || undefined,
+        verticalId,
+        requiredGroup,
+        userGroups: groups,
+        inRequiredGroup,
+        userTier: groupPolicy.resolveUserTier(groups, verticalId),
+      });
+      const codes = ((r.raw && r.raw.statements) || []).map((s) => s.code).filter(Boolean);
+      return res.json({
+        username: picked.username || username,
+        verticalId,
+        displayName: manifest?.identity?.displayName || verticalId,
+        requiredGroup,
+        userGroups: groups,
+        inRequiredGroup,
+        source,
+        decision: r.decision,
+        denyReason: (r.raw && r.raw.deny_reason) || null,
+        codes,
+        policyEnabled: groupPolicy.isEnabled(configStore),
+        liveLookupReady: pingOneGroupMembershipService.isReady(),
+        raw: r.raw || null,
+      });
+    } catch (err) {
+      // A failed probe must read as UNKNOWN, never as PERMIT — same rule as the
+      // decision board: a page that shows green when it could not ask proves
+      // nothing.
+      return res.json({
+        username: picked.username || username,
+        verticalId,
+        displayName: manifest?.identity?.displayName || verticalId,
+        requiredGroup,
+        userGroups: groups,
+        inRequiredGroup,
+        source,
+        decision: 'UNKNOWN',
+        denyReason: null,
+        codes: [],
+        policyEnabled: groupPolicy.isEnabled(configStore),
+        liveLookupReady: pingOneGroupMembershipService.isReady(),
+        error: err.message,
+      });
+    }
+  } catch (err) {
+    console.error('[groupMembership] check failed:', err.message);
+    return res.status(500).json({ error: 'group_check_failed', message: err.message });
+  }
+});
+
+/**
+ * POST /api/groups/check/toggle
+ *
+ * Move the PICKED demo user in or out of a vertical's privileged group, live in
+ * PingOne. The check panel's demo is the transition: take demoDelegate out, the
+ * next check denies; add them back, it permits. The signed-in toggle
+ * (/membership/toggle) can only move the session user, so the panel needs this.
+ *
+ * Same rules as that toggle: a real directory write (a simulated toggle would
+ * move the UI and not the decision), the response is the post-write re-read
+ * from PingOne rather than what was requested, and the service allowlists the
+ * three seeded demo usernames so this cannot reassign a real user.
+ *
+ * Body: { inGroup: boolean, username: string, verticalId?: string }
+ */
+router.post('/check/toggle', requireSession, async (req, res) => {
+  try {
+    await configStore.ensureInitialized();
+    verticalManifest.init();
+
+    const { inGroup, username } = req.body || {};
+    if (typeof inGroup !== 'boolean') {
+      return res.status(400).json({ error: 'inGroup must be a boolean' });
+    }
+    if (typeof username !== 'string' || !username.trim()) {
+      return res.status(400).json({ error: 'username_required' });
+    }
+    const verticalId = resolveVerticalId(req);
+    const manifest = verticalManifest.resolver.resolve(verticalId);
+    if (!manifest) {
+      return res.status(404).json({ error: 'unknown_vertical', verticalId });
+    }
+    const groupName = groupPolicy.groupNameForCategory(verticalId, 'privileged');
+    if (!groupName) {
+      return res.status(400).json({
+        error: 'unknown_group_category',
+        message: `vertical '${verticalId}' declares no 'privileged' group`,
+      });
+    }
+
+    const { user: picked, error: lookupError } = await fetchPingOneUserByUsername(username.trim());
+    if (!picked) {
+      return res.status(404).json({ error: 'user_not_found', message: lookupError || undefined });
+    }
+
+    // The service enforces the demo-username allowlist (user_not_toggleable)
+    // — the same guard the signed-in toggle relies on.
+    await pingOneGroupMembershipService.setUserGroupMembership({
+      username: picked.username || username.trim(),
+      pingOneUserId: picked.id,
+      groupName,
+      inGroup,
+    });
+
+    // Read back from PingOne rather than echoing the request, exactly like the
+    // signed-in toggle: a write that silently no-ops must show as unchanged.
+    const groups = await pingOneGroupMembershipService.listUserGroupNamesForVertical(
+      picked.id, verticalId,
+    );
+    return res.json({
+      verticalId,
+      username: picked.username || username.trim(),
+      displayName: manifest?.identity?.displayName || verticalId,
+      groupName,
+      requested: inGroup,
+      inGroup: Array.isArray(groups) ? groups.includes(groupName) : inGroup,
+      groups: groups || [],
+      userTier: groupPolicy.resolveUserTier(groups || [], verticalId),
+      verified: Array.isArray(groups),
+    });
+  } catch (err) {
+    const code = err.code === 'user_not_toggleable' ? 403
+      : err.code === 'group_not_found' ? 404
+        : 500;
+    console.error('[groupMembership] check toggle failed:', err.message);
+    return res.status(code).json({
+      error: err.code || 'group_check_toggle_failed',
+      message: err.message,
+    });
+  }
+});
+
+/**
  * POST /api/groups/membership/toggle
  * Move the SIGNED-IN demo user in or out of the active vertical's group for a
  * category (default `privileged`), live in PingOne.

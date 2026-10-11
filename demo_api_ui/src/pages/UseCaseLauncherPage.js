@@ -43,7 +43,7 @@ import {
 } from '../utils/useCaseDemoProgress';
 import { requiredFlagsForUseCase, groupRequirementForUseCase } from '../utils/requiredDemoFlags';
 import { restoreGroupMembership } from '../utils/restoreGroupMembership';
-import { armGroupMembership, restoreGroupMembershipAfterRun } from '../utils/groupMembershipRun';
+import { armGroupMembership, restoreGroupMembershipAfterRun, restoreGroupPolicyFlagAfterRun } from '../utils/groupMembershipRun';
 import {
   DEMO_USE_CASE_IDS,
   DEMO_USE_CASE_LABEL,
@@ -847,6 +847,9 @@ export default function UseCaseLauncherPage({ onStopAgentClick }) {
         // is late enough for the denial to have been demonstrated and early
         // enough that UC2/UC37 are not left stranded outside the shared group.
         if (groupReq === 'out') restoreGroupMembershipAfterRun(vertical);
+        // Same contract for the flag: arming turned ff_authorize_group_policy
+        // ON for this run, so the demo turns it OFF when the run ends.
+        if (flags.includes('ff_authorize_group_policy')) restoreGroupPolicyFlagAfterRun();
         // A newer Run click has since started its own chain — discard this
         // stale one so it can't overwrite chipRun or navigate over the newer run.
         if (myRunToken !== chipRunTokenRef.current) return;

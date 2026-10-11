@@ -308,10 +308,15 @@ export default function DemoStepsDropdown({
         const extra = {};
         for (const group of EXTRA_STEP_GROUPS) {
           // A step listed in more than one group keeps the number it got first.
-          extra[group.id] = mapIds(group.ids, extraOffset).map((row) => ({
-            ...row,
-            stepNumber: demoStepNumber(row.uc.id) ?? row.stepNumber,
-          }));
+          // Lettered sub-steps (9A) slot in after their parent here too — UC9
+          // lives in this themed group, not the primary script.
+          extra[group.id] = mapIds(group.ids, extraOffset).flatMap((row) => {
+            const sub = isAdmin ? undefined : catalog.find((u) => u.id === DEMO_SUB_STEP_IDS[row.uc.id]);
+            return sub ? [row, { uc: sub, stepNumber: demoStepNumber(row.uc.id) ?? row.stepNumber, stepLabel: demoStepLabel(sub.id) }] : [{
+              ...row,
+              stepNumber: demoStepNumber(row.uc.id) ?? row.stepNumber,
+            }];
+          });
           extraOffset += group.ids.length;
         }
         setExtraSteps(isAdmin ? {} : extra);

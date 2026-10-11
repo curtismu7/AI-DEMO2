@@ -15,6 +15,7 @@ import {
   ADMIN_PRIMARY_USE_CASE_IDS,
   EXTRA_STEP_GROUPS,
 } from '../../config/demoUseCaseSteps';
+import { demoStepLabel } from '../../config/demoStepNumbers';
 import { clearIdJagRunState, ID_JAG_USE_CASE_ID } from '../../utils/idJagRunMode';
 import { runPrivilegeA2aChatRun, startPrivilegeA2aChainRun } from '../../utils/privilegeA2aChainRun';
 import { runProviderLogin } from '../../utils/providerLoginRun';
@@ -931,6 +932,33 @@ describe('DemoStepsDropdown — search', () => {
     expect(within(a2a).getByTestId('demo-extra-a2a-UC2')).toHaveTextContent('9 · UC2');
     // UC48 and the MUSE steps joined before it, so themed-group numbers shift.
     expect(within(a2a).getByTestId('demo-extra-a2a-UC37')).toHaveTextContent('47 · UC37');
+  });
+
+  it('slots UC9A in after UC9 as 9A inside the Controls themed group', async () => {
+    const ids = EXTRA_STEP_GROUPS.flatMap((g) => g.ids);
+    const catalog = [
+      ...CATALOG,
+      ...ids
+        .filter((id) => !CATALOG.some((u) => u.id === id))
+        .map((id) => ({ id, title: `Themed ${id}`, trigger: { type: 'link', path: `/${id.toLowerCase()}` } })),
+      { id: 'UC9A', title: 'Themed UC9A', trigger: { type: 'link', path: '/group-policy' } },
+    ];
+    apiClient.get.mockResolvedValueOnce({ data: { useCases: catalog } });
+
+    render(
+      <DemoStepsDropdown open onOpenChange={() => {}} onSelect={() => {}} />,
+    );
+    await waitFor(() => expect(screen.getByTestId('demo-step-UC1')).toBeInTheDocument());
+
+    const controls = screen.getByTestId('demo-steps-extra-controls');
+    const rows = within(controls).getAllByTestId(/^demo-extra-controls-UC9/)
+      .map((el) => el.getAttribute('data-testid'));
+    // 9A sits right after its parent, before UC21, and shares UC9's presenter
+    // number with a letter suffix (the UC46A contract) — the number itself
+    // shifts as steps are added, so assert it relative to the parent's.
+    expect(rows).toEqual(['demo-extra-controls-UC9', 'demo-extra-controls-UC9A']);
+    expect(within(controls).getByTestId('demo-extra-controls-UC9A'))
+      .toHaveTextContent(`${demoStepLabel('UC9A')} · UC9A`);
   });
 
   it('finds the CIAM group when searching for its group label', async () => {

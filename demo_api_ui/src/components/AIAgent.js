@@ -72,6 +72,7 @@ import {
 } from "../utils/appToast";
 import { isPublicMarketingAgentPath, isPingOneAdminAgentRoute } from "../utils/embeddedAgentFabVisibility";
 import { useUseCaseRunContext } from "../utils/useCaseRunContext";
+import { restoreGroupPolicyFlagAfterRun } from "../utils/groupMembershipRun";
 import { useIdJagAgentLauncher } from "../hooks/useIdJagAgentLauncher";
 import { runsSignedOut, authLevelOf, viewerMeetsUseCaseAuth } from "../utils/useCaseAuth";
 import { PURE_LLM_MODES, PURE_LLM_LABELS, MODE_PROVIDER, sourceLabel } from "../config/agentModes";
@@ -8408,6 +8409,9 @@ export default function BankingAgent({
     const ucFlags = runsSignedOut(uc) ? [] : requiredFlagsForUseCase(uc);
     if (ucFlags.length && isLoggedIn) {
       await ensureRequiredDemoFlags(ucFlags, uc.id);
+      // The flag is a demo step's own doing: ON for the run, OFF again when it
+      // ends. Same terminal-verdict trigger as the membership restore.
+      if (ucFlags.includes('ff_authorize_group_policy')) restoreGroupPolicyFlagAfterRun();
     }
 
     // UC2.5 runs the A2A orchestrator itself. Sent as a chat chip, its prompt
