@@ -155,3 +155,116 @@
   border: 1px solid var(--th-status-warning, var(--th-border));
   border-radius: var(--radius-md, 10px);
 }
+
+/* ── Attack-map diagram section (StaticFlowDiagram embed, Catalog-tab pattern) ── */
+.ha2-diagram h3 {
+  margin: 0 0 6px;
+  font-size: var(--font-size-lg);
+  color: var(--th-text);
+}
+
+.ha2-diagram-lede {
+  margin: 0 0 12px;
+  color: var(--th-text-body);
+  line-height: 1.5;
+  font-size: var(--font-size-sm);
+}
+
+.ha2-diagram-lede code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+
+.ha2-figure {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.ha2-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+.ha2-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Legend swatch colour comes from HOSTILE_A2A_GROUPS via inline borderTopColor —
+   theme tokens throughout, so dark mode follows. */
+.ha2-sw {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 4px solid var(--th-border-strong);
+}
+
+.ha2-dsteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+  gap: 12px;
+}
+
+.ha2-dstep {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.ha2-dstep--active {
+  border-color: var(--th-status-info);
+  border-width: 2px;
+}
+
+.ha2-dstep h4 {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: var(--th-text);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.ha2-dstep-n {
+  color: var(--th-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.ha2-dstep p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--th-text-body);
+}
+
+.ha2-dstep-why strong,
+.ha2-dstep-evidence strong {
+  color: var(--th-text-muted);
+  font-weight: 600;
+}
+
+.ha2-dstep-evidence {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+  border-left: 3px solid var(--th-status-info);
+  padding-left: 10px;
+}

@@ -15,8 +15,17 @@
 // METADATA. A2A discovery does not inspect it — Privilege displays the card
 // verbatim in its Agent Card tab (inventory only, no per-skill filtering). The
 // defense is a scanner in front of the consumer, which is what this tab runs.
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { scanAgentCard } from '../utils/mcpScanner';
+import DiagramStepBar from '../components/DiagramStepBar';
+import StaticFlowDiagram from '../components/StaticFlowDiagram';
+import { edgeCaptions, useDiagramStepper } from '../hooks/useDiagramStepper';
+import {
+  HOSTILE_A2A_EDGES,
+  HOSTILE_A2A_GROUPS,
+  HOSTILE_A2A_NODES,
+  HOSTILE_A2A_STEPS,
+} from '../config/hostileA2aDiagram';
 import './HostileA2aTab.css';
 
 const SCAN_ENDPOINT = '/api/privilege-a2a/scan-card';
@@ -86,6 +95,63 @@ const SAMPLE_CARDS = {
 
 const LIVE = 'live';
 
+// The attack map: a generalist delegating to the hostile specialist, the card's
+// two poison surfaces, the scanner (the card's only defense) and the guardrail
+// (which screens messages both ways — measured). Same embed pattern as the
+// Catalog tab's attack map; stepper drives StaticFlowDiagram's own reel.
+function HostileA2aDiagramSection() {
+  const stepper = useDiagramStepper(HOSTILE_A2A_EDGES.length);
+  const names = useMemo(() => Object.fromEntries(HOSTILE_A2A_NODES.map((n) => [n.id, n.label])), []);
+  const captions = useMemo(() => edgeCaptions(HOSTILE_A2A_EDGES, names), [names]);
+  const usedGroups = [...new Set(HOSTILE_A2A_NODES.map((n) => n.group))];
+  return (
+    <section className="ha2-diagram" aria-label="How the hostile A2A agent attacks" data-testid="ha2-diagram">
+      <h3>What the hostile A2A agent does, end to end</h3>
+      <p className="ha2-diagram-lede">
+        A generalist picks a specialist by reading its <strong>Agent Card</strong> — and the card is
+        the attack. Discovery inspects nothing, so the scanner in front of the consumer is the
+        card&rsquo;s only defense; the gateway&rsquo;s guardrail screens the <em>messages</em> both
+        directions (measured: <code>a2a_request_blocked</code> and{" "}
+        <code>a2a_response_blocked</code>, category <code>prompt_injection</code>). Press play or
+        step through.
+      </p>
+      <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId="ha2-diagram-steps" />
+      <figure className="ha2-figure">
+        <StaticFlowDiagram
+          NODES={HOSTILE_A2A_NODES}
+          EDGES={HOSTILE_A2A_EDGES}
+          GROUPS={HOSTILE_A2A_GROUPS}
+          stepper={stepper}
+          testId="ha2-diagram-flow"
+          ariaLabel="Attack surfaces of the hostile A2A agent card and where each defense sits"
+        />
+        <ul className="ha2-legend" aria-label="Legend">
+          {usedGroups.map((g) => (
+            <li key={g}>
+              <i className="ha2-sw" style={{ borderTopColor: HOSTILE_A2A_GROUPS[g].bg }} />
+              {HOSTILE_A2A_GROUPS[g].label}
+            </li>
+          ))}
+        </ul>
+      </figure>
+      <ol className="ha2-dsteps" aria-label="The attack, step by step">
+        {HOSTILE_A2A_STEPS.map((s, i) => {
+          const active = stepper.active && s.edges.some((e) => e === stepper.step);
+          return (
+            <li key={s.key} className={active ? 'ha2-dstep ha2-dstep--active' : 'ha2-dstep'} data-testid={`ha2-diagram-step-${i + 1}`}>
+              <h4><span className="ha2-dstep-n">{i + 1}</span>{s.title}</h4>
+              <p>{s.what}</p>
+              <p className="ha2-dstep-why"><strong>Why it matters:</strong> {s.why}</p>
+              <p className="ha2-dstep-evidence"><strong>Observed:</strong> {s.evidence}</p>
+            </li>
+          );
+        })}
+      </ol>
+      {/* StaticFlowDiagram renders its own movie reel from the stepper. */}
+    </section>
+  );
+}
+
 export default function HostileA2aTab() {
   const [source, setSource] = useState('poisoned');
   const [url, setUrl] = useState(DEFAULT_CARD_URL);
@@ -140,7 +206,9 @@ export default function HostileA2aTab() {
         </div>
       </header>
 
-      <section className="ha2-run">
+      <HostileA2aDiagramSection />
+
+      <section className="ha2-run" aria-label="Agent Card scanner">
         <label className="ha2-label" htmlFor="ha2-source">Agent Card</label>
         <div className="ha2-run-row">
           <select
