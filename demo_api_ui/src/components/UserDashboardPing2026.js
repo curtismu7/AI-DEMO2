@@ -58,6 +58,7 @@ import Fido2Challenge from "./Fido2Challenge";
 import TokenChainTraceRail from "./TokenChainTraceRail";
 import { useSessionToken } from '../context/SessionTokenContext';
 import ConfirmModal from "./ConfirmModal";
+import DelegatedAccessPanel from "./DelegatedAccessPanel";
 import DraggableModal from "./DraggableModal";
 import TransactionConsentModal from "./TransactionConsentModal";
 import WebMcpPanel from "./WebMcpPanel";
@@ -2594,6 +2595,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           </Link>
         </nav>
       </div>
+
+      {/* Delegated access banner — only renders when this user holds delegations */}
+      <DelegatedAccessPanel />
 
       {/* Customer Profile */}
       <div className="section ud-profile-card">
