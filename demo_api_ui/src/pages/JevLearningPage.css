@@ -122,3 +122,7 @@
 .jev-page .jev-readout-list { margin: 0 0 12px; padding-left: 20px; display: grid; gap: 10px; color: var(--th-text-body); font-size: var(--font-size-md); line-height: var(--line-height-body); }
 .jev-page .jev-readout-list strong { color: var(--th-text); }
 .jev-page .jev-readout .jev-explain { margin: 0; }
+
+/* Gallery additions (JevDemoGalleryPage) */
+.jev-chip--on { border-color: var(--th-text); font-weight: 600; }
+a.jev-tab { display: inline-block; }

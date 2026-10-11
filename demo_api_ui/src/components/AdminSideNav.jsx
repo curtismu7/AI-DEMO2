@@ -1363,6 +1363,17 @@ export default function AdminSideNav({
       { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),
+    productGroup("Jev Demos", [
+      { label: "Jev Decision Model", path: "/jev-learning", icon: "demo" },
+      { label: "PR Review", path: "/jev-demos/pr-review", icon: "doc" },
+      { label: "Computer Use", path: "/jev-demos/computer-use", icon: "demo" },
+      { label: "Internal Links", path: "/jev-demos/internal-links", icon: "lnk" },
+      { label: "Doc Sorting", path: "/jev-demos/doc-sort", icon: "pol" },
+      { label: "Game Agent", path: "/jev-demos/game-agent", icon: "agt" },
+      { label: "Context Compaction", path: "/jev-demos/compaction", icon: "cfg" },
+      { label: "Trading Bot", path: "/jev-demos/trading", icon: "log" },
+      { label: "Paper Organizer", path: "/jev-demos/papers", icon: "arc" },
+    ], "agt"),
     productGroup("DaVinci", [
       { label: "DaVinci Widget", path: "/davinci-widget" },
       { label: "DaVinci Login", path: "/davinci-login-guide" },
