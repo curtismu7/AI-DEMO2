@@ -149,7 +149,10 @@ async function grantDelegation({ delegatorUserId, delegatorEmail, delegateEmail,
   let credentials = null;
   let credentialsWarning = null;
   const { user: byUsername } = await fetchPingOneUserByUsername(delegateEmail).catch(() => ({ user: null }));
-  const { user: byEmail } = byUsername ? { user: null } : await fetchPingOneUserByEmail(delegateEmail).catch(() => ({ user: null }));
+  // Older module mocks of the lookup service only provide the username fn.
+  const { user: byEmail } = byUsername || typeof fetchPingOneUserByEmail !== 'function'
+    ? { user: null }
+    : await fetchPingOneUserByEmail(delegateEmail).catch(() => ({ user: null }));
   const existingUser = byUsername || byEmail;
 
   if (existingUser) {
