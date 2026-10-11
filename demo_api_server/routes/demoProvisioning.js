@@ -1,11 +1,14 @@
 'use strict';
 const express = require('express');
 const axios = require('axios');
+const crypto = require('crypto');
 const router = express.Router();
 const { requireAdmin } = require('../middleware/auth');
 const { getManagementToken } = require('../services/pingOneClientService');
 const mfaService = require('../services/mfaService');
 const configStore = require('../services/configStore');
+const dataStore = require('../data/store');
+const pingOneUserService = require('../services/pingOneUserService');
 const { PingOneProvisionService, DEMO_PASSWORD } = require('../services/pingoneProvisionService');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
@@ -113,6 +116,175 @@ router.post('/provision-user', requireAdmin, async (req, res) => {
     steps,
     credentials: { email, password: DEMO_PASSWORD },
   });
+});
+
+// ── Welcome-wizard provisioning ─────────────────────────────────────────────
+// One call that sets up a demo person end to end: customer user (email as
+// username) + admin user (plus-addressed +admin username), both with a random
+// temp password marked forceChange, email+SMS OTP enrolled, and the admin user
+// added to the admin_username allowlist so the BFF resolves admin at login.
+// Idempotent: existing PingOne users are reused, not duplicated.
+
+/** Random temp password meeting the demo password policy (upper+lower+digit). */
+function generateTempPassword() {
+  // ponytail: crypto.randomInt-based, 14 chars — plenty for a demo temp password
+  const upper = 'ABCDEFGHJKLMNPQRSTUVWXYZ';
+  const lower = 'abcdefghijkmnpqrstuvwxyz';
+  const digits = '23456789';
+  const all = upper + lower + digits;
+  const pick = (chars) => Array.from({ length: 4 }, () => chars[crypto.randomInt(chars.length)]).join('');
+  return `${pick(upper)}${pick(lower)}${pick(digits)}${pick(all)}`;
+}
+
+/** Split an existing admin_username allowlist and append a username if absent. */
+function appendAdminAllowlist(existing, username) {
+  const entries = (existing || '').split(',').map(u => u.trim()).filter(Boolean);
+  if (!entries.includes(username)) entries.push(username);
+  return entries.join(', ');
+}
+
+async function provisionWizardUser({ email, username, cell, role, mcpClientId, prefix, errors }) {
+  // Idempotent lookup — reuse existing user if the username is taken
+  const found = await pingOneUserService.searchUsers(username);
+  const existing = (found?._embedded?.users || []).find(u => u.username === username);
+  const steps = {};
+
+  // Mint one temp password up front — used for both new and reused users
+  const password = generateTempPassword();
+
+  let user;
+  if (existing) {
+    user = existing;
+    steps.reused = true;
+  } else {
+    user = await pingOneUserService.createPingOneUser({
+      email,
+      username,
+      firstName: 'Demo',
+      lastName: role === 'admin' ? 'Admin' : 'User',
+      password,
+      role,
+    });
+    steps.created = true;
+  }
+
+  // Always re-set with forceChange so PingOne demands a new password at first
+  // sign-in — also rotates the password on a reused (pre-existing) user.
+  try {
+    await pingOneUserService.setUserPassword(user.id, password, { forceChange: true });
+    user._tempPassword = password;
+  } catch (err) {
+    errors[`${prefix}Password`] = err.message;
+  }
+
+  // Mobile phone — SMS MFA target
+  try {
+    await pingOneUserService.updatePingOneUser(user.id, { mobilePhone: cell });
+    steps.mobile = true;
+  } catch (err) {
+    steps.mobile = false;
+    errors[`${prefix}Mobile`] = err.message;
+  }
+
+  // mayAct delegation attribute — token exchanger client id
+  try {
+    await pingOneUserService.setMayActAttribute(user.id, { sub: mcpClientId });
+    steps.mayAct = true;
+  } catch (err) {
+    steps.mayAct = false;
+    errors[`${prefix}MayAct`] = err.message;
+  }
+
+  // Email + SMS OTP enrollment (worker-token path → ACTIVE immediately)
+  try {
+    await mfaService.enrollEmailDevice(user.id, email);
+    steps.emailOtp = true;
+  } catch (err) {
+    steps.emailOtp = false;
+    errors[`${prefix}EmailOtp`] = err.message;
+  }
+  try {
+    await mfaService.enrollSmsDevice(user.id, cell);
+    steps.smsOtp = true;
+  } catch (err) {
+    steps.smsOtp = false;
+    errors.sms = err.message;
+  }
+
+  return { user, steps };
+}
+
+router.post('/provision-wizard', requireAdmin, async (req, res) => {
+  const { email, cell } = req.body;
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return res.status(400).json({ error: 'invalid_request', message: 'A valid email is required' });
+  }
+  if (!cell || typeof cell !== 'string' || cell.length < 7) {
+    return res.status(400).json({ error: 'invalid_request', message: 'A valid cell number is required' });
+  }
+
+  const mcpClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id')
+    || configStore.getEffective('PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID');
+  if (!mcpClientId) {
+    return res.status(503).json({ error: 'not_configured', message: 'MCP token exchanger client ID not configured — run bootstrap' });
+  }
+
+  const adminUsername = email.replace(/@/, '+admin@');
+  const errors = {};
+
+  try {
+    pingOneUserService.initialize();
+  } catch (err) {
+    return res.status(503).json({ error: 'not_configured', message: err.message });
+  }
+
+  // Customer user
+  const customer = await provisionWizardUser({ email, username: email, cell, role: 'customer', mcpClientId, prefix: 'customer', errors });
+
+  // Seed banking data for the customer dashboard (non-fatal)
+  try {
+    await dataStore.seedAccountsForUser(customer.user.id);
+  } catch (err) {
+    errors.bankingData = err.message;
+  }
+
+  // Admin user
+  const admin = await provisionWizardUser({ email, username: adminUsername, cell, role: 'admin', mcpClientId, prefix: 'admin', errors });
+
+  // PingOne admin role assignments (worker can only grant roles it holds)
+  let roleResult = null;
+  try {
+    roleResult = await pingOneUserService.ensureAdminRoleAssignments(admin.user.id);
+    if (roleResult.failed?.length) errors.roleAssignments = roleResult.failed;
+  } catch (err) {
+    errors.roleAssignments = err.message;
+  }
+
+  // Append to the admin_username allowlist so the BFF resolves admin at login
+  try {
+    const existingList = configStore.getEffective('admin_username') || configStore.getEffective('ADMIN_USERNAME') || '';
+    await configStore.setConfig({ admin_username: appendAdminAllowlist(existingList, adminUsername) });
+  } catch (err) {
+    errors.adminAllowlist = err.message;
+  }
+
+  const steps = {
+    created: Boolean(customer.steps.created || admin.steps.created) || undefined,
+    reused: Boolean(customer.steps.reused && admin.steps.reused) || undefined,
+    customer: customer.steps,
+    admin: admin.steps,
+    roleAssignments: roleResult ? { assigned: roleResult.assigned, existing: roleResult.existing } : null,
+  };
+  const ok = Object.keys(errors).length === 0;
+
+  const credentials = {
+    customerUsername: email,
+    adminUsername,
+    password: customer.user._tempPassword || admin.user._tempPassword || null,
+    passwordExpiresNote: 'User must set a new password at first sign-in (forceChange).',
+  };
+
+  return res.status(ok ? 201 : 207).json({ steps, errors: ok ? undefined : errors, credentials });
 });
 
 module.exports = router;

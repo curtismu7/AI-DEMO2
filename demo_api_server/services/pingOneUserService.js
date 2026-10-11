@@ -334,7 +334,11 @@ class PingOneUserService {
   /**
    * Update user password
    */
-  async setUserPassword(userId, password) {
+  /**
+   * Set a user's password administratively. Pass { forceChange: true } to have
+   * PingOne require the user to choose a new password at next sign-in.
+   */
+  async setUserPassword(userId, password, { forceChange = false } = {}) {
     try {
       const token = await this.getAccessToken();
       await axios({
@@ -344,7 +348,7 @@ class PingOneUserService {
           'Authorization': `Bearer ${token}`,
           'Content-Type': 'application/vnd.pingidentity.password.set+json',
         },
-        data: { value: password },
+        data: forceChange ? { value: password, forceChange: true } : { value: password },
       });
 
       logger.debug(LOG_CATEGORIES.USER_MANAGEMENT, 'User password set successfully', {

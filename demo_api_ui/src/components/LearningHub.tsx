@@ -111,6 +111,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
     icon: "📚",
     items: [
       {
+        label: "Welcome Wizard",
+        description: "Demo intro + create your demo accounts",
+        icon: "",
+      },
+      {
         label: "Guided Demo Tour",
         description: "Interactive walkthrough of the platform",
         icon: "",
@@ -526,6 +531,8 @@ export default function LearningHub() {
     () => ({
     "getting-started": {
       "Guided Demo Tour": () => tour.start(),
+      "Welcome Wizard": () =>
+        window.dispatchEvent(new CustomEvent("welcome-wizard:open")),
       "Best Practices": () => openEdu(EDU.BEST_PRACTICES, "overview"),
       "Agentic Maturity Model": () =>
         openEdu(EDU.AGENTIC_MATURITY, "overview"),

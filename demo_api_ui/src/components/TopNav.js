@@ -257,6 +257,16 @@ export default function TopNav({ user, onLogout }) {
 
         <PageGuideButton />
 
+        {/* Welcome — reopen the first-run welcome + provisioning wizard */}
+        <button
+          type="button"
+          className="topnav-use-cases-btn"
+          onClick={() => window.dispatchEvent(new CustomEvent('welcome-wizard:open'))}
+          title="Welcome tour & demo account setup"
+        >
+          Welcome
+        </button>
+
         <span className="topnav-spacer" aria-hidden="true" />
 
         {/* Right: scrollable controls area + always-visible user menu */}
