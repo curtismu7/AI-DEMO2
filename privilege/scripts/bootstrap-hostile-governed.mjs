@@ -154,9 +154,9 @@ const DENY_TOOLS = ['create_transfer', 'delete_all_records', 'grant_admin'];
       Kind: 'PacPolicy',
       Tenant: TENANT,
       Namespace: 'default',
-      Name: 'hostile-mcp-governed-allow-except',
+      Name: 'hostile-mcp-governed-except-transfers-admin',
     },
-    GivenName: 'hostile-mcp-governed — allow except transfers/admin',
+    GivenName: 'hostile-mcp-governed — all tools EXCEPT transfers/admin',
     IssuedTo: { ObjectRef: [{ RefKind: 'User', RefID: userRef(args['demo-user-id'] || '5d85b8bf-3f4d-471b-a4b3-cbb5d9385a1c') }] },
     Spec: {
       Description: 'Permit-selection for the governed hostile twin: every tool except create_transfer / delete_all_records / grant_admin; the account_review prompt and account-verification resource stay selectable for the demo.',
