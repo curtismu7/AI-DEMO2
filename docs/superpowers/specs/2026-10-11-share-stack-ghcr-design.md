@@ -135,20 +135,25 @@ otherwise warns; `create-secrets.sh` guards every Privilege file behind
 MCPGW door (`*.mcpgw.ai-demo.ping-devops.com` per-app ingress, policy
 enforcement, session recording) and `mode mcpgw`.
 
-Two recipient hazards found during verification, both handled in
-`share-setup.sh`:
+Recipient hazards found during verification (commit `ae9405667` fixes the
+first two):
 
-1. **Procyon node sensor** — `deploy.sh` installs it by default on OrbStack
-   with the author's registered NHI audience as the default value, and its
-   rollout check is fatal (`|| die`). Recipients must set
-   `PROCYON_NODESENSOR_ENABLED=0` (or their own audience if they register an
-   NHI) or a deploy without Privilege can die at the sensor step.
-2. **Author-bound public hostnames** — `02-configmap.yaml` points
+1. **secrets.vault hard dependency (the bigger one, found during the fix
+   pass)** — `create-secrets.sh` aborted without `VAULT_PASSWORD` and the
+   gitignored `secrets.vault`, which fresh clones never have. The vault is
+   now optional when the file is absent: every key resolves from its service
+   `.env`; the old fail-closed rules still apply when `secrets.vault` exists.
+2. **Procyon node sensor** — the rollout check was fatal (`|| die`) and the
+   default audience is the author's registered NHI. It now degrades to a
+   warning; recipients (or `share-setup.sh`) can still set
+   `PROCYON_NODESENSOR_ENABLED=0` to skip the install entirely.
+3. **Author-bound public hostnames** — `02-configmap.yaml` points
    `PRIVILEGE_A2A_PUBLIC_URL` and `A2A_DELEGATE_TARGETS` at
-   `mcpgw.ai-demo.ping-devops.com` (the author's SE ingress). Harmless for
-   port-forward demos; A2A delegate features silently target the author's
-   door. Documented, not fixed — recipients doing A2A demos need their own
-   ingress and a configmap override.
+   `mcpgw.ai-demo.ping-devops.com` (the author's SE ingress). Verified NOT a
+   blocker: consumers degrade gracefully (delegation returns no targets
+   without `PRIVILEGE_A2A_AGENT_KEY`, which vault-less recipients don't
+   have). Recipients doing A2A demos need their own ingress and a configmap
+   override — documented, not fixed.
 
 ## Open items for implementation
 
