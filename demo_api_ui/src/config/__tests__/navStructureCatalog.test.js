@@ -70,9 +70,9 @@ describe("PingOne platform navigation", () => {
     ]);
   });
 
-  it("places RAG inside Agent Privilege and treats Headless Identity as a product", () => {
+  it("places RAG in Exploring (E6) and treats Headless Identity as a product", () => {
     expect(group("Agent Privilege").children).toContain("AI Guard");
-    expect(group("Agent Privilege").children).toContain("Protected RAG");
+    expect(group("Exploring").children).toContain("Protected RAG");
     expect(group("Ping products").children).toContain("Headless Identity / PingCLI");
   });
 
@@ -83,7 +83,6 @@ describe("PingOne platform navigation", () => {
       "OAuth Debug",
       "Token Exchange Tester",
       "Management API Runner",
-      "OAS Demo",
       "PingOne MCP Setup",
       "MCP Discovery",
       "Resource Server Checkpoint",
@@ -91,6 +90,19 @@ describe("PingOne platform navigation", () => {
       "Snapshot Import",
       "Health Check",
     ]);
+  });
+
+  it("consolidates the four Exploring pages under the Exploring group (E6)", () => {
+    expect(group("Exploring").children).toEqual([
+      "Code Explorer",
+      "OAuth Academy",
+      "Protected RAG",
+      "OAS Demo",
+    ]);
+    // none of them remain in their former groups
+    expect(group("Identity Journeys").children).not.toContain("OAuth Academy");
+    expect(group("Identity Journeys").children).not.toContain("OAS Demo");
+    expect(group("Developer Tools").children).not.toContain("Code Explorer");
   });
 
   it("keeps reports, logs, traces, and service-flow diagrams under Observability", () => {

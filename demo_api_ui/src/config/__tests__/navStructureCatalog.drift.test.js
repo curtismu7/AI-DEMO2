@@ -26,7 +26,7 @@ describe('NAV_STRUCTURE_CATALOG covers composed AdminSideNav groups', () => {
   it('contains the product groups and renamed product vocabulary', () => {
     expect(NAV_STRUCTURE_CATALOG.map((g) => g.label)).toEqual([
       'Home', 'Security Dashboard', 'Skin Studio', 'Agent Privilege', 'DaVinci', 'Ping products',
-      'Identity Journeys', 'Authorize', 'Delegation & Consent', 'Utilities',
+      'Identity Journeys', 'Authorize', 'Delegation & Consent', 'Exploring', 'Utilities',
       'AI Experiences', 'Personal Agents', 'MCP & Integrations', 'PingFederate ID-JAG', 'Developer Tools',
       'Observability', 'Diagrams', 'Demo arch slides', 'Architecture & Learning', 'Administration',
     ]);

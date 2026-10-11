@@ -13,7 +13,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Agent Privilege Guide", "Agent Gateway Authorization", "Agent Privilege Diagrams", "Agent IAM Core",
     "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege · A2A", "Agent Privilege · A2A Review", "Agent Privilege Topologies", "Agent Privilege · MCP",
     "Malicious MCP Catalog",
-    "Protected RAG", "Agent Privilege Demo",
+    "Agent Privilege Demo",
   ] },
   { label: "DaVinci", children: [
     "DaVinci Widget", "DaVinci Login", "DaVinci SDK Login", "DaVinci Orchestration",
@@ -23,7 +23,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "PingOne Protect", "PingOne Verify & Recognize", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
   ] },
   { label: "Identity Journeys", children: [
-    "Self-Service Registration", "User Registration", "Login with MFA", "Identity Journey Map", "OAuth Academy", "OAS Demo",
+    "Self-Service Registration", "User Registration", "Login with MFA", "Identity Journey Map",
   ] },
   { label: "Authorize", children: [
     "P1AZ Inspector", "PAC Editor", "Authorize Capabilities", "Policy Decision Trace", "Scope Audit",
@@ -32,9 +32,12 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Delegation & Consent", children: [
     "Transaction Consent", "Actor Token Education", "Family Delegation",
   ] },
+  { label: "Exploring", children: [
+    "Code Explorer", "OAuth Academy", "Protected RAG", "OAS Demo",
+  ] },
   { label: "Utilities", children: [
     "PingOne Test", "MFA Test", "OAuth Debug", "Token Exchange Tester", "Management API Runner",
-    "OAS Demo", "PingOne MCP Setup", "MCP Discovery", "Resource Server Checkpoint",
+    "PingOne MCP Setup", "MCP Discovery", "Resource Server Checkpoint",
     "Scope Reference", "Snapshot Import", "Health Check",
   ] },
   { label: "AI Experiences", children: [
@@ -61,7 +64,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Run ID-JAG Demo", "How ID-JAG Works", "ID-JAG Diagram",
   ] },
   { label: "Developer Tools", children: [
-    "Code Explorer", "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide", "PromptFoo Evals",
+    "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide", "PromptFoo Evals",
   ] },
   { label: "Observability", children: [
     "Audit Trail", "Learning Log", "Activity Log", "API Activity", "Run Reports", "Error Audit Log", "New Relic", "CI Queue Dashboard",

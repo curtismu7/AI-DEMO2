@@ -1355,7 +1355,6 @@ export default function AdminSideNav({
       { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
       { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
       { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },
-      "Protected RAG",
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),
     productGroup("DaVinci", [
@@ -1380,8 +1379,6 @@ export default function AdminSideNav({
       "User Registration",
       "Login with MFA",
       { from: "Login Flow Diagram", rename: "Identity Journey Map" },
-      "OAuth Academy",
-      "OAS Demo",
     ], "usr"),
     productGroup("Authorize", [
       "P1AZ Inspector",
@@ -1401,12 +1398,17 @@ export default function AdminSideNav({
       "Actor Token Education",
       "Family Delegation",
     ], "dlg"),
+    productGroup("Exploring", [
+      "Code Explorer",
+      "OAuth Academy",
+      "Protected RAG",
+      "OAS Demo",
+    ], "tst"),
     productGroup("Utilities", [
       "PingOne Test",
       "MFA Test",
       "OAuth Debug",
       "Token Exchange Tester",
-      "OAS Demo",
       { from: "Mgmt API Runner", rename: "Management API Runner" },
       "PingOne MCP Setup",
       "MCP Discovery",
@@ -1486,7 +1488,6 @@ export default function AdminSideNav({
       },
     ], "sec"),
     productGroup("Developer Tools", [
-      "Code Explorer",
       { from: "Graphify", rename: "Graphify" },
       "Postman Collections",
       "API Docs (Swagger)",
