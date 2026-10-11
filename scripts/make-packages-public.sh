@@ -37,8 +37,11 @@ echo ""
 
 changed=0; skipped=0; failed=0
 for p in $PACKAGES; do
-  vis="$(curl -s -H "Authorization: Bearer $GH_TOKEN_PAT" \
-    "https://api.github.com/users/$OWNER/packages/container/$p" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("visibility","?"))' 2>/dev/null || echo "?")"
+  api_out="$(curl -s -H "Authorization: Bearer $GH_TOKEN_PAT" \
+    "https://api.github.com/users/$OWNER/packages/container/$p")"
+  api_code="$(curl -s -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $GH_TOKEN_PAT" \
+    "https://api.github.com/users/$OWNER/packages/container/$p")"
+  vis="$(printf '%s' "$api_out" | python3 -c 'import json,sys; print(json.load(sys.stdin).get("visibility","?"))' 2>/dev/null || echo "?")"
   case "$vis" in
     public)
       echo "  [skip]   $p (already public)"
@@ -61,7 +64,13 @@ for p in $PACKAGES; do
         echo "  [would]  $p (private → public; dry-run, pass --apply)"
       fi;;
     *)
-      echo "  [FAIL]   $p (could not read visibility)"
+      case "$api_code" in
+        401) reason="token rejected (bad/revoked/expired)";;
+        403) reason="token lacks packages scope (need classic PAT with write:packages)";;
+        404) reason="token can't see this package (fine-grained PAT? org SSO not authorized? wrong owner?)";;
+        *)   reason="HTTP $api_code";;
+      esac
+      echo "  [FAIL]   $p — $reason"
       failed=$((failed+1));;
   esac
 done
