@@ -56,7 +56,8 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 - New "Exploring" nav group shipped 2026-10-11 (PR #1132): Code Explorer, OAuth Academy, Protected RAG (`/code-search`), OAS Demo.
 - OAS Demo's hand-rolled header was deliberately left as-is (spec-browser, not an agent page) — follow-up if the board wants it on the shared hero too.
 
-### E7. `/agent-studio-preview` — needs to be greatly enhanced
-- URL: https://local.ping-devops.com:4000/agent-studio-preview
-- Design spec: `docs/superpowers/specs/2026-07-13-agent-studio-preview-design.md`
+### E7. `/agent-studio-preview` — needs to be greatly enhanced — FIXED (the page now exists)
+- Root cause found 2026-10-11 (PR #1133): of the spec's five pages, four shipped 2026-07 — but page 1, Agent Studio itself, was never built. `/agent-studio-preview` hit the SPA 404, and IGA for AI's empty state pointed at the missing page.
+- Now built per the approved spec: three persona tabs (Enterprise AI User / Developer wizards over `FLOWS`, Admin approves Discovery's pending agents), completing the mock-store pipeline (Studio registers → Discovery surfaces → Admin approves → IGA certifies → Gateway audits).
+- Live nav note: the preview pages render under **AI Experiences** — the legacy "Agent Studio (Preview)" registry group never renders (no productGroup references it).
 - Was fixed for blank-page-when-signed-out in PR #1641 (route was gated behind login); content itself still needs the enhancement pass.
