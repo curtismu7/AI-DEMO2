@@ -313,10 +313,26 @@ describe('PiFlowSignInModal', () => {
       expect(window.location.href).toBe('');
     });
 
-    test('"Use another method" leaves for the redirect login', async () => {
+    test('"Use another method" switches to the device step inside the modal', async () => {
       await toPasskeyStep({ assertion: () => ok({}) });
       fireEvent.click(screen.getByRole('button', { name: 'Use another method' }));
-      expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fdashboard');
+      // Re-opens the flow passwordless; the device form replaces the passkey step.
+      const logins = global.fetch.mock.calls.filter(([u]) => String(u).includes('/oauth/user/login'));
+      expect(String(logins[logins.length - 1][0])).toContain('passwordless=1');
+      expect(await screen.findByLabelText('Username')).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: 'Use your password instead' })).toBeInTheDocument();
+      expect(window.location.href).toBe('');
+    });
+
+    test('"Use another method" on the step-up MFA passkey keeps the redirect login', async () => {
+      // Reopening passwordless would overwrite the Multi_Factor acr selector.
+      Object.defineProperty(window, 'location', {
+        configurable: true,
+        value: { origin: 'https://app.test', pathname: '/dashboard', search: '?signin=mfa', href: '', assign },
+      });
+      await toPasskeyStep({ assertion: () => ok({}) });
+      fireEvent.click(screen.getByRole('button', { name: 'Use another method' }));
+      await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/stepup'));
     });
   });
 
@@ -383,6 +399,22 @@ describe('PiFlowSignInModal', () => {
       await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
       await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
       expect(await screen.findByLabelText('Username')).toBeInTheDocument();
+    });
+
+    test('admin "Use another method" on the passkey step keeps the redirect login', async () => {
+      // Admin is password-first (its app policy pairs password with MFA); a
+      // passwordless reopen would 409. The hosted page offers every method.
+      mockAdminBff({
+        config: ADMIN_ON,
+        login: () => ok({ flowId: 'fa' }),
+        credentials: () => ok({ step: 'passkey', publicKeyCredentialRequestOptions: { challenge: 'Y2g' } }),
+      });
+      await mountAndClickAdmin();
+      fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demoAdmin' } });
+      fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+      fireEvent.click(await screen.findByRole('button', { name: 'Use another method' }));
+      await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/login'));
     });
   });
 
