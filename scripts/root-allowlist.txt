@@ -27,6 +27,10 @@ BUGS.md
 CHANGELOG.md
 CLAUDE.md
 CODE_REVIEW.md
+# Standard repo-companion files added 2026-10-11 (PR that also enabled secret
+# scanning; see docs/runbooks/share-announcement.md).
+CONTRIBUTING.md
+LICENSE
 Connect to the PingOne Remote MCP Server.pdf
 DOCKER_STARTUP.md
 FEATURES.md
