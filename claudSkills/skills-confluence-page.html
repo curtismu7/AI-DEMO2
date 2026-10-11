@@ -351,7 +351,7 @@ pre code { background: none; padding: 0; }
   <p>Claude Code skills extend the AI with specialized knowledge, workflows, and tools — scoped to specific domains so the right guidance loads at the right time. Below are the skills I currently run, grouped by how they install. There is some overlap between sections as skills evolved; use at your own risk.</p>
 
   <div class="note">
-    <p><strong>Privacy note:</strong> every skill in the downloadable bundle has been sanitized — no environment IDs, worker credentials, client secrets, decision-endpoint IDs, or other tenant-specific values. The PingOne skills reference values by their .env variable names only; supply your own. Re-verified and re-sanitized October 2026: a leaked worker credential in <code>pingone-authorize-configure</code> was found and that skill retired from the bundle — the credential has been rotated and is dead.</p>
+    <p><strong>Privacy note:</strong> every skill in the downloadable bundle has been sanitized — no environment IDs, worker credentials, client secrets, decision-endpoint IDs, or other tenant-specific values. The PingOne skills reference values by their .env variable names only; supply your own. Re-verified and re-sanitized October 2026.</p>
   </div>
 
   <ul class="toc">
@@ -484,7 +484,7 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
       </tbody>
     </table>
   </div>
-  <p class="retired">Retired from the bundle: <strong>authz-server</strong>, <strong>authz-server-parity</strong>, and <strong>pingone-authorize-configure</strong> (demo-specific, superseded by project skills — the latter also contained a real worker credential, since rotated and now dead). The AI-DEMO2 project skills cover this ground; <code>pingone-mcp-install</code> and <code>pingone-remote-mcp-connect</code> ship via the repo rather than the bundle.</p>
+  <p class="retired">Retired from the bundle: <strong>authz-server</strong>, <strong>authz-server-parity</strong>, and <strong>pingone-authorize-configure</strong> (demo-specific, superseded by project skills). The AI-DEMO2 project skills cover this ground; <code>pingone-mcp-install</code> and <code>pingone-remote-mcp-connect</code> ship via the repo rather than the bundle.</p>
 
   </section>
 
@@ -568,7 +568,7 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
 
   </section>
   <div class="footer-meta">
-    <p>Last updated: 10 October 2026 — 16 plugins, 14 manual general-purpose skills, 9 bundle Ping skills (21 skills in the October zip), and 29 AI-DEMO2 project skills. The zip bundle was rebuilt October 2026 (sanitized; retired skills removed; current user-level Ping skills added) and is awaiting push to GitHub. The June zip's leaked worker credential was rotated 2026-10-10 and is dead — replace the June zip on push.</p>
+    <p>Last updated: 10 October 2026 — 16 plugins, 14 manual general-purpose skills, 9 bundle Ping skills (21 skills in the October zip), and 29 AI-DEMO2 project skills. The zip bundle was rebuilt October 2026 (sanitized; retired skills removed; current user-level Ping skills added) and was pushed to GitHub 11 October 2026.</p>
   </div>
 </main>
 
