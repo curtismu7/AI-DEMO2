@@ -32,9 +32,11 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 - What ships instead: the rail's operator story — operator session → customer identity verification → store write (row, before/after) → audit — the hops that actually happened, with nothing minted for fiction. Board's underlying goal ("show the hops this surface really takes, not the agent pipeline") met.
 - Example URL: https://ai-demo.ping-devops.com/admin/healthcare
 
-### E2. `/scope-reference` — keep current with code
+### E2. `/scope-reference` — keep current with code — FIXED (audited 2026-10-11, PR #1152)
 - URL: https://ai-demo.ping-devops.com/scope-reference
 - Verify the page content matches what the code actually uses.
+- Audit result: the live pipeline is sound (topology → scope-audit endpoint → PingOne comparison → missingRequired flagging), and every chip-facing gateway tool's requiredScopes matches the topology. The 6 vertical direct-call tool scopes (healthcare:read etc.) are enforced by the resource server but deliberately unrouted (router.ts: no chip calls them) — not topology material. `transactions:write` is deliberately dormant (documented in routes/transactions.js).
+- The drift was in SCOPE_VOCABULARY.md (rendered on the page): it claimed 25 canonical scopes vs the topology's 49, 4 aliases vs 6, and 6 resources vs 21 — regenerated programmatically from the topology in PR #1152.
 
 ### E3. `/settings` — verify all options work — FIXED (audited 2026-10-11)
 - URL: https://ai-demo.ping-devops.com/settings
