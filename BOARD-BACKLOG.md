@@ -43,9 +43,10 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 - Audit every option on the page end-to-end.
 - Audit result: all 10 editable settings + 1 read-only status are live-read at enforcement time via `runtimeSettings.get()` (no stale env copies): step-up chain in `mcpLocalTools.js` + `sensitiveBanking.js` (enabled, threshold, ACR, types, method, withdrawals-always), `maxTransactionAmount` in `routes/admin.js`, agent stop limits in `agentTransactionTracker.js`, `authorizePolicyId` in `transactionAuthorizationService.js`. 184 test cases across the enforcement suites pass (runtime-settings-api 16, threshold bridge 2, amount-gate band, policy-HITL, ACR gates, HITL integration, RFC 9470, workload agents). Auth gate verified live: unauthenticated `/settings` renders the admin sign-in modal; `GET /api/admin/settings` answers 401. The four related-settings nav links and both education modals resolve. Live click-through of an actual save needs an admin MFA session (SMS) — the API surface itself is covered by the 16-case runtime-settings-api suite.
 
-### E4. `/delegation` — real demo-user login flow — FIXED (partial)
+### E4. `/delegation` — real demo-user login flow — FIXED (verified live 2026-10-11)
 - Backend provisioning + credential card shipped 2026-07-12 (PingOne user creation, DEMO_PASSWORD, email notification).
 - Gap closed 2026-10-10: delegate-facing `DelegatedAccessPanel` on `/dashboard` — the logged-in delegate now sees who granted them access, the scopes, and the grant date (`GET /api/delegation/granted-to-me`). Renders nothing when the viewer holds no delegations.
+- Verified live 2026-10-11 (PR #1157): demo-user grant → delegate sign-in through PingOne consent → panel renders on `/dashboard`. Three defects found and fixed: `fetchFirstPopulationId` unexported (all new-delegate grants 502'd), `granted-to-me` matched only the token email (PingOne tokens omit it — route now tries username/sub + local store), and the panel only mounted in float agent placement (focus mode never rendered it).
 - Create a user in PingOne with a password.
 - Show a message to the demo user with those credentials so they can log in and see delegation.
 - URL: https://ai-demo.ping-devops.com/delegation

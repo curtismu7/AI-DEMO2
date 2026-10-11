@@ -62,7 +62,7 @@ export const PAGE_GUIDES = {
       "The lesson links to the live inspectors so the same request can be followed through the gateway, the policy decision and the audit trail.",
     ],
     walkthrough: steps([
-      ["Walk the request flow", "The request passes through the user or agent, the Agent Gateway, PingOne Authorize and the protected resource, and each stage has a distinct job.", "In the Request flow section, click each stage (User / agent, Agent Gateway, PingOne Authorize, Protected resource) and read the detail text below the diagram."],
+      ["Walk the request flow", "The request passes through the user or agent, the Agent Gateway, PingOne Authorize and the protected resource, drawn as a steppable walkthrough with a movie reel over the diagram.", "In the Request flow section, press Play (or Step) on the bar above the diagram and read the reel card for each hop, or click a node on the diagram itself; either way the detail text below the diagram explains that stage."],
       ["Pick a scenario", "Three requests show the three outcomes: a balance read is permitted, a $500 transfer needs step-up, and a transfer to a blocked payee is denied.", "In the Try it section, click Read account balance, Transfer $500 or Transfer to blocked payee and check the Decision request JSON on the right."],
       ["Run it live and follow the evidence", "Run live request sends the call through the app's normal BFF path, so the real gateway and policy answer, and nothing is decided locally.", "Click Run live request, then use the Run the story live cards (Inspect gateway enforcement, Test Authorize decisions, Watch the token and audit trail) to open the matching inspector."],
     ]),

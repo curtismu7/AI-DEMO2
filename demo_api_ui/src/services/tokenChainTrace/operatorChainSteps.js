@@ -14,6 +14,15 @@
 const CEREMONY_IDS = new Set(["customer-signon", "customer-token-issued", "exchange"]);
 
 export function buildOperatorChainSteps(tokenEvents, vertical = null) {
+  // Only a real operator write claims the trace. Ceremony ids ("exchange"
+  // among them) also appear on ordinary agent runs — the AG-UI session preview
+  // seeds an id-'exchange' waiting placeholder on every dashboard run — so
+  // letting them trigger this projection collapsed every agent run's chain to
+  // a single "BFF Exchange / waiting" node. Ceremony hops qualify steps; only
+  // operator- events trigger them.
+  const hasOperatorEvents = (Array.isArray(tokenEvents) ? tokenEvents : [])
+    .some((event) => typeof event?.id === "string" && event.id.startsWith("operator-"));
+  if (!hasOperatorEvents) return [];
   const events = (Array.isArray(tokenEvents) ? tokenEvents : [])
     .filter((event) => typeof event?.id === "string"
       && (event.id.startsWith("operator-") || CEREMONY_IDS.has(event.id)))

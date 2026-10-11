@@ -1,7 +1,6 @@
 # SE onboarding email — AI demo + Privilege console + desktop agent
 
-**To:** matthewpollicove@pingidentity.com
-**Cc:** cmuir@pingone.com
+**To:** matthewpollicove@pingidentity.com; cmuir@pingone.com
 **Send from:** your mail client (this is a draft, not an automated send)
 
 **Before sending, do these two 2-minute console actions** (only you hold
@@ -67,10 +66,13 @@ gateway sides if you want the full picture.
 
 **3. GitHub — get the demo repo**
 
-1. Accept the collaborator invite from `cmuir_pingcorp/AI-DEMO2` (arrives
-   by email once Curtis adds you).
-2. Install: **OrbStack** (https://orbstack.dev, enable Kubernetes in
-   settings) and **Homebrew** (https://brew.sh) if you don't have them.
+1. **Ask Curtis to add you to GitHub** (`cmuir@pingone.com` /
+   `matthewpollicove`) — repo access is grant-by-request while GitHub's
+   enterprise policy blocks self-service invites. He'll add you to
+   `cmuir_pingcorp/AI-DEMO2` and confirm.
+2. Once added: clone and install **OrbStack** (https://orbstack.dev, enable
+   Kubernetes in settings) and **Homebrew** (https://brew.sh) if you don't
+   have them.
 3. Then:
 
 ```bash
@@ -85,20 +87,35 @@ Full install guide (three tiers, troubleshooting):
 `docs/runbooks/install-ai-demo.pdf` in the repo.
 
 **Or start here — nothing to install:**
-the shared demo is live at **https://ai-demo.ping-devops.com** — sign in
-with Ping SSO and explore. The desktop agent + console are for when you
-want to show the Privilege side: policies, decisions, recordings.
+open **https://ai-demo.ping-devops.com/welcome** — no sign-in needed. The
+welcome wizard gives you a 7-step tour of what the demo does, links the
+Learning Hub docs, and provisions your own demo accounts right there: a
+customer user and an admin user (temporary password you change on first
+login, email + SMS MFA enrollment, passkey registration). You get personal
+logins without Curtis creating anything by hand. One note: provisioning
+runs while an admin of the demo is signed in somewhere, so if account
+creation is rejected, try again a little later.
 
-Questions — ping Curtis.
+After the wizard, the shared demo is at **https://ai-demo.ping-devops.com**
+(sign in with the accounts the wizard made you). The desktop agent +
+console (section 2 above) are for when you want to show the Privilege
+side: policies, decisions, recordings.
 
 ---
 
 ## Maintainer checklist (Curtis — before/after sending)
 
 - [ ] Console: invite `matthewpollicove@pingidentity.com` to tenant 0428ba4f
-- [ ] Console: invite `cmuir@pingone.com` to tenant 0428ba4f
+- [ ] Console: invite `cmuir@pingone.com` to tenant 0428ba4f (full invite:
+  invite → accept → grant **PingOne Privilege Administrator** → verify
+  Privilege identity sync + group membership so policies match)
 - [ ] After acceptance: grant both **PingOne Privilege Administrator**
 - [ ] Verify identity syncs into Privilege (no `user not found` on first policy hit)
+- [ ] Welcome wizard live before sending: `/welcome` needs the merged
+  frontend + BFF rebuild **and** the `/welcome` Exact path on
+  `ai-demo-oauth-bypass-ingress` (else the URL bounces to the hosted-access
+  login). Verify: `curl -sk -o /dev/null -w '%{http_code}' https://ai-demo.ping-devops.com/welcome`
+  should be 200, not 302.
 - [ ] ~~GitHub: add both as read collaborators~~ **BLOCKED (2026-10-11):**
   `cmuir_pingcorp` is an Enterprise Managed User account — the API rejects
   outside collaborators with 422 "Cannot assign permission of read" even

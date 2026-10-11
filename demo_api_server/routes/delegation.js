@@ -18,6 +18,7 @@ const {
   adminGrantDelegation,
   resolveApproval,
 } = require('../services/delegationService');
+const dataStore = require('../data/store');
 const { requireAdmin } = require('../middleware/auth');
 const delegationStore = require('../services/lmdb/delegationStore.lmdb');
 const { revokeToken } = require('../services/tokenRevocation');
@@ -37,8 +38,19 @@ router.get('/history', async (req, res) => {
 // GET /api/delegation/granted-to-me — delegations where I am the delegate
 router.get('/granted-to-me', async (req, res) => {
   try {
-    const email = req.user.email || req.user.username || '';
-    const delegations = await getDelegationsGrantedToMe(email);
+    // The grant records the address the grantor typed, but the token may
+    // identify the delegate only by sub (PingOne omits the email and even
+    // preferred_username claims unless requested). Try every identity: token
+    // email, token username, and the local store's canonical record via
+    // username OR sub (the same lookups /api/auth/me uses).
+    const storeUser = dataStore.getUserByUsername(req.user.username)
+      || dataStore.getUserById(req.user.sub || req.user.id);
+    const identities = [...new Set([
+      req.user.email,
+      req.user.username,
+      storeUser?.email || null,
+    ].filter(Boolean))];
+    const delegations = await getDelegationsGrantedToMe(identities);
     res.json({ ok: true, delegations });
   } catch (err) {
     console.error('[delegation] GET /granted-to-me error:', err.message);
