@@ -33,11 +33,25 @@ function mockGets() {
   });
 }
 
+// Two-phase customer verification: initiate → otp step, otp → verified+expiry.
+// The mock chain order in every test below is initiate, otp, then the action.
+function mockVerify() {
+  bffAxios.post
+    .mockResolvedValueOnce({ data: { ok: true, step: 'otp', maskedContact: '••••86' } })
+    .mockResolvedValueOnce({ data: { ok: true, verified: true, expiresAt: Date.now() + 900000, tokenChain: [] } });
+}
+
+async function verifyCustomer() {
+  fireEvent.click(screen.getByRole('button', { name: /verify customer/i }));
+  await waitFor(() => expect(screen.getByLabelText(/one-time code/i)).toBeInTheDocument());
+  fireEvent.change(screen.getByLabelText(/one-time code/i), { target: { value: '123456' } });
+  fireEvent.click(screen.getByRole('button', { name: /submit code/i }));
+}
+
 it('a successful operator write feeds its token chain to the rail', async () => {
   mockGets();
-  const expiresAt = Date.now() + 900000;
+  mockVerify();
   bffAxios.post
-    .mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } })
     .mockResolvedValueOnce({ data: { ok: true, item: { id: 'TR-1', status: 'Completed' }, tokenChain: WRITE_CHAIN } });
 
   render(<SupportConsole vertical="workforce" user={{ role: 'admin' }} />);
@@ -45,11 +59,11 @@ it('a successful operator write feeds its token chain to the rail', async () => 
   fireEvent.submit(screen.getByTestId('vops-lookup-form'));
   await waitFor(() => expect(screen.getByText('Marcus Hall')).toBeInTheDocument());
 
-  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+  await verifyCustomer();
   await waitFor(() => expect(screen.getByRole('button', { name: /Complete/i })).toBeEnabled());
 
   fireEvent.click(screen.getByRole('button', { name: /Complete/i }));
-  await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(3));
 
   // The rail holds the operator chain, not the banking pipeline.
   const { steps, trace } = tokenChainTraceStore.getState();
@@ -63,11 +77,10 @@ it('a successful operator write feeds its token chain to the rail', async () => 
 
 it('hides a chain minted by a different vertical', async () => {
   mockGets();
-  const expiresAt = Date.now() + 900000;
+  mockVerify();
   // The server tags every chain with its vertical — this one came from banking.
   const foreignChain = WRITE_CHAIN.map((e) => ({ ...e, vertical: 'banking' }));
   bffAxios.post
-    .mockResolvedValueOnce({ data: { ok: true, customerId: 'u1', expiresAt } })
     .mockResolvedValueOnce({ data: { ok: true, item: { id: 'TR-1', status: 'Completed' }, tokenChain: foreignChain } });
 
   render(<SupportConsole vertical="workforce" user={{ role: 'admin' }} />);
@@ -75,10 +88,10 @@ it('hides a chain minted by a different vertical', async () => {
   fireEvent.submit(screen.getByTestId('vops-lookup-form'));
   await waitFor(() => expect(screen.getByText('Marcus Hall')).toBeInTheDocument());
 
-  fireEvent.click(screen.getByRole('button', { name: /send one-time code/i }));
+  await verifyCustomer();
   await waitFor(() => expect(screen.getByRole('button', { name: /Complete/i })).toBeEnabled());
   fireEvent.click(screen.getByRole('button', { name: /Complete/i }));
-  await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(2));
+  await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(3));
 
   // The store holds the foreign chain, but THIS console does not render it.
   expect(tokenChainTraceStore.getState().steps.map((s) => s.id)).toContain('operator-write');

@@ -10,7 +10,8 @@
  * authority story the support console exists to teach:
  *
  *   operator session  the verified admin session the BFF established at sign-in
- *   verification      THIS session's live identity verification for THIS customer
+ *   verification      THIS session's live customer sign-on (real pi.flow + OTP)
+ *                     for THIS customer
  *   the write         the row, its status before and after
  *   the audit         the operator-attributed audit entry
  *
@@ -54,9 +55,10 @@ function operatorVerificationEvent(verified, customerId, expiresAt, vertical) {
     claims: { customerId: String(customerId) },
     ...(verified ? { verifiedUntil: new Date(expiresAt).toISOString() } : {}),
     explanation: verified
-      ? 'The operator completed the customer-identity challenge for THIS '
-        + 'customer. The verification is keyed to the customer in the operator '
-        + 'session — it authorizes writes against them and no one else.'
+      ? 'The operator completed a REAL customer sign-on for THIS customer '
+        + '(headless PingOne pi.flow: password + the code from the customer\'s '
+        + 'own OTP device). The verification is keyed to the customer in the '
+        + 'operator session — it authorizes writes against them and no one else.'
       : 'No live verification for THIS customer in this session. Every write '
         + 'against customer data requires it — the request was refused before '
         + 'the store was touched.',
@@ -65,7 +67,10 @@ function operatorVerificationEvent(verified, customerId, expiresAt, vertical) {
 
 /**
  * The full chain for a completed operator write. `action` is the audited
- * action string ("POST /api/admin/<vertical>/...").
+ * action string ("POST /api/admin/<vertical>/..."). The route inserts the
+ * ceremony's real-evidence hops (customer-token-issued, exchange) after the
+ * verification hop — they are not minted here because the route is where the
+ * exchange response lives; keep the signatures stable and splice there.
  */
 function buildOperatorWriteChain(req, { vertical, customerId, verifiedUntil, action, row, beforeStatus, afterStatus, request, result }) {
   return [

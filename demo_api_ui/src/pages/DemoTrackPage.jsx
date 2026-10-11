@@ -103,6 +103,14 @@ export default function DemoTrackPage() {
   const [expanded, setExpanded] = useState(null); // stepId | null — manual expand overlay
   const [error, setError] = useState(null);
 
+  // The support console deep-links here with ?track=support; the main page is
+  // the default. Read once on mount, same style as the ?step deep link below.
+  const trackId = useMemo(
+    () => (new URLSearchParams(window.location.search).get("track") === "support" ? "support" : "main"),
+    [],
+  );
+  const trackQuery = trackId === "main" ? "" : `?track=${trackId}`;
+
   // load() is invoked from four independent, overlapping call sites (the 5s
   // poll, startRun, onStepClick, runSlot) — a slower, older request can
   // resolve after a newer one and clobber fresher state. Guard with a
@@ -112,7 +120,7 @@ export default function DemoTrackPage() {
     const myReqId = ++loadReqIdRef.current;
     try {
       const [stateRes, runsRes] = await Promise.all([
-        apiClient.get("/api/demo-track"),
+        apiClient.get(`/api/demo-track${trackQuery}`),
         apiClient.get("/api/demo-track/runs"),
       ]);
       if (myReqId !== loadReqIdRef.current) return; // a newer load() has since started
@@ -123,7 +131,7 @@ export default function DemoTrackPage() {
       if (myReqId !== loadReqIdRef.current) return;
       setError(e.message);
     }
-  }, []);
+  }, [trackQuery]);
 
   useEffect(() => {
     load();
@@ -153,7 +161,9 @@ export default function DemoTrackPage() {
   const startRun = useCallback(async () => {
     setRunState("busy");
     try {
-      await apiClient.post("/api/demo-track/runs");
+      await (trackId === "main"
+        ? apiClient.post("/api/demo-track/runs")
+        : apiClient.post("/api/demo-track/runs", { track: trackId }));
       await load();
       setRunState("done");
     } catch {
@@ -161,16 +171,18 @@ export default function DemoTrackPage() {
     }
     if (runFlashRef.current) clearTimeout(runFlashRef.current);
     runFlashRef.current = setTimeout(() => setRunState("idle"), 1800);
-  }, [load]);
+  }, [load, trackId]);
 
   const onStepClick = useCallback(async (stepId) => {
     setExpanded((cur) => (cur === stepId ? null : stepId));
     if (!isLive) return;
     try {
-      await apiClient.post("/api/demo-track/active-step", { stepId });
+      await (trackId === "main"
+        ? apiClient.post("/api/demo-track/active-step", { stepId })
+        : apiClient.post("/api/demo-track/active-step", { stepId, track: trackId }));
       load();
     } catch { /* next poll recovers */ }
-  }, [isLive, load]);
+  }, [isLive, load, trackId]);
 
   // ── In-page runner: dispatch chips through the REAL agent, honoring the
   // active vertical. Chip text resolves from the per-vertical use-case catalog
@@ -276,7 +288,10 @@ export default function DemoTrackPage() {
   if (!state || !run) return <div className="dtp-loading"><InlineSpinner label="Loading demo track…" /></div>;
 
   const { track } = state;
-  const { steps, gauntletSims } = track;
+  const { steps } = track;
+  // The support track (config/supportDemoTrack.js) has no gauntlet — the field
+  // is absent, not empty, so a bare .filter would throw.
+  const gauntletSims = Array.isArray(track.gauntletSims) ? track.gauntletSims : [];
   const gauntletBlocked = gauntletSims.filter((g) => run.gauntlet?.[g.sim]?.blocked).length;
   const allDone = steps.every((s) => stepComplete(s, run, gauntletSims));
   const doneCount = steps.filter((s) => stepComplete(s, run, gauntletSims)).length;
@@ -294,7 +309,7 @@ export default function DemoTrackPage() {
           <span className="dtp-step-num">{complete ? "✓" : idx + 1}</span>
           <span className="dtp-step-title">{step.title}</span>
           <span className="dtp-step-cap">{step.capability}</span>
-          <span className="dtp-step-ucs">{step.ucIds.join(" · ")}</span>
+          <span className="dtp-step-ucs">{Array.isArray(step.ucIds) ? step.ucIds.join(" · ") : ""}</span>
           {complete && <span className="dtp-step-status">PROVED</span>}
           <span className="dtp-chev">{isOpen ? "▾" : "▸"}</span>
         </button>

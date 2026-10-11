@@ -7,6 +7,12 @@
  * Matching rules: docs/superpowers/plans/2026-08-03-guided-demo-track-plan-a.md Task 2.
  */
 const { TRACK_STEPS, GAUNTLET_SIMS, getTrackDefinition } = require('../config/demoTrack');
+const { SUPPORT_TRACK_STEPS, getSupportTrackDefinition } = require('../config/supportDemoTrack');
+
+// The main track keeps its legacy bucket key (bare sessionId) so the live
+// demo's persisted LMDB state survives; every other track is namespaced.
+const TRACKS = { main: TRACK_STEPS, support: SUPPORT_TRACK_STEPS };
+const _stepsFor = (trackId) => TRACKS[trackId] || TRACK_STEPS;
 
 let lmdb = null;
 try { lmdb = require('./lmdb/demoTrackStore.lmdb'); } catch { /* tests without LMDB env */ }
@@ -51,8 +57,9 @@ const GAUNTLET_SET = new Set(GAUNTLET_SIMS.map(g => g.sim));
 // track — the bug that let one session's "Start New Run" wipe out another's
 // in-progress walkthrough, and stamped it with unrelated traffic in between.
 const DEFAULT_BUCKET = '_default';
-function _bucketKey(sessionId) {
-  return sessionId && typeof sessionId === 'string' ? sessionId : DEFAULT_BUCKET;
+function _bucketKey(sessionId, trackId = 'main') {
+  const base = sessionId && typeof sessionId === 'string' ? sessionId : DEFAULT_BUCKET;
+  return trackId === 'main' ? base : `${base}:${trackId}`;
 }
 
 // In-memory: sessionId -> run / history array. LMDB persistence is per-bucket
@@ -104,23 +111,25 @@ function _hydrate(bucket) {
   }
 }
 
-function _newRun() {
+function _newRun(trackId = 'main') {
+  const steps = _stepsFor(trackId);
   return {
     runId: `run-${Date.now()}-${Math.random().toString(36).slice(2, 7)}`,
     startedAt: new Date().toISOString(),
-    activeStepId: TRACK_STEPS[0].stepId,
+    trackId,
+    activeStepId: steps[0].stepId,
     slots: {},
     gauntlet: {},
   };
 }
 
-function _ensureRun(bucket) {
+function _ensureRun(bucket, trackId = 'main') {
   _hydrate(bucket);
-  if (!_runs.get(bucket)) { _runs.set(bucket, _newRun()); _persist(bucket); }
+  if (!_runs.get(bucket)) { _runs.set(bucket, _newRun(trackId)); _persist(bucket); }
   return _runs.get(bucket);
 }
 
-function _stepById(stepId) { return TRACK_STEPS.find(s => s.stepId === stepId) || null; }
+function _stepById(stepId, trackId = 'main') { return _stepsFor(trackId).find(s => s.stepId === stepId) || null; }
 
 function _stepComplete(step, run) {
   if (step.stepId === 'attack-gauntlet') {
@@ -131,20 +140,22 @@ function _stepComplete(step, run) {
   return Boolean(greenOk && redOk);
 }
 
-function _maybeAdvance(run) {
-  const idx = TRACK_STEPS.findIndex(s => s.stepId === run.activeStepId);
+function _maybeAdvance(run, trackId = 'main') {
+  const steps = _stepsFor(trackId);
+  const idx = steps.findIndex(s => s.stepId === run.activeStepId);
   if (idx === -1) return;
-  if (!_stepComplete(TRACK_STEPS[idx], run)) return;
-  const next = TRACK_STEPS[idx + 1];
+  if (!_stepComplete(steps[idx], run)) return;
+  const next = steps[idx + 1];
   if (next) run.activeStepId = next.stepId;
 }
 
 /**
  * Candidate steps: active step first, then track order.
  */
-function _candidates(run) {
-  const active = _stepById(run.activeStepId);
-  const rest = TRACK_STEPS.filter(s => s !== active);
+function _candidates(run, trackId = 'main') {
+  const steps = _stepsFor(trackId);
+  const active = steps.find(s => s.stepId === run.activeStepId) || null;
+  const rest = steps.filter(s => s !== active);
   return [...(active ? [{ step: active }] : []), ...rest.map(step => ({ step }))];
 }
 
@@ -166,10 +177,10 @@ function _toolMatches(slot, toolName, wildcardOk) {
   return wildcardOk && tools.includes('*');
 }
 
-function _fill(bucket, run, stepId, color, stamp) {
+function _fill(bucket, run, stepId, color, stamp, trackId = 'main') {
   run.slots[`${stepId}:${color}`] = stamp;
   if (run.arm && run.arm.stepId === stepId && run.arm.color === color) run.arm = null;
-  _maybeAdvance(run);
+  _maybeAdvance(run, trackId);
   _persist(bucket);
 }
 
@@ -244,28 +255,33 @@ function observeAttackSim({ sim, status, errorCode, decisionId }, sessionId) {
   } catch { /* never throw into the sim route */ }
 }
 
-function getState(sessionId) {
-  return { track: getTrackDefinition(), run: _ensureRun(_bucketKey(sessionId)) };
+function getState(sessionId, trackId = 'main') {
+  return { track: _trackDefinitionFor(trackId), run: _ensureRun(_bucketKey(sessionId, trackId), trackId) };
 }
 
-function startRun(sessionId) {
-  const bucket = _bucketKey(sessionId);
+/** Track definition for the public API — main keeps its gauntletSims field. */
+function _trackDefinitionFor(trackId) {
+  return trackId === 'support' ? getSupportTrackDefinition() : getTrackDefinition();
+}
+
+function startRun(sessionId, trackId = 'main') {
+  const bucket = _bucketKey(sessionId, trackId);
   _hydrate(bucket);
   const current = _runs.get(bucket);
   if (current) {
     const history = _histories.get(bucket) || [];
     _histories.set(bucket, [{ ...current, endedAt: new Date().toISOString() }, ...history].slice(0, HISTORY_CAP));
   }
-  const next = _newRun();
+  const next = _newRun(trackId);
   _runs.set(bucket, next);
   _persist(bucket);
   return next;
 }
 
-function setActiveStep(stepId, sessionId) {
-  const bucket = _bucketKey(sessionId);
-  const run = _ensureRun(bucket);
-  if (_stepById(stepId)) { run.activeStepId = stepId; _persist(bucket); }
+function setActiveStep(stepId, sessionId, trackId = 'main') {
+  const bucket = _bucketKey(sessionId, trackId);
+  const run = _ensureRun(bucket, trackId);
+  if (_stepById(stepId, trackId)) { run.activeStepId = stepId; _persist(bucket); }
   return run;
 }
 
@@ -274,10 +290,10 @@ function setActiveStep(stepId, sessionId) {
  * dispatches that slot's chip/sim, so the run about to happen is the only
  * traffic a '*' matcher can accept.
  */
-function armSlot({ stepId, color, ttlMs } = {}, sessionId) {
-  const bucket = _bucketKey(sessionId);
-  const run = _ensureRun(bucket);
-  if (!_stepById(stepId) || (color !== 'green' && color !== 'red')) return run;
+function armSlot({ stepId, color, ttlMs } = {}, sessionId, trackId = 'main') {
+  const bucket = _bucketKey(sessionId, trackId);
+  const run = _ensureRun(bucket, trackId);
+  if (!_stepById(stepId, trackId) || (color !== 'green' && color !== 'red')) return run;
   run.activeStepId = stepId;
   run.arm = { stepId, color, expiresAt: Date.now() + (Number.isFinite(ttlMs) ? ttlMs : ARM_TTL_MS) };
   _persist(bucket);
@@ -303,9 +319,37 @@ function _resetForTests(sessionId) {
   _histories.set(DEFAULT_BUCKET, []);
 }
 
+/**
+ * Support-track slot stamps, keyed by the ceremony outcome kind. Support
+ * events map directly to one slot each — no tool matchers, no wildcard
+ * arming: slots fill ONLY from the real ceremony's outcomes.
+ */
+const SUPPORT_EVENT_SLOTS = {
+  'otp-invalid': { stepId: 'support-verify', color: 'red', verdict: 'BLOCKED', reason: 'PingOne refused the one-time code — the customer sign-on cannot be completed without their device.' },
+  'token-issued': { stepId: 'support-verify', color: 'green', verdict: 'PERMIT', reason: 'Customer sign-on completed — a real PingOne token was minted and held server-side.' },
+  'exchange-ok': { stepId: 'support-exchange', color: 'green', verdict: 'PERMIT', reason: 'RFC 8693 exchange returned a delegated token carrying the act claim.' },
+  'exchange-failed': { stepId: 'support-exchange', color: 'red', verdict: 'BLOCKED', reason: 'The exchange failed — no delegated token, no write.' },
+  'write-ok': { stepId: 'support-write', color: 'green', verdict: 'PERMIT', reason: 'The write executed under the delegated token; the audit records act.sub and jti.' },
+  'write-denied': { stepId: 'support-write', color: 'red', verdict: 'BLOCKED', reason: 'The verification gate refused the write — no ceremony, no authority.' },
+};
+
+/** Fill support-track slots from the real ceremony's outcomes. Never throws. */
+function observeSupportEvent(event, sessionId) {
+  try {
+    const map = SUPPORT_EVENT_SLOTS[event && event.kind];
+    if (!map) return;
+    const bucket = _bucketKey(sessionId, 'support');
+    const run = _ensureRun(bucket, 'support');
+    _fill(bucket, run, map.stepId, map.color, {
+      verdict: map.verdict, at: new Date().toISOString(), reason: map.reason,
+      ...(event.detail || {}),
+    }, 'support');
+  } catch { /* track observation is optional */ }
+}
+
 module.exports = {
   getState, startRun, setActiveStep, armSlot, getHistory,
-  observeToolCall, observeDecision, observeAttackSim,
+  observeToolCall, observeDecision, observeAttackSim, observeSupportEvent,
   _resetForTests,
   _bucketCountForTests: () => _runs.size,
 };

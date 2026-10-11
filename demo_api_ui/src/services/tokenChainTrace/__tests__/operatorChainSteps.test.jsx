@@ -46,6 +46,33 @@ test("the store renders operator steps once ingested", () => {
   expect(steps.map((s) => s.id)).toContain("operator-write");
 });
 
+test("ceremony hops in a mixed chain render with their lanes", () => {
+  // The real write chain interleaves the delegation ceremony (PingOne sign-on,
+  // token issue, RFC 8693 exchange) with the operator hops. Every hop of ALL
+  // FOUR ids must survive the filter, or the rail tells a partial story.
+  const MIXED_CHAIN = [
+    { id: "operator-session", label: "Operator session", status: "done", vertical: "workforce" },
+    { id: "customer-signon", label: "Customer sign-on (pi.flow)", status: "done", vertical: "workforce" },
+    { id: "customer-token-issued", label: "Customer token issued", status: "done", vertical: "workforce" },
+    { id: "exchange", label: "RFC 8693 exchange", status: "done", vertical: "workforce", request: { audience: "enduser.ping.demo", scope: "write", hasActor: true, actorClientId: "admin-cid" } },
+    { id: "operator-write", label: "Store write — 204", status: "done", vertical: "workforce" },
+  ];
+  const steps = buildOperatorChainSteps(MIXED_CHAIN);
+  const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
+  expect(steps.map((s) => s.id)).toEqual([
+    "operator-session", "customer-signon", "customer-token-issued", "exchange", "operator-write",
+  ]);
+  expect(byId["customer-signon"].lane).toBe("PINGONE");
+  expect(byId["customer-token-issued"].lane).toBe("PINGONE");
+  expect(byId["exchange"].lane).toBe("BFF");
+  expect(byId["operator-write"].lane).toBe("API");
+  // The exchange's request has no method/url — it must render its real fields,
+  // never "undefined undefined".
+  expect(byId["exchange"].detail.request.text).toContain("token-exchange");
+  expect(byId["exchange"].detail.request.text).toContain("enduser.ping.demo");
+  expect(byId["exchange"].detail.request.text).not.toContain("undefined");
+});
+
 test("buildOperatorChainSteps drops events from a different vertical", () => {
   const steps = buildOperatorChainSteps(WRITE_CHAIN, "healthcare");
   expect(steps).toEqual([]);

@@ -6,10 +6,11 @@
  * The support-console rail on /admin/<vertical> used to read from a store only
  * agent runs feed — so an operator's own verified, scoped write drew nothing.
  * Every ADMIN_WRITE mutator now returns the chain of what actually happened
- * (session → customer verification → store write → audit), and a verification
- * refusal returns the denial chain instead. The events carry what happened, no
- * more: no authorize hop (the console's scope table is advisory — nothing on
- * this path evaluates policy), no token claims (no token is minted).
+ * (session → customer verification → customer token → RFC 8693 exchange →
+ * store write → audit), and a verification refusal returns the denial chain
+ * instead. The ceremony hops carry real claims from the real customer sign-on
+ * and real exchange; this suite mocks the delegation service so it tests the
+ * route's wiring, not PingOne.
  */
 
 const request = require('supertest');
@@ -20,6 +21,25 @@ jest.mock('../middleware/auth', () => ({
     req.user = { sub: 'admin-operator-1', username: 'demoAdmin', role: 'admin' };
     next();
   },
+}));
+
+// The ceremony service is mocked: these tests cover writeAction's wiring
+// (exchange before the mutator, chain shape), not the pi.flow ceremony itself
+// — that's operatorTokenChain.delegation.test.js and the piFlow suite.
+jest.mock('../services/supportDelegationService', () => ({
+  openCustomerSignon: jest.fn(),
+  submitCustomerOtp: jest.fn(),
+  exchangeForWrite: jest.fn(),
+  liveSupportSession: jest.fn(),
+  buildSignonEvents: jest.fn(() => []),
+  buildCustomerTokenEvent: jest.fn(() => ({
+    id: 'customer-token-issued', label: 'Customer token issued', status: 'done', claims: { sub: 'customer-1' },
+  })),
+  buildExchangeEvents: jest.fn(() => [{
+    id: 'exchange', label: 'RFC 8693 exchange — act on behalf of', status: 'done',
+    claims: { sub: 'customer-1', 'act.sub': 'admin-client', scope: 'write', jti: 'j-test' },
+  }]),
+  SUPPORT_VERIFY_TTL_MS: 15 * 60 * 1000,
 }));
 
 function buildApp() {
@@ -34,7 +54,7 @@ function buildApp() {
     next();
   });
   app.use('/api/admin', adminVerticals);
-  return app;
+  return { app, session };
 }
 
 function workforceFixture() {
@@ -53,14 +73,24 @@ function workforceFixture() {
 }
 
 describe('POST /api/admin/workforce/expenses/:id/approve', () => {
-  test('a verified write returns the operator chain: session, verification, write, audit', async () => {
+  test('a verified write returns the delegated chain: session, verification, customer token, exchange, write, audit', async () => {
     const { user, pending } = workforceFixture();
-    const app = buildApp();
-
-    const verify = await request(app)
-      .post('/api/admin/workforce/verify/initiate')
-      .send({ customerId: String(user.id) });
-    expect(verify.status).toBe(200);
+    const { app, session } = buildApp();
+    const svc = require('../services/supportDelegationService');
+    // Live verified ceremony session (the old session flag satisfies the
+    // Task 4 gate; Task 5 rewires it to svc.liveSupportSession) whose subject
+    // token exchanges successfully.
+    session.supportVerified = { [String(user.id)]: Date.now() + 900000 };
+    session.support = {
+      customerId: String(user.id), customerUsername: user.username,
+      subjectToken: 'subject.jwt.value', subjectClaims: { sub: 'customer-1' },
+      verifiedUntil: Date.now() + 900000,
+    };
+    svc.exchangeForWrite.mockResolvedValue({
+      delegatedToken: 'delegated.jwt.value',
+      delegatedClaims: { sub: 'customer-1', act: { sub: 'admin-client' }, scope: 'write', jti: 'j-test' },
+      request: { audience: 'enduser.ping.demo', scope: 'write', hasActor: true },
+    });
 
     const res = await request(app)
       .post(`/api/admin/workforce/expenses/${pending.id}/approve`)
@@ -68,12 +98,16 @@ describe('POST /api/admin/workforce/expenses/:id/approve', () => {
     expect(res.status).toBe(200);
     expect(res.body.ok).toBe(true);
     expect(res.body.item.status).toBe('Approved');
+    expect(res.body.delegated).toMatchObject({ actSub: 'admin-client', jti: 'j-test', scope: 'write' });
+    expect(svc.exchangeForWrite).toHaveBeenCalledWith(expect.anything(), { scope: 'write' });
 
     const chain = res.body.tokenChain;
     expect(Array.isArray(chain)).toBe(true);
     expect(chain.map((e) => e.id)).toEqual([
       'operator-session',
       'operator-verification',
+      'customer-token-issued',
+      'exchange',
       'operator-write',
       'operator-audit',
     ]);
@@ -81,17 +115,25 @@ describe('POST /api/admin/workforce/expenses/:id/approve', () => {
     // chain of the vertical it belongs to.
     expect(chain.every((e) => e.vertical === 'workforce')).toBe(true);
 
-    const session = chain[0];
-    expect(session.status).toBe('done');
-    expect(session.claims.operator).toBe('admin-operator-1');
-    expect(session.claims.role).toBe('admin');
+    const sessionEvent = chain[0];
+    expect(sessionEvent.status).toBe('done');
+    expect(sessionEvent.claims.operator).toBe('admin-operator-1');
+    expect(sessionEvent.claims.role).toBe('admin');
 
     const verification = chain[1];
     expect(verification.status).toBe('done');
     expect(verification.claims.customerId).toBe(String(user.id));
     expect(typeof verification.verifiedUntil).toBe('string');
 
-    const write = chain[2];
+    const customerToken = chain[2];
+    expect(customerToken.status).toBe('done');
+    expect(customerToken.claims.sub).toBe('customer-1');
+
+    const exchange = chain[3];
+    expect(exchange.status).toBe('done');
+    expect(exchange.claims['act.sub']).toBe('admin-client');
+
+    const write = chain[4];
     expect(write.claims.row).toBe(String(pending.id));
     expect(write.claims.beforeStatus).toBe(pending.status);
     expect(write.claims.afterStatus).toBe('Approved');
@@ -101,13 +143,16 @@ describe('POST /api/admin/workforce/expenses/:id/approve', () => {
     });
     expect(write.result).toMatchObject({ id: String(pending.id), status: 'Approved' });
 
-    expect(chain[3].claims.operator).toBe('admin-operator-1');
-    expect(chain[3].claims.action).toContain('/approve');
+    expect(chain[5].claims.operator).toBe('admin-operator-1');
+    expect(chain[5].claims.action).toContain('/approve');
+    // The audit hop records the delegated token's provenance.
+    expect(chain[5].claims.actSub).toBe('admin-client');
+    expect(chain[5].claims.jti).toBe('j-test');
   });
 
   test('a write without verification returns 403 with the denial chain and mutates nothing', async () => {
     const { user, store, pending } = workforceFixture();
-    const app = buildApp();
+    const { app } = buildApp();
 
     const res = await request(app)
       .post(`/api/admin/workforce/expenses/${pending.id}/approve`)
