@@ -86,9 +86,9 @@ test("the requested pages each have a three-step guide", () => {
     "/ai-products/core", "/ai-products/gateway", "/ai-products/authorize", "/ai-products/protect",
     "/ai-products/privilege-llm", "/ai-products/privilege-a2a", "/ai-products/privilege-mcp",
     "/agent-gateway-capabilities", "/pingone-authorize-capabilities", "/agentic-trust", "/iga-for-ai",
-    "/transaction-consent", "/actor-token-education", "/pingfederate-ai-agent",
+    "/transaction-consent", "/actor-token-education",
   ];
-  expect(routes).toHaveLength(24);
+  expect(routes).toHaveLength(23);
   for (const r of routes) {
     expect(PAGE_GUIDES[r]?.walkthrough, r).toHaveLength(3);
     expect(PAGE_GUIDES[r].talkingPoints, r).toHaveLength(3);
@@ -130,14 +130,14 @@ test("the header button is absent on routes with no guide", () => {
 });
 
 test("the standalone learning pages each have a three-step guide", () => {
-  for (const r of ["/a2a-protocol-learning", "/intent-binding-learning", "/privilege-mcp-learning",
-    "/oauth-academy", "/learning", "/academy/demos", "/davinci-widget"]) {
+  for (const r of ["/a2a-protocol-learning", "/intent-binding-learning", "/oauth-academy",
+    "/learning", "/academy/demos", "/davinci-widget"]) {
     expect(PAGE_GUIDES[r]?.walkthrough, r).toHaveLength(3);
     expect(PAGE_GUIDES[r].talkingPoints, r).toHaveLength(3);
   }
 });
 
-test("the Jev page guide covers all four panels including the LangChain one", () => {
+test("guides that legitimately grew to four steps", () => {
   // /jev-learning grew a fourth walkthrough step when the LangChain panel
   // landed (page + demo step UC-LEARN15); the pinned-at-three list above
   // deliberately excludes it.
@@ -150,6 +150,13 @@ test("the Jev page guide covers all four panels including the LangChain one", ()
     "Show that confidence is not permission, then the bake-offs",
     "Close with the LangChain panel",
   ]);
+  // /pingfederate-ai-agent and /privilege-mcp-learning each gained a step for
+  // the diagram-fit pass (2026-10-11): a sequence/reel walkthrough now leads
+  // or sits inside the flow, which deserves its own presenter instruction.
+  expect(PAGE_GUIDES["/pingfederate-ai-agent"].walkthrough).toHaveLength(4);
+  expect(PAGE_GUIDES["/pingfederate-ai-agent"].talkingPoints).toHaveLength(3);
+  expect(PAGE_GUIDES["/privilege-mcp-learning"].walkthrough).toHaveLength(4);
+  expect(PAGE_GUIDES["/privilege-mcp-learning"].talkingPoints).toHaveLength(3);
 });
 
 test("the dashboard guide leads with the A2A sequence, every step known", () => {

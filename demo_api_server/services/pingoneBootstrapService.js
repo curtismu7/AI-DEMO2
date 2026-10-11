@@ -410,4 +410,5 @@ module.exports = {
   probeManagementApiAccess,
   getManagementWorkerConfigStatus,
   runPingOneBootstrap,
+  fetchFirstPopulationId,
 };

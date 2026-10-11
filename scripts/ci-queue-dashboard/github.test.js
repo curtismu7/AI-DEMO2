@@ -89,7 +89,9 @@ test('buildSnapshot orders queued runs oldest-first and limits completed history
   assert.deepEqual(snapshot.runs.slice(0, 3).map((item) => item.id), [11, 12, 20]);
   assert.equal(snapshot.runs.filter((item) => item.status === 'completed').length, 5);
   assert.deepEqual(snapshot.runs[0].jobs, [{ id: 4, name: 'Gates' }]);
-  assert.deepEqual(snapshot.summary, { queued: 2, inProgress: 1, succeeded: 3, failed: 2 });
+  // Counts span the whole completed window passed in, even though only five
+  // runs appear as cards.
+  assert.deepEqual(snapshot.summary, { queued: 2, inProgress: 1, succeeded: 4, failed: 3 });
   assert.equal(snapshot.repository, 'cmuir_pingcorp/AI-DEMO2');
   assert.equal(snapshot.updatedAt, '2026-09-28T10:03:00.000Z');
 });
@@ -170,6 +172,34 @@ test('createGitHubReader reads active jobs with fixed gh arguments and no shell'
   assert.equal(snapshot.runs[1].jobs.length, 0);
   assert.ok(calls.every((call) => call.command === 'gh' && call.options.shell === false));
   assert.ok(calls.every((call) => !call.args.some((arg) => /auth token|secret|password/i.test(arg))));
+});
+
+test('createGitHubReader counts Passed and Failed over the whole completed window, not the five display cards', async () => {
+  const queued = run(41, '2026-09-28T10:01:00Z');
+  // 6 newest completed runs: 4 pass then 2 fail. Display keeps 5, so the oldest
+  // success drops off-screen; the counts must still see it.
+  const completed = Array.from({ length: 6 }, (_, i) => run(
+    39 - i,
+    `2026-09-28T09:0${i}:00Z`,
+    'completed',
+    i < 4 ? 'success' : 'failure',
+  ));
+  const { spawn } = fakeSpawner(({ args }) => {
+    if (args[0] === 'repo') return { stdout: 'cmuir_pingcorp/AI-DEMO2\n' };
+    const endpoint = args[1];
+    if (endpoint.includes('status=queued')) return { stdout: JSON.stringify({ workflow_runs: [queued] }) };
+    if (endpoint.includes('status=waiting') || endpoint.includes('status=pending') || endpoint.includes('status=requested')) return { stdout: JSON.stringify({ workflow_runs: [] }) };
+    if (endpoint.includes('status=in_progress')) return { stdout: JSON.stringify({ workflow_runs: [] }) };
+    if (endpoint.includes('status=completed')) return { stdout: JSON.stringify({ workflow_runs: completed }) };
+    if (/\/(39|40|38|37|36|35|41)\/jobs\?/.test(endpoint)) return { stdout: JSON.stringify({ jobs: [] }) };
+    assert.fail(`unexpected gh api endpoint: ${endpoint}`);
+  });
+  const reader = createGitHubReader({ spawn, now: () => new Date('2026-09-28T10:03:00Z') });
+
+  const snapshot = await reader.getSnapshot();
+
+  assert.equal(snapshot.runs.filter((item) => item.status === 'completed').length, 5);
+  assert.deepEqual(snapshot.summary, { queued: 1, inProgress: 0, succeeded: 4, failed: 2 });
 });
 
 test('createGitHubReader turns missing gh into a safe actionable error', async () => {

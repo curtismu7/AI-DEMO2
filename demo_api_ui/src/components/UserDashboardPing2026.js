@@ -2596,9 +2596,6 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
         </nav>
       </div>
 
-      {/* Delegated access banner — only renders when this user holds delegations */}
-      <DelegatedAccessPanel />
-
       {/* Customer Profile */}
       <div className="section ud-profile-card">
         <div className="ud-profile-header">
@@ -4008,6 +4005,10 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       {/* Brand bar — the same logo + caps + name block the sign-in modal shows,
           at the very top of every dashboard layout. */}
       <SignInBrand />
+      {/* Delegated access banner — only renders when this user holds delegations.
+          Mounted at the layout top (not inside renderBankingMain) so it shows in
+          every agent placement, not just float mode. */}
+      <DelegatedAccessPanel />
       {/* ── Token | (split: agent + banking columns) | classic: banking + float reserve ── */}
       {agentPlacement === "middle" ? (
         <div
