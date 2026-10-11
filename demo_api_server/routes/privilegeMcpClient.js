@@ -1998,6 +1998,16 @@ router.get('/state', (req, res) => {
       url: process.env.PRIVILEGE_MCPGW_HOSTILE_URL || privilegeDoorUrl('hostile-mcp'),
     },
     {
+      // The GOVERNED twin of the hostile door: same backend, second Agentic App
+      // (`hostile-mcp-governed`) carrying the deny-`create_transfer` policy, so
+      // the Catalog tab can show the same poisoned call ungoverned (ALLOWED,
+      // honest gap) and governed (DENIED) side by side. Registered on `/mcp`
+      // like every door (the EntryPath rule — see the privilege-mcpgw skill).
+      label: 'Privilege — hostile-mcp-governed (deny policy on transfers)',
+      mode: 'privilege',
+      url: process.env.PRIVILEGE_MCPGW_HOSTILE_GOVERNED_URL || privilegeDoorUrl('hostile-mcp-governed'),
+    },
+    {
       // `openapi2`, the OpenAPI MCP app type, pinned ONLY so its failure can be
       // measured. It has never discovered a tool, and everything we have
       // recorded about why is inference: Privilege runs `mcp/openapi` on its own

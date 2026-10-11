@@ -25,7 +25,26 @@ import './HostileMcpCatalogTab.css';
 const API_BASE = '/api/privilege-mcp';
 // Loosely matched against the BFF's preset label — same loose match the
 // hostile tab uses, so a label edit on the BFF does not silently unfind the door.
-const HOSTILE_PRESET_MATCH = /hostile-mcp/i;
+// The governed twin gets its own negative lookahead so each runway finds its own door.
+const HOSTILE_PRESET_MATCH = /hostile-mcp(?!-governed)/i;
+const GOVERNED_PRESET_MATCH = /hostile-mcp-governed/i;
+// Which door a run verdict belongs to. The relay session is per browser, so the
+// two doors are exercised sequentially; runs persist across the OAuth bounce
+// (sessionStorage) so both doors' verdicts can be shown side by side.
+const DOOR_KEYS = ['ungoverned', 'governed'];
+const RUNS_STORE_KEY = 'hmc_runs_v1';
+
+function loadStoredRuns() {
+  try {
+    const raw = sessionStorage.getItem(RUNS_STORE_KEY);
+    const parsed = raw ? JSON.parse(raw) : null;
+    return parsed && typeof parsed === 'object' ? parsed : { ungoverned: {}, governed: {} };
+  } catch { /* per-viewer convenience only */ return { ungoverned: {}, governed: {} }; }
+}
+
+function storeRuns(runs) {
+  try { sessionStorage.setItem(RUNS_STORE_KEY, JSON.stringify(runs)); } catch { /* per-viewer convenience only */ }
+}
 
 function api(path, options = {}) {
   return fetch(`${API_BASE}${path}`, {
@@ -73,13 +92,22 @@ export default function HostileMcpCatalogTab() {
   const [kindFilter, setKindFilter] = useState('all');
 
   // ── Live-Privilege runner state (shared relay session with the hostile tab) ──
-  const [doorUrl, setDoorUrl] = useState('');
+  // activeDoor: which hostile twin the relay currently points at. Each door has
+  // its own OAuth (the gateway mints a fresh DCR client per sign-in), so the
+  // presenter flips doors between segments — one click + bounce each.
+  const [activeDoor, setActiveDoor] = useState('ungoverned');
+  const [doorUrls, setDoorUrls] = useState({ ungoverned: '', governed: '' });
   const [currentUrl, setCurrentUrl] = useState('');
   const [authed, setAuthed] = useState(false);
   const [relayBusy, setRelayBusy] = useState(false);
   const [relayError, setRelayError] = useState('');
-  // testId → { verdict, flipped?, scannerFindings[], detail, latencyMs, request, response }
-  const [runs, setRuns] = useState({});
+  // door → testId → { verdict, flipped?, scannerFindings[], detail, latencyMs, request, response }
+  const [runs, setRunsState] = useState(loadStoredRuns);
+  const setRuns = (updater) => setRunsState((prev) => {
+    const next = typeof updater === 'function' ? updater(prev) : updater;
+    storeRuns(next);
+    return next;
+  });
 
   const testPlan = useMemo(() => buildCatalogTestPlan(), []);
   const bySourceId = useMemo(() => {
@@ -96,8 +124,11 @@ export default function HostileMcpCatalogTab() {
       // /state exposes the relay's OAuth block at TOP level (s.oauth), not
       // under s.config — session.config carries no oauth key at all.
       setAuthed(Boolean(s.oauth?.authenticated));
-      const preset = (s.presets || []).find((p) => HOSTILE_PRESET_MATCH.test(p.label || ''));
-      if (preset) setDoorUrl(preset.url);
+      const presets = s.presets || [];
+      const ungoverned = presets.find((p) => HOSTILE_PRESET_MATCH.test(p.label || ''));
+      const governed = presets.find((p) => GOVERNED_PRESET_MATCH.test(p.label || ''));
+      setDoorUrls({ ungoverned: ungoverned?.url || '', governed: governed?.url || '' });
+      if ((currentUrl || '').includes('-governed')) setActiveDoor('governed');
     }).catch(() => { /* runner stays gated; strip shows what to do */ });
     return () => { cancelled = true; };
   }, []);
@@ -113,27 +144,32 @@ export default function HostileMcpCatalogTab() {
       if (cancelled) return;
       setCurrentUrl(s.config?.mcpUrl || '');
       setAuthed(Boolean(s.oauth?.authenticated));
-      const preset = (s.presets || []).find((p) => HOSTILE_PRESET_MATCH.test(p.label || ''));
-      if (preset) setDoorUrl(preset.url);
+      const presets = s.presets || [];
+      const ungoverned = presets.find((p) => HOSTILE_PRESET_MATCH.test(p.label || ''));
+      const governed = presets.find((p) => GOVERNED_PRESET_MATCH.test(p.label || ''));
+      setDoorUrls({ ungoverned: ungoverned?.url || '', governed: governed?.url || '' });
+      if ((s.config?.mcpUrl || '').includes('-governed')) setActiveDoor('governed');
     }).catch(() => { /* strip keeps showing what to do */ });
     return () => { cancelled = true; };
   }, []);
 
-  const onHostileDoor = (currentUrl || '').includes('hostile-mcp');
+  const onHostileDoor = activeDoor === 'ungoverned'
+    ? (currentUrl || '').includes('hostile-mcp') && !(currentUrl || '').includes('-governed')
+    : (currentUrl || '').includes('-governed');
   const runwayReady = onHostileDoor && authed;
 
   // One click for the demo: flipping the door also starts the Privilege sign-in —
   // the OAuth bounce returns to this tab and the runway unlocks on landing.
   // (signIn() navigates away, so relayBusy's finally never runs; that is fine.)
-  const pointAtDoor = async () => {
+  const pointAtDoor = async (door = activeDoor) => {
     setRelayBusy(true);
     setRelayError('');
     try {
-      const saved = await api('/config', { method: 'POST', body: { mcpUrl: doorUrl, gatewayMode: 'privilege' } });
-      setCurrentUrl(saved?.config?.mcpUrl || doorUrl);
+      const saved = await api('/config', { method: 'POST', body: { mcpUrl: doorUrls[door], gatewayMode: 'privilege' } });
+      setCurrentUrl(saved?.config?.mcpUrl || doorUrls[door]);
+      setActiveDoor(door);
       // /config also exposes the OAuth block at top level, not under config.
       setAuthed(Boolean(saved?.oauth?.authenticated || saved?.oauth?.destinationAuthenticated));
-      setRuns({});
     } catch (err) {
       setRelayError(err.message);
       setRelayBusy(false);
@@ -196,13 +232,16 @@ export default function HostileMcpCatalogTab() {
       }
       setRuns((prev) => ({
         ...prev,
-        [test.id]: {
-          ...outcome,
-          latencyMs,
-          request: JSON.stringify({ method: 'POST', path: `${API_BASE}${path}`, ...(test.method === 'tools/call' || test.method === 'tools/list' ? { body } : { body }) }, null, 2),
-          response: outcome.firstDesc !== undefined
-            ? JSON.stringify({ first: outcome.firstDesc, second: outcome.secondDesc, flipped: outcome.flipped }, null, 2)
-            : null,
+        [activeDoor]: {
+          ...prev[activeDoor],
+          [test.id]: {
+            ...outcome,
+            latencyMs,
+            request: JSON.stringify({ method: 'POST', path: `${API_BASE}${path}`, ...(test.method === 'tools/call' || test.method === 'tools/list' ? { body } : { body }) }, null, 2),
+            response: outcome.firstDesc !== undefined
+              ? JSON.stringify({ first: outcome.firstDesc, second: outcome.secondDesc, flipped: outcome.flipped }, null, 2)
+              : null,
+          },
         },
       }));
     } finally {
@@ -231,8 +270,12 @@ export default function HostileMcpCatalogTab() {
     [kindFilter],
   );
 
-  const totalRun = Object.keys(runs).length;
-  const denied = Object.values(runs).filter((r) => r.verdict === 'denied').length;
+  const currentRuns = runs[activeDoor] || {};
+  const otherDoor = activeDoor === 'ungoverned' ? 'governed' : 'ungoverned';
+  const totalRun = Object.keys(currentRuns).length;
+  const denied = Object.values(currentRuns).filter((r) => r.verdict === 'denied').length;
+  const otherRun = runs[otherDoor] || {};
+  const bothDoorsRun = Object.keys(currentRuns).length > 0 && Object.keys(otherRun).length > 0;
 
   return (
     <div className="hmc">
@@ -259,8 +302,22 @@ export default function HostileMcpCatalogTab() {
               Each row&apos;s Run button fires that attack&apos;s own surface through the same
               Privilege relay the Malicious MCP tab uses — the observed gateway verdict lands on
               the row. Allowed poisoned calls are shown as <strong>ALLOWED</strong>: that is the
-              gap the defense table names, measured live.
+              gap the defense table names, measured live. Run the same rows against the
+              governed twin (<code>hostile-mcp-governed</code>, deny policy on transfers) to show
+              the same poisoned call allowed here and denied there — side by side.
             </p>
+            <div className="hmc-door-toggle" role="group" aria-label="Which hostile door">
+              {DOOR_KEYS.map((door) => (
+                <button
+                  key={door}
+                  type="button"
+                  className={activeDoor === door ? 'hmc-chip hmc-on' : 'hmc-chip'}
+                  onClick={() => setActiveDoor(door)}
+                >
+                  {door === 'ungoverned' ? 'Ungoverned (hostile-mcp)' : 'Governed (hostile-mcp-governed)'}
+                </button>
+              ))}
+            </div>
           </div>
           <div className="hmc-runner-runall">
             <button
@@ -274,7 +331,7 @@ export default function HostileMcpCatalogTab() {
             </button>
             {totalRun > 0 && (
               <span className="hmc-runner-tally">
-                {denied} denied · {totalRun} run
+                {denied} denied · {totalRun} run{bothDoorsRun ? ' · both doors' : ''}
               </span>
             )}
           </div>
@@ -283,18 +340,28 @@ export default function HostileMcpCatalogTab() {
         {!runwayReady && (
           <div className="hmc-runway">
             <span className={onHostileDoor ? 'hmc-pill hmc-pill--ok' : 'hmc-pill'}>
-              {onHostileDoor ? '✓ Hostile door' : 'Door: not on the hostile relay'}
+              {onHostileDoor ? `✓ ${activeDoor} door` : `Door: not on the ${activeDoor} relay`}
             </span>
             <span className={authed ? 'hmc-pill hmc-pill--ok' : 'hmc-pill'}>
               {authed ? '✓ Signed in with Privilege' : 'Not signed in with Privilege'}
             </span>
             {!runwayReady && (
-              <button type="button" className="hmc-btn" disabled={relayBusy || !doorUrl} onClick={pointAtDoor}>
-                {onHostileDoor ? 'Sign in with Privilege' : 'Point at hostile door & sign in'}
+              <button
+                type="button"
+                className="hmc-btn"
+                disabled={relayBusy || !doorUrls[activeDoor]}
+                onClick={() => pointAtDoor(activeDoor)}
+              >
+                {onHostileDoor ? 'Sign in with Privilege' : `Point at ${activeDoor} door & sign in`}
               </button>
             )}
             <span className="hmc-runway-note">
               Same relay session as the <Link to="/llm-gateway?tab=hostile">Malicious MCP tab</Link>.
+              {otherRun && Object.keys(otherRun).length > 0 && (
+                <>
+                  {' '}The <strong>{otherDoor}</strong> door&apos;s verdicts are kept — flip back to compare side by side.
+                </>
+              )}
             </span>
           </div>
         )}
@@ -335,9 +402,21 @@ export default function HostileMcpCatalogTab() {
               >
                 <span className="hmc-tool">{c.tool}</span>
                 <span className="hmc-attack">{c.attack}</span>
-                {runs[c.id] && (
-                  <span className={`hmc-verdict hmc-verdict-${runs[c.id].verdict}`}>
-                    {RUN_STATUSES[runs[c.id].verdict] || runs[c.id].verdict}
+                {/* Side-by-side: ungoverned verdict, then governed, when both doors have been run. */}
+                {runs.ungoverned?.[c.id] && (
+                  <span
+                    className={`hmc-verdict hmc-verdict-${runs.ungoverned[c.id].verdict}`}
+                    title="Ungoverned door (hostile-mcp)"
+                  >
+                    U:{RUN_STATUSES[runs.ungoverned[c.id].verdict] || runs.ungoverned[c.id].verdict}
+                  </span>
+                )}
+                {runs.governed?.[c.id] && (
+                  <span
+                    className={`hmc-verdict hmc-verdict-${runs.governed[c.id].verdict}`}
+                    title="Governed door (hostile-mcp-governed)"
+                  >
+                    G:{RUN_STATUSES[runs.governed[c.id].verdict] || runs.governed[c.id].verdict}
                   </span>
                 )}
                 <span className={`hmc-kind hmc-kind-${c.kind}`}>{c.kind}</span>
@@ -352,7 +431,8 @@ export default function HostileMcpCatalogTab() {
                   </div>
 
                   {(bySourceId[c.id] || []).map((test) => {
-                    const run = runs[test.id];
+                    const run = currentRuns[test.id];
+                    const otherRunVerdict = otherRun[test.id];
                     return (
                       <div key={test.id} className="hmc-livetest">
                         <div className="hmc-livetest-row">
@@ -361,11 +441,19 @@ export default function HostileMcpCatalogTab() {
                             className="hmc-btn hmc-btn--run"
                             disabled={relayBusy || !runwayReady}
                             onClick={() => runTest(test)}
-                            title={runwayReady ? 'Fire this through the Privilege relay' : 'One click: points the relay at the hostile door and starts the Privilege sign-in'}
+                            title={runwayReady ? `Fire this through the ${activeDoor} door` : 'One click: points the relay at the hostile door and starts the Privilege sign-in'}
                           >
                             {run && relayBusy ? 'Running…' : 'Run'}
                           </button>
                           <span className="hmc-livetest-label">{test.label}</span>
+                          {otherRunVerdict && (
+                            <span
+                              className={`hmc-verdict hmc-verdict-${otherRunVerdict.verdict}`}
+                              title={`${otherDoor} door`}
+                            >
+                              {otherDoor === 'governed' ? 'G:' : 'U:'}{RUN_STATUSES[otherRunVerdict.verdict] || otherRunVerdict.verdict}
+                            </span>
+                          )}
                           {run && (
                             <span className={`hmc-verdict hmc-verdict-${run.verdict}`}>
                               {RUN_STATUSES[run.verdict] || run.verdict}{run.latencyMs != null ? ` · ${run.latencyMs} ms` : ''}

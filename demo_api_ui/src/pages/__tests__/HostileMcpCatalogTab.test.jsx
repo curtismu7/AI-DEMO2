@@ -73,3 +73,27 @@ describe('HostileMcpCatalogTab', () => {
     }
   });
 });
+
+describe('side-by-side doors', () => {
+  // Runs are keyed by CARD id (the catalog entry), not tool name.
+  const stored = {
+    ungoverned: { description_injection: { verdict: 'allowed' }, create_transfer: { verdict: 'allowed' } },
+    governed: { description_injection: { verdict: 'allowed' }, create_transfer: { verdict: 'denied' } },
+  };
+
+  it('shows ungoverned and governed verdicts side by side on the card head', () => {
+    sessionStorage.setItem('hmc_runs_v1', JSON.stringify(stored));
+    renderTab();
+    const weatherHead = screen.getAllByRole('button', { name: /get_weather/ })[0];
+    expect(within(weatherHead).getByText('U:ALLOWED')).toBeTruthy();
+    expect(within(weatherHead).getByText('G:ALLOWED')).toBeTruthy();
+    const transferHead = screen.getAllByRole('button', { name: /create_transfer/ })[0];
+    expect(within(transferHead).getByText('U:ALLOWED')).toBeTruthy();
+    expect(within(transferHead).getByText('G:DENIED')).toBeTruthy();
+  });
+  it('has a door toggle with both hostile twins', () => {
+    renderTab();
+    expect(screen.getByRole('button', { name: 'Ungoverned (hostile-mcp)' })).toBeTruthy();
+    expect(screen.getByRole('button', { name: 'Governed (hostile-mcp-governed)' })).toBeTruthy();
+  });
+});

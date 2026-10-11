@@ -64,6 +64,13 @@
   color: var(--th-text-invert);
 }
 
+/* Door toggle (ungoverned / governed) inside the runner head */
+.hmc-door-toggle {
+  display: flex;
+  gap: 0.5rem;
+  margin-top: 8px;
+}
+
 /* ── Live Privilege runner ─────────────────────────────────────────────── */
 
 .hmc-runner {
