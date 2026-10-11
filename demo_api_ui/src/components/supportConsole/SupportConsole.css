@@ -30,9 +30,14 @@
 .vops__lookup { margin-top:16px; display:flex; gap:8px; max-width:560px; }
 .vops__lookup input { flex:1; border:0; border-radius:10px; padding:12px 14px; font-size:var(--font-size-body); }
 .vops__lookup button { border:0; border-radius:10px; padding:0 18px; font-weight:700; background:#ffffff; color:var(--accent2); cursor:pointer; }
-.vops__jumpbtn, .vops__theme-toggle { margin-top:10px; border:1px solid #ffffff55; border-radius:10px; padding:8px 14px; background:transparent; color:#fff; font-size:12.5px; font-weight:700; cursor:pointer; }
+.vops__jumpbtn, .vops__theme-toggle { border:1px solid #ffffff55; border-radius:10px; padding:8px 14px; background:transparent; color:#fff; font-size:12.5px; font-weight:700; cursor:pointer; }
+/* end-user-nano.css (loaded from index.html) zeroes .end-user-nano button
+   margins at (0,1,1), which beats any single-class selector — these margins
+   silently computed to 0 (buttons flush under the lookup and each other).
+   Re-state them at (0,2,0). */
+.vops .vops__jumpbtn, .vops .vops__theme-toggle { margin-top:10px; }
 .vops__jumpbtn:hover, .vops__theme-toggle:hover { background:#ffffff1a; }
-.vops__theme-toggle { margin-left:8px; }
+.vops .vops__theme-toggle { margin-left:8px; }
 .vops__summary { max-width:1080px; margin:-36px auto 8px; background:var(--th-bg-card); color:var(--th-text); border:1px solid var(--th-border); border-radius:16px; padding:16px 20px; display:flex; align-items:center; gap:16px; box-shadow:0 16px 40px -24px #1a223040; }
 .vops__avatar { width:52px;height:52px;border-radius:14px;background:var(--tint);color:var(--th-text);display:grid;place-items:center;font-weight:800; }
 .vops__name { font-weight:800; } .vops__sub { color:var(--th-text-muted); font-size:var(--font-size-sm); }
