@@ -1,22 +1,25 @@
 #!/usr/bin/env node
-// Bootstrap the GOVERNED twin of the hostile-mcp app via the Privilege console API:
+// Bootstrap the GOVERNED twin of the hostile-mcp app via the Procyon/Privilege API:
 //   1. clone the existing `hostile-mcp` application as `hostile-mcp-governed` (same
-//      backend, mesh cluster, EntryPath=/mcp — per the entry-path rule, a fresh
-//      registration on the /mcp URL gets the right EntryPath)
-//   2. author a PacPolicy on it that DENIES create_transfer / delete_all_records /
-//      grant_admin for the demo user, permitting everything else
-// so the Catalog tab can show the same poisoned call ungoverned (ALLOWED) and
-// governed (DENIED) side by side.
+//      backend, mesh cluster, EntryPath — the door URL is the app name)
+//   2. author a PacPolicy on it that permits every tool/prompt/resource EXCEPT
+//      create_transfer / delete_all_records / grant_admin
+// The policy model is permit-selection: Capabilities.Map.{tools,prompts,resources}
+// .Elems list what agents may use; unselected = denied at the gateway. The
+// ungoverned `hostile-mcp` carries NO policy (permit-all), so the Catalog tab can
+// show the same poisoned call ALLOWED (ungoverned) and DENIED (governed) side by side.
 //
-// Usage (the console token is a browser cookie — paste at run time, never store):
+// Auth: the console "For Developers" tenant API key/secret as x-api-key /
+// x-api-secret headers against the LOCAL console (https://local.procyon.ai:8643).
+// The x-procyon-session-id header is required but its value is unvalidated
+// (correlation id) — the script mints one.
+//
+// Usage:
 //   node privilege/scripts/bootstrap-hostile-governed.mjs \
-//     --tenant <privilege-tenant-uuid> --token <auth_token> --sid <x-procyon-session-id> \
-//     [--dry-run]
-//
-// Requires: the hostile-mcp app to already exist (it is cloned), and the demo
-// user's PingOne id for the policy's IssuedTo (fetched from the existing policy
-// on hostile-mcp if not given).
-const CONSOLE = 'https://console.privilege.pingone.com';
+//     --url https://local.procyon.ai:8643 --tenant <uuid> \
+//     --key <api-key> --secret <api-secret> [--dry-run]
+const CONSOLE = process.env.PROCYON_URL
+  || 'https://local.procyon.ai:8643';
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, arr) => {
   if (a.startsWith('--')) acc.push([a.slice(2), arr[i + 1]]);
@@ -24,16 +27,37 @@ const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, arr) =>
 }, []));
 
 const TENANT = args.tenant;
-const TOKEN = args.token;
-const SID = args.sid;
-const DRY = '--dry-run' in args;
-if (!TENANT || !TOKEN || !SID) {
-  console.error('usage: bootstrap-hostile-governed.mjs --tenant <uuid> --token <auth_token> --sid <session-id> [--dry-run]');
+const KEY = args.key;
+const SECRET = args.secret;
+const DRY = 'dry-run' in args;
+if (!TENANT || !KEY || !SECRET) {
+  console.error('usage: bootstrap-hostile-governed.mjs --tenant <uuid> --key <api-key> --secret <api-secret> [--url <console-url>] [--dry-run]');
   process.exit(1);
 }
 
+const crypto = await import('node:crypto');
+const SID = crypto.randomUUID();
+
+// The local console serves a self-signed cert (curl needs -k). Node's global
+// fetch does not take a dispatcher on this build — set env instead. The script
+// re-execs itself once with NODE_TLS_REJECT_UNAUTHORIZED=0 when it detects the
+// self-signed chain.
+if (process.env.NODE_TLS_REJECT_UNAUTHORIZED !== '0') {
+  const { spawnSync } = await import('node:child_process');
+  const r = spawnSync(process.execPath, process.argv.slice(1), {
+    env: { ...process.env, NODE_TLS_REJECT_UNAUTHORIZED: '0' }, stdio: 'inherit',
+  });
+  process.exit(r.status ?? 1);
+}
+
+function refID(name) {
+  // ObjectMeta.ID shape: base64("<tenant>@@default@@<name>")
+  return Buffer.from(`${TENANT}@@default@@${name}`).toString('base64');
+}
+
 const headers = {
-  Cookie: `auth_token=${TOKEN}`,
+  'x-api-key': KEY,
+  'x-api-secret': SECRET,
   'x-procyon-session-id': SID,
   'content-type': 'application/json',
   accept: 'application/json',
@@ -52,59 +76,95 @@ const DENY_TOOLS = ['create_transfer', 'delete_all_records', 'grant_admin'];
 
 (async () => {
   // 1. read the source app
-  const appsBody = await api('GET', `/api/${TENANT}/v1/applications?ObjectMeta.Namespace=default`);
-  const apps = appsBody.Applications || appsBody.Items || [];
+  const appsBody = await api('GET', `/api/${TENANT}/v1/applications`);
+  const apps = appsBody.Applications || [];
   const source = apps.find((a) => a.ObjectMeta?.Name === 'hostile-mcp');
-  if (!source) throw new Error('hostile-mcp app not found — register it first (runbook step 1)');
-  console.log('source app:', source.ObjectMeta.Name, '| backends:', source.Spec?.McpAppConfig?.Backends?.Elems?.join(', '));
+  if (!source) throw new Error('hostile-mcp app not found — register it first');
+  console.log('source app:', source.ObjectMeta.Name,
+    '| backends:', source.Spec?.McpAppConfig?.Backends?.Elems?.join(', '),
+    '| entry:', source.Spec?.McpAppConfig?.EntryPath);
 
   // 2. clone as hostile-mcp-governed (same config; the name makes the door URL)
   const governedName = 'hostile-mcp-governed';
-  if (apps.some((a) => a.ObjectMeta?.Name === governedName)) {
-    console.log(`${governedName} already exists — skipping app creation`);
+  // Point the twin at its OWN front-end host: FrontEndName is the public door
+  // hostname (<app>.default.applications.procyon.ai:8643) — leaving the source's
+  // would route the governed door name to the ungoverned front-end.
+  const desiredFrontEnds = (source.Spec?.McpAppConfig?.FrontEndName?.Elems || [])
+    .map((h) => h.replace(/^hostile-mcp\./, `${governedName}.`));
+  const existing = apps.find((a) => a.ObjectMeta?.Name === governedName);
+  if (existing && JSON.stringify(existing.Spec?.McpAppConfig?.FrontEndName?.Elems) === JSON.stringify(desiredFrontEnds)) {
+    console.log(`${governedName} already exists and points at its own front-end — skipping app creation`);
+  } else if (existing) {
+    const fixed = JSON.parse(JSON.stringify(existing));
+    fixed.Spec.McpAppConfig.FrontEndName.Elems = desiredFrontEnds;
+    console.log(`${governedName} exists but FrontEndName is ${existing.Spec?.McpAppConfig?.FrontEndName?.Elems?.join(',')} — PUTting correction to [${desiredFrontEnds.join(',')}]`, DRY ? '(dry-run)' : '');
+    if (!DRY) await api('PUT', `/api/${TENANT}/v1/applications/default/${governedName}`, fixed);
   } else {
     const clone = JSON.parse(JSON.stringify(source));
-    clone.ObjectMeta = { ...clone.ObjectMeta, Name: governedName };
-    if (clone.ObjectMeta.UID !== undefined) delete clone.ObjectMeta.UID;
-    if (clone.ObjectMeta.CreatedAt !== undefined) delete clone.ObjectMeta.CreatedAt;
-    if (clone.ObjectMeta.UpdatedAt !== undefined) delete clone.ObjectMeta.UpdatedAt;
-    if (clone.Status !== undefined) delete clone.Status;
+    clone.Spec.McpAppConfig.FrontEndName.Elems = desiredFrontEnds;
+    clone.ObjectMeta = {
+      ...clone.ObjectMeta,
+      Name: governedName,
+      ID: refID(governedName),
+    };
+    for (const k of ['UID', 'CreatedAt', 'UpdatedAt', 'RevisionID']) delete clone.ObjectMeta[k];
+    delete clone.Status; // server re-discovers tools/prompts/resources itself
     console.log('creating app:', governedName, DRY ? '(dry-run)' : '');
     if (!DRY) await api('POST', `/api/${TENANT}/v1/applications`, clone);
   }
 
-  // 3. learn the policy shape + demo-user ref from the existing hostile policy
-  const polBody = await api('GET', `/api/${TENANT}/v1/pacpolicys`);
-  const policies = polBody.PacPolicys || polBody.Items || [];
-  const hostilePolicy = policies.find((p) => JSON.stringify(p).includes('hostile-mcp')
-    && !p.ObjectMeta?.Name?.includes('governed'));
-  if (!hostilePolicy) {
-    console.error('No existing policy referencing hostile-mcp found — cannot clone the shape. Author one in the console, then re-run for the governed twin.');
-    process.exit(2);
-  }
-  console.log('source policy:', hostilePolicy.ObjectMeta?.Name, '| Spec keys:', Object.keys(hostilePolicy.Spec || {}));
+  // 3. governed policy: one rule on the governed app. IssuedTo is omitted — the
+  //    ungoverned demo user hits the governed door through the same sign-in, and an
+  //    empty IssuedTo means "everyone" (same as no policy: the console issued no
+  //    restriction). Capabilities select ALL tools except the deny triple.
+  const tools = (source.Status?.McpServerStatus?.Capabilities?.Tools || []).map((t) => t.name);
+  if (!tools.length) throw new Error('hostile-mcp has no discovered tools in Status — trigger discovery in the console first');
+  const allowedTools = tools.filter((t) => !DENY_TOOLS.includes(t));
+  console.log('tools:', tools.join(', '));
+  console.log('allowed tools:', allowedTools.join(', '));
 
-  // 4. governed policy: same IssuedTo; the deny rule names the three tools
-  const governedPolicy = JSON.parse(JSON.stringify(hostilePolicy));
-  governedPolicy.ObjectMeta = { ...governedPolicy.ObjectMeta, Name: 'hostile-mcp-governed-deny' };
-  if (governedPolicy.ObjectMeta.UID !== undefined) delete governedPolicy.ObjectMeta.UID;
-  if (governedPolicy.ObjectMeta.CreatedAt !== undefined) delete governedPolicy.ObjectMeta.CreatedAt;
-  if (governedPolicy.ObjectMeta.UpdatedAt !== undefined) delete governedPolicy.ObjectMeta.UpdatedAt;
-  if (governedPolicy.Status !== undefined) delete governedPolicy.Status;
-  governedPolicy.GivenName = 'hostile-mcp-governed — deny transfers';
-  // Replace every tool name in the Spec with the deny triple, preserving structure.
-  // The exact rule grammar varies by console build; string-replace keeps the shape
-  // the console itself produced for this app, which is the shape the gateway reads.
-  let specStr = JSON.stringify(governedPolicy.Spec || {});
-  for (const tool of DENY_TOOLS) {
-    specStr = specStr.split('hostile-mcp').join('hostile-mcp-governed');
-  }
-  // If the source policy was a PERMIT of create_transfer, the governed twin must
-  // be a DENY of it. Look for the action field and flip it:
-  specStr = specStr.replace(/"(Action|Effect|Decision)"\s*:\s*"[Pp]ermit"/g, '"$1":"Deny"');
-  governedPolicy.Spec = JSON.parse(specStr);
-  console.log('governed policy Spec:', JSON.stringify(governedPolicy.Spec).slice(0, 400));
+  const rule = {
+    ObjectRef: { RefKind: 'Application', RefID: refID(governedName) },
+    Principal: '',
+    GcpRoleTarget: null,
+    Services: { ObjectRef: [] },
+    ProcyonCreated: false,
+    RoleAssignments: [],
+    ADRoleAssignments: [],
+    Permissions: [],
+    Attributes: { Map: {} },
+    Capabilities: {
+      Map: {
+        tools: { Elems: allowedTools },
+        prompts: { Elems: ['account_review'] },
+        resources: { Elems: ['mcp://hostile/account-verification'] },
+      },
+    },
+    RequiredClaims: { Map: {} },
+  };
+  const governedPolicy = {
+    ObjectMeta: {
+      Kind: 'PacPolicy',
+      Tenant: TENANT,
+      Namespace: 'default',
+      Name: 'hostile-mcp-governed-allow-except',
+    },
+    GivenName: 'hostile-mcp-governed — allow except transfers/admin',
+    Spec: {
+      Description: 'Permit-selection for the governed hostile twin: every tool except create_transfer / delete_all_records / grant_admin; the account_review prompt and account-verification resource stay selectable for the demo.',
+      ActionMap: { MCP: { PolicyRule: [rule] } },
+    },
+  };
+
+  console.log('governed policy:', JSON.stringify({
+    name: governedPolicy.ObjectMeta.Name,
+    app: governedName,
+    tools: allowedTools.length,
+    prompts: ['account_review'],
+    resources: ['mcp://hostile/account-verification'],
+  }));
   if (!DRY) await api('POST', `/api/${TENANT}/v1/pacpolicys`, governedPolicy);
 
-  console.log(DRY ? 'dry-run complete — nothing written' : 'done: app + policy created. Wait for discovery (tools populated), then run the Catalog matrix against the governed door.');
+  console.log(DRY ? 'dry-run complete — nothing written'
+    : 'done: app + policy created. Give the gateway ~1 min to re-scan, then run the Catalog matrix against the governed door.');
 })().catch((e) => { console.error('FAILED:', e.message); process.exit(1); });

@@ -176,7 +176,7 @@ Three headers carry the session:
 |---|---|---|
 | `MCP-Session-Id` | server, echoed by client | MCP session, captured from the `initialize` response |
 | `mcp-protocol-version` | client | required by Privilege on every non-`initialize` request |
-| `x-procyon-session-id` | client | required by Privilege on **every** request, including discovery |
+| `x-procyon-session-id` | client | required on **every** request, but the value is unvalidated — any UUID passes (measured 2026-10-11); it's a correlation id, not auth |
 
 Responses arrive as JSON **or** as an SSE-framed body (`data:` lines). `decodeMcpBody()`
 handles both, taking the last parsable `data:` frame — a plain `JSON.parse` breaks against
@@ -590,13 +590,15 @@ wrong.** The console's own REST API answers with nothing more than the session c
 browser already holds, and it is how every Privilege-side fact below was established on
 2026-08-03.
 
-Grab two values from devtools (Network → any XHR to `console.privilege.pingone.com` → Request
-Headers): the `auth_token` cookie and the `x-procyon-session-id` header. Then:
+Grab one value from devtools (Network → any XHR to `console.privilege.pingone.com` →
+Request Headers → Cookie): the `auth_token` cookie. The `x-procyon-session-id` header
+every request must carry is **not validated** — any UUID works (measured 2026-10-11;
+omitting it is a 400, garbage cookie is a 401, so it's a correlation id, not auth):
 
 ```bash
 TENANT=8d4d7a4c-de40-4f71-9b98-0c3507cd4d1b     # the Privilege tenant / PingOne env
 TOK='eyJ...'                                     # auth_token cookie value
-SID='cb2db637-...'                               # x-procyon-session-id header
+SID=$(uuidgen)                                   # value unvalidated; any UUID passes
 
 curl -s "https://console.privilege.pingone.com/api/$TENANT/v1/applications?ObjectMeta.Namespace=default" \
   -b "auth_token=$TOK" -H "x-procyon-session-id: $SID" -H 'accept: application/json' \
