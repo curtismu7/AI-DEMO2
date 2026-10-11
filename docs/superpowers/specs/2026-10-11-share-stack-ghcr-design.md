@@ -1,4 +1,4 @@
-# Share the AI-DEMO2 stack via public GHCR + one-command K8s setup
+# Share the AI-DEMO2 stack via GHCR + one-command K8s setup
 
 **Date:** 2026-10-11
 **Status:** Draft — awaiting user review
@@ -23,11 +23,34 @@ demo runs.
 
 | Decision | Choice |
 | --- | --- |
-| Registry | GHCR, public images |
+| Registry | GHCR, **private** images (revised — see EMU constraint below) |
 | PingOne env | Each recipient bootstraps their own environment |
 | Bootstrap Node dependency | `share-setup.sh` brew-installs Node silently |
 | GHCR namespaces | **Split across two accounts** — `curtismu7` and `cmuir_pingcorp` (both verified logged in via `gh` with `write:packages`) — to avoid overloading one account |
 | Recipient prereqs | OrbStack + Homebrew only (plus GitHub for the clone) |
+
+## EMU constraint (found 2026-10-11, supersedes the public-registry plan)
+
+`cmuir_pingcorp` is a GitHub **Enterprise Managed User** account provisioned
+through Ping's enterprise. EMU policy forbids public repositories and locks
+package visibility server-side: every visibility-mutation call returns 404
+regardless of token scopes (verified with a classic PAT holding
+`write:packages` + `delete:packages`), and `gh repo edit --public` returns
+422 "Public repositories are not permitted for Enterprise Managed
+Organizations". Making images public is therefore **impossible by design**;
+the original public-registry decision is void.
+
+Sharing under EMU rules instead:
+
+- **Repo** stays private; recipients are added as read collaborators
+  (managed users, no extra billing on EMU).
+- **Packages** stay private; the SE cluster already pulls them via a
+  `ghcr-pull-secret` bound to the default ServiceAccount — recipient
+  namespaces get the same one-time secret, created from a personal PAT with
+  `read:packages` (or their `gh` token during `share-setup.sh`).
+- The one-click recipient story ("clone and run") survives; only the
+  invisible plumbing behind it changes — `share-setup.sh` logs in to GHCR
+  with the user's own credentials before deploying.
 
 ## Architecture
 
@@ -91,7 +114,7 @@ New script `k8s/share-setup.sh`:
 4. `cd demo_api_server && npm run pingone:bootstrap` — same flow the author
    uses, generates `demo_api_server/.env`.
 5. `k8s/create-secrets.sh` (unchanged).
-6. `DEPLOY_SOURCE=ghcr k8s/deploy.sh` (pulls public images, seeds LLM models
+6. `DEPLOY_SOURCE=ghcr k8s/deploy.sh` (pulls GHCR images after `docker login ghcr.io`, seeds LLM models
    from HuggingFace in-cluster, forwards ports).
 7. `k8s/smoke.sh` — prints pass/fail table.
 
