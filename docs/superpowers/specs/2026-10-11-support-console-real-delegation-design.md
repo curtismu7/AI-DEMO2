@@ -167,6 +167,47 @@ habit demonstration.
 - **UI:** IdentityGate two-phase; chain renders the new hops.
 - **Live (manual acceptance):** workforce console → verify as `demoUser` → real OTP → complete → write → inspect chain for the real `act` claim.
 
+### Demo steps — the same guided-track pattern, linked off the page
+
+The console gets its demo steps in the same shape as the main demo: a curated
+**support track** on the server (`demoTrackService`/`demoTrack.js` pattern),
+surfaced as a band + a "Demo Track" tab, driven by the *real* ceremony runs —
+not a scripted mock.
+
+- **Server**: new `SUPPORT_TRACK_STEPS` in `config/supportDemoTrack.js`, one
+  step per hop of the ceremony, each with green/red slots keyed to the
+  ceremony's own evidence (the same `slots.match` shape as TRACK_STEPS).
+  `demoTrackService` grows a track id: `_candidates`, `_stepById`, `getState`,
+  `armSlot` and the observation hooks take an optional `trackId` (default
+  `'main'`, so every existing caller is unchanged); `getState('support')`
+  serves the support track from the same run ledger. `/api/demo-track?track=support`
+  returns it; the existing endpoint shape (track + run) is unchanged.
+
+| stepId | title | green slot fires when | red slot fires when |
+| --- | --- | --- | --- |
+| `support-verify` | Verify the customer — real sign-on | OTP completes, customer token minted (`observeSupport` event `customer-token-issued`) | wrong OTP refused (`otp_invalid`) |
+| `support-exchange` | Act on their behalf — RFC 8693 | exchange returns a token with `act.sub` | exchange fails / no ceremony token (`customer_not_verified`) |
+| `support-write` | The write under the delegated token | mutator succeeds with the delegated token recorded | write refused (verification absent) |
+
+  A new `observeSupportEvent(event, sessionId)` hook on `demoTrackService`
+  fills these slots from `supportDelegationService`'s real outcomes (same
+  best-effort, never-throw contract as the existing three hooks), all against
+  the `support` track's run. Same LMDB store, same arm/active-step semantics —
+  a second track, not a second system.
+
+- **Client**: `DemoTrackBand` and `TokenChainDemoTrackTab` gain a `trackId`
+  prop (default `'main'`); the console's rail mounts both with
+  `trackId="support"`, fetching `/api/demo-track?track=support` through the
+  same components — the band stays the "presenter's script" above the chain,
+  the tab stays the full page. The console hero gains an explicit
+  **"Demo steps ↗"** button that opens the track tab (scrolled to the band),
+  the same one-click link the "Jump to token chain" button already uses for
+  the rail.
+
+- **Slot stamping is real**: the green slot for `support-exchange` only fills
+  when the real exchange returned a real `act` claim — the track cannot be
+  satisfied by clicking through UI states.
+
 ### Out of scope
 
 - No PingOne tenant changes: no new apps, no schema attributes, no policy edits.
