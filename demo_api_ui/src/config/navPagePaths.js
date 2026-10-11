@@ -148,6 +148,7 @@ export const NAV_PAGE_PATHS = {
   "Learning Hub": "/learning",
   "Demo Map": "/demo-map",
   "Privilege Docs Index": "/privilege-docs-index",
+  "Claude Skills Index": "/claude-skills",
   "Agentic Trust": "/agentic-trust",
   "Agent Guardrails": "/agent-guardrails",
   "OWASP Agent Risks": "/owasp",
