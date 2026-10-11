@@ -46,12 +46,38 @@ import UC37 from "./UC37";
 import UC_NHI1 from "./UC-NHI1";
 import UC_NHI2 from "./UC-NHI2";
 import UC_LEARN15 from "./UC-LEARN15";
+import UC4 from "./UC4";
+import UC9 from "./UC9";
+import UC15 from "./UC15";
+import UC16 from "./UC16";
+import UC19 from "./UC19";
+import UC21 from "./UC21";
+import UC25 from "./UC25";
+import UC26 from "./UC26";
+import UC27 from "./UC27";
+import UC28 from "./UC28";
+import UC2_6 from "./UC2.6";
+import UC33 from "./UC33";
+import UC34 from "./UC34";
+import UC35 from "./UC35";
+import UC39 from "./UC39";
+import UC41 from "./UC41";
+import UC42 from "./UC42";
+import UC45 from "./UC45";
+import UC48 from "./UC48";
+import UC_PRIVB from "./UC-PRIVB";
+import UC_PRIVC from "./UC-PRIVC";
+import UC_PRIVD from "./UC-PRIVD";
 
 export const CONFIGS = [
   UC1, UC7, UC6, UC24, UC23, UC8, UC14b, UC14, UC12, UC2, UC2_5, UC2_7, UC3, UC22,
   UC5, UC10, UC13, UC11, UC20, UC18, UC17, UC29, UC30, UC31, UC32, UC40, UC38,
   UC_TOOL1, UC_TOOL3, UC43, UC44, UC46, UC46A, UC47, UC_MUSE1, UC_MUSE2, UC_NHI1, UC_NHI2, UC_LEARN11, UC_LEARN15, UC37, UC16b,
   UC_LOGIN,
+  UC4, UC9, UC15, UC16, UC19, UC21, UC25,
+  UC26, UC27, UC28, UC2_6, UC33, UC34, UC35,
+  UC39, UC41, UC42, UC45, UC48,
+  UC_PRIVB, UC_PRIVC, UC_PRIVD,
 ];
 
 export function getConfig(id) {
