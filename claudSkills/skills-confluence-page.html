@@ -22,9 +22,18 @@
   --accent-soft: #fdeaea;
   --code-bg: #f3f5f7;
   --code-fg: #14324a;
+  --heading: #d20e0f;
   --row-alt: #f3f6f8;
-  --th-bg: #051727;
+  --th-bg: #000000;
   --th-fg: #ffffff;
+  /* Section hues, fixed order, CVD-validated (adjacent ΔE >= 7.3 warn-band w/
+     heading-text secondary encoding; normal-vision >= 19). All 4.8:1+ as text. */
+  --sec-install: #8a6200;
+  --sec-plugins: #1c5cab;
+  --sec-manual: #0e7a52;
+  --sec-ping-plugin: #b01716;
+  --sec-ping-bundle: #4a3aa7;
+  --sec-project: #008300;
   color-scheme: light;
 }
 @media (prefers-color-scheme: dark) {
@@ -39,9 +48,16 @@
     --accent-soft: rgba(210,14,15,0.16);
     --code-bg: #062033;
     --code-fg: #bcd6ea;
+    --heading: #f2554b;
     --row-alt: rgba(255,255,255,0.045);
-    --th-bg: #0e2c44;
+    --th-bg: #000000;
     --th-fg: #eaf2f8;
+    --sec-install: #c98500;
+    --sec-plugins: #3987e5;
+    --sec-manual: #199e70;
+    --sec-ping-plugin: #f2554b;
+    --sec-ping-bundle: #9085e9;
+    --sec-project: #1e9e1e;
     color-scheme: dark;
   }
 }
@@ -52,10 +68,17 @@
   --muted: #93a7b8;
   --border: rgba(255,255,255,0.14);
   --accent: #f2554b;
+  --heading: #f2554b;
   --accent-deep: #ff7b72;
   --accent-soft: rgba(210,14,15,0.16);
   --code-bg: #062033;
   --code-fg: #bcd6ea;
+  --sec-install: #c98500;
+  --sec-plugins: #3987e5;
+  --sec-manual: #199e70;
+  --sec-ping-plugin: #f2554b;
+  --sec-ping-bundle: #9085e9;
+  --sec-project: #1e9e1e;
   color-scheme: dark;
 }
 * { box-sizing: border-box; }
@@ -86,6 +109,7 @@ h1 {
   line-height: 1.15;
   letter-spacing: -0.01em;
   margin: 0 0 6px;
+  color: var(--heading);
   text-wrap: balance;
 }
 .subtitle {
@@ -119,13 +143,25 @@ h2 {
   letter-spacing: -0.005em;
   margin: 44px 0 6px;
   text-wrap: balance;
+  color: var(--heading);
+  padding-bottom: 6px;
+  border-bottom: 3px solid var(--sec, var(--accent));
+  color: var(--accent);
 }
+/* Per-section hue: the wrapping <section> sets --sec. Identity is carried by
+   the heading text; hue is reinforcement. */
+section[id="install"]     { --sec: var(--sec-install); }
+section[id="plugins"]     { --sec: var(--sec-plugins); }
+section[id="manual"]      { --sec: var(--sec-manual); }
+section[id="ping"]        { --sec: var(--sec-ping-plugin); }
+section[id="project"]     { --sec: var(--sec-project); }
 h3 {
   font-family: Montserrat, sans-serif;
   font-weight: 700;
   font-size: 16.5px;
   margin: 30px 0 6px;
   text-wrap: balance;
+  color: var(--heading);
 }
 p { margin: 10px 0; max-width: 68ch; }
 a { color: var(--accent); text-decoration-color: color-mix(in srgb, var(--accent) 40%, transparent); text-underline-offset: 2px; }
@@ -147,7 +183,7 @@ a { color: var(--accent); text-decoration-color: color-mix(in srgb, var(--accent
   padding: 0;
   list-style: none;
 }
-.toc a {
+.toc .tocitem {
   display: inline-block;
   font-family: Montserrat, sans-serif;
   font-size: 12.5px;
@@ -155,16 +191,24 @@ a { color: var(--accent); text-decoration-color: color-mix(in srgb, var(--accent
   color: var(--fg);
   text-decoration: none;
   border: 1px solid var(--border);
+  border-left: 4px solid var(--sec-neutral, var(--muted));
   background: var(--surface);
   border-radius: 999px;
   padding: 5px 13px;
 }
+/* Chip hue matches its target section. */
+.toc .tocitem[data-sec="install"] { border-left-color: var(--sec-install);     color: var(--sec-install); }
+.toc .tocitem[data-sec="plugins"] { border-left-color: var(--sec-plugins);     color: var(--sec-plugins); }
+.toc .tocitem[data-sec="manual"]  { border-left-color: var(--sec-manual);      color: var(--sec-manual); }
+.toc .tocitem[data-sec="ping"]    { border-left-color: var(--sec-ping-plugin); color: var(--sec-ping-plugin); }
+.toc .tocitem[data-sec="project"] { border-left-color: var(--sec-project);     color: var(--sec-project); }
 .tablewrap { overflow-x: auto; margin: 12px 0 6px; }
 table {
   border-collapse: collapse;
   width: 100%;
   font-size: 14px;
   min-width: 560px;
+  border-top: 3px solid var(--sec, var(--accent));
 }
 th {
   font-family: Montserrat, sans-serif;
@@ -184,9 +228,15 @@ td {
   padding: 9px 12px 9px 0;
   vertical-align: top;
 }
-tbody tr:nth-child(even) td { background: var(--row-alt); }
+/* Section-tinted stripes replace the gray alt row; doc links take the section ink. */
+section[id] tbody tr:nth-child(even) td {
+  background: color-mix(in srgb, var(--sec) 5%, var(--surface));
+}
+td a {
+  color: var(--sec, var(--accent));
+}
 td:first-child { font-weight: 600; white-space: nowrap; }
-td.skillname { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; font-weight: 600; }
+td.skillname { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 13px; font-weight: 600; color: var(--sec, var(--accent)); }
 td.install { white-space: nowrap; color: var(--muted); font-size: 13px; }
 ol.paths { padding-left: 0; list-style: none; counter-reset: path; margin: 14px 0; }
 ol.paths > li {
@@ -305,14 +355,14 @@ pre code { background: none; padding: 0; }
   </div>
 
   <ul class="toc">
-    <li><a href="#install">Install</a></li>
-    <li><a href="#plugins">General · Plugins</a></li>
-    <li><a href="#manual">General · Manual</a></li>
-    <li><a href="#ping-plugin">Ping · Plugin</a></li>
-    <li><a href="#ping-bundle">Ping · Bundle</a></li>
-    <li><a href="#project">AI-DEMO2 Project Skills</a></li>
+    <li><span class="tocitem" data-sec="install">Install</span></li>
+    <li><span class="tocitem" data-sec="plugins">General · Plugins</span></li>
+    <li><span class="tocitem" data-sec="manual">General · Manual</span></li>
+    <li><span class="tocitem" data-sec="ping">Ping · Identity</span></li>
+    <li><span class="tocitem" data-sec="project">AI-DEMO2 Project Skills</span></li>
   </ul>
 
+  <section id="install">
   <h2 id="install">How to Install Skills</h2>
   <p>There are three install paths depending on the skill:</p>
   <ol class="paths">
@@ -342,6 +392,9 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
   </ol>
   <p>After copying, restart Claude Code so the new skills are discovered.</p>
 
+  </section>
+
+  <section id="plugins">
   <h2 id="plugins">General Purpose Skills — Plugins</h2>
   <p>Useful to any Claude Code user regardless of project or stack. These install through the plugin system.</p>
   <div class="tablewrap">
@@ -365,6 +418,9 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
   </div>
   <p class="retired">Also installed and worth a look: <strong>ponytail</strong> (minimal-diff coding discipline), <strong>ralph-loop</strong> (long-running autonomous loops), <strong>watch</strong> (video), <strong>obsidian</strong> (vault integration), <strong>ui-ux-pro-max</strong> (design systems, branding, slide styling), <strong>tdd-guard</strong> (enforces TDD during edits).</p>
 
+  </section>
+
+  <section id="manual">
   <h2 id="manual">General Purpose Skills — Manual</h2>
   <div class="tablewrap">
     <table>
@@ -389,7 +445,10 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
   </div>
   <p class="retired">Note: the June bundle's tighten-prompt, cheapest-model, agent-tool, and supergoal skills have been retired from my setup (superseded by plugin equivalents and Claude Code's built-in Agent tooling).</p>
 
-  <h2>PingOne / Identity Skills</h2>
+  </section>
+
+  <section id="ping">
+  <h2 id="ping">PingOne / Identity Skills</h2>
 
   <h3 id="ping-plugin">Official Ping Identity Plugin (recommended starting point)</h3>
   <p>Ping now ships an official Claude Code plugin from the <code>pingidentity</code> marketplace — it supersedes most of my original hand-built PingOne bundle:</p>
@@ -427,6 +486,9 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
   </div>
   <p class="retired">Retired from the bundle: <strong>authz-server</strong>, <strong>authz-server-parity</strong>, and <strong>pingone-authorize-configure</strong> (demo-specific, superseded by project skills — the latter also contained a real worker credential, since rotated and now dead). The AI-DEMO2 project skills cover this ground; <code>pingone-mcp-install</code> and <code>pingone-remote-mcp-connect</code> ship via the repo rather than the bundle.</p>
 
+  </section>
+
+  <section id="project">
   <h2 id="project">AI-DEMO2 Project Skills</h2>
   <p>Repo-specific skills that encode hard-won patterns from building the AI-DEMO2 identity demo. Copy from <code>.claude/skills/</code> in the repo. Most are useful as templates even outside this project.</p>
 
@@ -504,6 +566,7 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
     </table>
   </div>
 
+  </section>
   <div class="footer-meta">
     <p>Last updated: 10 October 2026 — 16 plugins, 14 manual general-purpose skills, 9 bundle Ping skills (21 skills in the October zip), and 29 AI-DEMO2 project skills. The zip bundle was rebuilt October 2026 (sanitized; retired skills removed; current user-level Ping skills added) and is awaiting push to GitHub. The June zip's leaked worker credential was rotated 2026-10-10 and is dead — replace the June zip on push.</p>
   </div>
@@ -528,24 +591,32 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
 
   // Confluence's editor keeps only inline styles, so bake the light-theme
   // colors onto every element as copy-time inline styles.
+  // Section hue map — fixed CVD-validated order, text-grade steps (>=4.8:1 on
+  // white as link text), stripe tints at 5% over white.
+  var SEC = {
+    install:  { ink: '#8a6200', stripe: '#f9f7f2' },
+    plugins:  { ink: '#1c5cab', stripe: '#f4f7fb' },
+    manual:   { ink: '#0e7a52', stripe: '#f3f8f6' },
+    ping:     { ink: '#b01716', stripe: '#fbf3f3' },
+    project:  { ink: '#008300', stripe: '#f2f9f2' }
+  };
   var INLINE = [
-    ['h1', 'font-family:Montserrat,sans-serif;font-weight:800;font-size:28px;color:#051727;margin:0 0 6px;'],
-    ['h2', 'font-family:Montserrat,sans-serif;font-weight:700;font-size:20px;color:#051727;border-bottom:2px solid #d20e0f;padding-bottom:4px;margin:32px 0 8px;'],
-    ['h3', 'font-family:Montserrat,sans-serif;font-weight:700;font-size:15px;color:#051727;margin:22px 0 6px;'],
+    ['h1', 'font-family:Montserrat,sans-serif;font-weight:800;font-size:28px;color:#d20e0f;margin:0 0 6px;'],
+    ['h2', 'font-family:Montserrat,sans-serif;font-weight:700;font-size:20px;color:#d20e0f;padding-bottom:4px;margin:32px 0 8px;'],
+    ['h3', 'font-family:Montserrat,sans-serif;font-weight:700;font-size:15px;color:#d20e0f;margin:22px 0 6px;'],
     ['p', 'font-family:-apple-system,Segoe UI,sans-serif;font-size:14px;color:#1b2733;line-height:1.5;margin:8px 0;'],
     ['table', 'border-collapse:collapse;width:100%;font-family:-apple-system,Segoe UI,sans-serif;font-size:13px;color:#1b2733;margin:10px 0;'],
-    ['th', 'font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;text-align:left;background:#051727;color:#ffffff;padding:8px 12px;border:1px solid #d7dde3;white-space:nowrap;'],
+    ['th', 'font-family:Montserrat,sans-serif;font-size:11px;font-weight:700;letter-spacing:0.06em;text-transform:uppercase;text-align:left;background:#000000;color:#ffffff;padding:8px 12px;border:1px solid #d7dde3;white-space:nowrap;'],
     ['td', 'padding:8px 12px;border:1px solid #d7dde3;vertical-align:top;color:#1b2733;'],
-    ['td > a, td a', 'color:#d20e0f;font-weight:600;text-decoration:none;'],
+    ['a .chip', 'text-decoration:none;'],
     ['a', 'color:#d20e0f;'],
     ['.chip', 'display:inline-block;font-family:Menlo,monospace;font-size:11px;font-weight:600;background:#fdeaea;color:#aa0005;border:1px solid #f0b9b9;border-radius:10px;padding:2px 8px;white-space:nowrap;'],
     ['.chip.plain', 'font-family:-apple-system,sans-serif;background:#eef2f5;color:#5b6b7a;border:1px solid #d7dde3;'],
     ['.chip.dash', 'background:none;border:none;color:#8a99a8;font-family:-apple-system,sans-serif;'],
     ['span.mono, code', 'font-family:Menlo,monospace;font-size:12px;background:#f3f5f7;color:#14324a;padding:1px 4px;border-radius:3px;'],
-    ['tbody tr:nth-child(even) td', 'background:#f3f6f8;'],
     ['ul.toc', 'list-style:none;padding:0;display:flex;flex-wrap:wrap;gap:6px;margin:10px 0;'],
     ['ul.toc li', 'margin:0 4px 4px 0;'],
-    ['ul.toc a', 'font-family:Montserrat,sans-serif;font-size:11.5px;font-weight:600;color:#051727;text-decoration:none;border:1px solid #d7dde3;border-radius:10px;padding:3px 10px;display:inline-block;'],
+    ['ul.toc .tocitem', 'font-family:Montserrat,sans-serif;font-size:11.5px;font-weight:600;text-decoration:none;border:1px solid #d7dde3;border-radius:10px;padding:3px 10px;display:inline-block;'],
     ['.note', 'background:#fdeaea;border-left:3px solid #d20e0f;padding:10px 14px;margin:14px 0;font-size:13.5px;'],
     ['.assets', 'background:#ffffff;border:1px solid #d7dde3;border-radius:8px;padding:12px 16px;font-size:13px;'],
     ['.footer-meta, .retired, .planned-empty', 'color:#5b6b7a;font-size:12.5px;'],
@@ -561,18 +632,41 @@ cp -r claude-skills-bundle/pingone/* ~/.claude/skills/</code></pre>
     INLINE.forEach(function (rule) {
       var sel = rule[0], css = rule[1];
       var nodes;
-      if (sel === 'td > a, td a') nodes = clone.querySelectorAll('td a');
-      else if (sel === 'span.mono, code') nodes = clone.querySelectorAll('span.mono, code');
-      else if (sel === 'tbody tr:nth-child(even) td') {
-        clone.querySelectorAll('tbody').forEach(function (tb) {
-          Array.prototype.forEach.call(tb.children, function (tr, i) {
-            if (i % 2 === 1) tr.querySelectorAll('td').forEach(function (td) { td.style.cssText += css; });
-          });
-        });
-        return;
-      }
+      if (sel === 'span.mono, code') nodes = clone.querySelectorAll('span.mono, code');
       else nodes = clone.querySelectorAll(sel);
       nodes.forEach(function (el) { el.style.cssText += css; });
+    });
+    // Per-section color second pass: h2 underline, table top border, tinted
+    // stripes, td links — all from the section ancestor's SEC entry.
+    clone.querySelectorAll('section[id]').forEach(function (sec) {
+      var c = SEC[sec.id];
+      if (!c) return;
+      sec.querySelectorAll('h2').forEach(function (h) {
+        h.style.cssText += 'border-bottom:3px solid ' + c.ink + ';';
+      });
+      sec.querySelectorAll('table').forEach(function (t) {
+        t.style.cssText += 'border-top:3px solid ' + c.ink + ';';
+      });
+      var tbodies = sec.querySelectorAll('tbody');
+      Array.prototype.forEach.call(tbodies, function (tb) {
+        Array.prototype.forEach.call(tb.children, function (tr, i) {
+          if (i % 2 === 1) tr.querySelectorAll('td').forEach(function (td) {
+            td.style.cssText += 'background:' + c.stripe + ';';
+          });
+        });
+      });
+      sec.querySelectorAll('td a').forEach(function (a) {
+        a.style.cssText += 'color:' + c.ink + ';font-weight:600;text-decoration:none;';
+      });
+      sec.querySelectorAll('td.skillname').forEach(function (td) {
+        td.style.cssText += 'color:' + c.ink + ';';
+      });
+    });
+    // TOC chips: colored left bar + ink from the target section
+    clone.querySelectorAll('ul.toc .tocitem').forEach(function (el) {
+      var id = el.getAttribute('data-sec');
+      var c = SEC[id];
+      if (c) el.style.cssText += 'color:' + c.ink + ';border-left:4px solid ' + c.ink + ';';
     });
     return clone;
   }
