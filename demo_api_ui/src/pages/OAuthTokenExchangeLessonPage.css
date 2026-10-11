@@ -206,6 +206,8 @@
   font-size: var(--font-size-xl);
 }
 
+.ote-flow-diagram { margin-top: 1.25rem; }
+
 .ote-proof-section {
   background: var(--th-bg-inset);
   color: var(--th-text-body);

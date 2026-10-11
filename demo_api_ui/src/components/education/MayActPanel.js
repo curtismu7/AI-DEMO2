@@ -1,6 +1,7 @@
 // banking_api_ui/src/components/education/MayActPanel.js
 import React from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
+import TokenAudienceChain from './TokenAudienceChain';
 import { EduImplIntro, SNIP_MAY_ACT_SANITIZE } from './educationImplementationSnippets';
 
 export default function MayActPanel({ isOpen, onClose, initialTabId }) {
@@ -43,6 +44,9 @@ export default function MayActPanel({ isOpen, onClose, initialTabId }) {
       content: (
         <>
           <h3>From sign-in to action</h3>
+          {/* The chain this tab describes, drawn once at the top: sub preserved,
+              act added at Exchange #1, aud narrowed per hop. */}
+          <TokenAudienceChain />
           <ol>
             <li>
               <strong>You sign in</strong> — PingOne issues your access token (standard OAuth2 authorization code flow with PKCE).

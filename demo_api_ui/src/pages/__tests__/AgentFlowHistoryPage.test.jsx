@@ -10,6 +10,11 @@ vi.mock('../../services/apiClient', () => ({
 vi.mock('../../components/AgentRunTimeline', () => ({
   default: ({ run }) => <div data-testid="run-timeline">{run ? run.runId : 'none'}</div>,
 }));
+// The rail reads the trace store on mount; the replay behaviour itself is
+// covered by replayUnattendedRun.test.js. Here we only assert the mount.
+vi.mock('../../components/TokenChainTraceRail', () => ({
+  default: () => <div data-testid="afh-rail">token chain replay</div>,
+}));
 
 import apiClient from '../../services/apiClient';
 
@@ -81,5 +86,20 @@ describe('AgentFlowHistoryPage', () => {
     await waitFor(() => expect(screen.getByText('first run')).toBeInTheDocument());
     fireEvent.click(screen.getByText('first run'));
     expect(screen.getByTestId('run-timeline')).toHaveTextContent('run_1');
+  });
+
+  it('mounts the token chain replay only for a run with token events', async () => {
+    const runsWithEvents = [
+      { ...RUNS[0], tokenEvents: [{ id: 'user-token', label: 'user token', status: 'active' }] },
+      RUNS[1],
+    ];
+    apiClient.get.mockResolvedValue({ data: { runs: runsWithEvents } });
+    render(<AgentFlowHistoryPage />);
+    // run_2 (the default) carries one event -> the replay rail mounts.
+    expect(await screen.findByTestId('afh-rail')).toBeInTheDocument();
+
+    // Switch to the event-less run -> no replay to show.
+    fireEvent.click(screen.getByText('first run'));
+    expect(screen.queryByTestId('afh-rail')).not.toBeInTheDocument();
   });
 });

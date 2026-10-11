@@ -1,4 +1,5 @@
 import { Link } from "react-router-dom";
+import StaticFlowDiagram from "../components/StaticFlowDiagram";
 import RelatedLearningRail from "../components/learning/RelatedLearningRail";
 import { EDU } from "../components/education/educationIds";
 import "./OAuthTokenExchangeLessonPage.css";
@@ -42,8 +43,57 @@ const DELEGATED_PROOF_STEPS = [
   },
 ];
 
-const OAUTH_EDUCATION_LINKS = [
+// The same three hops as the cards above, drawn as a walkthrough: Play/Step
+// walks the arrows in order and the shared movie reel opens the claims detail
+// for each hop. StaticFlowDiagram attaches both itself — no extra wiring.
+const EXCHANGE_NODES = [
+  { id: "browser", group: "user", label: "Browser", sub: ["Agent runs here"], x: 40, y: 130 },
+  { id: "bff", group: "agent", label: "BFF", sub: ["Holds the user token"], x: 340, y: 130 },
+  { id: "pingone", group: "pingone", label: "PingOne", sub: ["RFC 8693 exchange"], x: 640, y: 130 },
+  { id: "mcp", group: "resource", label: "MCP Server", sub: ["Verifies act chain"], x: 940, y: 130 },
+];
+
+const EXCHANGE_EDGES = [
+  ["browser", "bff", "user session", { detail: "PingOne authenticated the person; the browser session stays in the BFF." }],
+  ["bff", "pingone", "exchange: subject + actor", { detail: "The BFF presents the user token as subject and the agent token as actor." }],
+  ["pingone", "bff", "scoped MCP token", { detail: "Narrower audience, narrower scopes, act = agent. The user token never left the BFF." }],
+  ["bff", "mcp", "tool call with MCP token", { detail: "The MCP server verifies aud, scope, and act before executing." }],
+];
+
+const EXCHANGE_WALK = [
   {
+    title: "User session", label: "T1 — who is acting for whom",
+    nodes: ["browser", "bff"], edges: [0],
+    lines: [{ who: "User", text: FLOW_STEPS[0].detail }],
+  },
+  {
+    title: "RFC 8693 exchange", label: "Subject + actor in, authority out",
+    nodes: ["bff", "pingone"], edges: [1],
+    lines: [{ who: "BFF", text: FLOW_STEPS[1].detail }],
+  },
+  {
+    title: "Scoped MCP token", label: "T2 — shaped for its job",
+    nodes: ["pingone", "bff"], edges: [2],
+    lines: [{ who: "PingOne", text: FLOW_STEPS[2].detail }],
+  },
+  {
+    title: "Governed tool call", label: "The gateway can verify every claim",
+    nodes: ["bff", "mcp"], edges: [3],
+    lines: [
+      { who: "Gateway", text: DELEGATED_PROOF_STEPS[0].detail },
+      { who: "Tool", text: DELEGATED_PROOF_STEPS[2].detail },
+    ],
+  },
+];
+
+const EXCHANGE_GROUPS = {
+  user: { label: "User", bg: "var(--th-status-info)" },
+  agent: { label: "Agent / BFF", bg: "var(--th-bg-emphasis)" },
+  pingone: { label: "PingOne", bg: "var(--th-status-success)" },
+  resource: { label: "Resource server", bg: "var(--th-border-strong)" },
+};
+
+const OAUTH_EDUCATION_LINKS = [  {
     panelId: EDU.RFC_8693,
     tabId: "overview",
     label: "RFC 8693 deep dive",
@@ -157,6 +207,17 @@ export default function OAuthTokenExchangeLessonPage() {
               {index < FLOW_STEPS.length - 1 ? <span className="ote-flow__arrow" aria-hidden="true">→</span> : null}
             </div>
           ))}
+        </div>
+        <div className="ote-flow-diagram">
+          <StaticFlowDiagram
+            NODES={EXCHANGE_NODES}
+            EDGES={EXCHANGE_EDGES}
+            GROUPS={EXCHANGE_GROUPS}
+            walk={EXCHANGE_WALK}
+            details={Object.fromEntries(EXCHANGE_NODES.map((n) => [n.id, (EXCHANGE_EDGES.find(([from]) => from === n.id) || [])[3]?.detail || ""]))}
+            ariaLabel="RFC 8693 token exchange walkthrough"
+            testId="ote-exchange-diagram"
+          />
         </div>
       </section>
 

@@ -1,5 +1,7 @@
 import React, { useCallback, useState } from "react";
 import apiClient from "../services/apiClient";
+import { sendAgentMessage } from "../services/demoAgentService";
+import TokenChainTraceRail from "../components/TokenChainTraceRail";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import { useThemeOptional } from "../context/ThemeContext";
 import "./DelegationChainValuePage.css";
@@ -39,6 +41,7 @@ export default function DelegationChainValuePage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [status, setStatus] = useState({});
   const [results, setResults] = useState({});
+  const [lastPrompt, setLastPrompt] = useState(null);
 
   const run = useCallback(async (entry) => {
     setStatus((s) => ({ ...s, [entry.key]: "running" }));
@@ -59,14 +62,18 @@ export default function DelegationChainValuePage() {
           .patch("/api/admin/feature-flags", { updates }, { _noAuthBanner: true })
           .catch(() => {});
       }
-      const res = await apiClient.post("/api/agent/invoke", {
-        prompt: entry.prompt,
+      // sendAgentMessage hits the same /api/agent/invoke endpoint but ALSO
+      // drives tokenChainTraceStore (beginTrace + ingestLegacyRunTrace on the
+      // response), which is what feeds the rail below. The page's pitch is the
+      // per-hop act chain — showing it is the point of running anything here.
+      const res = await sendAgentMessage(entry.prompt, null, {
         forceHeuristic: true,
         vertical: VERTICAL,
       });
+      setLastPrompt(entry.prompt);
       setResults((r) => ({
         ...r,
-        [entry.key]: { reply: res.data?.reply || "", tools: res.data?.toolsCalled || [] },
+        [entry.key]: { reply: res?.reply || "", tools: res?.toolsCalled || [] },
       }));
       setStatus((s) => ({ ...s, [entry.key]: "done" }));
     } catch (err) {
@@ -78,6 +85,7 @@ export default function DelegationChainValuePage() {
   const handleClearAll = useCallback(() => {
     setStatus({});
     setResults({});
+    setLastPrompt(null);
   }, []);
 
   const hasResults = Object.keys(results).length > 0;
@@ -123,6 +131,16 @@ export default function DelegationChainValuePage() {
           {results[entry.key]?.error && <p className="dcv-error">{results[entry.key].error}</p>}
         </section>
       ))}
+      {lastPrompt && (
+        <section className="dcv-run dcv-chain" aria-label="Token chain evidence">
+          <h2>The chain from that run</h2>
+          <p>
+            Every hop of the run above, with the token claims it carried — subject, audience,
+            scopes, and the nested act chain naming each agent in order.
+          </p>
+          <TokenChainTraceRail />
+        </section>
+      )}
     </div>
   );
 }

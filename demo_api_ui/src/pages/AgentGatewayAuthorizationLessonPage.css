@@ -43,12 +43,6 @@
 .agal-next-step p { margin: 0 0 8px; }
 .agal-next-step a { color: var(--th-status-info-text); font-size: var(--font-size-sm); }
 .agal-source-note, .agal-ready { color: var(--th-text-muted); font-size: var(--font-size-sm); }
-.agal-flow { display: flex; align-items: center; gap: 10px; overflow-x: auto; padding: 12px 2px; }
-.agal-flow-item { display: flex; align-items: center; gap: 10px; min-width: 150px; }
-.agal-node { display: grid; gap: 8px; width: 150px; min-height: 92px; padding: 13px; text-align: left; color: var(--th-text); background: var(--th-bg-card); border: 2px solid var(--th-border); border-radius: var(--radius-lg); cursor: pointer; }
-.agal-node:hover, .agal-node--active { color: var(--th-text); background: var(--th-bg-inset); border-color: var(--th-status-info); }
-.agal-node-number { display: grid; place-items: center; width: 23px; height: 23px; border-radius: var(--radius-pill); background: var(--th-bg-inset); color: var(--th-text-muted); font-size: var(--font-size-xs); }
-.agal-arrow { color: var(--th-status-info-text); font-size: 1.35rem; }
 .agal-detail { color: var(--th-text); margin-top: 10px; padding: 14px 16px; border-left: 4px solid var(--th-status-info); background: var(--th-bg-inset); }
 .agal-detail strong { color: var(--th-text); }
 .agal-detail p { margin: 4px 0 0; color: var(--th-text-body); }
@@ -71,7 +65,7 @@
 .agal-links a { color: var(--th-status-info-text); font-size: var(--font-size-sm); }
 .agal-summary { display: grid; gap: 10px; margin: 0; padding-left: 22px; color: var(--th-text-body); line-height: 1.5; }
 @media (max-width: 980px) { .agal-live-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); } .agal-positioning { grid-template-columns: 1fr; } }
-@media (max-width: 760px) { .agal-hero, .agal-card-grid, .agal-demo-grid, .agal-context-grid, .agal-live-intro, .agal-live-grid { grid-template-columns: 1fr; } .agal-flow { align-items: stretch; flex-direction: column; } .agal-flow-item { width: 100%; } .agal-node { width: 100%; } .agal-arrow { transform: rotate(90deg); align-self: center; } }
+@media (max-width: 760px) { .agal-hero, .agal-card-grid, .agal-demo-grid, .agal-context-grid, .agal-live-intro, .agal-live-grid { grid-template-columns: 1fr; } }
 
 :root[data-theme="dark"] .agal-live-button { --th-status-info: #1e40af; }
 a.agal-primary-link:is(:link, :visited), .agal-live-card.agal-live-card a:is(:link, :visited) { color: var(--th-text-invert); }

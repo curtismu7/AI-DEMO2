@@ -7,6 +7,8 @@ import {
 } from '../../services/a2aSpecialistRegistry';
 import EducationDrawer from '../shared/EducationDrawer';
 import { useEducationUI } from '../../context/EducationUIContext';
+import { A2A_RECORDED_RUN } from '../../data/a2aRecordedRun';
+import A2AFlowVisualizer from '../A2AFlowVisualizer';
 import { EDU } from './educationIds';
 
 /**
@@ -165,6 +167,12 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
             </tbody>
           </table>
           {!specialists.length && <p style={{ color: '#6b7280' }}>The server specialist registry is unavailable; open the A2A learning page to inspect the live Agent Card. The card describes capability; PingOne Authorize still decides delegated authority.</p>}
+          <h3>The recorded delegation, packet by packet</h3>
+          <p style={{ color: '#374151' }}>
+            A captured run of the chain above ({A2A_RECORDED_RUN.vertical} vertical): the user token,
+            both actor tokens, both exchanges, and the wire hop — click any packet for its decoded claims.
+          </p>
+          <A2AFlowVisualizer tokenEvents={A2A_RECORDED_RUN.tokenEvents} />
           <h3>How it shows up</h3>
           <ol>
             <li><strong>Ask for sensitive data</strong> — e.g. &ldquo;show the sensitive record&rdquo;. The generalist can&apos;t read it directly.</li>

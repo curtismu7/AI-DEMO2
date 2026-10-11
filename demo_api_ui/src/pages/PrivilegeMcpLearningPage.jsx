@@ -1,7 +1,42 @@
 import React, { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import useDividerDrag from "../hooks/useDividerDrag";
+import StaticFlowDiagram from "../components/StaticFlowDiagram";
 import "./PrivilegeMcpLearningPage.css";
+
+// The request flow, as a walkthrough: the shared Play/Step bar and movie reel
+// come with StaticFlowDiagram (walk drives them). Replaces the hand-built
+// three-box div chain — same story, now steppable and consistent with every
+// other diagram page.
+const PFL_NODES = [
+  { id: "client", group: "user", label: "MCP Client", sub: ["BFF · LM Studio · Postman"], x: 40, y: 130 },
+  { id: "gw", group: "gateway", label: "Load balancer + 2 gateways", sub: ["sign-in · policy · audit"], x: 400, y: 130 },
+  { id: "server", group: "resource", label: "Backend MCP Server", sub: ["in-cluster or sidecar"], x: 800, y: 130 },
+];
+
+const PFL_EDGES = [
+  ["client", "gw", "One public URL", { detail: "Every client points at mcpgw.ai-demo.ping-devops.com — one door, two gateways behind it." }],
+  ["gw", "server", "Policy-gated proxy call", { detail: "The gateway signs the client in, checks policy, and only then proxies to the backend server." }],
+];
+
+const PFL_WALK = [
+  {
+    title: "Client connects", label: "One public URL",
+    nodes: ["client", "gw"], edges: [0],
+    lines: [{ who: "MCP Client", text: PFL_EDGES[0][3].detail }],
+  },
+  {
+    title: "Gateway gates the call", label: "Policy-gated proxy call",
+    nodes: ["gw", "server"], edges: [1],
+    lines: [{ who: "Gateway", text: PFL_EDGES[1][3].detail }],
+  },
+];
+
+const PFL_GROUPS = {
+  user: { label: "User", bg: "var(--th-status-info)" },
+  gateway: { label: "Gateway", bg: "var(--th-status-warning)" },
+  resource: { label: "Resource server", bg: "var(--th-border-strong)" },
+};
 
 const ARCH_SECTIONS = [
   {
@@ -312,13 +347,15 @@ export default function PrivilegeMcpLearningPage() {
           {/* ─── Architecture ─── */}
           <Section id="architecture" title="Architecture">
             <h3>Request flow</h3>
-            <div className="plp-flow-diagram">
-              <div className="plp-flow-box plp-flow-box--client">MCP Client<br /><small>(our BFF, LM Studio, Postman)</small></div>
-              <div className="plp-flow-arrow">One public URL</div>
-              <div className="plp-flow-box plp-flow-box--gateway">Load balancer + 2 gateways<br /><small>(sign-in, policy, audit)</small></div>
-              <div className="plp-flow-arrow">Policy-gated proxy call</div>
-              <div className="plp-flow-box plp-flow-box--server">Backend MCP Server<br /><small>(in-cluster or sidecar)</small></div>
-            </div>
+            <StaticFlowDiagram
+              NODES={PFL_NODES}
+              EDGES={PFL_EDGES}
+              GROUPS={PFL_GROUPS}
+              walk={PFL_WALK}
+              details={Object.fromEntries(PFL_NODES.map((n) => [n.id, (PFL_EDGES.find(([from]) => from === n.id) || [])[3]?.detail || ""]))}
+              ariaLabel="Privilege MCP request flow"
+              testId="pfl-flow"
+            />
 
             <h3>What is deployed</h3>
             <TableBlock

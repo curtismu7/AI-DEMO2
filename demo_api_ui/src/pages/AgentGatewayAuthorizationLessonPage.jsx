@@ -1,6 +1,7 @@
 import { useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { LessonLayout, Section } from "../components/lesson";
+import StaticFlowDiagram from "../components/StaticFlowDiagram";
 import { callMcpTool } from "../services/demoAgentService";
 import "./AgentGatewayAuthorizationLessonPage.css";
 
@@ -49,10 +50,42 @@ const LIVE_DEMO_LINKS = [
 ];
 
 const FLOW_NODES = [
-  { id: "user", label: "User / agent", detail: "The agent proposes an operation for an identified user. The model does not hold the user’s credential or decide whether the action is allowed." },
-  { id: "gateway", label: "Agent Gateway", detail: "The gateway is the enforcement point: it validates MCP structure, token signature and audience, scopes, actor chain, rate limits, and the request context before forwarding anything." },
-  { id: "authorize", label: "PingOne Authorize", detail: "The policy decision point evaluates the subject, acting agent, action, resource, attributes, consent, and runtime context. It returns a decision and may attach an obligation such as step-up." },
-  { id: "resource", label: "Protected resource", detail: "The MCP server or API receives the request only after the gateway gets a permitted decision. It can still perform its own validation as defense in depth." },
+  { id: "user", group: "user", label: "User / agent", sub: ["Proposes the operation"], x: 40, y: 130, detail: "The agent proposes an operation for an identified user. The model does not hold the user’s credential or decide whether the action is allowed." },
+  { id: "gateway", group: "gateway", label: "Agent Gateway", sub: ["Enforces the decision"], x: 340, y: 130, detail: "The gateway is the enforcement point: it validates MCP structure, token signature and audience, scopes, actor chain, rate limits, and the request context before forwarding anything." },
+  { id: "authorize", group: "pingone", label: "PingOne Authorize", sub: ["Decides in context"], x: 640, y: 130, detail: "The policy decision point evaluates the subject, acting agent, action, resource, attributes, consent, and runtime context. It returns a decision and may attach an obligation such as step-up." },
+  { id: "resource", group: "resource", label: "Protected resource", sub: ["Executes after PERMIT"], x: 940, y: 130, detail: "The MCP server or API receives the request only after the gateway gets a permitted decision. It can still perform its own validation as defense in depth." },
+];
+
+const FLOW_EDGES = [
+  ["user", "gateway", "tool call", { detail: "The gateway intercepts every MCP call before it can reach anything." }],
+  ["gateway", "authorize", "evaluate", { detail: "The gateway always asks before dispatching — identity, actor, resource, context." }],
+  ["authorize", "gateway", "decision + obligation", { detail: "PERMIT, DENY, or STEP-UP — the gateway enforces whatever comes back." }],
+  ["gateway", "resource", "forward on PERMIT", { detail: "Only a permitted call is forwarded; the resource validates again as defense in depth." }],
+];
+
+// The walkthrough: one story step per edge, the same click-to-focus the stage
+// cards had — now driving the shared reel instead of a bespoke detail box.
+const FLOW_WALK = [
+  {
+    title: "Agent proposes the call", label: "Nothing is trusted yet",
+    nodes: ["user", "gateway"], edges: [0],
+    lines: [{ who: FLOW_NODES[0].label, text: FLOW_NODES[0].detail }],
+  },
+  {
+    title: "Gateway evaluates", label: "The enforcement point asks",
+    nodes: ["gateway", "authorize"], edges: [1],
+    lines: [{ who: FLOW_NODES[1].label, text: FLOW_NODES[1].detail }],
+  },
+  {
+    title: "Policy decides", label: "PERMIT · DENY · STEP-UP",
+    nodes: ["authorize", "gateway"], edges: [2],
+    lines: [{ who: FLOW_NODES[2].label, text: FLOW_NODES[2].detail }],
+  },
+  {
+    title: "Gateway enforces", label: "Forward, pause, or stop",
+    nodes: ["gateway", "resource"], edges: [3],
+    lines: [{ who: FLOW_NODES[3].label, text: FLOW_NODES[3].detail }],
+  },
 ];
 
 const SCENARIOS = [
@@ -79,24 +112,27 @@ const SCENARIOS = [
   },
 ];
 
-function FlowDiagram({ selected, onSelect }) {
+const AGAL_GROUPS = {
+  user: { label: "User", bg: "var(--th-status-info)" },
+  gateway: { label: "Gateway", bg: "var(--th-status-warning)" },
+  pingone: { label: "PingOne", bg: "var(--th-status-success)" },
+  resource: { label: "Resource server", bg: "var(--th-border-strong)" },
+};
+
+// Replaces the old hand-rolled chip row: StaticFlowDiagram attaches the shared
+// Play/Step bar and movie reel itself (walk drives it), and clicking a node
+// still focuses that stage's explanation.
+function FlowDiagram() {
   return (
-    <div className="agal-flow" aria-label="Agent authorization request flow">
-      {FLOW_NODES.map((node, index) => (
-        <div key={node.id} className="agal-flow-item">
-          <button
-            type="button"
-            className={`agal-node${selected === node.id ? " agal-node--active" : ""}`}
-            onClick={() => onSelect(node.id)}
-            aria-pressed={selected === node.id}
-          >
-            <span className="agal-node-number">{index + 1}</span>
-            <strong>{node.label}</strong>
-          </button>
-          {index < FLOW_NODES.length - 1 ? <span className="agal-arrow" aria-hidden="true">→</span> : null}
-        </div>
-      ))}
-    </div>
+    <StaticFlowDiagram
+      NODES={FLOW_NODES}
+      EDGES={FLOW_EDGES}
+      GROUPS={AGAL_GROUPS}
+      walk={FLOW_WALK}
+      details={Object.fromEntries(FLOW_NODES.map((n) => [n.id, n.detail]))}
+      ariaLabel="Agent authorization request flow"
+      testId="agal-flow"
+    />
   );
 }
 
@@ -221,8 +257,8 @@ export default function AgentGatewayAuthorizationLessonPage() {
       </Section>
 
       <Section id="flow" title="Request flow">
-        <p>Click each stage to focus the explanation. The important distinction is that the gateway enforces the decision; the policy service supplies it.</p>
-        <FlowDiagram selected={selectedNode} onSelect={setSelectedNode} />
+        <p>Click a stage — or play the walkthrough — to focus the explanation. The important distinction is that the gateway enforces the decision; the policy service supplies it.</p>
+        <FlowDiagram />
         <div className="agal-detail" aria-live="polite">
           <strong>{node.label}</strong>
           <p>{node.detail}</p>
