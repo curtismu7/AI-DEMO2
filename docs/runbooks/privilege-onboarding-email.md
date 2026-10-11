@@ -1,7 +1,6 @@
 # SE onboarding email — AI demo + Privilege console + desktop agent
 
-**To:** matthewpollicove@pingidentity.com
-**Cc:** cmuir@pingone.com
+**To:** matthewpollicove@pingidentity.com; cmuir@pingone.com
 **Send from:** your mail client (this is a draft, not an automated send)
 
 **Before sending, do these two 2-minute console actions** (only you hold
@@ -67,10 +66,13 @@ gateway sides if you want the full picture.
 
 **3. GitHub — get the demo repo**
 
-1. Accept the collaborator invite from `cmuir_pingcorp/AI-DEMO2` (arrives
-   by email once Curtis adds you).
-2. Install: **OrbStack** (https://orbstack.dev, enable Kubernetes in
-   settings) and **Homebrew** (https://brew.sh) if you don't have them.
+1. **Ask Curtis to add you to GitHub** (`cmuir@pingone.com` /
+   `matthewpollicove`) — repo access is grant-by-request while GitHub's
+   enterprise policy blocks self-service invites. He'll add you to
+   `cmuir_pingcorp/AI-DEMO2` and confirm.
+2. Once added: clone and install **OrbStack** (https://orbstack.dev, enable
+   Kubernetes in settings) and **Homebrew** (https://brew.sh) if you don't
+   have them.
 3. Then:
 
 ```bash
@@ -96,7 +98,9 @@ Questions — ping Curtis.
 ## Maintainer checklist (Curtis — before/after sending)
 
 - [ ] Console: invite `matthewpollicove@pingidentity.com` to tenant 0428ba4f
-- [ ] Console: invite `cmuir@pingone.com` to tenant 0428ba4f
+- [ ] Console: invite `cmuir@pingone.com` to tenant 0428ba4f (full invite:
+  invite → accept → grant **PingOne Privilege Administrator** → verify
+  Privilege identity sync + group membership so policies match)
 - [ ] After acceptance: grant both **PingOne Privilege Administrator**
 - [ ] Verify identity syncs into Privilege (no `user not found` on first policy hit)
 - [ ] ~~GitHub: add both as read collaborators~~ **BLOCKED (2026-10-11):**
