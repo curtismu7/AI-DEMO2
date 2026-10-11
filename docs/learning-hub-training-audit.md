@@ -1,6 +1,7 @@
 # Learning Hub training audit
 
 **Date:** 2026-09-20  
+**Updated:** 2026-10-11 — diagram-fit pass added walkthrough diagrams, movie reels, and token chains to six teaching surfaces (see "2026-10-11 diagram-fit sync" near the end).  
 **Scope:** `demo_api_ui/src/components/LearningHub.tsx`, its education panel host and panels, the registered routes in `App.js`, and the existing live demo surfaces.  
 **Purpose:** Identify where the Learning Hub can teach through a working example against the app, where a deterministic mock is more honest, and what should be built next.
 
@@ -405,6 +406,31 @@ A Learning Hub enhancement is ready when:
 - The lesson links to the next logical topic.
 - Focused tests cover catalog registration, search, action/route wiring, and the expected decision/result.
 - The UI continues to use existing theme tokens and the project’s emoji allowlist.
+
+## 2026-10-11 diagram-fit sync
+
+The diagram-fit audit (see `docs/diagram-fit-audit` notes and the merged commit
+`feat(ui): add walkthrough diagrams, reels and token chains to teaching pages`)
+upgraded six teaching surfaces with the app's three shared visualization
+families — walk-based `StaticFlowDiagram` (which attaches the Play/Step bar and
+movie reel itself), `SequenceFlowDiagram` lifelines, and `TokenChainTraceRail`:
+
+| Surface | What changed | Card/guide action |
+| --- | --- | --- |
+| `/oauth-token-exchange` (OAuth teaching) | walk-based exchange walkthrough (Browser → BFF → PingOne → MCP) with reel | card "Token Exchange (RFC 8693)" routes to `/architecture/token-flow` (unchanged) — the lesson page itself is reachable from that architecture page and the OAuth Academy path |
+| `/delegation-chain-value` | runs now feed the trace store; a token chain panel mounts after the first run, including the identity-mismatch DENY | guide updated to point at the in-page chain panel |
+| `/pingfederate-ai-agent` | each captured flow (CIMD, exchange, RAR, CIBA) renders a lifeline sequence + reel above its ProtocolTrace | guide step added ("Read the sequence before the traffic") |
+| `/agent-gateway-authorization` | hand-rolled stage chips replaced by a walk-based diagram; same click-to-focus, reel attached | guide's "Walk the request flow" step updated (Play/Step + reel, node click still focuses) |
+| `/privilege-mcp-learning` | three-box div chain replaced by a walk-based request-flow diagram | guide step added ("Walk the request flow diagram") |
+| `/agent-flow-inspector` | selected run's stored token events replay into the token chain rail | no guide existed; the page's own section heading ("Token chain, replayed") is self-explanatory |
+
+Education-drawer panels gained visuals too: `may_act / act claims` now opens
+its Step-by-step tab with the audience chain drawn (`TokenAudienceChain`), the
+A2A drawer's In-this-demo tab renders the recorded delegation as packets
+(`A2AFlowVisualizer`), and the PAR drawer's Full-flow tab opens with a PAR +
+PKCE lifeline sequence. No card labels, statuses, or action-map entries
+changed — every card action still resolves to the same target, so the
+catalog itself needed no edit for this pass.
 
 ## Source references
 
