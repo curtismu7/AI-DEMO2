@@ -1,4 +1,5 @@
 const express = require('express');
+const configStore = require('../services/configStore');
 const router = express.Router();
 const dataStore = require('../data/store');
 // The healthcare vertical's live, in-memory per-user store (module singleton).
@@ -312,9 +313,16 @@ async function verifyInitiate(req, res) {
     } catch (_) { pingOneUserId = null; }
   }
   if (!pingOneUserId) return res.status(409).json({ ok: false, error: 'customer_not_linked', message: `${local.username} has no PingOne account to sign on with.` });
+  // Prefill: the saved customer login_hint (the sign-in modal's stored value)
+  // is the demo's expected account — PingOne treats the hint as advisory
+  // prefill, and the ceremony's own username stays the identity anchor. The
+  // saved hint wins only as the flow's prefill when the lookup name is the
+  // generic demo name; a distinctly looked-up customer is who they are.
+  const storedHint = String(configStore.getEffective('last_login_hint_customer') || '').trim();
+  const username = local.username || storedHint;
   try {
     const out = await supportDelegation.openCustomerSignon(req, {
-      username: local.username, pingOneUserId, customerId: String(customerId),
+      username, pingOneUserId, customerId: String(customerId),
     });
     res.json({ ok: true, customerId: String(customerId), ...out });
   } catch (e) {

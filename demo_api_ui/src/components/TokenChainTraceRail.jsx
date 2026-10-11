@@ -28,6 +28,7 @@ import ClaimDetailsModal from "./ClaimDetailsModal";
 import TokenLegendModal from "./TokenLegendModal";
 import TokenChainDemoTrackTab from "./TokenChainDemoTrackTab";
 import TraceProvenanceBadge from "./TraceProvenanceBadge";
+import SequenceReelDiagram from "./SequenceReelDiagram";
 import "./TokenChainTraceRail.css";
 
 // v2: the persist effect writes on mount, so every browser that has ever
@@ -298,9 +299,12 @@ function TokenChainTraceRail({ mcpRouteOnly = false, trackId = "main", zoom: zoo
   // column height and buried the page bottom. Tabs show one at a time;
   // 'detail' is the default ("If we pick one then I want the bottom one with
   // the detail", 2026-08-10). Persisted so a presenter's pick survives reloads.
+  // 'sequence' (the movie-reel lifeline, 2026-10-11) is a third rendering of
+  // the same store steps — the picker, not a default, is the point.
   const [chainView, setChainView] = useState(() => {
     try {
-      return localStorage.getItem("tctr_chain_view") === "map" ? "map" : "detail";
+      const v = localStorage.getItem("tctr_chain_view");
+      return v === "map" || v === "sequence" ? v : "detail";
     } catch {
       return "detail";
     }
@@ -412,6 +416,10 @@ function TokenChainTraceRail({ mcpRouteOnly = false, trackId = "main", zoom: zoo
       trackId === "main" ? { stepId } : { stepId, track: trackId },
     ))
       .catch(() => { /* position is local either way */ });
+    // The step's diagram is the System map — the reactflow surface where the
+    // ceremony's hops light their boxes. Pop it open so a band click is a
+    // picture, not just a position change.
+    window.dispatchEvent(new CustomEvent("system-flow-open"));
   }, [track, trackId]);
 
   useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
@@ -702,6 +710,15 @@ function TokenChainTraceRail({ mcpRouteOnly = false, trackId = "main", zoom: zoo
             >
               Chain Map
             </button>
+            <button
+              type="button"
+              role="tab"
+              aria-selected={chainView === "sequence"}
+              className={chainView === "sequence" ? "active" : ""}
+              onClick={() => pickChainView("sequence")}
+            >
+              Sequence
+            </button>
           </div>
           {chainView === "map" && (
             <div className="tctr-map-layout">
@@ -732,6 +749,14 @@ function TokenChainTraceRail({ mcpRouteOnly = false, trackId = "main", zoom: zoo
                   onInspect={onInspect}
                 />
               ) : null}
+            </div>
+          )}
+          {chainView === "sequence" && (
+            <div className="tctr-map-layout">
+              <SequenceReelDiagram
+                ariaLabel="Live sequence diagram of this token chain"
+                zoomStorageKey="tctr_sequence_zoom"
+              />
             </div>
           )}
           {presenting ? (

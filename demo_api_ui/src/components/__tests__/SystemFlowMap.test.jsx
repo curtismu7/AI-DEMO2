@@ -276,6 +276,54 @@ describe('Privilege A2A chain run', () => {
   });
 });
 
+describe('support-console operator write (delegation ceremony)', () => {
+  // The six-hop chain routes/adminVerticals.js mints for a verified operator
+  // write. operatorChainSteps projects these ids with these lanes; the map
+  // must light the same boxes the agent-run story uses.
+  const ceremonySteps = [
+    { id: 'operator-session', status: 'done', title: 'Operator session' },
+    { id: 'operator-verification', status: 'done', title: 'Customer verified' },
+    { id: 'customer-signon', status: 'done', title: 'Customer sign-on' },
+    { id: 'customer-token-issued', status: 'done', title: 'Customer token issued' },
+    { id: 'exchange', status: 'done', title: 'RFC 8693 exchange' },
+    { id: 'operator-write', status: 'done', title: 'Operator write' },
+    { id: 'operator-audit', status: 'done', title: 'Audit' },
+  ];
+
+  it('lights the ceremony path across browser, BFF, MFA and exchange boxes', () => {
+    const { nodeStates, edges } = buildFlowModel(ceremonySteps);
+    expect(nodeStates.browser).toBe('done');
+    expect(nodeStates.bff).toBe('done');
+    expect(nodeStates['p1-mfa']).toBe('done');
+    expect(nodeStates['p1-exchange']).toBe('done');
+    expect(nodeStates.api).toBe('done');
+    const pairs = edges.map((e) => `${e.from}|${e.to}`);
+    expect(pairs).toContain('browser|p1-mfa');
+    expect(pairs).toContain('bff|p1-mfa');
+    expect(pairs).toContain('p1-mfa|bff');
+    expect(pairs).toContain('bff|p1-exchange');
+    expect(pairs).toContain('bff|api');
+  });
+
+  it('reddens a refused write at the gate without lighting the exchange', () => {
+    // The 403 path: session, not-verified, audit — no ceremony hops ran.
+    const { nodeStates, edges } = buildFlowModel([
+      { id: 'operator-session', status: 'done', title: 'Operator session' },
+      { id: 'operator-verification', status: 'error', title: 'Customer NOT verified' },
+      { id: 'operator-audit', status: 'done', title: 'Audit' },
+    ]);
+    expect(nodeStates['p1-mfa']).toBe('error');
+    expect(nodeStates['p1-exchange']).toBeUndefined();
+    expect(edges.map((e) => `${e.from}|${e.to}`)).toContain('browser|p1-mfa');
+  });
+
+  it('every ceremony id has a map entry — no hop silently falls off', () => {
+    for (const s of ceremonySteps) {
+      expect(STEP_TO_EDGE[s.id], `${s.id} unmapped`).toBeTruthy();
+    }
+  });
+});
+
 describe('band layout', () => {
   it('no two bands overlap', () => {
     // Same geometry as the layout loop in SystemFlowMap.jsx.

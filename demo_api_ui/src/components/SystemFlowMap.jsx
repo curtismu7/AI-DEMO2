@@ -182,6 +182,18 @@ export const STEP_TO_EDGE = {
   mariadb: { from: 'api', to: 'db', kind: 'data' },
   sqlserver: { from: 'api', to: 'db', kind: 'data' },
   reply: { from: 'bff', to: 'browser', kind: 'http' },
+  // Support-console operator write + delegation ceremony (PR #1143). The BFF
+  // mints these events server-side; buildTraceSteps projects them through
+  // operatorChainSteps with the same ids, so the map lights the same boxes the
+  // agent-run path uses — one deployment map for both stories.
+  'operator-session': { node: 'browser' },
+  'operator-verification': { from: 'browser', to: 'p1-mfa', kind: 'oauth' },
+  'customer-signon': { from: 'bff', to: 'p1-mfa', kind: 'oauth' },
+  'customer-token-issued': { from: 'p1-mfa', to: 'bff', kind: 'oauth' },
+  // The ceremony's exchange hop shares the agent run's 'exchange' id, which
+  // already maps bff→p1-exchange — no second entry needed.
+  'operator-write': { from: 'bff', to: 'api', kind: 'http' },
+  'operator-audit': { node: 'bff' },
 };
 
 // A gate outcome is not an error — the control fired and the run is waiting on
