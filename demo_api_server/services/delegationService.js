@@ -5,7 +5,7 @@ const axios   = require('axios');
 const configStore = require('./configStore');
 const { logEvent: logAppEvent } = require('./appEventService');
 const { getManagementToken } = require('./pingOneClientService');
-const { fetchPingOneUserByUsername } = require('./pingOneUserLookupService');
+const { fetchPingOneUserByUsername, fetchPingOneUserByEmail } = require('./pingOneUserLookupService');
 const { fetchFirstPopulationId } = require('./pingoneBootstrapService');
 const { DEMO_PASSWORD } = require('./pingoneProvisionService');
 
@@ -111,6 +111,12 @@ async function _sendDelegationEmail(delegateUserId, type, delegatorEmail) {
 // ---------------------------------------------------------------------------
 
 async function grantDelegation({ delegatorUserId, delegatorEmail, delegateEmail, scopes }) {
+  // The grantor's token may carry no email claim — fall back to the local
+  // store's canonical record so the delegate's panel shows a name, not a UUID.
+  if ((!delegatorEmail || delegatorEmail === delegatorUserId) && delegatorUserId) {
+    const storeUser = require('../data/store').getUserById(delegatorUserId);
+    if (storeUser?.email) delegatorEmail = storeUser.email;
+  }
   // Validate input
   if (!delegateEmail) {
     return { ok: false, error: 'validation_error', message: 'delegateEmail is required.' };
@@ -137,11 +143,17 @@ async function grantDelegation({ delegatorUserId, delegatorEmail, delegateEmail,
     }
   }
 
-  // Look up delegate in PingOne
+  // Look up delegate in PingOne — the typed address may be stored as the
+  // username OR the email; missing both would provision a duplicate user.
   let delegateUserId = null;
   let credentials = null;
   let credentialsWarning = null;
-  const { user: existingUser } = await fetchPingOneUserByUsername(delegateEmail).catch(() => ({ user: null }));
+  const { user: byUsername } = await fetchPingOneUserByUsername(delegateEmail).catch(() => ({ user: null }));
+  // Older module mocks of the lookup service only provide the username fn.
+  const { user: byEmail } = byUsername || typeof fetchPingOneUserByEmail !== 'function'
+    ? { user: null }
+    : await fetchPingOneUserByEmail(delegateEmail).catch(() => ({ user: null }));
+  const existingUser = byUsername || byEmail;
 
   if (existingUser) {
     delegateUserId = existingUser.id;
@@ -361,11 +373,18 @@ async function getDelegationHistory(delegatorUserId) {
 // ---------------------------------------------------------------------------
 
 async function getDelegationsGrantedToMe(delegateEmail) {
-  const normalised = delegateEmail.toLowerCase();
+  // The grant records the address the grantor typed; the delegate's token may
+  // identify them by email claim, username, or both — try every candidate
+  // (lowercased) so a username-only token still matches an email-typed grant.
+  const candidates = [...new Set(
+    (Array.isArray(delegateEmail) ? delegateEmail : [delegateEmail])
+      .filter(Boolean)
+      .map((e) => String(e).toLowerCase()),
+  )];
   const results = [];
   for (const { value } of _db().getRange()) {
     const rec = toRecord(value);
-    if (rec && rec.delegate_email === normalised && rec.status === 'active') {
+    if (rec && candidates.includes(rec.delegate_email) && rec.status === 'active') {
       results.push(rec);
     }
   }
