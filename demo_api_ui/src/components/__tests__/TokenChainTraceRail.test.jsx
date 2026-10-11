@@ -447,3 +447,20 @@ test("Demo Track tab renders the guided track content", async () => {
   });
   expect(screen.getByText(/ACT 1/)).toBeInTheDocument();
 });
+
+test("Sequence tab renders the reel and the pick persists", () => {
+  render(<TokenChainTraceRail />);
+  // The chain tabs are the tablist next to the chain body: Detail | Chain Map
+  // | Sequence. Sequence mounts the movie-reel lifeline surface.
+  const seqTab = screen.getByRole("tab", { name: "Sequence" });
+  expect(seqTab).toBeInTheDocument();
+  fireEvent.click(seqTab);
+  expect(seqTab).toHaveAttribute("aria-selected", "true");
+  // The reel mounts (its empty state with no run yet — the surface, not data).
+  expect(screen.getByText(/Run an agent request to populate the sequence diagram/i)).toBeInTheDocument();
+  // The pick survives a reload — same storage the Detail/Chain Map tabs use.
+  expect(localStorage.getItem("tctr_chain_view")).toBe("sequence");
+  // Detail and Chain Map remain available; the three are one group.
+  expect(screen.getByRole("tab", { name: "Step Detail" })).toBeInTheDocument();
+  expect(screen.getByRole("tab", { name: "Chain Map" })).toBeInTheDocument();
+});

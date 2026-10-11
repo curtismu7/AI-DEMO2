@@ -97,6 +97,11 @@ async function openCustomerSignon(req, { username, pingOneUserId, customerId } =
 
   const url = oauthUserService.generateAuthorizationUrl({
     state, codeVerifier, redirectUri, nonce, prompt: 'login', forcePiFlow: true, login_hint: username,
+    // The user app's default sign-on policy satisfies on password alone — the
+    // ceremony completed with NO MFA (seen live 2026-10-11). Request the MFA
+    // policy the same way the modal's ?mfa=1 hook does, so the flow stops at
+    // the customer's OTP device: the human moment this ceremony exists for.
+    acr_values: require('../config/runtimeSettings').get('stepUpAcrValue') || 'Multi_Factor',
   });
   const res = await fetch(url, { redirect: 'manual', headers: { Accept: '*/*' }, signal: AbortSignal.timeout(FLOW_TIMEOUT_MS) });
   const flow = await res.json().catch(() => null);
