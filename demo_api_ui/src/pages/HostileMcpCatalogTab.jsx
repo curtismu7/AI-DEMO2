@@ -18,6 +18,10 @@
 import { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { CATALOG_KINDS, HOSTILE_MCP_CATALOG } from '../config/hostileMcpCatalog';
+import { HOSTILE_EDGES, HOSTILE_GROUPS, HOSTILE_NODES, HOSTILE_STEPS } from '../config/hostileMcpDiagram';
+import DiagramStepBar from '../components/DiagramStepBar';
+import StaticFlowDiagram from '../components/StaticFlowDiagram';
+import { edgeCaptions, useDiagramStepper } from '../hooks/useDiagramStepper';
 import { scan } from '../utils/mcpScanner';
 import { buildCatalogTestPlan, classifyCatalogOutcome, RUN_STATUSES } from './hostileMcpCatalogTests';
 import './HostileMcpCatalogTab.css';
@@ -85,6 +89,59 @@ function verdictClass(text) {
   if (t.startsWith('yes')) return 'hmc-yes';
   if (t.startsWith('no')) return 'hmc-no';
   return 'hmc-partly';
+}
+
+// One step card per HOSTILE_STEPS entry; the active step rings its edges on the
+// diagram above. Same pattern as CimdPrivilegePage's step list.
+function HostileDiagramSection() {
+  const stepper = useDiagramStepper(HOSTILE_EDGES.length);
+  const names = useMemo(() => Object.fromEntries(HOSTILE_NODES.map((n) => [n.id, n.label])), []);
+  const captions = useMemo(() => edgeCaptions(HOSTILE_EDGES, names), [names]);
+  const usedGroups = [...new Set(HOSTILE_NODES.map((n) => n.group))];
+  return (
+    <section className="hmc-diagram" aria-label="How the hostile server attacks" data-testid="hmc-diagram">
+      <h3>What the hostile server does, end to end</h3>
+      <p className="hmc-diagram-lede">
+        Every poison surface <code>standalone/hostile-mcp-server</code> holds, and the path each one
+        travels: the agent ingests poisoned metadata through the gateway (nothing re-reads it),
+        the poison steers the model into calls the user never asked for — and the governed vs
+        ungoverned doors decide whether the induced call lands. Press play or step through.
+      </p>
+      <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId="hmc-diagram-steps" />
+      <figure className="hmc-figure">
+        <StaticFlowDiagram
+          NODES={HOSTILE_NODES}
+          EDGES={HOSTILE_EDGES}
+          GROUPS={HOSTILE_GROUPS}
+          stepper={stepper}
+          testId="hmc-diagram-flow"
+          ariaLabel="Attack surfaces of the hostile MCP server and the path each poison travels"
+        />
+        <ul className="hmc-legend" aria-label="Legend">
+          {usedGroups.map((g) => (
+            <li key={g}>
+              <i className="hmc-sw" style={{ borderTopColor: HOSTILE_GROUPS[g].bg }} />
+              {HOSTILE_GROUPS[g].label}
+            </li>
+          ))}
+        </ul>
+      </figure>
+      <ol className="hmc-dsteps" aria-label="The attack, step by step">
+        {HOSTILE_STEPS.map((s, i) => {
+          const active = stepper.active && s.edges.some((e) => e === stepper.step);
+          return (
+            <li key={s.key} className={active ? 'hmc-dstep hmc-dstep--active' : 'hmc-dstep'} data-testid={`hmc-diagram-step-${i + 1}`}>
+              <h4><span className="hmc-dstep-n">{i + 1}</span>{s.title}</h4>
+              <p>{s.what}</p>
+              <p className="hmc-dstep-why"><strong>Why it matters:</strong> {s.why}</p>
+              <p className="hmc-dstep-evidence"><strong>Observed:</strong> {s.evidence}</p>
+            </li>
+          );
+        })}
+      </ol>
+      {/* StaticFlowDiagram renders its own movie reel from the stepper — no second reel here. */}
+    </section>
+  );
 }
 
 export default function HostileMcpCatalogTab() {
@@ -294,6 +351,8 @@ export default function HostileMcpCatalogTab() {
         </p>
       </header>
 
+      <HostileDiagramSection />
+
       <section className="hmc-runner" aria-label="Live Privilege tests">
         <div className="hmc-runner-head">
           <div>
@@ -388,7 +447,7 @@ export default function HostileMcpCatalogTab() {
         ))}
       </div>
 
-      <section className="hmc-list">
+      <section className="hmc-list" aria-label="Attack catalog">
         {rows.map((c) => {
           const findings = scannerFindings[c.tool] || [];
           const open = openId === c.id;

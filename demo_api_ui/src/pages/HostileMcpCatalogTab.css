@@ -446,3 +446,117 @@
   .hmc-defense th,
   .hmc-defense td { display: block; width: 100% !important; }
 }
+
+/* ── Attack-map diagram section (StaticFlowDiagram embed, CimdPrivilegePage pattern) ── */
+.hmc-diagram h3 {
+  margin: 0 0 6px;
+  font-size: var(--font-size-lg);
+  color: var(--th-text);
+}
+
+.hmc-diagram-lede {
+  margin: 0 0 12px;
+  color: var(--th-text-body);
+  line-height: 1.5;
+  font-size: var(--font-size-sm);
+}
+
+.hmc-diagram-lede code {
+  font-family: var(--font-mono);
+  font-size: 0.92em;
+  background: var(--th-code-bg);
+  color: var(--th-code-text);
+  border-radius: var(--radius-sm);
+  padding: 1px 5px;
+}
+
+.hmc-figure {
+  margin: 0;
+  display: grid;
+  gap: 10px;
+}
+
+.hmc-legend {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+}
+
+.hmc-legend li {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+}
+
+/* Legend swatch colour is set from HOSTILE_GROUPS via inline borderTopColor —
+   the only inline colour here, same trade-off CimdPrivilegePage makes when it
+   borrows .pa-sw. Theme tokens throughout, so dark mode follows for free. */
+.hmc-sw {
+  display: inline-block;
+  width: 22px;
+  height: 0;
+  border-top: 4px solid var(--th-border-strong);
+}
+
+.hmc-dsteps {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 460px), 1fr));
+  gap: 12px;
+}
+
+.hmc-dstep {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  padding: 14px 16px;
+  display: grid;
+  gap: 8px;
+  align-content: start;
+}
+
+.hmc-dstep--active {
+  border-color: var(--th-status-info);
+  border-width: 2px;
+}
+
+.hmc-dstep h4 {
+  margin: 0;
+  font-size: var(--font-size-base);
+  color: var(--th-text);
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+}
+
+.hmc-dstep-n {
+  color: var(--th-text-muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.hmc-dstep p {
+  margin: 0;
+  font-size: var(--font-size-sm);
+  line-height: 1.5;
+  color: var(--th-text-body);
+}
+
+.hmc-dstep-why strong,
+.hmc-dstep-evidence strong {
+  color: var(--th-text-muted);
+  font-weight: 600;
+}
+
+.hmc-dstep-evidence {
+  font-size: var(--font-size-sm);
+  color: var(--th-text-muted);
+  border-left: 3px solid var(--th-status-info);
+  padding-left: 10px;
+}
