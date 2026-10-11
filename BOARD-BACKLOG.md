@@ -27,8 +27,9 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 
 ## Enhancements
 
-### E1. Vertical ops pages: show Agent (MCP Client) → MCP Server
-- Show the exact same data as today, but in the token chain show just the MCP route.
+### E1. Vertical ops pages: show Agent (MCP Client) → MCP Server — FIXED (superseded by a better answer)
+- "Just the MCP route" would have rendered an empty rail: operator writes on `/admin/<vertical>` run no agent pipeline (no LLM, no RFC 8693, no MCP hop), and the ops chain honestly shows that (PR #1129, 2026-10-11). The literal ask is the exact regression the SupportConsole comment warns about — `mcpRouteOnly` on a chain with zero MCP steps.
+- What ships instead: the rail's operator story — operator session → customer identity verification → store write (row, before/after) → audit — the hops that actually happened, with nothing minted for fiction. Board's underlying goal ("show the hops this surface really takes, not the agent pipeline") met.
 - Example URL: https://ai-demo.ping-devops.com/admin/healthcare
 
 ### E2. `/scope-reference` — keep current with code
