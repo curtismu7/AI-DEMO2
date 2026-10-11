@@ -35,6 +35,17 @@ derive_ns() {
 NS="$(derive_ns)"
 info "Namespace: $NS"
 
+# Public origin matches the namespace's ingress host: owner namespaces keep the
+# canonical URL, everyone else gets https://<slug>.ai-demo.ping-devops.com
+# (same derivation as k8s/aws/deploy.sh). PUBLIC_APP_URL env overrides.
+case "$NS" in
+  ping-devops-cmuir|ping-devops-curtismuir) APP_HOST="ai-demo.ping-devops.com" ;;
+  ping-devops-*)                            APP_HOST="${NS#ping-devops-}.ai-demo.ping-devops.com" ;;
+  *)                                        APP_HOST="${NS}.ai-demo.ping-devops.com" ;;
+esac
+PUBLIC_APP_URL="${PUBLIC_APP_URL:-https://${APP_HOST}}"
+info "Public origin: $PUBLIC_APP_URL"
+
 # ── Read worker creds from .env ───────────────────────────────────────────────
 ENV_ID="$(grep ^PINGONE_ENVIRONMENT_ID "$ENV_FILE" | cut -d= -f2)"
 WORKER_ID="$(grep ^PINGONE_WORKER_CLIENT_ID "$ENV_FILE" | cut -d= -f2)"
@@ -44,10 +55,10 @@ WORKER_SECRET="$(grep ^PINGONE_WORKER_CLIENT_SECRET "$ENV_FILE" | cut -d= -f2)"
 [[ -z "$WORKER_ID" ]]  && die "PINGONE_WORKER_CLIENT_ID not found in demo_api_server/.env"
 [[ -z "$WORKER_SECRET" ]] && die "PINGONE_WORKER_CLIENT_SECRET not found in demo_api_server/.env"
 
-info "Running PingOne bootstrap (PUBLIC_APP_URL=https://ai-demo.ping-devops.com)..."
+info "Running PingOne bootstrap (PUBLIC_APP_URL=$PUBLIC_APP_URL)..."
 (
   cd "$BASEDIR/demo_api_server"
-  PUBLIC_APP_URL="https://ai-demo.ping-devops.com" \
+  PUBLIC_APP_URL="$PUBLIC_APP_URL" \
   PINGONE_BOOTSTRAP_ENV_ID="$ENV_ID" \
   PINGONE_BOOTSTRAP_CLIENT_ID="$WORKER_ID" \
   PINGONE_BOOTSTRAP_CLIENT_SECRET="$WORKER_SECRET" \
@@ -81,4 +92,4 @@ success "Live redirect URI: $LIVE_URI"
 
 echo ""
 echo -e "${GREEN}PingOne update complete.${NC}"
-echo "  Try signing in at: https://ai-demo.ping-devops.com"
+echo "  Try signing at: $PUBLIC_APP_URL"

@@ -2,6 +2,10 @@
 # Ingress for the Ping SE DevOps cluster (ping-dev-aws-us-east-2).
 # Uses the cluster's nginx ingress controller — no ALB/ACM needed.
 # <<NAMESPACE>> is substituted by deploy.sh with the actual namespace (e.g. ping-devops-cmuir).
+# <<APP_HOST>>, <<MCP_HOST>> and <<A2A_HOST>> are substituted by deploy.sh so each
+# engineer's namespace gets its own hostname and shared nginx rules never collide.
+# Owner namespaces (ping-devops-cmuir, ping-devops-curtismuir) keep the canonical
+# ai-demo.ping-devops.com; everyone else gets <slug>.ai-demo.ping-devops.com.
 # The app is served at https://ai-demo.ping-devops.com after DNS propagation.
 
 apiVersion: networking.k8s.io/v1
@@ -24,11 +28,11 @@ metadata:
     # Using https here attempts TLS against an HTTP port and makes the entire
     # hosted application fail closed.
     nginx.ingress.kubernetes.io/auth-url: "http://frontend.<<NAMESPACE>>.svc.cluster.local:4000/api/auth/hosted-access/check"
-    nginx.ingress.kubernetes.io/auth-signin: "https://ai-demo.ping-devops.com/api/auth/hosted-access/login?return_to=$escaped_request_uri"
+    nginx.ingress.kubernetes.io/auth-signin: "https://<<APP_HOST>>/api/auth/hosted-access/login?return_to=$escaped_request_uri"
 spec:
   ingressClassName: nginx-public
   rules:
-  - host: ai-demo.ping-devops.com
+  - host: <<APP_HOST>>
     http:
       paths:
       # Grafana is routed here rather than proxied by the frontend's nginx, so
@@ -79,7 +83,7 @@ metadata:
 spec:
   ingressClassName: nginx-public
   rules:
-  - host: ai-demo.ping-devops.com
+  - host: <<APP_HOST>>
     http:
       paths:
       - path: /api/auth/hosted-access/login
@@ -308,7 +312,7 @@ metadata:
 spec:
   ingressClassName: nginx-public
   rules:
-  - host: cmuir-mcp.ping-devops.com
+  - host: <<MCP_HOST>>
     http:
       paths:
       # RFC 9728 metadata bypasses PingGateway. IG's McpProtectionFilter
@@ -367,7 +371,7 @@ spec:
     name: letsencrypt-pdo
     kind: ClusterIssuer
   dnsNames:
-    - langchain-a2a.ai-demo.ping-devops.com
+    - <<A2A_HOST>>
 ---
 apiVersion: networking.k8s.io/v1
 kind: Ingress
@@ -384,10 +388,10 @@ spec:
   ingressClassName: nginx-public
   tls:
   - hosts:
-    - langchain-a2a.ai-demo.ping-devops.com
+    - <<A2A_HOST>>
     secretName: langchain-a2a-tls
   rules:
-  - host: langchain-a2a.ai-demo.ping-devops.com
+  - host: <<A2A_HOST>>
     http:
       paths:
       - path: /.well-known/agent-card.json

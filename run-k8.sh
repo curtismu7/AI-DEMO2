@@ -687,8 +687,10 @@ se_deploy() {
     kubectl config use-context us
   fi
   kubens "$ns"
+  # PUBLIC_APP_URL is derived in k8s/aws/deploy.sh from the namespace's app
+  # host (owner namespaces keep https://ai-demo.ping-devops.com; others get
+  # https://<slug>.ai-demo.ping-devops.com). Export it here only to override.
   K8S_NAMESPACE="$ns" \
-  PUBLIC_APP_URL="https://ai-demo.ping-devops.com" \
     bash "$K8S_DIR/aws/deploy.sh"
   se_deploy_banner "$ns"
 }
@@ -751,13 +753,21 @@ se_basic() {
 
 se_deploy_banner() {
   local ns="$1"
+  # Same derivation as k8s/aws/deploy.sh — the banner must show the URL the
+  # deploy actually claimed, which is only the canonical one for owner namespaces.
+  local app_host
+  case "$ns" in
+    ping-devops-cmuir|ping-devops-curtismuir) app_host="ai-demo.ping-devops.com" ;;
+    ping-devops-*)                            app_host="${ns#ping-devops-}.ai-demo.ping-devops.com" ;;
+    *)                                        app_host="${ns}.ai-demo.ping-devops.com" ;;
+  esac
   echo ""
   demo_banner_title "[SE]" "CLUSTER DEPLOY COMPLETE ✓"
   echo ""
   demo_box_open "${GREEN}" "ACCESS"
-  demo_box_row "${GREEN}" "App URL     ${YELLOW}${BOLD}https://ai-demo.ping-devops.com${RESET}"
+  demo_box_row "${GREEN}" "App URL     ${YELLOW}${BOLD}https://${app_host}${RESET}"
   demo_box_row "${GREEN}" "Namespace   ${YELLOW}${BOLD}${ns}${RESET}"
-  demo_box_row "${GREEN}" "BFF health  ${YELLOW}${BOLD}https://ai-demo.ping-devops.com/api/health${RESET}"
+  demo_box_row "${GREEN}" "BFF health  ${YELLOW}${BOLD}https://${app_host}/api/health${RESET}"
   demo_box_close "${GREEN}"
   echo ""
   demo_box_open "${WHITE}" "LOGS"

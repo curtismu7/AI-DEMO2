@@ -273,6 +273,49 @@ apply_patched "$SCRIPT_DIR/nginx-http-configmap.yaml"
 # derived from service-topology.json (the SoT for which configmap keys follow
 # the public origin) so a newly added public-derived key can't be missed here.
 # The BFF derives its OAuth redirect URIs from PINGONE_PUBLIC_APP_URL, so the
+if [[ -n "$K8S_NAMESPACE" ]]; then
+  # Per-engineer hostnames, derived BEFORE the configmap's PUBLIC_APP_URL patch
+  # (line ~280) so a non-owner's origin is correct without any extra env. The
+  # shared nginx-public controller routes on Host, so every namespace must
+  # claim its own or two deploys collide silently. Owner namespaces keep the
+  # canonical hosts (what's live today); everyone else derives <slug>.* from
+  # their namespace. APP_HOST/MCP_HOST/A2A_HOST override any derivation
+  # (loudly logged, e.g. to mirror an existing DNS name).
+  owner_slug="${NS#ping-devops-}"
+  case "$NS" in
+    ping-devops-cmuir|ping-devops-curtismuir)
+      derived_app_host="ai-demo.ping-devops.com"
+      derived_mcp_host="cmuir-mcp.ping-devops.com"
+      derived_a2a_host="langchain-a2a.ai-demo.ping-devops.com"
+      ;;
+    ping-devops-*)
+      derived_app_host="${owner_slug}.ai-demo.ping-devops.com"
+      derived_mcp_host="${owner_slug}-mcp.ping-devops.com"
+      derived_a2a_host="a2a-${owner_slug}.ai-demo.ping-devops.com"
+      ;;
+    *)
+      # Non-ping-devops namespaces: still derive from the full name so the
+      # sed below never leaves a placeholder behind.
+      derived_app_host="${NS}.ai-demo.ping-devops.com"
+      derived_mcp_host="${NS}-mcp.ping-devops.com"
+      derived_a2a_host="a2a-${NS}.ai-demo.ping-devops.com"
+      ;;
+  esac
+  APP_HOST="${APP_HOST:-$derived_app_host}"
+  MCP_HOST="${MCP_HOST:-$derived_mcp_host}"
+  A2A_HOST="${A2A_HOST:-$derived_a2a_host}"
+  if [[ "${APP_HOST:-}" != "$derived_app_host" || "${MCP_HOST:-}" != "$derived_mcp_host" || "${A2A_HOST:-}" != "$derived_a2a_host" ]]; then
+    warn "Hostname override active: APP_HOST=$APP_HOST MCP_HOST=$MCP_HOST A2A_HOST=$A2A_HOST (derived would be $derived_app_host / $derived_mcp_host / $derived_a2a_host)"
+  fi
+  # The public origin must match the app host or OAuth redirects/CORS break.
+  # se-deploy no longer hardcodes the canonical URL; run-k8.sh's explicit
+  # PUBLIC_APP_URL still wins when the caller pins it deliberately.
+  if [[ -z "${PUBLIC_APP_URL:-}" ]]; then
+    PUBLIC_APP_URL="https://${APP_HOST}"
+    info "PUBLIC_APP_URL derived from namespace: $PUBLIC_APP_URL"
+  fi
+fi
+
 # PingOne apps must also list
 #   ${PUBLIC_APP_URL}/api/auth/oauth/callback
 #   ${PUBLIC_APP_URL}/api/auth/oauth/user/callback
@@ -386,8 +429,14 @@ done
 # sidecars and secrets with ./run-pingaws.sh gateways (scripts/se-gateways.sh).
 
 if [[ -n "$K8S_NAMESPACE" ]]; then
-  info "Applying SE cluster ingress..."
-  sed "s|<<NAMESPACE>>|$NS|g" "$SCRIPT_DIR/se-ingress.yaml" | kubectl apply -f -
+  # Hostnames were derived before the configmap patch (search "Per-engineer
+  # hostnames"); APP_HOST etc. are already set here.
+  info "Applying SE cluster ingress (app=$APP_HOST mcp=$MCP_HOST a2a=$A2A_HOST)..."
+  sed -e "s|<<NAMESPACE>>|$NS|g" \
+      -e "s|<<APP_HOST>>|$APP_HOST|g" \
+      -e "s|<<MCP_HOST>>|$MCP_HOST|g" \
+      -e "s|<<A2A_HOST>>|$A2A_HOST|g" \
+      "$SCRIPT_DIR/se-ingress.yaml" | kubectl apply -f -
 else
   info "Applying ALB ingress..."
   # ingress.yaml ships with a placeholder ACM cert ARN — substitute the real one
