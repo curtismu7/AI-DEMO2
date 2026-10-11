@@ -226,7 +226,9 @@ export default function PiFlowSignInModal() {
   // under the identifier-first policy; the old flow is abandoned (it expires).
   const switchToDevice = () => {
     if (busy) return;
-    setDeviceUsername(username);
+    // The passkey step reaches this too (from the device-picker path), where the
+    // password form was never filled — keep whatever username the user typed.
+    if (username) setDeviceUsername(username);
     setError("");
     setStep("device");
     setBusy(true);
@@ -502,7 +504,19 @@ export default function PiFlowSignInModal() {
               <button
                 type="button"
                 className="signin-prompt__btn signin-prompt__btn--ghost"
-                onClick={() => redirectLogin(returnToRef.current, roleRef.current, forceRef.current)}
+                onClick={() => {
+                  if (busy) return;
+                  // Other methods in the modal: the device step re-opens the flow
+                  // passwordless (switchToDevice reuses the typed username). The
+                  // step-up MFA request keeps its redirect — a passwordless reopen
+                  // would overwrite the Multi_Factor acr selector — and admin is
+                  // password-first, so its policy would 409 the passwordless open.
+                  if (roleRef.current === 'admin' || mfaRequested()) {
+                    redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
+                    return;
+                  }
+                  switchToDevice();
+                }}
               >
                 Use another method
               </button>
