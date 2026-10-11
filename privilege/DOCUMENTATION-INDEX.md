@@ -11,8 +11,8 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 
 | Document | PDF | What it covers |
 |---|---|---|
-| [On users' personal agent design](../docs/personal-agent/On-Users-Personal-Agent-Design.md) | [In repo](../docs/personal-agent/On-Users-Personal-Agent-Design.pdf) | The personal-agent security architecture, built on United's MileagePlus review: members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between — the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, the as-built assistant, the gap analysis, and the recommended design. Top of page maps the design to Agent Privilege and links the demo surfaces and diagrams. Working draft, 2026-10-09, prepared for United's AI team |
-| United 431 Request Header Size Guidance | [In repo](../docs/personal-agent/United%20431%20Request%20Header%20Size%20Guidance.pdf) | Investigating and mitigating HTTP 431 "Request Header Fields Too Large" in United's browser-based headless Ping SDK / DaVinci flow on the custom domain: cookie-scope and intermediary causes, five remediation options (BFF/proxy, cookie scope, credentialed-request limits, intermediary stripping, eTLD+1 domain), and the HAR-capture diagnostic sequence |
+| [On users' personal agent design](../docs/personal-agent/On-Users-Personal-Agent-Design.md) | [In repo](../docs/personal-agent/On-Users-Personal-Agent-Design.pdf) | The personal-agent security architecture, built on an airline loyalty-program review: members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between — the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, the as-built assistant, the gap analysis, and the recommended design. Top of page maps the design to Agent Privilege and links the demo surfaces and diagrams. Working draft, 2026-10-09, prepared for the customer's AI team |
+| Request Header Size (HTTP 431) Guidance | [In repo](../docs/personal-agent/Request-Header-Size-431-Guidance.pdf) | Investigating and mitigating HTTP 431 "Request Header Fields Too Large" in a browser-based headless Ping SDK / DaVinci flow on a custom domain: cookie-scope and intermediary causes, five remediation options (BFF/proxy, cookie scope, credentialed-request limits, intermediary stripping, eTLD+1 domain), and the HAR-capture diagnostic sequence |
 
 ## Start here
 
@@ -123,3 +123,5 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 
 | Guide | What it covers | Testable now? |
 |---|---|---|
+
+Nothing queued — new guides land here first, then get tested before they move up.

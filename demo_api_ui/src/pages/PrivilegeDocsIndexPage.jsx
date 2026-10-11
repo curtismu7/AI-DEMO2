@@ -14,14 +14,14 @@ const SECTIONS = [
         path: "docs/personal-agent/On-Users-Personal-Agent-Design.md",
         pdfInRepo: "docs/personal-agent/On-Users-Personal-Agent-Design.pdf",
         covers:
-          "The personal-agent security architecture, built on United's MileagePlus review: members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between — the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, the as-built assistant, the gap analysis, and the recommended design. Top of page maps the design to Agent Privilege and links the demo surfaces and diagrams.",
+          "The personal-agent security architecture, built on an airline loyalty-program review: members bringing their own agent (ChatGPT, coding CLIs, anything MCP-capable) and the security between — the no-BFF/no-DPoP architecture, gateway-fronted tool calls with minutes-long single-audience bearer tokens, the as-built assistant, the gap analysis, and the recommended design. Top of page maps the design to Agent Privilege and links the demo surfaces and diagrams.",
       },
       {
-        title: "United 431 Request Header Size Guidance",
+        title: "Request Header Size (HTTP 431) Guidance",
         path: null,
-        pdfInRepo: "docs/personal-agent/United 431 Request Header Size Guidance.pdf",
+        pdfInRepo: "docs/personal-agent/Request-Header-Size-431-Guidance.pdf",
         covers:
-          "Investigating and mitigating HTTP 431 “Request Header Fields Too Large” in United's browser-based headless Ping SDK / DaVinci flow on the custom domain: cookie-scope and intermediary causes, five remediation options, and the HAR-capture diagnostic sequence.",
+          "Investigating and mitigating HTTP 431 “Request Header Fields Too Large” in a browser-based headless Ping SDK / DaVinci flow on a custom domain: cookie-scope and intermediary causes, five remediation options, and the HAR-capture diagnostic sequence.",
       },
     ],
   },
