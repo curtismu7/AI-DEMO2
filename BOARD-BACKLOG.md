@@ -46,15 +46,14 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 - Show a message to the demo user with those credentials so they can log in and see delegation.
 - URL: https://ai-demo.ping-devops.com/delegation
 
-### E5. `/code-search` — real agent experience
-- Current "Ask the agent" is too small; make it feel like a real agent.
-- Use a system modal (native `confirm`/dialog) instead of the app modal for the file-size warning.
-- Add a spinner while code is uploading.
-- Make the agent look like the OAuth Academy page.
+### E5. `/code-search` — real agent experience — FIXED
+- Chat panel (`CodeSearchAsk`: bubbles, typing dots, stop button, prompt library), native toast for the file-size warning, and the global upload spinner all shipped in prior passes.
+- Header unified with the other Exploring pages 2026-10-11 (PR #1132): shared `HeroSection`, theme toggle in the hero row.
+- Remaining nit: "look like the OAuth Academy page" is a moving target — flagged as follow-up if the board wants a deeper restyle.
 
-### E6. Consistent "Exploring" section
-- Code Explorer, OAuth Academy, Code Search, and OAS Demo should be visually consistent pages/agents.
-- Move all of them under a new menu group named **"Exploring"**.
+### E6. Consistent "Exploring" section — FIXED
+- New "Exploring" nav group shipped 2026-10-11 (PR #1132): Code Explorer, OAuth Academy, Protected RAG (`/code-search`), OAS Demo.
+- OAS Demo's hand-rolled header was deliberately left as-is (spec-browser, not an agent page) — follow-up if the board wants it on the shared hero too.
 
 ### E7. `/agent-studio-preview` — needs to be greatly enhanced
 - URL: https://local.ping-devops.com:4000/agent-studio-preview
