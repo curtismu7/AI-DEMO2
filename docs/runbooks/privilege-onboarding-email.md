@@ -87,20 +87,19 @@ Full install guide (three tiers, troubleshooting):
 `docs/runbooks/install-ai-demo.pdf` in the repo.
 
 **Or start here — nothing to install:**
-the shared demo is live at **https://ai-demo.ping-devops.com** — sign in
-with Ping SSO and you'll land in the **welcome wizard** (a 7-step tour of
-what the demo does, its capabilities, and where the docs live). It also
-provisions your own demo accounts: a customer user and an admin user with
-MFA and passkey enrollment — so you get personal logins without Curtis
-creating anything by hand. The desktop agent + console (section 2 above)
-are for when you want to show the Privilege side: policies, decisions,
-recordings.
+open **https://ai-demo.ping-devops.com/welcome** — no sign-in needed. The
+welcome wizard gives you a 7-step tour of what the demo does, links the
+Learning Hub docs, and provisions your own demo accounts right there: a
+customer user and an admin user (temporary password you change on first
+login, email + SMS MFA enrollment, passkey registration). You get personal
+logins without Curtis creating anything by hand. One note: provisioning
+runs while an admin of the demo is signed in somewhere, so if account
+creation is rejected, try again a little later.
 
-> **[DRAFT NOTE — remove before sending]** The welcome wizard is on
-> `feat/welcome-wizard`, pending merge. Once merged + deployed, the
-> sign-in line above is accurate as written. If you send before it
-> ships, change to: "sign in with Ping SSO and explore; a guided tour
-> starts on first visit." Questions — ping Curtis.
+After the wizard, the shared demo is at **https://ai-demo.ping-devops.com**
+(sign in with the accounts the wizard made you). The desktop agent +
+console (section 2 above) are for when you want to show the Privilege
+side: policies, decisions, recordings.
 
 ---
 
@@ -112,6 +111,11 @@ recordings.
   Privilege identity sync + group membership so policies match)
 - [ ] After acceptance: grant both **PingOne Privilege Administrator**
 - [ ] Verify identity syncs into Privilege (no `user not found` on first policy hit)
+- [ ] Welcome wizard live before sending: `/welcome` needs the merged
+  frontend + BFF rebuild **and** the `/welcome` Exact path on
+  `ai-demo-oauth-bypass-ingress` (else the URL bounces to the hosted-access
+  login). Verify: `curl -sk -o /dev/null -w '%{http_code}' https://ai-demo.ping-devops.com/welcome`
+  should be 200, not 302.
 - [ ] ~~GitHub: add both as read collaborators~~ **BLOCKED (2026-10-11):**
   `cmuir_pingcorp` is an Enterprise Managed User account — the API rejects
   outside collaborators with 422 "Cannot assign permission of read" even
