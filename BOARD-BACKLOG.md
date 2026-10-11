@@ -21,8 +21,9 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 - Fix: bake DB in setup/run/se-update; bake current `scripts/build-codegraph.py` to `/app/indexer`; `ensure_index` promotes legacy → query path on startup + every query + Refresh; startup auto-builds when still empty (`build_query_index_sync`); Refresh fails closed if query DB still empty.
 - Verify: rebuild/redeploy agent, ask "How does the MCP gateway work?" on `/code-explorer` — expect SSE answer, not 503. Pod restart must keep working without a manual copy.
 
-### B6. `/code-search` — button CSS broken
-- URL: https://ai-demo.ping-devops.com/code-search
+### B6. `/code-search` — button CSS broken — FIXED
+- Scoped all code-search button rules under `.code-search-page` so global `.btn`/reset rules can't flatten them (0b1054216, 2026-07-21).
+- Verified live 2026-10-10 (signed in, Playwright computed-style dump): Search, tabs, Upload & Index, Index-a-folder, starter chips, Send all styled correctly. Remaining nano-reset artifact: the page's dark-mode toggle computes `border-radius: 0` (unscoped `var(--radius-md)` loses to `.end-user-nano button`) — cosmetic, tracked in E5's styling pass if wanted.
 
 ## Enhancements
 
