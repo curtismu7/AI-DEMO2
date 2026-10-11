@@ -135,6 +135,16 @@ spec:
             name: frontend
             port:
               number: 4000
+      # Public welcome wizard — shareable link for onboarding emails; renders
+      # the SPA's /welcome route. Provisioning itself still requires an admin
+      # session (POST /api/demo/provision-wizard is requireAdmin-gated).
+      - path: /welcome
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
       - path: /request-access
         pathType: Exact
         backend:

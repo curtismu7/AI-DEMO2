@@ -1,0 +1,50 @@
+{
+  "cookies": [],
+  "origins": [
+    {
+      "origin": "http://127.0.0.1:4000",
+      "localStorage": [
+        {
+          "name": "demo_welcome_seen",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "origin": "http://127.0.0.1:4173",
+      "localStorage": [
+        {
+          "name": "demo_welcome_seen",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "origin": "http://localhost:4000",
+      "localStorage": [
+        {
+          "name": "demo_welcome_seen",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "origin": "https://local.ping-devops.com:4000",
+      "localStorage": [
+        {
+          "name": "demo_welcome_seen",
+          "value": "1"
+        }
+      ]
+    },
+    {
+      "origin": "https://api.ping.demo:4000",
+      "localStorage": [
+        {
+          "name": "demo_welcome_seen",
+          "value": "1"
+        }
+      ]
+    }
+  ]
+}

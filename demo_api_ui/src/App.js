@@ -134,6 +134,7 @@ import TopNav from "./components/TopNav";
 import TransactionConsentPage from "./components/TransactionConsentPage";
 import Transactions from "./components/Transactions";
 import DemoTourModal from "./components/tour/DemoTourModal";
+import WelcomeWizard from "./components/WelcomeWizard";
 import UserAccounts from "./components/UserAccounts";
 import Users from "./components/Users";
 import UserTransactions from "./components/UserTransactions";
@@ -537,6 +538,27 @@ function AppWithAuth() {
     loginModalShownRef.current = true;
     setLoginSuccessOpen(true);
   }, [freshLogin, user]);
+
+  // First-run welcome wizard. Auto-opens once per browser — but never on the
+  // same load as the post-login success modal (freshLogin), which owns that
+  // moment. `?welcome=1` forces it open (shareable link, no login needed);
+  // re-openable any time from the TopNav Welcome button and the Learning Hub.
+  const [welcomeOpen, setWelcomeOpen] = useState(() => {
+    try {
+      if (new URLSearchParams(window.location.search || "").get("welcome") === "1") return true;
+      if (window.location.pathname === "/welcome") return true;
+      return !localStorage.getItem("demo_welcome_seen") && !freshLogin;
+    } catch {
+      return false;
+    }
+  });
+  // TopNav "Welcome" button and the Learning Hub launcher request the wizard
+  // via this event (they sit outside the state owner).
+  useEffect(() => {
+    const onOpen = () => setWelcomeOpen(true);
+    window.addEventListener("welcome-wizard:open", onOpen);
+    return () => window.removeEventListener("welcome-wizard:open", onOpen);
+  }, []);
 
   // `?login_trace=<id>` — set by the BFF's OAuth callback (routes/oauthUser.js)
   // alongside `?oauth=success`. Captured the same way as freshLogin, above,
@@ -1633,6 +1655,23 @@ function AppWithAuth() {
                     )
                   }
                 />
+                {/* Public /welcome — shareable welcome-wizard link (email, docs).
+                    Always opens the wizard regardless of the demo_welcome_seen
+                    flag; behind the oauth-bypass ingress so it needs no hosted
+                    access session. */}
+                <Route
+                  path="/welcome"
+                  element={
+                    loading ? null : (
+                      <>
+                        <TopNav user={user} onLogout={logout} />
+                        <main className="main-content">
+                          <LandingPage user={user} onLogout={logout} />
+                        </main>
+                      </>
+                    )
+                  }
+                />
                 {/* Explicit /dashboard so guests see UserDashboard with demo data, not LandingPage.
                     No loading guard — DashboardContent handles user=null with demo data immediately.
                     Admins get the same surface: the dashboard is viewable without a customer
@@ -2512,6 +2551,9 @@ function AppWithAuth() {
                 />
               )}
               {!isApiTrafficOnlyPage && <DemoTourModal />}
+              {!isApiTrafficOnlyPage && (
+                <WelcomeWizard open={welcomeOpen} onClose={() => setWelcomeOpen(false)} />
+              )}
               <MissingCredentialsModal
                 isOpen={!!credentialsModal}
                 missingFields={credentialsModal?.missingFields || []}

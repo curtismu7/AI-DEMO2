@@ -123,6 +123,13 @@ module.exports = defineConfig({
     // Trust mkcert local certs (api.ping.demo uses self-signed cert for local HTTPS)
     ignoreHTTPSErrors: true,
 
+    // E2E contexts start with empty localStorage, so the first-run welcome
+    // wizard auto-opens on every test and its inset-0 backdrop swallows every
+    // click. Seed the seen-flag per origin (helpers/e2e-storage-state.json);
+    // specs that exercise the wizard itself navigate to /welcome, which
+    // ignores the flag.
+    storageState: 'tests/e2e/helpers/e2e-storage-state.json',
+
     // API requests that hit the backend directly
     extraHTTPHeaders: {
       Accept: 'application/json',

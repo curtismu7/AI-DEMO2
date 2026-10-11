@@ -371,6 +371,7 @@
     "/users": "admin",
     "/weather-mcp": "public",
     "/webmcp": "public",
+    "/welcome": "public",
     "/workload-agents": "public"
   },
   "softAuthRoutes": [
