@@ -28,9 +28,11 @@ describe("OAuthTokenExchangeLessonPage", () => {
     renderLesson();
 
     expect(screen.getByRole("heading", { name: /turn one user session into the right token/i })).toBeInTheDocument();
-    expect(screen.getByText("User session")).toBeInTheDocument();
-    expect(screen.getByText("RFC 8693 exchange")).toBeInTheDocument();
-    expect(screen.getByText("Scoped MCP token")).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "User session" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "RFC 8693 exchange" })).toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Scoped MCP token" })).toBeInTheDocument();
+    // The walkthrough diagram carries the shared movie reel (walk-driven).
+    expect(screen.getByTestId("ote-exchange-diagram-steps")).toBeInTheDocument();
     expect(screen.getByRole("link", { name: /open the live token exchange/i })).toHaveAttribute(
       "href",
       "/token-exchange-tester",
