@@ -42,6 +42,10 @@
 # the UI runs the Vite dev server (HMR) and the BFF runs `node --watch` — code
 # edits reflect without a rebuild. Run with PROD_MODE=1 to use the nginx
 # production build instead, e.g.  PROD_MODE=1 ./run-docker.sh start
+#
+# Targeted `build ui` is mode-explicit: without PROD_MODE=1 or DEV_MODE=1 it
+# refuses, because the dev override would silently make it the Vite dev image
+# (:4300) instead of the nginx prod image (:4000).
 
 set -euo pipefail
 
@@ -1398,6 +1402,19 @@ cmd_build_one() {
   done
 
   _require_services "${services[@]}"
+  # A targeted `build ui` decides which image the console runs on — dev (vite,
+  # :4300 only) or prod (nginx, :4000). With the override merged and no mode
+  # flag, compose silently picks the dev stage; two sessions have done that
+  # meaning a prod rebuild and killed :4000 (2026-10-11). Refuse ambiguity:
+  # the caller must name the mode explicitly.
+  if [[ " ${services[*]} " == *" ui "* && "${PROD_MODE:-0}" != "1" && "${DEV_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]]; then
+    err "Ambiguous ui build: the dev override would make this a Vite dev image (:4300), not the nginx prod image (:4000)."
+    echo ""
+    echo "  PROD_MODE=1 ./run-docker.sh build ui   # nginx production image (console on :4000)"
+    echo "  DEV_MODE=1  ./run-docker.sh build ui   # Vite dev image (HMR, :4300) — intentional"
+    echo ""
+    exit 1
+  fi
   if _includes_mcp_gateway "${services[@]}"; then
     _check_demo_auth_credentials || return 1
   fi
