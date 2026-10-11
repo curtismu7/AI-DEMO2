@@ -6,9 +6,10 @@ const { getDb } = require('../../services/lmdb/openEnv');
 const KNOWN_NAV_LABELS = [
   "Home", "Dashboard", "Themes", "Use Cases", "Agent Demo Guide",
   "Family Delegation", "AI Flows", "PingOne MCP", "MCP & Gateways",
-  "PingOne Demo Apps", "Delegation & Consent", "Authorize", "OAuth & Identity",
-  "Industry Verticals", "Users & Accounts", "AI Attack Demos", "Monitoring",
-  "Telemetry", "Diagrams", "Agent Studio (Preview)", "Learn & Present",
+  "PingOne Demo Apps", "Delegation & Consent", "Exploring", "Authorize",
+  "OAuth & Identity", "Industry Verticals", "Users & Accounts",
+  "AI Attack Demos", "Monitoring", "Telemetry", "Diagrams",
+  "Agent Studio (Preview)", "Learn & Present",
   "Developer Tools", "System Tools", "Integration Tests",
 ];
 

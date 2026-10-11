@@ -4,6 +4,8 @@ import SignInPrompt from '../components/SignInPrompt';
 import useDividerDrag from '../hooks/useDividerDrag';
 import CodeSearchAsk from '../components/CodeSearchAsk';
 import SearchResults from '../components/SearchResults';
+import { HeroSection } from '../components/HeroSection';
+import { HERO_VARIANTS } from '../config/heroVariants';
 import { indexCodebase, searchCode, listCodebases } from '../services/codeSearchAPI';
 import { spinner } from '../services/spinnerService';
 import { useThemeOptional } from '../context/ThemeContext';
@@ -289,7 +291,7 @@ export function CodeSearchPage() {
 
   return (
     <div className="code-search-page">
-      <section className="protected-rag-banner" aria-labelledby="protected-rag-title">
+      <div className="code-search-hero-row">
         <button
           type="button"
           onClick={toggleDarkMode}
@@ -299,18 +301,14 @@ export function CodeSearchPage() {
         >
           {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
         </button>
-        <div>
-          <span className="protected-rag-eyebrow">Identity-governed retrieval</span>
-          <h1 id="protected-rag-title">Protected RAG</h1>
-          <p>Use this workspace to manage and inspect the indexed corpus. The Demo Steps chip retrieves through RFC 8693 delegation, the <strong>code:search</strong> scope, the Agent Gateway, and PingOne Authorize.</p>
-        </div>
-        <div className="protected-rag-controls" aria-label="Protected RAG enforcement chain">
-          <span>Delegated token</span>
-          <span>code:search</span>
-          <span>Policy decision</span>
-          <span>Grounded source</span>
-        </div>
-      </section>
+        <HeroSection
+          avatar="PR"
+          title="Protected RAG"
+          description="Use this workspace to manage and inspect the indexed corpus. The Demo Steps chip retrieves through RFC 8693 delegation, the code:search scope, the Agent Gateway, and PingOne Authorize."
+          size="compact"
+          backgroundColor={HERO_VARIANTS['code-search'].backgroundColor}
+        />
+      </div>
       <section className="protected-rag-flow" aria-labelledby="protected-rag-flow-title">
         <div className="protected-rag-flow-heading">
           <div>

@@ -232,6 +232,35 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(link.closest("a")).toHaveAttribute("href", "/demo-summary");
   });
 
+  // E6: the four "Exploring" pages consolidate under one nav group, between
+  // Delegation & Consent and Authorize.
+  it("renders the Exploring group with the four board-named pages", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Exploring/ }));
+    const expected = [
+      ["Code Explorer", "/code-explorer"],
+      ["OAuth Academy", "/oauth-academy"],
+      ["Protected RAG", "/code-search"],
+      ["OAS Demo", "/oas-demo"],
+    ];
+    for (const [label, href] of expected) {
+      const link = screen.getByText(label);
+      expect(link.closest("a")).toHaveAttribute("href", href);
+    }
+  });
+
+  it("places Exploring right after Delegation & Consent in the rendered nav", () => {
+    renderNav();
+    const nav = screen.getByRole("navigation", { name: /primary navigation/i });
+    const labels = within(nav).getAllByRole("button").map((b) => b.textContent);
+    const exploring = labels.findIndex((l) => l.startsWith("Exploring"));
+    const delegation = labels.findIndex((l) => l.startsWith("Delegation & Consent"));
+    const utilities = labels.findIndex((l) => l.startsWith("Utilities"));
+    expect(exploring).toBeGreaterThan(-1);
+    expect(exploring).toBe(delegation + 1);
+    expect(exploring).toBeLessThan(utilities);
+  });
+
   it("live-filters nav items by label", () => {
     renderNav();
     // present before filtering

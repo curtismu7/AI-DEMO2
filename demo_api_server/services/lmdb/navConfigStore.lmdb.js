@@ -35,7 +35,7 @@ const BUILTIN_CONFIGS = [
       'PingOne Demo Apps', 'Delegation & Consent', 'OAuth & Identity',
       'Users & Accounts', 'AI Attack Demos', 'Monitoring', 'Telemetry',
       'Diagrams', 'Agent Studio (Preview)', 'Developer Tools', 'System Tools',
-      'Integration Tests',
+      'Integration Tests', 'Exploring',
     ],
     flagSnapshot: {},
   },
