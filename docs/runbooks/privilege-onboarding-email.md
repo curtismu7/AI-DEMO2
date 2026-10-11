@@ -88,10 +88,19 @@ Full install guide (three tiers, troubleshooting):
 
 **Or start here — nothing to install:**
 the shared demo is live at **https://ai-demo.ping-devops.com** — sign in
-with Ping SSO and explore. The desktop agent + console are for when you
-want to show the Privilege side: policies, decisions, recordings.
+with Ping SSO and you'll land in the **welcome wizard** (a 7-step tour of
+what the demo does, its capabilities, and where the docs live). It also
+provisions your own demo accounts: a customer user and an admin user with
+MFA and passkey enrollment — so you get personal logins without Curtis
+creating anything by hand. The desktop agent + console (section 2 above)
+are for when you want to show the Privilege side: policies, decisions,
+recordings.
 
-Questions — ping Curtis.
+> **[DRAFT NOTE — remove before sending]** The welcome wizard is on
+> `feat/welcome-wizard`, pending merge. Once merged + deployed, the
+> sign-in line above is accurate as written. If you send before it
+> ships, change to: "sign in with Ping SSO and explore; a guided tour
+> starts on first visit." Questions — ping Curtis.
 
 ---
 
