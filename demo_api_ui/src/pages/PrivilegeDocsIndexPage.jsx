@@ -354,6 +354,12 @@ const SECTIONS = [
           "Setting up the shared Privilege demo in the SE1 environment.",
       },
       {
+        title: "Running our demo on the shared env",
+        path: "privilege/RUNNING-OUR-DEMO-ON-THE-SHARED-ENV.md",
+        covers:
+          "Gap analysis for pointing our stack (UC45–47, LLM virtual keys, the MCP-client door) at the shared SE1 environment: what breaks and why, what we would add there, the 15-minute console probe for the open gateway question, and how to read each outcome (2026-10-11).",
+      },
+      {
         title: "Privilege Agent setup — Mac",
         path: "privilege/SE1-Privilege-Agent-Setup-Mac.md",
         covers:
