@@ -155,6 +155,15 @@ describe('GroupPolicyBoardPage — group check panel', () => {
     expect(screen.getByTestId('check-decision').textContent).not.toMatch(/PERMIT/);
   });
 
+  it('names the board\'s subject — the signed-in user — so its verdict is not confused with the picked user\'s', async () => {
+    // Seen live 2026-10-12: panel DENY for demoDelegate (picked) next to a
+    // board PERMIT for the signed-in demoUser read as a contradiction. The
+    // board must say WHO it is asking about.
+    renderPage(fetchMock({ check: () => CHECK_DENY }));
+    await waitFor(() => expect(screen.getByTestId('board-subject')).toBeTruthy());
+    expect(screen.getByTestId('board-subject')).toHaveTextContent('demoUser');
+  });
+
   it('adds the picked user to the group, then re-runs the check against the live directory', async () => {
     // The check first answers DENY (user out of the group); after the toggle
     // it must re-run and answer PERMIT — the transition IS the demo.
