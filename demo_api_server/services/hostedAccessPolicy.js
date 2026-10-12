@@ -123,7 +123,11 @@ function evaluateHostedIdentity(claims = {}, policy = loadHostedAccessPolicy()) 
   if (!allowlisted && !policy.domainSet.has(domain)) {
     return denied('domain_not_allowed', { subject, email, domain });
   }
-  if (policy.requiredGroupId) {
+  if (policy.requiredGroupId && !allowlisted) {
+    // The group check exists for real employees; the hosted app's claims may
+    // not even carry a groups claim (scopes: openid profile email), which
+    // would lock out everyone — observed live for demoAdmin after the domain
+    // exemption (2026-10-12). Allowlisted demo accounts skip it.
     const groups = Array.isArray(claims.groups) ? claims.groups.map(String) : [];
     if (!groups.includes(policy.requiredGroupId)) return denied('group_not_allowed', { subject, email, domain });
   }
