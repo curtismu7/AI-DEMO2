@@ -992,6 +992,9 @@ class PingOneProvisionService {
       // Required — POST without it 400s 'must not be null' (live 2026-10-12).
       // Exact string from the live 17d8cbac app so bootstrap mirrors production.
       description: 'Hosted Ping employee admission front door',
+      // Run-3 probe: 'enabled must not be null' — this tenant requires enabled
+      // explicitly at create; GET-shows-true is a post-create default.
+      enabled: true,
       type: 'WEB_APP',
       protocol: 'OPENID_CONNECT',
       grantTypes: ['AUTHORIZATION_CODE'],

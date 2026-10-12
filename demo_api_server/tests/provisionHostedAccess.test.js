@@ -171,6 +171,10 @@ describe('provision hosted-access phase', () => {
       ...HOSTED_APP_CONFIG,
       // PingOne 400s 'must not be null' without it (live 2026-10-12).
       description: 'Hosted Ping employee admission front door',
+      // Run-3 probe: 'enabled must not be null' (EMPTY_VALUE, target: enabled) —
+      // required explicitly at create; the GET's enabled:true is a post-create
+      // default, not accepted-at-create.
+      enabled: true,
       redirectUris: [`${PUBLIC_APP_URL}/api/auth/hosted-access/callback`],
     }));
   });
