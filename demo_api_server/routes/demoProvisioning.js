@@ -322,7 +322,7 @@ router.post('/send-invite', requireAdmin, async (req, res) => {
     }));
   } catch (err) {
     logger.error(LOG_CATEGORIES.USER_MANAGEMENT, 'send-invite provisioning failed', { email, error: err.message });
-    return res.status(503).json({ error: 'pingone_invite_failed', message: 'User provisioning failed' });
+    return res.status(503).json({ error: 'pingone_invite_failed', message: err.message });
   }
   if (!user?.id) {
     return res.status(503).json({ error: 'pingone_invite_failed', message: 'User provisioning failed' });

@@ -367,7 +367,9 @@ class PingOneUserService {
    * Trigger PingOne's native "set your password" email (recovery code) for a
    * provisioned, enabled user with a set password. Recovery codes are valid
    * 5 minutes — this is a nudge, never the primary invite. Resolves as a
-   * no-op when called with { enabled: false }.
+   * no-op when called with { enabled: false } (e.g. worker app lacks the
+   * recovery-code scope); the 2026-10-12 spike confirmed the scope is
+   * present, so production passes { enabled: true }.
    * @see docs/superpowers/plans/2026-10-11-wizard-invite-emails.md Task 1
    */
   async sendPasswordSetupEmail(userId, { enabled = true } = {}) {

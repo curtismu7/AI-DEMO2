@@ -80,6 +80,7 @@ describe('POST /api/demo/send-invite', () => {
       .post('/api/demo/send-invite').send({ email: 'down@pingidentity.com' });
     expect(res.status).toBe(503);
     expect(res.body.error).toBe('pingone_invite_failed');
+    expect(res.body.message).toContain('PingOne down');
     expect(pingOneUserService.sendPasswordSetupEmail).not.toHaveBeenCalled();
   });
 
