@@ -1,4 +1,5 @@
 import React, { memo, useCallback, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { Background, BackgroundVariant, Handle, Position, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./ObservabilityDiagramPage.css";
@@ -47,12 +48,29 @@ const FLOW_EDGES = [
   { id: "e-cont-alloy", source: "cont", target: "alloy", label: "read", plane: "logs" },
   { id: "e-alloy-loki", source: "alloy", target: "loki", label: "", plane: "logs" },
   { id: "e-prom-am", source: "prom", target: "am", label: "fire", plane: "metrics" },
-  { id: "e-prom-graf", source: "prom", target: "graf", label: "datasource", plane: "metrics" },
-  { id: "e-loki-graf", source: "loki", target: "graf", label: "datasource", plane: "logs" },
-  { id: "e-jaeger-graf", source: "jaeger", target: "graf", label: "datasource", plane: "traces" },
+  // The three store→Grafana edges are unlabeled: their "datasource" labels used
+  // to stack where the edges converge on the node and read as overlapping boxes.
+  // The legend + plane colors already say what flows there.
+  { id: "e-prom-graf", source: "prom", target: "graf", label: "", plane: "metrics" },
+  { id: "e-loki-graf", source: "loki", target: "graf", label: "", plane: "logs" },
+  { id: "e-jaeger-graf", source: "jaeger", target: "graf", label: "", plane: "traces" },
   { id: "e-jaeger-inapp", source: "jaeger", target: "inapp", label: "BFF proxy", plane: "traces" },
   { id: "e-am-arule", source: "am", target: "arule", label: "", plane: "metrics" },
 ];
+
+// Walkthrough steps that map to a real surface link to it (new tab, so the
+// walkthrough page stays open). Grafana is external on the compose stack (its
+// own origin on :3000) and same-origin under /grafana in k8s — same split the
+// side nav makes for grafanaUrl (AdminSideNav.jsx). The demo/run launcher
+// routes through /dashboard with navigate state (AIAgent's use-case launcher
+// consumes triggerText + useCaseId); the endpoint arms the use case's flags
+// and returns the trigger text, so the chip runs as soon as the dashboard
+// dock opens.
+const GRAFANA_BASE = typeof window !== "undefined"
+  && ["localhost", "127.0.0.1", "local.ping-devops.com"].includes(window.location.hostname)
+  ? "http://localhost:3000"
+  : "/grafana";
+const GRAFANA_DASHBOARD = `${GRAFANA_BASE}/d/ai-demo-agent-observability/agent-observability-overview`;
 
 const WALKTHROUGH = [
   {
@@ -60,19 +78,19 @@ const WALKTHROUGH = [
     tone: "part1",
     steps: [
       { n: "1", title: "Sign in as customer", sub: "unified sign-in, device-first" },
-      { n: "2", title: "Chip: “show my balance”", sub: "UC20 trigger → PERMIT" },
-      { n: "3", title: "Evidence panels", sub: "Token Chain + Activity — act chain stamped" },
-      { n: "4", title: "Transaction Trace", sub: "reconstruct any hop, incl. failures" },
+      { n: "2", title: "Chip: “show my balance”", sub: "UC20 trigger → PERMIT", href: "/dashboard", launch: { useCaseId: "audit-trail", label: "Run UC20 — show my balance" } },
+      { n: "3", title: "Evidence panels", sub: "Token Chain + Activity — act chain stamped", href: "/monitoring/token-chain" },
+      { n: "4", title: "Transaction Trace", sub: "reconstruct any hop, incl. failures", href: "/transaction-trace" },
     ],
   },
   {
     part: "Part 2 · Ops — agent traffic is just a monitored service",
     tone: "part2",
     steps: [
-      { n: "5", title: "Grafana overview", sub: "agent-observability dashboard, SSO in" },
-      { n: "6", title: "Run UC6 → DENY", sub: "“transfer $2500 from checking to savings”" },
-      { n: "7", title: "Panels react", sub: "DENY counters move within ~30s" },
-      { n: "8", title: "Alert rules page", sub: "explained: ratios, not counts — 401s are normal" },
+      { n: "5", title: "Grafana overview", sub: "agent-observability dashboard, SSO in", href: GRAFANA_DASHBOARD, external: true },
+      { n: "6", title: "Run UC6 → DENY", sub: "“transfer $2500 from checking to savings”", href: "/dashboard", launch: { useCaseId: "authz-denied", label: "Run UC6 — transfer $2500" } },
+      { n: "7", title: "Panels react", sub: "DENY counters move within ~30s", href: GRAFANA_DASHBOARD, external: true },
+      { n: "8", title: "Alert rules page", sub: "explained: ratios, not counts — 401s are normal", href: `${GRAFANA_BASE}/alerting/list`, external: true },
     ],
   },
 ];
@@ -126,7 +144,7 @@ export function buildEdges(activePlane = "all") {
     markerEnd: "url(#obs-arrow)",
     className: `obs-edge obs-edge--${e.plane}${activePlane !== "all" && e.plane !== activePlane ? " is-dim" : ""}`,
     label: e.label || undefined,
-    labelStyle: { fontSize: 10, fill: "var(--th-text-muted)", fontWeight: 500 },
+    labelStyle: { fontSize: 12, fill: "var(--th-text-muted)", fontWeight: 600 },
     labelBgStyle: { fill: "var(--th-bg-page)", fillOpacity: 0.95 },
     labelBgPadding: [4, 6],
     labelBgBorderRadius: 4,
@@ -138,8 +156,8 @@ function ArrowDefs() {
   return (
     <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
       <defs>
-        <marker id="obs-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <path d="M0,0 L8,4 L0,8 z" fill="var(--th-border-strong)" />
+        <marker id="obs-arrow" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M0,0 L10,5 L0,10 z" fill="var(--th-border-strong)" />
         </marker>
       </defs>
     </svg>
@@ -149,9 +167,37 @@ function ArrowDefs() {
 export default function ObservabilityDiagramPage() {
   const [view, setView] = useState("flow");
   const [plane, setPlane] = useState("all");
+  const [launching, setLaunching] = useState(null);
+  const navigate = useNavigate();
   const nodes = useMemo(() => buildNodes(plane), [plane]);
   const edges = useMemo(() => buildEdges(plane), [plane]);
   const onPlane = useCallback((p) => setPlane(p), []);
+
+  // Demo-step launcher: arm the use case's flags + trigger on the BFF, then
+  // land on /dashboard with the launcher state AIAgent already consumes
+  // (same shape AiAttacksPanel's catalog runner navigates with).
+  const onLaunch = useCallback(async (step) => {
+    if (launching) return;
+    setLaunching(step.n);
+    let triggerText = "";
+    try {
+      const res = await fetch("/api/use-cases/demo/run", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ useCaseId: step.launch.useCaseId, vertical: "banking" }),
+      });
+      if (res.ok) {
+        const data = await res.json();
+        triggerText = data.triggerText || "";
+      }
+    } catch {
+      // Fall through: the dashboard chip still runs from the plain trigger text.
+    }
+    navigate("/dashboard", {
+      state: { useCaseId: step.launch.useCaseId, triggerText: triggerText || step.launch.label, type: "chip", vertical: "banking" },
+    });
+  }, [launching, navigate]);
 
   return (
     <div className="obs-page">
@@ -243,13 +289,41 @@ export default function ObservabilityDiagramPage() {
             <section key={part.part} className={`obs-walk__part obs-walk__part--${part.tone}`}>
               <h2>{part.part}</h2>
               <ol>
-                {part.steps.map((s) => (
-                  <li key={s.n}>
-                    <span className="obs-walk__num">{s.n}</span>
-                    <strong>{s.title}</strong>
-                    <span className="obs-walk__sub">{s.sub}</span>
-                  </li>
-                ))}
+                {part.steps.map((s) => {
+                  const body = (
+                    <>
+                      <span className="obs-walk__num">
+                        {s.n}
+                        {s.href && <span className="obs-walk__arrow" aria-hidden="true"> ↗</span>}
+                      </span>
+                      <strong>{s.title}</strong>
+                      <span className="obs-walk__sub">{s.sub}</span>
+                      {s.launch && (
+                        <span className="obs-walk__cta">{launching === s.n ? "Arming…" : "Run it"}</span>
+                      )}
+                    </>
+                  );
+                  const cls = `obs-walk__step${s.href ? " obs-walk__step--link" : ""}`;
+                  if (s.launch) {
+                    return (
+                      <li key={s.n}>
+                        <button type="button" className={cls} onClick={() => onLaunch(s)} disabled={launching === s.n}>
+                          {body}
+                        </button>
+                      </li>
+                    );
+                  }
+                  if (s.href) {
+                    return (
+                      <li key={s.n}>
+                        <a className={cls} href={s.href} target="_blank" rel="noopener noreferrer">
+                          {body}
+                        </a>
+                      </li>
+                    );
+                  }
+                  return <li key={s.n}><div className={cls}>{body}</div></li>;
+                })}
               </ol>
             </section>
           ))}
