@@ -61,7 +61,6 @@
     "@upstash/redis": "^1.37.0",
     "axios": "^1.6.0",
     "dotenv": "^17.2.2",
-    "gaxios": "^6.7.1",
     "jose": "^6.2.3",
     "jsonschema": "^1.4.1",
     "pino": "^9.14.0",

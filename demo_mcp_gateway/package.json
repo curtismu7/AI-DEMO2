@@ -22,7 +22,6 @@
     "ajv-formats": "^3.0.1",
     "axios": "^1.17.0",
     "dotenv": "^17.2.2",
-    "gaxios": "^6.7.1",
     "jsonwebtoken": "^9.0.0",
     "pino": "^9.14.0",
     "pino-pretty": "^13.1.3",
