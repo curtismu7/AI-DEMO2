@@ -303,7 +303,15 @@ spec:
             - "0.0.0.0"
             - "--port"
             - "8096"
+            - "--ctx-size"
+            - "4096"
+            - "--parallel"
+            - "1"
             - "--jinja"
+            # --ctx-size/--parallel match tier1/tier3: the current llama.cpp build
+            # defaults to a 512K context (n_ctx_seq 524288), whose KV cache alone
+            # exceeds this pod's 16Gi limit alongside the ~12GB weights — the pod
+            # OOMKills mid-load and never serves (502s from llm-proxy 2026-10-12).
             # Exact filename as published by ggml-org/gpt-oss-20b-GGUF — note the
             # capitalised MXFP4; the lowercase spelling 404s.
             - "-m"
