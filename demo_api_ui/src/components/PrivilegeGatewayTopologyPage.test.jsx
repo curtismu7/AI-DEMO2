@@ -1,10 +1,17 @@
 // Guards the diagram sources on the Privilege Gateway Topologies page: each must parse into
 // something FlowDiagram can draw (a render smoke test in jsdom cannot judge layout).
-// The "lb" tab is a static React Flow graph (StaticFlowDiagram) with no Mermaid source —
-// its guards are the node/edge wiring checks below.
+// The "lb" and "a2a" tabs are static React Flow graphs (StaticFlowDiagram) with no Mermaid
+// source — their guards are the node/edge wiring checks below.
 import { describe, it, expect } from "vitest";
 import { expectDrawable } from "../utils/__tests__/diagramSource";
-import { TABS, SEQUENCE_SOURCE, LB_NODES, LB_EDGES } from "./PrivilegeGatewayTopologyPage";
+import {
+  TABS,
+  SEQUENCE_SOURCE,
+  LB_NODES,
+  LB_EDGES,
+  A2A_NODES,
+  A2A_EDGES,
+} from "./PrivilegeGatewayTopologyPage";
 
 describe("PrivilegeGatewayTopologyPage diagram sources", () => {
   it("has the live LB tab plus both deployment variants and the agent-to-agent layout", () => {
@@ -18,18 +25,21 @@ describe("PrivilegeGatewayTopologyPage diagram sources", () => {
     },
   );
 
-  it("lb tab wires every edge endpoint to a declared node and walks its edges in order", () => {
-    const ids = new Set(LB_NODES.map((n) => n.id));
-    expect(LB_NODES.length).toBeGreaterThan(0);
-    expect(LB_EDGES.length).toBeGreaterThan(0);
-    for (const [src, tgt] of LB_EDGES) {
+  it.each([
+    ["lb", LB_NODES, LB_EDGES],
+    ["a2a", A2A_NODES, A2A_EDGES],
+  ])("%s tab wires every edge endpoint to a declared node and walks its edges in order", (_id, nodes, edges) => {
+    const ids = new Set(nodes.map((n) => n.id));
+    expect(nodes.length).toBeGreaterThan(0);
+    expect(edges.length).toBeGreaterThan(0);
+    for (const [src, tgt] of edges) {
       expect(ids.has(src), `edge source ${src}`).toBe(true);
       expect(ids.has(tgt), `edge target ${tgt}`).toBe(true);
     }
     // every walk step references real node ids and in-range edge indexes
-    for (const w of TABS.find((t) => t.id === "lb").walk) {
+    for (const w of TABS.find((t) => t.id === _id).walk) {
       for (const id of w.nodes) expect(ids.has(id), `walk node ${id}`).toBe(true);
-      for (const i of w.edges) expect(i, `walk edge ${i}`).toBeLessThan(LB_EDGES.length);
+      for (const i of w.edges) expect(i, `walk edge ${i}`).toBeLessThan(edges.length);
     }
   });
 
@@ -38,7 +48,7 @@ describe("PrivilegeGatewayTopologyPage diagram sources", () => {
       const numbered = tab.steps.filter((s) => s.n);
       for (const step of numbered) {
         if (tab.static) {
-          // The static tab numbers its steps in the list only; no badge nodes exist.
+          // The static tabs number their steps in the list only; no badge nodes exist.
           continue;
         }
         // A numbered badge node, or the number at the start of an arrow label.
