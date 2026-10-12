@@ -3,18 +3,31 @@
 **To:** matthewpollicove@pingidentity.com; cmuir@pingone.com
 **Send from:** your mail client (this is a draft, not an automated send)
 
-**Before sending, do these two 2-minute console actions** (only you hold
-admin on tenant `0428ba4f` — the invites originate from the console, which
-emails the invite links automatically):
+**Before sending, do these two 2-minute actions** — the first is now a
+form on the demo itself, not the PingOne console:
 
-1. **PingOne invite (tenant 0428ba4f-169c-436b-aff9-b230496e0e3b):**
-   Console → Users → **Invite User** → `matthewpollicove@pingidentity.com`,
-   then again for `cmuir@pingone.com`.
-2. **Role grant (repeat for each user once accepted):** Platform Admin →
+1. **Demo invite (self-service):** sign in to <https://ai-demo.ping-devops.com>
+   as a demo admin → **Admin → Hosted Registrations** → **Invite user** →
+   enter their ping email → **Send**. This provisions their customer account
+   (temporary password with force-change, email-OTP MFA, banking data) and
+   shows the `https://ai-demo.ping-devops.com/welcome?welcome=1` link —
+   paste that link into the draft below in place of the bare /welcome URL.
+   A "set your password" email arrives from PingOne automatically
+   (it fires even though SMS isn't enrolled at invite time; the wizard
+   collects the phone for SMS MFA during registration).
+   `POST /api/demo/send-invite` is idempotent — re-inviting the same email
+   reuses the account (note: it rotates the temp password, so don't re-send
+   for someone already onboarded).
+2. **PingOne console invite (tenant 0428ba4f-169c-436b-aff9-b230496e0e3b,
+   tenant-level, only you hold admin):** Console → Users → **Invite User**
+   → the same email, for `matthewpollicove@pingidentity.com` and
+   `cmuir@pingone.com`. This is separate from the demo invite — it grants
+   tenant membership for the console steps below.
+3. **Role grant (repeat for each user once accepted):** Platform Admin →
    the user → **Grant Roles** → **PingOne Privilege Administrator**.
    Without this role the console shows only User view (the gap documented
    in `privilege/RUNNING-OUR-DEMO-ON-THE-SHARED-ENV.md`).
-3. **Privilege identity sync:** the user must appear in Privilege before
+4. **Privilege identity sync:** the user must appear in Privilege before
    any Agentic-App policy matches — check the Privilege app's **Group
    Membership Policy** covers the group you put them in, or their actions
    will 403 with `user not found in system` (`privilege/LESSONS-LEARNED.md`).
