@@ -111,7 +111,7 @@ const RESIDENT_PORTS = new Set(
 // Names/sizes MUST match the processes start-local-models.sh launches on each
 // port. health/load/lastCheck live on the tier object itself.
 const TIERS = [
-  { name: 'phi-4-mini-instruct', port: 8091, size: '3.8B', host: tierHost('LLAMA_TIER1_HOST') },
+  { name: 'llama-3.2-3b-instruct', port: 8091, size: '3B', host: tierHost('LLAMA_TIER1_HOST') },
   // gpt-oss-20b: complex technical/reasoning prompts and any agent that pins
   // model=gpt-oss-20b. MoE (~3.6B active params), so fast despite the size.
   // On :8096 because mcp-code-search publishes :8095.
@@ -147,7 +147,7 @@ function effectiveClass(cls) {
 // bigger loaded tier serves it without a swap. Unknown/absent model falls back
 // to keyword classification.
 const MODEL_CLASS = [
-  [/phi-4-mini|gemma-3-4b/, 0], // legacy gemma-3-4b pin still routes to small
+  [/llama-3\.2-3b|phi-4-mini|gemma-3-4b/, 0], // legacy phi-4-mini/gemma-3-4b pins still route to small
   [/gpt-oss/, 1],
   [/llama-3-groq|groq-tool-use/, 2], // experimental — see TIERS comment above
 ];

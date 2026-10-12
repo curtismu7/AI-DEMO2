@@ -21,11 +21,11 @@ const TIERS = [
   {
     tier: 1,
     port: 8091,
-    pinName: 'phi-4-mini-instruct',
-    file: 'microsoft_Phi-4-mini-instruct-Q4_K_M.gguf',
-    label: 'Phi-4-mini-instruct (3.8B) — small, fast, US-origin',
-    repo: 'bartowski/microsoft_Phi-4-mini-instruct-GGUF',
-    sizeBytes: 2_490_000_000,
+    pinName: 'llama-3.2-3b-instruct',
+    file: 'Llama-3.2-3B-Instruct-Q4_K_M.gguf',
+    label: 'Llama-3.2-3B-Instruct (3B) — small, fast, US-origin',
+    repo: 'bartowski/Llama-3.2-3B-Instruct-GGUF',
+    sizeBytes: 1_930_000_000,
   },
   {
     tier: 3,

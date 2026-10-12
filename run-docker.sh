@@ -551,7 +551,7 @@ _LLM_BACKEND="${RESOLVED_LLM_BACKEND}"
 if [[ -n "${LLM_BACKEND_RESOLVE_WARN:-}" ]]; then
   warn "${LLM_BACKEND_RESOLVE_WARN}"
 fi
-LLAMACPP_MODEL="${LLAMACPP_MODEL:-phi-4-mini-instruct}"   # model id label reported to services
+LLAMACPP_MODEL="${LLAMACPP_MODEL:-llama-3.2-3b-instruct}"   # model id label reported to services
 _LLAMACPP_PIDFILE="/tmp/demo-llamacpp.pid"          # legacy single-server pidfile (cleanup only)
 _TIERS_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo_llm_proxy/start-local-models.sh"
 _OMLX_SCRIPT="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)/demo_llm_proxy/start-omlx.sh"

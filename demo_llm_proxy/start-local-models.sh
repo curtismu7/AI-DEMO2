@@ -49,7 +49,7 @@ tier_file_present() {
 # clients get only the final answer in content.
 # NOTE: :8095 is skipped — the mcp-code-search container publishes it.
 declare -a MODELS=(
-  "8091:Tier1:microsoft_Phi-4-mini-instruct-Q4_K_M.gguf:4:"
+  "8091:Tier1:Llama-3.2-3B-Instruct-Q4_K_M.gguf:4:"
   "8096:Tier5:gpt-oss-20b-mxfp4.gguf:6:--jinja"
 )
 
