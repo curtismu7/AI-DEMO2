@@ -10,9 +10,12 @@
 # that only exists in GHCR for CI-built commits — and a single-service deploy
 # put 14 deployments into ImagePullBackOff (measured 2026-10-11).
 #
-# deploy.sh is driven end-to-end with kubectl and git stubbed on PATH, so
-# nothing here touches a real cluster. apply_patched's output is captured by
-# pointing K8S_DIR at a temp tree and logging the kubectl apply stdin.
+# deploy.sh derives K8S_DIR (manifests) and REPO_ROOT (scripts/, .env) from
+# its OWN path, so the test runs a COPY of deploy.sh inside a stub tree that
+# mirrors those paths: stub manifests, symlinked scripts/ and
+# demo_api_server/ (read-only usage), kubectl/git/gh stubbed on PATH, and
+# SKIP_SECRET_CREATE=1 so the vault is never touched. Nothing here can reach
+# a real cluster or mutate the repo.
 
 BASEDIR="$(cd "$(dirname "$0")/.." && pwd)"
 FAIL=0
@@ -29,11 +32,13 @@ check() { # check <desc> <cmd...>
   fi
 }
 
+HEAD_SHA="aaaa0000bbbb1111cccc2222dddd3333eeee4444"
+
 # ── Stub kubectl: log `apply -f -` stdin, answer the reads deploy.sh makes ──
 cat > "$STUB_DIR/kubectl" <<STUB
 #!/bin/bash
 APPLY_LOG="$APPLY_LOG"
-if [[ "\$1" == "apply" && "\$2" == "-f" && "\$3" == "-" ]]; then
+if [[ "\$1 \$2 \$3" == "apply -f -" ]]; then
   cat >> "\$APPLY_LOG"
   echo "-----MANIFEST-BOUNDARY-----" >> "\$APPLY_LOG"
   echo "deployment.apps/x configured"
@@ -44,30 +49,25 @@ case "\$1 \$2" in
   "get namespace") exit 0 ;;
   "get ingress") exit 0 ;;
 esac
-# rollout status / scale / create secret / patch / exec: succeed silently
 case "\$1" in
-  rollout|scale|patch|exec|get) exit 0 ;;
+  rollout|scale|patch|exec|get|wait|delete|create) exit 0 ;;
 esac
 exit 0
 STUB
 chmod +x "$STUB_DIR/kubectl"
 
-# Stub git: deploy.sh derives GHCR owner + HEAD sha from it. Deploy.sh calls
-# `git -C "$K8S_DIR"` — the stub must accept and ignore -C.
-cat > "$STUB_DIR/git" <<'STUB'
+# Stub git: deploy.sh derives GHCR owner + HEAD sha from it (with -C anywhere).
+cat > "$STUB_DIR/git" <<STUB
 #!/bin/bash
-case "$*" in
+case "\$*" in
   *"remote get-url"*) echo "https://github.com/testorg/ai-demo2.git" ;;
-  *"rev-parse HEAD"*) echo "aaaa0000bbbb1111cccc2222dddd3333eeee4444" ;;
+  *"rev-parse HEAD"*) echo "$HEAD_SHA" ;;
   *) exit 0 ;;
 esac
 STUB
 chmod +x "$STUB_DIR/git"
 
-# deploy.sh also calls aws (EKS path is skipped when EKS_CLUSTER_NAME unset),
-# kubelogin, and sh -c 'command -v gh'. Stub gh above; nothing else needed.
-
-# Stub gh: deploy.sh creates the pull secret when gh exists.
+# Stub gh: deploy.sh creates the GHCR pull secret when gh exists.
 cat > "$STUB_DIR/gh" <<'STUB'
 #!/bin/bash
 case "$1" in
@@ -78,12 +78,26 @@ esac
 STUB
 chmod +x "$STUB_DIR/gh"
 
-# Minimal manifest tree: two deployments — frontend (in focus) and
-# demo-api-server (NOT in focus, ships :latest) — plus a third-party image
-# that must remain digest-pinned either way.
+# ── Stub tree: mirrors the paths deploy.sh derives from its own location ────
 K8S_TMP="$STUB_DIR/k8s"
 mkdir -p "$K8S_TMP/aws"
-mk_manifest() { # mk_manifest <file> <api-server-image-line>
+# scripts/ and demo_api_server/ are copied READ-ONLY by usage — deploy.sh
+# only executes scripts/gen-service-topology.js and reads .env from there.
+# COPY (not symlink): `cat >` over a symlinked stub follows the link and
+# clobbers the real repo file (that bug wiped gen-service-topology.js once).
+cp -R "$BASEDIR/scripts/." "$STUB_DIR/scripts/"
+cat > "$STUB_DIR/scripts/gen-service-topology.js" <<'STUB'
+process.stdout.write('{"data":{"PUBLIC_APP_URL":"https://ai-demo.ping-devops.com"}}');
+STUB
+ln -s "$BASEDIR/demo_api_server" "$STUB_DIR/demo_api_server"
+
+cp "$BASEDIR/k8s/aws/deploy.sh" "$K8S_TMP/aws/deploy.sh"
+cp "$BASEDIR/k8s/aws/nginx-http-configmap.yaml" "$K8S_TMP/aws/" 2>/dev/null || : > "$K8S_TMP/aws/nginx-http-configmap.yaml"
+cp "$BASEDIR/k8s/aws/ingress.yaml" "$K8S_TMP/aws/" 2>/dev/null || : > "$K8S_TMP/aws/ingress.yaml"
+cp "$BASEDIR"/k8s/*.yaml "$K8S_TMP/" 2>/dev/null
+
+# The two manifests under test — minimal, fully controlled.
+mk_manifest() { # mk_manifest <file> <name> <image-line>
   cat > "$K8S_TMP/$1" <<YML
 apiVersion: apps/v1
 kind: Deployment
@@ -101,28 +115,6 @@ YML
 }
 mk_manifest 10-frontend-deployment.yaml frontend "ai-demo-k8-ui:latest"
 mk_manifest 20-api-server-deployment.yaml demo-api-server "ai-demo-k8-api-server:latest"
-
-# deploy.sh iterates a fixed manifest list — only ship the two files above by
-# pointing every other entry at an empty file.
-for f in 73-jaeger-deployment.yaml 30-mcp-server-deployment.yaml 57-mcp-weather-deployment.yaml \
-         63-mcp-resource-server-deployment.yaml 64-api-resource-server-deployment.yaml \
-         62-hitl-service-deployment.yaml 58-mcp-brave-deployment.yaml 56-llm-stack.yaml \
-         72-rag-stack.yaml 60-mcp-gateway-deployment.yaml 71-ping-gateway-deployment.yaml \
-         61-agent-service-deployment.yaml 40-agent-service-deployment.yaml \
-         76-prometheus-deployment.yaml 83-alertmanager-deployment.yaml 81-loki-deployment.yaml \
-         82-alloy-deployment.yaml 77-grafana-deployment.yaml 04-network-policies.yaml \
-         02-configmap.yaml 21-api-server-logs-pvc.yaml 31-mcp-server-oauth-state-pvc.yaml \
-         54-seed-llm-models.yaml; do
-  : > "$K8S_TMP/$f"
-done
-# nginx configmap + ingress live in aws/ — stub those too, plus namespace yaml.
-: > "$K8S_TMP/aws/nginx-http-configmap.yaml"
-cat > "$K8S_TMP/aws/ingress.yaml" <<'YML'
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  name: ai-demo-ingress
-YML
 cat > "$K8S_TMP/01-namespace.yaml" <<'YML'
 apiVersion: v1
 kind: Namespace
@@ -130,52 +122,57 @@ metadata:
   name: ai-demo
 YML
 
+run_deploy() { # run_deploy <logfile> [FOCUS_DEPLOYMENTS value]
+  : > "$APPLY_LOG"
+  local log="$1"; shift
+  if [[ $# -gt 0 ]]; then
+    FOCUS_DEPLOYMENTS="$1" \
+      K8S_NAMESPACE=ping-devops-cmuir \
+      SKIP_DEMO_FLAG_RESET=1 SKIP_SECRET_CREATE=1 \
+      PATH="$STUB_DIR:$PATH" \
+      bash "$K8S_TMP/aws/deploy.sh" </dev/null >"$log" 2>&1 || true
+  else
+    K8S_NAMESPACE=ping-devops-cmuir \
+      SKIP_DEMO_FLAG_RESET=1 SKIP_SECRET_CREATE=1 \
+      PATH="$STUB_DIR:$PATH" \
+      bash "$K8S_TMP/aws/deploy.sh" </dev/null >"$log" 2>&1 || true
+  fi
+  cat "$APPLY_LOG"
+}
+
 # ── Run 1: focused deploy, frontend only ─────────────────────────────────────
-: > "$APPLY_LOG"
-FOCUS_DEPLOYMENTS=frontend \
-  K8S_NAMESPACE=ping-devops-cmuir \
-  SKIP_DEMO_FLAG_RESET=1 \
-  PATH="$STUB_DIR:$PATH" \
-  bash "$BASEDIR/k8s/aws/deploy.sh" >/dev/null 2>&1
-APPLIED="$APPLY_LOG"
+APPLIED="$(run_deploy "$STUB_DIR/run1.log" frontend)"
 
 check "focused deploy rewrote frontend to sha-<HEAD>" \
-  grep -q "image: ghcr.io/testorg/ai-demo-frontend:sha-aaaa0000bbbb1111cccc2222dddd3333eeee4444" <<<"$APPLIED"
+  grep -q "image: ghcr.io/testorg/ai-demo-frontend:sha-$HEAD_SHA" <<<"$APPLIED"
 
 check "focused deploy left demo-api-server on :latest (no roll)" \
   grep -q "image: ai-demo-k8-api-server:latest" <<<"$APPLIED"
 
 check "focused deploy did NOT put a nonexistent sha tag on demo-api-server" \
-  bash -c "! grep 'ai-demo-demo-api-server' <<<'$APPLIED' | grep -q 'sha-aaaa0000'"
+  bash -c "! grep 'ai-demo-demo-api-server' <<'$STUB_DIR/apply.log' | grep -q 'sha-$HEAD_SHA'"
 
 check "focused deploy flipped imagePullPolicy to Always" \
-  bash -c "! grep 'imagePullPolicy: IfNotPresent' <<<'$APPLIED'"
+  bash -c "! grep -q 'imagePullPolicy: IfNotPresent' '$STUB_DIR/apply.log'"
 
 # ── Run 2: full deploy (knob unset) — old behavior intact ────────────────────
-: > "$APPLY_LOG"
-K8S_NAMESPACE=ping-devops-cmuir \
-  SKIP_DEMO_FLAG_RESET=1 \
-  PATH="$STUB_DIR:$PATH" \
-  bash "$BASEDIR/k8s/aws/deploy.sh" >/dev/null 2>&1
-APPLIED="$APPLY_LOG"
+APPLIED="$(run_deploy "$STUB_DIR/run2.log")"
 
 check "full deploy (knob unset) rewrites frontend to sha-<HEAD>" \
-  grep -q "ai-demo-frontend:sha-aaaa0000bbbb1111cccc2222dddd3333eeee4444" <<<"$APPLIED"
+  grep -q "ai-demo-frontend:sha-$HEAD_SHA" <<<"$APPLIED"
 
 check "full deploy (knob unset) also rewrites demo-api-server to sha-<HEAD>" \
-  grep -q "ai-demo-demo-api-server:sha-aaaa0000bbbb1111cccc2222dddd3333eeee4444" <<<"$APPLIED"
+  grep -q "ai-demo-demo-api-server:sha-$HEAD_SHA" <<<"$APPLIED"
 
 # ── Run 3: comma list focuses both services ──────────────────────────────────
-: > "$APPLY_LOG"
-FOCUS_DEPLOYMENTS="frontend,demo-api-server" \
-  K8S_NAMESPACE=ping-devops-cmuir \
-  SKIP_DEMO_FLAG_RESET=1 \
-  PATH="$STUB_DIR:$PATH" \
-  bash "$BASEDIR/k8s/aws/deploy.sh" >/dev/null 2>&1
-APPLIED="$APPLY_LOG"
+APPLIED="$(run_deploy "$STUB_DIR/run3.log" "frontend,demo-api-server")"
 
-check "comma-list focus rewrites BOTH services to sha-<HEAD>" \
-  bash -c "grep -c 'sha-aaaa0000bbbb1111cccc2222dddd3333eeee4444' <<<'$APPLIED' | grep -q '^2$'"
+if [[ "$(grep -c "sha-$HEAD_SHA" <<<"$APPLIED")" == "2" ]]; then
+  echo "ok: comma-list focus rewrites BOTH services to sha-<HEAD>"
+else
+  echo "FAIL: comma-list focus rewrites BOTH services to sha-<HEAD> (count=$(grep -c "sha-$HEAD_SHA" <<<"$APPLIED"))"
+  FAIL=1
+fi
 
 echo
 if [[ "$FAIL" == "0" ]]; then
