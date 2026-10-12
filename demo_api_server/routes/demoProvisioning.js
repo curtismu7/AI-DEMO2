@@ -11,6 +11,7 @@ const dataStore = require('../data/store');
 const pingOneUserService = require('../services/pingOneUserService');
 const { PingOneProvisionService, DEMO_PASSWORD } = require('../services/pingoneProvisionService');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+const { logger, LOG_CATEGORIES } = require('../utils/logger');
 
 router.post('/provision-user', requireAdmin, async (req, res) => {
   const { email } = req.body;
@@ -314,9 +315,15 @@ router.post('/send-invite', requireAdmin, async (req, res) => {
   }
 
   const errors = {};
-  const { user, steps } = await provisionWizardUser({
-    email, username: email, cell: '', role: 'customer', mcpClientId, prefix: 'invite', errors,
-  });
+  let user, steps;
+  try {
+    ({ user, steps } = await provisionWizardUser({
+      email, username: email, cell: '', role: 'customer', mcpClientId, prefix: 'invite', errors,
+    }));
+  } catch (err) {
+    logger.error(LOG_CATEGORIES.USER_MANAGEMENT, 'send-invite provisioning failed', { email, error: err.message });
+    return res.status(503).json({ error: 'pingone_invite_failed', message: 'User provisioning failed' });
+  }
   if (!user?.id) {
     return res.status(503).json({ error: 'pingone_invite_failed', message: 'User provisioning failed' });
   }
@@ -333,7 +340,7 @@ router.post('/send-invite', requireAdmin, async (req, res) => {
       await pingOneUserService.sendPasswordSetupEmail(user.id, { enabled: NATIVE_EMAIL_ENABLED });
       nativeEmail = NATIVE_EMAIL_ENABLED ? 'sent' : 'skipped';
     } catch (err) {
-      console.error('[send-invite] native email failed:', err.message);
+      logger.error(LOG_CATEGORIES.USER_MANAGEMENT, 'send-invite native email failed', { userId: user.id, error: err.message });
       nativeEmail = 'failed';
     }
   }

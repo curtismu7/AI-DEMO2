@@ -71,6 +71,16 @@ describe('POST /api/demo/send-invite', () => {
     const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
       .post('/api/demo/send-invite').send({ email: 'nope' });
     expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_request');
+  });
+
+  test('503 when user provisioning throws', async () => {
+    pingOneUserService.searchUsers.mockRejectedValue(new Error('PingOne down'));
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'down@pingidentity.com' });
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('pingone_invite_failed');
+    expect(pingOneUserService.sendPasswordSetupEmail).not.toHaveBeenCalled();
   });
 
   test('201 with registrationUrl pointing at /welcome?welcome=1', async () => {
