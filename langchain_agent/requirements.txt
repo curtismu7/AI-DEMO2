@@ -17,9 +17,9 @@ httpx>=0.24.0
 aiohttp>=3.8.0,<3.14  # aioresponses 0.7.8 doesn't support aiohttp 3.14's ClientResponse signature; remove the pin when aioresponses catches up
 cryptography>=41.0.0
 PyJWT[crypto]>=2.8.0  # Path A: PingOne JWKS access-token validation (token_validator.py)
-python-dotenv>=1.0.0
+python-dotenv>=1.2.2
 guardrails-ai==0.10.2
-pydantic-ai==1.107.0    # Code Explorer agent (replaces LangChain ReAct for codegraph)
+pydantic-ai==1.107.7    # Code Explorer agent (replaces LangChain ReAct for codegraph); 1.107.7 clears GHSA-vfwr-9wp3-c2hr
 opentelemetry-distro
 opentelemetry-exporter-otlp-proto-grpc
 opentelemetry-exporter-prometheus
