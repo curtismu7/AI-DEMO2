@@ -5,15 +5,16 @@ import AgentClientSkin from '../components/AgentClientSkin';
 import ConfirmModal from '../components/ConfirmModal';
 import OtpStepUpModal from '../components/OtpStepUpModal';
 import PersonalAgentClientCards from '../components/learning/PersonalAgentClientCards';
+import DotMemoryPanel from '../components/DotMemoryPanel';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import InlineSpinner from '../components/shared/InlineSpinner';
 
-const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua'];
-const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini', cua: 'Computer Use' };
-const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4', cua: '#d20e0f' };
+const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua', 'dot'];
+const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini', cua: 'Computer Use', dot: 'Dot' };
+const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4', cua: '#d20e0f', dot: '#8b5cf6' };
 
 // Scripted CUA session (coverage plan row: present a computer-use agent without
 // driving a real browser). Each step is a labeled observe/act pair that rides the
@@ -94,6 +95,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const [activeSkin, setActiveSkin] = useState('privilege');
   const [theme, setTheme] = useState('dark');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  const [dotMemoryNonce, setDotMemoryNonce] = useState(0);
   const [replayGates, setReplayGates] = useState(null);
   const replayTimer = useRef(null);
   const activeWorkloadRun = useRef(null);
@@ -181,10 +183,14 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
         return data;
       })
-      .then((data) => setMessages((prev) => [
-        ...prev.filter((m) => !m.typing),
-        { role: 'agent', text: data.reply || 'The digital assistant completed the request.' },
-      ]))
+      .then((data) => {
+        setMessages((prev) => [
+          ...prev.filter((m) => !m.typing),
+          { role: 'agent', text: data.reply || 'The digital assistant completed the request.', dotMemories: data.dotMemories },
+        ]);
+        // The dot learned something this turn — refresh its memory panel.
+        if (Array.isArray(data.dotMemories) && data.dotMemories.length > 0) setDotMemoryNonce((n) => n + 1);
+      })
       .catch((error) => setMessages((prev) => [
         ...prev.filter((m) => !m.typing),
         { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
@@ -425,14 +431,17 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           )}
         </div>
 
-        {/* Security rail */}
+        {/* Security rail + the dot's own memory panel when the Dot skin is active */}
         {layout.railVisible && (
-          <SecurityRail
-            gates={replayGates || gates}
-            actClaim={actClaim}
-            tokenEvents={events}
-            onReplay={handleReplay}
-          />
+          <>
+            <SecurityRail
+              gates={replayGates || gates}
+              actClaim={actClaim}
+              tokenEvents={events}
+              onReplay={handleReplay}
+            />
+            {activeSkin === 'dot' && <DotMemoryPanel refreshNonce={dotMemoryNonce} />}
+          </>
         )}
       </div>
 

@@ -1501,6 +1501,7 @@ app.post('/api/codegraph/query', codeGraphQueryLimiter, codegraphProxy);
 app.post('/api/codegraph/reindex', codeGraphReindexLimiter, codegraphReindexProxy);
 app.get('/api/codegraph/status', codegraphStatus); // no auth — probe + auto-wake
 app.use('/api/agent', require('./routes/agentConsentRoute')); // AG-UI Phase 4.1: HITL consent
+app.use('/api/agent/dot', require('./routes/dotMemory')); // Dot working memory (GET/POST/DELETE /memory)
 app.use('/api/langchain', langchainConfigRoutes);
 app.use('/api/langchain/lmstudio', lmstudioRoutes);
 app.use('/api/langchain/llamacpp', llamacppModelsRoutes);

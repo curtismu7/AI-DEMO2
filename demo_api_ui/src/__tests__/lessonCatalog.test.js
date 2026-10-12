@@ -14,6 +14,7 @@ const REQUIRED_IDS = [
   "delegation",
   "multi-party-delegation",
   "consumer-agent",
+  "dots",
   "muse-app",
   "muse-code",
   "grok-app",

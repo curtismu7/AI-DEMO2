@@ -243,6 +243,7 @@ const verticalDispatch = require('./verticalDispatch');
 const { injectKnowledge } = require('./knowledgePromptInjector');
 const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
 const conversationStore = require('./lmdb/conversationStore.lmdb');
+const dotMemoryStore = require('./lmdb/dotMemoryStore.lmdb');
 const { buildGroundedAnswer } = require('./groundedAnswer');
 
 /**
@@ -2137,6 +2138,15 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     const groundedPrompt = injectKnowledge(systemPrompt, {
       domain: 'banking-domain',
     });
+    // ── Dot working memory ───────────────────────────────────────────────
+    // The personal agent's OWN memory (OpenAI "dots" model): standing user
+    // preferences saved across conversations, distinct from this thread's
+    // history. Injected as system context so the model honours them; the
+    // enterprise never sees or governs this memory — only the dot's tool calls.
+    const dotMemories = userId ? dotMemoryStore.getMemories(userId) : [];
+    const groundedPromptWithDots = dotMemories.length > 0
+      ? `${groundedPrompt}\n\nThings you remember about this user (their personal agent's own working memory, apply these preferences):\n${dotMemories.map((m) => `- ${m.text}`).join('\n')}`
+      : groundedPrompt;
     // ─────────────────────────────────────────────────────────────────────────
     // HITL/consent note: real transfer-consent enforcement is the deterministic
     // heuristic, which runs and returns BEFORE this LLM/reason path
@@ -2280,7 +2290,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
       tools: toolSchemas,
       provider,
       model,
-      systemPrompt: groundedPrompt,
+      systemPrompt: groundedPromptWithDots,
       helixConfig: extractHelixConfig(langchainConfig),
       anthropicApiKey: process.env.ANTHROPIC_API_KEY,
       maxIterations: MAX_TOOL_ITERATIONS,

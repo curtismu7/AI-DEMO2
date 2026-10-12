@@ -45,9 +45,13 @@ const { stampUseCaseId, stampVertical } = require('../services/useCaseTagging');
 const { verticalManifest } = require('../services/verticalManifest');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
+const { createDotMemoryStore, extractMemories } = require('../services/lmdb/dotMemoryStore.lmdb');
 const { mintIntentToken } = require('../services/intentTokenService');
 const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents, assertPfIdJagRunAllowed } = require('../services/agentMcpTokenService');
 const agentBuilderService = require('../services/agentBuilderService');
+// Per-process singleton: the studio's dot skin and the invoke route share one
+// store handle; the LMDB env itself is process-wide.
+const dotMemory = createDotMemoryStore();
 const { USE_CASES, VERTICALS, resolveUseCase } = require('../config/useCases');
 const scopeTopology = require('../services/scopeTopology');
 const { nrTransactionMiddleware } = require('../middleware/nrTransactionMiddleware');
@@ -676,6 +680,22 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
       } catch (convErr) {
         console.warn('[agentInvokeRoute] conversationStore.saveMessage failed:', convErr.message);
       }
+
+      // ── DOT WORKING MEMORY ──
+      // Preference-shaped sentences in the prompt become the dot's own memory
+      // (OpenAI "dots" model). Saved after a successful run only; surfaced in
+      // the response so the studio's memory panel can show what was learned.
+      // Never touches the governed path — this is the agent's private memory,
+      // not an authorization input.
+      const remembered = [];
+      try {
+        for (const text of extractMemories(prompt)) {
+          if (dotMemory.saveMemory(userId, text)) remembered.push(text);
+        }
+      } catch (dotErr) {
+        console.warn('[agentInvokeRoute] dotMemory.saveMemory failed:', dotErr.message);
+      }
+      if (remembered.length > 0) agentResponse.dotMemories = remembered;
     } catch (e) {
       console.warn('[agentInvokeRoute] reportStore.saveRun failed:', e.message);
     }

@@ -8,6 +8,7 @@ const GREETINGS = {
   claude: "Hello! I'm Claude. I can help you manage your airline reservations and loyalty points.",
   gpt: "How can I help you today? I can access your United MileagePlus account to check your points balance and manage upgrades.",
   gemini: "Hi! I'm Gemini. I can help with your United Airlines account — checking flights, seat availability, and loyalty points.",
+  dot: "Hi, I'm Dot — your always-on agent. I remember your preferences as we work, and every tool I use is governed by your identity provider. Tell me how you like things done.",
 };
 
 export default function PersonalAgentClientWindow() {
@@ -65,7 +66,7 @@ export default function PersonalAgentClientWindow() {
       })
       .then((data) => setMessages((prev) => [
         ...prev.filter((m) => !m.typing),
-        { role: 'agent', text: data.reply || 'The digital assistant completed the request.' },
+        { role: 'agent', text: data.reply || 'The digital assistant completed the request.', dotMemories: data.dotMemories },
       ]))
       .catch((error) => setMessages((prev) => [
         ...prev.filter((m) => !m.typing),

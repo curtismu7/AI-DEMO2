@@ -261,6 +261,37 @@ const SKIN_CONFIG = {
       toolResultBg: '#e8f0ff', toolResultColor: '#3c4043',
     },
   },
+
+  dot: {
+    title: 'Dot',
+    subtitle: 'always-on · own working memory',
+    placeholder: 'Message Dot',
+    hint: 'OpenAI dots · remembers your preferences across conversations',
+    accentColor: '#8b5cf6',
+    logo: () => (
+      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'radial-gradient(circle at 30% 30%, #a78bfa, #8b5cf6 55%, #6d28d9)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+        <div style={{ width: 10, height: 10, borderRadius: '50%', background: 'white', opacity: 0.9 }} />
+      </div>
+    ),
+    dark: {
+      bg: '#17131f', headerBg: '#1c1626', headerBorder: '#2d2340',
+      titleColor: '#e6def7', subtitleColor: '#7d6b9e',
+      agentBubbleBg: 'transparent', agentBubbleColor: '#e6def7',
+      userBubbleBg: '#271e3a', userBubbleColor: '#e6def7',
+      inputAreaBg: '#271e3a', inputBorder: '#3a2d55', inputColor: '#e6def7',
+      toolBg: '#221a33', toolBorder: '#3a2d55', toolColor: '#a78bfa',
+      toolResultBg: '#1a1428', toolResultColor: '#9d8ec4',
+    },
+    light: {
+      bg: '#fbfaff', headerBg: '#fbfaff', headerBorder: '#e6e0f2',
+      titleColor: '#241a3a', subtitleColor: '#7d6b9e',
+      agentBubbleBg: 'transparent', agentBubbleColor: '#241a3a',
+      userBubbleBg: '#efe9fb', userBubbleColor: '#241a3a',
+      inputAreaBg: '#f5f1fc', inputBorder: '#e6e0f2', inputColor: '#241a3a',
+      toolBg: '#f0eafc', toolBorder: '#d8cdf0', toolColor: '#7c3aed',
+      toolResultBg: '#e8e0f8', toolResultColor: '#4c3378',
+    },
+  },
 };
 
 function TypingIndicator({ color, isTerminal }) {
@@ -353,6 +384,17 @@ function renderMessage(msg, i, cfg, colors, isTerminal) {
       ) : (
         <div style={{ padding: '10px 14px', borderRadius: isUser ? '12px 4px 12px 12px' : '4px 12px 12px 12px', background: isUser ? colors.userBubbleBg : colors.agentBubbleBg, color: isUser ? colors.userBubbleColor : colors.agentBubbleColor, fontSize: 13, lineHeight: 1.6, maxWidth: '100%' }}>
           {msg.text}
+          {/* The dot learned a preference from this exchange — surface it. */}
+          {!isUser && Array.isArray(msg.dotMemories) && msg.dotMemories.length > 0 && (
+            <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
+              {msg.dotMemories.map((m) => (
+                <span key={m} style={{ display: 'inline-flex', alignItems: 'center', gap: 5, fontSize: 11, padding: '3px 9px', borderRadius: 999, border: `1px solid ${cfg.accentColor}55`, color: colors.subtitleColor, background: `${cfg.accentColor}14` }}>
+                  <span style={{ width: 6, height: 6, borderRadius: '50%', background: cfg.accentColor, flexShrink: 0 }} />
+                  remembered: {m}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       )}
     </div>
