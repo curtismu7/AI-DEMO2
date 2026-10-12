@@ -101,7 +101,7 @@ const PlaneNode = memo(function PlaneNode({ data, selected }) {
       <Handle type="target" position={Position.Left} />
       <span className="obs-node__mark" aria-hidden="true">{data.mark}</span>
       <strong>{data.title}</strong>
-      <span>{data.sub}</span>
+      <span className="obs-node__sub">{data.sub}</span>
       <span className="obs-node__planes" aria-hidden="true">
         {data.planes.map((p) => (
           <i key={p} className={`obs-plane-dot obs-plane-dot--${p}`} title={p} />
@@ -114,8 +114,10 @@ const PlaneNode = memo(function PlaneNode({ data, selected }) {
 
 const NODE_TYPES = { plane: PlaneNode };
 
-const COL_X = [0, 380, 760];
-const ROW_Y = [0, 150, 300, 450, 600];
+const COL_X = [0, 400, 800];
+// Nodes are ~64px tall (compact layout); 100px pitch = 36px breathing room
+// per row, and edge labels live in that gap.
+const ROW_Y = [0, 100, 200, 300, 400];
 
 /** Pure node builder — exported for tests. */
 export function buildNodes(activePlane = "all") {
@@ -141,7 +143,12 @@ export function buildEdges(activePlane = "all") {
     ...e,
     type: "smoothstep",
     animated: false,
-    markerEnd: "url(#obs-arrow)",
+    // One marker per plane — SVG marker fills are presentation attributes and
+    // cannot resolve CSS var(), so each def carries literal hexes for both
+    // themes (ArrowDefs pairs them via CSS class rules). NOTE: @xyflow/react
+    // wraps markerEnd in url() itself — pass the BARE id, or it emits the
+    // malformed url('#url(#...)') and no arrowhead renders.
+    markerEnd: `obs-arrow-${e.plane}`,
     className: `obs-edge obs-edge--${e.plane}${activePlane !== "all" && e.plane !== activePlane ? " is-dim" : ""}`,
     label: e.label || undefined,
     labelStyle: { fontSize: 12, fill: "var(--th-text-muted)", fontWeight: 600 },
@@ -152,13 +159,27 @@ export function buildEdges(activePlane = "all") {
   }));
 }
 
+// Arrowhead colors mirror the node borders in each theme (light: #c3cdd9,
+// dark: #34405e). Selected by CSS class so the marker re-colors on theme flip.
 function ArrowDefs() {
   return (
     <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
       <defs>
-        <marker id="obs-arrow" markerWidth="10" markerHeight="10" refX="8.5" refY="5" orient="auto" markerUnits="userSpaceOnUse">
-          <path d="M0,0 L10,5 L0,10 z" fill="var(--th-border-strong)" />
-        </marker>
+        {PLANES.map((p) => (
+          <marker
+            key={p}
+            id={`obs-arrow-${p}`}
+            className={`obs-arrow obs-arrow--${p}`}
+            markerWidth="9"
+            markerHeight="9"
+            refX="7.5"
+            refY="4.5"
+            orient="auto"
+            markerUnits="userSpaceOnUse"
+          >
+            <path className="obs-arrow__path" d="M0,0 L9,4.5 L0,9 z" />
+          </marker>
+        ))}
       </defs>
     </svg>
   );

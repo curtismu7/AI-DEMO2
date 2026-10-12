@@ -132,12 +132,11 @@
 .obs-node {
   position: relative;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
+  grid-template-columns: 26px minmax(0, 1fr);
   align-items: center;
-  column-gap: 9px;
-  width: 236px;
-  padding: 11px 12px;
+  column-gap: 8px;
+  width: 250px;
+  padding: 8px 10px;
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
@@ -147,33 +146,43 @@
   font-family: inherit;
 }
 
+/* Title line: mark sits left, title + inline sub fill the rest on one line.
+   The sub wraps under the title only when genuinely too long. */
 .obs-node strong {
   grid-column: 2;
-  align-self: end;
-  font-size: 15px;
-  line-height: 1.3;
+  display: block;
+  font-size: 13.5px;
+  line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.obs-node > span:nth-of-type(1) {
+/* Subtitle. NOT span:first-of-type — that matches .obs-node__mark (also a
+   span, and earlier in the DOM), which is how the subtitle went unstyled and
+   the nodes ballooned past the row pitch. Target the class instead. */
+.obs-node > .obs-node__sub {
   grid-column: 2;
-  align-self: start;
-  margin-top: 3px;
+  display: block;
+  margin-top: 1px;
   color: var(--th-text-muted);
-  font-size: 13px;
-  line-height: 1.4;
+  font-size: 11.5px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .obs-node__mark {
-  grid-row: 1 / span 2;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
   color: var(--th-text);
-  font-size: 13px;
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -206,6 +215,23 @@
 .obs-edge--metrics { stroke: var(--obs-metrics); }
 .obs-edge--traces { stroke: var(--obs-traces); }
 .obs-edge--logs { stroke: var(--obs-logs); }
+
+/* Arrowheads: SVG marker fills are presentation attributes — var() does not
+   resolve there, so each theme supplies literal hexes via these class rules
+   (class selectors DO style content inside <marker>). */
+.obs-arrow--metrics .obs-arrow__path { fill: #2f81c9; }
+.obs-arrow--traces .obs-arrow__path { fill: #2ea043; }
+.obs-arrow--logs .obs-arrow__path { fill: #946b24; }
+
+:root[data-theme="dark"] .obs-arrow--metrics .obs-arrow__path { fill: #58a6ff; }
+:root[data-theme="dark"] .obs-arrow--traces .obs-arrow__path { fill: #3fb950; }
+:root[data-theme="dark"] .obs-arrow--logs .obs-arrow__path { fill: #c98a2b; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .obs-arrow--metrics .obs-arrow__path { fill: #58a6ff; }
+  :root:not([data-theme="light"]) .obs-arrow--traces .obs-arrow__path { fill: #3fb950; }
+  :root:not([data-theme="light"]) .obs-arrow--logs .obs-arrow__path { fill: #c98a2b; }
+}
 
 .obs-canvas .react-flow__edge-text {
   font-size: 12px;
