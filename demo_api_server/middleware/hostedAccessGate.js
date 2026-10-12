@@ -16,6 +16,10 @@ const EXACT_BYPASSES = new Set([
   'POST /api/auth/hosted-registration/resend',
   'GET /api/auth/hosted-registration/status',
   'GET /api/healthz',
+  // The UI's boot health overlay polls this from signed-out pages too; it
+  // carries no secrets (service up/down booleans only). Without the bypass
+  // the overlay can never clear on SE — the 302 to login reads as a dead API.
+  'GET /api/health/demo-status',
   // CIMD client documents Privilege fetches anonymously (mirrors se-ingress.yaml).
   'GET /api/cimd/privilege/super-banking-ai-agent/client-metadata.json',
   'GET /api/cimd/privilege/super-banking-investment-advisor-agent/client-metadata.json',
