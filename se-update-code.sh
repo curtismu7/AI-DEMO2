@@ -364,9 +364,21 @@ DEPLOY_START_EPOCH="$(date +%s)"
 # while llama-tier5 loads its model, aborting the script and leaving later
 # deployments on pre-push images. Don't die here — the smoke checks below
 # verify rollout completeness and pod freshness and fail loudly instead.
+#
+# FOCUS_DEPLOYMENTS: with a single service, only that deployment's image is
+# rewritten (to TAG, which build_and_push just pushed). Without it, deploy.sh
+# retags EVERY deployment to sha-<HEAD> — a tag that does not exist in GHCR
+# for the services that were not built (local builds push only :latest; sha
+# tags are CI's) — and 14 deployments go ImagePullBackOff (measured
+# 2026-10-11). This is what makes a single-service update genuinely focused.
+FOCUS_ENV=()
+if [[ -n "$SERVICE" ]]; then
+  FOCUS_ENV=("FOCUS_DEPLOYMENTS=$(k8s_dep "$SERVICE")")
+fi
 GITHUB_OWNER="$GITHUB_OWNER" \
 K8S_NAMESPACE="$NS" \
 PUBLIC_APP_URL="https://ai-demo.ping-devops.com" \
+"${FOCUS_ENV[@]+"${FOCUS_ENV[@]}"}" \
   bash "$BASEDIR/k8s/aws/deploy.sh" \
   || warn "deploy.sh exited nonzero (usually the llm-proxy rollout wait) — smoke checks will verify what actually landed"
 

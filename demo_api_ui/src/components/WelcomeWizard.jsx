@@ -87,9 +87,9 @@ export const WelcomeWizard = ({ open, onClose }) => {
       body: (
         <>
           <p>
-            This is a working demo of governed AI agents in a bank. A customer chats with an
-            AI agent that can check balances, move money, and manage investments — and every
-            action the agent takes is authenticated, authorized, and auditable end to end.
+            This is a working demo of governed AI agents in the enterprise. A user chats with
+            an AI agent that takes real actions on their behalf — and every action the agent
+            takes is authenticated, authorized, and auditable end to end.
           </p>
         </>
       ),
@@ -98,10 +98,10 @@ export const WelcomeWizard = ({ open, onClose }) => {
       title: "What it can do",
       body: (
         <ul className="ww-list">
-          <li>Chat with an AI agent that executes real banking actions</li>
-          <li>Watch the agent prove who it's acting for — token exchange with act claims</li>
+          <li>Chat with an AI agent that executes real actions on your behalf</li>
+          <li>Watch A2A delegation — token exchange with act claims proves who the agent acts for at every hop</li>
           <li>Approve sensitive actions out of band — HITL consent and CIBA</li>
-          <li>Inspect MCP tool calls and gateway policy decisions</li>
+          <li>See Agent Privilege policy decisions on every MCP tool call, with full observability across each run</li>
           <li>Switch verticals — banking, healthcare, retail, workforce — and re-skin the demo</li>
         </ul>
       ),

@@ -34,6 +34,13 @@
 #
 # Usage (local sim):
 #   GITHUB_OWNER=myorg IMAGE_TAG=sha-<full-commit> ./k8s/aws/deploy.sh
+#
+# Usage (focused — one service; se-update-code.sh <svc> sets this itself):
+#   FOCUS_DEPLOYMENTS=frontend IMAGE_TAG=<tag-in-ghcr> \
+#     GITHUB_OWNER=myorg K8S_NAMESPACE=ping-devops-cmuir ./k8s/aws/deploy.sh
+#   Only the listed deployments get their image rewritten to IMAGE_TAG and
+#   waited on; other deployments keep their manifest image (no roll, no
+#   retag). Requires IMAGE_TAG to actually exist in GHCR for those services.
 
 set -euo pipefail
 
@@ -94,11 +101,46 @@ IMAGE_MAP=(
 )
 
 # Rewrite image refs in a YAML: local name → GHCR URI
+#
+# FOCUS_DEPLOYMENTS (optional, k8s deployment names, comma/space separated):
+# when set, only those deployments' images are rewritten to the sha tag.
+# Every other first-party image line is left EXACTLY as the manifest ships it
+# (`:latest`), so `kubectl apply` sees an unchanged pod template and does not
+# roll the deployment. This is what makes se-update-code.sh <svc> a genuinely
+# focused deploy: local builds push only :latest (sha- tags come from CI), so
+# retagging all deployments to sha-$(git rev-parse HEAD) points every
+# non-built service at a tag that does not exist in GHCR (measured
+# 2026-10-11: single-service deploy put 14 deployments into ImagePullBackOff).
+# Unset = rewrite everything (CI / full-deploy path, unchanged behavior).
+FOCUS_DEPLOYMENTS="${FOCUS_DEPLOYMENTS:-}"
+
+# ghcr_name → k8s deployment name, derived from the map: ai-demo-<svc>. The
+# authz-server sidecar lives INSIDE the mcp-gateway/ping-gateway pod templates,
+# so rewriting "the mcp-gateway deployment" rewrites its sidecar too — one key
+# per manifest, no separate sidecar list.
+ghcr_to_dep() {
+  case "$1" in
+    ai-demo-*) echo "${1#ai-demo-}" ;;
+    *) echo "$1" ;;
+  esac
+}
+
+dep_in_focus() {
+  local dep="$1"
+  [[ -z "$FOCUS_DEPLOYMENTS" ]] && return 0  # unset → everything in focus
+  local list=" $FOCUS_DEPLOYMENTS "
+  list="${list//,/ }"
+  [[ "$list" == *" $dep "* ]]
+}
+
 patch_images() {
   local content="$1"
   for entry in "${IMAGE_MAP[@]}"; do
     local local_name="${entry%%:*}"
     local ghcr_name="${entry##*:}"
+    if ! dep_in_focus "$(ghcr_to_dep "$ghcr_name")"; then
+      continue  # leave this service's image: line untouched — no roll
+    fi
     local ghcr_uri="${GHCR_REGISTRY}/${ghcr_name}:${IMAGE_TAG}"
     content="${content/image: ${local_name}:latest/image: ${ghcr_uri}}"
   done
@@ -113,6 +155,9 @@ patch_images() {
 # Third-party images must be digest-pinned. First-party images are rewritten
 # above to a commit-derived GHCR tag; every other image must carry an immutable
 # sha256 digest so a hosted rollout cannot resolve a different upstream tag.
+# Under FOCUS_DEPLOYMENTS, untouched first-party image lines still read
+# `:latest` (that is the point — leave them alone) so they are first-party by
+# registry and exempt from the digest rule.
 assert_pinned_external_images() {
   local content="$1"
   local image
@@ -452,9 +497,21 @@ else
 fi
 
 info "Starting RAG stack by default..."
-kubectl scale deployment/weaviate deployment/embeddings deployment/mcp-code-search deployment/llamaindex-agent \
-  -n "$NS" --replicas=1
+if [[ -z "$FOCUS_DEPLOYMENTS" ]]; then
+  kubectl scale deployment/weaviate deployment/embeddings deployment/mcp-code-search deployment/llamaindex-agent \
+    -n "$NS" --replicas=1
+fi
 
+if [[ -n "$FOCUS_DEPLOYMENTS" ]]; then
+  # Focused deploy: only the focused services were rolled — wait on those.
+  # tier-manager's /ensure, llama-tier waits and the RAG scale-up are full
+  # deploy concerns; skipping them keeps a one-service update a one-service wait.
+  info "Focused deploy — waiting for rollouts of: ${FOCUS_DEPLOYMENTS//,/ }"
+  FOCUS_LIST="${FOCUS_DEPLOYMENTS//,/ }"
+  for dep in $FOCUS_LIST; do
+    kubectl rollout status "deployment/$dep" -n "$NS" --timeout=180s
+  done
+else
 info "Waiting for rollouts (timeout 3m each)..."
 # llm-proxy's /readyz returns 503 until a model tier is loaded, so its rollout
 # wait hangs until tier-manager is asked to ensure one (observed 2026-09-25/26:
@@ -472,13 +529,18 @@ for dep in jaeger mcp-server mcp-resource-server api-resource-server mcp-weather
 done
 kubectl rollout status "deployment/llama-tier1" -n "$NS" --timeout=900s \
   || info "WARNING: llama-tier1 not ready yet — model may still be downloading from HuggingFace"
+fi
 
 # ── Reset runtime demo flags to demo defaults ────────────────────────────────
 # The LMDB runtime KV (PVC-backed) beats env for these keys, so a QuickFlags
 # click or Gateway Tester preset from a previous session survives deploys and
 # silently changes agent behavior (heuristics off / mock Authorize on broke
 # the live demo). Opt out with SKIP_DEMO_FLAG_RESET=1.
-if [[ "${SKIP_DEMO_FLAG_RESET:-0}" != "1" ]]; then
+# A focused deploy skips this: it did not roll demo-api-server, and restarting
+# it just to reset flags would betray the "focused" promise (and roll a pod
+# whose image was never rebuilt). Callers that need a flag reset run a full
+# deploy or the reset script by hand.
+if [[ "${SKIP_DEMO_FLAG_RESET:-0}" != "1" && -z "$FOCUS_DEPLOYMENTS" ]]; then
   info "Resetting runtime demo flags to demo defaults..."
   # Retry once: `kubectl exec` against a pod that has just been rolled fails
   # intermittently with an OCI runtime "write init-p: broken pipe", which has
