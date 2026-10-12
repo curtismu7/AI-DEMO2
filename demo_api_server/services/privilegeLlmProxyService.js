@@ -302,7 +302,10 @@ async function callPrivilegeCustom(messages, config = {}) {
       Authorization: `Bearer ${key}`,
     },
     body: JSON.stringify({ model, max_tokens: config.max_tokens || 512, messages }),
-  }, { label: 'privilege-llm-custom', timeoutMs: 12000, retryOn429: false });
+    // The custom upstream is a self-hosted llama.cpp on shared CPU — a real
+    // 512-token generation takes 30-60s. 12s (the cloud lanes' timeout) aborted
+    // the PII-generation demo prompt mid-run; measured full completion ~35s.
+  }, { label: 'privilege-llm-custom', timeoutMs: 90000, retryOn429: false });
 
   if (config.meta) config.meta.limits = readProviderLimits(res);
   const data = await res.json().catch(() => ({}));
