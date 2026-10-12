@@ -87,6 +87,26 @@ describe('sendAgentMessage — pingone-admin vertical routing', () => {
     expect(result._status).toBe(403);
   });
 
+  it('passes through need_auth/requiresLogin so a 401 session-death response triggers force re-login', async () => {
+    // The BFF sets these when PingOne rejects the session's subject token at
+    // the exchange — the tokens are dead and retrying can never succeed.
+    // isAgentAuthFailure checks exactly these fields on the response object.
+    global.fetch = vi.fn().mockResolvedValue({
+      ok: false,
+      status: 401,
+      json: async () => ({
+        error: 'session_expired',
+        need_auth: true,
+        requiresLogin: true,
+        reply: 'Your session is no longer valid at PingOne. Sign in again to continue.',
+      }),
+    });
+    const result = await sendAgentMessage('list applications', null, { vertical: 'pingone-admin' });
+    expect(result.need_auth).toBe(true);
+    expect(result.requiresLogin).toBe(true);
+    expect(result._status).toBe(401);
+  });
+
   it('does not open the SSE flow-trace connection for the admin path', async () => {
     global.fetch = vi.fn().mockResolvedValue({
       ok: true,

@@ -885,11 +885,8 @@ app.get('/api/auth/logout', async (req, res) => {
         oauthUserRoutes.clearPendingIdJagRun(req);
         oauthUserRoutes.clearIdJagCookie(res);
     }
-    const idToken = req.session.oauthTokens?.idToken
-        // Fallback: auth-state cookie carries the id_token for RP-Initiated Logout
-        // when the server session has expired or been lost.
-        || readAuthCookie(req)?.idToken
-        || null;
+    // NOTE: no idToken lookup here — the signoff URL below deliberately omits
+    // id_token_hint (see the logout handler's comment for why).
     const accessToken = req.session.oauthTokens ?.accessToken || null;
     const refreshToken = req.session.oauthTokens ?.refreshToken || null;
     const postLogoutUri = `${getFrontendOrigin(req)}/logout`;
@@ -963,8 +960,16 @@ app.get('/api/auth/logout', async (req, res) => {
         clearAllAuthCookies(res, isProduction);
 
         const clientIdKey = oauthType === 'admin' ? 'pingone_admin_client_id' : 'pingone_user_client_id';
-        const signoffUrl = buildPingOneSignoffUrl(postLogoutUri, clientIdKey, idToken, logoutProvider);
-        console.info(`[logout] Signoff URL built (provider: ${logoutProvider || 'pingone'}, id_token_hint: ${idToken ? 'yes' : 'NO'})`);
+        // id_token_hint is deliberately NOT sent. RP-Initiated Logout treats it
+        // as optional — client_id alone identifies the RP — and when the
+        // browser's IdP SSO session belongs to a DIFFERENT user than the app
+        // session being torn down, PingOne hard-fails the whole signoff with
+        // "User in ID token does not match session user": the user is stranded
+        // on the IdP error page, neither signed out nor signed in. Omitting the
+        // hint lets signoff always proceed (PingOne shows its confirm page),
+        // which is the recovery path this logout exists to guarantee.
+        const signoffUrl = buildPingOneSignoffUrl(postLogoutUri, clientIdKey, null, logoutProvider);
+        console.info(`[logout] Signoff URL built (provider: ${logoutProvider || 'pingone'}, id_token_hint: omitted by design)`);
 
         // Detect whether the caller expects a redirect (window.location.href navigation)
         // or a JSON body (fetch from the SPA). Accept header contains 'text/html' for

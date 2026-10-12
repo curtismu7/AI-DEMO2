@@ -40,19 +40,27 @@ async function requirePingOneAdminGroup(req, res, response = {}) {
 
   const lookupUnavailable = access.status === 503;
   const notLinked = access.error === 'pingone_admin_user_not_linked';
+  const sessionDead = access.status === 401;
   res.status(access.status).json({
     ...response,
     error: access.error,
+    // 401 = the session's tokens are dead at the IdP (exchange rejected the
+    // subject token) — flags the SPA's force re-login path consumes.
+    ...(sessionDead ? { need_auth: true, requiresLogin: true } : {}),
     message: notLinked
       ? `No PingOne account matches the PingFederate user '${access.username}'.`
-      : lookupUnavailable
-        ? `Could not verify membership in '${access.requiredGroup}'.`
-        : `Membership in '${access.requiredGroup}' is required to use the PingOne Admin Assistant.`,
+      : sessionDead
+        ? 'Your session is no longer valid at PingOne. Sign in again to continue.'
+        : lookupUnavailable
+          ? `Could not verify membership in '${access.requiredGroup}'.`
+          : `Membership in '${access.requiredGroup}' is required to use the PingOne Admin Assistant.`,
     reply: notLinked
       ? `Access denied. You signed in through PingFederate as '${access.username}', and PingOne has no account with that username. Create one and add it to '${access.requiredGroup}', then run the query again.`
-      : lookupUnavailable
-        ? `I could not verify your '${access.requiredGroup}' group membership. Try again after PingOne is available.`
-        : `Access denied. Add the signed-in user to '${access.requiredGroup}', then run the query again.`,
+      : sessionDead
+        ? 'Your session has expired at PingOne — signing you out so you can sign in fresh.'
+        : lookupUnavailable
+          ? `I could not verify your '${access.requiredGroup}' group membership. Try again after PingOne is available.`
+          : `Access denied. Add the signed-in user to '${access.requiredGroup}', then run the query again.`,
     requiredGroup: access.requiredGroup,
     success: false,
   });

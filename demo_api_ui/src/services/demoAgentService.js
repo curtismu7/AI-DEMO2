@@ -1196,6 +1196,12 @@ async function sendToAdminAgent(message, { signal, onTokenEvent } = {}) {
     inputTokens: data.inputTokens,
     outputTokens: data.outputTokens,
     tokenEvents,
+    // Auth-loss flags: the BFF sets these when the session's tokens are dead at
+    // the IdP (401 from the admin group gate) so isAgentAuthFailure can force
+    // re-login instead of showing a retryable-sounding error. Without them the
+    // admin path was the one agent surface that never triggered "sign in again".
+    need_auth: data.need_auth,
+    requiresLogin: data.requiresLogin,
     _status: res.status,
   };
 }

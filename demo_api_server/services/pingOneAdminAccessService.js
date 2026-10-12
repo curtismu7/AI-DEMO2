@@ -145,6 +145,24 @@ async function checkAccess({ username, pingOneUserId, accessToken, oauthProvider
     note('exchange-failed', 'Token exchange failed', 'failed', null,
       `The PingOne Admin gate could not exchange the admin's token at ${issuer}, so access was refused.`);
     console.warn('[pingOneAdminAccessService] MCP token exchange failed (denying):', err.message);
+    // PingOne rejecting the SUBJECT token ("Not a valid access token for
+    // subject_token", invalid_grant, or a revoked token) is not transient —
+    // retrying can never succeed because the session's access token is dead at
+    // the IdP. Surface 401 + need_auth so the SPA forces a fresh sign-in
+    // (prompt=login) instead of looping on the "try again in a moment" 503.
+    const subjectTokenRejected =
+      /subject_token|invalid_grant|token.*revoked|not a valid access token/i
+        .test(`${err.pingoneErrorDescription || ''} ${err.pingoneError || ''} ${err.message || ''}`);
+    if (subjectTokenRejected) {
+      return {
+        allowed: false,
+        error: 'session_expired',
+        status: 401,
+        need_auth: true,
+        requiresLogin: true,
+        requiredGroup,
+      };
+    }
     return {
       allowed: false,
       error: 'pingone_admin_group_lookup_unavailable',
