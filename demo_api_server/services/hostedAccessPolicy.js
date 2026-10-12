@@ -132,7 +132,14 @@ function evaluateHostedIdentity(claims = {}, policy = loadHostedAccessPolicy()) 
     if (!groups.includes(policy.requiredGroupId)) return denied('group_not_allowed', { subject, email, domain });
   }
   if (!subject) return denied('subject_missing', { email, domain });
-  return { allowed: true, reason: 'allowed', subject, email, domain };
+  // Carry the claimed username forward: the approval check re-derives the
+  // allowlist exemption from the approval's stored identifier, and a username-
+  // allowlisted account (demoadmin) may present an email whose local part
+  // alone would not match.
+  const username = typeof claims.preferred_username === 'string' && claims.preferred_username.trim()
+    ? claims.preferred_username.trim()
+    : (typeof claims.username === 'string' && claims.username.trim() ? claims.username.trim() : null);
+  return { allowed: true, reason: 'allowed', subject, email, domain, username };
 }
 
 function coherentHostedIdentityClaims(idTokenClaims = {}, userInfo = {}) {
@@ -165,6 +172,7 @@ function stampHostedAccessApproval(session, decision, policy, approvedAt = Date.
     version: APPROVAL_VERSION,
     subject: decision.subject,
     email: decision.email,
+    username: decision.username || null,
     domain: decision.domain,
     approvedAt,
     policyFingerprint: policy.fingerprint,
@@ -179,14 +187,24 @@ function hasCurrentHostedAccessApproval(session, policy = loadHostedAccessPolicy
     || session?.user?.oauthId
     || session?.user?.sub
     || null;
-  return !!(
+  if (!(
     approval
     && approval.version === APPROVAL_VERSION
     && approval.subject
     && approval.subject === subject
     && approval.policyFingerprint === policy.fingerprint
-    && policy.domainSet.has(approval.domain)
-  );
+  )) return false;
+  // The decision path exempts allowlisted demo identifiers from the domain and
+  // + rules; the approval check must honour the same exemption or an approval
+  // stamped for e.g. demoAdmin@api.ping.demo (domain not in the allowlist)
+  // validates against nothing and the wall 401s in a login loop forever
+  // (observed live on SE 2026-10-12). Off-list domain passes only when the
+  // approved identifier itself is allowlisted; on-list domains pass for all.
+  if (policy.domainSet.has(approval.domain)) return true;
+  return claimedIdentifiers({
+    email: approval.email,
+    preferred_username: approval.username,
+  }).some((id) => policy.identifierSet.has(id));
 }
 
 function clearHostedAccessApproval(session) {
