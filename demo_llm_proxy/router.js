@@ -423,6 +423,11 @@ const proxy = httpProxy.createProxyServer({ changeOrigin: true });
 
 proxy.on('proxyReq', (proxyReq, req) => {
   if (req.proxyTarget) req.proxyTarget.load += 1;
+  // Tiers may enforce an API key (llama-server --api-key); pass the configured
+  // bearer through so a locked tier doesn't 401 the proxy's own traffic.
+  if (process.env.LLAMA_TIER_API_KEY && !proxyReq.getHeader('authorization')) {
+    proxyReq.setHeader('authorization', `Bearer ${process.env.LLAMA_TIER_API_KEY}`);
+  }
   // Re-stream the body we consumed for classification. Without this the upstream
   // request has no body (the stream was drained by req.on('data')), so llama-server
   // hangs / the socket closes and http-proxy emits ECONNRESET → "Bad Gateway".
