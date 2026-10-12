@@ -125,6 +125,11 @@ router.post('/provision-user', requireAdmin, async (req, res) => {
 // added to the admin_username allowlist so the BFF resolves admin at login.
 // Idempotent: existing PingOne users are reused, not duplicated.
 
+// Task 1 spike (2026-10-12): POST /users/{id}/password with the
+// sendRecoveryCode vendor type returned 200 with the worker token — native
+// email is available, so the gate ships ON.
+const NATIVE_EMAIL_ENABLED = true;
+
 /** Random temp password meeting the demo password policy (upper+lower+digit). */
 function generateTempPassword() {
   // ponytail: crypto.randomInt-based, 14 chars — plenty for a demo temp password
@@ -285,6 +290,56 @@ router.post('/provision-wizard', requireAdmin, async (req, res) => {
   };
 
   return res.status(ok ? 201 : 207).json({ steps, errors: ok ? undefined : errors, credentials });
+});
+
+// POST /api/demo/send-invite — admin-triggered invite. Idempotently provisions
+// the invitee's customer account (create-or-reuse, forceChange temp password,
+// MFA, banking seed) and returns the /welcome registration link for the admin
+// to hand over. Optional PingOne-native email behind the Task 1 spike gate.
+router.post('/send-invite', requireAdmin, async (req, res) => {
+  const { email } = req.body;
+  if (!email || typeof email !== 'string' || !email.includes('@')) {
+    return res.status(400).json({ error: 'invalid_request', message: 'A valid email is required' });
+  }
+
+  const mcpClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id')
+    || configStore.getEffective('PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID');
+  if (!mcpClientId) {
+    return res.status(503).json({ error: 'not_configured', message: 'MCP token exchanger client ID not configured — run bootstrap' });
+  }
+  try {
+    pingOneUserService.initialize();
+  } catch (err) {
+    return res.status(503).json({ error: 'not_configured', message: err.message });
+  }
+
+  const errors = {};
+  const { user, steps } = await provisionWizardUser({
+    email, username: email, cell: '', role: 'customer', mcpClientId, prefix: 'invite', errors,
+  });
+  if (!user?.id) {
+    return res.status(503).json({ error: 'pingone_invite_failed', message: 'User provisioning failed' });
+  }
+
+  try { await dataStore.seedAccountsForUser(user.id); } catch (err) { errors.bankingData = err.message; }
+
+  // Native "set your password" email only for a cleanly provisioned user —
+  // sendRecoveryCode fails for users without a set password.
+  let nativeEmail = 'skipped';
+  const provisionClean = Object.keys(errors).length === 0
+    && steps.emailOtp !== false && steps.smsOtp !== false;
+  if (provisionClean) {
+    try {
+      await pingOneUserService.sendPasswordSetupEmail(user.id, { enabled: NATIVE_EMAIL_ENABLED });
+      nativeEmail = NATIVE_EMAIL_ENABLED ? 'sent' : 'skipped';
+    } catch (err) {
+      console.error('[send-invite] native email failed:', err.message);
+      nativeEmail = 'failed';
+    }
+  }
+
+  const registrationUrl = `${configStore.getEffective('public_app_url') || configStore.getEffective('PUBLIC_APP_URL') || 'https://ai-demo.ping-devops.com'}/welcome?welcome=1`;
+  return res.status(201).json({ userId: user.id, invite: 'sent', nativeEmail, registrationUrl });
 });
 
 module.exports = router;

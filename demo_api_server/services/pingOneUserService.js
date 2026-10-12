@@ -364,6 +364,29 @@ class PingOneUserService {
   }
 
   /**
+   * Trigger PingOne's native "set your password" email (recovery code) for a
+   * provisioned, enabled user with a set password. Recovery codes are valid
+   * 5 minutes — this is a nudge, never the primary invite. Resolves as a
+   * no-op when the worker app lacks the scope (Task 1 spike finding).
+   * @see docs/superpowers/plans/2026-10-11-wizard-invite-emails.md Task 1
+   */
+  async sendPasswordSetupEmail(userId, { enabled = true } = {}) {
+    if (!enabled) return; // spike said no scope — feature ships without native email
+    const token = await this.getAccessToken();
+    await axios.post(
+      `${this.baseUrl}/users/${userId}/password`,
+      {},
+      {
+        headers: {
+          'Authorization': `Bearer ${token}`,
+          'Content-Type': 'application/vnd.pingidentity.password.sendRecoveryCode+json',
+        },
+        timeout: 10000,
+      }
+    );
+  }
+
+  /**
    * Read mayAct custom attribute on user (top-level schema attribute).
    * Returns null when unset.
    */
