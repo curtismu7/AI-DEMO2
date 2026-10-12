@@ -129,6 +129,9 @@ export default function PiFlowSignInModal() {
       }).catch(() => { /* prefill loss is not the user's problem */ });
     }, 800);
   };
+  // A pending hint write dies with the modal; without this it fires after
+  // unmount (tests leak it into the next test; prod PUTs a closed modal's key).
+  useEffect(() => () => clearTimeout(hintTimerRef.current), []);
 
   useEffect(() => {
     let cancelled = false;
