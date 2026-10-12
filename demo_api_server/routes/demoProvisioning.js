@@ -330,6 +330,23 @@ router.post('/send-invite', requireAdmin, async (req, res) => {
 
   try { await dataStore.seedAccountsForUser(user.id); } catch (err) { errors.bankingData = err.message; }
 
+  // Best-effort: park the invitee in the pending hosted-access group so the
+  // approval flow's later move to the complete group mirrors the hosted
+  // registration path. The invitee cannot pass the gate until approval moves
+  // them (the gate requires the USER group, not this one) — this only keeps
+  // the two flows symmetric. Never fatal: a group outage must not block the
+  // invite itself.
+  const partialGroupId = process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+  if (partialGroupId && user?.id) {
+    try {
+      const { managementService } = require('../services/pingoneManagementService');
+      const added = await managementService.addUserToGroup(user.id, partialGroupId);
+      if (!added?.success) logger.warn(LOG_CATEGORIES.USER_MANAGEMENT, 'send-invite pending-group add failed', { userId: user.id, error: added?.error });
+    } catch (err) {
+      logger.warn(LOG_CATEGORIES.USER_MANAGEMENT, 'send-invite pending-group add threw', { userId: user.id, error: err.message });
+    }
+  }
+
   // Native "set your password" email when the password + email-OTP steps
   // succeeded — sendRecoveryCode only needs an enabled user with a set
   // password, so SMS/cell failures don't block it.

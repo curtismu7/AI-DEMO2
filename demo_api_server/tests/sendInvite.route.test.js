@@ -26,6 +26,12 @@ jest.mock('../services/configStore', () => ({
   setConfig: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../data/store', () => ({ seedAccountsForUser: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../services/pingoneManagementService', () => ({
+  managementService: {
+    addUserToGroup: jest.fn().mockResolvedValue({ success: true }),
+    getUser: jest.fn().mockResolvedValue({ success: true, user: { id: 'user-1' } }),
+  },
+}));
 jest.mock('../utils/logger', () => {
   const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(), logErrorHandling: jest.fn(), logAuthorizationAttempt: jest.fn() };
   return { logger, LOG_CATEGORIES: { USER_MANAGEMENT: 'user_management' } };
@@ -57,6 +63,9 @@ beforeEach(() => {
   mfaService.enrollEmailDevice.mockResolvedValue({ id: 'd-e' });
   mfaService.enrollSmsDevice.mockResolvedValue({ id: 'd-s' });
   dataStore.seedAccountsForUser.mockResolvedValue(undefined);
+  const { managementService } = require('../services/pingoneManagementService');
+  managementService.addUserToGroup.mockResolvedValue({ success: true });
+  managementService.getUser.mockResolvedValue({ success: true, user: { id: 'user-1' } });
 });
 
 describe('POST /api/demo/send-invite', () => {
@@ -117,6 +126,35 @@ describe('POST /api/demo/send-invite', () => {
     expect(res.status).toBe(201);
     expect(res.body.nativeEmail).toBe('sent');
     expect(pingOneUserService.sendPasswordSetupEmail).toHaveBeenCalledTimes(1);
+  });
+
+  test('invite adds the provisioned user to the pending hosted-access group', async () => {
+    process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID = 'partial-group-1';
+    const { managementService } = require('../services/pingoneManagementService');
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'grouped@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(managementService.addUserToGroup).toHaveBeenCalledWith('user-1', 'partial-group-1');
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+  });
+
+  test('invite succeeds without a pending group configured (group add skipped, not fatal)', async () => {
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+    const { managementService } = require('../services/pingoneManagementService');
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'nogroup@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(managementService.addUserToGroup).not.toHaveBeenCalled();
+  });
+
+  test('pending-group failure does not fail the invite (best-effort)', async () => {
+    process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID = 'partial-group-1';
+    const { managementService } = require('../services/pingoneManagementService');
+    managementService.addUserToGroup.mockResolvedValueOnce({ success: false, error: 'PingOne down' });
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'groupfail@pingidentity.com' });
+    expect(res.status).toBe(201);
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
   });
 
   test('native email skipped when the password step fails', async () => {

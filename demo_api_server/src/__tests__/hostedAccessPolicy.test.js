@@ -1,5 +1,11 @@
 'use strict';
 
+jest.mock('../../utils/logger', () => {
+  const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn() };
+  return { logger, LOG_CATEGORIES: { USER_MANAGEMENT: 'user_management' } };
+});
+const { logger } = require('../../utils/logger');
+
 const {
   loadHostedAccessPolicy,
   evaluateHostedIdentity,
@@ -243,5 +249,23 @@ describe('hostedAccessPolicy', () => {
     }))).toBe(false);
     clearHostedAccessApproval(session);
     expect(session.hostedAccessApproval).toBeUndefined();
+  });
+
+  test('group_not_allowed denial logs subject, email and reason', () => {
+    logger.warn.mockClear();
+    const policy = loadHostedAccessPolicy({
+      ...enabledEnv,
+      HOSTED_ACCESS_REQUIRED_GROUP_ID: 'grp-1',
+    });
+    const r = evaluateHostedIdentity({
+      sub: 's1', email: 'person@pingidentity.com', email_verified: true, groups: ['other'],
+    }, policy);
+    expect(r.allowed).toBe(false);
+    expect(r.reason).toBe('group_not_allowed');
+    expect(logger.warn).toHaveBeenCalledWith(
+      'user_management',
+      'hosted-access deny',
+      expect.objectContaining({ reason: 'group_not_allowed', subject: 's1', email: 'person@pingidentity.com' }),
+    );
   });
 });
