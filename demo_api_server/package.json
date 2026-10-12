@@ -175,6 +175,7 @@
     "msgpackr-extract@3.0.4": true
   },
   "overrides": {
+    "@ai-sdk/provider-utils": "^4.0.33",
     "basic-ftp": "^6.2.1"
   }
 }
