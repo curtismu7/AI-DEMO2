@@ -109,6 +109,38 @@ spec:
             name: frontend
             port:
               number: 4000
+      # Static boot assets the signed-out shell loads: the auth-loading
+      # spinner's Ping mark (PingIdentitySpinner) and the tab icons. Gating
+      # these 302s the <img> requests to login — broken ping icon + favicon
+      # exactly when the spinner is on screen. Brand assets, no secrets.
+      - path: /branding/ping-logo.png
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /favicon-16.png
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /favicon-32.png
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /apple-touch-icon.png
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
       - path: /api/auth/hosted-access/callback
         pathType: Exact
         backend:
