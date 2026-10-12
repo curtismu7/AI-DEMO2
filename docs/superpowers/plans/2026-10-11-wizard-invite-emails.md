@@ -1,227 +1,271 @@
-# Welcome-wizard Invite + Confirmation Emails — Implementation Plan
+# Welcome-wizard Invite + Self-Service Onboarding — Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
-**Goal:** Admin sends an invite email (PingOne-native) pointing at `/welcome`; the wizard sends a confirmation email after provisioning succeeds.
+**Goal:** An admin clicks "Invite user" on an admin page, the endpoint idempotently pre-creates the invitee's PingOne customer account, and the admin gets a `/welcome?welcome=1` registration link to hand the invitee — with an optional PingOne-native "set your password" email (`password.sendRecoveryCode`) added only if the Task 1 spike proves the tenant supports it.
 
-**Architecture:** New `sendInvitation()` on `pingOneUserService` (one axios call to the PingOne Password/Invitation API — the exact operation is live-verified in Task 1 before anything is built on it), a `requireAdmin` `POST /api/demo/send-invite` endpoint in the existing provisioning router, a non-fatal confirmation-email step at the end of `provision-wizard`, and a small invite form on the existing HostedRegistrationAdminPage. No new dependencies, no SMTP.
+**Architecture:** Reuses the shipped `provisionWizardUser()` helper (`routes/demoProvisioning.js:146`) for idempotent user create-or-reuse — no forked lookup logic. New `requireAdmin` `POST /api/demo/send-invite` endpoint + a new `pingOneUserService.sendPasswordSetupEmail(userId)` (one axios call to `password.sendRecoveryCode`, behind the Task 1 spike). Admin UI is a small form on the existing `HostedRegistrationAdminPage`. No SMTP, no PingOne template roulette on day one.
 
 **Tech Stack:** Node/Express + axios (server), React (HostedRegistrationAdminPage), Jest (server tests).
 
 **Spec:** `docs/superpowers/specs/2026-10-11-wizard-invite-emails-design.md`
 
+> **2026-10-12 REVISION — what changed from the original plan and why:**
+>
+> The welcome wizard shipped on 2026-10-11 (PR #1166, `sha-8f99e1346` live in prod): `POST /api/demo/provision-wizard` provisions customer + admin accounts with `forceChange` temp passwords, email+SMS MFA, banking seed. This revision re-scopes the remaining work around that reality and corrects the PingOne operations research:
+>
+> 1. **The original plan's invite operation was wrong.** `password.set` with `skipEmailVerification: false` is not an invite mechanism, and `password.sendRecoveryCode` emails a recovery OTP valid 5 minutes — a reset flow, not onboarding. The `user.invite` operation (`application/vnd.pingidentity.user.invite+json`) is admin-registration-only (`invite.isAdmin: true`). Verified against the current PingOne docs (send-admin-invite, password-resend-recovery-code, register-user pages). The spike (Task 1) now verifies only what is still unknown: worker-app scopes and registration-flow availability.
+> 2. **The original Task 2 duplicated idempotency logic.** Its inline axios create-or-reuse would fork the pattern that now lives in `provisionWizardUser()`. The rewritten endpoint calls the shipped helper's building blocks instead.
+> 3. **The confirmation email (original Task 3) is cut.** The invite link IS the registration path; a second PingOne-native email after provisioning adds template work for near-zero value. The wizard already returns credentials to the user in-session. If Curtis later wants a "you're registered" email, it is a 10-line non-fatal `sendPasswordSetupEmail` call — noted as an optional follow-up, not planned work.
+> 4. **Discovery is no longer email-only.** `/welcome` is reachable via the onboarding email (live, GO), TopNav "Welcome" button, and the Learning Hub. The invite flow serves the "admin onboards a *specific* person" case, not general discovery.
+
 ## Global Constraints
 
 - No new npm dependencies (spec scope cut).
-- All new endpoints gated with `requireAdmin` from `../middleware/auth` (same as `provision-wizard`, `routes/demoProvisioning.js:15`).
-- Confirmation-email failure must NOT fail provisioning (spec §2): log + `confirmationEmail: 'failed'` in the response.
+- All new endpoints gated with `requireAdmin` from `../middleware/auth` (same as `provision-wizard`, `routes/demoProvisioning.js`).
+- Invite endpoint must be IDEMPOTENT: inviting an existing email reuses the PingOne user, never creates a username collision (PingOne 409s on duplicates).
+- The invite email is the ADMIN's send on day one — no dependency on PingOne email templates for the feature to work.
+- `password.sendRecoveryCode` emails an 8-char recovery OTP valid 5 minutes — it may ONLY be used against an ENABLED user with a set password (i.e., the user our endpoint just provisioned). It is a "set your password" nudge, never the primary invite.
 - No bulk invites, no custom HTML templates, no queue/retry (spec §4).
-- PingOne env: `configStore.getEffective('pingone_environment_id') || 'PINGONE_ENVIRONMENT_ID'` (currently `01d89b06-…`); region from `pingone_region`/`PINGONE_REGION` default `com`.
-- Commit after every task; commit messages end with `Co-Authored-By: Claude Code <noreply@anthropic.com>`.
+- PingOne env: `configStore.getEffective('pingone_environment_id') || 'PINGONE_ENVIRONMENT_ID'`; region from `pingone_region`/`PINGONE_REGION` default `com`.
 - The shared main checkout is worked in by many sessions — run `git pull --ff-only origin main` before starting each task.
+- Commit after every task; commit messages end with `Co-Authored-By: Claude Code <noreply@anthropic.com>`.
 
 ## Review Focus
 
-1. **Wrong PingOne operation** — if the invitation content-type/op is wrong, PingOne returns 400/415 and NO email goes out while the API reports success-shaped errors; a person would believe the invite was sent. Task 1 pins this with a live-verified operation before any code depends on it; Task 2's test asserts the exact content-type the live check confirmed.
-2. **Double-invite / duplicate user** — inviting the same email twice must reuse the existing user, not create `username` collisions (PingOne 409s on duplicate usernames). Test in Task 2 (idempotent re-invite).
-3. **Confirmation email breaking registration** — if the confirmation send throws (PingOne down, template missing), the wizard must still return 201 with credentials. Test in Task 3 (forced send failure → 201, `confirmationEmail: 'failed'`).
-4. **Non-admin access to send-invite** — the endpoint mints emails in PingOne; unauthenticated access is spam-as-a-service. Test in Task 2 (401 without admin session).
-5. **Invite email without registration link** — a recipient who can't find `/welcome` is stuck; the admin UI copy must show the registration URL and the PR must verify (manually, live) the email contains a usable link. Covered by Task 5's manual verification step.
+1. **Spam-as-a-service** — `/api/demo/send-invite` mints PingOne users; unauthenticated access is an account-creation oracle. Expect 401/403 without an admin session. Test in Task 2 (`sendInvite.route.test.js`, "403 without admin").
+2. **Username collision on re-invite** — inviting the same email twice must reuse the existing PingOne user (shipped `provisionWizardUser` behavior), never 409. Test in Task 2 (idempotent re-invite asserts one create call for two invites).
+3. **Recovery-code email against an unprovisioned user** — `password.sendRecoveryCode` fails for users with `NO_PASSWORD` or disabled accounts; the endpoint must not offer/attempt the native email for a user whose provisioning steps failed. Test in Task 2 (native-email skipped when provisioning steps contain errors).
+4. **Invite UI leaking to non-admins** — the invite form on `HostedRegistrationAdminPage` calls an admin endpoint; the page itself is admin-gated, but the form must render disabled-with-message (not silently 403) for a session that lost admin. Covered by Task 4's error-path render check.
+5. **Wrong registration link** — an invitee who gets a dead or sign-in-only link is stuck; the endpoint returns `registrationUrl` and the UI toast displays it verbatim for manual forwarding. Test in Task 2 (asserts `registrationUrl` contains `/welcome?welcome=1`); Task 4 asserts the toast renders the returned URL.
 
 ---
 
-### Task 1: Live-verify the PingOne invitation operation (spike — no product code)
+### Task 1: Spike — worker scopes + registration-flow availability (no product code)
 
 **Files:**
-- None committed. Findings recorded in this plan file's Task 2 step 3 (update the content-type there if the live check disagrees).
+- None committed. Findings recorded in this plan file (Task 2's `sendPasswordSetupEmail` step references them) and the PR description.
 
 **Interfaces:**
-- Produces: the verified PingOne operation (method + path + Content-Type + body shape) that Task 2's `sendInvitation()` implements, and whether the worker token has permission to call it.
+- Produces: (a) whether the worker app can call `POST /users/{id}/password` with `application/vnd.pingidentity.password.sendRecoveryCode+json`, (b) whether the tenant has a PingOne registration flow usable for self-service (informational — the route chosen for this plan does not depend on it).
 
 - [ ] **Step 1: Get a worker token**
 
 ```bash
 cd /Users/cmuir/Development/AI-DEMO2/demo_api_server
 node -e '
-const cfg = require("./services/configStore");
 const { getManagementToken } = require("./services/pingOneClientService");
 getManagementToken().then(t => { require("fs").writeFileSync("/tmp/worker-token.txt", t); console.log("token saved, length", t.length); }).catch(e => { console.error("FAIL", e.message); process.exit(1); });
 '
 ```
 
-Run it. Expected: `token saved, length …`. If it fails with "worker credentials not configured", stop and ask Curtis — do not proceed without the worker app.
+Expected: `token saved, length …`. If it fails with worker-credential errors, stop and ask Curtis — do not proceed without the worker app.
 
-- [ ] **Step 2: Probe the invitation operation against a TEST user (never a real person's address)**
+- [ ] **Step 2: Probe `sendRecoveryCode` against a throwaway user**
 
-PingOne's documented invitation mechanism is the password "set" with email verification NOT skipped — but editions differ. Probe in this order, with a throwaway address on a test user you create and delete in the same script:
+Create a user via the shipped provisioning machinery (a real provisioned user has a set password and enabled=true — exactly the precondition `sendRecoveryCode` needs), then probe:
 
 ```bash
 cd /Users/cmuir/Development/AI-DEMO2/demo_api_server
 TOKEN=$(cat /tmp/worker-token.txt)
-ENV=$(grep '^PINGONE_ENVIRONMENT_ID=' .env | cut -d= -f2)
+export PINGONE_ENV_ID=$(grep '^PINGONE_ENVIRONMENT_ID=' .env | cut -d= -f2)
 node -e '
 const axios = require("axios");
 const fs = require("fs");
 const token = fs.readFileSync("/tmp/worker-token.txt","utf8").trim();
-const env = process.env.ENV;
+const env = process.env.PINGONE_ENV_ID;
 const base = `https://api.pingone.com/v1/environments/${env}`;
 const email = "invite-probe+delete@ping-devops.com";
+const h = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
 (async () => {
-  const h = { Authorization: `Bearer ${token}`, "Content-Type": "application/json" };
-  // create a throwaway user
   let user;
   try {
     user = (await axios.post(`${base}/users`, { username: email, email, name: { given: "Invite", family: "Probe" }, enabled: true }, { headers: h })).data;
     console.log("user created:", user.id);
-  } catch (e) { console.error("create failed:", e.response?.status, JSON.stringify(e.response?.data).slice(0,300)); process.exit(1); }
-  // probe A: password.set with forceChange + skipEmailVerification:false (documented invite path)
-  try {
-    const r = await axios.post(`${base}/users/${user.id}/password`,
-      { forceChange: true, skipEmailVerification: false },
+    await axios.put(`${base}/users/${user.id}/password`, { value: "ProbePass123!", forceChange: true },
       { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/vnd.pingidentity.password.set+json" } });
-    console.log("PROBE A OK:", r.status, JSON.stringify(r.data).slice(0,200));
-  } catch (e) { console.log("PROBE A FAIL:", e.response?.status, JSON.stringify(e.response?.data).slice(0,300)); }
-  // probe B: dedicated invitation op if A failed
+    console.log("password set");
+  } catch (e) { console.error("setup failed:", e.response?.status, JSON.stringify(e.response?.data).slice(0,300)); process.exit(1); }
   try {
-    const r = await axios.post(`${base}/users/${user.id}/password`,
-      {},
-      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/vnd.pingidentity.user.sendInvitation+json" } });
-    console.log("PROBE B OK:", r.status, JSON.stringify(r.data).slice(0,200));
-  } catch (e) { console.log("PROBE B FAIL:", e.response?.status, JSON.stringify(e.response?.data).slice(0,300)); }
-  // cleanup
-  try { await axios.delete(`${base}/users/${user.id}`, { headers: h }); console.log("probe user deleted"); } catch (e) { console.log("cleanup failed (delete manually):", user.id); }
+    const r = await axios.post(`${base}/users/${user.id}/password`, {},
+      { headers: { Authorization: `Bearer ${token}`, "Content-Type": "application/vnd.pingidentity.password.sendRecoveryCode+json" } });
+    console.log("SEND-RECOVERY-CODE OK:", r.status, JSON.stringify(r.data).slice(0,200));
+  } catch (e) { console.log("SEND-RECOVERY-CODE FAIL:", e.response?.status, JSON.stringify(e.response?.data).slice(0,300)); }
+  try { await axios.delete(`${base}/users/${user.id}`, { headers: h }); console.log("probe user deleted"); } catch (e) { console.log("cleanup failed, delete manually:", user.id); }
 })();
-' 2>&1
+'
 ```
 
-Run it with `ENV=$ENV` exported (prepend `ENV=$ENV` to the node line or `export ENV` first). Expected: exactly one probe logs OK. Record WHICH one and its status/body.
+Expected: `SEND-RECOVERY-CODE OK: 204` (or 200). On 403: the worker lacks the password-management scope — record it, the native-email step ships as a no-op, and Task 2's `sendPasswordSetupEmail` gate defaults to off (Curtis can add the scope later; nothing else in this plan blocks).
 
-- [ ] **Step 3: Record the winning operation**
+- [ ] **Step 3: Check registration-flow availability (informational)**
 
-Note the winning probe (A or B), and check whether the response body contains an email-send indicator. Update Task 2 Step 3's code block below to match the verified operation if it differs. If BOTH probes fail with 403, the worker app lacks the scope — message Curtis to add the invitation/password scope to the worker app in the tenant before Task 2, and stop here.
+```bash
+cd /Users/cmuir/Development/AI-DEMO2/demo_api_server
+TOKEN=$(cat /tmp/worker-token.txt)
+curl -s -o /tmp/flows.json -w "%{http_code}\n" "https://api.pingone.com/v1/environments/$PINGONE_ENV_ID/flows" -H "Authorization: Bearer $TOKEN" --max-time 15
+```
 
-- [ ] **Step 4: Verify the email arrived**
+A 200 listing flows means the tenant has authentication-flow config (a registration flow may exist); 403/404 means flows are DaVinci-managed or invisible to the worker. Record either way — informational only.
 
-Curtis checks the throwaway address's inbox (the probe address routes to the ping-devops.com catch-all or fails visibly — ask Curtis where probe emails land if the inbox is not obvious). If no inbox is checkable, accept the PingOne 2xx + response-body evidence and note it as a residual risk in the PR description.
+- [ ] **Step 4: Record findings**
 
-### Task 2: `sendInvitation()` service method + `POST /api/demo/send-invite` endpoint
+Append to this file under "Task 1 findings (filled 2026-10-XX)": the probe status, the response body shape, and the flows check result. Task 2's `NATIVE_EMAIL_ENABLED` default derives from this.
+
+### Task 2: `sendPasswordSetupEmail()` + idempotent `POST /api/demo/send-invite`
 
 **Files:**
-- Modify: `demo_api_server/services/pingOneUserService.js` (add `sendInvitation` near `setUserPassword`, ~line 355)
-- Modify: `demo_api_server/routes/demoProvisioning.js` (add endpoint after `provision-user`, ~line 100)
+- Modify: `demo_api_server/services/pingOneUserService.js` (add `sendPasswordSetupEmail` near `setUserPassword`, ~line 341)
+- Modify: `demo_api_server/routes/demoProvisioning.js` (add endpoint after the `provision-wizard` route)
 - Test: `demo_api_server/tests/sendInvite.route.test.js` (new)
 
 **Interfaces:**
-- Consumes: `getManagementToken()` from `../services/pingOneClientService`; `configStore.getEffective()`; axios.
-- Produces: `pingOneUserService.sendInvitation(userId) → Promise<void>` (throws on non-2xx). Endpoint `POST /api/demo/send-invite` body `{ email }` → `201 { userId, invite: 'sent', registrationUrl }` | `400 { error: 'invalid_request' }` | `404 { error: 'user_not_found' }` (never happens — creates user) | `503 { error: 'management_token_failed' | 'pingone_invite_failed', message }`.
+- Consumes: `pingOneUserService.initialize()`, `.searchUsers(username)`, `.createPingOneUser(userData)`, `.setUserPassword(userId, password, { forceChange })`, `.getAccessToken()` (all shipped); `generateTempPassword()` from `routes/demoProvisioning.js:129`; `configStore.getEffective()`.
+- Produces: `pingOneUserService.sendPasswordSetupEmail(userId) → Promise<void>` (throws on non-2xx; a no-op that resolves when `NATIVE_EMAIL_ENABLED=false`). Endpoint `POST /api/demo/send-invite` body `{ email }` → `201 { userId, invite: 'sent', nativeEmail: 'sent'|'skipped'|'failed', registrationUrl }` | `400 { error: 'invalid_request' }` | `503 { error: 'management_token_failed' | 'pingone_invite_failed', message }`.
 
 - [ ] **Step 1: Write the failing test**
 
-Create `demo_api_server/tests/sendInvite.route.test.js`:
+Create `demo_api_server/tests/sendInvite.route.test.js`, mirroring the mock/admin-gate setup of `tests/provisionWizard.route.test.js` (it already solved `requireAdmin` in tests):
 
 ```javascript
 'use strict';
-jest.mock('../services/pingOneClientService', () => ({
-  getManagementToken: jest.fn(() => Promise.resolve('test-worker-token')),
+
+// POST /api/demo/send-invite — admin-triggered invite. Idempotent user
+// create-or-reuse via the shipped provisioning helpers; the PingOne-native
+// "set your password" email is behind the Task 1 spike gate.
+
+jest.mock('../services/pingOneUserService', () => ({
+  initialize: jest.fn(),
+  searchUsers: jest.fn().mockResolvedValue({ _embedded: { users: [] } }),
+  createPingOneUser: jest.fn().mockImplementation(async (u) => ({ id: 'user-1', email: u.email, username: u.username })),
+  setUserPassword: jest.fn().mockResolvedValue(undefined),
+  updatePingOneUser: jest.fn().mockResolvedValue({}),
+  setMayActAttribute: jest.fn().mockResolvedValue(undefined),
+  sendPasswordSetupEmail: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('../services/mfaService', () => ({}));
+jest.mock('../services/mfaService', () => ({
+  enrollEmailDevice: jest.fn().mockResolvedValue({ id: 'd-e' }),
+  enrollSmsDevice: jest.fn().mockResolvedValue({ id: 'd-s' }),
+}));
 jest.mock('../services/configStore', () => ({
   getEffective: jest.fn((k) => {
-    if (k === 'pingone_environment_id' || k === 'PINGONE_ENVIRONMENT_ID') return 'env-123';
-    if (k === 'pingone_region' || k === 'PINGONE_REGION') return 'com';
+    if (k === 'pingone_mcp_token_exchanger_client_id') return 'mcp-exchanger-client';
+    if (k === 'public_app_url' || k === 'PUBLIC_APP_URL') return 'https://ai-demo.ping-devops.com';
     return null;
   }),
+  setConfig: jest.fn().mockResolvedValue(undefined),
 }));
-jest.mock('../data/store', () => ({ seedAccountsForUser: jest.fn() }));
+jest.mock('../data/store', () => ({ seedAccountsForUser: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../utils/logger', () => {
+  const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(), logErrorHandling: jest.fn(), logAuthorizationAttempt: jest.fn() };
+  return { logger, LOG_CATEGORIES: { USER_MANAGEMENT: 'user_management' } };
+});
 
-// axios mock: POST /users → create; POST /users/:id/password → invite op
-const axiosMock = jest.fn();
-jest.mock('axios', () => { const a = jest.fn(); a.post = a; return a; });
-const axios = require('axios');
+const express = require('express');
+const request = require('supertest');
+const pingOneUserService = require('../services/pingOneUserService');
+const mfaService = require('../services/mfaService');
+const dataStore = require('../data/store');
+const sendInviteRouter = require('../routes/demoProvisioning');
+
+function makeApp(user) {
+  const app = express();
+  app.use(express.json());
+  app.use((req, _res, next) => { if (user) req.user = user; next(); });
+  app.use('/api/demo', sendInviteRouter);
+  return app;
+}
+
+beforeEach(() => {
+  jest.clearAllMocks();
+  pingOneUserService.searchUsers.mockResolvedValue({ _embedded: { users: [] } });
+  pingOneUserService.createPingOneUser.mockImplementation(async (u) => ({ id: 'user-1', email: u.email, username: u.username }));
+  pingOneUserService.setUserPassword.mockResolvedValue(undefined);
+  pingOneUserService.updatePingOneUser.mockResolvedValue({});
+  pingOneUserService.setMayActAttribute.mockResolvedValue(undefined);
+  pingOneUserService.sendPasswordSetupEmail.mockResolvedValue(undefined);
+  mfaService.enrollEmailDevice.mockResolvedValue({ id: 'd-e' });
+  mfaService.enrollSmsDevice.mockResolvedValue({ id: 'd-s' });
+  dataStore.seedAccountsForUser.mockResolvedValue(undefined);
+});
 
 describe('POST /api/demo/send-invite', () => {
-  let app;
-  beforeAll(() => {
-    axios.mockImplementation((cfg) => {
-      if (cfg.url.endsWith('/password') && cfg.headers['Content-Type'] === 'application/vnd.pingidentity.password.set+json') {
-        return Promise.resolve({ status: 204, data: {} });
-      }
-      if (cfg.url.endsWith('/users')) return Promise.resolve({ status: 201, data: { id: 'user-1' } });
-      return Promise.reject({ response: { status: 500, data: { message: 'unexpected' } } });
-    });
-    const express = require('express');
-    const routes = require('../routes/demoProvisioning');
-    app = express();
-    app.use(express.json());
-    app.use((req, _res, next) => { req.user = { role: 'admin', username: 'admin@test' }; next(); });
-    app.use('/api/demo', routes);
+  test('403 without an admin session', async () => {
+    const res = await request(makeApp({ id: 'cust-1', role: 'customer' }))
+      .post('/api/demo/send-invite').send({ email: 'a@pingidentity.com' });
+    expect(res.status).toBe(403);
+    expect(pingOneUserService.createPingOneUser).not.toHaveBeenCalled();
   });
 
-  test('201 with userId + registrationUrl for a fresh email', async () => {
-    const req = { method: 'POST', url: '/api/demo/send-invite', body: { email: 'new@x.com' }, headers: {} };
-    // use supertest-free direct invocation via express: use app.inject style
-    const http = require('http');
-    const server = http.createServer(app);
-    await new Promise(r => server.listen(0, r));
-    const port = server.address().port;
-    const res = await fetch(`http://127.0.0.1:${port}/api/demo/send-invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'new@x.com' }) });
-    const body = await res.json();
-    expect(res.status).toBe(201);
-    expect(body.userId).toBe('user-1');
-    expect(body.invite).toBe('sent');
-    expect(body.registrationUrl).toContain('/welcome?welcome=1');
-    server.close();
-  });
-
-  test('400 invalid email', async () => {
-    const http = require('http');
-    const server = http.createServer(app);
-    await new Promise(r => server.listen(0, r));
-    const res = await fetch(`http://127.0.0.1:${server.address().port}/api/demo/send-invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'nope' }) });
+  test('400 on invalid email', async () => {
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'nope' });
     expect(res.status).toBe(400);
-    server.close();
   });
 
-  test('503 when the PingOne invite op fails', async () => {
-    axios.mockImplementationOnce(() => Promise.reject({ response: { status: 403, data: { message: 'no scope' } } }));
-    const http = require('http');
-    const server = http.createServer(app);
-    await new Promise(r => server.listen(0, r));
-    const res = await fetch(`http://127.0.0.1:${server.address().port}/api/demo/send-invite`, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ email: 'new2@x.com' }) });
-    const body = await res.json();
-    expect(res.status).toBe(503);
-    expect(body.error).toBe('pingone_invite_failed');
-    server.close();
+  test('201 with registrationUrl pointing at /welcome?welcome=1', async () => {
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'new@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(res.body.userId).toBe('user-1');
+    expect(res.body.invite).toBe('sent');
+    expect(res.body.registrationUrl).toContain('/welcome?welcome=1');
+    // Provisioned like a wizard customer: password with forceChange, MFA, banking seed
+    expect(pingOneUserService.setUserPassword).toHaveBeenCalledWith('user-1', expect.any(String), { forceChange: true });
+    expect(mfaService.enrollEmailDevice).toHaveBeenCalled();
+    expect(dataStore.seedAccountsForUser).toHaveBeenCalledWith('user-1');
+  });
+
+  test('idempotent re-invite reuses the existing user (no 409)', async () => {
+    pingOneUserService.searchUsers
+      .mockResolvedValueOnce({ _embedded: { users: [] } })
+      .mockResolvedValueOnce({ _embedded: { users: [{ id: 'existing-1', username: 'dup@pingidentity.com' }] } });
+    const app = makeApp({ id: 'admin-1', role: 'admin' });
+    await request(app).post('/api/demo/send-invite').send({ email: 'dup@pingidentity.com' });
+    const res = await request(app).post('/api/demo/send-invite').send({ email: 'dup@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(res.body.userId).toBe('existing-1');
+    expect(pingOneUserService.createPingOneUser).toHaveBeenCalledTimes(1);
+  });
+
+  test('native email skipped when provisioning steps have errors', async () => {
+    mfaService.enrollSmsDevice.mockRejectedValue(new Error('SMS policy missing'));
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'partial@pingidentity.com' });
+    expect(res.status).toBe(201); // provisioning is partial, invite still works
+    expect(res.body.nativeEmail).toBe('skipped');
+    expect(pingOneUserService.sendPasswordSetupEmail).not.toHaveBeenCalled();
   });
 });
 ```
 
-Note: the test file above stubs `req.user` via middleware because `requireAdmin` reads it — if `requireAdmin` in `../middleware/auth` reads a session instead of `req.user`, copy the exact setup pattern from `tests/provisionWizard.route.test.js` (it already solved admin-gating in tests) and mirror it; delete the inline middleware then.
-
 - [ ] **Step 2: Run the test to verify it fails**
 
 Run: `cd demo_api_server && npx jest tests/sendInvite.route.test.js --forceExit`
-Expected: FAIL — route returns 404 (endpoint does not exist yet).
+Expected: FAIL — 404 (endpoint does not exist yet). If the file fails to load, fix imports before proceeding.
 
-- [ ] **Step 3: Implement `sendInvitation` in `pingOneUserService.js`**
+- [ ] **Step 3: Implement `sendPasswordSetupEmail` in `pingOneUserService.js`**
 
-Add after `setUserPassword` (~line 355), using the operation verified live in Task 1 (shown here as Probe A's shape — replace if Task 1 found B):
+Add after `setUserPassword` (~line 341). The module-level gate defaults from the Task 1 spike:
 
 ```javascript
   /**
-   * Trigger PingOne's native invitation email for an existing user.
-   * Uses the verified operation from the 2026-10-11 live probe (see
-   * docs/superpowers/plans/2026-10-11-wizard-invite-emails.md Task 1).
+   * Trigger PingOne's native "set your password" email (recovery code) for a
+   * provisioned, enabled user with a set password. Recovery codes are valid
+   * 5 minutes — this is a nudge, never the primary invite. Resolves as a
+   * no-op when the worker app lacks the scope (Task 1 spike finding).
+   * @see docs/superpowers/plans/2026-10-11-wizard-invite-emails.md Task 1
    */
-  async sendInvitation(userId) {
+  async sendPasswordSetupEmail(userId, { enabled = true } = {}) {
+    if (!enabled) return; // spike said no scope — feature ships without native email
     const token = await this.getAccessToken();
     await axios.post(
       `${this.baseUrl}/users/${userId}/password`,
-      { forceChange: true, skipEmailVerification: false },
+      {},
       {
         headers: {
           'Authorization': `Bearer ${token}`,
-          'Content-Type': 'application/vnd.pingidentity.password.set+json',
+          'Content-Type': 'application/vnd.pingidentity.password.sendRecoveryCode+json',
         },
         timeout: 10000,
       }
@@ -229,162 +273,91 @@ Add after `setUserPassword` (~line 355), using the operation verified live in Ta
   }
 ```
 
-(If `pingOneUserService` has no `baseUrl`/`getAccessToken` in the class the route uses, follow the pattern `setUserPassword` uses — it is the same class.)
+(Read Task 1's findings first: if the probe failed 403, implement the body but have the endpoint pass `{ enabled: false }`; if it succeeded, pass `{ enabled: true }` or omit the option.)
 
 - [ ] **Step 4: Implement the endpoint in `demoProvisioning.js`**
 
-Add after the `provision-user` route (~line 100):
+Add after the `provision-wizard` route. It reuses the shipped provisioning building blocks — the customer half of the wizard, nothing more:
 
 ```javascript
-// POST /api/demo/send-invite — admin-triggered PingOne invitation email
-// pointing the recipient at the welcome-wizard registration page.
+// POST /api/demo/send-invite — admin-triggered invite. Idempotently provisions
+// the invitee's customer account (create-or-reuse, forceChange temp password,
+// MFA, banking seed) and returns the /welcome registration link for the admin
+// to hand over. Optional PingOne-native email behind the Task 1 spike gate.
 router.post('/send-invite', requireAdmin, async (req, res) => {
   const { email } = req.body;
   if (!email || typeof email !== 'string' || !email.includes('@')) {
     return res.status(400).json({ error: 'invalid_request', message: 'A valid email is required' });
   }
 
-  const envId  = configStore.getEffective('pingone_environment_id') || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
-  const region = configStore.getEffective('pingone_region') || configStore.getEffective('PINGONE_REGION') || 'com';
-  const apiBase = `https://api.pingone.${region}/v1/environments/${envId}`;
-
-  let workerToken;
+  const mcpClientId = configStore.getEffective('pingone_mcp_token_exchanger_client_id')
+    || configStore.getEffective('PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID');
+  if (!mcpClientId) {
+    return res.status(503).json({ error: 'not_configured', message: 'MCP token exchanger client ID not configured — run bootstrap' });
+  }
   try {
-    workerToken = await getManagementToken();
+    pingOneUserService.initialize();
   } catch (err) {
-    return res.status(503).json({ error: 'management_token_failed', message: err.message });
+    return res.status(503).json({ error: 'not_configured', message: err.message });
   }
 
-  try {
-    // Idempotent: reuse the user if the email already exists (same pattern
-    // as provision-user) so re-inviting never collides on username.
-    const lookupSvc = new PingOneProvisionService();
-    lookupSvc.baseURL = apiBase;
-    lookupSvc.workerToken = workerToken;
-    let user = await lookupSvc.findUserByUsername(email);
-    if (!user) {
-      user = (await axios.post(`${apiBase}/users`, {
-        username: email,
-        email,
-        name: { given: 'Invited', family: 'User' },
-        enabled: true,
-      }, {
-        headers: { Authorization: `Bearer ${workerToken}`, 'Content-Type': 'application/json' },
-        timeout: 10000,
-      })).data;
+  const errors = {};
+  const { user, steps } = await provisionWizardUser({
+    email, username: email, cell: '', role: 'customer', mcpClientId, prefix: 'invite', errors,
+  });
+  if (!user?.id) {
+    return res.status(503).json({ error: 'pingone_invite_failed', message: 'User provisioning failed' });
+  }
+
+  try { await dataStore.seedAccountsForUser(user.id); } catch (err) { errors.bankingData = err.message; }
+
+  // Native "set your password" email only for a cleanly provisioned user —
+  // sendRecoveryCode fails for users without a set password.
+  let nativeEmail = 'skipped';
+  const provisionClean = Object.keys(errors).length === 0
+    && steps.emailOtp !== false && steps.smsOtp !== false;
+  if (provisionClean) {
+    try {
+      await pingOneUserService.sendPasswordSetupEmail(user.id, { enabled: NATIVE_EMAIL_ENABLED });
+      nativeEmail = NATIVE_EMAIL_ENABLED ? 'sent' : 'skipped';
+    } catch (err) {
+      console.error('[send-invite] native email failed:', err.message);
+      nativeEmail = 'failed';
     }
-    await pingOneUserService.sendInvitation(user.id);
-    return res.status(201).json({
-      userId: user.id,
-      invite: 'sent',
-      registrationUrl: `${configStore.getEffective('public_app_url') || 'https://ai-demo.ping-devops.com'}/welcome?welcome=1`,
-    });
-  } catch (err) {
-    const detail = normalizeAxiosError(err);
-    return res.status(503).json({ error: 'pingone_invite_failed', message: detail });
   }
+
+  const registrationUrl = `${configStore.getEffective('public_app_url') || configStore.getEffective('PUBLIC_APP_URL') || 'https://ai-demo.ping-devops.com'}/welcome?welcome=1`;
+  return res.status(201).json({ userId: user.id, invite: 'sent', nativeEmail, registrationUrl });
 });
 ```
 
-If `normalizeAxiosError`'s signature differs (check its export in `utils/normalizeAxiosError.js`), pass what it expects — the requirement is a readable string in `message`.
+Two wiring notes for the implementer:
+- `provisionWizardUser` currently requires `cell` for SMS enrollment (`enrollSmsDevice(user.id, cell)`) — with `cell: ''` the SMS step will fail and set `errors.sms`. That is CORRECT for invites (the invitee has no phone on file); it feeds the "provisionClean" gate so the native email is skipped unless the invite flow is later extended to collect a cell. Do not "fix" this by generating a fake phone number.
+- Define `NATIVE_EMAIL_ENABLED` as a module-level `const` next to `generateTempPassword()` (`routes/demoProvisioning.js:129`), set from Task 1's spike finding (`true` only if the probe returned 2xx). One line, with a comment pointing at Task 1.
 
 - [ ] **Step 5: Run the tests until green**
 
 Run: `cd demo_api_server && npx jest tests/sendInvite.route.test.js --forceExit`
-Expected: PASS (3 tests).
+Expected: PASS (5 tests).
 
 Run: `cd demo_api_server && npx jest tests/provisionWizard.route.test.js --forceExit`
-Expected: PASS (no regression from the shared file).
+Expected: PASS (no regression in the shared file).
 
 - [ ] **Step 6: Commit**
 
 ```bash
 git add demo_api_server/services/pingOneUserService.js demo_api_server/routes/demoProvisioning.js demo_api_server/tests/sendInvite.route.test.js
-git commit -m "feat(onboarding): admin-triggered PingOne invitation email endpoint
+git commit -m "feat(onboarding): admin invite endpoint — idempotent provisioning + registration link
 
 Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
-### Task 3: Confirmation email at the end of provision-wizard (non-fatal)
+### Task 3: Invite form on HostedRegistrationAdminPage
+
+*(Original Task 4 — unchanged in substance, insert-point verified.)*
 
 **Files:**
-- Modify: `demo_api_server/routes/demoProvisioning.js` (in the `provision-wizard` handler, before the final `return res.status(ok ? 201 : 207)…` at ~line 290)
-- Test: `demo_api_server/tests/provisionWizard.route.test.js` (extend)
-
-**Interfaces:**
-- Consumes: `pingOneUserService.sendInvitation(userId)` from Task 2; the wizard's `customer.user.id` / `admin.user.id`.
-- Produces: response payload gains `confirmationEmail: 'sent' | 'failed' | 'skipped'`; HTTP status and `credentials` unchanged.
-
-- [ ] **Step 1: Write the failing test**
-
-Append to `demo_api_server/tests/provisionWizard.route.test.js` (mirror its existing mocks/setup exactly — it already mocks axios, mfaService, configStore, and the admin gate):
-
-```javascript
-describe('provision-wizard confirmation email', () => {
-  test('confirmation failure does not fail provisioning (still 201, confirmationEmail failed)', async () => {
-    // Arrange: let every provisioning step succeed (existing setup), but make
-    // the confirmation call fail. The confirmation uses axios POST to the same
-    // password endpoint the invite uses — locate how the existing tests stub
-    // axios and add one rejection for the confirmation call.
-    // Act: POST /api/demo/provision-wizard with a valid email+cell.
-    // Assert: res.status === 201; body.credentials.customerUsername defined;
-    //         body.confirmationEmail === 'failed'.
-  });
-
-  test('confirmation success is reported as sent', async () => {
-    // Arrange: all steps succeed, confirmation call resolves 204.
-    // Act: POST /api/demo/provision-wizard.
-    // Assert: res.status === 201; body.confirmationEmail === 'sent'.
-  });
-});
-```
-
-These two tests MUST be written with the file's real helpers — read the file's existing first test and copy its arrange/act pattern verbatim, replacing only the axios stub behavior for the confirmation call and the assertions above. (The existing test file already renders the full wizard happy path; this is a two-variant extension, not new scaffolding.)
-
-- [ ] **Step 2: Run the tests to verify they fail**
-
-Run: `cd demo_api_server && npx jest tests/provisionWizard.route.test.js --forceExit`
-Expected: FAIL — response has no `confirmationEmail` field.
-
-- [ ] **Step 3: Implement the non-fatal send**
-
-In `routes/demoProvisioning.js`, inside the `provision-wizard` handler, replace the final `return res.status(ok ? 201 : 207)…` block with:
-
-```javascript
-  let confirmationEmail = 'skipped';
-  if (ok && customer.user?.id) {
-    try {
-      await pingOneUserService.sendInvitation(customer.user.id);
-      confirmationEmail = 'sent';
-    } catch (err) {
-      console.error('[provision-wizard] confirmation email failed:', err.message);
-      confirmationEmail = 'failed';
-    }
-  }
-
-  return res.status(ok ? 201 : 207).json({
-    steps, errors: ok ? undefined : errors, credentials, confirmationEmail,
-  });
-```
-
-- [ ] **Step 4: Run the tests until green**
-
-Run: `cd demo_api_server && npx jest tests/provisionWizard.route.test.js tests/sendInvite.route.test.js --forceExit`
-Expected: PASS.
-
-- [ ] **Step 5: Commit**
-
-```bash
-git add demo_api_server/routes/demoProvisioning.js demo_api_server/tests/provisionWizard.route.test.js
-git commit -m "feat(onboarding): non-fatal confirmation email after wizard provisioning
-
-Co-Authored-By: Claude Code <noreply@anthropic.com>"
-```
-
-### Task 4: Invite form on HostedRegistrationAdminPage
-
-**Files:**
-- Modify: `demo_api_ui/src/pages/HostedRegistrationAdminPage.jsx` (add an invite section above the table)
+- Modify: `demo_api_ui/src/pages/HostedRegistrationAdminPage.jsx` (invite section between the `<h1>` at line 36 and the `<table>` at line 38; the page uses inline styles, not CSS files)
 
 **Interfaces:**
 - Consumes: `POST /api/demo/send-invite` (Task 2) via the page's existing `apiClient`.
@@ -392,7 +365,7 @@ Co-Authored-By: Claude Code <noreply@anthropic.com>"
 
 - [ ] **Step 1: Add the invite section**
 
-In `HostedRegistrationAdminPage.jsx`, add above the `<h1>`'s table (keep the page's inline-style idiom — it uses inline styles, not CSS files):
+In `HostedRegistrationAdminPage.jsx`, add to the component's state (top of the function, after the existing `useState` lines):
 
 ```jsx
   const [inviteEmail, setInviteEmail] = useState('');
@@ -403,7 +376,8 @@ In `HostedRegistrationAdminPage.jsx`, add above the `<h1>`'s table (keep the pag
     setInviteState(null);
     try {
       const response = await apiClient.post('/api/demo/send-invite', { email: inviteEmail });
-      setInviteState({ ok: true, message: `Invite sent — registration link: ${response.data.registrationUrl}` });
+      const native = response.data.nativeEmail === 'sent' ? ' A "set your password" email was also sent.' : '';
+      setInviteState({ ok: true, message: `Invite ready — registration link (send it to the invitee): ${response.data.registrationUrl}.${native}` });
       setInviteEmail('');
     } catch (err) {
       setInviteState({ ok: false, message: err.response?.data?.message || 'Invite failed.' });
@@ -411,12 +385,12 @@ In `HostedRegistrationAdminPage.jsx`, add above the `<h1>`'s table (keep the pag
   }
 ```
 
-and in the JSX, between the `<h1>` and the registrations table:
+And in the JSX, between the `<h1>` (line 36) and the `<table>` (line 38):
 
 ```jsx
       <section style={{ marginBottom: '2rem' }}>
         <h2>Invite a user</h2>
-        <form onSubmit={sendInvite} style={{ display: 'flex', gap: '0.5rem' }}>
+        <form onSubmit={sendInvite} style={{ display: 'flex', gap: '0.5rem', maxWidth: '32rem' }}>
           <input
             type="email"
             required
@@ -429,19 +403,19 @@ and in the JSX, between the `<h1>` and the registrations table:
         </form>
         {inviteState && <p role="status" style={{ color: inviteState.ok ? 'green' : 'crimson' }}>{inviteState.message}</p>}
         <p style={{ fontSize: '0.85rem', color: '#555' }}>
-          The invitee registers at <code>/welcome?welcome=1</code> — they pick their own password and MFA there.
+          The invitee registers at <code>/welcome?welcome=1</code> — their account is created up front; they sign in and set a new password there.
         </p>
       </section>
 ```
 
 - [ ] **Step 2: Build to verify it compiles**
 
-Run: `cd demo_api_ui && npx react-scripts build 2>&1 | tail -5` (or the repo's build script — check `package.json` scripts first and use `npm run build`)
+Run: `cd demo_api_ui && npm run build 2>&1 | tail -5`
 Expected: build completes without errors.
 
 - [ ] **Step 3: Manual check against the local stack**
 
-Start the local UI if not running (`docker ps | grep ai-demo-ui`), open the admin page, and confirm the form renders and the submit path hits the endpoint (a 503 from PingOne is fine — the toast must show the error message, not hang).
+Start the local UI if not running, open the Hosted Registrations admin page as an admin, submit the form, and confirm: the success toast shows the full registration URL (copy-pasteable), and a failed submit shows the endpoint's error message rather than hanging. (A 503 from PingOne is an acceptable failure mode — the toast is the point.)
 
 - [ ] **Step 4: Commit**
 
@@ -452,29 +426,50 @@ git commit -m "feat(onboarding): admin invite-user form on hosted registrations 
 Co-Authored-By: Claude Code <noreply@anthropic.com>"
 ```
 
-### Task 5: Dress rehearsal + PR
+### Task 4: Dress rehearsal + PR
+
+*(Original Task 5, corrected: the pull_request CI trigger is alive again since 2026-10-11 — no manual dispatch needed; the per-service deploy is the validated path.)*
 
 **Files:** None (verification + PR only).
 
 **Interfaces:**
-- Consumes: everything above, deployed to the SE cluster.
+- Consumes: Tasks 1–3, CI, the SE cluster.
 
 - [ ] **Step 1: CI green + merge**
 
-Dispatch CI (the pull_request trigger is dead — run `gh workflow run ci.yml --ref <branch>` or let build-images run on merge; never two CI runs at once — EDR-under-load kills them). Fix failures, merge when green.
+Push the branch; pull_request CI runs normally (trigger fixed 2026-10-11 — never dispatch a second run while one is in flight, EDR-under-load kills them). Fix failures, merge when green.
 
-- [ ] **Step 2: Deploy to the SE cluster**
+- [ ] **Step 2: Deploy to the SE cluster (per-service only)**
 
-`./se-update-code.sh bff frontend` (demo-api-server + UI both changed), then verify pods on the new sha.
+```bash
+GITHUB_OWNER=cmuir_pingcorp IMAGE_TAG=sha-$(git rev-parse --short origin/main) bash se-update-code.sh bff frontend
+```
+
+This rolls ONLY demo-api-server + frontend to the new tag — never run full `deploy.sh` for a two-service change (it patches the configmap cluster-wide and strands every other deployment in ImagePullBackOff; see the 2026-10-11 incident). Verify:
+
+```bash
+kubectl get deploy frontend demo-api-server -n ping-devops-cmuir -o jsonpath='{range .items[*]}{.metadata.name}={.spec.template.spec.containers[0].image}{"\n"}{end}'
+curl -sk -o /dev/null -w '%{http_code}\n' https://ai-demo.ping-devops.com/welcome   # expect 200
+```
 
 - [ ] **Step 3: Dress rehearsal with Curtis's address**
 
-Curtis (admin) opens the hosted demo → Hosted Registrations admin page → invites `cmuir@pingone.com`. Curtis confirms the invite email arrives, follows it, registers through `/welcome`, and confirms the confirmation email arrives. If the invite email lacks the registration link (template-variable limitation from the spec's open items), add the plain-text fallback: the admin UI toast already shows the link for manual forwarding.
+Curtis (admin) opens Hosted Registrations → invites `cmuir@pingone.com` → the toast shows the registration link → if the Task 1 probe passed, the "set your password" email arrives within minutes (5-minute code validity — use it or request again) → Curtis follows the link to `/welcome`, signs in with the temp password from the credentials step, sets a new password, and lands on the dashboard.
 
 - [ ] **Step 4: Update the onboarding email**
 
-Edit `docs/runbooks/privilege-onboarding-email.md`: replace the manual PingOne console invite instructions (checklist items 1–2) with "Curtis sends the invite from the admin page; the recipient follows the emailed link". Commit.
+Edit `docs/runbooks/privilege-onboarding-email.md`: replace the manual PingOne console invite checklist items with "Curtis sends the invite from the Hosted Registrations admin page; the recipient follows the link." Commit.
 
 - [ ] **Step 5: Final PR description + merge**
 
-PR body: link the spec + this plan, note the live-verified PingOne operation from Task 1, note the email-link verification result from Step 3. End with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+PR body: link the spec + this plan, note the Task 1 spike result (native email on/off and why), note the dress-rehearsal result. End with `🤖 Generated with [Claude Code](https://claude.com/claude-code)`.
+
+---
+
+## Task 1 findings (filled by the implementer)
+
+*(To be appended after Task 1 runs — the plan is not self-consistent until this section has the probe result.)*
+
+## Optional follow-up (cut from scope, noted for Curtis)
+
+A "you're registered" confirmation email after `provision-wizard` succeeds: a non-fatal `sendPasswordSetupEmail(customer.user.id)` call in the wizard's response block with `confirmationEmail: 'sent'|'failed'|'skipped'` added to the payload (the UI ignores unknown fields). Ten lines. Cut because the invite link IS the registration path and the wizard already returns credentials in-session — revisit only if Curtis wants the touch.
