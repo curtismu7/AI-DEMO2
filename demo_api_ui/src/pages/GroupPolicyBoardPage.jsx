@@ -314,6 +314,17 @@ export default function GroupPolicyBoardPage() {
       <section className="gpb-board" aria-live="polite">
         <div className="gpb-board-head">
           <h2>Decisions — {rows[0]?.displayName || checkVertical}</h2>
+          {/* Two subjects live on this page: the check panel asks about the
+              user YOU picked (demoDelegate…), the board asks about the user
+              who is SIGNED IN. Without the label, opposite verdicts for two
+              users in the same group read as a contradiction (seen live
+              2026-10-12: panel DENY for demoDelegate, board PERMIT for the
+              signed-in demoUser). */}
+          {data?.username ? (
+            <span className="gpb-board-subject" data-testid="board-subject">
+              asking about the signed-in user: {data.username}
+            </span>
+          ) : null}
           <div className="gpb-tally">
             <span className="gpb-pill gpb-pill--permit">{permits} permit</span>
             <span className="gpb-pill gpb-pill--deny">{denies} deny</span>
