@@ -400,21 +400,26 @@ router.get('/check', requireSession, async (req, res) => {
       return res.status(404).json({ error: 'user_not_found', message: lookupError || undefined });
     }
 
-    const requiredGroup = groupPolicy.groupNameForCategory(verticalId, 'privileged');
-    if (!requiredGroup) {
-      return res.status(400).json({
-        error: 'unknown_group_category',
-        message: `vertical '${verticalId}' declares no 'privileged' group`,
-      });
-    }
-
     // The vertical's group-gated tool — the first entry in the manifest's
-    // restrictedTools, the same source the decision board iterates.
+    // restrictedTools, the same source the decision board iterates. The gate
+    // group is THAT tool's category (premiumTier on every vertical today),
+    // not the generic `privileged` group nothing reads — the demo's claim is
+    // that the group the PEP consults decides, so the panel must ask about it.
     const def = groupPolicy.listAllVerticalGroupDefinitions()
       .find((d) => d.verticalId === verticalId);
     const gatedTool = def && def.restrictedTools
       ? Object.keys(def.restrictedTools)[0]
       : null;
+    const gatedCategory = def && def.restrictedTools && gatedTool
+      ? def.restrictedTools[gatedTool]
+      : 'privileged';
+    const requiredGroup = groupPolicy.groupNameForCategory(verticalId, gatedCategory);
+    if (!requiredGroup) {
+      return res.status(400).json({
+        error: 'unknown_group_category',
+        message: `vertical '${verticalId}' declares no '${gatedCategory}' group`,
+      });
+    }
 
     let groups = [];
     let source = 'manifest';
@@ -443,9 +448,11 @@ router.get('/check', requireSession, async (req, res) => {
         verticalId,
         displayName: manifest?.identity?.displayName || verticalId,
         requiredGroup,
+        gatedTool,
         userGroups: groups,
         inRequiredGroup,
         source,
+        access: manifest?.groups?.access || null,
         decision: r.decision,
         denyReason: (r.raw && r.raw.deny_reason) || null,
         codes,
@@ -462,9 +469,11 @@ router.get('/check', requireSession, async (req, res) => {
         verticalId,
         displayName: manifest?.identity?.displayName || verticalId,
         requiredGroup,
+        gatedTool,
         userGroups: groups,
         inRequiredGroup,
         source,
+        access: manifest?.groups?.access || null,
         decision: 'UNKNOWN',
         denyReason: null,
         codes: [],
@@ -511,11 +520,21 @@ router.post('/check/toggle', requireSession, async (req, res) => {
     if (!manifest) {
       return res.status(404).json({ error: 'unknown_vertical', verticalId });
     }
-    const groupName = groupPolicy.groupNameForCategory(verticalId, 'privileged');
+    // The group the TOOL requires — the restrictedTools category, same as
+    // /check — so the panel's toggle moves the group the demo decision reads.
+    const def = groupPolicy.listAllVerticalGroupDefinitions()
+      .find((d) => d.verticalId === verticalId);
+    const gatedTool = def && def.restrictedTools
+      ? Object.keys(def.restrictedTools)[0]
+      : null;
+    const gatedCategory = def && def.restrictedTools && gatedTool
+      ? def.restrictedTools[gatedTool]
+      : 'privileged';
+    const groupName = groupPolicy.groupNameForCategory(verticalId, gatedCategory);
     if (!groupName) {
       return res.status(400).json({
         error: 'unknown_group_category',
-        message: `vertical '${verticalId}' declares no 'privileged' group`,
+        message: `vertical '${verticalId}' declares no '${gatedCategory}' group`,
       });
     }
 
@@ -543,6 +562,7 @@ router.post('/check/toggle', requireSession, async (req, res) => {
       username: picked.username || username.trim(),
       displayName: manifest?.identity?.displayName || verticalId,
       groupName,
+      access: manifest?.groups?.access || null,
       requested: inGroup,
       inGroup: Array.isArray(groups) ? groups.includes(groupName) : inGroup,
       groups: groups || [],

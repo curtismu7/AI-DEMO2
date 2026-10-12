@@ -38,6 +38,11 @@
     "highValueLabel": "Sensitive permit-record release to a third party"
   },
   "groups": {
+    "access": {
+      "label": "Cleared records access",
+      "memberStory": "demoUser holds current cleared-records access \u2014 the background clearance was granted at badge issuance and covers sensitive tax records.",
+      "nonMemberStory": "demoDelegate's clearance application is still pending with security; until it is adjudicated, sensitive tax-record calls are denied, whatever the scopes allow."
+},
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",

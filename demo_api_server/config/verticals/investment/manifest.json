@@ -39,6 +39,11 @@
     "amountPresets": [500, 1000, 5000, 10000]
   },
   "groups": {
+    "access": {
+      "label": "Accredited investor",
+      "memberStory": "demoUser is verified as an accredited investor \u2014 the Wealth Assistant may read sensitive holdings and position details.",
+      "nonMemberStory": "demoDelegate's accreditation verification is incomplete: sensitive holdings are gated to accredited clients, so their calls are denied until verification completes."
+},
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",

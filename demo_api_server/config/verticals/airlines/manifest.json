@@ -47,6 +47,11 @@
     "highValueLabel": "Cancel a reservation and process a refund"
   },
   "groups": {
+    "access": {
+      "label": "Elite-tier passenger data",
+      "memberStory": "demoUser is an elite-tier flyer \u2014 account services may pull sensitive passenger records (upcoming itineraries, seat manifests) on their behalf.",
+      "nonMemberStory": "demoDelegate is a basic-tier member: passenger-record access is reserved for elite tiers, so their calls are denied today \u2014 the agent cannot upgrade itself."
+},
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",

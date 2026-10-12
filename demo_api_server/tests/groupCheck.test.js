@@ -105,12 +105,35 @@ describe('GET /api/groups/check', () => {
     expect(args.userGroups).toEqual(['AI_Demo_Delegates']);
     expect(args.userId).toBe('picked-user-1');
     expect(payload.decision).toBe('DENY');
-    expect(payload.requiredGroup).toBe(groupPolicy.groupNameForCategory('banking', 'privileged'));
+    // The gate is the group the manifest's restrictedTools names — the one the
+    // PEP and the UC9 chip arming actually consult — not the generic
+    // AI_Demo_Privileged group nothing reads.
+    expect(payload.requiredGroup).toBe(groupPolicy.groupNameForCategory('banking', 'premiumTier'));
     expect(payload.inRequiredGroup).toBe(false);
     expect(payload.denyReason).toBe('user_not_in_group');
     expect(payload.codes).toEqual(['mcp-authorization-denied', 'mcp-user-not-in-group']);
     expect(payload.username).toBe('demoDelegate');
     expect(payload.policyEnabled).toBe(false);
+  });
+
+  it('carries the vertical\'s access story for member and non-member', async () => {
+    const { payload } = await callCheck();
+    const access = payload.access;
+    expect(access).toBeTruthy();
+    expect(access.label).toBeTruthy();
+    expect(typeof access.memberStory).toBe('string');
+    expect(access.memberStory.length).toBeGreaterThan(10);
+    expect(typeof access.nonMemberStory).toBe('string');
+    expect(access.nonMemberStory.length).toBeGreaterThan(10);
+  });
+
+  it('evaluates against the TOOL\'s required category, not always privileged', async () => {
+    // Every vertical's restrictedTools names premiumTier for its sensitive
+    // tool — the args must reflect that category's group, whatever it is.
+    const { payload } = await callCheck({ verticalId: 'healthcare' });
+    const args = pingOneAuthorizeService.evaluateMcpToolDelegation.mock.calls[0][0];
+    expect(args.requiredGroup).toBe(groupPolicy.groupNameForCategory('healthcare', 'premiumTier'));
+    expect(payload.requiredGroup).toBe(groupPolicy.groupNameForCategory('healthcare', 'premiumTier'));
   });
 
   it('renders UNKNOWN — never PERMIT — when the decision call throws', async () => {
@@ -182,18 +205,19 @@ describe('POST /api/groups/check/toggle', () => {
     });
     // Post-write re-read: the toggle took effect.
     membershipService.listUserGroupNamesForVertical.mockResolvedValue([
-      groupPolicy.groupNameForCategory('banking', 'privileged'),
+      groupPolicy.groupNameForCategory('banking', 'premiumTier'),
     ]);
 
     const { status, payload } = await callToggle({ body: { inGroup: true, username: 'demoDelegate', verticalId: 'banking' } });
 
     expect(status).toBe(200);
-    // The write targeted the PICKED user, not the session user.
+    // The write targeted the PICKED user, and the group the TOOL actually
+    // requires (restrictedTools category) — not the generic privileged group.
     expect(membershipService.setUserGroupMembership).toHaveBeenCalledWith(
       expect.objectContaining({
         username: 'demoDelegate',
         pingOneUserId: 'picked-user-1',
-        groupName: groupPolicy.groupNameForCategory('banking', 'privileged'),
+        groupName: groupPolicy.groupNameForCategory('banking', 'premiumTier'),
         inGroup: true,
       }),
     );

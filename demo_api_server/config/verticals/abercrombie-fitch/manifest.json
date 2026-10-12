@@ -51,6 +51,11 @@
     "highValueLabel": "High-value apparel purchase"
   },
   "groups": {
+    "access": {
+      "label": "XClub member",
+      "memberStory": "demoUser is an XClub member \u2014 the Style Assistant may read their sensitive A&F order history (purchases, returns, waitlist items).",
+      "nonMemberStory": "demoDelegate has no XClub membership: sensitive order history is members-only, so their calls are denied today. Joining XClub flips it instantly."
+},
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",

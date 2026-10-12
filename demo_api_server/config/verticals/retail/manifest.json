@@ -52,6 +52,11 @@
     "highValueLabel": "High-value purchase"
   },
   "groups": {
+    "access": {
+      "label": "Loyalty Plus member",
+      "memberStory": "demoUser is a Loyalty Plus member \u2014 the Shopping Assistant may read their full purchase and rewards history, including sensitive order details.",
+      "nonMemberStory": "demoDelegate has a standard (free) rewards account: full order-history access is a Loyalty Plus benefit, so their calls are denied \u2014 upgrading is a membership change, not a code change."
+},
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",

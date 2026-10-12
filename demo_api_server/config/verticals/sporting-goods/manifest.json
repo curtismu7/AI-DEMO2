@@ -47,6 +47,11 @@
     "highValueLabel": "High-value team order requires confirmation"
   },
   "groups": {
+    "access": {
+      "label": "Pro Club member",
+      "memberStory": "demoUser is a Pro Club member \u2014 the Sports Assistant may read their sensitive membership details (contracts, training plans).",
+      "nonMemberStory": "demoDelegate is a standard member: Pro Club details are gated to that tier, so their calls are denied \u2014 a membership desk action changes it, not a deploy."
+},
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",

@@ -84,6 +84,15 @@ const GroupCategorySchema = z.object({
 });
 
 const GroupsSchema = z.object({
+  // The demo story for the tool gate, per vertical — what the access tier is
+  // called in this business and why a given user is in or out of it. Surfaced
+  // by the group-check panel (/group-policy) so the presenter can say WHY the
+  // decision flipped in the vertical's own language.
+  access: z.object({
+    label: z.string().min(1),
+    memberStory: z.string().min(10),
+    nonMemberStory: z.string().min(10),
+  }).optional(),
   categories: z.record(z.string(), GroupCategorySchema),
   restrictedTools: z.record(z.string(), z.string()).optional(),
   userMemberships: z.record(z.string(), z.array(z.string())).optional(),

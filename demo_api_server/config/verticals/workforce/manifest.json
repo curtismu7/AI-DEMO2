@@ -47,6 +47,11 @@
     "highValueLabel": "High-value expense"
   },
   "groups": {
+    "access": {
+      "label": "Payroll-band authorized",
+      "memberStory": "demoUser's role is in an authorized payroll band \u2014 the HR Assistant may read sensitive payroll details (compensation, band) for them.",
+      "nonMemberStory": "demoDelegate sits outside the authorized payroll band: compensation records are restricted to band members, so their calls are denied today."
+},
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",

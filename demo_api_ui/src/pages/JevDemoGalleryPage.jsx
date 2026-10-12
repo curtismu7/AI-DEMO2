@@ -435,7 +435,7 @@ export default function JevDemoGalleryPage() {
           content={{
             lead: cfg.lead, runLabel: 'Score 4 page pairs',
             items: cfg.pairs.map((p) => ({ label: `“${p.from}” → “${p.to}”`, state: `${p.from}\n---\n${p.to}`, match: p.match })),
-            baselineCell: (r) => (r.text.includes('---') ? 'overlap rule' : '—'),
+            baselineCell: () => 'overlap rule',
             escalateNote: cfg.lesson,
           }}
         />

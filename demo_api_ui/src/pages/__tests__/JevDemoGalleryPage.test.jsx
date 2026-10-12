@@ -81,6 +81,22 @@ describe('JevDemoGalleryPage', () => {
     }
   });
 
+  // Regression: internal-links' baselineCell used to read r.text, a field the
+  // batch rows never carry — it crashed only when RUN, not on render, so the
+  // render-everything test above stayed green. Run every batch demo.
+  it.each([
+    ['internal-links', /Score 4 page pairs/i],
+    ['doc-sort', /Classify 5 pages/i],
+    ['compaction', /Score the transcript/i],
+    ['papers', /Classify 5 papers/i],
+  ])('%s: runs to completion without crashing', async (id, buttonName) => {
+    const user = userEvent.setup();
+    renderAt(`/jev-demos/${id}`);
+    await user.click(screen.getByRole('button', { name: buttonName }));
+    await waitFor(() => expect(document.querySelector('.jev-table tbody tr')).toBeTruthy());
+    expect(document.querySelectorAll('.jev-error').length).toBe(0);
+  });
+
   it('falls back to PR review for an unknown demo id', () => {
     renderAt('/jev-demos/whatever');
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('pull requests');

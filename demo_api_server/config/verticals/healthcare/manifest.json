@@ -47,6 +47,11 @@
     "highValueLabel": "High-sensitivity records release"
   },
   "groups": {
+    "access": {
+      "label": "Records-release authorized",
+      "memberStory": "demoUser's release-of-information authorization is on file and current, so the Care Assistant may read sensitive patient records for them.",
+      "nonMemberStory": "demoDelegate's authorization is still in verification with compliance \u2014 records release is held until it clears, so their patient-record calls are denied today, scopes notwithstanding."
+},
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",

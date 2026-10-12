@@ -61,7 +61,7 @@ export default function GroupPolicyBoardPage() {
     };
   }, []);
   // Single group-check panel: the board can only ever ask about the signed-in
-  // user; this answers "is demoDelegate in Banking_Privileged?" live, without
+  // user; this answers "is demoDelegate in Banking_PremiumTier?" live, without
   // signing in as anyone else.
   const [checkUser, setCheckUser] = useState('demoDelegate');
   const [checkVertical, setCheckVertical] = useState('banking');
@@ -274,6 +274,22 @@ export default function GroupPolicyBoardPage() {
               </span>
             ) : null}
             {toggleNote ? <span className="gpb-check-note">{toggleNote}</span> : null}
+            {/* The vertical's own story: what the tier is called in this
+                business, and why THIS user is in or out. The server picks the
+                story half from the decision, so the presenter reads the right
+                half aloud without translating manifest keys on stage. */}
+            {checkResult.access ? (
+              <div className="gpb-check-story">
+                <span className="gpb-check-story-label" data-testid="check-access-label">
+                  {checkResult.access.label}
+                </span>
+                <span className="gpb-check-story-text" data-testid="check-access-story">
+                  {checkResult.inRequiredGroup
+                    ? checkResult.access.memberStory
+                    : checkResult.access.nonMemberStory}
+                </span>
+              </div>
+            ) : null}
           </div>
         ) : null}
       </section>

@@ -141,14 +141,14 @@ export const DEMO_SCENARIOS = [
         action: "Log in as demoDelegate, then ask:",
         prompt: '"show my full account details and routing number"',
         explanation:
-          "get_sensitive_account_details requires Banking_Privileged (banking vertical). demoUser/demoAdmin are members; demoDelegate is not. demoDelegate is DENIED before any data is read — even though the token is valid and carries the read scope. In CareConnect, sensitive_patient_records requires Healthcare_Privileged instead.",
+          "get_sensitive_account_details requires Banking_PremiumTier (banking vertical) — the private-banking tier group the tool's policy actually consults. demoUser/demoAdmin are members; demoDelegate is not. demoDelegate is DENIED before any data is read — even though the token is valid and carries the read scope. In CareConnect, sensitive_patient_records requires Healthcare_PremiumTier instead.",
         watch: [
           "Chat: agent reports the access was denied by policy (not bypassable)",
           "deny_reason: user_not_in_group",
-          "required_group: Banking_Privileged, user_groups: [] (demoDelegate in banking)",
+          "required_group: Banking_PremiumTier, user_groups: [] (demoDelegate in banking)",
           "Audit / Compliance: row shows DENY with the group check failing",
-          "Repeat as demoUser → PERMITted (member of Banking_Privileged)",
-          "Switch to healthcare → demoDelegate also denied on sensitive_patient_records (Healthcare_Privileged)",
+          "Repeat as demoUser → PERMITted (member of Banking_PremiumTier)",
+          "Switch to healthcare → demoDelegate also denied on sensitive_patient_records (Healthcare_PremiumTier)",
         ],
       },
     ],

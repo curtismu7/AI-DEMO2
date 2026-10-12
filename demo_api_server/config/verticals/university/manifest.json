@@ -38,6 +38,11 @@
     "highValueLabel": "Official transcript release to a third party"
   },
   "groups": {
+    "access": {
+      "label": "Financial-aid authorized",
+      "memberStory": "demoUser has a FERPA financial-aid authorization on file, so the Registrar Assistant may read their sensitive student-finance record.",
+      "nonMemberStory": "demoDelegate's FERPA authorization is not on file \u2014 the bursar holds student-finance records until the student signs it, so their calls are denied regardless of scopes."
+},
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",

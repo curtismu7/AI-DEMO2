@@ -62,6 +62,11 @@
     }
   },
   "groups": {
+    "access": {
+      "label": "Private Banking client",
+      "memberStory": "demoUser is a tenured Private Banking client — the wealth tier was assigned at onboarding and is reviewed annually, so their agent can read sensitive account details.",
+      "nonMemberStory": "demoDelegate is a licensed advisor still in onboarding: Private Banking tier access lands only after the background check clears, so their sensitive-detail calls are denied today — whatever the token's scopes say."
+    },
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",

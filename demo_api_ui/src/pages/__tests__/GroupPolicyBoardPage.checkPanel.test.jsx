@@ -31,7 +31,7 @@ const BOARD = {
   rows: [
     {
       verticalId: 'banking', displayName: 'Banking', tool: 'get_sensitive_account_details',
-      requiredGroup: 'Banking_Privileged', inRequiredGroup: true, decision: 'PERMIT',
+      requiredGroup: 'Banking_PremiumTier', inRequiredGroup: true, decision: 'PERMIT',
       codes: ['mcp-tool-authorized'],
     },
   ],
@@ -39,9 +39,15 @@ const BOARD = {
 
 const CHECK_DENY = {
   username: 'demoDelegate', verticalId: 'banking', displayName: 'Banking',
-  requiredGroup: 'Banking_Privileged', userGroups: ['AI_Demo_Delegates'],
+  requiredGroup: 'Banking_PremiumTier', userGroups: ['AI_Demo_Delegates'],
   inRequiredGroup: false, source: 'pingone', decision: 'DENY',
   denyReason: 'user_not_in_group', codes: ['mcp-authorization-denied', 'mcp-user-not-in-group'],
+  gatedTool: 'get_sensitive_account_details',
+  access: {
+    label: 'Private Banking client',
+    memberStory: 'demoUser is a tenured Private Banking client — the wealth tier was assigned at onboarding and is reviewed annually.',
+    nonMemberStory: 'demoDelegate is a licensed advisor still in onboarding: Private Banking tier access lands only after the background check clears.',
+  },
   policyEnabled: true, liveLookupReady: true, raw: { deny_reason: 'user_not_in_group' },
 };
 
@@ -87,6 +93,28 @@ describe('GroupPolicyBoardPage — group check panel', () => {
     ).toBe(true));
   });
 
+  it('tells the vertical\'s access story: label + why this user is out (or in)', async () => {
+    const check = vi.fn(() => CHECK_DENY);
+    renderPage(fetchMock({ check }));
+    await waitFor(() => expect(screen.getByText('Banking')).toBeTruthy());
+
+    fireEvent.click(screen.getByRole('button', { name: /run.*check/i }));
+    await waitFor(() => expect(screen.getByTestId('check-decision')).toHaveTextContent('DENY'));
+
+    // The story is per-vertical and says WHY this user is out — the presenter
+    // reads it aloud in the vertical's own business language.
+    expect(screen.getByTestId('check-access-label')).toHaveTextContent('Private Banking client');
+    expect(screen.getByTestId('check-access-story')).toHaveTextContent(/demoDelegate is a licensed advisor/);
+    expect(screen.getByTestId('check-access-story').textContent).not.toMatch(/demoUser is a tenured/);
+
+    // In-group → the member story instead.
+    const inGroup = { ...CHECK_DENY, inRequiredGroup: true, decision: 'PERMIT', denyReason: null };
+    check.mockImplementation(() => inGroup);
+    fireEvent.click(screen.getByRole('button', { name: /re-?run|run.*check/i }));
+    await waitFor(() => expect(screen.getByTestId('check-decision')).toHaveTextContent('PERMIT'));
+    expect(screen.getByTestId('check-access-story')).toHaveTextContent(/demoUser is a tenured/);
+  });
+
   it('sends the picked username and vertical when Run is pressed and shows the decision', async () => {
     const check = vi.fn(() => CHECK_DENY);
     renderPage(fetchMock({ check }));
@@ -124,7 +152,7 @@ describe('GroupPolicyBoardPage — group check panel', () => {
     const checks = [
       CHECK_DENY,
       { ...CHECK_DENY, inRequiredGroup: true, decision: 'PERMIT', denyReason: null,
-        userGroups: ['Banking_Privileged'], codes: ['mcp-tool-authorized'] },
+        userGroups: ['Banking_PremiumTier'], codes: ['mcp-tool-authorized'] },
     ];
     const check = vi.fn(() => checks[Math.min(check.mock.calls.length - 1, checks.length - 1)]);
     const toggles = [];
@@ -134,7 +162,7 @@ describe('GroupPolicyBoardPage — group check panel', () => {
         toggles.push({ url: u, body: JSON.parse(opts?.body || '{}') });
         return Promise.resolve({
           ok: true, status: 200,
-          json: async () => ({ username: 'demoDelegate', groupName: 'Banking_Privileged',
+          json: async () => ({ username: 'demoDelegate', groupName: 'Banking_PremiumTier',
             requested: true, inGroup: true, verified: true, verticalId: 'banking',
             displayName: 'Banking' }),
         });
@@ -167,7 +195,7 @@ describe('GroupPolicyBoardPage — group check panel', () => {
   it('removes the picked user from the group when the check shows them in', async () => {
     const check = vi.fn(() => ({
       ...CHECK_DENY, inRequiredGroup: true, decision: 'PERMIT', denyReason: null,
-      userGroups: ['Banking_Privileged'],
+      userGroups: ['Banking_PremiumTier'],
     }));
     const toggles = [];
     const fetchFn = (url, opts) => {
@@ -176,7 +204,7 @@ describe('GroupPolicyBoardPage — group check panel', () => {
         toggles.push(JSON.parse(opts?.body || '{}'));
         return Promise.resolve({
           ok: true, status: 200,
-          json: async () => ({ username: 'demoDelegate', groupName: 'Banking_Privileged',
+          json: async () => ({ username: 'demoDelegate', groupName: 'Banking_PremiumTier',
             requested: false, inGroup: false, verified: true, verticalId: 'banking',
             displayName: 'Banking' }),
         });

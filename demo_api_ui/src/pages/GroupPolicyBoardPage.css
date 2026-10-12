@@ -75,3 +75,12 @@
 .gpb-check-toggle--remove { border-color: #b3232a; color: #b3232a; }
 .gpb-check-toggle:disabled { opacity: .6; cursor: default; }
 .gpb-check-note { font-size: .82rem; color: var(--th-text-muted, #5a6572); }
+.gpb-check-story {
+  display: flex; flex-direction: column; gap: 4px;
+  margin-top: 8px; padding: 10px 14px;
+  border-left: 3px solid var(--ping-red, #b3232a);
+  background: color-mix(in srgb, var(--ping-red, #b3232a) 4%, transparent);
+  border-radius: 0 8px 8px 0;
+}
+.gpb-check-story-label { font-weight: 750; font-size: .82rem; }
+.gpb-check-story-text { font-size: .85rem; color: var(--th-text-muted, #5a6572); }

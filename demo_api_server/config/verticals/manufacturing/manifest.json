@@ -38,6 +38,11 @@
     "highValueLabel": "Release a work order to the production floor"
   },
   "groups": {
+    "access": {
+      "label": "Supplier-contract cleared",
+      "memberStory": "demoUser is on the cleared supplier-contract list \u2014 the Production Assistant may read sensitive supplier contracts and terms.",
+      "nonMemberStory": "demoDelegate is not on the cleared list: supplier contracts carry NDAs that gate them to cleared staff, so their calls are denied today."
+},
     "categories": {
       "privileged": {
         "name": "AI_Demo_Privileged",
