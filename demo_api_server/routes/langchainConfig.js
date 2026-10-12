@@ -397,7 +397,7 @@ router.get('/provider/:providerName/status', async (req, res) => {
 // the first real request doesn't pay the model-load pause. The actual swap is
 // done by the host tier-manager daemon (:8097) — same one the router uses.
 const LLAMACPP_TIER_PORTS = {
-  'phi-4-mini-instruct': 8091,
+  'llama-3.2-3b-instruct': 8091,
   'gpt-oss-20b': 8096,
 };
 
