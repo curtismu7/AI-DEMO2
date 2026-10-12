@@ -90,6 +90,10 @@ const AUTH_REQUIRED_CODES = new Set([
   'not_authenticated',
   'unauthorized',
   'authentication_failed',
+  // Hosted-access gate: the session has no live approval for this deployment's
+  // allowlist (policy fingerprint rotates on config change). Only the sign-in
+  // flow can mint one, so a raw stuck 401 without the nudge is a dead end.
+  'hosted_access_required',
 ]);
 
 /** 401 codes that are NOT session expiry (keep contextual UI). */

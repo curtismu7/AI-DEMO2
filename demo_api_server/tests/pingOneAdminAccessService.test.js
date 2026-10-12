@@ -157,9 +157,56 @@ test('fails closed with 503 immediately when accessToken is missing — neither 
   expect(pingOneAuthorizeService.evaluateMcpToolDelegation).not.toHaveBeenCalled();
 });
 
-test('fails closed with 503 when hop 1 throws — hop 2 and the PDP never run', async () => {
+test('maps a dead subject token at hop 1 to 401 session_expired + need_auth — the SPA force re-login path', async () => {
+  // PingOne's live rejection shape: the session's access token is no longer
+  // valid at the IdP. Retrying can never succeed, so this must NOT surface as
+  // the retryable-sounding 503 "try again in a moment".
+  membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
+  const rejected = new Error(
+    'Token exchange failed for actor-client-id: The request could not be completed. '
+    + "The request was malformed or invalid.: Not a valid access token for request param 'subject_token'",
+  );
+  rejected.pingoneError = 'invalid_request';
+  rejected.pingoneErrorDescription = "Not a valid access token for request param 'subject_token'";
+  oauthService.performTokenExchangeAs.mockRejectedValueOnce(rejected);
+
+  await expect(checkAccess({
+    username: 'demoAdmin',
+    pingOneUserId: 'user-1',
+    accessToken: 'admin-session-token',
+  })).resolves.toMatchObject({
+    allowed: false,
+    error: 'session_expired',
+    status: 401,
+    need_auth: true,
+    requiresLogin: true,
+  });
+
+  expect(pingOneAuthorizeService.evaluateMcpToolDelegation).not.toHaveBeenCalled();
+});
+
+test('maps a revoked/invalid_grant token at hop 1 to 401 session_expired', async () => {
   membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
   oauthService.performTokenExchangeAs.mockRejectedValueOnce(new Error('Token exchange failed: invalid_grant'));
+
+  await expect(checkAccess({
+    username: 'demoAdmin',
+    pingOneUserId: 'user-1',
+    accessToken: 'admin-session-token',
+  })).resolves.toMatchObject({
+    allowed: false,
+    error: 'session_expired',
+    status: 401,
+    need_auth: true,
+  });
+
+  expect(oauthService.performTokenExchangeAs).toHaveBeenCalledTimes(1);
+  expect(pingOneAuthorizeService.evaluateMcpToolDelegation).not.toHaveBeenCalled();
+});
+
+test('still 503s on a transient exchange failure (no token-rejection marker) — hop 1', async () => {
+  membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
+  oauthService.performTokenExchangeAs.mockRejectedValueOnce(new Error('connect ECONNREFUSED'));
 
   await expect(checkAccess({
     username: 'demoAdmin',
@@ -175,7 +222,7 @@ test('fails closed with 503 when hop 1 throws — hop 2 and the PDP never run', 
   expect(pingOneAuthorizeService.evaluateMcpToolDelegation).not.toHaveBeenCalled();
 });
 
-test('fails closed with 503 when hop 2 throws — the PDP never runs', async () => {
+test('maps a dead subject token at hop 2 to 401 session_expired — the PDP never runs', async () => {
   membershipService.listUserGroupNamesForVertical.mockResolvedValue(['pingone-admin']);
   oauthService.performTokenExchangeAs
     .mockResolvedValueOnce(HOP1_TOKEN)
@@ -187,8 +234,9 @@ test('fails closed with 503 when hop 2 throws — the PDP never runs', async () 
     accessToken: 'admin-session-token',
   })).resolves.toMatchObject({
     allowed: false,
-    error: 'pingone_admin_group_lookup_unavailable',
-    status: 503,
+    error: 'session_expired',
+    status: 401,
+    need_auth: true,
   });
 
   expect(oauthService.performTokenExchangeAs).toHaveBeenCalledTimes(2);

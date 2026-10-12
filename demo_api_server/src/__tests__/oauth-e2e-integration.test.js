@@ -648,19 +648,20 @@ describe('End-to-End OAuth Integration Tests', () => {
       expect(decodeURIComponent(location)).toContain('/logout');
     });
 
-    it('should include id_token_hint when session has an idToken', async () => {
-      // Inject a session with an idToken directly to test the hint inclusion.
-      // We verify the behaviour without needing a full OAuth callback.
+    it('should NEVER include id_token_hint on the signoff URL', async () => {
+      // id_token_hint is omitted by design: when the browser's IdP SSO session
+      // belongs to a different user than the app session being torn down,
+      // PingOne hard-fails the signoff with "User in ID token does not match
+      // session user", stranding the user on the IdP error page. client_id
+      // alone makes a valid RP-Initiated Logout for every browser session.
       const freshAgent = request.agent(app);
 
-      // Hit logout on a fresh (empty) session — no idToken, so hint should be absent.
       const response = await freshAgent
         .get('/api/auth/logout')
         .set('Accept', 'text/html')
         .expect(302);
 
       const location = response.headers.location;
-      // Without an idToken the hint param must not appear.
       expect(location).not.toContain('id_token_hint');
     });
 

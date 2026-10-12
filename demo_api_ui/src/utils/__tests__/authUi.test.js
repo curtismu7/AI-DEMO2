@@ -109,6 +109,13 @@ describe('authUi', () => {
       expect(isAuthRequiredApiError(401, { error: 'admin_required' })).toBe(false);
     });
 
+    it('treats a hosted-access 401 as sign-in required', () => {
+      // hostedAccessGate 401s with this code when the session has no live
+      // allowlist approval (policy fingerprint rotates on config change) —
+      // only the sign-in flow can mint one, so the nudge must fire.
+      expect(isAuthRequiredApiError(401, { error: 'hosted_access_required' })).toBe(true);
+    });
+
     it('ignores non-401 status', () => {
       expect(isAuthRequiredApiError(403, { error: 'session_expired' })).toBe(false);
       expect(isAuthRequiredApiError(200, { error: 'session_expired' })).toBe(false);
