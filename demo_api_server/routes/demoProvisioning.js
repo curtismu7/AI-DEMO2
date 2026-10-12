@@ -340,6 +340,16 @@ router.post('/send-invite', requireAdmin, async (req, res) => {
   if (partialGroupId && user?.id) {
     try {
       const { managementService } = require('../services/pingoneManagementService');
+      // Fresh processes start here before any other management-API call —
+      // without this, ensureInitialized() throws and the invitee is silently
+      // never parked in the pending group. Mirrors
+      // hostedRegistrationProvisioningService.ensureManagement().
+      // Both requires are inline (not top-level imports) so they resolve
+      // against the caller's module registry at call time.
+      if (!managementService.initialized) {
+        const { getManagementToken } = require('../services/pingOneClientService');
+        managementService.initialize(await getManagementToken());
+      }
       const added = await managementService.addUserToGroup(user.id, partialGroupId);
       if (!added?.success) logger.warn(LOG_CATEGORIES.USER_MANAGEMENT, 'send-invite pending-group add failed', { userId: user.id, error: added?.error });
     } catch (err) {

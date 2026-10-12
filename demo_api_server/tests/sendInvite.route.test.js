@@ -28,9 +28,13 @@ jest.mock('../services/configStore', () => ({
 jest.mock('../data/store', () => ({ seedAccountsForUser: jest.fn().mockResolvedValue(undefined) }));
 jest.mock('../services/pingoneManagementService', () => ({
   managementService: {
+    initialize: jest.fn(),
     addUserToGroup: jest.fn().mockResolvedValue({ success: true }),
     getUser: jest.fn().mockResolvedValue({ success: true, user: { id: 'user-1' } }),
   },
+}));
+jest.mock('../services/pingOneClientService', () => ({
+  getManagementToken: jest.fn().mockResolvedValue('worker-token-1'),
 }));
 jest.mock('../utils/logger', () => {
   const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(), logErrorHandling: jest.fn(), logAuthorizationAttempt: jest.fn() };
@@ -66,6 +70,8 @@ beforeEach(() => {
   const { managementService } = require('../services/pingoneManagementService');
   managementService.addUserToGroup.mockResolvedValue({ success: true });
   managementService.getUser.mockResolvedValue({ success: true, user: { id: 'user-1' } });
+  const pingOneClientService = require('../services/pingOneClientService');
+  pingOneClientService.getManagementToken.mockResolvedValue('worker-token-1');
 });
 
 describe('POST /api/demo/send-invite', () => {
@@ -154,6 +160,20 @@ describe('POST /api/demo/send-invite', () => {
     const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
       .post('/api/demo/send-invite').send({ email: 'groupfail@pingidentity.com' });
     expect(res.status).toBe(201);
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+  });
+
+  test('initializes the management service before adding to the pending group', async () => {
+    process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID = 'partial-group-1';
+    const { managementService } = require('../services/pingoneManagementService');
+    const pingOneClientService = require('../services/pingOneClientService');
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'init@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(managementService.initialize).toHaveBeenCalledWith('worker-token-1');
+    expect(pingOneClientService.getManagementToken).toHaveBeenCalled();
+    expect(managementService.initialize.mock.invocationCallOrder[0])
+      .toBeLessThan(managementService.addUserToGroup.mock.invocationCallOrder[0]);
     delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
   });
 
