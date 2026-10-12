@@ -14,8 +14,10 @@ describe("PersonalAgentClientCards", () => {
     expect(screen.getByRole("region", { name: "Personal agent clients" })).toBeInTheDocument();
     expect(screen.getAllByText("Browser personal agent").length).toBeGreaterThan(0);
     expect(screen.getAllByText("Mac personal agent").length).toBeGreaterThan(0);
+    expect(screen.getAllByText("Hosted always-on agent").length).toBeGreaterThan(0);
     expect(screen.getByText("CIMD / DCR")).toBeInTheDocument();
     expect(screen.getByText("MCP connection")).toBeInTheDocument();
+    expect(screen.getByText("Own memory")).toBeInTheDocument();
   });
 
   it("opens LibreChat and routes LM Studio to setup", () => {
@@ -34,6 +36,10 @@ describe("PersonalAgentClientCards", () => {
     );
     expect(screen.getByRole("link", { name: "Open LM Studio setup" })).toHaveClass(
       "personal-agent-client-cards__action--link",
+    );
+    expect(screen.getByRole("link", { name: "Open Dot in the studio" })).toHaveAttribute(
+      "href",
+      "/personal-agent?skin=dot",
     );
     openSpy.mockRestore();
   });

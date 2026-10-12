@@ -431,18 +431,18 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           )}
         </div>
 
-        {/* Security rail + the dot's own memory panel when the Dot skin is active */}
+        {/* Security rail (split/popped layouts) + the dot's own memory panel
+            when the Dot skin is active — the panel is the feature, so it shows
+            in every layout, not only when the rail does. */}
         {layout.railVisible && (
-          <>
-            <SecurityRail
-              gates={replayGates || gates}
-              actClaim={actClaim}
-              tokenEvents={events}
-              onReplay={handleReplay}
-            />
-            {activeSkin === 'dot' && <DotMemoryPanel refreshNonce={dotMemoryNonce} />}
-          </>
+          <SecurityRail
+            gates={replayGates || gates}
+            actClaim={actClaim}
+            tokenEvents={events}
+            onReplay={handleReplay}
+          />
         )}
+        {activeSkin === 'dot' && <DotMemoryPanel refreshNonce={dotMemoryNonce} />}
       </div>
 
       {/* Movie reel — same TokenChainFilmstrip the dashboard uses, so a personal
