@@ -93,6 +93,14 @@ spec:
             name: frontend
             port:
               number: 4000
+      # Sign-in modal reads the plus-addressing policy (public, no secrets).
+      - path: /api/auth/hosted-access/identifier-policy
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
       - path: /api/auth/hosted-access/callback
         pathType: Exact
         backend:
@@ -139,6 +147,17 @@ spec:
       # the SPA's /welcome route. Provisioning itself still requires an admin
       # session (POST /api/demo/provision-wizard is requireAdmin-gated).
       - path: /welcome
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      # Public SPA root — the app handles sign-in client-side (same as the
+      # local stack). Exact-match: only the bare root is bypassed, every deep
+      # link stays behind the hosted-access wall. Who may sign in is enforced
+      # by the BFF's hostedAccessPolicy at both OAuth callbacks, not here.
+      - path: /
         pathType: Exact
         backend:
           service:

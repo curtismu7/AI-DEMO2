@@ -15,9 +15,12 @@ vi.mock('../../utils/passkeyCeremony', () => ({ authenticateWebAuthn: vi.fn() })
 
 const ok = (body, status = 200) => Promise.resolve({ ok: status < 400, status, json: async () => body });
 
-function mockBff({ config, login, credentials, assertion, passwordless }) {
+function mockBff({ config, login, credentials, assertion, passwordless, identifierPolicy }) {
   global.fetch = vi.fn((url) => {
     if (String(url).includes('/api/admin/config')) return ok({ config });
+    if (String(url).includes('/api/auth/hosted-access/identifier-policy')) {
+      return identifierPolicy ? identifierPolicy() : ok({ rejectPlusAddressing: false, allowedIdentifiers: [] });
+    }
     if (String(url).includes('/pi-flow/assertion')) return assertion();
     if (String(url).includes('/pi-flow/credentials')) return credentials();
     if (String(url).includes('/pi-flow/passwordless')) return passwordless?.() ?? ok({}, 404);
@@ -76,6 +79,56 @@ describe('PiFlowSignInModal', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
+  });
+
+  // Plus-addressing: the demo refuses cmuir+x@pingone.com-style aliases at the
+  // sign-in form — inline, before any flow opens — unless the identifier is on
+  // the BFF's public allowlist (the presenter's demo accounts).
+  test('rejects a plus-addressed username inline and never contacts the BFF flow', async () => {
+    mockBff({
+      config: ON,
+      identifierPolicy: () => ok({ rejectPlusAddressing: true, allowedIdentifiers: ['demoUser', 'cmuir+demo-user@pingone.com'] }),
+      login: () => ok({ flowId: 'f1' }),
+      credentials: () => ok({ redirectTo: 'https://app.test/x' }),
+    });
+    await mountAndClickPassword();
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'someone+1@pingone.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(await screen.findByText(/plus addressing is not allowed/i)).toBeInTheDocument();
+    // No credentials call was made — the form stopped the attempt itself.
+    const credentialCalls = global.fetch.mock.calls.filter(([u]) => String(u).includes('/pi-flow/credentials'));
+    expect(credentialCalls).toHaveLength(0);
+  });
+
+  test('allowlisted demo identifier with a plus address signs in normally', async () => {
+    mockBff({
+      config: ON,
+      identifierPolicy: () => ok({ rejectPlusAddressing: true, allowedIdentifiers: ['demoUser', 'cmuir+demo-user@pingone.com'] }),
+      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
+      credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' }),
+    });
+    await mountAndClickPassword();
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'cmuir+demo-user@pingone.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
+  });
+
+  test('policy fetch failure never blocks sign-in (fail open to the server wall)', async () => {
+    mockBff({
+      config: ON,
+      identifierPolicy: () => ok({}, 500),
+      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
+      credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' }),
+    });
+    await mountAndClickPassword();
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'someone+1@pingone.com' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    // The UI check is best-effort; when its policy fetch failed, the sign-in
+    // proceeds and the SERVER-side gate is the wall.
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
   });
 

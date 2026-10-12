@@ -137,6 +137,19 @@ router.get('/callback', async (req, res) => {
 
 router.get('/check', hostedAccessCheck());
 
+// Public sign-up policy for the sign-in modal: which identifiers are exempt
+// from plus-addressing rejection. The modal fetches this so the front-end
+// check and the server-side gate can never disagree. No secrets: the
+// allowlist is demo test-account names, and the endpoint is in the ingress
+// oauth-bypass list alongside /login.
+router.get('/identifier-policy', (req, res) => {
+  const policy = loadHostedAccessPolicy();
+  return res.json({
+    rejectPlusAddressing: Boolean(policy.enabled && policy.rejectPlusAddressing),
+    allowedIdentifiers: policy.allowedIdentifiers,
+  });
+});
+
 router.get('/logout', (req, res) => {
   const returnPath = sanitizeReturnPath(req.query.return_to);
   return req.hostedSession.destroy((err) => {

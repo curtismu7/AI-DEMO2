@@ -34,6 +34,11 @@ describe('hostedAccessGate CIMD client documents', () => {
     expect(isHostedAccessBypassPath('/api/cimd/privilege/check', 'GET')).toBe(false);
   });
 
+  test('the identifier-policy endpoint is public GET (sign-in modal reads it)', () => {
+    expect(isHostedAccessBypassPath('/api/auth/hosted-access/identifier-policy', 'GET')).toBe(true);
+    expect(isHostedAccessBypassPath('/api/auth/hosted-access/identifier-policy', 'POST')).toBe(false);
+  });
+
   test('other methods, other slugs and the mock-AS routes stay gated', () => {
     expect(isHostedAccessBypassPath(doc, 'POST')).toBe(false);
     expect(isHostedAccessBypassPath('/api/cimd/privilege/unlisted/client-metadata.json', 'GET')).toBe(false);

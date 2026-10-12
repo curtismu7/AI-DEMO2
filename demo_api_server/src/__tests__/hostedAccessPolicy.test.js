@@ -108,6 +108,89 @@ describe('hostedAccessPolicy', () => {
     expect(first.fingerprint).not.toBe(changed.fingerprint);
   });
 
+  // Plus-addressing: the demo must never admit cmuir+x@pingone.com-style
+  // aliases, but the presenter's own test accounts sign in AS a + address —
+  // so the allowlist (HOSTED_ACCESS_ALLOWED_IDENTIFIERS) exempts exact
+  // identifiers from the + rule only; domain + group checks still apply.
+  test('rejects plus-addressed emails with email_plus_addressed', () => {
+    const result = evaluateHostedIdentity({
+      sub: 'user-1', email: 'cmuir+demo@pingone.com', email_verified: true,
+    }, loadHostedAccessPolicy(enabledEnv));
+    expect(result).toMatchObject({ allowed: false, reason: 'email_plus_addressed' });
+  });
+
+  test('allowlisted identifier may use a plus address (demo exemption)', () => {
+    const policy = loadHostedAccessPolicy({
+      ...enabledEnv,
+      HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'DemoUser, cmuir+demo-user@pingone.com',
+    });
+    // The + address itself is the allowlisted identifier.
+    expect(evaluateHostedIdentity({
+      sub: 'user-1', email: 'cmuir+demo-user@pingone.com', email_verified: true,
+    }, policy)).toMatchObject({ allowed: true });
+    // A DIFFERENT + address is still rejected — the allowlist is exact.
+    expect(evaluateHostedIdentity({
+      sub: 'user-2', email: 'attacker+1@pingone.com', email_verified: true,
+    }, policy)).toMatchObject({ allowed: false, reason: 'email_plus_addressed' });
+  });
+
+  test('allowlist matches preferred_username, not just email', () => {
+    const policy = loadHostedAccessPolicy({
+      ...enabledEnv,
+      HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'demoUser',
+    });
+    // PingOne may report username demoUser with a + email — the username alone exempts it.
+    expect(evaluateHostedIdentity({
+      sub: 'user-1', email: 'cmuir+demo-user@pingone.com', email_verified: true,
+      preferred_username: 'demoUser',
+    }, policy)).toMatchObject({ allowed: true });
+  });
+
+  test('group requirement still applies to allowlisted accounts', () => {
+    const policy = loadHostedAccessPolicy({
+      ...enabledEnv,
+      HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'demoUser',
+      HOSTED_ACCESS_REQUIRED_GROUP_ID: 'group-hosted-users',
+    });
+    expect(evaluateHostedIdentity({
+      sub: 'user-1', email: 'someone+1@pingone.com', email_verified: true,
+      preferred_username: 'demoUser', groups: [],
+    }, policy)).toMatchObject({ allowed: false, reason: 'group_not_allowed' });
+    expect(evaluateHostedIdentity({
+      sub: 'user-1', email: 'someone+1@pingone.com', email_verified: true,
+      preferred_username: 'demoUser', groups: ['group-hosted-users'],
+    }, policy)).toMatchObject({ allowed: true });
+  });
+
+  test('allowlisted demo account may carry a non-Ping email (demoAdmin@api.ping.demo)', () => {
+    // demoAdmin's PingOne account is provisioned with an @api.ping.demo
+    // address — it can never pass the domain rule. The exact-match allowlist
+    // is the exemption: only PingOne can assert that username, so the
+    // bypass cannot be reached by an attacker-chosen identifier.
+    const policy = loadHostedAccessPolicy({
+      ...enabledEnv,
+      HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'demoAdmin',
+    });
+    expect(evaluateHostedIdentity({
+      sub: 'user-2', email: 'demoAdmin@api.ping.demo', email_verified: true,
+      preferred_username: 'demoAdmin',
+    }, policy)).toMatchObject({ allowed: true });
+    // A DIFFERENT user cannot ride the exemption by email similarity.
+    expect(evaluateHostedIdentity({
+      sub: 'user-3', email: 'demoAdmin@api.ping.demo', email_verified: true,
+      preferred_username: 'imposter',
+    }, policy)).toMatchObject({ allowed: false, reason: 'domain_not_allowed' });
+  });
+
+  test('fingerprint changes when the identifier allowlist changes', () => {
+    const base = loadHostedAccessPolicy(enabledEnv);
+    const withAllowlist = loadHostedAccessPolicy({
+      ...enabledEnv,
+      HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'demoUser',
+    });
+    expect(base.fingerprint).not.toBe(withAllowlist.fingerprint);
+  });
+
   test('stamps, validates, invalidates, and clears a session approval', () => {
     const policy = loadHostedAccessPolicy(enabledEnv);
     const decision = evaluateHostedIdentity({
