@@ -24,52 +24,54 @@ const PLANES = ["metrics", "traces", "logs"];
 // edges leaving one node use DIFFERENT vertical offsets via `so`/`to`
 // (source/target Y fraction, 0=top .. 1=bottom) so co-routed lines fan out
 // instead of drawing on top of each other.
+// LAYERED LAYOUT — one horizontal band per telemetry plane. Each band is a
+// simple left→middle→right flow (emit → collect → present), so an edge never
+// crosses a node or another plane's lines. The old single 3-column grid made
+// every left node talk to every middle node — 14 edges funnelling through two
+// midlines — which is why lines overlapped no matter the routing knobs.
+// Within a band, edges at most 2 per hop and can't collide: rows are 190px
+// apart, nodes 73px, so each band's edges own their channel.
 const FLOW_NODES = [
-  // Emitters (left column)
-  { id: "bff", column: 0, row: 0, mark: "BFF", title: "BFF · demo-api-server", sub: "structured logger + OTLP", planes: ["logs", "traces"] },
-  { id: "gw", column: 0, row: 1, mark: "IG", title: "Agent Gateway · :8085", sub: "admin connector", planes: ["metrics"] },
-  { id: "ags", column: 0, row: 2, mark: "AG", title: "demo_agent_service", sub: "OTel spans (reason · tool)", planes: ["traces"] },
-  { id: "mcp", column: 0, row: 3, mark: "MCP", title: "mcp-server / mcpgw", sub: "OTLP + /metrics", planes: ["metrics", "traces"] },
-  { id: "cont", column: 0, row: 4, mark: "RUN", title: "Service containers", sub: "docker logs", planes: ["logs"] },
-  // Collectors / stores (middle column)
-  { id: "prom", column: 1, row: 0, mark: "P", title: "Prometheus", sub: "TSDB", planes: ["metrics"] },
-  { id: "alloy", column: 1, row: 1, mark: "AL", title: "Alloy", sub: "log scraper", planes: ["logs"] },
-  { id: "loki", column: 1, row: 2, mark: "LO", title: "Loki", sub: "log store", planes: ["logs"] },
-  { id: "jaeger", column: 1, row: 3, mark: "J", title: "Jaeger", sub: "trace store", planes: ["traces"] },
-  { id: "am", column: 1, row: 4, mark: "AM", title: "Alertmanager", sub: "default receiver (no-op)", planes: ["metrics"] },
-  // Surfaces (right column)
+  // ── METRICS band ──
+  { id: "gw", column: 0, row: 0, mark: "IG", title: "Agent Gateway · :8085", sub: "admin connector", planes: ["metrics"] },
+  { id: "mcp", column: 0, row: 1, mark: "MCP", title: "mcp-server / mcpgw", sub: "/metrics endpoint", planes: ["metrics"] },
+  { id: "prom", column: 1, row: 0, mark: "P", title: "Prometheus", sub: "scrapes both · TSDB", planes: ["metrics"] },
+  { id: "am", column: 1, row: 1, mark: "AM", title: "Alertmanager", sub: "default receiver (no-op)", planes: ["metrics"] },
   { id: "graf", column: 2, row: 0, mark: "G", title: "Grafana", sub: "dashboards · alerts · explore", planes: PLANES },
-  { id: "inapp", column: 2, row: 1, mark: "UI", title: "In-app pages", sub: "Tracing · Transaction Trace · MCP Observability", planes: ["traces", "logs"] },
-  { id: "arule", column: 2, row: 2, mark: "!", title: "Alert rules page", sub: "Grafana Alerting UI", planes: ["metrics"] },
+  { id: "arule", column: 2, row: 1, mark: "!", title: "Alert rules page", sub: "Grafana Alerting UI", planes: ["metrics"] },
+  // ── TRACES band ──
+  { id: "bff", column: 0, row: 2, mark: "BFF", title: "BFF · demo-api-server", sub: "OTel spans", planes: ["traces", "logs"] },
+  { id: "ags", column: 0, row: 3, mark: "AG", title: "demo_agent_service", sub: "OTel spans (reason · tool)", planes: ["traces"] },
+  { id: "jaeger", column: 1, row: 2, mark: "J", title: "Jaeger", sub: "trace store · OTLP in", planes: ["traces"] },
+  { id: "inapp", column: 2, row: 2, mark: "UI", title: "In-app pages", sub: "Tracing · Transaction Trace", planes: ["traces"] },
+  // ── LOGS band ──
+  { id: "cont", column: 0, row: 4, mark: "RUN", title: "Service containers", sub: "docker logs", planes: ["logs"] },
+  { id: "alloy", column: 1, row: 3, mark: "AL", title: "Alloy", sub: "log scraper", planes: ["logs"] },
+  { id: "loki", column: 1, row: 4, mark: "LO", title: "Loki", sub: "log store", planes: ["logs"] },
+  { id: "mcpobs", column: 2, row: 4, mark: "UI", title: "MCP Observability", sub: "in-app log view", planes: ["logs"] },
 ];
 
-// so/to: Y fraction on the source/target handle (0 = top edge, 1 = bottom
-// edge). Parallel same-direction edges get spread values so each line owns a
-// distinct lane: e.g. the three OTLP flows leave their emitters at .3/.5/.7.
-// step: per-edge smoothstep `stepPosition` (0..1) — XYFlow bends the edge at
-// `step` of the source→target span, so two edges whose default midpoint bend
-// would coincide (drawing ON TOP of each other) instead route through
-// different X channels. pathOptions.offset alone does NOT move the vertical:
-// getPoints() places the bend at sourceGapped + (targetGapped-sourceGapped) *
-// stepPosition, and offset only trims the horizontal stubs.
+// One edge per hop, laid out so no two edges in a band share a channel:
+// emitters → their store → the surface that shows it. bff keeps a logs edge
+// (it's the structured logger) routed to Loki on its own lane below traces.
 const FLOW_EDGES = [
-  { id: "e-bff-loki", source: "bff", target: "loki", label: "push", plane: "logs", so: 0.75, to: 0.3, step: 0.24 },
-  { id: "e-bff-jaeger", source: "bff", target: "jaeger", label: "OTLP", plane: "traces", so: 0.35, to: 0.3, step: 0.76 },
-  { id: "e-gw-prom", source: "gw", target: "prom", label: "scrape", plane: "metrics", so: 0.3, to: 0.72, step: 0.62 },
-  { id: "e-ags-jaeger", source: "ags", target: "jaeger", label: "OTLP", plane: "traces", so: 0.3, to: 0.55, step: 0.35 },
-  { id: "e-mcp-prom", source: "mcp", target: "prom", label: "scrape", plane: "metrics", so: 0.3, to: 0.4, step: 0.38 },
-  { id: "e-mcp-jaeger", source: "mcp", target: "jaeger", label: "OTLP", plane: "traces", so: 0.7, to: 0.78, step: 0.65 },
-  { id: "e-cont-alloy", source: "cont", target: "alloy", label: "read", plane: "logs", so: 0.3, to: 0.72, step: 0.3 },
-  { id: "e-alloy-loki", source: "alloy", target: "loki", label: "", plane: "logs", so: 0.4, to: 0.35, step: 0.5 },
-  { id: "e-prom-am", source: "prom", target: "am", label: "fire", plane: "metrics", so: 0.75, to: 0.3, step: 0.5 },
-  // The three store→Grafana edges are unlabeled: their "datasource" labels used
-  // to stack where the edges converge on the node and read as overlapping boxes.
-  // Staggered entry heights + distinct step channels keep them parallel.
-  { id: "e-prom-graf", source: "prom", target: "graf", label: "", plane: "metrics", so: 0.3, to: 0.3, step: 0.7 },
-  { id: "e-loki-graf", source: "loki", target: "graf", label: "", plane: "logs", so: 0.3, to: 0.55, step: 0.42 },
-  { id: "e-jaeger-graf", source: "jaeger", target: "graf", label: "", plane: "traces", so: 0.3, to: 0.75, step: 0.78 },
-  { id: "e-jaeger-inapp", source: "jaeger", target: "inapp", label: "BFF proxy", plane: "traces", so: 0.7, to: 0.35, step: 0.34 },
-  { id: "e-am-arule", source: "am", target: "arule", label: "", plane: "metrics", so: 0.3, to: 0.35, step: 0.5 },
+  // Metrics: gw+mcp → prom → graf; prom → am → arule
+  { id: "e-gw-prom", source: "gw", target: "prom", label: "scrape", plane: "metrics", so: 0.5, to: 0.7, step: 0.5 },
+  { id: "e-mcp-prom", source: "mcp", target: "prom", label: "scrape", plane: "metrics", so: 0.5, to: 0.3, step: 0.35 },
+  { id: "e-prom-graf", source: "prom", target: "graf", label: "datasource", plane: "metrics", so: 0.3, to: 0.5, step: 0.5 },
+  { id: "e-prom-am", source: "prom", target: "am", label: "fire", plane: "metrics", so: 0.7, to: 0.5, step: 0.5 },
+  { id: "e-am-arule", source: "am", target: "arule", label: "", plane: "metrics", so: 0.5, to: 0.5, step: 0.5 },
+  // Traces: bff+ags → jaeger → inapp (+ graf datasource)
+  { id: "e-bff-jaeger", source: "bff", target: "jaeger", label: "OTLP", plane: "traces", so: 0.5, to: 0.3, step: 0.5 },
+  { id: "e-ags-jaeger", source: "ags", target: "jaeger", label: "OTLP", plane: "traces", so: 0.5, to: 0.7, step: 0.35 },
+  { id: "e-jaeger-graf", source: "jaeger", target: "graf", label: "datasource", plane: "traces", so: 0.3, to: 0.75, step: 0.5 },
+  { id: "e-jaeger-inapp", source: "jaeger", target: "inapp", label: "BFF proxy", plane: "traces", so: 0.7, to: 0.5, step: 0.5 },
+  // Logs: bff→loki (push), cont→alloy→loki → mcpobs (+ graf datasource)
+  { id: "e-bff-loki", source: "bff", target: "loki", label: "push", plane: "logs", so: 0.75, to: 0.3, step: 0.28 },
+  { id: "e-cont-alloy", source: "cont", target: "alloy", label: "read", plane: "logs", so: 0.5, to: 0.7, step: 0.5 },
+  { id: "e-alloy-loki", source: "alloy", target: "loki", label: "", plane: "logs", so: 0.5, to: 0.7, step: 0.5 },
+  { id: "e-loki-graf", source: "loki", target: "graf", label: "datasource", plane: "logs", so: 0.3, to: 0.7, step: 0.45 },
+  { id: "e-loki-mcpobs", source: "loki", target: "mcpobs", label: "query", plane: "logs", so: 0.7, to: 0.5, step: 0.5 },
 ];
 
 // Walkthrough steps that map to a real surface link to it (new tab, so the
@@ -138,6 +140,10 @@ const PlaneNode = memo(function PlaneNode({ data }) {
   );
 });
 
+const BandNode = memo(function BandNode({ data }) {
+  return <div className={`obs-band obs-band--${data.cls}`}>{data.label}</div>;
+});
+
 // Snap each edge's lane fraction to the nearest available handle lane.
 export function withHandleLanes(edges) {
   return edges.map((e) => ({
@@ -147,19 +153,27 @@ export function withHandleLanes(edges) {
   }));
 }
 
-const NODE_TYPES = { plane: PlaneNode };
+const NODE_TYPES = { plane: PlaneNode, band: BandNode };
+
+// Swimlane headers: one per plane band, rendered as borderless label nodes.
+const BAND_LABELS = [
+  { id: "band-metrics", row: 0, label: "METRICS", cls: "band-metrics" },
+  { id: "band-traces", row: 2, label: "TRACES", cls: "band-traces" },
+  { id: "band-logs", row: 4, label: "LOGS", cls: "band-logs" },
+];
 
 const COL_X = [0, 400, 800];
-// Nodes are 73px tall (compact layout, verified live); 100px pitch = 27px
-// breathing room per row, and edge labels live in that gap.
-const ROW_Y = [0, 100, 200, 300, 400];
+// Layered bands: rows within a band are 100px apart; BAND_GAP inserts the
+// larger jump between planes (row 1→2 and 3→4) so each plane reads as its own
+// lane. 250px between bands = generous air, no cross-band line traffic.
+const ROW_Y = [0, 100, 350, 450, 700];
 
 /** Pure node builder — exported for tests. */
 export function buildNodes(activePlane = "all") {
-  return FLOW_NODES.map((n) => ({
+  const flowNodes = FLOW_NODES.map((n) => ({
     id: n.id,
     type: "plane",
-    position: { x: COL_X[n.column], y: ROW_Y[n.row] },
+    position: { x: COL_X[n.column] + 90, y: ROW_Y[n.row] },
     data: {
       mark: n.mark,
       title: n.title,
@@ -170,6 +184,16 @@ export function buildNodes(activePlane = "all") {
     draggable: false,
     selectable: false,
   }));
+  const bands = BAND_LABELS.map((b) => ({
+    id: b.id,
+    type: "band",
+    position: { x: -40, y: ROW_Y[b.row] + 20 },
+    data: { label: b.label, cls: b.cls },
+    draggable: false,
+    selectable: false,
+    focusable: false,
+  }));
+  return [...bands, ...flowNodes];
 }
 
 /** Pure edge builder — exported for tests. */

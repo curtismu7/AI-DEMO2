@@ -199,6 +199,30 @@
   opacity: 0.13;
 }
 
+/* Swimlane headers — one per plane band, vertical label at the left margin */
+.obs-band {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 210px;
+  border-right: 2px solid;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--th-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-transform: uppercase;
+}
+
+.obs-band--metrics { border-color: var(--obs-metrics); }
+.obs-band--traces { border-color: var(--obs-traces); }
+.obs-band--logs { border-color: var(--obs-logs); }
+
 .obs-node .react-flow__handle {
   width: 5px;
   height: 5px;
