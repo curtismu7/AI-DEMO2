@@ -62,6 +62,14 @@ The model list lives in the binary, so a gateway restart picks it up — no cons
 
 A new classified outcome for LLM policy enforcement: a denial raised against the **response** rather than the request. Previously a response-side policy hit did not have its own record. Demo value: a policy that screens responses can now be pointed at in the logs as its own event, next to the request-side denial states.
 
+### 5. llama.cpp provider
+
+The LLM gateway now lists **llama.cpp** as a provider in the virtual-key form's Auth/dropdown (found live in the console 2026-10-12). A virtual key can target a self-hosted llama.cpp `llama-server` (OpenAI-compatible `/v1` API) the same way it targets OpenAI or Anthropic: the gateway fronts the local server, the app holds only the virtual key.
+
+Demo value: "govern a model that never leaves your building" — the strongest data-residency story in the provider set, and it exercises the same key/route/policy machinery on a server we own end to end. Our server is the demo stack's tier-1 `llama-server`; the demo's allowed model is `meta.llama3-2-3b-instruct-v1:0` (the console's catalog id closest to the served 3B-class GGUF — llama-server ignores the `model` field and serves whatever is loaded, so the catalog name is what the gateway sees).
+
+Unknowns for the demo to settle: the exact route segment (`/llm/llamacpp/...` presumed), whether the gateway can reach a host-mode llama-server (it binds the node, not the cluster), and how budget/pricing treats a catalog model with no configured rate.
+
 ## How this was determined
 
 1. Tag list from `public.ecr.aws` — newest date tag is `v1.261009`; `latest` resolves to the same index digest
@@ -95,4 +103,4 @@ If an announcement promised a release "this morning", it had not reached the pub
 
 ## Demo steps
 
-Planned, not yet executed: [2026-10-12-v1.261009-demo-steps plan](../docs/superpowers/plans/2026-10-12-v1.261009-demo-steps.md) — per-feature demo steps in the live-tested style of [LLM routing & virtual keys](GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md), split by what our environment can demo today (model catalog, response-denied) versus what needs an AWS Bedrock key provisioned first (bedrock-mantle, the deployments route).
+Planned, not yet executed: [2026-10-12-v1.261009-demo-steps plan](../docs/superpowers/plans/2026-10-12-v1.261009-demo-steps.md) — per-feature demo steps in the live-tested style of [LLM routing & virtual keys](GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md), split by what our environment can demo today (model catalog, response-denied, llama.cpp) versus what needs an AWS Bedrock key provisioned first (bedrock-mantle, the deployments route).
