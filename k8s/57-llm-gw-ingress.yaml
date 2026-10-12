@@ -1,0 +1,50 @@
+# k8s/57-llm-gw-ingress.yaml
+#
+# Public route for the Privilege llama.cpp lane. The gateway's CustomUpstream
+# (console key "llama.cpp", provider "custom") points at
+#   https://ai-demo.ping-devops.com/llm-gw
+# and forwards /llm/custom/<rest> here with the rest appended — the rewrite
+# strips the /llm-gw prefix so llm-proxy sees /<rest> as usual.
+#
+# Who authenticates whom:
+#   gateway → tier   RealKey of the virtual key, injected by the gateway as
+#                    Authorization: Bearer (CustomUpstream.AuthType=bearer);
+#                    llama-tier1 enforces it via llama-server --api-key.
+#   proxy   → tier   LLAMA_TIER_API_KEY on the llm-proxy deployment (same
+#                    value, see 56-llm-stack.yaml's deployment env).
+#   internet → here  NOTHING works without a bearer: llama-server rejects
+#                    unauthenticated calls, and llm-proxy only forwards —
+#                    so this path is inert without a virtual key.
+#
+# Applied live 2026-10-12 (kubectl apply) alongside the tier --api-key patch
+# in 56-llm-stack.yaml; this manifest is the checked-in source of truth.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: llm-gw-ingress
+  namespace: ping-devops-cmuir
+  annotations:
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    # Regex prefix-strip: /llm-gw/v1/chat/completions → /v1/chat/completions.
+    # Deliberately NOT configuration-snippet with an if-block — an `if` in a
+    # proxied location blackholed every POST here (0-byte hangs) before the
+    # snippet was removed; llama-server's own --api-key is the enforcement.
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: ai-demo.ping-devops.com
+    http:
+      paths:
+      - backend:
+          service:
+            name: llm-proxy
+            port:
+              number: 8090
+        path: /llm-gw/?(.*)
+        pathType: ImplementationSpecific

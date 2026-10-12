@@ -79,6 +79,7 @@ spec:
               MODELS="
               /models/gpt-oss-20b-MXFP4.gguf|ggml-org/gpt-oss-20b-GGUF|gpt-oss-20b-MXFP4.gguf
               /models/microsoft_Phi-4-mini-instruct-Q4_K_M.gguf|bartowski/microsoft_Phi-4-mini-instruct-GGUF|microsoft_Phi-4-mini-instruct-Q4_K_M.gguf
+              /models/Llama-3.2-3B-Instruct-Q4_K_M.gguf|bartowski/Llama-3.2-3B-Instruct-GGUF|Llama-3.2-3B-Instruct-Q4_K_M.gguf
               /models/Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf|bartowski/Llama-3-Groq-8B-Tool-Use-GGUF|Llama-3-Groq-8B-Tool-Use-Q4_K_M.gguf
               /embed-models/nomic-embed-text-v1.5.Q8_0.gguf|nomic-ai/nomic-embed-text-v1.5-GGUF|nomic-embed-text-v1.5.Q8_0.gguf
               "
