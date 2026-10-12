@@ -1,0 +1,749 @@
+<meta charset="utf-8">
+<title>AI-DEMO2 Install Map — Docker Only</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap">
+<style>
+  /* ── Tokens ─────────────────────────────────────────────────────────
+     Same design system as 2026-10-12-install-map-all-k8.html (sibling page).
+     Warm-neutral paper, plum-biased ink, Ping red accent on the Ping family;
+     per-group hues: host amber, services blue, LLM violet, obs teal,
+     infra/cloud slate. Montserrat + JetBrains Mono. */
+  :root {
+    --bg: #FAF8F6;
+    --elev: #FFFFFF;
+    --ink: #241B21;
+    --muted: #6E6470;
+    --line: #E4DCDE;
+    --line-strong: #C9BFC4;
+    --accent: #B01E48;
+    --accent-soft: rgba(176, 30, 72, 0.08);
+    --ok: #1F7A4D;
+    --c-amber: #A06A1B;
+    --c-amber-soft: rgba(160, 106, 27, 0.10);
+    --c-blue: #2B6CB0;
+    --c-blue-soft: rgba(43, 108, 176, 0.10);
+    --c-violet: #6B4FBB;
+    --c-violet-soft: rgba(107, 79, 187, 0.10);
+    --c-teal: #177E6E;
+    --c-teal-soft: rgba(23, 126, 110, 0.10);
+    --c-slate: #5B6B7C;
+    --c-slate-soft: rgba(91, 107, 124, 0.10);
+    --font-display: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+    --font-mono: "JetBrains Mono", "SF Mono", Menlo, monospace;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root:not([data-theme="light"]) {
+      --bg: #161418;
+      --elev: #1E1B20;
+      --ink: #EDEAEE;
+      --muted: #A49CA6;
+      --line: #332E36;
+      --line-strong: #4A444D;
+      --accent: #E8547E;
+      --accent-soft: rgba(232, 84, 126, 0.10);
+      --ok: #4CC38A;
+      --c-amber: #D9A441;
+      --c-amber-soft: rgba(217, 164, 65, 0.14);
+      --c-blue: #63A0E0;
+      --c-blue-soft: rgba(99, 160, 224, 0.14);
+      --c-violet: #A88BE0;
+      --c-violet-soft: rgba(168, 139, 224, 0.14);
+      --c-teal: #4AB6A3;
+      --c-teal-soft: rgba(74, 182, 163, 0.14);
+      --c-slate: #8CA0B3;
+      --c-slate-soft: rgba(140, 160, 179, 0.14);
+      color-scheme: dark;
+    }
+  }
+  :root[data-theme="dark"] {
+    --bg: #161418;
+    --elev: #1E1B20;
+    --ink: #EDEAEE;
+    --muted: #A49CA6;
+    --line: #332E36;
+    --line-strong: #4A444D;
+    --accent: #E8547E;
+    --accent-soft: rgba(232, 84, 126, 0.10);
+    --ok: #4CC38A;
+    --c-amber: #D9A441;
+    --c-amber-soft: rgba(217, 164, 65, 0.14);
+    --c-blue: #63A0E0;
+    --c-blue-soft: rgba(99, 160, 224, 0.14);
+    --c-violet: #A88BE0;
+    --c-violet-soft: rgba(168, 139, 224, 0.14);
+    --c-teal: #4AB6A3;
+    --c-teal-soft: rgba(74, 182, 163, 0.14);
+    --c-slate: #8CA0B3;
+    --c-slate-soft: rgba(140, 160, 179, 0.14);
+    color-scheme: dark;
+  }
+
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    padding: 0 20px;
+    padding-block: 24px 64px;
+    background: var(--bg);
+    color: var(--ink);
+    font-family: var(--font-display);
+    font-size: 14.5px;
+    line-height: 1.6;
+  }
+  .wrap { max-width: 1400px; margin: 0 auto; }
+
+  .eyebrow {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    font-weight: 500;
+    letter-spacing: 0.14em;
+    text-transform: uppercase;
+    color: var(--accent);
+    margin: 0 0 10px;
+  }
+  h1 {
+    font-size: clamp(26px, 4.5vw, 34px);
+    font-weight: 800;
+    line-height: 1.15;
+    letter-spacing: -0.01em;
+    margin: 0 0 12px;
+    text-wrap: balance;
+  }
+  .lede { max-width: 68ch; color: var(--muted); margin: 0 0 28px; }
+  .lede strong { color: var(--ink); font-weight: 600; }
+
+  h2 {
+    font-size: 20px;
+    font-weight: 700;
+    letter-spacing: -0.005em;
+    margin: 52px 0 6px;
+    text-wrap: balance;
+  }
+  h2 + .sub { margin: 0 0 18px; }
+  .sub { color: var(--muted); max-width: 72ch; }
+  .kicker {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    font-weight: 500;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted);
+    display: block;
+    margin-bottom: 4px;
+  }
+
+  /* Steps */
+  .steps { display: grid; gap: 10px; margin: 20px 0 8px; counter-reset: step; }
+  .step {
+    display: grid;
+    grid-template-columns: 34px 1fr;
+    gap: 14px;
+    align-items: start;
+    background: var(--elev);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .step::before {
+    counter-increment: step;
+    content: counter(step);
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 13px;
+    color: var(--accent);
+    border: 1px solid var(--line-strong);
+    border-radius: 50%;
+    width: 26px; height: 26px;
+    display: flex; align-items: center; justify-content: center;
+    margin-top: 2px;
+  }
+  .step .cmd {
+    font-family: var(--font-mono);
+    font-size: 13px;
+    font-weight: 500;
+    background: var(--accent-soft);
+    border-radius: 5px;
+    padding: 3px 8px;
+    display: inline-block;
+    margin: 2px 0 4px;
+  }
+  .step p { margin: 0; font-size: 13.5px; color: var(--muted); }
+
+  /* Facts strip */
+  .facts {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(150px, 1fr));
+    gap: 10px;
+    margin: 26px 0 0;
+  }
+  .fact { border-top: 2px solid var(--line-strong); padding-top: 8px; }
+  .fact b {
+    display: block;
+    font-size: 21px;
+    font-weight: 700;
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.01em;
+  }
+  .fact span { font-size: 12px; color: var(--muted); }
+
+  /* Diagram */
+  figure.map { margin: 22px 0 0; }
+  .map-scroll { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; background: var(--elev); }
+  .map-scroll svg { display: block; min-width: 1200px; max-width: 100%; height: auto; }
+  figcaption {
+    font-size: 12.5px;
+    color: var(--muted);
+    margin-top: 10px;
+    max-width: 78ch;
+  }
+  .legend {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 8px 22px;
+    margin-top: 10px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--muted);
+  }
+  .legend .key { display: inline-flex; align-items: center; gap: 8px; }
+  .legend svg { width: 34px; height: 8px; }
+
+  /* SVG text */
+  .zone-title {
+    font-family: var(--font-mono);
+    font-size: 12.5px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    fill: currentColor;
+  }
+  .zone-sub { font-family: var(--font-mono); font-size: 10.5px; fill: var(--muted); }
+  .card-t { font-family: var(--font-display); font-size: 12.5px; font-weight: 700; fill: currentColor; }
+  .card-t.blue { fill: var(--c-blue); }
+  .card-t.violet { fill: var(--c-violet); }
+  .card-t.teal { fill: var(--c-teal); }
+  .card-t.amber { fill: var(--c-amber); }
+  .card-t.slate { fill: var(--c-slate); }
+  .card-s { font-family: var(--font-mono); font-size: 10.5px; fill: var(--muted); }
+  .arrow-l { font-family: var(--font-mono); font-size: 10.5px; font-weight: 500; fill: currentColor; }
+  .ns-banner { font-family: var(--font-mono); font-size: 11px; font-weight: 600; letter-spacing: 0.1em; fill: var(--bg); }
+
+  /* Inventory cards */
+  .inv { display: grid; grid-template-columns: repeat(auto-fit, minmax(320px, 1fr)); gap: 12px; margin-top: 20px; }
+  .inv-card {
+    background: var(--elev);
+    border: 1px solid var(--line);
+    border-radius: 8px;
+    padding: 14px 16px;
+  }
+  .inv-card h3 { margin: 0 0 3px; font-size: 14px; font-weight: 700; }
+  .inv-card .src {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    background: var(--accent-soft);
+    border-radius: 4px;
+    padding: 2px 7px;
+    display: inline-block;
+    margin-bottom: 8px;
+  }
+  .inv-card p { margin: 0; font-size: 12.5px; color: var(--muted); }
+  .inv-card .count {
+    float: right;
+    font-family: var(--font-mono);
+    font-size: 12px;
+    font-weight: 600;
+    color: var(--muted);
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Tables */
+  table { border-collapse: collapse; width: 100%; margin-top: 18px; }
+  th {
+    text-align: left;
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
+    text-transform: uppercase;
+    color: var(--muted);
+    border-bottom: 1.5px solid var(--line-strong);
+    padding: 8px 12px 8px 0;
+  }
+  td {
+    border-bottom: 1px solid var(--line);
+    padding: 10px 12px 10px 0;
+    font-size: 13.5px;
+    vertical-align: top;
+  }
+  tr:hover td { background: var(--accent-soft); }
+  td.item { font-weight: 600; white-space: nowrap; }
+  td .mono, .mono { font-family: var(--font-mono); font-size: 12px; }
+  td .once {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted);
+    border: 1px solid var(--line);
+    border-radius: 4px;
+    padding: 1px 6px;
+    white-space: nowrap;
+  }
+  td .runtime {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--accent);
+    border: 1px solid var(--accent);
+    border-radius: 4px;
+    padding: 1px 6px;
+    white-space: nowrap;
+  }
+  .t-wrap { overflow-x: auto; }
+  .t-wrap table { min-width: 560px; }
+
+  .footnote {
+    margin-top: 40px;
+    padding-top: 16px;
+    border-top: 1px solid var(--line);
+    font-size: 12.5px;
+    color: var(--muted);
+    max-width: 78ch;
+  }
+  .footnote code { font-family: var(--font-mono); font-size: 11.5px; color: var(--ink); background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; }
+  @media (max-width: 480px) {
+    body { padding: 16px 16px 48px; }
+    .step { grid-template-columns: 28px 1fr; gap: 10px; }
+  }
+</style>
+
+<div class="wrap">
+  <p class="eyebrow">AI-DEMO2 · docker-only install topology — verified against the repo, 2026-10-12</p>
+  <h1>Plain Docker: no Kubernetes, no cluster — just containers</h1>
+  <p class="lede">
+    The whole demo also runs with <strong>nothing but Docker Compose</strong> —
+    <span class="mono">./run-docker.sh</span> on OrbStack's engine. No Kubernetes, no manifests, no
+    quotas: 15 core services come up, RAG and demo-auth ride along, and six optional groups
+    (observability, tracing, mcpgw, SPIFFE, JEV, attack) start on demand. The one thing that
+    <em>doesn't</em> go in a container is the LLM: llama.cpp runs as a <strong>host process</strong>
+    reading GGUFs from <span class="mono">~/models</span>, and the <span class="mono">llm-proxy</span>
+    container routes to it over <span class="mono">host.docker.internal</span>. Compose reads the
+    bootstrap's <span class="mono">.env</span> directly — there is no create-secrets step.
+  </p>
+
+  <h2><span class="kicker">Install sequence</span>Six steps, then it runs</h2>
+  <div class="steps">
+    <div class="step">
+      <div>
+        <span class="cmd">Install OrbStack</span>
+        <p>Docker engine + Compose only — Kubernetes stays off in this mode. The only sizeable app install.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div>
+        <span class="cmd">git clone &lt;repo&gt; &amp;&amp; cd AI-DEMO2</span>
+        <p><span class="mono">run-docker.sh</span>, <span class="mono">docker-compose.yml</span> and the service sources come from git. The script pins its compose project to the main checkout — worktree clones guard against double-stacks.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div>
+        <span class="cmd">brew install node llama.cpp mkcert huggingface-cli</span>
+        <p>Host tooling: <span class="mono">node</span> (tier-manager, health gate, bootstrap), <span class="mono">llama-server</span> for the LLM tiers, <span class="mono">mkcert</span> for TLS. Optional: <span class="mono">pingcli</span>, <span class="mono">python3</span>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div>
+        <span class="cmd">cd demo_api_server &amp;&amp; npm run pingone:bootstrap</span>
+        <p>Same bootstrap as the K8s path: creates the recipient's own PingOne environment and apps, writes <span class="mono">demo_api_server/.env</span> and generates <span class="mono">certs/</span>.</p>
+      </div>
+    </div>
+    <div class="step">
+      <div>
+        <span class="cmd">/etc/hosts + mkcert -install &amp;&amp; bash demo_llm_proxy/download-models.sh fetch</span>
+        <p>Map <span class="mono">api.ping.demo</span> and <span class="mono">local.ping-devops.com</span> to 127.0.0.1, trust the mkcert CA, then pull the GGUFs (~13&nbsp;GB for both tiers; 2.5&nbsp;GB tier-1 alone is enough to start).</p>
+      </div>
+    </div>
+    <div class="step">
+      <div>
+        <span class="cmd">./run-docker.sh</span>
+        <p>Builds the images, starts core + RAG + demo-auth, runs the health gate, and opens
+        <span class="mono">https://local.ping-devops.com:4000/demo-summary</span>.
+        <span class="mono">start full</span> adds every optional group; <span class="mono">optional start observability</span> adds one.</p>
+      </div>
+    </div>
+  </div>
+
+  <div class="facts">
+    <div class="fact"><b>1</b><span>app install (OrbStack) + brew tools</span></div>
+    <div class="fact"><b>15</b><span>core services, ~2.3 GB of images</span></div>
+    <div class="fact"><b>~13 GB</b><span>GGUF models on host disk (2.5 GB minimum)</span></div>
+    <div class="fact"><b>6</b><span>optional groups, off until asked</span></div>
+    <div class="fact"><b>0</b><span>Kubernetes objects — no kubectl anywhere</span></div>
+  </div>
+
+  <h2><span class="kicker">The map</span>Host vs VM vs cloud — LLM stays on the host</h2>
+  <p class="sub">The host does more work in this mode: it runs the LLM, holds the models and serves the
+  TLS trust. Containers talk to it over <span class="mono">host.docker.internal</span>; Apple MLX is
+  native-only and is never used in a Docker context.</p>
+
+  <figure class="map">
+    <div class="map-scroll">
+      <svg viewBox="0 0 1400 700" role="img" aria-label="Docker-only install map: the Mac host runs OrbStack's Docker engine, brew tools, the repo, the PingOne bootstrap .env, and the LLM itself as host llama-server processes on ports 8091 and 8096 with GGUF models in ~/models; the Docker VM runs 15 core compose services plus optional groups, with the llm-proxy container routing to the host tiers over host.docker.internal; upstream registries and HuggingFace are pulled once, Brave and weather APIs are called when used, and PingOne is the steady-state runtime dependency.">
+        <defs>
+          <marker id="ah" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <polygon points="0 0, 10 5, 0 10" fill="currentColor"/>
+          </marker>
+          <marker id="ahA" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+            <polygon points="0 0, 10 5, 0 10" fill="var(--accent)"/>
+          </marker>
+        </defs>
+
+        <!-- ══ Zones ══ -->
+        <rect x="16" y="46" width="300" height="628" rx="10" fill="none" stroke="var(--line-strong)" stroke-width="1.5"/>
+        <text class="zone-title" x="34" y="76">YOUR MAC</text>
+        <text class="zone-sub" x="34" y="93">tools + LLM runtime + credentials</text>
+
+        <rect x="456" y="46" width="460" height="628" rx="10" fill="none" stroke="var(--line-strong)" stroke-width="1.5"/>
+        <rect x="456" y="46" width="460" height="30" rx="10" fill="currentColor"/>
+        <rect x="456" y="66" width="460" height="10" fill="currentColor"/>
+        <text class="ns-banner" x="686" y="66" text-anchor="middle">DOCKER (ORBSTACK VM) · COMPOSE · PROJECT ai-demo</text>
+
+        <rect x="1104" y="46" width="280" height="628" rx="10" fill="none" stroke="var(--line-strong)" stroke-width="1.5"/>
+        <text class="zone-title" x="1122" y="76">CLOUD · PUBLIC</text>
+        <text class="zone-sub" x="1122" y="93">no secrets cross the boundary</text>
+
+        <!-- ══ Host cards (amber; LLM violet) ══ -->
+        <g>
+          <rect x="32" y="112" width="268" height="60" rx="6" fill="var(--c-amber-soft)" stroke="var(--c-amber)" stroke-width="1"/>
+          <text class="card-t amber" x="44" y="132">OrbStack — Docker engine only</text>
+          <text class="card-s" x="44" y="149">Compose v2 · Kubernetes not needed</text>
+
+          <rect x="32" y="188" width="268" height="74" rx="6" fill="var(--c-amber-soft)" stroke="var(--c-amber)" stroke-width="1"/>
+          <text class="card-t amber" x="44" y="208">Homebrew tools</text>
+          <text class="card-s" x="44" y="225">node · llama.cpp · mkcert · hf-cli</text>
+          <text class="card-s" x="44" y="242">pingcli optional · python3 for compose</text>
+
+          <rect x="32" y="278" width="268" height="60" rx="6" fill="var(--c-amber-soft)" stroke="var(--c-amber)" stroke-width="1"/>
+          <text class="card-t amber" x="44" y="298">Repo clone</text>
+          <text class="card-s" x="44" y="315">run-docker.sh · docker-compose.yml</text>
+
+          <rect x="32" y="354" width="268" height="100" rx="6" fill="var(--c-violet-soft)" stroke="var(--c-violet)" stroke-width="1"/>
+          <text class="card-t violet" x="44" y="374">LLM — host processes</text>
+          <text class="card-s" x="44" y="391">llama-server :8091 (8B fast tier)</text>
+          <text class="card-s" x="44" y="408">llama-server :8096 (20B primary)</text>
+          <text class="card-s" x="44" y="425">node tier-manager :8097 swaps tiers</text>
+
+          <rect x="32" y="470" width="268" height="60" rx="6" fill="var(--c-violet-soft)" stroke="var(--c-violet)" stroke-width="1"/>
+          <text class="card-t violet" x="44" y="490">~/models — GGUF files</text>
+          <text class="card-s" x="44" y="507">~13 GB both tiers · 2.5 GB minimum</text>
+
+          <rect x="32" y="546" width="268" height="74" rx="6" fill="var(--c-amber-soft)" stroke="var(--c-amber)" stroke-width="1"/>
+          <text class="card-t amber" x="44" y="566">demo_api_server/.env + certs/</text>
+          <text class="card-s" x="44" y="583">PingOne bootstrap writes both</text>
+          <text class="card-s" x="44" y="600">compose reads .env directly — no Secrets</text>
+
+          <rect x="32" y="636" width="268" height="26" rx="6" fill="none" stroke="var(--line)" stroke-dasharray="3 3"/>
+          <text class="card-s" x="44" y="653">/etc/hosts: api.ping.demo · local.ping-devops.com</text>
+        </g>
+
+        <!-- ══ Docker VM cards ══ -->
+        <g>
+          <rect x="472" y="112" width="428" height="104" rx="6" fill="var(--c-blue-soft)" stroke="var(--c-blue)" stroke-width="1"/>
+          <text class="card-t blue" x="486" y="132">Core services — 15 containers</text>
+          <text class="card-s" x="486" y="149">built by compose from the working tree</text>
+          <text class="card-s" x="486" y="166">ui :4000 · bff :3001 · mcp-server :8080</text>
+          <text class="card-s" x="486" y="183">agents · hitl · resource servers · authz</text>
+          <text class="card-s" x="486" y="200">mcp-weather · mcp-brave · jwt-verifier · proxy</text>
+
+          <rect x="472" y="232" width="428" height="88" rx="6" fill="var(--c-blue-soft)" stroke="var(--c-blue)" stroke-width="1"/>
+          <text class="card-t blue" x="486" y="252">LLM router (the only LLM container)</text>
+          <text class="card-s" x="486" y="269">llm-proxy :8090 — routes, never runs a model</text>
+          <text class="card-s" x="486" y="286">→ host.docker.internal :8091 / :8096</text>
+          <text class="card-s" x="486" y="303">MLX requests downgrade to llama.cpp here</text>
+
+          <rect x="472" y="336" width="428" height="88" rx="6" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1"/>
+          <text class="card-t" fill="var(--accent)" x="486" y="356">Ping integration</text>
+          <text class="card-s" x="486" y="373">ping-gateway :3036 (ForgeRock ig image)</text>
+          <text class="card-s" x="486" y="390">mcpgw profile — OPTIONAL, Privilege license</text>
+          <text class="card-s" x="486" y="407">ping-mcpgw · nginx · opensearch :9200</text>
+
+          <rect x="472" y="440" width="428" height="88" rx="6" fill="var(--c-teal-soft)" stroke="var(--c-teal)" stroke-width="1"/>
+          <text class="card-t teal" x="486" y="460">Observability — optional group</text>
+          <text class="card-s" x="486" y="477">prometheus · alertmanager · grafana · loki</text>
+          <text class="card-s" x="486" y="494">alloy (docker.sock) · jaeger (tracing group)</text>
+          <text class="card-s" x="486" y="511">mem-limited: ~3.75 GB total · off by default</text>
+
+          <rect x="472" y="544" width="428" height="72" rx="6" fill="var(--c-slate-soft)" stroke="var(--c-slate)" stroke-width="1"/>
+          <text class="card-t slate" x="486" y="564">Optional groups — off until asked</text>
+          <text class="card-s" x="486" y="581">rag + demo-auth ON by default (weaviate, authz)</text>
+          <text class="card-s" x="486" y="598">tracing · mcpgw · spiffe · jev (~7 GiB) · attack</text>
+
+          <rect x="472" y="632" width="428" height="30" rx="6" fill="none" stroke="var(--line)" stroke-dasharray="3 3"/>
+          <text class="card-s" x="486" y="651">Named volumes: bff-data · hitl-data · weaviate · mcpgw-ssl/logs</text>
+        </g>
+
+        <!-- ══ Cloud cards (slate; PingOne accent) ══ -->
+        <g>
+          <rect x="1120" y="112" width="248" height="96" rx="6" fill="var(--c-slate-soft)" stroke="var(--c-slate)" stroke-width="1"/>
+          <text class="card-t slate" x="1132" y="132">Upstream registries</text>
+          <text class="card-s" x="1132" y="149">docker hub base images</text>
+          <text class="card-s" x="1132" y="166">pulled at build — images build</text>
+          <text class="card-s" x="1132" y="183">locally, nothing first-party is pulled</text>
+
+          <rect x="1120" y="224" width="248" height="56" rx="6" fill="var(--c-slate-soft)" stroke="var(--c-slate)" stroke-width="1"/>
+          <text class="card-t slate" x="1132" y="244">huggingface.co</text>
+          <text class="card-s" x="1132" y="261">GGUFs → host ~/models (hf CLI)</text>
+
+          <rect x="1120" y="296" width="248" height="56" rx="6" fill="var(--c-slate-soft)" stroke="var(--c-slate)" stroke-width="1"/>
+          <text class="card-t slate" x="1132" y="316">api.search.brave.com</text>
+          <text class="card-s" x="1132" y="333">mcp-brave · needs an API key</text>
+
+          <rect x="1120" y="368" width="248" height="64" rx="6" fill="var(--c-slate-soft)" stroke="var(--c-slate)" stroke-width="1"/>
+          <text class="card-t slate" x="1132" y="388">Weather APIs</text>
+          <text class="card-s" x="1132" y="405">open-meteo · weather.gov</text>
+          <text class="card-s" x="1132" y="422">rainviewer · via mcp-weather</text>
+
+          <rect x="1120" y="448" width="248" height="88" rx="6" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1.5"/>
+          <text class="card-t" x="1132" y="468" fill="var(--accent)">PingOne</text>
+          <text class="card-s" x="1132" y="485">recipient's own environment</text>
+          <text class="card-s" x="1132" y="502">bootstrap once — admin API</text>
+          <text class="card-s" x="1132" y="519">OIDC on every sign-in</text>
+        </g>
+
+        <!-- ══ Arrows: host ↔ VM ══ -->
+        <g stroke="var(--line-strong)" stroke-width="1.5" fill="none" marker-end="url(#ah)">
+          <line x1="450" y1="158" x2="308" y2="158"/>
+          <line x1="308" y1="192" x2="450" y2="192"/>
+          <line x1="308" y1="583" x2="450" y2="583"/>
+        </g>
+        <text class="arrow-l" x="379" y="148" text-anchor="middle">localhost ports</text>
+        <text class="arrow-l" x="379" y="182" text-anchor="middle">compose up · build</text>
+        <text class="arrow-l" x="379" y="573" text-anchor="middle">.env via env_file</text>
+
+        <!-- ══ Arrow: VM → host (LLM router → host llama-servers) ══ -->
+        <g stroke="var(--c-violet)" stroke-width="1.5" fill="none" marker-end="url(#ah)">
+          <line x1="464" y1="286" x2="308" y2="286"/>
+        </g>
+        <line x1="464" y1="286" x2="308" y2="396" stroke="var(--c-violet)" stroke-width="1.5" fill="none" stroke-dasharray="2 3"/>
+        <text class="arrow-l" x="380" y="272" text-anchor="middle" fill="var(--c-violet)">host.docker.internal</text>
+
+        <!-- ══ Arrows: VM → cloud (one-time pulls, dashed muted) ══ -->
+        <g stroke="var(--muted)" stroke-width="1.5" fill="none" stroke-dasharray="5 4" marker-end="url(#ah)">
+          <line x1="908" y1="148" x2="1098" y2="148"/>
+        </g>
+        <text class="arrow-l" x="1003" y="138" text-anchor="middle">pull base images once</text>
+
+        <!-- ══ Arrows: VM → cloud (runtime, when used) ══ -->
+        <g stroke="var(--accent)" stroke-width="1.5" fill="none" stroke-dasharray="5 4" marker-end="url(#ahA)">
+          <line x1="908" y1="330" x2="1098" y2="330"/>
+          <line x1="908" y1="400" x2="1098" y2="400"/>
+        </g>
+        <text class="arrow-l" x="1003" y="320" text-anchor="middle" fill="var(--accent)">when used</text>
+        <text class="arrow-l" x="1003" y="390" text-anchor="middle" fill="var(--accent)">when used</text>
+
+        <!-- ══ Arrow: VM → PingOne (runtime, solid accent) ══ -->
+        <g stroke="var(--accent)" stroke-width="2" fill="none" marker-end="url(#ahA)">
+          <line x1="908" y1="480" x2="1098" y2="480"/>
+        </g>
+        <text class="arrow-l" x="1003" y="470" text-anchor="middle" fill="var(--accent)">OIDC runtime</text>
+
+        <!-- ══ Arrow: host → PingOne bootstrap (over the top) ══ -->
+        <path d="M 166 104 L 166 22 L 1244 22 L 1244 440" stroke="var(--muted)" stroke-width="1.5"
+              fill="none" stroke-dasharray="5 4" marker-end="url(#ah)"/>
+        <text class="arrow-l" x="700" y="14" text-anchor="middle">PingOne bootstrap — admin API, one-time, from host (needs node)</text>
+      </svg>
+    </div>
+    <figcaption>
+      What lives where after <span class="mono">./run-docker.sh</span>. The defining difference from
+      the Kubernetes mode: the LLM is a <strong>host process</strong> (llama.cpp from brew), the
+      containers never run a model, and the <span class="mono">llm-proxy</span> container routes to
+      the host over <span class="mono">host.docker.internal</span>. Compose reads the bootstrap's
+      <span class="mono">.env</span> directly — no cluster Secrets step.
+    </figcaption>
+    <div class="legend" aria-hidden="true">
+      <span class="key">
+        <svg viewBox="0 0 34 8"><rect x="0" y="0" width="30" height="8" rx="2" fill="var(--c-amber-soft)" stroke="var(--c-amber)" stroke-width="1"/></svg>
+        host tools + config
+      </span>
+      <span class="key">
+        <svg viewBox="0 0 34 8"><rect x="0" y="0" width="30" height="8" rx="2" fill="var(--c-violet-soft)" stroke="var(--c-violet)" stroke-width="1"/></svg>
+        LLM (host-side here)
+      </span>
+      <span class="key">
+        <svg viewBox="0 0 34 8"><rect x="0" y="0" width="30" height="8" rx="2" fill="var(--c-blue-soft)" stroke="var(--c-blue)" stroke-width="1"/></svg>
+        compose services
+      </span>
+      <span class="key">
+        <svg viewBox="0 0 34 8"><rect x="0" y="0" width="30" height="8" rx="2" fill="var(--accent-soft)" stroke="var(--accent)" stroke-width="1"/></svg>
+        Ping
+      </span>
+      <span class="key">
+        <svg viewBox="0 0 34 8"><rect x="0" y="0" width="30" height="8" rx="2" fill="var(--c-teal-soft)" stroke="var(--c-teal)" stroke-width="1"/></svg>
+        observability
+      </span>
+      <span class="key">
+        <svg viewBox="0 0 34 8"><rect x="0" y="0" width="30" height="8" rx="2" fill="var(--c-slate-soft)" stroke="var(--c-slate)" stroke-width="1"/></svg>
+        optional + cloud
+      </span>
+      <span class="key">
+        <svg viewBox="0 0 34 8"><line x1="0" y1="4" x2="30" y2="4" stroke="var(--muted)" stroke-width="1.5" stroke-dasharray="5 4"/><polygon points="30 1, 34 4, 30 7" fill="var(--muted)"/></svg>
+        one-time at install
+      </span>
+      <span class="key">
+        <svg viewBox="0 0 34 8"><line x1="0" y1="4" x2="30" y2="4" stroke="var(--accent)" stroke-width="2"/><polygon points="30 1, 34 4, 30 7" fill="var(--accent)"/></svg>
+        steady-state runtime
+      </span>
+      <span class="key">
+        <svg viewBox="0 0 34 8"><line x1="0" y1="4" x2="30" y2="4" stroke="var(--c-violet)" stroke-width="1.5"/><polygon points="30 1, 34 4, 30 7" fill="var(--c-violet)"/></svg>
+        container → host LLM hop
+      </span>
+    </div>
+  </figure>
+
+  <h2><span class="kicker">Keeping the Mac healthy</span>How compose mode bounds its footprint</h2>
+  <p class="sub">No ResourceQuota exists here — the guardrails are the script's own residency policy
+  and Compose mechanics. All verified in <span class="mono">run-docker.sh</span> and the compose file.</p>
+  <div class="inv">
+    <div class="inv-card">
+      <span class="count">by RAM</span>
+      <h3>LLM residency policy</h3>
+      <span class="src">apply-residency-policy.sh</span>
+      <p>≥32&nbsp;GB Macs keep both tiers resident (~14&nbsp;GB). Under 32&nbsp;GB the script pins the
+      8B tier on :8091 only — the 20B never loads. The single biggest consumer self-throttles to the machine.</p>
+    </div>
+    <div class="inv-card">
+      <span class="count">off by default</span>
+      <h3>Optional groups</h3>
+      <span class="src">compose profiles</span>
+      <p>Observability, tracing, mcpgw, SPIFFE, JEV and the attack agent start only when asked
+      (<span class="mono">optional start &lt;group&gt;</span>). Core + RAG + demo-auth is the default
+      footprint; <span class="mono">start full</span> is a deliberate act.</p>
+    </div>
+    <div class="inv-card">
+      <span class="count">~3.75 GB</span>
+      <h3>Observability limits</h3>
+      <span class="src">mem_limit × 6 services</span>
+      <p>The only containers with memory caps: jaeger 512m, prometheus 1g, alertmanager 256m,
+      loki 1g, alloy 512m, grafana 512m — the heavy log/metrics stack can't starve the demo.</p>
+    </div>
+    <div class="inv-card">
+      <span class="count">4 modes</span>
+      <h3>Mode + scale-down</h3>
+      <span class="src">run-docker.sh mode</span>
+      <p><span class="mono">mode demo</span> runs dashboard + token chain, <span class="mono">mode mcpgw</span>
+      the gateway pair, <span class="mono">start basic</span> four services. <span class="mono">stop</span>
+      takes everything down; volumes survive, <span class="mono">down -v</span> doesn't.</p>
+    </div>
+    <div class="inv-card">
+      <span class="count">automatic</span>
+      <h3>Disk hygiene</h3>
+      <span class="src">post-build prune</span>
+      <p>Every <span class="mono">run-docker.sh build</span> ends with an image/builder prune, so the
+      ~28&nbsp;GB of dangling intermediates the K8s path accumulates never piles up here.</p>
+    </div>
+    <div class="inv-card">
+      <span class="count">1 stack</span>
+      <h3>Single-project guard</h3>
+      <span class="src">COMPOSE_PROJECT_NAME=ai-demo</span>
+      <p>The script pins its compose project and directory to the main checkout and purges stale or
+      foreign containers on start — two clones can't fight over the ports or the volumes.</p>
+    </div>
+  </div>
+
+  <h2><span class="kicker">Host inventory</span>On the Mac itself — more than the K8s mode</h2>
+  <p class="sub">This is the trade: no cluster, but the host carries the LLM, the models and the TLS
+  trust. Uninstalling OrbStack still removes the demo — the models and brew tools stay behind.</p>
+  <div class="t-wrap">
+    <table>
+      <thead><tr><th>Item</th><th>Why it's there</th><th>Notes</th></tr></thead>
+      <tbody>
+        <tr><td class="item">OrbStack</td><td>Docker engine + Compose v2 (K8s off)</td><td>Only sizeable app install</td></tr>
+        <tr><td class="item"><span class="mono">node · llama.cpp · mkcert · hf-cli</span></td><td>Tier-manager + health gate · host LLM · TLS · model downloads</td><td>Brew; <span class="mono">pingcli</span> and <span class="mono">python3</span> optional</td></tr>
+        <tr><td class="item">Repo clone</td><td><span class="mono">run-docker.sh</span>, <span class="mono">docker-compose.yml</span>, service sources</td><td>Script pins the stack to the main checkout</td></tr>
+        <tr><td class="item"><span class="mono">~/models</span></td><td>GGUF weights for both LLM tiers</td><td>~13 GB both, 2.5 GB tier-1 minimum; host disk, not a volume</td></tr>
+        <tr><td class="item"><span class="mono">demo_api_server/.env</span> + <span class="mono">certs/</span></td><td>PingOne credentials + TLS certs</td><td>Compose <span class="mono">env_file</span> reads them directly — no Secrets step</td></tr>
+        <tr><td class="item"><span class="mono">/etc/hosts</span> + mkcert CA</td><td><span class="mono">api.ping.demo</span> · <span class="mono">local.ping-devops.com</span> · trusted TLS</td><td>One-time, documented in <span class="mono">run-docker.sh help</span></td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <h2><span class="kicker">Container inventory</span>15 core + 6 optional groups</h2>
+  <p class="sub">All first-party images build from the working tree — nothing first-party is pulled
+  from a registry. Ports publish straight to localhost; no ingress controller.</p>
+  <div class="inv">
+    <div class="inv-card">
+      <span class="count">15</span>
+      <h3>Core services</h3>
+      <span class="src">built by compose build</span>
+      <p>UI :4000, BFF :3001, mcp-server :8080, LangChain agent :8888, agent-service, HITL :3009,
+      resource servers :8081/:8082, authz :9001, mcp-proxy :8895, mcp-weather :8896, mcp-brave :8897,
+      jwt-verifier :8083, ping-gateway :3036, llm-proxy :8090.</p>
+    </div>
+    <div class="inv-card">
+      <span class="count">default-on</span>
+      <h3>RAG + demo-auth</h3>
+      <span class="src">profiles: rag, demo-auth</span>
+      <p>Weaviate (no host port), embeddings :8084, code-search :8095, Tika, LlamaIndex agent :8894;
+      authz-server, mcp-gateway :3005, jwt-verifier. These two groups ride along with a plain start.</p>
+    </div>
+    <div class="inv-card">
+      <span class="count">6 groups</span>
+      <h3>Optional, on demand</h3>
+      <span class="src">optional start &lt;group&gt;</span>
+      <p>observability (5 + alertmanager) · tracing (jaeger) · mcpgw (ping-mcpgw, nginx,
+      opensearch :9200) · spiffe (6) · jev (~7 GiB, amd64 emulation) · demo-attack
+      (ungoverned-agent, also <span class="mono">compose run</span> on demand).</p>
+    </div>
+    <div class="inv-card">
+      <span class="count">1 router</span>
+      <h3>LLM stack (hybrid)</h3>
+      <span class="src">container → host</span>
+      <p>llm-proxy :8090 is the only LLM container — it routes to host llama-server tiers on
+      :8091/:8096. The node tier-manager on :8097 swaps tiers. Models never enter the Docker world.</p>
+    </div>
+    <div class="inv-card">
+      <span class="count">named</span>
+      <h3>Volumes</h3>
+      <span class="src">survive compose down</span>
+      <p>bff LMDB store, hitl data, weaviate data, embedding models, mcpgw SSL/logs/recordings,
+      opensearch data. <span class="mono">./run-docker.sh down -v</span> removes them; plain
+      <span class="mono">stop</span> keeps everything.</p>
+    </div>
+    <div class="inv-card">
+      <span class="count">0</span>
+      <h3>Cluster machinery</h3>
+      <span class="src">not in this mode</span>
+      <p>No NetworkPolicy, no ResourceQuota, no ingress-nginx, no sealed-secrets, no crash-loop
+      protection manifests, no kubectl. What the K8s page calls "keeping the cluster healthy" is
+      the script's job here.</p>
+    </div>
+  </div>
+
+  <h2><span class="kicker">Egress</span>What talks to the cloud, and when</h2>
+  <p class="sub">Identical cloud posture to the K8s mode — the delivery mechanism is the only
+  difference.</p>
+  <div class="t-wrap">
+    <table>
+      <thead><tr><th>Endpoint</th><th>When</th><th>What crosses</th></tr></thead>
+      <tbody>
+        <tr><td class="item">Upstream registries<br><span class="mono">docker hub</span></td><td><span class="once">install · once</span></td><td>Base layers, pulled during <code>compose build</code>. First-party images always build locally.</td></tr>
+        <tr><td class="item">huggingface.co</td><td><span class="once">install · once</span></td><td>GGUF model files via the host <code>hf</code> CLI into <code>~/models</code> — the host downloads, not a container.</td></tr>
+        <tr><td class="item">github.com</td><td><span class="once">install · once</span></td><td><span class="mono">git clone</span> of the repo.</td></tr>
+        <tr><td class="item">PingOne</td><td><span class="once">bootstrap · once</span> <span class="runtime">runtime · always</span></td><td>Admin API during bootstrap; OIDC/OAuth on every sign-in against the recipient's own environment.</td></tr>
+        <tr><td class="item">api.search.brave.com</td><td><span class="runtime">runtime · when used</span></td><td>Brave web-search calls from mcp-brave (needs <code>BRAVE_SEARCH_API_KEY</code>).</td></tr>
+        <tr><td class="item">open-meteo · weather.gov · rainviewer</td><td><span class="runtime">runtime · when used</span></td><td>Weather lookups from mcp-weather.</td></tr>
+      </tbody>
+    </table>
+  </div>
+
+  <p class="footnote">
+    <strong>Docker-only vs Kubernetes, in one line each:</strong> compose mode is lighter to set up
+    (no kubectl, no manifests, no secrets step) and prunes its own disk, but gives up network
+    policy, resource quotas and ingress, and puts the LLM on the host — the Mac's RAM is the real
+    quota, enforced by the residency policy (<32&nbsp;GB pins the small tier). The K8s mode keeps
+    everything in the cluster at the cost of the manifests and a ~28&nbsp;GB local build (or the
+    GHCR pull path, <span class="mono">DEPLOY_SOURCE=ghcr</span>). Sibling page:
+    <span class="mono">docs/superpowers/specs/2026-10-12-install-map-all-k8.html</span>.
+    <br><br>
+    Both modes share: the PingOne bootstrap, the same core services, the same runtime cloud calls,
+    and <span class="mono">run-docker.sh mode demo|mcpgw|full</span> mirrors
+    <span class="mono">k8s/deploy.sh mode</span>.
+  </p>
+</div>
