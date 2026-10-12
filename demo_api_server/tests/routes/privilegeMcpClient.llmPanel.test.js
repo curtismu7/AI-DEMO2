@@ -133,7 +133,7 @@ describe('GET /llm/config', () => {
 
     expect(res.status).toBe(200);
     expect(res.body.gatewayUrl).toBe('https://gw.test');
-    expect(res.body.lanes.map((l) => l.provider).sort()).toEqual(['anthropic', 'google', 'openai']);
+    expect(res.body.lanes.map((l) => l.provider).sort()).toEqual(['anthropic', 'custom', 'google', 'openai', 'openrouter']);
     const anthropic = res.body.lanes.find((l) => l.provider === 'anthropic');
     expect(anthropic.route).toBe('/llm/anthropic/v1/messages');
     expect(anthropic.model).toBeTruthy();

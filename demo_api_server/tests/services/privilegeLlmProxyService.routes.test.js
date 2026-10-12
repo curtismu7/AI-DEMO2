@@ -15,7 +15,7 @@ const svc = require('../../services/privilegeLlmProxyService');
 
 describe('LANES', () => {
   it('carries a route, a default model and a key env var for all three providers', () => {
-    expect(Object.keys(svc.LANES).sort()).toEqual(['anthropic', 'google', 'openai']);
+    expect(Object.keys(svc.LANES).sort()).toEqual(['anthropic', 'custom', 'google', 'openai', 'openrouter']);
     for (const [name, lane] of Object.entries(svc.LANES)) {
       expect(lane.route).toMatch(/^\/llm\/[a-z]+\/v1\//);
       expect(lane.defaultModel).toBeTruthy();
