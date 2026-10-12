@@ -220,3 +220,24 @@
 .ww-dot-active {
   background: var(--app-primary-red, #b91c1c);
 }
+
+/* Docked mode — wizard followed a link: non-blocking bottom-right card so the
+   linked page is fully usable. Same geometry as components/tour/DemoTourModal. */
+.ww-docked {
+  position: fixed;
+  right: 1.5rem;
+  bottom: 1.5rem;
+  z-index: 1200;
+  width: clamp(280px, 380px, 90vw);
+}
+
+.ww-card-docked {
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
+}
+
+.ww-text-clamp {
+  display: -webkit-box;
+  -webkit-line-clamp: 6;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}

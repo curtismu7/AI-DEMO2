@@ -26,9 +26,18 @@ export const WelcomeWizard = ({ open, onClose }) => {
   const [provisioning, setProvisioning] = useState(false);
   const [credentials, setCredentials] = useState(null);
   const [error, setError] = useState(null);
+  // Docked mode: after the user follows an action link, the wizard shrinks to
+  // a non-blocking bottom-right card (DemoTourModal geometry) so they can use
+  // the linked page and pick the tour back up where they left off. The
+  // seen-flag is only set on explicit close/skip/finish — following a link
+  // must never lose their place.
+  const [docked, setDocked] = useState(false);
 
   useEffect(() => {
-    if (open) setStepIndex(0);
+    if (open) {
+      setStepIndex(0);
+      setDocked(false);
+    }
   }, [open]);
 
   if (!open) return null;
@@ -157,6 +166,42 @@ export const WelcomeWizard = ({ open, onClose }) => {
   const current = steps[stepIndex];
   const progress = ((stepIndex + 1) / total) * 100;
 
+  if (docked) {
+    return (
+      <div className="ww-docked" role="dialog" aria-label="Welcome wizard">
+        <div className="ww-card ww-card-docked">
+          <div className="ww-progress"><div className="ww-progress-bar" style={{ width: `${progress}%` }} /></div>
+          <div className="ww-body">
+            <h2 className="ww-title">{current.title}</h2>
+            <div className="ww-text ww-text-clamp">{current.body}</div>
+          </div>
+          <div className="ww-footer">
+            <button
+              type="button"
+              className="ww-btn ww-btn-secondary"
+              onClick={() => (stepIndex === 0 ? markSeen() : setStepIndex(stepIndex - 1))}
+            >
+              {stepIndex === 0 ? "Skip" : "‹ Back"}
+            </button>
+            <div className="ww-dots" aria-hidden="true">
+              {steps.map((_, i) => (
+                <span key={i} className={`ww-dot${i === stepIndex ? " ww-dot-active" : ""}`} />
+              ))}
+            </div>
+            <button
+              type="button"
+              className="ww-btn ww-btn-primary"
+              aria-label="Expand welcome wizard"
+              onClick={() => setDocked(false)}
+            >
+              ⤢ Expand
+            </button>
+          </div>
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div className="ww-backdrop" role="dialog" aria-modal="true" aria-label="Welcome wizard">
       <div className="ww-card">
@@ -208,7 +253,11 @@ export const WelcomeWizard = ({ open, onClose }) => {
             <>
               <div className="ww-text">{current.body}</div>
               {current.action && (
-                <Link to={current.action.route} className="ww-action-btn" onClick={markSeen}>
+                <Link
+                  to={current.action.route}
+                  className="ww-action-btn"
+                  onClick={() => setDocked(true)}
+                >
                   {current.action.label} →
                 </Link>
               )}
