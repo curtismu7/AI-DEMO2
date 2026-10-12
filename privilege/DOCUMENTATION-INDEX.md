@@ -57,6 +57,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [Guardrails & the external detector](GATEWAY-GUARDRAILS-AND-THE-EXTERNAL-DETECTOR.md) | Drive (SE) | AIGuard on the model route: per-key detectors and thresholds, what a block looks like and its logs, the `/inspect` contract, Block Agreement, NeMo rails, what is and is not inspected (tested live 2026-10-03) |
 | [LLM routing & virtual keys](GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md) | Drive (SE) | The `/llm/<provider>/v1` route and virtual keys: key settings, order of checks, allowed models, rate limits, refusals, the `LLM request` log line (tested live 2026-10-03) |
 | [LLM protection in the demo stack](../docs/privilege-llm-protection.md) | — | How LLM protection is wired into the AI-DEMO2 BFF: secrets into `ai-demo-secrets`, gateway route, what the demo shows |
+| [Gateway release v1.261009](GATEWAY-RELEASE-v1.261009.md) | — | Release inventory for the 9 Oct 2026 gateway image: bedrock-mantle provider, the OpenAI-compat Bedrock deployments route, model catalog refresh, `llm_policy_response_denied`, and the imageID-vs-index-digest gotcha (static analysis, 2026-10-12) |
 
 ## Gateway — observability
 
