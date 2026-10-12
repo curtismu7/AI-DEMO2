@@ -5,7 +5,7 @@
 // privilege-gateway is itself a multiApp door: /mcp-facade/privilege-gateway/
 // <app>/mcp resolves to <gateway>/<app>/mcp (mcpFacade.js DOORS.privilege-gateway).
 // Naming by the door here would collapse every registered Agentic App
-// (opensearch22, opensearch, brave, ...) to the same "privilege-gateway"
+// (aggregate, opensearch, brave, ...) to the same "privilege-gateway"
 // label — name by the APP segment instead when one is present.
 export function doorName(mcpUrl) {
   try {

@@ -14,9 +14,9 @@
 const express = require('express');
 const request = require('supertest');
 
-const GATEWAY_URL = 'https://mcpgw.test.example.com/opensearch22/mcp';
-const GATEWAY_AUTH_URI = 'https://mcpgw.test.example.com/opensearch22/authorize';
-const GATEWAY_TOKEN_URI = 'https://mcpgw.test.example.com/opensearch22/token';
+const GATEWAY_URL = 'https://mcpgw.test.example.com/aggregate/mcp';
+const GATEWAY_AUTH_URI = 'https://mcpgw.test.example.com/aggregate/authorize';
+const GATEWAY_TOKEN_URI = 'https://mcpgw.test.example.com/aggregate/token';
 
 const BROKER_URL = 'https://ai-demo.test.example.com/mcp-facade/opensearch/mcp';
 const BROKER_AUTH_URI = 'https://ai-demo.test.example.com/oauth/authorize';
@@ -88,7 +88,7 @@ describe('privilegeGatewaySession.remember() gating', () => {
     expect(res.headers.location).toMatch(/auth=success/);
     expect(mockRemember).toHaveBeenCalledTimes(1);
     expect(mockRemember.mock.calls[0][0].accessToken).toBe('access-1');
-    expect(mockRemember.mock.calls[0][0].app).toBe('opensearch22');
+    expect(mockRemember.mock.calls[0][0].app).toBe('aggregate');
   });
 
   test('does NOT remember a broker-issued token, even though its resource is also named mcpgateway.ping.demo', async () => {

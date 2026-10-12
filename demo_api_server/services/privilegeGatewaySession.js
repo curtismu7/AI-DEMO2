@@ -51,7 +51,7 @@ let storeOverride; // see __setStore
 
 /** The app a door URL with no app segment means. */
 function defaultApp() {
-  return process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'opensearch22';
+  return process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'aggregate';
 }
 
 // App names are [A-Za-z0-9._-], so `|` cannot collide with one.

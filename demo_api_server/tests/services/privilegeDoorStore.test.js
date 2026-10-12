@@ -24,13 +24,13 @@ jest.mock('../../services/lmdb/openEnv', () => ({
 const store = require('../../services/lmdb/privilegeDoorStore.lmdb');
 
 const APPS = [
-  { name: 'opensearch22', status: 'Ready', frontEndName: null, backends: ['http://a:8080/mcp'], entryPath: '/mcp' },
+  { name: 'aggregate', status: 'Ready', frontEndName: null, backends: ['http://a:8080/mcp'], entryPath: '/mcp' },
   { name: 'brave', status: '', frontEndName: 'brave.example:8643', backends: [], entryPath: null },
 ];
 
 const POLICIES = [
-  { name: 'opensearch-tools', spec: { Apps: ['opensearch22'], Principals: ['someone@example.com'] } },
-  { name: 'everything', spec: { Apps: ['opensearch22', 'brave'] } },
+  { name: 'opensearch-tools', spec: { Apps: ['aggregate'], Principals: ['someone@example.com'] } },
+  { name: 'everything', spec: { Apps: ['aggregate', 'brave'] } },
   { name: 'unrelated', spec: { Apps: ['banking'] } },
 ];
 
@@ -51,9 +51,9 @@ describe('privilegeDoorStore', () => {
     expect(got.gatewayOrigin).toBe('https://gw.example');
     expect(got.policyCount).toBe(3);
     expect(got.discoveredAt).toEqual(expect.any(Number));
-    expect(got.applications.map((a) => a.name)).toEqual(['opensearch22', 'brave']);
+    expect(got.applications.map((a) => a.name)).toEqual(['aggregate', 'brave']);
     expect(got.applications[0]).toMatchObject({
-      name: 'opensearch22',
+      name: 'aggregate',
       status: 'Ready',
       backends: ['http://a:8080/mcp'],
       entryPath: '/mcp',
@@ -107,7 +107,7 @@ describe('privilegeDoorStore', () => {
 
   test('an app with no name is dropped rather than stored as a nameless door', () => {
     store.saveInventory({ envId: 'env-1', applications: [{ name: '' }, { status: 'Ready' }, ...APPS], policies: [] });
-    expect(store.getInventory().applications.map((a) => a.name)).toEqual(['opensearch22', 'brave']);
+    expect(store.getInventory().applications.map((a) => a.name)).toEqual(['aggregate', 'brave']);
   });
 
   test('clearInventory takes it back to the fallback state', () => {

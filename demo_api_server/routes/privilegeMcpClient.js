@@ -29,7 +29,7 @@ const REDACTION_RE = /\[REDACTED(?::[^\]]*)?\]/gi;
 // the page sat on "authenticated, 0 tools" forever.
 const PUBLIC_APP_ORIGIN = () => (process.env.PUBLIC_APP_URL || 'https://ai-demo.ping-devops.com').replace(/\/+$/, '');
 const PRIVILEGE_GATEWAY_HOST = 'https://mcpgw.ai-demo.ping-devops.com';
-const PRIVILEGE_APP = () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'opensearch22';
+const PRIVILEGE_APP = () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'aggregate';
 // Sibling Agentic Apps registered on the same Agent Privilege, each with its own
 // Privilege policy (console: Agentic Apps > opensearch / brave). Same
 // multiApp mechanism as PRIVILEGE_APP() above, just a fixed second and third
@@ -2783,7 +2783,8 @@ const CONSOLE_BASE = 'https://console.privilege.pingone.com';
 
 // The console API is tenanted on the PRIVILEGE tenant — the one that owns the
 // Agentic Apps. Proven from the gateway's own log, where the app reference
-// base64-decodes to `0428ba4f-…@@@default@@@opensearch22`.
+// base64-decodes to `0428ba4f-…@@@default@@@<appName>` (observed for
+// opensearch22, since deleted; the encoding is app-name-independent).
 //
 // This used to read PRIVILEGE_SSO_ENV_ID first and nothing else, which is a
 // different thing and is currently the BANKING env: startupConfigGuard warns

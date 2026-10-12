@@ -32,8 +32,7 @@ const PRIVILEGE_BRAVE_PROFILE_ID = 'built-in-privilege-brave';
 const PRIVILEGE_GRAFANA_PROFILE_ID = 'built-in-privilege-grafana';
 
 // The gateway's client URL pattern is always <base>/<AgenticAppName>/mcp (see
-// the skill below) — verified live 2026-09-07 (401, i.e. reachable, on all
-// three non-opensearch paths; opensearch22's is quoted directly in the doc).
+// the skill below) — verified live 2026-09-07 (401, i.e. reachable).
 // .claude/skills/privilege-mcpgw-agent-k8s/SKILL.md is the operational source
 // of truth if this base or any app name ever changes.
 const PRIVILEGE_GATEWAY_BASE = 'https://mcpgw.ai-demo.ping-devops.com';
@@ -97,16 +96,15 @@ function ensureBuiltInsSeeded() {
     url: `${PRIVILEGE_GATEWAY_BASE}/openapi2/mcp`,
     isDefault: false,
   });
-  // Known limitation, not fixed here: this door 404s once actually
-  // authenticated — the gateway rejects /opensearch22/mcp because that app's
-  // backend is registered with an /sse entry path. See
-  // demo_mcp_pingone/README.md "Entry path". The other
-  // three doors use the catalog/OpenAPI-MCP mechanism, not an /sse backend,
-  // and are unaffected.
+  // The opensearch22 Agentic App was deleted from the console on 2026-10-12
+  // (unused for 15 days; the aggregate family replaced it as the teaching
+  // door). The profile ID stays `built-in-privilege-opensearch` (mcpPrivilegeAuth.js
+  // deep-links and bookmarks); seedBuiltIn's drift check repoints the stored
+  // record on the next call, the same way the banking door moved to openapi2.
   seedBuiltIn(PRIVILEGE_OPENSEARCH_PROFILE_ID, {
-    label: 'Privilege: OpenSearch',
+    label: 'Privilege: Aggregate',
     transport: 'privilege',
-    url: `${PRIVILEGE_GATEWAY_BASE}/opensearch22/mcp`,
+    url: `${PRIVILEGE_GATEWAY_BASE}/aggregate/mcp`,
     isDefault: false,
   });
   seedBuiltIn(PRIVILEGE_BRAVE_PROFILE_ID, {

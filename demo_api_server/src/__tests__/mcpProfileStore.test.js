@@ -95,7 +95,7 @@ describe('mcpProfileStore', () => {
   describe('built-in Privilege-gateway door profiles', () => {
     const DOORS = [
       { id: () => mcpProfileStore.PRIVILEGE_PROFILE_ID, urlSuffix: 'openapi2/mcp' },
-      { id: () => mcpProfileStore.PRIVILEGE_OPENSEARCH_PROFILE_ID, urlSuffix: 'opensearch22/mcp' },
+      { id: () => mcpProfileStore.PRIVILEGE_OPENSEARCH_PROFILE_ID, urlSuffix: 'aggregate/mcp' },
       { id: () => mcpProfileStore.PRIVILEGE_BRAVE_PROFILE_ID, urlSuffix: 'mcp-brave-search/mcp' },
       { id: () => mcpProfileStore.PRIVILEGE_GRAFANA_PROFILE_ID, urlSuffix: 'mcp-grafana/mcp' },
     ];
@@ -119,7 +119,7 @@ describe('mcpProfileStore', () => {
 
       const healed = mcpProfileStore.listProfiles().find((p) => p.id === id);
 
-      expect(healed.url).toBe('https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp');
+      expect(healed.url).toBe('https://mcpgw.ai-demo.ping-devops.com/aggregate/mcp');
     });
   });
 });

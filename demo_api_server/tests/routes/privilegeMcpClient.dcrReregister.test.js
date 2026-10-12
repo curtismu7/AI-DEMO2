@@ -10,10 +10,10 @@
 const express = require('express');
 const request = require('supertest');
 
-const MCP_URL = 'https://mcpgw.example.com/opensearch22/mcp';
-const AUTH_URI = 'https://mcpgw.example.com/opensearch22/authorize';
-const TOKEN_URI = 'https://mcpgw.example.com/opensearch22/token';
-const REGISTER_URI = 'https://mcpgw.example.com/opensearch22/register';
+const MCP_URL = 'https://mcpgw.example.com/aggregate/mcp';
+const AUTH_URI = 'https://mcpgw.example.com/aggregate/authorize';
+const TOKEN_URI = 'https://mcpgw.example.com/aggregate/token';
+const REGISTER_URI = 'https://mcpgw.example.com/aggregate/register';
 
 function buildApp() {
   jest.resetModules();

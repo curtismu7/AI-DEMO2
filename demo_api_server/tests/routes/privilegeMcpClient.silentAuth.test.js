@@ -86,9 +86,9 @@ describe('privilege silent auth — prompt=none', () => {
         privilegeMcpClientOAuth: {
           oauth: { accessToken: null },
           savedOauthByDoor: {
-            'privilege::https://mcpgw.example.com/opensearch22/mcp': {
+            'privilege::https://mcpgw.example.com/aggregate/mcp': {
               accessToken: 'previous-door-token',
-              tokenUri: 'https://mcpgw.example.com/opensearch22/token',
+              tokenUri: 'https://mcpgw.example.com/aggregate/token',
               expiresAt: Date.now() + 60_000,
               dcrClientId: 'previous-door-client',
             },
@@ -107,10 +107,10 @@ describe('privilege silent auth — prompt=none', () => {
         privilegeMcpClientOAuth: {
           oauth: { accessToken: null },
           savedOauthByDoor: {
-            'privilege::https://mcpgw.example.com/opensearch22/mcp': {
+            'privilege::https://mcpgw.example.com/aggregate/mcp': {
               accessToken: null,
               refreshToken: 'previous-door-refresh-token',
-              tokenUri: 'https://mcpgw.example.com/opensearch22/token',
+              tokenUri: 'https://mcpgw.example.com/aggregate/token',
               expiresAt: null,
               dcrClientId: 'previous-door-client',
             },

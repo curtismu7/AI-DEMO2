@@ -257,7 +257,7 @@ const DOORS = {
     // working.
     multiApp: true,
     upstream: () => process.env.MCP_FACADE_PRIVILEGE_GATEWAY_URL
-      || privilegeDoorUpstream(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'opensearch22'),
+      || privilegeDoorUpstream(process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP || 'aggregate'),
     upstreamFor: (app) => privilegeDoorUpstream(app),
     authorizationServer: () => process.env.MCP_FACADE_AGENT_GATEWAY_AS || 'http://localhost:3005',
     scopes: [],
