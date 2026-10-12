@@ -86,18 +86,16 @@ describe('AuthorizationModal', () => {
     expect(mockAddEventListener).toHaveBeenCalledWith('message', expect.any(Function));
   });
 
-  test('shows error when no authorization URL provided', () => {
+  test('disables Authorize when no authorization URL provided', () => {
     render(<AuthorizationModal {...mockProps} authorizationUrl={null} />);
-    
-    // The button should be disabled, but let's force the click to test the error handling
+
+    // The guard is the disabled state itself: with no URL there is nothing to
+    // authorize, so the button cannot be clicked and window.open never fires.
     const authorizeButton = screen.getByText('Authorize');
-    
-    // Enable the button temporarily to test the error case
-    authorizeButton.disabled = false;
+    expect(authorizeButton).toBeDisabled();
     fireEvent.click(authorizeButton);
-    
-    expect(screen.getByText('No authorization URL provided')).toBeInTheDocument();
     expect(mockOpen).not.toHaveBeenCalled();
+    expect(screen.queryByText(/Error:/)).not.toBeInTheDocument();
   });
 
   test('shows error when popup is blocked', () => {

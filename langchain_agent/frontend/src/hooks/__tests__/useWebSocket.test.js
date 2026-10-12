@@ -13,7 +13,7 @@ jest.mock('../../services/WebSocketService', () => {
     isConnected: jest.fn(),
     getConnectionState: jest.fn()
   };
-  return mockService;
+  return { default: mockService }; // Vitest: default import needs an explicit default export
 });
 
 import webSocketService from '../../services/WebSocketService';

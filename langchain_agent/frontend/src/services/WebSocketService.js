@@ -1,7 +1,7 @@
 class WebSocketService {
   constructor() {
     this.ws = null;
-    this.url = process.env.REACT_APP_WEBSOCKET_URL || 'ws://localhost:8082/ws';
+    this.url = import.meta.env.VITE_WEBSOCKET_URL || 'ws://localhost:8082/ws';
     this.reconnectAttempts = 0;
     this.maxReconnectAttempts = 5;
     this.reconnectInterval = 1000;
