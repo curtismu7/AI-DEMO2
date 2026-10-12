@@ -47,6 +47,19 @@ state that no script can reproduce.
   the truth.)
 - `cmuir@pingone.com` (user `5415b936…`) is now a member of
   `4ceb747c…` (added live during this audit).
+- **The hosted-access app already carries the groups claim.** Attribute
+  mapping on `17d8cbac…`: `groups = ${user.memberOfGroupIDs}` with
+  `idToken: true, userInfo: true` (openid scope). The gate compares
+  `claims.groups` to the required group **UUID**, and `memberOfGroupIDs`
+  emits UUIDs — direct match. The live `group_not_allowed` Curtis hit was
+  simply missing membership at sign-in time (added after). The **User Login**
+  app (`83572007…`) has no groups mapping — only the gate's app needs one
+  today, but bootstrap should mirror it onto both for consistency.
+- PingOne SPEL for group claims: `${user.memberOfGroupIDs}` (UUIDs — what
+  the gate wants) or `${user.memberOfGroupNames}` (names). No reserved
+  `groups` OIDC scope exists on this tenant; the claim rides `openid`.
+  ID-token multivalue limit is 25 — fine for demo groups; userinfo is the
+  fallback.
 
 ## Design
 
@@ -81,27 +94,27 @@ Create-if-missing (reuse-on-match by name, like `bankDelegates-group`):
 Bootstrap writes both IDs into `.env`. `HOSTED_ACCESS_REQUIRED_GROUP_ID`
 stays an alias of the user group so the gate config needs no separate value.
 
-### 3. The groups claim (load-bearing)
+### 3. The groups claim (load-bearing — spike-resolved)
 
-Without this the group check can never pass. Two layers, both in bootstrap:
+**Spike result (2026-10-12, live):** the hosted-access app ALREADY has the
+correct mapping — `groups = ${user.memberOfGroupIDs}`, idToken + userinfo,
+openid scope. The gate compares UUIDs and `memberOfGroupIDs` emits UUIDs.
+**Remaining work is bootstrap mirroring only:**
 
-1. **Request the claim**: add a `groups` scope entry where PingOne exposes
-   it for token issuance. Implementation-time verification required
-   (do-not-guess): check the live app's scopes and PingOne's current
-   attribute-resolution model — if a reserved `groups` scope exists, grant +
-   request it; if not, rely on layer 2 alone.
-2. **SPEL token claim** (mirrors the `bankingPrincipalUserId` pattern):
-   `addTokenClaim(appId, 'groups', 'EXPRESSION', '${user.memberOfGroups…}')`
-   on **both** the hosted-access app and the user app, mapped into ID token
-   + userinfo. The exact PingOne SPEL path for group membership
-   (`user.memberOfGroups` vs `user.groups` vs an attribute-resolver custom
-   attribute) must be verified against a live sign-in during implementation —
-   the step asserts on a decoded ID token containing the group ID, not on
-   the API accepting the claim config.
+1. Bootstrap's hosted-app creation step adds the same application attribute
+   mapping (`name: groups`, `value: ${user.memberOfGroupIDs}`, `idToken:
+   true`, `userInfo: true`, no `oidcScopes` restriction — the live mapping
+   rides openid), via
+   `POST /applications/{appId}/attributes` (idempotent by name check, same
+   pattern as `_ensureGroup`).
+2. Mirror the same mapping onto the User Login app for consistency.
+3. Verification step: after bootstrap, sign in as a group member and decode
+   the ID token — `groups` must contain `4ceb747c…`. A configured mapping
+   that produces tokens without the claim is a ❌ failure, not a ⚠️.
 
-**Acceptance test for this step:** sign in as a group member, decode the ID
-token, assert `groups` contains `4ceb747c…`. A step that configures the
-claim but produces tokens without it is a ❌ failure, not a ⚠️.
+No SPEL guessing remains: the exact value is `${user.memberOfGroupIDs}`,
+copied from the live mapping. The old `addTokenClaim` no-op path is
+irrelevant — claims ride application attribute mappings.
 
 ### 4. Approval/invite wiring
 
@@ -156,10 +169,14 @@ drift shows up in the readiness report instead of a locked-out human.
 
 ## Open items for implementation
 
-- Exact PingOne SPEL path for group membership in token claims (verify live;
-  do not guess — same rule as the invite-email spike).
-- Whether PingOne exposes a reserved `groups` OIDC scope on this tenant
-  edition (layer 1 of §3).
-- The live `17d8cbac` app's exact config (type, grants, scopes) to mirror.
+- ~~SPEL path~~ resolved: `${user.memberOfGroupIDs}` (read off the live app).
+- ~~Reserved `groups` scope~~ resolved: none on this tenant; claim rides openid.
+- ~~Live `17d8cbac` config~~ resolved: WEB_APP / AUTHORIZATION_CODE /
+  responseTypes CODE / auth method NONE / PKCE S256_REQUIRED / single
+  redirect URI `${PUBLIC_APP_URL}/api/auth/hosted-access/callback`.
 - Which of the two stray allowlist entries are load-bearing (grep verticals
-  + e2e).
+  + e2e) — implementation-time grep, no live dependency.
+- Worker scope-read gap: `GET /applications/{id}/grants` returns scope
+  objects with null names for this worker (grant reads work, scope names
+  don't resolve). Bootstrap's idempotency checks should match on grant
+  resource IDs, not scope names, or handle the null-name shape.
