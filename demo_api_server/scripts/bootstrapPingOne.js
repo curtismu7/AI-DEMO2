@@ -1115,6 +1115,7 @@ async function main() {
     { label: '② Resource servers',        keys: ['resource-server', 'mcp-resource-server', 'mcp-gw-resource'] },
     { label: '③ Scopes',                  keys: ['scopes', 'mcp-scopes', 'mcp-gw-scopes'] },
     { label: '④ Applications',            keys: ['admin-app', 'admin-config', 'user-app', 'user-config', 'mcp-app', 'mcp-config', 'worker-app', 'mcp-exchanger-app', 'mcp-gw-app', 'mcp-gw-config', 'agent-app', 'agent-config'] },
+    { label: '⑥b Hosted access',          keys: ['hosted-access'] },
     { label: '⑤ Scope grants',            keys: ['admin-grants', 'user-grants', 'mcp-grants', 'mcp-gw-grants', 'agent-grants', 'password-policy'] },
     { label: '⑥ Demo users + claims',     keys: ['demoUser', 'demoUser-password', 'demoAdmin', 'demoAdmin-password', 'demo-roles', 'demoDelegate', 'demoDelegate-password', 'isDelegate-schema', 'demoDelegate-flag', 'bankDelegates-group', 'schema-attr', 'spel-claim', 'may-act-claim', 'is-delegate-claim', 'mayAct-schema', 'agentRestrictions-schema', 'agentRestrictions-user', 'agentRestrictions-admin'] },
     { label: '⑦ Write .env',              keys: ['config'] },

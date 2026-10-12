@@ -978,6 +978,69 @@ class PingOneProvisionService {
   }
 
   /**
+   * Ensure the hosted-access sign-in app exists (mirrors live 17d8cbac config).
+   * Idempotent by exact name match. Returns { application, exists }.
+   */
+  async _ensureHostedAccessApp(publicAppUrl) {
+    const name = 'Hosted Access Sign-In';
+    const q = encodeURIComponent('protocol eq "OPENID_CONNECT"');
+    const list = (await this.makeRequest('GET', `/applications?filter=${q}`)).data._embedded?.applications || [];
+    const existing = list.find(a => a.name === name);
+    if (existing) return { application: existing, exists: true };
+    const response = await this.makeRequest('POST', '/applications', {
+      name,
+      type: 'WEB_APP',
+      protocol: 'OPENID_CONNECT',
+      grantTypes: ['AUTHORIZATION_CODE'],
+      responseTypes: ['CODE'],
+      tokenEndpointAuthMethod: 'NONE',
+      pkceEnforcement: 'S256_REQUIRED',
+      redirectUris: [`${publicAppUrl}/api/auth/hosted-access/callback`],
+    });
+    return { application: response.data, exists: false };
+  }
+
+  /**
+   * Ensure the groups claim attribute mapping on an app — the load-bearing
+   * piece. Value MUST be ${user.memberOfGroupIDs} (UUIDs; the gate compares
+   * UUIDs). Idempotent: same-name POST with 'already exists' = success.
+   */
+  async _ensureGroupsClaim(appId) {
+    const mapping = {
+      name: 'groups',
+      value: '${user.memberOfGroupIDs}',
+      idToken: true,
+      userInfo: true,
+      required: false,
+    };
+    const list = (await this.makeRequest('GET', `/applications/${appId}/attributes`)).data._embedded?.attributes || [];
+    const existing = list.find(a => a.name === 'groups');
+    if (existing) {
+      if (existing.value !== mapping.value) {
+        await this.makeRequest('PUT', `/applications/${appId}/attributes/${existing.id}`, mapping);
+        return { mapped: true, corrected: true };
+      }
+      return { mapped: true, corrected: false };
+    }
+    try {
+      await this.makeRequest('POST', `/applications/${appId}/attributes`, mapping);
+      return { mapped: true, corrected: false };
+    } catch (err) {
+      if (/already exists/i.test(err?.response?.data?.message || err.message)) return { mapped: true, corrected: false };
+      throw err;
+    }
+  }
+
+  /**
+   * Ensure both hosted-access groups; return their ids.
+   */
+  async _ensureHostedAccessGroups() {
+    const userGroupId = await this._ensureGroup('Hosted Registration Complete', 'Users approved for hosted application access');
+    const partialGroupId = await this._ensureGroup('Hosted Registration Pending', 'Users with pending hosted-access registration');
+    return { userGroupId, partialGroupId };
+  }
+
+  /**
    * Idempotently ensure a permissive password policy exists.
    *
    * Demo-tuned: lowest-friction policy PingOne will accept.
@@ -2896,6 +2959,27 @@ class PingOneProvisionService {
         steps.push({ step: 'spel-claim', icon: '✅', message: 'bankingPrincipalUserId SPEL claim added' });
       } catch (spelErr) {
         steps.push({ step: 'spel-claim', icon: '⚠️', message: `SPEL claim step: ${spelErr.message}` });
+      }
+      onStep(steps[steps.length - 1]);
+
+      // Step: hosted-access phase — the gate's app, groups, and claim. Without
+      // these the SE hosted wall locks out every fresh environment (see spec
+      // 2026-10-12-bootstrap-hosted-access-design).
+      steps.push({ step: 'hosted-access', icon: '🚪', message: 'Provisioning hosted-access sign-in app + groups...' });
+      onStep(steps[steps.length - 1]);
+      try {
+        const hostedApp = await this._ensureHostedAccessApp(config.publicAppUrl || 'https://ai-demo.ping-devops.com');
+        const groups = await this._ensureHostedAccessGroups();
+        const claim = await this._ensureGroupsClaim(hostedApp.application.id);
+        provisioned.hostedAccess = {
+          appId: hostedApp.application.id,
+          clientId: hostedApp.application.clientId,
+          ...groups,
+          claimMapped: claim.mapped,
+        };
+        steps.push({ step: 'hosted-access', icon: '✅', message: `Hosted-access app ${hostedApp.exists ? 'reused' : 'created'}, groups ensured, groups claim mapped` });
+      } catch (err) {
+        steps.push({ step: 'hosted-access', icon: '⚠️', message: `Hosted-access phase: ${err.message}` });
       }
       onStep(steps[steps.length - 1]);
 
