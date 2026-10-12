@@ -21,14 +21,12 @@ metadata:
     nginx.ingress.kubernetes.io/proxy-buffering: "off"
     nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
     nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
-    # Browser perimeter: every app request must carry a BFF session whose
-    # PingOne identity passed the exact hosted-domain policy.
-    # The SE frontend Service targets nginx's plain-HTTP listener. The frontend
-    # then proxies this request to the BFF over its existing internal TLS hop.
-    # Using https here attempts TLS against an HTTP port and makes the entire
-    # hosted application fail closed.
-    nginx.ingress.kubernetes.io/auth-url: "http://frontend.<<NAMESPACE>>.svc.cluster.local:4000/api/auth/hosted-access/check"
-    nginx.ingress.kubernetes.io/auth-signin: "https://<<APP_HOST>>/api/auth/hosted-access/login?return_to=$escaped_request_uri"
+    # NO auth-url here — see ai-demo-grafana-authed-ingress below. Proven live
+    # 2026-10-12: ingress-nginx applies auth-url at SERVER level to every
+    # location on the host, so annotations on ANY ingress sharing the host
+    # (including this grafana-only one) re-authenticate the SPA ingress's
+    # public '/' and the whole bypass list. Grafana's wall lives on its own
+    # dedicated ingress.
 spec:
   ingressClassName: nginx-public
   rules:
@@ -91,6 +89,32 @@ spec:
             name: frontend
             port:
               number: 4000
+---
+# Grafana keeps its hosted-access wall. The auth annotations CANNOT live on
+# ai-demo-ingress (server-level application — see the comment there); they
+# need their own ingress whose only job is this path.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-demo-grafana-authed-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/auth-url: "http://frontend.<<NAMESPACE>>.svc.cluster.local:4000/api/auth/hosted-access/check"
+    nginx.ingress.kubernetes.io/auth-signin: "https://<<APP_HOST>>/api/auth/hosted-access/login?return_to=$escaped_request_uri"
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: <<APP_HOST>>
+    http:
+      paths:
+      - path: /grafana
+        pathType: Prefix
+        backend:
+          service:
+            name: grafana
+            port:
+              number: 3000
 ---
 # Only the OAuth bootstrap and callback endpoints bypass ingress external auth.
 # They remain protected by state, PKCE, nonce, verified identity claims, and the
