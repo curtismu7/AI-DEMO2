@@ -53,12 +53,11 @@ Raw feedback from the board for ai-demo.ping-devops.com, triaged into work items
 
 ### E5. `/code-search` — real agent experience — FIXED
 - Chat panel (`CodeSearchAsk`: bubbles, typing dots, stop button, prompt library), native toast for the file-size warning, and the global upload spinner all shipped in prior passes.
-- Header unified with the other Exploring pages 2026-10-11 (PR #1132): shared `HeroSection`, theme toggle in the hero row.
-- Remaining nit: "look like the OAuth Academy page" is a moving target — flagged as follow-up if the board wants a deeper restyle.
+- Header unified with the other Exploring pages 2026-10-11 (PR #1132): shared `HeroSection`, theme toggle in the hero row. Nano-reset toggle-radius artifact fixed 2026-10-12 (PR #1188) — the last B6 leftover.
 
 ### E6. Consistent "Exploring" section — FIXED
 - New "Exploring" nav group shipped 2026-10-11 (PR #1132): Code Explorer, OAuth Academy, Protected RAG (`/code-search`), OAS Demo.
-- OAS Demo's hand-rolled header was deliberately left as-is (spec-browser, not an agent page) — follow-up if the board wants it on the shared hero too.
+- OAS Demo joined the shared hero 2026-10-12 (PR #1188): indigo variant, "AS" avatar, OpenAPI 3.1 as subtitle — all four Exploring pages now share the same hero/toggle pattern.
 
 ### E7. `/agent-studio-preview` — needs to be greatly enhanced — FIXED (the page now exists)
 - Root cause found 2026-10-11 (PR #1133): of the spec's five pages, four shipped 2026-07 — but page 1, Agent Studio itself, was never built. `/agent-studio-preview` hit the SPA 404, and IGA for AI's empty state pointed at the missing page.
