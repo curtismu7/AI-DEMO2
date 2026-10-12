@@ -137,7 +137,7 @@ function coherentHostedIdentityClaims(idTokenClaims = {}, userInfo = {}) {
   const idEmail = typeof idTokenClaims.email === 'string' ? idTokenClaims.email.trim().toLowerCase() : null;
   const uiEmail = typeof userInfo.email === 'string' ? userInfo.email.trim().toLowerCase() : null;
   if ((idSub && uiSub && idSub !== uiSub) || (idEmail && uiEmail && idEmail !== uiEmail)) {
-    return { sub: null, email: null, email_verified: false };
+    return { sub: null, email: null, email_verified: false, groups: [], preferred_username: null, username: null };
   }
   const source = uiEmail ? userInfo : idTokenClaims;
   return {
@@ -145,6 +145,11 @@ function coherentHostedIdentityClaims(idTokenClaims = {}, userInfo = {}) {
     email: source.email,
     email_verified: source.email_verified,
     groups: Array.isArray(userInfo.groups) ? userInfo.groups : Array.isArray(idTokenClaims.groups) ? idTokenClaims.groups : [],
+    // preferred_username must survive the coherence pass — the identifier
+    // allowlist (demoUser/demoAdmin) matches on it, and demoAdmin's email
+    // alone (@api.ping.demo) can never pass the domain rule.
+    preferred_username: source.preferred_username || idTokenClaims.preferred_username || null,
+    username: source.username || idTokenClaims.username || null,
   };
 }
 
