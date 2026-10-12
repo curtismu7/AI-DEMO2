@@ -163,20 +163,27 @@ describe('hostedAccessPolicy', () => {
     }, policy)).toMatchObject({ allowed: true });
   });
 
-  test('group requirement still applies to allowlisted accounts', () => {
+  test('allowlisted accounts skip the group requirement (hosted app may not emit groups)', () => {
+    // The hosted app requests openid profile email — no group scope — so
+    // claims.groups can be absent for everyone. That must not lock out the
+    // allowlisted demo accounts (observed live 2026-10-12: demoAdmin denied
+    // group_not_allowed after the domain fix). Real employees still need
+    // the group.
     const policy = loadHostedAccessPolicy({
       ...enabledEnv,
       HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'demoUser',
       HOSTED_ACCESS_REQUIRED_GROUP_ID: 'group-hosted-users',
     });
+    // Allowlisted: in WITHOUT the group.
     expect(evaluateHostedIdentity({
       sub: 'user-1', email: 'someone+1@pingone.com', email_verified: true,
       preferred_username: 'demoUser', groups: [],
-    }, policy)).toMatchObject({ allowed: false, reason: 'group_not_allowed' });
-    expect(evaluateHostedIdentity({
-      sub: 'user-1', email: 'someone+1@pingone.com', email_verified: true,
-      preferred_username: 'demoUser', groups: ['group-hosted-users'],
     }, policy)).toMatchObject({ allowed: true });
+    // Non-allowlisted, same group-less claims: denied.
+    expect(evaluateHostedIdentity({
+      sub: 'user-2', email: 'person@pingidentity.com', email_verified: true,
+      groups: [],
+    }, policy)).toMatchObject({ allowed: false, reason: 'group_not_allowed' });
   });
 
   test('allowlisted demo account may carry a non-Ping email (demoAdmin@api.ping.demo)', () => {
