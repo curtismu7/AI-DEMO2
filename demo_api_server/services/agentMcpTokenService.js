@@ -1336,6 +1336,10 @@ async function resolvePingFederateIdJagToken(req, tokenEvents, { resource, scope
 // opts.skipCache to force a live run.
 const MCP_TOKEN_CACHE_TTL_MS = 240_000;
 const _mcpTokenCache = new Map(); // key: `${sessionID}|${tool}` → { result, ts }
+// Jest clears mocks in beforeEach but this Map lives at module scope across
+// tests — without a reset the second test on a (session, tool) pair replays
+// from cache and the mocked exchanges never fire (61 CI failures 2026-10-12).
+function resetMcpTokenCacheForTests() { _mcpTokenCache.clear(); }
 
 async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   const sessionKey = `${req?.sessionID || 'anon'}|${tool || 'default'}`;
@@ -3423,4 +3427,5 @@ function mapErrorToStructuredResponse(error, context = {}) {
 }
 
 module.exports.mapErrorToStructuredResponse = mapErrorToStructuredResponse;
+module.exports._resetMcpTokenCacheForTests = resetMcpTokenCacheForTests;
 module.exports.assertPfIdJagRunAllowed = assertPfIdJagRunAllowed;
