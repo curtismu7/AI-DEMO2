@@ -49,7 +49,7 @@ const PUBLIC_ORIGIN = 'https://demo.example.test';
 const APPLICATIONS = {
   Applications: [
     {
-      ObjectMeta: { Name: 'opensearch22' },
+      ObjectMeta: { Name: 'aggregate' },
       Spec: { McpAppConfig: { Backends: { Elems: ['http://os:8080/mcp'] }, EntryPath: '/mcp' } },
       Status: { McpServerStatus: { Status: 'Ready' } },
     },
@@ -87,7 +87,7 @@ function buildApp() {
   jest.resetModules();
   process.env.PRIVILEGE_SSO_ENV_ID = ENV_ID;
   process.env.PUBLIC_APP_URL = PUBLIC_ORIGIN;
-  process.env.PRIVILEGE_MCPGW_URL = `${GATEWAY_HOST}/opensearch22/mcp`;
+  process.env.PRIVILEGE_MCPGW_URL = `${GATEWAY_HOST}/aggregate/mcp`;
   const router = require('../../routes/privilegeMcpClient');
   const app = express();
   app.use((req, _res, next) => { req.sessionID = 'door-discovery'; req.session = {}; next(); });
@@ -154,8 +154,8 @@ describe('W8 — door discovery feeds the Door picker', () => {
     await request(app).post('/api/privilege-mcp/console/connect').send({ authToken: 'cookie' }).expect(200);
     const { body } = await request(app).get('/api/privilege-mcp/state').expect(200);
 
-    // opensearch22 is the console's first app AND the numbered `2 ·` preset.
-    expect(labels(body, 'privilege').filter((l) => l.includes('opensearch22'))).toEqual([]);
+    // aggregate is the console's first app AND the numbered `2 ·` preset.
+    expect(labels(body, 'privilege').filter((l) => l.includes('aggregate'))).toEqual([]);
     expect(labels(body, 'privilege')).toContain('2 · Privilege — direct to the Agent Privilege');
   });
 
@@ -249,7 +249,7 @@ describe('W8 — door discovery feeds the Door picker', () => {
     const { body } = await request(app).get('/api/privilege-mcp/state').expect(200);
     const discovered = body.doorDiscovery.applications.find((a) => a.name === 'newly-registered');
     expect(discovered).toMatchObject({ status: 'Ready', policies: ['p1'] });
-    expect(body.doorDiscovery.applications.find((a) => a.name === 'opensearch22').policies).toEqual([]);
+    expect(body.doorDiscovery.applications.find((a) => a.name === 'aggregate').policies).toEqual([]);
   });
 
   test('the gateway URL does not depend on the mode active during discovery', async () => {
@@ -260,7 +260,7 @@ describe('W8 — door discovery feeds the Door picker', () => {
     mockConsole();
     const app = buildApp();
     await request(app).post('/api/privilege-mcp/config')
-      .send({ mcpUrl: `${PUBLIC_ORIGIN}/mcp-facade/privilege-gateway/opensearch22/mcp` }).expect(200);
+      .send({ mcpUrl: `${PUBLIC_ORIGIN}/mcp-facade/privilege-gateway/aggregate/mcp` }).expect(200);
 
     const res = await request(app).post('/api/privilege-mcp/console/connect').send({ authToken: 'cookie' }).expect(200);
     const discovered = res.body.applications.find((a) => a.name === 'newly-registered');

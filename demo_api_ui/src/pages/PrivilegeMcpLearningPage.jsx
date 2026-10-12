@@ -527,7 +527,7 @@ oidc:
             <h3>Registering an MCP server</h3>
             <p>In the Privilege console: AI Security, Agentic Apps, Add Application, MCP Server.</p>
             <CodeBlock title="Example">
-{`Application Name  opensearch22
+{`Application Name  aggregate
 MCP Server URL    http://opensearch-mcp-server.ping-devops-curtismuir.svc.cluster.local/mcp
 Mesh Cluster      ai-demo-cmuir
 Auth Mode         None`}

@@ -5,7 +5,7 @@
 // own comment named the unblock condition exactly:
 //
 //   "Repointing needs a banking MCP server registered there as its own Agentic
-//    App; only `opensearch22` exists today, and pointing this door at an
+//    App; only `aggregate` exists today, and pointing this door at an
 //    OpenSearch app would silently serve the wrong tools."
 //
 // `openapi2` is that app — the banking OpenAPI-MCP application on the one AI

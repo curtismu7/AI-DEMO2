@@ -28,7 +28,7 @@ const walk = [
     title: "Two policies, one identity", label: "{A,B} + {B,C}",
     nodes: ["policy1", "gw"], edges: [0],
     lines: [{ who: "Presenter", text: "Policy #1 grants A and B. A second policy is created for the same user — deliberately sharing tool B." }],
-    tech: [{ t: "POLICY", c: "policy1 = {A, B} on opensearch22 (same identity as policy2)" }],
+    tech: [{ t: "POLICY", c: "policy1 = {A, B} on aggregate-limited (same identity as policy2)" }],
   },
   {
     title: "The second policy adds", label: "{B, C} joins",

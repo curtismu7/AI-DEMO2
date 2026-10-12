@@ -21,20 +21,20 @@ beforeEach(() => mockDb.clear());
 describe('privilegeGatewaySessionStore', () => {
   test('stores one record per app and reads them all back', () => {
     store.save('opensearch', { accessToken: 'a' });
-    store.save('opensearch22', { accessToken: 'b' });
+    store.save('aggregate', { accessToken: 'b' });
 
     expect(store.loadAll()).toEqual({
       opensearch: { accessToken: 'a' },
-      opensearch22: { accessToken: 'b' },
+      aggregate: { accessToken: 'b' },
     });
   });
 
   test('remove drops only that app', () => {
     store.save('opensearch', { accessToken: 'a' });
-    store.save('opensearch22', { accessToken: 'b' });
+    store.save('aggregate', { accessToken: 'b' });
 
     store.remove('opensearch');
 
-    expect(store.loadAll()).toEqual({ opensearch22: { accessToken: 'b' } });
+    expect(store.loadAll()).toEqual({ aggregate: { accessToken: 'b' } });
   });
 });

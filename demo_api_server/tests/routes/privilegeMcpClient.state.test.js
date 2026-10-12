@@ -127,12 +127,17 @@ describe('GET /api/privilege-mcp/state — mcpUrl default', () => {
   it('offers the sibling opensearch/brave Agentic Apps for both Privilege and Façade mode', async () => {
     const res = await request(app).get('/api/privilege-mcp/state').expect(200);
 
+    // `aggregate` is the DEFAULT app now, so it appears as preset "2 · Privilege —
+    // direct to the Agent Privilege" rather than as a sibling; opensearch/brave
+    // remain siblings.
     const privilegeLabels = res.body.presets.filter((p) => p.mode === 'privilege').map((p) => p.label);
-    expect(privilegeLabels).toEqual(expect.arrayContaining(['Privilege — opensearch', 'Privilege — brave', 'Privilege — aggregate']));
+    expect(privilegeLabels).toEqual(expect.arrayContaining(['Privilege — opensearch', 'Privilege — brave']));
+    expect(res.body.presets.find((p) => p.label === '2 · Privilege — direct to the Agent Privilege').url)
+      .toMatch(/\/aggregate\/mcp$/);
 
     const facadeLabels = res.body.presets.filter((p) => p.mode === 'facade').map((p) => p.label);
-    expect(facadeLabels).toEqual(expect.arrayContaining(['Façade — opensearch', 'Façade — brave', 'Façade — aggregate']));
-    expect(res.body.presets.find((p) => p.label === 'Façade — aggregate').url)
+    expect(facadeLabels).toEqual(expect.arrayContaining(['Façade — opensearch', 'Façade — brave']));
+    expect(res.body.presets.find((p) => p.label === '3 · Privilege — through the façade').url)
       .toMatch(/\/mcp-facade\/privilege-gateway\/aggregate\/mcp$/);
 
     // Each app is a distinct URL, not three copies of the same default app.

@@ -2,7 +2,7 @@ import React, { useEffect, useState } from "react";
 import apiClient from "../../services/apiClient";
 
 const AGENTIC_APPS = [
-  { name: "opensearch22", kind: "OpenSearch, native MCP", frontend: "opensearch.default.applications.procyon.ai:8643/mcp", gateway: "cm-mcpgw", status: "LIVE" },
+  { name: "aggregate", kind: "MCP Aggregate (opensearch + banking)", frontend: "mcpgw.ai-demo.ping-devops.com/aggregate/mcp", gateway: "agentless-mcpgw", status: "LIVE" },
   { name: "mcp-brave-search", kind: "native MCP", frontend: "—", gateway: "agentless-mcpgw", status: "LIVE" },
   { name: "mcp-grafana", kind: "native MCP", frontend: "mcpgw.ai-demo.ping-devops.com/mcp-grafana/mcp", gateway: "agentless-mcpgw", status: "LIVE" },
   { name: "openapi2", kind: "OpenAPI MCP", frontend: "—", gateway: "agentless-mcpgw", status: "BROKEN", note: "→ mcp-openapi-banking" },

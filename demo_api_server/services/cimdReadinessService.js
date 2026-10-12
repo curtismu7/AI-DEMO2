@@ -19,7 +19,7 @@ const TIMEOUT_MS = 5000;
 
 // Mirrors routes/privilegeMcpClient.js (PRIVILEGE_GATEWAY_HOST, PRIVILEGE_APP, the /auth/callback path).
 const GATEWAY_HOST = 'https://mcpgw.ai-demo.ping-devops.com';
-const DEFAULT_APP = 'opensearch22';
+const DEFAULT_APP = 'aggregate';
 const DOCUMENT_SLUG = 'privilege-mcp-client';
 const CALLBACK_PATH = '/api/privilege-mcp/auth/callback';
 

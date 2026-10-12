@@ -27,7 +27,7 @@ const walk = [
     title: "Discovery request", label: "tools/list",
     nodes: ["client", "gw"], edges: [0],
     lines: [{ who: "Client", text: "A plain tools/list — discovery is where per-tool grants bite." }],
-    tech: [{ t: "API", c: "GET tools/list over /opensearch22/mcp (Agentic App opensearch22)" }],
+    tech: [{ t: "API", c: "GET tools/list over /aggregate-limited/mcp (Agentic App aggregate-limited)" }],
   },
   {
     title: "Policy filter", label: "Grant resolved first",

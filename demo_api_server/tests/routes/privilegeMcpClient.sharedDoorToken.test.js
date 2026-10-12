@@ -23,8 +23,8 @@ const request = require('supertest');
 const PUBLIC_ORIGIN = 'https://local.ping-devops.com:4000';
 const DOOR_A = `${PUBLIC_ORIGIN}/mcp-facade/opensearch/mcp`;
 const DOOR_B = `${PUBLIC_ORIGIN}/mcp-facade/brave/mcp`;
-const FACADE_DOOR = `${PUBLIC_ORIGIN}/mcp-facade/privilege-gateway/opensearch22/mcp`;
-const GATEWAY_DOOR = 'https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp';
+const FACADE_DOOR = `${PUBLIC_ORIGIN}/mcp-facade/privilege-gateway/aggregate/mcp`;
+const GATEWAY_DOOR = 'https://mcpgw.ai-demo.ping-devops.com/aggregate/mcp';
 
 function buildApp() {
   const router = require('../../routes/privilegeMcpClient');
