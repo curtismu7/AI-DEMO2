@@ -45,6 +45,7 @@ describe('hostedAccessPolicy', () => {
       subject: 'user-1',
       email: 'Person@pingidentity.com',
       domain: 'pingidentity.com',
+      username: null,
     });
   });
 
@@ -227,6 +228,7 @@ describe('hostedAccessPolicy', () => {
       version: 1,
       subject: 'user-1',
       email: 'person@pingone.com',
+      username: null,
       domain: 'pingone.com',
       approvedAt: 1234,
       policyFingerprint: policy.fingerprint,
