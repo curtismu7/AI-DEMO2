@@ -19,6 +19,11 @@ export const HERO_VARIANTS = {
     backgroundEndColor: '#aa0005',
     label: 'OAuth Academy',
   },
+  'oas-demo': {
+    backgroundColor: '#4338ca',
+    backgroundEndColor: '#3730a3',
+    label: 'OAS Demo',
+  },
   graphify: {
     backgroundColor: '#0f766e',
     backgroundEndColor: '#115e59',

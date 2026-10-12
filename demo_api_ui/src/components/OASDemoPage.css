@@ -7,73 +7,28 @@
   color: var(--color-text, #1a1a2e);
 }
 
-/* ── Header ── */
-.oas-demo-header {
+/* ── Header — shared Exploring hero ── */
+.oas-demo-hero-row {
   display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 2rem;
-  margin-bottom: 2.5rem;
-  padding: 2rem 2rem 1.75rem;
-  background: linear-gradient(135deg, #1e3a8a 0%, #1e40af 100%);
-  border-radius: 12px;
-  color: var(--th-text-invert);
+  flex-direction: column;
+  max-width: 1400px;
+  margin: 0 auto 18px;
 }
 
-.oas-demo-header-left {
-  flex: 1;
-}
-
-.oas-demo-badge {
-  display: inline-block;
-  background: rgba(255,255,255,0.18);
-  border: 1px solid rgba(255,255,255,0.3);
-  border-radius: 20px;
-  padding: 2px 10px;
-  font-size: 0.7rem;
-  font-weight: 600;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  margin-bottom: 0.6rem;
-}
-
-.oas-demo-title {
-  margin: 0 0 0.5rem;
-  font-size: 1.75rem;
-  font-weight: 700;
-  letter-spacing: -0.02em;
-  line-height: 1.2;
-  /* Force high-contrast white so no inherited/injected rule can tint header text (e.g. red). */
-  color: var(--th-text-invert) !important;
-}
-
-.oas-demo-subtitle {
-  margin: 0;
-  font-size: 0.9rem;
-  line-height: 1.5;
-  max-width: 540px;
-  color: var(--th-text-invert) !important;
-}
-
-.oas-demo-subtitle code {
-  background: rgba(255,255,255,0.2);
-  border-radius: 4px;
-  padding: 1px 5px;
-  font-family: var(--font-mono);
-  font-size: 0.85em;
-  color: var(--th-text-invert) !important;
+.oas-demo-hero-row .oas-demo-launch-btn {
+  align-self: flex-end;
+  margin: 10px 1.5rem 0;
 }
 
 .oas-demo-launch-btn {
   flex-shrink: 0;
-  align-self: center;
-  padding: 0.65rem 1.4rem;
+  padding: 6px 14px;
   background: var(--th-bg-card);
-  color: var(--th-status-info-text);
-  border: none;
-  border-radius: 8px;
-  font-size: 0.9rem;
-  font-weight: 700;
+  color: var(--th-text);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  font-size: 0.85rem;
+  font-weight: 600;
   cursor: pointer;
   transition: background 0.15s, transform 0.1s;
   white-space: nowrap;
@@ -625,11 +580,9 @@
 
 /* ── Responsive ── */
 @media (max-width: 640px) {
-  .oas-demo-header {
-    flex-direction: column;
-  }
-  .oas-demo-launch-btn {
+  .oas-demo-hero-row .oas-demo-launch-btn {
     align-self: flex-start;
+    margin-left: 1.5rem;
   }
   .oas-flow {
     flex-direction: column;
