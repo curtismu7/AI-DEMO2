@@ -29,7 +29,7 @@
     "@langchain/google-genai": "^2.2.0",
     "@langchain/openai": "^1.5.3",
     "@opentelemetry/auto-instrumentations-node": "^0.81.0",
-    "@opentelemetry/exporter-trace-otlp-grpc": "^0.200.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.223.0",
     "@opentelemetry/sdk-node": "^0.223.0",
     "axios": "^1.17.0",
     "dotenv": "^17.2.2",
