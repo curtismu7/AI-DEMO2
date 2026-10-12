@@ -4,6 +4,8 @@ import apiClient from '../services/apiClient';
 import './OASDemoPage.css';
 import InlineSpinner from './shared/InlineSpinner';
 import { openSignIn } from '../utils/signInService';
+import { HeroSection } from './HeroSection';
+import { HERO_VARIANTS } from '../config/heroVariants';
 
 
 // Mirrors McpInspectorPage.jsx's coerceParam — same shape, kept local since
@@ -337,20 +339,19 @@ export default function OASDemoPage({ user }) {
 
   return (
     <div className="oas-demo">
-      {/* ── Header ── */}
-      <div className="oas-demo-header">
-        <div className="oas-demo-header-left">
-          <span className="oas-demo-badge">OpenAPI 3.1</span>
-          <h1 className="oas-demo-title">PingOne API Security Contract</h1>
-          <p className="oas-demo-subtitle">
-            Machine-readable API definitions governing what AI agents can discover and call.
-            Each operation carries <code>x-permission</code> and <code>x-public-api</code> annotations
-            that map directly to OAuth scopes enforced at the MCP gateway.
-          </p>
-        </div>
+      {/* ── Header — shared Exploring hero (PR #1132 family) ── */}
+      <div className="oas-demo-hero-row">
         <button className="oas-demo-launch-btn" onClick={handleLaunchAgent}>
           Launch AI Agent →
         </button>
+        <HeroSection
+          avatar="AS"
+          title="PingOne API Security Contract"
+          subtitle="OpenAPI 3.1"
+          description="Machine-readable API definitions governing what AI agents can discover and call. Each operation carries x-permission and x-public-api annotations that map directly to OAuth scopes enforced at the MCP gateway."
+          size="compact"
+          backgroundColor={HERO_VARIANTS['oas-demo'].backgroundColor}
+        />
       </div>
 
       {/* ── Security Flow ── */}

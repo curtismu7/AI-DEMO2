@@ -31,7 +31,10 @@
   margin: 10px 1.5rem 0;
 }
 
-.code-search-theme-toggle {
+/* `.end-user-nano button` squares every button (specificity 0,1,1), so the
+   toggle needs the ancestor in its selector to keep its radius on dashboards. */
+.code-search-page .code-search-theme-toggle,
+.end-user-nano .code-search-theme-toggle {
   padding: 6px 14px;
   border-radius: var(--radius-md);
   border: 1px solid var(--th-border-strong);

@@ -49,6 +49,14 @@ beforeEach(() => {
 });
 
 describe('OASDemoPage — Try it out', () => {
+  it('renders the shared Exploring hero, not the hand-rolled header', () => {
+    renderPage(null);
+    const hero = document.querySelector('.hero-section');
+    expect(hero).not.toBeNull(); // eslint-disable-next-line testing-library/no-node-access
+    expect(document.querySelector('.oas-demo-header')).toBeNull();
+    expect(screen.getByRole('heading', { level: 1, name: 'PingOne API Security Contract' })).toBeInTheDocument();
+  });
+
   it('shows a sign-in prompt and never fetches PingOne tools when signed out', async () => {
     renderPage(null);
     await expandListUsersRow();
