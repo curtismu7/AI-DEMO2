@@ -375,10 +375,15 @@ FOCUS_ENV=()
 if [[ -n "$SERVICE" ]]; then
   FOCUS_ENV=("FOCUS_DEPLOYMENTS=$(k8s_dep "$SERVICE")")
 fi
-GITHUB_OWNER="$GITHUB_OWNER" \
-K8S_NAMESPACE="$NS" \
-PUBLIC_APP_URL="https://ai-demo.ping-devops.com" \
-"${FOCUS_ENV[@]+"${FOCUS_ENV[@]}"}" \
+# Route through `env`: an assignment that arrives by expansion ("${FOCUS_ENV[@]}")
+# is never parsed as a VAR=val prefix by bash — it becomes the command name
+# ("FOCUS_DEPLOYMENTS=frontend: command not found", measured 2026-10-12) and
+# deploy.sh never runs, leaving the deployment on the pre-push image. env takes
+# it as a plain argument, which is exactly the semantics we want.
+env ${FOCUS_ENV[@]+"${FOCUS_ENV[@]}"} \
+  GITHUB_OWNER="$GITHUB_OWNER" \
+  K8S_NAMESPACE="$NS" \
+  PUBLIC_APP_URL="https://ai-demo.ping-devops.com" \
   bash "$BASEDIR/k8s/aws/deploy.sh" \
   || warn "deploy.sh exited nonzero (usually the llm-proxy rollout wait) — smoke checks will verify what actually landed"
 
