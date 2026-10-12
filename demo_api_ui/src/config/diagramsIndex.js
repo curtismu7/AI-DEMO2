@@ -65,4 +65,5 @@ export const DIAGRAMS_MORE = [
   D("Phase 266 architecture", "/architecture/phase-266", "Phase 266 architecture, step by step."),
   D("Agent Onboarding (React Flow)", "/agent-onboarding-flow-mermaid", "Onboarding drawn in React Flow."),
   D("Use-case diagrams", "/use-case-diagrams", "One walkthrough per demo step, deep-linkable by UC id."),
+  D("Observability Demo", "/architecture/observability", "Telemetry data flow — emitters, collectors, surfaces — plus the two-part demo walkthrough."),
 ];

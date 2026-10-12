@@ -7,6 +7,7 @@ This directory contains architecture and flow diagrams for the AI Demo project.
 | Route | Description |
 | --- | --- |
 | `/architecture/pingfederate-id-jag` | React Flow walkthrough with two views: the ID-JAG token journey and the PingFederate-backed UC2 system architecture. |
+| `/architecture/observability` | Observability demo — telemetry data flow (metrics/traces/logs planes, click to isolate) and the two-part demo walkthrough. |
 
 ## Mermaid Diagrams (source + rendered)
 
@@ -97,6 +98,12 @@ All diagrams include comprehensive RFC annotations for:
 - **Session Management** - Step-up verification with TTL
 
 ## Recent Updates
+
+### 2026-10-11 — Observability demo diagram
+
+- New React Flow page `/architecture/observability`: emitters (BFF, Agent Gateway admin connector, agent service, MCP servers) → collectors (Prometheus, Alloy, Loki, Jaeger, Alertmanager) → surfaces (Grafana, in-app trace pages, alert rules), with per-plane highlighting
+- Companion Grafana dashboard `agent-observability-overview` (uid `ai-demo-agent-observability`) reuses existing dashboard queries — see `monitoring/grafana/dashboards/`
+- Demo steps: UC20 now deep-links here; runbook at `docs/runbooks/observability-demo.md`
 
 ### 2026-07-11 — Top-3 nav consolidation + current-defaults refresh
 

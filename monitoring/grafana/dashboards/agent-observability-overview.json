@@ -1,0 +1,312 @@
+{
+  "uid": "ai-demo-agent-observability",
+  "title": "Agent observability overview",
+  "description": "The demo's one-screen story: what was decided, what the MCP doors did, what ran, and what is alerting. Reuses the exact queries of the P1AZ, pinggateway and server-events dashboards — no new instrumentation.",
+  "tags": ["ai-demo", "observability", "overview"],
+  "timezone": "browser",
+  "schemaVersion": 39,
+  "version": 1,
+  "editable": true,
+  "refresh": "30s",
+  "time": { "from": "now-1h", "to": "now" },
+  "panels": [
+    {
+      "id": 1,
+      "type": "text",
+      "title": "About this dashboard",
+      "gridPos": { "h": 5, "w": 24, "x": 0, "y": 0 },
+      "options": {
+        "mode": "markdown",
+        "content": "One-screen demo story. **Every query here is lifted from the existing dashboards** — decisions from the P1AZ log lines in Loki, door traffic from the Agent Gateway's admin connector (:8085) via Prometheus, app events from the BFF's structured logger. No new instrumentation.\n\n**Alert expectation:** a single DENY does not fire `McpDoorMostlyRejecting` — that rule needs >80% 4xx for 10 minutes across ≥10 requests, by design (RFC 9728 discovery makes 401 challenges normal traffic). The live demo moment is these panels reacting, not an alert ringing."
+      }
+    },
+    {
+      "id": 2,
+      "type": "stat",
+      "title": "MCP door traffic · 15 min",
+      "description": "Scale of traffic on the MCP doors. Decision counts come from the Loki panel below; this is the request volume behind them.",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(increase(ig_route_response_status_total{route=~\".*mcp.*\"}[15m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "color": { "mode": "fixed", "fixedColor": "blue" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 3,
+      "type": "stat",
+      "title": "MCP door success ratio · 15 min",
+      "description": "Share of MCP door responses that were not 4xx/5xx. The 0.8 floor is the McpDoorMostlyRejecting alert threshold — 4xx challenges are normal (RFC 9728 discovery), so this sits well above zero in a healthy stack.",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "1 - (sum(increase(ig_route_response_status_total{family=\"client_error\",route=~\".*mcp.*\"}[15m])) + sum(increase(ig_route_response_status_total{family=\"server_error\",route=~\".*mcp.*\"}[15m]))) / sum(increase(ig_route_response_status_total{route=~\".*mcp.*\"}[15m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "percentunit",
+          "decimals": 2,
+          "min": 0,
+          "max": 1,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 0.8 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 4,
+      "type": "stat",
+      "title": "Alerts firing",
+      "description": "Rules from monitoring/alerts.yml currently firing. Zero is the healthy demo state.",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 5 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(ALERTS{alertstate=\"firing\"}) or vector(0)"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "green", "value": null },
+              { "color": "red", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 5,
+      "type": "timeseries",
+      "title": "Decisions by outcome (per 5 min)",
+      "description": "PERMIT vs DENY, extracted from the DECISION: token on each P1AZ log line — the exact query of the P1AZ Decisions dashboard. A UC6 run puts a DENY on this chart within ~30s.",
+      "gridPos": { "h": 9, "w": 12, "x": 0, "y": 9 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (decision) (count_over_time({service=\"ping-gateway\"} |= \"[P1AZ] DECISION:\" | regexp \"DECISION: (?P<decision>PERMIT|DENY)\" [5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "decimals": 0,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": [
+          {
+            "matcher": { "id": "byName", "options": "DENY" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "red" } }
+            ]
+          },
+          {
+            "matcher": { "id": "byName", "options": "PERMIT" },
+            "properties": [
+              { "id": "color", "value": { "mode": "fixed", "fixedColor": "green" } }
+            ]
+          }
+        ]
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 6,
+      "type": "timeseries",
+      "title": "MCP door responses by family (per 5 min)",
+      "description": "Response status families on the MCP doors. Talking point: 4xx near 1:1 with success is healthy — RFC 9728 discovery starts with a 401 challenge, so any 'client_error > 0' rule would fire forever.",
+      "gridPos": { "h": 9, "w": 12, "x": 12, "y": 9 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (family) (rate(ig_route_response_status_total{route=~\".*mcp.*\"}[5m]))"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "reqps",
+          "min": 0,
+          "decimals": 2,
+          "custom": {
+            "drawStyle": "line",
+            "lineWidth": 2,
+            "fillOpacity": 10,
+            "showPoints": "never"
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "legend": { "displayMode": "list", "placement": "bottom", "showLegend": true },
+        "tooltip": { "mode": "multi", "sort": "desc" }
+      }
+    },
+    {
+      "id": 7,
+      "type": "barchart",
+      "title": "Tool calls by tool (cumulative)",
+      "description": "Which MCP tools have actually been invoked through the gateway — same query as the pinggateway dashboard.",
+      "gridPos": { "h": 8, "w": 12, "x": 0, "y": 18 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum by (mcp_method_param_tool) (ig_mcp_method_time_seconds_count{mcp_method=\"tools/call\", route=~\".*mcp.*\"})",
+          "legendFormat": "{{mcp_method_param_tool}}",
+          "instant": true,
+          "format": "table"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "color": { "mode": "palette-classic" }
+        },
+        "overrides": []
+      },
+      "options": {
+        "orientation": "horizontal",
+        "legend": { "showLegend": false },
+        "tooltip": { "mode": "single", "sort": "none" }
+      }
+    },
+    {
+      "id": 8,
+      "type": "logs",
+      "title": "Live P1AZ decisions",
+      "description": "The raw decision lines behind the chart — this is the 'forensics' half of the demo in one panel.",
+      "gridPos": { "h": 8, "w": 12, "x": 12, "y": 18 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=\"ping-gateway\"} |= \"[P1AZ] DECISION:\""
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": false,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none",
+        "enableLogDetails": true
+      }
+    },
+    {
+      "id": 9,
+      "type": "stat",
+      "title": "Gateway metrics up",
+      "description": "If this reads Down, every other panel here is blind rather than calm — the PingOneAgentGatewayMetricsDown alert watches exactly this.",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 26 },
+      "datasource": { "type": "prometheus", "uid": "ai-demo-prometheus" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "up{job=\"pinggateway\"}"
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "mappings": [
+            {
+              "type": "value",
+              "options": {
+                "0": { "text": "Down", "color": "red", "index": 0 },
+                "1": { "text": "Up", "color": "green", "index": 1 }
+              }
+            }
+          ],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "red", "value": null },
+              { "color": "green", "value": 1 }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "background",
+        "graphMode": "none"
+      }
+    },
+    {
+      "id": 10,
+      "type": "logs",
+      "title": "BFF app events",
+      "description": "The BFF's structured event stream (appEventService) — the same stream the server-events dashboard covers, scoped here to the demo story.",
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "{service=\"ai-demo-bff\", logtype=\"app_event\"}"
+        }
+      ],
+      "options": {
+        "showTime": true,
+        "showLabels": false,
+        "showCommonLabels": false,
+        "wrapLogMessage": false,
+        "sortOrder": "Descending",
+        "dedupStrategy": "none",
+        "enableLogDetails": true
+      }
+    }
+  ]
+}

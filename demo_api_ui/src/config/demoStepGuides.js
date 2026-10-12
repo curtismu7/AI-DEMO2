@@ -90,7 +90,7 @@ export const DEMO_STEP_GUIDES = Object.fromEntries([
     "Runs the same 'show my balance' flow as UC1, then shows the Token Chain and Activity panels reconstructing the full trace: user token, token exchange, Authorize decision, tool dispatch.",
     "Every agent action is attributable end to end: who the agent was, who it acted for and what the policy decided. The use-case id and act chain are stamped on every token event and activity log.",
     "Compliance and incident response depend on traceable agent actions, and the audit trail is built without application-layer instrumentation.",
-    "Sign in as a customer, send 'show my balance', then open the Token Chain and Activity evidence panels. The ff_mcp_gateway_pinggateway flag is listed for this step."],
+    "Sign in as a customer, send 'show my balance', then open the Token Chain and Activity evidence panels. Then open the observability diagram (/architecture/observability): switch to Demo walkthrough, run the Grafana half — SSO into Grafana, fire a UC6 DENY ('transfer $2500 from checking to savings'), watch the decision panels move. A single DENY does NOT fire the door alerts (they are ratio-based by design); the dashboards reacting IS the live moment."],
   ["UC18", "Rate-limit / resource-overload defense",
     "A simulated agent floods the gateway with rapid sequential tool calls, which the gateway is meant to throttle before any tool is dispatched.",
     "Per-agent, per-tool rate limiting at the agent gateway protects against resource exhaustion, cost run-up and policy-threshold probing.",

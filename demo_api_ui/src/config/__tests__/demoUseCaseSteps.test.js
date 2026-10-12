@@ -11,6 +11,7 @@ import {
   DEMO_MISSION_GROUPS,
   DEMO_JOURNEY_GROUPS,
   PRIVILEGE_USE_CASE_IDS,
+  DEMO_STEP_DESTINATIONS,
 } from '../demoUseCaseSteps';
 
 describe('demoUseCaseSteps', () => {
@@ -192,5 +193,13 @@ describe('demoUseCaseSteps', () => {
     for (const id of ADMIN_PRIMARY_USE_CASE_IDS) {
       expect(id).toMatch(/^ADMIN/);
     }
+  });
+
+  it('deep-links UC20 to the observability diagram page', () => {
+    expect(DEMO_STEP_DESTINATIONS.UC20).toEqual({
+      kind: 'page',
+      label: 'Opens diagram',
+      title: 'Opens the observability diagram (/architecture/observability) — telemetry data flow and the two-part demo walkthrough. Nothing runs here: the step itself runs in the agent.',
+    });
   });
 });

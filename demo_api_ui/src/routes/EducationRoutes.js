@@ -11,6 +11,7 @@ import TokenChainArchitecturePage from "../components/TokenChainArchitecturePage
 import ReactFlowPocPage from "../components/ReactFlowPocPage";
 import ReactFlowPocComparePage from "../components/ReactFlowPocComparePage";
 import PingFederateIdJagPage from "../components/PingFederateIdJagPage";
+import ObservabilityDiagramPage from "../components/ObservabilityDiagramPage";
 import ServerTopologyPage from "../components/ServerTopologyPage";
 
 // /architecture/* sub-routes
@@ -35,6 +36,7 @@ export default function EducationRoutes({ user, logout }) {
         <Route path="reactflow-poc" element={<ReactFlowPocPage />} />
         <Route path="poc-compare" element={<ReactFlowPocComparePage />} />
         <Route path="pingfederate-id-jag" element={<PingFederateIdJagPage />} />
+        <Route path="observability" element={<ObservabilityDiagramPage />} />
         <Route path="server-topology" element={<ServerTopologyPage />} />
       </Routes>
     </AppShell>

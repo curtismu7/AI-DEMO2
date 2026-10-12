@@ -85,6 +85,13 @@ const RECOMMENDED_PATH = [
     href: "/transaction-trace",
     cta: "Open transaction trace",
   },
+  {
+    step: "05",
+    title: "Watch it live",
+    detail: "The same act chain, streaming into Grafana — run a live DENY and watch the dashboards react.",
+    href: "/architecture/observability",
+    cta: "Open observability demo",
+  },
 ];
 
 function lessonStatus(item: LearningItem): LessonStatus {

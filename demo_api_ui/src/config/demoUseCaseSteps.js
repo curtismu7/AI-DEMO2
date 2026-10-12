@@ -61,6 +61,11 @@ export const DEMO_STEP_DESTINATIONS = {
     label: 'Runs in agent',
     title: 'Stays in the agent and runs the access review here, with the reel and sequence view.',
   },
+  UC20: {
+    kind: 'page',
+    label: 'Opens diagram',
+    title: 'Opens the observability diagram (/architecture/observability) — telemetry data flow and the two-part demo walkthrough. Nothing runs here: the step itself runs in the agent.',
+  },
   'UC-MUSE1': {
     kind: 'agent',
     label: 'Runs in your agent',

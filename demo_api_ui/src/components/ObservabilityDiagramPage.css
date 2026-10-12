@@ -1,0 +1,298 @@
+/* ObservabilityDiagramPage — same token conventions as PingFederateIdJagPage.css */
+
+.obs-page {
+  --obs-canvas: var(--th-bg-page);
+  /* plane hues: metrics = the info/teal family the other diagrams use,
+     traces = success green family, logs = policy amber family */
+  --obs-metrics: var(--th-status-info);
+  --obs-traces: var(--th-status-success);
+  --obs-logs: #946b24;
+  color: var(--th-text);
+  display: flex;
+  flex-direction: column;
+  gap: 16px;
+  width: min(1500px, 100%);
+  min-height: calc(100vh - 100px);
+  margin: 0 auto;
+  padding: 24px clamp(12px, 2vw, 28px) 20px;
+}
+
+.obs-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 24px;
+  flex-wrap: wrap;
+}
+
+.obs-kicker {
+  margin: 0 0 5px;
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.obs-header h1 {
+  margin: 0;
+  font-size: var(--font-size-h1);
+  letter-spacing: -0.025em;
+}
+
+.obs-lede {
+  margin: 6px 0 0;
+  color: var(--th-text-muted);
+  max-width: 72ch;
+}
+
+.obs-mock-chip {
+  flex: none;
+  align-self: center;
+  padding: 5px 10px;
+  border: 1px solid var(--th-border);
+  border-radius: 999px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+.obs-tabs {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.obs-tabs button {
+  padding: 7px 14px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.obs-tabs button.is-current {
+  border-color: var(--th-border-strong);
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+}
+
+.obs-planes {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.obs-planes button {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 6px 12px;
+  border: 1px solid var(--th-border);
+  border-radius: 999px;
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+
+.obs-planes button[aria-pressed="true"] {
+  border-color: var(--th-border-strong);
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+}
+
+.obs-plane-dot {
+  display: inline-block;
+  width: 9px;
+  height: 9px;
+  border-radius: 3px;
+  flex: none;
+}
+
+.obs-plane-dot--metrics { background: var(--obs-metrics); }
+.obs-plane-dot--traces { background: var(--obs-traces); }
+.obs-plane-dot--logs { background: var(--obs-logs); }
+
+.obs-canvas {
+  height: min(62vh, 560px);
+  min-height: 380px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--obs-canvas);
+  overflow: hidden;
+}
+
+.obs-canvas .react-flow__attribution { display: none; }
+
+.obs-node {
+  position: relative;
+  display: grid;
+  grid-template-columns: 34px minmax(0, 1fr);
+  grid-template-rows: auto auto auto;
+  align-items: center;
+  column-gap: 9px;
+  width: 236px;
+  padding: 11px 12px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  box-shadow: var(--shadow-md);
+  transition: opacity 200ms ease;
+}
+
+.obs-node.is-dim {
+  opacity: 0.13;
+}
+
+.obs-node strong {
+  grid-column: 2;
+  align-self: end;
+  font-size: var(--font-size-sm);
+  line-height: 1.25;
+}
+
+.obs-node > span:nth-of-type(1) {
+  grid-column: 2;
+  align-self: start;
+  margin-top: 2px;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  line-height: 1.35;
+}
+
+.obs-node__mark {
+  grid-row: 1 / span 2;
+  display: grid;
+  place-items: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  font-weight: 800;
+}
+
+.obs-node__planes {
+  grid-column: 2;
+  display: flex;
+  gap: 4px;
+  margin-top: 4px;
+}
+
+.obs-node .react-flow__handle {
+  width: 5px;
+  height: 5px;
+  border: 0;
+  background: var(--th-border-strong);
+  opacity: 0.65;
+}
+
+.obs-edge.is-dim {
+  opacity: 0.13;
+}
+
+.obs-edge--metrics { stroke: var(--obs-metrics); }
+.obs-edge--traces { stroke: var(--obs-traces); }
+.obs-edge--logs { stroke: var(--obs-logs); }
+
+.obs-legend {
+  display: flex;
+  gap: 18px;
+  flex-wrap: wrap;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+}
+
+.obs-legend span {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.obs-planes-note {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-xs);
+  max-width: 90ch;
+}
+
+.obs-planes-note code {
+  color: var(--th-text);
+}
+
+/* Walkthrough view */
+.obs-walk {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.obs-walk__part {
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  background: var(--th-bg-card);
+  padding: 16px 18px 18px;
+}
+
+.obs-walk__part--part1 { border-top: 3px solid var(--obs-metrics); }
+.obs-walk__part--part2 { border-top: 3px solid var(--obs-logs); }
+
+.obs-walk__part h2 {
+  margin: 0 0 12px;
+  font-size: var(--font-size-base);
+  letter-spacing: -0.01em;
+}
+
+.obs-walk__part ol {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(190px, 1fr));
+  gap: 10px;
+}
+
+.obs-walk__part li {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 11px 13px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-inset);
+}
+
+.obs-walk__num {
+  color: var(--th-text-faint);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+.obs-walk__part li strong {
+  font-size: var(--font-size-sm);
+}
+
+.obs-walk__sub {
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  line-height: 1.35;
+}
+
+@media (max-width: 720px) {
+  .obs-canvas { height: 46vh; min-height: 300px; }
+  .obs-walk__part ol { grid-template-columns: 1fr; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .obs-node,
+  .obs-edge { transition: none; }
+}

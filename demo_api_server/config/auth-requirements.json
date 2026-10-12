@@ -161,6 +161,7 @@
     "/api-traffic": "public",
     "/architecture/canvas": "public",
     "/architecture/a2a": "public",
+    "/architecture/observability": "public",
     "/architecture/flow": "public",
     "/architecture/overview": "public",
     "/architecture/pingfederate-id-jag": "public",

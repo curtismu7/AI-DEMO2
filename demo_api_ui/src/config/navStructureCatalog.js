@@ -74,7 +74,7 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Observability", children: [
     "Audit Trail", "Learning Log", "Activity Log", "API Activity", "Run Reports", "Error Audit Log", "New Relic", "CI Queue Dashboard",
     "PingOne Events", "PingOne Authorize Decisions", "Token Exchange", "System Flow", "Service Graph", "Tracing",
-    "Transaction Trace", "MCP Observability", "Grafana",
+    "Transaction Trace", "MCP Observability", "Observability Demo", "Grafana",
   ] },
   { label: "Diagrams", children: [
     "Demo Map", "All Diagrams", "Server Topology (Interactive)", "PingFederate ID-JAG (Node)",

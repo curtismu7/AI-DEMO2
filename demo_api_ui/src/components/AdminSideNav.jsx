@@ -1098,6 +1098,14 @@ export default function AdminSideNav({
         { label: "Transaction Trace", path: "/transaction-trace", icon: "log" },
         { label: "MCP Observability", path: "/mcp-observability", icon: "log", adminOnly: true },
         {
+          // The observability demo diagram + walkthrough: where every telemetry
+          // plane is emitted, stored and presented, and the two-part demo story.
+          label: "Observability Demo",
+          path: "/architecture/observability",
+          icon: "log",
+          searchAlias: "observability demo diagram grafana prometheus alert walkthrough telemetry",
+        },
+        {
           // External, so it uses the same action+window.open shape as PAC
           // Editor rather than a router path. Grafana holds PingOne Agent Gateway's own
           // metrics and is where traces open now that the public /jaeger/
@@ -1530,6 +1538,7 @@ export default function AdminSideNav({
       "Tracing",
       "Transaction Trace",
       "MCP Observability",
+      "Observability Demo",
       "Grafana",
     ], "log"),
     productGroup("Diagrams", [

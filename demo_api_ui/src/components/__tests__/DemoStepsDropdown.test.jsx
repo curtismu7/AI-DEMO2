@@ -167,10 +167,11 @@ describe('DemoStepsDropdown', () => {
     expect(screen.getAllByTestId('demo-step-UC46')[0]).toContainElement(pages[0]);
     expect(screen.getAllByTestId('demo-step-UC46A')[0]).toContainElement(agents[0]);
 
-    // Only these four steps carry a destination marker: the A2A pair and the
-    // two external-agent steps (which run in the presenter's own agent).
+    // Only these five steps carry a destination marker: the A2A pair, the
+    // two external-agent steps (which run in the presenter's own agent), and
+    // UC20 (opens the observability diagram page).
     const ids = new Set(screen.getAllByTestId(/^step-destination-/).map((el) => el.getAttribute('data-testid')));
-    expect([...ids].sort()).toEqual(['step-destination-UC-MUSE1', 'step-destination-UC-MUSE2', 'step-destination-UC46', 'step-destination-UC46A']);
+    expect([...ids].sort()).toEqual(['step-destination-UC-MUSE1', 'step-destination-UC-MUSE2', 'step-destination-UC20', 'step-destination-UC46', 'step-destination-UC46A']);
   });
 
   it('starts the Privilege A2A agent chain from step 27 and still hands the step to the page', async () => {

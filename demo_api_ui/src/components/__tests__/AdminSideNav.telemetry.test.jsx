@@ -100,4 +100,10 @@ describe("AdminSideNav Observability group", () => {
     expect(features).toBe("noopener,noreferrer");
     vi.unstubAllGlobals();
   });
+
+  it("lists Observability Demo in Telemetry, linking to the diagram page", async () => {
+    renderAt("/transaction-trace");
+    const link = (await screen.findByText("Observability Demo")).closest("a");
+    expect(link.getAttribute("href")).toBe("/architecture/observability");
+  });
 });

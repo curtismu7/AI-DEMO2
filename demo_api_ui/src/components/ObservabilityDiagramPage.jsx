@@ -1,0 +1,260 @@
+import React, { memo, useCallback, useMemo, useState } from "react";
+import { Background, BackgroundVariant, Handle, Position, ReactFlow } from "@xyflow/react";
+import "@xyflow/react/dist/style.css";
+import "./ObservabilityDiagramPage.css";
+
+/**
+ * ObservabilityDiagramPage — /architecture/observability.
+ *
+ * The observability demo as a diagram: where each telemetry plane is emitted,
+ * which collector stores it, and which surface presents it — plus the two-part
+ * demo walkthrough (forensics, then ops). Same React Flow pattern as
+ * PingFederateIdJagPage; the page is illustrative by design (it maps the
+ * shipped stack, it does not query it live).
+ */
+
+const PLANES = ["metrics", "traces", "logs"];
+
+// One edge per telemetry hop in the compose stack (docker-compose.yml
+// `observability` + `tracing` profiles). Plane colors come from CSS tokens so
+// they follow the theme; the diagram data only names the plane.
+const FLOW_NODES = [
+  // Emitters (left column)
+  { id: "bff", column: 0, row: 0, mark: "BFF", title: "BFF · demo-api-server", sub: "structured logger + OTLP", planes: ["logs", "traces"] },
+  { id: "gw", column: 0, row: 1, mark: "IG", title: "Agent Gateway · :8085", sub: "admin connector", planes: ["metrics"] },
+  { id: "ags", column: 0, row: 2, mark: "AG", title: "demo_agent_service", sub: "OTel spans (reason · tool)", planes: ["traces"] },
+  { id: "mcp", column: 0, row: 3, mark: "MCP", title: "mcp-server / mcpgw", sub: "OTLP + /metrics", planes: ["metrics", "traces"] },
+  { id: "cont", column: 0, row: 4, mark: "RUN", title: "Service containers", sub: "docker logs", planes: ["logs"] },
+  // Collectors / stores (middle column)
+  { id: "prom", column: 1, row: 0, mark: "P", title: "Prometheus", sub: "TSDB", planes: ["metrics"] },
+  { id: "alloy", column: 1, row: 1, mark: "AL", title: "Alloy", sub: "log scraper", planes: ["logs"] },
+  { id: "loki", column: 1, row: 2, mark: "LO", title: "Loki", sub: "log store", planes: ["logs"] },
+  { id: "jaeger", column: 1, row: 3, mark: "J", title: "Jaeger", sub: "trace store", planes: ["traces"] },
+  { id: "am", column: 1, row: 4, mark: "AM", title: "Alertmanager", sub: "default receiver (no-op)", planes: ["metrics"] },
+  // Surfaces (right column)
+  { id: "graf", column: 2, row: 0, mark: "G", title: "Grafana", sub: "dashboards · alerts · explore", planes: PLANES },
+  { id: "inapp", column: 2, row: 1, mark: "UI", title: "In-app pages", sub: "Tracing · Transaction Trace · MCP Observability", planes: ["traces", "logs"] },
+  { id: "arule", column: 2, row: 2, mark: "!", title: "Alert rules page", sub: "Grafana Alerting UI", planes: ["metrics"] },
+];
+
+const FLOW_EDGES = [
+  { id: "e-bff-loki", source: "bff", target: "loki", label: "push", plane: "logs" },
+  { id: "e-bff-jaeger", source: "bff", target: "jaeger", label: "OTLP", plane: "traces" },
+  { id: "e-gw-prom", source: "gw", target: "prom", label: "scrape", plane: "metrics" },
+  { id: "e-ags-jaeger", source: "ags", target: "jaeger", label: "OTLP", plane: "traces" },
+  { id: "e-mcp-prom", source: "mcp", target: "prom", label: "scrape", plane: "metrics" },
+  { id: "e-mcp-jaeger", source: "mcp", target: "jaeger", label: "OTLP", plane: "traces" },
+  { id: "e-cont-alloy", source: "cont", target: "alloy", label: "read", plane: "logs" },
+  { id: "e-alloy-loki", source: "alloy", target: "loki", label: "", plane: "logs" },
+  { id: "e-prom-am", source: "prom", target: "am", label: "fire", plane: "metrics" },
+  { id: "e-prom-graf", source: "prom", target: "graf", label: "datasource", plane: "metrics" },
+  { id: "e-loki-graf", source: "loki", target: "graf", label: "datasource", plane: "logs" },
+  { id: "e-jaeger-graf", source: "jaeger", target: "graf", label: "datasource", plane: "traces" },
+  { id: "e-jaeger-inapp", source: "jaeger", target: "inapp", label: "BFF proxy", plane: "traces" },
+  { id: "e-am-arule", source: "am", target: "arule", label: "", plane: "metrics" },
+];
+
+const WALKTHROUGH = [
+  {
+    part: "Part 1 · Forensics — every action attributable",
+    tone: "part1",
+    steps: [
+      { n: "1", title: "Sign in as customer", sub: "unified sign-in, device-first" },
+      { n: "2", title: "Chip: “show my balance”", sub: "UC20 trigger → PERMIT" },
+      { n: "3", title: "Evidence panels", sub: "Token Chain + Activity — act chain stamped" },
+      { n: "4", title: "Transaction Trace", sub: "reconstruct any hop, incl. failures" },
+    ],
+  },
+  {
+    part: "Part 2 · Ops — agent traffic is just a monitored service",
+    tone: "part2",
+    steps: [
+      { n: "5", title: "Grafana overview", sub: "agent-observability dashboard, SSO in" },
+      { n: "6", title: "Run UC6 → DENY", sub: "“transfer $2500 from checking to savings”" },
+      { n: "7", title: "Panels react", sub: "DENY counters move within ~30s" },
+      { n: "8", title: "Alert rules page", sub: "explained: ratios, not counts — 401s are normal" },
+    ],
+  },
+];
+
+const PlaneNode = memo(function PlaneNode({ data, selected }) {
+  return (
+    <div className={`obs-node${data.dim ? " is-dim" : ""}${selected ? " is-active" : ""}`}>
+      <Handle type="target" position={Position.Left} />
+      <span className="obs-node__mark" aria-hidden="true">{data.mark}</span>
+      <strong>{data.title}</strong>
+      <span>{data.sub}</span>
+      <span className="obs-node__planes" aria-hidden="true">
+        {data.planes.map((p) => (
+          <i key={p} className={`obs-plane-dot obs-plane-dot--${p}`} title={p} />
+        ))}
+      </span>
+      <Handle type="source" position={Position.Right} />
+    </div>
+  );
+});
+
+const NODE_TYPES = { plane: PlaneNode };
+
+const COL_X = [0, 320, 640];
+const ROW_Y = [0, 110, 220, 330, 440];
+
+/** Pure node builder — exported for tests. */
+export function buildNodes(activePlane = "all") {
+  return FLOW_NODES.map((n) => ({
+    id: n.id,
+    type: "plane",
+    position: { x: COL_X[n.column], y: ROW_Y[n.row] },
+    data: {
+      mark: n.mark,
+      title: n.title,
+      sub: n.sub,
+      planes: n.planes,
+      dim: activePlane !== "all" && !n.planes.includes(activePlane),
+    },
+    draggable: false,
+    selectable: false,
+  }));
+}
+
+/** Pure edge builder — exported for tests. */
+export function buildEdges(activePlane = "all") {
+  return FLOW_EDGES.map((e) => ({
+    ...e,
+    type: "smoothstep",
+    animated: false,
+    markerEnd: "url(#obs-arrow)",
+    className: `obs-edge obs-edge--${e.plane}${activePlane !== "all" && e.plane !== activePlane ? " is-dim" : ""}`,
+    label: e.label || undefined,
+    labelStyle: { fontSize: 10, fill: "var(--th-text-muted)", fontWeight: 500 },
+    labelBgStyle: { fill: "var(--th-bg-page)", fillOpacity: 0.95 },
+    labelBgPadding: [4, 6],
+    labelBgBorderRadius: 4,
+    zIndex: 1,
+  }));
+}
+
+function ArrowDefs() {
+  return (
+    <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
+      <defs>
+        <marker id="obs-arrow" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <path d="M0,0 L8,4 L0,8 z" fill="var(--th-border-strong)" />
+        </marker>
+      </defs>
+    </svg>
+  );
+}
+
+export default function ObservabilityDiagramPage() {
+  const [view, setView] = useState("flow");
+  const [plane, setPlane] = useState("all");
+  const nodes = useMemo(() => buildNodes(plane), [plane]);
+  const edges = useMemo(() => buildEdges(plane), [plane]);
+  const onPlane = useCallback((p) => setPlane(p), []);
+
+  return (
+    <div className="obs-page">
+      <header className="obs-header">
+        <div>
+          <p className="obs-kicker">Observability demo</p>
+          <h1>Agent telemetry, end to end</h1>
+          <p className="obs-lede">
+            What each service emits, which collector stores it, and which surface presents it —
+            then the demo story that walks the same path.
+          </p>
+        </div>
+        <span className="obs-mock-chip" title="The diagram maps the shipped stack; it does not query it live.">
+          ILLUSTRATIVE — maps the shipped stack
+        </span>
+      </header>
+
+      <div className="obs-tabs" role="tablist" aria-label="Diagram view">
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "flow"}
+          className={view === "flow" ? "is-current" : ""}
+          onClick={() => setView("flow")}
+        >
+          Telemetry data flow
+        </button>
+        <button
+          type="button"
+          role="tab"
+          aria-selected={view === "walk"}
+          className={view === "walk" ? "is-current" : ""}
+          onClick={() => setView("walk")}
+        >
+          Demo walkthrough
+        </button>
+      </div>
+
+      {view === "flow" ? (
+        <>
+          <div className="obs-planes" role="group" aria-label="Highlight a telemetry plane">
+            <button type="button" aria-pressed={plane === "all"} onClick={() => onPlane("all")}>
+              All planes
+            </button>
+            <button type="button" aria-pressed={plane === "metrics"} onClick={() => onPlane("metrics")}>
+              <i className="obs-plane-dot obs-plane-dot--metrics" /> Metrics
+            </button>
+            <button type="button" aria-pressed={plane === "traces"} onClick={() => onPlane("traces")}>
+              <i className="obs-plane-dot obs-plane-dot--traces" /> Traces
+            </button>
+            <button type="button" aria-pressed={plane === "logs"} onClick={() => onPlane("logs")}>
+              <i className="obs-plane-dot obs-plane-dot--logs" /> Logs
+            </button>
+          </div>
+          <div className="obs-canvas">
+            <ArrowDefs />
+            <ReactFlow
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={NODE_TYPES}
+              fitView
+              fitViewOptions={{ padding: 0.15, maxZoom: 1 }}
+              proOptions={{ hideAttribution: true }}
+              nodesConnectable={false}
+              elementsSelectable={false}
+              zoomOnScroll={false}
+              panOnScroll
+              minZoom={0.4}
+              maxZoom={1.4}
+            >
+              <Background variant={BackgroundVariant.Dots} gap={22} size={1} />
+            </ReactFlow>
+          </div>
+          <div className="obs-legend">
+            <span><i className="obs-plane-dot obs-plane-dot--metrics" /> Metrics — Prometheus scrape</span>
+            <span><i className="obs-plane-dot obs-plane-dot--traces" /> Traces — OTLP → Jaeger</span>
+            <span><i className="obs-plane-dot obs-plane-dot--logs" /> Logs — forwarder + Alloy → Loki</span>
+          </div>
+          <div className="obs-planes-note">
+            The demo runs this for real: docker-compose profiles <code>observability</code> and
+            <code> tracing</code> stand up every node here. The Grafana dashboard is
+            <code> agent-observability-overview</code>; the presenter runbook is
+            <code> docs/runbooks/observability-demo.md</code>.
+          </div>
+        </>
+      ) : (
+        <div className="obs-walk">
+          {WALKTHROUGH.map((part) => (
+            <section key={part.part} className={`obs-walk__part obs-walk__part--${part.tone}`}>
+              <h2>{part.part}</h2>
+              <ol>
+                {part.steps.map((s) => (
+                  <li key={s.n}>
+                    <span className="obs-walk__num">{s.n}</span>
+                    <strong>{s.title}</strong>
+                    <span className="obs-walk__sub">{s.sub}</span>
+                  </li>
+                ))}
+              </ol>
+            </section>
+          ))}
+        </div>
+      )}
+    </div>
+  );
+}

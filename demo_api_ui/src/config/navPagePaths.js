@@ -122,6 +122,7 @@ export const NAV_PAGE_PATHS = {
   "Transaction Trace": "/transaction-trace",
   "MCP Observability": "/mcp-observability",
   Grafana: "/grafana",
+  "Observability Demo": "/architecture/observability",
   "Health Check": "/check",
   "System Diagram (Node)": "/architecture/system",
   "System Flow (Live)": "/monitoring/system-flow",
