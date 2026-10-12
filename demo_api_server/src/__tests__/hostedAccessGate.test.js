@@ -47,6 +47,24 @@ describe('hostedAccessGate CIMD client documents', () => {
   });
 });
 
+describe('hostedAccessGate static brand assets', () => {
+  test.each([
+    ['/branding/ping-logo.png', 'GET'],
+    ['/favicon-16.png', 'GET'],
+    ['/favicon-32.png', 'GET'],
+    ['/apple-touch-icon.png', 'GET'],
+  ])('allows the signed-out boot asset %s', (path, method) => {
+    expect(isHostedAccessBypassPath(path, method)).toBe(true);
+  });
+
+  test('other branding files and subpaths stay gated', () => {
+    expect(isHostedAccessBypassPath('/branding/funnybank-logo.svg', 'GET')).toBe(false);
+    expect(isHostedAccessBypassPath('/branding/ping-logo.png/extra', 'GET')).toBe(false);
+    expect(isHostedAccessBypassPath('/branding/ping-logo.png', 'POST')).toBe(false);
+    expect(isHostedAccessBypassPath('/favicon-32.png.evil', 'GET')).toBe(false);
+  });
+});
+
 describe('hostedAccessGate', () => {
   test.each([
     ['/api/auth/hosted-access/login', 'GET'],

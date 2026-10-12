@@ -20,6 +20,14 @@ const EXACT_BYPASSES = new Set([
   // carries no secrets (service up/down booleans only). Without the bypass
   // the overlay can never clear on SE — the 302 to login reads as a dead API.
   'GET /api/health/demo-status',
+  // Static boot assets the signed-out shell loads: the auth-loading spinner's
+  // Ping mark (PingIdentitySpinner) and the tab icons. Gating these 302s the
+  // <img> requests to login — broken ping icon + favicon exactly when the
+  // spinner is on screen. Brand assets, no secrets (mirrors se-ingress.yaml).
+  'GET /branding/ping-logo.png',
+  'GET /favicon-16.png',
+  'GET /favicon-32.png',
+  'GET /apple-touch-icon.png',
   // CIMD client documents Privilege fetches anonymously (mirrors se-ingress.yaml).
   'GET /api/cimd/privilege/super-banking-ai-agent/client-metadata.json',
   'GET /api/cimd/privilege/super-banking-investment-advisor-agent/client-metadata.json',
