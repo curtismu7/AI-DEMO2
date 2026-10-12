@@ -102,10 +102,13 @@ function EscalateBand({ low, high, onChange }) {
   );
 }
 
-/** Shared outcome logic for noul batches: act / escalate / pass. */
+/** Shared outcome logic for noul batches: act / escalate / pass. Error rows
+ * (mode:'error', no answer — a failed state must not fail the batch) pass
+ * through ungraded. */
 function noulVerdicts(rows, low, high) {
   return rows.map((r) => {
-    const p = r.answer.probability;
+    const p = r.answer?.probability;
+    if (p == null) return { ...r, verdict: 'error' };
     if (p >= high) return { ...r, verdict: 'act' };
     if (p > low) return { ...r, verdict: 'escalate' };
     return { ...r, verdict: 'pass' };
@@ -127,7 +130,7 @@ function BatchDemo({ cfg, actLabel, passLabel, escalateNote, content }) {
       const out = await batch(cfg.scenario, content.items.map((it) => it.state));
       setRows(out.jev.map((r, i) => ({
         ...content.items[i],
-        mode: r.mode, model: r.model, answer: r.answer,
+        mode: r.mode, model: r.model, answer: r.answer, error: r.error,
         baseline: out.heuristic.answers[i],
       })));
     } catch (e) {
@@ -168,7 +171,7 @@ function BatchDemo({ cfg, actLabel, passLabel, escalateNote, content }) {
                   <td>{content.baselineCell ? content.baselineCell(r, i) : renderBaseline(r.baseline, content.actLabel || actLabel, passLabel)}</td>
                   <td>
                     <JevCell answer={r.answer} actLabel={content.actLabel || actLabel} passLabel={passLabel} />
-                    {r.mode === 'error' && <span className="jev-error">error</span>}
+                    {r.mode === 'error' && <span className="jev-error">{r.error || 'error'}</span>}
                   </td>
                 </tr>
               ))}
@@ -348,7 +351,7 @@ function PrReviewDemo({ cfg }) {
       const out = await batch(cfg.scenario, cfg.checks.map((c) => c.text));
       setRows(out.jev.map((r, i) => ({
         ...cfg.checks[i],
-        mode: r.mode, model: r.model, answer: r.answer,
+        mode: r.mode, model: r.model, answer: r.answer, error: r.error,
         baseline: out.heuristic.answers[i],
       })));
     } catch (e) {
@@ -363,6 +366,7 @@ function PrReviewDemo({ cfg }) {
     block: verdicts.filter((v) => v.verdict === 'act').length,
     escalate: verdicts.filter((v) => v.verdict === 'escalate').length,
     pass: verdicts.filter((v) => v.verdict === 'pass').length,
+    failed: verdicts.filter((v) => v.verdict === 'error').length,
   };
 
   return (
@@ -383,16 +387,16 @@ function PrReviewDemo({ cfg }) {
                   <td>{v.label}</td>
                   <td><code style={{ fontSize: '0.85em' }}>{v.text}</code></td>
                   <td>{v.baseline?.probability >= 0.5 ? 'flag' : 'pass'}</td>
-                  <td>{v.answer.probability.toFixed(2)}</td>
+                  <td>{v.answer ? v.answer.probability.toFixed(2) : (v.error || '—')}</td>
                   <td className={v.verdict === 'escalate' ? '' : v.verdict === 'act' ? 'jev-wrong' : 'jev-right'}>
-                    {v.verdict === 'act' ? 'block / security review' : v.verdict === 'escalate' ? 'escalate to a person' : 'safe to merge'}
+                    {v.verdict === 'error' ? 'score failed' : v.verdict === 'act' ? 'block / security review' : v.verdict === 'escalate' ? 'escalate to a person' : 'safe to merge'}
                   </td>
                 </tr>
               ))}
             </tbody>
           </table>
           <p className="jev-big">
-            {counts.block} block · {counts.escalate} escalate · {counts.pass} pass <ModeBadge mode={rows[0].mode} model={rows[0].model} />
+            {counts.block} block · {counts.escalate} escalate · {counts.pass} pass{counts.failed ? ` · ${counts.failed} failed` : ''} <ModeBadge mode={rows[0].mode} model={rows[0].model} />
           </p>
           <EscalateBand low={band[0]} high={band[1]} onChange={setBand} />
           <p className="jev-explain">{cfg.lesson}</p>

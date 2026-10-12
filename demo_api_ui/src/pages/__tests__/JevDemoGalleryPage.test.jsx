@@ -109,4 +109,40 @@ describe('JevDemoGalleryPage', () => {
     await user.click(screen.getByRole('button', { name: /Run 6 checks/i }));
     await waitFor(() => expect(screen.getByRole('alert')).toHaveTextContent(/Jev did not answer/));
   });
+
+  // Regression: the batch endpoint returns error rows as {mode:'error'} with
+  // NO answer (one failed state must not fail the batch), but the UI read
+  // answer.probability on every row — a partial failure crashed the page in
+  // useMemo instead of showing the failed row.
+  it('pr-review: renders error rows ungraded instead of crashing', async () => {
+    global.fetch = vi.fn(async (_url, opts) => {
+      const body = JSON.parse(opts.body);
+      const jev = body.states.map((_, i) => (i === 2
+        ? { mode: 'error', error: 'von-jev timed out' }
+        : { mode: 'live', model: 'von-1.3.0', latencyMs: 5, answer: { type: 'noul', probability: 0.9 } }));
+      return { ok: true, status: 200, json: async () => ({ scenario: body.scenario, jev, heuristic: { latencyMs: 0, answers: body.states.map(() => ({ type: 'noul', probability: 0 })) } }) };
+    });
+    const user = userEvent.setup();
+    renderAt('/jev-demos/pr-review');
+    await user.click(screen.getByRole('button', { name: /Run 6 checks/i }));
+    await waitFor(() => expect(screen.getByText((_, el) => el?.className === 'jev-big' && /5 block · 0 escalate · 0 pass · 1 failed/.test(el.textContent || ''))).toBeTruthy());
+    expect(screen.getByText('score failed')).toBeTruthy();
+    expect(screen.getByText('von-jev timed out')).toBeTruthy();
+  });
+
+  it('batch demo: renders an error row as unscored instead of crashing', async () => {
+    global.fetch = vi.fn(async (_url, opts) => {
+      const body = JSON.parse(opts.body);
+      const jev = body.states.map((_, i) => (i === 0
+        ? { mode: 'error', error: 'rate limited' }
+        : { mode: 'live', model: 'von-1.3.0', latencyMs: 5, answer: { type: 'noul', probability: 0.2 } }));
+      return { ok: true, status: 200, json: async () => ({ scenario: body.scenario, jev, heuristic: { latencyMs: 0, answers: body.states.map(() => ({ type: 'noul', probability: 0 })) } }) };
+    });
+    const user = userEvent.setup();
+    renderAt('/jev-demos/compaction');
+    await user.click(screen.getByRole('button', { name: /Score the transcript/i }));
+    await waitFor(() => expect(document.querySelector('.jev-table tbody tr')).toBeTruthy());
+    expect(screen.getAllByText(/rate limited/).length).toBeGreaterThan(0);
+    expect(document.querySelectorAll('.jev-table tbody tr').length).toBe(8);
+  });
 });
