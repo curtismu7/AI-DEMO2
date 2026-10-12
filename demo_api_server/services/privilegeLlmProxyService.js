@@ -19,6 +19,10 @@ const { llmFetch } = require('./llmFetch');
 const DEFAULT_MODEL_GOOGLE = 'gemini-2.0-flash';
 const DEFAULT_MODEL_ANTHROPIC = 'claude-haiku-4-5-20251001';
 const DEFAULT_MODEL_OPENAI = 'gpt-4o-mini';
+// The allowed-model id this demo's llama.cpp virtual key was saved with — the
+// console catalog id closest to the served 3B-class GGUF (see the release doc's
+// llama.cpp feature block). llama-server serves whatever is loaded regardless.
+const DEFAULT_MODEL_CUSTOM = 'meta.llama3-2-3b-instruct-v1:0';
 const ANTHROPIC_VERSION = '2023-06-01';
 
 // The lanes, and the ONLY place their routes live. privilegeMcpClient.js used to
@@ -28,6 +32,13 @@ const LANES = {
   anthropic: { route: '/llm/anthropic/v1/messages', defaultModel: DEFAULT_MODEL_ANTHROPIC, keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC' },
   google: { route: '/llm/google/v1/chat/completions', defaultModel: DEFAULT_MODEL_GOOGLE, keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_GOOGLE' },
   openai: { route: '/llm/openai/v1/chat/completions', defaultModel: DEFAULT_MODEL_OPENAI, keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI' },
+  // The console's llama.cpp option saves as an OpenAI-Compatible (Custom) key —
+  // provider "custom", upstream the llama-server origin, route /llm/custom/v1
+  // (verified against the gateway 2026-10-12: /llm/llamacpp et al. are NOT
+  // routable — they fall through to the generic OAuth challenge; /llm/custom
+  // reaches the provider check). llama-server ignores the `model` field, so the
+  // catalog name is cosmetic on the wire.
+  custom: { route: '/llm/custom/v1/chat/completions', defaultModel: DEFAULT_MODEL_CUSTOM, keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM' },
 };
 
 // A route override arrives from the browser, so it is a trust boundary: the server
@@ -267,6 +278,37 @@ async function callPrivilegeOpenAI(messages, config = {}) {
   return text;
 }
 
+// The llama.cpp lane: same OpenAI-compatible wire shape as the OpenAI lane
+// above, different virtual key and route. A separate function (not a param on
+// callPrivilegeOpenAI) keeps each lane's env var + label distinct the way the
+// other three are.
+async function callPrivilegeCustom(messages, config = {}) {
+  const base = gatewayUrl();
+  const key = process.env.PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM || '';
+  if (!base) throw new Error('PRIVILEGE_LLM_GATEWAY_URL not configured');
+  if (!key) throw new Error('PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM not configured');
+
+  const model = config.custom_model || config.model || process.env.PRIVILEGE_LLM_MODEL_CUSTOM || DEFAULT_MODEL_CUSTOM;
+
+  const url = `${base.replace(/\/+$/, '')}${resolveRoute('custom', config.route)}`;
+  const res = await llmFetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({ model, max_tokens: config.max_tokens || 512, messages }),
+  }, { label: 'privilege-llm-custom', timeoutMs: 12000, retryOn429: false });
+
+  if (config.meta) config.meta.limits = readProviderLimits(res);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throwForResponse(res, data, 'custom');
+
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error('Privilege LLM proxy (custom) returned empty response');
+  return text;
+}
+
 module.exports = {
   LANES,
   looksLikeProviderError,
@@ -276,7 +318,9 @@ module.exports = {
   callPrivilegeGemini,
   callPrivilegeClaude,
   callPrivilegeOpenAI,
+  callPrivilegeCustom,
   DEFAULT_MODEL_GOOGLE,
   DEFAULT_MODEL_ANTHROPIC,
   DEFAULT_MODEL_OPENAI,
+  DEFAULT_MODEL_CUSTOM,
 };

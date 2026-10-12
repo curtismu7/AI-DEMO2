@@ -3098,6 +3098,7 @@ const {
   callPrivilegeGemini: llmGoogle,
   callPrivilegeClaude: llmAnthropic,
   callPrivilegeOpenAI: llmOpenAI,
+  callPrivilegeCustom: llmCustom,
 } = require('../services/privilegeLlmProxyService');
 const { callLlamaCpp, baseUrl: llamaCppBaseUrl } = require('../services/llamacppLlmService');
 
@@ -3106,6 +3107,7 @@ const LLM_LANES = {
   anthropic: { call: (m, c) => llmAnthropic(m, c), ...LANES.anthropic },
   google: { call: (m, c) => llmGoogle(m, c), ...LANES.google },
   openai: { call: (m, c) => llmOpenAI(m, c), ...LANES.openai },
+  custom: { call: (m, c) => llmCustom(m, c), ...LANES.custom },
 };
 
 // Show enough of the virtual key to recognise which one is in play, never enough
