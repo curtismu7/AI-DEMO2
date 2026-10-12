@@ -330,12 +330,13 @@ router.post('/send-invite', requireAdmin, async (req, res) => {
 
   try { await dataStore.seedAccountsForUser(user.id); } catch (err) { errors.bankingData = err.message; }
 
-  // Native "set your password" email only for a cleanly provisioned user —
-  // sendRecoveryCode fails for users without a set password.
+  // Native "set your password" email when the password + email-OTP steps
+  // succeeded — sendRecoveryCode only needs an enabled user with a set
+  // password, so SMS/cell failures don't block it.
   let nativeEmail = 'skipped';
-  const provisionClean = Object.keys(errors).length === 0
-    && steps.emailOtp !== false && steps.smsOtp !== false;
-  if (provisionClean) {
+  const passwordAndEmailOtpOk = !errors.invitePassword && !errors.inviteEmailOtp
+    && steps.emailOtp !== false;
+  if (passwordAndEmailOtpOk) {
     try {
       await pingOneUserService.sendPasswordSetupEmail(user.id, { enabled: NATIVE_EMAIL_ENABLED });
       nativeEmail = NATIVE_EMAIL_ENABLED ? 'sent' : 'skipped';

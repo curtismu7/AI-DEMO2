@@ -5,18 +5,26 @@ export default function HostedRegistrationAdminPage() {
   const [registrations, setRegistrations] = useState([]);
   const [error, setError] = useState('');
   const [inviteEmail, setInviteEmail] = useState('');
+  const [inviteSending, setInviteSending] = useState(false);
   const [inviteState, setInviteState] = useState(null); // {ok, message}
 
   async function sendInvite(e) {
     e.preventDefault();
     setInviteState(null);
+    setInviteSending(true);
     try {
       const response = await apiClient.post('/api/demo/send-invite', { email: inviteEmail });
-      const native = response.data.nativeEmail === 'sent' ? ' A "set your password" email was also sent.' : '';
+      const native = response.data.nativeEmail === 'sent'
+        ? ' A "set your password" email was also sent.'
+        : response.data.nativeEmail === 'failed'
+          ? ' A "set your password" email could not be sent — the invitee can still register at the link.'
+          : '';
       setInviteState({ ok: true, message: `Invite ready — registration link (send it to the invitee): ${response.data.registrationUrl}.${native}` });
       setInviteEmail('');
     } catch (err) {
       setInviteState({ ok: false, message: err.response?.data?.message || 'Invite failed.' });
+    } finally {
+      setInviteSending(false);
     }
   }
 
@@ -61,7 +69,7 @@ export default function HostedRegistrationAdminPage() {
             placeholder="colleague@pingidentity.com"
             style={{ flex: 1, padding: '0.4rem' }}
           />
-          <button type="submit">Send invite</button>
+          <button type="submit" disabled={inviteSending}>{inviteSending ? 'Sending…' : 'Send invite'}</button>
         </form>
         {inviteState && <p role="status" style={{ color: inviteState.ok ? 'green' : 'crimson' }}>{inviteState.message}</p>}
         <p style={{ fontSize: '0.85rem', color: '#555' }}>

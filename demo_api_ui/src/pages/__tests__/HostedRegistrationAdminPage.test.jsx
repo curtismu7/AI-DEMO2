@@ -33,3 +33,26 @@ test('invite form shows endpoint error message on failure', async () => {
   const status = await screen.findByRole('status');
   await waitFor(() => expect(status).toHaveTextContent('Provisioning failed: 503'));
 });
+
+test('send button is disabled while the invite request is pending', async () => {
+  apiClient.get.mockResolvedValue({ data: { registrations: [] } });
+  let resolvePost;
+  apiClient.post.mockReturnValue(new Promise((resolve) => { resolvePost = resolve; }));
+  render(<HostedRegistrationAdminPage />);
+  fireEvent.change(await screen.findByPlaceholderText('colleague@pingidentity.com'), { target: { value: 'bob@pingidentity.com' } });
+  fireEvent.click(screen.getByRole('button', { name: /send invite/i }));
+  expect(screen.getByRole('button', { name: /sending/i })).toBeDisabled();
+  resolvePost({ data: { userId: 'u-1', invite: 'sent', nativeEmail: 'skipped', registrationUrl: 'https://ping.demo/welcome?welcome=1' } });
+  await waitFor(() => expect(screen.getByRole('button', { name: /send invite/i })).toBeEnabled());
+});
+
+test('invite form warns when the native password email fails', async () => {
+  apiClient.get.mockResolvedValue({ data: { registrations: [] } });
+  apiClient.post.mockResolvedValue({ data: { userId: 'u-1', invite: 'sent', nativeEmail: 'failed', registrationUrl: 'https://ping.demo/welcome?welcome=1' } });
+  render(<HostedRegistrationAdminPage />);
+  fireEvent.change(await screen.findByPlaceholderText('colleague@pingidentity.com'), { target: { value: 'bob@pingidentity.com' } });
+  fireEvent.click(screen.getByRole('button', { name: /send invite/i }));
+  const status = await screen.findByRole('status');
+  expect(status).toHaveTextContent('could not be sent');
+  expect(status).not.toHaveTextContent('was also sent');
+});

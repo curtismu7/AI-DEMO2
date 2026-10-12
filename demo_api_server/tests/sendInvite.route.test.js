@@ -110,8 +110,17 @@ describe('POST /api/demo/send-invite', () => {
     expect(pingOneUserService.createPingOneUser).toHaveBeenCalledTimes(1);
   });
 
-  test('native email skipped when provisioning steps have errors', async () => {
+  test('native email fires despite SMS failure (invitee has no phone on file)', async () => {
     mfaService.enrollSmsDevice.mockRejectedValue(new Error('SMS policy missing'));
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'nophone@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(res.body.nativeEmail).toBe('sent');
+    expect(pingOneUserService.sendPasswordSetupEmail).toHaveBeenCalledTimes(1);
+  });
+
+  test('native email skipped when the password step fails', async () => {
+    pingOneUserService.setUserPassword.mockRejectedValue(new Error('Password policy violation'));
     const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
       .post('/api/demo/send-invite').send({ email: 'partial@pingidentity.com' });
     expect(res.status).toBe(201); // provisioning is partial, invite still works
