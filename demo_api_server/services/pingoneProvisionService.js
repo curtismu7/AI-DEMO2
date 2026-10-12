@@ -2817,7 +2817,7 @@ class PingOneProvisionService {
       onStep(steps[steps.length - 1]);
       mcpExchangerResult = await this.createApplication(
         _provisioningAppName('Super Banking MCP Exchanger'),
-        'RFC 8693 actor identity for BFF→gateway token exchange (Step 2). Mints tokens scoped to mcpgateway audience. NOT a WORKER — see docs/token-flow-audit.md.',
+        'RFC 8693 actor identity for BFF-to-gateway token exchange (Step 2). Mints tokens scoped to mcpgateway audience. NOT a WORKER — see docs/token-flow-audit.md.',
         'WEB_APP',
         ['authorization_code', 'client_credentials', 'token_exchange']
       );
@@ -3058,7 +3058,7 @@ class PingOneProvisionService {
       onStep(steps[steps.length - 1]);
       const mcpGwAppResult = await this.createApplication(
         _provisioningAppName('Super Banking MCP Gateway'),
-        'RFC 8693 re-exchange actor for gateway→backend hop (Step 3). Mints tokens scoped to mcpserver audience. NOT a WORKER — WORKER apps cannot hold resource grants.',
+        'RFC 8693 re-exchange actor for gateway-to-backend hop (Step 3). Mints tokens scoped to mcpserver audience. NOT a WORKER — WORKER apps cannot hold resource grants.',
         'WEB_APP',
         ['client_credentials', 'urn:ietf:params:oauth:grant-type:token-exchange']
       );
@@ -3226,7 +3226,7 @@ class PingOneProvisionService {
       onStep(steps[steps.length - 1]);
       const aiAgentAppResult = await this.createApplication(
         _provisioningAppName('Super Banking AI Agent'),
-        'AI agent identity for Two-Exchange Step 1. Actor token in the user→AI-agent delegation chain. NOT a WORKER — see docs/token-flow-audit.md.',
+        'AI agent identity for Two-Exchange Step 1. Actor token in the user-to-AI-agent delegation chain. NOT a WORKER — see docs/token-flow-audit.md.',
         'WEB_APP',
         ['authorization_code', 'client_credentials', 'urn:ietf:params:oauth:grant-type:token-exchange']
       );
