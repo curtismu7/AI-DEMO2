@@ -56,6 +56,34 @@ spec:
             name: grafana
             port:
               number: 3000
+---
+# SPA + app traffic. Deliberately NO auth-url here: ingress-nginx applies
+# auth-url at SERVER level to every location on the host, so keeping the
+# annotations on an ingress that also owns '/' authenticated the bypass
+# ingress's exact '/' too — the public-root bypass could never fire
+# (verified live 2026-10-12: root 302'd even with '/' Exact in the bypass
+# ingress; removing '/' from this ingress made no difference). The BFF's
+# hostedAccessGate middleware enforces the same session policy on every
+# /api route, and the sign-in modal gates the shell client-side — the
+# ingress-level wall was redundant for app traffic and wrong for '/'.
+# Grafana above keeps its own authenticated ingress.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: ai-demo-spa-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+    nginx.ingress.kubernetes.io/proxy-buffering: "off"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "300"
+    nginx.ingress.kubernetes.io/proxy-send-timeout: "300"
+spec:
+  ingressClassName: nginx-public
+  rules:
+  - host: <<APP_HOST>>
+    http:
+      paths:
       - path: /
         pathType: Prefix
         backend:
@@ -193,17 +221,8 @@ spec:
             name: frontend
             port:
               number: 4000
-      # Public SPA root — the app handles sign-in client-side (same as the
-      # local stack). Exact-match: only the bare root is bypassed, every deep
-      # link stays behind the hosted-access wall. Who may sign in is enforced
-      # by the BFF's hostedAccessPolicy at both OAuth callbacks, not here.
-      - path: /
-        pathType: Exact
-        backend:
-          service:
-            name: frontend
-            port:
-              number: 4000
+      # The bare '/' root is served by ai-demo-spa-ingress (no auth — see the
+      # comment there); listing it here too would conflict on the same path.
       - path: /request-access
         pathType: Exact
         backend:
