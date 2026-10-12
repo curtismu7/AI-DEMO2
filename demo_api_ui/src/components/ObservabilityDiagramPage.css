@@ -2,10 +2,12 @@
 
 .obs-page {
   --obs-canvas: var(--th-bg-page);
-  /* plane hues: metrics = the info/teal family the other diagrams use,
-     traces = success green family, logs = policy amber family */
-  --obs-metrics: var(--th-status-info);
-  --obs-traces: var(--th-status-success);
+  /* Plane hues — validated trio (dataviz six checks, BOTH surfaces):
+     metrics blue #2563eb, traces teal #0d9488, logs amber #946b24.
+     The old traces green #16a34a failed the dark-mode lightness band and sat
+     at CVD ΔE 6.8 vs the amber; teal clears both in light and dark. */
+  --obs-metrics: #2563eb;
+  --obs-traces: #0d9488;
   --obs-logs: #946b24;
   color: var(--th-text);
   display: flex;
@@ -119,8 +121,8 @@
 .obs-plane-dot--logs { background: var(--obs-logs); }
 
 .obs-canvas {
-  height: min(62vh, 560px);
-  min-height: 380px;
+  height: min(78vh, 760px);
+  min-height: 520px;
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   background: var(--obs-canvas);
@@ -132,51 +134,57 @@
 .obs-node {
   position: relative;
   display: grid;
-  grid-template-columns: 34px minmax(0, 1fr);
-  grid-template-rows: auto auto auto;
+  grid-template-columns: 26px minmax(0, 1fr);
   align-items: center;
-  column-gap: 9px;
-  width: 236px;
-  padding: 11px 12px;
+  column-gap: 8px;
+  width: 250px;
+  padding: 8px 10px;
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   box-shadow: var(--shadow-md);
   transition: opacity 200ms ease;
+  font-family: inherit;
 }
 
-.obs-node.is-dim {
-  opacity: 0.13;
-}
-
+/* Title line: mark sits left, title + inline sub fill the rest on one line.
+   The sub wraps under the title only when genuinely too long. */
 .obs-node strong {
   grid-column: 2;
-  align-self: end;
-  font-size: var(--font-size-sm);
+  display: block;
+  font-size: 13.5px;
   line-height: 1.25;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
-.obs-node > span:nth-of-type(1) {
+/* Subtitle. NOT span:first-of-type — that matches .obs-node__mark (also a
+   span, and earlier in the DOM), which is how the subtitle went unstyled and
+   the nodes ballooned past the row pitch. Target the class instead. */
+.obs-node > .obs-node__sub {
   grid-column: 2;
-  align-self: start;
-  margin-top: 2px;
+  display: block;
+  margin-top: 1px;
   color: var(--th-text-muted);
-  font-size: var(--font-size-2xs);
-  line-height: 1.35;
+  font-size: 11.5px;
+  line-height: 1.3;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
 }
 
 .obs-node__mark {
-  grid-row: 1 / span 2;
   display: grid;
   place-items: center;
-  width: 30px;
-  height: 30px;
+  width: 26px;
+  height: 26px;
   border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
   color: var(--th-text);
-  font-size: var(--font-size-2xs);
+  font-size: 11px;
   font-weight: 800;
 }
 
@@ -187,6 +195,34 @@
   margin-top: 4px;
 }
 
+.obs-node.is-dim {
+  opacity: 0.13;
+}
+
+/* Swimlane headers — one per plane band, vertical label at the left margin */
+.obs-band {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  min-height: 210px;
+  border-right: 2px solid;
+  border-radius: 0;
+  background: none;
+  box-shadow: none;
+  color: var(--th-text-muted);
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.22em;
+  writing-mode: vertical-rl;
+  transform: rotate(180deg);
+  text-transform: uppercase;
+}
+
+.obs-band--metrics { border-color: var(--obs-metrics); }
+.obs-band--traces { border-color: var(--obs-traces); }
+.obs-band--logs { border-color: var(--obs-logs); }
+
 .obs-node .react-flow__handle {
   width: 5px;
   height: 5px;
@@ -195,13 +231,61 @@
   opacity: 0.65;
 }
 
-.obs-edge.is-dim {
+/* Edges: 2.5px plane-colored strokes; co-routed lines fan out through
+   offset handles (see HANDLE_Y in the JSX) instead of drawing atop each
+   other, and crossing lines stay readable because each plane keeps its
+   validated hue at full opacity. Selectors target the PATH: XYFlow's own
+   .react-flow__edge-path rule sets stroke on the path directly, which
+   beats inheritance from a class on the parent <g>. */
+.obs-canvas .obs-edge .react-flow__edge-path { stroke-width: 2.5; }
+
+.obs-edge.is-dim .react-flow__edge-path {
   opacity: 0.13;
 }
 
-.obs-edge--metrics { stroke: var(--obs-metrics); }
-.obs-edge--traces { stroke: var(--obs-traces); }
-.obs-edge--logs { stroke: var(--obs-logs); }
+.obs-canvas .obs-edge--metrics .react-flow__edge-path { stroke: var(--obs-metrics); }
+.obs-canvas .obs-edge--traces .react-flow__edge-path { stroke: var(--obs-traces); }
+.obs-canvas .obs-edge--logs .react-flow__edge-path { stroke: var(--obs-logs); }
+
+/* Dark-mode edge steps: same hues stepped for the navy surface (validated on
+   #0b1220 — the base trio's blue/amber drop below 3:1 on it). */
+:root[data-theme="dark"] .obs-edge--metrics .react-flow__edge-path { stroke: #4f8ff0; }
+:root[data-theme="dark"] .obs-edge--traces .react-flow__edge-path { stroke: #22a39a; }
+:root[data-theme="dark"] .obs-edge--logs .react-flow__edge-path { stroke: #b98322; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .obs-edge--metrics .react-flow__edge-path { stroke: #4f8ff0; }
+  :root:not([data-theme="light"]) .obs-edge--traces .react-flow__edge-path { stroke: #22a39a; }
+  :root:not([data-theme="light"]) .obs-edge--logs .react-flow__edge-path { stroke: #b98322; }
+}
+
+/* Arrowheads: fills must be literal hexes (SVG marker presentation
+   attributes cannot resolve var()); class rules re-step them per theme. */
+.obs-arrow--metrics .obs-arrow__path { fill: #2563eb; }
+.obs-arrow--traces .obs-arrow__path { fill: #0d9488; }
+.obs-arrow--logs .obs-arrow__path { fill: #946b24; }
+
+/* Dark-mode arrow steps: same hues, lighter steps for the navy surface
+   (validated trio on #0b1220). */
+:root[data-theme="dark"] .obs-arrow--metrics .obs-arrow__path { fill: #4f8ff0; }
+:root[data-theme="dark"] .obs-arrow--traces .obs-arrow__path { fill: #22a39a; }
+:root[data-theme="dark"] .obs-arrow--logs .obs-arrow__path { fill: #b98322; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .obs-arrow--metrics .obs-arrow__path { fill: #4f8ff0; }
+  :root:not([data-theme="light"]) .obs-arrow--traces .obs-arrow__path { fill: #22a39a; }
+  :root:not([data-theme="light"]) .obs-arrow--logs .obs-arrow__path { fill: #b98322; }
+}
+
+.obs-canvas .react-flow__edge-text {
+  font-size: 12px;
+  font-weight: 600;
+}
+
+.obs-canvas .react-flow__edge-textbg {
+  fill: var(--th-bg-page);
+  opacity: 0.97;
+}
 
 .obs-legend {
   display: flex;
@@ -264,10 +348,41 @@
   display: flex;
   flex-direction: column;
   gap: 2px;
+  padding: 0;
+  border: 0;
+  background: none;
+}
+
+.obs-walk__step {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  width: 100%;
+  height: 100%;
   padding: 11px 13px;
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
+  color: inherit;
+  font: inherit;
+  text-align: left;
+}
+
+a.obs-walk__step {
+  text-decoration: none;
+}
+
+a.obs-walk__step:hover,
+button.obs-walk__step:hover:not(:disabled) {
+  border-color: var(--th-border-strong);
+  background: var(--th-bg-card);
+  cursor: pointer;
+}
+
+button.obs-walk__step:disabled {
+  opacity: 0.6;
+  cursor: default;
 }
 
 .obs-walk__num {
@@ -285,6 +400,21 @@
   color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
   line-height: 1.35;
+}
+
+.obs-walk__arrow {
+  color: var(--th-status-info-text);
+  font-weight: 400;
+}
+
+.obs-walk__cta {
+  margin-top: 6px;
+  padding: 3px 9px;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 999px;
+  color: var(--th-status-info-text);
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
 }
 
 @media (max-width: 720px) {
