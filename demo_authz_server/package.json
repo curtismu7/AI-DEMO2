@@ -10,7 +10,7 @@
   "dependencies": {
     "@dotenvx/primitives": "^2.2.0",
     "@opentelemetry/auto-instrumentations-node": "^0.81.0",
-    "@opentelemetry/exporter-trace-otlp-grpc": "^0.200.0",
+    "@opentelemetry/exporter-trace-otlp-grpc": "^0.223.0",
     "@opentelemetry/sdk-node": "^0.223.0",
     "axios": "^1.6.0",
     "cors": "^2.8.5",
