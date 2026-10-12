@@ -101,6 +101,14 @@ spec:
             name: frontend
             port:
               number: 4000
+      # UI boot health overlay polls this from signed-out pages; booleans only.
+      - path: /api/health/demo-status
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
       - path: /api/auth/hosted-access/callback
         pathType: Exact
         backend:
