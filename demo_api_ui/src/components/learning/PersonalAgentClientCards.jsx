@@ -35,6 +35,10 @@ export default function PersonalAgentClientCards() {
       label: "Mac personal agent",
       clients: PERSONAL_AGENT_CLIENTS.filter((client) => client.kind === "mac"),
     },
+    {
+      label: "Hosted always-on agent",
+      clients: PERSONAL_AGENT_CLIENTS.filter((client) => client.kind === "hosted"),
+    },
   ];
 
   return (
@@ -62,7 +66,7 @@ export default function PersonalAgentClientCards() {
                       <p>{client.runtime}</p>
                     </div>
                     <span className="personal-agent-client-cards__status">
-                      {client.kind === "browser" ? "External" : "Local"}
+                      {client.kind === "browser" ? "External" : client.kind === "hosted" ? "Hosted" : "Local"}
                     </span>
                   </div>
                   <p className="personal-agent-client-cards__description">{client.description}</p>

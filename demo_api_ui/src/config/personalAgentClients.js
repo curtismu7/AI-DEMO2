@@ -34,4 +34,19 @@ export const PERSONAL_AGENT_CLIENTS = Object.freeze([
     setupPath: "/privilege-mcp-client?client=lm-studio",
     actionLabel: "Open LM Studio setup",
   }),
+  Object.freeze({
+    id: "dot",
+    label: "Dot",
+    runtime: "Hosted always-on agent",
+    kind: "hosted",
+    description:
+      "An always-on personal agent with its own working memory — it learns your preferences as you work. The memory belongs to the agent; every tool call still runs governed by Ping.",
+    chips: Object.freeze([
+      ...SHARED_CHIPS,
+      "Own memory",
+      "Proactive",
+    ]),
+    setupPath: "/personal-agent?skin=dot",
+    actionLabel: "Open Dot in the studio",
+  }),
 ]);

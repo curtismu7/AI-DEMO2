@@ -58,6 +58,11 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Register the client", explain: "CIMD or DCR supplies client metadata so the connection has an accountable identity.", demonstrate: "Show the metadata, redirect, and client registration record." },
     { title: "Consent per tool", explain: "Consent and tool authentication should be scoped to the requested capability, not the whole MCP server.", demonstrate: "Approve one read tool and show a separate denied tool call." },
   ],
+  dots: [
+    { title: "Meet the dot", explain: "OpenAI's dots are always-on personal agents that live alongside ChatGPT and work across channels — the user's own persistent assistant.", demonstrate: "Open the studio's Dot skin and note the greeting: it is the user's agent, not the enterprise's." },
+    { title: "The dot remembers", explain: "A dot keeps its own working memory — preferences and standards it learns as you work — and that memory belongs to the agent, not the enterprise.", demonstrate: "Tell Dot 'Always use a concise tone' and watch the remembered chip; open the memory panel and reset it." },
+    { title: "Governance still holds", explain: "The enterprise never governs the dot's private memory, but it governs every tool call: delegated tokens, consent, policy, audit.", demonstrate: "Run a governed action as Dot and read the token chain — same RFC 8693 path as any other personal agent." },
+  ],
   "muse-app": [
     { title: "Connect Muse to the bank", explain: "Meta's consumer Muse creates a custom connector for a hosted MCP endpoint.", demonstrate: "Give Muse the SE-host URL and watch the connector discover the door." },
     { title: "Sign in as the customer", explain: "The OAuth browser step proves the person; Sentinel keeps credentials out of the agent.", demonstrate: "Complete the PingOne login on the phone and show the consent." },
@@ -240,6 +245,25 @@ export const lessonCatalog = Object.freeze([
       "ChatGPT, Claude Desktop, and LM Studio are external Personal Agents controlled by the customer.",
       "The enterprise controls registration, consent, policy, and protected resources—not the agent's private reasoning.",
       "CIMD and DCR explain client identification; per-tool authentication protects each invocation.",
+    ],
+  }),
+  lesson({
+    id: "dots",
+    title: "Dots: the always-on personal agent",
+    audience: "Sales engineers and CIAM architects",
+    category: "Personal Agents",
+    route: "/personal-agent",
+    standaloneRoute: "/personal-agent/client",
+    run: { action: "mcp-discovery", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["agent-detection", "client-metadata", "consent", "tool-authentication"], result: REDACTED_RESULT },
+    fallback: { provenance: PROVENANCE.SIMULATED, label: "Simulated always-on agent connection" },
+    maturityStages: [MATURITY_STAGES.DISCOVER, MATURITY_STAGES.REGISTER, MATURITY_STAGES.AUTHENTICATE, MATURITY_STAGES.AUTHORIZE, MATURITY_STAGES.GOVERN],
+    agentCategory: "Consumer & Partner Agent",
+    productRoles: ["PingOne", "Agent Gateway / Broker", "Agent Governance"],
+    talkingPoints: [
+      "OpenAI's dots are always-on personal agents: they keep context across channels, act proactively, and hold their own working memory.",
+      "The dot's memory belongs to the agent and the user — the enterprise neither reads nor governs it; 'reset the dot' is the user's control.",
+      "What the enterprise DOES govern is every tool call the dot makes: delegated tokens, per-tool consent, policy, and audit — the same chain as any personal agent.",
     ],
   }),
   lesson({

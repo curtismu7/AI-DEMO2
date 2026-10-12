@@ -16,6 +16,12 @@ describe("personal agent client catalog", () => {
         runtime: "Mac personal agent",
         setupPath: "/privilege-mcp-client?client=lm-studio",
       }),
+      expect.objectContaining({
+        id: "dot",
+        label: "Dot",
+        runtime: "Hosted always-on agent",
+        setupPath: "/personal-agent?skin=dot",
+      }),
     ]);
   });
 
