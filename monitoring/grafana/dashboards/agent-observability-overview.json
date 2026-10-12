@@ -286,11 +286,116 @@
       }
     },
     {
+      "id": 11,
+      "type": "stat",
+      "title": "Activity · 1 hour",
+      "description": "P1AZ decisions in the last hour.",
+      "gridPos": { "h": 4, "w": 8, "x": 0, "y": 30 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service=\"ping-gateway\"} |= \"[P1AZ] DECISION:\" [1h]))",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "text", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 12,
+      "type": "stat",
+      "title": "Activity · 24 hours",
+      "description": "P1AZ decisions in the last 24 hours.",
+      "gridPos": { "h": 4, "w": 8, "x": 8, "y": 30 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service=\"ping-gateway\"} |= \"[P1AZ] DECISION:\" [24h]))",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "text", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
+      "id": 13,
+      "type": "stat",
+      "title": "Activity · 1 week",
+      "description": "P1AZ decisions in the last week. Loki retention may be shorter than 7d — see the loki service config.",
+      "gridPos": { "h": 4, "w": 8, "x": 16, "y": 30 },
+      "datasource": { "type": "loki", "uid": "ai-demo-loki" },
+      "targets": [
+        {
+          "refId": "A",
+          "expr": "sum(count_over_time({service=\"ping-gateway\"} |= \"[P1AZ] DECISION:\" [7d]))",
+          "instant": true,
+          "range": false
+        }
+      ],
+      "fieldConfig": {
+        "defaults": {
+          "unit": "short",
+          "min": 0,
+          "decimals": 0,
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              { "color": "text", "value": null }
+            ]
+          }
+        },
+        "overrides": []
+      },
+      "options": {
+        "reduceOptions": { "calcs": ["lastNotNull"] },
+        "colorMode": "value",
+        "graphMode": "area"
+      }
+    },
+    {
       "id": 10,
       "type": "logs",
       "title": "BFF app events",
       "description": "The BFF's structured event stream (appEventService) — the same stream the server-events dashboard covers, scoped here to the demo story.",
-      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 30 },
+      "gridPos": { "h": 8, "w": 24, "x": 0, "y": 34 },
       "datasource": { "type": "loki", "uid": "ai-demo-loki" },
       "targets": [
         {
