@@ -37,6 +37,12 @@ const BOARD = {
   ],
 };
 
+const VERTICALS = [
+  { id: 'airlines', displayName: 'Airline' },
+  { id: 'banking', displayName: 'Banking' },
+  { id: 'retail', displayName: 'Retail' },
+];
+
 const CHECK_DENY = {
   username: 'demoDelegate', verticalId: 'banking', displayName: 'Banking',
   requiredGroup: 'Banking_PremiumTier', userGroups: ['AI_Demo_Delegates'],
@@ -54,6 +60,9 @@ const CHECK_DENY = {
 function fetchMock(handler) {
   return vi.fn((url) => {
     const u = String(url);
+    if (u.startsWith('/api/verticals/list')) {
+      return Promise.resolve({ ok: true, status: 200, json: async () => VERTICALS });
+    }
     if (u.startsWith('/api/groups/check')) {
       return Promise.resolve({ ok: true, status: 200, json: async () => handler.check(u) });
     }
@@ -156,8 +165,12 @@ describe('GroupPolicyBoardPage — group check panel', () => {
     ];
     const check = vi.fn(() => checks[Math.min(check.mock.calls.length - 1, checks.length - 1)]);
     const toggles = [];
+    const boardUrls = [];
     const fetchFn = (url, opts) => {
       const u = String(url);
+      if (u.startsWith('/api/verticals/list')) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => VERTICALS });
+      }
       if (u.startsWith('/api/groups/check/toggle')) {
         toggles.push({ url: u, body: JSON.parse(opts?.body || '{}') });
         return Promise.resolve({
@@ -171,12 +184,16 @@ describe('GroupPolicyBoardPage — group check panel', () => {
         return Promise.resolve({ ok: true, status: 200, json: async () => check(u) });
       }
       if (u.startsWith('/api/groups/decision-board')) {
+        boardUrls.push(u);
         return Promise.resolve({ ok: true, status: 200, json: async () => BOARD });
       }
       return Promise.resolve({ ok: false, status: 404, json: async () => ({}) });
     };
     renderPage(fetchFn);
     await waitFor(() => expect(screen.getByText('Banking')).toBeTruthy());
+    // The picker scopes the board to ONE vertical decision, not ~13.
+    expect(boardUrls.length).toBeGreaterThanOrEqual(1);
+    expect(new URL(boardUrls[0], 'http://x').searchParams.get('verticalId')).toBe('banking');
 
     // Run once → DENY. Then add to group.
     fireEvent.click(screen.getByRole('button', { name: /run.*check/i }));
@@ -200,6 +217,9 @@ describe('GroupPolicyBoardPage — group check panel', () => {
     const toggles = [];
     const fetchFn = (url, opts) => {
       const u = String(url);
+      if (u.startsWith('/api/verticals/list')) {
+        return Promise.resolve({ ok: true, status: 200, json: async () => VERTICALS });
+      }
       if (u.startsWith('/api/groups/check/toggle')) {
         toggles.push(JSON.parse(opts?.body || '{}'));
         return Promise.resolve({
