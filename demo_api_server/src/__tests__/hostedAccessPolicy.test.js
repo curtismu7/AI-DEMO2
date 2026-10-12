@@ -52,11 +52,28 @@ describe('hostedAccessPolicy', () => {
     expect(coherentHostedIdentityClaims(
       { sub: 'user-1', email: 'old@pingone.com', email_verified: true },
       { sub: 'user-1', email: 'new@pingidentity.com' },
-    )).toEqual({ sub: null, email: null, email_verified: false });
+    )).toEqual({ sub: null, email: null, email_verified: false, groups: [], preferred_username: null, username: null });
     expect(coherentHostedIdentityClaims(
       { sub: 'user-1', email: 'person@pingone.com', email_verified: true },
       { sub: 'user-2', email: 'person@pingone.com', email_verified: true },
-    )).toEqual({ sub: null, email: null, email_verified: false });
+    )).toEqual({ sub: null, email: null, email_verified: false, groups: [], preferred_username: null, username: null });
+  });
+
+  test('keeps preferred_username through the coherence pass (allowlist needs it)', () => {
+    // demoAdmin's email (@api.ping.demo) can never pass the domain rule — the
+    // allowlist matches on preferred_username, which PingOne reports on the
+    // id_token/userinfo. If the coherence pass stripped it, demoAdmin would
+    // be locked out (observed live 2026-10-12).
+    const coherent = coherentHostedIdentityClaims(
+      { sub: 'admin-1', email: 'demoAdmin@api.ping.demo', email_verified: true, preferred_username: 'demoAdmin' },
+      { sub: 'admin-1', email: 'demoAdmin@api.ping.demo', email_verified: true, preferred_username: 'demoAdmin' },
+    );
+    expect(coherent.preferred_username).toBe('demoAdmin');
+    const policy = loadHostedAccessPolicy({
+      ...enabledEnv,
+      HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'demoAdmin',
+    });
+    expect(evaluateHostedIdentity(coherent, policy)).toMatchObject({ allowed: true });
   });
 
   test('can require membership in the approved hosted-access group', () => {
