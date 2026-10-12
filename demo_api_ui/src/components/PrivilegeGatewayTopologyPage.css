@@ -55,6 +55,10 @@
 .pgt-swatch--k8s    { background: #d2ecdf; border: 1px solid #2e8b6a; }
 .pgt-swatch--mcp    { background: #e3dbf3; border: 1px solid #6b4fa5; }
 .pgt-swatch--step   { background: #d20e0f; border: 1px solid #e4636a; border-radius: 50%; }
+.pgt-swatch--lb     { background: var(--th-status-error-bg, #f5d4d5); border: 1px solid var(--th-status-error, #d20e0f); }
+.pgt-swatch--gw     { background: var(--th-status-success-bg, #d2ecdf); border: 1px solid var(--th-status-success-border, #2e8b6a); }
+.pgt-swatch--door   { background: var(--th-status-info-bg, #eff6ff); border: 1px solid var(--th-status-info, #2563eb); }
+.pgt-swatch--state  { background: var(--th-status-warning-bg, #fdf2d5); border: 1px solid var(--th-status-warning, #9a6b15); }
 
 .pgt-steps {
   list-style: none;
