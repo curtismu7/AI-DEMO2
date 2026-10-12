@@ -157,12 +157,16 @@ patch_images() {
 # sha256 digest so a hosted rollout cannot resolve a different upstream tag.
 # Under FOCUS_DEPLOYMENTS, untouched first-party image lines still read
 # `:latest` (that is the point — leave them alone) so they are first-party by
-# registry and exempt from the digest rule.
+# registry — match them against IMAGE_MAP's local names and exempt them.
 assert_pinned_external_images() {
   local content="$1"
-  local image
+  local image entry local_name
   while IFS= read -r image; do
     [[ -z "$image" || "$image" == "$GHCR_REGISTRY/"* ]] && continue
+    for entry in "${IMAGE_MAP[@]}"; do
+      local_name="${entry%%:*}"
+      [[ "$image" == "$local_name":* ]] && continue 2
+    done
     [[ "$image" == *@sha256:* ]] || die "External image is not digest-pinned: $image"
   done < <(printf '%s\n' "$content" | sed -nE 's/^[[:space:]]*image:[[:space:]]*([^[:space:]]+).*/\1/p')
 }
@@ -250,11 +254,18 @@ if command -v gh &>/dev/null; then
 fi
 
 info "Creating secrets from demo_api_server/.env..."
+# SKIP_SECRET_CREATE=1 skips this for test runs that must not touch the vault
+# (create-secrets.sh prompts for the vault password when no VAULT_PASSWORD is
+# set). Full deploys never set it; default behavior unchanged.
+if [[ "${SKIP_SECRET_CREATE:-0}" == "1" ]]; then
+  info "SKIP_SECRET_CREATE=1 — skipping create-secrets.sh"
+else
 # MCPGW_APP_NAME: Privilege console app name (AI Security > Agentic Apps).
 # mcpgw binary routes /mcpgw/<app-name>/mcp — set to match the registered name.
 K8S_NAMESPACE="$NS" \
 SECURITY_HARDENED_DEPLOYMENT=true \
 MCPGW_APP_NAME="${MCPGW_APP_NAME:-}" bash "$K8S_DIR/create-secrets.sh"
+fi
 
 # OTel bootstrap scripts mounted at /otel in every instrumented service
 # (mirrors docker-compose's ./scripts/ bind mounts).
