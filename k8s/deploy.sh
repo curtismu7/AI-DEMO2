@@ -60,6 +60,53 @@ PROCYON_NODESENSOR_SERVICE_ACCOUNT="${PROCYON_NODESENSOR_SERVICE_ACCOUNT:-privil
 PROCYON_NODESENSOR_CONTROLLER_ENDPOINT="${PROCYON_NODESENSOR_CONTROLLER_ENDPOINT:-hydra.privilege.pingone.com:443}"
 PROCYON_NODESENSOR_CHART_VERSION="${PROCYON_NODESENSOR_CHART_VERSION:-0.1.11}"
 
+# ── GHCR recipient deploy mode ────────────────────────────────────────────────
+# DEPLOY_SOURCE=ghcr rewrites every first-party `image: ai-demo-k8-*:latest`
+# to `image: ghcr.io/<owner>/<repo>:<tag>` at apply time, so a recipient pulls
+# prebuilt images instead of running `docker compose build` (a ~28 GB local
+# build). Author-side push is k8s/publish.sh; one-command setup is
+# k8s/share-setup.sh. Default (unset) keeps the local-build deploy unchanged.
+DEPLOY_SOURCE="${DEPLOY_SOURCE:-local}"
+GHCR_TAG="${GHCR_TAG:-latest}"
+GHCR_IMAGE_MAP=()
+if [[ "$DEPLOY_SOURCE" == "ghcr" ]]; then
+  # shellcheck source=k8s/ghcr-images.env
+  source "$SCRIPT_DIR/ghcr-images.env"
+  GITHUB_OWNER="${GITHUB_OWNER:-$(git -C "$SCRIPT_DIR" remote get-url origin 2>/dev/null \
+    | sed -E 's|.*github.com[:/]([^/]+)/.*|\1|' | tr '[:upper:]' '[:lower:]' || true)}"
+  [[ -n "$GITHUB_OWNER" ]] || die "DEPLOY_SOURCE=ghcr needs GITHUB_OWNER (could not detect from git remote)"
+  GHCR_REGISTRY="ghcr.io/$GITHUB_OWNER"
+  # Pull secret must exist BEFORE any rewritten pod is scheduled. Idempotent;
+  # same shape as k8s/aws/deploy.sh's SE-cluster secret.
+  command -v gh &>/dev/null || die "DEPLOY_SOURCE=ghcr needs the gh CLI — brew install gh && gh auth login"
+  gh auth status &>/dev/null || die "gh not authenticated — run: gh auth login (with read:packages scope)"
+  kubectl create secret docker-registry ghcr-pull-secret \
+    --docker-server=ghcr.io \
+    --docker-username="${GHCR_USERNAME:-$(gh api user -q .login 2>/dev/null)}" \
+    --docker-password="$(gh auth token)" \
+    -n "$NS" --dry-run=client -o yaml | kubectl apply -f -
+  kubectl patch serviceaccount default -n "$NS" \
+    -p '{"imagePullSecrets": [{"name": "ghcr-pull-secret"}]}' || true
+
+  # Rewrite first-party images + force remote pull on every apply. Mirrors
+  # k8s/aws/deploy.sh patch_images(): // = replace ALL occurrences so
+  # multi-container manifests (mcp-gateway + authz-server sidecar) don't leave
+  # the sidecar on IfNotPresent pinned to a stale local image.
+  apply_ghcr() {
+    local content
+    content="$(cat "$1")"
+    local entry
+    for entry in "${GHCR_IMAGE_MAP[@]}"; do
+      content="${content/image: ${entry%%:*}:latest/image: ${GHCR_REGISTRY}/${entry##*:}:${GHCR_TAG}}"
+    done
+    content="${content//imagePullPolicy: IfNotPresent/imagePullPolicy: Always}"
+    printf '%s' "$content" | kubectl apply -f - -n "$NS"
+  }
+else
+  # Local build source: apply the file as-is (unchanged behavior).
+  apply_ghcr() { kubectl apply -f "$1"; }
+fi
+
 info()    { demo_info "$@"; }
 success() { demo_success "$@"; }
 warn()    { demo_warn "$@"; }
@@ -165,18 +212,18 @@ deploy() {
 
   # Deploy in dependency order: tracing → backends → bff → gateway/agents → ui
   # Jaeger first so the OTLP collector is up before services export spans
-  kubectl apply -f "$SCRIPT_DIR/73-jaeger-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/73-jaeger-deployment.yaml"
   # Backend tool servers
-  kubectl apply -f "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/30-mcp-server-deployment.yaml"
   # PromptGuard is port-forwarded from its Deployment directly, so it does not
   # need a ClusterIP Service of its own.
-  kubectl apply -f "$SCRIPT_DIR/65-promptguard-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/63-mcp-resource-server-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/64-api-resource-server-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/57-mcp-weather-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/58-mcp-brave-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/59-mcp-jwt-verifier-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/62-hitl-service-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/65-promptguard-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/63-mcp-resource-server-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/64-api-resource-server-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/57-mcp-weather-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/58-mcp-brave-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/59-mcp-jwt-verifier-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/62-hitl-service-deployment.yaml"
   # Models onto the PVCs BEFORE anything that serves them. Both model PVCs are
   # RWO, so a serving pod started first holds its volume on one node and a seed
   # Job scheduled anywhere else waits forever — the stacks must not start until
@@ -208,10 +255,10 @@ deploy() {
   then re-run this deploy."
     fi
   fi
-  kubectl apply -f "$SCRIPT_DIR/56-llm-stack.yaml"           # 2-tier LLM proxy + swap tiers
-  kubectl apply -f "$SCRIPT_DIR/72-rag-stack.yaml"           # RAG (starts by default; use `rag off` to stop)
+  apply_ghcr "$SCRIPT_DIR/56-llm-stack.yaml"           # 2-tier LLM proxy + swap tiers
+  apply_ghcr "$SCRIPT_DIR/72-rag-stack.yaml"           # RAG (starts by default; use `rag off` to stop)
   # BFF (token custodian)
-  kubectl apply -f "$SCRIPT_DIR/20-api-server-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/20-api-server-deployment.yaml"
   # Local OrbStack's PF listener runs as a host Docker container on :9031.
   # The overlay preserves the public issuer hostname while routing BFF traffic
   # to the host gateway, trusts the mkcert CA, and allows only BFF→PF egress.
@@ -221,24 +268,24 @@ deploy() {
       --patch-file "$SCRIPT_DIR/overlays/orbstack-pf/bff-host-aliases.yaml"
   fi
   # Gateway + agent runtimes (mcp-gateway starts at replicas:0; demo-sync scales it)
-  kubectl apply -f "$SCRIPT_DIR/60-mcp-gateway-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/71-ping-gateway-deployment.yaml"   # real PingGateway (IG)
-  kubectl apply -f "$SCRIPT_DIR/75-ping-mcpgw-deployment.yaml"     # PingOne Privilege MCPGW
-  kubectl apply -f "$SCRIPT_DIR/68-mcp-proxy-deployment.yaml"      # scaled by demo-sync
-  kubectl apply -f "$SCRIPT_DIR/61-agent-service-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/40-agent-service-deployment.yaml"   # langchain agent
+  apply_ghcr "$SCRIPT_DIR/60-mcp-gateway-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/71-ping-gateway-deployment.yaml"   # real PingGateway (IG)
+  apply_ghcr "$SCRIPT_DIR/75-ping-mcpgw-deployment.yaml"     # PingOne Privilege MCPGW
+  apply_ghcr "$SCRIPT_DIR/68-mcp-proxy-deployment.yaml"      # scaled by demo-sync
+  apply_ghcr "$SCRIPT_DIR/61-agent-service-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/40-agent-service-deployment.yaml"   # langchain agent
   # Monitoring — MUST be applied before the frontend. nginx resolves the
   # literal upstream in `proxy_pass http://grafana` at STARTUP and exits if it
   # does not resolve ("host not found in upstream"), so a frontend that starts
   # without the grafana Service does not degrade to a broken /grafana — it
   # crash-loops and takes the WHOLE site down.
-  kubectl apply -f "$SCRIPT_DIR/76-prometheus-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/83-alertmanager-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/81-loki-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/82-alloy-deployment.yaml"
-  kubectl apply -f "$SCRIPT_DIR/77-grafana-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/76-prometheus-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/83-alertmanager-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/81-loki-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/82-alloy-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/77-grafana-deployment.yaml"
   # Frontend
-  kubectl apply -f "$SCRIPT_DIR/10-frontend-deployment.yaml"
+  apply_ghcr "$SCRIPT_DIR/10-frontend-deployment.yaml"
 
   if [ -n "${pre_existing// /}" ]; then
     info "Restarting already-running deployments to pick up rebuilt images..."
@@ -924,7 +971,7 @@ yotuo_cmd() {
   local action="${1:-on}"
   if [ "$action" = "off" ]; then
     info "Restoring llama tiers to the PVC models seeded by 54-seed-llm-models.yaml..."
-    kubectl apply -f "$SCRIPT_DIR/56-llm-stack.yaml"
+    apply_ghcr "$SCRIPT_DIR/56-llm-stack.yaml"
     kubectl rollout restart deployment/llama-tier1 deployment/llama-tier5 -n "$NS"
     success "YOTUO overlay removed — tiers read the llm-models PVC again (no HF download either way)."
     return

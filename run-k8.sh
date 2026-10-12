@@ -41,6 +41,7 @@
 #   ./run-k8.sh --target=aws [build|deploy|all|status|basic|rag|undeploy]
 #   Low-level (same behavior):
 #   ./run-k8.sh se-build      # build images + push to GHCR (needs GITHUB_OWNER)
+#   ./run-k8.sh publish       # scan + push the 20 images to GHCR for recipients (k8s/publish.sh)
 #   ./run-k8.sh se-deploy     # deploy to SE cluster (auto-derives your namespace)
 #   ./run-k8.sh se-all        # se-build + se-deploy
 #   ./run-k8.sh se-status     # switch to the SE cluster + your namespace, show pod status
@@ -957,6 +958,7 @@ case "${K8_TARGET_ARGS[0]:-all}" in
   se-build)    aws_build ;;
   se-deploy)   se_deploy ;;
   se-all)      aws_build; se_deploy ;;
+  publish)     bash "$K8S_DIR/publish.sh" "${K8_TARGET_ARGS[@]:1}" ;;
   se-basic)    se_basic ;;
   se-status)   se_status ;;
   se-rag)      se_rag "${K8_TARGET_ARGS[1]:-on}" ;;
@@ -967,7 +969,7 @@ case "${K8_TARGET_ARGS[0]:-all}" in
   aws-status) aws_status ;;
   help)       show_help ;;
   *)
-    echo "Usage: $0 [--target=aws|orbstack] {all|build|deploy|forward|forward-api|forward-bg|kill|stop|mode|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-basic|se-status|se-rag|se-undeploy|aws-build|aws-deploy|aws-all|aws-status|help}"
+    echo "Usage: $0 [--target=aws|orbstack] {all|build|deploy|forward|forward-api|forward-bg|kill|stop|mode|extras|rag|yotuo|demo-sync|status|restart|destroy|sim|sim-deploy|se-build|se-deploy|se-all|se-basic|se-status|se-rag|se-undeploy|publish|aws-build|aws-deploy|aws-all|aws-status|help}"
     exit 1
     ;;
 esac
