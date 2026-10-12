@@ -64,11 +64,11 @@ A new classified outcome for LLM policy enforcement: a denial raised against the
 
 ### 5. llama.cpp provider
 
-The LLM gateway now lists **llama.cpp** as a provider in the virtual-key form's Auth/dropdown (found live in the console 2026-10-12). A virtual key can target a self-hosted llama.cpp `llama-server` (OpenAI-compatible `/v1` API) the same way it targets OpenAI or Anthropic: the gateway fronts the local server, the app holds only the virtual key.
+The LLM gateway lists **llama.cpp** as a provider in the virtual-key form (found live in the console 2026-10-12). Saving a key with it creates provider **`custom`** — an OpenAI-Compatible (Custom) key whose Spec carries a `CustomUpstream` (BaseURL + AuthType) — and the gateway exposes it on route **`/llm/custom/v1/chat/completions`** (verified live; `/llm/llamacpp` and every other guessed segment is not routable). The permitted-path check rejects every other path with 403 `path_not_allowed`, the provider check with 403 `wrong_provider`, and the model allowlist by exact catalog id.
 
-Demo value: "govern a model that never leaves your building" — the strongest data-residency story in the provider set, and it exercises the same key/route/policy machinery on a server we own end to end. Our server is the demo stack's tier-1 `llama-server`; the demo's allowed model is `meta.llama3-2-3b-instruct-v1:0` (the console's catalog id closest to the served 3B-class GGUF — llama-server ignores the `model` field and serves whatever is loaded, so the catalog name is what the gateway sees).
+**Verified live end-to-end 2026-10-12**: virtual key → `mcpgw.ai-demo.ping-devops.com/llm/custom/v1/chat/completions` → public ingress (`ai-demo.ping-devops.com/llm-gw`) → the demo cluster's llm-proxy → llama.cpp serving Llama-3.2-3B-Instruct. 200 with both `model=llama.cpp` and `model=meta.llama3-2-3b-instruct-v1:0`; 403 `wrong_provider` on the OpenAI route with the same key. One deployment constraint the demo surfaced: the gateway forwards to `CustomUpstream` **from inside its own pod**, so a loopback upstream (the console's default `http://127.0.0.1:8090`) returns the upstream's 404 verbatim — a self-hosted provider must be reachable from the gateway's network.
 
-Unknowns for the demo to settle: the exact route segment (`/llm/llamacpp/...` presumed), whether the gateway can reach a host-mode llama-server (it binds the node, not the cluster), and how budget/pricing treats a catalog model with no configured rate.
+Demo value: "govern a model that never leaves your building" — the strongest data-residency story in the provider set, exercising the same key/route/policy machinery on infrastructure we own. The demo's allowed model is `meta.llama3-2-3b-instruct-v1:0` (llama-server ignores the `model` field and serves whatever GGUF is loaded; the catalog id is what the gateway's allowlist sees).
 
 ## How this was determined
 
