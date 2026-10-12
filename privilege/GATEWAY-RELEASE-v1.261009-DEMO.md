@@ -21,7 +21,7 @@ Every claim in the release inventory for `privilege-aigw:v1.261009` ([GATEWAY-RE
 
 Four features were demoable the day of release; two (the Bedrock pair) share one missing credential. The demo story of the release in one line: **the gateway now governs models it does not host (newer catalogs), answers it does not write (response-side policy), and hardware it does not rent (llama.cpp) — with the same keys, budgets and logs.**
 
-Ping's own release notes for this build (received 12 Oct 2026) corroborate the binary findings independently: "Agent Registry — additional LLM providers, including OpenAI-compatible custom endpoints", the AI Policies stage hints ("Before inspection, After inspection, On the response") and the hardened Policy Builder all match what the binary strings and the live console showed. The notes also ship features this runbook does not cover (HITL approvals, scope RBAC, Copilot Studio detail pages) — those are console-side and tracked separately.
+Ping's own release notes for this build (received 12 Oct 2026, not in the repo) corroborate the binary findings independently: "Agent Registry — additional LLM providers, including OpenAI-compatible custom endpoints", the AI Policies stage hints ("Before inspection, After inspection, On the response") and the hardened Policy Builder all match what the binary strings and the live console showed — though the console's own bundle tested here does not yet carry the "Runs at" column strings, so the stage hints are release-notes claims corroborated by the binary, not a tested UI column. The notes also ship features this runbook does not cover (HITL approvals, scope RBAC, Copilot Studio detail pages) — those are console-side and tracked separately.
 
 ## Environment
 
@@ -30,7 +30,7 @@ Ping's own release notes for this build (received 12 Oct 2026) corroborate the b
 | Gateway image | `public.ecr.aws/s7q1z8z4/privilege-aigw:v1.261009` (both nodes) |
 | Console | `local.procyon.ai:8643` — virtual keys live under **Agent Registry** (`/ui/admin/agent-config`), "Manage agent access keys" |
 | Gateway host | `mcpgw.ai-demo.ping-devops.com` |
-| Existing virtual keys | OpenAI, Anthropic, Google, OpenRouter, and two OpenAI-Compatible (Custom) keys (see [LLM routing & virtual keys](GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md) for the key shape) |
+| Existing virtual keys | Read off the live keys table 12 Oct: OpenAI ×2, Anthropic ×2, Google, OpenRouter, OpenAI-Compatible (Custom) ×2, one a2a-only key, one expired (see [LLM routing & virtual keys](GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md) for the key shape) |
 | Custom-lane upstream | `https://ai-demo.ping-devops.com/llm-gw` (public ingress → llm-proxy:8090 → llama tier in `ping-devops-cmuir`) |
 | Llama model on the tier | Llama-3.2-3B-Instruct Q4_K_M (GGUF), seeded 2026-10-12 |
 | Log access | Elasticsearch/Kibana stack — [logging guide](GATEWAY-LOGGING-WITH-ELASTICSEARCH.md) |
@@ -38,7 +38,7 @@ Ping's own release notes for this build (received 12 Oct 2026) corroborate the b
 Environment notes for whoever runs this next:
 
 - **Virtual keys are in Agent Registry, not a "Virtual Keys" page.** The keys table is the console landing list; per-key provider, allowed models, rate limits and budgets live on the key's Configuration tab and its Edit wizard (step 2, "Gateway & Apps").
-- **The custom lane was healthy at test time and is environment-fragile after it.** On the afternoon of 12 Oct a concurrent change repointed the llama tier deployment (`llama-tier5`) at `gpt-oss-20b` (12 GB GGUF) and OOM-killed it at its 16 Gi limit, leaving llm-proxy 503ing through tier-manager timeouts. Check the tier before demoing: `kubectl -n ping-devops-cmuir get deploy llama-tier5` should show the Llama-3.2 GGUF in its args and a Ready 1/1. The runbook's custom-lane claims were captured while Llama-3.2 was live.
+- **The custom lane's healthy tier is `llama-tier1`, and its failure mode is the 512K context default.** Llama-3.2 (the model behind the custom lane) runs on `llama-tier1` (`k8s/56-llm-stack.yaml`); `llama-tier5` is a different tier that serves `gpt-oss-20b`. On the afternoon of 12 Oct the tier5 pod crash-looped OOMKilled — the llama.cpp build in use defaults `n_ctx` to 512K and tier5's args never pinned `--ctx-size`, so the KV cache blew the 16 Gi limit before `/health` came up (fixed by [cf3ec0ed0](https://github.com/cmuir_pingcorp/AI-DEMO2/commit/cf3ec0ed0) pinning `--ctx-size 4096`; lane re-verified 200 after). Check before demoing: `kubectl -n ping-devops-cmuir get deploy llama-tier1` should show the Llama-3.2 GGUF in its args and a Ready 1/1.
 - The console died once mid-testing (root-owned zombie `CyonAgent` holding port 8643); recovery was `sudo kill` + relaunch. bsk tabs on this console intermittently throw "Cannot access a chrome-extension:// URL" — close and recreate the tab.
 - Rule CRUD on AI policies goes through the console UI session; the tenant API key authorizes `aipolicys` but **not** `llmrules`, `aiguardconfigs`, or `llmmodelrates` (401 on all).
 
@@ -46,9 +46,9 @@ Environment notes for whoever runs this next:
 
 | Claim | Result | When |
 | --- | --- | --- |
-| The allowed-models dropdown shows the refreshed v9 catalog on an existing Anthropic key | Reproduced: `claude-fable-5-1`, `claude-opus-4-8`, `claude-opus-4-7` … with no `claude-3-*` rows | 12 Oct |
+| The allowed-models dropdown shows the refreshed v9 catalog on an existing Anthropic key | Reproduced: `claude-fable-5-1`, `claude-opus-4-8`, `claude-opus-4-7` … with the two dated retired ids (`claude-3-opus-20240229`, `claude-3-5-haiku-20241022`) gone — note `claude-3-opus-latest` remains as a (latest)-tagged row | 12 Oct |
 | Same for an OpenAI key, new ids beside old ones | Reproduced: `gpt-5.6-sol/terra/luna`, `gpt-5.5`, `gpt-5.4` beside `gpt-4o`, `gpt-4-turbo` | 12 Oct |
-| An allowlist edit takes effect immediately (not cached) | Reproduced: PUT `agentaccesskeys/default/openai` (RevisionID 15→16) → the refused id answered 200 on the next call | 12 Oct |
+| An allowlist edit takes effect immediately (not cached) | Reproduced: PUT `agentaccesskeys/default/openai` (RevisionID 15→16) → the refused id answered 200 on the next call; the id was removed again after the test | 12 Oct |
 | A model refused pre-edit → 403 `not allowed for this key` → 200 after | Reproduced with `gpt-5.5-2026-04-23` | 12 Oct |
 | New models are priced by the builtin table the day they ship | Reproduced: `gpt-5.6-sol` call → `CostUSD:0.000112, PriceSource:"builtin"` | 12 Oct |
 | New-generation OpenAI models reject `max_tokens` | Reproduced: provider-shaped `unsupported_parameter` error passed through the gateway verbatim | 12 Oct |
@@ -78,9 +78,9 @@ The virtual keys live under **Agent Registry** (`/ui/admin/agent-config`). Open 
 
 | Step | Tested | Evidence |
 | --- | --- | --- |
-| Anthropic key dropdown shows the v9 catalog | ✅ 12 Oct | `claude-fable-5-1`, `claude-fable-5`, `claude-opus-5`, `claude-opus-4-8/-4-7/-4-6`, `claude-sonnet-5`, `claude-sonnet-4-6/-4-5`, (latest)-tagged 3.5 rows. No `claude-3-opus-20240229`, no `claude-3-5-haiku-20241022` — the retired ids are gone from the list. [Screenshot](../docs/screenshots/privilege-console-setup/v1261009-anthropic-models-dropdown.png) |
-| OpenAI key dropdown, new beside old | ✅ 12 Oct | `gpt-5.6-sol` ✅, `gpt-5.6-terra` ✅, `gpt-5.6-luna`, `gpt-5.5` ✅, `gpt-5.5-pro`, `gpt-5.4`, `gpt-5.4-mini`, `gpt-5.4-nano` — beside `gpt-4o` ✅, `gpt-4o-mini` ✅, `gpt-4-turbo`, `gpt-3.5-turbo`. [Screenshot](../docs/screenshots/privilege-console-setup/v1261009-openai-models-dropdown.png) |
-| Allowlist edit is live | ✅ 12 Oct | `PUT /agentaccesskeys/default/openai` adding `gpt-5.5-2026-04-23` (RevisionID 15→16) → 403 before, 200 after. The audit endpoint itself is not exposed to the tenant API key (`/v1/audit` → "User is not authorized"); the revision bump + immediate gateway effect is the change proof |
+| Anthropic key dropdown shows the v9 catalog | ✅ 12 Oct | `claude-fable-5-1`, `claude-fable-5`, `claude-opus-5`, `claude-opus-4-8/-4-7/-4-6`, `claude-sonnet-5`, `claude-sonnet-4-6/-4-5`, plus (latest)-tagged rows (`claude-3-5-sonnet-latest`, `claude-3-5-haiku-latest`, `claude-3-opus-latest`) and the two checked allowlist ids `claude-haiku-4-5`, `claude-haiku-4-5-20251001`. No `claude-3-opus-20240229`, no `claude-3-5-haiku-20241022` — the two dated retired ids are gone from the list (the undated `claude-3-opus-latest` remains, visible in the screenshot). [Screenshot](../docs/screenshots/privilege-console-setup/v1261009-anthropic-models-dropdown.png) |
+| OpenAI key dropdown, new beside old | ✅ 12 Oct | `gpt-5.6-sol` ✅, `gpt-5.6-terra` ✅, `gpt-5.6-luna`, `gpt-5.5` ✅, `gpt-5.5-pro` ✅, `gpt-5.4` ✅, `gpt-5.4-mini`, `gpt-5.4-nano` — beside `gpt-4o` ✅, `gpt-4o-mini` ✅, `gpt-4-turbo` ✅, `gpt-4-turbo-preview`, `gpt-3.5-turbo`. ✅ = checked = on the key's allowlist (8 ids; matches the chips on [the key's Configuration tab](../docs/screenshots/privilege-console-setup/v1261009-openai-key-config.png)). [Screenshot](../docs/screenshots/privilege-console-setup/v1261009-openai-models-dropdown.png) |
+| Allowlist edit is live | ✅ 12 Oct | `PUT /agentaccesskeys/default/openai` adding `gpt-5.5-2026-04-23` (RevisionID 15→16) → 403 before, 200 after. The audit endpoint itself is not exposed to the tenant API key (`/v1/audit` → "User is not authorized"); the revision bump + immediate gateway effect is the change proof. NOTE: the id was removed from the allowlist again after the test (the key carries 8 bare ids in the screenshots), so the screenshots postdate the edit — the 403→200 evidence is the log record, not the current key state |
 | New models priced on day one | ✅ 12 Oct | `{"msg":"LLM request","Provider":"openai","Model":"gpt-5.6-sol","HTTPStatus":200,"UpstreamStatus":200,"LatencyMs":1331,"PromptTokens":8,"CompletionTokens":4,"CostUSD":0.000112,"PriceSource":"builtin"}` |
 | Provider-shaped error passthrough | ✅ 12 Oct | `gpt-5.6-sol` rejects `max_tokens`: OpenAI's `{"param":"max_tokens","code":"unsupported_parameter"}` passed through the gateway verbatim — use `max_completion_tokens` on the new generation |
 
@@ -184,7 +184,7 @@ AIGuard sanitizes at its per-key thresholds regardless; the AI policy decides de
 
 | Symptom | Most likely cause | Fix |
 | --- | --- | --- |
-| Custom lane 503s through nginx | The llama tier is mid-swap or OOM-crash-looping | `kubectl -n ping-devops-cmuir get deploy llama-tier5` — check args name the Llama-3.2 GGUF and pods are Ready; see the environment notes |
+| Custom lane 502s through llm-proxy | A llama tier is OOM-crash-looping (512K ctx default) | `kubectl -n ping-devops-cmuir get deploy llama-tier1` — check args name the Llama-3.2 GGUF and pods are Ready; `--ctx-size` must be pinned (see the environment notes) |
 | `/llm/llamacpp` returns an OAuth challenge | Wrong path — only `/llm/custom/v1/` is routable for custom keys | Use `/llm/custom/v1/chat/completions` |
 | `Spec.RealKey is required for llm scope` on key create | The console API refuses an llm key with no provider credential | Provide the real key; there is no credential-free scratch key |
 | `max_tokens` rejected on new OpenAI models | New generation requires `max_completion_tokens` | Change the parameter; the gateway passes the provider's error through verbatim |
