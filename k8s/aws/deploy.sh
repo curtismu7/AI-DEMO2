@@ -318,7 +318,7 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   # the BFF (2026-09-25). envFrom beats the LMDB store, so this pin makes the
   # toggle a no-op on SE regardless of what LMDB holds.
   kubectl patch configmap ai-demo-config -n "$NS" --type merge -p \
-    "{\"data\":{\"OAUTH_PROVIDER\":\"pingone\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com}\"}}"
+    "{\"data\":{\"OAUTH_PROVIDER\":\"pingone\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com,demoAdmin@api.ping.demo,demoUser@example.com}\"}}"
 fi
 
 # Override the nginx-config ConfigMap from 02-configmap.yaml (which contains the
