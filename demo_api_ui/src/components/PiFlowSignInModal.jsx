@@ -95,6 +95,11 @@ export default function PiFlowSignInModal() {
   // [{ id, type, nickname, email, phone }]. Rendered as a picker when the flow
   // offers more than one; a FIDO2 entry runs the passkey ceremony on pick.
   const [devices, setDevices] = useState([]);
+  // Plus-addressing policy from the BFF (public endpoint): when the demo
+  // refuses cmuir+x@pingone.com-style aliases, the form says so inline
+  // before any flow opens. Fetch failure = unknown policy = no local
+  // check — the server-side gate stays the wall either way.
+  const plusPolicyRef = useRef({ rejectPlusAddressing: false, allowedIdentifiers: [] });
   const [selectedDeviceId, setSelectedDeviceId] = useState(null);
   // "password" -> "passkey" | "otp" | "device" as the flow (or the user) asks.
   const [step, setStep] = useState("password");
@@ -153,10 +158,39 @@ export default function PiFlowSignInModal() {
         /* keep the redirect login */
       }
     })();
+    // Plus-addressing policy: fetched once per mount, best-effort. The
+    // server-side gate enforces it regardless; this only powers the inline
+    // form error so a + alias fails before any flow opens.
+    (async () => {
+      try {
+        const res = await fetch(`${apiBase()}/api/auth/hosted-access/identifier-policy`, { credentials: "include" });
+        if (!res.ok) return;
+        const body = await res.json().catch(() => null);
+        if (body && !cancelled) {
+          plusPolicyRef.current = {
+            rejectPlusAddressing: Boolean(body.rejectPlusAddressing),
+            allowedIdentifiers: Array.isArray(body.allowedIdentifiers) ? body.allowedIdentifiers : [],
+          };
+        }
+      } catch {
+        /* unknown policy → no local check; the server wall applies */
+      }
+    })();
     return () => {
       cancelled = true;
     };
   }, []);
+
+  // The demo refuses plus-addressed aliases (cmuir+x@pingone.com) except for
+  // exact allowlisted demo accounts. Best-effort front-end mirror of the BFF
+  // gate at /callback — the server decision is authoritative.
+  const plusAddressed = (identifier) => {
+    const value = String(identifier || "").trim().toLowerCase();
+    if (!value.includes("+")) return false;
+    const { rejectPlusAddressing, allowedIdentifiers } = plusPolicyRef.current;
+    if (!rejectPlusAddressing) return false;
+    return !allowedIdentifiers.some((id) => String(id).trim().toLowerCase() === value);
+  };
   const begin = useCallback((detail) => {
     const target = detail.returnTo;
     const role = detail.role === "admin" ? "admin" : "customer";
@@ -254,6 +288,10 @@ export default function PiFlowSignInModal() {
   const submit = async (e) => {
     e.preventDefault();
     if (busy) return;
+    if (plusAddressed(username)) {
+      setError("Plus addressing is not allowed for this demo — sign in with your Ping account (no +alias), or a demo test account.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {
@@ -396,6 +434,10 @@ export default function PiFlowSignInModal() {
   const submitPasswordless = async (e) => {
     e.preventDefault();
     if (busy) return;
+    if (plusAddressed(deviceUsername)) {
+      setError("Plus addressing is not allowed for this demo — sign in with your Ping account (no +alias), or a demo test account.");
+      return;
+    }
     setBusy(true);
     setError("");
     try {

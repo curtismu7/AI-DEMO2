@@ -296,6 +296,10 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   # REQUIRE_VERIFIED_EMAIL stays false — matching the live-patched configmap
   # that fixed hosted-access logins; see REGRESSION_PLAN before changing.
   #
+  # ALLOWED_IDENTIFIERS: exact-match demo test accounts exempt from the
+  # plus-addressing and domain rules (demoUser signs in AS a + address;
+  # demoAdmin is provisioned @api.ping.demo). Clear the value to revoke.
+  #
   # OAUTH_PROVIDER=pingone is pinned here deliberately: the UI's provider
   # toggle persists oauth_provider=pingfederate into LMDB, and the SE PF_*
   # endpoints (local.ping-devops.com:9031) only resolve on a dev Mac — an
@@ -303,7 +307,7 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   # the BFF (2026-09-25). envFrom beats the LMDB store, so this pin makes the
   # toggle a no-op on SE regardless of what LMDB holds.
   kubectl patch configmap ai-demo-config -n "$NS" --type merge -p \
-    "{\"data\":{\"OAUTH_PROVIDER\":\"pingone\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\"}}"
+    "{\"data\":{\"OAUTH_PROVIDER\":\"pingone\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com}\"}}"
 fi
 
 # Override the nginx-config ConfigMap from 02-configmap.yaml (which contains the
