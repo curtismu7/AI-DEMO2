@@ -149,10 +149,19 @@ router.get('/decision-board', requireSession, async (req, res) => {
     const username = req.session?.user?.username || null;
     const { pingOneUserId } = await resolvePingOneUser(req.session);
 
+    // Optional ?verticalId= narrows the board to one vertical's decision. The
+    // board page now picks a vertical instead of firing one decision per gated
+    // vertical on every load (~13 live Authorize calls + membership reads for a
+    // single page view). Absent = every vertical, unchanged.
+    const requestedVerticalId = typeof req.query?.verticalId === 'string'
+      ? req.query.verticalId.trim()
+      : '';
+
     // Every vertical that declares a group-gated tool, straight from the
     // manifests — so a vertical added later appears here with no code change.
     const targets = [];
     for (const def of groupPolicy.listAllVerticalGroupDefinitions()) {
+      if (requestedVerticalId && def.verticalId !== requestedVerticalId) continue;
       for (const [tool, category] of Object.entries(def.restrictedTools || {})) {
         const manifest = verticalManifest.resolver.resolve(def.verticalId);
         targets.push({
@@ -162,6 +171,19 @@ router.get('/decision-board', requireSession, async (req, res) => {
           requiredGroup: groupPolicy.groupNameForCategory(def.verticalId, category),
         });
       }
+    }
+    if (requestedVerticalId && targets.length === 0) {
+      const manifest = verticalManifest.resolver.resolve(requestedVerticalId);
+      if (!manifest) {
+        return res.status(404).json({ error: 'unknown_vertical', verticalId: requestedVerticalId });
+      }
+      return res.json({
+        username,
+        pingOneUserId,
+        liveLookupReady: pingOneGroupMembershipService.isReady(),
+        policyEnabled: groupPolicy.isEnabled(configStore),
+        rows: [],
+      });
     }
 
     /**

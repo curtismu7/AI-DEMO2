@@ -30,7 +30,7 @@ const { verticalManifest } = require('../services/verticalManifest');
 const PRIVILEGED = 'AI_Demo_Privileged';
 const router = require('../routes/groupMembership');
 
-async function callBoard(evaluate) {
+async function callBoard(evaluate, query = {}) {
   membershipService.isReady.mockReturnValue(true);
   membershipService.listUserGroupNamesForVertical.mockResolvedValue([]);
   pingOneAuthorizeService.evaluateMcpToolDelegation.mockImplementation(evaluate);
@@ -39,7 +39,7 @@ async function callBoard(evaluate) {
     (l) => l.route && l.route.path === '/decision-board' && l.route.methods.get,
   );
   const handler = layer.route.stack[layer.route.stack.length - 1].handle;
-  const req = { session: { user: { username: 'demoUser', oauthId: 'user-1' } } };
+  const req = { session: { user: { username: 'demoUser', oauthId: 'user-1' } }, query };
   let payload = null;
   const res = { json: (b) => { payload = b; return res; }, status: () => res };
   await handler(req, res, () => {});
@@ -97,5 +97,48 @@ describe('decision-board rate limiting', () => {
     for (const row of payload.rows) {
       expect(row.decision).toBe('UNKNOWN');
     }
+  });
+
+  describe('verticalId filter', () => {
+    it('evaluates only the picked vertical when ?verticalId= is given', async () => {
+      const seen = [];
+      const payload = await callBoard(async ({ verticalId }) => {
+        seen.push(verticalId);
+        return { decision: 'PERMIT', raw: { statements: [{ code: 'mcp-tool-authorized' }] } };
+      }, { verticalId: 'banking' });
+
+      expect(seen).toEqual(['banking']);
+      expect(payload.rows).toHaveLength(1);
+      expect(payload.rows[0].verticalId).toBe('banking');
+    });
+
+    it('evaluates every vertical when no verticalId is given (back-compat)', async () => {
+      const payload = await callBoard(async () => (
+        { decision: 'PERMIT', raw: { statements: [{ code: 'mcp-tool-authorized' }] } }
+      ));
+
+      expect(payload.rows.length).toBeGreaterThanOrEqual(9);
+    });
+
+    it('answers 404 for an unknown vertical', async () => {
+      membershipService.isReady.mockReturnValue(true);
+      membershipService.listUserGroupNamesForVertical.mockResolvedValue([]);
+      const layer = router.stack.find(
+        (l) => l.route && l.route.path === '/decision-board' && l.route.methods.get,
+      );
+      const handler = layer.route.stack[layer.route.stack.length - 1].handle;
+      const req = {
+        session: { user: { username: 'demoUser', oauthId: 'user-1' } },
+        query: { verticalId: 'no-such-vertical' },
+      };
+      let payload = null; let statusCode = null;
+      const res = {
+        json: (b) => { payload = b; return res; },
+        status: (s) => { statusCode = s; return res; },
+      };
+      await handler(req, res, () => {});
+      expect(statusCode).toBe(404);
+      expect(payload.error).toBe('unknown_vertical');
+    });
   });
 });

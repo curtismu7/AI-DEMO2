@@ -65,6 +65,7 @@ export default function GroupPolicyBoardPage() {
   // signing in as anyone else.
   const [checkUser, setCheckUser] = useState('demoDelegate');
   const [checkVertical, setCheckVertical] = useState('banking');
+  const [verticals, setVerticals] = useState(null);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState(null);
   const [checkError, setCheckError] = useState(null);
@@ -75,7 +76,11 @@ export default function GroupPolicyBoardPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch("/api/groups/decision-board", { credentials: "include" });
+      // One vertical per load — the picker below scopes the board. Firing all
+      // ~13 gated verticals on every page view was ~13 live Authorize calls
+      // plus a membership read each, for a single page load.
+      const params = new URLSearchParams({ verticalId: checkVertical });
+      const res = await fetch(`/api/groups/decision-board?${params}`, { credentials: "include" });
       if (!res.ok) throw new Error(`decision board failed (${res.status})`);
       setData(await res.json());
     } catch (err) {
@@ -84,9 +89,20 @@ export default function GroupPolicyBoardPage() {
     } finally {
       setLoading(false);
     }
-  }, []);
+  }, [checkVertical]);
 
   useEffect(() => { load(); }, [load]);
+
+  // The picker's options: the demo's vertical list (ids + display names), the
+  // same source the VerticalSwitcher uses. Fetched once.
+  useEffect(() => {
+    let cancelled = false;
+    fetch("/api/verticals/list", { credentials: "include" })
+      .then((r) => (r.ok ? r.json() : Promise.reject(new Error(String(r.status)))))
+      .then((list) => { if (!cancelled) setVerticals(Array.isArray(list) ? list : null); })
+      .catch(() => { /* the page falls back to the board's own row label */ });
+    return () => { cancelled = true; };
+  }, []);
 
   const runCheck = useCallback(async () => {
     setChecking(true);
@@ -162,7 +178,8 @@ export default function GroupPolicyBoardPage() {
         <p className="gpb-sub">
           This page makes one boundary visible: scopes are not entitlements. PingOne
           directory membership is re-read for each group-gated tool call, then the
-          resulting decision is shown for every demo vertical below.
+          resulting decision is shown for the picked vertical. Switch verticals with
+          the picker to see the same group rule enforced in each business.
         </p>
       </header>
 
@@ -200,8 +217,8 @@ export default function GroupPolicyBoardPage() {
               onChange={(e) => setCheckVertical(e.target.value)}
               disabled={checking}
             >
-              {(data?.rows || [{ verticalId: 'banking', displayName: 'Banking' }]).map((r) => (
-                <option key={r.verticalId} value={r.verticalId}>{r.displayName}</option>
+              {(verticals || [{ id: 'banking', displayName: 'Banking' }]).map((v) => (
+                <option key={v.id} value={v.id}>{v.displayName}</option>
               ))}
             </select>
           </label>
@@ -296,7 +313,7 @@ export default function GroupPolicyBoardPage() {
 
       <section className="gpb-board" aria-live="polite">
         <div className="gpb-board-head">
-          <h2>Decisions</h2>
+          <h2>Decisions — {rows[0]?.displayName || checkVertical}</h2>
           <div className="gpb-tally">
             <span className="gpb-pill gpb-pill--permit">{permits} permit</span>
             <span className="gpb-pill gpb-pill--deny">{denies} deny</span>
