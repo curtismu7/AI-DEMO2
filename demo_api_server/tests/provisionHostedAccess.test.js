@@ -179,6 +179,38 @@ describe('provision hosted-access phase', () => {
     expect(svc.makeRequest.mock.calls.filter(([m, u]) => m === 'POST' && u === '/applications')).toHaveLength(0);
   });
 
+  test('generateEnvContent emits the hosted-access keys from provisioned.hostedAccess', () => {
+    // REQUIRED_GROUP_ID must alias USER_GROUP_ID (same value, one line each).
+    const svc = new PingOneProvisionService();
+    const config = { envId: 'env-1', region: 'com', publicAppUrl: 'https://ai-demo.ping-devops.com' };
+    const provisioned = {
+      adminApp: { clientId: 'a', clientSecret: 's' },
+      userApp: { clientId: 'u', clientSecret: 's' },
+      resourceServer: { audience: ['enduser.ping.demo'] },
+      mcpGwResourceServer: { audience: ['mcpgateway.ping.demo'] },
+      demoUser: { password: 'p' },
+      demoAdmin: { password: 'p' },
+      hostedAccess: {
+        appId: 'app-hosted-1',
+        clientId: CLIENT_ID,
+        userGroupId: USER_GROUP_ID,
+        partialGroupId: PARTIAL_GROUP_ID,
+        claimMapped: true,
+      },
+    };
+
+    const text = svc.generateEnvContent(config, provisioned);
+
+    for (const key of ['HOSTED_ACCESS_CLIENT_ID', 'HOSTED_ACCESS_USER_GROUP_ID', 'HOSTED_ACCESS_PARTIAL_GROUP_ID', 'HOSTED_ACCESS_REQUIRED_GROUP_ID', 'HOSTED_ACCESS_TOKEN_ENDPOINT_AUTH_METHOD', 'HOSTED_ACCESS_REDIRECT_URI']) {
+      expect(text).toMatch(new RegExp(`^${key}=.`, 'm'));
+    }
+    expect(text).toMatch(new RegExp(`^HOSTED_ACCESS_CLIENT_ID=${CLIENT_ID}$`, 'm'));
+    const req = text.match(/^HOSTED_ACCESS_REQUIRED_GROUP_ID=(.*)$/m);
+    const usr = text.match(/^HOSTED_ACCESS_USER_GROUP_ID=(.*)$/m);
+    expect(req[1]).toBe(usr[1]);
+    expect(req[1]).toBe(USER_GROUP_ID);
+  });
+
   test('run-twice idempotence: second run performs zero creates', async () => {
     // Second call sees exists-results for every object, no POST thrown.
     const routesForRun = (run) => [

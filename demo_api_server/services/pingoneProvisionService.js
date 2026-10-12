@@ -2070,6 +2070,17 @@ class PingOneProvisionService {
       '# Worker Credentials (for future management)',
       `PINGONE_WORKER_CLIENT_ID=${config.workerClientId}`,
       `PINGONE_WORKER_CLIENT_SECRET=${config.workerClientSecret}`,
+      '',
+      '# ── Hosted access (SE gate + registration approval) ────────────────────────',
+      `HOSTED_ACCESS_CLIENT_ID=${provisioned.hostedAccess?.clientId || ''}`,
+      `HOSTED_ACCESS_USER_GROUP_ID=${provisioned.hostedAccess?.userGroupId || ''}`,
+      `HOSTED_ACCESS_PARTIAL_GROUP_ID=${provisioned.hostedAccess?.partialGroupId || ''}`,
+      `HOSTED_ACCESS_REQUIRED_GROUP_ID=${provisioned.hostedAccess?.userGroupId || ''}`,
+      'HOSTED_ACCESS_TOKEN_ENDPOINT_AUTH_METHOD=none',
+      `HOSTED_ACCESS_REDIRECT_URI=${config.publicAppUrl || 'https://ai-demo.ping-devops.com'}/api/auth/hosted-access/callback`,
+      'HOSTED_ACCESS_ALLOWED_DOMAINS=pingidentity.com,pingone.com',
+      'HOSTED_ACCESS_GATE_ENABLED=true',
+      'HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL=false',
     ]);
 
     return lines.join('\n');

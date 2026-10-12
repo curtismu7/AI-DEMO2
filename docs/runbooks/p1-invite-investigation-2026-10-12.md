@@ -34,14 +34,20 @@ URI (which is what the runbook URLs do).
 
 ## API path ruled out (2026-10-12, later)
 
-The "or POST via the Management API" option above **does not work with any
-current credential**:
+Management-API invites into the **invite target** `0428ba4f` **do not work
+with any current credential** — but that is a cross-tenant scoping limit, not
+an API limitation (see bullets):
 
 - The BFF worker client (`e1e33bbe…`, client_credentials on `01d89b06`) can
   **read** `0428ba4f` (users GET → 200) but **cannot write** there
   (POST /users → 403 `ACCESS_FAILED`): its admin rights are scoped to the
-  AI-Demo environment.
-- `pingcli`'s configured client (`same e1e33bbe…`) hits the same 403.
+  AI-Demo environment. The console-only limitation is true **ONLY for tenant
+  `0428ba4f`**.
+- Group writes inside the demo tenant `01d89b06` **DO work** via the
+  user-centric endpoint — `POST /users/{id}/memberOfGroups` → 201 (verified
+  live 2026-10-12). What 403s is the **group-centric** endpoint
+  (`/groups/{id}/members`) — that is the probe `pingcli`'s configured client
+  (same `e1e33bbe…`) hit.
 - Further write-probing with other credential sources was intentionally
   NOT attempted — cross-tenant writes against a tenant we don't hold admin
   on are out of bounds.
@@ -55,7 +61,8 @@ invites are ever wanted (not worth it for two invites).
 ## What remains (from the onboarding runbook)
 
 1. Invite `matthewpollicove@pingidentity.com` and `cmuir@pingone.com` into
-   tenant `0428ba4f` — **console only** (see "API path ruled out" above):
+   tenant `0428ba4f` — **console only for `0428ba4f`** (no current credential
+   can write cross-tenant; see "API path ruled out" above):
    <https://console.pingone.com/?env=0428ba4f-169c-436b-aff9-b230496e0e3b>
    → Users → **Invite User** (PingOne emails the links).
 2. After each accepts: **Grant Roles → PingOne Privilege Administrator**
