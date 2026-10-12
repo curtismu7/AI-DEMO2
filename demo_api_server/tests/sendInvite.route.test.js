@@ -127,4 +127,13 @@ describe('POST /api/demo/send-invite', () => {
     expect(res.body.nativeEmail).toBe('skipped');
     expect(pingOneUserService.sendPasswordSetupEmail).not.toHaveBeenCalled();
   });
+
+  test('native email skipped when the email-OTP step fails', async () => {
+    mfaService.enrollEmailDevice.mockRejectedValue(new Error('Email policy missing'));
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'noemail@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(res.body.nativeEmail).toBe('skipped');
+    expect(pingOneUserService.sendPasswordSetupEmail).not.toHaveBeenCalled();
+  });
 });
