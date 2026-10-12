@@ -58,8 +58,20 @@ data:
       bind :8081
       monitor-uri /lb-health
 
+    # Built-in stats page on the public frontend, read-only. Gated by
+    # loadBalancer.stats.auth ("user:password") so only the demo page (and
+    # whoever it tells) sees it; unset leaves /lb-stats answering 401. The page
+    # serves immediately on pod start, before rise 60 promotes any backend, so
+    # rolling these pods to change the config does not add a 503 window.
     frontend https
       bind :8443 ssl crt /tls/site.pem
+      stats enable
+      stats uri /lb-stats
+      stats refresh 5s
+      stats admin if FALSE
+{{- if $lb.stats }}
+      stats auth {{ $lb.stats.auth }}
+{{- end }}
       # node= is the gateway that answered; xff= is the pin key.
       capture request header X-Forwarded-For len 64
       log-format '%ci [%t] "%r" %ST %B node=%s xff=%hr'

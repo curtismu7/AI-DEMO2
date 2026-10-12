@@ -41,9 +41,13 @@ COPY llm-timeouts.json /llm-timeouts.json
 ARG REACT_APP_POSTHOG_KEY=
 ARG REACT_APP_POSTHOG_HOST=
 ARG REACT_APP_KIBANA_URL=http://localhost:4180
+# HAProxy stats page URL on the mcpgw load balancer (read-only, basic-auth).
+# Unset renders the topology page's stats explainer instead of the iframe.
+ARG REACT_APP_MCPGW_STATS_URL=
 ENV REACT_APP_POSTHOG_KEY=$REACT_APP_POSTHOG_KEY
 ENV REACT_APP_POSTHOG_HOST=$REACT_APP_POSTHOG_HOST
 ENV REACT_APP_KIBANA_URL=$REACT_APP_KIBANA_URL
+ENV REACT_APP_MCPGW_STATS_URL=$REACT_APP_MCPGW_STATS_URL
 
 # The readiness contract spans UI, BFF, and provider feature-check sources.
 # Mount the allowlisted repo inputs only for this check; they are not copied

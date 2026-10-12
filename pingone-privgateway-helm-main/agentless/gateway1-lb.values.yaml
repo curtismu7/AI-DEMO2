@@ -15,7 +15,7 @@ loadBalancer:
   name: mcpgw-lb
   replicas: 2
   image: nginx:stable-alpine
-  engine: nginx            # haproxy = active health checks, see loadbalancer-haproxy.yaml
+  engine: haproxy          # live since PR #1022; nginx rolls the public LB back to passive health checks
   haproxyImage: haproxy:3.0-alpine
   resources:
     requests: {cpu: 50m, memory: 32Mi}

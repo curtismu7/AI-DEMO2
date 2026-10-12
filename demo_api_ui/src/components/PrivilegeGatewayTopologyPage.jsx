@@ -209,6 +209,40 @@ const LB_DETAILS = {
   "d-ose": "Deliberate known-deny door: no policy attached, always 403. Enforcement is real; do not 'fix' it.",
 };
 
+// HAProxy's own stats page (/lb-stats on the public LB frontend, read-only,
+// basic-auth gated in the chart). Build-time URL, read at render (not module
+// scope) so per-deployment env is picked up; unset renders the explainer
+// instead of iframing an error page. The browser's basic-auth prompt (once per
+// session, inside the iframe) carries the credential — the UI never holds it.
+function LbStatsPanel() {
+  return (
+    <section className="pgt-stats">
+      <h2>Live LB stats</h2>
+      {process.env.REACT_APP_MCPGW_STATS_URL ? (
+        <>
+          <p className="pgt-stats__hint">
+            HAProxy&apos;s built-in stats page for <code>mcpgw-lb</code> — node health,
+            sessions and traffic per gateway node, refreshed every 5s. The browser asks
+            for the stats credential once per session.
+          </p>
+          <iframe
+            title="HAProxy LB stats"
+            src={process.env.REACT_APP_MCPGW_STATS_URL}
+            className="pgt-stats__frame"
+          />
+        </>
+      ) : (
+        <p className="pgt-stats__hint">
+          The load balancer&apos;s HAProxy stats page is not configured for this
+          deployment (REACT_APP_MCPGW_STATS_URL unset). The diagram below stays the
+          source of truth: three gateway nodes behind two HAProxy pods, pinned by a
+          consistent hash.
+        </p>
+      )}
+    </section>
+  );
+}
+
 const AGENT_STEPS = [
   { heading: "Setup — happens once" },
   { n: 1, text: "Console and public proxy (proxy-us-west-2.privilege.pingone.com:443) sync configuration. The gateway is registered in the console under Gateways > Add New > Add via Docker — Cluster ID of your choice, Host IP set to the gateway DNS (e.g. https://cj-mcpgw.ping-devops.com) — which issues the ENV_PROXY_TOKEN you pass to the privgateway Helm chart as mcpgw.proxyToken." },
@@ -429,6 +463,7 @@ export default function PrivilegeGatewayTopologyPage() {
             testId="pgt-lb-diagram"
             ariaLabel="Live mcpgw load-balanced topology: MCP clients reach an nginx ingress, then two HAProxy load-balancer pods, which pin each client by a consistent hash to one of three gateway nodes in mesh cluster ai-demo-cmuir. The nodes share a Redis client registry and serve the Agentic App doors opensearch22, opensearch, aggregate, hostile-mcp, agent-gateway and the sidecar doors, which reach the OpenSearch MCP server, PingGateway, hostile-mcp-server and per-pod sidecars."
           />
+          <LbStatsPanel />
         </>
       ) : (
         <>
