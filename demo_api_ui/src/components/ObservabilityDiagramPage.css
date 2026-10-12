@@ -2,10 +2,12 @@
 
 .obs-page {
   --obs-canvas: var(--th-bg-page);
-  /* plane hues: metrics = the info/teal family the other diagrams use,
-     traces = success green family, logs = policy amber family */
-  --obs-metrics: var(--th-status-info);
-  --obs-traces: var(--th-status-success);
+  /* Plane hues — validated trio (dataviz six checks, BOTH surfaces):
+     metrics blue #2563eb, traces teal #0d9488, logs amber #946b24.
+     The old traces green #16a34a failed the dark-mode lightness band and sat
+     at CVD ΔE 6.8 vs the amber; teal clears both in light and dark. */
+  --obs-metrics: #2563eb;
+  --obs-traces: #0d9488;
   --obs-logs: #946b24;
   color: var(--th-text);
   display: flex;
@@ -205,32 +207,50 @@
   opacity: 0.65;
 }
 
-/* Edges: readable stroke + arrowhead at fitView zoom; labels legible */
-.obs-edge { stroke-width: 2; }
+/* Edges: 2.5px plane-colored strokes; co-routed lines fan out through
+   offset handles (see HANDLE_Y in the JSX) instead of drawing atop each
+   other, and crossing lines stay readable because each plane keeps its
+   validated hue at full opacity. Selectors target the PATH: XYFlow's own
+   .react-flow__edge-path rule sets stroke on the path directly, which
+   beats inheritance from a class on the parent <g>. */
+.obs-canvas .obs-edge .react-flow__edge-path { stroke-width: 2.5; }
 
-.obs-edge.is-dim {
+.obs-edge.is-dim .react-flow__edge-path {
   opacity: 0.13;
 }
 
-.obs-edge--metrics { stroke: var(--obs-metrics); }
-.obs-edge--traces { stroke: var(--obs-traces); }
-.obs-edge--logs { stroke: var(--obs-logs); }
+.obs-canvas .obs-edge--metrics .react-flow__edge-path { stroke: var(--obs-metrics); }
+.obs-canvas .obs-edge--traces .react-flow__edge-path { stroke: var(--obs-traces); }
+.obs-canvas .obs-edge--logs .react-flow__edge-path { stroke: var(--obs-logs); }
 
-/* Arrowheads: SVG marker fills are presentation attributes — var() does not
-   resolve there, so each theme supplies literal hexes via these class rules
-   (class selectors DO style content inside <marker>). */
-.obs-arrow--metrics .obs-arrow__path { fill: #2f81c9; }
-.obs-arrow--traces .obs-arrow__path { fill: #2ea043; }
-.obs-arrow--logs .obs-arrow__path { fill: #946b24; }
-
-:root[data-theme="dark"] .obs-arrow--metrics .obs-arrow__path { fill: #58a6ff; }
-:root[data-theme="dark"] .obs-arrow--traces .obs-arrow__path { fill: #3fb950; }
-:root[data-theme="dark"] .obs-arrow--logs .obs-arrow__path { fill: #c98a2b; }
+/* Dark-mode edge steps: same hues stepped for the navy surface (validated on
+   #0b1220 — the base trio's blue/amber drop below 3:1 on it). */
+:root[data-theme="dark"] .obs-edge--metrics .react-flow__edge-path { stroke: #4f8ff0; }
+:root[data-theme="dark"] .obs-edge--traces .react-flow__edge-path { stroke: #22a39a; }
+:root[data-theme="dark"] .obs-edge--logs .react-flow__edge-path { stroke: #b98322; }
 
 @media (prefers-color-scheme: dark) {
-  :root:not([data-theme="light"]) .obs-arrow--metrics .obs-arrow__path { fill: #58a6ff; }
-  :root:not([data-theme="light"]) .obs-arrow--traces .obs-arrow__path { fill: #3fb950; }
-  :root:not([data-theme="light"]) .obs-arrow--logs .obs-arrow__path { fill: #c98a2b; }
+  :root:not([data-theme="light"]) .obs-edge--metrics .react-flow__edge-path { stroke: #4f8ff0; }
+  :root:not([data-theme="light"]) .obs-edge--traces .react-flow__edge-path { stroke: #22a39a; }
+  :root:not([data-theme="light"]) .obs-edge--logs .react-flow__edge-path { stroke: #b98322; }
+}
+
+/* Arrowheads: fills must be literal hexes (SVG marker presentation
+   attributes cannot resolve var()); class rules re-step them per theme. */
+.obs-arrow--metrics .obs-arrow__path { fill: #2563eb; }
+.obs-arrow--traces .obs-arrow__path { fill: #0d9488; }
+.obs-arrow--logs .obs-arrow__path { fill: #946b24; }
+
+/* Dark-mode arrow steps: same hues, lighter steps for the navy surface
+   (validated trio on #0b1220). */
+:root[data-theme="dark"] .obs-arrow--metrics .obs-arrow__path { fill: #4f8ff0; }
+:root[data-theme="dark"] .obs-arrow--traces .obs-arrow__path { fill: #22a39a; }
+:root[data-theme="dark"] .obs-arrow--logs .obs-arrow__path { fill: #b98322; }
+
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) .obs-arrow--metrics .obs-arrow__path { fill: #4f8ff0; }
+  :root:not([data-theme="light"]) .obs-arrow--traces .obs-arrow__path { fill: #22a39a; }
+  :root:not([data-theme="light"]) .obs-arrow--logs .obs-arrow__path { fill: #b98322; }
 }
 
 .obs-canvas .react-flow__edge-text {

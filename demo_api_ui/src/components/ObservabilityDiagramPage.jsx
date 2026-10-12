@@ -17,8 +17,13 @@ import "./ObservabilityDiagramPage.css";
 const PLANES = ["metrics", "traces", "logs"];
 
 // One edge per telemetry hop in the compose stack (docker-compose.yml
-// `observability` + `tracing` profiles). Plane colors come from CSS tokens so
-// they follow the theme; the diagram data only names the plane.
+// `observability` + `tracing` profiles). Plane hues are the validated trio
+// (metrics #2563eb, traces #0d9488, logs #946b24 — passes all six dataviz
+// checks on BOTH surfaces; see ObservabilityDiagramPage.css).
+// sourceHandle/targetHandle: each node exposes left+right handles; parallel
+// edges leaving one node use DIFFERENT vertical offsets via `so`/`to`
+// (source/target Y fraction, 0=top .. 1=bottom) so co-routed lines fan out
+// instead of drawing on top of each other.
 const FLOW_NODES = [
   // Emitters (left column)
   { id: "bff", column: 0, row: 0, mark: "BFF", title: "BFF · demo-api-server", sub: "structured logger + OTLP", planes: ["logs", "traces"] },
@@ -38,24 +43,33 @@ const FLOW_NODES = [
   { id: "arule", column: 2, row: 2, mark: "!", title: "Alert rules page", sub: "Grafana Alerting UI", planes: ["metrics"] },
 ];
 
+// so/to: Y fraction on the source/target handle (0 = top edge, 1 = bottom
+// edge). Parallel same-direction edges get spread values so each line owns a
+// distinct lane: e.g. the three OTLP flows leave their emitters at .3/.5/.7.
+// step: per-edge smoothstep `stepPosition` (0..1) — XYFlow bends the edge at
+// `step` of the source→target span, so two edges whose default midpoint bend
+// would coincide (drawing ON TOP of each other) instead route through
+// different X channels. pathOptions.offset alone does NOT move the vertical:
+// getPoints() places the bend at sourceGapped + (targetGapped-sourceGapped) *
+// stepPosition, and offset only trims the horizontal stubs.
 const FLOW_EDGES = [
-  { id: "e-bff-loki", source: "bff", target: "loki", label: "push", plane: "logs" },
-  { id: "e-bff-jaeger", source: "bff", target: "jaeger", label: "OTLP", plane: "traces" },
-  { id: "e-gw-prom", source: "gw", target: "prom", label: "scrape", plane: "metrics" },
-  { id: "e-ags-jaeger", source: "ags", target: "jaeger", label: "OTLP", plane: "traces" },
-  { id: "e-mcp-prom", source: "mcp", target: "prom", label: "scrape", plane: "metrics" },
-  { id: "e-mcp-jaeger", source: "mcp", target: "jaeger", label: "OTLP", plane: "traces" },
-  { id: "e-cont-alloy", source: "cont", target: "alloy", label: "read", plane: "logs" },
-  { id: "e-alloy-loki", source: "alloy", target: "loki", label: "", plane: "logs" },
-  { id: "e-prom-am", source: "prom", target: "am", label: "fire", plane: "metrics" },
+  { id: "e-bff-loki", source: "bff", target: "loki", label: "push", plane: "logs", so: 0.75, to: 0.3, step: 0.24 },
+  { id: "e-bff-jaeger", source: "bff", target: "jaeger", label: "OTLP", plane: "traces", so: 0.35, to: 0.3, step: 0.76 },
+  { id: "e-gw-prom", source: "gw", target: "prom", label: "scrape", plane: "metrics", so: 0.3, to: 0.72, step: 0.62 },
+  { id: "e-ags-jaeger", source: "ags", target: "jaeger", label: "OTLP", plane: "traces", so: 0.3, to: 0.55, step: 0.35 },
+  { id: "e-mcp-prom", source: "mcp", target: "prom", label: "scrape", plane: "metrics", so: 0.3, to: 0.4, step: 0.38 },
+  { id: "e-mcp-jaeger", source: "mcp", target: "jaeger", label: "OTLP", plane: "traces", so: 0.7, to: 0.78, step: 0.65 },
+  { id: "e-cont-alloy", source: "cont", target: "alloy", label: "read", plane: "logs", so: 0.3, to: 0.72, step: 0.3 },
+  { id: "e-alloy-loki", source: "alloy", target: "loki", label: "", plane: "logs", so: 0.4, to: 0.35, step: 0.5 },
+  { id: "e-prom-am", source: "prom", target: "am", label: "fire", plane: "metrics", so: 0.75, to: 0.3, step: 0.5 },
   // The three store→Grafana edges are unlabeled: their "datasource" labels used
   // to stack where the edges converge on the node and read as overlapping boxes.
-  // The legend + plane colors already say what flows there.
-  { id: "e-prom-graf", source: "prom", target: "graf", label: "", plane: "metrics" },
-  { id: "e-loki-graf", source: "loki", target: "graf", label: "", plane: "logs" },
-  { id: "e-jaeger-graf", source: "jaeger", target: "graf", label: "", plane: "traces" },
-  { id: "e-jaeger-inapp", source: "jaeger", target: "inapp", label: "BFF proxy", plane: "traces" },
-  { id: "e-am-arule", source: "am", target: "arule", label: "", plane: "metrics" },
+  // Staggered entry heights + distinct step channels keep them parallel.
+  { id: "e-prom-graf", source: "prom", target: "graf", label: "", plane: "metrics", so: 0.3, to: 0.3, step: 0.7 },
+  { id: "e-loki-graf", source: "loki", target: "graf", label: "", plane: "logs", so: 0.3, to: 0.55, step: 0.42 },
+  { id: "e-jaeger-graf", source: "jaeger", target: "graf", label: "", plane: "traces", so: 0.3, to: 0.75, step: 0.78 },
+  { id: "e-jaeger-inapp", source: "jaeger", target: "inapp", label: "BFF proxy", plane: "traces", so: 0.7, to: 0.35, step: 0.34 },
+  { id: "e-am-arule", source: "am", target: "arule", label: "", plane: "metrics", so: 0.3, to: 0.35, step: 0.5 },
 ];
 
 // Walkthrough steps that map to a real surface link to it (new tab, so the
@@ -95,10 +109,20 @@ const WALKTHROUGH = [
   },
 ];
 
-const PlaneNode = memo(function PlaneNode({ data, selected }) {
+// Vertical handle offsets: 4 lanes per side (top/quarter/center/bottom) as
+// fractions of the node height. Edges pick a lane via sourceHandle/targetHandle
+// so parallel flows fan out instead of overlapping.
+const HANDLE_Y = [0.2, 0.4, 0.6, 0.8];
+
+const nearestLane = (f) =>
+  HANDLE_Y.reduce((best, y) => (Math.abs(y - f) < Math.abs(best - f) ? y : best), HANDLE_Y[0]);
+
+const PlaneNode = memo(function PlaneNode({ data }) {
   return (
-    <div className={`obs-node${data.dim ? " is-dim" : ""}${selected ? " is-active" : ""}`}>
-      <Handle type="target" position={Position.Left} />
+    <div className={`obs-node${data.dim ? " is-dim" : ""}`}>
+      {HANDLE_Y.map((y) => (
+        <Handle key={`l-${y}`} id={`l-${y}`} type="target" position={Position.Left} style={{ top: `${y * 100}%` }} />
+      ))}
       <span className="obs-node__mark" aria-hidden="true">{data.mark}</span>
       <strong>{data.title}</strong>
       <span className="obs-node__sub">{data.sub}</span>
@@ -107,16 +131,27 @@ const PlaneNode = memo(function PlaneNode({ data, selected }) {
           <i key={p} className={`obs-plane-dot obs-plane-dot--${p}`} title={p} />
         ))}
       </span>
-      <Handle type="source" position={Position.Right} />
+      {HANDLE_Y.map((y) => (
+        <Handle key={`r-${y}`} id={`r-${y}`} type="source" position={Position.Right} style={{ top: `${y * 100}%` }} />
+      ))}
     </div>
   );
 });
 
+// Snap each edge's lane fraction to the nearest available handle lane.
+export function withHandleLanes(edges) {
+  return edges.map((e) => ({
+    ...e,
+    sourceHandle: `r-${nearestLane(parseFloat(String(e.sourceHandle).slice(2)))}`,
+    targetHandle: `l-${nearestLane(parseFloat(String(e.targetHandle).slice(2)))}`,
+  }));
+}
+
 const NODE_TYPES = { plane: PlaneNode };
 
 const COL_X = [0, 400, 800];
-// Nodes are ~64px tall (compact layout); 100px pitch = 36px breathing room
-// per row, and edge labels live in that gap.
+// Nodes are 73px tall (compact layout, verified live); 100px pitch = 27px
+// breathing room per row, and edge labels live in that gap.
 const ROW_Y = [0, 100, 200, 300, 400];
 
 /** Pure node builder — exported for tests. */
@@ -149,6 +184,14 @@ export function buildEdges(activePlane = "all") {
     // wraps markerEnd in url() itself — pass the BARE id, or it emits the
     // malformed url('#url(#...)') and no arrowhead renders.
     markerEnd: `obs-arrow-${e.plane}`,
+    // Lane offsets: the so/to fractions pick among the node's offset handles
+    // (0/33/67/100%), so co-routed parallel edges fan out instead of drawing
+    // on top of each other. `pathOptions.stepPosition` moves the vertical
+    // segment's X per edge (the default midpoint bend makes every edge in a
+    // column share one vertical channel and overlap).
+    sourceHandle: `r-${e.so ?? 0.5}`,
+    targetHandle: `l-${e.to ?? 0.5}`,
+    pathOptions: { stepPosition: e.step ?? 0.5 },
     className: `obs-edge obs-edge--${e.plane}${activePlane !== "all" && e.plane !== activePlane ? " is-dim" : ""}`,
     label: e.label || undefined,
     labelStyle: { fontSize: 12, fill: "var(--th-text-muted)", fontWeight: 600 },
@@ -191,7 +234,7 @@ export default function ObservabilityDiagramPage() {
   const [launching, setLaunching] = useState(null);
   const navigate = useNavigate();
   const nodes = useMemo(() => buildNodes(plane), [plane]);
-  const edges = useMemo(() => buildEdges(plane), [plane]);
+  const edges = useMemo(() => withHandleLanes(buildEdges(plane)), [plane]);
   const onPlane = useCallback((p) => setPlane(p), []);
 
   // Demo-step launcher: arm the use case's flags + trigger on the BFF, then
