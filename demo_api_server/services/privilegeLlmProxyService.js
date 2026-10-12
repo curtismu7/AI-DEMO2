@@ -23,6 +23,9 @@ const DEFAULT_MODEL_OPENAI = 'gpt-4o-mini';
 // console catalog id closest to the served 3B-class GGUF (see the release doc's
 // llama.cpp feature block). llama-server serves whatever is loaded regardless.
 const DEFAULT_MODEL_CUSTOM = 'meta.llama3-2-3b-instruct-v1:0';
+// The OpenRouter virtual key's allowlist entry (OpenAI-compatible aggregator;
+// the gateway route is /llm/openrouter/v1 — a first-class provider, not custom).
+const DEFAULT_MODEL_OPENROUTER = 'openai/gpt-4o-mini';
 const ANTHROPIC_VERSION = '2023-06-01';
 
 // The lanes, and the ONLY place their routes live. privilegeMcpClient.js used to
@@ -39,6 +42,7 @@ const LANES = {
   // reaches the provider check). llama-server ignores the `model` field, so the
   // catalog name is cosmetic on the wire.
   custom: { route: '/llm/custom/v1/chat/completions', defaultModel: DEFAULT_MODEL_CUSTOM, keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM' },
+  openrouter: { route: '/llm/openrouter/v1/chat/completions', defaultModel: DEFAULT_MODEL_OPENROUTER, keyEnv: 'PRIVILEGE_LLM_VIRTUAL_KEY_OPENROUTER' },
 };
 
 // A route override arrives from the browser, so it is a trust boundary: the server
@@ -309,6 +313,36 @@ async function callPrivilegeCustom(messages, config = {}) {
   return text;
 }
 
+// The OpenRouter lane: OpenAI-compatible aggregator (one key, hundreds of
+// models), first-class provider on the gateway — route /llm/openrouter/v1,
+// not a CustomUpstream key. Same wire shape as the OpenAI/custom lanes.
+async function callPrivilegeOpenRouter(messages, config = {}) {
+  const base = gatewayUrl();
+  const key = process.env.PRIVILEGE_LLM_VIRTUAL_KEY_OPENROUTER || '';
+  if (!base) throw new Error('PRIVILEGE_LLM_GATEWAY_URL not configured');
+  if (!key) throw new Error('PRIVILEGE_LLM_VIRTUAL_KEY_OPENROUTER not configured');
+
+  const model = config.openrouter_model || config.model || process.env.PRIVILEGE_LLM_MODEL_OPENROUTER || DEFAULT_MODEL_OPENROUTER;
+
+  const url = `${base.replace(/\/+$/, '')}${resolveRoute('openrouter', config.route)}`;
+  const res = await llmFetch(url, {
+    method: 'POST',
+    headers: {
+      'Content-Type': 'application/json',
+      Authorization: `Bearer ${key}`,
+    },
+    body: JSON.stringify({ model, max_tokens: config.max_tokens || 512, messages }),
+  }, { label: 'privilege-llm-openrouter', timeoutMs: 12000, retryOn429: false });
+
+  if (config.meta) config.meta.limits = readProviderLimits(res);
+  const data = await res.json().catch(() => ({}));
+  if (!res.ok) throwForResponse(res, data, 'openrouter');
+
+  const text = data?.choices?.[0]?.message?.content;
+  if (!text) throw new Error('Privilege LLM proxy (openrouter) returned empty response');
+  return text;
+}
+
 module.exports = {
   LANES,
   looksLikeProviderError,
@@ -319,8 +353,10 @@ module.exports = {
   callPrivilegeClaude,
   callPrivilegeOpenAI,
   callPrivilegeCustom,
+  callPrivilegeOpenRouter,
   DEFAULT_MODEL_GOOGLE,
   DEFAULT_MODEL_ANTHROPIC,
   DEFAULT_MODEL_OPENAI,
   DEFAULT_MODEL_CUSTOM,
+  DEFAULT_MODEL_OPENROUTER,
 };

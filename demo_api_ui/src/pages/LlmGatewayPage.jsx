@@ -106,6 +106,7 @@ function keyCaps(key) {
 
 const TITLES = {
   anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI',
+  custom: 'llama.cpp (self-hosted via Privilege)', openrouter: 'OpenRouter',
   lmstudio: 'LM Studio (local)', llamacpp: 'llama.cpp (local)',
 };
 

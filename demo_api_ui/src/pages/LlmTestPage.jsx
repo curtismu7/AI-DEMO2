@@ -38,7 +38,7 @@ function api(path, options = {}) {
   });
 }
 
-const TITLES = { anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI', lmstudio: 'LM Studio (local)' };
+const TITLES = { anthropic: 'Anthropic', google: 'Google', openai: 'OpenAI', custom: 'llama.cpp (self-hosted via Privilege)', openrouter: 'OpenRouter', lmstudio: 'LM Studio (local)' };
 const LOCAL = 'lmstudio';
 
 // Ping's integration snippet points the OpenAI SDK at {gateway}/llm/<provider>/v1,
