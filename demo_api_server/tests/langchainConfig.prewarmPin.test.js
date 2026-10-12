@@ -34,7 +34,7 @@ describe('POST /api/langchain/llamacpp/prewarm pin guard', () => {
   test('skips ensure when proxy is pinned to a different tier', async () => {
     fetchMock.mockResolvedValueOnce({
       ok: true,
-      json: async () => ({ pin: { name: 'phi-4-mini-instruct', port: 8091 } }),
+      json: async () => ({ pin: { name: 'llama-3.2-3b-instruct', port: 8091 } }),
     });
 
     const res = await request(app)
@@ -48,7 +48,7 @@ describe('POST /api/langchain/llamacpp/prewarm pin guard', () => {
       reason: 'pinned',
       model: 'gpt-oss-20b',
       port: 8096,
-      pinned: { name: 'phi-4-mini-instruct', port: 8091 },
+      pinned: { name: 'llama-3.2-3b-instruct', port: 8091 },
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
     expect(String(fetchMock.mock.calls[0][0])).toContain('/status');
@@ -58,7 +58,7 @@ describe('POST /api/langchain/llamacpp/prewarm pin guard', () => {
     fetchMock
       .mockResolvedValueOnce({
         ok: true,
-        json: async () => ({ pin: { name: 'phi-4-mini-instruct', port: 8091 } }),
+        json: async () => ({ pin: { name: 'llama-3.2-3b-instruct', port: 8091 } }),
       })
       .mockResolvedValueOnce({
         ok: true,
@@ -71,10 +71,10 @@ describe('POST /api/langchain/llamacpp/prewarm pin guard', () => {
 
     const res = await request(app)
       .post('/api/langchain/llamacpp/prewarm')
-      .send({ model: 'phi-4-mini-instruct' });
+      .send({ model: 'llama-3.2-3b-instruct' });
 
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ ok: true, model: 'phi-4-mini-instruct', port: 8091 });
+    expect(res.body).toEqual({ ok: true, model: 'llama-3.2-3b-instruct', port: 8091 });
     expect(fetchMock).toHaveBeenCalledTimes(3);
     expect(String(fetchMock.mock.calls[1][0])).toContain('/ensure?port=8091');
   });

@@ -4,7 +4,7 @@ import apiClient from '../services/apiClient';
 import { notifySuccess, notifyError, notifyInfo } from '../utils/appToast';
 import './LlmConfig.css';
 
-const PIN_MODELS = ['phi-4-mini-instruct', 'gpt-oss-20b'];
+const PIN_MODELS = ['llama-3.2-3b-instruct', 'gpt-oss-20b'];
 const DEFAULT_MODEL = 'phi-4-mini-instruct';
 
 function formatBytes(bytes) {
