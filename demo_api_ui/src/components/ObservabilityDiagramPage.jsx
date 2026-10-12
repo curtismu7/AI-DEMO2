@@ -96,8 +96,8 @@ const PlaneNode = memo(function PlaneNode({ data, selected }) {
 
 const NODE_TYPES = { plane: PlaneNode };
 
-const COL_X = [0, 320, 640];
-const ROW_Y = [0, 110, 220, 330, 440];
+const COL_X = [0, 380, 760];
+const ROW_Y = [0, 150, 300, 450, 600];
 
 /** Pure node builder — exported for tests. */
 export function buildNodes(activePlane = "all") {

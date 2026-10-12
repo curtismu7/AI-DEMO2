@@ -119,8 +119,8 @@
 .obs-plane-dot--logs { background: var(--obs-logs); }
 
 .obs-canvas {
-  height: min(62vh, 560px);
-  min-height: 380px;
+  height: min(78vh, 760px);
+  min-height: 520px;
   border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
   background: var(--obs-canvas);
