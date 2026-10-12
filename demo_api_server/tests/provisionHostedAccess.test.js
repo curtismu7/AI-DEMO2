@@ -14,7 +14,12 @@ const HOSTED_APP_CONFIG = {
 
 jest.mock('../services/scopeTopology', () => ({
   _manifest: () => ({ provisioning: { resourceNames: {}, appNames: {} } }),
-  resourceScopes: () => [],
+  // Agent Gateway list mirrors scope-topology.json's overlapping names
+  // (read/write/transfer/mortgage:read also live on the enduser resource) —
+  // required by the ai-agent grants-ordering test below.
+  resourceScopes: jest.fn((name) => (name === 'Super Banking Agent Gateway'
+    ? ['agent:invoke', 'read', 'write', 'transfer', 'mortgage:read']
+    : [])),
   appGrantedScopes: () => [],
 }));
 
@@ -164,6 +169,8 @@ describe('provision hosted-access phase', () => {
     expect(post).toBeTruthy();
     expect(post[2]).toEqual(expect.objectContaining({
       ...HOSTED_APP_CONFIG,
+      // PingOne 400s 'must not be null' without it (live 2026-10-12).
+      description: 'Hosted Ping employee admission front door',
       redirectUris: [`${PUBLIC_APP_URL}/api/auth/hosted-access/callback`],
     }));
   });
@@ -263,5 +270,105 @@ describe('provision hosted-access phase', () => {
     expect(claim2).toEqual({ mapped: true, corrected: false });
     const run2Creates = run2.makeRequest.mock.calls.filter(([m]) => m === 'POST');
     expect(run2Creates).toHaveLength(0);
+  });
+});
+
+describe('ai-agent overlapping grants', () => {
+  const GW_RESOURCE = 'res-agent-gw';
+  const ENDUSER_RESOURCE = 'res-enduser';
+  const APP_ID = 'app-ai-agent';
+
+  // Scope tables per resource — 'read'/'write'/'transfer'/'mortgage:read'
+  // exist on BOTH, which is what makes the two grants collide when run
+  // concurrently (each snapshots existingGrants before the other's POST).
+  const gwScopes = ['agent:invoke', 'read', 'write', 'transfer', 'mortgage:read'];
+  const enduserScopes = ['read', 'write', 'transfer', 'ai:agent:read', 'mortgage:read'];
+  const scopeId = (resource, name) => `${resource}-${name}`;
+
+  const scopeRows = (resource, names) => names.map((n) => ({ id: scopeId(resource, n), name: n }));
+
+  /**
+   * Stateful PingOne-grant simulation. Mirrors the real cross-resource rule
+   * (grantScopesToApplication's own comment, lines ~1484-1520 of the service):
+   * a POST containing a scope name already granted on a DIFFERENT resource of
+   * the same app 400s 'Multiple scopes with the same name cannot be added to
+   * the same grant'. Sequential-but-unfiltered still fails this unless the
+   * second call's filter sees the first grant — exactly the property under
+   * test.
+   */
+  function makeGrantService() {
+    const svc = Object.create(PingOneProvisionService.prototype);
+    const grants = []; // { resource: {id}, scopes: [{id}] }
+    svc.makeRequest = jest.fn(async (method, endpoint, body) => {
+      let m;
+      if (method === 'GET' && (m = endpoint.match(/^\/resources\/([\w-]+)\/scopes$/))) {
+        const names = m[1] === GW_RESOURCE ? gwScopes : enduserScopes;
+        return { data: { _embedded: { scopes: scopeRows(m[1], names) } } };
+      }
+      if (method === 'GET' && endpoint === `/applications/${APP_ID}`) {
+        return { data: { id: APP_ID, type: 'WEB_APP' } };
+      }
+      if (method === 'GET' && endpoint === `/applications/${APP_ID}/grants`) {
+        return { data: { _embedded: { grants } } };
+      }
+      if (method === 'POST' && endpoint === `/applications/${APP_ID}/grants`) {
+        const rid = body.resource.id;
+        // 'res-x-<name>' ids may contain hyphens in <name> (e.g. ai:agent:read
+        // has none, but the prefix is always 'res-<resource>-'); strip via the
+        // known prefix instead of split('-').
+        const nameOf = (id, resource) => id.slice(scopeId(resource, '').length);
+        const incomingNames = body.scopes.map((s) => nameOf(s.id, rid));
+        const otherNames = new Set(
+          grants.filter((g) => g.resource.id !== rid).flatMap((g) => g.scopes.map((s) => nameOf(s.id, g.resource.id)))
+        );
+        const colliding = incomingNames.filter((n) => otherNames.has(n));
+        if (colliding.length > 0) {
+          const err = new Error(`POST /applications/${APP_ID}/grants failed — HTTP 400 — Multiple scopes with the same name cannot be added to the same grant (${colliding.join(', ')})`);
+          err.response = { status: 400, data: { code: 'INVALID_DATA', message: 'Multiple scopes with the same name cannot be added to the same grant' } };
+          throw err;
+        }
+        grants.push({ resource: { id: rid }, scopes: body.scopes });
+        return { data: { id: `grant-${grants.length}` } };
+      }
+      throw new Error(`unexpected ${method} ${endpoint}`);
+    });
+    return svc;
+  }
+
+  test('gw grant lands before enduser grant; second call filters overlapping names', async () => {
+    const svc = makeGrantService();
+
+    const results = await svc._grantAiAgentScopes(APP_ID, GW_RESOURCE, ENDUSER_RESOURCE);
+
+    // Both grants succeeded — no INVALID_DATA from the name collision.
+    expect(results.every((r) => r.success)).toBe(true);
+
+    // Call order: the gw grant's POST must precede the enduser grant's grants
+    // GET — the second call must SEE the first's result, not race it.
+    const calls = svc.makeRequest.mock.calls;
+    const gwPostIdx = calls.findIndex(([m, , b]) => m === 'POST' && b?.resource?.id === GW_RESOURCE);
+    const enduserGetIdx = calls.findIndex(([m, u]) => m === 'GET' && u === `/applications/${APP_ID}/grants`);
+    // First GET /grants is the gw call's own pre-read; find the LAST one
+    // before the enduser POST instead.
+    const enduserPostIdx = calls.findIndex(([m, , b]) => m === 'POST' && b?.resource?.id === ENDUSER_RESOURCE);
+    const grantsGetBeforeEnduserPost = calls
+      .map(([m, u], i) => ({ m, u, i }))
+      .filter((c) => c.m === 'GET' && c.u === `/applications/${APP_ID}/grants` && c.i < enduserPostIdx);
+    expect(grantsGetBeforeEnduserPost.length).toBeGreaterThanOrEqual(2);
+    expect(gwPostIdx).toBeLessThan(grantsGetBeforeEnduserPost[grantsGetBeforeEnduserPost.length - 1].i);
+    expect(enduserGetIdx).toBeGreaterThanOrEqual(0);
+
+    // Behavioral pin: the enduser grant's POST body must contain ONLY the
+    // non-overlapping scope — the filter dropped read/write/transfer/mortgage:read
+    // because the gw grant (completed first) already claimed those names.
+    const nameOf = (id, resource) => id.slice(scopeId(resource, '').length);
+    const enduserPost = calls.filter(([m, , b]) => m === 'POST' && b?.resource?.id === ENDUSER_RESOURCE);
+    expect(enduserPost).toHaveLength(1);
+    const enduserNames = enduserPost[0][2].scopes.map((s) => nameOf(s.id, ENDUSER_RESOURCE));
+    expect(enduserNames).toEqual(['ai:agent:read']);
+
+    // And the gw grant POSTed the full list first.
+    const gwPost = calls.filter(([m, , b]) => m === 'POST' && b?.resource?.id === GW_RESOURCE);
+    expect(gwPost[0][2].scopes.map((s) => s.id)).toEqual(gwScopes.map((n) => scopeId(GW_RESOURCE, n)));
   });
 });

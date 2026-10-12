@@ -989,6 +989,9 @@ class PingOneProvisionService {
     if (existing) return { application: existing, exists: true };
     const response = await this.makeRequest('POST', '/applications', {
       name,
+      // Required — POST without it 400s 'must not be null' (live 2026-10-12).
+      // Exact string from the live 17d8cbac app so bootstrap mirrors production.
+      description: 'Hosted Ping employee admission front door',
       type: 'WEB_APP',
       protocol: 'OPENID_CONNECT',
       grantTypes: ['AUTHORIZATION_CODE'],
@@ -1038,6 +1041,30 @@ class PingOneProvisionService {
     const userGroupId = await this._ensureGroup('Hosted Registration Complete', 'Users approved for hosted application access');
     const partialGroupId = await this._ensureGroup('Hosted Registration Pending', 'Users with pending hosted-access registration');
     return { userGroupId, partialGroupId };
+  }
+
+  /**
+   * Grant the AI Agent its two resource grants — Agent Gateway (Exchange #1
+   * actor) and enduser (Exchange #1 subject) — STRICTLY SEQUENTIALLY.
+   *
+   * Was Promise.all: 'read'/'write'/'transfer'/'mortgage:read' exist on BOTH
+   * resources, and each call snapshots existingGrants before the other's POST
+   * lands, so the second POST 400s INVALID_DATA "Multiple scopes with the same
+   * name cannot be added to the same grant" (live 2026-10-12). Sequential so
+   * the second call's cross-resource name filter sees the first grant.
+   */
+  async _grantAiAgentScopes(appId, agentGwResourceId, enduserResourceId) {
+    const gwGrant = await this.grantScopesToApplication(
+      appId,
+      agentGwResourceId,
+      scopeTopology.resourceScopes('Super Banking Agent Gateway'),
+    );
+    const endUserGrant = await this.grantScopesToApplication(
+      appId,
+      enduserResourceId,
+      ['read', 'write', 'transfer', 'ai:agent:read', 'mortgage:read'],
+    );
+    return [gwGrant, endUserGrant];
   }
 
   /**
@@ -3292,21 +3319,11 @@ class PingOneProvisionService {
       steps.push({ step: 'ai-agent-grants', icon: '✅', message: 'Granting scopes to AI Agent application (Agent Gateway actor + Demo API subject)...' });
       onStep(steps[steps.length - 1]);
       try {
-        // Grant all Agent Gateway scopes (agent:invoke + mirrored tool scopes) so Exchange #1
-        // can carry tool scopes in the intermediate token for Exchange #2 scope narrowing.
-        // Enduser grant lets Exchange #1 accept a subject token with aud=enduser.ping.demo.
-        const [aiAgentGwGrant, aiAgentEndUserGrant] = await Promise.all([
-          this.grantScopesToApplication(
-            aiAgentAppResult.application.id,
-            agentGwResourceResult.resource.id,
-            scopeTopology.resourceScopes('Super Banking Agent Gateway'),
-          ),
-          this.grantScopesToApplication(
-            aiAgentAppResult.application.id,
-            resourceResult.resource.id,
-            ['read', 'write', 'transfer', 'ai:agent:read', 'mortgage:read'],
-          ),
-        ]);
+        const [aiAgentGwGrant, aiAgentEndUserGrant] = await this._grantAiAgentScopes(
+          aiAgentAppResult.application.id,
+          agentGwResourceResult.resource.id,
+          resourceResult.resource.id,
+        );
         pushGrantResultStep(steps, 'ai-agent-grants', 'AI Agent scope grants', [aiAgentGwGrant, aiAgentEndUserGrant]);
       } catch (e) {
         steps.push({ step: 'ai-agent-grants', icon: '⚠️', message: `AI Agent grant skipped: ${e.message}` });
