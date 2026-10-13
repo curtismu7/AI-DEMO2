@@ -374,3 +374,16 @@
     flex-basis: 100%;
   }
 }
+
+.privilege-a2a__chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.privilege-a2a__chip {
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  background: transparent;
+  color: inherit;
+  padding: 0.25rem 0.75rem;
+  font: inherit;
+  font-size: 0.85rem;
+  cursor: pointer;
+}
+.privilege-a2a__chip:disabled { opacity: 0.5; cursor: default; }

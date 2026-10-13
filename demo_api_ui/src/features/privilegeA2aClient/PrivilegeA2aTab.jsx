@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
+import { MarkdownContent } from '../../components/shared/MarkdownText';
 import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/gatewayEvents';
 import { PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID, PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
 import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
@@ -9,49 +10,90 @@ export default function PrivilegeA2aTab() {
   const demoQuestions = profile?.questions?.length ? profile.questions : PRIVILEGE_A2A_DEMO_QUESTIONS;
   const [input, setInput] = useState('');
   const [selectedQuestion, setSelectedQuestion] = useState('');
+  const [turns, setTurns] = useState([]);
+  const [trace, setTrace] = useState([]);
   const [sessionId, setSessionId] = useState('');
+  const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
   // The gateway's own record of the last run: its model calls and guardrail verdicts.
   const [record, setRecord] = useState(null);
   const recordLines = record ? record.modelCalls.length + record.guardrail.length + (record.requests?.length || 0) + (record.denials?.length || 0) : 0;
+  const abortRef = useRef(null);
 
-  // The run is shown by the floating agent (reel, sequence view and the answer), not on this page:
-  // start it here, then hand it to the agent as Step 25A, staying on this page.
-  const submitQuestion = (event) => {
+  useEffect(() => () => abortRef.current?.abort(), []);
+
+  const handleEvent = (eventName, payload) => {
+    if (!payload || typeof payload !== 'object') return;
+    if (eventName === 'token' && typeof payload.text === 'string') {
+      setTurns(current => {
+        if (!current.length) return current;
+        const updated = [...current];
+        const last = updated[updated.length - 1];
+        updated[updated.length - 1] = { ...last, answer: last.answer + payload.text };
+        return updated;
+      });
+    } else if (eventName === 'trace') {
+      setTrace(current => [...current, {
+        kind: typeof payload.kind === 'string' ? payload.kind : 'activity',
+        text: typeof payload.text === 'string' ? payload.text : 'Agent activity',
+        detail: typeof payload.detail === 'string' ? payload.detail : '',
+      }]);
+    } else if (eventName === 'done') {
+      if (typeof payload.sessionId === 'string' && payload.sessionId.length <= 128) {
+        setSessionId(payload.sessionId);
+      }
+    } else if (eventName === 'error') {
+      setError(typeof payload.error === 'string' ? payload.error : 'The A2A request failed.');
+    }
+  };
+
+  const submitQuestion = async (event) => {
     event.preventDefault();
     const message = input.trim();
     if (!message || busy) return;
+
+    const controller = new AbortController();
+    abortRef.current = controller;
     setBusy(true);
+    setError('');
+    setTrace([]);
     setRecord(null);
     const startedAt = Date.now();
+    setTurns(current => [...current, { question: message, answer: '' }]);
     setInput('');
     setSelectedQuestion('');
-    const run = runPrivilegeA2aChatRun({
-      message,
-      sessionId,
-      profile,
-      onEvent: (eventName, payload) => {
-        if (eventName === 'done' && typeof payload?.sessionId === 'string' && payload.sessionId.length <= 128) setSessionId(payload.sessionId);
-      },
-    });
-    window.dispatchEvent(new CustomEvent('agent-demo-step-select', {
-      detail: {
-        uc: {
-          id: 'UC46A',
-          useCaseId: PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID,
-          title: 'Privilege A2A access review in the agent',
-          trigger: { type: 'link', path: `${window.location.pathname}${window.location.search}` },
+
+    try {
+      // One run feeds both surfaces: this tab's conversation and trace, and the floating agent
+      // (reel, sequence view and the answer), which receives it as Step 25A and stays on this page.
+      const run = runPrivilegeA2aChatRun({ message, sessionId, profile, onEvent: handleEvent, signal: controller.signal });
+      window.dispatchEvent(new CustomEvent('agent-demo-step-select', {
+        detail: {
+          uc: {
+            id: 'UC46A',
+            useCaseId: PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID,
+            title: 'Privilege A2A access review in the agent',
+            trigger: { type: 'link', path: `${window.location.pathname}${window.location.search}` },
+          },
+          stepNumber: '25A',
+          opts: { keepTrace: true, run },
         },
-        stepNumber: '25A',
-        opts: { keepTrace: true, run },
-      },
-    }));
-    run.catch(() => {}).finally(() => {
+      }));
+      await run;
+    } catch (requestError) {
+      if (controller.signal.aborted) setError('Request cancelled.');
+      else setError(requestError instanceof Error ? requestError.message : 'The A2A request failed.');
+    } finally {
+      if (abortRef.current === controller) abortRef.current = null;
       setBusy(false);
       // The gateway ships each line as it writes it; give the index a moment.
-      setTimeout(async () => setRecord(await loadGatewayRecord({ since: startedAt - 2000, until: Date.now() + 2000 })), 1500);
-    });
+      if (!controller.signal.aborted) {
+        setTimeout(async () => setRecord(await loadGatewayRecord({ since: startedAt - 2000, until: Date.now() + 2000 })), 1500);
+      }
+    }
   };
+
+  const cancelRequest = () => abortRef.current?.abort();
 
   return (
     <section className="privilege-a2a" aria-labelledby="privilege-a2a-title">
@@ -70,8 +112,26 @@ export default function PrivilegeA2aTab() {
       </header>
 
       <div className="privilege-a2a__workspace">
-        <aside className="privilege-a2a__trace" aria-label="Gateway record">
-          {!record && <p className="privilege-a2a__empty">The answer, the delegation hops and the token chain appear in the floating agent. The gateway's own record of the run loads here when it finishes.</p>}
+        <section className="privilege-a2a__conversation" aria-label="Conversation">
+          <h3>Conversation</h3>
+          {turns.length === 0 ? (
+            <p className="privilege-a2a__empty">Ask who has access to a resource, what roles a person holds, or whether an access ticket exists.</p>
+          ) : (
+            <div className="privilege-a2a__turns" aria-live="polite">
+              {turns.map((turn, index) => (
+                <article className="privilege-a2a__turn" key={`${index}-${turn.question}`}>
+                  <p className="privilege-a2a__question">{turn.question}</p>
+                  <div className="privilege-a2a__answer">
+                    {turn.answer ? <MarkdownContent text={turn.answer} /> : (busy && index === turns.length - 1 ? 'Reviewing access…' : '')}
+                  </div>
+                </article>
+              ))}
+            </div>
+          )}
+          {error && <p className="privilege-a2a__error" role="alert">{error}</p>}
+        </section>
+
+        <aside className="privilege-a2a__trace" aria-label="Agent trace">
           {record && (
             <>
               <h3>Gateway record</h3>
@@ -128,10 +188,37 @@ export default function PrivilegeA2aTab() {
               )}
             </>
           )}
+          <h3>Agent trace</h3>
+          {trace.length === 0 ? (
+            <p className="privilege-a2a__empty">Delegation and tool activity will appear here while the review runs.</p>
+          ) : (
+            <ol>
+              {trace.map((entry, index) => (
+                <li className="privilege-a2a__trace-entry" key={`${index}-${entry.kind}`}>
+                  <span className="privilege-a2a__trace-kind">{entry.kind}</span>
+                  <span className="privilege-a2a__trace-text">{entry.text}</span>
+                  {entry.detail && <details><summary>Details</summary><pre>{entry.detail}</pre></details>}
+                </li>
+              ))}
+            </ol>
+          )}
         </aside>
       </div>
 
       <form className="privilege-a2a__composer" onSubmit={submitQuestion}>
+        <div className="privilege-a2a__chips" role="group" aria-label="Suggested questions for this vertical">
+          {demoQuestions.map(question => (
+            <button
+              key={question}
+              type="button"
+              className="privilege-a2a__chip"
+              onClick={() => { setSelectedQuestion(question); setInput(question); }}
+              disabled={busy}
+            >
+              {question}
+            </button>
+          ))}
+        </div>
         <label htmlFor="privilege-a2a-demo-question">Demo question</label>
         <select
           id="privilege-a2a-demo-question"
@@ -159,7 +246,8 @@ export default function PrivilegeA2aTab() {
           disabled={busy}
         />
         <div className="privilege-a2a__actions">
-          <span>Sends the question to the floating agent: Main agent → A2A → Analyst → MCP tools.</span>
+          <span>Send a question to trigger Main agent → A2A → Analyst → MCP tools.</span>
+          {busy && <button className="privilege-a2a__cancel" type="button" onClick={cancelRequest}>Cancel</button>}
           <button className="privilege-a2a__send" type="submit" disabled={busy || !input.trim()}>
             {busy ? 'Reviewing…' : 'Send question'}
           </button>
