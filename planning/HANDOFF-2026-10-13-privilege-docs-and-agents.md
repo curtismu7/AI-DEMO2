@@ -1,7 +1,7 @@
 # Handoff 2026-10-13 — Privilege docs runbooks, plus what every agent was doing
 
 Written so VS Code can be restarted. Source for the other agents' state: their
-transcripts in `~/.claude/projects/` (read at ~17:08 local); **their state may
+transcripts in `~/.claude/projects/` (first read ~17:08, refreshed ~17:40 local); **their state may
 have moved — verify before acting on it.** No secret values are in this file.
 
 ## 1. Privilege docs session ("Privilege agent features doc") — this session
@@ -56,11 +56,14 @@ have moved — verify before acting on it.** No secret values are in this file.
 4. **Feature 20:** run View on `privilege-hub-test` (**not** `groq-key`) and
    create one time-boxed `SecretResources` policy (body shape not yet captured —
    easiest is one grant done in the console UI, then read back through the API).
-5. **Feature 14:** confirm alerts for rows 3–7 from the gateway log (filter to
-   the A2A calling-agent lines; avoid dumping lines that contain keys).
-6. Cleanup when done: remove worktree `.worktrees/priv-live` (and its branch),
-   close the Playwright tab, and the leftover `AI-DEMO2-priv-doc` worktree
-   (branch `docs/privilege-features-release-notes`, already merged as #1244).
+5. **Feature 14:** confirm alerts for rows 3–7 — send them **serially** (parallel
+   rerun at 22:43Z starved the CPU-bound llama tier and timed out), then read the
+   gateway log filtered to the A2A calling-agent lines; strip keys from output.
+6. Cleanup: **done** — `priv-live` worktree, its branches and the Playwright
+   browser are gone (all PRs merged, #1250 included). Only the other session's
+   `AI-DEMO2-priv-doc` worktree remains (branch
+   `docs/privilege-features-release-notes`, already merged as #1244) — leave it
+   to that session.
 
 ### Access recipes that worked today
 
@@ -75,19 +78,36 @@ have moved — verify before acting on it.** No secret values are in this file.
 - **Google:** `gcloud` was logged in as the user but needed re-auth; works after
   `gcloud auth login`.
 
-## 2. Other agents (from transcripts, ~17:08)
+## 2. Other agents (refreshed from transcripts ~17:40 local)
 
-| Session | Working in | State |
-|---|---|---|
-| **Floating agent on A2A tab** | main checkout | UI tests running; merge queued behind a watcher that auto-merges when they pass; was looking up the deploy recipe |
-| **v1.261009 demo steps plan** | `standalone/privilege-a2a-anthropic-demo` | In the middle of tab colors — reading the nav component |
-| **Privilege-mcp-client facade broken** | `.worktrees/facade-self-call` | **PR #1248** open, auto-merge on, CI running. After merge + image build: promote `sha-<merge>` to `demo-api-server` on SE, re-test the door from the pod and the page, then remove worktree + branches |
-| **AIC as IDP for demo** | main checkout / `AI-DEMO2-aic-*` worktrees | PRs #1238, #1240 merged. Waiting on the user to sign in and click through `/aic-token-exchange` (Sign in at AIC → Get actor token). Test user `test12345@mailinator.com` in AIC tenant `openam-jgcten` / `alpha` realm — its password is unknown to the agent; reset in AIC admin (Identities → Manage → Alpha realm → Users) |
-| **HDD cleanup** | main checkout | Report only: disk 64% used, 325 GB free. Safe-to-regenerate items listed (Docker build cache 16.8 GB, unused images 6.5 GB, volumes 5.4 GB, `~/Library/Caches` 11 GB, `~/.npm` 4.4 GB, `~/.cache` 24 GB needs a look). **Nothing deleted** |
-| **GenericOpenSearchApiTool / gateway-events** (2–3 sessions) | main | Read-only OpenSearch queries via `opensearch-hitl` (`gateway-events` = 268 docs). No pending changes |
-| **Demo API server .env comments** | `demo_api_server` | Comments added to local `.env`; waiting for any rewording |
-| **Top 10 agent privilege features** (10:30) | `~/.agents` | Finished; field guide + master index pushed (`7f78935a2`, `9ffa06749`, `35f1cd8c2`) |
-| **HAProxy stats page** (10:23) | main | Finished: PR #1234 merged/deployed; vault/.env drift eliminated at root; canary removed (#1231) |
+Their state may have moved again — verify before acting.
+
+| Session | State |
+|---|---|
+| **v1.261009 demo steps plan** | **Finished.** PRs #1252 (llama.cpp default provider) and #1253 (per-tab colors) merged, branches deleted. Live: both standalone agents default to llama.cpp *through Privilege* (custom lane); in-cluster `workeragentdemo` + `mainagentdemo` flipped to llama.cpp; the dead `workeragentdemo` door fixed to `worker-agent`; llama-tier1 ctx raised to 16384. Full A2A chain verified end to end (delegate → MCP tools → real answer). 8B model rejected (won't delegate); 3B + 16k ctx is the sweet spot |
+| **Privilege-mcp-client facade broken** | PR **#1248 merged**. **One live fix is NOT applied** (blocked by the classifier): step 25A returns 403 because `mainagentdemo` has `MAIN_AGENT_PROVIDER=llamacpp` but a leftover `MAIN_AGENT_MODEL=gemini-3.6-flash`. Fix, to run: `kubectl -n ping-devops-cmuir set env deploy/mainagentdemo MAIN_AGENT_MODEL=llama.cpp` (verified from inside the pod: that model returns 200, the gemini name returns 403). Live-only, not in git |
+| **Floating agent on A2A tab** | Finished: PRs #1245 and #1246 merged, frontend live; A2A tab keeps its in-page chat and hands the same run to the floating agent; chips follow the vertical. `mainagentdemo` was switched to llama.cpp because Google returned 503 — revert: `kubectl -n ping-devops-cmuir set env deploy/mainagentdemo MAIN_AGENT_PROVIDER=google` |
+| **AIC as IDP for demo** | Waiting on the user: commit pending edits in the AIC worktrees, then it will sync the main checkout, rebuild the local UI bundle and confirm the AIC nav group. Still needs the user's `/aic-token-exchange` click-through; test user `test12345@mailinator.com` password unknown (reset in AIC admin → Alpha realm → Users) |
+| **HDD cleanup** | Done: free space 325 GB → 476 GB (48% used). `~/.cache` 24 → 6.1 GB; CI dep cache trimmed to the newest copy; `~/Library/Caches` only 11 → 9 GB (some deletes unconfirmed). **Docker volumes (6, ~3.4 GB) left** — classifier blocked; command is in that session's last message |
+| **GenericOpenSearchApiTool / gateway-events** | Read-only OpenSearch queries via `opensearch-hitl`; nothing pending |
+| **Demo API server .env comments** | Comments added to local `.env`; waiting on any rewording from the user |
+
+### Effect on this session's A2A results (re-run 22:43Z)
+
+`mainagentdemo`'s `MAIN_AGENT_MODEL` was already `llama.cpp` (another session
+fixed it; my `set env` was a no-op that restarted the pods) — **that item is
+closed.**
+
+Re-ran A2A guardrail rows 1, 3–7 through the `worker-agent` door, six requests in
+parallel: **five timed out at 170 s with no response** (rows 1, 3, 4, 5, 7) and
+row 6 returned 200 after 117 s with a worker error text (`llama.cpp request
+returned 500: … The model produced output that …`). Nothing came back as a fast
+400, so **no message was guardrail-blocked** — consistent with the earlier run.
+The llama tier is CPU-bound; parallel requests starve it, so this proves nothing
+about alerts. **To confirm alert status:** send rows 3–7 **one at a time** (or just
+two), and read the gateway log filtered to the A2A calling-agent lines with keys
+stripped. Row 2 (plain injection → 400 in 0.56 s) is unaffected — blocked before
+the model.
 
 ## 3. Repo and cluster state worth knowing
 
