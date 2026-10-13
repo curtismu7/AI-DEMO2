@@ -132,6 +132,62 @@ function parseGateways(csv) {
 // second command in via the node name.
 const NODE_NAME = /^[\w.-]+$/;
 
+// ── /stats-view: the PingOne-SSO front for HAProxy's built-in stats page ────
+// The topology page's iframe points here instead of at /lb-stats directly:
+// the mount's authenticateToken + requireAdmin is the gate (the demo's
+// PingOne sign-in), and the stats credential never reaches the browser.
+// Env: MCPGW_LB_STATS_URL (absolute, e.g. https://mcpgw…/lb-stats) and
+// MCPGW_LB_STATS_AUTH ("Basic base64(user:password)" — pre-encoded so this
+// file never holds the password itself).
+
+const http = require('http');
+const https = require('https');
+
+// Rewrite HAProxy's absolute /lb-stats* hrefs onto this proxy path; anchors
+// and fragments stay as-is. HAProxy emits exactly: /lb-stats, /lb-stats;csv…,
+// /lb-stats;json…, /lb-stats;norefresh, /lb-stats;up.
+function rewriteStatsHrefs(html, proxyBase) {
+  return html.replace(/(href|action)="\/lb-stats([^"]*)"/g, `$1="${proxyBase}$2"`);
+}
+
+router.get('/stats-view;csv', async (req, res) => {
+  req.statsVariant = ';csv';
+  return statsViewHandler(req, res);
+});
+
+router.get('/stats-view', statsViewHandler);
+
+async function statsViewHandler(req, res) {
+  const url = process.env.MCPGW_LB_STATS_URL;
+  const auth = process.env.MCPGW_LB_STATS_AUTH;
+  if (!url || !auth) {
+    return res.status(503).send('stats view not configured: set MCPGW_LB_STATS_URL and MCPGW_LB_STATS_AUTH');
+  }
+  const target = url + (req.statsVariant || '');
+  const mod = target.startsWith('https:') ? https : http;
+  const upstream = await new Promise((resolve) => {
+    const r = mod.get(target, { headers: { authorization: auth } }, resolve);
+    r.on('error', (e) => resolve({ error: e.message }));
+    r.setTimeout(8000, () => {
+      r.destroy();
+      resolve({ error: 'timeout fetching stats page' });
+    });
+  });
+  if (upstream.error) {
+    return res.status(502).send(`stats page fetch failed: ${upstream.error}`);
+  }
+  if (upstream.statusCode !== 200) {
+    upstream.resume();
+    return res.status(502).send(`stats page upstream status ${upstream.statusCode}`);
+  }
+  let body = '';
+  for await (const chunk of upstream) body += chunk;
+  const proxyBase = req.baseUrl + '/stats-view';
+  res.set('content-type', 'text/html; charset=utf-8');
+  if (upstream.headers.refresh) res.set('refresh', upstream.headers.refresh);
+  res.send(rewriteStatsHrefs(body, proxyBase));
+}
+
 router.get('/', async (req, res) => {
   const { ok, replies, errors } = await fanOut('show stat');
   if (!ok.length) {

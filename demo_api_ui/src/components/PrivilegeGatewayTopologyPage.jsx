@@ -193,10 +193,12 @@ const LB_DETAILS = {
 };
 
 // HAProxy's own stats page (/lb-stats on the public LB frontend, read-only,
-// basic-auth gated in the chart). Build-time URL, read at render (not module
-// scope) so per-deployment env is picked up; unset renders the explainer
-// instead of iframing an error page. The browser's basic-auth prompt (once per
-// session, inside the iframe) carries the credential — the UI never holds it.
+// basic-auth gated in the chart), served to the iframe THROUGH the admin-gated
+// BFF proxy /api/admin/lb/runtime/stats-view: the demo's PingOne sign-in is
+// the gate, and the stats credential never reaches the browser. The env var
+// only marks the feature configured for this deployment (read at render, not
+// module scope, so per-deployment env is picked up); unset renders the
+// explainer instead of an empty iframe.
 function LbStatsPanel() {
   return (
     <section className="pgt-stats">
@@ -205,12 +207,12 @@ function LbStatsPanel() {
         <>
           <p className="pgt-stats__hint">
             HAProxy&apos;s built-in stats page for <code>mcpgw-lb</code> — node health,
-            sessions and traffic per gateway node, refreshed every 5s. The browser asks
-            for the stats credential once per session.
+            sessions and traffic per gateway node, refreshed every 5s. Admin sign-in
+            (PingOne) is the only prompt; no separate stats password.
           </p>
           <iframe
             title="HAProxy LB stats"
-            src={process.env.REACT_APP_MCPGW_STATS_URL}
+            src="/api/admin/lb/runtime/stats-view"
             className="pgt-stats__frame"
           />
         </>

@@ -1,6 +1,6 @@
 // PrivilegeGatewayTopologyPage.stats.test.jsx — the "Live LB stats" panel on the
-// static lb tab: an iframe of HAProxy's built-in stats page (basic auth is the
-// browser's one-per-session prompt; the UI never holds the credential).
+// static lb tab: an iframe through the admin-gated BFF proxy (PingOne session;
+// the stats credential lives only in the BFF env).
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
@@ -42,7 +42,10 @@ describe("PrivilegeGatewayTopologyPage — Live LB stats panel", () => {
     process.env[ENV_KEY] = "https://mcpgw.ai-demo.ping-devops.com/lb-stats";
     render(<PrivilegeGatewayTopologyPage />);
     const frame = screen.getByTitle("HAProxy LB stats");
-    expect(frame.getAttribute("src")).toBe("https://mcpgw.ai-demo.ping-devops.com/lb-stats");
+    // The iframe rides the demo's PingOne session through the admin-gated BFF
+    // proxy — no browser basic-auth prompt, the credential never reaches the
+    // client. The env var only proves the feature is configured for THIS deploy.
+    expect(frame.getAttribute("src")).toBe("/api/admin/lb/runtime/stats-view");
   });
 
   it("stats URL set but on an archived tab: no iframe", () => {
