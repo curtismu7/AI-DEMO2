@@ -182,7 +182,7 @@ const LB_WALK = [
   { title: "Failover cost + NOSRV window", label: "step 6", nodes: ["lb", "gw1", "gw2", "redis"], edges: [1, 2, 3, 4, 5], lines: ["When a node dies its clients move within one 10s sample and sign in again (tokens are not shared). A recovered node needs 60 passing checks (rise 60) before it takes clients back — that window answers 503 node=<NOSRV> and looks like an outage while every gateway is fine."] },
 ];
 const LB_DETAILS = {
-  lb: "Two replicas on separate hosts (topologySpread). Engine is haproxy in the live cluster even though gateway1-lb.values.yaml still says engine: nginx — swapped after PR #1022 deployed.",
+  lb: "Two replicas on separate hosts (topologySpread). Engine is haproxy — swapped after PR #1022 deployed; gateway1-lb.values.yaml matches.",
   gw1: "Owns the HTTPS front door certificate name; 9/9 containers: gateway + 8 sidecars.",
   gw2: "Second node in cmuir, same release chart (release agentless-mcpgw in its namespace). Gateway-3 was deleted from the cluster on 2026-10-12.",
   redis: "One pod, 1Gi AOF, password-only TLS-less in-cluster. Hard dependency: a gateway restart with Redis down exits after 6 attempts.",
