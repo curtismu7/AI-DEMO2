@@ -2,6 +2,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { geminiClient } from './gemini.js';
 import { groqClient } from './groq.js';
+import { llamacppClient } from './llamacpp.js';
 
 export type AgentName = 'MAIN_AGENT' | 'WORKER_AGENT';
 
@@ -20,23 +21,34 @@ const booleanValue = (name: string, fallback: boolean): boolean => {
 export const anthropicBaseUrl = (): string => value('ANTHROPIC_BASE_URL').replace(/\/+$/, '');
 export const geminiBaseUrl = (): string => value('GEMINI_BASE_URL').replace(/\/+$/, '');
 
-export type Provider = 'anthropic' | 'google' | 'groq';
+export type Provider = 'anthropic' | 'google' | 'groq' | 'llamacpp';
 
-/** Each agent picks its own provider with `<AGENT>_PROVIDER`: `anthropic` (default), `google` or `groq`. */
+/**
+ * Each agent picks its own provider with `<AGENT>_PROVIDER`. DEFAULT is
+ * `llamacpp`: the demo's models run on our own llama.cpp tier, fronted through
+ * the Agent Privilege's custom lane (/llm/custom/v1) so every model call stays
+ * governed. `anthropic`, `google`, `groq` are the alternatives.
+ */
 export const providerOf = (agent: AgentName): Provider => {
   const name = value(`${agent}_PROVIDER`).toLowerCase();
-  return name === 'google' || name === 'groq' ? name : 'anthropic';
+  return name === 'google' || name === 'groq' || name === 'anthropic' ? (name as Provider) : 'llamacpp';
 };
 export const usesGoogle = (agent: AgentName): boolean => providerOf(agent) === 'google';
 export const usesGroq = (agent: AgentName): boolean => providerOf(agent) === 'groq';
+export const usesLlamacpp = (agent: AgentName): boolean => providerOf(agent) === 'llamacpp';
 // Groq is always direct: the Privilege gateway has no Groq provider.
-const providerBaseUrl = (agent: AgentName): string => (usesGroq(agent) ? '' : usesGoogle(agent) ? geminiBaseUrl() : anthropicBaseUrl());
+const providerBaseUrl = (agent: AgentName): string => {
+  if (usesGroq(agent)) return '';
+  if (usesGoogle(agent)) return geminiBaseUrl();
+  if (usesLlamacpp(agent)) return value('LLAMACPP_BASE_URL');
+  return anthropicBaseUrl();
+};
 export const viaGateway = (agent: AgentName): boolean => Boolean(providerBaseUrl(agent));
 
 /** The model an agent uses when `<AGENT>_MODEL` is not set. */
 const DEFAULT_MODEL: Record<AgentName, Record<Provider, string>> = {
-  MAIN_AGENT: { anthropic: 'claude-sonnet-5', google: 'gemini-flash-latest', groq: 'openai/gpt-oss-120b' },
-  WORKER_AGENT: { anthropic: 'claude-opus-5', google: 'gemini-flash-lite-latest', groq: 'openai/gpt-oss-120b' },
+  MAIN_AGENT: { llamacpp: 'llama.cpp', anthropic: 'claude-sonnet-5', google: 'gemini-flash-latest', groq: 'openai/gpt-oss-120b' },
+  WORKER_AGENT: { llamacpp: 'llama.cpp', anthropic: 'claude-opus-5', google: 'gemini-flash-lite-latest', groq: 'openai/gpt-oss-120b' },
 };
 const modelFor = (agent: AgentName): string => value(`${agent}_MODEL`, DEFAULT_MODEL[agent][providerOf(agent)]);
 
@@ -51,6 +63,21 @@ export function anthropicClient(agent: AgentName): Anthropic {
     if (!apiKey) throw new Error(`Set ${agent}_GROQ_KEY or GROQ_API_KEY to use Groq (it is called directly, not through Privilege)`);
     const timeoutMs = Number(value('GROQ_TIMEOUT_MS'));
     return groqClient({ apiKey, baseUrl: value('GROQ_BASE_URL') || undefined, ...(timeoutMs > 0 ? { timeoutMs } : {}) });
+  }
+  if (usesLlamacpp(agent)) {
+    // The bearer is the Agent Privilege custom-lane virtual key when going
+    // through the gateway, or the llama-server --api-key when direct — the
+    // same env holds whichever the base URL needs.
+    const apiKey = value(`${agent}_LLAMACPP_KEY`) || value('LLAMACPP_API_KEY');
+    if (!apiKey) {
+      throw new Error(`Set ${agent}_LLAMACPP_KEY or LLAMACPP_API_KEY to use llama.cpp (the Privilege custom virtual key, or the llama-server --api-key when LLAMACPP_BASE_URL is direct)`);
+    }
+    const timeoutMs = Number(value('LLAMACPP_TIMEOUT_MS'));
+    return llamacppClient({
+      apiKey,
+      baseUrl: value('LLAMACPP_BASE_URL') || undefined,
+      ...(timeoutMs > 0 ? { timeoutMs } : {}),
+    });
   }
   if (usesGoogle(agent)) {
     const baseUrl = geminiBaseUrl();
@@ -87,6 +114,7 @@ export function agentAccessKey(agent: AgentName): string {
 
 export function describeMode(agent: AgentName): string {
   if (usesGroq(agent)) return 'direct Groq (model calls bypass the Privilege gateway)';
+  if (usesLlamacpp(agent)) return viaGateway(agent) ? 'llama.cpp via Privilege (custom lane)' : 'llama.cpp direct (model calls bypass the Privilege gateway)';
   const provider = usesGoogle(agent) ? 'Google' : 'Anthropic';
   return viaGateway(agent) ? `${provider} via Privilege (${providerBaseUrl(agent)})` : `direct ${provider}`;
 }
