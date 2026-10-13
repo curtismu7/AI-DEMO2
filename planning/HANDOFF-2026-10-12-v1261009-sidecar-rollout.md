@@ -26,7 +26,7 @@ it.** Every demo below is shipped and verified live unless marked otherwise.
 | **Group board vertical picker** (`/group-policy`) | One decision per load via `?verticalId=`; panel = picked user, board = signed-in user, both labeled | Live (PRs #1212/#1215) |
 | **Hosted-access plus wall** | Public `/` on SE with `+address` aliases denied; demo allowlist in configmap — revoke by clearing `HOSTED_ACCESS_ALLOWED_IDENTIFIERS`; wall fix for allowlisted off-list domains killed the demoAdmin 401 login loop (`/api/auth/hosted-access/check` → 204) | Live (PRs #1191 + fix #1211, browser-verified 12 Oct) |
 | **Invite→approval loop** | Admin invites via form → invitee appears on the approval page → approve moves them through the gate (was a dead end); gate denials now log `group_not_allowed` with reason/subject/email/domain | Merged (PR #1228, 13 Oct); SE deploy pending — see §6 |
-| **Bootstrap hosted-access (⑥b)** | `setup:fresh` reproduces the hosted wall's inputs — sign-in app, Complete/Pending groups, groups claim, .env keys — no console steps | Live-verified on tenant, PR #1228 open |
+| **Bootstrap hosted-access (⑥b)** | `setup:fresh` reproduces the hosted wall's inputs — sign-in app, Complete/Pending groups, groups claim, .env keys — no console steps | Merged (PR #1228, 13 Oct); SE deploy pending — see §6 |
 | **Invite form** | send-invite endpoint; native-email gate = password+emailOTP despite SMS fail | Live (PR #1196, 12 Oct) |
 | **LLM gateway page** (`/llm-gateway`) | Five virtual-key lanes incl. the new OpenRouter lane; the custom/llama.cpp lane with the two response-side stories: policy withhold ("Denied by policy", Active) vs AIGuard redact ("Allowed, 4 redacted", Candidate) — both UI-verified | Live (lanes: a4 session, 52adb1a34…; 824 tests green) |
 | **Session-scoped MCP token cache** | Replay-labeled rail events give demo speed without faking the exchange chain | Live (24270fee9; test breakage fixed by #1224) |
@@ -47,7 +47,7 @@ it.** Every demo below is shipped and verified live unless marked otherwise.
 | **Cluster model swap** | tier1 PVC Phi-4-mini → Llama-3.2-3B — the model behind the Privilege llama.cpp lane | Live (5507079ce, gateway-verified) |
 | **Gateway release v1.261009 runbook** | Model catalog refresh live in dropdowns; response-side policy denial (`llm_policy_response_denied` + `UpstreamStatus:200` pairing); llama.cpp governed on our own hardware via `/llm/custom/v1` (403 `wrong_provider` control, 90s timeout fix); Bedrock blocked on credential | Built this session (12 Oct) |
 | **ML sidecar on every key** | demo_mcp_promptguard (NeMo + ProtectAI) wired into all 10 Agent Registry keys, Block Agreement off — injection blocked end to end on the custom lane | Built this session (12 Oct) |
-| **HITL approvals (Track 2)** | Privilege native agentapprovals: approval flow works end-to-end (ApprovalReq → Pending → console Approve/Deny) = demo-ready fallback; **Slack delivery blocked after exhaustive probing (zero dispatch, zero errors) = Ping bug**; one untested cell remains (valid bot token + UI-exact wiring after Slack re-OAuth — token expired 05:50Z) | Parked; fallback demoable (3d session; evidence in memory + /tmp/procyon-probe/) |
+| **HITL approvals (Track 2)** | Privilege native agentapprovals: approval flow works end-to-end (ApprovalReq → Pending → console Approve/Deny) = demo-ready fallback; **Slack AND Mattermost delivery both blocked** — token×wiring matrix fully exhausted (zero dispatch, zero errors); root-cause candidate: tenant egress never deployed (zero MedusaNodes; 504s proven). **Ping bug report WRITTEN** (`~/Desktop/ping-privilege-hitl-notification-bug.md`) — delivery is yours | Parked; fallback demoable; report written 13 Oct |
 | **Secrets Hub (GSM)** | Google Secret Manager sync, service-account key in audit log | Tested (10-04) |
 | **Sensor (Docker + k8s)** | Node sensor identity, enforcement policies, safe local test | Tested (10-03) |
 
@@ -274,13 +274,16 @@ welcome/invite):**
    shas still predate it** (ancestry-checked) — per-service
    `se-update-code.sh bff frontend` still owed.
 
-**Left by agents-3d — HITL one cell from closure:**
+**Left by agents-3d — CLOSED 2026-10-13 (see the HITL status section below):**
 
-4. **Slack re-OAuth + one retest (Track 2)** — bot token expired 05:50Z
-   12 Oct; re-OAuth, then one retest with UI-exact wiring + valid token. If
-   still zero dispatch, file the Ping bug (evidence in memory
-   `privilege-hitl-track2-probe` + /tmp/procyon-probe/). Fallback demo
-   (console-native approvals) already works.
+4. ~~Slack re-OAuth + one retest (Track 2)~~ — the re-OAuth cell turned out
+   to be untestable (console hides the Authorize button for all
+   SlackIntegration kinds; xoxb tokens don't natively expire), the
+   token×wiring matrix is fully exhausted (Slack + Mattermost, all empty),
+   and the **Ping bug report is WRITTEN**
+   (`~/Desktop/ping-privilege-hitl-notification-bug.md`) — only its
+   delivery remains (owner). Fallback demo (console-native approvals)
+   works; Mattermost infra torn down, k8s ruled out (arm64-only cluster).
 
 **Left by this session (agents-a3):**
 
@@ -362,11 +365,12 @@ Three sessions independently confirmed the same state; nothing new landed:
 | **Track 2 — Privilege native agentapprovals** | Approval flow **works end-to-end** (ApprovalReq POST → Pending → Approve/Deny in the console's Access Request Approvals UI) = the demoable path. **Slack delivery BLOCKED** — zero dispatch, zero errors over the full token×wiring matrix (the "one untested cell" is now closed: no re-OAuth UI exists for Slack integrations — console hides the Authorize button for all SlackIntegration kinds, and xoxb tokens don't natively expire). **Mattermost tried as a second channel — same block**, infra fully up (compose at `~/Development/mattermost-hitl`, bot verified, integration registered). |
 | **Root-cause candidate (3d, new)** | The agentless tenant never deploys **privilege-proxy egress**: the cmuirlocal ProxyController has **zero MedusaNodes**, and agent-VM egress is proxied + allowlisted to Ping hosts only — proven with a logging listener (504s). Suspected cause for BOTH channels' silence. Also ruled out: Mattermost on Ping k8s (all 27 EKS nodes arm64; Mattermost is amd64-only). |
 | **Track 1 — Recognize-as-HITL** | Parked (recognizeService stubbed; Server-API ops flow implementable with the API key; WebSDK needs Keyless staff). |
-| **Ping report** | Evidence complete, draft **not yet written** (not asked for). |
+| **Ping report** | **WRITTEN 13 Oct** — `~/Desktop/ping-privilege-hitl-notification-bug.md` (7.4K: tenant, both channels, matrix exhaustion, egress evidence); **delivery to Ping is the owner's step**. |
 | **Fallback demo** | Console-native approvals work but were **never built into a dedicated demo surface** — a demo run hits the console UI directly. |
 
-**Unfinished (HITL):** write the Ping bug report from the collected evidence
-(egress/MedusaNodes root-cause candidate included); optionally build the
+**Unfinished (HITL):** deliver the written Ping bug report
+(`~/Desktop/ping-privilege-hitl-notification-bug.md`) through your support
+channel; optionally build the
 console-native fallback into a demo surface so the demo doesn't screen-share
 the console. No repo-facing artifacts exist from this work — all state is
 console/API-side (memory `privilege-hitl-track2-probe` + /tmp/procyon-probe/).
