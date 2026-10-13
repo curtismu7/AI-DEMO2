@@ -23,6 +23,7 @@
 {{- $fall := $lb.maxFails | default 2 }}
 {{- $rise := div (trimSuffix "s" ($lb.failTimeout | default "600s") | int) 10 }}
 {{- $connectTimeout := $lb.connectTimeout | default "3s" }}
+{{- $runtimeSocket := $lb.runtimeSocket | default dict }}
 {{- $host := .Values.hostname }}
 {{- $resources := $lb.resources | default (dict "requests" (dict "cpu" "50m" "memory" "32Mi") "limits" (dict "cpu" "500m" "memory" "128Mi")) }}
 apiVersion: v1
@@ -35,6 +36,13 @@ data:
     global
       log stdout format raw local0
       maxconn 4096
+{{- if $runtimeSocket.enabled }}
+      # Runtime API: park/unpark and per-node state without a restart, used by
+      # the demo's admin LB panel via the headless Service below. level admin
+      # allows disable/enable server; the socket port is not published by the
+      # frontend Service.
+      stats socket :{{ $runtimeSocket.port | default 9999 }} level admin
+{{- end }}
 
     defaults
       mode http
@@ -58,8 +66,20 @@ data:
       bind :8081
       monitor-uri /lb-health
 
+    # Built-in stats page on the public frontend, read-only. Gated by
+    # loadBalancer.stats.auth ("user:password") so only the demo page (and
+    # whoever it tells) sees it; unset leaves /lb-stats answering 401. The page
+    # serves immediately on pod start, before rise 60 promotes any backend, so
+    # rolling these pods to change the config does not add a 503 window.
     frontend https
       bind :8443 ssl crt /tls/site.pem
+      stats enable
+      stats uri /lb-stats
+      stats refresh 5s
+      stats admin if FALSE
+{{- if $lb.stats }}
+      stats auth {{ $lb.stats.auth }}
+{{- end }}
       # node= is the gateway that answered; xff= is the pin key.
       capture request header X-Forwarded-For len 64
       log-format '%ci [%t] "%r" %ST %B node=%s xff=%hr'
@@ -116,6 +136,10 @@ spec:
               name: https
             - containerPort: 8081
               name: health
+{{- if $runtimeSocket.enabled }}
+            - containerPort: {{ $runtimeSocket.port | default 9999 }}
+              name: runtime
+{{- end }}
           readinessProbe:
             httpGet: {path: /lb-health, port: 8081}
             periodSeconds: 10
@@ -153,4 +177,25 @@ spec:
     - name: https
       port: 8623
       targetPort: 8443
+{{- if $runtimeSocket.enabled }}
+---
+# Headless: DNS returns EVERY pod IP, so a runtime command can be fanned out to
+# all replicas (park state must agree across pods). Not published by the
+# frontend Service.
+apiVersion: v1
+kind: Service
+metadata:
+  name: {{ $name }}-sock
+  namespace: {{ .Values.namespace }}
+  labels:
+    app: {{ $name }}
+spec:
+  clusterIP: None
+  selector:
+    app: {{ $name }}
+  ports:
+    - name: runtime
+      port: {{ $runtimeSocket.port | default 9999 }}
+      targetPort: {{ $runtimeSocket.port | default 9999 }}
+{{- end }}
 {{- end }}

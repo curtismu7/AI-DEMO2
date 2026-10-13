@@ -1104,6 +1104,9 @@ app.use('/api/admin/promptfoo', authenticateToken, promptfooRoutes);
 // them. Verified live — with authenticateToken alone a CUSTOMER session got 200
 // from GET /operations.
 app.use('/api/admin/mgmt-api', authenticateToken, requireAdmin, mgmtApiRoutes);
+// mcpgw-lb runtime park/unpark — HAProxy's runtime API behind the headless
+// mcpgw-lb-sock Service. Admin-only: it moves live gateway traffic.
+app.use('/api/admin/lb/runtime', authenticateToken, requireAdmin, require('./routes/adminLbRuntime').router);
 // Any authenticated user, not admin-only — deliberate per auth-requirements.json
 // "/secret-rotation": "user".
 app.use('/api/admin/secret-rotation', authenticateToken, secretRotationRoutes);
