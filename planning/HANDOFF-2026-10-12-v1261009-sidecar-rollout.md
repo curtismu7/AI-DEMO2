@@ -366,14 +366,14 @@ Three sessions independently confirmed the same state; nothing new landed:
 | **Root-cause candidate (3d, new)** | The agentless tenant never deploys **privilege-proxy egress**: the cmuirlocal ProxyController has **zero MedusaNodes**, and agent-VM egress is proxied + allowlisted to Ping hosts only — proven with a logging listener (504s). Suspected cause for BOTH channels' silence. Also ruled out: Mattermost on Ping k8s (all 27 EKS nodes arm64; Mattermost is amd64-only). |
 | **Track 1 — Recognize-as-HITL** | Parked (recognizeService stubbed; Server-API ops flow implementable with the API key; WebSDK needs Keyless staff). |
 | **Ping report** | **WRITTEN 13 Oct** — `~/Desktop/ping-privilege-hitl-notification-bug.md` (7.4K: tenant, both channels, matrix exhaustion, egress evidence); **delivery to Ping is the owner's step**. |
-| **Fallback demo** | Console-native approvals work but were **never built into a dedicated demo surface** — a demo run hits the console UI directly. |
+| **Fallback demo** | **SHIPPED 13 Oct (later same day)** — a dedicated HITL demo surface now exists: `opensearch-hitl` door (new Agentic App + `opensearch-mcp-server` pod in `ping-devops-cmuir` at `:9900` → the existing `opensearch` datastore) + `hitl-opensearch` AI policy (holds `SearchIndexTool` pending approval) + `opensearch-hitl-permit` (all 9 tools). Verified live end to end with Claude Code as the MCP client: call → HOLD (`ins_…` opened, `mcp_policy_approval_required`) → approve in Access Request Approvals → retry → results. CIMD gate: Claude Code's client-document URL added under Settings → MCP Client Documents (Public). In-app demo surface shipped in the same commit `d73463a8e`: "Privilege: OpenSearch HITL" door profile + hold-aware RESULTS card (waiting-for-approval + instruction id + Retry after approval); CI green, bff + frontend deployed and content-verified (live bundle carries the card). |
 
 **Unfinished (HITL):** deliver the written Ping bug report
 (`~/Desktop/ping-privilege-hitl-notification-bug.md`) through your support
-channel; optionally build the
-console-native fallback into a demo surface so the demo doesn't screen-share
-the console. No repo-facing artifacts exist from this work — all state is
-console/API-side (memory `privilege-hitl-track2-probe` + /tmp/procyon-probe/).
+channel. Demo note: a non-HITL-aware client shows the hold as a cryptic tool
+result and gives up after one retry (measured with Claude Code) — the demo
+client's card + Retry button is what makes the flow legible; the console-native
+fallback no longer needs building.
 
 ### "Demo welcome wizard design" — resolved: no separate design effort exists
 
