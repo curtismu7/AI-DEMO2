@@ -7,6 +7,9 @@
 
 ## 0. Demo portfolio at a glance — everything built to date
 
+> Collated 2026-10-13 from every concurrent session's own report of what it
+> personally built (agents a4, b6, d3, ac, 25, 3d + this session).
+
 The customer-facing story is one trust plane: **the AI-DEMO2 app shows governed
 AI in a product UI; the Privilege console/gateway is the enforcement behind
 it.** Every demo below is shipped and verified live unless marked otherwise.
@@ -21,10 +24,14 @@ it.** Every demo below is shipped and verified live unless marked otherwise.
 | **Jev demo gallery** | 8 clickable vertical demos (auto-finance, health, …), each run-to-completion tested | Live (PR #1163 + hotfix #1170, on von-1.3.0) |
 | **Dot personal agent** | The user's own agent behind the gateway: promote-based deploy, hosted-access 401-proves-route | Live (PR #1207, 12 Oct) |
 | **Group board vertical picker** (`/group-policy`) | One decision per load via `?verticalId=`; panel = picked user, board = signed-in user, both labeled | Live (PRs #1212/#1215) |
-| **Hosted-access plus wall** | Public `/` on SE with `+address` aliases denied; demo allowlist in configmap — revoke by clearing `HOSTED_ACCESS_ALLOWED_IDENTIFIERS` | Live (PR #1191, 12 Oct) |
+| **Hosted-access plus wall** | Public `/` on SE with `+address` aliases denied; demo allowlist in configmap — revoke by clearing `HOSTED_ACCESS_ALLOWED_IDENTIFIERS`; wall fix for allowlisted off-list domains killed the demoAdmin 401 login loop (`/api/auth/hosted-access/check` → 204) | Live (PRs #1191 + fix #1211, browser-verified 12 Oct) |
+| **Invite→approval loop** | Admin invites via form → invitee appears on the approval page → approve moves them through the gate (was a dead end); gate denials now log `group_not_allowed` with reason/subject/email/domain | Live-verified on tenant, PR #1228 open (re-review clean) |
+| **Bootstrap hosted-access (⑥b)** | `setup:fresh` reproduces the hosted wall's inputs — sign-in app, Complete/Pending groups, groups claim, .env keys — no console steps | Live-verified on tenant, PR #1228 open |
 | **Invite form** | send-invite endpoint; native-email gate = password+emailOTP despite SMS fail | Live (PR #1196, 12 Oct) |
-| **LLM gateway page** (`/llm-gateway`) | The custom/llama.cpp lane + OpenRouter lane with the two response-side stories: policy withhold ("Denied by policy", Active) vs AIGuard redact ("4 redacted", Candidate) | Live; stories switch on policy state |
+| **LLM gateway page** (`/llm-gateway`) | Five virtual-key lanes incl. the new OpenRouter lane; the custom/llama.cpp lane with the two response-side stories: policy withhold ("Denied by policy", Active) vs AIGuard redact ("Allowed, 4 redacted", Candidate) — both UI-verified | Live (lanes: a4 session, 52adb1a34…; 824 tests green) |
+| **Session-scoped MCP token cache** | Replay-labeled rail events give demo speed without faking the exchange chain | Live (24270fee9; test breakage fixed by #1224) |
 | **Auth recovery** | Signoff drops `id_token_hint`; exchange-reject → 401 force-login; activity panels | Live (62f064435, 12 Oct) |
+| **SE sign-in repair** | Root-caused + fixed live: User Login app is CLIENT_SECRET_POST but SE had empty secret + stale auth-method "none" — rotated secret, patched ai-demo-secrets + ai-demo-config | Fixed live 13 Oct (ops change, no PR); customer sign-in works again |
 
 ### In the Privilege console / gateway
 
@@ -35,11 +42,22 @@ it.** Every demo below is shipped and verified live unless marked otherwise.
 | **Red team: hostile A2A agent** | Poisoned Agent-Card attack end to end — what the gateway blocked vs alerted vs passed | Measured (standalone/hostile-a2a-agent) |
 | **Hostile-MCP rug-pull** | Side-by-side twin MCP servers: governed twin DENYs 3 dangerous tools, ungoverned (allow-all policy) ALLOWs all; no-policy = DENY ALL on v1.261009 | Verified live (11 Oct) |
 | **Hostile-MCP public door** | Re-registered console app on `/mcp`; public door 401-with-metadata, zero entry-path rejections | Resolved (12 Oct) |
-| **Gateway release v1.261009 runbook** | Model catalog refresh live in dropdowns; response-side policy denial (`llm_policy_response_denied` + `UpstreamStatus:200` pairing); llama.cpp governed on our own hardware via `/llm/custom/v1`; Bedrock blocked on credential | Built this session (12 Oct) |
+| **Gateway topology page** (`/privilege-gateway-topologies`) | Live LB tab: ReactFlow diagram of the real 2-node mesh — ingress → mcpgw-lb HAProxy pair → gateway nodes → Agentic App doors — walk-stepped, verified against live LB/gateway logs; all 4 tabs ReactFlow (Mermaid removed, opensearch22 default door → aggregate) | Live (PRs #1223, #1227, blurb #1229) |
+| **HAProxy stats + LB park/unpark** | Live per-node health/sessions/bandwidth stats (basic-auth `/lb-stats` iframe) and admin Park/Unpark per gateway via HAProxy runtime API — live failover control without helm | Merged (PR #1225, be4c0224 13 Oct), **cluster deploy pending** (helm + UI build-arg) |
+| **Cluster model swap** | tier1 PVC Phi-4-mini → Llama-3.2-3B — the model behind the Privilege llama.cpp lane | Live (5507079ce, gateway-verified) |
+| **Gateway release v1.261009 runbook** | Model catalog refresh live in dropdowns; response-side policy denial (`llm_policy_response_denied` + `UpstreamStatus:200` pairing); llama.cpp governed on our own hardware via `/llm/custom/v1` (403 `wrong_provider` control, 90s timeout fix); Bedrock blocked on credential | Built this session (12 Oct) |
 | **ML sidecar on every key** | demo_mcp_promptguard (NeMo + ProtectAI) wired into all 10 Agent Registry keys, Block Agreement off — injection blocked end to end on the custom lane | Built this session (12 Oct) |
-| **HITL approvals (Track 2)** | Privilege native agentapprovals → Slack/Teams: Privilege side exhaustively verified, **zero Slack delivery = Ping bug**; demo fallback = console-native Access Request Approvals | Parked; fallback demoable |
+| **HITL approvals (Track 2)** | Privilege native agentapprovals: approval flow works end-to-end (ApprovalReq → Pending → console Approve/Deny) = demo-ready fallback; **Slack delivery blocked after exhaustive probing (zero dispatch, zero errors) = Ping bug**; one untested cell remains (valid bot token + UI-exact wiring after Slack re-OAuth — token expired 05:50Z) | Parked; fallback demoable (3d session; evidence in memory + /tmp/procyon-probe/) |
 | **Secrets Hub (GSM)** | Google Secret Manager sync, service-account key in audit log | Tested (10-04) |
 | **Sensor (Docker + k8s)** | Node sensor identity, enforcement policies, safe local test | Tested (10-03) |
+
+### Hygiene that keeps the demos running (not demos themselves)
+
+- **Dependabot 51 → 0** (PRs #1190, #1216, #1224, #1226: otel ×7, vitest 4, lighthouse 13, sentry 11, express 4.22.3, provider-utils override; 20 documented dismissals) — PR #1225 review/merge + 6560-test UI suite green.
+- **Live canary resurrected** (PR pending): CANARY_* secrets were never set (39/40 runs red); patched for wall + SSO screens — UC1 still blocked by the Welcome wizard modal on /use-cases (Skip first), patch in flight.
+- **Stale-engine landmine fixed**: nginx in gateway1-lb.values.yaml would have rolled the public LB back (d3 session, docs in GATEWAY-LOAD-BALANCER.md §00a-2).
+- **p1-invite runbook corrected**: "console only" scoped to tenant 0428ba4f — demo-tenant writes work via memberOfGroups (#1200, merged).
+- **Known dead end recorded**: mcpgw answers 200 RFC 9728 metadata for ANY door path (never-existing apps included) — door-liveness probes are meaningless; ground truth is cyonproxy.log or the console (memory: mcpgw-wildcard-metadata).
 
 ### Diagrams/docs that carry the demos
 
