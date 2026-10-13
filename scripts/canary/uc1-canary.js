@@ -66,6 +66,29 @@ function fail(msg) {
   };
 
   try {
+    // ── Hosted-access wall login ─────────────────────────────────────────
+    // The wall gates every /api path (401 hosted_access_required for anon),
+    // including the customer OAuth login this canary uses. Do the wall's own
+    // PingOne round-trip first; its approval cookie then covers the session.
+    // Skipped when the wall is disabled (its login redirects straight back).
+    await page.goto(BASE + '/api/auth/hosted-access/login', { waitUntil: 'domcontentloaded' });
+    await page.waitForURL(/apps\.pingone\.com/, { timeout: 30000 }).catch(async () => {
+      await shoot('canary-wall-not-shown.png');
+      console.log('canary: wall login did not reach PingOne (wall disabled?) — continuing');
+    });
+    if (page.url().includes('apps.pingone.com')) {
+      await page.waitForSelector('#username');
+      await page.fill('#username', USERNAME);
+      await page.fill('#password', PASSWORD);
+      await page.getByRole('button', { name: /sign on/i }).click();
+      await page.waitForURL((u) => u.href.startsWith(BASE), { timeout: 30000 })
+        .catch(async () => {
+          await shoot('canary-wall-redirect.png');
+          throw new Error(`wall login did not return to ${BASE} (landed on ${page.url()})`);
+        });
+      console.log('canary: wall approved');
+    }
+
     // ── Sign in via the PingOne hosted form ──────────────────────────────
     // Go straight to the BFF's OAuth login redirect instead of clicking the
     // top-nav Sign In button: that button computes a 0x0 bounding box in a
@@ -74,9 +97,16 @@ function fail(msg) {
     // same redirect (navigateToCustomerOAuthLogin() in authUi.js) — skip it.
     await page.goto(BASE + '/api/auth/oauth/user/login?return_to=%2Fdashboard');
     await page.waitForURL(/apps\.pingone\.com/, { timeout: 30000 });
-    await page.waitForSelector('#username');
-    await page.fill('#username', USERNAME);
-    await page.fill('#password', PASSWORD);
+    // PingOne SSO: if the wall login already authenticated this browser, the
+    // hosted page auto-forwards through the form-less path. Race the form
+    // against the redirect back to the app.
+    // Full form (username + password), or the SSO "Hello <user>" screen that
+    // only asks for the password. Either way: fill what's present, submit.
+    await page.waitForSelector('#username, input[type="password"]', { timeout: 15000 });
+    if (await page.locator('#username').count()) {
+      await page.fill('#username', USERNAME);
+    }
+    await page.fill('input[type="password"]', PASSWORD);
     await page.getByRole('button', { name: /sign on/i }).click();
     // The redirect_uri regression sent users to a dev-only host — assert we
     // came back to the SAME public origin we started on.
@@ -85,18 +115,51 @@ function fail(msg) {
         await shoot('canary-login-redirect.png');
         throw new Error(`login did not return to ${BASE} (landed on ${page.url()})`);
       });
+    // The callback page exchanges the code and then client-redirects to
+    // return_to — don't race it (a /use-cases hit mid-exchange shows the
+    // signed-out shell).
+    await page.waitForURL((u) => !u.pathname.includes('/callback'), { timeout: 30000 })
+      .catch(async () => {
+        await shoot('canary-callback-stuck.png');
+        throw new Error(`callback never redirected (still on ${page.url()})`);
+      });
     console.log('canary: signed in, landed on', page.url());
 
     // ── Run UC1 from the use-case launcher ───────────────────────────────
     await page.goto(BASE + '/use-cases');
     await page.waitForLoadState('networkidle').catch(() => {});
-    const card = page.locator('text=Delegated access with proof').first();
-    await card.waitFor({ timeout: 30000 });
+    // The Welcome wizard intercepts every fresh-browser visit (its overlay
+    // swallows the first click) — dismiss it before touching the page.
+    const skipBtn = page.getByRole('button', { name: /^skip$/i }).first();
+    if (await skipBtn.isVisible().catch(() => false)) {
+      await skipBtn.click();
+      console.log('canary: welcome wizard skipped');
+    }
+    // The use-case list is searchable and cards are grouped/renamed over time —
+// locate UC1 by its stable id chip ('UC1') next to 'Delegated access', or via
+// the search box when grouping hides it.
+const card = page.locator(':text("UC1")').locator('..').getByText(/Delegated access/i).first();
+    await card.waitFor({ timeout: 30000 }).catch(async () => {
+      // The wizard can re-mount over the list after the first skip — dismiss
+      // again if it reappears, then re-wait.
+      if (await skipBtn.isVisible().catch(() => false)) {
+        await skipBtn.click();
+      }
+      await card.waitFor({ timeout: 30000 });
+    });
     await card.click();
     const runBtn = page.getByRole('button', { name: /^run$/i }).first();
     await runBtn.waitFor({ timeout: 15000 });
     await runBtn.click();
     await page.waitForURL(/dashboard/, { timeout: 30000 });
+    // The delegated-access consent modal ("Allow AI Agent Access") gates the
+    // run — approve it or the agent never receives the prompt.
+    const allowBtn = page.getByRole('button', { name: /^allow$/i }).first();
+    try {
+      await allowBtn.waitFor({ state: 'visible', timeout: 20000 });
+      await allowBtn.click();
+      console.log('canary: delegation consent allowed');
+    } catch { /* consent may be pre-approved for this session */ }
     console.log('canary: UC1 launched');
 
     // ── Wait for the agent reply and judge it ────────────────────────────
