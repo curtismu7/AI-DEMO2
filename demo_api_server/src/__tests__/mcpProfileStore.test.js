@@ -98,6 +98,7 @@ describe('mcpProfileStore', () => {
       { id: () => mcpProfileStore.PRIVILEGE_OPENSEARCH_PROFILE_ID, urlSuffix: 'aggregate/mcp' },
       { id: () => mcpProfileStore.PRIVILEGE_BRAVE_PROFILE_ID, urlSuffix: 'mcp-brave-search/mcp' },
       { id: () => mcpProfileStore.PRIVILEGE_GRAFANA_PROFILE_ID, urlSuffix: 'mcp-grafana/mcp' },
+      { id: () => mcpProfileStore.PRIVILEGE_OPENSEARCH_HITL_PROFILE_ID, urlSuffix: 'opensearch-hitl/mcp' },
     ];
 
     it.each(DOORS)('$urlSuffix is seeded as transport:privilege, isBuiltIn, pointed at the current gateway', ({ id, urlSuffix }) => {

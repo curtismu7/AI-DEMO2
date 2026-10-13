@@ -30,6 +30,10 @@ const PRIVILEGE_PROFILE_ID = 'built-in-privilege-mcp';
 const PRIVILEGE_OPENSEARCH_PROFILE_ID = 'built-in-privilege-opensearch';
 const PRIVILEGE_BRAVE_PROFILE_ID = 'built-in-privilege-brave';
 const PRIVILEGE_GRAFANA_PROFILE_ID = 'built-in-privilege-grafana';
+// The HITL teaching door: SearchIndexTool on opensearch-hitl is held for human
+// approval (hitl-opensearch AI policy, verified live 2026-10-13). Added as a
+// separate door so the step-25/aggregate doors keep their no-HITL behavior.
+const PRIVILEGE_OPENSEARCH_HITL_PROFILE_ID = 'built-in-privilege-opensearch-hitl';
 
 // The gateway's client URL pattern is always <base>/<AgenticAppName>/mcp (see
 // the skill below) — verified live 2026-09-07 (401, i.e. reachable).
@@ -49,6 +53,7 @@ const BUILTIN_PROFILE_IDS = new Set([
   PRIVILEGE_OPENSEARCH_PROFILE_ID,
   PRIVILEGE_BRAVE_PROFILE_ID,
   PRIVILEGE_GRAFANA_PROFILE_ID,
+  PRIVILEGE_OPENSEARCH_HITL_PROFILE_ID,
 ]);
 
 /**
@@ -117,6 +122,12 @@ function ensureBuiltInsSeeded() {
     label: 'Privilege: Grafana',
     transport: 'privilege',
     url: `${PRIVILEGE_GATEWAY_BASE}/mcp-grafana/mcp`,
+    isDefault: false,
+  });
+  seedBuiltIn(PRIVILEGE_OPENSEARCH_HITL_PROFILE_ID, {
+    label: 'Privilege: OpenSearch HITL',
+    transport: 'privilege',
+    url: `${PRIVILEGE_GATEWAY_BASE}/opensearch-hitl/mcp`,
     isDefault: false,
   });
 }
@@ -208,6 +219,7 @@ module.exports = {
   PRIVILEGE_OPENSEARCH_PROFILE_ID,
   PRIVILEGE_BRAVE_PROFILE_ID,
   PRIVILEGE_GRAFANA_PROFILE_ID,
+  PRIVILEGE_OPENSEARCH_HITL_PROFILE_ID,
   listProfiles,
   getProfile,
   createProfile,

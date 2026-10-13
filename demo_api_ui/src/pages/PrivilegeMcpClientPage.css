@@ -868,6 +868,55 @@ select.cur-input { cursor: pointer; }
   font-style: italic;
 }
 
+/* HITL hold card — a tool call the gateway stopped pending a human approval. */
+.cur-hitl-hold {
+  margin: 4px 0 10px;
+  padding: 10px 12px;
+  border: 1px solid #b8860b;
+  border-left: 4px solid #b8860b;
+  border-radius: 4px;
+  background: rgba(184, 134, 11, 0.08);
+}
+
+.cur-hitl-hold__head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cur-hitl-hold__icon { font-size: 16px; }
+
+.cur-hitl-hold__title {
+  font-weight: 600;
+  color: #b8860b;
+}
+
+.cur-hitl-hold__body {
+  margin: 6px 0 4px;
+  font-size: var(--font-size-sm, 12px);
+  line-height: 1.45;
+}
+
+.cur-hitl-hold__instruction {
+  margin: 4px 0;
+  font-size: var(--font-size-xs, 11px);
+  color: #888;
+}
+
+.cur-hitl-hold__retry {
+  margin-top: 6px;
+  padding: 4px 12px;
+  border: 1px solid #b8860b;
+  border-radius: 4px;
+  background: transparent;
+  color: #b8860b;
+  cursor: pointer;
+}
+
+.cur-hitl-hold__retry:hover {
+  background: rgba(184, 134, 11, 0.15);
+}
+
 .cur-terminal-line {
   display: flex;
   align-items: baseline;

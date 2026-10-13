@@ -152,6 +152,23 @@ function api(path, options = {}) {
 }
 
 
+// A HITL hold from the gateway (Privilege AI policy, "require human approval"
+// outcome): the tools/call answers 200 with a JSON-RPC result that announces
+// the hold instead of carrying tool output. The v1.261009 gateway carries a
+// pending_approval status and the ins_… instruction id the approval binds to;
+// matched structurally when present, else on the instruction-id shape itself —
+// the exact envelope is not documented, so the detector refuses to depend on
+// one. A regular result (tool text, an isError denial) never matches.
+function holdInfo(data) {
+  const haystack = JSON.stringify(data);
+  if (!haystack || !/ins_[0-9a-f]{12,}/i.test(haystack)) return null;
+  if (/pending_approval/i.test(haystack)) {
+    const m = haystack.match(/ins_[0-9a-f]{12,}/i);
+    return { instructionId: m ? m[0] : '' };
+  }
+  return null;
+}
+
 function scopeColor(scope) {
   if (scope.startsWith('mcp:')) return 'scope-mcp';
   if (scope.startsWith('p1:')) return 'scope-p1';
@@ -588,6 +605,14 @@ export default function PrivilegeMcpClientPage() {
   // bumps on each new result to flash the tab so the user notices output arrived.
   const [toolResults, setToolResults] = useState([]);
   const [resultNonce, setResultNonce] = useState(0);
+  // The live HITL hold: a tool call the gateway stopped pending a human
+  // approval. Cleared by any non-held result (the retry) or a new call.
+  const [hold, setHold] = useState(null);
+  const retryHeldCall = useCallback(async () => {
+    if (!hold) return;
+    await executeToolCall(hold.tool, hold.args);
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [hold]);
   // Scope picked in the left rail — echoed/highlighted in the right SCOPES table.
   // With a long granted-scope list, clicking a pill on the left jumps to its row.
   const [selectedScope, setSelectedScope] = useState(null);
@@ -1357,9 +1382,23 @@ export default function PrivilegeMcpClientPage() {
     try {
       const args = JSON.parse(argsStr || '{}');
       const data = await api('/tools/call', { method: 'POST', body: { name, arguments: args } });
+      const held = holdInfo(data);
+      if (held) {
+        // The gateway held this call for a human decision (Privilege HITL
+        // policy). Say so in human terms instead of rendering the hold JSON as
+        // if it were tool output — the raw JSON stays one expand away below.
+        setHold({
+          tool: name,
+          instructionId: held.instructionId,
+          args: argsStr || '{}',
+        });
+      } else {
+        setHold(null);
+      }
       out = JSON.stringify(data, null, 2);
       ok = !data?.error && !data?.result?.isError;
     } catch (err) {
+      setHold(null);
       const handled = handleAuthChallenge(err, { silent: true });
       out = JSON.stringify({ error: handled ? 'Sign in is required for this door.' : err.message }, null, 2);
       ok = false;
@@ -2737,6 +2776,27 @@ export default function PrivilegeMcpClientPage() {
               )}
               {visibleTerminalTab === 'results' && (
                 <div className="cur-terminal-results">
+                  {hold && (
+                    <div className="cur-hitl-hold" data-testid="hitl-hold-card">
+                      <div className="cur-hitl-hold__head">
+                        <span className="cur-hitl-hold__icon">⏸</span>
+                        <span className="cur-hitl-hold__title">Waiting for human approval</span>
+                      </div>
+                      <p className="cur-hitl-hold__body">
+                        The gateway held <code>{hold.tool}</code> — policy requires a human decision before this
+                        tool runs. Approve it in the Privilege console under{' '}
+                        <strong>Access Request Approvals → HITL Requests</strong>, then retry.
+                      </p>
+                      {hold.instructionId && (
+                        <p className="cur-hitl-hold__instruction">
+                          Instruction <code>{hold.instructionId}</code>
+                        </p>
+                      )}
+                      <button type="button" className="cur-hitl-hold__retry" onClick={retryHeldCall}>
+                        Retry after approval
+                      </button>
+                    </div>
+                  )}
                   {toolResults.length === 0 ? (
                     <span className="cur-terminal-empty">No results yet — run a tool to see its output here</span>
                   ) : (
