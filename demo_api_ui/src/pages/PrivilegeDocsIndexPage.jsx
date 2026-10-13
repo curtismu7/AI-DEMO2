@@ -358,6 +358,14 @@ const SECTIONS = [
           "Runbook for both A2A demos through the Agent Privilege: the pre-demo check, both demo scripts with what to say, setup from scratch with our values, symptom-to-fix table and known limits.",
       },
       {
+        title: "Privilege Agent Field Guide",
+        drive: DRIVE_FOLDER,
+        repo: "docs/privilege-agent-field-guide.html",
+        pdf: null,
+        covers:
+          "Trainer's page: the top 10 agent features in demo arc order (identity → policy → LLM → MCP → HITL → proof), each with what/show/say presenter rows, the model-allowlist verified table, and the pre-session caveats (Google lane misconfigured, Slack/Teams approvals unverified).",
+      },
+      {
         title: "New demo environment",
         drive: drive("1rDb09nO8qnQN9tu6C-29iWUiazDSjqpm"),
         repo: "privilege/NEW-DEMO-ENVIRONMENT.md",
