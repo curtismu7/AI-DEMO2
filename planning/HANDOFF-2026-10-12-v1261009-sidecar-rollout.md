@@ -214,6 +214,25 @@ Per-key notes (full table in the rollout doc):
 8. **"Another connection with Block Agreement off"** — answered by the
    rollout (all 10 do), but if the user meant a *separate new* connection key
    as a demo prop, that isn't built — ask first.
+9. **llama-tier1 api-key hygiene (from agents-a4)** — the LIVE tier1
+   deployment has the llama.cpp `--api-key` value **inline in its args**
+   (llm-proxy carries the same value in `LLAMA_TIER_API_KEY`) and works, but
+   the secret-backed manifest `k8s/56-llm-stack.yaml` @5507079ce (secret
+   `llama-tier-api-keys`, key `tier1`, env `LLAMA_TIER1_API_KEY`) is the
+   target state and **hasn't been applied to the live deployment yet**.
+   Applying it closes the drift; don't re-derive the value — it's already in
+   the live args.
+
+### Reproducing the custom lane (confirmed live by agents-a4, 2026-10-13)
+
+A fresh agent wiring the llama.cpp lane needs exactly:
+
+| What | Value | Where it lives |
+| --- | --- | --- |
+| CustomUpstream BaseURL | `https://ai-demo.ping-devops.com/llm-gw` — no trailing `/v1`, no trailing slash; AuthType `bearer`; the gateway appends the provider path itself | Console key `llama.cpp` (provider `custom`) |
+| Ingress plumbing | `/llm-gw/?(.*)` regex + rewrite-target `/$1` strips the prefix, forwards to `llm-proxy:8090` | `k8s/57-llm-gw-ingress.yaml` |
+| Virtual key (BFF → gateway) | env `PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM` (BFF `demo_api_server/.env`); gateway host from `PRIVILEGE_LLM_GATEWAY_URL` (`https://mcpgw.ai-demo.ping-devops.com`) | BFF env, value never committed |
+| RealKey (gateway → llama.cpp) | Gateway injects the key's stored RealKey as `Authorization: Bearer`; tier1's `--api-key` must match it | Console key object (RealKey) + live tier1 args / target-state secret above |
 
 **Left blocked (ownerless until a credential lands):**
 
