@@ -379,7 +379,7 @@ const SECTIONS = [
         repo: "docs/privilege-agent-features.md",
         pdf: null,
         covers:
-          "The ten agent-facing Privilege features in demo arc order, each with a description and links to the detailed docs; names the three coverage gaps (rug-pull matrix, agentapprovals doc, compliance mapping).",
+          "All 21 Privilege features: the ten agent-facing ones in demo arc order, then eleven more (discovery-gating, aggregates, A2A, CIMD, policy union, Secrets Hub, sensor enforcement and others), each with a description, links to the detailed docs, and how to demo it.",
       },
       {
         title: "Privilege Agent Field Guide",
