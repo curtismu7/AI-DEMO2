@@ -187,4 +187,16 @@ describe('hostedAccessGate', () => {
     sendAccessRestricted(res);
     expect(res.headers['content-security-policy']).toBe("default-src 'none'; style-src 'unsafe-inline'");
   });
+
+  test('a denied evaluation returns subject and reason for the audit log', () => {
+    const claims = { sub: 's1', email: 'a@pingidentity.com', email_verified: true, groups: [] };
+    const result = require('../../services/hostedAccessPolicy').evaluateHostedIdentity(claims, {
+      enabled: true, requiredGroupId: 'grp-1', domainSet: new Set(['pingidentity.com']),
+      rejectPlusAddressing: true, identifierSet: new Set(),
+    });
+    expect(result.allowed).toBe(false);
+    expect(result.reason).toBe('group_not_allowed');
+    expect(result.subject).toBe('s1');
+    expect(result.email).toBe('a@pingidentity.com');
+  });
 });

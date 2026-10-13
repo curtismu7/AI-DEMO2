@@ -1,6 +1,7 @@
 'use strict';
 
 const crypto = require('crypto');
+const { logger, LOG_CATEGORIES } = require('../utils/logger');
 
 const APPROVAL_VERSION = 1;
 const DOMAIN_PATTERN = /^(?=.{1,253}$)(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?)(?:\.(?:[a-z0-9](?:[a-z0-9-]{0,61}[a-z0-9])?))+$/;
@@ -80,6 +81,7 @@ function loadHostedAccessPolicy(env = process.env) {
 }
 
 function denied(reason, fields = {}) {
+  logger.warn(LOG_CATEGORIES.USER_MANAGEMENT, 'hosted-access deny', { reason, ...fields });
   return { allowed: false, reason, subject: fields.subject || null, email: fields.email || null, domain: fields.domain || null };
 }
 

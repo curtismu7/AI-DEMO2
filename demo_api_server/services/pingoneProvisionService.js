@@ -978,6 +978,99 @@ class PingOneProvisionService {
   }
 
   /**
+   * Ensure the hosted-access sign-in app exists (mirrors live 17d8cbac config).
+   * Idempotent by exact name match. Returns { application, exists }.
+   */
+  async _ensureHostedAccessApp(publicAppUrl) {
+    const name = 'Hosted Access Sign-In';
+    const q = encodeURIComponent('protocol eq "OPENID_CONNECT"');
+    const list = (await this.makeRequest('GET', `/applications?filter=${q}`)).data._embedded?.applications || [];
+    const existing = list.find(a => a.name === name);
+    if (existing) return { application: existing, exists: true };
+    const response = await this.makeRequest('POST', '/applications', {
+      name,
+      // Required — POST without it 400s 'must not be null' (live 2026-10-12).
+      // Exact string from the live 17d8cbac app so bootstrap mirrors production.
+      description: 'Hosted Ping employee admission front door',
+      // Run-3 probe: 'enabled must not be null' — this tenant requires enabled
+      // explicitly at create; GET-shows-true is a post-create default.
+      enabled: true,
+      type: 'WEB_APP',
+      protocol: 'OPENID_CONNECT',
+      grantTypes: ['AUTHORIZATION_CODE'],
+      responseTypes: ['CODE'],
+      tokenEndpointAuthMethod: 'NONE',
+      pkceEnforcement: 'S256_REQUIRED',
+      redirectUris: [`${publicAppUrl}/api/auth/hosted-access/callback`],
+    });
+    return { application: response.data, exists: false };
+  }
+
+  /**
+   * Ensure the groups claim attribute mapping on an app — the load-bearing
+   * piece. Value MUST be ${user.memberOfGroupIDs} (UUIDs; the gate compares
+   * UUIDs). Idempotent: same-name POST with 'already exists' = success.
+   */
+  async _ensureGroupsClaim(appId) {
+    const mapping = {
+      name: 'groups',
+      value: '${user.memberOfGroupIDs}',
+      idToken: true,
+      userInfo: true,
+      required: false,
+    };
+    const list = (await this.makeRequest('GET', `/applications/${appId}/attributes`)).data._embedded?.attributes || [];
+    const existing = list.find(a => a.name === 'groups');
+    if (existing) {
+      if (existing.value !== mapping.value) {
+        await this.makeRequest('PUT', `/applications/${appId}/attributes/${existing.id}`, mapping);
+        return { mapped: true, corrected: true };
+      }
+      return { mapped: true, corrected: false };
+    }
+    try {
+      await this.makeRequest('POST', `/applications/${appId}/attributes`, mapping);
+      return { mapped: true, corrected: false };
+    } catch (err) {
+      if (/already exists/i.test(err?.response?.data?.message || err.message)) return { mapped: true, corrected: false };
+      throw err;
+    }
+  }
+
+  /**
+   * Ensure both hosted-access groups; return their ids.
+   */
+  async _ensureHostedAccessGroups() {
+    const userGroupId = await this._ensureGroup('Hosted Registration Complete', 'Users approved for hosted application access');
+    const partialGroupId = await this._ensureGroup('Hosted Registration Pending', 'Users with pending hosted-access registration');
+    return { userGroupId, partialGroupId };
+  }
+
+  /**
+   * Grant the AI Agent its two resource grants — Agent Gateway (Exchange #1
+   * actor) and enduser (Exchange #1 subject) — STRICTLY SEQUENTIALLY.
+   *
+   * Was Promise.all: 'read'/'write'/'transfer'/'mortgage:read' exist on BOTH
+   * resources, and each call snapshots existingGrants before the other's POST
+   * lands, so the second POST 400s INVALID_DATA "Multiple scopes with the same
+   * name cannot be added to the same grant" (live 2026-10-12). Sequential so
+   * the second call's cross-resource name filter sees the first grant.
+   */
+  async _grantAiAgentScopes(appId, agentGwResourceId, enduserResourceId) {
+    const gwGrant = await this.grantScopesToApplication(
+      appId,
+      agentGwResourceId,
+      scopeTopology.resourceScopes('Super Banking Agent Gateway'),
+    );
+    const endUserGrant = await this.grantScopesToApplication(
+      appId,
+      enduserResourceId,
+      ['read', 'write', 'transfer', 'ai:agent:read', 'mortgage:read'],
+    );
+    return [gwGrant, endUserGrant];
+  }
+
+  /**
    * Idempotently ensure a permissive password policy exists.
    *
    * Demo-tuned: lowest-friction policy PingOne will accept.
@@ -2007,6 +2100,27 @@ class PingOneProvisionService {
       '# Worker Credentials (for future management)',
       `PINGONE_WORKER_CLIENT_ID=${config.workerClientId}`,
       `PINGONE_WORKER_CLIENT_SECRET=${config.workerClientSecret}`,
+      '',
+      '# ── Hosted access (SE gate + registration approval) ────────────────────────',
+      `HOSTED_ACCESS_CLIENT_ID=${provisioned.hostedAccess?.clientId || ''}`,
+      `HOSTED_ACCESS_USER_GROUP_ID=${provisioned.hostedAccess?.userGroupId || ''}`,
+      `HOSTED_ACCESS_PARTIAL_GROUP_ID=${provisioned.hostedAccess?.partialGroupId || ''}`,
+      `HOSTED_ACCESS_REQUIRED_GROUP_ID=${provisioned.hostedAccess?.userGroupId || ''}`,
+      'HOSTED_ACCESS_TOKEN_ENDPOINT_AUTH_METHOD=none',
+      `HOSTED_ACCESS_REDIRECT_URI=${config.publicAppUrl || 'https://ai-demo.ping-devops.com'}/api/auth/hosted-access/callback`,
+      'HOSTED_ACCESS_ALLOWED_DOMAINS=pingidentity.com,pingone.com',
+      // Gate ON only when the hosted phase fully succeeded (claim mapped).
+      // Unconditional true + an empty client ID meant every /api 401'd and
+      // login 503'd whenever the hosted phase threw (live twice, 2026-10-12).
+      ...(provisioned.hostedAccess?.claimMapped
+        ? ['HOSTED_ACCESS_GATE_ENABLED=true']
+        : [
+          'HOSTED_ACCESS_GATE_ENABLED=false',
+          '# ⚠️ HOSTED-ACCESS PHASE FAILED — gate left OFF. The hosted wall will not',
+          '# ⚠️ enforce sign-in until bootstrap completes the hosted-access phase',
+          '# ⚠️ (re-run bootstrap; see spec 2026-10-12-bootstrap-hosted-access-design).',
+        ]),
+      'HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL=false',
     ]);
 
     return lines.join('\n');
@@ -2743,7 +2857,7 @@ class PingOneProvisionService {
       onStep(steps[steps.length - 1]);
       mcpExchangerResult = await this.createApplication(
         _provisioningAppName('Super Banking MCP Exchanger'),
-        'RFC 8693 actor identity for BFF→gateway token exchange (Step 2). Mints tokens scoped to mcpgateway audience. NOT a WORKER — see docs/token-flow-audit.md.',
+        'RFC 8693 actor identity for BFF-to-gateway token exchange (Step 2). Mints tokens scoped to mcpgateway audience. NOT a WORKER — see docs/token-flow-audit.md.',
         'WEB_APP',
         ['authorization_code', 'client_credentials', 'token_exchange']
       );
@@ -2899,6 +3013,27 @@ class PingOneProvisionService {
       }
       onStep(steps[steps.length - 1]);
 
+      // Step: hosted-access phase — the gate's app, groups, and claim. Without
+      // these the SE hosted wall locks out every fresh environment (see spec
+      // 2026-10-12-bootstrap-hosted-access-design).
+      steps.push({ step: 'hosted-access', icon: '🚪', message: 'Provisioning hosted-access sign-in app + groups...' });
+      onStep(steps[steps.length - 1]);
+      try {
+        const hostedApp = await this._ensureHostedAccessApp(config.publicAppUrl || 'https://ai-demo.ping-devops.com');
+        const groups = await this._ensureHostedAccessGroups();
+        const claim = await this._ensureGroupsClaim(hostedApp.application.id);
+        provisioned.hostedAccess = {
+          appId: hostedApp.application.id,
+          clientId: hostedApp.application.clientId,
+          ...groups,
+          claimMapped: claim.mapped,
+        };
+        steps.push({ step: 'hosted-access', icon: '✅', message: `Hosted-access app ${hostedApp.exists ? 'reused' : 'created'}, groups ensured, groups claim mapped` });
+      } catch (err) {
+        steps.push({ step: 'hosted-access', icon: '⚠️', message: `Hosted-access phase: ${err.message}` });
+      }
+      onStep(steps[steps.length - 1]);
+
       // Step 25: Create MCP Gateway resource server
       // Inbound tokens to the gateway carry aud = MCP_GW_RESOURCE_URI; the gateway re-exchanges
       // them for backend-MCP audiences. See banking_mcp_gateway/src/config.ts.
@@ -2963,7 +3098,7 @@ class PingOneProvisionService {
       onStep(steps[steps.length - 1]);
       const mcpGwAppResult = await this.createApplication(
         _provisioningAppName('Super Banking MCP Gateway'),
-        'RFC 8693 re-exchange actor for gateway→backend hop (Step 3). Mints tokens scoped to mcpserver audience. NOT a WORKER — WORKER apps cannot hold resource grants.',
+        'RFC 8693 re-exchange actor for gateway-to-backend hop (Step 3). Mints tokens scoped to mcpserver audience. NOT a WORKER — WORKER apps cannot hold resource grants.',
         'WEB_APP',
         ['client_credentials', 'urn:ietf:params:oauth:grant-type:token-exchange']
       );
@@ -3131,7 +3266,7 @@ class PingOneProvisionService {
       onStep(steps[steps.length - 1]);
       const aiAgentAppResult = await this.createApplication(
         _provisioningAppName('Super Banking AI Agent'),
-        'AI agent identity for Two-Exchange Step 1. Actor token in the user→AI-agent delegation chain. NOT a WORKER — see docs/token-flow-audit.md.',
+        'AI agent identity for Two-Exchange Step 1. Actor token in the user-to-AI-agent delegation chain. NOT a WORKER — see docs/token-flow-audit.md.',
         'WEB_APP',
         ['authorization_code', 'client_credentials', 'urn:ietf:params:oauth:grant-type:token-exchange']
       );
@@ -3197,21 +3332,11 @@ class PingOneProvisionService {
       steps.push({ step: 'ai-agent-grants', icon: '✅', message: 'Granting scopes to AI Agent application (Agent Gateway actor + Demo API subject)...' });
       onStep(steps[steps.length - 1]);
       try {
-        // Grant all Agent Gateway scopes (agent:invoke + mirrored tool scopes) so Exchange #1
-        // can carry tool scopes in the intermediate token for Exchange #2 scope narrowing.
-        // Enduser grant lets Exchange #1 accept a subject token with aud=enduser.ping.demo.
-        const [aiAgentGwGrant, aiAgentEndUserGrant] = await Promise.all([
-          this.grantScopesToApplication(
-            aiAgentAppResult.application.id,
-            agentGwResourceResult.resource.id,
-            scopeTopology.resourceScopes('Super Banking Agent Gateway'),
-          ),
-          this.grantScopesToApplication(
-            aiAgentAppResult.application.id,
-            resourceResult.resource.id,
-            ['read', 'write', 'transfer', 'ai:agent:read', 'mortgage:read'],
-          ),
-        ]);
+        const [aiAgentGwGrant, aiAgentEndUserGrant] = await this._grantAiAgentScopes(
+          aiAgentAppResult.application.id,
+          agentGwResourceResult.resource.id,
+          resourceResult.resource.id,
+        );
         pushGrantResultStep(steps, 'ai-agent-grants', 'AI Agent scope grants', [aiAgentGwGrant, aiAgentEndUserGrant]);
       } catch (e) {
         steps.push({ step: 'ai-agent-grants', icon: '⚠️', message: `AI Agent grant skipped: ${e.message}` });

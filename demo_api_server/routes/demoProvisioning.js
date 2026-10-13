@@ -330,6 +330,70 @@ router.post('/send-invite', requireAdmin, async (req, res) => {
 
   try { await dataStore.seedAccountsForUser(user.id); } catch (err) { errors.bankingData = err.message; }
 
+  // Best-effort: park the invitee in the pending hosted-access group so the
+  // approval flow's later move to the complete group mirrors the hosted
+  // registration path. The invitee cannot pass the gate until approval moves
+  // them (the gate requires the USER group, not this one) — this only keeps
+  // the two flows symmetric. Never fatal: a group outage must not block the
+  // invite itself.
+  const partialGroupId = process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+  if (partialGroupId && user?.id) {
+    try {
+      const { managementService } = require('../services/pingoneManagementService');
+      // Fresh processes start here before any other management-API call —
+      // without this, ensureInitialized() throws and the invitee is silently
+      // never parked in the pending group. Mirrors
+      // hostedRegistrationProvisioningService.ensureManagement().
+      // ALWAYS initialize (no `initialized` guard): the flag can hold a token
+      // fetched up to an hour ago, after which every group add silently 401s.
+      // Both requires stay inline deliberately: the global test afterEach
+      // runs jest.resetModules(), so a top-level import would bind to the
+      // first epoch's mock instance while tests re-require fresh ones per
+      // test — inline requires resolve at call time and always match. (No
+      // production module cycle either; jest.mock intercepts inline requires
+      // identically.)
+      const { getManagementToken } = require('../services/pingOneClientService');
+      managementService.initialize(await getManagementToken());
+      const added = await managementService.addUserToGroup(user.id, partialGroupId);
+      if (!added?.success) logger.warn(LOG_CATEGORIES.USER_MANAGEMENT, 'send-invite pending-group add failed', { userId: user.id, error: added?.error });
+    } catch (err) {
+      logger.warn(LOG_CATEGORIES.USER_MANAGEMENT, 'send-invite pending-group add threw', { userId: user.id, error: err.message });
+    }
+
+    // Create the hosted-registration record the approval page lists from. The
+    // invite flow previously only parked the user in the partial group — the
+    // admin approval UI reads ONLY hostedRegistration store records, so
+    // invitees were invisible there and the loop dead-ended. Shape mirrors
+    // hostedRegistrationService.request()'s record exactly (same store,
+    // same fields) so hostedRegistrationAdminService.approve() consumes it
+    // unchanged; the store's email dedupe makes a later self-registration a
+    // no-op instead of a double-add. Never fatal — same contract as the
+    // group add above.
+    try {
+      const hostedRegistrationStore = require('../services/lmdb/hostedRegistrationStore.lmdb');
+      const now = Date.now();
+      hostedRegistrationStore.put({
+        id: crypto.randomBytes(18).toString('hex'),
+        email: String(email).trim().toLowerCase(),
+        firstName: '',
+        lastName: '',
+        phone: '',
+        requestedRole: 'user',
+        status: 'pending_approval',
+        createdAt: now,
+        updatedAt: now,
+        verifiedAt: null,
+        approvedAt: null,
+        rejectedAt: null,
+        disabledAt: null,
+        pingOneUserId: user.id,
+        groups: [partialGroupId],
+      });
+    } catch (err) {
+      logger.warn(LOG_CATEGORIES.USER_MANAGEMENT, 'send-invite hosted-registration record failed', { userId: user.id, error: err.message });
+    }
+  }
+
   // Native "set your password" email when the password + email-OTP steps
   // succeeded — sendRecoveryCode only needs an enabled user with a set
   // password, so SMS/cell failures don't block it.
