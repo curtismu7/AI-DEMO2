@@ -87,12 +87,28 @@ function sendAccessRestricted(res) {
   return res.send('<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1"><title>Access restricted</title><style>body{margin:0;min-height:100vh;display:grid;place-items:center;background:#071426;color:#fff;font:600 18px/1.5 system-ui,sans-serif}main{max-width:36rem;padding:2rem;border:1px solid #fff;border-radius:.75rem}</style></head><body><main>Access restricted to authorized Ping employees.</main></body></html>');
 }
 
+// Requests carrying an Authorization Bearer are service-to-server API calls
+// (mcp-server's vertical-tool callback, /api/accounts/my data fetches —
+// every BankingAPIClient endpoint), not front-door browser traffic. They
+// have no hosted-access cookie by construction, and authenticateToken runs
+// immediately after this gate to validate the token, so a forged Bearer
+// gains nothing. Bearer-pass used to be free — the wall existed only at the
+// ingress until 2026-10-12 (PR #1191) mounted it here too, which started
+// 401-ing every in-cluster callback under every vertical tool call
+// (UC1's list_gear → POST /api/path/vertical-tool → hosted_access_required
+// → "Run failed", observed live 2026-10-13).
+function hasBearerToken(req) {
+  const header = req.headers?.authorization;
+  return typeof header === 'string' && /^bearer\s+\S+/i.test(header);
+}
+
 function createHostedAccessGate({
   policy = loadHostedAccessPolicy(),
   hasApproval = hasCurrentHostedAccessApproval,
 } = {}) {
   return function hostedAccessGate(req, res, next) {
     if (!policy.enabled || isHostedAccessBypassPath(req.originalUrl || req.url, req.method)) return next();
+    if (hasBearerToken(req)) return next();
     if (hasApproval(req.hostedSession, policy) || isBootstrapApplicationSession(req.session)) return next();
     return res.status(401).send({ error: 'hosted_access_required' });
   };

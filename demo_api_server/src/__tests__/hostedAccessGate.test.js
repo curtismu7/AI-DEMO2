@@ -153,6 +153,46 @@ describe('hostedAccessGate', () => {
     expect(res.body).toEqual({ error: 'hosted_access_required' });
   });
 
+  // Service-to-server calls (mcp-server vertical-tool callback, banking data
+  // fetches) carry a Bearer and no hosted cookie — the gate must pass them to
+  // authenticateToken instead of 401-ing (broke every vertical tool call on
+  // SE 2026-10-13).
+  test.each([
+    ['POST /api/path/vertical-tool', 'POST'],
+    ['GET /api/accounts/my', 'GET'],
+    ['GET /api/transactions/my', 'GET'],
+  ])('passes a Bearer-carrying request through to authentication: %s', (path, method) => {
+    const next = jest.fn();
+    createHostedAccessGate({
+      policy: { enabled: true },
+      hasApproval: () => false,
+    })({
+      originalUrl: path.replace(/^[A-Z]+ /, ''),
+      method,
+      headers: { authorization: 'Bearer some-delegated-token' },
+      session: {},
+      hostedSession: {},
+    }, response(), next);
+    expect(next).toHaveBeenCalledTimes(1);
+  });
+
+  test('does not treat a malformed or empty Authorization header as a Bearer', () => {
+    const next = jest.fn();
+    const res = response();
+    createHostedAccessGate({
+      policy: { enabled: true },
+      hasApproval: () => false,
+    })({
+      originalUrl: '/api/use-cases',
+      method: 'GET',
+      headers: { authorization: 'Bearer   ' },
+      session: {},
+      hostedSession: {},
+    }, res, next);
+    expect(res.statusCode).toBe(401);
+    expect(next).not.toHaveBeenCalled();
+  });
+
   test('returns 401 for a present but stale session so ingress can restart OAuth', () => {
     const res = response();
     createHostedAccessGate({
