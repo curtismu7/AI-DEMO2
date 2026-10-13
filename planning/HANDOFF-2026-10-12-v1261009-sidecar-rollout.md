@@ -169,24 +169,61 @@ Per-key notes (full table in the rollout doc):
   split table.
 - Gateways run `privilege-aigw:v1.261009` (both nodes, deployed 9 Oct).
 
-## 6. Open items
+## 6. Unfinished work — the new agent's to-do list, per leaving session
 
-1. **"Add another connection that does block agreement off"** — answered by
-   the rollout: all 10 connections now do Block Agreement off (llama.cpp was
-   already first). If the user meant a *separate, new* connection key created
-   specifically as a demo prop, that is not done — ask.
-2. **Bedrock demo pair** stays blocked on P.1 (credential); P.2 answered
-   (mantle is a first-class key provider in the wizard, screenshot taken).
-3. **a2a-only sidecar traffic** unverified (langchain-caller) — worth one
-   hostile-a2a probe through that key.
-4. **Learning Hub**: the rollout doc is indexed in the repo MD index only; the
-   Learning Hub page export/manifest was not updated (privilege-docs-workflow
-   says new docs update both indexes).
-5. **Drive PDF**: the new doc has no PDF export; SE-guide PDFs ship via the
-   shared Drive folder (rclone `gdrive:` remote).
-6. **Slack HITL (Track 2)** remains parked: Privilege side exhaustively
-   verified, zero Slack delivery, zero errors — bug report material, demo
-   fallback is console-native approvals (see memory).
+> Every concurrent session's own account of what it left unfinished. Pick up
+> by owner; owners are bsk session names on this machine (2026-10-12/13).
+
+**Left by agents-d3 — PR #1225 merged, deploy pending:**
+
+1. **HAProxy stats + LB park/unpark (PR #1225, be4c0224)** — code done,
+   tests green (7/7 BFF jest, 7/7 UI vitest), **cluster deploy pending**:
+   needs helm (gateway1-lb values) + UI build-arg. Watch the stale-engine
+   landmine in §0 hygiene before touching values.
+
+**Left by agents-ac — PR #1228 open:**
+
+2. **Bootstrap hosted-access + invite→approval loop + denial visibility
+   (PR #1228)** — re-review clean, live-verified on the demo tenant (app
+   ebe41d9c + groups claim confirmed): awaiting merge + deploy.
+
+**Left by agents-25 — canary patch in flight:**
+
+3. **Live canary (PR pending)** — CANARY_* secrets set + uc1-canary.js
+   patched for the wall/SSO screens; **UC1 still blocked by the Welcome
+   wizard modal on /use-cases** (Skip first) — the modal-bypass patch needs
+   finishing and the PR opening.
+
+**Left by agents-3d — HITL one cell from closure:**
+
+4. **Slack re-OAuth + one retest (Track 2)** — bot token expired 05:50Z
+   12 Oct; re-OAuth, then one retest with UI-exact wiring + valid token. If
+   still zero dispatch, file the Ping bug (evidence in memory
+   `privilege-hitl-track2-probe` + /tmp/procyon-probe/). Fallback demo
+   (console-native approvals) already works.
+
+**Left by this session (agents-a3):**
+
+5. **a2a-only sidecar traffic** — langchain-caller key has the sidecar
+   config but no A2A call has gone through it; one hostile-a2a probe closes it.
+6. **Learning Hub index** — AGENT-REGISTRY-SIDECAR-ROLLOUT.md is in the repo
+   MD index only; the Learning Hub page export/manifest wasn't updated
+   (privilege-docs-workflow: new docs update both).
+7. **Drive PDF** — no PDF export of the rollout doc yet (rclone `gdrive:`
+   remote ships SE-guide PDFs).
+8. **"Another connection with Block Agreement off"** — answered by the
+   rollout (all 10 do), but if the user meant a *separate new* connection key
+   as a demo prop, that isn't built — ask first.
+
+**Left blocked (ownerless until a credential lands):**
+
+9. **Bedrock demo pair (runbook P.1)** — needs an AWS Bedrock credential;
+   the whose-account question (Curtis's vs Ping SE) is undecided. Everything
+   else is ready; P.2 answered (mantle is a first-class key provider).
+
+**Nothing left unfinished:** agents-a4 (all six shipped; its "runbook not
+yet assembled" item was completed by this session) and agents-b6 (all
+merged + deployed live).
 
 ## 7. Gotchas worth keeping
 
