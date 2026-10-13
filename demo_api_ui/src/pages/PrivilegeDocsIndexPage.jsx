@@ -358,6 +358,14 @@ const SECTIONS = [
           "Runbook for both A2A demos through the Agent Privilege: the pre-demo check, both demo scripts with what to say, setup from scratch with our values, symptom-to-fix table and known limits.",
       },
       {
+        title: "Agent approvals — the demo that works today",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/AGENT-APPROVALS-DEMO.md",
+        pdf: null,
+        covers:
+          "HITL via native agentapprovals: the console-fallback demo script (ApprovalReq → HITL Requests → human decision → terminal auditable state), and the recorded Slack/Mattermost notification failure (dispatcher never fires on an agentless tenant — Ping support report) with the do-not-promise rule.",
+      },
+      {
         title: "Agent features master index",
         drive: DRIVE_FOLDER,
         repo: "docs/privilege-agent-features.md",
@@ -460,6 +468,14 @@ const SECTIONS = [
         pdf: "drive",
         covers:
           "CIMD (client metadata documents) for PingOne Privilege — flow, boundary, and client documents, with diagrams.",
+      },
+      {
+        title: "Hostile MCP side-by-side",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/HOSTILE-MCP-SIDE-BY-SIDE.md",
+        pdf: null,
+        covers:
+          "Governed vs ungoverned twin hostile-MCP servers: the measured ALLOW/DENY matrix (verified live 2026-10-11, v1.261009), the permit-selection policy model, no-policy = DENY ALL, the RefID triple-@@ trap, owner reaping, the 4-min propagation, and what NOT to claim (metadata sanitizer, rug-pull detection).",
       },
       {
         title: "MCP discovery-gating demo",
