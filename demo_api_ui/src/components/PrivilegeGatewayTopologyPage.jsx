@@ -2,10 +2,12 @@
 // deployment variants (agent-based, agentless) from the SE instructional demo
 // setup doc, rendered via Mermaid with the request flow numbered step by step.
 // Follows the PrivilegeMcpDiagramPage tab/render/export conventions.
-import React, { useEffect, useState } from "react";
+// React, hooks
+import React, { useEffect, useState, useCallback } from "react";
 import DiagramExportBar from "./DiagramExportBar";
 import FlowDiagram from "./FlowDiagram";
 import StaticFlowDiagram from "./StaticFlowDiagram";
+import apiClient from "../services/apiClient";
 import "./PrivilegeMcpDiagramPage.css";
 import "./PrivilegeGatewayTopologyPage.css";
 import "./McpGatewayOauthFlowPage.css";
@@ -190,7 +192,7 @@ const LB_STEPS = [
   { n: 4, text: "A response returns with X-Served-By naming the node that served it." },
   { heading: "Failover — what a switch costs" },
   { n: 5, text: "Health checks run every 10s (any 2xx–4xx counts as up; the gateway answers 401 to a bare GET /). When a node dies its clients move within one 10s sample — but their tokens were minted by the dead node, so they sign in again. Registrations survive via shared Redis; tokens do not." },
-  { n: 6, text: "A recovered node needs 60 consecutive passing checks (rise 60 × 10s ≈ 10 minutes) before it takes clients back. That window answers 503 node=<NOSRV> and looks like a total outage while every gateway is actually fine — wait it out; do not restart a gateway to 'fix' it." },
+  { n: 6, text: "A recovered node needs 60 consecutive passing checks (rise 60 × 10s ≈ 10 minutes) before it takes clients back. That window answers 503 node=<NOSRV> and looks like a total outage while every gateway is actually fine — wait it out; do not restart a gateway to 'fix' it. The LB runtime controls below this diagram park or unpark a node through HAProxy's runtime API (admin only): parking is instant, unparking waits out the same rise-60 hold-out, and runtime state resets when the LB pods roll." },
 ];
 const LB_WALK = [
   { title: "Client request", label: "step 1", nodes: ["client", "ingress"], edges: [0], lines: ["HTTPS to the public door; the ingress terminates TLS and forwards to mcpgw-lb :8623."] },
@@ -239,6 +241,88 @@ function LbStatsPanel() {
           consistent hash.
         </p>
       )}
+    </section>
+  );
+}
+
+// Runtime park/unpark over HAProxy's runtime API, applied to BOTH LB pods by
+// the admin route (mounted authenticateToken + requireAdmin in server.js).
+// Runtime-only: park state resets when the LB pods roll — persistent parking
+// still goes through gateway1-lb.values.yaml. Unpark keeps the chart's
+// rise-60 hold-out: the node takes clients again after ~10 minutes of passing
+// checks, same as today's helm path.
+function LbRuntimePanel() {
+  const [state, setState] = useState(null); // {nodes, errors} | "denied"
+  const [busy, setBusy] = useState("");
+  const [notice, setNotice] = useState("");
+
+  const load = useCallback(async () => {
+    try {
+      const res = await apiClient.get("/api/admin/lb/runtime");
+      setState(res.data);
+    } catch {
+      setState("denied");
+    }
+  }, []);
+
+  useEffect(() => {
+    load();
+    const t = setInterval(load, 10000);
+    return () => clearInterval(t);
+  }, [load]);
+
+  if (state === "denied") {
+    return (
+      <section className="pgt-runtime">
+        <h2>LB runtime controls</h2>
+        <p className="pgt-stats__hint">Sign in as an admin to see live node state and park or unpark a gateway.</p>
+      </section>
+    );
+  }
+
+  const act = async (node, action) => {
+    setBusy(node + action);
+    setNotice("");
+    try {
+      const res = await apiClient.post(`/api/admin/lb/runtime/${node}/${action}`);
+      setNotice(action === "park"
+        ? `${node} parked — its clients move within one 10s health sample.`
+        : `${node} enabled — it re-enters rotation after the ~10-minute rise-60 hold-out.`);
+      await load();
+    } catch (e) {
+      setNotice(`${node} ${action} failed: ${e?.response?.data?.error || e.message}`);
+    } finally {
+      setBusy("");
+    }
+  };
+
+  const nodes = state?.nodes || [];
+  const errors = state?.errors || [];
+  return (
+    <section className="pgt-runtime">
+      <h2>LB runtime controls</h2>
+      <p className="pgt-stats__hint">
+        Runtime-only — resets when the LB pods roll; persistent parking still goes
+        through <code>gateway1-lb.values.yaml</code>. Unpark keeps the ~10-minute
+        hold-out.
+        {errors.length > 0 && <span className="pgt-runtime__err"> {errors.length} pod{errors.length > 1 ? "s" : ""} unreachable — shown values may be one pod only.</span>}
+      </p>
+      {notice && <p className="pgt-runtime__notice">{notice}</p>}
+      <ul className="pgt-runtime__list">
+        {nodes.map((n) => (
+          <li key={n.name} className="pgt-runtime__row">
+            <span className={`pgt-runtime__dot pgt-runtime__dot--${n.status === "UP" ? "up" : n.status === "MAINT" ? "maint" : "down"}`} />
+            <code>{n.name}</code>
+            <span className="pgt-runtime__status">{n.status}</span>
+            <span className="pgt-runtime__sess">{n.sessions} session{n.sessions === 1 ? "" : "s"}</span>
+            {n.status === "UP" ? (
+              <button type="button" disabled={Boolean(busy)} onClick={() => act(n.name, "park")}>Park</button>
+            ) : (
+              <button type="button" disabled={Boolean(busy)} onClick={() => act(n.name, "unpark")}>Unpark</button>
+            )}
+          </li>
+        ))}
+      </ul>
     </section>
   );
 }
@@ -464,6 +548,7 @@ export default function PrivilegeGatewayTopologyPage() {
             ariaLabel="Live mcpgw load-balanced topology: MCP clients reach an nginx ingress, then two HAProxy load-balancer pods, which pin each client by a consistent hash to one of three gateway nodes in mesh cluster ai-demo-cmuir. The nodes share a Redis client registry and serve the Agentic App doors opensearch22, opensearch, aggregate, hostile-mcp, agent-gateway and the sidecar doors, which reach the OpenSearch MCP server, PingGateway, hostile-mcp-server and per-pod sidecars."
           />
           <LbStatsPanel />
+          <LbRuntimePanel />
         </>
       ) : (
         <>

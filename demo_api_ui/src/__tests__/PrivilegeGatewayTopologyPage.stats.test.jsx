@@ -2,15 +2,31 @@
 // static lb tab: an iframe of HAProxy's built-in stats page (basic auth is the
 // browser's one-per-session prompt; the UI never holds the credential).
 import React from "react";
-import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect, beforeEach, afterEach } from "vitest";
+import { render, screen, fireEvent, waitFor } from "@testing-library/react";
+import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import PrivilegeGatewayTopologyPage from "../components/PrivilegeGatewayTopologyPage";
 
 const ENV_KEY = "REACT_APP_MCPGW_STATS_URL";
 
+vi.mock("../services/apiClient", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
+import apiClient from "../services/apiClient";
+
+const NODES = {
+  nodes: [
+    { name: "gateway-1", status: "UP", sessions: 3 },
+    { name: "gateway-2", status: "UP", sessions: 2 },
+    { name: "gateway-3", status: "MAINT", sessions: 0 },
+  ],
+  errors: [],
+};
+
 describe("PrivilegeGatewayTopologyPage — Live LB stats panel", () => {
   const original = process.env[ENV_KEY];
-  beforeEach(() => { delete process.env[ENV_KEY]; });
+  beforeEach(() => {
+    delete process.env[ENV_KEY];
+    apiClient.get.mockReset();
+    apiClient.post.mockReset();
+  });
   afterEach(() => {
     if (original === undefined) delete process.env[ENV_KEY];
     else process.env[ENV_KEY] = original;
@@ -35,5 +51,43 @@ describe("PrivilegeGatewayTopologyPage — Live LB stats panel", () => {
     const tabs = screen.getAllByRole("button");
     fireEvent.click(tabs.find((b) => b.textContent === "Agent-based"));
     expect(screen.queryByTitle("HAProxy LB stats")).toBeNull();
+  });
+});
+
+describe("PrivilegeGatewayTopologyPage — LB runtime park/unpark panel", () => {
+  beforeEach(() => {
+    apiClient.get.mockReset();
+    apiClient.post.mockReset();
+  });
+
+  it("fetches node state on mount and renders one row per gateway with status", async () => {
+    apiClient.get.mockResolvedValue({ data: NODES });
+    render(<PrivilegeGatewayTopologyPage />);
+    const row = await screen.findByText("gateway-2", { selector: ".pgt-runtime__row code" });
+    expect(row.closest(".pgt-runtime__row").textContent).toContain("UP");
+    expect(apiClient.get).toHaveBeenCalledWith("/api/admin/lb/runtime");
+  });
+
+  it("Park click posts to the runtime API and refetches state", async () => {
+    apiClient.get.mockResolvedValue({ data: NODES });
+    apiClient.post.mockResolvedValue({ data: { node: "gateway-2", action: "park", appliedTo: 2 } });
+    render(<PrivilegeGatewayTopologyPage />);
+    const row = (await screen.findByText("gateway-2", { selector: ".pgt-runtime__row code" })).closest(".pgt-runtime__row");
+    fireEvent.click(row.querySelector("button"));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/api/admin/lb/runtime/gateway-2/park"));
+    await waitFor(() => expect(apiClient.get.mock.calls.length).toBeGreaterThanOrEqual(2));
+  });
+
+  it("fetch fails (not signed in as admin): the panel names it, no rows", async () => {
+    apiClient.get.mockRejectedValue(new Error("403"));
+    render(<PrivilegeGatewayTopologyPage />);
+    expect(await screen.findByText(/Sign in as an admin/)).toBeTruthy();
+    expect(screen.queryByText("gateway-1", { selector: ".pgt-runtime__row code" })).toBeNull();
+  });
+
+  it("errors from the fan-out are surfaced per pod", async () => {
+    apiClient.get.mockResolvedValue({ data: { nodes: NODES.nodes, errors: ["127.0.0.1:19902: timeout"] } });
+    render(<PrivilegeGatewayTopologyPage />);
+    expect(await screen.findByText(/1 pod unreachable/)).toBeTruthy();
   });
 });

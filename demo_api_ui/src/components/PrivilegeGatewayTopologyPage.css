@@ -136,3 +136,48 @@
   border-radius: var(--radius-md);
   background: var(--pmd-panel);
 }
+
+/* LB runtime controls — per-node park/unpark over HAProxy's runtime API. */
+.pgt-runtime {
+  margin-top: 16px;
+}
+.pgt-runtime h2 {
+  font-size: var(--font-size-base);
+  margin: 0 0 6px;
+}
+.pgt-runtime__list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+.pgt-runtime__row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 0;
+  border-bottom: 1px solid var(--pmd-border);
+  font-size: var(--font-size-sm);
+}
+.pgt-runtime__dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex: none;
+}
+.pgt-runtime__dot--up { background: var(--th-status-success, #2e8b6a); }
+.pgt-runtime__dot--maint { background: var(--th-status-warning, #d9a406); }
+.pgt-runtime__dot--down { background: var(--th-status-error, #d20e0f); }
+.pgt-runtime__status { color: var(--pmd-ink-2); }
+.pgt-runtime__sess { color: var(--pmd-ink-2); margin-left: auto; }
+.pgt-runtime__row button {
+  font-size: var(--font-size-sm);
+  padding: 2px 10px;
+  cursor: pointer;
+}
+.pgt-runtime__row button:disabled { opacity: 0.5; cursor: default; }
+.pgt-runtime__notice {
+  font-size: var(--font-size-sm);
+  color: var(--pmd-accent);
+  margin: 4px 0;
+}
+.pgt-runtime__err { color: var(--th-status-warning-text, #b45309); }

@@ -128,6 +128,32 @@ counts as up), `check-sni` against the real certificate, and the swap on the clu
 switching, `kubectl exec` a curl against each gateway Service. Swap with
 `--set loadBalancer.engine=haproxy` on the same `helm upgrade` as `gateway1-lb.values.yaml`.
 
+## 00a-2. HAProxy stats page and runtime park/unpark (2026-10-12, built, in PR #1225 + follow-up)
+
+Two additions to `loadbalancer-haproxy.yaml`, both opt-in:
+
+- **Stats page.** `stats enable` + `stats uri /lb-stats` on the public frontend,
+  read-only (`stats admin if FALSE`), 5 s refresh, gated by
+  `loadBalancer.stats.auth` (`user:password`; unset leaves the path at 401).
+  The gateway topology page (`/privilege-gateway-topologies`) embeds it as an
+  iframe when the UI image is built with `REACT_APP_MCPGW_STATS_URL`; the
+  browser's basic-auth prompt (once per session) carries the credential.
+  Verified against haproxy 3.0.29: the page serves immediately on pod start,
+  before `rise 60` promotes any backend — but gateway traffic still answers
+  `503 node=<NOSRV>` through the usual ~10-minute rise window after any LB
+  rollout, so time the deploy accordingly.
+- **Runtime park/unpark.** `loadBalancer.runtimeSocket.enabled: true` adds
+  `stats socket :9999 level admin` plus a **headless** Service
+  `mcpgw-lb-sock` (DNS returns every pod IP). The demo BFF's admin route
+  (`routes/adminLbRuntime.js`, mounted `authenticateToken` + `requireAdmin`,
+  env `MCPGW_LB_RUNTIME_SOCKETS`) fans every command out to each resolved pod
+  address and resolves the headless name per A record — `net.createConnection`
+  alone would pick one pod and park half the LB. Park (`disable server`) is
+  instant; unpark (`enable server`) waits out the same rise-60 hold-out;
+  **runtime state resets when the LB pods roll**, so persistent parking still
+  goes through `gateway1-lb.values.yaml`. The topology page shows the panel to
+  signed-in admins only.
+
 ## 00b. Shared Redis (2026-10-04): what it does, why, how
 
 **What it is.** One small Redis, `privilege-redis` in `ping-devops-cmuir`, that both gateways
