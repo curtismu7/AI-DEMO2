@@ -1290,8 +1290,12 @@ function toInternalAs(url) {
 function toInternalMcpUrl(url) {
   const publicOrigin = PUBLIC_APP_ORIGIN();
   const value = String(url);
-  if (!publicOrigin || !value.startsWith(publicOrigin)) return value;
-  return `http://localhost:${process.env.MCP_FACADE_HTTP_PORT || 3002}${value.slice(publicOrigin.length)}`;
+  // server.js only starts the loopback listener when MCP_FACADE_HTTP_PORT is
+  // set. The hosted k8s deploy leaves it unset, and there the public hostname
+  // is reachable from the pod — so dial the door as written.
+  const port = process.env.MCP_FACADE_HTTP_PORT;
+  if (!port || !publicOrigin || !value.startsWith(publicOrigin)) return value;
+  return `http://localhost:${port}${value.slice(publicOrigin.length)}`;
 }
 
 /**
