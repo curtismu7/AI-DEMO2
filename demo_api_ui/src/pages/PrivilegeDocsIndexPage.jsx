@@ -253,6 +253,14 @@ const SECTIONS = [
         covers:
           "How LLM protection is wired into the AI-DEMO2 BFF: secrets into ai-demo-secrets, gateway route, what the demo shows.",
       },
+      {
+        title: "Audit evidence & compliance mappings",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/AUDIT-EVIDENCE-COMPLIANCE.md",
+        pdf: null,
+        covers:
+          "What the gateway actually emits for the audit close: the three verdict/denial event types with their live-verified MITRE ATLAS / NIST AI RMF / OWASP LLM mappings (catalog aigw-compliance-v1.1.0, measured 2026-10-13), where to show each piece, and what remains unverified (the deck's slide-7 framework, the SIEM index's current state).",
+      },
     ],
   },
   {

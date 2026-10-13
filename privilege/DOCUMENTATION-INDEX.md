@@ -68,6 +68,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [Logging with Elasticsearch](GATEWAY-LOGGING-WITH-ELASTICSEARCH.md) | Drive (SE) | What reaches Elasticsearch (console audit events only), where model calls and guardrail verdicts are recorded, shipping them, Kibana searches, the secrets both feeds contain (read live 2026-10-03) |
 | [Reading gateway errors](GATEWAY-READING-GATEWAY-ERRORS.md) | Drive (SE) | What each status code can mean, the log lines behind it, tracing one request, backend and guardrail errors (reproduced live 2026-10-03) |
 | [Elasticsearch & Kibana runbook](../docs/privilege-elasticsearch-kibana-runbook.md) | — | Sending Privilege SIEM events to Elasticsearch and viewing them in Kibana, using Kibana's port-forward as the endpoint |
+| [Audit evidence & compliance mappings](AUDIT-EVIDENCE-COMPLIANCE.md) | — | What the gateway actually emits for the audit close: the three verdict/denial event types with their live-verified MITRE ATLAS / NIST AI RMF / OWASP LLM mappings (catalog aigw-compliance-v1.1.0, measured 2026-10-13), where to show each piece, and what remains unverified (the deck's slide-7 framework, the SIEM index's current state) |
 
 ## Sensor
 

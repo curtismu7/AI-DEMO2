@@ -19,14 +19,16 @@ proof.**
 | 7 | **MCP tool-call inspection** | Two enforcement surfaces: model request/response AND the MCP tool-call boundary incl. tool results; governed twin DENYs dangerous tools, ungoverned ALLOWs all, no policy = DENY ALL | [Hostile MCP side-by-side](../privilege/HOSTILE-MCP-SIDE-BY-SIDE.md) · [Red team: hostile A2A](../privilege/RED-TEAM-HOSTILE-A2A.md) | Attack Lab `/llm-gateway?tab=attacks` + Catalog tab live tests |
 | 8 | **Human-in-the-loop approvals** | Native `agentapprovals`: a high-risk agent action becomes an ApprovalReq, the human decides in the console, the grant is time-bound and auditable. Slack/Teams delivery is an open Ping case; the console path is the demo | [Agent approvals — the demo that works today](../privilege/AGENT-APPROVALS-DEMO.md) | Console → Access Request Approvals |
 | 9 | **Attack Lab** | Eight attack types against the real agent — Tool Abuse, Tool Poisoning, Schema Violation, Inter-Agent Abuse, Malicious Content — with strict verdict attribution | [AIGuard training guide](privilege-aiguard-training.md) | `/llm-gateway?tab=attacks` |
-| 10 | **Audit evidence** | Every governed call leaves a Privilege event with an enforcement-component field, mappable to compliance controls | [Logging with Elasticsearch](../privilege/GATEWAY-LOGGING-WITH-ELASTICSEARCH.md) · [ES/Kibana runbook](privilege-elasticsearch-kibana-runbook.md) | Kibana via port-forward |
+| 10 | **Audit evidence** | Every governed call leaves a Privilege event with an enforcement-component field and framework mappings (MITRE ATLAS / NIST AI RMF / OWASP LLM, catalog `aigw-compliance-v1.1.0` — verified in the gateway log 2026-10-13) | [Audit evidence & compliance mappings](../privilege/AUDIT-EVIDENCE-COMPLIANCE.md) · [Logging with Elasticsearch](../privilege/GATEWAY-LOGGING-WITH-ELASTICSEARCH.md) | Gateway log → Kibana via port-forward |
 
 ## Coverage gaps (docs that would complete this index)
 
-- **Feature 10** — compliance mapping exists only on AIGuard deck slide 7
-  (dated 2026-09-22); recheck against the tenant before quoting.
+None — all ten features have dedicated docs as of 2026-10-13. Two tenant
+re-verifications remain, flagged in [AUDIT-EVIDENCE-COMPLIANCE](../privilege/AUDIT-EVIDENCE-COMPLIANCE.md):
+the AIGuard deck's slide-7 control framework (dated 2026-09-22) and the
+current contents of the `ping-siem-events` index.
 
-*(Closed 2026-10-13: feature 7's side-by-side matrix →
+*(Previously open, closed 2026-10-13: feature 7's side-by-side matrix →
 [HOSTILE-MCP-SIDE-BY-SIDE](../privilege/HOSTILE-MCP-SIDE-BY-SIDE.md);
 feature 8's approval flow →
 [AGENT-APPROVALS-DEMO](../privilege/AGENT-APPROVALS-DEMO.md).)*
