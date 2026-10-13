@@ -440,7 +440,12 @@ router.get('/login', (req, res) => {
     // SPA falls back to the plain redirect login when this returns 404/502.
     // force=true may combine with pi_flow=1 (prompt=login is preserved on the
     // authorize URL below) so re-auth stays inside the modal too.
-    const piFlowLogin = req.query.pi_flow === '1' && !liveIdJag && !piFlowMode
+    // AIC toggle: PingOne is still the AS, but the AIC_Login sign-on policy
+    // hands authentication to the AIC external IdP. That is a browser redirect
+    // to AIC, which the pi.flow modal cannot drive, so it forces the redirect login.
+    const aicLogin = selectedProvider === 'pingone' && !liveIdJag && !piFlowMode
+      && String(configStore.getEffective('aic_login_enabled')).toLowerCase() === 'true';
+    const piFlowLogin = req.query.pi_flow === '1' && !liveIdJag && !piFlowMode && !aicLogin
       && (selectedProvider === 'pingone' || selectedProvider === 'pingfederate')
       && oauthUserConfig.authorizeUsesPiFlow;
     const sessionProvider = req.session.user?.oauthProvider;
@@ -597,6 +602,8 @@ router.get('/login', (req, res) => {
         // login step), or PingOne still demands the password after
         // user.lookup. The policy must also be assigned to this app.
         ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'mfa_only' } : {}),
+        // The policy must be assigned to this app or PingOne rejects the acr.
+        ...(aicLogin ? { acr_values: 'AIC_Login' } : {}),
         // Session-derived hint wins (fresher). The role's STORED hint is
         // PINGONE-only: PingOne treats the hint as advisory prefill, but
         // PingFederate BINDS the flow to it ("username must match the hint"),
@@ -638,6 +645,29 @@ router.get('/login', (req, res) => {
         ['redirect_uri', redirectUri],
       ],
     });
+    // PingOne's hop to AIC happens between PingOne and the browser — the BFF
+    // never sees it, so these two steps are drawn from the request it sent.
+    if (aicLogin) {
+      loginFlowTrace.addStep(loginTraceId, {
+        actor: 'pingone',
+        toActor: 'aic',
+        title: 'PingOne hands sign-in to AIC',
+        detail: 'The AIC_Login sign-on policy has one step: redirect to the AIC external identity provider. PingOne acts as an OIDC client of AIC.',
+        protocolDetail: [
+          ['acr_values', 'AIC_Login'],
+          ['PingOne callback', '/rp/callback/openid_connect'],
+        ],
+      });
+      loginFlowTrace.addStep(loginTraceId, {
+        actor: 'aic',
+        toActor: 'pingone',
+        title: 'AIC returns the verified person to PingOne',
+        detail: 'The person signs in at AIC. PingOne redeems AIC\'s code, links or creates the PingOne user, and continues its own authorization — AIC\'s tokens stop at PingOne.',
+        protocolDetail: [
+          ['AIC scopes', 'openid profile email'],
+        ],
+      });
+    }
 
     // Store state, verifier and redirect URI in session for CSRF protection and PKCE
     req.session.oauthState = state;

@@ -19,7 +19,9 @@ export function initSignInService() {
         const cfg = (await res.json())?.config || {};
         const drivable = ['pingone', 'pingfederate'].includes(cfg.oauth_provider || 'pingone');
         available = {
-          customer: drivable && ['true', '1'].includes(String(cfg.PINGONE_USER_AUTHORIZE_PI_FLOW).toLowerCase()),
+          // AIC login is a redirect to an external IdP — the modal cannot drive it.
+          customer: drivable && String(cfg.aic_login_enabled).toLowerCase() !== 'true'
+            && ['true', '1'].includes(String(cfg.PINGONE_USER_AUTHORIZE_PI_FLOW).toLowerCase()),
           admin: drivable && ['true', '1'].includes(String(cfg.PINGONE_ADMIN_AUTHORIZE_PI_FLOW).toLowerCase()),
         };
       } catch {

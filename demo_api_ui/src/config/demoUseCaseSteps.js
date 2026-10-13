@@ -216,8 +216,8 @@ export const EXTRA_STEP_GROUPS = [
     id: 'sign-in',
     label: 'Sign-in',
     tagline: 'who the person is',
-    intro: 'A live person sign-in on PingOne or on PingFederate: the BFF switches the login provider, clears the session and starts a fresh OIDC + PKCE login.',
-    ids: ['UC-LOGIN', 'UC-LOGIN-PF'],
+    intro: 'A live person sign-in on PingOne, on PingFederate, or at AIC behind PingOne: the BFF switches the login provider, clears the session and starts a fresh OIDC + PKCE login.',
+    ids: ['UC-LOGIN', 'UC-LOGIN-PF', 'UC-LOGIN-AIC'],
   },
   {
     id: 'priv-policies',
@@ -294,7 +294,7 @@ export const DEMO_JOURNEY_GROUPS = [
     label: 'PingOne login',
     shortLabel: 'Login',
     description: 'OIDC/PKCE person login with the BFF holding browser tokens.',
-    useCaseIds: ['UC-LOGIN', 'UC-LOGIN-PF'],
+    useCaseIds: ['UC-LOGIN', 'UC-LOGIN-PF', 'UC-LOGIN-AIC'],
   },
   {
     id: 'j-delegation',

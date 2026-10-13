@@ -14,15 +14,28 @@ const refused = (error) => Object.assign(new Error('refused'), { response: { dat
 describe('runProviderLogin', () => {
   beforeEach(() => vi.clearAllMocks());
 
-  it('maps the two Login steps to their providers', () => {
-    expect(LOGIN_RUN_PROVIDERS).toEqual({ 'UC-LOGIN': 'pingone', 'UC-LOGIN-PF': 'pingfederate' });
+  it('maps the Login steps to their providers', () => {
+    expect(LOGIN_RUN_PROVIDERS).toEqual({ 'UC-LOGIN': 'pingone', 'UC-LOGIN-PF': 'pingfederate', 'UC-LOGIN-AIC': 'aic' });
   });
 
   it('switches the provider, then forces a fresh sign-in', async () => {
     post.mockResolvedValue({});
     expect(await runProviderLogin('pingfederate')).toBe(true);
-    expect(post).toHaveBeenCalledWith('/api/admin/config', { oauth_provider: 'pingfederate' });
+    expect(post).toHaveBeenCalledWith('/api/admin/config', { oauth_provider: 'pingfederate', aic_login_enabled: 'false' });
     expect(forceLogin).toHaveBeenCalledWith('/resource-server');
+  });
+
+  it('an AIC run keeps PingOne as the provider and turns AIC sign-in on', async () => {
+    post.mockResolvedValue({});
+    expect(await runProviderLogin('aic')).toBe(true);
+    expect(post).toHaveBeenCalledWith('/api/admin/config', { oauth_provider: 'pingone', aic_login_enabled: 'true' });
+    expect(forceLogin).toHaveBeenCalledWith('/resource-server');
+  });
+
+  it('stops an AIC run when the switch is refused, instead of signing in on PingOne', async () => {
+    post.mockRejectedValue(refused('not_authorized'));
+    expect(await runProviderLogin('aic')).toBe(false);
+    expect(forceLogin).not.toHaveBeenCalled();
   });
 
   it('stops a PingFederate run when the switch is refused', async () => {

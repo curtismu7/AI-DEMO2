@@ -3,6 +3,7 @@ const request = require('supertest');
 const express = require('express');
 const session = require('express-session');
 const router = require('../routes/oauthUser');
+const loginFlowTrace = require('../services/loginFlowTraceService');
 const configStore = require('../services/configStore');
 
 jest.mock('../services/configStore', () => ({
@@ -93,6 +94,31 @@ describe('customer pi.flow sign-in', () => {
     const res = await request(app).get('/api/auth/oauth/user/login').expect(302);
     expect(res.headers.location).not.toContain('response_mode=pi.flow');
     expect(fetchMock).not.toHaveBeenCalled();
+  });
+
+  test('AIC toggle on: redirect login with acr_values=AIC_Login, even when the SPA asks for pi_flow=1', async () => {
+    const base = configStore.getEffective.getMockImplementation();
+    configStore.getEffective.mockImplementation((key) => (key === 'aic_login_enabled' ? 'true' : base(key)));
+    const addStep = jest.spyOn(loginFlowTrace, 'addStep');
+    try {
+      const res = await request(app).get('/api/auth/oauth/user/login?pi_flow=1').expect(302);
+      expect(new URL(res.headers.location).searchParams.get('acr_values')).toBe('AIC_Login');
+      expect(fetchMock).not.toHaveBeenCalled();
+      // The live login diagram gains the PingOne -> AIC -> PingOne hop.
+      const hops = addStep.mock.calls.map(([, s]) => `${s.actor}>${s.toActor}`);
+      expect(hops).toEqual(expect.arrayContaining(['pingone>aic', 'aic>pingone']));
+    } finally {
+      addStep.mockRestore();
+      configStore.getEffective.mockImplementation(base);
+    }
+  });
+
+  test('AIC toggle off: plain /login sends no acr_values and draws no AIC hop', async () => {
+    const addStep = jest.spyOn(loginFlowTrace, 'addStep');
+    const res = await request(app).get('/api/auth/oauth/user/login').expect(302);
+    expect(new URL(res.headers.location).searchParams.get('acr_values')).toBeNull();
+    expect(addStep.mock.calls.some(([, s]) => s.actor === 'aic' || s.toActor === 'aic')).toBe(false);
+    addStep.mockRestore();
   });
 
   test('502 when PingOne does not open a flow, so the SPA can fall back to the redirect login', async () => {

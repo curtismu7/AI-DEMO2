@@ -24,6 +24,7 @@
 | UC6 | [Authz denied](./authz-denied.md) | controls | ✅ works | 🛡️ T6 |  |
 | UC7 | [MFA step-up (HITL)](./step-up-required.md) | hitl | ✅ works | 🛡️ T10, T3 |  |
 | UC8 | [MFA + HITL consent](./hitl-consent.md) | hitl | ✅ works | 🛡️ T10 |  |
+| UC9A | [Group / entitlement check — live board](./group-entitlement-check-page.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC21 | [Entitlement-tiered capability](./entitlement-tiered-capability.md) | controls | ✅ works | 🛡️ T3 |  |
 | UC23 | [Progressive trust demo — presenter guide](./progressive-trust-demo.md) | demo | ✅ works | 🛡️ T8, T10 |  |
 | UC24 | [Act 1 — Public catalog access](./progressive-trust-public-access.md) | demo | ✅ works | 🛡️ T3 |  |
@@ -75,6 +76,7 @@
 | UC-LEARN19 | [Intent Inspector — PAR/RAR payloads](./intent-inspector-tool.md) | learn | ✅ works |  |  |
 | UC-LOGIN | [PingOne login (OIDC + PKCE)](./pingone-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC-LOGIN-PF | [PingFederate login (OIDC + PKCE)](./pingfederate-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
+| UC-LOGIN-AIC | [AIC login (federated through PingOne)](./aic-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC27 | [HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) | hitl | ✅ works | 🛡️ T5 |  |
 | UC28 | [Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) | controls | ✅ works | 🛡️ T1 |  |
 | UC43 | [Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) | foundations | ✅ works | 🛡️ T1, T9 |  |
@@ -107,8 +109,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 72 |
+| ✅ Works | 74 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 1 |
-| **Total** | **83** |
+| **Total** | **85** |

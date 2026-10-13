@@ -22,10 +22,10 @@ describe('useCases catalog SoT', () => {
     // UC-LEARN15 (Jev decision-model lesson page) takes it to 76; the external-agent
     // lanes UC-MUSE1/UC-MUSE2 take it to 78; UC48 (consumer-agent booking) to 79;
     // UC-LEARN16..19 (MFA Test, OAuth Debug, LLM Test, Intent Inspector) to 83;
-    // UC9A (live P1AZ group-check panel) to 84.
-    expect(RAW_USE_CASES).toHaveLength(84);
+    // UC9A (live P1AZ group-check panel) to 84; UC-LOGIN-AIC (AIC sign-in) to 85.
+    expect(RAW_USE_CASES).toHaveLength(85);
     const ids = RAW_USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(84);
+    expect(new Set(ids).size).toBe(85);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');
