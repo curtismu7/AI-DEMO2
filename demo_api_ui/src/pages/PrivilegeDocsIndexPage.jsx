@@ -358,6 +358,14 @@ const SECTIONS = [
           "Runbook for both A2A demos through the Agent Privilege: the pre-demo check, both demo scripts with what to say, setup from scratch with our values, symptom-to-fix table and known limits.",
       },
       {
+        title: "Agent features master index",
+        drive: DRIVE_FOLDER,
+        repo: "docs/privilege-agent-features.md",
+        pdf: null,
+        covers:
+          "The ten agent-facing Privilege features in demo arc order, each with a description and links to the detailed docs; names the three coverage gaps (rug-pull matrix, agentapprovals doc, compliance mapping).",
+      },
+      {
         title: "Privilege Agent Field Guide",
         drive: DRIVE_FOLDER,
         repo: "docs/privilege-agent-field-guide.html",
