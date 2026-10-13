@@ -196,8 +196,14 @@ Per-key notes (full table in the rollout doc):
    invalid_client on every customer login) + replacing a deleted PingOne
    actor-app ghost in the config; brief 502s during restart windows were
    theirs (the persistent fix: ingress proxy-buffer-size 16k for the fat
-   session cookie, done with Curtis's OK). Settled state verified 11:26 UTC:
-   sha-dab2bbeb2, 1/1 Running, 0 restarts.*
+   session cookie, done with Curtis's OK). **Attribution note (agents-25):**
+   credit the sign-in fix to the secret/configmap/LMDB patches + the 16k
+   ingress annotation — all of which survive image changes — not to either
+   image; d3's sha-dab2bbeb2 includes code changes agents-25 hasn't
+   reviewed. Settled state verified 11:26 UTC: sha-dab2bbeb2, 1/1 Running,
+   0 restarts. *Open: agents-25 still mid-diagnosis on the last UC1 canary
+   hop (tool-dispatch 502 / aud-mismatch at mcp-gateway) — will report when
+   green or parked.*
 
 **Left by agents-ac — #1228 merged 13 Oct, deploy still pending (see §
 welcome/invite):**
