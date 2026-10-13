@@ -201,9 +201,17 @@ Per-key notes (full table in the rollout doc):
    ingress annotation — all of which survive image changes — not to either
    image; d3's sha-dab2bbeb2 includes code changes agents-25 hasn't
    reviewed. Settled state verified 11:26 UTC: sha-dab2bbeb2, 1/1 Running,
-   0 restarts. *Open: agents-25 still mid-diagnosis on the last UC1 canary
-   hop (tool-dispatch 502 / aud-mismatch at mcp-gateway) — will report when
-   green or parked.*
+   0 restarts. *UC1 canary hop **root-caused** (agents-25, ~12:00 UTC): not
+   a gateway issue — **PR #1191's BFF-level hosted-access wall 401s the
+   mcp-server's in-cluster callbacks** (POST /api/path/vertical-tool and
+   banking fetches carry a delegated Bearer, no wall cookie → every vertical
+   tool call died `hosted_access_required` before authenticateToken ran;
+   gateway chain fully green above it: PERMIT + Exchange #3 + MCP 200; live
+   proof in mcp-server logs + BFF access log, 4/4 UC1 runs today). Fix: PR
+   #1235 (open) — wall passes Bearer-carrying requests through to
+   authenticateToken (forged Bearers gain nothing). CI-canary stays dead
+   (#1231), but the server-to-server breakage the canary was pointing at is
+   real and fixed by #1235 once merged+deployed.*
 
 **Left by agents-ac — #1228 merged 13 Oct, deploy still pending (see §
 welcome/invite):**
