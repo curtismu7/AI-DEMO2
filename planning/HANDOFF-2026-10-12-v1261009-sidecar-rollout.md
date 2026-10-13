@@ -54,7 +54,7 @@ it.** Every demo below is shipped and verified live unless marked otherwise.
 ### Hygiene that keeps the demos running (not demos themselves)
 
 - **Dependabot 51 → 0** (PRs #1190, #1216, #1224, #1226: otel ×7, vitest 4, lighthouse 13, sentry 11, express 4.22.3, provider-utils override; 20 documented dismissals) — PR #1225 review/merge + 6560-test UI suite green.
-- **Live canary resurrected** (PR pending): CANARY_* secrets were never set (39/40 runs red); patched for wall + SSO screens — UC1 still blocked by the Welcome wizard modal on /use-cases (Skip first), patch in flight.
+- **Live canary removed** (PR #1231, 13 Oct): 74 straight failures — CI runners can never hold hosted-wall approval, so the class it watched is covered by hostedAccessGate unit tests. The #1235 merge accidentally resurrected `scripts/canary/uc1-canary.js` (modify/delete conflict resolved wrong); PR #1236 re-deleted it, CI green, main clean. Don't resurrect without a CI wall-approval path.
 - **Stale-engine landmine fixed**: nginx in gateway1-lb.values.yaml would have rolled the public LB back (d3 session, docs in GATEWAY-LOAD-BALANCER.md §00a-2).
 - **p1-invite runbook corrected**: "console only" scoped to tenant 0428ba4f — demo-tenant writes work via memberOfGroups (#1200, merged).
 - **Known dead end recorded**: mcpgw answers 200 RFC 9728 metadata for ANY door path (never-existing apps included) — door-liveness probes are meaningless; ground truth is cyonproxy.log or the console (memory: mcpgw-wildcard-metadata).
@@ -201,43 +201,46 @@ Per-key notes (full table in the rollout doc):
    ingress annotation — all of which survive image changes — not to either
    image; d3's sha-dab2bbeb2 includes code changes agents-25 hasn't
    reviewed. Settled state verified 11:26 UTC: sha-dab2bbeb2, 1/1 Running,
-   0 restarts. *UC1 canary hop **root-caused** (agents-25, ~12:00 UTC): not
-   a gateway issue — **PR #1191's BFF-level hosted-access wall 401s the
-   mcp-server's in-cluster callbacks** (POST /api/path/vertical-tool and
-   banking fetches carry a delegated Bearer, no wall cookie → every vertical
-   tool call died `hosted_access_required` before authenticateToken ran;
-   gateway chain fully green above it: PERMIT + Exchange #3 + MCP 200; live
-   proof in mcp-server logs + BFF access log, 4/4 UC1 runs today). Fix: PR
-   **#1235 MERGED 13 Oct + deployed live** — wall passes Bearer-carrying
-   requests through to authenticateToken (forged Bearers gain nothing);
-   fix verified in the pod (`hasBearerToken` present). Two 13-Oct wrinkles,
-   both resolved: (1) the #1235 merge accidentally resurrected
-   scripts/canary/uc1-canary.js (modify/delete conflict resolved wrong) —
-   PR #1236 re-deleted it, CI green, merged 12:36 UTC, main clean of the
-   canary again; (2) the known **image-push race** struck: during the SE
-   deploy something pinned deployment/demo-api-server to an OLDER digest
-   (9a3c5e40, pre-fix) — agents-25 re-pointed it at the correct tag
-   **sha-d63058a1a** (verified live in pod). If any digest-pinning
-   automation touches demo-api-server, it may race again. CI-canary stays
-   dead (#1231).*
-   *Pending: agents-25's browser re-run of UC1 to confirm the full chain
+   0 restarts.*
+
+**Left by the LB-stats-visibility agent (PR #1234, merged 13 Oct 86d53c326):**
+
+1. **LB stats visibility + admin gate moved inside the route** — DONE:
+   `GET /api/admin/lb/runtime/stats-view` is open to any PingOne-signed-in
+   user (mount dropped `requireAdmin`); park/unpark stays admin-only via a
+   role/scope check inside `routes/adminLbRuntime.js` `POST /:node/:action`
+   (403 otherwise, test proves a customer session cannot reach the pods).
+   Same PR deleted the duplicate bottom "Request Flow: Agent-based vs
+   Agentless" figure from the topology page (~129 lines). **Deploy: both BFF
+   and frontend images change — after CI publishes the shas, use per-service
+   `kubectl set image` (the `--promote` gap), then verify the GHCR manifest
+   + pod imageID.**
+
+**Left by the hosted-access Bearer-pass agent (PRs #1235/#1236, merged 13 Oct):**
+
+2. **UC1/vertical-tools 401 wall fix — DONE + deployed live:** PR #1191's
+   BFF-level hosted-access wall 401'd every in-cluster service-to-server
+   call (mcp-server vertical-tool callbacks + banking fetches carry a
+   delegated Bearer, no wall cookie) → UC1 rendered "Run failed" with the
+   gateway chain fully green. PR **#1235** fixed it: the wall passes any
+   `Authorization: Bearer` request through to `authenticateToken` (forged
+   Bearers gain nothing); verified in the pod (`hasBearerToken`). Deployed
+   to SE on sha-d63058a1a. Two wrinkles resolved the same morning: the
+   #1235 merge resurrected `uc1-canary.js` (PR **#1236** re-deleted it,
+   CI green) and the image-push race pinned demo-api-server to an older
+   digest (9a3c5e40) — re-pointed to sha-d63058a1a, verified live in pod;
+   if any digest-pinning automation touches demo-api-server it may race
+   again. *Pending: browser re-run of UC1 to confirm the full chain
    renders a real tool result (will report green or blocked).*
 
 **Left by agents-ac — #1228 merged 13 Oct, deploy still pending (see §
 welcome/invite):**
 
-2. **Bootstrap hosted-access + invite→approval loop + denial visibility
+3. **Bootstrap hosted-access + invite→approval loop + denial visibility
    (PR #1228)** — merged 13 Oct 10:35 UTC (b480271e3); deployed to the local
    stack via deploy-live.sh, but **the SE cluster's demo-api-server/frontend
    shas still predate it** (ancestry-checked) — per-service
    `se-update-code.sh bff frontend` still owed.
-
-**Left by agents-25 — canary patch in flight:**
-
-3. **Live canary (PR pending)** — CANARY_* secrets set + uc1-canary.js
-   patched for the wall/SSO screens; **UC1 still blocked by the Welcome
-   wizard modal on /use-cases** (Skip first) — the modal-bypass patch needs
-   finishing and the PR opening.
 
 **Left by agents-3d — HITL one cell from closure:**
 
