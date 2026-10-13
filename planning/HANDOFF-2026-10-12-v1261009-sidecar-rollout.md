@@ -208,8 +208,10 @@ Per-key notes (full table in the rollout doc):
    tool call died `hosted_access_required` before authenticateToken ran;
    gateway chain fully green above it: PERMIT + Exchange #3 + MCP 200; live
    proof in mcp-server logs + BFF access log, 4/4 UC1 runs today). Fix: PR
-   #1235 (open) — wall passes Bearer-carrying requests through to
-   authenticateToken (forged Bearers gain nothing). CI-canary stays dead
+   #1235 (open; CI in flight 13 Oct — one check passed, hygiene+topology
+   gates pending; agents-25 will merge + focused SE deploy + browser-verify
+   UC1 end-to-end when green) — wall passes Bearer-carrying requests through
+   to authenticateToken (forged Bearers gain nothing). CI-canary stays dead
    (#1231), but the server-to-server breakage the canary was pointing at is
    real and fixed by #1235 once merged+deployed.*
 
