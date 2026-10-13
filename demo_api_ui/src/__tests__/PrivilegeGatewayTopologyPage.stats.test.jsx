@@ -1,12 +1,11 @@
 // PrivilegeGatewayTopologyPage.stats.test.jsx — the "Live LB stats" panel on the
 // static lb tab: an iframe through the admin-gated BFF proxy (PingOne session;
-// the stats credential lives only in the BFF env).
+// the stats credential lives only in the BFF env). No build-time env gate —
+// the proxy's own 503 is the configuration signal.
 import React from "react";
 import { render, screen, fireEvent, waitFor } from "@testing-library/react";
 import { vi, describe, it, expect, beforeEach, afterEach } from "vitest";
 import PrivilegeGatewayTopologyPage from "../components/PrivilegeGatewayTopologyPage";
-
-const ENV_KEY = "REACT_APP_MCPGW_STATS_URL";
 
 vi.mock("../services/apiClient", () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 import apiClient from "../services/apiClient";
@@ -21,35 +20,22 @@ const NODES = {
 };
 
 describe("PrivilegeGatewayTopologyPage — Live LB stats panel", () => {
-  const original = process.env[ENV_KEY];
   beforeEach(() => {
-    delete process.env[ENV_KEY];
     apiClient.get.mockReset();
     apiClient.post.mockReset();
   });
-  afterEach(() => {
-    if (original === undefined) delete process.env[ENV_KEY];
-    else process.env[ENV_KEY] = original;
-  });
 
-  it("stats URL unset: explains the panel instead of iframing an error", () => {
+  it("stats panel always renders and iframes the BFF proxy", () => {
     render(<PrivilegeGatewayTopologyPage />);
     expect(screen.getByText(/Live LB stats/)).toBeTruthy();
-    expect(screen.queryByTitle("HAProxy LB stats")).toBeNull();
-  });
-
-  it("stats URL set: iframes HAProxy's built-in stats page on the lb tab", () => {
-    process.env[ENV_KEY] = "https://mcpgw.ai-demo.ping-devops.com/lb-stats";
-    render(<PrivilegeGatewayTopologyPage />);
     const frame = screen.getByTitle("HAProxy LB stats");
     // The iframe rides the demo's PingOne session through the admin-gated BFF
     // proxy — no browser basic-auth prompt, the credential never reaches the
-    // client. The env var only proves the feature is configured for THIS deploy.
+    // client.
     expect(frame.getAttribute("src")).toBe("/api/admin/lb/runtime/stats-view");
   });
 
-  it("stats URL set but on an archived tab: no iframe", () => {
-    process.env[ENV_KEY] = "https://mcpgw.ai-demo.ping-devops.com/lb-stats";
+  it("stats panel is lb-tab only: on an archived tab there is no iframe", () => {
     render(<PrivilegeGatewayTopologyPage />);
     const tabs = screen.getAllByRole("button");
     fireEvent.click(tabs.find((b) => b.textContent === "Agent-based"));

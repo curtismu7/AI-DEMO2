@@ -192,38 +192,26 @@ const LB_DETAILS = {
   "d-side": "Sidecar-backed doors (openapi2, mcp-pingone, mcp-brave-search, mcp-grafana) plus the LLM lanes under /llm/* (openai, anthropic, google, openrouter, custom).",
 };
 
-// HAProxy's own stats page (/lb-stats on the public LB frontend, read-only,
-// basic-auth gated in the chart), served to the iframe THROUGH the admin-gated
-// BFF proxy /api/admin/lb/runtime/stats-view: the demo's PingOne sign-in is
-// the gate, and the stats credential never reaches the browser. The env var
-// only marks the feature configured for this deployment (read at render, not
-// module scope, so per-deployment env is picked up); unset renders the
-// explainer instead of an empty iframe.
+// HAProxy's own stats page (/lb-stats on the public LB frontend, read-only),
+// served to the iframe THROUGH the admin-gated BFF proxy
+// /api/admin/lb/runtime/stats-view: the demo's PingOne sign-in is the gate,
+// and the stats credential never reaches the browser. No build-time gate:
+// when the BFF lacks the stats env the proxy itself answers 503 with the
+// variable names — that is the configuration signal, not this panel.
 function LbStatsPanel() {
   return (
     <section className="pgt-stats">
       <h2>Live LB stats</h2>
-      {process.env.REACT_APP_MCPGW_STATS_URL ? (
-        <>
-          <p className="pgt-stats__hint">
-            HAProxy&apos;s built-in stats page for <code>mcpgw-lb</code> — node health,
-            sessions and traffic per gateway node, refreshed every 5s. Admin sign-in
-            (PingOne) is the only prompt; no separate stats password.
-          </p>
-          <iframe
-            title="HAProxy LB stats"
-            src="/api/admin/lb/runtime/stats-view"
-            className="pgt-stats__frame"
-          />
-        </>
-      ) : (
-        <p className="pgt-stats__hint">
-          The load balancer&apos;s HAProxy stats page is not configured for this
-          deployment (REACT_APP_MCPGW_STATS_URL unset). The diagram below stays the
-          source of truth: three gateway nodes behind two HAProxy pods, pinned by a
-          consistent hash.
-        </p>
-      )}
+      <p className="pgt-stats__hint">
+        HAProxy&apos;s built-in stats page for <code>mcpgw-lb</code> — node health,
+        sessions and traffic per gateway node, refreshed every 5s. Admin sign-in
+        (PingOne) is the only prompt; no separate stats password.
+      </p>
+      <iframe
+        title="HAProxy LB stats"
+        src="/api/admin/lb/runtime/stats-view"
+        className="pgt-stats__frame"
+      />
     </section>
   );
 }
