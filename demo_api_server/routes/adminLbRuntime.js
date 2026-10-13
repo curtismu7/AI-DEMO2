@@ -208,6 +208,13 @@ router.get('/', async (req, res) => {
 });
 
 router.post('/:node/:action(park|unpark)', async (req, res) => {
+  // Admin-only: this moves live gateway traffic. The gate lives here, not on
+  // the mount, so the sibling stats-view reads stay open to any signed-in user
+  // (server.js mounts authenticateToken only). requireAdmin expects req.user
+  // to be set by authenticateToken, which the mount supplies.
+  if (!req.user || (req.user.role !== 'admin' && !(req.user.scope || '').split(' ').includes('admin:read'))) {
+    return res.status(403).json({ error: 'admin required to park or unpark gateway nodes' });
+  }
   const { node, action } = req.params;
   if (!NODE_NAME.test(node)) return res.status(404).json({ error: 'unknown node' });
   // Membership check against the pods' own state: an unknown node gets 404

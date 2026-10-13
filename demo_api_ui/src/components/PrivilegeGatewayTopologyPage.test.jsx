@@ -5,7 +5,6 @@
 import { describe, it, expect } from "vitest";
 import {
   TABS,
-  SEQUENCE_DIAGRAM,
   LB_NODES,
   LB_EDGES,
   A2A_NODES,
@@ -58,17 +57,9 @@ describe("PrivilegeGatewayTopologyPage diagram data", () => {
   });
 
   it("no Mermaid source remains on the page (ReactFlow-only convention)", () => {
-    // The request-flow figure is a static graph too.
-    expect(SEQUENCE_DIAGRAM.NODES.length).toBeGreaterThan(0);
-    expect(SEQUENCE_DIAGRAM.EDGES.length).toBeGreaterThan(0);
-    const ids = new Set(SEQUENCE_DIAGRAM.NODES.map((n) => n.id));
-    for (const [src, tgt] of SEQUENCE_DIAGRAM.EDGES) {
-      expect(ids.has(src), `sequence edge source ${src}`).toBe(true);
-      expect(ids.has(tgt), `sequence edge target ${tgt}`).toBe(true);
-    }
-    for (const w of SEQUENCE_DIAGRAM.walk) {
-      for (const id of w.nodes) expect(ids.has(id), `sequence walk node ${id}`).toBe(true);
-      for (const i of w.edges) expect(i, `sequence walk edge ${i}`).toBeLessThan(SEQUENCE_DIAGRAM.EDGES.length);
-    }
+    // The old bottom "Request Flow" figure (agent-based vs agentless sequence)
+    // was deleted 2026-10-13 — both variants are archived and the tab banner
+    // already routes readers to the current content.
+    expect(TABS.length).toBeGreaterThan(0);
   });
 });
