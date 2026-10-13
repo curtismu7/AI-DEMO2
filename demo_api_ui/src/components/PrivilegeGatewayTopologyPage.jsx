@@ -12,116 +12,85 @@ import "./PrivilegeMcpDiagramPage.css";
 import "./PrivilegeGatewayTopologyPage.css";
 import "./McpGatewayOauthFlowPage.css";
 
-const AGENT_SOURCE = `flowchart LR
-    subgraph cloud["Priv Cloud"]
-        console["Priv Cloud Controller<br/>(Console)"]
-        proxy["Public Proxy<br/>proxy-us-west-2.privilege.pingone.com:443"]
-    end
+// Agent-based tab: static hand-placed layout (converted from Mermaid 2026-10-12 —
+// all diagrams are ReactFlow now; the archived Mermaid source's ELK layout also
+// overlapped its numbered step badges). The client talks to a local Priv Agent,
+// which tunnels to the public proxy; the in-cluster gateway dials OUT to the
+// proxy — nothing connects inbound to the cluster.
+export const AGENT_NODES = [
+  { id: "console", group: "cloud", label: "Priv Cloud controller", sub: ["console · config sync"], x: 0, y: 20 },
+  { id: "client", group: "device", label: "MCP client", sub: ["Postman · IDE · agent app"], x: 0, y: 320 },
+  { id: "agent", group: "device", label: "Priv Agent (local)", sub: ["localhost :8643/sse", "device identity · Secure Enclave"], x: 400, y: 320 },
+  { id: "gw", group: "k8s", label: "MCP Gateway (in-cluster)", sub: ["mcpgw.\u2039ns\u203a.svc.cluster.local:8680", "JIT policy evaluated here"], x: 400, y: 620 },
+  { id: "mcp", group: "k8s", label: "MCP server", sub: ["cluster-local /sse"], x: 840, y: 620 },
+  { id: "proxy", group: "cloud", label: "Public proxy", sub: ["proxy-us-west-2.privilege.pingone.com:443"], x: 840, y: 320 },
+];
+export const AGENT_EDGES = [
+  ["console", "proxy", "1 · config sync (ENV_PROXY_TOKEN)", { dashed: true }],
+  ["console", "agent", "2 · gRPC proxy config (magic link)", { dashed: true }],
+  ["gw", "proxy", "3 · standing outbound TLS :443", {}],
+  ["client", "agent", "4 · MCP request :8643/sse", {}],
+  ["agent", "proxy", "5 · TLS tunnel :443", {}],
+  ["proxy", "gw", "6 · rides the standing link", {}],
+  ["gw", "mcp", "7 · permitted call, cluster-local", {}],
+];
+const AGENT_GROUPS = {
+  cloud: { label: "Priv Cloud", bg: "var(--th-status-error)" },
+  device: { label: "User device", bg: "var(--th-status-info)" },
+  k8s: { label: "K8s cluster", bg: "var(--th-status-success-border)" },
+};
 
-    subgraph device["User Device"]
-        client["MCP Client<br/>(Postman, IDE, agent app)"]
-        agent["Priv Agent<br/>https://opensearch.default.applications.procyon.ai:8643/sse"]
-    end
+// Agentless tab: static hand-placed layout (converted from Mermaid 2026-10-12).
+// No local agent — the client connects straight to the ingress; the gateway's
+// PingOne OIDC client signs the user in before JIT policy is evaluated.
+export const AGENTLESS_NODES = [
+  { id: "console", group: "cloud", label: "Priv Cloud console", sub: ["gRPC: proxy config", "(proxyToken from Helm)"], x: 0, y: 20 },
+  { id: "p1", group: "cloud", label: "PingOne AS", sub: ["authorize · token · userinfo"], x: 720, y: 20 },
+  { id: "client", group: "device", label: "MCP client", sub: ["HTTPS :443 + OIDC auth code"], x: 0, y: 300 },
+  { id: "ingress", group: "k8s", label: "Ingress", sub: ["\u2039you\u203a-agentless-mcpgw.ping-devops.com", "/opensearch-mcp-server/mcp"], x: 360, y: 300 },
+  { id: "gw", group: "k8s", label: "MCP Gateway (in-cluster)", sub: ["mcpgw.\u2039ns\u203a.svc.cluster.local:8680", "JIT policy vs signed-in user"], x: 360, y: 560 },
+  { id: "mcp", group: "k8s", label: "MCP server", sub: ["cluster-local /sse"], x: 720, y: 560 },
+];
+export const AGENTLESS_EDGES = [
+  ["console", "gw", "1 · config (gRPC)", { dashed: true }],
+  ["client", "ingress", "2 · HTTPS request", {}],
+  ["ingress", "p1", "3 · first contact: auth-code sign-in", {}],
+  ["p1", "ingress", "4 · identity (userinfo)", {}],
+  ["ingress", "gw", "5 · route to gateway :8680", {}],
+  ["gw", "mcp", "6 · permitted call, cluster-local", {}],
+];
+const AGENTLESS_GROUPS = AGENT_GROUPS;
 
-    subgraph k8s["K8s cluster — ‹you›-ping-devops"]
-        gw["MCP Gateway<br/>http://mcpgw.‹namespace›.svc.cluster.local:8680"]
-        mcp["MCP Server<br/>http://‹release›-opensearch-mcp-server.‹namespace›.svc.cluster.local/sse"]
-    end
-
-    console <-.- s1(("1")) -. "config sync<br/>(gateway registered via ENV_PROXY_TOKEN)" .-> proxy
-    console -.- s2(("2")) -. "gRPC: proxy config<br/>(agent installed via onboarding magic link)" .-> agent
-    gw --- s3(("3")) -- "standing outbound link, TLS :443<br/>(Priv wants gateway on 8680;<br/>ingress only allows 443)" --> proxy
-    client --- s4(("4")) -- "MCP request<br/>HTTPS :8643 /sse" --> agent
-    agent --- s5(("5")) -- "TLS tunnel :443" --> proxy
-    proxy --- s6(("6")) -- "rides the link from 3<br/>JIT policy evaluated at gateway" --> gw
-    gw --- s7(("7")) -- "permitted tool call<br/>HTTP /sse, cluster-local" --> mcp
-
-    classDef cloudN fill:#f5d4d5,stroke:#b3282d,color:#4a1113
-    classDef deviceN fill:#d5e2f2,stroke:#3d6ea5,color:#16324f
-    classDef k8sN fill:#d2ecdf,stroke:#2e8b6a,color:#123f2f
-    classDef mcpN fill:#e3dbf3,stroke:#6b4fa5,color:#2c1d4f
-    classDef stepN fill:#b3282d,stroke:#e4636a,color:#ffffff,font-size:20px,font-weight:bold
-    class console,proxy cloudN
-    class client,agent deviceN
-    class gw k8sN
-    class mcp mcpN
-    class s1,s2,s3,s4,s5,s6,s7 stepN
-    style cloud fill:#b3282d14,stroke:#b3282d80
-    style device fill:#3d6ea514,stroke:#3d6ea580
-    style k8s fill:#2e8b6a12,stroke:#2e8b6a80`;
-
-const AGENTLESS_SOURCE = `flowchart LR
-    subgraph cloud["Priv Cloud"]
-        console["Priv Cloud Controller<br/>(Console)"]
-    end
-
-    subgraph device["User Device"]
-        client["MCP Client<br/>(Postman, IDE, agent app)"]
-    end
-
-    subgraph k8s["K8s cluster — ‹you›-ping-devops"]
-        ingress["Ingress<br/>https://‹you›-agentless-mcpgw.ping-devops.com:443<br/>/opensearch-mcp-server/mcp"]
-        gw["MCP Gateway<br/>http://mcpgw.‹namespace›.svc.cluster.local:8680"]
-        mcp["MCP Server<br/>http://opensearch-mcp-server.‹namespace›.svc.cluster.local/sse"]
-    end
-
-    console -.- s1(("1")) -. "gRPC: proxy config<br/>(proxyToken from Helm install)" .-> gw
-    client --- s2(("2")) -- "HTTPS :443 + OIDC auth code<br/>auth.pingone.com/‹env-id›/as/authorize<br/>redirect: gateway DNS /callback" --> ingress
-    ingress --- s3(("3")) -- "route to gateway :8680<br/>JIT policy evaluated" --> gw
-    gw --- s4(("4")) -- "permitted tool call<br/>HTTP /sse, cluster-local" --> mcp
-
-    classDef cloudN fill:#f5d4d5,stroke:#b3282d,color:#4a1113
-    classDef deviceN fill:#d5e2f2,stroke:#3d6ea5,color:#16324f
-    classDef k8sN fill:#d2ecdf,stroke:#2e8b6a,color:#123f2f
-    classDef mcpN fill:#e3dbf3,stroke:#6b4fa5,color:#2c1d4f
-    classDef stepN fill:#b3282d,stroke:#e4636a,color:#ffffff,font-size:20px,font-weight:bold
-    class console cloudN
-    class client deviceN
-    class ingress,gw k8sN
-    class mcp mcpN
-    class s1,s2,s3,s4 stepN
-    style cloud fill:#b3282d14,stroke:#b3282d80
-    style device fill:#3d6ea514,stroke:#3d6ea580
-    style k8s fill:#2e8b6a12,stroke:#2e8b6a80`;
-
-// Step numbers ride on the arrows here, not on separate badge nodes: the badges
-// widened the layout past the panel, so the whole diagram was scaled down to
-// about two-thirds and its labels became hard to read.
-const A2A_SOURCE = `flowchart TB
-    console["Priv Cloud console"]
-    main["Main agent<br/>User device"]
-
-    subgraph k8s["K8s cluster"]
-        subgraph gw["Agent Privilege"]
-            gwA2A["Agent route<br/>/‹worker-app›/a2a"]
-            gwLLM["Model route<br/>/llm/‹provider›"]
-            gwMCP["Tool route<br/>/‹mcp-app›/mcp"]
-        end
-        worker["Worker agent"]
-        mcp["MCP server"]
-    end
-
-    model["Model provider<br/>Google, Anthropic or OpenAI"]
-
-    console -. "1 · config" .-> gwA2A
-    main -- "3 · A2A message" --> gwA2A
-    main -- "2 · model call" --> gwLLM
-    gwA2A -- "4 · forwarded" --> worker
-    worker -- "5 · model call" --> gwLLM
-    worker -- "6 · tool call" --> gwMCP
-    gwMCP -- "7 · screened" --> mcp
-    gwLLM -- "8 · provider key" --> model
-
-    classDef cloudN fill:#f5d4d5,stroke:#b3282d,color:#4a1113
-    classDef deviceN fill:#d5e2f2,stroke:#3d6ea5,color:#16324f
-    classDef k8sN fill:#d2ecdf,stroke:#2e8b6a,color:#123f2f
-    classDef mcpN fill:#e3dbf3,stroke:#6b4fa5,color:#2c1d4f
-    class console,model cloudN
-    class main deviceN
-    class gwA2A,gwLLM,gwMCP,worker k8sN
-    class mcp mcpN
-    style k8s fill:#2e8b6a12,stroke:#2e8b6a80
-    style gw fill:#2e8b6a22,stroke:#2e8b6a`;
+// A2A tab: static hand-placed layout (StaticFlowDiagram). The Mermaid version's
+// ELK auto-layout overlapped its numbered edge labels and crossed edges (seen 2026-10-12).
+// Positions chosen so no two edges cross: worker at top-right fans down to the model and
+// tool routes; the provider hangs below-left off the model route, clear of the worker fan.
+export const A2A_NODES = [
+  { id: "console", group: "cloud", label: "Priv Cloud console", sub: ["agent registry · policies", "keys · AIGuard config"], x: 0, y: 20 },
+  { id: "main", group: "device", label: "Main agent", sub: ["user device", "holds its own agent key"], x: 0, y: 330 },
+  { id: "gwA2A", group: "gw", label: "Agent route", sub: ["/‹worker-app›/a2a", "checks a2a scope + policy"], x: 400, y: 120 },
+  { id: "gwLLM", group: "gw", label: "Model route", sub: ["/llm/‹provider›", "checks key + allowed model", "swaps agent key → provider key"], x: 400, y: 300 },
+  { id: "model", group: "cloud", label: "Model provider", sub: ["Google · Anthropic · OpenAI", "never sees an agent key"], x: 120, y: 480 },
+  { id: "gwMCP", group: "gw", label: "Tool route", sub: ["/‹mcp-app›/mcp", "checks mcp scope + tool grant", "screens results (AIGuard)"], x: 400, y: 680 },
+  { id: "worker", group: "k8s", label: "Worker agent", sub: ["cluster-local", "holds its own agent key"], x: 800, y: 120 },
+  { id: "mcp", group: "k8s", label: "MCP server", sub: ["cluster-local · zero Privilege code"], x: 800, y: 680 },
+];
+export const A2A_EDGES = [
+  ["console", "gwA2A", "1 · config", { dashed: true }],
+  ["main", "gwLLM", "2 · model call", {}],
+  ["main", "gwA2A", "3 · A2A message", {}],
+  ["gwA2A", "worker", "4 · forwarded", {}],
+  ["worker", "gwLLM", "5 · model call", {}],
+  ["worker", "gwMCP", "6 · tool call", {}],
+  ["gwMCP", "mcp", "7 · screened", {}],
+  ["gwLLM", "model", "8 · provider key", {}],
+];
+const A2A_GROUPS = {
+  cloud: { label: "Priv Cloud / providers", bg: "var(--th-status-error)" },
+  device: { label: "User device", bg: "var(--th-status-info)" },
+  gw: { label: "Agent Privilege", bg: "var(--th-status-success-border)" },
+  k8s: { label: "K8s cluster", bg: "var(--th-status-success-border)" },
+};
 
 const A2A_STEPS = [
   { heading: "Setup — happens once" },
@@ -135,6 +104,24 @@ const A2A_STEPS = [
   { n: 7, text: "The gateway forwards a permitted tool call and screens the result on the way back: personal data is redacted, and a result carrying hidden instructions is blocked before the worker's model reads it." },
   { n: 8, text: "For every model call the gateway swaps the agent key for the real provider key, so no agent ever holds it." },
 ];
+const A2A_WALK = [
+  { title: "Setup", label: "step 1", nodes: ["console", "gwA2A", "gwLLM", "gwMCP"], edges: [0], lines: ["Console registers both apps and both agents; every key, policy and AIGuard setting flows from here."] },
+  { title: "Main agent calls its model", label: "steps 2–3", nodes: ["main", "gwLLM", "gwA2A"], edges: [1, 2], lines: ["The main agent calls its model through the gateway on its own key, then hands the question to the worker as an A2A message/send — also with its own key."] },
+  { title: "Forwarded to the worker", label: "step 4", nodes: ["gwA2A", "worker"], edges: [3], lines: ["The gateway checks the a2a scope, the Remote Agent's policy and the guardrail, then forwards. A refusal stops here; the worker never sees the main agent's key."] },
+  { title: "Worker calls its model", label: "step 5", nodes: ["worker", "gwLLM"], edges: [4], lines: ["The worker uses its OWN agent key on its own model tier — two agents, two keys, two policies."] },
+  { title: "Worker calls a tool", label: "steps 6–7", nodes: ["worker", "gwMCP", "mcp"], edges: [5, 6], lines: ["The tool call goes through the gateway on the worker's key; the result is screened on the way back — personal data redacted, hidden instructions blocked before the worker's model reads it."] },
+  { title: "Provider key stays inside", label: "step 8", nodes: ["gwLLM", "model"], edges: [7], lines: ["For every model call the gateway swaps the agent key for the real provider key. No agent ever holds it."] },
+];
+const A2A_DETAILS = {
+  main: "The caller. Holds only its own agent key (llm + a2a scopes, worker selected).",
+  worker: "Cluster-local worker. Holds its own agent key (llm + mcp scopes, each tool allowed) on its own model tier.",
+  gwA2A: "The Remote Agent door: /‹worker-app›/a2a. Per-call checks: key, a2a scope, policy, guardrail.",
+  gwLLM: "The model lane: /llm/‹provider›. Key check, allowed-model check, then key swap. Live lanes today: openai, anthropic, google, openrouter, custom (llama.cpp).",
+  gwMCP: "The MCP door: /‹mcp-app›/mcp. Key check, mcp scope, per-tool grant, AIGuard screens the result on the way back.",
+  model: "The real provider. Sees only the provider key the gateway injected — never an agent key.",
+  mcp: "The tool server. Zero Privilege-specific code: it sees a normal MCP call.",
+  console: "Registration, policies, agent registry, agent keys, per-key AIGuard. Config plane only — no request traffic flows through it.",
+};
 
 // Live mcpgw load-balanced topology (verified on the SE cluster 2026-10-12: LB pods run
 // haproxy:3.0-alpine; privilege/GATEWAY-LOAD-BALANCER.md §00/§00a, CURRENT-CONFIGURATION.md).
@@ -154,41 +141,33 @@ export const LB_NODES = [
   { id: "lb", group: "lb", label: "mcpgw-lb ×2 · HAProxy 3.0", sub: ["balance hdr(X-Forwarded-For)", "hash-type consistent → one node per client", "health GET / every 10s · fall 2 / rise 60", "X-Served-By: gateway-N"], x: 660, y: 20 },
   { id: "redis", group: "state", label: "privilege-redis", sub: ["shared client registry — tokens are NOT shared"], x: 660, y: 240 },
   { id: "gw1", group: "gw", label: "gateway-1", sub: ["agentless-mcpgw · curtismuir", ":8623 https · 9/9 sidecars"], x: 330, y: 460 },
-  { id: "gw2", group: "gw", label: "gateway-2", sub: ["agentless-mcpgw2 · cmuir", ":8623 http · sidecars"], x: 660, y: 460 },
-  { id: "gw3", group: "gw", label: "gateway-3", sub: ["agentless-mcpgw3 · curtismuir", ":8623 http · sidecars"], x: 990, y: 460 },
-  { id: "d-ose22", group: "door", label: "opensearch22", sub: ["always-200 fixture (time-boxed policy)"], x: 0, y: 700 },
-  { id: "d-ose", group: "door", label: "opensearch", sub: ["policy off → always-403 deny twin"], x: 240, y: 700 },
-  { id: "d-agg", group: "door", label: "aggregate", sub: ["opensearch + banking tools"], x: 480, y: 700 },
-  { id: "d-hostile", group: "door", label: "hostile-mcp", sub: ["deliberate attack surface"], x: 720, y: 700 },
-  { id: "d-agentgw", group: "door", label: "agent-gateway", sub: ["real PingGateway backend"], x: 960, y: 700 },
-  { id: "d-side", group: "door", label: "sidecar doors", sub: ["mcp-brave-search · mcp-grafana", "openapi2 · pingone-mcp"], x: 1200, y: 700 },
-  { id: "b-ose", group: "backend", label: "opensearch-mcp-server", sub: ["svc · curtismuir /mcp"], x: 120, y: 920 },
-  { id: "b-pg", group: "backend", label: "ping-gateway", sub: ["real PingGateway · cmuir :8080"], x: 900, y: 920 },
-  { id: "b-host", group: "backend", label: "hostile-mcp-server", sub: ["Deployment · :8899 → /mcp"], x: 1140, y: 920 },
-  { id: "b-side", group: "backend", label: "sidecars (per gateway pod)", sub: ["brave :8084 · grafana :8081 · banking-rest :8082", "pingone :8083 · openapi-banking :8080 · promptguard :8086"], x: 400, y: 920 },
+  { id: "gw2", group: "gw", label: "gateway-2", sub: ["agentless-mcpgw · cmuir", ":8623 http · sidecars"], x: 760, y: 460 },
+  { id: "d-ose", group: "door", label: "opensearch", sub: ["policy off → always-403 deny twin"], x: 0, y: 700 },
+  { id: "d-agg", group: "door", label: "aggregate family", sub: ["aggregate (default door)", "aggregate-limited · aggregate-none"], x: 220, y: 700 },
+  { id: "d-hostile", group: "door", label: "hostile family", sub: ["hostile-mcp (315 calls/wk)", "hostile-mcp-governed · hostile-a2a"], x: 460, y: 700 },
+  { id: "d-side", group: "door", label: "sidecar + other doors", sub: ["openapi2 · mcp-pingone", "mcp-brave-search · mcp-grafana", "agent-gateway · llm lanes"], x: 700, y: 700 },
+  { id: "b-ose", group: "backend", label: "opensearch-mcp-server", sub: ["svc · curtismuir /mcp"], x: 110, y: 920 },
+  { id: "b-host", group: "backend", label: "hostile-mcp-server", sub: ["Deployment · :8899 → /mcp"], x: 460, y: 920 },
+  { id: "b-side", group: "backend", label: "sidecars (per gateway pod)", sub: ["brave :8084 · grafana :8081 · banking-rest :8082", "pingone :8083 · openapi-banking :8080 · promptguard :8086"], x: 660, y: 920 },
 ];
 export const LB_EDGES = [
   ["client", "ingress", "HTTPS", {}],
   ["ingress", "lb", ":8623", {}],
   ["lb", "gw1", "hash pin", {}],
   ["lb", "gw2", "hash pin", {}],
-  ["lb", "gw3", "hash pin", {}],
   ["gw1", "redis", "registry", { dashed: true }],
   ["gw2", "redis", "registry", { dashed: true }],
-  ["gw3", "redis", "registry", { dashed: true }],
-  ["gw2", "d-ose22", "any node serves any app", { dashed: true }],
-  ["d-ose22", "b-ose", "", { vertical: true }],
+  ["gw2", "d-ose", "any node serves any app", { dashed: true }],
   ["d-ose", "b-ose", "", { vertical: true }],
-  ["d-agg", "b-side", "", { vertical: true }],
+  ["d-agg", "b-ose", "aggregate of ose+banking", { vertical: true }],
   ["d-side", "b-side", "", { vertical: true }],
-  ["d-agentgw", "b-pg", "", { vertical: true }],
   ["d-hostile", "b-host", "", { vertical: true }],
 ];
 const LB_STEPS = [
   { heading: "Request path — every call" },
   { n: 1, text: "The client calls https://mcpgw.ai-demo.ping-devops.com/<App>/mcp. The nginx-public ingress terminates TLS and routes to Service mcpgw-lb on :8623." },
   { n: 2, text: "One of two HAProxy pods answers. balance hdr(X-Forwarded-For) with hash-type consistent pins every request from one client address to the same gateway node — no stick table, both pods hash and probe identically. Every response carries X-Served-By: gateway-N, which is how the demo proves who answered." },
-  { n: 3, text: "The pinned gateway node evaluates the Agentic App's JIT policy (allowed tools, users, time window) and forwards the permitted call. All three nodes belong to mesh cluster ai-demo-cmuir, so an app is registered once and any node can reach any backend — sidecars on its own pod's localhost, or cross-namespace Services." },
+  { n: 3, text: "The pinned gateway node evaluates the Agentic App's JIT policy (allowed tools, users, time window) and forwards the permitted call. Both nodes belong to mesh cluster ai-demo-cmuir, so an app is registered once and any node can reach any backend — sidecars on its own pod's localhost, or cross-namespace Services." },
   { n: 4, text: "A response returns with X-Served-By naming the node that served it." },
   { heading: "Failover — what a switch costs" },
   { n: 5, text: "Health checks run every 10s (any 2xx–4xx counts as up; the gateway answers 401 to a bare GET /). When a node dies its clients move within one 10s sample — but their tokens were minted by the dead node, so they sign in again. Registrations survive via shared Redis; tokens do not." },
@@ -196,19 +175,21 @@ const LB_STEPS = [
 ];
 const LB_WALK = [
   { title: "Client request", label: "step 1", nodes: ["client", "ingress"], edges: [0], lines: ["HTTPS to the public door; the ingress terminates TLS and forwards to mcpgw-lb :8623."] },
-  { title: "Consistent-hash pin", label: "step 2", nodes: ["lb", "gw1", "gw2", "gw3"], edges: [1, 2, 3, 4], lines: ["HAProxy hashes X-Forwarded-For; the same client always lands on the same node. X-Served-By names the winner."] },
-  { title: "JIT policy + app call", label: "step 3", nodes: ["gw1", "d-ose22"], edges: [8], lines: ["The pinned node checks the app's policy, then reaches the backend — any node can serve any app on the shared cluster."] },
-  { title: "Backend answer", label: "step 4", nodes: ["d-ose22", "b-ose"], edges: [9], lines: ["The permitted call reaches opensearch-mcp-server cluster-locally; the result returns with X-Served-By on it."] },
-  { title: "Shared registry", label: "step 5", nodes: ["redis", "gw1", "gw2", "gw3"], edges: [5, 6, 7], lines: ["Both/all nodes read registrations from one Redis, so a client registered once is known everywhere — but tokens are not shared, so a failover still costs a sign-in."] },
+  { title: "Consistent-hash pin", label: "step 2", nodes: ["lb", "gw1", "gw2"], edges: [1, 2, 3], lines: ["HAProxy hashes X-Forwarded-For; the same client always lands on the same node. X-Served-By names the winner."] },
+  { title: "JIT policy + app call", label: "step 3", nodes: ["gw1", "d-agg"], edges: [6], lines: ["The pinned node checks the app's policy, then reaches the backend — any node can serve any app on the shared cluster."] },
+  { title: "Backend answer", label: "step 4", nodes: ["d-agg", "b-ose"], edges: [8], lines: ["The permitted call reaches opensearch-mcp-server cluster-locally; the result returns with X-Served-By on it."] },
+  { title: "Shared registry", label: "step 5", nodes: ["redis", "gw1", "gw2"], edges: [4, 5], lines: ["Both nodes read registrations from one Redis, so a client registered once is known everywhere — but tokens are not shared, so a failover still costs a sign-in."] },
+  { title: "Failover cost + NOSRV window", label: "step 6", nodes: ["lb", "gw1", "gw2", "redis"], edges: [1, 2, 3, 4, 5], lines: ["When a node dies its clients move within one 10s sample and sign in again (tokens are not shared). A recovered node needs 60 passing checks (rise 60) before it takes clients back — that window answers 503 node=<NOSRV> and looks like an outage while every gateway is fine."] },
 ];
 const LB_DETAILS = {
   lb: "Two replicas on separate hosts (topologySpread). Engine is haproxy in the live cluster even though gateway1-lb.values.yaml still says engine: nginx — swapped after PR #1022 deployed.",
   gw1: "Owns the HTTPS front door certificate name; 9/9 containers: gateway + 8 sidecars.",
-  gw2: "Re-enrolled into cluster ai-demo-cmuir on 2026-10-04; serves plain HTTP because its OAuth URL does not match its own certificate.",
-  gw3: "Third node, same namespace as gateway-1; main container request trimmed to 250m so the SE cluster can still schedule it.",
+  gw2: "Second node in cmuir, same release chart (release agentless-mcpgw in its namespace). Gateway-3 was deleted from the cluster on 2026-10-12.",
   redis: "One pod, 1Gi AOF, password-only TLS-less in-cluster. Hard dependency: a gateway restart with Redis down exits after 6 attempts.",
-  "d-ose22": "Deliberate known-good door: 3-month policy time-box. When it 403s, that is renewal coming due, not a regression.",
+  "d-agg": "The teaching family, and the BFF's default door: aggregate (policy-backed), aggregate-limited (tool-filtered, the per-tool-grant demo) and aggregate-none (no policy → deny-all twin). opensearch22 — the old always-200 fixture — was deleted from the console 2026-10-12 (unused 15 days).",
   "d-ose": "Deliberate known-deny door: no policy attached, always 403. Enforcement is real; do not 'fix' it.",
+  "d-hostile": "The hostile family: hostile-mcp (the demo workhorse), hostile-mcp-governed (policy-governed twin, 403s when policy refuses) and hostile-a2a (A2A route).",
+  "d-side": "Sidecar-backed doors (openapi2, mcp-pingone, mcp-brave-search, mcp-grafana) plus the LLM lanes under /llm/* (openai, anthropic, google, openrouter, custom).",
 };
 
 // HAProxy's own stats page (/lb-stats on the public LB frontend, read-only,
@@ -353,88 +334,134 @@ export const TABS = [
     id: "lb",
     label: "Live LB topology",
     static: true,
+    nodes: LB_NODES,
+    edges: LB_EDGES,
+    groups: LB_GROUPS,
     steps: LB_STEPS,
     walk: LB_WALK,
     details: LB_DETAILS,
+    ariaLabel:
+      "Live mcpgw load-balanced topology: MCP clients reach an nginx ingress, then two HAProxy load-balancer pods, which pin each client by a consistent hash to one of two gateway nodes in mesh cluster ai-demo-cmuir. The nodes share a Redis client registry and serve the Agentic App doors — the aggregate family, opensearch, the hostile-mcp family and the sidecar doors — which reach the OpenSearch MCP server, hostile-mcp-server and per-pod sidecars.",
     blurb:
-      "How the demo's one public mcpgw URL is served today: two HAProxy pods pin each client to one of three gateway nodes of mesh cluster ai-demo-cmuir, and every Agentic App door behind them. Verified live on the SE cluster 2026-10-12.",
+      "How the demo's one public mcpgw URL is served today: two HAProxy pods pin each client to one of two gateway nodes of mesh cluster ai-demo-cmuir, and every Agentic App door behind them. Verified live on the SE cluster 2026-10-12.",
   },
   {
     id: "agent",
     label: "Agent-based",
-    source: AGENT_SOURCE,
-    filename: "privilege-gateway-agent-topology.mmd",
+    static: true,
+    nodes: AGENT_NODES,
+    edges: AGENT_EDGES,
+    groups: AGENT_GROUPS,
     steps: AGENT_STEPS,
+    walk: [
+      { title: "Config sync", label: "steps 1–2", nodes: ["console", "proxy", "agent"], edges: [0, 1], lines: ["Console and public proxy sync config; the agent is installed from an onboarding magic link and gets its proxy config over gRPC."] },
+      { title: "Gateway dials out", label: "step 3", nodes: ["gw", "proxy"], edges: [2], lines: ["The gateway holds a standing outbound TLS link to the proxy on 443 — Priv expects it on 8680 and the ingress only carries 443, so nothing connects inbound to the cluster."] },
+      { title: "Client → agent → proxy", label: "steps 4–5", nodes: ["client", "agent", "proxy"], edges: [3, 4], lines: ["The MCP client talks to the local agent's frontend on :8643/sse, which carries the device identity; the agent tunnels to the proxy over TLS."] },
+      { title: "Down the link, policy, forward", label: "steps 6–7", nodes: ["proxy", "gw", "mcp"], edges: [5, 6], lines: ["The proxy rides the standing link down to the gateway, which evaluates the JIT policy before forwarding the permitted call cluster-locally."] },
+    ],
+    details: {
+      gw: "Priv expects the gateway on 8680; the cluster ingress only allows standard ports, so the gateway dials OUT instead of being reached.",
+      agent: "Installed from an onboarding magic link; exposes a local MCP frontend on :8643/sse with the user's device identity (Secure Enclave, tenant binding).",
+    },
+    ariaLabel:
+      "Archived agent-based variant: the MCP client talks to a local Priv Agent, which tunnels to the Privilege public proxy; the in-cluster gateway dials out to the proxy and evaluates JIT policy there before forwarding to the MCP server. Nothing connects inbound to the cluster.",
     blurb:
-      "The MCP client talks to a local Priv Agent, which tunnels out to the Privilege public proxy. The in-cluster gateway also dials out to that proxy — Privilege expects the gateway on 8680 and the cluster ingress only carries 443, so no traffic enters the cluster directly.",
+      "ARCHIVED deployment variant. The MCP client talks to a local Priv Agent, which tunnels out to the Privilege public proxy. The in-cluster gateway also dials out to that proxy — Privilege expects the gateway on 8680 and the cluster ingress only carries 443, so no traffic enters the cluster directly.",
   },
   {
     id: "agentless",
     label: "Agentless",
-    source: AGENTLESS_SOURCE,
-    filename: "privilege-gateway-agentless-topology.mmd",
+    static: true,
+    nodes: AGENTLESS_NODES,
+    edges: AGENTLESS_EDGES,
+    groups: AGENTLESS_GROUPS,
     steps: AGENTLESS_STEPS,
+    walk: [
+      { title: "Config push", label: "step 1", nodes: ["console", "gw"], edges: [0], lines: ["The console pushes proxy config to the gateway over gRPC — the gateway registered itself with the proxyToken from the Helm install."] },
+      { title: "Client → ingress", label: "step 2", nodes: ["client", "ingress"], edges: [1], lines: ["No local agent: the client connects straight to the cluster ingress over HTTPS."] },
+      { title: "OIDC sign-in", label: "steps 3–4", nodes: ["ingress", "p1"], edges: [2, 3], lines: ["On first contact the gateway's PingOne OIDC client runs the authorization-code sign-in and reads identity from userinfo — inline, before the policy step."] },
+      { title: "Route, policy, forward", label: "steps 5–6", nodes: ["ingress", "gw", "mcp"], edges: [4, 5], lines: ["The ingress routes to the gateway on :8680, which evaluates the JIT policy against the signed-in user before forwarding the permitted call cluster-locally."] },
+    ],
+    details: {
+      ingress: "Terminates TLS for ‹you›-agentless-mcpgw.ping-devops.com; routes /opensearch-mcp-server/mcp to the gateway.",
+      gw: "Registers with the proxyToken from the Helm install; its PingOne OIDC client (Client Secret Basic) signs the user in on first contact.",
+    },
+    ariaLabel:
+      "Archived agentless variant: no local agent — the client connects straight to the cluster ingress over HTTPS, the gateway's PingOne OIDC client signs the user in on first contact, then the gateway evaluates JIT policy and forwards the permitted call cluster-locally.",
     blurb:
-      "No local agent. The MCP client connects straight to the cluster ingress over HTTPS and authenticates with the gateway's PingOne OIDC client (authorization code flow); the console still pushes proxy configuration to the gateway.",
+      "ARCHIVED deployment variant. No local agent. The MCP client connects straight to the cluster ingress over HTTPS and authenticates with the gateway's PingOne OIDC client (authorization code flow); the console still pushes proxy configuration to the gateway.",
   },
   {
     id: "a2a",
     label: "Agent-to-agent",
-    source: A2A_SOURCE,
-    filename: "privilege-gateway-a2a-topology.mmd",
+    static: true,
+    nodes: A2A_NODES,
+    edges: A2A_EDGES,
+    groups: A2A_GROUPS,
     steps: A2A_STEPS,
+    walk: A2A_WALK,
+    details: A2A_DETAILS,
+    ariaLabel:
+      "Agent-to-agent through the gateway: a main agent calls its model and sends an A2A message through the gateway's agent route, which forwards to the worker agent. The worker calls its own model and tools through the gateway's model and tool routes on its own key. The gateway holds the real provider key and screens tool results before the worker's model reads them.",
     blurb:
       "Two agents and a tool server, with the Agent Privilege between every pair. Each agent holds only its own agent key; the gateway checks that key on every model call, agent-to-agent call and tool call, and holds the real provider key itself. A longer chain works the same way: Demo Step 26 runs main agent, LangChain agent and a specialist, with the gateway between each pair.",
   },
 ];
 
-export const SEQUENCE_SOURCE = `sequenceDiagram
-    autonumber
-    box rgb(240,240,255) Agent-based — local Priv Agent tunnels out
-    participant Client
-    participant Agent as Priv Agent (local)
-    participant Proxy as Privilege public proxy
-    participant GW as MCP Gateway (in-cluster)
-    participant MCP as MCP Server
-    end
-
-    Note over Proxy,GW: setup, once: console/proxy config sync,<br/>agent installed via magic link, gateway dials<br/>out — standing TLS link on 443
-    Client->>Agent: MCP request, HTTPS :8643/sse
-    Agent->>Proxy: TLS tunnel :443
-    Proxy->>GW: rides the standing link from setup
-    GW->>GW: evaluate JIT policy<br/>(Agentic Apps > Policy)
-    alt permitted
-        GW->>MCP: cluster-local HTTP /sse
-        MCP-->>GW: result
-        GW-->>Proxy: result
-        Proxy-->>Agent: result
-        Agent-->>Client: result
-    else denied
-        GW-->>Proxy: denied at step 6
-    end
-
-    box rgb(255,245,235) Agentless — client connects straight to ingress
-    participant Client2 as Client
-    participant ING as Ingress
-    participant GW2 as MCP Gateway (in-cluster)
-    participant P1 as PingOne AS
-    participant MCP2 as MCP Server
-    end
-
-    Note over ING,GW2: setup, once: console pushes proxy config<br/>to gateway over gRPC (proxyToken from Helm install)
-    Client2->>ING: HTTPS :443 request
-    ING->>P1: first contact: authorization-code<br/>sign-in (Client Secret Basic)
-    P1-->>ING: identity (userinfo)
-    ING->>GW2: route to gateway :8680
-    GW2->>GW2: evaluate JIT policy against<br/>signed-in PingOne user
-    alt permitted
-        GW2->>MCP2: cluster-local HTTP /sse
-        MCP2-->>GW2: result
-        GW2-->>ING: result
-        ING-->>Client2: result
-    else denied
-        GW2-->>ING: denied at step 3
-    end`;
+// Request-flow figure: converted from the Mermaid sequence source 2026-10-12
+// (all diagrams are ReactFlow now). The two variants are drawn as two stacked
+// lanes sharing one layout grammar: callers on the left, the gateway centre,
+// destinations right; dashed = control plane, solid = data path.
+export const SEQUENCE_NODES = [
+  // Agent-based lane (top)
+  { id: "a-client", group: "device", label: "Agent-based · MCP client", sub: ["on the user device"], x: 0, y: 20 },
+  { id: "a-agent", group: "device", label: "Priv Agent (local)", sub: [":8643/sse · device identity"], x: 340, y: 20 },
+  { id: "a-proxy", group: "cloud", label: "Privilege public proxy", sub: [":443 · standing link below"], x: 680, y: 20 },
+  { id: "a-gw", group: "gw", label: "MCP Gateway (in-cluster)", sub: ["JIT policy evaluated here"], x: 340, y: 240 },
+  { id: "a-mcp", group: "k8s", label: "MCP Server", sub: ["cluster-local /sse"], x: 680, y: 240 },
+  // Agentless lane (bottom)
+  { id: "b-client", group: "device", label: "Agentless · MCP client", sub: ["connects straight to ingress"], x: 0, y: 480 },
+  { id: "b-ing", group: "k8s", label: "Ingress", sub: [":443 · routes to gateway"], x: 340, y: 480 },
+  { id: "b-p1", group: "cloud", label: "PingOne AS", sub: ["auth-code sign-in (first contact)"], x: 680, y: 480 },
+  { id: "b-gw", group: "gw", label: "MCP Gateway (in-cluster)", sub: ["JIT policy vs signed-in user"], x: 340, y: 700 },
+  { id: "b-mcp", group: "k8s", label: "MCP Server", sub: ["cluster-local /sse"], x: 680, y: 700 },
+  { id: "console", group: "cloud", label: "Priv Cloud console", sub: ["pushes proxy config (once)"], x: 0, y: 700 },
+];
+export const SEQUENCE_EDGES = [
+  ["a-client", "a-agent", "1 · MCP request :8643/sse", {}],
+  ["a-agent", "a-proxy", "2 · TLS tunnel :443", {}],
+  ["a-proxy", "a-gw", "3 · rides the standing link", {}],
+  ["a-gw", "a-mcp", "4 · permitted call (or denied)", {}],
+  ["b-client", "b-ing", "5 · HTTPS :443 request", {}],
+  ["b-ing", "b-p1", "6 · auth-code sign-in (first contact)", {}],
+  ["b-p1", "b-ing", "7 · identity (userinfo)", {}],
+  ["b-ing", "b-gw", "8 · route to gateway :8680", {}],
+  ["b-gw", "b-mcp", "9 · permitted call (or denied)", {}],
+  ["console", "b-gw", "config · gRPC (proxyToken)", { dashed: true }],
+  ["console", "a-gw", "config · gRPC (proxyToken)", { dashed: true }],
+];
+const SEQUENCE_GROUPS = {
+  cloud: { label: "Priv Cloud / providers", bg: "var(--th-status-error)" },
+  device: { label: "User device", bg: "var(--th-status-info)" },
+  gw: { label: "Agent Privilege", bg: "var(--th-status-success-border)" },
+  k8s: { label: "K8s cluster", bg: "var(--th-status-success-border)" },
+};
+export const SEQUENCE_DIAGRAM = {
+  NODES: SEQUENCE_NODES,
+  EDGES: SEQUENCE_EDGES,
+  GROUPS: SEQUENCE_GROUPS,
+  walk: [
+    { title: "Setup (both lanes)", label: "config", nodes: ["console", "a-gw", "b-gw"], edges: [9, 10], lines: ["The console pushes proxy config to the gateway over gRPC — proxyToken from the Helm install. Once, not per request."] },
+    { title: "Agent-based lane", label: "steps 1–3", nodes: ["a-client", "a-agent", "a-proxy", "a-gw"], edges: [0, 1, 2], lines: ["Client → local agent (:8643/sse) → proxy (:443) → down the standing link to the in-cluster gateway."] },
+    { title: "Agentless lane", label: "steps 5–8", nodes: ["b-client", "b-ing", "b-p1", "b-gw"], edges: [4, 5, 6, 7], lines: ["Client → ingress (:443); on first contact the ingress-facing gateway runs the PingOne OIDC auth-code sign-in, then routes to the gateway."] },
+    { title: "Same enforcement, same hop", label: "steps 4 & 9", nodes: ["a-gw", "a-mcp", "b-gw", "b-mcp"], edges: [3, 8], lines: ["Both lanes converge: the JIT policy check at the gateway, then a cluster-local hop to the MCP server. Denied calls stop at the gateway."] },
+  ],
+  details: {
+    "a-agent": "ARCHIVED variant: installed from an onboarding magic link; carries the device identity.",
+    "a-proxy": "Public proxy the gateway dials OUT to — nothing connects inbound to the cluster.",
+    "b-p1": "The gateway's own PingOne OIDC client (Client Secret Basic) runs the sign-in inline, before the policy step.",
+  },
+};
 
 const SEQUENCE_NOTES = [
   {
@@ -461,34 +488,18 @@ const SEQUENCE_NOTES = [
   },
 ];
 
-const LEGEND = [
-  { className: "pgt-swatch--cloud", label: "Priv Cloud" },
-  { className: "pgt-swatch--device", label: "User Device" },
-  { className: "pgt-swatch--k8s", label: "K8s cluster" },
-  { className: "pgt-swatch--mcp", label: "MCP server (destination)" },
-  { className: "pgt-swatch--step", label: "step number" },
-];
-
 
 export default function PrivilegeGatewayTopologyPage() {
   const [activeTab, setActiveTab] = useState("lb");
-  const [source, setSource] = useState(AGENT_SOURCE);
-  const [seqSource, setSeqSource] = useState(SEQUENCE_SOURCE);
-
-  useEffect(() => {
-    const tab = TABS.find((t) => t.id === activeTab);
-    if (tab && tab.source) setSource(tab.source);
-  }, [activeTab]);
 
   const activeTabMeta = TABS.find((t) => t.id === activeTab);
-  const isStatic = Boolean(activeTabMeta?.static);
 
   return (
     <>
     <div className="pmd-page pgt-page">
-      {!isStatic && (
+      {(activeTabMeta.id === "agent" || activeTabMeta.id === "agentless") && (
       <div className="pgt-archived">
-        <strong>The Agent-based and Agentless tabs are archived.</strong> The Agent-to-agent tab is current. See{" "}
+        <strong>This deployment variant is archived.</strong> See{" "}
         <a href="/privilege-first-gateway">Privilege first, Agent Gateway for the rest</a>{" "}
         for the current Privilege Agentic App gateway content, including the settled backend-hop
         Auth Mode findings.
@@ -529,46 +540,39 @@ export default function PrivilegeGatewayTopologyPage() {
 
       <p className="pmd-sub pgt-blurb">{activeTabMeta?.blurb}</p>
 
-      {isStatic ? (
-        <>
-          <ul className="pgt-legend">
+      {/* Every tab is a static React Flow graph now (Mermaid renderer is gone).
+          The tab entry owns its NODES/EDGES/GROUPS/walk/details. */}
+      <ul className="pgt-legend">
+        {activeTabMeta.id === "lb" ? (
+          <>
             <li><span className="pgt-swatch pgt-swatch--lb" />load balancer / ingress</li>
             <li><span className="pgt-swatch pgt-swatch--gw" />gateway nodes (one mesh cluster)</li>
             <li><span className="pgt-swatch pgt-swatch--door" />Agentic App doors</li>
             <li><span className="pgt-swatch pgt-swatch--state" />shared state</li>
             <li><span className="pgt-swatch pgt-swatch--mcp" />backends</li>
-          </ul>
-          <StaticFlowDiagram
-            NODES={LB_NODES}
-            EDGES={LB_EDGES}
-            GROUPS={LB_GROUPS}
-            walk={LB_WALK}
-            details={LB_DETAILS}
-            testId="pgt-lb-diagram"
-            ariaLabel="Live mcpgw load-balanced topology: MCP clients reach an nginx ingress, then two HAProxy load-balancer pods, which pin each client by a consistent hash to one of three gateway nodes in mesh cluster ai-demo-cmuir. The nodes share a Redis client registry and serve the Agentic App doors opensearch22, opensearch, aggregate, hostile-mcp, agent-gateway and the sidecar doors, which reach the OpenSearch MCP server, PingGateway, hostile-mcp-server and per-pod sidecars."
-          />
+          </>
+        ) : (
+          <>
+            <li><span className="pgt-swatch pgt-swatch--lb" />Priv cloud / providers</li>
+            <li><span className="pgt-swatch pgt-swatch--door" />Agent Privilege</li>
+            <li><span className="pgt-swatch pgt-swatch--gw" />cluster / device</li>
+            <li><span className="pgt-swatch pgt-swatch--state" />control plane (dashed)</li>
+          </>
+        )}
+      </ul>
+      <StaticFlowDiagram
+        NODES={activeTabMeta.nodes}
+        EDGES={activeTabMeta.edges}
+        GROUPS={activeTabMeta.groups}
+        walk={activeTabMeta.walk}
+        details={activeTabMeta.details}
+        testId={`pgt-${activeTabMeta.id}-diagram`}
+        ariaLabel={activeTabMeta.ariaLabel}
+      />
+      {activeTabMeta.id === "lb" && (
+        <>
           <LbStatsPanel />
           <LbRuntimePanel />
-        </>
-      ) : (
-        <>
-      <ul className="pgt-legend">
-        {LEGEND.map((item) => (
-          <li key={item.label}>
-            <span className={`pgt-swatch ${item.className}`} />
-            {item.label}
-          </li>
-        ))}
-      </ul>
-
-      <DiagramExportBar
-        source={source}
-        sourceFilename={activeTabMeta?.filename || "privilege-gateway-topology.mmd"}
-        onSourceChange={setSource}
-      />
-      <div className="pmd-panel">
-        <FlowDiagram source={source} label="Privilege gateway topology diagram" height={640} />
-      </div>
         </>
       )}
 
@@ -586,24 +590,6 @@ export default function PrivilegeGatewayTopologyPage() {
           ),
         )}
       </ol>
-
-      {!isStatic && (
-      <p className="pmd-footer">
-        Source:{" "}
-        <a
-          className="pmd-link"
-          href="https://pingidentity.atlassian.net/wiki/x/SwDRwg"
-          target="_blank"
-          rel="noreferrer"
-        >
-          PingOne Privilege MCP Gateway: Instructional Demo Setup
-        </a>{" "}
-        (SE Confluence), Figures 1–2. Both variants end at the same OpenSearch
-        MCP server; what changes is how the client's identity and traffic reach
-        the gateway. Pick one variant per Helm release — never mix{" "}
-        <code>privgateway</code> and <code>agentless-mcpgw</code> values.
-      </p>
-      )}
     </div>
 
     <div className="mgof-page">
@@ -618,15 +604,15 @@ export default function PrivilegeGatewayTopologyPage() {
         </p>
       </div>
 
-      <DiagramExportBar
-        source={seqSource}
-        sourceFilename="privilege-gateway-request-flow.mmd"
-        onSourceChange={setSeqSource}
+      <StaticFlowDiagram
+        NODES={SEQUENCE_DIAGRAM.NODES}
+        EDGES={SEQUENCE_DIAGRAM.EDGES}
+        GROUPS={SEQUENCE_DIAGRAM.GROUPS}
+        walk={SEQUENCE_DIAGRAM.walk}
+        details={SEQUENCE_DIAGRAM.details}
+        testId="pgt-sequence-diagram"
+        ariaLabel="Request flow, agent-based versus agentless: the agent-based lane tunnels client, local Priv Agent and public proxy down a standing link to the in-cluster gateway; the agentless lane connects the client straight to the ingress with a PingOne OIDC sign-in. Both lanes end at the same gateway policy check and cluster-local MCP server hop. Dashed edges are one-time console configuration."
       />
-
-      <div className="mgof-panel">
-        <FlowDiagram source={seqSource} label="Privilege gateway request flow sequence diagram" />
-      </div>
 
       <div className="mgof-notes">
         {SEQUENCE_NOTES.map((group) => (

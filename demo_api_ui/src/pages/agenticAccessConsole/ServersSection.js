@@ -20,7 +20,7 @@ const RESOURCE_SERVER_TOOLS = [
 ];
 
 const PRIVILEGE_SERVERS = [
-  { name: "opensearch22", kind: "OpenSearch, native MCP", gateway: "cm-mcpgw", status: "LIVE" },
+  { name: "aggregate", kind: "MCP Aggregate (opensearch + banking)", gateway: "agentless-mcpgw", status: "LIVE" },
   { name: "mcp-brave-search", kind: "native MCP", gateway: "agentless-mcpgw", status: "LIVE" },
   { name: "mcp-grafana", kind: "native MCP", gateway: "agentless-mcpgw", status: "LIVE" },
   { name: "openapi2", kind: "OpenAPI MCP", gateway: "agentless-mcpgw", status: "BROKEN", note: "replaced by mcp-openapi-banking" },

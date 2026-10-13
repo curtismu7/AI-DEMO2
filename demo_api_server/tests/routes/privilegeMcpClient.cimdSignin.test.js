@@ -7,8 +7,8 @@
 const express = require('express');
 const request = require('supertest');
 
-const MCP_URL = 'https://mcpgw.example.com/opensearch22/mcp';
-const BASE = 'https://mcpgw.example.com/opensearch22';
+const MCP_URL = 'https://mcpgw.example.com/aggregate/mcp';
+const BASE = 'https://mcpgw.example.com/aggregate';
 const DOC_URL = 'https://local.ping-devops.com:4000/api/cimd/privilege/privilege-mcp-client/client-metadata.json';
 const PUBLIC_DOC_URL = 'https://public.example.test/api/cimd/privilege/privilege-mcp-client/client-metadata.json';
 const ENV_KEYS = ['PRIVILEGE_MCP_CALLBACK_HOST', 'PUBLIC_APP_URL', 'CORS_ORIGIN', 'PINGONE_MCP_GATEWAY_CLIENT_SECRET', 'PRIVILEGE_SSO_CLIENT_SECRET', 'PRIVILEGE_CIMD_DOCUMENT_ORIGIN'];

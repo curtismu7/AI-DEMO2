@@ -5,7 +5,7 @@
 // door, but the Agent Privilege binds each token to one Agentic App and
 // refuses it elsewhere. Measured on the live gateway 2026-09-10:
 //
-//   [mcpgw] token issued for app "opensearch22" presented on app
+//   [mcpgw] token issued for app "aggregate" presented on app
 //           "probe-agent-gateway"; rejecting
 //
 // so every Privilege door came back 401 regardless of the operator's real

@@ -167,7 +167,8 @@ jest.mock('../../services/idJagService', () => ({
 
 const configStore = require('../../services/configStore');
 const enterpriseMcpPolicy = require('../../services/enterpriseMcpPolicyService');
-const { resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = require('../../services/agentMcpTokenService');
+const svc = require('../../services/agentMcpTokenService');
+const { resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents } = svc;
 // Same instance the service uses: required here, at load, not inside a test.
 const commerceStore = require('../../services/lmdb/delegatedCommerceStore.lmdb');
 
@@ -254,6 +255,7 @@ describe('resolveMcpAccessTokenWithEvents — DaVinci widget token gate', () => 
 describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange audience', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     configStore.getOAuthProvider.mockReturnValue('pingfederate');
     configStore.getEffective.mockImplementation((key) => ({
       pingone_resource_mcp_server_uri: 'mcpserver.ping.demo',
@@ -484,6 +486,7 @@ describe('resolveMcpAccessTokenWithEvents — R1: local scope allow-list no long
 
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     configStore.getOAuthProvider.mockReturnValue('pingone');
     mockIsNativeIdJagEnabled.mockReturnValue(false);
     configStore.getEffective.mockImplementation((key) => {
@@ -528,6 +531,7 @@ describe('resolveMcpAccessTokenWithEvents — R1: local scope allow-list no long
 describe('resolveMcpAccessTokenWithEvents — insufficient user scopes (PINGONE_RESOURCE_MCP_SERVER_URI set)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return 'https://mcp.example.com/api';
       return null;
@@ -558,6 +562,8 @@ describe('resolveMcpAccessTokenWithEvents — RFC 8693 exchange, subject-only (P
   const origUri = process.env.PINGONE_RESOURCE_MCP_SERVER_URI;
 
   beforeEach(() => {
+    jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     delete process.env.PINGONE_AGENT_CLIENT_ID;
     process.env.PINGONE_RESOURCE_MCP_SERVER_URI = 'https://mcp.example.com/api';
     configStore.getEffective.mockImplementation((key) => {
@@ -659,6 +665,7 @@ describe('resolveMcpAccessTokenWithEvents — on_behalf_of (PINGONE_MCP_TOKEN_EX
 
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     process.env.PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID = 'agent-client-id';
     process.env.PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_SECRET = 'agent-secret';
     configStore.getEffective.mockImplementation((key) => {
@@ -722,6 +729,7 @@ describe('resolveMcpAccessTokenWithEvents — exchanger held by the identity sid
   // the sidecar holding the secret it must still exchange AS that client.
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return 'https://mcp.example.com/api';
       if (key === 'pingone_mcp_token_exchanger_client_id') return 'agent-client-id';
@@ -764,6 +772,7 @@ describe('exchangeTokenRfc8693 — exchanger held by the identity sidecar', () =
 
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     configStore.getEffective.mockImplementation((key) => (
       key === 'pingone_mcp_token_exchanger_client_id' ? 'agent-client-id' : null
     ));
@@ -799,6 +808,7 @@ describe('resolveMcpAccessTokenWithEvents — subject-only warning when no agent
 
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     delete process.env.PINGONE_MCP_TOKEN_EXCHANGER_CLIENT_ID;
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return 'https://mcp.example.com/api';
@@ -831,6 +841,7 @@ describe('resolveMcpAccessTokenWithEvents — subject-only warning when no agent
 describe('buildSessionPreviewTokenEvents', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
   });
 
   it('returns empty tokenEvents when no session token', async () => {
@@ -979,6 +990,7 @@ describe('resolveMcpAccessTokenWithEvents — read/write broad scope in token', 
 
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     delete process.env.AGENT_OAUTH_CLIENT_ID;
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return 'https://mcp.example.com/api';
@@ -1025,6 +1037,7 @@ describe('resolveMcpAccessTokenWithEvents — read/write broad scope in token', 
 describe('resolveMcpAccessTokenWithEvents — R1: agent_mcp_allowed_scopes is inert config (T-2)', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     delete process.env.AGENT_OAUTH_CLIENT_ID;
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return 'https://mcp.example.com/api';
@@ -1080,6 +1093,7 @@ describe('resolveMcpAccessTokenWithEvents — ENDUSER_AUDIENCE ai:agent:read onl
 
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     delete process.env.AGENT_OAUTH_CLIENT_ID;
     configStore.getEffective.mockImplementation((key) => {
       if (key === 'pingone_resource_mcp_server_uri' || key === 'mcp_resource_uri') return 'https://mcp.example.com/api';
@@ -1138,6 +1152,7 @@ const sampleJwtAudIncludes = makeJwt({
 describe('resolveMcpAccessTokenWithEvents — ff_inject_audience', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     delete process.env.AGENT_OAUTH_CLIENT_ID;
     mockPerformTokenExchange.mockResolvedValue(sampleJwtMcpAccessToken);
   });
@@ -1207,6 +1222,7 @@ describe('resolveMcpAccessTokenWithEvents — ff_skip_token_exchange', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     process.env.AGENT_OAUTH_CLIENT_ID     = 'agent-client-id';
     process.env.AGENT_OAUTH_CLIENT_SECRET = 'agent-secret';
     mockGetMcpExchangerToken.mockResolvedValue(sampleJwtAgentAccessToken);
@@ -1376,6 +1392,7 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
     delete process.env.MCP_EXCHANGER_TOKEN_ENDPOINT_AUTH_METHOD;
 
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     configStore.getOAuthProvider.mockReturnValue('pingone');
     mockIsNativeIdJagEnabled.mockReturnValue(false);
 
@@ -1810,6 +1827,7 @@ describe('resolveMcpAccessTokenWithEvents — 2-exchange delegation (ff_two_exch
 describe('Security properties', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     process.env.AGENT_OAUTH_CLIENT_ID     = 'agent-client-id';
     process.env.AGENT_OAUTH_CLIENT_SECRET = 'agent-secret';
     mockGetMcpExchangerToken.mockResolvedValue(sampleJwtAgentAccessToken);
@@ -1876,6 +1894,7 @@ describe('Security properties', () => {
 describe('RFC 8693 Compliance - Subject Preservation & may_act Validation', () => {
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     process.env.AGENT_OAUTH_CLIENT_ID = 'agent-client-id';
     process.env.AGENT_OAUTH_CLIENT_SECRET = 'agent-secret';
     mockGetMcpExchangerToken.mockResolvedValue(sampleJwtAgentAccessToken);
@@ -2038,6 +2057,7 @@ describe('Scope & Audience Mapping (RFC 8707) — additional', () => {
 
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     // Feed canonical audience URIs via env so the real
     // buildAllowedScopesByAudience() resolves testAudience's allowlist.
     process.env.ENDUSER_AUDIENCE = 'enduser.ping.demo';
@@ -2172,6 +2192,7 @@ describe('resolveMcpAccessTokenWithEvents — user-token active check (no re-log
 
   beforeEach(() => {
     jest.clearAllMocks();
+    svc._resetMcpTokenCacheForTests?.();
     delete process.env.PINGONE_AGENT_CLIENT_ID; // subject-only exchange path
     process.env.PINGONE_RESOURCE_MCP_SERVER_URI = 'https://mcp.example.com/api';
     configStore.getEffective.mockImplementation((key) => {

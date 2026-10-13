@@ -49,7 +49,7 @@ jest.mock('../../services/privilegeGatewaySession', () => ({
   status: jest.fn(() => ({ ready: false, reason: 'no_session' })),
   statusAll: jest.fn(() => ({})),
   getAccessToken: jest.fn(async () => null),
-  defaultApp: () => 'opensearch22',
+  defaultApp: () => 'aggregate',
 }));
 
 function jsonResponse(body, status = 200) {
@@ -145,7 +145,7 @@ const origCallbackHost = process.env.PRIVILEGE_MCP_CALLBACK_HOST;
 const origInternalSecret = process.env.BFF_INTERNAL_SECRET;
 
 beforeEach(() => {
-  process.env.PRIVILEGE_MCPGW_URL = `${GATEWAY}/opensearch22/mcp`;
+  process.env.PRIVILEGE_MCPGW_URL = `${GATEWAY}/aggregate/mcp`;
   process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE = GATEWAY;
   process.env.BFF_INTERNAL_SECRET = INTERNAL_SECRET;
   global.fetch = gatewayFetch();
@@ -167,9 +167,9 @@ describe('gatewayAppFromUrl', () => {
   test('reads the app segment, not the first path segment', () => {
     jest.resetModules();
     const { gatewayAppFromUrl } = require('../../routes/privilegeMcpClient').__test;
-    expect(gatewayAppFromUrl('https://gw/opensearch22/mcp')).toBe('opensearch22');
+    expect(gatewayAppFromUrl('https://gw/aggregate/mcp')).toBe('aggregate');
     expect(gatewayAppFromUrl('https://gw/mcp')).toBeNull();
-    expect(gatewayAppFromUrl('https://gw/mcpgw/opensearch22/mcp')).toBe('opensearch22');
+    expect(gatewayAppFromUrl('https://gw/mcpgw/aggregate/mcp')).toBe('aggregate');
     expect(gatewayAppFromUrl('not a url')).toBeNull();
   });
 });
@@ -284,7 +284,7 @@ describe('GET /api/privilege-mcp/facade-link', () => {
   });
 
   test('signs in to the gateway the façade calls, not PRIVILEGE_MCPGW_URL', async () => {
-    process.env.PRIVILEGE_MCPGW_URL = 'https://other-gateway.example.com/opensearch22/mcp';
+    process.env.PRIVILEGE_MCPGW_URL = 'https://other-gateway.example.com/aggregate/mcp';
     const res = await startLink(buildApp({}), { app: 'opensearch', resume: RESUME });
 
     expect(res.status).toBe(302);
@@ -302,13 +302,13 @@ describe('GET /api/privilege-mcp/facade-link', () => {
   test('no app means the default app, as the façade reads its bare door', async () => {
     const res = await startLink(buildApp({}), { resume: RESUME });
     expect(res.status).toBe(302);
-    expect(new URL(res.headers.location).pathname).toBe('/opensearch22/authorize');
+    expect(new URL(res.headers.location).pathname).toBe('/aggregate/authorize');
   });
 
   test('leaves a sign-in in flight on /privilege-mcp-client, and its selected door, untouched', async () => {
     const session = {};
     const app = buildApp(session);
-    const pageDoor = `${GATEWAY}/opensearch22/mcp`;
+    const pageDoor = `${GATEWAY}/aggregate/mcp`;
     await request(app).post('/api/privilege-mcp/config').send({ mcpUrl: pageDoor, clientId: 'client-abc' }).expect(200);
     const start = await request(app).post('/api/privilege-mcp/auth/start').send({}).expect(200);
     const pageState = new URL(start.body.authUrl).searchParams.get('state');

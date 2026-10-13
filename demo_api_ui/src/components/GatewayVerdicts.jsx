@@ -13,7 +13,7 @@ import './GatewayVerdicts.css';
  * verdicts themselves are already visible on the page.
  *
  * It reads them the honest way: through the governed gateway, via the
- * `opensearch22` Agentic App that the Generic MCP Inspector already talks to
+ * `aggregate` Agentic App that the Generic MCP Inspector already talks to
  * (profile `built-in-privilege-opensearch`, DCR + PKCE per door). No new BFF
  * route, no direct OpenSearch access — the datastore has security disabled and
  * is deliberately not exposed.

@@ -27,7 +27,7 @@ const request = require('supertest');
 
 const PUBLIC_ORIGIN = 'https://local.ping-devops.com:4000';
 const FACADE_DOOR = `${PUBLIC_ORIGIN}/mcp-facade/opensearch/mcp`;
-const GATEWAY_DOOR = 'https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp';
+const GATEWAY_DOOR = 'https://mcpgw.ai-demo.ping-devops.com/aggregate/mcp';
 const APP_TOKEN = 'main-app-token-aud-enduser-ping-demo';
 
 let sessionSeq = 0;

@@ -65,7 +65,7 @@ describe('mcp-facade multi-app door', () => {
     seenMethod = undefined;
     seenAuth = undefined;
     jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
-    for (const appName of ['opensearch22', 'banking-mcp', 'git_server.v2']) {
+    for (const appName of ['aggregate', 'banking-mcp', 'git_server.v2']) {
       gatewaySession.remember({
         sub: 'user-1',
         app: appName,
@@ -81,7 +81,7 @@ describe('mcp-facade multi-app door', () => {
     // The upstream entry path is per app (see privilegeEntryPath) and every app
     // now defaults to /mcp — POST is 405 on a backend's /sse. What this test is
     // about is that the SEGMENT is treated as a name, never a path.
-    for (const [appName, entry] of [['opensearch22', 'mcp'], ['banking-mcp', 'mcp'], ['git_server.v2', 'mcp']]) {
+    for (const [appName, entry] of [['aggregate', 'mcp'], ['banking-mcp', 'mcp'], ['git_server.v2', 'mcp']]) {
       // eslint-disable-next-line no-await-in-loop
       const res = await request(app())
         .post(`/api/mcp-facade/privilege-gateway/${appName}/mcp`)
@@ -99,7 +99,7 @@ describe('mcp-facade multi-app door', () => {
       .send(RPC);
 
     expect(res.status).toBe(200);
-    expect(seenPath).toBe('/opensearch22/mcp'); // opensearch22's entry path
+    expect(seenPath).toBe('/aggregate/mcp'); // aggregate's entry path
   });
 
   test('discovery advertises the resource URL that was actually called', async () => {
@@ -149,7 +149,7 @@ describe('mcp-facade multi-app DELETE', () => {
     seenMethod = undefined;
     seenAuth = undefined;
     jwksService.getPublicKey.mockResolvedValue({ keyObject: publicKey, alg: 'RS256' });
-    for (const appName of ['opensearch22', 'banking-mcp']) {
+    for (const appName of ['aggregate', 'banking-mcp']) {
       gatewaySession.remember({
         sub: 'user-1',
         app: appName,
@@ -181,7 +181,7 @@ describe('mcp-facade multi-app DELETE', () => {
       .set('mcp-session-id', 'sess-2');
 
     expect(res.status).toBe(200);
-    expect(seenPath).toBe('/opensearch22/mcp'); // opensearch22's entry path
+    expect(seenPath).toBe('/aggregate/mcp'); // aggregate's entry path
   });
 
   test('tears down locally without calling upstream when no gateway session exists', async () => {

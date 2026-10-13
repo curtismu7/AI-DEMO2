@@ -2,7 +2,7 @@
 
 // The Privilege console API is tenanted on the tenant that owns the Agentic
 // Apps, which is NOT the banking environment. Proven from the gateway log: the
-// app reference base64-decodes to `0428ba4f-…@@@default@@@opensearch22`.
+// app reference base64-decodes to `0428ba4f-…@@@default@@@aggregate`.
 //
 // consoleEnvId() read PRIVILEGE_SSO_ENV_ID first and nothing else. That variable
 // is currently the banking env — startupConfigGuard warns about exactly that

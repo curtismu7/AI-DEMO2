@@ -6,7 +6,7 @@
 // registration. This holds the gateway hop instead.
 
 const SESSION_PATH = '../../services/privilegeGatewaySession';
-const TOKEN_URI = 'https://mcpgw.example.com/opensearch22/token';
+const TOKEN_URI = 'https://mcpgw.example.com/aggregate/token';
 
 function load() {
   jest.resetModules();
@@ -108,24 +108,24 @@ describe('privilege gateway session — one per app, persisted', () => {
   test('keeps a separate session per app', async () => {
     const session = load();
     remembered(session, { app: 'opensearch', accessToken: 'os-token' });
-    remembered(session, { app: 'opensearch22', accessToken: 'os22-token' });
+    remembered(session, { app: 'aggregate', accessToken: 'os22-token' });
 
     expect(await session.getAccessToken('opensearch')).toBe('os-token');
-    expect(await session.getAccessToken('opensearch22')).toBe('os22-token');
+    expect(await session.getAccessToken('aggregate')).toBe('os22-token');
 
     session.clear('opensearch');
     expect(await session.getAccessToken('opensearch')).toBeNull();
-    expect(await session.getAccessToken('opensearch22')).toBe('os22-token');
+    expect(await session.getAccessToken('aggregate')).toBe('os22-token');
   });
 
   test('a call with no app means the default door app', async () => {
-    process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP = 'opensearch22';
+    process.env.MCP_FACADE_PRIVILEGE_GATEWAY_APP = 'aggregate';
     const session = load();
-    remembered(session, { app: 'opensearch22', accessToken: 'default-token' });
+    remembered(session, { app: 'aggregate', accessToken: 'default-token' });
 
     expect(await session.getAccessToken()).toBe('default-token');
     expect(session.status()).toEqual({ ready: true });
-    expect(session.statusAll()).toEqual({ opensearch22: { ready: true } });
+    expect(session.statusAll()).toEqual({ aggregate: { ready: true } });
   });
 
   test('clearAll drops every app', () => {

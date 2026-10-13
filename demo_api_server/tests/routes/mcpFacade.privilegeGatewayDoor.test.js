@@ -54,7 +54,7 @@ beforeAll((done) => {
   });
   upstream.listen(0, '127.0.0.1', () => {
     const base = `http://127.0.0.1:${upstream.address().port}`;
-    process.env.MCP_FACADE_PRIVILEGE_GATEWAY_URL = `${base}/opensearch22/mcp`;
+    process.env.MCP_FACADE_PRIVILEGE_GATEWAY_URL = `${base}/aggregate/mcp`;
     process.env.MCP_FACADE_PRIVILEGE_GATEWAY_BASE = base;
     process.env.MCP_FACADE_OPENSEARCH_AUD = AUD;
     done();
@@ -151,7 +151,7 @@ describe('mcp-facade privilege-gateway door', () => {
       accessToken: 'gateway-token',
       refreshToken: 'r1',
       expiresIn: 3600,
-      tokenUri: 'https://mcpgw.example.com/opensearch22/token',
+      tokenUri: 'https://mcpgw.example.com/aggregate/token',
       clientId: 'dcr-1',
     });
 
@@ -169,7 +169,7 @@ describe('mcp-facade privilege-gateway door', () => {
       sub: 'user-1',
       accessToken: 'gateway-token',
       expiresIn: 3600,
-      tokenUri: 'https://mcpgw.example.com/opensearch22/token',
+      tokenUri: 'https://mcpgw.example.com/aggregate/token',
     });
 
     const res = await request(buildApp()).post(DOOR).send(RPC);
@@ -258,7 +258,7 @@ describe('mcp-facade privilege-gateway door', () => {
   });
 
   test('uses the session for the app in the URL, not another app', async () => {
-    gatewaySession.remember({ sub: 'user-1', app: 'opensearch22', accessToken: 'os22-token', expiresIn: 3600, tokenUri: TOKEN_URI });
+    gatewaySession.remember({ sub: 'user-1', app: 'aggregate', accessToken: 'os22-token', expiresIn: 3600, tokenUri: TOKEN_URI });
     gatewaySession.remember({ sub: 'user-1', app: 'opensearch', accessToken: 'os-token', expiresIn: 3600, tokenUri: TOKEN_URI });
 
     const res = await request(buildApp()).post(DOOR_APP)

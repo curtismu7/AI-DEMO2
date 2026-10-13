@@ -77,7 +77,7 @@ Demo value: "govern a model that never leaves your building" — the strongest d
 3. Pod `imageID` compared against the tag index digest (see [the imageID gotcha](#the-imageid-gotcha))
 4. Binaries extracted from the amd64 layers of v1.261008 and v1.261009 and diffed: `go version -m` dependency lists, `nm` symbol tables, CLI `-h` output, embedded string tables
 
-Findings above are **static analysis of the binary, not live-tested behaviour**. The console may surface these features differently than the strings suggest — the demo-steps plan exists to convert each claim into a tested one.
+Findings above were first written as static analysis of the binary. The live-tested version of each claim now lives in the demo runbook: [GATEWAY-RELEASE-v1.261009-DEMO.md](GATEWAY-RELEASE-v1.261009-DEMO.md) (tested 2026-10-12) — model catalog, response-side policy denial, and llama.cpp verified live; the Bedrock pair blocked on a credential, with mantle confirmed as a key provider in the console.
 
 ## The imageID gotcha
 
@@ -103,4 +103,4 @@ If an announcement promised a release "this morning", it had not reached the pub
 
 ## Demo steps
 
-Planned, not yet executed: [2026-10-12-v1.261009-demo-steps plan](../docs/superpowers/plans/2026-10-12-v1.261009-demo-steps.md) — per-feature demo steps in the live-tested style of [LLM routing & virtual keys](GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md), split by what our environment can demo today (model catalog, response-denied, llama.cpp) versus what needs an AWS Bedrock key provisioned first (bedrock-mantle, the deployments route).
+Executed and tested 2026-10-12: [GATEWAY-RELEASE-v1.261009-DEMO.md](GATEWAY-RELEASE-v1.261009-DEMO.md) — per-feature tested tables in the live-tested style of [LLM routing & virtual keys](GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md). Model catalog, `llm_policy_response_denied` and llama.cpp were demoable the day of release and are tested live; the Bedrock pair (mantle routes, deployments route) is provisioned-demo-pending — the console's provider dropdown confirms mantle as a first-class key provider, and the missing piece is an AWS Bedrock credential. The working plan with per-step evidence: [2026-10-12-v1.261009-demo-steps plan](../docs/superpowers/plans/2026-10-12-v1.261009-demo-steps.md).

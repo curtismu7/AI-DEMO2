@@ -129,7 +129,7 @@ describe('POST /api/privilege-mcp/config — blank values do not overwrite', () 
 
   it('does not report a retained source-path token as authenticated for the destination', async () => {
     const browser = request.agent(app);
-    const privilegeUrl = 'https://gw.example.com/opensearch22/mcp';
+    const privilegeUrl = 'https://gw.example.com/aggregate/mcp';
     const directUrl = 'https://ai-demo.example.com/mcp-facade/opensearch/mcp';
 
     await browser

@@ -1327,7 +1327,44 @@ async function resolvePingFederateIdJagToken(req, tokenEvents, { resource, scope
   return downstreamToken;
 }
 
+// ── Session-scoped MCP token cache ──────────────────────────────────────────
+// A full delegation chain is 3-4 PingOne round trips per tool call, and the
+// demo replays the SAME (session, tool) pair over and over. Cache the resolved
+// result for a bounded window and mark replayed runs in the token rail so the
+// panel still shows the chain — labeled as a replay, not a live exchange.
+// Keyed by (sessionID, tool) — never by token content. Teaching flows pass
+// opts.skipCache to force a live run.
+const MCP_TOKEN_CACHE_TTL_MS = 240_000;
+const _mcpTokenCache = new Map(); // key: `${sessionID}|${tool}` → { result, ts }
+// Jest clears mocks in beforeEach but this Map lives at module scope across
+// tests — without a reset the second test on a (session, tool) pair replays
+// from cache and the mocked exchanges never fire (61 CI failures 2026-10-12).
+function resetMcpTokenCacheForTests() { _mcpTokenCache.clear(); }
+
 async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
+  const sessionKey = `${req?.sessionID || 'anon'}|${tool || 'default'}`;
+  const cached = _mcpTokenCache.get(sessionKey);
+  const now = Date.now();
+  if (cached && (now - cached.ts) < MCP_TOKEN_CACHE_TTL_MS && !opts?.skipCache) {
+    const replayed = buildTokenEvent(
+      'mcp-token-cache-replay',
+      'MCP Token — reused from cache (session-scoped, still valid; no live exchange this call)',
+      'active',
+      null,
+      `Resolved from the session cache ${(now - cached.ts) / 1000 | 0}s ago. The full live exchange chain ran on the first call in this window; PingOne was not contacted for this replay.`
+    );
+    return { ...cached.result, tokenEvents: [replayed, ...(cached.result.tokenEvents || [])], cached: true };
+  }
+  const result = await _resolveMcpAccessTokenWithEventsUncached(req, tool, opts);
+  if (result?.token && !opts?.skipCache) {
+    _mcpTokenCache.set(sessionKey, { result, ts: now });
+  } else if (result?.token && opts?.skipCache) {
+    _mcpTokenCache.delete(sessionKey); // a deliberate live run refreshes the window
+  }
+  return result;
+}
+
+async function _resolveMcpAccessTokenWithEventsUncached(req, tool, opts = {}) {
   logger.debug(_CAT, `[AGENT_MCP] resolveAccessToken tool=${tool} session=${req.sessionID}`);
 
   const tokenEvents = [];
@@ -3390,4 +3427,5 @@ function mapErrorToStructuredResponse(error, context = {}) {
 }
 
 module.exports.mapErrorToStructuredResponse = mapErrorToStructuredResponse;
+module.exports._resetMcpTokenCacheForTests = resetMcpTokenCacheForTests;
 module.exports.assertPfIdJagRunAllowed = assertPfIdJagRunAllowed;
