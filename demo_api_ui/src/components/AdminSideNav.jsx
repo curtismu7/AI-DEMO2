@@ -185,6 +185,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
   { id: "pingfederate-id-jag", paths: ["/pingfederate-id-jag"] },
   { id: "pingfederate-ai-agent", paths: ["/pingfederate-ai-agent"] },
+  { id: "aic", paths: ["/aic-token-exchange"] },
   { id: "utilities", paths: ["/pingone-test", "/mfa-test", "/oauth-debug-logs", "/token-exchange-tester", "/mgmt-api", "/pingone-setup", "/mcp-discovery", "/check"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
   { id: "authorize", paths: ["/pingone-authorize", "/pingone-authorize-capabilities", "/policy-decision-trace", "/authz-test", "/scope-audit", "/scope-reference"] },
@@ -1511,6 +1512,13 @@ export default function AdminSideNav({
         label: "CIMD, Token Exchange, and RAR",
         path: "/pingfederate-ai-agent",
         searchAlias: "PingFederate PF AI feature comparison AI agent differences ID-JAG third-party token exchange third party token exchange PAR Pushed Authorization Request RAR Rich Authorization Request CIMD",
+      },
+    ], "sec"),
+    productGroup("AIC", [
+      {
+        label: "AIC Token Exchange",
+        path: "/aic-token-exchange",
+        searchAlias: "AIC PingOne Advanced Identity Cloud ForgeRock token exchange delegation RFC 8693 actor token subject token may_act",
       },
     ], "sec"),
     productGroup("Developer Tools", [

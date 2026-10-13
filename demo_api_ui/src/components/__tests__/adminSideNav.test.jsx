@@ -303,6 +303,12 @@ describe("AdminSideNav — best-of-breed pass", () => {
     }
   });
 
+  it("lists the AIC group and opens it on the token exchange page", () => {
+    renderNav("/aic-token-exchange");
+    expect(screen.getByRole("button", { name: /^AIC/ })).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("link", { name: "AIC Token Exchange" })).toHaveAttribute("href", "/aic-token-exchange");
+  });
+
   it("opens the PingFederate AI Agent sidebar group on its comparison page", () => {
     renderNav("/pingfederate-ai-agent");
     expect(screen.getByRole("button", { name: /^PingFederate AI Agent/ })).toHaveAttribute(
