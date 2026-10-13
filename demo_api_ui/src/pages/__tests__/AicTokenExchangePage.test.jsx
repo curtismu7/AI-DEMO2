@@ -43,6 +43,31 @@ describe("AicTokenExchangePage", () => {
     expect(await screen.findByTestId("aic-actor-proof")).toHaveTextContent("Issued to agent with scope: repair.");
   });
 
+  it("exchanges once both tokens are held and shows who is acting", async () => {
+    get.mockResolvedValue({ data: {
+      ...STATUS, userSignedIn: true, actorReady: true,
+      userResult: { subject: "alice", issuer: "https://aic", scope: "openid repair", trace: [] },
+      actorResult: { clientId: "agent", scope: "repair", trace: [] },
+    } });
+    post.mockResolvedValue({ data: { exchangeResult: {
+      subject: "alice", scope: "repair", act: { sub: "agent" }, opaque: true,
+      trace: [{ id: "exchange", title: "Exchange the user token and the actor token for a delegated token", request: { method: "POST", url: "https://aic/access_token" } }],
+    } } });
+    render(<AicTokenExchangePage />);
+    fireEvent.click(await screen.findByRole("button", { name: "Exchange tokens" }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/api/aic-demo/exchange"));
+    const proof = await screen.findByTestId("aic-exchange-proof");
+    expect(proof).toHaveTextContent("Delegated token for alice, with scope: repair.");
+    expect(proof).toHaveTextContent('Acting party (act claim): {"sub":"agent"}.');
+  });
+
+  it("does not offer the exchange until both tokens are held", async () => {
+    get.mockResolvedValue({ data: STATUS });
+    render(<AicTokenExchangePage />);
+    expect(await screen.findByText("Get the user token and the actor token first")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Exchange tokens" })).not.toBeInTheDocument();
+  });
+
   it("says what to set when the demo is not configured", async () => {
     get.mockResolvedValue({ data: { ...STATUS, features: { login: false, actor: false } } });
     render(<AicTokenExchangePage />);

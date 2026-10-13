@@ -140,3 +140,68 @@ describe('AIC demo: actor token (client credentials)', () => {
       .rejects.toMatchObject({ code: 'AIC_NOT_CONFIGURED' });
   });
 });
+
+describe('AIC demo: delegation exchange (RFC 8693)', () => {
+  const session = () => ({
+    aicDemo: {
+      userTokens: { accessToken: 'opaque-user-token', subject: 'alice' },
+      actorTokens: { accessToken: 'opaque-actor-token' },
+    },
+  });
+
+  test('sends both tokens as the actor client and shows the act claim from introspection', async () => {
+    const req = { session: session() };
+    const aic = fakeAic({
+      token: () => json(200, {
+        access_token: 'opaque-delegated-token', scope: 'repair', expires_in: 3600,
+        issued_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      }),
+      introspect: () => json(200, { active: true, sub: 'alice', scope: 'repair', act: { sub: 'agent' } }),
+    });
+    const result = await aicDemo.exchangeTokens(req, { store: store(), fetchImpl: aic.fetchImpl });
+
+    const call = aic.calls.find((c) => c.url.endsWith('/access_token'));
+    expect(call.init.headers.Authorization).toBe(`Basic ${Buffer.from('agent:agent-secret').toString('base64')}`);
+    expect(Object.fromEntries(call.init.body)).toEqual({
+      grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+      subject_token: 'opaque-user-token',
+      subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      actor_token: 'opaque-actor-token',
+      actor_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      requested_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+      scope: 'repair',
+    });
+    expect(req.session.aicDemo.exchangedTokens.accessToken).toBe('opaque-delegated-token');
+    expect(result.act).toEqual({ sub: 'agent' });
+    expect(result.subject).toBe('alice');
+    expect(result.trace.map((s) => s.id)).toEqual(['exchange', 'introspect-exchanged']);
+    const shown = JSON.stringify(result);
+    for (const secret of ['opaque-user-token', 'opaque-actor-token', 'opaque-delegated-token', 'agent-secret']) {
+      expect(shown).not.toContain(secret);
+    }
+  });
+
+  test('refuses to run until both input tokens are held', async () => {
+    const req = { session: { aicDemo: { userTokens: { accessToken: 'u' } } } };
+    const aic = fakeAic();
+    await expect(aicDemo.exchangeTokens(req, { store: store(), fetchImpl: aic.fetchImpl }))
+      .rejects.toMatchObject({ code: 'AIC_TOKENS_REQUIRED', httpStatus: 409 });
+    expect(aic.calls).toHaveLength(0);
+  });
+
+  test("surfaces AIC's reason when the May Act script does not authorize the actor", async () => {
+    const aic = fakeAic({ token: () => json(400, { error: 'invalid_grant', error_description: 'The actor is not authorized to act on behalf of the subject.' }) });
+    await expect(aicDemo.exchangeTokens({ session: session() }, { store: store(), fetchImpl: aic.fetchImpl }))
+      .rejects.toThrow(/invalid_grant: The actor is not authorized/);
+  });
+
+  test('a new actor token discards the previous delegated token', async () => {
+    const req = { session: session() };
+    req.session.aicDemo.exchangedTokens = { accessToken: 'old' };
+    req.session.aicDemo.exchangeResult = { trace: [] };
+    const aic = fakeAic({ token: () => json(200, { access_token: 'new-actor', expires_in: 3600 }) });
+    await aicDemo.fetchActorToken(req, { store: store(), fetchImpl: aic.fetchImpl });
+    expect(req.session.aicDemo.exchangedTokens).toBeUndefined();
+    expect(req.session.aicDemo.exchangeResult).toBeUndefined();
+  });
+});

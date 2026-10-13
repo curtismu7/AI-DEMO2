@@ -40,6 +40,7 @@ function createAicDemoRouter({ configStore: store = configStore, fetchImpl = fet
       actorReady: aicDemo.usable(demo.actorTokens),
       userResult: demo.userResult || null,
       actorResult: demo.actorResult || null,
+      exchangeResult: demo.exchangeResult || null,
       lastError: demo.lastError || null,
     });
   });
@@ -79,6 +80,18 @@ function createAicDemoRouter({ configStore: store = configStore, fetchImpl = fet
         : res.json({ actorResult })));
     } catch (error) {
       return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'AIC_ACTOR_TOKEN_FAILED'), message: error.message });
+    }
+  });
+
+  router.post('/exchange', requireApplicationSession, async (req, res) => {
+    res.set('Cache-Control', 'no-store');
+    try {
+      const exchangeResult = await aicDemo.exchangeTokens(req, { store, fetchImpl });
+      return saveSession(req, (error) => (error
+        ? res.status(500).json({ error: 'AIC_SESSION_SAVE_FAILED' })
+        : res.json({ exchangeResult })));
+    } catch (error) {
+      return res.status(error.httpStatus || 502).json({ error: errorCode(error, 'AIC_EXCHANGE_FAILED'), message: error.message });
     }
   });
 
