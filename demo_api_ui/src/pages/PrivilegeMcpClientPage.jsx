@@ -2241,7 +2241,7 @@ export default function PrivilegeMcpClientPage() {
                 type="button"
                 role="tab"
                 aria-selected={visibleTab === key}
-                className={`cur-tab ${visibleTab === key ? 'cur-tab--active' : ''}`}
+                className={`cur-tab cur-tab--${key} ${visibleTab === key ? 'cur-tab--active' : ''}`}
                 onClick={() => chooseTab(key)}
               >{label}</button>
             ))}

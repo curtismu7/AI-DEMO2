@@ -586,7 +586,23 @@ select.cur-input { cursor: pointer; }
   transition: color 0.15s;
 }
 .cur-tab:hover { color: #ffffff; }
-.cur-ide .cur-tab--active { color: #fff; border: 2px solid #007acc; background: #1e1e1e; }
+/* Per-tab accent colors — at a glance you can tell which surface you are on.
+   Each tab sets --tab-accent; the active tab renders it as its background. */
+.cur-ide .cur-tab--chat { --tab-accent: #0e639c; }
+.cur-ide .cur-tab--a2a { --tab-accent: #6f42c1; }
+.cur-ide .cur-tab--tools { --tab-accent: #0f7b3f; }
+.cur-ide .cur-tab--user-api-keys { --tab-accent: #b58900; }
+.cur-ide .cur-tab--mcp { --tab-accent: #0e639c; }
+.cur-ide .cur-tab--rpc { --tab-accent: #a1352c; }
+.cur-ide .cur-tab--policies { --tab-accent: #6f42c1; }
+.cur-ide .cur-tab--active {
+  color: #fff;
+  border: 2px solid var(--tab-accent, #007acc);
+  background: var(--tab-accent, #007acc);
+}
+.cur-tab--chat:hover, .cur-tab--a2a:hover, .cur-tab--tools:hover,
+.cur-tab--user-api-keys:hover, .cur-tab--mcp:hover, .cur-tab--rpc:hover,
+.cur-tab--policies:hover { background: rgba(255, 255, 255, 0.06); }
 
 /* Editor area */
 .cur-editor-area {
@@ -1329,7 +1345,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab { color: #666; }
 .cur-ide[data-cur-theme="light"] .cur-tab:hover,
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab:hover { color: #222; }
-.cur-ide[data-cur-theme="light"] .cur-tab--active { background: #ffffff; color: #000; }
+.cur-ide[data-cur-theme="light"] .cur-tab--active { background: var(--tab-accent, #ffffff); color: #fff; border-color: var(--tab-accent, #007acc); }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab--active { color: #000; }
 
 /* Status pill + model badge */
