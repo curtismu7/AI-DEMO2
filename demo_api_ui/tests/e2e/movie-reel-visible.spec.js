@@ -28,10 +28,9 @@
 // half-mocked page — the short-window case then fails on a modal, not on the
 // reel. Measured 2026-08-27: a live run reports 1 failed while the same live
 // page, unmocked, has the reel at y=623 bottom=699 in a 700px viewport.
-// The live guard is the reel check in scripts/canary/uc1-canary.js, which runs
-// against a really signed-in session and mocks nothing. Its cron says */30 but
-// GitHub throttles scheduled workflows hard — observed gaps are 2-10 hours, so
-// treat it as "a few times a day", not a 30-minute heartbeat.
+// (The former live guard, scripts/canary/uc1-canary.js, was removed 2026-10-13:
+// the hosted-access wall 401s the CI runner's login redirect, so it could
+// never pass. There is no live reel check anymore.)
 const { test, expect } = require('@playwright/test');
 const { mockCustomerDashboard } = require('./helpers/customerDashboardMocks');
 

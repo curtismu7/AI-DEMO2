@@ -212,21 +212,21 @@ describe("Focus Mode filmstrip guard", () => {
   // timeline instead of the reel.
   //
   // This guard has now outlived two selectors. It first used
-  // `.user-dashboard--2026`, which BOTH dashboards carried, so the canary
-  // skipped nothing and failed on every run; then `.customer-skin-p1`, which
-  // genuinely separated the two components. Deleting the classic dashboard
-  // removed the thing being discriminated. If this fails, fix the canary's
-  // selector in scripts/canary/uc1-canary.js in the same commit.
-  test("the clinical-split root keeps the class the canary excludes on", () => {
+  // `.user-dashboard--2026`, which BOTH dashboards carried, so the live
+  // canary skipped nothing and failed on every run; then
+  // `.customer-skin-p1`, which genuinely separated the two components.
+  // Deleting the classic dashboard removed the thing being discriminated.
+  // The live canary itself was removed 2026-10-13 (structurally unable to
+  // pass through the hosted-access wall); these two tests keep the selector
+  // discipline it used to enforce.
+  test("the clinical-split root keeps the class the canary excluded on", () => {
     expect(p2026).toContain("user-dashboard--clinical-split");
   });
 
-  test("the canary no longer gates on a customer-skin discriminator", () => {
-    const canary = read("../../../scripts/canary/uc1-canary.js");
-    // Usage, not the word: the comment above the gate still recounts the two
-    // selectors this check has already outlived, and that history is the point.
-    expect(canary).not.toMatch(/querySelector\(['"]\.customer-skin-p1/);
-    expect(canary).toMatch(/querySelector\(['"]\.user-dashboard--clinical-split/);
+  test("the live canary that gated on it is gone", () => {
+    // Removed 2026-10-13: the hosted-access wall 401s the CI runner's login
+    // redirect, so the canary could never pass from CI again.
+    expect(fs.existsSync(path.resolve(__dirname, "../../../scripts/canary/uc1-canary.js"))).toBe(false);
   });
 
   // UserDashboardPing2026 and AIAgent each hold a copy of the view-mode state,
