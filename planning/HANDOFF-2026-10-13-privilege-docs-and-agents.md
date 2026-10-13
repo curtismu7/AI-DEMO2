@@ -56,9 +56,13 @@ have moved — verify before acting on it.** No secret values are in this file.
 4. **Feature 20:** run View on `privilege-hub-test` (**not** `groq-key`) and
    create one time-boxed `SecretResources` policy (body shape not yet captured —
    easiest is one grant done in the console UI, then read back through the API).
-5. **Feature 14:** confirm alerts for rows 3–7 — send them **serially** (parallel
-   rerun at 22:43Z starved the CPU-bound llama tier and timed out), then read the
-   gateway log filtered to the A2A calling-agent lines; strip keys from output.
+5. **Feature 14:** serial rerun done (23:01–23:14Z) and **still inconclusive**:
+   even one-at-a-time, replies time out (llama tier too slow for the worker's
+   multi-step loop), none blocked at the A2A hop. Log showed leg-④ alerts
+   (`prompt_injection` on worker→MCP calls) and one `sanitized mcp response …
+   category=pii`, not attributable to a row. Next: send ONE row, wait for the
+   reply, read that minute's log immediately; or test against a lighter worker.
+   Documented in `A2A-GUARDRAILS-DEMO.md` ("Rerun").
 6. Cleanup: **done** — `priv-live` worktree, its branches and the Playwright
    browser are gone (all PRs merged, #1250 included). Only the other session's
    `AI-DEMO2-priv-doc` worktree remains (branch
