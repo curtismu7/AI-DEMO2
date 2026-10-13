@@ -1106,7 +1106,11 @@ app.use('/api/admin/promptfoo', authenticateToken, promptfooRoutes);
 app.use('/api/admin/mgmt-api', authenticateToken, requireAdmin, mgmtApiRoutes);
 // mcpgw-lb runtime park/unpark — HAProxy's runtime API behind the headless
 // mcpgw-lb-sock Service. Admin-only: it moves live gateway traffic.
-app.use('/api/admin/lb/runtime', authenticateToken, requireAdmin, require('./routes/adminLbRuntime').router);
+// mcpgw-lb runtime — HAProxy's runtime API behind the headless mcpgw-lb-sock
+// Service. Viewing the stats page is for any signed-in user (owner request
+// 2026-10-13); the runtime controls still move live gateway traffic, so the
+// park/unpark handler enforces requireAdmin itself.
+app.use('/api/admin/lb/runtime', authenticateToken, require('./routes/adminLbRuntime').router);
 // Any authenticated user, not admin-only — deliberate per auth-requirements.json
 // "/secret-rotation": "user".
 app.use('/api/admin/secret-rotation', authenticateToken, secretRotationRoutes);

@@ -67,10 +67,20 @@ afterEach(async () => {
   await Promise.all(servers.map((s) => new Promise((r) => s.close(r))));
 });
 
-function makeApp() {
+function makeApp(opts = {}) {
   const app = express();
   app.use(express.json());
-  // Mounted at the path the helper requests, exactly as server.js mounts it.
+  // Mounted at the path the helper requests. server.js mounts authenticateToken
+  // only (stats-view is for any signed-in user); the park/unpark gate lives
+  // INSIDE the route, so the stub here just plays authenticateToken: it sets
+  // req.user from opts.role (admin by default — these tests exercise the
+  // happy path; the 403 case passes role: 'customer').
+  if (opts.user !== null) {
+    app.use((req, res, next) => {
+      req.user = { id: 'u1', role: opts.role || 'admin', username: 'demoAdmin' };
+      next();
+    });
+  }
   app.use('/', route);
   return app;
 }
@@ -165,5 +175,22 @@ describe('POST /:node/park and /unpark — disable/enable fan-out to both pods',
     const res = await request(app, 'POST', '/gateway-2%0Adisable%20server%20gateways%2Fgateway-1/park');
     expect(res.status).toBe(404);
     expect(seen[19901].every((c) => /^(show stat|disable server gateways\/[\w.-]+|enable server gateways\/[\w.-]+)$/.test(c))).toBe(true);
+  });
+
+  it('park is admin-gated inside the route: a customer session gets 403 and no command reaches the pods', async () => {
+    // The gate lives in the route (server.js mounts authenticateToken only, so
+    // stats-view stays readable by any signed-in user — owner request
+    // 2026-10-13). This test mounts it with a customer session, as a
+    // non-admin user would hit it.
+    const gated = http.createServer(makeApp({ role: 'customer' }));
+    await new Promise((r) => gated.listen(0, '127.0.0.1', r));
+    try {
+      const res = await request(gated, 'POST', '/gateway-2/park');
+      expect(res.status).toBe(403);
+      expect(seen[19901].some((c) => /^(disable|enable) server/.test(c))).toBe(false);
+      expect(seen[19902].some((c) => /^(disable|enable) server/.test(c))).toBe(false);
+    } finally {
+      await new Promise((r) => gated.close(r));
+    }
   });
 });
