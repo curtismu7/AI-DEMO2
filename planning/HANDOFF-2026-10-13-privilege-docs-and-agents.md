@@ -58,9 +58,11 @@ have moved — verify before acting on it.** No secret values are in this file.
    easiest is one grant done in the console UI, then read back through the API).
 5. **Feature 14:** confirm alerts for rows 3–7 from the gateway log (filter to
    the A2A calling-agent lines; avoid dumping lines that contain keys).
-6. Cleanup when done: remove worktree `.worktrees/priv-live` (and its branch),
-   close the Playwright tab, and the leftover `AI-DEMO2-priv-doc` worktree
-   (branch `docs/privilege-features-release-notes`, already merged as #1244).
+6. Cleanup: **done** — `priv-live` worktree, its branches and the Playwright
+   browser are gone (all PRs merged, #1250 included). Only the other session's
+   `AI-DEMO2-priv-doc` worktree remains (branch
+   `docs/privilege-features-release-notes`, already merged as #1244) — leave it
+   to that session.
 
 ### Access recipes that worked today
 
