@@ -56,8 +56,9 @@ have moved — verify before acting on it.** No secret values are in this file.
 4. **Feature 20:** run View on `privilege-hub-test` (**not** `groq-key`) and
    create one time-boxed `SecretResources` policy (body shape not yet captured —
    easiest is one grant done in the console UI, then read back through the API).
-5. **Feature 14:** confirm alerts for rows 3–7 from the gateway log (filter to
-   the A2A calling-agent lines; avoid dumping lines that contain keys).
+5. **Feature 14:** confirm alerts for rows 3–7 — send them **serially** (parallel
+   rerun at 22:43Z starved the CPU-bound llama tier and timed out), then read the
+   gateway log filtered to the A2A calling-agent lines; strip keys from output.
 6. Cleanup: **done** — `priv-live` worktree, its branches and the Playwright
    browser are gone (all PRs merged, #1250 included). Only the other session's
    `AI-DEMO2-priv-doc` worktree remains (branch
@@ -91,12 +92,22 @@ Their state may have moved again — verify before acting.
 | **GenericOpenSearchApiTool / gateway-events** | Read-only OpenSearch queries via `opensearch-hitl`; nothing pending |
 | **Demo API server .env comments** | Comments added to local `.env`; waiting on any rewording from the user |
 
-### Effect on this session's A2A results
+### Effect on this session's A2A results (re-run 22:43Z)
 
-The worker's llama.cpp 502 seen in my guardrail run (row 1 reply text) predates
-the llama-tier ctx fix and the provider flips above. **Re-run A2A guardrail rows
-3–7** now: replies should complete instead of hanging past a 150 s timeout, which
-also makes the alert status confirmable.
+`mainagentdemo`'s `MAIN_AGENT_MODEL` was already `llama.cpp` (another session
+fixed it; my `set env` was a no-op that restarted the pods) — **that item is
+closed.**
+
+Re-ran A2A guardrail rows 1, 3–7 through the `worker-agent` door, six requests in
+parallel: **five timed out at 170 s with no response** (rows 1, 3, 4, 5, 7) and
+row 6 returned 200 after 117 s with a worker error text (`llama.cpp request
+returned 500: … The model produced output that …`). Nothing came back as a fast
+400, so **no message was guardrail-blocked** — consistent with the earlier run.
+The llama tier is CPU-bound; parallel requests starve it, so this proves nothing
+about alerts. **To confirm alert status:** send rows 3–7 **one at a time** (or just
+two), and read the gateway log filtered to the A2A calling-agent lines with keys
+stripped. Row 2 (plain injection → 400 in 0.56 s) is unaffected — blocked before
+the model.
 
 ## 3. Repo and cluster state worth knowing
 
