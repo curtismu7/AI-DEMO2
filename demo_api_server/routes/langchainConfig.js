@@ -24,8 +24,10 @@ const PROVIDER_MODELS = {
   // not show as "unconfigured", it passes the health check and 404s mid-request.
   // Verified against GET /openai/v1/models on 2026-08-26. qwen3.6-27b is live but
   // omitted: it emits <think> into content, which the SPA renders verbatim.
+  // Google/Gemini removed from the selectable catalog 2026-10-13: the free tier
+  // rate-limits under demo traffic. (PROVIDER_MODELS doubles as the switch
+  // allowlist — an unknown provider is rejected with 400.)
   groq:                ['openai/gpt-oss-20b', 'openai/gpt-oss-120b', 'qwen/qwen3.8-27b', 'groq/compound-mini'],
-  google:              ['gemini-2.5-flash-lite', 'gemini-2.5-flash', 'gemini-2.5-pro'],
   helix:               ['gpt-4o', 'gpt-4o-mini', 'gemini-1.5-pro', 'claude-3-5-sonnet'],
   // LM Studio — Anthropic-compatible endpoint at /v1/messages.
   // Model IDs must match what is loaded in LM Studio (publisher/model-name format).
@@ -43,7 +45,6 @@ const DEFAULT_MODELS = {
   openai:              'gpt-4o-mini',
   anthropic:           'claude-3-5-haiku-20241022',
   groq:                'openai/gpt-oss-20b',
-  google:              'gemini-2.5-flash-lite',
   helix:               'gpt-4o-mini',
   'anthropic-lmstudio': 'google/gemma-4-e2b',
   llamacpp:            'phi-4-mini-instruct',
@@ -52,7 +53,7 @@ const DEFAULT_MODELS = {
 
 // Default provider fallback order surfaced by the LLM Config UI when the
 // session has no saved order yet. Kept in sync with LlmConfigPanel's default.
-const DEFAULT_FALLBACK_ORDER = ['groq', 'anthropic', 'openai', 'google'];
+const DEFAULT_FALLBACK_ORDER = ['groq', 'anthropic', 'openai'];
 
 const KEY_SESSION_FIELDS = {};
 

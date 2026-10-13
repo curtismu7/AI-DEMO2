@@ -3,7 +3,6 @@ import React, { useCallback, useEffect, useState } from 'react';
 import apiClient from '../services/apiClient';
 import { notifyError, notifySuccess } from '../utils/appToast';
 import AnthropicPanel from './AnthropicPanel';
-import GooglePanel from './GooglePanel';
 import GroqPanel from './GroqPanel';
 import HelixPanel from './HelixPanel';
 import LmStudioPanel from './LmStudioPanel';
@@ -16,15 +15,15 @@ const PROVIDER_LABELS = {
   'anthropic-lmstudio': 'LM Studio',
   llamacpp: 'llama.cpp',
   groq: 'Groq',
-  google: 'Google',
   anthropic: 'Anthropic',
 };
 
 /**
  * LlmConfigPage — LLM provider configuration
  *
- * Shows a provider selector (llama.cpp | Groq | Google | Helix | LM Studio | Anthropic) at the
- * top, then the appropriate config panel below.
+ * Shows a provider selector (llama.cpp | Groq | Helix | LM Studio | Anthropic) at the
+ * top, then the appropriate config panel below. Google was removed: its free tier
+ * rate-limits under demo traffic (2026-10-13).
  */
 export default function LlmConfigPage() {
   const [provider, setProvider] = useState('helix');
@@ -32,24 +31,21 @@ export default function LlmConfigPage() {
   const [lmstudioStatus, setLmstudioStatus] = useState(null);
   const [llamaCppStatus, setLlamaCppStatus] = useState(null);
   const [anthropicStatus, setAnthropicStatus] = useState(null);
-  const [googleStatus, setGoogleStatus] = useState(null);
   const [groqStatus, setGroqStatus] = useState(null);
 
   const fetchStatuses = useCallback(async () => {
     try {
-      const [helixRes, lmstudioRes, llamaCppRes, anthropicRes, googleRes, groqRes] = await Promise.all([
+      const [helixRes, lmstudioRes, llamaCppRes, anthropicRes, groqRes] = await Promise.all([
         apiClient.get('/api/langchain/provider/helix/status'),
         apiClient.get('/api/langchain/provider/anthropic-lmstudio/status'),
         apiClient.get('/api/langchain/provider/llamacpp/status'),
         apiClient.get('/api/langchain/provider/anthropic/status'),
-        apiClient.get('/api/langchain/provider/google/status'),
         apiClient.get('/api/langchain/provider/groq/status'),
       ]);
       setHelixStatus(helixRes.data?.status ?? null);
       setLmstudioStatus(lmstudioRes.data?.status ?? null);
       setLlamaCppStatus(llamaCppRes.data?.status ?? null);
       setAnthropicStatus(anthropicRes.data?.status ?? null);
-      setGoogleStatus(googleRes.data?.status ?? null);
       setGroqStatus(groqRes.data?.status ?? null);
     } catch (err) {
       console.warn('[LlmConfigPage] Status fetch failed:', err.message);
@@ -82,9 +78,7 @@ export default function LlmConfigPage() {
 
   const panel = provider === 'helix'
     ? <HelixPanel />
-    : provider === 'google'
-      ? <GooglePanel />
-      : provider === 'groq'
+    : provider === 'groq'
         ? <GroqPanel />
       : provider === 'anthropic'
         ? <AnthropicPanel />
@@ -105,7 +99,6 @@ export default function LlmConfigPage() {
         lmstudioStatus={lmstudioStatus}
         llamaCppStatus={llamaCppStatus}
         anthropicStatus={anthropicStatus}
-        googleStatus={googleStatus}
         groqStatus={groqStatus}
       />
       {panel}

@@ -2,19 +2,21 @@
 import './LlmConfig.css';
 
 /**
- * ProviderSelector — segmented pill control: llama.cpp | Groq | Google | Helix | LM Studio | Anthropic
+ * ProviderSelector — segmented pill control: llama.cpp | Groq | Helix | LM Studio | Anthropic
+ *
+ * Google is intentionally absent: its free tier rate-limits under demo traffic
+ * (2026-10-13) — the llama.cpp lane through Privilege is the default instead.
  *
  * Props:
- *   provider: 'helix' | 'anthropic-lmstudio' | 'llamacpp' | 'groq' | 'google' | 'anthropic'
+ *   provider: 'helix' | 'anthropic-lmstudio' | 'llamacpp' | 'groq' | 'anthropic'
  *   onSelect: (provider: string) => void
  *   helixStatus:     'available' | 'unconfigured' | 'unreachable' | null
  *   lmstudioStatus:  'available' | 'unreachable' | null
  *   llamaCppStatus:  'available' | 'unconfigured' | 'unreachable' | null
  *   groqStatus:      'available' | 'unconfigured' | null
- *   googleStatus:    'available' | 'unconfigured' | null
  *   anthropicStatus: 'available' | 'unconfigured' | null
  */
-export default function ProviderSelector({ provider, onSelect, helixStatus, lmstudioStatus, llamaCppStatus, groqStatus, googleStatus, anthropicStatus }) {
+export default function ProviderSelector({ provider, onSelect, helixStatus, lmstudioStatus, llamaCppStatus, groqStatus, anthropicStatus }) {
   const statusLabel = (s) => {
     if (s === 'available')    return '✅ Active';
     if (s === 'unconfigured') return '⚠️ Unconfigured';
@@ -32,7 +34,6 @@ export default function ProviderSelector({ provider, onSelect, helixStatus, lmst
   const PROVIDERS = [
     { id: 'llamacpp',           label: 'llama.cpp',  status: llamaCppStatus },
     { id: 'groq',               label: 'Groq',       status: groqStatus },
-    { id: 'google',             label: 'Google',     status: googleStatus },
     { id: 'helix',              label: 'Helix',      status: helixStatus },
     { id: 'anthropic-lmstudio', label: 'LM Studio',  status: lmstudioStatus },
     { id: 'anthropic',          label: 'Anthropic',  status: anthropicStatus },
