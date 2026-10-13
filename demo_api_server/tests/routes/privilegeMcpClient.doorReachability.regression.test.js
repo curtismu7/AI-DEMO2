@@ -128,6 +128,27 @@ describe('privilege-mcp-client door reachability (2026-09-07 regression)', () =>
     expect(dialled.some((u) => u === 'http://localhost:3002/mcp-facade/opensearch/mcp')).toBe(true);
   });
 
+  // 2026-10-13 — on the hosted k8s deploy MCP_FACADE_HTTP_PORT is unset, so
+  // server.js never starts the loopback listener. The rewrite defaulted to :3002
+  // anyway and every façade door died with `fetch failed` (ECONNREFUSED).
+  test('with no loopback listener configured, a façade door is fetched on the public host', async () => {
+    delete process.env.MCP_FACADE_HTTP_PORT;
+    const app = buildApp({ withAppSession: false });
+    await request(app).post('/api/privilege-mcp/config')
+      .send({ mcpUrl: FACADE_DOOR, clientId: 'client-abc' })
+      .expect(200);
+
+    global.fetch = jest.fn(async () => jsonResponse(
+      { authorization_uri: 'https://as.example/authorize', token_uri: 'https://as.example/token' },
+    ));
+
+    await request(app).post('/api/privilege-mcp/auth/start').send({});
+
+    const dialled = global.fetch.mock.calls.map(([url]) => String(url));
+    expect(dialled).toContain(FACADE_DOOR);
+    expect(dialled.some((u) => u.startsWith('http://localhost'))).toBe(false);
+  });
+
   test('the door the operator selected is still what /state reports', async () => {
     const app = buildApp({ withAppSession: false });
     await request(app).post('/api/privilege-mcp/config')
