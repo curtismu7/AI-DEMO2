@@ -234,6 +234,22 @@ A fresh agent wiring the llama.cpp lane needs exactly:
 | Virtual key (BFF → gateway) | env `PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM` (BFF `demo_api_server/.env`); gateway host from `PRIVILEGE_LLM_GATEWAY_URL` (`https://mcpgw.ai-demo.ping-devops.com`) | BFF env, value never committed |
 | RealKey (gateway → llama.cpp) | Gateway injects the key's stored RealKey as `Authorization: Bearer`; tier1's `--api-key` must match it | Console key object (RealKey) + live tier1 args / target-state secret above |
 
+### The OpenAI lane (verified at code level by agents-ac, 2026-10-13)
+
+Same LANES table (`demo_api_server/services/privilegeLlmProxyService.js`):
+
+| What | Value | Confidence |
+| --- | --- | --- |
+| Route / key env / host | `/llm/openai/v1/chat/completions` + `PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI` + `PRIVILEGE_LLM_GATEWAY_URL` (gatewayUrl() throws when unset); default model `PRIVILEGE_LLM_MODEL_OPENAI` \|\| `gpt-4o-mini` | Confirmed in code + UI test pin (LlmTestPage.test.jsx) |
+| RealKey on console key `openai` | Presumed a real OpenAI API key — **not verified**; nobody opened the console key store. Verify in the console before demoing | Unverified |
+| **Lane exercised with a live key?** | **No** — the lane shipped with `keyConfigured:false` in the UI pin: wired but never run live. Demo-readying it = provision the RealKey on the console `openai` object and confirm routing | **Open item** |
+| `LLM_DIRECT_OPENAI_KEY` | Exists only in `demo_api_server/.env:173`; **no consumer found** — no mapping to `OPENAI_API_KEY` anywhere (demo_agent_service :3006 has zero OpenAI env, docker-compose doesn't set it, k8s has no reference). Treat as dead/unwired config, not a "direct bypass lane" | Dead config |
+| The actual direct OpenAI consumer | `platformAgentRuntime.js:31` — `process.env.OPENAI_API_KEY` against the OpenAI Responses URL, with gateway MCP tools attached. Platform-agent path, **not** a lane contrast surface; no side-by-side UI exists (the only lane-picker is LlmTestPage's per-lane dropdown) | Confirmed in code |
+
+**Unfinished (from agents-ac):** nothing pending on the lane itself — post-test
+allowlist edits were reverted, no rotations. The only gap is the unprovisioned
+RealKey above.
+
 **Left blocked (ownerless until a credential lands):**
 
 9. **Bedrock demo pair (runbook P.1)** — needs an AWS Bedrock credential;
