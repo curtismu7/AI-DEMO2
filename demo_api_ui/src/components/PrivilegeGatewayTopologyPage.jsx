@@ -182,46 +182,36 @@ const LB_WALK = [
   { title: "Failover cost + NOSRV window", label: "step 6", nodes: ["lb", "gw1", "gw2", "redis"], edges: [1, 2, 3, 4, 5], lines: ["When a node dies its clients move within one 10s sample and sign in again (tokens are not shared). A recovered node needs 60 passing checks (rise 60) before it takes clients back — that window answers 503 node=<NOSRV> and looks like an outage while every gateway is fine."] },
 ];
 const LB_DETAILS = {
-  lb: "Two replicas on separate hosts (topologySpread). Engine is haproxy in the live cluster even though gateway1-lb.values.yaml still says engine: nginx — swapped after PR #1022 deployed.",
+  lb: "Two replicas on separate hosts (topologySpread). Engine is haproxy — swapped after PR #1022 deployed; gateway1-lb.values.yaml matches.",
   gw1: "Owns the HTTPS front door certificate name; 9/9 containers: gateway + 8 sidecars.",
   gw2: "Second node in cmuir, same release chart (release agentless-mcpgw in its namespace). Gateway-3 was deleted from the cluster on 2026-10-12.",
   redis: "One pod, 1Gi AOF, password-only TLS-less in-cluster. Hard dependency: a gateway restart with Redis down exits after 6 attempts.",
-  "d-agg": "The teaching family, and the BFF's default door: aggregate (policy-backed), aggregate-limited (tool-filtered, the per-tool-grant demo) and aggregate-none (no policy → deny-all twin). opensearch22 — the old always-200 fixture — was deleted from the console 2026-10-12 (unused 15 days).",
+  "d-agg": "The teaching family, and the BFF's default door: aggregate (policy-backed), aggregate-limited (tool-filtered, the per-tool-grant demo) and aggregate-none (no policy → deny-all twin). opensearch22 — the old always-200 fixture — was deleted from the console 2026-10-12 (unused 15 days); the default moved to aggregate.",
   "d-ose": "Deliberate known-deny door: no policy attached, always 403. Enforcement is real; do not 'fix' it.",
   "d-hostile": "The hostile family: hostile-mcp (the demo workhorse), hostile-mcp-governed (policy-governed twin, 403s when policy refuses) and hostile-a2a (A2A route).",
   "d-side": "Sidecar-backed doors (openapi2, mcp-pingone, mcp-brave-search, mcp-grafana) plus the LLM lanes under /llm/* (openai, anthropic, google, openrouter, custom).",
 };
 
-// HAProxy's own stats page (/lb-stats on the public LB frontend, read-only,
-// basic-auth gated in the chart). Build-time URL, read at render (not module
-// scope) so per-deployment env is picked up; unset renders the explainer
-// instead of iframing an error page. The browser's basic-auth prompt (once per
-// session, inside the iframe) carries the credential — the UI never holds it.
+// HAProxy's own stats page (/lb-stats on the public LB frontend, read-only),
+// served to the iframe THROUGH the admin-gated BFF proxy
+// /api/admin/lb/runtime/stats-view: the demo's PingOne sign-in is the gate,
+// and the stats credential never reaches the browser. No build-time gate:
+// when the BFF lacks the stats env the proxy itself answers 503 with the
+// variable names — that is the configuration signal, not this panel.
 function LbStatsPanel() {
   return (
     <section className="pgt-stats">
       <h2>Live LB stats</h2>
-      {process.env.REACT_APP_MCPGW_STATS_URL ? (
-        <>
-          <p className="pgt-stats__hint">
-            HAProxy&apos;s built-in stats page for <code>mcpgw-lb</code> — node health,
-            sessions and traffic per gateway node, refreshed every 5s. The browser asks
-            for the stats credential once per session.
-          </p>
-          <iframe
-            title="HAProxy LB stats"
-            src={process.env.REACT_APP_MCPGW_STATS_URL}
-            className="pgt-stats__frame"
-          />
-        </>
-      ) : (
-        <p className="pgt-stats__hint">
-          The load balancer&apos;s HAProxy stats page is not configured for this
-          deployment (REACT_APP_MCPGW_STATS_URL unset). The diagram below stays the
-          source of truth: three gateway nodes behind two HAProxy pods, pinned by a
-          consistent hash.
-        </p>
-      )}
+      <p className="pgt-stats__hint">
+        HAProxy&apos;s built-in stats page for <code>mcpgw-lb</code> — node health,
+        sessions and traffic per gateway node, refreshed every 5s. Admin sign-in
+        (PingOne) is the only prompt; no separate stats password.
+      </p>
+      <iframe
+        title="HAProxy LB stats"
+        src="/api/admin/lb/runtime/stats-view"
+        className="pgt-stats__frame"
+      />
     </section>
   );
 }

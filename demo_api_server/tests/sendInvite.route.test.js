@@ -26,6 +26,19 @@ jest.mock('../services/configStore', () => ({
   setConfig: jest.fn().mockResolvedValue(undefined),
 }));
 jest.mock('../data/store', () => ({ seedAccountsForUser: jest.fn().mockResolvedValue(undefined) }));
+jest.mock('../services/pingoneManagementService', () => ({
+  managementService: {
+    initialize: jest.fn(),
+    addUserToGroup: jest.fn().mockResolvedValue({ success: true }),
+    getUser: jest.fn().mockResolvedValue({ success: true, user: { id: 'user-1' } }),
+  },
+}));
+jest.mock('../services/pingOneClientService', () => ({
+  getManagementToken: jest.fn().mockResolvedValue('worker-token-1'),
+}));
+jest.mock('../services/lmdb/hostedRegistrationStore.lmdb', () => ({
+  get: jest.fn(), put: jest.fn(), list: jest.fn(() => []), remove: jest.fn(),
+}));
 jest.mock('../utils/logger', () => {
   const logger = { info: jest.fn(), warn: jest.fn(), error: jest.fn(), debug: jest.fn(), logErrorHandling: jest.fn(), logAuthorizationAttempt: jest.fn() };
   return { logger, LOG_CATEGORIES: { USER_MANAGEMENT: 'user_management' } };
@@ -36,6 +49,9 @@ const request = require('supertest');
 const pingOneUserService = require('../services/pingOneUserService');
 const mfaService = require('../services/mfaService');
 const dataStore = require('../data/store');
+// Required in test bodies, NOT here: the global afterEach jest.resetModules()
+// re-epochs every module, so a top-level binding would go stale after the
+// first test — the same reason demoProvisioning's requires are inline.
 const sendInviteRouter = require('../routes/demoProvisioning');
 
 function makeApp(user) {
@@ -57,6 +73,23 @@ beforeEach(() => {
   mfaService.enrollEmailDevice.mockResolvedValue({ id: 'd-e' });
   mfaService.enrollSmsDevice.mockResolvedValue({ id: 'd-s' });
   dataStore.seedAccountsForUser.mockResolvedValue(undefined);
+  const hostedRegistrationStore = require('../services/lmdb/hostedRegistrationStore.lmdb');
+  hostedRegistrationStore.put.mockClear();
+  hostedRegistrationStore.get.mockReturnValue(null);
+  hostedRegistrationStore.list.mockReturnValue([]);
+  const { managementService } = require('../services/pingoneManagementService');
+  managementService.addUserToGroup.mockResolvedValue({ success: true });
+  managementService.getUser.mockResolvedValue({ success: true, user: { id: 'user-1' } });
+  const pingOneClientService = require('../services/pingOneClientService');
+  pingOneClientService.getManagementToken.mockResolvedValue('worker-token-1');
+});
+
+afterEach(() => {
+  // M4: several tests set HOSTED_ACCESS_* env vars mid-test and deleted them
+  // inline — a failure between set and delete leaked the var into later
+  // tests (order-dependent flake). Clean up unconditionally here instead.
+  delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+  delete process.env.HOSTED_ACCESS_USER_GROUP_ID;
 });
 
 describe('POST /api/demo/send-invite', () => {
@@ -117,6 +150,98 @@ describe('POST /api/demo/send-invite', () => {
     expect(res.status).toBe(201);
     expect(res.body.nativeEmail).toBe('sent');
     expect(pingOneUserService.sendPasswordSetupEmail).toHaveBeenCalledTimes(1);
+  });
+
+  test('invite adds the provisioned user to the pending hosted-access group', async () => {
+    process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID = 'partial-group-1';
+    const { managementService } = require('../services/pingoneManagementService');
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'grouped@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(managementService.addUserToGroup).toHaveBeenCalledWith('user-1', 'partial-group-1');
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+  });
+
+  test('invite succeeds without a pending group configured (group add skipped, not fatal)', async () => {
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+    const { managementService } = require('../services/pingoneManagementService');
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'nogroup@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(managementService.addUserToGroup).not.toHaveBeenCalled();
+  });
+
+  test('pending-group failure does not fail the invite (best-effort)', async () => {
+    process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID = 'partial-group-1';
+    const { managementService } = require('../services/pingoneManagementService');
+    managementService.addUserToGroup.mockResolvedValueOnce({ success: false, error: 'PingOne down' });
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'groupfail@pingidentity.com' });
+    expect(res.status).toBe(201);
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+  });
+
+  test('initializes the management service before adding to the pending group', async () => {
+    process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID = 'partial-group-1';
+    const { managementService } = require('../services/pingoneManagementService');
+    const pingOneClientService = require('../services/pingOneClientService');
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'init@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(managementService.initialize).toHaveBeenCalledWith('worker-token-1');
+    expect(pingOneClientService.getManagementToken).toHaveBeenCalled();
+    expect(managementService.initialize.mock.invocationCallOrder[0])
+      .toBeLessThan(managementService.addUserToGroup.mock.invocationCallOrder[0]);
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+  });
+
+  test('invite creates a pending_approval hosted-registration record the approval page can see', async () => {
+    const hostedRegistrationStore = require('../services/lmdb/hostedRegistrationStore.lmdb');
+    // Without a store record the approval page (hostedRegistrationAdminService.list)
+    // shows nothing for invitees — the loop dead-ends. The record must mirror the
+    // self-service shape exactly so approve() consumes it unchanged.
+    process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID = 'partial-group-1';
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'record@pingidentity.com' });
+    expect(res.status).toBe(201);
+
+    expect(hostedRegistrationStore.put).toHaveBeenCalledTimes(1);
+    const record = hostedRegistrationStore.put.mock.calls[0][0];
+    expect(record).toEqual(expect.objectContaining({
+      email: 'record@pingidentity.com',
+      pingOneUserId: 'user-1',
+      status: 'pending_approval',
+      groups: ['partial-group-1'],
+    }));
+    // Lifecycle fields the self-service path always sets (admin service and
+    // list filters rely on status/createdAt/updatedAt existing).
+    expect(record.id).toEqual(expect.any(String));
+    expect(record.createdAt).toEqual(expect.any(Number));
+    expect(record.updatedAt).toEqual(expect.any(Number));
+    expect(record.firstName).toBe('');
+    expect(record.lastName).toBe('');
+    expect(record.phone).toBe('');
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+  });
+
+  test('record creation failure does not fail the invite (best-effort, same as group add)', async () => {
+    const hostedRegistrationStore = require('../services/lmdb/hostedRegistrationStore.lmdb');
+    process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID = 'partial-group-1';
+    hostedRegistrationStore.put.mockImplementationOnce(() => { throw new Error('LMDB down'); });
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'storefail@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(res.body.userId).toBe('user-1');
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+  });
+
+  test('no record when the partial group is not configured (gate-off tenants)', async () => {
+    const hostedRegistrationStore = require('../services/lmdb/hostedRegistrationStore.lmdb');
+    delete process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID;
+    const res = await request(makeApp({ id: 'admin-1', role: 'admin' }))
+      .post('/api/demo/send-invite').send({ email: 'norecord@pingidentity.com' });
+    expect(res.status).toBe(201);
+    expect(hostedRegistrationStore.put).not.toHaveBeenCalled();
   });
 
   test('native email skipped when the password step fails', async () => {

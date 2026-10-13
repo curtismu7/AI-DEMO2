@@ -27,6 +27,7 @@ const LOG_CATEGORIES = {
   MFA_TEST: 'mfa_test',
   MCP_TOKEN_SERVICE: 'mcp_token_service',
   MCP_TOOL_PIPELINE: 'mcp_tool_pipeline',
+  USER_MANAGEMENT: 'user_management',
 };
 
 class StructuredLogger {
