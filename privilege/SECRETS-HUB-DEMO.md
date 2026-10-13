@@ -1,8 +1,9 @@
 # Secrets Hub: demo runbook
 
-October 13, 2026 · SE demo script · **written from the measured guide only — no
-repo code touches the Secrets Hub (it is console-only), and the steps were not
-re-run on this date.** Source: [SECRETS-HUB-WITH-GOOGLE-SECRET-MANAGER](SECRETS-HUB-WITH-GOOGLE-SECRET-MANAGER.md)
+October 13, 2026 · SE demo script · **partly verified live on 2026-10-13** (the
+"State on our tenant" section below, read through the console API); the rest is
+from the measured guide only — no repo code touches the Secrets Hub (it is
+console-only). Source: [SECRETS-HUB-WITH-GOOGLE-SECRET-MANAGER](SECRETS-HUB-WITH-GOOGLE-SECRET-MANAGER.md)
 (4 Oct 2026), taken from the console and Google's own audit log — Ping's
 published docs did not cover the Secrets Hub at that time.
 
@@ -13,6 +14,27 @@ it, and turns "who may read this secret, for how long" into a **time-boxed,
 audited grant** through a policy.
 
 Master index row: [feature 20](../docs/privilege-agent-features.md).
+
+## State on our tenant (verified live 2026-10-13)
+
+A hub is **already connected — you do not need to add one to demo.**
+
+| Item | Value |
+|---|---|
+| Hub (SecretStoreAccount) | `GCP-hub-secrets`, type GCP, account type **Project** |
+| Google project | `privilege-hub-test-643070` ("Privilege Hub Test"), billing on, Secret Manager + Cloud Resource Manager APIs enabled |
+| Service account | `privilege-secrets-hub@privilege-hub-test-643070.iam.gserviceaccount.com`, one user-managed key (no expiry) |
+| Sync status | **Synced**, last sync `2026-10-13T05:23Z` |
+| Secrets visible in Privilege | 2 — `groq-key` and `privilege-hub-test` |
+
+- `GET /api/<tenant>/v1/secretstoreaccounts` and `/secrets` return these. The
+  hub object carries the service-account key in its spec (`GcpSpec.GcpJsonCreds`):
+  redact it before pasting any API output.
+- **`groq-key` is a real-looking secret name — don't click View on it live.**
+  Use `privilege-hub-test` for the View step.
+- **Not run:** View, Resync, and the policy grant. The grant needs a
+  `SecretResources` policy whose body shape was not captured, so it was not
+  created against the shared tenant.
 
 ## Read this before you connect anything
 
