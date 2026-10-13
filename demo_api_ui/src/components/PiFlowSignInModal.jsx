@@ -151,7 +151,8 @@ export default function PiFlowSignInModal() {
         const adminOn = ["true", "1"].includes(String(cfg.PINGONE_ADMIN_AUTHORIZE_PI_FLOW).toLowerCase());
         if (!cancelled) {
           providerRef.current = provider;
-          setUserDrivable(drivable && userOn);
+          // AIC login is a redirect to an external IdP — keep the redirect login.
+          setUserDrivable(drivable && userOn && String(cfg.aic_login_enabled).toLowerCase() !== "true");
           setAdminDrivable(drivable && adminOn);
         }
       } catch {

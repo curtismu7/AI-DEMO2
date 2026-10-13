@@ -22,6 +22,7 @@ import UserMenu from "./UserMenu";
 import FavoritesMenu from "./FavoritesMenu";
 import VerticalSwitcher from "./VerticalSwitcher";
 import OAuthProviderToggle from "./OAuthProviderToggle";
+import AicLoginToggle from "./AicLoginToggle";
 import ConfirmModal from "./ConfirmModal";
 import "./TopNav.css";
 
@@ -426,6 +427,8 @@ export default function TopNav({ user, onLogout }) {
               shared top bar so it remains available when the dashboard agent
               dock is collapsed. */}
           <OAuthProviderToggle />
+          {/* Customer sign-in source (PingOne ⇄ AIC behind PingOne); hidden in PF mode. */}
+          <AicLoginToggle />
 
           {/* Theme toggle — always visible (outside the scroll area) so it never
               scrolls off, and available to every page since TopNav is app-wide. */}

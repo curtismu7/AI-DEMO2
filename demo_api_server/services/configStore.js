@@ -616,6 +616,9 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // Active browser/token provider. PingOne is the compatibility default;
   // PingFederate mode is strict and uses the real PF ID-JAG path.
   oauth_provider:                { public: true,  default: 'pingone' },
+  // PingOne stays the AS; customer sign-in is handed to the AIC external IdP
+  // through the AIC_Login sign-on policy. PingOne provider only.
+  aic_login_enabled:             { public: true,  default: 'false' },
   PF_ISSUER:                     { public: true,  default: '' },
   PF_DISCOVERY_ENDPOINT:         { public: true,  default: '' },
   PF_AUTHORIZATION_ENDPOINT:     { public: true,  default: '' },

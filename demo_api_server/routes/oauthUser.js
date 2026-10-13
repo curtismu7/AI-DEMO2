@@ -440,7 +440,12 @@ router.get('/login', (req, res) => {
     // SPA falls back to the plain redirect login when this returns 404/502.
     // force=true may combine with pi_flow=1 (prompt=login is preserved on the
     // authorize URL below) so re-auth stays inside the modal too.
-    const piFlowLogin = req.query.pi_flow === '1' && !liveIdJag && !piFlowMode
+    // AIC toggle: PingOne is still the AS, but the AIC_Login sign-on policy
+    // hands authentication to the AIC external IdP. That is a browser redirect
+    // to AIC, which the pi.flow modal cannot drive, so it forces the redirect login.
+    const aicLogin = selectedProvider === 'pingone' && !liveIdJag && !piFlowMode
+      && String(configStore.getEffective('aic_login_enabled')).toLowerCase() === 'true';
+    const piFlowLogin = req.query.pi_flow === '1' && !liveIdJag && !piFlowMode && !aicLogin
       && (selectedProvider === 'pingone' || selectedProvider === 'pingfederate')
       && oauthUserConfig.authorizeUsesPiFlow;
     const sessionProvider = req.session.user?.oauthProvider;
@@ -597,6 +602,8 @@ router.get('/login', (req, res) => {
         // login step), or PingOne still demands the password after
         // user.lookup. The policy must also be assigned to this app.
         ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'mfa_only' } : {}),
+        // The policy must be assigned to this app or PingOne rejects the acr.
+        ...(aicLogin ? { acr_values: 'AIC_Login' } : {}),
         // Session-derived hint wins (fresher). The role's STORED hint is
         // PINGONE-only: PingOne treats the hint as advisory prefill, but
         // PingFederate BINDS the flow to it ("username must match the hint"),
