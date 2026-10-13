@@ -1,7 +1,8 @@
 # Aggregate apps: demo runbook
 
-October 13, 2026 · SE demo script · **written from code and the measured guide;
-the steps were not re-run on this date.** Measured results are from
+October 13, 2026 · SE demo script · **door inventory verified live 2026-10-13;
+tool calls through the doors were not run (see "Live check") — the rest is from
+code and the measured guide.** Measured results are from
 [GATEWAY-AGGREGATE-APPS](GATEWAY-AGGREGATE-APPS.md) (4 Oct 2026, two members, one
 agent key with the `mcp` scope). The guide itself notes that full sign-in through
 the aggregate is **not yet recorded** — rehearse before showing.
@@ -31,6 +32,27 @@ Master index row: [feature 12](../docs/privilege-agent-features.md).
   `Alias` = the member's display name. A member's `ToolFilter.Elems` are **bare**
   tool names (no prefix) and are *intersected with the caller's policy grant*;
   empty `Elems` means **all** tools — there is no "empty means none".
+
+## Live check, 2026-10-13
+
+Read from the console API — four aggregate apps exist, all with members
+`banking-mcp` + `opensearch`:
+
+| Door | Member tool filter | Use it to show |
+|---|---|---|
+| `aggregate` | none (all tools) | the full prefixed list |
+| `banking-aggregate` | none (all tools) | same members, second address |
+| `aggregate-limited` | banking: `get_airline_bookings`, `get_investment_accounts`; opensearch: `ListIndexTool`, `MsearchTool` | a **per-member tool filter** — a smaller list than the members have |
+| `aggregate-none` | `…____no_tools_by_design` on each member | a door that is up but exposes **zero** tools |
+
+The filter is intersected with the caller's grant (see above), so
+`aggregate-limited` is the cleaner "central control" demo.
+
+**Blocked live:** the two agent keys in the A2A demo's `.env` (`MAIN_AGENT_KEY`,
+`WORKER_AGENT_KEY`) got `403 Forbidden: key not scoped for mcp access` on all four
+doors, so no `tools/list` was captured. The tenant has mcp-scoped keys
+(`worker-agent`, `openai`, `google`, `local`, `ollama`, `llama.cpp`); use one that
+has the aggregate selected under its MCP servers, or create a throwaway key.
 
 ## Before you present
 
