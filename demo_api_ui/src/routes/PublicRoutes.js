@@ -58,6 +58,7 @@ import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
 import PingFederateIdJagExplainerPage from '../pages/PingFederateIdJagExplainerPage';
 import PingFederateIdJagPage from '../components/PingFederateIdJagPage';
 import PingFederateAiAgentPage from '../pages/PingFederateAiAgentPage';
+import AicTokenExchangePage from '../pages/AicTokenExchangePage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PageCatalogPage from '../pages/PageCatalogPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
@@ -361,6 +362,14 @@ export function PingFederateIdJagDiagramPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PingFederateIdJagPage />
+    </AppShell>
+  );
+}
+
+export function AicTokenExchangePageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <AicTokenExchangePage />
     </AppShell>
   );
 }

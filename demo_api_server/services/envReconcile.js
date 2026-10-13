@@ -189,6 +189,8 @@ const ENV_AGNOSTIC_KEYS = new Set([
   // PingFederate provider configuration is independent of the active PingOne
   // environment. Preserve it during PingOne env-id reconciliation.
   'oauth_provider',
+  // The AIC token-exchange demo talks to its own AIC tenant, whichever PingOne environment is active.
+  'aic_issuer', 'aic_subject_client_id', 'aic_actor_client_id', 'aic_actor_client_secret', 'aic_delegated_scope',
   'pf_issuer', 'pf_discovery_endpoint', 'pf_authorization_endpoint',
   'pf_token_endpoint', 'pf_par_endpoint', 'pf_userinfo_endpoint', 'pf_jwks_uri',
   'pf_introspection_endpoint', 'pf_revocation_endpoint',

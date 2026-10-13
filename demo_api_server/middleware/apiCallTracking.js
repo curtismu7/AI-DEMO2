@@ -8,6 +8,8 @@ const TRACKING_SKIP_PREFIXES = [
   '/privilege-user-api-keys',
   // PF AI callback URLs carry OAuth codes; RAR forms can carry user identifiers.
   '/pf-ai-agent/',
+  // The AIC demo callback URL carries an OAuth code too.
+  '/aic-demo/',
   // Swagger UI assets would bury real traffic in the API Explorer.
   '/docs', '/openapi.json', '/reference',
 ];

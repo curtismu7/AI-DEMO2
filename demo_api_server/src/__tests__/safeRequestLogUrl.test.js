@@ -9,6 +9,11 @@ describe('safeRequestLogUrl', () => {
     })).toBe('/api/pf-ai-agent/cimd/callback');
   });
 
+  test('omits all query parameters from the AIC OAuth callback access-log URL', () => {
+    expect(safeRequestLogUrl({ originalUrl: '/api/aic-demo/callback?code=single-use-code&state=csrf-state' }))
+      .toBe('/api/aic-demo/callback');
+  });
+
   test('redacts the RAR user key from request URLs', () => {
     expect(safeRequestLogUrl({
       originalUrl: '/api/pf-ai-agent/rar/start?scenario=allowed&userKey=private-user&debug=true',

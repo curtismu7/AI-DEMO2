@@ -133,6 +133,7 @@ const _SECRET_KEYS_RAW = [
   'PF_AI_RAR_LOOKUP_SECRET',
   'PF_AI_CIBA_CLIENT_SECRET',
   'PF_AI_CIBA_APPROVER_SECRET',
+  'aic_actor_client_secret',
   'pingone_fraud_watch_agent_client_secret',
   'pingone_balance_sweep_agent_client_secret',
   'spiffe_bridge_private_key',
@@ -619,6 +620,13 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // PingOne stays the AS; customer sign-in is handed to the AIC external IdP
   // through the AIC_Login sign-on policy. PingOne provider only.
   aic_login_enabled:             { public: true,  default: 'false' },
+  // AIC token-exchange demo (/aic-token-exchange): a direct AIC sign-in for the user
+  // token and a confidential AIC client for the actor token. Separate from login.
+  aic_issuer:                    { public: true,  default: '' },
+  aic_subject_client_id:         { public: true,  default: '' },
+  aic_actor_client_id:           { public: true,  default: '' },
+  aic_actor_client_secret:       { public: false, default: '' },
+  aic_delegated_scope:           { public: true,  default: '' },
   PF_ISSUER:                     { public: true,  default: '' },
   PF_DISCOVERY_ENDPOINT:         { public: true,  default: '' },
   PF_AUTHORIZATION_ENDPOINT:     { public: true,  default: '' },
@@ -1288,6 +1296,11 @@ const ENV_FALLBACK_MAP = {
   pingone_par_endpoint:          ['PINGONE_PAR_ENDPOINT', 'OAUTH_PAR_ENDPOINT'],
   oauth_discovery_enabled:       ['OAUTH_DISCOVERY_ENABLED'],
   oauth_provider:                ['OAUTH_PROVIDER'],
+  aic_issuer:                    ['AIC_ISSUER'],
+  aic_subject_client_id:         ['AIC_SUBJECT_CLIENT_ID'],
+  aic_actor_client_id:           ['AIC_ACTOR_CLIENT_ID'],
+  aic_actor_client_secret:       ['AIC_ACTOR_CLIENT_SECRET'],
+  aic_delegated_scope:           ['AIC_DELEGATED_SCOPE'],
   pf_issuer:                     ['PF_ISSUER'],
   pf_discovery_endpoint:         ['PF_DISCOVERY_ENDPOINT'],
   pf_authorization_endpoint:     ['PF_AUTHORIZATION_ENDPOINT'],

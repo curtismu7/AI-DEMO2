@@ -248,6 +248,7 @@ import PublicRoutes, {
   PingFederateIdJagDemoPageRoute,
   PingFederateIdJagDiagramPageRoute,
   PingFederateAiAgentPageRoute,
+  AicTokenExchangePageRoute,
   GroupPolicyBoardPageRoute,
   PageCatalogPageRoute,
   PrivilegeMcpClientPageRoute,
@@ -1470,6 +1471,17 @@ function AppWithAuth() {
                 <Route
                   path="/pingfederate-ai-agent"
                   element={<PingFederateAiAgentPageRoute user={user} logout={logout} />}
+                />
+                {/* AIC token exchange — signed-in users only (its tokens live in their BFF session). */}
+                <Route
+                  path="/aic-token-exchange"
+                  element={
+                    loading ? null : user ? (
+                      <AicTokenExchangePageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
                 />
                 <Route
                   path="/privilege-demo"
