@@ -98,6 +98,9 @@ const ENV_SCOPED_KEYS = new Set([
   'pingone_private_key_jwt_exchanger_private_key', 'pingone_private_key_jwt_exchanger_kid',
   // SPIFFE bridge credentials authenticate a mapped client in the active PingOne environment.
   'spiffe_bridge_private_key', 'spiffe_bridge_kid', 'spiffe_pingone_client_map',
+  // Only valid where the AIC_Login sign-on policy is assigned to the User Login app;
+  // carried into another environment it breaks customer sign-in.
+  'aic_login_enabled',
 ]);
 
 // Keys that SURVIVE an env change (flags, thresholds, UI, deployment topology, internal secrets,
