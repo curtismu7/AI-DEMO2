@@ -15,7 +15,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 
 interface OpenAiToolCall { id?: string; type?: string; function?: { name?: string; arguments?: string } }
 interface OpenAiMessage { role: 'system' | 'user' | 'assistant' | 'tool'; content?: string | null; tool_calls?: unknown[]; tool_call_id?: string }
-interface OpenAiResponse {
+export interface OpenAiResponse {
   choices?: { message?: { content?: string | null; tool_calls?: OpenAiToolCall[] }; finish_reason?: string }[];
 }
 type Params = Anthropic.MessageCreateParamsNonStreaming;
