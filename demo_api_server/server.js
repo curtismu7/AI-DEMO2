@@ -1465,6 +1465,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/auth/oauth', oauthRoutes);
 app.use('/api/auth/oauth/user', oauthUserRoutes);
 app.use('/api/pf-ai-agent', require('./routes/pfAiAgent'));
+app.use('/api/aic-demo', require('./routes/aicDemo'));
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
 app.use('/api/auth/ciba', cibaRoutes);
 app.use('/api/auth', parRequestRoutes);
