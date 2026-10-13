@@ -43,7 +43,7 @@ it.** Every demo below is shipped and verified live unless marked otherwise.
 | **Hostile-MCP rug-pull** | Side-by-side twin MCP servers: governed twin DENYs 3 dangerous tools, ungoverned (allow-all policy) ALLOWs all; no-policy = DENY ALL on v1.261009 | Verified live (11 Oct) |
 | **Hostile-MCP public door** | Re-registered console app on `/mcp`; public door 401-with-metadata, zero entry-path rejections | Resolved (12 Oct) |
 | **Gateway topology page** (`/privilege-gateway-topologies`) | Live LB tab: ReactFlow diagram of the real 2-node mesh — ingress → mcpgw-lb HAProxy pair → gateway nodes → Agentic App doors — walk-stepped, verified against live LB/gateway logs; all 4 tabs ReactFlow (Mermaid removed, opensearch22 default door → aggregate) | Live (PRs #1223, #1227, blurb #1229) |
-| **HAProxy stats + LB park/unpark** | Live per-node health/sessions/bandwidth stats and admin Park/Unpark per gateway via HAProxy runtime API — live failover control without helm; **PingOne SSO** gate on the stats iframe (#1232/#1233) replacing browser basic-auth | **Deployed + mostly live 13 Oct**: /lb-stats live (200-with-password/401-without), BFF on sha-dab2bbeb2 serving the SSO-gated route; one frontend `set image` to sha-41d6cc229 remains — see §6 |
+| **HAProxy stats + LB park/unpark** | Live per-node health/sessions/bandwidth stats and admin Park/Unpark per gateway via HAProxy runtime API — live failover control without helm; **PingOne SSO** gate (#1232/#1233) + #1234 softening (stats-view for any signed-in user, park/unpark admin-gated inside the route, duplicate flow figure deleted) | **FULLY LIVE 13 Oct**: /lb-stats verified, BFF + frontend both deployed (set-image done after a concurrent-session race); see §6 for the promote-gap note |
 | **Cluster model swap** | tier1 PVC Phi-4-mini → Llama-3.2-3B — the model behind the Privilege llama.cpp lane | Live (5507079ce, gateway-verified) |
 | **Gateway release v1.261009 runbook** | Model catalog refresh live in dropdowns; response-side policy denial (`llm_policy_response_denied` + `UpstreamStatus:200` pairing); llama.cpp governed on our own hardware via `/llm/custom/v1` (403 `wrong_provider` control, 90s timeout fix); Bedrock blocked on credential | Built this session (12 Oct) |
 | **ML sidecar on every key** | demo_mcp_promptguard (NeMo + ProtectAI) wired into all 10 Agent Registry keys, Block Agreement off — injection blocked end to end on the custom lane | Built this session (12 Oct) |
@@ -174,19 +174,37 @@ Per-key notes (full table in the rollout doc):
 > Every concurrent session's own account of what it left unfinished. Pick up
 > by owner; owners are bsk session names on this machine (2026-10-12/13).
 
-**Left by agents-d3 — updated 2026-10-13 (stats live; one set-image remains):**
+**Left by agents-d3 — CLOSED 2026-10-13 (all deployed + live-verified):**
 
-1. **HAProxy stats + LB park/unpark (PR #1225 → #1232/#1233)** — now
-   **DEPLOYED + mostly live**: `/lb-stats` on the cluster since 13 Oct
-   (200-with-password / 401-without verified); #1232/#1233 replaced the
-   browser basic-auth prompt with **PingOne SSO** — the topology page iframes
-   `/api/admin/lb/runtime/stats-view`, admin-gated by the demo's PingOne
-   sign-in, creds only in BFF env (ai-demo-secrets). BFF already on
-   sha-dab2bbeb2 serving the route (401 unauth = gate active; in-pod upstream
-   200). **Remaining: one `kubectl set image` on deploy/frontend once CI
-   publishes sha-41d6cc229** (stats iframe renders unconditionally). No helm
-   ingress work involved. Stale-engine landmine in §0 hygiene still applies
-   to values edits.
+1. **HAProxy stats + LB park/unpark (PRs #1225 → #1232/#1233 → #1234) —
+   FULLY LIVE.** Final state, verified: `/lb-stats` on the cluster
+   (200-with-password/401-without); **PingOne SSO** gate (#1232/#1233): the
+   topology page iframes `/api/admin/lb/runtime/stats-view`, creds only in
+   BFF env; **#1234 (merged 12:10 UTC)** softened stats-view to
+   authenticateToken-only (any signed-in user) and moved the park/unpark
+   admin gate INSIDE the route handler (role admin or admin:read scope,
+   403 otherwise); the duplicate bottom "Request Flow" figure is deleted
+   (~129 lines). **Frontend set-image DONE** (Curtis ran it himself during
+   a concurrent-session race; both pods on
+   sha256:2f6c49b5…, hero string absent from the served bundle, stats
+   iframe live unconditionally). BFF live on
+   sha256:9a3c5e40… with the new gate string confirmed. **Third occurrence
+   of the promote gap**: se-update-code.sh's deploy.sh died on a vault
+   SECURITY abort (PINGONE_AGENT_CLIENT_SECRET mismatch vs
+   demo_hitl_service/.env) before rewriting images → rollout restart
+   re-pulled old pinned tags; fixed by kubectl set image by digest.
+   Pre-existing smoke FAILs on both deploys (anonymous / 200, llm-proxy
+   /v1/models) — not from #1234.
+
+**Left parked by agents-d3 — owner decisions, not d3's to unblock:**
+
+1. **opensearch-mcp-server svc port patch (80 → 9900)** in
+   ping-devops-curtismuir — awaiting owner approval; helm upgrades fail on
+   it server-side-apply.
+2. **PINGONE_AGENT_CLIENT_SECRET vault/.env drift** — blocks deploy.sh
+   full runs (the same SECURITY abort that bit the #1234 deploy).
+3. pi.flow login TODO recorded in memory; the stats-visibility TODO is
+   DONE via #1234 (memory ai-demo2-lb-stats-visibility-todo updated).
    *Also from d3 + agents-25: the 4+ sequential demo-api-server rollouts on
    13 Oct morning were **both sessions' deliberate deploy/repair steps, not
    an error loop** — d3: stats secret patch → promote-roll → `kubectl set
@@ -205,19 +223,6 @@ Per-key notes (full table in the rollout doc):
    image; d3's sha-dab2bbeb2 includes code changes agents-25 hasn't
    reviewed. Settled state verified 11:26 UTC: sha-dab2bbeb2, 1/1 Running,
    0 restarts.*
-
-**Left by the LB-stats-visibility agent (PR #1234, merged 13 Oct 86d53c326):**
-
-1. **LB stats visibility + admin gate moved inside the route** — DONE:
-   `GET /api/admin/lb/runtime/stats-view` is open to any PingOne-signed-in
-   user (mount dropped `requireAdmin`); park/unpark stays admin-only via a
-   role/scope check inside `routes/adminLbRuntime.js` `POST /:node/:action`
-   (403 otherwise, test proves a customer session cannot reach the pods).
-   Same PR deleted the duplicate bottom "Request Flow: Agent-based vs
-   Agentless" figure from the topology page (~129 lines). **Deploy: both BFF
-   and frontend images change — after CI publishes the shas, use per-service
-   `kubectl set image` (the `--promote` gap), then verify the GHCR manifest
-   + pod imageID.**
 
 **Left by the hosted-access Bearer-pass agent (PRs #1235/#1236, merged 13 Oct):**
 
@@ -372,11 +377,31 @@ check.
    the whose-account question (Curtis's vs Ping SE) is undecided. Everything
    else is ready; P.2 answered (mantle is a first-class key provider).
 
+**Left by agents-ef (privilege docs session, 13 Oct — docs only, all on main):**
+
+1. **`docs/privilege-agent-field-guide.html`** (7f78935a2) — trainer's page,
+   top-10 Privilege agent features in demo-arc order (what/show/say rows +
+   pre-session caveats); indexed in DOCUMENTATION-INDEX.md +
+   PrivilegeDocsIndexPage.jsx (7f56bad8f), tests 3/3 pass.
+2. **`docs/privilege-agent-features.md`** (9ffa06749) — master index of the
+   same 10 features with descriptions, links to detailed docs + demo
+   surfaces; names 3 coverage gaps; indexed in both places.
+3. **PDF export** — none yet for the field guide (the HTML + MD are the
+   artifacts; SE-guide PDFs ship via rclone `gdrive:` when asked).
+   (UI index rows ride the next frontend rollout.)
+
+**Unfinished (agents-ef, docs-only, not yet asked for):** two coverage-gap
+docs named in the master index — the rug-pull side-by-side demo doc and the
+agentapprovals-fallback demo doc — plus a third gap the index names.
+Untracked PNGs in docs/superpowers/plans/ (t1-*.png, t3-*.png) are another
+session's screenshots, untouched.
+
 **Nothing left unfinished:** agents-a4 (all six shipped; its "runbook not
 yet assembled" item was completed by this session), agents-b6 (all merged +
 deployed live), and agents-25 — its last item (UC1 canary hop) closed GREEN
 13 Oct: wall fix #1235/#1236 deployed, ghost actor-app id purged at the
-source, stale ACTOR/AGENT secrets synced, browser-verified end-to-end.
+source, stale ACTOR/AGENT secrets synced, browser-verified end-to-end;
+#1237 persisted the 16k ingress annotation; worktrees/branches cleaned up.
 
 ## 7. Gotchas worth keeping
 
