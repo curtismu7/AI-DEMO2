@@ -68,6 +68,9 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "PingFederate ID-JAG", children: [
     "Run ID-JAG Demo", "How ID-JAG Works", "ID-JAG Diagram",
   ] },
+  { label: "AIC", children: [
+    "AIC Token Exchange",
+  ] },
   { label: "Developer Tools", children: [
     "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide", "PromptFoo Evals",
   ] },
