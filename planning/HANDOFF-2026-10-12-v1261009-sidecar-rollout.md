@@ -273,6 +273,36 @@ dress rehearsal with Curtis's address and record the result (invite → email �
 link → temp password → dashboard), then tick the plan's Task 4 checkbox. The
 wizard itself and Tasks 1–3 are shipped and deployed.
 
+### Privilege-based HITL — status (peer-confirmed 2026-10-13 by d3, 3d, ac)
+
+Three sessions independently confirmed the same state; nothing new landed:
+
+| Track | Status |
+| --- | --- |
+| **Track 2 — Privilege native agentapprovals** | Approval flow **works end-to-end** (ApprovalReq POST → Pending → Approve/Deny in the console's Access Request Approvals UI) = the demoable path. **Slack delivery BLOCKED** — zero dispatch, zero errors over the full token×wiring matrix (the "one untested cell" is now closed: no re-OAuth UI exists for Slack integrations — console hides the Authorize button for all SlackIntegration kinds, and xoxb tokens don't natively expire). **Mattermost tried as a second channel — same block**, infra fully up (compose at `~/Development/mattermost-hitl`, bot verified, integration registered). |
+| **Root-cause candidate (3d, new)** | The agentless tenant never deploys **privilege-proxy egress**: the cmuirlocal ProxyController has **zero MedusaNodes**, and agent-VM egress is proxied + allowlisted to Ping hosts only — proven with a logging listener (504s). Suspected cause for BOTH channels' silence. Also ruled out: Mattermost on Ping k8s (all 27 EKS nodes arm64; Mattermost is amd64-only). |
+| **Track 1 — Recognize-as-HITL** | Parked (recognizeService stubbed; Server-API ops flow implementable with the API key; WebSDK needs Keyless staff). |
+| **Ping report** | Evidence complete, draft **not yet written** (not asked for). |
+| **Fallback demo** | Console-native approvals work but were **never built into a dedicated demo surface** — a demo run hits the console UI directly. |
+
+**Unfinished (HITL):** write the Ping bug report from the collected evidence
+(egress/MedusaNodes root-cause candidate included); optionally build the
+console-native fallback into a demo surface so the demo doesn't screen-share
+the console. No repo-facing artifacts exist from this work — all state is
+console/API-side (memory `privilege-hitl-track2-probe` + /tmp/procyon-probe/).
+
+### "Demo welcome wizard design" — resolved: no separate design effort exists
+
+Triple-checked (ac, 3d, this session's repo search): docs/superpowers/plans,
+planning/, and docs/superpowers/specs contain **no welcome-wizard design
+plan** — the only artifacts are the invite-emails spec
+(`2026-10-11-wizard-invite-emails-design.md`, approved by Curtis 11 Oct) and
+its plan. The design phase that preceded the shipped wizard (PR #1166, live
+11 Oct) **left no artifact in the repo**. Shipped = PR #1166 + invite flow
+#1196/#1197; current per-piece status is in the section above. If a new
+wizard-design effort is wanted, it would be net-new work, not a status
+check.
+
 **Left blocked (ownerless until a credential lands):**
 
 9. **Bedrock demo pair (runbook P.1)** — needs an AWS Bedrock credential;
