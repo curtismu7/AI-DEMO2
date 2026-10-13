@@ -129,16 +129,22 @@ spec:
         # the gateway. The card is served at /.well-known/agent-card.json, which
         # is where the console's "Discover A2A agent card" looks.
         - name: WORKER_PUBLIC_URL
-          value: "https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/a2a/jsonrpc"
-        # Both of the worker's outbound legs go back through the gateway.
+          value: "https://mcpgw.ai-demo.ping-devops.com/worker-agent/a2a/jsonrpc"
+        # Both of the worker's outbound legs go back through the gateway: the
+        # model calls via the custom lane, the tool calls via the MCP door.
         - name: WORKER_AGENT_PROVIDER
-          value: "google"
-        - name: GEMINI_BASE_URL
-          value: "https://mcpgw.ai-demo.ping-devops.com/llm/google"
+          value: "llamacpp"
         - name: WORKER_AGENT_MODEL
-          value: "gemini-3.5-flash-lite"
+          value: "llama.cpp"
+        - name: LLAMACPP_BASE_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/llm/custom/v1"
+        - name: LLAMACPP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-secrets
+              key: PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM
         - name: MCP_URL
-          value: "https://mcpgw.ai-demo.ping-devops.com/mcpdemo/mcp"
+          value: "https://mcpgw.ai-demo.ping-devops.com/a2a-mcp-tools/mcp"
         - name: WORKER_AGENT_KEY
           valueFrom:
             secretKeyRef:
@@ -212,18 +218,23 @@ spec:
           value: "0.0.0.0"
         - name: MAIN_AGENT_PORT
           value: "3300"
-        # The main agent's own model calls go through the gateway too.
+        # The main agent's own model calls go through the gateway's custom lane.
         - name: MAIN_AGENT_PROVIDER
-          value: "google"
-        - name: GEMINI_BASE_URL
-          value: "https://mcpgw.ai-demo.ping-devops.com/llm/google"
+          value: "llamacpp"
         - name: MAIN_AGENT_MODEL
-          value: "gemini-3.6-flash"
+          value: "llama.cpp"
+        - name: LLAMACPP_BASE_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/llm/custom/v1"
+        - name: LLAMACPP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-secrets
+              key: PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM
         # Step 25: the worker, through the gateway. Step 26: the middle agent.
         - name: WORKER_A2A_URL
-          value: "https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/a2a"
+          value: "https://mcpgw.ai-demo.ping-devops.com/worker-agent/a2a"
         - name: WORKER_TRACE_URL
-          value: "https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/trace"
+          value: "https://mcpgw.ai-demo.ping-devops.com/worker-agent/trace"
         - name: CHAIN_A2A_URL
           value: "https://mcpgw.ai-demo.ping-devops.com/langchainagent/a2a/jsonrpc"
         - name: MAIN_AGENT_KEY
