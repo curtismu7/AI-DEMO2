@@ -234,21 +234,44 @@ A fresh agent wiring the llama.cpp lane needs exactly:
 | Virtual key (BFF → gateway) | env `PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM` (BFF `demo_api_server/.env`); gateway host from `PRIVILEGE_LLM_GATEWAY_URL` (`https://mcpgw.ai-demo.ping-devops.com`) | BFF env, value never committed |
 | RealKey (gateway → llama.cpp) | Gateway injects the key's stored RealKey as `Authorization: Bearer`; tier1's `--api-key` must match it | Console key object (RealKey) + live tier1 args / target-state secret above |
 
-### The OpenAI lane (verified at code level by agents-ac, 2026-10-13)
+### The OpenAI lane (code-verified by agents-ac; **live-verified 2026-10-13 by this session**)
 
 Same LANES table (`demo_api_server/services/privilegeLlmProxyService.js`):
 
 | What | Value | Confidence |
 | --- | --- | --- |
 | Route / key env / host | `/llm/openai/v1/chat/completions` + `PRIVILEGE_LLM_VIRTUAL_KEY_OPENAI` + `PRIVILEGE_LLM_GATEWAY_URL` (gatewayUrl() throws when unset); default model `PRIVILEGE_LLM_MODEL_OPENAI` \|\| `gpt-4o-mini` | Confirmed in code + UI test pin (LlmTestPage.test.jsx) |
-| RealKey on console key `openai` | Presumed a real OpenAI API key — **not verified**; nobody opened the console key store. Verify in the console before demoing | Unverified |
-| **Lane exercised with a live key?** | **No** — the lane shipped with `keyConfigured:false` in the UI pin: wired but never run live. Demo-readying it = provision the RealKey on the console `openai` object and confirm routing | **Open item** |
+| **RealKey on console key `openai`** | **VERIFIED LIVE 13 Oct**: `sk-orion-…` virtual key from BFF env → 200 `chatcmpl-…`, `model: gpt-4o-mini-2024-07-18`, `"OK!"` — the RealKey is a real OpenAI key and the lane works end to end | **Live-tested** |
+| **Lane exercised with a live key?** | **Yes** — first live call 2026-10-13 (the `keyConfigured:false` UI pin predates this; the pin state on the live page may still show unconfigured until the BFF env is re-read) | Resolved |
+| Wrong-key control | Google virtual key on the OpenAI route → `invalid_api_key` "missing Authorization header" (the gateway's provider check strips/refuses the mismatched RealKey) | Live-tested |
 | `LLM_DIRECT_OPENAI_KEY` | Exists only in `demo_api_server/.env:173`; **no consumer found** — no mapping to `OPENAI_API_KEY` anywhere (demo_agent_service :3006 has zero OpenAI env, docker-compose doesn't set it, k8s has no reference). Treat as dead/unwired config, not a "direct bypass lane" | Dead config |
 | The actual direct OpenAI consumer | `platformAgentRuntime.js:31` — `process.env.OPENAI_API_KEY` against the OpenAI Responses URL, with gateway MCP tools attached. Platform-agent path, **not** a lane contrast surface; no side-by-side UI exists (the only lane-picker is LlmTestPage's per-lane dropdown) | Confirmed in code |
 
-**Unfinished (from agents-ac):** nothing pending on the lane itself — post-test
-allowlist edits were reverted, no rotations. The only gap is the unprovisioned
-RealKey above.
+**Unfinished:** nothing pending on either LLM lane — custom lane re-verified
+live the same day (200, GGUF model id echoed); OpenAI lane's first live 200 is
+above. The remaining lane-level gap is only that no UI shows the two
+side-by-side as a contrast story.
+
+### Welcome wizard + invite flow — status (checked 2026-10-13 by this session)
+
+From the SDD ledger (`.superpowers/sdd/2026-10-11-wizard-invite-emails/progress.md`),
+PR history and live probes:
+
+| Piece | State |
+| --- | --- |
+| Welcome wizard itself (`/welcome`) | Live since 11 Oct (PR #1166, sha-8f99e1346); 200 live today; provisions customer+admin accounts, email+SMS MFA, banking seed |
+| Task 1 — PingOne spike (native email) | ✅ COMPLETE 12 Oct: `password.sendRecoveryCode` → 200 → `NATIVE_EMAIL_ENABLED = true`; worker-created users need explicit `population.id` (handled by `pingOneUserService`) |
+| Task 2 — `POST /api/demo/send-invite` + `sendPasswordSetupEmail` | ✅ COMPLETE + MERGED (PRs #1196/#1197, commits d24d9f923..efa683e3c); in BOTH deployed images (frontend c3b866f20 + api 0cf7c964f verified by ancestry); live endpoint answers 401 unauthenticated (exists, admin-gated) |
+| Task 3 — invite form on HostedRegistrationAdminPage | ✅ COMPLETE + MERGED, review clean; registrationUrl contract `…/welcome?welcome=1` (demoProvisioning.js:413) |
+| Task 4 — dress rehearsal + onboarding-runbook update | ⚠️ PARTIAL: the runbook (`docs/runbooks/privilege-onboarding-email.md`) **is** updated (Hosted Registrations invite + idempotency + SMS-fail note); PRs merged; but the ledger still shows Task 4 unchecked — **the Curtis dress rehearsal (admin invites themselves → follows link → native email arrives) has no recorded result** |
+| Invite→approval loop closure | MERGED (PR #1228, 13 Oct 10:35 UTC) but **NOT LIVE**: deployed frontend (c3b866f20) + api (0cf7c964f) both predate the #1228 merge (b480271e3) — ancestry-checked. Needs the per-service deploy (`se-update-code.sh bff frontend`) |
+
+**Unfinished (welcome/invite):** two items — (1) deploy #1228 to the SE cluster
+(per-service `se-update-code.sh bff frontend` only; never full deploy.sh) so
+the invite→approval loop closure is actually live, then (2) run the Task 4
+dress rehearsal with Curtis's address and record the result (invite → email →
+link → temp password → dashboard), then tick the plan's Task 4 checkbox. The
+wizard itself and Tasks 1–3 are shipped and deployed.
 
 **Left blocked (ownerless until a credential lands):**
 
