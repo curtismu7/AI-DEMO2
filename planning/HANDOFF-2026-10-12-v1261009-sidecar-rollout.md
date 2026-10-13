@@ -196,7 +196,10 @@ Per-key notes (full table in the rollout doc):
    invalid_client on every customer login) + replacing a deleted PingOne
    actor-app ghost in the config; brief 502s during restart windows were
    theirs (the persistent fix: ingress proxy-buffer-size 16k for the fat
-   session cookie, done with Curtis's OK). **Attribution note (agents-25):**
+   session cookie, done with Curtis's OK; **persisted in `k8s/aws/
+   se-ingress.yaml` by PR #1237 (merged 12:48 UTC 13 Oct) so a manifest
+   re-apply can't silently drop it and reintroduce the 502** — main now
+   reflects the live cluster for this ingress). **Attribution note (agents-25):**
    credit the sign-in fix to the secret/configmap/LMDB patches + the 16k
    ingress annotation — all of which survive image changes — not to either
    image; d3's sha-dab2bbeb2 includes code changes agents-25 hasn't
