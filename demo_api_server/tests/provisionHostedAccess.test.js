@@ -220,6 +220,56 @@ describe('provision hosted-access phase', () => {
     const usr = text.match(/^HOSTED_ACCESS_USER_GROUP_ID=(.*)$/m);
     expect(req[1]).toBe(usr[1]);
     expect(req[1]).toBe(USER_GROUP_ID);
+    expect(text).toMatch(/^HOSTED_ACCESS_GATE_ENABLED=true$/m);
+  });
+
+  test('generateEnvContent gates OFF when the hosted phase failed (no claimMapped)', () => {
+    // Live twice: the hosted phase threw, .env got GATE_ENABLED=true with empty
+    // client/group IDs — every /api 401s and login 503s. Gate must default off.
+    const svc = new PingOneProvisionService();
+    const config = { envId: 'env-1', region: 'com', publicAppUrl: 'https://ai-demo.ping-devops.com' };
+    const provisioned = {
+      adminApp: { clientId: 'a', clientSecret: 's' },
+      userApp: { clientId: 'u', clientSecret: 's' },
+      resourceServer: { audience: ['enduser.ping.demo'] },
+      mcpGwResourceServer: { audience: ['mcpgateway.ping.demo'] },
+      demoUser: { password: 'p' },
+      demoAdmin: { password: 'p' },
+      // hostedAccess deliberately UNSET — the phase's catch swallowed an error.
+    };
+
+    const text = svc.generateEnvContent(config, provisioned);
+
+    expect(text).toMatch(/^HOSTED_ACCESS_GATE_ENABLED=false$/m);
+    // The warning must be loud enough to find in the wizard output.
+    expect(text).toMatch(/^#.*⚠️.*[Hh]osted/m);
+  });
+
+  test('generateEnvContent gates OFF when claimMapped is false even with ids present', () => {
+    // claimMapped is the load-bearing flag — groups without the claim mapping
+    // mean the gate would deny everyone anyway.
+    const svc = new PingOneProvisionService();
+    const config = { envId: 'env-1', region: 'com', publicAppUrl: 'https://ai-demo.ping-devops.com' };
+    const provisioned = {
+      adminApp: { clientId: 'a', clientSecret: 's' },
+      userApp: { clientId: 'u', clientSecret: 's' },
+      resourceServer: { audience: ['enduser.ping.demo'] },
+      mcpGwResourceServer: { audience: ['mcpgateway.ping.demo'] },
+      demoUser: { password: 'p' },
+      demoAdmin: { password: 'p' },
+      hostedAccess: {
+        appId: 'app-hosted-1',
+        clientId: CLIENT_ID,
+        userGroupId: USER_GROUP_ID,
+        partialGroupId: PARTIAL_GROUP_ID,
+        claimMapped: false,
+      },
+    };
+
+    const text = svc.generateEnvContent(config, provisioned);
+
+    expect(text).toMatch(/^HOSTED_ACCESS_GATE_ENABLED=false$/m);
+    expect(text).toMatch(/^#.*⚠️.*[Hh]osted/m);
   });
 
   test('run-twice idempotence: second run performs zero creates', async () => {

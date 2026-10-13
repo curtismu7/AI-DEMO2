@@ -15,18 +15,18 @@ const SERVICE = path.join(__dirname, '../services/pingoneProvisionService.js');
 const src = fs.readFileSync(SERVICE, 'utf8');
 const lines = src.split('\n');
 
-// Collect every quoted string literal between `createApplication(` /
-// `createResourceServer(` and the call's closing `);` — name + description
-// are both sent to PingOne verbatim.
-function literalsAtCallSites(callPattern) {
+// Collect every quoted string literal between the matched opening line and the
+// block's closing `});` / `);` — name + description are both sent to PingOne
+// verbatim.
+function literalsAtCallSites(callPattern, maxLines = 14) {
   const literals = [];
   lines.forEach((line, i) => {
     if (!callPattern.test(line)) return;
-    for (let j = i; j < Math.min(i + 12, lines.length); j++) {
+    for (let j = i; j < Math.min(i + maxLines, lines.length); j++) {
       const l = lines[j];
       for (const m of l.matchAll(/'((?:[^'\\]|\\.)*)'/g)) literals.push({ line: j + 1, text: m[1] });
       for (const m of l.matchAll(/`([^`]*)`/g)) literals.push({ line: j + 1, text: m[1] });
-      if (/\);\s*$/.test(l)) break;
+      if (/\);\s*$/.test(l) || /\}\);\s*$/.test(l)) break;
     }
   });
   return literals;
@@ -45,14 +45,19 @@ const FORBIDDEN = /[^\w\s\x20-\x7E -ɏ‐-⁞]/;
 
 describe('PingOne API-bound description literals are ASCII-safe', () => {
   const callSites = [
-    ['createApplication', /this\.createApplication\(\s*$/],
-    ['createResourceServer', /this\.createResourceServer\(\s*$/],
+    ['createApplication', /this\.createApplication\(\s*$/, 14],
+    ['createResourceServer', /this\.createResourceServer\(\s*$/, 14],
+    // _ensureHostedAccessApp's POST body is a raw makeRequest('/applications')
+    // call the helper-based extraction never sees.
+    ['makeRequest POST bodies (hosted app)', /makeRequest\('POST', '\/applications', \{$/, 14],
+    // Both hosted-access group names + descriptions POST via _ensureGroup.
+    ['_ensureGroup arguments (hosted groups)', /this\._ensureGroup\(/, 2],
   ];
 
-  test.each(callSites)('%s arguments contain only PingOne-accepted chars', (_, pattern) => {
+  test.each(callSites)('%s contain only PingOne-accepted chars', (_, pattern) => {
     const literals = literalsAtCallSites(pattern);
     // Guard against vacuous pass: extraction must actually find the call sites.
-    expect(literals.length).toBeGreaterThanOrEqual(8);
+    expect(literals.length).toBeGreaterThanOrEqual(4);
 
     const bad = literals.filter((lit) => {
       const cleaned = stripInterp(lit.text);

@@ -10,6 +10,15 @@ async function ensureManagement() {
   return managementService;
 }
 
+// The invite flow (send-invite) parks the invitee in the PARTIAL group before
+// any self-registration happens; when the same email later self-registers,
+// stage() re-runs against the SAME PingOne user and addUserToGroup reports
+// the duplicate. That is success — the member is where stage() wants them.
+function isAlreadyMemberOutcome(outcome) {
+  const message = outcome?.error || outcome?.message || '';
+  return outcome?.status === 409 || /already (a member|exists in|belongs to)/i.test(message);
+}
+
 function createHostedRegistrationProvisioningService({ management = null, enrollSmsDevice = management?.enrollSmsDevice || mfaService.enrollSmsDevice } = {}) {
   async function stage(record, { partialGroupId = process.env.HOSTED_ACCESS_PARTIAL_GROUP_ID } = {}) {
     const service = management || await ensureManagement();
@@ -42,8 +51,16 @@ function createHostedRegistrationProvisioningService({ management = null, enroll
       if (!mfaEnabled.success) throw Object.assign(new Error(mfaEnabled.error || 'PingOne MFA enable failed'), { code: 'pingone_mfa_failed' });
     }
     if (partialGroupId) {
-      const added = await service.addUserToGroup(user.id, partialGroupId);
-      if (!added.success) throw Object.assign(new Error(added.error || 'PingOne partial group assignment failed'), { code: 'pingone_group_failed' });
+      let added;
+      try {
+        added = await service.addUserToGroup(user.id, partialGroupId);
+      } catch (err) {
+        if (!isAlreadyMemberOutcome(err)) throw err;
+        added = { success: true, alreadyMember: true };
+      }
+      if (!added.success && !isAlreadyMemberOutcome(added)) {
+        throw Object.assign(new Error(added.error || 'PingOne partial group assignment failed'), { code: 'pingone_group_failed' });
+      }
     }
     return { pingOneUserId: user.id, groups: partialGroupId ? [partialGroupId] : [] };
   }

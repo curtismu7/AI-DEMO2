@@ -2109,7 +2109,17 @@ class PingOneProvisionService {
       'HOSTED_ACCESS_TOKEN_ENDPOINT_AUTH_METHOD=none',
       `HOSTED_ACCESS_REDIRECT_URI=${config.publicAppUrl || 'https://ai-demo.ping-devops.com'}/api/auth/hosted-access/callback`,
       'HOSTED_ACCESS_ALLOWED_DOMAINS=pingidentity.com,pingone.com',
-      'HOSTED_ACCESS_GATE_ENABLED=true',
+      // Gate ON only when the hosted phase fully succeeded (claim mapped).
+      // Unconditional true + an empty client ID meant every /api 401'd and
+      // login 503'd whenever the hosted phase threw (live twice, 2026-10-12).
+      ...(provisioned.hostedAccess?.claimMapped
+        ? ['HOSTED_ACCESS_GATE_ENABLED=true']
+        : [
+          'HOSTED_ACCESS_GATE_ENABLED=false',
+          '# ⚠️ HOSTED-ACCESS PHASE FAILED — gate left OFF. The hosted wall will not',
+          '# ⚠️ enforce sign-in until bootstrap completes the hosted-access phase',
+          '# ⚠️ (re-run bootstrap; see spec 2026-10-12-bootstrap-hosted-access-design).',
+        ]),
       'HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL=false',
     ]);
 

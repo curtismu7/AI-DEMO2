@@ -19,6 +19,10 @@ jest.mock('../../services/emailService', () => ({ sendHostedRegistrationConfirma
 const process_ = process;
 describe('hosted registration approval group wiring', () => {
   beforeEach(() => { process_.env.HOSTED_ACCESS_USER_GROUP_ID = 'complete-group'; });
+  afterEach(() => {
+    // M4: set in beforeEach with no restore — leaked into other suites.
+    delete process_.env.HOSTED_ACCESS_USER_GROUP_ID;
+  });
 
   test('approve passes HOSTED_ACCESS_USER_GROUP_ID as the target group', async () => {
     const { createHostedRegistrationAdminService } = require('../../services/hostedRegistrationAdminService');
