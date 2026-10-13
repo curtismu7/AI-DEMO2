@@ -139,15 +139,15 @@ data:
   HELIX_ENVIRONMENT_ID: "fe213c3c-9c1d-4bdb-954a-a22879dad26d"
   HELIX_AGENT_ID: "LLM2"
   HELIX_PROMPT_FIELD_ID: "textInputa7c39a0e8292"
-  # Default agent on the cluster: Groq (hosted), for the app (AGENT_MODE) and
-  # the LangChain agent alike. llama.cpp was tried as the default on 2026-10-07
-  # and dropped the same day: on these CPUs the first call after the model
-  # unloads waits about three minutes, and a ten-tool question took 32 s for its
-  # first step (Groq: under a second). llama.cpp and Google stay selectable.
-  # A saved agent mode still wins over AGENT_MODE.
-  # HELIX_API_KEY stays in secrets — see create-secrets.sh inject_helix_api_key.
-  LANGCHAIN_LLM_PROVIDER: "groq"
-  AGENT_MODE: "groq"
+  # Default agent on the cluster: llama.cpp (LOCAL, free) for the app
+  # (AGENT_MODE) and the LangChain agent alike — flipped 2026-10-13 to cut LLM
+  # spend ("use local when we can"). Known tradeoff, also seen 2026-10-07 when
+  # this was tried and reverted: on these CPUs a cold call waits for model load
+  # and multi-tool questions run tens of seconds (Groq answered in <1 s).
+  # Groq stays configured right below as the fast/hosted option, and the UI
+  # picker still offers it; a saved agent mode wins over AGENT_MODE.
+  LANGCHAIN_LLM_PROVIDER: "llamacpp"
+  AGENT_MODE: "llamacpp"
 
   # GroqCloud — LPU-hosted, OpenAI-compatible /v1 API. GROQ_API_KEY stays in
   # secrets — see create-secrets.sh mirror_groq_api_key. The key has no access to
