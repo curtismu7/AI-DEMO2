@@ -21,6 +21,7 @@ const ACTOR_LABELS = {
   browser: 'Browser',
   bff: 'BFF',
   pingone: 'PingOne',
+  aic: 'PingOne AIC',
   gateway: 'Agent Gateway',
   authorize: 'PingOne Authorize',
   mcp: 'MCP Server',

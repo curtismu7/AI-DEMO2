@@ -893,7 +893,7 @@ describe('DemoStepsDropdown — search', () => {
     expect(screen.queryByTestId('demo-step-privilege-UC40')).not.toBeInTheDocument();
   });
 
-  it.each([['UC-LOGIN', 'pingone'], ['UC-LOGIN-PF', 'pingfederate']])(
+  it.each([['UC-LOGIN', 'pingone'], ['UC-LOGIN-PF', 'pingfederate'], ['UC-LOGIN-AIC', 'aic']])(
     'the %s sign-in step starts a live %s login instead of selecting a use case',
     async (id, provider) => {
       const onSelect = vi.fn();

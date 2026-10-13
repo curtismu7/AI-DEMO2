@@ -645,6 +645,29 @@ router.get('/login', (req, res) => {
         ['redirect_uri', redirectUri],
       ],
     });
+    // PingOne's hop to AIC happens between PingOne and the browser — the BFF
+    // never sees it, so these two steps are drawn from the request it sent.
+    if (aicLogin) {
+      loginFlowTrace.addStep(loginTraceId, {
+        actor: 'pingone',
+        toActor: 'aic',
+        title: 'PingOne hands sign-in to AIC',
+        detail: 'The AIC_Login sign-on policy has one step: redirect to the AIC external identity provider. PingOne acts as an OIDC client of AIC.',
+        protocolDetail: [
+          ['acr_values', 'AIC_Login'],
+          ['PingOne callback', '/rp/callback/openid_connect'],
+        ],
+      });
+      loginFlowTrace.addStep(loginTraceId, {
+        actor: 'aic',
+        toActor: 'pingone',
+        title: 'AIC returns the verified person to PingOne',
+        detail: 'The person signs in at AIC. PingOne redeems AIC\'s code, links or creates the PingOne user, and continues its own authorization — AIC\'s tokens stop at PingOne.',
+        protocolDetail: [
+          ['AIC scopes', 'openid profile email'],
+        ],
+      });
+    }
 
     // Store state, verifier and redirect URI in session for CSRF protection and PKCE
     req.session.oauthState = state;

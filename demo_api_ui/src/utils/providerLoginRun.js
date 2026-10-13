@@ -5,9 +5,10 @@ import { navigateToCustomerOAuthForceLogin } from './authUi';
 export const LOGIN_RUN_PROVIDERS = Object.freeze({
   'UC-LOGIN': 'pingone',
   'UC-LOGIN-PF': 'pingfederate',
+  'UC-LOGIN-AIC': 'aic',
 });
 
-const LABELS = { pingone: 'PingOne', pingfederate: 'PingFederate' };
+const LABELS = { pingone: 'PingOne', pingfederate: 'PingFederate', aic: 'AIC' };
 
 /**
  * Live sign-in for the Login steps: point the BFF at `provider`, then force a
@@ -15,10 +16,18 @@ const LABELS = { pingone: 'PingOne', pingfederate: 'PingFederate' };
  * Switching the provider needs an admin session. If that write is refused, a
  * PingOne run carries on (it is the default provider) and a PingFederate run
  * stops with a message instead of silently signing in on the wrong provider.
+ *
+ * `aic` is not a provider of its own: PingOne stays the provider and
+ * aic_login_enabled routes the sign-in to AIC behind it. Every run writes that
+ * flag, so the PingOne and PingFederate steps turn AIC sign-in back off.
  */
 export async function runProviderLogin(provider) {
+  const aic = provider === 'aic';
   try {
-    await bffAxios.post('/api/admin/config', { oauth_provider: provider });
+    await bffAxios.post('/api/admin/config', {
+      oauth_provider: aic ? 'pingone' : provider,
+      aic_login_enabled: String(aic),
+    });
   } catch (err) {
     const code = err?.response?.data?.error;
     if (code === 'pf_unreachable') {

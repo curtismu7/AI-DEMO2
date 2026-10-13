@@ -152,6 +152,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         demoStep: { useCaseId: "UC-LOGIN" },
       },
       {
+        label: "AIC as External IdP",
+        description: "Sign in at PingOne Advanced Identity Cloud, federated through PingOne",
+        icon: "🔐",
+        demoStep: { useCaseId: "UC-LOGIN-AIC" },
+      },
+      {
         label: "PKCE Deep Dive",
         description: "Proof Key for Code Exchange explained",
         icon: "🔍",

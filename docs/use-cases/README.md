@@ -32,12 +32,14 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC26** — Proof of enforcement — live verdict on every use case](./proof-of-enforcement.md) ✅ 🛡️
 - [**UC-LOGIN** — PingOne login (OIDC + PKCE)](./pingone-person-login.md) ✅ 🛡️
 - [**UC-LOGIN-PF** — PingFederate login (OIDC + PKCE)](./pingfederate-person-login.md) ✅ 🛡️
+- [**UC-LOGIN-AIC** — AIC login (federated through PingOne)](./aic-person-login.md) ✅ 🛡️
 
 ## Controls
 
 - [**UC4** — Overscoped agent](./overscoped-agent.md) ✅ 🛡️
 - [**UC6** — Authz denied](./authz-denied.md) ✅ 🛡️
 - [**UC9** — Group / entitlement check](./group-entitlement-check.md) 🚩 🛡️
+- [**UC9A** — Group / entitlement check — live board](./group-entitlement-check-page.md) ✅ 🛡️
 - [**UC21** — Entitlement-tiered capability](./entitlement-tiered-capability.md) ✅ 🛡️
 - [**UC17** — JIT / ephemeral credentials](./jit-ephemeral-credentials.md) ✅ 🛡️
 - [**UC30** — Third-party MCP server, scoped at the gateway](./weather-mcp-texas-permit.md) ✅ 🛡️
