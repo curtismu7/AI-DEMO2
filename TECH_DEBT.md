@@ -5512,7 +5512,8 @@ already prefers `.env` when present and it now always matches.
 **Where:** `k8s/create-secrets.sh`'s `secret_from_envfile()` (~line 103-154),
 called by `se-update-config.sh` / `run-pingaws.sh update config`.
 
-**What's wrong:** the SE K8s live-canary (`ai-demo.ping-devops.com`) started
+**What's wrong:** the (now-removed, 2026-10-13) SE K8s live-canary
+(`ai-demo.ping-devops.com`) started
 failing every scheduled run with `?error=callback_failed&detail=invalid_client`
 right after PingOne sign-in. The BFF's masked diagnostic log
 (`demo_api_server/routes/oauthUser.js:154-162`) showed `user_secret=MISSING`
