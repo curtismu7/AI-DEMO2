@@ -94,9 +94,11 @@ export function anthropicClient(agent: AgentName): Anthropic {
 
   const baseURL = anthropicBaseUrl();
   if (baseURL) {
-    const authToken = value(`${agent}_KEY`);
+    // ANTHROPIC_AUTH_TOKEN: the lane's own virtual key, for when the Agent
+    // Access key is bound to another provider and the gateway refuses it here.
+    const authToken = value('ANTHROPIC_AUTH_TOKEN') || value(`${agent}_KEY`);
     if (!authToken) {
-      throw new Error(`${agent}_KEY is required when ANTHROPIC_BASE_URL points at Privilege`);
+      throw new Error(`ANTHROPIC_AUTH_TOKEN or ${agent}_KEY is required when ANTHROPIC_BASE_URL points at Privilege`);
     }
     return new Anthropic({ authToken, baseURL });
   }
