@@ -196,15 +196,27 @@ Per-key notes (full table in the rollout doc):
    Pre-existing smoke FAILs on both deploys (anonymous / 200, llm-proxy
    /v1/models) — not from #1234.
 
-**Left parked by agents-d3 — owner decisions, not d3's to unblock:**
+**Left parked by agents-d3 — RESOLVED same day (agents-76 / the #1234 session):**
 
-1. **opensearch-mcp-server svc port patch (80 → 9900)** in
-   ping-devops-curtismuir — awaiting owner approval; helm upgrades fail on
-   it server-side-apply.
-2. **PINGONE_AGENT_CLIENT_SECRET vault/.env drift** — blocks deploy.sh
-   full runs (the same SECURITY abort that bit the #1234 deploy).
-3. pi.flow login TODO recorded in memory; the stats-visibility TODO is
-   DONE via #1234 (memory ai-demo2-lb-stats-visibility-todo updated).
+1. ~~opensearch-mcp-server svc port patch~~ — **MOOT**: helm agentless-mcpgw
+   rev 73 "Upgrade complete" 06:08Z; the duplicate-port failure was
+   reconciled and a dry-run is clean; svc targetPort verified 9900 live.
+   No action needed.
+2. **PINGONE_AGENT_CLIENT_SECRET vault/.env drift — ELIMINATED at root**:
+   8 keys realigned (AGENT_CLIENT_ID/SECRET, PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET,
+   PINGONE_USER_CLIENT_SECRET, PINGONE_CLIENT_SECRET, PINGONE_MCP_EXCHANGER_CLIENT_SECRET,
+   ENTERPRISE_IDP_SIGNING_KEY_PEM restored bash-safe single-line), every
+   value live-tested against the PingOne token endpoint before writing;
+   **create-secrets.sh now runs full with ZERO SECURITY aborts** (the
+   deploy.sh blocker is gone). All pods rolled + Running; app 200,
+   stats-view 401 anon. Side effect: the BFF agent lane repaired (its baked
+   PINGONE_AGENT creds had gone dead at PingOne). *Rule of thumb that
+   worked: 401=dead, 400/200=alive.*
+3. **Still open (owner, not blockers):** pi.flow login TODO (memory
+   p1-login-pf-followup); one browser eyeball — stats iframe as a
+   signed-in **non-admin** (route verified to the wall; final hop unproven
+   in a real session); pre-existing smoke FAILs (anonymous / 200, llm-proxy
+   /v1/models — not ours).
    *Also from d3 + agents-25: the 4+ sequential demo-api-server rollouts on
    13 Oct morning were **both sessions' deliberate deploy/repair steps, not
    an error loop** — d3: stats secret patch → promote-roll → `kubectl set
@@ -377,31 +389,35 @@ check.
    the whose-account question (Curtis's vs Ping SE) is undecided. Everything
    else is ready; P.2 answered (mantle is a first-class key provider).
 
-**Left by agents-ef (privilege docs session, 13 Oct — docs only, all on main):**
+**agents-ef (privilege docs session, 13 Oct — docs only, all on main, NOTHING open):**
 
 1. **`docs/privilege-agent-field-guide.html`** (7f78935a2) — trainer's page,
    top-10 Privilege agent features in demo-arc order (what/show/say rows +
    pre-session caveats); indexed in DOCUMENTATION-INDEX.md +
    PrivilegeDocsIndexPage.jsx (7f56bad8f), tests 3/3 pass.
-2. **`docs/privilege-agent-features.md`** (9ffa06749) — master index of the
-   same 10 features with descriptions, links to detailed docs + demo
-   surfaces; names 3 coverage gaps; indexed in both places.
-3. **PDF export** — none yet for the field guide (the HTML + MD are the
-   artifacts; SE-guide PDFs ship via rclone `gdrive:` when asked).
-   (UI index rows ride the next frontend rollout.)
-
-**Unfinished (agents-ef, docs-only, not yet asked for):** two coverage-gap
-docs named in the master index — the rug-pull side-by-side demo doc and the
-agentapprovals-fallback demo doc — plus a third gap the index names.
-Untracked PNGs in docs/superpowers/plans/ (t1-*.png, t3-*.png) are another
-session's screenshots, untouched.
+2. **`docs/privilege-agent-features.md`** (9ffa06749 + 35f1cd8c2) — master
+   index of the same 10 features with descriptions, doc links, demo steps,
+   what-it-proves and clickable verified-200 app URLs; **gaps section now
+   EMPTY**; indexed in both places.
+3. **Coverage-gap docs CLOSED** (5bcbdac86): [HOSTILE-MCP-SIDE-BY-SIDE.md](../privilege/HOSTILE-MCP-SIDE-BY-SIDE.md)
+   (rug-pull matrix runbook) + [AGENT-APPROVALS-DEMO.md](../privilege/AGENT-APPROVALS-DEMO.md)
+   (console-fallback HITL script).
+4. **[AUDIT-EVIDENCE-COMPLIANCE.md](../privilege/AUDIT-EVIDENCE-COMPLIANCE.md)**
+   (19ffa81ab) — feature-10 doc, TENANT-VERIFIED 13 Oct from gateway pod logs:
+   all 3 event types (llm_request_blocked / llm_response_sanitized /
+   llm_policy_response_denied) emit ComplianceMappings under catalog
+   aigw-compliance-v1.1.0. Two items flagged unverified in-doc: the deck's
+   slide-7 framework and current ping-siem-events index contents (session
+   declined OpenSearch credential access mid-check — correct call).
+   (UI index rows ride the next frontend rollout; a user-requested
+   md/html/pdf deliverable copy lives off-repo on Desktop→Documents.)
 
 **Nothing left unfinished:** agents-a4 (all six shipped; its "runbook not
 yet assembled" item was completed by this session), agents-b6 (all merged +
-deployed live), and agents-25 — its last item (UC1 canary hop) closed GREEN
-13 Oct: wall fix #1235/#1236 deployed, ghost actor-app id purged at the
-source, stale ACTOR/AGENT secrets synced, browser-verified end-to-end;
-#1237 persisted the 16k ingress annotation; worktrees/branches cleaned up.
+deployed live), agents-25 (UC1 closed GREEN 13 Oct: #1235/#1236 deployed,
+ghost actor purged, secrets synced, browser-verified; #1237 persisted the
+16k ingress annotation), and agents-ef — coverage gaps closed, no open
+in-repo items.
 
 ## 7. Gotchas worth keeping
 
