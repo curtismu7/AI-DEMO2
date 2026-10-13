@@ -8582,7 +8582,7 @@ export default function BankingAgent({
             "assistant",
             result && result.ok === false
               ? runFailureMessage(stepLabel, result.error)
-              : `${stepLabel} — run complete.`,
+              : (result?.answer || `${stepLabel} — run complete.`),
           ))
           .catch((err) => addMessage("assistant", runFailureMessage(stepLabel, err?.message)))
           .finally(() => setRunIndicator(null));
