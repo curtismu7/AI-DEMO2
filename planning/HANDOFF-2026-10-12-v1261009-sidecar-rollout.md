@@ -230,8 +230,20 @@ Per-key notes (full table in the rollout doc):
    CI green) and the image-push race pinned demo-api-server to an older
    digest (9a3c5e40) — re-pointed to sha-d63058a1a, verified live in pod;
    if any digest-pinning automation touches demo-api-server it may race
-   again. *Pending: browser re-run of UC1 to confirm the full chain
-   renders a real tool result (will report green or blocked).*
+   again.
+   **UC1 IS GREEN (agents-25, browser-verified 13 Oct ~13:00 UTC):** wall
+   approved → signed in → wizard skipped → consent allowed → full token
+   chain → "Completed — list_gear dispatched" with a real tool result;
+   backend confirms POST /api/path/vertical-tool → 200, zero
+   hosted_access_required. Two config layers beyond #1235 were still broken
+   and are fixed live: (1) the deleted ghost actor app **0b412e8b** still
+   sat in k8s secret + `demo_api_server/.env`
+   (PINGONE_AI_AGENT_ACTOR_CLIENT_ID / PF_AI_AGENT_ACTOR_CLIENT_ID →
+   invalid_client at Exchange #1) — fixed at the source (.env, which
+   create-secrets.sh reads); (2) the ACTOR/AGENT secret copies were stale —
+   only PINGONE_AI_AGENT_CLIENT_SECRET validated against PingOne (200
+   verified live), so all three were synced to it and restarted; both now
+   resolve to **f65664b2** (demoUser agent app). No UC1 items remain.*
 
 **Left by agents-ac — #1228 merged 13 Oct, deploy still pending (see §
 welcome/invite):**
@@ -358,8 +370,10 @@ check.
    else is ready; P.2 answered (mantle is a first-class key provider).
 
 **Nothing left unfinished:** agents-a4 (all six shipped; its "runbook not
-yet assembled" item was completed by this session) and agents-b6 (all
-merged + deployed live).
+yet assembled" item was completed by this session), agents-b6 (all merged +
+deployed live), and agents-25 — its last item (UC1 canary hop) closed GREEN
+13 Oct: wall fix #1235/#1236 deployed, ghost actor-app id purged at the
+source, stale ACTOR/AGENT secrets synced, browser-verified end-to-end.
 
 ## 7. Gotchas worth keeping
 
