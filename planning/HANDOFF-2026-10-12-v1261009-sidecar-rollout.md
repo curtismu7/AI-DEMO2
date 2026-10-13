@@ -208,12 +208,20 @@ Per-key notes (full table in the rollout doc):
    tool call died `hosted_access_required` before authenticateToken ran;
    gateway chain fully green above it: PERMIT + Exchange #3 + MCP 200; live
    proof in mcp-server logs + BFF access log, 4/4 UC1 runs today). Fix: PR
-   #1235 (open; CI in flight 13 Oct — one check passed, hygiene+topology
-   gates pending; agents-25 will merge + focused SE deploy + browser-verify
-   UC1 end-to-end when green) — wall passes Bearer-carrying requests through
-   to authenticateToken (forged Bearers gain nothing). CI-canary stays dead
-   (#1231), but the server-to-server breakage the canary was pointing at is
-   real and fixed by #1235 once merged+deployed.*
+   **#1235 MERGED 13 Oct + deployed live** — wall passes Bearer-carrying
+   requests through to authenticateToken (forged Bearers gain nothing);
+   fix verified in the pod (`hasBearerToken` present). Two 13-Oct wrinkles,
+   both resolved: (1) the #1235 merge accidentally resurrected
+   scripts/canary/uc1-canary.js (modify/delete conflict resolved wrong) —
+   PR #1236 re-deleted it, CI green, merged 12:36 UTC, main clean of the
+   canary again; (2) the known **image-push race** struck: during the SE
+   deploy something pinned deployment/demo-api-server to an OLDER digest
+   (9a3c5e40, pre-fix) — agents-25 re-pointed it at the correct tag
+   **sha-d63058a1a** (verified live in pod). If any digest-pinning
+   automation touches demo-api-server, it may race again. CI-canary stays
+   dead (#1231).*
+   *Pending: agents-25's browser re-run of UC1 to confirm the full chain
+   renders a real tool result (will report green or blocked).*
 
 **Left by agents-ac — #1228 merged 13 Oct, deploy still pending (see §
 welcome/invite):**
