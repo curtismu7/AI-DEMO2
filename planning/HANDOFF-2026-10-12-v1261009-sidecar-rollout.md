@@ -25,7 +25,7 @@ it.** Every demo below is shipped and verified live unless marked otherwise.
 | **Dot personal agent** | The user's own agent behind the gateway: promote-based deploy, hosted-access 401-proves-route | Live (PR #1207, 12 Oct) |
 | **Group board vertical picker** (`/group-policy`) | One decision per load via `?verticalId=`; panel = picked user, board = signed-in user, both labeled | Live (PRs #1212/#1215) |
 | **Hosted-access plus wall** | Public `/` on SE with `+address` aliases denied; demo allowlist in configmap — revoke by clearing `HOSTED_ACCESS_ALLOWED_IDENTIFIERS`; wall fix for allowlisted off-list domains killed the demoAdmin 401 login loop (`/api/auth/hosted-access/check` → 204) | Live (PRs #1191 + fix #1211, browser-verified 12 Oct) |
-| **Invite→approval loop** | Admin invites via form → invitee appears on the approval page → approve moves them through the gate (was a dead end); gate denials now log `group_not_allowed` with reason/subject/email/domain | Live-verified on tenant, PR #1228 open (re-review clean) |
+| **Invite→approval loop** | Admin invites via form → invitee appears on the approval page → approve moves them through the gate (was a dead end); gate denials now log `group_not_allowed` with reason/subject/email/domain | Merged (PR #1228, 13 Oct); SE deploy pending — see §6 |
 | **Bootstrap hosted-access (⑥b)** | `setup:fresh` reproduces the hosted wall's inputs — sign-in app, Complete/Pending groups, groups claim, .env keys — no console steps | Live-verified on tenant, PR #1228 open |
 | **Invite form** | send-invite endpoint; native-email gate = password+emailOTP despite SMS fail | Live (PR #1196, 12 Oct) |
 | **LLM gateway page** (`/llm-gateway`) | Five virtual-key lanes incl. the new OpenRouter lane; the custom/llama.cpp lane with the two response-side stories: policy withhold ("Denied by policy", Active) vs AIGuard redact ("Allowed, 4 redacted", Candidate) — both UI-verified | Live (lanes: a4 session, 52adb1a34…; 824 tests green) |
@@ -43,7 +43,7 @@ it.** Every demo below is shipped and verified live unless marked otherwise.
 | **Hostile-MCP rug-pull** | Side-by-side twin MCP servers: governed twin DENYs 3 dangerous tools, ungoverned (allow-all policy) ALLOWs all; no-policy = DENY ALL on v1.261009 | Verified live (11 Oct) |
 | **Hostile-MCP public door** | Re-registered console app on `/mcp`; public door 401-with-metadata, zero entry-path rejections | Resolved (12 Oct) |
 | **Gateway topology page** (`/privilege-gateway-topologies`) | Live LB tab: ReactFlow diagram of the real 2-node mesh — ingress → mcpgw-lb HAProxy pair → gateway nodes → Agentic App doors — walk-stepped, verified against live LB/gateway logs; all 4 tabs ReactFlow (Mermaid removed, opensearch22 default door → aggregate) | Live (PRs #1223, #1227, blurb #1229) |
-| **HAProxy stats + LB park/unpark** | Live per-node health/sessions/bandwidth stats (basic-auth `/lb-stats` iframe) and admin Park/Unpark per gateway via HAProxy runtime API — live failover control without helm | Merged (PR #1225, be4c0224 13 Oct), **cluster deploy pending** (helm + UI build-arg) |
+| **HAProxy stats + LB park/unpark** | Live per-node health/sessions/bandwidth stats and admin Park/Unpark per gateway via HAProxy runtime API — live failover control without helm; **PingOne SSO** gate on the stats iframe (#1232/#1233) replacing browser basic-auth | **Deployed + mostly live 13 Oct**: /lb-stats live (200-with-password/401-without), BFF on sha-dab2bbeb2 serving the SSO-gated route; one frontend `set image` to sha-41d6cc229 remains — see §6 |
 | **Cluster model swap** | tier1 PVC Phi-4-mini → Llama-3.2-3B — the model behind the Privilege llama.cpp lane | Live (5507079ce, gateway-verified) |
 | **Gateway release v1.261009 runbook** | Model catalog refresh live in dropdowns; response-side policy denial (`llm_policy_response_denied` + `UpstreamStatus:200` pairing); llama.cpp governed on our own hardware via `/llm/custom/v1` (403 `wrong_provider` control, 90s timeout fix); Bedrock blocked on credential | Built this session (12 Oct) |
 | **ML sidecar on every key** | demo_mcp_promptguard (NeMo + ProtectAI) wired into all 10 Agent Registry keys, Block Agreement off — injection blocked end to end on the custom lane | Built this session (12 Oct) |
@@ -174,18 +174,39 @@ Per-key notes (full table in the rollout doc):
 > Every concurrent session's own account of what it left unfinished. Pick up
 > by owner; owners are bsk session names on this machine (2026-10-12/13).
 
-**Left by agents-d3 — PR #1225 merged, deploy pending:**
+**Left by agents-d3 — updated 2026-10-13 (stats live; one set-image remains):**
 
-1. **HAProxy stats + LB park/unpark (PR #1225, be4c0224)** — code done,
-   tests green (7/7 BFF jest, 7/7 UI vitest), **cluster deploy pending**:
-   needs helm (gateway1-lb values) + UI build-arg. Watch the stale-engine
-   landmine in §0 hygiene before touching values.
+1. **HAProxy stats + LB park/unpark (PR #1225 → #1232/#1233)** — now
+   **DEPLOYED + mostly live**: `/lb-stats` on the cluster since 13 Oct
+   (200-with-password / 401-without verified); #1232/#1233 replaced the
+   browser basic-auth prompt with **PingOne SSO** — the topology page iframes
+   `/api/admin/lb/runtime/stats-view`, admin-gated by the demo's PingOne
+   sign-in, creds only in BFF env (ai-demo-secrets). BFF already on
+   sha-dab2bbeb2 serving the route (401 unauth = gate active; in-pod upstream
+   200). **Remaining: one `kubectl set image` on deploy/frontend once CI
+   publishes sha-41d6cc229** (stats iframe renders unconditionally). No helm
+   ingress work involved. Stale-engine landmine in §0 hygiene still applies
+   to values edits.
+   *Also from d3 + agents-25: the 4+ sequential demo-api-server rollouts on
+   13 Oct morning were **both sessions' deliberate deploy/repair steps, not
+   an error loop** — d3: stats secret patch → promote-roll → `kubectl set
+   image` to sha-dab2bbeb2 (promote doesn't move pinned sha tags — gotcha);
+   agents-25: 4-5 `rollout restart`s after patching ai-demo-secrets/
+   ai-demo-config for the SE sign-in outage (empty user-app secret →
+   invalid_client on every customer login) + replacing a deleted PingOne
+   actor-app ghost in the config; brief 502s during restart windows were
+   theirs (the persistent fix: ingress proxy-buffer-size 16k for the fat
+   session cookie, done with Curtis's OK). Settled state verified 11:26 UTC:
+   sha-dab2bbeb2, 1/1 Running, 0 restarts.*
 
-**Left by agents-ac — PR #1228 open:**
+**Left by agents-ac — #1228 merged 13 Oct, deploy still pending (see §
+welcome/invite):**
 
 2. **Bootstrap hosted-access + invite→approval loop + denial visibility
-   (PR #1228)** — re-review clean, live-verified on the demo tenant (app
-   ebe41d9c + groups claim confirmed): awaiting merge + deploy.
+   (PR #1228)** — merged 13 Oct 10:35 UTC (b480271e3); deployed to the local
+   stack via deploy-live.sh, but **the SE cluster's demo-api-server/frontend
+   shas still predate it** (ancestry-checked) — per-service
+   `se-update-code.sh bff frontend` still owed.
 
 **Left by agents-25 — canary patch in flight:**
 
