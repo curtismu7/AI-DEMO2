@@ -1,0 +1,429 @@
+<title>Privilege Agent Field Guide</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600;700&family=IBM+Plex+Mono:wght@400;500;600&display=swap">
+
+<style>
+/* Design plan — trainer's field guide for PingOne Privilege agent features.
+   Color: warm paper / deep slate ink, Ping red accent, amber warning surface.
+   Type: IBM Plex Sans (display + body), IBM Plex Mono (numbers, paths, labels).
+   Layout: 720px single column; numbered features under phase group headers;
+   each feature = What / Show / Say rows; caveats in a boxed block at the end. */
+:root {
+  --bg: #FAF9F7;
+  --fg: #191A1E;
+  --muted: #6F6B66;
+  --line: #E5E2DC;
+  --surface: #FFFFFF;
+  --code-bg: #F1EEE8;
+  --accent: #C41230;
+  --warn-bg: #FBF3E4;
+  --warn-line: #E7D3A8;
+  --warn-fg: #7A5410;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #17181C;
+    --fg: #EAE8E4;
+    --muted: #A19C95;
+    --line: #2E3036;
+    --surface: #1F2127;
+    --code-bg: #23252B;
+    --accent: #FF7080;
+    --warn-bg: #26200F;
+    --warn-line: #4A3D18;
+    --warn-fg: #E3B96A;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #17181C;
+  --fg: #EAE8E4;
+  --muted: #A19C95;
+  --line: #2E3036;
+  --surface: #1F2127;
+  --code-bg: #23252B;
+  --accent: #FF7080;
+  --warn-bg: #26200F;
+  --warn-line: #4A3D18;
+  --warn-fg: #E3B96A;
+  color-scheme: dark;
+}
+
+html { scroll-behavior: smooth; }
+@media (prefers-reduced-motion: reduce) { html { scroll-behavior: auto; } }
+
+body {
+  margin: 0;
+  padding: 0 20px;
+  background: var(--bg);
+  color: var(--fg);
+  font: 400 15.5px/1.62 "IBM Plex Sans", system-ui, -apple-system, sans-serif;
+  -webkit-font-smoothing: antialiased;
+}
+.topbar { height: 4px; background: var(--accent); margin: 0 -20px; }
+.page { max-width: 720px; margin: 0 auto; padding-block: 0 64px; }
+
+a { color: inherit; }
+a:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 2px; }
+
+.mono {
+  font-family: "IBM Plex Mono", ui-monospace, Menlo, monospace;
+  font-size: 12.5px;
+  background: var(--code-bg);
+  padding: 1px 6px;
+  border-radius: 4px;
+  white-space: nowrap;
+}
+
+/* Masthead */
+.mast { padding-block: 44px 8px; }
+.eyebrow {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11.5px;
+  font-weight: 600;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0 0 14px;
+}
+.mast h1 {
+  font-size: 40px;
+  font-weight: 700;
+  line-height: 1.08;
+  letter-spacing: -0.01em;
+  margin: 0 0 14px;
+  text-wrap: balance;
+}
+.mast .sub { font-size: 16px; color: var(--muted); max-width: 58ch; margin: 0; }
+
+/* Demo arc */
+.arc { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; margin: 26px 0 6px; }
+.arc a {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 11px;
+  font-weight: 500;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  text-decoration: none;
+  border: 1px solid var(--line);
+  background: var(--surface);
+  padding: 5px 11px;
+  border-radius: 999px;
+  transition: border-color 120ms, color 120ms;
+}
+.arc a:hover { border-color: var(--accent); color: var(--accent); }
+.arc .arrow { color: var(--muted); font-size: 12px; }
+
+/* Intro */
+.intro { margin: 22px 0 0; max-width: 66ch; }
+.intro p { margin: 0 0 12px; }
+
+/* Phase groups */
+.phase { margin-top: 48px; scroll-margin-top: 20px; }
+.phase h2 {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--accent);
+  margin: 0;
+}
+.phase h2 .count { color: var(--muted); font-weight: 400; letter-spacing: 0.06em; }
+.phase h2::after { content: ""; flex: 1; height: 1px; background: var(--line); }
+
+/* Features */
+.feature {
+  display: grid;
+  grid-template-columns: 52px minmax(0, 1fr);
+  gap: 16px;
+  padding: 22px 0;
+  border-bottom: 1px solid var(--line);
+  scroll-margin-top: 20px;
+}
+.phase .feature:last-of-type { border-bottom: 0; }
+.fnum {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--accent);
+  padding-top: 3px;
+  font-variant-numeric: tabular-nums;
+}
+.feature h3 {
+  font-size: 18.5px;
+  font-weight: 600;
+  line-height: 1.3;
+  margin: 0 0 7px;
+  text-wrap: balance;
+}
+.what { margin: 0 0 14px; max-width: 64ch; }
+.rows { display: grid; gap: 9px; }
+.row { display: grid; grid-template-columns: 56px minmax(0, 1fr); gap: 10px; }
+.lab {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.09em;
+  text-transform: uppercase;
+  color: var(--muted);
+  padding-top: 4px;
+}
+.row p { margin: 0; font-size: 14.5px; }
+.say p {
+  border-left: 2px solid var(--accent);
+  padding-left: 11px;
+  font-weight: 500;
+}
+.note { font-size: 13px; color: var(--muted); margin: 10px 0 0; }
+
+/* Allowlist mini table */
+.tblwrap { overflow-x: auto; margin-top: 12px; }
+table { border-collapse: collapse; font-size: 13px; font-variant-numeric: tabular-nums; }
+th {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 10.5px;
+  font-weight: 600;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted);
+  text-align: left;
+  padding: 0 18px 6px 0;
+}
+td { padding: 6px 18px 6px 0; border-top: 1px solid var(--line); }
+td.m { font-family: "IBM Plex Mono", ui-monospace, monospace; font-size: 12.5px; }
+
+/* Caveats */
+.caveats {
+  margin-top: 52px;
+  border: 1px solid var(--warn-line);
+  background: var(--warn-bg);
+  border-radius: 10px;
+  padding: 22px 24px;
+  scroll-margin-top: 20px;
+}
+.caveats h2 {
+  font-family: "IBM Plex Mono", ui-monospace, monospace;
+  font-size: 12px;
+  font-weight: 600;
+  letter-spacing: 0.11em;
+  text-transform: uppercase;
+  color: var(--warn-fg);
+  margin: 0 0 14px;
+}
+.caveats ol { margin: 0; padding-left: 20px; }
+.caveats li { font-size: 14.5px; margin-bottom: 10px; }
+.caveats li:last-child { margin-bottom: 0; }
+
+/* Footer */
+.foot { margin-top: 40px; padding-top: 18px; border-top: 1px solid var(--line); }
+.foot p { font-size: 13px; color: var(--muted); margin: 0 0 8px; max-width: 68ch; }
+
+@media (max-width: 480px) {
+  body { padding: 0 16px; }
+  .topbar { margin: 0 -16px; }
+  .mast h1 { font-size: 32px; }
+  .feature { grid-template-columns: 38px minmax(0, 1fr); gap: 12px; }
+  .fnum { font-size: 13.5px; }
+  .row { grid-template-columns: 48px minmax(0, 1fr); }
+}
+</style>
+
+<div class="topbar"></div>
+<div class="page">
+
+  <header class="mast">
+    <p class="eyebrow">PingOne Privilege · Agent Security</p>
+    <h1>Privilege Agent Field Guide</h1>
+    <p class="sub">Ten demo-verified features with presenter lines, demo paths, and the checks to run before every session.</p>
+
+    <nav class="arc" aria-label="Demo arc">
+      <a href="#g-identity">Identity</a><span class="arrow">→</span>
+      <a href="#g-identity">Policy</a><span class="arrow">→</span>
+      <a href="#g-llm">LLM surface</a><span class="arrow">→</span>
+      <a href="#g-mcp">MCP surface</a><span class="arrow">→</span>
+      <a href="#g-human">Human control</a><span class="arrow">→</span>
+      <a href="#g-proof">Proof</a>
+    </nav>
+  </header>
+
+  <section class="intro">
+    <p>Run the ten features in demo order: register the agent, put policy on it, walk the LLM surface, then the MCP surface, add a human decision, and close on the audit record.</p>
+    <p>Everything here is live in the AI-DEMO2 SE environment today. The deck is backup; the demo is the evidence.</p>
+  </section>
+
+  <section class="phase" id="g-identity">
+    <h2>Identity &amp; policy <span class="count">01–02</span></h2>
+
+    <article class="feature" id="f1">
+      <div class="fnum">01</div>
+      <div>
+        <h3>Agent Registry</h3>
+        <p class="what">Every agent enrolls with its own key and gets what a human identity gets: an owner, an expiry, a lifecycle, and policy of its own. Expired keys are edit-locked until you bump the expiry, so stale agents cannot linger silently.</p>
+        <div class="rows">
+          <div class="row"><span class="lab">Show</span><p>The Agent Registry console with the ten enrolled keys, then the <span class="mono">/inspect</span> sidecar check. Try editing an expired key to show the lock.</p></div>
+          <div class="row say"><span class="lab">Say</span><p>“This agent has an owner and an expiry, the same way your account does.”</p></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="feature" id="f2">
+      <div class="fnum">02</div>
+      <div>
+        <h3>Per-credential inspection policy</h3>
+        <p class="what">Allow, alert, sanitize, and block attach to the credential or application, not to a network segment. One credential can be in observe mode while another enforces.</p>
+        <div class="rows">
+          <div class="row"><span class="lab">Show</span><p>Policy config on a specific credential. Set one to alert-only and walk its events.</p></div>
+          <div class="row say"><span class="lab">Say</span><p>“Turn on alert-only first. Watch for a week, then flip it to block.”</p></div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="phase" id="g-llm">
+    <h2>LLM surface <span class="count">03–06</span></h2>
+
+    <article class="feature" id="f3">
+      <div class="fnum">03</div>
+      <div>
+        <h3>Virtual keys</h3>
+        <p class="what">The app never holds a provider API key. It holds a virtual key that is useless outside the gateway, and Privilege injects the real Anthropic or OpenAI key server-side. Contrast with a plain <span class="mono">ANTHROPIC_API_KEY</span> in a <span class="mono">.env</span> file, which the demo stack also has so the difference is visible.</p>
+        <div class="rows">
+          <div class="row"><span class="lab">Show</span><p>On <span class="mono">/privilege-mcp-client</span>: send a prompt, then point at the gateway route and latency line under the reply.</p></div>
+          <div class="row say"><span class="lab">Say</span><p>“That route line is the feature. We called Anthropic through Privilege.”</p></div>
+        </div>
+      </div>
+    </article>
+
+    <article class="feature" id="f4">
+      <div class="fnum">04</div>
+      <div>
+        <h3>Attributable denial</h3>
+        <p class="what">A policy can deny a call before it reaches the provider, and the denial names the provider, the route, and the policy’s own reason. A <span class="mono">403 llm_policy_denied</span> is the product doing its job.</p>
+        <div class="rows">
+          <div class="row"><span class="lab">Show</span><p>Click <strong>Prove the policy</strong> on <span class="mono">/privilege-mcp-client</span>. It sends a PII prompt that the live <span class="mono">llm-response-pii-withhold</span> policy denies, and the panel renders the denial with its reason.</p></div>
+          <div class="row say"><span class="lab">Say</span><p>“This is not an error. The policy is the product.”</p></div>
+        </div>
+        <p class="note">If Prove the policy returns a normal reply, the policy is not denying that prompt. Fix the policy or the prompt before presenting.</p>
+      </div>
+    </article>
+
+    <article class="feature" id="f5">
+      <div class="fnum">05</div>
+      <div>
+        <h3>Model allowlists at the gateway</h3>
+        <p class="what">A virtual key can be restricted to a subset of its provider’s models, enforced on the chat call itself as a <span class="mono">403</span>. The dropdown lists the provider’s catalog, not the allowlist, so discovering the refusal in front of the room is the demo.</p>
+        <div class="rows">
+          <div class="row"><span class="lab">Show</span><p>On <span class="mono">/llm-gateway</span>, keep the model dropdown on the lane default, then pick a blocked model. The panel reports “Privilege stopped this”, “Denied by policy”, and “Reached the model: no”.</p></div>
+          <div class="row say"><span class="lab">Say</span><p>“The refusal took about 40 milliseconds; the allowed call took seconds. Nothing left the gateway.”</p></div>
+        </div>
+        <div class="tblwrap">
+          <table>
+            <thead><tr><th>Lane</th><th>Answers</th><th>Refused 403</th></tr></thead>
+            <tbody>
+              <tr><td class="m">anthropic</td><td class="m">claude-haiku-4-5-20251001</td><td class="m">claude-opus-5, claude-sonnet-5</td></tr>
+              <tr><td class="m">openai</td><td class="m">gpt-4o-mini, gpt-4o</td><td class="m">o3</td></tr>
+            </tbody>
+          </table>
+        </div>
+        <p class="note">Verified live 2026-09-09. Allowlists are console config, so re-check in the tenant before quoting.</p>
+      </div>
+    </article>
+
+    <article class="feature" id="f6">
+      <div class="fnum">06</div>
+      <div>
+        <h3>Three routes, two wire shapes</h3>
+        <p class="what">Anthropic speaks its native Messages API, where <span class="mono">system</span> is a top-level field and the <span class="mono">anthropic-version</span> header is required. OpenAI and Google speak the OpenAI-compatible shape. That is why the proxy service is three functions rather than one parameterised call.</p>
+        <div class="rows">
+          <div class="row"><span class="lab">Show</span><p>The three lanes on <span class="mono">/llm-gateway</span>. Use the AI Guard Raw Request tab when you would rather show the wire than the console; it prints the gateway’s untouched response.</p></div>
+          <div class="row say"><span class="lab">Say</span><p>“Same policy, same gateway, three providers. Only the wire shape changes.”</p></div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="phase" id="g-mcp">
+    <h2>MCP surface <span class="count">07</span></h2>
+
+    <article class="feature" id="f7">
+      <div class="fnum">07</div>
+      <div>
+        <h3>MCP tool-call inspection</h3>
+        <p class="what">Inspection covers two surfaces: the model request/response, and the MCP tool-call boundary including tool results. The hostile-mcp side-by-side makes the value obvious.</p>
+        <div class="rows">
+          <div class="row"><span class="lab">Show</span><p>Run the governed agent and its ungoverned twin (allow-all policy) against the same hostile server. Governed: the three dangerous tool calls come back DENIED. Ungoverned: all ALLOW. Also show that with no policy at all, the answer is DENY ALL.</p></div>
+          <div class="row say"><span class="lab">Say</span><p>“Same model, same tools. The only difference is the gateway.”</p></div>
+        </div>
+        <p class="note">Gateway policy changes take about four minutes to propagate, so stage this before the session.</p>
+      </div>
+    </article>
+  </section>
+
+  <section class="phase" id="g-human">
+    <h2>Human control <span class="count">08</span></h2>
+
+    <article class="feature" id="f8">
+      <div class="fnum">08</div>
+      <div>
+        <h3>Human-in-the-loop approvals</h3>
+        <p class="what">Privilege’s native <span class="mono">agentapprovals</span> lets a Cedar policy route a high-risk agent action to a human: the agent pauses, an approval request fires, and the action waits for a decision.</p>
+        <div class="rows">
+          <div class="row"><span class="lab">Show</span><p>Demo the console-native path that works today: approve via Access Request Approvals, and show the action proceeding on the decision.</p></div>
+          <div class="row say"><span class="lab">Say</span><p>“The agent pauses, a human decides, and the audit shows who.”</p></div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="phase" id="g-proof">
+    <h2>Proof <span class="count">09–10</span></h2>
+
+    <article class="feature" id="f9">
+      <div class="fnum">09</div>
+      <div>
+        <h3>Attack Lab</h3>
+        <p class="what">Eight attack types run against the real agent at <span class="mono">/llm-gateway?tab=attacks</span>. The five headliners: Tool Abuse, Tool Poisoning, Schema Violation, Inter-Agent Abuse, and Malicious Content.</p>
+        <div class="rows">
+          <div class="row"><span class="lab">Show</span><p>Run Tool Poisoning. Then teach the attribution rule: a result is a Privilege verdict only when it names Privilege as the enforcement component. An authorization denial or a model refusal is not one.</p></div>
+          <div class="row say"><span class="lab">Say</span><p>“A block only counts when Privilege signs it.”</p></div>
+        </div>
+        <p class="note">“No gateway decision reported” and “unknown reachability” are valid outcomes. Never narrate them as a pass or a block.</p>
+      </div>
+    </article>
+
+    <article class="feature" id="f10">
+      <div class="fnum">10</div>
+      <div>
+        <h3>Audit evidence</h3>
+        <p class="what">Every governed call leaves a Privilege event, and the deck maps events to compliance controls. The audit record is the close of the demo.</p>
+        <div class="rows">
+          <div class="row"><span class="lab">Show</span><p>Pull the actual Privilege event for the run you just did and read the enforcement-component field aloud.</p></div>
+          <div class="row say"><span class="lab">Say</span><p>“If the audit can’t show it, it didn’t happen.”</p></div>
+        </div>
+      </div>
+    </article>
+  </section>
+
+  <section class="caveats" id="caveats">
+    <h2>Before every session</h2>
+    <ol>
+      <li><strong>Do not demo the Google lane.</strong> Its virtual key is misconfigured in the Privilege console: every call answers <span class="mono">403 wrong_provider</span>, and the key is actually registered against OpenAI with a placeholder upstream credential. Demo Anthropic and OpenAI until it is repointed.</li>
+      <li><strong>Do not demo Slack/Teams approvals live.</strong> The <span class="mono">agentapprovals</span> Slack and Teams wiring is unverified. Show the console fallback via Access Request Approvals.</li>
+      <li><strong>The AIGuard deck is dated 22 September 2026.</strong> Recheck detector thresholds, virtual keys, model allowlists, and benchmark figures against the tenant before quoting slides 2–4 and 8.</li>
+      <li><strong>Re-verify every live claim.</strong> Allowlists, policies, and enrolled keys are console config. If a live result differs from this guide, narrate what you observed and update the guide before the next session.</li>
+    </ol>
+  </section>
+
+  <footer class="foot">
+    <p>Grounded in the AI-DEMO2 demo repo: <span class="mono">docs/privilege-llm-protection.md</span> and <span class="mono">docs/privilege-aiguard-training.md</span>, plus live checks against <span class="mono">mcpgw.ai-demo.ping-devops.com</span> (2026-09-09 and 2026-10-12).</p>
+    <p>Presenter flow, Attack Lab attribution rules, and the pre-session checklist come from the repo training guide. Update both when a live result differs.</p>
+  </footer>
+
+</div>
