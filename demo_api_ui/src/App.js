@@ -252,6 +252,7 @@ import PublicRoutes, {
   GroupPolicyBoardPageRoute,
   PageCatalogPageRoute,
   PrivilegeMcpClientPageRoute,
+  PrivilegeA2aPageRoute,
   LlmGatewayPageRoute,
   LlmTestPageRoute,
   IntentInspectorPageRoute,
@@ -1493,6 +1494,12 @@ function AppWithAuth() {
                   path="/privilege-mcp-client"
                   element={
                     <PrivilegeMcpClientPageRoute user={user} logout={logout} />
+                  }
+                />
+                <Route
+                  path="/privilege-a2a"
+                  element={
+                    <PrivilegeA2aPageRoute user={user} logout={logout} />
                   }
                 />
                 <Route

@@ -52,14 +52,14 @@ describe("PrivilegeMcpClientPage tab colors", () => {
   it("gives every demo tab a per-tab color class", async () => {
     renderPage();
     await screen.findByRole("tab", { name: "Agent Chat" });
-    for (const label of ["Agent Chat", "A2A", "Tools", "User API Key & Secrets"]) {
+    for (const label of ["Agent Chat", "Tools", "User API Key & Secrets"]) {
       const tab = screen.getByRole("tab", { name: label });
       expect(tab.className).toMatch(/cur-tab--[a-z0-9-]+/);
     }
   });
 
   it("each tab key maps to a DIFFERENT accent color", () => {
-    const keys = ["chat", "a2a", "tools", "user-api-keys"];
+    const keys = ["chat", "tools", "user-api-keys"];
     const colors = keys.map((key) => {
       const rule = CSS.match(
         new RegExp(`\\.cur-ide \\.cur-tab--${key}(?![\\w-])[^{]*{[^}]*--tab-accent:\\s*([^;]+);`),

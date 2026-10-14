@@ -516,7 +516,7 @@ export const lessonCatalog = Object.freeze([
     audience: "Sales engineers and security architects",
     category: "Authorize and govern",
     route: "/ai-products/privilege-a2a",
-    standaloneRoute: "/privilege-mcp-client?view=demo&tab=a2a",
+    standaloneRoute: "/privilege-a2a",
     run: { action: "privilege-status", exposesRawBearerToken: false, result: REDACTED_RESULT },
     evidence: { events: ["agent-key", "gateway-hop", "guardrail-verdict", "refused-handoff"], result: REDACTED_RESULT },
     fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded Privilege A2A chain trace" },

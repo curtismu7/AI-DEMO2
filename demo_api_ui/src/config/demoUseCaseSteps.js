@@ -54,7 +54,7 @@ export const DEMO_STEP_DESTINATIONS = {
   UC46: {
     kind: 'page',
     label: 'Opens page',
-    title: 'Opens the A2A page (/privilege-mcp-client?view=demo&tab=a2a) and leaves the agent. Nothing runs here: use 26A to run the review in the agent.',
+    title: 'Opens the A2A page (/privilege-a2a) and leaves the agent. Nothing runs here: use 26A to run the review in the agent.',
   },
   UC46A: {
     kind: 'agent',

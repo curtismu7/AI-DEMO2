@@ -103,7 +103,7 @@ export const MORE_PAGE_GUIDES = {
     ],
     walkthrough: steps([
       ["See why A2A needs control", "The capability cards cover recognizing the agent, protecting the handoff, limiting authority, screening what crosses and recording the chain.", "Read the Why A2A needs control cards, including Protect the handoff, Limit authority and Screen what crosses."],
-      ["Run the gateway-mediated chain", "The runs show a main agent, worker agent and MCP tools with every hop going through the Agent Privilege, including a refused handoff.", "Click A2A access review through the gateway (/privilege-mcp-client?view=demo&tab=a2a) or Three-deep agent chain (/dashboard, Demo Step 26); these need the Privilege gateway deployed and may need sign-in."],
+      ["Run the gateway-mediated chain", "The runs show a main agent, worker agent and MCP tools with every hop going through the Agent Privilege, including a refused handoff.", "Click A2A access review through the gateway (/privilege-a2a) or Three-deep agent chain (/dashboard, Demo Step 26); these need the Privilege gateway deployed and may need sign-in."],
       ["Go deeper on architecture and protocol", "Separate pages show where the gateway sits and how the Agent2Agent protocol and nested delegation actually work.", "Open Agent-to-agent architecture (/privilege-gateway-topologies), A2A protocol walkthrough (/a2a-protocol-learning) or Delegation chain (/delegation-chain-value) from the Agent runs section."],
     ]),
   },

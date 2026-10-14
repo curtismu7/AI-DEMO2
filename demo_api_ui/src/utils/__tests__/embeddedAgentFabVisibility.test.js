@@ -30,7 +30,7 @@ describe('isDemoControlsRoute', () => {
       '/use-cases', '/demo-track', '/demo/footprint-picks',
       '/mcp-inspector', '/agent-flow-inspector', '/token-exchange-tester',
       '/transaction-trace', '/policy-decision-trace', '/oauth/token-display',
-      '/privilege-mcp-client',
+      '/privilege-mcp-client', '/privilege-a2a',
       '/config', '/demo-config', '/pingone-setup', '/demo-data', '/feature-flags', '/llm-config',
     ]) {
       expect(isDemoControlsRoute(p)).toBe(true);

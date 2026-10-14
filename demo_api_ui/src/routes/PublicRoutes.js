@@ -1,4 +1,4 @@
-import { Navigate, Route, Routes } from "react-router-dom";
+import { Navigate, Route, Routes, useSearchParams } from "react-router-dom";
 import AppShell from "./AppShell";
 import { InspectorFieldProvider } from "../context/InspectorFieldContext";
 import IntentBindingLearningPage from "../pages/IntentBindingLearningPage";
@@ -62,6 +62,7 @@ import AicTokenExchangePage from '../pages/AicTokenExchangePage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PageCatalogPage from '../pages/PageCatalogPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
+import PrivilegeA2aPage from "../pages/PrivilegeA2aPage";
 import LlmGatewayCombinedPage from '../pages/LlmGatewayCombinedPage';
 import IntentInspectorPage from '../pages/IntentInspectorPage';
 import AuditAgentPage from "../pages/AuditAgentPage";
@@ -402,9 +403,21 @@ export function PageCatalogPageRoute({ user, logout }) {
 
 /** PingOne Privilege MCP Client — chat-first tool discovery through Privilege Gateway. */
 export function PrivilegeMcpClientPageRoute({ user, logout }) {
+  // A2A used to be a tab here; old links (?tab=a2a) land on its own page.
+  const [searchParams] = useSearchParams();
+  if (searchParams.get("tab") === "a2a") return <Navigate to="/privilege-a2a" replace />;
   return (
     <AppShell user={user} logout={logout}>
       <PrivilegeMcpClientPage />
+    </AppShell>
+  );
+}
+
+/** Privilege A2A access review — formerly a tab on the MCP client. */
+export function PrivilegeA2aPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PrivilegeA2aPage user={user} />
     </AppShell>
   );
 }

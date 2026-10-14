@@ -22,7 +22,7 @@ export const NAV_PAGE_PATHS = {
   "Privilege · MCP": "/ai-products/privilege-mcp",
   "Agent Privilege · LLM": "/ai-products/privilege-llm",
   "Agent Privilege · A2A": "/ai-products/privilege-a2a",
-  "Agent Privilege · A2A Review": "/privilege-mcp-client?view=demo&tab=a2a",
+  "Agent Privilege · A2A Review": "/privilege-a2a",
   "Agent Privilege Topologies": "/privilege-gateway-topologies",
   "Agent Privilege · MCP": "/ai-products/privilege-mcp",
   "Protected RAG": "/code-search",

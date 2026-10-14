@@ -101,7 +101,7 @@ const PRODUCTS = {
       ["Record the chain", "Make the relationship between the initiating agent, receiving agent, and resulting action visible."],
     ],
     runExamples: [
-      ["A2A access review through the gateway", "Main agent, worker agent and MCP tools, every hop through the Agent Privilege.", "/privilege-mcp-client?view=demo&tab=a2a"],
+      ["A2A access review through the gateway", "Main agent, worker agent and MCP tools, every hop through the Agent Privilege.", "/privilege-a2a"],
       ["Three-deep agent chain", "Demo Step 26: an allowed run, a blocked prompt injection and a refused hand-off, played in the reel and sequence view.", "/dashboard"],
       ["Agent-to-agent architecture", "Where the gateway sits between the agents, the tool server and the model provider.", "/privilege-gateway-topologies"],
       ["A2A protocol walkthrough", "Run the real Agent Card, bearer, and nested-act delegation walkthrough.", "/a2a-protocol-learning"],
