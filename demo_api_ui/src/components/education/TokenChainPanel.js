@@ -359,7 +359,7 @@ export default function TokenChainPanel() {
                           color: tc.status === 'success' ? '#28a745' : '#dc3545',
                           width: 20, textAlign: 'center'
                         }}>
-                          {tc.status === 'success' ? '✓' : '✗'}
+                          {tc.status === 'success' ? '✓' : '❌'}
                         </span>
                         <span style={{ color: '#666', fontSize: '0.85em' }}>{tc.duration}ms</span>
                         {tc.isDelegated && (

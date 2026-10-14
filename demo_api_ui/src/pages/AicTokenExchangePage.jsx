@@ -52,7 +52,13 @@ export default function AicTokenExchangePage() {
   }, []);
 
   useEffect(() => {
-    if (outcome === "success") notifySuccess("Signed in at AIC — the user token is held by the BFF.");
+    if (outcome === "success") {
+      notifySuccess("Signed in at AIC — the user token is held by the BFF.");
+      // Drop the param so a refresh does not replay the toast.
+      const url = new URL(window.location.href);
+      url.searchParams.delete("aic");
+      window.history.replaceState(null, "", url);
+    }
   }, [outcome]);
 
   async function getActorToken() {

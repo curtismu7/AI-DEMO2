@@ -19,8 +19,12 @@ export default function PrivilegeA2aTab() {
   const [record, setRecord] = useState(null);
   const recordLines = record ? record.modelCalls.length + record.guardrail.length + (record.requests?.length || 0) + (record.denials?.length || 0) : 0;
   const abortRef = useRef(null);
+  const recordTimerRef = useRef(null);
 
-  useEffect(() => () => abortRef.current?.abort(), []);
+  useEffect(() => () => {
+    abortRef.current?.abort();
+    clearTimeout(recordTimerRef.current);
+  }, []);
 
   const handleEvent = (eventName, payload) => {
     if (!payload || typeof payload !== 'object') return;
@@ -58,6 +62,7 @@ export default function PrivilegeA2aTab() {
     setError('');
     setTrace([]);
     setRecord(null);
+    clearTimeout(recordTimerRef.current);
     const startedAt = Date.now();
     setTurns(current => [...current, { question: message, answer: '' }]);
     setInput('');
@@ -88,7 +93,7 @@ export default function PrivilegeA2aTab() {
       setBusy(false);
       // The gateway ships each line as it writes it; give the index a moment.
       if (!controller.signal.aborted) {
-        setTimeout(async () => setRecord(await loadGatewayRecord({ since: startedAt - 2000, until: Date.now() + 2000 })), 1500);
+        recordTimerRef.current = setTimeout(async () => setRecord(await loadGatewayRecord({ since: startedAt - 2000, until: Date.now() + 2000 })), 1500);
       }
     }
   };
@@ -117,7 +122,7 @@ export default function PrivilegeA2aTab() {
           {turns.length === 0 ? (
             <p className="privilege-a2a__empty">Ask who has access to a resource, what roles a person holds, or whether an access ticket exists.</p>
           ) : (
-            <div className="privilege-a2a__turns" aria-live="polite">
+            <div className="privilege-a2a__turns" aria-live={busy ? "off" : "polite"}>
               {turns.map((turn, index) => (
                 <article className="privilege-a2a__turn" key={`${index}-${turn.question}`}>
                   <p className="privilege-a2a__question">{turn.question}</p>

@@ -13,7 +13,7 @@ const FIELD_ANNOTATIONS = {
 const STATUS_COLORS = {
   ok:          { bg: '#f0fdf4', border: '#86efac', text: '#166534', label: '● reachable' },
   unreachable: { bg: '#fef3c7', border: '#fcd34d', text: '#92400e', label: '◌ unreachable' },
-  error:       { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b', label: '✕ error' },
+  error:       { bg: '#fef2f2', border: '#fca5a5', text: '#991b1b', label: '❌ error' },
 };
 
 const SERVICE_NAMES = {

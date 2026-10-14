@@ -4,7 +4,7 @@ import './TokenChainEventCard.css';
 const STATUS_ICONS = {
   success: '✓',
   permit: '✓',
-  deny: '✕',
+  deny: '❌',
   error: '❌',
   pending: '⚠️'
 };

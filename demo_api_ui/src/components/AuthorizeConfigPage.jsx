@@ -390,7 +390,7 @@ export default function AuthorizeConfigPage() {
                 <div
                   className={`azc-alert ${mockResult.ok ? "azc-alert--success" : "azc-alert--error"}`}
                 >
-                  {mockResult.ok ? "✓ " : "✗ "}
+                  {mockResult.ok ? "✓ " : "❌ "}
                   {mockResult.msg}
                 </div>
               )}

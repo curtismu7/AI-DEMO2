@@ -90,7 +90,7 @@ export default function CimdClientIdentity() {
         <div className="cimd-ci-results">
           <div className={`cimd-ci-verdict ${readiness.ok ? 'cimd-ci-verdict--ok' : 'cimd-ci-verdict--bad'}`} data-testid="cimd-ci-verdict">
             <span className={`cimd-ci-mark ${readiness.ok ? 'cimd-ci-mark--pass' : 'cimd-ci-mark--fail'}`} aria-hidden="true">
-              {readiness.ok ? '✓' : '✕'}
+              {readiness.ok ? '✓' : '❌'}
             </span>
             {readiness.ok ? 'Ready for a client document sign-in.' : 'Not ready yet.'}
           </div>
@@ -111,7 +111,7 @@ export default function CimdClientIdentity() {
                 <tr key={c.id}>
                   <td className="cimd-ci-col-result">
                     <span className={`cimd-ci-mark ${c.pass ? 'cimd-ci-mark--pass' : 'cimd-ci-mark--fail'}`} role="img" aria-label={c.pass ? 'Passed' : 'Failed'}>
-                      {c.pass ? '✓' : '✕'}
+                      {c.pass ? '✓' : '❌'}
                     </span>
                   </td>
                   <td className="cimd-ci-col-check">{c.label}</td>

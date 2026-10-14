@@ -5,7 +5,7 @@ import { useActivityNarrativeOptional } from '../../context/ActivityNarrativeCon
 import '../../styles/draggablePanel.css';
 import './ActivityNarrativePanel.css';
 
-const GLYPH = { running: '⟳', done: '✓', failed: '✕' }; // ⟳ ✓ ✕
+const GLYPH = { running: '⟳', done: '✓', failed: '❌' }; // ⟳ ✓ ❌
 
 function StepRow({ step }) {
   return (

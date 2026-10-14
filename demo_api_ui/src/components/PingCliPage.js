@@ -791,7 +791,7 @@ export default function PingCliPage() {
                 ].filter(Boolean).join(' ');
                 let runLabel = 'Run ▸';
                 if (isRunning) runLabel = 'Running…';
-                else if (isDone) runLabel = runStatus.exitCode === 0 ? 'Done ✓' : 'Failed ✗';
+                else if (isDone) runLabel = runStatus.exitCode === 0 ? 'Done ✓' : 'Failed ❌';
                 return (
                   <div
                     key={key}
@@ -863,7 +863,7 @@ export default function PingCliPage() {
               ) : (
                 <>
                   <span className="pingcli-run-status-mark" aria-hidden="true">
-                    {runStatus.exitCode === 0 ? '✓' : '✗'}
+                    {runStatus.exitCode === 0 ? '✓' : '❌'}
                   </span>
                   <span>
                     {runStatus.exitCode === 0 ? 'Done' : 'Finished with errors'}:{' '}
@@ -931,7 +931,7 @@ export default function PingCliPage() {
                   </span>
                   {exitCode !== null && (
                     <span className={`pingcli-terminal-status ${statusClass}`}>
-                      {exitCode === 0 ? '✓ exit 0' : `✗ exit ${exitCode}`}
+                      {exitCode === 0 ? '✓ exit 0' : `❌ exit ${exitCode}`}
                     </span>
                   )}
                 </div>

@@ -47,7 +47,7 @@ export default function StepCard({
         </div>
         {isComplete && (
           <div className={`step-status ${statusOk ? 'step-status--ok' : 'step-status--error'}`}>
-            {statusOk ? '✓' : '✕'} {status}
+            {statusOk ? '✓' : '❌'} {status}
           </div>
         )}
       </div>

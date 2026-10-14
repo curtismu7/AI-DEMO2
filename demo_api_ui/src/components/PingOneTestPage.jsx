@@ -1299,7 +1299,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 									>
 										{isTokenValid(workerTokenExpiry.expiresAt)
 											? "✓ Token Valid"
-											: "✗ Token Expired"}
+											: "❌ Token Expired"}
 									</span>
 									<span className="token-expiry">
 										Expires: {formatExpiryTime(workerTokenExpiry.expiresAt)}
@@ -1312,7 +1312,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 							{workerTokenError && (
 								<div className="worker-token-error">
 									<span className="status-indicator status-indicator--error">
-										✗ Error
+										❌ Error
 									</span>
 									<span className="error-message">{workerTokenError}</span>
 								</div>
@@ -1440,7 +1440,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 										</span>
 									)}
 									{configSaveError && (
-										<span className="config-error">✗ {configSaveError}</span>
+										<span className="config-error">❌ {configSaveError}</span>
 									)}
 								</div>
 							</form>
@@ -1620,7 +1620,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 													>
 														{scopeFixResult.success
 															? `✓ Done — created: ${scopeFixResult.created ? "new RS" : "existing RS"}, scopes added: ${scopeFixResult.scopeResults?.filter((r) => r.success).length ?? 0}`
-															: `✗ ${scopeFixResult.error}`}
+															: `❌ ${scopeFixResult.error}`}
 													</div>
 												)}
 											</div>
@@ -2011,7 +2011,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 												>
 													{mcpExchangeFixResult.success
 														? "✓ Success"
-														: `✗ ${mcpExchangeFixResult.error || "Failed"}`}
+														: `❌ ${mcpExchangeFixResult.error || "Failed"}`}
 												</span>
 												{mcpExchangeFixResult.steps?.map((s) => (
 													<div
@@ -2277,7 +2277,7 @@ Authorization: Basic ${workerConfig.clientId && workerConfig.clientSecret ? "***
 												color: step.passed ? "#16a34a" : "#dc2626",
 											}}
 										>
-											{step.passed ? "✓" : "✗"} Step {step.step}: {step.label}
+											{step.passed ? "✓" : "❌"} Step {step.step}: {step.label}
 											{step.received != null ? ` (HTTP ${step.received})` : ""}
 										</li>
 									))}
@@ -2710,7 +2710,7 @@ function SessionSummary({ tests }) {
 					{tests.filter((t) => t.status === "failed").length > 0 && (
 						<div className="summary-group" style={{ marginBottom: "1rem" }}>
 							<h4 style={{ color: "#dc3545", margin: "0.5rem 0 0.5rem 0" }}>
-								✗ Failed
+								❌ Failed
 							</h4>
 							{tests
 								.filter((t) => t.status === "failed")
@@ -2848,7 +2848,7 @@ const TestCard = ({
 
 	const statusLabel = {
 		passed: "✓ passed",
-		failed: "✗ failed",
+		failed: "❌ failed",
 		running: "⟳ testing",
 		pending: "— pending",
 	};
@@ -2879,7 +2879,7 @@ const TestCard = ({
 					{updateStatus === "passed"
 						? "✓ "
 						: updateStatus === "failed"
-							? "✗ "
+							? "❌ "
 							: ""}
 					{updateResult.result.message ||
 						updateResult.result.steps
