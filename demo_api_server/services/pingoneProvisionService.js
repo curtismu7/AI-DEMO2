@@ -914,6 +914,25 @@ class PingOneProvisionService {
   }
 
   /**
+   * Idempotently ensure the persistent "OBO Demo" resource used by the OBO delegation demo:
+   * audience obo-demo.ping.demo, scope obo:invoke, an `act` attribute that emits an RFC 8693
+   * OBJECT, and a grant of that scope to the Token Exchanger app. `sub` is reserved and
+   * added by PingOne automatically, so it is never created here.
+   */
+  async ensureOboDemoResource() {
+    const { getOboConfig, OBO_ACT_SPEL } = require('./oboConfig');
+    const cfg = getOboConfig();
+    const created = await this.createResourceServer(
+      'OBO Demo', 'OBO delegation demo: delegated tokens with an RFC 8693 act object', cfg.audience,
+    );
+    const resourceId = created.resource.id;
+    await this.createScopes(resourceId, [{ name: cfg.scope, description: 'OBO demo delegated access' }]);
+    await this._setResourceAttribute(resourceId, 'act', OBO_ACT_SPEL);
+    await this.grantScopesToApplication(cfg.exchanger.id, resourceId, [cfg.scope]);
+    return { resourceId, audience: cfg.audience };
+  }
+
+  /**
    * Idempotently ensure a CUSTOM user-schema attribute exists.
    * PingOne's schema attribute API rejects re-creation with INVALID_DATA, so we
    * check first and only POST if missing. PingOne user-schema attributes can
@@ -2716,6 +2735,16 @@ class PingOneProvisionService {
         steps.push({ step: 'mayAct-schema', icon: '✅', message: 'mayAct user attribute present (JSON)' });
       } catch (err) {
         steps.push({ step: 'mayAct-schema', icon: '⚠️', message: `mayAct attribute step: ${err.message}` });
+      }
+      onStep(steps[steps.length - 1]);
+
+      steps.push({ step: 'obo-demo-resource', icon: '🔧', message: 'Ensuring OBO Demo resource (act object attribute)...' });
+      onStep(steps[steps.length - 1]);
+      try {
+        const obo = await this.ensureOboDemoResource();
+        steps.push({ step: 'obo-demo-resource', icon: '✅', message: `OBO Demo resource ready (${obo.audience})` });
+      } catch (err) {
+        steps.push({ step: 'obo-demo-resource', icon: '⚠️', message: `OBO Demo resource step: ${err.message}` });
       }
       onStep(steps[steps.length - 1]);
 
