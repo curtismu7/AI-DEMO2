@@ -238,3 +238,67 @@ describe('a2aOrchestratorService.orchestrateDelegation — UI agent mode', () =>
     expect(callLlamaCpp).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('a2aOrchestratorService.orchestrateDelegation — per-stage timings', () => {
+  const delegated = (specialist, tool) => JSON.stringify({
+    delegated: true, specialist, tool, scopes: ['read'], actChainDepth: 2, result: {}, toolError: null,
+  });
+  const sumMs = (t) => t.stages.reduce((n, s) => n + s.ms, 0);
+
+  beforeEach(() => {
+    callLlamaCpp.mockReset();
+    executeA2aDelegation = require('../../services/demoAgentLangGraphService').executeA2aDelegation;
+    executeA2aDelegation.mockReset();
+  });
+
+  test('multi-tool vertical: decision, coordinator and specialist are timed; total is their sum', async () => {
+    callLlamaCpp
+      .mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'r', sensitivity: 'low' }))
+      .mockResolvedValueOnce(jsonReply({ tool: 'get_investment_transactions', reasoning: 'r' }));
+    executeA2aDelegation.mockResolvedValue(delegated('Investment Advisor', 'get_investment_transactions'));
+
+    const { timings } = await orchestrateDelegation({
+      req: reqStub, message: 'show me my recent investment transactions', vertical: 'banking', userId: 'u1',
+    });
+
+    expect(timings.stages.map((s) => s.stage)).toEqual(['decision', 'coordinator', 'specialist']);
+    expect(timings.stages.every((s) => Number.isFinite(s.ms) && s.ms >= 0 && s.agent)).toBe(true);
+    expect(timings.totalMs).toBe(sumMs(timings));
+  });
+
+  test('single-tool vertical has no coordinator stage', async () => {
+    callLlamaCpp.mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'r', sensitivity: 'high' }));
+    executeA2aDelegation.mockResolvedValue(delegated('Records Specialist', 'sensitive_patient_records'));
+
+    const { timings } = await orchestrateDelegation({
+      req: reqStub, message: 'pull the sensitive patient record', vertical: 'healthcare', userId: 'u1',
+    });
+
+    expect(timings.stages.map((s) => s.stage)).toEqual(['decision', 'specialist']);
+    expect(timings.totalMs).toBe(sumMs(timings));
+  });
+
+  test('no delegation: only the decision stage is reported (the not-approved response still carries timings)', async () => {
+    callLlamaCpp.mockResolvedValueOnce(jsonReply({ shouldDelegate: false, reason: 'chit-chat', sensitivity: 'low' }));
+
+    const { timings } = await orchestrateDelegation({
+      req: reqStub, message: 'hello there', vertical: 'banking', userId: 'u1',
+    });
+
+    expect(timings.stages.map((s) => s.stage)).toEqual(['decision']);
+    expect(timings.totalMs).toBe(sumMs(timings));
+    expect(executeA2aDelegation).not.toHaveBeenCalled();
+  });
+
+  test('a failed specialist execution still reports the time spent on it', async () => {
+    callLlamaCpp.mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'r', sensitivity: 'high' }));
+    executeA2aDelegation.mockResolvedValue(JSON.stringify({ delegated: false, error: 'boom' }));
+
+    const result = await orchestrateDelegation({
+      req: reqStub, message: 'pull the sensitive patient record', vertical: 'healthcare', userId: 'u1',
+    });
+
+    expect(result.success).toBe(false);
+    expect(result.timings.stages.map((s) => s.stage)).toEqual(['decision', 'specialist']);
+  });
+});
