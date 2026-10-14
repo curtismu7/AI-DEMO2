@@ -10,6 +10,11 @@
  *                app's normal login only ever yields PingOne tokens.
  *   actor token  client credentials on a confidential AIC client (the agent).
  *
+ * exchangeTokens() then sends both to AIC's token endpoint, authenticated as the
+ * actor client, and AIC returns a narrower token for the user that records who is
+ * acting (the act claim). AIC only allows it when the subject client's May Act
+ * script names that actor.
+ *
  * Tokens stay in the BFF session (req.session.aicDemo); the browser only ever gets
  * the redacted trace built with pfAiAgentTrace.
  */
@@ -28,6 +33,8 @@ const { safeParams, safeBody, bareUrl, claimsOf, redacted, step: traceStep } = r
 
 const FLOW_TTL_MS = 5 * 60 * 1000;
 const CALLBACK_PATH = '/api/aic-demo/callback';
+const TOKEN_EXCHANGE_GRANT = 'urn:ietf:params:oauth:grant-type:token-exchange';
+const ACCESS_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:access_token';
 
 function resolveConfig(store = configStore) {
   const get = (key) => String(store.getEffective(key) || '').trim();
@@ -164,6 +171,8 @@ async function beginLogin(req, { store = configStore, fetchImpl = fetch, now = D
   };
   delete demo.userTokens;
   delete demo.userResult;
+  delete demo.exchangedTokens;
+  delete demo.exchangeResult;
   return { redirectUrl };
 }
 
@@ -247,6 +256,8 @@ async function fetchActorToken(req, { store = configStore, fetchImpl = fetch, no
     throw oauthError('AIC_NOT_CONFIGURED', 'Set aic_issuer, aic_actor_client_id and aic_actor_client_secret', 503);
   }
   const demo = ensureSession(req);
+  delete demo.exchangedTokens;
+  delete demo.exchangeResult;
   const metadata = await discover(config, fetchImpl);
   const body = new URLSearchParams({ grant_type: 'client_credentials' });
   if (config.delegatedScope) body.set('scope', config.delegatedScope);
@@ -291,6 +302,76 @@ function usable(tokens, now = Date.now) {
   return Boolean(tokens?.accessToken && (!tokens.expiresAt || tokens.expiresAt > now()));
 }
 
+// RFC 8693 delegation: subject = the user's token, actor = the agent's token, and the
+// caller authenticates as the actor client. The result is issued to that client.
+async function exchangeTokens(req, { store = configStore, fetchImpl = fetch, now = Date.now } = {}) {
+  const config = resolveConfig(store);
+  if (!config.issuer || !config.actorClientId || !config.actorClientSecret) {
+    throw oauthError('AIC_NOT_CONFIGURED', 'Set aic_issuer, aic_actor_client_id and aic_actor_client_secret', 503);
+  }
+  const demo = ensureSession(req);
+  if (!usable(demo.userTokens, now) || !usable(demo.actorTokens, now)) {
+    throw oauthError('AIC_TOKENS_REQUIRED', 'Get a current user token and actor token first', 409);
+  }
+  const metadata = await discover(config, fetchImpl);
+  const body = new URLSearchParams({
+    grant_type: TOKEN_EXCHANGE_GRANT,
+    subject_token: demo.userTokens.accessToken,
+    subject_token_type: ACCESS_TOKEN_TYPE,
+    actor_token: demo.actorTokens.accessToken,
+    actor_token_type: ACCESS_TOKEN_TYPE,
+    requested_token_type: ACCESS_TOKEN_TYPE,
+  });
+  if (config.delegatedScope) body.set('scope', config.delegatedScope);
+  const result = await postForm(fetchImpl, metadata.tokenEndpoint, body, { id: config.actorClientId, secret: config.actorClientSecret });
+  const tokens = result.json;
+  if (!result.ok) throw rejected('AIC_EXCHANGE_REJECTED', 'token exchange', result);
+  if (typeof tokens.access_token !== 'string' || !tokens.access_token) {
+    throw oauthError('AIC_TOKEN_RESPONSE_INVALID', 'AIC token exchange response did not contain an access token');
+  }
+  demo.exchangedTokens = {
+    accessToken: tokens.access_token,
+    scope: typeof tokens.scope === 'string' ? tokens.scope : '',
+    expiresAt: Number.isFinite(tokens.expires_in) ? now() + tokens.expires_in * 1000 : null,
+  };
+  // The exchanged token belongs to the actor client, so that client can introspect it:
+  // this is where the act claim (who is acting for the user) becomes visible.
+  const introspection = await introspectStep({
+    fetchImpl, metadata, config, token: tokens.access_token, id: 'introspect-exchanged', title: 'Ask AIC what the delegated token carries',
+  }).catch(() => null);
+  const seen = introspection?.response?.body || {};
+  const claims = claimsOf(tokens.access_token) || {};
+  demo.exchangeResult = {
+    trace: [
+      traceStep({
+        id: 'exchange',
+        title: 'Exchange the user token and the actor token for a delegated token',
+        request: {
+          method: 'POST', url: bareUrl(metadata.tokenEndpoint),
+          headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: `Basic <${config.actorClientId}:redacted>` },
+          // safeParams does not know actor_token, so redact both input tokens here.
+          params: {
+            ...safeParams(body),
+            subject_token: redacted(demo.userTokens.accessToken),
+            actor_token: redacted(demo.actorTokens.accessToken),
+          },
+        },
+        response: { status: result.status, body: safeBody(tokens) },
+        claims: { accessToken: claimsOf(tokens.access_token) },
+      }),
+      ...(introspection ? [introspection] : []),
+    ],
+    actorClientId: config.actorClientId,
+    subject: demo.userTokens.subject || null,
+    scope: demo.exchangedTokens.scope,
+    issuedTokenType: typeof tokens.issued_token_type === 'string' ? tokens.issued_token_type : null,
+    act: claims.act || seen.act || null,
+    opaque: !claimsOf(tokens.access_token),
+    completedAt: new Date(now()).toISOString(),
+  };
+  return demo.exchangeResult;
+}
+
 module.exports = {
   CALLBACK_PATH,
   resolveConfig,
@@ -298,5 +379,6 @@ module.exports = {
   beginLogin,
   completeLogin,
   fetchActorToken,
+  exchangeTokens,
   usable,
 };

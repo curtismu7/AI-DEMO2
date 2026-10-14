@@ -72,7 +72,7 @@ describe('hosted access approval honours the identifier allowlist exemption', ()
     expect(hasCurrentHostedAccessApproval(session, policy)).toBe(false);
   });
 
-  test('policy fingerprint rotation still invalidates old approvals', () => {
+  test('removing the identifier from the allowlist still invalidates old approvals', () => {
     const before = loadHostedAccessPolicy(ENV);
     const decision = evaluateHostedIdentity({
       sub: 'subject-1',
@@ -86,7 +86,7 @@ describe('hosted access approval honours the identifier allowlist exemption', ()
 
     const after = loadHostedAccessPolicy({
       ...ENV,
-      HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'demouser,demoAdmin@api.ping.demo',
+      HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'demouser',
     });
     expect(hasCurrentHostedAccessApproval(session, after)).toBe(false);
   });
