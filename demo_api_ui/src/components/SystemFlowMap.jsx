@@ -610,7 +610,7 @@ export function SystemFlowMapView() {
               onClick={() => setViewingRunId(h.runId)}
               title={h.prompt?.message || `run #${h.runId}`}
             >
-              {h.outcome === 'error' ? '✕ ' : h.outcome === 'ok' ? '✓ ' : ''}
+              {h.outcome === 'error' ? '❌ ' : h.outcome === 'ok' ? '✓ ' : ''}
               {truncate(h.prompt?.message, 22) || `run #${h.runId}`}
             </button>
           ))}

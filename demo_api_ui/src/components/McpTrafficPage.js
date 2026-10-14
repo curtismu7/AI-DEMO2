@@ -43,7 +43,7 @@ const uuid = () =>
 const HITL_TOOLS = new Set(['create_deposit', 'create_withdrawal', 'create_transfer']);
 const STEPUP_TOOLS = new Set(['get_sensitive_account_details']);
 
-const PHASE_ICON = { active: '○', success: '●', error: '✕' };
+const PHASE_ICON = { active: '○', success: '●', error: '❌' };
 const PHASE_COLOR = { active: '#3b82f6', success: '#16a34a', error: '#dc2626' };
 
 function GateNotice({ kind, children }) {

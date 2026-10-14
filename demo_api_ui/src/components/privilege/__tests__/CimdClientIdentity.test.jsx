@@ -80,7 +80,7 @@ describe('CimdClientIdentity', () => {
     expect((await screen.findByTestId('cimd-ci-verdict')).textContent).toMatch(/Not ready/);
     const row = within(screen.getByTestId('cimd-ci-checks')).getAllByRole('row')[1];
     const mark = within(row).getByRole('img', { name: 'Failed' });
-    expect(mark.textContent).toBe('✕');
+    expect(mark.textContent).toBe('❌');
     expect(mark.className).toContain('cimd-ci-mark--fail');
     expect(within(row).getByText('Client document fetches')).toBeTruthy();
     expect(within(row).getByText('HTTP 302')).toBeTruthy();

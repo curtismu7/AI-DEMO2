@@ -3703,7 +3703,7 @@ export default function SequenceDiagramPage() {
       )}
 
       <p style={{ marginTop: "0.4rem", fontSize: "0.7rem", color: "#475569" }}>
-        Hit <strong>▶ Simulate</strong> then <strong>⏸ Pause</strong> at any
+        Hit <strong>▶ Simulate</strong> then <strong>Pause</strong> at any
         step to read the token card.
       </p>
     </div>

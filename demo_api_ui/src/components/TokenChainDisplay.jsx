@@ -3991,7 +3991,7 @@ function HistoryEntry({ entry }) {
         ? "success"
         : "partial";
   const statusIcon =
-    errors > 0 ? "✗" : successes === total && total > 0 ? "✓" : "~";
+    errors > 0 ? "❌" : successes === total && total > 0 ? "✓" : "~";
   return (
     <div className="tcd-hist-entry">
       <button
@@ -4031,7 +4031,7 @@ function HistoryEntry({ entry }) {
               const evBucket = resolveStatusVisual(ev.status).bucket;
               const evStatus =
                 evBucket === "failed"
-                  ? "✗"
+                  ? "❌"
                   : evBucket === "active" || evBucket === "exchanged"
                     ? "✓"
                     : "~";
@@ -5332,7 +5332,7 @@ const TokenChainDisplay = ({ idTokenMode = false, hideHeader = false }) => {
                     <span
                       className={`tcd-mcp-result-status tcd-mcp-result-status--${toolCall.status}`}
                     >
-                      {toolCall.status === "success" ? "✓" : "✗"}{" "}
+                      {toolCall.status === "success" ? "✓" : "❌"}{" "}
                       {toolCall.status}
                     </span>
                     {toolCall.duration > 0 && (

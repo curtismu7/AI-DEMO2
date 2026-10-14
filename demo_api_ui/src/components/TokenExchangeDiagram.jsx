@@ -235,7 +235,7 @@ export function buildDiagramSource(trace, steps, dark = true) {
     const failed  = azStep.status === 'error';
     // Never fabricate a verdict: an unrecorded decision prints as itself.
     const verdict = isHeld ? '✋ HELD'
-      : isDeny ? '✕ DENY'
+      : isDeny ? '❌ DENY'
       : decided === 'PERMIT' ? '✓ PERMIT'
       : decided || '—';
     const engine  = dec?.label?.split(' — ')?.[1] || '';

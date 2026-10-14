@@ -464,7 +464,7 @@ export default function ApiTrafficPanel() {
             title={frozen ? 'Resume live updates' : 'Freeze log — stop updating so you can inspect entries'}
             aria-pressed={frozen}
           >
-            {frozen ? '▶ Resume' : '⏸ Freeze'}
+            {frozen ? '▶ Resume' : 'Freeze'}
           </button>
           <input
             className="api-traffic-search"

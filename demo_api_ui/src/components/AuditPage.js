@@ -350,7 +350,7 @@ export default function AuditPage({ onClose } = {}) {
                             <span className="no-exchange">Direct</span>
                           )}
                         </td>
-                        <td><span className={`audit-badge audit-badge--outcome audit-badge--outcome--${result.success ? 'success' : 'failure'}`}>{result.success ? '✓ Success' : '✗ Failed'}</span></td>
+                        <td><span className={`audit-badge audit-badge--outcome audit-badge--outcome--${result.success ? 'success' : 'failure'}`}>{result.success ? '✓ Success' : '❌ Failed'}</span></td>
                         <td className="audit-cell--duration">{result.duration != null ? `${result.duration}ms` : '—'}</td>
                         <td className="audit-cell--details">{isExpanded ? '▾' : '▸'}</td>
                       </tr>
@@ -499,7 +499,7 @@ export default function AuditPage({ onClose } = {}) {
                   <td title={r.denyReason || ''}>
                     {r.groupPass === null
                       ? '—'
-                      : <span className={r.groupPass ? 'audit-group--pass' : 'audit-group--fail'}>{r.groupPass ? `✓ ${r.group}` : `✗ ${r.group}`}</span>}
+                      : <span className={r.groupPass ? 'audit-group--pass' : 'audit-group--fail'}>{r.groupPass ? `✓ ${r.group}` : `❌ ${r.group}`}</span>}
                   </td>
                   <td>{r.acr}</td>
                 </tr>

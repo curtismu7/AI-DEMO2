@@ -7,7 +7,7 @@ import { stageReplay } from "../services/inspectorReplay";
 import { laneLabel } from "../services/tokenChainTrace/buildTraceSteps";
 import "./shared/JsonHighlight.css";
 
-const STATUS_ICON = { pending: "·", active: "…", done: "✓", error: "✗", notinpath: "–" };
+const STATUS_ICON = { pending: "·", active: "…", done: "✓", error: "❌", notinpath: "–" };
 
 /** Combined request+response size above which we push the learner to pop-out. */
 const EVIDENCE_POPOUT_CHARS = 1200;
@@ -352,7 +352,7 @@ function TraceStepCard({ step, onInspect, defaultOpen = false, useCase = null })
           <div className={`tctr-decision tctr-decision--${String(d.decision.outcome || "").toLowerCase()}`}>
             {d.decision.outcome === "PERMIT" ? "✓"
               : String(d.decision.outcome || "").toUpperCase() === "INDETERMINATE" ? "⚠️"
-              : "✗"}{" "}
+              : "❌"}{" "}
             {d.decision.label}
           </div>
         )}

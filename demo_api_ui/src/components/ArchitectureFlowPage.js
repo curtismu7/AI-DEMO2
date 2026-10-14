@@ -2595,7 +2595,7 @@ function eventToHistoryEntry(evt) {
         ...(meta.subject_aud ? { subject_aud: meta.subject_aud } : {}),
         ...(meta.audience ? { requested_aud: meta.audience } : {}),
         ...(meta.scope ? { scope: meta.scope } : {}),
-        note: success ? "Exchange succeeded ✓" : "Exchange failed ✗",
+        note: success ? "Exchange succeeded ✓" : "Exchange failed ❌",
       },
       tokenOut: success
         ? {
@@ -3139,7 +3139,7 @@ export default function ArchitectureFlowPage({ user }) {
             className={`afp-step-badge${isPaused ? " afp-step-badge--paused" : ""}`}
             style={{ fontWeight: 600, borderRadius: 6, padding: "4px 10px" }}
           >
-            {isPaused ? "⏸ PAUSED — " : ""}
+            {isPaused ? "PAUSED — " : ""}
             {activeStep.stepLabel}
           </span>
         )}
@@ -3271,7 +3271,7 @@ export default function ArchitectureFlowPage({ user }) {
       </div>
 
       <p className="afp-help-text" style={{ marginTop: "0.4rem" }}>
-        Hit <strong>▶ Simulate Flow</strong> then <strong>⏸ Pause</strong> at
+        Hit <strong>▶ Simulate Flow</strong> then <strong>Pause</strong> at
         any step to read the token card. Node badges show{" "}
         <span className="afp-claim afp-claim--aud" style={{ fontWeight: 600 }}>aud</span>,{" "}
         <span className="afp-claim afp-claim--act" style={{ fontWeight: 600 }}>act</span>,{" "}

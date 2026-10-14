@@ -268,17 +268,17 @@ export default function ClientCredentialsResourcePage() {
               <div className="ccrsp-missing-claims">
                 <div className="ccrsp-missing-header">Absent Claims (by design)</div>
                 <div className="ccrsp-missing-claim">
-                  <span className="ccrsp-missing-icon">✕</span>
+                  <span className="ccrsp-missing-icon">❌</span>
                   <span className="ccrsp-missing-label"><strong>NO <code>sub</code> claim</strong></span>
                   <span className="ccrsp-missing-desc">No user identity — this token represents the application, not a person</span>
                 </div>
                 <div className="ccrsp-missing-claim">
-                  <span className="ccrsp-missing-icon">✕</span>
+                  <span className="ccrsp-missing-icon">❌</span>
                   <span className="ccrsp-missing-label"><strong>NO <code>act</code> claim</strong></span>
                   <span className="ccrsp-missing-desc">No delegation chain — RFC 8693 actor claim only exists after Token Exchange with a user token</span>
                 </div>
                 <div className="ccrsp-missing-claim">
-                  <span className="ccrsp-missing-icon">✕</span>
+                  <span className="ccrsp-missing-icon">❌</span>
                   <span className="ccrsp-missing-label"><strong>NO <code>name</code> / <code>email</code></strong></span>
                   <span className="ccrsp-missing-desc">No user identity attributes — machine clients have no associated person</span>
                 </div>
@@ -303,10 +303,10 @@ export default function ClientCredentialsResourcePage() {
                 <div className="ccrsp-comparison-col ccrsp-comparison-cc">
                   <div className="ccrsp-comparison-header">{comparison.cc?.label}</div>
                   <ul className="ccrsp-comparison-list">
-                    <li>✕ No user identity</li>
-                    <li>✕ No delegation chain</li>
-                    <li>✕ No user banking data</li>
-                    <li>✕ No auditable user context</li>
+                    <li>❌ No user identity</li>
+                    <li>❌ No delegation chain</li>
+                    <li>❌ No user banking data</li>
+                    <li>❌ No auditable user context</li>
                   </ul>
                   <p className="ccrsp-comparison-desc">{comparison.cc?.description}</p>
                 </div>

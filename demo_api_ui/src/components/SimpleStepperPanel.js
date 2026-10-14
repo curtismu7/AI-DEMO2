@@ -82,7 +82,7 @@ function StepRow({ event, index, halted, didNotRun }) {
   if (didNotRun) {
     statusCell = <span className="sstp-st sstp-st--skip">— did not run</span>;
   } else if (halted) {
-    statusCell = <span className="sstp-st sstp-st--halt">✕ {event.errorCode || 'halted'}</span>;
+    statusCell = <span className="sstp-st sstp-st--halt">❌ {event.errorCode || 'halted'}</span>;
   } else if (bucket === 'success') {
     statusCell = <span className="sstp-st sstp-st--ok" aria-label="Success">✓</span>;
   } else {

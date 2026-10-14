@@ -43,8 +43,8 @@
   position: absolute;
   top: calc(100% + 8px);
   right: 0;
-  background: #ffffff;
-  border: 1px solid #e0e0e0;
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
   border-radius: 8px;
   box-shadow: 0 4px 16px rgba(0, 0, 0, 0.15);
   min-width: 280px;
@@ -69,7 +69,7 @@
   display: flex;
   align-items: center;
   gap: 12px;
-  border-bottom: 1px solid #f5f5f5;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .user-menu-avatar-large {
@@ -85,7 +85,7 @@
 .user-menu-name {
   font-size: var(--font-size-body);
   font-weight: 600;
-  color: #333;
+  color: var(--th-text);
   margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -94,7 +94,7 @@
 
 .user-menu-email {
   font-size: var(--font-size-2xs);
-  color: #64748b;
+  color: var(--th-text-muted);
   margin-bottom: 2px;
   white-space: nowrap;
   overflow: hidden;
@@ -103,20 +103,20 @@
 
 .user-menu-userid {
   font-size: var(--font-size-xs);
-  color: #94a3b8;
+  color: var(--th-text-faint);
   font-family: var(--font-mono);
   margin-top: 1px;
 }
 
 .user-menu-role {
   font-size: var(--font-size-xs);
-  color: #64748b;
+  color: var(--th-text-muted);
   font-weight: 500;
 }
 
 .user-menu-divider {
   height: 1px;
-  background: #e5e7eb;
+  background: var(--th-border);
   margin: 0;
 }
 
@@ -131,7 +131,7 @@
   width: 100%;
   background: transparent;
   border: none;
-  color: #333;
+  color: var(--th-text);
   font-size: var(--font-size-body);
   padding: 10px 16px;
   text-align: left;
@@ -141,18 +141,18 @@
 }
 
 .user-menu-item:hover {
-  background: #f1f5f9;
-  color: #1e293b;
+  background: var(--th-bg-hover);
+  color: var(--th-text);
 }
 
 .user-menu-item-icon {
   font-size: var(--font-size-h3);
-  color: #64748b;
+  color: var(--th-text-muted);
   flex-shrink: 0;
 }
 
 .user-menu-item:hover .user-menu-item-icon {
-  color: #1e293b;
+  color: var(--th-text);
 }
 
 .user-menu-badge {
@@ -168,35 +168,35 @@
 }
 
 .user-menu-item-danger {
-  color: #f44336;
+  color: var(--th-status-error-text);
 }
 
 .user-menu-item-danger:hover {
-  background: #fef2f2;
-  color: #d32f2f;
+  background: var(--th-status-error-bg);
+  color: var(--th-status-error-text);
 }
 
 .user-menu-item-danger .user-menu-item-icon {
-  color: #f44336;
+  color: var(--th-status-error-text);
 }
 
 .user-menu-item-danger:hover .user-menu-item-icon {
-  color: #d32f2f;
+  color: var(--th-status-error-text);
 }
 
 .user-menu-item-primary {
-  color: #1565c0;
+  color: var(--th-status-info-text);
 }
 
 .user-menu-item-primary:hover {
-  background: #e3f2fd;
-  color: #0d47a1;
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
 }
 
 .user-menu-item-primary .user-menu-item-icon {
-  color: #1565c0;
+  color: var(--th-status-info-text);
 }
 
 .user-menu-item-primary:hover .user-menu-item-icon {
-  color: #0d47a1;
+  color: var(--th-status-info-text);
 }

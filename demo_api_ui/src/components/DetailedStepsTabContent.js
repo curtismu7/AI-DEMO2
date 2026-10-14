@@ -54,7 +54,7 @@ function DetailCard({ event, index, halted, didNotRun }) {
     cardCls  += ' dstc-card--fail';
     numCls   += ' dstc-num--fail';
     statusCls = 'dstc-status dstc-status--fail';
-    statusLabel = `✕ ${event.errorCode || 'halted'}`;
+    statusLabel = `❌ ${event.errorCode || 'halted'}`;
   } else if (didNotRun) {
     cardCls  += ' dstc-card--ghost';
     numCls   += ' dstc-num--skip';
@@ -74,7 +74,7 @@ function DetailCard({ event, index, halted, didNotRun }) {
     cardCls  += ' dstc-card--fail';
     numCls   += ' dstc-num--fail';
     statusCls = 'dstc-status dstc-status--fail';
-    statusLabel = `✕ ${event.errorCode || 'Failed'}`;
+    statusLabel = `❌ ${event.errorCode || 'Failed'}`;
   } else {
     // acquiring / waiting
     cardCls  += ' dstc-card--ok';

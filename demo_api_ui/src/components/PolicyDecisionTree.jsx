@@ -69,7 +69,7 @@ function overallDecision(result) {
   return result.decision || "INDETERMINATE";
 }
 
-const STATUS_GLYPH = { permit: "✓", deny: "✕", step_up: "!", consent: "!", set: "–", na: "N/A" };
+const STATUS_GLYPH = { permit: "✓", deny: "❌", step_up: "!", consent: "!", set: "–", na: "N/A" };
 const EFFECT_CLASS = (e) => (/DENY/.test(e || "") ? "deny" : "permit");
 
 const DECISION_LABELS = {

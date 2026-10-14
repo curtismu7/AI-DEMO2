@@ -161,7 +161,7 @@ export default function PingOneSetup() {
               <div className="steps-breakdown">
                 <div className={`step ${results.steps.tokenAcquisition.success ? 'passed' : 'failed'}`}>
                   <div className="step-title">
-                    {results.steps.tokenAcquisition.success ? '✓' : '✗'} Worker Token
+                    {results.steps.tokenAcquisition.success ? '✓' : '❌'} Worker Token
                   </div>
                   <div className="step-detail">
                     {results.steps.tokenAcquisition.success
@@ -172,7 +172,7 @@ export default function PingOneSetup() {
 
                 <div className={`step ${results.steps.gatewayConnectivity.success ? 'passed' : 'failed'}`}>
                   <div className="step-title">
-                    {results.steps.gatewayConnectivity.success ? '✓' : '✗'} Hosted MCP Connectivity
+                    {results.steps.gatewayConnectivity.success ? '✓' : '❌'} Hosted MCP Connectivity
                   </div>
                   <div className="step-detail">
                     {results.steps.gatewayConnectivity.success
@@ -183,7 +183,7 @@ export default function PingOneSetup() {
 
                 <div className={`step ${results.steps.toolCall.success ? 'passed' : 'failed'}`}>
                   <div className="step-title">
-                    {results.steps.toolCall.success ? '✓' : '✗'} Tool Call
+                    {results.steps.toolCall.success ? '✓' : '❌'} Tool Call
                   </div>
                   <div className="step-detail">
                     {results.steps.toolCall.success
