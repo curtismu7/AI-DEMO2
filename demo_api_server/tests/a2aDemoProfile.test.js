@@ -33,6 +33,14 @@ describe("a2aDemoProfile", () => {
     expect(verticalsWithSpecialist()).toContain("abercrombie-fitch");
   });
 
+  test("the vertical's own A2A manifest chip leads, then its canned questions", () => {
+    expect(a2aDemoProfile("retail").questions).toEqual(["access my sensitive order history", ...A2A_DEMO_PROFILES.retail.questions]);
+    // A white-label vertical uses its own chip wording, not the shared domain's.
+    expect(a2aDemoProfile("abercrombie-fitch").questions[0]).toBe("show my sensitive A&F order history");
+    // No manifest chip: only the canned questions.
+    expect(a2aDemoProfile("investment").questions).toEqual(A2A_DEMO_PROFILES.investment.questions);
+  });
+
   test("returns null when the vertical has no specialist", () => {
     expect(a2aDemoProfile("oauth-teaching")).toBeNull();
     expect(a2aDemoProfile("")).toBeNull();
@@ -43,7 +51,7 @@ describe("a2aDemoProfile", () => {
     const profile = a2aDemoProfile("banking");
     profile.questions.push("x");
     profile.tools.push("y");
-    expect(a2aDemoProfile("banking").questions).toHaveLength(3);
+    expect(a2aDemoProfile("banking").questions).toHaveLength(4);
     expect(a2aDemoProfile("banking").tools).toHaveLength(4);
   });
 });
