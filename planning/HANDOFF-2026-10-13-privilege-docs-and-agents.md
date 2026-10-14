@@ -1,7 +1,7 @@
 # Handoff 2026-10-13 — Privilege docs runbooks, plus what every agent was doing
 
 Written so VS Code can be restarted. Source for the other agents' state: their
-transcripts in `~/.claude/projects/` (first read ~17:08, refreshed ~17:40 local); **their state may
+transcripts in `~/.claude/projects/` (first read ~17:08, last refreshed ~19:50 local); **their state may
 have moved — verify before acting on it.** No secret values are in this file.
 
 ## 1. Privilege docs session ("Privilege agent features doc") — this session
@@ -56,9 +56,13 @@ have moved — verify before acting on it.** No secret values are in this file.
 4. **Feature 20:** run View on `privilege-hub-test` (**not** `groq-key`) and
    create one time-boxed `SecretResources` policy (body shape not yet captured —
    easiest is one grant done in the console UI, then read back through the API).
-5. **Feature 14:** confirm alerts for rows 3–7 — send them **serially** (parallel
-   rerun at 22:43Z starved the CPU-bound llama tier and timed out), then read the
-   gateway log filtered to the A2A calling-agent lines; strip keys from output.
+5. **Feature 14:** serial rerun done (23:01–23:14Z) and **still inconclusive**:
+   even one-at-a-time, replies time out (llama tier too slow for the worker's
+   multi-step loop), none blocked at the A2A hop. Log showed leg-④ alerts
+   (`prompt_injection` on worker→MCP calls) and one `sanitized mcp response …
+   category=pii`, not attributable to a row. Next: send ONE row, wait for the
+   reply, read that minute's log immediately; or test against a lighter worker.
+   Documented in `A2A-GUARDRAILS-DEMO.md` ("Rerun").
 6. Cleanup: **done** — `priv-live` worktree, its branches and the Playwright
    browser are gone (all PRs merged, #1250 included). Only the other session's
    `AI-DEMO2-priv-doc` worktree remains (branch
@@ -78,16 +82,16 @@ have moved — verify before acting on it.** No secret values are in this file.
 - **Google:** `gcloud` was logged in as the user but needed re-auth; works after
   `gcloud auth login`.
 
-## 2. Other agents (refreshed from transcripts ~17:40 local)
+## 2. Other agents (refreshed from transcripts ~19:50 local)
 
 Their state may have moved again — verify before acting.
 
 | Session | State |
 |---|---|
-| **v1.261009 demo steps plan** | **Finished.** PRs #1252 (llama.cpp default provider) and #1253 (per-tab colors) merged, branches deleted. Live: both standalone agents default to llama.cpp *through Privilege* (custom lane); in-cluster `workeragentdemo` + `mainagentdemo` flipped to llama.cpp; the dead `workeragentdemo` door fixed to `worker-agent`; llama-tier1 ctx raised to 16384. Full A2A chain verified end to end (delegate → MCP tools → real answer). 8B model rejected (won't delegate); 3B + 16k ctx is the sweet spot |
-| **Privilege-mcp-client facade broken** | PR **#1248 merged**. **One live fix is NOT applied** (blocked by the classifier): step 25A returns 403 because `mainagentdemo` has `MAIN_AGENT_PROVIDER=llamacpp` but a leftover `MAIN_AGENT_MODEL=gemini-3.6-flash`. Fix, to run: `kubectl -n ping-devops-cmuir set env deploy/mainagentdemo MAIN_AGENT_MODEL=llama.cpp` (verified from inside the pod: that model returns 200, the gemini name returns 403). Live-only, not in git |
-| **Floating agent on A2A tab** | Finished: PRs #1245 and #1246 merged, frontend live; A2A tab keeps its in-page chat and hands the same run to the floating agent; chips follow the vertical. `mainagentdemo` was switched to llama.cpp because Google returned 503 — revert: `kubectl -n ping-devops-cmuir set env deploy/mainagentdemo MAIN_AGENT_PROVIDER=google` |
-| **AIC as IDP for demo** | Waiting on the user: commit pending edits in the AIC worktrees, then it will sync the main checkout, rebuild the local UI bundle and confirm the AIC nav group. Still needs the user's `/aic-token-exchange` click-through; test user `test12345@mailinator.com` password unknown (reset in AIC admin → Alpha realm → Users) |
+| **v1.261009 demo steps plan** | **Latest (18:31):** k8s manifest `standalone/privilege-a2a-anthropic-demo/k8s/deployment.yaml` re-synced to live (both agents on llama.cpp via the custom lane, `worker-agent` door, `a2a-mcp-tools` MCP door, `WORKER_PUBLIC_URL` restored) and pushed; live worker re-patched after an env replace dropped the card URL var. **Earlier — finished.** PRs #1252 (llama.cpp default provider) and #1253 (per-tab colors) merged, branches deleted. Live: both standalone agents default to llama.cpp *through Privilege* (custom lane); in-cluster `workeragentdemo` + `mainagentdemo` flipped to llama.cpp; the dead `workeragentdemo` door fixed to `worker-agent`; llama-tier1 ctx raised to 16384. Full A2A chain verified end to end (delegate → MCP tools → real answer). 8B model rejected (won't delegate); 3B + 16k ctx is the sweet spot |
+| **Privilege-mcp-client facade broken** | **ACTIVE at 19:50 — newest finding: `gpt-oss-20b` is the best local worker model so far** — answered three access-review questions in 5–13 s with the *real* access data and correct findings (alice.chen no-expiry; carol.nguyen expired 2025-12-31 but used 2026-07-29), and honestly refused the out-of-scope order-history question. It is the first local model fast and accurate enough to make **feature 14's A2A guardrail rows 3–7 completable** — try them against a worker on it. (Hybrid decision below stands unless that session says otherwise.) **Earlier (18:38): llama tier3 rejected for the worker step** — fast, but it never called a tool and made up an answer; tier1 restored, tier3 back to zero replicas. (So a faster tier is *not* a fix for the slow A2A worker in feature 14.) PR **#1248 merged**. **One live fix is NOT applied** (blocked by the classifier): step 25A returns 403 because `mainagentdemo` has `MAIN_AGENT_PROVIDER=llamacpp` but a leftover `MAIN_AGENT_MODEL=gemini-3.6-flash`. Fix, to run: `kubectl -n ping-devops-cmuir set env deploy/mainagentdemo MAIN_AGENT_MODEL=llama.cpp` (verified from inside the pod: that model returns 200, the gemini name returns 403). **Already applied** — `MAIN_AGENT_MODEL` is `llama.cpp` (checked 22:4xZ). Live-only, not in git |
+| **Floating agent on A2A tab** | Finished (re-confirmed 18:02): PRs #1245 and #1246 merged, frontend live; A2A tab keeps its in-page chat and hands the same run to the floating agent; chips follow the vertical. `mainagentdemo` was switched to llama.cpp because Google returned 503 — revert: `kubectl -n ping-devops-cmuir set env deploy/mainagentdemo MAIN_AGENT_PROVIDER=google` |
+| **AIC as IDP for demo** | **Latest (18:28):** hosted front door now has a **"Sign On with AIC"** button (new PingOne sign-on policy `Hosted_Access_Login`). **Allowlisting `test12345@mailinator.com` on the cluster was refused**, so that user still can't pass the wall. **PR #1254** (AIC token-exchange demo, step two: the delegation exchange) is open. Earlier — waiting on the user: commit pending edits in the AIC worktrees, then it will sync the main checkout, rebuild the local UI bundle and confirm the AIC nav group. Still needs the user's `/aic-token-exchange` click-through; test user `test12345@mailinator.com` password unknown (reset in AIC admin → Alpha realm → Users) |
 | **HDD cleanup** | Done: free space 325 GB → 476 GB (48% used). `~/.cache` 24 → 6.1 GB; CI dep cache trimmed to the newest copy; `~/Library/Caches` only 11 → 9 GB (some deletes unconfirmed). **Docker volumes (6, ~3.4 GB) left** — classifier blocked; command is in that session's last message |
 | **GenericOpenSearchApiTool / gateway-events** | Read-only OpenSearch queries via `opensearch-hitl`; nothing pending |
 | **Demo API server .env comments** | Comments added to local `.env`; waiting on any rewording from the user |
@@ -110,6 +114,17 @@ stripped. Row 2 (plain injection → 400 in 0.56 s) is unaffected — blocked be
 the model.
 
 ## 3. Repo and cluster state worth knowing
+
+- Main moved while this doc was open: `cf68c62d8` (cluster agent defaults to llama.cpp, local-first), `0cdbac3e8` (Google dropped from the provider picker), `622e29b46` (a2a-demo k8s manifest matches live llama.cpp state).
+- Open PRs at 19:50: **#1255** (this session's guardrail rerun; user merges, then remove `.worktrees/guard-rerun` + branch `docs/guardrail-rerun`) and **#1254** (AIC token-exchange step two; merge state UNKNOWN — CI/rebase may be pending).
+- **Decisions waiting on the user (all peers idle at ~19:20, none busy):**
+  (1) facade session asks whether to **ship the hybrid** parked on branch
+  `fix/a2a-demo-anthropic-lane-key` — main agent on local llama.cpp, only the
+  worker on Haiku through Privilege (its recommendation; tier3 rejected, tier5
+  won't start); (2) AIC session: allowlisting `test12345@mailinator.com` on the
+  cluster was refused — needs the user's explicit go-ahead or a manual step;
+  (3) merge #1255 and review #1254.
+- Feature 14 next step is unchanged: one row, wait for the reply, read that minute's log. Don't use llama tier3 (no tool calls).
 
 - Worktrees still present (not mine except `priv-live`): `AI-DEMO2-aic-login`,
   `-aic-nav`, `-aic-tx`, `-priv-doc`; `.worktrees/` `facade-self-call`,
