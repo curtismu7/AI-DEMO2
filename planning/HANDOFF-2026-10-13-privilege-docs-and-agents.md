@@ -116,6 +116,13 @@ the model.
 ## 3. Repo and cluster state worth knowing
 
 - Open PRs at 19:20: **#1255** (this session's guardrail rerun; user merges, then remove `.worktrees/guard-rerun` + branch `docs/guardrail-rerun`) and **#1254** (AIC token-exchange step two).
+- **Decisions waiting on the user (all peers idle at ~19:20, none busy):**
+  (1) facade session asks whether to **ship the hybrid** parked on branch
+  `fix/a2a-demo-anthropic-lane-key` — main agent on local llama.cpp, only the
+  worker on Haiku through Privilege (its recommendation; tier3 rejected, tier5
+  won't start); (2) AIC session: allowlisting `test12345@mailinator.com` on the
+  cluster was refused — needs the user's explicit go-ahead or a manual step;
+  (3) merge #1255 and review #1254.
 - Feature 14 next step is unchanged: one row, wait for the reply, read that minute's log. Don't use llama tier3 (no tool calls).
 
 - Worktrees still present (not mine except `priv-live`): `AI-DEMO2-aic-login`,
