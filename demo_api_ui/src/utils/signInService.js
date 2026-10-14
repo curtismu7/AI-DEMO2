@@ -3,6 +3,7 @@
 // login in exactly one place. `authUi`'s navigateTo*Login functions are thin
 // wrappers over this module, and the de-bypassed pages call it directly.
 import { PI_FLOW_SIGNIN_EVENT, navigateToCustomerOAuthLoginRaw, navigateToCustomerOAuthForceLoginRaw, navigateToAdminOAuthLoginRaw } from './authUi';
+import { isAicLoginEnabled } from './aicLogin';
 
 let inited = null;
 let available = { customer: false, admin: false };
@@ -20,7 +21,7 @@ export function initSignInService() {
         const drivable = ['pingone', 'pingfederate'].includes(cfg.oauth_provider || 'pingone');
         available = {
           // AIC login is a redirect to an external IdP — the modal cannot drive it.
-          customer: drivable && String(cfg.aic_login_enabled).toLowerCase() !== 'true'
+          customer: drivable && !isAicLoginEnabled(cfg)
             && ['true', '1'].includes(String(cfg.PINGONE_USER_AUTHORIZE_PI_FLOW).toLowerCase()),
           admin: drivable && ['true', '1'].includes(String(cfg.PINGONE_ADMIN_AUTHORIZE_PI_FLOW).toLowerCase()),
         };

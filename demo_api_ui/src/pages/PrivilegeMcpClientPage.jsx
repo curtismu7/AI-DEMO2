@@ -160,13 +160,11 @@ function api(path, options = {}) {
 // the exact envelope is not documented, so the detector refuses to depend on
 // one. A regular result (tool text, an isError denial) never matches.
 function holdInfo(data) {
+  // A denial is never a hold, even if its text quotes one.
+  if (data?.error || data?.result?.isError) return null;
   const haystack = JSON.stringify(data);
-  if (!haystack || !/ins_[0-9a-f]{12,}/i.test(haystack)) return null;
-  if (/pending_approval/i.test(haystack)) {
-    const m = haystack.match(/ins_[0-9a-f]{12,}/i);
-    return { instructionId: m ? m[0] : '' };
-  }
-  return null;
+  const id = haystack?.match(/ins_[0-9a-f]{12,}/i);
+  return id && /pending_approval/i.test(haystack) ? { instructionId: id[0] } : null;
 }
 
 function scopeColor(scope) {
@@ -608,11 +606,17 @@ export default function PrivilegeMcpClientPage() {
   // The live HITL hold: a tool call the gateway stopped pending a human
   // approval. Cleared by any non-held result (the retry) or a new call.
   const [hold, setHold] = useState(null);
+  const [retrying, setRetrying] = useState(false);
   const retryHeldCall = useCallback(async () => {
-    if (!hold) return;
-    await executeToolCall(hold.tool, hold.args);
+    if (!hold || retrying) return;
+    setRetrying(true);
+    try {
+      await executeToolCall(hold.tool, hold.args);
+    } finally {
+      setRetrying(false);
+    }
   // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [hold]);
+  }, [hold, retrying]);
   // Scope picked in the left rail — echoed/highlighted in the right SCOPES table.
   // With a long granted-scope list, clicking a pill on the left jumps to its row.
   const [selectedScope, setSelectedScope] = useState(null);
@@ -2779,7 +2783,7 @@ export default function PrivilegeMcpClientPage() {
                   {hold && (
                     <div className="cur-hitl-hold" data-testid="hitl-hold-card">
                       <div className="cur-hitl-hold__head">
-                        <span className="cur-hitl-hold__icon">⏸</span>
+                        <span className="cur-hitl-hold__icon" aria-hidden="true">⏸</span>
                         <span className="cur-hitl-hold__title">Waiting for human approval</span>
                       </div>
                       <p className="cur-hitl-hold__body">
@@ -2792,8 +2796,8 @@ export default function PrivilegeMcpClientPage() {
                           Instruction <code>{hold.instructionId}</code>
                         </p>
                       )}
-                      <button type="button" className="cur-hitl-hold__retry" onClick={retryHeldCall}>
-                        Retry after approval
+                      <button type="button" className="cur-hitl-hold__retry" onClick={retryHeldCall} disabled={retrying}>
+                        {retrying ? 'Retrying…' : 'Retry after approval'}
                       </button>
                     </div>
                   )}

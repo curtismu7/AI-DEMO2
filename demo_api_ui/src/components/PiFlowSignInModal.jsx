@@ -7,6 +7,7 @@ import {
 import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 import SignInBrand from "./SignInBrand";
+import { isAicLoginEnabled } from "../utils/aicLogin";
 
 const apiBase = () =>
   process.env.REACT_APP_API_URL ||
@@ -152,7 +153,7 @@ export default function PiFlowSignInModal() {
         if (!cancelled) {
           providerRef.current = provider;
           // AIC login is a redirect to an external IdP — keep the redirect login.
-          setUserDrivable(drivable && userOn && String(cfg.aic_login_enabled).toLowerCase() !== "true");
+          setUserDrivable(drivable && userOn && !isAicLoginEnabled(cfg));
           setAdminDrivable(drivable && adminOn);
         }
       } catch {
