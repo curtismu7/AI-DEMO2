@@ -40,7 +40,7 @@ const { guardPromptInput } = require('../services/promptGuard');
 const mcpFlowSseHub = require('../services/mcpFlowSseHub');
 const { parseVerticalParam, parseHeuristic, resolveVerticalCtx } = require('../services/nlIntentParser');
 const { toolForAction } = require('../services/stepVerificationExpectations');
-const { resolveAgentMode } = require('../services/agentModeResolver');
+const { resolveAgentMode, requestAgentMode } = require('../services/agentModeResolver');
 const { stampUseCaseId, stampVertical } = require('../services/useCaseTagging');
 const { verticalManifest } = require('../services/verticalManifest');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
@@ -361,7 +361,7 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     // Platform wiring enters a separate runtime before processAgentMessage's
     // heuristic gate. Check only after customer and registration verification.
     if (isWorkloadAgent && resolveAgentMode(
-      configStore.getEffective('agent_mode'), configStore.getEffective('agent_external_wiring')
+      requestAgentMode(req, configStore.getEffective('agent_mode')), configStore.getEffective('agent_external_wiring')
     ).externalWiring === 'platform') {
       return res.status(409).json({ error: 'workload_action_requires_bff_wiring' });
     }

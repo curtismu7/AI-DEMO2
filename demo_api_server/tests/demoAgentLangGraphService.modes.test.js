@@ -155,6 +155,37 @@ describe('processAgentMessage — mode seams', () => {
     expect(result).toBeDefined();
   });
 
+  test('4a. per-page agentMode=heuristics beats a global LLM mode: catalog terminal, no model call', async () => {
+    resetCfg({ agent_mode: 'llamacpp' });
+    const { runReasonLoop } = require('../services/agentReasoningClient');
+
+    const result = await processAgentMessage({
+      message: 'something the heuristic does not recognise',
+      userId: 'u1',
+      userToken: 'session-access-token',
+      req: { body: { agentMode: 'heuristics' } },
+    });
+
+    expect(result.reply).toBe(nlIntentParser.buildCatalogMessage());
+    expect(runReasonLoop).not.toHaveBeenCalled();
+  });
+
+  test('4b. per-page agentMode=llm beats a global heuristics mode: the llama.cpp reason loop runs', async () => {
+    resetCfg({ agent_mode: 'heuristics' });
+    const { runReasonLoop } = require('../services/agentReasoningClient');
+
+    await processAgentMessage({
+      message: 'what is oauth',
+      userId: 'u1',
+      userToken: 'session-access-token',
+      langchainConfig: {},
+      req: { body: { agentMode: 'llm' } },
+    });
+
+    expect(runReasonLoop).toHaveBeenCalledTimes(1);
+    expect(runReasonLoop.mock.calls[0][0].provider).toBe('llamacpp');
+  });
+
   test('4. bff LLM path: unseeded session defaults to the agent_mode provider (not Helix)', async () => {
     // OAuth Academy repro: a public-page session never ran the mode picker, so
     // langchain_config is {} — yet AGENT_MODE=llamacpp is the SSOT. Pre-fix the

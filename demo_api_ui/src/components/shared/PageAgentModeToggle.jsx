@@ -7,10 +7,13 @@ const MODES = [
 ];
 
 /** A page's own Heuristics | llama.cpp choice, kept per page in localStorage; it never touches the global agent mode. */
-export function usePageAgentMode(pageKey) {
+export function usePageAgentMode(pageKey, defaultMode = 'llm') {
   const storageKey = `agentMode:${pageKey}`;
   const [mode, setModeState] = useState(() => {
-    try { return localStorage.getItem(storageKey) === 'heuristics' ? 'heuristics' : 'llm'; } catch { return 'llm'; }
+    try {
+      const saved = localStorage.getItem(storageKey);
+      return saved === 'heuristics' || saved === 'llm' ? saved : defaultMode;
+    } catch { return defaultMode; }
   });
   const setMode = useCallback((next) => {
     setModeState(next);

@@ -19,9 +19,14 @@ from rules import (
 import anthropic
 import os
 
+from llm_route import llm_route
 
-# Initialize Anthropic client
+
+# Initialize Anthropic client. The SDK reads ANTHROPIC_BASE_URL itself, so pointing
+# it at <gateway>/llm/anthropic routes every call through the PingOne Agent Privilege.
 anthropic_client = anthropic.Anthropic(api_key=os.getenv("ANTHROPIC_API_KEY"))
+_ROUTE = llm_route()
+print(f"[compliance_agent] {_ROUTE['label']}; model={_ROUTE['model']}", flush=True)
 
 
 # System prompt for compliance reasoning
@@ -118,7 +123,7 @@ def build_reasoning(
 
 # Create agent with Pydantic AI
 agent = Agent(
-    model="claude-3-5-sonnet-20241022",
+    model=_ROUTE["model"],
     system_prompt=SYSTEM_PROMPT,
     result_type=ComplianceCheck,
 )

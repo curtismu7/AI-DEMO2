@@ -47,4 +47,13 @@ function resolveAgentMode(modeId, externalWiring) {
   };
 }
 
-module.exports = { resolveAgentMode, AGENT_MODES, DEFAULT_MODE };
+// A page's own Heuristics | llama.cpp toggle rides on the request body as
+// agentMode ('heuristics' | 'llm'). It beats the global agent_mode for that one
+// request, so a page can differ from the dashboard.
+const PAGE_MODE_TO_AGENT_MODE = { heuristics: 'heuristics', llm: 'llamacpp' };
+
+function requestAgentMode(req, globalMode) {
+  return PAGE_MODE_TO_AGENT_MODE[req?.body?.agentMode] || globalMode;
+}
+
+module.exports = { resolveAgentMode, requestAgentMode, AGENT_MODES, DEFAULT_MODE };

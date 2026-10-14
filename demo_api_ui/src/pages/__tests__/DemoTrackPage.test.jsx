@@ -196,6 +196,7 @@ describe("DemoTrackPage", () => {
     await waitFor(() =>
       expect(apiClient.post).toHaveBeenCalledWith("/api/agent/invoke", {
         prompt: "show my healthcare balance",
+        agentMode: "heuristics",
         forceHeuristic: true,
         vertical: "healthcare",
       })

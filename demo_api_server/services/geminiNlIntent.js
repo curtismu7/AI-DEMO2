@@ -403,8 +403,8 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
   // Heuristics-only (provider:"heuristic" or agent_mode heuristics) has no LLM
   // fallthrough — allow mode=llm chip messages to match deterministic heuristics
   // instead of short-circuiting to the capability catalog.
-  const { resolveAgentMode, AGENT_MODES } = require('./agentModeResolver');
-  const rawAgentMode = configStore.getEffective('agent_mode');
+  const { resolveAgentMode, requestAgentMode, AGENT_MODES } = require('./agentModeResolver');
+  const rawAgentMode = requestAgentMode(context?.req, configStore.getEffective('agent_mode'));
   const resolvedAgentModeEarly = rawAgentMode
     ? resolveAgentMode(rawAgentMode, configStore.getEffective('agent_external_wiring'))
     : null;
