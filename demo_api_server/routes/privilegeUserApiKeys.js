@@ -25,9 +25,9 @@ const VAULT_ERRORS = {
 router.get('/status', authenticateToken, (req, res) => {
   try {
     const status = getPrivilegeUserApiKeyStatus({ configStore });
-    if (req.user?.role === 'admin') return res.json(status);
+    if (req.user?.role === 'admin') return res.json({ ...status, canManage: true });
     const { apiKeyPreview, apiSecretPreview, ...configured } = status;
-    return res.json(configured);
+    return res.json({ ...configured, canManage: false });
   } catch {
     return unexpectedFailure(res);
   }
