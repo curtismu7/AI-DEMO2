@@ -3,8 +3,11 @@
 //      node setup-pingone.mjs --delete   (remove the resource again)
 // Reads worker creds from demo_api_server/.env (override with OBO_ENV_FILE).
 import fs from 'node:fs';
+import path from 'node:path';
+import { fileURLToPath } from 'node:url';
 
-const ENV_FILE = process.env.OBO_ENV_FILE || '/Users/cmuir/Development/AI-DEMO2/demo_api_server/.env';
+const REPO_ROOT = path.resolve(path.dirname(fileURLToPath(import.meta.url)), '../..');
+const ENV_FILE = process.env.OBO_ENV_FILE || path.join(REPO_ROOT, 'demo_api_server/.env');
 const env = Object.fromEntries(fs.readFileSync(ENV_FILE, 'utf8').split('\n').filter((l) => /^[A-Z_0-9]+=/.test(l))
   .map((l) => { const i = l.indexOf('='); return [l.slice(0, i), l.slice(i + 1).replace(/^["']|["']$/g, '')]; }));
 const E = env.PINGONE_ENVIRONMENT_ID, R = env.PINGONE_REGION;
