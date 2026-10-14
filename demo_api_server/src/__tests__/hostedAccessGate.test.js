@@ -153,6 +153,24 @@ describe('hostedAccessGate', () => {
     expect(res.body).toEqual({ error: 'hosted_access_required' });
   });
 
+  test('redirects a browser navigation to hosted login; fetch still gets 401 JSON', () => {
+    const policy = { enabled: true };
+    const gate = createHostedAccessGate({ policy, hasApproval: () => false });
+    const nav = { ...response(), redirect(url) { this.redirected = url; } };
+    gate({
+      originalUrl: '/api/use-cases?x=1', method: 'GET',
+      headers: { accept: 'text/html,application/xhtml+xml' }, session: {}, hostedSession: {},
+    }, nav, jest.fn());
+    expect(nav.redirected).toBe('/api/auth/hosted-access/login?return_to=%2Fapi%2Fuse-cases');
+
+    const xhr = response();
+    gate({
+      originalUrl: '/api/use-cases', method: 'GET',
+      headers: { accept: 'application/json' }, session: {}, hostedSession: {},
+    }, xhr, jest.fn());
+    expect(xhr.statusCode).toBe(401);
+  });
+
   // Service-to-server calls (mcp-server vertical-tool callback, banking data
   // fetches) carry a Bearer and no hosted cookie — the gate must pass them to
   // authenticateToken instead of 401-ing (broke every vertical tool call on

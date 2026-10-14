@@ -237,7 +237,7 @@ describe('hostedAccessPolicy', () => {
       username: null,
       domain: 'pingone.com',
       approvedAt: 1234,
-      policyFingerprint: policy.fingerprint,
+      policyFingerprint: policy.approvalFingerprint,
     });
     expect(hasCurrentHostedAccessApproval(session, policy)).toBe(true);
     session.user.oauthId = 'user-2';
@@ -249,6 +249,37 @@ describe('hostedAccessPolicy', () => {
     }))).toBe(false);
     clearHostedAccessApproval(session);
     expect(session.hostedAccessApproval).toBeUndefined();
+  });
+
+  test('allowlist edits do not invalidate approvals; revoking the identity does', () => {
+    const policy = loadHostedAccessPolicy(enabledEnv);
+    const session = { user: { oauthId: 'user-1' } };
+    stampHostedAccessApproval(session, evaluateHostedIdentity({
+      sub: 'user-1', email: 'person@pingone.com', email_verified: true,
+    }, policy), policy);
+    const edited = loadHostedAccessPolicy({
+      ...enabledEnv,
+      HOSTED_ACCESS_ALLOWED_DOMAINS: `${enabledEnv.HOSTED_ACCESS_ALLOWED_DOMAINS},extra.example`,
+      HOSTED_ACCESS_ALLOWED_IDENTIFIERS: 'someone-else',
+    });
+    expect(edited.fingerprint).not.toBe(policy.fingerprint);
+    expect(hasCurrentHostedAccessApproval(session, edited)).toBe(true);
+    // group rule can't be re-checked from the approval, so it still invalidates
+    expect(hasCurrentHostedAccessApproval(session, loadHostedAccessPolicy({
+      ...enabledEnv, HOSTED_ACCESS_REQUIRED_GROUP_ID: 'grp-1',
+    }))).toBe(false);
+  });
+
+  test('approval for a plus-addressed identity dies when plus rejection is on and it is not allowlisted', () => {
+    const open = loadHostedAccessPolicy({ ...enabledEnv, HOSTED_ACCESS_REJECT_PLUS_ADDRESSING: 'false' });
+    const session = { user: { oauthId: 'u' } };
+    stampHostedAccessApproval(session, evaluateHostedIdentity({
+      sub: 'u', email: 'a+b@pingone.com', email_verified: true,
+    }, open), open);
+    expect(hasCurrentHostedAccessApproval(session, open)).toBe(true);
+    expect(hasCurrentHostedAccessApproval(session, loadHostedAccessPolicy({
+      ...enabledEnv, HOSTED_ACCESS_REJECT_PLUS_ADDRESSING: 'true',
+    }))).toBe(false);
   });
 
   test('group_not_allowed denial logs subject, email and reason', () => {
