@@ -173,7 +173,16 @@
 }
 
 .hmc-btn--run {
-  padding: 4px 12px;
+  padding: 4px 14px;
+  font-weight: 600;
+  background: var(--th-status-info-solid);
+  border-color: var(--th-status-info);
+  color: #fff;
+  box-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.hmc-btn--run:hover:not(:disabled) {
+  filter: brightness(1.15);
 }
 
 .hmc-error {
@@ -286,6 +295,33 @@
 
 .hmc-card-head:hover {
   background: var(--th-bg-hover);
+}
+
+.hmc-card:has(.hmc-card-head:hover) {
+  border-color: var(--th-status-info);
+}
+
+.hmc-card-head:focus-visible {
+  outline: 2px solid var(--th-status-info);
+  outline-offset: -2px;
+}
+
+/* Chevron = "this row expands"; rotates when open. */
+.hmc-card-head::after {
+  content: '';
+  flex: none;
+  width: 8px;
+  height: 8px;
+  margin: 0 4px 3px 2px;
+  border: solid var(--th-text);
+  border-width: 0 2px 2px 0;
+  transform: rotate(45deg);
+  transition: transform 0.15s;
+}
+
+.hmc-card-head[aria-expanded='true']::after {
+  transform: rotate(-135deg);
+  margin-bottom: -3px;
 }
 
 .hmc-tool {

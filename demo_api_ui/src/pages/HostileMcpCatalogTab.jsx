@@ -382,8 +382,8 @@ export default function HostileMcpCatalogTab() {
             <button
               type="button"
               className="hmc-btn hmc-btn--danger"
-              disabled={relayBusy || !runwayReady}
-              onClick={runAll}
+              disabled={relayBusy || (!runwayReady && !doorUrls[activeDoor])}
+              onClick={runwayReady ? runAll : () => pointAtDoor(activeDoor)}
               title={runwayReady ? 'Run every test in sequence' : 'One click: points the relay at the hostile door and starts the Privilege sign-in'}
             >
               {relayBusy ? 'Running…' : `Run all ${testPlan.length}`}
@@ -498,8 +498,8 @@ export default function HostileMcpCatalogTab() {
                           <button
                             type="button"
                             className="hmc-btn hmc-btn--run"
-                            disabled={relayBusy || !runwayReady}
-                            onClick={() => runTest(test)}
+                            disabled={relayBusy || (!runwayReady && !doorUrls[activeDoor])}
+                            onClick={() => (runwayReady ? runTest(test) : pointAtDoor(activeDoor))}
                             title={runwayReady ? `Fire this through the ${activeDoor} door` : 'One click: points the relay at the hostile door and starts the Privilege sign-in'}
                           >
                             {run && relayBusy ? 'Running…' : 'Run'}
