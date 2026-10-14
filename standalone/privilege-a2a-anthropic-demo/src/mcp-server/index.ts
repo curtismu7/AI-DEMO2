@@ -154,7 +154,11 @@ function buildServer(): McpServer {
           inputSchema: { subject: z.string().optional().describe('Optional subject of the lookup') },
           annotations: { readOnlyHint: true },
         },
-        async () => json(tool.result),
+        async ({ subject }) => {
+          // Per-user records win when the subject matches; everyone else keeps the shared fixture.
+          const key = subject?.replace(/[^a-z0-9]/gi, '').toLowerCase() ?? '';
+          return json(tool.records?.[key] ?? tool.result);
+        },
       );
     }
   }

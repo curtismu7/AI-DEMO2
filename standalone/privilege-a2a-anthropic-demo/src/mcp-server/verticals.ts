@@ -8,8 +8,8 @@
 export interface VerticalSpecialist {
   specialistName: string;
   subtaskHint: string;
-  /** tool name -> description and fixture result */
-  tools: Record<string, { description: string; result: unknown }>;
+  /** tool name -> description and fixture result; `records` (keyed by lowercase user id) overrides `result` for that user */
+  tools: Record<string, { description: string; result: unknown; records?: Record<string, unknown> }>;
 }
 
 const sensitive = (data: unknown) => ({ data, sensitiveDataAccessed: true });
@@ -77,6 +77,9 @@ export const VERTICALS: Record<string, VerticalSpecialist> = {
     tools: { sensitive_membership_details: {
       description: 'Access the customer’s sensitive membership details.',
       result: sensitive({ membershipTier: 'Gold', renewsOn: '2026-08-01', lifetimeSpend: 1842.5, benefits: ['free shipping', 'early access'] }),
+      records: {
+        demouser: sensitive({ membershipTier: 'Silver', renewsOn: '2027-02-14', lifetimeSpend: 412.9, benefits: ['free shipping'] }),
+      },
     } },
   },
   workforce: {
