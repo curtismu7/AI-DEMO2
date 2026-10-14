@@ -106,7 +106,7 @@ only for reading (and only for Remote Agent apps — see the display bug above).
 
 ## Our live policy set
 
-11 `demo-map-*` policies, one per app family, all created via the API
+10 `demo-map-*` policies, one per app family, all created via the API
 (2026-10-11). The regexes below are the *authoritative* patterns; the full
 per-resource tag assignments live in
 [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md) ("Tag map").
@@ -123,7 +123,6 @@ per-resource tag assignments live in
 | `demo-map-libre` | `^libre$` | `demo=redteam-hostile-mcp`, `purpose=hostile-redteam` |
 | `demo-map-mcp` | `^banking-` | `demo=banking-demo`, `purpose=banking-demo` |
 | `demo-map-opensearch` | `^opensearch$` | `demo=step-25-access-review`, `purpose=demo-opensearch` |
-| `demo-map-opensearch22` | `^opensearch22$` | `demo=step-25-access-review` (orphan: the app was deleted 2026-10-12) |
 
 ## Maintenance rule
 
