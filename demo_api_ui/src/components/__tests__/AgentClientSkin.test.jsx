@@ -64,4 +64,26 @@ describe('AgentClientSkin', () => {
     fireEvent.click(screen.getByText(/🪟 Pop Out/i));
     expect(onPopOut).toHaveBeenCalled();
   });
+  describe('suggestions (empty-state chips)', () => {
+    const suggestions = ['Always book me an aisle seat', 'What do you remember about me?'];
+
+    it('shows chips while only the greeting is on screen, and clicking one sends it', () => {
+      const onSend = vi.fn();
+      render(<AgentClientSkin {...baseProps} skin="dot" onSend={onSend} suggestions={suggestions} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Always book me an aisle seat' }));
+      expect(onSend).toHaveBeenCalledWith('Always book me an aisle seat');
+      expect(screen.getByRole('button', { name: 'What do you remember about me?' })).toBeTruthy();
+    });
+
+    it('hides the chips once the conversation has started', () => {
+      const messages = [{ role: 'agent', text: 'Hi' }, { role: 'user', text: 'Hello' }];
+      render(<AgentClientSkin {...baseProps} skin="dot" messages={messages} suggestions={suggestions} />);
+      expect(screen.queryByRole('button', { name: 'Always book me an aisle seat' })).toBeNull();
+    });
+
+    it('renders no chips when none are passed (other skins unchanged)', () => {
+      render(<AgentClientSkin {...baseProps} />);
+      expect(screen.queryByRole('group', { name: /suggested/i })).toBeNull();
+    });
+  });
 });
