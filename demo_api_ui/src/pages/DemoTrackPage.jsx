@@ -7,6 +7,7 @@ import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import { useThemeOptional } from "../context/ThemeContext";
 import "./DemoTrackPage.css";
 import InlineSpinner from '../components/shared/InlineSpinner';
+import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 
 const POLL_MS = 5000;
 const ACT_META = {
@@ -98,6 +99,7 @@ function SlotRow({ tag, slot, stamp, prompt, onRun, runStatus, canRun }) {
 export default function DemoTrackPage() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
   const [state, setState] = useState(null); // { track, run } (live)
+  const [agentMode, setAgentMode] = usePageAgentMode('demo-track', 'heuristics');
   const [history, setHistory] = useState([]);
   const [viewRunId, setViewRunId] = useState("live");
   const [expanded, setExpanded] = useState(null); // stepId | null — manual expand overlay
@@ -267,7 +269,13 @@ export default function DemoTrackPage() {
         }
         const prompt = promptFor(step, color, slot);
         if (!prompt) throw new Error("no dispatchable chip for this slot");
-        const res = await apiClient.post("/api/agent/invoke", { prompt, forceHeuristic: true, vertical: vertical || "banking" });
+        const res = await apiClient.post("/api/agent/invoke", {
+          prompt,
+          agentMode,
+          // Scripted slots resolve their chip deterministically; llama.cpp mode lets the model route instead.
+          ...(agentMode === "heuristics" ? { forceHeuristic: true } : {}),
+          vertical: vertical || "banking",
+        });
         // Keep what the agent actually said + which tool ran, so the presenter
         // sees WHAT happened, not just that a slot stamped.
         setSlotResponses((cur) => ({ ...cur, [key]: { reply: res.data?.reply || "", tools: res.data?.toolsCalled || [] } }));
@@ -282,7 +290,7 @@ export default function DemoTrackPage() {
     } catch {
       setSlotRun(key, "error");
     }
-  }, [promptFor, vertical, load, setSlotRun]);
+  }, [promptFor, vertical, load, setSlotRun, agentMode]);
 
   if (error) return <div className="dtp-error">Demo Track unavailable — {error}</div>;
   if (!state || !run) return <div className="dtp-loading"><InlineSpinner label="Loading demo track…" /></div>;
@@ -416,7 +424,7 @@ export default function DemoTrackPage() {
     <div className="dtp-root">
       <div className="dtp-topbar">
         <div>
-          <div className="dtp-brand">🔐 Guided Demo Track</div>
+          <div className="dtp-brand">🔐 Guided Demo Track <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} /></div>
           <div className="dtp-subtitle">
             Two acts · {steps.length} steps · every step ends with a permit AND a deny
             {vertical && <span className="dtp-vertical-badge">Vertical: {vertical}</span>}

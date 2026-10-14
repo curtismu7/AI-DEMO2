@@ -12,7 +12,7 @@ const { resolveMcpAccessTokenWithEvents } = require('./agentMcpTokenService');
 const z = require('zod');
 const appEventService = require('./appEventService');
 const { parseHeuristic, buildCatalogMessage, resolveVerticalRouting } = require('./nlIntentParser');
-const { resolveAgentMode } = require('./agentModeResolver');
+const { resolveAgentMode, requestAgentMode } = require('./agentModeResolver');
 const configStore = require('./configStore');
 const dataStore = require('../data/store');
 const { verticalManifest } = require('./verticalManifest');
@@ -570,7 +570,7 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // so on the LLM-fallback path heuristicFallbackResult stays null and the
     // reasoning_unavailable branch uses the generic message.
     const heuristicFallbackResult = null;
-    const rawMode = configStore.getEffective('agent_mode');
+    const rawMode = requestAgentMode(req, configStore.getEffective('agent_mode'));
     const _agentMode = rawMode
       ? resolveAgentMode(
           rawMode, configStore.getEffective('agent_external_wiring'))

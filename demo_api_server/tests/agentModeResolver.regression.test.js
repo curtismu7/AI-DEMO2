@@ -1,5 +1,5 @@
 // banking_api_server/tests/agentModeResolver.regression.test.js
-const { resolveAgentMode, AGENT_MODES, DEFAULT_MODE } = require('../services/agentModeResolver');
+const { resolveAgentMode, requestAgentMode, AGENT_MODES, DEFAULT_MODE } = require('../services/agentModeResolver');
 
 describe('resolveAgentMode (five single-brain modes)', () => {
   test('heuristics: no provider, heuristic routing on, no external wiring', () => {
@@ -80,5 +80,18 @@ describe('resolveAgentMode (five single-brain modes)', () => {
 
   test('DEFAULT_MODE export is heuristics', () => {
     expect(DEFAULT_MODE).toBe('heuristics');
+  });
+});
+
+describe('requestAgentMode (a page\'s own toggle beats the global mode)', () => {
+  test('heuristics and llm map to their agent modes whatever the global is', () => {
+    expect(requestAgentMode({ body: { agentMode: 'heuristics' } }, 'gemini')).toBe('heuristics');
+    expect(requestAgentMode({ body: { agentMode: 'llm' } }, 'heuristics')).toBe('llamacpp');
+  });
+  test('absent or unknown values leave the global mode alone', () => {
+    expect(requestAgentMode({ body: {} }, 'gemini')).toBe('gemini');
+    expect(requestAgentMode({ body: { agentMode: 'bogus' } }, 'gemini')).toBe('gemini');
+    expect(requestAgentMode(null, 'claude')).toBe('claude');
+    expect(requestAgentMode({}, undefined)).toBeUndefined();
   });
 });

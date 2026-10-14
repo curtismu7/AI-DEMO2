@@ -14,6 +14,7 @@ import PersonalAgentClientWindow from '../PersonalAgentClientWindow';
 
 describe('PersonalAgentClientWindow', () => {
   beforeEach(() => {
+    localStorage.clear();
     window.location.search = '?skin=privilege&theme=dark';
     apiClient.get.mockReset();
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({
@@ -38,6 +39,21 @@ describe('PersonalAgentClientWindow', () => {
     expect(screen.getByText(/Live/i)).toBeTruthy();
   });
 
+  it('sends the page\'s own Heuristics choice, remembered under the personal-agent key', async () => {
+    render(<PersonalAgentClientWindow />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Heuristics' }));
+    const input = screen.getByRole('textbox');
+
+    fireEvent.change(input, { target: { value: 'check my miles' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
+      body: JSON.stringify({ prompt: 'check my miles', vertical: 'airlines', agentMode: 'heuristics' }),
+    })));
+    expect(localStorage.getItem('agentMode:personal-agent')).toBe('heuristics');
+    expect(localStorage.getItem('agentMode:demo-track')).toBeNull();
+  });
+
   it('sends the Digital Assistant request through the real invoke route', async () => {
     render(<PersonalAgentClientWindow />);
     const input = screen.getByRole('textbox');
@@ -51,6 +67,7 @@ describe('PersonalAgentClientWindow', () => {
       body: JSON.stringify({
         prompt: 'check my miles',
         vertical: 'airlines',
+        agentMode: 'llm',
       }),
     })));
     expect(await screen.findByText('Delegated action complete.')).toBeTruthy();
@@ -65,7 +82,7 @@ describe('PersonalAgentClientWindow', () => {
     render(<PersonalAgentClientWindow />);
     fireEvent.click(await screen.findByRole('button', { name: /Run UC38 action/i }));
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge' }),
+      body: JSON.stringify({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge', agentMode: 'llm' }),
     })));
     expect(screen.queryByRole('textbox')).toBeNull();
   });

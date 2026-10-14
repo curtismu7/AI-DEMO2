@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AgentClientSkin from '../components/AgentClientSkin';
 import apiClient from '../services/apiClient';
+import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 import './WorkloadAgentsPage.css';
 
 const GREETINGS = {
@@ -12,6 +13,7 @@ const GREETINGS = {
 };
 
 export default function PersonalAgentClientWindow() {
+  const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
   const params = new URLSearchParams(window.location.search);
   const skin = params.get('skin') || 'privilege';
   const theme = params.get('theme') || 'dark';
@@ -37,7 +39,7 @@ export default function PersonalAgentClientWindow() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: scenario.runPrompt, vertical, useCaseId: scenario.useCaseId }),
+      body: JSON.stringify({ prompt: scenario.runPrompt, vertical, useCaseId: scenario.useCaseId, agentMode }),
     }).then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
@@ -57,7 +59,7 @@ export default function PersonalAgentClientWindow() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines' }),
+      body: JSON.stringify({ prompt: text, vertical: 'airlines', agentMode }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -92,6 +94,9 @@ export default function PersonalAgentClientWindow() {
         <div style={{ width: 7, height: 7, borderRadius: '50%', background: '#22c55e', animation: 'blink 1.5s infinite' }} />
         Live — token events streaming to main window
         <style>{`@keyframes blink{0%,100%{opacity:1}50%{opacity:.2}}`}</style>
+      </div>
+      <div style={{ display: 'flex', justifyContent: 'flex-end', padding: '4px 12px' }}>
+        <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} />
       </div>
       <AgentClientSkin
         skin={skin}

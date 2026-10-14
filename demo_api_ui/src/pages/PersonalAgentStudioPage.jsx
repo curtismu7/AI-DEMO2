@@ -11,6 +11,7 @@ import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import InlineSpinner from '../components/shared/InlineSpinner';
+import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua', 'dot'];
 const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini', cua: 'Computer Use', dot: 'Dot' };
@@ -93,6 +94,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const [mfaChallenge, setMfaChallenge] = useState(null);
   const [layoutState, setLayoutState] = useState('full');
   const [activeSkin, setActiveSkin] = useState('privilege');
+  const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
   const [theme, setTheme] = useState('dark');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [dotMemoryNonce, setDotMemoryNonce] = useState(0);
@@ -142,7 +144,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       credentials: 'include',
       signal: controller.signal,
       // An approved challenge id is what lets the retry through the gateway's approval gate.
-      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId, ...(approvedChallengeId ? { hitlChallengeId: approvedChallengeId } : {}) }),
+      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId, agentMode, ...(approvedChallengeId ? { hitlChallengeId: approvedChallengeId } : {}) }),
     }).then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!isCurrentRun()) return null;
@@ -161,7 +163,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     }).catch((error) => {
       if (isCurrentRun()) setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' });
     });
-  }, [vertical, setTokenEvents]);
+  }, [vertical, setTokenEvents, agentMode]);
 
   useEffect(() => {
     // stepup=done is what the BFF's step-up route appends on the way back.
@@ -176,7 +178,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines' }),
+      body: JSON.stringify({ prompt: text, vertical: 'airlines', agentMode }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -195,7 +197,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         ...prev.filter((m) => !m.typing),
         { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
       ]))
-  }, []);
+  }, [agentMode]);
 
   // Scripted CUA run: the same invoke path as handleSend, each step labeled as a
   // computer-use action, sequenced so the token chain shows the full path.
@@ -350,7 +352,8 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         </div>
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: 6, marginLeft: 'auto' }}>
+        <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', alignItems: 'center' }}>
+          <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} />
           <button
             onClick={() => setLayoutState((s) => s === 'split' ? 'full' : 'split')}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'split' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'split' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'split' ? 'var(--th-status-info-text)' : 'var(--th-text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
