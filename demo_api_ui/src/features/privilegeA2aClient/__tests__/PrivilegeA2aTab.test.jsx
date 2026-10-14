@@ -71,6 +71,29 @@ describe('PrivilegeA2aTab', () => {
     expect(localStorage.getItem('agentMode:dashboard')).toBeNull();
   });
 
+  test('"Open run details" is off until a run starts, then asks the agent for the sequence view', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's1' } },
+    ]));
+    const opened = vi.fn();
+    window.addEventListener('agent-evidence-open', opened);
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    const button = screen.getByRole('button', { name: 'Open run details' });
+    expect(button).toBeDisabled();
+
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol Nguyen');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    expect(await screen.findByText('Done.')).toBeTruthy();
+    expect(button).toBeEnabled();
+
+    await user.click(button);
+    expect(opened).toHaveBeenCalledTimes(1);
+    expect(opened.mock.calls[0][0].detail).toEqual({ view: 'sequence-view' });
+    window.removeEventListener('agent-evidence-open', opened);
+  });
+
   test('submits through the same-origin BFF and carries the returned session ID forward', async () => {
     global.fetch
       .mockResolvedValueOnce(streamResponse([

@@ -106,7 +106,7 @@ describe('fixed-purpose authenticated administrator routes', () => {
   test('status returns only masked vault presence and trusted controller URL', async () => {
     const res = await request(app).get(`${prefix}/status?baseUrl=https://attacker.example`).set('x-test-role', 'admin');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ apiKeySet: true, apiSecretSet: true, apiKeyPreview: 'synt••••••••inel', apiSecretPreview: 'synt••••••••inel', missingEntries: [], controllerUrl: 'https://synthetic-controller.example' });
+    expect(res.body).toEqual({ apiKeySet: true, apiSecretSet: true, canManage: true, apiKeyPreview: 'synt••••••••inel', apiSecretPreview: 'synt••••••••inel', missingEntries: [], controllerUrl: 'https://synthetic-controller.example' });
     expect(configStore.getVaultValue.mock.calls.map(call => call[0])).toEqual(['PRIVILEGE_USER_API_KEY', 'PRIVILEGE_USER_API_SECRET']);
     assertSafe(res.body);
     expect(vaultLib.openVault).not.toHaveBeenCalled();
@@ -116,7 +116,7 @@ describe('fixed-purpose authenticated administrator routes', () => {
   test('customers can read configured/missing state but never the masked key previews', async () => {
     const res = await request(app).get(`${prefix}/status`).set('x-test-role', 'customer');
     expect(res.status).toBe(200);
-    expect(res.body).toEqual({ apiKeySet: true, apiSecretSet: true, missingEntries: [], controllerUrl: expect.any(String) });
+    expect(res.body).toEqual({ apiKeySet: true, apiSecretSet: true, canManage: false, missingEntries: [], controllerUrl: expect.any(String) });
     expect(res.body).not.toHaveProperty('apiKeyPreview');
     expect(res.body).not.toHaveProperty('apiSecretPreview');
   });

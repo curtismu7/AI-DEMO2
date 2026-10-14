@@ -626,11 +626,15 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-tab--active {
   color: #fff;
   border: 2px solid var(--tab-accent, #007acc);
-  background: var(--tab-accent, #007acc);
+  /* Same soft mix as the section under it, so tab and section match. */
+  background: color-mix(in srgb, var(--tab-accent, #007acc) 28%, #1e1e1e);
 }
 .cur-tab--chat:hover, .cur-tab--tools:hover,
 .cur-tab--user-api-keys:hover, .cur-tab--mcp:hover, .cur-tab--rpc:hover,
 .cur-tab--policies:hover { background: rgba(255, 255, 255, 0.06); }
+/* Hovering the active tab must not drop its color. */
+.cur-ide .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #007acc) 28%, #1e1e1e); }
+.cur-ide[data-cur-theme="light"] .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #007acc) 14%, #ffffff); }
 
 /* Editor area */
 .cur-editor-area {
@@ -1379,7 +1383,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab { color: #666; }
 .cur-ide[data-cur-theme="light"] .cur-tab:hover,
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab:hover { color: #222; }
-.cur-ide[data-cur-theme="light"] .cur-tab--active { background: var(--tab-accent, #ffffff); color: #fff; border-color: var(--tab-accent, #007acc); }
+.cur-ide[data-cur-theme="light"] .cur-tab--active { background: color-mix(in srgb, var(--tab-accent, #007acc) 14%, #ffffff); color: #1e1e1e; border-color: var(--tab-accent, #007acc); }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab--active { color: #000; }
 
 /* Status pill + model badge */

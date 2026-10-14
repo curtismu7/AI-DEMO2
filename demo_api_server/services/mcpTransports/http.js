@@ -21,7 +21,7 @@
 const axios = require('axios');
 const { normalizeAxiosError } = require('../../utils/normalizeAxiosError');
 
-const TIMEOUT_MS = 15_000;
+const TIMEOUT_MS = 30_000;
 const DEFAULT_PROTOCOL_VERSION = '2024-11-05';
 
 // sessionKey(profile) -> { sessionId, protocolVersion, initialized, pending }
