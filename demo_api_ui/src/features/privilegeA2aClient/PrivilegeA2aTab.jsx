@@ -2,11 +2,13 @@ import { useEffect, useRef, useState } from 'react';
 import { MarkdownContent } from '../../components/shared/MarkdownText';
 import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/gatewayEvents';
 import { PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID, PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
+import PageAgentModeToggle, { usePageAgentMode } from '../../components/shared/PageAgentModeToggle';
 import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
 import './PrivilegeA2aTab.css';
 
 export default function PrivilegeA2aTab() {
   const profile = usePrivilegeA2aProfile();
+  const [agentMode, setAgentMode] = usePageAgentMode('privilege-a2a');
   const demoQuestions = profile?.questions?.length ? profile.questions : PRIVILEGE_A2A_DEMO_QUESTIONS;
   const [input, setInput] = useState('');
   const [selectedQuestion, setSelectedQuestion] = useState('');
@@ -71,7 +73,7 @@ export default function PrivilegeA2aTab() {
     try {
       // One run feeds both surfaces: this tab's conversation and trace, and the floating agent
       // (reel, sequence view and the answer), which receives it as Step 25A and stays on this page.
-      const run = runPrivilegeA2aChatRun({ message, sessionId, profile, onEvent: handleEvent, signal: controller.signal });
+      const run = runPrivilegeA2aChatRun({ message, sessionId, mode: agentMode, profile, onEvent: handleEvent, signal: controller.signal });
       window.dispatchEvent(new CustomEvent('agent-demo-step-select', {
         detail: {
           uc: {
@@ -105,6 +107,7 @@ export default function PrivilegeA2aTab() {
       <header className="privilege-a2a__header">
         <div>
           <h2 id="privilege-a2a-title">A2A access review</h2>
+          <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} disabled={busy} />
           <p>Ask about an entitlement. The main agent hands the lookup to a worker agent, which checks access data through MCP. In gateway mode every hop goes through the PingOne Agent Privilege: each agent uses its own agent key, and the gateway screens the messages and the tool results.</p>
         </div>
         <ol className="privilege-a2a__path" aria-label="Agent request path">

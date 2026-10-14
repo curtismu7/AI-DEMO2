@@ -385,6 +385,32 @@ test('main delegates through authenticated A2A, worker calls authenticated MCP, 
     const workerBanking = bankingCalls.find(call => call.model === 'test-worker')!;
     assert.deepEqual(workerBanking.request.tools?.map(tool => tool.name).sort(), [...bankingTools].sort(), 'worker is offered only the banking tools');
     assert.match(String((workerBanking.request as { system?: string }).system), /Investment Advisor/);
+
+    // Same profile with mode 'heuristics': zero model calls, same trace hops, same MCP data.
+    const beforeHeuristic = calls.length;
+    const heuristicResponse = await fetch(`http://127.0.0.1:${mainPort}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-A2A-BFF-Secret': 'test-bff-shared-secret' },
+      body: JSON.stringify({
+        message: 'Show my investment accounts.',
+        sessionId: 'session-heuristic',
+        mode: 'heuristics',
+        vertical: 'banking',
+        agentName: 'Super Banking agent',
+        specialistName: 'Investment Advisor',
+        tool: 'get_portfolio_summary',
+        tools: bankingTools,
+        subtaskHint: 'review the customer’s investment positions',
+      }),
+    });
+    assert.equal(heuristicResponse.status, 200);
+    const heuristicEvents = sseEvents(await heuristicResponse.text());
+    assert.equal(calls.length, beforeHeuristic, 'heuristics mode must not call any model');
+    assert.ok(heuristicEvents.some(event => event.event === 'done'));
+    const heuristicTraces = heuristicEvents.filter(event => event.event === 'trace').map(event => event.data);
+    for (const kind of ['delegate', 'result', 'mcp-call', 'mcp-result']) assert.ok(heuristicTraces.some(t => t.kind === kind), `heuristic run should emit ${kind}`);
+    assert.match(JSON.stringify(heuristicTraces.find(t => t.kind === 'mcp-call')), /get_investment_accounts/, 'keyword pick chose the accounts tool');
+    assert.match(JSON.stringify(heuristicEvents), /INV-1001/, 'the MCP fixture reached the answer');
   } finally {
     await Promise.all(processes.map(child => stopProcess(child.process)));
     await new Promise<void>((resolve, reject) => mockAnthropic.close(error => error ? reject(error) : resolve()));

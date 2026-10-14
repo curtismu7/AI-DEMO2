@@ -224,6 +224,7 @@ export async function startPrivilegeA2aChainRun({
 export async function runPrivilegeA2aChatRun({
   message,
   sessionId,
+  mode,
   onEvent,
   profile,
   store = tokenChainTraceStore,
@@ -259,7 +260,7 @@ export async function runPrivilegeA2aChatRun({
       method: 'POST',
       credentials: 'include',
       headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
-      body: JSON.stringify(sessionId ? { message, sessionId } : { message }),
+      body: JSON.stringify({ message, ...(sessionId ? { sessionId } : {}), ...(mode ? { mode } : {}) }),
       signal,
     });
     if (!response.ok) {

@@ -39,6 +39,7 @@ const {
 const appEventService = require('./appEventService');
 const { specialistForVertical } = require('../config/a2aSpecialists');
 const { callLlamaCpp } = require('./llamacppLlmService');
+const configStore = require('./configStore');
 const { repairAndParseJson } = require('./llmResponseContract');
 
 const DECISION_SCHEMA = {
@@ -161,15 +162,21 @@ async function llmOrchestration({ message, vertical }) {
  * a keyword heuristic on any LLM failure) then execute delegation.
  * Returns routing, execution, result and token-event evidence; never a bearer token.
  */
-async function orchestrateDelegation({ req, message, vertical, userId, availableSpecialists = [], tokenEvents = [] }) {
+async function orchestrateDelegation({ req, message, vertical, userId, mode, availableSpecialists = [], tokenEvents = [] }) {
   appEventService.logEvent('a2a', 'info', 'A2A orchestration starting', {
     tag: 'a2a/orchestrate',
     metadata: { vertical, userId },
   });
 
+  // Heuristics never calls the model. Anything else tries the LLM first and
+  // falls back to the heuristic on failure. `mode` ('heuristics' | 'llm') is the
+  // calling page's own choice; without it the global agent_mode decides.
+  const heuristicOnly = (mode ?? configStore.getEffective('agent_mode')) === 'heuristics';
+
   let orchestrationResult;
   let usedLlm = false;
   try {
+    if (heuristicOnly) throw new Error('heuristics mode selected');
     orchestrationResult = await llmOrchestration({ message, vertical });
     usedLlm = true;
     appEventService.logEvent('a2a', 'info', 'A2A orchestration via LLM', {
@@ -177,20 +184,22 @@ async function orchestrateDelegation({ req, message, vertical, userId, available
       metadata: orchestrationResult,
     });
   } catch (err) {
-    appEventService.logEvent('a2a', 'warn', 'A2A LLM orchestration failed — falling back to heuristics', {
-      tag: 'a2a/llm_failed',
-      metadata: { error: err.message },
-    });
+    if (!heuristicOnly) {
+      appEventService.logEvent('a2a', 'warn', 'A2A LLM orchestration failed — falling back to heuristics', {
+        tag: 'a2a/llm_failed',
+        metadata: { error: err.message },
+      });
+    }
     orchestrationResult = await heuristicOrchestration({ message, vertical, availableSpecialists });
     appEventService.logEvent('a2a', 'info', 'A2A orchestration via heuristics', {
-      tag: 'a2a/heuristic_fallback',
+      tag: heuristicOnly ? 'a2a/heuristic_mode' : 'a2a/heuristic_fallback',
       metadata: orchestrationResult,
     });
   }
 
   const agentHeader = usedLlm
     ? '[A2A ORCHESTRATOR - LLM (llama.cpp)]'
-    : '[A2A ORCHESTRATOR - Heuristic Fallback]';
+    : heuristicOnly ? '[A2A ORCHESTRATOR - Heuristics]' : '[A2A ORCHESTRATOR - Heuristic Fallback]';
   const metadata = {
     framework: usedLlm ? 'llama.cpp' : 'heuristic',
     agentType: 'orchestrator',

@@ -53,3 +53,21 @@ export function withLabels<T extends { from?: unknown; to?: unknown }>(event: T,
   const toLabel = typeof event.to === 'string' ? labelFor(profile, event.to) : undefined;
   return { ...event, ...(fromLabel ? { fromLabel } : {}), ...(toLabel ? { toLabel } : {}) };
 }
+
+/** 'heuristics' when the caller asked for the model-free path; anything else keeps the model. */
+export function parseMode(raw: unknown): 'heuristics' | 'llm' {
+  const m = (raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>;
+  return m.mode === 'heuristics' ? 'heuristics' : 'llm';
+}
+
+const TOOL_HINTS: Array<[RegExp, string]> = [
+  [/transaction|trade|dividend|activity/i, 'get_investment_transactions'],
+  [/account/i, 'get_investment_accounts'],
+  [/balance/i, 'get_investment_balance'],
+];
+
+/** Keyword tool pick for the model-free path: the first hinted tool on offer, else the first tool (single-tool verticals). */
+export function pickTool(tools: string[], question: string): string {
+  for (const [re, name] of TOOL_HINTS) if (tools.includes(name) && re.test(question)) return name;
+  return tools[0] ?? '';
+}

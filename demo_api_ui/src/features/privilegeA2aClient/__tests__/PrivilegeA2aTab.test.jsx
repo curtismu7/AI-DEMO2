@@ -28,6 +28,7 @@ function streamResponse(events, leadingFrame = '') {
 }
 
 beforeEach(() => {
+  localStorage.clear();
   global.fetch = vi.fn();
   apiClient.get.mockReset().mockResolvedValue({ data: { profile: null } });
   loadGatewayRecord.mockReset().mockResolvedValue({ state: 'ready', guardrail: [], modelCalls: [] });
@@ -49,6 +50,25 @@ describe('PrivilegeA2aTab', () => {
   test('falls back to the generic questions with no profile', async () => {
     render(<PrivilegeA2aTab />);
     expect(await screen.findByRole('option', { name: 'Review access on prod-db-primary.' })).toBeTruthy();
+  });
+
+  test('the page toggle is per page: Heuristics rides on the chat request and is remembered', async () => {
+    localStorage.clear();
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+
+    await user.click(screen.getByRole('radio', { name: 'Heuristics' }));
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+
+    expect(await screen.findByText('Done.')).toBeTruthy();
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).mode).toBe('heuristics');
+    expect(localStorage.getItem('agentMode:privilege-a2a')).toBe('heuristics');
+    expect(localStorage.getItem('agentMode:dashboard')).toBeNull();
   });
 
   test('submits through the same-origin BFF and carries the returned session ID forward', async () => {
@@ -82,7 +102,7 @@ describe('PrivilegeA2aTab', () => {
       headers: { Accept: 'text/event-stream', 'Content-Type': 'application/json' },
     });
     expect(global.fetch.mock.calls[0][1].headers.Authorization).toBeUndefined();
-    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ message: 'Review Carol Nguyen' });
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body)).toEqual({ message: 'Review Carol Nguyen', mode: 'llm' });
 
     await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Is it still active?');
     await user.click(screen.getByRole('button', { name: 'Send question' }));
@@ -91,6 +111,7 @@ describe('PrivilegeA2aTab', () => {
     expect(JSON.parse(global.fetch.mock.calls[1][1].body)).toEqual({
       message: 'Is it still active?',
       sessionId: 'opaque-session-42',
+      mode: 'llm',
     });
   });
 

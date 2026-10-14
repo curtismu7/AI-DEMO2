@@ -7,7 +7,16 @@ const { callLlamaCpp } = require('../../services/llamacppLlmService');
 let { executeA2aDelegation } = require('../../services/demoAgentLangGraphService');
 const { orchestrateDelegation } = require('../../services/a2aOrchestratorService');
 
+const configStore = require('../../services/configStore');
+
 const reqStub = { session: {} };
+
+// configStore's default agent_mode is 'heuristics'; the suites below exercise the
+// LLM brain unless they override it.
+beforeEach(() => {
+  jest.spyOn(configStore, 'getEffective').mockImplementation((k) => (k === 'agent_mode' ? 'llamacpp' : undefined));
+});
+afterEach(() => jest.restoreAllMocks());
 
 function jsonReply(obj) {
   return JSON.stringify(obj);
@@ -177,5 +186,55 @@ describe('a2aOrchestratorService.orchestrateDelegation — heuristic fallback', 
     expect(executeA2aDelegation).not.toHaveBeenCalled();
     expect(result.shouldDelegate).toBe(false);
     expect(result.agentHeader).toContain('Heuristic Fallback');
+  });
+});
+
+describe('a2aOrchestratorService.orchestrateDelegation — UI agent mode', () => {
+  let spy;
+  beforeEach(() => {
+    callLlamaCpp.mockReset();
+    executeA2aDelegation = require('../../services/demoAgentLangGraphService').executeA2aDelegation;
+    executeA2aDelegation.mockReset();
+    executeA2aDelegation.mockResolvedValue(JSON.stringify({ delegated: true, actChainDepth: 2, toolError: null }));
+    spy = configStore.getEffective;
+  });
+
+  test('Heuristics mode never calls the model and labels the header "Heuristics"', async () => {
+    spy.mockImplementation((k) => (k === 'agent_mode' ? 'heuristics' : undefined));
+
+    const result = await orchestrateDelegation({
+      req: reqStub, message: 'access my sensitive patient records', vertical: 'healthcare', userId: 'u1',
+    });
+
+    expect(callLlamaCpp).not.toHaveBeenCalled();
+    expect(result.shouldDelegate).toBe(true);
+    expect(result.agentHeader).toBe('[A2A ORCHESTRATOR - Heuristics]');
+  });
+
+  test('llama.cpp mode still tries the LLM first', async () => {
+    spy.mockImplementation((k) => (k === 'agent_mode' ? 'llamacpp' : undefined));
+    callLlamaCpp.mockResolvedValueOnce(JSON.stringify({ shouldDelegate: true, reason: 'r', sensitivity: 'high' }));
+
+    const result = await orchestrateDelegation({
+      req: reqStub, message: 'access my sensitive patient records', vertical: 'healthcare', userId: 'u1',
+    });
+
+    expect(callLlamaCpp).toHaveBeenCalledTimes(1);
+    expect(result.agentHeader).toContain('LLM (llama.cpp)');
+  });
+
+  test('per-request mode beats the global agent_mode, both ways', async () => {
+    spy.mockImplementation((k) => (k === 'agent_mode' ? 'llamacpp' : undefined));
+    await orchestrateDelegation({
+      req: reqStub, message: 'access my sensitive patient records', vertical: 'healthcare', userId: 'u1', mode: 'heuristics',
+    });
+    expect(callLlamaCpp).not.toHaveBeenCalled();
+
+    spy.mockImplementation((k) => (k === 'agent_mode' ? 'heuristics' : undefined));
+    callLlamaCpp.mockResolvedValueOnce(JSON.stringify({ shouldDelegate: true, reason: 'r', sensitivity: 'high' }));
+    await orchestrateDelegation({
+      req: reqStub, message: 'access my sensitive patient records', vertical: 'healthcare', userId: 'u1', mode: 'llm',
+    });
+    expect(callLlamaCpp).toHaveBeenCalledTimes(1);
   });
 });

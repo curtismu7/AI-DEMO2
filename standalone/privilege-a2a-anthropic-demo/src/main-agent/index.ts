@@ -3,7 +3,7 @@ import express, { type Request, type Response } from 'express';
 import Anthropic from '@anthropic-ai/sdk';
 
 import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
-import { parseProfile, parseUserName, withLabels, type Profile } from '../profile.js';
+import { parseMode, parseProfile, parseUserName, withLabels, type Profile } from '../profile.js';
 import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { renderPage } from './ui.js';
@@ -195,6 +195,8 @@ app.post('/chat', async (req: Request, res: Response) => {
   const requestedSession = typeof body.sessionId === 'string' ? body.sessionId.trim() : '';
   const sessionId = requestedSession.length > 0 && requestedSession.length <= 128 ? requestedSession : randomUUID();
   const traceId = randomUUID();
+  // Model-free path: a vertical profile already names the specialist, so delegate the user's text without asking the model.
+  const heuristic = parseMode(body) === 'heuristics' && profile !== null;
   // A vertical change must not reuse another vertical's history.
   const conversationKey = profile ? `${sessionId}:${profile.vertical}` : sessionId;
   const systemPrompt = systemPromptFor(profile, parseUserName(body));
@@ -223,38 +225,44 @@ app.post('/chat', async (req: Request, res: Response) => {
   });
 
   void startWorkerTrace(res, traceAbort.signal, traceId, at, profile);
-  sendSse(res, 'trace', { kind: 'session', text: `session ${sessionId.slice(0, 8)} · ${config.model}`, at: at() });
+  sendSse(res, 'trace', { kind: 'session', text: `session ${sessionId.slice(0, 8)} · ${heuristic ? 'heuristics (no model call)' : config.model}`, at: at() });
 
   try {
     const worker = await buildWorkerClient(config.workerA2aUrl, config.bearer);
     for (let round = 0; round < MAX_DELEGATION_ROUNDS; round += 1) {
       if (abort.signal.aborted) break;
-      const stream = config.anthropic.messages.stream({
-        model: config.model,
-        max_tokens: MAX_OUTPUT_TOKENS,
-        system: systemPrompt,
-        tools: [delegateTool],
-        tool_choice: { type: 'auto', disable_parallel_tool_use: true },
-        messages,
-      });
-      abortActiveModelStream = () => stream.controller.abort();
-      stream.on('text', text => sendSse(res, 'token', { text }));
-      const response = await stream.finalMessage();
-      abortActiveModelStream = undefined;
-      messages.push({ role: 'assistant', content: response.content });
+      let calls: Anthropic.ToolUseBlock[];
+      if (heuristic) {
+        calls = [{ type: 'tool_use', id: 'heuristic', name: DELEGATE_TOOL.name, input: { question: message } } as Anthropic.ToolUseBlock];
+      } else {
+        const stream = config.anthropic.messages.stream({
+          model: config.model,
+          max_tokens: MAX_OUTPUT_TOKENS,
+          system: systemPrompt,
+          tools: [delegateTool],
+          tool_choice: { type: 'auto', disable_parallel_tool_use: true },
+          messages,
+        });
+        abortActiveModelStream = () => stream.controller.abort();
+        stream.on('text', text => sendSse(res, 'token', { text }));
+        const response = await stream.finalMessage();
+        abortActiveModelStream = undefined;
+        messages.push({ role: 'assistant', content: response.content });
 
-      if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {
-        completed = true;
-        break;
-      }
-      if (response.stop_reason === 'pause_turn') continue;
+        if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {
+          completed = true;
+          break;
+        }
+        if (response.stop_reason === 'pause_turn') continue;
 
-      const calls = response.content.filter(
-        (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
-      );
-      if (calls.length === 0) {
-        completed = true;
-        break;
+        calls = response.content.filter(
+            (block): block is Anthropic.ToolUseBlock => block.type === 'tool_use',
+        );
+        if (calls.length === 0) {
+          completed = true;
+          break;
+        }
+
       }
 
       const results: Anthropic.ToolResultBlockParam[] = [];
@@ -287,7 +295,7 @@ app.post('/chat', async (req: Request, res: Response) => {
         sendSse(res, 'trace', { ...withLabels({ from: MAIN, to: 'analyst' }, profile), kind: 'delegate', text: 'concierge → analyst_agent', detail: question, request, at: at() });
         const hopStartedAt = Date.now();
         try {
-          const answer = await worker.sendQuestion(question, traceId, profile ? { vertical: profile.vertical, tools: profile.tools } : undefined);
+          const answer = await worker.sendQuestion(question, traceId, profile ? { vertical: profile.vertical, tools: profile.tools, ...(heuristic ? { mode: 'heuristics' } : {}) } : undefined);
           const response = `HTTP 200\n\n${pretty(JSON.stringify({ jsonrpc: '2.0', id: '<request id>', result: { kind: 'message', role: 'agent', parts: [{ kind: 'text', text: answer }] } })).slice(0, 4000)}`;
           sendSse(res, 'trace', { ...withLabels({ from: 'analyst', to: MAIN }, profile), kind: 'result', text: 'analyst_agent returned', detail: answer, elapsedMs: Date.now() - hopStartedAt, response, at: at() });
           results.push({ type: 'tool_result', tool_use_id: call.id, content: answer });
@@ -298,7 +306,7 @@ app.post('/chat', async (req: Request, res: Response) => {
           results.push({ type: 'tool_result', tool_use_id: call.id, content: detail, is_error: true });
         }
       }
-      messages.push({ role: 'user', content: results });
+      if (!heuristic) messages.push({ role: 'user', content: results });
       if (delegatedAnswer) {
         sendSse(res, 'token', { text: delegatedAnswer });
         messages.push({ role: 'assistant', content: delegatedAnswer });
@@ -333,6 +341,8 @@ app.post('/chat', async (req: Request, res: Response) => {
       sendSse(res, 'error', { error: detail });
     }
   } finally {
+    // ponytail: fixed grace, not a handshake. The model-free run can finish before the worker's trace stream delivers its last hop; add a trace-drain signal if this ever clips.
+    if (heuristic && !abort.signal.aborted) await new Promise(resolve => setTimeout(resolve, 250));
     traceAbort.abort();
     if (!res.writableEnded) res.end();
   }

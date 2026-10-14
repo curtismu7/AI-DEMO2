@@ -139,6 +139,7 @@ router.post('/chat', requireSession, express.json({ limit: '64kb' }), async (req
     message,
     ...profileForMainAgent(activeProfile(req)),
     ...(typeof userName === 'string' && userName ? { userName } : {}),
+    ...(body.mode === 'heuristics' ? { mode: 'heuristics' } : {}),
   };
   if (sessionId) upstreamBody.sessionId = sessionId;
   await relayMainAgentSse(res, '/chat', upstreamBody);

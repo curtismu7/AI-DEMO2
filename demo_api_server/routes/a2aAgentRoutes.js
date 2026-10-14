@@ -48,7 +48,7 @@ router.post('/message', async (req, res) => {
   try {
     appEventService.logEvent('agent', 'info', 'A2A orchestrator request received', { tag: 'agent/a2a_route' });
 
-    const { message, vertical } = req.body;
+    const { message, vertical, mode } = req.body;
     if (!message || typeof message !== 'string') {
       return res.status(400).json({ error: 'Message must be a non-empty string' });
     }
@@ -77,6 +77,7 @@ router.post('/message', async (req, res) => {
       message,
       vertical: activeVertical,
       userId,
+      mode: mode === 'heuristics' || mode === 'llm' ? mode : undefined,
       tokenEvents: tokenEvents || [],
       availableSpecialists: [], // Could be populated from config
     });
