@@ -1890,7 +1890,7 @@ export default function PrivilegeMcpClientPage() {
             <summary className="cur-flow-trigger">More</summary>
             <div className="cur-more__menu">
             <Link className="cur-flow-trigger" to="/use-cases#UC17" title="The JIT credentials demo step that runs here">Demo step</Link>
-            <Link className="cur-flow-trigger" to="/use-case-diagrams/UC46" title="Privilege A2A access review diagram">Diagram</Link>
+            <a className="cur-flow-trigger" href="/use-case-diagrams/UC46" target="_blank" rel="noopener noreferrer" title="Privilege A2A access review diagram (opens in a new tab)">Diagram</a>
             <Link className="cur-flow-trigger" to="/privilege-gateway-topologies" title="Three gateway topologies plus the agent-to-agent sequence the lesson walks">Topologies</Link>
             <a className="cur-flow-trigger" href={KIBANA_URL} target="_blank" rel="noopener noreferrer" title="Open Privilege SIEM logs in Kibana">Logs</a>
             </div>

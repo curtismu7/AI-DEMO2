@@ -75,3 +75,13 @@ describe('legacy A2A link', () => {
     expect(await screen.findByText('a2a page')).toBeInTheDocument();
   });
 });
+
+describe('Diagram link', () => {
+  test('opens the A2A diagram in a new tab', () => {
+    render(<MemoryRouter><PrivilegeA2aPage user={null} /></MemoryRouter>);
+    const link = screen.getByRole('link', { name: 'Diagram' });
+    expect(link).toHaveAttribute('href', '/use-case-diagrams/UC46');
+    expect(link).toHaveAttribute('target', '_blank');
+    expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
+  });
+});

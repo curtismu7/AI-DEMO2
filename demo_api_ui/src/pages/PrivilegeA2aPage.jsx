@@ -62,6 +62,7 @@ export default function PrivilegeA2aPage({ user }) {
           >
             {theme === 'dark' ? 'Light' : 'Dark'}
           </button>
+          <a className="cur-flow-trigger" href="/use-case-diagrams/UC46" target="_blank" rel="noopener noreferrer" title="Privilege A2A access review diagram (opens in a new tab)">Diagram</a>
           <Link className="cur-flow-trigger" to="/privilege-mcp-client">MCP client</Link>
         </div>
       </header>
