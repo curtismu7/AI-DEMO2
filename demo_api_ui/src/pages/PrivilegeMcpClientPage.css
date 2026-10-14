@@ -902,6 +902,12 @@ select.cur-input { cursor: pointer; }
 
 .cur-hitl-hold__icon { font-size: 16px; }
 
+/* Light skin: the dark-skin amber (#b8860b) and grey (#888) are ~3.4:1 on white. */
+.cur-ide[data-cur-theme="light"] .cur-hitl-hold { border-color: #7a5800; background: rgba(122, 88, 0, 0.08); }
+.cur-ide[data-cur-theme="light"] .cur-hitl-hold__title { color: #7a5800; }
+.cur-ide[data-cur-theme="light"] .cur-hitl-hold__instruction { color: #555; }
+.cur-ide[data-cur-theme="light"] .cur-hitl-hold__retry { border-color: #7a5800; color: #7a5800; }
+
 .cur-hitl-hold__title {
   font-weight: 600;
   color: #b8860b;

@@ -2783,7 +2783,7 @@ export default function PrivilegeMcpClientPage() {
                   {hold && (
                     <div className="cur-hitl-hold" data-testid="hitl-hold-card">
                       <div className="cur-hitl-hold__head">
-                        <span className="cur-hitl-hold__icon" aria-hidden="true">⏸</span>
+                        <span className="cur-hitl-hold__icon" aria-hidden="true">✋</span>
                         <span className="cur-hitl-hold__title">Waiting for human approval</span>
                       </div>
                       <p className="cur-hitl-hold__body">
