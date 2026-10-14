@@ -2441,3 +2441,40 @@ select.cur-input { cursor: pointer; }
   /* On short windows the floating "AI Agent" pill rides up over this row too. */
   .cur-ide .cur-a2a-main .privilege-a2a__composer { padding-right: 160px; }
 }
+
+/* ── Inspect drawer ─────────────────────────────────────────────────────── */
+/* Explorer, Raw RPC and Policies open beside Demo instead of replacing it. The
+   drawer rides over the right of the body, so the Demo tabs and the strip keep
+   their place and the presenter can open and close it without losing context. */
+.cur-ide .cur-inspect-drawer {
+  /* A grid item in the body's second row (beside/over .cur-main), so it starts below the
+     connection strip instead of covering its right-hand cells. */
+  grid-column: 2;
+  grid-row: 2;
+  justify-self: end;
+  align-self: stretch;
+  min-height: 0;
+  z-index: 20;
+  width: min(560px, 52%);
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  border-left: 1px solid var(--cur-prompt-border);
+  background: var(--cur-prompt-surface);
+  box-shadow: -8px 0 24px rgba(0, 0, 0, 0.3);
+}
+.cur-ide .cur-inspect-drawer .cur-tabs { flex-shrink: 0; align-items: center; }
+.cur-ide .cur-inspect-drawer .cur-editor-area { flex: 1; min-height: 0; overflow: auto; }
+.cur-ide .cur-inspect-drawer__close {
+  margin-left: auto;
+  min-width: 32px;
+  min-height: 32px;
+  border: 1px solid var(--cur-prompt-border);
+  border-radius: 4px;
+  background: transparent;
+  color: inherit;
+  cursor: pointer;
+}
+@media (max-width: 900px) {
+  .cur-ide .cur-inspect-drawer { width: 100%; }
+}
