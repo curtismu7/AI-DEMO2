@@ -31,6 +31,11 @@ export function parseProfile(raw: unknown): Profile | null {
   return { ...base, agentName, specialistName, subtaskHint };
 }
 
+/** The signed-in user's name as the BFF reports it (from its own session, never the browser), or '' when absent or invalid. */
+export function parseUserName(raw: unknown): string {
+  return str(((raw && typeof raw === 'object' ? raw : {}) as Record<string, unknown>).userName);
+}
+
 const clip = (s: string): string => s.slice(0, 80);
 
 /** Display labels for a role key: main -> agent, analyst -> specialist, mcp -> its tool set. */

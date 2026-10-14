@@ -81,11 +81,26 @@ beforeEach(() => {
     close() {}
   };
   // jsdom refuses a real navigation assignment; the page only ever sets href.
+  sessionStorage.clear();
   delete window.location;
   window.location = { href: "", search: "" };
 });
 
 describe("Privilege silent auto-connect", () => {
+  // One login covers both: the page was opened signed out (flag), the user then
+  // signed in to the app and came back. That click carries over to the gateway.
+  it("connects the gateway silently after an app sign-in that began on this page", async () => {
+    mockState({ mainAppAuthenticated: false });
+    renderAt("/privilege-mcp-client");
+    await waitFor(() => expect(global.fetch).toHaveBeenCalled());
+    expect(authStartCalls()).toHaveLength(0);
+
+    mockState({ mainAppAuthenticated: true });
+    renderAt("/privilege-mcp-client");
+    await waitFor(() => expect(authStartCalls()).toHaveLength(1));
+    expect(sessionStorage.getItem("cur_priv_chain_gateway")).toBeNull();
+  });
+
   it("does NOT auto-start when the main app is signed in and Privilege is not", async () => {
     mockState({ mainAppAuthenticated: true });
     renderAt("/privilege-mcp-client");

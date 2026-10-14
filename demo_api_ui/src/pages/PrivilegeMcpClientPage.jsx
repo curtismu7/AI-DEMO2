@@ -22,6 +22,10 @@ import './PrivilegeMcpClientPage.css';
 
 const API_BASE = '/api/privilege-mcp';
 const SILENT_DOOR_SWITCH_KEY = 'cur_priv_silent_door_switch';
+// Set when this page loads with no app session. If the user then signs in to the
+// app (their click) and lands back here, that same intent also connects the
+// gateway silently, so one login covers both. Absent flag = no navigation.
+const CHAIN_GATEWAY_KEY = 'cur_priv_chain_gateway';
 const readSessionFlag = (key) => {
   try { return sessionStorage.getItem(key) === '1'; } catch { return false; }
 };
@@ -776,7 +780,12 @@ export default function PrivilegeMcpClientPage() {
         requestSignIn('The gateway could not reuse your existing session for this door. Sign in once to connect it.');
       } else if (s.mainAppAuthenticated && !s.oauth?.authenticated && searchParams.get('auth')) {
         requestSignIn();
+      } else if (s.mainAppAuthenticated && !s.oauth?.authenticated && readSessionFlag(CHAIN_GATEWAY_KEY)) {
+        // Cleared before leaving so a failed silent attempt cannot loop.
+        writeSessionFlag(CHAIN_GATEWAY_KEY, false);
+        startAuthRedirect({ silentOnly: true }).catch(() => {});
       }
+      if (!s.mainAppAuthenticated) writeSessionFlag(CHAIN_GATEWAY_KEY, true);
 
     }).catch(() => {});
     // eslint-disable-next-line react-hooks/exhaustive-deps
