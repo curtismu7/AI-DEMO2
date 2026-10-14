@@ -207,7 +207,7 @@ spec:
       - name: ghcr-pull-secret
       containers:
       - name: mainagentdemo
-        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-746bcbee0de0cc604c38881f89314dfc8ecfbd17
+        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-7142cfcb1
         imagePullPolicy: Always
         command: ["node", "dist/main-agent/index.js"]
         ports:
