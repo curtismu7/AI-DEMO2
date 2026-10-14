@@ -12,6 +12,15 @@ const GREETINGS = {
   dot: "Hi, I'm Dot — your always-on agent. I remember your preferences as we work, and every tool I use is governed by your identity provider. Tell me how you like things done.",
 };
 
+// Prompts that show what Dot does: preference sentences it saves ("Always / Never /
+// Prefer / Call me"), and a recall question. Dot-only; the other skins stay blank.
+const DOT_SUGGESTIONS = [
+  'Always book me an aisle seat',
+  'Never put me on a red-eye',
+  'Call me Sam',
+  'What do you remember about me?',
+];
+
 export default function PersonalAgentClientWindow() {
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
   const params = new URLSearchParams(window.location.search);
@@ -103,6 +112,7 @@ export default function PersonalAgentClientWindow() {
         theme={theme}
         messages={messages}
         onSend={handleSend}
+        suggestions={skin === 'dot' ? DOT_SUGGESTIONS : []}
         showPopOutButton={false}
         onPopOut={null}
       />

@@ -401,7 +401,7 @@ function renderMessage(msg, i, cfg, colors, isTerminal) {
   );
 }
 
-export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', messages = [], onSend, showPopOutButton = false, onPopOut }) {
+export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', messages = [], onSend, showPopOutButton = false, onPopOut, suggestions = [] }) {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
   const cfg = SKIN_CONFIG[skin] || SKIN_CONFIG.privilege;
@@ -450,6 +450,20 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: isTerminal ? '16px 20px' : 20, display: 'flex', flexDirection: 'column', gap: isTerminal ? 8 : 16 }}>
         {messages.map((msg, i) => renderMessage(msg, i, cfg, colors, isTerminal))}
+        {suggestions.length > 0 && messages.length <= 1 && (
+          <div role="group" aria-label="Suggested prompts" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
+            {suggestions.map((text) => (
+              <button
+                key={text}
+                type="button"
+                onClick={() => onSend?.(text)}
+                style={{ fontSize: 12, color: cfg.accentColor, background: 'transparent', border: `1px solid ${cfg.accentColor}`, borderRadius: 14, padding: '5px 12px', cursor: 'pointer' }}
+              >
+                {text}
+              </button>
+            ))}
+          </div>
+        )}
         <div ref={messagesEndRef} />
       </div>
 

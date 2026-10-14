@@ -39,6 +39,21 @@ describe('PersonalAgentClientWindow', () => {
     expect(screen.getByText(/Live/i)).toBeTruthy();
   });
 
+  it('Dot opens with suggested prompts; clicking one sends it to the invoke route', async () => {
+    window.location.search = '?skin=dot&theme=dark';
+    render(<PersonalAgentClientWindow />);
+    fireEvent.click(screen.getByRole('button', { name: 'Always book me an aisle seat' }));
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
+      body: expect.stringContaining('Always book me an aisle seat'),
+    })));
+  });
+
+  it('other skins show no suggested prompts', () => {
+    render(<PersonalAgentClientWindow />);
+    expect(screen.queryByRole('group', { name: /suggested prompts/i })).toBeNull();
+  });
+
   it('sends the page\'s own Heuristics choice, remembered under the personal-agent key', async () => {
     render(<PersonalAgentClientWindow />);
     fireEvent.click(screen.getByRole('radio', { name: 'Heuristics' }));
