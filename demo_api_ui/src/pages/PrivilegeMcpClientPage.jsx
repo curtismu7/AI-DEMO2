@@ -554,7 +554,8 @@ export default function PrivilegeMcpClientPage() {
   });
   const chooseTab = (tab) => {
     setActiveTab(tab);
-    setLastTab((prev) => ({ ...prev, [viewMode]: tab }));
+    const kind = VIEW_TABS.inspect.includes(tab) ? 'inspect' : 'demo';
+    setLastTab((prev) => ({ ...prev, [kind]: tab }));
     const next = new URLSearchParams(searchParams);
     next.set('view', viewMode);
     next.set('tab', tab);
@@ -590,7 +591,10 @@ export default function PrivilegeMcpClientPage() {
   // (a scope pill, a subscription start) and both live on Inspect-only
   // surfaces — but a stored 'inspect' view on a fresh mount would otherwise
   // land on activeTab's 'chat' default, which is not an Inspect tab at all.
-  const visibleTab = VIEW_TABS[viewMode].includes(activeTab) ? activeTab : lastTab[viewMode];
+  // Demo tabs always sit in the main area; Inspect tabs live in a drawer beside it, so
+  // opening Inspect no longer swaps the page away from what you were presenting.
+  const demoTab = VIEW_TABS.demo.includes(activeTab) ? activeTab : lastTab.demo;
+  const inspectTab = VIEW_TABS.inspect.includes(activeTab) ? activeTab : lastTab.inspect;
   const visibleTerminalTab = VIEW_TERMINAL_TABS[viewMode].includes(terminalTab) ? terminalTab : 'trace';
   const mode = llmPath
     ? { ...LLM_PATHS[llmPath], url: llmGatewayUrl }
@@ -2252,14 +2256,14 @@ export default function PrivilegeMcpClientPage() {
 
         {/* Main editor area */}
         <main className="cur-main">
-          <div className="cur-tabs" role="tablist" aria-label={`${viewMode === 'demo' ? 'Demo' : 'Inspect'} tabs`}>
-            {TAB_LABELS.filter(([key]) => VIEW_TABS[viewMode].includes(key)).map(([key, label]) => (
+          <div className="cur-tabs" role="tablist" aria-label="Demo tabs">
+            {TAB_LABELS.filter(([key]) => VIEW_TABS.demo.includes(key)).map(([key, label]) => (
               <button
                 key={key}
                 type="button"
                 role="tab"
-                aria-selected={visibleTab === key}
-                className={`cur-tab cur-tab--${key} ${visibleTab === key ? 'cur-tab--active' : ''}`}
+                aria-selected={demoTab === key}
+                className={`cur-tab cur-tab--${key} ${demoTab === key ? 'cur-tab--active' : ''}`}
                 onClick={() => chooseTab(key)}
               >{label}</button>
             ))}
@@ -2281,8 +2285,8 @@ export default function PrivilegeMcpClientPage() {
             </div>
           </div>
 
-          <div className={`cur-editor-area cur-panel--${visibleTab}`}>
-            {visibleTab === 'chat' && (
+          <div className={`cur-editor-area cur-panel--${demoTab}`}>
+            {demoTab === 'chat' && (
               <>
                 <div className="cur-chat-panel">
                 <div className="cur-chat-messages">
@@ -2338,7 +2342,7 @@ export default function PrivilegeMcpClientPage() {
               </>
             )}
 
-            {visibleTab === 'tools' && (
+            {demoTab === 'tools' && (
               <ToolsTable
                 tools={tools}
                 onExecute={executeToolCall}
@@ -2348,9 +2352,168 @@ export default function PrivilegeMcpClientPage() {
               />
             )}
 
-            {visibleTab === 'user-api-keys' && <PrivilegeUserApiKeysPanel />}
+            {demoTab === 'user-api-keys' && <PrivilegeUserApiKeysPanel />}
 
-            {visibleTab === 'mcp' && (
+
+          </div>
+
+          {/* Terminal panel */}
+          <div className="cur-resize-handle cur-resize-handle--h" onPointerDown={startTerminalDrag} />
+          <div className="cur-terminal" ref={terminalRef}>
+            {/* RELAY LOG and SCOPES are Inspect-only; TRACE and RESULTS carry
+                the demo, so they stay in both. */}
+            <div className="cur-terminal-tabs">
+              {inspecting && <button className={`cur-terminal-tab ${visibleTerminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>}
+              <button className={`cur-terminal-tab ${visibleTerminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
+              {inspecting && <button className={`cur-terminal-tab ${visibleTerminalTab === 'scopes' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('scopes')}>SCOPES</button>}
+              <button
+                key={`results-tab-${resultNonce}`}
+                className={`cur-terminal-tab ${visibleTerminalTab === 'results' ? 'cur-terminal-tab--active' : ''}${resultNonce > 0 && visibleTerminalTab !== 'results' ? ' cur-terminal-tab--flash' : ''}`}
+                onClick={() => setTerminalTab('results')}
+              >
+                RESULTS{toolResults.length > 0 && <span className="cur-terminal-tab-badge">{toolResults.length}</span>}
+              </button>
+              {visibleTerminalTab === 'trace' && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setEvents([])}>Clear</button>}
+              {visibleTerminalTab === 'results' && toolResults.length > 0 && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setToolResults([])}>Clear</button>}
+            </div>
+            <div className="cur-terminal-content">
+              {visibleTerminalTab === 'trace' && (
+                <div className="cur-terminal-log cur-trace-log">
+                  {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
+                  {events.slice(0, 100).map((e, i) => {
+                    const rest = { ...e, ts: undefined, type: undefined };
+                    let label = e.type;
+                    let tone = e.type;
+                    if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; tone = 'relay-outbound'; }
+                    if (e.type === 'relay' && e.direction === 'mcp->client') { const challenge = e.status === 401 || e.status === 403; label = `← MCP ${challenge ? '⚠️' : e.status >= 400 ? '❌' : '✅'} ${e.status}`; tone = challenge ? 'oauth' : e.status >= 400 ? 'relay-error' : 'relay-success'; }
+                    if (e.type === 'oauth') { label = `OAuth: ${e.phase}`; tone = 'oauth'; }
+                    if (e.type === 'mcp') { label = `MCP: ${e.phase}`; tone = 'mcp'; }
+                    if (e.type === 'error') { label = `ERROR: ${e.scope}`; tone = 'error'; }
+                    if (e.type === 'config') { label = 'Config updated'; tone = 'config'; }
+                    // Expected outcomes the relay tags (relayNote) — not faults, so not red.
+                    // Tones reuse the existing grey and amber label colours.
+                    if (e.note === 'handshake_fallback') { label = `← MCP ${e.status} older handshake, falling back`; tone = 'config'; }
+                    if (e.note === 'policy_denied') { label = e.type === 'error' ? `DENIED: ${e.scope} — Privilege policy` : `← MCP ${e.status} denied by Privilege policy`; tone = 'oauth'; }
+                    return (
+                      <details key={i} style={{borderBottom:'1px solid #222',padding:'2px 0'}}>
+                        <summary className="cur-trace-summary">
+                          <span className="cur-trace-ts">{e.ts?.slice(11,23)||''}</span>
+                          <span className={`cur-trace-label cur-trace-label--${tone}`}>{label}</span>
+                          {e.type === 'error' && e.note !== 'policy_denied' && <span className="cur-trace-error">{e.message}</span>}
+                        </summary>
+                        <pre className="cur-trace-json">
+                          {JSON.stringify(rest, null, 2)}
+                        </pre>
+                      </details>
+                    );
+                  })}
+                </div>
+              )}
+              {visibleTerminalTab === 'events' && (
+                <div className="cur-terminal-log">
+                  {events.length === 0 && <span className="cur-terminal-empty">Waiting for events...</span>}
+                  {events.slice(0, 50).map((e, i) => (
+                    <div key={i} className={`cur-terminal-line cur-terminal-line--${e.type}`}>
+                      <span className="cur-terminal-ts">{e.ts?.slice(11, 19) || ''}</span>
+                      <span className={`cur-terminal-badge cur-terminal-badge--${e.type}`}>{e.type}</span>
+                      <span className="cur-terminal-msg">{JSON.stringify({ ...e, ts: undefined, type: undefined }, null, 0)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {visibleTerminalTab === 'scopes' && (
+                <div className="cur-terminal-scopes">
+                  {grantedScopes.length === 0 ? (
+                    <span className="cur-terminal-empty">No scopes granted yet — sign in first</span>
+                  ) : (
+                    <div className="cur-scopes-detail">
+                      <div className="cur-scopes-summary">
+                        <span className="cur-scopes-count-large">{grantedScopes.length}</span>
+                        <span className="cur-scopes-count-label">scopes granted</span>
+                      </div>
+                      <table className="cur-scopes-table">
+                        <thead><tr><th>Scope</th><th>Category</th></tr></thead>
+                        <tbody>
+                          {grantedScopes.map((s) => (
+                            <tr
+                              key={s}
+                              ref={s === selectedScope ? scopeRowRef : null}
+                              className={s === selectedScope ? 'cur-scope-row--selected' : ''}
+                              onClick={() => setSelectedScope(s)}
+                            >
+                              <td><code className={`cur-scope-pill ${scopeColor(s)}`}>{s}</code></td>
+                              <td className="cur-scope-cat">
+                                {s.startsWith('mcp:') ? 'MCP' : s.startsWith('p1:') ? 'PingOne' : (s === 'openid' || s === 'profile' || s === 'email') ? 'OIDC' : s.includes('read') ? 'Read' : s.includes('write') || s.includes('admin') ? 'Write' : 'Custom'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
+              {visibleTerminalTab === 'results' && (
+                <div className="cur-terminal-results">
+                  {hold && (
+                    <div className="cur-hitl-hold" data-testid="hitl-hold-card">
+                      <div className="cur-hitl-hold__head">
+                        <span className="cur-hitl-hold__icon" aria-hidden="true">✋</span>
+                        <span className="cur-hitl-hold__title">Waiting for human approval</span>
+                      </div>
+                      <p className="cur-hitl-hold__body">
+                        The gateway held <code>{hold.tool}</code> — policy requires a human decision before this
+                        tool runs. Approve it in the Privilege console under{' '}
+                        <strong>Access Request Approvals → HITL Requests</strong>, then retry.
+                      </p>
+                      {hold.instructionId && (
+                        <p className="cur-hitl-hold__instruction">
+                          Instruction <code>{hold.instructionId}</code>
+                        </p>
+                      )}
+                      <button type="button" className="cur-hitl-hold__retry" onClick={retryHeldCall} disabled={retrying}>
+                        {retrying ? 'Retrying…' : 'Retry after approval'}
+                      </button>
+                    </div>
+                  )}
+                  {toolResults.length === 0 ? (
+                    <span className="cur-terminal-empty">No results yet — run a tool to see its output here</span>
+                  ) : (
+                    toolResults.map((r, i) => (
+                      <div key={`${r.ts}-${i}`} className="cur-result-item">
+                        <div className="cur-result-item-head">
+                          <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
+                          <span className="cur-result-item-tool">{r.tool}</span>
+                          <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
+                        </div>
+                        <JsonPane value={r.result} deep label={`${r.tool} result view`} />
+                      </div>
+                    ))
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        </main>
+
+        {/* Inspect: a drawer beside Demo, not a different mode of the page. */}
+        {inspecting && (
+          <aside className="cur-inspect-drawer" aria-label="Inspect">
+            <div className="cur-tabs cur-tabs--drawer" role="tablist" aria-label="Inspect tabs">
+              {TAB_LABELS.filter(([key]) => VIEW_TABS.inspect.includes(key)).map(([key, label]) => (
+                <button
+                  key={key}
+                  type="button"
+                  role="tab"
+                  aria-selected={inspectTab === key}
+                  className={`cur-tab cur-tab--${key} ${inspectTab === key ? 'cur-tab--active' : ''}`}
+                  onClick={() => chooseTab(key)}
+                >{label}</button>
+              ))}
+              <button type="button" className="cur-inspect-drawer__close" aria-label="Close inspect" onClick={() => switchViewMode('demo')}>✕</button>
+            </div>
+            <div className={`cur-editor-area cur-panel--${inspectTab}`}>
+            {inspectTab === 'mcp' && (
               <div className="cur-rpc-panel cur-mcp-explorer">
                 <div className="cur-tools-header">
                   <h3>Server Capabilities</h3>
@@ -2430,7 +2593,7 @@ export default function PrivilegeMcpClientPage() {
               </div>
             )}
 
-            {visibleTab === 'rpc' && (
+            {inspectTab === 'rpc' && (
               <div className="cur-rpc-panel">
                 <div className="cur-tools-header"><h3>Raw MCP JSON-RPC</h3></div>
                 <label className="cur-field">
@@ -2447,7 +2610,7 @@ export default function PrivilegeMcpClientPage() {
               </div>
             )}
 
-            {visibleTab === 'policies' && (
+            {inspectTab === 'policies' && (
               <div className="cur-rpc-panel">
                 <div className="cur-tools-header">
                   <h3>Privilege Console — doors and policies</h3>
@@ -2692,147 +2855,9 @@ export default function PrivilegeMcpClientPage() {
                 )}
               </div>
             )}
-
-          </div>
-
-          {/* Terminal panel */}
-          <div className="cur-resize-handle cur-resize-handle--h" onPointerDown={startTerminalDrag} />
-          <div className="cur-terminal" ref={terminalRef}>
-            {/* RELAY LOG and SCOPES are Inspect-only; TRACE and RESULTS carry
-                the demo, so they stay in both. */}
-            <div className="cur-terminal-tabs">
-              {inspecting && <button className={`cur-terminal-tab ${visibleTerminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>}
-              <button className={`cur-terminal-tab ${visibleTerminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
-              {inspecting && <button className={`cur-terminal-tab ${visibleTerminalTab === 'scopes' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('scopes')}>SCOPES</button>}
-              <button
-                key={`results-tab-${resultNonce}`}
-                className={`cur-terminal-tab ${visibleTerminalTab === 'results' ? 'cur-terminal-tab--active' : ''}${resultNonce > 0 && visibleTerminalTab !== 'results' ? ' cur-terminal-tab--flash' : ''}`}
-                onClick={() => setTerminalTab('results')}
-              >
-                RESULTS{toolResults.length > 0 && <span className="cur-terminal-tab-badge">{toolResults.length}</span>}
-              </button>
-              {visibleTerminalTab === 'trace' && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setEvents([])}>Clear</button>}
-              {visibleTerminalTab === 'results' && toolResults.length > 0 && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setToolResults([])}>Clear</button>}
             </div>
-            <div className="cur-terminal-content">
-              {visibleTerminalTab === 'trace' && (
-                <div className="cur-terminal-log cur-trace-log">
-                  {events.length === 0 && <span className="cur-terminal-empty">No events yet — sign in or call a tool</span>}
-                  {events.slice(0, 100).map((e, i) => {
-                    const rest = { ...e, ts: undefined, type: undefined };
-                    let label = e.type;
-                    let tone = e.type;
-                    if (e.type === 'relay' && e.direction === 'client->mcp') { label = `→ MCP ${e.method || ''} ${e.url || ''}`; tone = 'relay-outbound'; }
-                    if (e.type === 'relay' && e.direction === 'mcp->client') { const challenge = e.status === 401 || e.status === 403; label = `← MCP ${challenge ? '⚠️' : e.status >= 400 ? '❌' : '✅'} ${e.status}`; tone = challenge ? 'oauth' : e.status >= 400 ? 'relay-error' : 'relay-success'; }
-                    if (e.type === 'oauth') { label = `OAuth: ${e.phase}`; tone = 'oauth'; }
-                    if (e.type === 'mcp') { label = `MCP: ${e.phase}`; tone = 'mcp'; }
-                    if (e.type === 'error') { label = `ERROR: ${e.scope}`; tone = 'error'; }
-                    if (e.type === 'config') { label = 'Config updated'; tone = 'config'; }
-                    // Expected outcomes the relay tags (relayNote) — not faults, so not red.
-                    // Tones reuse the existing grey and amber label colours.
-                    if (e.note === 'handshake_fallback') { label = `← MCP ${e.status} older handshake, falling back`; tone = 'config'; }
-                    if (e.note === 'policy_denied') { label = e.type === 'error' ? `DENIED: ${e.scope} — Privilege policy` : `← MCP ${e.status} denied by Privilege policy`; tone = 'oauth'; }
-                    return (
-                      <details key={i} style={{borderBottom:'1px solid #222',padding:'2px 0'}}>
-                        <summary className="cur-trace-summary">
-                          <span className="cur-trace-ts">{e.ts?.slice(11,23)||''}</span>
-                          <span className={`cur-trace-label cur-trace-label--${tone}`}>{label}</span>
-                          {e.type === 'error' && e.note !== 'policy_denied' && <span className="cur-trace-error">{e.message}</span>}
-                        </summary>
-                        <pre className="cur-trace-json">
-                          {JSON.stringify(rest, null, 2)}
-                        </pre>
-                      </details>
-                    );
-                  })}
-                </div>
-              )}
-              {visibleTerminalTab === 'events' && (
-                <div className="cur-terminal-log">
-                  {events.length === 0 && <span className="cur-terminal-empty">Waiting for events...</span>}
-                  {events.slice(0, 50).map((e, i) => (
-                    <div key={i} className={`cur-terminal-line cur-terminal-line--${e.type}`}>
-                      <span className="cur-terminal-ts">{e.ts?.slice(11, 19) || ''}</span>
-                      <span className={`cur-terminal-badge cur-terminal-badge--${e.type}`}>{e.type}</span>
-                      <span className="cur-terminal-msg">{JSON.stringify({ ...e, ts: undefined, type: undefined }, null, 0)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {visibleTerminalTab === 'scopes' && (
-                <div className="cur-terminal-scopes">
-                  {grantedScopes.length === 0 ? (
-                    <span className="cur-terminal-empty">No scopes granted yet — sign in first</span>
-                  ) : (
-                    <div className="cur-scopes-detail">
-                      <div className="cur-scopes-summary">
-                        <span className="cur-scopes-count-large">{grantedScopes.length}</span>
-                        <span className="cur-scopes-count-label">scopes granted</span>
-                      </div>
-                      <table className="cur-scopes-table">
-                        <thead><tr><th>Scope</th><th>Category</th></tr></thead>
-                        <tbody>
-                          {grantedScopes.map((s) => (
-                            <tr
-                              key={s}
-                              ref={s === selectedScope ? scopeRowRef : null}
-                              className={s === selectedScope ? 'cur-scope-row--selected' : ''}
-                              onClick={() => setSelectedScope(s)}
-                            >
-                              <td><code className={`cur-scope-pill ${scopeColor(s)}`}>{s}</code></td>
-                              <td className="cur-scope-cat">
-                                {s.startsWith('mcp:') ? 'MCP' : s.startsWith('p1:') ? 'PingOne' : (s === 'openid' || s === 'profile' || s === 'email') ? 'OIDC' : s.includes('read') ? 'Read' : s.includes('write') || s.includes('admin') ? 'Write' : 'Custom'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
-                </div>
-              )}
-              {visibleTerminalTab === 'results' && (
-                <div className="cur-terminal-results">
-                  {hold && (
-                    <div className="cur-hitl-hold" data-testid="hitl-hold-card">
-                      <div className="cur-hitl-hold__head">
-                        <span className="cur-hitl-hold__icon" aria-hidden="true">✋</span>
-                        <span className="cur-hitl-hold__title">Waiting for human approval</span>
-                      </div>
-                      <p className="cur-hitl-hold__body">
-                        The gateway held <code>{hold.tool}</code> — policy requires a human decision before this
-                        tool runs. Approve it in the Privilege console under{' '}
-                        <strong>Access Request Approvals → HITL Requests</strong>, then retry.
-                      </p>
-                      {hold.instructionId && (
-                        <p className="cur-hitl-hold__instruction">
-                          Instruction <code>{hold.instructionId}</code>
-                        </p>
-                      )}
-                      <button type="button" className="cur-hitl-hold__retry" onClick={retryHeldCall} disabled={retrying}>
-                        {retrying ? 'Retrying…' : 'Retry after approval'}
-                      </button>
-                    </div>
-                  )}
-                  {toolResults.length === 0 ? (
-                    <span className="cur-terminal-empty">No results yet — run a tool to see its output here</span>
-                  ) : (
-                    toolResults.map((r, i) => (
-                      <div key={`${r.ts}-${i}`} className="cur-result-item">
-                        <div className="cur-result-item-head">
-                          <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
-                          <span className="cur-result-item-tool">{r.tool}</span>
-                          <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
-                        </div>
-                        <JsonPane value={r.result} deep label={`${r.tool} result view`} />
-                      </div>
-                    ))
-                  )}
-                </div>
-              )}
-            </div>
-          </div>
-        </main>
+          </aside>
+        )}
       </div>
 
       {/* Status bar */}

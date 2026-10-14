@@ -46,7 +46,10 @@ function renderPage() {
 }
 
 const tabNames = () =>
-  [...document.querySelectorAll(".cur-tab")].map((b) => b.textContent);
+  [...document.querySelectorAll(".cur-tabs[aria-label='Demo tabs'] .cur-tab")].map((b) => b.textContent);
+// Inspect lives in a drawer beside Demo, with its own tablist.
+const drawerTabNames = () =>
+  [...document.querySelectorAll(".cur-inspect-drawer .cur-tab")].map((b) => b.textContent);
 // The open pane appends its own "Clear" button carrying the tab class — filter
 // it out so this reads the tab strip, not the strip plus whatever pane is open.
 const terminalTabNames = () =>
@@ -107,7 +110,9 @@ describe("Demo / Inspect", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
 
-    expect(tabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies"]);
+    // Inspect opens a drawer; the Demo tabs stay where they were.
+    expect(drawerTabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies"]);
+    expect(tabNames()).toEqual(["Agent Chat", "Tools", "User API Key & Secrets"]);
     expect(screen.getByRole("button", { name: /probe other doors/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "LLM Gateway" })).toBeInTheDocument();
   });
@@ -159,10 +164,13 @@ describe("Demo / Inspect", () => {
 
     // Back to Demo: not Agent Chat, the tab we actually left.
     fireEvent.click(screen.getByRole("button", { name: "Demo" }));
-    expect(document.querySelector(".cur-tab--active").textContent).toBe("Tools");
+    expect(document.querySelector(".cur-tabs[aria-label='Demo tabs'] .cur-tab--active").textContent).toBe("Tools");
+    expect(document.querySelector(".cur-inspect-drawer")).toBeNull();
 
     fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
-    expect(document.querySelector(".cur-tab--active").textContent).toBe("Policies");
+    expect(document.querySelector(".cur-inspect-drawer .cur-tab--active").textContent).toBe("Policies");
+    // The Demo tab did not move while the drawer was open.
+    expect(document.querySelector(".cur-tabs[aria-label='Demo tabs'] .cur-tab--active").textContent).toBe("Tools");
   });
 
   // A mode that resets on every reload gets re-clicked on every reload, which
@@ -179,7 +187,20 @@ describe("Demo / Inspect", () => {
 
     // And it lands on an Inspect tab, not on activeTab's 'chat' default — which
     // is not an Inspect tab at all.
-    expect(tabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies"]);
-    expect(document.querySelector(".cur-tab--active").textContent).toBe("MCP Explorer");
+    expect(drawerTabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies"]);
+    expect(document.querySelector(".cur-inspect-drawer .cur-tab--active").textContent).toBe("MCP Explorer");
+  });
+
+  it("closes the drawer from its own close button and keeps the Demo tab", async () => {
+    renderPage();
+    await ready();
+    fireEvent.click(screen.getByRole("tab", { name: "Tools" }));
+    fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
+    expect(document.querySelector(".cur-inspect-drawer")).not.toBeNull();
+
+    fireEvent.click(screen.getByRole("button", { name: "Close inspect" }));
+    expect(document.querySelector(".cur-inspect-drawer")).toBeNull();
+    expect(screen.getByRole("button", { name: "Demo" })).toHaveAttribute("aria-pressed", "true");
+    expect(document.querySelector(".cur-tab--active").textContent).toBe("Tools");
   });
 });
