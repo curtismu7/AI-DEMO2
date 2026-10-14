@@ -20,16 +20,21 @@ const USER_EXPLAIN = {
   "introspect-user": "AIC access tokens are opaque by default, so the BFF asks AIC what this one carries.",
 };
 
+const EXCHANGE_EXPLAIN = {
+  exchange: "The agent presents both tokens and authenticates as itself. AIC checks the user token's may_act claim before it issues anything.",
+  "introspect-exchanged": "The delegated token belongs to the agent's client, so the agent can introspect it. The act claim names who is acting for the user.",
+};
+
 const ACTOR_EXPLAIN = {
   "actor-token": "The agent authenticates as itself. This access token is the actor token of the exchange.",
   "introspect-actor": "The agent introspects its own token to show its claims.",
 };
 
 /**
- * AIC token exchange — step one: the two input tokens of an RFC 8693 delegation
- * exchange at PingOne Advanced Identity Cloud. The user token comes from a direct
- * AIC sign-in, the actor token from client credentials. Both stay in the BFF
- * session; this page shows the redacted trace the BFF recorded.
+ * AIC token exchange — an RFC 8693 delegation exchange at PingOne Advanced
+ * Identity Cloud. The user token comes from a direct AIC sign-in, the actor token
+ * from client credentials, and the exchange turns the pair into a delegated token.
+ * All three stay in the BFF session; this page shows the redacted trace the BFF recorded.
  */
 export default function AicTokenExchangePage() {
   const [status, setStatus] = useState(null);
@@ -55,7 +60,8 @@ export default function AicTokenExchangePage() {
     setBusy(true);
     try {
       const response = await apiClient.post("/api/aic-demo/actor-token");
-      setStatus((previous) => ({ ...previous, actorReady: true, actorResult: response.data.actorResult }));
+      // A new actor token invalidates any earlier exchange (the BFF discarded it too).
+      setStatus((previous) => ({ ...previous, actorReady: true, actorResult: response.data.actorResult, exchangeResult: null }));
       notifySuccess("Actor token issued by AIC.");
     } catch (error) {
       notifyError(error?.response?.data?.message || "AIC did not issue an actor token.");
@@ -64,18 +70,35 @@ export default function AicTokenExchangePage() {
     }
   }
 
+  async function exchange() {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const response = await apiClient.post("/api/aic-demo/exchange");
+      setStatus((previous) => ({ ...previous, exchangeResult: response.data.exchangeResult }));
+      notifySuccess("AIC issued the delegated token.");
+    } catch (error) {
+      notifyError(error?.response?.data?.message || "AIC refused the token exchange.");
+    } finally {
+      setBusy(false);
+    }
+  }
+
   const features = status?.features || {};
   const userResult = status?.userResult;
   const actorResult = status?.actorResult;
+  const exchangeResult = status?.exchangeResult;
+  const canExchange = Boolean(status?.userSignedIn && status?.actorReady);
 
   return (
     <main className="pf-ai-agent" data-testid="aic-token-exchange-page">
       <header>
         <p className="pf-ai-agent__eyebrow">PingOne Advanced Identity Cloud</p>
-        <h1>AIC token exchange: the two tokens</h1>
+        <h1>AIC token exchange</h1>
         <p className="pf-ai-agent__lede">
           A delegation exchange needs a token for the person and a token for the agent acting for them, both issued by AIC.
-          Get each one here; the BFF keeps them and shows what went over the wire with every secret replaced.
+          Get each one, then exchange the pair for a narrower token that records who is acting. The BFF keeps every token
+          and shows what went over the wire with every secret replaced.
         </p>
       </header>
 
@@ -139,6 +162,40 @@ export default function AicTokenExchangePage() {
                 {actorResult.opaque && <li>The access token is opaque, so its contents come from introspection, not from decoding it.</li>}
               </ul>
               <ProtocolTrace steps={actorResult.trace} explain={ACTOR_EXPLAIN} />
+            </div>
+          )}
+        </div>
+      </section>
+
+      <section className="pf-ai-agent__flow" aria-labelledby="aic-exchange-title">
+        <div className="pf-ai-agent__flow-title">
+          <p className="pf-ai-agent__eyebrow">RFC 8693 delegation</p>
+          <h2 id="aic-exchange-title">Delegated token</h2>
+          <p>The agent exchanges the user token and its own token for one that acts for the user.</p>
+          <FeatureStatus ready={canExchange} />
+        </div>
+        <div className="pf-ai-agent__flow-body">
+          <dl className="pf-ai-agent__facts">
+            <div><dt>Subject</dt><dd>{status?.userSignedIn ? userResult?.subject : "user token needed"}</dd></div>
+            <div><dt>Actor</dt><dd>{status?.actorReady ? status?.actorClientId : "actor token needed"}</dd></div>
+            <div><dt>Scope requested</dt><dd>{status?.delegatedScope || "none"}</dd></div>
+          </dl>
+          {canExchange
+            ? <button type="button" className="pf-ai-agent__action" onClick={exchange} disabled={busy}>{busy ? "Asking AIC…" : "Exchange tokens"}</button>
+            : <span className="pf-ai-agent__disabled-action">Get the user token and the actor token first</span>}
+          {exchangeResult?.trace?.length > 0 && (
+            <div className="pf-ai-agent__proof" data-testid="aic-exchange-proof">
+              <h3>Proof: what was sent and what came back</h3>
+              <ul className="pf-ai-agent__proof-points">
+                <li>Delegated token for {exchangeResult.subject || "the user"}, with scope: {exchangeResult.scope || "none reported"}.</li>
+                <li>
+                  {exchangeResult.act
+                    ? `Acting party (act claim): ${JSON.stringify(exchangeResult.act)}.`
+                    : "AIC did not report an act claim for this token."}
+                </li>
+                {exchangeResult.opaque && <li>The token is opaque, so its contents come from introspection, not from decoding it.</li>}
+              </ul>
+              <ProtocolTrace steps={exchangeResult.trace} explain={EXCHANGE_EXPLAIN} />
             </div>
           )}
         </div>

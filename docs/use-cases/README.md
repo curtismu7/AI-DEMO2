@@ -33,6 +33,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC-LOGIN** — PingOne login (OIDC + PKCE)](./pingone-person-login.md) ✅ 🛡️
 - [**UC-LOGIN-PF** — PingFederate login (OIDC + PKCE)](./pingfederate-person-login.md) ✅ 🛡️
 - [**UC-LOGIN-AIC** — AIC login (federated through PingOne)](./aic-person-login.md) ✅ 🛡️
+- [**UC-AIC-TX** — AIC token exchange (delegation)](./aic-token-exchange-delegation.md) ✅ 🛡️
 
 ## Controls
 

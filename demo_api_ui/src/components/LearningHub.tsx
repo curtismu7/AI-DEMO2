@@ -158,6 +158,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         demoStep: { useCaseId: "UC-LOGIN-AIC" },
       },
       {
+        label: "AIC Token Exchange",
+        description: "RFC 8693 delegation at Advanced Identity Cloud: user token + actor token",
+        icon: "🔐",
+        demoStep: { useCaseId: "UC-AIC-TX" },
+      },
+      {
         label: "PKCE Deep Dive",
         description: "Proof Key for Code Exchange explained",
         icon: "🔍",
