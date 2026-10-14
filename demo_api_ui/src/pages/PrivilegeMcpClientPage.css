@@ -2378,3 +2378,24 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-rail--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
 .cur-ide .cur-a2a-main { flex: 1; min-height: 0; overflow: auto; }
 .cur-ide .cur-a2a-main > .privilege-a2a { height: 100%; }
+
+/* "More" menu in the title bar: native <details>, so it is keyboard- and screen-reader-operable with no handler. */
+.cur-ide .cur-more { position: relative; }
+.cur-ide .cur-more > summary { list-style: none; }
+.cur-ide .cur-more > summary::-webkit-details-marker { display: none; }
+.cur-ide .cur-more__menu {
+  position: absolute;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  min-width: 160px;
+  padding: 6px;
+  border: 1px solid var(--cur-prompt-border);
+  border-radius: 6px;
+  background: var(--cur-prompt-surface);
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.35);
+}
+.cur-ide .cur-more__menu .cur-flow-trigger { text-align: left; }

@@ -1874,10 +1874,17 @@ export default function PrivilegeMcpClientPage() {
           {/* This client is the live surface for the privilege demo steps; these
               links put it back in the story — the step that runs here, and the
               diagrams that draw it. */}
-          <Link className="cur-flow-trigger" to="/use-cases#UC17" title="The JIT credentials demo step that runs here">Demo step</Link>
-          <Link className="cur-flow-trigger" to="/use-case-diagrams/UC46" title="Privilege A2A access review diagram">Diagram</Link>
-          <Link className="cur-flow-trigger" to="/privilege-gateway-topologies" title="Three gateway topologies plus the agent-to-agent sequence the lesson walks">Topologies</Link>
-          <a className="cur-flow-trigger" href={KIBANA_URL} target="_blank" rel="noopener noreferrer" title="Open Privilege SIEM logs in Kibana">Logs</a>
+          {/* Four links out of the page share one menu: they are reference, not
+              controls, and as four buttons they pushed the title bar to three rows. */}
+          <details className="cur-more">
+            <summary className="cur-flow-trigger">More</summary>
+            <div className="cur-more__menu">
+            <Link className="cur-flow-trigger" to="/use-cases#UC17" title="The JIT credentials demo step that runs here">Demo step</Link>
+            <Link className="cur-flow-trigger" to="/use-case-diagrams/UC46" title="Privilege A2A access review diagram">Diagram</Link>
+            <Link className="cur-flow-trigger" to="/privilege-gateway-topologies" title="Three gateway topologies plus the agent-to-agent sequence the lesson walks">Topologies</Link>
+            <a className="cur-flow-trigger" href={KIBANA_URL} target="_blank" rel="noopener noreferrer" title="Open Privilege SIEM logs in Kibana">Logs</a>
+            </div>
+          </details>
           <button className="cur-flow-trigger cur-settings-gear" onClick={() => setShowSettings(true)} title="Settings">Settings</button>
           <button className="cur-flow-trigger" onClick={() => setShowFlowModal(true)}>Flow</button>
           {/* The provider lanes, their probes and the prove-the-policy prompt
