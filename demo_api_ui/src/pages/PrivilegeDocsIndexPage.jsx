@@ -238,6 +238,14 @@ const SECTIONS = [
           "AIGuard on the model route: per-key detectors and thresholds, what a block looks like and its logs, the /inspect contract, Block Agreement, NeMo rails, what is and is not inspected (tested live 2026-10-03).",
       },
       {
+        title: "Setting guardrail thresholds",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/GATEWAY-GUARDRAIL-THRESHOLDS.md",
+        pdf: null,
+        covers:
+          "How alert and block thresholds decide, where to set them on a key, choosing the value from the logged score, and a worked jailbreak 0.9 to 0.8 change on an a2a-only key (tested live 2026-10-14).",
+      },
+      {
         title: "LLM routing & virtual keys",
         drive: drive("1LUig8J6_eSWgmWyCHTUiGy6tURCuoU_F"),
         repo: "privilege/GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md",
