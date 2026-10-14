@@ -1997,7 +1997,8 @@ export default function BankingAgent({
     const onStepSelect = (e) => {
       const { uc, stepNumber, opts } = e.detail || {};
       if (!uc) return;
-      setIsOpen(true);
+      // A page that shows its own run (the A2A reel) asks for the panel to stay closed, so it does not cover that page.
+      if (!opts?.keepPanelClosed) setIsOpen(true);
       // Defer one tick so the panel mounts before the step runs (same pattern
       // as the showcase-drawer dispatch above).
       setTimeout(() => demoStepSelectRef.current?.(uc, stepNumber, opts), 80);
