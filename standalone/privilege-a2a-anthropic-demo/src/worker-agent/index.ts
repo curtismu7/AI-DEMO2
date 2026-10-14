@@ -79,7 +79,7 @@ function inputSchemaForAnthropic(inputSchema: unknown): Anthropic.Tool.InputSche
   return { type: 'object', properties, ...(required ? { required } : {}) };
 }
 
-async function runAnalyst(question: string, contextId: string, profile: { vertical: string; tools: string[] } | null, heuristic = false): Promise<string> {
+async function runAnalyst(question: string, contextId: string, profile: { vertical: string; tools: string[] } | null, heuristic = false, rawOutputs: string[] = []): Promise<string> {
   const instruction = instructionFor(profile?.vertical);
   const mcp = new Client({ name: 'access-review-worker', version: '1.0.0' }, { capabilities: {} });
   const transport = new StreamableHTTPClientTransport(
@@ -151,6 +151,7 @@ async function runAnalyst(question: string, contextId: string, profile: { vertic
         try {
           const result = await mcp.callTool({ name: tool.name, arguments: call.input as Record<string, unknown> });
           const content = textFromMcp(result);
+          rawOutputs.push(content.slice(0, 4000));
           emitTrace(contextId, 'mcp-result', `${tool.name} returned`, content.slice(0, 1200), 'mcp', 'analyst');
           results.push({ type: 'tool_result', tool_use_id: call.id, content, ...(result.isError ? { is_error: true } : {}) });
         } catch (error) {
@@ -193,9 +194,10 @@ const executor = {
   async execute(requestContext: Parameters<ConstructorParameters<typeof DefaultRequestHandler>[2]['execute']>[0], eventBus: Parameters<ConstructorParameters<typeof DefaultRequestHandler>[2]['execute']>[1]): Promise<void> {
     const question = readMessageText(requestContext.userMessage.parts);
     let answer: string;
+    const rawOutputs: string[] = [];
     try {
       answer = question
-        ? await runAnalyst(question, requestContext.contextId, parseMetadata(requestContext.userMessage.metadata), parseMode(requestContext.userMessage.metadata) === 'heuristics')
+        ? await runAnalyst(question, requestContext.contextId, parseMetadata(requestContext.userMessage.metadata), parseMode(requestContext.userMessage.metadata) === 'heuristics', rawOutputs)
         : 'The A2A request did not include a text question.';
     } catch (error) {
       answer = `The analyst could not complete this request: ${error instanceof Error ? error.message : 'unknown error'}`;
@@ -207,6 +209,7 @@ const executor = {
       taskId: requestContext.taskId,
       role: 'agent',
       parts: [{ kind: 'text', text: answer }],
+      metadata: { toolOutputs: rawOutputs },
     });
   },
   async cancelTask(): Promise<void> {},

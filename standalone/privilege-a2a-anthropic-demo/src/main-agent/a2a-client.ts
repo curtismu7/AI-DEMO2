@@ -1,6 +1,7 @@
 import { randomUUID } from 'node:crypto';
 import type { Message, Task } from '@a2a-js/sdk';
 import { analystCard } from '../agent-card.js';
+import { toolOutputsFrom } from './scopeFilter.js';
 import type { Client } from '@a2a-js/sdk/client';
 import {
   ClientFactory,
@@ -16,8 +17,14 @@ function authenticatedFetch(bearer: string): typeof fetch {
   };
 }
 
+/** The worker's reply text plus the raw MCP tool outputs it was built from. */
+export interface WorkerAnswer {
+  text: string;
+  toolOutputs: string[];
+}
+
 export interface WorkerClient {
-  sendQuestion(question: string, contextId: string, metadata?: Record<string, unknown>): Promise<string>;
+  sendQuestion(question: string, contextId: string, metadata?: Record<string, unknown>): Promise<WorkerAnswer>;
 }
 
 function textFromParts(parts: Message['parts'] | undefined): string {
@@ -58,8 +65,8 @@ export async function buildWorkerClient(baseUrl: string, bearer: string): Promis
         },
         configuration: { blocking: true },
       });
-      if ('status' in result) return taskAnswer(result);
-      return textFromParts(result.parts) || 'The worker returned an empty A2A message.';
+      if ('status' in result) return { text: taskAnswer(result), toolOutputs: toolOutputsFrom(result.status.message?.metadata) };
+      return { text: textFromParts(result.parts) || 'The worker returned an empty A2A message.', toolOutputs: toolOutputsFrom(result.metadata) };
     },
   };
 }

@@ -1,7 +1,7 @@
 import assert from 'node:assert/strict';
 import { test } from 'node:test';
 
-import { stripUnsourcedScope } from '../src/main-agent/scopeFilter.js';
+import { stripUnsourcedScope, toolOutputsFrom } from '../src/main-agent/scopeFilter.js';
 
 const ANALYST = 'ORD-9982 2025-12-01 249.99 delivered\nORD-8841 2025-10-14 89.00 returned';
 
@@ -29,4 +29,18 @@ test('drops "most recent" and "latest" claims', () => {
 test('keeps decimals and table rows that contain no scope words', () => {
   const reply = 'ORD-9982 cost $249.99 and was delivered.';
   assert.equal(stripUnsourcedScope(reply, ANALYST), reply);
+});
+
+test('the worker reply carries raw tool outputs, and anything malformed is dropped', () => {
+  assert.deepEqual(toolOutputsFrom({ toolOutputs: ['ORD-8841 returned'] }), ['ORD-8841 returned']);
+  assert.deepEqual(toolOutputsFrom({ toolOutputs: [1, 2] }), []);
+  assert.deepEqual(toolOutputsFrom(undefined), []);
+});
+
+test('a delegated answer is checked against the raw tool output, so an analyst-only scope claim is dropped', () => {
+  const rawToolOutput = 'ORD-9982 delivered\nORD-8841 returned';
+  const analystAnswer = 'These are the only orders. ORD-8841 was returned.';
+  const out = stripUnsourcedScope(analystAnswer, rawToolOutput);
+  assert.ok(!out.includes('only'));
+  assert.ok(out.includes('ORD-8841 was returned.'));
 });
