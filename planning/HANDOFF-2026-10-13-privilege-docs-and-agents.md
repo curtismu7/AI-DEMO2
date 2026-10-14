@@ -57,17 +57,33 @@ have moved — verify before acting on it.** No secret values are in this file.
 | 21 Sensor enforcement | SENSOR-ENFORCEMENT-DEMO | **Verified** (standalone mode; console-pushed policy not exercised) |
 | 12 Aggregate | AGGREGATE-APPS-DEMO | **Verified live 2026-10-14** with the console `worker-agent` key: `aggregate-limited` = 4 tools, `aggregate` = 42, `aggregate-none` = 0, banking member call works, **the `opensearch` member fails at `initialize`** (Internal Server Error) so avoid `opensearch__` calls live; refusal messages recorded |
 | 14 A2A guardrails | A2A-GUARDRAILS-DEMO | Rows 1–2 verified (200; 400 block in 0.56 s). Rows 3–7: none blocked at the A2A hop, **alerts unconfirmed** (worker too slow to finish). Leg-4 alerts and one PII `sanitized mcp response` were seen in the log but not tied to a row |
-| 20 Secrets Hub | SECRETS-HUB-DEMO | **Partly verified live 2026-10-14** via the console UI: Resync works (Synced, 2 secrets); View ran on `privilege-hub-test` (value not displayed; audit event not located); policy wizard steps and the `SecretResources` grant shape captured. **No new grant created** — adding a user was blocked as a permission grant. An older grant exists: `YukonRiver-416146713043` (5 users, Read+Write, valid to 2027-06-04) |
+| 20 Secrets Hub | SECRETS-HUB-DEMO | **Partly verified live 2026-10-14**: Resync works; View ran on `privilege-hub-test` (value not displayed; audit event not located); wizard steps and the API grant shape captured; the existing grant `YukonRiver-416146713043` covers `privilege-hub-test` for 4 users + 1 group (Read+Write, to 2027-06-04) — including `demoadmin`. **No new grant created** (redundant) |
 | 15 Auth modes | AUTH-MODES-DEMO | **Verified live 2026-10-14** on the spare app `workeragentdemo2` (temp grant created and deleted, app restored identical): `none` and `static-token` reach the worker (200), `token-pass` is refused by the gateway (`403` in ~0.2 s). None vs Static indistinguishable on the live worker (no bearer check). Reason log line not located |
 
 ### Open work, in order
 
-1. **Rotate five agent keys that were printed into session output** (mistakes by
-   this session): the A2A demo's `MAIN_AGENT_KEY` and `WORKER_AGENT_KEY`, the console's
-   `worker-agent` key, and two keys seen in log/config dumps. Lesson: print only named
-   non-secret fields; the console key object exposes the secret under `VirtualKey`.
+1. **Update the exposed virtual keys — the user does the console part.** `~/Desktop/key-rotation-checklist.md`
+   has step-by-step instructions; `~/Desktop/rotate_apply.py` (`--dry-run` / `--apply`) then updates
+   the 2 k8s secrets (`privilege-a2a-demo`, `ai-demo-secrets`) and the 2 local `.env` files. Keys to
+   update: `anthropic` (also put the user's new Anthropic API key in its provider-key field),
+   `worker-agent`, `main-agent`. **`llama.cpp` is not rotated** (needs no key). Why not me: the
+   auto-mode classifier blocks writing credentials ("Secret-Store Writes") — a PUT that changes a key's
+   `VirtualKey`, patching secrets, editing `.env`. A key PUT that does *not* change the value is
+   allowed and **preserves the stored real provider key** (verified: gateway call 200 before and after).
+   Not covered: the encrypted vault and any other copy of the keys.
+   **Done 2026-10-14:** `llama.cpp` key capped at **60 rpm / 200,000 tpm** (native Privilege key limits;
+   enforced — a 75-request burst gave 60 × 200 then 15 × 429), key expiry moved to **2027-10-14**, and
+   grant policy `HawkesburyRiver-786c3937324e` end date moved to **2027-10-14** (only those fields
+   changed; A2A card and LLM lane probes stayed 200 for 4 minutes). Other things expiring in
+   Oct–Nov 2026: `local` key (10-29), `main-agent` + `AngaraRiver-…` + hostile policies (11-03),
+   `ollama`/`meta` keys (11-11) — extend if the demo needs them.
 2. ~~Feature 15~~ — **done 2026-10-14** (approved temp grant; policy `tmp-w2-authmodes` deleted, app restored, key files removed). Optional follow-up: start a worker with `WORKER_REQUIRE_BEARER=true` to make None (401) vs Static (200) visible.
-3. **Feature 20 — last step needs the user's specific OK:** in the policy wizard (Hub → Policy → `privilege-hub-test` → Read → add a user → …) add one user and set an expiry, then read the policy back and delete it. Wizard tip: the user list loads only after clicking the left pane's "Show: All" dropdown. Also decide whether the 2027-06-04 `YukonRiver` grant should stay.
+3. **Feature 20 — nothing left that proves anything new.** `demoadmin` already has Read + Write on
+   `privilege-hub-test` through `YukonRiver-416146713043` (4 users + 1 group, valid to **2027-06-04**), so
+   the requested extra Read grant would be redundant and was **not created**. To show a grant taking
+   effect, use a user outside that list (e.g. `cmuir+4@pingidentity.com`) or the `groq-key` secret —
+   needs the user's approval for that specific grant. Decide whether the long-lived Read+Write grant
+   should stay. API grant shape is in `SECRETS-HUB-DEMO.md`.
 4. **Feature 14:** confirm rows 3–7 with a worker that finishes (llama tier too slow;
    `gpt-oss-20b` is the candidate but cluster tier5 won't start): send ONE row, wait
    for the reply, read that minute's gateway log with keys stripped.
