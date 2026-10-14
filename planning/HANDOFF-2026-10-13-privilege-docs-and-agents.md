@@ -4,16 +4,27 @@ Written so VS Code can be restarted. Source for the other agents' state: their
 transcripts in `~/.claude/projects/` (first read ~17:08, last refreshed ~19:50 local); **their state may
 have moved — verify before acting on it.** No secret values are in this file.
 
-## 0. Session status (latest)
+## 0. Session status (latest — 2026-10-14)
 
-- **Claude Code account: SE.** `claude auth status` shows
-  `cmuir@demoauthn.pingidentity.cloud`, org "Ping Identity Corporation - SE Demo".
-  Earlier sessions ran on the personal Max account; re-check after any VS Code restart.
-- **Cluster:** kubectl context `us`, access to `ping-devops-cmuir` confirmed.
-  `mainagentdemo` `MAIN_AGENT_MODEL` = `llama.cpp` (item 3 of the cluster fixes is done).
-- **GitHub:** `cmuir_pingcorp` logged in, active.
-- **Still needs the user:** rotate the five printed keys; approve the tier5 fix or
-  the hybrid decision; AIC allowlist of `test12345@mailinator.com`; review PR #1254.
+- **Claude Code account: SE** (`cmuir@demoauthn.pingidentity.cloud`, org "Ping Identity
+  Corporation - SE Demo"). Re-check with `claude auth status` after any VS Code restart.
+- **Cluster:** kubectl context `us`; frontend and BFF in `ping-devops-cmuir` were
+  promoted to the CI-built `sha-0564d0222…` images (includes #1254, the AIC token
+  exchange). Rollback targets if needed: frontend `sha-7138f39ea`, BFF `sha-f6847f720`.
+  Other sessions deploy to the same deployments — re-read the image before assuming.
+- **MCP servers: keep ALL of them.** The "pick 3-5, freeze the rest" idea is **on hold**
+  (spec marked, PR #1266); nothing was frozen or removed. See memory `mcp-standardization-on-hold`.
+- **GitHub:** every session pushes as `cmuir_pingcorp`, so **no PR can be approved from
+  this account** ("Can not approve your own pull request") — the user merges.
+- **Console access recipe (no login needed):** a fresh headless Playwright (Python) opens
+  `https://local.procyon.ai:8643` (Privilege desktop app must be running) and calls
+  `/api/<tenant>/v1/...` from page context. Keys must never be printed — write them to a
+  `chmod 600` file and delete it.
+- **Blocked by the auto-mode classifier (needs the user's explicit OK):** creating a
+  `pacpolicys` rule that grants an agent key access to an app (counts as a permission
+  grant). This is what stops the feature 15 and 20 runbook checks.
+- **Still needs the user:** rotate the five printed keys; the `/aic-token-exchange`
+  signed-in click-through; approve the grants above; review #1265/#1267/#1268.
 
 ## 1. Privilege docs session ("Privilege agent features doc") — this session
 
@@ -27,6 +38,10 @@ have moved — verify before acting on it.** No secret values are in this file.
 | #1243 | Runbooks for features 12, 14, 15, 20 (from code + guides) |
 | #1244 | (other session) five rows brought up to the console release notes |
 | #1249 | Live findings recorded in the Secrets Hub, A2A-guardrails, aggregate runbooks |
+| #1263 | The five runbooks added to both Privilege docs indexes (repo + in-app); live page shows 66 documents |
+| #1260 / #1266 | MCP standardization spec, then marked **on hold** (keep all MCP servers) |
+| #1258 / #1259 | `CLAUDE.md` request-flow + single-test commands; README `demo_mcp_server` → `oauth-mcp` |
+| #1271 | Aggregate live results + auth-modes findings (this update) |
 
 - Frontend deployed: `ping-devops-cmuir/frontend` on `sha-1d353f4a7…`, both pods
   verified to contain the new blurb. (Deploy script used the wrong namespace
@@ -40,45 +55,31 @@ have moved — verify before acting on it.** No secret values are in this file.
 | Feature | Runbook | Live status |
 |---|---|---|
 | 21 Sensor enforcement | SENSOR-ENFORCEMENT-DEMO | **Verified** (standalone mode; console-pushed policy not exercised) |
-| 14 A2A guardrails | A2A-GUARDRAILS-DEMO | Rows 1–2 verified (200; 400 block in 0.56 s). Rows 3–7 sent, none blocked, **alert status unconfirmed**; row 5 (HTML-comment injection) was *not* blocked with my wording |
-| 20 Secrets Hub | SECRETS-HUB-DEMO | Tenant state verified (hub `GCP-hub-secrets` Synced, project `privilege-hub-test-643070`, 2 secrets). **View / Resync / policy grant not run** |
-| 12 Aggregate | AGGREGATE-APPS-DEMO | Door inventory verified (`aggregate`, `aggregate-limited`, `aggregate-none`, `banking-aggregate`). **No tool calls**: the demo `.env` agent keys get `403 key not scoped for mcp access` |
-| 15 Auth modes | AUTH-MODES-DEMO | **Not run.** Live app states read: `agent-gateway` + `banking-mcp` = static-token, most others none |
+| 12 Aggregate | AGGREGATE-APPS-DEMO | **Verified live 2026-10-14** with the console `worker-agent` key: `aggregate-limited` = 4 tools, `aggregate` = 42, `aggregate-none` = 0, banking member call works, **the `opensearch` member fails at `initialize`** (Internal Server Error) so avoid `opensearch__` calls live; refusal messages recorded |
+| 14 A2A guardrails | A2A-GUARDRAILS-DEMO | Rows 1–2 verified (200; 400 block in 0.56 s). Rows 3–7: none blocked at the A2A hop, **alerts unconfirmed** (worker too slow to finish). Leg-4 alerts and one PII `sanitized mcp response` were seen in the log but not tied to a row |
+| 20 Secrets Hub | SECRETS-HUB-DEMO | Tenant state verified (hub `GCP-hub-secrets` Synced, 2 secrets). **View / Resync / policy grant not run** |
+| 15 Auth modes | AUTH-MODES-DEMO | **Not run.** Valid modes found (`none`, `static-token`, `user-token`, `token-pass`); spare app `workeragentdemo2` unreachable for every key; the temp grant was **blocked as a permission grant** |
 
 ### Open work, in order
 
-1. **Rotate five agent keys that were printed into session output** (tool
-   mistakes by this session): the A2A demo's `MAIN_AGENT_KEY` and
-   `WORKER_AGENT_KEY`, the console's `worker-agent` key, and two keys seen in
-   gateway-log / config dumps. Demo keys, local transcript only — but rotate.
-   Lesson recorded: print only named non-secret fields; the console's key object
-   exposes the secret under `VirtualKey`.
-2. **Feature 12:** needs an mcp-scoped key with the aggregate apps selected.
-   Existing mcp-scoped keys: `worker-agent`, `openai`, `google`, `local`,
-   `ollama`, `llama.cpp`. Either create a throwaway key in the console UI
-   (driving the UI is safer than POSTing an uncaptured key object) or hand over a
-   key via a `chmod 600` file. Then: `tools/list` on `aggregate-limited`, one
-   call per member, one ungranted call (`access denied`).
-3. **Feature 15:** spare app `workeragentdemo2` points at the same worker backend
-   (auth `none`) but the main key gets **403** on it — it has no grant. Choose:
-   grant the main key on it, flip it through None → Static Token → Pass Agent
-   Token, then restore; or flip the live `worker-agent` door briefly (affects
-   anyone using the demo).
-4. **Feature 20:** run View on `privilege-hub-test` (**not** `groq-key`) and
-   create one time-boxed `SecretResources` policy (body shape not yet captured —
+1. **Rotate five agent keys that were printed into session output** (mistakes by
+   this session): the A2A demo's `MAIN_AGENT_KEY` and `WORKER_AGENT_KEY`, the console's
+   `worker-agent` key, and two keys seen in log/config dumps. Lesson: print only named
+   non-secret fields; the console key object exposes the secret under `VirtualKey`.
+2. **Feature 15 — needs the user's OK for one grant.** Create a policy
+   `tmp-w2-authmodes` (3-hour `NotAfter`, owner metadata copied from `AngaraRiver-7a4f517a4c65`
+   so it is not reaped) with one `HTTP.PolicyRule` for `workeragentdemo2` and
+   `Attributes.agentaccesskey` = `main-agent`; wait ~4 min; flip the app's
+   `HttpAppConfig.AuthMode` none → `static-token` (set `AuthToken`) → `token-pass`,
+   calling it after each; restore `none`; delete the policy. Only `token-pass` is
+   visibly different on the live worker (it does not enforce a bearer).
+3. **Feature 20 — needs the user's OK:** View on `privilege-hub-test` (**not**
+   `groq-key`) and one time-boxed `SecretResources` grant (body shape not captured —
    easiest is one grant done in the console UI, then read back through the API).
-5. **Feature 14:** serial rerun done (23:01–23:14Z) and **still inconclusive**:
-   even one-at-a-time, replies time out (llama tier too slow for the worker's
-   multi-step loop), none blocked at the A2A hop. Log showed leg-④ alerts
-   (`prompt_injection` on worker→MCP calls) and one `sanitized mcp response …
-   category=pii`, not attributable to a row. Next: send ONE row, wait for the
-   reply, read that minute's log immediately; or test against a lighter worker.
-   Documented in `A2A-GUARDRAILS-DEMO.md` ("Rerun").
-6. Cleanup: **done** — `priv-live` worktree, its branches and the Playwright
-   browser are gone (all PRs merged, #1250 included). Only the other session's
-   `AI-DEMO2-priv-doc` worktree remains (branch
-   `docs/privilege-features-release-notes`, already merged as #1244) — leave it
-   to that session.
+4. **Feature 14:** confirm rows 3–7 with a worker that finishes (llama tier too slow;
+   `gpt-oss-20b` is the candidate but cluster tier5 won't start): send ONE row, wait
+   for the reply, read that minute's gateway log with keys stripped.
+5. Optional: fix the unhealthy `opensearch` member behind the aggregate doors.
 
 ### Access recipes that worked today
 
@@ -93,19 +94,18 @@ have moved — verify before acting on it.** No secret values are in this file.
 - **Google:** `gcloud` was logged in as the user but needed re-auth; works after
   `gcloud auth login`.
 
-## 2. Other agents (refreshed from transcripts ~19:50 local)
+## 2. Other agents (refreshed ~21:30 local, 2026-10-13 → 14)
 
-Their state may have moved again — verify before acting.
+All sessions are active and push as `cmuir_pingcorp`; verify before acting.
 
 | Session | State |
 |---|---|
-| **v1.261009 demo steps plan** | **Latest (18:31):** k8s manifest `standalone/privilege-a2a-anthropic-demo/k8s/deployment.yaml` re-synced to live (both agents on llama.cpp via the custom lane, `worker-agent` door, `a2a-mcp-tools` MCP door, `WORKER_PUBLIC_URL` restored) and pushed; live worker re-patched after an env replace dropped the card URL var. **Earlier — finished.** PRs #1252 (llama.cpp default provider) and #1253 (per-tab colors) merged, branches deleted. Live: both standalone agents default to llama.cpp *through Privilege* (custom lane); in-cluster `workeragentdemo` + `mainagentdemo` flipped to llama.cpp; the dead `workeragentdemo` door fixed to `worker-agent`; llama-tier1 ctx raised to 16384. Full A2A chain verified end to end (delegate → MCP tools → real answer). 8B model rejected (won't delegate); 3B + 16k ctx is the sweet spot |
-| **Privilege-mcp-client facade broken** | **ACTIVE at 19:50 — newest finding: `gpt-oss-20b` is the best local worker model so far** — answered three access-review questions in 5–13 s with the *real* access data and correct findings (alice.chen no-expiry; carol.nguyen expired 2025-12-31 but used 2026-07-29), and honestly refused the out-of-scope order-history question. It is the first local model fast and accurate enough to make **feature 14's A2A guardrail rows 3–7 completable** — try them against a worker on it. (Hybrid decision below stands unless that session says otherwise.) **Earlier (18:38): llama tier3 rejected for the worker step** — fast, but it never called a tool and made up an answer; tier1 restored, tier3 back to zero replicas. (So a faster tier is *not* a fix for the slow A2A worker in feature 14.) PR **#1248 merged**. **One live fix is NOT applied** (blocked by the classifier): step 25A returns 403 because `mainagentdemo` has `MAIN_AGENT_PROVIDER=llamacpp` but a leftover `MAIN_AGENT_MODEL=gemini-3.6-flash`. Fix, to run: `kubectl -n ping-devops-cmuir set env deploy/mainagentdemo MAIN_AGENT_MODEL=llama.cpp` (verified from inside the pod: that model returns 200, the gemini name returns 403). **Already applied** — `MAIN_AGENT_MODEL` is `llama.cpp` (checked 22:4xZ). Live-only, not in git |
-| **Floating agent on A2A tab** | Finished (re-confirmed 18:02): PRs #1245 and #1246 merged, frontend live; A2A tab keeps its in-page chat and hands the same run to the floating agent; chips follow the vertical. `mainagentdemo` was switched to llama.cpp because Google returned 503 — revert: `kubectl -n ping-devops-cmuir set env deploy/mainagentdemo MAIN_AGENT_PROVIDER=google` |
-| **AIC as IDP for demo** | **Latest (18:28):** hosted front door now has a **"Sign On with AIC"** button (new PingOne sign-on policy `Hosted_Access_Login`). **Allowlisting `test12345@mailinator.com` on the cluster was refused**, so that user still can't pass the wall. **PR #1254** (AIC token-exchange demo, step two: the delegation exchange) is open. Earlier — waiting on the user: commit pending edits in the AIC worktrees, then it will sync the main checkout, rebuild the local UI bundle and confirm the AIC nav group. Still needs the user's `/aic-token-exchange` click-through; test user `test12345@mailinator.com` password unknown (reset in AIC admin → Alpha realm → Users) |
-| **HDD cleanup** | Done: free space 325 GB → 476 GB (48% used). `~/.cache` 24 → 6.1 GB; CI dep cache trimmed to the newest copy; `~/Library/Caches` only 11 → 9 GB (some deletes unconfirmed). **Docker volumes (6, ~3.4 GB) left** — classifier blocked; command is in that session's last message |
-| **GenericOpenSearchApiTool / gateway-events** | Read-only OpenSearch queries via `opensearch-hitl`; nothing pending |
-| **Demo API server .env comments** | Comments added to local `.env`; waiting on any rewording from the user |
+| **Privilege MCP client demo handoff** | Waiting on CI for PR **#1270** (A2A events keepalive, user-name hint to the main agent, one login for app + gateway); will `gh pr merge 1270 --squash` when green, stops and reports on a failure |
+| **UI code review** | **#1264 merged.** Stack #1265 → #1267 (Privilege A2A page `/privilege-a2a`) → #1268 (MCP client title bar, More menu) rebased after conflicts with #1262; waiting on CI; nothing deployed or cleaned up yet |
+| **Soften tab colour (#1269)** | PR open; background job waiting up to ~40 min on "UI tests (Vitest) + build", merges on green |
+| **OpenSearch queries** | Read-only; nothing pending |
+| **AIC as IDP** | #1254 merged and deployed (frontend + BFF, 2026-10-14). Still needs the user's signed-in click-through of `/aic-token-exchange`; allowlisting `test12345@mailinator.com` was refused earlier |
+| **Others earlier** | v1.261009 demo steps, floating agent on A2A tab, HDD cleanup, facade — finished (see git log); facade's last open question was whether to ship the hybrid worker (tier5 won't start) |
 
 ### Effect on this session's A2A results (re-run 22:43Z)
 
