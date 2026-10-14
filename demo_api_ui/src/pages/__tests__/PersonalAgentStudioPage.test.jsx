@@ -77,7 +77,7 @@ describe('PersonalAgentStudioPage', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ reply: 'Read complete.' }) }));
     render(<MemoryRouter><PersonalAgentStudioPage scenario={{ id: 'UC44', useCaseId: 'workload-digital-assistant-obo', primaryTool: 'list_gear', runPrompt: 'my gear' }} vertical="sporting-goods" runNonce={1} /></MemoryRouter>);
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'my gear', vertical: 'sporting-goods', useCaseId: 'workload-digital-assistant-obo' }),
+      body: JSON.stringify({ prompt: 'my gear', vertical: 'sporting-goods', useCaseId: 'workload-digital-assistant-obo', agentMode: 'llm' }),
     })));
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(await screen.findByText('Read complete.')).toBeTruthy();
@@ -100,7 +100,7 @@ describe('PersonalAgentStudioPage', () => {
     fireEvent.change(screen.getByRole('textbox'), { target: { value: 'check my miles' } });
     fireEvent.keyDown(screen.getByRole('textbox'), { key: 'Enter' });
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'check my miles', vertical: 'airlines' }),
+      body: JSON.stringify({ prompt: 'check my miles', vertical: 'airlines', agentMode: 'llm' }),
     })));
     expect(await screen.findByText('Miles checked.')).toBeTruthy();
   });
