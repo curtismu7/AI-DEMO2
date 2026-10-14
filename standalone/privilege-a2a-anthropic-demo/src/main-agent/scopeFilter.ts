@@ -5,6 +5,12 @@
  */
 const SCOPE_WORDS = /\b(only|most recent|latest|complete|entire|full|every)\b/gi;
 
+/** The raw tool outputs the worker attached to its reply metadata; anything else is ignored. */
+export function toolOutputsFrom(metadata: unknown): string[] {
+  const raw = (metadata as { toolOutputs?: unknown } | null | undefined)?.toolOutputs;
+  return Array.isArray(raw) && raw.every(item => typeof item === 'string') ? raw : [];
+}
+
 export function stripUnsourcedScope(reply: string, analystText: string): string {
   const source = analystText.toLowerCase();
   const sentences = reply.split(/(?<=[.!?])\s+/);
