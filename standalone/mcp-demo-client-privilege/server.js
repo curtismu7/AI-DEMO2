@@ -3,7 +3,10 @@ import fs from 'fs';
 import http from 'http';
 import path from 'path';
 import { URL } from 'url';
+import { buildLlmRequest, readLlmReply, llmPath } from './llm.js';
 
+// Privilege LLM-lane virtual key (when llmUrl points at <gateway>/llm/...). Env only.
+const LLM_API_KEY = process.env.LLM_API_KEY || '';
 const HOST = '127.0.0.1';
 const PORT = 33418;
 const STATIC_DIR = path.resolve('public');
@@ -533,7 +536,8 @@ async function handleLlmChat(req, res) {
       }
     ]);
     json(res, 200, {
-      response: parsed.message?.content || parsed.response || ''
+      response: readLlmReply(parsed),
+      path: llmPath(state.config.llmUrl)
     });
   } catch (error) {
     emitEvent('error', { scope: 'llm_chat', message: error.message });
@@ -546,15 +550,8 @@ async function callLocalLlm(messages) {
     throw new Error('LLM URL and model are required.');
   }
 
-  const response = await fetch(`${state.config.llmUrl}/api/chat`, {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({
-      model: state.config.llmModel,
-      stream: false,
-      messages
-    })
-  });
+  const { url, init } = buildLlmRequest(state.config, messages, LLM_API_KEY);
+  const response = await fetch(url, init);
   const text = await response.text();
   const parsed = JSON.parse(text);
   if (!response.ok) {
@@ -645,7 +642,7 @@ async function handleDemoChat(req, res) {
           )}`
         }
       ]);
-      const raw = llm.message?.content || llm.response || '';
+      const raw = readLlmReply(llm);
       const parsed = parseLlmRouterJson(raw);
       reply = parsed.reply || reply;
       suggestions = Array.isArray(parsed.suggested_tools) ? parsed.suggested_tools : [];

@@ -62,3 +62,18 @@ If protecting `https://api.pingone.com/v1/environments/<envId>/mcp`:
 | `public/app.js` | Chat, auto-refresh, tool rendering |
 | `public/styles.css` | Dark chat-first theme |
 | `SKILLS.md` | Fast deployment guide for AI tools |
+
+## Routing the LLM through the PingOne Agent Privilege
+
+By default the chat/router LLM is a local Ollama (`http://127.0.0.1:11434`, native `/api/chat`).
+To govern it, set **LLM URL** in the UI to a Privilege lane, for example
+`https://<gateway>/llm/custom/v1`, **LLM model** to a model the lane's key allows (`llama.cpp`),
+and start the client with the lane's virtual key in the environment:
+
+```bash
+LLM_API_KEY=<virtual key> npm start
+```
+
+A `/llm/...` URL is called OpenAI-compatibly with `Authorization: Bearer $LLM_API_KEY`; the
+`/api/llm/chat` response includes `path` (`PRIVILEGE` or `direct (NOT governed by Privilege)`).
+The key is read from the environment only and is never returned by the config API.
