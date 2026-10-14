@@ -30,11 +30,11 @@ Edit→test→commit only in an **isolated git worktree** — concurrent session
 - Enter a worktree before edits (`EnterWorktree`, `superpowers:using-git-worktrees`, or a subagent with `isolation: "worktree"`). One branch per worktree.
 - Stage explicitly (`git add <files>`), never `git add -A`. Verify `git branch --show-current` before each commit.
 - A hard-block hook denies `Write`/`Edit` in the main checkout.
-- **After any PR merges, sync the shared main checkout:** `scripts/sync-main-checkout.sh` from repo root. Docker (`ai-demo-ui`/`ai-demo-api-server`) bind-mounts that checkout's files directly — a merge on GitHub does not update them, so the running demo silently serves stale code until something pulls. The script fast-forwards only; it backs off untouched if anything unexpected is dirty. A launchd job also runs it every 15 min to catch merges that land outside any agent session.
-- **To try your worktree's code in the running stack:** `npm run serve:worktree here` (status with no argument; `main` hands it back). It moves only the two source mounts — `ui` and `demo-api-server` are the only services that bind-mount source — and keeps `--project-directory` on the main checkout, so all 37 `env_file` entries still resolve. Never `docker compose up` from a worktree: it repoints the shared containers *and* starves every service of its `.env` (a worktree carries no gitignored files, and each entry is `required: false`, so Compose skips it silently). One stack, one owner — the status line names which checkout is being served.
-- **UI mode: dev server or built bundle.** `npm run ui:mode` shows it; `npm run ui:mode built` serves the nginx production bundle (about 1,300 fewer requests at boot and no StrictMode double-run — the faster way to demo), `npm run ui:mode dev` brings back Vite HMR. Built bakes the source in: `deploy-live.sh` will not restart it (it would keep serving the old code) and `serve:worktree` refuses — re-run `ui:mode built` after a merge, or switch to `dev` first.
+- **After any PR merges, sync the shared main checkout** from repo root (`scripts/sync-main-checkout.sh`). Docker bind-mounts the checkout, so a GitHub merge alone leaves the demo on stale code. Details: [docs/worktree-and-stack.md](docs/worktree-and-stack.md).
+- **To try worktree code in the running stack:** `npm run serve:worktree here`. Never `docker compose up` from a worktree. Details: [docs/worktree-and-stack.md](docs/worktree-and-stack.md).
+- **UI mode** (dev server or built bundle): `npm run ui:mode`. Details: [docs/worktree-and-stack.md](docs/worktree-and-stack.md).
 - **Default deployment target is local Docker only.** Do not deploy to `ping-devops-cmuir` or any other remote Ping DevOps environment unless the user explicitly names that target. When the user says “deploy” without a remote target, use `npm run serve:worktree here` for an isolated worktree (or `scripts/deploy-live.sh` from the merged main checkout); never infer a remote deployment from the request.
-- **When sync backs off:** `npm run sync:status` says whether the checkout is stale and names the files blocking it (silent staleness is the failure mode — the launchd job logs where nobody looks). `npm run sync:unblock` (`scripts/park-main-edits.sh`) moves stray main-checkout edits onto a `wip/main-<timestamp>` branch and then syncs — nothing stashed, nothing discarded, recover with `git switch wip/main-<timestamp>`. Untracked top-level `.claude/*.md` notes no longer block sync at all. A `SessionStart` hook (`.claude/hooks/warn-stale-main-checkout.sh`) fetches and runs `sync-status.sh` at the top of every session, so a stale or blocked checkout announces itself instead of being discovered hours later; it is silent when in sync and never blocks.
+- **When sync backs off:** `npm run sync:status` names the blocking files; `npm run sync:unblock` parks stray edits on a `wip/main-<timestamp>` branch. Details: [docs/worktree-and-stack.md](docs/worktree-and-stack.md).
 
 ## Project
 
@@ -44,6 +44,7 @@ Edit→test→commit only in an **isolated git worktree** — concurrent session
 | SE AWS | `./run-pingaws.sh` — Ping SE cluster only (`ai-demo.ping-devops.com`); wraps `./run-k8.sh se-*` + `se-update-{code,config,pingone}.sh` |
 | API / UI | API `https://api.ping.demo:3001` / UI `https://local.ping-devops.com:4000` (hosts + `mkcert -install` once) |
 | Test | `./run-tests.sh unit` (fastest); `./run-tests.sh [api\|e2e\|all]`; `npm test` |
+| Single test | UI: `cd demo_api_ui && npm run test:unit -- <path>` (focused when given test files) · BFF: `cd demo_api_server && CI=true npx jest <path> --forceExit` · Python: `cd langchain_agent && bash scripts/run-pytest.sh tests/test_x.py::test_name` |
 | Hygiene | `npm run topology:verify`, `npm run hygiene:check`, `npm run authz:verify` |
 | LLM proxy | `:8090` via `demo_llm_proxy/` (`LLM_BACKEND=llamacpp` default; `omlx` on Apple Silicon) |
 | Monitoring | Grafana `/grafana` over Prometheus, scraping PingGateway's admin connector; Jaeger, Loki (logs, shipped by Alloy) and Alertmanager are the other datasources. Config in `monitoring/`, one copy shared by Docker and k8s. Alert rules **do** reach Alertmanager (`prometheus.yml` `alerting:` → `alertmanager:9093`; compose service `alertmanager`, k8s `83-alertmanager-deployment.yaml`), but its `default` receiver is a deliberate no-op — alerts show as firing in Grafana and **nothing pages or posts** until a receiver is added to `monitoring/alertmanager.yml`. Sign-in is PingOne SSO (`Demo AI App - Grafana Login`; members of the PingOne group `grafana-admins` are Admin, everyone else a Viewer) **plus** the local admin form, kept deliberately as the lockout fallback. Set `GRAFANA_ADMIN_PASSWORD` and `GRAFANA_PINGONE_CLIENT_SECRET` before `create-secrets.sh`; it is internet-facing. |
@@ -64,6 +65,16 @@ PingOne lifecycle (`setup:fresh`, `pingone:bootstrap`, import/export/reset) muta
 Project skills live in [`.claude/skills/`](.claude/skills/); Ping product packages for sharing live in [`se-skills-export/`](se-skills-export/). Use the narrowest matching skill for product-specific work.
 
 **Root stays limited to** the service/infra dirs above, root-level docs (`README.md`, `CHANGELOG.md`, etc.), top-level run/install scripts, and compose/k8s config — nothing else lands at repo root. A new export, mock, report, or one-off script belongs under `scripts/`, `docs/`, `planning/`, or the owning service directory instead. [`scripts/root-allowlist.txt`](scripts/root-allowlist.txt) is the enforced source of truth — CI's `root:allowlist:check` fails a PR that adds an unlisted top-level entry; add a genuine new one there in the same PR.
+
+## Request flow (big picture)
+
+Browser → `demo_api_ui` (cookie session) → `demo_api_server` (BFF — sole custodian of PingOne tokens; does RFC 8693 token exchange and introspection) → then one of:
+
+- **Agents:** `demo_agent_service` streams AG-UI events over SSE (`STATE_DELTA`) back to the BFF; framework runtimes (`langchain_agent` and siblings) are called over HTTP `/run`.
+- **MCP tools:** the agent's tool calls go through a gateway — `ping-gateway` (PingOne Agent Gateway, :3036, the default when the Quick Flag "Agent Gateway → PingOne GW" is on) or `demo_mcp_gateway` (:3005). The gateway fronts the MCP servers: `oauth-mcp/` (banking), `demo_mcp_resource_server` (investments), and `demo_api_resource_server` (mortgage, X-API-Key).
+- **Human consent:** `demo_hitl_service` (:3009), reached through the gateway's challenge flow.
+
+Which gateway is in the path depends on the Quick Flag. The README's Architecture section has the full diagram, with the token labels on each hop.
 
 ## Watch out
 
