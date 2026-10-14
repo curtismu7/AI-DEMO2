@@ -42,7 +42,7 @@ The three points to land with an audience:
 - **Unsafe content is stopped.** A prompt-injection message between agents is blocked, personal data in a tool result is redacted, and a tool result carrying hidden instructions is blocked before the model reads it.
 - **Ungranted hand-offs are refused.** An agent that tries to call an agent it was not granted gets a 403 at the gateway.
 
-The two agents run on different model tiers (Gemini 3.6 Flash for the main agent, Gemini 3.5 Flash Lite for the worker), so the per-agent cost split is visible in the console.
+The two agents were set up on different Google model tiers (Gemini 3.6 Flash for the main agent, Gemini 3.5 Flash Lite for the worker), so the per-agent cost split was visible in the console. **As of 2026-10-14 both in-cluster agents run `gpt-oss-20b` on llama.cpp** through the gateway's custom lane (`LLAMACPP_BASE_URL=https://mcpgw.ai-demo.ping-devops.com/llm/custom/v1`) using the `llama.cpp` key, because Google usage limits ruled it out. The Google details below are the original setup.
 
 ## Before you demo
 
@@ -183,11 +183,11 @@ _Agent Registry: each row is an agent key — custodian, provider, scopes, expir
 
 | Agent | Scopes | Provider and model | May reach | Custodian |
 | --- | --- | --- | --- | --- |
-| `main-agent` | `llm`, `a2a` | Google, Gemini 3.6 Flash | `workeragentdemo`, `langchainagent` | you |
-| `worker-agent` | `llm`, `mcp` | Google, Gemini 3.5 Flash Lite | `mcpdemo`, with each of its four tools allowed under Configure Tools | you |
+| `main-agent` | `a2a` | none (the model call uses the `llama.cpp` key) | `workeragentdemo`, `langchainagent` | you |
+| `worker-agent` | `mcp` | none (the model call uses the `llama.cpp` key) | `mcpdemo`, with each of its four tools allowed under Configure Tools | you |
 | `langchain-caller` | `a2a` | none | `hostile-a2a` | a different user |
 
-Each agent's Real Provider Key is the Google API key. The key is shown once, on the last wizard screen. `langchain-caller` needs its own custodian: remote-agent grants follow the custodian, so under a shared one it could reach the worker and the refusal run would not be refused.
+With no `llm` scope there is no Real Provider Key to enter (the Google API key was only needed while the agents called Gemini through their own keys; `main-agent` and `worker-agent` were recreated without it on 2026-10-14, after the originals were exposed). The key is shown once, on the last wizard screen. `langchain-caller` needs its own custodian: remote-agent grants follow the custodian, so under a shared one it could reach the worker and the refusal run would not be refused.
 
 **4. Store the keys.** Paste each key once; a doubled key is refused as `invalid virtual key`.
 
