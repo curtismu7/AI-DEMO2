@@ -205,3 +205,18 @@ describe("Demo / Inspect", () => {
     expect(document.querySelector(".cur-tab--active").textContent).toBe("Tools");
   });
 });
+
+describe("getting-started guide", () => {
+  it("lists the three steps in the empty chat and marks what is already done", async () => {
+    renderPage();
+    await ready();
+    const guide = screen.getByTestId("start-guide");
+    expect(guide).toHaveAttribute("aria-label", "Getting started");
+    expect(guide.querySelectorAll("li")).toHaveLength(3);
+    // Signed in (mocked) but no tools discovered yet: step 1 done, step 2 pending.
+    expect(guide.querySelectorAll("li.is-done")).toHaveLength(1);
+    expect(guide.textContent).toMatch(/Press Get MCP Tools/);
+    // It is text, not a second Get MCP Tools button.
+    expect(screen.getAllByRole("button", { name: /Get MCP Tools/i })).toHaveLength(1);
+  });
+});
