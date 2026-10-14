@@ -61,7 +61,7 @@ const FACADE_DOORS = ['agent-gateway', 'opensearch', 'brave', 'banking', 'privil
 // here (see lib/preflightRows.js's header). This row proves DNS/TLS/reachability
 // to the gateway, never that Task 5 was actually done. The authenticated proof is
 // the BFF posture check `gateway.privilege_first`.
-const GATEWAY_APPS = ['opensearch22', 'opensearch', 'brave', 'agent-gateway'];
+const GATEWAY_APPS = ['opensearch', 'brave', 'agent-gateway'];
 
 const TIMEOUT_MS = 15000;
 

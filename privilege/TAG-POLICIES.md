@@ -123,7 +123,7 @@ per-resource tag assignments live in
 | `demo-map-libre` | `^libre$` | `demo=redteam-hostile-mcp`, `purpose=hostile-redteam` |
 | `demo-map-mcp` | `^banking-` | `demo=banking-demo`, `purpose=banking-demo` |
 | `demo-map-opensearch` | `^opensearch$` | `demo=step-25-access-review`, `purpose=demo-opensearch` |
-| `demo-map-opensearch22` | `^opensearch22$` | `demo=step-25-access-review` (restored door) |
+| `demo-map-opensearch22` | `^opensearch22$` | `demo=step-25-access-review` (orphan: the app was deleted 2026-10-12) |
 
 ## Maintenance rule
 

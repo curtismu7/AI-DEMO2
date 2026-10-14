@@ -2,6 +2,13 @@
 
 October 9, 2026 · SE demo script
 
+> **Update 2026-10-12: the `opensearch22` Agentic App was deleted from the console** (unused for
+> 15 days). Anything below that names it describes the demo as written on October 9, not the
+> current tenant. The aggregate family (`aggregate`, `aggregate-limited`, `aggregate-none`) is now
+> the teaching door set (see `demo_api_server/services/mcpProfileStore.js`); re-verify the
+> permit/deny pairing against it before presenting. A deleted door is not a 403: the gateway
+> answers it with an empty HTTP 200, which clients report as `response id mismatch`.
+
 ## The story in one sentence
 
 An MCP client connects to the Agent Privilege, signs in, and the `tools/list`
@@ -19,7 +26,9 @@ Every claim in this script was measured against the live Agent Privilege
 
 | Door | URL | Policy state | Expected |
 | --- | --- | --- | --- |
-| `opensearch22` | `https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp` | 3-month time-box, names the presenter | **Permit** — the known-good door. When it starts 403ing, the box expired: renew it, do not debug |
+| ~~`opensearch22`~~ | ~~`…/opensearch22/mcp`~~ | **app deleted 2026-10-12**; its policy `opensearch22-permit-presenter` (expires 2027-01-09) is an orphan | **Gone** — an empty 200, not a 403. Use `aggregate-limited` for the permit side |
+| `aggregate-limited` | `https://mcpgw.ai-demo.ping-devops.com/aggregate-limited/mcp` | per-member tool filter | **Permit, filtered** — `tools/list` returns exactly 4 tools (`banking-mcp__get_investment_accounts`, `banking-mcp__get_airline_bookings`, `opensearch__ListIndexTool`, `opensearch__MsearchTool`), per [AGGREGATE-APPS-DEMO.md](AGGREGATE-APPS-DEMO.md) |
+| `aggregate-none` | `https://mcpgw.ai-demo.ping-devops.com/aggregate-none/mcp` | `…____no_tools_by_design` on each member | **Door up, zero tools** — the "nothing granted" side of the contrast |
 | `opensearch` | `https://mcpgw.ai-demo.ping-devops.com/opensearch/mcp` | **deliberately none** | **Deny** — always 403 by design. Never attach a policy to it; never report its 403 as broken |
 | `aggregate` | `https://mcpgw.ai-demo.ping-devops.com/aggregate/mcp` | grant listing tools in `<member>__` form | Permit for the granted tool set; full sign-in through it not yet recorded — rehearse before showing |
 
@@ -148,7 +157,7 @@ rehearse before presenting this act.
 
 | Symptom | Truth | Fix |
 | --- | --- | --- |
-| `opensearch22` 403s | Expired policy time-box — the demo-killer named in [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md) | Renew the policy in the console; effective immediately, no restart |
+| ~~`opensearch22` 403s~~ (the app was deleted 2026-10-12; a call now gets an empty 200) | Expired policy time-box — the demo-killer named in [CURRENT-CONFIGURATION.md](CURRENT-CONFIGURATION.md) | Renew the policy in the console; effective immediately, no restart |
 | Console says "Gateway Unreachable" / "Unauthorized" on a 403 | Both messages lie — Privilege denies at its own policy layer before dialling the backend (measured: backend 401 in 13 ms while the console showed "Unreachable") | Read the `log-tailer` output; check the policy time-box |
 | Client shows 403, log shows `policy denied … user not found in system` | User not synced into Privilege | Fix the PingOne Privilege app's Group Membership Policy and the user's group |
 | Empty Email= in `User identity resolved` | Cosmetic — empty for every user, including working ones | Ignore it |

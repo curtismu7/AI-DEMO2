@@ -17,7 +17,7 @@ const expectedIds = [
   'handoff-super-sports-checkout',
   'opensearch-direct',
   'opensearch-via-privilege',
-  'opensearch-privilege-opensearch22',
+  'opensearch-privilege-opensearch',
   'privilege-aggregate',
 ];
 const internalHandoffTargets = new Set(['banking-movement']);

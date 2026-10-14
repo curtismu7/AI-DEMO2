@@ -145,7 +145,7 @@ below.
 
    It also creates Super Sports Policy Guardrails (on `Sports`)
    and three OpenSearch agents — OpenSearch · Direct, OpenSearch · via
-   Privilege, OpenSearch · Privilege opensearch22 — with the same three
+   Privilege, OpenSearch · Privilege (3 tools) — with the same three
    starters, one per door.
 
    Banking and CareConnect (healthcare) agents: Banking Account Details,
@@ -206,7 +206,7 @@ recreate a container whose compose-level config didn't change.
 | `aidemo-mcp` | works (auth-disabled local mcp-server) | not offered — host-local only |
 | `super-sports-gateway` | works once each user Connects (PingOne login); the façade's `localhost:3005` sign-in server is reached through the `oauth-loopback` sidecar | not offered |
 | `opensearch-direct` | works while the Mac port-forward runs (no auth); `bash scripts/install-opensearch-port-forward-launchd.sh` keeps it up with a launchd agent | not offered — Mac-only port-forward |
-| `privilege-opensearch22` | works once each user Connects; LibreChat signs in against the Privilege gateway's own OAuth server (public host, no sidecar) | not offered |
+| `privilege-opensearch` | works once each user Connects; LibreChat signs in against the Privilege gateway's own OAuth server (public host, no sidecar) | not offered |
 | `opensearch-privilege-gateway` | works once each user Connects (through the `oauth-loopback` sidecar) and the façade's Privilege leg is signed in at `/privilege-mcp-client` | works — replaced `opensearch-privilege-agent` on 2026-09-05. That entry pointed at the deleted `agent` door, whose mesh frontend still resolved while nothing served it; the Mac-local `:8643` reachability caveat it carried is moot now, since nothing routes that way |
 | `privilege-agentless` | removed 2026-09-13 — addressed `ai-demo.ping-devops.com`, torn down with `ping-devops-cmuir` | works — verified live |
 | `agent-gateway` | removed 2026-09-13 — same host as `privilege-agentless` | works — a 502 `upstream_unavailable` seen live 2026-08-25 was a routine `demo_mcp_gateway` rollout on the pingaws cluster catching this door mid-startup-probe (`kubectl -n ping-devops-cmuir get events` showed one `Unhealthy: connection refused` right after pod creation, then `2/2 Running` ~4s later) — not a bug. If this recurs, check `kubectl --context us -n ping-devops-cmuir get pods -l app=mcp-gateway` before assuming a LibreChat or façade problem |
