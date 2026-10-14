@@ -926,9 +926,12 @@ class PingOneProvisionService {
       'OBO Demo', 'OBO delegation demo: delegated tokens with an RFC 8693 act object', cfg.audience,
     );
     const resourceId = created.resource.id;
-    await this.createScopes(resourceId, [{ name: cfg.scope, description: 'OBO demo delegated access' }]);
+    const scopeResults = await this.createScopes(resourceId, [{ name: cfg.scope, description: 'OBO demo delegated access' }]);
+    const badScope = (scopeResults || []).find((r) => r && r.success === false);
+    if (badScope) throw new Error(badScope.error || 'scope create failed');
     await this._setResourceAttribute(resourceId, 'act', OBO_ACT_SPEL);
-    await this.grantScopesToApplication(cfg.exchanger.id, resourceId, [cfg.scope]);
+    const grant = await this.grantScopesToApplication(cfg.exchanger.id, resourceId, [cfg.scope]);
+    if (!grant || grant.success === false) throw new Error(grant?.error || 'grant to Token Exchanger failed');
     return { resourceId, audience: cfg.audience };
   }
 

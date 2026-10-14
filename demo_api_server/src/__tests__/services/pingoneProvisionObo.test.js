@@ -32,3 +32,15 @@ test('is idempotent: an existing resource is reused and the attribute is re-appl
   await svc.ensureOboDemoResource();
   expect(svc._setResourceAttribute).toHaveBeenCalledTimes(1);
 });
+
+test('a failed grant (returned, not thrown) rejects so bootstrap warns', async () => {
+  const svc = stub();
+  svc.grantScopesToApplication.mockResolvedValue({ success: false, error: 'No scopes resolved on resource' });
+  await expect(svc.ensureOboDemoResource()).rejects.toThrow('No scopes resolved on resource');
+});
+
+test('a failed scope create (returned, not thrown) rejects', async () => {
+  const svc = stub();
+  svc.createScopes.mockResolvedValue([{ success: false, error: 'boom', name: 'obo:invoke' }]);
+  await expect(svc.ensureOboDemoResource()).rejects.toThrow('boom');
+});
