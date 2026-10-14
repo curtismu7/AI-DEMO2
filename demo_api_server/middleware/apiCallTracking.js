@@ -6,6 +6,8 @@ const TRACKING_SKIP_PREFIXES = [
   '/api-calls', '/tokens/session-preview', '/tokens/agent-cc-preview',
   '/healthz', '/health', '/mcp/traffic', '/oauth/monitor',
   '/privilege-user-api-keys',
+  // OBO MCP tool results (claims) must not land in the shared API-call buffer.
+  '/obo/',
   // PF AI callback URLs carry OAuth codes; RAR forms can carry user identifiers.
   '/pf-ai-agent/',
   // The AIC demo callback URL carries an OAuth code too.

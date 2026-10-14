@@ -44,3 +44,9 @@ test('a failed scope create (returned, not thrown) rejects', async () => {
   svc.createScopes.mockResolvedValue([{ success: false, error: 'boom', name: 'obo:invoke' }]);
   await expect(svc.ensureOboDemoResource()).rejects.toThrow('boom');
 });
+
+test('an explicit exchanger app id is used for the grant', async () => {
+  const svc = stub();
+  await svc.ensureOboDemoResource('FRESH-EX');
+  expect(svc.grantScopesToApplication).toHaveBeenCalledWith('FRESH-EX', 'R1', ['obo:invoke']);
+});

@@ -33,7 +33,7 @@ describe('POST /api/obo/mcp', () => {
   test('401 with an OAuth resource_metadata challenge when no Bearer', async () => {
     const res = await request(app).post('/api/obo/mcp').send(rpc('tools/list'));
     expect(res.status).toBe(401);
-    expect(res.headers['www-authenticate']).toMatch(/^Bearer resource_metadata="https?:\/\/[^"]+\/\.well-known\/oauth-protected-resource\/api\/obo\/mcp"$/);
+    expect(res.headers['www-authenticate']).toMatch(/^Bearer resource_metadata="https?:\/\/[^"]+\/api\/obo\/mcp\/oauth-protected-resource"$/);
   });
 
   test('401 challenge when the token fails validation', async () => {
@@ -41,6 +41,29 @@ describe('POST /api/obo/mcp', () => {
     const res = await request(app).post('/api/obo/mcp').set('Authorization', 'Bearer x').send(rpc('tools/list'));
     expect(res.status).toBe(401);
     expect(res.headers['www-authenticate']).toBeDefined();
+  });
+
+  test('absent token: challenge has no error=; failed Bearer: error="invalid_token"', async () => {
+    const none = await request(app).post('/api/obo/mcp').send(rpc('tools/list'));
+    expect(none.headers['www-authenticate']).not.toMatch(/error=/);
+    validateToken.mockRejectedValue(new Error('bad sig'));
+    const bad = await request(app).post('/api/obo/mcp').set('Authorization', 'Bearer x').send(rpc('tools/list'));
+    expect(bad.headers['www-authenticate']).toContain('error="invalid_token"');
+  });
+
+  test('logs a rejected inbound call with aud/client_id but never the token', async () => {
+    const payload = Buffer.from(JSON.stringify({ aud: 'wrong-aud', client_id: 'cid-1' })).toString('base64url');
+    const token = `eyJhbGciOiJSUzI1NiJ9.${payload}.sig`;
+    validateToken.mockRejectedValue(new Error('jwt audience invalid'));
+    const spy = jest.spyOn(console, 'warn').mockImplementation(() => {});
+    await request(app).post('/api/obo/mcp').set('Authorization', `Bearer ${token}`).send(rpc('tools/list'));
+    const logged = spy.mock.calls.map((c) => c.join(' ')).join('\n');
+    spy.mockRestore();
+    expect(logged).toContain('jwt audience invalid');
+    expect(logged).toContain('wrong-aud');
+    expect(logged).toContain('cid-1');
+    expect(logged).not.toContain(token);
+    expect(logged).not.toContain(payload);
   });
 
   test('validates against the configured inbound audiences', async () => {
@@ -88,6 +111,20 @@ describe('POST /api/obo/mcp', () => {
       expect(res.body.result.content[0].text).toMatch(/invalid_scope/);
     });
 
+    test('an exchange error containing a token is withheld from the model', async () => {
+      runObo.mockRejectedValue(new Error('boom eyJhbGciOiJSUzI1NiJ9.eyJzdWIiOiJ1MSJ9.sig'));
+      const res = await post(rpc('tools/call', { name: 'act_on_my_behalf' }));
+      const text = res.body.result.content[0].text;
+      expect(text).not.toMatch(/eyJ/);
+      expect(text).toMatch(/withheld/);
+    });
+
+    test('an unknown tool name is a JSON-RPC invalid-params error', async () => {
+      const res = await post(rpc('tools/call', { name: 'other' }, 7));
+      expect(res.body.id).toBe(7);
+      expect(res.body.error).toEqual({ code: -32602, message: 'unknown tool' });
+    });
+
     test('a notification (no id) gets 202 with no body', async () => {
       const res = await post({ jsonrpc: '2.0', method: 'notifications/initialized' });
       expect(res.status).toBe(202);
@@ -97,6 +134,14 @@ describe('POST /api/obo/mcp', () => {
       const res = await post(rpc('resources/list'));
       expect(res.body.error.code).toBe(-32601);
     });
+  });
+});
+
+describe('GET /api/obo/mcp', () => {
+  test('405 with Allow: POST', async () => {
+    const res = await request(app).get('/api/obo/mcp');
+    expect(res.status).toBe(405);
+    expect(res.headers.allow).toBe('POST');
   });
 });
 
@@ -115,6 +160,15 @@ describe('GET /api/obo/downstream', () => {
 describe('metadata', () => {
   test('advertises this resource and PingOne as the authorization server', async () => {
     const res = await request(app).get('/.well-known/oauth-protected-resource/api/obo/mcp');
+    expect(res.body.resource).toMatch(/\/api\/obo\/mcp$/);
+    expect(res.body.authorization_servers).toEqual(['https://iss']);
+  });
+});
+
+describe('metadata on the proxied /api/ path', () => {
+  test('GET /api/obo/mcp/oauth-protected-resource returns the metadata JSON', async () => {
+    const res = await request(app).get('/api/obo/mcp/oauth-protected-resource');
+    expect(res.status).toBe(200);
     expect(res.body.resource).toMatch(/\/api\/obo\/mcp$/);
     expect(res.body.authorization_servers).toEqual(['https://iss']);
   });

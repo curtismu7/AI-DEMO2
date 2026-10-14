@@ -6,14 +6,16 @@ const { getOboConfig } = require('../services/oboConfig');
 const { runObo } = require('../services/oboExchangeService');
 const { verifyDownstream } = require('../services/oboDownstream');
 const hub = require('../services/oboEventHub');
+const { hasTokenLeak } = require('../services/oboEvidence');
 
 const router = express.Router();
 
 const bearer = (req) => (req.headers.authorization || '').replace(/^Bearer\s+/i, '') || null;
 const baseUrl = (req) => process.env.PUBLIC_APP_URL || `${req.protocol}://${req.get('host')}`;
 
-function challenge(req, res) {
-  res.set('WWW-Authenticate', `Bearer resource_metadata="${baseUrl(req)}/.well-known/oauth-protected-resource/api/obo/mcp"`);
+// Metadata lives under /api/ because the frontend proxies /api/ but serves the SPA for /.well-known/.
+function challenge(req, res, invalidToken = false) {
+  res.set('WWW-Authenticate', `Bearer${invalidToken ? ' error="invalid_token",' : ''} resource_metadata="${baseUrl(req)}/api/obo/mcp/oauth-protected-resource"`);
   return res.status(401).json({ error: 'unauthorized' });
 }
 
@@ -25,6 +27,17 @@ function metadataHandler(req, res) {
     scopes_supported: ['mcp:invoke', 'read'],
     bearer_methods_supported: ['header'],
   });
+}
+
+router.get('/mcp/oauth-protected-resource', metadataHandler);
+router.get('/mcp', (_req, res) => res.status(405).set('Allow', 'POST').end());
+
+// Best-effort aud/client_id for the rejection log; never the token itself.
+function tokenHints(token) {
+  try {
+    const { aud, client_id: clientId } = JSON.parse(Buffer.from(token.split('.')[1], 'base64url').toString());
+    return `aud=${JSON.stringify(aud)} client_id=${clientId}`;
+  } catch (_e) { return 'aud/client_id unreadable'; }
 }
 
 const TOOLS = [{
@@ -59,8 +72,9 @@ router.post('/mcp', async (req, res) => {
   let caller;
   try {
     caller = await validateToken(token, { jwksUri: cfg.jwksUri, issuer: cfg.issuer, audience: cfg.inboundAudiences });
-  } catch (_e) {
-    return challenge(req, res);
+  } catch (e) {
+    console.warn(`[obo] rejected inbound MCP call: ${e.message} (${tokenHints(token)})`);
+    return challenge(req, res, true);
   }
 
   const msg = req.body || {};
@@ -75,12 +89,15 @@ router.post('/mcp', async (req, res) => {
     case 'ping':
       return ok({});
     case 'tools/call':
+      if (msg.params?.name !== 'act_on_my_behalf') {
+        return res.json({ jsonrpc: '2.0', id: msg.id, error: { code: -32602, message: 'unknown tool' } });
+      }
       try {
         const ev = await runObo({ req, subjectToken: token, source: 'claude' });
         hub.publish(caller.sub, ev);
         return ok({ content: [{ type: 'text', text: toolText(ev) }] });
       } catch (e) {
-        return ok({ isError: true, content: [{ type: 'text', text: `error: ${e.message}` }] });
+        return ok({ isError: true, content: [{ type: 'text', text: hasTokenLeak(e.message) ? 'error: withheld (contained a token)' : `error: ${e.message}` }] });
       }
     default:
       return res.json({ jsonrpc: '2.0', id: msg.id, error: { code: -32601, message: 'method not found' } });

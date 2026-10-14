@@ -6,6 +6,7 @@ jest.mock('../../../services/oboConfig', () => ({
   })),
 }));
 jest.mock('../../../services/agentCCTokenService', () => ({ getAgentCCToken: jest.fn() }));
+jest.mock('../../../services/oauthEndpointResolver', () => ({ getPingOneTokenEndpoint: jest.fn(() => 'https://pingone/as/token') }));
 jest.mock('../../../services/oauthService', () => ({ performTokenExchangeAs: jest.fn() }));
 
 const { getOboConfig } = require('../../../services/oboConfig');
@@ -55,4 +56,16 @@ test('an exchange error propagates without the subject token in its message', as
   const err = await runObo({ req: {}, subjectToken: user, source: 'claude' }, d).catch((e) => e);
   expect(err.message).toMatch(/invalid_scope/);
   expect(err.message).not.toContain(user);
+});
+
+test('default exchange calls performTokenExchangeAs against the PingOne token endpoint only', async () => {
+  // setup.js resets modules after each test, so load the service and its mocked deps from one fresh registry.
+  const oauthService = require('../../../services/oauthService');
+  const { runObo: freshRunObo } = require('../../../services/oboExchangeService');
+  oauthService.performTokenExchangeAs.mockResolvedValue(delegated);
+  const d = deps(); delete d.exchange;
+  await freshRunObo({ req: {}, subjectToken: user, source: 'claude' }, d);
+  expect(oauthService.performTokenExchangeAs).toHaveBeenCalledWith(
+    user, 'actor', 'ex', 'exs', 'obo-demo.ping.demo', 'obo:invoke', 'post', { tokenEndpoint: 'https://pingone/as/token' },
+  );
 });

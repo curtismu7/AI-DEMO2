@@ -919,18 +919,18 @@ class PingOneProvisionService {
    * OBJECT, and a grant of that scope to the Token Exchanger app. `sub` is reserved and
    * added by PingOne automatically, so it is never created here.
    */
-  async ensureOboDemoResource() {
+  async ensureOboDemoResource(exchangerAppId = require('./oboConfig').getOboConfig().exchanger.id) {
     const { getOboConfig, OBO_ACT_SPEL } = require('./oboConfig');
     const cfg = getOboConfig();
     const created = await this.createResourceServer(
-      'OBO Demo', 'OBO delegation demo: delegated tokens with an RFC 8693 act object', cfg.audience,
+      _provisioningResourceName('OBO Demo'), 'OBO delegation demo: delegated tokens with an RFC 8693 act object', cfg.audience,
     );
     const resourceId = created.resource.id;
     const scopeResults = await this.createScopes(resourceId, [{ name: cfg.scope, description: 'OBO demo delegated access' }]);
     const badScope = (scopeResults || []).find((r) => r && r.success === false);
     if (badScope) throw new Error(badScope.error || 'scope create failed');
     await this._setResourceAttribute(resourceId, 'act', OBO_ACT_SPEL);
-    const grant = await this.grantScopesToApplication(cfg.exchanger.id, resourceId, [cfg.scope]);
+    const grant = await this.grantScopesToApplication(exchangerAppId, resourceId, [cfg.scope]);
     if (!grant || grant.success === false) throw new Error(grant?.error || 'grant to Token Exchanger failed');
     return { resourceId, audience: cfg.audience };
   }
@@ -2741,15 +2741,6 @@ class PingOneProvisionService {
       }
       onStep(steps[steps.length - 1]);
 
-      steps.push({ step: 'obo-demo-resource', icon: '🔧', message: 'Ensuring OBO Demo resource (act object attribute)...' });
-      onStep(steps[steps.length - 1]);
-      try {
-        const obo = await this.ensureOboDemoResource();
-        steps.push({ step: 'obo-demo-resource', icon: '✅', message: `OBO Demo resource ready (${obo.audience})` });
-      } catch (err) {
-        steps.push({ step: 'obo-demo-resource', icon: '⚠️', message: `OBO Demo resource step: ${err.message}` });
-      }
-      onStep(steps[steps.length - 1]);
 
       // Ensure the `delegatedTo` user-schema attribute (CUSTOM JSON ARRAY). Holds the
       // family-delegation declaration on the USER record: ["<delegate sub>", ...].
@@ -2896,6 +2887,17 @@ class PingOneProvisionService {
       provisioned.mcpExchangerApp = mcpExchangerResult.application;
       provisioned.mcpExchangerApp.clientSecret = await this.getApplicationSecret(mcpExchangerResult.application.id);
       pushAppResultStep(steps, 'mcp-exchanger-app', 'MCP Exchanger application', mcpExchangerResult);
+      onStep(steps[steps.length - 1]);
+
+      steps.push({ step: 'obo-demo-resource', icon: '🔧', message: 'Ensuring OBO Demo resource (act object attribute)...' });
+      onStep(steps[steps.length - 1]);
+      try {
+        if (!provisioned.mcpExchangerApp) throw new Error('MCP Exchanger application was not created');
+        const obo = await this.ensureOboDemoResource(provisioned.mcpExchangerApp.id);
+        steps.push({ step: 'obo-demo-resource', icon: '✅', message: `OBO Demo resource ready (${obo.audience})` });
+      } catch (err) {
+        steps.push({ step: 'obo-demo-resource', icon: '⚠️', message: `OBO Demo resource step: ${err.message}` });
+      }
       onStep(steps[steps.length - 1]);
 
       // Step 23a: Configure MCP Exchanger redirect URI + auth method.

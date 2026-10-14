@@ -263,6 +263,10 @@ describe('hostedAccessGate OBO MCP endpoint', () => {
   test('the unauthenticated POST to the MCP endpoint bypasses the wall so it can return the OAuth challenge', () => {
     expect(isHostedAccessBypassPath('/api/obo/mcp', 'POST')).toBe(true);
   });
+  test('the metadata GET bypasses the wall; POST to it stays walled', () => {
+    expect(isHostedAccessBypassPath('/api/obo/mcp/oauth-protected-resource', 'GET')).toBe(true);
+    expect(isHostedAccessBypassPath('/api/obo/mcp/oauth-protected-resource', 'POST')).toBe(false);
+  });
   test('other OBO paths and methods stay walled', () => {
     expect(isHostedAccessBypassPath('/api/obo/mcp', 'GET')).toBe(false);
     expect(isHostedAccessBypassPath('/api/obo/downstream', 'GET')).toBe(false);
