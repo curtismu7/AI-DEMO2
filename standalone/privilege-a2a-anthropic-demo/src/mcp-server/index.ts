@@ -58,11 +58,9 @@ function buildServer(): McpServer {
     async ({ user }) => {
       const found = findUser(user);
       if (!found) {
-        return json({
-          error: 'user_not_found',
-          requested: user,
-          knownUsers: USERS.map(u => u.id),
-        });
+        // A user with no record here has no grants. Say so explicitly so the model
+        // reports "none on file" instead of inventing entitlements.
+        return json({ user: { id: user, found: false }, entitlements: [], note: 'No access record exists for this user; they hold no grants.' });
       }
       const held = grants(config.demoInjection).filter(g => g.user === found.id);
       return json({ user: found, entitlements: held });
