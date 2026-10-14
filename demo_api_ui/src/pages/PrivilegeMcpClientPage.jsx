@@ -2263,7 +2263,7 @@ export default function PrivilegeMcpClientPage() {
             </div>
           </div>
 
-          <div className="cur-editor-area">
+          <div className={`cur-editor-area cur-panel--${visibleTab}`}>
             {visibleTab === 'a2a' && <PrivilegeA2aTab />}
             {visibleTab === 'chat' && (
               <>

@@ -588,13 +588,27 @@ select.cur-input { cursor: pointer; }
 .cur-tab:hover { color: #ffffff; }
 /* Per-tab accent colors — at a glance you can tell which surface you are on.
    Each tab sets --tab-accent; the active tab renders it as its background. */
-.cur-ide .cur-tab--chat { --tab-accent: #0e639c; }
-.cur-ide .cur-tab--a2a { --tab-accent: #6f42c1; }
-.cur-ide .cur-tab--tools { --tab-accent: #0f7b3f; }
-.cur-ide .cur-tab--user-api-keys { --tab-accent: #b58900; }
-.cur-ide .cur-tab--mcp { --tab-accent: #0e639c; }
-.cur-ide .cur-tab--rpc { --tab-accent: #a1352c; }
-.cur-ide .cur-tab--policies { --tab-accent: #6f42c1; }
+.cur-ide .cur-tab--chat, .cur-ide .cur-panel--chat { --tab-accent: #0e639c; }
+.cur-ide .cur-tab--a2a, .cur-ide .cur-panel--a2a { --tab-accent: #6f42c1; }
+.cur-ide .cur-tab--tools, .cur-ide .cur-panel--tools { --tab-accent: #0f7b3f; }
+.cur-ide .cur-tab--user-api-keys, .cur-ide .cur-panel--user-api-keys { --tab-accent: #b58900; }
+.cur-ide .cur-tab--mcp, .cur-ide .cur-panel--mcp { --tab-accent: #0e7490; }
+.cur-ide .cur-tab--rpc, .cur-ide .cur-panel--rpc { --tab-accent: #a1352c; }
+.cur-ide .cur-tab--policies, .cur-ide .cur-panel--policies { --tab-accent: #c2570c; }
+/* The section under the active tab is the SAME color as the tab, so tab and
+   section read as one piece. Panels that paint their own ground are cleared
+   so the accent shows through; inputs and cards keep their own surfaces. */
+.cur-ide .cur-editor-area[class*="cur-panel--"] {
+  background: var(--tab-accent);
+  color: #fff;
+}
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-composer,
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-chat-panel,
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-chat-messages,
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-tools-panel,
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-rpc-panel,
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-user-api,
+.cur-ide .cur-editor-area[class*="cur-panel--"] .ptt-table thead th { background: transparent; }
 .cur-ide .cur-tab--active {
   color: #fff;
   border: 2px solid var(--tab-accent, #007acc);
