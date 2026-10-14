@@ -26,6 +26,27 @@ The A2A demo's worker agent can be made to demand a bearer. In
 That makes the worker a stand-in for "an agent that checks its caller", which is
 exactly what each mode needs to be told apart. (Both default to `false`.)
 
+## Findings from the 2026-10-14 live attempt (mode flips NOT run)
+
+- **Valid `AuthMode` values** for a Remote Agent (HTTP) app, from the console's own
+  swagger: `none` / `""`, `static-token` (uses the app's `AuthToken`), `user-token`,
+  and **`token-pass`** (the console's name for Pass Agent Token).
+- **The spare app `workeragentdemo2`** is a copy of the live `worker-agent` door
+  (same backend, `AuthMode: none`, agent card off) and **no a2a-scoped key can reach
+  it** — every key gets `403`. A grant is a `pacpolicys` rule:
+  `Spec.ActionMap.HTTP.PolicyRule[]` with `ObjectRef` = the app (`tenant@@@default@@@<app>`,
+  base64) and `Attributes.Map.agentaccesskey` = the key (base64), with `IssuedTo` = the user.
+  Existing example: `AngaraRiver-7a4f517a4c65` grants `main-agent` the `worker-agent`
+  and `langchain-midagent` apps.
+- **Not done:** creating a time-boxed grant for `main-agent` on `workeragentdemo2`
+  (then flipping None → Static Token → `token-pass` and restoring) was blocked as a
+  permission grant and needs the user's explicit approval. So no mode was flipped.
+- **Even with a grant, None vs Static Token can't be told apart on the live worker:**
+  it does not enforce a bearer (`WORKER_REQUIRE_BEARER` is not set on
+  `workeragentdemo`), so both return the same. Only `token-pass` would visibly
+  differ (a `403` from the gateway). Showing None → 401 and Static → 200 needs a
+  worker started with `WORKER_REQUIRE_BEARER=true`, which was not done on the shared one.
+
 ## The modes
 
 | Auth Mode | The backend receives | Status on our build |

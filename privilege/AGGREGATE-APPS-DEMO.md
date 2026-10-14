@@ -1,8 +1,7 @@
 # Aggregate apps: demo runbook
 
-October 13, 2026 · SE demo script · **door inventory verified live 2026-10-13;
-tool calls through the doors were not run (see "Live check") — the rest is from
-code and the measured guide.** Measured results are from
+October 13, 2026 · SE demo script · **door inventory verified live 2026-10-13; `tools/list` and tool calls run live
+2026-10-14 (see "Live check") — the rest is from code and the measured guide.** Measured results are from
 [GATEWAY-AGGREGATE-APPS](GATEWAY-AGGREGATE-APPS.md) (4 Oct 2026, two members, one
 agent key with the `mcp` scope). The guide itself notes that full sign-in through
 the aggregate is **not yet recorded** — rehearse before showing.
@@ -48,11 +47,26 @@ Read from the console API — four aggregate apps exist, all with members
 The filter is intersected with the caller's grant (see above), so
 `aggregate-limited` is the cleaner "central control" demo.
 
-**Blocked live:** the two agent keys in the A2A demo's `.env` (`MAIN_AGENT_KEY`,
-`WORKER_AGENT_KEY`) got `403 Forbidden: key not scoped for mcp access` on all four
-doors, so no `tools/list` was captured. The tenant has mcp-scoped keys
-(`worker-agent`, `openai`, `google`, `local`, `ollama`, `llama.cpp`); use one that
-has the aggregate selected under its MCP servers, or create a throwaway key.
+**Run live 2026-10-14**, through `https://mcpgw.ai-demo.ping-devops.com/<door>/mcp` with
+the console `worker-agent` key (scopes `llm` + `mcp`; the keys in the A2A demo's
+`.env` get `403 key not scoped for mcp access` — use this one):
+
+| Call | Result |
+|---|---|
+| `tools/list` on `aggregate-limited` | **4 tools**, exactly the filter: `banking-mcp__get_investment_accounts`, `banking-mcp__get_airline_bookings`, `opensearch__ListIndexTool`, `opensearch__MsearchTool` |
+| `tools/list` on `aggregate` | **42 tools**, every one prefixed with its member |
+| `tools/list` on `aggregate-none` | door up, **0 tools** |
+| `tools/list` on `banking-aggregate` | `400 -32600 request refused by policy` — this key has no grant on that door |
+| call `banking-mcp__get_airline_bookings` | **works** in 0.24 s (SQLite-backed data) |
+| call `opensearch__ListIndexTool` | **fails after 30 s**: `connect opensearch: calling "initialize": rejected by transport: sending "initialize": Internal Server Error` — the `opensearch` member behind the aggregate is unhealthy; **a listed tool is not a working tool** |
+| call `banking-mcp__pay_airline_fee` (not in the filter) | `"banking-mcp__pay_airline_fee" is not exposed by this aggregate` (JSON-RPC `-32600`) |
+| call bare `get_airline_bookings` | `"get_airline_bookings" is not namespaced; expected <server>__<name>` |
+| call `bogus__ListIndexTool` | `unknown server "bogus"` |
+
+Note the ungranted-tool message differs from the 2026-10-04 guide (`access denied`):
+on a door with a member tool filter the refusal is "not exposed by this aggregate".
+**Demo order:** use `aggregate-limited` and the banking member; avoid calling an
+`opensearch__` tool live until that member is fixed.
 
 ## Before you present
 
