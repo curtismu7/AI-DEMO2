@@ -387,3 +387,26 @@
   cursor: pointer;
 }
 .privilege-a2a__chip:disabled { opacity: 0.5; cursor: default; }
+
+.cur-ide .privilege-a2a__head {
+  display: flex;
+  align-items: baseline;
+  justify-content: flex-start;
+  gap: 14px;
+}
+.cur-ide .privilege-a2a__head h3 { margin-bottom: 14px; }
+.cur-ide .privilege-a2a__details {
+  flex-shrink: 0;
+  min-height: 30px;
+  padding: 4px 12px;
+  border: 1px solid var(--a2a-accent);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--a2a-accent);
+  font: inherit;
+  font-size: var(--font-size-sm);
+  font-weight: 650;
+  cursor: pointer;
+}
+.cur-ide .privilege-a2a__details:focus-visible { outline: 2px solid var(--a2a-accent); outline-offset: 2px; }
+.cur-ide .privilege-a2a__details:disabled { opacity: 0.5; cursor: not-allowed; }

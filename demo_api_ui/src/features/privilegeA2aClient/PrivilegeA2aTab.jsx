@@ -118,7 +118,21 @@ export default function PrivilegeA2aTab() {
 
       <div className="privilege-a2a__workspace">
         <section className="privilege-a2a__conversation" aria-label="Conversation">
-          <h3>Conversation</h3>
+          <div className="privilege-a2a__head">
+            <h3>Conversation</h3>
+            {/* The movie-reel / sequence view of this run: every hop, claim and gateway decision,
+                kept after the run ends (until the next run starts). It sits here, not by the trace: once a run
+                starts, the floating agent panel opens over the right-hand column. */}
+            <button
+              type="button"
+              className="privilege-a2a__details"
+              onClick={() => window.dispatchEvent(new CustomEvent('agent-evidence-open', { detail: { view: 'sequence-view' } }))}
+              disabled={!busy && turns.length === 0}
+              title="Open the step-by-step sequence of this run, with details for each hop"
+            >
+              Open run details
+            </button>
+          </div>
           {turns.length === 0 ? (
             <p className="privilege-a2a__empty">Ask who has access to a resource, what roles a person holds, or whether an access ticket exists.</p>
           ) : (
