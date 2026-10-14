@@ -1,4 +1,8 @@
-# PingOne Privilege documentation index
+# Unofficial: PingOne Privilege documentation index
+
+> **UNOFFICIAL — NOT OFFICIAL PING DOCUMENTATION**
+>
+> These are my documents from building out Agent Privilege features.  They are not intended to replace documentation.  This is meant to help SE’s with details and in the short term, while we wait for documentation.
 
 Every Privilege doc we own, in one place. The MD link is the source file in this
 repo (public on GitHub). PDF exports of the SE guides ship through the shared
