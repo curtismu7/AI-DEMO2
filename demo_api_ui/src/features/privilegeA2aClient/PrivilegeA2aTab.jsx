@@ -6,11 +6,40 @@ import PageAgentModeToggle, { usePageAgentMode } from '../../components/shared/P
 import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
 import './PrivilegeA2aTab.css';
 
+const WALK = [
+  'Ask: type a question below, or pick a suggested one. You watch the agent work.',
+  'Delegate: the main agent hands the lookup to the analyst. The details column shows who acts for whom.',
+  'Check access: the reel in the middle shows each step, and each step says why it happened.',
+  'Call the tool: click a step to see exactly what was sent and what came back.',
+  'Answer: the agent replies from the tool result only. Then check your understanding.',
+];
+const BREAKS = [
+  { label: 'Break it: ungranted user', question: 'Show entitlements for an ungranted user.' },
+  { label: 'Break it: needs approval', question: 'Delete the orders-2026 index.' },
+  { label: 'Break it: out of scope', question: 'Which of my purchases were returned?' },
+];
+const WHY = {
+  delegate: 'Delegation passes the request on, not the user\'s password.',
+  'mcp-call': 'The gateway checks the grant before the tool runs.',
+  result: 'The result goes back to the main agent to be shown.',
+  error: 'Something stopped this step. Its details say what.',
+};
+const QUIZ_OPTIONS = [
+  'The main agent',
+  'The analyst agent, through an MCP tool',
+  'The browser page',
+];
+
 export default function PrivilegeA2aTab() {
   const profile = usePrivilegeA2aProfile();
   const [agentMode, setAgentMode] = usePageAgentMode('privilege-a2a');
   const demoQuestions = profile?.questions?.length ? profile.questions : PRIVILEGE_A2A_DEMO_QUESTIONS;
   const [input, setInput] = useState('');
+  // Learning aids: a walkthrough over the three columns, the step picked in the reel, and a short quiz after a good run.
+  const [walkStep, setWalkStep] = useState(-1);
+  const [selectedStep, setSelectedStep] = useState(null);
+  const [quizOpen, setQuizOpen] = useState(false);
+  const [quizAnswer, setQuizAnswer] = useState(null);
   const [selectedQuestion, setSelectedQuestion] = useState('');
   const [turns, setTurns] = useState([]);
   const [trace, setTrace] = useState([]);
@@ -69,6 +98,9 @@ export default function PrivilegeA2aTab() {
     setBusy(true);
     setError('');
     setTrace([]);
+    setSelectedStep(null);
+    setQuizOpen(false);
+    setQuizAnswer(null);
     setRecord(null);
     clearTimeout(recordTimerRef.current);
     const startedAt = Date.now();
@@ -89,10 +121,11 @@ export default function PrivilegeA2aTab() {
             trigger: { type: 'link', path: `${window.location.pathname}${window.location.search}` },
           },
           stepNumber: '25A',
-          opts: { keepTrace: true, run },
+          opts: { keepTrace: true, keepPanelClosed: true, run },
         },
       }));
-      await run;
+      const result = await run;
+      if (result?.ok) setQuizOpen(true);
     } catch (requestError) {
       if (controller.signal.aborted) setError('Request cancelled.');
       else setError(requestError instanceof Error ? requestError.message : 'The A2A request failed.');
@@ -157,6 +190,99 @@ export default function PrivilegeA2aTab() {
             </div>
           )}
           {error && <p className="privilege-a2a__error" role="alert">{error}</p>}
+          {quizOpen && (
+            <div className="privilege-a2a__quiz" role="group" aria-label="Check your understanding">
+              <p><b>Check your understanding:</b> Which agent actually reads the entitlements?</p>
+              {QUIZ_OPTIONS.map((option, index) => (
+                <button
+                  key={option}
+                  type="button"
+                  className={`privilege-a2a__quiz-opt${quizAnswer === index ? (index === 1 ? ' is-right' : ' is-wrong') : ''}`}
+                  disabled={quizAnswer !== null}
+                  onClick={() => setQuizAnswer(index)}
+                >
+                  {option}
+                </button>
+              ))}
+              {quizAnswer !== null && (
+                <p className="privilege-a2a__quiz-why">
+                  {quizAnswer === 1 ? 'Correct. ' : 'Not quite. '}The main agent only delegates. The analyst calls the tool through the gateway.
+                </p>
+              )}
+            </div>
+          )}
+          <div className="privilege-a2a__walk" aria-label="Walkthrough">
+            {walkStep < 0 ? (
+              <button type="button" className="privilege-a2a__walk-start" onClick={() => setWalkStep(0)}>Start walkthrough</button>
+            ) : (
+              <>
+                <p><b>Step {walkStep + 1} of {WALK.length}.</b> {WALK[walkStep]}</p>
+                <div className="privilege-a2a__walk-nav">
+                  <button type="button" onClick={() => setWalkStep((s) => Math.max(0, s - 1))} disabled={walkStep === 0}>Back</button>
+                  <button type="button" onClick={() => (walkStep === WALK.length - 1 ? setWalkStep(-1) : setWalkStep((s) => s + 1))}>
+                    {walkStep === WALK.length - 1 ? 'Finish' : 'Next'}
+                  </button>
+                  <button type="button" onClick={() => setWalkStep(-1)}>Stop</button>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="privilege-a2a__breaks" role="group" aria-label="Try a case that stops">
+            {BREAKS.map((item) => (
+              <button key={item.label} type="button" className="privilege-a2a__break" disabled={busy}
+                onClick={() => { setInput(item.question); setSelectedQuestion(''); }}>
+                {item.label}
+              </button>
+            ))}
+          </div>
+          <form className="privilege-a2a__composer" onSubmit={submitQuestion}>
+        <div className="privilege-a2a__chips" role="group" aria-label="Suggested questions for this vertical">
+          {demoQuestions.map(question => (
+            <button
+              key={question}
+              type="button"
+              className="privilege-a2a__chip"
+              onClick={() => submitQuestion(null, question)}
+              disabled={busy}
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+        <label htmlFor="privilege-a2a-demo-question">Demo question</label>
+        <select
+          id="privilege-a2a-demo-question"
+          value={selectedQuestion}
+          onChange={event => {
+            setSelectedQuestion(event.target.value);
+            setInput(event.target.value);
+          }}
+          disabled={busy}
+        >
+          <option value="">Choose an A2A access-review question</option>
+          {demoQuestions.map(question => <option key={question} value={question}>{question}</option>)}
+        </select>
+        <label htmlFor="privilege-a2a-question">Your question</label>
+        <textarea
+          id="privilege-a2a-question"
+          value={input}
+          onChange={event => {
+            setInput(event.target.value);
+            if (event.target.value !== selectedQuestion) setSelectedQuestion('');
+          }}
+          maxLength={4000}
+          rows={3}
+          placeholder="For example: Review Carol Nguyen's current entitlements."
+          disabled={busy}
+        />
+        <div className="privilege-a2a__actions">
+          <span>Send a question to trigger Main agent → A2A → Analyst → MCP tools.</span>
+          {busy && <button className="privilege-a2a__cancel" type="button" onClick={cancelRequest}>Cancel</button>}
+          <button className="privilege-a2a__send" type="submit" disabled={busy || !input.trim()}>
+            {busy ? 'Reviewing…' : 'Send question'}
+          </button>
+        </div>
+          </form>
         </section>
 
         <aside className="privilege-a2a__trace" aria-label="Agent trace">
@@ -222,9 +348,14 @@ export default function PrivilegeA2aTab() {
           ) : (
             <ol>
               {trace.map((entry, index) => (
-                <li className="privilege-a2a__trace-entry" key={`${index}-${entry.kind}`}>
+                <li
+                  className={`privilege-a2a__trace-entry${selectedStep === index ? ' is-selected' : ''}`}
+                  key={`${index}-${entry.kind}`}
+                  onClick={() => setSelectedStep(index)}
+                >
                   <span className="privilege-a2a__trace-kind">{entry.kind}</span>
                   <span className="privilege-a2a__trace-text">{entry.text}</span>
+                  {WHY[entry.kind] && <span className="privilege-a2a__why">{WHY[entry.kind]}</span>}
                   {entry.from && entry.to && (
                     <span className="privilege-a2a__trace-route">
                       {entry.from} → {entry.to}{entry.elapsedMs != null ? ` · ${entry.elapsedMs} ms` : ''}
@@ -238,56 +369,33 @@ export default function PrivilegeA2aTab() {
             </ol>
           )}
         </aside>
+        <aside className="privilege-a2a__step-panel" aria-label="Step details">
+          <h3>Who acts for whom</h3>
+          <ol className="privilege-a2a__chain">
+            <li><span>Signed-in user</span></li>
+            <li><span>Main agent{profile?.agentName ? `: ${profile.agentName}` : ''}</span></li>
+            <li><span>Analyst{profile?.specialistName ? `: ${profile.specialistName}` : ''}</span></li>
+            <li><span>MCP tools, through the gateway</span></li>
+          </ol>
+          <h3>Selected step</h3>
+          {selectedStep !== null && trace[selectedStep] ? (() => {
+            const entry = trace[selectedStep];
+            return (
+              <>
+                <p className="privilege-a2a__step-kind">{entry.kind}</p>
+                {entry.request && <><h4>What was sent</h4><pre>{entry.request}</pre></>}
+                {entry.response && <><h4>What came back</h4><pre>{entry.response}</pre></>}
+                {!entry.request && !entry.response && entry.detail && <pre>{entry.detail}</pre>}
+              </>
+            );
+          })() : (
+            <p className="privilege-a2a__empty">Click a step in the reel to see what was sent and what came back.</p>
+          )}
+          <h3>Tokens</h3>
+          <p className="privilege-a2a__empty">Not reported yet. The agents do not send token counts with the trace.</p>
+        </aside>
       </div>
 
-      <form className="privilege-a2a__composer" onSubmit={submitQuestion}>
-        <div className="privilege-a2a__chips" role="group" aria-label="Suggested questions for this vertical">
-          {demoQuestions.map(question => (
-            <button
-              key={question}
-              type="button"
-              className="privilege-a2a__chip"
-              onClick={() => submitQuestion(null, question)}
-              disabled={busy}
-            >
-              {question}
-            </button>
-          ))}
-        </div>
-        <label htmlFor="privilege-a2a-demo-question">Demo question</label>
-        <select
-          id="privilege-a2a-demo-question"
-          value={selectedQuestion}
-          onChange={event => {
-            setSelectedQuestion(event.target.value);
-            setInput(event.target.value);
-          }}
-          disabled={busy}
-        >
-          <option value="">Choose an A2A access-review question</option>
-          {demoQuestions.map(question => <option key={question} value={question}>{question}</option>)}
-        </select>
-        <label htmlFor="privilege-a2a-question">Your question</label>
-        <textarea
-          id="privilege-a2a-question"
-          value={input}
-          onChange={event => {
-            setInput(event.target.value);
-            if (event.target.value !== selectedQuestion) setSelectedQuestion('');
-          }}
-          maxLength={4000}
-          rows={3}
-          placeholder="For example: Review Carol Nguyen's current entitlements."
-          disabled={busy}
-        />
-        <div className="privilege-a2a__actions">
-          <span>Send a question to trigger Main agent → A2A → Analyst → MCP tools.</span>
-          {busy && <button className="privilege-a2a__cancel" type="button" onClick={cancelRequest}>Cancel</button>}
-          <button className="privilege-a2a__send" type="submit" disabled={busy || !input.trim()}>
-            {busy ? 'Reviewing…' : 'Send question'}
-          </button>
-        </div>
-      </form>
     </section>
   );
 }
