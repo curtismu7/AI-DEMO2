@@ -115,7 +115,7 @@ spec:
       - name: ghcr-pull-secret
       containers:
       - name: workeragentdemo
-        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:latest
+        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-23c98d927
         imagePullPolicy: Always
         command: ["node", "dist/worker-agent/index.js"]
         ports:
@@ -134,16 +134,16 @@ spec:
         # Both of the worker's outbound legs go back through the gateway: the
         # model calls via the custom lane, the tool calls via the MCP door.
         - name: WORKER_AGENT_PROVIDER
-          value: "llamacpp"
+          value: "anthropic"
         - name: WORKER_AGENT_MODEL
-          value: "llama.cpp"
-        - name: LLAMACPP_BASE_URL
-          value: "https://mcpgw.ai-demo.ping-devops.com/llm/custom/v1"
-        - name: LLAMACPP_API_KEY
+          value: "claude-haiku-4-5-20251001"
+        - name: ANTHROPIC_BASE_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/llm/anthropic"
+        - name: ANTHROPIC_AUTH_TOKEN
           valueFrom:
             secretKeyRef:
               name: ai-demo-secrets
-              key: PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM
+              key: PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC
         - name: MCP_URL
           value: "https://mcpgw.ai-demo.ping-devops.com/a2a-mcp-tools/mcp"
         - name: WORKER_AGENT_KEY
