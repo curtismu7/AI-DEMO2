@@ -598,11 +598,11 @@ select.cur-input { cursor: pointer; }
    section read as one piece. Panels that paint their own ground are cleared
    so the accent shows through; inputs and cards keep their own surfaces. */
 .cur-ide .cur-editor-area[class*="cur-panel--"] {
-  background: color-mix(in srgb, var(--tab-accent) 28%, #1e1e1e);
+  background: color-mix(in srgb, var(--tab-accent) 10%, #1e1e1e);
   color: #fff;
 }
 .cur-ide[data-cur-theme="light"] .cur-editor-area[class*="cur-panel--"] {
-  background: color-mix(in srgb, var(--tab-accent) 14%, #ffffff);
+  background: color-mix(in srgb, var(--tab-accent) 8%, #ffffff);
   color: #1e1e1e;
 }
 /* Dim greys that were fine on the neutral ground are lifted on the tint. */
@@ -627,14 +627,14 @@ select.cur-input { cursor: pointer; }
   color: #fff;
   border: 2px solid var(--tab-accent, #007acc);
   /* Same soft mix as the section under it, so tab and section match. */
-  background: color-mix(in srgb, var(--tab-accent, #007acc) 28%, #1e1e1e);
+  background: color-mix(in srgb, var(--tab-accent, #007acc) 10%, #1e1e1e);
 }
 .cur-tab--chat:hover, .cur-tab--tools:hover,
 .cur-tab--user-api-keys:hover, .cur-tab--mcp:hover, .cur-tab--rpc:hover,
 .cur-tab--policies:hover { background: rgba(255, 255, 255, 0.06); }
 /* Hovering the active tab must not drop its color. */
-.cur-ide .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #007acc) 28%, #1e1e1e); }
-.cur-ide[data-cur-theme="light"] .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #007acc) 14%, #ffffff); }
+.cur-ide .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #007acc) 10%, #1e1e1e); }
+.cur-ide[data-cur-theme="light"] .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #007acc) 8%, #ffffff); }
 
 /* Editor area */
 .cur-editor-area {
@@ -1383,7 +1383,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab { color: #666; }
 .cur-ide[data-cur-theme="light"] .cur-tab:hover,
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab:hover { color: #222; }
-.cur-ide[data-cur-theme="light"] .cur-tab--active { background: color-mix(in srgb, var(--tab-accent, #007acc) 14%, #ffffff); color: #1e1e1e; border-color: var(--tab-accent, #007acc); }
+.cur-ide[data-cur-theme="light"] .cur-tab--active { background: color-mix(in srgb, var(--tab-accent, #007acc) 8%, #ffffff); color: #1e1e1e; border-color: var(--tab-accent, #007acc); }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab--active { color: #000; }
 
 /* Status pill + model badge */
