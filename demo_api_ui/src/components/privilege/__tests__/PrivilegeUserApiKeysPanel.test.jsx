@@ -17,7 +17,7 @@ afterEach(() => vi.unstubAllGlobals());
 it('includes User API Key & Secrets in Demo and preserves Inspect tabs', () => {
   render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
   expect([...document.querySelectorAll('.cur-tab')].map(tab => tab.textContent))
-    .toEqual(['Agent Chat', 'A2A', 'Tools', 'User API Key & Secrets']);
+    .toEqual(['Agent Chat', 'Tools', 'User API Key & Secrets']);
   fireEvent.click(screen.getByRole('button', { name: 'Inspect' }));
   expect([...document.querySelectorAll('.cur-tab')].map(tab => tab.textContent))
     .toEqual(['MCP Explorer', 'Raw RPC', 'Policies']);

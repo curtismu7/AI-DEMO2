@@ -186,7 +186,7 @@ const definitions = [
     inspectors: [
       link('Privilege Demo — Request Access', '/privilege-demo?tab=script'),
       link('Privilege MCP Client', '/privilege-mcp-client'),
-      link('Privilege A2A access review', '/privilege-mcp-client?view=demo&tab=a2a'),
+      link('Privilege A2A access review', '/privilege-a2a'),
       link('Agent Privilege', '/llm-gateway'),
     ],
     diagrams: [

@@ -589,7 +589,6 @@ select.cur-input { cursor: pointer; }
 /* Per-tab accent colors — at a glance you can tell which surface you are on.
    Each tab sets --tab-accent; the active tab renders it as its background. */
 .cur-ide .cur-tab--chat, .cur-ide .cur-panel--chat { --tab-accent: #0e639c; }
-.cur-ide .cur-tab--a2a, .cur-ide .cur-panel--a2a { --tab-accent: #6f42c1; }
 .cur-ide .cur-tab--tools, .cur-ide .cur-panel--tools { --tab-accent: #0f7b3f; }
 .cur-ide .cur-tab--user-api-keys, .cur-ide .cur-panel--user-api-keys { --tab-accent: #b58900; }
 .cur-ide .cur-tab--mcp, .cur-ide .cur-panel--mcp { --tab-accent: #0e7490; }
@@ -629,7 +628,7 @@ select.cur-input { cursor: pointer; }
   border: 2px solid var(--tab-accent, #007acc);
   background: var(--tab-accent, #007acc);
 }
-.cur-tab--chat:hover, .cur-tab--a2a:hover, .cur-tab--tools:hover,
+.cur-tab--chat:hover, .cur-tab--tools:hover,
 .cur-tab--user-api-keys:hover, .cur-tab--mcp:hover, .cur-tab--rpc:hover,
 .cur-tab--policies:hover { background: rgba(255, 255, 255, 0.06); }
 
@@ -2374,3 +2373,8 @@ select.cur-input { cursor: pointer; }
    (hover still reveals all of it) so the editor and terminal keep their height. */
 .cur-ide .cur-rail__note { -webkit-line-clamp: 1; }
 .cur-ide .cur-skin-picker { flex-direction: row; align-items: center; gap: 6px; }
+
+/* ── A2A page (PrivilegeA2aPage) shares this shell ─────────────────────── */
+.cur-ide .cur-rail--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+.cur-ide .cur-a2a-main { flex: 1; min-height: 0; overflow: auto; }
+.cur-ide .cur-a2a-main > .privilege-a2a { height: 100%; }

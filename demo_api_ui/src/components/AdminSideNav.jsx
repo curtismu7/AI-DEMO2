@@ -177,7 +177,7 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // load when nothing is saved. Ids must equal slugify(<group label>) from
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
-  { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
+  { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/privilege-a2a", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
   { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
   { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
@@ -1366,7 +1366,7 @@ export default function AdminSideNav({
       { from: "PingOne Authorize", rename: "PingOne Authorize", path: "/ai-products/authorize" },
       { from: "Privilege · LLM", rename: "Agent Privilege · LLM" },
       { from: "Privilege · A2A", rename: "Agent Privilege · A2A" },
-      { label: "Agent Privilege · A2A Review", path: "/privilege-mcp-client?view=demo&tab=a2a", icon: "lnk" },
+      { label: "Agent Privilege · A2A Review", path: "/privilege-a2a", icon: "lnk" },
       { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
       { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
       { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },

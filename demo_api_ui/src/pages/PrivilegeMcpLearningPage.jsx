@@ -238,7 +238,7 @@ export default function PrivilegeMcpLearningPage() {
               <li>The gateway checks the key, the scope and the policy on every hop, and its guardrail
                 screens agent messages and tool results</li>
               <li>See it run: the A2A tab on the{" "}
-                <a href="/privilege-mcp-client?view=demo&tab=a2a">gateway client</a>, the
+                <a href="/privilege-a2a">gateway client</a>, the
                 Agent-to-agent tab on{" "}
                 <a href="/privilege-gateway-topologies">Privilege Gateway Topologies</a>, and Demo
                 Step 26 for a three-deep agent chain</li>

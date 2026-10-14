@@ -52,14 +52,14 @@ describe("PrivilegeMcpClientPage tab colors", () => {
   it("gives every demo tab a per-tab color class", async () => {
     renderPage();
     await screen.findByRole("tab", { name: "Agent Chat" });
-    for (const label of ["Agent Chat", "A2A", "Tools", "User API Key & Secrets"]) {
+    for (const label of ["Agent Chat", "Tools", "User API Key & Secrets"]) {
       const tab = screen.getByRole("tab", { name: label });
       expect(tab.className).toMatch(/cur-tab--[a-z0-9-]+/);
     }
   });
 
   it("each tab key maps to a DIFFERENT accent color", () => {
-    const keys = ["chat", "a2a", "tools", "user-api-keys"];
+    const keys = ["chat", "tools", "user-api-keys"];
     const colors = keys.map((key) => {
       const rule = CSS.match(
         new RegExp(`\\.cur-ide \\.cur-tab--${key}(?![\\w-])[^{]*{[^}]*--tab-accent:\\s*([^;]+);`),
@@ -70,8 +70,8 @@ describe("PrivilegeMcpClientPage tab colors", () => {
     expect(new Set(colors).size).toBe(keys.length);
   });
 
-  it("all seven tabs (demo + inspect) have a unique accent", () => {
-    const keys = ["chat", "a2a", "tools", "user-api-keys", "mcp", "rpc", "policies"];
+  it("all six tabs (demo + inspect) have a unique accent", () => {
+    const keys = ["chat", "tools", "user-api-keys", "mcp", "rpc", "policies"];
     const colors = keys.map((key) => {
       const rule = CSS.match(
         new RegExp(`\\.cur-ide \\.cur-tab--${key}(?![\\w-])[^{]*{[^}]*--tab-accent:\\s*([^;]+);`),
@@ -86,7 +86,7 @@ describe("PrivilegeMcpClientPage tab colors", () => {
     renderPage();
     await screen.findByRole("tab", { name: "Agent Chat" });
     expect(document.querySelector(".cur-editor-area").className).toContain("cur-panel--chat");
-    for (const key of ["chat", "a2a", "tools", "user-api-keys", "mcp", "rpc", "policies"]) {
+    for (const key of ["chat", "tools", "user-api-keys", "mcp", "rpc", "policies"]) {
       expect(CSS).toMatch(new RegExp(`\\.cur-panel--${key}\\s*{\\s*--tab-accent`));
     }
     expect(CSS).toMatch(/\.cur-editor-area\[class\*="cur-panel--"\]\s*{[^}]*var\(--tab-accent\)/);

@@ -63,8 +63,8 @@ describe("Demo / Inspect", () => {
     renderPage();
     await ready();
 
-    expect(tabNames()).toEqual(["Agent Chat", "A2A", "Tools", "User API Key & Secrets"]);
-    // A2A and Tools stay in Demo on purpose: their flows are for presenting.
+    expect(tabNames()).toEqual(["Agent Chat", "Tools", "User API Key & Secrets"]);
+    // Tools stays in Demo on purpose: its flow is for presenting. A2A is its own page (/privilege-a2a).
     expect(screen.getByRole("tab", { name: "Tools" })).toBeInTheDocument();
   });
 
