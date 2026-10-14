@@ -1446,6 +1446,19 @@ export default function BankingAgent({
     row.choose(surface);
   }, [evidenceSurfaceRows]);
 
+  // A page can ask for the evidence view of the run it just started (the A2A page's
+  // "Open run details"). Transient: it opens the Sequence view pop-out for this page
+  // load without rewriting the saved surface preference, so it does not reappear everywhere.
+  useEffect(() => {
+    const open = (event) => {
+      if (event.detail?.view === "sequence-view") {
+        setSequenceSurface((current) => (surfaceHasEmbedded(current) ? "both" : "popout"));
+      }
+    };
+    window.addEventListener("agent-evidence-open", open);
+    return () => window.removeEventListener("agent-evidence-open", open);
+  }, []);
+
   const resolveEmbeddedSurfaceConflict = useCallback((keepId) => {
     const requested = pendingSurfaceChoice?.requested;
     evidenceSurfaceRows.forEach((row) => {
@@ -14104,6 +14117,9 @@ export default function BankingAgent({
           chooseEvidenceSurface("sequence-view", sequenceSurface === "both" ? "embedded" : "none");
         }}
         title="Sequence view"
+        // Above the agent panel (z-index 100059): "Open run details" on the A2A page opens this
+        // while the panel is open beside it, and at the default it drew underneath.
+        zIndex={100070}
         defaultWidth={860}
         defaultHeight={620}
         minWidth={480}
