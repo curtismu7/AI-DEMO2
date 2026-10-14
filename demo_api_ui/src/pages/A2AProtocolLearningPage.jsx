@@ -30,6 +30,7 @@ import {
   persistFoldedSections,
   readFoldedSections,
 } from '../utils/a2aSectionFold';
+import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 import './A2AProtocolLearningPage.css';
 
 /**
@@ -188,6 +189,7 @@ export default function A2AProtocolLearningPage() {
 
   const [run, setRun] = useState(null);
   const [running, setRunning] = useState(false);
+  const [agentMode, setAgentMode] = usePageAgentMode('a2a-protocol-learning');
   const [needsAuth, setNeedsAuth] = useState(false);
   const [runError, setRunError] = useState(null);
 
@@ -262,7 +264,7 @@ export default function A2AProtocolLearningPage() {
       const res = await fetch('/api/a2a/message', {
         method: 'POST', credentials: 'include',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: A2A_RECORDED_RUN.message, vertical }),
+        body: JSON.stringify({ message: A2A_RECORDED_RUN.message, vertical, mode: agentMode }),
       });
       if (res.status === 401) { setNeedsAuth(true); return; }
       const data = await res.json();
@@ -277,7 +279,7 @@ export default function A2AProtocolLearningPage() {
     } finally {
       setRunning(false);
     }
-  }, [vertical]);
+  }, [vertical, agentMode]);
 
   // Live run when we have one, the recorded run otherwise.
   const isReplay = !run?.tokenEvents?.length;
@@ -459,6 +461,7 @@ export default function A2AProtocolLearningPage() {
         lead="Minting real PingOne tokens on your behalf needs a signed-in session. Signed out, everything below is a recorded run of exactly this flow."
       >
         <div className="a2l-runbar">
+          <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} disabled={running} />
           <button type="button" className="a2l-btn a2l-btn--primary" onClick={runDelegation} disabled={running}>
             {running ? 'Running…' : 'Run the delegation'}
           </button>

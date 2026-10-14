@@ -213,6 +213,14 @@ describe('POST /api/privilege-a2a/chat', () => {
     expect(JSON.parse(global.fetch.mock.calls[0][1].body).userName).toBe('demouser');
   });
 
+  test('chat forwards mode heuristics and drops any other mode value', async () => {
+    global.fetch = jest.fn(async () => new Response('event: done\ndata: {}\n\n', { headers: { 'content-type': 'text/event-stream' } }));
+    await request(createApp()).post('/api/privilege-a2a/chat').send({ message: 'hi', mode: 'heuristics' }).expect(200);
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).mode).toBe('heuristics');
+    await request(createApp()).post('/api/privilege-a2a/chat').send({ message: 'hi', mode: 'bogus' }).expect(200);
+    expect(JSON.parse(global.fetch.mock.calls[1][1].body).mode).toBeUndefined();
+  });
+
   test('rejects an empty or overlong message before contacting the main agent', async () => {
     global.fetch = jest.fn();
 

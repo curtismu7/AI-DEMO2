@@ -1,0 +1,26 @@
+.page-agent-mode {
+  display: inline-flex;
+  border: 1px solid var(--a2a-border, rgba(127, 127, 127, 0.4));
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.page-agent-mode__opt {
+  padding: 4px 14px;
+  border: 0;
+  background: transparent;
+  color: inherit;
+  font: inherit;
+  font-size: 0.85em;
+  cursor: pointer;
+}
+
+.page-agent-mode__opt--on {
+  background: #e4002b;
+  color: #fff;
+}
+
+.page-agent-mode__opt:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}

@@ -95,3 +95,16 @@ test('parseUserName accepts a plain name and drops multi-line or non-string valu
   assert.equal(parseUserName({ userName: 5 }), '');
   assert.equal(parseUserName(null), '');
 });
+
+test('model-free path: mode parsing and keyword tool pick', async () => {
+  const { parseMode, pickTool } = await import('../src/profile.js');
+  assert.equal(parseMode({ mode: 'heuristics' }), 'heuristics');
+  assert.equal(parseMode({ mode: 'anything-else' }), 'llm');
+  assert.equal(parseMode(undefined), 'llm');
+  const banking = ['get_portfolio_summary', 'get_investment_accounts', 'get_investment_balance', 'get_investment_transactions'];
+  assert.equal(pickTool(banking, 'show my recent trades'), 'get_investment_transactions');
+  assert.equal(pickTool(banking, 'list my accounts'), 'get_investment_accounts');
+  assert.equal(pickTool(banking, 'what is my balance'), 'get_investment_balance');
+  assert.equal(pickTool(banking, 'review my investments'), 'get_portfolio_summary');
+  assert.equal(pickTool(['sensitive_patient_records'], 'anything'), 'sensitive_patient_records');
+});
