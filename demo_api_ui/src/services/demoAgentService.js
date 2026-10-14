@@ -19,6 +19,7 @@ import { addMilestone, updateMilestoneStatus } from "./milestonesStore";
 import { createLogger } from "./logger";
 import { anySignal } from "../components/demoAgentSafety";
 import { adminCustomerContext } from "./adminCustomerContext";
+import { pageAgentModeField } from "../utils/pageAgentMode";
 import { resolveSessionExpiry } from "./sessionResolver";
 import {
   isAuthRequiredApiError,
@@ -1218,6 +1219,7 @@ export async function sendAgentMessage(message, consentId = null, { signal, forc
   // (which holds the canned response) regardless of the session's agent_mode.
   if (forceHeuristic) body.forceHeuristic = true;
   if (vertical) body.vertical = vertical;
+  Object.assign(body, pageAgentModeField());
   if (consentGiven) body.consentGiven = true;
   // Admin dashboard's Customer Admin picker selection, if any — only used
   // server-side when the active vertical is 'admin'; a no-op otherwise.

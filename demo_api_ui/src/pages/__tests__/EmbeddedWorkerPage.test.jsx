@@ -3,6 +3,7 @@ import EmbeddedWorkerPage from '../EmbeddedWorkerPage';
 
 describe('EmbeddedWorkerPage', () => {
   beforeEach(() => {
+    localStorage.clear();
     vi.restoreAllMocks();
     vi.spyOn(global, 'fetch').mockImplementation((url) => {
       if (url === '/api/embedded-worker/state') {
@@ -33,7 +34,22 @@ describe('EmbeddedWorkerPage', () => {
         prompt: 'help me update my booking',
         vertical: 'airlines',
         useCaseId: 'saas-embedded-worker',
+        agentMode: 'llm',
       }),
     })));
+  });
+
+  it('sends the page\'s own Heuristics choice, remembered under its own key', async () => {
+    render(<EmbeddedWorkerPage />);
+    fireEvent.click(screen.getByRole('radio', { name: 'Heuristics' }));
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'help me update my booking' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
+      body: JSON.stringify({ prompt: 'help me update my booking', vertical: 'airlines', useCaseId: 'saas-embedded-worker', agentMode: 'heuristics' }),
+    })));
+    expect(localStorage.getItem('agentMode:embedded-worker')).toBe('heuristics');
+    expect(localStorage.getItem('agentMode:personal-agent')).toBeNull();
   });
 });
