@@ -1,6 +1,8 @@
+/* Colours come from the page the toggle sits in (currentColor / inherit), never from the app-wide theme:
+   pages such as /privilege-a2a keep their own light/dark, so a --th-text here read dark-on-dark. */
 .page-agent-mode {
   display: inline-flex;
-  border: 1px solid var(--th-border, var(--a2a-border, rgba(127, 127, 127, 0.4)));
+  border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
   border-radius: 999px;
   overflow: hidden;
 }
@@ -9,7 +11,7 @@
   padding: 4px 14px;
   border: 0;
   background: transparent;
-  color: var(--th-text, inherit);
+  color: inherit;
   font: inherit;
   font-size: 0.85em;
   cursor: pointer;
@@ -18,6 +20,11 @@
 .page-agent-mode__opt--on {
   background: #e4002b;
   color: #fff;
+}
+
+.page-agent-mode__opt:focus-visible {
+  outline: 2px solid var(--th-accent, #e4002b);
+  outline-offset: 2px;
 }
 
 .page-agent-mode__opt:disabled {
