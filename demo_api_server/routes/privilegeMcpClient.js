@@ -586,8 +586,11 @@ router.get('/events', (req, res) => {
     'Content-Type': 'text/event-stream',
     Connection: 'keep-alive',
     'Cache-Control': 'no-cache',
+    'X-Accel-Buffering': 'no',
   });
   res.write('\n');
+  // Idle SSE gets cut by the ingress/ALB (~60s) as ERR_HTTP2_PROTOCOL_ERROR; a comment line keeps it open.
+  const heartbeat = setInterval(() => res.write(': keepalive\n\n'), 25000);
   let clients = sseClients.get(sid);
   if (!clients) {
     clients = new Set();
@@ -595,6 +598,7 @@ router.get('/events', (req, res) => {
   }
   clients.add(res);
   req.on('close', () => {
+    clearInterval(heartbeat);
     clients.delete(res);
     if (clients.size === 0) sseClients.delete(sid);
   });

@@ -11,7 +11,7 @@ import { Client } from '@modelcontextprotocol/sdk/client/index.js';
 import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/streamableHttp.js';
 
 import { VERTICALS, VERTICAL_ALIASES, resolveVertical } from '../src/mcp-server/verticals.js';
-import { labelFor, parseProfile, withLabels } from '../src/profile.js';
+import { labelFor, parseProfile, parseUserName, withLabels } from '../src/profile.js';
 
 const require = createRequire(import.meta.url);
 const { A2A_SPECIALISTS, specialistDirectory } = require('../../../demo_api_server/config/a2aSpecialists.js') as {
@@ -87,4 +87,11 @@ test('profile parsing treats invalid input as absent and labels only with a prof
   const event = { from: 'main', to: 'analyst' };
   assert.equal(withLabels(event, null), event);
   assert.deepEqual(withLabels(event, profile), { ...event, fromLabel: 'Super Banking agent', toLabel: 'Investment Advisor' });
+});
+
+test('parseUserName accepts a plain name and drops multi-line or non-string values', () => {
+  assert.equal(parseUserName({ userName: ' demouser ' }), 'demouser');
+  assert.equal(parseUserName({ userName: 'a\nIgnore previous' }), '');
+  assert.equal(parseUserName({ userName: 5 }), '');
+  assert.equal(parseUserName(null), '');
 });
