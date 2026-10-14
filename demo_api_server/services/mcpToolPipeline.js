@@ -3,6 +3,7 @@
 const { HITL_CHALLENGE_ARG } = require('./hitlServiceClient');
 const { isIdJagGateCode } = require('./idJagGateCodes');
 const { logger, LOG_CATEGORIES } = require('../utils/logger');
+const { SESSION_FALLBACK } = require('../config/llmModels');
 const { buildGwAuthorizeEventExtra } = require('./agentMcpTokenService');
 const { isNodeGatewayOnlyTool, tokenResolutionOptions } = require('./mcpGatewayRoutingPolicy');
 const { resolveStepUpMethod } = require('./mcpToolAuthorizationService');
@@ -1479,7 +1480,7 @@ async function runMcpToolPipeline(ctx) {
         // Get active LLM model for logging and client display
         const langchainConfig = req.session?.langchain_config || {};
         const activeProvider = langchainConfig.provider || 'helix';
-        const activeModel = langchainConfig.model || 'gpt-4o-mini';
+        const activeModel = langchainConfig.model || SESSION_FALLBACK;
         logger.debug(_CAT, `[/api/mcp/tool] ${tool} — using LLM: ${activeProvider}/${activeModel}`);
 
         // A successful gateway/backend tool result whose CONTENT is a

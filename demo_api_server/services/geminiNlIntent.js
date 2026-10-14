@@ -7,6 +7,7 @@
 'use strict';
 
 const path = require('node:path');
+const { ANTHROPIC_NL } = require('../config/llmModels');
 const { parseHeuristic, EDU, resolveVerticalRouting } = require('./nlIntentParser');
 
 const { callHelixAgent } = require('./helixLlmService');
@@ -230,7 +231,7 @@ async function answerWithClaude(userMessage, context = {}) {
     }
     const client = new Anthropic.default({ apiKey });
     const response = await client.messages.create({
-      model: configStore.getEffective('anthropic_model') || 'claude-sonnet-4-6',
+      model: configStore.getEffective('anthropic_model') || ANTHROPIC_NL,
       max_tokens: 1024,
       system: conversationalSystemPrompt(context),
       messages: [{ role: 'user', content: userMessage }],
@@ -624,7 +625,7 @@ async function parseNaturalLanguage(message, context = {}, provider = 'auto', la
       const client = new Anthropic.default({ apiKey });
       const model = langchainConfig?.anthropic_model
         || configStore.getEffective('anthropic_model')
-        || 'claude-sonnet-4-6';
+        || ANTHROPIC_NL;
       const response = await client.messages.create({
         model,
         max_tokens: 512,

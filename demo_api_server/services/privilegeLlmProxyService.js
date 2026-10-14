@@ -16,9 +16,10 @@
 
 const { llmFetch } = require('./llmFetch');
 
-const DEFAULT_MODEL_GOOGLE = 'gemini-2.0-flash';
-const DEFAULT_MODEL_ANTHROPIC = 'claude-haiku-4-5-20251001';
-const DEFAULT_MODEL_OPENAI = 'gpt-4o-mini';
+const { PRIVILEGE_PROXY } = require('../config/llmModels');
+const DEFAULT_MODEL_GOOGLE = PRIVILEGE_PROXY.google;
+const DEFAULT_MODEL_ANTHROPIC = PRIVILEGE_PROXY.anthropic;
+const DEFAULT_MODEL_OPENAI = PRIVILEGE_PROXY.openai;
 // The allowed-model id this demo's llama.cpp virtual key was saved with — the
 // console catalog id closest to the served 3B-class GGUF (see the release doc's
 // llama.cpp feature block). llama-server serves whatever is loaded regardless.
