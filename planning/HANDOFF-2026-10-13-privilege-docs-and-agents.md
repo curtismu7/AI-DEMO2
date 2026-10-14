@@ -20,11 +20,11 @@ have moved — verify before acting on it.** No secret values are in this file.
   `https://local.procyon.ai:8643` (Privilege desktop app must be running) and calls
   `/api/<tenant>/v1/...` from page context. Keys must never be printed — write them to a
   `chmod 600` file and delete it.
-- **Blocked by the auto-mode classifier (needs the user's explicit OK):** creating a
-  `pacpolicys` rule that grants an agent key access to an app (counts as a permission
-  grant). This is what stops the feature 15 and 20 runbook checks.
+- **Permission grants need the user's explicit OK:** creating a `pacpolicys` rule that
+  grants an agent key access to an app is blocked by the auto-mode classifier until the
+  user approves in chat (done once for feature 15). Feature 20's grant still needs that.
 - **Still needs the user:** rotate the five printed keys; the `/aic-token-exchange`
-  signed-in click-through; approve the grants above; review #1265/#1267/#1268.
+  signed-in click-through; approve the feature 20 grant; review #1265/#1267/#1268.
 
 ## 1. Privilege docs session ("Privilege agent features doc") — this session
 
@@ -58,7 +58,7 @@ have moved — verify before acting on it.** No secret values are in this file.
 | 12 Aggregate | AGGREGATE-APPS-DEMO | **Verified live 2026-10-14** with the console `worker-agent` key: `aggregate-limited` = 4 tools, `aggregate` = 42, `aggregate-none` = 0, banking member call works, **the `opensearch` member fails at `initialize`** (Internal Server Error) so avoid `opensearch__` calls live; refusal messages recorded |
 | 14 A2A guardrails | A2A-GUARDRAILS-DEMO | Rows 1–2 verified (200; 400 block in 0.56 s). Rows 3–7: none blocked at the A2A hop, **alerts unconfirmed** (worker too slow to finish). Leg-4 alerts and one PII `sanitized mcp response` were seen in the log but not tied to a row |
 | 20 Secrets Hub | SECRETS-HUB-DEMO | Tenant state verified (hub `GCP-hub-secrets` Synced, 2 secrets). **View / Resync / policy grant not run** |
-| 15 Auth modes | AUTH-MODES-DEMO | **Not run.** Valid modes found (`none`, `static-token`, `user-token`, `token-pass`); spare app `workeragentdemo2` unreachable for every key; the temp grant was **blocked as a permission grant** |
+| 15 Auth modes | AUTH-MODES-DEMO | **Verified live 2026-10-14** on the spare app `workeragentdemo2` (temp grant created and deleted, app restored identical): `none` and `static-token` reach the worker (200), `token-pass` is refused by the gateway (`403` in ~0.2 s). None vs Static indistinguishable on the live worker (no bearer check). Reason log line not located |
 
 ### Open work, in order
 
@@ -66,13 +66,7 @@ have moved — verify before acting on it.** No secret values are in this file.
    this session): the A2A demo's `MAIN_AGENT_KEY` and `WORKER_AGENT_KEY`, the console's
    `worker-agent` key, and two keys seen in log/config dumps. Lesson: print only named
    non-secret fields; the console key object exposes the secret under `VirtualKey`.
-2. **Feature 15 — needs the user's OK for one grant.** Create a policy
-   `tmp-w2-authmodes` (3-hour `NotAfter`, owner metadata copied from `AngaraRiver-7a4f517a4c65`
-   so it is not reaped) with one `HTTP.PolicyRule` for `workeragentdemo2` and
-   `Attributes.agentaccesskey` = `main-agent`; wait ~4 min; flip the app's
-   `HttpAppConfig.AuthMode` none → `static-token` (set `AuthToken`) → `token-pass`,
-   calling it after each; restore `none`; delete the policy. Only `token-pass` is
-   visibly different on the live worker (it does not enforce a bearer).
+2. ~~Feature 15~~ — **done 2026-10-14** (approved temp grant; policy `tmp-w2-authmodes` deleted, app restored, key files removed). Optional follow-up: start a worker with `WORKER_REQUIRE_BEARER=true` to make None (401) vs Static (200) visible.
 3. **Feature 20 — needs the user's OK:** View on `privilege-hub-test` (**not**
    `groq-key`) and one time-boxed `SecretResources` grant (body shape not captured —
    easiest is one grant done in the console UI, then read back through the API).
