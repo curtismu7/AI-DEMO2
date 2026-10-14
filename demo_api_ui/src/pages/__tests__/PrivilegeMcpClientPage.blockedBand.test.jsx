@@ -9,7 +9,7 @@ vi.mock("../../services/apiClient", () => ({
   default: { get: vi.fn(() => new Promise(() => {})), post: vi.fn(() => new Promise(() => {})) },
 }));
 
-const MCP_URL = "https://mcpgw.example.com/opensearch22/mcp";
+const MCP_URL = "https://mcpgw.example.com/opensearch-hitl/mcp";
 
 const jsonResponse = (body, status = 200) => ({
   ok: status >= 200 && status < 300,
@@ -62,7 +62,7 @@ describe("blocked-by-policy visibility", () => {
     const band = await screen.findByRole("alert", { name: /blocked by policy/i });
     expect(band).toBeInTheDocument();
     // The two facts a presenter is asked about from the floor.
-    expect(band).toHaveTextContent("opensearch22");
+    expect(band).toHaveTextContent("opensearch-hitl");
     expect(band).toHaveTextContent("demo-user@pingone.com");
   });
 

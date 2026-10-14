@@ -4,7 +4,7 @@
 // verdict and per model call to its log, and the deployment ships those lines
 // to the `gateway-events` index. This reads them the same way the Gateway
 // findings panel does (components/GatewayVerdicts.jsx): through the gateway
-// itself, via the built-in-privilege-opensearch door of the MCP inspector (repointed to the Aggregate app after opensearch22 was deleted, 2026-10-12). That door
+// itself, via the built-in-privilege-opensearch door of the MCP inspector (repointed to the Aggregate app after opensearch-hitl was deleted, 2026-10-12). That door
 // needs its own sign-in once per session, so a caller must handle `needsAuth`.
 import { authGate, extractSearchHits, frameworkLabel, pickSearchTool } from '../components/GatewayVerdicts';
 import { signInToGatewayDoorSilently } from './gatewayDoorSignIn';

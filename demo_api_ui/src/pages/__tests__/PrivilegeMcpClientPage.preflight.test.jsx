@@ -17,7 +17,7 @@ const PRESETS = [
 
 function stateBody() {
   return JSON.stringify({
-    config: { mcpUrl: "https://gw.test/opensearch22/mcp", clientId: "", scopes: "" },
+    config: { mcpUrl: "https://gw.test/opensearch-hitl/mcp", clientId: "", scopes: "" },
     gatewayMode: "privilege",
     gatewayConfigs: {},
     oauth: { authenticated: true },

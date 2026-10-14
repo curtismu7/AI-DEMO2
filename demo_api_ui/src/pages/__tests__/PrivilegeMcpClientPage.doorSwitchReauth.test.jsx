@@ -37,7 +37,7 @@ vi.mock("../../services/apiClient", () => ({
 const AUTH_URL = "https://gateway.example/authorize?client_id=dcr-1";
 const DOOR_A = "https://local.ping-devops.com:4000/mcp-facade/opensearch/mcp";
 const DOOR_B = "https://local.ping-devops.com:4000/mcp-facade/brave/mcp";
-const PRIV_DOOR = "https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp";
+const PRIV_DOOR = "https://mcpgw.ai-demo.ping-devops.com/opensearch-hitl/mcp";
 const PRIV_DOOR_B = "https://mcpgw.ai-demo.ping-devops.com/brave/mcp";
 const SILENT_DOOR_SWITCH_KEY = "cur_priv_silent_door_switch";
 
@@ -75,7 +75,7 @@ function mockGateway({
         presets: [
           { label: "Direct — opensearch", mode: "direct", url: DOOR_A },
           { label: "Direct — Brave Search", mode: "direct", url: DOOR_B },
-          { label: "Privilege — opensearch22", mode: "privilege", url: PRIV_DOOR },
+          { label: "Privilege — opensearch-hitl", mode: "privilege", url: PRIV_DOOR },
           { label: "Privilege — brave", mode: "privilege", url: PRIV_DOOR_B },
         ],
       });
