@@ -1,6 +1,15 @@
 # MCP server standardization — design
 
-Date: 2026-10-13 · Status: **one open question (5); awaiting spec review** · Path: architectural
+Date: 2026-10-13 · Status: **ON HOLD — superseded 2026-10-13** · Path: architectural
+
+> **On hold.** The user decided on 2026-10-13 to **keep all MCP servers for now**
+> (the weather server, among others, was missed when the set was chosen). The
+> five-server set and the freeze below are **not in effect**. Nothing was
+> implemented. If this resumes, two things change before any plan is written: the
+> set is re-chosen, and the design cannot reuse `serverInventory.js`, which lists
+> only four MCP servers (banking, invest, brave, code-search) — it has no
+> OpenSearch, hostile, PingOne or weather entries — so a standalone manifest is
+> needed.
 
 ## Intent
 
