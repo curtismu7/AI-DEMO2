@@ -7,12 +7,12 @@ describe('getStartupReconnectCandidates', () => {
         [
           { serverName: 'aidemo-mcp' },
           { serverName: 'super-sports-gateway' },
-          { serverName: 'privilege-opensearch22' },
+          { serverName: 'privilege-opensearch' },
           { serverName: 'unknown' },
         ],
         {
           'super-sports-gateway': { authorizationState: 'authorized', connectionState: 'disconnected' },
-          'privilege-opensearch22': { authorizationState: 'unauthorized', connectionState: 'disconnected' },
+          'privilege-opensearch': { authorizationState: 'unauthorized', connectionState: 'disconnected' },
           unknown: { connectionState: 'disconnected' },
         },
       ),

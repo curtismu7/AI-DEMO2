@@ -26,14 +26,7 @@ const { resolveMcpAccessTokenWithEvents, buildTokenEvent } = require('./agentMcp
  */
 const MAX_TOOL_ITERATIONS = 10;
 
-// Default models per provider
-const DEFAULT_MODELS = {
-  openai:    'gpt-4o-mini',
-  anthropic: 'claude-3-5-haiku-20241022',
-  groq:      'openai/gpt-oss-20b',
-  google:    'gemini-2.5-flash-lite',
-  helix:     'gpt-4o-mini',
-};
+const { AGENT_BUILDER_MODELS: DEFAULT_MODELS } = require('../config/llmModels');
 
 /**
  * LangGraph system prompt for banking agent

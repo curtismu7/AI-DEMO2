@@ -42,7 +42,7 @@ The three points to land with an audience:
 - **Unsafe content is stopped.** A prompt-injection message between agents is blocked, personal data in a tool result is redacted, and a tool result carrying hidden instructions is blocked before the model reads it.
 - **Ungranted hand-offs are refused.** An agent that tries to call an agent it was not granted gets a 403 at the gateway.
 
-The two agents run on different model tiers (Gemini 3.6 Flash for the main agent, Gemini 3.5 Flash Lite for the worker), so the per-agent cost split is visible in the console.
+The two agents were set up on different Google model tiers (Gemini 3.6 Flash for the main agent, Gemini 3.5 Flash Lite for the worker), so the per-agent cost split was visible in the console. **As of 2026-10-14 both in-cluster agents run `gpt-oss-20b` on llama.cpp** through the gateway's custom lane (`LLAMACPP_BASE_URL=https://mcpgw.ai-demo.ping-devops.com/llm/custom/v1`) using the `llama.cpp` key, because Google usage limits ruled it out. The Google details below are the original setup.
 
 ## Before you demo
 
@@ -54,7 +54,7 @@ Five things must be up. Check them in this order; each takes seconds.
 | 2 | Worker, MCP server, LangChain agent and, for the SE site, the main agent (cluster) | `kubectl --context us -n ping-devops-cmuir get pods` | `workeragentdemo`, `mcpdemo`, `langchain-agent` and `mainagentdemo` all `1/1 Running` |
 | 3 | Gateway | `curl -s -o /dev/null -w "%{http_code}" -X POST https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/a2a/jsonrpc -d '{}'` | `401` (the gateway is up and asking for a key) |
 | 4 | The app | Open `https://local.ping-devops.com:4000` (local stack) or `https://ai-demo.ping-devops.com` (SE site) and sign in | The dashboard loads. On the local stack, sign-in only works on this host |
-| 5 | The gateway-record grant | Run step 26 once and open a red GATEWAY step | Rows of log lines, not "not granted". If it says not granted, the policy for `SearchIndexTool` on `opensearch22` has lapsed |
+| 5 | The gateway-record grant | Run step 26 once and open a red GATEWAY step | Rows of log lines, not "not granted". If it says not granted, the policy for `opensearch__SearchIndexTool` on `aggregate` has lapsed |
 
 If the local main agent is not running, start it (the SE site's main agent is a cluster Deployment and restarts by itself):
 
@@ -111,7 +111,7 @@ One agent calls a second, which calls a third, and the gateway sits between each
 
 On Step 25 (the access review), the same record lists the model calls with tokens and cost. That block is covered by tests but has not yet been run in a browser.
 
-The record is read from the `gateway-events` index through the gateway, so the demo user needs a policy granting the tool `SearchIndexTool` on the app `opensearch22`. These policies are time-boxed; when one lapses, the gateway rows read "not granted". Records are matched by time window, so another session's calls in the same seconds can appear on Step 25.
+The record is read from the `gateway-events` index through the gateway, so the demo user needs a policy granting the tool `opensearch__SearchIndexTool` on the app `aggregate` (the gateway-findings door was repointed from the deleted `opensearch22` to `aggregate` on 2026-10-12). These policies are time-boxed; when one lapses, the gateway rows read "not granted". Records are matched by time window, so another session's calls in the same seconds can appear on Step 25.
 
 **Good follow-up.** On the System Flow map the same run lights a Privilege A2A band: agents green, the gateway red where it refused.
 
@@ -183,11 +183,11 @@ _Agent Registry: each row is an agent key — custodian, provider, scopes, expir
 
 | Agent | Scopes | Provider and model | May reach | Custodian |
 | --- | --- | --- | --- | --- |
-| `main-agent` | `llm`, `a2a` | Google, Gemini 3.6 Flash | `workeragentdemo`, `langchainagent` | you |
-| `worker-agent` | `llm`, `mcp` | Google, Gemini 3.5 Flash Lite | `mcpdemo`, with each of its four tools allowed under Configure Tools | you |
+| `main-agent` | `a2a` | none (the model call uses the `llama.cpp` key) | `workeragentdemo`, `langchainagent` | you |
+| `worker-agent` | `mcp` | none (the model call uses the `llama.cpp` key) | `mcpdemo`, with each of its four tools allowed under Configure Tools | you |
 | `langchain-caller` | `a2a` | none | `hostile-a2a` | a different user |
 
-Each agent's Real Provider Key is the Google API key. The key is shown once, on the last wizard screen. `langchain-caller` needs its own custodian: remote-agent grants follow the custodian, so under a shared one it could reach the worker and the refusal run would not be refused.
+With no `llm` scope there is no Real Provider Key to enter (the Google API key was only needed while the agents called Gemini through their own keys; `main-agent` and `worker-agent` were recreated without it on 2026-10-14, after the originals were exposed). The key is shown once, on the last wizard screen. `langchain-caller` needs its own custodian: remote-agent grants follow the custodian, so under a shared one it could reach the worker and the refusal run would not be refused.
 
 **4. Store the keys.** Paste each key once; a doubled key is refused as `invalid virtual key`.
 
@@ -238,7 +238,7 @@ Each of these happened while building the demo. Read the message, find the row.
 | --- | --- | --- |
 | "Step 26 — the run failed: …" in the agent chat (a `502` from `/api/privilege-a2a/chain`) | The main agent on port 3300 is not running, or the app cannot reach it | Start it (see Before you demo). Check `PRIVILEGE_A2A_MAIN_URL` and that the two BFF secrets match |
 | The chain request is rejected with `401 BFF authentication required` | The main agent reads its settings once, at start, and its copy of the BFF secret is stale | Restart the main agent. The BFF reads `PRIVILEGE_A2A_BFF_SECRET`; the agent checks it as `A2A_BFF_SHARED_SECRET`; both must hold the same value (the vault, both `.env` files and the BFF container) |
-| The gateway rows read "not granted" | The policy that lets the demo user call `SearchIndexTool` on `opensearch22` has expired | Grant it again in the Privilege console, with a longer validity window |
+| The gateway rows read "not granted" | The policy that lets the demo user call `opensearch__SearchIndexTool` on `aggregate` has expired | Grant it again in the Privilege console, with a longer validity window |
 | `invalid virtual key` (401) | The agent key is wrong, often pasted twice | Check the stored key is 57 characters; store it again |
 | `model "…" not allowed for this key` (403) | The model ID does not exactly match the model allowed on the agent | Use the exact ID, for example `gemini-3.6-flash`. Aliases such as `gemini-flash-latest` are refused |
 | `API key not valid` from the provider | The gateway accepted the call; the Real Provider Key stored on that agent is wrong | Edit the agent and paste the Google key again |

@@ -7,7 +7,7 @@
       "url": "https://ai-demo.ping-devops.com/mcp-facade/agentless/mcp"
     },
     "MCP Privilege-OpenSearch": {
-      "url": "http://localhost:3002/mcp-facade/privilege-gateway/opensearch22/mcp"
+      "url": "http://localhost:3002/mcp-facade/privilege-gateway/opensearch/mcp"
     },
     "MCP Privilege-Aggregate": {
       "url": "http://localhost:3002/mcp-facade/privilege-gateway/aggregate/mcp"

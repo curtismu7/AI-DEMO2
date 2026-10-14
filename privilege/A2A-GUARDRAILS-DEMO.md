@@ -63,8 +63,8 @@ row, wait for the reply, then read the log immediately for that minute.
 ## Before you present
 
 1. The worker app `workeragentdemo` (type **Remote Agent**, Auth Mode None) and
-   `mcpdemo` (type **MCP**) are registered; the main agent's key has scopes `llm`
-   + `a2a` with `workeragentdemo` selected as a remote agent (setup order in the
+   `mcpdemo` (type **MCP**) are registered; the main agent's key has scope `a2a`
+   (it was `llm` + `a2a` while the agents called Gemini; the model call now uses the `llama.cpp` key) with `workeragentdemo` selected as a remote agent (setup order in the
    [harness README](../standalone/privilege-a2a-anthropic-demo/README.md)).
 2. On the **main agent's key → Runtime Protection**, guardrail is **enabled**.
    Note Fail Closed (off = a message passes if the guardrail itself fails).

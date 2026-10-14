@@ -5,6 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
 import { parseMode, parseProfile, parseUserName, withLabels, type Profile } from '../profile.js';
 import { systemPromptFor } from './prompts.js';
+import { stripUnsourcedScope } from './scopeFilter.js';
 import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { renderPage } from './ui.js';
@@ -190,6 +191,7 @@ app.post('/chat', async (req: Request, res: Response) => {
   const traceAbort = new AbortController();
   let abortActiveModelStream: (() => void) | undefined;
   let completed = false;
+  const rawSourceTexts: string[] = [];
   res.on('close', () => {
     if (!res.writableEnded) {
       abort.abort();
@@ -269,11 +271,13 @@ app.post('/chat', async (req: Request, res: Response) => {
         sendSse(res, 'trace', { ...withLabels({ from: MAIN, to: 'analyst' }, profile), kind: 'delegate', text: 'concierge → analyst_agent', detail: question, request, at: at() });
         const hopStartedAt = Date.now();
         try {
-          const answer = await worker.sendQuestion(question, traceId, profile ? { vertical: profile.vertical, tools: profile.tools, ...(heuristic ? { mode: 'heuristics' } : {}) } : undefined);
+          const { text: answer, toolOutputs } = await worker.sendQuestion(question, traceId, profile ? { vertical: profile.vertical, tools: profile.tools, ...(heuristic ? { mode: 'heuristics' } : {}) } : undefined);
           const response = `HTTP 200\n\n${pretty(JSON.stringify({ jsonrpc: '2.0', id: '<request id>', result: { kind: 'message', role: 'agent', parts: [{ kind: 'text', text: answer }] } })).slice(0, 4000)}`;
           sendSse(res, 'trace', { ...withLabels({ from: 'analyst', to: MAIN }, profile), kind: 'result', text: 'analyst_agent returned', detail: answer, elapsedMs: Date.now() - hopStartedAt, response, at: at() });
           results.push({ type: 'tool_result', tool_use_id: call.id, content: answer });
-          delegatedAnswer = answer;
+          // Scope words are checked against the raw tool output, not the analyst's own text.
+          delegatedAnswer = stripUnsourcedScope(answer, toolOutputs.join('\n'));
+          rawSourceTexts.push(...toolOutputs);
         } catch (error) {
           const detail = messageError(error);
           sendSse(res, 'trace', { ...withLabels({ from: MAIN, to: 'analyst' }, profile), kind: 'error', text: 'A2A delegation failed', detail, at: at() });
@@ -297,9 +301,11 @@ app.post('/chat', async (req: Request, res: Response) => {
         messages,
       });
       abortActiveModelStream = () => finalStream.controller.abort();
-      finalStream.on('text', text => sendSse(res, 'token', { text }));
       const finalResponse = await finalStream.finalMessage();
       abortActiveModelStream = undefined;
+      // Buffered, not streamed: a scope claim can't be filtered after it has been sent.
+      const finalText = finalResponse.content.map(block => (block.type === 'text' ? block.text : '')).join('');
+      sendSse(res, 'token', { text: stripUnsourcedScope(finalText, rawSourceTexts.join('\n')) });
       messages.push({ role: 'assistant', content: finalResponse.content });
       completed = true;
     }

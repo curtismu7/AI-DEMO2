@@ -101,7 +101,7 @@ describe('WorkloadAgentsPage', () => {
     const action = await screen.findByRole('button', { name: /Run this demo: UC44/i });
     fireEvent.click(action);
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'my gear', vertical: 'sporting-goods', useCaseId: 'workload-digital-assistant-obo' }),
+      body: JSON.stringify({ prompt: 'my gear', vertical: 'sporting-goods', useCaseId: 'workload-digital-assistant-obo', agentMode: 'llm' }),
     })));
     expect(screen.getByText(/UC44.*Super Sports.*list_gear/)).toBeTruthy();
   });
@@ -110,7 +110,7 @@ describe('WorkloadAgentsPage', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Run this demo: UC38/i }));
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge' }),
+      body: JSON.stringify({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge', agentMode: 'llm' }),
     })));
   });
 
@@ -127,7 +127,7 @@ describe('WorkloadAgentsPage', () => {
     expect(screen.queryByText('list_gear')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Run this demo: UC44/i }));
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'show my balance', vertical: 'banking', useCaseId: 'workload-digital-assistant-obo' }),
+      body: JSON.stringify({ prompt: 'show my balance', vertical: 'banking', useCaseId: 'workload-digital-assistant-obo', agentMode: 'llm' }),
     })));
   });
 });

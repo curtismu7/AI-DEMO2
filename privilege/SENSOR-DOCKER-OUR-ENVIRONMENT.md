@@ -38,7 +38,7 @@ State measured on 2026-10-01:
 | Local gateway (`ai-demo-ping-mcpgw`) | Running, enrolled, node Active in mesh cluster `ai-demo-mine` | Gateway log; tokenless `POST /MCP-aidemo/mcp` answers 401 with an OAuth challenge |
 | Front door (`ai-demo-mcpgw-nginx`) | Running on host port 443 | `docker ps` |
 | Sensor (`procyon-nodesensor`) | **Running and reporting since 20:39 UTC; crash-looped before that** | Log shows `reported findings sent=2 accepted=2`. Earlier: 22 restarts, every log line was `open /etc/procyon/nodesensor-signing.pem: read-only file system` |
-| BFF default door | Points at the SE cluster gateway, not the local one | `PRIVILEGE_MCPGW_URL=https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp` |
+| BFF default door | Points at the SE cluster gateway, not the local one | `PRIVILEGE_MCPGW_URL=https://mcpgw.ai-demo.ping-devops.com/opensearch/mcp` |
 
 Two things to carry away. The Docker-to-same-Docker loop exists but is not what the BFF calls by default. And the sensor only authenticates while its signing key file survives; the key now lives on a named volume after a startup failure traced to that file (see Sensor startup failure).
 

@@ -1,9 +1,10 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { render, screen, waitFor, fireEvent } from '@testing-library/react';
+import { act, render, screen, waitFor, fireEvent } from '@testing-library/react';
 import { MemoryRouter, Route, Routes } from 'react-router-dom';
 import PrivilegeA2aPage from '../PrivilegeA2aPage';
 import { PrivilegeMcpClientPageRoute } from '../../routes/PublicRoutes';
 import apiClient from '../../services/apiClient';
+import { ThemeProvider, useTheme } from '../../context/ThemeContext';
 
 vi.mock('../../services/apiClient', () => ({ default: { get: vi.fn() } }));
 vi.mock('../../vertical/useVertical', () => ({ useVertical: () => ({ activeId: 'healthcare' }) }));
@@ -28,6 +29,21 @@ describe('PrivilegeA2aPage', () => {
     expect(screen.getByTestId('a2a-worker-agent')).toHaveTextContent('Claims Analyst');
     expect(screen.getByTestId('a2a-vertical')).toHaveTextContent('Healthcare');
     expect(screen.getByRole('heading', { name: 'A2A access review' })).toBeInTheDocument();
+  });
+
+  test('the main top bar\'s light/dark switch drives the page theme too', () => {
+    let toggleMainBar;
+    function MainBar() { toggleMainBar = useTheme().toggleDarkMode; return null; }
+    render(<ThemeProvider><MemoryRouter><MainBar /><PrivilegeA2aPage user={null} /></MemoryRouter></ThemeProvider>);
+    const page = screen.getByTestId('privilege-a2a-page');
+    expect(page).toHaveAttribute('data-cur-theme', 'dark');
+
+    act(() => toggleMainBar()); // global light (default) -> dark
+    expect(page).toHaveAttribute('data-cur-theme', 'dark');
+    act(() => toggleMainBar()); // dark -> light
+    expect(page).toHaveAttribute('data-cur-theme', 'light');
+    fireEvent.click(screen.getByRole('button', { name: 'Dark' })); // the page's own button still works
+    expect(page).toHaveAttribute('data-cur-theme', 'dark');
   });
 
   test('signed out shows a dash, not a made-up identity', () => {

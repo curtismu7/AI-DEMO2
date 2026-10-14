@@ -48,7 +48,7 @@ The filter is intersected with the caller's grant (see above), so
 `aggregate-limited` is the cleaner "central control" demo.
 
 **Run live 2026-10-14**, through `https://mcpgw.ai-demo.ping-devops.com/<door>/mcp` with
-the console `worker-agent` key (scopes `llm` + `mcp`; the keys in the A2A demo's
+the console `worker-agent` key (scope `mcp`; it was `llm` + `mcp` until the key was recreated 2026-10-14; the keys in the A2A demo's
 `.env` get `403 key not scoped for mcp access` — use this one):
 
 | Call | Result |

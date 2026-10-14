@@ -5,18 +5,7 @@
 
 const { llmFetch } = require('./llmFetch');
 
-// gemini-2.0-flash and the 1.5 models are retired for the demo's key (404); these three
-// were listed by the key's models endpoint and answered on 2026-10-05. Lite is the default:
-// this call has a 12 s budget and a tiny JSON task, and Lite answered 8 of 8 runs in under
-// 2 s while 2.5-flash took about 12 s on 2 of 4 runs even with thinking off.
-const DEFAULT_MODEL = 'gemini-2.5-flash-lite';
-
-/** Models to try when the preferred model hits free-tier quota (429). */
-const MODEL_FALLBACKS = [
-  'gemini-2.5-flash-lite',
-  'gemini-2.5-flash',
-  'gemini-2.5-pro',
-];
+const { GEMINI_DEFAULT: DEFAULT_MODEL, GEMINI_FALLBACKS: MODEL_FALLBACKS } = require('../config/llmModels');
 
 function apiKey(config = {}) {
   return config.google_api_key

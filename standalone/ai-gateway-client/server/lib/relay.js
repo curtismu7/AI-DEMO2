@@ -27,7 +27,7 @@ const router = express.Router();
 // Privilege gateway so this works out of the box with zero setup.
 // ---------------------------------------------------------------------------
 const PRIVILEGE_GATEWAY_HOST = process.env.PRIVILEGE_GATEWAY_HOST || 'https://mcpgw.ai-demo.ping-devops.com';
-const PRIVILEGE_APP = () => process.env.PRIVILEGE_GATEWAY_APP || 'opensearch22';
+const PRIVILEGE_APP = () => process.env.PRIVILEGE_GATEWAY_APP || 'opensearch';
 const PRIVILEGE_APP_OPENSEARCH = () => process.env.PRIVILEGE_GATEWAY_APP_OPENSEARCH || 'opensearch';
 const PRIVILEGE_APP_BRAVE = () => process.env.PRIVILEGE_GATEWAY_APP_BRAVE || 'brave';
 // The hostile MCP server behind Privilege (standalone/hostile-mcp-server), for

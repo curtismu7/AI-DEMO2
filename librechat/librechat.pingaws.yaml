@@ -58,7 +58,7 @@ mcpServers:
   opensearch-privilege-gateway:
     type: streamable-http
     title: 'OS Priv'
-    url: 'https://ai-demo.ping-devops.com/mcp-facade/privilege-gateway/opensearch22/mcp'
+    url: 'https://ai-demo.ping-devops.com/mcp-facade/privilege-gateway/opensearch/mcp'
     timeout: 60000
 
   # 1b. Same façade door, the Privilege `aggregate` app (MCP Aggregate:

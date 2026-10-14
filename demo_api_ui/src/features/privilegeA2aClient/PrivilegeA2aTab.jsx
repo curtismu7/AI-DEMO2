@@ -43,6 +43,12 @@ export default function PrivilegeA2aTab() {
         kind: typeof payload.kind === 'string' ? payload.kind : 'activity',
         text: typeof payload.text === 'string' ? payload.text : 'Agent activity',
         detail: typeof payload.detail === 'string' ? payload.detail : '',
+        // Who called whom, how long it took, and the wire JSON of that hop (display names when the profile has them).
+        from: typeof payload.fromLabel === 'string' && payload.fromLabel ? payload.fromLabel : (typeof payload.from === 'string' ? payload.from : ''),
+        to: typeof payload.toLabel === 'string' && payload.toLabel ? payload.toLabel : (typeof payload.to === 'string' ? payload.to : ''),
+        elapsedMs: typeof payload.elapsedMs === 'number' ? payload.elapsedMs : null,
+        request: typeof payload.request === 'string' ? payload.request : '',
+        response: typeof payload.response === 'string' ? payload.response : '',
       }]);
     } else if (eventName === 'done') {
       if (typeof payload.sessionId === 'string' && payload.sessionId.length <= 128) {
@@ -53,9 +59,9 @@ export default function PrivilegeA2aTab() {
     }
   };
 
-  const submitQuestion = async (event) => {
-    event.preventDefault();
-    const message = input.trim();
+  const submitQuestion = async (event, text = input) => {
+    event?.preventDefault();
+    const message = text.trim();
     if (!message || busy) return;
 
     const controller = new AbortController();
@@ -219,7 +225,14 @@ export default function PrivilegeA2aTab() {
                 <li className="privilege-a2a__trace-entry" key={`${index}-${entry.kind}`}>
                   <span className="privilege-a2a__trace-kind">{entry.kind}</span>
                   <span className="privilege-a2a__trace-text">{entry.text}</span>
+                  {entry.from && entry.to && (
+                    <span className="privilege-a2a__trace-route">
+                      {entry.from} → {entry.to}{entry.elapsedMs != null ? ` · ${entry.elapsedMs} ms` : ''}
+                    </span>
+                  )}
                   {entry.detail && <details><summary>Details</summary><pre>{entry.detail}</pre></details>}
+                  {entry.request && <details><summary>Request</summary><pre>{entry.request}</pre></details>}
+                  {entry.response && <details><summary>Response</summary><pre>{entry.response}</pre></details>}
                 </li>
               ))}
             </ol>
@@ -234,7 +247,7 @@ export default function PrivilegeA2aTab() {
               key={question}
               type="button"
               className="privilege-a2a__chip"
-              onClick={() => { setSelectedQuestion(question); setInput(question); }}
+              onClick={() => submitQuestion(null, question)}
               disabled={busy}
             >
               {question}

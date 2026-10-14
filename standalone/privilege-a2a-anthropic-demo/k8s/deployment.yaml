@@ -15,7 +15,8 @@
 # Privilege: it is a caller, not a remote agent. The demo app's server reaches
 # it in-cluster (PRIVILEGE_A2A_MAIN_URL) with a shared secret. Add its two
 # values to the same Secret:
-#   MAIN_AGENT_KEY          the main agent's Agent Access key (llm + a2a scopes)
+#   MAIN_AGENT_KEY          the main agent's Agent Access key (a2a scope; add llm only if the agent calls the
+#                           gateway's LLM route with its own key, as the Google/Anthropic setups did)
 #   A2A_BFF_SHARED_SECRET   the same value as the app server's PRIVILEGE_A2A_BFF_SECRET
 #
 # BUILD FOR arm64 (the SE cluster nodes are Graviton):
@@ -207,7 +208,7 @@ spec:
       - name: ghcr-pull-secret
       containers:
       - name: mainagentdemo
-        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-746bcbee0de0cc604c38881f89314dfc8ecfbd17
+        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-6b80516af
         imagePullPolicy: Always
         command: ["node", "dist/main-agent/index.js"]
         ports:
