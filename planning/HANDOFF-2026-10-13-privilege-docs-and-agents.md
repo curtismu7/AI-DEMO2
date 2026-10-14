@@ -124,6 +124,11 @@ the model.
   won't start); (2) AIC session: allowlisting `test12345@mailinator.com` on the
   cluster was refused — needs the user's explicit go-ahead or a manual step;
   (3) merge #1255 and review #1254.
+- **Facade session blocker (19:55):** `gpt-oss-20b` runs on this Mac (port 8096) but
+  cluster **tier5** (same model) never starts, so it can't ship to SE. The model
+  file is on the volume, which has only 1.8 GB free. It proposes checking the
+  pod's events/logs first and is waiting on the user's yes. Fixing tier5 is the
+  likeliest route to a worker fast enough to finish feature 14's guardrail rows.
 - Feature 14 next step is unchanged: one row, wait for the reply, read that minute's log. Don't use llama tier3 (no tool calls).
 
 - Worktrees still present (not mine except `priv-live`): `AI-DEMO2-aic-login`,
