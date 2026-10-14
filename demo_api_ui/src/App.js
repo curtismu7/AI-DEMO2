@@ -249,6 +249,7 @@ import PublicRoutes, {
   PingFederateIdJagDiagramPageRoute,
   PingFederateAiAgentPageRoute,
   AicTokenExchangePageRoute,
+  OboDemoPageRoute,
   GroupPolicyBoardPageRoute,
   PageCatalogPageRoute,
   PrivilegeMcpClientPageRoute,
@@ -1479,6 +1480,17 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <AicTokenExchangePageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                {/* OBO demo: signed-in users only (the delegation runs on their BFF session). */}
+                <Route
+                  path="/obo-demo"
+                  element={
+                    loading ? null : user ? (
+                      <OboDemoPageRoute user={user} logout={logout} />
                     ) : (
                       <SignInRequired />
                     )

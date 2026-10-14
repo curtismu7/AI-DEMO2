@@ -1487,6 +1487,7 @@ export default function AdminSideNav({
     productGroup("Personal Agents", [
       "Personal Agent",
       "Personal Agent Clients",
+      { label: "OBO Demo", path: "/obo-demo", icon: "lck" },
       { label: "Target Design", path: "/personal-agent-design", icon: "arc" },
       { label: "Dual Gateway Design", path: "/personal-agent-dual-gateway", icon: "arc" },
       { label: "Design Review", path: "/personal-agent-review", icon: "log" },

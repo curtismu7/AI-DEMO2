@@ -1508,6 +1508,7 @@ app.use('/api/document-rag', authenticateToken, require('./routes/documentRag'))
 // Intent authorization and unified agent invocation
 app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);
+app.use('/api/obo', require('./routes/obo'));
 app.use('/api/agent', delegationGate, transactionTurnMiddleware, agentRunRoutes); // AG-UI Step 2: /api/agent/run
 const { codegraphProxy, codegraphReindexProxy, codegraphStatus } = require('./routes/codegraphProxy');
 app.post('/api/codegraph/query', codeGraphQueryLimiter, codegraphProxy);
