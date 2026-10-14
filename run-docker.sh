@@ -45,7 +45,7 @@
 #
 # Targeted `build ui` is mode-explicit: without PROD_MODE=1 or DEV_MODE=1 it
 # refuses, because the dev override would silently make it the Vite dev image
-# (:4300) instead of the nginx prod image (:4000).
+# instead of the nginx prod image (both serve :4000).
 
 set -euo pipefail
 
@@ -1121,22 +1121,17 @@ _verify_core_running() {
     [[ ${#fixed[@]} -gt 0 ]] && ok "Recovered: ${fixed[*]}"
   fi
 
-  # The UI has no healthcheck, so Running is not enough — confirm the server
-  # bound its port. A dead dev server here renders a blank dashboard with no
-  # other signal. In dev mode (override active) Vite listens on 4300 (dev's own
-  # host port — 4000 is reserved for the PROD_MODE nginx build); in prod mode
-  # nginx listens on 4000.
+  # The UI has no healthcheck, so Running is not enough — confirm Vite bound the
+  # port. A dead dev server here renders a blank dashboard with no other signal.
   if printf '%s\n' "${_CORE_UP[@]}" | grep -qx 'ui'; then
-    UI_HEALTH_PORT=4000
-    [[ "${PROD_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]] && UI_HEALTH_PORT=4300
-    if ! docker exec ai-demo-ui sh -c "netstat -tln 2>/dev/null | grep -q ':${UI_HEALTH_PORT} '" 2>/dev/null; then
-      warn "UI container is up but the server is not listening on :${UI_HEALTH_PORT} (it can lose the race with the BFF) — restarting it"
+    if ! docker exec ai-demo-ui sh -c 'netstat -tln 2>/dev/null | grep -q ":4000 "' 2>/dev/null; then
+      warn "UI container is up but Vite is not listening on :4000 (it can lose the race with the BFF) — restarting it"
       docker restart ai-demo-ui >/dev/null 2>&1 || true
       sleep 12
-      if docker exec ai-demo-ui sh -c "netstat -tln 2>/dev/null | grep -q ':${UI_HEALTH_PORT} '" 2>/dev/null; then
-        ok "UI recovered — listening on :${UI_HEALTH_PORT}"
+      if docker exec ai-demo-ui sh -c 'netstat -tln 2>/dev/null | grep -q ":4000 "' 2>/dev/null; then
+        ok "UI recovered — Vite listening on :4000"
       else
-        warn "UI still not serving :${UI_HEALTH_PORT} — check: ./run-docker.sh logs ui"
+        warn "UI still not serving :4000 — check: ./run-docker.sh logs ui"
       fi
     fi
   fi
@@ -1402,16 +1397,16 @@ cmd_build_one() {
   done
 
   _require_services "${services[@]}"
-  # A targeted `build ui` decides which image the console runs on — dev (vite,
-  # :4300 only) or prod (nginx, :4000). With the override merged and no mode
+  # A targeted `build ui` decides which image the console runs on — dev (vite)
+  # or prod (nginx), both on :4000. With the override merged and no mode
   # flag, compose silently picks the dev stage; two sessions have done that
   # meaning a prod rebuild and killed :4000 (2026-10-11). Refuse ambiguity:
   # the caller must name the mode explicitly.
   if [[ " ${services[*]} " == *" ui "* && "${PROD_MODE:-0}" != "1" && "${DEV_MODE:-0}" != "1" && -f "${OVERRIDE_FILE}" ]]; then
-    err "Ambiguous ui build: the dev override would make this a Vite dev image (:4300), not the nginx prod image (:4000)."
+    err "Ambiguous ui build: the dev override would make this a Vite dev image, not the nginx prod image."
     echo ""
     echo "  PROD_MODE=1 ./run-docker.sh build ui   # nginx production image (console on :4000)"
-    echo "  DEV_MODE=1  ./run-docker.sh build ui   # Vite dev image (HMR, :4300) — intentional"
+    echo "  DEV_MODE=1  ./run-docker.sh build ui   # Vite dev image (HMR) — intentional"
     echo ""
     exit 1
   fi
