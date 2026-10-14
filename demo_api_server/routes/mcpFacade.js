@@ -508,7 +508,7 @@ function authorizationServerFor(req, door) {
 // from the backend URL it was registered with, and answers a bare 404 on any
 // other. The only explanation is in the gateway's own log:
 //
-//   [mcpgw] rejecting /mcp on app opensearch22: outside entry path "/sse"
+//   [mcpgw] rejecting /mcp on app opensearch-hitl: outside entry path "/sse"
 //
 // It is per APP, not per gateway, and this door fronts every app through one
 // multiApp route, so it cannot hardcode a path blindly.

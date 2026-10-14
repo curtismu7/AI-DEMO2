@@ -130,7 +130,7 @@ describe("titlebar door picker", () => {
     const direct = ["banking", "opensearch", "brave", "pingone-admin"]
       .map((name) => `${origin}/mcp-facade/${name}/mcp`);
     const sameOriginOtherPaths = [
-      `${origin}/mcp-facade/privilege-gateway/opensearch22/mcp`,
+      `${origin}/mcp-facade/privilege-gateway/opensearch-hitl/mcp`,
       `${origin}/mcp-facade/privilege-gateway/aggregate/mcp`,
       `${origin}/custom-door/mcp`,
     ];
@@ -212,23 +212,23 @@ describe("titlebar door picker", () => {
     const FACADE_ORIGIN = "https://ai-demo.example.com";
     const OPENSEARCH_DIRECT = `${FACADE_ORIGIN}/mcp-facade/opensearch/mcp`;
     const BRAVE_DIRECT = `${FACADE_ORIGIN}/mcp-facade/brave/mcp`;
-    const OPENSEARCH22_PRIVILEGE = `${FACADE_ORIGIN}/mcp-facade/privilege-gateway/opensearch22/mcp`;
+    const OPENSEARCH_HITL_PRIVILEGE = `${FACADE_ORIGIN}/mcp-facade/privilege-gateway/opensearch-hitl/mcp`;
     const posted = mockApi({
       gatewayMode: "facade",
-      mcpUrl: OPENSEARCH22_PRIVILEGE,
+      mcpUrl: OPENSEARCH_HITL_PRIVILEGE,
       presets: [
         { label: "1 · Direct — no Privilege in the path", mode: "direct", url: OPENSEARCH_DIRECT },
         { label: "Direct — Brave Search", mode: "direct", url: BRAVE_DIRECT },
-        { label: "3 · Privilege — through the façade", mode: "facade", url: OPENSEARCH22_PRIVILEGE },
+        { label: "3 · Privilege — through the façade", mode: "facade", url: OPENSEARCH_HITL_PRIVILEGE },
       ],
     });
     renderPage();
     await waitFor(() => expect(picker()).toBeTruthy());
 
     const options = [...picker().options].map((o) => o.textContent);
-    expect(options).toEqual(["opensearch22"]);
+    expect(options).toEqual(["opensearch-hitl"]);
 
-    expect(picker().value).toBe(OPENSEARCH22_PRIVILEGE);
+    expect(picker().value).toBe(OPENSEARCH_HITL_PRIVILEGE);
     expect(posted).toHaveLength(0);
   });
 
@@ -236,27 +236,27 @@ describe("titlebar door picker", () => {
     const origin = "https://ai-demo.example.com";
     const direct = ["banking", "opensearch", "brave", "pingone-admin"]
       .map((name) => `${origin}/mcp-facade/${name}/mcp`);
-    const facadeOpenSearch22 = `${origin}/mcp-facade/privilege-gateway/opensearch22/mcp`;
+    const facadeOpenSearchHitl = `${origin}/mcp-facade/privilege-gateway/opensearch-hitl/mcp`;
     const facadeOpenSearch = `${origin}/mcp-facade/privilege-gateway/opensearch/mcp`;
     const presets = [
       ...direct.map((url) => ({ label: `Direct — ${url}`, mode: "direct", url })),
-      { label: "Façade — opensearch22", mode: "facade", url: facadeOpenSearch22 },
+      { label: "Façade — opensearch-hitl", mode: "facade", url: facadeOpenSearchHitl },
       { label: "Façade — opensearch", mode: "facade", url: facadeOpenSearch },
     ];
     mockApi({
       gatewayMode: "facade",
-      mcpUrl: facadeOpenSearch22,
+      mcpUrl: facadeOpenSearchHitl,
       presets,
       gatewayConfigs: {
         direct: { mcpUrl: direct[1] },
         privilege: {},
-        facade: { mcpUrl: facadeOpenSearch22 },
+        facade: { mcpUrl: facadeOpenSearchHitl },
       },
     });
     renderPage();
 
     const pathPicker = await screen.findByLabelText("Connection path");
-    expect([...picker().options].map((option) => option.textContent)).toEqual(["opensearch22", "opensearch"]);
+    expect([...picker().options].map((option) => option.textContent)).toEqual(["opensearch-hitl", "opensearch"]);
 
     fireEvent.change(pathPicker, { target: { value: "direct" } });
 
@@ -269,13 +269,13 @@ describe("titlebar door picker", () => {
   it("Privilege mode (raw Agent Privilege, different origin) does NOT gain Direct's plain doors", async () => {
     const RAW_GATEWAY = "https://mcpgw.example.com";
     const FACADE_ORIGIN = "https://ai-demo.example.com";
-    const OPENSEARCH22 = `${RAW_GATEWAY}/opensearch22/mcp`;
+    const OPENSEARCH_HITL = `${RAW_GATEWAY}/opensearch-hitl/mcp`;
     const OPENSEARCH_DIRECT = `${FACADE_ORIGIN}/mcp-facade/opensearch/mcp`;
     mockApi({
       gatewayMode: "privilege",
-      mcpUrl: OPENSEARCH22,
+      mcpUrl: OPENSEARCH_HITL,
       presets: [
-        { label: "2 · Privilege — direct to the Agent Privilege", mode: "privilege", url: OPENSEARCH22 },
+        { label: "2 · Privilege — direct to the Agent Privilege", mode: "privilege", url: OPENSEARCH_HITL },
         { label: "1 · Direct — no Privilege in the path", mode: "direct", url: OPENSEARCH_DIRECT },
       ],
     });
@@ -286,22 +286,22 @@ describe("titlebar door picker", () => {
     // single-target readout, not a picker offering an unreachable door.
     await waitFor(() => expect(picker()).toBeTruthy());
     const options = [...picker().options].map((o) => o.textContent);
-    expect(options).toEqual(["opensearch22"]);
+    expect(options).toEqual(["opensearch-hitl"]);
   });
 
   it("names each privilege-gateway/<app> sibling by its app, not the door", async () => {
     // Regression guard: doorName() used to return "privilege-gateway" for
-    // every app behind this multiApp door, making opensearch22/opensearch/
+    // every app behind this multiApp door, making opensearch-hitl/opensearch/
     // brave indistinguishable in the picker.
     const FACADE_ORIGIN = "https://ai-demo.example.com";
-    const OPENSEARCH22 = `${FACADE_ORIGIN}/mcp-facade/privilege-gateway/opensearch22/mcp`;
+    const OPENSEARCH_HITL = `${FACADE_ORIGIN}/mcp-facade/privilege-gateway/opensearch-hitl/mcp`;
     const OPENSEARCH = `${FACADE_ORIGIN}/mcp-facade/privilege-gateway/opensearch/mcp`;
     const BRAVE = `${FACADE_ORIGIN}/mcp-facade/privilege-gateway/brave/mcp`;
     const posted = mockApi({
       gatewayMode: "facade",
-      mcpUrl: OPENSEARCH22,
+      mcpUrl: OPENSEARCH_HITL,
       presets: [
-        { label: "3 · Privilege — through the façade", mode: "facade", url: OPENSEARCH22 },
+        { label: "3 · Privilege — through the façade", mode: "facade", url: OPENSEARCH_HITL },
         { label: "Façade — opensearch", mode: "facade", url: OPENSEARCH },
         { label: "Façade — brave", mode: "facade", url: BRAVE },
       ],
@@ -310,7 +310,7 @@ describe("titlebar door picker", () => {
     await waitFor(() => expect(picker()).toBeTruthy());
 
     const options = [...picker().options].map((o) => o.textContent);
-    expect(options).toEqual(["opensearch22", "opensearch", "brave"]);
+    expect(options).toEqual(["opensearch-hitl", "opensearch", "brave"]);
 
     fireEvent.change(picker(), { target: { value: BRAVE } });
     await waitFor(() => expect(posted.length).toBeGreaterThan(0));
