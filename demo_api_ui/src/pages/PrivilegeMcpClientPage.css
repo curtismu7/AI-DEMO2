@@ -2289,3 +2289,88 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-input--code {
   resize: vertical;
 }
+
+/* ── Workbench layout ───────────────────────────────────────────────────── */
+/* Workbench layout for the Privilege MCP client (loaded after the page sheet).
+ *
+ * Layout only — no DOM, handler or class changes — so the page's role/name/testid
+ * contracts hold. The five connection-rail rows become one status strip across
+ * the top (they answer "where is this call going, and as whom"), the tool list
+ * keeps a left column, and the editor/terminal take the rest. The sidebar
+ * wrapper dissolves (display: contents) so its children can sit on the body grid.
+ * Colour is not touched here: surfaces and ink stay in PrivilegeMcpClientPage.css.
+ */
+.cur-ide .cur-body {
+  display: grid;
+  grid-template-columns: minmax(240px, 300px) minmax(0, 1fr);
+  grid-template-rows: auto minmax(0, 1fr);
+}
+.cur-ide .cur-sidebar { display: contents; }
+.cur-ide .cur-sidebar > .cur-sidebar-header { display: none; }          /* "CONNECTION" label: the strip speaks for itself */
+.cur-ide .cur-resize-handle--v { display: none; }                         /* fixed left column; the strip replaces the resizable rail */
+
+.cur-ide .cur-rail {
+  grid-column: 1 / -1;
+  grid-row: 1;
+  display: grid;
+  grid-template-columns: repeat(5, minmax(0, 1fr));
+  gap: 0;
+  padding: 0;
+  border-bottom: 1px solid var(--cur-prompt-border);
+}
+.cur-ide .cur-rail__row {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+  padding: 8px 14px 9px;
+  border-radius: 0;
+  border-left: 0;
+  border-right: 1px solid var(--cur-prompt-border);
+  min-width: 0;
+}
+.cur-ide .cur-rail__row:last-child { border-right: 0; }
+.cur-ide .cur-rail__n { display: none; }                                  /* step numbers imply a wizard; this is a status strip */
+.cur-ide .cur-rail__k { font-size: var(--font-size-2xs); letter-spacing: 0.08em; }
+.cur-ide .cur-rail__v { width: 100%; }
+.cur-ide .cur-rail__v select { width: 100%; }
+.cur-ide .cur-rail__note,
+.cur-ide .cur-rail__url,
+.cur-ide .cur-rail__probe {
+  grid-column: auto;
+  margin: 2px 0 0;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+.cur-ide .cur-rail__note:hover,
+.cur-ide .cur-rail__url:hover { -webkit-line-clamp: unset; }               /* full text on hover */
+
+.cur-ide .cur-sidebar-content {
+  grid-column: 1;
+  grid-row: 2;
+  min-height: 0;
+  overflow-y: auto;
+  padding-top: 8px;
+  border-right: 1px solid var(--cur-prompt-border);
+}
+.cur-ide .cur-main { grid-column: 2; grid-row: 2; min-width: 0; min-height: 0; }
+
+/* Title bar: the traffic-light dots are IDE costume; the title may not wrap. */
+.cur-ide .cur-traffic-lights { display: none; }
+.cur-ide .cur-titlebar-title { white-space: nowrap; }
+/* Fixed 50px clipped the wrapped controls into the strip below; let the bar grow. */
+.cur-ide .cur-titlebar { height: auto; min-height: 50px; padding-top: 6px; padding-bottom: 6px; flex-wrap: wrap; row-gap: 4px; }
+.cur-ide .cur-titlebar-right { flex-wrap: wrap; justify-content: flex-end; row-gap: 4px; }
+
+@media (max-width: 1100px) {
+  .cur-ide .cur-rail { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .cur-ide .cur-rail__row { border-bottom: 1px solid var(--cur-prompt-border); }
+  .cur-ide .cur-body { grid-template-columns: minmax(200px, 240px) minmax(0, 1fr); }
+}
+
+/* The Path note is the one long line in the strip; one line keeps the strip short
+   (hover still reveals all of it) so the editor and terminal keep their height. */
+.cur-ide .cur-rail__note { -webkit-line-clamp: 1; }
+.cur-ide .cur-skin-picker { flex-direction: row; align-items: center; gap: 6px; }
