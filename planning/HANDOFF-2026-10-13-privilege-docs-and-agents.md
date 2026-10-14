@@ -57,7 +57,7 @@ have moved — verify before acting on it.** No secret values are in this file.
 | 21 Sensor enforcement | SENSOR-ENFORCEMENT-DEMO | **Verified** (standalone mode; console-pushed policy not exercised) |
 | 12 Aggregate | AGGREGATE-APPS-DEMO | **Verified live 2026-10-14** with the console `worker-agent` key: `aggregate-limited` = 4 tools, `aggregate` = 42, `aggregate-none` = 0, banking member call works, **the `opensearch` member fails at `initialize`** (Internal Server Error) so avoid `opensearch__` calls live; refusal messages recorded |
 | 14 A2A guardrails | A2A-GUARDRAILS-DEMO | Rows 1–2 verified (200; 400 block in 0.56 s). Rows 3–7: none blocked at the A2A hop, **alerts unconfirmed** (worker too slow to finish). Leg-4 alerts and one PII `sanitized mcp response` were seen in the log but not tied to a row |
-| 20 Secrets Hub | SECRETS-HUB-DEMO | Tenant state verified (hub `GCP-hub-secrets` Synced, 2 secrets). **View / Resync / policy grant not run** |
+| 20 Secrets Hub | SECRETS-HUB-DEMO | **Partly verified live 2026-10-14** via the console UI: Resync works (Synced, 2 secrets); View ran on `privilege-hub-test` (value not displayed; audit event not located); policy wizard steps and the `SecretResources` grant shape captured. **No new grant created** — adding a user was blocked as a permission grant. An older grant exists: `YukonRiver-416146713043` (5 users, Read+Write, valid to 2027-06-04) |
 | 15 Auth modes | AUTH-MODES-DEMO | **Verified live 2026-10-14** on the spare app `workeragentdemo2` (temp grant created and deleted, app restored identical): `none` and `static-token` reach the worker (200), `token-pass` is refused by the gateway (`403` in ~0.2 s). None vs Static indistinguishable on the live worker (no bearer check). Reason log line not located |
 
 ### Open work, in order
@@ -67,9 +67,7 @@ have moved — verify before acting on it.** No secret values are in this file.
    `worker-agent` key, and two keys seen in log/config dumps. Lesson: print only named
    non-secret fields; the console key object exposes the secret under `VirtualKey`.
 2. ~~Feature 15~~ — **done 2026-10-14** (approved temp grant; policy `tmp-w2-authmodes` deleted, app restored, key files removed). Optional follow-up: start a worker with `WORKER_REQUIRE_BEARER=true` to make None (401) vs Static (200) visible.
-3. **Feature 20 — needs the user's OK:** View on `privilege-hub-test` (**not**
-   `groq-key`) and one time-boxed `SecretResources` grant (body shape not captured —
-   easiest is one grant done in the console UI, then read back through the API).
+3. **Feature 20 — last step needs the user's specific OK:** in the policy wizard (Hub → Policy → `privilege-hub-test` → Read → add a user → …) add one user and set an expiry, then read the policy back and delete it. Wizard tip: the user list loads only after clicking the left pane's "Show: All" dropdown. Also decide whether the 2027-06-04 `YukonRiver` grant should stay.
 4. **Feature 14:** confirm rows 3–7 with a worker that finishes (llama tier too slow;
    `gpt-oss-20b` is the candidate but cluster tier5 won't start): send ONE row, wait
    for the reply, read that minute's gateway log with keys stripped.
