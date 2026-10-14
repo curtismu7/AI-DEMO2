@@ -1,6 +1,6 @@
 # MCP server standardization — design
 
-Date: 2026-10-13 · Status: **draft for review** · Path: architectural
+Date: 2026-10-13 · Status: **open questions resolved; awaiting spec review** · Path: architectural
 
 ## Intent
 
@@ -98,17 +98,14 @@ run (one access-review question through `worker-agent`) still pass.
 - Several sessions share one running stack. Compose changes land only through the
   documented deploy path; nothing is redeployed as part of the spec.
 
-## Open questions — please confirm or correct
+## Decisions on the open questions (confirmed by the user, 2026-10-13)
 
-1. **Banking's code-search tools.** Default: leave them inside `oauth-mcp`
-   untouched; only the standalone `demo_mcp_code_search` service is frozen.
-2. **Hostile A2A.** Default: `hostile-a2a` counts with the hostile set, not the
-   A2A bundle, because it is the red-team agent.
-3. **OpenSearch's profile.** It sits under compose profile `mcpgw`, not the
-   default stack. Default: leave it there and require the demos to say so, rather
-   than adding OpenSearch to every default start.
-4. **Frozen unit tests.** Default: keep them running in their own directories.
-   Alternative: skip them in CI too (smaller CI, but they rot).
+1. **Banking's code-search tools:** left untouched inside `oauth-mcp`; only the
+   standalone `demo_mcp_code_search` service is frozen.
+2. **`hostile-a2a`:** counts with the hostile set, not the A2A bundle.
+3. **OpenSearch:** stays under compose profile `mcpgw`; demos state the profile
+   they need rather than adding OpenSearch to the default stack.
+4. **Frozen servers' own unit tests:** keep running in their own directories.
 
 ## Out of scope
 
