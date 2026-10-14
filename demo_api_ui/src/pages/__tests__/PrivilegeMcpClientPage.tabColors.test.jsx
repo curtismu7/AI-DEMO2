@@ -70,6 +70,28 @@ describe("PrivilegeMcpClientPage tab colors", () => {
     expect(new Set(colors).size).toBe(keys.length);
   });
 
+  it("all six tabs (demo + inspect) have a unique accent", () => {
+    const keys = ["chat", "tools", "user-api-keys", "mcp", "rpc", "policies"];
+    const colors = keys.map((key) => {
+      const rule = CSS.match(
+        new RegExp(`\\.cur-ide \\.cur-tab--${key}(?![\\w-])[^{]*{[^}]*--tab-accent:\\s*([^;]+);`),
+      );
+      expect(rule, `.cur-tab--${key} must set --tab-accent`).toBeTruthy();
+      return rule[1].trim();
+    });
+    expect(new Set(colors).size).toBe(keys.length);
+  });
+
+  it("the panel under the tab carries the active tab's key and shares its accent", async () => {
+    renderPage();
+    await screen.findByRole("tab", { name: "Agent Chat" });
+    expect(document.querySelector(".cur-editor-area").className).toContain("cur-panel--chat");
+    for (const key of ["chat", "tools", "user-api-keys", "mcp", "rpc", "policies"]) {
+      expect(CSS).toMatch(new RegExp(`\\.cur-panel--${key}\\s*{\\s*--tab-accent`));
+    }
+    expect(CSS).toMatch(/\.cur-editor-area\[class\*="cur-panel--"\]\s*{[^}]*var\(--tab-accent\)/);
+  });
+
   it("the ACTIVE tab shows its accent as its background (not near-page-black)", () => {
     const rule = CSS.match(/\.cur-ide \.cur-tab--active\s*{[^}]*}/);
     expect(rule).toBeTruthy();

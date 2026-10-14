@@ -80,7 +80,7 @@ Full instructions for all three tiers, prerequisites, day-2 commands, and troubl
 | --- | --- | --- |
 | `demo_api_ui` | 4000 | React frontend (admin + end-user dashboards) |
 | `demo_api_server` | 3001 | Express REST API — **Backend-for-Frontend (BFF)** with PingOne OAuth; tokens stay server-side |
-| `demo_mcp_server` | 8080 | TypeScript MCP tool server for banking tools |
+| `oauth-mcp` | 8080 | TypeScript MCP tool server for banking tools |
 | `demo_mcp_resource_server` | 8081 | TypeScript MCP server for investment tools |
 | `demo_api_resource_server` | 8082 | Mortgage REST resource server (Path A — X-API-Key conversion at gateway) |
 | `demo_mcp_gateway` | 3005 | **Demo Agent Gateway** (Node) — optional `demo-auth` profile; real stack uses PingGateway (IG) on :3036 |
@@ -123,7 +123,7 @@ flowchart LR
   EXT["External agent<br/>N8N · Bedrock · custom"]:::agent
   GATE["demo_mcp_gateway :3005<br/>Ping Agent Gateway"]:::gw
   HITL["demo_hitl_service :3009"]:::hitl
-  MBANK["demo_mcp_server :8080<br/>Banking MCP"]:::mcp
+  MBANK["oauth-mcp :8080<br/>Banking MCP"]:::mcp
   MINV["demo_mcp_resource_server :8081"]:::mcp
   MMORT["demo_api_resource_server :8082"]:::mcp
   POAUTH["PingOne OAuth / AS<br/>RFC 8693 · introspect · JWKS"]:::ping
@@ -787,7 +787,7 @@ See **[CONTEXT.md](CONTEXT.md)** for glossary of terms (BFF, gateway, agent, con
 │                                    ↑ JWT validation        │
 │                                    │ via PingOne JWKS      │
 │                                                           │
-│  langchain_agent (:8888)  ←→   demo_mcp_server (:8080) │
+│  langchain_agent (:8888)  ←→   oauth-mcp (:8080)       │
 │    LangChain + OpenAI           MCP tools for banking      │
 │           ↓ Token Exchange                                 │
 │    oauth-playground (:3001)  (or PingOne directly)        │
@@ -827,7 +827,7 @@ See **[README (mermaid).md](README%20(mermaid).md)** for detailed token operatio
 | --- | --- | --- |
 | `demo_api_server` | 3001 | Express REST API — banking accounts, transactions, admin; **sole token custodian** |
 | `demo_api_ui` | 4000 | React frontend for admin/customer portal |
-| `demo_mcp_server` | 8080 | TypeScript MCP server — exposes banking tools to AI agents |
+| `oauth-mcp` | 8080 | TypeScript MCP server — exposes banking tools to AI agents |
 | `demo_mcp_gateway` | 3005 | **Ping Agent Gateway** — RFC 7662 introspection + PingOne Authorize policy per tool call; token forwarded unchanged |
 | `demo_agent_service` | 3006 | LangGraph reasoning service for the canonical agent |
 | `demo_hitl_service` | 3009 | Human-in-the-Loop consent challenge service |
@@ -848,7 +848,7 @@ The **Backend-for-Frontend (BFF)** — the `demo_api_server` — performs RFC 86
      audience = <MCP_RESOURCE_URI>          -- binds audience to MCP server
      scope = <tool-scopes>                  -- e.g. banking:accounts:read
 3. PingOne validates may_act, issues the MCP access token (delegated, MCP audience)
-4. BFF opens WebSocket to demo_mcp_server with the MCP access token as Bearer
+4. BFF opens WebSocket to oauth-mcp with the MCP access token as Bearer
 ```
 
 Optional delegation path (`USE_AGENT_ACTOR_FOR_MCP=true`):
@@ -959,7 +959,7 @@ Create a local `.env.vercel.local` file (gitignored) to track your Vercel enviro
 | `PINGONE_AI_CORE_USER_CLIENT_SECRET` | Customer OAuth client secret |
 | `PINGONE_AI_CORE_USER_REDIRECT_URI` | `https://<vercel-url>/api/auth/oauth/user/callback` |
 | `REACT_APP_CLIENT_URL` | `https://<vercel-url>.vercel.app` |
-| `MCP_SERVER_URL` | `wss://…` — deploy `demo_mcp_server` to Railway/Render/Fly (Vercel doesn't support WebSocket) |
+| `MCP_SERVER_URL` | `wss://…` — deploy `oauth-mcp` to Railway/Render/Fly (Vercel doesn't support WebSocket) |
 | `NODE_ENV` | `production` |
 | `CORS_ORIGIN` | Same as `REACT_APP_CLIENT_URL` |
 
@@ -1010,7 +1010,7 @@ Add these to your PingOne application after getting your Vercel URL:
 | --- | --- |
 | `.env.vercel.local` | Your local copy (gitignored) — create manually; see Vercel Deployment section above |
 | `demo_api_server/.env` | Local dev config (PingOne credentials, port) |
-| `demo_mcp_server/.env.development` | MCP server config (copy to `.env` before running) |
+| `oauth-mcp/.env.example` | MCP server config (copy to `.env` before running) |
 | `langchain_agent/.env` | Agent config (OpenAI key, PingOne endpoints) |
 | `demo_api_ui/.env` | React frontend config |
 # AI-DEMO2

@@ -486,6 +486,46 @@ const SECTIONS = [
           "Governed vs ungoverned twin hostile-MCP servers: the measured ALLOW/DENY matrix (verified live 2026-10-11, v1.261009), the permit-selection policy model, no-policy = DENY ALL, the RefID triple-@@ trap, owner reaping, the 4-min propagation, and what NOT to claim (metadata sanitizer, rug-pull detection).",
       },
       {
+        title: "Sensor enforcement — demo runbook",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/SENSOR-ENFORCEMENT-DEMO.md",
+        pdf: null,
+        covers:
+          "Verified live 2026-10-13 on OrbStack: a throwaway container plus a second sensor, first in audit mode (would_kill=1, exit 0) then enforce mode (Killed, exit 137). Reading raw sensor logs through the Docker API socket; console-pushed policy is not proven.",
+      },
+      {
+        title: "A2A guardrails — demo runbook",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/A2A-GUARDRAILS-DEMO.md",
+        pdf: null,
+        covers:
+          "A seven-message ladder through the A2A hop: the plain injection is blocked (400 in 0.56 s) while reworded attacks, PII and exfiltration pass; the threshold table, the poisoned tool result on the worker's MCP leg, and the live-run notes of 2026-10-13 (alert status unconfirmed).",
+      },
+      {
+        title: "Backend auth modes — demo runbook",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/AUTH-MODES-DEMO.md",
+        pdf: null,
+        covers:
+          "The same call with three outcomes — None, Static Token, Pass Agent Token (a 403 from the gateway) — using the worker's bearer gate; User Token and a successful Pass Agent Token are not demoable. From code and the measured guides, not run live.",
+      },
+      {
+        title: "Aggregate apps — demo runbook",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/AGGREGATE-APPS-DEMO.md",
+        pdf: null,
+        covers:
+          "One address, many MCP servers: the four aggregate doors (aggregate, banking-aggregate, aggregate-limited, aggregate-none), prefixed tool names and the two access layers. Door inventory read live 2026-10-13; tool calls were not run (the demo keys lack mcp scope).",
+      },
+      {
+        title: "Secrets Hub — demo runbook",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/SECRETS-HUB-DEMO.md",
+        pdf: null,
+        covers:
+          "The connected Google hub (GCP-hub-secrets, Synced, 2 secrets) verified 2026-10-13, with the setup, View and policy-grant steps from the guide and the caveats: Secret Manager Admin role, the extra API, and the service-account key written to the audit log in clear text.",
+      },
+      {
         title: "MCP discovery-gating demo",
         drive: DRIVE_FOLDER,
         repo: "privilege/MCP-DISCOVERY-DEMO.md",

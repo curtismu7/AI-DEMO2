@@ -220,6 +220,13 @@ export const EXTRA_STEP_GROUPS = [
     ids: ['UC-LOGIN', 'UC-LOGIN-PF', 'UC-LOGIN-AIC'],
   },
   {
+    id: 'aic',
+    label: 'AIC',
+    tagline: 'delegation at Advanced Identity Cloud',
+    intro: 'Token exchange performed at PingOne Advanced Identity Cloud itself: a direct AIC sign-in for the person, client credentials for the agent, and an RFC 8693 exchange that names the agent as the actor.',
+    ids: ['UC-AIC-TX'],
+  },
+  {
     id: 'priv-policies',
     label: 'Privilege policies in depth',
     tagline: 'measured policy behaviors',

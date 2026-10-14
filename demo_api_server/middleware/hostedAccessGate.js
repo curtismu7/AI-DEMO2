@@ -4,6 +4,7 @@ const {
   loadHostedAccessPolicy,
   hasCurrentHostedAccessApproval,
 } = require('../services/hostedAccessPolicy');
+const { logger, LOG_CATEGORIES } = require('../utils/logger');
 
 const EXACT_BYPASSES = new Set([
   'GET /api/auth/hosted-access/login',
@@ -110,6 +111,20 @@ function createHostedAccessGate({
     if (!policy.enabled || isHostedAccessBypassPath(req.originalUrl || req.url, req.method)) return next();
     if (hasBearerToken(req)) return next();
     if (hasApproval(req.hostedSession, policy) || isBootstrapApplicationSession(req.session)) return next();
+    // Why-was-I-walled breadcrumb: no_approval = never signed in / cookie gone
+    // (or store lost it); approval_stale = had one, but it no longer validates
+    // (subject mismatch, removed from the allowlist, or group/verified-email rule changed).
+    logger.info(LOG_CATEGORIES.USER_MANAGEMENT, 'hosted-access gate 401', {
+      reason: req.hostedSession?.hostedAccessApproval ? 'approval_stale' : 'no_approval',
+      method: req.method,
+      path: pathname(req.originalUrl || req.url),
+    });
+    // A browser opening a gated /api URL directly (stale tab, bookmark, rollout
+    // that rotated the session) gets bounced to sign-in, not raw JSON. fetch()
+    // calls don't ask for text/html, so the SPA keeps its 401 + nudge.
+    if (req.method === 'GET' && /\btext\/html\b/.test(req.headers?.accept || '')) {
+      return res.redirect(`/api/auth/hosted-access/login?return_to=${encodeURIComponent(pathname(req.originalUrl || req.url))}`);
+    }
     return res.status(401).send({ error: 'hosted_access_required' });
   };
 }

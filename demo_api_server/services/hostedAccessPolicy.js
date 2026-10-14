@@ -52,6 +52,18 @@ function policyFingerprint(policy) {
   return crypto.createHash('sha256').update(canonical).digest('hex');
 }
 
+// Only the rules an approval can't be re-checked against (it stores no groups
+// or email_verified). Allowlist/domain/plus edits are re-evaluated live from the
+// approval's stored identity, so editing them no longer logs everyone out while
+// removing a domain/identifier still revokes (see hasCurrentHostedAccessApproval).
+function approvalFingerprint(policy) {
+  return crypto.createHash('sha256').update(JSON.stringify({
+    enabled: policy.enabled,
+    requireVerifiedEmail: policy.requireVerifiedEmail,
+    requiredGroupId: policy.requiredGroupId || '',
+  })).digest('hex');
+}
+
 function loadHostedAccessPolicy(env = process.env) {
   const enabled = parseBoolean(env.HOSTED_ACCESS_GATE_ENABLED, false);
   const domains = normalizeDomains(env.HOSTED_ACCESS_ALLOWED_DOMAINS);
@@ -77,6 +89,7 @@ function loadHostedAccessPolicy(env = process.env) {
     domainSet: new Set(domains),
     identifierSet: new Set(allowedIdentifiers),
     fingerprint: policyFingerprint(policy),
+    approvalFingerprint: approvalFingerprint(policy),
   };
 }
 
@@ -177,7 +190,7 @@ function stampHostedAccessApproval(session, decision, policy, approvedAt = Date.
     username: decision.username || null,
     domain: decision.domain,
     approvedAt,
-    policyFingerprint: policy.fingerprint,
+    policyFingerprint: policy.approvalFingerprint,
   };
   return session.hostedAccessApproval;
 }
@@ -194,7 +207,7 @@ function hasCurrentHostedAccessApproval(session, policy = loadHostedAccessPolicy
     && approval.version === APPROVAL_VERSION
     && approval.subject
     && approval.subject === subject
-    && approval.policyFingerprint === policy.fingerprint
+    && approval.policyFingerprint === policy.approvalFingerprint
   )) return false;
   // The decision path exempts allowlisted demo identifiers from the domain and
   // + rules; the approval check must honour the same exemption or an approval
@@ -202,11 +215,12 @@ function hasCurrentHostedAccessApproval(session, policy = loadHostedAccessPolicy
   // validates against nothing and the wall 401s in a login loop forever
   // (observed live on SE 2026-10-12). Off-list domain passes only when the
   // approved identifier itself is allowlisted; on-list domains pass for all.
-  if (policy.domainSet.has(approval.domain)) return true;
-  return claimedIdentifiers({
+  const allowlisted = claimedIdentifiers({
     email: approval.email,
     preferred_username: approval.username,
   }).some((id) => policy.identifierSet.has(id));
+  if (policy.rejectPlusAddressing && String(approval.email || '').split('@')[0].includes('+') && !allowlisted) return false;
+  return policy.domainSet.has(approval.domain) || allowlisted;
 }
 
 function clearHostedAccessApproval(session) {
