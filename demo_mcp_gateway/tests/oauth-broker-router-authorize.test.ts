@@ -609,7 +609,7 @@ describe('OAuthBrokerRouter — Privilege gateway link', () => {
   });
 
   it('two concurrent authorizations in one browser each keep their own binding', async () => {
-    // LM Studio configured with two Privilege doors (opensearch22 and
+    // LM Studio configured with two Privilege doors (opensearch-hitl and
     // opensearch) authorizes both in one browser session. A fixed cookie
     // name would let the second overwrite the first's nonce and deny both
     // resumes (Greptile P1, PR #3153).

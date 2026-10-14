@@ -7,7 +7,7 @@ const KEYS = [
   'MAIN_AGENT_PROVIDER', 'WORKER_AGENT_PROVIDER', 'MAIN_AGENT_MODEL', 'WORKER_AGENT_MODEL',
   'ANTHROPIC_BASE_URL', 'GEMINI_BASE_URL', 'GROQ_BASE_URL', 'GROQ_API_KEY', 'MAIN_AGENT_GROQ_KEY', 'WORKER_AGENT_GROQ_KEY',
   'MAIN_AGENT_KEY', 'WORKER_AGENT_KEY', 'ANTHROPIC_API_KEY', 'GEMINI_API_KEY', 'MAIN_AGENT_GEMINI_KEY', 'GROQ_TIMEOUT_MS',
-  'LLAMACPP_BASE_URL', 'LLAMACPP_API_KEY', 'MAIN_AGENT_LLAMACPP_KEY', 'WORKER_AGENT_LLAMACPP_KEY', 'LLAMACPP_MODEL',
+  'ANTHROPIC_AUTH_TOKEN', 'LLAMACPP_BASE_URL', 'LLAMACPP_API_KEY', 'MAIN_AGENT_LLAMACPP_KEY', 'WORKER_AGENT_LLAMACPP_KEY', 'LLAMACPP_MODEL',
 ];
 let saved: Record<string, string | undefined> = {};
 
@@ -122,4 +122,16 @@ test('llama.cpp without a base URL runs direct at llama-server and says so', () 
   delete process.env.LLAMACPP_BASE_URL;
   assert.equal(viaGateway('MAIN_AGENT'), false);
   assert.match(describeMode('MAIN_AGENT'), /llama\.cpp direct/);
+});
+
+test('the Anthropic lane can take its own key, leaving the agent key as the A2A bearer', () => {
+  // The gateway rejects an Agent Access key bound to another provider
+  // ("key not valid for provider anthropic"), so the lane needs its own.
+  process.env.MAIN_AGENT_PROVIDER = 'anthropic';
+  process.env.ANTHROPIC_BASE_URL = 'https://gateway.example/llm/anthropic';
+  process.env.MAIN_AGENT_KEY = 'agent-key';
+  assert.equal(anthropicClient('MAIN_AGENT').authToken, 'agent-key');
+  process.env.ANTHROPIC_AUTH_TOKEN = 'lane-key';
+  assert.equal(anthropicClient('MAIN_AGENT').authToken, 'lane-key');
+  assert.equal(mainAgentConfig().bearer, 'agent-key');
 });

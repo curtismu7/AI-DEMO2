@@ -31,7 +31,7 @@ function mockBackend({ authenticated }) {
     const u = String(url);
     if (u.endsWith("/api/privilege-mcp/state")) {
       return json({
-        config: { mcpUrl: "https://mcpgw.example.com/opensearch22/mcp", clientId: "a6219652", scopes: "openid profile email" },
+        config: { mcpUrl: "https://mcpgw.example.com/opensearch-hitl/mcp", clientId: "a6219652", scopes: "openid profile email" },
         gatewayMode: "privilege",
         gatewayConfigs: { direct: {}, privilege: {}, facade: {} },
         oauth: { authenticated, scope: "openid profile email" },
@@ -42,7 +42,7 @@ function mockBackend({ authenticated }) {
       });
     }
     if (u.endsWith("/api/privilege-mcp/auth/start") && opts?.method === "POST") {
-      return json({ authUrl: "https://mcpgw.example.com/opensearch22/authorize?client_id=x" });
+      return json({ authUrl: "https://mcpgw.example.com/opensearch-hitl/authorize?client_id=x" });
     }
     if (u.endsWith("/api/privilege-mcp/tools/list") && opts?.method === "POST") {
       toolsListCalls += 1;
@@ -74,7 +74,7 @@ describe("PrivilegeMcpClientPage — discover once after the Sign in click", () 
 
     fireEvent.click(await screen.findByRole("button", { name: "Sign in" }));
 
-    await waitFor(() => expect(window.location.href).toContain("/opensearch22/authorize"));
+    await waitFor(() => expect(window.location.href).toContain("/opensearch-hitl/authorize"));
     expect(sessionStorage.getItem(FLAG)).toBe("1");
     expect(screen.getByText("Signing in...")).toBeTruthy();
   });

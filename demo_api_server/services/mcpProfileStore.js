@@ -101,9 +101,7 @@ function ensureBuiltInsSeeded() {
     url: `${PRIVILEGE_GATEWAY_BASE}/openapi2/mcp`,
     isDefault: false,
   });
-  // The opensearch22 Agentic App was deleted from the console on 2026-10-12
-  // (unused for 15 days; the aggregate family replaced it as the teaching
-  // door). The profile ID stays `built-in-privilege-opensearch` (mcpPrivilegeAuth.js
+  // The profile ID stays `built-in-privilege-opensearch` (mcpPrivilegeAuth.js
   // deep-links and bookmarks); seedBuiltIn's drift check repoints the stored
   // record on the next call, the same way the banking door moved to openapi2.
   seedBuiltIn(PRIVILEGE_OPENSEARCH_PROFILE_ID, {

@@ -21,8 +21,8 @@ vi.mock("../../services/apiClient", () => ({
 }));
 
 const PRESETS = [
-  { label: "2 · Privilege — direct to the Agent Privilege", mode: "privilege", url: "https://mcpgw.example.com/opensearch22/mcp" },
-  { label: "3 · Privilege — through the façade", mode: "facade", url: "https://ai-demo.example.com/mcp-facade/privilege-gateway/opensearch22/mcp" },
+  { label: "2 · Privilege — direct to the Agent Privilege", mode: "privilege", url: "https://mcpgw.example.com/opensearch-hitl/mcp" },
+  { label: "3 · Privilege — through the façade", mode: "facade", url: "https://ai-demo.example.com/mcp-facade/privilege-gateway/opensearch-hitl/mcp" },
 ];
 
 const jsonResponse = (body) => ({

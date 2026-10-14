@@ -8,6 +8,8 @@ import React, {
 import { createPortal } from "react-dom";
 import FloatingPanel from "./FloatingPanel";
 import { useLocation, useNavigate, useSearchParams } from "react-router-dom";
+import PageAgentModeToggle, { usePageAgentMode } from "./shared/PageAgentModeToggle";
+import { pageAgentModeField } from "../utils/pageAgentMode";
 import { useEducationUIOptional } from "../context/EducationUIContext";
 import { useIndustryBranding } from "../context/IndustryBrandingContext";
 import { useVertical } from "../vertical/useVertical";
@@ -503,6 +505,12 @@ const SHOWCASE_INJECTION = {
  */
 function MaybePortal({ target, children }) {
   return target ? createPortal(children, target) : children;
+}
+
+// The floating agent's own Heuristics | llama.cpp choice for the page it is on. Remounted per path so each page reads its own saved choice.
+function AgentPageModeToggle({ pathname }) {
+  const [mode, setMode] = usePageAgentMode(`agent:${pathname}`, '');
+  return <PageAgentModeToggle mode={mode} onChange={setMode} />;
 }
 
 export default function BankingAgent({
@@ -1997,7 +2005,8 @@ export default function BankingAgent({
     const onStepSelect = (e) => {
       const { uc, stepNumber, opts } = e.detail || {};
       if (!uc) return;
-      setIsOpen(true);
+      // A page that shows its own run (the A2A reel) asks for the panel to stay closed, so it does not cover that page.
+      if (!opts?.keepPanelClosed) setIsOpen(true);
       // Defer one tick so the panel mounts before the step runs (same pattern
       // as the showcase-drawer dispatch above).
       setTimeout(() => demoStepSelectRef.current?.(uc, stepNumber, opts), 80);
@@ -6984,6 +6993,7 @@ export default function BankingAgent({
           provider: activeLlmProvider || "heuristic",
           vertical: effectiveVerticalId,
           ...(useCaseId ? { useCaseId } : {}),
+          ...pageAgentModeField(),
         }),
         signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "llamacpp" || activeLlmProvider === "mlx" || activeLlmProvider === "helix" ? 60000 : 15000), signal]),
       })
@@ -9004,7 +9014,7 @@ export default function BankingAgent({
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: text, provider: activeLlmProvider || "heuristic", vertical: effectiveVerticalId }),
+        body: JSON.stringify({ message: text, provider: activeLlmProvider || "heuristic", vertical: effectiveVerticalId, ...pageAgentModeField() }),
         signal: anySignal([AbortSignal.timeout(activeLlmProvider === "anthropic-lmstudio" || activeLlmProvider === "llamacpp" || activeLlmProvider === "mlx" || activeLlmProvider === "helix" ? 60000 : 15000), signal]),
       });
       const _nlBody = await _nlRes
@@ -10408,6 +10418,7 @@ export default function BankingAgent({
                       heuristicFallback={heuristicEnabled}
                       onHeuristicFallbackChange={setHeuristicEnabled}
                     />
+                    <AgentPageModeToggle key={location.pathname} pathname={location.pathname} />
                     {isLoggedIn && !pageOwnsAgentChrome && (
                       <ScopePicker
                         allowWrite={agentAllowWrite}
@@ -11079,6 +11090,7 @@ export default function BankingAgent({
                   onHeuristicFallbackChange={setHeuristicEnabled}
                 />
                 )}
+                {!pageOwnsAgentChrome && <AgentPageModeToggle key={location.pathname} pathname={location.pathname} />}
                 {/* Model advisory and provider-fallback chips stay inline. They are
                     transient alerts about a degraded provider, so hiding them behind
                     More would mean the presenter never sees them. */}
@@ -13123,6 +13135,7 @@ export default function BankingAgent({
                                   body: JSON.stringify({
                                     message: s,
                                     provider: activeLlmProvider || "heuristic",
+                                    ...pageAgentModeField(),
                                   }),
                                   signal: AbortSignal.timeout(15000),
                                 },
@@ -13285,6 +13298,7 @@ export default function BankingAgent({
                                       body: JSON.stringify({
                                         message: chip.label,
                                         provider: activeLlmProvider || "heuristic",
+                                        ...pageAgentModeField(),
                                       }),
                                       signal: AbortSignal.timeout(15000),
                                     },

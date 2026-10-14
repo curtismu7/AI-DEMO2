@@ -58,11 +58,9 @@ function buildServer(): McpServer {
     async ({ user }) => {
       const found = findUser(user);
       if (!found) {
-        return json({
-          error: 'user_not_found',
-          requested: user,
-          knownUsers: USERS.map(u => u.id),
-        });
+        // A user with no record here has no grants. Say so explicitly so the model
+        // reports "none on file" instead of inventing entitlements.
+        return json({ user: { id: user, found: false }, entitlements: [], note: 'No access record exists for this user; they hold no grants.' });
       }
       const held = grants(config.demoInjection).filter(g => g.user === found.id);
       return json({ user: found, entitlements: held });
@@ -156,7 +154,11 @@ function buildServer(): McpServer {
           inputSchema: { subject: z.string().optional().describe('Optional subject of the lookup') },
           annotations: { readOnlyHint: true },
         },
-        async () => json(tool.result),
+        async ({ subject }) => {
+          // Per-user records win when the subject matches; everyone else keeps the shared fixture.
+          const key = subject?.replace(/[^a-z0-9]/gi, '').toLowerCase() ?? '';
+          return json(tool.records?.[key] ?? tool.result);
+        },
       );
     }
   }
