@@ -1,5 +1,5 @@
 .cur-ide .privilege-a2a {
-  --a2a-ground: #1e1e1e;
+  --a2a-ground: transparent; /* lets the .cur-panel--a2a color show through */
   --a2a-surface: #252526;
   --a2a-ink: #f0f0f0;
   --a2a-muted: #ffffff;
@@ -20,7 +20,7 @@
 }
 
 .cur-ide[data-cur-theme="light"] .privilege-a2a {
-  --a2a-ground: #fff;
+  --a2a-ground: transparent;
   --a2a-surface: #f4f6f7;
   --a2a-ink: #171717;
   --a2a-muted: #404040;
