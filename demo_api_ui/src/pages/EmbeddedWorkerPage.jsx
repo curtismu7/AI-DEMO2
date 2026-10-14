@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react';
+import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 import './EmbeddedWorkerPage.css';
 
 const USE_CASE_ID = 'saas-embedded-worker';
@@ -6,6 +7,7 @@ const TABS = ['Home', 'Accounts', 'Contacts', 'Opportunities', 'Cases', 'Reports
 
 export default function EmbeddedWorkerPage() {
   const [agent, setAgent] = useState(null);
+  const [agentMode, setAgentMode] = usePageAgentMode('embedded-worker');
   const [creating, setCreating] = useState(false);
   const [draft, setDraft] = useState('');
   const endRef = useRef(null);
@@ -38,7 +40,7 @@ export default function EmbeddedWorkerPage() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt, vertical: 'airlines', useCaseId: USE_CASE_ID }),
+      body: JSON.stringify({ prompt, vertical: 'airlines', useCaseId: USE_CASE_ID, agentMode }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -63,6 +65,7 @@ export default function EmbeddedWorkerPage() {
           <span className="ew-crm__launcher" aria-hidden="true"><i /><i /><i /><i /><i /><i /><i /><i /><i /></span>
           <span className="ew-crm__brand"><span className="ew-crm__cloud" aria-hidden="true" />Sales Cloud-style CRM</span>
           <span className="ew-crm__search">Search records, accounts and cases…</span>
+          <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} />
           <span className="ew-crm__avatar" aria-hidden="true">👤</span>
         </header>
         <nav className="ew-crm__tabs" aria-label="CRM objects">
