@@ -129,8 +129,9 @@ export default function PrivilegeUserApiKeysPanel() {
             <div><dt>API secret</dt><dd>{vault.apiSecretSet ? preview(vault.apiSecretPreview) : 'Missing: PRIVILEGE_USER_API_SECRET'}</dd></div>
           </dl>
         )}
-        <p>Leave either credential blank to keep its saved value. Enter the current vault password for each save.</p>
-        <form onSubmit={saveCredentials} autoComplete="off">
+        {!vault?.canManage && vault && <p>Only administrators can change these credentials or run this flow.</p>}
+        {vault?.canManage && <p>Leave either credential blank to keep its saved value. Enter the current vault password for each save.</p>}
+        {vault?.canManage && <form onSubmit={saveCredentials} autoComplete="off">
           <div className="cur-user-api__fields">
             <label className="cur-field"><span className="cur-field-label">API key</span>
               <input className="cur-input" type="password" autoComplete="new-password" value={apiKey} onChange={event => setApiKey(event.target.value)} disabled={saving || running} />
@@ -143,9 +144,9 @@ export default function PrivilegeUserApiKeysPanel() {
             </label>
           </div>
           <button className="cur-btn" type="submit" disabled={saving || running}>{saving ? 'Saving…' : 'Save to Vault'}</button>
-        </form>
+        </form>}
       </section>
-      <form onSubmit={runFlow} className="cur-user-api__section">
+      {vault?.canManage && <form onSubmit={runFlow} className="cur-user-api__section">
         <h4>Token and users request</h4>
         <div className="cur-user-api__fields">
           <label className="cur-field"><span className="cur-field-label">Environment ID</span>
@@ -157,7 +158,7 @@ export default function PrivilegeUserApiKeysPanel() {
         </div>
         <p>Use the UUID of the Privilege user who owns the API key. Namespace: default. Token TTL: 3600 seconds.</p>
         <button className="cur-btn cur-btn--primary" type="submit" disabled={!ready || running || saving}>{running ? 'Running…' : 'Run token and list users'}</button>
-      </form>
+      </form>}
       <section className="cur-user-api__section" aria-label="Command sequence">
         <h4>Four command stages</h4>
         <p>Placeholders mask credentials, encrypted data, and tokens.</p>

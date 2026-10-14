@@ -2,6 +2,7 @@ import { act, fireEvent, render, screen, waitFor, within } from '@testing-librar
 import { MemoryRouter } from 'react-router-dom';
 import PrivilegeMcpClientPage from '../../../pages/PrivilegeMcpClientPage';
 import apiClient from '../../../services/apiClient';
+import PrivilegeUserApiKeysPanel from '../PrivilegeUserApiKeysPanel';
 
 vi.mock('../../../services/apiClient', () => ({ default: { get: vi.fn(), post: vi.fn() } }));
 
@@ -24,10 +25,17 @@ it('includes User API Key & Secrets in Demo and preserves Inspect tabs', () => {
 });
 
 const STATUS = {
-  apiKeySet: true, apiSecretSet: true,
+  apiKeySet: true, apiSecretSet: true, canManage: true,
   apiKeyPreview: 'key1••••••••key9', apiSecretPreview: 'sec1••••••••sec9',
   missingEntries: [], controllerUrl: 'https://privilege.test-one-pingone.com',
 };
+test('customers see status but no save or run forms', async () => {
+  apiClient.get.mockResolvedValue({ data: { ...STATUS, canManage: false, apiKeyPreview: undefined, apiSecretPreview: undefined } });
+  const { container } = render(<PrivilegeUserApiKeysPanel />);
+  await screen.findByText(/Only administrators/);
+  expect(container.querySelector('form')).toBeNull();
+});
+
 const ENV = '11111111-1111-4111-8111-111111111111';
 const USER = '22222222-2222-4222-8222-222222222222';
 const CONFIG = { _skipTrafficCapture: true, headers: { 'x-privilege-user-api-csrf': '1' } };
