@@ -4,6 +4,17 @@ Written so VS Code can be restarted. Source for the other agents' state: their
 transcripts in `~/.claude/projects/` (first read ~17:08, last refreshed ~19:50 local); **their state may
 have moved — verify before acting on it.** No secret values are in this file.
 
+## 0. Session status (latest)
+
+- **Claude Code account: SE.** `claude auth status` shows
+  `cmuir@demoauthn.pingidentity.cloud`, org "Ping Identity Corporation - SE Demo".
+  Earlier sessions ran on the personal Max account; re-check after any VS Code restart.
+- **Cluster:** kubectl context `us`, access to `ping-devops-cmuir` confirmed.
+  `mainagentdemo` `MAIN_AGENT_MODEL` = `llama.cpp` (item 3 of the cluster fixes is done).
+- **GitHub:** `cmuir_pingcorp` logged in, active.
+- **Still needs the user:** rotate the five printed keys; approve the tier5 fix or
+  the hybrid decision; AIC allowlist of `test12345@mailinator.com`; review PR #1254.
+
 ## 1. Privilege docs session ("Privilege agent features doc") — this session
 
 ### Done and merged
