@@ -26,7 +26,7 @@ Every claim in this script was measured against the live Agent Privilege
 
 | Door | URL | Policy state | Expected |
 | --- | --- | --- | --- |
-| ~~`opensearch22`~~ | ~~`…/opensearch22/mcp`~~ | **app deleted 2026-10-12**; its policy `opensearch22-permit-presenter` (expires 2027-01-09) is an orphan | **Gone** — an empty 200, not a 403. Use `aggregate-limited` for the permit side |
+| ~~`opensearch22`~~ | ~~`…/opensearch22/mcp`~~ | **app deleted 2026-10-12**; its policy `opensearch22-permit-presenter` and the tag policy `demo-map-opensearch22` were deleted 2026-10-14 | **Gone** — an empty 200, not a 403. Use `aggregate-limited` for the permit side |
 | `aggregate-limited` | `https://mcpgw.ai-demo.ping-devops.com/aggregate-limited/mcp` | per-member tool filter | **Permit, filtered** — `tools/list` returns exactly 4 tools (`banking-mcp__get_investment_accounts`, `banking-mcp__get_airline_bookings`, `opensearch__ListIndexTool`, `opensearch__MsearchTool`), per [AGGREGATE-APPS-DEMO.md](AGGREGATE-APPS-DEMO.md) |
 | `aggregate-none` | `https://mcpgw.ai-demo.ping-devops.com/aggregate-none/mcp` | `…____no_tools_by_design` on each member | **Door up, zero tools** — the "nothing granted" side of the contrast |
 | `opensearch` | `https://mcpgw.ai-demo.ping-devops.com/opensearch/mcp` | **deliberately none** | **Deny** — always 403 by design. Never attach a policy to it; never report its 403 as broken |
@@ -49,6 +49,14 @@ Have the log command running in a visible terminal through the whole demo:
 the client shows only bare 403s; the log lines are the story.
 
 ## Act 1 — Discovery shrinks to the grant (person sign-in)
+
+> **Status 2026-10-14: stale as written.** It was scripted and measured against `opensearch22`,
+> which is deleted along with its permit policy. The numbers below (nine tools, a recorded three)
+> describe that run. The nearest live equivalent is `aggregate-limited`: its console config
+> filters each member, so `tools/list` returns exactly four tools
+> (`banking-mcp__get_investment_accounts`, `banking-mcp__get_airline_bookings`,
+> `opensearch__ListIndexTool`, `opensearch__MsearchTool`). That filter is verified from the
+> app config only; **no signed-in `tools/list` has been recorded against it yet. Rehearse before presenting.**
 
 1. Open `/privilege-mcp-client` in the browser and sign in to the
    `opensearch22` door. The sign-in federates once into the demo tenant —
@@ -78,6 +86,10 @@ the `X-Procyon-Mcp-Cap` header:
 
 ## Act 2 — Deny-by-default (the no-policy door)
 
+> **Status 2026-10-14: still valid as written.** It uses the `opensearch` door, which still exists
+> and has no policy attached (checked against the console's policy list; the only OpenSearch
+> permit policy left is `opensearch-hitl-permit`, which targets `opensearch-hitl`, not this door).
+
 1. On the same page, switch to the `opensearch` door ("Use this door").
    It reuses the PingOne session silently — sign-in succeeds, a token is
    issued.
@@ -101,6 +113,11 @@ policy, tool outside policy, tool that does not exist, app that does not
 exist) produce that identical bare 403.
 
 ## Act 3 — A different grant, a different list
+
+> **Status 2026-10-14: cannot be run as written.** Step 1 edits the `opensearch22` policy, which
+> no longer exists. The nearest live move is to change the per-member tool filters on
+> `aggregate-limited` in the console, which changes its `tools/list` the same way; how soon a
+> change shows up has not been measured. Needs re-scripting and a rehearsal.
 
 1. In the Privilege console, edit (or duplicate) the `opensearch22` policy:
    change the tool list for the demo user. Policies name a user or group,
