@@ -94,6 +94,42 @@ describe('PrivilegeA2aTab', () => {
     window.removeEventListener('agent-evidence-open', opened);
   });
 
+  test('the Agent trace lists each hop inline: who called whom, timing, and the request and response JSON', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', fromLabel: 'Care Concierge', toLabel: 'Claims Analyst', text: 'concierge → analyst_agent', request: 'POST http://w/jsonrpc\n\n{"method":"message/send"}', response: 'HTTP 200\n\n{"result":{"kind":"message"}}', elapsedMs: 80 } },
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+
+    await user.click(await screen.findByRole('button', { name: 'Review access on prod-db-primary.' }));
+
+    expect(await screen.findByText('Care Concierge → Claims Analyst · 80 ms')).toBeTruthy();
+    expect(screen.getByText('Request')).toBeTruthy();
+    expect(screen.getByText(/"method":"message\/send"/)).toBeTruthy();
+    expect(screen.getByText('Response')).toBeTruthy();
+    expect(screen.getByText(/"kind":"message"/)).toBeTruthy();
+  });
+
+  test('clicking a suggested question runs it at once and hands it to the floating agent, no Send press', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's' } },
+    ]));
+    const handoff = vi.fn();
+    window.addEventListener('agent-demo-step-select', handoff);
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+
+    await user.click(await screen.findByRole('button', { name: 'Review access on prod-db-primary.' }));
+
+    expect(await screen.findByText('Done.')).toBeTruthy();
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).message).toBe('Review access on prod-db-primary.');
+    expect(handoff).toHaveBeenCalledTimes(1);
+    window.removeEventListener('agent-demo-step-select', handoff);
+  });
+
   test('submits through the same-origin BFF and carries the returned session ID forward', async () => {
     global.fetch
       .mockResolvedValueOnce(streamResponse([

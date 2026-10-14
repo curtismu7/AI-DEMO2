@@ -201,6 +201,25 @@ const A2A_DEMO_ALIAS_AGENT_NAMES = {
 };
 
 /**
+ * The vertical's own A2A chip phrase (the manifest chip with useCaseId a2a-delegation, e.g.
+ * "access my sensitive order history"), or null when its manifest has none.
+ */
+function manifestA2aChipMessage(vertical) {
+  if (!/^[a-z0-9-]{1,64}$/.test(vertical)) return null;
+  let manifest;
+  try { manifest = require(`./verticals/${vertical}/manifest.json`); } catch { return null; }
+  let found = null;
+  const walk = (node) => {
+    if (found || !node || typeof node !== 'object') return;
+    if (Array.isArray(node)) { node.forEach(walk); return; }
+    if (node.useCaseId === 'a2a-delegation' && typeof node.message === 'string' && node.message) { found = node.message; return; }
+    Object.values(node).forEach(walk);
+  };
+  walk(manifest);
+  return found;
+}
+
+/**
  * The Privilege A2A demo profile for a vertical, or null when it has no specialist
  * (the demo then falls back to the generic access review).
  *   { vertical, agentName, specialistName, tool, tools, subtaskHint, questions }
@@ -218,7 +237,8 @@ function a2aDemoProfile(vertical) {
     tool: specialist.tools[0],
     tools: [...specialist.tools],
     subtaskHint: specialist.subtaskHint,
-    questions: [...demo.questions],
+    // The vertical's own A2A chip leads, so this page asks what the vertical's chip asks.
+    questions: [...[manifestA2aChipMessage(vertical)].filter(Boolean), ...demo.questions],
   };
 }
 

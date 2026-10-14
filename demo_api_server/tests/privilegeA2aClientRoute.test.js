@@ -105,7 +105,9 @@ describe('vertical profile', () => {
       specialistName: 'Investment Advisor',
       tool: 'get_portfolio_summary',
     });
-    expect(response.body.profile.questions).toHaveLength(3);
+    // The vertical's own A2A chip first, then its 3 canned questions.
+    expect(response.body.profile.questions).toHaveLength(4);
+    expect(response.body.profile.questions[0]).toBe('show my sensitive account details');
   });
 
   test('GET /profile is null for a vertical with no specialist, and needs a session', async () => {

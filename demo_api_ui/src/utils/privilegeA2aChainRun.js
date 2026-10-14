@@ -19,6 +19,8 @@ export const PRIVILEGE_A2A_DEMO_QUESTIONS = [
   'List all entitlements for Carol Nguyen.',
   'Who has the prod-db-admin role?',
   'Who is offboarding and still has active access?',
+  'Which grants on prod-db-primary have never been used?',
+  'Open a ticket to review Carol Nguyen\'s access to prod-db-primary.',
 ];
 const API_URL = '/api/privilege-a2a/chain';
 // The token event that carries the gateway's own record of the run (see
