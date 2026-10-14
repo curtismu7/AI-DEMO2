@@ -16,6 +16,7 @@
  * scripts/mint-gateway-token.js) — token custody stays in the BFF.
  */
 const axios = require('axios');
+const { ANTHROPIC_NL, OPENAI_RESPONSES } = require('../config/llmModels');
 
 const OPENAI_RESPONSES_URL = 'https://api.openai.com/v1/responses';
 const ANTHROPIC_MESSAGES_URL = 'https://api.anthropic.com/v1/messages';
@@ -30,7 +31,7 @@ function buildPlatformRequest(provider, opts = {}) {
       url: OPENAI_RESPONSES_URL,
       headers: { Authorization: `Bearer ${process.env.OPENAI_API_KEY || ''}` },
       body: {
-        model: model || 'gpt-4o',
+        model: model || OPENAI_RESPONSES,
         ...(systemPrompt ? { instructions: systemPrompt } : {}),
         tools: [{
           type: 'mcp',
@@ -51,7 +52,7 @@ function buildPlatformRequest(provider, opts = {}) {
         'anthropic-beta': 'mcp-client-2025-04-04',
       },
       body: {
-        model: model || 'claude-sonnet-4-6',
+        model: model || ANTHROPIC_NL,
         max_tokens: 1024,
         ...(systemPrompt ? { system: systemPrompt } : {}),
         mcp_servers: [{
