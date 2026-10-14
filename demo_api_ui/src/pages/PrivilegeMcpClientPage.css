@@ -598,9 +598,24 @@ select.cur-input { cursor: pointer; }
    section read as one piece. Panels that paint their own ground are cleared
    so the accent shows through; inputs and cards keep their own surfaces. */
 .cur-ide .cur-editor-area[class*="cur-panel--"] {
-  background: var(--tab-accent);
+  background: color-mix(in srgb, var(--tab-accent) 28%, #1e1e1e);
   color: #fff;
 }
+.cur-ide[data-cur-theme="light"] .cur-editor-area[class*="cur-panel--"] {
+  background: color-mix(in srgb, var(--tab-accent) 14%, #ffffff);
+  color: #1e1e1e;
+}
+/* Dim greys that were fine on the neutral ground are lifted on the tint. */
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-mcp-empty,
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-denial-note,
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-denial-note code,
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-chat-empty p,
+.cur-ide .cur-editor-area[class*="cur-panel--"] .cur-chat-hint { color: #d0d7de; }
+.cur-ide[data-cur-theme="light"] .cur-editor-area[class*="cur-panel--"] .cur-mcp-empty,
+.cur-ide[data-cur-theme="light"] .cur-editor-area[class*="cur-panel--"] .cur-denial-note,
+.cur-ide[data-cur-theme="light"] .cur-editor-area[class*="cur-panel--"] .cur-denial-note code,
+.cur-ide[data-cur-theme="light"] .cur-editor-area[class*="cur-panel--"] .cur-chat-empty p,
+.cur-ide[data-cur-theme="light"] .cur-editor-area[class*="cur-panel--"] .cur-chat-hint { color: #3b4148; }
 .cur-ide .cur-editor-area[class*="cur-panel--"] .cur-composer,
 .cur-ide .cur-editor-area[class*="cur-panel--"] .cur-chat-panel,
 .cur-ide .cur-editor-area[class*="cur-panel--"] .cur-chat-messages,

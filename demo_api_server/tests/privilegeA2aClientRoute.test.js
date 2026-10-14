@@ -6,7 +6,7 @@ jest.mock('../middleware/auth', () => ({
     if (req.header('x-test-unauthenticated') === 'true') {
       return res.status(401).json({ error: 'unauthenticated' });
     }
-    req.session = { id: 'browser-session-secret', user: { sub: 'browser-user-secret' }, active_vertical: req.header('x-test-vertical') || undefined };
+    req.session = { id: 'browser-session-secret', user: { sub: 'browser-user-secret', ...(req.header('x-test-username') ? { username: req.header('x-test-username') } : {}) }, active_vertical: req.header('x-test-vertical') || undefined };
     return next();
   },
 }));
@@ -201,6 +201,16 @@ describe('POST /api/privilege-a2a/chat', () => {
     expect(headers.has('cookie')).toBe(false);
     expect(headers.get('accept')).toBe('text/event-stream');
     expect(init.signal).toBeInstanceOf(AbortSignal);
+  });
+
+  test('forwards only the session username as userName, never the sub or a browser-supplied one', async () => {
+    global.fetch = jest.fn(async () => new Response('event: done\ndata: {}\n\n', { headers: { 'content-type': 'text/event-stream' } }));
+    await request(createApp())
+      .post('/api/privilege-a2a/chat')
+      .set('x-test-username', 'demouser')
+      .send({ message: 'hi', userName: 'attacker' })
+      .expect(200);
+    expect(JSON.parse(global.fetch.mock.calls[0][1].body).userName).toBe('demouser');
   });
 
   test('rejects an empty or overlong message before contacting the main agent', async () => {

@@ -133,7 +133,13 @@ router.post('/chat', requireSession, express.json({ limit: '64kb' }), async (req
     return;
   }
 
-  const upstreamBody = { message, ...profileForMainAgent(activeProfile(req)) };
+  // Non-secret display name only, from the server session; no token or browser-supplied identity.
+  const userName = req.session?.user?.username;
+  const upstreamBody = {
+    message,
+    ...profileForMainAgent(activeProfile(req)),
+    ...(typeof userName === 'string' && userName ? { userName } : {}),
+  };
   if (sessionId) upstreamBody.sessionId = sessionId;
   await relayMainAgentSse(res, '/chat', upstreamBody);
 });
