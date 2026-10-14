@@ -172,14 +172,19 @@ export default function HostileMcpTab() {
   // The agent loop: hand the poisoned tool metadata to a real model and let IT
   // choose the tool calls. Each model-chosen call executes through the same
   // Privilege relay, so a denial reaches the model as its tool result.
-  const runAgent = async (provider, task) => {
+  const runAgent = async (selection, task) => {
+    // 'llamacpp-privilege' is the same llama.cpp loop, but the model call rides the Privilege
+    // custom lane (AI Guard may then block the poison before the model sees it).
+    const viaPrivilege = selection === 'llamacpp-privilege';
+    const provider = viaPrivilege ? 'llamacpp' : selection;
+    const requestBody = viaPrivilege ? { provider, viaPrivilege: true, task } : { provider, task };
     setBusy(true);
     setError('');
     setAgentOutcome(null);
     setAgentRunEvidence(null);
     try {
       const t0 = performance.now();
-      const data = await api('/agent/run', { method: 'POST', body: { provider, task } });
+      const data = await api('/agent/run', { method: 'POST', body: requestBody });
       const latency = Math.round(performance.now() - t0);
       const observedOutcome = classifyHostileAgentOutcome(data);
       const trace = Array.isArray(data.trace) ? data.trace : [];
@@ -193,7 +198,7 @@ export default function HostileMcpTab() {
         modelReached: true,
         metadataServerReached: true,
         toolCallBackend,
-        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: { provider, task } }, null, 2),
+        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: requestBody }, null, 2),
         response: JSON.stringify({
           answer: data.answer ?? null,
           trace: trace.map((step) => ({
@@ -207,7 +212,7 @@ export default function HostileMcpTab() {
           steps: Array.isArray(data.steps) ? data.steps : [],
         }, null, 2),
       });
-      log(`— agent run (${provider}, ${latency} ms) — task: "${task}"`);
+      log(`— agent run (${provider}${viaPrivilege ? ' via Privilege' : ''}, ${latency} ms) — task: "${task}"`);
       for (const step of data.trace || []) {
         log(step.verdict === 'denied'
           ? `🛡 ${step.tool} DENIED by Privilege (${step.latencyMs} ms) — ${step.detail}`
@@ -225,7 +230,7 @@ export default function HostileMcpTab() {
         modelReached: null,
         metadataServerReached: null,
         toolCallBackend: 'unknown',
-        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: { provider, task } }, null, 2),
+        request: JSON.stringify({ method: 'POST', path: '/api/privilege-mcp/agent/run', body: requestBody }, null, 2),
         response: JSON.stringify({ error: err.message }, null, 2),
       });
       log(`✕ agent run — ${err.message}`);
@@ -342,6 +347,7 @@ export default function HostileMcpTab() {
               <div className="hmc-agent__row">
                 <select value={agentProvider} onChange={(e) => setAgentProvider(e.target.value)} disabled={busy} aria-label="Model">
                   <option value="llamacpp">llama.cpp (local, unmediated)</option>
+                  <option value="llamacpp-privilege">llama.cpp — through Privilege custom lane (AI Guard may block the poison)</option>
                   <option value="anthropic">Claude — through Privilege LLM virtual key</option>
                 </select>
                 <input
