@@ -86,7 +86,7 @@ afterAll(() => {
 });
 
 describe('fixed-purpose authenticated administrator routes', () => {
-  test.each([['get', 'status'], ['post', 'credentials'], ['post', 'run']])('%s %s rejects anonymous and non-admin callers', async (method, endpoint) => {
+  test.each([['post', 'credentials'], ['post', 'run']])('%s %s rejects anonymous and non-admin callers', async (method, endpoint) => {
     expect((await request(app)[method](`${prefix}/${endpoint}`).send({})).status).toBe(401);
     expect((await request(app)[method](`${prefix}/${endpoint}`).set('x-test-role', 'customer').send({})).status).toBe(403);
     expect(vaultLib.openVault).not.toHaveBeenCalled();
@@ -111,6 +111,14 @@ describe('fixed-purpose authenticated administrator routes', () => {
     assertSafe(res.body);
     expect(vaultLib.openVault).not.toHaveBeenCalled();
     expect(fetchStub).not.toHaveBeenCalled();
+  });
+
+  test('customers can read configured/missing state but never the masked key previews', async () => {
+    const res = await request(app).get(`${prefix}/status`).set('x-test-role', 'customer');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ apiKeySet: true, apiSecretSet: true, missingEntries: [], controllerUrl: expect.any(String) });
+    expect(res.body).not.toHaveProperty('apiKeyPreview');
+    expect(res.body).not.toHaveProperty('apiSecretPreview');
   });
 
   test('missing status identifies required fixed entry names', async () => {

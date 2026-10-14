@@ -20,6 +20,19 @@ const VAULT_ERRORS = {
   VAULT_CACHE_REFRESH_FAILED: [500, 'Credentials were saved, but the configuration cache could not be refreshed.'],
 };
 
+// Status is readable by any signed-in user so the tab can show what is configured.
+// Masked key previews are admin-only: they reveal part of the key.
+router.get('/status', authenticateToken, (req, res) => {
+  try {
+    const status = getPrivilegeUserApiKeyStatus({ configStore });
+    if (req.user?.role === 'admin') return res.json(status);
+    const { apiKeyPreview, apiSecretPreview, ...configured } = status;
+    return res.json(configured);
+  } catch {
+    return unexpectedFailure(res);
+  }
+});
+
 router.use(authenticateToken, requireAdmin);
 
 function csrfGuard(req, res, next) {
@@ -56,14 +69,6 @@ function redactUsers(value, credentials) {
   }
   return value;
 }
-
-router.get('/status', (_req, res) => {
-  try {
-    return res.json(getPrivilegeUserApiKeyStatus({ configStore }));
-  } catch {
-    return unexpectedFailure(res);
-  }
-});
 
 router.post('/credentials', csrfGuard, async (req, res) => {
   if (!validBody(req.body, ['api_key', 'api_secret', 'current_password'])
