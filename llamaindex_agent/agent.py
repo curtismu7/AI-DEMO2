@@ -23,14 +23,31 @@ def _get_index():
     return _index
 
 
+def _llm_route(env=None):
+    """Where LLM calls go. Pointing LLAMACPP_BASE_URL at <gateway>/llm/custom routes
+    them through the PingOne Agent Privilege: that lane needs the virtual key as the
+    bearer (LLAMACPP_API_KEY) and the model name the key allows (`llama.cpp`)."""
+    env = os.environ if env is None else env
+    base = (env.get("LLAMACPP_BASE_URL") or "http://llm-proxy:8090").rstrip("/")
+    via_privilege = "/llm/custom" in base
+    key = env.get("LLAMACPP_API_KEY") or "not-needed"
+    model = env.get("AGENT_MODEL") or ("llama.cpp" if via_privilege else "local")
+    if via_privilege:
+        label = f"LLM path: PRIVILEGE ({base})" + ("" if env.get("LLAMACPP_API_KEY") else " - MISSING LLAMACPP_API_KEY")
+    else:
+        label = f"LLM path: {base} (NOT governed by Privilege)"
+    return {"base": base, "api_key": key, "model": model, "via_privilege": via_privilege, "label": label}
+
+
 def _make_llm():
     from llama_index.llms.openai_like import OpenAILike
 
-    base = os.getenv("LLAMACPP_BASE_URL", "http://llm-proxy:8090").rstrip("/")
+    route = _llm_route()
+    print(f"[llamaindex_agent] {route['label']}; model={route['model']}", flush=True)
     return OpenAILike(
-        model=os.getenv("AGENT_MODEL", "local"),
-        api_base=f"{base}/v1",
-        api_key="not-needed",
+        model=route["model"],
+        api_base=f"{route['base']}/v1",
+        api_key=route["api_key"],
         is_chat_model=True,
         is_function_calling_model=True,
         temperature=0.1,
