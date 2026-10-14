@@ -32,9 +32,33 @@ A hub is **already connected — you do not need to add one to demo.**
   redact it before pasting any API output.
 - **`groq-key` is a real-looking secret name — don't click View on it live.**
   Use `privilege-hub-test` for the View step.
-- **Not run:** View, Resync, and the policy grant. The grant needs a
-  `SecretResources` policy whose body shape was not captured, so it was not
-  created against the shared tenant.
+- **Run live 2026-10-14 through the console UI** (a headless browser against
+  `https://local.procyon.ai:8643/ui/admin/secrets`; the hub's overview is
+  `/ui/admin/secrets/hub/gcp/GCP-hub-secrets/overview`, with tabs Overview / Secrets /
+  Access Summary and buttons Resync / Policy / Edit / Delete):
+  - **Resync: works.** The status changed to "Sync In Progress" / "Scanning", the Secrets
+    tab read 0 while it ran, then returned to **Synced with both secrets** (last sync
+    2026-10-14 06:19:34). Expect the count to drop to 0 briefly during a resync.
+  - **View: ran on `privilege-hub-test`.** The details panel names the secret before View
+    is clicked (the page auto-selects `groq-key` first — switch to `privilege-hub-test`).
+    After View, 7 new text lines appeared in the panel; the value was deliberately **not**
+    displayed here. The matching `Secret Vault Secret value accessed` audit event was
+    **not located** (the console has no activity-log route I could find headless).
+  - **Policy wizard, steps found:** (1) pick a secret → "Selected Secret" panel;
+    (2) **Select Permission: Read** ("View secret values") **or Write** ("View and update
+    secret values"); (3) **Users and Groups in this Policy** — two panes, Existing and
+    Added; the Existing pane **lazy-loads** the four tenant users (`cmuir+4@pingidentity.com`,
+    `cmuir+agent@pingone.com`, `cmuir+demo-user@pingone.com`, `AI Agent DemoAdmin /
+    cmuir+demoadmin@pingone.com`) only after you click its "Show: All" dropdown, and the
+    search box returned nothing. The wizard was **not completed**: adding a user to the
+    policy was blocked as a permission grant and needs the user's explicit approval.
+  - **Grant shape (read from an existing policy, not created):** `Type: SecretResources`;
+    `Spec.ActionMap` has `SecretRead` and `SecretWrite`, each with `PolicyRule[]` whose
+    `ObjectRef.RefKind` is `Secret`; `IssuedTo` lists the users; `NotBefore`/`NotAfter`
+    bound it. **A grant of this kind already exists:** `YukonRiver-416146713043`
+    (`GivenName: gogolehub`, 5 users, Read + Write, valid until **2027-06-04**), made on
+    2026-10-04 — a long-lived grant, not time-boxed.
+  - **Still not run:** creating a new time-boxed grant, and the audit event for View.
 
 ## Read this before you connect anything
 

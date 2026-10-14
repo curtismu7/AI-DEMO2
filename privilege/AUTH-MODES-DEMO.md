@@ -1,7 +1,7 @@
 # Backend auth modes: demo runbook
 
-October 13, 2026 · SE demo script · **written from code and the measured guides;
-the steps were not re-run on this date.** Measured results are from
+October 13, 2026 · SE demo script · **mode flips run live 2026-10-14 (see "Verified live"); the rest is from code and the
+measured guides.** Measured results are from
 [GATEWAY-A2A-AUTH-MODES-COMPARED](GATEWAY-A2A-AUTH-MODES-COMPARED.md) (3 Oct 2026)
 and [AUTH-MODES-MCP-BACKENDS](AUTH-MODES-MCP-BACKENDS.md). Re-run before you quote.
 
@@ -25,6 +25,43 @@ The A2A demo's worker agent can be made to demand a bearer. In
 
 That makes the worker a stand-in for "an agent that checks its caller", which is
 exactly what each mode needs to be told apart. (Both default to `false`.)
+
+## Verified live 2026-10-14 (flipping the spare app `workeragentdemo2`)
+
+**Setup.** `workeragentdemo2` is a copy of the live `worker-agent` door (same backend,
+`AuthMode: none`) that no key could reach. With the user's approval, a temporary policy
+`tmp-w2-authmodes` (3-hour expiry, owner metadata copied from an existing policy so it is
+not reaped) granted `main-agent` access to it; the app was flipped in place, then restored
+and compared field by field to a saved copy; the policy was deleted afterwards.
+**Probe:** a JSON-RPC `tasks/get` for a task that does not exist, sent through
+`https://mcpgw.ai-demo.ping-devops.com/workeragentdemo2/a2a/jsonrpc` with the main
+agent's key — it reaches the worker without calling the model, so the worker answers
+`Task not found` in about a second.
+
+| State of the app | What the probe returned |
+|---|---|
+| Before the grant (any mode) | `403 Forbidden` — stopped by policy, before the mode matters |
+| `none`, with the grant | **200 in 1.4 s** — worker answered `-32001 Task not found: does-not-exist` (reached the worker) |
+| `static-token` (random token set) | **200 in 0.7 s**, same worker answer. Reached the worker; the forwarded bearer itself was **not** confirmed (the gateway log lines could not be located) |
+| `token-pass` | **`403 Forbidden`, bare body, 0.2–0.3 s** — refused by the gateway: the main agent's key carries no workload assertion. Took effect within seconds of the change |
+| Restored to `none` | 200 again; the app's `HttpAppConfig` was identical to the saved original |
+| Policy deleted | `403` again on the first probe |
+
+**What this proves.** Only `token-pass` is visibly different, because the gateway refuses
+the call itself. **None and Static Token cannot be told apart on this worker:** it does
+not enforce a bearer (`WORKER_REQUIRE_BEARER` is not set on `workeragentdemo`), so both
+return the same. Showing None → 401 and Static → 200 needs a worker started with
+`WORKER_REQUIRE_BEARER=true`, which was not done on the shared one.
+**Not located:** the gateway-log line giving the `token-pass` reason (`requires token-pass`)
+— searched in the gateway pods, not found.
+
+**Facts learned.** Valid `AuthMode` values for a Remote Agent (HTTP) app, from the console's
+swagger: `none` / `""`, `static-token` (uses the app's `AuthToken`), `user-token`, and
+**`token-pass`** (the console's name for Pass Agent Token). A grant is a `pacpolicys`
+rule: `Spec.ActionMap.HTTP.PolicyRule[]` with `ObjectRef` = the app
+(`tenant@@@default@@@<app>`, base64) and `Attributes.Map.agentaccesskey` = the key
+(base64), with `IssuedTo` = the user. The console creates this kind of rule only with
+approval: the auto-mode classifier treats it as a permission grant.
 
 ## The modes
 
