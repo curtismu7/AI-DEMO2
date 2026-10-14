@@ -97,6 +97,18 @@ describe('JevDemoGalleryPage', () => {
     expect(document.querySelectorAll('.jev-error').length).toBe(0);
   });
 
+  // The two frame-loop demos (one evaluate per frame) had no run test.
+  it.each(['game-agent', 'trading'])('%s: runs the decision loop to completion', async (id) => {
+    const user = userEvent.setup();
+    renderAt(`/jev-demos/${id}`);
+    const run = document.querySelector('button.btn-primary');
+    await user.click(run);
+    await waitFor(() => expect(run.disabled).toBe(false));
+    expect(document.querySelectorAll('.jev-error').length).toBe(0);
+    expect(run.textContent).not.toMatch(/Running/);
+    expect(global.fetch).toHaveBeenCalled();
+  });
+
   it('falls back to PR review for an unknown demo id', () => {
     renderAt('/jev-demos/whatever');
     expect(screen.getByRole('heading', { level: 2 })).toHaveTextContent('pull requests');

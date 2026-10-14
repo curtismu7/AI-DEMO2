@@ -10,6 +10,7 @@
  */
 
 const conversationStore = require('./lmdb/conversationStore.lmdb');
+const { ANTHROPIC_NL } = require('../config/llmModels');
 
 const DEFAULT_LLM_PROXY_URL = process.env.LLM_PROXY_URL || 'http://localhost:8090';
 const MAX_CONCURRENT_WORKERS = 3;
@@ -86,7 +87,7 @@ async function _processSummarization(task) {
         'Content-Type': 'application/json',
       },
       body: JSON.stringify({
-        model: provider === 'anthropic' ? 'claude-sonnet-4-6' : 'local-model',
+        model: provider === 'anthropic' ? ANTHROPIC_NL : 'local-model',
         messages: [
           { role: 'system', content: systemPrompt },
           { role: 'user', content: userPrompt },

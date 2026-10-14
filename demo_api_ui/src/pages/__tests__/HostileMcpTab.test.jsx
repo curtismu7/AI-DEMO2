@@ -78,3 +78,30 @@ describe('HostileMcpTab live-run reporting', () => {
     expect(await screen.findByText(/manually confirm.*hostile-mcp.*policy denies create_transfer/i)).toBeInTheDocument();
   });
 });
+
+describe('HostileMcpTab model routing toggle', () => {
+  const agentRunBody = () => {
+    const call = fetch.mock.calls.find(([url]) => String(url).endsWith('/agent/run'));
+    return call ? JSON.parse(call[1].body) : null;
+  };
+
+  it('keeps the unmediated llama.cpp lane by default (no viaPrivilege in the request)', async () => {
+    stubHostileRun({ ok: true, json: async () => ({ trace: [], answer: 'ok' }) });
+    await startAgentRun();
+    await screen.findByTestId('hostile-agent-outcome');
+
+    expect(agentRunBody()).toMatchObject({ provider: 'llamacpp' });
+    expect(agentRunBody()).not.toHaveProperty('viaPrivilege');
+  });
+
+  it('offers llama.cpp through the Privilege custom lane and sends viaPrivilege: true for it', async () => {
+    stubHostileRun({ ok: true, json: async () => ({ trace: [], answer: 'ok', steps: ['llm_path:privilege'] }) });
+    render(<MemoryRouter><HostileMcpTab /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: /sign in with privilege/i }));
+    fireEvent.change(await screen.findByRole('combobox', { name: /model/i }), { target: { value: 'llamacpp-privilege' } });
+    fireEvent.click(await screen.findByRole('button', { name: /run agent/i }));
+    await screen.findByTestId('hostile-agent-outcome');
+
+    expect(agentRunBody()).toMatchObject({ provider: 'llamacpp', viaPrivilege: true });
+  });
+});

@@ -3,7 +3,7 @@
  * privilegeGatewaySessionStore.lmdb.js — the façade's Agent Privilege
  * sessions, persisted so a BFF container recreate does not throw them away.
  *
- * One key per Agentic App (e.g. `opensearch22`); the value is the record
+ * One key per Agentic App (e.g. `opensearch`); the value is the record
  * services/privilegeGatewaySession.js keeps in memory. See that module for why
  * a gateway token is stored at all.
  */

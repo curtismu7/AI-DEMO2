@@ -4,6 +4,11 @@ Verified 2026-09-08. **Update 2026-10-04: there are now two gateway nodes of one
 (`ai-demo-cmuir`) behind a load balancer, gateway 1 in `ping-devops-curtismuir` and gateway 2 in
 `ping-devops-cmuir`. The table below describes gateway 1; see
 [GATEWAY-LOAD-BALANCER.md](GATEWAY-LOAD-BALANCER.md) section 00 for the current layout.**
+
+> **Update 2026-10-12: the `opensearch22` Agentic App described below was deleted from the
+> console.** The dated measurements that name it are kept as a record of what was verified on
+> 2026-09-08; the live OpenSearch doors are now `opensearch` and `opensearch-hitl`, and the
+> teaching doors are the aggregate family.
 The Agentless/Agent split below the fold is history: the per-owner gateways were torn down on
 2026-09-01 and replaced by a single Agent Privilege (the product's own new name for
 what this repo called "agentless").

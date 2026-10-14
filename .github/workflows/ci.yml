@@ -198,6 +198,18 @@ jobs:
         run: node scripts/check-mock-drift.js
       - name: Fresh-clone hygiene
         run: npm run hygiene:check
+      # `npm run use-cases:check` minus check-step-verification, which fails today
+      # on a stale ledger entry (pingone-admin/ADMIN7). Add it back once that is
+      # fixed. check-goldens is the gate that stops a stale or poisoned replay
+      # golden from serving fiction in the demo fallback.
+      - name: Use-case drift gates (audit, docs, maturity, runbook, goldens)
+        working-directory: demo_api_server
+        run: >-
+          npm run use-cases:audit:check &&
+          npm run use-cases:docs:check &&
+          node ../scripts/check-use-cases-maturity.js &&
+          node ../scripts/gen-demo-runbook.js check &&
+          node ../scripts/check-goldens.js
       - name: REGRESSION_PLAN §1 paths exist
         run: npm run regression:paths
       - name: Root allowlist gate
