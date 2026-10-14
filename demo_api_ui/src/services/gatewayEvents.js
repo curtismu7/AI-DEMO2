@@ -4,7 +4,7 @@
 // verdict and per model call to its log, and the deployment ships those lines
 // to the `gateway-events` index. This reads them the same way the Gateway
 // findings panel does (components/GatewayVerdicts.jsx): through the gateway
-// itself, via the Privilege OpenSearch door of the MCP inspector. That door
+// itself, via the built-in-privilege-opensearch door of the MCP inspector (repointed to the Aggregate app after opensearch22 was deleted, 2026-10-12). That door
 // needs its own sign-in once per session, so a caller must handle `needsAuth`.
 import { authGate, extractSearchHits, frameworkLabel, pickSearchTool } from '../components/GatewayVerdicts';
 import { signInToGatewayDoorSilently } from './gatewayDoorSignIn';
@@ -104,7 +104,7 @@ export async function loadGatewayRecord({ since, until, fetchImpl = fetch, signI
     if (!toolsRes.ok || toolsBody.error) throw new Error(toolsBody.reason || toolsBody.error || `HTTP ${toolsRes.status}`);
     const tool = pickSearchTool(toolsBody.tools);
     if (!tool) {
-      throw new Error('the gateway findings door is connected, but its search tool (SearchIndexTool) is not granted to this user. Grant it in the Privilege console: Agentic Apps, the OpenSearch app, Configure Tools');
+      throw new Error('the gateway findings door is connected, but its search tool (SearchIndexTool) is not granted to this user. Grant it in the Privilege console: Agentic Apps, the Aggregate app (opensearch member, opensearch__SearchIndexTool), Configure Tools');
     }
 
     const invokeRes = await fetchImpl(`${INSPECTOR_BASE}/invoke`, {
