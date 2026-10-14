@@ -9,7 +9,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 import { analystCard } from '../agent-card.js';
 import { describeMode, workerAgentConfig } from '../config.js';
-import { parseMetadata } from '../profile.js';
+import { parseMetadata, parseMode, pickTool } from '../profile.js';
 import { VERTICALS, resolveVertical } from '../mcp-server/verticals.js';
 
 const config = workerAgentConfig();
@@ -79,7 +79,7 @@ function inputSchemaForAnthropic(inputSchema: unknown): Anthropic.Tool.InputSche
   return { type: 'object', properties, ...(required ? { required } : {}) };
 }
 
-async function runAnalyst(question: string, contextId: string, profile: { vertical: string; tools: string[] } | null): Promise<string> {
+async function runAnalyst(question: string, contextId: string, profile: { vertical: string; tools: string[] } | null, heuristic = false): Promise<string> {
   const instruction = instructionFor(profile?.vertical);
   const mcp = new Client({ name: 'access-review-worker', version: '1.0.0' }, { capabilities: {} });
   const transport = new StreamableHTTPClientTransport(
@@ -98,6 +98,15 @@ async function runAnalyst(question: string, contextId: string, profile: { vertic
     const offered = tools.filter(tool => allowed.includes(tool.name));
     const offeredTools = offered.length > 0 ? offered : tools;
     if (profile && offered.length === 0) console.log(`[worker] no offered tool matched vertical ${profile.vertical}; using all tools`);
+    if (heuristic && profile) {
+      // Model-free path: keyword tool pick, one MCP call, the tool's own text as the answer.
+      const name = pickTool(offeredTools.map(tool => tool.name), question);
+      emitTrace(contextId, 'mcp-call', `analyst → ${name}`, '{}', 'analyst', 'mcp');
+      const result = await mcp.callTool({ name, arguments: {} });
+      const content = textFromMcp(result);
+      emitTrace(contextId, 'mcp-result', `${name} returned`, content.slice(0, 1200), 'mcp', 'analyst');
+      return content;
+    }
     const toolDefinitions: Anthropic.Tool[] = offeredTools.map(tool => ({
       name: tool.name,
       description: tool.description ?? `Call the ${tool.name} access-review tool.`,
@@ -186,7 +195,7 @@ const executor = {
     let answer: string;
     try {
       answer = question
-        ? await runAnalyst(question, requestContext.contextId, parseMetadata(requestContext.userMessage.metadata))
+        ? await runAnalyst(question, requestContext.contextId, parseMetadata(requestContext.userMessage.metadata), parseMode(requestContext.userMessage.metadata) === 'heuristics')
         : 'The A2A request did not include a text question.';
     } catch (error) {
       answer = `The analyst could not complete this request: ${error instanceof Error ? error.message : 'unknown error'}`;
