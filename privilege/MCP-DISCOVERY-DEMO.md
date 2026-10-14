@@ -56,7 +56,10 @@ the client shows only bare 403s; the log lines are the story.
 > filters each member, so `tools/list` returns exactly four tools
 > (`banking-mcp__get_investment_accounts`, `banking-mcp__get_airline_bookings`,
 > `opensearch__ListIndexTool`, `opensearch__MsearchTool`). That filter is verified from the
-> app config only; **no signed-in `tools/list` has been recorded against it yet. Rehearse before presenting.**
+> app config, and **on the wire on 2026-10-14 with an agent key** (`worker-agent`, scope `mcp`):
+> `tools/list` on `aggregate-limited` returned exactly those 4; `aggregate-none` returned 0;
+> `aggregate` returned 43; `opensearch` refused with 403. A **person's** signed-in `tools/list`
+> has still not been recorded — rehearse the sign-in path once before presenting.
 
 1. Open `/privilege-mcp-client` in the browser and sign in to the
    `opensearch22` door. The sign-in federates once into the demo tenant —
