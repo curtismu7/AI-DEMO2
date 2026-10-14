@@ -1,5 +1,6 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
+import { useThemeOptional } from '../context/ThemeContext';
 import PrivilegeA2aTab from '../features/privilegeA2aClient/PrivilegeA2aTab';
 import { usePrivilegeA2aProfile } from '../features/privilegeA2aClient/usePrivilegeA2aProfile';
 // The workbench shell (title bar + status strip) lives in the MCP client's sheet.
@@ -17,6 +18,15 @@ export default function PrivilegeA2aPage({ user }) {
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('cur_priv_theme') || 'dark'; } catch { return 'dark'; }
   });
+  // The main top bar's light/dark switch drives this page too. Only a change after mount counts, so the
+  // page's own stored choice still wins on load; its own button keeps working until the next main-bar flip.
+  const { darkMode } = useThemeOptional();
+  const seenDarkMode = useRef(darkMode);
+  useEffect(() => {
+    if (seenDarkMode.current === darkMode) return;
+    seenDarkMode.current = darkMode;
+    setTheme(darkMode ? 'dark' : 'light');
+  }, [darkMode]);
   useEffect(() => {
     try { localStorage.setItem('cur_priv_theme', theme); } catch { /* storage disabled */ }
   }, [theme]);
