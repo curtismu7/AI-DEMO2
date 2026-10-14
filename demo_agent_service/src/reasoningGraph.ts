@@ -14,6 +14,7 @@ import type { ReasonRequest, ReasonResponse, ReasonMessage, ReasoningState } fro
 import { helixReason, HelixUnparseableError } from './helixToolAdapter';
 import { callHelix } from './helixClient';
 import { teachLog } from './teachLogger';
+import { DEFAULT_MODELS } from './defaultModels';
 
 // Map our internal ReasonMessage[] to Anthropic's MessageParam[].
 // Tool results in our format: { role:'tool', content:'...', tool_call_id:'...' }
@@ -62,17 +63,6 @@ function toAnthropicMessages(messages: ReasonMessage[]): Anthropic.MessageParam[
   }
   return out;
 }
-
-const DEFAULT_MODELS: Record<string, string> = {
-  helix: 'gpt-4o-mini',
-  anthropic: 'claude-sonnet-5-5',
-  // llama-server serves whatever model it was launched with; this is only a
-  // last-resort fallback when /v1/models can't be reached and no env override.
-  llamacpp: 'local-model',
-  mlx: 'local-model',
-  google: 'gemini-2.0-flash',
-  groq: 'openai/gpt-oss-20b',
-};
 
 // Map our internal ReasonMessage[] to LangChain BaseMessage[] for the llama.cpp path.
 // Mirrors toAnthropicMessages but in LangChain's message classes (ChatOpenAI talks

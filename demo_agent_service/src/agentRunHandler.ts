@@ -3,6 +3,7 @@ import { randomUUID, timingSafeEqual } from 'crypto';
 import { context as otelContext, trace } from '@opentelemetry/api';
 import { EventType } from '@ag-ui/core';
 import { reasonOnce } from './reasoningGraph';
+import { DEFAULT_MODELS } from './defaultModels';
 import { runWithCorrelation, getCorrelationId } from './correlationContext';
 import { emitHop } from './transactionHop';
 import type { ReasonMessage, ReasonResponse, ReasonToolSchema } from './reasonContract';
@@ -418,6 +419,10 @@ export function makeAgentRunHandler(internalSecret: string, pinnedBffToolUrl?: s
       span.setAttribute('iteration', iter + 1);
       span.setAttribute('message_count', conversationMessages.length);
       span.setAttribute('provider', provider ?? process.env.AGENT_PROVIDER ?? 'anthropic');
+      // Lets the BFF trace projector price this step (traceProjector.stepsCostUsd).
+      // Only set when known: local providers resolve their model at call time.
+      const spanModel = model ?? DEFAULT_MODELS[provider ?? process.env.AGENT_PROVIDER ?? 'anthropic'];
+      if (spanModel) span.setAttribute('model', spanModel);
       span.setAttribute('correlation_id', getCorrelationId() ?? '');
       try {
         reasonResult = await reasonOnce({
