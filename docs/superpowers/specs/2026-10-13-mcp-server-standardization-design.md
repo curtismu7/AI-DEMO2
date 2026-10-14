@@ -1,6 +1,6 @@
 # MCP server standardization — design
 
-Date: 2026-10-13 · Status: **open questions resolved; awaiting spec review** · Path: architectural
+Date: 2026-10-13 · Status: **one open question (5); awaiting spec review** · Path: architectural
 
 ## Intent
 
@@ -36,9 +36,12 @@ A2A demo still runs end to end.
 **Frozen:** `demo_mcp_brave` (`mcp-brave`), `demo_mcp_weather` (`mcp-weather`),
 `demo_mcp_grafana`, `demo_mcp_code_search` (`demo-mcp-code-search`),
 `demo_mcp_banking_rest`, `librechat` MCP wiring, tenant doors `brave`, `libre`,
-`mcp-brave-search`, `mcp-grafana`. Other tenant doors not in the set (for example
-`banking-openapi`, `agent-gateway`) were not examined; PR 3 classifies each before
-anything is removed.
+`mcp-brave-search`, `mcp-grafana`. Two more tenant doors were examined in the repo's Privilege docs:
+`agent-gateway` fronts the real PingGateway, so it is gateway plumbing and out of
+scope (like `ping-gateway`); `banking-openapi` is Ping's OpenAPI adapter sidecar
+over the banking REST API, a second banking door. It is proposed **frozen**, and
+is open question 5 below. Any other tenant door not named here is classified in
+PR 3 before anything is removed.
 
 **Not in scope (not MCP servers):** the gateways and security plumbing —
 `demo_mcp_gateway`, `ping-mcpgw`, `demo_mcpgw*`, `demo_mcp_proxy`,
@@ -106,6 +109,11 @@ run (one access-review question through `worker-agent`) still pass.
 3. **OpenSearch:** stays under compose profile `mcpgw`; demos state the profile
    they need rather than adding OpenSearch to the default stack.
 4. **Frozen servers' own unit tests:** keep running in their own directories.
+
+## Open question
+
+5. **`banking-openapi`:** freeze it (proposed; banking already has `oauth-mcp`),
+   or keep it as a sixth door to preserve the OpenAPI-to-MCP pattern demo.
 
 ## Out of scope
 
