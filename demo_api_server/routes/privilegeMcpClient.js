@@ -3111,6 +3111,7 @@ const {
   callPrivilegeOpenRouter: llmOpenRouter,
 } = require('../services/privilegeLlmProxyService');
 const { callLlamaCpp, baseUrl: llamaCppBaseUrl } = require('../services/llamacppLlmService');
+const { llamaCppTarget, privilegeLlmConfigured } = require('../services/privilegeLlmTarget');
 
 // Routes come from LANES so the path the panel PRINTS is the path the code CALLS.
 const LLM_LANES = {
@@ -3724,11 +3725,19 @@ router.post('/chat', express.json(), async (req, res) => {
     // Optional LLM routing (Ollama)
     if (session.config.llmUrl && session.config.llmModel) {
       try {
-        const llmResponse = await fetch(`${session.config.llmUrl}/api/chat`, {
+        // Through the Privilege custom lane whenever it is configured; otherwise the
+        // configured Ollama, and the step below says so (NOT governed).
+        const viaPrivilege = privilegeLlmConfigured();
+        const llmTarget = llamaCppTarget({
+          viaPrivilege,
+          direct: { base: session.config.llmUrl, route: '/api/chat' },
+          model: viaPrivilege ? undefined : session.config.llmModel,
+        });
+        const llmResponse = await fetch(llmTarget.url, {
           method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
+          headers: llmTarget.headers,
           body: JSON.stringify({
-            model: session.config.llmModel,
+            model: llmTarget.model,
             stream: false,
             messages: [
               { role: 'system', content: 'You are an MCP tool router. Given a user prompt and tools, return JSON: {"reply":"...","suggested_tools":[{"name":"tool_name","why":"...","arguments":{}}]}. Use only tool names from the list.' },
@@ -3738,7 +3747,8 @@ router.post('/chat', express.json(), async (req, res) => {
         });
         if (llmResponse.ok) {
           const llmData = await llmResponse.json();
-          const raw = llmData.message?.content || llmData.response || '';
+          const raw = llmData.message?.content || llmData.choices?.[0]?.message?.content || llmData.response || '';
+          steps.push(llmTarget.via === 'privilege' ? 'llm_path:privilege' : 'llm_path:direct (NOT governed by Privilege)');
           const parsed = parseLlmJson(raw);
           if (parsed.reply) reply = parsed.reply;
           if (Array.isArray(parsed.suggested_tools)) suggestions = parsed.suggested_tools;
@@ -4006,12 +4016,21 @@ router.post('/agent/run', express.json({ limit: '64kb' }), async (req, res) => {
   // always feeds back as a normal tool result.
 
   const callLlamaCppWithTools = async (messages) => {
-    const base = LLAMACPP.base();
-    const res = await llmFetch(`${base}${LLAMACPP.route}`, {
+    // Default direct (the attack lands in an unmediated model). With viaPrivilege the
+    // call rides the custom lane instead — AI Guard may then block the poison first.
+    const target = llamaCppTarget({
+      viaPrivilege: req.body?.viaPrivilege === true,
+      direct: { base: LLAMACPP.base(), route: LLAMACPP.route },
+      route: req.body?.route,
+      model: req.body?.model,
+    });
+    const pathStep = `llm_path:${target.via === 'privilege' ? 'privilege' : 'direct (NOT governed by Privilege)'}`;
+    if (!steps.includes(pathStep)) steps.push(pathStep);
+    const res = await llmFetch(target.url, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: target.headers,
       body: JSON.stringify({
-        model: req.body?.model || undefined,
+        model: target.model,
         messages,
         tools: mcpToolsToOpenAiTools(tools),
         max_tokens: 512,
