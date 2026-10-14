@@ -31,7 +31,8 @@ export default function PrivilegeA2aPage({ user }) {
   );
 
   return (
-    <div className="cur-ide" data-cur-theme={theme} data-testid="privilege-a2a-page">
+    // minHeight 0: the shell's 520px floor would push Send below the fold in a short window.
+    <div className="cur-ide" data-cur-theme={theme} data-testid="privilege-a2a-page" style={{ minHeight: 0 }}>
       <header className="cur-titlebar">
         <div className="cur-titlebar-left">
           <span className="cur-titlebar-title">Agent Privilege — A2A access review</span>

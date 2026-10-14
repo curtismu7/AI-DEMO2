@@ -63,6 +63,9 @@ export function ThemeProvider({ children }) {
 
   useEffect(() => {
     document.documentElement.style.zoom = String(fontScale);
+    // vh units are not zoom-aware: a `100vh - Npx` box overshoots the window by the zoom factor.
+    // Pages that fill the window divide by this (see .cur-ide).
+    document.documentElement.style.setProperty('--app-zoom', String(fontScale));
     try {
       localStorage.setItem(FONT_SCALE_STORAGE_KEY, String(fontScale));
     } catch {
