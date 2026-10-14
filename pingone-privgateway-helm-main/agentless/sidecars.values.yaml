@@ -200,7 +200,7 @@ extraContainers:
   # over both /mcp and /sse). So we host the same binary ourselves and register
   # it as an **MCP Server** app instead of an OpenAPI MCP app, which routes
   # discovery through the path that already works for pingone-admin-local
-  # (http://localhost:8083/mcp) and opensearch22.
+  # (http://localhost:8083/mcp) and opensearch.
   #
   # Env is copied verbatim from the openapi2 app-container JSON on the pod, which
   # was already proven correct. ENDPOINT takes NO /mcp suffix — the adapter

@@ -2,6 +2,13 @@
 
 October 9, 2026 · SE demo script
 
+> **Update 2026-10-12: the `opensearch22` Agentic App was deleted from the console** (unused for
+> 15 days). Anything below that names it describes the demo as written on October 9, not the
+> current tenant. The aggregate family (`aggregate`, `aggregate-limited`, `aggregate-none`) is now
+> the teaching door set (see `demo_api_server/services/mcpProfileStore.js`); re-verify the
+> permit/deny pairing against it before presenting. A deleted door is not a 403: the gateway
+> answers it with an empty HTTP 200, which clients report as `response id mismatch`.
+
 ## The story in one sentence
 
 An MCP client connects to the Agent Privilege, signs in, and the `tools/list`

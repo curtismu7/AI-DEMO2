@@ -17,7 +17,7 @@ export const configSchematics = createConfigSchematics()
         { value: 'handoff-super-sports-checkout', displayName: 'Handoffs · Super Sports Checkout' },
         { value: 'opensearch-direct', displayName: 'OpenSearch · Direct' },
         { value: 'opensearch-via-privilege', displayName: 'OpenSearch · via Privilege' },
-        { value: 'opensearch-privilege-opensearch22', displayName: 'OpenSearch · Privilege opensearch22' },
+        { value: 'opensearch-privilege-opensearch', displayName: 'OpenSearch · Privilege (3 tools)' },
         { value: 'privilege-aggregate', displayName: 'OpenSearch · Privilege Aggregate' },
       ],
     },

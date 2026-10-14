@@ -76,9 +76,9 @@
       "starters": ["List the OpenSearch indices", "Show the mapping for the first non-system index", "Search the first non-system index and show 5 documents"]
     },
     {
-      "id": "opensearch-privilege-opensearch22",
+      "id": "opensearch-privilege-opensearch",
       "group": "OpenSearch",
-      "label": "OpenSearch · Privilege opensearch22",
+      "label": "OpenSearch · Privilege (3 tools)",
       "server": "MCP Privilege-OpenSearch",
       "tools": ["ClusterHealthTool", "ListIndexTool", "CountTool"],
       "starters": ["What is the OpenSearch cluster health?", "List the OpenSearch indices", "How many documents are in the cluster?"]

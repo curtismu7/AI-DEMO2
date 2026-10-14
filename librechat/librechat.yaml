@@ -57,7 +57,7 @@ modelSpecs:
 
     - {name: opensearch-direct, label: 'Direct', group: 'OpenSearch', description: 'Mac-only host-local OpenSearch MCP path over the port-forward; no Privilege policy in front. Tools (9): ListIndexTool, IndexMappingTool, SearchIndexTool, GetShardsTool, GenericOpenSearchApiTool, ClusterHealthTool, CountTool, MsearchTool, ExplainTool.', preset: {endpoint: agents, agent_id: agent_NqFc9aF7UdJPE7gIXz39t}}
     - {name: opensearch-via-privilege, label: 'Privilege + Façade', group: 'OpenSearch', description: 'Full catalog through Privilege with trace recording. Tools (9): ListIndexTool, IndexMappingTool, SearchIndexTool, GetShardsTool, GenericOpenSearchApiTool, ClusterHealthTool, CountTool, MsearchTool, ExplainTool.', preset: {endpoint: agents, agent_id: agent_9vHeC_U0qcoA6PB2GOTtG}}
-    - {name: opensearch-privilege-opensearch22, label: 'Privilege 403 / Success', group: 'OpenSearch', description: 'OpenSearch22 through Privilege. Use this to show the façade 403 before its Privilege session is signed in, then success after sign-in.', preset: {endpoint: agents, agent_id: agent_-i7gJO7tyfjEiTu5r_2iD}}
+    - {name: opensearch-privilege-opensearch, label: 'Privilege 403 / Success', group: 'OpenSearch', description: 'OpenSearch through Privilege. Use this to show the façade 403 before its Privilege session is signed in, then success after sign-in.', preset: {endpoint: agents, agent_id: agent_-i7gJO7tyfjEiTu5r_2iD}}
 
     - {name: super-sports-policy-guardrails, label: 'AgentGateway Success / Authz Denied', group: 'Sports', description: 'Use list_rentals for success and extend_rental for the authorization denial. Tools: list_rentals, loyalty_balance, extend_rental, sensitive_membership_details.', preset: {endpoint: agents, agent_id: agent_dHaKLN_ZFfdoLchcFIQmO}}
 
@@ -180,7 +180,7 @@ mcpServers:
     url: 'http://host.docker.internal:9900/mcp'
     timeout: 60000
 
-  # 2. Through the recording façade to the Agent Privilege's opensearch22
+  # 2. Through the recording façade to the Agent Privilege's opensearch
   #    app. The façade holds the Privilege leg server-side
   #    (services/privilegeGatewaySession.js) — sign in once at
   #    /privilege-mcp-client after a gateway restart — and records the trace.
@@ -188,17 +188,17 @@ mcpServers:
   opensearch-privilege-gateway:
     type: streamable-http
     title: 'OS Priv'
-    url: 'https://api.ping.demo:3001/mcp-facade/privilege-gateway/opensearch22/mcp'
+    url: 'https://api.ping.demo:3001/mcp-facade/privilege-gateway/opensearch/mcp'
     timeout: 60000
 
-  # 3. Straight to the Agent Privilege's opensearch22 app. LibreChat signs
+  # 3. Straight to the Agent Privilege's opensearch app. LibreChat signs
   #    in against the gateway's own OAuth server
-  #    (https://mcpgw.ai-demo.ping-devops.com/opensearch22); public host, so no
+  #    (https://mcpgw.ai-demo.ping-devops.com/opensearch); public host, so no
   #    allowedAddresses entry and no sidecar.
-  privilege-opensearch22:
+  privilege-opensearch:
     type: streamable-http
-    title: 'OS22 Priv'
-    url: 'https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp'
+    title: 'OS Priv (direct)'
+    url: 'https://mcpgw.ai-demo.ping-devops.com/opensearch/mcp'
     timeout: 60000
 
   # 6. The Privilege `aggregate` app (type MCP Aggregate): opensearch (9 tools)

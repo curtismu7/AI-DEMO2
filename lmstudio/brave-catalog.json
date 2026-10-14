@@ -4,7 +4,7 @@
       "url": "https://ai-demo.ping-devops.com/mcp-facade/opensearch/mcp"
     },
     "2 · Privilege — OpenSearch (direct to gateway)": {
-      "url": "https://mcpgw.ai-demo.ping-devops.com/opensearch22/mcp"
+      "url": "https://mcpgw.ai-demo.ping-devops.com/opensearch/mcp"
     },
     "3 · Privilege — OpenSearch (through the façade)": {
       "url": "https://ai-demo.ping-devops.com/mcp-facade/privilege-gateway/mcp"
