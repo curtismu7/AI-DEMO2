@@ -92,11 +92,16 @@ describe("PrivilegeMcpClientPage tab colors", () => {
     expect(CSS).toMatch(/\.cur-editor-area\[class\*="cur-panel--"\]\s*{[^}]*var\(--tab-accent\)/);
   });
 
-  it("the ACTIVE tab shows its accent as its background (not near-page-black)", () => {
-    const rule = CSS.match(/\.cur-ide \.cur-tab--active\s*{[^}]*}/);
-    expect(rule).toBeTruthy();
-    // The old background #1e1e1e is the bug: indistinguishable from the #181818 bar.
-    expect(rule[0]).not.toContain("#1e1e1e");
-    expect(rule[0]).toMatch(/var\(--tab-accent/);
+  it("the ACTIVE tab and the section under it use the same soft mix of the accent", () => {
+    const mix = (re) => {
+      const m = CSS.match(re);
+      expect(m).toBeTruthy();
+      return m[1];
+    };
+    // Tab and section must be the SAME color, dark and light, hover included.
+    const tab = mix(/\.cur-ide \.cur-tab--active\s*{[^}]*background:\s*color-mix\(in srgb, var\(--tab-accent[^)]*\) (\d+)%, (#[0-9a-f]+)\)/);
+    const panel = mix(/\.cur-ide \.cur-editor-area\[class\*="cur-panel--"\]\s*{[^}]*background:\s*color-mix\(in srgb, var\(--tab-accent\) (\d+)%, (#[0-9a-f]+)\)/);
+    expect(tab).toBe(panel);
+    expect(CSS).toMatch(/\.cur-ide \.cur-tab--active:hover\s*{\s*background:\s*color-mix/);
   });
 });
