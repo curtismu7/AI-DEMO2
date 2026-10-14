@@ -58,6 +58,22 @@ async function ready() {
   await screen.findByRole("button", { name: "Inspect" });
 }
 
+describe("title bar", () => {
+  it("keeps the reference links under one More menu, and the controls outside it", async () => {
+    renderPage();
+    await ready();
+
+    const more = document.querySelector("details.cur-more");
+    expect(more).not.toBeNull();
+    const inMenu = [...more.querySelectorAll("a")].map((a) => a.textContent);
+    expect(inMenu).toEqual(["Demo step", "Diagram", "Topologies", "Logs"]);
+    // Controls stay one click away, not behind the menu.
+    for (const name of ["Light", "Clear", "Guide", "Settings", "Flow"]) {
+      for (const b of screen.getAllByRole("button", { name })) expect(more.contains(b)).toBe(false);
+    }
+  });
+});
+
 describe("Demo / Inspect", () => {
   it("opens in Demo with the customer-facing tabs only", async () => {
     renderPage();
