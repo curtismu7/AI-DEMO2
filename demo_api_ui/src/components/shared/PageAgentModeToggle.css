@@ -1,6 +1,6 @@
 .page-agent-mode {
   display: inline-flex;
-  border: 1px solid var(--a2a-border, rgba(127, 127, 127, 0.4));
+  border: 1px solid var(--th-border-strong);
   border-radius: 999px;
   overflow: hidden;
 }
