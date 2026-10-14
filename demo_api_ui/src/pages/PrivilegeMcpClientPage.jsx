@@ -212,11 +212,11 @@ function authChallengeKind(error, { alreadyReturnedFromAdminLogin = false } = {}
 // you are showing), so the split is narrower than "chat vs everything else".
 const VIEW_TABS = {
   demo: ['chat', 'tools', 'user-api-keys'],
-  inspect: ['mcp', 'rpc', 'policies'],
+  inspect: ['mcp', 'rpc', 'policies', 'relay', 'scopes'],
 };
 const VIEW_TERMINAL_TABS = {
   demo: ['trace', 'results'],
-  inspect: ['events', 'trace', 'scopes', 'results'],
+  inspect: ['trace', 'results'],
 };
 const TAB_LABELS = [
   ['chat', 'Agent Chat'],
@@ -225,6 +225,8 @@ const TAB_LABELS = [
   ['mcp', 'MCP Explorer'],
   ['rpc', 'Raw RPC'],
   ['policies', 'Policies'],
+  ['relay', 'Relay log'],
+  ['scopes', 'Scopes'],
 ];
 
 function gatewayModeDetails(mode, mcpUrl) {
@@ -561,6 +563,12 @@ export default function PrivilegeMcpClientPage() {
     next.set('tab', tab);
     setSearchParams(next, { replace: true });
   };
+  // Open an Inspect tab in the drawer from elsewhere on the page (a scope pill, starting subscriptions).
+  const openInspectTab = (tab) => {
+    setViewMode('inspect');
+    setActiveTab(tab);
+    setLastTab((prev) => ({ ...prev, inspect: tab }));
+  };
   const switchViewMode = (next) => {
     if (next === viewMode) return;
     setViewMode(next);
@@ -585,12 +593,10 @@ export default function PrivilegeMcpClientPage() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [location.key, requestedView, requestedTab]);
 
-  const [terminalTab, setTerminalTab] = useState('events');
+  const [terminalTab, setTerminalTab] = useState('trace');
   // Derived rather than corrected, so nothing has to police setActiveTab /
-  // setTerminalTab. Two callers set a terminal tab from elsewhere on the page
-  // (a scope pill, a subscription start) and both live on Inspect-only
-  // surfaces — but a stored 'inspect' view on a fresh mount would otherwise
-  // land on activeTab's 'chat' default, which is not an Inspect tab at all.
+  // setTerminalTab. A stored 'inspect' view on a fresh mount would otherwise land on
+  // activeTab's 'chat' default, which is not an Inspect tab at all.
   // Demo tabs always sit in the main area; Inspect tabs live in a drawer beside it, so
   // opening Inspect no longer swaps the page away from what you were presenting.
   const demoTab = VIEW_TABS.demo.includes(activeTab) ? activeTab : lastTab.demo;
@@ -1433,10 +1439,10 @@ export default function PrivilegeMcpClientPage() {
 
   // Scroll the picked scope's row into view once the SCOPES table is showing it.
   useEffect(() => {
-    if (selectedScope && terminalTab === 'scopes' && scopeRowRef.current) {
+    if (selectedScope && inspecting && inspectTab === 'scopes' && scopeRowRef.current) {
       scopeRowRef.current.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
     }
-  }, [selectedScope, terminalTab]);
+  }, [selectedScope, inspecting, inspectTab]);
 
   // Esc closes Present mode.
   useEffect(() => {
@@ -1513,7 +1519,7 @@ export default function PrivilegeMcpClientPage() {
       } else {
         await api('/subscriptions/start', { method: 'POST' });
         setSubscriptionActive(true);
-        setTerminalTab('events');
+        openInspectTab('relay');
       }
     } catch (err) {
       setMcpResult(JSON.stringify({ error: err.message }, null, 2));
@@ -2147,8 +2153,8 @@ export default function PrivilegeMcpClientPage() {
                       tabIndex={0}
                       className={`cur-scope-pill ${scopeColor(s)}${s === selectedScope ? ' cur-scope-pill--selected' : ''}`}
                       title={`Show ${s} in the scopes table`}
-                      onClick={() => { setSelectedScope(s); setTerminalTab('scopes'); }}
-                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedScope(s); setTerminalTab('scopes'); } }}
+                      onClick={() => { setSelectedScope(s); openInspectTab('scopes'); }}
+                      onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); setSelectedScope(s); openInspectTab('scopes'); } }}
                     >{s}</span>
                   ))}
                 </div>
@@ -2297,6 +2303,21 @@ export default function PrivilegeMcpClientPage() {
                       </div>
                       <p>Ask the agent to interact with MCP tools</p>
                       <span className="cur-chat-hint">Try: "List available tools" or "What can you do?"</span>
+                      {/* The page never discovers tools on its own, so say what comes next. Text only: the
+                          real controls are the rail's Sign in and the sidebar's Get MCP Tools, and a second
+                          button with the same name here would only be a second thing to click. */}
+                      <ol className="cur-start-guide" aria-label="Getting started" data-testid="start-guide">
+                        {[
+                          [gatewayAuth === 'signed-in', 'Sign in to the gateway', 'Sign in in the connection strip'],
+                          [tools.length > 0, 'Discover the tools', 'Press Get MCP Tools in the left column'],
+                          [chatMessages.length > 0 || toolResults.length > 0, 'Ask the agent or run a tool', 'Type below, or pick a tool on the Tools tab'],
+                        ].map(([done, title, hint], i) => (
+                          <li key={title} className={done ? 'is-done' : ''}>
+                            <span className="cur-start-guide__mark" aria-hidden="true">{done ? '✓' : i + 1}</span>
+                            <span><strong>{title}</strong> <span className="cur-start-guide__hint">{done ? 'done' : hint}</span></span>
+                          </li>
+                        ))}
+                      </ol>
                     </div>
                   )}
                   {chatMessages.map((msg, i) => (
@@ -2360,12 +2381,9 @@ export default function PrivilegeMcpClientPage() {
           {/* Terminal panel */}
           <div className="cur-resize-handle cur-resize-handle--h" onPointerDown={startTerminalDrag} />
           <div className="cur-terminal" ref={terminalRef}>
-            {/* RELAY LOG and SCOPES are Inspect-only; TRACE and RESULTS carry
-                the demo, so they stay in both. */}
+            {/* TRACE and RESULTS carry the demo and stay here; Relay log and Scopes live in the Inspect drawer. */}
             <div className="cur-terminal-tabs">
-              {inspecting && <button className={`cur-terminal-tab ${visibleTerminalTab === 'events' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('events')}>RELAY LOG</button>}
               <button className={`cur-terminal-tab ${visibleTerminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
-              {inspecting && <button className={`cur-terminal-tab ${visibleTerminalTab === 'scopes' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('scopes')}>SCOPES</button>}
               <button
                 key={`results-tab-${resultNonce}`}
                 className={`cur-terminal-tab ${visibleTerminalTab === 'results' ? 'cur-terminal-tab--active' : ''}${resultNonce > 0 && visibleTerminalTab !== 'results' ? ' cur-terminal-tab--flash' : ''}`}
@@ -2407,50 +2425,6 @@ export default function PrivilegeMcpClientPage() {
                       </details>
                     );
                   })}
-                </div>
-              )}
-              {visibleTerminalTab === 'events' && (
-                <div className="cur-terminal-log">
-                  {events.length === 0 && <span className="cur-terminal-empty">Waiting for events...</span>}
-                  {events.slice(0, 50).map((e, i) => (
-                    <div key={i} className={`cur-terminal-line cur-terminal-line--${e.type}`}>
-                      <span className="cur-terminal-ts">{e.ts?.slice(11, 19) || ''}</span>
-                      <span className={`cur-terminal-badge cur-terminal-badge--${e.type}`}>{e.type}</span>
-                      <span className="cur-terminal-msg">{JSON.stringify({ ...e, ts: undefined, type: undefined }, null, 0)}</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-              {visibleTerminalTab === 'scopes' && (
-                <div className="cur-terminal-scopes">
-                  {grantedScopes.length === 0 ? (
-                    <span className="cur-terminal-empty">No scopes granted yet — sign in first</span>
-                  ) : (
-                    <div className="cur-scopes-detail">
-                      <div className="cur-scopes-summary">
-                        <span className="cur-scopes-count-large">{grantedScopes.length}</span>
-                        <span className="cur-scopes-count-label">scopes granted</span>
-                      </div>
-                      <table className="cur-scopes-table">
-                        <thead><tr><th>Scope</th><th>Category</th></tr></thead>
-                        <tbody>
-                          {grantedScopes.map((s) => (
-                            <tr
-                              key={s}
-                              ref={s === selectedScope ? scopeRowRef : null}
-                              className={s === selectedScope ? 'cur-scope-row--selected' : ''}
-                              onClick={() => setSelectedScope(s)}
-                            >
-                              <td><code className={`cur-scope-pill ${scopeColor(s)}`}>{s}</code></td>
-                              <td className="cur-scope-cat">
-                                {s.startsWith('mcp:') ? 'MCP' : s.startsWith('p1:') ? 'PingOne' : (s === 'openid' || s === 'profile' || s === 'email') ? 'OIDC' : s.includes('read') ? 'Read' : s.includes('write') || s.includes('admin') ? 'Write' : 'Custom'}
-                              </td>
-                            </tr>
-                          ))}
-                        </tbody>
-                      </table>
-                    </div>
-                  )}
                 </div>
               )}
               {visibleTerminalTab === 'results' && (
@@ -2855,6 +2829,51 @@ export default function PrivilegeMcpClientPage() {
                 )}
               </div>
             )}
+
+              {inspectTab === 'relay' && (
+                <div className="cur-terminal-log">
+                  {events.length === 0 && <span className="cur-terminal-empty">Waiting for events...</span>}
+                  {events.slice(0, 50).map((e, i) => (
+                    <div key={i} className={`cur-terminal-line cur-terminal-line--${e.type}`}>
+                      <span className="cur-terminal-ts">{e.ts?.slice(11, 19) || ''}</span>
+                      <span className={`cur-terminal-badge cur-terminal-badge--${e.type}`}>{e.type}</span>
+                      <span className="cur-terminal-msg">{JSON.stringify({ ...e, ts: undefined, type: undefined }, null, 0)}</span>
+                    </div>
+                  ))}
+                </div>
+              )}
+              {inspectTab === 'scopes' && (
+                <div className="cur-terminal-scopes">
+                  {grantedScopes.length === 0 ? (
+                    <span className="cur-terminal-empty">No scopes granted yet — sign in first</span>
+                  ) : (
+                    <div className="cur-scopes-detail">
+                      <div className="cur-scopes-summary">
+                        <span className="cur-scopes-count-large">{grantedScopes.length}</span>
+                        <span className="cur-scopes-count-label">scopes granted</span>
+                      </div>
+                      <table className="cur-scopes-table">
+                        <thead><tr><th>Scope</th><th>Category</th></tr></thead>
+                        <tbody>
+                          {grantedScopes.map((s) => (
+                            <tr
+                              key={s}
+                              ref={s === selectedScope ? scopeRowRef : null}
+                              className={s === selectedScope ? 'cur-scope-row--selected' : ''}
+                              onClick={() => setSelectedScope(s)}
+                            >
+                              <td><code className={`cur-scope-pill ${scopeColor(s)}`}>{s}</code></td>
+                              <td className="cur-scope-cat">
+                                {s.startsWith('mcp:') ? 'MCP' : s.startsWith('p1:') ? 'PingOne' : (s === 'openid' || s === 'profile' || s === 'email') ? 'OIDC' : s.includes('read') ? 'Read' : s.includes('write') || s.includes('admin') ? 'Write' : 'Custom'}
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
+                </div>
+              )}
             </div>
           </aside>
         )}

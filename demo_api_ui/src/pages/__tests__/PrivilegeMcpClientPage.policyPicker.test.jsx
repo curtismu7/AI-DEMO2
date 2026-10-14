@@ -10,17 +10,17 @@ vi.mock("../../services/apiClient", () => ({
   default: { get: vi.fn(() => new Promise(() => {})), post: vi.fn(() => new Promise(() => {})) },
 }));
 
-const GATEWAY = "https://mcpgw.example.com/opensearch22/mcp";
+const GATEWAY = "https://mcpgw.example.com/opensearch-hitl/mcp";
 
 const INVENTORY = {
   envId: "env-1",
   applications: [
-    { name: "opensearch22", mcpUrl: GATEWAY, backends: [], status: "" },
+    { name: "opensearch-hitl", mcpUrl: GATEWAY, backends: [], status: "" },
     { name: "banking", mcpUrl: "https://mcpgw.example.com/banking/mcp", backends: [], status: "" },
   ],
   policies: [
     { name: "read-only-everyone", spec: { Tools: ["ListIndexTool"] } },
-    { name: "opensearch22-grant", spec: { Apps: ["opensearch22"], Users: ["someone-else@pingone.com"] } },
+    { name: "opensearch-hitl-grant", spec: { Apps: ["opensearch-hitl"], Users: ["someone-else@pingone.com"] } },
     { name: "demo-user-grant", spec: { Users: ["demo-user@pingone.com"] } },
     { name: "banking-grant", spec: { Apps: ["banking"], Users: ["demo-user@pingone.com"] } },
   ],
@@ -77,7 +77,7 @@ describe("policy picker", () => {
     const labels = Array.from(picker.querySelectorAll("option")).map((o) => o.textContent);
     expect(labels).toEqual(expect.arrayContaining([
       expect.stringContaining("read-only-everyone"),
-      expect.stringContaining("opensearch22-grant — mentions this door"),
+      expect.stringContaining("opensearch-hitl-grant — mentions this door"),
       expect.stringContaining("demo-user-grant — mentions you"),
     ]));
   });
@@ -87,7 +87,7 @@ describe("policy picker", () => {
 
     // During a denial this is the policy the room is asking about; making the
     // presenter find it in a list is the failure mode.
-    await waitFor(() => expect(picker).toHaveValue("opensearch22-grant"));
+    await waitFor(() => expect(picker).toHaveValue("opensearch-hitl-grant"));
   });
 
   it("shows the selected policy's raw spec, since the schema is undocumented", async () => {
@@ -123,9 +123,9 @@ describe("policy picker", () => {
 
   it("marks the covered door as current instead of offering a pointless switch", async () => {
     const picker = await openPoliciesTabConnected();
-    fireEvent.change(picker, { target: { value: "opensearch22-grant" } });
+    fireEvent.change(picker, { target: { value: "opensearch-hitl-grant" } });
 
-    const pane = (await screen.findByText("opensearch22-grant")).closest(".cur-console-policy-detail");
+    const pane = (await screen.findByText("opensearch-hitl-grant")).closest(".cur-console-policy-detail");
     expect(within(pane).getByText("current")).toBeInTheDocument();
     expect(within(pane).queryByRole("button", { name: /Use this door/i })).toBeNull();
   });

@@ -594,6 +594,8 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-tab--mcp, .cur-ide .cur-panel--mcp { --tab-accent: #0e7490; }
 .cur-ide .cur-tab--rpc, .cur-ide .cur-panel--rpc { --tab-accent: #a1352c; }
 .cur-ide .cur-tab--policies, .cur-ide .cur-panel--policies { --tab-accent: #c2570c; }
+.cur-ide .cur-tab--relay, .cur-ide .cur-panel--relay { --tab-accent: #9d174d; }
+.cur-ide .cur-tab--scopes, .cur-ide .cur-panel--scopes { --tab-accent: #6f42c1; }
 /* The section under the active tab is the SAME color as the tab, so tab and
    section read as one piece. Panels that paint their own ground are cleared
    so the accent shows through; inputs and cards keep their own surfaces. */
@@ -631,7 +633,7 @@ select.cur-input { cursor: pointer; }
 }
 .cur-tab--chat:hover, .cur-tab--tools:hover,
 .cur-tab--user-api-keys:hover, .cur-tab--mcp:hover, .cur-tab--rpc:hover,
-.cur-tab--policies:hover { background: rgba(255, 255, 255, 0.06); }
+.cur-tab--policies:hover, .cur-tab--relay:hover, .cur-tab--scopes:hover { background: rgba(255, 255, 255, 0.06); }
 /* Hovering the active tab must not drop its color. */
 .cur-ide .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #007acc) 10%, #1e1e1e); }
 .cur-ide[data-cur-theme="light"] .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #007acc) 8%, #ffffff); }
@@ -2376,7 +2378,7 @@ select.cur-input { cursor: pointer; }
 /* The Path note is the one long line in the strip; one line keeps the strip short
    (hover still reveals all of it) so the editor and terminal keep their height. */
 .cur-ide .cur-rail__note { -webkit-line-clamp: 1; }
-.cur-ide .cur-skin-picker { flex-direction: row; align-items: center; gap: 6px; }
+.cur-ide .cur-skin-picker { display: inline-flex; flex-direction: row; align-items: center; gap: 6px; white-space: nowrap; }  /* a global label rule made it block, stacking "Skin" over the select */
 
 /* ── A2A page (PrivilegeA2aPage) shares this shell ─────────────────────── */
 .cur-ide .cur-rail--4 { grid-template-columns: repeat(4, minmax(0, 1fr)); }
@@ -2449,6 +2451,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-inspect-drawer {
   /* A grid item in the body's second row (beside/over .cur-main), so it starts below the
      connection strip instead of covering its right-hand cells. */
+  position: relative;
   grid-column: 2;
   grid-row: 2;
   justify-self: end;
@@ -2463,10 +2466,24 @@ select.cur-input { cursor: pointer; }
   background: var(--cur-prompt-surface);
   box-shadow: -8px 0 24px rgba(0, 0, 0, 0.3);
 }
-.cur-ide .cur-inspect-drawer .cur-tabs { flex-shrink: 0; align-items: center; }
+.cur-ide .cur-inspect-drawer .cur-tabs {
+  flex-shrink: 0;
+  align-items: center;
+  /* Five tabs plus the close button do not fit one row at this width. */
+  flex-wrap: wrap;
+  row-gap: 4px;
+  height: auto;
+  /* Right padding keeps the tabs clear of the close button pinned to the corner. */
+  gap: 2px;
+  padding: 6px 44px 0 6px;
+}
+.cur-ide .cur-inspect-drawer .cur-tab { height: auto; align-self: flex-start; padding: 6px 9px; font-size: var(--font-size-sm); line-height: 1.3; }
 .cur-ide .cur-inspect-drawer .cur-editor-area { flex: 1; min-height: 0; overflow: auto; }
 .cur-ide .cur-inspect-drawer__close {
-  margin-left: auto;
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  z-index: 2;
   min-width: 32px;
   min-height: 32px;
   border: 1px solid var(--cur-prompt-border);
@@ -2478,3 +2495,31 @@ select.cur-input { cursor: pointer; }
 @media (max-width: 900px) {
   .cur-ide .cur-inspect-drawer { width: 100%; }
 }
+
+/* Relay log and Scopes now render in the drawer, not the bottom dock. */
+.cur-ide .cur-inspect-drawer .cur-terminal-log,
+.cur-ide .cur-inspect-drawer .cur-terminal-scopes { min-height: 0; padding: 4px 2px; }
+
+/* Getting-started guide in the empty chat. */
+.cur-ide .cur-start-guide { list-style: none; margin: 12px 0 0; padding: 0; display: flex; flex-direction: column; gap: 6px; text-align: left; }
+.cur-ide .cur-start-guide li { display: flex; gap: 10px; align-items: baseline; }
+.cur-ide .cur-start-guide__mark {
+  flex: 0 0 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: 1px solid currentColor;
+  display: inline-grid;
+  place-items: center;
+  font-size: var(--font-size-sm);
+}
+.cur-ide .cur-start-guide li.is-done { opacity: 0.7; }
+.cur-ide .cur-start-guide__hint { font-size: var(--font-size-sm); opacity: 0.85; }
+/* The empty chat now carries the guide: start at the top and scroll, rather than centring (which clipped the first line). */
+.cur-ide .cur-chat-empty { justify-content: flex-start; min-height: 0; overflow-y: auto; padding: 16px 12px; }
+.cur-ide .cur-chat-empty .cur-chat-empty-icon { display: none; }
+/* The dock opens short so the chat/tools above keep their height at 1440x900; drag the handle to enlarge it. */
+.cur-ide .cur-terminal { height: 150px; }
+.cur-ide .cur-start-guide { color: var(--cur-prompt-ink, #d4d4d4); }
+.cur-ide .cur-chat-empty { gap: 4px; padding: 10px 12px; }
+.cur-ide .cur-start-guide { margin-top: 6px; gap: 4px; }
+.cur-ide .cur-chat-empty .cur-chat-hint { display: none; }  /* the guide below says what to try; this line cost the third step its room */

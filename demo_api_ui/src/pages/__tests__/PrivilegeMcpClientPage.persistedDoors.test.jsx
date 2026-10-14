@@ -24,7 +24,7 @@ const DISCOVERY = {
   gatewayOrigin: "https://mcpgw.ai-demo.ping-devops.com",
   applications: [
     { name: "openapi2", status: "Ready", policies: ["banking-tools", "all-doors"] },
-    { name: "opensearch22", status: "", policies: [] },
+    { name: "opensearch-hitl", status: "", policies: [] },
   ],
 };
 

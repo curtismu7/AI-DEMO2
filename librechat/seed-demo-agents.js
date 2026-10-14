@@ -159,9 +159,9 @@ const AGENTS = [
   // The straight-to-Privilege opensearch lane deliberately demonstrates a
   // policy-restricted catalog with only three tools.
   ...[
-    ['OpenSearch · Direct', 'OpenSearch22 · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.', false, false],
+    ['OpenSearch · Direct', 'OpenSearch HITL · Direct', 'opensearch-direct', 'No Privilege in front: the OpenSearch MCP server over the Mac port-forward.', false, false],
     ['OpenSearch (all tools) · Privilege', 'OpenSearch · via Privilege', 'opensearch-privilege-gateway', 'All OpenSearch tools through the recording façade to the Agent Privilege.', false, true],
-    ['OpenSearch · Privilege (3 tools)', 'OpenSearch22 · Privilege', 'privilege-opensearch', 'Three policy-approved tools straight through the Agent Privilege opensearch app.', true, false],
+    ['OpenSearch · Privilege (3 tools)', 'OpenSearch HITL · Privilege', 'privilege-opensearch', 'Three policy-approved tools straight through the Agent Privilege opensearch app.', true, false],
   ].map(([name, previousName, server, description, restricted, showFacadeTrace]) => ({
     name,
     previousNames: [previousName],

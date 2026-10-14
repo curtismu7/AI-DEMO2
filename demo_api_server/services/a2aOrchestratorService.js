@@ -69,19 +69,30 @@ function rolePrompt(role) {
 }
 
 /** Call the local LLM proxy with a forced JSON schema and parse+validate the reply. */
-async function callStage(role, task, schema, validate) {
-  const raw = await callLlamaCpp(
-    [
-      { role: 'system', content: rolePrompt(role) },
-      { role: 'user', content: task.description },
-    ],
-    { jsonSchema: schema },
-  );
-  const parsed = repairAndParseJson(raw);
-  if (!parsed || !validate(parsed)) {
-    throw new Error(`LLM stage "${role.role}" returned an invalid reply: ${JSON.stringify(parsed)}`);
+async function callStage(role, task, schema, validate, stages, stage) {
+  const started = Date.now();
+  try {
+    const raw = await callLlamaCpp(
+      [
+        { role: 'system', content: rolePrompt(role) },
+        { role: 'user', content: task.description },
+      ],
+      { jsonSchema: schema },
+    );
+    const parsed = repairAndParseJson(raw);
+    if (!parsed || !validate(parsed)) {
+      throw new Error(`LLM stage "${role.role}" returned an invalid reply: ${JSON.stringify(parsed)}`);
+    }
+    return parsed;
+  } finally {
+    // Recorded on failure too: a stage that timed out still cost the caller its wait.
+    stages.push({ stage, agent: role.role, ms: Date.now() - started });
   }
-  return parsed;
+}
+
+/** Per-stage latency for the response; totalMs is exactly the sum of the stages. */
+function timingsOf(stages) {
+  return { stages, totalMs: stages.reduce((n, s) => n + s.ms, 0) };
 }
 
 /**
@@ -89,12 +100,14 @@ async function callStage(role, task, schema, validate) {
  * skipped when there's only one tool) -> authorization review. Throws on any
  * stage failure — orchestrateDelegation falls back to heuristicOrchestration.
  */
-async function llmOrchestration({ message, vertical }) {
+async function llmOrchestration({ message, vertical, stages }) {
   const decision = await callStage(
     DECISION_MAKER_ROLE,
     buildDecisionTask(DECISION_MAKER_ROLE, message),
     DECISION_SCHEMA,
     (p) => typeof p.shouldDelegate === 'boolean',
+    stages,
+    'decision',
   );
 
   if (!decision.shouldDelegate) {
@@ -132,6 +145,8 @@ async function llmOrchestration({ message, vertical }) {
       coordinatorTask,
       coordinatorSchema(specialist.tools),
       (p) => specialist.tools.includes(p.tool),
+      stages,
+      'coordinator',
     );
     tool = coordinator.tool;
   }
@@ -175,9 +190,10 @@ async function orchestrateDelegation({ req, message, vertical, userId, mode, ava
 
   let orchestrationResult;
   let usedLlm = false;
+  const stages = [];
   try {
     if (heuristicOnly) throw new Error('heuristics mode selected');
-    orchestrationResult = await llmOrchestration({ message, vertical });
+    orchestrationResult = await llmOrchestration({ message, vertical, stages });
     usedLlm = true;
     appEventService.logEvent('a2a', 'info', 'A2A orchestration via LLM', {
       tag: 'a2a/llm_complete',
@@ -190,7 +206,9 @@ async function orchestrateDelegation({ req, message, vertical, userId, mode, ava
         metadata: { error: err.message },
       });
     }
+    const heuristicStart = Date.now();
     orchestrationResult = await heuristicOrchestration({ message, vertical, availableSpecialists });
+    stages.push({ stage: 'decision', agent: 'heuristic', ms: Date.now() - heuristicStart });
     appEventService.logEvent('a2a', 'info', 'A2A orchestration via heuristics', {
       tag: heuristicOnly ? 'a2a/heuristic_mode' : 'a2a/heuristic_fallback',
       metadata: orchestrationResult,
@@ -211,7 +229,7 @@ async function orchestrateDelegation({ req, message, vertical, userId, mode, ava
         tag: 'a2a/delegation_denied',
         metadata: { reason: orchestrationResult.reason },
       });
-      return { ...orchestrationResult, token: null, tokenEvents: [], claims: null, agentHeader, metadata };
+      return { ...orchestrationResult, token: null, tokenEvents: [], claims: null, agentHeader, metadata, timings: timingsOf(stages) };
     }
 
     const specialist = specialistForVertical(orchestrationResult.specialist);
@@ -221,18 +239,20 @@ async function orchestrateDelegation({ req, message, vertical, userId, mode, ava
         tag: 'a2a/specialist_not_found',
         metadata: { vertical: orchestrationResult.specialist },
       });
-      return { ...orchestrationResult, token: null, tokenEvents: [], claims: null, error: errMsg, agentHeader, metadata };
+      return { ...orchestrationResult, token: null, tokenEvents: [], claims: null, error: errMsg, agentHeader, metadata, timings: timingsOf(stages) };
     }
 
     // Use the same specialist wire handoff as the normal A2A agent path. That
     // path lets the specialist perform Exchange #2 and dispatch its tool under
     // the PERMIT gate; this orchestrator must not mint Exchange #2 itself.
     const { executeA2aDelegation } = require('./demoAgentLangGraphService');
+    const delegationStart = Date.now();
     const executionJson = await executeA2aDelegation(orchestrationResult.specialist, {
       tool: orchestrationResult.tool,
       subtask: message,
       args: {},
     }, { req, tokenEvents, sessionId: req?.sessionID || '' });
+    stages.push({ stage: 'specialist', agent: orchestrationResult.specialist, ms: Date.now() - delegationStart });
     let executionResult;
     try {
       executionResult = JSON.parse(executionJson);
@@ -267,6 +287,7 @@ async function orchestrateDelegation({ req, message, vertical, userId, mode, ava
         error,
         agentHeader,
         metadata,
+        timings: timingsOf(stages),
       };
     }
 
@@ -289,6 +310,7 @@ async function orchestrateDelegation({ req, message, vertical, userId, mode, ava
         ...metadata,
         features: ['LLM-backed delegation decision', 'RFC 8693 token exchange', 'heuristic fallback'],
       },
+      timings: timingsOf(stages),
     };
   } catch (err) {
     console.error('[a2aOrchestratorService] Orchestration error:', err.message);
@@ -308,6 +330,7 @@ async function orchestrateDelegation({ req, message, vertical, userId, mode, ava
       error: err.message,
       agentHeader,
       metadata,
+      timings: timingsOf(stages),
     };
   }
 }

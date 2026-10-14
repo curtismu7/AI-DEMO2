@@ -2192,7 +2192,7 @@ router.post('/config', express.json(), (req, res) => {
     // A destination door with no live stash of its own used to NULL the slot,
     // which turned a door flip (denial-probe "Use this door", a stale frontend
     // config re-POST) into a forced sign-in on the next tools/list — observed
-    // live 2026-09-25 as opensearch22 → brave → opensearch → aggregate flips
+    // live 2026-09-25 as brave → opensearch → aggregate flips
     // each dropping a working token. Keeping the outgoing token in the slot
     // instead lets the gateway deliver its own verdict: a same-AS token keeps
     // working; a cross-app token gets the gateway's natural 401, which the
@@ -2791,8 +2791,8 @@ const CONSOLE_BASE = 'https://console.privilege.pingone.com';
 
 // The console API is tenanted on the PRIVILEGE tenant — the one that owns the
 // Agentic Apps. Proven from the gateway's own log, where the app reference
-// base64-decodes to `0428ba4f-…@@@default@@@<appName>` (observed for
-// opensearch22, since deleted; the encoding is app-name-independent).
+// base64-decodes to `0428ba4f-…@@@default@@@<appName>` (the encoding is
+// app-name-independent).
 //
 // This used to read PRIVILEGE_SSO_ENV_ID first and nothing else, which is a
 // different thing and is currently the BANKING env: startupConfigGuard warns

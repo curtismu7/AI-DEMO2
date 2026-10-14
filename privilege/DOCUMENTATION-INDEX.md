@@ -1,4 +1,8 @@
-# PingOne Privilege documentation index
+# Unofficial: PingOne Privilege documentation index
+
+> **UNOFFICIAL — NOT OFFICIAL PING DOCUMENTATION**
+>
+> These are my documents from building out Agent Privilege features.  They are not intended to replace documentation.  This is meant to help SE’s with details and in the short term, while we wait for documentation.
 
 Every Privilege doc we own, in one place. The MD link is the source file in this
 repo (public on GitHub). PDF exports of the SE guides ship through the shared
@@ -55,6 +59,7 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 |---|---|---|
 | [AIGuard (console walkthrough)](GATEWAY-AIGUARD.md) | — | The Add Agent wizard's Runtime Protection step: four detector groups and eleven detectors, Enable and Fail Closed, External Inspection and the ML Sidecar (console walkthrough with screenshots, 2026-10-08) |
 | [ML sidecar rollout across Agent Registry](AGENT-REGISTRY-SIDECAR-ROLLOUT.md) | — | Wiring the demo sidecar into every registry key: the five-setting recipe, per-key state, the expired-key renewal catch, a2a-only keys get AIGuard too, Block Agreement `off` as the provable mode (tested live 2026-10-12) |
+| [Setting guardrail thresholds](GATEWAY-GUARDRAIL-THRESHOLDS.md) | — | How alert/block thresholds decide, where to set them on a key, choosing the value from the logged score, and a worked `jailbreak` 0.9 → 0.8 change on an a2a-only key that turned two alerted jailbreaks into 400s (tested live 2026-10-14) |
 | [Guardrails & the external detector](GATEWAY-GUARDRAILS-AND-THE-EXTERNAL-DETECTOR.md) | Drive (SE) | AIGuard on the model route: per-key detectors and thresholds, what a block looks like and its logs, the `/inspect` contract, Block Agreement, NeMo rails, what is and is not inspected (tested live 2026-10-03) |
 | [LLM routing & virtual keys](GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md) | Drive (SE) | The `/llm/<provider>/v1` route and virtual keys: key settings, order of checks, allowed models, rate limits, refusals, the `LLM request` log line (tested live 2026-10-03) |
 | [LLM protection in the demo stack](../docs/privilege-llm-protection.md) | — | How LLM protection is wired into the AI-DEMO2 BFF: secrets into `ai-demo-secrets`, gateway route, what the demo shows |
@@ -101,7 +106,6 @@ An in-app copy of this index is served at `/privilege-docs-index` in the demo UI
 | [SE1 shared demo](SE1-Privilege-Shared-Demo.md) | — | Setting up the shared Privilege demo in the SE1 environment |
 | [Running our demo on the shared env](RUNNING-OUR-DEMO-ON-THE-SHARED-ENV.md) | — | Gap analysis for pointing our stack (UC45–47, LLM virtual keys, the MCP-client door) at the shared SE1 environment: what breaks and why, what we would add there, the 15-minute console probe for the open gateway question, and how to read each outcome (2026-10-11) |
 | [Privilege Agent setup — Mac](SE1-Privilege-Agent-Setup-Mac.md) | — | Agent-based persona onboarding for the shared Demo Engineering environment, run on your own Mac instead of Windows 11 VMs |
-| [Demo script & setup](demo/privilege-demo-script.md) | — | The customer-facing demo script and setup (auto-generated from the use-case docs — do not hand-edit) |
 | [Agent features master index](../docs/privilege-agent-features.md) | — | The ten agent-facing Privilege features in demo arc order, each with a description and links to the detailed docs; names the three coverage gaps (rug-pull matrix, agentapprovals doc, compliance mapping) |
 | [Privilege Agent Field Guide](../docs/privilege-agent-field-guide.html) | — | Trainer's page: the top 10 agent features in demo arc order (identity → policy → LLM → MCP → HITL → proof), each with what/show/say presenter rows, the model-allowlist verified table, and the pre-session caveats (Google lane misconfigured, Slack/Teams approvals unverified). Standalone HTML, grounded in `docs/privilege-llm-protection.md` and `docs/privilege-aiguard-training.md` |
 | [CIMD client documents](../docs/2026-10-07-cimd-privilege-client-documents.md) | Drive (SE) | CIMD (client metadata documents) for PingOne Privilege — flow, boundary, and client documents, with diagrams |

@@ -6,6 +6,7 @@ import { useThemeOptional } from '../context/ThemeContext';
 import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 import { A2A_RECORDED_RUN } from '../data/a2aRecordedRun';
 import A2AFlowVisualizer from '../components/A2AFlowVisualizer';
+import A2aStageTimings from '../components/A2aStageTimings';
 import RelatedLearningRail from '../components/learning/RelatedLearningRail';
 import { EDU } from '../components/education/educationIds';
 import { RUN_PROVENANCE } from '../config/agentTerminology';
@@ -501,6 +502,7 @@ export default function A2AProtocolLearningPage() {
             <li><b>tool</b> <code>{actChain.tool || '—'}</code></li>
           </ul>
         )}
+        {!isReplay && <A2aStageTimings timings={run?.delegationDecision?.timings} />}
         {identityPanes.map((p) => <Pane key={p.key} pane={p} />)}
       </Section>
 

@@ -47,7 +47,18 @@ The same screen and fields exist on the **Add Agent** wizard; a new key created 
 | Sidecar Timeout `0` is accepted and means the default | Reproduced: main-agent saved with 0 ms on the review line, field help "0 uses the default (1000 ms)"; normalized to 1000 for consistency | 12 Oct |
 | Saves persist across a console restart | Verified by re-reading the AIGuard tab after the desktop app dropped and was relaunched (one save was eaten mid-outage and re-applied) | 12 Oct |
 
-Not tested here: whether an a2a-only key actually *invokes* the sidecar on A2A traffic (the A2A guardrail path is measured in the A2A guardrails guide; the detector call on that path with this key was not exercised), and per-key threshold tuning — every key kept its existing thresholds.
+Tested 14 Oct on `langchain-caller` (a2a-only), calling `hostile-a2a` through the gateway:
+
+| Claim | Result |
+| --- | --- |
+| An a2a-only key calls the sidecar on A2A traffic, on the request and on the reply | Reproduced: one sidecar log line per request and per reply, timestamps within a millisecond of the gateway's A2A guardrail lines; A2A decisions took ~300-480 ms against under 1 ms for built-ins alone |
+| With Block Agreement `off`, the sidecar's verdict blocks an A2A message on its own | **Not shown.** The sidecar scored a DAN jailbreak `INJECTION (1.00)` on request and reply, yet the call returned 200 with a built-in alert only (score 0.8). The sidecar's verdict does not appear in the gateway's findings on this path. On the LLM path the same kind of verdict blocks |
+| A per-key threshold change applies to A2A at once | Reproduced: `jailbreak` block 0.9 → 0.8 turned two pure-jailbreak messages from 200 + alert into 400 (logged `a2a_request_blocked`, category `jailbreak`); harmless stayed 200; restoring 0.9 returned them to 200 + alert |
+| Override wording ("ignore / disregard / override … instructions") blocks at the default thresholds | Reproduced: 3 of 3 blocked as `prompt_injection`. Wording with no override phrase ("no restrictions", "developer mode") only alerts as `jailbreak` |
+
+Current state: `langchain-caller` was left at `jailbreak` block **0.8** (default 0.9) on 14 Oct so pure jailbreak wording blocks; verified 2 of 2 blocked, harmless 200. Threshold how-to: [Setting guardrail thresholds](GATEWAY-GUARDRAIL-THRESHOLDS.md).
+
+Open: whether the A2A path ignores the external detector's verdict, or the key's saved Block Agreement differs from `off`. Not checked on `main-agent` (llm + a2a) to separate an a2a-only effect from an A2A-path effect. Thresholds were tuned on one key and one category, and one harmless message was used as the control.
 
 ## Per-key state after the rollout
 

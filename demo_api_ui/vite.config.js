@@ -63,15 +63,14 @@ export default defineConfig(({ mode }) => {
   console.log(
     `[vite] dev proxy: /api,/a2a/,/health,/mcp-facade,/pinggateway-test.html → ${httpTarget}  |  /ws → ${wsTarget}`,
   )
-  const uiPort = process.env.PORT || 4000
   if (process.env.HTTPS !== 'false') {
     if (mkcert) {
       console.log(
-        `[vite] dev TLS: https://api.ping.demo:${uiPort} (certs from ${mkcert.dir})`,
+        `[vite] dev TLS: https://api.ping.demo:4000 (certs from ${mkcert.dir})`,
       )
     } else {
       const msg =
-        `[vite] FATAL: mkcert TLS files missing — https://api.ping.demo:${uiPort} will not work. ` +
+        '[vite] FATAL: mkcert TLS files missing — https://api.ping.demo:4000 will not work. ' +
         'Run: npm run certs:ensure (or ./run-docker.sh restart ui)'
       if (process.env.REQUIRE_DEV_TLS === '1') {
         console.error(msg)
