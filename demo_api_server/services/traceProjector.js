@@ -23,6 +23,8 @@
 
 'use strict';
 
+const PRICES = require('../config/llmPrices.json');
+
 function tagsToObject(tags) {
   const obj = {};
   for (const tag of tags || []) obj[tag.key] = tag.value;
@@ -85,6 +87,27 @@ const metadata = (k, v) => ({ facet: 'additionalMetadata', key: k, value: String
 
 // ── Builders ─────────────────────────────────────────────────────────────────
 
+/**
+ * List-price cost of the reasoning steps, or null when any step that used
+ * tokens has no priced model — a partial total would under-report. Always an
+ * estimate: helix reports chars/4 token counts, not provider usage.
+ */
+function stepsCostUsd(steps) {
+  let total = 0;
+  let priced = 0;
+  for (const s of steps) {
+    const t = tagsToObject(s.tags);
+    const inT = parseInt(t.input_tokens, 10) || 0;
+    const outT = parseInt(t.output_tokens, 10) || 0;
+    if (!inT && !outT) continue;
+    const price = PRICES[t.model];
+    if (!price) return null;
+    total += (inT * price.in + outT * price.out) / 1e6;
+    priced += 1;
+  }
+  return priced ? total : null;
+}
+
 function projectAgentReasoning(traceData) {
   const steps = (traceData.spans || [])
     .filter((s) => processName(traceData, s) === 'agent-service' && /^reasoning-step-\d+$/.test(s.operationName))
@@ -96,10 +119,12 @@ function projectAgentReasoning(traceData) {
   const sumTag = (key) => steps.reduce((sum, s) => sum + (parseInt(tagsToObject(s.tags)[key], 10) || 0), 0);
   const inTok = sumTag('input_tokens');
   const outTok = sumTag('output_tokens');
+  const cost = stepsCostUsd(steps);
 
   const summary = [outcome(`${steps.length} reasoning step${steps.length === 1 ? '' : 's'}`)];
   if (firstTags.provider) summary.push(metadata('provider', firstTags.provider));
   if (inTok || outTok) summary.push(metadata('tokens', `${inTok} in / ${outTok} out`));
+  if (cost !== null) summary.push(metadata('estimated cost', `$${cost.toFixed(4)} (est.)`));
 
   return {
     ...buildProjectedSpan({
