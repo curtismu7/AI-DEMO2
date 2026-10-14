@@ -2303,6 +2303,21 @@ export default function PrivilegeMcpClientPage() {
                       </div>
                       <p>Ask the agent to interact with MCP tools</p>
                       <span className="cur-chat-hint">Try: "List available tools" or "What can you do?"</span>
+                      {/* The page never discovers tools on its own, so say what comes next. Text only: the
+                          real controls are the rail's Sign in and the sidebar's Get MCP Tools, and a second
+                          button with the same name here would only be a second thing to click. */}
+                      <ol className="cur-start-guide" aria-label="Getting started" data-testid="start-guide">
+                        {[
+                          [gatewayAuth === 'signed-in', 'Sign in to the gateway', 'Sign in in the connection strip'],
+                          [tools.length > 0, 'Discover the tools', 'Press Get MCP Tools in the left column'],
+                          [chatMessages.length > 0 || toolResults.length > 0, 'Ask the agent or run a tool', 'Type below, or pick a tool on the Tools tab'],
+                        ].map(([done, title, hint], i) => (
+                          <li key={title} className={done ? 'is-done' : ''}>
+                            <span className="cur-start-guide__mark" aria-hidden="true">{done ? '✓' : i + 1}</span>
+                            <span><strong>{title}</strong> <span className="cur-start-guide__hint">{done ? 'done' : hint}</span></span>
+                          </li>
+                        ))}
+                      </ol>
                     </div>
                   )}
                   {chatMessages.map((msg, i) => (
