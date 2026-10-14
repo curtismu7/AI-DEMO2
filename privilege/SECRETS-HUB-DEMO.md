@@ -58,7 +58,18 @@ A hub is **already connected — you do not need to add one to demo.**
     bound it. **A grant of this kind already exists:** `YukonRiver-416146713043`
     (`GivenName: gogolehub`, 5 users, Read + Write, valid until **2027-06-04**), made on
     2026-10-04 — a long-lived grant, not time-boxed.
-  - **Still not run:** creating a new time-boxed grant, and the audit event for View.
+  - **Which secret that grant covers:** `privilege-hub-test` itself (the rule's `RefID` equals
+    the secret object's `ObjectMeta.ID`). Policy `YukonRiver-416146713043` grants **Read + Write
+    on `privilege-hub-test`** to four users (`demoadmin`, `demouser`, `cmuir+agent@pingone.com`,
+    `demoUser-new`) and one group, until **2027-06-04**. So a new Read grant for `demoadmin`
+    on that secret would change nothing — it already has Read + Write. To demonstrate a grant
+    taking effect, use a user who is **not** in that list (for example `cmuir+4@pingidentity.com`)
+    or a secret with no grant (`groq-key`).
+  - **Created via API instead of the wizard?** Not done. The API shape is: `Type: SecretResources`,
+    `ActionMap.SecretRead.PolicyRule[]` (and `SecretWrite`), each rule's
+    `ObjectRef = {RefKind: "Secret", RefID: <secret ObjectMeta.ID>}`, `IssuedTo` = user/group refs
+    (user `RefID` is base64 of `tenant@@default@@<user-uuid>`, the user's `ObjectMeta.ID`).
+  - **Still not run:** creating a new grant, and the audit event for View.
 
 ## Read this before you connect anything
 
