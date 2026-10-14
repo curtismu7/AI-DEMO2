@@ -2474,7 +2474,7 @@ services:
       WEAVIATE_GRPC_PORT: "50051"
       EMBEDDING_URL: http://embeddings:8080
       EMBEDDING_MODEL: nomic-embed-text-v1.5
-      # Own variables, NOT the shared ${LLAMACPP_BASE_URL}: that one also feeds agent-service
+      # Own variables, NOT the shared LLAMACPP_BASE_URL setting: that one also feeds agent-service
       # (:3006, the /dashboard path). To route this agent through the PingOne Agent Privilege
       # set LLAMAINDEX_LLM_BASE_URL=<gateway>/llm/custom and LLAMAINDEX_LLM_API_KEY to the
       # `llama.cpp` virtual key; unset, it keeps the local proxy and logs "NOT governed".
