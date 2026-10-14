@@ -22,7 +22,7 @@ it('includes User API Key & Secrets in Demo and preserves Inspect tabs', () => {
   fireEvent.click(screen.getByRole('button', { name: 'Inspect' }));
   // Inspect opens a drawer beside Demo; its tabs are in their own list.
   expect([...document.querySelectorAll('.cur-inspect-drawer .cur-tab')].map(tab => tab.textContent))
-    .toEqual(['MCP Explorer', 'Raw RPC', 'Policies']);
+    .toEqual(['MCP Explorer', 'Raw RPC', 'Policies', 'Relay log', 'Scopes']);
 });
 
 const STATUS = {

@@ -87,7 +87,7 @@ describe("Demo / Inspect", () => {
     expect(screen.getByRole("tab", { name: "Tools" })).toBeInTheDocument();
   });
 
-  it("keeps TRACE and RESULTS in Demo, and adds RELAY LOG and SCOPES in Inspect", async () => {
+  it("keeps TRACE and RESULTS in both views; Relay log and Scopes live in the Inspect drawer", async () => {
     renderPage();
     await ready();
 
@@ -96,7 +96,8 @@ describe("Demo / Inspect", () => {
     expect(terminalTabNames()).toEqual(["TRACE", "RESULTS"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
-    expect(terminalTabNames()).toEqual(["RELAY LOG", "TRACE", "SCOPES", "RESULTS"]);
+    expect(terminalTabNames()).toEqual(["TRACE", "RESULTS"]);
+    expect(drawerTabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies", "Relay log", "Scopes"]);
   });
 
   it("reveals every hidden surface in Inspect — nothing is removed", async () => {
@@ -111,7 +112,7 @@ describe("Demo / Inspect", () => {
     fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
 
     // Inspect opens a drawer; the Demo tabs stay where they were.
-    expect(drawerTabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies"]);
+    expect(drawerTabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies", "Relay log", "Scopes"]);
     expect(tabNames()).toEqual(["Agent Chat", "Tools", "User API Key & Secrets"]);
     expect(screen.getByRole("button", { name: /probe other doors/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "LLM Gateway" })).toBeInTheDocument();
@@ -187,7 +188,7 @@ describe("Demo / Inspect", () => {
 
     // And it lands on an Inspect tab, not on activeTab's 'chat' default — which
     // is not an Inspect tab at all.
-    expect(drawerTabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies"]);
+    expect(drawerTabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies", "Relay log", "Scopes"]);
     expect(document.querySelector(".cur-inspect-drawer .cur-tab--active").textContent).toBe("MCP Explorer");
   });
 
