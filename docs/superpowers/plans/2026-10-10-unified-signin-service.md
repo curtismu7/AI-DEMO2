@@ -43,7 +43,7 @@
 - Consumes: `configStore.setConfig(data)` (existing; validates keys against FIELD_DEFS), callback handlers in both routers.
 - Produces: configStore keys `last_login_hint_customer`, `last_login_hint_admin` (strings, default `''`). Task 2's endpoint and Task 3's driver read them via `configStore.getEffective('last_login_hint_' + role)`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append inside `describe('customer pi.flow sign-in', ...)` in `tests/oauthUserPiFlow.test.js` (reuse the file's existing helpers `openFlow`, `json`, `fetchMock` — read the top of the file first):
 
@@ -73,12 +73,12 @@ Append inside `describe('customer pi.flow sign-in', ...)` in `tests/oauthUserPiF
 
 Read how the file's existing tests mock the token exchange (they exist for the callback flow) and copy that mocking; the assertion above is the contract. Mirror the same test in `tests/oauthAdminPiFlow.test.js` with `last_login_hint_admin`.
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd demo_api_server && npx jest tests/oauthUserPiFlow.test.js -t "stores the login hint"`
 Expected: FAIL — `setConfig` never called with `last_login_hint_customer`.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `services/configStore.js`, in the FIELD_DEFS block right after `PINGONE_USER_AUTHORIZE_PI_FLOW` (line ~281):
 
@@ -105,12 +105,12 @@ In `routes/oauthUser.js`, inside the user callback's success path (after tokens 
 
 Match the callback's actual variable holding the signed-in username (read the code around line 1240; `authedUser` is the object built there — adapt the field name to what exists, likely `authedUser.username`). In `routes/oauth.js` find the equivalent admin callback success path and add the same block with `last_login_hint_admin`.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `cd demo_api_server && npx jest tests/oauthUserPiFlow.test.js tests/oauthAdminPiFlow.test.js`
 Expected: PASS (all, including the new ones).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add demo_api_server/services/configStore.js demo_api_server/routes/oauthUser.js demo_api_server/routes/oauth.js demo_api_server/tests/oauthUserPiFlow.test.js demo_api_server/tests/oauthAdminPiFlow.test.js
@@ -130,7 +130,7 @@ git commit -m "feat(auth): store the sign-in username per role in configStore"
 - Consumes: `configStore.setConfig`, hint keys from Task 1.
 - Produces: `PUT /api/auth/oauth/user/login-hint` and `PUT /api/auth/oauth/login-hint`, body `{ value }`, responses `204` on success, `400 { error: 'invalid_hint' }` when the value fails validation. The modal (Task 4) calls the role-appropriate path.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append in `tests/oauthUserPiFlow.test.js`:
 
@@ -166,12 +166,12 @@ Append in `tests/oauthUserPiFlow.test.js`:
 
 Note: the test app in this file mounts the router with `app.use('/api/auth/oauth/user', router)` — the route is reachable directly. configStore is already jest.mocked in this file's top; add `setConfig: jest.fn().mockResolvedValue(undefined)` to the mock factory if absent.
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd demo_api_server && npx jest tests/oauthUserPiFlow.test.js -t "PUT /login-hint"`
 Expected: FAIL — 404 (route does not exist).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `routes/oauthUser.js`, after the `/pi-flow/device` mount (~line 364):
 
@@ -201,12 +201,12 @@ router.put('/login-hint', storeLoginHint('last_login_hint_customer'));
 
 In `routes/oauth.js`, add the same two helpers (or import a shared tiny module if both routers already share one — check for an existing shared util first) and mount `router.put('/login-hint', storeLoginHint('last_login_hint_admin'))`.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `cd demo_api_server && npx jest tests/oauthUserPiFlow.test.js tests/oauthAdminPiFlow.test.js`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add demo_api_server/routes/oauthUser.js demo_api_server/routes/oauth.js demo_api_server/tests/oauthUserPiFlow.test.js
@@ -227,7 +227,7 @@ git commit -m "feat(auth): PUT /login-hint stores the role's remembered username
 - Consumes: hint keys from Task 1 via `configStore.getEffective`.
 - Produces: `/login?pi_flow=1` response gains `usernameHint` for PingOne (string or absent). The modal (Task 4) prefills from it. Sign-in with a DIFFERENT username than the hint must still succeed (advisory prefill).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append in `tests/oauthUserPiFlow.test.js`:
 
@@ -252,12 +252,12 @@ Append in `tests/oauthUserPiFlow.test.js`:
 
 Note: `configStore.getEffective` in this file's mock returns from a fixed object — adapt the mock style to what the file actually does (its factory at the top); the contract is: with `last_login_hint_customer` set, the open response carries `usernameHint` and the authorize URL carries `login_hint=`.
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd demo_api_server && npx jest tests/oauthUserPiFlow.test.js -t "stored hint"`
 Expected: FAIL — `usernameHint` absent for PingOne.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `routes/oauthUser.js` at the authorize-URL build (~line 572), the existing line:
 
@@ -292,7 +292,7 @@ reads `login_hint` from the authorize URL; the change is in `openPiFlow`'s respo
 
 (replacing the `provider === 'pingfederate' ? … : null` ternary — both providers now echo it; the comment above that line about PingOne not binding it stays true and is updated to say the hint is advisory for PingOne). Mirror the router-side changes in `routes/oauth.js` with role `'admin'`.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `cd demo_api_server && npx jest tests/oauthUserPiFlow.test.js tests/oauthAdminPiFlow.test.js`
 Expected: PASS. Existing tests asserting `usernameHint` only for PF must be updated to the new both-provider contract.
@@ -321,7 +321,7 @@ Add the Review-Focus pin (still Task 3's test file):
   });
 ```
 
-- [ ] **Step 5: Run the driver suites and commit**
+- [x] **Step 5: Run the driver suites and commit**
 
 Run: `cd demo_api_server && npx jest tests/oauthUserPiFlow.test.js tests/oauthAdminPiFlow.test.js`
 Expected: all green.
@@ -343,7 +343,7 @@ git commit -m "feat(auth): pi.flow open prefills the username from the role's st
 - Consumes: `PUT /api/auth/oauth/{user,}/login-hint` (Task 2), `usernameHint` in the open response (Task 3, already rendered today at line 178 for PF).
 - Produces: typing in the modal's username field persists the hint (debounced 800 ms; also on step switch away). No new exports.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Append in `PiFlowSignInModal.test.jsx` (reuse `mockBff`, `ok`, `ON`, `mountAndClick`):
 
@@ -373,12 +373,12 @@ Append in `PiFlowSignInModal.test.jsx` (reuse `mockBff`, `ok`, `ON`, `mountAndCl
 
 (Write the admin variant fully — same shape, `mockBff` config with admin flag `PINGONE_ADMIN_AUTHORIZE_PI_FLOW: 'true'`, dispatch via `navigateToAdminOAuthLogin`.)
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx -t "login-hint"`
 Expected: FAIL — no PUT is made.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `PiFlowSignInModal.jsx`:
 
@@ -403,12 +403,12 @@ In `PiFlowSignInModal.jsx`:
 
 Call `queueHintWrite(e.target.value)` in the username input's `onChange` and in the device-username input's `onChange`; call `clearTimeout(hintTimerRef.current)` in the modal's cleanup (the `useEffect` return) and when `begin()` resets state. The prefill already works — line 178 (`setUsername(flow.usernameHint)`) now receives PingOne hints too.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx`
 Expected: all green (40 existing + new).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add demo_api_ui/src/components/PiFlowSignInModal.jsx demo_api_ui/src/components/__tests__/PiFlowSignInModal.test.jsx
@@ -428,7 +428,7 @@ git commit -m "feat(ui): modal prefills and persists the login hint per role"
 - Consumes: Tasks 1–4 merged; the modal's existing `device` step, `switchToDevice`, `submitPasswordless`, 409 `passwordless_unavailable` handling (all shipped P1/P2).
 - Produces: the modal's first screen is the device-only step; policy-absent 400 snaps to the password form INSIDE the modal.
 
-- [ ] **Step 1: Merge the parked branch**
+- [x] **Step 1: Merge the parked branch**
 
 ```bash
 git merge worktree-passwordless-acr
@@ -439,7 +439,7 @@ Resolve trivially if needed (it touches `routes/oauth.js`, `routes/oauthUser.js`
 Run: `cd demo_api_server && npx jest tests/oauthUserPiFlow.test.js tests/oauthAdminPiFlow.test.js`
 Expected: PASS.
 
-- [ ] **Step 2: Write the failing tests**
+- [x] **Step 2: Write the failing tests**
 
 Append in `PiFlowSignInModal.test.jsx`:
 
@@ -515,12 +515,12 @@ Append in `PiFlowSignInModal.test.jsx`:
 Extend `mockBff` at the top of the file with a `passwordless` arm
 (`if (String(url).includes('/pi-flow/passwordless')) return passwordless();`).
 
-- [ ] **Step 3: Run to verify failure**
+- [x] **Step 3: Run to verify failure**
 
 Run: `cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx -t "device-only\|policy-absent\|keeps the typed username"`
 Expected: FAIL (today's default step is `password`; a 400 open redirects).
 
-- [ ] **Step 4: Implement**
+- [x] **Step 4: Implement**
 
 In `PiFlowSignInModal.jsx`:
 
@@ -546,12 +546,12 @@ In `PiFlowSignInModal.jsx`:
 3. `switchToDevice` / "Use your password instead" links already exist and keep working; the typed device-username already carries to the password form.
 4. The `device` step's submit button label stays "Sign in".
 
-- [ ] **Step 5: Run to verify pass**
+- [x] **Step 5: Run to verify pass**
 
 Run: `cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx`
 Expected: all green. Existing tests that mount and expect the password form by default must be updated to the new default (they assert via `mountAndClick` → find `Username`; update those helpers to the device step's realities — the device step ALSO renders a Username field, so most need only the password-specific assertions moved behind explicit switch clicks).
 
-- [ ] **Step 6: Run the whole UI suite + commit**
+- [x] **Step 6: Run the whole UI suite + commit**
 
 Run: `cd demo_api_ui && npx vitest run --reporter=dot 2>&1 | tail -4`
 Expected: no new failures (pre-existing failures elsewhere in the app are not this branch's to fix; note any in the commit message).
@@ -574,7 +574,7 @@ git commit -m "feat(ui): device-only sign-in is the modal's default step; policy
 - Consumes: `mfaService.listMfaDevices(userId)` (line 579, returns `{ devices }`), `mfaService.enrollSmsDevice(userId, phone)` (line 705, worker token → ACTIVE), `ensureEmailDevice` (line 688).
 - Produces: `mfaService.ensureSmsDevice(userId, phone)` → `{ status: 'existing'|'created', ... }`; `POST /api/self-service/users` response gains `mfaSmsDevice`; email rule enforced server-side; phone required.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `demo_api_server/tests/selfServiceUsersRegistration.test.js`:
 
@@ -655,12 +655,12 @@ describe('POST /api/self-service/users — registration device + email rules', (
 
 Check how `routes/selfServiceUsers.js` imports its collaborators (`pingOneUserService`, `mfaService`, logger, posthog) and match the mock paths to the REAL import specifiers — read the file's requires first and adjust the `jest.mock` paths accordingly.
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd demo_api_server && npx jest tests/selfServiceUsersRegistration.test.js`
 Expected: FAIL — no `mfaSmsDevice` in the response, bad emails accepted, missing phone accepted, `ensureSmsDevice` not exported.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `services/mfaService.js`, after `ensureEmailDevice` (line 693):
 
@@ -723,12 +723,12 @@ In `routes/selfServiceUsers.js`:
 
 and add `mfaSmsDevice` to the 201 response object.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `cd demo_api_server && npx jest tests/selfServiceUsersRegistration.test.js tests/selfServiceUsersAdminGate.test.js`
 Expected: PASS (the admin-gate suite's bodies may need `phone` added to their fixtures — do so).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add demo_api_server/routes/selfServiceUsers.js demo_api_server/services/mfaService.js demo_api_server/tests/selfServiceUsersRegistration.test.js demo_api_server/tests/selfServiceUsersAdminGate.test.js
@@ -747,7 +747,7 @@ git commit -m "feat(auth): registration enrolls EMAIL+SMS devices; email domain 
 - Consumes: server rules from Task 6.
 - Produces: client-side errors before any POST: email domain/plus rule, phone required.
 
-- [ ] **Step 1: Write the failing test**
+- [x] **Step 1: Write the failing test**
 
 Create `demo_api_ui/src/components/__tests__/SelfServicePage.test.jsx`. The form's labels are NOT
 `htmlFor`-associated (no `getByLabelText`), so select by placeholder / class query. The page
@@ -817,12 +817,12 @@ password/confirm/phone) by reading the form JSX at lines 267–415 before runnin
 input is absent from that NodeList (different class), adjust the selector, not the test's
 contract.
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd demo_api_ui && npx vitest run src/components/__tests__/SelfServicePage.test.jsx`
 Expected: FAIL.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `validateForm` (line ~89), replace the email check with:
 
@@ -841,12 +841,12 @@ In `validateForm` (line ~89), replace the email check with:
 
 Change the phone section's heading `Contact Information (Optional)` to `Contact Information` and the label to `Phone Number *`.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `cd demo_api_ui && npx vitest run src/components/__tests__/SelfServicePage.test.jsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add demo_api_ui/src/components/SelfServicePage.js demo_api_ui/src/components/__tests__/SelfServicePage.test.jsx
@@ -867,7 +867,7 @@ git commit -m "feat(ui): registration form enforces the email rule and requires 
 - Consumes: `PI_FLOW_SIGNIN_EVENT` (authUi.js:339), `/api/admin/config`.
 - Produces: `openSignIn({ role, returnTo, force })`, `openAdminSignIn({ returnTo, force })`, `isSignInAvailable()`, `initSignInService()` (idempotent config fetch). The modal keeps its own config gate fetch as-is (no new event contract); the service's cached availability backs `openSignIn`'s fallback decision and `isSignInAvailable()` for call sites. `openAdminSignIn({ returnTo, force })` = `openSignIn({ role: 'admin', returnTo, force })`.
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 Create `demo_api_ui/src/utils/__tests__/signInService.test.js`:
 
@@ -918,12 +918,12 @@ describe('signInService', () => {
 });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd demo_api_ui && npx vitest run src/utils/__tests__/signInService.test.js`
 Expected: FAIL — module missing.
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 Create `demo_api_ui/src/utils/signInService.js`:
 
@@ -990,12 +990,12 @@ In `authUi.js`: rename the redirect legs of `navigateToCustomerOAuthLogin`/`navi
 
 Also: `App.js` mounts `<PiFlowSignInModal />` (line 714) — add an `initSignInService()` call in App's existing boot effect so availability is warm before any click.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `cd demo_api_ui && npx vitest run src/utils/__tests__/signInService.test.js src/utils/authUi.sessionDetail.test.js src/components/__tests__/PiFlowSignInModal.test.jsx`
 Expected: PASS.
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add demo_api_ui/src/utils/signInService.js demo_api_ui/src/utils/authUi.js demo_api_ui/src/utils/__tests__/signInService.test.js demo_api_ui/src/App.js
@@ -1020,7 +1020,7 @@ git commit -m "feat(ui): signInService — one entry point, one fallback, warm c
 - Consumes: `openSignIn` / `openAdminSignIn` (Task 8).
 - Produces: no raw redirect to `/api/auth/oauth*/login` outside the exceptions list.
 
-- [ ] **Step 1: Write the failing tests (one per file, minimal)**
+- [x] **Step 1: Write the failing tests (one per file, minimal)**
 
 For each file, one test asserting the sign-in trigger dispatches `PI_FLOW_SIGNIN_EVENT` (via `openSignIn`) instead of setting `window.location`. Pattern (adapt selectors/mount to each file's existing tests):
 
@@ -1037,12 +1037,12 @@ For each file, one test asserting the sign-in trigger dispatches `PI_FLOW_SIGNIN
 
 Where the component's existing test setup already exists (LandingPage, AIAgent, OAuthTokenDisplayPage all have suites), EXTEND those files instead of creating new ones.
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd demo_api_ui && npx vitest run src/components src/pages --reporter=dot 2>&1 | tail -6`
 Expected: the new tests FAIL (raw redirects today).
 
-- [ ] **Step 3: Implement, file by file**
+- [x] **Step 3: Implement, file by file**
 
 - `LandingPage.js:131`: `window.location.href = "/api/auth/oauth/login"` → `openAdminSignIn({ returnTo: window.location.pathname })`. Line 145: `navigateWithOverlay(".../user/login?return_to=/use-cases/live", …)` → `openSignIn({ returnTo: '/use-cases/live' })`.
 - `AIAgent.js` ~4027: admin action redirect → `openAdminSignIn({ returnTo: location.pathname })`. ~4057: customer default → `openSignIn({ returnTo })`; DELETE the `marketing_customer_login_mode === 'slide_pi_flow'` config fetch and `use_pi_flow` param (nothing consumes the param server-side).
@@ -1052,12 +1052,12 @@ Expected: the new tests FAIL (raw redirects today).
 - `TokenExchangeTesterPage.jsx:134`: `LOGIN_URL` constant removed; `openSignIn({ returnTo: '/token-exchange-tester' })`.
 - `PingFederateDownModal.jsx:37`: its "sign in anyway" action → `openSignIn({ returnTo: window.location.pathname })`.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `cd demo_api_ui && npx vitest run --reporter=dot 2>&1 | tail -6`
 Expected: new tests PASS; no new failures elsewhere.
 
-- [ ] **Step 5: Guardrail test — nothing else redirects**
+- [x] **Step 5: Guardrail test — nothing else redirects**
 
 Append to `signInService.test.js`:
 
@@ -1086,7 +1086,7 @@ Append to `signInService.test.js`:
   });
 ```
 
-- [ ] **Step 6: Run + commit**
+- [x] **Step 6: Run + commit**
 
 Run: `cd demo_api_ui && npx vitest run src/utils/__tests__/signInService.test.js`
 Expected: PASS (offenders list empty).
@@ -1109,7 +1109,7 @@ git commit -m "feat(ui): every sign-in trigger routes through signInService; OAu
 - Consumes: the driver's existing PF step support (`checkUsernamePassword`, `otp.check`, device-select with `pf ? 'application/json'`).
 - Produces: PF `OTP_REQUIRED` / `DEVICE_SELECTION_REQUIRED` drive in the modal. `PUSH_CONFIRMATION_WAITING` stays `fallback:true` (needs polling; out of scope).
 
-- [ ] **Step 1: Write the failing tests**
+- [x] **Step 1: Write the failing tests**
 
 In `tests/oauthAdminPiFlow.test.js` (PF describe block), the existing test at line 170 asserts `PUSH_CONFIRMATION_WAITING → { fallback: true }` — KEEP it. Add:
 
@@ -1145,12 +1145,12 @@ In `PiFlowSignInModal.test.jsx`:
   });
 ```
 
-- [ ] **Step 2: Run to verify failure**
+- [x] **Step 2: Run to verify failure**
 
 Run: `cd demo_api_server && npx jest tests/oauthAdminPiFlow.test.js -t "PF OTP_REQUIRED"` and `cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx -t "PingFederate drives OTP"`
 Expected: server test may already pass (driver maps OTP for both providers — verify); modal test FAILS (the `begin()` early-redirect for `mfaRequested() && PF`).
 
-- [ ] **Step 3: Implement**
+- [x] **Step 3: Implement**
 
 In `PiFlowSignInModal.jsx` `begin()`: delete the
 
@@ -1163,12 +1163,12 @@ In `PiFlowSignInModal.jsx` `begin()`: delete the
 
 block and its comment. The driver's `fallback:true` for `PUSH_CONFIRMATION_WAITING` remains the safety net for PF methods the modal can't drive.
 
-- [ ] **Step 4: Run to verify pass**
+- [x] **Step 4: Run to verify pass**
 
 Run: `cd demo_api_server && npx jest tests/oauthAdminPiFlow.test.js tests/oauthUserPiFlow.test.js && cd demo_api_ui && npx vitest run src/components/__tests__/PiFlowSignInModal.test.jsx`
 Expected: PASS (the PF-MFA-hosted-detour test at line ~172 must be updated — it asserts the detour).
 
-- [ ] **Step 5: Commit**
+- [x] **Step 5: Commit**
 
 ```bash
 git add demo_api_server/services/piFlowDriver.js demo_api_ui/src/components/PiFlowSignInModal.jsx demo_api_server/tests/oauthAdminPiFlow.test.js demo_api_ui/src/components/__tests__/PiFlowSignInModal.test.jsx
@@ -1178,6 +1178,8 @@ git commit -m "feat(auth): PingFederate MFA steps drive in the pi.flow modal; PU
 ---
 
 ### Task 11: full verification + live drive
+
+> Not live-verified: steps 1-5 of the live drive were not run (AIC login toggle on the local stack redirects to AIC; PingOne drive unverified as of 2026-10-14). Tests for Tasks 1-10 pass.
 
 **Files:**
 - None (verification only)
