@@ -1,4 +1,6 @@
 // Creates the temporary "OBO Test" PingOne resource and grants its scope to the Token Exchanger app.
+// Defaults match the app's /obo-demo page (OBO_AUDIENCE=obo-demo.ping.demo, OBO_SCOPE=obo:invoke) and emit
+// `act` as an RFC 8693 OBJECT. Override with OBO_AUDIENCE / OBO_SCOPE / OBO_ACT_SPEL.
 // Run: node setup-pingone.mjs            (create)
 //      node setup-pingone.mjs --delete   (remove the resource again)
 // Reads worker creds from demo_api_server/.env (override with OBO_ENV_FILE).
@@ -11,7 +13,10 @@ const ENV_FILE = process.env.OBO_ENV_FILE || path.join(REPO_ROOT, 'demo_api_serv
 const env = Object.fromEntries(fs.readFileSync(ENV_FILE, 'utf8').split('\n').filter((l) => /^[A-Z_0-9]+=/.test(l))
   .map((l) => { const i = l.indexOf('='); return [l.slice(0, i), l.slice(i + 1).replace(/^["']|["']$/g, '')]; }));
 const E = env.PINGONE_ENVIRONMENT_ID, R = env.PINGONE_REGION;
-const ACT_SPEL = process.env.OBO_ACT_SPEL || '${#root.context.requestData.actorToken.client_id}';
+// Object form (a bare ${..client_id} yields a string): must match OBO_ACT_SPEL in demo_api_server/services/oboConfig.js.
+const ACT_SPEL = process.env.OBO_ACT_SPEL || "${{'client_id': #root.context.requestData.actorToken.client_id}}";
+const AUDIENCE = process.env.OBO_AUDIENCE || 'obo-demo.ping.demo';
+const SCOPE = process.env.OBO_SCOPE || 'obo:invoke';
 
 const t = await (await fetch(`https://auth.pingone.${R}/${E}/as/token`, {
   method: 'POST',
@@ -35,8 +40,8 @@ if (process.argv.includes('--delete')) {
 }
 if (existing) await call('DELETE', `/resources/${existing.id}`); // leftover from an earlier run; this script owns it
 
-const res = await call('POST', '/resources', { name: 'OBO Test', description: 'Temporary OBO delegation test (scripts/obo-claude-test). Safe to delete.', type: 'CUSTOM', audience: 'obo-test.ping.demo', accessTokenValiditySeconds: 900 });
-const sc = await call('POST', `/resources/${res.id}/scopes`, { name: 'obo:invoke', description: 'OBO test' });
+const res = await call('POST', '/resources', { name: 'OBO Test', description: 'Temporary OBO delegation test (scripts/obo-claude-test). Safe to delete.', type: 'CUSTOM', audience: AUDIENCE, accessTokenValiditySeconds: 900 });
+const sc = await call('POST', `/resources/${res.id}/scopes`, { name: SCOPE, description: 'OBO test' });
 await call('POST', `/resources/${res.id}/attributes`, { name: 'act', value: ACT_SPEL, type: 'CUSTOM' });
 await call('POST', `/applications/${env.PINGONE_TOKEN_EXCHANGER_CLIENT_ID}/grants`, { resource: { id: res.id }, scopes: [{ id: sc.id }] });
 console.log('created resource', res.id);
