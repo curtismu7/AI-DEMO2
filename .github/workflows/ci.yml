@@ -52,6 +52,7 @@ jobs:
       ui-changed-files: ${{ steps.ui-files.outputs.files || '[]' }}
       unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.nightly.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
       python-agents: ${{ steps.all.outputs['python-agents'] || steps.nightly.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
+      standalone-a2a: ${{ steps.all.outputs['standalone-a2a'] || steps.nightly.outputs['standalone-a2a'] || steps.filter.outputs['standalone-a2a'] }}
     steps:
       - name: Validate optional target commit SHA
         if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
@@ -72,6 +73,7 @@ jobs:
             echo "ui=true"
             echo "unwired-services=true"
             echo "python-agents=true"
+            echo "standalone-a2a=true"
           } >> "$GITHUB_OUTPUT"
       - name: Run every suite in nightly CI
         # Nightly is the full-coverage safety net now that push-to-main is
@@ -85,6 +87,7 @@ jobs:
             echo "ui=true"
             echo "unwired-services=true"
             echo "python-agents=true"
+            echo "standalone-a2a=true"
           } >> "$GITHUB_OUTPUT"
       # On a push the path filter diffs with git, so it needs a real checkout
       # and its credentials. Without this step it ran `git fetch` in whatever
@@ -143,6 +146,8 @@ jobs:
             python-agents:
               - 'langchain_agent/**'
               - 'llamaindex_agent/**'
+            standalone-a2a:
+              - 'standalone/privilege-a2a-anthropic-demo/**'
       - name: Collect changed UI paths for related tests
         if: github.event_name == 'pull_request' && steps.filter.outputs.ui == 'true'
         id: ui-files
@@ -466,6 +471,32 @@ jobs:
           .venv/bin/python -m pip install --quiet -r requirements.txt pytest
           .venv/bin/python -m pytest tests/ -q
 
+  standalone-a2a-tests:
+    # standalone/privilege-a2a-anthropic-demo (main agent, worker agent, MCP server) had 59 tests that no job
+    # ran. That is how a Heuristics-mode bug (a dated answer emptied by the scope-claim filter, so the run
+    # delegated four times and then called a model) reached production: the one test that touched it used
+    # data with no dates, and nothing executed it on merge anyway. The suite is hermetic: it spawns the three
+    # processes on free ports against a mock Anthropic server, so it needs no keys and no network.
+    name: Standalone A2A demo suite (main agent, worker, MCP)
+    needs: [changes, gates]
+    if: needs.changes.outputs['standalone-a2a'] == 'true'
+    runs-on: [self-hosted, macOS]
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v7
+        with:
+          ref: ${{ inputs.target_ref || github.sha }}
+      - uses: actions/setup-node@v7
+        with:
+          node-version: 22
+          package-manager-cache: false
+      - name: Install standalone demo deps
+        run: bash scripts/ci-cached-npm-ci.sh standalone/privilege-a2a-anthropic-demo
+      - name: Typecheck
+        run: cd standalone/privilege-a2a-anthropic-demo && npx tsc --noEmit
+      - name: Tests (blocking)
+        run: cd standalone/privilege-a2a-anthropic-demo && npm test
+
   authz-decision-tests:
     # demo_authz_server and demo_mcp_gateway had ~90 test cases that no job ran.
     # demo_mcp_gateway was installed above ONLY so topology:verify could run an
@@ -550,7 +581,7 @@ jobs:
     # notifier (Slack/webhook) has one file to read. It does not replace
     # branch protection — it makes "main is red" un-missable in the run list.
     name: Main is red (alert)
-    needs: [changes, gates, api-server-tests, ui-tests, unwired-service-suites, python-agent-suites, authz-decision-tests]
+    needs: [changes, gates, api-server-tests, ui-tests, unwired-service-suites, python-agent-suites, standalone-a2a-tests, authz-decision-tests]
     # A newer merge cancels this run (the concurrency group above), which makes
     # the upstream jobs "cancelled" — not red. Alerting on that is a false
     # positive, so stay quiet unless every upstream job actually finished.
@@ -570,6 +601,7 @@ jobs:
             echo "| ui-tests | ${{ contains(needs.ui-tests.result, 'success') && '✅' || '❌ ' }} ${{ needs.ui-tests.result }} |"
             echo "| unwired-service-suites | ${{ contains(needs.unwired-service-suites.result, 'success') && '✅' || '❌ ' }} ${{ needs.unwired-service-suites.result }} |"
             echo "| python-agent-suites | ${{ contains(needs.python-agent-suites.result, 'success') && '✅' || '❌ ' }} ${{ needs.python-agent-suites.result }} |"
+            echo "| standalone-a2a-tests | ${{ contains(needs.standalone-a2a-tests.result, 'success') && '✅' || '❌ ' }} ${{ needs.standalone-a2a-tests.result }} |"
             echo "| authz-decision-tests | ${{ contains(needs.authz-decision-tests.result, 'success') && '✅' || '❌ ' }} ${{ needs.authz-decision-tests.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
           # Push-to-main is path-filtered, so a suite the merge did not touch
