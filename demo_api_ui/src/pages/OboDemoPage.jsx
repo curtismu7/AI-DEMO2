@@ -132,7 +132,8 @@ export default function OboDemoPage() {
       <p className="obo-demo__lede">
         An agent acts for you through RFC 8693 delegation. The exchange keeps your identity (<code>sub</code>),
         records the agent as <code>act</code>, and issues a token the downstream API accepts. Your own token is
-        refused there. The model never sees either token.
+        refused there. The model never sees either token.{" "}
+        <a href="/architecture/obo-flow.html" target="_blank" rel="noopener noreferrer">View the flow diagram (opens in a new tab)</a>
       </p>
       <div className="obo-demo__workspace">
         <section aria-label="Run">

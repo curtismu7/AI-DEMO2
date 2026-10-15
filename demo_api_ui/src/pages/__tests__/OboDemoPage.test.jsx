@@ -75,4 +75,12 @@ describe("OboDemoPage", () => {
     expect(screen.getByText("invalid_request")).toBeInTheDocument();
     expect(screen.getAllByText("skipped")).toHaveLength(4);
   });
+
+  it("links the flow diagram and opens it in a new tab", () => {
+    render(<OboDemoPage />);
+    const link = screen.getByRole("link", { name: /flow diagram/i });
+    expect(link).toHaveAttribute("href", "/architecture/obo-flow.html");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+  });
 });
