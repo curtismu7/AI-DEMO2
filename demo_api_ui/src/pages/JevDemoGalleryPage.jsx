@@ -3,6 +3,7 @@ import { useCallback, useMemo, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
 import InlineSpinner from '../components/shared/InlineSpinner';
 import { ARTICLES, GALLERY } from './jevDemoContent';
+import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 import './JevLearningPage.css';
 
 /**
@@ -17,11 +18,16 @@ import './JevLearningPage.css';
 const ESCALATE_LOW = 0.35;
 const ESCALATE_HIGH = 0.65;
 
+// The page's own Heuristics | llama.cpp choice (PageAgentModeToggle writes it); anything but heuristics leaves Jev live when configured.
+const pageMode = () => {
+  try { return localStorage.getItem('agentMode:jev-gallery') === 'heuristics' ? { mode: 'heuristics' } : {}; } catch { return {}; }
+};
+
 async function evaluate(scenario, state) {
   const res = await fetch('/api/demo/jev/evaluate', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenario, state }),
+    body: JSON.stringify({ scenario, state, ...pageMode() }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.message || `HTTP ${res.status}`);
@@ -32,17 +38,17 @@ async function batch(scenario, states) {
   const res = await fetch('/api/demo/jev/batch', {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ scenario, states }),
+    body: JSON.stringify({ scenario, states, ...pageMode() }),
   });
   const body = await res.json().catch(() => ({}));
   if (!res.ok) throw new Error(body.message || `HTTP ${res.status}`);
   return body;
 }
 
-function ModeBadge({ mode, model }) {
+function ModeBadge({ mode, model, chosen }) {
   if (mode === 'live') return <span className="jev-badge jev-badge--live">{`Live: ${model}`}</span>;
   if (mode === 'recorded') return <span className="jev-badge jev-badge--rec">Recorded</span>;
-  return <span className="jev-badge jev-badge--sim">Simulated — not configured</span>;
+  return <span className="jev-badge jev-badge--sim">{chosen ? 'Heuristics — chosen on this page' : 'Simulated — not configured'}</span>;
 }
 
 function ReportedNote({ children }) {
@@ -177,7 +183,7 @@ function BatchDemo({ cfg, actLabel, passLabel, escalateNote, content }) {
               ))}
             </tbody>
           </table>
-          <p className="jev-big"><ModeBadge mode={rows[0].mode} model={rows[0].model} /></p>
+          <p className="jev-big"><ModeBadge mode={rows[0].mode} model={rows[0].model} chosen={rows[0].chosen} /></p>
           {content.withBand && (
             <>
               <EscalateBand low={band[0]} high={band[1]} onChange={setBand} />
@@ -245,7 +251,7 @@ function ComputerUseDemo({ cfg }) {
             <p className="jev-explain">Matches words like “type”, “menu”, “open” — the screen text here deliberately contains several, so it guesses by vibe.</p>
           </div>
           <div className="jev-col">
-            <h3 className="jev-h3">Jev <ModeBadge mode={result.jev.mode} model={result.jev.model} /></h3>
+            <h3 className="jev-h3">Jev <ModeBadge mode={result.jev.mode} model={result.jev.model} chosen={result.jev.chosen} /></h3>
             <p className="jev-big">{result.jev.answer.choice} ({Math.round((result.jev.answer.confidence ?? 0) * 100)}% confident)</p>
             <p className="jev-explain">
               Expected: <strong>{screen.expected}</strong> — {screen.expectedWhy}
@@ -328,7 +334,7 @@ function GameLoopDemo({ cfg, frames, runLabel }) {
               })}
             </tbody>
           </table>
-          <p className="jev-big"><ModeBadge mode={log[0].mode} model={log[0].model} /></p>
+          <p className="jev-big"><ModeBadge mode={log[0].mode} model={log[0].model} chosen={log[0].chosen} /></p>
           <p className="jev-explain">{cfg.lesson}</p>
         </>
       )}
@@ -396,7 +402,7 @@ function PrReviewDemo({ cfg }) {
             </tbody>
           </table>
           <p className="jev-big">
-            {counts.block} block · {counts.escalate} escalate · {counts.pass} pass{counts.failed ? ` · ${counts.failed} failed` : ''} <ModeBadge mode={rows[0].mode} model={rows[0].model} />
+            {counts.block} block · {counts.escalate} escalate · {counts.pass} pass{counts.failed ? ` · ${counts.failed} failed` : ''} <ModeBadge mode={rows[0].mode} model={rows[0].model} chosen={rows[0].chosen} />
           </p>
           <EscalateBand low={band[0]} high={band[1]} onChange={setBand} />
           <p className="jev-explain">{cfg.lesson}</p>
@@ -408,6 +414,7 @@ function PrReviewDemo({ cfg }) {
 
 export default function JevDemoGalleryPage() {
   const { demoId } = useParams();
+  const [pageAgentMode, setPageAgentMode] = usePageAgentMode('jev-gallery');
   const entry = GALLERY.find((g) => g.id === demoId) || GALLERY[0];
   // ARTICLES carries the demo body; id/title come from the GALLERY entry.
   const cfg = { ...ARTICLES[entry.id], id: entry.id, title: entry.title };
@@ -415,6 +422,9 @@ export default function JevDemoGalleryPage() {
   return (
     <div className="jev-page">
       <h1 className="jev-h1">Jev demos: eight things people build with a decision model</h1>
+      <div style={{ margin: '0 0 0.75rem' }}>
+        <PageAgentModeToggle mode={pageAgentMode} onChange={setPageAgentMode} />
+      </div>
       <p className="jev-sub">
         Eight demos from the wild, rebuilt as runnable sketches on this stack’s scenario-locked Jev backend.
         Every demo is a typed question with a probability back — the differences are what is being asked,

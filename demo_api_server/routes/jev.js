@@ -71,12 +71,12 @@ router.post('/langchain', limiter, async (req, res) => {
 });
 
 router.post('/evaluate', limiter, async (req, res) => {
-  const { scenario, state } = req.body || {};
+  const { scenario, state, mode } = req.body || {};
   try {
     const t0 = Date.now();
     const baseline = heuristic(scenario, String(state || ''));
     const heuristicMs = Date.now() - t0;
-    const jev = await evaluate(scenario, state);
+    const jev = await evaluate(scenario, state, { heuristicsOnly: mode === 'heuristics' });
     return res.json({ scenario, jev, heuristic: { latencyMs: heuristicMs, answer: baseline } });
   } catch (err) {
     if (err.status === 400) return res.status(400).json({ error: 'invalid_request', message: err.message });
@@ -90,7 +90,7 @@ router.post('/evaluate', limiter, async (req, res) => {
 // judged through the same scenario lock as /evaluate. In simulated mode the
 // heuristic answers per state; in live mode the questions fan out in parallel.
 router.post('/batch', limiter, async (req, res) => {
-  const { scenario, states } = req.body || {};
+  const { scenario, states, mode } = req.body || {};
   if (!SCENARIOS[scenario]) {
     return res.status(400).json({ error: 'invalid_request', message: 'Unknown scenario.' });
   }
@@ -108,7 +108,7 @@ router.post('/batch', limiter, async (req, res) => {
     const jevResults = await Promise.all(
       states.map(async (s, i) => {
         try {
-          const r = await evaluate(scenario, s);
+          const r = await evaluate(scenario, s, { heuristicsOnly: mode === 'heuristics' });
           return { index: i, ...r };
         } catch (err) {
           return { index: i, mode: 'error', error: err.message || 'failed' };
