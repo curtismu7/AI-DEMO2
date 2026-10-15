@@ -391,7 +391,7 @@ const STEP_SPEC = {
   database: {
     refs: [],
     mandate: "No OAuth specification governs the database query. OAuth authorization has already been enforced by the resource server before application code reads or writes data.",
-    why: "Keeping the database behind the resource-server boundary makes the trust transition explicit: the MCP call reaches backend application code, and only that application queries its private data store. United Airlines tools use the resource server's real SQLite database.",
+    why: "Keeping the database behind the resource-server boundary makes the trust transition explicit: the MCP call reaches backend application code, and only that application queries its private data store. Airline tools use the resource server's real SQLite database.",
     failure: "Showing a database hop without runtime evidence makes a proxy, mock, or denied request look like a real data access. This card completes only when the result reports a SQL source.",
   },
   reply: {
