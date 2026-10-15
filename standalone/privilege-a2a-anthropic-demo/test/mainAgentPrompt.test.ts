@@ -18,3 +18,9 @@ test('default and vertical concierge prompts both forbid unsourced claims about 
   assert.ok(systemPromptFor(profile).includes(RULE));
   assert.ok(systemPromptFor(profile).includes(SCOPE));
 });
+
+test('the first turn of a question must call the delegate tool; later turns may answer freely', async () => {
+  const { toolChoiceFor } = await import('../src/main-agent/prompts.js');
+  assert.deepEqual(toolChoiceFor(0, 'delegate_to_analyst'), { type: 'tool', name: 'delegate_to_analyst', disable_parallel_tool_use: true });
+  assert.deepEqual(toolChoiceFor(1, 'delegate_to_analyst'), { type: 'auto', disable_parallel_tool_use: true });
+});

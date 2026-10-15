@@ -4,7 +4,7 @@ import Anthropic from '@anthropic-ai/sdk';
 
 import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
 import { parseMode, parseProfile, parseUserName, withLabels, type Profile } from '../profile.js';
-import { systemPromptFor } from './prompts.js';
+import { systemPromptFor, toolChoiceFor } from './prompts.js';
 import { stripUnsourcedScope, textOfTurn } from './scopeFilter.js';
 import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
@@ -228,7 +228,7 @@ app.post('/chat', async (req: Request, res: Response) => {
           max_tokens: MAX_OUTPUT_TOKENS,
           system: systemPrompt,
           tools: [delegateTool],
-          tool_choice: { type: 'auto', disable_parallel_tool_use: true },
+          tool_choice: toolChoiceFor(round, delegateTool.name),
           messages,
         });
         abortActiveModelStream = () => stream.controller.abort();
