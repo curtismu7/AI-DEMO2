@@ -30,3 +30,10 @@ test('keeps a span word the raw output also contains', () => {
   const reply = 'It renews in 4 months.';
   assert.equal(stripUnsourcedScope(reply, raw), reply);
 });
+
+test('a model turn with no tool data has its unsourced status claims dropped', async () => {
+  const { textOfTurn } = await import('../src/main-agent/scopeFilter.js');
+  const turn = [{ type: 'text', text: 'Your membership is in good standing with an active tier. ' }, { type: 'tool_use' }, { type: 'text', text: 'Tier: Silver.' }];
+  assert.equal(textOfTurn(turn), 'Your membership is in good standing with an active tier. Tier: Silver.');
+  assert.equal(stripUnsourcedScope(textOfTurn(turn), ''), 'Tier: Silver.');
+});
