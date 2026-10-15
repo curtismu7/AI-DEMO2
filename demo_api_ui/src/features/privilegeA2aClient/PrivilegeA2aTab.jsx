@@ -23,7 +23,31 @@ const WHY = {
   'mcp-call': 'The gateway checks the grant before the tool runs.',
   result: 'The result goes back to the main agent to be shown.',
   error: 'Something stopped this step. Its details say what.',
+  model: 'The model decides the next step. Its tokens are what that decision used.',
 };
+const tokensLine = (tokens) => (tokens ? `${tokens.input.toLocaleString()} in · ${tokens.output.toLocaleString()} out` : '');
+const runTokens = (trace) => trace.reduce((sum, entry) => ({
+  input: sum.input + (entry.tokens?.input || 0),
+  output: sum.output + (entry.tokens?.output || 0),
+  calls: sum.calls + (entry.tokens ? 1 : 0),
+}), { input: 0, output: 0, calls: 0 });
+const CALL_GROUPS = [
+  { label: 'Ask the analyst', items: [
+    'List all entitlements for Carol Nguyen.',
+    'Which grants on prod-db-primary have never been used?',
+    'Who is offboarding and still has active access?',
+  ] },
+  { label: 'Tools the analyst can call', items: [
+    'Who has the prod-db-admin role?',
+    'Show the access grants on prod-db-primary.',
+    'Open a ticket to review Carol Nguyen\'s access to prod-db-primary.',
+  ] },
+  { label: 'Try a case that stops', items: [
+    'Show entitlements for an ungranted user.',
+    'Delete the orders-2026 index.',
+    'Which of my purchases were returned?',
+  ] },
+];
 const QUIZ_OPTIONS = [
   'The main agent',
   'The analyst agent, through an MCP tool',
@@ -32,6 +56,28 @@ const QUIZ_OPTIONS = [
 
 export default function PrivilegeA2aTab() {
   const profile = usePrivilegeA2aProfile();
+  // Save the run as the trace the page shows (no secrets: the same fields the reel already displays).
+  const saveRun = () => {
+    const blob = new Blob([JSON.stringify({ savedAt: new Date().toISOString(), turns, trace }, null, 2)], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+    const link = document.createElement('a');
+    link.href = url;
+    link.download = 'a2a-run.json';
+    link.click();
+    URL.revokeObjectURL(url);
+  };
+  // Replay the run's steps one at a time, so a presenter or learner sees them land in order.
+  const replayRun = async () => {
+    const steps = trace.slice();
+    setReplaying(true);
+    setTrace([]);
+    setSelectedStep(null);
+    for (const step of steps) {
+      await new Promise((resolve) => setTimeout(resolve, 600));
+      setTrace((current) => [...current, step]);
+    }
+    setReplaying(false);
+  };
   const [agentMode, setAgentMode] = usePageAgentMode('privilege-a2a');
   const demoQuestions = profile?.questions?.length ? profile.questions : PRIVILEGE_A2A_DEMO_QUESTIONS;
   const [input, setInput] = useState('');
@@ -40,6 +86,8 @@ export default function PrivilegeA2aTab() {
   const [selectedStep, setSelectedStep] = useState(null);
   const [quizOpen, setQuizOpen] = useState(false);
   const [quizAnswer, setQuizAnswer] = useState(null);
+  const [callsOpen, setCallsOpen] = useState(false);
+  const [replaying, setReplaying] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState('');
   const [turns, setTurns] = useState([]);
   const [trace, setTrace] = useState([]);
@@ -78,6 +126,8 @@ export default function PrivilegeA2aTab() {
         elapsedMs: typeof payload.elapsedMs === 'number' ? payload.elapsedMs : null,
         request: typeof payload.request === 'string' ? payload.request : '',
         response: typeof payload.response === 'string' ? payload.response : '',
+        // A model call's token counts, as the agent reported them; absent for hops that made no model call.
+        tokens: payload.tokens && typeof payload.tokens === 'object' ? payload.tokens : null,
       }]);
     } else if (eventName === 'done') {
       if (typeof payload.sessionId === 'string' && payload.sessionId.length <= 128) {
@@ -278,6 +328,24 @@ export default function PrivilegeA2aTab() {
         <div className="privilege-a2a__actions">
           <span>Send a question to trigger Main agent → A2A → Analyst → MCP tools.</span>
           {busy && <button className="privilege-a2a__cancel" type="button" onClick={cancelRequest}>Cancel</button>}
+          <div className="privilege-a2a__calls">
+            <button type="button" aria-expanded={callsOpen} aria-controls="privilege-a2a-calls" onClick={() => setCallsOpen((open) => !open)}>Calls ▾</button>
+            {callsOpen && (
+              <ul id="privilege-a2a-calls" className="privilege-a2a__calls-menu" role="listbox" aria-label="Calls you can make">
+                {CALL_GROUPS.map((group) => (
+                  <li key={group.label} role="presentation">
+                    <span className="privilege-a2a__calls-group">{group.label}</span>
+                    {group.items.map((item) => (
+                      <button key={`${group.label}-${item}`} type="button" role="option" aria-selected={input === item}
+                        onClick={() => { setInput(item); setSelectedQuestion(''); setCallsOpen(false); }}>
+                        {item}
+                      </button>
+                    ))}
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
           <button className="privilege-a2a__send" type="submit" disabled={busy || !input.trim()}>
             {busy ? 'Reviewing…' : 'Send question'}
           </button>
@@ -342,7 +410,24 @@ export default function PrivilegeA2aTab() {
               )}
             </>
           )}
-          <h3>Agent trace</h3>
+          <div className="privilege-a2a__reel-head">
+            <h3>Agent trace</h3>
+            <div className="privilege-a2a__reel-actions">
+              <button type="button" onClick={() => navigator.clipboard?.writeText(window.location.href)} disabled={trace.length === 0}>Copy link</button>
+              <button type="button" onClick={saveRun} disabled={trace.length === 0}>Save run</button>
+              <button type="button" onClick={replayRun} disabled={trace.length === 0 || replaying}>{replaying ? 'Replaying…' : 'Replay'}</button>
+            </div>
+          </div>
+          {trace.length > 0 && (() => {
+            const totals = runTokens(trace);
+            return (
+              <p className="privilege-a2a__run-totals">
+                {totals.calls > 0
+                  ? `${totals.calls} model call${totals.calls === 1 ? '' : 's'} · ${totals.input.toLocaleString()} in · ${totals.output.toLocaleString()} out tokens`
+                  : 'No model calls in this run'}
+              </p>
+            );
+          })()}
           {trace.length === 0 ? (
             <p className="privilege-a2a__empty">Delegation and tool activity will appear here while the review runs.</p>
           ) : (
@@ -356,6 +441,7 @@ export default function PrivilegeA2aTab() {
                   <span className="privilege-a2a__trace-kind">{entry.kind}</span>
                   <span className="privilege-a2a__trace-text">{entry.text}</span>
                   {WHY[entry.kind] && <span className="privilege-a2a__why">{WHY[entry.kind]}</span>}
+                  {entry.tokens && <span className="privilege-a2a__tokens">{tokensLine(entry.tokens)}</span>}
                   {entry.from && entry.to && (
                     <span className="privilege-a2a__trace-route">
                       {entry.from} → {entry.to}{entry.elapsedMs != null ? ` · ${entry.elapsedMs} ms` : ''}
@@ -392,7 +478,22 @@ export default function PrivilegeA2aTab() {
             <p className="privilege-a2a__empty">Click a step in the reel to see what was sent and what came back.</p>
           )}
           <h3>Tokens</h3>
-          <p className="privilege-a2a__empty">Not reported yet. The agents do not send token counts with the trace.</p>
+          {selectedStep !== null && trace[selectedStep]?.tokens ? (
+            <p>This step: {tokensLine(trace[selectedStep].tokens)}</p>
+          ) : null}
+          {trace.length > 0 ? (
+            <p className="privilege-a2a__empty">Run total: {tokensLine(runTokens(trace))}</p>
+          ) : (
+            <p className="privilege-a2a__empty">Token counts appear here once a run starts.</p>
+          )}
+          <h3>Direct or through the gateway?</h3>
+          <table className="privilege-a2a__compare">
+            <tbody>
+              <tr><th scope="row">Who checks the grant</th><td>Direct: the tool trusts the call. Gateway: the gateway checks each hop.</td></tr>
+              <tr><th scope="row">Screening</th><td>Direct: none. Gateway: prompts and replies are screened.</td></tr>
+              <tr><th scope="row">Record</th><td>Direct: only the app's own log. Gateway: every call is in the gateway's log.</td></tr>
+            </tbody>
+          </table>
         </aside>
       </div>
 
