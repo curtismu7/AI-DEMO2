@@ -290,6 +290,7 @@
     "/obo-demo": "user",
     "/personal-agent": "public",
     "/personal-agent/client": "public",
+    "/personal-agent/dot": "public",
     "/personal-agent-design": "public",
     "/personal-agent-dual-gateway": "public",
     "/personal-agent-review": "public",

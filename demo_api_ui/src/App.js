@@ -187,6 +187,7 @@ import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
 import WorkloadAgentsPage from "./pages/WorkloadAgentsPage";
 import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
+import DotWorkbenchPage from "./pages/DotWorkbenchPage";
 import GovernanceTimelinePage from "./pages/GovernanceTimelinePage";
 import EmbeddedWorkerPage from "./pages/EmbeddedWorkerPage";
 import TransactionTraceEmbedPage from "./pages/TransactionTraceEmbedPage";
@@ -1603,6 +1604,14 @@ function AppWithAuth() {
                   element={
                     // Bare route for pop-out window — no nav shell.
                     <PersonalAgentClientWindow />
+                  }
+                />
+                <Route
+                  path="/personal-agent/dot"
+                  element={
+                    <AppShell user={user} logout={logout}>
+                      <DotWorkbenchPage user={user} />
+                    </AppShell>
                   }
                 />
                 <Route

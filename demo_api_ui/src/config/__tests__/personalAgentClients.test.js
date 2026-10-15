@@ -20,7 +20,7 @@ describe("personal agent client catalog", () => {
         id: "dot",
         label: "Dot",
         runtime: "Hosted always-on agent",
-        setupPath: "/personal-agent?skin=dot",
+        setupPath: "/personal-agent/dot",
       }),
     ]);
   });

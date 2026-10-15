@@ -1,0 +1,41 @@
+.dot-wb { --dot:#2bb3a3; --dot-soft:rgba(43,179,163,.15); --ok:#34d399; --deny:#f87171; --warn:#fbbf24;
+  --bg:#151719; --panel:#1e2123; --panel2:#272b2e; --ink:#ecefef; --muted:#98a2a3; --line:#343a3c; color:var(--ink); background:var(--bg); }
+.dot-wb[data-cur-theme="light"] { --bg:#f3f5f5; --panel:#fff; --panel2:#ecf0f0; --ink:#1c2123; --muted:#5f6b6d; --line:#d6dddd; --dot-soft:rgba(43,179,163,.10);
+  --ok:#047857; --deny:#b91c1c; --warn:#92400e; background:var(--bg); color:var(--ink); }
+.dot-wb__main { flex:1; min-height:0; overflow-y:auto; width:100%; box-sizing:border-box; display:grid; align-content:start; grid-template-columns:minmax(0,1fr) 340px; gap:16px; padding:16px 20px; max-width:1280px; margin:0 auto; }
+@media (max-width:900px) { .dot-wb__main { grid-template-columns:1fr; } }
+.dot-card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
+.dot-persona { display:flex; gap:14px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+.dot-avatar { width:52px; height:52px; border-radius:50%; flex:none; box-shadow:0 0 0 4px var(--dot-soft);
+  background:radial-gradient(circle at 35% 30%, #8ee6da, var(--dot) 60%, #12766b); }
+.dot-persona h2 { margin:0; font-size:17px; } .dot-persona p { margin:2px 0 0; color:var(--muted); font-size:12.5px; }
+.dot-muted { font-weight:400; color:var(--muted); }
+.dot-pills { display:flex; flex-wrap:wrap; gap:6px; margin-left:auto; }
+.dot-pill { padding:3px 10px; border-radius:999px; background:var(--panel2); border:1px solid var(--line); font-size:11.5px; color:var(--muted); }
+.dot-pill b { color:var(--ink); font-weight:600; }
+.dot-chat { display:flex; flex-direction:column; min-height:520px; padding:0; }
+.dot-msgs { flex:1; padding:16px; display:flex; flex-direction:column; gap:14px; }
+.dot-m { max-width:82%; padding:10px 14px; border-radius:14px; }
+.dot-m--user { align-self:flex-end; background:var(--panel2); border-bottom-right-radius:4px; }
+.dot-m--dot { align-self:flex-start; background:var(--dot-soft); border:1px solid color-mix(in srgb, var(--dot) 40%, transparent); border-bottom-left-radius:4px; }
+.dot-m--error { align-self:flex-start; color:var(--deny); border:1px solid var(--deny); }
+.dot-remembered { display:inline-block; margin:8px 6px 0 0; padding:2px 10px; border-radius:999px; background:var(--dot); color:#04211e; font-size:11.5px; }
+.dot-tool { align-self:flex-start; width:82%; border:1px solid var(--line); border-radius:10px; background:var(--panel2); padding:10px 12px; font-size:12.5px; }
+.dot-tool__row { display:flex; align-items:center; gap:8px; }
+.dot-tool details { margin-top:6px; color:var(--muted); } .dot-tool pre { margin:6px 0 0; padding:8px; border-radius:6px; background:var(--bg); overflow:auto; font-size:11.5px; white-space:pre-wrap; }
+.dot-verdict { margin-left:auto; padding:2px 10px; border-radius:999px; font-size:11px; font-weight:700; }
+.dot-verdict--permit { background:rgba(52,211,153,.16); color:var(--ok); }
+.dot-verdict--deny { background:rgba(248,113,113,.16); color:var(--deny); }
+.dot-verdict--consent { background:rgba(251,191,36,.16); color:var(--warn); }
+.dot-chips { display:flex; flex-wrap:wrap; gap:6px; padding:0 16px 10px; }
+.dot-chip { padding:4px 12px; border:1px solid var(--line); border-radius:999px; background:none; color:var(--ink); font:inherit; font-size:12.5px; cursor:pointer; }
+.dot-composer { display:flex; gap:8px; padding:12px 16px; border-top:1px solid var(--line); }
+.dot-composer input { flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; }
+.dot-composer button { padding:9px 18px; border:0; border-radius:8px; background:var(--dot); color:#04211e; font:inherit; font-weight:600; cursor:pointer; }
+.dot-composer button:disabled { opacity:.5; cursor:default; }
+.dot-aside { display:flex; flex-direction:column; gap:16px; }
+.dot-aside h3 { margin:0 0 4px; font-size:13px; } .dot-sub { margin:0 0 10px; color:var(--muted); font-size:12px; }
+.dot-gov { display:grid; gap:8px; font-size:12.5px; } .dot-gov > div { display:flex; justify-content:space-between; gap:8px; }
+.dot-gov span:first-child { color:var(--muted); }
+.dot-signin { margin:16px; padding:16px; border:1px solid var(--line); border-radius:10px; background:var(--panel2); }
+.dot-signin h3 { margin:0 0 6px; } .dot-signin p { margin:0 0 10px; color:var(--muted); font-size:13px; }
