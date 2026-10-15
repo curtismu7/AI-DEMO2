@@ -96,7 +96,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const [mfaChallenge, setMfaChallenge] = useState(null);
   const [layoutState, setLayoutState] = useState('full');
   const [activeSkin, setActiveSkin] = useState('privilege');
-  const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
+  const [agentMode, setAgentMode] = usePageAgentMode('personal-agent', 'heuristics');
   const [theme, setTheme] = useState('dark');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [dotMemoryNonce, setDotMemoryNonce] = useState(0);
