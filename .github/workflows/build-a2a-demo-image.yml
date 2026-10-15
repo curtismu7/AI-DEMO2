@@ -1,0 +1,89 @@
+name: Build A2A demo image
+
+# The standalone Privilege A2A demo (main agent, worker agent, MCP server: one
+# image, three commands) is not a docker-compose service, so it is not in the
+# shared matrix of build-images.yml. It gets its own small workflow instead of a
+# new entry in that matrix: a mistake here can only fail THIS job, never the 12
+# service images. It publishes sha-<sha> and :latest, exactly what the manual
+# `docker buildx build ... --push` did. DEPLOYING stays manual:
+#   kubectl -n <ns> set image deploy/mainagentdemo '*=...:sha-<sha>'
+#   kubectl -n <ns> rollout restart deploy/workeragentdemo   (and mcpdemo if it changed)
+# then bump the pin in standalone/privilege-a2a-anthropic-demo/k8s/deployment.yaml.
+#
+# ONE-TIME SETUP (UI only, cannot be done from code): on
+# github.com/users/cmuir_pingcorp/packages/container/privilege-a2a-demo open
+# Package settings -> "Manage Actions access" and add this repository with the
+# Write role. Until then the push fails with "denied: permission_denied:
+# write_package" — same trap as build-images.yml documents. The Dockerfile's
+# org.opencontainers.image.source label covers the other half.
+
+on:
+  push:
+    branches: [main]
+    paths:
+      - 'standalone/privilege-a2a-anthropic-demo/**'
+      - '.github/workflows/build-a2a-demo-image.yml'
+  workflow_dispatch:
+
+concurrency:
+  group: build-a2a-demo-image-${{ github.sha }}
+  cancel-in-progress: false
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    name: Build and push privilege-a2a-demo (arm64)
+    runs-on: [self-hosted, macOS]
+    permissions:
+      contents: read
+      packages: write
+    steps:
+      - uses: actions/checkout@v7
+      # Same job-scoped Docker config and live-socket steps as build-images.yml;
+      # see the comments there for why each one exists (launchd runners cannot
+      # use the keychain, and an OrbStack runner's default socket can be dead).
+      - name: Use a job-scoped Docker config (no keychain)
+        run: |
+          set -euo pipefail
+          cfg="$RUNNER_TEMP/docker-config"
+          mkdir -p "$cfg"
+          ln -s "$HOME/.docker/cli-plugins" "$cfg/cli-plugins"
+          echo '{"auths":{"placeholder.invalid":{}}}' > "$cfg/config.json"
+          echo "DOCKER_CONFIG=$cfg" >> "$GITHUB_ENV"
+      - name: Use a live Docker socket
+        run: |
+          set -euo pipefail
+          if docker info >/dev/null 2>&1; then
+            echo "default Docker socket is live"
+            exit 0
+          fi
+          for s in "$HOME/.orbstack/run/docker.sock" "$HOME/.docker/run/docker.sock"; do
+            if [ -S "$s" ] && DOCKER_HOST="unix://$s" docker info >/dev/null 2>&1; then
+              echo "DOCKER_HOST=unix://$s" >> "$GITHUB_ENV"
+              echo "default Docker socket is dead; using $s"
+              exit 0
+            fi
+          done
+          echo "no live Docker socket found (is OrbStack running on this runner?)" >&2
+          exit 1
+      - uses: docker/setup-buildx-action@v4
+      - uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+      - name: Build for the cluster (arm64) and push sha and latest tags
+        # --provenance=false keeps a plain single-platform manifest, as the
+        # manual build did; the SE cluster nodes are Graviton (arm64).
+        run: |
+          set -euo pipefail
+          BASE="ghcr.io/${{ github.repository_owner }}/privilege-a2a-demo"
+          docker buildx build \
+            --platform linux/arm64 \
+            --provenance=false \
+            -t "$BASE:sha-${{ github.sha }}" \
+            -t "$BASE:latest" \
+            --push \
+            standalone/privilege-a2a-anthropic-demo
