@@ -229,6 +229,26 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 </tr>
 </tbody>
 </table>
+<h2>What the on-behalf-of proof changes</h2>
+<p>The delegation step (exchange per call) was a design until 15 October 2026, when it ran live on PingOne. What that settles, and what it opens:</p>
+<ol>
+<li>
+<p><strong>The delegation works on PingOne, end to end.</strong> A member token plus an agent identity exchange (RFC 8693) into a minutes-long token with <code>sub</code> = member, <code>act</code> = the agent and a single narrower <code>aud</code>. The downstream API accepts it and refuses the member&#x27;s own token, and no token text ever reaches the agent, the model or the browser. All seven checks pass live on the <a href="https://ai-demo.ping-devops.com/obo-demo">OBO demo</a>; the <a href="https://ai-demo.ping-devops.com/architecture/obo-flow.html">flow diagram</a> shows the sequence.</p>
+</li>
+<li>
+<p><strong>The actor claim is <code>act.client_id</code>, not <code>act.sub</code>.</strong> PingOne emits <code>act</code> as an object whose contents come from the exchange policy; we map it to the agent&#x27;s <code>client_id</code>. Everywhere this document says <code>act.sub</code>, read <code>act.client_id</code> unless United chooses to map <code>sub</code> instead. Decide this once, because the gateway, Authorize and the audit chain all key on it.</p>
+</li>
+<li>
+<p><strong>The exchange is a server-side act by a confidential client.</strong> PingOne wants the subject token, the actor token and the exchanging client&#x27;s own credentials in one request, and that client is separate from the agent. That places the exchange in United&#x27;s token service (the Facade and DataPower step already described), never in the agent. The rule that the member&#x27;s token is only ever an input to an exchange is now demonstrated, not just designed.</p>
+</li>
+<li>
+<p><strong>Open item for bring-your-own agents: where the actor token comes from.</strong> The demo&#x27;s actor is a registered PingOne app that authenticates with client credentials. A member&#x27;s own agent that self-registers through CIMD is a public client with no secret, so the token service has nothing to authenticate as the actor. The options are an actor client the token service creates and holds when the agent registers (direct API today), or the agent proving itself with a key (<code>private_key_jwt</code>) once registration supports it. This sharpens the existing &quot;agent identity at the door&quot; question; it should be settled before the exchange is built.</p>
+</li>
+<li>
+<p><strong>Two prerequisites that fail quietly if missed.</strong> The member&#x27;s sign-in must come from a client the exchange policy trusts; otherwise PingOne rejects the subject token (&quot;Not a valid access token for subject_token&quot;). And each downstream audience is its own PingOne resource with its own scopes, so one audience per tool means one resource per tool group, which is an operating cost to plan for.</p>
+</li>
+</ol>
+<p>Net effect on the recommendation: component 1 (the token service) stands as written and is now the best-proven part of the design. The change is sequencing: settle the <code>act</code> mapping and the bring-your-own-agent actor credential first, because they decide how the other four components read the token.</p>
 <h2>The gap, control by control</h2>
 <table>
 <thead>

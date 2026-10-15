@@ -132,7 +132,8 @@ export default function OboDemoPage() {
       <p className="obo-demo__lede">
         An agent acts for you through RFC 8693 delegation. The exchange keeps your identity (<code>sub</code>),
         records the agent as <code>act</code>, and issues a token the downstream API accepts. Your own token is
-        refused there. The model never sees either token.
+        refused there. The model never sees either token.{" "}
+        <a href="/architecture/obo-flow.html" target="_blank" rel="noopener noreferrer">View the flow diagram (opens in a new tab)</a>
       </p>
       <div className="obo-demo__workspace">
         <section aria-label="Run">
@@ -171,9 +172,18 @@ export default function OboDemoPage() {
               </ul>
             ) : null}
           </div>
-          <div className="obo-demo__card" aria-live="polite">
-            <h2 className="obo-demo__h2">Step details</h2>
-            {renderDetails()}
+          <div className="obo-demo__card">
+            <h2 className="obo-demo__h2">Or run it from Claude Code</h2>
+            <p className="obo-demo__hint">Same delegation, with Claude as the OAuth client. Claude sees claims and status codes, never a token.</p>
+            <ol className="obo-demo__steps">
+              <li>Register the endpoint once:
+                <pre className="obo-demo__code">{`claude mcp add --transport http obo-demo ${window.location.origin}/api/obo/mcp \\
+  --client-id c8392dc4-2d82-4e49-92a8-79a78401faf5 --callback-port 7465`}</pre></li>
+              <li>In <code>claude</code>, run <code>/permissions</code> and allow <code>mcp__obo-demo__act_on_my_behalf</code>. Without it the auto-mode classifier blocks the call.</li>
+              <li>Run <code>/mcp</code>, choose <code>obo-demo</code> and sign in to PingOne as the demo user.</li>
+              <li>Prompt: <pre className="obo-demo__code">Call the act_on_my_behalf tool and show me its result.</pre></li>
+              <li>Expect <code>acting_for</code> (the user), <code>acted_by</code> (the agent client_id), <code>downstream</code> delegated 200 and own token 401, and seven checks all <code>pass: true</code>.</li>
+            </ol>
           </div>
         </section>
         <aside aria-label="Delegation trace">
@@ -197,6 +207,10 @@ export default function OboDemoPage() {
             <p className="obo-demo__legend">Each line is one hop. Click a line to see what was sent and what came back. Tokens appear only as short hashes and claims.</p>
           </div>
         </aside>
+        <section aria-label="Step details" className="obo-demo__card" aria-live="polite">
+          <h2 className="obo-demo__h2">Step details</h2>
+          {renderDetails()}
+        </section>
       </div>
     </div>
   );

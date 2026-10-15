@@ -75,4 +75,18 @@ describe("OboDemoPage", () => {
     expect(screen.getByText("invalid_request")).toBeInTheDocument();
     expect(screen.getAllByText("skipped")).toHaveLength(4);
   });
+
+  it("links the flow diagram and opens it in a new tab", () => {
+    render(<OboDemoPage />);
+    const link = screen.getByRole("link", { name: /flow diagram/i });
+    expect(link).toHaveAttribute("href", "/architecture/obo-flow.html");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
+  });
+
+  it("shows the Claude Code steps with this origin's endpoint and the tool to allow", () => {
+    render(<OboDemoPage />);
+    expect(screen.getByText(/claude mcp add --transport http obo-demo/)).toHaveTextContent(`${window.location.origin}/api/obo/mcp`);
+    expect(screen.getByText(/mcp__obo-demo__act_on_my_behalf/)).toBeInTheDocument();
+  });
 });
