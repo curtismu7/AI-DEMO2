@@ -819,7 +819,7 @@ export default function PrivilegeMcpClientPage() {
     if (authResult === 'success') {
       const silentDoorSwitch = readSessionFlag(SILENT_DOOR_SWITCH_KEY);
       appendChat('system', silentDoorSwitch
-        ? 'Connected to the selected door. Loading tools...'
+        ? 'Connected to the selected door. Press "Get MCP Tools" to discover its tools.'
         : 'OAuth completed. Press "Get MCP Tools" to discover tools.');
       api('/state').then(async (s) => {
         if (s.oauth?.authenticated) {
@@ -829,11 +829,9 @@ export default function PrivilegeMcpClientPage() {
           window.dispatchEvent(new CustomEvent('userAuthenticated'));
         }
         if (s.oauth?.scope) setGrantedScopes(s.oauth.scope.split(' ').filter(Boolean));
-        if (silentDoorSwitch && s.oauth?.authenticated) await refreshTools(true);
       })
-        // Manual sign-in never auto-discovers. A silent door switch is the
-        // exception: the user explicitly selected this destination, so finish
-        // the requested switch by discovering its tools after authorization.
+        // Never auto-discovers, manual sign-in or silent door switch alike:
+        // selecting a door is not a request to probe it. "Get MCP Tools" fetches.
         .catch(() => {})
         .finally(() => {
           if (silentDoorSwitch) writeSessionFlag(SILENT_DOOR_SWITCH_KEY, false);
@@ -929,12 +927,10 @@ export default function PrivilegeMcpClientPage() {
       requestSignIn('The gateway cannot silently authorize this door from the current session. Sign in to connect it.');
       return false;
     }
-    // Clicking Sign in is explicit intent for this door, so finish the job on the
-    // way back: the ?auth=success effect discovers its tools once, instead of
-    // leaving the presenter to press "Get MCP Tools" right after signing in. Set
-    // here, past the silentOnly bail-out, so a sign-in that never leaves the page
-    // cannot leave the flag behind. A reload or stale ?auth=success carries no
-    // flag and still discovers nothing.
+    // Marks the ?auth=success return as coming from an explicit sign-in or door
+    // switch, which only changes the chat line it prints — tools are never
+    // discovered on the way back. Set here, past the silentOnly bail-out, so a
+    // sign-in that never leaves the page cannot leave the flag behind.
     writeSessionFlag(SILENT_DOOR_SWITCH_KEY, true);
     navigateWithOverlay(start.authUrl, { message: 'Signing in...' });
     return true;

@@ -1,13 +1,9 @@
 // demo_api_ui/src/pages/__tests__/PrivilegeMcpClientPage.discoverAfterSignIn.test.jsx
 //
-// Companion to noAutoDiscover: signing in alone must not probe a door, but
-// CLICKING Sign in is explicit intent for that door. The presenter used to sign
-// in and then press "Get MCP Tools" a second time. The click now leaves a
-// session flag that the ?auth=success return consumes, so tools load once.
-//
-// Both halves matter: the flag must be set by the click, and a return with no
-// flag (reload, bookmark, stale ?auth=success) must still discover nothing —
-// noAutoDiscover keeps pinning that second half.
+// Companion to noAutoDiscover: neither signing in nor switching doors probes
+// the door. The Sign in click still leaves a session flag for the
+// ?auth=success return, but it only selects the chat line — the presenter
+// always presses "Get MCP Tools" to load tools.
 import { fireEvent, render, screen, waitFor } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import PrivilegeMcpClientPage from "../PrivilegeMcpClientPage";
@@ -63,8 +59,8 @@ afterEach(() => {
   window.location = realLocation;
 });
 
-describe("PrivilegeMcpClientPage — discover once after the Sign in click", () => {
-  test("clicking Sign in leaves the discover flag and leaves through the overlay", async () => {
+describe("PrivilegeMcpClientPage — never discover on the way back from sign-in", () => {
+  test("clicking Sign in leaves the return flag and leaves through the overlay", async () => {
     mockBackend({ authenticated: false });
     render(
       <MemoryRouter initialEntries={["/privilege-mcp-client"]}>
@@ -79,7 +75,7 @@ describe("PrivilegeMcpClientPage — discover once after the Sign in click", () 
     expect(screen.getByText("Signing in...")).toBeTruthy();
   });
 
-  test("returning with that flag discovers tools exactly once and clears the flag", async () => {
+  test("returning with that flag discovers nothing, clears the flag and tells the user to press the button", async () => {
     mockBackend({ authenticated: true });
     sessionStorage.setItem(FLAG, "1");
     render(
@@ -88,7 +84,8 @@ describe("PrivilegeMcpClientPage — discover once after the Sign in click", () 
       </MemoryRouter>,
     );
 
-    await waitFor(() => expect(toolsListCalls).toBe(1));
     await waitFor(() => expect(sessionStorage.getItem(FLAG)).toBeNull());
+    expect(await screen.findByText(/Press "Get MCP Tools" to discover its tools/)).toBeTruthy();
+    expect(toolsListCalls).toBe(0);
   });
 });

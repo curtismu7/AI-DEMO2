@@ -1912,7 +1912,7 @@ router.get('/state', (req, res) => {
         policies: [],
       },
     ]
-  ).filter((app) => app.name && app.name !== defaultApp);
+  ).filter((app) => app.name && app.privilegeUrl !== DEFAULT_PRIVILEGE_MCP_URL());
 
   // Presets the UI offers. The first three are the three paths in order, so the
   // preset list reads as the demo itself; the audit door is a scope-narrowing
@@ -2016,33 +2016,13 @@ router.get('/state', (req, res) => {
       url: process.env.PRIVILEGE_MCPGW_HOSTILE_GOVERNED_URL || privilegeDoorUrl('hostile-mcp-governed'),
     },
     {
-      // `openapi2`, the OpenAPI MCP app type, pinned ONLY so its failure can be
-      // measured. It has never discovered a tool, and everything we have
-      // recorded about why is inference: Privilege runs `mcp/openapi` on its own
-      // side, and that is the only catalog image published without Ping's
-      // `mcp-shim` (grafana: `sh -c "mcp-shim --port=${PORT} -- mcp-grafana"`,
-      // GET /mcp -> 200; openapi: bare `/openapimcp`, GET /mcp -> 405). Nobody
-      // has authenticated through the door and asked it for tools, which is the
-      // one direct measurement — and the one Ping will ask for. Probing this
-      // preset produces it.
-      //
-      // Pinned rather than left to console discovery, like the PingOne-admin
-      // door above: `openapi2` only reaches the picker via readInventory(), so
-      // until somebody connects the console it is not selectable at all.
-      //
-      // Retire this preset once the question is settled, either way.
-      label: 'Privilege — openapi2 (OpenAPI MCP app type — probe to measure)',
-      mode: 'privilege',
-      url: privilegeDoorUrl('openapi2'),
-    },
-    {
       // `banking-openapi`, the OpenAPI MCP Agentic App that DOES discover tools
       // (call_api, get_endpoint, listUsers, list_endpoints — the first three
       // are Ping's generic adapter tools, listUsers comes from the sidecar's
       // simple-users spec). Backend is the demo_mcp_banking_rest sidecar on
       // localhost:8080/mcp in the agentless-mcpgw pod, Auth Mode None.
-      // Pinned for the same reason as `openapi2`: it only reaches the picker
-      // through console discovery otherwise.
+      // Pinned rather than left to console discovery, like the PingOne-admin
+      // door above: it only reaches the picker through discovery otherwise.
       label: 'Privilege — banking-openapi (OpenAPI MCP app)',
       mode: 'privilege',
       url: privilegeDoorUrl('banking-openapi'),
@@ -2052,7 +2032,7 @@ router.get('/state', (req, res) => {
       // (Agentic App `agent-gateway`, backend
       // ping-gateway.ping-devops-cmuir.svc.cluster.local:8080/mcp).
       //
-      // Pinned for the same reason as `openapi2` above: an app only reaches the
+      // Pinned like the doors above: an app only reaches the
       // picker via readInventory(), so until somebody connects the console it is
       // not selectable at all — and this is the one door a presenter needs to
       // demonstrate the chain, so it must not depend on that.
