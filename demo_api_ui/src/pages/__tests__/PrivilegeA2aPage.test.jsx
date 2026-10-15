@@ -85,3 +85,12 @@ describe('Diagram link', () => {
     expect(link).toHaveAttribute('rel', expect.stringContaining('noopener'));
   });
 });
+
+describe('global agent button', () => {
+  test('is hidden while the A2A page is open and restored when it closes', () => {
+    const { unmount } = render(<MemoryRouter><PrivilegeA2aPage user={null} /></MemoryRouter>);
+    expect(document.body.classList.contains('privilege-a2a-route')).toBe(true);
+    unmount();
+    expect(document.body.classList.contains('privilege-a2a-route')).toBe(false);
+  });
+});

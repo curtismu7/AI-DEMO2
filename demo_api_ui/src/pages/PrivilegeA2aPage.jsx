@@ -14,6 +14,12 @@ import './PrivilegeMcpClientPage.css';
  */
 export default function PrivilegeA2aPage({ user }) {
   const profile = usePrivilegeA2aProfile();
+  // The page's own agent column is the agent here, so the global agent button is hidden while this page is open.
+  // Its modals (for example the run's sequence view) portal into body and are not affected.
+  useEffect(() => {
+    document.body.classList.add('privilege-a2a-route');
+    return () => document.body.classList.remove('privilege-a2a-route');
+  }, []);
   // Shares the MCP client's page-local light/dark key, so flipping it on one page holds on the other.
   const [theme, setTheme] = useState(() => {
     try { return localStorage.getItem('cur_priv_theme') || 'dark'; } catch { return 'dark'; }
