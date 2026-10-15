@@ -11,7 +11,7 @@ import ConfirmModal from './ConfirmModal';
  * clears everything the dot has learned.
  */
 
-export default function DotMemoryPanel({ refreshNonce = 0 }) {
+export default function DotMemoryPanel({ refreshNonce = 0, embedded = false }) {
   const [memories, setMemories] = useState([]);
   const [loaded, setLoaded] = useState(false);
   const [confirmReset, setConfirmReset] = useState(false);
@@ -50,8 +50,9 @@ export default function DotMemoryPanel({ refreshNonce = 0 }) {
     <div
       data-testid="dot-memory-panel"
       style={{
-        width: 260, flexShrink: 0, display: 'flex', flexDirection: 'column',
-        background: 'var(--surface, #1a1d27)', borderLeft: '1px solid var(--border, #2e3347)', overflow: 'hidden',
+        // embedded: sits inside another card (the Dot workbench), so fill it and drop the side border.
+        width: embedded ? '100%' : 260, flexShrink: 0, display: 'flex', flexDirection: 'column',
+        background: 'var(--surface, #1a1d27)', borderLeft: embedded ? 'none' : '1px solid var(--border, #2e3347)', overflow: 'hidden',
       }}
     >
       <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border, #2e3347)' }}>
