@@ -224,7 +224,12 @@ test('logs the PingOne reason server-side, without any token', async () => {
   runObo.mockRejectedValue(Object.assign(new Error('Request failed with status code 400 tok-sess'), {
     error: 'invalid_scope', error_description: 'At least one scope must be granted', httpStatus: 400,
   }));
-  const res = await request(app({ oauthTokens: { accessToken: 'tok-sess' } })).post('/api/obo/run');
+  // The same signed-in session the other route tests use (see runApp), built here because this test sits outside that block.
+  const signedIn = express();
+  signedIn.use(express.json());
+  signedIn.use((req, _res, next) => { req.session = { oauthTokens: { accessToken: 'tok-sess' } }; next(); });
+  signedIn.use('/api/obo', router);
+  const res = await request(signedIn).post('/api/obo/run');
   expect(res.status).toBe(502);
   const logged = JSON.stringify(spy.mock.calls);
   expect(logged).toMatch(/invalid_scope/);
