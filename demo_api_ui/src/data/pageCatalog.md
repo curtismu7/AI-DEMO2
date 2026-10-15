@@ -104,12 +104,6 @@ Notes: several nav labels differ from the page's own heading (recorded per page)
 - **What it teaches:** Treat the model interaction as a security boundary; inspect, allow, block, and keep identity in view.
 - **What it demos:** Links to a blocked prompt-injection run, LLM Gateway, and the LLM request tester.
 
-### Agent Privilege · A2A
-- **Route:** `/ai-products/privilege-a2a` · **Auth:** public
-- **What it does:** Product page "Privilege for AI — A2A protection" on agent-to-agent handoff.
-- **What it teaches:** Authenticated, policy-bound, accountable agent handoffs with the delegation context kept attached.
-- **What it demos:** Links to the A2A access review through the gateway, the three-deep agent chain (Demo Step 26), the agent-to-agent architecture tab, the A2A protocol walkthrough and the delegation chain page.
-
 ### Agent Privilege · MCP
 - **Route:** `/ai-products/privilege-mcp` · **Auth:** public
 - **What it does:** Product page "Privilege for AI — MCP protection" on protecting MCP discovery and tool invocation.
@@ -127,6 +121,44 @@ Notes: several nav labels differ from the page's own heading (recorded per page)
 - **What it does:** SE presenter hub "PingOne Privilege - SE Demo Hub" listing personas, console links and an OAuth config panel.
 - **What it teaches:** How to present the shared PingOne Privilege environment (Platform Admin, Privilege Admin, End User roles).
 - **What it demos:** Persona cards, console/Kibana/MCP-observability links, and the live Privilege MCP OAuth configuration form.
+
+## A2A
+
+### A2A Access Review
+- **Route:** `/privilege-a2a` · **Auth:** public
+- **What it does:** Ask about an entitlement; the main agent hands the lookup to a worker agent, which checks access data through MCP. Every hop goes through the Agent Privilege gateway. The header path lights up from the run's real events, and the Agent trace and Step details show each hop with its request and response.
+- **What it teaches:** Who acts for whom in an agent-to-agent handoff, which agent reads the data, and what the gateway records of the run.
+- **What it demos:** Suggested questions per vertical (each vertical's own A2A chip first), a walkthrough, three "Break it" cases that stop, and a per-page Heuristics | llama.cpp toggle: Heuristics runs the same A2A and MCP hops with no model call.
+
+### A2A Protocol & Identity
+- **Route:** `/a2a-protocol-learning` · **Auth:** public
+- **What it does:** Eight-section walkthrough: two meanings of A2A, live Agent Card fetch, bearer-gate probe, live or recorded delegation run, token chain and wire panes.
+- **What it teaches:** Identity (RFC 8693 nested act claims) versus wire protocol (Linux Foundation A2A, Agent Card, JSON-RPC); cards describe capability, not authority.
+- **What it demos:** Unauthenticated card fetch, a no-bearer POST refused, and a run showing act depth, scope shrink and the specialist handoff.
+
+### A2A Architecture
+- **Route:** `/a2a-architecture` · **Auth:** public
+- **What it does:** "A2A Delegation — Architecture": a step-through of the delegation flow, the key distinction between the two layers called A2A, and the specialist registry.
+- **What it teaches:** The identity layer (a nested RFC 8693 act chain approved by PingOne Authorize) is separate from the wire protocol layer (Agent Card discovery plus JSON-RPC over a separate bearer).
+- **What it demos:** The delegation flow step by step and the registry of specialists per vertical.
+
+### Delegation Chain Value
+- **Route:** `/delegation-chain-value` · **Auth:** public
+- **What it does:** Explainer page titled "Prove who acted, and who authorized it" with two Run buttons that invoke the agent live.
+- **What it teaches:** Delegated agents create a trust gap; nested act claims give accountability and an actor-aware policy gives authorization.
+- **What it demos:** "hand off to a specialist" mints a governed token chain; "simulate an agent identity mismatch" is denied for an unregistered agent.
+
+### Malicious A2A
+- **Route:** `/llm-gateway?tab=a2a` · **Auth:** user
+- **What it does:** The "Malicious A2A" tab of the LLM Gateway page: pick an Agent Card (bundled samples or a live URL) and scan it for poisoned metadata.
+- **What it teaches:** An Agent Card is untrusted text that an agent may follow; poisoned fields can carry hidden instructions or exfiltration.
+- **What it demos:** A clean card, a blatant poisoned card and a subtle one that trips the secrecy and exfiltration detectors, scanned through the gateway.
+
+### A2A Product Page
+- **Route:** `/ai-products/privilege-a2a` · **Auth:** public
+- **What it does:** Product page "Privilege for AI — A2A protection" on agent-to-agent handoff.
+- **What it teaches:** Authenticated, policy-bound, accountable agent handoffs with the delegation context kept attached.
+- **What it demos:** Links to the A2A access review through the gateway, the three-deep agent chain (Demo Step 26), the agent-to-agent architecture tab, the A2A protocol walkthrough and the delegation chain page.
 
 ## DaVinci
 
@@ -530,18 +562,6 @@ Use cases in the registry (`demo_api_server/config/useCases.js`):
 - **What it does:** Presenter page with two acts and stepped scenarios; each step has a GREEN (permit) and RED (deny) run, live or archived run history, and a "Say this" talk track.
 - **What it teaches:** Every capability ends in a permit and a deny with decision evidence; Act 2 shows the same rails govern admin AI.
 - **What it demos:** Runs each step's chips against the agent, then an attack gauntlet ("Run all 6 attacks") scoring blocked attacks.
-
-### Delegation Chain Value
-- **Route:** `/delegation-chain-value` · **Auth:** public
-- **What it does:** Explainer page titled "Prove who acted, and who authorized it" with two Run buttons that invoke the agent live.
-- **What it teaches:** Delegated agents create a trust gap; nested act claims give accountability and an actor-aware policy gives authorization.
-- **What it demos:** "hand off to a specialist" mints a governed token chain; "simulate an agent identity mismatch" is denied for an unregistered agent.
-
-### A2A Protocol & Identity
-- **Route:** `/a2a-protocol-learning` · **Auth:** public
-- **What it does:** Eight-section walkthrough: two meanings of A2A, live Agent Card fetch, bearer-gate probe, live or recorded delegation run, token chain and wire panes.
-- **What it teaches:** Identity (RFC 8693 nested act claims) versus wire protocol (Linux Foundation A2A, Agent Card, JSON-RPC); cards describe capability, not authority.
-- **What it demos:** Unauthenticated card fetch, a no-bearer POST refused, and a run showing act depth, scope shrink and the specialist handoff.
 
 ### Group Policy Board
 - **Route:** `/group-policy` · **Auth:** user

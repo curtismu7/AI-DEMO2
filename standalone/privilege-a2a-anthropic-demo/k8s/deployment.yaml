@@ -45,7 +45,7 @@ spec:
       - name: ghcr-pull-secret
       containers:
       - name: mcpdemo
-        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:latest
+        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-ef9918b32
         imagePullPolicy: Always
         command: ["node", "dist/mcp-server/index.js"]
         ports:

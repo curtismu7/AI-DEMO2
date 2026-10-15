@@ -70,7 +70,7 @@ Then do one dry run of each demo before the audience arrives. A model call can t
 
 A security analyst asks an agent to review someone's access. The main agent hands the lookup to a worker agent, which reads the access data through MCP tools. About three minutes.
 
-**Open it.** Demo steps, step 25 (UC46), or the side-nav entry Agent Privilege · A2A Review. Both land on the A2A tab of the gateway client. The path across the top reads Main agent, Agent Privilege, Worker agent, Agent Privilege, MCP tools.
+**Open it.** Demo steps, step 25 (UC46), or the side-nav entry A2A › A2A Access Review. Both land on the A2A Access Review page. The path across the top reads Main agent, Agent Privilege, Worker agent, Agent Privilege, MCP tools.
 
 | Step | Type this | What happens | What to say |
 | --- | --- | --- | --- |
@@ -136,7 +136,7 @@ Pages for the architecture conversation:
 | Privilege for AI, A2A | `/ai-products/privilege-a2a` | The product story, with links to both demos |
 | Academy lesson | `/academy/journey?step=privilege-a2a` | A three-step lesson. It explains A2A; it does not run it |
 
-The side nav's Agent Privilege group has Agent Privilege · A2A Review (the demo tab) and Agent Privilege Topologies (the diagram).
+The side nav's A2A group has A2A Access Review (the demo page); Agent Privilege Topologies (the diagram) is in the Agent Privilege group.
 
 The gateway's own console keeps the third record. **Activity → Session Logs** lists every MCP and A2A session with user, device, resource, and audit state; click a row for the session detail.
 
