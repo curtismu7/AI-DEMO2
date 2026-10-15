@@ -89,6 +89,7 @@ export default function DotWorkbenchPage({ user }) {
                   </div>
                 );
               })}
+              {busy && <div role="status" className="dot-m dot-m--dot dot-thinking">Dot is thinking…</div>}
             </div>
             {signedOut && (
               <div className="dot-signin" role="alert">
