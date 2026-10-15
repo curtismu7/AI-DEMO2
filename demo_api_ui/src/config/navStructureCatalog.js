@@ -11,9 +11,12 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Agent Privilege", children: [
     "AI Guard", "Protocol Playground", "AI Guard Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
     "Agent Privilege Guide", "Agent Gateway Authorization", "Agent Privilege Diagrams", "Agent IAM Core",
-    "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege · A2A", "Agent Privilege · A2A Review", "Agent Privilege Topologies", "Agent Privilege · MCP",
+    "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege Topologies", "Agent Privilege · MCP",
     "Malicious MCP Catalog",
     "Agent Privilege Demo",
+  ] },
+  { label: "A2A", children: [
+    "A2A Access Review", "A2A Protocol & Identity", "A2A Architecture", "Delegation Chain Value", "Malicious A2A", "A2A Product Page",
   ] },
   { label: "Jev Demos", children: [
     "Jev Decision Model", "PR Review", "Computer Use", "Internal Links", "Doc Sorting",
@@ -48,7 +51,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Demo Summary",
     "Demo Summary", "Agent Studio",
     "Weather MCP", "Brave Search MCP", "Use Cases", "Use Cases (Live)", "Guided Demo Track",
-    "Delegation Chain Value", "A2A Protocol & Identity", "Jev Decision Model", "Group Policy Board", "Demo Script",
+    "Jev Decision Model", "Group Policy Board", "Demo Script",
     "Agentic Control Plane", "Agent Kill Switch", "Agent Registry", "PingOne Agent Builder",
     "Agent & Token Flow History", "Autonomous Agents",
     "Agent Onboarding Flow (Node)", "Agent Onboarding Flow Subway (Node)",
@@ -87,7 +90,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Invest Dual-Auth (MM)", "Agent Privilege (MM)",
     "Agent Privilege Enforcement (Node)", "Gateway vs P1AZ Enforcement (MM)", "Resource Server Placement (MM)",
     "Personal Agent Design (Node)", "Personal Agent Dual Gateway (Node)", "Personal Agent Design Review",
-    "CIMD in Privilege (Node)", "A2A Architecture (Node)",
+    "CIMD in Privilege (Node)",
   ] },
   { label: "Demo arch slides", children: [
     "Workload Agents · Topology", "Workload Agents · CIBA Step-up",

@@ -635,6 +635,25 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(paths.filter((p) => p === "/admin/sporting-goods")).toHaveLength(1);
   });
 
+it("A2A is its own group: every A2A page is in it, and searching a2a shows the whole group", () => {
+  renderNavAsUser(customerUser);
+  const navigation = screen.getByRole("navigation", { name: /primary navigation/i });
+  const search = within(navigation).getByLabelText(/search navigation/i);
+  fireEvent.change(search, { target: { value: "a2a" } });
+  const hrefs = within(navigation).getAllByRole("link").map((link) => link.getAttribute("href"));
+  for (const href of [
+    "/privilege-a2a", "/a2a-protocol-learning", "/a2a-architecture", "/delegation-chain-value",
+    "/llm-gateway?tab=a2a", "/ai-products/privilege-a2a",
+  ]) {
+    expect(hrefs, `${href} is in the A2A group`).toContain(href);
+  }
+  // each A2A page is listed once, not also under Agent Privilege or AI Experiences
+  expect(hrefs.filter((h) => h === "/privilege-a2a")).toHaveLength(1);
+  expect(hrefs.filter((h) => h === "/a2a-protocol-learning")).toHaveLength(1);
+  const group = NAV_STRUCTURE_CATALOG.find((g) => g.label === "A2A");
+  expect(group.children).toHaveLength(6);
+});
+
   it("NAV_STRUCTURE_CATALOG top-level labels stay in sync with AdminSideNav", () => {
     renderNavAsUser(customerUser);
     NAV_STRUCTURE_CATALOG.forEach((group) => {
