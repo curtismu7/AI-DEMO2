@@ -1,6 +1,7 @@
 import { Link } from "react-router-dom";
 import { Section, LessonLayout, Lede, OnThisRun, Status } from "../components/lesson";
 import PingOneProtectBrowserDemo from "./PingOneProtectBrowserDemo";
+import A2aDocsLinks from "../components/shared/A2aDocsLinks";
 import "./PingAiProductPage.css";
 
 const PRODUCTS = {
@@ -214,6 +215,7 @@ export default function PingAiProductPage({ product = "core" }) {
 
       <Section id="takeaway" title={data.sections[4]}>
         <p className="pai-takeaway">{data.takeaway}</p>
+        {product === "privilegeA2a" && <A2aDocsLinks />}
         <p className="pai-next">Continue with another layer: <Link to={slug("core")}>identity</Link>, <Link to={slug("gateway")}>enforcement</Link>, <Link to={slug("authorize")}>authorization</Link>, or <Link to={slug("privilegeMcp")}>MCP protection</Link>.</p>
       </Section>
     </LessonLayout>
