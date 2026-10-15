@@ -1504,6 +1504,7 @@ export default function AdminSideNav({
       { label: "Workload Agents", path: "/workload-agents", icon: "agt", searchAlias: "workload agents digital assistant obo uc38 uc44 delegated" },
       { label: "Embedded Worker", path: "/embedded-worker", icon: "agt", searchAlias: "embedded worker saas uc45 agent" },
       { label: "OBO Demo", path: "/obo-demo", icon: "lck" },
+      { label: "ChatGPT Login", path: "/chatgpt-login", icon: "arc", searchAlias: "chatgpt login oauth mcp www-authenticate securitySchemes pkce apps sdk gateway sign in" },
       { label: "Digital Worker", path: "/digital-worker", icon: "arc", searchAlias: "digital worker agentic token service agent gateway mcp token mediation diagram" },
       { label: "Target Design", path: "/personal-agent-design", icon: "arc" },
       { label: "Dual Gateway Design", path: "/personal-agent-dual-gateway", icon: "arc" },

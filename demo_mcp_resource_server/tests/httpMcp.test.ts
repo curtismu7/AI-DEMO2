@@ -79,6 +79,26 @@ describe('POST /mcp', () => {
     expect(r.wwwAuth).toContain('resource_metadata=');
   });
 
+  // ChatGPT (Apps SDK) reads securitySchemes from tools/list to decide whether
+  // to show its sign-in link, and mirrors it in _meta for MCP-only clients.
+  it('advertises oauth2 securitySchemes per tool in tools/list', async () => {
+    const r = await post({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} });
+    const t = r.json.result.tools.find((x: { name: string }) => x.name === 'get_airline_bookings');
+    expect(t.securitySchemes).toEqual([{ type: 'oauth2', scopes: t.requiredScopes }]);
+    expect(t._meta.securitySchemes).toEqual(t.securitySchemes);
+  });
+
+  // ChatGPT callers (params._meta carries openai/* keys) get the in-band
+  // challenge as a tool error; everyone else keeps the HTTP 401 above.
+  it('returns an mcp/www_authenticate tool error to a tokenless ChatGPT call', async () => {
+    const body = callTool('get_airline_bookings') as { params: Record<string, unknown> };
+    body.params._meta = { 'openai/locale': 'en-US' };
+    const r = await post(body);
+    expect(r.status).toBe(200);
+    expect(r.json.result.isError).toBe(true);
+    expect(r.json.result._meta['mcp/www_authenticate'][0]).toMatch(/^Bearer .*resource_metadata="http/);
+  });
+
   // RFC 6750 §3.1: an invalid/wrong-audience token MUST be 401, same as the
   // missing-bearer case above — not 200 with the failure buried in the
   // JSON-RPC body (the -32001 check alone doesn't prove that; an HTTP-level
