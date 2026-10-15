@@ -5,6 +5,7 @@
 
 .dw-bar { position: absolute; z-index: 10; top: 10px; left: 10px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; max-width: calc(100% - 20px); padding: 6px 8px; background: var(--th-bg-card); color: var(--th-text); border: 1px solid var(--th-border); border-radius: 6px; font-size: var(--font-size-2xs); }
 .dw-bar button { cursor: pointer; padding: 4px 10px; border: 1px solid var(--th-border); border-radius: 4px; background: var(--th-bg); color: var(--th-text); font: inherit; }
+.dw-bar button:disabled { opacity: 0.5; cursor: default; }
 .dw-bar span { color: var(--th-text-muted); }
 
 .dw-box, .dw-zone { width: 100%; height: 100%; box-sizing: border-box; }

@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -18,7 +18,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import ConfirmModal from "../components/ConfirmModal";
 import DraggableModal from "../components/DraggableModal";
-import { INITIAL_NODES, INITIAL_EDGES } from "./digitalWorkerDiagram";
+import { notifyError } from "../utils/appToast";
+import { INITIAL_NODES, INITIAL_EDGES, diagramSignature, parseDiagram } from "./digitalWorkerDiagram";
 import "./DigitalWorkerPage.css";
 
 // Digital Worker: editable architecture diagram. Double-click a box or zone to rename it, double-click
@@ -117,6 +118,45 @@ function Canvas() {
     try { localStorage.setItem(STORE, JSON.stringify({ nodes, edges })); } catch { /* storage unavailable */ }
   }, [nodes, edges]);
 
+  // Undo: whenever the diagram's content changes, remember the state before it. Changes arriving
+  // within 400 ms of each other (a drag, a resize) count as one step, so Undo moves back one gesture.
+  const history = useRef([]);
+  const last = useRef({ nodes, edges, sig: diagramSignature(nodes, edges), at: 0, skip: false });
+  const [canUndo, setCanUndo] = useState(false);
+  useEffect(() => {
+    const prev = last.current;
+    const sig = diagramSignature(nodes, edges);
+    if (sig !== prev.sig) {
+      const now = Date.now();
+      if (prev.skip) prev.skip = false;
+      else if (now - prev.at > 400) {
+        history.current.push({ nodes: prev.nodes, edges: prev.edges });
+        if (history.current.length > 50) history.current.shift();
+        setCanUndo(true);
+      }
+      prev.at = now;
+    }
+    Object.assign(prev, { nodes, edges, sig });
+  }, [nodes, edges]);
+  const undo = useCallback(() => {
+    const step = history.current.pop();
+    if (!step) return;
+    last.current.skip = true;
+    setNodes(step.nodes);
+    setEdges(step.edges);
+    setCanUndo(history.current.length > 0);
+  }, []);
+  useEffect(() => {
+    const onKey = (ev) => {
+      if (!(ev.metaKey || ev.ctrlKey) || ev.shiftKey || ev.key.toLowerCase() !== "z") return;
+      if (ev.target.closest?.("input, textarea")) return; // let text fields undo their own typing
+      ev.preventDefault();
+      undo();
+    };
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [undo]);
+
   const onNodesChange = useCallback((c) => setNodes((ns) => applyNodeChanges(c, ns)), []);
   const onEdgesChange = useCallback((c) => setEdges((es) => applyEdgeChanges(c, es)), []);
   const onConnect = useCallback((c) => setEdges((es) => addEdge(styleEdge({ ...c, label: "" }), es)), []);
@@ -145,13 +185,31 @@ function Canvas() {
     a.click();
   };
 
+  const fileInput = useRef(null);
+  const loadFile = async (ev) => {
+    const file = ev.target.files?.[0];
+    ev.target.value = ""; // allow loading the same file twice
+    if (!file) return;
+    try {
+      const d = parseDiagram(await file.text());
+      setNodes(d.nodes);
+      setEdges(d.edges);
+      setTimeout(() => fitView(), 50);
+    } catch (err) {
+      notifyError(err.message);
+    }
+  };
+
   return (
     <>
       <div className="dw-bar">
         <button type="button" onClick={addBox}>+ Add box</button>
+        <button type="button" onClick={undo} disabled={!canUndo}>Undo</button>
         <button type="button" onClick={download}>Download JSON</button>
+        <button type="button" onClick={() => fileInput.current.click()}>Load JSON</button>
+        <input ref={fileInput} type="file" accept="application/json,.json" hidden aria-label="Load diagram JSON" onChange={loadFile} />
         <button type="button" onClick={() => setConfirmReset(true)}>Reset</button>
-        <span>Double-click a box or arrow to rename. Delete removes the selection. Drag a dot to connect. Autosaves in this browser.</span>
+        <span>Double-click a box or arrow to rename. Delete removes the selection. Ctrl/Cmd+Z undoes. Drag a dot to connect. Autosaves in this browser.</span>
       </div>
       <ReactFlow
         nodes={nodes}

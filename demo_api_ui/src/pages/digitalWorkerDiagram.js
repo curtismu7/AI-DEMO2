@@ -83,3 +83,27 @@ export const INITIAL_EDGES = [
   edge("e21", "gov", "t", "google", "l"),
   edge("e22", "aigw", "r", "mcpolb", "b", "MCP Client - MCP Server"),
 ];
+
+// What counts as an edit for Undo: everything except selection, drag flags and measured sizes.
+export const diagramSignature = (nodes, edges) => JSON.stringify([
+  nodes.map((n) => [n.id, n.position.x, n.position.y, n.width, n.height, n.style?.width, n.style?.height, n.data?.label]),
+  edges.map((e) => [e.id, e.source, e.sourceHandle, e.target, e.targetHandle, e.label]),
+]);
+
+// Validates a file saved by "Download JSON". Throws an Error whose message is shown to the user.
+export function parseDiagram(text) {
+  let d;
+  try { d = JSON.parse(text); } catch { throw new Error("That file is not valid JSON."); }
+  if (!Array.isArray(d?.nodes) || !Array.isArray(d?.edges)) throw new Error("Expected a diagram file with nodes and edges.");
+  const ids = new Set();
+  for (const n of d.nodes) {
+    if (!n?.id || typeof n.position?.x !== "number" || typeof n.position?.y !== "number" || !["box", "zone"].includes(n.type)) {
+      throw new Error("A box in the file is missing an id, position or type.");
+    }
+    ids.add(n.id);
+  }
+  for (const e of d.edges) {
+    if (!ids.has(e?.source) || !ids.has(e?.target)) throw new Error("An arrow in the file points at a box that is not in the file.");
+  }
+  return { nodes: d.nodes, edges: d.edges };
+}
