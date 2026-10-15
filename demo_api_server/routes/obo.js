@@ -118,9 +118,17 @@ router.post('/run', async (req, res) => {
     if (err.code === 'obo_not_configured') {
       return res.status(503).json({ error: 'OBO demo is not configured on this environment.' });
     }
-    // Reason only (PingOne's error code/description, HTTP status): never tokens or request bodies.
-    console.error('[obo] exchange failed', { error: err.error || err.code || 'unknown', description: err.error_description, status: err.httpStatus });
-    return res.status(502).json({ error: 'OBO exchange failed. Check the BFF logs.' });
+    // The failed hop's reason (PingOne's error code/description, HTTP status): never tokens or request bodies.
+    // The trace was built token-free in oboTrace.js, so the page may show it as is.
+    const failed = (err.trace || []).find((step) => step.status === 'fail');
+    const reason = failed?.facts || {};
+    console.error('[obo] exchange failed', {
+      step: failed?.id,
+      error: reason.error || err.pingoneError || err.code || 'unknown',
+      description: reason.description || err.pingoneErrorDescription,
+      status: reason.httpStatus || err.httpStatus,
+    });
+    return res.status(502).json({ error: 'OBO exchange failed.', failedStep: failed?.id, steps: err.trace });
   }
 });
 
