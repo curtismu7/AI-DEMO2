@@ -16,7 +16,7 @@ const GREETINGS = {
 };
 
 export default function PersonalAgentClientWindow() {
-  const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
+  const [agentMode, setAgentMode] = usePageAgentMode('personal-agent', 'heuristics');
   const params = new URLSearchParams(window.location.search);
   const skin = params.get('skin') || 'privilege';
   const theme = params.get('theme') || 'dark';

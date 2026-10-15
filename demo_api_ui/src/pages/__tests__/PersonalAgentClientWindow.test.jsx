@@ -85,7 +85,7 @@ describe('PersonalAgentClientWindow', () => {
       body: JSON.stringify({
         prompt: 'check my miles',
         vertical: 'airlines',
-        agentMode: 'llm',
+        agentMode: 'heuristics',
       }),
     })));
     expect(await screen.findByText('Delegated action complete.')).toBeTruthy();
@@ -100,7 +100,7 @@ describe('PersonalAgentClientWindow', () => {
     render(<PersonalAgentClientWindow />);
     fireEvent.click(await screen.findByRole('button', { name: /Run UC38 action/i }));
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge', agentMode: 'llm' }),
+      body: JSON.stringify({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge', agentMode: 'heuristics' }),
     })));
     expect(screen.queryByRole('textbox')).toBeNull();
   });
