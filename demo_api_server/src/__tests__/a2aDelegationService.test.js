@@ -153,7 +153,7 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
     expect(ids.indexOf('a2a-agent2-actor')).toBeLessThan(ids.indexOf('a2a-exchange2'));
   });
 
-  test('an Agent 2 actor failure still reports at the agent2_actor stage, and Exchange #1 failing first leaves no unhandled rejection', async () => {
+  test('an Agent 2 actor failure still surfaces as the delegation error, after Exchange #1 has run', async () => {
     const { oauthService } = makeOauth();
     oauthService.getClientCredentialsTokenAs = jest.fn(async () => { throw new Error('actor boom'); });
     const result = await a2a.delegateToSpecialist(reqWithToken(), {
