@@ -120,3 +120,41 @@ describe("OboDemoPage", () => {
     expect(await within(live).findByText(/last call at/i)).toBeInTheDocument();
   });
 });
+
+describe("OboDemoPage step wire detail", () => {
+  const baseSteps = [1, 2, 3, 4, 5, 6, 7].map((id) => ({ id, status: "pass", ms: 10, facts:
+    id === 1 ? { sub: "user-1", client_id: "web", aud: ["a"], scope: { count: 1, sample: ["openid"] }, expiresInMin: 5, sha: "abcdef0123" }
+    : id === 3 ? { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", audience: "obo-demo.ping.demo", scope: "obo:invoke", exchanger: "exch", subjectSha: "1", actorSha: "2" }
+    : id === 4 ? { subSame: true, inbound: { aud: ["a"], scope: { count: 1, sample: [] }, sha: "1" }, delegated: { aud: ["obo"], scope: "obo:invoke", sub: "user-1", act: { client_id: "agent" }, sha: "2" } }
+    : id === 7 ? { leak: false } : id === 2 ? { client_id: "agent", scope: "x" } : { status: 200 } }));
+  const withWire = (steps) => steps.map((s) => (s.id === 3 ? {
+    ...s,
+    wire: { request: { method: "POST", url: "https://auth.pingone.com/env/as/token", headers: {}, body: { client_id: "exch", client_secret: "***" } }, response: { status: 200, body: { expires_in: 900 } } },
+    tokens: [{ role: "delegated", label: "Delegated token", raw: "H.P.S", decoded: { header: { alg: "RS256" }, payload: { sub: "user-1" } } }],
+  } : s));
+
+  it("shows the request, response and tokens when a step with wire is opened", async () => {
+    post.mockResolvedValue({ data: { steps: withWire(baseSteps), checks: [{ id: "a", label: "ok", pass: true }] } });
+    render(<OboDemoPage />);
+    fireEvent.click(screen.getByRole("button", { name: /run the delegation/i }));
+    await screen.findByRole("status");
+    fireEvent.click(screen.getByRole("button", { name: /Token exchange \(RFC 8693\)/ }));
+    expect(screen.getByRole("region", { name: "Request" })).toHaveTextContent("POST https://auth.pingone.com/env/as/token");
+    expect(screen.getByRole("region", { name: "Delegated token" })).toHaveTextContent("H.P.S");
+  });
+
+  it("shows nothing extra for a step without wire", async () => {
+    post.mockResolvedValue({ data: { steps: baseSteps, checks: [{ id: "a", label: "ok", pass: true }] } });
+    render(<OboDemoPage />);
+    fireEvent.click(screen.getByRole("button", { name: /run the delegation/i }));
+    await screen.findByRole("status");
+    fireEvent.click(screen.getByRole("button", { name: /Token exchange \(RFC 8693\)/ }));
+    expect(screen.queryByRole("region", { name: "Request" })).toBeNull();
+  });
+
+  it("no longer claims that tokens never reach the page", () => {
+    render(<OboDemoPage />);
+    expect(document.body.textContent).not.toMatch(/Tokens appear only as short hashes/i);
+    expect(document.body.textContent).not.toMatch(/never sent to the browser/i);
+  });
+});

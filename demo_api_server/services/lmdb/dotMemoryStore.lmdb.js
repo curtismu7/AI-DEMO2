@@ -41,6 +41,17 @@ function extractMemories(prompt) {
     .filter((s) => s.length >= 8 && s.length <= MAX_MEMORY_LENGTH && PREFERENCE_RE.test(s));
 }
 
+/**
+ * The memories in a prompt that is NOTHING BUT preference statements, else null. "Always book me an
+ * aisle seat" is a standing preference, not a request; a preference mixed with a request
+ * ("Always be concise. What is my balance?") is not preference-only and still runs the agent.
+ */
+function preferenceOnly(prompt) {
+  const sentences = String(prompt || '').split(/(?<=[.!?])\s+/).map((s) => s.trim()).filter(Boolean);
+  const memories = extractMemories(prompt);
+  return sentences.length > 0 && memories.length === sentences.length ? memories : null;
+}
+
 function createDotMemoryStore({ db = _db(), now = () => Date.now(), maxMemories = MAX_MEMORIES_PER_USER } = {}) {
   function saveMemory(userId, text) {
     const clean = String(text || '').trim().replace(/\s+/g, ' ');
@@ -84,4 +95,4 @@ function _range(db, prefix) {
   return db.getRange({ start, end });
 }
 
-module.exports = { createDotMemoryStore, extractMemories, MAX_MEMORIES_PER_USER, MAX_MEMORY_LENGTH };
+module.exports = { createDotMemoryStore, extractMemories, preferenceOnly, MAX_MEMORIES_PER_USER, MAX_MEMORY_LENGTH };

@@ -27,8 +27,11 @@ jest.mock('../middleware/agentSessionMiddleware', () => ({
     next();
   },
 }));
+// A plain counter, not mock.calls: jest.config.js has clearMocks, and the agent-ran assertions below must
+// not depend on how that interacts with the factory's jest.fn.
+global.__agentRuns = 0;
 jest.mock('../services/demoAgentLangGraphService', () => ({
-  processAgentMessage: jest.fn(async () => ({ reply: 'Done.', success: true, toolsCalled: [], tokenEvents: [] })),
+  processAgentMessage: jest.fn(async () => { global.__agentRuns += 1; return { reply: 'Done.', success: true, toolsCalled: [], tokenEvents: [] }; }),
 }));
 jest.mock('../services/configStore', () => ({
   getEffective: jest.fn(() => 'false'),
@@ -48,7 +51,7 @@ beforeAll(() => {
   store = createDotMemoryStore({ now: () => Date.now() });
 });
 beforeEach(() => {
-  require('../services/demoAgentLangGraphService').processAgentMessage.mockClear();
+  global.__agentRuns = 0;
 });
 
 const invoke = (prompt) => request(app)
@@ -78,5 +81,46 @@ describe('dot working memory on /api/agent/invoke', () => {
     expect(res.status).toBe(200);
     expect(res.body.dotMemories).toBeUndefined();
     expect(createDotMemoryStore().getMemories('dot-user-1').length).toBe(before);
+  });
+
+  describe('a prompt that is ONLY preference statements is acknowledged, not run as a request', () => {
+    const agentRuns = () => global.__agentRuns;
+
+    test('acknowledges and remembers, calls no tool and does not run the agent', async () => {
+      const res = await invoke('Always book me an aisle seat');
+      expect(res.status).toBe(200);
+      expect(agentRuns()).toBe(0);
+      expect(res.body.success).toBe(true);
+      expect(res.body.toolsCalled).toEqual([]);
+      expect(res.body.reply).toMatch(/remember/i);
+      expect(res.body.reply).toContain('Always book me an aisle seat');
+      expect(res.body.dotMemories).toEqual(['Always book me an aisle seat']);
+      expect(createDotMemoryStore().getMemories('dot-user-1').map((m) => m.text)).toContain('Always book me an aisle seat');
+    });
+
+    test('several preference sentences are all remembered and named', async () => {
+      const res = await invoke('Never put me on a red-eye. Call me Sam.');
+      expect(agentRuns()).toBe(0);
+      expect(res.body.dotMemories).toEqual(['Never put me on a red-eye.', 'Call me Sam.']);
+      expect(res.body.reply).toContain('Call me Sam.');
+    });
+
+    test('a preference MIXED with a request still runs the agent (and still remembers)', async () => {
+      const res = await invoke('Always use a concise tone. What is my balance?');
+      expect(agentRuns()).toBe(1);
+      expect(res.body.dotMemories).toEqual(['Always use a concise tone.']);
+    });
+
+    test('a request that merely contains the word always is not a preference', async () => {
+      const res = await invoke('I always wanted to see Denver, show my flights');
+      expect(agentRuns()).toBe(1);
+      expect(res.body.dotMemories).toBeUndefined();
+    });
+
+    test('a guest (nobody to remember for) is not short-circuited', async () => {
+      const res = await request(app).post('/api/agent/invoke').send({ prompt: 'Always book me an aisle seat', vertical: 'banking' });
+      expect(res.status).toBe(200);
+      expect(agentRuns()).toBe(1);
+    });
   });
 });

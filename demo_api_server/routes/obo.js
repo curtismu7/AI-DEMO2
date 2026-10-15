@@ -104,22 +104,26 @@ router.post('/mcp', async (req, res) => {
   }
 });
 
-// Page entry point (viewer half): runs the delegation for the signed-in user's BFF session and returns
-// evidence only. The subject token is read from the session and never returned to the browser.
+// Page entry point. Runs the delegation for the caller's own session token with capture: true and returns
+// the step trace INCLUDING that user's raw tokens and the real request/response of each hop (client secrets
+// masked by oboWire). Cache-Control: no-store. Never log or forward this response or err.trace.
 router.post('/run', async (req, res) => {
   const subjectToken = req.session?.oauthTokens?.accessToken;
   if (!subjectToken || subjectToken === '_cookie_session') {
     return res.status(401).json({ error: 'Sign in first. The demo runs on your own session token.' });
   }
   try {
-    const evidence = await runObo({ req, subjectToken, source: 'page' });
+    const evidence = await runObo({ req, subjectToken, source: 'page', capture: true });
+    res.set('Cache-Control', 'no-store');
     return res.json(evidence);
   } catch (err) {
     if (err.code === 'obo_not_configured') {
       return res.status(503).json({ error: 'OBO demo is not configured on this environment.' });
     }
     // The failed hop's reason (PingOne's error code/description, HTTP status): never tokens or request bodies.
-    // The trace was built token-free in oboTrace.js, so the page may show it as is.
+    // err.trace is TOKEN-BEARING (earlier steps carry the caller's raw tokens, the failed hop carries PingOne's
+    // real response). It goes only to the caller with no-store. Do not log it. The console.error below logs
+    // token-free fields only.
     const failed = (err.trace || []).find((step) => step.status === 'fail');
     const reason = failed?.facts || {};
     console.error('[obo] exchange failed', {
@@ -128,6 +132,7 @@ router.post('/run', async (req, res) => {
       description: reason.description || err.pingoneErrorDescription,
       status: reason.httpStatus || err.httpStatus,
     });
+    res.set('Cache-Control', 'no-store');
     return res.status(502).json({ error: 'OBO exchange failed.', failedStep: failed?.id, steps: err.trace });
   }
 });

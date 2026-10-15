@@ -3,7 +3,8 @@ import AgentClientSkin from '../components/AgentClientSkin';
 import apiClient from '../services/apiClient';
 import { governanceFrom } from '../utils/dotGovernance';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
-import { DOT_SUGGESTIONS } from '../config/dotSuggestions';
+import { dotSuggestions } from '../config/dotSuggestions';
+import { useVertical } from '../vertical/useVertical';
 import './WorkloadAgentsPage.css';
 
 const GREETINGS = {
@@ -22,6 +23,7 @@ export default function PersonalAgentClientWindow() {
   const routeId = params.get('useCase');
   const vertical = params.get('vertical');
   const workloadRoute = vertical && ['UC38', 'UC44'].includes(routeId);
+  const { activeId, pageManifest } = useVertical();
   const [scenario, setScenario] = useState(null);
   const [runState, setRunState] = useState({ status: 'idle', text: '' });
 
@@ -61,7 +63,8 @@ export default function PersonalAgentClientWindow() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines', agentMode }),
+      // Dot follows the active vertical; the other skins are the United airline demo.
+      body: JSON.stringify({ prompt: text, vertical: skin === 'dot' ? (activeId || undefined) : 'airlines', agentMode }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -105,7 +108,7 @@ export default function PersonalAgentClientWindow() {
         theme={theme}
         messages={messages}
         onSend={handleSend}
-        suggestions={skin === 'dot' ? DOT_SUGGESTIONS : []}
+        suggestions={skin === 'dot' ? dotSuggestions(pageManifest) : []}
         showPopOutButton={false}
         onPopOut={null}
       />

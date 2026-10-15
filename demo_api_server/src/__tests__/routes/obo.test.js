@@ -97,6 +97,13 @@ describe('POST /api/obo/mcp', () => {
       expect(text).not.toMatch(/eyJ/);
     });
 
+    test('the MCP tool call does not ask for capture', async () => {
+      runObo.mockResolvedValue(evidence);
+      await post(rpc('tools/call', { name: 'act_on_my_behalf' }));
+      expect(runObo).toHaveBeenCalledWith(expect.objectContaining({ source: 'claude' }));
+      expect(runObo.mock.calls[0][0].capture).toBeUndefined();
+    });
+
     test('a leaking result is withheld from the model', async () => {
       runObo.mockResolvedValue({ ...evidence, leak: true });
       const res = await post(rpc('tools/call', { name: 'act_on_my_behalf' }));
@@ -213,6 +220,14 @@ describe('POST /api/obo/run (page entry point)', () => {
     expect(runObo).toHaveBeenCalledWith(expect.objectContaining({ subjectToken: 'tok-sess', source: 'page' }));
   });
 
+  test('passes capture: true and sets Cache-Control: no-store', async () => {
+    runObo.mockResolvedValue({ source: 'page', checks: [], steps: [] });
+    const res = await request(runApp({ oauthTokens: { accessToken: 'tok-sess' } })).post('/api/obo/run');
+    expect(res.status).toBe(200);
+    expect(runObo).toHaveBeenCalledWith(expect.objectContaining({ subjectToken: 'tok-sess', source: 'page', capture: true }));
+    expect(res.headers['cache-control']).toMatch(/no-store/);
+  });
+
   test('503 with a plain message when PingOne is not configured, and no internal detail', async () => {
     runObo.mockRejectedValue(Object.assign(new Error('OBO demo not configured (Token Exchanger or AI Agent client missing)'), { code: 'obo_not_configured', httpStatus: 503 }));
     const res = await request(runApp({ oauthTokens: { accessToken: 'tok-sess' } })).post('/api/obo/run');
@@ -239,6 +254,7 @@ describe('POST /api/obo/run (page entry point)', () => {
     expect(res.status).toBe(502);
     expect(res.body.failedStep).toBe(3);
     expect(res.body.steps).toEqual(trace);
+    expect(res.headers['cache-control']).toMatch(/no-store/);
     expect(JSON.stringify(res.body)).not.toContain('tok-sess');
   });
 });
