@@ -1,5 +1,12 @@
 # OBO Demo: Live-from-Claude Panel, Evidence Card, Diagram, Learning Hub (Plan 2) Implementation Plan
 
+> **As built (PR #1372, merged 2026-10-15) differs from this plan in three ways. Read this first.**
+> 1. **Tasks 3 and 4 were reduced to the live panel.** While this plan was being executed, another session replaced `/obo-demo` with a richer two-column trace page and added its own "Or run it from Claude Code" steps card and a flow-diagram link. Per the owner's decision, the duplicate pieces from this plan were dropped: the embedded ReactFlow `OboSwapDiagram` (Task 3), the setup-command block on the page, and the `GET /api/obo/info` route with its `claudeClient` config (Task 1). Their steps card and flow link stand.
+> 2. **What shipped:** `GET /api/obo/events` (SSE, keyed by the session token's `sub`), the event-hub hardening, `OboEvidenceCard`, `useOboLive`, a "Live from Claude" card on the page (latest real call, "Last call at" time, claims side by side), and the Learning Hub card (🔗, not 🔐). A review also added one rule: a leak-flagged evidence object is published to the browser stream only as a minimal marker (`{ ts, source, leak: true, checks }`).
+> 3. **Task 6 (live check) is still a person's job** and is tracked in `docs/runbooks/obo-demo.md`.
+>
+> The tasks below are kept as written for the record; do not re-run them.
+
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
 **Goal:** Turn the existing minimal `/obo-demo` page (button + checks list, shipped in #1327) into the full demo: a side-by-side claims card, a "Live from Claude" panel fed by Claude Code's real calls, the `claude mcp add` setup block for the current origin, a ReactFlow diagram of the token swap, and a Learning Hub entry.
