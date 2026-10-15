@@ -73,7 +73,8 @@ describe('step verification — pingone-admin chip routing (check 2: parse/route
       const wired = parsed && parsed.kind !== 'none';
       const ok = wired
         && parsed.action === expect_.expectedAction
-        && parsed.params?.name === expect_.expectedTool;
+        // ?? null: a null expectedTool (ADMIN7) means "no tool name", which the parser reports as undefined.
+        && (parsed.params?.name ?? null) === (expect_.expectedTool ?? null);
 
       const status = ok ? 'PASS' : 'FAIL';
       const errorClass = ok ? null : (wired ? 'wrong_response' : 'parse_error');

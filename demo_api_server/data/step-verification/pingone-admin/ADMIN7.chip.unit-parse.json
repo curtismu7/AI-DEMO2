@@ -3,9 +3,9 @@
   "useCaseId": "ADMIN7",
   "triggerType": "chip",
   "mode": "unit-parse",
-  "status": "FAIL",
-  "errorClass": "wrong_response",
+  "status": "PASS",
+  "errorClass": null,
   "primaryTool": "list_pingone_tools",
-  "checkedAt": "2026-10-08",
+  "checkedAt": "2026-10-15",
   "verifiedBy": "nlIntentParser pingone-admin heuristics → list_pingone_tools"
 }

@@ -54,6 +54,7 @@ jobs:
           # jobs by id, newest-first — the exact shape staleServices consumes.
           # All gh invocations go through execFileSync with array args: no
           # shell, no jq quoting to break.
+          # shellcheck disable=SC2016  # the single-quoted block is JavaScript; its $ is not shell
           node -e '
             const { execFileSync } = require("child_process");
             const fs = require("fs");
