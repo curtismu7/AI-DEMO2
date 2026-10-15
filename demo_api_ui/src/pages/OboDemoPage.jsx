@@ -2,6 +2,7 @@ import { useState } from "react";
 import apiClient from "../services/apiClient";
 import OboEvidenceCard from "../components/obo/OboEvidenceCard";
 import useOboLive from "../components/obo/useOboLive";
+import OboStepWire from "../components/obo/OboStepWire";
 import "./OboDemoPage.css";
 
 // On-behalf-of demo. The BFF runs RFC 8693 delegation for the signed-in user and returns a step
@@ -15,7 +16,7 @@ const MINUTES = (m) => (m == null ? "-" : `${m} min`);
 
 const STEPS = {
   1: { title: "You are signed in", route: "browser → BFF session",
-    why: "Your session holds a PingOne access token. The BFF reads it server-side; it is never sent to the browser or the model.",
+    why: "Your session holds a PingOne access token. The BFF reads it server-side and uses it as the subject of the exchange. It is shown here because it is your own token; over MCP the model never receives it.",
     rows: (f) => [["sub", f.sub], ["client_id", f.client_id], ["aud", AUD(f.aud)], ["scope", SCOPES(f.scope)], ["expires in", MINUTES(f.expiresInMin)], ["token", SHORT(f.sha)]] },
   2: { title: "Agent gets its own identity", route: "BFF → PingOne /as/token (client credentials)",
     why: "The AI Agent app proves who the agent is with its own credentials. This becomes the actor in the exchange.",
@@ -31,9 +32,9 @@ const STEPS = {
   6: { title: "Downstream refuses your own token", route: "BFF → downstream API",
     why: "The same call with your original token is refused: only the delegated token carries the agent.",
     rows: (f) => [["request", "GET /api/obo/downstream"], ["Authorization", "your token"], ["response", `${f.status}`]] },
-  7: { title: "No token leaked", route: "BFF → browser / model",
-    why: "Everything returned to the browser and the model was scanned for token text.",
-    rows: (f) => [["scanned", "evidence object and MCP result text"], ["token patterns found", f.leak ? "yes" : "0"]] },
+  7: { title: "No token reached the model", route: "BFF → MCP result / live event",
+    why: "The MCP result text and the Claude live event are scanned for token text. This page shows tokens because you are the signed-in user who ran the exchange; the model never receives them.",
+    rows: (f) => [["scanned", "MCP result text and live event evidence"], ["token patterns found", f.leak ? "yes" : "0"]] },
 };
 const STEP_IDS = [1, 2, 3, 4, 5, 6, 7];
 const LABEL = { idle: "not run", run: "running…", pass: "✓ ok", fail: "✕ failed", skip: "skipped" };
@@ -127,6 +128,7 @@ export default function OboDemoPage() {
         <h3 className="obo-demo__step-title">{selected}. {info.title}</h3>
         <div className="obo-demo__route">{info.route}{st === "pass" && step?.ms ? ` · ${step.ms} ms` : ""}</div>
         {body}
+        {step && st !== "idle" && st !== "skip" ? <OboStepWire step={step} /> : null}
       </>
     );
   }
@@ -137,7 +139,7 @@ export default function OboDemoPage() {
       <p className="obo-demo__lede">
         An agent acts for you through RFC 8693 delegation. The exchange keeps your identity (<code>sub</code>),
         records the agent as <code>act</code>, and issues a token the downstream API accepts. Your own token is
-        refused there. The model never sees either token.{" "}
+        refused there. Over MCP the model never sees either token; this page shows them so you can follow each hop.{" "}
         <a href="/architecture/obo-flow.html" target="_blank" rel="noopener noreferrer">View the flow diagram (opens in a new tab)</a>
       </p>
       <div className="obo-demo__workspace">
@@ -220,7 +222,7 @@ export default function OboDemoPage() {
                 );
               })}
             </ol>
-            <p className="obo-demo__legend">Each line is one hop. Click a line to see what was sent and what came back. Tokens appear only as short hashes and claims.</p>
+            <p className="obo-demo__legend">Each line is one hop. Click a line to see the real request, the real response and the tokens. Client secrets are always masked.</p>
           </div>
         </aside>
         <section aria-label="Step details" className="obo-demo__card" aria-live="polite">
