@@ -55,3 +55,4 @@
 .obo-demo__steps { margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.5; }
 .obo-demo__steps li { margin-bottom: 0.5rem; }
 .obo-demo__code { margin: 0.3rem 0 0; padding: 0.5rem 0.6rem; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: 6px; font-size: 0.75rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.obo-demo__limits { color: var(--th-text-muted); margin-top: 1.5rem; font-size: var(--font-size-sm); }

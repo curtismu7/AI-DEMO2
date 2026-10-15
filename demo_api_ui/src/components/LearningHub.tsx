@@ -43,6 +43,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "PingOne Authorize": { status: "LIVE / CONFIG", keywords: ["P1AZ", "policy", "permit", "deny", "step-up", "decision"] },
   "MCP Protocol": { status: "LIVE", keywords: ["tools/list", "tools/call", "MCP Inspector", "tool invocation"] },
   "Agent-to-Agent (A2A)": { status: "LIVE", keywords: ["agent card", "nested act", "specialist", "delegation"] },
+  "On behalf of the user (OBO)": { status: "LIVE", keywords: ["obo", "on behalf of", "delegation", "act claim", "token exchange"] },
   "Jev: Decision Model": { status: "LIVE / CONFIG", keywords: ["System One", "guardrail", "intent routing", "confidence", "threshold", "Von", "bake-off"] },
   "Agent Gateway Authorization": { status: "LIVE", keywords: ["P1AZ", "delegated access", "MCP policy", "PERMIT", "DENY", "STEP-UP", "audit"] },
   "Human-in-the-loop": { status: "LIVE / CONFIG", keywords: ["HITL", "approval", "consent", "CIBA", "sensitive action"] },
@@ -369,6 +370,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         demoStep: { useCaseId: "UC46" },
       },
       {
+        label: "On behalf of the user (OBO)",
+        description: "An agent acts for the signed-in user through RFC 8693 delegation, never as the user",
+        icon: "🔗",
+      },
+      {
         label: "Privilege for AI — MCP",
         description: "Protect MCP discovery, tools, resources, and invocations",
         icon: "🛠",
@@ -598,6 +604,7 @@ export default function LearningHub() {
       "PingOne Authorize": () => navigate("/ai-products/authorize"),
       "Privilege for AI — LLM": () => navigate("/ai-products/privilege-llm"),
       "Privilege for AI — A2A": () => navigate("/ai-products/privilege-a2a"),
+      "On behalf of the user (OBO)": () => navigate("/obo-demo"),
       "Privilege for AI — MCP": () => navigate("/ai-products/privilege-mcp"),
     },
     "standards-architecture": {

@@ -1,5 +1,7 @@
 import { useState } from "react";
 import apiClient from "../services/apiClient";
+import OboEvidenceCard from "../components/obo/OboEvidenceCard";
+import useOboLive from "../components/obo/useOboLive";
 import "./OboDemoPage.css";
 
 // On-behalf-of demo. The BFF runs RFC 8693 delegation for the signed-in user and returns a step
@@ -69,6 +71,9 @@ export default function OboDemoPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null); // { ok, steps, checks, failedStep, error }
   const [selected, setSelected] = useState(null);
+  const live = useOboLive(true);
+  const lastDate = live[0]?.ts ? new Date(live[0].ts) : null;
+  const lastCall = lastDate && !Number.isNaN(lastDate.getTime()) ? lastDate.toLocaleTimeString() : null;
 
   async function run() {
     setBusy(true);
@@ -185,6 +190,17 @@ export default function OboDemoPage() {
               <li>Expect <code>acting_for</code> (the user), <code>acted_by</code> (the agent client_id), <code>downstream</code> delegated 200 and own token 401, and seven checks all <code>pass: true</code>.</li>
             </ol>
           </div>
+          <section aria-label="Live from Claude" className="obo-demo__card obo-demo__live">
+            <h2 className="obo-demo__h2">Live from Claude</h2>
+            {live.length === 0 ? (
+              <p className="obo-demo__hint">Waiting for Claude to call the tool…</p>
+            ) : (
+              <>
+                {lastCall ? <p className="obo-demo__hint">Last call at {lastCall}</p> : null}
+                <OboEvidenceCard evidence={live[0]} checksLabel="Live delegation checks" />
+              </>
+            )}
+          </section>
         </section>
         <aside aria-label="Delegation trace">
           <div className="obo-demo__card">
@@ -212,6 +228,10 @@ export default function OboDemoPage() {
           {renderDetails()}
         </section>
       </div>
+      <p className="obo-demo__limits">
+        Limits: the BFF, which is the MCP server here, briefly holds your token to run the exchange, so
+        &quot;the agent&quot; means the model. Live events work with a single BFF replica.
+      </p>
     </div>
   );
 }

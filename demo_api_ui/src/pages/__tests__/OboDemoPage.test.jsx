@@ -1,11 +1,22 @@
-import { describe, expect, it, vi, beforeEach } from "vitest";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
+import { fireEvent, render, screen, waitFor, act, within } from "@testing-library/react";
 import OboDemoPage from "../OboDemoPage";
 
 const post = vi.fn();
 vi.mock("../../services/apiClient", () => ({ default: { post: (...a) => post(...a) } }));
 
-beforeEach(() => post.mockReset());
+class FakeEventSource {
+  static instances = [];
+  constructor(url) { this.url = url; FakeEventSource.instances.push(this); }
+  close() {}
+}
+
+beforeEach(() => {
+  post.mockReset();
+  FakeEventSource.instances = [];
+  globalThis.EventSource = FakeEventSource;
+});
+afterEach(() => { delete globalThis.EventSource; });
 
 describe("OboDemoPage", () => {
   it("renders the checks returned by the BFF as PASS/FAIL, with no token text", async () => {
@@ -88,5 +99,24 @@ describe("OboDemoPage", () => {
     render(<OboDemoPage />);
     expect(screen.getByText(/claude mcp add --transport http obo-demo/)).toHaveTextContent(`${window.location.origin}/api/obo/mcp`);
     expect(screen.getByText(/mcp__obo-demo__act_on_my_behalf/)).toBeInTheDocument();
+  });
+
+  it("renders a live event from Claude when one arrives on the stream", async () => {
+    render(<OboDemoPage />);
+    expect(screen.getByText(/waiting for claude/i)).toBeInTheDocument();
+    const evidence = { source: "claude", ts: "2026-10-14T20:00:00Z", checks: [{ id: "x", label: "live check", pass: true }] };
+    act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify(evidence) }); });
+    const live = await screen.findByRole("region", { name: /live from claude/i });
+    expect(within(live).getByRole("list", { name: "Live delegation checks" })).toHaveTextContent("PASS live check");
+    expect(screen.queryByText(/waiting for claude/i)).toBeNull();
+  });
+
+  it("shows when the latest live call happened, only if ts is valid", async () => {
+    render(<OboDemoPage />);
+    act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify({ source: "claude", checks: [] }) }); });
+    const live = await screen.findByRole("region", { name: /live from claude/i });
+    expect(within(live).queryByText(/last call at/i)).toBeNull();
+    act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify({ source: "claude", ts: "2026-10-14T20:00:00Z", checks: [] }) }); });
+    expect(await within(live).findByText(/last call at/i)).toBeInTheDocument();
   });
 });

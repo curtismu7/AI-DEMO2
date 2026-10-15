@@ -6,7 +6,7 @@ const { getOboConfig } = require('../services/oboConfig');
 const { runObo } = require('../services/oboExchangeService');
 const { verifyDownstream } = require('../services/oboDownstream');
 const hub = require('../services/oboEventHub');
-const { hasTokenLeak } = require('../services/oboEvidence');
+const { hasTokenLeak, claims } = require('../services/oboEvidence');
 
 const router = express.Router();
 
@@ -94,7 +94,7 @@ router.post('/mcp', async (req, res) => {
       }
       try {
         const ev = await runObo({ req, subjectToken: token, source: 'claude' });
-        hub.publish(caller.sub, ev);
+        hub.publish(caller.sub, ev.leak ? { ts: ev.ts, source: ev.source, leak: true, checks: ev.checks } : ev);
         return ok({ content: [{ type: 'text', text: toolText(ev) }] });
       } catch (e) {
         return ok({ isError: true, content: [{ type: 'text', text: hasTokenLeak(e.message) ? 'error: withheld (contained a token)' : `error: ${e.message}` }] });
@@ -132,4 +132,30 @@ router.post('/run', async (req, res) => {
   }
 });
 
-module.exports = { router, metadataHandler };
+// Session-authenticated helpers for the /obo-demo page.
+// The session access token is server-held (issued by PingOne at login, never supplied by the client),
+// so decoding it without signature verification only selects this user's own event stream.
+function sessionSub(req) {
+  const token = req.session?.oauthTokens?.accessToken;
+  if (!token || token === '_cookie_session') return null;
+  try { return claims(token).sub || null; } catch (_e) { return null; }
+}
+
+function eventsHandler(req, res) {
+  const sub = sessionSub(req);
+  if (!sub) return res.status(401).json({ error: 'Sign in first.' });
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  res.write(': connected\n\n');
+  const off = hub.subscribe(sub, res);
+  const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch (_e) { /* closed; the close handler cleans up */ } }, 20000);
+  req.on('close', () => { clearInterval(ping); off(); });
+  return undefined;
+}
+
+router.get('/events', eventsHandler);
+
+module.exports = { router, metadataHandler, eventsHandler };
