@@ -55,6 +55,21 @@ return the same. Showing None → 401 and Static → 200 needs a worker started 
 **Not located:** the gateway-log line giving the `token-pass` reason (`requires token-pass`)
 — searched in the gateway pods, not found.
 
+**Closed 2026-10-14 (evening): None vs Static Token, told apart.** A temporary copy of the
+worker (`workeragentdemo-bearer`, same image and env plus `WORKER_REQUIRE_BEARER=true`, its own
+Service) was put behind `workeragentdemo2`, with a 2-hour grant for `main-agent` cloned from the
+existing `main-agent` → `worker-agent` rule. Same `tasks/get` probe:
+
+| Auth Mode on `workeragentdemo2` | Result |
+|---|---|
+| `none` | **401** from the worker, `Authorization: Bearer required` — the gateway added no credential |
+| `static-token` (random token) | **200** — worker answered `Task not found` |
+| `token-pass` | **403 Forbidden** from the gateway, 83 ms |
+
+Afterwards the app was restored from a saved copy (its `HttpAppConfig` compared identical), the
+grant was deleted (probe back to **403**), and the temporary Deployment and Service were removed.
+The shared `workeragentdemo` worker was never changed.
+
 **Facts learned.** Valid `AuthMode` values for a Remote Agent (HTTP) app, from the console's
 swagger: `none` / `""`, `static-token` (uses the app's `AuthToken`), `user-token`, and
 **`token-pass`** (the console's name for Pass Agent Token). A grant is a `pacpolicys`
