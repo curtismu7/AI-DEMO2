@@ -488,7 +488,7 @@ const UNITED_SQL_TOOLS = new Set([
 ]);
 function resolveBackendLabel(toolName, meta) {
   if (UNITED_SQL_TOOLS.has(toolName)) {
-    return { label: "United Airlines backend app", lane: "AIRLINES" };
+    return { label: "Airline backend app", lane: "AIRLINES" };
   }
   const mapped = toolName && TOOL_BACKEND_MAP[toolName];
   if (mapped) return mapped;
@@ -1855,7 +1855,7 @@ export function buildTraceSteps(trace) {
     authorizeFailed ? "notinpath" : databaseInfo ? "done" : traceComplete ? "notinpath" : "pending",
     databaseInfo ? {
       narrative: databaseInfo.isUnited
-        ? "The United Airlines resource server queried its real SQLite database and returned stored operational data."
+        ? "The airline resource server queried its real SQLite database and returned stored operational data."
         : `The resource server queried its ${databaseInfo.engine} database and returned stored data.`,
       kv: [
         ["engine", databaseInfo.engine],
@@ -1864,7 +1864,7 @@ export function buildTraceSteps(trace) {
       response: { title: "Database-backed result", text: asJson(mcpResult.result) },
     } : {});
   if (databaseInfo?.isUnited) {
-    databaseStep.title = "SQL Database — United Airlines data";
+    databaseStep.title = "SQL Database — Airline data";
   }
   steps.push(databaseStep);
 

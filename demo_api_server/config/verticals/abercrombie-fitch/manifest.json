@@ -2,10 +2,10 @@
   "id": "abercrombie-fitch",
   "schemaVersion": 3,
   "identity": {
-    "displayName": "Abercrombie & Fitch",
-    "headerTitle": "Abercrombie & Fitch",
-    "documentTitle": "Abercrombie & Fitch | Effortless Classics, Quality Clothing",
-    "logoAlt": "Abercrombie & Fitch",
+    "displayName": "Walbuy",
+    "headerTitle": "Walbuy",
+    "documentTitle": "Walbuy | Effortless Classics, Quality Clothing",
+    "logoAlt": "Walbuy",
     "tagline": "Effortless Classics, Quality Clothing",
     "logoPath": "https://cdn.brandfetch.io/idkYPWBxQ8/theme/dark/logo.svg"
   },
@@ -29,10 +29,10 @@
     }
   },
   "terminology": {
-    "account": "myAbercrombie Account",
-    "accounts": "myAbercrombie Accounts",
+    "account": "myWalbuy Account",
+    "accounts": "myWalbuy Accounts",
     "accountTypes": [
-      "myAbercrombie Rewards",
+      "myWalbuy Rewards",
       "Merchandise Credit",
       "Gift Card"
     ],
@@ -46,14 +46,14 @@
     ],
     "balance": "Rewards Balance",
     "agent": "Style Assistant",
-    "dashboard": "My A&F",
+    "dashboard": "My Walbuy",
     "highValueAction": "High-Value Purchase",
     "highValueLabel": "High-value apparel purchase"
   },
   "groups": {
     "access": {
       "label": "XClub member",
-      "memberStory": "demoUser is an XClub member \u2014 the Style Assistant may read their sensitive A&F order history (purchases, returns, waitlist items).",
+      "memberStory": "demoUser is an XClub member \u2014 the Style Assistant may read their sensitive Walbuy order history (purchases, returns, waitlist items).",
       "nonMemberStory": "demoDelegate has no XClub membership: sensitive order history is members-only, so their calls are denied today. Joining XClub flips it instantly."
 },
     "categories": {
@@ -89,9 +89,9 @@
     }
   },
   "agent": {
-    "persona": "A&F Style Assistant",
-    "greeting": "Hi {name}! I can help with your A&F orders, myAbercrombie rewards, saved styles, deliveries, and returns. What would you like to do?",
-    "systemPromptFlavor": "You are the Abercrombie & Fitch Style Assistant. Help customers review A&F orders, track deliveries, check myAbercrombie rewards, manage returns and saved items, and complete apparel purchases. Be concise and only use facts returned by tools."
+    "persona": "Walbuy Style Assistant",
+    "greeting": "Hi {name}! I can help with your Walbuy orders, myWalbuy rewards, saved styles, deliveries, and returns. What would you like to do?",
+    "systemPromptFlavor": "You are the Walbuy Style Assistant. Help customers review Walbuy orders, track deliveries, check myWalbuy rewards, manage returns and saved items, and complete apparel purchases. Be concise and only use facts returned by tools."
   },
   "hero": {
     "imageUrl": "https://images.unsplash.com/photo-1487180144351-b8472da7d491?w=1200&h=600&fit=crop",
@@ -102,11 +102,11 @@
     "chips": [
       {
         "key": "balance",
-        "label": "myAbercrombie Rewards"
+        "label": "myWalbuy Rewards"
       },
       {
         "key": "accounts",
-        "label": "My A&F Orders"
+        "label": "My Walbuy Orders"
       },
       {
         "key": "transactions",
@@ -120,8 +120,8 @@
     "chips10": [
       {
         "id": "anf1",
-        "label": "My A&F orders",
-        "message": "show my A&F orders",
+        "label": "My Walbuy orders",
+        "message": "show my Walbuy orders",
         "mode": "both",
         "tool": "list_anf_orders",
         "useCaseId": "delegated-access-with-proof"
@@ -129,15 +129,15 @@
       {
         "id": "anf2",
         "label": "Track my latest order",
-        "message": "track my order at A&F",
+        "message": "track my order at Walbuy",
         "mode": "both",
         "tool": "order_status",
         "useCaseId": "delegated-access-with-proof"
       },
       {
         "id": "anf3",
-        "label": "myAbercrombie rewards",
-        "message": "show my reward points at A&F",
+        "label": "myWalbuy rewards",
+        "message": "show my reward points at Walbuy",
         "mode": "both",
         "tool": "rewards_balance",
         "useCaseId": "delegated-access-with-proof"
@@ -145,7 +145,7 @@
       {
         "id": "anf4",
         "label": "My saved styles",
-        "message": "show my saved items at A&F",
+        "message": "show my saved items at Walbuy",
         "mode": "both",
         "tool": "view_wishlist",
         "useCaseId": "delegated-access-with-proof"
@@ -153,7 +153,7 @@
       {
         "id": "anf5",
         "label": "My returns",
-        "message": "show my A&F returns",
+        "message": "show my Walbuy returns",
         "mode": "both",
         "tool": "view_returns",
         "useCaseId": "delegated-access-with-proof"
@@ -179,7 +179,7 @@
       {
         "id": "anf-a2a",
         "label": "Sensitive purchase history",
-        "message": "show my sensitive A&F order history",
+        "message": "show my sensitive Walbuy order history",
         "mode": "both",
         "challenge": "consent",
         "tool": "sensitive_order_history",
@@ -215,31 +215,31 @@
         {
           "id": "anf_recent",
           "label": "Recent order status",
-          "message": "Where is my most recent A&F order?"
+          "message": "Where is my most recent Walbuy order?"
         },
         {
           "id": "anf_compare",
           "label": "Compare purchases",
-          "message": "Compare my last two A&F purchases"
+          "message": "Compare my last two Walbuy purchases"
         }
       ],
       "Styles": [
         {
           "id": "anf_saved",
           "label": "Saved styles",
-          "message": "What's in my A&F saved styles?"
+          "message": "What's in my Walbuy saved styles?"
         },
         {
           "id": "anf_viewed",
           "label": "Recently viewed",
-          "message": "Show the A&F styles I viewed recently"
+          "message": "Show the Walbuy styles I viewed recently"
         }
       ],
       "Returns": [
         {
           "id": "anf_returns",
           "label": "Return status",
-          "message": "Show my A&F return status"
+          "message": "Show my Walbuy return status"
         },
         {
           "id": "anf_exchange",
@@ -250,13 +250,13 @@
       "Rewards": [
         {
           "id": "anf_points",
-          "label": "myAbercrombie points",
-          "message": "How many myAbercrombie points do I have?"
+          "label": "myWalbuy points",
+          "message": "How many myWalbuy points do I have?"
         },
         {
           "id": "anf_credit",
           "label": "Merchandise credit",
-          "message": "Show my A&F merchandise credit"
+          "message": "Show my Walbuy merchandise credit"
         }
       ]
     }
@@ -267,8 +267,8 @@
     "transfer": "transfer"
   },
   "delegation": {
-    "pageTitle": "A&F Account Sharing",
-    "pageDescription": "Share selected A&F account access with a family member using RFC 8693 token exchange.",
+    "pageTitle": "Walbuy Account Sharing",
+    "pageDescription": "Share selected Walbuy account access with a family member using RFC 8693 token exchange.",
     "granteeLabel": "family member",
     "scopeLabels": {
       "view_accounts": {
@@ -277,15 +277,15 @@
       },
       "view_balances": {
         "label": "View Rewards",
-        "description": "See myAbercrombie points and merchandise credit"
+        "description": "See myWalbuy points and merchandise credit"
       },
       "create_deposit": {
         "label": "Make Purchases",
-        "description": "Buy A&F items on this account"
+        "description": "Buy Walbuy items on this account"
       },
       "create_withdrawal": {
         "label": "Process Returns",
-        "description": "Return or exchange A&F items"
+        "description": "Return or exchange Walbuy items"
       },
       "create_transfer": {
         "label": "Transfer Credit",
@@ -296,7 +296,7 @@
   "render": {
     "request_price_adjustment": {
       "type": "card",
-      "title": "A&F Price-Adjustment Request",
+      "title": "Walbuy Price-Adjustment Request",
       "fields": [
         {
           "label": "Request #",
@@ -318,7 +318,7 @@
     },
     "initiate_return": {
       "type": "card",
-      "title": "A&F Return Initiated",
+      "title": "Walbuy Return Initiated",
       "fields": [
         {
           "label": "Return #",
@@ -336,7 +336,7 @@
     },
     "add_to_wishlist": {
       "type": "card",
-      "title": "Saved to My A&F",
+      "title": "Saved to My Walbuy",
       "fields": [
         {
           "label": "Style #",
@@ -354,7 +354,7 @@
     },
     "reorder": {
       "type": "card",
-      "title": "A&F Order Resubmitted",
+      "title": "Walbuy Order Resubmitted",
       "fields": [
         {
           "label": "Order #",
@@ -372,7 +372,7 @@
     },
     "view_payment_methods": {
       "type": "table",
-      "title": "A&F Payment Methods",
+      "title": "Walbuy Payment Methods",
       "columns": [
         {
           "label": "Card #",
@@ -416,7 +416,7 @@
     },
     "view_addresses": {
       "type": "table",
-      "title": "A&F Saved Addresses",
+      "title": "Walbuy Saved Addresses",
       "columns": [
         {
           "label": "Address #",
@@ -442,7 +442,7 @@
     },
     "view_support_tickets": {
       "type": "table",
-      "title": "A&F Support Requests",
+      "title": "Walbuy Support Requests",
       "columns": [
         {
           "label": "Ticket #",
@@ -469,7 +469,7 @@
     },
     "close_support_ticket": {
       "type": "card",
-      "title": "A&F Support Request Closed",
+      "title": "Walbuy Support Request Closed",
       "fields": [
         {
           "label": "Ticket #",
@@ -487,7 +487,7 @@
     },
     "view_gift_cards": {
       "type": "table",
-      "title": "A&F Gift Cards",
+      "title": "Walbuy Gift Cards",
       "columns": [
         {
           "label": "Card #",
@@ -515,7 +515,7 @@
     },
     "view_recently_viewed": {
       "type": "table",
-      "title": "Recently Viewed at A&F",
+      "title": "Recently Viewed at Walbuy",
       "columns": [
         {
           "label": "Style #",
@@ -543,7 +543,7 @@
     },
     "redeem_store_credit": {
       "type": "card",
-      "title": "A&F Credit Redeemed",
+      "title": "Walbuy Credit Redeemed",
       "fields": [
         {
           "label": "Reward #",
@@ -561,7 +561,7 @@
     },
     "cancel_order": {
       "type": "card",
-      "title": "A&F Order Cancelled",
+      "title": "Walbuy Order Cancelled",
       "fields": [
         {
           "label": "Item",
@@ -575,7 +575,7 @@
     },
     "view_wishlist": {
       "type": "table",
-      "title": "My Saved A&F Styles",
+      "title": "My Saved Walbuy Styles",
       "columns": [
         {
           "label": "Style #",
@@ -602,7 +602,7 @@
     },
     "view_returns": {
       "type": "table",
-      "title": "My A&F Returns",
+      "title": "My Walbuy Returns",
       "columns": [
         {
           "label": "Return #",
@@ -629,7 +629,7 @@
     },
     "list_anf_orders": {
       "type": "table",
-      "title": "My A&F Orders",
+      "title": "My Walbuy Orders",
       "columns": [
         {
           "label": "Order ID",
@@ -652,7 +652,7 @@
     },
     "order_status": {
       "type": "card",
-      "title": "A&F Order Status",
+      "title": "Walbuy Order Status",
       "fields": [
         {
           "label": "Item",
@@ -671,7 +671,7 @@
     },
     "rewards_balance": {
       "type": "fieldList",
-      "title": "myAbercrombie Rewards",
+      "title": "myWalbuy Rewards",
       "fields": [
         {
           "label": "Points",
@@ -691,7 +691,7 @@
     },
     "checkout": {
       "type": "card",
-      "title": "A&F Order Placed",
+      "title": "Walbuy Order Placed",
       "fields": [
         {
           "label": "Item",

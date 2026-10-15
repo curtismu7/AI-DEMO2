@@ -226,8 +226,8 @@ test("Live adds Resource Server and United SQL Database cards from backend evide
     result: { source: "sqlite", upcomingTrips: 2 },
   }));
 
-  expect(screen.getByText(/United Airlines backend app — resource server/)).toBeInTheDocument();
-  expect(screen.getByText(/SQL Database — United Airlines data/)).toBeInTheDocument();
+  expect(screen.getByText(/Airline backend app — resource server/)).toBeInTheDocument();
+  expect(screen.getByText(/SQL Database — Airline data/)).toBeInTheDocument();
 });
 
 test("visibility projection preserves conditional observed steps and repeated decisions", () => {

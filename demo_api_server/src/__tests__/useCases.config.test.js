@@ -171,11 +171,11 @@ describe('useCases catalog SoT', () => {
         UC24: 'What stores are near me?',
       },
       'abercrombie-fitch': {
-        UC1: 'show my A&F orders',
-        UC6: 'checkout A&F outerwear for $2500',
-        UC7: 'checkout A&F outerwear for $600',
-        UC8: 'checkout A&F outerwear for $300',
-        UC24: 'What A&F stores are near me?',
+        UC1: 'show my Walbuy orders',
+        UC6: 'checkout Walbuy outerwear for $2500',
+        UC7: 'checkout Walbuy outerwear for $600',
+        UC8: 'checkout Walbuy outerwear for $300',
+        UC24: 'What Walbuy stores are near me?',
       },
       government: {
         UC1: 'show my permits',

@@ -15,15 +15,15 @@ function actionFor(message) {
   return parsed?.banking?.action ?? parsed?.action ?? null;
 }
 
-describe('Abercrombie & Fitch vertical clone', () => {
+describe('Walbuy vertical clone', () => {
   beforeAll(() => {
     verticalManifest.init();
   });
 
-  test('is independently discoverable with A&F branding and a local logo', () => {
+  test('is independently discoverable with Walbuy branding and a local logo', () => {
     const manifest = verticalManifest.resolver.resolve(VERTICAL);
     expect(manifest.identity).toMatchObject({
-      displayName: 'Abercrombie & Fitch',
+      displayName: 'Walbuy',
       // Real-company verticals reference the Brandfetch CDN lockup rather than
       // a repo-hosted tile (the asset the brand itself serves).
       logoPath: 'https://cdn.brandfetch.io/idkYPWBxQ8/theme/dark/logo.svg',
@@ -33,17 +33,17 @@ describe('Abercrombie & Fitch vertical clone', () => {
   });
 
   test.each([
-    ['show my A&F orders', 'list_anf_orders'],
-    ['track my order at A&F', 'order_status'],
-    ['show my reward points at A&F', 'rewards_balance'],
-    ['show my saved items at A&F', 'view_wishlist'],
-    ['show my A&F returns', 'view_returns'],
-    ['show my sensitive A&F order history', 'sensitive_order_history'],
-  ])('routes the A&F request "%s" to %s', (message, expectedAction) => {
+    ['show my Walbuy orders', 'list_anf_orders'],
+    ['track my order at Walbuy', 'order_status'],
+    ['show my reward points at Walbuy', 'rewards_balance'],
+    ['show my saved items at Walbuy', 'view_wishlist'],
+    ['show my Walbuy returns', 'view_returns'],
+    ['show my sensitive Walbuy order history', 'sensitive_order_history'],
+  ])('routes the Walbuy request "%s" to %s', (message, expectedAction) => {
     expect(actionFor(message)).toBe(expectedAction);
   });
 
-  test('returns A&F order and rewards values from its own seed', async () => {
+  test('returns Walbuy order and rewards values from its own seed', async () => {
     const orders = await plugin.executeTool('list_anf_orders', {}, { userId: 'anf-ground-truth' });
     const rewards = await plugin.executeTool('rewards_balance', {}, { userId: 'anf-ground-truth' });
 
@@ -53,7 +53,7 @@ describe('Abercrombie & Fitch vertical clone', () => {
     expect(JSON.stringify(orders.result)).not.toMatch(/AirPods|MacBook|Great Buy/i);
   });
 
-  test('returns an A&F-specific sensitive response grounded in the same seed', async () => {
+  test('returns an Walbuy-specific sensitive response grounded in the same seed', async () => {
     const response = await plugin.executeTool(
       'sensitive_order_history',
       {},
@@ -69,19 +69,19 @@ describe('Abercrombie & Fitch vertical clone', () => {
     });
   });
 
-  test('owns complete A&F catalog bindings without leaking Great Buy requests', () => {
+  test('owns complete Walbuy catalog bindings without leaking Great Buy requests', () => {
     expect(VERTICALS).toContain(VERTICAL);
     expect(resolveUseCase('UC1', VERTICAL)).toMatchObject({
       primaryTool: 'list_anf_orders',
-      trigger: { text: 'show my A&F orders' },
+      trigger: { text: 'show my Walbuy orders' },
     });
     expect(resolveUseCase('UC6', VERTICAL)).toMatchObject({
       primaryTool: 'checkout',
-      trigger: { text: 'checkout A&F outerwear for $2500' },
+      trigger: { text: 'checkout Walbuy outerwear for $2500' },
     });
     expect(resolveUseCase('UC28', VERTICAL)).toMatchObject({
       primaryTool: 'request_price_adjustment',
-      trigger: { text: 'can you request a price adjustment on my A&F order?' },
+      trigger: { text: 'can you request a price adjustment on my Walbuy order?' },
     });
     const chipText = listUseCases(VERTICAL)
       .filter((useCase) => useCase.trigger?.type === 'chip')
