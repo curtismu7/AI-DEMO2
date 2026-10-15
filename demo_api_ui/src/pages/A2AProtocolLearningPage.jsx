@@ -7,6 +7,7 @@ import { buildA2aChainDetail } from '../utils/a2aChainDetail';
 import { A2A_RECORDED_RUN } from '../data/a2aRecordedRun';
 import A2AFlowVisualizer from '../components/A2AFlowVisualizer';
 import A2aStageTimings from '../components/A2aStageTimings';
+import A2aDocsLinks from '../components/shared/A2aDocsLinks';
 import RelatedLearningRail from '../components/learning/RelatedLearningRail';
 import { EDU } from '../components/education/educationIds';
 import { RUN_PROVENANCE } from '../config/agentTerminology';
@@ -597,6 +598,8 @@ export default function A2AProtocolLearningPage() {
           </ul>
         </div>
       </Section>
+
+      <A2aDocsLinks />
 
       <RelatedLearningRail
         id="a2a-protocol"

@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 import { MarkdownContent } from '../../components/shared/MarkdownText';
 import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/gatewayEvents';
 import { PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID, PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
+import A2aDocsLinks from '../../components/shared/A2aDocsLinks';
 import PageAgentModeToggle, { usePageAgentMode } from '../../components/shared/PageAgentModeToggle';
 import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
 import { PATH_STEPS, pathProgress } from './pathProgress';
@@ -502,6 +503,7 @@ export default function PrivilegeA2aTab() {
               <tr><th scope="row">Record</th><td>Direct: only the app's own log. Gateway: every call is in the gateway's log.</td></tr>
             </tbody>
           </table>
+          <A2aDocsLinks />
         </aside>
       </div>
 
