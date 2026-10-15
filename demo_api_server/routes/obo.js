@@ -112,7 +112,8 @@ router.post('/run', async (req, res) => {
     return res.status(401).json({ error: 'Sign in first. The demo runs on your own session token.' });
   }
   try {
-    const evidence = await runObo({ req, subjectToken, source: 'page' });
+    const evidence = await runObo({ req, subjectToken, source: 'page', capture: true });
+    res.set('Cache-Control', 'no-store');
     return res.json(evidence);
   } catch (err) {
     if (err.code === 'obo_not_configured') {
@@ -128,6 +129,7 @@ router.post('/run', async (req, res) => {
       description: reason.description || err.pingoneErrorDescription,
       status: reason.httpStatus || err.httpStatus,
     });
+    res.set('Cache-Control', 'no-store');
     return res.status(502).json({ error: 'OBO exchange failed.', failedStep: failed?.id, steps: err.trace });
   }
 });

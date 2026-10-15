@@ -116,3 +116,60 @@ describe('step trace for the page', () => {
     expect(err.trace[2].facts.description).toMatch(/withheld/);
   });
 });
+
+describe('capture', () => {
+  const actorWire = { request: { method: 'POST', url: 'https://pingone/as/token', headers: {}, body: { grant_type: 'client_credentials', client_id: 'AGENT', client_secret: 'PLANTED-AGENT-SECRET' } }, response: { status: 200, data: { access_token: 'actor.jwt.x', expires_in: 3600 } } };
+  const exchangeWire = { request: { method: 'POST', url: 'https://pingone/as/token', headers: { Authorization: 'Basic cGxhbnRlZA==' }, body: { grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange', subject_token: user, actor_token: 'actor.jwt.x', client_secret: 'PLANTED-EX-SECRET' } }, response: { status: 200, data: { access_token: delegated, expires_in: 900 } } };
+  const capturingDeps = () => deps({
+    getActorToken: jest.fn(async (_req, cfg) => { cfg.onWire?.(actorWire); return 'actor.jwt.x'; }),
+    exchange: jest.fn(async (_s, _a, cfg) => { cfg.onWire?.(exchangeWire); return delegated; }),
+    verifyDownstream: jest.fn(async (t) => (t === delegated ? { status: 200, acting_for: 'u1', acted_by: { client_id: 'AGENT' } } : { status: 401, error: 'no act object' })),
+  });
+
+  test('without capture there is no wire and no tokens on any step (the Claude path)', async () => {
+    const ev = await runObo({ req: {}, subjectToken: user, source: 'claude' }, capturingDeps());
+    for (const s of ev.steps) { expect(s.wire).toBeUndefined(); expect(s.tokens).toBeUndefined(); }
+    expect(JSON.stringify(ev)).not.toContain(delegated);
+    expect(JSON.stringify(ev)).not.toContain(user);
+  });
+
+  test('with capture each hop has its real wire and the token steps carry raw + decoded tokens', async () => {
+    const ev = await runObo({ req: {}, subjectToken: user, source: 'page', capture: true }, capturingDeps());
+    const by = Object.fromEntries(ev.steps.map((s) => [s.id, s]));
+    expect(by[1].tokens[0]).toMatchObject({ role: 'user', raw: user, decoded: { payload: { sub: 'u1' } } });
+    expect(by[2].wire.request.body.client_id).toBe('AGENT');
+    expect(by[2].tokens[0].role).toBe('actor');
+    expect(by[3].wire.request.body.subject_token).toBe(user);
+    expect(by[3].wire.response.body.access_token).toBe(delegated);
+    expect(by[3].tokens[0]).toMatchObject({ role: 'delegated', raw: delegated, decoded: { payload: { act: { client_id: 'AGENT' } } } });
+    expect(by[4].tokens[0].role).toBe('delegated');
+    expect(by[5].wire.request.headers.Authorization).toBe(`Bearer ${delegated}`);
+    expect(by[5].wire.response.status).toBe(200);
+    expect(by[6].wire.request.headers.Authorization).toBe(`Bearer ${user}`);
+    expect(by[6].wire.response.status).toBe(401);
+  });
+
+  test('with capture, client secrets and Basic credentials never appear anywhere in the result', async () => {
+    const ev = await runObo({ req: {}, subjectToken: user, source: 'page', capture: true }, capturingDeps());
+    const text = JSON.stringify(ev);
+    for (const planted of ['PLANTED-AGENT-SECRET', 'PLANTED-EX-SECRET', 'cGxhbnRlZA==']) expect(text).not.toContain(planted);
+  });
+
+  test('the evidence and checks stay token-free even with capture', async () => {
+    const ev = await runObo({ req: {}, subjectToken: user, source: 'page', capture: true }, capturingDeps());
+    const { steps, ...evidence } = ev;
+    expect(JSON.stringify(evidence)).not.toContain(delegated);
+    expect(JSON.stringify(evidence)).not.toContain(user);
+  });
+
+  test('a failed exchange attaches PingOne\'s real error response to the failed step', async () => {
+    const failWire = { request: { method: 'POST', url: 'https://pingone/as/token', headers: {}, body: { subject_token: user, client_secret: 'PLANTED-EX-SECRET' } }, response: { status: 400, data: { error: 'invalid_scope', error_description: 'bad scope' } } };
+    const d = capturingDeps();
+    d.exchange = jest.fn(async (_s, _a, cfg) => { cfg.onWire?.(failWire); throw Object.assign(new Error('Token exchange failed'), { pingoneError: 'invalid_scope', pingoneErrorDescription: 'bad scope', httpStatus: 400 }); });
+    const err = await runObo({ req: {}, subjectToken: user, source: 'page', capture: true }, d).catch((e) => e);
+    const failed = err.trace.find((s) => s.status === 'fail');
+    expect(failed.id).toBe(3);
+    expect(failed.wire.response.body).toEqual({ error: 'invalid_scope', error_description: 'bad scope' });
+    expect(JSON.stringify(err.trace)).not.toContain('PLANTED-EX-SECRET');
+  });
+});
