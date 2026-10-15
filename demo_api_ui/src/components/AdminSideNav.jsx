@@ -1455,6 +1455,7 @@ export default function AdminSideNav({
       "Scope Reference",
       "Snapshot Import",
       "Health Check",
+      { label: "Token Security Tester", path: "/token-security", icon: "sec", searchAlias: "token security tester jwt attack replay audience tamper" },
     ], "tool"),
     productGroup("AI Experiences", [
       { label: "Demo Summary", path: "/demo-summary", icon: "demo" },
@@ -1503,6 +1504,7 @@ export default function AdminSideNav({
       { label: "Workload Agents", path: "/workload-agents", icon: "agt", searchAlias: "workload agents digital assistant obo uc38 uc44 delegated" },
       { label: "Embedded Worker", path: "/embedded-worker", icon: "agt", searchAlias: "embedded worker saas uc45 agent" },
       { label: "OBO Demo", path: "/obo-demo", icon: "lck" },
+      { label: "Digital Worker", path: "/digital-worker", icon: "arc", searchAlias: "digital worker agentic token service agent gateway mcp token mediation diagram" },
       { label: "Target Design", path: "/personal-agent-design", icon: "arc" },
       { label: "Dual Gateway Design", path: "/personal-agent-dual-gateway", icon: "arc" },
       { label: "Design Review", path: "/personal-agent-review", icon: "log" },
@@ -1544,6 +1546,7 @@ export default function AdminSideNav({
       "API Reference (Scalar)",
       "llama-vscode Guide",
       "PromptFoo Evals",
+      { label: "Dev Tools", path: "/dev-tools", icon: "dbg", searchAlias: "dev tools developer utilities debug" },
     ], "tst"),
     productGroup("Observability", [
       "Audit Trail",
@@ -1623,6 +1626,7 @@ export default function AdminSideNav({
       "OIDC Resource Server",
       "CC Resource Server",
       { label: "Hosted Registrations", path: "/hosted-registrations", icon: "doc", searchAlias: "hosted access registration requests invite approve wall" },
+      { label: "Token Compliance Audit", path: "/token-compliance", icon: "pol", searchAlias: "token compliance audit admin policy claims" },
     ], "cfg"),
   ];
 

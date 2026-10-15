@@ -90,6 +90,7 @@ describe("PingOne platform navigation", () => {
       "Scope Reference",
       "Snapshot Import",
       "Health Check",
+      "Token Security Tester",
     ]);
   });
 

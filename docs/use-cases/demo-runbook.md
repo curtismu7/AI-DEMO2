@@ -87,25 +87,25 @@
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
-| UC1 | `show my A&F orders` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
-| UC2 | `show my sensitive A&F order history` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
+| UC1 | `show my Walbuy orders` | `PERMIT` | The user consented, and the act claim proves the agent acted on their behalf — fully attributable. |
+| UC2 | `show my sensitive Walbuy order history` | `PERMIT` | Generalist hands off to specialist — the nested act claim shows the full chain back to the user. |
 | UC2.6 | `simulate an agent identity mismatch` | `PERMIT_THEN_DENY` | Same user, same delegation shape — but an unregistered agent identity is denied. Authorization keys on WHO is acting, not just who they act for. |
-| UC33 | `show my saved items at A&F` | `PERMIT` | Same delegated token, a different A&F tool — the act claim proves the agent through the saved-styles lookup, not just order history. |
+| UC33 | `show my saved items at Walbuy` | `PERMIT` | Same delegated token, a different Walbuy tool — the act claim proves the agent through the saved-styles lookup, not just order history. |
 | UC34 | `Check for unusual patterns in my recent activity` | `PERMIT` | The analysis path runs the full pipeline — same RFC 8693 → gateway → Authorize legs as a heuristic chip, no shortcut. |
 | UC35 | `Explain why my last blocked action was denied and walk me through the token chain` | `PERMIT` | The agent explained its own security posture from the live token-chain events — useful for teaching why a control fired. |
-| UC6 | `checkout A&F outerwear for $2500` | `DENY` | $2500 A&F checkout exceeds the policy ceiling — Authorize returns DENY. |
-| UC7 | `checkout A&F outerwear for $600` | `STEP_UP` | $600 A&F checkout >= the step-up bar → MFA required first. |
-| UC8 | `checkout A&F outerwear for $300` | `HITL_REQUIRED` | $300 A&F checkout requires human consent before it runs. |
-| UC9 | `check my sensitive A&F order history for group entitlement` | `DENY_403` | The user isn't in the required group — Authorize denies regardless of scopes. |
-| UC21 | `check my sensitive A&F order history for tier access` | `PERMIT` | Private Banking tier gets wire tools and a higher limit; Standard tier's agent is not offered them. |
-| UC22 | `checkout A&F outerwear for $150` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
-| UC24 | `What A&F stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
+| UC6 | `checkout Walbuy outerwear for $2500` | `DENY` | $2500 Walbuy checkout exceeds the policy ceiling — Authorize returns DENY. |
+| UC7 | `checkout Walbuy outerwear for $600` | `STEP_UP` | $600 Walbuy checkout >= the step-up bar → MFA required first. |
+| UC8 | `checkout Walbuy outerwear for $300` | `HITL_REQUIRED` | $300 Walbuy checkout requires human consent before it runs. |
+| UC9 | `check my sensitive Walbuy order history for group entitlement` | `DENY_403` | The user isn't in the required group — Authorize denies regardless of scopes. |
+| UC21 | `check my sensitive Walbuy order history for tier access` | `PERMIT` | Private Banking tier gets wire tools and a higher limit; Standard tier's agent is not offered them. |
+| UC22 | `checkout Walbuy outerwear for $150` | `PERMIT` | Note the amount — $150, below the MFA threshold. A person doing this in-browser would sail through. But an AGENT moving money is a sensitive, agent-context action, so approval is requested out-of-band on the user's phone. CIBA is triggered by the action and the actor, not the amount. |
+| UC24 | `What Walbuy stores are near me?` | `PERMIT` | Low-friction first — no token exchange for public catalog data. |
 | UC30 | `what's the weather in Austin, TX` | `PERMIT` | Austin is in Texas — the gateway lets the call through to the real weather server. |
 | UC31 | `what's the weather in Miami` | `DENY` | Miami is outside Texas — the gateway denies the call before the third-party server ever sees it. |
 | UC41 | `search the news for PingOne DaVinci` | `PERMIT` | An ordinary business search — no blocked term, so the gateway forwards it to the real Brave API. |
 | UC42 | `search the news for bitcoin price today` | `DENY` | Demo bank policy says no crypto research through the agent gateway. The gateway kills the query before Brave ever sees it. |
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
-| UC28 | `can you request a price adjustment on my A&F order?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
+| UC28 | `can you request a price adjustment on my Walbuy order?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
 ## government
 

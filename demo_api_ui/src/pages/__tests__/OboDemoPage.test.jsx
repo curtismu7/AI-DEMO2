@@ -227,3 +227,10 @@ describe("OboDemoPage reset", () => {
     expect(screen.getByText("Not run yet")).toBeInTheDocument();
   });
 });
+
+describe("OboDemoPage title", () => {
+  it("is titled Personal Agent User delegation (OBO)", () => {
+    render(<OboDemoPage />);
+    expect(screen.getByRole("heading", { level: 1, name: "Personal Agent User delegation (OBO)" })).toBeInTheDocument();
+  });
+});

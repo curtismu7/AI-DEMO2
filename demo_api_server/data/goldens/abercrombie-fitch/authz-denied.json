@@ -5,7 +5,7 @@
   "trigger": "checkout Walbuy outerwear for $2500",
   "expectedOutcome": "DENY",
   "capturedAt": "2026-08-28T17:42:48.842Z",
-  "seedHash": "005fc03655ff4340",
+  "seedHash": "d5d7d1c4714fc23f",
   "reply": "❌ 2500 exceeds tier ceiling 2000",
   "agentPath": null,
   "tokenEventCount": 22

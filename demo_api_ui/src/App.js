@@ -251,6 +251,7 @@ import PublicRoutes, {
   PingFederateAiAgentPageRoute,
   AicTokenExchangePageRoute,
   OboDemoPageRoute,
+  DigitalWorkerPageRoute,
   GroupPolicyBoardPageRoute,
   PageCatalogPageRoute,
   PrivilegeMcpClientPageRoute,
@@ -1492,6 +1493,16 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <OboDemoPageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
+                  path="/digital-worker"
+                  element={
+                    loading ? null : user ? (
+                      <DigitalWorkerPageRoute user={user} logout={logout} />
                     ) : (
                       <SignInRequired />
                     )
