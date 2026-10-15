@@ -230,16 +230,16 @@ function renderThemedAgent(props = {}, { route = "/" } = {}) {
   );
 }
 
-// ─── Post-OAuth auto-open ────────────────────────────────────────────────────
-// The agent expands itself on return from login. On the PingOne admin console
-// that buried the page the admin just signed in to see, so the auto-open is
-// suppressed there and only there.
-describe("Auto-open on return from OAuth login", () => {
-  it("opens the panel on a non-admin route", async () => {
+// ─── Post-OAuth: no auto-open ────────────────────────────────────────────────
+// The floating agent stays an icon after sign-in on every route (#1408); only
+// explicit opens (nav, run attack, demo steps) expand it.
+describe("No auto-open on return from OAuth login", () => {
+  it("stays collapsed on a non-admin route", async () => {
     renderAgent({ user: customerUser, mode: "float" }, { route: "/dashboard?oauth=success" });
     await waitFor(() => {
-      expect(screen.getByRole("dialog", { name: /AI Agent/i })).toBeInTheDocument();
+      expect(screen.getByRole("button", { name: /Open.*AI Agent/i })).toBeInTheDocument();
     });
+    expect(screen.queryByRole("dialog", { name: /AI Agent/i })).not.toBeInTheDocument();
   });
 
   it("stays collapsed on the PingOne admin console", async () => {
