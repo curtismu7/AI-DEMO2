@@ -3,6 +3,11 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let mockDark = true;
+let mockVertical = { activeId: 'healthcare', pageManifest: { dashboard: { chips10: [
+  { id: 'h1', label: 'My claims', message: 'Show my open claims' },
+  { id: 'h2', label: 'Find a doctor', message: 'Find an in-network cardiologist' },
+] } } };
+vi.mock('../../vertical/useVertical', () => ({ useVertical: () => mockVertical }));
 const mockToggle = vi.fn();
 vi.mock('../../context/ThemeContext', () => ({ useThemeOptional: () => ({ darkMode: mockDark, toggleDarkMode: mockToggle }) }));
 vi.mock('../../utils/signInService', () => ({ openSignIn: vi.fn() }));
@@ -93,7 +98,7 @@ describe('DotWorkbenchPage', () => {
   it('chips send their prompt and disappear after the first message', async () => {
     mockFetch(() => json(200, { reply: 'ok', success: true, toolsCalled: [] }));
     renderPage();
-    fireEvent.click(screen.getByRole('button', { name: 'Call me Sam' }));
+    fireEvent.click(screen.getByRole('button', { name: 'My claims' }));
     await screen.findByText('ok');
     expect(screen.queryByRole('group', { name: 'Suggested prompts' })).toBeNull();
   });
@@ -107,6 +112,28 @@ describe('DotWorkbenchPage', () => {
     rerender(ui());
     expect(document.querySelector('[data-cur-theme]').getAttribute('data-cur-theme')).toBe('light');
     mockDark = true;
+  });
+
+  it("chips come from the active vertical (label shown, its prompt sent), and the invoke uses that vertical", async () => {
+    mockFetch(() => json(200, { reply: 'ok', success: true, toolsCalled: [] }));
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Always book me an aisle seat' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'What do you remember about me?' })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'My claims' }));
+    await screen.findByText('ok');
+    const call = global.fetch.mock.calls.find(([u]) => String(u).includes('/api/agent/invoke'));
+    expect(JSON.parse(call[1].body)).toMatchObject({ prompt: 'Show my open claims', vertical: 'healthcare' });
+  });
+
+  it('no active vertical yet: sends no vertical (server default) and offers only the neutral Dot chips', async () => {
+    mockVertical = { activeId: null, pageManifest: null };
+    mockFetch(() => json(200, { reply: 'ok', success: true, toolsCalled: [] }));
+    renderPage();
+    expect(screen.getAllByRole('button').filter((b) => b.className.includes('dot-chip')).map((b) => b.textContent)).toEqual(['Always keep your answers short', 'Call me Sam', 'What do you remember about me?']);
+    fireEvent.click(screen.getByRole('button', { name: 'What do you remember about me?' }));
+    await screen.findByText('ok');
+    const call = global.fetch.mock.calls.find(([u]) => String(u).includes('/api/agent/invoke'));
+    expect(JSON.parse(call[1].body).vertical).toBeUndefined();
   });
 
   it('skin tabs link to the Studio', () => {

@@ -7,7 +7,8 @@ import DotPersonaCard from '../components/dot/DotPersonaCard';
 import DotGovernsPanel from '../components/dot/DotGovernsPanel';
 import { useDotPersona } from '../components/dot/useDotPersona';
 import { mapInvokeResult } from '../utils/dotChat';
-import { DOT_SUGGESTIONS } from '../config/dotSuggestions';
+import { dotSuggestions } from '../config/dotSuggestions';
+import { useVertical } from '../vertical/useVertical';
 import { useThemeOptional } from '../context/ThemeContext';
 import { openSignIn } from '../utils/signInService';
 // Same workbench shell sheet as /privilege-a2a (cur-ide / cur-titlebar), plus Dot's own.
@@ -18,6 +19,7 @@ const SKINS = [['privilege', 'Privilege'], ['claude', 'Claude'], ['gpt', 'ChatGP
 
 export default function DotWorkbenchPage({ user }) {
   const persona = useDotPersona();
+  const { activeId, pageManifest } = useVertical();
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
   const [items, setItems] = useState([]);
   const [input, setInput] = useState('');
@@ -42,7 +44,7 @@ export default function DotWorkbenchPage({ user }) {
     try {
       const res = await fetch('/api/agent/invoke', {
         method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ prompt, vertical: 'airlines', agentMode }),
+        body: JSON.stringify({ prompt, vertical: activeId || undefined, agentMode }),
       });
       mapped = mapInvokeResult(res.status, await res.json().catch(() => null));
     } catch {
@@ -97,7 +99,7 @@ export default function DotWorkbenchPage({ user }) {
             )}
             {items.length === 0 && (
               <div className="dot-chips" role="group" aria-label="Suggested prompts">
-                {DOT_SUGGESTIONS.map((s) => <button key={s} type="button" className="dot-chip" onClick={() => send(s)}>{s}</button>)}
+                {dotSuggestions(pageManifest).map(({ label, message }) => <button key={label} type="button" className="dot-chip" onClick={() => send(message)}>{label}</button>)}
               </div>
             )}
             <form className="dot-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>

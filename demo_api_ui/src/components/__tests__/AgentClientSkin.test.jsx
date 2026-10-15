@@ -75,6 +75,13 @@ describe('AgentClientSkin', () => {
       expect(screen.getByRole('button', { name: 'What do you remember about me?' })).toBeTruthy();
     });
 
+    it('accepts {label, message} chips: shows the label, sends the message', () => {
+      const onSend = vi.fn();
+      render(<AgentClientSkin {...baseProps} skin="dot" onSend={onSend} suggestions={[{ label: 'Check balance', message: 'What is my checking account balance?' }]} />);
+      fireEvent.click(screen.getByRole('button', { name: 'Check balance' }));
+      expect(onSend).toHaveBeenCalledWith('What is my checking account balance?');
+    });
+
     it('hides the chips once the conversation has started', () => {
       const messages = [{ role: 'agent', text: 'Hi' }, { role: 'user', text: 'Hello' }];
       render(<AgentClientSkin {...baseProps} skin="dot" messages={messages} suggestions={suggestions} />);

@@ -462,14 +462,14 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
         {messages.map((msg, i) => renderMessage(msg, i, cfg, colors, isTerminal, skin))}
         {suggestions.length > 0 && messages.length <= 1 && (
           <div role="group" aria-label="Suggested prompts" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {suggestions.map((text) => (
+            {suggestions.map((s) => typeof s === 'string' ? { label: s, message: s } : s).map(({ label, message }) => (
               <button
-                key={text}
+                key={label}
                 type="button"
-                onClick={() => onSend?.(text)}
+                onClick={() => onSend?.(message)}
                 style={{ fontSize: 12, color: cfg.accentColor, background: 'transparent', border: `1px solid ${cfg.accentColor}`, borderRadius: 14, padding: '5px 12px', cursor: 'pointer' }}
               >
-                {text}
+                {label}
               </button>
             ))}
           </div>
