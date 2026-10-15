@@ -1,0 +1,46 @@
+.cl-page { padding: 1rem 1.5rem 2rem; color: var(--th-text); }
+.cl-page__title { font-size: 1.4rem; margin: 0 0 0.25rem; }
+.cl-page__sub { margin: 0 0 0.75rem; color: var(--th-text-muted); }
+.cl-page__src { margin: 1rem 0 0; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+
+.cl-bar { display: flex; gap: 6px; align-items: center; margin-bottom: 0.75rem; font-size: var(--font-size-2xs); }
+.cl-bar button { cursor: pointer; padding: 4px 12px; border: 1px solid var(--th-border); border-radius: 4px; background: var(--th-bg-card); color: var(--th-text); font: inherit; }
+.cl-bar button:disabled { opacity: 0.45; cursor: default; }
+.cl-bar span { margin-left: 8px; color: var(--th-text-muted); }
+
+.cl-main { display: grid; grid-template-columns: minmax(0, 1fr) 20rem; gap: 1rem; align-items: start; }
+.cl-canvas { height: 62vh; min-height: 30rem; border: 1px solid var(--th-border); border-radius: 8px; background: var(--th-bg); overflow: hidden; }
+.cl-canvas .react-flow { background: var(--th-bg); }
+@media (max-width: 1000px) { .cl-main { grid-template-columns: 1fr; } }
+
+.cl-lane { width: 100%; height: 100%; box-sizing: border-box; border-radius: 8px; background: rgba(120, 150, 200, 0.12); border: 1px solid var(--th-border); text-align: center; padding-top: 10px; }
+.cl-lane__title { font-weight: 700; }
+.cl-lane__sub { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+
+.cl-dot { width: 24px; height: 24px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: var(--font-size-2xs); font-weight: 700; color: #fff; background: #8a94a6; }
+.cl-dot--inline { display: inline-flex; width: 20px; height: 20px; flex: none; }
+.cl-dot--done { background: #2e8b57; }
+.cl-dot--now { background: #d22; box-shadow: 0 0 0 4px rgba(221, 34, 34, 0.25); }
+.cl-self { display: flex; gap: 6px; align-items: center; padding: 4px 8px; border-radius: 6px; font-size: var(--font-size-2xs); background: var(--th-bg-card); border: 1px dashed var(--th-border); color: var(--th-text); opacity: 0.55; }
+.cl-self--done { opacity: 1; }
+.cl-self--now { opacity: 1; border: 2px solid #d22; }
+
+.cl-canvas .react-flow__handle { opacity: 0; }
+.cl-canvas .react-flow__edge-path { stroke: #8a94a6; stroke-width: 2; }
+.cl-canvas .cl-edge--todo { opacity: 0.35; }
+.cl-canvas .cl-edge--done .react-flow__edge-path { stroke: #2e8b57; }
+.cl-canvas .cl-edge--now .react-flow__edge-path { stroke: #d22; stroke-width: 3; }
+.cl-canvas .react-flow__edge-text { fill: var(--th-text); font-size: var(--font-size-3xs); font-weight: 600; }
+.cl-canvas .react-flow__edge-textbg { fill: var(--th-bg); }
+
+.cl-detail { padding: 1rem; border: 1px solid var(--th-border); border-radius: 8px; background: var(--th-bg-card); }
+.cl-detail__n { font-size: var(--font-size-2xs); color: #d22; font-weight: 700; text-transform: uppercase; }
+.cl-detail h2 { margin: 0.25rem 0 0.5rem; font-size: 1.1rem; }
+.cl-detail p { margin: 0 0 0.75rem; }
+.cl-detail pre { margin: 0; padding: 8px; white-space: pre-wrap; word-break: break-word; font-size: var(--font-size-3xs); background: var(--th-bg); border: 1px solid var(--th-border); border-radius: 4px; }
+
+.cl-panels { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1rem; margin-top: 1rem; }
+.cl-panel { padding: 0.75rem 1rem; border: 1px solid var(--th-border); border-radius: 8px; background: var(--th-bg-card); }
+.cl-panel h3 { margin: 0 0 0.5rem; font-size: 1rem; }
+.cl-panel ol { margin: 0; padding-left: 1.2rem; }
+.cl-panel__foot { margin-top: 0.5rem; font-size: var(--font-size-2xs); color: var(--th-text-muted); }

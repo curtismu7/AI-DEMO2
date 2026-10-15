@@ -252,6 +252,7 @@ import PublicRoutes, {
   AicTokenExchangePageRoute,
   OboDemoPageRoute,
   DigitalWorkerPageRoute,
+  ChatgptLoginPageRoute,
   GroupPolicyBoardPageRoute,
   PageCatalogPageRoute,
   PrivilegeMcpClientPageRoute,
@@ -1493,6 +1494,16 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <OboDemoPageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                <Route
+                  path="/chatgpt-login"
+                  element={
+                    loading ? null : user ? (
+                      <ChatgptLoginPageRoute user={user} logout={logout} />
                     ) : (
                       <SignInRequired />
                     )

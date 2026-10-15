@@ -257,6 +257,25 @@ function handleMcpPost(req: IncomingMessage, res: ServerResponse): void {
     try { parsedMethod = JSON.parse(body)?.method; } catch { /* malformed body — handleMessage below reports the parse error */ }
 
     if (!token && !DISCOVERY_METHODS.has(parsedMethod ?? '')) {
+      // ChatGPT (Apps SDK) callers — params._meta carries openai/* keys — get the
+      // challenge in-band as a tool error with _meta["mcp/www_authenticate"], which
+      // is what triggers its sign-in link. Everyone else keeps the HTTP 401.
+      let chatgptCall: { id: unknown } | undefined;
+      try {
+        const m = JSON.parse(body);
+        if (m?.method === 'tools/call' && Object.keys(m.params?._meta ?? {}).some((k) => k.startsWith('openai/'))) {
+          chatgptCall = { id: m.id };
+        }
+      } catch { /* malformed body — falls through to the 401 */ }
+      if (chatgptCall) {
+        res.writeHead(200, { 'Content-Type': 'application/json' });
+        res.end(rpcResult(chatgptCall.id, {
+          content: [{ type: 'text', text: 'Authentication required: sign in to continue.' }],
+          isError: true,
+          _meta: { 'mcp/www_authenticate': [`Bearer resource_metadata="${resourceMetadataUrl(req)}"`] },
+        }));
+        return;
+      }
       res.writeHead(401, {
         'Content-Type': 'application/json',
         'WWW-Authenticate': `Bearer realm="banking-mcp-resource-server", error="invalid_token", error_description="Bearer token required", resource_metadata="${resourceMetadataUrl(req)}"`,
@@ -832,6 +851,9 @@ async function handleMessageImpl(
       inputSchema: t.inputSchema,
       requiredScopes: t.requiredScopes,
       readOnly: t.readOnly,
+      // ChatGPT Apps SDK: oauth2 here is what makes it offer sign-in; mirrored in _meta for MCP-only clients.
+      securitySchemes: [{ type: 'oauth2', scopes: t.requiredScopes }],
+      _meta: { securitySchemes: [{ type: 'oauth2', scopes: t.requiredScopes }] },
       ...(t.intentHints ? { intentHints: t.intentHints } : {}),
     }));
     send(rpcResult(id, { tools }));

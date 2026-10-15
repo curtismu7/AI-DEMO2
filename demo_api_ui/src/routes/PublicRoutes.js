@@ -61,6 +61,7 @@ import PingFederateAiAgentPage from '../pages/PingFederateAiAgentPage';
 import AicTokenExchangePage from '../pages/AicTokenExchangePage';
 import OboDemoPage from '../pages/OboDemoPage';
 import DigitalWorkerPage from '../pages/DigitalWorkerPage';
+import ChatgptLoginPage from '../pages/ChatgptLoginPage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PageCatalogPage from '../pages/PageCatalogPage';
 import PrivilegeMcpClientPage from "../pages/PrivilegeMcpClientPage";
@@ -381,6 +382,14 @@ export function OboDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <OboDemoPage />
+    </AppShell>
+  );
+}
+
+export function ChatgptLoginPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <ChatgptLoginPage />
     </AppShell>
   );
 }
