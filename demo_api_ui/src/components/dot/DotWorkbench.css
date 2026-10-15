@@ -1,6 +1,6 @@
 .dot-wb { --surface:var(--panel); --border:var(--line); --th-text:var(--ink); --th-text-muted:var(--muted); --th-bg-inset:var(--panel2);
   --dot:#2bb3a3; --dot-soft:rgba(43,179,163,.15); --ok:#34d399; --deny:#f87171; --warn:#fbbf24;
-  --bg:#151719; --panel:#1e2123; --panel2:#272b2e; --ink:#ecefef; --muted:#98a2a3; --line:#343a3c; color:var(--ink); background:var(--bg); }
+  --bg:#151719; --panel:#1e2123; --panel2:#272b2e; --ink:#ecefef; --muted:#98a2a3; --line:#343a3c; color:var(--th-text); background:var(--bg); }
 .dot-wb[data-cur-theme="light"] { --bg:#f3f5f5; --panel:#fff; --panel2:#ecf0f0; --ink:#1c2123; --muted:#5f6b6d; --line:#d6dddd; --dot-soft:rgba(43,179,163,.10);
   --ok:#047857; --deny:#b91c1c; --warn:#92400e; background:var(--bg); color:var(--ink); }
 /* Desktop: the page is a fixed-height shell, so only the messages and the side column scroll;
