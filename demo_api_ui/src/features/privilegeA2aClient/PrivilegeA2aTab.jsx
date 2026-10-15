@@ -87,6 +87,9 @@ export default function PrivilegeA2aTab() {
   const [quizOpen, setQuizOpen] = useState(false);
   const [quizAnswer, setQuizAnswer] = useState(null);
   const [callsOpen, setCallsOpen] = useState(false);
+  // The compact agent: a small button in the agent column that opens a short panel with a question box.
+  const [dockOpen, setDockOpen] = useState(false);
+  const [dockText, setDockText] = useState('');
   const [replaying, setReplaying] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState('');
   const [turns, setTurns] = useState([]);
@@ -210,6 +213,32 @@ export default function PrivilegeA2aTab() {
 
       <div className="privilege-a2a__workspace">
         <section className="privilege-a2a__conversation" aria-label="Conversation">
+          {!dockOpen && (
+            <button type="button" className="privilege-a2a__dock-open" onClick={() => setDockOpen(true)} aria-label="Open the compact agent">Compact agent</button>
+          )}
+          {dockOpen && (
+            <div className="privilege-a2a__dock" role="dialog" aria-label="Compact agent">
+              <div className="privilege-a2a__dock-bar">
+                <span>Compact agent</span>
+                <button type="button" onClick={() => setDockOpen(false)} aria-label="Minimise the compact agent">−</button>
+              </div>
+              <textarea
+                value={dockText}
+                onChange={(event) => setDockText(event.target.value)}
+                aria-label="Question for the compact agent"
+                rows={2}
+                placeholder="Ask about an entitlement…"
+              />
+              <button
+                type="button"
+                className="privilege-a2a__dock-send"
+                disabled={busy || !dockText.trim()}
+                onClick={() => { const text = dockText.trim(); setDockText(''); submitQuestion(null, text); }}
+              >
+                Send
+              </button>
+            </div>
+          )}
           <div className="privilege-a2a__head">
             <h3>Conversation</h3>
             {/* The movie-reel / sequence view of this run: every hop, claim and gateway decision,
