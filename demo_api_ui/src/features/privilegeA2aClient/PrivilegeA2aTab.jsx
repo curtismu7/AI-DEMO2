@@ -4,6 +4,7 @@ import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/g
 import { PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID, PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
 import PageAgentModeToggle, { usePageAgentMode } from '../../components/shared/PageAgentModeToggle';
 import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
+import { PATH_STEPS, pathProgress } from './pathProgress';
 import './PrivilegeA2aTab.css';
 
 const WALK = [
@@ -90,6 +91,7 @@ export default function PrivilegeA2aTab() {
   const [sessionId, setSessionId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const progress = pathProgress(trace, busy);
   // The gateway's own record of the last run: its model calls and guardrail verdicts.
   const [record, setRecord] = useState(null);
   const recordLines = record ? record.modelCalls.length + record.guardrail.length + (record.requests?.length || 0) + (record.denials?.length || 0) : 0;
@@ -117,6 +119,7 @@ export default function PrivilegeA2aTab() {
         text: typeof payload.text === 'string' ? payload.text : 'Agent activity',
         detail: typeof payload.detail === 'string' ? payload.detail : '',
         // Who called whom, how long it took, and the wire JSON of that hop (display names when the profile has them).
+        fromKey: typeof payload.from === 'string' ? payload.from : '',
         from: typeof payload.fromLabel === 'string' && payload.fromLabel ? payload.fromLabel : (typeof payload.from === 'string' ? payload.from : ''),
         to: typeof payload.toLabel === 'string' && payload.toLabel ? payload.toLabel : (typeof payload.to === 'string' ? payload.to : ''),
         elapsedMs: typeof payload.elapsedMs === 'number' ? payload.elapsedMs : null,
@@ -193,11 +196,15 @@ export default function PrivilegeA2aTab() {
           <p>Ask about an entitlement. The main agent hands the lookup to a worker agent, which checks access data through MCP. In gateway mode every hop goes through the PingOne Agent Privilege: each agent uses its own agent key, and the gateway screens the messages and the tool results.</p>
         </div>
         <ol className="privilege-a2a__path" aria-label="Agent request path">
-          <li>Main agent</li>
-          <li>Agent Privilege</li>
-          <li>Worker agent</li>
-          <li>Agent Privilege</li>
-          <li>MCP tools</li>
+          {PATH_STEPS.map((label, index) => (
+            <li
+              key={`${index}-${label}`}
+              className={`${index <= progress.reached ? 'is-done' : ''}${progress.active === index ? ' is-active' : ''}`.trim() || undefined}
+              aria-current={progress.active === index ? 'step' : undefined}
+            >
+              {label}
+            </li>
+          ))}
         </ol>
       </header>
 

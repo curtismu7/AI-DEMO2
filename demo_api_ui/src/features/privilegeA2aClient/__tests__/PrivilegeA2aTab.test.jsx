@@ -120,6 +120,31 @@ describe('PrivilegeA2aTab', () => {
     expect(panel.getByText('Care Concierge → Claims Analyst · 80 ms')).toBeTruthy();
   });
 
+  test('the request path lights up from the run\'s real events and clears on the next run', async () => {
+    const run = (events) => streamResponse([...events, { event: 'token', data: { text: 'Done.' } }, { event: 'done', data: { sessionId: 's' } }]);
+    global.fetch
+      .mockResolvedValueOnce(run([
+        { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'delegate' } },
+        { event: 'trace', data: { kind: 'mcp-call', from: 'analyst', to: 'mcp', text: 'call' } },
+        { event: 'trace', data: { kind: 'mcp-result', from: 'mcp', to: 'analyst', text: 'result' } },
+      ]))
+      .mockResolvedValueOnce(run([]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    const items = () => within(screen.getByRole('list', { name: 'Agent request path' })).getAllByRole('listitem');
+    expect(items().every((li) => !li.className)).toBe(true);
+
+    await user.click(await screen.findByRole('button', { name: 'Review access on prod-db-primary.' }));
+    expect(await screen.findByText('Done.')).toBeTruthy();
+    // delegate, mcp-call and mcp-result reached the MCP tools: all five segments are marked done
+    expect(items().map((li) => li.classList.contains('is-done'))).toEqual([true, true, true, true, true]);
+    expect(items().some((li) => li.classList.contains('is-active'))).toBe(false); // the run has ended
+
+    await user.click(screen.getByRole('button', { name: 'Review access on prod-db-primary.' }));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(items().every((li) => !li.classList.contains('is-done'))).toBe(true));
+  });
+
   test('clicking a suggested question runs it at once and hands it to the floating agent, no Send press', async () => {
     global.fetch.mockResolvedValueOnce(streamResponse([
       { event: 'token', data: { text: 'Done.' } },
