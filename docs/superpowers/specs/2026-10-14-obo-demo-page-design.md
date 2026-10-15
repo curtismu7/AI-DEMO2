@@ -79,7 +79,7 @@ Configuration (all via existing config/env patterns): `OBO_AUDIENCE` (default `o
 |---|---|---|
 | `POST /api/obo/run` | session (cookie) | Page button. Uses the session's user access token as subject. Returns evidence. |
 | `POST /api/obo/mcp` | Bearer (Claude's token) | Minimal MCP JSON-RPC: `initialize`, `tools/list`, `tools/call`, `ping`. One tool `act_on_my_behalf`, no params. Returns a text result built from evidence (claims and status codes only). Publishes evidence to the live channel. |
-| `GET /.well-known/oauth-protected-resource/api/obo/mcp` | none | RFC 9728 metadata so Claude can find PingOne. |
+| `GET /api/obo/mcp/oauth-protected-resource` | none | RFC 9728 metadata so Claude can find PingOne (the `/.well-known/...` form is also served for direct-BFF clients). |
 | `GET /api/obo/downstream` | Bearer | Accepts a token only if `aud` = `OBO_AUDIENCE` **and** `act` is an object with `client_id`. Else 401. Verifies signature and expiry against PingOne JWKS. |
 | `GET /api/obo/events` | session (cookie) | SSE for the page's live panel; delivers only events whose `sub` equals the signed-in user's. |
 

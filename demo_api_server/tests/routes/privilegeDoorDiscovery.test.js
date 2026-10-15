@@ -83,11 +83,11 @@ function mockConsole() {
   });
 }
 
-function buildApp() {
+function buildApp(defaultApp = 'aggregate') {
   jest.resetModules();
   process.env.PRIVILEGE_SSO_ENV_ID = ENV_ID;
   process.env.PUBLIC_APP_URL = PUBLIC_ORIGIN;
-  process.env.PRIVILEGE_MCPGW_URL = `${GATEWAY_HOST}/aggregate/mcp`;
+  process.env.PRIVILEGE_MCPGW_URL = `${GATEWAY_HOST}/${defaultApp}/mcp`;
   const router = require('../../routes/privilegeMcpClient');
   const app = express();
   app.use((req, _res, next) => { req.sessionID = 'door-discovery'; req.session = {}; next(); });
@@ -157,6 +157,18 @@ describe('W8 — door discovery feeds the Door picker', () => {
     // aggregate is the console's first app AND the numbered `2 ·` preset.
     expect(labels(body, 'privilege').filter((l) => l.includes('aggregate'))).toEqual([]);
     expect(labels(body, 'privilege')).toContain('2 · Privilege — direct to the Agent Privilege');
+  });
+
+  test('an app is only withheld when it IS the numbered default door, not when it shares its name', async () => {
+    // The default URL moved to opensearch while MCP_FACADE_PRIVILEGE_GATEWAY_APP
+    // still defaults to `aggregate`. Excluding by name dropped `aggregate` from
+    // the picker even though no preset pointed at it any more.
+    mockConsole();
+    const app = buildApp('opensearch');
+    await request(app).post('/api/privilege-mcp/console/connect').send({ authToken: 'cookie' }).expect(200);
+    const { body } = await request(app).get('/api/privilege-mcp/state').expect(200);
+
+    expect(labels(body, 'privilege')).toContain('Privilege — aggregate');
   });
 
   test('doors outlive the console session that discovered them', async () => {

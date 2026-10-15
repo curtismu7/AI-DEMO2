@@ -21,6 +21,12 @@ const EXACT_BYPASSES = new Set([
   // carries no secrets (service up/down booleans only). Without the bypass
   // the overlay can never clear on SE — the 302 to login reads as a dead API.
   'GET /api/health/demo-status',
+  // OBO demo MCP endpoint: the first, token-less POST must reach the route so it can return the
+  // RFC 9728 OAuth challenge. Without this the wall answers a bare hosted_access_required and Claude
+  // cannot discover PingOne. Authenticated calls are validated by the route itself.
+  'POST /api/obo/mcp',
+  // RFC 9728 metadata the challenge points at; must be fetchable before any sign-in.
+  'GET /api/obo/mcp/oauth-protected-resource',
   // Static boot assets the signed-out shell loads: the auth-loading spinner's
   // Ping mark (PingIdentitySpinner) and the tab icons. Gating these 302s the
   // <img> requests to login — broken ping icon + favicon exactly when the

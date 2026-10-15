@@ -10,6 +10,12 @@ import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { renderPage } from './ui.js';
 
+/** The token counts a model call reported, for the trace. Absent when the provider sent none. */
+function tokenCounts(message: Anthropic.Message): { input: number; output: number } | undefined {
+  const usage = message.usage;
+  return usage ? { input: usage.input_tokens ?? 0, output: usage.output_tokens ?? 0 } : undefined;
+}
+
 const config = mainAgentConfig();
 const MAX_DELEGATION_ROUNDS = 4;
 const MAX_OUTPUT_TOKENS = 4096;
@@ -229,6 +235,7 @@ app.post('/chat', async (req: Request, res: Response) => {
         stream.on('text', text => sendSse(res, 'token', { text }));
         const response = await stream.finalMessage();
         abortActiveModelStream = undefined;
+        sendSse(res, 'trace', { kind: 'model', from: 'main', to: 'main', text: `main agent · ${config.model}`, tokens: tokenCounts(response), at: at() });
         messages.push({ role: 'assistant', content: response.content });
 
         if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {
@@ -308,6 +315,7 @@ app.post('/chat', async (req: Request, res: Response) => {
       });
       abortActiveModelStream = () => finalStream.controller.abort();
       const finalResponse = await finalStream.finalMessage();
+      sendSse(res, 'trace', { kind: 'model', from: 'main', to: 'main', text: `main agent · ${config.model}`, tokens: tokenCounts(finalResponse), at: at() });
       abortActiveModelStream = undefined;
       // Buffered, not streamed: a scope claim can't be filtered after it has been sent.
       const finalText = finalResponse.content.map(block => (block.type === 'text' ? block.text : '')).join('');

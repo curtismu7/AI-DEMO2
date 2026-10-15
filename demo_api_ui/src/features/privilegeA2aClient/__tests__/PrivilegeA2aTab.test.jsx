@@ -264,3 +264,30 @@ describe('PrivilegeA2aTab', () => {
     expect(await screen.findByRole('link', { name: 'sign in to the gateway findings door' }, { timeout: 4000 })).toHaveAttribute('href', '/llm-gateway');
   });
 });
+
+describe('PrivilegeA2aTab token counts and the call picker', () => {
+  test('a model step shows the tokens the agent reported, and the run total', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'trace', data: { kind: 'model', from: 'main', to: 'main', text: 'main agent · gpt-oss-120b', tokens: { input: 412, output: 58 } } },
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's2' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol Nguyen');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    expect(await screen.findByText('Done.')).toBeTruthy();
+    expect(screen.getAllByText('412 in · 58 out').length).toBeGreaterThan(0);
+    expect(screen.getByText('1 model call · 412 in · 58 out tokens')).toBeTruthy();
+  });
+
+  test('the calls menu fills the question box without sending it', async () => {
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    await user.click(screen.getByRole('button', { name: /Calls/ }));
+    const menu = screen.getByRole('listbox', { name: 'Calls you can make' });
+    await user.click(within(menu).getByRole('option', { name: 'Who has the prod-db-admin role?' }));
+    expect(screen.getByRole('textbox', { name: 'Your question' })).toHaveValue('Who has the prod-db-admin role?');
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
