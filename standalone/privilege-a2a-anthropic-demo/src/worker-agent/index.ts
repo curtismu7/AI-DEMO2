@@ -9,7 +9,7 @@ import { StreamableHTTPClientTransport } from '@modelcontextprotocol/sdk/client/
 
 import { analystCard } from '../agent-card.js';
 import { describeMode, workerAgentConfig } from '../config.js';
-import { parseMetadata, parseMode, pickTool } from '../profile.js';
+import { heuristicArgs, parseMetadata, parseMode, parseUserName, pickTool } from '../profile.js';
 import { VERTICALS, resolveVertical } from '../mcp-server/verticals.js';
 
 /** The token counts a model call reported, for the trace. Absent when the provider sent none. */
@@ -85,7 +85,7 @@ function inputSchemaForAnthropic(inputSchema: unknown): Anthropic.Tool.InputSche
   return { type: 'object', properties, ...(required ? { required } : {}) };
 }
 
-async function runAnalyst(question: string, contextId: string, profile: { vertical: string; tools: string[] } | null, heuristic = false, rawOutputs: string[] = []): Promise<string> {
+async function runAnalyst(question: string, contextId: string, profile: { vertical: string; tools: string[] } | null, heuristic = false, userName = '', rawOutputs: string[] = []): Promise<string> {
   const instruction = instructionFor(profile?.vertical);
   const mcp = new Client({ name: 'access-review-worker', version: '1.0.0' }, { capabilities: {} });
   const transport = new StreamableHTTPClientTransport(
@@ -107,8 +107,9 @@ async function runAnalyst(question: string, contextId: string, profile: { vertic
     if (heuristic && profile) {
       // Model-free path: keyword tool pick, one MCP call, the tool's own text as the answer.
       const name = pickTool(offeredTools.map(tool => tool.name), question);
-      emitTrace(contextId, 'mcp-call', `analyst → ${name}`, '{}', 'analyst', 'mcp');
-      const result = await mcp.callTool({ name, arguments: {} });
+      const args = heuristicArgs(offeredTools.find(tool => tool.name === name)?.inputSchema, userName);
+      emitTrace(contextId, 'mcp-call', `analyst → ${name}`, JSON.stringify(args), 'analyst', 'mcp');
+      const result = await mcp.callTool({ name, arguments: args });
       const content = textFromMcp(result);
       emitTrace(contextId, 'mcp-result', `${name} returned`, content.slice(0, 1200), 'mcp', 'analyst');
       // The main agent checks scope words against this raw output; without it every dated sentence looked unsourced.
@@ -207,7 +208,7 @@ const executor = {
     const rawOutputs: string[] = [];
     try {
       answer = question
-        ? await runAnalyst(question, requestContext.contextId, parseMetadata(requestContext.userMessage.metadata), parseMode(requestContext.userMessage.metadata) === 'heuristics', rawOutputs)
+        ? await runAnalyst(question, requestContext.contextId, parseMetadata(requestContext.userMessage.metadata), parseMode(requestContext.userMessage.metadata) === 'heuristics', parseUserName(requestContext.userMessage.metadata), rawOutputs)
         : 'The A2A request did not include a text question.';
     } catch (error) {
       answer = `The analyst could not complete this request: ${error instanceof Error ? error.message : 'unknown error'}`;

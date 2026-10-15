@@ -452,6 +452,7 @@ test('main delegates through authenticated A2A, worker calls authenticated MCP, 
         message: 'Review my recent order history.',
         sessionId: 'session-retail-heuristic',
         mode: 'heuristics',
+        userName: 'demoUser',
         vertical: 'retail',
         agentName: 'Great Buy agent',
         specialistName: 'Purchase History Specialist',
@@ -466,6 +467,7 @@ test('main delegates through authenticated A2A, worker calls authenticated MCP, 
     assert.equal(retailTraces.filter(t => t.kind === 'delegate').length, 1, 'heuristics delegates exactly once');
     assert.ok(!retailTraces.some(t => t.kind === 'model'), 'no model hop in a model-free run');
     assert.match(JSON.stringify(retailEvents), /ORD-9982/, 'the dated order record reaches the answer');
+    assert.match(JSON.stringify(retailTraces.find(t => t.kind === 'mcp-call')), /demoUser/, 'the model-free call names the signed-in user, as the model would');
   } finally {
     await Promise.all(processes.map(child => stopProcess(child.process)));
     await new Promise<void>((resolve, reject) => mockAnthropic.close(error => error ? reject(error) : resolve()));
