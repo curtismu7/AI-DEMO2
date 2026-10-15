@@ -74,15 +74,19 @@ export default function OboDemoPage() {
   const [selected, setSelected] = useState(null);
   const [info, setInfo] = useState(null);
   const [infoFailed, setInfoFailed] = useState(false);
+  const [infoUnauthorized, setInfoUnauthorized] = useState(false);
   const live = useOboLive(true);
 
   useEffect(() => {
     let alive = true;
     apiClient.get("/api/obo/info")
       .then((r) => { if (alive) setInfo(r.data); })
-      .catch(() => { if (alive) setInfoFailed(true); });
+      .catch((err) => { if (alive) { setInfoFailed(true); setInfoUnauthorized(err?.response?.status === 401); } });
     return () => { alive = false; };
   }, []);
+
+  const lastDate = live[0]?.ts ? new Date(live[0].ts) : null;
+  const lastCall = lastDate && !Number.isNaN(lastDate.getTime()) ? lastDate.toLocaleTimeString() : null;
 
   const command = info
     ? `claude mcp add --transport http obo-demo ${info.mcpUrl} --client-id ${info.clientId} --callback-port ${info.callbackPort}`
@@ -228,12 +232,15 @@ export default function OboDemoPage() {
             <pre className="obo-demo__command" data-testid="obo-setup-command">{command}</pre>
           </>
         ) : infoFailed ? (
-          <p className="obo-demo__hint">The setup command is unavailable right now.</p>
+          <p className="obo-demo__hint">{infoUnauthorized ? "Sign in again to see the setup command." : "The setup command is unavailable right now."}</p>
         ) : null}
         {live.length === 0 ? (
           <p className="obo-demo__hint">Waiting for Claude to call the tool…</p>
         ) : (
-          <OboEvidenceCard evidence={live[0]} />
+          <>
+            {lastCall ? <p className="obo-demo__hint">Last call at {lastCall}</p> : null}
+            <OboEvidenceCard evidence={live[0]} checksLabel="Live delegation checks" />
+          </>
         )}
       </section>
       <p className="obo-demo__limits">

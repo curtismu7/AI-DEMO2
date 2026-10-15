@@ -372,7 +372,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "On behalf of the user (OBO)",
         description: "An agent acts for the signed-in user through RFC 8693 delegation, never as the user",
-        icon: "🔐",
+        icon: "🔗",
       },
       {
         label: "Privilege for AI — MCP",

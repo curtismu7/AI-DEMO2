@@ -112,8 +112,24 @@ describe("OboDemoPage", () => {
     const evidence = { source: "claude", ts: "2026-10-14T20:00:00Z", checks: [{ id: "x", label: "live check", pass: true }] };
     act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify(evidence) }); });
     const live = await screen.findByRole("region", { name: /live from claude/i });
-    expect(within(live).getByRole("list", { name: /delegation checks/i })).toHaveTextContent("PASS live check");
+    expect(within(live).getByRole("list", { name: "Live delegation checks" })).toHaveTextContent("PASS live check");
     expect(screen.queryByText(/waiting for claude/i)).toBeNull();
+  });
+
+  it("tells the user to sign in again when /api/obo/info is 401", async () => {
+    get.mockRejectedValueOnce({ response: { status: 401 } });
+    render(<OboDemoPage />);
+    expect(await screen.findByText(/sign in again to see the setup command/i)).toBeInTheDocument();
+    expect(screen.queryByText(/setup command is unavailable/i)).toBeNull();
+  });
+
+  it("shows when the latest live call happened, only if ts is valid", async () => {
+    render(<OboDemoPage />);
+    act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify({ source: "claude", checks: [] }) }); });
+    const live = await screen.findByRole("region", { name: /live from claude/i });
+    expect(within(live).queryByText(/last call at/i)).toBeNull();
+    act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify({ source: "claude", ts: "2026-10-14T20:00:00Z", checks: [] }) }); });
+    expect(await within(live).findByText(/last call at/i)).toBeInTheDocument();
   });
 
   it("includes the token swap diagram", async () => {

@@ -49,4 +49,16 @@ describe("OboEvidenceCard", () => {
     render(<OboEvidenceCard evidence={evidence} />);
     expect(document.body.textContent).not.toMatch(/eyJ/);
   });
+
+  it("names the checks list from checksLabel, defaulting to Delegation checks", () => {
+    const { rerender } = render(<OboEvidenceCard evidence={evidence} checksLabel="Live delegation checks" />);
+    expect(screen.getByRole("list", { name: "Live delegation checks" })).toBeInTheDocument();
+    rerender(<OboEvidenceCard evidence={evidence} />);
+    expect(screen.getByRole("list", { name: "Delegation checks" })).toBeInTheDocument();
+  });
+
+  it("renders an empty downstream object as n/a without throwing", () => {
+    render(<OboEvidenceCard evidence={{ ...evidence, downstream: {} }} />);
+    expect(screen.getByTestId("obo-downstream")).toHaveTextContent("delegated: n/a, your token: n/a");
+  });
 });

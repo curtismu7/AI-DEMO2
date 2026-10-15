@@ -94,7 +94,7 @@ router.post('/mcp', async (req, res) => {
       }
       try {
         const ev = await runObo({ req, subjectToken: token, source: 'claude' });
-        hub.publish(caller.sub, ev);
+        hub.publish(caller.sub, ev.leak ? { ts: ev.ts, source: ev.source, leak: true, checks: ev.checks } : ev);
         return ok({ content: [{ type: 'text', text: toolText(ev) }] });
       } catch (e) {
         return ok({ isError: true, content: [{ type: 'text', text: hasTokenLeak(e.message) ? 'error: withheld (contained a token)' : `error: ${e.message}` }] });
@@ -133,6 +133,8 @@ router.post('/run', async (req, res) => {
 });
 
 // Session-authenticated helpers for the /obo-demo page.
+// The session access token is server-held (issued by PingOne at login, never supplied by the client),
+// so decoding it without signature verification only selects this user's own event stream.
 function sessionSub(req) {
   const token = req.session?.oauthTokens?.accessToken;
   if (!token || token === '_cookie_session') return null;

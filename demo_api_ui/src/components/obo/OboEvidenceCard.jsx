@@ -13,7 +13,7 @@ function Claim({ name, value }) {
 }
 
 // User token vs delegated token, claims and hashes only. Never renders a raw token.
-export default function OboEvidenceCard({ evidence }) {
+export default function OboEvidenceCard({ evidence, checksLabel = "Delegation checks" }) {
   const { inbound, delegated, downstream, checks = [] } = evidence || {};
   return (
     <div className="obo-card">
@@ -42,11 +42,11 @@ export default function OboEvidenceCard({ evidence }) {
       ) : null}
       {downstream ? (
         <p className="obo-card__downstream" data-testid="obo-downstream">
-          Downstream API: delegated: {downstream.delegated}, your token: {downstream.userToken}
+          Downstream API: delegated: {show(downstream.delegated)}, your token: {show(downstream.userToken)}
         </p>
       ) : null}
       {checks.length > 0 ? (
-        <ul className="obo-card__checks" aria-label="Delegation checks">
+        <ul className="obo-card__checks" aria-label={checksLabel}>
           {checks.map((c) => (
             <li key={c.id} className={c.pass ? "obo-card__check obo-card__check--pass" : "obo-card__check obo-card__check--fail"}>
               <span className="obo-card__verdict">{c.pass ? "PASS" : "FAIL"}</span> {c.label}

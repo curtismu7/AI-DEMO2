@@ -103,6 +103,16 @@ describe('POST /api/obo/mcp', () => {
       expect(res.body.result.content[0].text).toMatch(/withheld/);
     });
 
+    test('a leaking result publishes only a minimal marker, never the token blocks', async () => {
+      runObo.mockResolvedValue({ ...evidence, leak: true, inbound: { sha: 'a' }, delegated: { sha: 'b' } });
+      await post(rpc('tools/call', { name: 'act_on_my_behalf' }));
+      const published = hub.publish.mock.calls[hub.publish.mock.calls.length - 1][1];
+      expect(published.leak).toBe(true);
+      expect(published).not.toHaveProperty('inbound');
+      expect(published).not.toHaveProperty('delegated');
+      expect(published).not.toHaveProperty('sub');
+    });
+
     test('an exchange failure is a tool error, not an HTTP 500', async () => {
       runObo.mockRejectedValue(new Error('Token exchange failed for ex: invalid_scope'));
       const res = await post(rpc('tools/call', { name: 'act_on_my_behalf' }));
