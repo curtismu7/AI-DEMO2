@@ -243,6 +243,7 @@ const verticalDispatch = require('./verticalDispatch');
 const { injectKnowledge } = require('./knowledgePromptInjector');
 const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
 const conversationStore = require('./lmdb/conversationStore.lmdb');
+const { trimHistoryToBudget } = require('./historyBudget');
 const { createDotMemoryStore } = require('./lmdb/dotMemoryStore.lmdb');
 const { buildGroundedAnswer } = require('./groundedAnswer');
 
@@ -2163,7 +2164,8 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
     // loaded the user's BANKING thread and replayed it into a healthcare prompt.
     // activeId is the same value toolSchemas / systemPrompt / executeTool use.
     const verticalForHistory = activeId;
-    const historyMessages = conversationStore.getHistory(userId, verticalForHistory) || [];
+    // Capped to a token budget: replayed unbounded, one Dot question became a 17,453-token request.
+    const historyMessages = trimHistoryToBudget(conversationStore.getHistory(userId, verticalForHistory) || []);
     const messages = [...historyMessages, { role: 'user', content: message }];
 
     const a2aResultRef = { current: null };
