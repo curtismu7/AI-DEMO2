@@ -1,5 +1,5 @@
 {
-  "_comment": "Seed for the airlines vertical's SQLite database. Loaded ONLY when the tables are empty, so an out-of-band edit to data/airlines.db is never overwritten on restart. Synthetic data — not real United Airlines data.",
+  "_comment": "Seed for the airlines vertical's SQLite database. Loaded ONLY when the tables are empty, so an out-of-band edit to data/airlines.db is never overwritten on restart. Synthetic data — not real Airline data.",
   "passengers": [
     {
       "passenger_ref": "UA-PAX-0001",
@@ -76,7 +76,7 @@
       "passenger_ref": "UA-PAX-0001",
       "flight_number": "UA1147",
       "seat": "7C",
-      "cabin": "United First",
+      "cabin": "First",
       "checked_bags": 2,
       "status": "Confirmed",
       "booked_at": "2026-07-04T11:48:00Z"
@@ -99,12 +99,12 @@
     { "flight_number": "UA328", "seat": "21D", "cabin": "Economy", "available": 1 },
     { "flight_number": "UA328", "seat": "21E", "cabin": "Economy", "available": 0 },
     { "flight_number": "UA328", "seat": "31F", "cabin": "Economy", "available": 1 },
-    { "flight_number": "UA1147", "seat": "7C", "cabin": "United First", "available": 0 },
-    { "flight_number": "UA1147", "seat": "7D", "cabin": "United First", "available": 1 },
+    { "flight_number": "UA1147", "seat": "7C", "cabin": "First", "available": 0 },
+    { "flight_number": "UA1147", "seat": "7D", "cabin": "First", "available": 1 },
     { "flight_number": "UA1147", "seat": "18A", "cabin": "Economy Plus", "available": 1 },
     { "flight_number": "UA502", "seat": "22F", "cabin": "Economy", "available": 0 },
     { "flight_number": "UA502", "seat": "22E", "cabin": "Economy", "available": 1 },
-    { "flight_number": "UA502", "seat": "2A", "cabin": "United Polaris", "available": 1 }
+    { "flight_number": "UA502", "seat": "2A", "cabin": "Polaris", "available": 1 }
   ],
   "passenger_records": [
     {

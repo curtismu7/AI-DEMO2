@@ -88,7 +88,7 @@ ${JSON.stringify({
     },
   ],
   provenance: {
-    backend: "United Reservations DB",
+    backend: "Airline Reservations DB",
     engine: "SQLite",
     database: "airlines.db",
     tool: "get_airline_bookings",
@@ -117,7 +117,7 @@ ${JSON.stringify({
     expect(screen.getByText("LIVE · AIRLINE DB")).toBeInTheDocument();
     expect(screen.getByText("Retrieved just now")).toBeInTheDocument();
     expect(screen.getByText("View database proof")).toBeInTheDocument();
-    expect(screen.getByText("United Reservations DB")).toBeInTheDocument();
+    expect(screen.getByText("Airline Reservations DB")).toBeInTheDocument();
     expect(screen.getByText("run-united-123")).toBeInTheDocument();
     expect(screen.getByRole("table", { name: "Airline database rows" })).toBeInTheDocument();
     fireEvent.click(screen.getByRole("button", { name: "Refresh from Airline DB" }));

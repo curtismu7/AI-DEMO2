@@ -50,10 +50,10 @@ const RETAIL: CatalogEntry[] = [
 ];
 
 const ABERCROMBIE_FITCH: CatalogEntry[] = [
-  { id: 'anf-austin', name: 'Abercrombie & Fitch at Domain NORTHSIDE', city: 'Austin', state: 'TX', address: '11700 Domain Blvd, Austin, TX 78758', hours: 'Daily 10:00–21:00', atm: false, image: 'https://images.unsplash.com/photo-1603400521630-9f2de124b33b?w=400&h=300&fit=crop' },
-  { id: 'anf-dallas', name: 'Abercrombie & Fitch at NorthPark Center', city: 'Dallas', state: 'TX', address: '8687 N Central Expy, Dallas, TX 75225', hours: 'Daily 10:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1729487151777-b4be9098ecbb?w=400&h=300&fit=crop' },
-  { id: 'anf-miami', name: 'Abercrombie & Fitch at Aventura Mall', city: 'Miami', state: 'FL', address: '19501 Biscayne Blvd, Aventura, FL 33180', hours: 'Daily 10:00–21:00', atm: false, image: 'https://images.unsplash.com/photo-1621261027519-a71ac66d5a68?w=400&h=300&fit=crop' },
-  { id: 'anf-denver', name: 'Abercrombie & Fitch at Cherry Creek', city: 'Denver', state: 'CO', address: '3000 E 1st Ave, Denver, CO 80206', hours: 'Daily 10:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1769107805465-bfd41863f1a0?w=400&h=300&fit=crop' },
+  { id: 'anf-austin', name: 'Walbuy at Domain NORTHSIDE', city: 'Austin', state: 'TX', address: '11700 Domain Blvd, Austin, TX 78758', hours: 'Daily 10:00–21:00', atm: false, image: 'https://images.unsplash.com/photo-1603400521630-9f2de124b33b?w=400&h=300&fit=crop' },
+  { id: 'anf-dallas', name: 'Walbuy at NorthPark Center', city: 'Dallas', state: 'TX', address: '8687 N Central Expy, Dallas, TX 75225', hours: 'Daily 10:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1729487151777-b4be9098ecbb?w=400&h=300&fit=crop' },
+  { id: 'anf-miami', name: 'Walbuy at Aventura Mall', city: 'Miami', state: 'FL', address: '19501 Biscayne Blvd, Aventura, FL 33180', hours: 'Daily 10:00–21:00', atm: false, image: 'https://images.unsplash.com/photo-1621261027519-a71ac66d5a68?w=400&h=300&fit=crop' },
+  { id: 'anf-denver', name: 'Walbuy at Cherry Creek', city: 'Denver', state: 'CO', address: '3000 E 1st Ave, Denver, CO 80206', hours: 'Daily 10:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1769107805465-bfd41863f1a0?w=400&h=300&fit=crop' },
 ];
 
 const GOVERNMENT: CatalogEntry[] = [
@@ -140,7 +140,7 @@ const BRAND_BY_VERTICAL: Record<string, string> = {
   banking: 'Super Banking',
   healthcare: 'Wellspring Health',
   retail: 'Super Retail',
-  'abercrombie-fitch': 'Abercrombie & Fitch',
+  'abercrombie-fitch': 'Walbuy',
   government: 'City & County',
   university: 'Riverbend University',
   workforce: 'Northwind',

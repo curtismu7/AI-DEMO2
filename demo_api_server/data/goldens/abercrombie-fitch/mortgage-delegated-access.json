@@ -2,7 +2,7 @@
   "vertical": "abercrombie-fitch",
   "useCaseId": "mortgage-delegated-access",
   "ucId": "UC33",
-  "trigger": "show my saved items at A&F",
+  "trigger": "show my saved items at Walbuy",
   "expectedOutcome": "PERMIT",
   "capturedAt": "2026-08-28T17:41:42.731Z",
   "seedHash": "005fc03655ff4340",

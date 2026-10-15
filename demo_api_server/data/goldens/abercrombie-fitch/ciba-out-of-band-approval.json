@@ -2,7 +2,7 @@
   "vertical": "abercrombie-fitch",
   "useCaseId": "ciba-out-of-band-approval",
   "ucId": "UC22",
-  "trigger": "checkout A&F outerwear for $150",
+  "trigger": "checkout Walbuy outerwear for $150",
   "expectedOutcome": "PERMIT",
   "capturedAt": "2026-08-28T17:42:52.761Z",
   "seedHash": "005fc03655ff4340",

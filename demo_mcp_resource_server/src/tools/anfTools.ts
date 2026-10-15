@@ -8,21 +8,21 @@ export const ANF_TOOLS: McpToolDef[] = [
     // entry requires only "read". Backed by a real SQLite table
     // (abercrombieDb.ts), mirroring the other migrated verticals.
     name: 'list_anf_orders',
-    description: 'List all Abercrombie & Fitch orders for the authenticated user, including product, amount, status, and date.',
+    description: 'List all Walbuy orders for the authenticated user, including product, amount, status, and date.',
     inputSchema: { type: 'object', properties: {}, required: [] },
     requiredScopes: ['read'],
     readOnly: true,
     intentHints: [
-      'show my A&F orders',
-      'list my Abercrombie orders',
-      'what did I order from Abercrombie',
+      'show my Walbuy orders',
+      'list my Walbuy orders',
+      'what did I order from Walbuy',
       'my ANF purchases',
       'show ANF order history',
     ],
   },
   {
     name: 'get_anf_order',
-    description: 'Get a single Abercrombie & Fitch order by ID with full order details.',
+    description: 'Get a single Walbuy order by ID with full order details.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -32,7 +32,7 @@ export const ANF_TOOLS: McpToolDef[] = [
     },
     requiredScopes: ['anf:read'],
     readOnly: true,
-    intentHints: ['get ANF order details', 'check Abercrombie order status', 'track A&F order'],
+    intentHints: ['get ANF order details', 'check Walbuy order status', 'track Walbuy order'],
   },
 ];
 
