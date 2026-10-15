@@ -65,3 +65,19 @@ describe("session-expiry detail", () => {
     expect(evt.detail.detail).toBeUndefined();
   });
 });
+
+describe("identity probes", () => {
+  async function fireFor(url) {
+    const { notifySessionExpiredIfNeeded, SESSION_REAUTH_EVENT } = await import("./authUi");
+    const onEvent = vi.fn();
+    window.addEventListener(SESSION_REAUTH_EVENT, onEvent);
+    notifySessionExpiredIfNeeded({ status: 401, body: { error: "hosted_access_required" }, pathname: "/dashboard", url });
+    window.removeEventListener(SESSION_REAUTH_EVENT, onEvent);
+    return onEvent.mock.calls.length;
+  }
+
+  it.each(["/api/auth/oauth/status", "/api/auth/session?x=1", "/api/auth/oauth/user/status"])(
+    "stays quiet on a 401 from %s", async (url) => expect(await fireFor(url)).toBe(0));
+
+  it("still interrupts for a real API call", async () => expect(await fireFor("/api/accounts/my")).toBe(1));
+});
