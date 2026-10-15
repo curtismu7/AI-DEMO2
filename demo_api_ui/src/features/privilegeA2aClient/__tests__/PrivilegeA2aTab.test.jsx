@@ -278,7 +278,7 @@ describe('PrivilegeA2aTab token counts and the call picker', () => {
     await user.click(screen.getByRole('button', { name: 'Send question' }));
     expect(await screen.findByText('Done.')).toBeTruthy();
     expect(screen.getAllByText('412 in · 58 out').length).toBeGreaterThan(0);
-    expect(screen.getByText('1 model call · 412 in · 58 out tokens')).toBeTruthy();
+    expect(screen.getByText(/^1 model call · 412 in · 58 out tokens · ≈ \$0\.0014 at Claude Sonnet 5\.5 list price$/)).toBeTruthy();
   });
 
   test('the calls menu fills the question box without sending it', async () => {
