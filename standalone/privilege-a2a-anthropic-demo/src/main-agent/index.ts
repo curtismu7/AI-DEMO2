@@ -234,10 +234,23 @@ app.post('/chat', async (req: Request, res: Response) => {
         abortActiveModelStream = () => stream.controller.abort();
         const response = await stream.finalMessage();
         abortActiveModelStream = undefined;
-        // Sent after the round, through the claim filter. Streaming raw text bypassed it.
         const roundText = textOfTurn(response.content);
-        if (roundText) sendSse(res, 'token', { text: stripUnsourcedScope(roundText, rawSourceTexts.join('\n')) });
         sendSse(res, 'trace', { kind: 'model', from: 'main', to: 'main', text: `main agent · ${config.model}`, tokens: tokenCounts(response), at: at() });
+
+        // With a vertical profile every question is a data question for its specialist. The local model
+        // sometimes answers in text instead (a refusal, or the delegation written out), which ends the run with
+        // nothing delegated. Delegate the user's question as asked, say so, and keep the history valid.
+        const answeredWithoutDelegating = round === 0 && profile !== null
+          && (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens')
+          && !response.content.some(block => block.type === 'tool_use');
+        if (answeredWithoutDelegating) {
+          sendSse(res, 'trace', { kind: 'fallback', from: 'main', to: 'main', text: 'main agent did not delegate; delegating the question as asked', detail: roundText.slice(0, 400), at: at() });
+          const forced = { type: 'tool_use', id: 'fallback-delegate', name: DELEGATE_TOOL.name, input: { question: message } } as Anthropic.ToolUseBlock;
+          messages.push({ role: 'assistant', content: [forced] });
+          calls = [forced];
+        } else {
+        // Sent after the round, through the claim filter. Streaming raw text bypassed it.
+        if (roundText) sendSse(res, 'token', { text: stripUnsourcedScope(roundText, rawSourceTexts.join('\n')) });
         messages.push({ role: 'assistant', content: response.content });
 
         if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {
@@ -253,7 +266,7 @@ app.post('/chat', async (req: Request, res: Response) => {
           completed = true;
           break;
         }
-
+        }
       }
 
       const results: Anthropic.ToolResultBlockParam[] = [];
