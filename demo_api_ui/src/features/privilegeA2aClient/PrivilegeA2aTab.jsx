@@ -357,13 +357,8 @@ export default function PrivilegeA2aTab() {
                   <span className="privilege-a2a__trace-text">{entry.text}</span>
                   {WHY[entry.kind] && <span className="privilege-a2a__why">{WHY[entry.kind]}</span>}
                   {entry.from && entry.to && (
-                    <span className="privilege-a2a__trace-route">
-                      {entry.from} → {entry.to}{entry.elapsedMs != null ? ` · ${entry.elapsedMs} ms` : ''}
-                    </span>
+                    <span className="privilege-a2a__trace-route">{entry.from} → {entry.to}</span>
                   )}
-                  {entry.detail && <details><summary>Details</summary><pre>{entry.detail}</pre></details>}
-                  {entry.request && <details><summary>Request</summary><pre>{entry.request}</pre></details>}
-                  {entry.response && <details><summary>Response</summary><pre>{entry.response}</pre></details>}
                 </li>
               ))}
             </ol>
@@ -383,9 +378,13 @@ export default function PrivilegeA2aTab() {
             return (
               <>
                 <p className="privilege-a2a__step-kind">{entry.kind}</p>
+                {entry.text && <p>{entry.text}</p>}
+                {entry.from && entry.to && (
+                  <p className="privilege-a2a__trace-route">{entry.from} → {entry.to}{entry.elapsedMs != null ? ` · ${entry.elapsedMs} ms` : ''}</p>
+                )}
+                {entry.detail && <><h4>Details</h4><pre>{entry.detail}</pre></>}
                 {entry.request && <><h4>What was sent</h4><pre>{entry.request}</pre></>}
                 {entry.response && <><h4>What came back</h4><pre>{entry.response}</pre></>}
-                {!entry.request && !entry.response && entry.detail && <pre>{entry.detail}</pre>}
               </>
             );
           })() : (
