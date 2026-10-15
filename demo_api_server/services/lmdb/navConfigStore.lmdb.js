@@ -18,7 +18,7 @@ function _db() { return getDb(DB_NAME); }
 // Top-level AdminSideNav groups, in order. Mirrors NAV_STRUCTURE_CATALOG in
 // demo_api_ui/src/config/navStructureCatalog.js — a UI test fails on drift.
 const TOP_LEVEL_LABELS = [
-  'Home', 'Security Dashboard', 'Skin Studio', 'Agent Privilege', 'Jev Demos', 'DaVinci',
+  'Home', 'Security Dashboard', 'Skin Studio', 'Agent Privilege', 'A2A', 'Jev Demos', 'DaVinci',
   'Ping products', 'Identity Journeys', 'Authorize', 'Delegation & Consent', 'Exploring',
   'Utilities', 'AI Experiences', 'Personal Agents', 'MCP & Integrations',
   'PingFederate ID-JAG', 'AIC', 'Developer Tools', 'Observability', 'Diagrams',
@@ -40,7 +40,7 @@ function preset(id, name, ...show) {
 // A2A also trims pages inside the groups it shows (labels are verified
 // against the UI nav catalog by navConfigStore.lmdb.test.js).
 const a2aPreset = {
-  ...preset('uc-a2a', 'Use case · A2A', 'Agent Privilege', 'AI Experiences', 'Personal Agents', 'Delegation & Consent', 'Diagrams', 'Observability'),
+  ...preset('uc-a2a', 'Use case · A2A', 'A2A', 'Agent Privilege', 'Personal Agents', 'Delegation & Consent', 'Diagrams', 'Observability'),
 };
 a2aPreset.hiddenLabels.push(
     "AI Guard",
@@ -56,40 +56,6 @@ a2aPreset.hiddenLabels.push(
     "Agent Privilege · MCP",
     "Malicious MCP Catalog",
     "Agent Privilege Demo",
-    "Agent Studio",
-    "Weather MCP",
-    "Brave Search MCP",
-    "Use Cases",
-    "Use Cases (Live)",
-    "Guided Demo Track",
-    "Jev Decision Model",
-    "Group Policy Board",
-    "Demo Script",
-    "Agent Kill Switch",
-    "PingOne Agent Builder",
-    "Autonomous Agents",
-    "Agent Onboarding Flow (Node)",
-    "Agent Onboarding Flow Subway (Node)",
-    "Agent Lifecycle (guided demo)",
-    "Delegated Commerce (guided demo)",
-    "LangChain Agent",
-    "Ungoverned Agent",
-    "Prompt Injection",
-    "HITL Bypass",
-    "Indirect Injection",
-    "Unauthorized Commitments",
-    "Scope Abuse",
-    "Intent Bypass",
-    "IGA for AI",
-    "Discovery",
-    "Agent Privilege (Preview)",
-    "Platform Gaps",
-    "AI Security Academy",
-    "Academy Standalone Demos",
-    "Agentic Trust",
-    "Agent Guardrails",
-    "OWASP Agent Risks",
-    "Agent Privilege for AI",
     "Target Design",
     "Dual Gateway Design",
     "Design Review",
