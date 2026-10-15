@@ -326,6 +326,9 @@ describe("AdminSideNav — best-of-breed pass", () => {
     ["governance", "Governance Timeline", "/governance-timeline"],
     ["hosted registration", "Hosted Registrations", "/hosted-registrations"],
     ["davinci kit", "PingFederate DaVinci Integration Kit", "/pingfederate-davinci-kit"],
+    ["token security", "Token Security Tester", "/token-security"],
+    ["compliance", "Token Compliance Audit", "/token-compliance"],
+    ["dev tools", "Dev Tools", "/dev-tools"],
   ])('searching "%s" finds %s and links to %s', (term, label, href) => {
     renderNav();
     fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: term } });

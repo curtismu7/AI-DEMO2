@@ -45,7 +45,7 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Utilities", children: [
     "PingOne Test", "MFA Test", "OAuth Debug", "Token Exchange Tester", "Management API Runner",
     "PingOne MCP Setup", "MCP Discovery", "Resource Server Checkpoint",
-    "Scope Reference", "Snapshot Import", "Health Check",
+    "Scope Reference", "Snapshot Import", "Health Check", "Token Security Tester",
   ] },
   { label: "AI Experiences", children: [
     "Demo Summary",
@@ -76,7 +76,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "AIC Token Exchange",
   ] },
   { label: "Developer Tools", children: [
-    "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide", "PromptFoo Evals",
+    "Graphify", "Postman Collections", "API Docs (Swagger)", "API Reference (Scalar)", "llama-vscode Guide", "PromptFoo Evals", "Dev Tools",
   ] },
   { label: "Observability", children: [
     "Audit Trail", "Learning Log", "Activity Log", "API Activity", "Run Reports", "Error Audit Log", "New Relic", "CI Queue Dashboard",
@@ -105,7 +105,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Feature Flags", "LLM Config", "Secret Rotation", "App Configuration", "Security Settings", "CIMD Simulation",
     "Demo Config", "PingOne Admin", "Banking Ops", "Healthcare Ops", "Retail Ops", "Sporting Goods Ops", "Workforce Ops",
     "Vertical Editor", "Mortgage Path", "Users", "Accounts", "Transactions", "OIDC Resource Server", "CC Resource Server",
-    "Hosted Registrations",
+    "Hosted Registrations", "Token Compliance Audit",
   ] },
 ];
 
