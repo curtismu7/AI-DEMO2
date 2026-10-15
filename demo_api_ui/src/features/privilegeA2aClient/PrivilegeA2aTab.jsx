@@ -48,11 +48,6 @@ const CALL_GROUPS = [
     'Which of my purchases were returned?',
   ] },
 ];
-const QUIZ_OPTIONS = [
-  'The main agent',
-  'The analyst agent, through an MCP tool',
-  'The browser page',
-];
 
 export default function PrivilegeA2aTab() {
   const profile = usePrivilegeA2aProfile();
@@ -81,11 +76,9 @@ export default function PrivilegeA2aTab() {
   const [agentMode, setAgentMode] = usePageAgentMode('privilege-a2a');
   const demoQuestions = profile?.questions?.length ? profile.questions : PRIVILEGE_A2A_DEMO_QUESTIONS;
   const [input, setInput] = useState('');
-  // Learning aids: a walkthrough over the three columns, the step picked in the reel, and a short quiz after a good run.
+  // Learning aids: a walkthrough over the three columns, and the step picked in the reel.
   const [walkStep, setWalkStep] = useState(-1);
   const [selectedStep, setSelectedStep] = useState(null);
-  const [quizOpen, setQuizOpen] = useState(false);
-  const [quizAnswer, setQuizAnswer] = useState(null);
   const [callsOpen, setCallsOpen] = useState(false);
   // The compact agent: a small button in the agent column that opens a short panel with a question box.
   const [dockOpen, setDockOpen] = useState(false);
@@ -152,8 +145,6 @@ export default function PrivilegeA2aTab() {
     setError('');
     setTrace([]);
     setSelectedStep(null);
-    setQuizOpen(false);
-    setQuizAnswer(null);
     setRecord(null);
     clearTimeout(recordTimerRef.current);
     const startedAt = Date.now();
@@ -177,8 +168,7 @@ export default function PrivilegeA2aTab() {
           opts: { keepTrace: true, keepPanelClosed: true, run },
         },
       }));
-      const result = await run;
-      if (result?.ok) setQuizOpen(true);
+      await run;
     } catch (requestError) {
       if (controller.signal.aborted) setError('Request cancelled.');
       else setError(requestError instanceof Error ? requestError.message : 'The A2A request failed.');
@@ -269,27 +259,6 @@ export default function PrivilegeA2aTab() {
             </div>
           )}
           {error && <p className="privilege-a2a__error" role="alert">{error}</p>}
-          {quizOpen && (
-            <div className="privilege-a2a__quiz" role="group" aria-label="Check your understanding">
-              <p><b>Check your understanding:</b> Which agent actually reads the entitlements?</p>
-              {QUIZ_OPTIONS.map((option, index) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`privilege-a2a__quiz-opt${quizAnswer === index ? (index === 1 ? ' is-right' : ' is-wrong') : ''}`}
-                  disabled={quizAnswer !== null}
-                  onClick={() => setQuizAnswer(index)}
-                >
-                  {option}
-                </button>
-              ))}
-              {quizAnswer !== null && (
-                <p className="privilege-a2a__quiz-why">
-                  {quizAnswer === 1 ? 'Correct. ' : 'Not quite. '}The main agent only delegates. The analyst calls the tool through the gateway.
-                </p>
-              )}
-            </div>
-          )}
           <div className="privilege-a2a__walk" aria-label="Walkthrough">
             {walkStep < 0 ? (
               <button type="button" className="privilege-a2a__walk-start" onClick={() => setWalkStep(0)}>Start walkthrough</button>
