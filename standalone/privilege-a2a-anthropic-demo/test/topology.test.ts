@@ -59,6 +59,10 @@ function responseFor(request: AnthropicRequest): {
   stopReason: 'tool_use' | 'end_turn';
   content: Array<Record<string, unknown>>;
 } {
+  // The local model sometimes answers in text instead of delegating (a refusal, or the delegation written out).
+  if (request.model === 'test-main' && !hasToolResult(request.messages) && JSON.stringify(request.messages).includes('REFUSE-TO-DELEGATE')) {
+    return { stopReason: 'end_turn', content: [{ type: 'text', text: 'I am sorry, but I cannot help with that.' }] };
+  }
   if (request.model === 'test-main' && !hasToolResult(request.messages)) {
     const person = delegatedPerson(request);
     return {
@@ -385,6 +389,31 @@ test('main delegates through authenticated A2A, worker calls authenticated MCP, 
     const workerBanking = bankingCalls.find(call => call.model === 'test-worker')!;
     assert.deepEqual(workerBanking.request.tools?.map(tool => tool.name).sort(), [...bankingTools].sort(), 'worker is offered only the banking tools');
     assert.match(String((workerBanking.request as { system?: string }).system), /Investment Advisor/);
+
+    // The model answers in text without delegating: the run delegates the user's question anyway and says so.
+    const refusalResponse = await fetch(`http://127.0.0.1:${mainPort}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-A2A-BFF-Secret': 'test-bff-shared-secret' },
+      body: JSON.stringify({
+        message: 'REFUSE-TO-DELEGATE Review my investment positions.',
+        sessionId: 'session-refusal',
+        vertical: 'banking',
+        agentName: 'Super Banking agent',
+        specialistName: 'Investment Advisor',
+        tool: 'get_portfolio_summary',
+        tools: bankingTools,
+        subtaskHint: 'review the customer’s investment positions',
+      }),
+    });
+    const refusalEvents = sseEvents(await refusalResponse.text());
+    const refusalTraces = refusalEvents.filter(event => event.event === 'trace').map(event => event.data);
+    assert.ok(refusalTraces.some(t => t.kind === 'fallback'), 'the run says the model did not delegate');
+    assert.equal(refusalTraces.filter(t => t.kind === 'delegate').length, 1, 'and delegates the question once');
+    assert.ok(refusalTraces.some(t => t.kind === 'result'), 'the analyst answered');
+    const refusalAnswer = refusalEvents.filter(event => event.event === 'token').map(event => String(event.data.text)).join('');
+    assert.ok(!refusalAnswer.includes('I am sorry'), 'the refusal text is not shown as the answer');
+    assert.match(refusalAnswer, /Investment positions reviewed/, 'the specialist\'s answer is');
+    assert.ok(refusalEvents.some(event => event.event === 'done'));
 
     // Same profile with mode 'heuristics': zero model calls, same trace hops, same MCP data.
     const beforeHeuristic = calls.length;
