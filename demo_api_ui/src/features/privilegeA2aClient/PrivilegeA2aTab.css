@@ -510,11 +510,15 @@
 
 /* ── Compact agent: lives in the agent column, never over the reel or details ─ */
 .cur-ide .privilege-a2a__conversation { position: relative; }
+/* The launcher takes its own row at the top of the column. It used to be absolutely positioned at the column's
+   bottom, which in a short window sat over the suggestion chips and the question box. The open dock below
+   stays an overlay: it is the agent itself, and the person asked for it. */
 .cur-ide .privilege-a2a__dock-open {
-  position: absolute;
-  left: 12px;
-  bottom: 12px;
-  z-index: 5;
+  position: static;
+  order: -1;
+  flex-shrink: 0;
+  align-self: flex-start;
+  margin: 0 0 10px;
   border: 0;
   border-radius: 999px;
   background: var(--a2a-accent);
