@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import AgentClientSkin from '../components/AgentClientSkin';
 import apiClient from '../services/apiClient';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
+import { DOT_SUGGESTIONS } from '../config/dotSuggestions';
 import './WorkloadAgentsPage.css';
 
 const GREETINGS = {
@@ -11,15 +12,6 @@ const GREETINGS = {
   gemini: "Hi! I'm Gemini. I can help with your United Airlines account — checking flights, seat availability, and loyalty points.",
   dot: "Hi, I'm Dot — your always-on agent. I remember your preferences as we work, and every tool I use is governed by your identity provider. Tell me how you like things done.",
 };
-
-// Prompts that show what Dot does: preference sentences it saves ("Always / Never /
-// Prefer / Call me"), and a recall question. Dot-only; the other skins stay blank.
-const DOT_SUGGESTIONS = [
-  'Always book me an aisle seat',
-  'Never put me on a red-eye',
-  'Call me Sam',
-  'What do you remember about me?',
-];
 
 export default function PersonalAgentClientWindow() {
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
