@@ -218,17 +218,37 @@ describe('POST /api/obo/run (page entry point)', () => {
     expect(JSON.stringify(res.body)).not.toMatch(/tok-sess|invalid_grant/);
   });
 
-  test('logs the PingOne reason server-side, without any token', async () => {
-    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
-    runObo.mockRejectedValue(Object.assign(new Error('Request failed with status code 400 tok-sess'), {
-      error: 'invalid_scope', error_description: 'At least one scope must be granted', httpStatus: 400,
-    }));
+  test('a failed hop returns 502 with the failed step and the partial trace for the page', async () => {
+    const trace = [
+      { id: 1, status: 'pass', ms: 0, facts: {} },
+      { id: 3, status: 'fail', ms: 12, facts: { error: 'invalid_request', description: "Not a valid access token for request param 'subject_token'", httpStatus: 400 } },
+      { id: 4, status: 'skip', ms: 0, facts: {} },
+    ];
+    runObo.mockRejectedValue(Object.assign(new Error('Token exchange failed for ex: tok-sess'), { trace }));
     const res = await request(runApp({ oauthTokens: { accessToken: 'tok-sess' } })).post('/api/obo/run');
     expect(res.status).toBe(502);
-    const logged = JSON.stringify(spy.mock.calls);
-    expect(logged).toMatch(/invalid_scope/);
-    expect(logged).toMatch(/At least one scope must be granted/);
-    expect(logged).not.toMatch(/tok-sess/);
-    spy.mockRestore();
+    expect(res.body.failedStep).toBe(3);
+    expect(res.body.steps).toEqual(trace);
+    expect(JSON.stringify(res.body)).not.toContain('tok-sess');
   });
+});
+
+test('logs the PingOne reason server-side, without any token', async () => {
+  const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+  runObo.mockRejectedValue(Object.assign(new Error('Request failed with status code 400 tok-sess'), {
+    pingoneError: 'invalid_scope', pingoneErrorDescription: 'At least one scope must be granted', httpStatus: 400,
+    trace: [{ id: 3, status: 'fail', ms: 9, facts: { error: 'invalid_scope', description: 'At least one scope must be granted', httpStatus: 400 } }],
+  }));
+  // The same signed-in session the other route tests use (see runApp), built here because this test sits outside that block.
+  const signedIn = express();
+  signedIn.use(express.json());
+  signedIn.use((req, _res, next) => { req.session = { oauthTokens: { accessToken: 'tok-sess' } }; next(); });
+  signedIn.use('/api/obo', router);
+  const res = await request(signedIn).post('/api/obo/run');
+  expect(res.status).toBe(502);
+  const logged = JSON.stringify(spy.mock.calls);
+  expect(logged).toMatch(/invalid_scope/);
+  expect(logged).toMatch(/At least one scope must be granted/);
+  expect(logged).not.toMatch(/tok-sess/);
+  spy.mockRestore();
 });

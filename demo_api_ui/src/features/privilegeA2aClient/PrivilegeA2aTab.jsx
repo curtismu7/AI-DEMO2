@@ -4,6 +4,7 @@ import { GATEWAY_RECORD_SIGN_IN_PATH, loadGatewayRecord } from '../../services/g
 import { PRIVILEGE_A2A_ACCESS_REVIEW_AGENT_USE_CASE_ID, PRIVILEGE_A2A_DEMO_QUESTIONS, runPrivilegeA2aChatRun } from '../../utils/privilegeA2aChainRun';
 import PageAgentModeToggle, { usePageAgentMode } from '../../components/shared/PageAgentModeToggle';
 import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
+import { PATH_STEPS, pathProgress } from './pathProgress';
 import './PrivilegeA2aTab.css';
 
 const WALK = [
@@ -25,6 +26,10 @@ const WHY = {
   error: 'Something stopped this step. Its details say what.',
   model: 'The model decides the next step. Its tokens are what that decision used.',
 };
+// Illustrative cost only: Claude Sonnet 5.5 list price ($2 in / $10 out per million tokens). The demo's model is priced differently.
+const PRICE_PER_MTOK = { input: 2, output: 10, label: 'Claude Sonnet 5.5 list price' };
+const runCost = (totals) => (totals.input * PRICE_PER_MTOK.input + totals.output * PRICE_PER_MTOK.output) / 1_000_000;
+const costLabel = (totals) => `≈ $${runCost(totals).toFixed(4)} at ${PRICE_PER_MTOK.label}`;
 const tokensLine = (tokens) => (tokens ? `${tokens.input.toLocaleString()} in · ${tokens.output.toLocaleString()} out` : '');
 const runTokens = (trace) => trace.reduce((sum, entry) => ({
   input: sum.input + (entry.tokens?.input || 0),
@@ -47,11 +52,6 @@ const CALL_GROUPS = [
     'Delete the orders-2026 index.',
     'Which of my purchases were returned?',
   ] },
-];
-const QUIZ_OPTIONS = [
-  'The main agent',
-  'The analyst agent, through an MCP tool',
-  'The browser page',
 ];
 
 export default function PrivilegeA2aTab() {
@@ -81,12 +81,13 @@ export default function PrivilegeA2aTab() {
   const [agentMode, setAgentMode] = usePageAgentMode('privilege-a2a');
   const demoQuestions = profile?.questions?.length ? profile.questions : PRIVILEGE_A2A_DEMO_QUESTIONS;
   const [input, setInput] = useState('');
-  // Learning aids: a walkthrough over the three columns, the step picked in the reel, and a short quiz after a good run.
+  // Learning aids: a walkthrough over the three columns, and the step picked in the reel.
   const [walkStep, setWalkStep] = useState(-1);
   const [selectedStep, setSelectedStep] = useState(null);
-  const [quizOpen, setQuizOpen] = useState(false);
-  const [quizAnswer, setQuizAnswer] = useState(null);
   const [callsOpen, setCallsOpen] = useState(false);
+  // The compact agent: a small button in the agent column that opens a short panel with a question box.
+  const [dockOpen, setDockOpen] = useState(false);
+  const [dockText, setDockText] = useState('');
   const [replaying, setReplaying] = useState(false);
   const [selectedQuestion, setSelectedQuestion] = useState('');
   const [turns, setTurns] = useState([]);
@@ -94,6 +95,7 @@ export default function PrivilegeA2aTab() {
   const [sessionId, setSessionId] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const progress = pathProgress(trace, busy);
   // The gateway's own record of the last run: its model calls and guardrail verdicts.
   const [record, setRecord] = useState(null);
   const recordLines = record ? record.modelCalls.length + record.guardrail.length + (record.requests?.length || 0) + (record.denials?.length || 0) : 0;
@@ -121,6 +123,7 @@ export default function PrivilegeA2aTab() {
         text: typeof payload.text === 'string' ? payload.text : 'Agent activity',
         detail: typeof payload.detail === 'string' ? payload.detail : '',
         // Who called whom, how long it took, and the wire JSON of that hop (display names when the profile has them).
+        fromKey: typeof payload.from === 'string' ? payload.from : '',
         from: typeof payload.fromLabel === 'string' && payload.fromLabel ? payload.fromLabel : (typeof payload.from === 'string' ? payload.from : ''),
         to: typeof payload.toLabel === 'string' && payload.toLabel ? payload.toLabel : (typeof payload.to === 'string' ? payload.to : ''),
         elapsedMs: typeof payload.elapsedMs === 'number' ? payload.elapsedMs : null,
@@ -149,8 +152,6 @@ export default function PrivilegeA2aTab() {
     setError('');
     setTrace([]);
     setSelectedStep(null);
-    setQuizOpen(false);
-    setQuizAnswer(null);
     setRecord(null);
     clearTimeout(recordTimerRef.current);
     const startedAt = Date.now();
@@ -174,8 +175,7 @@ export default function PrivilegeA2aTab() {
           opts: { keepTrace: true, keepPanelClosed: true, run },
         },
       }));
-      const result = await run;
-      if (result?.ok) setQuizOpen(true);
+      await run;
     } catch (requestError) {
       if (controller.signal.aborted) setError('Request cancelled.');
       else setError(requestError instanceof Error ? requestError.message : 'The A2A request failed.');
@@ -200,16 +200,46 @@ export default function PrivilegeA2aTab() {
           <p>Ask about an entitlement. The main agent hands the lookup to a worker agent, which checks access data through MCP. In gateway mode every hop goes through the PingOne Agent Privilege: each agent uses its own agent key, and the gateway screens the messages and the tool results.</p>
         </div>
         <ol className="privilege-a2a__path" aria-label="Agent request path">
-          <li>Main agent</li>
-          <li>Agent Privilege</li>
-          <li>Worker agent</li>
-          <li>Agent Privilege</li>
-          <li>MCP tools</li>
+          {PATH_STEPS.map((label, index) => (
+            <li
+              key={`${index}-${label}`}
+              className={`${index <= progress.reached ? 'is-done' : ''}${progress.active === index ? ' is-active' : ''}`.trim() || undefined}
+              aria-current={progress.active === index ? 'step' : undefined}
+            >
+              {label}
+            </li>
+          ))}
         </ol>
       </header>
 
       <div className="privilege-a2a__workspace">
         <section className="privilege-a2a__conversation" aria-label="Conversation">
+          {!dockOpen && (
+            <button type="button" className="privilege-a2a__dock-open" onClick={() => setDockOpen(true)} aria-label="Open the compact agent">Compact agent</button>
+          )}
+          {dockOpen && (
+            <div className="privilege-a2a__dock" role="dialog" aria-label="Compact agent">
+              <div className="privilege-a2a__dock-bar">
+                <span>Compact agent</span>
+                <button type="button" onClick={() => setDockOpen(false)} aria-label="Minimise the compact agent">−</button>
+              </div>
+              <textarea
+                value={dockText}
+                onChange={(event) => setDockText(event.target.value)}
+                aria-label="Question for the compact agent"
+                rows={2}
+                placeholder="Ask about an entitlement…"
+              />
+              <button
+                type="button"
+                className="privilege-a2a__dock-send"
+                disabled={busy || !dockText.trim()}
+                onClick={() => { const text = dockText.trim(); setDockText(''); submitQuestion(null, text); }}
+              >
+                Send
+              </button>
+            </div>
+          )}
           <div className="privilege-a2a__head">
             <h3>Conversation</h3>
             {/* The movie-reel / sequence view of this run: every hop, claim and gateway decision,
@@ -240,27 +270,6 @@ export default function PrivilegeA2aTab() {
             </div>
           )}
           {error && <p className="privilege-a2a__error" role="alert">{error}</p>}
-          {quizOpen && (
-            <div className="privilege-a2a__quiz" role="group" aria-label="Check your understanding">
-              <p><b>Check your understanding:</b> Which agent actually reads the entitlements?</p>
-              {QUIZ_OPTIONS.map((option, index) => (
-                <button
-                  key={option}
-                  type="button"
-                  className={`privilege-a2a__quiz-opt${quizAnswer === index ? (index === 1 ? ' is-right' : ' is-wrong') : ''}`}
-                  disabled={quizAnswer !== null}
-                  onClick={() => setQuizAnswer(index)}
-                >
-                  {option}
-                </button>
-              ))}
-              {quizAnswer !== null && (
-                <p className="privilege-a2a__quiz-why">
-                  {quizAnswer === 1 ? 'Correct. ' : 'Not quite. '}The main agent only delegates. The analyst calls the tool through the gateway.
-                </p>
-              )}
-            </div>
-          )}
           <div className="privilege-a2a__walk" aria-label="Walkthrough">
             {walkStep < 0 ? (
               <button type="button" className="privilege-a2a__walk-start" onClick={() => setWalkStep(0)}>Start walkthrough</button>
@@ -423,7 +432,7 @@ export default function PrivilegeA2aTab() {
             return (
               <p className="privilege-a2a__run-totals">
                 {totals.calls > 0
-                  ? `${totals.calls} model call${totals.calls === 1 ? '' : 's'} · ${totals.input.toLocaleString()} in · ${totals.output.toLocaleString()} out tokens`
+                  ? `${totals.calls} model call${totals.calls === 1 ? '' : 's'} · ${totals.input.toLocaleString()} in · ${totals.output.toLocaleString()} out tokens · ${costLabel(totals)}`
                   : 'No model calls in this run'}
               </p>
             );
@@ -481,7 +490,7 @@ export default function PrivilegeA2aTab() {
             <p>This step: {tokensLine(trace[selectedStep].tokens)}</p>
           ) : null}
           {trace.length > 0 ? (
-            <p className="privilege-a2a__empty">Run total: {tokensLine(runTokens(trace))}</p>
+            <p className="privilege-a2a__empty">Run total: {tokensLine(runTokens(trace))} · {costLabel(runTokens(trace))}</p>
           ) : (
             <p className="privilege-a2a__empty">Token counts appear here once a run starts.</p>
           )}

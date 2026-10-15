@@ -120,6 +120,31 @@ describe('PrivilegeA2aTab', () => {
     expect(panel.getByText('Care Concierge → Claims Analyst · 80 ms')).toBeTruthy();
   });
 
+  test('the request path lights up from the run\'s real events and clears on the next run', async () => {
+    const run = (events) => streamResponse([...events, { event: 'token', data: { text: 'Done.' } }, { event: 'done', data: { sessionId: 's' } }]);
+    global.fetch
+      .mockResolvedValueOnce(run([
+        { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'delegate' } },
+        { event: 'trace', data: { kind: 'mcp-call', from: 'analyst', to: 'mcp', text: 'call' } },
+        { event: 'trace', data: { kind: 'mcp-result', from: 'mcp', to: 'analyst', text: 'result' } },
+      ]))
+      .mockResolvedValueOnce(run([]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    const items = () => within(screen.getByRole('list', { name: 'Agent request path' })).getAllByRole('listitem');
+    expect(items().every((li) => !li.className)).toBe(true);
+
+    await user.click(await screen.findByRole('button', { name: 'Review access on prod-db-primary.' }));
+    expect(await screen.findByText('Done.')).toBeTruthy();
+    // delegate, mcp-call and mcp-result reached the MCP tools: all five segments are marked done
+    expect(items().map((li) => li.classList.contains('is-done'))).toEqual([true, true, true, true, true]);
+    expect(items().some((li) => li.classList.contains('is-active'))).toBe(false); // the run has ended
+
+    await user.click(screen.getByRole('button', { name: 'Review access on prod-db-primary.' }));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(2));
+    await waitFor(() => expect(items().every((li) => !li.classList.contains('is-done'))).toBe(true));
+  });
+
   test('clicking a suggested question runs it at once and hands it to the floating agent, no Send press', async () => {
     global.fetch.mockResolvedValueOnce(streamResponse([
       { event: 'token', data: { text: 'Done.' } },
@@ -278,7 +303,7 @@ describe('PrivilegeA2aTab token counts and the call picker', () => {
     await user.click(screen.getByRole('button', { name: 'Send question' }));
     expect(await screen.findByText('Done.')).toBeTruthy();
     expect(screen.getAllByText('412 in · 58 out').length).toBeGreaterThan(0);
-    expect(screen.getByText('1 model call · 412 in · 58 out tokens')).toBeTruthy();
+    expect(screen.getByText(/^1 model call · 412 in · 58 out tokens · ≈ \$0\.0014 at Claude Sonnet 5\.5 list price$/)).toBeTruthy();
   });
 
   test('the calls menu fills the question box without sending it', async () => {
@@ -289,5 +314,21 @@ describe('PrivilegeA2aTab token counts and the call picker', () => {
     await user.click(within(menu).getByRole('option', { name: 'Who has the prod-db-admin role?' }));
     expect(screen.getByRole('textbox', { name: 'Your question' })).toHaveValue('Who has the prod-db-admin role?');
     expect(global.fetch).not.toHaveBeenCalled();
+  });
+});
+
+describe('compact agent', () => {
+  test('opens from the agent column and sends its question through the same path', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'token', data: { text: 'Compact answer.' } },
+      { event: 'done', data: { sessionId: 's3' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    await user.click(screen.getByRole('button', { name: 'Open the compact agent' }));
+    const box = screen.getByRole('textbox', { name: 'Question for the compact agent' });
+    await user.type(box, 'List all entitlements for Carol Nguyen.');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText('Compact answer.')).toBeTruthy();
   });
 });

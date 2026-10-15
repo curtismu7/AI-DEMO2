@@ -25,14 +25,13 @@ Not shown: human approval (HITL). This is the identity layer a HITL step would s
 
 ## Status (read before presenting)
 
-- Verified: the exchange and all seven checks against the demo PingOne environment, with Claude Code as the
-  client, using the earlier standalone test server (`scripts/obo-claude-test/`).
-- **Not yet verified end to end:** the same flow through the in-app endpoint `/api/obo/mcp` (merged in #1328).
-  The first live run is the probe described in the backend plan. Do one dry run before any audience.
+- **Verified on the local stack (2026-10-15):** Claude Code signed in through PingOne and called `act_on_my_behalf`
+  on the in-app endpoint `/api/obo/mcp`, and the call succeeded. The seven checks were first proven earlier with the
+  standalone test server in `scripts/obo-claude-test/`. Still do one dry run before any audience.
 - **Hosted site (`ai-demo.ping-devops.com`) is unverified.** Local is the supported target until a hosted
   probe passes.
 - The in-app page shows the checks only. The side-by-side claims card, the live panel and the diagram are
-  planned (plan: `docs/superpowers/plans/2026-10-14-obo-demo-live-panel.md`) and are not on the page yet.
+  a planned follow-up and are not on the page yet. Demo B (Claude Code) is where the claims are shown today.
 
 ## One-time setup (about 5 minutes, before the audience arrives)
 
@@ -60,7 +59,8 @@ Not shown: human approval (HITL). This is the identity layer a HITL step would s
      --client-id c8392dc4-2d82-4e49-92a8-79a78401faf5 --callback-port 7465
    ```
    The client id is the public PKCE app "Claude Code - Banking Gateway". It is not a secret.
-4. **Pre-allow the tool** so the auto-mode classifier does not stall you on stage. In `claude`, run
+4. **Pre-allow the tool** (required, not optional). Without it the auto-mode classifier blocks the call with
+   the reason "Permission Grant" and nothing runs (this happened on the first live run). In `claude`, run
    `/permissions` and allow `mcp__obo-demo__act_on_my_behalf`.
 5. **Dry run once** (both parts below), then you are ready.
 
@@ -113,6 +113,7 @@ Not shown: human approval (HITL). This is the identity layer a HITL step would s
 | Tool returns `OBO demo not configured` (503 on the page) | The Token Exchanger or AI Agent client credentials are missing from the BFF config. |
 | Authenticates, but every call returns 401 | The token's audience is not accepted. Read the BFF log line for the rejected call (it shows the token's `aud` and `client_id`, never the token) and set `OBO_INBOUND_AUDIENCES` to the audience PingOne actually issued. Do not loosen validation. |
 | `act` shows as plain text, not an object (check 2 fails) | The `act` attribute on the PingOne "OBO Demo" resource is wrong. Re-run setup step 2; it rewrites it to `${{'client_id': #root.context.requestData.actorToken.client_id}}`. A bare `${...client_id}` gives a string. |
+| Claude says the auto mode classifier blocked `act_on_my_behalf` ("Permission Grant") and the call did not run | Expected until the tool is allowed. Run `/permissions`, allow `mcp__obo-demo__act_on_my_behalf`, and ask again. Claude will not retry the same blocked call on its own. |
 | Claude refuses or blocks the tool call | Do not ask it to print the raw bearer token; that trips the classifier and the session then refuses retries. Use the prompts above, and allow the tool in `/permissions`. |
 | Page says "Sign in first" | The page runs on your own session. Sign in as demoUser first. |
 

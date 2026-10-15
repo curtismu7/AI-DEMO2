@@ -111,6 +111,8 @@ async function runAnalyst(question: string, contextId: string, profile: { vertic
       const result = await mcp.callTool({ name, arguments: {} });
       const content = textFromMcp(result);
       emitTrace(contextId, 'mcp-result', `${name} returned`, content.slice(0, 1200), 'mcp', 'analyst');
+      // The main agent checks scope words against this raw output; without it every dated sentence looked unsourced.
+      rawOutputs.push(content.slice(0, 4000));
       return content;
     }
     const toolDefinitions: Anthropic.Tool[] = offeredTools.map(tool => ({

@@ -289,7 +289,8 @@ app.post('/chat', async (req: Request, res: Response) => {
           sendSse(res, 'trace', { ...withLabels({ from: 'analyst', to: MAIN }, profile), kind: 'result', text: 'analyst_agent returned', detail: answer, elapsedMs: Date.now() - hopStartedAt, response, at: at() });
           results.push({ type: 'tool_result', tool_use_id: call.id, content: answer });
           // Scope words are checked against the raw tool output, not the analyst's own text.
-          delegatedAnswer = stripUnsourcedScope(answer, toolOutputs.join('\n'));
+          // Heuristics: the answer IS the tool's own text, so nothing in it can be unsourced.
+          delegatedAnswer = heuristic ? answer : stripUnsourcedScope(answer, toolOutputs.join('\n'));
           rawSourceTexts.push(...toolOutputs);
         } catch (error) {
           const detail = messageError(error);
@@ -298,6 +299,8 @@ app.post('/chat', async (req: Request, res: Response) => {
         }
       }
       if (!heuristic) messages.push({ role: 'user', content: results });
+      // A model-free run delegates once, whatever came back (an empty or failed answer must never loop or reach a model).
+      if (heuristic && !delegatedAnswer) delegatedAnswer = 'The specialist returned nothing for this question.';
       if (delegatedAnswer) {
         sendSse(res, 'token', { text: delegatedAnswer });
         messages.push({ role: 'assistant', content: delegatedAnswer });
