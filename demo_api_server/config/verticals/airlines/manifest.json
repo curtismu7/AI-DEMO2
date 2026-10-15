@@ -2,10 +2,10 @@
   "id": "airlines",
   "schemaVersion": 3,
   "identity": {
-    "displayName": "United Airlines",
-    "headerTitle": "United Airlines",
-    "documentTitle": "United Airlines \u00b7 PingOne AI IAM Core",
-    "logoAlt": "United Airlines",
+    "displayName": "Airline",
+    "headerTitle": "Airline",
+    "documentTitle": "Airline \u00b7 PingOne AI IAM Core",
+    "logoAlt": "Airline",
     "tagline": "Good Leads The Way",
     "logoPath": "https://cdn.brandfetch.io/idmlRiz-2q/theme/light/logo.svg"
   },
@@ -29,8 +29,8 @@
     "accountTypes": [
       "Economy",
       "Economy Plus",
-      "United First",
-      "United Polaris"
+      "First",
+      "Polaris"
     ],
     "transaction": "Flight",
     "transactions": "Flights",
@@ -87,8 +87,8 @@
   },
   "agent": {
     "persona": "Skyline",
-    "greeting": "Hi {name}! I'm Skyline, your United travel agent. I can pull up your reservations, check a flight's status and gate, and show you the seat map. What would you like to look at?",
-    "systemPromptFlavor": "You are Skyline, a United Airlines travel agent. Help passengers view their reservations, check flight status and gate information, and see seat availability. Use airline language: accounts are reservations, transactions are flights, balance is the MileagePlus balance. Be concise and factual \u2014 every answer comes from the airline's reservation system, so never invent a flight, seat, or confirmation number."
+    "greeting": "Hi {name}! I'm Skyline, your airline travel agent. I can pull up your reservations, check a flight's status and gate, and show you the seat map. What would you like to look at?",
+    "systemPromptFlavor": "You are Skyline, an airline travel agent. Help passengers view their reservations, check flight status and gate information, and see seat availability. Use airline language: accounts are reservations, transactions are flights, balance is the MileagePlus balance. Be concise and factual \u2014 every answer comes from the airline's reservation system, so never invent a flight, seat, or confirmation number."
   },
   "hero": {
     "imageUrl": "https://images.unsplash.com/photo-1436491865332-7a61a109cc05?w=1200&h=600&fit=crop",

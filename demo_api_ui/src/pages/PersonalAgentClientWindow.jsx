@@ -11,8 +11,8 @@ import './WorkloadAgentsPage.css';
 const GREETINGS = {
   privilege: "Hello! I'm your Privilege AI assistant. I can access your MileagePlus account and help manage your upcoming flights.",
   claude: "Hello! I'm Claude. I can help you manage your airline reservations and loyalty points.",
-  gpt: "How can I help you today? I can access your United MileagePlus account to check your points balance and manage upgrades.",
-  gemini: "Hi! I'm Gemini. I can help with your United Airlines account — checking flights, seat availability, and loyalty points.",
+  gpt: "How can I help you today? I can access your MileagePlus account to check your points balance and manage upgrades.",
+  gemini: "Hi! I'm Gemini. I can help with your airline account — checking flights, seat availability, and loyalty points.",
   dot: "Hi, I'm Dot — your always-on agent. I remember your preferences as we work, and every tool I use is governed by your identity provider. Tell me how you like things done.",
 };
 
@@ -74,7 +74,7 @@ export default function PersonalAgentClientWindow() {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      // Dot follows the active vertical; the other skins are the United airline demo.
+      // Dot follows the active vertical; the other skins are the airline demo.
       body: JSON.stringify({ prompt: text, vertical: skin === 'dot' ? (activeId || undefined) : 'airlines', agentMode }),
     })
       .then(async (response) => {

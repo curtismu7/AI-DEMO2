@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * airlines (United) vertical plugin.
+ * airlines vertical plugin.
  *
  * Unlike every other vertical, this one owns NO local data store. Its four
  * tools are answered by demo_mcp_resource_server out of a real SQLite database
@@ -23,7 +23,7 @@ const TOOLS = [
     // transaction policy decides DENY ($2500) / step-up ($600) / consent ($300)
     // from the amount, which is what UC6/7/8/22 demo.
     name: 'pay_airline_fee',
-    description: 'Pay a United change, checked-bag, or seat-upgrade fee.',
+    description: 'Pay a change, checked-bag, or seat-upgrade fee.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -42,11 +42,11 @@ const TOOLS = [
     // challengeType — the transaction policy (WRITE_TOOL_TYPE_MAP) evaluates the
     // price before this handler runs, same shape as pay_airline_fee.
     name: 'book_airline_flight',
-    description: 'Book a United flight for the passenger. The price is evaluated against the transaction policy before the booking is created.',
+    description: 'Book a flight for the passenger. The price is evaluated against the transaction policy before the booking is created.',
     inputSchema: {
       type: 'object',
       properties: {
-        flight_number: { type: 'string', description: 'United flight number, e.g. UA502' },
+        flight_number: { type: 'string', description: 'flight number, e.g. UA502' },
         origin: { type: 'string', description: 'Origin airport code (informational)' },
         destination: { type: 'string', description: 'Destination airport code (informational)' },
         amount: { type: 'number', description: 'Total ticket price in dollars' },
@@ -60,7 +60,7 @@ const TOOLS = [
   {
     // Phase 2 high-value write — step-up gated (scope-topology challengeType).
     name: 'cancel_airline_reservation',
-    description: 'Cancel a United reservation and start the refund. Requires step-up authentication.',
+    description: 'Cancel a reservation and start the refund. Requires step-up authentication.',
     inputSchema: {
       type: 'object',
       properties: { confirmation_number: { type: 'string', description: 'Reservation confirmation number' } },
@@ -74,24 +74,24 @@ const TOOLS = [
     // sensitive:read on top of airlines:read, and scope-topology marks it
     // challengeType:consent, so only THIS lookup prompts for human approval.
     name: 'sensitive_airline_bookings',
-    description: "List the passenger's United reservations including sensitive passenger details. Requires human consent.",
+    description: "List the passenger's reservations including sensitive passenger details. Requires human consent.",
     inputSchema: { type: 'object', properties: {}, required: [] },
     scopes: ['airlines:read', 'sensitive:read'],
     authz: {},
   },
   {
     name: 'get_airline_bookings',
-    description: "List the passenger's upcoming United reservations with flight, seat and status.",
+    description: "List the passenger's upcoming reservations with flight, seat and status.",
     inputSchema: { type: 'object', properties: {}, required: [] },
     scopes: ['airlines:read'],
     authz: {},
   },
   {
     name: 'get_flight_status',
-    description: 'Get status, gate, aircraft and times for a United flight.',
+    description: 'Get status, gate, aircraft and times for a flight.',
     inputSchema: {
       type: 'object',
-      properties: { flight_number: { type: 'string', description: 'United flight number, e.g. UA328' } },
+      properties: { flight_number: { type: 'string', description: 'flight number, e.g. UA328' } },
       required: [],
     },
     scopes: ['airlines:read'],
@@ -99,11 +99,11 @@ const TOOLS = [
   },
   {
     name: 'check_seat_availability',
-    description: 'Show the seat map for a United flight.',
+    description: 'Show the seat map for a flight.',
     inputSchema: {
       type: 'object',
       properties: {
-        flight_number: { type: 'string', description: 'United flight number, e.g. UA328' },
+        flight_number: { type: 'string', description: 'flight number, e.g. UA328' },
         available_only: { type: 'boolean', description: 'Only unoccupied seats (default true)' },
       },
       required: [],
@@ -201,7 +201,7 @@ const HEURISTICS = [
 function systemPrompt(ctx) {
   const role = ctx && ctx.role ? ctx.role : 'passenger';
   return [
-    "You are United Airlines' travel agent (Skyline).",
+    "You are the airline's travel agent (Skyline).",
     'You help passengers view their reservations, check flight status and gate information,',
     'and see which seats are still available on a flight.',
     `The signed-in user role is "${role}".`,

@@ -70,7 +70,7 @@ describe('airlines dispatch', () => {
     expect(result.bookings[0].confirmationNumber).toBe('K7XR2M');
     expect(result.bookings[0].route).toBe('ORD to SFO');
     expect(result.provenance).toEqual(expect.objectContaining({
-      backend: 'United Reservations DB',
+      backend: 'Airline Reservations DB',
       engine: 'SQLite',
       database: 'airlines.db',
       tool: 'get_airline_bookings',

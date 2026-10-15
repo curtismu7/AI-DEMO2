@@ -492,12 +492,12 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const byId = Object.fromEntries(steps.map((s) => [s.id, s]));
 
     expect(byId.api).toMatchObject({
-      title: "United Airlines backend app — resource server",
+      title: "Airline backend app — resource server",
       lane: "AIRLINES",
       status: "done",
     });
     expect(byId.database).toMatchObject({
-      title: "SQL Database — United Airlines data",
+      title: "SQL Database — Airline data",
       lane: "DATA",
       status: "done",
     });

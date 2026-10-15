@@ -12,10 +12,10 @@ const COVERAGE_BY_RUNTIME = [
 // its own — it runs on oauth-mcp's core surface, not a vertical-specific slice.
 const COVERAGE_BY_VERTICAL = [
   { vertical: "Meridian Wealth", domain: "investment", tools: 4 },
-  { vertical: "United Airlines", domain: "airline", tools: 3 },
+  { vertical: "Airline", domain: "airline", tools: 3 },
   { vertical: "Super Sports", domain: "gear", tools: 3 },
   { vertical: "CareConnect", domain: "records", tools: 2 },
-  { vertical: "Abercrombie & Fitch", domain: "retail", tools: 2 },
+  { vertical: "Walbuy", domain: "retail", tools: 2 },
   { vertical: "WX Workforce", domain: "payroll / expense", tools: 2 },
   { vertical: "Precision Works", domain: "work orders", tools: 1 },
   { vertical: "CivicPermit", domain: "government", tools: 1 },

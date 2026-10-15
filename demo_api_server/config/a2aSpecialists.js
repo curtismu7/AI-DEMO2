@@ -186,7 +186,7 @@ const A2A_DEMO_PROFILES = {
     questions: ['Review my investment holdings.', 'Which holdings make up most of my portfolio?', 'What is the total value of my holdings?'],
   },
   airlines: {
-    agentName: 'United Airlines agent',
+    agentName: 'Airline agent',
     questions: ['Retrieve my passenger record.', 'What loyalty status is on my passenger record?', 'Which upcoming trips are on my record?'],
   },
   admin: {
@@ -197,7 +197,7 @@ const A2A_DEMO_PROFILES = {
 
 // White-label verticals share their domain's questions but keep their own brand.
 const A2A_DEMO_ALIAS_AGENT_NAMES = {
-  'abercrombie-fitch': 'Abercrombie & Fitch agent',
+  'abercrombie-fitch': 'Walbuy agent',
 };
 
 /**

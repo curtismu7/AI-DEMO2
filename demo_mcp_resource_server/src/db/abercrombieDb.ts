@@ -4,7 +4,7 @@
  * SQLite backing store for the abercrombie-fitch vertical.
  *
  * Mirrors the workforce/retail pattern: owns real data instead of proxying to
- * the BFF or reading a flat mock JSON file. Every A&F tool result is a row
+ * the BFF or reading a flat mock JSON file. Every Walbuy tool result is a row
  * read out of this file, so editing the .db out-of-band changes what the
  * demo shows.
  *

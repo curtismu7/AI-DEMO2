@@ -302,7 +302,7 @@ export const CONFIGS = {
 
   // Read-only: the store is createSeedStore with no mutator map.
   'abercrombie-fitch': {
-    id: 'abercrombie-fitch', name: 'Abercrombie & Fitch Ops', short: 'A&F', icon: 'AF',
+    id: 'abercrombie-fitch', name: 'Walbuy Ops', short: 'WB', icon: 'WB',
     theme: { accent: '#475569', accent2: '#1e293b', tint: '#f4f6f9' },
     lookupPath: '/api/admin/abercrombie-fitch/lookup',
     lookupPlaceholder: 'Look up a shopper by name, email, or id…',

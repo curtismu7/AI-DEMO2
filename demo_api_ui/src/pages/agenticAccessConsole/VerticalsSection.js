@@ -7,8 +7,8 @@ import apiClient from "../../services/apiClient";
 const VERTICALS = [
   { name: "Super Banking", level: "user" },
   { name: "Super Sports", level: "user" },
-  { name: "Abercrombie & Fitch", level: "user" },
-  { name: "United Airlines", level: "user" },
+  { name: "Walbuy", level: "user" },
+  { name: "Airline", level: "user" },
   { name: "CivicPermit", level: "user" },
   { name: "CareConnect", level: "user" },
   { name: "Meridian Wealth", level: "user" },

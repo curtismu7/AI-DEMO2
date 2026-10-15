@@ -283,10 +283,10 @@ export function UnitedDatabasePulse() {
     <div
       className="ba-airline-query-pulse"
       role="status"
-      aria-label="Querying United Reservations Database"
+      aria-label="Querying Airline Reservations Database"
     >
       <span className="ba-airline-live-dot" aria-hidden />
-      <span>Querying United Reservations DB...</span>
+      <span>Querying Airline Reservations DB...</span>
     </div>
   );
 }
@@ -329,9 +329,9 @@ function AirlineBookingsMessage({
           >
             <div className="ba-airline-booking-header">
               <div>
-                <strong>{booking.flightNumber || "United flight"}</strong>
+                <strong>{booking.flightNumber || "Airline flight"}</strong>
                 {provenance && (
-                  <span className="ba-airline-source-badge">LIVE · UNITED DB</span>
+                  <span className="ba-airline-source-badge">LIVE · AIRLINE DB</span>
                 )}
               </div>
               {booking.route && <span>{booking.route}</span>}
@@ -359,7 +359,7 @@ function AirlineBookingsMessage({
         ))}
       </div>
       {provenance && (
-        <section className="ba-airline-provenance" aria-label="United data provenance">
+        <section className="ba-airline-provenance" aria-label="Airline data provenance">
           <div className="ba-airline-provenance-summary">
             <div>
               <span className="ba-airline-live-dot" aria-hidden />
@@ -395,7 +395,7 @@ function AirlineBookingsMessage({
             <div className="ba-airline-db-preview">
               <strong>Read-only database rows returned</strong>
               <div>
-                <table aria-label="United database rows">
+                <table aria-label="Airline database rows">
                   <thead>
                     <tr>
                       <th>confirmation_number</th>
@@ -431,7 +431,7 @@ function AirlineBookingsMessage({
               disabled={refreshing}
               onClick={onRefresh}
             >
-              {refreshing ? "Refreshing from United DB..." : "Refresh from United DB"}
+              {refreshing ? "Refreshing from Airline DB..." : "Refresh from Airline DB"}
             </button>
           )}
         </section>

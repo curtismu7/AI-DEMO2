@@ -126,7 +126,7 @@
         "properties": {
           "flight_number": {
             "type": "string",
-            "description": "United flight number, e.g. UA502"
+            "description": "flight number, e.g. UA502"
           },
           "origin": {
             "type": "string",
@@ -409,7 +409,7 @@
         "properties": {
           "flight_number": {
             "type": "string",
-            "description": "United flight number, e.g. UA328. Omit for the next departing flight."
+            "description": "flight number, e.g. UA328. Omit for the next departing flight."
           },
           "available_only": {
             "type": "boolean",
@@ -1010,7 +1010,7 @@
         "properties": {
           "flight_number": {
             "type": "string",
-            "description": "United flight number, e.g. UA328. Omit for the next departing flight."
+            "description": "flight number, e.g. UA328. Omit for the next departing flight."
           }
         },
         "required": []

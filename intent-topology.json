@@ -88,7 +88,7 @@
         "abercrombie-fitch": {
           "vertical": "abercrombie-fitch",
           "chipId": "anf-a2a",
-          "message": "show my sensitive A&F order history",
+          "message": "show my sensitive Walbuy order history",
           "mode": "both",
           "declaredTool": "sensitive_order_history",
           "declaredToolSource": "chips10[].tool",
@@ -276,7 +276,7 @@
         "abercrombie-fitch": {
           "vertical": "abercrombie-fitch",
           "chipId": "anf1",
-          "message": "show my A&F orders",
+          "message": "show my Walbuy orders",
           "mode": "both",
           "declaredTool": "list_anf_orders",
           "declaredToolSource": "chips10[].tool",
@@ -299,7 +299,7 @@
         "abercrombie-fitch": {
           "vertical": "abercrombie-fitch",
           "chipId": "anf2",
-          "message": "track my order at A&F",
+          "message": "track my order at Walbuy",
           "mode": "both",
           "declaredTool": "order_status",
           "declaredToolSource": "chips10[].tool",
@@ -322,7 +322,7 @@
         "abercrombie-fitch": {
           "vertical": "abercrombie-fitch",
           "chipId": "anf3",
-          "message": "show my reward points at A&F",
+          "message": "show my reward points at Walbuy",
           "mode": "both",
           "declaredTool": "rewards_balance",
           "declaredToolSource": "chips10[].tool",
@@ -345,7 +345,7 @@
         "abercrombie-fitch": {
           "vertical": "abercrombie-fitch",
           "chipId": "anf4",
-          "message": "show my saved items at A&F",
+          "message": "show my saved items at Walbuy",
           "mode": "both",
           "declaredTool": "view_wishlist",
           "declaredToolSource": "chips10[].tool",
@@ -368,7 +368,7 @@
         "abercrombie-fitch": {
           "vertical": "abercrombie-fitch",
           "chipId": "anf5",
-          "message": "show my A&F returns",
+          "message": "show my Walbuy returns",
           "mode": "both",
           "declaredTool": "view_returns",
           "declaredToolSource": "chips10[].tool",

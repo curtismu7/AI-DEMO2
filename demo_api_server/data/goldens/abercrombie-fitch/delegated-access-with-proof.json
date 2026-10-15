@@ -2,7 +2,7 @@
   "vertical": "abercrombie-fitch",
   "useCaseId": "delegated-access-with-proof",
   "ucId": "UC1",
-  "trigger": "show my A&F orders",
+  "trigger": "show my Walbuy orders",
   "expectedOutcome": "PERMIT",
   "capturedAt": "2026-08-28T17:41:37.045Z",
   "seedHash": "005fc03655ff4340",

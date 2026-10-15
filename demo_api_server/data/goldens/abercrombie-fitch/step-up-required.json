@@ -2,7 +2,7 @@
   "vertical": "abercrombie-fitch",
   "useCaseId": "step-up-required",
   "ucId": "UC7",
-  "trigger": "checkout A&F outerwear for $600",
+  "trigger": "checkout Walbuy outerwear for $600",
   "expectedOutcome": "STEP_UP",
   "capturedAt": "2026-08-28T17:42:50.198Z",
   "seedHash": "005fc03655ff4340",

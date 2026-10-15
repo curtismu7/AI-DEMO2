@@ -2,7 +2,7 @@
   "vertical": "abercrombie-fitch",
   "useCaseId": "hitl-consent",
   "ucId": "UC8",
-  "trigger": "checkout A&F outerwear for $300",
+  "trigger": "checkout Walbuy outerwear for $300",
   "expectedOutcome": "HITL_REQUIRED",
   "capturedAt": "2026-08-28T17:42:51.545Z",
   "seedHash": "005fc03655ff4340",

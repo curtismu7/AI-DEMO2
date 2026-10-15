@@ -34,7 +34,7 @@ const ALLOWED_TOOL_NAMES = new Set([
 ]);
 const tools = retailTools
   .map((tool) => (tool.name === 'list_orders'
-    ? { ...tool, name: ORDER_LIST_TOOL, description: "List the customer's Abercrombie & Fitch orders." }
+    ? { ...tool, name: ORDER_LIST_TOOL, description: "List the customer's Walbuy orders." }
     : tool))
   .filter((tool) => ALLOWED_TOOL_NAMES.has(tool.name));
 
@@ -45,8 +45,8 @@ function getManifest() {
 function getSystemPrompt(ctx) {
   const role = ctx && ctx.role ? ctx.role : 'customer';
   return [
-    "You are Abercrombie & Fitch's Style Assistant.",
-    'Help customers review A&F orders, track deliveries, check myAbercrombie rewards,',
+    "You are Walbuy's Style Assistant.",
+    'Help customers review Walbuy orders, track deliveries, check myWalbuy rewards,',
     'manage returns and saved items, and complete apparel purchases.',
     `The signed-in user role is "${role}".`,
     'Use apparel language and only report products, sizes, prices, rewards, and order details returned by tools.',
@@ -60,7 +60,7 @@ function getAuthz() {
 
 async function executeTool(name, params, ctx) {
   if (!ALLOWED_TOOL_NAMES.has(name)) {
-    return { result: { error: `unknown Abercrombie & Fitch tool: ${name}` }, render: 'text' };
+    return { result: { error: `unknown Walbuy tool: ${name}` }, render: 'text' };
   }
   if (name === 'sensitive_order_history') {
     const userId = ctx && ctx.userId ? ctx.userId : 'anon';

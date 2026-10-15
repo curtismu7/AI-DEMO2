@@ -12,7 +12,7 @@ test('default and vertical concierge prompts both forbid unsourced claims about 
   assert.ok(systemPromptFor(null).includes(RULE));
   assert.ok(systemPromptFor(null).includes(SCOPE));
   const profile = {
-    vertical: 'abercrombie-fitch', tools: ['sensitive_order_history'], agentName: 'A&F agent',
+    vertical: 'abercrombie-fitch', tools: ['sensitive_order_history'], agentName: 'Walbuy agent',
     specialistName: 'Purchase History Specialist', subtaskHint: 'review the order history',
   };
   assert.ok(systemPromptFor(profile).includes(RULE));

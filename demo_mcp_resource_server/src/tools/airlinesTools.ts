@@ -47,7 +47,7 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
     // deliberately cannot satisfy. The vertical's own manifest already named this
     // as its highValueAction ("Cancel Reservation").
     name: 'cancel_airline_reservation',
-    description: 'Cancel a United reservation and start the refund. Requires step-up authentication.',
+    description: 'Cancel a reservation and start the refund. Requires step-up authentication.',
     inputSchema: {
       type: 'object',
       properties: {
@@ -66,7 +66,7 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
     // plain lookup stays ungated and only THIS one prompts. Mirrors the split
     // healthcare already has (view_records vs sensitive_patient_records).
     name: 'sensitive_airline_bookings',
-    description: "List the authenticated passenger's United reservations including sensitive passenger details (document number, contact details, payment card tail). Requires human consent.",
+    description: "List the authenticated passenger's reservations including sensitive passenger details (document number, contact details, payment card tail). Requires human consent.",
     inputSchema: { type: 'object', properties: {}, required: [] },
     requiredScopes: ['airlines:read', 'sensitive:read'],
     readOnly: true,
@@ -79,11 +79,11 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
     // WRITE_TOOL_TYPE_MAP, so the transaction policy (deny / step-up / HITL
     // consent) decides on the price before this handler runs at all.
     name: 'book_airline_flight',
-    description: "Book a United flight for the authenticated passenger. The price is evaluated against the transaction policy before the booking is created.",
+    description: "Book a flight for the authenticated passenger. The price is evaluated against the transaction policy before the booking is created.",
     inputSchema: {
       type: 'object',
       properties: {
-        flight_number: { type: 'string', description: 'United flight number, e.g. UA502' },
+        flight_number: { type: 'string', description: 'flight number, e.g. UA502' },
         origin: { type: 'string', description: 'Origin airport code (informational; the flight row is authoritative)' },
         destination: { type: 'string', description: 'Destination airport code (informational; the flight row is authoritative)' },
         amount: { type: 'number', description: 'Total ticket price in dollars' },
@@ -97,18 +97,18 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
   },
   {
     name: 'get_airline_bookings',
-    description: "List the authenticated passenger's upcoming United reservations, with flight, seat and status.",
+    description: "List the authenticated passenger's upcoming reservations, with flight, seat and status.",
     inputSchema: { type: 'object', properties: {}, required: [] },
     requiredScopes: ['airlines:read'],
     readOnly: true,
   },
   {
     name: 'get_flight_status',
-    description: 'Get status, gate, aircraft and departure/arrival times for a United flight. Defaults to the passenger\'s next departing flight when none is named.',
+    description: 'Get status, gate, aircraft and departure/arrival times for a flight. Defaults to the passenger\'s next departing flight when none is named.',
     inputSchema: {
       type: 'object',
       properties: {
-        flight_number: { type: 'string', description: 'United flight number, e.g. UA328. Omit for the next departing flight.' },
+        flight_number: { type: 'string', description: 'flight number, e.g. UA328. Omit for the next departing flight.' },
       },
       required: [],
     },
@@ -117,11 +117,11 @@ export const AIRLINES_TOOLS: McpToolDef[] = [
   },
   {
     name: 'check_seat_availability',
-    description: 'Show the seat map for a United flight, optionally only the seats still available. Defaults to the passenger\'s next departing flight when none is named.',
+    description: 'Show the seat map for a flight, optionally only the seats still available. Defaults to the passenger\'s next departing flight when none is named.',
     inputSchema: {
       type: 'object',
       properties: {
-        flight_number: { type: 'string', description: 'United flight number, e.g. UA328. Omit for the next departing flight.' },
+        flight_number: { type: 'string', description: 'flight number, e.g. UA328. Omit for the next departing flight.' },
         available_only: { type: 'boolean', description: 'Only return unoccupied seats (default true)', default: true },
       },
       required: [],
