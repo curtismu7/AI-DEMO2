@@ -83,6 +83,8 @@ Not shown: human approval (HITL). This is the identity layer a HITL step would s
 
    Talking point: "Copy the delegated token into jwt.io and point at the `act` claim and the narrowed audience."
 
+Between runs, click **Reset** (next to Run) to clear the result, the trace selection and the "Live from Claude" card. The page also resets by itself when you change the vertical.
+
 ## Demo B: from Claude Code (3 minutes)
 
 1. In `claude`, run `/mcp`, choose `obo-demo`, and authenticate. A browser opens to PingOne. Sign in as

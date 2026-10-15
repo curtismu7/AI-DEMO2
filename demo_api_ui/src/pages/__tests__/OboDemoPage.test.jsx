@@ -1,6 +1,7 @@
 import { describe, expect, it, vi, beforeEach, afterEach } from "vitest";
 import { fireEvent, render, screen, waitFor, act, within } from "@testing-library/react";
 import OboDemoPage from "../OboDemoPage";
+import { VerticalContext } from "../../vertical/VerticalProvider";
 
 const post = vi.fn();
 vi.mock("../../services/apiClient", () => ({ default: { post: (...a) => post(...a) } }));
@@ -156,5 +157,73 @@ describe("OboDemoPage step wire detail", () => {
     render(<OboDemoPage />);
     expect(document.body.textContent).not.toMatch(/Tokens appear only as short hashes/i);
     expect(document.body.textContent).not.toMatch(/never sent to the browser/i);
+  });
+});
+
+describe("OboDemoPage reset", () => {
+  const steps = [1, 2, 3, 4, 5, 6, 7].map((id) => ({ id, status: "pass", ms: 5, facts: id === 4
+    ? { subSame: true, inbound: { aud: ["a"], scope: { count: 1, sample: [] }, sha: "1" }, delegated: { aud: ["b"], scope: "s", sub: "u", act: { client_id: "x" }, sha: "2" } }
+    : {} }));
+  const okRun = { data: { steps, checks: [{ id: "a", label: "ok", pass: true }] } };
+  const clickRun = () => fireEvent.click(screen.getByRole("button", { name: /run the delegation/i }));
+  const clickReset = () => fireEvent.click(screen.getByRole("button", { name: /^reset$/i }));
+  const liveEvent = (ts) => ({ source: "claude", ts, delegated: { sha: ts }, checks: [{ id: "x", label: `live ${ts}`, pass: true }] });
+
+  it("Reset clears the run, the verdict and the selected step", async () => {
+    post.mockResolvedValue(okRun);
+    render(<OboDemoPage />);
+    clickRun();
+    await screen.findByRole("status");
+    expect(screen.getByRole("heading", { name: /4\. Delegated token/ })).toBeInTheDocument();
+    clickReset();
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.queryByRole("heading", { name: /4\. Delegated token/ })).toBeNull();
+    expect(screen.getByText("Not run yet")).toBeInTheDocument();
+  });
+
+  it("Reset is disabled when there is nothing to clear and enabled after a run", async () => {
+    post.mockResolvedValue(okRun);
+    render(<OboDemoPage />);
+    expect(screen.getByRole("button", { name: /^reset$/i })).toBeDisabled();
+    clickRun();
+    await screen.findByRole("status");
+    expect(screen.getByRole("button", { name: /^reset$/i })).toBeEnabled();
+  });
+
+  it("a response that arrives after Reset is discarded and the page stays usable", async () => {
+    let resolve;
+    post.mockReturnValue(new Promise((r) => { resolve = r; }));
+    render(<OboDemoPage />);
+    clickRun();
+    await screen.findByRole("button", { name: /running/i });
+    clickReset();
+    await act(async () => { resolve(okRun); });
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByRole("button", { name: /run the delegation/i })).toBeEnabled();
+  });
+
+  it("Reset hides the live calls already shown, and a newer call still appears", async () => {
+    render(<OboDemoPage />);
+    act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify(liveEvent("2026-10-15T10:00:00Z")) }); });
+    const region = screen.getByRole("region", { name: /live from claude/i });
+    expect(within(region).getByRole("list", { name: /live delegation checks/i })).toHaveTextContent("live 2026-10-15T10:00:00Z");
+    clickReset();
+    expect(within(region).queryByRole("list", { name: /live delegation checks/i })).toBeNull();
+    expect(within(region).getByText(/waiting for claude/i)).toBeInTheDocument();
+    act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify(liveEvent("2026-10-15T10:05:00Z")) }); });
+    expect(within(region).getByRole("list", { name: /live delegation checks/i })).toHaveTextContent("live 2026-10-15T10:05:00Z");
+  });
+
+  it("changing the vertical resets the page; re-rendering with the same vertical does not", async () => {
+    post.mockResolvedValue(okRun);
+    const tree = (id) => (<VerticalContext.Provider value={{ activeId: id }}><OboDemoPage /></VerticalContext.Provider>);
+    const { rerender } = render(tree("healthcare"));
+    clickRun();
+    await screen.findByRole("status");
+    rerender(tree("healthcare"));
+    expect(screen.getByRole("status")).toBeInTheDocument();
+    rerender(tree("retail"));
+    expect(screen.queryByRole("status")).toBeNull();
+    expect(screen.getByText("Not run yet")).toBeInTheDocument();
   });
 });

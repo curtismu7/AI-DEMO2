@@ -1,8 +1,9 @@
-import { useState } from "react";
+import { useContext, useEffect, useRef, useState } from "react";
 import apiClient from "../services/apiClient";
 import OboEvidenceCard from "../components/obo/OboEvidenceCard";
 import useOboLive from "../components/obo/useOboLive";
 import OboStepWire from "../components/obo/OboStepWire";
+import { VerticalContext } from "../vertical/VerticalProvider";
 import "./OboDemoPage.css";
 
 // On-behalf-of demo. The BFF runs RFC 8693 delegation for the signed-in user and returns, for this
@@ -73,20 +74,48 @@ export default function OboDemoPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null); // { ok, steps, checks, failedStep, error }
   const [selected, setSelected] = useState(null);
-  const live = useOboLive(true);
+  // Reset hides the live calls already on screen. Matching on the event's own identity (not a clock
+  // comparison) so a reconnect that replays the hub buffer cannot bring them back.
+  const [dismissed, setDismissed] = useState(() => new Set());
+  const runSeq = useRef(0);
+  const liveAll = useOboLive(true);
+  const liveKey = (e) => `${e.ts}|${e.delegated?.sha}`;
+  const live = liveAll.filter((e) => !dismissed.has(liveKey(e)));
   const lastDate = live[0]?.ts ? new Date(live[0].ts) : null;
   const lastCall = lastDate && !Number.isNaN(lastDate.getTime()) ? lastDate.toLocaleTimeString() : null;
 
+  function reset() {
+    runSeq.current += 1; // a response still in flight belongs to the page being cleared
+    setBusy(false);
+    setError("");
+    setResult(null);
+    setSelected(null);
+    setDismissed(new Set(liveAll.map(liveKey)));
+  }
+
+  // A different vertical is a different demo: start the page over.
+  const verticalId = useContext(VerticalContext)?.activeId ?? null;
+  const lastVertical = useRef(verticalId);
+  useEffect(() => {
+    if (lastVertical.current === verticalId) return;
+    lastVertical.current = verticalId;
+    reset();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [verticalId]);
+
   async function run() {
+    const seq = ++runSeq.current;
     setBusy(true);
     setError("");
     setResult(null);
     setSelected(null);
     try {
       const response = await apiClient.post("/api/obo/run");
+      if (seq !== runSeq.current) return;
       setResult({ ok: true, steps: response.data.steps || [], checks: response.data.checks || [] });
       setSelected(4);
     } catch (err) {
+      if (seq !== runSeq.current) return;
       const data = err?.response?.data || {};
       if (Array.isArray(data.steps)) {
         setResult({ ok: false, steps: data.steps, checks: [], failedStep: data.failedStep, error: data.error });
@@ -95,7 +124,7 @@ export default function OboDemoPage() {
         setError(data.message || data.error || "The OBO run failed.");
       }
     } finally {
-      setBusy(false);
+      if (seq === runSeq.current) setBusy(false);
     }
   }
 
@@ -158,6 +187,10 @@ export default function OboDemoPage() {
             <div className="obo-demo__run">
               <button type="button" className="obo-demo__button" onClick={run} disabled={busy}>
                 {busy ? "Running…" : "Run the delegation"}
+              </button>
+              <button type="button" className="obo-demo__button obo-demo__button--secondary" onClick={reset}
+                disabled={!busy && !result && !error && live.length === 0}>
+                Reset
               </button>
               <span className="obo-demo__status">
                 {busy ? "Running the exchange…" : result ? (result.ok ? `Done in ${(totalMs / 1000).toFixed(1)} s` : `Stopped at step ${result.failedStep}`) : "Not run yet"}
