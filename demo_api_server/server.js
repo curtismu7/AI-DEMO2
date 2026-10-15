@@ -3409,6 +3409,8 @@ if (require.main === module) {
         // Dead-man switch: autonomous agents disarm themselves an hour after
         // being switched on, so a demo left running does not keep firing crons.
         startAutonomousArmSweep();
+        // Pay the cold llama.cpp prompt-prefix cost here, not in front of a demo audience.
+        require('./services/llamaWarmup').startLlamaWarmup();
 
         // k8s rollout contract: the replacement pod boots while this one is
         // still in its termination grace period, and both mount the same LMDB
