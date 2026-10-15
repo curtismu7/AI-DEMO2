@@ -1,11 +1,15 @@
-.dot-wb { --dot:#2bb3a3; --dot-soft:rgba(43,179,163,.15); --ok:#34d399; --deny:#f87171; --warn:#fbbf24;
+.dot-wb { --surface:var(--panel); --border:var(--line); --th-text:var(--ink); --th-text-muted:var(--muted); --th-bg-inset:var(--panel2);
+  --dot:#2bb3a3; --dot-soft:rgba(43,179,163,.15); --ok:#34d399; --deny:#f87171; --warn:#fbbf24;
   --bg:#151719; --panel:#1e2123; --panel2:#272b2e; --ink:#ecefef; --muted:#98a2a3; --line:#343a3c; color:var(--ink); background:var(--bg); }
 .dot-wb[data-cur-theme="light"] { --bg:#f3f5f5; --panel:#fff; --panel2:#ecf0f0; --ink:#1c2123; --muted:#5f6b6d; --line:#d6dddd; --dot-soft:rgba(43,179,163,.10);
   --ok:#047857; --deny:#b91c1c; --warn:#92400e; background:var(--bg); color:var(--ink); }
-.dot-wb__main { flex:1; min-height:0; overflow-y:auto; width:100%; box-sizing:border-box; display:grid; align-content:start; grid-template-columns:minmax(0,1fr) 340px; gap:16px; padding:16px 20px; max-width:1280px; margin:0 auto; }
-@media (max-width:900px) { .dot-wb__main { grid-template-columns:1fr; } }
+/* Desktop: the page is a fixed-height shell, so only the messages and the side column scroll;
+   the persona card, chips and composer stay on screen. */
+.dot-wb__main { flex:1; min-height:0; width:100%; box-sizing:border-box; display:grid; grid-template-columns:minmax(0,1fr) 340px; grid-template-rows:minmax(0,1fr); gap:16px; padding:16px 20px; max-width:1280px; margin:0 auto; overflow:hidden; }
+.dot-wb__left { display:flex; flex-direction:column; min-height:0; min-width:0; }
+@media (max-width:900px) { .dot-wb__main { grid-template-columns:1fr; grid-template-rows:none; overflow-y:auto; align-content:start; } .dot-wb__left { min-height:auto; } .dot-chat { min-height:420px; } }
 .dot-card { background:var(--panel); border:1px solid var(--line); border-radius:12px; padding:14px 16px; }
-.dot-persona { display:flex; gap:14px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
+.dot-persona { flex:none; display:flex; gap:14px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
 .dot-avatar { width:52px; height:52px; border-radius:50%; flex:none; box-shadow:0 0 0 4px var(--dot-soft);
   background:radial-gradient(circle at 35% 30%, #8ee6da, var(--dot) 60%, #12766b); }
 .dot-persona h2 { margin:0; font-size:17px; } .dot-persona p { margin:2px 0 0; color:var(--muted); font-size:12.5px; }
@@ -13,8 +17,8 @@
 .dot-pills { display:flex; flex-wrap:wrap; gap:6px; margin-left:auto; }
 .dot-pill { padding:3px 10px; border-radius:999px; background:var(--panel2); border:1px solid var(--line); font-size:11.5px; color:var(--muted); }
 .dot-pill b { color:var(--ink); font-weight:600; }
-.dot-chat { display:flex; flex-direction:column; min-height:520px; padding:0; }
-.dot-msgs { flex:1; padding:16px; display:flex; flex-direction:column; gap:14px; }
+.dot-chat { display:flex; flex-direction:column; flex:1; min-height:0; padding:0; }
+.dot-msgs { flex:1; min-height:0; overflow-y:auto; padding:16px; display:flex; flex-direction:column; gap:14px; }
 .dot-m { max-width:82%; padding:10px 14px; border-radius:14px; }
 .dot-m--user { align-self:flex-end; background:var(--panel2); border-bottom-right-radius:4px; }
 .dot-m--dot { align-self:flex-start; background:var(--dot-soft); border:1px solid color-mix(in srgb, var(--dot) 40%, transparent); border-bottom-left-radius:4px; }
@@ -27,15 +31,24 @@
 .dot-verdict--permit { background:rgba(52,211,153,.16); color:var(--ok); }
 .dot-verdict--deny { background:rgba(248,113,113,.16); color:var(--deny); }
 .dot-verdict--consent { background:rgba(251,191,36,.16); color:var(--warn); }
-.dot-chips { display:flex; flex-wrap:wrap; gap:6px; padding:0 16px 10px; }
+.dot-chips { flex:none; display:flex; flex-wrap:wrap; gap:6px; padding:0 16px 10px; }
 .dot-chip { padding:4px 12px; border:1px solid var(--line); border-radius:999px; background:none; color:var(--ink); font:inherit; font-size:12.5px; cursor:pointer; }
-.dot-composer { display:flex; gap:8px; padding:12px 16px; border-top:1px solid var(--line); }
+.dot-composer { flex:none; display:flex; gap:8px; padding:12px 16px; border-top:1px solid var(--line); }
 .dot-composer input { flex:1; padding:9px 12px; border:1px solid var(--line); border-radius:8px; background:var(--bg); color:var(--ink); font:inherit; }
 .dot-composer button { padding:9px 18px; border:0; border-radius:8px; background:var(--dot); color:#04211e; font:inherit; font-weight:600; cursor:pointer; }
 .dot-composer button:disabled { opacity:.5; cursor:default; }
-.dot-aside { display:flex; flex-direction:column; gap:16px; }
+.dot-aside { display:flex; flex-direction:column; gap:16px; min-height:0; overflow-y:auto; }
+.dot-card--flush { padding:0; overflow:hidden; }
 .dot-aside h3 { margin:0 0 4px; font-size:13px; } .dot-sub { margin:0 0 10px; color:var(--muted); font-size:12px; }
 .dot-gov { display:grid; gap:8px; font-size:12.5px; } .dot-gov > div { display:flex; justify-content:space-between; gap:8px; }
 .dot-gov span:first-child { color:var(--muted); }
 .dot-signin { margin:16px; padding:16px; border:1px solid var(--line); border-radius:10px; background:var(--panel2); }
 .dot-signin h3 { margin:0 0 6px; } .dot-signin p { margin:0 0 10px; color:var(--muted); font-size:13px; }
+
+/* Title bar: the shared cur-* sheet colours these for its own dark/light; use the page tokens so both themes read well. */
+.dot-wb .cur-titlebar { height:auto; min-height:50px; flex-wrap:wrap; gap:8px 12px; padding:8px 16px; }
+.dot-wb .cur-titlebar-left { margin-right:8px; }
+.dot-wb .cur-titlebar-center { display:flex; flex-wrap:wrap; gap:6px; margin-right:auto; }
+.dot-wb .cur-titlebar .cur-flow-trigger { background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:4px 12px; }
+.dot-wb .cur-titlebar .cur-flow-trigger:hover { background:var(--dot-soft); color:var(--ink); border-color:var(--dot); }
+.dot-wb .cur-titlebar .cur-flow-trigger[aria-current="page"] { border-color:var(--dot); background:var(--dot-soft); }

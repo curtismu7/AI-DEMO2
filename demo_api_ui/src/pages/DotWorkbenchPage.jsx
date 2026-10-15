@@ -83,7 +83,7 @@ export default function DotWorkbenchPage({ user }) {
       </header>
 
       <main className="dot-wb__main">
-        <div>
+        <div className="dot-wb__left">
           <DotPersonaCard persona={persona} identity={identity} />
           <div className="dot-card dot-chat">
             <div className="dot-msgs" aria-live="polite">
@@ -118,7 +118,7 @@ export default function DotWorkbenchPage({ user }) {
           </div>
         </div>
         <aside className="dot-aside">
-          <section className="dot-card"><DotMemoryPanel refreshNonce={memNonce} /></section>
+          <section className="dot-card dot-card--flush"><DotMemoryPanel embedded refreshNonce={memNonce} /></section>
           <DotGovernsPanel cards={cards} persona={persona} mode={agentMode} />
         </aside>
       </main>
