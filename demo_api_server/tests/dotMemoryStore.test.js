@@ -1,6 +1,6 @@
 'use strict';
 
-const { createDotMemoryStore, extractMemories } = require('../services/lmdb/dotMemoryStore.lmdb');
+const { createDotMemoryStore, extractMemories, preferenceOnly } = require('../services/lmdb/dotMemoryStore.lmdb');
 
 function fakeDb() {
   const data = new Map();
@@ -62,5 +62,21 @@ describe('extractMemories', () => {
     expect(extractMemories('What is my checking balance?')).toEqual([]);
     expect(extractMemories('Book me a flight to Denver next Tuesday')).toEqual([]);
     expect(extractMemories('')).toEqual([]);
+  });
+});
+
+describe('preferenceOnly', () => {
+  test('a prompt that is nothing but preference statements returns them', () => {
+    expect(preferenceOnly('Always book me an aisle seat')).toEqual(['Always book me an aisle seat']);
+    expect(preferenceOnly('Never put me on a red-eye. Call me Sam.')).toEqual(['Never put me on a red-eye.', 'Call me Sam.']);
+  });
+  test('a preference mixed with a request is not preference-only', () => {
+    expect(preferenceOnly('Always use a concise tone. What is my balance?')).toBeNull();
+  });
+  test('ordinary prompts, mid-sentence "always", and empty input are not preference-only', () => {
+    expect(preferenceOnly('What is my checking balance?')).toBeNull();
+    expect(preferenceOnly('I always wanted to see Denver, show my flights')).toBeNull();
+    expect(preferenceOnly('')).toBeNull();
+    expect(preferenceOnly(undefined)).toBeNull();
   });
 });

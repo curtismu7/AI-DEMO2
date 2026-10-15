@@ -45,7 +45,7 @@ const { stampUseCaseId, stampVertical } = require('../services/useCaseTagging');
 const { verticalManifest } = require('../services/verticalManifest');
 const reportStore = require('../services/lmdb/reportStore.lmdb');
 const conversationStore = require('../services/lmdb/conversationStore.lmdb');
-const { createDotMemoryStore, extractMemories } = require('../services/lmdb/dotMemoryStore.lmdb');
+const { createDotMemoryStore, extractMemories, preferenceOnly } = require('../services/lmdb/dotMemoryStore.lmdb');
 const { mintIntentToken } = require('../services/intentTokenService');
 const { buildTokenEvent, decodeJwtClaims, resolveMcpAccessTokenWithEvents, buildSessionPreviewTokenEvents, assertPfIdJagRunAllowed } = require('../services/agentMcpTokenService');
 const agentBuilderService = require('../services/agentBuilderService');
@@ -227,6 +227,32 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
     const runId = crypto.randomUUID();
     const runStartedAt = new Date().toISOString();
     const intentAuthorizationEnabled = configStore.getEffective('ff_intent_authorization_enabled') === 'true';
+
+    // ── DOT: A PROMPT THAT IS ONLY PREFERENCES ──────────────────────────────────
+    // "Always book me an aisle seat" is a standing preference, not a request. Run through the agent
+    // the heuristics read it as "check seat availability" and answered "Here are your seat
+    // availability." (a tool call and a non-answer). Remember it and say so; no tool runs. A
+    // preference mixed with a request still runs the agent and is saved after the run (below).
+    // Needs a user: guests have nobody to remember for, and workload use cases are not Dot chat.
+    if (userId && !requestedUseCaseId) {
+      const prefs = preferenceOnly(prompt);
+      const learned = prefs ? prefs.filter((text) => dotMemory.saveMemory(userId, text)) : [];
+      if (learned.length > 0) {
+        return res.json({
+          reply: `Got it — I'll remember: ${learned.join(' ')}`,
+          success: true,
+          toolsCalled: [],
+          tokensUsed: 0,
+          requiresConsent: false,
+          agentConfigured: true,
+          tokenEvents: req.tokenEvents || [],
+          dotMemories: learned,
+          intent: 'dot_preference',
+          confidence: 1,
+          runId,
+        });
+      }
+    }
 
     // ── PERSONAL AGENT CONCIERGE PRE-CHECK (UC38) ──────────────────────────────
     // Must run before intent gating: the checks are identity-layer (MFA + agent
