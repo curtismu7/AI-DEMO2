@@ -108,3 +108,12 @@ test('model-free path: mode parsing and keyword tool pick', async () => {
   assert.equal(pickTool(banking, 'review my investments'), 'get_portfolio_summary');
   assert.equal(pickTool(['sensitive_patient_records'], 'anything'), 'sensitive_patient_records');
 });
+
+test('heuristicArgs gives the tool the signed-in user in its who-argument, and nothing otherwise', async () => {
+  const { heuristicArgs } = await import('../src/profile.js');
+  assert.deepEqual(heuristicArgs({ type: 'object', properties: { subject: { type: 'string' } } }, 'demoUser'), { subject: 'demoUser' });
+  assert.deepEqual(heuristicArgs({ type: 'object', properties: { user: { type: 'string' }, role: { type: 'string' } } }, 'carol'), { user: 'carol' });
+  assert.deepEqual(heuristicArgs({ type: 'object', properties: { resource: { type: 'string' } } }, 'carol'), {}, 'a tool with no who-argument gets none');
+  assert.deepEqual(heuristicArgs({ type: 'object', properties: { subject: { type: 'string' } } }, ''), {}, 'no signed-in name, no argument');
+  assert.deepEqual(heuristicArgs(undefined, 'carol'), {});
+});

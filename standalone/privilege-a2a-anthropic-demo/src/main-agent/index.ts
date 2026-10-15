@@ -299,7 +299,7 @@ app.post('/chat', async (req: Request, res: Response) => {
         sendSse(res, 'trace', { ...withLabels({ from: MAIN, to: 'analyst' }, profile), kind: 'delegate', text: 'concierge → analyst_agent', detail: question, request, at: at() });
         const hopStartedAt = Date.now();
         try {
-          const { text: answer, toolOutputs } = await worker.sendQuestion(question, traceId, profile ? { vertical: profile.vertical, tools: profile.tools, ...(heuristic ? { mode: 'heuristics' } : {}) } : undefined);
+          const { text: answer, toolOutputs } = await worker.sendQuestion(question, traceId, profile ? { vertical: profile.vertical, tools: profile.tools, ...(heuristic ? { mode: 'heuristics', userName: parseUserName(body) } : {}) } : undefined);
           const response = `HTTP 200\n\n${pretty(JSON.stringify({ jsonrpc: '2.0', id: '<request id>', result: { kind: 'message', role: 'agent', parts: [{ kind: 'text', text: answer }] } })).slice(0, 4000)}`;
           sendSse(res, 'trace', { ...withLabels({ from: 'analyst', to: MAIN }, profile), kind: 'result', text: 'analyst_agent returned', detail: answer, elapsedMs: Date.now() - hopStartedAt, response, at: at() });
           results.push({ type: 'tool_result', tool_use_id: call.id, content: answer });

@@ -71,3 +71,14 @@ export function pickTool(tools: string[], question: string): string {
   for (const [re, name] of TOOL_HINTS) if (tools.includes(name) && re.test(question)) return name;
   return tools[0] ?? '';
 }
+
+/**
+ * The arguments the model-free path gives a tool: the signed-in user's name for the one argument a tool takes
+ * for "who" (`subject` or `user`), nothing else. The model fills the same argument from the user it is told about,
+ * so both modes read the same record; with no name, or a tool that takes no such argument, the call is empty.
+ */
+export function heuristicArgs(inputSchema: unknown, userName: string): Record<string, string> {
+  const properties = ((inputSchema && typeof inputSchema === 'object' ? (inputSchema as { properties?: unknown }).properties : undefined) ?? {}) as Record<string, unknown>;
+  const who = ['subject', 'user'].find(name => name in properties);
+  return who && userName ? { [who]: userName } : {};
+}
