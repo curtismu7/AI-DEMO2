@@ -1,0 +1,42 @@
+.dw-page { display: flex; flex-direction: column; height: calc(100vh - 4rem); padding: 1rem 1.5rem; color: var(--th-text); }
+.dw-page__title { font-size: 1.4rem; margin: 0 0 0.75rem; }
+.dw-page__canvas { position: relative; flex: 1; min-height: 30rem; border: 1px solid var(--th-border); border-radius: 8px; background: var(--th-bg); overflow: hidden; }
+.dw-page__canvas .react-flow { background: var(--th-bg); }
+
+.dw-bar { position: absolute; z-index: 10; top: 10px; left: 10px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; max-width: calc(100% - 20px); padding: 6px 8px; background: var(--th-bg-card); color: var(--th-text); border: 1px solid var(--th-border); border-radius: 6px; font-size: var(--font-size-2xs); }
+.dw-bar button { cursor: pointer; padding: 4px 10px; border: 1px solid var(--th-border); border-radius: 4px; background: var(--th-bg); color: var(--th-text); font: inherit; }
+.dw-bar span { color: var(--th-text-muted); }
+
+.dw-box, .dw-zone { width: 100%; height: 100%; box-sizing: border-box; }
+.dw-box { display: flex; align-items: center; justify-content: center; text-align: center; padding: 3px; overflow: hidden; white-space: pre-line; line-height: 1.25; font-size: var(--font-size-2xs); color: #1a1a1a; }
+.dw-box--vertical { writing-mode: vertical-rl; }
+.dw-edit { width: 100%; height: 100%; box-sizing: border-box; font: inherit; text-align: center; resize: none; border: 1px dashed #333; background: #fff; color: #1a1a1a; }
+.dw-edge-input { width: 100%; box-sizing: border-box; padding: 6px 8px; font: inherit; background: var(--th-bg); color: var(--th-text); border: 1px solid var(--th-border); border-radius: 4px; }
+
+.dw-zone { position: relative; color: #1a1a1a; }
+.dw-zone__label { position: absolute; top: 4px; left: 0; right: 0; text-align: center; font-size: var(--font-size-2xs); font-weight: 600; white-space: pre-line; }
+.dw-zone__label--bottom { top: auto; bottom: 4px; }
+
+/* Fixed pastel fills with dark ink so every box reads the same in light and dark. */
+.dw-kind--blue { background: #cfe2ff; border: 1px solid #6b9bd2; }
+.dw-kind--red { background: #e8706a; border: 1px solid #8a2f2a; }
+.dw-kind--orange { background: #f0952a; border: 1px solid #8a5410; }
+.dw-kind--green { background: #d5e8d4; border: 1px solid #6a936a; }
+.dw-kind--lgreen { background: #c8f2c8; border: 1px solid #5aa05a; }
+.dw-kind--dgreen { background: #5cb85c; border: 1px solid #2f6e2f; }
+.dw-kind--grey { background: #d0d0d0; border: 1px solid #777; }
+.dw-kind--purple { background: #d6d0ea; border: 1px solid #8077ad; }
+.dw-kind--white { background: #fff; border: 1px solid #444; }
+.dw-kind--note { background: #fcefc7; border: 1px solid #e0cf9a; font-size: var(--font-size-3xs); }
+.dw-kind--pink { background: #e873d3; font-weight: 700; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.dw-kind--text { background: transparent; color: var(--th-text); justify-content: flex-start; text-align: left; }
+.dw-kind--shadow { background: rgba(232, 112, 106, 0.9); border: 2px dashed #222; }
+.dw-kind--mcp { background: rgba(255, 250, 170, 0.55); border: 2px dashed #2a4fd6; }
+
+.dw-page .react-flow__edge-path { stroke: var(--th-text-muted); }
+.dw-page .react-flow__edge-text { fill: var(--th-text); font-size: var(--font-size-3xs); font-weight: 600; }
+.dw-page .react-flow__edge-textbg { fill: var(--th-bg); }
+.dw-page .dw-edge--accent .react-flow__edge-path { stroke: #d22; }
+.dw-page .dw-edge--accent .react-flow__edge-text { fill: #d22; }
+.dw-page .react-flow__handle { width: 7px; height: 7px; opacity: 0; }
+.dw-page .react-flow__node:hover .react-flow__handle, .dw-page .react-flow__node.selected .react-flow__handle { opacity: 1; }

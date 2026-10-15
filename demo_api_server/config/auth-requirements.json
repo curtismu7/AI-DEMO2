@@ -288,6 +288,7 @@
     "/path/feature": "public",
     "/path/mortgage": "public",
     "/obo-demo": "user",
+    "/digital-worker": "user",
     "/personal-agent": "public",
     "/personal-agent/client": "public",
     "/personal-agent/dot": "public",
