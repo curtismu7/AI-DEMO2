@@ -202,6 +202,8 @@ const executor = {
     } catch (error) {
       answer = `The analyst could not complete this request: ${error instanceof Error ? error.message : 'unknown error'}`;
     }
+    // Tells the main agent this run's trace is complete, so it can stop listening without a guess.
+    emitTrace(requestContext.contextId, 'worker-done', 'worker finished');
     eventBus.publish({
       kind: 'message',
       messageId: randomUUID(),

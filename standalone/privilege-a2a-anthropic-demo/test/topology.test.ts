@@ -411,6 +411,7 @@ test('main delegates through authenticated A2A, worker calls authenticated MCP, 
     for (const kind of ['delegate', 'result', 'mcp-call', 'mcp-result']) assert.ok(heuristicTraces.some(t => t.kind === kind), `heuristic run should emit ${kind}`);
     assert.match(JSON.stringify(heuristicTraces.find(t => t.kind === 'mcp-call')), /get_investment_accounts/, 'keyword pick chose the accounts tool');
     assert.match(JSON.stringify(heuristicEvents), /INV-1001/, 'the MCP fixture reached the answer');
+    assert.ok(!heuristicTraces.some(t => t.kind === 'worker-done'), 'the worker end-of-trace marker is never shown to the user');
   } finally {
     await Promise.all(processes.map(child => stopProcess(child.process)));
     await new Promise<void>((resolve, reject) => mockAnthropic.close(error => error ? reject(error) : resolve()));
