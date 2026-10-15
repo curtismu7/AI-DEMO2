@@ -420,7 +420,7 @@
 
 /* ── Three-column layout: agent | movie reel | details ───────────────────── */
 .cur-ide .privilege-a2a__conversation { display: flex; flex-direction: column; min-height: 0; }
-.cur-ide .privilege-a2a__conversation > .privilege-a2a__turns { flex: 1; min-height: 0; overflow-y: auto; }
+.cur-ide .privilege-a2a__conversation > .privilege-a2a__turns { flex: 1; min-height: 140px; overflow-y: auto; }
 .cur-ide .privilege-a2a__conversation > form.privilege-a2a__composer { flex-shrink: 0; margin: 0 -26px -18px; }
 .cur-ide .privilege-a2a__step-panel {
   min-width: 0;

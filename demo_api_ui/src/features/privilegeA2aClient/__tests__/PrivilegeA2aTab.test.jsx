@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import PrivilegeA2aTab from '../PrivilegeA2aTab';
 import apiClient from '../../../services/apiClient';
@@ -94,7 +94,7 @@ describe('PrivilegeA2aTab', () => {
     window.removeEventListener('agent-evidence-open', opened);
   });
 
-  test('the Agent trace lists each hop inline: who called whom, timing, and the request and response JSON', async () => {
+  test('the middle trace stays light (kind, text, route); a clicked step shows its JSON and timing in the right panel', async () => {
     global.fetch.mockResolvedValueOnce(streamResponse([
       { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', fromLabel: 'Care Concierge', toLabel: 'Claims Analyst', text: 'concierge → analyst_agent', request: 'POST http://w/jsonrpc\n\n{"method":"message/send"}', response: 'HTTP 200\n\n{"result":{"kind":"message"}}', elapsedMs: 80 } },
       { event: 'token', data: { text: 'Done.' } },
@@ -105,11 +105,19 @@ describe('PrivilegeA2aTab', () => {
 
     await user.click(await screen.findByRole('button', { name: 'Review access on prod-db-primary.' }));
 
-    expect(await screen.findByText('Care Concierge → Claims Analyst · 80 ms')).toBeTruthy();
-    expect(screen.getByText('Request')).toBeTruthy();
-    expect(screen.getByText(/"method":"message\/send"/)).toBeTruthy();
-    expect(screen.getByText('Response')).toBeTruthy();
-    expect(screen.getByText(/"kind":"message"/)).toBeTruthy();
+    const trace = within(await screen.findByRole('complementary', { name: 'Agent trace' }));
+    expect(await trace.findByText('Care Concierge → Claims Analyst')).toBeTruthy();
+    // no JSON or timing in the middle column
+    expect(trace.queryByText('Request')).toBeNull();
+    expect(trace.queryByText(/"method":"message\/send"/)).toBeNull();
+    expect(trace.queryByText(/80 ms/)).toBeNull();
+
+    const panel = within(screen.getByRole('complementary', { name: 'Step details' }));
+    expect(panel.queryByText(/"method":"message\/send"/)).toBeNull();
+    await user.click(trace.getByText('concierge → analyst_agent'));
+    expect(panel.getByText(/"method":"message\/send"/)).toBeTruthy();
+    expect(panel.getByText(/"kind":"message"/)).toBeTruthy();
+    expect(panel.getByText('Care Concierge → Claims Analyst · 80 ms')).toBeTruthy();
   });
 
   test('clicking a suggested question runs it at once and hands it to the floating agent, no Send press', async () => {
