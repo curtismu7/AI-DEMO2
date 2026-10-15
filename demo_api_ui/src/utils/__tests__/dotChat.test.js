@@ -33,7 +33,7 @@ describe('mapInvokeResult', () => {
   });
 
   it('5xx / unreadable body: one error bubble, never a verdict', () => {
-    expect(mapInvokeResult(502, {}).items).toEqual([{ kind: 'error', text: 'Dot could not complete that request.' }]);
+    expect(mapInvokeResult(500, {}).items).toEqual([{ kind: 'error', text: 'Dot could not complete that request.' }]);
     expect(mapInvokeResult(200, null).items).toEqual([{ kind: 'error', text: 'Dot could not complete that request.' }]);
   });
 
@@ -55,5 +55,16 @@ describe('mapInvokeResult', () => {
 
   it('plain success:false with tools stays DENY', () => {
     expect(mapInvokeResult(200, { success: false, toolsCalled: ['x'], reply: 'no' }).items[0].verdict).toBe('DENY');
+  });
+
+  it('a model/gateway timeout (502/503/504) says so and points at Heuristics, instead of the generic failure', () => {
+    for (const status of [502, 503, 504]) {
+      const [item] = mapInvokeResult(status, {}).items;
+      expect(item.kind).toBe('error');
+      expect(item.text).toMatch(/model/i);
+      expect(item.text).toMatch(/Heuristics/);
+    }
+    // other failures keep the generic message
+    expect(mapInvokeResult(500, {}).items[0].text).toBe('Dot could not complete that request.');
   });
 });

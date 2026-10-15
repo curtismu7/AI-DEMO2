@@ -136,6 +136,24 @@ describe('DotWorkbenchPage', () => {
     expect(JSON.parse(call[1].body).vertical).toBeUndefined();
   });
 
+  it('shows that Dot is working while a request is pending, and removes it when the answer arrives', async () => {
+    let release;
+    mockFetch(() => new Promise((resolve) => { release = () => resolve(json(200, { reply: 'done', success: true, toolsCalled: [] })); }));
+    renderPage();
+    send('hello');
+    expect(await screen.findByRole('status')).toHaveTextContent(/thinking/i);
+    release();
+    await screen.findByText('done');
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('a 504 from a dead model backend names the cause and the fix', async () => {
+    mockFetch(() => json(504, {}));
+    renderPage();
+    send('alwys book me a aisle seat');
+    expect(await screen.findByText(/model/i, { selector: '.dot-m--error' })).toHaveTextContent(/Heuristics/);
+  });
+
   it('skin tabs link to the Studio', () => {
     mockFetch(() => json(200, {}));
     renderPage();

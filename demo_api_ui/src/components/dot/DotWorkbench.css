@@ -59,3 +59,4 @@
 .dot-wb .cur-titlebar .cur-flow-trigger { background:var(--panel2); color:var(--ink); border:1px solid var(--line); border-radius:6px; padding:4px 12px; }
 .dot-wb .cur-titlebar .cur-flow-trigger:hover { background:var(--dot-soft); color:var(--ink); border-color:var(--dot); }
 .dot-wb .cur-titlebar .cur-flow-trigger[aria-current="page"] { border-color:var(--dot); background:var(--dot-soft); }
+.dot-thinking { color:var(--muted); font-style:italic; }
