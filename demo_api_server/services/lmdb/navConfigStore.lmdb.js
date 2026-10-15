@@ -127,6 +127,36 @@ a2aPreset.hiddenLabels.push(
     "Grafana",
 );
 
+// Personal agent includes the OBO story: the Delegation & Consent group plus
+// just the token-exchange pages from Utilities and Observability.
+const personalAgentPreset = preset('uc-personal-agent', 'Use case · Personal agent', 'Personal Agents', 'AI Experiences', 'Delegation & Consent', 'MCP & Integrations', 'Utilities', 'Observability');
+personalAgentPreset.hiddenLabels.push(
+  "PingOne Test",
+  "MFA Test",
+  "Management API Runner",
+  "PingOne MCP Setup",
+  "MCP Discovery",
+  "Resource Server Checkpoint",
+  "Scope Reference",
+  "Snapshot Import",
+  "Health Check",
+  "Learning Log",
+  "Activity Log",
+  "API Activity",
+  "Run Reports",
+  "Error Audit Log",
+  "New Relic",
+  "CI Queue Dashboard",
+  "PingOne Events",
+  "PingOne Authorize Decisions",
+  "System Flow",
+  "Service Graph",
+  "Tracing",
+  "MCP Observability",
+  "Observability Demo",
+  "Grafana",
+);
+
 const BUILTIN_CONFIGS = [
   { id: 'full-mode', name: 'Full mode', isBuiltin: true, hiddenLabels: [], flagSnapshot: {} },
   preset('demo-mode', 'Demo mode', 'Security Dashboard', 'AI Experiences', 'Personal Agents', 'Agent Privilege', 'Observability'),
@@ -138,7 +168,7 @@ const BUILTIN_CONFIGS = [
   preset('product-protect-verify', 'Product · Protect / Verify / MFA', 'Ping products', 'Identity Journeys', 'Utilities'),
   preset('product-aic-idjag', 'Product · AIC + ID-JAG', 'AIC', 'PingFederate ID-JAG', 'Delegation & Consent', 'Diagrams'),
   // By use case
-  preset('uc-personal-agent', 'Use case · Personal agent', 'Personal Agents', 'AI Experiences', 'Delegation & Consent', 'MCP & Integrations'),
+  personalAgentPreset,
   preset('uc-digital-assistant', 'Use case · Digital assistant', 'AI Experiences', 'Jev Demos', 'MCP & Integrations'),
   preset('uc-agent-security', 'Use case · Agent security', 'Agent Privilege', 'AI Experiences', 'MCP & Integrations', 'Observability'),
   a2aPreset,
