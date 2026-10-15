@@ -1,0 +1,14 @@
+.obo-demo { max-width: 46rem; padding: 1.5rem; color: var(--th-text); }
+.obo-demo__title { font-size: 1.4rem; margin: 0 0 0.75rem; }
+.obo-demo__lede { color: var(--th-text-muted); line-height: 1.5; }
+.obo-demo__run {
+  margin: 0.75rem 0; padding: 0.5rem 1rem; border: 1px solid var(--th-border-strong);
+  background: var(--th-bg-card); color: var(--th-text); border-radius: 6px; cursor: pointer;
+}
+.obo-demo__run:disabled { opacity: 0.6; cursor: not-allowed; }
+.obo-demo__error { color: var(--th-status-error-text); }
+.obo-demo__checks { list-style: none; padding: 0; margin: 1rem 0 0; }
+.obo-demo__check { padding: 0.35rem 0; border-bottom: 1px solid var(--th-border); }
+.obo-demo__verdict { font-weight: 600; margin-right: 0.5rem; }
+.obo-demo__check--pass .obo-demo__verdict { color: var(--th-status-success-text); }
+.obo-demo__check--fail .obo-demo__verdict { color: var(--th-status-error-text); }
