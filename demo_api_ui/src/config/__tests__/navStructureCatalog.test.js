@@ -67,6 +67,7 @@ describe("PingOne platform navigation", () => {
       "DaVinci Orchestration SDK",
       "Orchestration SDK Guide",
       "DaVinci Orchestration Overview",
+      "PingFederate DaVinci Integration Kit",
     ]);
   });
 
@@ -89,6 +90,7 @@ describe("PingOne platform navigation", () => {
       "Scope Reference",
       "Snapshot Import",
       "Health Check",
+      "Token Security Tester",
     ]);
   });
 

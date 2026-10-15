@@ -317,6 +317,24 @@ describe("AdminSideNav — best-of-breed pass", () => {
     );
   });
 
+  // Pages added to App.js that the nav never listed, so neither the tree nor the search could find them.
+  // Each must be reachable by a natural search term and link to the right route.
+  it.each([
+    ["dot", "Dot Workbench", "/personal-agent/dot"],
+    ["workload", "Workload Agents", "/workload-agents"],
+    ["embedded worker", "Embedded Worker", "/embedded-worker"],
+    ["governance", "Governance Timeline", "/governance-timeline"],
+    ["hosted registration", "Hosted Registrations", "/hosted-registrations"],
+    ["davinci kit", "PingFederate DaVinci Integration Kit", "/pingfederate-davinci-kit"],
+    ["token security", "Token Security Tester", "/token-security"],
+    ["compliance", "Token Compliance Audit", "/token-compliance"],
+    ["dev tools", "Dev Tools", "/dev-tools"],
+  ])('searching "%s" finds %s and links to %s', (term, label, href) => {
+    renderNav();
+    fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: term } });
+    expect(screen.getByText(label, { exact: true }).closest("a")).toHaveAttribute("href", href);
+  });
+
   it('searching "foo" surfaces PromptFoo Evals under Developer Tools', () => {
     renderNav();
     fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "foo" } });
