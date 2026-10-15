@@ -69,7 +69,18 @@ A hub is **already connected — you do not need to add one to demo.**
     `ActionMap.SecretRead.PolicyRule[]` (and `SecretWrite`), each rule's
     `ObjectRef = {RefKind: "Secret", RefID: <secret ObjectMeta.ID>}`, `IssuedTo` = user/group refs
     (user `RefID` is base64 of `tenant@@default@@<user-uuid>`, the user's `ObjectMeta.ID`).
-  - **Still not run:** creating a new grant, and the audit event for View.
+  - **Correction (2026-10-14):** `cmuir+4@pingidentity.com` is **also** in `YukonRiver-416146713043`
+    (it is the user listed above as `demoUser-new`). All four tenant users already have Read + Write
+    on `privilege-hub-test`; the only secret with no grant is `groq-key`, which may be a real key, so
+    it was not used.
+  - **New grant created and shown, 2026-10-14 (evening):** a `SecretResources` policy
+    `tmp-f20-read-grant` — `SecretRead` only, on `privilege-hub-test`, issued to
+    `cmuir+4@pingidentity.com`, `NotBefore` now / `NotAfter` +2 h — created through the API (cloned
+    from the Yukon rule shape). The hub's **Access Summary** tab listed it at once:
+    `tmp-f20-read-grant · privilege-hub-test · Read · 1 user · expiry`. Deleted straight after
+    (the grant added no access the user did not already have). To show a grant changing what someone
+    can do, add a dummy secret to the Google project first and grant that.
+  - **Still not run:** the audit event for View.
 
 ## Read this before you connect anything
 
