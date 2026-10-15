@@ -20,9 +20,9 @@
 .obo-demo__verdict { margin-top: 0.75rem; padding: 0.6rem 0.8rem; border-radius: 6px; font-weight: 600; border: 1px solid var(--th-border); }
 .obo-demo__verdict--pass { background: var(--th-status-success-bg); border-color: var(--th-status-success-border); color: var(--th-status-success-text); }
 .obo-demo__verdict--fail { background: var(--th-status-error-bg); border-color: var(--th-status-error-border); color: var(--th-status-error-text); }
-.obo-demo__checks { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem 0.75rem; font-size: 0.85rem; }
-.obo-demo__checks li { display: flex; gap: 0.5rem; align-items: baseline; }
-.obo-demo__chip { font-size: 0.7rem; font-weight: 700; padding: 0 0.4rem; border-radius: 4px; border: 1px solid var(--th-border); }
+.obo-demo__checks { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; font-size: 0.85rem; line-height: 1.4; }
+.obo-demo__checks li { display: flex; gap: 0.5rem; align-items: flex-start; min-width: 0; }
+.obo-demo__chip { flex: none; font-size: 0.7rem; line-height: 1.4; font-weight: 700; padding: 0 0.4rem; border-radius: 4px; border: 1px solid var(--th-border); }
 .obo-demo__chip--pass { background: var(--th-status-success-bg); border-color: var(--th-status-success-border); color: var(--th-status-success-text); }
 .obo-demo__chip--fail { background: var(--th-status-error-bg); border-color: var(--th-status-error-border); color: var(--th-status-error-text); }
 .obo-demo__trace { list-style: none; padding: 0; margin: 0; }
