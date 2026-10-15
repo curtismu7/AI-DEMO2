@@ -11,6 +11,10 @@ const ok = { delegated: 200, userToken: 401 };
 const byId = (ev, id) => ev.checks.find((c) => c.id === id);
 
 describe('buildEvidence', () => {
+  test('check 7 label is true for both the page and the MCP result', () => {
+    expect(byId(buildEvidence({ source: 'claude', subjectToken: user, delegatedToken: good, actorClientId: AGENT, downstream: ok }), 'no-token-leak').label).toBe('Nothing returned to the model or the live event contained a token');
+  });
+
   test('all 7 checks pass for a correct delegation', () => {
     const ev = buildEvidence({ source: 'claude', subjectToken: user, delegatedToken: good, actorClientId: AGENT, downstream: ok });
     expect(ev.checks).toHaveLength(7);

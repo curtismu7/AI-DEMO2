@@ -1220,10 +1220,21 @@ class OAuthService {
     };
     _emitTokenExchangeEvent('request', telemetry);
     const startTime = Date.now();
+    // Optional display hook (OBO demo): hand the real request/response to the caller. Never affects the exchange.
+    const wire = (response) => {
+      if (typeof exchangeOptions.onWire !== 'function') return;
+      try {
+        exchangeOptions.onWire({
+          request: { method: 'POST', url: tokenEndpoint, headers: { ...headers }, body: Object.fromEntries(body) },
+          response: { status: response?.status, data: response?.data },
+        });
+      } catch (_hookError) { /* a display hook must never change the exchange */ }
+    };
     try {
       const response = managed
         ? await sidecarRelay.post('token', body)
         : await axios.post(tokenEndpoint, body.toString(), { headers });
+      wire(response);
       const exchanged = response.data.access_token;
       if (!exchanged) throw new Error('Token exchange response missing access_token');
       _emitTokenExchangeEvent('ok', { ...telemetry, latencyMs: Date.now() - startTime });
@@ -1232,6 +1243,7 @@ class OAuthService {
       );
       return exchanged;
     } catch (error) {
+      if (error.response) wire(error.response);
       const pingoneData = error.response?.data || {};
       const httpStatus  = error.response?.status;
       console.error('[Exchange-As] Failed:', { httpStatus, ...pingoneData, rawMessage: error.message });

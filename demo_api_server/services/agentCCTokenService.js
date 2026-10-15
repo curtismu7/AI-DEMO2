@@ -105,6 +105,16 @@ async function getAgentCCToken(req, options = {}) {
 
     const tokenData = tokenResponse.data;
 
+    // Optional display hook (OBO demo): the real request/response, including error responses. Never affects the call.
+    if (typeof options.onWire === 'function') {
+      try {
+        options.onWire({
+          request: { method: 'POST', url: tokenEndpoint, headers: { ...headers }, body: Object.fromEntries(body) },
+          response: { status: tokenResponse.status, data: tokenData },
+        });
+      } catch (_hookError) { /* a display hook must never change the call */ }
+    }
+
     // `validateStatus: () => true` means OAuth error responses arrive here as
     // resolved Axios results. Never treat an error body (even one paired with
     // an access_token in a malformed 2xx response) or an incomplete 2xx
