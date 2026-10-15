@@ -67,6 +67,7 @@ describe("PingOne platform navigation", () => {
       "DaVinci Orchestration SDK",
       "Orchestration SDK Guide",
       "DaVinci Orchestration Overview",
+      "PingFederate DaVinci Integration Kit",
     ]);
   });
 

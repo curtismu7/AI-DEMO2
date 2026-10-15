@@ -24,7 +24,7 @@ export const NAV_STRUCTURE_CATALOG = [
   ] },
   { label: "DaVinci", children: [
     "DaVinci Widget", "DaVinci Login", "DaVinci SDK Login", "DaVinci Orchestration",
-    "DaVinci Orchestration SDK", "Orchestration SDK Guide", "DaVinci Orchestration Overview",
+    "DaVinci Orchestration SDK", "Orchestration SDK Guide", "DaVinci Orchestration Overview", "PingFederate DaVinci Integration Kit",
   ] },
   { label: "Ping products", children: [
     "PingOne Protect", "PingOne Verify & Recognize", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
@@ -59,10 +59,11 @@ export const NAV_STRUCTURE_CATALOG = [
     "Prompt Injection", "HITL Bypass", "Indirect Injection", "Unauthorized Commitments",
     "Scope Abuse", "Intent Bypass", "IGA for AI", "Discovery", "Agent Privilege (Preview)", "Platform Gaps",
     "AI Security Academy", "Academy Standalone Demos", "Agentic Trust", "Agent Guardrails", "OWASP Agent Risks",
-    "Agent Privilege for AI",
+    "Agent Privilege for AI", "Governance Timeline",
   ] },
   { label: "Personal Agents", children: [
-    "Personal Agent", "Personal Agent Clients", "OBO Demo", "Target Design", "Dual Gateway Design", "Design Review",
+    "Personal Agent", "Personal Agent Clients", "Dot Workbench", "Workload Agents", "Embedded Worker", "OBO Demo",
+    "Target Design", "Dual Gateway Design", "Design Review",
   ] },
   { label: "MCP & Integrations", children: [
     "MCP Inspector", "Agent Gateway Inspector", "Enterprise-Managed MCP Auth", "Ping AI Test Lab",
@@ -104,6 +105,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Feature Flags", "LLM Config", "Secret Rotation", "App Configuration", "Security Settings", "CIMD Simulation",
     "Demo Config", "PingOne Admin", "Banking Ops", "Healthcare Ops", "Retail Ops", "Sporting Goods Ops", "Workforce Ops",
     "Vertical Editor", "Mortgage Path", "Users", "Accounts", "Transactions", "OIDC Resource Server", "CC Resource Server",
+    "Hosted Registrations",
   ] },
 ];
 
