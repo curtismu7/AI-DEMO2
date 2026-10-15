@@ -5,7 +5,7 @@
   "trigger": "show my saved items at Walbuy",
   "expectedOutcome": "PERMIT",
   "capturedAt": "2026-08-28T17:41:42.731Z",
-  "seedHash": "005fc03655ff4340",
+  "seedHash": "d5d7d1c4714fc23f",
   "reply": "Here are your wishlist.",
   "agentPath": null,
   "tokenEventCount": 25

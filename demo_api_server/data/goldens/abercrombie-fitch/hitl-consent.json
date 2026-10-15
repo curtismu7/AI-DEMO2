@@ -5,7 +5,7 @@
   "trigger": "checkout Walbuy outerwear for $300",
   "expectedOutcome": "HITL_REQUIRED",
   "capturedAt": "2026-08-28T17:42:51.545Z",
-  "seedHash": "005fc03655ff4340",
+  "seedHash": "d5d7d1c4714fc23f",
   "reply": "Transaction requires human approval (HITL consent)",
   "requiresConsent": true,
   "agentPath": null,
