@@ -387,6 +387,17 @@ describe("UC2.5 runs the A2A orchestrator, not UC2's chat path", () => {
     expect(getCompletedUseCaseIds().has("UC2.5")).toBe(true);
   });
 
+  it("sends the agent's saved per-page choice as mode, and nothing when none is saved", async () => {
+    apiPost.mockImplementation((url) => Promise.resolve({
+      data: url === "/api/a2a/message" ? { success: true, reply: "ok", tokenEvents: [] } : { initialized: true },
+    }));
+    localStorage.setItem(`agentMode:agent:${window.location.pathname}`, "heuristics");
+    renderSignedOut();
+    await runStep(UC25);
+    await waitFor(() => expect(apiPost).toHaveBeenCalledWith("/api/a2a/message", expect.objectContaining({ mode: "heuristics" })));
+    localStorage.removeItem(`agentMode:agent:${window.location.pathname}`);
+  });
+
   it("does not tick the step when the orchestrator declines", async () => {
     apiPost.mockImplementation((url) => Promise.resolve({
       data: url === "/api/a2a/message"
