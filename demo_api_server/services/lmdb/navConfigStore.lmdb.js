@@ -43,6 +43,7 @@ const a2aPreset = {
   ...preset('uc-a2a', 'Use case · A2A', 'A2A', 'Agent Privilege', 'Personal Agents', 'Delegation & Consent', 'Diagrams', 'Observability'),
 };
 a2aPreset.hiddenLabels.push(
+    "OBO Demo",
     "AI Guard",
     "Protocol Playground",
     "AI Guard Client",
