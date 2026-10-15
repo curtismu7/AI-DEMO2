@@ -1,6 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import AgentClientSkin from '../components/AgentClientSkin';
 import apiClient from '../services/apiClient';
+import { governanceFrom } from '../utils/dotGovernance';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 import './WorkloadAgentsPage.css';
 
@@ -77,7 +78,7 @@ export default function PersonalAgentClientWindow() {
       })
       .then((data) => setMessages((prev) => [
         ...prev.filter((m) => !m.typing),
-        { role: 'agent', text: data.reply || 'The digital assistant completed the request.', dotMemories: data.dotMemories },
+        { role: 'agent', text: data.reply || 'The digital assistant completed the request.', dotMemories: data.dotMemories, governance: governanceFrom(data) },
       ]))
       .catch((error) => setMessages((prev) => [
         ...prev.filter((m) => !m.typing),

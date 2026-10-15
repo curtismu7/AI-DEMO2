@@ -86,4 +86,24 @@ describe('AgentClientSkin', () => {
       expect(screen.queryByRole('group', { name: /suggested/i })).toBeNull();
     });
   });
+
+  it('Dot shows what Ping decided under a reply, only when there is a verdict', () => {
+    const messages = [
+      { role: 'agent', text: 'Booked.', governance: { decision: 'PERMIT', tools: ['book_flight'] } },
+      { role: 'agent', text: 'I cannot move miles.', governance: { decision: 'DENY', tools: ['transfer_miles'] } },
+      { role: 'agent', text: 'Hello again.' },
+    ];
+    render(<AgentClientSkin {...baseProps} skin="dot" messages={messages} />);
+    const cards = screen.getAllByTestId('dot-governance');
+    expect(cards).toHaveLength(2); // the reply with no verdict shows nothing
+    expect(cards[0].textContent).toContain('PERMIT');
+    expect(cards[0].textContent).toContain('book_flight');
+    expect(cards[1].textContent).toContain('DENY');
+    expect(cards[1].textContent).toContain('transfer_miles');
+  });
+
+  it('other skins never show the governance card', () => {
+    render(<AgentClientSkin {...baseProps} skin="claude" messages={[{ role: 'agent', text: 'Booked.', governance: { decision: 'PERMIT', tools: ['book_flight'] } }]} />);
+    expect(screen.queryByTestId('dot-governance')).toBeNull();
+  });
 });

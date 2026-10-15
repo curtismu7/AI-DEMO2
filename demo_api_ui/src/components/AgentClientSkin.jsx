@@ -315,7 +315,7 @@ function TypingIndicator({ color, isTerminal }) {
   );
 }
 
-function renderMessage(msg, i, cfg, colors, isTerminal) {
+function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
   const isUser = msg.role === 'user';
   const type = msg.type || 'text';
 
@@ -384,6 +384,16 @@ function renderMessage(msg, i, cfg, colors, isTerminal) {
       ) : (
         <div style={{ padding: '10px 14px', borderRadius: isUser ? '12px 4px 12px 12px' : '4px 12px 12px 12px', background: isUser ? colors.userBubbleBg : colors.agentBubbleBg, color: isUser ? colors.userBubbleColor : colors.agentBubbleColor, fontSize: 13, lineHeight: 1.6, maxWidth: '100%' }}>
           {msg.text}
+          {/* What Ping decided for this reply: the Authorize verdict and the tools it covered. */}
+          {!isUser && skin === 'dot' && msg.governance?.decision && (
+            <div data-testid="dot-governance" style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 6, fontSize: 11, color: colors.subtitleColor }}>
+              <span>Ping checked this run</span>
+              <span style={{ fontWeight: 700, padding: '2px 8px', borderRadius: 999, background: msg.governance.decision === 'PERMIT' ? 'rgba(52,211,153,0.16)' : msg.governance.decision === 'DENY' ? 'rgba(248,113,113,0.16)' : 'rgba(251,191,36,0.16)', color: msg.governance.decision === 'PERMIT' ? '#34d399' : msg.governance.decision === 'DENY' ? '#f87171' : '#fbbf24' }}>
+                {msg.governance.decision}
+              </span>
+              {msg.governance.tools.length > 0 && <span>{msg.governance.tools.join(', ')}</span>}
+            </div>
+          )}
           {/* The dot learned a preference from this exchange — surface it. */}
           {!isUser && Array.isArray(msg.dotMemories) && msg.dotMemories.length > 0 && (
             <div style={{ marginTop: 8, display: 'flex', flexWrap: 'wrap', gap: 6 }}>
@@ -449,7 +459,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
 
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: isTerminal ? '16px 20px' : 20, display: 'flex', flexDirection: 'column', gap: isTerminal ? 8 : 16 }}>
-        {messages.map((msg, i) => renderMessage(msg, i, cfg, colors, isTerminal))}
+        {messages.map((msg, i) => renderMessage(msg, i, cfg, colors, isTerminal, skin))}
         {suggestions.length > 0 && messages.length <= 1 && (
           <div role="group" aria-label="Suggested prompts" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
             {suggestions.map((text) => (
