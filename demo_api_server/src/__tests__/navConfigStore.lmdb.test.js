@@ -3,22 +3,12 @@
 const store = require('../../services/lmdb/navConfigStore.lmdb');
 const { getDb } = require('../../services/lmdb/openEnv');
 
-const KNOWN_NAV_LABELS = [
-  "Home", "Dashboard", "Themes", "Use Cases", "Agent Demo Guide",
-  "Family Delegation", "AI Flows", "PingOne MCP", "MCP & Gateways",
-  "PingOne Demo Apps", "Delegation & Consent", "Exploring", "Authorize",
-  "OAuth & Identity", "Industry Verticals", "Users & Accounts",
-  "AI Attack Demos", "Monitoring", "Telemetry", "Diagrams",
-  "Agent Studio (Preview)", "Learn & Present",
-  "Developer Tools", "System Tools", "Integration Tests",
-];
-
 describe('navConfigStore.lmdb', () => {
-  test('listConfigs seeds and returns the 3 built-in configs', () => {
+  test('listConfigs seeds and returns every built-in config', () => {
     const configs = store.listConfigs();
     const names = configs.map(c => c.name);
     expect(names).toEqual(expect.arrayContaining(['Full mode', 'Demo mode', 'Learning']));
-    expect(configs.filter(c => c.isBuiltin)).toHaveLength(3);
+    expect(configs.filter(c => c.isBuiltin)).toHaveLength(store.BUILTIN_CONFIGS.length);
   });
 
   test('Full mode builtin has no hidden items', () => {
@@ -127,11 +117,28 @@ describe('navConfigStore.lmdb', () => {
     expect(store.getConfig('demo-mode').updatedAt).toBe(first.updatedAt);
   });
 
-  test('every BUILTIN_CONFIGS hiddenLabels entry is a real, known nav label', () => {
+  test('TOP_LEVEL_LABELS mirrors the UI nav catalog', () => {
+    const src = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../../demo_api_ui/src/config/navStructureCatalog.js'), 'utf8');
+    const labels = [...src.matchAll(/^  \{ label: "([^"]+)"/gm)].map((m) => m[1]);
+    expect(store.TOP_LEVEL_LABELS).toEqual(labels);
+  });
+
+  test('every hidden label is a real catalog group or page label', () => {
+    const src = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../../demo_api_ui/src/config/navStructureCatalog.js'), 'utf8');
     for (const cfg of store.BUILTIN_CONFIGS) {
       for (const label of cfg.hiddenLabels) {
-        expect(KNOWN_NAV_LABELS).toContain(label);
+        expect(src).toContain(`"${label}"`);
       }
     }
   });
+
+  test('every preset keeps Home and Administration (Demo Config) visible', () => {
+    for (const cfg of store.BUILTIN_CONFIGS) {
+      expect(cfg.hiddenLabels).not.toContain('Home');
+      expect(cfg.hiddenLabels).not.toContain('Administration');
+    }
+  });
+
 });

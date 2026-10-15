@@ -17,11 +17,6 @@ function getOboConfig() {
     issuer,
     jwksUri: `${issuer}/jwks`,
     inboundAudiences: inbound.split(',').map((s) => s.trim()).filter(Boolean),
-    // Public PKCE app Claude Code logs in with ("Claude Code - Banking Gateway"); a client id is not a secret.
-    claudeClient: {
-      id: process.env.OBO_CLAUDE_CLIENT_ID || 'c8392dc4-2d82-4e49-92a8-79a78401faf5',
-      callbackPort: Number(process.env.OBO_CLAUDE_CALLBACK_PORT || 7465),
-    },
     exchanger: {
       id: configStore.getEffective('pingone_token_exchanger_client_id'),
       secret: configStore.getEffective('pingone_token_exchanger_client_secret'),

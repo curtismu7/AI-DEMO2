@@ -1,7 +1,0 @@
-/* demo_api_ui/src/components/obo/OboSwapDiagram.css */
-.obo-diagram { height: 16rem; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg-card); }
-.obo-diagram .obo-node { background: var(--th-bg-inset); color: var(--th-text); border: 1px solid var(--th-border-strong); border-radius: 6px; font-size: var(--font-size-sm); padding: 0.5rem 0.75rem; }
-.obo-diagram .obo-node--denied { border-color: var(--th-status-error-text); }
-.obo-diagram .react-flow__edge-text { fill: var(--th-text); font-size: var(--font-size-3xs); }
-.obo-diagram .react-flow__edge-path { stroke: var(--th-text-muted); }
-.obo-diagram .obo-edge--refused .react-flow__edge-path { stroke: var(--th-status-error-text); stroke-dasharray: 4 3; }

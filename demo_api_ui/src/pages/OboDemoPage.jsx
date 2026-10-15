@@ -1,7 +1,6 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import apiClient from "../services/apiClient";
 import OboEvidenceCard from "../components/obo/OboEvidenceCard";
-import OboSwapDiagram from "../components/obo/OboSwapDiagram";
 import useOboLive from "../components/obo/useOboLive";
 import "./OboDemoPage.css";
 
@@ -72,25 +71,9 @@ export default function OboDemoPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null); // { ok, steps, checks, failedStep, error }
   const [selected, setSelected] = useState(null);
-  const [info, setInfo] = useState(null);
-  const [infoFailed, setInfoFailed] = useState(false);
-  const [infoUnauthorized, setInfoUnauthorized] = useState(false);
   const live = useOboLive(true);
-
-  useEffect(() => {
-    let alive = true;
-    apiClient.get("/api/obo/info")
-      .then((r) => { if (alive) setInfo(r.data); })
-      .catch((err) => { if (alive) { setInfoFailed(true); setInfoUnauthorized(err?.response?.status === 401); } });
-    return () => { alive = false; };
-  }, []);
-
   const lastDate = live[0]?.ts ? new Date(live[0].ts) : null;
   const lastCall = lastDate && !Number.isNaN(lastDate.getTime()) ? lastDate.toLocaleTimeString() : null;
-
-  const command = info
-    ? `claude mcp add --transport http obo-demo ${info.mcpUrl} --client-id ${info.clientId} --callback-port ${info.callbackPort}`
-    : null;
 
   async function run() {
     setBusy(true);
@@ -154,12 +137,9 @@ export default function OboDemoPage() {
       <p className="obo-demo__lede">
         An agent acts for you through RFC 8693 delegation. The exchange keeps your identity (<code>sub</code>),
         records the agent as <code>act</code>, and issues a token the downstream API accepts. Your own token is
-        refused there. The model never sees either token.
+        refused there. The model never sees either token.{" "}
+        <a href="/architecture/obo-flow.html" target="_blank" rel="noopener noreferrer">View the flow diagram (opens in a new tab)</a>
       </p>
-      <div className="obo-demo__card">
-        <h2 className="obo-demo__h2">How it works</h2>
-        <OboSwapDiagram />
-      </div>
       <div className="obo-demo__workspace">
         <section aria-label="Run">
           <div className="obo-demo__card">
@@ -197,10 +177,30 @@ export default function OboDemoPage() {
               </ul>
             ) : null}
           </div>
-          <div className="obo-demo__card" aria-live="polite">
-            <h2 className="obo-demo__h2">Step details</h2>
-            {renderDetails()}
+          <div className="obo-demo__card">
+            <h2 className="obo-demo__h2">Or run it from Claude Code</h2>
+            <p className="obo-demo__hint">Same delegation, with Claude as the OAuth client. Claude sees claims and status codes, never a token.</p>
+            <ol className="obo-demo__steps">
+              <li>Register the endpoint once:
+                <pre className="obo-demo__code">{`claude mcp add --transport http obo-demo ${window.location.origin}/api/obo/mcp \\
+  --client-id c8392dc4-2d82-4e49-92a8-79a78401faf5 --callback-port 7465`}</pre></li>
+              <li>In <code>claude</code>, run <code>/permissions</code> and allow <code>mcp__obo-demo__act_on_my_behalf</code>. Without it the auto-mode classifier blocks the call.</li>
+              <li>Run <code>/mcp</code>, choose <code>obo-demo</code> and sign in to PingOne as the demo user.</li>
+              <li>Prompt: <pre className="obo-demo__code">Call the act_on_my_behalf tool and show me its result.</pre></li>
+              <li>Expect <code>acting_for</code> (the user), <code>acted_by</code> (the agent client_id), <code>downstream</code> delegated 200 and own token 401, and seven checks all <code>pass: true</code>.</li>
+            </ol>
           </div>
+          <section aria-label="Live from Claude" className="obo-demo__card obo-demo__live">
+            <h2 className="obo-demo__h2">Live from Claude</h2>
+            {live.length === 0 ? (
+              <p className="obo-demo__hint">Waiting for Claude to call the tool…</p>
+            ) : (
+              <>
+                {lastCall ? <p className="obo-demo__hint">Last call at {lastCall}</p> : null}
+                <OboEvidenceCard evidence={live[0]} checksLabel="Live delegation checks" />
+              </>
+            )}
+          </section>
         </section>
         <aside aria-label="Delegation trace">
           <div className="obo-demo__card">
@@ -223,26 +223,11 @@ export default function OboDemoPage() {
             <p className="obo-demo__legend">Each line is one hop. Click a line to see what was sent and what came back. Tokens appear only as short hashes and claims.</p>
           </div>
         </aside>
+        <section aria-label="Step details" className="obo-demo__card" aria-live="polite">
+          <h2 className="obo-demo__h2">Step details</h2>
+          {renderDetails()}
+        </section>
       </div>
-      <section aria-label="Live from Claude" className="obo-demo__card obo-demo__live">
-        <h2 className="obo-demo__h2">Live from Claude</h2>
-        {command ? (
-          <>
-            <p className="obo-demo__hint">Add this server in Claude Code, run <code>/mcp</code> to sign in, then ask it to call <code>act_on_my_behalf</code>.</p>
-            <pre className="obo-demo__command" data-testid="obo-setup-command">{command}</pre>
-          </>
-        ) : infoFailed ? (
-          <p className="obo-demo__hint">{infoUnauthorized ? "Sign in again to see the setup command." : "The setup command is unavailable right now."}</p>
-        ) : null}
-        {live.length === 0 ? (
-          <p className="obo-demo__hint">Waiting for Claude to call the tool…</p>
-        ) : (
-          <>
-            {lastCall ? <p className="obo-demo__hint">Last call at {lastCall}</p> : null}
-            <OboEvidenceCard evidence={live[0]} checksLabel="Live delegation checks" />
-          </>
-        )}
-      </section>
       <p className="obo-demo__limits">
         Limits: the BFF, which is the MCP server here, briefly holds your token to run the exchange, so
         &quot;the agent&quot; means the model. Live events work with a single BFF replica.

@@ -156,13 +156,6 @@ function eventsHandler(req, res) {
   return undefined;
 }
 
-function infoHandler(req, res) {
-  if (!sessionSub(req)) return res.status(401).json({ error: 'Sign in first.' });
-  const { claudeClient } = getOboConfig();
-  return res.json({ mcpUrl: `${baseUrl(req)}/api/obo/mcp`, clientId: claudeClient.id, callbackPort: claudeClient.callbackPort });
-}
-
 router.get('/events', eventsHandler);
-router.get('/info', infoHandler);
 
-module.exports = { router, metadataHandler, eventsHandler, infoHandler };
+module.exports = { router, metadataHandler, eventsHandler };

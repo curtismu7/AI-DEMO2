@@ -1,0 +1,102 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>On-behalf-of flow for a personal agent</title>
+<style>
+:root{--bg:#fff;--card:#f4f6f9;--ink:#0e1a2b;--muted:#5d6980;--rule:#c9d1de;--ok:#1e6b3a;--bad:#a13348;--accent:#3a4a8c;--okbg:#e4f2e8;--badbg:#f7e3e7}
+@media (prefers-color-scheme:dark){:root{--bg:#10151f;--card:#18202e;--ink:#e8edf5;--muted:#9aa7bc;--rule:#33405a;--ok:#6fcf8f;--bad:#f08a9c;--accent:#9db0ff;--okbg:#17301f;--badbg:#3a1a22}}
+*{box-sizing:border-box}
+body{margin:0;padding:24px 16px;background:var(--bg);color:var(--ink);font:14px/1.5 -apple-system,system-ui,"Segoe UI",sans-serif}
+main{max-width:1120px;margin:0 auto}
+h1{font-size:26px;margin:0 0 6px}
+.lede{color:var(--muted);max-width:80ch;margin:0 0 18px}
+.frame{border:1px solid var(--rule);border-radius:10px;background:var(--card);padding:8px;overflow-x:auto}
+svg{display:block;min-width:900px;width:100%;height:auto}
+.lane{fill:var(--bg);stroke:var(--rule)}
+.lt{fill:var(--ink);font-weight:700;font-size:14px}
+.ls{fill:var(--muted);font-size:10.5px}
+.life{stroke:var(--rule);stroke-dasharray:4 4}
+.msg{stroke:var(--accent);stroke-width:1.8;fill:none}
+.msg.ok{stroke:var(--ok)}.msg.bad{stroke:var(--bad)}
+.ml{fill:var(--ink);font-size:12.5px;font-weight:600}
+.ml.ok{fill:var(--ok)}.ml.bad{fill:var(--bad)}
+.ms{fill:var(--muted);font-size:10.5px}
+.grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(300px,1fr));gap:14px;margin-top:18px}
+.box{border:1px solid var(--rule);border-radius:10px;padding:14px 16px;background:var(--card)}
+.box h2{margin:0 0 8px;font-size:14px;text-transform:uppercase;letter-spacing:.06em;color:var(--muted)}
+.box ul{margin:0;padding-left:18px}.box li{margin:4px 0}
+table{border-collapse:collapse;width:100%;font-size:13px}
+th,td{text-align:left;padding:4px 8px;border-bottom:1px solid var(--rule);vertical-align:top}
+th{color:var(--muted);font-weight:600;width:6.5rem}
+code{font:12px ui-monospace,Menlo,monospace}
+.ok-t{color:var(--ok);font-weight:600}.bad-t{color:var(--bad);font-weight:600}
+footer{margin-top:16px;color:var(--muted);font-size:12px}
+</style>
+</head>
+<body>
+<main>
+<h1>On behalf of the member: the personal-agent flow</h1>
+<p class="lede">A member's agent acts for them without ever holding their credential. A trusted token service exchanges the member's token and the agent's own identity (RFC 8693) for a short-lived delegated token that names both. Numbers match the trace on the <a href="/obo-demo">OBO demo page</a>, which runs this flow live.</p>
+<div class="frame">
+<svg viewBox="0 0 1090 738" role="img" aria-labelledby="t d" xmlns="http://www.w3.org/2000/svg"><title id="t">On-behalf-of delegation sequence</title><desc id="d">Member signs in; the token service gets an agent identity, exchanges tokens at PingOne, and calls the downstream API with a delegated token that the downstream accepts while refusing the member's own token.</desc>
+<defs><marker id="ar" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" fill="context-stroke"/></marker></defs>
+<rect class="lane" x="20" y="20" width="160" height="62" rx="8"/><text class="lt" x="100" y="46" text-anchor="middle">Member</text><text class="ls" x="100" y="66" text-anchor="middle">browser / app</text>
+<line class="life" x1="100" y1="82" x2="100" y2="728"/>
+<rect class="lane" x="230" y="20" width="160" height="62" rx="8"/><text class="lt" x="310" y="46" text-anchor="middle">Personal agent</text><text class="ls" x="310" y="66" text-anchor="middle">model + MCP client</text>
+<line class="life" x1="310" y1="82" x2="310" y2="728"/>
+<rect class="lane" x="460" y="20" width="160" height="62" rx="8"/><text class="lt" x="540" y="46" text-anchor="middle">Token service</text><text class="ls" x="540" y="66" text-anchor="middle">BFF / Facade, holds credentials</text>
+<line class="life" x1="540" y1="82" x2="540" y2="728"/>
+<rect class="lane" x="690" y="20" width="160" height="62" rx="8"/><text class="lt" x="770" y="46" text-anchor="middle">PingOne</text><text class="ls" x="770" y="66" text-anchor="middle">authorization server</text>
+<line class="life" x1="770" y1="82" x2="770" y2="728"/>
+<rect class="lane" x="900" y="20" width="160" height="62" rx="8"/><text class="lt" x="980" y="46" text-anchor="middle">Downstream API</text><text class="ls" x="980" y="66" text-anchor="middle">audience obo-demo</text>
+<line class="life" x1="980" y1="82" x2="980" y2="728"/>
+<line class="msg plain" x1="100" y1="150" x2="767" y2="150" marker-end="url(#ar)"/>
+<text class="ml plain" x="435.0" y="130" text-anchor="middle">1. Sign in (passkey / MFA)</text><text class="ms" x="435.0" y="144" text-anchor="middle">user token stays with the token service, never the agent</text>
+<line class="msg plain" x1="100" y1="212" x2="307" y2="212" marker-end="url(#ar)"/>
+<text class="ml plain" x="205.0" y="192" text-anchor="middle">Task: "what is my balance?"</text><text class="ms" x="205.0" y="206" text-anchor="middle">no token in the request</text>
+<line class="msg plain" x1="310" y1="274" x2="537" y2="274" marker-end="url(#ar)"/>
+<text class="ml plain" x="425.0" y="254" text-anchor="middle">Act for the member</text><text class="ms" x="425.0" y="268" text-anchor="middle">agent id + session reference only</text>
+<line class="msg plain" x1="540" y1="336" x2="767" y2="336" marker-end="url(#ar)"/>
+<text class="ml plain" x="655.0" y="316" text-anchor="middle">2. Agent identity: client_credentials</text><text class="ms" x="655.0" y="330" text-anchor="middle">as the AI Agent app, returns the actor token</text>
+<line class="msg plain" x1="540" y1="398" x2="767" y2="398" marker-end="url(#ar)"/>
+<text class="ml plain" x="655.0" y="378" text-anchor="middle">3. Token exchange (RFC 8693)</text><text class="ms" x="655.0" y="392" text-anchor="middle">subject_token = member, actor_token = agent, audience, scope</text>
+<line class="msg ok" x1="770" y1="460" x2="543" y2="460" marker-end="url(#ar)"/>
+<text class="ml ok" x="655.0" y="440" text-anchor="middle">4. Delegated token</text><text class="ms" x="655.0" y="454" text-anchor="middle">sub = member, act = {client_id: agent}, one aud, minutes</text>
+<line class="msg ok" x1="540" y1="522" x2="977" y2="522" marker-end="url(#ar)"/>
+<text class="ml ok" x="760.0" y="502" text-anchor="middle">5. Call with the delegated token</text><text class="ms" x="760.0" y="516" text-anchor="middle">200: audience and act check out</text>
+<line class="msg bad" x1="540" y1="584" x2="977" y2="584" marker-end="url(#ar)"/>
+<text class="ml bad" x="760.0" y="564" text-anchor="middle">6. Same call with the member's own token</text><text class="ms" x="760.0" y="578" text-anchor="middle">401: wrong audience, no act claim</text>
+<line class="msg ok" x1="540" y1="646" x2="313" y2="646" marker-end="url(#ar)"/>
+<text class="ml ok" x="425.0" y="626" text-anchor="middle">7. Result only</text><text class="ms" x="425.0" y="640" text-anchor="middle">tokens never reach the agent, the model or the browser</text></svg>
+</div>
+<div class="grid">
+<div class="box"><h2>What the delegated token says</h2>
+<table>
+<tr><th>sub</th><td>the member (unchanged from sign-in)</td></tr>
+<tr><th>act</th><td><code>{ "client_id": "&lt;agent&gt;" }</code>, the agent that acts</td></tr>
+<tr><th>aud</th><td>one downstream API, narrower than the sign-in token</td></tr>
+<tr><th>scope</th><td>only what the task needs (<code>obo:invoke</code> in the demo)</td></tr>
+<tr><th>exp</th><td>minutes</td></tr>
+</table></div>
+<div class="box"><h2>Why it holds</h2>
+<ul>
+<li><span class="ok-t">Delegation, not impersonation:</span> audit shows member and agent, not the member alone.</li>
+<li><span class="bad-t">Member's own token is refused</span> by the downstream: wrong audience, no <code>act</code>.</li>
+<li>The agent, the model and the browser never see either token.</li>
+<li>Revoke the agent's client and delegation stops; the member's session is untouched.</li>
+</ul></div>
+<div class="box"><h2>Setup it needs in PingOne</h2>
+<ul>
+<li>A resource for the downstream audience and scope.</li>
+<li>An AI Agent app (actor) with client credentials.</li>
+<li>A separate Token Exchanger app allowed to do token exchange.</li>
+<li>A token-exchange policy that maps <code>act</code> to the actor's <code>client_id</code>.</li>
+<li>The member must sign in through a client the exchange policy trusts, or the subject token is rejected.</li>
+</ul></div>
+</div>
+<footer>Verified live: 7 of 7 checks pass in the demo (sub preserved, act names the agent, audience narrowed, downstream accepts the delegated token and refuses the member's own, no token text returned).</footer>
+</main>
+</body>
+</html>

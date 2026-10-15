@@ -1,8 +1,9 @@
-.obo-demo { max-width: 76rem; padding: 1.5rem; color: var(--th-text); }
+.obo-demo { max-width: 100rem; padding: 1.5rem; color: var(--th-text); }
 .obo-demo__title { font-size: 1.4rem; margin: 0 0 0.75rem; }
 .obo-demo__lede { color: var(--th-text-muted); line-height: 1.5; max-width: 52rem; }
-.obo-demo__workspace { display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr); gap: 1rem; align-items: start; }
-@media (max-width: 60rem) { .obo-demo__workspace { grid-template-columns: 1fr; } }
+.obo-demo__workspace { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) minmax(0, 1.1fr); gap: 1rem; align-items: start; }
+@media (max-width: 80rem) { .obo-demo__workspace { grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); } }
+@media (max-width: 55rem) { .obo-demo__workspace { grid-template-columns: 1fr; } }
 .obo-demo__card { background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: 8px; padding: 1rem; margin-bottom: 1rem; }
 .obo-demo__h2 { font-size: 0.8rem; text-transform: uppercase; letter-spacing: 0.06em; color: var(--th-text-muted); margin: 0 0 0.75rem; }
 .obo-demo__who { display: grid; grid-template-columns: max-content 1fr; gap: 0.25rem 0.75rem; margin: 0 0 0.75rem; font-size: 0.85rem; }
@@ -19,9 +20,9 @@
 .obo-demo__verdict { margin-top: 0.75rem; padding: 0.6rem 0.8rem; border-radius: 6px; font-weight: 600; border: 1px solid var(--th-border); }
 .obo-demo__verdict--pass { background: var(--th-status-success-bg); border-color: var(--th-status-success-border); color: var(--th-status-success-text); }
 .obo-demo__verdict--fail { background: var(--th-status-error-bg); border-color: var(--th-status-error-border); color: var(--th-status-error-text); }
-.obo-demo__checks { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.35rem 0.75rem; font-size: 0.85rem; }
-.obo-demo__checks li { display: flex; gap: 0.5rem; align-items: baseline; }
-.obo-demo__chip { font-size: 0.7rem; font-weight: 700; padding: 0 0.4rem; border-radius: 4px; border: 1px solid var(--th-border); }
+.obo-demo__checks { list-style: none; padding: 0; margin: 0.75rem 0 0; display: grid; grid-template-columns: 1fr 1fr; gap: 0.5rem 1rem; font-size: 0.85rem; line-height: 1.4; }
+.obo-demo__checks li { display: flex; gap: 0.5rem; align-items: flex-start; min-width: 0; }
+.obo-demo__chip { flex: none; font-size: 0.7rem; line-height: 1.4; font-weight: 700; padding: 0 0.4rem; border-radius: 4px; border: 1px solid var(--th-border); }
 .obo-demo__chip--pass { background: var(--th-status-success-bg); border-color: var(--th-status-success-border); color: var(--th-status-success-text); }
 .obo-demo__chip--fail { background: var(--th-status-error-bg); border-color: var(--th-status-error-border); color: var(--th-status-error-text); }
 .obo-demo__trace { list-style: none; padding: 0; margin: 0; }
@@ -50,7 +51,8 @@
 .obo-demo__diff { color: var(--th-status-info-text); }
 .obo-demo__good { color: var(--th-status-success-text); }
 .obo-demo__bad { color: var(--th-status-error-text); }
-.obo-demo__live { margin-top: 1rem; }
-.obo-demo__hint { color: var(--th-text-muted); margin: 0.25rem 0 0.5rem; }
-.obo-demo__command { background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: 6px; padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.obo-demo__hint { color: var(--th-text-muted); font-size: 0.85rem; margin: 0 0 0.5rem; }
+.obo-demo__steps { margin: 0; padding-left: 1.2rem; font-size: 0.85rem; line-height: 1.5; }
+.obo-demo__steps li { margin-bottom: 0.5rem; }
+.obo-demo__code { margin: 0.3rem 0 0; padding: 0.5rem 0.6rem; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: 6px; font-size: 0.75rem; white-space: pre-wrap; overflow-wrap: anywhere; }
 .obo-demo__limits { color: var(--th-text-muted); margin-top: 1.5rem; font-size: var(--font-size-sm); }

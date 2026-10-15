@@ -8,14 +8,14 @@ jest.mock('../../../services/oboExchangeService');
 jest.mock('../../../services/oboDownstream');
 jest.mock('../../../services/oboEventHub');
 jest.mock('../../../services/oboConfig', () => ({
-  getOboConfig: () => ({ issuer: 'https://iss', jwksUri: 'https://iss/jwks', inboundAudiences: ['mcpgateway.ping.demo'], claudeClient: { id: 'client-1', callbackPort: 7465 } }),
+  getOboConfig: () => ({ issuer: 'https://iss', jwksUri: 'https://iss/jwks', inboundAudiences: ['mcpgateway.ping.demo'] }),
 }));
 
 const { validateToken } = require('../../../services/tokenValidationService');
 const { runObo } = require('../../../services/oboExchangeService');
 const { verifyDownstream } = require('../../../services/oboDownstream');
 const hub = require('../../../services/oboEventHub');
-const { router, metadataHandler, eventsHandler, infoHandler } = require('../../../routes/obo');
+const { router, metadataHandler, eventsHandler } = require('../../../routes/obo');
 
 const app = express();
 app.use(express.json());
@@ -312,19 +312,5 @@ describe('GET /api/obo/events', () => {
     const before = res.chunks.length;
     jest.advanceTimersByTime(60000);
     expect(res.chunks.length).toBe(before); // heartbeat stopped
-  });
-});
-
-describe('GET /api/obo/info', () => {
-  test('401 when signed out', () => {
-    const res = fakeRes();
-    infoHandler(fakeReq({}), res);
-    expect(res.statusCode).toBe(401);
-  });
-  test('returns the MCP URL for this origin plus the public client id, no secrets', () => {
-    const res = fakeRes();
-    infoHandler(fakeReq({ oauthTokens: { accessToken: jwtWith({ sub: 'u1' }) } }), res);
-    expect(res.body).toEqual({ mcpUrl: expect.stringMatching(/\/api\/obo\/mcp$/), clientId: 'client-1', callbackPort: 7465 });
-    expect(JSON.stringify(res.body)).not.toMatch(/secret/i);
   });
 });

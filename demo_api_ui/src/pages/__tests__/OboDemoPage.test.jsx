@@ -3,8 +3,7 @@ import { fireEvent, render, screen, waitFor, act, within } from "@testing-librar
 import OboDemoPage from "../OboDemoPage";
 
 const post = vi.fn();
-const get = vi.fn();
-vi.mock("../../services/apiClient", () => ({ default: { post: (...a) => post(...a), get: (...a) => get(...a) } }));
+vi.mock("../../services/apiClient", () => ({ default: { post: (...a) => post(...a) } }));
 
 class FakeEventSource {
   static instances = [];
@@ -12,11 +11,8 @@ class FakeEventSource {
   close() {}
 }
 
-const INFO = { mcpUrl: "https://demo.example/api/obo/mcp", clientId: "client-1", callbackPort: 7465 };
-
 beforeEach(() => {
   post.mockReset();
-  get.mockReset().mockResolvedValue({ data: INFO });
   FakeEventSource.instances = [];
   globalThis.EventSource = FakeEventSource;
 });
@@ -91,19 +87,18 @@ describe("OboDemoPage", () => {
     expect(screen.getAllByText("skipped")).toHaveLength(4);
   });
 
-  it("shows the exact claude mcp add command for this origin", async () => {
+  it("links the flow diagram and opens it in a new tab", () => {
     render(<OboDemoPage />);
-    const cmd = await screen.findByTestId("obo-setup-command");
-    expect(cmd).toHaveTextContent("claude mcp add --transport http obo-demo https://demo.example/api/obo/mcp");
-    expect(cmd).toHaveTextContent("--client-id client-1");
-    expect(cmd).toHaveTextContent("--callback-port 7465");
+    const link = screen.getByRole("link", { name: /flow diagram/i });
+    expect(link).toHaveAttribute("href", "/architecture/obo-flow.html");
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
 
-  it("still renders when /api/obo/info fails, with a plain note instead of the command", async () => {
-    get.mockRejectedValueOnce(new Error("503"));
+  it("shows the Claude Code steps with this origin's endpoint and the tool to allow", () => {
     render(<OboDemoPage />);
-    expect(await screen.findByText(/setup command is unavailable/i)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: /run the delegation/i })).toBeEnabled();
+    expect(screen.getByText(/claude mcp add --transport http obo-demo/)).toHaveTextContent(`${window.location.origin}/api/obo/mcp`);
+    expect(screen.getByText(/mcp__obo-demo__act_on_my_behalf/)).toBeInTheDocument();
   });
 
   it("renders a live event from Claude when one arrives on the stream", async () => {
@@ -116,13 +111,6 @@ describe("OboDemoPage", () => {
     expect(screen.queryByText(/waiting for claude/i)).toBeNull();
   });
 
-  it("tells the user to sign in again when /api/obo/info is 401", async () => {
-    get.mockRejectedValueOnce({ response: { status: 401 } });
-    render(<OboDemoPage />);
-    expect(await screen.findByText(/sign in again to see the setup command/i)).toBeInTheDocument();
-    expect(screen.queryByText(/setup command is unavailable/i)).toBeNull();
-  });
-
   it("shows when the latest live call happened, only if ts is valid", async () => {
     render(<OboDemoPage />);
     act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify({ source: "claude", checks: [] }) }); });
@@ -130,10 +118,5 @@ describe("OboDemoPage", () => {
     expect(within(live).queryByText(/last call at/i)).toBeNull();
     act(() => { FakeEventSource.instances[0].onmessage({ data: JSON.stringify({ source: "claude", ts: "2026-10-14T20:00:00Z", checks: [] }) }); });
     expect(await within(live).findByText(/last call at/i)).toBeInTheDocument();
-  });
-
-  it("includes the token swap diagram", async () => {
-    render(<OboDemoPage />);
-    expect(await screen.findByLabelText(/token swap diagram/i)).toBeInTheDocument();
   });
 });
