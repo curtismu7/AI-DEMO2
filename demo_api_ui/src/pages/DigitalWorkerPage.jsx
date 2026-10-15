@@ -190,15 +190,17 @@ function Canvas() {
         minWidth={380}
         storageKey={null}
       >
-        <input
-          className="dw-edge-input"
-          aria-label="Arrow label"
-          value={edgeEdit?.text ?? ""}
-          onChange={(ev) => setEdgeEdit({ ...edgeEdit, text: ev.target.value })}
-          onKeyDown={(ev) => { if (ev.key === "Enter") saveEdge(); }}
-          // eslint-disable-next-line jsx-a11y/no-autofocus
-          autoFocus
-        />
+        <div className="dm-scroll">
+          <input
+            className="dw-edge-input"
+            aria-label="Arrow label"
+            value={edgeEdit?.text ?? ""}
+            onChange={(ev) => setEdgeEdit({ ...edgeEdit, text: ev.target.value })}
+            onKeyDown={(ev) => { if (ev.key === "Enter") saveEdge(); }}
+            // eslint-disable-next-line jsx-a11y/no-autofocus
+            autoFocus
+          />
+        </div>
       </DraggableModal>
     </>
   );
