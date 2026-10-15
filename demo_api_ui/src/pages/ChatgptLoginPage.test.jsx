@@ -1,20 +1,20 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+import { render, screen } from '@testing-library/react';
 import ChatgptLoginPage from './ChatgptLoginPage';
-import { STEPS } from './chatgptLoginSteps';
+import { NODES, EDGES, walk } from './chatgptLoginDiagram';
 
 describe('ChatgptLoginPage', () => {
-  it('has the 12 numbered steps of the flow', () => {
-    expect(STEPS.map((s) => s.n)).toEqual([1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12]);
+  it('walks the 12 steps of the flow, each along known nodes and edges', () => {
+    expect(walk).toHaveLength(12);
+    const ids = new Set(NODES.map((n) => n.id));
+    for (const w of walk) {
+      expect(w.nodes.every((n) => ids.has(n))).toBe(true);
+      expect(w.edges.every((e) => e >= 0 && e < EDGES.length)).toBe(true);
+    }
   });
 
-  it('steps through the flow and shows the detail for the current step', () => {
+  it('renders the shared diagram page with the three policy cards', () => {
     render(<ChatgptLoginPage />);
-    expect(screen.getByText('Step 1 of 12')).toBeTruthy();
-    fireEvent.click(screen.getByText('Next'));
-    fireEvent.click(screen.getByText('Next'));
-    expect(screen.getByText('Step 3 of 12')).toBeTruthy();
-    expect(screen.getByRole('heading', { name: 'Authentication required' })).toBeTruthy();
-    fireEvent.click(screen.getByText('Reset'));
-    expect(screen.getByText('Step 1 of 12')).toBeTruthy();
+    expect(screen.getByText('How ChatGPT Requests User Login')).toBeTruthy();
+    expect(screen.getByText('Three separate decisions')).toBeTruthy();
   });
 });
