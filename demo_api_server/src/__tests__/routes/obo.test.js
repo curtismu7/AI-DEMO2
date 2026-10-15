@@ -217,18 +217,18 @@ describe('POST /api/obo/run (page entry point)', () => {
     expect(res.status).toBe(502);
     expect(JSON.stringify(res.body)).not.toMatch(/tok-sess|invalid_grant/);
   });
-});
 
-test('logs the PingOne reason server-side, without any token', async () => {
-  const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
-  runObo.mockRejectedValue(Object.assign(new Error('Request failed with status code 400 tok-sess'), {
-    error: 'invalid_scope', error_description: 'At least one scope must be granted', httpStatus: 400,
-  }));
-  const res = await request(runApp({ oauthTokens: { accessToken: 'tok-sess' } })).post('/api/obo/run');
-  expect(res.status).toBe(502);
-  const logged = JSON.stringify(spy.mock.calls);
-  expect(logged).toMatch(/invalid_scope/);
-  expect(logged).toMatch(/At least one scope must be granted/);
-  expect(logged).not.toMatch(/tok-sess/);
-  spy.mockRestore();
+  test('logs the PingOne reason server-side, without any token', async () => {
+    const spy = jest.spyOn(console, 'error').mockImplementation(() => {});
+    runObo.mockRejectedValue(Object.assign(new Error('Request failed with status code 400 tok-sess'), {
+      error: 'invalid_scope', error_description: 'At least one scope must be granted', httpStatus: 400,
+    }));
+    const res = await request(runApp({ oauthTokens: { accessToken: 'tok-sess' } })).post('/api/obo/run');
+    expect(res.status).toBe(502);
+    const logged = JSON.stringify(spy.mock.calls);
+    expect(logged).toMatch(/invalid_scope/);
+    expect(logged).toMatch(/At least one scope must be granted/);
+    expect(logged).not.toMatch(/tok-sess/);
+    spy.mockRestore();
+  });
 });
