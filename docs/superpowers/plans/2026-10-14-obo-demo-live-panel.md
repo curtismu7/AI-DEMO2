@@ -10,11 +10,11 @@
 
 **Spec:** `docs/superpowers/specs/2026-10-14-obo-demo-page-design.md` (sections 3 to 4 and success criterion S3)
 
-## Prerequisites (hard gates; do not start Task 1 until all hold)
+## Prerequisites
 
-1. PR #1328 (OBO MCP endpoint, downstream verifier, event hub use, bootstrap resource) is merged to `main`. This plan adds routes to `routes/obo.js` and edits `services/oboEventHub.js` from that PR.
-2. The backend plan's **Task 6 live probe passed**: Claude Code logged in and called `act_on_my_behalf` against `/api/obo/mcp` on the target environment with all 7 checks passing. If the hosted probe failed, stop and revisit the approach (spec Approach B) instead of building the UI.
-3. Work in a fresh worktree from `origin/main` (CLAUDE.md requires one). Another session already shipped `OboDemoPage` and `POST /api/obo/run` (#1327); check `git log origin/main -- demo_api_ui/src/pages/OboDemoPage.jsx` for further changes before you start and rebase this plan's file edits onto what is there.
+1. PR #1328 (OBO MCP endpoint, downstream verifier, bootstrap resource) is merged. **Met** (merged 2026-10-15). This plan adds routes to `routes/obo.js` and edits `services/oboEventHub.js` from that PR.
+2. The backend plan's live probe passed on the local stack. **Met** (2026-10-15: Claude Code signed in and called `act_on_my_behalf` on `/api/obo/mcp`; see `docs/runbooks/obo-demo.md`). The **hosted-site probe is still not run**; this plan builds and verifies locally, and the hosted site stays unverified until that probe passes. If the hosted probe later fails, revisit the approach (spec Approach B) before shipping to the hosted site.
+3. Work in a fresh worktree from `origin/main` (CLAUDE.md requires one). Another session already shipped `OboDemoPage` and `POST /api/obo/run` (#1327), and `fix/obo-audience-and-logging` may be touching the endpoint; check `git log origin/main -- demo_api_ui/src/pages/OboDemoPage.jsx demo_api_server/routes/obo.js` before you start and apply this plan's edits onto what is there.
 
 ## Global Constraints
 
