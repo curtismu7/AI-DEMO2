@@ -482,3 +482,40 @@
 .cur-ide .privilege-a2a__compare th,
 .cur-ide .privilege-a2a__compare td { text-align: left; vertical-align: top; padding: 5px 4px; border-bottom: 1px solid var(--a2a-border); }
 .cur-ide .privilege-a2a__compare th { width: 38%; font-weight: 600; }
+
+/* ── Compact agent: lives in the agent column, never over the reel or details ─ */
+.cur-ide .privilege-a2a__conversation { position: relative; }
+.cur-ide .privilege-a2a__dock-open {
+  position: absolute;
+  left: 12px;
+  bottom: 12px;
+  z-index: 5;
+  border: 0;
+  border-radius: 999px;
+  background: var(--a2a-accent);
+  color: #fff;
+  padding: 7px 14px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.cur-ide .privilege-a2a__dock {
+  position: absolute;
+  left: 12px;
+  right: 12px;
+  bottom: 12px;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 10px;
+  border: 1px solid var(--a2a-border);
+  border-radius: 10px;
+  background: var(--a2a-surface);
+  box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
+}
+.cur-ide .privilege-a2a__dock-bar { display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: var(--font-size-sm); }
+.cur-ide .privilege-a2a__dock-bar button { border: 1px solid var(--a2a-border); border-radius: 6px; background: transparent; color: inherit; padding: 0 8px; cursor: pointer; }
+.cur-ide .privilege-a2a__dock textarea { width: 100%; resize: vertical; border: 1px solid var(--a2a-border); border-radius: 6px; background: var(--a2a-ground); color: var(--a2a-ink); padding: 6px 8px; font: inherit; }
+.cur-ide .privilege-a2a__dock-send { align-self: flex-end; border: 0; border-radius: 6px; background: var(--a2a-accent); color: #fff; padding: 6px 14px; font: inherit; font-weight: 700; cursor: pointer; }
+.cur-ide .privilege-a2a__dock-send:disabled { opacity: 0.5; cursor: not-allowed; }
