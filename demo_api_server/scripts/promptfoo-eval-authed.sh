@@ -10,4 +10,7 @@ export PROMPTFOO_BASE_URL="$E2E_BASE_URL"
 export NODE_TLS_REJECT_UNAUTHORIZED=0
 AGENT_COOKIE="$(node promptfoo/auth-cookie.js)"
 export AGENT_COOKIE
-exec npx promptfoo eval -c promptfoo/agent-eval.yaml --no-progress-bar "$@"
+# -j 1: one request at a time. Concurrent requests share one session and each makes
+# ~10 PingOne calls, so parallelism trips PingOne Authorize rate limiting (429) and
+# the run then measures the quota, not the agent. Pass -j N after this to override.
+exec npx promptfoo eval -c promptfoo/agent-eval.yaml --no-progress-bar -j 1 "$@"
