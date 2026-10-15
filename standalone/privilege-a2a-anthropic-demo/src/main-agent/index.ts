@@ -5,7 +5,7 @@ import Anthropic from '@anthropic-ai/sdk';
 import { describeMode, mainAgentConfig, viaGateway } from '../config.js';
 import { parseMode, parseProfile, parseUserName, withLabels, type Profile } from '../profile.js';
 import { systemPromptFor } from './prompts.js';
-import { stripUnsourcedScope } from './scopeFilter.js';
+import { stripUnsourcedScope, textOfTurn } from './scopeFilter.js';
 import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { renderPage } from './ui.js';
@@ -232,9 +232,11 @@ app.post('/chat', async (req: Request, res: Response) => {
           messages,
         });
         abortActiveModelStream = () => stream.controller.abort();
-        stream.on('text', text => sendSse(res, 'token', { text }));
         const response = await stream.finalMessage();
         abortActiveModelStream = undefined;
+        // Sent after the round, through the claim filter. Streaming raw text bypassed it.
+        const roundText = textOfTurn(response.content);
+        if (roundText) sendSse(res, 'token', { text: stripUnsourcedScope(roundText, rawSourceTexts.join('\n')) });
         sendSse(res, 'trace', { kind: 'model', from: 'main', to: 'main', text: `main agent · ${config.model}`, tokens: tokenCounts(response), at: at() });
         messages.push({ role: 'assistant', content: response.content });
 

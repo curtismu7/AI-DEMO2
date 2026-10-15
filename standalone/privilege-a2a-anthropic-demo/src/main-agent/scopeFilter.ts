@@ -21,6 +21,11 @@ function claimsIn(sentence: string): string[] {
     .flatMap(pattern => [...sentence.matchAll(pattern)].map(match => match[0].toLowerCase()));
 }
 
+/** The plain text of a model turn, joined; tool-use blocks contribute nothing. */
+export function textOfTurn(content: ReadonlyArray<{ type: string; text?: string }>): string {
+  return content.map(block => (block.type === 'text' ? block.text ?? '' : '')).join('');
+}
+
 export function stripUnsourcedScope(reply: string, analystText: string): string {
   const source = analystText.toLowerCase();
   const sentences = reply.split(/(?<=[.!?])\s+/);
