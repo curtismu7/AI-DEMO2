@@ -4,7 +4,7 @@
 const FAILED = { kind: 'error', text: 'Dot could not complete that request.' };
 
 export function mapInvokeResult(status, body) {
-  if (status === 401) return { signedOut: true, items: [], memories: [] };
+  if (status === 401 || body?.need_auth || body?.requiresLogin) return { signedOut: true, items: [], memories: [] };
   if (status === 403 && body?.error === 'intent_not_authorized') {
     return { signedOut: false, memories: [], items: [{ kind: 'tool', name: body.intent || 'request', verdict: 'DENY', reason: body.message }] };
   }
@@ -14,6 +14,9 @@ export function mapInvokeResult(status, body) {
   if (status >= 400 || !body || typeof body !== 'object') return { signedOut: false, memories: [], items: [FAILED] };
 
   const tools = Array.isArray(body.toolsCalled) ? body.toolsCalled : [];
+  if (tools.length && (body.requiresConsent || body.error === 'hitl_required')) {
+    return { signedOut: false, memories: [], items: tools.map((name) => ({ kind: 'tool', name, verdict: 'CONSENT', reason: body.reply })) };
+  }
   const denied = body.success === false || body.mcpAuthorizeEvaluation?.decision === 'DENY';
   if (denied && tools.length) {
     return { signedOut: false, memories: [], items: tools.map((name) => ({ kind: 'tool', name, verdict: 'DENY', reason: body.reply })) };

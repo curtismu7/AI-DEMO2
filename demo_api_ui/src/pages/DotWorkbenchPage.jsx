@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import DotMemoryPanel from '../components/DotMemoryPanel';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
@@ -8,6 +8,7 @@ import DotGovernsPanel from '../components/dot/DotGovernsPanel';
 import { useDotPersona } from '../components/dot/useDotPersona';
 import { mapInvokeResult } from '../utils/dotChat';
 import { DOT_SUGGESTIONS } from '../config/dotSuggestions';
+import { useThemeOptional } from '../context/ThemeContext';
 import { openSignIn } from '../utils/signInService';
 // Same workbench shell sheet as /privilege-a2a (cur-ide / cur-titlebar), plus Dot's own.
 import './PrivilegeMcpClientPage.css';
@@ -28,11 +29,18 @@ export default function DotWorkbenchPage({ user }) {
   const [memNonce, setMemNonce] = useState(0);
   const identity = user?.email || user?.username || user?.name || '';
 
-  const flipTheme = () => setTheme((t) => {
-    const next = t === 'dark' ? 'light' : 'dark';
-    try { localStorage.setItem('cur_priv_theme', next); } catch { /* storage disabled */ }
-    return next;
-  });
+  // Follow the main top bar's light/dark switch after mount (same as /privilege-a2a); stored choice wins on load.
+  const { darkMode } = useThemeOptional();
+  const seenDarkMode = useRef(darkMode);
+  useEffect(() => {
+    if (seenDarkMode.current === darkMode) return;
+    seenDarkMode.current = darkMode;
+    setTheme(darkMode ? 'dark' : 'light');
+  }, [darkMode]);
+  useEffect(() => {
+    try { localStorage.setItem('cur_priv_theme', theme); } catch { /* storage disabled */ }
+  }, [theme]);
+  const flipTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
 
   async function send(text) {
     const prompt = (text ?? input).trim();

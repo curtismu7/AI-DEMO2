@@ -9,7 +9,7 @@ export default function DotPersonaCard({ persona, identity }) {
         <p>Remembers how you like things done. Ping governs every tool call, never its memory.</p>
       </div>
       <div className="dot-pills">
-        <span className="dot-pill">Acts as <b>{identity || '—'}</b></span>
+        <span className="dot-pill">Acts as <b>{identity || 'Not signed in'}</b></span>
         <span className="dot-pill">Agent identity <b>{persona.agentId || '—'}</b></span>
         {persona.scopes.length > 0 && <span className="dot-pill">Scopes <b>{persona.scopes.join(' · ')}</b></span>}
       </div>

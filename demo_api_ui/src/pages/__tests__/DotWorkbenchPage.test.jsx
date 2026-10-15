@@ -2,6 +2,8 @@ import { cleanup, fireEvent, render, screen, waitFor } from '@testing-library/re
 import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
+let mockDark = true;
+vi.mock('../../context/ThemeContext', () => ({ useThemeOptional: () => ({ darkMode: mockDark }) }));
 vi.mock('../../utils/signInService', () => ({ openSignIn: vi.fn() }));
 vi.mock('../../components/DotMemoryPanel', () => ({ default: ({ refreshNonce }) => <div data-testid="memory" data-nonce={refreshNonce}>memory</div> }));
 import { openSignIn } from '../../utils/signInService';
@@ -22,7 +24,7 @@ const send = (text) => {
   fireEvent.click(screen.getByRole('button', { name: 'Send' }));
 };
 
-beforeEach(() => localStorage.clear());
+beforeEach(() => { localStorage.clear(); mockDark = true; });
 afterEach(cleanup);
 
 describe('DotWorkbenchPage', () => {
@@ -54,6 +56,14 @@ describe('DotWorkbenchPage', () => {
     expect(screen.queryByText('PERMIT')).toBeNull();
   });
 
+  it('200 + need_auth guest reply shows the sign-in panel, not a Dot bubble', async () => {
+    mockFetch(() => json(200, { success: false, need_auth: true, requiresLogin: true, toolsCalled: [], reply: 'Please sign in to use the banking agent' }));
+    renderPage();
+    send('hello');
+    expect(await screen.findByRole('button', { name: /sign in/i })).toBeTruthy();
+    expect(screen.queryByText(/Please sign in to use the banking agent/)).toBeNull();
+  });
+
   it('401 shows the sign-in panel and no card; its button opens sign-in', async () => {
     mockFetch(() => json(401, { error: 'authentication_required' }));
     renderPage();
@@ -72,7 +82,11 @@ describe('DotWorkbenchPage', () => {
     renderPage();
     send('hi');
     expect(await screen.findByText('Dot could not complete that request.')).toBeTruthy();
-    await waitFor(() => expect(screen.getByRole('textbox', { name: /message dot/i }).value).toBe(''));
+    const invokes = () => global.fetch.mock.calls.filter(([u]) => String(u).includes('/api/agent/invoke')).length;
+    expect(invokes()).toBe(1);
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Send' }).disabled).toBe(true)); // empty input
+    send('again');
+    await waitFor(() => expect(invokes()).toBe(2));
   });
 
   it('chips send their prompt and disappear after the first message', async () => {
@@ -81,6 +95,16 @@ describe('DotWorkbenchPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Call me Sam' }));
     await screen.findByText('ok');
     expect(screen.queryByRole('group', { name: 'Suggested prompts' })).toBeNull();
+  });
+
+  it('a main top-bar theme flip after mount changes the page theme', () => {
+    mockFetch(() => json(200, {}));
+    const ui = () => <MemoryRouter><DotWorkbenchPage user={{ email: 'sam@x.com' }} /></MemoryRouter>;
+    const { rerender } = render(ui());
+    expect(document.querySelector('[data-cur-theme]').getAttribute('data-cur-theme')).toBe('dark');
+    mockDark = false;
+    rerender(ui());
+    expect(document.querySelector('[data-cur-theme]').getAttribute('data-cur-theme')).toBe('light');
   });
 
   it('skin tabs link to the Studio; theme button toggles', () => {

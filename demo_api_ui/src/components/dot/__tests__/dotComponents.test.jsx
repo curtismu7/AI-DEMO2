@@ -44,8 +44,9 @@ describe('DotPersonaCard', () => {
     expect(screen.getByText('ag-1')).toBeTruthy();
     expect(screen.getByText('miles:read · flights:book')).toBeTruthy();
   });
-  it('never invents values: missing data shows a dash and no scopes pill', () => {
+  it('never invents values: missing data shows Not signed in, a dash for the agent, and no scopes pill', () => {
     render(<DotPersonaCard identity="" persona={{ agentName: null, agentId: null, scopes: [], loaded: true }} />);
+    expect(screen.getByText('Not signed in')).toBeTruthy();
     expect(screen.getAllByText('—').length).toBeGreaterThan(0);
     expect(screen.queryByText(/Scopes/)).toBeNull();
     expect(screen.queryByText(/carol|7f3a/i)).toBeNull();

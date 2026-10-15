@@ -40,4 +40,20 @@ describe('mapInvokeResult', () => {
   it('reply with no toolsCalled: just the dot bubble', () => {
     expect(mapInvokeResult(200, { reply: 'Hi.', success: true, toolsCalled: [] }).items).toEqual([{ kind: 'dot', text: 'Hi.' }]);
   });
+
+  it('200 + need_auth guest reply: signedOut, no Dot bubble', () => {
+    const r = mapInvokeResult(200, { success: false, need_auth: true, requiresLogin: true, toolsCalled: [], reply: 'Please sign in to use the banking agent' });
+    expect(r).toEqual({ signedOut: true, items: [], memories: [] });
+  });
+
+  it('200 + requiresConsent / hitl_required: CONSENT card per tool, not DENY', () => {
+    const r = mapInvokeResult(200, { success: false, requiresConsent: true, error: 'hitl_required', toolsCalled: ['book_flight'], reply: 'Approve this.' });
+    expect(r.signedOut).toBe(false);
+    expect(r.items).toEqual([{ kind: 'tool', name: 'book_flight', verdict: 'CONSENT', reason: 'Approve this.' }]);
+    expect(mapInvokeResult(200, { success: false, error: 'hitl_required', toolsCalled: ['x'], reply: 'r' }).items[0].verdict).toBe('CONSENT');
+  });
+
+  it('plain success:false with tools stays DENY', () => {
+    expect(mapInvokeResult(200, { success: false, toolsCalled: ['x'], reply: 'no' }).items[0].verdict).toBe('DENY');
+  });
 });
