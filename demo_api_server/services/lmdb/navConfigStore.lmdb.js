@@ -51,6 +51,7 @@ const BUILTIN_CONFIGS = [
   preset('uc-personal-agent', 'Use case · Personal agent', 'Personal Agents', 'AI Experiences', 'Delegation & Consent', 'MCP & Integrations'),
   preset('uc-digital-assistant', 'Use case · Digital assistant', 'AI Experiences', 'Jev Demos', 'MCP & Integrations'),
   preset('uc-agent-security', 'Use case · Agent security', 'Agent Privilege', 'AI Experiences', 'MCP & Integrations', 'Observability'),
+  preset('uc-a2a', 'Use case · A2A', 'Agent Privilege', 'AI Experiences', 'Personal Agents', 'Delegation & Consent', 'Diagrams', 'Observability'),
   preset('uc-delegation', 'Use case · Delegation & OBO', 'Delegation & Consent', 'Authorize', 'Utilities', 'Diagrams'),
   // By demo situation
   preset('exec-10min', 'Exec · 10 minutes', 'Security Dashboard', 'AI Experiences', 'Personal Agents'),
