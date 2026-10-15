@@ -230,20 +230,14 @@ function renderThemedAgent(props = {}, { route = "/" } = {}) {
   );
 }
 
-// ─── Post-OAuth: no auto-open ────────────────────────────────────────────────
-// The floating agent stays an icon after sign-in on every route (#1408); only
-// explicit opens (nav, run attack, demo steps) expand it.
+// ─── Post-OAuth auto-open ────────────────────────────────────────────────────
+// The floating agent stays an icon on return from login, on every route (#1408).
 describe("No auto-open on return from OAuth login", () => {
-  it("stays collapsed on a non-admin route", async () => {
-    renderAgent({ user: customerUser, mode: "float" }, { route: "/dashboard?oauth=success" });
-    await waitFor(() => {
-      expect(screen.getByRole("button", { name: /Open.*AI Agent/i })).toBeInTheDocument();
-    });
-    expect(screen.queryByRole("dialog", { name: /AI Agent/i })).not.toBeInTheDocument();
-  });
-
-  it("stays collapsed on the PingOne admin console", async () => {
-    renderAgent({ user: adminUser, mode: "float" }, { route: "/admin?oauth=success" });
+  it.each([
+    ["a non-admin route", customerUser, "/dashboard?oauth=success"],
+    ["the PingOne admin console", adminUser, "/admin?oauth=success"],
+  ])("stays collapsed on %s", async (_name, user, route) => {
+    renderAgent({ user, mode: "float" }, { route });
     // The FAB is the collapsed state; assert it is still the only affordance.
     await waitFor(() => {
       expect(screen.getByRole("button", { name: /Open.*AI Agent/i })).toBeInTheDocument();

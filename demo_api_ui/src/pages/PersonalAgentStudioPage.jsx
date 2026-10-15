@@ -13,6 +13,8 @@ import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import InlineSpinner from '../components/shared/InlineSpinner';
+import OboDemoPage from './OboDemoPage';
+import SignInPrompt from '../components/SignInPrompt';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua', 'dot'];
@@ -81,7 +83,7 @@ const LAYOUT_STYLES = {
   popped: { agentFlex: '0 0 280px', railWidth: 'auto', railVisible: true, placeholderVisible: true },
 };
 
-export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0 }) {
+export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null }) {
   const location = useLocation();
   const query = new URLSearchParams(location.search);
   const routeId = query.get('useCase');
@@ -98,6 +100,8 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const [consentRetry, setConsentRetry] = useState(null);
   const [layoutState, setLayoutState] = useState('full');
   const [activeSkin, setActiveSkin] = useState('privilege');
+  // 'obo' swaps the chat for the RFC 8693 delegation inspector (deep link: ?tab=obo).
+  const [view, setView] = useState(query.get('tab') === 'obo' ? 'obo' : 'agent');
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent', 'heuristics');
   const [theme, setTheme] = useState('dark');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
@@ -367,8 +371,24 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       <div style={{ background: 'var(--surface, #1a1d27)', borderBottom: '1px solid var(--border, #2e3347)', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--th-text)', marginRight: 8 }}>Digital Assistant</span>
 
+        {/* View tabs */}
+        <div role="tablist" style={{ display: 'flex', gap: 4 }}>
+          {[['agent', 'Agent'], ['obo', 'Delegation proof (OBO)']].map(([id, label]) => (
+            <button
+              key={id}
+              type="button"
+              role="tab"
+              aria-selected={view === id}
+              onClick={() => setView(id)}
+              style={{ padding: '5px 12px', borderRadius: 6, cursor: 'pointer', border: `1px solid ${view === id ? 'var(--accent, #4f8ef7)' : 'transparent'}`, background: view === id ? 'rgba(79,142,247,0.15)' : 'transparent', fontSize: 12, fontWeight: 600, color: view === id ? 'var(--th-text)' : 'var(--th-text-muted)' }}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+
         {/* Skin tabs */}
-        <div style={{ display: 'flex', gap: 4, flex: 1 }}>
+        {view === 'agent' && <div style={{ display: 'flex', gap: 4, flex: 1 }}>
           {SKINS.map((s) => (
             <button
               key={s}
@@ -379,10 +399,10 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
               {SKIN_LABELS[s]}
             </button>
           ))}
-        </div>
+        </div>}
 
         {/* Actions */}
-        <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', alignItems: 'center' }}>
+        {view === 'agent' && <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', alignItems: 'center' }}>
           <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} />
           <button
             onClick={() => setLayoutState((s) => s === 'split' ? 'full' : 'split')}
@@ -403,9 +423,14 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           >
             {theme === 'dark' ? 'Light' : 'Dark'}
           </button>
-        </div>
+        </div>}
       </div>
 
+      {view === 'obo' ? (
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          {user ? <OboDemoPage /> : <SignInPrompt message="The delegation proof runs on your signed-in session." />}
+        </div>
+      ) : (<>
       <PersonalAgentClientCards />
 
       {/* Content area */}
@@ -488,6 +513,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       <div className="tcfs-float-host" style={{ flexShrink: 0, maxHeight: '45%' }}>
         <TokenChainFilmstrip />
       </div>
+      </>)}
       {mfaModal}
     </div>
   );

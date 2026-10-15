@@ -1609,7 +1609,7 @@ function AppWithAuth() {
                   element={
                     // Public route — no login required (same pattern as /pingcli).
                     <AppShell user={user} logout={logout}>
-                      <PersonalAgentStudioPage />
+                      <PersonalAgentStudioPage user={user} />
                     </AppShell>
                   }
                 />
