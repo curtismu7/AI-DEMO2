@@ -5,9 +5,10 @@ import useOboLive from "../components/obo/useOboLive";
 import OboStepWire from "../components/obo/OboStepWire";
 import "./OboDemoPage.css";
 
-// On-behalf-of demo. The BFF runs RFC 8693 delegation for the signed-in user and returns a step
-// trace: status, timing and token-free facts per hop. This page renders that trace; it never sees
-// a token. Layout follows /privilege-a2a: the run on the left, the trace on the right, and a click
+// On-behalf-of demo. The BFF runs RFC 8693 delegation for the signed-in user and returns, for this
+// in-app run only, a step trace with token-free facts plus (when it captured them) the real
+// request/response and the caller's own raw tokens, which this page renders; client secrets arrive
+// already masked. Layout follows /privilege-a2a: the run on the left, the trace on the right, and a click
 // on a trace line opens that step's details on the left.
 const SHORT = (sha) => (sha ? `sha256 ${String(sha).slice(0, 8)} (hash only)` : "-");
 const AUD = (aud) => [].concat(aud || []).join(", ") || "-";
@@ -24,7 +25,7 @@ const STEPS = {
   3: { title: "Token exchange (RFC 8693)", route: "BFF → PingOne /as/token",
     why: "The Token Exchanger app trades your token plus the agent token for one delegated token.",
     rows: (f) => [["grant_type", f.grant_type], ["subject_token", `your token · ${SHORT(f.subjectSha)}`], ["actor_token", `agent token · ${SHORT(f.actorSha)}`], ["audience", f.audience], ["scope", f.scope], ["authenticated as", `Token Exchanger · ${f.exchanger}`]] },
-  4: { title: "Delegated token: what changed", route: "PingOne → BFF (claims only)",
+  4: { title: "Delegated token: what changed", route: "PingOne → BFF",
     why: "Your identity is kept, the agent is recorded as the actor, and the audience and scope are narrowed." },
   5: { title: "Downstream accepts the delegated token", route: "BFF → downstream API",
     why: "The downstream API only accepts a token with the right audience and an act claim.",

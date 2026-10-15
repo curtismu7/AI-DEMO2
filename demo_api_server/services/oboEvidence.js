@@ -35,7 +35,7 @@ function buildEvidence({ source, subjectToken, delegatedToken, actorClientId, do
     { id: 'aud-differs', label: 'Delegated token audience differs from the one the client held', pass: !sameAud(dC.aud, inC.aud) },
     { id: 'downstream-accepts-delegated', label: 'Downstream accepted the delegated token', pass: downstream.delegated === 200 },
     { id: 'downstream-refuses-user', label: 'Downstream refused the user token (the agent could not have used it)', pass: downstream.userToken === 401 },
-    { id: 'no-token-leak', label: 'Nothing returned to the model or browser contained a token', pass: !leak },
+    { id: 'no-token-leak', label: 'Nothing returned to the model or the live event contained a token', pass: !leak },
   ];
   return { ...evidence, checks, leak };
 }

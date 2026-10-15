@@ -2,7 +2,7 @@ import "./OboStepWire.css";
 
 const pretty = (v) => (v == null ? "" : typeof v === "string" ? v : JSON.stringify(v, null, 2));
 const form = (b) => (b && typeof b === "object" ? Object.entries(b).map(([k, v]) => `${k}=${v}`).join("\n&") : pretty(b));
-const copy = (text) => { try { navigator.clipboard?.writeText(text); } catch (_e) { /* no clipboard in this context */ } };
+const copy = (text) => { try { navigator.clipboard?.writeText(text)?.catch(() => {}); } catch (_e) { /* no clipboard in this context */ } };
 
 function Block({ label, text }) {
   if (!text) return null;

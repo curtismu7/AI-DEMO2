@@ -19,7 +19,7 @@ Seven checks, shown as PASS/FAIL in the app and in Claude's tool result:
 4. Its audience differs from the one the client held.
 5. The downstream API accepted the delegated token.
 6. The downstream API refused the user's token.
-7. Nothing returned to the model or the browser contained a token.
+7. Nothing returned to the model (the MCP result) or the live event contained a token. The in-app page shows tokens to you, the signed-in user, on purpose.
 
 Not shown: human approval (HITL). This is the identity layer a HITL step would sit on.
 
@@ -69,14 +69,14 @@ Not shown: human approval (HITL). This is the identity layer a HITL step would s
 ## Demo A: from the app (2 minutes, no Claude needed)
 
 1. Open the app, sign in as demoUser, and go to Personal Agents -> **OBO Demo** (`/obo-demo`).
-2. Say: "The server will do the delegation for my session. I never hand it my password or my token."
+2. Say: "The server will do the delegation for my session. I never hand my password or my token to the model."
 3. Click **Run the delegation**.
 4. Expect seven PASS lines under "Delegation checks". Then click each trace line in turn and say what it shows:
    - 1: your session token (raw and decoded).
    - 2: the agent's client-credentials request and response (`client_secret` shown as `***`) and the actor token.
    - 3: the exact RFC 8693 exchange request PingOne received (`grant_type` token-exchange, `subject_token`,
      `actor_token`, `audience`, `scope`) and the delegated token it returned.
-   - 4: your token and the delegated token side by side, with `act`.
+   - 4: your token's claims next to the delegated token's, plus the raw delegated token, with `act`.
    - 5 and 6: the in-process downstream check with its `Authorization` header, answering 200 for the delegated
      token and 401 for yours.
    - 7: the "no token reached the model" check.

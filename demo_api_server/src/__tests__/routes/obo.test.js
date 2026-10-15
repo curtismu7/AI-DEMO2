@@ -254,6 +254,7 @@ describe('POST /api/obo/run (page entry point)', () => {
     expect(res.status).toBe(502);
     expect(res.body.failedStep).toBe(3);
     expect(res.body.steps).toEqual(trace);
+    expect(res.headers['cache-control']).toMatch(/no-store/);
     expect(JSON.stringify(res.body)).not.toContain('tok-sess');
   });
 });

@@ -45,6 +45,14 @@ describe("OboStepWire", () => {
     expect(writeText).toHaveBeenCalledWith(RAW);
   });
 
+  it("swallows a rejected clipboard write", async () => {
+    Object.assign(navigator, { clipboard: { writeText: vi.fn(() => Promise.reject(new Error("denied"))) } });
+    render(<OboStepWire step={step} />);
+    expect(() => fireEvent.click(screen.getByRole("button", { name: "Copy Delegated token (raw)" }))).not.toThrow();
+    await Promise.resolve();
+    await new Promise((r) => setTimeout(r, 0));
+  });
+
   it("does not crash without a clipboard API", () => {
     Object.assign(navigator, { clipboard: undefined });
     render(<OboStepWire step={step} />);
