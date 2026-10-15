@@ -31,6 +31,7 @@
     "test:bff-tokens": "jest --testPathPattern='redisWireUrl|bffSessionGating' --forceExit --verbose",
     "test:session": "jest --testPathPattern='authSession|authStateCookie|bffSessionGating|session-store-resilience|oauth-e2e-integration' --forceExit",
     "test:chips": "jest --testPathPattern='extractChips|allChips.pipeline.integration' --forceExit",
+    "promptfoo:eval:authed": "bash scripts/promptfoo-eval-authed.sh",
     "promptfoo:step-narration": "bash scripts/promptfoo-step-narration.sh",
     "promptfoo:step-narration:full": "bash scripts/promptfoo-step-narration.sh --full",
     "promptfoo:step-narration:docker": "bash ../run-docker.sh promptfoo",
