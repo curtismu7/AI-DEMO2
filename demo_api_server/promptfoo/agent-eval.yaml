@@ -1,5 +1,7 @@
 # promptfoo eval: agent use-case correctness against the live /api/agent/invoke endpoint.
-# Run from demo_api_server/:  npx promptfoo@latest eval -c promptfoo/agent-eval.yaml
+# Run from demo_api_server/:  npm run promptfoo:eval:authed   (signs in first, see promptfoo/auth-cookie.js)
+#   or by hand: PROMPTFOO_BASE_URL=<app url> AGENT_COOKIE=<Cookie header> npx promptfoo eval -c promptfoo/agent-eval.yaml
+# Without AGENT_COOKIE every tool-backed case gets "Please sign in again" and the run measures nothing.
 # View results:               npx promptfoo@latest view
 description: AI-DEMO2 agent use-case correctness matrix
 
@@ -10,10 +12,11 @@ providers:
   - id: http
     label: Agent (heuristics)
     config:
-      url: http://localhost:3001/api/agent/invoke
+      url: "{{env.PROMPTFOO_BASE_URL}}/api/agent/invoke"
       method: POST
       headers:
         Content-Type: application/json
+        Cookie: "{{env.AGENT_COOKIE}}"
       body:
         prompt: "{{question}}"
         vertical: "{{vertical}}"
@@ -23,10 +26,11 @@ providers:
   - id: http
     label: Agent (LLM)
     config:
-      url: http://localhost:3001/api/agent/invoke
+      url: "{{env.PROMPTFOO_BASE_URL}}/api/agent/invoke"
       method: POST
       headers:
         Content-Type: application/json
+        Cookie: "{{env.AGENT_COOKIE}}"
       body:
         prompt: "{{question}}"
         vertical: "{{vertical}}"
