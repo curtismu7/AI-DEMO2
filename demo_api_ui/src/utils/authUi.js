@@ -282,13 +282,21 @@ function userHasInteracted() {
 }
 
 /**
+ * Identity probes ("who am I?"): a 401 here is the answer, not an interruption.
+ * They poll on boot and on a timer, so raising the modal turns every signed-out
+ * (or wall-gated) visit into an unprompted "Sign in required".
+ */
+const IDENTITY_PROBE_RE = /^\/api\/auth\/(oauth\/status|oauth\/user\/status|session)\/?$/;
+
+/**
  * Show the global SessionReauthBanner when an API call proves auth is required again.
  * Clears cached oauth status and stale React user state via `invalidateSession` on the event.
- * @param {{ status?: number, body?: unknown, pathname?: string }} [opts]
+ * @param {{ status?: number, body?: unknown, pathname?: string, url?: string }} [opts]
  */
 export function notifySessionExpiredIfNeeded(opts = {}) {
   if (typeof window === 'undefined') return;
-  const { status, body, pathname = window.location?.pathname } = opts;
+  const { status, body, pathname = window.location?.pathname, url } = opts;
+  if (url && IDENTITY_PROBE_RE.test(String(url).split('?')[0].replace(/^https?:\/\/[^/]+/, ''))) return;
   if (!isAuthRequiredApiError(status, body)) return;
   if (!isAuthenticatedAppSurface(pathname)) return;
   if (!userHasInteracted()) return;

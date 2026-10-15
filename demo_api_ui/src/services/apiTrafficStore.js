@@ -350,6 +350,7 @@ export function patchFetch() {
               status: 401,
               body,
               pathname: window.location?.pathname,
+              url,
             });
           })
           .catch(() => {});

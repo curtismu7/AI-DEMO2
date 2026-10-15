@@ -37,6 +37,7 @@ bffAxios.interceptors.response.use(
       notifySessionExpiredIfNeeded({
         status: 401,
         body: error.response?.data,
+        url: error.config?.url,
         pathname: typeof window !== 'undefined' ? window.location.pathname : '',
       });
     }

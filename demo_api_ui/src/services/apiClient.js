@@ -135,6 +135,7 @@ class ApiClient {
           notifySessionExpiredIfNeeded({
             status: 401,
             body: error.response?.data,
+            url: cfg.url,
             pathname: typeof window !== 'undefined' ? window.location.pathname : '',
           });
         }
