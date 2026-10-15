@@ -1,5 +1,8 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import apiClient from "../services/apiClient";
+import OboEvidenceCard from "../components/obo/OboEvidenceCard";
+import OboSwapDiagram from "../components/obo/OboSwapDiagram";
+import useOboLive from "../components/obo/useOboLive";
 import "./OboDemoPage.css";
 
 // On-behalf-of demo. The BFF runs RFC 8693 delegation for the signed-in user and returns a step
@@ -69,6 +72,21 @@ export default function OboDemoPage() {
   const [error, setError] = useState("");
   const [result, setResult] = useState(null); // { ok, steps, checks, failedStep, error }
   const [selected, setSelected] = useState(null);
+  const [info, setInfo] = useState(null);
+  const [infoFailed, setInfoFailed] = useState(false);
+  const live = useOboLive(true);
+
+  useEffect(() => {
+    let alive = true;
+    apiClient.get("/api/obo/info")
+      .then((r) => { if (alive) setInfo(r.data); })
+      .catch(() => { if (alive) setInfoFailed(true); });
+    return () => { alive = false; };
+  }, []);
+
+  const command = info
+    ? `claude mcp add --transport http obo-demo ${info.mcpUrl} --client-id ${info.clientId} --callback-port ${info.callbackPort}`
+    : null;
 
   async function run() {
     setBusy(true);
@@ -134,6 +152,10 @@ export default function OboDemoPage() {
         records the agent as <code>act</code>, and issues a token the downstream API accepts. Your own token is
         refused there. The model never sees either token.
       </p>
+      <div className="obo-demo__card">
+        <h2 className="obo-demo__h2">How it works</h2>
+        <OboSwapDiagram />
+      </div>
       <div className="obo-demo__workspace">
         <section aria-label="Run">
           <div className="obo-demo__card">
@@ -198,6 +220,26 @@ export default function OboDemoPage() {
           </div>
         </aside>
       </div>
+      <section aria-label="Live from Claude" className="obo-demo__card obo-demo__live">
+        <h2 className="obo-demo__h2">Live from Claude</h2>
+        {command ? (
+          <>
+            <p className="obo-demo__hint">Add this server in Claude Code, run <code>/mcp</code> to sign in, then ask it to call <code>act_on_my_behalf</code>.</p>
+            <pre className="obo-demo__command" data-testid="obo-setup-command">{command}</pre>
+          </>
+        ) : infoFailed ? (
+          <p className="obo-demo__hint">The setup command is unavailable right now.</p>
+        ) : null}
+        {live.length === 0 ? (
+          <p className="obo-demo__hint">Waiting for Claude to call the tool…</p>
+        ) : (
+          <OboEvidenceCard evidence={live[0]} />
+        )}
+      </section>
+      <p className="obo-demo__limits">
+        Limits: the BFF, which is the MCP server here, briefly holds your token to run the exchange, so
+        &quot;the agent&quot; means the model. Live events work with a single BFF replica.
+      </p>
     </div>
   );
 }

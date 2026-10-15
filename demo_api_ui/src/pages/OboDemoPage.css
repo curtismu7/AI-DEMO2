@@ -50,3 +50,7 @@
 .obo-demo__diff { color: var(--th-status-info-text); }
 .obo-demo__good { color: var(--th-status-success-text); }
 .obo-demo__bad { color: var(--th-status-error-text); }
+.obo-demo__live { margin-top: 1rem; }
+.obo-demo__hint { color: var(--th-text-muted); margin: 0.25rem 0 0.5rem; }
+.obo-demo__command { background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: 6px; padding: 0.75rem; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; }
+.obo-demo__limits { color: var(--th-text-muted); margin-top: 1.5rem; font-size: var(--font-size-sm); }
