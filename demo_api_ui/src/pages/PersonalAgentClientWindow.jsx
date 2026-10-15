@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import AgentClientSkin from '../components/AgentClientSkin';
+import OtpStepUpModal from '../components/OtpStepUpModal';
 import apiClient from '../services/apiClient';
 import { governanceFrom } from '../utils/dotGovernance';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
@@ -26,6 +27,8 @@ export default function PersonalAgentClientWindow() {
   const { activeId, pageManifest } = useVertical();
   const [scenario, setScenario] = useState(null);
   const [runState, setRunState] = useState({ status: 'idle', text: '' });
+  const [mfaChallenge, setMfaChallenge] = useState(null);
+  const [consentRetry, setConsentRetry] = useState(null);
 
   useEffect(() => {
     if (!workloadRoute) return;
@@ -56,8 +59,16 @@ export default function PersonalAgentClientWindow() {
     { role: 'agent', text: GREETINGS[skin] || GREETINGS.privilege },
   ]);
 
-  function handleSend(text) {
-    setMessages((prev) => [...prev, { role: 'user', text }]);
+  // In-app MFA, same flow as the studio page: a 428 consent gate is approved with PingOne MFA, then the prompt retries.
+  async function startChallenge() {
+    const response = await fetch('/api/auth/mfa/challenge', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+    if (!response.ok) throw new Error(`MFA initiation failed: ${response.status}`);
+    const { daId, devices } = await response.json();
+    setMfaChallenge({ daId, devices: devices || [] });
+  }
+
+  function handleSend(text, { retry = false } = {}) {
+    if (!retry) setMessages((prev) => [...prev, { role: 'user', text }]);
     setMessages((prev) => [...prev, { role: 'agent', typing: true, text: '' }]);
     fetch('/api/agent/invoke', {
       method: 'POST',
@@ -68,6 +79,7 @@ export default function PersonalAgentClientWindow() {
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
+        if (response.status === 428 && data.requiresConsent) throw Object.assign(new Error(data.message || 'This needs your approval.'), { consent: true });
         if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
         return data;
       })
@@ -75,10 +87,29 @@ export default function PersonalAgentClientWindow() {
         ...prev.filter((m) => !m.typing),
         { role: 'agent', text: data.reply || 'The digital assistant completed the request.', dotMemories: data.dotMemories, governance: governanceFrom(data) },
       ]))
-      .catch((error) => setMessages((prev) => [
-        ...prev.filter((m) => !m.typing),
-        { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
-      ]));
+      .catch((error) => {
+        if (error.consent) {
+          setMessages((prev) => [...prev.filter((m) => !m.typing), { role: 'agent', text: `${error.message} Verify with PingOne MFA to continue.` }]);
+          setConsentRetry({ prompt: text });
+          startChallenge().catch(() => {
+            setConsentRetry(null);
+            setMessages((prev) => [...prev, { role: 'agent', text: 'MFA could not be started. Try the request again.' }]);
+          });
+          return;
+        }
+        setMessages((prev) => [
+          ...prev.filter((m) => !m.typing),
+          { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
+        ]);
+      });
+  }
+
+  function finishStepUp() {
+    setMfaChallenge(null);
+    if (!consentRetry) return;
+    const { prompt } = consentRetry;
+    setConsentRetry(null);
+    handleSend(prompt, { retry: true });
   }
 
   if (workloadRoute) return (
@@ -111,6 +142,18 @@ export default function PersonalAgentClientWindow() {
         suggestions={skin === 'dot' ? dotSuggestions(pageManifest) : []}
         showPopOutButton={false}
         onPopOut={null}
+      />
+      <OtpStepUpModal
+        show={Boolean(mfaChallenge)}
+        mode="p1mfa"
+        allowFido
+        contextLine={consentRetry?.prompt || ''}
+        daId={mfaChallenge?.daId}
+        devices={mfaChallenge?.devices}
+        onP1MfaComplete={finishStepUp}
+        onPasskeyRegistered={startChallenge}
+        onSubmit={() => {}}
+        onCancel={() => { setMfaChallenge(null); setConsentRetry(null); }}
       />
     </div>
   );

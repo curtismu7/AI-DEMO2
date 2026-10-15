@@ -4,6 +4,12 @@ import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 vi.mock('../../vertical/useVertical', () => ({ useVertical: () => ({ activeId: 'healthcare', pageManifest: { dashboard: { chips10: [{ id: 'h1', label: 'My claims', message: 'Show my open claims' }] } } }) }));
 vi.mock('../../services/apiClient', () => ({ default: { get: vi.fn() } }));
 import apiClient from '../../services/apiClient';
+// The real modal runs PingOne's challenge; here it only needs to show up and report completion.
+vi.mock('../../components/OtpStepUpModal', () => ({
+  default: ({ show, daId, onP1MfaComplete }) => (show
+    ? <div role="dialog" aria-label="MFA"><span data-testid="mfa-da">{daId}</span><button type="button" onClick={onP1MfaComplete}>Complete MFA</button></div>
+    : null),
+}));
 
 // Stub window.location.search
 Object.defineProperty(window, 'location', {
@@ -103,5 +109,31 @@ describe('PersonalAgentClientWindow', () => {
       body: JSON.stringify({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge', agentMode: 'heuristics' }),
     })));
     expect(screen.queryByRole('textbox')).toBeNull();
+  });
+
+  it('428 consent required: starts PingOne MFA, then retries the same prompt once', async () => {
+    const bodies = [];
+    vi.stubGlobal('fetch', vi.fn(async (url, init) => {
+      if (url === '/api/auth/mfa/challenge') return { ok: true, status: 200, json: async () => ({ daId: 'da-9', devices: [] }) };
+      bodies.push(JSON.parse(init.body));
+      if (bodies.length === 1) return { ok: false, status: 428, json: async () => ({ requiresConsent: true, message: 'Needs approval.' }) };
+      return { ok: true, status: 200, json: async () => ({ reply: 'Transfer complete.' }) };
+    }));
+    render(<PersonalAgentClientWindow />);
+    const input = screen.getByRole('textbox');
+    fireEvent.change(input, { target: { value: 'transfer miles' } });
+    fireEvent.keyDown(input, { key: 'Enter' });
+
+    expect(await screen.findByText(/Needs approval\..*Verify with PingOne MFA/s)).toBeTruthy();
+    expect(await screen.findByRole('dialog', { name: 'MFA' })).toBeTruthy();
+    expect(screen.getByTestId('mfa-da').textContent).toBe('da-9');
+
+    fireEvent.click(screen.getByText('Complete MFA'));
+
+    expect(await screen.findByText('Transfer complete.')).toBeTruthy();
+    expect(bodies).toHaveLength(2);
+    expect(bodies[1].prompt).toBe('transfer miles');
+    expect(screen.queryByRole('dialog', { name: 'MFA' })).toBeNull();
+    expect(screen.getAllByText('transfer miles')).toHaveLength(1);
   });
 });
