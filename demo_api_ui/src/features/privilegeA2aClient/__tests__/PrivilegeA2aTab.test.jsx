@@ -291,3 +291,19 @@ describe('PrivilegeA2aTab token counts and the call picker', () => {
     expect(global.fetch).not.toHaveBeenCalled();
   });
 });
+
+describe('compact agent', () => {
+  test('opens from the agent column and sends its question through the same path', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'token', data: { text: 'Compact answer.' } },
+      { event: 'done', data: { sessionId: 's3' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    await user.click(screen.getByRole('button', { name: 'Open the compact agent' }));
+    const box = screen.getByRole('textbox', { name: 'Question for the compact agent' });
+    await user.type(box, 'List all entitlements for Carol Nguyen.');
+    await user.click(screen.getByRole('button', { name: 'Send' }));
+    expect(await screen.findByText('Compact answer.')).toBeTruthy();
+  });
+});
