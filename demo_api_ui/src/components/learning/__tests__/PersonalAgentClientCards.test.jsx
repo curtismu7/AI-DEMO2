@@ -37,9 +37,9 @@ describe("PersonalAgentClientCards", () => {
     expect(screen.getByRole("link", { name: "Open LM Studio setup" })).toHaveClass(
       "personal-agent-client-cards__action--link",
     );
-    expect(screen.getByRole("link", { name: "Open Dot in the studio" })).toHaveAttribute(
+    expect(screen.getByRole("link", { name: "Open the Dot workbench" })).toHaveAttribute(
       "href",
-      "/personal-agent?skin=dot",
+      "/personal-agent/dot",
     );
     openSpy.mockRestore();
   });

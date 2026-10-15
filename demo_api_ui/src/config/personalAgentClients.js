@@ -46,7 +46,7 @@ export const PERSONAL_AGENT_CLIENTS = Object.freeze([
       "Own memory",
       "Proactive",
     ]),
-    setupPath: "/personal-agent?skin=dot",
-    actionLabel: "Open Dot in the studio",
+    setupPath: "/personal-agent/dot",
+    actionLabel: "Open the Dot workbench",
   }),
 ]);
