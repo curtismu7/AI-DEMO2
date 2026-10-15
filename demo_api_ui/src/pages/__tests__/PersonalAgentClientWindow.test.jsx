@@ -1,6 +1,7 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 
+vi.mock('../../vertical/useVertical', () => ({ useVertical: () => ({ activeId: 'healthcare', pageManifest: { dashboard: { chips10: [{ id: 'h1', label: 'My claims', message: 'Show my open claims' }] } } }) }));
 vi.mock('../../services/apiClient', () => ({ default: { get: vi.fn() } }));
 import apiClient from '../../services/apiClient';
 
@@ -39,14 +40,16 @@ describe('PersonalAgentClientWindow', () => {
     expect(screen.getByText(/Live/i)).toBeTruthy();
   });
 
-  it('Dot opens with suggested prompts; clicking one sends it to the invoke route', async () => {
+  it('Dot opens with the active vertical\'s chips; clicking one sends its prompt with that vertical', async () => {
     window.location.search = '?skin=dot&theme=dark';
     render(<PersonalAgentClientWindow />);
-    fireEvent.click(screen.getByRole('button', { name: 'Always book me an aisle seat' }));
+    expect(screen.queryByRole('button', { name: 'Always book me an aisle seat' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'My claims' }));
 
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: expect.stringContaining('Always book me an aisle seat'),
+      body: expect.stringContaining('"vertical":"healthcare"'),
     })));
+    expect(fetch.mock.calls.at(-1)[1].body).toContain('Show my open claims');
   });
 
   it('other skins show no suggested prompts', () => {
