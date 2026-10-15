@@ -134,3 +134,60 @@ describe('runMcpToolPipeline — gateway DENY carries authorize evidence', () =>
     expect(out.body.mcpAuthorizeEvaluation).toBeUndefined();
   });
 });
+
+// PingOne Authorize rate-limiting (429) is not a policy decision. The gateway
+// records it as a DENY (fail-closed, correctly) but the caller must be told it
+// was a rate limit, not "access_denied" (seen in the promptfoo eval when 2-4
+// requests share one session: each makes ~10 PingOne calls).
+const RATE_LIMITED_TRAIL = {
+  ...DENY_TRAIL,
+  authorize: {
+    ...DENY_TRAIL.authorize,
+    rawResponse: {
+      error: 'REQUEST_LIMITED', code: 'REQUEST_LIMITED', http_status: 429,
+      message: 'The request could not be completed. A rate or quota limit was reached. Please try again later.',
+    },
+  },
+};
+
+describe('runMcpToolPipeline — rate-limited Authorize is not reported as a policy denial', () => {
+  const expectRateLimited = (out) => {
+    expect(out.httpStatus).toBe(403); // still fail-closed
+    expect(out.body.error).toBe('gateway_policy_denied');
+    expect(out.body.rateLimited).toBe(true);
+    expect(out.body.message).toMatch(/rate-limit/i);
+    expect(out.body.message).not.toBe('access_denied');
+    expect(out.body.mcpAuthorizeEvaluation.decision).toBe('DENY'); // evidence untouched
+  };
+
+  test('thrown access_denied with a 429 authorize response', async () => {
+    const deps = makeDeps({
+      callToolViaGateway: jest.fn(async () => {
+        throw Object.assign(new Error('access_denied'), {
+          code: 'gateway_policy_denied', gatewayErrorCode: 'access_denied', gwAuditTrail: RATE_LIMITED_TRAIL,
+        });
+      }),
+    });
+    expectRateLimited(await runMcpToolPipeline(makeCtx({ deps })));
+  });
+
+  test('non-thrown DENY in the audit trail with a 429 authorize response', async () => {
+    const deps = makeDeps({
+      callToolViaGateway: jest.fn(async () => ({ result: { message: 'access_denied' }, gwAuditTrail: RATE_LIMITED_TRAIL })),
+    });
+    expectRateLimited(await runMcpToolPipeline(makeCtx({ deps })));
+  });
+
+  test('a genuine policy DENY keeps its message and is not flagged rate-limited', async () => {
+    const deps = makeDeps({
+      callToolViaGateway: jest.fn(async () => {
+        throw Object.assign(new Error('access_denied'), {
+          code: 'gateway_policy_denied', gatewayErrorCode: 'access_denied', gwAuditTrail: DENY_TRAIL,
+        });
+      }),
+    });
+    const out = await runMcpToolPipeline(makeCtx({ deps }));
+    expect(out.body.rateLimited).toBeUndefined();
+    expect(out.body.message).toBe('access_denied');
+  });
+});
