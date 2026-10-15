@@ -65,8 +65,19 @@ the console `worker-agent` key (scope `mcp`; it was `llm` + `mcp` until the key 
 
 Note the ungranted-tool message differs from the 2026-10-04 guide (`access denied`):
 on a door with a member tool filter the refusal is "not exposed by this aggregate".
-**Demo order:** use `aggregate-limited` and the banking member; avoid calling an
-`opensearch__` tool live until that member is fixed.
+**Demo order:** both members work (the OpenSearch member was fixed 2026-10-15, see below).
+
+**OpenSearch member fixed, 2026-10-15.** Every `opensearch__*` call through an aggregate
+used to hang. Cause, read from the gateway log: the MCP Aggregate first opens a **GET**
+event stream to the member and waits on it; the upstream OpenSearch MCP server keeps that
+stream open (200 `text/event-stream`, never ends), while the banking server 404s it at once.
+Fix: a small nginx front, `opensearch-mcp-noget`
+([k8s/aws/opensearch-mcp-noget.yaml](../k8s/aws/opensearch-mcp-noget.yaml)), answers that
+GET with **405** and proxies everything else; the console app `opensearch` points at it.
+After: `opensearch__ListIndexTool` on `aggregate-limited` returned real indices
+(including `gateway-events`) in **275 ms**. The `opensearch` door itself still has no
+policy, so it still refuses everyone with 403. Worth raising with Ping: the aggregate
+should not block on a member's standing GET stream.
 
 ## Before you present
 
@@ -119,7 +130,7 @@ on a door with a member tool filter the refusal is "not exposed by this aggregat
 | `unknown server` | prefix isn't a member's app name | check names in the tool list |
 | `access denied` on a tool you granted | misspelled, or member's tool list changed | compare with `tools/list` |
 | `<member>: … Unauthorized` | member's backend rejected what its Auth Mode sent | fix the member's Auth Mode; test it alone |
-| A call hangs | member is recorded with the `sse` transport; aggregate waits on its event stream | client timeout; use a member recorded as streamable HTTP; raise it with Ping |
+| A call hangs | the member's server holds the GET event stream open and the aggregate waits on it (or the member uses the `sse` transport) | front the member with a 405-on-GET proxy (see `opensearch-mcp-noget`); raise it with Ping |
 | Client says success, nothing happened | error returned with HTTP 200 | check the JSON-RPC `error` field |
 | Names changed after re-registration | prefix is the member's app name | update prompts/clients |
 
