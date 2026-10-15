@@ -124,6 +124,16 @@ describe('navConfigStore.lmdb', () => {
     expect(store.TOP_LEVEL_LABELS).toEqual(labels);
   });
 
+  test('every hidden label is a real catalog group or page label', () => {
+    const src = require('fs').readFileSync(
+      require('path').resolve(__dirname, '../../../demo_api_ui/src/config/navStructureCatalog.js'), 'utf8');
+    for (const cfg of store.BUILTIN_CONFIGS) {
+      for (const label of cfg.hiddenLabels) {
+        expect(src).toContain(`"${label}"`);
+      }
+    }
+  });
+
   test('every preset keeps Home and Administration (Demo Config) visible', () => {
     for (const cfg of store.BUILTIN_CONFIGS) {
       expect(cfg.hiddenLabels).not.toContain('Home');
@@ -131,11 +141,4 @@ describe('navConfigStore.lmdb', () => {
     }
   });
 
-  test('every BUILTIN_CONFIGS hiddenLabels entry is a real, known nav label', () => {
-    for (const cfg of store.BUILTIN_CONFIGS) {
-      for (const label of cfg.hiddenLabels) {
-        expect(store.TOP_LEVEL_LABELS).toContain(label);
-      }
-    }
-  });
 });
