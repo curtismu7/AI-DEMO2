@@ -7,6 +7,7 @@ import OtpStepUpModal from '../components/OtpStepUpModal';
 import PersonalAgentClientCards from '../components/learning/PersonalAgentClientCards';
 import DotMemoryPanel from '../components/DotMemoryPanel';
 import DotPersonaStrip from '../components/DotPersonaStrip';
+import { governanceFrom } from '../utils/dotGovernance';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
@@ -189,7 +190,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       .then((data) => {
         setMessages((prev) => [
           ...prev.filter((m) => !m.typing),
-          { role: 'agent', text: data.reply || 'The digital assistant completed the request.', dotMemories: data.dotMemories },
+          { role: 'agent', text: data.reply || 'The digital assistant completed the request.', dotMemories: data.dotMemories, governance: governanceFrom(data) },
         ]);
         // The dot learned something this turn — refresh its memory panel.
         if (Array.isArray(data.dotMemories) && data.dotMemories.length > 0) setDotMemoryNonce((n) => n + 1);
