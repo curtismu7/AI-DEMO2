@@ -3,7 +3,8 @@ import { MemoryRouter } from 'react-router-dom';
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 
 let mockDark = true;
-vi.mock('../../context/ThemeContext', () => ({ useThemeOptional: () => ({ darkMode: mockDark }) }));
+const mockToggle = vi.fn();
+vi.mock('../../context/ThemeContext', () => ({ useThemeOptional: () => ({ darkMode: mockDark, toggleDarkMode: mockToggle }) }));
 vi.mock('../../utils/signInService', () => ({ openSignIn: vi.fn() }));
 vi.mock('../../components/DotMemoryPanel', () => ({ default: ({ refreshNonce }) => <div data-testid="memory" data-nonce={refreshNonce}>memory</div> }));
 import { openSignIn } from '../../utils/signInService';
@@ -97,7 +98,7 @@ describe('DotWorkbenchPage', () => {
     expect(screen.queryByRole('group', { name: 'Suggested prompts' })).toBeNull();
   });
 
-  it('a main top-bar theme flip after mount changes the page theme', () => {
+  it('the page theme IS the app theme: it follows a flip from the main top bar', () => {
     mockFetch(() => json(200, {}));
     const ui = () => <MemoryRouter><DotWorkbenchPage user={{ email: 'sam@x.com' }} /></MemoryRouter>;
     const { rerender } = render(ui());
@@ -105,13 +106,23 @@ describe('DotWorkbenchPage', () => {
     mockDark = false;
     rerender(ui());
     expect(document.querySelector('[data-cur-theme]').getAttribute('data-cur-theme')).toBe('light');
+    mockDark = true;
   });
 
-  it('skin tabs link to the Studio; theme button toggles', () => {
+  it('skin tabs link to the Studio', () => {
     mockFetch(() => json(200, {}));
     renderPage();
     expect(screen.getByRole('link', { name: 'Claude' }).getAttribute('href')).toContain('/personal-agent?skin=claude');
+  });
+
+  it('the theme button flips the APP theme (no page-local theme, nothing written to storage)', () => {
+    mockFetch(() => json(200, {}));
+    mockToggle.mockClear();
+    renderPage();
     fireEvent.click(screen.getByRole('button', { name: /light|dark/i }));
-    expect(document.querySelector('[data-cur-theme]').getAttribute('data-cur-theme')).toBe('light');
+    expect(mockToggle).toHaveBeenCalledTimes(1);
+    expect(localStorage.getItem('cur_priv_theme')).toBeNull();
+    // the page does not decide the theme itself: it only reflects the app's
+    expect(document.querySelector('[data-cur-theme]').getAttribute('data-cur-theme')).toBe('dark');
   });
 });

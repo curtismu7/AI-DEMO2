@@ -1,8 +1,15 @@
-.dot-wb { --surface:var(--panel); --border:var(--line); --th-text:var(--ink); --th-text-muted:var(--muted); --th-bg-inset:var(--panel2);
-  --dot:#2bb3a3; --dot-soft:rgba(43,179,163,.15); --ok:#34d399; --deny:#f87171; --warn:#fbbf24;
-  --bg:#151719; --panel:#1e2123; --panel2:#272b2e; --ink:#ecefef; --muted:#98a2a3; --line:#343a3c; color:var(--ink); background:var(--bg); }
-.dot-wb[data-cur-theme="light"] { --bg:#f3f5f5; --panel:#fff; --panel2:#ecf0f0; --ink:#1c2123; --muted:#5f6b6d; --line:#d6dddd; --dot-soft:rgba(43,179,163,.10);
-  --ok:#047857; --deny:#b91c1c; --warn:#92400e; background:var(--bg); color:var(--ink); }
+/* Theme: surfaces, lines and ink are the app's --th-* tokens (THEMING.md §1.2), so this page flips with the
+   app theme and the title-bar button flips the app theme. Brand teal and status accents stay literal (§1.3). */
+.dot-wb {
+  --bg:var(--th-bg-page); --panel:var(--th-bg-card); --panel2:var(--th-bg-inset);
+  --ink:var(--th-text); --muted:var(--th-text-muted); --line:var(--th-border);
+  --ok:var(--th-status-success-text); --deny:var(--th-status-error-text); --warn:var(--th-status-warning-text);
+  --dot:#2bb3a3; --dot-soft:rgba(43,179,163,.15);
+  /* the shared DotMemoryPanel reads these two (its other colours are --th-* already) */
+  --surface:var(--panel); --border:var(--line);
+}
+/* .cur-ide[data-cur-theme] in the shell sheet sets its own ground; keep the page tokens on top (same specificity, loads later) */
+.dot-wb[data-cur-theme] { background:var(--bg); color:var(--ink); }
 /* Desktop: the page is a fixed-height shell, so only the messages and the side column scroll;
    the persona card, chips and composer stay on screen. */
 .dot-wb__main { flex:1; min-height:0; width:100%; box-sizing:border-box; display:grid; grid-template-columns:minmax(0,1fr) 340px; grid-template-rows:minmax(0,1fr); gap:16px; padding:16px 20px; max-width:1280px; margin:0 auto; overflow:hidden; }
