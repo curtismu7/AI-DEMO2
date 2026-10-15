@@ -15,7 +15,10 @@
   background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); border-radius: 6px; cursor: pointer;
 }
 .obo-demo__button:disabled { opacity: 0.6; cursor: not-allowed; }
-.obo-demo__button--secondary { background: var(--th-bg-card); color: var(--th-text); }
+/* Reset: a tinted fill (the text colour mixed into the card colour) so it stands apart from the card in both
+   themes, instead of repeating the card background. ~9:1 text contrast in dark, ~12:1 in light. */
+.obo-demo__button--secondary { background: color-mix(in srgb, var(--th-text) 20%, var(--th-bg-card)); color: var(--th-text); }
+.obo-demo__button--secondary:hover:not(:disabled) { background: color-mix(in srgb, var(--th-text) 28%, var(--th-bg-card)); }
 .obo-demo__status { color: var(--th-text-muted); font-size: 0.85rem; }
 .obo-demo__error { color: var(--th-status-error-text); }
 .obo-demo__verdict { margin-top: 0.75rem; padding: 0.6rem 0.8rem; border-radius: 6px; font-weight: 600; border: 1px solid var(--th-border); }

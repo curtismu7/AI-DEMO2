@@ -165,7 +165,7 @@ export default function OboDemoPage() {
 
   return (
     <div className="obo-demo">
-      <h1 className="obo-demo__title">On behalf of the user</h1>
+      <h1 className="obo-demo__title">Personal Agent User delegation (OBO)</h1>
       <p className="obo-demo__lede">
         An agent acts for you through RFC 8693 delegation. The exchange keeps your identity (<code>sub</code>),
         records the agent as <code>act</code>, and issues a token the downstream API accepts. Your own token is
