@@ -544,3 +544,6 @@
 .cur-ide .privilege-a2a__dock textarea { width: 100%; resize: vertical; border: 1px solid var(--a2a-border); border-radius: 6px; background: var(--a2a-ground); color: var(--a2a-ink); padding: 6px 8px; font: inherit; }
 .cur-ide .privilege-a2a__dock-send { align-self: flex-end; border: 0; border-radius: 6px; background: var(--a2a-accent); color: #fff; padding: 6px 14px; font: inherit; font-weight: 700; cursor: pointer; }
 .cur-ide .privilege-a2a__dock-send:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* The A2A page hides the global agent button: its own agent column is the agent (see PrivilegeA2aPage). */
+body.privilege-a2a-route > .banking-agent-float-root { display: none; }

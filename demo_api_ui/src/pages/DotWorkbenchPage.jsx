@@ -1,4 +1,4 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import DotMemoryPanel from '../components/DotMemoryPanel';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
@@ -19,9 +19,6 @@ const SKINS = [['privilege', 'Privilege'], ['claude', 'Claude'], ['gpt', 'ChatGP
 export default function DotWorkbenchPage({ user }) {
   const persona = useDotPersona();
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
-  const [theme, setTheme] = useState(() => {
-    try { return localStorage.getItem('cur_priv_theme') || 'dark'; } catch { return 'dark'; }
-  });
   const [items, setItems] = useState([]);
   const [input, setInput] = useState('');
   const [busy, setBusy] = useState(false);
@@ -29,18 +26,10 @@ export default function DotWorkbenchPage({ user }) {
   const [memNonce, setMemNonce] = useState(0);
   const identity = user?.email || user?.username || user?.name || '';
 
-  // Follow the main top bar's light/dark switch after mount (same as /privilege-a2a); stored choice wins on load.
-  const { darkMode } = useThemeOptional();
-  const seenDarkMode = useRef(darkMode);
-  useEffect(() => {
-    if (seenDarkMode.current === darkMode) return;
-    seenDarkMode.current = darkMode;
-    setTheme(darkMode ? 'dark' : 'light');
-  }, [darkMode]);
-  useEffect(() => {
-    try { localStorage.setItem('cur_priv_theme', theme); } catch { /* storage disabled */ }
-  }, [theme]);
-  const flipTheme = () => setTheme((t) => (t === 'dark' ? 'light' : 'dark'));
+  // The page theme IS the app theme (THEMING.md): surfaces use --th-* tokens, which flip with it, and the
+  // title-bar button flips the app theme, so the top bar and this page can never disagree.
+  const { darkMode, toggleDarkMode } = useThemeOptional();
+  const theme = darkMode ? 'dark' : 'light';
 
   async function send(text) {
     const prompt = (text ?? input).trim();
@@ -78,12 +67,12 @@ export default function DotWorkbenchPage({ user }) {
         </nav>
         <div className="cur-titlebar-right">
           <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} />
-          <button type="button" className="cur-flow-trigger" onClick={flipTheme}>{theme === 'dark' ? 'Light' : 'Dark'}</button>
+          <button type="button" className="cur-flow-trigger" onClick={toggleDarkMode}>{theme === 'dark' ? 'Light' : 'Dark'}</button>
         </div>
       </header>
 
       <main className="dot-wb__main">
-        <div>
+        <div className="dot-wb__left">
           <DotPersonaCard persona={persona} identity={identity} />
           <div className="dot-card dot-chat">
             <div className="dot-msgs" aria-live="polite">
@@ -118,7 +107,7 @@ export default function DotWorkbenchPage({ user }) {
           </div>
         </div>
         <aside className="dot-aside">
-          <section className="dot-card"><DotMemoryPanel refreshNonce={memNonce} /></section>
+          <section className="dot-card dot-card--flush"><DotMemoryPanel embedded refreshNonce={memNonce} /></section>
           <DotGovernsPanel cards={cards} persona={persona} mode={agentMode} />
         </aside>
       </main>
