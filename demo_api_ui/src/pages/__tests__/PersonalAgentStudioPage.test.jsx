@@ -138,4 +138,13 @@ describe('PersonalAgentStudioPage', () => {
     expect(await screen.findByRole('button', { name: 'Run UC44 action' })).toBeTruthy();
     expect(apiClient.get).toHaveBeenCalledTimes(2);
   });
+
+  it('the Dot tab is labelled Persona Agent (Dot) and shows the persona strip and memory panel', () => {
+    renderStudio();
+    expect(screen.queryByTestId('dot-persona-strip')).toBeNull();
+    fireEvent.click(screen.getByText('Persona Agent (Dot)'));
+    expect(screen.getByTestId('dot-persona-strip')).toBeTruthy();
+    expect(screen.getByText(/your always-on persona agent/)).toBeTruthy();
+    expect(screen.getByTestId('dot-memory-panel')).toBeTruthy();
+  });
 });
