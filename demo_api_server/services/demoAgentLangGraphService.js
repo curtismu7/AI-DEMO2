@@ -244,7 +244,7 @@ const { injectKnowledge } = require('./knowledgePromptInjector');
 const { recordToolCall: recordMcpToolCall } = require('./mcpToolAuditStore');
 const conversationStore = require('./lmdb/conversationStore.lmdb');
 const { trimHistoryToBudget } = require('./historyBudget');
-const { selectTools, LLAMACPP_HISTORY_BUDGET } = require('./llamaPromptTrim');
+const { LLAMACPP_HISTORY_BUDGET } = require('./llamaPromptTrim');
 const { createDotMemoryStore } = require('./lmdb/dotMemoryStore.lmdb');
 const { buildGroundedAnswer } = require('./groundedAnswer');
 
@@ -2291,8 +2291,9 @@ async function processAgentMessage({ message, userId, userToken, sessionId, toke
 
     const loopResult = await runReasonLoop({
       messages,
-      // The CPU-bound llama.cpp tier gets only the tools the question points at.
-      tools: provider === 'llamacpp' ? selectTools(toolSchemas, message) : toolSchemas,
+      // Same tools every call, so llama.cpp's prompt-prefix cache holds the system prompt + tools (a cold 1.2k-token prefix
+      // costs 40-60s on this CPU; a cached one ~0). Choosing tools per question changed the prefix and defeated that.
+      tools: toolSchemas,
       provider,
       model,
       systemPrompt: groundedPromptWithDots,
