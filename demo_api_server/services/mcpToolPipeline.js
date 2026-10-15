@@ -227,6 +227,17 @@ function hitlSignalInResultContent(result) {
 }
 
 /**
+ * The gateway's PingOne Authorize call was rate-limited (429). The gateway
+ * records that as a DENY (fail-closed, which is right), but it is not a policy
+ * decision, so the caller must not be told it was "access_denied".
+ */
+function authorizeRateLimited(gwAuditTrail) {
+  const raw = gwAuditTrail && gwAuditTrail.authorize && gwAuditTrail.authorize.rawResponse;
+  return !!raw && (raw.http_status === 429 || raw.code === 'REQUEST_LIMITED' || raw.error === 'REQUEST_LIMITED');
+}
+const RATE_LIMITED_MESSAGE = 'PingOne Authorize is rate-limiting requests right now, so this call was refused (fail-closed), not denied by policy. Try again in a moment.';
+
+/**
  * Authorize evidence for a gateway-decided 428. The BFF gate skips on
  * gateway-routed calls (`gateway_authoritative`), so the gateway's own PingOne
  * Authorize call — relayed in x-gw-audit-trail — is the only decision this
@@ -1553,7 +1564,10 @@ async function runMcpToolPipeline(ctx) {
             return { kind: 'block', httpStatus: 403, tokenEvents, body: {
                 error: 'gateway_policy_denied',
                 tool,
-                message: authzRes.reason || 'PingOne Authorize declined this request.',
+                message: authorizeRateLimited(gwAuditTrail)
+                    ? RATE_LIMITED_MESSAGE
+                    : (authzRes.reason || 'PingOne Authorize declined this request.'),
+                ...(authorizeRateLimited(gwAuditTrail) ? { rateLimited: true } : {}),
                 tokenEvents,
                 ...(gwDenyEval ? { mcpAuthorizeEvaluation: gwDenyEval } : {}),
             } };
@@ -1881,7 +1895,8 @@ async function runMcpToolPipeline(ctx) {
                 error: 'gateway_policy_denied',
                 tool,
                 gatewayErrorCode: err.gatewayErrorCode || err.code,
-                message: err.message,
+                message: authorizeRateLimited(err.gwAuditTrail) ? RATE_LIMITED_MESSAGE : err.message,
+                ...(authorizeRateLimited(err.gwAuditTrail) ? { rateLimited: true } : {}),
                 tokenEvents,
                 requestJson,
                 ...(gwDenyEval ? { mcpAuthorizeEvaluation: gwDenyEval } : {}),
