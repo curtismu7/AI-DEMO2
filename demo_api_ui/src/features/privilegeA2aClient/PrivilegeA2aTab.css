@@ -89,9 +89,26 @@
   content: "";
 }
 
-.cur-ide .privilege-a2a__path li:nth-child(2) {
+.cur-ide .privilege-a2a__path li { transition: color 0.2s ease; }
+
+/* A segment the run has reached stays marked; the one the latest event landed on pulses while the run goes. */
+.cur-ide .privilege-a2a__path li.is-done {
+  color: var(--a2a-ink);
+  font-weight: 600;
+}
+
+.cur-ide .privilege-a2a__path li.is-active {
   color: var(--a2a-accent);
   font-weight: 700;
+  animation: privilege-a2a-path-pulse 1.1s ease-in-out infinite;
+}
+
+@keyframes privilege-a2a-path-pulse {
+  50% { opacity: 0.45; }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .cur-ide .privilege-a2a__path li.is-active { animation: none; }
 }
 
 .cur-ide .privilege-a2a__workspace {
