@@ -35,7 +35,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 <p>The human is a <strong>customer</strong> of the enterprise, the agent is whatever they brought -- ChatGPT in a browser, a mobile assistant, a coding CLI -- and United controls none of it, before, during or after. The running example: a MileagePlus member asks their own agent &quot;how many miles do I have, and can you use them for the SFO-HNL trip in March?&quot; United's job is to let that work without ever trusting the agent.</p>
 <p>The asymmetry that makes it safe: the member authenticates United's door <em>from</em> the agent, but United never sees the member's credentials and the agent never sees the member's session. What United trusts is a token minted for one call. What it refuses is the agent's own word about who it is.</p>
 <h2>Target architecture</h2>
-<p>customer's world United's trust boundary Member + their agent ChatGPT in a browser, Muse on a phone -- zero pre-registration, unknown to United until it arrives United's MCP door public URL * RFC 9728 discovery DCR / CIMD self-registration the only path cloud agents can reach Agent gateway PingGateway MCP module aud * scope validation bearer tokens (no DPoP on P1) tool allowlist * audit per call Facade + Loyalty MCP + services one audience per token Facade holds the DataPower exchange; session in Redis Member's phone HITL approval in United's app -- the exact redemption, never in the agent * timeout = denial Sign-in + consent PingOne, browser, PKCE, Agreement step names the agent member session never enters the agent Token service RFC 8693 exchange per call sub = member * act.sub = agent one aud * minutes-long lifetime Policy engine PingOne Authorize + Protect risk permit * deny * step-up Audit + SIEM sub * act.sub * jti * tool * verdict * approval ref -- reconstructable per action the agent has no write path to it 1 discover 2 register 3 consent (browser, PKCE) 4 exchange per call -- sub = member, act = agent 5 tool call + minutes TTL 6 decide session 7 HITL approval (transaction-bound) 8 permit 9 log the consumer scenario * the customer's own agent meets United's door -- every hop past discovery is inside United's trust boundary</p>
+<p>customer's world United's trust boundary Member + their agent ChatGPT in a browser, Muse on a phone -- zero pre-registration, unknown to United until it arrives United's MCP door public URL * RFC 9728 discovery DCR / CIMD self-registration the only path cloud agents can reach Agent gateway PingGateway MCP module aud * scope validation bearer tokens (no DPoP on P1) tool allowlist * audit per call Facade + Loyalty MCP + services one audience per token Facade holds the DataPower exchange; session in Redis Member's phone HITL approval in United's app -- the exact redemption, never in the agent * timeout = denial Sign-in + consent PingOne, browser, PKCE, Agreement step names the agent member session never enters the agent Token service RFC 8693 exchange per call sub = member * act.client_id = agent one aud * minutes-long lifetime Policy engine PingOne Authorize + Protect risk permit * deny * step-up Audit + SIEM sub * act.client_id * jti * tool * verdict * approval ref -- reconstructable per action the agent has no write path to it 1 discover 2 register 3 consent (browser, PKCE) 4 exchange per call -- sub = member, act = agent 5 tool call + minutes TTL 6 decide session 7 HITL approval (transaction-bound) 8 permit 9 log the consumer scenario * the customer's own agent meets United's door -- every hop past discovery is inside United's trust boundary</p>
 <p>Hop by hop:</p>
 <ol>
 <li>
@@ -48,7 +48,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 <p><strong>Consent.</strong> The agent opens the member's browser to PingOne: passkey or MFA, PKCE, and a consent screen that names <em>this agent</em> and the ceiling of what it may do (&quot;read miles; redeem with approval&quot;), recorded through the Agreement step. The member's session stays in United's realm.</p>
 </li>
 <li>
-<p><strong>Exchange, per call.</strong> For every tool action the agent performs RFC 8693 token exchange: <code>sub</code> = member, <code>act.sub</code> = agent, <code>aud</code> = one tool, minutes-long lifetime. The agent never holds a standing United credential.</p>
+<p><strong>Exchange, per call.</strong> For every tool action the agent performs RFC 8693 token exchange: <code>sub</code> = member, <code>act.client_id</code> = agent, <code>aud</code> = one tool, minutes-long lifetime. The agent never holds a standing United credential.</p>
 </li>
 <li>
 <p><strong>Call through the gateway.</strong> The tool call reaches only PingGateway, which validates <code>aud</code> and scope against the allowlist. The token arrives as a bearer -- PingOne issues no DPoP -- so validation, the minutes-long TTL and the single-audience binding carry the whole load at this hop. No direct agent-to-resource path exists on the network.</p>
@@ -63,7 +63,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 <p><strong>Permit.</strong> Only allowed calls reach the Loyalty MCP server, which accepts only its own audience. Reads (balance) ride the delegated token; writes (redemption) carry the approval. Behind it, the Facade -- the only component holding DataPower credentials -- performs the exchange and builds the united.com member session in Redis, keyed by a hash of the Ping token and never returned to the client.</p>
 </li>
 <li>
-<p><strong>Log and revoke.</strong> Gateway and authorization server write <code>sub</code>, <code>act.sub</code>, <code>jti</code> and the verdict to audit the agent cannot touch. Disabling the agent's client registration revokes its access within one token lifetime -- the member's own session is unaffected.</p>
+<p><strong>Log and revoke.</strong> Gateway and authorization server write <code>sub</code>, <code>act.client_id</code>, <code>jti</code> and the verdict to audit the agent cannot touch. Disabling the agent's client registration revokes its access within one token lifetime -- the member's own session is unaffected.</p>
 </li>
 </ol>
 <h2>No BFF, no DPoP: what carries the load instead</h2>
@@ -73,7 +73,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 <p><strong>Minutes-long, single-audience tokens.</strong> A stolen bearer is worth minutes, not hours, and works against one service, not sixteen. This is the replacement for key binding: the window and the surface shrink until theft has little to steal.</p>
 </li>
 <li>
-<p><strong>Per-call exchange.</strong> Every tool action mints a fresh token via RFC 8693 with <code>sub</code> = member, <code>act.sub</code> = agent. An injected prompt can choose which tool to call, but cannot mint a token -- model-context separation stops being hope and becomes the exchange.</p>
+<p><strong>Per-call exchange.</strong> Every tool action mints a fresh token via RFC 8693 with <code>sub</code> = member, <code>act.client_id</code> = agent. An injected prompt can choose which tool to call, but cannot mint a token -- model-context separation stops being hope and becomes the exchange.</p>
 </li>
 <li>
 <p><strong><code>private_key_jwt</code> for minting.</strong> The agent authenticates to the token endpoint with a key it holds, so a thief who steals tokens cannot mint more. To be explicit: this is client authentication, <em>not</em> sender constraint -- a token already issued is still a bearer.</p>
@@ -144,7 +144,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 </ol>
 <p>Two roadmap items from the same review: a separate clone of the .com API layer for the agentic channel, giving a blast-radius boundary so nothing on the agent path can affect united.com's operation; and 2FA/step-up on state-changing agent actions, complementing the checkout-page handoff that already keeps the human in the loop for purchase. On the token side, PingOne's transaction-token capability (user token exchanged for a transaction token with the agent embedded as actor) is coming; today's <code>may_act</code> token exchange already covers the pattern, and since DataPower already performs the exchange, the swap is Ping-token-to-Ping-token rather than new plumbing.</p>
 <h2>The demo behind this document</h2>
-<p>Every control in the target architecture runs live in the Ping demo stack (the &quot;United Airlines&quot; vertical of the AI IAM demo at <code>local.ping-devops.com:4000</code>). The screenshots below were captured 9 October 2026 from the running system; the route under each is where United's team can run it themselves. Token-chain captures taken while signed in (delegated <code>sub</code>/<code>act.sub</code> exchange, HITL approval modal, Authorize verdicts) will be added after the customer login; the surfaces shown here are the signed-out, publicly reachable ones.</p>
+<p>Every control in the target architecture runs live in the Ping demo stack (the &quot;United Airlines&quot; vertical of the AI IAM demo at <code>local.ping-devops.com:4000</code>). The screenshots below were captured 9 October 2026 from the running system; the route under each is where United's team can run it themselves. Token-chain captures taken while signed in (delegated <code>sub</code>/<code>act.client_id</code> exchange, HITL approval modal, Authorize verdicts) will be added after the customer login; the surfaces shown here are the signed-out, publicly reachable ones.</p>
 <table>
 <thead>
 <tr>
@@ -176,7 +176,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 <tr>
 <td>4</td>
 <td><img src="screenshots/token-exchange-tester-2.png" alt="RFC 8693 token exchange tester" /></td>
-<td>The live exchange tool: subject token + agent actor token in, scoped MCP token out — <code>sub</code> = member, <code>act.sub</code> = agent</td>
+<td>The live exchange tool: subject token + agent actor token in, scoped MCP token out — <code>sub</code> = member, <code>act.client_id</code> = agent</td>
 <td><code>/token-exchange-tester</code></td>
 </tr>
 <tr>
@@ -236,7 +236,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 <p><strong>The delegation works on PingOne, end to end.</strong> A member token plus an agent identity exchange (RFC 8693) into a minutes-long token with <code>sub</code> = member, <code>act</code> = the agent and a single narrower <code>aud</code>. The downstream API accepts it and refuses the member&#x27;s own token, and no token text ever reaches the agent, the model or the browser. All seven checks pass live on the <a href="https://ai-demo.ping-devops.com/obo-demo">OBO demo</a>; the <a href="https://ai-demo.ping-devops.com/architecture/obo-flow.html">flow diagram</a> shows the sequence.</p>
 </li>
 <li>
-<p><strong>The actor claim is <code>act.client_id</code>, not <code>act.sub</code>.</strong> PingOne emits <code>act</code> as an object whose contents come from the exchange policy; we map it to the agent&#x27;s <code>client_id</code>. Everywhere this document says <code>act.sub</code>, read <code>act.client_id</code> unless United chooses to map <code>sub</code> instead. Decide this once, because the gateway, Authorize and the audit chain all key on it.</p>
+<p><strong>The actor claim is <code>act.client_id</code>, not <code>act.sub</code>.</strong> PingOne emits <code>act</code> as an object whose contents come from the exchange policy; we map it to the agent&#x27;s <code>client_id</code>. This document uses <code>act.client_id</code> throughout. If United would rather have <code>act.sub</code>, it is one attribute in the exchange policy; decide once, because the gateway, Authorize and the audit chain all key on it.</p>
 </li>
 <li>
 <p><strong>The exchange is a server-side act by a confidential client.</strong> PingOne wants the subject token, the actor token and the exchanging client&#x27;s own credentials in one request, and that client is separate from the agent. That places the exchange in United&#x27;s token service (the Facade and DataPower step already described), never in the agent. The rule that the member&#x27;s token is only ever an input to an exchange is now demonstrated, not just designed.</p>
@@ -261,7 +261,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 <tbody>
 <tr>
 <td>The MCP server &quot;checks the sign-in on every call&quot; -- the traveller's sign-in token is the agent's credential</td>
-<td>Delegation: RFC 8693 exchange producing <code>sub</code> + <code>act.sub</code></td>
+<td>Delegation: RFC 8693 exchange producing <code>sub</code> + <code>act.client_id</code></td>
 <td>Impersonation, not delegation. Audit attributes every action to the member; a compromised agent is indistinguishable from the member</td>
 </tr>
 <tr>
@@ -286,7 +286,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 </tr>
 <tr>
 <td>No audit chain is shown</td>
-<td><code>sub</code> + <code>act.sub</code> + <code>jti</code> audit with no agent write path</td>
+<td><code>sub</code> + <code>act.client_id</code> + <code>jti</code> audit with no agent write path</td>
 <td>An incident cannot be reconstructed from user to agent to tool; response starts from zero</td>
 </tr>
 <tr>
@@ -301,7 +301,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 <p>The target architecture at the top of this document is the recommendation. Mapped to the gap table, the build is five components, each independently useful:</p>
 <ol>
 <li>
-<p><strong>A token service doing per-call RFC 8693 exchange</strong> -- the authorization server (PingOne, or PingFederate where the deployment prefers it) mints a fresh delegated token for every tool action: <code>sub</code> = member, <code>act.sub</code> = agent, one <code>aud</code>, minutes-long lifetime; <code>private_key_jwt</code> on the token endpoint so a stolen token cannot mint more. This one component closes the first three gaps: delegation instead of impersonation, a stolen bearer worth minutes instead of an hour, and a registered agent identity that can be consented to, audited and killed without touching the member's session.</p>
+<p><strong>A token service doing per-call RFC 8693 exchange</strong> -- the authorization server (PingOne, or PingFederate where the deployment prefers it) mints a fresh delegated token for every tool action: <code>sub</code> = member, <code>act.client_id</code> = agent, one <code>aud</code>, minutes-long lifetime; <code>private_key_jwt</code> on the token endpoint so a stolen token cannot mint more. This one component closes the first three gaps: delegation instead of impersonation, a stolen bearer worth minutes instead of an hour, and a registered agent identity that can be consented to, audited and killed without touching the member's session.</p>
 </li>
 <li>
 <p><strong>HITL approval bound to the exact transaction</strong> for every action that spends value without a checkout page: miles redemption, trip insurance, booking changes. The single-use, cart-bound checkout link United already built is the pattern -- extend it from payment to the other consequential actions, with the approval surfaced in United's own app or on united.com, one approval per action, timeout as denial, and a single-use receipt spendable only for that transaction.</p>
@@ -310,7 +310,7 @@ Prepared for United's AI team by Ping Identity * working draft, 9 October 2026 *
 <p><strong>A policy decision instead of code:</strong> PingOne Authorize evaluating member × agent × tool × amount, with PingOne Protect scoring the session for agentic automation and step-up as a verdict. The Facade guards stay -- defence in depth -- but thresholds stop being deploys and become policy.</p>
 </li>
 <li>
-<p><strong>An audit chain with no agent write path:</strong> <code>sub</code> + <code>act.sub</code> + <code>jti</code> per call at the gateway and authorization server, joined to the approval receipt for consequential actions, so any incident reconstructs from member to agent to tool.</p>
+<p><strong>An audit chain with no agent write path:</strong> <code>sub</code> + <code>act.client_id</code> + <code>jti</code> per call at the gateway and authorization server, joined to the approval receipt for consequential actions, so any incident reconstructs from member to agent to tool.</p>
 </li>
 <li>
 <p><strong>One MCP door with RFC 9728 discovery and DCR/CIMD registration</strong> -- the same door every AI app uses. Claude Code and Claude Desktop then arrive through the same discovery, exchange and approval path as the hosted assistant, instead of carrying an hour-long sign-in token in files on laptops and disks.</p>
