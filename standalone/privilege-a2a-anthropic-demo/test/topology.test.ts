@@ -412,6 +412,31 @@ test('main delegates through authenticated A2A, worker calls authenticated MCP, 
     assert.match(JSON.stringify(heuristicTraces.find(t => t.kind === 'mcp-call')), /get_investment_accounts/, 'keyword pick chose the accounts tool');
     assert.match(JSON.stringify(heuristicEvents), /INV-1001/, 'the MCP fixture reached the answer');
     assert.ok(!heuristicTraces.some(t => t.kind === 'worker-done'), 'the worker end-of-trace marker is never shown to the user');
+
+    // Regression: retail data carries ISO dates and status words, which the scope-claim filter drops unless the
+    // worker reports the raw tool output. The run used to delegate four times and then call a model.
+    const beforeRetail = calls.length;
+    const retailResponse = await fetch(`http://127.0.0.1:${mainPort}/chat`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json', 'X-A2A-BFF-Secret': 'test-bff-shared-secret' },
+      body: JSON.stringify({
+        message: 'Review my recent order history.',
+        sessionId: 'session-retail-heuristic',
+        mode: 'heuristics',
+        vertical: 'retail',
+        agentName: 'Great Buy agent',
+        specialistName: 'Purchase History Specialist',
+        tool: 'sensitive_order_history',
+        tools: ['sensitive_order_history'],
+        subtaskHint: 'review the sensitive order / purchase history',
+      }),
+    });
+    const retailEvents = sseEvents(await retailResponse.text());
+    const retailTraces = retailEvents.filter(event => event.event === 'trace').map(event => event.data);
+    assert.equal(calls.length, beforeRetail, 'a dated answer must not trigger a model call in heuristics mode');
+    assert.equal(retailTraces.filter(t => t.kind === 'delegate').length, 1, 'heuristics delegates exactly once');
+    assert.ok(!retailTraces.some(t => t.kind === 'model'), 'no model hop in a model-free run');
+    assert.match(JSON.stringify(retailEvents), /ORD-9982/, 'the dated order record reaches the answer');
   } finally {
     await Promise.all(processes.map(child => stopProcess(child.process)));
     await new Promise<void>((resolve, reject) => mockAnthropic.close(error => error ? reject(error) : resolve()));
