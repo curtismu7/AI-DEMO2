@@ -26,6 +26,10 @@ const WHY = {
   error: 'Something stopped this step. Its details say what.',
   model: 'The model decides the next step. Its tokens are what that decision used.',
 };
+// Illustrative cost only: Claude Sonnet 5.5 list price ($2 in / $10 out per million tokens). The demo's model is priced differently.
+const PRICE_PER_MTOK = { input: 2, output: 10, label: 'Claude Sonnet 5.5 list price' };
+const runCost = (totals) => (totals.input * PRICE_PER_MTOK.input + totals.output * PRICE_PER_MTOK.output) / 1_000_000;
+const costLabel = (totals) => `≈ $${runCost(totals).toFixed(4)} at ${PRICE_PER_MTOK.label}`;
 const tokensLine = (tokens) => (tokens ? `${tokens.input.toLocaleString()} in · ${tokens.output.toLocaleString()} out` : '');
 const runTokens = (trace) => trace.reduce((sum, entry) => ({
   input: sum.input + (entry.tokens?.input || 0),
@@ -428,7 +432,7 @@ export default function PrivilegeA2aTab() {
             return (
               <p className="privilege-a2a__run-totals">
                 {totals.calls > 0
-                  ? `${totals.calls} model call${totals.calls === 1 ? '' : 's'} · ${totals.input.toLocaleString()} in · ${totals.output.toLocaleString()} out tokens`
+                  ? `${totals.calls} model call${totals.calls === 1 ? '' : 's'} · ${totals.input.toLocaleString()} in · ${totals.output.toLocaleString()} out tokens · ${costLabel(totals)}`
                   : 'No model calls in this run'}
               </p>
             );
@@ -486,7 +490,7 @@ export default function PrivilegeA2aTab() {
             <p>This step: {tokensLine(trace[selectedStep].tokens)}</p>
           ) : null}
           {trace.length > 0 ? (
-            <p className="privilege-a2a__empty">Run total: {tokensLine(runTokens(trace))}</p>
+            <p className="privilege-a2a__empty">Run total: {tokensLine(runTokens(trace))} · {costLabel(runTokens(trace))}</p>
           ) : (
             <p className="privilege-a2a__empty">Token counts appear here once a run starts.</p>
           )}
