@@ -94,6 +94,8 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const [catalogLoadAttempt, setCatalogLoadAttempt] = useState(0);
   const [runState, setRunState] = useState({ status: 'idle', text: '' });
   const [mfaChallenge, setMfaChallenge] = useState(null);
+  // A freeform Dot question that came back 428 (consent required) and is waiting for PingOne MFA, then a retry.
+  const [consentRetry, setConsentRetry] = useState(null);
   const [layoutState, setLayoutState] = useState('full');
   const [activeSkin, setActiveSkin] = useState('privilege');
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
@@ -173,8 +175,19 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     // eslint-disable-next-line react-hooks/exhaustive-deps -- query is derived from location.search
   }, [runNonce, scenario, executeWorkload, location.search]);
 
-  const handleSend = useCallback((text) => {
-    setMessages((prev) => [...prev, { role: 'user', text }]);
+  // In-app MFA: a passkey registered for this app's domain works here and
+  // cannot work on PingOne's hosted page.
+  const startChallenge = useCallback(async () => {
+    const response = await fetch('/api/auth/mfa/challenge', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+    if (!response.ok) throw new Error(`MFA initiation failed: ${response.status}`);
+    const { daId, devices } = await response.json();
+    const challenge = { daId, devices: devices || [] };
+    setMfaChallenge(challenge);
+    return challenge;
+  }, []);
+
+  const handleSend = useCallback((text, { retry = false } = {}) => {
+    if (!retry) setMessages((prev) => [...prev, { role: 'user', text }]);
     setMessages((prev) => [...prev, { role: 'agent', typing: true, text: '' }]);
     fetch('/api/agent/invoke', {
       method: 'POST',
@@ -184,6 +197,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
+        if (response.status === 428 && data.requiresConsent) throw Object.assign(new Error(data.message || 'This needs your approval.'), { consent: true });
         if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
         return data;
       })
@@ -195,11 +209,23 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         // The dot learned something this turn — refresh its memory panel.
         if (Array.isArray(data.dotMemories) && data.dotMemories.length > 0) setDotMemoryNonce((n) => n + 1);
       })
-      .catch((error) => setMessages((prev) => [
-        ...prev.filter((m) => !m.typing),
-        { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
-      ]))
-  }, [agentMode]);
+      .catch((error) => {
+        if (error.consent) {
+          // Consent required: PingOne MFA is the approval. Start the challenge now; finishing it asks again.
+          setMessages((prev) => [...prev.filter((m) => !m.typing), { role: 'agent', text: `${error.message} Verify with PingOne MFA to continue.` }]);
+          setConsentRetry({ prompt: text });
+          startChallenge().catch(() => {
+            setConsentRetry(null);
+            setMessages((prev) => [...prev, { role: 'agent', text: 'MFA could not be started. Try the request again.' }]);
+          });
+          return;
+        }
+        setMessages((prev) => [
+          ...prev.filter((m) => !m.typing),
+          { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
+        ]);
+      });
+  }, [agentMode, startChallenge]);
 
   // Scripted CUA run: the same invoke path as handleSend, each step labeled as a
   // computer-use action, sequenced so the token chain shows the full path.
@@ -238,14 +264,6 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const hostedStepUp = () => window.location.assign(`/api/auth/oauth/user/stepup?return_to=${encodeURIComponent(`${window.location.origin}${location.pathname}${location.search}`)}`);
   // In-app MFA: a passkey registered for this app's domain works here and
   // cannot work on PingOne's hosted page.
-  const startChallenge = async () => {
-    const response = await fetch('/api/auth/mfa/challenge', { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
-    if (!response.ok) throw new Error(`MFA initiation failed: ${response.status}`);
-    const { daId, devices } = await response.json();
-    const challenge = { daId, devices: devices || [] };
-    setMfaChallenge(challenge);
-    return challenge;
-  };
   const startStepUp = () => {
     setRunState((state) => ({ ...state, prompt: false }));
     startChallenge().catch(hostedStepUp);
@@ -265,8 +283,29 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   };
   const finishStepUp = () => {
     setMfaChallenge(null);
+    if (consentRetry) {
+      const { prompt } = consentRetry;
+      setConsentRetry(null);
+      handleSend(prompt, { retry: true });
+      return;
+    }
     executeWorkload(workloadScenario);
   };
+
+  const mfaModal = (
+    <OtpStepUpModal
+      show={Boolean(mfaChallenge)}
+      mode="p1mfa"
+      allowFido
+      contextLine={workloadScenario ? `${workloadScenario.id}: ${workloadScenario.runPrompt}` : (consentRetry?.prompt || '')}
+      daId={mfaChallenge?.daId}
+      devices={mfaChallenge?.devices}
+      onP1MfaComplete={finishStepUp}
+      onPasskeyRegistered={startChallenge}
+      onSubmit={() => {}}
+      onCancel={() => { setMfaChallenge(null); setConsentRetry(null); }}
+    />
+  );
 
   const layout = LAYOUT_STYLES[layoutState] || LAYOUT_STYLES.full;
   const workloadGates = workloadScenario && gates.map((gate, index) => {
@@ -315,18 +354,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         onConfirm={startStepUp}
         onCancel={() => setRunState((state) => ({ ...state, prompt: false }))}
       />
-      <OtpStepUpModal
-        show={Boolean(mfaChallenge)}
-        mode="p1mfa"
-        allowFido
-        contextLine={`${workloadScenario.id}: ${workloadScenario.runPrompt}`}
-        daId={mfaChallenge?.daId}
-        devices={mfaChallenge?.devices}
-        onP1MfaComplete={finishStepUp}
-        onPasskeyRegistered={startChallenge}
-        onSubmit={() => {}}
-        onCancel={() => setMfaChallenge(null)}
-      />
+      {mfaModal}
       <SecurityRail gates={workloadGates} actClaim={actClaim} tokenEvents={events} />
       {/* The filmstrip's two halves place themselves by grid-area name. */}
       <div className="workload-agents__chain"><TokenChainFilmstrip /></div>
@@ -460,6 +488,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       <div className="tcfs-float-host" style={{ flexShrink: 0, maxHeight: '45%' }}>
         <TokenChainFilmstrip />
       </div>
+      {mfaModal}
     </div>
   );
 }
