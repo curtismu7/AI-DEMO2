@@ -612,6 +612,34 @@
   padding: 96px 32px 88px !important;
 }
 
+/* The arcs JPEG has an opaque white ground; multiply only hides it on a light
+   page. On dark, draw it small in the top-right corner, inverted + screen-
+   blended so the white ground goes black (invisible) and the arcs go light.
+   Hidden below 1200px, where a corner image would reach the centered copy. */
+:root[data-theme="dark"] [data-rd-v2] .landing-hero {
+  background-image: none !important;
+  position: relative;
+}
+:root[data-theme="dark"] [data-rd-v2] .landing-hero::before {
+  content: "";
+  position: absolute;
+  top: 0;
+  right: 0;
+  width: 360px;
+  height: 360px;
+  background: url('/branding/pattern-arcs.jpg') right top / 360px auto no-repeat;
+  filter: invert(1);
+  mix-blend-mode: screen;
+  opacity: 0.5;
+  pointer-events: none;
+}
+:root[data-theme="dark"] [data-rd-v2] .landing-hero-content {
+  position: relative;
+}
+@media (max-width: 1200px) {
+  :root[data-theme="dark"] [data-rd-v2] .landing-hero::before { display: none; }
+}
+
 /* The rd-v2 padding above is !important and unconditional (data-rd-v2 is
    always set on the landing page), so it silently wins over the responsive
    .landing-hero padding rules below in the mobile/tablet media queries.
