@@ -15,43 +15,136 @@ const DB_NAME = 'navConfigs';
 
 function _db() { return getDb(DB_NAME); }
 
-// Hidden-item labels here match the top-level `allNavItems` labels in
-// demo_api_ui/src/components/AdminSideNav.jsx exactly (see
-// demo_api_ui/src/config/navItemsCatalog.js, the shared source list).
+// Top-level AdminSideNav groups, in order. Mirrors NAV_STRUCTURE_CATALOG in
+// demo_api_ui/src/config/navStructureCatalog.js — a UI test fails on drift.
+const TOP_LEVEL_LABELS = [
+  'Home', 'Security Dashboard', 'Skin Studio', 'Agent Privilege', 'A2A', 'Jev Demos', 'DaVinci',
+  'Ping products', 'Identity Journeys', 'Authorize', 'Delegation & Consent', 'Exploring',
+  'Utilities', 'AI Experiences', 'Personal Agents', 'MCP & Integrations',
+  'PingFederate ID-JAG', 'AIC', 'Developer Tools', 'Observability', 'Diagrams',
+  'Demo arch slides', 'Architecture & Learning', 'Administration',
+];
+
+// Presets are written as "show only these groups" so a newly added nav group
+// stays hidden everywhere until a preset opts in. Home and Administration
+// (which holds Demo Config itself) are always kept. Sidebar-only: no flags.
+function preset(id, name, ...show) {
+  const keep = new Set(['Home', 'Administration', ...show]);
+  return {
+    id, name, isBuiltin: true,
+    hiddenLabels: TOP_LEVEL_LABELS.filter((l) => !keep.has(l)),
+    flagSnapshot: {},
+  };
+}
+
+// A2A also trims pages inside the groups it shows (labels are verified
+// against the UI nav catalog by navConfigStore.lmdb.test.js).
+const a2aPreset = {
+  ...preset('uc-a2a', 'Use case · A2A', 'A2A', 'Agent Privilege', 'Personal Agents', 'Delegation & Consent', 'Diagrams', 'Observability'),
+};
+a2aPreset.hiddenLabels.push(
+    "OBO Demo",
+    "AI Guard",
+    "Protocol Playground",
+    "AI Guard Client",
+    "LLM Gateway",
+    "Intent Inspector",
+    "Audit Agent",
+    "Agent Gateway Authorization",
+    "Agent Privilege Diagrams",
+    "PingOne Authorize",
+    "Agent Privilege · LLM",
+    "Agent Privilege · MCP",
+    "Malicious MCP Catalog",
+    "Agent Privilege Demo",
+    "Target Design",
+    "Dual Gateway Design",
+    "Design Review",
+    "Server Topology (Interactive)",
+    "PingFederate ID-JAG (Node)",
+    "System Diagram (Node)",
+    "Overview Diagram (Node)",
+    "Token Flow (Interactive) (Node)",
+    "Token Chain Architecture (Node)",
+    "Interactive Flow (Node)",
+    "Sequence Diagram (Node)",
+    "Canvas Diagram (Node)",
+    "Demo Steps Lifeline Audit",
+    "Invest Dual-Auth (MM)",
+    "Agent Privilege (MM)",
+    "Agent Privilege Enforcement (Node)",
+    "Gateway vs P1AZ Enforcement (MM)",
+    "Resource Server Placement (MM)",
+    "Personal Agent Design (Node)",
+    "Personal Agent Dual Gateway (Node)",
+    "Personal Agent Design Review",
+    "CIMD in Privilege (Node)",
+    "Learning Log",
+    "API Activity",
+    "Run Reports",
+    "Error Audit Log",
+    "New Relic",
+    "CI Queue Dashboard",
+    "PingOne Events",
+    "PingOne Authorize Decisions",
+    "System Flow",
+    "Service Graph",
+    "MCP Observability",
+    "Observability Demo",
+    "Grafana",
+);
+
+// Personal agent includes the OBO story: the Delegation & Consent group plus
+// just the token-exchange pages from Utilities and Observability.
+const personalAgentPreset = preset('uc-personal-agent', 'Use case · Personal agent', 'Personal Agents', 'AI Experiences', 'Delegation & Consent', 'MCP & Integrations', 'Utilities', 'Observability');
+personalAgentPreset.hiddenLabels.push(
+  "PingOne Test",
+  "MFA Test",
+  "Management API Runner",
+  "PingOne MCP Setup",
+  "MCP Discovery",
+  "Resource Server Checkpoint",
+  "Scope Reference",
+  "Snapshot Import",
+  "Health Check",
+  "Learning Log",
+  "Activity Log",
+  "API Activity",
+  "Run Reports",
+  "Error Audit Log",
+  "New Relic",
+  "CI Queue Dashboard",
+  "PingOne Events",
+  "PingOne Authorize Decisions",
+  "System Flow",
+  "Service Graph",
+  "Tracing",
+  "MCP Observability",
+  "Observability Demo",
+  "Grafana",
+);
+
 const BUILTIN_CONFIGS = [
-  {
-    id: 'full-mode',
-    name: 'Full mode',
-    isBuiltin: true,
-    hiddenLabels: [],
-    flagSnapshot: {},
-  },
-  {
-    id: 'demo-mode',
-    name: 'Demo mode',
-    isBuiltin: true,
-    hiddenLabels: [
-      'Themes', 'Agent Demo Guide', 'PingOne MCP', 'MCP & Gateways',
-      'PingOne Demo Apps', 'Delegation & Consent', 'OAuth & Identity',
-      'Users & Accounts', 'AI Attack Demos', 'Monitoring', 'Telemetry',
-      'Diagrams', 'Agent Studio (Preview)', 'Developer Tools', 'System Tools',
-      'Integration Tests', 'Exploring',
-    ],
-    flagSnapshot: {},
-  },
-  {
-    id: 'learning',
-    name: 'Learning',
-    isBuiltin: true,
-    hiddenLabels: [
-      'Themes', 'Agent Demo Guide', 'Family Delegation', 'AI Flows',
-      'PingOne MCP', 'MCP & Gateways', 'Delegation & Consent',
-      'Industry Verticals', 'Users & Accounts', 'AI Attack Demos',
-      'Monitoring', 'Telemetry', 'Agent Studio (Preview)', 'Developer Tools',
-      'System Tools', 'Integration Tests',
-    ],
-    flagSnapshot: {},
-  },
+  { id: 'full-mode', name: 'Full mode', isBuiltin: true, hiddenLabels: [], flagSnapshot: {} },
+  preset('demo-mode', 'Demo mode', 'Security Dashboard', 'AI Experiences', 'Personal Agents', 'Agent Privilege', 'Observability'),
+  preset('learning', 'Learning', 'Exploring', 'Architecture & Learning', 'Identity Journeys', 'AI Experiences'),
+  // By Ping product
+  preset('product-davinci', 'Product · DaVinci', 'DaVinci', 'Identity Journeys', 'Ping products', 'Observability'),
+  preset('product-privilege', 'Product · Privilege / Agent Gateway', 'Agent Privilege', 'MCP & Integrations', 'Observability', 'Diagrams'),
+  preset('product-authorize', 'Product · PingOne Authorize', 'Authorize', 'Delegation & Consent', 'Observability'),
+  preset('product-protect-verify', 'Product · Protect / Verify / MFA', 'Ping products', 'Identity Journeys', 'Utilities'),
+  preset('product-aic-idjag', 'Product · AIC + ID-JAG', 'AIC', 'PingFederate ID-JAG', 'Delegation & Consent', 'Diagrams'),
+  // By use case
+  personalAgentPreset,
+  preset('uc-digital-assistant', 'Use case · Digital assistant', 'AI Experiences', 'Jev Demos', 'MCP & Integrations'),
+  preset('uc-agent-security', 'Use case · Agent security', 'Agent Privilege', 'AI Experiences', 'MCP & Integrations', 'Observability'),
+  a2aPreset,
+  preset('uc-delegation', 'Use case · Delegation & OBO', 'Delegation & Consent', 'Authorize', 'Utilities', 'Diagrams'),
+  // By demo situation
+  preset('exec-10min', 'Exec · 10 minutes', 'Security Dashboard', 'AI Experiences', 'Personal Agents'),
+  preset('architecture-walkthrough', 'Architecture walkthrough', 'Diagrams', 'Demo arch slides', 'Architecture & Learning', 'Agent Privilege'),
+  preset('workshop', 'Workshop / hands-on', 'Exploring', 'Architecture & Learning', 'AI Experiences'),
+  preset('preflight', 'Pre-flight check', 'Utilities', 'Observability'),
 ];
 
 // A builtin's stored copy is a CACHE of BUILTIN_CONFIGS, never user data:
@@ -146,5 +239,5 @@ function isChildOrder(v) {
 module.exports = {
   listConfigs, getConfig, createConfig, deleteConfig,
   getUserPrefs, setUserPrefs, isChildOrder,
-  seedBuiltins, BUILTIN_CONFIGS, DEFAULT_HIDDEN_LABELS, DB_NAME,
+  seedBuiltins, BUILTIN_CONFIGS, TOP_LEVEL_LABELS, DEFAULT_HIDDEN_LABELS, DB_NAME,
 };

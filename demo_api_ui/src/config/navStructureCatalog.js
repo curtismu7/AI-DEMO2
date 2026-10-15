@@ -62,7 +62,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Agent Privilege for AI",
   ] },
   { label: "Personal Agents", children: [
-    "Personal Agent", "Personal Agent Clients", "Target Design", "Dual Gateway Design", "Design Review",
+    "Personal Agent", "Personal Agent Clients", "OBO Demo", "Target Design", "Dual Gateway Design", "Design Review",
   ] },
   { label: "MCP & Integrations", children: [
     "MCP Inspector", "Agent Gateway Inspector", "Enterprise-Managed MCP Auth", "Ping AI Test Lab",
