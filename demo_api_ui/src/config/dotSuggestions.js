@@ -19,3 +19,17 @@ export function dotSuggestions(pageManifest) {
   const lead = own.length ? own : NEUTRAL.map((t) => ({ label: t, message: t }));
   return [...lead, { label: RECALL, message: RECALL }];
 }
+
+// The Studio and pop-out chats talk to the airline demo, so every skin offers the same airline prompts;
+// Dot adds the recall question, which is what makes Dot Dot. Transfer miles shows the PingOne MFA approval.
+const AIRLINE_PROMPTS = [
+  'What is my loyalty status?',
+  'Show my airline bookings',
+  'Transfer 20,000 of my miles to my brother',
+];
+
+/** @returns {{ label: string, message: string }[]} */
+export function airlineSuggestions(skin) {
+  const prompts = skin === 'dot' ? [...AIRLINE_PROMPTS, RECALL] : AIRLINE_PROMPTS;
+  return prompts.map((t) => ({ label: t, message: t }));
+}
