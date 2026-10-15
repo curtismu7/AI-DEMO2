@@ -2426,17 +2426,8 @@ export default function BankingAgent({
       }
       const pendingNl = claimedPendingNlRef.current;
 
-      // The admin console opens with its own content (group membership, customer
-      // lookup, metrics); auto-expanding the agent over it buries the page the
-      // admin just logged in to see. Every other vertical still opens the agent,
-      // which is the intended first beat of those demos. The rest of this effect
-      // (param stripping, pending-NL replay) must still run on admin routes.
-      // Read through a ref so pathname stays out of the dep array — this effect
-      // must fire once on the OAuth return, not again on every later navigation
-      // (the oauth param is stripped from window.location below, but the
-      // router's searchParams do not necessarily follow, so a re-run would
-      // re-open the panel).
-      if (!isPingOneAdminAgentRoute(pathnameRef.current)) setIsOpen(true);
+      // Deliberately no setIsOpen(true) here: the floating agent stays an icon after sign-in.
+      // Inline instances are always open; pending-NL replay below runs either way.
       // Strip oauth params from URL so they don't re-trigger on navigation
       const url = new URL(window.location.href);
       url.searchParams.delete("oauth");
