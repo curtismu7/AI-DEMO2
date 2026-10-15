@@ -115,7 +115,7 @@ spec:
       - name: ghcr-pull-secret
       containers:
       - name: workeragentdemo
-        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-a82ccb209
+        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-a812afe9e
         imagePullPolicy: Always
         command: ["node", "dist/worker-agent/index.js"]
         ports:
@@ -208,7 +208,7 @@ spec:
       - name: ghcr-pull-secret
       containers:
       - name: mainagentdemo
-        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-a82ccb209
+        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-a812afe9e
         imagePullPolicy: Always
         command: ["node", "dist/main-agent/index.js"]
         ports:
