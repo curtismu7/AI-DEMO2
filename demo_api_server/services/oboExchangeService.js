@@ -4,6 +4,7 @@ const { buildEvidence } = require('./oboEvidence');
 const { verifyDownstream } = require('./oboDownstream');
 const { getAgentCCToken } = require('./agentCCTokenService');
 const oauthService = require('./oauthService');
+const oauthEndpointResolver = require('./oauthEndpointResolver');
 
 const defaultDeps = {
   verifyDownstream,
@@ -14,6 +15,7 @@ const defaultDeps = {
   // Exchanging app = Token Exchanger (proven), not the admin client used by performTokenExchangeWithActor.
   exchange: (subjectToken, actorToken, cfg) => oauthService.performTokenExchangeAs(
     subjectToken, actorToken, cfg.exchanger.id, cfg.exchanger.secret, cfg.audience, cfg.scope, 'post',
+    { tokenEndpoint: oauthEndpointResolver.getPingOneTokenEndpoint() },
   ),
 };
 

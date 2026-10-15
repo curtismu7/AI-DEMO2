@@ -996,10 +996,10 @@ The user runs the bootstrap step against the demo PingOne environment, or, to av
 Run the BFF from this worktree: `npm run serve:worktree here` (never `docker compose up` from a worktree). Then:
 
 ```
-claude mcp add --transport http obo-demo https://api.ping.demo:3001/api/obo/mcp \
+claude mcp add --transport http obo-demo https://local.ping-devops.com:4000/api/obo/mcp \
   --client-id c8392dc4-2d82-4e49-92a8-79a78401faf5 --callback-port 7465
 ```
-(Use the local API origin your stack serves; the metadata URL printed in the 401 challenge must match it.) In `claude`: `/mcp` -> authenticate -> sign in as demoUser -> ask: "Call the act_on_my_behalf tool and show me its result."
+Always register against the PUBLIC_APP_URL origin; the metadata is served at /api/obo/mcp/oauth-protected-resource because the frontend proxies /api/ but serves the SPA for /.well-known/. In `claude`: `/mcp` -> authenticate -> sign in as demoUser -> ask: "Call the act_on_my_behalf tool and show me its result."
 Expected tool text: `acted_by` is `{"client_id": "f65664b2-..."}`, `downstream` is `{"delegated":200,"userToken":401}`, all 7 `checks` pass, no `eyJ` anywhere.
 If `inbound_rejected`/401 appears, read the BFF log: the likely cause is the inbound audience. Claude's token carried `mcpgateway.ping.demo` in the earlier test; set `OBO_INBOUND_AUDIENCES` to the audience actually present (decode the token locally, never paste it) rather than loosening validation.
 
@@ -1007,7 +1007,7 @@ If `inbound_rejected`/401 appears, read the BFF log: the likely cause is the inb
 
 Only with the user naming the SE target explicitly. Focused BFF deploy per `docs/worktree-and-stack.md` (`./run-pingaws.sh` flow for `se-update-code.sh`, BFF only, then `kubectl set image` to the pinned sha, and verify the pod's imageID digest). Then:
 1. Unauthenticated check: `curl -si -X POST https://ai-demo.ping-devops.com/api/obo/mcp -d '{}' -H 'content-type: application/json'` must return `401` with a `WWW-Authenticate: Bearer resource_metadata=...` header (NOT `{"error":"hosted_access_required"}`).
-2. `curl -s https://ai-demo.ping-devops.com/.well-known/oauth-protected-resource/api/obo/mcp` must return JSON naming the PingOne issuer. If the ingress swallows `/.well-known/...` for this path, add an oauth-bypass rule (see `k8s/` se-ingress.yaml, the same mechanism the CIMD documents use) and redeploy ingress config.
+2. `curl -s https://ai-demo.ping-devops.com/api/obo/mcp/oauth-protected-resource` must return JSON naming the PingOne issuer.
 3. Register `https://ai-demo.ping-devops.com/api/obo/mcp` the same way as Step 3, authenticate, call the tool. Expected: same result as local.
 
 - [ ] **Step 5: Record the gate decision**
