@@ -83,4 +83,10 @@ describe("OboDemoPage", () => {
     expect(link).toHaveAttribute("target", "_blank");
     expect(link).toHaveAttribute("rel", expect.stringContaining("noopener"));
   });
+
+  it("shows the Claude Code steps with this origin's endpoint and the tool to allow", () => {
+    render(<OboDemoPage />);
+    expect(screen.getByText(/claude mcp add --transport http obo-demo/)).toHaveTextContent(`${window.location.origin}/api/obo/mcp`);
+    expect(screen.getByText(/mcp__obo-demo__act_on_my_behalf/)).toBeInTheDocument();
+  });
 });
