@@ -6,6 +6,6 @@
   "status": "PASS",
   "errorClass": null,
   "primaryTool": "pay_bill",
-  "checkedAt": "2026-09-26",
+  "checkedAt": "2026-10-15",
   "verifiedBy": "demo_api_ui/src/context/__tests__/ProofOfEnforcementContext.test.js + mcpToolAuthorization.transactionPolicyHitl.test.js (#769)"
 }
