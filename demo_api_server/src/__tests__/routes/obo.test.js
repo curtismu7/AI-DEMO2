@@ -8,14 +8,14 @@ jest.mock('../../../services/oboExchangeService');
 jest.mock('../../../services/oboDownstream');
 jest.mock('../../../services/oboEventHub');
 jest.mock('../../../services/oboConfig', () => ({
-  getOboConfig: () => ({ issuer: 'https://iss', jwksUri: 'https://iss/jwks', inboundAudiences: ['mcpgateway.ping.demo'] }),
+  getOboConfig: () => ({ issuer: 'https://iss', jwksUri: 'https://iss/jwks', inboundAudiences: ['mcpgateway.ping.demo'], claudeClient: { id: 'client-1', callbackPort: 7465 } }),
 }));
 
 const { validateToken } = require('../../../services/tokenValidationService');
 const { runObo } = require('../../../services/oboExchangeService');
 const { verifyDownstream } = require('../../../services/oboDownstream');
 const hub = require('../../../services/oboEventHub');
-const { router, metadataHandler } = require('../../../routes/obo');
+const { router, metadataHandler, eventsHandler, infoHandler } = require('../../../routes/obo');
 
 const app = express();
 app.use(express.json());
@@ -231,4 +231,70 @@ test('logs the PingOne reason server-side, without any token', async () => {
   expect(logged).toMatch(/At least one scope must be granted/);
   expect(logged).not.toMatch(/tok-sess/);
   spy.mockRestore();
+});
+
+const jwtWith = (payload) => ['eyJhbGciOiJSUzI1NiJ9', Buffer.from(JSON.stringify(payload)).toString('base64url'), 's'].join('.');
+
+function fakeRes() {
+  return {
+    headers: {}, chunks: [], statusCode: 200, body: null, flushed: false,
+    setHeader(k, v) { this.headers[k] = v; }, flushHeaders() { this.flushed = true; },
+    write(c) { this.chunks.push(c); return true; },
+    status(c) { this.statusCode = c; return this; }, json(b) { this.body = b; return this; },
+  };
+}
+function fakeReq(session) {
+  const handlers = {};
+  return { session, get: () => 'localhost:3001', protocol: 'https', on: (e, f) => { handlers[e] = f; }, fireClose: () => handlers.close && handlers.close() };
+}
+
+describe('GET /api/obo/events', () => {
+  beforeEach(() => jest.useFakeTimers());
+  afterEach(() => jest.useRealTimers());
+
+  test('401 without a signed-in session token, and nothing is subscribed', () => {
+    const res = fakeRes();
+    eventsHandler(fakeReq({}), res);
+    expect(res.statusCode).toBe(401);
+    expect(hub.subscribe).not.toHaveBeenCalled();
+  });
+
+  test('401 when the session token has no readable sub', () => {
+    const res = fakeRes();
+    eventsHandler(fakeReq({ oauthTokens: { accessToken: 'not-a-jwt' } }), res);
+    expect(res.statusCode).toBe(401);
+  });
+
+  test('subscribes under the session token sub, streams SSE headers, heartbeats, and cleans up on close', () => {
+    const off = jest.fn();
+    hub.subscribe.mockReturnValue(off);
+    const req = fakeReq({ oauthTokens: { accessToken: jwtWith({ sub: 'u1' }) } });
+    const res = fakeRes();
+    eventsHandler(req, res);
+    expect(res.headers['Content-Type']).toBe('text/event-stream');
+    expect(res.headers['X-Accel-Buffering']).toBe('no');
+    expect(res.flushed).toBe(true);
+    expect(hub.subscribe).toHaveBeenCalledWith('u1', res);
+    jest.advanceTimersByTime(20000);
+    expect(res.chunks).toContain(': ping\n\n');
+    req.fireClose();
+    expect(off).toHaveBeenCalled();
+    const before = res.chunks.length;
+    jest.advanceTimersByTime(60000);
+    expect(res.chunks.length).toBe(before); // heartbeat stopped
+  });
+});
+
+describe('GET /api/obo/info', () => {
+  test('401 when signed out', () => {
+    const res = fakeRes();
+    infoHandler(fakeReq({}), res);
+    expect(res.statusCode).toBe(401);
+  });
+  test('returns the MCP URL for this origin plus the public client id, no secrets', () => {
+    const res = fakeRes();
+    infoHandler(fakeReq({ oauthTokens: { accessToken: jwtWith({ sub: 'u1' }) } }), res);
+    expect(res.body).toEqual({ mcpUrl: expect.stringMatching(/\/api\/obo\/mcp$/), clientId: 'client-1', callbackPort: 7465 });
+    expect(JSON.stringify(res.body)).not.toMatch(/secret/i);
+  });
 });

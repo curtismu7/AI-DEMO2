@@ -34,3 +34,15 @@ test('unsubscribe stops delivery', () => {
   hub.publish('u1', { n: 1 });
   expect(a.write).not.toHaveBeenCalled();
 });
+
+test('a subscriber whose write throws is dropped and does not starve the others', () => {
+  const bad = { write: jest.fn(() => { throw new Error('socket closed'); }) };
+  const good = fakeRes();
+  hub.subscribe('u1', bad);
+  hub.subscribe('u1', good);
+  hub.publish('u1', { n: 1 });
+  expect(good.write).toHaveBeenCalledWith(`data: ${JSON.stringify({ n: 1 })}\n\n`);
+  hub.publish('u1', { n: 2 });
+  expect(bad.write).toHaveBeenCalledTimes(1); // dropped after its first failure
+  expect(good.write).toHaveBeenCalledTimes(2);
+});

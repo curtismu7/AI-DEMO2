@@ -6,7 +6,7 @@ const { getOboConfig } = require('../services/oboConfig');
 const { runObo } = require('../services/oboExchangeService');
 const { verifyDownstream } = require('../services/oboDownstream');
 const hub = require('../services/oboEventHub');
-const { hasTokenLeak } = require('../services/oboEvidence');
+const { hasTokenLeak, claims } = require('../services/oboEvidence');
 
 const router = express.Router();
 
@@ -124,4 +124,35 @@ router.post('/run', async (req, res) => {
   }
 });
 
-module.exports = { router, metadataHandler };
+// Session-authenticated helpers for the /obo-demo page.
+function sessionSub(req) {
+  const token = req.session?.oauthTokens?.accessToken;
+  if (!token || token === '_cookie_session') return null;
+  try { return claims(token).sub || null; } catch (_e) { return null; }
+}
+
+function eventsHandler(req, res) {
+  const sub = sessionSub(req);
+  if (!sub) return res.status(401).json({ error: 'Sign in first.' });
+  res.setHeader('Content-Type', 'text/event-stream');
+  res.setHeader('Cache-Control', 'no-cache');
+  res.setHeader('Connection', 'keep-alive');
+  res.setHeader('X-Accel-Buffering', 'no');
+  res.flushHeaders();
+  res.write(': connected\n\n');
+  const off = hub.subscribe(sub, res);
+  const ping = setInterval(() => { try { res.write(': ping\n\n'); } catch (_e) { /* closed; the close handler cleans up */ } }, 20000);
+  req.on('close', () => { clearInterval(ping); off(); });
+  return undefined;
+}
+
+function infoHandler(req, res) {
+  if (!sessionSub(req)) return res.status(401).json({ error: 'Sign in first.' });
+  const { claudeClient } = getOboConfig();
+  return res.json({ mcpUrl: `${baseUrl(req)}/api/obo/mcp`, clientId: claudeClient.id, callbackPort: claudeClient.callbackPort });
+}
+
+router.get('/events', eventsHandler);
+router.get('/info', infoHandler);
+
+module.exports = { router, metadataHandler, eventsHandler, infoHandler };

@@ -11,7 +11,11 @@ function publish(sub, evidence) {
   while (buf.length > BUFFER_MAX) buf.shift();
   buffers.set(sub, buf);
   const line = `data: ${JSON.stringify(evidence)}\n\n`;
-  for (const res of subscribers.get(sub) || []) res.write(line);
+  const set = subscribers.get(sub);
+  if (!set) return;
+  for (const res of [...set]) {
+    try { res.write(line); } catch (_e) { set.delete(res); } // dead connection: drop it, keep delivering to the rest
+  }
 }
 
 function subscribe(sub, res) {
@@ -19,7 +23,10 @@ function subscribe(sub, res) {
   set.add(res);
   subscribers.set(sub, set);
   for (const ev of buffers.get(sub) || []) res.write(`data: ${JSON.stringify(ev)}\n\n`);
-  return () => set.delete(res);
+  return () => {
+    set.delete(res);
+    if (!set.size && subscribers.get(sub) === set) subscribers.delete(sub);
+  };
 }
 
 function _reset() { subscribers.clear(); buffers.clear(); }
