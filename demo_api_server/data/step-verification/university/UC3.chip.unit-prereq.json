@@ -6,7 +6,7 @@
   "status": "UNPROVEN",
   "errorClass": null,
   "primaryTool": "view_courses",
-  "checkedAt": "2026-09-26",
+  "checkedAt": "2026-10-15",
   "requiredFlags": [
     "ff_mcp_gateway_pinggateway"
   ],
