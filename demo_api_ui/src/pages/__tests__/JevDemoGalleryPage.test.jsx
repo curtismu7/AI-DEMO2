@@ -157,4 +157,19 @@ describe('JevDemoGalleryPage', () => {
     expect(screen.getAllByText(/rate limited/).length).toBeGreaterThan(0);
     expect(document.querySelectorAll('.jev-table tbody tr').length).toBe(8);
   });
+
+  it('the page toggle sends mode heuristics on a run and is remembered', async () => {
+    localStorage.clear();
+    const user = userEvent.setup();
+    renderAt('/jev-demos/game-agent');
+    await user.click(screen.getByRole('radio', { name: 'Heuristics' }));
+    expect(localStorage.getItem('agentMode:jev-gallery')).toBe('heuristics');
+    const run = document.querySelector('button.btn-primary');
+    await user.click(run);
+    await waitFor(() => expect(run.disabled).toBe(false));
+    const bodies = global.fetch.mock.calls.filter(([u]) => String(u).includes('/api/demo/jev/')).map(([, o]) => JSON.parse(o.body));
+    expect(bodies.length).toBeGreaterThan(0);
+    expect(bodies.every((b) => b.mode === 'heuristics')).toBe(true);
+    localStorage.clear();
+  });
 });

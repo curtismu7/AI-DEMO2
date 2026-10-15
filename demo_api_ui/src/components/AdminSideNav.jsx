@@ -177,11 +177,12 @@ const LOCAL_HOSTNAMES = new Set(["localhost", "127.0.0.1", "local.ping-devops.co
 // load when nothing is saved. Ids must equal slugify(<group label>) from
 // `allNavItems` below — update both together when renaming a group.
 const AUTO_EXPAND_SECTIONS = [
-  { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/privilege-a2a", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
+  { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
+  { id: "a2a", paths: ["/privilege-a2a", "/a2a-protocol-learning", "/a2a-architecture", "/delegation-chain-value", "/ai-products/privilege-a2a"] },
   { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
   { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
-  { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/delegation-chain-value", "/a2a-protocol-learning", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
+  { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
   { id: "pingfederate-id-jag", paths: ["/pingfederate-id-jag"] },
   { id: "pingfederate-ai-agent", paths: ["/pingfederate-ai-agent"] },
@@ -1365,13 +1366,24 @@ export default function AdminSideNav({
       "Agent Gateway",
       { from: "PingOne Authorize", rename: "PingOne Authorize", path: "/ai-products/authorize" },
       { from: "Privilege · LLM", rename: "Agent Privilege · LLM" },
-      { from: "Privilege · A2A", rename: "Agent Privilege · A2A" },
-      { label: "Agent Privilege · A2A Review", path: "/privilege-a2a", icon: "lnk" },
       { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
       { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
       { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),
+    // Every A2A page in one place. The group's own alias makes searching "a2a" show the whole group
+    // (a group whose own label or alias matches keeps all of its children).
+    {
+      ...productGroup("A2A", [
+        { label: "A2A Access Review", path: "/privilege-a2a", icon: "lnk" },
+        { from: "A2A Protocol & Identity", rename: "A2A Protocol & Identity" },
+        { from: "A2A Architecture (Node)", rename: "A2A Architecture" },
+        { from: "Delegation Chain Value", rename: "Delegation Chain Value" },
+        { label: "Malicious A2A", path: "/llm-gateway?tab=a2a", icon: "key" },
+        { from: "Privilege · A2A", rename: "A2A Product Page" },
+      ], "lnk"),
+      searchAlias: "a2a agent to agent agent2agent delegation specialist worker nested act chain",
+    },
     productGroup("Jev Demos", [
       { label: "Jev Decision Model", path: "/jev-learning", icon: "demo" },
       { label: "PR Review", path: "/jev-demos/pr-review", icon: "doc" },
@@ -1451,8 +1463,6 @@ export default function AdminSideNav({
       "Use Cases",
       "Use Cases (Live)",
       "Guided Demo Track",
-      "Delegation Chain Value",
-      "A2A Protocol & Identity",
       "Group Policy Board",
       "Demo Script",
       "Agentic Control Plane",

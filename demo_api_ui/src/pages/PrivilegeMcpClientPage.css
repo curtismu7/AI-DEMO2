@@ -2404,11 +2404,11 @@ select.cur-input { cursor: pointer; }
   /* Right padding clears the app's floating agent button, which sits over the corner and hid Send. */
   padding: 10px 76px 12px 18px;
   gap: 6px 12px;
-  /* Short windows scroll the tab; Send stays reachable regardless. */
-  position: sticky;
-  bottom: 0;
-  z-index: 1;
+  /* The composer scrolls with the column. It used to be pinned (position: sticky), but at 340 to 500px tall it
+     sat over the walkthrough and the Break-it rows whatever the window height. */
 }
+/* Many suggestions scroll inside their own box instead of growing the composer. */
+.cur-ide .cur-a2a-main .privilege-a2a__chips { max-height: 112px; overflow-y: auto; }
 .cur-ide .cur-a2a-main .privilege-a2a__composer textarea { min-height: 48px; }
 /* The suggestion chips above already offer every question the select lists. */
 .cur-ide .cur-a2a-main .privilege-a2a__composer label[for="privilege-a2a-demo-question"],

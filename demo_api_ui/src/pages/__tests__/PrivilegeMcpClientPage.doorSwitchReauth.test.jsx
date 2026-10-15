@@ -166,7 +166,7 @@ describe("Privilege client — re-auth on switch", () => {
     expect(screen.queryByText("Sign in to the gateway")).toBeNull();
   });
 
-  it("fetches tools automatically after silent authorization returns for a door switch", async () => {
+  it("does not fetch tools after silent authorization returns for a door switch — the user presses Get MCP Tools", async () => {
     mockGateway({
       gatewayMode: "privilege",
       mcpUrl: PRIV_DOOR_B,
@@ -179,9 +179,9 @@ describe("Privilege client — re-auth on switch", () => {
     sessionStorage.setItem("cur_priv_switching", "1");
     renderPage("/privilege-mcp-client?auth=success");
 
-    await waitFor(() => expect(callsTo("tools/list")).toHaveLength(1));
-    expect(await screen.findAllByText("ListIndexTool")).not.toHaveLength(0);
     await waitFor(() => expect(sessionStorage.getItem("cur_priv_switching")).toBeNull());
+    expect(callsTo("tools/list")).toHaveLength(0);
+    expect(screen.queryByText("ListIndexTool")).toBeNull();
   });
 
   it("keeps manual sign-in available when a silent Privilege flow is unavailable", async () => {

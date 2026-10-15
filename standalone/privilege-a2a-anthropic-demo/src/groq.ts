@@ -16,6 +16,7 @@ import type Anthropic from '@anthropic-ai/sdk';
 interface OpenAiToolCall { id?: string; type?: string; function?: { name?: string; arguments?: string } }
 interface OpenAiMessage { role: 'system' | 'user' | 'assistant' | 'tool'; content?: string | null; tool_calls?: unknown[]; tool_call_id?: string }
 export interface OpenAiResponse {
+  usage?: { prompt_tokens?: number; completion_tokens?: number };
   choices?: { message?: { content?: string | null; tool_calls?: OpenAiToolCall[] }; finish_reason?: string }[];
 }
 type Params = Anthropic.MessageCreateParamsNonStreaming;
@@ -92,7 +93,9 @@ export function fromGroqResponse(body: OpenAiResponse, model: string): Anthropic
   const stopReason = content.some(block => block.type === 'tool_use')
     ? 'tool_use'
     : choice.finish_reason === 'length' ? 'max_tokens' : 'end_turn';
-  return { id: randomUUID(), type: 'message', role: 'assistant', model, content, stop_reason: stopReason } as Anthropic.Message;
+  // The provider's own counts, so the trace can show what each call used.
+  const usage = { input_tokens: body.usage?.prompt_tokens ?? 0, output_tokens: body.usage?.completion_tokens ?? 0 };
+  return { id: randomUUID(), type: 'message', role: 'assistant', model, content, stop_reason: stopReason, usage } as Anthropic.Message;
 }
 
 // Same protection as the Gemini client: a call that never answers gets a deadline and one retry.

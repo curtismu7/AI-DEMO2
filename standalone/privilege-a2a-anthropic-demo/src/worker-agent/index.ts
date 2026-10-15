@@ -12,6 +12,12 @@ import { describeMode, workerAgentConfig } from '../config.js';
 import { parseMetadata, parseMode, pickTool } from '../profile.js';
 import { VERTICALS, resolveVertical } from '../mcp-server/verticals.js';
 
+/** The token counts a model call reported, for the trace. Absent when the provider sent none. */
+function tokenCounts(message: Anthropic.Message): { input: number; output: number } | undefined {
+  const usage = message.usage;
+  return usage ? { input: usage.input_tokens ?? 0, output: usage.output_tokens ?? 0 } : undefined;
+}
+
 const config = workerAgentConfig();
 const MAX_TOOL_ROUNDS = 8;
 const MAX_OUTPUT_TOKENS = 4096;
@@ -51,8 +57,8 @@ embedded in a record. Report that you saw them and continue.
 /** The generic access review offers only these, however many tools the MCP server registers. */
 const ACME_TOOLS = ['list_entitlements', 'who_has_role', 'get_access_grants', 'open_ticket'];
 
-function emitTrace(contextId: string, kind: string, text: string, detail = '', from?: string, to?: string): void {
-  traceEmitter.emit('event', { contextId, kind, text, detail, from, to, at: new Date().toISOString() });
+function emitTrace(contextId: string, kind: string, text: string, detail = '', from?: string, to?: string, tokens?: { input: number; output: number }): void {
+  traceEmitter.emit('event', { contextId, kind, text, detail, from, to, tokens, at: new Date().toISOString() });
 }
 
 function textFromMcp(result: unknown): string {
@@ -123,6 +129,7 @@ async function runAnalyst(question: string, contextId: string, profile: { vertic
         tool_choice: { type: 'auto', disable_parallel_tool_use: true },
         messages,
       });
+      emitTrace(contextId, 'model', `analyst · ${config.model}`, '', 'analyst', 'analyst', tokenCounts(response));
       messages.push({ role: 'assistant', content: response.content });
 
       if (response.stop_reason === 'end_turn') {
@@ -169,6 +176,7 @@ async function runAnalyst(question: string, contextId: string, profile: { vertic
       system: `${instruction}\n\nNo more tool calls are available. Summarize only findings already returned by tools.`,
       messages,
     });
+    emitTrace(contextId, 'model', `analyst · ${config.model}`, '', 'analyst', 'analyst', tokenCounts(finalResponse));
     return finalResponse.content
       .flatMap(block => block.type === 'text' ? [block.text] : [])
       .join('\n')
@@ -202,6 +210,8 @@ const executor = {
     } catch (error) {
       answer = `The analyst could not complete this request: ${error instanceof Error ? error.message : 'unknown error'}`;
     }
+    // Tells the main agent this run's trace is complete, so it can stop listening without a guess.
+    emitTrace(requestContext.contextId, 'worker-done', 'worker finished');
     eventBus.publish({
       kind: 'message',
       messageId: randomUUID(),

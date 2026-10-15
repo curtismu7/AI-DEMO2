@@ -552,13 +552,15 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
     // specialist that already has `read` on Demo API cannot also hold `read` on MCP
     // Gateway — using the (per-specialist) intermediate audience + scope sidesteps
     // this constraint while still proving Agent 2's identity for the nested-act chain.
-    const agent2Actor = await oauth.getClientCredentialsTokenAs(
+    // delegateToSpecialist starts this fetch alongside Exchange #1 (it needs no output of it); awaited
+    // here so a failure still surfaces at the agent2_actor stage.
+    const agent2Actor = await (opts.agent2ActorPromise || oauth.getClientCredentialsTokenAs(
       c.agent2ClientId,
       c.agent2Secret,
       c.intermediateAud,
       c.agent2AuthMethod,
       c.intermediateScope,
-    );
+    ));
     tokenEvents.push(buildA2aEvent(
       'a2a-agent2-actor',
       `A2A — ${specialist.specialistName} (Agent 2) Actor Token · client_credentials`,
@@ -694,11 +696,39 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
  *                      actChainDepth: number, error?: string }>}
  */
 async function delegateToSpecialist(req, opts = {}) {
+  const agent2ActorPromise = startAgent2ActorFetch(opts);
   const first = await exchangeAsGeneralist(req, opts);
   if (first.error || !first.token) return first;
-  const second = await exchangeAsSpecialist(first.token, { ...opts, tokenEvents: first.tokenEvents });
+  const second = await exchangeAsSpecialist(first.token, { ...opts, tokenEvents: first.tokenEvents, agent2ActorPromise });
   if (second.error) return { ...first, ...second, token: null };
   return { ...first, ...second };
+}
+
+/**
+ * Start Agent 2's client_credentials actor fetch now, so it overlaps Exchange #1
+ * instead of following it: the actor token depends only on config, never on
+ * Exchange #1's output. Returns undefined (exchangeAsSpecialist then fetches it
+ * itself, exactly as before) when config cannot be resolved here. A rejection is
+ * observed here only to avoid an unhandled-rejection warning when Exchange #1
+ * fails first; exchangeAsSpecialist still awaits the same promise and sees it.
+ */
+function startAgent2ActorFetch(opts = {}) {
+  try {
+    const deps = opts.deps || {};
+    const oauth = deps.oauthService || defaultOauthService();
+    const cfg = deps.configStore || defaultConfigStore();
+    const scopeTopo = deps.scopeTopology || defaultScopeTopology();
+    const specialist = specialistForVertical(opts.vertical);
+    if (!specialist) return undefined;
+    const c = resolveA2aConfig(cfg, specialist, scopeTopo);
+    const promise = Promise.resolve(oauth.getClientCredentialsTokenAs(
+      c.agent2ClientId, c.agent2Secret, c.intermediateAud, c.agent2AuthMethod, c.intermediateScope,
+    ));
+    promise.catch(() => {});
+    return promise;
+  } catch (_) {
+    return undefined;
+  }
 }
 
 /**

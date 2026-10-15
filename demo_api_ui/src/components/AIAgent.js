@@ -8454,6 +8454,8 @@ export default function BankingAgent({
         const { data } = await apiClient.post("/api/a2a/message", {
           message: trigger.text,
           vertical: effectiveVerticalId,
+          // The agent's own per-page choice (A2A route calls it `mode`); unset leaves the global mode in charge.
+          ...(pageAgentModeField().agentMode ? { mode: pageAgentModeField().agentMode } : {}),
         });
         const specialistResult = data?.delegationResult?.result;
         const resultText = specialistResult == null

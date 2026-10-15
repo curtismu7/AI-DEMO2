@@ -90,20 +90,21 @@ function ensureBuiltInsSeeded() {
     transport: 'pingone',
     isDefault: false,
   });
-  // The banking door was re-registered as `openapi2` on 2026-09-08; the old
-  // `banking-rest2` Agentic App was deleted, so its client URL 404s. The
+  // The banking door was re-registered as `openapi2` on 2026-09-08 and since
+  // renamed `banking-openapi`; the old `banking-rest2` and `openapi2` Agentic
+  // Apps were deleted, so their client URLs 404. The
   // profile ID stays `built-in-privilege-mcp` (mcpPrivilegeAuth.js's
   // post-login redirect deep-links to it); only the door behind it moved.
   // seedBuiltIn's drift check repoints the stored record on the next call.
   seedBuiltIn(PRIVILEGE_PROFILE_ID, {
-    label: 'Privilege: Banking (openapi2)',
+    label: 'Privilege: Banking (banking-openapi)',
     transport: 'privilege',
-    url: `${PRIVILEGE_GATEWAY_BASE}/openapi2/mcp`,
+    url: `${PRIVILEGE_GATEWAY_BASE}/banking-openapi/mcp`,
     isDefault: false,
   });
   // The profile ID stays `built-in-privilege-opensearch` (mcpPrivilegeAuth.js
   // deep-links and bookmarks); seedBuiltIn's drift check repoints the stored
-  // record on the next call, the same way the banking door moved to openapi2.
+  // record on the next call, the same way the banking door moved to banking-openapi.
   seedBuiltIn(PRIVILEGE_OPENSEARCH_PROFILE_ID, {
     label: 'Privilege: Aggregate',
     transport: 'privilege',

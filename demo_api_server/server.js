@@ -1506,9 +1506,11 @@ app.use('/api/compliance-agent', authenticateToken, complianceAgentRoutes);
 app.use('/api/code-search', authenticateToken, require('./routes/codeSearch'));
 app.use('/api/document-rag', authenticateToken, require('./routes/documentRag'));
 // Intent authorization and unified agent invocation
+// OBO demo: Claude-facing MCP endpoint + downstream verifier. Self-authenticating (own Bearer check).
+const oboRoutes = require('./routes/obo');
+app.use('/api/obo', oboRoutes.router);
 app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);
-app.use('/api/obo', require('./routes/obo'));
 app.use('/api/agent', delegationGate, transactionTurnMiddleware, agentRunRoutes); // AG-UI Step 2: /api/agent/run
 const { codegraphProxy, codegraphReindexProxy, codegraphStatus } = require('./routes/codegraphProxy');
 app.post('/api/codegraph/query', codeGraphQueryLimiter, codegraphProxy);
@@ -1987,6 +1989,8 @@ app.get('/.well-known/oauth-client/:clientId', wellKnownHandler);
 app.use('/api/cimd', require('./routes/cimdAgentMetadata'));
 
 // RFC 9728 — Protected Resource Metadata (public, no authentication required)
+// RFC 9728 metadata for the OBO MCP endpoint (public; must precede the generic handler below).
+app.get('/.well-known/oauth-protected-resource/api/obo/mcp', oboRoutes.metadataHandler);
 app.use('/.well-known/oauth-protected-resource', protectedResourceMetadataRoutes);
 app.use('/api/rfc9728', protectedResourceMetadataRoutes);
 

@@ -318,15 +318,16 @@ function isConfigured() {
  * @param {string} state the text to judge
  * @returns {Promise<{mode:'live'|'simulated', model:string, latencyMs:number, answer:object}>}
  */
-async function evaluate(scenarioKey, state) {
+async function evaluate(scenarioKey, state, { heuristicsOnly = false } = {}) {
   const scenario = SCENARIOS[scenarioKey];
   if (!scenario) throw Object.assign(new Error('Unknown scenario'), { status: 400 });
   const text = String(state || '').slice(0, MAX_STATE_CHARS);
   if (!text.trim()) throw Object.assign(new Error('state is required'), { status: 400 });
 
   const started = Date.now();
-  if (!isConfigured()) {
-    return { mode: 'simulated', model: 'keyword-heuristic', latencyMs: Date.now() - started, answer: heuristic(scenarioKey, text) };
+  if (heuristicsOnly || !isConfigured()) {
+    // chosen: the page asked for heuristics, as opposed to Jev simply not being configured.
+    return { mode: 'simulated', model: 'keyword-heuristic', ...(heuristicsOnly ? { chosen: true } : {}), latencyMs: Date.now() - started, answer: heuristic(scenarioKey, text) };
   }
 
   const { data } = await axios.post(

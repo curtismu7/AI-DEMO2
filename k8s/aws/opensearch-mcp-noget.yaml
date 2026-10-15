@@ -1,0 +1,65 @@
+# opensearch-mcp-noget — front for the OpenSearch MCP server used by Privilege's MCP Aggregate.
+#
+# Why: the upstream OpenSearch MCP server (streamable HTTP) holds the optional GET /mcp
+# event stream open. Privilege's MCP Aggregate opens that GET first and waits on it, so
+# every opensearch__* call through an aggregate hung (measured 2026-10-15; the banking
+# member 404s the GET and works). Answering GET with 405 is allowed by the MCP spec and
+# unblocks it: aggregate-limited -> opensearch__ListIndexTool went from a hang to 275 ms.
+#
+# The console app `opensearch` points here:
+#   Backends = http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local
+# Not applied by deploy.sh. Apply by hand:  kubectl apply -f k8s/aws/opensearch-mcp-noget.yaml
+# Revert: point the `opensearch` app back at the server and delete these three objects.
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: opensearch-mcp-noget
+  namespace: ping-devops-cmuir
+data:
+  default.conf: |
+    server {
+      listen 8080;
+      location / {
+        if ($request_method = GET) { return 405; }
+        proxy_pass http://opensearch-mcp-server.ping-devops-cmuir.svc.cluster.local:9900;
+        proxy_http_version 1.1;
+        proxy_set_header Connection "";
+        proxy_buffering off;
+        proxy_read_timeout 300s;
+      }
+    }
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: opensearch-mcp-noget
+  namespace: ping-devops-cmuir
+  labels: { app: opensearch-mcp-noget }
+spec:
+  replicas: 1
+  selector: { matchLabels: { app: opensearch-mcp-noget } }
+  template:
+    metadata:
+      labels: { app: opensearch-mcp-noget }
+    spec:
+      containers:
+      - name: nginx
+        image: nginx:1.27-alpine
+        ports: [{ containerPort: 8080 }]
+        resources:
+          requests: { cpu: 10m, memory: 16Mi }
+          limits: { cpu: 200m, memory: 64Mi }
+        volumeMounts:
+        - { name: conf, mountPath: /etc/nginx/conf.d }
+      volumes:
+      - name: conf
+        configMap: { name: opensearch-mcp-noget }
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch-mcp-noget
+  namespace: ping-devops-cmuir
+spec:
+  selector: { app: opensearch-mcp-noget }
+  ports: [{ name: http, port: 80, targetPort: 8080 }]

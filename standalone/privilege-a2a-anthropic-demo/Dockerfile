@@ -8,6 +8,8 @@ COPY src ./src
 RUN npm run build && npm prune --omit=dev
 
 FROM node:22-alpine
+# Links the GHCR package to this repo on push (see .github/workflows/build-a2a-demo-image.yml).
+LABEL org.opencontainers.image.source=https://github.com/cmuir_pingcorp/AI-DEMO2
 WORKDIR /app
 COPY --from=build /app/package.json ./
 COPY --from=build /app/node_modules ./node_modules

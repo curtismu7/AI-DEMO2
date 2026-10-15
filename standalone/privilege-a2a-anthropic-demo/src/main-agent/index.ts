@@ -10,9 +10,16 @@ import { buildWorkerClient } from './a2a-client.js';
 import { MAIN, maskKey, pretty, runChain } from './chain.js';
 import { renderPage } from './ui.js';
 
+/** The token counts a model call reported, for the trace. Absent when the provider sent none. */
+function tokenCounts(message: Anthropic.Message): { input: number; output: number } | undefined {
+  const usage = message.usage;
+  return usage ? { input: usage.input_tokens ?? 0, output: usage.output_tokens ?? 0 } : undefined;
+}
+
 const config = mainAgentConfig();
 const MAX_DELEGATION_ROUNDS = 4;
 const MAX_OUTPUT_TOKENS = 4096;
+const WORKER_DONE_CAP_MS = 1000;
 function delegateToolFor(profile: Profile | null): Anthropic.Tool {
   if (!profile) return DELEGATE_TOOL;
   return { ...DELEGATE_TOOL, description: `Ask the ${profile.specialistName} to ${profile.subtaskHint}.` };
@@ -62,6 +69,7 @@ async function startWorkerTrace(
   contextId: string,
   at: () => string,
   profile: Profile | null,
+  onWorkerDone: () => void = () => {},
 ): Promise<void> {
   const headers: Record<string, string> = {};
   if (config.bearer) headers.Authorization = `Bearer ${config.bearer}`;
@@ -86,6 +94,8 @@ async function startWorkerTrace(
           try {
             const payload = JSON.parse(dataLine.slice(6)) as Record<string, unknown>;
             if (payload.contextId !== contextId) continue;
+            // The worker's end-of-trace marker: every hop before it has already been relayed (one ordered stream). Not shown to the user.
+            if (payload.kind === 'worker-done') { onWorkerDone(); continue; }
             const { contextId: _contextId, ...trace } = payload;
             sendSse(res, 'trace', { ...withLabels(trace as { from?: unknown; to?: unknown }, profile), at: at() });
           } catch { /* Ignore malformed trace events. */ }
@@ -200,7 +210,9 @@ app.post('/chat', async (req: Request, res: Response) => {
     }
   });
 
-  void startWorkerTrace(res, traceAbort.signal, traceId, at, profile);
+  let workerDone: () => void = () => {};
+  const workerDonePromise = new Promise<void>(resolve => { workerDone = resolve; });
+  void startWorkerTrace(res, traceAbort.signal, traceId, at, profile, workerDone);
   sendSse(res, 'trace', { kind: 'session', text: `session ${sessionId.slice(0, 8)} · ${heuristic ? 'heuristics (no model call)' : config.model}`, at: at() });
 
   try {
@@ -223,6 +235,7 @@ app.post('/chat', async (req: Request, res: Response) => {
         stream.on('text', text => sendSse(res, 'token', { text }));
         const response = await stream.finalMessage();
         abortActiveModelStream = undefined;
+        sendSse(res, 'trace', { kind: 'model', from: 'main', to: 'main', text: `main agent · ${config.model}`, tokens: tokenCounts(response), at: at() });
         messages.push({ role: 'assistant', content: response.content });
 
         if (response.stop_reason === 'end_turn' || response.stop_reason === 'max_tokens') {
@@ -302,6 +315,7 @@ app.post('/chat', async (req: Request, res: Response) => {
       });
       abortActiveModelStream = () => finalStream.controller.abort();
       const finalResponse = await finalStream.finalMessage();
+      sendSse(res, 'trace', { kind: 'model', from: 'main', to: 'main', text: `main agent · ${config.model}`, tokens: tokenCounts(finalResponse), at: at() });
       abortActiveModelStream = undefined;
       // Buffered, not streamed: a scope claim can't be filtered after it has been sent.
       const finalText = finalResponse.content.map(block => (block.type === 'text' ? block.text : '')).join('');
@@ -321,8 +335,9 @@ app.post('/chat', async (req: Request, res: Response) => {
       sendSse(res, 'error', { error: detail });
     }
   } finally {
-    // ponytail: fixed grace, not a handshake. The model-free run can finish before the worker's trace stream delivers its last hop; add a trace-drain signal if this ever clips.
-    if (heuristic && !abort.signal.aborted) await new Promise(resolve => setTimeout(resolve, 250));
+    // The model-free run can finish before the worker's trace stream delivers its last hop: wait for the worker's
+    // end-of-trace marker. The cap covers a worker too old to send one, or a trace stream that never connected.
+    if (heuristic && !abort.signal.aborted) await Promise.race([workerDonePromise, new Promise(resolve => setTimeout(resolve, WORKER_DONE_CAP_MS))]);
     traceAbort.abort();
     if (!res.writableEnded) res.end();
   }

@@ -114,6 +114,56 @@ describe('a2aDelegationService.delegateToSpecialist (chained RFC 8693)', () => {
     expect(calls.exchanges[1].audience).toBe('mcpgateway.ping.demo');
   });
 
+  test('fetches Agent 2\'s actor token while Exchange #1 is still running, once, and events keep their order', async () => {
+    const { oauthService } = makeOauth();
+    const order = [];
+    let release;
+    const gate = new Promise((resolve) => { release = resolve; });
+    const realExchange = oauthService.performTokenExchangeAs;
+    let firstExchange = true;
+    oauthService.performTokenExchangeAs = jest.fn(async (...args) => {
+      if (firstExchange) {
+        firstExchange = false;
+        order.push('exchange1-start');
+        await gate; // Exchange #1 hangs until the actor fetch has begun
+        order.push('exchange1-end');
+      }
+      return realExchange(...args);
+    });
+    const realActor = oauthService.getClientCredentialsTokenAs;
+    oauthService.getClientCredentialsTokenAs = jest.fn(async (...args) => {
+      order.push('agent2-actor');
+      release();
+      return realActor(...args);
+    });
+
+    const result = await a2a.delegateToSpecialist(reqWithToken(), {
+      vertical: 'banking',
+      deps: { ...bankingDeps(), oauthService },
+    });
+
+    expect(result.error).toBeUndefined();
+    // the actor token was requested while Exchange #1 was in flight (before it ended)
+    expect(order.indexOf('agent2-actor')).toBeGreaterThan(-1);
+    expect(order.indexOf('agent2-actor')).toBeLessThan(order.indexOf('exchange1-end'));
+    expect(oauthService.getClientCredentialsTokenAs).toHaveBeenCalledTimes(1);
+    // evidence order unchanged: exchange1 event comes before the agent2 actor event
+    const ids = result.tokenEvents.map((e) => e.id);
+    expect(ids.indexOf('a2a-exchange1')).toBeLessThan(ids.indexOf('a2a-agent2-actor'));
+    expect(ids.indexOf('a2a-agent2-actor')).toBeLessThan(ids.indexOf('a2a-exchange2'));
+  });
+
+  test('an Agent 2 actor failure still surfaces as the delegation error, after Exchange #1 has run', async () => {
+    const { oauthService } = makeOauth();
+    oauthService.getClientCredentialsTokenAs = jest.fn(async () => { throw new Error('actor boom'); });
+    const result = await a2a.delegateToSpecialist(reqWithToken(), {
+      vertical: 'banking',
+      deps: { ...bankingDeps(), oauthService },
+    });
+    expect(result.error).toMatch(/actor boom/);
+    expect(result.tokenEvents.some((e) => e.id === 'a2a-exchange1')).toBe(true);
+  });
+
   test('derives a different scope per vertical from the SoT (healthcare → read)', async () => {
     const { oauthService, calls } = makeOauth();
     const result = await a2a.delegateToSpecialist(reqWithToken(), {
