@@ -6,6 +6,7 @@ import ConfirmModal from '../components/ConfirmModal';
 import OtpStepUpModal from '../components/OtpStepUpModal';
 import PersonalAgentClientCards from '../components/learning/PersonalAgentClientCards';
 import DotMemoryPanel from '../components/DotMemoryPanel';
+import DotPersonaStrip from '../components/DotPersonaStrip';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
@@ -14,8 +15,8 @@ import InlineSpinner from '../components/shared/InlineSpinner';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua', 'dot'];
-const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini', cua: 'Computer Use', dot: 'Dot' };
-const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4', cua: '#d20e0f', dot: '#8b5cf6' };
+const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini', cua: 'Computer Use', dot: 'Persona Agent (Dot)' };
+const SKIN_DOT_COLORS = { privilege: '#0073e6', claude: '#d97941', 'claude-terminal': '#ffb454', gpt: '#10a37f', gemini: '#4285f4', cua: '#d20e0f', dot: '#2bb3a3' };
 
 // Scripted CUA session (coverage plan row: present a computer-use agent without
 // driving a real browser). Each step is a labeled observe/act pair that rides the
@@ -422,14 +423,19 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
                 </div>
               </div>
             ) : (
-              <AgentClientSkin
-                skin={activeSkin}
-                theme={theme}
-                messages={messages}
-                onSend={handleSend}
-                showPopOutButton={false}
-                onPopOut={handlePopOut}
-              />
+              <div style={{ display: 'flex', flexDirection: 'column', flex: 1, minHeight: 0, height: '100%' }}>
+                {activeSkin === 'dot' && <DotPersonaStrip theme={theme} mode={agentMode} />}
+                <div style={{ flex: 1, minHeight: 0 }}>
+                  <AgentClientSkin
+                    skin={activeSkin}
+                    theme={theme}
+                    messages={messages}
+                    onSend={handleSend}
+                    showPopOutButton={false}
+                    onPopOut={handlePopOut}
+                  />
+                </div>
+              </div>
             )
           )}
         </div>

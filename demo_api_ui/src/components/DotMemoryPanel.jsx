@@ -56,7 +56,7 @@ export default function DotMemoryPanel({ refreshNonce = 0 }) {
     >
       <div style={{ padding: '12px 14px', borderBottom: '1px solid var(--border, #2e3347)' }}>
         <div style={{ display: 'flex', alignItems: 'center', gap: 7 }}>
-          <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'radial-gradient(circle at 30% 30%, #a78bfa, #8b5cf6 55%, #6d28d9)', flexShrink: 0 }} />
+          <span style={{ width: 10, height: 10, borderRadius: '50%', background: 'radial-gradient(circle at 30% 30%, #8ee6da, #2bb3a3 55%, #12766b)', flexShrink: 0 }} />
           <span style={{ fontSize: 13, fontWeight: 600, color: 'var(--th-text)' }}>Dot&apos;s memory</span>
         </div>
         <p style={{ fontSize: 11, color: 'var(--th-text-muted)', margin: '6px 0 0', lineHeight: 1.5 }}>
