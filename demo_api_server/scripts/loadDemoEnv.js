@@ -63,6 +63,8 @@ function mainCheckoutRoot() {
 
 /** Build ordered, de-duplicated list of existing .env file paths. */
 function resolveEnvCandidates() {
+  // Test isolation: the migrate suite sets this so a developer's local .env cannot change what it copies.
+  if (process.env.DEMO_API_SKIP_LOCAL_ENV === '1') return [];
   const apiRoot = path.resolve(__dirname, '..');
   const repoRoot = path.resolve(apiRoot, '..');
   const raw = [];

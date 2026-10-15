@@ -60,6 +60,8 @@ function isolatedEnv(extras = {}) {
     HOME: process.env.HOME,
     NODE_PATH: process.env.NODE_PATH,
     NODE_OPTIONS: process.env.NODE_OPTIONS,
+    // Only the variables the test sets may reach the migrate script: skip the developer's local .env files.
+    DEMO_API_SKIP_LOCAL_ENV: '1',
     // Force any dotenv() load to look at a non-existent path to avoid
     // pulling secrets from the developer's banking_api_server/.env.
     // The migrate script calls dotenv with { override: false }, so anything
