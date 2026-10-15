@@ -421,8 +421,19 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
           });
         }
 
-        // CONSENT REQUIRED: gate before execution
-        if (preExecutionDecision.requires_consent) {
+        // CONSENT REQUIRED: gate before execution. A fresh in-app PingOne MFA (routes/mfa.js sets
+        // stepUpVerified only after PingOne reports the challenge COMPLETED) is the approval. Single use,
+        // like the UC38 step-up above: the marker is spent on this request.
+        const mfaApprovedConsent = preExecutionDecision.requires_consent && req.session?.stepUpVerified > Date.now();
+        if (mfaApprovedConsent) {
+          req.session.stepUpVerified = 0;
+          appEventService.logEvent('intent_auth', 'info', {
+            phase: 'pre-execution',
+            intent,
+            decision: 'consent_satisfied_by_mfa',
+            userId,
+          }, { flowId: flowTraceId });
+        } else if (preExecutionDecision.requires_consent) {
           console.log('[agentInvokeRoute] Intent requires consent pre-execution, returning 428');
           appEventService.logEvent('intent_auth', 'info', {
             phase: 'pre-execution',
@@ -437,6 +448,8 @@ router.post('/agent/invoke', optionalAuthenticateToken, agentGuestSessionMiddlew
             consentId: null,
             action: toolName,
             message: preExecutionDecision.reason,
+            // The client can satisfy this by completing PingOne MFA (POST /api/auth/mfa/challenge) and asking again.
+            stepUp: 'p1mfa',
             tokenEvents: req.tokenEvents || [],
             intentAuthDecision: preExecutionDecision,
           });
