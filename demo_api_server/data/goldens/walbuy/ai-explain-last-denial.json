@@ -1,5 +1,5 @@
 {
-  "vertical": "abercrombie-fitch",
+  "vertical": "walbuy",
   "useCaseId": "ai-explain-last-denial",
   "ucId": "UC35",
   "trigger": "Explain why my last blocked action was denied and walk me through the token chain",

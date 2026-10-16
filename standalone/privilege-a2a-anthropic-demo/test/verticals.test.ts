@@ -26,7 +26,7 @@ test('white-label aliases mirror the registry, and a white-label vertical gets i
   );
   assert.deepEqual(VERTICAL_ALIASES, registryAliases);
   // The worker looks the persona up by resolveVertical(); Walbuy is retail, so it is the Purchase History Specialist.
-  assert.equal(VERTICALS[resolveVertical('abercrombie-fitch')]?.specialistName, 'Purchase History Specialist');
+  assert.equal(VERTICALS[resolveVertical('walbuy')]?.specialistName, 'Purchase History Specialist');
   assert.equal(resolveVertical('banking'), 'banking');
 });
 

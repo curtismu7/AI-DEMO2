@@ -105,7 +105,7 @@ describe('useCases catalog SoT', () => {
     // "I didn't catch that", Authorize/Gateway never reached) while no test can see it.
     // investment was 6/7 dead exactly that way.
     expect(VERTICALS).toEqual([
-      'banking', 'healthcare', 'retail', 'abercrombie-fitch', 'government',
+      'banking', 'healthcare', 'retail', 'walbuy', 'government',
       'university', 'workforce', 'sporting-goods', 'manufacturing',
       'investment', 'airlines',
     ]);
@@ -170,7 +170,7 @@ describe('useCases catalog SoT', () => {
         UC8: 'checkout headphones for $300',
         UC24: 'What stores are near me?',
       },
-      'abercrombie-fitch': {
+      'walbuy': {
         UC1: 'show my Walbuy orders',
         UC6: 'checkout Walbuy outerwear for $2500',
         UC7: 'checkout Walbuy outerwear for $600',

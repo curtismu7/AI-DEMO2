@@ -81,7 +81,7 @@ describe('a2aAgentCardService', () => {
   });
 
   test('routes A&F SendMessage through its aliased specialist handler', async () => {
-    // abercrombie-fitch aliases to the 'retail' specialist (appKey 'purchase');
+    // walbuy aliases to the 'retail' specialist (appKey 'purchase');
     // its intermediate audience has a real checked-in fallback in
     // scope-topology.json ("a2a-intermediate-purchase.ping.demo").
     const claims = {
@@ -100,7 +100,7 @@ describe('a2aAgentCardService', () => {
     app.use(createA2aProtocolRouter({ configStore: cfg }));
 
     const res = await request(app)
-      .post('/abercrombie-fitch')
+      .post('/walbuy')
       .set('Authorization', `Bearer ${fakeJwt(claims)}`)
       .set('A2A-Version', '1.0')
       .send({
@@ -132,9 +132,9 @@ describe('a2aAgentCardService', () => {
       diagnostic: expect.stringContaining('skills'),
     });
     expect(res.body.result.message.metadata).toMatchObject({
-      vertical: 'abercrombie-fitch',
-      specialistAppKey: specialistForVertical('abercrombie-fitch').appKey,
-      specialist: specialistForVertical('abercrombie-fitch').specialistName,
+      vertical: 'walbuy',
+      specialistAppKey: specialistForVertical('walbuy').appKey,
+      specialist: specialistForVertical('walbuy').specialistName,
       demoLayer: 'a2a-protocol-wire',
     });
   });

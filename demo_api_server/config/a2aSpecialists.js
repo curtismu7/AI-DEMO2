@@ -107,7 +107,7 @@ const A2A_SPECIALISTS = {
 // White-label verticals can share the underlying domain specialist without
 // provisioning a duplicate PingOne app or duplicating its appKey.
 const A2A_SPECIALIST_ALIASES = {
-  'abercrombie-fitch': 'retail',
+  'walbuy': 'retail',
 };
 
 /** All verticals that have an A2A specialist, including white-label aliases. */
@@ -197,7 +197,7 @@ const A2A_DEMO_PROFILES = {
 
 // White-label verticals share their domain's questions but keep their own brand.
 const A2A_DEMO_ALIAS_AGENT_NAMES = {
-  'abercrombie-fitch': 'Walbuy agent',
+  'walbuy': 'Walbuy agent',
 };
 
 /**

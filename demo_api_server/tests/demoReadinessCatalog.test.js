@@ -277,7 +277,7 @@ describe('demo readiness catalog', () => {
 
     const uc25 = rows.get('UC2.5');
     const retail = uc25.authorizationContractByVertical.retail;
-    const abercrombie = uc25.authorizationContractByVertical['abercrombie-fitch'];
+    const abercrombie = uc25.authorizationContractByVertical['walbuy'];
     expect(retail.primaryTool).toBe('sensitive_order_history');
     expect(retail.authorizeToolGroup.groupName).toBe('Retail_PremiumTier');
     expect(abercrombie.authorizeToolGroup.groupName).toBe('AbercrombieFitch_PremiumTier');
@@ -300,12 +300,12 @@ describe('demo readiness catalog', () => {
     }
 
     expect(uc26.expectedBehaviorByVertical.retail.primaryTool)
-      .toBe(uc26.expectedBehaviorByVertical['abercrombie-fitch'].primaryTool);
+      .toBe(uc26.expectedBehaviorByVertical['walbuy'].primaryTool);
     expect(groupByVertical.get('retail').authorizationContract.authorizeToolGroup.groupName)
       .toBe('Retail_PremiumTier');
-    expect(groupByVertical.get('abercrombie-fitch').authorizationContract.authorizeToolGroup.groupName)
+    expect(groupByVertical.get('walbuy').authorizationContract.authorizeToolGroup.groupName)
       .toBe('AbercrombieFitch_PremiumTier');
-    expect(groupByVertical.get('retail')).not.toBe(groupByVertical.get('abercrombie-fitch'));
+    expect(groupByVertical.get('retail')).not.toBe(groupByVertical.get('walbuy'));
   });
 
   test('keeps required flags, A2A credentials, and PAR prerequisites with each vertical case', () => {

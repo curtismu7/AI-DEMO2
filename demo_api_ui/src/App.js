@@ -1945,7 +1945,7 @@ function AppWithAuth() {
                               }
                             />
                             <Route
-                              path="/admin/abercrombie-fitch"
+                              path="/admin/walbuy"
                               element={
                                 <RequireAdminLogin user={user}>
                                   <AbercrombieFitchAdminOps

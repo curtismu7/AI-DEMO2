@@ -9,7 +9,7 @@ describe('a2aSpecialistRegistry', () => {
   const payload = {
     specialists: [
       {
-        vertical: 'abercrombie-fitch',
+        vertical: 'walbuy',
         canonicalVertical: 'retail',
         appKey: 'purchase',
         appName: 'Super Banking Purchase Specialist Agent',
@@ -23,7 +23,7 @@ describe('a2aSpecialistRegistry', () => {
 
   it('normalizes server metadata and keeps aliases intact', () => {
     expect(normalizeA2aSpecialists(payload)).toEqual([{
-      vertical: 'abercrombie-fitch',
+      vertical: 'walbuy',
       canonicalVertical: 'retail',
       appKey: 'purchase',
       appName: 'Super Banking Purchase Specialist Agent',

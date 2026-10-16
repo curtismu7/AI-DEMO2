@@ -150,7 +150,7 @@ describe('A2A card + JWKS routes (served by createA2aProtocolRouter)', () => {
           tools: ['sensitive_membership_details'],
         }),
         expect.objectContaining({
-          vertical: 'abercrombie-fitch',
+          vertical: 'walbuy',
           canonicalVertical: 'retail',
           specialistName: 'Purchase History Specialist',
         }),

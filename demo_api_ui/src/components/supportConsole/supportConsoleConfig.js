@@ -2,7 +2,7 @@
 // normalize each vertical's lookup response into { customer, categories }.
 
 export const VERTICAL_ORDER = ['banking', 'healthcare', 'retail', 'sporting-goods', 'workforce',
-  'university', 'government', 'manufacturing', 'investment', 'abercrombie-fitch'];
+  'university', 'government', 'manufacturing', 'investment', 'walbuy'];
 
 const money = (n) => (typeof n === 'number' ? `$${n.toLocaleString(undefined, { minimumFractionDigits: 2 })}` : n);
 
@@ -301,13 +301,13 @@ export const CONFIGS = {
   },
 
   // Read-only: the store is createSeedStore with no mutator map.
-  'abercrombie-fitch': {
-    id: 'abercrombie-fitch', name: 'Walbuy Ops', short: 'WB', icon: 'WB',
+  'walbuy': {
+    id: 'walbuy', name: 'Walbuy Ops', short: 'WB', icon: 'WB',
     theme: { accent: '#475569', accent2: '#1e293b', tint: '#f4f6f9' },
-    lookupPath: '/api/admin/abercrombie-fitch/lookup',
+    lookupPath: '/api/admin/walbuy/lookup',
     lookupPlaceholder: 'Look up a shopper by name, email, or id…',
     identityActions: [],
-    caseSource: { path: '/api/admin/abercrombie-fitch/cases' },
+    caseSource: { path: '/api/admin/walbuy/cases' },
     permissions: {},
     actions: {},
     adaptLookup: userCentric([

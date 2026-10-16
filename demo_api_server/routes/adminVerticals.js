@@ -435,7 +435,7 @@ const ADMIN_WRITE = [requireAdmin, makeRequireCustomerVerified({ isCustomerVerif
 // lookup and writes come from lookupSlices/writes. Banking uses
 // lookupMode 'banking' (global accounts store, not a per-user plugin store).
 // investment declares writes: [] deliberately — its only mutators are trades,
-// which is not a support operator's authority; abercrombie-fitch's store
+// which is not a support operator's authority; walbuy's store
 // exposes no mutators at all. Neither registers a write route.
 //
 // Queue rules moved into the manifests too. A projection over each vertical's

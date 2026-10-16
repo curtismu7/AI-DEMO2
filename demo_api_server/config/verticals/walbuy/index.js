@@ -39,7 +39,7 @@ const tools = retailTools
   .filter((tool) => ALLOWED_TOOL_NAMES.has(tool.name));
 
 function getManifest() {
-  return verticalManifest.resolver.resolve('abercrombie-fitch');
+  return verticalManifest.resolver.resolve('walbuy');
 }
 
 function getSystemPrompt(ctx) {

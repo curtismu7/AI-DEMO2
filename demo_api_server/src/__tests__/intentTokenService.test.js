@@ -46,7 +46,7 @@ describe('mintIntentToken', () => {
       ...BASE_PARAMS,
       prompt: 'checkout A&F outerwear for $2500',
       intent: 'checkout',
-      vertical: 'abercrombie-fitch',
+      vertical: 'walbuy',
     });
     expect(payload.permitted_tools).toEqual(
       expect.arrayContaining(['checkout', 'list_anf_orders']),
@@ -60,7 +60,7 @@ describe('mintIntentToken', () => {
         ...BASE_PARAMS,
         prompt: `A&F ${intent}`,
         intent,
-        vertical: 'abercrombie-fitch',
+        vertical: 'walbuy',
       });
       expect(payload.permitted_tools).toContain(intent);
     },

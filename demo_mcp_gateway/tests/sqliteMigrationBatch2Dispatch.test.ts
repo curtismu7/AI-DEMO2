@@ -12,7 +12,7 @@ const cfg: any = {
 
 // Phase-1 SQLite migration, batch 2 (2026-08-17): government, manufacturing,
 // university (renamed, same pattern as healthcare's view_records), plus
-// workforce and abercrombie-fitch (same-name shadow — the SQLite tool name
+// workforce and walbuy (same-name shadow — the SQLite tool name
 // already matched the chip's, it just needed a router.ts entry).
 const RENAMED_TOOLS = ['view_permits', 'view_work_orders', 'view_courses'];
 const SHADOWED_TOOLS = ['list_expenses', 'list_anf_orders'];

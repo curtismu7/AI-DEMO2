@@ -1,7 +1,7 @@
 'use strict';
 
 /**
- * SQLite backing store for the abercrombie-fitch vertical.
+ * SQLite backing store for the walbuy vertical.
  *
  * Mirrors the workforce/retail pattern: owns real data instead of proxying to
  * the BFF or reading a flat mock JSON file. Every Walbuy tool result is a row

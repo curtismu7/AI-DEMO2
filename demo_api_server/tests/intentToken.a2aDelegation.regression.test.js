@@ -75,7 +75,7 @@ describe('intent token for UC2 triggers that contain a banking keyword', () => {
   afterAll(() => { if (PREV === undefined) delete process.env.INTENT_TOKEN_SECRET; else process.env.INTENT_TOKEN_SECRET = PREV; });
 
   test.each([
-    ['abercrombie-fitch', 'show my sensitive A&F order history', 'sensitive_order_history'],
+    ['walbuy', 'show my sensitive A&F order history', 'sensitive_order_history'],
     ['retail',            'show my sensitive order history',     'sensitive_order_history'],
     ['investment',        'show my sensitive holdings',          'sensitive_holdings'],
   ])('%s: "%s" mints an intent whose permitted tools include %s', (vertical, prompt, tool) => {

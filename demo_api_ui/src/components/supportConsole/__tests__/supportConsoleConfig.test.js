@@ -14,7 +14,7 @@ describe('supportConsoleConfig', () => {
   it('has all ten verticals in order', () => {
     expect(VERTICAL_ORDER).toEqual([
       'banking', 'healthcare', 'retail', 'sporting-goods', 'workforce',
-      'university', 'government', 'manufacturing', 'investment', 'abercrombie-fitch',
+      'university', 'government', 'manufacturing', 'investment', 'walbuy',
     ]);
   });
 
@@ -30,7 +30,7 @@ describe('supportConsoleConfig', () => {
   });
 
   it('read-only verticals declare no actions', () => {
-    for (const id of ['university', 'investment', 'abercrombie-fitch']) {
+    for (const id of ['university', 'investment', 'walbuy']) {
       expect(Object.keys(CONFIGS[id].actions)).toEqual([]);
       expect(Object.keys(CONFIGS[id].permissions)).toEqual([]);
     }

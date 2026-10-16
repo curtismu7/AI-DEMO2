@@ -50,9 +50,9 @@ demo_api_server/config/admin/*
 !demo_api_server/config/admin/demoSteps.js
 !demo_api_server/config/verticals/
 demo_api_server/config/verticals/*
-!demo_api_server/config/verticals/abercrombie-fitch/
-demo_api_server/config/verticals/abercrombie-fitch/*
-!demo_api_server/config/verticals/abercrombie-fitch/manifest.json
+!demo_api_server/config/verticals/walbuy/
+demo_api_server/config/verticals/walbuy/*
+!demo_api_server/config/verticals/walbuy/manifest.json
 !demo_api_server/config/verticals/airlines/
 demo_api_server/config/verticals/airlines/*
 !demo_api_server/config/verticals/airlines/manifest.json

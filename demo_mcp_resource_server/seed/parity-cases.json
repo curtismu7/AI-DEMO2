@@ -3,7 +3,7 @@
   "cases": [
     { "label": "retail", "resourceSeed": "retail.seed.json", "bffDir": "retail", "entity": "orders" },
     { "label": "sporting-goods", "resourceSeed": "sportingGoods.seed.json", "bffDir": "sporting-goods", "entity": "orders" },
-    { "label": "abercrombie-fitch", "resourceSeed": "abercrombie.seed.json", "bffDir": "abercrombie-fitch", "entity": "orders" },
+    { "label": "walbuy", "resourceSeed": "abercrombie.seed.json", "bffDir": "walbuy", "entity": "orders" },
     { "label": "government", "resourceSeed": "government.seed.json", "bffDir": "government", "entity": "permits" },
     { "label": "healthcare", "resourceSeed": "healthcare.seed.json", "bffDir": "healthcare", "entity": "patientRecords" },
     { "label": "manufacturing", "resourceSeed": "manufacturing.seed.json", "bffDir": "manufacturing", "entity": "workOrders" },

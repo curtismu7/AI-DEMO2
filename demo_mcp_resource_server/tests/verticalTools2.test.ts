@@ -126,7 +126,7 @@ describe('University tools', () => {
   });
 });
 
-// workforce and abercrombie-fitch differ from healthcare/government/manufacturing/
+// workforce and walbuy differ from healthcare/government/manufacturing/
 // university: their SQLite tool name is ALREADY the chip-facing name (list_expenses,
 // list_anf_orders) — no rename, just a router.ts entry so it stops falling through
 // to 'olb' and getting shadowed by the BFF's identically-named handler.

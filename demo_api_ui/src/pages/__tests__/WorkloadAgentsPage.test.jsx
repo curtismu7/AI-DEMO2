@@ -5,7 +5,7 @@ import WorkloadAgentsPage from '../WorkloadAgentsPage';
 import { VerticalContext } from '../../vertical/VerticalProvider';
 
 const verticals = [
-  'banking', 'healthcare', 'retail', 'abercrombie-fitch', 'government',
+  'banking', 'healthcare', 'retail', 'walbuy', 'government',
   'university', 'workforce', 'sporting-goods', 'manufacturing',
   'investment', 'airlines',
 ].map((id) => ({ id, displayName: id === 'sporting-goods' ? 'Super Sports' : id }));

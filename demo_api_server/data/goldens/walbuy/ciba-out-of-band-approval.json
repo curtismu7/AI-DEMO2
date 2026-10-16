@@ -1,5 +1,5 @@
 {
-  "vertical": "abercrombie-fitch",
+  "vertical": "walbuy",
   "useCaseId": "ciba-out-of-band-approval",
   "ucId": "UC22",
   "trigger": "checkout Walbuy outerwear for $150",

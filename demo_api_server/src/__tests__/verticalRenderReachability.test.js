@@ -4,7 +4,7 @@
  *
  * `verticalRenderSchema.test.js` checks that a `render` block parses. Nothing
  * checked that its keys can ever be reached, so a vertical that borrows another
- * vertical's tool set and filters it (abercrombie-fitch borrows retail's and
+ * vertical's tool set and filters it (walbuy borrows retail's and
  * runs it through `ALLOWED_TOOL_NAMES`) silently kept descriptors for tools it
  * no longer exposes. Four of them. They are inert, which is the problem: by
  * reading the manifest, a descriptor pointing at an uncallable tool is
@@ -24,7 +24,7 @@
  *
  * Source (2) is scanned per-vertical ON PURPOSE, not through borrowed modules:
  * `retail/tools.js` does contain `render: 'pause_subscription'`, but that branch
- * belongs to a tool abercrombie-fitch's allowlist removes, so counting it would
+ * belongs to a tool walbuy's allowlist removes, so counting it would
  * mark the exact orphans this test exists to catch as reachable.
  */
 'use strict';

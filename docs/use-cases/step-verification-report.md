@@ -9,9 +9,6 @@
 
 | Vertical | Use Case | Trigger | Mode | Status | Error Class | Checked At |
 |---|---|---|---|---|---|---|
-| abercrombie-fitch | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-10-15 |
-| abercrombie-fitch | UC7 | chip | unit-gate-pdp | ✅ PASS |  | 2026-10-15 |
-| abercrombie-fitch | UC8 | chip | unit-gate-pdp | ✅ PASS |  | 2026-10-15 |
 | airlines | UC-TOOL1 | chip | unit-parse | ✅ PASS |  | 2026-10-15 |
 | airlines | UC-TOOL1 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-10-15 |
 | airlines | UC1 | chip | unit-parse | ✅ PASS |  | 2026-10-15 |
@@ -599,6 +596,9 @@
 | university | UC8 | chip | unit-parse | ✅ PASS |  | 2026-10-15 |
 | university | UC8 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-10-15 |
 | university | UC9 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-10-15 |
+| walbuy | UC6 | chip | unit-gate-pdp | ✅ PASS |  | 2026-10-15 |
+| walbuy | UC7 | chip | unit-gate-pdp | ✅ PASS |  | 2026-10-15 |
+| walbuy | UC8 | chip | unit-gate-pdp | ✅ PASS |  | 2026-10-15 |
 | workforce | UC-TOOL1 | chip | unit-parse | ✅ PASS |  | 2026-10-15 |
 | workforce | UC-TOOL1 | chip | unit-prereq | ⚠️ UNPROVEN |  | 2026-10-15 |
 | workforce | UC1 | chip | unit-parse | ✅ PASS |  | 2026-10-15 |
@@ -668,7 +668,6 @@ Live invoke/LLM rows: 5/5 proven.
 
 | Vertical | Proven | Unproven | FAIL | Total |
 |---|---:|---:|---:|---:|
-| abercrombie-fitch | 3 | 0 | 0 | 3 |
 | airlines | 27 | 33 | 0 | 60 |
 | banking | 43 | 32 | 0 | 75 |
 | government | 26 | 32 | 0 | 58 |
@@ -679,4 +678,5 @@ Live invoke/LLM rows: 5/5 proven.
 | retail | 29 | 32 | 0 | 61 |
 | sporting-goods | 26 | 32 | 0 | 58 |
 | university | 26 | 32 | 0 | 58 |
+| walbuy | 3 | 0 | 0 | 3 |
 | workforce | 26 | 32 | 0 | 58 |

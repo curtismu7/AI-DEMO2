@@ -35,7 +35,7 @@ function navPaths() {
 const EXEMPT = new Set([
   '/activity',
   '/admin',
-  '/admin/abercrombie-fitch',
+  '/admin/walbuy',
   '/admin/agentic-access-console',
   '/admin/government',
   '/admin/investment',

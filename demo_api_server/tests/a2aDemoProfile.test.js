@@ -27,16 +27,16 @@ describe("a2aDemoProfile", () => {
   });
 
   test("a white-label vertical keeps its own brand name over the shared domain specialist", () => {
-    const aandf = a2aDemoProfile("abercrombie-fitch");
+    const aandf = a2aDemoProfile("walbuy");
     expect(aandf.agentName).toBe("Walbuy agent");
     expect(aandf.specialistName).toBe("Purchase History Specialist");
-    expect(verticalsWithSpecialist()).toContain("abercrombie-fitch");
+    expect(verticalsWithSpecialist()).toContain("walbuy");
   });
 
   test("the vertical's own A2A manifest chip leads, then its canned questions", () => {
     expect(a2aDemoProfile("retail").questions).toEqual(["access my sensitive order history", ...A2A_DEMO_PROFILES.retail.questions]);
     // A white-label vertical uses its own chip wording, not the shared domain's.
-    expect(a2aDemoProfile("abercrombie-fitch").questions[0]).toBe("show my sensitive Walbuy order history");
+    expect(a2aDemoProfile("walbuy").questions[0]).toBe("show my sensitive Walbuy order history");
     // No manifest chip: only the canned questions.
     expect(a2aDemoProfile("investment").questions).toEqual(A2A_DEMO_PROFILES.investment.questions);
   });

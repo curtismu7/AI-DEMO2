@@ -104,7 +104,7 @@ const MANUFACTURING_TOOLS = new Set([
 const UNIVERSITY_TOOLS = new Set([
   'view_courses',
 ]);
-// workforce and abercrombie-fitch: SAME-NAME shadow, not a rename — the SQLite
+// workforce and walbuy: SAME-NAME shadow, not a rename — the SQLite
 // (resp. mock-JSON) tool name already matches the chip-facing manifest tool.
 // Without this entry it falls through to the default 'olb' target and the BFF's
 // identically-named handler silently answers instead.
