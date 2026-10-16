@@ -523,6 +523,9 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
   const [smsEnrollDeviceId, setSmsEnrollDeviceId] = useState(null);
   const autoInitiateTimerRef = useRef(null); // [t1, t2, t3] setTimeout IDs
   const handleCibaStepUpRef = useRef(null); // stays current — avoids stale closure
+  // Last money movement attempted. A CIBA approval is bound to the exact
+  // transaction (type, amount, accounts), so the step-up must send it back.
+  const lastMoneyMovementRef = useRef(null);
   const handleInitiateOtpRef = useRef(null); // stays current — avoids stale closure
   const fetchingRef = React.useRef(false);
   const inFlightRef = React.useRef(null);
@@ -1103,11 +1106,22 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
       return;
     }
     try {
+      const tx = lastMoneyMovementRef.current;
+      const txBody = tx?.body || {};
       const { data } = await axios.post("/api/auth/ciba/initiate", {
         login_hint: user.email,
-        binding_message: "Approve your banking transaction",
+        binding_message: "Approve",
         scope: "openid profile",
         acr_values: cibaAcr,
+        // Bind the approval to this exact transaction (see routes/ciba.js).
+        ...(tx
+          ? {
+              transaction_type: tx.action,
+              amount: Number(txBody.amount),
+              from_account_id: txBody.fromAccountId,
+              to_account_id: txBody.toAccountId,
+            }
+          : {}),
       });
       setCibaAuthReqId(data.auth_req_id);
       setCibaStatus("pending");
@@ -2054,6 +2068,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
     if (busyAction) return null;
     setBusyAction(action);
     setReplayNotice(null);
+    lastMoneyMovementRef.current = { action, body };
 
     if (!idempotencyKeys.current[action]) {
       idempotencyKeys.current[action] = crypto.randomUUID();
