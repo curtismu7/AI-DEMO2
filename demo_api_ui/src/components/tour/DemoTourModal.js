@@ -81,6 +81,7 @@ export default function DemoTourModal() {
         </button>
         <button
           type="button"
+          data-default-button
           className="demo-tour-btn-next"
           onClick={handleNext}
         >
