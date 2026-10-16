@@ -5,7 +5,6 @@
     "chips": 168,
     "intents": 106,
     "byVertical": {
-      "walbuy": 8,
       "admin": 9,
       "airlines": 8,
       "banking": 16,
@@ -18,6 +17,7 @@
       "retail": 19,
       "sporting-goods": 16,
       "university": 12,
+      "walbuy": 8,
       "workforce": 14
     }
   },
@@ -71,7 +71,6 @@
     "a2a": {
       "aligned": true,
       "verticals": [
-        "walbuy",
         "admin",
         "airlines",
         "banking",
@@ -82,24 +81,10 @@
         "retail",
         "sporting-goods",
         "university",
+        "walbuy",
         "workforce"
       ],
       "cells": {
-        "walbuy": {
-          "vertical": "walbuy",
-          "chipId": "anf-a2a",
-          "message": "show my sensitive Walbuy order history",
-          "mode": "both",
-          "declaredTool": "sensitive_order_history",
-          "declaredToolSource": "chips10[].tool",
-          "resolvedTool": "sensitive_order_history",
-          "resolverPath": "heuristic:vertical",
-          "overlayPrecedence": "vertical",
-          "heuristicAction": "sensitive_order_history",
-          "clientDispatched": false,
-          "offeredToLlm": true,
-          "reachable": true
-        },
         "admin": {
           "vertical": "admin",
           "chipId": "adm-a2a",
@@ -250,6 +235,21 @@
           "offeredToLlm": true,
           "reachable": true
         },
+        "walbuy": {
+          "vertical": "walbuy",
+          "chipId": "anf-a2a",
+          "message": "show my sensitive Walbuy order history",
+          "mode": "both",
+          "declaredTool": "sensitive_order_history",
+          "declaredToolSource": "chips10[].tool",
+          "resolvedTool": "sensitive_order_history",
+          "resolverPath": "heuristic:vertical",
+          "overlayPrecedence": "vertical",
+          "heuristicAction": "sensitive_order_history",
+          "clientDispatched": false,
+          "offeredToLlm": true,
+          "reachable": true
+        },
         "workforce": {
           "vertical": "workforce",
           "chipId": "wf-a2a",
@@ -261,121 +261,6 @@
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "sensitive_payroll_details",
-          "clientDispatched": false,
-          "offeredToLlm": true,
-          "reachable": true
-        }
-      }
-    },
-    "walbuy:anf1": {
-      "aligned": false,
-      "verticals": [
-        "walbuy"
-      ],
-      "cells": {
-        "walbuy": {
-          "vertical": "walbuy",
-          "chipId": "anf1",
-          "message": "show my Walbuy orders",
-          "mode": "both",
-          "declaredTool": "list_anf_orders",
-          "declaredToolSource": "chips10[].tool",
-          "resolvedTool": "list_anf_orders",
-          "resolverPath": "heuristic:vertical",
-          "overlayPrecedence": "vertical",
-          "heuristicAction": "list_anf_orders",
-          "clientDispatched": false,
-          "offeredToLlm": true,
-          "reachable": true
-        }
-      }
-    },
-    "walbuy:anf2": {
-      "aligned": false,
-      "verticals": [
-        "walbuy"
-      ],
-      "cells": {
-        "walbuy": {
-          "vertical": "walbuy",
-          "chipId": "anf2",
-          "message": "track my order at Walbuy",
-          "mode": "both",
-          "declaredTool": "order_status",
-          "declaredToolSource": "chips10[].tool",
-          "resolvedTool": "order_status",
-          "resolverPath": "heuristic:vertical",
-          "overlayPrecedence": "vertical",
-          "heuristicAction": "order_status",
-          "clientDispatched": false,
-          "offeredToLlm": true,
-          "reachable": true
-        }
-      }
-    },
-    "walbuy:anf3": {
-      "aligned": false,
-      "verticals": [
-        "walbuy"
-      ],
-      "cells": {
-        "walbuy": {
-          "vertical": "walbuy",
-          "chipId": "anf3",
-          "message": "show my reward points at Walbuy",
-          "mode": "both",
-          "declaredTool": "rewards_balance",
-          "declaredToolSource": "chips10[].tool",
-          "resolvedTool": "rewards_balance",
-          "resolverPath": "heuristic:vertical",
-          "overlayPrecedence": "vertical",
-          "heuristicAction": "rewards_balance",
-          "clientDispatched": false,
-          "offeredToLlm": true,
-          "reachable": true
-        }
-      }
-    },
-    "walbuy:anf4": {
-      "aligned": false,
-      "verticals": [
-        "walbuy"
-      ],
-      "cells": {
-        "walbuy": {
-          "vertical": "walbuy",
-          "chipId": "anf4",
-          "message": "show my saved items at Walbuy",
-          "mode": "both",
-          "declaredTool": "view_wishlist",
-          "declaredToolSource": "chips10[].tool",
-          "resolvedTool": "view_wishlist",
-          "resolverPath": "heuristic:vertical",
-          "overlayPrecedence": "vertical",
-          "heuristicAction": "view_wishlist",
-          "clientDispatched": false,
-          "offeredToLlm": true,
-          "reachable": true
-        }
-      }
-    },
-    "walbuy:anf5": {
-      "aligned": false,
-      "verticals": [
-        "walbuy"
-      ],
-      "cells": {
-        "walbuy": {
-          "vertical": "walbuy",
-          "chipId": "anf5",
-          "message": "show my Walbuy returns",
-          "mode": "both",
-          "declaredTool": "view_returns",
-          "declaredToolSource": "chips10[].tool",
-          "resolvedTool": "view_returns",
-          "resolverPath": "heuristic:vertical",
-          "overlayPrecedence": "vertical",
-          "heuristicAction": "view_returns",
           "clientDispatched": false,
           "offeredToLlm": true,
           "reachable": true
@@ -2372,27 +2257,12 @@
     "mfa": {
       "aligned": true,
       "verticals": [
-        "walbuy",
         "banking",
         "retail",
-        "sporting-goods"
+        "sporting-goods",
+        "walbuy"
       ],
       "cells": {
-        "walbuy": {
-          "vertical": "walbuy",
-          "chipId": "anf-mfa",
-          "message": "checkout leather jacket for $600",
-          "mode": "both",
-          "declaredTool": "checkout",
-          "declaredToolSource": "chips10[].tool",
-          "resolvedTool": "checkout",
-          "resolverPath": "heuristic:vertical",
-          "overlayPrecedence": "vertical",
-          "heuristicAction": "checkout",
-          "clientDispatched": false,
-          "offeredToLlm": true,
-          "reachable": true
-        },
         "banking": {
           "vertical": "banking",
           "chipId": "bk-mfa",
@@ -2434,6 +2304,21 @@
           "resolverPath": "heuristic:vertical",
           "overlayPrecedence": "vertical",
           "heuristicAction": "transfer_membership",
+          "clientDispatched": false,
+          "offeredToLlm": true,
+          "reachable": true
+        },
+        "walbuy": {
+          "vertical": "walbuy",
+          "chipId": "anf-mfa",
+          "message": "checkout leather jacket for $600",
+          "mode": "both",
+          "declaredTool": "checkout",
+          "declaredToolSource": "chips10[].tool",
+          "resolvedTool": "checkout",
+          "resolverPath": "heuristic:vertical",
+          "overlayPrecedence": "vertical",
+          "heuristicAction": "checkout",
           "clientDispatched": false,
           "offeredToLlm": true,
           "reachable": true
@@ -3331,6 +3216,121 @@
           "resolverPath": "llm",
           "overlayPrecedence": "vertical",
           "heuristicAction": null,
+          "clientDispatched": false,
+          "offeredToLlm": true,
+          "reachable": true
+        }
+      }
+    },
+    "walbuy:anf1": {
+      "aligned": false,
+      "verticals": [
+        "walbuy"
+      ],
+      "cells": {
+        "walbuy": {
+          "vertical": "walbuy",
+          "chipId": "anf1",
+          "message": "show my Walbuy orders",
+          "mode": "both",
+          "declaredTool": "list_anf_orders",
+          "declaredToolSource": "chips10[].tool",
+          "resolvedTool": "list_anf_orders",
+          "resolverPath": "heuristic:vertical",
+          "overlayPrecedence": "vertical",
+          "heuristicAction": "list_anf_orders",
+          "clientDispatched": false,
+          "offeredToLlm": true,
+          "reachable": true
+        }
+      }
+    },
+    "walbuy:anf2": {
+      "aligned": false,
+      "verticals": [
+        "walbuy"
+      ],
+      "cells": {
+        "walbuy": {
+          "vertical": "walbuy",
+          "chipId": "anf2",
+          "message": "track my order at Walbuy",
+          "mode": "both",
+          "declaredTool": "order_status",
+          "declaredToolSource": "chips10[].tool",
+          "resolvedTool": "order_status",
+          "resolverPath": "heuristic:vertical",
+          "overlayPrecedence": "vertical",
+          "heuristicAction": "order_status",
+          "clientDispatched": false,
+          "offeredToLlm": true,
+          "reachable": true
+        }
+      }
+    },
+    "walbuy:anf3": {
+      "aligned": false,
+      "verticals": [
+        "walbuy"
+      ],
+      "cells": {
+        "walbuy": {
+          "vertical": "walbuy",
+          "chipId": "anf3",
+          "message": "show my reward points at Walbuy",
+          "mode": "both",
+          "declaredTool": "rewards_balance",
+          "declaredToolSource": "chips10[].tool",
+          "resolvedTool": "rewards_balance",
+          "resolverPath": "heuristic:vertical",
+          "overlayPrecedence": "vertical",
+          "heuristicAction": "rewards_balance",
+          "clientDispatched": false,
+          "offeredToLlm": true,
+          "reachable": true
+        }
+      }
+    },
+    "walbuy:anf4": {
+      "aligned": false,
+      "verticals": [
+        "walbuy"
+      ],
+      "cells": {
+        "walbuy": {
+          "vertical": "walbuy",
+          "chipId": "anf4",
+          "message": "show my saved items at Walbuy",
+          "mode": "both",
+          "declaredTool": "view_wishlist",
+          "declaredToolSource": "chips10[].tool",
+          "resolvedTool": "view_wishlist",
+          "resolverPath": "heuristic:vertical",
+          "overlayPrecedence": "vertical",
+          "heuristicAction": "view_wishlist",
+          "clientDispatched": false,
+          "offeredToLlm": true,
+          "reachable": true
+        }
+      }
+    },
+    "walbuy:anf5": {
+      "aligned": false,
+      "verticals": [
+        "walbuy"
+      ],
+      "cells": {
+        "walbuy": {
+          "vertical": "walbuy",
+          "chipId": "anf5",
+          "message": "show my Walbuy returns",
+          "mode": "both",
+          "declaredTool": "view_returns",
+          "declaredToolSource": "chips10[].tool",
+          "resolvedTool": "view_returns",
+          "resolverPath": "heuristic:vertical",
+          "overlayPrecedence": "vertical",
+          "heuristicAction": "view_returns",
           "clientDispatched": false,
           "offeredToLlm": true,
           "reachable": true
