@@ -364,7 +364,6 @@ function buildFlow() {
       style: { width: box.w, height: box.h },
       zIndex: 0,
       selectable: false,
-      draggable: false,
     })),
     ...NODES.map(({ id, group, label, sub, x, y }) => ({
       id,
@@ -377,6 +376,10 @@ function buildFlow() {
     })),
   ];
 }
+
+// A group box carries the chain boxes of its group when dragged.
+const carryGroupMembers = (node, all) =>
+  node.type === 'group' ? all.filter((n) => n.type === 'chain' && n.data.group === node.data.group).map((n) => n.id) : [];
 
 export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
   const baseNodes = useMemo(buildFlow, []);
@@ -396,7 +399,7 @@ export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
     [step],
   );
 
-  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes);
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes, carryGroupMembers);
   return (
     <div className="tcf-canvas" data-testid="tcf-token-chain-canvas">
       <ReactFlow
