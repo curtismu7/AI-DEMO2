@@ -277,7 +277,7 @@ export const SERVER_ZONES = [
   { id: "zone-observability", label: "Telemetry", x: 2030, y: 225, width: 300, height: 1165, tone: "observability" },
   { id: "zone-trust", label: "Workload identity", x: 1760, y: 1160, width: 280, height: 230, tone: "trust" },
 ].map((zone) => ({
-  id: zone.id, type: "zone", position: position(zone.x, zone.y), draggable: false, selectable: false,
+  id: zone.id, type: "zone", position: position(zone.x, zone.y), selectable: false,
   zIndex: -1, style: { width: zone.width, height: zone.height, zIndex: -1 }, data: zone,
 }));
 
