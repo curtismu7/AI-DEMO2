@@ -231,7 +231,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'pf_ai_ciba_web_approver_enabled', 'pf_ai_ciba_approver_secret',
   // ciba
   'ciba_enabled', 'ciba_token_delivery_mode', 'ciba_binding_message',
-  'ciba_acr_values', 'ciba_poll_interval_ms', 'ciba_auth_request_expiry',
+  'ciba_poll_interval_ms', 'ciba_auth_request_expiry',
   // ciba notification endpoint — typically a local/deploy-topology URL, not PingOne env identity
   'ciba_notification_endpoint',
   // intent

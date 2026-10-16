@@ -569,8 +569,7 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // CIBA — Client-Initiated Backchannel Authentication
   CIBA_ENABLED:               { public: true,  default: 'false' },
   CIBA_TOKEN_DELIVERY_MODE:   { public: true,  default: 'poll' },
-  CIBA_BINDING_MESSAGE:       { public: true,  default: 'Banking App Authentication' },
-  CIBA_ACR_VALUES:            { public: true,  default: '' },
+  CIBA_BINDING_MESSAGE:       { public: true,  default: 'Approve' },
   CIBA_NOTIFICATION_ENDPOINT: { public: true,  default: '' },
   CIBA_POLL_INTERVAL_MS:      { public: true,  default: '5000' },
   CIBA_AUTH_REQUEST_EXPIRY:   { public: true,  default: '300' },
@@ -1490,7 +1489,6 @@ const ENV_FALLBACK_MAP = {
   // CIBA additional config fields
   ciba_token_delivery_mode:             ['CIBA_TOKEN_DELIVERY_MODE'],
   ciba_binding_message:                 ['CIBA_BINDING_MESSAGE'],
-  ciba_acr_values:                      ['CIBA_ACR_VALUES'],
   ciba_poll_interval_ms:                ['CIBA_POLL_INTERVAL_MS'],
   ciba_auth_request_expiry:             ['CIBA_AUTH_REQUEST_EXPIRY'],
 

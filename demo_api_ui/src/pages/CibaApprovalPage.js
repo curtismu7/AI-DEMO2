@@ -220,7 +220,9 @@ export default function CibaApprovalPage() {
             <>
               <div>This local simulation needs your approval.</div>
               <div style={DETAIL_BOX_STYLE}>
-                {details.binding_message && <div>{details.binding_message}</div>}
+                {(details.approval_summary || details.binding_message) && (
+                  <div>{details.approval_summary || details.binding_message}</div>
+                )}
                 {details.amount != null ? (
                   <>
                     Transfer: ${Number(details.amount).toFixed(2)}

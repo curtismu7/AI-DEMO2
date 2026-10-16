@@ -24,7 +24,6 @@
  */
 
 const express = require('express');
-const crypto = require('crypto');
 const router  = express.Router();
 const cibaService = require('../services/cibaService');
 const cibaSimulatedService = require('../services/cibaSimulatedService');
@@ -82,7 +81,7 @@ router.get('/status', (req, res) => {
   res.json({
     enabled:      cibaService.isEnabled(),
     deliveryMode,
-    bindingMessage: configStore.getEffective('ciba_binding_message') || 'Banking App Authentication',
+    bindingMessage: configStore.getEffective('ciba_binding_message') || 'Approve',
     engine: cibaService.isEnabled() && realConfigured && deliveryMode === 'poll'
       ? 'pingone' : localSimulation && cibaService.isEnabled() ? 'simulated' : 'unavailable',
     failoverMode,
@@ -221,9 +220,12 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     binding_message = binding_message.replace(new RegExp('[\\x00-\\x1f\\x7f]', 'g'), '');
   }
   if (CIBA_TRANSACTION_TOOLS[transactionType] && Number.isFinite(amount) && amount > 0) {
-    binding_message = `Approve $${amount.toFixed(2)} ${transactionType} from ${fromAccountId || 'external'} to ${toAccountId || 'external'}. Code ${crypto.randomBytes(6).toString('hex').toUpperCase()}`;
+    binding_message = `Approve $${amount.toFixed(2)} ${transactionType} from ${fromAccountId || 'external'} to ${toAccountId || 'external'}`;
     if (binding_message.length > 256) return res.status(400).json({ error: 'invalid_binding_message', message: 'binding_message must not exceed 256 characters.' });
   }
+  // PingOne only shows an 8-char binding message in the email; cibaService swaps
+  // anything longer for a 6-char code. The full text stays here for the app UI.
+  const approvalSummary = binding_message || '';
 
   let result;
   let simulated = false;
@@ -259,6 +261,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
     );
     simulated = true;
   }
+  if (result.binding_message) binding_message = result.binding_message;
 
   // Manager-as-approver: if the acting user is a workforce employee with an
   // active manager delegation carrying create_transfer scope, this becomes a
@@ -274,7 +277,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
         authReqId: result.auth_req_id,
         amount,
         tool: req.body.tool || null,
-        bindingMessage: binding_message || '',
+        bindingMessage: approvalSummary || binding_message || '',
       });
     }
   } catch (delegErr) {
@@ -299,6 +302,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       scope: scope || CIBA_DEFAULT_SCOPE,
       acr_values: acr_values || '',
       binding_message: binding_message || '',
+      approval_summary: approvalSummary,
       simulated,
       pollIntervalMs: Math.max(5000, Number(result.interval || 5) * 1000),
       enforcePollInterval: true,
@@ -325,6 +329,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       interval:    result.interval,
       login_hint_display: loginHint.replace(/(.{2}).*@/, '$1***@'), // mask for display only
       binding_message,
+      approval_summary: approvalSummary,
       engine: simulated ? 'simulated' : 'pingone',
     });
   } catch (err) {
@@ -368,6 +373,7 @@ router.get('/request/:authReqId', authenticateToken, (req, res) => {
 
   res.json({
     binding_message: pending.binding_message || '',
+    approval_summary: pending.approval_summary || '',
     amount: pending.amount ?? null,
     from_account_label: pending.fromAccountLabel ?? null,
     to_account_label: pending.toAccountLabel ?? null,
@@ -398,6 +404,7 @@ router.get('/requests', optionalAuthenticateToken, (req, res) => {
       fromAccountLabel: pending.fromAccountLabel ?? null,
       toAccountLabel: pending.toAccountLabel ?? null,
       bindingMessage: pending.binding_message || '',
+      approvalSummary: pending.approval_summary || '',
       tool: pending.hitlChallengeTool || null,
       initiatedAt: pending.initiatedAt,
       expiresAt: pending.expiresAt,
