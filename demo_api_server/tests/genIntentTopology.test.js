@@ -34,7 +34,7 @@ const gen = require('../scripts/gen-intent-topology');
  * total to 168.
  */
 const EXPECTED_CHIP_COUNTS = {
-  'abercrombie-fitch': 8,
+  'walbuy': 8,
       banking: 16,
       retail: 19,
   'oauth-teaching': 12,

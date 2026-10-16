@@ -62,7 +62,7 @@ const VERTICALS = {
   // Confirmed live 2026-09-09 (90/90 across the three, signed in and out). No
   // `reply` table yet — these run the catalog's declared-outcome assertions
   // only; add per-use-case reply regexes as each vertical's copy is pinned.
-  'abercrombie-fitch': { verified: true },
+  'walbuy': { verified: true },
   investment: { verified: true },
   airlines: { verified: true },
 };

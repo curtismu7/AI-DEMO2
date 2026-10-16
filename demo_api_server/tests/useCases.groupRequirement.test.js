@@ -4,7 +4,7 @@ const {
 } = require('../config/useCases');
 
 const ELIGIBLE = [
-  'banking', 'sporting-goods', 'healthcare', 'retail', 'abercrombie-fitch',
+  'banking', 'sporting-goods', 'healthcare', 'retail', 'walbuy',
   'investment', 'manufacturing', 'government', 'university', 'workforce',
   'admin', 'airlines',
 ];

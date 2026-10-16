@@ -54,12 +54,12 @@ function happyPath() {
   // up in the browser. A mock that does not match the real signature cannot
   // fail.
   //
-  // 'retail' and 'abercrombie-fitch' genuinely share the card NAME "Purchase
+  // 'retail' and 'walbuy' genuinely share the card NAME "Purchase
   // History Specialist", so rows must be keyed by vertical or they collide.
   a2aAgentCardService.buildAllSpecialistAgentCards.mockReturnValue({
     banking: { name: 'Investment Advisor', skills: [{ id: 'holdings' }] },
     retail: { name: 'Purchase History Specialist', skills: [{ id: 'orders' }] },
-    'abercrombie-fitch': { name: 'Purchase History Specialist', skills: [{ id: 'orders' }] },
+    'walbuy': { name: 'Purchase History Specialist', skills: [{ id: 'orders' }] },
   });
   agentLifecycleEvents.query.mockReturnValue([]);
   demoAgentRoster.getRoster.mockReturnValue([
@@ -91,7 +91,7 @@ describe('agentRegistryService.buildRegistry', () => {
     const out = await registry.buildRegistry();
     const ids = out.rows.filter((r) => r.source === 'a2a').map((r) => r.id);
 
-    // retail and abercrombie-fitch are both "Purchase History Specialist".
+    // retail and walbuy are both "Purchase History Specialist".
     expect(new Set(ids).size).toBe(ids.length);
   });
 

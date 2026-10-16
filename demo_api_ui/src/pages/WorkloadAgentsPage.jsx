@@ -10,7 +10,7 @@ const SCENARIOS = [
   { id: 'UC44', kind: 'Customer read', cue: 'Choose this to demonstrate who authorized the request, which workload agent acted, and what data it could access.', detail: 'The registered agent reads customer-owned data on behalf of the signed-in customer. The gateway and Authorize evaluate the delegated request.' },
 ];
 const SUPPORTED_VERTICALS = new Set([
-  'banking', 'healthcare', 'retail', 'abercrombie-fitch', 'government',
+  'banking', 'healthcare', 'retail', 'walbuy', 'government',
   'university', 'workforce', 'sporting-goods', 'manufacturing', 'investment', 'airlines',
 ]);
 

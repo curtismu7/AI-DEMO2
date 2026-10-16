@@ -29,7 +29,7 @@ const SPECIALISTS = [
   { vertical: "investment", specialist: "Holdings Specialist", tool: "sensitive_holdings" },
   { vertical: "airlines", specialist: "Passenger Records Specialist", tool: "sensitive_passenger_record" },
   { vertical: "admin", specialist: "Identity Verification Specialist", tool: "sensitive_customer_identity" },
-  { vertical: "abercrombie-fitch", specialist: "(alias → retail)", tool: "shares Purchase Specialist" },
+  { vertical: "walbuy", specialist: "(alias → retail)", tool: "shares Purchase Specialist" },
 ];
 
 export default function A2AArchitecturePage() {

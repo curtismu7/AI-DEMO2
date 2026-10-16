@@ -265,7 +265,7 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
   ],
   healthcare: ['view_records', 'view_coverage', 'list_appointments', 'show_health_record', 'sequential_think'],
   retail: ['list_orders', 'order_status', 'rewards_balance', 'show_large_purchase', 'sequential_think'],
-  'abercrombie-fitch': [
+  'walbuy': [
     'list_anf_orders', 'order_status', 'rewards_balance', 'view_wishlist',
     'view_returns', 'sequential_think',
   ],

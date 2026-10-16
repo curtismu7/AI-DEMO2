@@ -727,7 +727,7 @@ describe('PiFlowSignInModal', () => {
       const dir = path.join(root, 'demo_api_server/config/verticals');
       // Lockup verticals: real companies whose Brandfetch logo carries its own
       // wordmark — caps would print the name twice (SignInBrand suppresses it).
-      const LOCKUP = ['airlines', 'abercrombie-fitch'];
+      const LOCKUP = ['airlines', 'walbuy'];
       const noCaps = [];
       const lockupWithCaps = [];
       const adminWithCaps = [];

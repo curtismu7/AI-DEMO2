@@ -241,7 +241,7 @@ describe("guest on a guest-chat surface", () => {
 describe("signed-in customer", () => {
   it("shows consent before UC1 dispatch in every vertical", async () => {
     const customer = { id: "u1", role: "customer", email: "u@test.com", username: "cust" };
-    const verticals = ["banking", "healthcare", "retail", "abercrombie-fitch", "government", "university", "workforce", "sporting-goods", "manufacturing", "investment", "airlines"];
+    const verticals = ["banking", "healthcare", "retail", "walbuy", "government", "university", "workforce", "sporting-goods", "manufacturing", "investment", "airlines"];
 
     for (const vertical of verticals) {
       verticalState.activeId = vertical;

@@ -5,7 +5,7 @@
     "chips": 168,
     "intents": 106,
     "byVertical": {
-      "abercrombie-fitch": 8,
+      "walbuy": 8,
       "admin": 9,
       "airlines": 8,
       "banking": 16,
@@ -71,7 +71,7 @@
     "a2a": {
       "aligned": true,
       "verticals": [
-        "abercrombie-fitch",
+        "walbuy",
         "admin",
         "airlines",
         "banking",
@@ -85,8 +85,8 @@
         "workforce"
       ],
       "cells": {
-        "abercrombie-fitch": {
-          "vertical": "abercrombie-fitch",
+        "walbuy": {
+          "vertical": "walbuy",
           "chipId": "anf-a2a",
           "message": "show my sensitive Walbuy order history",
           "mode": "both",
@@ -267,14 +267,14 @@
         }
       }
     },
-    "abercrombie-fitch:anf1": {
+    "walbuy:anf1": {
       "aligned": false,
       "verticals": [
-        "abercrombie-fitch"
+        "walbuy"
       ],
       "cells": {
-        "abercrombie-fitch": {
-          "vertical": "abercrombie-fitch",
+        "walbuy": {
+          "vertical": "walbuy",
           "chipId": "anf1",
           "message": "show my Walbuy orders",
           "mode": "both",
@@ -290,14 +290,14 @@
         }
       }
     },
-    "abercrombie-fitch:anf2": {
+    "walbuy:anf2": {
       "aligned": false,
       "verticals": [
-        "abercrombie-fitch"
+        "walbuy"
       ],
       "cells": {
-        "abercrombie-fitch": {
-          "vertical": "abercrombie-fitch",
+        "walbuy": {
+          "vertical": "walbuy",
           "chipId": "anf2",
           "message": "track my order at Walbuy",
           "mode": "both",
@@ -313,14 +313,14 @@
         }
       }
     },
-    "abercrombie-fitch:anf3": {
+    "walbuy:anf3": {
       "aligned": false,
       "verticals": [
-        "abercrombie-fitch"
+        "walbuy"
       ],
       "cells": {
-        "abercrombie-fitch": {
-          "vertical": "abercrombie-fitch",
+        "walbuy": {
+          "vertical": "walbuy",
           "chipId": "anf3",
           "message": "show my reward points at Walbuy",
           "mode": "both",
@@ -336,14 +336,14 @@
         }
       }
     },
-    "abercrombie-fitch:anf4": {
+    "walbuy:anf4": {
       "aligned": false,
       "verticals": [
-        "abercrombie-fitch"
+        "walbuy"
       ],
       "cells": {
-        "abercrombie-fitch": {
-          "vertical": "abercrombie-fitch",
+        "walbuy": {
+          "vertical": "walbuy",
           "chipId": "anf4",
           "message": "show my saved items at Walbuy",
           "mode": "both",
@@ -359,14 +359,14 @@
         }
       }
     },
-    "abercrombie-fitch:anf5": {
+    "walbuy:anf5": {
       "aligned": false,
       "verticals": [
-        "abercrombie-fitch"
+        "walbuy"
       ],
       "cells": {
-        "abercrombie-fitch": {
-          "vertical": "abercrombie-fitch",
+        "walbuy": {
+          "vertical": "walbuy",
           "chipId": "anf5",
           "message": "show my Walbuy returns",
           "mode": "both",
@@ -973,11 +973,11 @@
     "checkout": {
       "aligned": true,
       "verticals": [
-        "abercrombie-fitch"
+        "walbuy"
       ],
       "cells": {
-        "abercrombie-fitch": {
-          "vertical": "abercrombie-fitch",
+        "walbuy": {
+          "vertical": "walbuy",
           "chipId": "anf-checkout",
           "message": "checkout wool-blend coat for $300",
           "mode": "both",
@@ -2372,14 +2372,14 @@
     "mfa": {
       "aligned": true,
       "verticals": [
-        "abercrombie-fitch",
+        "walbuy",
         "banking",
         "retail",
         "sporting-goods"
       ],
       "cells": {
-        "abercrombie-fitch": {
-          "vertical": "abercrombie-fitch",
+        "walbuy": {
+          "vertical": "walbuy",
           "chipId": "anf-mfa",
           "message": "checkout leather jacket for $600",
           "mode": "both",

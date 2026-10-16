@@ -491,7 +491,7 @@ describe('Phase 2 verticals', () => {
     ['government', ['permits', 'payments', 'filings', 'inspections', 'recordsRequests']],
     ['manufacturing', ['workOrders', 'maintenanceTickets', 'shipments', 'qualityInspections', 'purchaseOrders']],
     ['investment', ['portfolios', 'holdings', 'trades', 'dividends']],
-    ['abercrombie-fitch', ['orders', 'returns', 'support_tickets', 'rewards', 'gift_cards']],
+    ['walbuy', ['orders', 'returns', 'support_tickets', 'rewards', 'gift_cards']],
   ];
 
   // A card whose slice key does not exist in the store renders empty and says
@@ -521,7 +521,7 @@ describe('Phase 2 verticals', () => {
     for (const path of [
       '/api/admin/investment/trades/t1/buy',
       '/api/admin/investment/portfolios/p1/withdraw',
-      '/api/admin/abercrombie-fitch/orders/o1/cancel',
+      '/api/admin/walbuy/orders/o1/cancel',
     ]) {
       const r = await request(agent).post(path).send({ userId: 'u1' });
       expect(r.status).toBe(404);

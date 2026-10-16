@@ -1,5 +1,5 @@
 {
-  "vertical": "abercrombie-fitch",
+  "vertical": "walbuy",
   "useCaseId": "authz-denied",
   "ucId": "UC6",
   "trigger": "checkout Walbuy outerwear for $2500",

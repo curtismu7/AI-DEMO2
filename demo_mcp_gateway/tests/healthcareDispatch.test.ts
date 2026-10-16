@@ -13,7 +13,7 @@ const cfg: any = {
 // Phase-1 SQLite migration pilot: view_records is the SAME tool name the BFF's
 // seed-backed handler used. Without an explicit routeTool() entry it falls
 // through to 'olb' and the SQLite backend is unreachable — same shadowing bug
-// found in retail/workforce/abercrombie-fitch during the 2026-08-17 audit.
+// found in retail/workforce/walbuy during the 2026-08-17 audit.
 describe('healthcare view_records routes to the resource server', () => {
   test('routes to the invest backend, not olb', () => {
     expect(routeTool('view_records')).toBe('invest');

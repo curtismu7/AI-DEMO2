@@ -3,12 +3,12 @@
 
 const { A2A_SPECIALISTS, specialistForVertical, verticalsWithSpecialist } = require('../config/a2aSpecialists');
 const { VERTICALS, listUseCases, resolveUseCase } = require('../config/useCases');
-const seed = require('../config/verticals/abercrombie-fitch/seed.json');
-const plugin = require('../config/verticals/abercrombie-fitch');
+const seed = require('../config/verticals/walbuy/seed.json');
+const plugin = require('../config/verticals/walbuy');
 const { parseHeuristic, resolveVerticalCtx } = require('../services/nlIntentParser');
 const { verticalManifest } = require('../services/verticalManifest');
 
-const VERTICAL = 'abercrombie-fitch';
+const VERTICAL = 'walbuy';
 
 function actionFor(message) {
   const parsed = parseHeuristic(message, VERTICAL, resolveVerticalCtx(VERTICAL), {});

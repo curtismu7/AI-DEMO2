@@ -10,7 +10,7 @@ const HITL_TOOL_BY_VERTICAL = {
   banking: 'create_transfer',
   healthcare: 'pay_bill',
   retail: 'checkout',
-  'abercrombie-fitch': 'checkout',
+  'walbuy': 'checkout',
   government: 'pay_fee',
   university: 'pay_tuition_balance',
   workforce: 'submit_expense',

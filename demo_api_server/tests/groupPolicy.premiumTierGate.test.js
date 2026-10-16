@@ -2,7 +2,7 @@
 const { verticalManifest } = require('../services/verticalManifest');
 
 const ELIGIBLE = [
-  'banking', 'sporting-goods', 'healthcare', 'retail', 'abercrombie-fitch',
+  'banking', 'sporting-goods', 'healthcare', 'retail', 'walbuy',
   'investment', 'manufacturing', 'government', 'university', 'workforce',
   'admin', 'airlines',
 ];

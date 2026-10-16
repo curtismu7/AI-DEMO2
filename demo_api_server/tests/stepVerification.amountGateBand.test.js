@@ -59,7 +59,7 @@ const AMOUNT_GATE_VERTICALS = [
   { vertical: 'banking',        primaryTool: 'create_transfer' },
   { vertical: 'healthcare',     primaryTool: 'pay_bill' },
   { vertical: 'retail',         primaryTool: 'checkout' },
-  { vertical: 'abercrombie-fitch', primaryTool: 'checkout' },
+  { vertical: 'walbuy', primaryTool: 'checkout' },
   { vertical: 'government',     primaryTool: 'pay_fee' },
   { vertical: 'university',     primaryTool: 'pay_tuition_balance' },
   { vertical: 'workforce',      primaryTool: 'submit_expense' },

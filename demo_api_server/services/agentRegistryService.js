@@ -146,7 +146,7 @@ function demoRegistryClients() {
  * surfaced only as "1 source unavailable" in the browser.
  *
  * Rows are keyed by vertical rather than card name because names are NOT
- * unique — retail and abercrombie-fitch are both "Purchase History Specialist".
+ * unique — retail and walbuy are both "Purchase History Specialist".
  */
 function a2aSpecialists() {
   const byVertical = a2aAgentCardService.buildAllSpecialistAgentCards() || {};
