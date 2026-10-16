@@ -58,9 +58,14 @@ describe('PersonalAgentClientWindow', () => {
     expect(fetch.mock.calls.at(-1)[1].body).toContain('Show my open claims');
   });
 
-  it('other skins show no suggested prompts', () => {
+  it('other skins offer the airline example prompts, and a click sends one', async () => {
     render(<PersonalAgentClientWindow />);
-    expect(screen.queryByRole('group', { name: /suggested prompts/i })).toBeNull();
+    expect(screen.getByRole('group', { name: /suggested prompts/i })).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'What do you remember about me?' })).toBeNull();
+    fireEvent.click(screen.getByRole('button', { name: 'What is my loyalty status?' }));
+    await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
+      body: expect.stringContaining('What is my loyalty status?'),
+    })));
   });
 
   it('sends the page\'s own Heuristics choice, remembered under the personal-agent key', async () => {

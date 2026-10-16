@@ -4,7 +4,7 @@ import OtpStepUpModal from '../components/OtpStepUpModal';
 import apiClient from '../services/apiClient';
 import { governanceFrom } from '../utils/dotGovernance';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
-import { dotSuggestions } from '../config/dotSuggestions';
+import { dotSuggestions, airlineSuggestions } from '../config/dotSuggestions';
 import { useVertical } from '../vertical/useVertical';
 import './WorkloadAgentsPage.css';
 
@@ -139,7 +139,7 @@ export default function PersonalAgentClientWindow() {
         theme={theme}
         messages={messages}
         onSend={handleSend}
-        suggestions={skin === 'dot' ? dotSuggestions(pageManifest) : []}
+        suggestions={skin === 'dot' ? dotSuggestions(pageManifest) : airlineSuggestions(skin)}
         showPopOutButton={false}
         onPopOut={null}
       />

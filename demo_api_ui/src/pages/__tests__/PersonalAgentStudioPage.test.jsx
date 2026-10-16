@@ -151,6 +151,17 @@ describe('PersonalAgentStudioPage', () => {
     expect(screen.getByTestId('dot-memory-panel')).toBeTruthy();
   });
 
+  it('offers example prompts on the chat, and a click sends one', async () => {
+    const fetchMock = vi.fn(async () => ({ ok: true, status: 200, json: async () => ({ reply: 'Gold.' }) }));
+    vi.stubGlobal('fetch', fetchMock);
+    renderStudio();
+    expect(screen.getByRole('group', { name: /suggested prompts/i })).toBeTruthy();
+    fireEvent.click(screen.getByRole('button', { name: 'What is my loyalty status?' }));
+    await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
+      body: expect.stringContaining('What is my loyalty status?'),
+    })));
+  });
+
   it('the OBO tab swaps the chat for the delegation inspector when signed in', () => {
     render(<MemoryRouter><PersonalAgentStudioPage user={{ id: 'u1' }} /></MemoryRouter>);
     expect(screen.queryByTestId('obo-page')).toBeNull();

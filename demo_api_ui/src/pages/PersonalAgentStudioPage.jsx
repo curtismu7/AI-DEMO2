@@ -8,6 +8,7 @@ import PersonalAgentClientCards from '../components/learning/PersonalAgentClient
 import DotMemoryPanel from '../components/DotMemoryPanel';
 import DotPersonaStrip from '../components/DotPersonaStrip';
 import { governanceFrom } from '../utils/dotGovernance';
+import { airlineSuggestions } from '../config/dotSuggestions';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
@@ -485,6 +486,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
                     theme={theme}
                     messages={messages}
                     onSend={handleSend}
+                    suggestions={airlineSuggestions(activeSkin)}
                     showPopOutButton={false}
                     onPopOut={handlePopOut}
                   />

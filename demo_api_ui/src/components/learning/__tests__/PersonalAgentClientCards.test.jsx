@@ -1,3 +1,5 @@
+import fs from 'node:fs';
+import path from 'node:path';
 import { fireEvent, render, screen } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import { describe, expect, it, vi } from "vitest";
@@ -42,5 +44,12 @@ describe("PersonalAgentClientCards", () => {
       "/personal-agent/dot",
     );
     openSpy.mockRestore();
+  });
+
+  it('lays the client groups out side by side, not in one column', () => {
+    // jsdom does no layout, so pin the rule that makes it: the groups container is a multi-column grid.
+    const css = fs.readFileSync(path.resolve(__dirname, '../PersonalAgentClientCards.css'), 'utf8');
+    const rule = css.match(/\.personal-agent-client-cards__groups\s*\{([^}]*)\}/)[1];
+    expect(rule).toMatch(/grid-template-columns:\s*repeat\(auto-fit/);
   });
 });
