@@ -189,7 +189,6 @@ export function buildNodes(activePlane = "all") {
     type: "band",
     position: { x: -40, y: ROW_Y[b.row] + 20 },
     data: { label: b.label, cls: b.cls },
-    draggable: false,
     selectable: false,
     focusable: false,
   }));
