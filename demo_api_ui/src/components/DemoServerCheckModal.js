@@ -194,6 +194,7 @@ export default function DemoServerCheckModal({ downServers, onAllUp, onDismiss =
           <span className="dsm-checking">Checking every 5 seconds...</span>
           <button
             type="button"
+            data-default-button
             className="dsm-dismiss-btn"
             onClick={handleDismiss}
           >
