@@ -83,7 +83,7 @@
 | UC-TOOL1 | `find where the BFF performs MCP token exchange` | `PERMIT` | The answer is grounded in indexed code, but retrieval happens only after RFC 8693 delegation, code:search scope enforcement, and a PingOne Authorize PERMIT. |
 | UC28 | `can you request a price adjustment on my order?` | `PERMIT` | The agent can only submit a request for human review — it has no tool that actually grants a waiver, so it cannot hallucinate one into existence. |
 
-## abercrombie-fitch
+## walbuy
 
 | UC | Type this | Must happen | What to say |
 |---|---|---|---|
