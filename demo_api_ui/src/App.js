@@ -1511,13 +1511,7 @@ function AppWithAuth() {
                 />
                 <Route
                   path="/digital-worker"
-                  element={
-                    loading ? null : user ? (
-                      <DigitalWorkerPageRoute user={user} logout={logout} />
-                    ) : (
-                      <SignInRequired />
-                    )
-                  }
+                  element={<DigitalWorkerPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/privilege-demo"
