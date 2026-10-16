@@ -63,6 +63,11 @@ data:
   MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo"
   MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
   MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
+  # The authz-server sidecar also loads ai-demo-secrets (last envFrom), whose single-value
+  # MCP_GW_RESOURCE_URI shadows the list above, so discovery tokens minted for the PingGateway
+  # audience were denied invalid_aud. No secret carries this name; decision.js unions it into
+  # the accepted audiences.
+  MCP_GATEWAY_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
   PINGONE_RESOURCE_MCP_GATEWAY_URI: "mcpgateway.ping.demo"
   PINGONE_RESOURCE_AGENT_GATEWAY_URI: "agentgateway.ping.demo"
   PINGONE_RESOURCE_TWO_EXCHANGE_URI: "mcpgateway.ping.demo"
