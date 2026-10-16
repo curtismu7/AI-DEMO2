@@ -1348,6 +1348,14 @@ export default function AdminSideNav({
     children: childrenFrom(labels),
   });
 
+  // Listed in both the Digital Worker group and the Diagrams group.
+  const digitalWorkerDiagram = {
+    label: "Digital Worker Diagram",
+    path: "/digital-worker",
+    icon: "arc",
+    searchAlias: "digital worker agentic token service agent gateway mcp token mediation diagram",
+  };
+
   const allNavItems = [
     findLegacyItem("Home"),
     findLegacyItem("Security Dashboard"),
@@ -1505,11 +1513,11 @@ export default function AdminSideNav({
       { label: "Embedded Worker", path: "/embedded-worker", icon: "agt", searchAlias: "embedded worker saas uc45 agent" },
       { label: "OBO Demo", path: "/obo-demo", icon: "lck" },
       { label: "ChatGPT Login", path: "/chatgpt-login", icon: "arc", searchAlias: "chatgpt login oauth mcp www-authenticate securitySchemes pkce apps sdk gateway sign in" },
-      { label: "Digital Worker", path: "/digital-worker", icon: "arc", searchAlias: "digital worker agentic token service agent gateway mcp token mediation diagram" },
       { label: "Target Design", path: "/personal-agent-design", icon: "arc" },
       { label: "Dual Gateway Design", path: "/personal-agent-dual-gateway", icon: "arc" },
       { label: "Design Review", path: "/personal-agent-review", icon: "log" },
     ], "agt"),
+    productGroup("Digital Worker", [digitalWorkerDiagram], "agt"),
     productGroup("MCP & Integrations", [
       "MCP Inspector",
       "Agent Gateway Inspector",
@@ -1589,6 +1597,7 @@ export default function AdminSideNav({
       "Personal Agent Design (Node)",
       "Personal Agent Dual Gateway (Node)",
       "Personal Agent Design Review",
+      digitalWorkerDiagram,
     ], "arc"),
     productGroup("Demo arch slides", [
       "Workload Agents · Topology",

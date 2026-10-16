@@ -8,6 +8,9 @@ vi.mock('../../context/TokenChainContext', () => ({
 }));
 vi.mock('../../services/apiClient', () => ({ default: { get: vi.fn() } }));
 
+vi.mock('../OboDemoPage', () => ({ default: () => <div data-testid="obo-page" /> }));
+vi.mock('../../components/SignInPrompt', () => ({ default: ({ message }) => <div data-testid="signin">{message}</div> }));
+
 import PersonalAgentStudioPage from '../PersonalAgentStudioPage';
 import apiClient from '../../services/apiClient';
 
@@ -157,5 +160,21 @@ describe('PersonalAgentStudioPage', () => {
     await waitFor(() => expect(fetchMock).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
       body: expect.stringContaining('What is my loyalty status?'),
     })));
+  });
+
+  it('the OBO tab swaps the chat for the delegation inspector when signed in', () => {
+    render(<MemoryRouter><PersonalAgentStudioPage user={{ id: 'u1' }} /></MemoryRouter>);
+    expect(screen.queryByTestId('obo-page')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: /Delegation proof/ }));
+    expect(screen.getByTestId('obo-page')).toBeTruthy();
+    expect(screen.queryByText('Privilege')).toBeNull();
+    fireEvent.click(screen.getByRole('tab', { name: 'Agent' }));
+    expect(screen.getByText('Privilege')).toBeTruthy();
+  });
+
+  it('?tab=obo deep-links to the OBO tab, and signed-out users get a sign-in prompt', () => {
+    render(<MemoryRouter initialEntries={['/personal-agent?tab=obo']}><PersonalAgentStudioPage /></MemoryRouter>);
+    expect(screen.getByTestId('signin')).toBeTruthy();
+    expect(screen.queryByTestId('obo-page')).toBeNull();
   });
 });
