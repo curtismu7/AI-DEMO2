@@ -26,7 +26,7 @@ describe('executeGetBranchHours (UC24 public catalog)', () => {
       'sporting-goods': 'Super Sports',
       manufacturing: 'Ironline',
       investment: 'Meridian Wealth',
-      airlines: 'United',
+      airlines: 'Airline',
     };
     for (const [vertical, brand] of Object.entries(expectations)) {
       const r = await executeGetBranchHours(deps, '', { vertical });

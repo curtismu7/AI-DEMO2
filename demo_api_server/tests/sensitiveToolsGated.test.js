@@ -104,7 +104,6 @@ describe('sensitive tools are group-gated in every vertical', () => {
   it('finds a sensitive tool in all eleven data verticals', () => {
     const verticals = [...new Set(sensitiveTools.map((r) => r.verticalId))].sort();
     expect(verticals).toEqual([
-      'walbuy',
       'airlines',
       'banking',
       'government',
@@ -114,6 +113,7 @@ describe('sensitive tools are group-gated in every vertical', () => {
       'retail',
       'sporting-goods',
       'university',
+      'walbuy',
       'workforce',
     ]);
   });
