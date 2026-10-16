@@ -122,7 +122,6 @@ export async function layoutFlowchart(model) {
         ...(parentId ? { parentId } : {}),
         data: group ? { label: group.label, style } : { label: node.label, shape: node.shape, style },
         ...(group ? { style: { width: c.width, height: c.height }, zIndex: 0 } : { zIndex: 1 }),
-        draggable: !group,
         selectable: false,
       });
       if (group) walk(c, c.id);
