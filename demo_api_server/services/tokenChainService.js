@@ -344,7 +344,10 @@ async function getMCPToolCalls(userId, req = null) {
     if (!agentToken && req) {
       try {
         const agentTokenCache = require('./agentTokenCache');
-        const scopes = ['mcp:invoke', 'admin:read'];
+        // admin:read alone: PingOne cannot mint it together with mcp:invoke (different
+        // resources -> invalid_scope), and the exchanger's admin:read comes from the
+        // Demo MCP Server grant. Only /audit needs this token.
+        const scopes = ['admin:read'];
         let cc = agentTokenCache.get(req.session, undefined, scopes);
         if (!cc) {
           // Generation captured before the mint — a clear() landing mid-mint wins.
