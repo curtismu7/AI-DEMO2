@@ -206,6 +206,15 @@ describe('resolver', () => {
     });
   });
 
+  test('retired vertical id resolves to its current id (stale sessions / saved selections)', () => {
+    const walbuyLoader = { get: (id) => id === 'walbuy' ? { manifest: { ...SEED, id: 'walbuy' } } : null };
+    const r = createResolver(walbuyLoader, createOverlay(store, walbuyLoader), store, { onEvent: () => {} });
+    expect(r.resolve('abercrombie-fitch').id).toBe('walbuy');
+    expect(r.activeIdFor({ session: { active_vertical: 'abercrombie-fitch' } })).toBe('walbuy');
+    _configStoreState.active_vertical = 'abercrombie-fitch';
+    expect(r.activeId()).toBe('walbuy');
+  });
+
   test('removeFromCache evicts both resolver cache and loader entry', () => {
     resolver.resolve('demo');
     resolver.removeFromCache('demo');

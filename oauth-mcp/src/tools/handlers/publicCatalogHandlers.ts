@@ -99,11 +99,11 @@ const INVESTMENT: CatalogEntry[] = [
 ];
 
 const AIRLINES: CatalogEntry[] = [
-  { id: 'airport-austin', name: 'Austin-Bergstrom International Airport — United Terminal', city: 'Austin', state: 'TX', address: '3600 Presidential Blvd, Austin, TX 78719', hours: 'Ticket counter daily 4:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1542296332-2e4473faf563?w=400&h=300&fit=crop' },
-  { id: 'airport-dallas', name: 'Dallas/Fort Worth International Airport — United Terminal E', city: 'Dallas', state: 'TX', address: '2400 Aviation Dr, DFW Airport, TX 75261', hours: 'Ticket counter daily 4:00–22:00', atm: false, image: 'https://images.unsplash.com/photo-1561101904-da649fcbf03f?w=400&h=300&fit=crop' },
-  { id: 'airport-houston', name: 'George Bush Intercontinental Airport — United Terminal C', city: 'Houston', state: 'TX', address: '2800 N Terminal Rd, Houston, TX 77032', hours: 'Ticket counter daily 4:00–23:00', atm: false, image: 'https://images.unsplash.com/photo-1549897411-b06572cdf806?w=400&h=300&fit=crop' },
-  { id: 'airport-denver', name: 'Denver International Airport — United Concourse B', city: 'Denver', state: 'CO', address: '8500 Peña Blvd, Denver, CO 80249', hours: 'Ticket counter daily 4:00–22:00', atm: false, image: 'https://images.unsplash.com/photo-1530521954074-e64f6810b32d?w=400&h=300&fit=crop' },
-  { id: 'airport-miami', name: 'Miami International Airport — United Terminal E', city: 'Miami', state: 'FL', address: '2100 NW 42nd Ave, Miami, FL 33126', hours: 'Ticket counter daily 5:00–21:00', atm: false, image: 'https://images.unsplash.com/photo-1580285198593-af9f402c676a?w=400&h=300&fit=crop' },
+  { id: 'airport-austin', name: 'Austin-Bergstrom International Airport — Airline Terminal', city: 'Austin', state: 'TX', address: '3600 Presidential Blvd, Austin, TX 78719', hours: 'Ticket counter daily 4:00–20:00', atm: false, image: 'https://images.unsplash.com/photo-1542296332-2e4473faf563?w=400&h=300&fit=crop' },
+  { id: 'airport-dallas', name: 'Dallas/Fort Worth International Airport — Airline Terminal E', city: 'Dallas', state: 'TX', address: '2400 Aviation Dr, DFW Airport, TX 75261', hours: 'Ticket counter daily 4:00–22:00', atm: false, image: 'https://images.unsplash.com/photo-1561101904-da649fcbf03f?w=400&h=300&fit=crop' },
+  { id: 'airport-houston', name: 'George Bush Intercontinental Airport — Airline Terminal C', city: 'Houston', state: 'TX', address: '2800 N Terminal Rd, Houston, TX 77032', hours: 'Ticket counter daily 4:00–23:00', atm: false, image: 'https://images.unsplash.com/photo-1549897411-b06572cdf806?w=400&h=300&fit=crop' },
+  { id: 'airport-denver', name: 'Denver International Airport — Airline Concourse B', city: 'Denver', state: 'CO', address: '8500 Peña Blvd, Denver, CO 80249', hours: 'Ticket counter daily 4:00–22:00', atm: false, image: 'https://images.unsplash.com/photo-1530521954074-e64f6810b32d?w=400&h=300&fit=crop' },
+  { id: 'airport-miami', name: 'Miami International Airport — Airline Terminal E', city: 'Miami', state: 'FL', address: '2100 NW 42nd Ave, Miami, FL 33126', hours: 'Ticket counter daily 5:00–21:00', atm: false, image: 'https://images.unsplash.com/photo-1580285198593-af9f402c676a?w=400&h=300&fit=crop' },
 ];
 
 export const CATALOG_BY_VERTICAL: Record<string, CatalogEntry[]> = {
@@ -147,7 +147,7 @@ const BRAND_BY_VERTICAL: Record<string, string> = {
   'sporting-goods': 'Super Sports',
   manufacturing: 'Ironline',
   investment: 'Meridian Wealth',
-  airlines: 'United',
+  airlines: 'Airline',
 };
 
 function searchBranches(city: string | undefined, vertical: string) {

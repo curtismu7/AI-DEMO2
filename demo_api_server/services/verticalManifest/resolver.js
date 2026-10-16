@@ -7,6 +7,12 @@ function arrayCustomizer(_, src) {
   if (Array.isArray(src)) return src;
 }
 
+// Retired vertical ids -> current id. Persisted state (session active_vertical, the
+// LMDB/configStore active id, saved client selections) can still hold an old id
+// after a rename; without this they 404/400 until the user re-picks a vertical.
+const LEGACY_IDS = { 'abercrombie-fitch': 'walbuy' };
+const canon = (id) => LEGACY_IDS[id] || id;
+
 /**
  * createResolver — deep-merges seed + overlay into a fully validated manifest,
  * caches per (id, overlayVersion), owns the active-id getter/setter, and wraps
@@ -136,7 +142,8 @@ function createResolver(loader, overlay, store, { onEvent } = { onEvent: () => {
     },
   } : null;
 
-  function resolve(id) {
+  function resolve(rawId) {
+    const id = canon(rawId);
     const seed = loader.get(id);
     if (!seed) return null;
 
@@ -190,14 +197,14 @@ function createResolver(loader, overlay, store, { onEvent } = { onEvent: () => {
 
   function activeId() {
     const lmdbValue = store.getActiveId();
-    if (lmdbValue) return lmdbValue;
+    if (lmdbValue) return canon(lmdbValue);
     // Bridge: read configStore as fallback so fresh installs (where LMDB is
     // empty but configStore has 'banking' as the implicit default) don't
     // disagree with routes/accounts.js / data/store.js / routes/oauthUser.js.
     const cs = _getConfigStore();
     if (cs && typeof cs.getEffective === 'function') {
       const csValue = cs.getEffective('active_vertical');
-      if (csValue) return csValue;
+      if (csValue) return canon(csValue);
     }
     return null;
   }
@@ -213,7 +220,7 @@ function createResolver(loader, overlay, store, { onEvent } = { onEvent: () => {
    */
   function activeIdFor(req) {
     const sessVal = req && req.session && req.session.active_vertical;
-    if (sessVal) return sessVal;
+    if (sessVal) return canon(sessVal);
     return activeId();
   }
 
