@@ -62,7 +62,7 @@ function _sleep(ms) {
  * @param {string} loginHint    User's email address or sub
  * @param {string} bindingMessage  Short string shown in the approval email or push (PingOne)
  * @param {string} scope        Space-separated OAuth scopes (defaults to openid)
- * @param {string} [acrValues]  ACR values for step-up (e.g. 'Multi_factor')
+ * @param {string} [acrValues]  ACR values for step-up (e.g. 'Multi_factor'); defaults to configStore `ciba_acr_values` (DaVinci CIBA policy ID)
  * @returns {Promise<{ auth_req_id: string, expires_in: number, interval: number }>}
  */
 async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openid', acrValues = '') {
@@ -82,8 +82,10 @@ async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openi
     binding_message: message,
   });
 
-  if (acrValues) {
-    params.set('acr_values', acrValues);
+  // Caller's ACR wins; otherwise route approval through the configured DaVinci CIBA policy.
+  const acr = acrValues || configStore.getEffective('ciba_acr_values');
+  if (acr) {
+    params.set('acr_values', acr);
   }
 
   if (deliveryMode !== 'poll') {

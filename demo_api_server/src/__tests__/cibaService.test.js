@@ -179,6 +179,19 @@ describe('cibaService.initiateBackchannelAuth()', () => {
     expect(new URLSearchParams(body).get('acr_values')).toBe('Multi_factor');
   });
 
+  it('falls back to configStore ciba_acr_values (DaVinci policy ID); explicit acr wins', async () => {
+    configStore.getEffective.mockImplementation((key) => {
+      if (key === 'ciba_token_delivery_mode') return 'poll';
+      if (key === 'ciba_acr_values') return 'davinci-policy-id';
+      return null;
+    });
+    await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', '');
+    expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('acr_values')).toBe('davinci-policy-id');
+
+    await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', 'Multi_factor');
+    expect(new URLSearchParams(axios.post.mock.calls[1][1]).get('acr_values')).toBe('Multi_factor');
+  });
+
   it('omits acr_values when empty string', async () => {
     await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', '');
 
