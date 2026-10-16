@@ -24,9 +24,8 @@ describe('Walbuy vertical clone', () => {
     const manifest = verticalManifest.resolver.resolve(VERTICAL);
     expect(manifest.identity).toMatchObject({
       displayName: 'Walbuy',
-      // Real-company verticals reference the Brandfetch CDN lockup rather than
-      // a repo-hosted tile (the asset the brand itself serves).
-      logoPath: 'https://cdn.brandfetch.io/idkYPWBxQ8/theme/dark/logo.svg',
+      // Fictional brand: repo-hosted tile in public/branding.
+      logoPath: '/branding/walbuy-logo.svg',
     });
     expect(verticalManifest.list().map((entry) => entry.id)).toContain(VERTICAL);
     expect(verticalManifest.resolver.resolve('retail').identity.displayName).toBe('Great Buy');
