@@ -16,6 +16,7 @@ import '@xyflow/react/dist/style.css';
 import { DiagramControls, STEP_TIME_OPTIONS, DEFAULT_STEP_MS } from './diagram';
 import { useThemeOptional } from '../context/ThemeContext';
 import './A2ATokenFlowDiagram.css';
+import { useDraggableNodes } from "../hooks/useDraggableNodes";
 
 /**
  * A2ATokenFlowDiagram — large, zoomable React Flow canvas rendering the A2A
@@ -224,18 +225,20 @@ function CanvasInner({ events, labels, playing, activeIndex, stepMs, onStepEnd }
   }, [playing, activeIndex, stepMs, onStepEnd]);
 
   const { darkMode } = useThemeOptional();
+  const { nodes: draggableNodes, onNodesChange } = useDraggableNodes(activeNodes);
 
   return (
     <div className="a2t-canvas" data-testid="a2t-token-flow-canvas">
       <ReactFlow
-        nodes={activeNodes}
+        nodes={draggableNodes}
+        onNodesChange={onNodesChange}
         edges={styledEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
         fitViewOptions={{ padding: 0.12 }}
         proOptions={{ hideAttribution: true }}
-        nodesDraggable={false}
+        nodesDraggable
         nodesConnectable={false}
         elementsSelectable
         minZoom={0.3}

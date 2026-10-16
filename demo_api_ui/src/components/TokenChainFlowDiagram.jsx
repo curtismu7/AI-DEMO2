@@ -15,6 +15,7 @@ import '@xyflow/react/dist/style.css';
 import { markNodes, stepEdges } from '../hooks/useDiagramStepper';
 import FitOnResize from './FitOnResize';
 import './TokenChainFlowDiagram.css';
+import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 /**
  * TokenChainFlowDiagram — React Flow conversion of the token-chain
@@ -395,10 +396,12 @@ export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
     [step],
   );
 
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes);
   return (
     <div className="tcf-canvas" data-testid="tcf-token-chain-canvas">
       <ReactFlow
-        nodes={nodes}
+        nodes={dragNodes}
+        onNodesChange={onDragNodes}
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}

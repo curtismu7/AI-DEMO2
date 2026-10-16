@@ -34,7 +34,7 @@ export const GROUPS = {
 
 const position = (x, y) => ({ x, y });
 const server = (id, title, service, group, kind, x, y, role, protocol, network, security, refs = {}, extra = {}) => ({
-  id, type: "server", position: position(x, y), draggable: false,
+  id, type: "server", position: position(x, y),
   data: { title, service, group, kind, role, protocol, network, security, ...refs, ...extra },
 });
 

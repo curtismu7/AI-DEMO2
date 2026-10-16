@@ -10,6 +10,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import "./PingFederateIdJagPage.css";
+import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 const MOCK = "MOCK DATA — NOT A REAL TOKEN";
 // ID-JAG samples follow the PF ID-JAG lane in agentMcpTokenService: the BFF
@@ -345,7 +346,6 @@ function buildNodes(diagram, step) {
     position: participant.position || { x: 26, y: 142 },
     data: { ...participant, mark: NODE_MARKS[participant.role] },
     selected: step.active.includes(participant.id),
-    draggable: false,
   }));
 }
 
@@ -482,6 +482,7 @@ export default function PingFederateIdJagPage() {
     onSetStepMs: setStepMs,
   };
 
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes);
   return (
     <main className="pfj-page" data-testid="pingfederate-id-jag-page">
       <header className="pfj-header">
@@ -512,7 +513,8 @@ export default function PingFederateIdJagPage() {
         <div className="pfj-lane pfj-lane--bottom">{diagram.lanes[1]}</div>
         <ReactFlow
           key={diagramId}
-          nodes={nodes}
+          nodes={dragNodes}
+          onNodesChange={onDragNodes}
           edges={edges}
           nodeTypes={NODE_TYPES}
           onNodeClick={onNodeClick}
@@ -520,7 +522,7 @@ export default function PingFederateIdJagPage() {
           fitViewOptions={{ padding: 0.13, minZoom: 0.42, maxZoom: 0.9 }}
           minZoom={0.35}
           maxZoom={1.4}
-          nodesDraggable={false}
+          nodesDraggable
           nodesConnectable={false}
           elementsSelectable={false}
           proOptions={{ hideAttribution: true }}

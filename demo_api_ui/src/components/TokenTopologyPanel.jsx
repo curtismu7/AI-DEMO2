@@ -25,6 +25,7 @@ import { getElk } from '../utils/elkLayout';
 import { useTheme } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import './TokenTopologyPanel.css';
+import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 const TOPOLOGY_SPEEDS = [
   { value: 1200, label: 'Fast' },
@@ -427,14 +428,16 @@ function TopologyCanvas({ nodes, edges, fitKey }) {
     return () => clearTimeout(timer);
   }, [fitKey, fitView, nodes.length]);
 
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes);
   return (
     <div className="ttp-flow-canvas" role="group" aria-label="Token topology graph">
       <ReactFlow
-        nodes={nodes}
+        nodes={dragNodes}
+        onNodesChange={onDragNodes}
         edges={edges}
         nodeTypes={TOPOLOGY_NODE_TYPES}
         edgeTypes={TOPOLOGY_EDGE_TYPES}
-        nodesDraggable={false}
+        nodesDraggable
         nodesConnectable={false}
         elementsSelectable={false}
         minZoom={0.35}
