@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import installModalEnterDefault from './utils/modalEnterDefault';
 import {
   Navigate,
   Route,
@@ -513,6 +514,8 @@ function AppWithAuth() {
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
   }, []);
+
+  useEffect(installModalEnterDefault, []);
 
   // Post-login success modal. `?oauth=success` is captured on the first render
   // — before useOAuthUrlCleanup strips it — so the modal opens exactly once
