@@ -78,6 +78,7 @@
 | UC-LOGIN-PF | [PingFederate login (OIDC + PKCE)](./pingfederate-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC-LOGIN-AIC | [AIC login (federated through PingOne)](./aic-person-login.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC-AIC-TX | [AIC token exchange (delegation)](./aic-token-exchange-delegation.md) | demo | ✅ works | 🛡️ T3 |  |
+| UC-OBO | [On-behalf-of delegation (OBO inspector)](./obo-delegation-inspector.md) | demo | ✅ works | 🛡️ T3 |  |
 | UC27 | [HITL consent bypass attempt](./hitl-consent-bypass-attempt.md) | hitl | ✅ works | 🛡️ T5 |  |
 | UC28 | [Tool set as the authorization boundary (Air Canada pattern)](./unauthorized-commitment-fee-waiver.md) | controls | ✅ works | 🛡️ T1 |  |
 | UC43 | [Consumer & Partner Agent — CIMD registration](./consumer-partner-agent-cimd-registration.md) | foundations | ✅ works | 🛡️ T1, T9 |  |
@@ -110,8 +111,8 @@
 
 | Status | Count |
 |---|---|
-| ✅ Works | 75 |
+| ✅ Works | 76 |
 | 🚩 Flag-gated | 10 |
 | 📥 Needs console import | 0 |
 | 🏗️ Needs build | 1 |
-| **Total** | **86** |
+| **Total** | **87** |

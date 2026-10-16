@@ -23,10 +23,10 @@ describe('useCases catalog SoT', () => {
     // lanes UC-MUSE1/UC-MUSE2 take it to 78; UC48 (consumer-agent booking) to 79;
     // UC-LEARN16..19 (MFA Test, OAuth Debug, LLM Test, Intent Inspector) to 83;
     // UC9A (live P1AZ group-check panel) to 84; UC-LOGIN-AIC (AIC sign-in) to 85;
-    // UC-AIC-TX (AIC token exchange) to 86.
-    expect(RAW_USE_CASES).toHaveLength(86);
+    // UC-AIC-TX (AIC token exchange) to 86; UC-OBO (OBO inspector) to 87.
+    expect(RAW_USE_CASES).toHaveLength(87);
     const ids = RAW_USE_CASES.map((u) => u.id);
-    expect(new Set(ids).size).toBe(86);
+    expect(new Set(ids).size).toBe(87);
     for (let n = 1; n <= 22; n++) expect(ids).toContain(`UC${n}`);
     expect(ids).toContain('UC23');
     expect(ids).toContain('UC24');

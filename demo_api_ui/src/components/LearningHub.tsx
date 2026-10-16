@@ -165,6 +165,12 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         demoStep: { useCaseId: "UC-AIC-TX" },
       },
       {
+        label: "On-Behalf-Of Delegation",
+        description: "RFC 8693 on PingOne: sub = the person, act = the agent, every hop inspectable",
+        icon: "🔐",
+        demoStep: { useCaseId: "UC-OBO" },
+      },
+      {
         label: "PKCE Deep Dive",
         description: "Proof Key for Code Exchange explained",
         icon: "🔍",

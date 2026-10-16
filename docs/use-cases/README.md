@@ -34,6 +34,7 @@ See also: [Audit Table](./audit-table.md), [Step Verification Report](./step-ver
 - [**UC-LOGIN-PF** — PingFederate login (OIDC + PKCE)](./pingfederate-person-login.md) ✅ 🛡️
 - [**UC-LOGIN-AIC** — AIC login (federated through PingOne)](./aic-person-login.md) ✅ 🛡️
 - [**UC-AIC-TX** — AIC token exchange (delegation)](./aic-token-exchange-delegation.md) ✅ 🛡️
+- [**UC-OBO** — On-behalf-of delegation (OBO inspector)](./obo-delegation-inspector.md) ✅ 🛡️
 
 ## Controls
 

@@ -209,8 +209,8 @@ export const EXTRA_STEP_GROUPS = [
     id: 'token-exchange',
     label: 'Token Exchange & Delegation',
     tagline: 'RFC 8693 and ID-JAG',
-    intro: 'The core identity story: delegated access with an act claim, then ID-JAG through PingOne and PingFederate.',
-    ids: ['UC1', 'UC40'],
+    intro: 'The core identity story: delegated access with an act claim, the on-behalf-of inspector that shows every hop of the exchange, then ID-JAG through PingOne and PingFederate.',
+    ids: ['UC1', 'UC-OBO', 'UC40'],
   },
   {
     id: 'sign-in',
