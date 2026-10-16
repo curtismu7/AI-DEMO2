@@ -520,7 +520,7 @@ function TopologyCanvas({
     }));
   }, [graphEdges, graphNodes, selectedNode]);
 
-  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(graphNodes);
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(graphNodes, carryZoneMembers);
   return (
     <div className="stm-canvas" aria-label="Interactive server topology graph">
       <ReactFlow
@@ -808,6 +808,14 @@ function ServerTopologyContent() {
     </main>
   );
 }
+
+// A zone backdrop carries the servers sitting inside it (judged by where the layout first puts them).
+const ZONE_MEMBERS = Object.fromEntries(SERVER_ZONES.map((zone) => [
+  zone.id,
+  SERVER_MAP.filter((n) => n.position.x >= zone.position.x && n.position.y >= zone.position.y
+    && n.position.x <= zone.position.x + zone.style.width && n.position.y <= zone.position.y + zone.style.height).map((n) => n.id),
+]));
+const carryZoneMembers = (node) => (node.type === "zone" ? ZONE_MEMBERS[node.id] || [] : []);
 
 export default function ServerTopologyPage() {
   return <ServerTopologyContent />;
