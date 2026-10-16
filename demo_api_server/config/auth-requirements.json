@@ -289,7 +289,7 @@
     "/path/feature": "public",
     "/path/mortgage": "public",
     "/obo-demo": "user",
-    "/digital-worker": "user",
+    "/digital-worker": "public",
     "/chatgpt-login": "user",
     "/personal-agent": "public",
     "/personal-agent/client": "public",
