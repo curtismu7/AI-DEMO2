@@ -9,20 +9,19 @@ export { GROUPS };
 
 export const NODES = [
   { id: "user", group: "user", label: "User", sub: ["in ChatGPT"], x: 40, y: 150, detail: "Signs in once, in the browser, at the identity service. ChatGPT never sees the password." },
-  { id: "chatgpt", group: "agent", label: "ChatGPT", sub: ["MCP client"], x: 340, y: 150, detail: "Calls the MCP tool, shows the sign-in link, runs the OAuth code + PKCE exchange and holds the resulting token." },
-  { id: "gateway", group: "gateway", label: "MCP Gateway", sub: ["MCP server", "validates token + policy"], x: 640, y: 150, detail: "Signals the login requirement, then checks the token, scopes, consent and persona on every protected call." },
-  { id: "idp", group: "pingone", label: "Identity Service", sub: ["e.g. PingOne"], x: 340, y: 340, detail: "Authenticates the user, collects consent and issues an access token bound to the MCP resource." },
+  { id: "chatgpt", group: "agent", label: "ChatGPT", sub: ["MCP client"], x: 480, y: 150, detail: "Calls the MCP tool, shows the sign-in link, runs the OAuth code + PKCE exchange and holds the resulting token." },
+  { id: "gateway", group: "gateway", label: "MCP Gateway", sub: ["MCP server", "validates token + policy"], x: 920, y: 150, detail: "Signals the login requirement, then checks the token, scopes, consent and persona on every protected call." },
+  { id: "idp", group: "pingone", label: "Identity Service", sub: ["e.g. PingOne"], x: 480, y: 300, detail: "Authenticates the user, collects consent and issues an access token bound to the MCP resource." },
 ];
 
 export const EDGES = [
   ["user", "chatgpt", "1 ask · 4 sign-in link", { detail: "The user's prompt goes to ChatGPT; when a tool needs login, ChatGPT hands back a sign-in link." }],
   ["chatgpt", "gateway", "2 call · 3 challenge · 10 retry · 12 result", { detail: "The protected tool call, the authentication challenge, the retry with a bearer token, and the authorized result all travel this hop." }],
-  ["user", "idp", "5 authorize · 6 sign in + consent", { detail: "The user's browser opens the authorization endpoint directly. Credentials and consent stay between the user and the identity service." }],
+  ["user", "idp", "5 authorize · 6 sign in", { detail: "The user's browser opens the authorization endpoint directly. Credentials and consent stay between the user and the identity service." }],
   ["chatgpt", "idp", "7 code · 8 exchange · 9 token", { detail: "ChatGPT receives the authorization code via the browser redirect, exchanges it with the PKCE verifier and gets the resource-bound token.", vertical: true }],
-  ["gateway", "gateway", "11 validate + policy", { detail: "Token, scopes, consent, persona, LOB and member relationship are checked before the tool runs. Every decision is audited." }],
 ];
 
-const E = { ask: 0, mcp: 1, authz: 2, token: 3, policy: 4 };
+const E = { ask: 0, mcp: 1, authz: 2, token: 3 };
 
 export const walk = [
   {
@@ -90,7 +89,7 @@ export const walk = [
   },
   {
     title: "Validate token + evaluate policy", label: "step 11 · Gateway",
-    nodes: ["gateway"], edges: [E.policy],
+    nodes: ["gateway"], edges: [],
     lines: [{ who: "Gateway", text: "Checks the token, scopes, consent, persona, line of business and member relationship before the tool runs." }],
     tech: [{ t: "POLICY", c: "signature · iss · aud · exp · scope → allow / deny, audited" }],
   },
