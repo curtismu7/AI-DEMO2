@@ -55,6 +55,18 @@ describe('OtpStepUpModal method choice table', () => {
     expect(screen.queryByPlaceholderText('000000')).not.toBeInTheDocument();
   });
 
+  test('offers "Approve by email link" (CIBA) only when onChooseCiba is provided, and calls it', () => {
+    const { unmount } = render(<OtpStepUpModal {...baseProps} mode="stub" />);
+    expect(screen.queryByTestId('mfa-choose-ciba')).not.toBeInTheDocument();
+    unmount();
+
+    const onChooseCiba = vi.fn();
+    render(<OtpStepUpModal {...baseProps} mode="stub" onChooseCiba={onChooseCiba} />);
+    expect(screen.getByText('Approve by email link')).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId('mfa-choose-ciba'));
+    expect(onChooseCiba).toHaveBeenCalledTimes(1);
+  });
+
   test('choosing Email code reveals the existing OTP entry UI', () => {
     render(<OtpStepUpModal {...baseProps} mode="stub" />);
 
