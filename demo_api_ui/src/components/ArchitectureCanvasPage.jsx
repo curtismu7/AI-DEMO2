@@ -253,6 +253,8 @@ function CanvasEditor() {
   const [selectedEdge, setSelectedEdge] = useState(null);
   const [renaming, setRenaming] = useState(null);
   const [pingStatus, setPingStatus] = useState({});
+  // Column headers are synthesised per render (not in the node store), so where the user drops one is kept here.
+  const [labelPos, setLabelPos] = useState({});
   const [pinging, setPinging] = useState(false);
   const [resultPanel, setResultPanel] = useState(null);
   const [selectedFlow, setSelectedFlow] = useState(null);
@@ -282,15 +284,14 @@ function CanvasEditor() {
     const labels = COL_DEFS.map(col => ({
       id: `col-${col.label}`,
       type: 'colLabel',
-      position: { x: colLabelX(col, nodeMap), y: 20 },
+      position: labelPos[`col-${col.label}`] || { x: colLabelX(col, nodeMap), y: 20 },
       data: { label: col.label.toUpperCase() },
-      draggable: false,
       selectable: false,
       focusable: false,
       deletable: false,
     }));
     return [...markNodes(cards, hot), ...labels];
-  }, [nodes, nodeMap, pingStatus, flow, step]);
+  }, [nodes, nodeMap, pingStatus, flow, step, labelPos]);
 
   const rfEdges = useMemo(() => {
     const base = edges
@@ -352,7 +353,9 @@ function CanvasEditor() {
 
   const onNodesChange = useCallback((changes) => {
     changes.forEach(c => {
-      if (c.type === 'position' && c.position) moveNode(c.id, c.position.x, c.position.y);
+      if (c.type !== 'position' || !c.position) return;
+      if (c.id.startsWith('col-')) setLabelPos(p => ({ ...p, [c.id]: c.position }));
+      else moveNode(c.id, c.position.x, c.position.y);
     });
   }, [moveNode]);
 
