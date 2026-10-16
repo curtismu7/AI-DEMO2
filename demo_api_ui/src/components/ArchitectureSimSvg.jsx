@@ -182,17 +182,31 @@ function ArrowDefs() {
   );
 }
 
+// Edges are hand-routed polylines at fixed coordinates, so they cannot follow a dragged node by
+// themselves: shift the first half of the waypoints with the source box and the rest with the target box.
+export function moveEdgePoints(points, dSource, dTarget) {
+  const half = Math.ceil(points.length / 2);
+  return points.map(([x, y], i) => (i < half ? [x + dSource.x, y + dSource.y] : [x + dTarget.x, y + dTarget.y]));
+}
+
 function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
   const flowNodes = useMemo(
     () => FLOW_NODES.map((n) => ({ ...n, data: { ...n.data, state: nodeStates[n.id] ?? 'idle' } })),
     [nodeStates],
   );
-  const flowEdges = useMemo(
-    () => ARCHITECTURE_EDGES.map((e) => ({ ...e, type: 'sim', data: { ...e, state: edgeStates[e.id] ?? 'idle' } })),
-    [edgeStates],
-  );
-
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(flowNodes);
+  const flowEdges = useMemo(() => {
+    const delta = Object.fromEntries(
+      dragNodes.map((n, i) => [n.id, { x: n.position.x - flowNodes[i].position.x, y: n.position.y - flowNodes[i].position.y }]),
+    );
+    const none = { x: 0, y: 0 };
+    return ARCHITECTURE_EDGES.map((e) => ({
+      ...e,
+      type: 'sim',
+      data: { ...e, points: moveEdgePoints(e.points, delta[e.source] || none, delta[e.target] || none), state: edgeStates[e.id] ?? 'idle' },
+    }));
+  }, [edgeStates, dragNodes, flowNodes]);
+
   return (
     <div className="asim-canvas" aria-label="Interactive banking demo architecture diagram">
       <ArrowDefs />
