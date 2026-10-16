@@ -177,6 +177,8 @@ describe('tokenChainService — Token Chain correctness regression', () => {
 
     expect(captured.headers.Authorization).toBe('Bearer minted-agent-tok');
     expect(mintFn).toHaveBeenCalledTimes(1); // minted once, reused from session cache
+    // admin:read only — PingOne cannot mint it with mcp:invoke (multiple resources -> invalid_scope).
+    expect(mintFn.mock.calls[0][1].scope).toEqual(['admin:read']);
     auditStore.clearToolCalls();
     jest.dontMock('../../services/agentCCTokenService');
   });
