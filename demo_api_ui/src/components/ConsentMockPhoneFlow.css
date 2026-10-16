@@ -1,0 +1,57 @@
+/* Mock phone popup (CIBA approval stand-in), drawn as an iPhone lock screen; same look as the
+   PingFederate AI Agent page's phone. The popup renders in a portal, so it defines its own accent.
+   The bezel, wallpaper and notification are device colours and stay the
+   same in light and dark on purpose. */
+.cmp__wrap { display: flex; justify-content: center; padding: 16px; }
+.cmp__phone {
+  --cmp-accent: #087d76;
+  width: 100%;
+  max-width: 280px;
+  padding: 10px;
+  border-radius: 48px;
+  background: #0b0b0d;
+  box-shadow: 0 0 0 2px #3a3a3f, 0 18px 40px rgba(0, 0, 0, 0.35);
+}
+.cmp__screen {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+  min-height: 480px;
+  padding: 12px 14px 10px;
+  border-radius: 38px;
+  background: linear-gradient(165deg, #1b2a52 0%, #3d2060 55%, #7b2f5b 100%);
+  color: #fff;
+}
+.cmp__island { align-self: center; width: 86px; height: 25px; border-radius: 13px; background: #000; }
+.cmp__clock { text-align: center; }
+.cmp__date { display: block; font-size: var(--font-size-sm); font-weight: 600; opacity: 0.9; }
+.cmp__time { display: block; font-size: var(--font-size-4xl); font-weight: 700; line-height: 1.1; }
+.cmp__card {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 12px 14px;
+  border-radius: 22px;
+  background: rgba(255, 255, 255, 0.88);
+  color: #111;
+}
+.cmp__card h3,
+.cmp__card p { margin: 0; }
+.cmp__app { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: #555; }
+.cmp__icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: var(--cmp-accent); color: #fff; font-size: var(--font-size-xs); font-weight: 800; }
+.cmp__now { margin-left: auto; text-transform: none; font-weight: 500; }
+.cmp__card h3 { font-size: var(--font-size-base); }
+.cmp__card p { font-size: var(--font-size-sm); }
+.cmp__message { padding: 6px 8px; border-radius: 10px; background: rgba(0, 0, 0, 0.07); font-weight: 650; overflow-wrap: anywhere; }
+.cmp__actions { display: flex; flex-direction: column; gap: 8px; margin-top: auto; }
+.cmp__actions button { border: 1px solid transparent; cursor: pointer; width: 100%; min-height: 46px; border-radius: 23px; font-size: var(--font-size-base); }
+.cmp__actions .cmp__approve { border-color: var(--cmp-accent); background: var(--cmp-accent); color: #fff; }
+.cmp__actions .cmp__deny { border-color: transparent; background: rgba(255, 255, 255, 0.22); color: #fff; }
+.cmp__home { align-self: center; width: 110px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.85); }
+
+.cmp { max-width: 960px; margin: 0 auto; padding: 24px; }
+.cmp__status { margin: 16px 0; padding: 10px 14px; border-radius: 10px; background: var(--th-bg-card); color: var(--th-text); }
+.cmp__status.is-ok { border-left: 4px solid #087d76; }
+.cmp__status.is-error { border-left: 4px solid #c0392b; }
+.cmp__status button, .cmp__back { margin-left: 12px; }
+.cmp__back { margin: 16px 0 0; }

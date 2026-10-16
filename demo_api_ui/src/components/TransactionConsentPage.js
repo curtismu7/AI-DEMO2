@@ -3,6 +3,7 @@ import React, { useState } from 'react';
 import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import SignInPrompt from './SignInPrompt';
 import TransactionConsentModal from './TransactionConsentModal';
+import ConsentMockPhoneFlow from './ConsentMockPhoneFlow';
 import '../styles/appShellPages.css';
 import './TransactionConsentPage.css';
 
@@ -43,7 +44,7 @@ function SimulateLanding({ user, onStartSimulation }) {
         <h1 className="tc-simulate__title">Transaction Consent — Simulate</h1>
         <p className="tc-simulate__subtitle">
           This page normally activates via a CIBA push notification with a challenge ID.
-          Use the scenarios below to see how the consent modal works without a live challenge.
+          Pick a scenario below: the BFF starts a mock CIBA request, the mock phone gets the push, and your tap on it is the decision.
         </p>
       </div>
 
@@ -82,8 +83,8 @@ function SimulateLanding({ user, onStartSimulation }) {
           <li>User (or AI agent) initiates a transaction that exceeds the authorization threshold</li>
           <li>PingOne Authorize returns a step-up obligation (CIBA consent required)</li>
           <li>BFF calls PingOne CIBA endpoint — sends push notification to user&apos;s device</li>
-          <li>User opens this page via the deep link (<code>/transaction-consent?challenge=...</code>)</li>
-          <li>User reviews transaction details, enters OTP, and approves or denies</li>
+          <li>User opens this page via the deep link (<code>/transaction-consent?challenge=...</code>) or answers on the device</li>
+          <li>User reviews transaction details and approves or denies</li>
           <li>PingOne completes the CIBA flow — transaction proceeds or is blocked</li>
         </ol>
       </div>
@@ -126,20 +127,9 @@ export default function TransactionConsentPage({ user }) {
     );
   }
 
-  // Simulate mode: show scenario picker or simulated modal
+  // Simulate mode: a mock CIBA request answered on the mock phone
   if (simulating) {
-    return (
-      <TransactionConsentModal
-        open
-        challengeId="simulate-demo"
-        user={user}
-        simulated
-        preloadedSnapshot={simulating.snapshot}
-        onClose={() => setSimulating(null)}
-        onTransactionSuccess={() => setSimulating(null)}
-        onDeclinedConfirmed={() => setSimulating(null)}
-      />
-    );
+    return <ConsentMockPhoneFlow scenario={simulating} onDone={() => setSimulating(null)} />;
   }
 
   return <SimulateLanding user={user} onStartSimulation={setSimulating} />;
