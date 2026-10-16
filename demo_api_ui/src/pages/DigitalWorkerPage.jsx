@@ -267,7 +267,7 @@ function Canvas() {
 export default function DigitalWorkerPage() {
   return (
     <div className="dw-page">
-      <h1 className="dw-page__title">Digital Worker</h1>
+      <h1 className="dw-page__title">Digital Worker Diagram</h1>
       <div className="dw-page__canvas">
         <ReactFlowProvider>
           <Canvas />
