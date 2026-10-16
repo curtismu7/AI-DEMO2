@@ -4,6 +4,7 @@ import { ReactFlow, Controls, Handle, Position } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import './DiagramStepBar.css';
 import './ArchitectureSimSvg.css';
+import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 /**
  * React Flow architecture diagram for the simulation page.
@@ -191,15 +192,17 @@ function ArchitectureSimSvg({ nodeStates = {}, edgeStates = {} }) {
     [edgeStates],
   );
 
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(flowNodes);
   return (
     <div className="asim-canvas" aria-label="Interactive banking demo architecture diagram">
       <ArrowDefs />
       <ReactFlow
-        nodes={flowNodes}
+        nodes={dragNodes}
+        onNodesChange={onDragNodes}
         edges={flowEdges}
         nodeTypes={NODE_TYPES}
         edgeTypes={EDGE_TYPES}
-        nodesDraggable={false}
+        nodesDraggable
         nodesConnectable={false}
         elementsSelectable={false}
         fitView

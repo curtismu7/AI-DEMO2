@@ -19,6 +19,7 @@ import { EDGE_COLORS, NODE_TYPE_COLORS } from "./serverTopologyExports";
 import "./ServerTopologyPage.css";
 import ServerTopologyExportControls from "./ServerTopologyExportControls";
 import { layoutEdgeLabels } from "./topologyEdgeLabelLayout";
+import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 const A2A_FLOW_BUTTONS = [["privilegeA2a", "A2A access review"], ["privilegeA2aChain", "A2A agent chain"]];
 const LAYER_OPTIONS = [
@@ -519,10 +520,12 @@ function TopologyCanvas({
     }));
   }, [graphEdges, graphNodes, selectedNode]);
 
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(graphNodes);
   return (
     <div className="stm-canvas" aria-label="Interactive server topology graph">
       <ReactFlow
-        nodes={graphNodes}
+        nodes={dragNodes}
+        onNodesChange={onDragNodes}
         edges={positionedEdges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -530,7 +533,7 @@ function TopologyCanvas({
         fitViewOptions={{ padding: 0.08, minZoom: 0.2, maxZoom: 1 }}
         minZoom={0.12}
         maxZoom={1.6}
-        nodesDraggable={false}
+        nodesDraggable
         nodesConnectable={false}
         elementsSelectable
         onNodeClick={(_, node) => node.type === "server" && onSelectNode(node.id)}

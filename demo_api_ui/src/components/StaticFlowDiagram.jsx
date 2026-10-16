@@ -42,6 +42,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useFitOnResize } from "../hooks/useFitOnResize";
+import { useDraggableNodes } from "../hooks/useDraggableNodes";
 import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
 import DiagramStepBar from "./DiagramStepBar";
 import DiagramReel from "./DiagramReel";
@@ -122,7 +123,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
   const byId = useMemo(() => new Map(NODES.map((n) => [n.id, n])), [NODES]);
   const stepEdge = step >= 0 ? EDGES[step] : null;
 
-  const nodes = useMemo(
+  const laidOut = useMemo(
     () =>
       NODES.map((n) => {
         const g = GROUPS[n.group] || {};
@@ -147,6 +148,8 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
       }),
     [NODES, GROUPS, selectedPath, stepEdge, focusId, testId, onNodeClick, walkStep, visited],
   );
+
+  const { nodes, onNodesChange } = useDraggableNodes(laidOut);
 
   const edges = useMemo(
     () =>
@@ -196,6 +199,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
       <ReactFlow
         nodes={nodes}
         edges={edges}
+        onNodesChange={onNodesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView

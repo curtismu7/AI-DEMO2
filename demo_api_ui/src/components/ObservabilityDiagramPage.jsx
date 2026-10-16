@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { Background, BackgroundVariant, Handle, Position, ReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./ObservabilityDiagramPage.css";
+import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 /**
  * ObservabilityDiagramPage — /architecture/observability.
@@ -181,7 +182,6 @@ export function buildNodes(activePlane = "all") {
       planes: n.planes,
       dim: activePlane !== "all" && !n.planes.includes(activePlane),
     },
-    draggable: false,
     selectable: false,
   }));
   const bands = BAND_LABELS.map((b) => ({
@@ -287,6 +287,7 @@ export default function ObservabilityDiagramPage() {
     });
   }, [launching, navigate]);
 
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes);
   return (
     <div className="obs-page">
       <header className="obs-header">
@@ -343,7 +344,8 @@ export default function ObservabilityDiagramPage() {
           <div className="obs-canvas">
             <ArrowDefs />
             <ReactFlow
-              nodes={nodes}
+              nodes={dragNodes}
+              onNodesChange={onDragNodes}
               edges={edges}
               nodeTypes={NODE_TYPES}
               fitView

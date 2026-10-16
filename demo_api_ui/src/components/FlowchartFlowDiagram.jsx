@@ -17,6 +17,7 @@ import DiagramReel from "./DiagramReel";
 import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import "./FlowchartFlowDiagram.css";
+import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 /**
  * FlowchartFlowDiagram — a Mermaid `flowchart` (nested subgraphs, labelled edges, classDef
@@ -121,7 +122,7 @@ export async function layoutFlowchart(model) {
         ...(parentId ? { parentId } : {}),
         data: group ? { label: group.label, style } : { label: node.label, shape: node.shape, style },
         ...(group ? { style: { width: c.width, height: c.height }, zIndex: 0 } : { zIndex: 1 }),
-        draggable: false,
+        draggable: !group,
         selectable: false,
       });
       if (group) walk(c, c.id);
@@ -194,6 +195,7 @@ function Inner({ source, testId, step, active, details }) {
     setNodeDetail(buildNodeDetail(flow.reelNodes.find((x) => x.id === node.id), details));
   };
 
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(lit);
   if (error) return <p className="fcd-note">Couldn't lay out this diagram: {error}</p>;
   return (
     <>
@@ -202,7 +204,8 @@ function Inner({ source, testId, step, active, details }) {
         {flow ? (
           <ReactFlow
             key={flow.id}
-            nodes={lit}
+            nodes={dragNodes}
+            onNodesChange={onDragNodes}
             edges={shown}
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
@@ -210,7 +213,7 @@ function Inner({ source, testId, step, active, details }) {
             fitViewOptions={FIT}
             minZoom={0.1}
             maxZoom={2}
-            nodesDraggable={false}
+            nodesDraggable
             nodesConnectable={false}
             zoomOnScroll={false}
             preventScrolling={false}

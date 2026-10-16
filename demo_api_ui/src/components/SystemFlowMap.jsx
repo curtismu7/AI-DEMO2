@@ -15,6 +15,7 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 import { buildRunStory, buildTraceSteps } from '../services/tokenChainTrace/buildTraceSteps';
 import { useThemeOptional } from '../context/ThemeContext';
 import './SystemFlowMap.css';
+import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 // Presenter map size (A-/A+), same pattern as TokenChainTraceRail's ZOOM_*
 // (readStoredZoom there) — a separate key because the two panels are scaled
@@ -529,6 +530,7 @@ export function SystemFlowMapView() {
     [edges],
   );
 
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(flowNodes);
   return (
     <div className="sfm-root" style={{ zoom }}>
       <div className="sfm-head">
@@ -623,11 +625,12 @@ export function SystemFlowMapView() {
 
       <div className="sfm-canvas">
         <ReactFlow
-          nodes={flowNodes}
+          nodes={dragNodes}
+          onNodesChange={onDragNodes}
           edges={flowEdges}
           nodeTypes={NODE_TYPES}
           edgeTypes={EDGE_TYPES}
-          nodesDraggable={false}
+          nodesDraggable
           nodesConnectable={false}
           elementsSelectable={false}
           fitView

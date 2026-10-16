@@ -1190,7 +1190,7 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
     []
   );
 
-  const [baseNodes, setBaseNodes] = useNodesState(() =>
+  const [baseNodes, setBaseNodes, onBaseNodesChange] = useNodesState(() =>
     withSavedLayout(BASE_NODES)
   );
   const [baseEdges, setBaseEdges] = useEdgesState(BASE_EDGES);
@@ -1598,6 +1598,7 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
           {view === "flow" ? (
             <ReactFlow
               nodes={baseNodes}
+              onNodesChange={onBaseNodesChange}
               edges={baseEdges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}

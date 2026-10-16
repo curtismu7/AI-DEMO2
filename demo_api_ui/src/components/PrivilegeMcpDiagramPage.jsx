@@ -28,6 +28,7 @@ import DiagramReel from "./DiagramReel";
 import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import DiagramStepBar from "./DiagramStepBar";
 import "./PrivilegeMcpDiagramPage.css";
+import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 const ARCHITECTURE_SOURCE = `graph TB
     subgraph browser["Browser — no MCP here"]
@@ -347,6 +348,7 @@ export default function PrivilegeMcpDiagramPage() {
     setNodeDetail(null);
   }, [activeTab, stopRf]);
 
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(activeTabMeta.nodes ? markNodes(activeTabMeta.nodes, currentStep ? [currentStep.from, currentStep.to] : []) : []); // sequence tab has no nodes
   return (
     <div className="pmd-page">
       <div className="pmd-hero">
@@ -392,7 +394,8 @@ export default function PrivilegeMcpDiagramPage() {
             )}
             <div className="pmd-rf-canvas" aria-label="Privilege MCP diagram">
               <ReactFlow
-                nodes={markNodes(activeTabMeta.nodes, currentStep ? [currentStep.from, currentStep.to] : [])}
+                nodes={dragNodes}
+                onNodesChange={onDragNodes}
                 onNodeClick={(_, node) => setNodeDetail(buildNodeDetail(reelNodes.find((x) => x.id === node.id), reelDetails))}
                 edges={stepEdges(activeTabMeta.edges, rfStepper.step)}
                 nodeTypes={NODE_TYPES}
