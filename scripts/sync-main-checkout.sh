@@ -200,10 +200,18 @@ if [ "$STASHED" = "1" ]; then
   STASH_REF="${STASH_LINE%% *}"
   STASH_SHA="${STASH_LINE##* }"
   if [ -n "$STASH_LINE" ]; then
-    git stash apply "$STASH_SHA" >/dev/null
-    if [ "$(git rev-parse --verify --quiet "$STASH_REF" || true)" = "$STASH_SHA" ]; then
+    if ! git stash apply "$STASH_SHA" >/dev/null 2>&1; then
+      # The noise (generated data) changed upstream too, so the apply conflicted and left an
+      # unmerged file that wedges the checkout. The stash still holds the local copy: reset the
+      # noise paths to HEAD and keep the stash instead of dropping it.
+      git checkout HEAD -- "${STASH_PATHS[@]}" >/dev/null 2>&1 || true
+      git reset -q HEAD -- "${STASH_PATHS[@]}" >/dev/null 2>&1 || true
+      echo "$LOG_PREFIX stash apply conflicted — reset noise paths to HEAD; local copy kept in stash $STASH_SHA."
+      STASH_REF=""
+    fi
+    if [ -n "$STASH_REF" ] && [ "$(git rev-parse --verify --quiet "$STASH_REF" || true)" = "$STASH_SHA" ]; then
       git stash drop "$STASH_REF" >/dev/null 2>&1 || true
-    else
+    elif [ -n "$STASH_REF" ]; then
       echo "$LOG_PREFIX stash reflog moved under us — leaving $STASH_SHA in place rather than dropping the wrong entry."
     fi
   fi
