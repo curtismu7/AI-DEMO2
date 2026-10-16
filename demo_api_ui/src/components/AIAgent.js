@@ -148,6 +148,11 @@ export const MORE_MENU_FLAG_IDS = [
   "ff_rar",
 ];
 
+// CIBA approval text follows the active vertical's high-value action noun
+// (e.g. "Expense Approval", "Large Trade"). PingOne only mails a short code.
+const cibaApprovalText = (terminology) =>
+  `Approve ${terminology?.highValueAction || "banking transaction"}`;
+
 const SURFACE_OPTIONS = [
   { value: "none", label: "Off", description: "Hide this view." },
   { value: "embedded", label: "Embedded", description: "Keep it inside the dashboard." },
@@ -5631,7 +5636,7 @@ export default function BankingAgent({
                 credentials: "include",
                 headers: { "Content-Type": "application/json" },
                 body: JSON.stringify({
-                  binding_message: "Approve your banking transaction",
+                  binding_message: cibaApprovalText(terminology),
                   acr_values: normalized.step_up_acr || "",
                   amount: normalized.transaction_amount ?? undefined,
                   transaction_type: resolveCibaTransactionType(
@@ -6334,7 +6339,7 @@ export default function BankingAgent({
               credentials: "include",
               headers: { "Content-Type": "application/json" },
               body: JSON.stringify({
-                binding_message: "Approve your banking transaction",
+                binding_message: cibaApprovalText(terminology),
                 acr_values: err.step_up_acr || "",
                 amount: err.transaction_amount ?? Number(form.amount),
                 transaction_type: resolveCibaTransactionType(
@@ -9688,7 +9693,7 @@ export default function BankingAgent({
           credentials: "include",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            binding_message: "Approve your banking transaction",
+            binding_message: cibaApprovalText(terminology),
             acr_values: response.step_up_acr || "",
             amount: response.transactionAmount ?? undefined,
             transaction_type: resolveCibaTransactionType(

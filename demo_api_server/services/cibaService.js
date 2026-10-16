@@ -23,6 +23,7 @@
  *     → boolean
  */
 
+const crypto = require('crypto');
 const axios = require('axios');
 const oauthConfig = require('../config/oauth');
 const configStore = require('./configStore');
@@ -56,14 +57,25 @@ function _sleep(ms) {
 // Public API
 // ---------------------------------------------------------------------------
 
+// PingOne rejects any binding_message over 8 characters (invalid_binding_message).
+// A longer or empty message becomes a 6-char match code the app shows next to
+// the email, so the user can compare the two.
+const MAX_BINDING_MESSAGE = 8;
+function _bindingMessage(raw) {
+  const s = String(raw || '').replace(/[\x00-\x1f\x7f]/g, '').trim();
+  return s.length >= 1 && s.length <= MAX_BINDING_MESSAGE
+    ? s
+    : crypto.randomBytes(3).toString('hex').toUpperCase();
+}
+
 /**
  * Initiate a CIBA authentication request.
  *
  * @param {string} loginHint    User's email address or sub
- * @param {string} bindingMessage  Short string shown in the approval email or push (PingOne)
+ * @param {string} bindingMessage  Shown in the approval email (PingOne max 8 chars; longer/empty becomes a 6-char code)
  * @param {string} scope        Space-separated OAuth scopes (defaults to openid)
- * @param {string} [acrValues]  ACR values for step-up (e.g. 'Multi_factor'); defaults to configStore `ciba_acr_values` (DaVinci CIBA policy ID)
- * @returns {Promise<{ auth_req_id: string, expires_in: number, interval: number }>}
+ * @param {string} [acrValues]  ACR values for step-up (e.g. 'Multi_factor'); the DaVinci CIBA flow comes from the app's policy assignment, not from here
+ * @returns {Promise<{ auth_req_id: string, expires_in: number, interval: number, binding_message: string }>}
  */
 async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openid', acrValues = '') {
   const endpoint = _cibaEndpoint();
@@ -72,9 +84,7 @@ async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openi
   }
 
   const deliveryMode = configStore.getEffective('ciba_token_delivery_mode') || 'poll';
-  const message = bindingMessage
-    || configStore.getEffective('ciba_binding_message')
-    || 'Banking App Authentication';
+  const message = _bindingMessage(bindingMessage || configStore.getEffective('ciba_binding_message'));
 
   const params = new URLSearchParams({
     login_hint: loginHint,
@@ -82,10 +92,8 @@ async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openi
     binding_message: message,
   });
 
-  // Caller's ACR wins; otherwise route approval through the configured DaVinci CIBA policy.
-  const acr = acrValues || configStore.getEffective('ciba_acr_values');
-  if (acr) {
-    params.set('acr_values', acr);
+  if (acrValues) {
+    params.set('acr_values', acrValues);
   }
 
   if (deliveryMode !== 'poll') {
@@ -110,6 +118,7 @@ async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openi
     auth_req_id,
     expires_in: expires_in || 300,
     interval: interval || 5,
+    binding_message: message,
   };
 }
 

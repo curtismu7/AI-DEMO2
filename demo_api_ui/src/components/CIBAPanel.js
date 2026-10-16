@@ -141,7 +141,7 @@ function StatusBadge({ status }) {
 function TryItTab({ cibaStatus }) {
   const [emailHint, setEmailHint]   = useState('');
   const [scope, setScope]           = useState('openid profile email');
-  const [message, setMessage]       = useState('Banking App - Demo Authentication');
+  const [message, setMessage]       = useState('Approve');
   const [acrValues, setAcrValues]   = useState('');
   const [status, setStatus]         = useState('idle'); // idle|loading|pending|approved|denied|error|expired
   const [authReqId, setAuthReqId]   = useState(null);
@@ -303,9 +303,10 @@ function TryItTab({ cibaStatus }) {
             />
           </label>
           <label className="ciba-label">
-            Binding message (shown in email or on device push)
+            Binding message (shown in the approval email, max 8 characters)
             <input
               className="ciba-input"
+              maxLength={8}
               value={message}
               onChange={(e) => setMessage(e.target.value)}
             />

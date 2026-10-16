@@ -561,6 +561,7 @@ describe('GET /api/auth/ciba/request/:authReqId', () => {
     expect(res.status).toBe(200);
     expect(res.body).toEqual({
       binding_message: 'Approve your banking transaction',
+      approval_summary: '',
       amount: 600,
       from_account_label: 'Checking',
       to_account_label: 'Savings',

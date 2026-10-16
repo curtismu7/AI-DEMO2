@@ -155,21 +155,28 @@ describe('cibaService.initiateBackchannelAuth()', () => {
   });
 
   it('sends login_hint, scope, and binding_message in the request body', async () => {
-    await cibaService.initiateBackchannelAuth('user@example.com', 'Approve payment', 'openid profile', '');
+    await cibaService.initiateBackchannelAuth('user@example.com', 'Approve', 'openid profile', '');
 
     const [, body] = axios.post.mock.calls[0];
     const params = new URLSearchParams(body);
     expect(params.get('login_hint')).toBe('user@example.com');
     expect(params.get('scope')).toBe('openid profile');
-    expect(params.get('binding_message')).toBe('Approve payment');
+    expect(params.get('binding_message')).toBe('Approve');
   });
 
-  it('falls back to configStore binding_message when none provided', async () => {
+  it('replaces a binding_message over PingOne\'s 8-char limit with a 6-char code, and returns what was sent', async () => {
+    const result = await cibaService.initiateBackchannelAuth('user@example.com', 'Approve your banking transaction', 'openid', '');
+
+    const sent = new URLSearchParams(axios.post.mock.calls[0][1]).get('binding_message');
+    expect(sent).toMatch(/^[0-9A-F]{6}$/);
+    expect(result.binding_message).toBe(sent);
+  });
+
+  it('uses a 6-char code when no binding_message and the configStore default is too long', async () => {
     await cibaService.initiateBackchannelAuth('user@example.com', undefined, 'openid', '');
 
-    const [, body] = axios.post.mock.calls[0];
-    const params = new URLSearchParams(body);
-    expect(params.get('binding_message')).toBe('Banking App Authentication');
+    const params = new URLSearchParams(axios.post.mock.calls[0][1]);
+    expect(params.get('binding_message')).toMatch(/^[0-9A-F]{6}$/);
   });
 
   it('includes acr_values when provided', async () => {
@@ -179,19 +186,6 @@ describe('cibaService.initiateBackchannelAuth()', () => {
     expect(new URLSearchParams(body).get('acr_values')).toBe('Multi_factor');
   });
 
-  it('falls back to configStore ciba_acr_values (DaVinci policy ID); explicit acr wins', async () => {
-    configStore.getEffective.mockImplementation((key) => {
-      if (key === 'ciba_token_delivery_mode') return 'poll';
-      if (key === 'ciba_acr_values') return 'davinci-policy-id';
-      return null;
-    });
-    await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', '');
-    expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('acr_values')).toBe('davinci-policy-id');
-
-    await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', 'Multi_factor');
-    expect(new URLSearchParams(axios.post.mock.calls[1][1]).get('acr_values')).toBe('Multi_factor');
-  });
-
   it('omits acr_values when empty string', async () => {
     await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', '');
 
@@ -199,9 +193,9 @@ describe('cibaService.initiateBackchannelAuth()', () => {
     expect(new URLSearchParams(body).has('acr_values')).toBe(false);
   });
 
-  it('returns { auth_req_id, expires_in, interval } from PingOne response', async () => {
+  it('returns { auth_req_id, expires_in, interval, binding_message } from PingOne response', async () => {
     const result = await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', '');
-    expect(result).toEqual({ auth_req_id: 'req-456', expires_in: 300, interval: 5 });
+    expect(result).toEqual({ auth_req_id: 'req-456', expires_in: 300, interval: 5, binding_message: 'Test' });
   });
 
   it('applies default expires_in=300 and interval=5 when PingOne omits them', async () => {
