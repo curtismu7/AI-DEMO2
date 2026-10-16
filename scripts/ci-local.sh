@@ -8,6 +8,7 @@
 #   job "Hygiene + topology gates" -> hygiene:check, regression:paths, topology:verify
 #   job "API server tests (Jest)"  -> npm test --prefix demo_api_server
 #
+# For an exact mirror of the CI gates job (hygiene alone misses the use-case drift gates): npm run ci:gates
 # Usage: npm run ci:local
 
 set -uo pipefail

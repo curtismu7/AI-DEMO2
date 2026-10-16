@@ -482,6 +482,19 @@ warn_drive_affecting
 
 # Build first (slow, recreates), then restart the cheap ones.
 if [ -n "${BUILD_SET// /}" ]; then
+  # run-docker.sh refuses a ui build with an override file unless told dev vs prod.
+  # Match the running container: a Vite dev image has /app/src, the nginx prod image does not.
+  case " $BUILD_SET " in
+    *" ui "*)
+      if [ -z "${DEV_MODE:-}${PROD_MODE:-}" ]; then
+        if docker exec ai-demo-ui test -d /app/src >/dev/null 2>&1; then
+          export DEV_MODE=1
+        else
+          export PROD_MODE=1
+        fi
+        echo "[deploy-live] ui build mode picked from the running container: ${DEV_MODE:+DEV_MODE=1}${PROD_MODE:+PROD_MODE=1}"
+      fi ;;
+  esac
   echo "[deploy-live] ./run-docker.sh build$BUILD_SET"
   # shellcheck disable=SC2086
   ./run-docker.sh build $BUILD_SET
