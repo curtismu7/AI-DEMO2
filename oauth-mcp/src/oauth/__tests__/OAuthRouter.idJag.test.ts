@@ -352,6 +352,46 @@ describe('OAuthRouter — ID-JAG resource allow-list', () => {
   });
 });
 
+describe('OAuthRouter — ID-JAG granted scope is strict', () => {
+  const redeem = async (overrides: Record<string, unknown>, extra: Record<string, string> = {}) => {
+    const { router } = await buildRouter();
+    return postToken(router, {
+      grant_type: JWT_BEARER_GRANT,
+      assertion: mintIdJag(overrides),
+      client_id: CLIENT.client_id,
+      client_secret: CLIENT.client_secret as string,
+      ...extra,
+    });
+  };
+
+  // Regression: a live PingFederate ID-JAG carried only the refresh token's OIDC scopes,
+  // and resolveScope's fallback minted a token with the client's FULL scope list.
+  it('refuses an ID-JAG whose scopes do not overlap the client, instead of granting everything', async () => {
+    const res = await redeem({ scope: 'openid profile email offline_access' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_scope');
+    expect(res.body.access_token).toBeUndefined();
+  });
+
+  it('grants only the overlap of assertion and client scope', async () => {
+    const res = await redeem({ scope: 'banking:read openid admin:root' });
+    expect(res.status).toBe(200);
+    expect(String(res.body.scope).split(' ').sort()).toEqual(['banking:read']);
+  });
+
+  it('narrows further to the scope the request asks for', async () => {
+    const res = await redeem({ scope: 'banking:read banking:write' }, { scope: 'banking:read' });
+    expect(res.status).toBe(200);
+    expect(String(res.body.scope)).toBe('banking:read');
+  });
+
+  it('refuses when the request asks for a scope the assertion did not grant', async () => {
+    const res = await redeem({ scope: 'banking:read' }, { scope: 'banking:write' });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_scope');
+  });
+});
+
 describe('OAuthRouter — authorization server metadata', () => {
   async function getMetadata(): Promise<Record<string, unknown>> {
     const { router } = await buildRouter();

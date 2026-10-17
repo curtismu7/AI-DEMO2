@@ -140,6 +140,16 @@ export async function verifyIdJag(assertion: string, opts: VerifyOpts): Promise<
     throw new IdJagError(`ID-JAG verification failed: ${(err as Error).message}`);
   }
 
+  // draft-ietf-oauth-identity-assertion-authz-grant: iss, sub, aud, client_id, jti, exp
+  // and iat are REQUIRED; jose only checks exp/iat when present. An array aud is
+  // allowed only with a single element.
+  if (typeof payload.exp !== 'number' || typeof payload.iat !== 'number') {
+    throw new IdJagError('ID-JAG must carry numeric exp and iat');
+  }
+  if (Array.isArray(payload.aud) && payload.aud.length !== 1) {
+    throw new IdJagError('ID-JAG aud must name exactly one authorization server');
+  }
+
   if (protectedHeader.typ !== ID_JAG_TYP) {
     throw new IdJagError(`ID-JAG must carry typ "${ID_JAG_TYP}", got "${protectedHeader.typ}"`);
   }
