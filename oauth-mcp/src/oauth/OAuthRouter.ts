@@ -11,6 +11,7 @@ import {
   verifyIdJag, IdJagError, JWT_BEARER_GRANT, ID_JAG_GRANT_PROFILE, VerifyOpts,
 } from './IdJagGrantHandler';
 import { resolveIdJagResources } from './TokenIssuer';
+import { TrustedIdp, trustedIdps, refreshRegistry } from './IdJagTrustedIdps';
 import { AUTHORIZATION_SERVER_SCOPES } from './scopes';
 import { resolveAuthorizeParams } from './brokerPrompt';
 import { emitHop } from '../utils/transactionHop';
@@ -50,22 +51,27 @@ export function redirectUriIsRegistered(registered: string[], requested: string)
 }
 
 /**
- * Native ID-JAG (MCP Enterprise-Managed Authorization) engages only when BOTH
- * the enterprise IdP's issuer and its JWKS endpoint are configured. Both are
- * unset by default, so the demo's RFC 8693 stand-in path is unaffected.
+ * Native ID-JAG (MCP Enterprise-Managed Authorization) engages when at least one
+ * enterprise IdP is trusted: the env IdP (ENTERPRISE_IDP_ISSUER + _JWKS_URL) or a
+ * non-empty BFF registry (see ./IdJagTrustedIdps). Callers refreshRegistry()
+ * first; this reads the cached view. With neither, the demo's RFC 8693
+ * stand-in path is unaffected.
  */
-/** "idp-client=our-client,other=ours" -> { 'idp-client': 'our-client', other: 'ours' } */
-function parseClientAliases(raw?: string): Record<string, string> {
-  const out: Record<string, string> = {};
-  for (const pair of (raw || '').split(',')) {
-    const [from, to] = pair.split('=').map((s) => s.trim());
-    if (from && to) out[from] = to;
-  }
-  return out;
+export function nativeIdJagEnabled(): boolean {
+  return trustedIdps().length > 0;
 }
 
-export function nativeIdJagEnabled(): boolean {
-  return Boolean(process.env.ENTERPRISE_IDP_ISSUER && process.env.ENTERPRISE_IDP_JWKS_URL);
+/** Remote JWKS key sets, one per URL, so every IdP's keys stay cached by jose. */
+const remoteKeySets = new Map<string, (h: unknown) => Promise<never>>();
+
+/** Read `iss` WITHOUT verifying — used only to choose which IdP verifies the assertion. */
+function unverifiedIssuer(assertion: string): string | undefined {
+  try {
+    const iss = JSON.parse(Buffer.from(assertion.split('.')[1] || '', 'base64url').toString('utf8')).iss;
+    return typeof iss === 'string' ? iss : undefined;
+  } catch {
+    return undefined;
+  }
 }
 
 /**
@@ -117,7 +123,8 @@ export class OAuthRouter {
   }
 
   // --- RFC 8414: Authorization Server Metadata ---
-  private handleMetadata(_req: IncomingMessage, res: ServerResponse): boolean {
+  private async handleMetadata(_req: IncomingMessage, res: ServerResponse): Promise<boolean> {
+    await refreshRegistry();
     const metadata = {
       issuer: this.issuer,
       authorization_endpoint: `${this.issuer}/authorize`,
@@ -528,6 +535,7 @@ export class OAuthRouter {
         return true;
       }
       case JWT_BEARER_GRANT: {
+        await refreshRegistry();
         if (!nativeIdJagEnabled()) {
           this.json(res, 400, { error: 'unsupported_grant_type' });
           return true;
@@ -555,20 +563,19 @@ export class OAuthRouter {
     }
   }
 
-  /** Verification inputs for an inbound ID-JAG. */
-  private idJagVerifyOpts(clientId?: string): VerifyOpts {
+  /** Verification inputs for an inbound ID-JAG from one trusted IdP. */
+  private idJagVerifyOpts(idp: TrustedIdp, clientId?: string): VerifyOpts {
     return {
       clientId,
-      clientAliases: parseClientAliases(process.env.ENTERPRISE_IDP_ID_JAG_CLIENT_MAP),
-      allowUnboundClient: process.env.ENTERPRISE_IDP_ALLOW_UNBOUND_ID_JAG === 'true',
-      idpIssuer: process.env.ENTERPRISE_IDP_ISSUER as string,
+      clientAliases: idp.clientAliases,
+      allowUnboundClient: idp.allowUnboundClient === true,
+      idpIssuer: idp.issuer,
       ownIssuer: this.issuer,
       acceptedResources: resolveIdJagResources(),
       getKey: (async (protectedHeader: unknown) => {
-        const jwksUrl = process.env.ENTERPRISE_IDP_JWKS_URL as string;
+        const jwksUrl = idp.jwksUrl;
         const { createRemoteJWKSet, importJWK } = await getJose();
         const header = (protectedHeader || {}) as { alg?: string; kid?: string; x5t?: string };
-        const keySet = createRemoteJWKSet(new URL(jwksUrl));
 
         // PingFederate's ID-JAG signing connection identifies certificate-backed
         // keys with x5t. jose's remote-JWKS selector only disambiguates by kid,
@@ -585,7 +592,12 @@ export class OAuthRouter {
           return importJWK(matches[0] as Parameters<typeof importJWK>[0], header.alg || 'RS256');
         }
 
-        return (keySet as unknown as (h: unknown) => Promise<never>)(protectedHeader);
+        let keySet = remoteKeySets.get(jwksUrl);
+        if (!keySet) {
+          keySet = createRemoteJWKSet(new URL(jwksUrl)) as unknown as (h: unknown) => Promise<never>;
+          remoteKeySets.set(jwksUrl, keySet);
+        }
+        return keySet(protectedHeader);
       }) as VerifyOpts['getKey'],
     };
   }
@@ -610,7 +622,13 @@ export class OAuthRouter {
     requestedScope = '',
   ): Promise<{ status: number; body: Record<string, unknown> }> {
     try {
-      const claims = await verifyIdJag(assertion, this.idJagVerifyOpts(client.client_id));
+      // Env IdP is first in trustedIdps(), so it wins an issuer collision.
+      const iss = unverifiedIssuer(assertion);
+      const idp = trustedIdps().find((t) => t.issuer === iss);
+      if (!idp) {
+        return { status: 400, body: { error: 'invalid_grant', error_description: 'ID-JAG issuer is not trusted' } };
+      }
+      const claims = await verifyIdJag(assertion, this.idJagVerifyOpts(idp, client.client_id));
       // Account linking, per the extension: `sub` is the stable primary
       // identifier; `email` is only a fallback for accounts predating
       // enterprise-managed authorization.
@@ -623,8 +641,10 @@ export class OAuthRouter {
       }
       const clientScopes = new Set((client.scope || '').split(' ').filter(Boolean));
       const requested = new Set(requestedScope.split(' ').filter(Boolean));
+      const idpCap = new Set(idp.scopes.split(' ').filter(Boolean));
       const granted = (claims.scope || '').split(' ').filter(Boolean)
-        .filter((s) => clientScopes.has(s) && (requested.size === 0 || requested.has(s)));
+        .filter((s) => clientScopes.has(s) && (requested.size === 0 || requested.has(s))
+          && (idpCap.size === 0 || idpCap.has(s)));
       if (granted.length === 0) {
         return {
           status: 400,

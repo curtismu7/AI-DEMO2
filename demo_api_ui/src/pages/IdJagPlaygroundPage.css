@@ -72,3 +72,8 @@
 .ijp-negatives p { margin: 0.2rem 0 0; }
 .ijp-result { font-weight: 600; font-size: var(--font-size-xs); }
 .ijp a { color: inherit; }
+.ijp-field--wide { max-width: 900px; }
+.ijp-field--wide textarea { word-break: break-all; }
+.ijp-targets { margin: 0.5rem 0; padding: 0.3rem 0.6rem; border: 1px solid var(--th-border); border-radius: 6px; }
+.ijp-targets legend { font-size: var(--font-size-xs); padding: 0 0.3rem; }
+.ijp-targets .ijp-check { display: inline-flex; margin-right: 1rem; }

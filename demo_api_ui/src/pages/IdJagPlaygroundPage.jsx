@@ -19,7 +19,9 @@ const MODES = [
   { id: "mock", label: "Mock (no sign-in)" },
   { id: "oauth-mcp", label: "PingFederate → oauth-mcp" },
   { id: "pf-pf", label: "PingFederate → PingFederate" },
+  { id: "byo", label: "Your IdP → our resource AS" },
 ];
+const BYO_TARGETS = [{ id: "oauth-mcp", label: "oauth-mcp" }, { id: "pingfederate", label: "PingFederate" }];
 const VIEWS = [{ id: "form", label: "Form" }, { id: "json", label: "JSON" }];
 
 const stored = (key, allowed, fallback) => {
@@ -31,6 +33,7 @@ const SPEC_NOTES = {
   issue: "RFC 8693 token exchange at the IdP with requested_token_type=…:id-jag. audience names the resource authorization server; resource names the MCP server. The IdP decides the scope and returns a short-lived JWT typed oauth-id-jag+jwt in access_token, with token_type N_A.",
   redeem: "RFC 7523 JWT bearer grant at the resource authorization server. It verifies typ, the IdP signature, iss, a single aud equal to its own issuer, exp/iat, and that client_id is the client authenticating now. It grants at most the ID-JAG's scope and mints its own access token. It should not return a refresh token.",
   negative: "A resource authorization server must refuse a broken assertion with an OAuth error and no token. Each test mints a fresh ID-JAG, breaks one thing, and checks the refusal.",
+  negativeByo: "A resource authorization server must refuse a broken assertion with an OAuth error and no token. We cannot mint at your IdP, so each test reuses your pasted ID-JAG and breaks one thing. Replay is skipped: it would use up your token.",
 };
 
 // Per-mode wording: who redeems, who validates the MCP call.
@@ -50,6 +53,14 @@ const MODE_TEXT = {
     asRole: "Redeems the ID-JAG, mints the access token the gateway validates",
     mcpRole: "Reached through the MCP gateway, which validates PingFederate's token",
     call: "The ID-JAG stops at the local PingFederate. The MCP call carries the access token the local PingFederate minted; the gateway validates PingFederate's token and forwards it. Tools listed here are whatever this token can see in the active vertical.",
+  },
+  byo: {
+    signInTitle: "Paste an ID-JAG from your IdP",
+    signInNote: "No sign-in here: your own IdP issued this ID-JAG. Its issuer must be on the Trusted IdPs list below, aud must be the issuer of the authorization server you pick, and client_id the value registered for your IdP. The BFF keeps the token server-side and shows only its decoded claims.",
+    redeemTitle: "Redeem it at our resource authorization server",
+    asRole: "Trusts your IdP's keys, redeems the ID-JAG, mints its own token",
+    mcpRole: "Reached through the MCP gateway",
+    call: "The ID-JAG stops at our authorization server. The MCP call carries the access token it minted; the gateway validates that token and forwards it. Tools listed here are whatever this token can see in the active vertical.",
   },
   mock: {
     signInTitle: "Sign in with PingFederate",
@@ -135,6 +146,119 @@ function buildArgs(props, form) {
   return out;
 }
 
+const EMPTY_IDP = { id: "", name: "", issuer: "", jwksUrl: "", idJagClientId: "", clientId: "demo-bff-mcp-client", pfClientId: "ai-demo-pf-idjag-redeemer", scopes: "", targets: ["oauth-mcp"], enabled: true };
+const IDP_FIELDS = [
+  ["id", "Id (slug)"], ["name", "Name"], ["issuer", "Issuer (https)"], ["jwksUrl", "JWKS URL (https)"],
+  ["idJagClientId", "client_id your IdP writes in the ID-JAG"], ["clientId", "Our client at oauth-mcp"],
+  ["pfClientId", "Our client at PingFederate"], ["scopes", "Scope cap (space-separated, optional)"],
+];
+const errText = (e) => e.response?.data?.message || e.response?.data?.error || e.message;
+
+/** Registry of outside IdPs whose ID-JAGs our resource authorization servers accept. Admins edit; others read. */
+function TrustedIdpsPanel({ api, endpoints }) {
+  const [state, setState] = useState(null);
+  const [form, setForm] = useState(null);
+  const [confirmId, setConfirmId] = useState("");
+  const [err, setErr] = useState("");
+
+  const load = () => api.get(`${API}/trusted-idps`, { _noAuthBanner: true })
+    .then((r) => setState(r.data))
+    .catch((e) => setState(e.response?.status === 401 ? { signedOut: true } : { error: errText(e) }));
+  // Reload when the mode swaps the mock and real API.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(() => { setForm(null); setConfirmId(""); setErr(""); load(); }, [api]);
+
+  const write = async (fn) => {
+    setErr("");
+    try { await fn(); setForm(null); setConfirmId(""); await load(); } catch (e) { setErr(errText(e)); }
+  };
+  const save = (e) => {
+    e.preventDefault();
+    const { editing, ...body } = form;
+    write(() => (editing ? api.put(`${API}/trusted-idps/${editing}`, body) : api.post(`${API}/trusted-idps`, body)));
+  };
+  const set = (k, v) => setForm((f) => ({ ...f, [k]: v }));
+  const toggleTarget = (t) => setForm((f) => ({ ...f, targets: f.targets.includes(t) ? f.targets.filter((x) => x !== t) : [...f.targets, t] }));
+  const canManage = !!state?.canManage;
+
+  return (
+    <section className="ijp-step" aria-labelledby="ijp-trusted" data-testid="ijp-trusted-idps">
+      <header className="ijp-step__head"><h2 id="ijp-trusted">Trusted IdPs</h2></header>
+      <p className="ijp-note">
+        Outside IdPs whose ID-JAGs our resource authorization servers accept in the "Your IdP" mode. oauth-mcp reads the enabled entries from
+        {" "}<strong>{API}/trusted-idps/registry</strong>; a PingFederate sync reads <strong>{API}/trusted-idps/pingfederate</strong>. Neither holds a secret.
+      </p>
+      {!state && <p className="ijp-note">Loading…</p>}
+      {state?.signedOut && <p className="ijp-note" data-testid="ijp-trusted-signin">Sign in to see the trusted IdPs. Only admins can add or change them.</p>}
+      {state?.error && <div className="ijp-banner ijp-banner--error" role="alert">{state.error}</div>}
+      {state?.idps && !canManage && <p className="ijp-note" data-testid="ijp-trusted-readonly">Read only: an admin adds and edits trusted IdPs.</p>}
+      {err && <div className="ijp-banner ijp-banner--error" role="alert">{err}</div>}
+      {state?.idps && (
+        state.idps.length === 0 ? <p className="ijp-note">No trusted IdPs yet.</p> : (
+          <div className="ijp-checks">
+            <table>
+              <thead><tr><th>IdP</th><th>Issuer</th><th>Targets</th><th>What the IdP puts in the ID-JAG, and where it is redeemed</th>{canManage && <th>Actions</th>}</tr></thead>
+              <tbody>
+                {state.idps.map((e) => (
+                  <tr key={e.id} className={e.enabled ? "" : "is-warn"}>
+                    <td><strong>{e.name}</strong><div className="ijp-cite">{e.id}{e.enabled ? "" : " (disabled)"}</div></td>
+                    <td>{e.issuer}<div className="ijp-cite">JWKS {e.jwksUrl}</div></td>
+                    <td>{e.targets.join(", ")}{e.scopes && <div className="ijp-cite">scope cap: {e.scopes}</div>}</td>
+                    <td>
+                      {e.targets.map((t) => (
+                        <dl key={t} className="ijp-kv">
+                          <dt>{t === "pingfederate" ? "PingFederate" : "oauth-mcp"} aud</dt><dd>{endpoints?.[t]?.issuer || "(not configured)"}</dd>
+                          <dt>client_id</dt><dd>{e.idJagClientId}</dd>
+                          <dt>token endpoint</dt><dd>{endpoints?.[t]?.tokenEndpoint || "(not configured)"}</dd>
+                        </dl>
+                      ))}
+                    </td>
+                    {canManage && (
+                      <td>
+                        {confirmId === e.id ? (
+                          <span role="group" aria-label={`Confirm delete ${e.name}`}>
+                            Delete {e.name}?{" "}
+                            <button type="button" className="ijp-btn ijp-btn--primary" onClick={() => write(() => api.delete(`${API}/trusted-idps/${e.id}`))}>Confirm delete</button>
+                            <button type="button" className="ijp-btn" onClick={() => setConfirmId("")}>Cancel</button>
+                          </span>
+                        ) : (
+                          <>
+                            <button type="button" className="ijp-btn" onClick={() => setForm({ ...EMPTY_IDP, ...e, editing: e.id })}>Edit</button>
+                            <button type="button" className="ijp-btn" onClick={() => setConfirmId(e.id)}>Delete</button>
+                          </>
+                        )}
+                      </td>
+                    )}
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )
+      )}
+      {canManage && !form && <button type="button" className="ijp-btn ijp-btn--primary" onClick={() => setForm({ ...EMPTY_IDP, editing: null })}>Add trusted IdP</button>}
+      {form && (
+        <form onSubmit={save} aria-label={form.editing ? "Edit trusted IdP" : "Add trusted IdP"}><fieldset className="ijp-args">
+          <legend>{form.editing ? `Edit ${form.editing}` : "Add trusted IdP"}</legend>
+          {IDP_FIELDS.map(([k, label]) => (
+            <label key={k} className="ijp-field">{label}
+              <input value={form[k]} disabled={k === "id" && !!form.editing} onChange={(e) => set(k, e.target.value)} />
+            </label>
+          ))}
+          <fieldset className="ijp-targets"><legend>Targets</legend>
+            {BYO_TARGETS.map((t) => (
+              <label key={t.id} className="ijp-check"><input type="checkbox" checked={form.targets.includes(t.id)} onChange={() => toggleTarget(t.id)} />{t.label}</label>
+            ))}
+          </fieldset>
+          <label className="ijp-check"><input type="checkbox" checked={form.enabled} onChange={(e) => set("enabled", e.target.checked)} />Enabled</label>
+          <button type="submit" className="ijp-btn ijp-btn--primary">Save</button>
+          <button type="button" className="ijp-btn" onClick={() => setForm(null)}>Cancel</button>
+        </fieldset></form>
+      )}
+    </section>
+  );
+}
+
 export default function IdJagPlaygroundPage() {
   const [mode, setMode] = useState(() => stored(MODE_KEY, MODES, "oauth-mcp"));
   const [view, setView] = useState(() => stored(VIEW_KEY, VIEWS, "form"));
@@ -152,9 +276,12 @@ export default function IdJagPlaygroundPage() {
   const [callResult, setCallResult] = useState(null);
   const [negatives, setNegatives] = useState([]);
   const [negResults, setNegResults] = useState({});
+  const [byoTarget, setByoTarget] = useState("oauth-mcp");
+  const [byoToken, setByoToken] = useState("");
   const [error, setError] = useState(null);
 
   const isMock = mode === "mock";
+  const isByo = mode === "byo";
   const api = isMock ? mockApi : bffAxios;
 
   const applyConfig = (data) => {
@@ -221,6 +348,14 @@ export default function IdJagPlaygroundPage() {
     });
   };
 
+  // byo: the browser sends the user's own ID-JAG once; the BFF keeps it and returns decoded claims.
+  const byoInspect = () => run("byo", async () => {
+    clearResults();
+    const { data } = await bffAxios.post(`${API}/byo/inspect`, { idJag: byoToken.trim(), target: byoTarget });
+    if (data.config) applyConfig(data.config);
+    setInspection(data);
+  });
+
   const issue = () => run("issue", async () => {
     setRedeemed(null); setTools(null); setCallResult(null); setInspection(null);
     const r = await api.post(`${API}/issue`, {});
@@ -267,8 +402,9 @@ export default function IdJagPlaygroundPage() {
   });
 
   const text = MODE_TEXT[mode];
-  const pfReady = !!config && (isMock || (mode === "pf-pf" ? !!config.enabled : config.provider === "pingfederate" && config.enabled));
-  const canRun = pfReady && (isMock || config.signedIn);
+  const pfReady = !!config && (isMock || isByo || (mode === "pf-pf" ? !!config.enabled : config.provider === "pingfederate" && config.enabled));
+  const canRun = pfReady && (isMock || isByo || config.signedIn);
+  const hasIdJag = isByo ? !!inspection?.trusted : !!issued;
   const passed = inspection ? inspection.checks.filter((c) => c.status === "pass").length : 0;
   const modeOptions = MODES.map((m) => {
     const real = realModes?.find((r) => r.id === m.id);
@@ -320,14 +456,29 @@ export default function IdJagPlaygroundPage() {
         {error && <div className="ijp-banner ijp-banner--error" role="alert"><strong>{error.error || "Error"}</strong> {error.message || error.error_description || ""}</div>}
 
         <Step n={1} title={text.signInTitle} note={text.signInNote}>
-          <p className="ijp-status" data-testid="ijp-signin-status">{signInStatus}</p>
-          <button type="button" className="ijp-btn ijp-btn--primary" onClick={signIn} disabled={isMock || !pfReady || !!busy}>
-            {config?.signedIn && !isMock ? "Sign in again" : text.signInTitle}
-          </button>
+          {isByo ? (
+            <>
+              <div className="ijp-toolbar__group"><span>Redeem at</span><Segmented label="Target authorization server" options={BYO_TARGETS} value={byoTarget} onPick={setByoTarget} disabled={!!busy} /></div>
+              <p className="ijp-note">Your ID-JAG's aud must be <strong>{config?.publicEndpoints?.[byoTarget]?.issuer || "(not configured)"}</strong>.</p>
+              <label className="ijp-field ijp-field--wide">Your ID-JAG (compact JWT)
+                <textarea rows={4} value={byoToken} spellCheck={false} autoComplete="off" placeholder="eyJ…" onChange={(e) => setByoToken(e.target.value)} />
+              </label>
+              <button type="button" className="ijp-btn ijp-btn--primary" onClick={byoInspect} disabled={!byoToken.trim() || !!busy}>{busy === "byo" ? "Inspecting…" : "Inspect ID-JAG"}</button>
+              {inspection?.trusted === false && <div className="ijp-banner" role="alert" data-testid="ijp-byo-hint">{inspection.hint}</div>}
+            </>
+          ) : (
+            <>
+              <p className="ijp-status" data-testid="ijp-signin-status">{signInStatus}</p>
+              <button type="button" className="ijp-btn ijp-btn--primary" onClick={signIn} disabled={isMock || !pfReady || !!busy}>
+                {config?.signedIn && !isMock ? "Sign in again" : text.signInTitle}
+              </button>
+            </>
+          )}
         </Step>
 
-        <Step n={2} title="Get an ID-JAG from PingFederate" note={SPEC_NOTES.issue}>
-          <button type="button" className="ijp-btn ijp-btn--primary" onClick={issue} disabled={!canRun || !!busy}>{busy === "issue" ? "Requesting…" : "Request ID-JAG"}</button>
+        <Step n={2} title={isByo ? "Check your ID-JAG against the draft" : "Get an ID-JAG from PingFederate"} note={isByo ? null : SPEC_NOTES.issue}>
+          {!isByo && <button type="button" className="ijp-btn ijp-btn--primary" onClick={issue} disabled={!canRun || !!busy}>{busy === "issue" ? "Requesting…" : "Request ID-JAG"}</button>}
+          {isByo && inspection && <div className="ijp-io"><div><h4>Decoded ID-JAG</h4><Data value={{ header: inspection.header, claims: inspection.claims }} /></div></div>}
           {issued && (
             <div className="ijp-io">
               <div><h4>Request</h4><Data value={issued.request} /></div>
@@ -360,7 +511,7 @@ export default function IdJagPlaygroundPage() {
           <label className="ijp-field">Ask for a narrower scope (optional)
             <input value={redeemScope} onChange={(e) => setRedeemScope(e.target.value)} placeholder="e.g. accounts:read" />
           </label>
-          <button type="button" className="ijp-btn ijp-btn--primary" onClick={redeem} disabled={!canRun || !issued || !!busy}>{busy === "redeem" ? "Redeeming…" : "Redeem ID-JAG"}</button>
+          <button type="button" className="ijp-btn ijp-btn--primary" onClick={redeem} disabled={!canRun || !hasIdJag || !!busy}>{busy === "redeem" ? "Redeeming…" : "Redeem ID-JAG"}</button>
           {redeemed && (
             <div className="ijp-io">
               <div><h4>Request</h4><Data value={redeemed.request} /></div>
@@ -418,8 +569,8 @@ export default function IdJagPlaygroundPage() {
           {callResult && <div className="ijp-io"><div><h4>Request</h4><Data value={callResult.request} /></div><div><h4>Result</h4><Data value={callResult.result} /></div></div>}
         </Step>
 
-        <Step n={5} title="Negative tests against the authorization server" note={SPEC_NOTES.negative}>
-          <button type="button" className="ijp-btn" onClick={runAllNegatives} disabled={!canRun || !!busy}>{busy === "neg-all" ? "Running…" : "Run all"}</button>
+        <Step n={5} title="Negative tests against the authorization server" note={isByo ? SPEC_NOTES.negativeByo : SPEC_NOTES.negative}>
+          <button type="button" className="ijp-btn" onClick={runAllNegatives} disabled={!canRun || (isByo && !hasIdJag) || !!busy}>{busy === "neg-all" ? "Running…" : "Run all"}</button>
           <ul className="ijp-negatives">
             {negatives.map((t) => {
               const r = negResults[t.id];
@@ -428,14 +579,16 @@ export default function IdJagPlaygroundPage() {
                   <div>
                     <strong>{t.label}</strong> <span className="ijp-cite">expects {t.expect}</span>
                     <p className="ijp-note">{t.why}</p>
-                    {r && <p className="ijp-result">{r.pass ? "✅ refused" : "❌ not refused"}{r.status ? ` (HTTP ${r.status}${r.error ? `, ${r.error}` : ""})` : ""}{r.note ? ` ${r.note}` : ""}</p>}
+                    {r && <p className="ijp-result">{r.skipped ? "skipped" : r.pass ? "✅ refused" : "❌ not refused"}{r.status ? ` (HTTP ${r.status}${r.error ? `, ${r.error}` : ""})` : ""}{r.note ? ` ${r.note}` : ""}</p>}
                   </div>
-                  <button type="button" className="ijp-btn" onClick={() => runNegative(t.id)} disabled={!canRun || !!busy}>Run</button>
+                  <button type="button" className="ijp-btn" onClick={() => runNegative(t.id)} disabled={!canRun || (isByo && !hasIdJag) || !!busy}>Run</button>
                 </li>
               );
             })}
           </ul>
         </Step>
+
+        <TrustedIdpsPanel api={api} endpoints={config?.publicEndpoints} />
 
         <section className="ijp-step" aria-labelledby="ijp-vendors">
           <header className="ijp-step__head"><h2 id="ijp-vendors">How other implementations do it</h2></header>

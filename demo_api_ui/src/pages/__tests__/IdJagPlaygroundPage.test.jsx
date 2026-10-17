@@ -1,8 +1,8 @@
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
-const { get, post } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn() }));
-vi.mock("../../services/bffAxios", () => ({ default: { get, post } }));
+const { get, post, put, del } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), del: vi.fn() }));
+vi.mock("../../services/bffAxios", () => ({ default: { get, post, put, delete: del } }));
 
 import IdJagPlaygroundPage from "../IdJagPlaygroundPage";
 
@@ -21,7 +21,7 @@ function mount(cfg) {
 
 const slow = { timeout: 4000 };
 
-beforeEach(() => { get.mockReset(); post.mockReset(); localStorage.clear(); });
+beforeEach(() => { get.mockReset(); post.mockReset(); put.mockReset(); del.mockReset(); localStorage.clear(); });
 
 describe("ID-JAG playground page", () => {
   it("explains that ID-JAG needs PingFederate when the provider is PingOne", async () => {
@@ -83,6 +83,7 @@ describe("ID-JAG playground page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
     expect(await screen.findByText("Response (HTTP 400)", {}, slow)).toBeInTheDocument();
     expect(screen.getByText("invalid_scope")).toBeInTheDocument();
+    expect(screen.getByText("Partner Okta (sample)")).toBeInTheDocument();
 
     expect(get).not.toHaveBeenCalled();
     expect(post).not.toHaveBeenCalled();
@@ -134,5 +135,96 @@ describe("ID-JAG playground page", () => {
     } finally {
       Object.defineProperty(window, "location", { configurable: true, value: orig });
     }
+  });
+
+  const IDP = { id: "partner", name: "Partner IdP", issuer: "https://idp.partner.test", jwksUrl: "https://idp.partner.test/jwks", idJagClientId: "partner-agent", clientId: "demo-bff-mcp-client", pfClientId: "ai-demo-pf-idjag-redeemer", scopes: "", targets: ["oauth-mcp"], enabled: true };
+  const ENDPOINTS = { "oauth-mcp": { issuer: "https://as.test", tokenEndpoint: "https://as.test/token" }, pingfederate: { issuer: "https://pf.local", tokenEndpoint: "https://pf.local/as/token.oauth2" } };
+  const mountWith = (cfg, registry) => {
+    get.mockImplementation((url) => {
+      if (url.endsWith("/config")) return Promise.resolve({ data: cfg });
+      if (url.endsWith("/trusted-idps")) return typeof registry === "function" ? registry() : Promise.resolve({ data: registry });
+      return Promise.resolve({ data: [] });
+    });
+    return render(<MemoryRouter><IdJagPlaygroundPage /></MemoryRouter>);
+  };
+
+  it("byo: paste an ID-JAG, inspect it against the trusted IdP, then redeem", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    mountWith(config({ mode: "byo", signedIn: false, publicEndpoints: ENDPOINTS }), { idps: [IDP], canManage: false });
+    post.mockImplementation((url) => Promise.resolve({ data: url.endsWith("/byo/inspect")
+      ? { trusted: true, header: { typ: "oauth-id-jag+jwt" }, claims: { iss: IDP.issuer, client_id: "partner-agent" }, checks: [{ id: "iss", label: "Issuer is Partner IdP", status: "pass", expected: IDP.issuer, actual: IDP.issuer }] }
+      : { request: { client_id: "demo-bff-mcp-client" }, status: 200, response: { token_type: "Bearer" }, token: { header: {}, claims: { scope: "mcp:read" } } } }));
+    const step1 = (await screen.findByRole("heading", { name: "Paste an ID-JAG from your IdP" })).closest("section");
+    expect(within(step1).getByText("https://as.test")).toBeInTheDocument();
+    fireEvent.click(within(step1).getByRole("button", { name: "PingFederate" }));
+    expect(within(step1).getByText("https://pf.local")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "Request ID-JAG" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Redeem ID-JAG" })).toBeDisabled();
+
+    fireEvent.change(screen.getByLabelText(/Your ID-JAG/), { target: { value: " a.b.c " } });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect ID-JAG" }));
+    expect(await screen.findByTestId("ijp-checks")).toHaveTextContent("Spec check: 1 of 1 pass");
+    expect(post).toHaveBeenCalledWith("/api/id-jag-playground/byo/inspect", { idJag: "a.b.c", target: "pingfederate" });
+
+    const redeem = screen.getByRole("button", { name: "Redeem ID-JAG" });
+    await waitFor(() => expect(redeem).toBeEnabled());
+    fireEvent.click(redeem);
+    expect(await screen.findByText("Response (HTTP 200)")).toBeInTheDocument();
+    expect(post).toHaveBeenCalledWith("/api/id-jag-playground/redeem", {}, expect.anything());
+  });
+
+  it("byo: an untrusted issuer shows the hint and keeps redeem disabled", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    mountWith(config({ mode: "byo", publicEndpoints: ENDPOINTS }), { idps: [], canManage: false });
+    post.mockResolvedValue({ data: { trusted: false, hint: "Add this issuer on the Trusted IdPs panel (admin).", header: {}, claims: {}, checks: [{ id: "trusted-idp", label: "Issuer is a trusted IdP", status: "fail" }] } });
+    fireEvent.change(await screen.findByLabelText(/Your ID-JAG/), { target: { value: "a.b.c" } });
+    fireEvent.click(screen.getByRole("button", { name: "Inspect ID-JAG" }));
+    expect(await screen.findByTestId("ijp-byo-hint")).toHaveTextContent("Trusted IdPs panel");
+    expect(screen.getByRole("button", { name: "Redeem ID-JAG" })).toBeDisabled();
+  });
+
+  it("Trusted IdPs: admin adds, edits and deletes (with an in-page confirm)", async () => {
+    mountWith(config({ publicEndpoints: ENDPOINTS }), { idps: [IDP], canManage: true });
+    post.mockResolvedValue({ data: {} }); put.mockResolvedValue({ data: {} }); del.mockResolvedValue({ data: null });
+    const panel = await screen.findByTestId("ijp-trusted-idps");
+    expect(await within(panel).findByText("Partner IdP")).toBeInTheDocument();
+    expect(within(panel).getByText("partner-agent")).toBeInTheDocument();
+    expect(within(panel).getByText("https://as.test/token")).toBeInTheDocument();
+
+    fireEvent.click(within(panel).getByRole("button", { name: "Add trusted IdP" }));
+    const add = within(panel).getByRole("form", { name: "Add trusted IdP" });
+    fireEvent.change(within(add).getByLabelText("Id (slug)"), { target: { value: "acme" } });
+    fireEvent.change(within(add).getByLabelText("Issuer (https)"), { target: { value: "https://acme.test" } });
+    fireEvent.click(within(add).getByRole("checkbox", { name: "PingFederate" }));
+    fireEvent.click(within(add).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/api/id-jag-playground/trusted-idps", expect.objectContaining({ id: "acme", issuer: "https://acme.test", targets: ["oauth-mcp", "pingfederate"], enabled: true })));
+
+    fireEvent.click(await within(panel).findByRole("button", { name: "Edit" }));
+    const edit = within(panel).getByRole("form", { name: "Edit trusted IdP" });
+    expect(within(edit).getByLabelText("Id (slug)")).toBeDisabled();
+    fireEvent.click(within(edit).getByRole("checkbox", { name: "Enabled" }));
+    fireEvent.click(within(edit).getByRole("button", { name: "Save" }));
+    await waitFor(() => expect(put).toHaveBeenCalledWith("/api/id-jag-playground/trusted-idps/partner", expect.objectContaining({ enabled: false, name: "Partner IdP" })));
+    expect(put.mock.calls[0][1]).not.toHaveProperty("editing");
+
+    const confirmSpy = vi.spyOn(window, "confirm");
+    fireEvent.click(await within(panel).findByRole("button", { name: "Delete" }));
+    expect(del).not.toHaveBeenCalled();
+    fireEvent.click(within(panel).getByRole("button", { name: "Confirm delete" }));
+    await waitFor(() => expect(del).toHaveBeenCalledWith("/api/id-jag-playground/trusted-idps/partner"));
+    expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  it("Trusted IdPs: non-admins get a read-only list; signed-out visitors a sign-in note", async () => {
+    const { unmount } = mountWith(config({ publicEndpoints: ENDPOINTS }), { idps: [IDP], canManage: false });
+    const panel = await screen.findByTestId("ijp-trusted-idps");
+    expect(await within(panel).findByText("Partner IdP")).toBeInTheDocument();
+    expect(within(panel).getByTestId("ijp-trusted-readonly")).toBeInTheDocument();
+    expect(within(panel).queryByRole("button", { name: /Add trusted IdP|Edit|Delete/ })).toBeNull();
+    expect(get).toHaveBeenCalledWith("/api/id-jag-playground/trusted-idps", { _noAuthBanner: true });
+    unmount();
+
+    mountWith(config(), () => Promise.reject(Object.assign(new Error("401"), { response: { status: 401, data: {} } })));
+    expect(await screen.findByTestId("ijp-trusted-signin")).toBeInTheDocument();
   });
 });

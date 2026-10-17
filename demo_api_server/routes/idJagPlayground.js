@@ -24,11 +24,13 @@ const oauthService = require('../services/oauthService');
 const { decodeJwt } = require('../utils/tokenUtils');
 const { callToolViaGateway, getMcpGatewayHttpUrl } = require('../services/mcpGatewayClient');
 const { getFrontendOrigin } = require('../services/oauthRedirectUris');
+const trustedIdps = require('../services/idJagTrustedIdps');
+const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
 router.use(express.json());
-// Every POST acts on the caller's tokens: same-origin only (CSRF), like the other auth routes.
-router.use((req, res, next) => (req.method === 'POST' && req.get('origin') !== getFrontendOrigin()
+// Every write acts on the caller's tokens or the registry: same-origin only (CSRF), like the other auth routes.
+router.use((req, res, next) => (!['GET', 'HEAD', 'OPTIONS'].includes(req.method) && req.get('origin') !== getFrontendOrigin()
   ? res.status(403).json({ error: 'invalid_origin' }) : next()));
 
 const ID_JAG_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:id-jag';
@@ -43,7 +45,8 @@ const scopeList = (s) => String(s || '').split(/\s+/).filter(Boolean);
 // 'pf-pf': the SE PingFederate issues and the local PingFederate redeems (JWT bearer via
 // an IdP connection). Two PingFederates because an IdP must not redeem its own ID-JAG
 // (draft §9.3), and the SE one must be the issuer: only its JWKS is reachable from both.
-const MODES = ['oauth-mcp', 'pf-pf'];
+// 'byo': an outside IdP from the trusted-IdP registry issued the ID-JAG; the user pastes it.
+const MODES = ['oauth-mcp', 'pf-pf', 'byo'];
 const env = (k) => String(process.env[k] || '').trim();
 
 function pfPfSettings() {
@@ -113,6 +116,36 @@ function settings(mode = 'oauth-mcp') {
   };
 }
 
+/** byo: the outside IdP (registry entry) issues; oauth-mcp or the local PingFederate redeems. */
+function byoSettings(target = 'oauth-mcp', entry = null) {
+  const pf = target === 'pingfederate';
+  const base = pf ? pfPfSettings() : settings('oauth-mcp');
+  return {
+    provider: base.provider, enabled: true, target,
+    idp: { name: entry?.name || 'Your IdP', issuer: entry?.issuer || '', jwksUrl: entry?.jwksUrl || '', tokenEndpoint: '', exchangeClientId: '' },
+    resourceAs: { ...base.resourceAs, clientId: pf ? (entry?.pfClientId || base.resourceAs.clientId) : (entry?.clientId || 'demo-bff-mcp-client') },
+    request: { audience: base.resourceAs.issuer, resource: base.request.resource, scope: entry?.scopes || '' },
+  };
+}
+
+/** Settings for the session's mode; byo reads the IdP and target stored with the pasted ID-JAG. */
+function settingsFor(req) {
+  const mode = modeOf(req);
+  if (mode !== 'byo') return settings(mode);
+  const byo = req.session?.idJagPlayground?.byo || {};
+  return byoSettings(byo.target, byo.idpId ? trustedIdps.findById(byo.idpId) : null);
+}
+
+/** Who redeems for this session, and with which default secret. */
+function redeemContext(req) {
+  const mode = modeOf(req);
+  const s = settingsFor(req);
+  if (mode === 'pf-pf' || s.target === 'pingfederate') return { s, defaultSecret: env('PF_IDJAG_PF_REDEEMER_CLIENT_SECRET') };
+  // byo to oauth-mcp: the redemption secret belongs to our configured client only.
+  const ours = mode !== 'byo' || s.resourceAs.clientId === (cfg('pf_id_jag_redemption_client_id') || 'demo-bff-mcp-client');
+  return { s, defaultSecret: ours ? cfg('pf_id_jag_redemption_client_secret') : '' };
+}
+
 function subjectToken(req, type) {
   const t = req.session?.oauthTokens || {};
   const byType = {
@@ -138,6 +171,7 @@ function decoded(token) {
 /** Every real step requires a PingFederate sign-in: there is no PingOne ID-JAG. */
 function requirePf(req, res, next) {
   const mode = modeOf(req);
+  if (mode === 'byo') return next(); // the user brings the ID-JAG: no sign-in here
   const s = settings(mode);
   if (mode === 'pf-pf') {
     const reason = pfPfUnavailableReason();
@@ -207,10 +241,8 @@ async function mintIdJag(req, scopeOverride) {
 }
 
 /** Redeem at the resource AS and return status + body, error or not (negative tests need both). */
-async function redeem(assertion, { clientId, clientSecret, scope, mode = 'oauth-mcp' } = {}) {
-  const s = settings(mode);
+async function redeem(assertion, { clientId, clientSecret, scope, s = settings(), defaultSecret = '' } = {}) {
   const id = clientId ?? s.resourceAs.clientId;
-  const defaultSecret = mode === 'pf-pf' ? env('PF_IDJAG_PF_REDEEMER_CLIENT_SECRET') : cfg('pf_id_jag_redemption_client_secret');
   const secret = clientSecret !== undefined ? clientSecret : defaultSecret;
   const body = new URLSearchParams({ grant_type: JWT_BEARER, assertion, client_id: id });
   if (s.request.resource) body.set('resource', s.request.resource);
@@ -270,7 +302,7 @@ async function inspect(idJag, s = settings(), verify = verifySignature) {
   for (const k of ['iss', 'sub', 'aud', 'client_id', 'jti', 'exp', 'iat']) {
     add(`claim-${k}`, `Required claim ${k}`, c[k] !== undefined && c[k] !== '', 'present', c[k] === undefined ? '(missing)' : c[k], `${SPEC} §3.1 (REQUIRED)`);
   }
-  add('iss', 'Issuer is PingFederate', c.iss === s.idp.issuer, s.idp.issuer, c.iss, 'RFC 7523 §3');
+  add('iss', `Issuer is ${s.idp.name}`, c.iss === s.idp.issuer, s.idp.issuer, c.iss, 'RFC 7523 §3');
   const audOk = Array.isArray(c.aud) ? (c.aud.length === 1 && c.aud[0] === s.resourceAs.issuer) : c.aud === s.resourceAs.issuer;
   add('aud', 'Audience is the resource AS issuer (single value)', audOk, s.resourceAs.issuer, c.aud, `${SPEC} §4.4.1 (MUST)`);
   add('client_id', 'client_id is the client at the resource AS', c.client_id === s.resourceAs.clientId, s.resourceAs.clientId, c.client_id,
@@ -289,18 +321,26 @@ async function inspect(idJag, s = settings(), verify = verifySignature) {
     c.scope || '(none)', `${SPEC} §4.3: the IdP reflects the granted scope; OIDC-only scope grants nothing at the MCP server`);
 
   const sig = await verify(idJag, h, s);
-  add('signature', 'Signature verifies against PingFederate JWKS', sig.ok, `valid against ${s.idp.jwksUrl}`, sig.note, 'RFC 7523 §3 item 9');
+  add('signature', `Signature verifies against ${s.idp.name} JWKS`, sig.ok, `valid against ${s.idp.jwksUrl}`, sig.note, 'RFC 7523 §3 item 9');
   return { header: h, claims: c, checks };
 }
 
 function configFor(req) {
   const mode = modeOf(req);
   const pfPfReason = pfPfUnavailableReason();
-  return { ...settings(mode), mode,
+  const oauthMcp = settings('oauth-mcp');
+  return { ...settingsFor(req), mode,
     modes: [
       { id: 'oauth-mcp', label: 'PingFederate → oauth-mcp', available: true, reason: null },
       { id: 'pf-pf', label: 'PingFederate → PingFederate', available: !pfPfReason, reason: pfPfReason },
+      { id: 'byo', label: 'Your IdP → our resource AS', available: true, reason: null },
     ],
+    // What an outside IdP needs: aud = the issuer, and where its client redeems.
+    publicEndpoints: {
+      'oauth-mcp': { issuer: oauthMcp.resourceAs.issuer, tokenEndpoint: oauthMcp.resourceAs.tokenEndpoint },
+      pingfederate: { issuer: cfg('pf_issuer') || cfg('pf_issuer_uri'), tokenEndpoint: cfg('pf_token_endpoint') },
+    },
+    byo: req.session?.idJagPlayground?.byo || null,
     signedIn: pfSignedIn(req), hasIdJag: !!req.session?.idJagPlayground?.idJag,
     hasAccessToken: !!req.session?.idJagPlayground?.accessToken };
 }
@@ -361,6 +401,7 @@ router.get('/issuer/callback', async (req, res) => {
 });
 
 router.post('/issue', requirePf, async (req, res) => {
+  if (modeOf(req) === 'byo') return res.status(409).json({ error: 'byo_mode', message: 'Your IdP issues the ID-JAG: paste it in step 1.' });
   try {
     const { idJag, request } = await mintIdJag(req, req.body?.scope);
     req.session.idJagPlayground = { idJag, issuedAt: Date.now(), redeemed: false };
@@ -373,14 +414,42 @@ router.post('/issue', requirePf, async (req, res) => {
 router.post('/inspect', requirePf, async (req, res) => {
   const idJag = req.session?.idJagPlayground?.idJag;
   if (!idJag) return res.status(409).json({ error: 'no_id_jag', message: 'Issue an ID-JAG first.' });
-  res.json(await inspect(idJag, settings(modeOf(req))));
+  const s = settingsFor(req);
+  // byo: the ID-JAG carries the client_id the IdP knows us by, not the redeeming client.
+  const entry = modeOf(req) === 'byo' ? trustedIdps.findById(req.session.idJagPlayground.byo?.idpId) : null;
+  res.json(await inspect(idJag, entry ? { ...s, resourceAs: { ...s.resourceAs, clientId: entry.idJagClientId } } : s));
+});
+
+const JWT_SHAPE = /^[\w-]+\.[\w-]+\.[\w-]*$/;
+
+/** byo step 1: inspect a pasted ID-JAG against the trusted IdP its (unverified) iss names. */
+router.post('/byo/inspect', async (req, res) => {
+  if (modeOf(req) !== 'byo') return res.status(409).json({ error: 'not_byo_mode', message: 'Switch to the "Your IdP" mode first.' });
+  const idJag = typeof req.body?.idJag === 'string' ? req.body.idJag.trim() : '';
+  const target = req.body?.target === 'pingfederate' ? 'pingfederate' : 'oauth-mcp';
+  if (idJag.length > 16384 || !JWT_SHAPE.test(idJag)) return res.status(400).json({ error: 'invalid_id_jag', message: 'Paste a compact JWT (header.payload.signature).' });
+  delete req.session.idJagPlayground;
+  const d = decoded(idJag) || { header: {}, claims: {} };
+  const iss = d.claims?.iss;
+  const entry = trustedIdps.findByIssuer(iss);
+  if (!entry || !entry.targets.includes(target)) {
+    return res.json({ ...d, trusted: false,
+      hint: entry ? `${entry.name} is trusted, but not for ${target}. Add ${target} to its targets on the Trusted IdPs panel.`
+        : 'Add this issuer on the Trusted IdPs panel (admin) so our resource AS trusts it.',
+      checks: [{ id: 'trusted-idp', label: 'Issuer is a trusted IdP', status: 'fail',
+        expected: `an enabled Trusted IdP targeting ${target}`, actual: iss || '(missing)', cite: 'RFC 7523 §3: the AS MUST trust the issuer' }] });
+  }
+  req.session.idJagPlayground = { idJag, issuedAt: Date.now(), redeemed: false, byo: { target, idpId: entry.id } };
+  const s = byoSettings(target, entry);
+  const result = await inspect(idJag, { ...s, resourceAs: { ...s.resourceAs, clientId: entry.idJagClientId } });
+  return res.json({ ...result, trusted: true, idp: { id: entry.id, name: entry.name }, config: configFor(req) });
 });
 
 router.post('/redeem', requirePf, async (req, res) => {
   const pg = req.session?.idJagPlayground;
   if (!pg?.idJag) return res.status(409).json({ error: 'no_id_jag', message: 'Issue an ID-JAG first.' });
   try {
-    const r = await redeem(pg.idJag, { scope: req.body?.scope, mode: modeOf(req) });
+    const r = await redeem(pg.idJag, { scope: req.body?.scope, ...redeemContext(req) });
     if (r.status === 200 && r.data.access_token) {
       req.session.idJagPlayground = { ...pg, redeemed: true, accessToken: r.data.access_token };
     }
@@ -432,22 +501,28 @@ router.get('/negative', (_req, res) => res.json(Object.entries(NEGATIVE_TESTS).m
 router.post('/negative/:id', requirePf, async (req, res) => {
   const test = NEGATIVE_TESTS[req.params.id];
   if (!test) return res.status(404).json({ error: 'unknown_test' });
+  const byo = modeOf(req) === 'byo';
+  if (byo && req.params.id === 'replay') {
+    return res.json({ id: req.params.id, ...test, pass: null, skipped: true, note: 'Skipped: replay would redeem (and so use up) your ID-JAG.' });
+  }
   try {
-    const { idJag } = await mintIdJag(req);
-    const mode = modeOf(req);
+    // byo reuses the pasted ID-JAG: we cannot mint one at someone else's IdP.
+    const idJag = byo ? req.session?.idJagPlayground?.idJag : (await mintIdJag(req)).idJag;
+    if (!idJag) return res.status(409).json({ error: 'no_id_jag', message: 'Paste and inspect your ID-JAG first.' });
+    const ctx = redeemContext(req);
     let r;
     if (req.params.id === 'replay') {
-      const first = await redeem(idJag, { mode });
+      const first = await redeem(idJag, ctx);
       if (first.status !== 200) return res.json({ id: req.params.id, ...test, pass: false, note: `setup redeem failed (${first.status} ${first.data.error || ''})` });
-      r = await redeem(idJag, { mode });
+      r = await redeem(idJag, ctx);
     } else if (req.params.id === 'bad-signature') {
       const [h, p, sig] = idJag.split('.');
       const flipped = sig.slice(0, -2) + (sig.slice(-2) === 'AA' ? 'BB' : 'AA');
-      r = await redeem(`${h}.${p}.${flipped}`, { mode });
+      r = await redeem(`${h}.${p}.${flipped}`, ctx);
     } else if (req.params.id === 'client-mismatch') {
-      r = await redeem(idJag, { clientId: 'mcp-inspector', clientSecret: '', mode });
+      r = await redeem(idJag, { ...ctx, clientId: 'mcp-inspector', clientSecret: '' });
     } else {
-      r = await redeem(idJag, { scope: 'admin:delete', mode });
+      r = await redeem(idJag, { ...ctx, scope: 'admin:delete' });
     }
     const refused = r.status >= 400 && !r.data.access_token;
     res.json({ id: req.params.id, ...test, pass: refused, status: r.status, error: r.data.error || null,
@@ -456,6 +531,23 @@ router.post('/negative/:id', requirePf, async (req, res) => {
     res.status(502).json({ id: req.params.id, ...test, pass: false, note: err.message });
   }
 });
+
+// Trusted-IdP registry. The two public reads carry no secrets: oauth-mcp and the PingFederate
+// sync script fetch them server-to-server (hosted-access wall bypasses them too).
+router.get('/trusted-idps/registry', (_req, res) => res.json(trustedIdps.oauthMcpRegistry()));
+router.get('/trusted-idps/pingfederate', (_req, res) => res.json(trustedIdps.pingfederateRegistry()));
+router.get('/trusted-idps', authenticateToken, (req, res) => res.json({ idps: trustedIdps.list(), canManage: req.user?.role === 'admin' }));
+
+const registryWrite = (fn) => [authenticateToken, requireAdmin, async (req, res) => {
+  try {
+    await fn(req, res);
+  } catch (err) {
+    res.status(err.status || 500).json({ error: err.status === 404 ? 'not_found' : err.status ? 'invalid_request' : 'registry_write_failed', message: err.message });
+  }
+}];
+router.post('/trusted-idps', ...registryWrite(async (req, res) => res.status(201).json(await trustedIdps.create(req.body))));
+router.put('/trusted-idps/:id', ...registryWrite(async (req, res) => res.json(await trustedIdps.update(req.params.id, req.body))));
+router.delete('/trusted-idps/:id', ...registryWrite(async (req, res) => { await trustedIdps.remove(req.params.id); res.status(204).end(); }));
 
 router.post('/reset', (req, res) => {
   if (req.session) { delete req.session.idJagPlayground; delete req.session.idJagIssuer; }

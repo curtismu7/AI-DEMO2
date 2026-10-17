@@ -18,7 +18,24 @@ export const MOCK_CONFIG = {
   idp: { name: "PingFederate (sample)", issuer: ISSUER, tokenEndpoint: `${ISSUER}/as/token.oauth2`, jwksUrl: `${ISSUER}/pf/JWKS`, exchangeClientId: "agent-exchange-client" },
   resourceAs: { name: "MCP authorization server (sample)", issuer: AS_ISSUER, tokenEndpoint: `${AS_ISSUER}/token`, clientId: CLIENT_ID },
   request: { audience: AS_ISSUER, resource: RESOURCE, scope: SCOPE },
+  publicEndpoints: {
+    "oauth-mcp": { issuer: AS_ISSUER, tokenEndpoint: `${AS_ISSUER}/token` },
+    pingfederate: { issuer: "https://pingfederate.local.example.com", tokenEndpoint: "https://pingfederate.local.example.com/as/token.oauth2" },
+  },
 };
+
+// Trusted-IdP registry: one sample entry, edited in memory for this page load.
+const SAMPLE_IDP = { id: "partner-okta", name: "Partner Okta (sample)", issuer: "https://partner.okta.example.com", jwksUrl: "https://partner.okta.example.com/oauth2/v1/keys", idJagClientId: "partner-agent", clientId: "demo-bff-mcp-client", pfClientId: "ai-demo-pf-idjag-redeemer", scopes: "mcp:read", targets: ["oauth-mcp", "pingfederate"], enabled: true };
+let trustedIdps = [SAMPLE_IDP];
+
+function trusted(method, path, body) {
+  const id = decodeURIComponent(path.split("/")[2] || "");
+  if (method === "get") return { idps: trustedIdps, canManage: true };
+  if (method === "post") { trustedIdps = [...trustedIdps, { ...body }]; return body; }
+  if (method === "put") { trustedIdps = trustedIdps.map((e) => (e.id === id ? { ...body, id } : e)); return body; }
+  trustedIdps = trustedIdps.filter((e) => e.id !== id);
+  return null;
+}
 
 const NEGATIVE_TESTS = [
   { id: "replay", label: "Replay a redeemed ID-JAG", expect: "invalid_grant", why: "The resource AS enforces single-use jti (a hardening beyond the draft, which lets clients resubmit).", error: "invalid_grant", error_description: "Assertion jti has already been used" },
@@ -91,6 +108,7 @@ function call(body) {
 function route(method, url, body) {
   const path = url.replace(/^.*\/api\/id-jag-playground/, "");
   if (method === "get" && path === "/config") return MOCK_CONFIG;
+  if (path === "/trusted-idps" || path.startsWith("/trusted-idps/")) return trusted(method, path, body);
   if (method === "get" && path === "/negative") return NEGATIVE_TESTS.map(({ error, error_description, ...t }) => t);
   if (path === "/issue") {
     const s = MOCK_CONFIG.request;
@@ -112,4 +130,4 @@ function route(method, url, body) {
 const reply = (method) => (url, body) => new Promise((ok, fail) => setTimeout(() => {
   try { ok({ data: route(method, url, body) }); } catch (e) { fail(e); }
 }, 300));
-export const mockApi = { get: reply("get"), post: reply("post") };
+export const mockApi = { get: reply("get"), post: reply("post"), put: reply("put"), delete: reply("delete") };

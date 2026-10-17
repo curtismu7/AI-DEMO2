@@ -13,6 +13,9 @@ import { Socket } from 'net';
 import axios from 'axios';
 
 const SIGNING_KEY = 'correct-signing-key';
+const OKTA_KEY = 'okta-signing-key';
+const OKTA_ISSUER = 'https://x.okta.com';
+const OKTA_JWKS = 'https://x.okta.com/oauth2/v1/keys';
 const IDP_ISSUER = 'https://idp.ping.demo';
 const RESOURCE = 'https://mcpserver.ping.demo';
 
@@ -28,9 +31,11 @@ jest.mock('jose', () => {
   const sign = (input: string, key: string) =>
     actualCrypto.createHmac('sha256', key).update(input).digest('base64url');
   return {
-    createRemoteJWKSet: () => async (header: { x5t?: string }) => {
+    // Each IdP's JWKS URL serves its own key, so verifying against the wrong
+    // IdP's key set fails the signature check.
+    createRemoteJWKSet: (url: URL) => async (header: { x5t?: string }) => {
       if (header?.x5t) throw new Error('multiple matching keys found in the JSON Web Key Set');
-      return SIGNING_KEY;
+      return url.href.includes('okta') ? 'okta-signing-key' : SIGNING_KEY;
     },
     importJWK: async () => SIGNING_KEY,
     jwtVerify: async (
@@ -93,6 +98,8 @@ import { TokenStore } from '../TokenStore';
 import { SigningKeyManager } from '../SigningKeyManager';
 // eslint-disable-next-line import/first
 import { JWT_BEARER_GRANT, ID_JAG_GRANT_PROFILE, resetReplayCacheForTests } from '../IdJagGrantHandler';
+// eslint-disable-next-line import/first
+import { resetTrustedIdpsForTests } from '../IdJagTrustedIdps';
 
 const CLIENT: OAuthClient = {
   client_id: 'demo-bff-mcp-client',
@@ -165,6 +172,8 @@ function mintIdJag(overrides: Record<string, unknown> = {}, header: Record<strin
 
 beforeEach(() => {
   resetReplayCacheForTests();
+  resetTrustedIdpsForTests();
+  process.env.ENTERPRISE_IDP_REGISTRY_URL = 'off';
   process.env.OAUTH_ISSUER = 'https://mcpserver.ping.demo:8080';
   process.env.MCP_SERVER_RESOURCE_URI = RESOURCE;
   process.env.ENTERPRISE_IDP_ISSUER = IDP_ISSUER;
@@ -449,5 +458,175 @@ describe('OAuthRouter — ID-JAG redemption by the default demo-bff-mcp-client',
     });
     expect(res.status).toBe(200);
     expect(String(res.body.scope).split(' ')).toEqual(expect.arrayContaining(['write', 'transfer']));
+  });
+});
+
+describe('OAuthRouter — bring-your-own IdP registry', () => {
+  const REGISTRY_URL = 'https://demo-api-server:3001/api/id-jag-playground/trusted-idps/registry';
+  const OKTA = {
+    id: 'okta-dev',
+    issuer: OKTA_ISSUER,
+    jwksUrl: OKTA_JWKS,
+    clientAliases: { 'okta-agent': CLIENT.client_id },
+    scopes: '',
+  };
+
+  function mintOkta(overrides: Record<string, unknown> = {}): string {
+    const now = Math.floor(Date.now() / 1000);
+    const h = { alg: 'RS256', typ: 'oauth-id-jag+jwt' };
+    const p = {
+      jti: `jti-${Math.random().toString(36).slice(2)}`,
+      iss: OKTA_ISSUER,
+      sub: 'okta-user',
+      aud: process.env.OAUTH_ISSUER,
+      resource: RESOURCE,
+      client_id: 'okta-agent',
+      scope: 'banking:read banking:write',
+      iat: now,
+      exp: now + 120,
+      ...overrides,
+    };
+    const input = `${b64url(h)}.${b64url(p)}`;
+    return `${input}.${hmacSign(input, OKTA_KEY)}`;
+  }
+
+  /** Registry endpoint serves `idps` (or fails); every other GET is a JWKS fetch. */
+  function serveRegistry(idps: unknown[] | Error) {
+    (axios.get as jest.Mock).mockImplementation(async (url: string) => {
+      if (url === REGISTRY_URL) {
+        if (idps instanceof Error) throw idps;
+        return { data: { idps } };
+      }
+      return { data: { keys: [] } };
+    });
+  }
+
+  const redeem = async (assertion: string, extra: Record<string, string> = {}) => {
+    const { router } = await buildRouter();
+    return postToken(router, {
+      grant_type: JWT_BEARER_GRANT,
+      assertion,
+      client_id: CLIENT.client_id,
+      client_secret: CLIENT.client_secret as string,
+      ...extra,
+    });
+  };
+
+  beforeEach(() => {
+    resetTrustedIdpsForTests();
+    process.env.ENTERPRISE_IDP_REGISTRY_URL = REGISTRY_URL;
+  });
+
+  it('accepts an ID-JAG from a registry IdP, verified against that IdP\'s JWKS', async () => {
+    serveRegistry([OKTA]);
+    const res = await redeem(mintOkta());
+    expect(res.status).toBe(200);
+    const claims = JSON.parse(Buffer.from(String(res.body.access_token).split('.')[1], 'base64url').toString('utf8'));
+    expect(claims.sub).toBe('okta-user');
+  });
+
+  it('enables the grant and metadata from the registry alone (no env IdP)', async () => {
+    delete process.env.ENTERPRISE_IDP_ISSUER;
+    delete process.env.ENTERPRISE_IDP_JWKS_URL;
+    serveRegistry([OKTA]);
+    const { router } = await buildRouter();
+    const req = new IncomingMessage(new Socket());
+    req.method = 'GET';
+    req.url = '/.well-known/oauth-authorization-server';
+    req.headers = { host: 'mcpserver.ping.demo:8080' };
+    let payload = '';
+    const res = {
+      writeHead() { return this; },
+      setHeader() { return this; },
+      end(chunk?: string) { if (chunk) payload = chunk; },
+    } as unknown as ServerResponse;
+    await router.handle(req, res);
+    expect(JSON.parse(payload).authorization_grant_profiles_supported).toContain(ID_JAG_GRANT_PROFILE);
+    expect((await redeem(mintOkta())).status).toBe(200);
+  });
+
+  it('refuses an ID-JAG signed with another IdP\'s key', async () => {
+    serveRegistry([OKTA]);
+    const now = Math.floor(Date.now() / 1000);
+    const h = b64url({ alg: 'RS256', typ: 'oauth-id-jag+jwt' });
+    const p = b64url({
+      jti: 'forged', iss: OKTA_ISSUER, sub: 'x', aud: process.env.OAUTH_ISSUER, resource: RESOURCE,
+      client_id: 'okta-agent', scope: 'banking:read', iat: now, exp: now + 120,
+    });
+    const res = await redeem(`${h}.${p}.${hmacSign(`${h}.${p}`, SIGNING_KEY)}`);
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+
+  it('refuses an unknown issuer with invalid_grant', async () => {
+    serveRegistry([OKTA]);
+    const res = await redeem(mintOkta({ iss: 'https://evil.example' }));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_grant');
+    expect(res.body.error_description).toMatch(/issuer is not trusted/);
+  });
+
+  it('binds clients with the matching IdP\'s aliases only', async () => {
+    process.env.ENTERPRISE_IDP_ID_JAG_CLIENT_MAP = `env-only-alias=${CLIENT.client_id}`;
+    serveRegistry([OKTA]);
+    // env alias does not carry over to the Okta IdP
+    const viaEnvAlias = await redeem(mintOkta({ client_id: 'env-only-alias' }));
+    expect(viaEnvAlias.status).toBe(400);
+    expect(viaEnvAlias.body.error).toBe('invalid_grant');
+    // Okta's own alias does not carry over to the env IdP
+    const viaOktaAliasOnEnv = await redeem(mintIdJag({ client_id: 'okta-agent' }));
+    expect(viaOktaAliasOnEnv.status).toBe(400);
+  });
+
+  it('caps the granted scope at the IdP\'s registry scopes', async () => {
+    serveRegistry([{ ...OKTA, scopes: 'banking:read' }]);
+    const res = await redeem(mintOkta({ scope: 'banking:read banking:write' }));
+    expect(res.status).toBe(200);
+    expect(String(res.body.scope)).toBe('banking:read');
+  });
+
+  it('refuses with invalid_scope when the IdP cap leaves nothing', async () => {
+    serveRegistry([{ ...OKTA, scopes: 'accounts:read' }]);
+    const res = await redeem(mintOkta({ scope: 'banking:read' }));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_scope');
+  });
+
+  it('lets the env IdP win an issuer collision', async () => {
+    serveRegistry([{ ...OKTA, issuer: IDP_ISSUER }]);
+    // signed by the env IdP's key, carrying the env client id: env config verifies it
+    const res = await redeem(mintIdJag());
+    expect(res.status).toBe(200);
+  });
+
+  it('keeps the last good registry when a later fetch fails', async () => {
+    jest.useFakeTimers({ doNotFake: ['nextTick', 'setImmediate'] });
+    try {
+      serveRegistry([OKTA]);
+      expect((await redeem(mintOkta())).status).toBe(200);
+      jest.setSystemTime(Date.now() + 60_000);
+      serveRegistry(new Error('ECONNREFUSED'));
+      const warn = jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+      expect((await redeem(mintOkta())).status).toBe(200);
+      jest.setSystemTime(Date.now() + 60_000);
+      expect((await redeem(mintOkta())).status).toBe(200);
+      expect(warn.mock.calls.filter(([m]) => String(m).includes('registry fetch failed'))).toHaveLength(1);
+    } finally {
+      jest.useRealTimers();
+    }
+  });
+
+  it('still serves the env IdP when the registry is unreachable', async () => {
+    serveRegistry(new Error('ECONNREFUSED'));
+    jest.spyOn(console, 'warn').mockImplementation(() => undefined);
+    expect((await redeem(mintIdJag())).status).toBe(200);
+  });
+
+  it('does not fetch when the registry is turned off', async () => {
+    process.env.ENTERPRISE_IDP_REGISTRY_URL = 'off';
+    serveRegistry([OKTA]);
+    expect((await redeem(mintIdJag())).status).toBe(200);
+    expect(axios.get).not.toHaveBeenCalledWith(REGISTRY_URL, expect.anything());
+    expect((await redeem(mintOkta())).status).toBe(400);
   });
 });
