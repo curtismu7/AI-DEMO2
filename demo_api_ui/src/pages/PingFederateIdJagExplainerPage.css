@@ -154,3 +154,5 @@
 @media (max-width: 520px) {
   .pfj-explainer__steps { grid-template-columns: 1fr; }
 }
+
+button.pfj-explainer__secondary { font: inherit; cursor: pointer; }

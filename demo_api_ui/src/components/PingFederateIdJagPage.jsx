@@ -10,6 +10,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import "./PingFederateIdJagPage.css";
+import IdJagPathBar from "./IdJagPathBar";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 const MOCK = "MOCK DATA — NOT A REAL TOKEN";
@@ -64,6 +65,14 @@ const PROTOCOL_DETAILS = [
     request: { method: "POST /mcp · JSON-RPC", headers: { Authorization: "Bearer [MOCK LOCAL MCP ACCESS TOKEN]" }, body: { jsonrpc: "2.0", id: "tool-1", method: "tools/call", params: { name: "get_account_balance", arguments: { account_id: "acct-demo-01" } } } },
     responseTitle: "MCP resource response",
     response: { jsonrpc: "2.0", id: "tool-1", result: { content: [{ type: "text", text: "[MOCK account balance]" }] }, browser_tokens: "none · BFF returns the result" },
+  },
+  {
+    token: "Same MCP access token · passed through",
+    claims: { sub: "user-123", aud: "[MOCK MCP SERVER AUDIENCE]", client_id: "[MOCK REDEEMING CLIENT]", custody: "BFF and MCP server only" },
+    requestTitle: "MCP server calls the banking API",
+    request: { method: "GET [BFF]/api/accounts/my", headers: { Authorization: "Bearer [MOCK MCP ACCESS TOKEN]" }, note: "TokenResolver sees a token issued by its own authorization server with no stashed PingOne token, so it skips the extra exchange and passes the token through." },
+    responseTitle: "Banking API verifies, then answers",
+    response: { checks: ["signature against the MCP authorization server's JWKS", "exact issuer", "audience accepted on the MCP-server callback routes", "scope, role and HITL checks"], result: "account data returned to the MCP server" },
   },
 ];
 
@@ -217,7 +226,8 @@ export const DIAGRAMS = {
       { title: "PingFederate issues the ID-JAG", detail: "After validation and attribute mapping, PingFederate returns a signed ID-JAG to the BFF. Its audience identifies the downstream authorization server; its resource and scope constrain the MCP access being requested.", active: ["pingfed", "jag", "bff"], links: ["mint", "return"] },
       { title: "Side 2 · submit ID-JAG for validation", detail: "The BFF sends the ID-JAG to the configured downstream MCP authorization server as a JWT bearer assertion. The MCP AS checks issuer/signature, audience, expiry, ID-JAG type, its resource allowlist, and the single-use jti.", active: ["bff", "jag", "mcpas"], links: ["return", "redeem"] },
       { title: "Downstream AS issues its local access token", detail: "A successful JWT bearer grant returns a resource-specific MCP access token. The ID-JAG was the grant assertion; the newly issued access token is what authorizes the protected call.", active: ["mcpas", "bff", "gateway"], links: ["local-token"] },
-      { title: "Call the protected MCP tool", detail: "The BFF sends the MCP request to PingGateway with the downstream access token. PingGateway and PingOne Authorize apply the configured access-token and action policy checks before the MCP resource returns data.", active: ["bff", "gateway", "authorize", "invest"], links: ["dispatch", "policy", "tool"] },
+      { title: "Call the protected MCP tool", detail: "The BFF sends the MCP request to PingGateway with the downstream access token. PingGateway and PingOne Authorize apply the configured access-token and action policy checks before the MCP server is allowed to run the tool.", active: ["bff", "gateway", "authorize", "invest"], links: ["dispatch", "policy", "tool"] },
+      { title: "The MCP server reads the data", detail: "The MCP server (the OLB backend) passes the same access token to the BFF banking API. The banking API verifies the signature and exact issuer, applies audience, scope and role checks, and returns the data. The ID-JAG never reaches this hop.", active: ["invest", "banking"], links: ["data"] },
     ],
     participants: [
       { id: "user", title: "User + agent", subtitle: "UC40 · MCP request", role: "request", position: { x: 0, y: 130 } },
@@ -227,7 +237,8 @@ export const DIAGRAMS = {
       { id: "mcpas", title: "MCP Authorization Server", subtitle: "Side 2 · validates + redeems", role: "mcpas", position: { x: 880, y: 130 } },
       { id: "gateway", title: "PingGateway", subtitle: "access-token enforcement", role: "gateway", position: { x: 220, y: 340 } },
       { id: "authorize", title: "PingOne Authorize", subtitle: "action policy · PERMIT", role: "policy", position: { x: 550, y: 340 } },
-      { id: "invest", title: "MCP resource", subtitle: "protected tools", role: "resource", position: { x: 880, y: 340 } },
+      { id: "invest", title: "MCP server", subtitle: "OLB backend · runs the tool", role: "resource", position: { x: 880, y: 340 } },
+      { id: "banking", title: "BFF banking API", subtitle: "verifies the token · returns data", role: "resource", position: { x: 1100, y: 340 } },
     ],
     links: [
       { id: "request", source: "user", target: "bff", label: "request" },
@@ -239,6 +250,7 @@ export const DIAGRAMS = {
       { id: "dispatch", source: "bff", target: "gateway", label: "access token", sourceHandle: "bottom", targetHandle: "top" },
       { id: "policy", source: "gateway", target: "authorize", label: "policy" },
       { id: "tool", source: "gateway", target: "invest", label: "tool call" },
+      { id: "data", source: "invest", target: "banking", label: "same Bearer" },
     ],
   },
   pingfederate: {
@@ -485,6 +497,7 @@ export default function PingFederateIdJagPage() {
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes);
   return (
     <main className="pfj-page" data-testid="pingfederate-id-jag-page">
+      <IdJagPathBar current="protocol" />
       <header className="pfj-header">
         <div>
           <p className="pfj-kicker">UC40 · Enterprise-managed MCP authorization</p>

@@ -119,7 +119,7 @@ describe("PingFederate ID-JAG architecture", () => {
       expect(within(topControls).getByLabelText("Step time:")).toBeDisabled();
 
       act(() => vi.advanceTimersByTime(800));
-      expect(within(topControls).getByText("Step 2 / 6")).toBeTruthy();
+      expect(within(topControls).getByText("Step 2 / 7")).toBeTruthy();
       fireEvent.click(within(midControls).getByRole("button", { name: "Pause" }));
       expect(within(topControls).getByRole("button", { name: "Resume" })).toBeTruthy();
     } finally {
@@ -195,7 +195,7 @@ describe("PingFederate ID-JAG architecture", () => {
     vi.useFakeTimers();
     try {
       renderPage();
-      expect(topControls().getByText("Step 1 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 7")).toBeTruthy();
       const stepTime = topControls().getByLabelText("Step time:");
       fireEvent.change(stepTime, { target: { value: "800" } });
       fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
@@ -203,20 +203,20 @@ describe("PingFederate ID-JAG architecture", () => {
       expect(stepTime.disabled).toBe(true);
 
       act(() => vi.advanceTimersByTime(800));
-      expect(topControls().getByText("Step 2 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 2 / 7")).toBeTruthy();
       fireEvent.click(topControls().getByRole("button", { name: "Pause" }));
       fireEvent.click(topControls().getByRole("button", { name: "Next →" }));
-      expect(topControls().getByText("Step 3 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 7")).toBeTruthy();
       fireEvent.click(topControls().getByRole("button", { name: "← Prev" }));
-      expect(topControls().getByText("Step 2 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 2 / 7")).toBeTruthy();
       fireEvent.click(topControls().getByRole("button", { name: "Resume" }));
       act(() => vi.advanceTimersByTime(800));
-      expect(topControls().getByText("Step 3 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 7")).toBeTruthy();
       fireEvent.click(topControls().getByRole("button", { name: "Stop" }));
       expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();
-      expect(topControls().getByText("Step 3 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 7")).toBeTruthy();
       fireEvent.click(topControls().getByRole("button", { name: "↺ Reset" }));
-      expect(topControls().getByText("Step 1 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 7")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -230,10 +230,10 @@ describe("PingFederate ID-JAG architecture", () => {
       fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
       fireEvent.click(screen.getByRole("button", { name: "Step 3: PingFederate issues the ID-JAG" }));
 
-      expect(topControls().getByText("Step 3 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 7")).toBeTruthy();
       expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();
       act(() => vi.advanceTimersByTime(800));
-      expect(topControls().getByText("Step 3 / 6")).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 7")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -256,4 +256,11 @@ describe("PingFederate ID-JAG architecture", () => {
     }
   });
 
+
+  it("ends the ID-JAG flow at the MCP server and the banking API, not at an abstract resource", () => {
+    expect(DIAGRAMS.jag.steps).toHaveLength(7);
+    expect(DIAGRAMS.jag.participants.map(({ id }) => id)).toEqual(expect.arrayContaining(["invest", "banking"]));
+    expect(DIAGRAMS.jag.links).toContainEqual(expect.objectContaining({ id: "data", source: "invest", target: "banking" }));
+    expect(DIAGRAMS.jag.steps[6].active).toEqual(["invest", "banking"]);
+  });
 });

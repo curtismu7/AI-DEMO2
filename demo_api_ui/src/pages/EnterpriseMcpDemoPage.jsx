@@ -3,6 +3,8 @@
 // /demo/enterprise-mcp — run the MCP Enterprise-Managed Authorization demo.
 
 import { useCallback, useEffect, useState } from "react";
+import { Link, useInRouterContext } from "react-router-dom";
+import IdJagPathBar from "../components/IdJagPathBar";
 import TokenChainFilmstrip from "../components/TokenChainFilmstrip";
 import { EDU } from "../components/education/educationIds";
 import { useEducationUIOptional } from "../context/EducationUIContext";
@@ -43,6 +45,8 @@ const FAILURE_MESSAGES = {
 };
 
 export default function EnterpriseMcpDemoPage() {
+  // The learning-path links need a Router; the page is also rendered bare in unit tests.
+  const inRouter = useInRouterContext();
   const [runMode, setRunMode] = useState(null);
   const [failureCode, setFailureCode] = useState(() => {
     if (typeof window === "undefined") return null;
@@ -100,14 +104,24 @@ export default function EnterpriseMcpDemoPage() {
         </p>
       </header>
 
+      {inRouter && typeof window !== "undefined" && window.location.pathname.startsWith("/pingfederate-id-jag") && (
+        <IdJagPathBar current="run" />
+      )}
       <section className="emd-card">
         <h2>What you are about to see</h2>
         <ol className="emd-steps">
           <li><strong>Policy at the IdP.</strong> Group membership is checked <em>before</em> anything is minted.</li>
-          <li><strong>ID-JAG issued.</strong> A signed, single-use grant naming this user, this MCP server, these scopes.</li>
-          <li><strong>ID-JAG redeemed.</strong> The MCP authorization server verifies it against the IdP JWKS and issues its own token.</li>
-          <li><strong>That token calls the tool.</strong> No redirect to an MCP authorize endpoint anywhere in the flow.</li>
+          <li><strong>ID-JAG issued.</strong> A signed, single-use grant naming this user, this MCP server, these scopes, and the client it is for.</li>
+          <li><strong>ID-JAG redeemed.</strong> The MCP authorization server verifies it against the IdP JWKS and issues its own token. The ID-JAG goes no further.</li>
+          <li><strong>The gateway checks that token.</strong> It verifies the signature, applies policy, and forwards it to the MCP server.</li>
+          <li><strong>The MCP server runs the tool.</strong> It calls the BFF banking API with the same token. No redirect to an MCP authorize endpoint anywhere in the flow.</li>
         </ol>
+        {inRouter && (
+          <p className="emd-note">
+            After a run, <Link to="/pingfederate-id-jag/implementation">See how we built it</Link> shows the real
+            claims from your last run next to each step.
+          </p>
+        )}
         {edu?.open && (
           <div className="emd-links">
             <button type="button" className="emd-link" onClick={() => edu.open(EDU.ENTERPRISE_MANAGED_AUTH, "overview")}>

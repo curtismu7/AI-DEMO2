@@ -1,8 +1,8 @@
 /* Scoped to .ijx so the generic class names below cannot leak into the rest of the app. */
 .ijx{--c-user:#64748b;--c-bff:#2563eb;--c-pf:#d4001e;--c-as:#7c3aed;--c-gw:#0f766e;--c-rs:#b45309;--red:#d4001e;
-  height:calc(100vh - 4rem);min-height:32rem;color:var(--th-text);background:var(--th-bg);display:flex}
+  height:calc(100vh - 4rem);min-height:32rem;color:var(--th-text);background:var(--th-bg);display:flex;flex-direction:column}
 .ijx *{box-sizing:border-box}
-.ijx-app{display:grid;flex:1;min-width:0;height:100%}
+.ijx-app{display:grid;flex:1;min-width:0;min-height:0}
 .ijx aside{background:var(--th-bg-card);border-right:1px solid var(--th-border);padding:16px 16px 10px;overflow:auto}
 .ijx h1{font-size:1.15rem;margin:0 0 4px}.ijx .lede{color:var(--th-text-muted);margin:0 0 12px;font-size:.78rem}
 .ijx nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
@@ -37,3 +37,6 @@
 .ijx .elabel{position:absolute;pointer-events:none;background:var(--th-bg-card);color:var(--th-text);border:1px solid var(--th-border);border-radius:5px;padding:1px 6px;font-size:.7rem;white-space:nowrap}
 .ijx .pkt{fill:var(--red);stroke:#fff;stroke-width:2}
 @media (max-width:800px){.ijx{height:auto}.ijx-app{grid-template-columns:1fr!important;grid-template-rows:auto 6px 60vh;height:auto}.ijx .split{display:none}}
+.ijx .simple{background:#e8f4ff;color:#14304d;border-left:4px solid var(--c-bff);border-radius:6px;padding:8px 10px;font-size:.85rem}
+.ijx .live{margin-top:12px}.ijx .live h3{margin-top:0}
+.ijx .idjag-path{margin:0;border-radius:0;border-width:0 0 1px 0}

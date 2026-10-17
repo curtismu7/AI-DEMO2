@@ -2,6 +2,8 @@ import React, { useEffect, useMemo, useState } from "react";
 import { ReactFlow, ReactFlowProvider, useReactFlow, useNodesState, NodeResizer, BaseEdge, EdgeLabelRenderer, getSmoothStepPath, Background, Controls, Handle, Position, ConnectionMode, MarkerType } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import "./PingFederateIdJagImplementationPage.css";
+import IdJagPathBar from "../components/IdJagPathBar";
+import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 
 // ── Nodes ─────────────────────────────────────────────────────────────────
 // kind drives the accent colour. x/y are a 5-column grid (360 apart), 3 rows.
@@ -135,6 +137,39 @@ const baseNodes = () => [
   ...NOTES.map((n) => ({ id: n.id, type: "note", position: { x: n.x, y: n.y }, style: { width: 300 }, data: { ...n } })),
 ];
 
+// "Explain it simply" text, one per STEPS entry (same order).
+const SIMPLE = [
+  "The school (our app) has a front office (PingFederate), a toy room (oauth-mcp and the MCP server), a hallway guard (the gateway) and a bank vault (the banking API). Follow one permission slip through all of them.",
+  "You sign in at the front office. The school computer keeps your special pass in a locked drawer. You never touch it.",
+  "You ask the agent to fetch your balance. The computer first checks it is allowed to start this errand.",
+  "The computer takes your pass back to the front office and asks for a permission slip for the toy room. The front office writes one, signs it, and says which kid it is for.",
+  "The toy-room teacher checks the slip: real signature, still fresh, right toy room, right kid, never used before. Then the teacher keeps the slip and hands over a visitor sticker.",
+  "The kid shows the sticker to the hallway guard. The guard checks that the sticker is real and the stamp is from the toy room.",
+  "If the sticker already says it is for the toy-room helper, the guard lets it straight through. If not, the guard has to get a new sticker first, and stops if that fails.",
+  "The toy-room helper sees the sticker is one its own teacher made, so it trusts it as is, and walks to the bank vault with it.",
+  "The vault checks the sticker one last time, then hands over your balance. Nobody goes back to the front office.",
+];
+
+// Pull the readable claims out of a token event's decoded payload.
+const SHOW = ["iss", "sub", "aud", "client_id", "scope", "resource", "exp"];
+function readableClaims(event) {
+  const raw = event && event.claims;
+  const claims = raw && raw.claims ? raw.claims : raw;
+  if (!claims || typeof claims !== "object") return null;
+  const out = {};
+  for (const k of SHOW) if (claims[k] !== undefined) out[k] = claims[k];
+  return Object.keys(out).length ? out : null;
+}
+
+// Which recorded token event backs which step (3 = PingFederate issues, 4 = oauth-mcp redeems).
+const LIVE_EVENT_FOR_STEP = { 3: "pf-id-jag-issued", 4: "pf-id-jag-redeemed" };
+
+function useLastRunEvents() {
+  const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
+  useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
+  return snap && snap.trace ? snap.trace : null;
+}
+
 function ImplementationFlow() {
   const rf = useReactFlow();
   const [step, setStep] = useState(0);
@@ -145,6 +180,8 @@ function ImplementationFlow() {
   const [pulses, setPulses] = useState({});
   const [side, setSide] = useState(400);
   const [panel, setPanel] = useState(true);
+  const [simple, setSimple] = useState(false);
+  const lastRun = useLastRunEvents();
   const [nodes, setNodes, onNodesChange] = useNodesState(baseNodes());
   const s = STEPS[step];
 
@@ -230,6 +267,9 @@ function ImplementationFlow() {
             <option value={6000}>Slow</option><option value={3500}>Normal</option><option value={2000}>Fast</option></select></label>
         </div>
         <div className="sim">
+          <button aria-pressed={simple} onClick={() => setSimple(!simple)}>{simple ? "Show technical detail" : "Explain it simply"}</button>
+        </div>
+        <div className="sim">
           <button onClick={() => setLocked(!locked)}>{locked ? "🔒 Nodes locked" : "✋ Nodes movable"}</button>
           <button onClick={resetLayout}>Reset layout</button>
           <span className="hint">Drag to move · click a node to resize</span>
@@ -239,8 +279,10 @@ function ImplementationFlow() {
         ))}</nav>
         <section>
           <h2>{s.t}</h2>
+          {simple && <p className="simple" data-testid="idjag-simple">{SIMPLE[step]}</p>}
           <p>{s.text}</p>
           <pre>{s.wire}</pre>
+          <LiveClaims step={step} lastRun={lastRun} />
           <h3>Source</h3>
           <ul>{s.src.map((x) => <li key={x}>{x}</li>)}</ul>
           {log.length > 0 && (<><h3>Simulation log</h3><ol className="log">{log.map((l, i) => <li key={i}>{l}</li>)}</ol></>)}
@@ -264,9 +306,32 @@ function ImplementationFlow() {
   );
 }
 
+function LiveClaims({ step, lastRun }) {
+  const id = LIVE_EVENT_FOR_STEP[step];
+  if (!id) return null;
+  const events = (lastRun && lastRun.tokenEvents) || [];
+  const event = events.find((e) => e && e.id === id);
+  const claims = readableClaims(event);
+  const mock = lastRun && String(lastRun.provenance || "").startsWith("mock");
+  return (
+    <div className="live" data-testid="idjag-live">
+      <h3>Real claims from your last run</h3>
+      {claims ? (
+        <>
+          <p className="hint">{mock ? "Mock replay: sample values, not a live token." : "Decoded from the live token chain."}</p>
+          <pre>{JSON.stringify(claims, null, 2)}</pre>
+        </>
+      ) : (
+        <p className="hint">No run recorded yet. Run the demo, then come back and these claims fill in.</p>
+      )}
+    </div>
+  );
+}
+
 export default function PingFederateIdJagImplementationPage() {
   return (
-    <div className="ijx">
+    <div className="ijx ijx--wrap">
+      <IdJagPathBar current="build" />
       <ReactFlowProvider>
         <ImplementationFlow />
       </ReactFlowProvider>
