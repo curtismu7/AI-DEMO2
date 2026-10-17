@@ -28,8 +28,9 @@ const { validateToken } = require('./tokenValidationService');
 const { assertUserInfoSubjectMatches } = require('./oidcIdTokenValidationService');
 const { establishUserSession } = require('./userSessionService');
 const { establishAdminSession } = require('./adminSessionService');
-const { setAuthCookie } = require('./authStateCookie');
-const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval } = require('./hostedAccessPolicy');
+const { setAuthCookie, clearAuthCookie } = require('./authStateCookie');
+const configStore = require('./configStore');
+const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, clearHostedAccessApproval } = require('./hostedAccessPolicy');
 const { resolveEndUserAdminSignals } = require('./adminSignalResolver');
 const { newMatchCode } = require('./cibaService');
 const { verticalManifest } = require('./verticalManifest');
@@ -63,6 +64,20 @@ const floorMs = () => {
 };
 
 class RateLimitedError extends Error {}
+class ProviderUnsupportedError extends Error {}
+
+// ponytail: PingOne only until Task 10; refuse visibly rather than silently producing decoys.
+function assertProvider() {
+  if ((configStore.getOAuthProvider?.() || 'pingone') !== 'pingone') throw new ProviderUnsupportedError('provider_unsupported');
+}
+
+// Every poll answer takes at least this long (plus jitter), so a decoy (no PingOne call) cannot be told
+// apart from a real entry (one /token round trip) by latency. Decoys last the full TTL while real entries can
+// end early (access_denied etc.); that is deliberate: an attacker cannot induce those for a victim.
+const pollFloorMs = () => {
+  const n = parseInt(process.env.CIBA_LOGIN_POLL_FLOOR_MS || '', 10);
+  return Number.isFinite(n) && n >= 0 ? n : 400;
+};
 
 // R1 login-app bundle per role. provider seam: only 'pingone' today (Task 10 adds 'pingfederate').
 function roleBundle(role) {
@@ -102,6 +117,7 @@ function eligible(user, channel) {
 }
 
 async function startLogin({ identifier, channel, role, req, provider = 'pingone' }) {
+  assertProvider();
   const started = now();
   const clock0 = Date.now();
   sweep();
@@ -194,13 +210,27 @@ async function complete(entry, tokenData, req, res) {
   const userInfo = await userSvc().getUserInfo(tokenData.access_token);
   assertUserInfoSubjectMatches(userInfo, idClaims);
 
+  // Admin escalation guard: CIBA replaces the admin app's MFA sign-on policy, so admin needs a POSITIVE admin
+  // signal (allowlist / claim / resolver / population), not just "came through the admin app".
+  const mergedForRole = { ...idClaims, ...userInfo, iss: idClaims.iss, sub: idClaims.sub };
+  if (entry.role === 'admin'
+    && !resolveEndUserAdminSignals(mergedForRole, mergedForRole.preferred_username || mergedForRole.username || mergedForRole.email || mergedForRole.sub).isAdmin) {
+    console.warn('[cibaLogin] admin login refused (no admin signal) for %s', mask(entry.user?.username));
+    return { status: 'denied' };
+  }
+
   const hostedPolicy = loadHostedAccessPolicy();
   const hostedDecision = hostedPolicy.enabled
     ? evaluateHostedIdentity(coherentHostedIdentityClaims(idClaims, userInfo), hostedPolicy) : null;
-  if (hostedDecision && !hostedDecision.allowed) return { status: 'denied' };
+  if (hostedDecision && !hostedDecision.allowed) {
+    clearHostedAccessApproval(req.session);
+    delete req.session.oauthTokens; delete req.session.user; delete req.session.clientType; delete req.session.oauthType;
+    clearAuthCookie(res, _isProd());
+    return { status: 'denied' };
+  }
 
   const user = await buildUser(entry, tokenData, idClaims, userInfo);
-  if (entry.user?.mobilePhone && !user.phone) user.phone = entry.user.mobilePhone;
+  if (oauthType === 'user' && entry.user?.mobilePhone && !user.phone) user.phone = entry.user.mobilePhone;
   const sessionOpts = {
     tokenData, provider: entry.provider, clientType: determineClientType(tokenData.access_token), user,
     onRegenerated: (session) => { if (hostedDecision) stampHostedAccessApproval(session, hostedDecision, hostedPolicy); },
@@ -208,7 +238,14 @@ async function complete(entry, tokenData, req, res) {
   const established = oauthType === 'admin'
     ? await establishAdminSession(req, res, sessionOpts)
     : await establishUserSession(req, res, { ...sessionOpts, idTokenClaims: idClaims, loginTraceId: null });
-  if (!established.ok) return { status: 'expired' };
+  if (!established.ok) {
+    // Same cleanup as the callbacks: no authenticated session or cookie may survive a failed setup.
+    clearAuthCookie(res, _isProd());
+    if (established.reason !== 'session_regenerate_failed') {
+      await new Promise((r) => req.session.destroy((e) => { if (e) console.error('[cibaLogin] session.destroy failed:', e.message); r(); }));
+    }
+    return { status: 'expired' };
+  }
 
   setAuthCookie(res, {
     ...user, oauthType, expiresAt: established.oauthTokens.expiresAt, idToken: established.oauthTokens.idToken || null,
@@ -219,7 +256,17 @@ async function complete(entry, tokenData, req, res) {
 }
 
 /** -> { status: 'pending' | 'approved' | 'expired' | 'denied' | 'notfound', redirectTo? } */
-async function pollLogin({ authReqId, req, res }) {
+async function pollLogin(args) {
+  assertProvider();
+  const t0 = Date.now();
+  const result = await pollOnce(args);
+  const floor = pollFloorMs();
+  const wait = floor + Math.random() * floor * 0.25 - (Date.now() - t0);
+  if (wait > 0) await sleep(wait);
+  return result;
+}
+
+async function pollOnce({ authReqId, req, res }) {
   sweep();
   const entry = pending.get(authReqId);
   if (!entry) return { status: 'notfound' };
@@ -259,7 +306,7 @@ async function pollLogin({ authReqId, req, res }) {
 }
 
 module.exports = {
-  startLogin, pollLogin, RateLimitedError,
+  startLogin, pollLogin, RateLimitedError, ProviderUnsupportedError,
   _test: {
     reset() { pending.clear(); hits.clear(); now = () => Date.now(); },
     setNow(fn) { now = fn; },

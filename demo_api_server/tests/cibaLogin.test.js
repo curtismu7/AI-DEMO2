@@ -6,6 +6,7 @@
  */
 
 process.env.CIBA_LOGIN_START_FLOOR_MS = '0';
+process.env.CIBA_LOGIN_POLL_FLOOR_MS = '0';
 
 jest.mock('axios');
 jest.mock('../config/oauthUser', () => ({
@@ -29,8 +30,9 @@ jest.mock('../services/tokenValidationService', () => ({ validateToken: jest.fn(
 jest.mock('../services/oidcIdTokenValidationService', () => ({ assertUserInfoSubjectMatches: jest.fn() }));
 jest.mock('../services/userSessionService', () => ({ establishUserSession: jest.fn() }));
 jest.mock('../services/adminSessionService', () => ({ establishAdminSession: jest.fn() }));
-jest.mock('../services/authStateCookie', () => ({ setAuthCookie: jest.fn() }));
+jest.mock('../services/authStateCookie', () => ({ setAuthCookie: jest.fn(), clearAuthCookie: jest.fn() }));
 jest.mock('../services/hostedAccessPolicy', () => ({
+  clearHostedAccessApproval: jest.fn(),
   loadHostedAccessPolicy: jest.fn(() => ({ enabled: false })),
   evaluateHostedIdentity: jest.fn(() => ({ allowed: true, reason: 'gate_disabled' })),
   coherentHostedIdentityClaims: jest.fn((a) => a),
@@ -65,7 +67,9 @@ const { resolvePingOneIdentifier } = require('../services/pingOneUserLookupServi
 const { validateToken } = require('../services/tokenValidationService');
 const { establishUserSession } = require('../services/userSessionService');
 const { establishAdminSession } = require('../services/adminSessionService');
-const { setAuthCookie } = require('../services/authStateCookie');
+const { setAuthCookie, clearAuthCookie } = require('../services/authStateCookie');
+const configStore = require('../services/configStore');
+const hosted = require('../services/hostedAccessPolicy');
 const adminOAuthService = require('../services/oauthService');
 const cibaLoginService = require('../services/cibaLoginService');
 const cibaLoginRoutes = require('../routes/cibaLogin');
@@ -85,7 +89,7 @@ function makeApp() {
   return app;
 }
 const body = (over = {}) => ({ identifier: 'alice', channel: 'email', role: 'customer', ...over });
-const start = (agent, over) => agent.post('/api/auth/ciba/login/start').send(body(over));
+const start = (agent, over) => agent.post('/api/auth/ciba/login/start').set('Content-Type', 'application/json').send(body(over));
 const poll = (agent, id) => agent.get(`/api/auth/ciba/login/poll/${id}`);
 const cibaPosts = () => axios.post.mock.calls.filter(([u]) => u.endsWith('/cibaAuthorization'));
 const tokenPosts = () => axios.post.mock.calls.filter(([u]) => u.endsWith('/token'));
@@ -104,6 +108,8 @@ const TOKENS = { access_token: 'at', id_token: 'idt', refresh_token: 'rt', expir
 
 beforeEach(() => {
   jest.clearAllMocks();
+  configStore.getEffective.mockImplementation((k) => (k === 'admin_username' ? 'alice' : ''));
+  configStore.getOAuthProvider.mockReturnValue('pingone');
   clock = 1_000_000;
   cibaLoginService._test.reset();
   cibaLoginService._test.setNow(() => clock);
@@ -361,5 +367,97 @@ describe('rate limit (d)', () => {
     expect((await start(agent, {})).status).toBe(429);
     clock += 11 * 60 * 1000;
     expect((await start(agent, {})).status).toBe(200);
+  });
+});
+
+describe('fix round 1', () => {
+  async function approved(over) {
+    const agent = request.agent(makeApp());
+    const { body: b } = await start(agent, over);
+    return { agent, id: b.authReqId };
+  }
+
+  it('poll has a minimum latency for decoys too', async () => {
+    process.env.CIBA_LOGIN_POLL_FLOOR_MS = '80';
+    try {
+      resolvePingOneIdentifier.mockResolvedValue({ user: null, error: 'not_found' });
+      const agent = request.agent(makeApp());
+      const { body: b } = await start(agent, { identifier: 'nobody' });
+      const t0 = Date.now();
+      await poll(agent, b.authReqId);
+      expect(Date.now() - t0).toBeGreaterThanOrEqual(75);
+    } finally {
+      process.env.CIBA_LOGIN_POLL_FLOOR_MS = '0';
+    }
+  });
+
+  describe.each([['customer', establishUserSession], ['admin', establishAdminSession]])('failed session setup (%s)', (role, establish) => {
+    it.each(['session_persist_failed', 'session_regenerate_failed'])('%s: nothing authenticated survives', async (reason) => {
+      let destroyed = false;
+      establish.mockImplementation(async (req) => {
+        const orig = req.session.destroy.bind(req.session);
+        req.session.destroy = (cb) => { destroyed = true; orig(cb); };
+        return { ok: false, reason };
+      });
+      const { agent, id } = await approved({ role });
+      const r = await poll(agent, id);
+      expect(r.status).toBe(410);
+      expect(r.body.redirectTo).toBeUndefined();
+      expect(setAuthCookie).not.toHaveBeenCalled();
+      expect(clearAuthCookie).toHaveBeenCalled();
+      expect(destroyed).toBe(reason === 'session_persist_failed');
+    });
+  });
+
+  describe('admin escalation guard', () => {
+    it('a customer-like account approving role:admin gets 403, no session, no cookie', async () => {
+      configStore.getEffective.mockImplementation(() => '');
+      const { agent, id } = await approved({ role: 'admin' });
+      const r = await poll(agent, id);
+      expect(r.status).toBe(403);
+      expect(r.body).toEqual({ status: 'denied' });
+      expect(establishAdminSession).not.toHaveBeenCalled();
+      expect(setAuthCookie).not.toHaveBeenCalled();
+    });
+    it('an allowlisted admin succeeds; customer role is unaffected', async () => {
+      expect((await poll(...Object.values(await approved({ role: 'admin' })))).body.status).toBe('approved');
+      configStore.getEffective.mockImplementation(() => '');
+      const c = await approved({ role: 'customer', identifier: 'bob' });
+      expect((await poll(c.agent, c.id)).body.status).toBe('approved');
+    });
+  });
+
+  it('hosted-wall denial clears approval, tokens and cookie and creates no session', async () => {
+    hosted.loadHostedAccessPolicy.mockReturnValue({ enabled: true });
+    hosted.evaluateHostedIdentity.mockReturnValue({ allowed: false, reason: 'domain_not_allowed' });
+    const { agent, id } = await approved({});
+    const r = await poll(agent, id);
+    expect(r.status).toBe(403);
+    expect(hosted.clearHostedAccessApproval).toHaveBeenCalled();
+    expect(clearAuthCookie).toHaveBeenCalled();
+    expect(establishUserSession).not.toHaveBeenCalled();
+    hosted.loadHostedAccessPolicy.mockReturnValue({ enabled: false });
+  });
+
+  it('refuses start and poll with 503 when the provider is pingfederate', async () => {
+    const agent = request.agent(makeApp());
+    const { body: b } = await start(agent);
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    const s = await start(agent, { identifier: 'zed' });
+    expect(s.status).toBe(503);
+    expect(s.body).toEqual({ error: 'provider_unsupported' });
+    expect((await poll(agent, b.authReqId)).status).toBe(503);
+  });
+
+  it('rejects non-JSON POST /start with 415', async () => {
+    const r = await request(makeApp()).post('/api/auth/ciba/login/start').type('form').send(body());
+    expect(r.status).toBe(415);
+    expect(resolvePingOneIdentifier).not.toHaveBeenCalled();
+  });
+
+  it('admin user record does not get the mobile phone copied on', async () => {
+    const { agent, id } = await approved({ role: 'admin' });
+    await poll(agent, id);
+    expect(establishAdminSession.mock.calls[0][2].user.phone).toBeUndefined();
   });
 });

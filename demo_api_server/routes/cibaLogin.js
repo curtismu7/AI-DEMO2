@@ -17,6 +17,8 @@ const CHANNELS = ['email', 'sms'];
 const ROLES = ['customer', 'admin'];
 
 router.post('/start', async (req, res) => {
+  // JSON only: a cross-site <form> POST (urlencoded/multipart) must not be able to spray starts.
+  if (!req.is('application/json')) return res.status(415).json({ error: 'unsupported_media_type' });
   const { identifier, channel, role } = req.body || {};
   if (typeof identifier !== 'string' || !identifier.trim() || identifier.length > 254
     || !CHANNELS.includes(channel) || !ROLES.includes(role)) {
@@ -29,6 +31,7 @@ router.post('/start', async (req, res) => {
       res.set('Retry-After', '600');
       return res.status(429).json({ error: 'rate_limited' });
     }
+    if (err instanceof cibaLoginService.ProviderUnsupportedError) return res.status(503).json({ error: 'provider_unsupported' });
     console.error('[cibaLogin] start error:', err.message);
     return res.status(500).json({ error: 'server_error' });
   }
@@ -44,6 +47,7 @@ router.get('/poll/:authReqId', async (req, res) => {
     if (result.status === 'denied') return res.status(403).json({ status: 'denied' });
     return res.json(result);
   } catch (err) {
+    if (err instanceof cibaLoginService.ProviderUnsupportedError) return res.status(503).json({ error: 'provider_unsupported' });
     console.error('[cibaLogin] poll error:', err.message);
     return res.status(500).json({ error: 'server_error' });
   }
