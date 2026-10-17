@@ -75,7 +75,7 @@ MCP_URL=http://127.0.0.1:3302/mcp
 
 # Three-deep chain (POST /chain): the middle agent this agent hands off to,
 # as its gateway A2A URL, for example
-# https://<gateway>/langchainagent/a2a/jsonrpc. MAIN_AGENT_KEY must have the
+# https://<gateway>/langchain-midagent/a2a/jsonrpc. MAIN_AGENT_KEY must have the
 # a2a scope and that remote agent selected. Blank disables /chain.
 CHAIN_A2A_URL=
 

@@ -17,7 +17,7 @@ const GATEWAY_CLIENT = { main: "main-agent", langchainagent: "langchain-caller" 
 // The Agentic App the gateway routes each callee through. The specialists'
 // names are the middle agent's delegation targets (A2A_DELEGATE_TARGETS in
 // k8s/02-configmap.yaml); the app is the route each target's URL names.
-const GATEWAY_APP = { langchainagent: "langchainagent", refunds: "hostile-a2a", restricted: "restrictedagent" };
+const GATEWAY_APP = { langchainagent: "langchain-midagent", refunds: "hostile-a2a", restricted: "restrictedagent" };
 const GATEWAY_RECORD_ID = "pa2a-gateway-record";
 const RECORD_ROW = "Gateway's own record";
 // The MITRE / NIST / OWASP mappings Privilege returned for a call, as the

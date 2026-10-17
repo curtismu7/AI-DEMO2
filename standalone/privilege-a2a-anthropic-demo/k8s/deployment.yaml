@@ -237,7 +237,7 @@ spec:
         - name: WORKER_TRACE_URL
           value: "https://mcpgw.ai-demo.ping-devops.com/worker-agent/trace"
         - name: CHAIN_A2A_URL
-          value: "https://mcpgw.ai-demo.ping-devops.com/langchainagent/a2a/jsonrpc"
+          value: "https://mcpgw.ai-demo.ping-devops.com/langchain-midagent/a2a/jsonrpc"
         - name: MAIN_AGENT_KEY
           valueFrom:
             secretKeyRef:
