@@ -77,11 +77,12 @@ function _sleep(ms) {
 // A longer or empty message becomes a 6-char match code the app shows next to
 // the email, so the user can compare the two.
 const MAX_BINDING_MESSAGE = 8;
-function _bindingMessage(raw) {
+const VERTICAL_CODES = require('../config/cibaVerticalCodes');
+function _bindingMessage(raw, verticalId) {
   const s = String(raw || '').replace(/[\x00-\x1f\x7f]/g, '').trim();
   return s.length >= 1 && s.length <= MAX_BINDING_MESSAGE
     ? s
-    : crypto.randomBytes(3).toString('hex').toUpperCase();
+    : (VERTICAL_CODES[verticalId] || '') + crypto.randomBytes(3).toString('hex').toUpperCase();
 }
 
 /**
@@ -93,14 +94,14 @@ function _bindingMessage(raw) {
  * @param {string} [acrValues]  Accepted for compatibility but NOT sent to PingOne (it would be read as a DaVinci policy ID); the CIBA flow comes from the app's policy assignment
  * @returns {Promise<{ auth_req_id: string, expires_in: number, interval: number, binding_message: string }>}
  */
-async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openid', acrValues = '', channel = 'email') {
+async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openid', acrValues = '', channel = 'email', verticalId = '') {
   const endpoint = _cibaEndpoint();
   if (!endpoint) {
     throw new Error('PingOne environment not configured — cannot build CIBA endpoint');
   }
 
   const deliveryMode = configStore.getEffective('ciba_token_delivery_mode') || 'poll';
-  const message = _bindingMessage(bindingMessage || configStore.getEffective('ciba_binding_message'));
+  const message = _bindingMessage(bindingMessage || configStore.getEffective('ciba_binding_message'), verticalId);
 
   const params = new URLSearchParams({
     login_hint: loginHint,

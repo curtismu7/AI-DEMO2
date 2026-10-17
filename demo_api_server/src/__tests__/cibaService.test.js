@@ -179,6 +179,19 @@ describe('cibaService.initiateBackchannelAuth()', () => {
     expect(params.get('binding_message')).toMatch(/^[0-9A-F]{6}$/);
   });
 
+  it('prefixes the 6-char code with the vertical code (8 chars total) so the DaVinci screens can brand themselves', async () => {
+    await cibaService.initiateBackchannelAuth('user@example.com', 'Approve your banking transaction', 'openid', '', 'email', 'banking');
+    expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('binding_message')).toMatch(/^BK[0-9A-F]{6}$/);
+  });
+
+  it('leaves an unknown vertical unprefixed and keeps an explicit short message as-is', async () => {
+    await cibaService.initiateBackchannelAuth('user@example.com', 'Approve your banking transaction', 'openid', '', 'email', 'nope');
+    expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('binding_message')).toMatch(/^[0-9A-F]{6}$/);
+    axios.post.mockClear();
+    await cibaService.initiateBackchannelAuth('user@example.com', 'Approve', 'openid', '', 'email', 'banking');
+    expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('binding_message')).toBe('Approve');
+  });
+
   it('never forwards acr_values: PingOne reads it as a DaVinci policy ID and 400s on a step-up ACR', async () => {
     await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', 'Multi_Factor');
 
