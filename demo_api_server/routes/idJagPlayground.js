@@ -16,6 +16,7 @@
  * request bodies only.
  */
 
+const crypto = require('crypto');
 const express = require('express');
 const axios = require('axios');
 const configStore = require('../services/configStore');
@@ -38,7 +39,54 @@ const SPEC = 'draft-ietf-oauth-identity-assertion-authz-grant';
 const cfg = (k) => String(configStore.getEffective(k) || '').trim();
 const scopeList = (s) => String(s || '').split(/\s+/).filter(Boolean);
 
-function settings() {
+// Two real pairings. 'oauth-mcp': the app's PingFederate issues, oauth-mcp redeems.
+// 'pf-pf': the SE PingFederate issues and the local PingFederate redeems (JWT bearer via
+// an IdP connection). Two PingFederates because an IdP must not redeem its own ID-JAG
+// (draft §9.3), and the SE one must be the issuer: only its JWKS is reachable from both.
+const MODES = ['oauth-mcp', 'pf-pf'];
+const env = (k) => String(process.env[k] || '').trim();
+
+function pfPfSettings() {
+  const issuer = (cfg('pf_id_jag_issuer_pf_url') || env('PF_IDJAG_ISSUER_PF_URL')
+    || (env('PINGFEDERATE_HOST') ? `https://${env('PINGFEDERATE_HOST')}` : '')).replace(/\/$/, '');
+  const localIssuer = cfg('pf_issuer') || cfg('pf_issuer_uri');
+  return {
+    provider: configStore.getOAuthProvider?.() || null,
+    enabled: ['true', true].includes(configStore.getEffective('pf_id_jag_enabled')),
+    idp: {
+      name: 'PingFederate (SE, issuer)',
+      issuer,
+      jwksUrl: issuer ? `${issuer}/pf/JWKS` : '',
+      tokenEndpoint: issuer ? `${issuer}/as/token.oauth2` : '',
+      authorizationEndpoint: issuer ? `${issuer}/as/authorization.oauth2` : '',
+      exchangeClientId: cfg('pf_user_client_id'),
+    },
+    resourceAs: {
+      name: 'PingFederate (local, resource AS)',
+      issuer: localIssuer,
+      tokenEndpoint: cfg('pf_token_endpoint'),
+      clientId: cfg('pf_id_jag_pf_redeemer_client_id') || 'ai-demo-pf-idjag-redeemer',
+    },
+    request: {
+      audience: localIssuer,
+      resource: cfg('pf_id_jag_pf_resource') || 'https://api.ping.demo:3036/mcp',
+      scope: cfg('pf_id_jag_scope'),
+      subjectTokenType: 'urn:ietf:params:oauth:token-type:refresh_token',
+    },
+  };
+}
+
+function pfPfUnavailableReason() {
+  const s = pfPfSettings();
+  if (!s.idp.issuer) return 'Set PF_IDJAG_ISSUER_PF_URL (or PINGFEDERATE_HOST) to the SE PingFederate.';
+  if (!env('PF_IDJAG_PF_REDEEMER_CLIENT_SECRET')) return 'PF_IDJAG_PF_REDEEMER_CLIENT_SECRET is not set for the local PingFederate redeemer.';
+  return null;
+}
+
+const modeOf = (req) => (MODES.includes(req?.session?.idJagPlaygroundMode) ? req.session.idJagPlaygroundMode : 'oauth-mcp');
+
+function settings(mode = 'oauth-mcp') {
+  if (mode === 'pf-pf') return pfPfSettings();
   const issuer = cfg('pf_issuer') || cfg('pf_issuer_uri');
   return {
     provider: configStore.getOAuthProvider?.() || null,
@@ -78,6 +126,7 @@ function subjectToken(req, type) {
 
 function pfSignedIn(req) {
   const s = req.session || {};
+  if (modeOf(req) === 'pf-pf') return Boolean(s.idJagIssuer?.refreshToken);
   return Boolean(s.oauthProvider === 'pingfederate' && s.oauthTokens?.refreshToken);
 }
 
@@ -88,7 +137,15 @@ function decoded(token) {
 
 /** Every real step requires a PingFederate sign-in: there is no PingOne ID-JAG. */
 function requirePf(req, res, next) {
-  const s = settings();
+  const mode = modeOf(req);
+  const s = settings(mode);
+  if (mode === 'pf-pf') {
+    const reason = pfPfUnavailableReason();
+    if (reason) return res.status(409).json({ error: 'pf_pf_unavailable', message: reason });
+    if (!s.enabled) return res.status(409).json({ error: 'id_jag_disabled', message: 'pf_id_jag_enabled is off.' });
+    if (!pfSignedIn(req)) return res.status(401).json({ error: 'pf_sign_in_required', message: 'Sign in at the SE PingFederate first; it issues the ID-JAG.' });
+    return next();
+  }
   if (s.provider !== 'pingfederate') {
     return res.status(409).json({ error: 'id_jag_provider_required', message: 'ID-JAG runs on PingFederate. Switch the login provider to PingFederate and sign in.' });
   }
@@ -99,13 +156,41 @@ function requirePf(req, res, next) {
   return next();
 }
 
+const basic = (id, secret) => `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`;
+
+/** RFC 8693 exchange for an ID-JAG at the SE PingFederate, with the issuer-side refresh token. */
+async function exchangeAtIssuerPf(req, s, scope) {
+  const body = new URLSearchParams({
+    grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+    requested_token_type: ID_JAG_TOKEN_TYPE,
+    subject_token: req.session.idJagIssuer.refreshToken,
+    subject_token_type: s.request.subjectTokenType,
+    audience: s.request.audience,
+  });
+  if (s.request.resource) body.set('resource', s.request.resource);
+  if (scope) body.set('scope', scope);
+  const r = await axios.post(s.idp.tokenEndpoint, body.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: basic(s.idp.exchangeClientId, cfg('pf_user_client_secret')) },
+    timeout: 15000, validateStatus: () => true,
+  });
+  if (r.status !== 200 || !r.data?.access_token) {
+    const err = new Error(`SE PingFederate refused the exchange (HTTP ${r.status} ${r.data?.error || ''})`);
+    err.pfError = r.data?.error; err.pfErrorDescription = r.data?.error_description;
+    throw err;
+  }
+  return r.data.access_token;
+}
+
 async function mintIdJag(req, scopeOverride) {
-  const s = settings();
+  const mode = modeOf(req);
+  const s = settings(mode);
   const scope = scopeOverride ?? s.request.scope;
-  const idJag = await oauthService.performIdJagExchange(
-    subjectToken(req, s.request.subjectTokenType), s.request.subjectTokenType,
-    s.request.audience, s.request.resource, scopeList(scope),
-  );
+  const idJag = mode === 'pf-pf'
+    ? await exchangeAtIssuerPf(req, s, scope)
+    : await oauthService.performIdJagExchange(
+      subjectToken(req, s.request.subjectTokenType), s.request.subjectTokenType,
+      s.request.audience, s.request.resource, scopeList(scope),
+    );
   return { idJag, request: {
     endpoint: `POST ${s.idp.tokenEndpoint}`,
     body: {
@@ -122,15 +207,16 @@ async function mintIdJag(req, scopeOverride) {
 }
 
 /** Redeem at the resource AS and return status + body, error or not (negative tests need both). */
-async function redeem(assertion, { clientId, clientSecret, scope } = {}) {
-  const s = settings();
+async function redeem(assertion, { clientId, clientSecret, scope, mode = 'oauth-mcp' } = {}) {
+  const s = settings(mode);
   const id = clientId ?? s.resourceAs.clientId;
-  const secret = clientSecret !== undefined ? clientSecret : cfg('pf_id_jag_redemption_client_secret');
+  const defaultSecret = mode === 'pf-pf' ? env('PF_IDJAG_PF_REDEEMER_CLIENT_SECRET') : cfg('pf_id_jag_redemption_client_secret');
+  const secret = clientSecret !== undefined ? clientSecret : defaultSecret;
   const body = new URLSearchParams({ grant_type: JWT_BEARER, assertion, client_id: id });
   if (s.request.resource) body.set('resource', s.request.resource);
   if (scope) body.set('scope', scope);
   const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-  if (secret) headers.Authorization = `Basic ${Buffer.from(`${id}:${secret}`).toString('base64')}`;
+  if (secret) headers.Authorization = basic(id, secret);
   const res = await axios.post(s.resourceAs.tokenEndpoint, body.toString(), { headers, timeout: 15000, validateStatus: () => true });
   return { status: res.status, data: res.data || {}, request: {
     endpoint: `POST ${s.resourceAs.tokenEndpoint}`,
@@ -207,10 +293,71 @@ async function inspect(idJag, s = settings(), verify = verifySignature) {
   return { header: h, claims: c, checks };
 }
 
-router.get('/config', (req, res) => {
-  const s = settings();
-  res.json({ ...s, signedIn: pfSignedIn(req), hasIdJag: !!req.session?.idJagPlayground?.idJag,
-    hasAccessToken: !!req.session?.idJagPlayground?.accessToken });
+function configFor(req) {
+  const mode = modeOf(req);
+  const pfPfReason = pfPfUnavailableReason();
+  return { ...settings(mode), mode,
+    modes: [
+      { id: 'oauth-mcp', label: 'PingFederate → oauth-mcp', available: true, reason: null },
+      { id: 'pf-pf', label: 'PingFederate → PingFederate', available: !pfPfReason, reason: pfPfReason },
+    ],
+    signedIn: pfSignedIn(req), hasIdJag: !!req.session?.idJagPlayground?.idJag,
+    hasAccessToken: !!req.session?.idJagPlayground?.accessToken };
+}
+
+router.get('/config', (req, res) => res.json(configFor(req)));
+
+router.post('/mode', (req, res) => {
+  const mode = req.body?.mode;
+  if (!MODES.includes(mode)) return res.status(400).json({ error: 'invalid_mode' });
+  if (modeOf(req) !== mode) delete req.session.idJagPlayground; // tokens belong to one pairing
+  req.session.idJagPlaygroundMode = mode;
+  return req.session.save(() => res.json(configFor(req)));
+});
+
+const safeReturnTo = (p) => (typeof p === 'string' && /^\/(?!\/)/.test(p) ? p : '/pingfederate-id-jag/playground');
+const issuerRedirectUri = () => `${getFrontendOrigin()}/api/id-jag-playground/issuer/callback`;
+
+/** pf-pf: sign in at the SE PingFederate (code + PKCE) so it holds a refresh token to exchange. */
+router.get('/issuer/login', (req, res) => {
+  const s = pfPfSettings();
+  if (pfPfUnavailableReason()) return res.redirect(safeReturnTo(req.query.return_to));
+  const verifier = crypto.randomBytes(32).toString('base64url');
+  const state = crypto.randomBytes(16).toString('hex');
+  req.session.idJagIssuerLogin = { state, verifier, returnTo: safeReturnTo(req.query.return_to), at: Date.now() };
+  const u = new URL(s.idp.authorizationEndpoint);
+  u.search = new URLSearchParams({
+    response_type: 'code', client_id: s.idp.exchangeClientId, redirect_uri: issuerRedirectUri(),
+    scope: 'openid profile email offline_access', state, prompt: 'login',
+    code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256',
+  }).toString();
+  return req.session.save(() => res.redirect(u.toString()));
+});
+
+router.get('/issuer/callback', async (req, res) => {
+  const pending = req.session?.idJagIssuerLogin;
+  const back = pending?.returnTo || '/pingfederate-id-jag/playground';
+  delete req.session.idJagIssuerLogin;
+  if (!pending || !req.query.code || req.query.state !== pending.state || Date.now() - pending.at > 10 * 60 * 1000) {
+    return req.session.save(() => res.redirect(`${back}?issuer_error=invalid_state`));
+  }
+  const s = pfPfSettings();
+  try {
+    const r = await axios.post(s.idp.tokenEndpoint, new URLSearchParams({
+      grant_type: 'authorization_code', code: String(req.query.code), redirect_uri: issuerRedirectUri(), code_verifier: pending.verifier,
+    }).toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: basic(s.idp.exchangeClientId, cfg('pf_user_client_secret')) },
+      timeout: 15000, validateStatus: () => true,
+    });
+    if (r.status !== 200 || !r.data?.refresh_token) {
+      return req.session.save(() => res.redirect(`${back}?issuer_error=${encodeURIComponent(r.data?.error || `http_${r.status}`)}`));
+    }
+    req.session.idJagIssuer = { refreshToken: r.data.refresh_token, sub: decodeJwt(r.data.id_token || '')?.claims?.sub || null };
+    delete req.session.idJagPlayground;
+    return req.session.save(() => res.redirect(back));
+  } catch (err) {
+    return req.session.save(() => res.redirect(`${back}?issuer_error=exchange_failed`));
+  }
 });
 
 router.post('/issue', requirePf, async (req, res) => {
@@ -226,14 +373,14 @@ router.post('/issue', requirePf, async (req, res) => {
 router.post('/inspect', requirePf, async (req, res) => {
   const idJag = req.session?.idJagPlayground?.idJag;
   if (!idJag) return res.status(409).json({ error: 'no_id_jag', message: 'Issue an ID-JAG first.' });
-  res.json(await inspect(idJag));
+  res.json(await inspect(idJag, settings(modeOf(req))));
 });
 
 router.post('/redeem', requirePf, async (req, res) => {
   const pg = req.session?.idJagPlayground;
   if (!pg?.idJag) return res.status(409).json({ error: 'no_id_jag', message: 'Issue an ID-JAG first.' });
   try {
-    const r = await redeem(pg.idJag, { scope: req.body?.scope });
+    const r = await redeem(pg.idJag, { scope: req.body?.scope, mode: modeOf(req) });
     if (r.status === 200 && r.data.access_token) {
       req.session.idJagPlayground = { ...pg, redeemed: true, accessToken: r.data.access_token };
     }
@@ -251,9 +398,12 @@ router.post('/call', requirePf, async (req, res) => {
   const tool = typeof req.body?.tool === 'string' ? req.body.tool : '';
   try {
     if (!tool) {
+      // The client returns the JSON-RPC envelope: the list is at result.result.tools.
       const result = await callToolViaGateway(gatewayUrl, token, null, {}, { rpcMethod: 'tools/list' });
-      const tools = (result?.tools || []).map((t) => ({ name: t.name, description: (t.description || '').slice(0, 160) }));
-      return res.json({ request: { endpoint: `POST ${gatewayUrl}`, body: { jsonrpc: '2.0', method: 'tools/list' }, authorization: 'Bearer [access token]' }, tools });
+      const list = result?.result || {};
+      const tools = (list.tools || []).map((t) => ({ name: t.name, description: (t.description || '').slice(0, 160), inputSchema: t.inputSchema || null }));
+      const deniedTools = Array.isArray(list._meta?.deniedTools) ? list._meta.deniedTools : [];
+      return res.json({ request: { endpoint: `POST ${gatewayUrl}`, body: { jsonrpc: '2.0', method: 'tools/list' }, authorization: 'Bearer [access token]' }, tools, deniedTools });
     }
     const params = req.body?.arguments && typeof req.body.arguments === 'object' ? req.body.arguments : {};
     const result = await callToolViaGateway(gatewayUrl, token, tool, params);
@@ -284,19 +434,20 @@ router.post('/negative/:id', requirePf, async (req, res) => {
   if (!test) return res.status(404).json({ error: 'unknown_test' });
   try {
     const { idJag } = await mintIdJag(req);
+    const mode = modeOf(req);
     let r;
     if (req.params.id === 'replay') {
-      const first = await redeem(idJag);
+      const first = await redeem(idJag, { mode });
       if (first.status !== 200) return res.json({ id: req.params.id, ...test, pass: false, note: `setup redeem failed (${first.status} ${first.data.error || ''})` });
-      r = await redeem(idJag);
+      r = await redeem(idJag, { mode });
     } else if (req.params.id === 'bad-signature') {
       const [h, p, sig] = idJag.split('.');
       const flipped = sig.slice(0, -2) + (sig.slice(-2) === 'AA' ? 'BB' : 'AA');
-      r = await redeem(`${h}.${p}.${flipped}`);
+      r = await redeem(`${h}.${p}.${flipped}`, { mode });
     } else if (req.params.id === 'client-mismatch') {
-      r = await redeem(idJag, { clientId: 'mcp-inspector', clientSecret: '' });
+      r = await redeem(idJag, { clientId: 'mcp-inspector', clientSecret: '', mode });
     } else {
-      r = await redeem(idJag, { scope: 'admin:delete' });
+      r = await redeem(idJag, { scope: 'admin:delete', mode });
     }
     const refused = r.status >= 400 && !r.data.access_token;
     res.json({ id: req.params.id, ...test, pass: refused, status: r.status, error: r.data.error || null,
@@ -307,7 +458,7 @@ router.post('/negative/:id', requirePf, async (req, res) => {
 });
 
 router.post('/reset', (req, res) => {
-  if (req.session) delete req.session.idJagPlayground;
+  if (req.session) { delete req.session.idJagPlayground; delete req.session.idJagIssuer; }
   res.json({ ok: true });
 });
 
