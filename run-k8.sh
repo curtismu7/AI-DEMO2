@@ -935,6 +935,11 @@ if [[ "$K8_TARGET" == "aws" ]]; then
   esac
 fi
 
+# ID-JAG (UC40) runs on PingFederate, so every SE deploy brings PF up too (idempotent, soft).
+ensure_se_pingfederate() {
+  "$BASEDIR/scripts/pingfederate/ensure-se-pingfederate.sh" || true
+}
+
 case "${K8_TARGET_ARGS[0]:-all}" in
   all)        check_prereqs; kill_all; build; deploy; forward ;;
   build)      build ;;
@@ -955,8 +960,8 @@ case "${K8_TARGET_ARGS[0]:-all}" in
   sim)        sim ;;
   sim-deploy) sim_deploy; forward ;;
   se-build)    aws_build ;;
-  se-deploy)   se_deploy ;;
-  se-all)      aws_build; se_deploy ;;
+  se-deploy)   se_deploy; ensure_se_pingfederate ;;
+  se-all)      aws_build; se_deploy; ensure_se_pingfederate ;;
   se-basic)    se_basic ;;
   se-status)   se_status ;;
   se-rag)      se_rag "${K8_TARGET_ARGS[1]:-on}" ;;

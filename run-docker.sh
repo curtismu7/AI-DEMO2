@@ -341,8 +341,55 @@ provider_lock_preflight() {
 pingfederate_preflight() {
   [[ -n "$(docker volume ls -q --filter name='^ai-demo-pingfederate-out-classic$' 2>/dev/null)" ]] || return 0
   [[ -n "$(docker ps -q --filter name='^ai-demo-pingfederate$' 2>/dev/null)" ]] && return 0
-  warn "PingFederate is provisioned here but ai-demo-pingfederate is not running; PF logins will fail."
-  warn "Start it: see scripts/pingfederate/README.md (docker compose -f scripts/pingfederate/docker-compose.local.yml up -d)."
+  warn "PingFederate is provisioned here but ai-demo-pingfederate is not running; it is started once the stack is up (ensure_pingfederate)."
+}
+
+# ID-JAG (UC40) is central to the demos and runs on PingFederate, so every launcher
+# run brings PF up. PF is its own compose project (it needs the ai-demo network that
+# the main stack creates, so this runs AFTER the stack is up) and is never recreated
+# here when it is already running. Soft: warns and carries on, never aborts a start.
+#   SKIP_PINGFEDERATE=1            skip (ID-JAG and PF logins will not work)
+#   PINGFEDERATE_PROFILE_PATH      PF profile with the license (default ~/pingfederate-profile)
+#   PINGFEDERATE_ADMIN_PASSWORD    else read from the vault (PF_ADMIN_CONSOLE_PASSWORD)
+ensure_pingfederate() {
+  if [[ "${SKIP_PINGFEDERATE:-}" == "1" ]]; then
+    warn "SKIP_PINGFEDERATE=1 - not starting PingFederate; ID-JAG (UC40) and PF logins will not work."
+    return 0
+  fi
+  [[ -n "$(docker ps -q --filter name='^ai-demo-pingfederate$' 2>/dev/null)" ]] && return 0
+
+  local profile="${PINGFEDERATE_PROFILE_PATH:-$HOME/pingfederate-profile}"
+  if [[ ! -f "$profile/instance/server/default/conf/pingfederate.lic" ]]; then
+    warn "PingFederate not started: no PF profile/license at $profile (set PINGFEDERATE_PROFILE_PATH). ID-JAG will not work."
+    return 0
+  fi
+
+  local pw="${PINGFEDERATE_ADMIN_PASSWORD:-}"
+  if [[ -z "$pw" ]]; then
+    local vp="${VAULT_PASSWORD:-}"
+    [[ -z "$vp" && -f "$BASEDIR/demo_api_server/.env" ]] \
+      && vp="$(grep -E '^VAULT_PASSWORD=' "$BASEDIR/demo_api_server/.env" | head -1 | cut -d= -f2-)"
+    [[ -n "$vp" ]] && pw="$(VAULT_PASSWORD="$vp" VAULT_PATH="${VAULT_PATH:-$BASEDIR/secrets.vault}" \
+      node "$BASEDIR/demo_api_server/scripts/vault.js" get PF_ADMIN_CONSOLE_PASSWORD 2>/dev/null || true)"
+  fi
+  if [[ -z "$pw" ]]; then
+    warn "PingFederate not started: no admin password (set PINGFEDERATE_ADMIN_PASSWORD or add PF_ADMIN_CONSOLE_PASSWORD to the vault). ID-JAG will not work."
+    return 0
+  fi
+
+  echo -e "${CYAN}${BOLD}   [DOCKER]  Starting PingFederate (ID-JAG)${RESET}"
+  if ! PINGFEDERATE_PROFILE_PATH="$profile" PINGFEDERATE_ADMIN_PASSWORD="$pw" \
+       docker compose -f "$BASEDIR/scripts/pingfederate/docker-compose.local.yml" up -d 2>&1 | tail -2; then
+    warn "PingFederate failed to start; ID-JAG will not work. See scripts/pingfederate/README.md."
+    return 0
+  fi
+  local i health
+  for i in $(seq 1 30); do
+    health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' ai-demo-pingfederate 2>/dev/null || echo none)"
+    [[ "$health" == "healthy" ]] && { ok "PingFederate is up (https://local.ping-devops.com:9031)."; return 0; }
+    sleep 4
+  done
+  warn "PingFederate started but is not healthy yet (state: ${health}); check: docker logs ai-demo-pingfederate"
 }
 
 vault_preflight() {
@@ -1327,6 +1374,7 @@ cmd_restart_one() {
   _export_loki_url
   docker compose "${COMPOSE_FILES[@]}" up -d --force-recreate --no-deps "$@"
   ok "Restarted: ${*}."
+  ensure_pingfederate
   if _includes_bff "$@"; then
     cmd_demo_sync
   fi
@@ -1428,6 +1476,7 @@ cmd_build_one() {
   _export_loki_url
   docker compose "${COMPOSE_FILES[@]}" up -d --build${build_opts} --no-deps "${services[@]}"
   ok "Rebuilt and restarted: ${services[@]}."
+  ensure_pingfederate
   _prune_build_leftovers
   echo ""
 }
@@ -1921,6 +1970,7 @@ cmd_start() {
   _prune_build_leftovers
 
   echo ""
+  ensure_pingfederate
   if [[ "${stack}" != "basic" ]]; then
     cmd_demo_sync
   else
