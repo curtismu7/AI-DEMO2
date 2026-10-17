@@ -63,3 +63,21 @@ test('save failure returns session_persist_failed', async () => {
   const r = await establishUserSession(makeReq({ saveErr: new Error('x') }), {}, opts());
   expect(r).toEqual({ ok: false, reason: 'session_persist_failed' });
 });
+
+test('onRegenerated runs after regenerate wiped the session, so stamps land on the NEW session', async () => {
+  const req = makeReq();
+  req.session.preExisting = 'wiped';
+  let seen;
+  const r = await establishUserSession(req, {}, opts({
+    onRegenerated: (sess) => { seen = { id: sess.id, pre: sess.preExisting, hasTokens: !!sess.oauthTokens }; sess.stamp = 'x'; },
+  }));
+  expect(r.ok).toBe(true);
+  expect(seen).toEqual({ id: 'new', pre: undefined, hasTokens: true });
+  expect(req.session.stamp).toBe('x');
+});
+
+test('onRegenerated is not called when regenerate fails', async () => {
+  const onRegenerated = jest.fn();
+  await establishUserSession(makeReq({ regenErr: new Error('x') }), {}, opts({ onRegenerated }));
+  expect(onRegenerated).not.toHaveBeenCalled();
+});
