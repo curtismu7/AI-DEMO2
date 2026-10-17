@@ -10,7 +10,7 @@
 .ijx nav button.sel{background:var(--red);border-color:var(--red);color:#fff}
 .ijx h2{font-size:.95rem;margin:0 0 6px}.ijx h3{font-size:.72rem;margin:12px 0 4px;color:var(--th-text-muted);text-transform:uppercase;letter-spacing:.05em}
 .ijx section p{margin:0 0 10px;font-size:.85rem}
-.ijx pre{background:var(--th-bg);border:1px solid var(--th-border);border-radius:8px;padding:10px;font:.72rem/1.45 ui-monospace,Menlo,monospace;white-space:pre-wrap;word-break:break-word;margin:0}
+.ijx pre{background:var(--th-bg);border:1px solid var(--th-border);border-radius:8px;padding:10px;font-family:inherit;font-size:.72rem;line-height:1.45;white-space:pre-wrap;word-break:break-word;margin:0}
 .ijx section ul{margin:0;padding-left:16px;color:var(--th-text-muted);font-size:.75rem}
 .ijx .legend{color:var(--th-text-muted);font-size:.72rem;margin-top:14px}
 .ijx main{min-width:0;height:100%;position:relative}
