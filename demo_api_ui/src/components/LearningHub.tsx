@@ -57,6 +57,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "JWT Client Auth (RFC 7523)": { status: "SIMULATED", keywords: ["private_key_jwt", "client assertion", "token endpoint"], lab: "jwt-client-auth" },
   "Group Policy Board": { status: "LIVE" },
   "Transaction Consent": { status: "LIVE" },
+  "CIBA Approval Link": { status: "LIVE" },
   "AIC Token Exchange": { status: "LIVE" },
   "Jev Demo Gallery": { status: "LIVE" },
   "MCP Observability": { status: "LIVE" },
@@ -276,6 +277,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Transaction Consent",
         description: "Mock CIBA on a phone, and the real deep-link approval path",
+        icon: "",
+      },
+      {
+        label: "CIBA Approval Link",
+        description: "Out-of-band approval by email or SMS link, plus the PingFederate approver path (diagram + live test)",
         icon: "",
       },
     ],
@@ -628,6 +634,7 @@ export default function LearningHub() {
     "oauth-identity": {
       "AIC Token Exchange": () => navigate("/aic-token-exchange"),
       "Transaction Consent": () => navigate("/transaction-consent"),
+      "CIBA Approval Link": () => navigate("/mfa-test#ciba-diagram"),
       "Group Policy Board": () => navigate("/group-policy"),
       "Auth Code + PKCE": () => openEdu(EDU.LOGIN_FLOW, "what"),
       "PKCE Deep Dive": () => openEdu(EDU.LOGIN_FLOW, "pkce"),
