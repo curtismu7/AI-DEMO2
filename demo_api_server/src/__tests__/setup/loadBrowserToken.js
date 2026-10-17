@@ -25,8 +25,17 @@ module.exports = async function loadBrowserToken() {
   // previous run can't pollute results. Tests use this throwaway store instead
   // of the operator's data/persistent/lmdb/ (see setup.js / lmdbTestDir.js).
   try {
-    const { BASE } = require('./lmdbTestDir');
+    // Must be set before lmdbTestDir is first required; workers inherit it.
+    process.env.AI_DEMO_JEST_RUN_ID = process.env.AI_DEMO_JEST_RUN_ID || `${process.pid}-${Date.now()}`;
+    const { BASE, ROOT } = require('./lmdbTestDir');
     fs.rmSync(BASE, { recursive: true, force: true });
+    // Drop per-run dirs left by earlier runs (never a concurrent run's: those are fresh).
+    for (const e of fs.readdirSync(ROOT, { withFileTypes: true })) {
+      const full = path.join(ROOT, e.name);
+      if (e.isDirectory() && Date.now() - fs.statSync(full).mtimeMs > 6 * 3600 * 1000) {
+        fs.rmSync(full, { recursive: true, force: true });
+      }
+    }
   } catch { /* best effort — never block the run */ }
 
   if (!fs.existsSync(TOKEN_FILE)) {

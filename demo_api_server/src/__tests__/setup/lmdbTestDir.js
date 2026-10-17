@@ -15,10 +15,17 @@
 const os = require('os');
 const path = require('path');
 
-const BASE = path.join(os.tmpdir(), 'ai-demo-jest-lmdb');
+const ROOT = path.join(os.tmpdir(), 'ai-demo-jest-lmdb');
+// One dir per jest run (globalSetup sets AI_DEMO_JEST_RUN_ID before anything
+// requires this module; workers inherit it). A fixed path let two overlapping
+// runs on the same machine (two CI runners share os.tmpdir()) wipe and write
+// each other's store, which showed up as dotMemoryRoutes seeing a stranger's
+// 'user-a' memory. Without a run id (a suite run outside the jest globalSetup)
+// the old shared path is used.
+const BASE = process.env.AI_DEMO_JEST_RUN_ID ? path.join(ROOT, process.env.AI_DEMO_JEST_RUN_ID) : ROOT;
 
 function workerDir() {
   return path.join(BASE, String(process.env.JEST_WORKER_ID || '1'));
 }
 
-module.exports = { BASE, workerDir };
+module.exports = { BASE, ROOT, workerDir };
