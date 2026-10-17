@@ -1356,8 +1356,9 @@ async function deleteDevice(userId, deviceId) {
 async function updateDeviceNickname(userId, deviceId, nickname) {
   try {
     const workerToken = await _getWorkerToken();
-    const url = `${_apiBaseUrl()}/users/${userId}/devices/${deviceId}`;
-    const { data } = await axios.patch(
+    // PingOne: PUT the nickname sub-resource (PATCH on the device 403s).
+    const url = `${_apiBaseUrl()}/users/${userId}/devices/${deviceId}/nickname`;
+    const { data } = await axios.put(
       url,
       { nickname },
       {
