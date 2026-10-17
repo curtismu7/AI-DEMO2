@@ -74,7 +74,7 @@ function _bindingMessage(raw) {
  * @param {string} loginHint    User's email address or sub
  * @param {string} bindingMessage  Shown in the approval email (PingOne max 8 chars; longer/empty becomes a 6-char code)
  * @param {string} scope        Space-separated OAuth scopes (defaults to openid)
- * @param {string} [acrValues]  ACR values for step-up (e.g. 'Multi_factor'); the DaVinci CIBA flow comes from the app's policy assignment, not from here
+ * @param {string} [acrValues]  Accepted for compatibility but NOT sent to PingOne (it would be read as a DaVinci policy ID); the CIBA flow comes from the app's policy assignment
  * @returns {Promise<{ auth_req_id: string, expires_in: number, interval: number, binding_message: string }>}
  */
 async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openid', acrValues = '') {
@@ -92,9 +92,9 @@ async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openi
     binding_message: message,
   });
 
-  if (acrValues) {
-    params.set('acr_values', acrValues);
-  }
+  // acr_values is deliberately NOT forwarded: PingOne CIBA reads acr_values as a
+  // DaVinci flow policy ID and 400s on anything else (e.g. the step-up ACR
+  // 'Multi_Factor'). The flow comes from the app's DaVinci policy assignment.
 
   if (deliveryMode !== 'poll') {
     throw new Error('Only CIBA poll delivery mode is supported; configure the PingOne CIBA application for poll mode');

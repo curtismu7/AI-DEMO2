@@ -179,15 +179,8 @@ describe('cibaService.initiateBackchannelAuth()', () => {
     expect(params.get('binding_message')).toMatch(/^[0-9A-F]{6}$/);
   });
 
-  it('includes acr_values when provided', async () => {
-    await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', 'Multi_factor');
-
-    const [, body] = axios.post.mock.calls[0];
-    expect(new URLSearchParams(body).get('acr_values')).toBe('Multi_factor');
-  });
-
-  it('omits acr_values when empty string', async () => {
-    await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', '');
+  it('never forwards acr_values: PingOne reads it as a DaVinci policy ID and 400s on a step-up ACR', async () => {
+    await cibaService.initiateBackchannelAuth('user@example.com', 'Test', 'openid', 'Multi_Factor');
 
     const [, body] = axios.post.mock.calls[0];
     expect(new URLSearchParams(body).has('acr_values')).toBe(false);

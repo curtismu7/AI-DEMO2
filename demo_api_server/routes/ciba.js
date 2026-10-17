@@ -253,6 +253,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
         message: pingError?.error_description || realErr.message,
       });
     }
+    console.warn('[CIBA] real initiate failed, falling back to local simulation:', realErr.response?.data?.error_description || realErr.message);
     result = cibaSimulatedService.initiateSimulated(
       loginHint,
       binding_message,

@@ -32,6 +32,9 @@ const gen = require('../scripts/gen-intent-topology');
  *
  * airlines gained `ua-book` (UC48 consumer-agent booking chip), taking the
  * total to 168.
+ *
+ * investment gained `inv-ciba` (UC22 CIBA large-trade chip, mirrors wf-ciba),
+ * taking the total to 169.
  */
 const EXPECTED_CHIP_COUNTS = {
   'walbuy': 8,
@@ -42,7 +45,7 @@ const EXPECTED_CHIP_COUNTS = {
   healthcare: 13,
   'sporting-goods': 16,
   government: 12,
-  investment: 12,
+  investment: 13,
   manufacturing: 12,
   university: 12,
   admin: 9,
@@ -77,8 +80,8 @@ describe('gen-intent-topology — chip inventory', () => {
   let rows;
   beforeAll(() => { rows = gen.buildRows(); });
 
-  it('covers 168 chips across 14 verticals', () => {
-    expect(rows).toHaveLength(168);
+  it('covers 169 chips across 14 verticals', () => {
+    expect(rows).toHaveLength(169);
     expect(new Set(rows.map((r) => r.vertical)).size).toBe(14);
   });
 
@@ -120,7 +123,7 @@ describe('gen-intent-topology — intent x vertical matrix', () => {
   });
 
   it('carries the totals so a miscount is visible in the artifact', () => {
-    expect(topology.counts.chips).toBe(168);
+    expect(topology.counts.chips).toBe(169);
     expect(topology.counts.verticals).toBe(14);
     expect(topology.counts.byVertical).toEqual(EXPECTED_CHIP_COUNTS);
   });

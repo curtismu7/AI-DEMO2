@@ -8,6 +8,7 @@ import {
 import "./MFATestPage.css";
 import ApiCallPreviewCard from "./shared/ApiCallPreviewCard";
 import MFATestCard from "./MFATestCard";
+import MFATestCibaSection from "./MFATestCibaSection";
 import PingOneApiPanel from "./PingOneApiPanel";
 import MFALogsModal from "./MFALogsModal";
 import { useThemeOptional } from "../context/ThemeContext";
@@ -1562,16 +1563,15 @@ const MFATestPageContent: FC = () => {
 
         <ApiCallPreviewCard
           method="POST"
-          endpoint="https://auth.pingone.com/{environmentId}/as/bc-authorize"
+          endpoint="https://auth.pingone.com/{environmentId}/as/cibaAuthorization"
           requestBody={{
             scope: "openid",
             login_hint: "<user_email>",
-            binding_message: "Approve banking transaction",
-            request_expiry: 120,
+            binding_message: "Approve",
           }}
-          docUrl="https://apidocs.pingidentity.com/pingone/platform/v1/api/#post-backchannel-authentication-request"
+          docUrl="https://developer.pingidentity.com/pingone-api/auth/openid-connect-oauth-2/client-initiated-backchannel-auth.html"
           docLabel="PingOne CIBA Docs"
-          description="CIBA back-channel authentication — sends push notification to user's authenticator app for step-up approval"
+          description="CIBA back-channel authentication — PingOne runs the DaVinci CIBA flow and emails an approval link (binding message max 8 characters). Try it in the CIBA section below."
         />
         {/* Configuration Section */}
         <section className="mfa-test-section">
@@ -2460,6 +2460,14 @@ const MFATestPageContent: FC = () => {
             </div>
           )}
         </section>
+
+        <MFATestCibaSection
+          loginHint={
+            pingoneUsers.find((u) => u.id === testUserId)?.email ||
+            defaultUser?.email ||
+            ""
+          }
+        />
 
         {/* Logs Modal */}
         {logsModalOpen && (
