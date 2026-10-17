@@ -88,4 +88,37 @@ describe('authorizeMcpRequest — native ID-JAG skips backend re-exchange', () =
     const lastTrail = JSON.parse(headerCalls[headerCalls.length - 1][1]);
     expect(lastTrail.backend).toEqual({ target: 'olb', audience: 'mcpserver.ping.demo', cached: false, exchanged: false });
   });
+
+  // Regression from a live PingFederate ID-JAG run: tools/list with the redeemed token
+  // went to the PingOne exchange ("Cannot parse token claims for subject_token") and 401'd.
+  it('forwards tools/list unchanged too, when the ID-JAG token is already audienced at the olb backend', async () => {
+    const listBody = Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: 2, method: 'tools/list', params: {} }));
+    const forwarded: string[] = [];
+    const exchange = jest.fn();
+    const middleware = buildAuthorizeMcpRequest(stubConfig, {
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'accounts:read', aud: 'mcpserver.ping.demo', iss: ID_JAG_ISSUER }),
+      authorize: async () => ({ decision: 'PERMIT' as const }),
+      exchange,
+    });
+    const fakeRes = { writeHead: jest.fn(), end: jest.fn(), setHeader: jest.fn() } as any;
+    await middleware('id-jag-bearer', listBody, {} as any, fakeRes, async (t) => { forwarded.push(t); });
+    expect(forwarded).toEqual(['id-jag-bearer']);
+    expect(exchange).not.toHaveBeenCalled();
+  });
+
+  it('still exchanges tools/list for an ID-JAG token whose aud is not the olb backend', async () => {
+    const listBody = Buffer.from(JSON.stringify({ jsonrpc: '2.0', id: 3, method: 'tools/list', params: {} }));
+    const exchange = jest.fn(async () => ({ token: 'exchanged-tok', targetAud: 'mcpserver.ping.demo', cached: false }));
+    const forwarded: string[] = [];
+    const middleware = buildAuthorizeMcpRequest(stubConfig, {
+      introspect: async () => ({ active: true, sub: 'u1', exp: 9999999999, scope: 'accounts:read', aud: 'https://gateway.ping.demo', iss: ID_JAG_ISSUER }),
+      authorize: async () => ({ decision: 'PERMIT' as const }),
+      exchange,
+    });
+    const fakeRes = { writeHead: jest.fn(), end: jest.fn(), setHeader: jest.fn() } as any;
+    await middleware('id-jag-bearer-wrong-aud', listBody, {} as any, fakeRes, async (t) => { forwarded.push(t); });
+    expect(exchange).toHaveBeenCalled();
+    expect(forwarded).toEqual(['exchanged-tok']);
+  });
 });
+

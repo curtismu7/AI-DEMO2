@@ -1296,8 +1296,11 @@ export function buildAuthorizeMcpRequest(
     // above — but ONLY when the token's own aud already IS the resolved backend's
     // resource URI, so this can never widen what an ID-JAG token reaches beyond
     // what GatewayTokenPolicy's D-05 exemption already verified it may carry.
-    if (method === 'tools/call' && toolName && isIdJagIssuedToken(decoded)) {
-      const idJagTarget = routeTool(toolName);
+    // Applies to every MCP method, not only tools/call: tools/list (no tool name)
+    // routes to the default 'olb' backend exactly as Step 4 would, and used to fall
+    // through to the PingOne exchange and 401 on every live ID-JAG run.
+    if (isIdJagIssuedToken(decoded) && (method !== 'tools/call' || toolName)) {
+      const idJagTarget = toolName ? routeTool(toolName) : 'olb';
       const idJagBackend = idJagTarget === 'invest' || idJagTarget === 'jwtverifier' ? idJagTarget : 'olb';
       const idJagTargetAud = backendResourceUri(idJagBackend, config);
       const idJagAudList = Array.isArray(decoded.aud) ? decoded.aud : [decoded.aud];
