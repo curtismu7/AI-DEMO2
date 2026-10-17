@@ -34,6 +34,7 @@ describe('MFATestCibaSection', () => {
     expect(mockPost).toHaveBeenCalledWith('/api/auth/ciba/initiate', {
       login_hint: 'user@example.com',
       binding_message: 'Approve',
+      channel: 'email',
     });
     expect(screen.getByTestId('mfa-ciba-status').textContent).toMatch(/Waiting for approval/);
     expect(screen.getByTestId('mfa-ciba-status').textContent).toMatch(/A1B2C3/);
@@ -50,6 +51,13 @@ describe('MFATestCibaSection', () => {
     await act(async () => { fireEvent.click(screen.getByTestId('mfa-ciba-start')); });
     await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
     expect(screen.getByTestId('mfa-ciba-status').textContent).toMatch(/Denied/);
+  });
+
+  test('sends channel "sms" when the text-message option is chosen', async () => {
+    render(<MFATestCibaSection loginHint="user@example.com" />);
+    fireEvent.change(screen.getByTestId('mfa-ciba-channel'), { target: { value: 'sms' } });
+    await act(async () => { fireEvent.click(screen.getByTestId('mfa-ciba-start')); });
+    expect(mockPost).toHaveBeenCalledWith('/api/auth/ciba/initiate', expect.objectContaining({ channel: 'sms' }));
   });
 
   test('binding message input is capped at 8 characters', () => {

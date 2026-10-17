@@ -132,6 +132,33 @@ PINGONE_CIBA_CLIENT_ID=<client id from step 3.5>
 PINGONE_CIBA_CLIENT_SECRET=<client secret from step 3.5>
 ```
 
+### Optional: separate text-message (SMS) approval
+
+PingOne's CIBA request has no "channel" field, so each delivery channel is its
+own CIBA app with its own DaVinci flow policy. The email app above gets an
+**email-only** flow; a second app gets an **SMS-only** flow:
+
+1. Create a second OIDC app with the CIBA grant and `CLIENT_SECRET_BASIC`.
+2. Import an SMS-only CIBA flow (the same sample flow with the two email nodes
+   replaced by PingOne Notifications "Send SMS" nodes and the email-exists check
+   turned into a phone-exists check), make a flow policy, and assign it to that app.
+3. Put the second app's credentials in `.env`:
+
+```
+PINGONE_CIBA_SMS_CLIENT_ID=<second app client id>
+PINGONE_CIBA_SMS_CLIENT_SECRET=<second app client secret>
+```
+
+`GET /api/auth/ciba/status` then lists `channels: ["email", "sms"]`, the step-up
+picker shows "Approve by email link" and "Approve by text link", and
+`POST /api/auth/ciba/initiate` accepts `channel: "email" | "sms"`. The poll uses
+the credentials of the channel that created the request. With no SMS credentials
+only the email row is offered.
+
+The user needs a **Mobile phone** on their PingOne profile for the SMS flow, and
+both the `CIBA with binding message` and `CIBA without binding message` General
+templates need SMS content.
+
 The live validation pass is:
 - Keep `ciba_failover_mode=deny` (the default) so failures are visible
 - Initiate a real CIBA request via the CIBAPanel "Try It" tab

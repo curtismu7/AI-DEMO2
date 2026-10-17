@@ -81,6 +81,7 @@ function MethodChoiceTable({
   onChooseSms,
   onChoosePasskey,
   onChooseCiba,
+  cibaChannels = ['email'],
   extraRows = [],
   enrolledOnly = false,
   hasEmail = true,
@@ -187,29 +188,31 @@ function MethodChoiceTable({
             </td>
           </tr>
           )}
-          {onChooseCiba && (
-          <tr className="otp-step-up-modal__method-row">
+          {onChooseCiba && cibaChannels.map((ch) => (
+          <tr key={`ciba-${ch}`} className="otp-step-up-modal__method-row">
             <td>
               <span className="otp-step-up-modal__method-name">
                 <span className="otp-step-up-modal__method-badge otp-step-up-modal__method-badge--extra" aria-hidden>CIBA</span>
-                Approve by email link
+                {ch === 'sms' ? 'Approve by text link' : 'Approve by email link'}
               </span>
             </td>
             <td className="otp-step-up-modal__method-detail">
-              Approve on your own device with a PingOne email link (CIBA)
+              {ch === 'sms'
+                ? 'Approve on your own device with a PingOne text-message link (CIBA)'
+                : 'Approve on your own device with a PingOne email link (CIBA)'}
             </td>
             <td>
               <button
                 type="button"
                 className="otp-step-up-modal__method-cta"
-                onClick={onChooseCiba}
-                data-testid="mfa-choose-ciba"
+                onClick={() => onChooseCiba(ch)}
+                data-testid={ch === 'sms' ? 'mfa-choose-ciba-sms' : 'mfa-choose-ciba'}
               >
                 Continue →
               </button>
             </td>
           </tr>
-          )}
+          ))}
           {extraRows.map((row) => (
             <tr key={row.id} className="otp-step-up-modal__method-row">
               <td>
@@ -257,7 +260,7 @@ export default function OtpStepUpModal({
   daId, devices = [], onP1MfaComplete, onP1MfaError,
   userIdentity, onPasskeyRegistered, deliveryError,
   brand = null, compact = false, enrolledOnly = false,
-  onChooseCiba,
+  onChooseCiba, cibaChannels,
 }) {
   const [otp, setOtp] = useState('');
   const [error, setError] = useState('');
@@ -907,6 +910,7 @@ export default function OtpStepUpModal({
       onChooseSms={handleChooseSms}
       onChoosePasskey={handleChoosePasskey}
       onChooseCiba={onChooseCiba}
+      cibaChannels={cibaChannels}
       extraRows={extraMethodRows}
       enrolledOnly={enrolledOnly}
       hasEmail={!!emailDevice}

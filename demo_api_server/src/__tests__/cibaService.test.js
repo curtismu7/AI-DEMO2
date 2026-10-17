@@ -242,6 +242,47 @@ describe('cibaService.initiateBackchannelAuth()', () => {
 // pollForTokens()
 // ═══════════════════════════════════════════════════════════════════════════════
 
+describe('cibaService delivery channels (one PingOne CIBA app per channel)', () => {
+  const SMS_BASIC = Buffer.from('sms-client-id:sms-client-secret').toString('base64');
+  beforeEach(() => {
+    jest.clearAllMocks();
+    configStore.getEffective.mockImplementation((key) => (key === 'ciba_token_delivery_mode' ? 'poll' : null));
+    axios.post.mockResolvedValue({ data: { auth_req_id: 'r', expires_in: 120, interval: 2 } });
+    process.env.PINGONE_CIBA_SMS_CLIENT_ID = 'sms-client-id';
+    process.env.PINGONE_CIBA_SMS_CLIENT_SECRET = 'sms-client-secret';
+  });
+  afterEach(() => {
+    delete process.env.PINGONE_CIBA_SMS_CLIENT_ID;
+    delete process.env.PINGONE_CIBA_SMS_CLIENT_SECRET;
+  });
+
+  it('initiate with channel "sms" authenticates as the SMS app; default is the email app', async () => {
+    await cibaService.initiateBackchannelAuth('u', 'Approve', 'openid', '', 'sms');
+    expect(axios.post.mock.calls[0][2].headers.Authorization).toBe(`Basic ${SMS_BASIC}`);
+
+    await cibaService.initiateBackchannelAuth('u', 'Approve');
+    expect(axios.post.mock.calls[1][2].headers.Authorization).toBe(`Basic ${EXPECTED_BASIC}`);
+  });
+
+  it('poll uses the same channel credentials that created the auth_req_id', async () => {
+    axios.post.mockResolvedValue({ data: MOCK_TOKENS });
+    await cibaService.pollForTokens('req-abc', 'sms');
+    expect(axios.post.mock.calls[0][2].headers.Authorization).toBe(`Basic ${SMS_BASIC}`);
+  });
+
+  it('rejects an SMS request when the SMS app is not configured', async () => {
+    delete process.env.PINGONE_CIBA_SMS_CLIENT_ID;
+    await expect(cibaService.initiateBackchannelAuth('u', 'Approve', 'openid', '', 'sms'))
+      .rejects.toThrow('CIBA SMS client credentials are not configured');
+  });
+
+  it('availableChannels lists only channels with credentials', () => {
+    expect(cibaService.availableChannels()).toEqual(['email', 'sms']);
+    delete process.env.PINGONE_CIBA_SMS_CLIENT_SECRET;
+    expect(cibaService.availableChannels()).toEqual(['email']);
+  });
+});
+
 describe('cibaService.pollForTokens()', () => {
   beforeEach(() => jest.clearAllMocks());
 

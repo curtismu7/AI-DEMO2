@@ -80,6 +80,8 @@ router.get('/status', (req, res) => {
   const deliveryMode = configStore.getEffective('ciba_token_delivery_mode') || 'poll';
   res.json({
     enabled:      cibaService.isEnabled(),
+    // Delivery channels with a configured PingOne CIBA app, e.g. ['email', 'sms'].
+    channels:     cibaService.availableChannels(),
     deliveryMode,
     bindingMessage: configStore.getEffective('ciba_binding_message') || 'Approve',
     engine: cibaService.isEnabled() && realConfigured && deliveryMode === 'poll'
@@ -144,6 +146,8 @@ router.post('/initiate', authenticateToken, async (req, res) => {
   const scope = req.body.scope;
   const acr_values = field('acr_values', 'acrValues') || '';
   let binding_message = field('binding_message', 'bindingMessage');
+  // Delivery channel: 'email' (default) or 'sms'. Each has its own PingOne CIBA app + DaVinci flow.
+  const channel = field('channel', 'channel') === 'sms' ? 'sms' : 'email';
 
   // Optional transaction-display context (UC22's separate-device approval
   // page). Purely additive — no validation beyond type coercion, since
@@ -235,16 +239,20 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       binding_message,
       scope || CIBA_DEFAULT_SCOPE,
       acr_values,
+      channel,
     );
   } catch (realErr) {
     // CIBA requires a real OP result. Simulated failover is an explicit
     // development setting, never the default for transaction approval.
     if (!cibaSimulatedService.isLocalSimulationEnabled()) {
       console.error('[CIBA] initiate failed:', realErr.response?.data || realErr.message);
-      if (realErr.message === 'CIBA client credentials are not configured') {
+      if (realErr.message === 'CIBA client credentials are not configured'
+        || realErr.message === 'CIBA SMS client credentials are not configured') {
         return res.status(503).json({
           error: 'ciba_not_configured',
-          message: 'Real CIBA requires a dedicated PingOne CIBA application and DaVinci flow.',
+          message: channel === 'sms'
+            ? 'Text-message CIBA requires its own PingOne CIBA application and SMS-only DaVinci flow.'
+            : 'Real CIBA requires a dedicated PingOne CIBA application and DaVinci flow.',
         });
       }
       const pingError = realErr.response?.data;
@@ -302,6 +310,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       loginHint,
       scope: scope || CIBA_DEFAULT_SCOPE,
       acr_values: acr_values || '',
+      channel,
       binding_message: binding_message || '',
       approval_summary: approvalSummary,
       simulated,
@@ -331,6 +340,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       login_hint_display: loginHint.replace(/(.{2}).*@/, '$1***@'), // mask for display only
       binding_message,
       approval_summary: approvalSummary,
+      channel,
       engine: simulated ? 'simulated' : 'pingone',
     });
   } catch (err) {
@@ -596,10 +606,12 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       validated = null;
     }
     if (!validated) {
-      tokens = await cibaService.pollForTokens(authReqId);
+      tokens = await cibaService.pollForTokens(authReqId, pending.channel);
       let verifiedClaims;
       try {
-        verifiedClaims = await cibaService.validateCibaIdToken(tokens.id_token, req.user?.sub || req.user?.id, pending.acr_values);
+        // No ACR check: PingOne sets the token's acr to the DaVinci policy ID, so the
+        // step-up ACR the client sent (e.g. 'Multi_Factor') can never match it.
+        verifiedClaims = await cibaService.validateCibaIdToken(tokens.id_token, req.user?.sub || req.user?.id, '', pending.channel);
       } catch (validationError) {
         console.error('[CIBA] invalid identity result:', validationError.message);
         delete req.session.cibaRequests[authReqId];
