@@ -1,6 +1,7 @@
 // banking_api_ui/src/components/TokenExchangeFlowDiagram.jsx
 import React, { useState } from 'react';
 import { useEducationUIOptional } from '../context/EducationUIContext';
+import StaticFlowDiagram from './StaticFlowDiagram';
 import './TokenExchangeFlowDiagram.css';
 
 const VALID_MODES = ['single', 'double'];
@@ -46,6 +47,15 @@ const ARROWS = {
   ],
 };
 
+// React Flow drawing of the same actors/arrows: draggable boxes plus Simulate / Reset / speed.
+const FLOW_GROUPS = {
+  user:    { label: 'User',       bg: 'var(--th-status-info)' },
+  agent:   { label: 'AI Agent',   bg: 'var(--th-status-warning)' },
+  bff:     { label: 'BFF',        bg: 'var(--th-bg-emphasis)' },
+  pingone: { label: 'PingOne',    bg: 'var(--th-status-success)' },
+  mcp:     { label: 'MCP Server', bg: 'var(--th-status-info)' },
+};
+
 function computeLayout(actors) {
   const count = actors.length;
   const gapX  = (VIEW_W - count * BOX_W) / (count + 1);
@@ -55,7 +65,7 @@ function computeLayout(actors) {
   });
 }
 
-export default function TokenExchangeFlowDiagram({ mode = 'single', className = '', onEducation }) {
+export default function TokenExchangeFlowDiagram({ mode = 'single', className = '', onEducation, interactive = false }) {
   const [hoveredStep, setHoveredStep] = useState(null);
   const edu = useEducationUIOptional();
 
@@ -83,47 +93,57 @@ export default function TokenExchangeFlowDiagram({ mode = 'single', className = 
 
   return (
     <div className={`tefd-root${safeMode === 'double' ? ' tefd-root--double' : ''}${className ? ` ${className}` : ''}`}>
-      <svg
-        className="tefd-svg"
-        viewBox={`0 0 ${VIEW_W} ${SVG_H}`}
-        xmlns="http://www.w3.org/2000/svg"
-        role="img"
-        aria-label={safeMode === 'double' ? 'RFC 8693 2-exchange flow diagram' : 'RFC 8693 1-exchange flow diagram'}
-      >
-        <title>{safeMode === 'double' ? 'RFC 8693 2-Exchange: User to AI Agent to BFF to PingOne to MCP Server' : 'RFC 8693 1-Exchange: User to BFF to PingOne to MCP Server'}</title>
-        <defs>
-          {['user', 'agent', 'mcp'].map(type => (
-            <marker key={type} id={`tefd-arrow-${type}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-              <path d="M 0 0 L 10 5 L 0 10 z" className={`tefd-arrowhead tefd-arrowhead--${type}`} />
-            </marker>
-          ))}
-        </defs>
-        {layout.map(actor => (
-          <g key={actor.id} className={`tefd-actor tefd-actor--${actor.cls}`}>
-            <rect x={actor.x} y={ACTOR_Y} width={BOX_W} height={BOX_H} rx={BOX_RX} className={`tefd-box tefd-box--${actor.cls}`} />
-            <text x={actor.cx} y={ACTOR_Y + 23} textAnchor="middle" className="tefd-actor-name">{actor.label}</text>
-            <text x={actor.cx} y={ACTOR_Y + 39} textAnchor="middle" className="tefd-actor-sub">{actor.sub}</text>
-          </g>
-        ))}
-        {arrows.map(arrow => {
-          const from   = actorMap[arrow.from];
-          const to     = actorMap[arrow.to];
-          const x1     = from.x + BOX_W + 2;
-          const x2     = to.x - 2;
-          const midX   = (x1 + x2) / 2;
-          const active = hoveredStep === arrow.step;
-          return (
-            <g key={arrow.step} className={`tefd-arrow-group${active ? ' tefd-arrow-group--active' : ''}`} onMouseEnter={() => setHoveredStep(arrow.step)} onMouseLeave={() => setHoveredStep(null)} onClick={() => openEducation(arrow.edu)} role="button" tabIndex={0} aria-label={`Step ${arrow.step}: ${arrow.label}`} onKeyDown={e => e.key === 'Enter' && openEducation(arrow.edu)} style={{ cursor: 'pointer' }}>
-              <line x1={x1} y1={ARROW_Y} x2={x2} y2={ARROW_Y} className={`tefd-arrow-line tefd-arrow-line--${arrow.tokenType}`} markerEnd={`url(#tefd-arrow-${arrow.tokenType})`} />
-              <circle cx={midX} cy={ARROW_Y} r={10} className={`tefd-step-circle tefd-step-circle--${arrow.tokenType}`} />
-              <text x={midX} y={ARROW_Y + 4} textAnchor="middle" className="tefd-step-num">{arrow.step}</text>
-              <line x1={midX} y1={ARROW_Y + 11} x2={midX} y2={DROP_Y} className="tefd-drop-line" />
-              <text x={midX} y={LABEL_Y1} textAnchor="middle" className={`tefd-conn-label tefd-conn-label--${arrow.tokenType}`}>{arrow.label}</text>
-              <text x={midX} y={LABEL_Y2} textAnchor="middle" className="tefd-conn-rfc">{arrow.rfc}</text>
+      {interactive ? (
+        <StaticFlowDiagram
+          NODES={actors.map((a, i) => ({ id: a.id, group: a.cls, label: a.label, sub: [a.sub], x: i * 300, y: 0 }))}
+          EDGES={arrows.map((a) => [a.from, a.to, `${a.step}) ${a.label} (${a.rfc})`])}
+          GROUPS={FLOW_GROUPS}
+          testId="tefd-flow"
+          ariaLabel={safeMode === 'double' ? 'RFC 8693 2-exchange flow diagram' : 'RFC 8693 1-exchange flow diagram'}
+        />
+      ) : (
+        <svg
+          className="tefd-svg"
+          viewBox={`0 0 ${VIEW_W} ${SVG_H}`}
+          xmlns="http://www.w3.org/2000/svg"
+          role="img"
+          aria-label={safeMode === 'double' ? 'RFC 8693 2-exchange flow diagram' : 'RFC 8693 1-exchange flow diagram'}
+        >
+          <title>{safeMode === 'double' ? 'RFC 8693 2-Exchange: User to AI Agent to BFF to PingOne to MCP Server' : 'RFC 8693 1-Exchange: User to BFF to PingOne to MCP Server'}</title>
+          <defs>
+            {['user', 'agent', 'mcp'].map(type => (
+              <marker key={type} id={`tefd-arrow-${type}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                <path d="M 0 0 L 10 5 L 0 10 z" className={`tefd-arrowhead tefd-arrowhead--${type}`} />
+              </marker>
+            ))}
+          </defs>
+          {layout.map(actor => (
+            <g key={actor.id} className={`tefd-actor tefd-actor--${actor.cls}`}>
+              <rect x={actor.x} y={ACTOR_Y} width={BOX_W} height={BOX_H} rx={BOX_RX} className={`tefd-box tefd-box--${actor.cls}`} />
+              <text x={actor.cx} y={ACTOR_Y + 23} textAnchor="middle" className="tefd-actor-name">{actor.label}</text>
+              <text x={actor.cx} y={ACTOR_Y + 39} textAnchor="middle" className="tefd-actor-sub">{actor.sub}</text>
             </g>
-          );
-        })}
-      </svg>
+          ))}
+          {arrows.map(arrow => {
+            const from   = actorMap[arrow.from];
+            const to     = actorMap[arrow.to];
+            const x1     = from.x + BOX_W + 2;
+            const x2     = to.x - 2;
+            const midX   = (x1 + x2) / 2;
+            const active = hoveredStep === arrow.step;
+            return (
+              <g key={arrow.step} className={`tefd-arrow-group${active ? ' tefd-arrow-group--active' : ''}`} onMouseEnter={() => setHoveredStep(arrow.step)} onMouseLeave={() => setHoveredStep(null)} onClick={() => openEducation(arrow.edu)} role="button" tabIndex={0} aria-label={`Step ${arrow.step}: ${arrow.label}`} onKeyDown={e => e.key === 'Enter' && openEducation(arrow.edu)} style={{ cursor: 'pointer' }}>
+                <line x1={x1} y1={ARROW_Y} x2={x2} y2={ARROW_Y} className={`tefd-arrow-line tefd-arrow-line--${arrow.tokenType}`} markerEnd={`url(#tefd-arrow-${arrow.tokenType})`} />
+                <circle cx={midX} cy={ARROW_Y} r={10} className={`tefd-step-circle tefd-step-circle--${arrow.tokenType}`} />
+                <text x={midX} y={ARROW_Y + 4} textAnchor="middle" className="tefd-step-num">{arrow.step}</text>
+                <line x1={midX} y1={ARROW_Y + 11} x2={midX} y2={DROP_Y} className="tefd-drop-line" />
+                <text x={midX} y={LABEL_Y1} textAnchor="middle" className={`tefd-conn-label tefd-conn-label--${arrow.tokenType}`}>{arrow.label}</text>
+                <text x={midX} y={LABEL_Y2} textAnchor="middle" className="tefd-conn-rfc">{arrow.rfc}</text>
+              </g>
+            );
+          })}
+        </svg>
+      )}
       {hoveredArrow && (
         <div className="tefd-tooltip" role="tooltip">
           <strong className="tefd-tooltip-title">Step {hoveredArrow.step}: {hoveredArrow.label}</strong>
