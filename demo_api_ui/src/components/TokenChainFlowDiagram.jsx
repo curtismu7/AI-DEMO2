@@ -401,6 +401,7 @@ export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
       <ReactFlow
         nodes={dragNodes}
         onNodesChange={onDragNodes}
+        nodesDraggable
         edges={edges}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
