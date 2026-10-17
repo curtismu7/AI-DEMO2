@@ -20,6 +20,7 @@ import "./ServerTopologyPage.css";
 import ServerTopologyExportControls from "./ServerTopologyExportControls";
 import { layoutEdgeLabels } from "./topologyEdgeLabelLayout";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
+import { STEP_TIME_OPTIONS, StepTimeSelector } from "./diagram";
 
 const A2A_FLOW_BUTTONS = [["privilegeA2a", "A2A access review"], ["privilegeA2aChain", "A2A agent chain"]];
 const LAYER_OPTIONS = [
@@ -583,6 +584,7 @@ function ServerTopologyContent() {
   const [scenario, setScenario] = useState("protectedApi");
   const [stepIndex, setStepIndex] = useState(0);
   const [playing, setPlaying] = useState(false);
+  const [stepMs, setStepMs] = useState(1500);
 
   const playback = PLAYBACKS[scenario];
   const pageStyle = {
@@ -614,9 +616,9 @@ function ServerTopologyContent() {
         setSelectedEdge(playback.steps[stepIndex]?.edgeId || null);
       }
       else setStepIndex((current) => current + 1);
-    }, 1450);
+    }, stepMs);
     return () => window.clearTimeout(timer);
-  }, [playing, playback.steps, stepIndex]);
+  }, [playing, playback.steps, stepIndex, stepMs]);
 
   const selectNode = useCallback((id) => { setPlaying(false); setSelectedNode(id); setSelectedEdge(null); setDetailsOpen(true); }, []);
   const selectEdge = useCallback((id) => { setPlaying(false); setSelectedNode(null); setSelectedEdge(id); setDetailsOpen(true); }, []);
@@ -680,13 +682,13 @@ function ServerTopologyContent() {
     if (stepIndex >= playback.steps.length - 1) setStepIndex(0);
     setPlaying(true);
   }, [playback.steps, playing, stepIndex]);
-  const restart = useCallback(() => {
+  // Reset clears the walkthrough: back to step 1 with nothing selected.
+  const reset = useCallback(() => {
     setPlaying(false);
     setStepIndex(0);
     setSelectedNode(null);
-    setSelectedEdge(playback.steps[0]?.edgeId || null);
-    setDetailsOpen(true);
-  }, [playback.steps]);
+    setSelectedEdge(null);
+  }, []);
 
   return (
     <main className="server-topology-page" style={pageStyle}>
@@ -735,7 +737,8 @@ function ServerTopologyContent() {
           <button type="button" onClick={() => moveStep(-1)} disabled={stepIndex === 0} aria-label="Previous hop">Previous</button>
           <button className="stm-play-button" type="button" onClick={togglePlaying}>{playing ? "Pause" : "Play"}</button>
           <button type="button" onClick={() => moveStep(1)} disabled={stepIndex >= playback.steps.length - 1} aria-label="Next hop">Next</button>
-          <button type="button" onClick={restart}>Restart</button>
+          <button type="button" onClick={reset} title="Clear the walkthrough and start over">Reset</button>
+          <StepTimeSelector value={stepMs} options={STEP_TIME_OPTIONS} onChange={setStepMs} />
         </section>
         <section className="stm-flow-summary" aria-label="Selected flow and expected result" aria-live="polite">
           <div className="stm-flow-summary__outcome"><strong>Expected result</strong><span title={playback.result}>{playback.result}</span></div>
