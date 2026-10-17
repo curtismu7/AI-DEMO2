@@ -27,6 +27,15 @@ describe("EnterpriseMcpDemoPage", () => {
     expect(screen.getAllByText(/ID-JAG redeemed/i).length).toBeGreaterThan(0);
   });
 
+  it("lets the user pick the movie reel or the sequence diagram for all 19 calls", () => {
+    render(<EnterpriseMcpDemoPage />);
+    expect(screen.getByRole("heading", { name: "Every call, in order" })).toBeTruthy();
+    expect(screen.getByTestId("idjag-reel")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Sequence diagram" }));
+    expect(screen.getByTestId("idjag-sequence")).toBeTruthy();
+    expect(screen.queryByTestId("idjag-reel")).toBeNull();
+  });
+
   it("launches live UC40 without sending an agent prompt before authentication", () => {
     const launched = vi.fn();
     const prefilled = vi.fn();

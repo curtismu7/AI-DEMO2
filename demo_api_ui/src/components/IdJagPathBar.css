@@ -1,0 +1,15 @@
+.idjag-path { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem; padding: 0.6rem 1rem; margin: 0 0 1rem; background: var(--th-bg-card); color: var(--th-text); border: 1px solid var(--th-border); border-radius: 8px; font-size: var(--font-size-2xs); }
+.idjag-path__stops { display: flex; flex-wrap: wrap; gap: 0.5rem; list-style: none; margin: 0; padding: 0; }
+.idjag-path__stops a { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.3rem 0.7rem; border: 1px solid var(--th-border); border-radius: 999px; color: var(--th-text); text-decoration: none; }
+.idjag-path__stops .is-current a { background: var(--th-accent, #d4001e); border-color: var(--th-accent, #d4001e); color: #fff; font-weight: 600; }
+.idjag-path__num { display: inline-flex; width: 1.2rem; height: 1.2rem; align-items: center; justify-content: center; border-radius: 50%; background: rgba(127, 127, 127, 0.25); font-size: var(--font-size-3xs); }
+.idjag-path__nav { display: flex; gap: 0.5rem; }
+.idjag-path__btn { padding: 0.3rem 0.8rem; border: 1px solid var(--th-border); border-radius: 6px; color: var(--th-text); text-decoration: none; }
+.idjag-path__btn--next { background: var(--th-accent, #d4001e); border-color: var(--th-accent, #d4001e); color: #fff; font-weight: 600; }
+
+/* The app's global link colours win over single-class rules; scope under .idjag-path to beat them. */
+.idjag-path a, .idjag-path a:hover, .idjag-path a:visited { text-decoration: none; }
+.idjag-path .idjag-path__stops a { color: var(--th-text); }
+.idjag-path .idjag-path__stops .is-current a { color: #fff; }
+.idjag-path .idjag-path__btn { color: var(--th-text); }
+.idjag-path .idjag-path__btn--next { color: #fff; }
