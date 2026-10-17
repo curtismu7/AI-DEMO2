@@ -1,10 +1,31 @@
-.ijp { max-width: 1180px; margin: 0 auto; padding: 1rem 1.25rem 3rem; color: var(--th-text); }
+/* Ping brand, pinned regardless of the active vertical. Backgrounds/borders stay on theme vars for dark mode. */
+.ijp {
+  --ijp-red: #d20e0f;
+  --ijp-red-text: #d20e0f;
+  --ijp-grad: linear-gradient(90deg, #d20e0f 55%, #aa0005);
+  --ijp-strong: #051727;
+  max-width: 1180px; margin: 0 auto; padding: 1rem 1.25rem 3rem; color: var(--th-text);
+}
+:root[data-theme="dark"] .ijp { --ijp-red-text: #ff5a5b; --ijp-strong: var(--th-text); }
+.ijp h1, .ijp h2, .ijp h3 { color: var(--ijp-strong); }
+.ijp-hero { display: flex; gap: 1rem; align-items: flex-start; }
+.ijp-logo { width: 3rem; height: 3rem; flex: none; margin-top: 0.2rem; }
 .ijp-hero h1 { margin: 0.2rem 0 0.4rem; }
-.ijp-eyebrow { margin: 0; font-size: var(--font-size-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--th-accent, #d4001e); }
+.ijp-eyebrow { margin: 0; font-size: var(--font-size-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.06em; color: var(--ijp-red-text); }
 .ijp-lede { max-width: 820px; color: var(--th-text-muted); }
+.ijp-toolbar { display: flex; flex-wrap: wrap; gap: 0.75rem 1.5rem; align-items: center; margin: 0.5rem 0; }
+.ijp-toolbar__group { display: flex; align-items: center; gap: 0.5rem; font-size: var(--font-size-2xs); font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; color: var(--th-text-muted); }
+.ijp-seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--th-border); border-radius: 8px; overflow: hidden; background: var(--th-bg); }
+.ijp-seg button { font: inherit; font-size: var(--font-size-xs); text-transform: none; letter-spacing: 0; padding: 0.35rem 0.8rem; border: 0; border-right: 1px solid var(--th-border); background: transparent; color: var(--th-text); cursor: pointer; }
+.ijp-seg button:last-child { border-right: 0; }
+.ijp-seg button[aria-pressed="true"] { background: var(--ijp-grad); color: #fff; font-weight: 600; }
+.ijp-seg button:disabled { opacity: 0.45; cursor: not-allowed; }
+.ijp-seg button:focus-visible { outline: 2px solid var(--ijp-red); outline-offset: -2px; }
+.ijp-mock-badge { display: inline-block; margin: 0.25rem 0; padding: 0.3rem 0.75rem; border-radius: 999px; background: var(--ijp-grad); color: #fff; font-size: var(--font-size-xs); font-weight: 600; }
+.ijp--mock .ijp-step { border-style: dashed; }
 .ijp-actors { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
 .ijp-actor { padding: 0.75rem 0.9rem; border: 1px solid var(--th-border); border-left: 5px solid var(--th-text-muted); border-radius: 8px; background: var(--th-bg-card); }
-.ijp-actor--idp { border-left-color: var(--th-accent, #d4001e); }
+.ijp-actor--idp { border-left-color: var(--ijp-red); }
 .ijp-actor--as { border-left-color: #7c3aed; }
 .ijp-actor h3 { margin: 0; font-size: 0.95rem; }
 .ijp-actor p { margin: 0.15rem 0 0.4rem; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
@@ -12,31 +33,47 @@
 .ijp-actor dt { color: var(--th-text-muted); }
 .ijp-actor dd { margin: 0; word-break: break-all; }
 .ijp-banner { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border-radius: 8px; border: 1px solid #b45309; background: rgba(180, 83, 9, 0.1); }
-.ijp-banner--error { border-color: var(--th-accent, #d4001e); background: rgba(212, 0, 30, 0.08); }
+.ijp-banner--error { border-color: var(--ijp-red); background: rgba(210, 14, 15, 0.08); }
 .ijp-step { margin: 1rem 0; padding: 1rem 1.1rem; border: 1px solid var(--th-border); border-radius: 10px; background: var(--th-bg-card); }
 .ijp-step__head { display: flex; align-items: center; gap: 0.6rem; }
 .ijp-step__head h2 { margin: 0; font-size: 1.1rem; }
-.ijp-step__n { display: inline-flex; width: 1.7rem; height: 1.7rem; align-items: center; justify-content: center; border-radius: 50%; background: var(--th-accent, #d4001e); color: #fff; font-weight: 700; }
+.ijp-step__n { display: inline-flex; width: 1.7rem; height: 1.7rem; align-items: center; justify-content: center; border-radius: 50%; background: var(--ijp-grad); color: #fff; font-weight: 700; }
 .ijp-note { color: var(--th-text-muted); font-size: var(--font-size-xs); max-width: 900px; }
 .ijp-status { font-weight: 600; }
 .ijp-btn { font: inherit; padding: 0.4rem 0.9rem; margin: 0.25rem 0.4rem 0.25rem 0; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg); color: var(--th-text); cursor: pointer; }
-.ijp-btn--primary { background: var(--th-accent, #d4001e); border-color: var(--th-accent, #d4001e); color: #fff; font-weight: 600; }
+.ijp-btn--primary { background: var(--ijp-grad); border-color: var(--ijp-red); color: #fff; font-weight: 600; }
 .ijp-btn:disabled { opacity: 0.45; cursor: default; }
 .ijp-io { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
 .ijp-io h4, .ijp-checks h4 { margin: 0 0 0.3rem; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--th-text-muted); }
-.ijp-json { margin: 0; padding: 0.6rem; max-height: 320px; overflow: auto; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg); font-family: inherit; font-size: var(--font-size-2xs); white-space: pre-wrap; word-break: break-word; }
+.ijp-json, .ijp-form { margin: 0; padding: 0.6rem; max-height: 320px; overflow: auto; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg); font-family: inherit; font-size: var(--font-size-2xs); }
+.ijp-json { white-space: pre-wrap; word-break: break-word; }
+.ijp-kv { margin: 0; display: grid; grid-template-columns: minmax(6rem, max-content) 1fr; gap: 0.2rem 0.75rem; }
+.ijp-kv dt { color: var(--th-text-muted); font-weight: 600; }
+.ijp-kv dd { margin: 0; overflow-wrap: anywhere; color: var(--ijp-strong); }
+.ijp-kv .ijp-kv { padding-left: 0.6rem; border-left: 2px solid var(--th-border); }
+.ijp-kv-list { margin: 0; padding-left: 1.1rem; }
 .ijp-checks { margin-top: 0.9rem; overflow-x: auto; }
 .ijp-checks table, .ijp-vendors { width: 100%; border-collapse: collapse; font-size: var(--font-size-2xs); }
 .ijp-checks th, .ijp-checks td, .ijp-vendors th, .ijp-vendors td { text-align: left; padding: 0.35rem 0.5rem; border-bottom: 1px solid var(--th-border); vertical-align: top; word-break: break-word; }
-.ijp-checks tr.is-fail td { background: rgba(212, 0, 30, 0.08); }
+.ijp-checks th, .ijp-vendors th { color: var(--ijp-strong); }
+.ijp-checks tr.is-fail td { background: rgba(210, 14, 15, 0.08); }
 .ijp-checks tr.is-warn td { background: rgba(180, 83, 9, 0.08); }
 .ijp-cite { color: var(--th-text-muted); font-size: var(--font-size-3xs); }
 .ijp-field { display: flex; flex-direction: column; gap: 0.25rem; margin: 0.5rem 0; font-size: var(--font-size-xs); max-width: 520px; }
 .ijp-field input, .ijp-field select, .ijp-field textarea { font: inherit; padding: 0.35rem 0.5rem; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg); color: var(--th-text); }
+.ijp-args { margin: 0.5rem 0; padding: 0.5rem 0.75rem; border: 1px solid var(--th-border); border-radius: 8px; max-width: 520px; }
+.ijp-args legend { font-size: var(--font-size-xs); font-weight: 600; padding: 0 0.3rem; }
+.ijp-check { display: flex; align-items: center; gap: 0.4rem; margin: 0.5rem 0; font-size: var(--font-size-xs); }
+.ijp-req { color: var(--ijp-red-text); font-size: var(--font-size-2xs); }
 .ijp-negatives { list-style: none; margin: 0.5rem 0 0; padding: 0; }
 .ijp-negatives li { display: flex; justify-content: space-between; align-items: flex-start; gap: 1rem; padding: 0.6rem 0.75rem; border: 1px solid var(--th-border); border-radius: 8px; margin-bottom: 0.5rem; }
 .ijp-negatives li.is-pass { border-left: 5px solid #15803d; }
-.ijp-negatives li.is-fail { border-left: 5px solid var(--th-accent, #d4001e); }
+.ijp-negatives li.is-fail { border-left: 5px solid var(--ijp-red); }
 .ijp-negatives p { margin: 0.2rem 0 0; }
 .ijp-result { font-weight: 600; font-size: var(--font-size-xs); }
 .ijp a { color: inherit; }
+.ijp-field--wide { max-width: 900px; }
+.ijp-field--wide textarea { word-break: break-all; }
+.ijp-targets { margin: 0.5rem 0; padding: 0.3rem 0.6rem; border: 1px solid var(--th-border); border-radius: 6px; }
+.ijp-targets legend { font-size: var(--font-size-xs); padding: 0 0.3rem; }
+.ijp-targets .ijp-check { display: inline-flex; margin-right: 1rem; }
