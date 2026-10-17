@@ -43,6 +43,14 @@ export interface VerifyOpts {
   idpIssuer: string;
   ownIssuer: string;
   acceptedResources: string[];
+  /**
+   * The client_id that authenticated at the token endpoint. The ID-JAG names the
+   * client it was issued to; presenting it from any other client is refused so a
+   * leaked assertion cannot be redeemed by a different registered client.
+   */
+  clientId?: string;
+  /** Accept an ID-JAG with no client_id claim (IdP not yet emitting it). Off by default. */
+  allowUnboundClient?: boolean;
   /** Resolves the verification key. Production passes a jose remote JWKS. */
   getKey: (
     protectedHeader?: jose.JWTHeaderParameters,
@@ -50,9 +58,42 @@ export interface VerifyOpts {
   ) => Promise<crypto.KeyObject | jose.CryptoKey | Uint8Array>;
 }
 
-// ponytail: in-memory replay cache, single-process. A shared store is needed
-// only if oauth-mcp is scaled to multiple replicas.
+// Replay cache. Process-local by default; attachReplayStorage() makes it survive
+// a restart by mirroring it into the same encrypted store the token store uses.
+// That is still one replica's view: running several oauth-mcp replicas needs a
+// store they all share (the k8s deployment runs exactly one).
 const seenJti = new Map<string, number>();
+const REPLAY_KEY = 'id-jag-replay';
+let replayStorage: ReplayStorage | undefined;
+
+/** The slice of IEncryptedTokenStorage the replay cache needs. */
+export interface ReplayStorage {
+  store(key: string, data: unknown): Promise<void>;
+  retrieve(key: string): Promise<unknown | null>;
+}
+
+function persistReplay(): void {
+  if (!replayStorage) return;
+  replayStorage.store(REPLAY_KEY, Object.fromEntries(seenJti)).catch((err: unknown) => {
+    console.warn(`[IdJag] could not persist replay cache: ${err instanceof Error ? err.message : String(err)}`);
+  });
+}
+
+/** Restore still-live jtis after a restart, then keep the store in step. */
+export async function attachReplayStorage(storage: ReplayStorage): Promise<void> {
+  replayStorage = storage;
+  try {
+    const saved = await storage.retrieve(REPLAY_KEY);
+    if (saved && typeof saved === 'object') {
+      const nowMs = Date.now();
+      for (const [jti, expiresAtMs] of Object.entries(saved as Record<string, number>)) {
+        if (typeof expiresAtMs === 'number' && expiresAtMs > nowMs) seenJti.set(jti, expiresAtMs);
+      }
+    }
+  } catch (err) {
+    console.warn(`[IdJag] could not read persisted replay cache: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
 
 function rememberJti(jti: string, expSeconds: number): void {
   const nowMs = Date.now();
@@ -60,11 +101,13 @@ function rememberJti(jti: string, expSeconds: number): void {
     if (expiresAtMs <= nowMs) seenJti.delete(key);
   }
   seenJti.set(jti, expSeconds * 1000);
+  persistReplay();
 }
 
 /** Test-only: clears the replay cache so each test starts fresh. */
 export function resetReplayCacheForTests(): void {
   seenJti.clear();
+  replayStorage = undefined;
 }
 
 /**
@@ -99,6 +142,19 @@ export async function verifyIdJag(assertion: string, opts: VerifyOpts): Promise<
       `ID-JAG resource "${resource}" is not served by this authorization server`,
       'invalid_target',
     );
+  }
+
+  // Client binding runs BEFORE the jti is consumed: a wrong-client attempt must
+  // not burn a still-valid assertion for its rightful holder.
+  if (opts.clientId !== undefined) {
+    const boundClient = payload.client_id as string | undefined;
+    if (!boundClient) {
+      if (!opts.allowUnboundClient) {
+        throw new IdJagError('ID-JAG carries no client_id; it cannot be bound to the redeeming client');
+      }
+    } else if (boundClient !== opts.clientId) {
+      throw new IdJagError('ID-JAG was issued to a different client');
+    }
   }
 
   const jti = payload.jti as string | undefined;

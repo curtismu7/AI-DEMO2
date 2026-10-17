@@ -27,6 +27,17 @@ branches; it does not gain `oauth-mcp`'s JWKS merely because the gateway has
 one. Before forwarding or exchanging a redeemed token, confirm that the backend
 is configured to verify the issuer/JWKS of the token that will actually arrive.
 
+## Where the redeemed token goes in the default UC40 run
+
+`get_my_accounts` and the other OLB tools route to the `mcp-server` container (built
+from the `oauth-mcp` codebase), not to `demo_mcp_resource_server`. There
+`TokenResolver` sees a token issued by its own embedded AS with no stashed PingOne
+token and passes it through unchanged; `BankingAPIClient` then calls the BFF banking
+API, which verifies it against oauth-mcp's JWKS with an exact issuer check. The
+investment and airlines tools route to `demo_mcp_resource_server` instead, which
+cannot verify an oauth-mcp signature (see below). The ID-JAG itself never leaves
+oauth-mcp and nothing is sent back to PingFederate after redemption.
+
 ## Gateway checks and exchange
 
 `demo_mcp_gateway/src/tokenValidator.ts` chooses a JWKS only as a hint from the

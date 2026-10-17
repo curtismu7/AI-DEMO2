@@ -87,7 +87,7 @@ jest.mock('jose', () => ({
 }));
 
 // eslint-disable-next-line import/first
-import { verifyIdJag, IdJagError, resetReplayCacheForTests } from '../IdJagGrantHandler';
+import { verifyIdJag, IdJagError, resetReplayCacheForTests, attachReplayStorage } from '../IdJagGrantHandler';
 
 const IDP_ISSUER = 'https://idp.ping.demo';
 const AS_ISSUER = 'https://mcpserver.ping.demo:8080';
@@ -128,7 +128,57 @@ function mintIdJag(
 
 beforeEach(() => resetReplayCacheForTests());
 
+describe('replay cache persistence', () => {
+  it('keeps a spent jti spent across a restart', async () => {
+    const saved: Record<string, unknown> = {};
+    const storage = {
+      store: async (k: string, d: unknown) => { saved[k] = JSON.parse(JSON.stringify(d)); },
+      retrieve: async (k: string) => saved[k] ?? null,
+    };
+    await attachReplayStorage(storage);
+    const assertion = mintIdJag();
+    await verifyIdJag(assertion, OPTS());
+    await new Promise((r) => setImmediate(r)); // let the fire-and-forget persist land
+
+    resetReplayCacheForTests(); // the "restart": memory gone, storage kept
+    await attachReplayStorage(storage);
+    await expect(verifyIdJag(assertion, OPTS())).rejects.toThrow(/replay/);
+  });
+
+  it('drops expired entries when restoring', async () => {
+    const storage = {
+      store: async () => undefined,
+      retrieve: async () => ({ 'old-jti': Date.now() - 1000 }),
+    };
+    await attachReplayStorage(storage);
+    await expect(verifyIdJag(mintIdJag({ jti: 'old-jti' }), OPTS())).resolves.toBeDefined();
+  });
+});
+
 describe('verifyIdJag', () => {
+  describe('client binding', () => {
+    it('accepts an assertion issued to the redeeming client', async () => {
+      await expect(verifyIdJag(mintIdJag(), { ...OPTS(), clientId: 'demo-bff-mcp-client' })).resolves.toBeDefined();
+    });
+
+    it('rejects an assertion issued to a different client', async () => {
+      await expect(verifyIdJag(mintIdJag(), { ...OPTS(), clientId: 'other-client' })).rejects.toThrow(/different client/);
+    });
+
+    it('rejects an assertion with no client_id unless explicitly allowed', async () => {
+      await expect(verifyIdJag(mintIdJag({ client_id: undefined }), { ...OPTS(), clientId: 'demo-bff-mcp-client' }))
+        .rejects.toThrow(/no client_id/);
+      await expect(verifyIdJag(mintIdJag({ client_id: undefined }), { ...OPTS(), clientId: 'demo-bff-mcp-client', allowUnboundClient: true }))
+        .resolves.toBeDefined();
+    });
+
+    it('does not burn the jti when the wrong client presents it', async () => {
+      const assertion = mintIdJag();
+      await expect(verifyIdJag(assertion, { ...OPTS(), clientId: 'other-client' })).rejects.toThrow(IdJagError);
+      await expect(verifyIdJag(assertion, { ...OPTS(), clientId: 'demo-bff-mcp-client' })).resolves.toBeDefined();
+    });
+  });
+
   it('accepts a well-formed assertion and returns its claims', async () => {
     const claims = await verifyIdJag(mintIdJag(), OPTS());
     expect(claims.sub).toBe('user-123');

@@ -24,6 +24,7 @@ import { authorizeLastHop } from '../auth/lastHopAuthorization';
 import { runWithCorrelation } from '../utils/correlationContext';
 import { createMtlsVerifier } from '../auth/mtlsMiddleware';
 import { ClientRegistry, TokenStore, OAuthRouter, getEmbeddedSigningKeyManager } from '../oauth';
+import { attachReplayStorage } from '../oauth/IdJagGrantHandler';
 import { register as metricsRegister, mcpMessageDuration } from '../metrics';
 
 export interface ServerConfig {
@@ -155,6 +156,11 @@ export class DemoMCPServer extends EventEmitter {
             `[DemoMCPServer] token store persistence unavailable, continuing in-memory: ${err instanceof Error ? err.message : String(err)}`,
           );
         }
+      }
+      if (clientStoreKey && clientStorePath) {
+        // ID-JAG single-use ids must outlive a restart too, or a restart reopens
+        // the replay window for every assertion still inside its lifetime.
+        await attachReplayStorage(new EncryptedTokenStorage(clientStorePath, clientStoreKey));
       }
       this.oauthRouter = new OAuthRouter(signingKeyManager, clientRegistry, tokenStore);
       // Lets TokenResolver find the real PingOne token stashed against a
