@@ -10,7 +10,11 @@ type Phase =
   | "expired"
   | "error";
 
+type Channel = "email" | "sms";
+
 interface Props {
+  /** Delivery channel under test: each has its own PingOne CIBA app + DaVinci flow. */
+  channel: Channel;
   /** Pre-filled from the user selected on the page. */
   loginHint?: string;
 }
@@ -18,21 +22,37 @@ interface Props {
 const PHASE_LABEL: Record<Phase, string> = {
   idle: "Not started",
   starting: "Starting…",
-  pending: "Waiting for approval — click the link in the email",
+  pending: "Waiting for approval",
   approved: "Approved",
   denied: "Denied",
   expired: "Expired",
   error: "Error",
 };
 
+// Same status vocabulary as MFATestCard so the pill looks like every other test on the page.
+const CARD_STATUS: Record<Phase, "pending" | "running" | "passed" | "failed"> = {
+  idle: "pending",
+  starting: "running",
+  pending: "running",
+  approved: "passed",
+  denied: "failed",
+  expired: "failed",
+  error: "failed",
+};
+const CARD_STATUS_LABEL = { pending: "Pending", running: "Testing", passed: "Passed", failed: "Failed" };
+
+const HOW_IT_ARRIVES: Record<Channel, string> = {
+  email: "PingOne runs the email-only DaVinci flow and emails an approval link.",
+  sms: "PingOne runs the SMS-only DaVinci flow and texts an approval link to the user's Mobile phone.",
+};
+
 /**
- * CIBA (email-link approval) test: initiate against the real BFF route, then
- * poll until the user approves. Same endpoints the step-up picker uses.
+ * One CIBA test card: initiate against the real BFF route, then poll until the
+ * user approves. Same endpoints the step-up picker uses.
  */
-const MFATestCibaSection: FC<Props> = ({ loginHint = "" }) => {
+const MFATestCibaSection: FC<Props> = ({ channel, loginHint = "" }) => {
   const [hint, setHint] = useState(loginHint);
   const [message, setMessage] = useState("Approve");
-  const [channel, setChannel] = useState<"email" | "sms">("email");
   const [phase, setPhase] = useState<Phase>("idle");
   const [detail, setDetail] = useState("");
   const [authReqId, setAuthReqId] = useState("");
@@ -123,79 +143,104 @@ const MFATestCibaSection: FC<Props> = ({ loginHint = "" }) => {
   };
 
   const busy = phase === "starting" || phase === "pending";
+  const status = CARD_STATUS[phase];
 
   return (
-    <section className="mfa-test-section" data-testid="mfa-ciba-section">
-      <h2 className="mfa-test-section-title">CIBA (Email Link) Testing</h2>
+    <div className={`mfa-test-card mfa-test-card--${status}`} data-testid={`mfa-ciba-${channel}`}>
+      <div className="mfa-test-card__api-preview">
+        <div className="mfa-test-card__api-header">
+          <span className="mfa-test-card__method mfa-test-card__method--post">POST</span>
+          <code className="mfa-test-card__endpoint">/api/auth/ciba/initiate</code>
+          <a
+            href="https://developer.pingidentity.com/pingone-api/auth/openid-connect-oauth-2/client-initiated-backchannel-auth.html"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="mfa-test-card__docs-link"
+            title="PingOne CIBA — initiate"
+          >
+            Docs
+          </a>
+        </div>
+      </div>
+
       <p className="info-text">
-        Client-initiated backchannel authentication: the BFF calls{" "}
-        <code>POST /api/auth/ciba/initiate</code>, PingOne runs the DaVinci CIBA flow and emails an
-        approval link, and the BFF polls <code>GET /api/auth/ciba/poll/:id</code> until it is
-        approved. Nothing redirects back to this page.
+        {HOW_IT_ARRIVES[channel]} The BFF then polls <code>GET /api/auth/ciba/poll/:id</code> until it
+        is approved. Nothing redirects back to this page.
       </p>
-      <label className="ciba-label" style={{ display: "block", marginBottom: "0.5rem" }}>
-        Login hint (email or username)
+
+      <div style={{ marginBottom: "0.75rem" }}>
+        <div className="config-label">Login hint (email or username)</div>
         <input
-          className="ciba-input"
-          style={{ display: "block", width: "100%" }}
+          type="text"
+          className="otp-input"
+          style={{ width: "100%", fontSize: "1rem" }}
           value={hint}
           onChange={(e) => setHint(e.target.value)}
           placeholder="user@example.com"
           data-testid="mfa-ciba-hint"
         />
-      </label>
-      <label className="ciba-label" style={{ display: "block", marginBottom: "0.75rem" }}>
-        Binding message (shown in the email, max 8 characters)
+      </div>
+      <div style={{ marginBottom: "0.75rem" }}>
+        <div className="config-label">Binding message (shown with the link, max 8 characters)</div>
         <input
-          className="ciba-input"
-          style={{ display: "block", width: "100%" }}
+          type="text"
+          className="otp-input"
+          style={{ width: "100%", fontSize: "1rem" }}
           value={message}
           maxLength={8}
           onChange={(e) => setMessage(e.target.value)}
           data-testid="mfa-ciba-message"
         />
-      </label>
-      <label className="ciba-label" style={{ display: "block", marginBottom: "0.75rem" }}>
-        Deliver the approval link by
-        <select
-          className="ciba-input"
-          style={{ display: "block", width: "100%" }}
-          value={channel}
-          onChange={(e) => setChannel(e.target.value === "sms" ? "sms" : "email")}
-          disabled={busy}
-          data-testid="mfa-ciba-channel"
-        >
-          <option value="email">Email</option>
-          <option value="sms">Text message (SMS)</option>
-        </select>
-      </label>
-      <button
-        type="button"
-        className="mfa-test-btn"
-        onClick={start}
-        disabled={busy}
-        data-testid="mfa-ciba-start"
-      >
-        {busy ? "Waiting…" : "Send CIBA approval request"}
-      </button>
-      {busy && (
-        <button type="button" className="mfa-test-btn" style={{ marginLeft: "0.5rem" }} onClick={() => { stop(); setPhase("idle"); }}>
-          Cancel
-        </button>
-      )}
-      <div style={{ marginTop: "0.75rem" }} data-testid="mfa-ciba-status">
-        <strong>Status:</strong> {PHASE_LABEL[phase]}
-        {phase === "pending" && secondsLeft > 0 && <> ({secondsLeft}s left)</>}
-        {detail && <div>{detail}</div>}
-        {authReqId && (
-          <div style={{ fontSize: "0.85em" }}>
-            auth_req_id: <code>{authReqId.slice(0, 8)}…</code>
-            {sentMessage && <> · message sent: <code>{sentMessage}</code></>}
-            {engine && <> · engine: <code>{engine}</code></>}
-          </div>
-        )}
       </div>
-    </section>
+
+      <div className="mfa-test-card__actions">
+        <button
+          type="button"
+          className="mfa-test-button mfa-test-button--primary"
+          onClick={start}
+          disabled={busy}
+          data-testid="mfa-ciba-start"
+        >
+          {busy ? "Waiting…" : channel === "sms" ? "Send text approval" : "Send email approval"}
+        </button>
+        {busy && (
+          <button
+            type="button"
+            className="mfa-test-button mfa-test-button--secondary"
+            onClick={() => {
+              stop();
+              setPhase("idle");
+            }}
+          >
+            Cancel
+          </button>
+        )}
+        <span className={`mfa-test-card__status mfa-test-card__status--${status}`} data-testid="mfa-ciba-status">
+          {CARD_STATUS_LABEL[status]}: {PHASE_LABEL[phase]}
+          {phase === "pending" && secondsLeft > 0 ? ` (${secondsLeft}s left)` : ""}
+        </span>
+      </div>
+
+      {(detail || authReqId) && (
+        <div className={`mfa-test-card__results mfa-test-card__results--${status}`}>
+          {status === "passed" && <div className="mfa-test-card__success-badge">Success</div>}
+          {status === "failed" && detail && (
+            <div className="mfa-test-card__error-message">
+              <strong>Error:</strong> {detail}
+            </div>
+          )}
+          {status === "passed" && detail && <div className="mfa-test-card__success-message">{detail}</div>}
+          {authReqId && (
+            <div className="test-card-raw-json" style={{ fontSize: "0.85rem" }}>
+              auth_req_id: {authReqId.slice(0, 8)}…
+              {sentMessage ? ` · message sent: ${sentMessage}` : ""}
+              {engine ? ` · engine: ${engine}` : ""}
+              {` · channel: ${channel}`}
+            </div>
+          )}
+        </div>
+      )}
+    </div>
   );
 };
 
