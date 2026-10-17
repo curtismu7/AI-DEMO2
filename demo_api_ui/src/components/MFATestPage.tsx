@@ -24,6 +24,20 @@ import { useThemeOptional } from "../context/ThemeContext";
 import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 import { openSignIn } from "../utils/signInService";
 
+// Explanatory only (no live data), so it also renders signed out: the Learning Hub card and
+// /diagrams link to /mfa-test#ciba-diagram.
+const CibaDiagramSection: FC = () => (
+  <section className="mfa-test-section" id="ciba-diagram">
+    <h2 className="mfa-test-section-title">CIBA Approval Link: How It Works</h2>
+    <EmbeddedFlowDiagram
+      config={CIBA_LINK_DIAGRAM}
+      title="CIBA approval link"
+      lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Orange edges are the PingFederate path. Click a step to follow it."
+      testId="mfa-ciba-diagram"
+    />
+  </section>
+);
+
 interface PingOneUser {
   id: string;
   username: string;
@@ -1349,11 +1363,12 @@ const MFATestPageContent: FC = () => {
           <button
             type="button"
             className="mfa-test-button mfa-test-button--primary"
-            onClick={() => openSignIn({ returnTo: window.location.pathname })}
+            onClick={() => openSignIn({ returnTo: window.location.pathname + window.location.hash })}
           >
             Sign in
           </button>
         </div>
+        <CibaDiagramSection />
       </div>
     );
   }
@@ -2583,15 +2598,7 @@ const MFATestPageContent: FC = () => {
           )}
         </section>
 
-        <section className="mfa-test-section" id="ciba-diagram">
-          <h2 className="mfa-test-section-title">CIBA Approval Link: How It Works</h2>
-          <EmbeddedFlowDiagram
-            config={CIBA_LINK_DIAGRAM}
-            title="CIBA approval link"
-            lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Orange edges are the PingFederate path. Click a step to follow it."
-            testId="mfa-ciba-diagram"
-          />
-        </section>
+        <CibaDiagramSection />
 
         {(["email", "sms"] as const).map((ch) => (
           <section className="mfa-test-section" key={`ciba-${ch}`}>

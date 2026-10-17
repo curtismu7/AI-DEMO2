@@ -41,6 +41,13 @@ describe('MFATestPage when signed out', () => {
     expect(mockOpenSignIn).toHaveBeenCalledWith({ returnTo: window.location.pathname });
   });
 
+  test('signed out, the CIBA diagram still shows (Learning Hub and /diagrams link here)', async () => {
+    configError = { response: { status: 401 } };
+    render(<MFATestPage />);
+    expect(await screen.findByTestId('mfa-test-signin-required')).toBeInTheDocument();
+    expect(screen.getByTestId('mfa-ciba-diagram')).toBeInTheDocument();
+  });
+
   test('other config failures still show the error with Retry', async () => {
     configError = Object.assign(new Error('Network down'), { response: { status: 500 } });
     render(<MFATestPage />);
