@@ -29,6 +29,17 @@ function mockBff({ config, login, credentials, assertion, passwordless, identifi
   });
 }
 
+
+// The modal opens on a choice screen (passkey / CIBA / password) for both roles;
+// the pre-existing tests exercise the passkey (device-first, customer) and password
+// (admin) paths, so they click through. No-op when no choice screen is shown
+// (PingFederate, ?signin=mfa keep their legacy first step).
+function skipChoice(kind) {
+  const label = kind === 'password' ? 'Use a password instead' : 'Sign in with passkey';
+  const btn = screen.queryByRole('button', { name: label });
+  if (btn) fireEvent.click(btn);
+}
+
 const ON = { PINGONE_USER_AUTHORIZE_PI_FLOW: 'true', oauth_provider: 'pingone' };
 
 describe('PiFlowSignInModal', () => {
@@ -55,6 +66,9 @@ describe('PiFlowSignInModal', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
     await act(async () => { await Promise.resolve(); });
     await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
+    skipChoice('passkey');
+    // the chosen path opens its flow now (not in begin()): let that fetch settle
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
   }
 
   // The modal's default step is the device-only (passwordless) form. Tests that
@@ -242,6 +256,9 @@ describe('PiFlowSignInModal', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
     await act(async () => { await Promise.resolve(); });
     await act(async () => { navigateToCustomerOAuthForceLogin('/dashboard'); });
+    skipChoice('passkey');
+    // the chosen path opens its flow now (not in begin()): let that fetch settle
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
     fireEvent.click(await screen.findByRole('button', { name: 'Use your password instead' }));
     await waitFor(() => expect(screen.getByLabelText('Password')).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
@@ -421,6 +438,9 @@ describe('PiFlowSignInModal', () => {
       await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
       await act(async () => { await Promise.resolve(); });
       await act(async () => { navigateToAdminOAuthLogin('/admin'); });
+    skipChoice('password');
+    // the chosen path opens its flow now (not in begin()): let that fetch settle
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
     }
 
     test('admin flag on: opens the PASSWORD form (username+password then MFA), no passwordless param', async () => {
@@ -466,6 +486,9 @@ describe('PiFlowSignInModal', () => {
       // until the config chain has settled before dispatching.
       await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
       await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
+    skipChoice('passkey');
+    // the chosen path opens its flow now (not in begin()): let that fetch settle
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
       expect(await screen.findByLabelText('Username')).toBeInTheDocument();
     });
 
@@ -605,6 +628,9 @@ describe('PiFlowSignInModal', () => {
       await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
       await act(async () => { await Promise.resolve(); });
       await act(async () => { navigateToAdminOAuthLogin('/admin'); });
+    skipChoice('password');
+    // the chosen path opens its flow now (not in begin()): let that fetch settle
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
       // Admin defaults to the password form (password-first, then MFA).
       fireEvent.change(await screen.findByLabelText('Password'), { target: { value: 'pw' } });
       fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demoAdmin' } });
@@ -789,12 +815,18 @@ async function mountAndClickLocal() {
   await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
   await act(async () => { await Promise.resolve(); });
   await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
+  skipChoice('passkey');
+  // the chosen path opens its flow now (not in begin()): let that fetch settle
+  await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
 }
 async function mountAndClickAdminLocal() {
   render(<PiFlowSignInModal />);
   await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
   await act(async () => { await Promise.resolve(); });
   await act(async () => { navigateToAdminOAuthLogin('/admin'); });
+  skipChoice('password');
+  // the chosen path opens its flow now (not in begin()): let that fetch settle
+  await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
 }
 
 function stubLocation() {
@@ -965,5 +997,104 @@ describe('PiFlowSignInModal review-fix pins', () => {
     const open = global.fetch.mock.calls.find(([u]) => String(u).includes('/login?') && String(u).includes('pi_flow=1'));
     expect(String(open[0])).toContain('mfa=1');
     expect(String(open[0])).not.toContain('passwordless=1');
+  });
+});
+
+// Passwordless sign-in project: the modal opens on a choice screen.
+describe('PiFlowSignInModal choice screen (passkey / CIBA / password)', () => {
+  let assign;
+  beforeEach(() => { assign = stubLocation(); });
+
+  const ADMIN_ON = { ...ON, PINGONE_ADMIN_AUTHORIZE_PI_FLOW: 'true' };
+  const START = { authReqId: 'b'.repeat(48), matchCode: 'Q9-17', expiresIn: 120, interval: 2 };
+
+  function mockChoiceBff({ config = ADMIN_ON, passwordless, poll } = {}) {
+    global.fetch = vi.fn((url) => {
+      const u = String(url);
+      if (u.includes('/api/admin/config')) return ok({ config });
+      if (u.includes('/identifier-policy')) return ok({ rejectPlusAddressing: false, allowedIdentifiers: [] });
+      if (u.includes('/ciba/login/start')) return ok(START);
+      if (u.includes('/ciba/login/poll/')) return poll ? poll() : ok({ status: 'pending' });
+      if (u.includes('/pi-flow/passwordless')) return passwordless ? passwordless() : ok({}, 404);
+      if (u.includes('/login')) return ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' });
+      return ok({}, 404);
+    });
+  }
+
+  async function open(role) {
+    render(<PiFlowSignInModal />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+    await act(async () => { (role === 'admin' ? navigateToAdminOAuthLogin : navigateToCustomerOAuthLogin)('/x'); });
+  }
+
+  test.each(['customer', 'admin'])('%s: both buttons up front and no password field', async (role) => {
+    mockChoiceBff();
+    await open(role);
+    expect(screen.getByRole('button', { name: 'Sign in with passkey' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in with CIBA (email or SMS)' })).toBeInTheDocument();
+    expect(screen.queryByLabelText('Password')).toBeNull();
+    // no flow is opened until a button is chosen
+    expect(global.fetch.mock.calls.some(([u]) => String(u).includes('pi_flow=1'))).toBe(false);
+  });
+
+  test.each(['customer', 'admin'])('%s: "Use a password instead" reaches the existing password step', async (role) => {
+    mockChoiceBff();
+    await open(role);
+    fireEvent.click(screen.getByRole('button', { name: 'Use a password instead' }));
+    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+    const open1 = global.fetch.mock.calls.find(([u]) => String(u).includes('pi_flow=1'));
+    expect(String(open1[0])).not.toContain('passwordless=1');
+  });
+
+  test('customer passkey button opens the passwordless flow and device step', async () => {
+    mockChoiceBff();
+    await open('customer');
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with passkey' }));
+    expect(await screen.findByLabelText('Username')).toBeInTheDocument();
+    const o = global.fetch.mock.calls.find(([u]) => String(u).includes('pi_flow=1'));
+    expect(String(o[0])).toContain('passwordless=1');
+  });
+
+  test('admin passkey rejected by policy (409) falls back to the password form with its message', async () => {
+    mockChoiceBff({ passwordless: () => ok({ error: 'passwordless_unavailable', message: 'Admin needs a password.' }, 409) });
+    await open('admin');
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with passkey' }));
+    fireEvent.change(await screen.findByLabelText('Username'), { target: { value: 'demoAdmin' } });
+    fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).pop());
+    expect(await screen.findByText(/Admin needs a password/)).toBeInTheDocument();
+    expect(screen.getByLabelText('Password')).toBeInTheDocument();
+  });
+
+  test('CIBA path: identifier, channel, match code; approved navigates to redirectTo', async () => {
+    let approved = false;
+    mockChoiceBff({ poll: () => ok(approved ? { status: 'approved', redirectTo: 'https://app.test/cb?code=1' } : { status: 'pending' }) });
+    await open('customer');
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with CIBA (email or SMS)' }));
+    fireEvent.change(screen.getByLabelText(/username or email/i), { target: { value: 'demo@x.com' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    expect(screen.getByRole('button', { name: 'Text message' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Email' }));
+    expect(await screen.findByText('Q9-17')).toBeInTheDocument();
+    const start = global.fetch.mock.calls.find(([u]) => String(u).includes('/ciba/login/start'));
+    expect(JSON.parse(start[1].body)).toEqual({ identifier: 'demo@x.com', channel: 'email', role: 'customer' });
+    approved = true;
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/cb?code=1'), { timeout: 4000 });
+  });
+
+  test('CIBA Back returns to the choice screen', async () => {
+    mockChoiceBff();
+    await open('customer');
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in with CIBA (email or SMS)' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Back' }));
+    expect(screen.getByRole('button', { name: 'Sign in with passkey' })).toBeInTheDocument();
+  });
+
+  test('PingFederate: neither new button renders; password-first as before', async () => {
+    mockChoiceBff({ config: { ...ON, oauth_provider: 'pingfederate' } });
+    await open('customer');
+    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Sign in with passkey' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Sign in with CIBA (email or SMS)' })).toBeNull();
   });
 });
