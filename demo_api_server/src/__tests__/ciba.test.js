@@ -34,6 +34,10 @@ jest.mock('../../services/cibaService', () => ({
   availableChannels:       jest.fn(() => ['email', 'sms']),
 }));
 
+jest.mock('../../services/verticalManifest', () => ({
+  verticalManifest: { resolver: { activeIdFor: () => 'banking' } },
+}));
+
 jest.mock('../../services/cibaSimulatedService', () => ({
   initiateSimulated: jest.fn(),
   isSimulatedApproved: jest.fn(),
@@ -213,7 +217,7 @@ describe('POST /api/auth/ciba/initiate', () => {
     expect(sms.status).toBe(200);
     expect(sms.body.channel).toBe('sms');
     expect(cibaService.initiateBackchannelAuth).toHaveBeenLastCalledWith(
-      'u1', 'Approve', expect.any(String), expect.any(String), 'sms', null,
+      'u1', 'Approve', expect.any(String), expect.any(String), 'sms', 'banking',
     );
 
     const other = await request(buildApp())
@@ -222,7 +226,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       .send({ binding_message: 'Approve', channel: 'carrier-pigeon' });
     expect(other.body.channel).toBe('email');
     expect(cibaService.initiateBackchannelAuth).toHaveBeenLastCalledWith(
-      'u1', 'Approve', expect.any(String), expect.any(String), 'email', null,
+      'u1', 'Approve', expect.any(String), expect.any(String), 'email', 'banking',
     );
   });
 
@@ -247,7 +251,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       expect.any(String),
       expect.any(String),
       'email',
-      null,
+      'banking',
     );
   });
 
@@ -264,7 +268,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       expect.any(String),
       expect.any(String),
       'email',
-      null,
+      'banking',
     );
   });
 
@@ -275,7 +279,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       .send({ binding_message: 'Approve' });
     expect(res.status).toBe(200);
     expect(cibaService.initiateBackchannelAuth).toHaveBeenLastCalledWith(
-      'u2', 'Approve', expect.any(String), expect.any(String), 'email', null,
+      'u2', 'Approve', expect.any(String), expect.any(String), 'email', 'banking',
     );
   });
 
@@ -306,7 +310,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       expect.any(String),
       expect.any(String),
       'email',
-      null,
+      'banking',
     );
   });
 
@@ -398,7 +402,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       'openid profile email write',
       'Multi_factor',
       'email',
-      null,
+      'banking',
     );
   });
 
@@ -531,7 +535,7 @@ describe('POST /api/auth/ciba/initiate', () => {
         expect.any(String),
         expect.any(String),
         'email',
-        null,
+        'banking',
       );
     });
 
@@ -547,7 +551,7 @@ describe('POST /api/auth/ciba/initiate', () => {
         'openid profile',
         'Multi_factor',
         'email',
-        null,
+        'banking',
       );
     });
 
