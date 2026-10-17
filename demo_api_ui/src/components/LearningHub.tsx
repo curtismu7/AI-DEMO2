@@ -54,6 +54,16 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "PAR (RFC 9126)": { status: "SIMULATED", keywords: ["request_uri", "authorization request", "PKCE"], lab: "par" },
   "RAR (RFC 9396)": { status: "SIMULATED", keywords: ["authorization_details", "transaction", "amount", "payee"], lab: "rar" },
   "JWT Client Auth (RFC 7523)": { status: "SIMULATED", keywords: ["private_key_jwt", "client assertion", "token endpoint"], lab: "jwt-client-auth" },
+  "Group Policy Board": { status: "LIVE" },
+  "Transaction Consent": { status: "LIVE" },
+  "AIC Token Exchange": { status: "LIVE" },
+  "Jev Demo Gallery": { status: "LIVE" },
+  "MCP Observability": { status: "LIVE" },
+  "Dot Personal Agent": { status: "LIVE" },
+  "Personal Agent Studio": { status: "LIVE" },
+  "Delegated Commerce": { status: "LIVE" },
+  "Delegation Chain Value": { status: "LIVE" },
+  "Hosted Access Registration": { status: "LIVE" },
   "Step-up MFA": { status: "SIMULATED", keywords: ["strong authentication", "challenge", "sensitive action"], lab: "step-up" },
 };
 
@@ -138,6 +148,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Agentic Maturity Model",
         description: "Understand agent development stages",
         icon: "📊",
+      },
+      {
+        label: "Hosted Access Registration",
+        description: "Request, email code, invite and admin approval into the hosted-access group",
+        icon: "",
       },
     ],
   },
@@ -252,6 +267,16 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         icon: "👤",
         demoStep: { useCaseId: "UC43" },
       },
+      {
+        label: "Group Policy Board",
+        description: "One PingOne Authorize decision per vertical, and how flipping group membership flips it",
+        icon: "",
+      },
+      {
+        label: "Transaction Consent",
+        description: "Mock CIBA on a phone, and the real deep-link approval path",
+        icon: "",
+      },
     ],
   },
   {
@@ -338,6 +363,36 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Shadow AI Detector",
         description: "What the browser extension observes about AI usage, OAuth agents, and sensitive data flows",
         icon: "🔍",
+      },
+      {
+        label: "Jev Demo Gallery",
+        description: "Eight demos of how a locked scenario gets Jev's answer beside a keyword baseline",
+        icon: "",
+      },
+      {
+        label: "MCP Observability",
+        description: "Audit events, health, gateway metrics and the chain-of-custody trace in one view",
+        icon: "",
+      },
+      {
+        label: "Dot Personal Agent",
+        description: "One message through the BFF, intent gate, agent run and governed tool call",
+        icon: "",
+      },
+      {
+        label: "Personal Agent Studio",
+        description: "How a personal-agent request is governed: three gates, MFA and approval detours",
+        icon: "",
+      },
+      {
+        label: "Delegated Commerce",
+        description: "Register, consent, protected call, approval and revoke for a delegated shopping agent",
+        icon: "",
+      },
+      {
+        label: "Delegation Chain Value",
+        description: "Two-agent token chain with nested act claims, and the identity-mismatch probe",
+        icon: "",
       },
     ],
   },
@@ -561,6 +616,7 @@ export default function LearningHub() {
   const categoryActionMap = useMemo(
     () => ({
     "getting-started": {
+      "Hosted Access Registration": () => navigate("/request-access"),
       "Guided Demo Tour": () => tour.start(),
       "Welcome Wizard": () =>
         window.dispatchEvent(new CustomEvent("welcome-wizard:open")),
@@ -569,6 +625,9 @@ export default function LearningHub() {
         openEdu(EDU.AGENTIC_MATURITY, "overview"),
     },
     "oauth-identity": {
+      "AIC Token Exchange": () => navigate("/aic-token-exchange"),
+      "Transaction Consent": () => navigate("/transaction-consent"),
+      "Group Policy Board": () => navigate("/group-policy"),
       "Auth Code + PKCE": () => openEdu(EDU.LOGIN_FLOW, "what"),
       "PKCE Deep Dive": () => openEdu(EDU.LOGIN_FLOW, "pkce"),
       "CIBA (OOB)": () =>
@@ -587,6 +646,12 @@ export default function LearningHub() {
       "OAuth: CIMD": () => navigate("/cimd-privilege"),
     },
     "mcp-agents": {
+      "Delegation Chain Value": () => navigate("/delegation-chain-value"),
+      "Delegated Commerce": () => navigate("/delegation"),
+      "Personal Agent Studio": () => navigate("/personal-agent"),
+      "Dot Personal Agent": () => navigate("/personal-agent/dot"),
+      "MCP Observability": () => navigate("/mcp-observability"),
+      "Jev Demo Gallery": () => navigate("/jev-demos"),
       "MCP Protocol": () => openEdu(EDU.MCP_PROTOCOL, "what"),
       "Agent-to-Agent (A2A)": () => navigate("/a2a-protocol-learning"),
       "Jev: Decision Model": () => navigate("/jev-learning"),
