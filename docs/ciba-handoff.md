@@ -52,19 +52,21 @@ Flow files for import are generated from the original sample export; both flows 
 - Hosted site (`ai-demo.ping-devops.com`): config lives in `ai-demo-secrets` / `ai-demo-config`. The API server has two single-attach volumes, so a restart waits about two minutes (Multi-Attach warnings are normal). Merging does not deploy; images are built by CI and rolled with `kubectl set image`.
 - Hosted API pod log shows `[CIBA] ... configured` at startup and `[CIBA] invalid identity result: <reason>` on a rejected approval.
 
-## State at handoff (2026-10-17, about 12:15 UTC)
+## State at handoff (2026-10-17, about 12:18 UTC)
 
-Merged: #1420, #1430, #1439, #1445, #1448, #1449. Open: **#1453** (login hint = PingOne ID, "sent" banner, clearer errors); its API tests and hygiene gates pass, UI tests were still running.
+Merged: #1420, #1430, #1439, #1445, #1448, #1449, **#1453** (merge commit `9f2492a4d66650dcf607537b8396d5ffe14d3fbc`: login hint = PingOne ID, "sent" banner, clearer errors). The main checkout is synced to it. Both DaVinci flows are deployed (see step 1 below).
 
-Live on hosted: both CIBA apps' credentials set, `CIBA_LOCAL_SIMULATION=false`, the picker rows, styled test cards. Hosted API server image `sha-3dc16e6d` (has the channel code, not #1453); frontend `sha-3426a5eb` (rolled by another session after ours; it is a descendant of #1449).
+**Not yet rolled to hosted.** The "Build images" run for `9f2492a4` was still in progress. Hosted today: API server `sha-3dc16e6d` (has the channel code, not #1453), frontend `sha-3426a5eb` (rolled by another session after ours; a descendant of #1449, not of #1453). Until both are rolled, the hosted app still sends the email as the login hint and will reject approvals for an account that shares the email.
 
-Last hosted test: real CIBA worked (`engine: pingone`, email approved) but the poll returned 502 `ciba_token_invalid` = "CIBA subject does not match the initiating user" (the shared-email hint problem, fixed in #1453).
+Live on hosted already: both CIBA apps' credentials set, `CIBA_LOCAL_SIMULATION=false`, picker rows, styled test cards.
+
+Last hosted test (before #1453): real CIBA worked (`engine: pingone`, email approved) but the poll returned 502 `ciba_token_invalid` = "CIBA subject does not match the initiating user" (the shared-email hint problem, fixed in #1453 plus the flow filter).
 
 ### Next steps, in order
 
 1. **DONE 2026-10-17 12:15 UTC: both flows deployed** (`CIBA flow - email only` and `CIBA flow - SMS only`, published v2, lookup `(id eq "<hint>") or (username eq "<hint>")`; `DAVINCI_FLOW.DEPLOYED` audit events at 12:15:27 and 12:15:31). Verified directly against PingOne: a PingOne **user ID** hint returns 200 on both apps, a username hint still returns 200, an unknown ID returns 400 "User does not exist or is disabled". If you ever edit a flow, reload it in the editor before deploying so a stale tab cannot overwrite the draft.
-2. **Merge #1453** after its UI tests pass. Merging does not deploy.
-3. **Roll the hosted API server and frontend** to the merge build: confirm the "Build images" run for the merge commit succeeded, check the live tag is an ancestor, re-read the pin right before rolling (other sessions roll too), `kubectl -n ping-devops-cmuir set image deploy/<name> <container>=ghcr.io/cmuir_pingcorp/<image>:sha-<full merge sha>`, wait for `rollout status`. Image names: `ai-demo-frontend`, `ai-demo-demo-api-server` (container `api-server`).
+2. **DONE: #1453 merged.** Merging does not deploy.
+3. **TO DO: roll the hosted API server and frontend** to the `9f2492a4` build (or a newer descendant): confirm the "Build images" run for the merge commit succeeded, check the live tag is an ancestor, re-read the pin right before rolling (other sessions roll too), `kubectl -n ping-devops-cmuir set image deploy/<name> <container>=ghcr.io/cmuir_pingcorp/<image>:sha-<full merge sha>`, wait for `rollout status`. Image names: `ai-demo-frontend`, `ai-demo-demo-api-server` (container `api-server`).
 4. **Verify on hosted** (signed in; `/mfa-test`, both cards): `engine: pingone`, an id not starting with `sim-`, one email or one text, approval ends "Passed: Approved". Read `CIBA_AUTHENTICATION.SUCCEEDED` for the signed-in user's id in the audit log.
 5. **Push this doc** (committed locally on the CIBA branch, not pushed to avoid restarting CI on #1453) as its own PR.
 
