@@ -52,11 +52,27 @@ Flow files for import are generated from the original sample export; both flows 
 - Hosted site (`ai-demo.ping-devops.com`): config lives in `ai-demo-secrets` / `ai-demo-config`. The API server has two single-attach volumes, so a restart waits about two minutes (Multi-Attach warnings are normal). Merging does not deploy; images are built by CI and rolled with `kubectl set image`.
 - Hosted API pod log shows `[CIBA] ... configured` at startup and `[CIBA] invalid identity result: <reason>` on a rejected approval.
 
-## State at handoff
+## State at handoff (2026-10-17, about 12:15 UTC)
 
-Merged: #1420, #1430, #1439, #1445, #1448, #1449. Open: **#1453** (login hint = PingOne ID, "sent" banner, clearer errors). Live on hosted: both CIBA apps' credentials set, simulation off, picker rows, styled test cards.
+Merged: #1420, #1430, #1439, #1445, #1448, #1449. Open: **#1453** (login hint = PingOne ID, "sent" banner, clearer errors); its API tests and hygiene gates pass, UI tests were still running.
 
-Rollout order for #1453: deploy both flows (draft v2 saved with the id-or-username filter), then merge, then roll hosted API server and frontend.
+Live on hosted: both CIBA apps' credentials set, `CIBA_LOCAL_SIMULATION=false`, the picker rows, styled test cards. Hosted API server image `sha-3dc16e6d` (has the channel code, not #1453); frontend `sha-3426a5eb` (rolled by another session after ours; it is a descendant of #1449).
+
+Last hosted test: real CIBA worked (`engine: pingone`, email approved) but the poll returned 502 `ciba_token_invalid` = "CIBA subject does not match the initiating user" (the shared-email hint problem, fixed in #1453).
+
+### Next steps, in order
+
+1. **Deploy both flows in DaVinci.** `CIBA flow - email only` and `CIBA flow - SMS only` each have a saved draft v2 (lookup `(id eq "<hint>") or (username eq "<hint>")`) but are still published at v1. Check with the API (`publishedVersion` = 2, a `DAVINCI_FLOW.DEPLOYED` audit event). Reload the flow in the editor before deploying so a stale tab cannot overwrite the draft.
+2. **Merge #1453** after its UI tests pass. Merging does not deploy.
+3. **Roll the hosted API server and frontend** to the merge build: confirm the "Build images" run for the merge commit succeeded, check the live tag is an ancestor, re-read the pin right before rolling (other sessions roll too), `kubectl -n ping-devops-cmuir set image deploy/<name> <container>=ghcr.io/cmuir_pingcorp/<image>:sha-<full merge sha>`, wait for `rollout status`. Image names: `ai-demo-frontend`, `ai-demo-demo-api-server` (container `api-server`).
+4. **Verify on hosted** (signed in; `/mfa-test`, both cards): `engine: pingone`, an id not starting with `sim-`, one email or one text, approval ends "Passed: Approved". Read `CIBA_AUTHENTICATION.SUCCEEDED` for the signed-in user's id in the audit log.
+5. **Push this doc** (committed locally on the CIBA branch, not pushed to avoid restarting CI on #1453) as its own PR.
+
+### Test accounts (same PingOne environment)
+
+- `1aee74ae-3d09-4bcf-a69f-7e1bc225b761`: username equals `cmuir+demo-user@pingone.com`, profile Mobile phone set.
+- `1583af47-d9f3-49cf-b75d-989ba051796a`: username `demoUser`, same email as above, Mobile phone set, two duplicate SMS MFA devices (harmless).
+- `85abea5b-70a9-4d50-9250-1d5366bfa5d2`: `demoAdmin`, placeholder phone (texts fail at the carrier).
 
 ## Not done
 
