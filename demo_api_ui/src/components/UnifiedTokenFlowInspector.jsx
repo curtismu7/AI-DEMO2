@@ -797,9 +797,6 @@ function OAuthInspectorSection({ selectedToken, onOpenClaimsModal, activeTab }) 
                   <div className="utfi-rfc-inline-hint utfi-rfc-inline-hint--good">✅ RFC 8693 §4.2 — may_act present. The BFF (client_id above) is pre-authorized to call Token Exchange on this user&apos;s behalf and obtain a delegated MCP token.</div>
                 </>
               )}
-              {!payload.may_act && payload.sub && (
-                <div className="utfi-rfc-inline-hint">⚠️ RFC 8693 §4.2 — may_act absent. Token Exchange will fall back to subject-only mode (no act claim in MCP token, weaker delegation proof). Enable may_act in PingOne for full delegation.</div>
-              )}
               {payload.act && (
                 <div className="utfi-act-chain">
                   <span className="utfi-act-chain-label" title={CLAIM_GLOSSARY.act}>Actor chain (act) — RFC 8693 §4.1</span>

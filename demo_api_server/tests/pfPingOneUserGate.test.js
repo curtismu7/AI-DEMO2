@@ -80,7 +80,8 @@ describe('agent grant and revoke under a PingFederate sign-in', () => {
   beforeEach(() => {
     jest.clearAllMocks();
     getEffective = jest.spyOn(configStore, 'getEffective')
-      .mockImplementation((key) => (key === 'ai_agent_client_id' ? 'agent-uuid' : null));
+      // The PingOne account is only needed to carry the legacy may_act attribute (ff_may_act_seed ON).
+      .mockImplementation((key) => ({ ai_agent_client_id: 'agent-uuid', ff_may_act_seed: 'true' }[key] || null));
     fetchPingOneUserByUsername.mockResolvedValue({ user: { id: 'p1-uuid' }, error: null });
   });
 

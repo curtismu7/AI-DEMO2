@@ -406,9 +406,11 @@ class PingOneUserService {
   }
 
   /**
-   * Set mayAct custom attribute on user
+   * Set mayAct custom attribute on user. A no-op unless ff_may_act_seed is ON: the claim is not
+   * projected into tokens otherwise (consent is a server-side grant, see agentConsent).
    */
   async setMayActAttribute(userId, mayActConfig) {
+    if (String(configStore.getEffective('ff_may_act_seed') || 'false') !== 'true') return;
     try {
       // PingOne custom JSON user attributes (added via Schema → User Schema) are
       // written at the TOP LEVEL by name with a flat PATCH body — NOT under /custom

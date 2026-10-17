@@ -154,6 +154,8 @@ describe('MCP first-tool gate — fail-open hardening', () => {
   // ── F3 — the BFF must send the C1 keys it was missing ─────────────────────
   describe('C1 parameter parity (F3)', () => {
     it('derives tokenScopes and the temporal claims from the presented token', async () => {
+      // The token's own may_act counts only in legacy mode.
+      configStore.getEffective.mockImplementation((k) => (k === 'ff_may_act_seed' ? 'true' : undefined));
       await evaluateMcpFirstToolGate({
         req: { session: {} },
         tool: 'create_transfer',

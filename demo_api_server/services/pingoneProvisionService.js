@@ -272,6 +272,13 @@ function actAttributeValue() {
     : "${{'sub': #root.context.requestData.actorToken.client_id}}";
 }
 
+/** ff_may_act_seed ON = legacy mode: provision the user `mayAct` attribute and the `may_act` token claim. */
+function legacyMayActEnabled() {
+  try {
+    return String(require('./configStore').getEffective('ff_may_act_seed') || 'false') === 'true';
+  } catch (_e) { return false; }
+}
+
 /**
  * Render a step message for createApplication's result. Surfaces drift info
  * so the user can see when an existing app was patched (and which fields).
@@ -2729,15 +2736,19 @@ class PingOneProvisionService {
       // Provisioning no longer writes per-user values or token projections for it;
       // the attribute is kept so the agent-authorization and delegation features
       // (which write it at runtime) work on a fresh environment.
-      steps.push({ step: 'mayAct-schema', icon: '🔧', message: 'Ensuring mayAct user attribute (JSON)...' });
-      onStep(steps[steps.length - 1]);
-      try {
-        // displayName: letters/digits/spaces only — PingOne rejects parens/punctuation
-        // with INVALID_DATA ("displayName must contain only Unicode letters ...").
-        await this._ensureUserSchemaAttribute('mayAct', 'JSON', 'RFC 8693 may act delegation');
-        steps.push({ step: 'mayAct-schema', icon: '✅', message: 'mayAct user attribute present (JSON)' });
-      } catch (err) {
-        steps.push({ step: 'mayAct-schema', icon: '⚠️', message: `mayAct attribute step: ${err.message}` });
+      if (!legacyMayActEnabled()) {
+        steps.push({ step: 'mayAct-schema', icon: '⏭️', message: 'mayAct user attribute skipped (ff_may_act_seed OFF — consent is a server-side grant, the token carries act only)' });
+      } else {
+        steps.push({ step: 'mayAct-schema', icon: '🔧', message: 'Ensuring mayAct user attribute (JSON)...' });
+        onStep(steps[steps.length - 1]);
+        try {
+          // displayName: letters/digits/spaces only — PingOne rejects parens/punctuation
+          // with INVALID_DATA ("displayName must contain only Unicode letters ...").
+          await this._ensureUserSchemaAttribute('mayAct', 'JSON', 'RFC 8693 may act delegation');
+          steps.push({ step: 'mayAct-schema', icon: '✅', message: 'mayAct user attribute present (JSON)' });
+        } catch (err) {
+          steps.push({ step: 'mayAct-schema', icon: '⚠️', message: `mayAct attribute step: ${err.message}` });
+        }
       }
       onStep(steps[steps.length - 1]);
 
@@ -2932,28 +2943,33 @@ class PingOneProvisionService {
       // no claim, so a fresh environment starts with the agent unauthorized).
       // See memory: pingone_may_act_user_attribute.
       const MAY_ACT_USER_SPEL = '${user.mayAct}';
-      steps.push({ step: 'may-act-claim', icon: '🔧', message: 'Wiring may_act token claim ← user.mayAct (JSON object)...' });
-      onStep(steps[steps.length - 1]);
-      try {
-        await this._setResourceAttribute(
-          provisioned.resourceServer.id,
-          'may_act',
-          MAY_ACT_USER_SPEL
-        );
-        // Same projection on the MCP resource so MCP-audience user tokens also
-        // carry the delegation declaration.
-        if (provisioned.mcpResourceServer?.id) {
+      if (!legacyMayActEnabled()) {
+        steps.push({ step: 'may-act-claim', icon: '⏭️', message: 'may_act claim not wired (ff_may_act_seed OFF — consent is a server-side grant, the token carries act only)' });
+        onStep(steps[steps.length - 1]);
+      } else {
+        steps.push({ step: 'may-act-claim', icon: '🔧', message: 'Wiring may_act token claim ← user.mayAct (JSON object)...' });
+        onStep(steps[steps.length - 1]);
+        try {
           await this._setResourceAttribute(
-            provisioned.mcpResourceServer.id,
+            provisioned.resourceServer.id,
             'may_act',
             MAY_ACT_USER_SPEL
           );
+          // Same projection on the MCP resource so MCP-audience user tokens also
+          // carry the delegation declaration.
+          if (provisioned.mcpResourceServer?.id) {
+            await this._setResourceAttribute(
+              provisioned.mcpResourceServer.id,
+              'may_act',
+              MAY_ACT_USER_SPEL
+            );
+          }
+          steps.push({ step: 'may-act-claim', icon: '✅', message: 'may_act claim wired ← ${user.mayAct} (emits JSON object)' });
+        } catch (mayActErr) {
+          steps.push({ step: 'may-act-claim', icon: '⚠️', message: `may_act claim step: ${mayActErr.message}` });
         }
-        steps.push({ step: 'may-act-claim', icon: '✅', message: 'may_act claim wired ← ${user.mayAct} (emits JSON object)' });
-      } catch (mayActErr) {
-        steps.push({ step: 'may-act-claim', icon: '⚠️', message: `may_act claim step: ${mayActErr.message}` });
+        onStep(steps[steps.length - 1]);
       }
-      onStep(steps[steps.length - 1]);
 
       // Step 23.5c: Wire `delegated_to` token claim ← user.delegatedTo (JSON array).
       // Family delegation (user→user), surfaced as its own token-chain lane — kept

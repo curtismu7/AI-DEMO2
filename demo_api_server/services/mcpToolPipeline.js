@@ -50,18 +50,12 @@ function resolveAuditUserId(req, userSub) {
 /**
  * The signed-in user's OWN may_act.sub — the per-user consent signal the actor
  * bridge forwards as X-May-Act-Sub (may_act re-architecture, Task 2). Read from
- * the session (stored at login from the user token's may_act, refreshed on
- * /refresh). `''` = no consent (never granted / revoked) — the bridge omits the
+ * the user's server-side agent grant record (agentConsent; ff_may_act_seed ON also honors the token's may_act). `''` = no consent (never granted / revoked) — the bridge omits the
  * header rather than fabricating one. `undefined` (no session / non-user path)
  * keeps the legacy static bridging in mcpActorBridge.
  */
 function _sessionMayActSub(req) {
-  if (!req?.session) return undefined;
-  // A session that has logged in has the key (null when not granted); a
-  // service-to-service path has no session at all.
-  if (!('mayAct' in req.session)) return undefined;
-  const mayAct = req.session.mayAct;
-  return (mayAct && mayAct.sub) || '';
+  return require('./agentConsent').consentSub(req);
 }
 
 /**

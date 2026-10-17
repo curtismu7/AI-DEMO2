@@ -5,9 +5,18 @@
 'use strict';
 
 const svc = require('../../services/pingOneUserService'); // singleton instance
+const configStore = require('../../services/configStore');
 
 describe('pingOneUserService mayAct shape', () => {
+  beforeEach(() => jest.spyOn(configStore, 'getEffective').mockImplementation((k) => (k === 'ff_may_act_seed' ? 'true' : undefined)));
   afterEach(() => jest.restoreAllMocks());
+
+  test('setMayActAttribute is a no-op while ff_may_act_seed is OFF', async () => {
+    configStore.getEffective.mockReturnValue('false');
+    const spy = jest.spyOn(svc, 'makeRequest').mockResolvedValue({});
+    await svc.setMayActAttribute('user-9', { sub: 'agent-uuid' });
+    expect(spy).not.toHaveBeenCalled();
+  });
 
   test('setMayActAttribute PATCHes a flat top-level { mayAct } body', async () => {
     const spy = jest.spyOn(svc, 'makeRequest').mockResolvedValue({});

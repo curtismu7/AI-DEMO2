@@ -16,6 +16,7 @@ const { decodeJwtClaims } = require('./agentMcpTokenService');
 const jwksService = require('./jwksService');
 const oauthEndpointResolver = require('./oauthEndpointResolver');
 const { buildActorBridgeHeaders } = require('./mcpActorBridge');
+const agentConsent = require('./agentConsent');
 const hitlServiceClient = require('./hitlServiceClient');
 const cibaTransactionReceipt = require('./cibaTransactionReceipt');
 const hitlCredit = require('./hitlCredit');
@@ -598,16 +599,12 @@ async function decodeMcpTokenFacts({ req, agentToken, userSub }) {
   // token claim; a present token claim is never overridden). Distinguish
   // "session exists" (evaluate consent) from "no session" (undefined → the
   // simulated engine's consent guard stays inert for legacy callers).
-  const tokenMayActSub = claims.may_act && typeof claims.may_act === 'object' && claims.may_act.sub
+  const tokenMayActSub = agentConsent.legacyMayAct() && claims.may_act && typeof claims.may_act === 'object' && claims.may_act.sub
     ? String(claims.may_act.sub)
     : null;
-  let mayActSub;
-  if (req?.session && 'mayAct' in req.session) {
-    const sessionMayAct = req.session.mayAct;
-    mayActSub = (sessionMayAct && sessionMayAct.sub) || tokenMayActSub || '';
-  } else if (tokenMayActSub) {
-    mayActSub = tokenMayActSub; // token carries its own consent — honor it
-  } // else leave undefined: no session, no token consent → guard inert (legacy callers)
+  // Consent = the user's server-side grant record; the token's own may_act counts only in legacy mode.
+  const consented = agentConsent.consentSub(req);
+  const mayActSub = consented === undefined ? (tokenMayActSub || undefined) : (consented || tokenMayActSub || '');
   // Role as a policy INPUT, replacing the removed admin code-level bypass (F5).
   const userRole = req.session?.user?.role || null;
 

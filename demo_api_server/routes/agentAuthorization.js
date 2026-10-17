@@ -1,13 +1,11 @@
 'use strict';
 /**
- * routes/agentAuthorization.js — user control over the RFC 8693 `may_act` claim.
+ * routes/agentAuthorization.js — user control over whether the AI agent may act for them.
  *
- * Grant/revoke whether the AI agent may act on the user's behalf by writing/clearing
- * the user's PingOne `mayAct` attribute. The value MUST be { sub: <ai_agent_client_id> }
- * (the actor token's aud[0]) so PingOne's SpEL emits `act` during exchange.
- *
- * After grant/revoke the SPA must silently re-auth (reauthRequired) so the new token
- * carries/drops may_act.
+ * Grant/revoke is a server-side record (delegationStore) checked on every tool call, so it takes
+ * effect immediately and the token carries only `act`. With ff_may_act_seed ON (legacy) it also
+ * writes/clears the user's PingOne `mayAct` attribute and the SPA must silently re-auth
+ * (reauthRequired) so the new token carries/drops may_act.
  *
  * Mounted (authenticated) at /api/agent-authorization in server.js.
  */
@@ -23,33 +21,7 @@ const { revokeToken } = require('../services/tokenRevocation');
 /** Bound on the "revoke remaining records" cleanup loops below. */
 const MAX_REVOKE_ATTEMPTS = 10;
 
-/** Resolve the AI Agent client_id that may_act.sub must equal (same source the exchange uses).
- *
- * The *_ACTOR_* names are the ones the deployment actually sets — every other
- * key here was empty in the live container (2026-08-29), so this returned null,
- * grant/revoke answered 503 agent_not_configured, and nothing could write the
- * user's mayAct at all. Users therefore kept whatever value was written before
- * the AI Agent Actor app was recreated on 2026-08-22: demoUser's PingOne record
- * still carried mayAct.sub = 71e878ea, the deleted app.
- *
- * PingOne CONSTRUCTS the act claim from the subject token's may_act, which is
- * projected from ${user.mayAct} (pingoneProvisionService step 23.5) — so a
- * stale user attribute silently poisons every exchanged token's act.sub, and
- * the gateway rejects it: `Unauthorized delegation actor: act.sub "71e878ea…"
- * is not an authorized actor`. Same missed-variable shape as the snapshot
- * generator's actor harvest (#2594): a key list that predates the ACTOR rename.
- */
-function agentMayActSub() {
-  return (
-    configStore.getEffective('ai_agent_client_id') ||
-    configStore.getEffective('pingone_ai_agent_client_id') ||
-    configStore.getEffective('pingone_ai_agent_actor_client_id') ||
-    process.env.AI_AGENT_CLIENT_ID ||
-    process.env.PINGONE_AI_AGENT_CLIENT_ID ||
-    process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID ||
-    null
-  );
-}
+const { agentClientId: agentMayActSub, legacyMayAct } = require('../services/agentConsent');
 
 // Revocation is now always enforced via the act-chain (a revoked/never-granted
 // agent's may_act is absent, so PingOne never mints an act claim, and
@@ -83,10 +55,12 @@ router.post('/grant', async (req, res) => {
   const sub = agentMayActSub();
   if (!sub) return res.status(503).json({ error: 'agent_not_configured', message: 'AI Agent client id (ai_agent_client_id) not configured.' });
   try {
-    const pingOneUserId = await pingOneUserIdFor(req, req.user.id);
-    if (!pingOneUserId) return res.status(409).json(NOT_LINKED);
-    pingOneUserService.initialize();
-    await pingOneUserService.setMayActAttribute(pingOneUserId, { sub });
+    if (legacyMayAct()) {
+      const pingOneUserId = await pingOneUserIdFor(req, req.user.id);
+      if (!pingOneUserId) return res.status(409).json(NOT_LINKED);
+      pingOneUserService.initialize();
+      await pingOneUserService.setMayActAttribute(pingOneUserId, { sub });
+    }
     const accessToken = req.session?.oauthTokens?.accessToken || null;
     const existing = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
     if (!existing) {
@@ -98,7 +72,7 @@ router.post('/grant', async (req, res) => {
         access_token: accessToken,
       });
     }
-    res.json({ ok: true, reauthRequired: true });
+    res.json({ ok: true, reauthRequired: legacyMayAct() });
   } catch (err) {
     res.status(502).json({ error: 'mayact_write_failed', message: 'Could not update agent authorization. Try again.' });
   }
@@ -106,11 +80,18 @@ router.post('/grant', async (req, res) => {
 
 router.post('/revoke', async (req, res) => {
   try {
-    const pingOneUserId = await pingOneUserIdFor(req, req.user.id);
-    if (!pingOneUserId) return res.status(409).json(NOT_LINKED);
-    pingOneUserService.initialize();
-    await pingOneUserService.setMayActAttribute(pingOneUserId, null);
-    res.json({ ok: true, reauthRequired: true });
+    const sub = agentMayActSub();
+    for (let r = sub && delegationStore.findActiveByActorAndGrantor(sub, req.user.id), n = 0; r && n < MAX_REVOKE_ATTEMPTS; n++) {
+      delegationStore.revokeDelegation(r.id);
+      r = delegationStore.findActiveByActorAndGrantor(sub, req.user.id);
+    }
+    if (legacyMayAct()) {
+      const pingOneUserId = await pingOneUserIdFor(req, req.user.id);
+      if (!pingOneUserId) return res.status(409).json(NOT_LINKED);
+      pingOneUserService.initialize();
+      await pingOneUserService.setMayActAttribute(pingOneUserId, null);
+    }
+    res.json({ ok: true, reauthRequired: legacyMayAct() });
   } catch (err) {
     res.status(502).json({ error: 'mayact_write_failed', message: 'Could not update agent authorization. Try again.' });
   }
