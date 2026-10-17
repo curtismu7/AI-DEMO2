@@ -1262,14 +1262,11 @@ router.get('/integration/fido2-policy-diag', async (req, res) => {
  */
 router.get('/worker-token', async (req, res) => {
   try {
-    const configStore = require('../services/configStore');
-    await configStore.ensureInitialized();
-    const token = await oauthService.getAgentClientCredentialsTokenWithExpiry();
-    res.json({
-      success: true,
-      status: token.token ? 'valid' : 'missing',
-      expiresAt: token.expiresAt,
-    });
+    // The same PingOne worker token the MFA calls use. The agent login it used to
+    // call follows the selected provider, so under PingFederate it hit PF's token
+    // endpoint with PingOne credentials and always failed.
+    const token = await mfaService.getWorkerToken();
+    res.json({ success: true, status: token ? 'valid' : 'missing' });
   } catch (err) {
     console.error('[MFA Test] Worker token error:', err.message);
     res.json({ success: false, error: err.message });
