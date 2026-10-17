@@ -365,7 +365,10 @@ const MFATestPageContent: FC = () => {
     } catch (err) {
       setWorkerTokenStatus("error");
       setWorkerTokenError(err.message);
-      notifyError(`Worker token error: ${err.message}`);
+      // Signed out: the page already shows a sign-in prompt, so no raw 401 toast.
+      if (err?.response?.status !== 401) {
+        notifyError(`Worker token error: ${err.message}`);
+      }
     }
   }, []);
 
