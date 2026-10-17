@@ -1101,15 +1101,16 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
 
   // ── CIBA step-up: initiate back-channel authentication ──
   const handleCibaStepUp = useCallback(async () => {
-    if (!user?.email) {
-      notifyError("Cannot initiate CIBA: no email on session.");
+    if (!user?.id && !user?.email) {
+      notifyError("Cannot initiate CIBA: not signed in.");
       return;
     }
     try {
       const tx = lastMoneyMovementRef.current;
       const txBody = tx?.body || {};
+      // No login_hint: the server uses the signed-in user's PingOne ID, so the approval
+      // can only be for this user (an email can match another account).
       const { data } = await axios.post("/api/auth/ciba/initiate", {
-        login_hint: user.email,
         binding_message: "Approve",
         scope: "openid profile",
         acr_values: cibaAcr,
@@ -1131,7 +1132,7 @@ const UserDashboardPing2026 = ({ user: propUser, onLogout }) => {
           (err.response?.data?.message || err.message),
       );
     }
-  }, [user?.email, cibaAcr]);
+  }, [user?.id, user?.email, cibaAcr]);
 
   /** Initiate PingOne MFA challenge and route to correct modal by device type. */
   const handleInitiateOtp = useCallback(async () => {
