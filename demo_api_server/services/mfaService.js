@@ -118,6 +118,12 @@ function _wrapError(fnName, err, opts = {}) {
     // session_expired. Use a distinct code so the route surfaces it plainly.
     e.code = opts.workerToken ? "mfa_service_auth_failed" : "token_expired";
   } else if (status === 404 || status === 410) e.code = "challenge_expired";
+  // Past the environment's maxAllowedDevices PingOne only says "The request will
+  // exceed your limit." — say what that means for an enrollment.
+  if (pingErr?.details?.some((d) => d.code === "LIMIT_EXCEEDED")) {
+    e.code = "device_limit";
+    e.message = "This user already has the maximum number of MFA devices PingOne allows. Delete one in Devices, then try again.";
+  }
   return e;
 }
 
