@@ -1286,8 +1286,7 @@ const SCENARIO_STEPS_FLOW = {
         aud: "banking-app-client",
         sub: "alice@bank.com",
         scope: "openid profile read write",
-        may_act: '{ "client_id": "bff-client-id" }',
-        note: "BFF sends this as subject_token → IdP validates may_act before issuing delegation token",
+        note: "BFF sends this as subject_token → IdP mints act from the actor token; consent grant checked per call",
       },
       tokenOut: {
         type: "Delegated Token (issued)",
@@ -1829,25 +1828,23 @@ const SCENARIO_STEPS_FLOW = {
     {
       nodeIds: ["idp-oauth-as"],
       colorClass: "active",
-      stepLabel: "PingOne issues subject token with may_act",
+      stepLabel: "PingOne issues subject token (consent grant checked per call)",
       description:
-        "PingOne issues the subject token with a may_act claim pre-authorizing this specific agent to act on the user's behalf — this is what makes the later RFC 8693 exchange possible.",
+        "PingOne issues the subject token (sub: user). The user's consent for this agent is a server-side grant checked by PingOne Authorize on every call; act is minted later at the RFC 8693 exchange.",
       activeEdgeIds: [],
       edgeStyle: A,
       nodeBadges: {
         user: {
           aud: "agent1",
-          may_act: "{sub: agent1}",
-          _changed: ["aud", "may_act"],
+          _changed: ["aud"],
         },
       },
       token: {
         type: "Subject Token (issued)",
         sub: "alice@bank.com",
         aud: "agent1",
-        may_act: "{sub: agent1}",
         scope: "balance",
-        note: "may_act pre-authorizes agent to act on behalf of user",
+        note: "consent grant checked per call (server-side), not carried in the token",
       },
     },
   ],
@@ -3275,7 +3272,7 @@ export default function ArchitectureFlowPage({ user }) {
         any step to read the token card. Node badges show{" "}
         <span className="afp-claim afp-claim--aud" style={{ fontWeight: 600 }}>aud</span>,{" "}
         <span className="afp-claim afp-claim--act" style={{ fontWeight: 600 }}>act</span>,{" "}
-        <span className="afp-claim afp-claim--may-act" style={{ fontWeight: 600 }}>may_act</span> —
+        <span className="afp-claim afp-claim--may-act" style={{ fontWeight: 600 }}>may_act (legacy / AIC)</span> —
         highlighted when they change.
       </p>
 

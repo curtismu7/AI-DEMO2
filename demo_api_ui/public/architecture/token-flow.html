@@ -1006,7 +1006,7 @@
           <div class="b">P1AZ is in control of <b>all</b> tool authorize decisions at the gateway. Token check via introspection (RFC 7662) + policy via Authorize.</div>
         </div>
         <div class="ann warn">
-          <div class="t">act / may_act claim</div>
+          <div class="t">act claim</div>
           <div class="b">Every delegated MCP token carries an <code>act.sub</code> = agent client_id. Gateway and MCP servers read <code>act.sub</code> to know <i>who</i> called the API.</div>
         </div>
         <div class="ann rose">
@@ -1130,7 +1130,7 @@
       </div>
       <div class="nbox ping" id="n-ping-aam" data-scn="B C D I K" style="left: 1960px; top: 320px;">
         <div class="row"><span class="title">PingOne AAM</span><span class="port">policy</span></div>
-        <div class="sub">Authorize decision<br/>PERMIT · DENY · INDETERMINATE<br/>act / may_act enforcement</div>
+        <div class="sub">Authorize decision<br/>PERMIT · DENY · INDETERMINATE<br/>act chain enforcement</div>
       </div>
 
       <!-- ===== WIRES (SVG arrows in stage coordinates 0,0 → 2280,1080) =====
@@ -1320,9 +1320,6 @@
 <span class="k">"aud"</span>: <span class="a">"bff"</span>,
 <span class="k">"iss"</span>: <span class="v">"pingone"</span>,
 <span class="k">"scope"</span>: <span class="s">"openid banking ai_agent"</span>,
-<span class="k">"may_act"</span>: {
-  <span class="k">"sub"</span>: <span class="m">"&lt;agent_client_id&gt;"</span>
-},
 <span class="k">"exp"</span>: <span class="v">1779260000</span></pre>
     </div>
 
@@ -1548,7 +1545,7 @@
     },
     6: {
       title: 'PingOne AAM authorize decision',
-      what: 'The gateway introspects Token #3 (RFC 7662) and calls PingOne AAM (Authorize policy), which returns <b>PERMIT</b>, <b>DENY</b>, or <b>INDETERMINATE</b>, enforcing <code>act</code> / <code>may_act</code>.',
+      what: 'The gateway introspects Token #3 (RFC 7662) and calls PingOne AAM (Authorize policy), which returns <b>PERMIT</b>, <b>DENY</b>, or <b>INDETERMINATE</b>, enforcing the <code>act</code> chain and the user's server-side consent grant.',
       why: 'Externalizes the access decision to PingOne (P1AZ) so policy is centrally managed and consistently applied to every tool call — not hard-coded per service.',
       risk: 'Skipping the authorize check means any token that merely looks valid can execute any tool. No fine-grained policy, no DENY path, no INDETERMINATE → human escalation.'
     },

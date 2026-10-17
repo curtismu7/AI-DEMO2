@@ -314,7 +314,7 @@ Content-Type: application/json
               </tr>
               <tr>
                 <td >Actor Impersonation</td>
-                <td >Validate actor token permissions, may_act policies</td>
+                <td >Validate actor token permissions; per-call consent grant check (may_act only in legacy mode / AIC)</td>
               </tr>
               <tr>
                 <td >Cross-Tenant Access</td>
@@ -457,14 +457,14 @@ async performTokenExchangeWithActor(subjectToken, actorToken, audience, scopes) 
           <p><strong>Cause</strong>: Audience doesn't match any configured resource server</p>
           <p><strong>Solution</strong>: Verify audience URI matches resource server configuration</p>
           
-          <h4>Error: may_act_denied</h4>
+          <h4>Error: actor not permitted (may_act_denied in legacy mode)</h4>
           <p><strong>Cause</strong>: Actor doesn't have permission to act on behalf of subject</p>
-          <p><strong>Solution</strong>: Configure may_act policy in PingOne, check actor token permissions</p>
+          <p><strong>Solution</strong>: Check the actor token is the registered agent's credential and the user's consent grant is active (legacy mode: the may_act policy)</p>
 
           <h4>Debugging Tips</h4>
           <ul>
             <li><strong>Check Token Claims</strong>: Use jwt.io to decode and verify token contents</li>
-            <li><strong>Verify Policy</strong>: Ensure may_act policy allows the actor-client relationship</li>
+            <li><strong>Verify Policy</strong>: Ensure the user's consent grant covers this agent (legacy mode: may_act policy allows the actor-client relationship)</li>
             <li><strong>Audit Logs</strong>: Check PingOne logs for detailed error information</li>
             <li><strong>Token Events</strong>: Use AI Demo Token Chain panel for debugging</li>
           </ul>

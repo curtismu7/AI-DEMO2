@@ -107,9 +107,9 @@ router.get('/', (req, res) => {
   } else {
     report.checks.push({
       name: 'may_act Absent',
-      status: 'warn',
+      status: 'pass',
       rfc: 'RFC 8693 §4.1',
-      detail: 'No may_act claim — delegation exchange may be rejected by PingOne',
+      detail: 'No may_act claim — expected: the agent is identified by the act claim at exchange, and consent is a server-side grant',
     });
   }
 

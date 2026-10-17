@@ -6,13 +6,13 @@ This document explains how to verify that PingOne is correctly issuing `act` and
 
 > ## ✅ Verified status (updated 2026-06-19; act minting re-architected 2026-10-10)
 >
-> - **`may_act` works** via a **resource attribute mapping**. The user record carries a JSON-typed `mayAct` attribute (`{ "sub": "<actor-client-id>" }`) and the resource projects it with `${user.mayAct}`. Confirmed live: user access tokens carry `may_act = { sub: <AI Agent client_id> }`.
+> - **(Legacy mode, `ff_may_act_seed` ON) `may_act` works** via a **resource attribute mapping**. The user record carries a JSON-typed `mayAct` attribute (`{ "sub": "<actor-client-id>" }`) and the resource projects it with `${user.mayAct}`. Confirmed live: user access tokens carry `may_act = { sub: <AI Agent client_id> }`.
 > - **`act` works** — PingOne emits a native `act` claim via a resource attribute. The trick is the **`${…}` wrapper around the official SPEL**; earlier failures were a wrapper bug, not a PingOne limitation. The deployed value (type CUSTOM) is the **null-safe** form (guards against no-actor / no-`may_act` exchanges so the token mint never null-derefs):
 >   ```
 >   ${(#root.context.requestData.actorToken != null and #root.context.requestData.subjectToken.may_act != null and #root.context.requestData.subjectToken.may_act.sub == #root.context.requestData.actorToken.client_id) ? #root.context.requestData.subjectToken.may_act : null}
 >   ```
 >   Confirmed live (2026-06-19): exchanging a `may_act`-bearing user token with an actor token whose `client_id == may_act.sub` produced `act = { "sub": "<AI Agent client_id>" }` (a real JSON object) on **both** the `mcpgateway` and `agentgateway` resources. When the actor doesn't match (or there's no actor), the expression returns `null` and the claim is omitted.
-> - **Default mode since 2026-10-10 (may_act re-architecture):** `act` is minted **from the actor token** — the provisioning SpEL (`pingoneProvisionService.actAttributeValue()`, flag `ff_may_act_seed` default OFF) evaluates `${{'sub': #root.context.requestData.actorToken.client_id}}`, so `act` no longer depends on the user's `may_act` at all. `may_act` remains on user tokens as the RFC-sanctioned **consent declaration**, enforced per call by the authorization policy (`MayActSub` bridged from the session; demo_authz_server Rule 2.6 and the P1AZ snapshot's two per-user-consent deny rules). Flag ON restores the legacy may_act-seeded mint above.
+> - **Default mode (act-only, PR #1443):** `act` is minted **from the actor token** — `pingoneProvisionService.actAttributeValue()` (flag `ff_may_act_seed` default OFF) provisions `${{'sub': #root.context.requestData.actorToken.client_id}}`, so `act` does not depend on the user's `may_act`. User tokens carry **no `may_act`**; the user's consent is a server-side grant record (`POST /api/agent-authorization/grant|revoke`, `delegationStore`) checked by authorization policy on every call (demo_authz_server Rule 2.6; P1AZ `UserConsentMissing`/`UserConsentMismatch`), so revoke applies on the next call with no re-login. See [ACT_ONLY_DELEGATION_MODEL.md](ACT_ONLY_DELEGATION_MODEL.md). Flag ON restores the legacy `may_act`-seeded mint described in the bullets above (also the model for PingOne AIC).
 > - **Rollout:** the null-safe `act` SPEL is now deployed on **all three** downstream resources — `mcpgateway`, `mcpserver`, and `agentgateway` (verified via the Management API). `enduser` carries `may_act`, not `act` (correct — it's the first hop).
 > - **Why prior attempts failed (corrected):** `${actor.client_id}` → 400 (wrong reference); `#{…}` wrapper → emitted **literally**; **bare** `(#root…)` (no wrapper) → emitted **literally**; **`${(#root…)}`** → **evaluated** ✅. So the long-standing "act is impossible / SPEL emitted literally" conclusion was a one-character wrapper bug.
 > - **Header bridge status (NOT redundant):** the `X-Act-Client-Id` / `X-May-Act-Sub` headers (`mcpActorBridge.buildActorBridgeHeaders()`) remain a **deliberate fallback**. The gateway **prefers a native token `act`** and falls back to the header on hops/flows where native `act` isn't guaranteed (no-actor exchanges, Exchange-#2, platform-connector mode). `X-May-Act-Sub` additionally carries the per-user `may_act.sub` consent for the per-user-consent decision gate (Rule 2.6) — that has no native-claim equivalent. **Do not remove the bridge.**
@@ -21,7 +21,7 @@ This document explains how to verify that PingOne is correctly issuing `act` and
 
 The banking demo architecture relies on delegation claims to establish a clear chain of custody:
 
-- **`may_act`** (in the **user access token**): Prospectively authorizes a downstream actor to exchange the token
+- **`may_act`** (in the **user access token**; legacy mode / AIC only, absent by default): Prospectively authorizes a downstream actor to exchange the token
 - **`act`** (in the **exchanged MCP token**): Identifies the current actor under RFC 8693 Section 4.1
 - **Nested `act.act`** (when PingOne preserves the full 2-exchange chain): Identifies the prior actor in a multi-hop delegation chain
 
@@ -34,7 +34,7 @@ Without these claims, the delegation chain is invisible in audit logs, authoriza
 For the delegation chain you need:
 
 1. **Token Exchange Grant** enabled on the OAuth applications that perform exchanges
-2. **`may_act` resource attribute** that projects each user's `mayAct` declaration into their access token (the consent declaration the PDP checks per call)
+2. *(Legacy mode only, `ff_may_act_seed` ON)* **`may_act` resource attribute** that projects each user's `mayAct` declaration into their access token. Skip in the default model: consent is a server-side grant record
 3. **`act` resource attribute** on the audience resource — in default mode (`ff_may_act_seed` OFF) minted from the **actor token** (`${{'sub': #root.context.requestData.actorToken.client_id}}`, see `pingoneProvisionService.actAttributeValue()`); in legacy flag-ON mode, the null-safe `${(#root…)}` SPEL below (emits native `act` when the actor matches `may_act`). Deployed on `mcpgateway`, `mcpserver`, and `agentgateway`. The **`X-Act-Client-Id` header bridge** remains as a deliberate fallback (see status callout) — not removed.
 
 ### Configuration Steps
@@ -47,7 +47,9 @@ In PingOne Admin Console:
 3. Enable **Token Exchange** (`urn:ietf:params:oauth:grant-type:token-exchange`)
 4. Save changes
 
-#### 2. Configure the `may_act` resource attribute (this works)
+#### 2. Configure the `may_act` resource attribute (legacy mode only; skip by default)
+
+> Default (act-only) provisioning does not create this attribute or the `mayAct` user attribute. Only follow this step with `ff_may_act_seed` ON or for PingOne AIC.
 
 `may_act` is added by a **resource attribute mapping**, not a token policy. This is what the provisioning code does (`pingoneProvisionService._setResourceAttribute`):
 
@@ -107,7 +109,7 @@ ACCESS_TOKEN=eyJhbGc... node scripts/verify-act-claims.js
 ```
 
 The script will:
-- Decode the user access token and check for `may_act`
+- Decode the user access token and check for `may_act` (legacy mode only; expected absent by default)
 - Perform token exchange to get the MCP access token
 - Decode the MCP access token and check for `act`
 - Report findings with clear success/failure indicators
@@ -126,7 +128,7 @@ The script will:
    echo "eyJhbGc..." | base64 -d
    ```
 
-3. **Look for may_act claim**
+3. **Look for may_act claim** (legacy mode only; by default the user token has none)
    ```json
    {
      "sub": "user-id",
@@ -167,7 +169,7 @@ The application includes a Token Chain visualization panel:
 2. Execute any banking operation (e.g., "Show my accounts")
 3. Click the **Token Chain** button in the UI
 4. Review the token events:
-   - Event 1: User access token — should show `may_act` present/absent
+   - Event 1: User access token — `may_act` is absent by default (present only in legacy mode)
    - Event 2: Token Exchange - should show success/failure
    - Event 3: MCP access token — should show `act` present/absent
 
@@ -175,7 +177,7 @@ The application includes a Token Chain visualization panel:
 
 ### ✅ Success Scenario
 
-**User access token:**
+**User access token** (legacy mode shown; by default there is no `may_act` and `act` on the exchanged token comes from the actor token):
 ```json
 {
   "sub": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",

@@ -1784,7 +1784,7 @@ export const ALL_STEPS = [
     type: "request",
     description: "PingOne Token Request",
     scopes: ["read"],
-    why: "The BFF talks to PingOne on the user's behalf to issue a subject token narrowly audienced to the agent. The resource indicator (RFC 8707) is what tells PingOne to embed aud=agent1 and may_act so this token can later be exchanged.",
+    why: "The BFF talks to PingOne on the user's behalf to issue a subject token narrowly audienced to the agent. The resource indicator (RFC 8707) is what tells PingOne to embed aud=agent1 so this token can later be exchanged.",
     request: {
       method: "POST",
       url: "https://auth.pingone.com/{ENV_ID}/as/token",
@@ -1810,17 +1810,17 @@ export const ALL_STEPS = [
       "401 invalid_client — BFF's client_id/secret wrong",
     ],
   },
-  // PID-->>WA: Subject token (sub: user, aud: agent1, may_act: {sub: agent1}, scope: balance)
+  // PID-->>WA: Subject token (sub: user, aud: agent1, scope: balance)
   {
     step: 21,
     from: "PID",
     to: "WA",
     label:
-      "Subject token (sub: user, aud: agent1, may_act: {sub: agent1}, scope: balance)",
+      "Subject token (sub: user, aud: agent1, scope: balance)",
     type: "response",
     description: "Subject Token Issued",
     scopes: ["read"],
-    why: "PingOne issues a token where the user is the subject and the agent is recorded as an allowed actor via may_act. That single claim is what unlocks safe RFC 8693 delegation downstream — it's the consent record.",
+    why: "PingOne issues a token where the user is the subject. The user's consent (this agent may act for them) is a server-side grant record checked by PingOne Authorize on every tool call; PingOne mints act at exchange from the agent's own actor token.",
     request: {
       frame: "token-issuance-response",
       payload: { grant_type: "authorization_code", resource: "agent1" },
@@ -1841,14 +1841,13 @@ export const ALL_STEPS = [
           aud: "agent1",
           iss: "https://auth.pingone.com/{ENV_ID}",
           scope: "read",
-          may_act: { sub: "agent1-cc-client" },
           iat: 1778000000,
           exp: 1778000600,
         },
       },
     },
     onError: [
-      "Token missing may_act — RFC 8693 exchange in step 24 will fail; check PingOne actor policy",
+      "No consent grant on file — calls will be denied by PingOne Authorize; check the agent grant record",
       "Token aud is too broad — narrow it via resource indicators; otherwise it can be used anywhere",
       "Expiry too long — subject tokens should be short-lived; 5-10 min is typical",
     ],
@@ -1880,12 +1879,12 @@ export const ALL_STEPS = [
       "Chatbot service stores token longer than expires_in — stale-token failures downstream",
     ],
   },
-  // CB->>A: Subject token (sub: user, may_act: {sub: agent1})
+  // CB->>A: Subject token (sub: user)
   {
     step: 23,
     from: "CB",
     to: "A",
-    label: "Subject token (sub: user, may_act: {sub: agent1})",
+    label: "Subject token (sub: user)",
     type: "request",
     description: "Subject Token to Agent",
     why: "The chatbot hands the subject token to the agent service so the agent can use it as the subject in the upcoming RFC 8693 exchange. The agent never receives the user's password — only this purpose-built token.",
@@ -1961,7 +1960,7 @@ export const ALL_STEPS = [
     },
     onError: [
       "400 unsupported_grant_type — token-exchange grant not enabled on the PingOne app",
-      "400 invalid_request — subject_token missing may_act for this actor",
+      "400 invalid_request — actor token missing or not accepted for this exchange",
       "400 invalid_target — mcp-gw not registered as a resource indicator in PingOne",
     ],
   },
@@ -2181,9 +2180,9 @@ export const ALL_STEPS = [
         detail: "act.sub=agent1-cc-client; client status=active",
       },
       {
-        rule: "may_act claim lists this agent as permitted actor",
+        rule: "Consent grant checked per call: agent is permitted for this user",
         result: "PASS",
-        detail: "may_act.sub=agent1-cc-client matches act.sub",
+        detail: "grant on file for agent1-cc-client; matches act.sub",
       },
       {
         rule: "Resource indicator (aud) matches MCP gateway",
@@ -2300,9 +2299,9 @@ export const ALL_STEPS = [
         detail: "scope='read' satisfies check_balance",
       },
       {
-        rule: "Agent is in user's may_act allowlist",
+        rule: "Consent grant checked per call: agent granted by user",
         result: "PASS",
-        detail: "may_act.sub=agent1-cc-client",
+        detail: "grant on file for agent1-cc-client",
       },
       {
         rule: "Tool approved for this user",
@@ -2336,10 +2335,10 @@ export const ALL_STEPS = [
     },
     rulesEvaluated: [
       {
-        rule: "All sub/act/aud/scope/may_act checks passed",
+        rule: "All sub/act/aud/scope/consent-grant checks passed",
         result: "PASS",
         detail:
-          "sub=user_jane_doe, act=agent1-cc-client, aud=mcp-gw, scope=read, may_act match",
+          "sub=user_jane_doe, act=agent1-cc-client, aud=mcp-gw, scope=read, consent grant match",
       },
       {
         rule: "Transaction amount under high-value threshold OR step-up satisfied",

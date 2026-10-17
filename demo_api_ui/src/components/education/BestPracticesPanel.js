@@ -214,7 +214,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
 
           <PracticeCard icon="👤" title="Assign Sponsors to Govern Agent Access">
             In this demo the human customer is the implicit sponsor: the agent can only act when
-            the customer is signed in and the session has a valid <code>may_act</code> claim.
+            the customer is signed in and has an active server-side consent grant, which PingOne Authorize checks on every call.
             Production deployments should register a named human sponsor in the PingOne policy as
             an additional gate.
           </PracticeCard>
@@ -236,7 +236,7 @@ export default function BestPracticesPanel({ isOpen, onClose, initialTabId }) {
             <ImplRow status="partial" label="Human sponsor binding" detail="Implicit via user session; explicit sponsor field is a P2 backlog item" />
           </ul>
           <div style={{ marginTop: 10 }}>
-            <EduLink label="may_act / act claims" panelId={EDU.MAY_ACT} tabId="what" onClick={handleEduLink} />
+            <EduLink label="act claims (and legacy may_act)" panelId={EDU.MAY_ACT} tabId="what" onClick={handleEduLink} />
             <EduLink label="Agent Gateway" panelId={EDU.AGENT_GATEWAY} tabId="what" onClick={handleEduLink} />
             <EduLink label="SPIFFE / SVID workload identity" panelId={EDU.SPIFFE} tabId="what" onClick={handleEduLink} />
           </div>
@@ -363,7 +363,7 @@ scope=accounts:read
             <ImplRow status="done" label="Audience + scope narrowing" detail="MCP token audience = mcp_resource_uri; scope = tool-specific" />
           </ul>
           <div style={{ marginTop: 10 }}>
-            <EduLink label="may_act / act" panelId={EDU.MAY_ACT} tabId="rfc8693" onClick={handleEduLink} />
+            <EduLink label="act (and legacy may_act)" panelId={EDU.MAY_ACT} tabId="rfc8693" onClick={handleEduLink} />
             <EduLink label="Token Exchange RFC 8693" panelId={EDU.TOKEN_EXCHANGE} tabId="why" onClick={handleEduLink} />
             <EduLink label="SPIFFE / SVID workload identity" panelId={EDU.SPIFFE} tabId="what" onClick={handleEduLink} />
           </div>

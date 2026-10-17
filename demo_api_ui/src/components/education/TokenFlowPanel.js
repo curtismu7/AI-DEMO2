@@ -107,21 +107,21 @@ const tabs = [
           </table>
 
           <p style={{ color: "#374151", marginBottom: "1rem", marginTop: "0.5rem" }}>
-            The live demo surfaces the full decoded token set in the Token Chain panel — you can inspect <code className="edu-code">sub</code>, <code className="edu-code">aud</code>, <code className="edu-code">scope</code>, <code className="edu-code">act</code>, and <code className="edu-code">may_act</code> for each token after a tool call.
+            The live demo surfaces the full decoded token set in the Token Chain panel — you can inspect <code className="edu-code">sub</code>, <code className="edu-code">aud</code>, <code className="edu-code">scope</code>, and <code className="edu-code">act</code> for each token after a tool call.
           </p>
 
-          <h4 style={{ marginTop: 20 }}>Key claim on User AT: <code>may_act</code></h4>
+          <h4 style={{ marginTop: 20 }}>Consent is a server-side grant, not a claim on the User AT</h4>
           <p>
-            The User AT carries a <code>may_act</code> claim that acts as a pre-approval for
-            Exchange #1. PingOne verifies that the presenting <code>actor_token.sub</code> matches
-            this value before issuing the intermediate token.
+            The User AT carries no delegation claim. Your consent (&quot;this agent may act for me&quot;) is a
+            server-side grant record that PingOne Authorize checks on every tool call. PingOne mints{' '}
+            <code>act</code> at exchange time from the agent&apos;s own actor token. (Optional legacy mode,
+            <code> ff_may_act_seed</code>, instead carries a <code>may_act</code> claim.)
           </p>
           <pre style={{ background: '#0f172a', color: '#e2e8f0', padding: 14, borderRadius: 6, fontSize: 12 }}>
 {`{
   "sub": "<user-sub>",
   "aud": "agentgateway.ping.demo",
-  "scope": "openid profile email offline_access read write ai:agent",
-  "may_act": { "sub": "<ai-agent-client-id>" }
+  "scope": "openid profile email offline_access read write ai:agent"
 }`}
           </pre>
         </>
@@ -155,7 +155,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
           <p>PingOne validates:</p>
           <ul style={{ fontSize: 13 }}>
             <li>User AT is valid and not expired</li>
-            <li><code>actor_token.sub</code> matches <code>subject_token.may_act.sub</code></li>
+            <li>Actor token is a valid credential for a registered AI agent; PingOne mints <code>act</code> from it (consent is checked per call by PingOne Authorize)</li>
             <li>Requested audience is allowed</li>
           </ul>
 
@@ -286,7 +286,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
             <li><code>sub</code> is the user — used for audit logging and data isolation</li>
           </ol>
 
-          <h4 style={{ marginTop: 20 }}>How this differs from <code>may_act</code></h4>
+          <h4 style={{ marginTop: 20 }}>How this differs from <code>may_act</code> (optional / legacy mode)</h4>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: 13 }}>
             <thead>
               <tr style={{ background: '#1e293b', color: '#cbd5e1' }}>
@@ -301,7 +301,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
                 <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#67e8f9', fontFamily: 'inherit' }}>may_act</td>
                 <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>§ 4.4</td>
                 <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>Forward-looking</td>
-                <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>User pre-approves who may exchange this token</td>
+                <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#374151' }}>Legacy mode / AIC only: token pre-approves who may exchange it. Not used in this app's default flow</td>
               </tr>
               <tr>
                 <td style={{ padding: '8px 10px', border: '1px solid #334155', color: '#67e8f9', fontFamily: 'inherit' }}>act</td>
@@ -348,7 +348,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
                     rows: [
                       ['aud set →', 'agentgateway.ping.demo  (broad user-facing resource)'],
                       ['scope set →', 'openid profile email offline_access read write ai:agent'],
-                      ['may_act added →', '{ "sub": "<ai-agent-client-id>" }  — pre-approval for token exchange'],
+                      ['delegation claim', '(none — consent is a server-side grant checked per call)'],
                       ['act', '(absent — no delegation yet)'],
                       ['where it lives', 'BFF server session only — never sent to browser or LLM'],
                     ],
@@ -361,7 +361,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
                     rows: [
                       ['subject_token', 'User AT (proves user identity)'],
                       ['actor_token', 'AI Agent CC Token (proves agent identity)'],
-                      ['PingOne checks →', 'actor_token.sub === subject_token.may_act.sub'],
+                      ['PingOne →', 'mints act from the actor token; consent is checked per call'],
                       ['result', 'Exchanged MCP Token (below)'],
                     ],
                   },
@@ -374,8 +374,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
                       ['sub', 'UNCHANGED — still <user-id> end-to-end ✓'],
                       ['aud', 'CHANGED → <PINGONE_RESOURCE_MCP_GATEWAY_URI>'],
                       ['scope', 'NARROWED → read  write  (OIDC claims removed)'],
-                      ['may_act', 'REMOVED — no further prospective delegation'],
-                      ['act added →', '{ "sub": "<ai-agent-client-id>" }  — single-level delegation fact recorded'],
+                                            ['act added →', '{ "sub": "<ai-agent-client-id>" }  — single-level delegation fact recorded'],
                       ['where it goes', 'Bearer header forwarded through demo_mcp_gateway to MCP Server'],
                     ],
                   },
@@ -387,7 +386,7 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
                     rows: [
                       ['raw tokens', 'NEVER sent to browser'],
                       ['decoded claims', 'Served via /api/tokens/session-preview and /api/token-chain'],
-                      ['visible fields', 'sub, aud, scope, act, may_act, iat, exp — read-only display'],
+                      ['visible fields', 'sub, aud, scope, act, iat, exp — read-only display'],
                     ],
                   },
                 ].map(({ step, token, color, bg, rows }) => (

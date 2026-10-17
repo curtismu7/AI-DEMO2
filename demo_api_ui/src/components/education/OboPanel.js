@@ -8,7 +8,7 @@ import { EDU } from './educationIds';
  * On-Behalf-Of (OBO) — the plain-language conceptual entry point for agent delegation.
  *
  * Intentionally conceptual: it does NOT duplicate the mechanics covered by the
- * RFC 8693 / Token Exchange / may_act / Token Chain panels. Instead it explains
+ * RFC 8693 / Token Exchange / act / Token Chain panels. Instead it explains
  * the idea and cross-links to those deeper panels via useEducationUI().open(),
  * which swaps the active education panel cleanly.
  */
@@ -138,7 +138,7 @@ export default function OboPanel({ isOpen, onClose, initialTabId }) {
           <div>
             <CrossLink panelId={EDU.TOKEN_CHAIN} tabId="banking-app">See the live Token Chain</CrossLink>
             <CrossLink panelId={EDU.RFC_8693} tabId="overview">How the exchange works (RFC 8693)</CrossLink>
-            <CrossLink panelId={EDU.MAY_ACT} tabId="what">may_act / act claims</CrossLink>
+            <CrossLink panelId={EDU.MAY_ACT} tabId="what">act claims (and legacy may_act)</CrossLink>
           </div>
         </>
       ),
@@ -226,7 +226,7 @@ export default function OboPanel({ isOpen, onClose, initialTabId }) {
           <div>
             <CrossLink panelId={EDU.TOKEN_EXCHANGE} tabId="why">Token Exchange — step by step</CrossLink>
             <CrossLink panelId={EDU.RFC_8693} tabId="overview">RFC 8693 deep-dive</CrossLink>
-            <CrossLink panelId={EDU.MAY_ACT} tabId="what">may_act / act claims</CrossLink>
+            <CrossLink panelId={EDU.MAY_ACT} tabId="what">act claims (and legacy may_act)</CrossLink>
             <CrossLink panelId={EDU.TOKEN_FLOW} tabId="diagram">2-token exchange flow</CrossLink>
             <CrossLink panelId={EDU.TOKEN_CHAIN} tabId="banking-app">Token chain education</CrossLink>
           </div>

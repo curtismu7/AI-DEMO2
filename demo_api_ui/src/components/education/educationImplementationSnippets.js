@@ -61,7 +61,7 @@ export const SNIP_RESOLVE_MCP_TOKEN = `// agentMcpTokenService.js — before eac
 async function resolveMcpAccessTokenWithEvents(req, tool) {
   const userToken = getSessionBearerForMcp(req);  // from session, not browser
   if (!userToken) return { token: null, tokenEvents: [], userSub: null };
-  // …may_act checks, scope narrowing, then:
+  // …consent grant check, scope narrowing, then:
   const mcpToken = useActor
     ? await oauthService.performTokenExchangeWithActor(userToken, actorToken, mcpUri, toolScopes)
     : await oauthService.performTokenExchange(userToken, mcpUri, toolScopes);

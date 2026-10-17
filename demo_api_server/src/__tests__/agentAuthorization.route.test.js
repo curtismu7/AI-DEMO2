@@ -47,8 +47,18 @@ afterEach(() => {
   }
 });
 
-test('POST /grant writes mayAct={sub: ai_agent_client_id} and signals reauth', async () => {
-  configStore.getEffective.mockImplementation((k) => (k === 'ai_agent_client_id' ? 'agent-uuid' : null));
+const flags = (extra) => (k) => ({ ai_agent_client_id: 'agent-uuid', ...extra }[k] || null);
+
+test('POST /grant records the grant server-side; no PingOne write, no re-auth', async () => {
+  configStore.getEffective.mockImplementation(flags());
+  const res = await request(buildApp()).post('/api/agent-authorization/grant').expect(200);
+  expect(pingOneUserService.setMayActAttribute).not.toHaveBeenCalled();
+  expect(delegationStore.findActiveByActorAndGrantor('agent-uuid', 'user-5')).toBeTruthy();
+  expect(res.body).toEqual({ ok: true, reauthRequired: false });
+});
+
+test('POST /grant (ff_may_act_seed ON) also writes mayAct={sub: ai_agent_client_id} and signals reauth', async () => {
+  configStore.getEffective.mockImplementation(flags({ ff_may_act_seed: 'true' }));
   const res = await request(buildApp()).post('/api/agent-authorization/grant').expect(200);
   expect(pingOneUserService.setMayActAttribute).toHaveBeenCalledWith('user-5', { sub: 'agent-uuid' });
   expect(res.body).toEqual({ ok: true, reauthRequired: true });
@@ -61,7 +71,18 @@ test('POST /grant → 503 when agent client id not configured', async () => {
   expect(pingOneUserService.setMayActAttribute).not.toHaveBeenCalled();
 });
 
-test('POST /revoke clears mayAct and signals reauth', async () => {
+test('POST /revoke ends the grant record immediately; no PingOne write', async () => {
+  configStore.getEffective.mockImplementation(flags());
+  const app = buildApp();
+  await request(app).post('/api/agent-authorization/grant').expect(200);
+  const res = await request(app).post('/api/agent-authorization/revoke').expect(200);
+  expect(delegationStore.findActiveByActorAndGrantor('agent-uuid', 'user-5')).toBeNull();
+  expect(pingOneUserService.setMayActAttribute).not.toHaveBeenCalled();
+  expect(res.body).toEqual({ ok: true, reauthRequired: false });
+});
+
+test('POST /revoke (ff_may_act_seed ON) also clears mayAct and signals reauth', async () => {
+  configStore.getEffective.mockImplementation(flags({ ff_may_act_seed: 'true' }));
   const res = await request(buildApp()).post('/api/agent-authorization/revoke').expect(200);
   expect(pingOneUserService.setMayActAttribute).toHaveBeenCalledWith('user-5', null);
   expect(res.body).toEqual({ ok: true, reauthRequired: true });
@@ -92,8 +113,8 @@ test('GET /status authorized=false when the token has no may_act', async () => {
   expect(res.body).toEqual({ authorized: false, enforced: true });
 });
 
-test('POST /grant → 502 when the PingOne write fails', async () => {
-  configStore.getEffective.mockImplementation((k) => (k === 'ai_agent_client_id' ? 'agent-uuid' : null));
+test('POST /grant (ff_may_act_seed ON) → 502 when the PingOne write fails', async () => {
+  configStore.getEffective.mockImplementation(flags({ ff_may_act_seed: 'true' }));
   pingOneUserService.setMayActAttribute.mockRejectedValueOnce(new Error('boom'));
   const res = await request(buildApp()).post('/api/agent-authorization/grant').expect(502);
   expect(res.body.error).toBe('mayact_write_failed');

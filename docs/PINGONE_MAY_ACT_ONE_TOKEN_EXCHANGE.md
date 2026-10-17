@@ -1,5 +1,6 @@
 # PingOne: 1-Exchange Delegated Chain — Setup Guide
 
+> **LEGACY MODE ONLY.** This guide describes the legacy `may_act` model (feature flag `ff_may_act_seed` ON) and PingOne AIC. In the default model the user token carries no `may_act`: consent is a server-side grant record checked by PingOne Authorize on every call, and `act` is minted from the actor token. Do **not** set `mayAct` or re-login after granting on the default path. See [ACT_ONLY_DELEGATION_MODEL.md](ACT_ONLY_DELEGATION_MODEL.md).
 
 > **RFC 8693 Terminology (Phase 188):** subject_token = user access token (§2.1), actor_token = agent CC token (§2.2), MCP-scoped access token = exchange result (§3.2). See [TOKEN_TERMINOLOGY_GLOSSARY.md](TOKEN_TERMINOLOGY_GLOSSARY.md).
 Step-by-step setup for a **human → Banking App → MCP → PingOne API** delegated token chain using **one RFC 8693 token exchange**. This is the pattern implemented by the AI Demo.
@@ -705,6 +706,8 @@ If `may_act` is absent:
 ---
 
 ### 3c. Set `mayAct` on the User Record
+
+> **Legacy only (`ff_may_act_seed` ON).** On the default path skip this step: do not set `mayAct`. The user grants consent in the app (server-side record, effective on the next call; no re-login). In legacy mode, after Enable/Clear the user must re-authenticate for the token to carry/drop `may_act`.
 
 The value must be the **client ID UUID of Super Banking Admin App** (`PINGONE_CORE_CLIENT_ID`). This is what PingOne compares against the authenticating client's ID during Token Exchange #1.
 
