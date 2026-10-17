@@ -512,6 +512,21 @@ describe('PiFlowSignInModal', () => {
       expect(JSON.parse(call[1].body)).toEqual({ username: 'demo' });
     });
 
+    test('DEVICE_SELECTION_REQUIRED from the device submit shows the picker, not a redirect', async () => {
+      mockPasswordlessBff({ passwordless: () => ok({
+        step: 'device',
+        devices: [
+          { id: 'dev-email-1', type: 'EMAIL', email: 'cm****@pingidentity.com' },
+          { id: 'dev-fido-1', type: 'FIDO2', nickname: 'My Passkey' },
+        ],
+      }) });
+      const usernameInput = await toDeviceStep();
+      fireEvent.change(usernameInput, { target: { value: 'demo' } });
+      fireEvent.click(screen.getAllByRole('button', { name: 'Sign in' }).pop());
+      expect(await screen.findByRole('radio', { name: /Passkey · My Passkey/ })).toBeInTheDocument();
+      expect(window.location.href).not.toContain('/api/auth/oauth');
+    });
+
     test('OTP step with multiple devices shows the picker; picking FIDO2 posts device select and starts the ceremony', async () => {
       const OPTIONS = { challenge: 'Y2g', rpId: 'ping-devops.com' };
       global.fetch = vi.fn((url) => {

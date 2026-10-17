@@ -482,6 +482,11 @@ export default function PiFlowSignInModal() {
         setBusy(false);
         return;
       }
+      if (res.ok && body.step === "device") {
+        setDevices(Array.isArray(body.devices) ? body.devices : []);
+        setBusy(false);
+        return;
+      }
       redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
     } catch {
       redirectLogin(returnToRef.current, roleRef.current, forceRef.current);

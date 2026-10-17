@@ -310,11 +310,15 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
       // 409s so the modal returns to the password form with a message — the
       // shared respondAfter fallback ({ fallback: true }) is right for the
       // credentials path but wrong here; this step IS the alternative.
-      if (body.status !== 'OTP_REQUIRED' && body.status !== 'ASSERTION_REQUIRED' && body.status !== 'COMPLETED') {
-        return res.status(409).json({
+      // DEVICE_SELECTION_REQUIRED: the user has several devices and no default.
+      if (!['OTP_REQUIRED', 'ASSERTION_REQUIRED', 'DEVICE_SELECTION_REQUIRED', 'COMPLETED'].includes(body.status)) {
+        // The lookup already advanced the PingOne flow (e.g. to PASSWORD_REQUIRED):
+        // persist it, or the password form re-sends user.lookup and PingOne 400s.
+        req.session.oauthPiFlow = { ...pending, cookies, status: body.status };
+        return req.session.save(() => res.status(409).json({
           error: 'passwordless_unavailable',
           message: 'This account requires a password. Sign in with your password.',
-        });
+        }));
       }
       return await respondAfterPiFlowStep(req, res, pending, body, cookies);
     } catch (error) {
