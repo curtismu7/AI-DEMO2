@@ -4,6 +4,10 @@ import { sendAgentMessage } from "../services/demoAgentService";
 import TokenChainTraceRail from "../components/TokenChainTraceRail";
 import { requiredFlagsForUseCase } from "../utils/requiredDemoFlags";
 import { useThemeOptional } from "../context/ThemeContext";
+import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
+import {
+  DELEGATION_CHAIN_EDGES, DELEGATION_CHAIN_GROUPS, DELEGATION_CHAIN_NODES, DELEGATION_CHAIN_STEPS,
+} from "../config/delegationChainValueDiagram";
 import "./DelegationChainValuePage.css";
 
 const VERTICAL = "sporting-goods";
@@ -109,6 +113,14 @@ export default function DelegationChainValuePage() {
         runs through the live token-exchange and authorization path, then shows the evidence in
         the token-chain panel.
       </p>
+      <EmbeddedFlowDiagram
+        testId="dcv-chain-diagram"
+        title="What the two runs do"
+        ariaLabel="Delegation chain diagram"
+        diagramLabel="Generalist to specialist delegation with token exchanges, and the identity-mismatch probe"
+        lede="Both runs go through /api/agent/invoke. The first delegates across two agents with nested act claims; the second probes the same policy decision with an unregistered agent."
+        config={{ GROUPS: DELEGATION_CHAIN_GROUPS, NODES: DELEGATION_CHAIN_NODES, EDGES: DELEGATION_CHAIN_EDGES, STEPS: DELEGATION_CHAIN_STEPS }}
+      />
       {hasResults && (
         <div className="dcv-controls">
           <button type="button" onClick={handleClearAll} className="dcv-clear-button">

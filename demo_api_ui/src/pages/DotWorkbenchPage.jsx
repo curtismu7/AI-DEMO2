@@ -11,6 +11,8 @@ import { dotSuggestions } from '../config/dotSuggestions';
 import { useVertical } from '../vertical/useVertical';
 import { useThemeOptional } from '../context/ThemeContext';
 import { openSignIn } from '../utils/signInService';
+import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
+import { DOT_WORKBENCH_GROUPS, DOT_WORKBENCH_NODES, DOT_WORKBENCH_EDGES, DOT_WORKBENCH_STEPS } from '../config/dotWorkbenchDiagram';
 // Same workbench shell sheet as /privilege-a2a (cur-ide / cur-titlebar), plus Dot's own.
 import './PrivilegeMcpClientPage.css';
 import '../components/dot/DotWorkbench.css';
@@ -114,6 +116,12 @@ export default function DotWorkbenchPage({ user }) {
           <DotGovernsPanel cards={cards} persona={persona} mode={agentMode} />
         </aside>
       </main>
+      <EmbeddedFlowDiagram
+        testId="dot-diagram"
+        title="How Dot handles a message"
+        lede="One message, end to end: the BFF route, the optional intent gate, the agent run, the governed tool call and what comes back to this page."
+        config={{ GROUPS: DOT_WORKBENCH_GROUPS, NODES: DOT_WORKBENCH_NODES, EDGES: DOT_WORKBENCH_EDGES, STEPS: DOT_WORKBENCH_STEPS }}
+      />
     </div>
   );
 }

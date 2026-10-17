@@ -16,6 +16,8 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 import InlineSpinner from '../components/shared/InlineSpinner';
 import OboDemoPage from './OboDemoPage';
 import SignInPrompt from '../components/SignInPrompt';
+import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
+import { PERSONAL_AGENT_EDGES, PERSONAL_AGENT_GROUPS, PERSONAL_AGENT_NODES, PERSONAL_AGENT_STEPS } from '../config/personalAgentStudioDiagram';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua', 'dot'];
@@ -427,6 +429,21 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         </div>}
       </div>
 
+      {view === 'agent' && (
+        <details style={{ flexShrink: 0, padding: '0 16px', borderBottom: '1px solid var(--th-border)' }}>
+          <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>How a request flows</summary>
+          <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
+            <EmbeddedFlowDiagram
+        testId="pas-flow-diagram"
+        title="How a personal-agent request is governed"
+        ariaLabel="Personal agent request flow diagram"
+        diagramLabel="Agent client to BFF, gateway and PingOne Authorize, with MFA and approval detours"
+        lede="Every skin posts to /api/agent/invoke. The three gates match the security rail; MFA and human approval are the two ways a request is held and retried."
+        config={{ GROUPS: PERSONAL_AGENT_GROUPS, NODES: PERSONAL_AGENT_NODES, EDGES: PERSONAL_AGENT_EDGES, STEPS: PERSONAL_AGENT_STEPS }}
+      />
+          </div>
+        </details>
+      )}
       {view === 'obo' ? (
         <div style={{ flex: 1, overflow: 'auto' }}>
           {user ? <OboDemoPage /> : <SignInPrompt message="The delegation proof runs on your signed-in session." />}

@@ -1,5 +1,9 @@
 import { useState } from 'react';
 import apiClient from '../services/apiClient';
+import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
+import * as hostedFlow from '../config/hostedAccessDiagram';
+
+const HOSTED_FLOW = { GROUPS: hostedFlow.HOSTED_ACCESS_GROUPS, NODES: hostedFlow.HOSTED_ACCESS_NODES, EDGES: hostedFlow.HOSTED_ACCESS_EDGES, STEPS: hostedFlow.HOSTED_ACCESS_STEPS };
 
 export default function HostedRegistrationPage() {
   const [form, setForm] = useState({ email: '', firstName: '', lastName: '', countryCode: '+1', phone: '' });
@@ -84,6 +88,9 @@ export default function HostedRegistrationPage() {
       )}
       {error && <p className="hosted-registration__error" role="alert">{error}</p>}
       </section>
+      <EmbeddedFlowDiagram config={HOSTED_FLOW} testId="hosted-flow" ariaLabel="Hosted access registration flow"
+        title="Hosted access: request, invite, approval"
+        lede="Requesters verify an email code, admins can also invite directly, and an admin approval moves the user into the group that opens the hosted-access wall." />
     </main>
   );
 }

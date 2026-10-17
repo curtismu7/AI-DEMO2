@@ -4,6 +4,10 @@ import { useThemeOptional } from "../context/ThemeContext";
 import { KIBANA_URL } from "../config/observabilityLinks";
 import "./McpObservabilityPage.css";
 import InlineSpinner from '../components/shared/InlineSpinner';
+import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
+import * as obsFlow from '../config/mcpObservabilityDiagram';
+
+const OBS_FLOW = { GROUPS: obsFlow.MCP_OBS_GROUPS, NODES: obsFlow.MCP_OBS_NODES, EDGES: obsFlow.MCP_OBS_EDGES, STEPS: obsFlow.MCP_OBS_STEPS };
 
 const REFRESH_MS = 15000;
 const AUDIT_LIMIT = 100;
@@ -214,6 +218,10 @@ export default function McpObservabilityPage() {
       <section className="mcp-observability-explorer"><div className="mcp-observability-section-title"><h2>Request explorer</h2><span>{visibleEvents.length} visible · {formatNumber(overview.denied)} denied</span></div><article className="mcp-observability-panel mcp-observability-explorer-grid"><div className="mcp-observability-request-list"><div className="mcp-observability-filterbar"><input value={search} onChange={(event) => setSearch(event.target.value)} placeholder="Search tool, user, correlation ID…" aria-label="Search MCP requests" /><select value={outcome} onChange={(event) => setOutcome(event.target.value)} aria-label="Filter outcome"><option value="all">All outcomes</option><option value="success">Success</option><option value="denied">Denied</option><option value="failure">Failure</option></select></div>{visibleEvents.map((event) => <button type="button" key={event.eventId} className={`mcp-observability-request ${event.eventId === selectedId ? "selected" : ""}`} onClick={() => setSelectedId(event.eventId)}><StatusDot status={isDenied(event) ? "denied" : event.outcome} /><span><strong>{event.operation}</strong><small>{event.userId || "unknown user"} · {event.agentId || "direct call"} · {event.vertical || "unclassified"}</small></span><time>{formatDuration(event.duration)}</time></button>)}</div><TraceDetail event={selected} detail={trace} loading={traceLoading} /></article></section>
 
       <section className="mcp-observability-tools"><div className="mcp-observability-section-title"><h2>Tool health</h2><span>ranked by impact</span></div><article className="mcp-observability-panel mcp-observability-table-wrap"><table><thead><tr><th>Tool</th><th>Calls</th><th>Error rate</th><th>p95</th><th>Denials</th><th>Last seen</th></tr></thead><tbody>{tools.map((tool) => <tr key={tool.operation}><td><span className="mcp-observability-tool-name"><StatusDot status={tool.denials ? "warning" : "healthy"} />{tool.operation}</span></td><td>{formatNumber(tool.calls)}</td><td className={tool.errorRate ? "bad" : "good"}>{tool.errorRate.toFixed(1)}%</td><td>{formatDuration(tool.p95)}</td><td className={tool.denials ? "caution" : ""}>{formatNumber(tool.denials)}</td><td>{formatTime(tool.lastSeen)}</td></tr>)}</tbody></table>{!tools.length && <div className="mcp-observability-empty">No tool calls in the current audit window.</div>}</article></section>
+
+      <EmbeddedFlowDiagram config={OBS_FLOW} testId="mcp-obs-flow" ariaLabel="Where this page's data comes from"
+        title="Where this page's data comes from"
+        lede="Four BFF reads feed the page: audit events, health, gateway metrics, and the chain-of-custody trace of the selected request." />
     </div>
   );
 }

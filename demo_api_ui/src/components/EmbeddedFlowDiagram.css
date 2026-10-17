@@ -1,0 +1,14 @@
+.efd { display: grid; gap: 10px; margin: 20px 0; }
+.efd h2 { margin: 0; font-size: var(--font-size-lg); color: var(--th-text); }
+.efd-lede { margin: 0; color: var(--th-text-body); line-height: 1.5; font-size: var(--font-size-sm); }
+.efd-figure { margin: 0; display: grid; gap: 10px; }
+.efd-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: var(--font-size-sm); color: var(--th-text-muted); }
+.efd-legend li { display: inline-flex; align-items: center; gap: 8px; }
+.efd-sw { display: inline-block; width: 22px; height: 0; border-top: 4px solid var(--th-border-strong); }
+.efd-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 12px; }
+.efd-step { border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg-card); padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
+.efd-step--active { border-color: var(--th-status-info); border-width: 2px; }
+.efd-step h3 { margin: 0; font-size: var(--font-size-base); color: var(--th-text); display: flex; align-items: baseline; gap: 8px; }
+.efd-n { color: var(--th-text-muted); font-variant-numeric: tabular-nums; margin-right: 8px; }
+.efd-step p { margin: 0; font-size: var(--font-size-sm); line-height: 1.5; color: var(--th-text-body); }
+.efd-why strong { color: var(--th-text-muted); font-weight: 600; }

@@ -4,6 +4,8 @@ import { useLocation, useNavigate, useSearchParams } from 'react-router-dom';
 import SignInPrompt from './SignInPrompt';
 import TransactionConsentModal from './TransactionConsentModal';
 import ConsentMockPhoneFlow from './ConsentMockPhoneFlow';
+import EmbeddedFlowDiagram from './EmbeddedFlowDiagram';
+import { CONSENT_MOCK_DIAGRAM } from '../config/consentMockPhoneDiagram';
 import '../styles/appShellPages.css';
 import './TransactionConsentPage.css';
 
@@ -88,6 +90,14 @@ function SimulateLanding({ user, onStartSimulation }) {
           <li>PingOne completes the CIBA flow — transaction proceeds or is blocked</li>
         </ol>
       </div>
+
+      <EmbeddedFlowDiagram
+        config={CONSENT_MOCK_DIAGRAM}
+        title="Who talks to whom"
+        lede="Simulate mode keeps the whole CIBA exchange between your browser, the BFF and a mock phone; a real run swaps in PingOne and a deep link."
+        ariaLabel="Transaction consent mock CIBA flow"
+        testId="tc-diagram"
+      />
     </div>
   );
 }

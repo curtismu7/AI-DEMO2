@@ -9,6 +9,10 @@ import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { notifyError, notifySuccess } from "../utils/appToast";
 import { startRoleSwitch } from "../utils/roleSwitch";
 import { useThemeOptional } from "../context/ThemeContext";
+import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
+import {
+  DELEGATED_COMMERCE_EDGES, DELEGATED_COMMERCE_GROUPS, DELEGATED_COMMERCE_NODES, DELEGATED_COMMERCE_STEPS,
+} from "../config/delegatedCommerceDiagram";
 
 const CLAIM_CODE_KEY = "delegated-commerce-claim-code";
 
@@ -564,6 +568,15 @@ export default function DelegatedCommercePage({ user }) {
           <div className="dc-card dc-trace"><TokenChainTraceRail /></div>
         </aside>
       </div>
+
+      <EmbeddedFlowDiagram
+        testId="dc-lifecycle-diagram"
+        title="Delegated-agent lifecycle, end to end"
+        ariaLabel="Delegated-agent lifecycle diagram"
+        diagramLabel="Register, consent, protected call, approval and revoke for a delegated shopping agent"
+        lede="Who talks to whom in each of the four steps above: the administrator and customer, the demo routes, PingOne, and the MCP gateway."
+        config={{ GROUPS: DELEGATED_COMMERCE_GROUPS, NODES: DELEGATED_COMMERCE_NODES, EDGES: DELEGATED_COMMERCE_EDGES, STEPS: DELEGATED_COMMERCE_STEPS }}
+      />
 
       <ConsentModal
         open={consentOpen}
