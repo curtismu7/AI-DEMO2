@@ -3222,6 +3222,7 @@ export default function ArchitectureFlowPage({ user }) {
           className="afp-canvas"
           nodes={nodes}
           edges={edges}
+          nodesDraggable
           onNodesChange={onNodesChange}
           onEdgesChange={onEdgesChange}
           nodeTypes={NODE_TYPES}

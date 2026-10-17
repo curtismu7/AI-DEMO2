@@ -489,7 +489,7 @@ function CanvasEditor() {
               if (window.confirm('Reset canvas to default layout?')) {
                 resetLayout(); setPingStatus({}); setResultPanel(null);
               }
-            }}>↺ Reset</button>
+            }}>↺ Reset layout</button>
           </>
         )}
       </div>
