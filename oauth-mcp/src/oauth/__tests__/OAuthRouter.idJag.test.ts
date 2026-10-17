@@ -214,6 +214,33 @@ describe('OAuthRouter — ID-JAG jwt-bearer grant', () => {
     expect(axios.get).toHaveBeenCalledWith(process.env.ENTERPRISE_IDP_JWKS_URL);
   });
 
+  it('accepts the same x5t key listed under several kids (static PF key set)', async () => {
+    const same = { x5t: 'pf-thumbprint', kty: 'RSA', n: 'modulus', e: 'AQAB' };
+    (axios.get as jest.Mock).mockResolvedValue({ data: { keys: [{ ...same, kid: 'a' }, { ...same, kid: 'a_RS256' }, { ...same, kid: 'atm' }] } });
+    const { router } = await buildRouter();
+    const res = await postToken(router, {
+      grant_type: JWT_BEARER_GRANT,
+      assertion: mintIdJag({}, { x5t: 'pf-thumbprint' }),
+      client_id: CLIENT.client_id,
+      client_secret: CLIENT.client_secret as string,
+    });
+    expect(res.status).toBe(200);
+  });
+
+  it('refuses two different keys sharing one x5t', async () => {
+    (axios.get as jest.Mock).mockResolvedValue({ data: { keys: [
+      { x5t: 'pf-thumbprint', kty: 'RSA', n: 'one', e: 'AQAB' }, { x5t: 'pf-thumbprint', kty: 'RSA', n: 'two', e: 'AQAB' }] } });
+    const { router } = await buildRouter();
+    const res = await postToken(router, {
+      grant_type: JWT_BEARER_GRANT,
+      assertion: mintIdJag({}, { x5t: 'pf-thumbprint' }),
+      client_id: CLIENT.client_id,
+      client_secret: CLIENT.client_secret as string,
+    });
+    expect(res.status).toBe(400);
+    expect(String(res.body.error_description)).toMatch(/found 2/);
+  });
+
   it('never widens scope beyond the assertion', async () => {
     const { router } = await buildRouter();
     const res = await postToken(router, {

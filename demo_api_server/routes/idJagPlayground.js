@@ -275,8 +275,10 @@ async function verifySignature(idJag, h, s) {
       // PingFederate publishes certificate-backed keys identified by x5t.
       const { data } = await axios.get(s.idp.jwksUrl, { timeout: 10000 });
       const match = (data.keys || []).filter((k) => k.x5t === h.x5t && (!k.alg || k.alg === h.alg));
-      if (match.length !== 1) throw new Error(`expected one JWKS key for x5t ${h.x5t}, found ${match.length}`);
-      key = await importJWK(match[0], h.alg || 'RS256');
+      // The same key may be listed under several kids (static PF key sets): count distinct keys.
+      const distinct = [...new Map(match.map((k) => [`${k.kty}.${k.n}.${k.e}.${k.x}.${k.y}`, k])).values()];
+      if (distinct.length !== 1) throw new Error(`expected one JWKS key for x5t ${h.x5t}, found ${distinct.length}`);
+      key = await importJWK(distinct[0], h.alg || 'RS256');
     } else {
       key = createRemoteJWKSet(new URL(s.idp.jwksUrl));
     }
@@ -337,8 +339,12 @@ function configFor(req) {
     ],
     // What an outside IdP needs: aud = the issuer, and where its client redeems.
     publicEndpoints: {
-      'oauth-mcp': { issuer: oauthMcp.resourceAs.issuer, tokenEndpoint: oauthMcp.resourceAs.tokenEndpoint },
-      pingfederate: { issuer: cfg('pf_issuer') || cfg('pf_issuer_uri'), tokenEndpoint: cfg('pf_token_endpoint') },
+      // What an outside agent calls, derived from each issuer (the in-cluster URLs the BFF
+      // itself uses are not reachable from outside). ID_JAG_PUBLIC_OAUTH_MCP_TOKEN_ENDPOINT overrides.
+      'oauth-mcp': { issuer: oauthMcp.resourceAs.issuer,
+        tokenEndpoint: env('ID_JAG_PUBLIC_OAUTH_MCP_TOKEN_ENDPOINT') || (oauthMcp.resourceAs.issuer ? `${oauthMcp.resourceAs.issuer.replace(/\/$/, '')}/token` : '') },
+      pingfederate: { issuer: cfg('pf_issuer') || cfg('pf_issuer_uri'),
+        tokenEndpoint: (cfg('pf_issuer') || cfg('pf_issuer_uri')) ? `${(cfg('pf_issuer') || cfg('pf_issuer_uri')).replace(/\/$/, '')}/as/token.oauth2` : '' },
     },
     byo: req.session?.idJagPlayground?.byo || null,
     signedIn: pfSignedIn(req), hasIdJag: !!req.session?.idJagPlayground?.idJag,
