@@ -3,6 +3,8 @@ import apiClient from "../services/apiClient";
 import GroupMembershipToggle from "../components/GroupMembershipToggle";
 import PingIdentitySpinner from "../components/shared/PingIdentitySpinner";
 import { useThemeOptional } from "../context/ThemeContext";
+import EmbeddedFlowDiagram from "../components/EmbeddedFlowDiagram";
+import { GROUP_POLICY_DIAGRAM } from "../config/groupPolicyBoardDiagram";
 import "./GroupPolicyBoardPage.css";
 
 const GROUP_POLICY_FLAG = "ff_authorize_group_policy";
@@ -182,6 +184,14 @@ export default function GroupPolicyBoardPage() {
           the picker to see the same group rule enforced in each business.
         </p>
       </header>
+
+      <EmbeddedFlowDiagram
+        config={GROUP_POLICY_DIAGRAM}
+        title="How one decision is made"
+        lede="The board and the check panel ask PingOne Authorize the same question about two different users; flipping membership in the PingOne directory flips the next answer."
+        ariaLabel="Group policy decision flow"
+        testId="gpb-diagram"
+      />
 
       <section className="gpb-control">
         {/* Re-uses the same component as the UC9 card, so there is one code path

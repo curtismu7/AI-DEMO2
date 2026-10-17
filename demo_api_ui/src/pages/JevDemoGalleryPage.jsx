@@ -5,6 +5,10 @@ import InlineSpinner from '../components/shared/InlineSpinner';
 import { ARTICLES, GALLERY } from './jevDemoContent';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 import './JevLearningPage.css';
+import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
+import * as jevFlow from '../config/jevGalleryDiagram';
+
+const JEV_FLOW = { GROUPS: jevFlow.JEV_GALLERY_GROUPS, NODES: jevFlow.JEV_GALLERY_NODES, EDGES: jevFlow.JEV_GALLERY_EDGES, STEPS: jevFlow.JEV_GALLERY_STEPS };
 
 /**
  * The eight demos from "8 Cool Things People Use the Jev Model For", each a
@@ -492,6 +496,9 @@ export default function JevDemoGalleryPage() {
           runLabel={entry.id === 'game-agent' ? 'Run the runner' : 'Run the trading loop'}
         />
       )}
+      <EmbeddedFlowDiagram config={JEV_FLOW} testId="jev-flow" ariaLabel="How a Jev gallery demo gets its answer"
+        title="How every demo gets its answer"
+        lede="Each demo posts a locked scenario to the public Jev route, which returns Jev's answer beside a keyword baseline. Batch demos then apply the escalation band." />
     </div>
   );
 }

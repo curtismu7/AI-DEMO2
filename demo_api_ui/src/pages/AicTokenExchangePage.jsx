@@ -1,4 +1,6 @@
 import { useEffect, useMemo, useState } from "react";
+import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
+import { AIC_EXCHANGE_GROUPS, AIC_EXCHANGE_NODES, AIC_EXCHANGE_EDGES, AIC_EXCHANGE_STEPS } from "../config/aicTokenExchangeDiagram";
 import ProtocolTrace from "../components/ProtocolTrace";
 import apiClient from "../services/apiClient";
 import { notifyError, notifySuccess } from "../utils/appToast";
@@ -107,6 +109,13 @@ export default function AicTokenExchangePage() {
           and shows what went over the wire with every secret replaced.
         </p>
       </header>
+
+      <EmbeddedFlowDiagram
+        testId="aic-diagram"
+        title="How the AIC delegation exchange works"
+        lede="Three calls to AIC, all brokered by the BFF: the user token, the agent token, then the RFC 8693 exchange of the pair."
+        config={{ GROUPS: AIC_EXCHANGE_GROUPS, NODES: AIC_EXCHANGE_NODES, EDGES: AIC_EXCHANGE_EDGES, STEPS: AIC_EXCHANGE_STEPS }}
+      />
 
       {!loading && outcome === "error" && (
         <p className="pf-ai-agent__disabled-action" role="alert" data-testid="aic-login-error">
