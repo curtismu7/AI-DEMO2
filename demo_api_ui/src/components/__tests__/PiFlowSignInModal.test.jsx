@@ -261,7 +261,8 @@ describe('PiFlowSignInModal', () => {
       credentials: () => ok({ step: 'otp', devices: [{ id: 'pf-otp-1', type: 'OTP' }] }),
       assertion: () => ok({}),
     });
-    await mountAndClickPassword();
+    await mountAndClick(); // PF opens password-first
+    await screen.findByLabelText('Password');
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demouser' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
@@ -275,12 +276,26 @@ describe('PiFlowSignInModal', () => {
       login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
       credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' }),
     });
-    await mountAndClickPassword();
+    await mountAndClick(); // PF opens password-first
+    await screen.findByLabelText('Password');
     expect(window.location.href).toBe('');
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demouser' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
+  });
+
+  test('PingFederate opens on the password form with no passwordless open and no device switch', async () => {
+    mockBff({
+      config: { ...ON, oauth_provider: 'pingfederate' },
+      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
+      credentials: () => ok({}),
+    });
+    await mountAndClick();
+    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+    const loginCall = global.fetch.mock.calls.find(([u]) => String(u).includes('/oauth/user/login'));
+    expect(String(loginCall[0])).not.toContain('passwordless=1');
+    expect(screen.queryByRole('button', { name: 'Use a device instead' })).toBeNull();
   });
 
   test('PingFederate: the username hint from the BFF prefills the username box', async () => {

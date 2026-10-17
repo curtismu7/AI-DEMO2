@@ -207,7 +207,9 @@ export default function PiFlowSignInModal() {
     // username/password form and MFA comes after. If the flow open fails with
     // passwordless=1 the open snaps back to the password form in the modal.
     passkeyOptionsRef.current = null;
-    setStep(role === "admin" ? "password" : "device");
+    // PingFederate has no device-first step (the BFF 409s it): password first.
+    const passwordFirst = role === "admin" || providerRef.current === "pingfederate";
+    setStep(passwordFirst ? "password" : "device");
     setError("");
     setUsername("");
     setPassword("");
@@ -220,7 +222,7 @@ export default function PiFlowSignInModal() {
     // ?signin=mfa is itself the acr selector (Multi_Factor): sending
     // passwordless=1 alongside would silently win the last-spread and turn
     // the on-demand MFA demo into the device-first policy.
-    openFlow(target, role, { passwordless: !mfaRequested() && role !== "admin" });
+    openFlow(target, role, { passwordless: !mfaRequested() && !passwordFirst });
   }, []);
 
   // Opens the pi.flow on the BFF. `passwordless` selects the identifier-first
@@ -731,13 +733,15 @@ export default function PiFlowSignInModal() {
               ❌ {error}
             </p>
           ) : null}
-          <button
-            type="button"
-            className="signin-prompt__btn signin-prompt__btn--ghost"
-            onClick={switchToDevice}
-          >
-            Use a device instead
-          </button>
+          {providerRef.current !== "pingfederate" && (
+            <button
+              type="button"
+              className="signin-prompt__btn signin-prompt__btn--ghost"
+              onClick={switchToDevice}
+            >
+              Use a device instead
+            </button>
+          )}
         </form>
         )}
       </div>

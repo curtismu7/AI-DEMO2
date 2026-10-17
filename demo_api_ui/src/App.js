@@ -551,7 +551,7 @@ function AppWithAuth() {
     setLoginSuccessOpen(true);
   }, [freshLogin, user]);
 
-  // First-run welcome wizard. Auto-opens once per browser — but never on the
+  // First-run welcome wizard. Auto-open is currently OFF (see below). It used to auto-open once per browser — but never on the
   // same load as the post-login success modal (freshLogin), which owns that
   // moment. `?welcome=1` forces it open (shareable link, no login needed);
   // re-openable any time from the TopNav Welcome button and the Learning Hub.
@@ -559,7 +559,9 @@ function AppWithAuth() {
     try {
       if (new URLSearchParams(window.location.search || "").get("welcome") === "1") return true;
       if (window.location.pathname === "/welcome") return true;
-      return !localStorage.getItem("demo_welcome_seen") && !freshLogin;
+      // First-visit auto-open is off for now (2026-10-17); re-enable with:
+      // return !localStorage.getItem("demo_welcome_seen") && !freshLogin;
+      return false;
     } catch {
       return false;
     }
