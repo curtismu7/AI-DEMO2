@@ -65,7 +65,11 @@
 
 ---
 
-## Token Attribute Mappings (may_act / act)
+## Token Attribute Mappings (act; may_act is legacy)
+
+**Default (act-only):** no `mayAct` user attribute and no `may_act` resource attribute are provisioned. The audience resources (`mcpgateway`, `mcpserver`, `agentgateway`) carry one `act` attribute, `${{'sub': #root.context.requestData.actorToken.client_id}}`, so PingOne mints `act` from the actor token. User consent is a server-side grant record checked by the authorization policy on every call. See [../ACT_ONLY_DELEGATION_MODEL.md](../ACT_ONLY_DELEGATION_MODEL.md).
+
+**Everything below until the `act` claim subsection applies only to legacy mode (`ff_may_act_seed` ON) and PingOne AIC.**
 
 The `may_act` claim on a user token prospectively authorises the RFC 8693 token exchange. It must be emitted as a **JSON object** in the JWT.
 
@@ -92,7 +96,7 @@ The `may_act` claim on a user token prospectively authorises the RFC 8693 token 
 |---|---|---|
 | `sub` | `${user.id}` | Standard — user's PingOne UUID |
 | `may_act` | `${user.mayAct}` | Projects the user's `mayAct` JSON attribute — authorises downstream re-exchange |
-| `act` | `${(#root.context.requestData.actorToken != null and #root.context.requestData.subjectToken.may_act != null and #root.context.requestData.subjectToken.may_act.sub == #root.context.requestData.actorToken.client_id) ? #root.context.requestData.subjectToken.may_act : null}` | Native `act` (see below) — emits `{sub:<actor>}` when the actor matches `may_act.sub`, else `null` |
+| `act` | `${(#root.context.requestData.actorToken != null and #root.context.requestData.subjectToken.may_act != null and #root.context.requestData.subjectToken.may_act.sub == #root.context.requestData.actorToken.client_id) ? #root.context.requestData.subjectToken.may_act : null}` | Legacy-mode `act` (`ff_may_act_seed` ON) — emits `{sub:<actor>}` when the actor matches `may_act.sub`, else `null`. Default: `${{'sub': #root.context.requestData.actorToken.client_id}}` |
 
 > **Critical:** the user-record `mayAct.sub` MUST equal `PINGONE_AI_AGENT_CLIENT_ID` (`d21c5124...`).
 > The old value was `d3f8fead` (Demo AI App - MCP Step 9 Exchanger, legacy) — **wrong, do not revert**.
@@ -153,7 +157,7 @@ MCP_SERVER_URL=wss://api.ping.demo:3005                               # BFF→ga
 
 ```
 User login (Demo AI App - User Login b7d00976)
-  └─ issues T1: aud=enduser.ping.demo, may_act.sub=d21c5124 (AI Agent)
+  └─ issues T1: aud=enduser.ping.demo (legacy mode adds may_act.sub=d21c5124, AI Agent)
 
 Exchange #1 — BFF performs:
   subject_token = T1 (user access token)
@@ -181,7 +185,7 @@ MGT_TOKEN=$(curl -s -X POST "https://auth.pingone.com/01d89b06-66d5-430e-9f28-65
   | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
 ```
 
-Set the `may_act` resource attribute (value is the SpEL projection of the user attribute):
+(Legacy mode only.) Set the `may_act` resource attribute (value is the SpEL projection of the user attribute):
 ```bash
 curl -X PUT "https://api.pingone.com/v1/environments/01d89b06-66d5-430e-9f28-65636843788b/resources/<RES_ID>/attributes/<ATTR_ID>" \
   -H "Authorization: Bearer $MGT_TOKEN" \

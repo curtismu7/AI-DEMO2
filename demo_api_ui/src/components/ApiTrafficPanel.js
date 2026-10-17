@@ -23,7 +23,7 @@ const RFC_NOTES = {
   scope:     { ref: 'RFC 9068 §2.2 · RFC 8693 §4.2', what: 'Granted OAuth 2.0 scopes — space-separated permissions the client may exercise' },
   client_id: { ref: 'RFC 9068 §2.2', what: 'Client ID — the OAuth 2.0 client that requested this token' },
   act:       { ref: 'RFC 8693 §4.4',  what: 'Authorized Actor — identifies who is currently acting on behalf of the subject (delegation)' },
-  may_act:   { ref: 'RFC 8693 §4.4.3 (draft)', what: 'May Act — identifies who is authorized to obtain a token acting on behalf of this subject' },
+  may_act:   { ref: 'RFC 8693 §4.4.3 (draft)', what: 'May Act (optional / legacy mode and PingOne AIC only) — identifies who is authorized to obtain a token acting on behalf of this subject. Not carried by default: consent is a server-side grant checked per call' },
   azp:       { ref: 'OIDC Core §2',   what: 'Authorized Party — the client ID the token was issued to (when aud is multi-valued)' },
   acr:       { ref: 'OIDC Core §2',   what: 'Authentication Context Class Reference — strength of the user\u2019s authentication' },
   auth_time: { ref: 'OIDC Core §2',   what: 'Auth Time — Unix timestamp when the end-user\'s authentication took place' },
@@ -265,8 +265,8 @@ function TokenEventDetail({ entry }) {
         {entry.mayActPresent !== undefined && (
           <p className="api-token-event-may-act">
             {entry.mayActPresent
-              ? `✅ may_act present${entry.mayActValid === false ? ' (mismatch)' : ''}`
-              : '⚠️ may_act absent'}
+              ? `✅ legacy may_act present${entry.mayActValid === false ? ' (mismatch)' : ''}`
+              : 'ℹ️ no may_act (default: act minted from actor token; consent checked per call)'}
           </p>
         )}
         {tab === 'summary' && (

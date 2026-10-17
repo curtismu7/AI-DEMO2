@@ -276,7 +276,7 @@ export default function A2ADelegationPanel({ isOpen, onClose, initialTabId }) {
             <CrossLink panelId={EDU.OBO} tabId="what">On-Behalf-Of — the single-agent case</CrossLink>
             <CrossLink panelId={EDU.RFC_8693} tabId="overview">RFC 8693 — the exchange + act claim</CrossLink>
             <CrossLink panelId={EDU.TOKEN_FLOW} tabId="diagram">Token flow — audiences & scopes</CrossLink>
-            <CrossLink panelId={EDU.MAY_ACT} tabId="what">may_act vs act — why A2A uses act only</CrossLink>
+            <CrossLink panelId={EDU.MAY_ACT} tabId="what">act (and legacy may_act) — why A2A uses act only</CrossLink>
             <CrossLink panelId={EDU.PINGONE_AUTHORIZE} tabId="overview">PingOne Authorize — the policy engine</CrossLink>
           </div>
           <p style={{ fontSize: '0.82rem', color: '#374151', marginTop: '1rem' }}>

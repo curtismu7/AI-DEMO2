@@ -128,20 +128,22 @@ function JwtClaimsTab({ liveIdentity }) {
   }
 }`}</pre>
 
-      <h4>The <code>may_act</code> claim — Permission to delegate</h4>
+      <h4>The <code>may_act</code> claim — Permission to delegate (optional / legacy mode)</h4>
       <p>
-        Present in the <strong>subject token</strong> (the user's original token). It tells the
-        authorization server which clients are allowed to exchange this token.
+        RFC 8693 defines <code>may_act</code> in the <strong>subject token</strong> to say which clients
+        may exchange it. This app does not use it by default: the user's token carries no
+        <code> may_act</code>. Consent is a server-side grant that PingOne Authorize checks on every
+        call, and PingOne mints <code>act</code> from the agent's actor token. <code>may_act</code>
+        appears only in legacy mode (<code>ff_may_act_seed</code>) and PingOne AIC.
       </p>
-      <pre className="edu-code">{`// User's token with may_act
+      <pre className="edu-code">{`// Legacy mode / AIC only: user's token with may_act
 {
   "sub": "${exampleSub}",
   "may_act": {
     "client_id": "admin-oidc-app-id"
   }
 }
-// Only admin-oidc-app-id can exchange this token
-// Any other client_id attempting exchange → "invalid_request"`}</pre>
+// In legacy mode only admin-oidc-app-id can exchange this token`}</pre>
 
       <h4>The <code>aud</code> claim — Audience</h4>
       <p>
@@ -169,9 +171,8 @@ function ExchangePathsTab() {
     ▼
 ┌──────────────────┐
 │ T1: User Token    │  sub=user, aud=bff
-│ may_act: {        │
-│   client_id: bff  │
-│ }                 │
+│ (no may_act;      │
+│  consent = grant) │
 └────────┬─────────┘
          │ POST /as/token
          │ grant_type=token-exchange
@@ -199,9 +200,9 @@ function ExchangePathsTab() {
 │ T1: User     │    │ T0: Agent    │
 │ Token        │    │ Token        │
 │ sub=user     │    │ sub=agent    │
-│ may_act:     │    │ (client_cred)│
-│  {client_id: │    └──────┬───────┘
-│   agent}     │           │
+│ (consent is  │    │ (client_cred)│
+│  a grant)    │    └──────┬───────┘
+│              │           │
 └──────┬───────┘           │
        │                   │
        └───────┬───────────┘
@@ -247,7 +248,7 @@ Step 2: User asks agent "What's my balance?"
 
 Step 3: BFF exchanges user token for MCP token
   Event: token_exchange
-  Input:  T1 (sub=abc123, may_act={client_id:bff})
+  Input:  T1 (sub=abc123)
   Output: T2 (sub=abc123, act={client_id:bff}, aud=mcp_server)
   Scopes: read (narrowed from read,write)
 

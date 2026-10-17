@@ -142,7 +142,8 @@ The demo implements a **two-hop** RFC 8693 chain. The BFF is the sole token cust
 ```
 User login (Demo User App b7d00976)
   └─ Issues T1: aud=enduser.ping.demo
-               may_act.sub=d21c5124 (Demo AI Agent)
+               (no may_act by default; consent is a server-side grant record.
+                Legacy ff_may_act_seed ON: may_act.sub=d21c5124, Demo AI Agent)
 
 Exchange #1 — BFF performs:
   subject_token = T1 (user access token)
@@ -159,11 +160,13 @@ Exchange #2 — MCP Gateway performs:
                sub=<user>, act.sub=3fc5ec99
 ```
 
-### may_act claim rules
+### Consent and `may_act` (act-only model, PR #1443)
 
-`may_act` is the user's **consent declaration** (RFC 8693 §4.2): who the user authorizes to act for them. It lives on user access tokens and is checked by the authorization policy on **every** tool call — it is NOT what mints `act` in default mode (since 2026-10-10, `act` is minted from the actor token; `ff_may_act_seed` ON restores the legacy may_act-seeded mint).
+By default the user token has **no `may_act`**. The user's consent ("this agent may act for me") is a **server-side grant record** (`delegationStore`, `POST /api/agent-authorization/grant|revoke`), checked by the authorization policy on **every** tool call (Rule 2.6). Revoke denies the next call; no re-login. `act` is minted by PingOne from the actor token. See [ACT_ONLY_DELEGATION_MODEL.md](ACT_ONLY_DELEGATION_MODEL.md).
 
-The `may_act` claim is set on the **Demo API** resource token policy using PingOne SpEL.
+**Legacy only** (`ff_may_act_seed` ON, and PingOne AIC): `may_act` is the user's consent declaration on user access tokens (RFC 8693 §4.2) and seeds `act`. The rest of this section applies to that mode only.
+
+In legacy mode the `may_act` claim is set on the **Demo API** resource token policy using PingOne SpEL.
 
 | Resource | Attribute | SpEL Value |
 |---|---|---|
@@ -247,9 +250,9 @@ The gate evaluates:
 
 After MFA step-up (`acr` looks strong), the consent gate is suppressed — no double-gate.
 
-### Per-user consent enforcement (may_act re-architecture, 2026-10-10)
+### Per-user consent enforcement (act-only model)
 
-Agent-mediated tools additionally require the signed-in user's bridged consent to match the acting agent — enforced identically on all three engines:
+Agent-mediated tools additionally require the signed-in user's bridged consent (an active grant record for the acting agent) to match the acting agent — enforced identically on all three engines:
 
 | Engine | Where | Escape hatch |
 |---|---|---|
@@ -257,7 +260,7 @@ Agent-mediated tools additionally require the signed-in user's bridged consent t
 | BFF simulated engine | `simulatedAuthorizeService.js` consent guard (same two deny codes) | `REQUIRE_USER_CONSENT=false` |
 | Cloud P1AZ policy | `UserConsentMissing` / `UserConsentMismatch` rules in the MCP Delegation policy | Import a snapshot generated with the rule (no runtime toggle) |
 
-Carve-outs (all engines): A2A-delegated tools (the act chain is their authorization, Rule 1c) and named customer workload agents (`PINGONE_WORKLOAD_AGENT_CLIENT_IDS`, UC38/44 — their own identity authorizes them). The consent value is the session's `may_act.sub`, bridged per call via `X-May-Act-Sub`.
+Carve-outs (all engines): A2A-delegated tools (the act chain is their authorization, Rule 1c) and named customer workload agents (`PINGONE_WORKLOAD_AGENT_CLIENT_IDS`, UC38/44 — their own identity authorizes them). The consent value is bridged per call via `X-May-Act-Sub`: the agent client id when the user has an active grant record, empty otherwise (`services/agentConsent.js` `consentSub`); in legacy mode it falls back to the session's `may_act.sub`.
 
 ---
 
@@ -315,7 +318,7 @@ These flags are runtime-configurable via `/api/admin/feature-flags`.
 | `step_up_enabled` | Enables MFA step-up for high-value transactions |
 | `ff_authorize_real` | Uses local policy simulation instead of PingOne Authorize |
 | `ff_oidc_only_authorize` | Strips banking scopes from authorize request; disables scope gates (OIDC-only mode) |
-| `ff_inject_may_act` | Synthetically injects `may_act` claim for demo (never use in production) |
+| `ff_inject_may_act` | Synthetically injects `may_act` claim for demo (legacy path; never use in production) |
 | `ff_may_act_seed` | Legacy mint mode: seeds `act` from the user's `may_act` at exchange. Default OFF — `act` mints from the actor token and consent (may_act) is enforced per call by the policy |
 | `ff_skip_token_exchange` | Bypasses RFC 8693 exchange (demo bypass — never production) |
 
@@ -325,6 +328,8 @@ These flags are runtime-configurable via `/api/admin/feature-flags`.
 ---
 
 ## 12. PingOne Token Policy Configuration Checklist
+
+> The `may_act` items below are **legacy mode only** (`ff_may_act_seed` ON). By default provisioning skips them; the audience resources instead carry `act` = `${{'sub': #root.context.requestData.actorToken.client_id}}`.
 
 When building PingOne policies for this demo, verify the following:
 
@@ -368,7 +373,7 @@ MGT_TOKEN=$(curl -s -X POST \
   | python3 -c "import json,sys; print(json.load(sys.stdin)['access_token'])")
 ```
 
-Update a resource attribute (e.g. `may_act` on Demo API):
+Update a resource attribute (e.g. `may_act` on Demo API; legacy mode only):
 
 ```bash
 curl -X PUT \

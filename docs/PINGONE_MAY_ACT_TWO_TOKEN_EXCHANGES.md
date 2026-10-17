@@ -1,5 +1,7 @@
 # PingOne: 2-Exchange Delegated Chain — Setup Guide
 
+> **LEGACY MODE ONLY.** This guide describes the legacy `may_act` model (feature flag `ff_may_act_seed` ON) and PingOne AIC. In the default model the user token carries no `may_act`: consent is a server-side grant record checked by PingOne Authorize on every call, and `act` is minted from the actor token. Do **not** set `mayAct` or re-login after granting on the default path. See [ACT_ONLY_DELEGATION_MODEL.md](ACT_ONLY_DELEGATION_MODEL.md).
+
 > **RFC 8693 Terminology (Phase 188):** This document uses RFC 8693 primary terms.
 > - **User token** (§2.1) = user's access token or ID token
 > - **Actor Token** (§2.2) = agent's client-credentials token  
@@ -756,6 +758,8 @@ Click **Save**, then:
 ---
 
 ## Part 3 — User Schema and mayAct Setup
+
+> **Legacy only (`ff_may_act_seed` ON).** On the default path skip this Part: do not set `mayAct`. The user grants consent in the app (server-side record, effective on the next call; no re-login). In legacy mode, after Enable/Clear the user must re-authenticate for the token to carry/drop `may_act`.
 
 > **If you have 1-exchange set up:** The `mayAct` schema attribute already exists. Skip Step 3a. For Step 3b, you only need to change the value — replace the Banking App UUID with `AI_AGENT_CLIENT_ID`. The DemoDataPage **Delegation Mode** radio → **Enable may_act** handles this automatically.
 

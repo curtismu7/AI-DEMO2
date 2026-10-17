@@ -82,6 +82,8 @@ The **act claim** (`act`) is a JWT claim that proves an entity (agent/actor) is 
 
 ### The May_Act Claim
 
+> **In this app (default model) the user token carries no `may_act`.** Delegation uses `act` only: PingOne mints `act = {sub: <actor client_id>}` from the actor token at exchange, and the user's consent is a server-side grant record checked by the authorization policy on every call. `may_act` appears only in legacy mode (`ff_may_act_seed` ON) and PingOne AIC. See [ACT_ONLY_DELEGATION_MODEL.md](ACT_ONLY_DELEGATION_MODEL.md). The `may_act` material below is the RFC/legacy reference.
+
 The **may_act claim** (`may_act`) defines WHAT the actor/agent is allowed to do on behalf of the subject.
 
 **Structure** (RFC 8693 §4.3):
@@ -207,6 +209,7 @@ function validateAgentActorToken(decoded) {
     throw new Error("Missing act claim — this is not an agent token");
   }
   
+  // Legacy mode (ff_may_act_seed ON) only: by default there is no may_act; consent is a server-side grant
   // Check agent (actor) has permission scopes
   if (!decoded.may_act || !decoded.may_act.scope) {
     throw new Error("Missing may_act claim — agent permissions undefined");

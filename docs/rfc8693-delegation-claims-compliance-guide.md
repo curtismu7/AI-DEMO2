@@ -1,5 +1,7 @@
 # RFC 8693 Delegation Claims Compliance - Implementation Guide
 
+> **Current model: `act` only.** By default the user token carries no `may_act`; user consent is a server-side grant record checked by the authorization policy on every call, and PingOne mints `act` from the actor token. Every `may_act` requirement below applies only to legacy mode (`ff_may_act_seed` ON) and PingOne AIC. See [ACT_ONLY_DELEGATION_MODEL.md](ACT_ONLY_DELEGATION_MODEL.md).
+
 ## Overview
 
 This document provides comprehensive guidance for the RFC 8693 delegation claims compliance implementation in Phase 58. The implementation ensures proper delegation pattern with correct `may_act` and `act` claim structures, where user tokens contain authorized agent identifiers and exchanged tokens contain complete delegation chains preserving user subject identity.
@@ -221,7 +223,7 @@ app.use('/api/delegated-endpoint',
 
 **Key Requirements**:
 - `sub`: User subject identifier (required)
-- `may_act`: Authorized agent identifier (required for delegation)
+- `may_act`: Authorized agent identifier (legacy mode / AIC only; not present on the default user token)
 - `may_act.sub`: Must be valid agent identifier format
 
 ### Exchanged Token Structure (Single Exchange)
@@ -290,7 +292,7 @@ user
 ### Validation Rules
 
 1. **Subject Preservation**: User subject must be preserved through all exchanges
-2. **Agent Authorization**: Agent must be authorized in user's `may_act` claim
+2. **Agent Authorization**: By default the user's server-side grant record (checked per call by the policy); in legacy mode, the user's `may_act` claim
 3. **Current Actor Identity**: act.sub must match the current exchanger or MCP-facing actor
 4. **Nested Actor Identity**: act.act.sub, when present, must match the prior AI agent in a multi-hop chain
 5. **Circular Detection**: No circular references allowed in chain
@@ -495,9 +497,10 @@ const circularToken = '<CIRCULAR_TOKEN>';
 
 #### 1. Missing may_act Claim
 **Symptoms**: Token exchange failures, authorization errors
-**Causes**: PingOne token policy not configured
+**Causes**: Legacy mode only (`ff_may_act_seed` ON) with the PingOne `may_act` mapping not configured. In the default model a missing `may_act` is expected
 **Solutions**: 
-- Configure may_act attribute mapping in PingOne
+- Default model: no action needed; grant the agent in the app instead
+- Legacy mode: configure may_act attribute mapping in PingOne
 - Enable ff_inject_may_act feature flag for testing
 - Update user preferences to include authorized agents
 

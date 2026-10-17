@@ -368,7 +368,6 @@ actor_token_type=urn:ietf:params:oauth:token-type:access_token`}</pre>
             <li><code>aud</code> = MCP Server Resource URI</li>
             <li><code>scope</code> = narrowed to tool scopes</li>
             <li><code>act</code> = <code>{'{ "sub": "bff-client-id" }'}</code> (delegation fact)</li>
-            <li><code>may_act</code> = removed (no longer needed)</li>
           </ul>
           <pre className="edu-code">{`// ✅ CORRECT — forward only the MCP Token
 fetch(MCP_SERVER_URL, {
@@ -384,7 +383,7 @@ fetch(MCP_SERVER_URL, {
       label: 'may_act / act',
       content: (
         <>
-          <h3>may_act vs act — prospective vs current</h3>
+          <h3>act vs may_act — current vs (legacy) prospective</h3>
           <table style={{ width: '100%', borderCollapse: 'collapse', fontSize: '0.85rem', marginBottom: '16px' }}>
             <thead>
               <tr style={{ background: '#1e293b' }}>
@@ -397,7 +396,7 @@ fetch(MCP_SERVER_URL, {
               <tr>
                 <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155' }}><code>may_act</code></td>
                 <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155' }}>User Token</td>
-                <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155' }}><em>Prospective</em> — "this service (<code>sub</code>) is allowed to exchange this token"</td>
+                <td style={{ padding: '8px 10px', borderBottom: '1px solid #334155' }}><em>Optional / legacy mode (<code>ff_may_act_seed</code>) and PingOne AIC only</em> — "this service (<code>sub</code>) is allowed to exchange this token". Not in the User Token by default: consent is a server-side grant checked per call.</td>
               </tr>
               <tr>
                 <td style={{ padding: '8px 10px' }}><code>act</code></td>
@@ -456,7 +455,7 @@ fetch(MCP_SERVER_URL, {
           <h3>PingOne validation steps</h3>
           <ol>
             <li>Verify User Token signature and expiry.</li>
-            <li>Check <code>may_act</code> (or policy) allows this Backend-for-Frontend (BFF) client_id to exchange.</li>
+            <li>Validate the actor token (the agent's own credential); PingOne mints <code>act</code> from it. Consent is checked per call by PingOne Authorize.</li>
             <li>Verify requested <code>audience</code> is allowed for this exchange.</li>
             <li>Verify requested <code>scope</code> ⊆ original User Token scope.</li>
             <li>Issue MCP Token with <code>act</code> claim; failures return <code>invalid_grant</code>.</li>
@@ -499,12 +498,12 @@ fetch(MCP_SERVER_URL, {
           <h4>Step 3 — Enable Token Exchange Grant</h4>
           <p>
             On your <strong>Backend-for-Frontend (BFF) application</strong> (the admin/user OAuth client), enable the Token Exchange grant
-            and configure may_act policy so only the Backend-for-Frontend (BFF) can exchange tokens.
+            and restrict it so only the Backend-for-Frontend (BFF) can exchange tokens.
           </p>
           <pre className="edu-code">{`PingOne → Applications → (your Backend-for-Frontend (BFF) app) → Grant Types
   ✓ Token Exchange (RFC 8693)
 
-→ Token Policy → may_act
+→ Token Exchange policy
   Allowed Actor: <your Backend-for-Frontend (BFF) OAuth client ID>`}</pre>
 
           <h4>Step 4 — Environment Variables</h4>
@@ -518,7 +517,7 @@ USE_AGENT_ACTOR_FOR_MCP=true
 # MCP Server Resource URI (audience for MCP Token)
 MCP_SERVER_RESOURCE_URI=https://mcp.yourdomain.com
 
-# Backend-for-Frontend (BFF) Client ID (for may_act validation)
+# Backend-for-Frontend (BFF) Client ID (identifies the exchanging client)
 BFF_CLIENT_ID=<your-bff-oauth-client-id>`}</pre>
 
           <h4>Do I need a new client for token exchange?</h4>

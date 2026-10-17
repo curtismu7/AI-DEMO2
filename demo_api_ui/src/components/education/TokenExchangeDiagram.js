@@ -217,7 +217,7 @@ export default function TokenExchangeDiagram({ exchangeType = 'person-to-agent' 
                   ['sub',      '<user-id>  ← never changes'],
                   ['aud',      'agentgateway.ping.demo'],
                   ['scope',    'openid profile email offline_access read write ai:agent'],
-                  ['may_act',  '{ "sub": "<ai-agent-client-id>" }  ← pre-approval for token exchange'],
+                  ['may_act',  '(absent — consent is a server-side grant checked per call)'],
                 ]}
               />
             </div>
@@ -245,7 +245,7 @@ export default function TokenExchangeDiagram({ exchangeType = 'person-to-agent' 
             <Row mt={4}>
               <Actor icon="🏦" label="BFF" sublabel="subject_token = User AT&#10;actor_token = AI Agent CC Token"  color={C.bff.bg}  border={C.bff.border} width={170} />
               <Arrow label="POST /as/token  RFC 8693" sublabel="grant_type=token-exchange  USE_AGENT_ACTOR_FOR_MCP=true" color={C.ping.border} />
-              <Actor icon="🔐" label="PingOne AS" sublabel="validates may_act.sub matches actor_token.sub" color={C.ping.bg} border={C.ping.border} />
+              <Actor icon="🔐" label="PingOne AS" sublabel="mints act from actor_token; consent checked per call" color={C.ping.bg} border={C.ping.border} />
             </Row>
 
             <VSpacer left={86} color={C.tok3.border} />

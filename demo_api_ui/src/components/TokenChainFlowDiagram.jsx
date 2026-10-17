@@ -50,7 +50,7 @@ const NODES = [
   { id: 'user', group: 'client', label: '👤 User', x: 0, y: 120 },
   { id: 'olb', group: 'client', label: 'OLB Application', sub: 'chatbot', x: 0, y: 260 },
   { id: 'pingone', group: 'auth', label: 'PingOne/PF/AIC', x: 280, y: 40 },
-  { id: 'humanToken', group: 'auth', label: 'Human Token', sub: 'sub: user1 · may_act: agent1', x: 280, y: 220 },
+  { id: 'humanToken', group: 'auth', label: 'Human Token', sub: 'sub: user1', x: 280, y: 220 },
   { id: 'agentSvc', group: 'agent', label: 'Agent Service', x: 560, y: 120 },
   { id: 'llm', group: 'agent', label: 'LLM', sub: 'tool selector', x: 560, y: 300 },
   { id: 'agentToken', group: 'agent', label: 'Agent Token', sub: 'client_id: agent1 · SPIFFE SVID', x: 560, y: 460 },
@@ -94,7 +94,7 @@ export const NODE_DETAILS = {
     tokenNote: 'Holds only the session cookie; the access token stays server-side.',
   },
   pingone: {
-    role: 'Identity provider. Authenticates the human, issues the human token with the may_act delegation claim, and signs every exchanged token.',
+    role: 'Identity provider. Authenticates the human, issues the human token (sub: user), and signs every exchanged token.',
     mockToken: {
       note: 'Human token (issued by PingOne)',
       header: { alg: 'RS256', kid: 'pingone-signing-key-1', typ: 'JWT' },
@@ -103,14 +103,13 @@ export const NODE_DETAILS = {
         sub: 'user1',
         aud: ['olb-chatbot'],
         scope: 'openid profile transfer:read',
-        may_act: { sub: 'agent1' },
         acr: 'urn:ping:acr:pwd',
         exp: 1788030829,
       },
     },
   },
   humanToken: {
-    role: 'The user\u2019s access token. Its may_act claim pre-authorizes agent1 to act for the user in a later exchange — it does not delegate yet.',
+    role: 'The user\u2019s access token. The user\u2019s consent for agent1 is a grant record checked per call, not a claim here — this token does not delegate yet.',
     mockToken: {
       note: 'Human token · decoded claims (mock)',
       claims: {
@@ -118,7 +117,6 @@ export const NODE_DETAILS = {
         sub: 'user1',
         aud: ['agentgateway.bxf.com'],
         scope: 'openid profile transfer:read',
-        may_act: { sub: 'agent1' },
         act: null,
         note_act: 'absent — no delegation has happened yet',
       },
@@ -144,7 +142,6 @@ export const NODE_DETAILS = {
         client_id: 'agent1',
         aud: ['agentgateway.bxf.com'],
         scope: 'agent:invoke',
-        may_act: { sub: 'user1' },
         spiffe_id: 'spiffe://bxf.com/ns/demo/sa/agent1',
       },
     },
@@ -164,7 +161,6 @@ export const NODE_DETAILS = {
         aud: ['mcp-olb.bxf.com'],
         scope: 'mcp:balance:read',
         act: { sub: 'agent1' },
-        may_act: null,
         note: 'scope narrowed from transfer:read to mcp:balance:read',
       },
     },

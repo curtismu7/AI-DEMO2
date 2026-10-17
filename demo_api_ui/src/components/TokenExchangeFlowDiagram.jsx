@@ -34,14 +34,14 @@ const ACTORS = {
 
 const ARROWS = {
   single: [
-    { from: 'user', to: 'bff', label: 'User Token', rfc: 'OIDC Auth Code + PKCE', tokenType: 'user', step: 1, edu: 'login-flow', tooltip: 'User authenticates via OIDC Auth Code + PKCE. Browser receives a user token with a may_act claim that pre-authorises future delegation to an agent.' },
+    { from: 'user', to: 'bff', label: 'User Token', rfc: 'OIDC Auth Code + PKCE', tokenType: 'user', step: 1, edu: 'login-flow', tooltip: 'User authenticates via OIDC Auth Code + PKCE. Browser receives a user token (sub: user); the user\'s consent for the agent is a server-side grant checked per call.' },
     { from: 'bff', to: 'pingone', label: 'Exchange', rfc: 'RFC 8693 \u00a72.1', tokenType: 'user', step: 2, edu: 'token-exchange', tooltip: 'RFC 8693 \u00a72.1: BFF calls PingOne /token with subject_token (user token), requesting a narrowed MCP token. This is the 1-exchange (subject-only) path.' },
-    { from: 'pingone', to: 'mcp', label: 'MCP Token', rfc: 'RFC 8693 \u00a72.1 response', tokenType: 'mcp', step: 3, edu: 'token-exchange', tooltip: 'PingOne validates may_act and issues an MCP token: sub=user_id, aud=mcp-gw. No act claim \u2014 subject-only, least-privilege delegation. The gateway forwards this token unchanged to the MCP server.' },
+    { from: 'pingone', to: 'mcp', label: 'MCP Token', rfc: 'RFC 8693 \u00a72.1 response', tokenType: 'mcp', step: 3, edu: 'token-exchange', tooltip: 'PingOne checks the actor token and issues an MCP token: sub=user_id, aud=mcp-gw. No act claim \u2014 subject-only, least-privilege delegation. The gateway forwards this token unchanged to the MCP server.' },
   ],
   double: [
-    { from: 'user', to: 'agent', label: 'User Token', rfc: 'OIDC Auth Code + PKCE', tokenType: 'user', step: 1, edu: 'may-act', tooltip: "User authenticates. User token includes may_act claim explicitly granting delegation rights to the AI Agent's client_id." },
+    { from: 'user', to: 'agent', label: 'User Token', rfc: 'OIDC Auth Code + PKCE', tokenType: 'user', step: 1, edu: 'may-act', tooltip: "User authenticates. User token carries sub only; consent for the AI Agent's client_id is a server-side grant checked per call." },
     { from: 'agent', to: 'bff', label: 'Actor Token', rfc: 'RFC 8693 \u00a74 actor', tokenType: 'agent', step: 2, edu: 'token-exchange', tooltip: 'AI Agent obtains its own actor_token via client credentials, then forwards both the user token (subject) and actor_token (actor) to the BFF for chained exchange.' },
-    { from: 'bff', to: 'pingone', label: 'Exchange', rfc: 'RFC 8693 \u00a74', tokenType: 'agent', step: 3, edu: 'token-exchange', tooltip: 'RFC 8693 \u00a74: BFF sends subject_token + actor_token to PingOne. PingOne validates may_act and builds a delegation chain tracking user to agent.' },
+    { from: 'bff', to: 'pingone', label: 'Exchange', rfc: 'RFC 8693 \u00a74', tokenType: 'agent', step: 3, edu: 'token-exchange', tooltip: 'RFC 8693 \u00a74: BFF sends subject_token + actor_token to PingOne. PingOne mints act from the actor token, building a delegation chain tracking user to agent.' },
     { from: 'pingone', to: 'mcp', label: 'MCP Token', rfc: 'RFC 8693 nested act', tokenType: 'mcp', step: 4, edu: 'token-exchange', tooltip: 'PingOne issues MCP token with full delegation chain: sub=user_id, act={ client_id: agent_id }. Agent accountability is preserved end-to-end.' },
   ],
 };
@@ -134,7 +134,7 @@ export default function TokenExchangeFlowDiagram({ mode = 'single', className = 
       <div className="tefd-education-buttons" role="group" aria-label="Learn more about token exchange">
         <button className="tefd-btn tefd-btn--primary" onClick={() => openEducation('token-exchange')}>Token Exchange (RFC 8693)</button>
         {safeMode === 'double' && (
-          <button className="tefd-btn tefd-btn--secondary" onClick={() => openEducation('may-act')}>may_act &amp; act Claims</button>
+          <button className="tefd-btn tefd-btn--secondary" onClick={() => openEducation('may-act')}>act Claims (may_act: legacy / AIC)</button>
         )}
         <button className="tefd-btn tefd-btn--secondary" onClick={() => openEducation('mcp-protocol')}>MCP Protocol</button>
       </div>
