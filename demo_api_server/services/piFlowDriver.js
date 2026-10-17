@@ -167,14 +167,15 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
     if (body.status === 'OTP_REQUIRED' || body.status === 'DEVICE_SELECTION_REQUIRED') {
       req.session.oauthPiFlow = { ...pending, cookies };
       const rawDevices = body._embedded?.devices || body.devices || [];
+      // PingOne: usableStatus/email/phone. PingFederate's MFA adapter: usable + a masked `target`.
       const devices = rawDevices
-        .filter((d) => (d.usableStatus?.status || 'ENABLED') === 'ENABLED')
+        .filter((d) => (d.usableStatus?.status || 'ENABLED') === 'ENABLED' && d.usable !== false)
         .map((d) => ({
           id: d.id,
           type: d.type,
           nickname: d.nickname || null,
-          email: d.email || null,
-          phone: d.phone || null,
+          email: d.email || (/^email$/i.test(d.type) ? d.target : null) || null,
+          phone: d.phone || (/^(sms|voice)$/i.test(d.type) ? d.target : null) || null,
         }));
       return req.session.save(() => res.json({
         step: body.status === 'OTP_REQUIRED' ? 'otp' : 'device',
@@ -266,16 +267,17 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
   async function handleOtpStep(req, res) {
     const pending = openPiFlowOrReject(req, res);
     if (!pending) return undefined;
-    if (pending.provider === 'pingfederate') return res.status(409).json({ error: 'pi_flow_step_unsupported' });
+    const pf = pending.provider === 'pingfederate';
     const { otp } = req.body || {};
     if (typeof otp !== 'string' || !otp.trim()) {
       return res.status(400).json({ error: 'invalid_request' });
     }
     try {
       const { step, body, cookies } = await postPiFlowStep(
-        pending, 'application/vnd.pingidentity.otp.check+json', { otp: otp.trim() },
+        pending, pf ? 'application/vnd.pingidentity.checkOtp+json' : 'application/vnd.pingidentity.otp.check+json', { otp: otp.trim() },
       );
-      if (step.status === 400 && body?.details?.some((d) => d.code === 'OTP_VALIDATION_FAILED')) {
+      const badOtp = pf ? 'INVALID_OTP' : 'OTP_VALIDATION_FAILED';
+      if (step.status === 400 && body?.details?.some((d) => d.code === badOtp)) {
         return res.status(401).json({ error: 'invalid_otp', message: 'That code is not valid. Check it and try again.' });
       }
       if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
@@ -293,11 +295,11 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
   async function handlePasswordlessStart(req, res) {
     const pending = openPiFlowOrReject(req, res);
     if (!pending) return undefined;
-    if (pending.provider === 'pingfederate') return res.status(409).json({ error: 'pi_flow_step_unsupported' });
     const { username } = req.body || {};
     if (typeof username !== 'string' || !username.trim()) {
       return res.status(400).json({ error: 'invalid_request' });
     }
+    if (pending.provider === 'pingfederate') return pfPasswordlessStart(req, res, pending, username.trim());
     try {
       const { step, body, cookies } = await postPiFlowStep(
         // user.lookup — PingOne's identifier-first action: submits the username
@@ -327,6 +329,34 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
     }
   }
 
+  // PingFederate passwordless: acr_values=mfa_only selects identifier first -> PingOne MFA adapter
+  // (scripts/pingfederate/enable-pf-passwordless.js). The flow opens at IDENTIFIER_REQUIRED, or at
+  // AUTHENTICATION_REQUIRED when PF already took the login_hint; `authenticate` starts the MFA adapter,
+  // whose device/OTP steps the shared responder serves. Opening on the password form means the
+  // policy has no mfa_only branch: 409 back to the password form, PF not called.
+  async function pfPasswordlessStart(req, res, pending, username) {
+    if (pending.status !== 'IDENTIFIER_REQUIRED' && pending.status !== 'AUTHENTICATION_REQUIRED') {
+      return res.status(409).json({ error: 'passwordless_unavailable', message: 'Passwordless sign-in is not set up on PingFederate. Sign in with your password.' });
+    }
+    try {
+      let flow = pending;
+      let result = null;
+      if (flow.status === 'IDENTIFIER_REQUIRED') {
+        result = await postPiFlowStep(flow, 'application/vnd.pingidentity.submitIdentifier+json', { identifier: username });
+        if (!result.step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
+        flow = { ...flow, cookies: result.cookies, status: result.body.status };
+      }
+      if (flow.status === 'AUTHENTICATION_REQUIRED') {
+        result = await postPiFlowStep(flow, 'application/vnd.pingidentity.authenticate+json', {});
+        if (!result.step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
+      }
+      return await respondAfterPiFlowStep(req, res, flow, result.body, result.cookies);
+    } catch (error) {
+      console.warn('[oauth/pi-flow] PF passwordless step failed:', error.message);
+      return res.status(502).json({ error: 'pi_flow_failed' });
+    }
+  }
+
   // Device selection: the user picked one of the devices the flow offered
   // (OTP_REQUIRED's _embedded.devices / DEVICE_SELECTION_REQUIRED's devices).
   // PingOne wants application/vnd.pingidentity.device.select+json with
@@ -343,9 +373,9 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
     try {
       const { step, body, cookies } = await postPiFlowStep(
         pending,
-        pf ? 'application/json' : 'application/vnd.pingidentity.device.select+json',
-        // PF's selectDevice takes { deviceId }; PingOne nests it.
-        pf ? { deviceId } : { device: { id: deviceId } },
+        pf ? 'application/vnd.pingidentity.selectDevice+json' : 'application/vnd.pingidentity.device.select+json',
+        // PF's selectDevice takes { deviceRef: { id } } (plain { deviceId } is a 400); PingOne nests it as device.id.
+        pf ? { deviceRef: { id: deviceId } } : { device: { id: deviceId } },
       );
       if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
       return await respondAfterPiFlowStep(req, res, pending, body, cookies);

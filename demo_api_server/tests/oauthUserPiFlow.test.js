@@ -384,6 +384,79 @@ describe('customer pi.flow sign-in', () => {
       expect(res.body).toEqual({ fallback: true, status: 'MFA_REQUIRED' });
     });
 
+    describe('PF passwordless (acr_values=mfa_only -> identifier first -> PingOne MFA adapter)', () => {
+      const PF_DEVICES = [
+        { id: 'pf-sms-1', type: 'SMS', target: '******1586', usable: true, defaultDevice: false },
+        { id: 'pf-mail-1', type: 'Email', target: 'cm***@pingone.com', usable: true, defaultDevice: true },
+        { id: 'pf-off-1', type: 'SMS', target: '******0000', usable: false, defaultDevice: false },
+      ];
+      async function openPfPasswordless(agent, status) {
+        fetchMock.mockResolvedValueOnce(json(200, { id: PF_FLOW, status }, {}, ['PF=first; Path=/; Secure; HttpOnly']));
+        return agent.get('/api/auth/oauth/user/login?pi_flow=1&passwordless=1').expect(200);
+      }
+      const ct = (i) => fetchMock.mock.calls[i][1].headers['Content-Type'];
+      const body = (i) => JSON.parse(fetchMock.mock.calls[i][1].body);
+
+      test('opened at AUTHENTICATION_REQUIRED (hinted user): posts authenticate, returns the mapped device step', async () => {
+        const agent = request.agent(app);
+        await openPfPasswordless(agent, 'AUTHENTICATION_REQUIRED');
+        fetchMock.mockResolvedValueOnce(json(200, { status: 'DEVICE_SELECTION_REQUIRED', devices: PF_DEVICES }));
+        const res = await agent.post('/api/auth/oauth/user/pi-flow/passwordless').send({ username: 'demouser' }).expect(200);
+        expect(ct(1)).toBe('application/vnd.pingidentity.authenticate+json');
+        expect(body(1)).toEqual({});
+        expect(res.body.step).toBe('device');
+        expect(res.body.devices).toEqual([
+          { id: 'pf-sms-1', type: 'SMS', nickname: null, email: null, phone: '******1586' },
+          { id: 'pf-mail-1', type: 'Email', nickname: null, email: 'cm***@pingone.com', phone: null },
+        ]);
+      });
+
+      test('opened at IDENTIFIER_REQUIRED: submits the identifier, then authenticate', async () => {
+        const agent = request.agent(app);
+        await openPfPasswordless(agent, 'IDENTIFIER_REQUIRED');
+        fetchMock.mockResolvedValueOnce(json(200, { status: 'AUTHENTICATION_REQUIRED' }));
+        fetchMock.mockResolvedValueOnce(json(200, { status: 'DEVICE_SELECTION_REQUIRED', devices: PF_DEVICES }));
+        const res = await agent.post('/api/auth/oauth/user/pi-flow/passwordless').send({ username: ' demouser ' }).expect(200);
+        expect(ct(1)).toBe('application/vnd.pingidentity.submitIdentifier+json');
+        expect(body(1)).toEqual({ identifier: 'demouser' });
+        expect(ct(2)).toBe('application/vnd.pingidentity.authenticate+json');
+        expect(res.body.step).toBe('device');
+      });
+
+      test('policy without the mfa_only branch (opens on the password form) -> 409 passwordless_unavailable, PF not called', async () => {
+        const agent = request.agent(app);
+        await openPfPasswordless(agent, 'USERNAME_PASSWORD_REQUIRED');
+        const calls = fetchMock.mock.calls.length;
+        const res = await agent.post('/api/auth/oauth/user/pi-flow/passwordless').send({ username: 'demouser' }).expect(409);
+        expect(res.body.error).toBe('passwordless_unavailable');
+        expect(fetchMock.mock.calls.length).toBe(calls);
+      });
+
+      test("device select uses PF's selectDevice action with deviceRef; OTP_REQUIRED returns the otp step", async () => {
+        const agent = request.agent(app);
+        await openPfPasswordless(agent, 'AUTHENTICATION_REQUIRED');
+        fetchMock.mockResolvedValueOnce(json(200, { status: 'DEVICE_SELECTION_REQUIRED', devices: PF_DEVICES }));
+        await agent.post('/api/auth/oauth/user/pi-flow/passwordless').send({ username: 'demouser' }).expect(200);
+        fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED' }));
+        const res = await agent.post('/api/auth/oauth/user/pi-flow/device').send({ deviceId: 'pf-mail-1' }).expect(200);
+        expect(ct(2)).toBe('application/vnd.pingidentity.selectDevice+json');
+        expect(body(2)).toEqual({ deviceRef: { id: 'pf-mail-1' } });
+        expect(res.body.step).toBe('otp');
+      });
+
+      test("OTP uses PF's checkOtp; INVALID_OTP -> 401 invalid_otp so the modal re-prompts", async () => {
+        const agent = request.agent(app);
+        await openPfPasswordless(agent, 'AUTHENTICATION_REQUIRED');
+        fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED' }));
+        await agent.post('/api/auth/oauth/user/pi-flow/passwordless').send({ username: 'demouser' }).expect(200);
+        fetchMock.mockResolvedValueOnce(json(400, { code: 'VALIDATION_ERROR', details: [{ code: 'INVALID_OTP' }] }));
+        const bad = await agent.post('/api/auth/oauth/user/pi-flow/otp').send({ otp: '000000' }).expect(401);
+        expect(bad.body.error).toBe('invalid_otp');
+        expect(ct(2)).toBe('application/vnd.pingidentity.checkOtp+json');
+        expect(body(2)).toEqual({ otp: '000000' });
+      });
+    });
+
     test('the passkey endpoint is closed to a PF flow', async () => {
       const agent = request.agent(app);
       await openPfFlow(agent);
