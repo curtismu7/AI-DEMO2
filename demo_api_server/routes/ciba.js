@@ -36,6 +36,7 @@ const { trackTokenEvent } = require('../services/tokenChainService');
 const hitlServiceClient = require('../services/hitlServiceClient');
 const cibaTransactionReceipt = require('../services/cibaTransactionReceipt');
 const dataStore = require('../data/store');
+const { verticalManifest } = require('../services/verticalManifest');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
 const CIBA_DEFAULT_SCOPE = 'openid';
@@ -246,6 +247,7 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       scope || CIBA_DEFAULT_SCOPE,
       acr_values,
       channel,
+      verticalManifest.resolver.activeIdFor(req),
     );
   } catch (realErr) {
     // CIBA requires a real OP result. Simulated failover is an explicit
