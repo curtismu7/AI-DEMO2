@@ -55,14 +55,14 @@ describe('OtpStepUpModal method choice table', () => {
     expect(screen.queryByPlaceholderText('000000')).not.toBeInTheDocument();
   });
 
-  test('offers "Approve by email link" (CIBA) only when onChooseCiba is provided, and calls it', () => {
+  test('offers "CIBA - EMAIL" (CIBA) only when onChooseCiba is provided, and calls it', () => {
     const { unmount } = render(<OtpStepUpModal {...baseProps} mode="stub" />);
     expect(screen.queryByTestId('mfa-choose-ciba')).not.toBeInTheDocument();
     unmount();
 
     const onChooseCiba = vi.fn();
     render(<OtpStepUpModal {...baseProps} mode="stub" onChooseCiba={onChooseCiba} />);
-    expect(screen.getByText('Approve by email link')).toBeInTheDocument();
+    expect(screen.getByText('CIBA - EMAIL')).toBeInTheDocument();
     expect(screen.queryByTestId('mfa-choose-ciba-sms')).not.toBeInTheDocument();
     fireEvent.click(screen.getByTestId('mfa-choose-ciba'));
     expect(onChooseCiba).toHaveBeenCalledTimes(1);
@@ -72,7 +72,7 @@ describe('OtpStepUpModal method choice table', () => {
   test('shows separate email and text CIBA rows when both channels are configured', () => {
     const onChooseCiba = vi.fn();
     render(<OtpStepUpModal {...baseProps} mode="stub" onChooseCiba={onChooseCiba} cibaChannels={['email', 'sms']} />);
-    expect(screen.getByText('Approve by email link')).toBeInTheDocument();
+    expect(screen.getByText('CIBA - EMAIL')).toBeInTheDocument();
     expect(screen.getByText('Approve by text link')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('mfa-choose-ciba-sms'));
     expect(onChooseCiba).toHaveBeenLastCalledWith('sms');
@@ -82,7 +82,7 @@ describe('OtpStepUpModal method choice table', () => {
 
   test('shows only the channels that are configured (text only)', () => {
     render(<OtpStepUpModal {...baseProps} mode="stub" onChooseCiba={vi.fn()} cibaChannels={['sms']} />);
-    expect(screen.queryByText('Approve by email link')).not.toBeInTheDocument();
+    expect(screen.queryByText('CIBA - EMAIL')).not.toBeInTheDocument();
     expect(screen.getByText('Approve by text link')).toBeInTheDocument();
   });
 
