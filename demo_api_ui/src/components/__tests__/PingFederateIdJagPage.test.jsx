@@ -263,4 +263,11 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(DIAGRAMS.jag.links).toContainEqual(expect.objectContaining({ id: "data", source: "invest", target: "banking" }));
     expect(DIAGRAMS.jag.steps[6].active).toEqual(["invest", "banking"]);
   });
+
+  it("lists every call under the diagram", () => {
+    renderPage();
+    const section = screen.getByTestId("pfj-calls");
+    expect(section.textContent).toContain("Every call, in order");
+    expect(within(section).getAllByRole("button", { name: /^Call \d+:/ })).toHaveLength(19);
+  });
 });

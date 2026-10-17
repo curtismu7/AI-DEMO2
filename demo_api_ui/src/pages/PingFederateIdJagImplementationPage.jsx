@@ -3,7 +3,8 @@ import { ReactFlow, ReactFlowProvider, useReactFlow, useNodesState, NodeResizer,
 import "@xyflow/react/dist/style.css";
 import "./PingFederateIdJagImplementationPage.css";
 import IdJagPathBar from "../components/IdJagPathBar";
-import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
+import { CALLS, nodesForCall, actorById } from "../utils/idJagCallSequence";
+import { readableClaims, useLastRunTrace } from "../utils/idJagLiveClaims";
 
 // ── Nodes ─────────────────────────────────────────────────────────────────
 // kind drives the accent colour. x/y are a 5-column grid (360 apart), 3 rows.
@@ -150,24 +151,17 @@ const SIMPLE = [
   "The vault checks the sticker one last time, then hands over your balance. Nobody goes back to the front office.",
 ];
 
-// Pull the readable claims out of a token event's decoded payload.
-const SHOW = ["iss", "sub", "aud", "client_id", "scope", "resource", "exp"];
-function readableClaims(event) {
-  const raw = event && event.claims;
-  const claims = raw && raw.claims ? raw.claims : raw;
-  if (!claims || typeof claims !== "object") return null;
-  const out = {};
-  for (const k of SHOW) if (claims[k] !== undefined) out[k] = claims[k];
-  return Object.keys(out).length ? out : null;
-}
-
 // Which recorded token event backs which step (3 = PingFederate issues, 4 = oauth-mcp redeems).
 const LIVE_EVENT_FOR_STEP = { 3: "pf-id-jag-issued", 4: "pf-id-jag-redeemed" };
 
-function useLastRunEvents() {
-  const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
-  useEffect(() => tokenChainTraceStore.subscribe(setSnap), []);
-  return snap && snap.trace ? snap.trace : null;
+// A call from the shared call list, shaped like a STEPS entry so the page can highlight it.
+function callAsStep(call) {
+  const nodes = nodesForCall(call);
+  const edges = EDGES
+    .filter(([, src, , dst]) => (nodes.length === 2 && ((src === nodes[0] && dst === nodes[1]) || (src === nodes[1] && dst === nodes[0]))))
+    .map(([id]) => id);
+  const route = `${actorById(call.from).label}${call.from === call.to ? " (inside itself)" : " → " + actorById(call.to).label}`;
+  return { t: `Call ${call.n}: ${call.label}`, nodes, edges, text: call.does, wire: `${route}\n${call.where}`, src: [call.source], call };
 }
 
 function ImplementationFlow() {
@@ -181,26 +175,30 @@ function ImplementationFlow() {
   const [side, setSide] = useState(400);
   const [panel, setPanel] = useState(true);
   const [simple, setSimple] = useState(false);
-  const lastRun = useLastRunEvents();
+  const lastRun = useLastRunTrace();
+  const [mode, setMode] = useState("phases");
+  const [callIdx, setCallIdx] = useState(0);
   const [nodes, setNodes, onNodesChange] = useNodesState(baseNodes());
-  const s = STEPS[step];
+  const callView = mode === "calls" ? callAsStep(CALLS[callIdx]) : null;
+  const s = callView || STEPS[step];
+  const overview = !callView && step === 0;
 
   // highlight only: positions/sizes live in node state so drags and resizes survive step changes
   useEffect(() => {
     setNodes((ns) => ns.map((n) => ({
       ...n,
       data: { ...n.data,
-        dim: step !== 0 && (n.type === "note" ? !noteOn(n.id, s) : !s.nodes.includes(n.id)),
-        on: step !== 0 && n.type === "card" && s.nodes.includes(n.id) },
+        dim: !overview && (n.type === "note" ? !noteOn(n.id, s) : !s.nodes.includes(n.id)),
+        on: !overview && n.type === "card" && s.nodes.includes(n.id) },
     })));
-    const ids = step === 0 ? undefined : s.nodes.map((id) => ({ id }));
-    const t = setTimeout(() => rf.fitView({ nodes: ids, padding: step === 0 ? 0.03 : 0.25, duration: 500, maxZoom: 1 }), 30);
+    const ids = overview ? undefined : s.nodes.map((id) => ({ id }));
+    const t = setTimeout(() => rf.fitView({ nodes: ids, padding: overview ? 0.03 : 0.25, duration: 500, maxZoom: 1 }), 30);
     return () => clearTimeout(t);
-  }, [step]);
+  }, [step, mode, callIdx]);
 
   // re-fit when the side panel is shown/hidden so the diagram uses the freed width
   useEffect(() => {
-    const t = setTimeout(() => rf.fitView({ nodes: step === 0 ? undefined : s.nodes.map((id) => ({ id })), padding: step === 0 ? 0.03 : 0.25, duration: 400, maxZoom: 1 }), 60);
+    const t = setTimeout(() => rf.fitView({ nodes: overview ? undefined : s.nodes.map((id) => ({ id })), padding: overview ? 0.03 : 0.25, duration: 400, maxZoom: 1 }), 60);
     return () => clearTimeout(t);
   }, [panel]);
 
@@ -236,11 +234,11 @@ function ImplementationFlow() {
   const resetLayout = () => { const b = baseNodes(); setNodes((ns) => ns.map((n) => ({ ...n, position: b.find((x) => x.id === n.id).position, style: { width: 300 } }))); setTimeout(() => rf.fitView({ padding: 0.08, duration: 400 }), 30); };
 
   const edges = EDGES.map(([id, source, sh, target, th, label, dashed]) => {
-    const on = step === 0 || s.edges.includes(id);
+    const on = overview || s.edges.includes(id);
     return {
       id, source, target, sourceHandle: sh, targetHandle: th, label, type: "flow",
-      data: { on, label, pulse: step !== 0 && s.edges.includes(id) ? pulses[id] : 0, dur: pulses.dur || 2 },
-      animated: step !== 0 && on,
+      data: { on, label, pulse: !overview && !callView && s.edges.includes(id) ? pulses[id] : 0, dur: pulses.dur || 2 },
+      animated: !overview && on,
       markerEnd: { type: MarkerType.ArrowClosed },
       style: { strokeWidth: on ? 2.4 : 1.2, opacity: on ? 1 : 0.15, strokeDasharray: dashed ? "6 4" : undefined },
     };
@@ -258,14 +256,18 @@ function ImplementationFlow() {
       <aside style={panel ? undefined : { padding: 0, border: 0, overflow: "hidden", visibility: "hidden" }}>
         <h1>ID-JAG on PingFederate</h1>
         <p className="lede">UC40 · how the BFF, PingFederate, oauth-mcp, the gateway, the MCP server and the banking API are wired</p>
-        <div className="sim">
+        <div className="sim" role="group" aria-label="Detail level">
+          <button aria-pressed={mode === "phases"} className={mode === "phases" ? "pri" : ""} onClick={() => { setPlaying(false); setMode("phases"); }}>Phases</button>
+          <button aria-pressed={mode === "calls"} className={mode === "calls" ? "pri" : ""} onClick={() => { setPlaying(false); setMode("calls"); }}>Every call ({CALLS.length})</button>
+        </div>
+        {mode === "phases" && <div className="sim">
           <button className="pri" onClick={playing ? () => setPlaying(false) : play}>{playing ? "⏸ Pause" : "▶ Simulate"}</button>
           <button onClick={() => { setPlaying(false); setStep(Math.max(0, step - 1)); }} disabled={step === 0}>◀ Back</button>
           <button onClick={() => { setPlaying(false); setStep(Math.min(STEPS.length - 1, step + 1)); }} disabled={step === STEPS.length - 1}>Next ▶</button>
           <button onClick={() => { setPlaying(false); setStep(0); setLog([]); }}>⟲ Reset</button>
           <label>Speed <select value={speed} onChange={(e) => setSpeed(+e.target.value)}>
             <option value={6000}>Slow</option><option value={3500}>Normal</option><option value={2000}>Fast</option></select></label>
-        </div>
+        </div>}
         <div className="sim">
           <button aria-pressed={simple} onClick={() => setSimple(!simple)}>{simple ? "Show technical detail" : "Explain it simply"}</button>
         </div>
@@ -274,15 +276,21 @@ function ImplementationFlow() {
           <button onClick={resetLayout}>Reset layout</button>
           <span className="hint">Drag to move · click a node to resize</span>
         </div>
-        <nav>{STEPS.map((x, i) => (
-          <button key={i} className={i === step ? "sel" : ""} onClick={() => { setPlaying(false); setStep(i); }}>{x.t}</button>
-        ))}</nav>
+        {mode === "phases" ? (
+          <nav>{STEPS.map((x, i) => (
+            <button key={i} className={i === step ? "sel" : ""} onClick={() => { setPlaying(false); setStep(i); }}>{x.t}</button>
+          ))}</nav>
+        ) : (
+          <nav aria-label="Every call">{CALLS.map((c, i) => (
+            <button key={c.n} className={i === callIdx ? "sel" : ""} onClick={() => setCallIdx(i)}>{c.n}. {c.label}</button>
+          ))}</nav>
+        )}
         <section>
           <h2>{s.t}</h2>
-          {simple && <p className="simple" data-testid="idjag-simple">{SIMPLE[step]}</p>}
+          {simple && !callView && <p className="simple" data-testid="idjag-simple">{SIMPLE[step]}</p>}
           <p>{s.text}</p>
           <pre>{s.wire}</pre>
-          <LiveClaims step={step} lastRun={lastRun} />
+          <LiveClaims eventId={callView ? callView.call.evidence : LIVE_EVENT_FOR_STEP[step]} lastRun={lastRun} />
           <h3>Source</h3>
           <ul>{s.src.map((x) => <li key={x}>{x}</li>)}</ul>
           {log.length > 0 && (<><h3>Simulation log</h3><ol className="log">{log.map((l, i) => <li key={i}>{l}</li>)}</ol></>)}
@@ -306,11 +314,10 @@ function ImplementationFlow() {
   );
 }
 
-function LiveClaims({ step, lastRun }) {
-  const id = LIVE_EVENT_FOR_STEP[step];
-  if (!id) return null;
+function LiveClaims({ eventId, lastRun }) {
+  if (!eventId) return null;
   const events = (lastRun && lastRun.tokenEvents) || [];
-  const event = events.find((e) => e && e.id === id);
+  const event = events.find((e) => e && e.id === eventId);
   const claims = readableClaims(event);
   const mock = lastRun && String(lastRun.provenance || "").startsWith("mock");
   return (

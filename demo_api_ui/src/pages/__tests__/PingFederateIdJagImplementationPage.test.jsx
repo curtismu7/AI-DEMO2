@@ -54,4 +54,21 @@ describe("ID-JAG implementation page", () => {
     fireEvent.click(screen.getByRole("button", { name: "4 · Redeem at oauth-mcp" }));
     expect(screen.getByTestId("idjag-live").textContent).toContain("No run recorded yet");
   });
+
+  it("has an every-call mode listing all 19 calls and describing the selected one", () => {
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /^Every call/ }));
+    expect(screen.getAllByRole("button", { name: /^\d+\. / })).toHaveLength(19);
+    fireEvent.click(screen.getByRole("button", { name: "11. Fetch PingFederate keys" }));
+    expect(screen.getByRole("heading", { name: "Call 11: Fetch PingFederate keys" })).toBeInTheDocument();
+    expect(screen.getByText(/Nothing else is sent to PingFederate/)).toBeInTheDocument();
+  });
+
+  it("shows claims on the redeem call in every-call mode", () => {
+    withLastRun({ provenance: "live-id-jag", tokenEvents: [{ id: "pf-id-jag-redeemed", claims: { sub: "demouser", aud: "mcpserver.ping.demo" } }] });
+    renderPage();
+    fireEvent.click(screen.getByRole("button", { name: /^Every call/ }));
+    fireEvent.click(screen.getByRole("button", { name: "12. Verify, then mint" }));
+    expect(screen.getByTestId("idjag-live").textContent).toContain("mcpserver.ping.demo");
+  });
 });

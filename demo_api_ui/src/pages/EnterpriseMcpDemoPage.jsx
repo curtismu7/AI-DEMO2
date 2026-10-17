@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useInRouterContext } from "react-router-dom";
 import IdJagPathBar from "../components/IdJagPathBar";
+import IdJagCallPlayer from "../components/IdJagCallPlayer";
 import TokenChainFilmstrip from "../components/TokenChainFilmstrip";
 import { EDU } from "../components/education/educationIds";
 import { useEducationUIOptional } from "../context/EducationUIContext";
@@ -163,10 +164,19 @@ export default function EnterpriseMcpDemoPage() {
         </p>
       </section>
 
+      <section className="emd-card" aria-labelledby="emd-calls-h">
+        <h2 id="emd-calls-h">Every call, in order</h2>
+        <p className="emd-note">
+          All 19 calls from sign-in to the banking API. Pick the movie reel or the sequence diagram; Play steps
+          through them, and the calls that a run records show their real claims.
+        </p>
+        <IdJagCallPlayer />
+      </section>
+
       <section className="emd-card emd-card--film">
         <h2>Token chain</h2>
         <p className="emd-note">
-          Watch for <code>ID-JAG issued</code> and <code>ID-JAG redeemed</code> in the trace.
+          The live record of your run. Watch for <code>ID-JAG issued</code> and <code>ID-JAG redeemed</code> in the trace.
           Mock replay shows sample steps; an ordinary exchange is labeled as a stand-in.
         </p>
         <TokenChainFilmstrip />

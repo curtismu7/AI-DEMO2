@@ -11,6 +11,7 @@ import "@xyflow/react/dist/style.css";
 import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import "./PingFederateIdJagPage.css";
 import IdJagPathBar from "./IdJagPathBar";
+import IdJagCallPlayer from "./IdJagCallPlayer";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 const MOCK = "MOCK DATA — NOT A REAL TOKEN";
@@ -570,6 +571,11 @@ export default function PingFederateIdJagPage() {
       <ProtocolDetails diagramId={diagramId} stepIndex={activeStep} learning={diagram.learning} />
 
       {diagramId === "jag" && <p className="pfj-footnote">Two distinct servers validate two distinct credentials: PingFederate validates the upstream token during Side 1; the downstream MCP authorization server validates the ID-JAG during Side 2. The returned MCP access token is used for the resource call.</p>}
+      <section className="pfj-calls" aria-labelledby="pfj-calls-h" data-testid="pfj-calls">
+        <h2 id="pfj-calls-h">Every call, in order</h2>
+        <p className="pfj-intro">The diagram above groups the flow into steps. This lists all 19 calls, from sign-in to the banking API.</p>
+        <IdJagCallPlayer />
+      </section>
     </main>
   );
 }
