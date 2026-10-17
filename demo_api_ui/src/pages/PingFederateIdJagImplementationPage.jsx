@@ -215,15 +215,15 @@ function ImplementationFlow() {
         <h1>ID-JAG on PingFederate</h1>
         <p className="lede">UC40 · how the BFF, PingFederate, oauth-mcp, the gateway and the resource server are wired</p>
         <div className="sim">
-          <button className="pri" onClick={playing ? () => setPlaying(false) : play}>{playing ? "Pause" : "Simulate"}</button>
-          <button onClick={() => { setPlaying(false); setStep(Math.max(0, step - 1)); }} disabled={step === 0}>Back</button>
-          <button onClick={() => { setPlaying(false); setStep(Math.min(STEPS.length - 1, step + 1)); }} disabled={step === STEPS.length - 1}>Next</button>
-          <button onClick={() => { setPlaying(false); setStep(0); setLog([]); }}>Reset</button>
+          <button className="pri" onClick={playing ? () => setPlaying(false) : play}>{playing ? "⏸ Pause" : "▶ Simulate"}</button>
+          <button onClick={() => { setPlaying(false); setStep(Math.max(0, step - 1)); }} disabled={step === 0}>◀ Back</button>
+          <button onClick={() => { setPlaying(false); setStep(Math.min(STEPS.length - 1, step + 1)); }} disabled={step === STEPS.length - 1}>Next ▶</button>
+          <button onClick={() => { setPlaying(false); setStep(0); setLog([]); }}>⟲ Reset</button>
           <label>Speed <select value={speed} onChange={(e) => setSpeed(+e.target.value)}>
             <option value={6000}>Slow</option><option value={3500}>Normal</option><option value={2000}>Fast</option></select></label>
         </div>
         <div className="sim">
-          <button onClick={() => setLocked(!locked)}>{locked ? "Nodes locked" : "Nodes movable"}</button>
+          <button onClick={() => setLocked(!locked)}>{locked ? "🔒 Nodes locked" : "✋ Nodes movable"}</button>
           <button onClick={resetLayout}>Reset layout</button>
           <span className="hint">Drag to move · click a node to resize</span>
         </div>
@@ -243,8 +243,8 @@ function ImplementationFlow() {
       <div className="split" style={panel ? undefined : { visibility: "hidden" }} onPointerDown={startSplit} title="Drag to resize panel" />
       <main>
         <div className="tools">
-          <button onClick={() => setPanel(!panel)}>{panel ? "Hide panel" : "Show panel"}</button>
-          <button onClick={fullscreen}>Fullscreen</button>
+          <button onClick={() => setPanel(!panel)}>{panel ? "◀ Hide panel" : "▶ Show panel"}</button>
+          <button onClick={fullscreen}>⛶ Fullscreen</button>
         </div>
         <ReactFlow nodes={nodes} edges={edges} nodeTypes={nodeTypes} edgeTypes={edgeTypes}
           onNodesChange={onNodesChange} nodesDraggable={!locked} connectionMode={ConnectionMode.Loose}

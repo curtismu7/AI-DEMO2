@@ -114,7 +114,9 @@ provider marker in both session and PKCE cookie.
   `📡` (client / transport), `✦` (UI mode marker),
   `👥` (group / multi-party), `📅` (scheduled), `🎛` (access controls),
   `💬` (chat), `☀️` / `🌙` (light/dark mode toggle button — every
-  dark-mode-toggle control in the app, added 2026-09-04).
+  dark-mode-toggle control in the app, added 2026-09-04),
+  `🔒` (nodes locked — diagram lock toggle), `⛶` (fullscreen — diagram
+  fullscreen button; both added 2026-10-17 for the ID-JAG implementation diagram).
   Everything else is plain text or CSS icons / semantic HTML.
   Adding a glyph here is deliberate: it must recur with ONE consistent job.
   A glyph someone reached for once is not vocabulary — remove it instead.
