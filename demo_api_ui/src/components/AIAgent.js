@@ -6265,78 +6265,19 @@ export default function BankingAgent({
         // and CIBA both set session.stepUpVerified, so showing the MFA modal for a
         // CIBA-required gate lets the retry PERMIT with no out-of-band approval.
         if (err.step_up_method === "ciba") {
-          // Open the tab before the initiate fetch so the browser still ties it to
-          // the user gesture and does not block it; the inline "Waiting for CIBA
-          // approval" bubble below is a complete fallback if it is blocked anyway.
-          const cibaTab = window.open(
-            "",
-            "ciba-approve",
-            "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
-          );
-          try {
-            const apiBase = process.env.REACT_APP_API_URL || "";
-            const fromAccountId = err.fromAccountId || err.from_account_id || form.fromId || (actionId === "withdraw" ? form.accountId : null);
-            const toAccountId = err.toAccountId || err.to_account_id || form.toId || (actionId === "deposit" ? form.accountId : null);
-            const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
-            const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
-            const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
-              method: "POST",
-              credentials: "include",
-              headers: { "Content-Type": "application/json" },
-              body: JSON.stringify({
-                binding_message: cibaApprovalText(terminology),
-                acr_values: err.step_up_acr || "",
-                amount: err.transaction_amount ?? Number(form.amount),
-                transaction_type: resolveCibaTransactionType(
-                  err.transactionType,
-                  actionId,
-                ),
-                hitl_challenge_id:
-                  err.hitlChallengeId || err.hitl_challenge_id || undefined,
-                from_account_label: fromLabel,
-                to_account_label: toLabel,
-                from_account_id: fromAccountId,
-                to_account_id: toAccountId,
-              }),
-            });
-            if (!initRes.ok) {
-              const failure = await initRes.json().catch(() => ({}));
-              throw new Error(failure.message || failure.error_description || failure.error || `CIBA initiation failed: ${initRes.status}`);
-            }
-            const { auth_req_id, interval, binding_message, engine } = await initRes.json();
-            if (cibaTab) {
-              if (engine === "simulated") cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
-              else cibaTab.close();
-            }
-            addMessage(
-              "assistant",
-              cibaWaitingText(binding_message),
-              `ciba-step-${Date.now()}`,
-              { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
-            );
-            toast.dismiss(toastId);
-            agentFlowDiagram.completeMfaChallenge(null);
-            tokenChainTraceStore.ingestTokenEvent({
-              id: "ciba-poll",
-              eventType: "auth",
-              timestamp: new Date().toISOString(),
-              description: "CIBA backchannel step-up pending approval",
-              additionalData: { grantedVia: "ciba", status: "pending" },
-            });
-            setLoading(false);
-            pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
-          } catch (cibaErr) {
-            console.error("[BankingAgent] CIBA initiation failed:", cibaErr);
-            if (cibaTab) cibaTab.close();
-            addMessage(
-              "assistant",
-              `❌ Could not start CIBA approval: ${cibaErr.message}`,
-              `ciba-error-${Date.now()}`,
-            );
-            toast.dismiss(toastId);
-            agentFlowDiagram.completeMfaChallenge(false);
-            setLoading(false);
-          }
+          await startCibaStepUp({
+            normalized: {
+              fromAccountId: err.fromAccountId || err.from_account_id || form.fromId || (actionId === "withdraw" ? form.accountId : null),
+              toAccountId: err.toAccountId || err.to_account_id || form.toId || (actionId === "deposit" ? form.accountId : null),
+              transaction_amount: err.transaction_amount ?? Number(form.amount),
+              transactionType: err.transactionType,
+              hitlChallengeId: err.hitlChallengeId || err.hitl_challenge_id,
+              step_up_acr: err.step_up_acr,
+            },
+            actionId,
+            form,
+            toastId,
+          });
           return;
         }
 
@@ -9520,7 +9461,7 @@ export default function BankingAgent({
    */
   // Shared by the 428 handler (server picked CIBA) and the step-up picker
   // (user picked CIBA). Initiates, then polls until approved; see pollCibaStepUp.
-  const startCibaStepUp = async ({ normalized, actionId, form, toastId, channel = "email" }) => {
+  const startCibaStepUp = async ({ normalized, actionId, form, toastId, channel = "email", resume }) => {
     // Open a blank tab now, before the initiate fetch, so the browser
     // still counts it as close enough to the user's original gesture
     // to avoid a popup block — then navigate it once we have the real
@@ -9576,7 +9517,7 @@ export default function BankingAgent({
         `ciba-step-${Date.now()}`,
         { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
       );
-      toast.dismiss(toastId);
+      if (toastId) toast.dismiss(toastId);
       agentFlowDiagram.completeMfaChallenge(null); // Pending
       // The System Flow Map's CIBA box reads this — see pollCibaStepUp's
       // approved/denied branches for how it resolves.
@@ -9588,7 +9529,7 @@ export default function BankingAgent({
         additionalData: { grantedVia: "ciba", status: "pending" },
       });
       setLoading(false);
-      pollCibaStepUp(auth_req_id, (interval || 5) * 1000, actionId, form);
+      (resume || ((id, ms) => pollCibaStepUp(id, ms, actionId, form)))(auth_req_id, (interval || 5) * 1000);
     } catch (err) {
       console.error("[BankingAgent] CIBA initiation failed:", err);
       if (cibaTab) cibaTab.close();
@@ -9597,7 +9538,7 @@ export default function BankingAgent({
         `❌ Could not start CIBA approval: ${err.message}`,
         `ciba-error-${Date.now()}`,
       );
-      toast.dismiss(toastId);
+      if (toastId) toast.dismiss(toastId);
       agentFlowDiagram.completeMfaChallenge(false);
       setLoading(false);
     }
@@ -9727,68 +9668,17 @@ export default function BankingAgent({
       response.step_up_method === "ciba" &&
       (response.error === "step_up_required" || response.error === "mcp_step_up_required")
     ) {
-      // Same pre-open-then-navigate pattern as runAction's CIBA branch — see
-      // that comment for why this reduces (not eliminates) popup blocking.
-      const cibaTab = window.open(
-        "",
-        "ciba-approve",
-        "popup=yes,width=440,height=760,menubar=no,toolbar=no,location=no,status=no,resizable=yes",
-      );
-      try {
-        const apiBase = process.env.REACT_APP_API_URL || "";
-        const fromAccountId = response.fromAccountId || response.from_account_id;
-        const toAccountId = response.toAccountId || response.to_account_id;
-        const fromLabel = liveAccounts?.find((a) => a.id === fromAccountId)?.name;
-        const toLabel = liveAccounts?.find((a) => a.id === toAccountId)?.name;
-        const initRes = await fetch(`${apiBase}/api/auth/ciba/initiate`, {
-          method: "POST",
-          credentials: "include",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            binding_message: cibaApprovalText(terminology),
-            acr_values: response.step_up_acr || "",
-            amount: response.transactionAmount ?? undefined,
-            transaction_type: resolveCibaTransactionType(
-              response.transactionType,
-            ),
-            hitl_challenge_id:
-              response.hitlChallengeId || response.hitl_challenge_id || undefined,
-            from_account_label: fromLabel,
-            to_account_label: toLabel,
-            from_account_id: fromAccountId,
-            to_account_id: toAccountId,
-          }),
-        });
-        if (!initRes.ok) {
-          const failure = await initRes.json().catch(() => ({}));
-          throw new Error(failure.message || failure.error_description || failure.error || `CIBA initiation failed: ${initRes.status}`);
-        }
-        const { auth_req_id, interval, binding_message, engine } = await initRes.json();
-        if (cibaTab) {
-          if (engine === "simulated") cibaTab.location.href = `/ciba-approve?authReqId=${encodeURIComponent(auth_req_id)}`;
-          else cibaTab.close();
-        }
-        addMessage(
-          "assistant",
-          cibaWaitingText(binding_message),
-          `ciba-step-${Date.now()}`,
-          { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
-        );
-        agentFlowDiagram.completeMfaChallenge(null);
-        tokenChainTraceStore.ingestTokenEvent({
-          id: "ciba-poll",
-          eventType: "auth",
-          timestamp: new Date().toISOString(),
-          description: "CIBA backchannel step-up pending approval",
-          additionalData: { grantedVia: "ciba", status: "pending" },
-        });
-        pollCibaThenResumeNl(auth_req_id, (interval || 5) * 1000, text, useCaseId);
-      } catch (err) {
-        console.error("[BankingAgent] CIBA initiation failed:", err);
-        if (cibaTab) cibaTab.close();
-        addMessage("assistant", `❌ Could not start CIBA approval: ${err.message}`, `ciba-error-${Date.now()}`);
-        agentFlowDiagram.completeMfaChallenge(false);
-      }
+      await startCibaStepUp({
+        normalized: {
+          fromAccountId: response.fromAccountId || response.from_account_id,
+          toAccountId: response.toAccountId || response.to_account_id,
+          transaction_amount: response.transactionAmount,
+          transactionType: response.transactionType,
+          hitlChallengeId: response.hitlChallengeId || response.hitl_challenge_id,
+          step_up_acr: response.step_up_acr,
+        },
+        resume: (id, ms) => pollCibaThenResumeNl(id, ms, text, useCaseId),
+      });
       return;
     }
     // HITL consent / step-up / authorization deny: these are valid gated responses, not errors.

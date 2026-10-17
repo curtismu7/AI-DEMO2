@@ -29,7 +29,7 @@ const SEQUENCE_DIAGRAM = `
 2. PingOne ◀─────────────────────────── auth_req_id returned
 
 3. PingOne ──out-of-band approval────▶ User (channel is your PingOne / DaVinci setup)
-   • Email: approval link in inbox  — OR —  • Push: notification on registered device
+   • Email: approval link in inbox  — OR —  • Text message: approval link on phone
 
 4. User approves (link in email or tap Approve on device)
 
@@ -49,7 +49,7 @@ scope=openid%20banking%3Awrite
 &login_hint=user%40bank.com
 &binding_message=Approve%20%24500%20transfer
 &acr_values=Multi_factor            (optional step-up)
-&client_notification_token=...      (required for ping/push delivery mode)
+&client_notification_token=...      (required for ping delivery mode)
 
 HTTP/1.1 200 OK
 {
@@ -151,7 +151,7 @@ const FULL_STACK_DIAGRAM = `
   https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/
 
 ── This banking demo maps: Web SPA → Banking Backend-for-Frontend (BFF) → PingOne AS → MCP server → Banking RS ──
-   CIBA: POST /bc-authorize + poll /token  (parallel track; email or push per PingOne)
+   CIBA: POST /bc-authorize + poll /token  (parallel track; email or text link)
 `;
 
 const OAUTH_API_CHEATSHEET = `
@@ -209,13 +209,13 @@ export function CibaWhatContent() {
           <code>POST /token</code> until the user approves or the request expires.
         </li>
         <li>
-          <strong>binding_message</strong> — the text shown in the approval email or push
-          notification, e.g. <em>"Approve $500 transfer to Savings"</em>. Helps the user
+          <strong>binding_message</strong> — the text shown in the approval email or text
+          message, e.g. <em>"Approve $500 transfer to Savings"</em>. Helps the user
           confirm exactly what they are authorising.
         </li>
         <li>
-          <strong>login_hint</strong> — the user's email address. PingOne resolves this to the
-          target account and sends the approval to the right inbox or device.
+          <strong>login_hint</strong> — the signed-in user's PingOne user ID (an email can match several users). PingOne resolves it to the
+          target account and sends the approval link to that user's email or mobile phone.
         </li>
         <li>
           <strong>Poll vs Ping delivery mode</strong> — <em>Poll</em>: server calls{' '}
@@ -229,8 +229,8 @@ export function CibaWhatContent() {
           poll API. XSS cannot steal them.
         </li>
         <li>
-          <strong>Email vs push</strong> — controlled by your PingOne / DaVinci flow, not by
-          this app. Email-only CIBA requires no push-capable MFA device.
+          <strong>Email vs text</strong> — PingOne CIBA has no channel field, so each channel is its own
+          CIBA app with its own DaVinci flow. The user picks CIBA - EMAIL or CIBA - SMS in the step-up picker.
         </li>
       </ul>
 
@@ -335,10 +335,10 @@ export function CibaVsLoginContent() {
       <h3>CIBA (backchannel)</h3>
       <pre className="edu-code">{`1. Backend-for-Frontend (BFF) → POST /as/bc-authorize (login_hint, binding_message)
 2. PingOne → { auth_req_id, expires_in, interval }
-   ↳ PingOne delivers approval OUT-OF-BAND (email or push per your DaVinci config)
+   ↳ PingOne delivers approval OUT-OF-BAND (email or text link, per the channel's DaVinci flow)
 3. Backend-for-Frontend (BFF) polls POST /as/token every ~5s
    → authorization_pending until user acts
-4. User approves in email inbox OR on registered device
+4. User opens the link in their email inbox OR text message and approves
 5. Next poll returns tokens; Backend-for-Frontend (BFF) stores them server-side
 6. Chat / agent / dashboard continues with no page load`}</pre>
       <p><strong>Key property:</strong> the user does <em>not</em> navigate away. No <code>redirect_uri</code> is needed for the approval step — user stays on the same page or chat the whole time.</p>
@@ -347,7 +347,7 @@ export function CibaVsLoginContent() {
       <pre className="edu-code">{`Feature                  Auth Code + PKCE          CIBA
 ─────────────────────────────────────────────────────────────────
 Browser redirect         YES (to PingOne)           NO
-User interaction device  Same browser               Any (email, phone, push)
+User interaction device  Same browser               Any (email, text message)
 Suitable for agents      No (needs browser)         Yes (out-of-band)
 Suitable for step-up     Disruptive (page reload)   Non-disruptive overlay
 redirect_uri required    YES                        NO (for approval step)
@@ -356,21 +356,20 @@ Session established      Immediately on callback    After poll succeeds
 binding_message          N/A                        Shown to user on approval
 Token location           Backend-for-Frontend (BFF) session (httpOnly)     Backend-for-Frontend (BFF) session (httpOnly)`}</pre>
 
-      <h3>Email vs push — who decides?</h3>
+      <h3>Email vs text — who decides?</h3>
       <p>
-        The delivery channel is controlled by your <strong>PingOne / DaVinci flow</strong>, not
-        by this app. The Backend-for-Frontend (BFF) sends <code>login_hint</code> and <code>binding_message</code>;
-        PingOne decides whether to send an email link or a push notification based on your
-        DaVinci configuration and the user's registered authenticators.
+        The user picks the channel. Each channel is a separate <strong>PingOne CIBA app</strong> with
+        its own <strong>DaVinci flow policy</strong>. The Backend-for-Frontend (BFF) sends <code>login_hint</code> and
+        <code>binding_message</code> to that app; its flow looks the user up and sends a magic link.
       </p>
       <ul>
         <li>
-          <strong>Email-only</strong> — approval link in inbox; no push-capable MFA device or
+          <strong>CIBA - EMAIL</strong> — approval link in the inbox; no MFA device or
           app required.
         </li>
         <li>
-          <strong>Push</strong> — PingOne MFA policy + registered device (PingID, Microsoft
-          Authenticator, etc.) required.
+          <strong>CIBA - SMS</strong> — approval link by text message; the user needs a real Mobile
+          phone on their PingOne profile.
         </li>
       </ul>
 
@@ -408,7 +407,7 @@ export function CibaMcpFlowContent() {
       <ul>
         <li>Chat UI → MCP server needs tokens</li>
         <li>Server sends <code>bc-authorize</code> to PingOne</li>
-        <li>PingOne delivers approval out-of-band (email link or push — your DaVinci config)</li>
+        <li>PingOne delivers approval out-of-band (email link or text link, per the channel's DaVinci flow)</li>
         <li>User approves — never leaves the chat</li>
         <li>Tokens arrive at server silently; tool call continues</li>
         <li>✅ Fluid, in-context, no redirect needed</li>
@@ -432,7 +431,7 @@ export function CibaMcpFlowContent() {
       <ul>
         <li>User clicks Transfer $500</li>
         <li>UI shows a non-blocking overlay: "Check your email or device"</li>
-        <li>PingOne sends approval notification (email or push per your DaVinci setup)</li>
+        <li>PingOne sends the approval link (email or text, per the channel's DaVinci flow)</li>
         <li>User approves out-of-band</li>
         <li>Transfer executes immediately on next poll</li>
         <li>✅ No redirect, no page reload, no context loss</li>
@@ -445,7 +444,7 @@ export function CibaMcpFlowContent() {
 2. Backend-for-Frontend (BFF) checks session tokens — insufficient scope or step-up needed
 3. Backend-for-Frontend (BFF) → POST /as/bc-authorize  (login_hint, binding_message="Approve $500 transfer")
 4. Backend-for-Frontend (BFF) polls /as/token every 5s
-5. User approves in email / push (out-of-band)
+5. User approves from the email / text link (out-of-band)
 6. Backend-for-Frontend (BFF) receives CIBA tokens (subject=user, scopes updated)
 7. Backend-for-Frontend (BFF) → POST /as/token  grant_type=token-exchange (RFC 8693)
        subject_token=<CIBA access token>
@@ -465,7 +464,7 @@ export function CibaMcpFlowContent() {
    │◀──pending──│               │              │              │
    │            │──poll /token─▶│              │              │
    │            │◀─pending──────│              │              │
-   │   [User approves in email/push — out of band]           │
+   │   [User approves via email/text link — out of band]           │
    │            │──poll /token─▶│              │              │
    │            │◀──200 tokens──│              │              │
    │            │──token-exch──▶│              │              │

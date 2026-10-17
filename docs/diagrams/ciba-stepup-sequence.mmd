@@ -22,7 +22,7 @@ sequenceDiagram
     Note over B,BFF: route returns BOTH casings — tokens never reach the browser
 
     %% ── out-of-band approval ────────────────────────────────────────────────
-    P1->>U: Approval request on the policy-bound channel (email / SMS / FIDO2 / push)
+    P1->>U: Approval link on the picked channel (email or text message)
     U-->>P1: User approves
 
     %% ── poll ────────────────────────────────────────────────────────────────
