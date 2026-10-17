@@ -37,6 +37,7 @@ const hitlServiceClient = require('../services/hitlServiceClient');
 const cibaTransactionReceipt = require('../services/cibaTransactionReceipt');
 const dataStore = require('../data/store');
 const { verticalManifest } = require('../services/verticalManifest');
+const { pingOneUserIdFor } = require('../services/pingOneSessionUser');
 
 const STEP_UP_TTL_MS = 5 * 60 * 1000; // 5 min step-up validity
 const CIBA_DEFAULT_SCOPE = 'openid';
@@ -137,9 +138,11 @@ router.post('/initiate', authenticateToken, async (req, res) => {
   // matches it exactly, and the poll checks the approval's `sub` against this same
   // ID, so the approval can only ever be for the person who is signed in. An email
   // is ambiguous (accounts can share one) and could approve as someone else.
+  // A PingFederate session's sub is a PF username; CIBA runs on PingOne, so use
+  // the linked PingOne user id (pingOneUserIdFor returns a PingOne sub as-is).
+  const signedInPingOneId = await pingOneUserIdFor(req, req.user?.sub || req.user?.id);
   const loginHint = field('login_hint', 'loginHint')
-    || req.user?.sub
-    || req.user?.id
+    || signedInPingOneId
     || req.user?.email
     || req.session?.user?.email;
 
@@ -630,7 +633,9 @@ router.get('/poll/:authReqId', authenticateToken, async (req, res) => {
       try {
         // No ACR check: PingOne sets the token's acr to the DaVinci policy ID, so the
         // step-up ACR the client sent (e.g. 'Multi_Factor') can never match it.
-        verifiedClaims = await cibaService.validateCibaIdToken(tokens.id_token, req.user?.sub || req.user?.id, '', pending.channel);
+        verifiedClaims = await cibaService.validateCibaIdToken(
+          tokens.id_token, await pingOneUserIdFor(req, req.user?.sub || req.user?.id), '', pending.channel,
+        );
       } catch (validationError) {
         console.error('[CIBA] invalid identity result:', validationError.message);
         delete req.session.cibaRequests[authReqId];
