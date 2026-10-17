@@ -83,7 +83,7 @@ A security analyst asks an agent to review someone's access. The main agent hand
 **If you have time.** Open the Privilege console, Agent Privilege, Agent Registry, and show the two agents: different scopes (`llm` + `a2a` against `llm` + `mcp`), different allowed models, and the worker's per-tool grants.
 
 ![Privilege console dashboard](../docs/screenshots/privilege-console-setup/privilege-dashboard.png)
-_Privilege console dashboard: sessions, top users, and the resource that was called (`langchainagent`), for the last 24 hours._
+_Privilege console dashboard: sessions, top users, and the resource that was called (`langchain-midagent`), for the last 24 hours._
 
 ## Demo 2: three-deep chain
 
@@ -105,9 +105,9 @@ One agent calls a second, which calls a third, and the gateway sits between each
 | Run | What the gateway's record shows |
 | --- | --- |
 | P | The guardrail verdict: `a2a_request_blocked`, category `prompt_injection`, the caller `main-agent`, the rules that fired, and the MITRE ATLAS, NIST AI RMF and OWASP rows |
-| U | The first hop accepted for `langchainagent`; the second refused: policy denied, the principal does not have access, A2A app `restrictedagent` |
+| U | The first hop accepted for `langchain-midagent`; the second refused: policy denied, the principal does not have access, A2A app `restrictedagent` |
 | C | The guardrail verdict on the reply: `a2a_response_blocked`, category `prompt_injection`, direction `response`, the rule that fired, and the framework rows |
-| Allowed | The request accepted for `langchainagent`, then for the specialist's app, each with a different principal |
+| Allowed | The request accepted for `langchain-midagent`, then for the specialist's app, each with a different principal |
 
 On Step 25 (the access review), the same record lists the model calls with tokens and cost. That block is covered by tests but has not yet been run in a browser.
 
@@ -170,11 +170,11 @@ _Agentic Apps → Active Applications: the demo's MCP Servers and Remote Agents.
 | --- | --- | --- | --- | --- |
 | `workeragentdemo` | Remote Agent | `http://workeragentdemo.ping-devops-cmuir.svc.cluster.local` | `/a2a` | None |
 | `mcpdemo` | MCP | `http://mcpdemo.ping-devops-cmuir.svc.cluster.local` | `/mcp` | None |
-| `langchainagent` | Remote Agent | `http://langchain-agent.ping-devops-cmuir.svc.cluster.local:8888` | `/a2a` | Static Token |
+| `langchain-midagent` | Remote Agent | `http://langchain-agent.ping-devops-cmuir.svc.cluster.local:8888` | `/a2a` | Static Token |
 | `hostile-a2a` | Remote Agent | `http://hostile-a2a-agent.ping-devops-cmuir.svc.cluster.local` | `/a2a` | None |
 | `restrictedagent` | Remote Agent | the `workeragentdemo` backend | `/a2a` | None |
 
-The worker must be a Remote Agent app, or it will not appear in an agent's Remote Agents list. `restrictedagent` exists only to be refused: select it on no agent. Turn on Discover A2A agent card once a backend is running. The static token for `langchainagent` is `PRIVILEGE_A2A_STATIC_TOKEN` in the vault.
+The worker must be a Remote Agent app, or it will not appear in an agent's Remote Agents list. `restrictedagent` exists only to be refused: select it on no agent. Turn on Discover A2A agent card once a backend is running. The static token for `langchain-midagent` is `PRIVILEGE_A2A_STATIC_TOKEN` in the vault.
 
 **3. Create the agents** (console: Agent Privilege, Agent Registry, Add Agent).
 
@@ -183,7 +183,7 @@ _Agent Registry: each row is an agent key — custodian, provider, scopes, expir
 
 | Agent | Scopes | Provider and model | May reach | Custodian |
 | --- | --- | --- | --- | --- |
-| `main-agent` | `a2a` | none (the model call uses the `llama.cpp` key) | `workeragentdemo`, `langchainagent` | you |
+| `main-agent` | `a2a` | none (the model call uses the `llama.cpp` key) | `workeragentdemo`, `langchain-midagent` | you |
 | `worker-agent` | `mcp` | none (the model call uses the `llama.cpp` key) | `mcpdemo`, with each of its four tools allowed under Configure Tools | you |
 | `langchain-caller` | `a2a` | none | `hostile-a2a` | a different user |
 
@@ -206,7 +206,7 @@ GEMINI_BASE_URL=https://mcpgw.ai-demo.ping-devops.com/llm/google
 MAIN_AGENT_MODEL=gemini-3.6-flash
 WORKER_A2A_URL=https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/a2a
 WORKER_TRACE_URL=https://mcpgw.ai-demo.ping-devops.com/workeragentdemo/trace
-CHAIN_A2A_URL=https://mcpgw.ai-demo.ping-devops.com/langchainagent/a2a/jsonrpc
+CHAIN_A2A_URL=https://mcpgw.ai-demo.ping-devops.com/langchain-midagent/a2a/jsonrpc
 ```
 
 The model ID must match the model allowed on the key exactly. `MAIN_AGENT_HOST=0.0.0.0` lets the app's Docker container reach it.
@@ -245,7 +245,7 @@ Each of these happened while building the demo. Read the message, find the row.
 | The worker says the tool call was `Forbidden` | The agent may reach the MCP app but no tools are allowed | Configure Tools on the agent, allow each tool |
 | Configure Tools shows "Gateway Unreachable … no such host" | Tool discovery ran once, before the backend existed | Save the MCP app again to re-run discovery |
 | An app is missing from the Remote Agents list | It was registered as a type other than Remote Agent | Delete it and add it again as a Remote Agent |
-| `401: Bearer authentication required` at the first chain hop | `langchainagent` is not on Static Token, so the gateway forwards no credential | Set Auth Mode to Static Token and paste the token from the vault |
+| `401: Bearer authentication required` at the first chain hop | `langchain-midagent` is not on Static Token, so the gateway forwards no credential | Set Auth Mode to Static Token and paste the token from the vault |
 | `unknown delegation target` at the second chain hop | The LangChain agent has no agent key, or the target is not in `A2A_DELEGATE_TARGETS` | Mirror `PRIVILEGE_A2A_AGENT_KEY` to the cluster; check the config; restart the agent |
 | The "ungranted" run succeeds | The LangChain agent shares a custodian with an agent that is granted that target | Give `langchain-caller` its own custodian |
 | A view shows nothing for a chain run | The page was reloaded; the trace lives in the browser | Run the step again |

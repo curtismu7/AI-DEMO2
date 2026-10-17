@@ -428,15 +428,15 @@ test("the gateway's request and refusal lines name the principal and the app for
       guardrail: [],
       modelCalls: [],
       requests: [
-        { time: "t0", app: "langchainagent", method: "GET", path: "/a2a/.well-known/agent-card.json", principal: "main-principal", tenant: "tenant-1" },
-        { time: "t1", app: "langchainagent", method: "POST", path: "/a2a/jsonrpc", principal: "main-principal", tenant: "tenant-1" },
+        { time: "t0", app: "langchain-midagent", method: "GET", path: "/a2a/.well-known/agent-card.json", principal: "main-principal", tenant: "tenant-1" },
+        { time: "t1", app: "langchain-midagent", method: "POST", path: "/a2a/jsonrpc", principal: "main-principal", tenant: "tenant-1" },
       ],
       denials: [{ time: "t2", app: "restrictedagent", principal: "caller-principal", reason: "principal does not have access" }],
     },
   ]);
 
   // The allowed hop: the call's own line, not the card request before it.
-  expect(steps[1].detail.kv).toContainEqual(["Gateway's request record", "Accepted POST /a2a/jsonrpc for app langchainagent"]);
+  expect(steps[1].detail.kv).toContainEqual(["Gateway's request record", "Accepted POST /a2a/jsonrpc for app langchain-midagent"]);
   expect(steps[1].detail.kv).toContainEqual(["Principal the key resolved to", "main-principal"]);
   expect(steps[1].detail.kv).toContainEqual(["Tenant", "tenant-1"]);
   // The refused hop: the gateway's reason, and who it refused.
@@ -477,7 +477,7 @@ test("steps carry the protocol facts, the caller's identity and the specificatio
     "Instruction to the callee": "delegateTo: refunds",
     "Reported at, into the run": "0.3s",
   });
-  expect(kv["pa2a-1-gateway"]).toMatchObject({ "Caller's Agent Registry name": "main-agent", "Route (Agentic App)": "langchainagent" });
+  expect(kv["pa2a-1-gateway"]).toMatchObject({ "Caller's Agent Registry name": "main-agent", "Route (Agentic App)": "langchain-midagent" });
   // Protocol detail on the reply.
   expect(kv["pa2a-2-reply"]).toMatchObject({ "Result kind and role": "message / agent", "A2A message id": "reply-1", "Handed on to": "refunds, by langchainagent" });
   expect(kv["pa2a-2-return"]).toMatchObject({ "HTTP status": "200", "JSON-RPC id echoed": "rpc-1" });
@@ -494,7 +494,7 @@ test("a refusal shows its HTTP status and JSON-RPC error code", () => {
   ]);
   const refusal = Object.fromEntries(steps[1].detail.kv);
 
-  expect(refusal).toMatchObject({ "HTTP status": "400", "JSON-RPC error code": "-32600", "Caller's Agent Registry name": "main-agent", "Route (Agentic App)": "langchainagent" });
+  expect(refusal).toMatchObject({ "HTTP status": "400", "JSON-RPC error code": "-32600", "Caller's Agent Registry name": "main-agent", "Route (Agentic App)": "langchain-midagent" });
   expect(Object.fromEntries(steps[0].detail.kv)["JSON-RPC request id"]).toBe("rpc-1");
   expect(steps[1].detail.spec.failure).toContain("does not echo");
 });
