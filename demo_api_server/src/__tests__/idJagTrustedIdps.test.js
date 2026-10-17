@@ -92,19 +92,40 @@ describe('trusted-IdP registry module', () => {
 });
 
 describe('trusted-IdP endpoints', () => {
-  it('public registry lists only enabled oauth-mcp entries, with client aliases and no auth', async () => {
+  const BEARER = 'Bearer registry-test-token';
+  beforeEach(() => { process.env.ID_JAG_REGISTRY_TOKEN = 'registry-test-token'; });
+  afterEach(() => { delete process.env.ID_JAG_REGISTRY_TOKEN; });
+
+  it('registry reads list only enabled entries for their target, with client aliases', async () => {
     await trustedIdps.create(ENTRY);
     await trustedIdps.create({ ...ENTRY, id: 'pf-only', issuer: 'https://pf-only.test', targets: ['pingfederate'] });
     await trustedIdps.create({ ...ENTRY, id: 'off', issuer: 'https://off.test', enabled: false });
-    const res = await request(appWith()).get('/pg/trusted-idps/registry');
+    const res = await request(appWith()).get('/pg/trusted-idps/registry').set('Authorization', BEARER);
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ idps: [{ id: 'partner', issuer: OUT, jwksUrl: `${OUT}/jwks`, clientAliases: { 'partner-knows-us-as': 'demo-bff-mcp-client' }, scopes: 'mcp:read' }] });
-    const pf = await request(appWith()).get('/pg/trusted-idps/pingfederate');
+    const pf = await request(appWith()).get('/pg/trusted-idps/pingfederate').set('Authorization', BEARER);
     expect(pf.body.idps.map((e) => e.id)).toEqual(['partner', 'pf-only']);
     expect(pf.body.idps[0]).toEqual({ id: 'partner', name: 'Partner IdP', issuer: OUT, jwksUrl: `${OUT}/jwks`, pfClientId: 'ai-demo-pf-idjag-redeemer', scopes: 'mcp:read' });
   });
 
-  it('the hosted-access wall lets the two public reads through', () => {
+  it.each(['registry', 'pingfederate'])('/trusted-idps/%s needs the shared registry token', async (path) => {
+    const get = () => request(appWith()).get(`/pg/trusted-idps/${path}`);
+    expect((await get()).status).toBe(401);
+    expect((await get().set('Authorization', 'Bearer wrong-token')).status).toBe(401);
+    expect((await get().set('Authorization', 'Bearer registry-test-token-and-more')).status).toBe(401);
+    expect((await get().set('Authorization', BEARER)).status).toBe(200);
+  });
+
+  it('refuses registry reads with 503 when no registry token is configured', async () => {
+    delete process.env.ID_JAG_REGISTRY_TOKEN;
+    const err = jest.spyOn(console, 'error').mockImplementation(() => undefined);
+    const res = await request(appWith()).get('/pg/trusted-idps/registry').set('Authorization', 'Bearer anything');
+    expect(res.status).toBe(503);
+    expect(res.body.error).toBe('registry_auth_unconfigured');
+    expect(err.mock.calls[0][0]).toMatch(/ID_JAG_REGISTRY_TOKEN is not set/);
+  });
+
+  it('the hosted-access wall lets the two server-to-server reads through', () => {
     expect(isHostedAccessBypassPath('/api/id-jag-playground/trusted-idps/registry', 'GET')).toBe(true);
     expect(isHostedAccessBypassPath('/api/id-jag-playground/trusted-idps/pingfederate', 'GET')).toBe(true);
     expect(isHostedAccessBypassPath('/api/id-jag-playground/trusted-idps', 'GET')).toBe(false);

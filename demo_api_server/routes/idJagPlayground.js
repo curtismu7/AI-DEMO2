@@ -532,10 +532,21 @@ router.post('/negative/:id', requirePf, async (req, res) => {
   }
 });
 
-// Trusted-IdP registry. The two public reads carry no secrets: oauth-mcp and the PingFederate
-// sync script fetch them server-to-server (hosted-access wall bypasses them too).
-router.get('/trusted-idps/registry', (_req, res) => res.json(trustedIdps.oauthMcpRegistry()));
-router.get('/trusted-idps/pingfederate', (_req, res) => res.json(trustedIdps.pingfederateRegistry()));
+// Trusted-IdP registry. oauth-mcp and the PingFederate sync script fetch these server-to-server
+// with no session (hosted-access wall bypasses them), so they need the shared ID_JAG_REGISTRY_TOKEN
+// as a Bearer. Unconfigured = refuse (503), never serve openly.
+function registryAuth(req, res, next) {
+  const expected = process.env.ID_JAG_REGISTRY_TOKEN;
+  if (!expected) {
+    console.error('[id-jag] ID_JAG_REGISTRY_TOKEN is not set; refusing trusted-IdP registry reads (set it on the BFF and mcp-server)');
+    return res.status(503).json({ error: 'registry_auth_unconfigured' });
+  }
+  const got = /^Bearer\s+(\S+)$/i.exec(req.get('authorization') || '')?.[1] || '';
+  const digest = (v) => crypto.createHash('sha256').update(v).digest(); // equal lengths for timingSafeEqual
+  return crypto.timingSafeEqual(digest(got), digest(expected)) ? next() : res.status(401).json({ error: 'unauthorized' });
+}
+router.get('/trusted-idps/registry', registryAuth, (_req, res) => res.json(trustedIdps.oauthMcpRegistry()));
+router.get('/trusted-idps/pingfederate', registryAuth, (_req, res) => res.json(trustedIdps.pingfederateRegistry()));
 router.get('/trusted-idps', authenticateToken, (req, res) => res.json({ idps: trustedIdps.list(), canManage: req.user?.role === 'admin' }));
 
 const registryWrite = (fn) => [authenticateToken, requireAdmin, async (req, res) => {
