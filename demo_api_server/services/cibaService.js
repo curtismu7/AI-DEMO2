@@ -80,9 +80,12 @@ const MAX_BINDING_MESSAGE = 8;
 const VERTICAL_CODES = require('../config/cibaVerticalCodes');
 function _bindingMessage(raw, verticalId) {
   const s = String(raw || '').replace(/[\x00-\x1f\x7f]/g, '').trim();
-  return s.length >= 1 && s.length <= MAX_BINDING_MESSAGE
+  const code = VERTICAL_CODES[verticalId] || '';
+  // A known vertical always gets code + match code (even over a short message like the
+  // default "Approve") so the DaVinci screens can brand themselves.
+  return !code && s.length >= 1 && s.length <= MAX_BINDING_MESSAGE
     ? s
-    : (VERTICAL_CODES[verticalId] || '') + crypto.randomBytes(3).toString('hex').toUpperCase();
+    : code + crypto.randomBytes(3).toString('hex').toUpperCase();
 }
 
 /**

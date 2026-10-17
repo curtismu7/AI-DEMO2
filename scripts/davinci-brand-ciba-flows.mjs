@@ -99,6 +99,10 @@ function patchNode(data, kind) {
     html = html.replace(LOGO_IMG, `${CODE_SPAN}<img id="brand-logo" class="org-logo__image"`);
     html = html.replace('<strong>{{global.parameters.application.name}}</strong>', '<strong id="brand-app">{{global.parameters.application.name}}</strong>');
   }
+  // Plain-language explanation of the match code (the old copy read like an OTP prompt).
+  html = html
+    .replace('Authorization binding message: <strong id="bindingMessageValue">', 'Match code: <strong id="bindingMessageValue">')
+    .replace('If you do not recognize this binding message, decline the request.', 'Nothing to type. Approve only if this is the same code shown in the app where you started. If it is different, or you did not start this, decline.');
   p.customHTML.value = JSON.stringify(html);
   const prior = (p.customScript?.value || '').replace(/\(function \(\) \{\n  var B = [\s\S]*?\}\)\(\);\n?/, '');
   p.customScript = { value: (prior ? prior.trimEnd() + '\n' : '') + SCRIPT };

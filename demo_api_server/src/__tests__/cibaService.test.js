@@ -184,11 +184,14 @@ describe('cibaService.initiateBackchannelAuth()', () => {
     expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('binding_message')).toMatch(/^BK[0-9A-F]{6}$/);
   });
 
-  it('leaves an unknown vertical unprefixed and keeps an explicit short message as-is', async () => {
+  it('prefixes even a short message (the default "Approve") when the vertical is known; unknown vertical keeps it', async () => {
     await cibaService.initiateBackchannelAuth('user@example.com', 'Approve your banking transaction', 'openid', '', 'email', 'nope');
     expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('binding_message')).toMatch(/^[0-9A-F]{6}$/);
     axios.post.mockClear();
     await cibaService.initiateBackchannelAuth('user@example.com', 'Approve', 'openid', '', 'email', 'banking');
+    expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('binding_message')).toMatch(/^BK[0-9A-F]{6}$/);
+    axios.post.mockClear();
+    await cibaService.initiateBackchannelAuth('user@example.com', 'Approve', 'openid', '', 'email', 'nope');
     expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('binding_message')).toBe('Approve');
   });
 
