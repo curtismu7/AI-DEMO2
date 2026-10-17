@@ -35,12 +35,11 @@ describe('CibaStepUpFlowPanel — static content', () => {
     expect(screen.getByText(/Poll \/api\/auth\/ciba\/poll/)).toBeInTheDocument();
   });
 
-  it('renders the 4-channel approval table with correct rows', () => {
+  it('renders the email and SMS approval channel rows', () => {
     render(<CibaStepUpFlowPanel />);
-    expect(screen.getByText(/Email approve-link \/ OTP/)).toBeInTheDocument();
-    expect(screen.getByText('SMS OTP')).toBeInTheDocument();
-    expect(screen.getByText(/FIDO2 \/ passkey/)).toBeInTheDocument();
-    expect(screen.getByText('Mobile push')).toBeInTheDocument();
+    expect(screen.getByText('CIBA - EMAIL')).toBeInTheDocument();
+    expect(screen.getByText('CIBA - SMS')).toBeInTheDocument();
+    expect(screen.queryByText('Mobile push')).not.toBeInTheDocument();
   });
 
   it('renders the channel table headers', () => {

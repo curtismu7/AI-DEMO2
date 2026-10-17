@@ -42,7 +42,7 @@ const STEPS = [
     actor: "User (out-of-band)",
     title: "Approve on the bound channel",
     detail:
-      "PingOne's device-authentication policy decides the channel (email / SMS / FIDO2 / push). The user approves there.",
+      "PingOne runs the DaVinci flow policy assigned to the CIBA app for the picked channel (CIBA - EMAIL or CIBA - SMS). It sends a magic link; the user opens it and approves.",
   },
   {
     n: 5,
@@ -54,18 +54,8 @@ const STEPS = [
 ];
 
 const CHANNELS = [
-  { channel: "Email approve-link / OTP", ux: "Approve from inbox", app: "No" },
-  { channel: "SMS OTP", ux: "Code via text", app: "No" },
-  {
-    channel: "FIDO2 / passkey",
-    ux: "Touch ID / Windows Hello / platform passkey in browser",
-    app: "No",
-  },
-  {
-    channel: "Mobile push",
-    ux: "Tap Approve in an app",
-    app: "Yes — PingID app (or custom PingOne MFA SDK app)",
-  },
+  { channel: "CIBA - EMAIL", ux: "Open the approval link in your inbox", app: "No" },
+  { channel: "CIBA - SMS", ux: "Open the approval link in a text message", app: "No" },
 ];
 
 function CibaStepUpFlowPanel() {
@@ -79,8 +69,8 @@ function CibaStepUpFlowPanel() {
       <p className="ciba-stepup-intro">
         <strong>CIBA step-up</strong> protects a high-value transfer with an
         out-of-band approval. The flow below is identical regardless of how the
-        user approves — only the PingOne device-authentication policy decides the
-        channel.
+        user approves — only the DaVinci flow policy on the CIBA app (one per
+        channel) decides how the link is delivered.
       </p>
 
       <ol className="ciba-stepup-steps">
@@ -113,9 +103,9 @@ function CibaStepUpFlowPanel() {
         </tbody>
       </table>
       <p className="ciba-stepup-note">
-        There is no pure-browser push for PingOne MFA — push must land in a
-        mobile app holding the registered device credential. For an app-free
-        demo, use email / SMS / FIDO2. Adding push later is PingOne-config-only.
+        Each channel is its own PingOne CIBA app with its own DaVinci flow
+        policy, because the CIBA request has no channel field. The text channel
+        needs a real Mobile phone on the user's PingOne profile.
       </p>
 
       <h4 className="ciba-stepup-subhead">This session</h4>
