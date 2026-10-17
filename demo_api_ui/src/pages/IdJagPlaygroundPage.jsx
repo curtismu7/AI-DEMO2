@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useState } from "react";
 import IdJagPathBar from "../components/IdJagPathBar";
 import bffAxios from "../services/bffAxios";
+import { openSignIn } from "../utils/signInService";
 import "./IdJagPlaygroundPage.css";
 
 // The real PingFederate ID-JAG flow, one step at a time (after Okta's xaa.dev), with a
@@ -80,7 +81,7 @@ export default function IdJagPlaygroundPage() {
   const signIn = () => run("signin", async () => {
     // Always a PingFederate sign-in: clear whatever session is here first.
     await bffAxios.post("/api/auth/clear-session").catch(() => {});
-    window.location.href = `/api/auth/oauth/user/login?return_to=${encodeURIComponent("/pingfederate-id-jag/playground")}`;
+    openSignIn({ returnTo: "/pingfederate-id-jag/playground", force: true });
   });
 
   const issue = () => run("issue", async () => {
