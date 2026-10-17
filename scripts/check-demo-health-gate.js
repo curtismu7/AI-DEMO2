@@ -577,6 +577,47 @@ function checkProviderLock() {
     drift.length === 0 ? '' : `env values outrank the LMDB configStore; A2A breaks under pingfederate (no act claim). Align the layers or update the intent file.`);
 }
 
+/** The configured generalist (pingone_ai_agent_client_id) must hold agent:invoke:<vertical>
+ *  on EVERY A2A intermediate resource, or Exchange #1 fails with PingOne's
+ *  "At least one scope must be granted" (2026-10-13: the deleted original was
+ *  replaced by a native AI_AGENT app that bootstrap never granted). */
+async function checkA2aGeneralistGrants() {
+  if (!sh("docker ps --format '{{.Names}}' | grep -qx ai-demo-api-server && echo yes").out.trim()) return;
+  const probe = inContainerProbe('ai-demo-api-server', [
+    `process.env.NODE_TLS_REJECT_UNAUTHORIZED='0';`,
+    `const cs = require('/app/services/configStore');`,
+    `(async () => { await cs.ensureInitialized();`,
+    `  const envId = cs.getEffective('pingone_environment_id');`,
+    `  const app = cs.getEffective('pingone_ai_agent_client_id');`,
+    `  const auth = Buffer.from(cs.getEffective('pingone_worker_client_id') + ':' + cs.getEffective('pingone_worker_client_secret')).toString('base64');`,
+    `  const t = await (await fetch('https://auth.pingone.com/' + envId + '/as/token', { method: 'POST',`,
+    `    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: 'Basic ' + auth },`,
+    `    body: 'grant_type=client_credentials' })).json();`,
+    `  if (!t.access_token) { console.log('A2AGRANT_ERR token: ' + JSON.stringify(t).slice(0, 120)); process.exit(0); }`,
+    `  const h = { headers: { Authorization: 'Bearer ' + t.access_token } };`,
+    `  const base = 'https://api.pingone.com/v1/environments/' + envId;`,
+    `  const res = ((await (await fetch(base + '/resources?limit=200', h)).json())._embedded || {}).resources || [];`,
+    `  const inter = res.filter((r) => /^a2a-intermediate-/.test(r.audience || ''));`,
+    `  const grants = ((await (await fetch(base + '/applications/' + app + '/grants?limit=200', h)).json())._embedded || {}).grants || [];`,
+    `  const granted = new Set(grants.map((g) => g.resource && g.resource.id));`,
+    `  const missing = inter.filter((r) => !granted.has(r.id)).map((r) => r.audience.replace('a2a-intermediate-', '').replace('.ping.demo', ''));`,
+    `  console.log('A2AGRANT ' + JSON.stringify({ app: String(app).slice(0, 8), total: inter.length, missing }));`,
+    `  process.exit(0); })().catch((e) => { console.log('A2AGRANT_ERR ' + e.message); process.exit(0); });`,
+  ]);
+  const line = probe.find((l) => String(l).indexOf('A2AGRANT') === 0) || 'A2AGRANT_ERR no output';
+  if (line.indexOf('A2AGRANT_ERR') === 0) {
+    row('a2a:generalist-grants', false, line.replace('A2AGRANT_ERR ', ''), 'Check the worker client credentials and PingOne reachability');
+    return;
+  }
+  let parsed = null;
+  try { parsed = JSON.parse(line.replace(/^A2AGRANT\s*/, '')); } catch (e) { /* fallthrough */ }
+  const ok = !!(parsed && parsed.total > 0 && parsed.missing.length === 0);
+  row('a2a:generalist-grants', ok,
+    ok ? `${parsed.app}… holds a grant on all ${parsed.total} A2A intermediates`
+      : parsed ? `${parsed.app}… has no grant on ${parsed.missing.length}/${parsed.total} A2A intermediates (${parsed.missing.join(', ')}) — Exchange #1 fails "At least one scope must be granted"` : `unparseable: ${line.slice(0, 120)}`,
+    ok ? '' : 'Re-run the bootstrap A2A step (it grants the configured actor), or grant agent:invoke:<vertical> on each "Super Banking A2A Intermediate - …" resource in PingOne');
+}
+
 /** (B) The PingOne A2A gateway resource's audience attribute — the ROOT CAUSE
  *  of today's wrong-aud outage. When PingOne's resource has audience=NAME,
  *  every exchange2 token mints with that aud and no gateway accepts it. The
@@ -1155,6 +1196,7 @@ async function main() {
   checkProviderLock();
   await checkPingOneA2aResourceAudience();
   await checkA2aSot();
+  await checkA2aGeneralistGrants();
   await checkPingOneA2aAudForm();
   checkBffCodeDrift();
   checkUc2DeepProbe();
