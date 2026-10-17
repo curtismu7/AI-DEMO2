@@ -29,7 +29,7 @@ const { setPkceCookie, readPkceCookie, clearPkceCookie } = require('../services/
 const { setAuthCookie, clearAuthCookie } = require('../services/authStateCookie');
 const { clearAllAuthCookies, buildPingOneSignoffUrl } = require('../services/sessionCookies');
 const { buildPingOneAuthorizeResourceQueryParam } = require('../utils/oauthAuthorizeResource');
-const { getRoleFromClaims } = require('../services/roleClaimResolver');
+const { resolveEndUserAdminSignals } = require('../services/adminSignalResolver');
 const appEventService = require('../services/appEventService');
 const tokenIntrospectionService = require('../services/tokenIntrospectionService');
 const { validateIdToken, assertUserInfoSubjectMatches } = require('../services/oidcIdTokenValidationService');
@@ -1031,44 +1031,11 @@ router.get('/callback', async (req, res) => {
     // Check if user already exists in our system
     let user = dataStore.getUserByUsername(oauthUser.username);
     
-    // Resolve admin role using four signals (any one is sufficient):
-    //  1. admin_username allowlist  — permanent override (demoAdmin, service accounts)
-    //  2. PingOne population ID     — admin users live in a dedicated PingOne population
-    //  3. PingOne custom claim      — attribute named by admin_role_claim matches admin_role value
-    //  4. Existing dataStore record — preserve admin granted in a previous session
-    const configuredAdminRole       = configStore.getEffective('admin_role') || 'admin';
-    const configuredAdminUsernames  = (configStore.getEffective('admin_username') || '')
-      .split(',').map(u => u.trim()).filter(Boolean);
-    const configuredAdminPopulation = (configStore.getEffective('admin_population_id') || '').trim();
-    const configuredRoleClaim       = (configStore.getEffective('admin_role_claim') || '').trim();
+    // Admin role: four signals, any one is sufficient (see adminSignalResolver).
+    const { isAdmin, usernameIsAdmin, populationIsAdmin, claimIsAdmin, resolverIsAdmin, configuredRoleClaim } =
+      resolveEndUserAdminSignals(mergedUserInfo, oauthUser.username);
 
-    // Signal 1: username allowlist — always wins, no PingOne attribute needed
-    const usernameIsAdmin = configuredAdminUsernames.includes(oauthUser.username);
-
-    // Signal 2: population — PingOne includes population.id in userinfo when mapped;
-    // also check top-level populationId as some app configs surface it there.
-    let populationIsAdmin = false;
-    if (configuredAdminPopulation && !usernameIsAdmin) {
-      const popId = mergedUserInfo?.population?.id || mergedUserInfo?.populationId || null;
-      populationIsAdmin = popId === configuredAdminPopulation;
-    }
-
-    // Signal 3: custom claim — supports string or array (e.g. group membership list)
-    let claimIsAdmin = false;
-    if (configuredRoleClaim && !usernameIsAdmin && !populationIsAdmin) {
-      const claimValue = mergedUserInfo[configuredRoleClaim];
-      claimIsAdmin = Array.isArray(claimValue)
-        ? claimValue.includes(configuredAdminRole)
-        : claimValue === configuredAdminRole;
-    }
-
-    // Signal 5: roleClaimResolver — new oauth_role_claim_* config (any IDP)
-    // Note: we do NOT preserve an existing store role — role must be earned from PingOne
-    // signals each login to prevent stale admin entries persisting via the customer app.
-    const resolvedRole    = getRoleFromClaims(mergedUserInfo);
-    const resolverIsAdmin = resolvedRole === 'admin';
-
-    if (usernameIsAdmin || populationIsAdmin || claimIsAdmin || resolverIsAdmin) {
+    if (isAdmin) {
       oauthUser.role = 'admin';
       console.log(`[oauth/user/callback] Granting admin to ${oauthUser.username} (allowlist=${usernameIsAdmin}, population=${populationIsAdmin}, claim[${configuredRoleClaim}]=${claimIsAdmin}, resolver=${resolverIsAdmin})`);
     } else {
@@ -2041,6 +2008,7 @@ router.post('/agent-permissions', (req, res) => {
 module.exports = router;
 module.exports.sanitizePostLoginReturnPath = sanitizePostLoginReturnPath;
 module.exports.storeLoginHint = storeLoginHint;
+module.exports.reseedIfVerticalMismatch = reseedIfVerticalMismatch;
 module.exports.setPendingIdJagRun = setPendingIdJagRun;
 module.exports.consumePendingIdJagRun = consumePendingIdJagRun;
 module.exports.clearPendingIdJagRun = clearPendingIdJagRun;
