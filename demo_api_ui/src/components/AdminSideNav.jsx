@@ -1541,6 +1541,11 @@ export default function AdminSideNav({
         path: "/pingfederate-id-jag/implementation",
         searchAlias: "ID-JAG implementation PingFederate oauth-mcp gateway resource server simulate flow diagram jwt-bearer RFC 8693 RFC 7523",
       },
+      {
+        label: "ID-JAG Playground (try + validate)",
+        path: "/pingfederate-id-jag/playground",
+        searchAlias: "ID-JAG playground XAA cross app access validate test negative tests spec checker PingFederate oauth-mcp",
+      },
       "PingFederate ID-JAG (Node)",
       "Workload Agents · 3rd-party MCP via ID-JAG",
       "Enterprise-Managed MCP Auth",

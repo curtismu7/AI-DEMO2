@@ -22,7 +22,7 @@ describe("ID-JAG learning path bar", () => {
     const { unmount } = renderBar("explain");
     expect(screen.queryByRole("link", { name: /^Back:/ })).toBeNull();
     unmount();
-    renderBar("build");
+    renderBar("play");
     expect(screen.queryByRole("link", { name: /^Next:/ })).toBeNull();
   });
 
