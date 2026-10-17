@@ -545,7 +545,7 @@ export class OAuthRouter {
           this.json(res, 400, { error: 'invalid_request', error_description: 'assertion is required' });
           return true;
         }
-        const outcome = await this.redeemIdJag(assertion, client);
+        const outcome = await this.redeemIdJag(assertion, client, params.get('scope') || '');
         this.json(res, outcome.status, outcome.body);
         return true;
       }
@@ -597,13 +597,17 @@ export class OAuthRouter {
    *
    * issueAuthorizationCode is reused deliberately — it already sets an arbitrary
    * subject and clamps the requested scope to the client's registered scope via
-   * resolveScope. Passing the assertion's scope through therefore yields exactly
-   * the intersection the extension requires (assertion AND client), so no
-   * separate issuer method is needed.
+   * resolveScope. The granted scope is computed here, strictly: (assertion scope)
+   * AND (client's registered scope) AND (the request's own `scope`, when sent).
+   * An empty result is refused with invalid_scope. resolveScope alone is NOT
+   * enough: it falls back to the client's FULL scope when nothing overlaps, which
+   * turned an ID-JAG carrying only OIDC scopes into an all-scope token (found in a
+   * live PingFederate run).
    */
   private async redeemIdJag(
     assertion: string,
     client: OAuthClient,
+    requestedScope = '',
   ): Promise<{ status: number; body: Record<string, unknown> }> {
     try {
       const claims = await verifyIdJag(assertion, this.idJagVerifyOpts(client.client_id));
@@ -617,7 +621,17 @@ export class OAuthRouter {
           body: { error: 'invalid_grant', error_description: 'ID-JAG carries neither sub nor email' },
         };
       }
-      const tokenResponse = await this.tokenIssuer.issueAuthorizationCode(client, subject, claims.scope);
+      const clientScopes = new Set((client.scope || '').split(' ').filter(Boolean));
+      const requested = new Set(requestedScope.split(' ').filter(Boolean));
+      const granted = (claims.scope || '').split(' ').filter(Boolean)
+        .filter((s) => clientScopes.has(s) && (requested.size === 0 || requested.has(s)));
+      if (granted.length === 0) {
+        return {
+          status: 400,
+          body: { error: 'invalid_scope', error_description: 'ID-JAG grants no scope this client may use for this request' },
+        };
+      }
+      const tokenResponse = await this.tokenIssuer.issueAuthorizationCode(client, subject, [...new Set(granted)].join(' '));
       return { status: 200, body: tokenResponse as unknown as Record<string, unknown> };
     } catch (err) {
       const oauthError = err instanceof IdJagError ? err.oauthError : 'invalid_grant';

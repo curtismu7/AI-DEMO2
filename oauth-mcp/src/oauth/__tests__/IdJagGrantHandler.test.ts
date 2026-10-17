@@ -156,6 +156,14 @@ describe('replay cache persistence', () => {
 });
 
 describe('verifyIdJag', () => {
+  it('rejects an assertion without iat (spec-required)', async () => {
+    await expect(verifyIdJag(mintIdJag({ iat: undefined }), OPTS())).rejects.toThrow(/exp and iat/);
+  });
+
+  it('rejects an aud array naming more than one authorization server', async () => {
+    await expect(verifyIdJag(mintIdJag({ aud: [AS_ISSUER, 'https://other.example'] }), OPTS())).rejects.toThrow(IdJagError);
+  });
+
   describe('client binding', () => {
     it('accepts an assertion issued to the redeeming client', async () => {
       await expect(verifyIdJag(mintIdJag(), { ...OPTS(), clientId: 'demo-bff-mcp-client' })).resolves.toBeDefined();
