@@ -9,6 +9,8 @@ import "./MFATestPage.css";
 import ApiCallPreviewCard from "./shared/ApiCallPreviewCard";
 import MFATestCard from "./MFATestCard";
 import MFATestCibaSection from "./MFATestCibaSection";
+import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
+import { CIBA_LINK_DIAGRAM } from "../config/cibaApprovalLinkDiagram";
 import MFATestConsentSection from "./MFATestConsentSection";
 import MFATestForgotPasswordSection from "./MFATestForgotPasswordSection";
 import MFATestPfCibaSection from "./MFATestPfCibaSection";
@@ -2579,6 +2581,16 @@ const MFATestPageContent: FC = () => {
               )}
             </div>
           )}
+        </section>
+
+        <section className="mfa-test-section" id="ciba-diagram">
+          <h2 className="mfa-test-section-title">CIBA Approval Link: How It Works</h2>
+          <EmbeddedFlowDiagram
+            config={CIBA_LINK_DIAGRAM}
+            title="CIBA approval link"
+            lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Orange edges are the PingFederate path. Click a step to follow it."
+            testId="mfa-ciba-diagram"
+          />
         </section>
 
         {(["email", "sms"] as const).map((ch) => (
