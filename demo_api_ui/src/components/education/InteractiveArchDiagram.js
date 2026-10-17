@@ -26,7 +26,8 @@
  * component in a future phase.
  */
 // banking_api_ui/src/components/education/InteractiveArchDiagram.js
-import React, { useState } from "react";
+import React from "react";
+import StaticFlowDiagram from "../StaticFlowDiagram";
 import { useTokenChainOptional } from "../../context/TokenChainContext";
 import RfcLink from "../shared/RfcLink";
 import "./InteractiveArchDiagram.css";
@@ -104,112 +105,47 @@ const NODES = {
   },
 };
 
-const ARROWS = [
-  {
-    id: "login",
-    label: "PKCE Login + RFC 8693",
-    claims: {
-      grant: "authorization_code + PKCE",
-      exchange: "RFC 8693 token exchange",
-    },
-    rfc: "RFC_7636",
-  },
-  {
-    id: "agent_to_gw",
-    label: "tools/list + tools/call",
-    claims: {
-      transport: "JSON-RPC (HTTP /mcp or WS)",
-      token: "RFC 8693 exchanged access token",
-    },
-    rfc: "MCP_SPEC",
-  },
-  {
-    id: "gw_to_backends",
-    label: "Routed per credential disposition",
-    claims: {
-      oauth_bearer: "Bearer (new aud) -> OLB / Invest",
-      api_key: "X-API-Key + X-User-Sub -> Mortgage",
-    },
-    rfc: "RFC_8693",
-  },
-  {
-    id: "delegate",
-    label: "A2A: delegate (RFC 8693 nested act)",
-    claims: {
-      flow: "BFF -> A2A Orchestrator (decide / coordinate / authorize)",
-      exchange: "nested RFC 8693 act -> Specialist Agent (PingOne approves)",
-    },
-    rfc: "RFC_8693",
-  },
-  {
-    id: "specialist_tool",
-    label: "Narrow tool call",
-    claims: {
-      transport: "Specialist -> Agent Gateway (JSON-RPC tools/call)",
-      token: "narrowed access token (least privilege)",
-    },
-    rfc: "MCP_SPEC",
-  },
+// Hand-placed positions (StaticFlowDiagram spreads them a little).
+const POS = {
+  user: [0, 0],
+  idp: [0, 240],
+  bff: [380, 0],
+  llm: [380, 240],
+  a2aOrch: [380, 460],
+  specialist: [760, 460],
+  gateway: [1140, 0],
+  mcp: [1520, 0],
+  invest: [1520, 200],
+  mortgage: [1520, 400],
+};
+
+const EDGES = [
+  ["user", "bff", "PKCE Login (authorization_code + PKCE)"],
+  ["bff", "idp", "RFC 8693 token exchange: user token + agent CC token"],
+  ["bff", "gateway", "tools/list + tools/call (JSON-RPC, exchanged token)"],
+  ["gateway", "mcp", "oauth_bearer: Bearer (new aud)"],
+  ["gateway", "invest", "oauth_bearer / dual_token: Bearer (new aud)"],
+  ["gateway", "mortgage", "api_key: X-API-Key + X-User-Sub"],
+  ["bff", "a2aOrch", "A2A: delegate (decide / coordinate / authorize)"],
+  ["a2aOrch", "specialist", "nested RFC 8693 act (PingOne approves)"],
+  ["specialist", "gateway", "Narrow tool call (least-privilege token)"],
 ];
 
-function Node({ nodeKey, isActive, onClick }) {
-  const n = NODES[nodeKey];
-  if (!n) return null;
-  return (
-    <div
-      className={`iad-node iad-node--${n.type}`}
-      onClick={() => onClick(nodeKey)}
-      role="button"
-      tabIndex={0}
-      onKeyDown={(e) => e.key === "Enter" && onClick(nodeKey)}
-      title={`${n.label} — ${n.sub}`}
-      style={
-        isActive
-          ? { boxShadow: "0 0 0 3px #2563eb44", borderColor: "#2563eb" }
-          : undefined
-      }
-    >
-      <div className="iad-node-icon">{n.icon}</div>
-      <div className="iad-node-label">{n.label}</div>
-      <div className="iad-node-sublabel">{n.sub}</div>
-    </div>
-  );
-}
-
-function Arrow({ arrow, isActive }) {
-  const claimLines = arrow.claims
-    ? Object.entries(arrow.claims)
-        .map(([k, v]) => `${k}: ${v}`)
-        .join("\n")
-    : null;
-
-  return (
-    <div className="iad-arrow-wrapper">
-      <div className={`iad-arrow${isActive ? " iad-arrow--active" : ""}`}>
-        <div className="iad-arrow-line" />
-        <div className="iad-arrow-head">→</div>
-        <div className="iad-arrow-label">
-          <span>{arrow.label}</span>
-          {arrow.claims &&
-            Object.entries(arrow.claims)
-              .slice(0, 2)
-              .map(([k, v]) => (
-                <span key={k} className="iad-arrow-claim">
-                  <strong>{k}:</strong> {String(v).slice(0, 28)}
-                  {String(v).length > 28 ? "…" : ""}
-                </span>
-              ))}
-        </div>
-      </div>
-      {claimLines && <div className="iad-claim-popup">{claimLines}</div>}
-    </div>
-  );
-}
+// Same palette as the old column view; "live" is its old active-box highlight colour.
+const GROUPS = {
+  live: { label: "Touched by this session's token chain", bg: "#2563eb" },
+  user: { label: "User / Browser", bg: "#60a5fa" },
+  bff: { label: "BFF / AI Agent", bg: "#34d399" },
+  idp: { label: "PingOne (OAuth AS)", bg: "#f59e0b" },
+  llm: { label: "LLM Provider", bg: "#f472b6" },
+  agent: { label: "Agent Gateway / A2A agents", bg: "#fca5a5" },
+  mcp: { label: "MCP servers (OLB / Invest)", bg: "#2dd4bf" },
+  api: { label: "Mortgage svc (api_key)", bg: "#94a3b8" },
+};
 
 export default function InteractiveArchDiagram() {
   const ctx = useTokenChainOptional();
   const events = ctx?.events || [];
-  const [, setSelectedNode] = useState(null);
 
   const activeNodes = new Set();
   if (events.some((ev) => ev.status === "active" || ev.status === "acquired")) {
@@ -234,85 +170,24 @@ export default function InteractiveArchDiagram() {
     <div className="iad-root">
       <div className="iad-title">RFC 8693 Token Exchange Architecture</div>
       <div className="iad-subtitle">
-        Hover arrows for token claim details · Live token state reflected from
+        Drag the boxes, Simulate to walk the arrows · Live token state reflected from
         Token Chain · <RfcLink rfc="RFC_8693" />
       </div>
 
-      <div className="iad-canvas">
-        {/* Col 1: User + PingOne */}
-        <div className="iad-col">
-          <Node
-            nodeKey="user"
-            isActive={activeNodes.has("user")}
-            onClick={setSelectedNode}
-          />
-          <Node
-            nodeKey="idp"
-            isActive={activeNodes.has("idp")}
-            onClick={setSelectedNode}
-          />
-        </div>
-
-        <Arrow arrow={ARROWS[0]} isActive={activeNodes.has("bff")} />
-
-        {/* Col 2: BFF (demo_api_server :3001, delegates to demo_agent_service :3006) + LLM */}
-        <div className="iad-col">
-          <Node
-            nodeKey="bff"
-            isActive={activeNodes.has("bff")}
-            onClick={setSelectedNode}
-          />
-          <Node nodeKey="llm" isActive={false} onClick={setSelectedNode} />
-          <Node
-            nodeKey="a2aOrch"
-            isActive={activeNodes.has("a2aOrch")}
-            onClick={setSelectedNode}
-          />
-        </div>
-
-        {/* A2A delegation: BFF -> A2A Orchestrator -> Specialist Agent (nested RFC 8693) */}
-        <Arrow arrow={ARROWS[3]} isActive={activeNodes.has("a2aOrch")} />
-
-        <Arrow arrow={ARROWS[1]} isActive={activeNodes.has("gateway")} />
-
-        {/* Col 3: Agent Gateway — central router (env-conditional default) */}
-        <div className="iad-col">
-          <Node
-            nodeKey="gateway"
-            isActive={activeNodes.has("gateway")}
-            onClick={setSelectedNode}
-          />
-          <Node
-            nodeKey="specialist"
-            isActive={activeNodes.has("specialist")}
-            onClick={setSelectedNode}
-          />
-        </div>
-
-        {/* Specialist Agent issues narrow tool calls back through the Agent Gateway */}
-        <Arrow arrow={ARROWS[4]} isActive={activeNodes.has("specialist")} />
-
-        <Arrow arrow={ARROWS[2]} isActive={activeNodes.has("mcp")} />
-
-        {/* Col 4: Backend MCP servers + api_key mortgage service */}
-        <div className="iad-col">
-          <Node
-            nodeKey="mcp"
-            isActive={activeNodes.has("mcp")}
-            onClick={setSelectedNode}
-          />
-          <Node
-            nodeKey="invest"
-            isActive={activeNodes.has("invest")}
-            onClick={setSelectedNode}
-          />
-          <Node
-            nodeKey="mortgage"
-            isActive={activeNodes.has("mortgage")}
-            onClick={setSelectedNode}
-          />
-        </div>
-      </div>
+      <StaticFlowDiagram
+        NODES={Object.entries(NODES).map(([id, n]) => ({
+          id,
+          group: activeNodes.has(id) ? "live" : n.type,
+          label: n.label,
+          sub: [n.sub],
+          x: POS[id][0],
+          y: POS[id][1],
+        }))}
+        EDGES={EDGES}
+        GROUPS={GROUPS}
+        testId="iad-flow"
+        ariaLabel="RFC 8693 token exchange architecture"
+      />
 
       {hasExchange && (
         <div className="iad-exchange-banner">
@@ -326,17 +201,9 @@ export default function InteractiveArchDiagram() {
       )}
 
       <div className="iad-legend">
-        {[
-          ["#60a5fa", "User / Browser"],
-          ["#34d399", "BFF / AI Agent"],
-          ["#f59e0b", "PingOne (OAuth AS)"],
-          ["#f472b6", "LLM Provider"],
-          ["#fca5a5", "Agent Gateway"],
-          ["#2dd4bf", "MCP servers (OLB / Invest)"],
-          ["#94a3b8", "Mortgage svc (api_key)"],
-        ].map(([color, label]) => (
+        {Object.values(GROUPS).map(({ label, bg }) => (
           <div key={label} className="iad-legend-item">
-            <div className="iad-legend-dot" style={{ background: color }} />
+            <div className="iad-legend-dot" style={{ background: bg }} />
             <span>{label}</span>
           </div>
         ))}

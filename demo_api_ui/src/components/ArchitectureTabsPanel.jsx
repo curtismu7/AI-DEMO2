@@ -13,6 +13,8 @@ import CibaStepUpFlowPanel from "./CibaStepUpFlowPanel";
 import DiagramExportBar from "./DiagramExportBar";
 import bffAxios from "../services/bffAxios";
 import FlowchartFlowDiagram from "./FlowchartFlowDiagram";
+import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
+import { CIBA_LINK_DIAGRAM } from "../config/cibaApprovalLinkDiagram";
 import { buildFocusDiagram, FOCUS_GROUPS } from "../utils/architectureFocus";
 import "./ArchitectureTabsPanel.css";
 import InlineSpinner from './shared/InlineSpinner';
@@ -796,7 +798,7 @@ const ArchitectureTabsPanel = ({ user } = {}) => {
                 ? "2-Exchange (Agent Delegation)"
                 : "1-Exchange (Subject Only)"}
             </p>
-            <TokenExchangeFlowDiagram mode={mode} />
+            <TokenExchangeFlowDiagram mode={mode} interactive />
           </div>
         )}
       </div>
@@ -814,7 +816,17 @@ const ArchitectureTabsPanel = ({ user } = {}) => {
         id="ciba-stepup-content"
         className="architecture-tab-content"
       >
-        {activeTab === "ciba-stepup" && <CibaStepUpFlowPanel />}
+        {activeTab === "ciba-stepup" && (
+          <>
+            <CibaStepUpFlowPanel />
+            <EmbeddedFlowDiagram
+              config={CIBA_LINK_DIAGRAM}
+              title="CIBA approval link"
+              lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Orange edges are the PingFederate path. Click a step to follow it."
+              testId="arch-ciba-link"
+            />
+          </>
+        )}
       </div>
     </div>
   );
