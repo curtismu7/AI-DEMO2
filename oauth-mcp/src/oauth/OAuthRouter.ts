@@ -522,6 +522,14 @@ export class OAuthRouter {
           this.json(res, 400, { error: 'unsupported_grant_type' });
           return true;
         }
+        // A public ('none') client's client_id is only asserted, so binding the
+        // ID-JAG to it proves little. Operators who register a confidential
+        // redemption client turn this on; it is off while the demo client is public.
+        if (process.env.ENTERPRISE_IDP_REQUIRE_CLIENT_AUTH === 'true'
+          && client.token_endpoint_auth_method === 'none') {
+          this.json(res, 401, { error: 'invalid_client', error_description: 'ID-JAG redemption requires a confidential client' });
+          return true;
+        }
         const assertion = params.get('assertion');
         if (!assertion) {
           this.json(res, 400, { error: 'invalid_request', error_description: 'assertion is required' });
@@ -538,8 +546,10 @@ export class OAuthRouter {
   }
 
   /** Verification inputs for an inbound ID-JAG. */
-  private idJagVerifyOpts(): VerifyOpts {
+  private idJagVerifyOpts(clientId?: string): VerifyOpts {
     return {
+      clientId,
+      allowUnboundClient: process.env.ENTERPRISE_IDP_ALLOW_UNBOUND_ID_JAG === 'true',
       idpIssuer: process.env.ENTERPRISE_IDP_ISSUER as string,
       ownIssuer: this.issuer,
       acceptedResources: resolveAudience(),
@@ -585,7 +595,7 @@ export class OAuthRouter {
     client: OAuthClient,
   ): Promise<{ status: number; body: Record<string, unknown> }> {
     try {
-      const claims = await verifyIdJag(assertion, this.idJagVerifyOpts());
+      const claims = await verifyIdJag(assertion, this.idJagVerifyOpts(client.client_id));
       // Account linking, per the extension: `sub` is the stable primary
       // identifier; `email` is only a fallback for accounts predating
       // enterprise-managed authorization.

@@ -129,6 +129,29 @@ function mintIdJag(
 beforeEach(() => resetReplayCacheForTests());
 
 describe('verifyIdJag', () => {
+  describe('client binding', () => {
+    it('accepts an assertion issued to the redeeming client', async () => {
+      await expect(verifyIdJag(mintIdJag(), { ...OPTS(), clientId: 'demo-bff-mcp-client' })).resolves.toBeDefined();
+    });
+
+    it('rejects an assertion issued to a different client', async () => {
+      await expect(verifyIdJag(mintIdJag(), { ...OPTS(), clientId: 'other-client' })).rejects.toThrow(/different client/);
+    });
+
+    it('rejects an assertion with no client_id unless explicitly allowed', async () => {
+      await expect(verifyIdJag(mintIdJag({ client_id: undefined }), { ...OPTS(), clientId: 'demo-bff-mcp-client' }))
+        .rejects.toThrow(/no client_id/);
+      await expect(verifyIdJag(mintIdJag({ client_id: undefined }), { ...OPTS(), clientId: 'demo-bff-mcp-client', allowUnboundClient: true }))
+        .resolves.toBeDefined();
+    });
+
+    it('does not burn the jti when the wrong client presents it', async () => {
+      const assertion = mintIdJag();
+      await expect(verifyIdJag(assertion, { ...OPTS(), clientId: 'other-client' })).rejects.toThrow(IdJagError);
+      await expect(verifyIdJag(assertion, { ...OPTS(), clientId: 'demo-bff-mcp-client' })).resolves.toBeDefined();
+    });
+  });
+
   it('accepts a well-formed assertion and returns its claims', async () => {
     const claims = await verifyIdJag(mintIdJag(), OPTS());
     expect(claims.sub).toBe('user-123');

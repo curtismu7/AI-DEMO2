@@ -39,6 +39,15 @@ policy with the gateway's `iat` policy and the downstream backend's lack of
 one; implement any profile-required missing check at the hop that receives the
 credential.
 
+The assertion's `client_id` must equal the client that authenticated at the token
+endpoint; a different client, or a missing claim, is refused with `invalid_grant`.
+This runs before the `jti` is consumed, so a wrong-client attempt cannot burn a
+valid assertion. `ENTERPRISE_IDP_ALLOW_UNBOUND_ID_JAG=true` tolerates a missing
+claim for an IdP that does not emit it yet (off by default). The default
+`demo-bff-mcp-client` is public (`none`); set `ENTERPRISE_MCP_AS_CLIENT_SECRET` to
+register it as confidential and `ENTERPRISE_IDP_REQUIRE_CLIENT_AUTH=true` to refuse
+public clients at the jwt-bearer grant.
+
 Each `jti` is single-use. The replay cache is an in-memory, process-local map
 whose entries expire at the assertion expiration time. It rejects a replay in
 one `oauth-mcp` process, but it is not shared across replicas or restarts. A

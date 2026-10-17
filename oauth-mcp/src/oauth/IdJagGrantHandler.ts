@@ -43,6 +43,14 @@ export interface VerifyOpts {
   idpIssuer: string;
   ownIssuer: string;
   acceptedResources: string[];
+  /**
+   * The client_id that authenticated at the token endpoint. The ID-JAG names the
+   * client it was issued to; presenting it from any other client is refused so a
+   * leaked assertion cannot be redeemed by a different registered client.
+   */
+  clientId?: string;
+  /** Accept an ID-JAG with no client_id claim (IdP not yet emitting it). Off by default. */
+  allowUnboundClient?: boolean;
   /** Resolves the verification key. Production passes a jose remote JWKS. */
   getKey: (
     protectedHeader?: jose.JWTHeaderParameters,
@@ -99,6 +107,19 @@ export async function verifyIdJag(assertion: string, opts: VerifyOpts): Promise<
       `ID-JAG resource "${resource}" is not served by this authorization server`,
       'invalid_target',
     );
+  }
+
+  // Client binding runs BEFORE the jti is consumed: a wrong-client attempt must
+  // not burn a still-valid assertion for its rightful holder.
+  if (opts.clientId !== undefined) {
+    const boundClient = payload.client_id as string | undefined;
+    if (!boundClient) {
+      if (!opts.allowUnboundClient) {
+        throw new IdJagError('ID-JAG carries no client_id; it cannot be bound to the redeeming client');
+      }
+    } else if (boundClient !== opts.clientId) {
+      throw new IdJagError('ID-JAG was issued to a different client');
+    }
   }
 
   const jti = payload.jti as string | undefined;

@@ -181,11 +181,11 @@ export class ClientRegistry {
         // redemption failed invalid_client / "Client authentication failed" —
         // demo-bff-mcp-client (idJagService.js's default) was never registered.
         client_id: 'demo-bff-mcp-client',
-        client_secret: undefined,
+        client_secret: process.env.ENTERPRISE_MCP_AS_CLIENT_SECRET || undefined,
         client_name: 'Demo BFF (ID-JAG redemption)',
         grant_types: [JWT_BEARER_GRANT],
         redirect_uris: [],
-        token_endpoint_auth_method: 'none',
+        token_endpoint_auth_method: process.env.ENTERPRISE_MCP_AS_CLIENT_SECRET ? 'client_secret_basic' : 'none',
         // Mirrors scope-topology.json's Super Banking MCP Server mirroredScopes
         // in full: resolveScope() intersects the redemption request with this
         // list, so a partial list silently drops per-tool scopes (accounts:read

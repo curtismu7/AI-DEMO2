@@ -273,6 +273,44 @@ describe('OAuthRouter — ID-JAG jwt-bearer grant', () => {
   });
 });
 
+describe('OAuthRouter — ID-JAG client binding and client authentication', () => {
+  it('refuses an ID-JAG that was issued to a different client', async () => {
+    const { router } = await buildRouter();
+    const res = await postToken(router, {
+      grant_type: JWT_BEARER_GRANT,
+      assertion: mintIdJag({ client_id: 'some-other-client' }),
+      client_id: CLIENT.client_id,
+      client_secret: CLIENT.client_secret as string,
+    });
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_grant');
+  });
+
+  it('refuses a public client when ENTERPRISE_IDP_REQUIRE_CLIENT_AUTH is on', async () => {
+    process.env.ENTERPRISE_IDP_REQUIRE_CLIENT_AUTH = 'true';
+    const keyManager = new SigningKeyManager();
+    await keyManager.initialize();
+    const registry = new ClientRegistry();
+    registry.initialize();
+    const router = new OAuthRouter(keyManager, registry, new TokenStore());
+    const res = await postToken(router, {
+      grant_type: JWT_BEARER_GRANT,
+      assertion: mintIdJag({ client_id: 'demo-bff-mcp-client' }),
+      client_id: 'demo-bff-mcp-client',
+    });
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('invalid_client');
+  });
+
+  it('registers the default redemption client as confidential when a secret is configured', async () => {
+    process.env.ENTERPRISE_MCP_AS_CLIENT_SECRET = 'configured-secret';
+    const registry = new ClientRegistry();
+    registry.initialize();
+    expect(registry.authenticateClient('demo-bff-mcp-client', undefined, 'token')).toBeNull();
+    expect(registry.authenticateClient('demo-bff-mcp-client', 'configured-secret', 'token')).not.toBeNull();
+  });
+});
+
 describe('OAuthRouter — authorization server metadata', () => {
   async function getMetadata(): Promise<Record<string, unknown>> {
     const { router } = await buildRouter();
