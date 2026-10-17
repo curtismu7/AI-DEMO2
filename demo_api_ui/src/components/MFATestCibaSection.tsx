@@ -58,6 +58,7 @@ const MFATestCibaSection: FC<Props> = ({ channel, loginHint = "" }) => {
   const [authReqId, setAuthReqId] = useState("");
   const [sentMessage, setSentMessage] = useState("");
   const [engine, setEngine] = useState("");
+  const [sentTo, setSentTo] = useState("");
   const [secondsLeft, setSecondsLeft] = useState(0);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runId = useRef(0);
@@ -103,6 +104,12 @@ const MFATestCibaSection: FC<Props> = ({ channel, loginHint = "" }) => {
           } else if (status === 410) {
             setPhase("expired");
             setDetail("The request expired before it was approved.");
+          } else if (err?.response?.data?.error === "ciba_token_invalid") {
+            // PingOne approved, but the BFF refused the result: the approving user is not the signed-in user.
+            setPhase("error");
+            setDetail(
+              "PingOne approved the request, but for a different account than the one signed in here. Sign in as the account that received the link, or leave the login hint empty to use the signed-in user.",
+            );
           } else {
             setPhase("error");
             setDetail(err?.response?.data?.message || err?.message || "Poll failed");
@@ -128,6 +135,7 @@ const MFATestCibaSection: FC<Props> = ({ channel, loginHint = "" }) => {
       setAuthReqId(data.auth_req_id);
       setSentMessage(data.binding_message || "");
       setEngine(data.engine || "");
+      setSentTo(data.login_hint_display || "");
       setSecondsLeft(Number(data.expires_in) || 120);
       setPhase("pending");
       poll(data.auth_req_id, Math.max(2, Number(data.interval) || 5) * 1000, myRun);
@@ -168,15 +176,40 @@ const MFATestCibaSection: FC<Props> = ({ channel, loginHint = "" }) => {
         is approved. Nothing redirects back to this page.
       </p>
 
+      {phase === "pending" && (
+        <div
+          role="status"
+          data-testid="mfa-ciba-sent"
+          style={{
+            margin: "0 0 0.75rem 0",
+            padding: "0.75rem 1rem",
+            borderLeft: "4px solid var(--th-status-success, #2e7d32)",
+            borderRadius: 4,
+            background: "var(--th-status-success-bg, #e8f5e9)",
+            color: "var(--th-status-success-text, #1b5e20)",
+            fontWeight: 700,
+          }}
+        >
+          {channel === "sms"
+            ? "Text message sent. Open it on your phone and tap the approval link."
+            : "Email sent. Open it and click the approval link."}
+          <div style={{ fontWeight: 400, marginTop: "0.25rem" }}>
+            {sentTo ? `Account: ${sentTo} · ` : ""}
+            {sentMessage ? `Code to match: ${sentMessage} · ` : ""}
+            expires in {secondsLeft}s
+          </div>
+        </div>
+      )}
+
       <div style={{ marginBottom: "0.75rem" }}>
-        <div className="config-label">Login hint (email or username)</div>
+        <div className="config-label">Login hint (PingOne user ID, username or email; leave empty for the signed-in user)</div>
         <input
           type="text"
           className="otp-input"
           style={{ width: "100%", fontSize: "1rem" }}
           value={hint}
           onChange={(e) => setHint(e.target.value)}
-          placeholder="user@example.com"
+          placeholder="Empty = the signed-in user"
           data-testid="mfa-ciba-hint"
         />
       </div>

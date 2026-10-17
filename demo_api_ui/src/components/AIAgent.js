@@ -150,6 +150,12 @@ export const MORE_MENU_FLAG_IDS = [
 
 // CIBA approval text follows the active vertical's high-value action noun
 // (e.g. "Expense Approval", "Large Trade"). PingOne only mails a short code.
+// What the user is told while a CIBA approval is pending: where the link went and the code to match.
+const cibaWaitingText = (code, channel) => {
+  const via =
+    channel === "sms" ? "text message" : channel === "email" ? "email" : "email or text message";
+  return `Approval link sent by ${via}. Open it and approve to continue.${code ? ` Match code: ${code}` : ""}`;
+};
 const cibaApprovalText = (terminology) =>
   `Approve ${terminology?.highValueAction || "banking transaction"}`;
 
@@ -6304,7 +6310,7 @@ export default function BankingAgent({
             }
             addMessage(
               "assistant",
-              `Waiting for CIBA approval. Match this request on your authentication device: ${binding_message || "Banking request"}`,
+              cibaWaitingText(binding_message),
               `ciba-step-${Date.now()}`,
               { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
             );
@@ -9566,7 +9572,7 @@ export default function BankingAgent({
       }
       addMessage(
         "assistant",
-        `Waiting for CIBA approval. Match this request on your authentication device: ${binding_message || "Banking request"}`,
+        cibaWaitingText(binding_message, channel),
         `ciba-step-${Date.now()}`,
         { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
       );
@@ -9764,7 +9770,7 @@ export default function BankingAgent({
         }
         addMessage(
           "assistant",
-          `Waiting for CIBA approval. Match this request on your authentication device: ${binding_message || "Banking request"}`,
+          cibaWaitingText(binding_message),
           `ciba-step-${Date.now()}`,
           { showCibaApproveAction: engine === "simulated", cibaAuthReqId: auth_req_id },
         );

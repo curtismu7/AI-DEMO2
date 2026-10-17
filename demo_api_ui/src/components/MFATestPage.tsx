@@ -2512,14 +2512,7 @@ const MFATestPageContent: FC = () => {
                 { method: "GET", endpoint: "/api/auth/ciba/poll/:id", note: "until approved" },
               ]}
             />
-            <MFATestCibaSection
-              channel={ch}
-              loginHint={
-                pingoneUsers.find((u) => u.id === testUserId)?.email ||
-                defaultUser?.email ||
-                ""
-              }
-            />
+            <MFATestCibaSection channel={ch} />
           </section>
         ))}
 

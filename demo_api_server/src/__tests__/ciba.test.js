@@ -98,6 +98,8 @@ const cibaRouter  = require('../../routes/ciba');
 const USER_HDR  = JSON.stringify({ id: 'u1', role: 'customer', email: 'alice@example.com',  scopes: ['openid', 'profile', 'email'] });
 const ADMIN_HDR = JSON.stringify({ id: 'a1', role: 'admin',    email: 'admin@example.com',  scopes: ['admin:read'] });
 const NO_EMAIL  = JSON.stringify({ id: 'u2', role: 'customer',                              scopes: ['openid'] });
+// No id/sub/email at all: the only identity left is whatever the session carries.
+const NO_IDENTITY = JSON.stringify({ role: 'customer', scopes: ['openid'] });
 
 // ── Simulated OTP / token response ───────────────────────────────────────────
 
@@ -211,7 +213,7 @@ describe('POST /api/auth/ciba/initiate', () => {
     expect(sms.status).toBe(200);
     expect(sms.body.channel).toBe('sms');
     expect(cibaService.initiateBackchannelAuth).toHaveBeenLastCalledWith(
-      'alice@example.com', 'Approve', expect.any(String), expect.any(String), 'sms',
+      'u1', 'Approve', expect.any(String), expect.any(String), 'sms',
     );
 
     const other = await request(buildApp())
@@ -220,7 +222,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       .send({ binding_message: 'Approve', channel: 'carrier-pigeon' });
     expect(other.body.channel).toBe('email');
     expect(cibaService.initiateBackchannelAuth).toHaveBeenLastCalledWith(
-      'alice@example.com', 'Approve', expect.any(String), expect.any(String), 'email',
+      'u1', 'Approve', expect.any(String), expect.any(String), 'email',
     );
   });
 
@@ -232,7 +234,7 @@ describe('POST /api/auth/ciba/initiate', () => {
 
   // ── login_hint resolution ─────────────────────────────────────────────────
 
-  it('uses email from req.user when no login_hint in body', async () => {
+  it("uses the signed-in user's id (not their email) as the login_hint when none is sent", async () => {
     const res = await request(buildApp())
       .post('/api/auth/ciba/initiate')
       .set('x-test-user', USER_HDR)
@@ -240,7 +242,7 @@ describe('POST /api/auth/ciba/initiate', () => {
 
     expect(res.status).toBe(200);
     expect(cibaService.initiateBackchannelAuth).toHaveBeenCalledWith(
-      'alice@example.com',
+      'u1',
       'Approve payment',
       expect.any(String),
       expect.any(String),
@@ -264,10 +266,21 @@ describe('POST /api/auth/ciba/initiate', () => {
     );
   });
 
-  it('returns 400 when no email available anywhere (no login_hint, user has no email)', async () => {
+  it('a user with an id but no email still gets a hint: their id', async () => {
     const res = await request(buildApp())
       .post('/api/auth/ciba/initiate')
       .set('x-test-user', NO_EMAIL)
+      .send({ binding_message: 'Approve' });
+    expect(res.status).toBe(200);
+    expect(cibaService.initiateBackchannelAuth).toHaveBeenLastCalledWith(
+      'u2', 'Approve', expect.any(String), expect.any(String), 'email',
+    );
+  });
+
+  it('returns 400 when no identity is available anywhere (no login_hint, no id, no email)', async () => {
+    const res = await request(buildApp())
+      .post('/api/auth/ciba/initiate')
+      .set('x-test-user', NO_IDENTITY)
       .send({});
     expect(res.status).toBe(400);
     expect(res.body.error).toBe('missing_login_hint');
@@ -281,7 +294,7 @@ describe('POST /api/auth/ciba/initiate', () => {
     // req.session.oauthUser, which nothing in the codebase ever sets.
     const res = await request(buildApp({ user: { email: 'carol@example.com' } }))
       .post('/api/auth/ciba/initiate')
-      .set('x-test-user', NO_EMAIL)
+      .set('x-test-user', NO_IDENTITY)
       .send({ binding_message: 'Approve payment' });
 
     expect(res.status).toBe(200);
@@ -377,7 +390,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       });
 
     expect(cibaService.initiateBackchannelAuth).toHaveBeenCalledWith(
-      'alice@example.com',
+      'u1',
       'High-value transfer',
       'openid profile email write',
       'Multi_factor',
@@ -448,7 +461,7 @@ describe('POST /api/auth/ciba/initiate', () => {
     expect(res.status).toBe(200);
     expect(res.body.auth_req_id).toBe('sim-abc123');
     expect(cibaSimulatedService.initiateSimulated).toHaveBeenCalledWith(
-      'alice@example.com',
+      'u1',
       'Approve payment',
       expect.any(String),
       expect.any(String),
@@ -493,7 +506,7 @@ describe('POST /api/auth/ciba/initiate', () => {
 
       expect(res.status).toBe(200);
       expect(cibaService.initiateBackchannelAuth).toHaveBeenCalledWith(
-        'alice@example.com',
+        'u1',
         'Approve your banking transaction',
         expect.any(String),
         expect.any(String),

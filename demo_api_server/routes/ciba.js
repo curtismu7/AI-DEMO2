@@ -132,7 +132,13 @@ router.post('/initiate', authenticateToken, async (req, res) => {
   // what makes the live transfer -> CIBA path work; see the `ciba` skill.
   const field = (snakeKey, camelKey) => req.body[snakeKey] ?? req.body[camelKey];
 
+  // Default hint = the signed-in user's PingOne user ID (sub). The flow's Find user
+  // matches it exactly, and the poll checks the approval's `sub` against this same
+  // ID, so the approval can only ever be for the person who is signed in. An email
+  // is ambiguous (accounts can share one) and could approve as someone else.
   const loginHint = field('login_hint', 'loginHint')
+    || req.user?.sub
+    || req.user?.id
     || req.user?.email
     || req.session?.user?.email;
 
@@ -337,7 +343,10 @@ router.post('/initiate', authenticateToken, async (req, res) => {
       authReqId:   result.auth_req_id, // camelCase alias for the UserDashboard bridge
       expires_in:  result.expires_in,
       interval:    result.interval,
-      login_hint_display: loginHint.replace(/(.{2}).*@/, '$1***@'), // mask for display only
+      // mask for display only; show the email even when the hint itself is a user ID
+      login_hint_display: (loginHint.includes('@')
+        ? loginHint
+        : (req.user?.email || req.session?.user?.email || loginHint)).replace(/(.{2}).*@/, '$1***@'),
       binding_message,
       approval_summary: approvalSummary,
       channel,

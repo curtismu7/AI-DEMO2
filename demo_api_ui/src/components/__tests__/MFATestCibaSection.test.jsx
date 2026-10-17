@@ -17,12 +17,15 @@ describe('MFATestCibaSection', () => {
     mockPost.mockReset();
     mockGet.mockReset();
     mockPost.mockResolvedValue({
-      data: { auth_req_id: 'req-test', expires_in: 120, interval: 2, binding_message: 'A1B2C3', engine: 'pingone' },
+      data: {
+        auth_req_id: 'req-test', expires_in: 120, interval: 2, binding_message: 'A1B2C3',
+        engine: 'pingone', login_hint_display: 'al***@example.com',
+      },
     });
   });
   afterEach(() => vi.useRealTimers());
 
-  test('email card sends login_hint, short binding message and channel email, then reports approved after polling', async () => {
+  test('email card sends the hint, short binding message and channel email, then reports approved after polling', async () => {
     mockGet
       .mockResolvedValueOnce({ data: { status: 'pending' } })
       .mockResolvedValueOnce({ data: { status: 'approved', scope: 'openid' } });
@@ -37,7 +40,6 @@ describe('MFATestCibaSection', () => {
       channel: 'email',
     });
     expect(screen.getByTestId('mfa-ciba-status').textContent).toMatch(/Waiting for approval/);
-    expect(screen.getByText(/A1B2C3/)).toBeInTheDocument();
 
     await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
     await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
@@ -45,12 +47,41 @@ describe('MFATestCibaSection', () => {
     expect(screen.getByTestId('mfa-ciba-status').textContent).toMatch(/Passed: Approved/);
   });
 
-  test('sms card sends channel sms and says it texts the link', async () => {
+  test('leaving the login hint empty sends none, so the server uses the signed-in user', async () => {
+    render(<MFATestCibaSection channel="email" />);
+    await act(async () => { fireEvent.click(screen.getByTestId('mfa-ciba-start')); });
+    expect(mockPost).toHaveBeenCalledWith('/api/auth/ciba/initiate', {
+      login_hint: undefined,
+      binding_message: 'Approve',
+      channel: 'email',
+    });
+  });
+
+  test('shows a prominent sent banner with channel, account and the code to match', async () => {
+    render(<MFATestCibaSection channel="email" />);
+    await act(async () => { fireEvent.click(screen.getByTestId('mfa-ciba-start')); });
+    const banner = screen.getByTestId('mfa-ciba-sent');
+    expect(banner.textContent).toMatch(/Email sent\. Open it and click the approval link\./);
+    expect(banner.textContent).toMatch(/al\*\*\*@example\.com/);
+    expect(banner.textContent).toMatch(/Code to match: A1B2C3/);
+  });
+
+  test('sms card sends channel sms and its banner says a text message was sent', async () => {
     render(<MFATestCibaSection channel="sms" loginHint="user@example.com" />);
     expect(screen.getByText(/texts an approval link/i)).toBeInTheDocument();
     expect(screen.getByTestId('mfa-ciba-start').textContent).toMatch(/text approval/i);
     await act(async () => { fireEvent.click(screen.getByTestId('mfa-ciba-start')); });
     expect(mockPost).toHaveBeenCalledWith('/api/auth/ciba/initiate', expect.objectContaining({ channel: 'sms' }));
+    expect(screen.getByTestId('mfa-ciba-sent').textContent).toMatch(/Text message sent\. Open it on your phone/);
+  });
+
+  test('explains a subject mismatch (502 ciba_token_invalid) instead of "status code 502"', async () => {
+    mockGet.mockRejectedValueOnce({ response: { status: 502, data: { error: 'ciba_token_invalid' } } });
+    render(<MFATestCibaSection channel="email" />);
+    await act(async () => { fireEvent.click(screen.getByTestId('mfa-ciba-start')); });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    expect(screen.getByText(/different account than the one signed in/i)).toBeInTheDocument();
+    expect(screen.queryByText(/status code 502/)).not.toBeInTheDocument();
   });
 
   test('shows denied when the poll returns 403', async () => {
