@@ -262,6 +262,14 @@ router.post('/initiate', authenticateToken, async (req, res) => {
         });
       }
       const pingError = realErr.response?.data;
+      // The SMS-only flow returns no userId for a user with no Mobile phone, which
+      // PingOne reports as unknown_user_id even though the account exists.
+      if (channel === 'sms' && pingError?.error === 'unknown_user_id') {
+        return res.status(502).json({
+          error:   'ciba_no_mobile_phone',
+          message: 'Text-message approval needs a Mobile phone on your PingOne profile. Use CIBA - EMAIL instead.',
+        });
+      }
       return res.status(502).json({
         error:   pingError?.error || 'ciba_initiation_failed',
         message: pingError?.error_description || realErr.message,
