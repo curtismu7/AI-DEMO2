@@ -152,7 +152,9 @@ const MFATestPageContent: FC = () => {
     useState<MFADevice | null>(null);
   // MFA always runs on PingOne; under PingFederate the session maps to a PingOne user.
   const [sessionUser, setSessionUser] = useState<{ provider: string | null; username: string | null; pingOneUserId: string | null } | null>(null);
-  const [pfDown, setPfDown] = useState<boolean | null>(null);
+  // null = checking, "unknown" = the status check itself failed (not the same as PF being down).
+  const [pfDown, setPfDown] = useState<boolean | null | "unknown">(null);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [renamingDeviceId, setRenamingDeviceId] = useState<string | null>(null);
   const [nicknameDraft, setNicknameDraft] = useState("");
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
@@ -433,7 +435,7 @@ const MFATestPageContent: FC = () => {
           apiClient
             .get("/api/auth/pingfederate/status")
             .then(({ data: pf }) => setPfDown(Boolean(pf?.down)))
-            .catch(() => setPfDown(true));
+            .catch(() => setPfDown("unknown"));
         }
       })
       .catch(() => setSessionUser(null));
@@ -455,6 +457,7 @@ const MFATestPageContent: FC = () => {
       // Prefer the logged-in user when present.
       try {
         const { data } = await apiClient.get("/api/auth/oauth/user/status");
+        setIsAdmin(data?.user?.role === "admin");
         if (data?.authenticated && data?.oauthProvider === "pingfederate" && data?.user?.username) {
           // A PF subject is a PF username — pick the PingOne account with that username.
           const name = data.user.username.toLowerCase();
@@ -1420,20 +1423,20 @@ const MFATestPageContent: FC = () => {
         <div className="mfa-test-meta">
           <div className="mfa-test-status">
             <span
-              className={`mfa-status-pill ${config?.mfaEnabled && workerTokenStatus === "valid" && !pfDown ? "mfa-status-pill--success" : "mfa-status-pill--error"}`}
+              className={`mfa-status-pill ${config?.mfaEnabled && workerTokenStatus === "valid" && pfDown !== true ? "mfa-status-pill--success" : "mfa-status-pill--error"}`}
             >
               {!config?.mfaEnabled
                 ? " MFA Disabled"
                 : workerTokenStatus !== "valid"
                   ? " Worker Token Missing"
-                  : pfDown
+                  : pfDown === true
                     ? " PingFederate Down"
                     : " Ready"}
             </span>
             {sessionUser?.provider && (
               <span className="info-text" data-testid="mfa-credentials-line" style={{ marginLeft: "0.75rem" }}>
                 {sessionUser.provider === "pingfederate" &&
-                  `PingFederate: ${pfDown === null ? "checking…" : pfDown ? "down" : "reachable"} · `}
+                  `PingFederate: ${pfDown === null ? "checking…" : pfDown === "unknown" ? "status unavailable" : pfDown ? "down" : "reachable"} · `}
                 {`PingOne MFA worker: ${workerTokenStatus === "valid" ? "valid" : "not available"} · `}
                 {sessionUser.pingOneUserId
                   ? `MFA runs on PingOne for ${sessionUser.username} (PingOne user ${sessionUser.pingOneUserId})`
@@ -1463,15 +1466,18 @@ const MFATestPageContent: FC = () => {
             >
               Refresh Devices
             </button>
-            <button
-              type="button"
-              className="mfa-test-button mfa-test-button--secondary"
-              onClick={fixFido2Rp}
-              disabled={fixRpStatus === "loading"}
-              title="Set PingOne FIDO2 policy Relying Party ID to this site's hostname so passkey registration works"
-            >
-              {fixRpStatus === "loading" ? "Fixing…" : "Fix Passkey RP"}
-            </button>
+            {/* Changes the environment's FIDO2 policy, so the server allows it for admin sessions only. */}
+            {isAdmin && (
+              <button
+                type="button"
+                className="mfa-test-button mfa-test-button--secondary"
+                onClick={fixFido2Rp}
+                disabled={fixRpStatus === "loading"}
+                title="Admin only: set PingOne FIDO2 policy Relying Party ID to this site's hostname so passkey registration works"
+              >
+                {fixRpStatus === "loading" ? "Fixing…" : "Fix Passkey RP"}
+              </button>
+            )}
           </div>
         </div>
         {(fixRpStatus === "done" || fixRpStatus === "error") && fixRpResult && (
