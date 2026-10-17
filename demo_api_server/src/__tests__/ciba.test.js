@@ -432,6 +432,22 @@ describe('POST /api/auth/ciba/initiate', () => {
     expect(res.body.message).toContain('invalid');
   });
 
+  it('explains a missing mobile phone when the SMS flow returns unknown_user_id', async () => {
+    cibaSimulatedService.isLocalSimulationEnabled.mockReturnValueOnce(false);
+    cibaService.initiateBackchannelAuth.mockRejectedValue({
+      response: { data: { error: 'unknown_user_id', error_description: 'User does not exist or is disabled' }, status: 400 },
+    });
+
+    const res = await request(buildApp())
+      .post('/api/auth/ciba/initiate')
+      .set('x-test-user', USER_HDR)
+      .send({ binding_message: 'Test', channel: 'sms' });
+
+    expect(res.status).toBe(502);
+    expect(res.body.error).toBe('ciba_no_mobile_phone');
+    expect(res.body.message).toContain('CIBA - EMAIL');
+  });
+
   it('returns 502 on network / timeout error when failover is explicitly disabled', async () => {
     cibaSimulatedService.isLocalSimulationEnabled.mockReturnValueOnce(false);
     cibaService.initiateBackchannelAuth.mockRejectedValue(new Error('ECONNREFUSED'));
