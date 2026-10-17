@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Link } from "react-router-dom";
 import IdJagPathBar from "../components/IdJagPathBar";
+import { diagramLinkProps } from "../utils/diagramLinks";
 import "./PingFederateIdJagExplainerPage.css";
 
 const FLOW = [
@@ -40,8 +41,8 @@ export default function PingFederateIdJagExplainerPage() {
         </div>
         <div className="pfj-explainer__actions">
           <Link className="pfj-explainer__primary" to="/pingfederate-id-jag/demo">Run the demo</Link>
-          <Link className="pfj-explainer__secondary" to="/pingfederate-id-jag/diagram">Open the diagram</Link>
-          <Link className="pfj-explainer__secondary" to="/pingfederate-id-jag/implementation">See how we built it</Link>
+          <Link className="pfj-explainer__secondary" to="/pingfederate-id-jag/diagram" {...diagramLinkProps("/pingfederate-id-jag/diagram")}>Open the diagram</Link>
+          <Link className="pfj-explainer__secondary" to="/pingfederate-id-jag/implementation" {...diagramLinkProps("/pingfederate-id-jag/implementation")}>See how we built it</Link>
         </div>
       </header>
 

@@ -17,6 +17,7 @@ import ConfirmModal from "./ConfirmModal";
 import ControlPlaneIntroModal from "./ControlPlaneIntroModal";
 import DraggableModal from "./DraggableModal";
 import { EDU } from "./education/educationIds";
+import { diagramLinkProps } from "../utils/diagramLinks";
 import { PAC_EDITOR_URL } from "./pacEditorStatus";
 import "./adminSkinPing2026.css";
 import { HiOutlineUsers } from "react-icons/hi";
@@ -1342,10 +1343,12 @@ export default function AdminSideNav({
     if (entry.path) return { ...entry, icon: entry.icon || "doc" };
     return findLegacyItem(entry.label, entry.path);
   });
+  // Every item in these groups is a diagram or slide deck: it opens in a new tab.
+  const NEW_TAB_GROUPS = new Set(["Diagrams", "Demo arch slides"]);
   const productGroup = (label, labels, icon = "shld") => ({
     label,
     icon,
-    children: childrenFrom(labels),
+    children: childrenFrom(labels).map((c) => (NEW_TAB_GROUPS.has(label) && c.path ? { ...c, newTab: true } : c)),
   });
 
   // Listed in both the Digital Worker group and the Diagrams group.
@@ -2072,6 +2075,7 @@ export default function AdminSideNav({
                   <Link
                     key={childKey}
                     to={child.path}
+                    {...(child.newTab ? { target: "_blank", rel: "noopener noreferrer" } : diagramLinkProps(child.path))}
                     className={`admin-side-nav__item admin-side-nav__item--child${child.highlight ? " admin-side-nav__item--highlight-danger" : ""}${child.className ? ` ${child.className}` : ""} ${isActive(child.path) ? " admin-side-nav__item--active" : ""}`}
                     title={child.label}
                     aria-current={isActive(child.path) ? "page" : undefined}
@@ -2124,6 +2128,7 @@ export default function AdminSideNav({
       <Link
         key={itemKey}
         to={item.path}
+        {...(item.newTab ? { target: "_blank", rel: "noopener noreferrer" } : diagramLinkProps(item.path))}
         onClick={
           item.introGate
             ? (e) => {

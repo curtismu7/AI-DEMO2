@@ -12,6 +12,7 @@
 // node ringed — diagram and details visible with zero clicks.
 import React, { useEffect, useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import { diagramLinkProps } from "../utils/diagramLinks";
 import StaticFlowDiagram from "./StaticFlowDiagram";
 import DiagramStepBar from "./DiagramStepBar";
 import { useDiagramStepper } from "../hooks/useDiagramStepper";
@@ -77,7 +78,7 @@ export default function UseCaseDiagramPage() {
         <p>No use-case diagram exists for “{ucId}”. Available:</p>
         <ul>
           {CONFIGS.map((c) => (
-            <li key={c.id}><Link to={`/use-case-diagrams/${c.id}`}>{c.id}</Link></li>
+            <li key={c.id}><Link to={`/use-case-diagrams/${c.id}`} {...diagramLinkProps(`/use-case-diagrams/${c.id}`)}>{c.id}</Link></li>
           ))}
         </ul>
       </main>
@@ -174,7 +175,7 @@ export default function UseCaseDiagramPage() {
 
       <nav className="ucd-next" aria-label="More use-case diagrams">
         {CONFIGS.filter((c) => c.id !== cfg.id).map((c) => (
-          <Link key={c.id} className="ucd-next__link" to={`/use-case-diagrams/${c.id}`}>{c.id}</Link>
+          <Link key={c.id} className="ucd-next__link" to={`/use-case-diagrams/${c.id}`} {...diagramLinkProps(`/use-case-diagrams/${c.id}`)}>{c.id}</Link>
         ))}
       </nav>
     </main>

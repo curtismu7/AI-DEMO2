@@ -679,3 +679,22 @@ it("A2A is its own group: every A2A page is in it, and searching a2a shows the w
     });
   });
 });
+
+describe("diagram links open in a new tab", () => {
+  it("opens every Diagrams group entry in a new tab", () => {
+    renderNavAsUser(customerUser);
+    fireEvent.click(screen.getByRole("button", { name: /^Diagrams/ }));
+    const link = screen.getByRole("link", { name: "Server Topology (Interactive)" });
+    expect(link).toHaveAttribute("target", "_blank");
+    expect(link).toHaveAttribute("rel", "noopener noreferrer");
+  });
+
+  it("opens the ID-JAG diagram and implementation entries in a new tab, but not the demo", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^PingFederate ID-JAG/ }));
+    expect(screen.getByRole("link", { name: "ID-JAG Diagram" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "ID-JAG Implementation (PF + Resource Server)" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "Run ID-JAG Demo" })).not.toHaveAttribute("target");
+  });
+});
+

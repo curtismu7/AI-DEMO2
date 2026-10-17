@@ -267,7 +267,7 @@ export default function Phase266ArchitecturePage() {
           <code>banking_*</code> service naming (this repo's directories/containers
           are now <code>demo_*</code>/<code>ai-demo-*</code>). For the current
           service topology, see{" "}
-          <a href="/architecture/overview">Architecture Overview</a>.
+          <a href="/architecture/overview" target="_blank" rel="noopener noreferrer">Architecture Overview</a>.
         </p>
       </header>
 

@@ -32,4 +32,11 @@ describe("PingFederate ID-JAG explainer", () => {
     fireEvent.click(screen.getByRole("button", { name: "Show the technical version" }));
     expect(screen.getByText(/validates PingFederate's signature through its JWKS/)).toBeInTheDocument();
   });
+
+  it("opens the diagram links in a new tab", () => {
+    render(<MemoryRouter><PingFederateIdJagExplainerPage /></MemoryRouter>);
+    expect(screen.getByRole("link", { name: "Open the diagram" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "See how we built it" })).toHaveAttribute("target", "_blank");
+    expect(screen.getByRole("link", { name: "Run the demo" })).not.toHaveAttribute("target");
+  });
 });
