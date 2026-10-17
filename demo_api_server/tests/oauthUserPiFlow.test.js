@@ -437,6 +437,19 @@ describe('customer pi.flow sign-in', () => {
       expect(res.body.publicKeyCredentialRequestOptions).toEqual(OPTIONS);
     });
 
+    test('DEVICE_SELECTION_REQUIRED (several devices) returns the device step, not passwordless_unavailable', async () => {
+      const agent = request.agent(app);
+      await openFlow(agent);
+      fetchMock.mockResolvedValueOnce(json(200, {
+        status: 'DEVICE_SELECTION_REQUIRED',
+        _embedded: { devices: [{ id: 'dev-email-1', type: 'EMAIL' }, { id: 'dev-fido-1', type: 'FIDO2' }] },
+      }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/passwordless')
+        .send({ username: 'u' }).expect(200);
+      expect(res.body.step).toBe('device');
+      expect(res.body.devices.map((d) => d.id)).toEqual(['dev-email-1', 'dev-fido-1']);
+    });
+
     test('policy requires a password -> 409 passwordless_unavailable with a message', async () => {
       const agent = request.agent(app);
       await openFlow(agent);
@@ -445,6 +458,19 @@ describe('customer pi.flow sign-in', () => {
         .send({ username: 'u' }).expect(409);
       expect(res.body.error).toBe('passwordless_unavailable');
       expect(res.body.message).toContain('password');
+    });
+
+    test('after a PASSWORD_REQUIRED lookup, the password form posts the password without re-identifying', async () => {
+      const agent = request.agent(app);
+      fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'SIGN_ON_REQUIRED' }, {}, ['ST=open; Path=/']));
+      await agent.get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'PASSWORD_REQUIRED' }, {}, ['ST=after-lookup; Path=/']));
+      await agent.post('/api/auth/oauth/user/pi-flow/passwordless').send({ username: 'u' }).expect(409);
+      fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED' }));
+      await agent.post('/api/auth/oauth/user/pi-flow/credentials').send({ username: 'u', password: 'p' }).expect(200);
+      const call = fetchMock.mock.calls[2];
+      expect(call[1].headers['Content-Type']).toBe('application/vnd.pingidentity.usernamePassword.check+json');
+      expect(call[1].headers.Cookie).toBe('ST=after-lookup');
     });
 
     test('trims the username before posting', async () => {

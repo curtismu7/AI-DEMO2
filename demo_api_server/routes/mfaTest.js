@@ -35,6 +35,18 @@ const oauthService = require('../services/oauthService');
 const apiCallTrackerService = require('../services/apiCallTrackerService');
 const { mfaLogger } = require('../utils/mfaLogger');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
+const { pingOneUserIdFor } = require('../services/pingOneSessionUser');
+
+// The signed-in user's PingOne id. A PingFederate session's oauthId is a PF
+// username, which PingOne rejects as a user id — map it to the linked PingOne
+// account (null when there is none).
+const sessionPingOneUserId = (req) => pingOneUserIdFor(req, req.session?.user?.oauthId || req.session?.user?.id);
+const throwIfUnlinkedPfUser = (req) => {
+  if (!req.session?.user || (req.session.oauthProvider || req.session.user.oauthProvider) !== 'pingfederate') return;
+  const err = new Error('Your PingFederate account has no matching PingOne user, so it has no PingOne MFA devices. Sign in with an account that exists in PingOne.');
+  err.status = 409;
+  throw err;
+};
 
 /**
  * Normalize a PingOne debug request object for UI trace display.
@@ -111,7 +123,7 @@ router.get('/methods', (req, res) => {
  */
 router.get('/devices', async (req, res) => {
   try {
-    const userId = req.session?.user?.oauthId || req.session?.user?.id || MFA_TEST_USER_ID;
+    const userId = (await sessionPingOneUserId(req)) || MFA_TEST_USER_ID;
     const result = await mfaService.listMfaDevices(userId);
     res.json({ devices: result.devices });
   } catch (err) {
@@ -281,8 +293,7 @@ const MFA_TEST_USER_ID = process.env.MFA_TEST_USER_ID || '6689a774-46af-4198-a6f
  * Attempts to refresh token if expired before failing.
  */
 async function _resolveCredentials(req) {
-  // oauthId is the PingOne UUID; id may be a legacy numeric key on bootstrap users
-  const sessionUserId = req.session?.user?.oauthId || req.session?.user?.id;
+  const sessionUserId = await sessionPingOneUserId(req);
 
   // Prefer token from Authorization header (if present), otherwise use session token
   const authHeader = req.headers['authorization'];
@@ -311,6 +322,7 @@ async function _resolveCredentials(req) {
   }
 
   if (!sessionUserId || !accessToken) {
+    if (!sessionUserId) throwIfUnlinkedPfUser(req);
     throw new Error(
       'Device authentication requires an active session. ' +
       'Your session has expired. Please login to PingOne again via /dashboard, then return to MFA test page.'
@@ -345,7 +357,7 @@ async function _resolveCredentialsForEnrollment(req) {
   }
 
   // Require session credentials (no worker token fallback for enrollment)
-  const sessionUserId = req.session?.user?.oauthId || req.session?.user?.id;
+  const sessionUserId = await sessionPingOneUserId(req);
   const sessionToken = req.session?.oauthTokens?.accessToken;
   if (sessionUserId && sessionToken) {
     return {
@@ -357,6 +369,7 @@ async function _resolveCredentialsForEnrollment(req) {
   }
 
   // No fallback: require user to be logged in
+  if (!sessionUserId) throwIfUnlinkedPfUser(req);
   throw new Error(
     'Device enrollment requires a logged-in user session. ' +
     'Please login to PingOne via /dashboard, then return to the MFA test page.'
