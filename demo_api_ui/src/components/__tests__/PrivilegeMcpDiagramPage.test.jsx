@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, within } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import PrivilegeMcpDiagramPage from '../PrivilegeMcpDiagramPage';
 import { buildSequenceFlow } from '../SequenceFlowDiagram';
@@ -58,5 +58,16 @@ describe('PrivilegeMcpDiagramPage', () => {
     P-->>U: authUrl`);
     expect(edges).toHaveLength(2);
     expect(steps).toEqual(['Operator → Client page (UI): Sign In with Privilege', 'Client page (UI) → Operator: authUrl']);
+  });
+
+  it('the sequence tab has Simulate, Reset and a speed selector that walk its messages', () => {
+    render(<PrivilegeMcpDiagramPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sign-in + Tool Call' }));
+    const seq = screen.getByRole('group', { name: 'Privilege MCP sequence diagram' });
+    expect(within(seq).getByTitle('Time each step takes during Simulate')).toBeTruthy();
+    fireEvent.click(within(seq).getByRole('button', { name: 'Simulate' }));
+    expect(within(seq).getByText(/Step 1 of \d+/)).toBeTruthy();
+    fireEvent.click(within(seq).getByRole('button', { name: 'Reset' }));
+    expect(within(seq).getByRole('button', { name: 'Simulate' })).toBeTruthy();
   });
 });
