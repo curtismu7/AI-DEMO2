@@ -1,5 +1,6 @@
 import React, { useState, useMemo } from "react";
 import { Link, useNavigate } from "react-router-dom";
+import { diagramLinkProps, openDiagram } from "../utils/diagramLinks";
 import { useEducationUI } from "../context/EducationUIContext";
 import { useDemoTour } from "../context/DemoTourContext";
 import { EDU } from "./education/educationIds";
@@ -575,9 +576,9 @@ export default function LearningHub() {
         window.dispatchEvent(
           new CustomEvent("education-open-ciba", { detail: { tab: "what" } }),
         ),
-      "Token Exchange (RFC 8693)": () => navigate("/architecture/token-flow"),
+      "Token Exchange (RFC 8693)": () => openDiagram("/architecture/token-flow"),
       "may_act / act claims": () => openEdu(EDU.MAY_ACT, "what"),
-      "Actor Token (Agent)": () => navigate("/architecture/token-chain"),
+      "Actor Token (Agent)": () => openDiagram("/architecture/token-chain"),
       "Step-up MFA": () => navigate(`/learning-lab/${LESSON_REGISTRY["Step-up MFA"].lab}`),
       "Introspection (RFC 7662)": () => openEdu(EDU.INTROSPECTION, "why"),
       "PingOne Authorize": () => openEdu(EDU.PINGONE_AUTHORIZE, "what"),
@@ -620,14 +621,14 @@ export default function LearningHub() {
       "IETF Standards: Agentic": () => openEdu(EDU.IETF_STANDARDS, "overview"),
       "SPIFFE / SVID Workload Identity": () => openEdu(EDU.SPIFFE, "what"),
       "ID-JAG / Cross-App Access": () => openEdu(EDU.ID_JAG, "overview"),
-      "Architecture Diagram": () => navigate("/architecture/system"),
-      "Token Chain (edu)": () => navigate("/architecture/token-chain"),
+      "Architecture Diagram": () => openDiagram("/architecture/system"),
+      "Token Chain (edu)": () => openDiagram("/architecture/token-chain"),
       "Sensitive Data & Disclosure": () =>
         openEdu(EDU.SENSITIVE_DATA, "least-data"),
       "Gateway vs P1AZ Decision Split": () => navigate("/gateway-enforcement-map"),
     },
     "project-reference": {
-      "Server Capabilities": () => navigate("/architecture/server-topology"),
+      "Server Capabilities": () => openDiagram("/architecture/server-topology"),
       "Agent Tech Comparison": () =>
         openEdu(EDU.AGENT_TECH_COMPARISON, "glance"),
     },
@@ -742,7 +743,7 @@ export default function LearningHub() {
                   <Link className="learning-hub__academy-secondary" to="/academy/demos">
                     Open standalone demos
                   </Link>
-                  <Link className="learning-hub__academy-secondary" to="/demo-map" title="Every demo step, inspector, diagram, and learning topic on one page">
+                  <Link className="learning-hub__academy-secondary" to="/demo-map" {...diagramLinkProps("/demo-map")} title="Every demo step, inspector, diagram, and learning topic on one page">
                     Open the demo map
                   </Link>
                 </div>

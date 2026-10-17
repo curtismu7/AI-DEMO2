@@ -548,6 +548,8 @@ function SystemArchitectureView() {
             . This diagram is dense — use the zoom controls (or open the{" "}
             <a
               href="/architecture/overview"
+              target="_blank"
+              rel="noopener noreferrer"
               style={{ color: "var(--th-text)", textDecoration: "underline" }}
             >
               standalone zoomable view

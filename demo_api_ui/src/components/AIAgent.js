@@ -13684,7 +13684,8 @@ export default function BankingAgent({
                               <a
                                 className="ba-agent-diagram-link"
                                 href={`/use-case-diagrams/${msg.diagramId}`}
-                                onClick={() => { if (!demoStepsPoppedOutRef.current) { setShowDemoSteps(false); setFloatingDemoStepsOpen(false); } }}
+                                target="_blank"
+                                rel="noopener noreferrer"
                                 title={`Open the ${msg.diagramId} walkthrough diagram`}
                                 data-testid={`agent-diagram-link-${msg.diagramId}`}
                               >

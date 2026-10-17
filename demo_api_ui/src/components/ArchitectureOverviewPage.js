@@ -215,7 +215,7 @@ export default function ArchitectureOverviewPage() {
             <p className="aov-subtitle">
               Run the complete request path across PingOne, PingGateway, the BFF vault, agents, and protected
               resource servers. Choose a flow, then play or step through it. For deeper token-exchange details, see{' '}
-              <a href="/sequence-diagram">
+              <a href="/sequence-diagram" target="_blank" rel="noopener noreferrer">
                 /sequence-diagram
               </a>.
             </p>

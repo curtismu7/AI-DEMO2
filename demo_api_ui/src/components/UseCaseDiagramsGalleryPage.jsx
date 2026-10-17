@@ -3,6 +3,7 @@
 // the gallery reads like the demo script.
 import React from "react";
 import { Link } from "react-router-dom";
+import { diagramLinkProps } from "../utils/diagramLinks";
 import { CONFIGS } from "../config/useCaseDiagrams";
 import { DEMO_STEP_GUIDES } from "../config/demoStepGuides";
 import { demoStepNumber } from "../config/demoStepNumbers";
@@ -18,7 +19,7 @@ export default function UseCaseDiagramsGalleryPage() {
         <p>
           One walkthrough per demo step: play it, pause it, walk the arrows. For the
           whole demo — steps, inspectors, diagrams, learning topics on one page — open the{' '}
-          <Link to="/demo-map" className="ucd-cue">Demo Map</Link>.
+          <Link to="/demo-map" className="ucd-cue" {...diagramLinkProps("/demo-map")}>Demo Map</Link>.
         </p>
       </header>
       <ul className="ucd-gallery__grid">
@@ -26,7 +27,7 @@ export default function UseCaseDiagramsGalleryPage() {
           const g = DEMO_STEP_GUIDES[c.id];
           return (
             <li key={c.id}>
-              <Link className="ucd-card" to={`/use-case-diagrams/${c.id}`}>
+              <Link className="ucd-card" to={`/use-case-diagrams/${c.id}`} {...diagramLinkProps(`/use-case-diagrams/${c.id}`)}>
                 <span className="ucd-card__top">
                   <b>{demoStepNumber(c.id)}</b>
                   <span className={`ucd-pill ${TONE_CLASS[c.result.tone]}`}>{c.result.label}</span>

@@ -5,6 +5,7 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useInRouterContext } from "react-router-dom";
 import IdJagPathBar from "../components/IdJagPathBar";
+import { diagramLinkProps } from "../utils/diagramLinks";
 import IdJagCallPlayer from "../components/IdJagCallPlayer";
 import TokenChainFilmstrip from "../components/TokenChainFilmstrip";
 import { EDU } from "../components/education/educationIds";
@@ -119,7 +120,7 @@ export default function EnterpriseMcpDemoPage() {
         </ol>
         {inRouter && (
           <p className="emd-note">
-            After a run, <Link to="/pingfederate-id-jag/implementation">See how we built it</Link> shows the real
+            After a run, <Link to="/pingfederate-id-jag/implementation" {...diagramLinkProps("/pingfederate-id-jag/implementation")}>See how we built it</Link> shows the real
             claims from your last run next to each step.
           </p>
         )}
