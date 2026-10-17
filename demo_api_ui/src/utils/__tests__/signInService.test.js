@@ -59,6 +59,14 @@ describe('signInService', () => {
     openSignIn({});
     expect(window.location.href).toContain('/api/auth/oauth/user/login');
   });
+
+  test('redirect: skips the modal and goes to the provider login page', async () => {
+    global.fetch = vi.fn(() => ok({ config: ON }));
+    await initSignInService();
+    openSignIn({ returnTo: '/x', force: true, redirect: true });
+    expect(handled).toBeNull();
+    expect(window.location.href).toContain('/api/auth/oauth/user/login?force=true&return_to=%2Fx');
+  });
 });
 
 describe('sign-in guardrail', () => {

@@ -81,7 +81,8 @@ export default function IdJagPlaygroundPage() {
   const signIn = () => run("signin", async () => {
     // Always a PingFederate sign-in: clear whatever session is here first.
     await bffAxios.post("/api/auth/clear-session").catch(() => {});
-    openSignIn({ returnTo: "/pingfederate-id-jag/playground", force: true });
+    // PingFederate's own login page: the real IdP sign-in the ID-JAG is minted from.
+    openSignIn({ returnTo: "/pingfederate-id-jag/playground", force: true, redirect: true });
   });
 
   const issue = () => run("issue", async () => {

@@ -33,12 +33,13 @@ export function initSignInService() {
   return inited;
 }
 
-export function openSignIn({ role = 'customer', returnTo, force } = {}) {
+export function openSignIn({ role = 'customer', returnTo, force, redirect = false } = {}) {
   // Dispatch when the service KNOWS the role's modal is drivable — or before
   // init has run at all, where "false" just means "unknown" and the modal's
-  // own config gate (detail.handled) is the authority.
+  // own config gate (detail.handled) is the authority. redirect: skip the modal
+  // and go to the provider's own login page.
   const known = role === 'admin' ? 'admin' : 'customer';
-  if ((available[known] || !inited) && typeof window !== 'undefined') {
+  if (!redirect && (available[known] || !inited) && typeof window !== 'undefined') {
     const detail = { returnTo, role, force: Boolean(force), handled: false };
     window.dispatchEvent(new CustomEvent(PI_FLOW_SIGNIN_EVENT, { detail }));
     if (detail.handled) return;
