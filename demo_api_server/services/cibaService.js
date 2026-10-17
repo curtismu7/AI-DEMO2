@@ -35,12 +35,28 @@ const { validateToken } = require('./tokenValidationService');
 // Helpers
 // ---------------------------------------------------------------------------
 
-function _credentials() {
+// One PingOne CIBA app per delivery channel: each app has its own DaVinci flow
+// policy (email-only or SMS-only), and an auth_req_id only works with the app
+// that created it, so every call must use the same channel's credentials.
+const CHANNELS = Object.freeze(['email', 'sms']);
+function _channel(channel) { return channel === 'sms' ? 'sms' : 'email'; }
+function _clientCreds(channel) {
+  return _channel(channel) === 'sms'
+    ? { id: process.env.PINGONE_CIBA_SMS_CLIENT_ID, secret: process.env.PINGONE_CIBA_SMS_CLIENT_SECRET }
+    : { id: process.env.PINGONE_CIBA_CLIENT_ID, secret: process.env.PINGONE_CIBA_CLIENT_SECRET };
+}
+/** Channels whose CIBA app credentials are configured, e.g. ['email', 'sms']. */
+function availableChannels() {
+  return CHANNELS.filter((c) => { const k = _clientCreds(c); return Boolean(k.id && k.secret); });
+}
+
+function _credentials(channel) {
   // A separate CIBA app is required; the login app must retain its own grants.
-  const clientId     = process.env.PINGONE_CIBA_CLIENT_ID;
-  const clientSecret = process.env.PINGONE_CIBA_CLIENT_SECRET;
+  const { id: clientId, secret: clientSecret } = _clientCreds(channel);
   if (!clientId || !clientSecret) {
-    throw new Error('CIBA client credentials are not configured');
+    throw new Error(_channel(channel) === 'sms'
+      ? 'CIBA SMS client credentials are not configured'
+      : 'CIBA client credentials are not configured');
   }
   return Buffer.from(`${clientId}:${clientSecret}`).toString('base64');
 }
@@ -77,7 +93,7 @@ function _bindingMessage(raw) {
  * @param {string} [acrValues]  Accepted for compatibility but NOT sent to PingOne (it would be read as a DaVinci policy ID); the CIBA flow comes from the app's policy assignment
  * @returns {Promise<{ auth_req_id: string, expires_in: number, interval: number, binding_message: string }>}
  */
-async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openid', acrValues = '') {
+async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openid', acrValues = '', channel = 'email') {
   const endpoint = _cibaEndpoint();
   if (!endpoint) {
     throw new Error('PingOne environment not configured — cannot build CIBA endpoint');
@@ -105,7 +121,7 @@ async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openi
   const response = await axios.post(endpoint, params.toString(), {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${_credentials()}`,
+      'Authorization': `Basic ${_credentials(channel)}`,
     },
     timeout: 10000,
   });
@@ -129,7 +145,7 @@ async function initiateBackchannelAuth(loginHint, bindingMessage, scope = 'openi
  * @param {string} authReqId
  * @returns {Promise<object>} token response
  */
-async function pollForTokens(authReqId) {
+async function pollForTokens(authReqId, channel = 'email') {
   const params = new URLSearchParams({
     grant_type: 'urn:openid:params:grant-type:ciba',
     auth_req_id: authReqId,
@@ -138,7 +154,7 @@ async function pollForTokens(authReqId) {
   const response = await axios.post(`${oauthConfig._base}/token`, params.toString(), {
     headers: {
       'Content-Type': 'application/x-www-form-urlencoded',
-      'Authorization': `Basic ${_credentials()}`,
+      'Authorization': `Basic ${_credentials(channel)}`,
     },
     timeout: 10000,
   });
@@ -147,12 +163,12 @@ async function pollForTokens(authReqId) {
 }
 
 /** Verify that the CIBA result authenticates the user who initiated the request. */
-async function validateCibaIdToken(idToken, expectedSubject, requestedAcr = '') {
+async function validateCibaIdToken(idToken, expectedSubject, requestedAcr = '', channel = 'email') {
   if (!idToken || !expectedSubject) throw new Error('CIBA identity result is incomplete');
   const claims = await validateToken(idToken, {
     jwksUri: `${oauthConfig._base}/jwks`,
     issuer: oauthConfig._base,
-    audience: process.env.PINGONE_CIBA_CLIENT_ID,
+    audience: _clientCreds(channel).id,
   });
   if (claims.sub !== expectedSubject) throw new Error('CIBA subject does not match the initiating user');
   if (requestedAcr && !String(requestedAcr).split(/\s+/).includes(claims.acr)) {
@@ -169,14 +185,14 @@ async function validateCibaIdToken(idToken, expectedSubject, requestedAcr = '') 
  * @param {number} maxAttempts      Safety ceiling (default 60 = 5 min at 5s interval)
  * @returns {Promise<object>} token set
  */
-async function waitForApproval(authReqId, intervalSeconds = 5, maxAttempts = 60) {
+async function waitForApproval(authReqId, intervalSeconds = 5, maxAttempts = 60, channel = 'email') {
   let interval = intervalSeconds;
 
   for (let attempt = 0; attempt < maxAttempts; attempt++) {
     await _sleep(interval * 1000);
 
     try {
-      const tokens = await pollForTokens(authReqId);
+      const tokens = await pollForTokens(authReqId, channel);
       logAppEvent('auth_lifecycle', 'info', 'CIBA: tokens received after user approval',
         { tag: 'ciba/tokens-received', metadata: { jwtFullDecode: decodeJwt(tokens?.access_token) || undefined } });
       return tokens;
@@ -219,4 +235,5 @@ module.exports = {
   validateCibaIdToken,
   waitForApproval,
   isEnabled,
+  availableChannels,
 };

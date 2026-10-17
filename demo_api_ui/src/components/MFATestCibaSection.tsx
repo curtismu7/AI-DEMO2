@@ -32,6 +32,7 @@ const PHASE_LABEL: Record<Phase, string> = {
 const MFATestCibaSection: FC<Props> = ({ loginHint = "" }) => {
   const [hint, setHint] = useState(loginHint);
   const [message, setMessage] = useState("Approve");
+  const [channel, setChannel] = useState<"email" | "sms">("email");
   const [phase, setPhase] = useState<Phase>("idle");
   const [detail, setDetail] = useState("");
   const [authReqId, setAuthReqId] = useState("");
@@ -102,6 +103,7 @@ const MFATestCibaSection: FC<Props> = ({ loginHint = "" }) => {
       const { data } = await apiClient.post("/api/auth/ciba/initiate", {
         login_hint: hint.trim() || undefined,
         binding_message: message,
+        channel,
       });
       setAuthReqId(data.auth_req_id);
       setSentMessage(data.binding_message || "");
@@ -152,6 +154,20 @@ const MFATestCibaSection: FC<Props> = ({ loginHint = "" }) => {
           onChange={(e) => setMessage(e.target.value)}
           data-testid="mfa-ciba-message"
         />
+      </label>
+      <label className="ciba-label" style={{ display: "block", marginBottom: "0.75rem" }}>
+        Deliver the approval link by
+        <select
+          className="ciba-input"
+          style={{ display: "block", width: "100%" }}
+          value={channel}
+          onChange={(e) => setChannel(e.target.value === "sms" ? "sms" : "email")}
+          disabled={busy}
+          data-testid="mfa-ciba-channel"
+        >
+          <option value="email">Email</option>
+          <option value="sms">Text message (SMS)</option>
+        </select>
       </label>
       <button
         type="button"

@@ -31,6 +31,7 @@ jest.mock('../../services/cibaService', () => ({
   validateCibaIdToken:     jest.fn().mockResolvedValue({ sub: 'test-user' }),
   waitForApproval:         jest.fn(),
   isEnabled:               jest.fn(),
+  availableChannels:       jest.fn(() => ['email', 'sms']),
 }));
 
 jest.mock('../../services/cibaSimulatedService', () => ({
@@ -200,6 +201,35 @@ describe('POST /api/auth/ciba/initiate', () => {
     expect(res.body.error).toBe('ciba_disabled');
   });
 
+  // ── delivery channel ──────────────────────────────────────────────────────
+
+  it('passes channel "sms" to PingOne and echoes it; anything else means email', async () => {
+    const sms = await request(buildApp())
+      .post('/api/auth/ciba/initiate')
+      .set('x-test-user', USER_HDR)
+      .send({ binding_message: 'Approve', channel: 'sms' });
+    expect(sms.status).toBe(200);
+    expect(sms.body.channel).toBe('sms');
+    expect(cibaService.initiateBackchannelAuth).toHaveBeenLastCalledWith(
+      'alice@example.com', 'Approve', expect.any(String), expect.any(String), 'sms',
+    );
+
+    const other = await request(buildApp())
+      .post('/api/auth/ciba/initiate')
+      .set('x-test-user', USER_HDR)
+      .send({ binding_message: 'Approve', channel: 'carrier-pigeon' });
+    expect(other.body.channel).toBe('email');
+    expect(cibaService.initiateBackchannelAuth).toHaveBeenLastCalledWith(
+      'alice@example.com', 'Approve', expect.any(String), expect.any(String), 'email',
+    );
+  });
+
+  it('status lists the channels that have a configured PingOne CIBA app', async () => {
+    const res = await request(buildApp()).get('/api/auth/ciba/status');
+    expect(res.status).toBe(200);
+    expect(res.body.channels).toEqual(['email', 'sms']);
+  });
+
   // ── login_hint resolution ─────────────────────────────────────────────────
 
   it('uses email from req.user when no login_hint in body', async () => {
@@ -214,6 +244,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       'Approve payment',
       expect.any(String),
       expect.any(String),
+      'email',
     );
   });
 
@@ -229,6 +260,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       undefined,
       expect.any(String),
       expect.any(String),
+      'email',
     );
   });
 
@@ -258,6 +290,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       'Approve payment',
       expect.any(String),
       expect.any(String),
+      'email',
     );
   });
 
@@ -348,6 +381,7 @@ describe('POST /api/auth/ciba/initiate', () => {
       'High-value transfer',
       'openid profile email write',
       'Multi_factor',
+      'email',
     );
   });
 
@@ -463,6 +497,7 @@ describe('POST /api/auth/ciba/initiate', () => {
         'Approve your banking transaction',
         expect.any(String),
         expect.any(String),
+        'email',
       );
     });
 
@@ -477,6 +512,7 @@ describe('POST /api/auth/ciba/initiate', () => {
         undefined,
         'openid profile',
         'Multi_factor',
+        'email',
       );
     });
 

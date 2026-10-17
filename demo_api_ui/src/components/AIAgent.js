@@ -965,15 +965,17 @@ export default function BankingAgent({
   // OTP delivery outcome surfaced into the modal — no silent "code sent" lies.
   const [otpDeliveryError, setOtpDeliveryError] = useState(null);
   const pendingOtpActionRef = useRef(null);
-  // Offer "Approve by email link" (CIBA) in the step-up picker only when the
-  // server can actually run it.
-  const [cibaEnabled, setCibaEnabled] = useState(false);
+  // Offer CIBA rows ("Approve by email link" / "Approve by text link") in the
+  // step-up picker only for channels the server can actually run.
+  const [cibaChannels, setCibaChannels] = useState([]);
   useEffect(() => {
     let cancelled = false;
     fetch(`${process.env.REACT_APP_API_URL || ""}/api/auth/ciba/status`, { credentials: "include" })
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        if (!cancelled) setCibaEnabled(Boolean(d?.enabled) && d?.engine !== "unavailable");
+        if (cancelled) return;
+        const ok = Boolean(d?.enabled) && d?.engine !== "unavailable";
+        setCibaChannels(ok ? (Array.isArray(d?.channels) && d.channels.length ? d.channels : ["email"]) : []);
       })
       .catch(() => {});
     return () => {
@@ -9278,7 +9280,7 @@ export default function BankingAgent({
   // OTP modal handlers (Phase 174)
   // User picked "Approve by email link" in the step-up picker: run the same CIBA
   // flow the server selects for UC22, for the action that raised this challenge.
-  const handleChooseCiba = () => {
+  const handleChooseCiba = (channel = "email") => {
     const pending = pendingOtpActionRef.current;
     setShowOtpModal(false);
     if (!pending?.normalized) {
@@ -9294,6 +9296,7 @@ export default function BankingAgent({
       normalized: pending.normalized,
       actionId: pending.actionId,
       form: pending.form,
+      channel,
     });
   };
 
@@ -9511,7 +9514,7 @@ export default function BankingAgent({
    */
   // Shared by the 428 handler (server picked CIBA) and the step-up picker
   // (user picked CIBA). Initiates, then polls until approved; see pollCibaStepUp.
-  const startCibaStepUp = async ({ normalized, actionId, form, toastId }) => {
+  const startCibaStepUp = async ({ normalized, actionId, form, toastId, channel = "email" }) => {
     // Open a blank tab now, before the initiate fetch, so the browser
     // still counts it as close enough to the user's original gesture
     // to avoid a popup block — then navigate it once we have the real
@@ -9538,6 +9541,7 @@ export default function BankingAgent({
         body: JSON.stringify({
           binding_message: cibaApprovalText(terminology),
           acr_values: normalized.step_up_acr || "",
+          channel,
           amount: normalized.transaction_amount ?? undefined,
           transaction_type: resolveCibaTransactionType(
             normalized.transactionType,
@@ -12943,7 +12947,8 @@ export default function BankingAgent({
                 }}
                 onPasskeyRegistered={handlePasskeyRegistered}
                 deliveryError={otpDeliveryError}
-                onChooseCiba={cibaEnabled ? handleChooseCiba : undefined}
+                onChooseCiba={cibaChannels.length ? handleChooseCiba : undefined}
+                cibaChannels={cibaChannels}
               />
             )}
 
