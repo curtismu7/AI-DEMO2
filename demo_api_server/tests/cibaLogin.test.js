@@ -80,9 +80,9 @@ const FULL_SCOPE = 'openid profile email offline_access read accounts:read write
 const REAL = { id: 'p1-user-1', username: 'alice', email: 'alice@example.com', mobilePhone: '+15555550100', enabled: true };
 
 let clock;
-function makeApp() {
+function makeApp(trustProxy = true) {
   const app = express();
-  app.set('trust proxy', true);
+  app.set('trust proxy', trustProxy);
   app.use(express.json());
   app.use(session({ secret: 's', resave: false, saveUninitialized: false }));
   app.use('/api/auth/ciba/login', cibaLoginRoutes);
@@ -344,12 +344,14 @@ describe('poll: wrong person approves (c)', () => {
 });
 
 describe('rate limit (d)', () => {
-  it('429s the 6th start for one identifier and sends no further CIBA request', async () => {
+  it('the 6th real start for one user degrades to a decoy: same 200 shape, no further CIBA request', async () => {
     const agent = request.agent(makeApp());
-    for (let i = 0; i < 5; i++) expect((await start(agent, {}).set('X-Forwarded-For', `10.0.0.${i}`)).status).toBe(200);
+    const ok = [];
+    for (let i = 0; i < 5; i++) ok.push(await start(agent, {}).set('X-Forwarded-For', `10.0.0.${i}`));
     expect(cibaPosts()).toHaveLength(5);
     const sixth = await start(agent, {}).set('X-Forwarded-For', '10.0.0.99');
-    expect(sixth.status).toBe(429);
+    expect(sixth.status).toBe(200);
+    expect(Object.keys(sixth.body).sort()).toEqual(Object.keys(ok[0].body).sort());
     expect(cibaPosts()).toHaveLength(5);
   });
 
@@ -459,5 +461,81 @@ describe('fix round 1', () => {
     const { agent, id } = await approved({ role: 'admin' });
     await poll(agent, id);
     expect(establishAdminSession.mock.calls[0][2].user.phone).toBeUndefined();
+  });
+});
+
+describe('fix round 1 additions', () => {
+  const ip = (n) => ({ 'X-Forwarded-For': `10.7.0.${n}` });
+  let n = 0;
+  const startFrom = (agent, over) => start(agent, over).set(ip(++n));
+
+  it('D1: username, email and UUID aliases of one user share one send counter', async () => {
+    const agent = request.agent(makeApp());
+    for (const id of ['alice', 'ALICE@example.com', REAL.id, 'alice', 'Alice']) await startFrom(agent, { identifier: id });
+    expect(cibaPosts()).toHaveLength(5);
+    await startFrom(agent, { identifier: 'alice@example.com' });
+    expect(cibaPosts()).toHaveLength(5);
+  });
+
+  it('D1: bogus identifiers never consume a real user\'s cap', async () => {
+    const agent = request.agent(makeApp());
+    resolvePingOneIdentifier.mockImplementation(async (i) => (i === 'alice' ? { user: REAL, error: null } : { user: null, error: 'not_found' }));
+    for (let i = 0; i < 4; i++) await startFrom(agent, { identifier: 'alice' + i });
+    for (let i = 0; i < 4; i++) await startFrom(agent, { identifier: 'alice' });
+    expect(cibaPosts()).toHaveLength(4);
+  });
+
+  it('D1: per-IP 429 is unchanged', async () => {
+    const agent = request.agent(makeApp());
+    for (let i = 0; i < 5; i++) expect((await start(agent, { identifier: 'u' + i })).status).toBe(200);
+    expect((await start(agent, { identifier: 'u9' })).status).toBe(429);
+  });
+
+  it('D2: decoys are padded to 1.25 x the real start latency when PingOne is slow', async () => {
+    const agent = request.agent(makeApp());
+    axios.post.mockImplementation(async () => {
+      await new Promise((r) => setTimeout(r, 150));
+      return { data: { auth_req_id: 'PING-AR-1', expires_in: 120, interval: 2 } };
+    });
+    await startFrom(agent, {});
+    resolvePingOneIdentifier.mockResolvedValue({ user: null, error: 'not_found' });
+    const t0 = Date.now();
+    await startFrom(agent, { identifier: 'nobody' });
+    expect(Date.now() - t0).toBeGreaterThanOrEqual(180);
+  });
+
+  it('D2: with a fast real path the base floor applies', async () => {
+    process.env.CIBA_LOGIN_START_FLOOR_MS = '80';
+    try {
+      const agent = request.agent(makeApp());
+      await startFrom(agent, {});
+      resolvePingOneIdentifier.mockResolvedValue({ user: null, error: 'not_found' });
+      const t0 = Date.now();
+      await startFrom(agent, { identifier: 'nobody' });
+      const dt = Date.now() - t0;
+      expect(dt).toBeGreaterThanOrEqual(75);
+      expect(dt).toBeLessThan(400);
+    } finally { process.env.CIBA_LOGIN_START_FLOOR_MS = '0'; }
+  });
+
+  it('D3: a finished id is 410 for the originating browser (new session id too) and 404 for any other session', async () => {
+    const agent = request.agent(makeApp());
+    const { body: b } = await start(agent);
+    expect((await poll(agent, b.authReqId)).body.status).toBe('approved');
+    expect((await poll(agent, b.authReqId)).status).toBe(410);
+    expect((await poll(request.agent(makeApp()), b.authReqId)).status).toBe(404);
+  });
+
+  it('D4: with trust proxy 1 the per-IP key is the hop-added address, not a spoofed leftmost XFF', async () => {
+    const app = makeApp(1);
+    const agent = request.agent(app);
+    for (let i = 0; i < 5; i++) {
+      const r = await start(agent, { identifier: 'u' + i }).set('X-Forwarded-For', `66.6.6.${i}, 203.0.113.7`);
+      expect(r.status).toBe(200);
+    }
+    const spoofedFresh = await start(agent, { identifier: 'u9' }).set('X-Forwarded-For', '66.6.6.200, 203.0.113.7');
+    expect(spoofedFresh.status).toBe(429);
+    const otherClient = await start(agent, { identifier: 'u10' }).set('X-Forwarded-For', '66.6.6.1, 203.0.113.8');
+    expect(otherClient.status).toBe(200);
   });
 });

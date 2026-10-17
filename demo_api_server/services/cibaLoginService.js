@@ -58,10 +58,15 @@ const hits = new Map();      // rate key -> [timestamps]
 const _isProd = () => !!(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT || process.env.NODE_ENV === 'production');
 const mask = (s) => `${String(s || '').slice(0, 2)}***`;
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-const floorMs = () => {
+const baseFloorMs = () => {
   const n = parseInt(process.env.CIBA_LOGIN_START_FLOOR_MS || '', 10);
   return Number.isFinite(n) && n >= 0 ? n : 1200;
 };
+// Adaptive floor: pad every start to max(base, 1.25 x EWMA of recent REAL start latency), capped, so a slow
+// PingOne never makes real starts measurably slower than decoys.
+const MAX_FLOOR_MS = 4000;
+let realStartEwma = null;
+const floorMs = () => Math.min(MAX_FLOOR_MS, Math.max(baseFloorMs(), realStartEwma == null ? 0 : 1.25 * realStartEwma));
 
 class RateLimitedError extends Error {}
 class ProviderUnsupportedError extends Error {}
@@ -96,6 +101,18 @@ function sweep() {
   }
 }
 
+// Per-user send cap (counts only starts that actually send a message). Returns false when over the cap.
+// Residual (inherent): an attacker can still burn a real user's 5 sends by really sending them 5 messages;
+// bounded to 10 min, and the password path is unaffected. Over-cap answers silently degrade to a decoy
+// (same 200 shape) - a 429 here would reveal that the account exists.
+function takeSend(key) {
+  const t = now();
+  const live = (hits.get(key) || []).filter((x) => t - x < RATE_WINDOW_MS);
+  if (live.length >= RATE_MAX) { hits.set(key, live); return false; }
+  hits.set(key, [...live, t]);
+  return true;
+}
+
 function rateLimit(keys) {
   const t = now();
   const lists = keys.map((k) => (hits.get(k) || []).filter((x) => t - x < RATE_WINDOW_MS));
@@ -121,16 +138,16 @@ async function startLogin({ identifier, channel, role, req, provider = 'pingone'
   const started = now();
   const clock0 = Date.now();
   sweep();
-  const idKey = `id:${String(identifier).trim().toLowerCase()}`;
-  rateLimit([idKey, `ip:${req.ip}`]);   // throws RateLimitedError before anything else happens
+  rateLimit([`ip:${req.ip}`]);   // per-IP only: independent of the identifier, so a 429 reveals nothing
   if (pending.size >= MAX_ENTRIES) throw new RateLimitedError('capacity');
 
   const matchCode = newMatchCode(verticalManifest.resolver.activeIdFor(req));
-  const entry = { sessionId: req.sessionID, role, channel, provider, matchCode, decoy: true, createdAt: started, expiresAt: started + EXPIRES_IN * 1000 };
+  const entry = { sessionIds: new Set([req.sessionID]), role, channel, provider, matchCode, decoy: true, createdAt: started, expiresAt: started + EXPIRES_IN * 1000 };
 
   try {
     const { user } = await resolvePingOneIdentifier(String(identifier).trim());
-    if (eligible(user, channel)) {
+    // Keyed on the RESOLVED user id so username/email/UUID aliases share one counter; bogus identifiers consume nothing.
+    if (eligible(user, channel) && takeSend(`send:${user.id}`)) {
       const { config } = roleBundle(role);
       const data = await postForm(`${config._base}/cibaAuthorization`, {
         client_id: config.clientId,
@@ -140,7 +157,11 @@ async function startLogin({ identifier, channel, role, req, provider = 'pingone'
         binding_message: matchCode,
         acr_values: POLICY[channel](),
       });
-      if (data?.auth_req_id) Object.assign(entry, { decoy: false, pingAuthReqId: data.auth_req_id, expectedSub: user.id, user });
+      if (data?.auth_req_id) {
+        Object.assign(entry, { decoy: false, pingAuthReqId: data.auth_req_id, expectedSub: user.id, user });
+        const took = Date.now() - clock0;
+        realStartEwma = realStartEwma == null ? took : 0.8 * realStartEwma + 0.2 * took;
+      }
     }
   } catch (err) {
     // A real user whose request failed must look exactly like a decoy: log, never surface.
@@ -270,8 +291,8 @@ async function pollOnce({ authReqId, req, res }) {
   sweep();
   const entry = pending.get(authReqId);
   if (!entry) return { status: 'notfound' };
-  if (entry.consumed) return { status: 'expired' };          // one-shot: finished ids stay 410
-  if (entry.sessionId !== req.sessionID) return { status: 'notfound' }; // not this browser's request
+  if (!entry.sessionIds.has(req.sessionID)) return { status: 'notfound' }; // not this browser's request (404 even once finished)
+  if (entry.consumed) return { status: 'expired' };          // one-shot: finished ids stay 410 for the originating browser
   if (now() >= entry.expiresAt) { entry.consumed = true; return { status: 'expired' }; }
   if (entry.decoy || entry.inFlight) return { status: 'pending' };
 
@@ -295,7 +316,10 @@ async function pollOnce({ authReqId, req, res }) {
     }
     entry.consumed = true; // PingOne tokens are one-time: whatever happens next, this id is finished
     try {
-      return await complete(entry, tokenData, req, res);
+      const result = await complete(entry, tokenData, req, res);
+      // The session id was regenerated on success: the same browser now polls with the new id.
+      if (result.status === 'approved') entry.sessionIds.add(req.sessionID);
+      return result;
     } catch (err) {
       console.error('[cibaLogin] completion failed for %s: %s', mask(entry.user?.username), err.message);
       return { status: 'expired' };
@@ -308,8 +332,8 @@ async function pollOnce({ authReqId, req, res }) {
 module.exports = {
   startLogin, pollLogin, RateLimitedError, ProviderUnsupportedError,
   _test: {
-    reset() { pending.clear(); hits.clear(); now = () => Date.now(); },
+    reset() { pending.clear(); hits.clear(); realStartEwma = null; now = () => Date.now(); },
     setNow(fn) { now = fn; },
-    sweep, size: () => pending.size,
+    setEwma(v) { realStartEwma = v; }, sweep, size: () => pending.size,
   },
 };
