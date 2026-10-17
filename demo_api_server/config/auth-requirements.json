@@ -204,6 +204,7 @@
     "/pingfederate-id-jag": "public",
     "/pingfederate-id-jag/demo": "public",
     "/pingfederate-id-jag/diagram": "public",
+    "/pingfederate-id-jag/implementation": "public",
     "/pingfederate-ai-agent": "public",
     "/aic-token-exchange": "user",
     "/davinci-login-guide": "public",

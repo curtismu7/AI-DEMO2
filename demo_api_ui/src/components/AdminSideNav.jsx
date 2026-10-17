@@ -184,7 +184,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
-  { id: "pingfederate-id-jag", paths: ["/pingfederate-id-jag"] },
+  { id: "pingfederate-id-jag", paths: ["/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag"] },
   { id: "pingfederate-ai-agent", paths: ["/pingfederate-ai-agent"] },
   { id: "aic", paths: ["/aic-token-exchange"] },
   { id: "utilities", paths: ["/pingone-test", "/mfa-test", "/oauth-debug-logs", "/token-exchange-tester", "/mgmt-api", "/pingone-setup", "/mcp-discovery", "/check"] },
@@ -1533,6 +1533,14 @@ export default function AdminSideNav({
       { label: "Run ID-JAG Demo", path: "/pingfederate-id-jag/demo" },
       { label: "How ID-JAG Works", path: "/pingfederate-id-jag" },
       { label: "ID-JAG Diagram", path: "/pingfederate-id-jag/diagram" },
+      {
+        label: "ID-JAG Implementation (PF + Resource Server)",
+        path: "/pingfederate-id-jag/implementation",
+        searchAlias: "ID-JAG implementation PingFederate oauth-mcp gateway resource server simulate flow diagram jwt-bearer RFC 8693 RFC 7523",
+      },
+      "PingFederate ID-JAG (Node)",
+      "Workload Agents · 3rd-party MCP via ID-JAG",
+      "Enterprise-Managed MCP Auth",
     ], "sec"),
     productGroup("PingFederate AI Agent", [
       {

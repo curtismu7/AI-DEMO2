@@ -1,0 +1,39 @@
+/* Scoped to .ijx so the generic class names below cannot leak into the rest of the app. */
+.ijx{--c-user:#64748b;--c-bff:#2563eb;--c-pf:#d4001e;--c-as:#7c3aed;--c-gw:#0f766e;--c-rs:#b45309;--red:#d4001e;
+  height:calc(100vh - 4rem);min-height:32rem;color:var(--th-text);background:var(--th-bg);display:flex}
+.ijx *{box-sizing:border-box}
+.ijx-app{display:grid;flex:1;min-width:0;height:100%}
+.ijx aside{background:var(--th-bg-card);border-right:1px solid var(--th-border);padding:16px 16px 10px;overflow:auto}
+.ijx h1{font-size:1.15rem;margin:0 0 4px}.ijx .lede{color:var(--th-text-muted);margin:0 0 12px;font-size:.78rem}
+.ijx nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
+.ijx nav button{border:1px solid var(--th-border);background:transparent;color:var(--th-text);border-radius:999px;padding:4px 10px;font:inherit;font-size:.75rem;cursor:pointer}
+.ijx nav button.sel{background:var(--red);border-color:var(--red);color:#fff}
+.ijx h2{font-size:.95rem;margin:0 0 6px}.ijx h3{font-size:.72rem;margin:12px 0 4px;color:var(--th-text-muted);text-transform:uppercase;letter-spacing:.05em}
+.ijx section p{margin:0 0 10px;font-size:.85rem}
+.ijx pre{background:var(--th-bg);border:1px solid var(--th-border);border-radius:8px;padding:10px;font-family:inherit;font-size:.72rem;line-height:1.45;white-space:pre-wrap;word-break:break-word;margin:0}
+.ijx section ul{margin:0;padding-left:16px;color:var(--th-text-muted);font-size:.75rem}
+.ijx .legend{color:var(--th-text-muted);font-size:.72rem;margin-top:14px}
+.ijx main{min-width:0;height:100%;position:relative}
+.ijx .tools{position:absolute;z-index:10;top:10px;right:10px;display:flex;gap:6px}
+.ijx .tools button{border:1px solid var(--th-border);background:var(--th-bg-card);color:var(--th-text);border-radius:8px;padding:5px 10px;font:inherit;font-size:.75rem;cursor:pointer}
+.ijx:fullscreen{height:100vh}
+.ijx .react-flow{background:var(--th-bg)}
+.ijx .card{width:100%;height:100%;overflow:auto;background:var(--th-bg-card);color:var(--th-text);border:1.5px solid var(--th-border);border-left:6px solid var(--c);border-radius:10px;padding:10px 12px;transition:opacity .2s,box-shadow .2s}
+.ijx .card.dim{opacity:.28}.ijx .card.on{box-shadow:0 0 0 2px var(--c),0 6px 18px rgba(0,0,0,.18)}
+.ijx .k-user{--c:var(--c-user)}.ijx .k-bff{--c:var(--c-bff)}.ijx .k-pf{--c:var(--c-pf)}.ijx .k-as{--c:var(--c-as)}.ijx .k-gw{--c:var(--c-gw)}.ijx .k-rs{--c:var(--c-rs)}
+.ijx .ct{font-weight:700;font-size:.85rem}.ijx .cs{color:var(--th-text-muted);font-size:.72rem;margin-bottom:4px}
+.ijx .card ul{margin:0;padding-left:16px;font-size:.72rem}
+.ijx .note{width:100%;height:100%;overflow:auto;background:#fcefc7;color:#5a4300;border:1px dashed #a88a2a;border-radius:8px;padding:8px 10px;font-size:.72rem;transition:opacity .2s}
+.ijx .note.dim{opacity:.2}
+.ijx .react-flow__edge-path{stroke:var(--th-text-muted)}
+.ijx .react-flow__controls-button{background:var(--th-bg-card);color:var(--th-text);border-color:var(--th-border)}.ijx .react-flow__controls-button svg{fill:var(--th-text)}
+.ijx .split{cursor:col-resize;background:var(--th-border)}.ijx .split:hover{background:var(--red)}
+.ijx .sim{display:flex;flex-wrap:wrap;gap:6px;align-items:center;margin-bottom:10px}
+.ijx .sim button{border:1px solid var(--th-border);background:var(--th-bg);color:var(--th-text);border-radius:8px;padding:5px 10px;font:inherit;font-size:.75rem;cursor:pointer}
+.ijx .sim button.pri{background:var(--red);border-color:var(--red);color:#fff;font-weight:600}
+.ijx .sim button:disabled{opacity:.4;cursor:default}.ijx .sim label,.ijx .hint{font-size:.75rem;color:var(--th-text-muted)}
+.ijx .sim select{font:inherit;font-size:.75rem;background:var(--th-bg);color:var(--th-text);border:1px solid var(--th-border);border-radius:6px}
+.ijx .log{margin:0;padding-left:18px;font-size:.72rem;color:var(--th-text-muted)}
+.ijx .elabel{position:absolute;pointer-events:none;background:var(--th-bg-card);color:var(--th-text);border:1px solid var(--th-border);border-radius:5px;padding:1px 6px;font-size:.7rem;white-space:nowrap}
+.ijx .pkt{fill:var(--red);stroke:#fff;stroke-width:2}
+@media (max-width:800px){.ijx{height:auto}.ijx-app{grid-template-columns:1fr!important;grid-template-rows:auto 6px 60vh;height:auto}.ijx .split{display:none}}

@@ -70,7 +70,8 @@ export const NAV_STRUCTURE_CATALOG = [
     "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "LibreChat (browser)", "LM Studio (Mac)",
   ] },
   { label: "PingFederate ID-JAG", children: [
-    "Run ID-JAG Demo", "How ID-JAG Works", "ID-JAG Diagram",
+    "Run ID-JAG Demo", "How ID-JAG Works", "ID-JAG Diagram", "ID-JAG Implementation (PF + Resource Server)",
+    "PingFederate ID-JAG (Node)", "Workload Agents · 3rd-party MCP via ID-JAG", "Enterprise-Managed MCP Auth",
   ] },
   { label: "AIC", children: [
     "AIC Token Exchange",

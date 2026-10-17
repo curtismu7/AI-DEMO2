@@ -56,6 +56,7 @@ import CibaApprovalPage from "../pages/CibaApprovalPage";
 import PrivilegeDemoPage from "../pages/PrivilegeDemoPage";
 import EnterpriseMcpDemoPage from '../pages/EnterpriseMcpDemoPage';
 import PingFederateIdJagExplainerPage from '../pages/PingFederateIdJagExplainerPage';
+import PingFederateIdJagImplementationPage from '../pages/PingFederateIdJagImplementationPage';
 import PingFederateIdJagPage from '../components/PingFederateIdJagPage';
 import PingFederateAiAgentPage from '../pages/PingFederateAiAgentPage';
 import AicTokenExchangePage from '../pages/AicTokenExchangePage';
@@ -366,6 +367,14 @@ export function PingFederateIdJagDiagramPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <PingFederateIdJagPage />
+    </AppShell>
+  );
+}
+
+export function PingFederateIdJagImplementationPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <PingFederateIdJagImplementationPage />
     </AppShell>
   );
 }
