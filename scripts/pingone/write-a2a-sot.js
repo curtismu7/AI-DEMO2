@@ -39,7 +39,9 @@ function envOf(name) {
     provider: 'pingone',
     generalist: {
       name: 'PingOne AI Agent (generalist / agent1)',
-      clientId: '0b412e8b-cfbc-4c7d-a773-0d46118de09d',
+      // Read live, never hardcode: the original generalist app was deleted and
+      // replaced (2026-10-13), and a baked-in id kept the SOT naming the ghost.
+      clientId: envOf('PINGONE_AI_AGENT_ACTOR_CLIENT_ID'),
       actorScope: 'agent:invoke',
       ccAuthMethod: 'post',
       exchangeAuthMethod: 'post',
