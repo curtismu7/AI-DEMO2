@@ -14,6 +14,7 @@ import MFALogsModal from "./MFALogsModal";
 import { useThemeOptional } from "../context/ThemeContext";
 import PingIdentitySpinner from "./shared/PingIdentitySpinner";
 import PingOneProviderGuard from "./PingOneProviderGuard";
+import { openSignIn } from "../utils/signInService";
 
 interface PingOneUser {
   id: string;
@@ -52,6 +53,8 @@ const MFATestPageContent: FC = () => {
   const [config, setConfig] = useState<MFAConfig | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Signed-out visitors get a sign-in prompt, never a raw 401 message.
+  const [needsSignIn, setNeedsSignIn] = useState(false);
 
   const [testUserId, setTestUserId] = useState("");
   // demoUser is the primary demo identity; it lives beyond the first 100 of 1300+
@@ -284,6 +287,11 @@ const MFATestPageContent: FC = () => {
         setLoading(false);
       }
     } catch (err: unknown) {
+      if ((err as { response?: { status?: number } })?.response?.status === 401) {
+        setNeedsSignIn(true);
+        setLoading(false);
+        return;
+      }
       console.error("Config error:", err);
       const errorMsg = err instanceof Error ? err.message : String(err);
       setError(`Failed to load config: ${errorMsg}`);
@@ -1277,6 +1285,23 @@ const MFATestPageContent: FC = () => {
       <div className="mfa-test-page">
         <div className="mfa-test-loading">
           <PingIdentitySpinner size={40} label="Loading MFA test environment…" />
+        </div>
+      </div>
+    );
+  }
+
+  if (needsSignIn) {
+    return (
+      <div className="mfa-test-page">
+        <div className="mfa-test-error" data-testid="mfa-test-signin-required">
+          <p>Sign in to use the MFA test page.</p>
+          <button
+            type="button"
+            className="mfa-test-button mfa-test-button--primary"
+            onClick={() => openSignIn({ returnTo: window.location.pathname })}
+          >
+            Sign in
+          </button>
         </div>
       </div>
     );
@@ -2461,13 +2486,39 @@ const MFATestPageContent: FC = () => {
           )}
         </section>
 
-        <MFATestCibaSection
-          loginHint={
-            pingoneUsers.find((u) => u.id === testUserId)?.email ||
-            defaultUser?.email ||
-            ""
-          }
-        />
+        {(["email", "sms"] as const).map((ch) => (
+          <section className="mfa-test-section" key={`ciba-${ch}`}>
+            <h2 className="mfa-test-section-title">
+              {ch === "sms" ? "CIBA Text Message (SMS) Testing" : "CIBA Email Link Testing"}
+            </h2>
+            <WhatIsHappening
+              title={
+                ch === "sms"
+                  ? "CIBA — approve by a link sent as a text message"
+                  : "CIBA — approve by a link sent by email"
+              }
+              steps={[
+                "Client-initiated backchannel authentication: the BFF asks PingOne to authenticate the user out of band",
+                ch === "sms"
+                  ? "PingOne runs the SMS-only DaVinci flow and texts the user an approval link (needs a Mobile phone on the profile)"
+                  : "PingOne runs the email-only DaVinci flow and emails the user an approval link",
+                "The user opens the link and approves; the BFF polls PingOne's token endpoint until it is approved — nothing redirects back to this page",
+              ]}
+              apiFlow={[
+                { method: "POST", endpoint: "/api/auth/ciba/initiate", note: `channel=${ch}` },
+                { method: "GET", endpoint: "/api/auth/ciba/poll/:id", note: "until approved" },
+              ]}
+            />
+            <MFATestCibaSection
+              channel={ch}
+              loginHint={
+                pingoneUsers.find((u) => u.id === testUserId)?.email ||
+                defaultUser?.email ||
+                ""
+              }
+            />
+          </section>
+        ))}
 
         {/* Logs Modal */}
         {logsModalOpen && (
