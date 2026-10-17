@@ -1,3 +1,4 @@
+import React from 'react';
 import { render, waitFor } from '@testing-library/react';
 import LogoutPage from '../LogoutPage';
 import bffAxios from '../../services/bffAxios';
@@ -50,4 +51,15 @@ test('a pending-status transport failure still follows the saved live PF handoff
   expect(window.location.href).toContain('return_to=%2Fdashboard');
   expect(bffAxios.post).toHaveBeenCalledWith('/api/auth/clear-session');
   expect(navigate).not.toHaveBeenCalled();
+});
+
+// Regression: React's dev double-mount ran finishLogout twice, so clear-session was POSTed
+// twice; the server treats the second call as a replay and drops the pending ID-JAG intent
+// (login then failed with id_jag_intent_lost). Found by a real browser run of the live demo.
+test('under React strict double-mount, clear-session is POSTed exactly once and the handoff still continues', async () => {
+  bffAxios.get.mockResolvedValue({ data: { pending: true, mode: 'live-id-jag', returnTo: '/pingfederate-id-jag/demo' } });
+  render(<React.StrictMode><LogoutPage /></React.StrictMode>);
+  await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?'));
+  expect(bffAxios.post.mock.calls.filter(([url]) => url === '/api/auth/clear-session')).toHaveLength(1);
+  expect(bffAxios.get.mock.calls.filter(([url]) => url === '/api/auth/oauth/user/id-jag/pending')).toHaveLength(1);
 });

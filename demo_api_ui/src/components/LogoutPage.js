@@ -1,5 +1,5 @@
 // banking_api_ui/src/components/LogoutPage.js
-import React, { useContext, useEffect } from 'react';
+import React, { useContext, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { navigateToCustomerOAuthForceLogin } from '../utils/authUi';
 import bffAxios from '../services/bffAxios';
@@ -18,8 +18,16 @@ export default function LogoutPage() {
   const identity = useContext(VerticalContext)?.pageManifest?.identity;
   const brandName = identity?.headerTitle || identity?.displayName || '';
 
+  // finishLogout must run ONCE per page load. React's dev double-mount (and any effect
+  // re-run) would otherwise POST /api/auth/clear-session twice, and the second call is
+  // deliberately treated by the server as a replay: it drops the pending ID-JAG intent,
+  // so the login that follows fails with id_jag_intent_lost. `started` makes the work
+  // once-only; `mounted` (not a per-run flag) says whether to navigate afterwards.
+  const started = useRef(false);
+  const mounted = useRef(true);
+
   useEffect(() => {
-    let cancelled = false;
+    mounted.current = true;
     const finishLogout = async () => {
       let returnTo = '/';
       try { returnTo = sessionStorage.getItem('logoutReturnTo') || '/'; } catch { /* storage unavailable */ }
@@ -38,7 +46,7 @@ export default function LogoutPage() {
       }
       try {
         await bffAxios.post('/api/auth/clear-session');
-        if (cancelled) return;
+        if (!mounted.current) return;
         clearIdJagRunState();
         try { sessionStorage.clear(); localStorage.removeItem('userLoggedOut'); } catch { /* storage unavailable */ }
         const isLiveHandoff = pending?.pending === true && pending.mode === 'live-id-jag'
@@ -49,14 +57,17 @@ export default function LogoutPage() {
         }
         navigate(returnTo, { replace: true });
       } catch {
-        if (cancelled) return;
+        if (!mounted.current) return;
         clearIdJagRunState();
         notifyError('Sign-out cleanup failed. Please try again.');
         navigate('/pingfederate-id-jag/demo?error=id_jag_handoff_failed', { replace: true });
       }
     };
-    void finishLogout();
-    return () => { cancelled = true; };
+    if (!started.current) {
+      started.current = true;
+      void finishLogout();
+    }
+    return () => { mounted.current = false; };
   }, [navigate]);
 
   return (
