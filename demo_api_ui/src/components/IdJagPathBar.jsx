@@ -8,6 +8,7 @@ export const ID_JAG_PATH = [
   { key: "run", label: "Run it", to: "/pingfederate-id-jag/demo" },
   { key: "protocol", label: "See the protocol", to: "/pingfederate-id-jag/diagram" },
   { key: "build", label: "See how we built it", to: "/pingfederate-id-jag/implementation" },
+  { key: "play", label: "Try and validate it", to: "/pingfederate-id-jag/playground" },
 ];
 
 export default function IdJagPathBar({ current }) {

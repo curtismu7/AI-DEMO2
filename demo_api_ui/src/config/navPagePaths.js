@@ -64,6 +64,7 @@ export const NAV_PAGE_PATHS = {
   "How ID-JAG Works": "/pingfederate-id-jag",
   "ID-JAG Diagram": "/pingfederate-id-jag/diagram",
   "ID-JAG Implementation (PF + Resource Server)": "/pingfederate-id-jag/implementation",
+  "ID-JAG Playground (try + validate)": "/pingfederate-id-jag/playground",
   "CIMD, Token Exchange, and RAR": "/pingfederate-ai-agent",
   "AIC Token Exchange": "/aic-token-exchange",
   "MCP Discovery": "/mcp-discovery",
