@@ -66,7 +66,7 @@ const SCRIPT = `(function () {
     '#brand-name{font-size:18px;font-weight:600;letter-spacing:.2px}' +
     '#brand-tag{font-size:12px;opacity:.85;margin-top:2px}' +
     'button.approve{background:' + b.p + ' !important;color:' + onP + ' !important;border-radius:6px !important;font-weight:600}' +
-    'button.decline{color:' + b.p + ' !important}' +
+    'button.decline{color:' + (lum(b.p) > 0.4 ? '#111111' : b.p) + ' !important}' +
     'body a,body .text-description strong{color:inherit}' +
     '.icon-feedback--success,.icon-feedback__icon{color:' + b.x + ' !important}';
   document.head.appendChild(css);
