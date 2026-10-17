@@ -286,6 +286,18 @@ describe('OAuthRouter — ID-JAG client binding and client authentication', () =
     expect(res.body.error).toBe('invalid_grant');
   });
 
+  it('redeems an ID-JAG whose client_id is the IdP-side id mapped by ENTERPRISE_IDP_ID_JAG_CLIENT_MAP', async () => {
+    process.env.ENTERPRISE_IDP_ID_JAG_CLIENT_MAP = `ai-demo-pf-user=${CLIENT.client_id}`;
+    const { router } = await buildRouter();
+    const res = await postToken(router, {
+      grant_type: JWT_BEARER_GRANT,
+      assertion: mintIdJag({ client_id: 'ai-demo-pf-user' }),
+      client_id: CLIENT.client_id,
+      client_secret: CLIENT.client_secret as string,
+    });
+    expect(res.status).toBe(200);
+  });
+
   it('refuses a public client when ENTERPRISE_IDP_REQUIRE_CLIENT_AUTH is on', async () => {
     process.env.ENTERPRISE_IDP_REQUIRE_CLIENT_AUTH = 'true';
     const keyManager = new SigningKeyManager();

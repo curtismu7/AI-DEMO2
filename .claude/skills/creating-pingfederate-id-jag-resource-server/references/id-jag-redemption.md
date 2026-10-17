@@ -48,6 +48,14 @@ claim for an IdP that does not emit it yet (off by default). The default
 register it as confidential and `ENTERPRISE_IDP_REQUIRE_CLIENT_AUTH=true` to refuse
 public clients at the jwt-bearer grant.
 
+PingFederate fills the ID-JAG `client_id` from the refresh token's client (the BFF
+login client, `ai-demo-pf-user`), not from the client that redeems the assertion.
+`ENTERPRISE_IDP_ID_JAG_CLIENT_MAP` (`idp-client=our-client,...`) lets that value
+stand for the redeeming client; the compose `mcp-server` service maps
+`ai-demo-pf-user=demo-bff-mcp-client`. A value that is not mapped must still equal
+the redeeming client exactly. The cleaner long-term fix is to fulfil `client_id` in
+the `aiDemoPfIdJagSp` attribute mapping with the resource-AS client id.
+
 Each `jti` is single-use. The replay cache is mirrored into the same encrypted
 store the token store uses (`TOKEN_STORAGE_PATH` + `ENCRYPTION_KEY`), so a restart
 no longer reopens the window; entries expire at the assertion's expiration and

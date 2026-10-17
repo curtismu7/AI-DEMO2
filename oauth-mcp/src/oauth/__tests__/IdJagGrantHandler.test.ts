@@ -172,6 +172,14 @@ describe('verifyIdJag', () => {
         .resolves.toBeDefined();
     });
 
+    it('accepts an IdP-side client id mapped to the redeeming client, and nothing else', async () => {
+      const opts = { ...OPTS(), clientId: 'demo-bff-mcp-client', clientAliases: { 'ai-demo-pf-user': 'demo-bff-mcp-client' } };
+      await expect(verifyIdJag(mintIdJag({ client_id: 'ai-demo-pf-user' }), opts)).resolves.toBeDefined();
+      // mapped to a different client, or not mapped at all: still refused
+      await expect(verifyIdJag(mintIdJag({ client_id: 'ai-demo-pf-user' }), { ...opts, clientId: 'other-client' })).rejects.toThrow(/different client/);
+      await expect(verifyIdJag(mintIdJag({ client_id: 'unmapped' }), opts)).rejects.toThrow(/different client/);
+    });
+
     it('does not burn the jti when the wrong client presents it', async () => {
       const assertion = mintIdJag();
       await expect(verifyIdJag(assertion, { ...OPTS(), clientId: 'other-client' })).rejects.toThrow(IdJagError);
