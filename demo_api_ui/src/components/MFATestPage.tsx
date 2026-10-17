@@ -13,7 +13,6 @@ import PingOneApiPanel from "./PingOneApiPanel";
 import MFALogsModal from "./MFALogsModal";
 import { useThemeOptional } from "../context/ThemeContext";
 import PingIdentitySpinner from "./shared/PingIdentitySpinner";
-import PingOneProviderGuard from "./PingOneProviderGuard";
 import { openSignIn } from "../utils/signInService";
 
 interface PingOneUser {
@@ -393,7 +392,17 @@ const MFATestPageContent: FC = () => {
       // Prefer the logged-in user when present.
       try {
         const { data } = await apiClient.get("/api/auth/oauth/user/status");
-        if (data?.authenticated && data?.user?.oauthId) {
+        if (data?.authenticated && data?.oauthProvider === "pingfederate" && data?.user?.username) {
+          // A PF subject is a PF username — pick the PingOne account with that username.
+          const name = data.user.username.toLowerCase();
+          const { data: found } = await apiClient.get(`/api/mfa/test/users?q=${encodeURIComponent(name)}`);
+          const linked = (found?.users || []).find((u: PingOneUser) => (u.username || "").toLowerCase() === name);
+          if (linked) {
+            setDefaultUser(linked);
+            setTestUserId((prev) => prev || linked.id);
+            return;
+          }
+        } else if (data?.authenticated && data?.user?.oauthId) {
           setTestUserId((prev) => prev || data.user.oauthId);
           return;
         }
@@ -2525,14 +2534,9 @@ const MFATestPageContent: FC = () => {
   );
 };
 
-const MFATestPage: FC = () => (
-  <PingOneProviderGuard
-    returnTo="/mfa-test"
-    description="The MFA test page uses PingOne device-authentication APIs and needs a PingOne user session."
-  >
-    <MFATestPageContent />
-  </PingOneProviderGuard>
-);
+// No PingOne-only guard: the BFF maps a PingFederate session to its linked
+// PingOne user, so the page works under either login provider.
+const MFATestPage: FC = () => <MFATestPageContent />;
 
 export default MFATestPage;
 
