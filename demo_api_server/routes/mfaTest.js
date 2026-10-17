@@ -1365,6 +1365,20 @@ router.get('/integration/fido2-policy-diag', async (req, res) => {
  * GET /api/mfa/test/worker-token
  * Test worker token acquisition (no user auth required — uses client_credentials)
  */
+// Simulated push phone (step-up card): the BFF plays the phone; no PingOne call, no step-up granted.
+const mockPushPhone = require('../services/mockPushPhoneService');
+const pushReply = (req, res, fn) => {
+  try {
+    const body = fn();
+    req.session.save?.(() => res.json(body));
+  } catch (err) {
+    res.status(err.httpStatus || 500).json({ error: err.code || 'push_mock_failed', message: err.message });
+  }
+};
+router.post('/push-mock/start', (req, res) => pushReply(req, res, () => mockPushPhone.start(req)));
+router.get('/push-mock/status', (req, res) => pushReply(req, res, () => mockPushPhone.poll(req)));
+router.post('/push-mock/decision', (req, res) => pushReply(req, res, () => mockPushPhone.decide(req, req.body?.decision)));
+
 /**
  * GET /api/mfa/test/session-user
  * Which login provider signed this session in and the PingOne account MFA acts on.

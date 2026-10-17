@@ -11,6 +11,7 @@ import MFATestCard from "./MFATestCard";
 import MFATestCibaSection from "./MFATestCibaSection";
 import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
 import { CIBA_LINK_DIAGRAM } from "../config/cibaApprovalLinkDiagram";
+import { SIM_PUSH_DIAGRAM } from "../config/simulatedPushDiagram";
 import MFATestConsentSection from "./MFATestConsentSection";
 import MFATestForgotPasswordSection from "./MFATestForgotPasswordSection";
 import MFATestPfCibaSection from "./MFATestPfCibaSection";
@@ -36,6 +37,15 @@ const CibaDiagramSection: FC = () => (
       testId="mfa-ciba-diagram"
     />
   </section>
+);
+
+const SimulatedPushDiagram: FC = () => (
+  <EmbeddedFlowDiagram
+    config={SIM_PUSH_DIAGRAM}
+    title="Push approval: simulated phone vs real push"
+    lede="The simulated phone shows the approve-on-your-phone flow with the BFF playing the phone; orange edges are the real PingOne MFA push it stands in for. Click a step to follow it."
+    testId="mfa-push-diagram"
+  />
 );
 
 interface PingOneUser {
@@ -1369,6 +1379,10 @@ const MFATestPageContent: FC = () => {
           </button>
         </div>
         <CibaDiagramSection />
+        <section className="mfa-test-section" id="push-diagram">
+          <h2 className="mfa-test-section-title">Push Approval: How It Works</h2>
+          <SimulatedPushDiagram />
+        </section>
       </div>
     );
   }
@@ -2630,7 +2644,12 @@ const MFATestPageContent: FC = () => {
         {/* How the app uses MFA: each card drives the app's own routes/UI, not the test harness. */}
         {[
           ["Sign-in MFA (the app's sign-in pop-up)", <MFATestSignInSection key="signin" />],
-          ["Step-up MFA (SMS, email, authenticator app, push, passkey)", <MFATestStepUpSection key="stepup" />],
+          ["Step-up MFA (SMS, email, authenticator app, push, passkey)", (
+            <div key="stepup" id="push-diagram">
+              <MFATestStepUpSection />
+              <SimulatedPushDiagram />
+            </div>
+          )],
           ["Authenticator App (TOTP) Registration", <MFATestTotpSection key="totp" />],
           ["Transaction Consent (human-in-the-loop approval)", <MFATestConsentSection key="consent" />],
           ["PingFederate CIBA", <MFATestPfCibaSection key="pfciba" />],

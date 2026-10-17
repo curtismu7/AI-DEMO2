@@ -106,4 +106,39 @@ describe('MFATestStepUpSection', () => {
     await screen.findByTestId('mfa-stepup-device-dev-push');
     expect(screen.queryByTestId('mfa-stepup-push-note')).not.toBeInTheDocument();
   });
+
+  test('simulated push: phone shows the number; Approve -> next poll -> Passed (simulated, no step-up)', async () => {
+    vi.useFakeTimers();
+    startWith([SMS]);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    apiClient.post.mockResolvedValueOnce({ data: { state: 'pending', numberToMatch: '47', username: 'demouser' } });
+    fireEvent.click(screen.getByTestId('mfa-stepup-mockpush'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/mfa/test/push-mock/start');
+    expect(screen.getByTestId('mfa-stepup-phone')).toHaveTextContent('47');
+    apiClient.post.mockResolvedValueOnce({ data: { state: 'approved' } });
+    fireEvent.click(screen.getByTestId('mfa-stepup-phone-approve'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/mfa/test/push-mock/decision', { decision: 'approve' });
+    apiClient.get.mockResolvedValueOnce({ data: { state: 'approved' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    expect(apiClient.get).toHaveBeenCalledWith('/api/mfa/test/push-mock/status');
+    expect(screen.getByTestId('mfa-stepup-status')).toHaveTextContent(/Passed/);
+    expect(screen.getByText(/simulated/i, { selector: '.mfa-test-card__success-message' })).toBeInTheDocument();
+  });
+
+  test('simulated push: Deny -> Failed', async () => {
+    vi.useFakeTimers();
+    startWith([SMS]);
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    apiClient.post.mockResolvedValueOnce({ data: { state: 'pending', numberToMatch: '12', username: 'demouser' } });
+    fireEvent.click(screen.getByTestId('mfa-stepup-mockpush'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    apiClient.post.mockResolvedValueOnce({ data: { state: 'denied' } });
+    fireEvent.click(screen.getByTestId('mfa-stepup-phone-deny'));
+    await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+    apiClient.get.mockResolvedValueOnce({ data: { state: 'denied' } });
+    await act(async () => { await vi.advanceTimersByTimeAsync(2000); });
+    expect(screen.getByTestId('mfa-stepup-status')).toHaveTextContent(/Failed/);
+  });
 });

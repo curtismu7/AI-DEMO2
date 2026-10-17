@@ -46,6 +46,7 @@ describe('MFATestPage when signed out', () => {
     render(<MFATestPage />);
     expect(await screen.findByTestId('mfa-test-signin-required')).toBeInTheDocument();
     expect(screen.getByTestId('mfa-ciba-diagram')).toBeInTheDocument();
+    expect(screen.getByTestId('mfa-push-diagram')).toBeInTheDocument();
   });
 
   test('other config failures still show the error with Retry', async () => {

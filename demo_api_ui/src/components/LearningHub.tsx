@@ -58,6 +58,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "Group Policy Board": { status: "LIVE" },
   "Transaction Consent": { status: "LIVE" },
   "CIBA Approval Link": { status: "LIVE" },
+  "Push Approval (simulated phone)": { status: "SIMULATED" },
   "AIC Token Exchange": { status: "LIVE" },
   "Jev Demo Gallery": { status: "LIVE" },
   "MCP Observability": { status: "LIVE" },
@@ -277,6 +278,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Transaction Consent",
         description: "Mock CIBA on a phone, and the real deep-link approval path",
+        icon: "",
+      },
+      {
+        label: "Push Approval (simulated phone)",
+        description: "Approve a step-up on a simulated phone, and how real PingOne MFA push differs (diagram + test)",
         icon: "",
       },
       {
@@ -635,6 +641,7 @@ export default function LearningHub() {
       "AIC Token Exchange": () => navigate("/aic-token-exchange"),
       "Transaction Consent": () => navigate("/transaction-consent"),
       "CIBA Approval Link": () => navigate("/mfa-test#ciba-diagram"),
+      "Push Approval (simulated phone)": () => navigate("/mfa-test#push-diagram"),
       "Group Policy Board": () => navigate("/group-policy"),
       "Auth Code + PKCE": () => openEdu(EDU.LOGIN_FLOW, "what"),
       "PKCE Deep Dive": () => openEdu(EDU.LOGIN_FLOW, "pkce"),

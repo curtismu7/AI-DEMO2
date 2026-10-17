@@ -2,7 +2,7 @@ import { FC, useCallback, useEffect, useRef, useState } from "react";
 import apiClient from "../services/apiClient";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 
-type Phase = "idle" | "working" | "select" | "otp" | "push" | "passed" | "failed";
+type Phase = "idle" | "working" | "select" | "otp" | "push" | "mockpush" | "passed" | "failed";
 
 interface Device {
   id: string;
@@ -19,6 +19,7 @@ const PHASE_LABEL: Record<Phase, string> = {
   select: "Pick a device",
   otp: "Enter the code",
   push: "Waiting for push approval",
+  mockpush: "Waiting for the simulated phone",
   passed: "Step-up complete",
   failed: "Step-up failed",
 };
@@ -30,6 +31,7 @@ const CARD_STATUS: Record<Phase, "pending" | "running" | "passed" | "failed"> = 
   select: "running",
   otp: "running",
   push: "running",
+  mockpush: "running",
   passed: "passed",
   failed: "failed",
 };
@@ -51,6 +53,7 @@ const MFATestStepUpSection: FC = () => {
   const [devices, setDevices] = useState<Device[]>([]);
   const [deviceId, setDeviceId] = useState("");
   const [otp, setOtp] = useState("");
+  const [mockPush, setMockPush] = useState<{ numberToMatch: string; username: string; answered?: boolean } | null>(null);
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const runId = useRef(0);
 
@@ -129,6 +132,7 @@ const MFATestStepUpSection: FC = () => {
     setDaId("");
     setDevices([]);
     setOtp("");
+    setMockPush(null);
     return run(async () => {
       const { data } = await apiClient.post("/api/auth/mfa/challenge");
       setDaId(data.daId);
@@ -153,6 +157,45 @@ const MFATestStepUpSection: FC = () => {
       });
       await handleStatus(daId, data?.status, myRun);
     }, "Code check failed");
+
+  // Simulated push: the BFF plays the phone (no PingOne push, no step-up granted). The card polls
+  // like a real push client; the phone's tap is reported on the next poll.
+  const pollMockPush = (myRun: number) => {
+    timer.current = setTimeout(async () => {
+      if (myRun !== runId.current) return;
+      try {
+        const { data } = await apiClient.get("/api/mfa/test/push-mock/status");
+        if (myRun !== runId.current) return;
+        if (data?.state === "approved") {
+          setPhase("passed");
+          setDetail("Approved on the simulated phone. Simulated only: no PingOne push was sent and this session was not stepped up.");
+        } else if (data?.state === "denied" || data?.state === "expired") {
+          fail(data.state === "denied" ? "Denied on the simulated phone." : "Nobody answered the simulated phone in time.");
+        } else {
+          pollMockPush(myRun);
+        }
+      } catch (err: any) {
+        if (myRun === runId.current) fail(errMessage(err, "Simulated push status failed"));
+      }
+    }, 2000);
+  };
+
+  const startMockPush = () =>
+    run(async (myRun) => {
+      const { data } = await apiClient.post("/api/mfa/test/push-mock/start");
+      setMockPush({ numberToMatch: data.numberToMatch, username: data.username });
+      setPhase("mockpush");
+      pollMockPush(myRun);
+    }, "Could not start the simulated push");
+
+  const answerMockPush = async (decision: "approve" | "deny") => {
+    setMockPush((m) => (m ? { ...m, answered: true } : m));
+    try {
+      await apiClient.post("/api/mfa/test/push-mock/decision", { decision });
+    } catch (err: any) {
+      fail(errMessage(err, "The simulated phone could not answer"));
+    }
+  };
 
   const busy = CARD_STATUS[phase] === "running";
   const status = CARD_STATUS[phase];
@@ -199,10 +242,55 @@ const MFATestStepUpSection: FC = () => {
               {d.nickname || d.name || d.phone || d.email ? ` · ${d.nickname || d.name || d.phone || d.email}` : ""}
             </button>
           ))}
+          <button
+            type="button"
+            className="mfa-test-button mfa-test-button--secondary"
+            style={{ marginRight: "0.5rem", marginBottom: "0.5rem" }}
+            onClick={startMockPush}
+            disabled={phase !== "select"}
+            data-testid="mfa-stepup-mockpush"
+          >
+            PUSH · simulated phone
+          </button>
           {!hasMobile && (
             <p className="info-text" data-testid="mfa-stepup-push-note">
-              Push needs a phone app built with the PingOne MFA SDK; none is registered in this environment.
+              Real push needs a phone app built with the PingOne MFA SDK; none is registered in this environment.
+              &quot;PUSH · simulated phone&quot; shows the same approve-on-your-phone flow with the BFF playing the phone.
             </p>
+          )}
+        </div>
+      )}
+
+      {phase === "mockpush" && mockPush && (
+        <div
+          data-testid="mfa-stepup-phone"
+          role="group"
+          aria-label="Simulated phone"
+          style={{
+            margin: "0 0 0.75rem 0",
+            maxWidth: 260,
+            padding: "1rem",
+            border: "2px solid var(--th-border-strong, #444)",
+            borderRadius: 24,
+            background: "var(--th-bg-emphasis, #f4f4f6)",
+          }}
+        >
+          <div className="config-label">Simulated phone · {mockPush.username}</div>
+          <p style={{ margin: "0.5rem 0", fontWeight: 700 }}>Approve sign-in to Super University?</p>
+          <p style={{ margin: "0 0 0.75rem 0" }}>
+            Number to match: <strong style={{ fontSize: "1.4rem" }}>{mockPush.numberToMatch}</strong>
+          </p>
+          {mockPush.answered ? (
+            <p className="info-text">Answered. Waiting for the page&apos;s next poll…</p>
+          ) : (
+            <div style={{ display: "flex", gap: "0.5rem" }}>
+              <button type="button" className="mfa-test-button mfa-test-button--secondary" onClick={() => answerMockPush("deny")} data-testid="mfa-stepup-phone-deny">
+                Deny
+              </button>
+              <button type="button" className="mfa-test-button mfa-test-button--primary" onClick={() => answerMockPush("approve")} data-testid="mfa-stepup-phone-approve">
+                Approve
+              </button>
+            </div>
           )}
         </div>
       )}
@@ -243,7 +331,7 @@ const MFATestStepUpSection: FC = () => {
         >
           {phase === "idle" ? "Start step-up" : "Restart step-up"}
         </button>
-        {phase === "push" && (
+        {(phase === "push" || phase === "mockpush") && (
           <button
             type="button"
             className="mfa-test-button mfa-test-button--secondary"
