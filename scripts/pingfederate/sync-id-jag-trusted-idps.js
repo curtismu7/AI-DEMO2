@@ -11,6 +11,7 @@
  *   node scripts/pingfederate/sync-id-jag-trusted-idps.js --target=se      (SE PF; needs `kubectl port-forward svc/pingfederate-admin 19999:9999`)
  *   --registry=<url>  defaults to https://local.ping-devops.com:4000/api/id-jag-playground/trusted-idps/pingfederate
  *   --dry-run         print what would change
+ *   --token-env=<VAR> env var holding the BFF's registry bearer (default ID_JAG_REGISTRY_TOKEN)
  *
  * Only connections whose id starts with "idjag-" are created or updated; nothing is deleted.
  */
@@ -26,11 +27,14 @@ const target = args.target || 'local';
 const registryUrl = args.registry || 'https://local.ping-devops.com:4000/api/id-jag-playground/trusted-idps/pingfederate';
 const ATM = args.atm || 'aiDemoPfMcpGatewayJwtAtm';
 const insecure = new https.Agent({ rejectUnauthorized: false }); // local + port-forwarded admin use self-signed certs
+const tokenEnv = args['token-env'] || 'ID_JAG_REGISTRY_TOKEN';
+const registryToken = process.env[tokenEnv];
 
 function getJson(url) {
   return new Promise((resolve, reject) => {
     const lib = url.startsWith('https:') ? https : http;
-    lib.get(url, url.startsWith('https:') ? { agent: insecure } : {}, (res) => {
+    const headers = registryToken ? { Authorization: `Bearer ${registryToken}` } : {};
+    lib.get(url, url.startsWith('https:') ? { agent: insecure, headers } : { headers }, (res) => {
       let body = '';
       res.on('data', (c) => { body += c; });
       res.on('end', () => {
@@ -123,6 +127,7 @@ function connectionFor(idp) {
 }
 
 (async () => {
+  if (!registryToken) throw new Error(`${tokenEnv} is not set; the registry endpoint needs it as a Bearer (export it, or pass --token-env=<VAR>)`);
   const { idps = [] } = await getJson(registryUrl);
   const existing = await admin('GET', '/sp/idpConnections');
   if (existing.status !== 200) throw new Error(`PingFederate admin API -> HTTP ${existing.status}`);

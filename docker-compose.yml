@@ -461,6 +461,10 @@ services:
       # ENTERPRISE_IDP_ISSUER and oauth-mcp validates `iss` against the same.
       ENTERPRISE_IDP_ISSUER: "${ENTERPRISE_IDP_ISSUER:-https://idp.ping.demo}"
       ENTERPRISE_IDP_JWKS_URL: "${ENTERPRISE_IDP_JWKS_URL:-https://demo-api-server:3001/api/enterprise-idp/jwks}"
+      # Bearer mcp-server must present to read the trusted-IdP registry. Same value on
+      # mcp-server below; override in the root .env. The compose default is a public
+      # dev value (local only) — k8s has no default and reads ai-demo-secrets.
+      ID_JAG_REGISTRY_TOKEN: "${ID_JAG_REGISTRY_TOKEN:-id-jag-registry-compose-dev}"
       # Where the BFF POSTS the grant vs the audience it names in the assertion.
       # These deliberately differ: oauth-mcp publishes its issuer via
       # OAUTH_ISSUER (http://localhost:8080 in compose — set on mcp-server so
@@ -1020,6 +1024,9 @@ services:
       ENTERPRISE_IDP_ISSUER: "${ENTERPRISE_IDP_ISSUER:-https://idp.ping.demo}"
       ENTERPRISE_IDP_JWKS_URL: "${ENTERPRISE_IDP_JWKS_URL:-https://demo-api-server:3001/api/enterprise-idp/jwks}"
       DEMO_API_BASE_URL: "https://demo-api-server:3001"
+      # Trusted-IdP registry fetch: bearer must equal demo-api-server's. Its TLS is
+      # verified via NODE_EXTRA_CA_CERTS (mkcert SAN covers demo-api-server).
+      ID_JAG_REGISTRY_TOKEN: "${ID_JAG_REGISTRY_TOKEN:-id-jag-registry-compose-dev}"
       # api_key feature tools (show_mortgage/show_health_record/...) executed by
       # this server itself on gateway-less hops (Privilege/Procyon Agent Privilege
       # client → mcp-server direct) — same credential swap the demo mcp-gateway

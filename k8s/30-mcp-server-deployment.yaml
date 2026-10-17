@@ -138,6 +138,19 @@ spec:
               name: ai-demo-secrets
               key: DEMO_MCP_RESOURCE_SERVER_KEY
               optional: true
+        # Trusted-IdP registry fetch (oauth-mcp IdJagTrustedIdps.ts) from the BFF
+        # at DEMO_API_BASE_URL. The bearer is shared with the BFF, which reads the
+        # same ai-demo-secrets key via envFrom; optional so a missing key fails the
+        # registry closed (BFF 503, keep last good list) instead of the pod start.
+        # The BFF's cert is the mkcert leaf in tls-certs, so pin its mkcert root.
+        - name: ID_JAG_REGISTRY_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-secrets
+              key: ID_JAG_REGISTRY_TOKEN
+              optional: true
+        - name: ID_JAG_REGISTRY_CA_FILE
+          value: "/registry-ca/rootCA.pem"
         - name: OTEL_EXPORTER_OTLP_ENDPOINT
           value: "http://jaeger:4317"
         - name: OTEL_SERVICE_NAME
@@ -153,6 +166,9 @@ spec:
         volumeMounts:
         - name: otel-instrument
           mountPath: /otel
+          readOnly: true
+        - name: registry-ca
+          mountPath: /registry-ca
           readOnly: true
         # TOKEN_STORAGE_PATH. Without a volume here the encrypted store writes
         # to the container filesystem and every restart discards it — which is
@@ -192,6 +208,13 @@ spec:
       - name: oauth-state
         persistentVolumeClaim:
           claimName: mcp-server-oauth-state
+      # Public mkcert root only (not the BFF's key) from the BFF's tls-certs secret.
+      - name: registry-ca
+        secret:
+          secretName: tls-certs
+          items:
+          - key: rootCA.pem
+            path: rootCA.pem
       restartPolicy: Always
       securityContext:
         runAsNonRoot: true

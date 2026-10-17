@@ -1,3 +1,4 @@
+import * as fs from 'fs';
 import * as https from 'https';
 import axios from 'axios';
 
@@ -8,6 +9,11 @@ import axios from 'axios';
  * The registry is fetched lazily with a short cache. A failed fetch keeps the
  * last good list (warned once) so a BFF blip never revokes trust mid-demo, and
  * never blocks startup or crashes the token endpoint.
+ *
+ * The registry decides whose ID-JAGs we accept, so the fetch is authenticated
+ * both ways: we send ID_JAG_REGISTRY_TOKEN as a Bearer, and we verify the BFF's
+ * TLS certificate — against ID_JAG_REGISTRY_CA_FILE (PEM, pinned) when set, else
+ * the default trust store (system roots + NODE_EXTRA_CA_CERTS). Never skipped.
  */
 
 export interface TrustedIdp {
@@ -88,10 +94,12 @@ export async function refreshRegistry(): Promise<void> {
   if (!inflight) {
     inflight = (async () => {
       try {
-        // In-cluster BFF serves a self-signed cert — same handling as BankingAPIClient.
+        const caFile = process.env.ID_JAG_REGISTRY_CA_FILE;
+        const token = process.env.ID_JAG_REGISTRY_TOKEN;
         const res = await axios.get(url, {
           timeout: TIMEOUT_MS,
-          httpsAgent: url.startsWith('https') ? new https.Agent({ rejectUnauthorized: false }) : undefined,
+          headers: token ? { Authorization: `Bearer ${token}` } : undefined,
+          httpsAgent: caFile && url.startsWith('https') ? new https.Agent({ ca: fs.readFileSync(caFile) }) : undefined,
         });
         registry = parseRegistry(res.data);
         warned = false;
