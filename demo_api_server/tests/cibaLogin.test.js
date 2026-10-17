@@ -80,13 +80,19 @@ const FULL_SCOPE = 'openid profile email offline_access read accounts:read write
 const REAL = { id: 'p1-user-1', username: 'alice', email: 'alice@example.com', mobilePhone: '+15555550100', enabled: true };
 
 let clock;
+// One long-lived loopback server per test app: supertest's per-request listen/close churn was the source of
+// intermittent 'socket hang up' / ECONNRESET when keep-alive agents reused a closed server under CPU load.
+const servers = [];
+afterAll(() => { servers.forEach((srv) => srv.close()); });
 function makeApp(trustProxy = true) {
   const app = express();
   app.set('trust proxy', trustProxy);
   app.use(express.json());
   app.use(session({ secret: 's', resave: false, saveUninitialized: false }));
   app.use('/api/auth/ciba/login', cibaLoginRoutes);
-  return app;
+  const srv = require('http').createServer(app).listen(0, '127.0.0.1');
+  servers.push(srv);
+  return srv;
 }
 const body = (over = {}) => ({ identifier: 'alice', channel: 'email', role: 'customer', ...over });
 const start = (agent, over) => agent.post('/api/auth/ciba/login/start').set('Content-Type', 'application/json').send(body(over));
@@ -105,6 +111,16 @@ function mockPingOne({ tokenReplies = [] } = {}) {
 }
 const pendingErr = () => Object.assign(new Error('pending'), { response: { data: { error: 'authorization_pending' } } });
 const TOKENS = { access_token: 'at', id_token: 'idt', refresh_token: 'rt', expires_in: 3600, token_type: 'Bearer', scope: FULL_SCOPE };
+
+jest.setTimeout(30000);
+
+// Non-timing tests run with every floor at zero; only the dedicated timing tests set real delays (and restore).
+afterEach(() => {
+  process.env.CIBA_LOGIN_START_FLOOR_MS = '0';
+  process.env.CIBA_LOGIN_POLL_FLOOR_MS = '0';
+  hosted.loadHostedAccessPolicy.mockReturnValue({ enabled: false });
+  hosted.evaluateHostedIdentity.mockReturnValue({ allowed: true, reason: 'gate_disabled' });
+});
 
 beforeEach(() => {
   jest.clearAllMocks();
@@ -438,7 +454,6 @@ describe('fix round 1', () => {
     expect(hosted.clearHostedAccessApproval).toHaveBeenCalled();
     expect(clearAuthCookie).toHaveBeenCalled();
     expect(establishUserSession).not.toHaveBeenCalled();
-    hosted.loadHostedAccessPolicy.mockReturnValue({ enabled: false });
   });
 
   it('refuses start and poll with 503 when the provider is pingfederate', async () => {
@@ -477,12 +492,17 @@ describe('fix round 1 additions', () => {
     expect(cibaPosts()).toHaveLength(5);
   });
 
-  it('D1: bogus identifiers never consume a real user\'s cap', async () => {
+  it('D1: unknown and ineligible starts never consume a real user\'s cap (all 5 real sends still go out)', async () => {
     const agent = request.agent(makeApp());
-    resolvePingOneIdentifier.mockImplementation(async (i) => (i === 'alice' ? { user: REAL, error: null } : { user: null, error: 'not_found' }));
-    for (let i = 0; i < 4; i++) await startFrom(agent, { identifier: 'alice' + i });
-    for (let i = 0; i < 4; i++) await startFrom(agent, { identifier: 'alice' });
-    expect(cibaPosts()).toHaveLength(4);
+    resolvePingOneIdentifier.mockImplementation(async (i, ) => (i.startsWith('ghost') ? { user: null, error: 'not_found' } : { user: REAL, error: null }));
+    for (let i = 0; i < 3; i++) await startFrom(agent, { identifier: 'ghost' + i });
+    // the real user, asked for a channel they cannot receive: ineligible, must not count
+    resolvePingOneIdentifier.mockResolvedValue({ user: { ...REAL, mobilePhone: '' }, error: null });
+    for (let i = 0; i < 6; i++) await startFrom(agent, { identifier: 'alice', channel: 'sms' });
+    expect(cibaPosts()).toHaveLength(0);
+    resolvePingOneIdentifier.mockResolvedValue({ user: REAL, error: null });
+    for (let i = 0; i < 5; i++) await startFrom(agent, { identifier: 'alice' });
+    expect(cibaPosts()).toHaveLength(5);
   });
 
   it('D1: per-IP 429 is unchanged', async () => {
