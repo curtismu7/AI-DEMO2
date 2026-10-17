@@ -856,6 +856,111 @@ router.post('/integration/enroll-sms-complete', async (req, res) => {
   }
 });
 
+// The TOTP seed must never reach a log: keyUri embeds it too.
+function _redactTotpSecret(body) {
+  if (!body || typeof body !== 'object') return body;
+  const out = { ...body };
+  if (out.secret) out.secret = '[redacted]';
+  if (out.keyUri) out.keyUri = '[redacted]';
+  return out;
+}
+
+/**
+ * POST /api/mfa/test/integration/enroll-totp-init
+ * Enroll a TOTP (authenticator app) device. The browser gets keyUri + secret to scan;
+ * logs get a redacted copy.
+ */
+router.post('/integration/enroll-totp-init', async (req, res) => {
+  try {
+    const { userId } = await _resolveCredentialsForEnrollment(req);
+    const _t = Date.now();
+    const device = await mfaService.enrollTotpDevice(userId);
+    const resBody = {
+      success: true,
+      deviceId: device.id,
+      type: device.type,
+      status: device.status,
+      secret: device.secret,
+      keyUri: device.keyUri,
+    };
+
+    if (device._debug) {
+      resBody.pingoneRequest = normalizePingoneRequest(device._debug && device._debug.request);
+      resBody.pingoneResponse = device._debug.response;
+      mfaLogger.logApiCall({
+        operation: 'Enroll TOTP Device',
+        method: device._debug.request?.method,
+        url: device._debug.request?.url,
+        headers: device._debug.request?.headers,
+        request: device._debug.request?.body,
+        response: _redactTotpSecret(device._debug.response),
+        status: 200,
+        duration: Date.now() - _t,
+        userId
+      });
+    }
+
+    res.json(resBody);
+    trackMfaApiCall(req, res, _t, {
+      ..._redactTotpSecret(resBody),
+      pingoneResponse: _redactTotpSecret(resBody.pingoneResponse),
+    }, 'Enroll TOTP authenticator device');
+  } catch (err) {
+    console.error('[MFA Test Integration] POST /enroll-totp-init failed:', err.message);
+    const errBody = { success: false, error: err.message, pingError: err.pingError };
+    if (err._debug) {
+      errBody.pingoneRequest = normalizePingoneRequest(err._debug && err._debug.request);
+      errBody.pingoneResponse = err._debug.response;
+    }
+    res.status(err.status || 500).json(errBody);
+  }
+});
+
+/**
+ * POST /api/mfa/test/integration/enroll-totp-complete
+ * Activate a TOTP device with the first code from the authenticator app.
+ * Body: { deviceId, otp }
+ */
+router.post('/integration/enroll-totp-complete', async (req, res) => {
+  try {
+    const { userId } = await _resolveCredentialsForEnrollment(req);
+    const { deviceId, otp } = req.body;
+    if (!deviceId || !otp) {
+      return res.status(400).json({ success: false, error: 'invalid_body', message: 'Provide deviceId and otp.' });
+    }
+    const _t = Date.now();
+    const result = await mfaService.activateTotpDevice(userId, deviceId, otp);
+    const resBody = { success: true, deviceId: result.id, status: result.status };
+
+    if (result._debug) {
+      resBody.pingoneRequest = normalizePingoneRequest(result._debug && result._debug.request);
+      resBody.pingoneResponse = result._debug.response;
+      mfaLogger.logApiCall({
+        operation: 'Complete TOTP Enrollment',
+        method: result._debug.request?.method,
+        url: result._debug.request?.url,
+        headers: result._debug.request?.headers,
+        request: result._debug.request?.body,
+        response: result._debug.response,
+        status: 200,
+        duration: Date.now() - _t,
+        userId
+      });
+    }
+
+    res.json(resBody);
+    trackMfaApiCall(req, res, _t, resBody, 'Complete TOTP device enrollment');
+  } catch (err) {
+    console.error('[MFA Test Integration] POST /enroll-totp-complete failed:', err.message);
+    const errBody = { success: false, error: err.message, pingError: err.pingError };
+    if (err._debug) {
+      errBody.pingoneRequest = normalizePingoneRequest(err._debug && err._debug.request);
+      errBody.pingoneResponse = err._debug.response;
+    }
+    res.status(err.status || 500).json(errBody);
+  }
+});
+
 /**
  * POST /api/mfa/test/integration/enroll-email
  * Enroll an email OTP device using PingOne MFA
