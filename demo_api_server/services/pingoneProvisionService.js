@@ -3533,7 +3533,17 @@ class PingOneProvisionService {
           // own intermediate (to accept the Exchange #1 subject token in Exchange #2)
           // plus its narrow derived scope on the A2A MCP Gateway resource (Exchange
           // #2's target, c.specialistAud).
+          // The runtime's generalist is whatever pingone_ai_agent_client_id names, which
+          // need not be the app created above (2026-10-13: the deleted original was
+          // replaced by a PingOne-native AI_AGENT app, left with no intermediate
+          // grants — every A2A Exchange #1 then failed "At least one scope must be
+          // granted"). Grant the configured actor too, so a recreate cannot strip it.
+          const configuredActorId = require('./configStore').getEffective('pingone_ai_agent_client_id');
+          const extraActorGrants = configuredActorId && configuredActorId !== aiAgentAppResult.application.id
+            ? [this.grantScopesToApplication(configuredActorId, specResourceResult.resource.id, [invokeScopeName])]
+            : [];
           await Promise.all([
+            ...extraActorGrants,
             this.grantScopesToApplication(aiAgentAppResult.application.id, specResourceResult.resource.id, [invokeScopeName]),
             this.grantScopesToApplication(app.id, a2aGwResourceResult.resource.id, specScopes),
             this.grantScopesToApplication(app.id, specResourceResult.resource.id, [invokeScopeName]),
