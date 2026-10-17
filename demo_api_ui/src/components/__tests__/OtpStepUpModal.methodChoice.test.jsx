@@ -73,7 +73,7 @@ describe('OtpStepUpModal method choice table', () => {
     const onChooseCiba = vi.fn();
     render(<OtpStepUpModal {...baseProps} mode="stub" onChooseCiba={onChooseCiba} cibaChannels={['email', 'sms']} />);
     expect(screen.getByText('CIBA - EMAIL')).toBeInTheDocument();
-    expect(screen.getByText('Approve by text link')).toBeInTheDocument();
+    expect(screen.getByText('CIBA - SMS')).toBeInTheDocument();
     fireEvent.click(screen.getByTestId('mfa-choose-ciba-sms'));
     expect(onChooseCiba).toHaveBeenLastCalledWith('sms');
     fireEvent.click(screen.getByTestId('mfa-choose-ciba'));
@@ -83,7 +83,7 @@ describe('OtpStepUpModal method choice table', () => {
   test('shows only the channels that are configured (text only)', () => {
     render(<OtpStepUpModal {...baseProps} mode="stub" onChooseCiba={vi.fn()} cibaChannels={['sms']} />);
     expect(screen.queryByText('CIBA - EMAIL')).not.toBeInTheDocument();
-    expect(screen.getByText('Approve by text link')).toBeInTheDocument();
+    expect(screen.getByText('CIBA - SMS')).toBeInTheDocument();
   });
 
   test('choosing Email code reveals the existing OTP entry UI', () => {

@@ -193,7 +193,7 @@ function MethodChoiceTable({
             <td>
               <span className="otp-step-up-modal__method-name">
                 <span className="otp-step-up-modal__method-badge otp-step-up-modal__method-badge--extra" aria-hidden>CIBA</span>
-                {ch === 'sms' ? 'Approve by text link' : 'CIBA - EMAIL'}
+                {ch === 'sms' ? 'CIBA - SMS' : 'CIBA - EMAIL'}
               </span>
             </td>
             <td className="otp-step-up-modal__method-detail">
