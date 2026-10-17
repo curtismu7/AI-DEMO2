@@ -417,16 +417,13 @@ function badgeStyle(bg, fg) {
 /**
  * SystemArchitectureView — the authoritative System Architecture tab body.
  *
- * Defaults to the full rendered diagram (overview2.png — the detailed render
- * of architecture.mmd, which covers every run-bank.sh SVC_LIST service plus
- * langchain). The legacy InteractiveArchDiagram is intentionally PARTIAL
+ * Defaults to the full architecture.mmd (every run-bank.sh SVC_LIST service
+ * plus langchain) drawn with React Flow; the PNG/SVG renders stay as downloads.
+ * The legacy InteractiveArchDiagram is intentionally PARTIAL
  * (5 of 14 nodes) and was retained only for its live TokenChainContext
  * highlighting (Phase 270 decision) — it's still reachable behind the toggle
  * but is no longer the default, so the page is accurate out of the box.
  */
-const ARCH_ZOOM_STEPS = [75, 100, 150, 200, 300];
-const ARCH_ZOOM_DEFAULT = 100;
-
 const FOCUS_OPTIONS = [
   { key: "full", label: "Full topology" },
   ...Object.entries(FOCUS_GROUPS).map(([key, group]) => ({
@@ -443,7 +440,7 @@ const FOCUS_OPTIONS = [
  */
 function FocusedArchitectureDiagram({ mmdSource, mmdError, focusKey }) {
   const filteredSource = useMemo(
-    () => (mmdSource ? buildFocusDiagram(mmdSource, focusKey) : ""),
+    () => (!mmdSource ? "" : focusKey === "full" ? mmdSource : buildFocusDiagram(mmdSource, focusKey)),
     [mmdSource, focusKey],
   );
   if (mmdError) {
@@ -468,13 +465,9 @@ function SystemArchitectureView() {
   const [focus, setFocus] = useState("full");
   const [mmdSource, setMmdSource] = useState(null);
   const [mmdError, setMmdError] = useState(false);
-  // Diagram's own native size is ~8429x4240px (see overview2.svg viewBox) —
-  // 100% already needs a wide monitor. Zoom in from there, don't start past
-  // native size.
-  const [zoom, setZoom] = useState(ARCH_ZOOM_DEFAULT);
 
   useEffect(() => {
-    if (focus === "full" || mmdSource !== null || mmdError) return;
+    if (mmdSource !== null || mmdError) return;
     let cancelled = false;
     fetch("/architecture/architecture.mmd")
       .then((res) => res.text())
@@ -487,18 +480,7 @@ function SystemArchitectureView() {
     return () => {
       cancelled = true;
     };
-  }, [focus, mmdSource, mmdError]);
-
-  const zoomOut = () =>
-    setZoom((z) => {
-      const idx = ARCH_ZOOM_STEPS.findIndex((s) => s >= z);
-      return idx > 0 ? ARCH_ZOOM_STEPS[idx - 1] : z;
-    });
-  const zoomIn = () =>
-    setZoom((z) => {
-      const idx = ARCH_ZOOM_STEPS.findIndex((s) => s > z);
-      return idx >= 0 ? ARCH_ZOOM_STEPS[idx] : z;
-    });
+  }, [mmdSource, mmdError]);
 
   return (
     <div className="iad-root">
@@ -547,7 +529,7 @@ function SystemArchitectureView() {
             <code style={{ fontFamily: "ui-monospace, Menlo, monospace" }}>
               architecture.mmd
             </code>
-            . This diagram is dense — use the zoom controls (or open the{" "}
+            . This diagram is dense — drag, pan and zoom it (or open the{" "}
             <a
               href="/architecture/overview"
               target="_blank"
@@ -583,140 +565,40 @@ function SystemArchitectureView() {
           </div>
 
           {focus !== "full" ? (
-            <>
-              <p
-                style={{
-                  fontSize: "0.8rem",
-                  color: "#334155",
-                  margin: "0 0 0.5rem 0",
-                }}
-              >
-                Showing only the {FOCUS_GROUPS[focus].label} slice of{" "}
-                <code style={{ fontFamily: "ui-monospace, Menlo, monospace" }}>
-                  architecture.mmd
-                </code>{" "}
-                — switch to Full topology for everything.
-              </p>
-              <FocusedArchitectureDiagram
-                mmdSource={mmdSource}
-                mmdError={mmdError}
-                focusKey={focus}
-              />
-            </>
+            <p
+              style={{
+                fontSize: "0.8rem",
+                color: "#334155",
+                margin: "0 0 0.5rem 0",
+              }}
+            >
+              Showing only the {FOCUS_GROUPS[focus].label} slice of{" "}
+              <code style={{ fontFamily: "ui-monospace, Menlo, monospace" }}>
+                architecture.mmd
+              </code>{" "}
+              — switch to Full topology for everything.
+            </p>
           ) : (
-            <>
-              <div
-                style={{
-                  display: "flex",
-                  alignItems: "center",
-                  gap: "0.5rem",
-                  padding: "0.4rem 0.6rem",
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 6,
-                  marginBottom: "0.5rem",
-                }}
-              >
-                <span
-                  style={{
-                    fontSize: "0.8rem",
-                    fontWeight: 600,
-                    color: "#475569",
-                  }}
-                >
-                  Zoom:
-                </span>
-                <button
-                  type="button"
-                  onClick={zoomOut}
-                  disabled={zoom <= ARCH_ZOOM_STEPS[0]}
-                  style={secondaryBtnStyle(zoom <= ARCH_ZOOM_STEPS[0])}
-                  aria-label="Zoom out"
-                >
-                  −
-                </button>
-                <span
-                  style={{
-                    fontSize: "0.85rem",
-                    fontWeight: 700,
-                    color: "#0f172a",
-                    minWidth: "3rem",
-                    textAlign: "center",
-                  }}
-                >
-                  {zoom}%
-                </span>
-                <button
-                  type="button"
-                  onClick={zoomIn}
-                  disabled={zoom >= ARCH_ZOOM_STEPS[ARCH_ZOOM_STEPS.length - 1]}
-                  style={secondaryBtnStyle(
-                    zoom >= ARCH_ZOOM_STEPS[ARCH_ZOOM_STEPS.length - 1],
-                  )}
-                  aria-label="Zoom in"
-                >
-                  +
-                </button>
-                <button
-                  type="button"
-                  onClick={() => setZoom(ARCH_ZOOM_DEFAULT)}
-                  style={secondaryBtnStyle(false)}
-                >
-                  Reset
-                </button>
-                <a
-                  href="/architecture/overview2.png"
-                  target="_blank"
-                  rel="noreferrer"
-                  style={{
-                    marginLeft: "auto",
-                    fontSize: "0.8rem",
-                    color: "#1e40af",
-                    textDecoration: "underline",
-                  }}
-                >
-                  Open image in new tab
-                </a>
-              </div>
-              <DiagramExportBar
-                items={[
-                  {
-                    label: "Mermaid (.mmd)",
-                    href: "/architecture/architecture.mmd",
-                  },
-                  { label: "PNG", href: "/architecture/overview2.png" },
-                  { label: "SVG", href: "/architecture/overview2.svg" },
-                  {
-                    label: "draw.io / Lucid (.drawio)",
-                    href: "/architecture/architecture.drawio",
-                  },
-                ]}
-              />
-              <div
-                style={{
-                  background: "#ffffff",
-                  border: "1px solid #e2e8f0",
-                  borderRadius: 6,
-                  overflow: "auto",
-                  maxHeight: "calc(100vh - 260px)",
-                }}
-              >
-                <img
-                  src="/architecture/overview2.svg"
-                  alt="Full banking demo architecture: browser, BFF, MCP gateway, backend MCP servers (OLB/invest/mortgage), HITL service, agent service, langchain agent, and PingOne OAuth + RFC 8693 token exchange"
-                  onError={(e) => {
-                    e.target.src = "/architecture/overview2.png";
-                  }}
-                  style={{
-                    display: "block",
-                    width: `${zoom}%`,
-                    height: "auto",
-                    minWidth: "600px",
-                  }}
-                />
-              </div>
-            </>
+            <DiagramExportBar
+              items={[
+                {
+                  label: "Mermaid (.mmd)",
+                  href: "/architecture/architecture.mmd",
+                },
+                { label: "PNG", href: "/architecture/overview2.png" },
+                { label: "SVG", href: "/architecture/overview2.svg" },
+                {
+                  label: "draw.io / Lucid (.drawio)",
+                  href: "/architecture/architecture.drawio",
+                },
+              ]}
+            />
           )}
+          <FocusedArchitectureDiagram
+            mmdSource={mmdSource}
+            mmdError={mmdError}
+            focusKey={focus}
+          />
         </>
       ) : (
         <InteractiveArchDiagram />
