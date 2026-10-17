@@ -154,7 +154,7 @@ export const MORE_MENU_FLAG_IDS = [
 const cibaWaitingText = (code, channel) => {
   const via =
     channel === "sms" ? "text message" : channel === "email" ? "email" : "email or text message";
-  return `Approval link sent by ${via}. Open it and approve to continue.${code ? ` Match code: ${code}` : ""}`;
+  return `We sent an approval link by ${via}. There is nothing to type: open the link${code ? `, check the page shows match code ${code},` : ""} then tap Approve.`;
 };
 const cibaApprovalText = (terminology) =>
   `Approve ${terminology?.highValueAction || "banking transaction"}`;
