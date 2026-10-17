@@ -11,6 +11,7 @@ vi.mock('../../utils/appToast', () => ({ notifyError: vi.fn(), notifyInfo: vi.fn
 
 const P1_USER = { id: 'p1-uuid', username: 'demoUser', name: 'Demo User' };
 let pfDown = false;
+let pfStatusFails = false;
 let mappedId = 'p1-uuid';
 vi.mock('../../services/apiClient', () => ({
   default: {
@@ -22,7 +23,7 @@ vi.mock('../../services/apiClient', () => ({
       } });
       if (u.includes('/api/mfa/test/users')) return Promise.resolve({ data: { success: true, users: [P1_USER] } });
       if (u.includes('/api/mfa/test/session-user')) return Promise.resolve({ data: { provider: 'pingfederate', username: 'demouser', pingOneUserId: mappedId } });
-      if (u.includes('/api/auth/pingfederate/status')) return Promise.resolve({ data: { down: pfDown } });
+      if (u.includes('/api/auth/pingfederate/status')) return pfStatusFails ? Promise.reject(new Error('502')) : Promise.resolve({ data: { down: pfDown } });
       if (u.includes('/api/mfa/test/worker-token')) return Promise.resolve({ data: { success: true, status: 'valid' } });
       if (u.includes('/api/mfa/test/config')) return Promise.resolve({ data: { mfaEnabled: true } });
       return Promise.resolve({ data: {} });
@@ -46,7 +47,7 @@ test('the PF user is resolved to its PingOne account by username for the default
 });
 
 describe('PingFederate credentials line', () => {
-  beforeEach(() => { pfDown = false; mappedId = 'p1-uuid'; });
+  beforeEach(() => { pfDown = false; pfStatusFails = false; mappedId = 'p1-uuid'; });
 
   test('shows PF reachable and the PingOne account MFA runs on; pill is Ready', async () => {
     render(<MFATestPage />);
@@ -68,4 +69,19 @@ describe('PingFederate credentials line', () => {
     const line = await screen.findByTestId('mfa-credentials-line');
     await waitFor(() => expect(line).toHaveTextContent(/no matching PingOne user/));
   });
+});
+
+test('a failed PF status check is "status unavailable", not "PingFederate Down"', async () => {
+  pfStatusFails = true;
+  render(<MFATestPage />);
+  const line = await screen.findByTestId('mfa-credentials-line');
+  await waitFor(() => expect(line).toHaveTextContent(/PingFederate: status unavailable/));
+  expect(screen.queryByText(/PingFederate Down/)).not.toBeInTheDocument();
+  pfStatusFails = false;
+});
+
+test('Fix Passkey RP is admin-only, so a customer session does not see it', async () => {
+  render(<MFATestPage />);
+  await screen.findByTestId('mfa-credentials-line');
+  expect(screen.queryByRole('button', { name: /Fix Passkey RP/ })).not.toBeInTheDocument();
 });
