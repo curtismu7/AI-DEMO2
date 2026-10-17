@@ -49,6 +49,14 @@ export interface VerifyOpts {
    * leaked assertion cannot be redeemed by a different registered client.
    */
   clientId?: string;
+  /**
+   * IdP-side client id -> this server's client id. The spec's client_id is the
+   * client's identifier at the resource AS, but an IdP such as PingFederate may
+   * fill it from the client the user's refresh token belongs to (a different id).
+   * An entry here lets that value stand for the redeeming client; anything not
+   * listed must still equal the redeeming client exactly.
+   */
+  clientAliases?: Record<string, string>;
   /** Accept an ID-JAG with no client_id claim (IdP not yet emitting it). Off by default. */
   allowUnboundClient?: boolean;
   /** Resolves the verification key. Production passes a jose remote JWKS. */
@@ -152,7 +160,7 @@ export async function verifyIdJag(assertion: string, opts: VerifyOpts): Promise<
       if (!opts.allowUnboundClient) {
         throw new IdJagError('ID-JAG carries no client_id; it cannot be bound to the redeeming client');
       }
-    } else if (boundClient !== opts.clientId) {
+    } else if (boundClient !== opts.clientId && opts.clientAliases?.[boundClient] !== opts.clientId) {
       throw new IdJagError('ID-JAG was issued to a different client');
     }
   }

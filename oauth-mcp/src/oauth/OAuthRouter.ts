@@ -54,6 +54,16 @@ export function redirectUriIsRegistered(registered: string[], requested: string)
  * the enterprise IdP's issuer and its JWKS endpoint are configured. Both are
  * unset by default, so the demo's RFC 8693 stand-in path is unaffected.
  */
+/** "idp-client=our-client,other=ours" -> { 'idp-client': 'our-client', other: 'ours' } */
+function parseClientAliases(raw?: string): Record<string, string> {
+  const out: Record<string, string> = {};
+  for (const pair of (raw || '').split(',')) {
+    const [from, to] = pair.split('=').map((s) => s.trim());
+    if (from && to) out[from] = to;
+  }
+  return out;
+}
+
 export function nativeIdJagEnabled(): boolean {
   return Boolean(process.env.ENTERPRISE_IDP_ISSUER && process.env.ENTERPRISE_IDP_JWKS_URL);
 }
@@ -549,6 +559,7 @@ export class OAuthRouter {
   private idJagVerifyOpts(clientId?: string): VerifyOpts {
     return {
       clientId,
+      clientAliases: parseClientAliases(process.env.ENTERPRISE_IDP_ID_JAG_CLIENT_MAP),
       allowUnboundClient: process.env.ENTERPRISE_IDP_ALLOW_UNBOUND_ID_JAG === 'true',
       idpIssuer: process.env.ENTERPRISE_IDP_ISSUER as string,
       ownIssuer: this.issuer,
