@@ -52,7 +52,7 @@ jest.mock('../data/store', () => {
 
 // The shared jest setup runs jest.resetModules() after every test, so these handles
 // are re-required in arm() (before the route is) to be the same instances the route sees.
-let oauthService, validateToken, finishLoginAudit, clearAuthCookie, setAuthCookie, stampHostedAccessApproval;
+let routeMod, oauthService, validateToken, finishLoginAudit, clearAuthCookie, setAuthCookie, stampHostedAccessApproval;
 
 const OIDC_CONFIG = { jwksEndpoint: 'https://idp.example/jwks', issuer: 'https://idp.example/as', clientId: 'test-client' };
 const b64 = (v) => Buffer.from(JSON.stringify(v)).toString('base64url');
@@ -70,13 +70,13 @@ const SEED = {
   hostedLoginAudits: [{ id: 'audit-1' }],
 };
 
-function makeApp({ failRegenerate = false, failSave = false, holder = {} } = {}) {
+function makeApp({ failRegenerate = false, failSave = false, holder = {}, seed = {} } = {}) {
   const store = new session.MemoryStore();
   if (failSave) store.set = (_sid, _s, cb) => cb(new Error('store down'));
   const app = express();
   app.use(session({ secret: 's', resave: false, saveUninitialized: true, store }));
   app.use((req, _res, next) => {
-    Object.assign(req.session, SEED);
+    Object.assign(req.session, SEED, seed);
     if (failRegenerate) req.session.regenerate = (cb) => cb(new Error('regen down'));
     next();
   });
@@ -89,15 +89,28 @@ function makeApp({ failRegenerate = false, failSave = false, holder = {} } = {})
   return app;
 }
 
-const callback = (app) => request(app).get('/api/auth/oauth/user/callback').query({ code: 'c', state: 'st-1' });
+const callback = (app, cookie) => {
+  const r = request(app).get('/api/auth/oauth/user/callback').query({ code: 'c', state: 'st-1' });
+  return cookie ? r.set('Cookie', cookie) : r;
+};
+
+/** Seed a live pending ID-JAG run in the route's own store; returns its cookie header + nonce. */
+function seedPendingRun() {
+  const run = routeMod.setPendingIdJagRun({ session: {} }, {
+    useCaseId: 'enterprise-managed-mcp-authorization', mode: 'live-id-jag', message: 'hi', returnTo: '/dashboard',
+  });
+  return { nonce: run.nonce, cookie: `_id_jag_run=${run.nonce}` };
+}
+const pendingFor = (cookie) => routeMod.pendingIdJagRun({ headers: { cookie } });
 
 function arm() {
+  routeMod = require('../routes/oauthUser');
   oauthService = require('../services/oauthUserService');
   validateToken = require('../services/tokenValidationService').validateToken;
   ({ finishLoginAudit } = require('../services/authAccessAuditService'));
   ({ clearAuthCookie, setAuthCookie } = require('../services/authStateCookie'));
   ({ stampHostedAccessApproval } = require('../services/hostedAccessPolicy'));
-    require('../services/configStore').getOAuthProvider.mockReturnValue('pingone');
+  require('../services/configStore').getOAuthProvider.mockReturnValue('pingone');
   require('../services/configStore').getEffective.mockReturnValue('');
   require('../services/configStore').setConfig.mockResolvedValue(undefined);
   require('../services/pingOneUserLookupService').fetchPingOneUserById.mockResolvedValue({ user: null });
@@ -127,11 +140,15 @@ const setCookies = (res) => (res.headers['set-cookie'] || []).join('\n');
 
 test('regenerate failure: redirects session_regenerate_failed, clears ID-JAG cookie + auth cookie, audits failure, stores nothing', async () => {
   const holder = {};
-  const res = await callback(makeApp({ failRegenerate: true, holder }));
+  const { cookie } = seedPendingRun();
+  expect(pendingFor(cookie)).not.toBeNull();
+  const res = await callback(makeApp({ failRegenerate: true, holder }), cookie);
 
   expect(res.status).toBe(302);
   expect(res.headers.location).toContain('error=session_regenerate_failed');
-  expect(setCookies(res)).toMatch(/idjag|id_jag|id-jag/i);
+  expect(setCookies(res)).toMatch(/^_id_jag_run=;/m);
+  // The failure branch must drop the server-side pending run (the cookie alone is cleared earlier, unconditionally).
+  expect(pendingFor(cookie)).toBeNull();
   expect(clearAuthCookie).toHaveBeenCalledTimes(1);
   expect(finishLoginAudit).toHaveBeenCalledWith(expect.anything(), { outcome: 'failure', reasonCode: 'session_regenerate_failed' });
   expect(clearAuthCookie.mock.invocationCallOrder[0]).toBeLessThan(finishLoginAudit.mock.invocationCallOrder[0]);
@@ -142,7 +159,8 @@ test('regenerate failure: redirects session_regenerate_failed, clears ID-JAG coo
 
 test('save failure: redirects session_persist_failed, audits, destroys session, clears auth cookie', async () => {
   const holder = {};
-  const res = await callback(makeApp({ failSave: true, holder }));
+  const { cookie } = seedPendingRun();
+  const res = await callback(makeApp({ failSave: true, holder }), cookie);
 
   expect(res.status).toBe(302);
   expect(res.headers.location).toContain('error=session_persist_failed');
@@ -151,7 +169,9 @@ test('save failure: redirects session_persist_failed, audits, destroys session, 
   expect(clearAuthCookie).toHaveBeenCalledTimes(1);
   expect(setAuthCookie).not.toHaveBeenCalled();
   expect(holder.session).toBeUndefined(); // req.session.destroy() removed it
-  // The ID-JAG cookie is cleared unconditionally earlier in /callback, so it is not asserted here.
+  // The save-failure branch does not call clearPendingIdJagRun (same as before the extraction), so the
+  // server-side pending run survives. (The cookie itself is cleared earlier in /callback regardless.)
+  expect(pendingFor(cookie)).not.toBeNull();
   expect(finishLoginAudit.mock.invocationCallOrder[0]).toBeLessThan(clearAuthCookie.mock.invocationCallOrder[0]);
 });
 
@@ -173,4 +193,19 @@ test('success: onRegenerated stamps land on the NEW session, auth cookie set, au
   expect(finishLoginAudit).toHaveBeenCalledWith(expect.anything(), expect.objectContaining({ outcome: 'success', reasonCode: 'allowed' }));
   expect(setAuthCookie).toHaveBeenCalledTimes(1);
   expect(clearAuthCookie).not.toHaveBeenCalled();
+});
+
+test('success with a validated ID-JAG handoff: idJagRunIntent lands on the NEW session and the run is consumed', async () => {
+  require('../services/configStore').getOAuthProvider.mockReturnValue('pingfederate');
+  const holder = {};
+  const { cookie, nonce } = seedPendingRun();
+  const res = await callback(makeApp({
+    holder,
+    seed: { oauthLoginProvider: 'pingfederate', pendingIdJagNonce: nonce, postLoginReturnToPath: '/dashboard' },
+  }), cookie);
+
+  expect(res.headers.location).toContain('oauth=success');
+  expect(holder.session.idJagRunIntent).toMatchObject({ nonce, returnTo: '/dashboard', mode: 'live-id-jag' });
+  expect(holder.session.oauthProvider).toBe('pingfederate');
+  expect(pendingFor(cookie)).toBeNull();
 });
