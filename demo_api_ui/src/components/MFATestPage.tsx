@@ -124,6 +124,9 @@ const MFATestPageContent: FC = () => {
   const [enrollEmailInput, setEnrollEmailInput] = useState("");
   const [existingFido2Device, setExistingFido2Device] =
     useState<MFADevice | null>(null);
+  // MFA always runs on PingOne; under PingFederate the session maps to a PingOne user.
+  const [sessionUser, setSessionUser] = useState<{ provider: string | null; username: string | null; pingOneUserId: string | null } | null>(null);
+  const [pfDown, setPfDown] = useState<boolean | null>(null);
   const [renamingDeviceId, setRenamingDeviceId] = useState<string | null>(null);
   const [nicknameDraft, setNicknameDraft] = useState("");
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
@@ -396,6 +399,18 @@ const MFATestPageContent: FC = () => {
   useEffect(() => {
     loadConfig();
     loadWorkerToken();
+    apiClient
+      .get("/api/mfa/test/session-user")
+      .then(({ data }) => {
+        setSessionUser(data);
+        if (data?.provider === "pingfederate") {
+          apiClient
+            .get("/api/auth/pingfederate/status")
+            .then(({ data: pf }) => setPfDown(Boolean(pf?.down)))
+            .catch(() => setPfDown(true));
+        }
+      })
+      .catch(() => setSessionUser(null));
     // Pick the default test user. Priority: logged-in user > demoUser.
     // demoUser lives beyond the default 100-user page, so resolve it by username
     // and pin it to the picker (always visible/selectable) regardless of the default.
@@ -1374,14 +1389,26 @@ const MFATestPageContent: FC = () => {
         <div className="mfa-test-meta">
           <div className="mfa-test-status">
             <span
-              className={`mfa-status-pill ${config?.mfaEnabled && workerTokenStatus === "valid" ? "mfa-status-pill--success" : "mfa-status-pill--error"}`}
+              className={`mfa-status-pill ${config?.mfaEnabled && workerTokenStatus === "valid" && !pfDown ? "mfa-status-pill--success" : "mfa-status-pill--error"}`}
             >
-              {config?.mfaEnabled && workerTokenStatus === "valid"
-                ? " Ready"
-                : !config?.mfaEnabled
-                  ? " MFA Disabled"
-                  : " Worker Token Missing"}
+              {!config?.mfaEnabled
+                ? " MFA Disabled"
+                : workerTokenStatus !== "valid"
+                  ? " Worker Token Missing"
+                  : pfDown
+                    ? " PingFederate Down"
+                    : " Ready"}
             </span>
+            {sessionUser?.provider && (
+              <span className="info-text" data-testid="mfa-credentials-line" style={{ marginLeft: "0.75rem" }}>
+                {sessionUser.provider === "pingfederate" &&
+                  `PingFederate: ${pfDown === null ? "checking…" : pfDown ? "down" : "reachable"} · `}
+                {`PingOne MFA worker: ${workerTokenStatus === "valid" ? "valid" : "not available"} · `}
+                {sessionUser.pingOneUserId
+                  ? `MFA runs on PingOne for ${sessionUser.username} (PingOne user ${sessionUser.pingOneUserId})`
+                  : `${sessionUser.username} has no matching PingOne user, so PingOne MFA is unavailable`}
+              </span>
+            )}
           </div>
           <div className="mfa-test-actions">
             <button

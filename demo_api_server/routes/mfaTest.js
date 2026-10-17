@@ -1365,6 +1365,21 @@ router.get('/integration/fido2-policy-diag', async (req, res) => {
  * GET /api/mfa/test/worker-token
  * Test worker token acquisition (no user auth required — uses client_credentials)
  */
+/**
+ * GET /api/mfa/test/session-user
+ * Which login provider signed this session in and the PingOne account MFA acts on.
+ * MFA always runs on PingOne; a PingFederate login maps to the PingOne user with
+ * the same username (pingOneUserId null when there is none).
+ */
+router.get('/session-user', async (req, res) => {
+  const user = req.session?.user;
+  res.json({
+    provider: req.session?.oauthProvider || user?.oauthProvider || null,
+    username: user?.username || null,
+    pingOneUserId: user ? await sessionPingOneUserId(req) : null,
+  });
+});
+
 router.get('/worker-token', async (req, res) => {
   try {
     // The same PingOne worker token the MFA calls use. The agent login it used to
