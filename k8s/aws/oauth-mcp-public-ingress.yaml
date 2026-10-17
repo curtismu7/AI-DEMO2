@@ -1,0 +1,24 @@
+# Public OAuth endpoints of oauth-mcp (the mcp-server container), so an outside party's
+# agent can redeem an ID-JAG from its own IdP at our resource authorization server
+# (RFC 7523 JWT bearer). Only the authorization-server paths are exposed: MCP itself
+# stays behind the MCP gateway. The host is oauth-mcp's issuer (OAUTH_ISSUER), which is
+# also the `aud` an outside IdP must put in the ID-JAG.
+#
+# Apply: kubectl -n ping-devops-cmuir apply -f k8s/aws/oauth-mcp-public-ingress.yaml
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth-mcp-public
+  annotations:
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+spec:
+  ingressClassName: nginx-public
+  rules:
+    - host: cmuir-mcp.ping-devops.com
+      http:
+        paths:
+          - { path: /token, pathType: Exact, backend: { service: { name: mcp-server, port: { number: 8080 } } } }
+          - { path: /jwks, pathType: Exact, backend: { service: { name: mcp-server, port: { number: 8080 } } } }
+          - { path: /.well-known/oauth-authorization-server, pathType: Exact, backend: { service: { name: mcp-server, port: { number: 8080 } } } }
+          - { path: /.well-known/openid-configuration, pathType: Exact, backend: { service: { name: mcp-server, port: { number: 8080 } } } }

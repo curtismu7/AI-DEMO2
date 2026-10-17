@@ -337,8 +337,12 @@ function configFor(req) {
     ],
     // What an outside IdP needs: aud = the issuer, and where its client redeems.
     publicEndpoints: {
-      'oauth-mcp': { issuer: oauthMcp.resourceAs.issuer, tokenEndpoint: oauthMcp.resourceAs.tokenEndpoint },
-      pingfederate: { issuer: cfg('pf_issuer') || cfg('pf_issuer_uri'), tokenEndpoint: cfg('pf_token_endpoint') },
+      // What an outside agent calls, derived from each issuer (the in-cluster URLs the BFF
+      // itself uses are not reachable from outside). ID_JAG_PUBLIC_OAUTH_MCP_TOKEN_ENDPOINT overrides.
+      'oauth-mcp': { issuer: oauthMcp.resourceAs.issuer,
+        tokenEndpoint: env('ID_JAG_PUBLIC_OAUTH_MCP_TOKEN_ENDPOINT') || (oauthMcp.resourceAs.issuer ? `${oauthMcp.resourceAs.issuer.replace(/\/$/, '')}/token` : '') },
+      pingfederate: { issuer: cfg('pf_issuer') || cfg('pf_issuer_uri'),
+        tokenEndpoint: (cfg('pf_issuer') || cfg('pf_issuer_uri')) ? `${(cfg('pf_issuer') || cfg('pf_issuer_uri')).replace(/\/$/, '')}/as/token.oauth2` : '' },
     },
     byo: req.session?.idJagPlayground?.byo || null,
     signedIn: pfSignedIn(req), hasIdJag: !!req.session?.idJagPlayground?.idJag,
