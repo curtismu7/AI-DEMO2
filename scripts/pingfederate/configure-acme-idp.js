@@ -184,6 +184,18 @@ const acceptAll = (m) => ({ attributeSources: [], issuanceCriteria: { conditiona
     attributeContract: { extendedAttributes: [{ name: 'sub' }] },
   });
 
+  // Publish ONLY the ID-JAG key. PingFederate signs ID-JAGs with an x5t header and no kid,
+  // and PingFederate's own JWT-bearer consumer does not pick the key by x5t: with several RSA
+  // keys in /pf/JWKS (the dynamic OAuth keys) it verifies against the wrong one and answers
+  // "Invalid JWT token". A static key set holding just this key fixes that for any consumer.
+  const ok = await api('GET', '/keyPairs/oauthOpenIdConnect');
+  if (!ok.body?.staticJwksEnabled || ok.body?.rsaActiveCertRef?.id !== 'acme-idjag-signing') {
+    report('static JWKS = the ID-JAG key only', await api('PUT', '/keyPairs/oauthOpenIdConnect', {
+      staticJwksEnabled: true, rsaActiveCertRef: { id: 'acme-idjag-signing' }, rsaActiveKeyId: 'acme-idjag',
+      rsaPublishX5cParameter: true, publishDynamicKeyX5cs: false,
+    }));
+  } else console.log('  keep static JWKS');
+
   // One ID-JAG SP connection per resource AS we trust Acme towards. resource selects the
   // connection; the entity id becomes the ID-JAG aud; client_id is the client at THAT AS.
   const spConnection = (id, name, entityId, resource, clientId) => ({
