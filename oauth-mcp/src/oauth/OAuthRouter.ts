@@ -586,10 +586,13 @@ export class OAuthRouter {
           const matches = (response.data.keys || []).filter((key) =>
             key.x5t === header.x5t && (!header.alg || !key.alg || key.alg === header.alg),
           );
-          if (matches.length !== 1) {
-            throw new Error(`expected one JWKS key for x5t ${header.x5t}, found ${matches.length}`);
+          // A static PF key set lists the same key under several kids (kid, kid_RS256, an
+          // ATM's copy). The same certificate is one key: require one DISTINCT key.
+          const distinct = [...new Map(matches.map((key) => [`${key.kty}.${key.n}.${key.e}.${key.x}.${key.y}`, key])).values()];
+          if (distinct.length !== 1) {
+            throw new Error(`expected one JWKS key for x5t ${header.x5t}, found ${distinct.length}`);
           }
-          return importJWK(matches[0] as Parameters<typeof importJWK>[0], header.alg || 'RS256');
+          return importJWK(distinct[0] as Parameters<typeof importJWK>[0], header.alg || 'RS256');
         }
 
         let keySet = remoteKeySets.get(jwksUrl);

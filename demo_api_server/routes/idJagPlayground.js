@@ -275,8 +275,10 @@ async function verifySignature(idJag, h, s) {
       // PingFederate publishes certificate-backed keys identified by x5t.
       const { data } = await axios.get(s.idp.jwksUrl, { timeout: 10000 });
       const match = (data.keys || []).filter((k) => k.x5t === h.x5t && (!k.alg || k.alg === h.alg));
-      if (match.length !== 1) throw new Error(`expected one JWKS key for x5t ${h.x5t}, found ${match.length}`);
-      key = await importJWK(match[0], h.alg || 'RS256');
+      // The same key may be listed under several kids (static PF key sets): count distinct keys.
+      const distinct = [...new Map(match.map((k) => [`${k.kty}.${k.n}.${k.e}.${k.x}.${k.y}`, k])).values()];
+      if (distinct.length !== 1) throw new Error(`expected one JWKS key for x5t ${h.x5t}, found ${distinct.length}`);
+      key = await importJWK(distinct[0], h.alg || 'RS256');
     } else {
       key = createRemoteJWKSet(new URL(s.idp.jwksUrl));
     }
