@@ -65,6 +65,11 @@ function report(what, r) {
   if (!ok) failed = true;
   console.log(`  ${ok ? 'ok  ' : 'FAIL'} ${what}${ok ? '' : `: HTTP ${r.status} ${JSON.stringify(r.body?.validationErrors || r.body?.message || r.body)}`}`);
 }
+/** Create, or bring an existing one in line with what this script wants. */
+async function upsert(what, p, collection, body) {
+  const have = await api('GET', p);
+  report(`${have.status === 200 ? 'update' : 'create'} ${what}`, have.status === 200 ? await api('PUT', p, body) : await api('POST', collection, body));
+}
 /** Create unless GET finds it. */
 async function ensure(what, getPath, postPath, body) {
   const have = await api('GET', getPath);
@@ -152,9 +157,9 @@ const acceptAll = (m) => ({ attributeSources: [], issuanceCriteria: { conditiona
 
   // Acme's own ID-JAG signing key (published in its /pf/JWKS).
   const keys = await api('GET', '/keyPairs/signing');
-  if (!(keys.body?.items || []).some((k) => k.id === 'acmeIdJagSigning')) {
-    report('signing key acmeIdJagSigning', await api('POST', '/keyPairs/signing/generate', {
-      id: 'acmeIdJagSigning', commonName: 'Acme ID-JAG signing', organization: 'Acme Corp (demo)', country: 'US',
+  if (!(keys.body?.items || []).some((k) => k.id === 'acme-idjag-signing')) {
+    report('signing key acme-idjag-signing', await api('POST', '/keyPairs/signing/generate', {
+      id: 'acme-idjag-signing', commonName: 'Acme ID-JAG signing', organization: 'Acme Corp (demo)', country: 'US',
       validDays: 730, keyAlgorithm: 'RSA', keySize: 2048, signatureAlgorithm: 'SHA256withRSA',
     }));
   } else console.log('  keep signing key');
@@ -163,9 +168,9 @@ const acceptAll = (m) => ({ attributeSources: [], issuanceCriteria: { conditiona
   // connection; the entity id becomes the ID-JAG aud; client_id is the client at THAT AS.
   const spConnection = (id, name, entityId, resource, clientId) => ({
     type: 'SP', id, name, entityId, active: true, loggingMode: 'STANDARD', virtualEntityIds: [], connectionTargetType: 'STANDARD',
-    credentials: { certs: [], signingSettings: { signingKeyPairRef: { id: 'acmeIdJagSigning' }, algorithm: 'SHA256withRSA', includeCertInSignature: false, includeRawKeyInSignature: false } },
+    credentials: { certs: [], signingSettings: { signingKeyPairRef: { id: 'acme-idjag-signing' }, algorithm: 'SHA256withRSA', includeCertInSignature: false, includeRawKeyInSignature: false } },
     oauthTokenExchangeSettings: {
-      resourceUris: [resource], minutesBefore: 5, minutesAfter: 30, idJagEnabled: true,
+      resourceUris: [resource], minutesBefore: 5, minutesAfter: 5, idJagEnabled: true, // ID-JAGs live about 5 minutes (spec, Okta)
       attributeContract: { coreAttributes: [{ name: 'TOKEN_SUBJECT' }], extendedAttributes: [{ name: 'client_id' }, { name: 'scope' }] },
       processorPolicyMappings: [acceptAll({
         processorPolicyRef: { id: 'acmeIdJagPolicy' },
@@ -177,9 +182,9 @@ const acceptAll = (m) => ({ attributeSources: [], issuanceCriteria: { conditiona
       })],
     },
   });
-  await ensure(`SP connection to our oauth-mcp (aud ${OAUTH_MCP})`, '/idp/spConnections/acmeToOauthMcp', '/idp/spConnections',
+  await upsert(`SP connection to our oauth-mcp (aud ${OAUTH_MCP})`, '/idp/spConnections/acmeToOauthMcp', '/idp/spConnections',
     spConnection('acmeToOauthMcp', 'ID-JAG to Ping demo oauth-mcp', OAUTH_MCP, `${OAUTH_MCP}/mcp`, 'acme-agent'));
-  await ensure(`SP connection to our PingFederate (aud ${OUR_PF})`, '/idp/spConnections/acmeToPingFed', '/idp/spConnections',
+  await upsert(`SP connection to our PingFederate (aud ${OUR_PF})`, '/idp/spConnections/acmeToPingFed', '/idp/spConnections',
     spConnection('acmeToPingFed', 'ID-JAG to Ping demo PingFederate', OUR_PF, 'https://api.ping.demo:3036/mcp', 'ai-demo-pf-idjag-redeemer'));
 
   console.log(failed ? '[acme] finished with failures' : `[acme] done. Issuer https://${HOST}, JWKS https://${HOST}/pf/JWKS`);
