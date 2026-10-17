@@ -164,6 +164,26 @@ const acceptAll = (m) => ({ attributeSources: [], issuanceCriteria: { conditiona
     }));
   } else console.log('  keep signing key');
 
+  // PingFederate does NOT publish an ID-JAG signing key by itself: /pf/JWKS lists it only
+  // when a JWT token manager carries it with "Publish Keys to the PingFederate JWKS Endpoint".
+  // Without this, every resource AS fails with "no JWKS key for x5t …".
+  const jwtAtm = 'com.pingidentity.pf.access.token.management.plugins.JwtBearerAccessTokenManagementPlugin';
+  const desc = await api('GET', `/oauth/accessTokenManagers/descriptors/${jwtAtm}`);
+  const fields = (desc.body?.configDescriptor?.fields || []).filter((x) => x.defaultValue !== undefined && x.defaultValue !== null)
+    .map((x) => ({ name: x.name, value: String(x.defaultValue) }));
+  const setField = (name, value) => { const x = fields.find((y) => y.name === name); if (x) x.value = value; else fields.push({ name, value }); };
+  setField('Use Centralized Signing Key', 'false');
+  setField('Active Signing Certificate Key ID', 'acme-idjag-signing');
+  setField('Publish Keys to the PingFederate JWKS Endpoint', 'true');
+  setField('Issuer Claim Value', `https://${HOST}`);
+  await ensure('ID-JAG key publisher acmeKeyPublisher', '/oauth/accessTokenManagers/acmeKeyPublisher', '/oauth/accessTokenManagers', {
+    id: 'acmeKeyPublisher', name: 'Acme ID-JAG key publisher', pluginDescriptorRef: { id: jwtAtm },
+    configuration: { fields, tables: [
+      { name: 'Certificates', rows: [{ defaultRow: false, fields: [{ name: 'Key ID', value: 'acme-idjag-signing' }, { name: 'Certificate', value: 'acme-idjag-signing' }] }] },
+      { name: 'Symmetric Keys', rows: [] }] },
+    attributeContract: { extendedAttributes: [{ name: 'sub' }] },
+  });
+
   // One ID-JAG SP connection per resource AS we trust Acme towards. resource selects the
   // connection; the entity id becomes the ID-JAG aud; client_id is the client at THAT AS.
   const spConnection = (id, name, entityId, resource, clientId) => ({
