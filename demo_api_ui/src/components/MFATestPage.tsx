@@ -9,6 +9,13 @@ import "./MFATestPage.css";
 import ApiCallPreviewCard from "./shared/ApiCallPreviewCard";
 import MFATestCard from "./MFATestCard";
 import MFATestCibaSection from "./MFATestCibaSection";
+import MFATestConsentSection from "./MFATestConsentSection";
+import MFATestForgotPasswordSection from "./MFATestForgotPasswordSection";
+import MFATestPfCibaSection from "./MFATestPfCibaSection";
+import MFATestProtectSection from "./MFATestProtectSection";
+import MFATestSignInSection from "./MFATestSignInSection";
+import MFATestStepUpSection from "./MFATestStepUpSection";
+import MFATestTotpSection from "./MFATestTotpSection";
 import PingOneApiPanel from "./PingOneApiPanel";
 import MFALogsModal from "./MFALogsModal";
 import { useThemeOptional } from "../context/ThemeContext";
@@ -117,6 +124,11 @@ const MFATestPageContent: FC = () => {
   const [enrollEmailInput, setEnrollEmailInput] = useState("");
   const [existingFido2Device, setExistingFido2Device] =
     useState<MFADevice | null>(null);
+  // MFA always runs on PingOne; under PingFederate the session maps to a PingOne user.
+  const [sessionUser, setSessionUser] = useState<{ provider: string | null; username: string | null; pingOneUserId: string | null } | null>(null);
+  const [pfDown, setPfDown] = useState<boolean | null>(null);
+  const [renamingDeviceId, setRenamingDeviceId] = useState<string | null>(null);
+  const [nicknameDraft, setNicknameDraft] = useState("");
   const [deletingDeviceId, setDeletingDeviceId] = useState<string | null>(null);
   const [fidoEnrollInitStatus, setFidoEnrollInitStatus] = useState("pending");
   const [fidoAaguid, setFidoAaguid] = useState<string | null>(null);
@@ -321,6 +333,19 @@ const MFATestPageContent: FC = () => {
     }
   }, []);
 
+  const renameDevice = async (deviceId: string) => {
+    const nickname = nicknameDraft.trim();
+    if (!nickname) return;
+    try {
+      await apiClient.patch(`/api/auth/mfa/devices/${deviceId}/nickname`, { nickname });
+      notifySuccess("Device renamed");
+      setRenamingDeviceId(null);
+      loadDevices();
+    } catch (err) {
+      notifyError(`Rename failed: ${err?.response?.data?.message || err?.response?.data?.error || err.message}`);
+    }
+  };
+
   const deleteDevice = useCallback(
     async (deviceId) => {
       if (!deviceId) return;
@@ -374,6 +399,18 @@ const MFATestPageContent: FC = () => {
   useEffect(() => {
     loadConfig();
     loadWorkerToken();
+    apiClient
+      .get("/api/mfa/test/session-user")
+      .then(({ data }) => {
+        setSessionUser(data);
+        if (data?.provider === "pingfederate") {
+          apiClient
+            .get("/api/auth/pingfederate/status")
+            .then(({ data: pf }) => setPfDown(Boolean(pf?.down)))
+            .catch(() => setPfDown(true));
+        }
+      })
+      .catch(() => setSessionUser(null));
     // Pick the default test user. Priority: logged-in user > demoUser.
     // demoUser lives beyond the default 100-user page, so resolve it by username
     // and pin it to the picker (always visible/selectable) regardless of the default.
@@ -1352,14 +1389,26 @@ const MFATestPageContent: FC = () => {
         <div className="mfa-test-meta">
           <div className="mfa-test-status">
             <span
-              className={`mfa-status-pill ${config?.mfaEnabled && workerTokenStatus === "valid" ? "mfa-status-pill--success" : "mfa-status-pill--error"}`}
+              className={`mfa-status-pill ${config?.mfaEnabled && workerTokenStatus === "valid" && !pfDown ? "mfa-status-pill--success" : "mfa-status-pill--error"}`}
             >
-              {config?.mfaEnabled && workerTokenStatus === "valid"
-                ? " Ready"
-                : !config?.mfaEnabled
-                  ? " MFA Disabled"
-                  : " Worker Token Missing"}
+              {!config?.mfaEnabled
+                ? " MFA Disabled"
+                : workerTokenStatus !== "valid"
+                  ? " Worker Token Missing"
+                  : pfDown
+                    ? " PingFederate Down"
+                    : " Ready"}
             </span>
+            {sessionUser?.provider && (
+              <span className="info-text" data-testid="mfa-credentials-line" style={{ marginLeft: "0.75rem" }}>
+                {sessionUser.provider === "pingfederate" &&
+                  `PingFederate: ${pfDown === null ? "checking…" : pfDown ? "down" : "reachable"} · `}
+                {`PingOne MFA worker: ${workerTokenStatus === "valid" ? "valid" : "not available"} · `}
+                {sessionUser.pingOneUserId
+                  ? `MFA runs on PingOne for ${sessionUser.username} (PingOne user ${sessionUser.pingOneUserId})`
+                  : `${sessionUser.username} has no matching PingOne user, so PingOne MFA is unavailable`}
+              </span>
+            )}
           </div>
           <div className="mfa-test-actions">
             <button
@@ -1640,7 +1689,7 @@ const MFATestPageContent: FC = () => {
           <WhatIsHappening
             title="Device Management — Listing Enrolled MFA Devices"
             steps={[
-              "GET /api/mfa/test/devices → BFF calls PingOne Management API to list all MFA devices for the authenticated user",
+              "GET /api/mfa/test/integration/devices → BFF calls PingOne Management API to list all MFA devices for the authenticated user",
               "Each device has: type (SMS, EMAIL, FIDO2_BIOMETRICS), nickname/email, status (ACTIVE, INACTIVE), and enrolledAt date",
               "Devices are the registered MFA factors — each one can be used to satisfy an MFA challenge",
               "Admins can disable or delete devices via PingOne console or Management API",
@@ -1648,13 +1697,18 @@ const MFATestPageContent: FC = () => {
             apiFlow={[
               {
                 method: "GET",
-                endpoint: "/api/mfa/test/devices",
+                endpoint: "/api/mfa/test/integration/devices",
                 note: "List enrolled MFA devices",
               },
               {
                 method: "GET",
                 endpoint: "/v1/environments/{envId}/users/{userId}/devices",
                 note: "PingOne Management API",
+              },
+              {
+                method: "PATCH",
+                endpoint: "/api/auth/mfa/devices/{deviceId}/nickname",
+                note: "Rename a device (the app's own route)",
               },
             ]}
           />
@@ -1695,13 +1749,42 @@ const MFATestPageContent: FC = () => {
                         {new Date(device.createdAt).toLocaleDateString()}
                       </span>
                     )}
+                    {renamingDeviceId === device.id ? (
+                      <span style={{ marginLeft: "auto", display: "inline-flex", gap: 4 }}>
+                        <input
+                          className="otp-input"
+                          aria-label="New device name"
+                          data-testid="mfa-device-rename-input"
+                          value={nicknameDraft}
+                          maxLength={64}
+                          onChange={(e) => setNicknameDraft(e.target.value)}
+                          onKeyDown={(e) => { if (e.key === "Enter") renameDevice(device.id); }}
+                          style={{ width: 160, fontSize: "0.85rem" }}
+                        />
+                        <button type="button" className="mfa-test-button mfa-test-button--primary" style={{ padding: "2px 10px", fontSize: "0.8rem" }} onClick={() => renameDevice(device.id)} disabled={!nicknameDraft.trim()}>
+                          Save
+                        </button>
+                        <button type="button" className="mfa-test-button mfa-test-button--secondary" style={{ padding: "2px 10px", fontSize: "0.8rem" }} onClick={() => setRenamingDeviceId(null)}>
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        type="button"
+                        className="mfa-test-button mfa-test-button--secondary"
+                        data-testid="mfa-device-rename"
+                        style={{ marginLeft: "auto", padding: "2px 10px", fontSize: "0.8rem" }}
+                        onClick={() => { setRenamingDeviceId(device.id); setNicknameDraft(device.nickname || ""); }}
+                      >
+                        Rename
+                      </button>
+                    )}
                     <button
                       type="button"
                       className="mfa-test-button mfa-test-button--danger"
                       disabled={deletingDeviceId === device.id}
                       onClick={() => deleteDevice(device.id)}
                       style={{
-                        marginLeft: "auto",
                         padding: "2px 10px",
                         fontSize: "0.8rem",
                       }}
@@ -2522,6 +2605,22 @@ const MFATestPageContent: FC = () => {
               ]}
             />
             <MFATestCibaSection channel={ch} />
+          </section>
+        ))}
+
+        {/* How the app uses MFA: each card drives the app's own routes/UI, not the test harness. */}
+        {[
+          ["Sign-in MFA (the app's sign-in pop-up)", <MFATestSignInSection key="signin" />],
+          ["Step-up MFA (SMS, email, authenticator app, push, passkey)", <MFATestStepUpSection key="stepup" />],
+          ["Authenticator App (TOTP) Registration", <MFATestTotpSection key="totp" />],
+          ["Transaction Consent (human-in-the-loop approval)", <MFATestConsentSection key="consent" />],
+          ["PingFederate CIBA", <MFATestPfCibaSection key="pfciba" />],
+          ["PingOne Protect Risk Evaluation", <MFATestProtectSection key="protect" />],
+          ["Forgot Password (MFA-verified reset)", <MFATestForgotPasswordSection key="forgot" />],
+        ].map(([title, card]) => (
+          <section className="mfa-test-section" key={String(title)}>
+            <h2 className="mfa-test-section-title">{title}</h2>
+            {card}
           </section>
         ))}
 

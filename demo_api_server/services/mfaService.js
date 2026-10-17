@@ -681,6 +681,101 @@ async function enrollEmailDevice(userId, email) {
 }
 
 /**
+ * Enroll a TOTP (authenticator app) device via Management API (worker token).
+ * PingOne returns it ACTIVATION_REQUIRED with `secret` and `keyUri` (otpauth://)
+ * for the user to scan; activateTotpDevice finishes it with the first code.
+ * @param {string} userId
+ * Returns { id, type, status, secret, keyUri }
+ */
+async function enrollTotpDevice(userId) {
+  try {
+    const workerToken = await _getWorkerToken();
+    const url = `${_apiBaseUrl()}/users/${userId}/devices`;
+    const reqBody = { type: "TOTP" };
+    const debugRequest = {
+      method: "POST",
+      url: url,
+      body: reqBody,
+      contentType: "application/json",
+      headers: _debugHeaders(workerToken, "application/json"),
+    };
+    let data;
+    try {
+      const resp = await axios.post(url, reqBody, {
+        headers: {
+          Authorization: `Bearer ${workerToken}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      });
+      data = resp.data;
+    } catch (err) {
+      err._debug = {
+        request: debugRequest,
+        response: err.response?.data || null,
+      };
+      throw err;
+    }
+    mfaDebug(
+      "[MFA] enrolled TOTP device userId=%s deviceId=%s status=%s",
+      userId,
+      data.id,
+      data.status,
+    );
+    return { ...data, _debug: { request: debugRequest, response: data } };
+  } catch (err) {
+    throw _wrapError("enrollTotpDevice", err);
+  }
+}
+
+/**
+ * Activate a TOTP device with the first code from the authenticator app.
+ * POST /users/{userId}/devices/{deviceId}, Content-Type device.activate+json.
+ * Returns { id, status }
+ */
+async function activateTotpDevice(userId, deviceId, otp) {
+  try {
+    const workerToken = await _getWorkerToken();
+    const url = `${_apiBaseUrl()}/users/${userId}/devices/${deviceId}`;
+    const reqBody = { otp };
+    const contentType = "application/vnd.pingidentity.device.activate+json";
+    const debugRequest = {
+      method: "POST",
+      url: url,
+      body: reqBody,
+      contentType,
+      headers: _debugHeaders(workerToken, contentType),
+    };
+    let data;
+    try {
+      const resp = await axios.post(url, reqBody, {
+        headers: {
+          Authorization: `Bearer ${workerToken}`,
+          "Content-Type": contentType,
+        },
+        timeout: 10000,
+      });
+      data = resp.data;
+    } catch (err) {
+      err._debug = {
+        request: debugRequest,
+        response: err.response?.data || null,
+      };
+      throw err;
+    }
+    mfaDebug(
+      "[MFA] activated TOTP device userId=%s deviceId=%s status=%s",
+      userId,
+      data.id,
+      data.status,
+    );
+    return { ...data, _debug: { request: debugRequest, response: data } };
+  } catch (err) {
+    throw _wrapError("activateTotpDevice", err);
+  }
+}
+
+/**
  * Make sure a user can pass MFA (and so reset a forgotten password): enroll an
  * email OTP device unless they already have an active device of any type.
  * @returns {{status: 'existing'|'created', count?: number, deviceId?: string, deviceStatus?: string}}
@@ -1410,6 +1505,8 @@ module.exports = {
   enrollSmsDevice,
   completeSmsEnrollment,
   completeEmailEnrollment,
+  enrollTotpDevice,
+  activateTotpDevice,
   initFido2Registration,
   completeFido2Registration,
   deleteDevice,
