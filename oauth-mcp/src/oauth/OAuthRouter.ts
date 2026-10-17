@@ -10,7 +10,7 @@ import { createJwksKeySet, getJose } from '../auth/jwks';
 import {
   verifyIdJag, IdJagError, JWT_BEARER_GRANT, ID_JAG_GRANT_PROFILE, VerifyOpts,
 } from './IdJagGrantHandler';
-import { resolveAudience } from './TokenIssuer';
+import { resolveIdJagResources } from './TokenIssuer';
 import { AUTHORIZATION_SERVER_SCOPES } from './scopes';
 import { resolveAuthorizeParams } from './brokerPrompt';
 import { emitHop } from '../utils/transactionHop';
@@ -552,7 +552,7 @@ export class OAuthRouter {
       allowUnboundClient: process.env.ENTERPRISE_IDP_ALLOW_UNBOUND_ID_JAG === 'true',
       idpIssuer: process.env.ENTERPRISE_IDP_ISSUER as string,
       ownIssuer: this.issuer,
-      acceptedResources: resolveAudience(),
+      acceptedResources: resolveIdJagResources(),
       getKey: (async (protectedHeader: unknown) => {
         const jwksUrl = process.env.ENTERPRISE_IDP_JWKS_URL as string;
         const { createRemoteJWKSet, importJWK } = await getJose();

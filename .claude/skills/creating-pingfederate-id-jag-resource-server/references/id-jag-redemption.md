@@ -48,11 +48,12 @@ claim for an IdP that does not emit it yet (off by default). The default
 register it as confidential and `ENTERPRISE_IDP_REQUIRE_CLIENT_AUTH=true` to refuse
 public clients at the jwt-bearer grant.
 
-Each `jti` is single-use. The replay cache is an in-memory, process-local map
-whose entries expire at the assertion expiration time. It rejects a replay in
-one `oauth-mcp` process, but it is not shared across replicas or restarts. A
-multi-replica deployment needs a shared replay store before it can claim global
-single-use enforcement.
+Each `jti` is single-use. The replay cache is mirrored into the same encrypted
+store the token store uses (`TOKEN_STORAGE_PATH` + `ENCRYPTION_KEY`), so a restart
+no longer reopens the window; entries expire at the assertion's expiration and
+expired ones are dropped on restore. It is still one process's view: several
+`oauth-mcp` replicas would need a store they all share (the k8s deployment runs
+one replica). Without the storage env it is in-memory only.
 
 ## Redemption result
 
@@ -81,3 +82,20 @@ guards and `oauth-mcp/src/oauth/__tests__/OAuthRouter.idJag.test.ts` for token
 endpoint redemption, PF-style `x5t` selection, feature advertisement, and
 scope behavior. These tests document the intended validation contract; they do
 not make a mock token acceptable in a deployed path.
+
+## Agent identity on the redeemed token
+
+The ID-JAG carries no delegation chain, so the redeemed access token has no `act`
+claim. The redeeming client is recorded as `client_id` (and the user as `sub`);
+that is the agent identity downstream policy can read. Adding an `act` claim would
+invent a delegation the assertion does not state, and the gateway's policy rejects
+actor ids that are not registered identities.
+
+## Accepted resources
+
+The assertion's `resource` must be one this server serves. By default that is the
+whole `MCP_SERVER_RESOURCE_URI` list, which also names other servers (the gateway,
+PingOne's API). `ENTERPRISE_IDP_ID_JAG_RESOURCES` narrows it to the aliases that
+really name this MCP server; the docker-compose `mcp-server` service sets it, minus
+`https://api.pingone.com`. The issued token's audience stays this server's own
+canonical audience, because an authorization server may only assert its own.

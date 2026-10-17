@@ -87,7 +87,7 @@ jest.mock('jose', () => ({
 }));
 
 // eslint-disable-next-line import/first
-import { verifyIdJag, IdJagError, resetReplayCacheForTests } from '../IdJagGrantHandler';
+import { verifyIdJag, IdJagError, resetReplayCacheForTests, attachReplayStorage } from '../IdJagGrantHandler';
 
 const IDP_ISSUER = 'https://idp.ping.demo';
 const AS_ISSUER = 'https://mcpserver.ping.demo:8080';
@@ -127,6 +127,33 @@ function mintIdJag(
 }
 
 beforeEach(() => resetReplayCacheForTests());
+
+describe('replay cache persistence', () => {
+  it('keeps a spent jti spent across a restart', async () => {
+    const saved: Record<string, unknown> = {};
+    const storage = {
+      store: async (k: string, d: unknown) => { saved[k] = JSON.parse(JSON.stringify(d)); },
+      retrieve: async (k: string) => saved[k] ?? null,
+    };
+    await attachReplayStorage(storage);
+    const assertion = mintIdJag();
+    await verifyIdJag(assertion, OPTS());
+    await new Promise((r) => setImmediate(r)); // let the fire-and-forget persist land
+
+    resetReplayCacheForTests(); // the "restart": memory gone, storage kept
+    await attachReplayStorage(storage);
+    await expect(verifyIdJag(assertion, OPTS())).rejects.toThrow(/replay/);
+  });
+
+  it('drops expired entries when restoring', async () => {
+    const storage = {
+      store: async () => undefined,
+      retrieve: async () => ({ 'old-jti': Date.now() - 1000 }),
+    };
+    await attachReplayStorage(storage);
+    await expect(verifyIdJag(mintIdJag({ jti: 'old-jti' }), OPTS())).resolves.toBeDefined();
+  });
+});
 
 describe('verifyIdJag', () => {
   describe('client binding', () => {

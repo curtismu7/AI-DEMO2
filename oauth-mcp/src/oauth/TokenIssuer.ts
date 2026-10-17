@@ -26,6 +26,19 @@ export function resolveAudience(): string[] {
   return raw.split(',').map((s) => s.trim()).filter(Boolean);
 }
 
+/**
+ * Resources an ID-JAG may name. MCP_SERVER_RESOURCE_URI is the set this server
+ * ACCEPTS tokens for and lists other resource servers too (the gateway,
+ * PingOne's API); an ID-JAG asking for one of those is not a grant for this
+ * server. ENTERPRISE_IDP_ID_JAG_RESOURCES narrows it to the aliases that really
+ * name this MCP server. Unset keeps the old behaviour (the full accepted list).
+ */
+export function resolveIdJagResources(): string[] {
+  const narrowed = (process.env.ENTERPRISE_IDP_ID_JAG_RESOURCES || '')
+    .split(',').map((s) => s.trim()).filter(Boolean);
+  return narrowed.length > 0 ? narrowed : resolveAudience();
+}
+
 /** The ONLY audience this embedded AS is entitled to assert: its own resource
  *  URI — the first entry of MCP_SERVER_RESOURCE_URI. The remaining entries name
  *  OTHER resource servers (the gateway, PingOne's API); this AS has no authority

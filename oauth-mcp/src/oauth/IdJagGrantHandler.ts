@@ -58,9 +58,42 @@ export interface VerifyOpts {
   ) => Promise<crypto.KeyObject | jose.CryptoKey | Uint8Array>;
 }
 
-// ponytail: in-memory replay cache, single-process. A shared store is needed
-// only if oauth-mcp is scaled to multiple replicas.
+// Replay cache. Process-local by default; attachReplayStorage() makes it survive
+// a restart by mirroring it into the same encrypted store the token store uses.
+// That is still one replica's view: running several oauth-mcp replicas needs a
+// store they all share (the k8s deployment runs exactly one).
 const seenJti = new Map<string, number>();
+const REPLAY_KEY = 'id-jag-replay';
+let replayStorage: ReplayStorage | undefined;
+
+/** The slice of IEncryptedTokenStorage the replay cache needs. */
+export interface ReplayStorage {
+  store(key: string, data: unknown): Promise<void>;
+  retrieve(key: string): Promise<unknown | null>;
+}
+
+function persistReplay(): void {
+  if (!replayStorage) return;
+  replayStorage.store(REPLAY_KEY, Object.fromEntries(seenJti)).catch((err: unknown) => {
+    console.warn(`[IdJag] could not persist replay cache: ${err instanceof Error ? err.message : String(err)}`);
+  });
+}
+
+/** Restore still-live jtis after a restart, then keep the store in step. */
+export async function attachReplayStorage(storage: ReplayStorage): Promise<void> {
+  replayStorage = storage;
+  try {
+    const saved = await storage.retrieve(REPLAY_KEY);
+    if (saved && typeof saved === 'object') {
+      const nowMs = Date.now();
+      for (const [jti, expiresAtMs] of Object.entries(saved as Record<string, number>)) {
+        if (typeof expiresAtMs === 'number' && expiresAtMs > nowMs) seenJti.set(jti, expiresAtMs);
+      }
+    }
+  } catch (err) {
+    console.warn(`[IdJag] could not read persisted replay cache: ${err instanceof Error ? err.message : String(err)}`);
+  }
+}
 
 function rememberJti(jti: string, expSeconds: number): void {
   const nowMs = Date.now();
@@ -68,11 +101,13 @@ function rememberJti(jti: string, expSeconds: number): void {
     if (expiresAtMs <= nowMs) seenJti.delete(key);
   }
   seenJti.set(jti, expSeconds * 1000);
+  persistReplay();
 }
 
 /** Test-only: clears the replay cache so each test starts fresh. */
 export function resetReplayCacheForTests(): void {
   seenJti.clear();
+  replayStorage = undefined;
 }
 
 /**

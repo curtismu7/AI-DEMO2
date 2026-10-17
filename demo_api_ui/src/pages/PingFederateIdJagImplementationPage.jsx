@@ -24,7 +24,7 @@ const NODES = [
 
 const NOTES = [
   { id: "n-bff", x: 0, y: 520, text: "BFF-only custody: refresh token, ID-JAG and every access token stay server-side. Fail-closed: no mock or PingOne fallback in PF mode." },
-  { id: "n-jti", x: 1120, y: 760, text: "jti replay cache is in-memory, per oauth-mcp process (not shared across replicas/restarts)." },
+  { id: "n-jti", x: 1120, y: 760, text: "jti replay cache is persisted to the encrypted token store, so it survives a restart. It is still one replica's view: several oauth-mcp replicas would need a shared store (k8s runs one)." },
   { id: "n-gap", x: 2240, y: 700, text: "Not on the default UC40 path: investment and airlines tools route to demo_mcp_resource_server instead. It verifies only PF or PingOne JWKS (it cannot check an oauth-mcp signature) and has no expected-issuer or iat check." },
 ];
 
