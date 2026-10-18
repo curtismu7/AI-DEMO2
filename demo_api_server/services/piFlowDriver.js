@@ -182,7 +182,8 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
         .filter((d) => !(pending.provider === 'pingfederate' && /^fido2$/i.test(d.type)))
         .map((d) => ({
           id: d.id,
-          type: d.type,
+          // PF sends "Email" where PingOne sends "EMAIL"; the modal keys labels on PingOne's case.
+          type: String(d.type || '').toUpperCase(),
           nickname: d.nickname || null,
           email: d.email || (/^email$/i.test(d.type) ? d.target : null) || null,
           phone: d.phone || (/^(sms|voice)$/i.test(d.type) ? d.target : null) || null,
