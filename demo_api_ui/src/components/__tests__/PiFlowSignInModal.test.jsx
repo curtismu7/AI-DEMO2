@@ -47,7 +47,9 @@ async function chooseAndSettle(kind) {
   await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
 }
 
-const ON = { PINGONE_USER_AUTHORIZE_PI_FLOW: 'true', oauth_provider: 'pingone' };
+// ciba_login_enabled ships OFF; the suite's default config turns it ON so the choice screen (and the
+// chooseAndSettle helper) is exercised. The flag-off describe at the bottom pins the pre-feature behaviour.
+const ON = { PINGONE_USER_AUTHORIZE_PI_FLOW: 'true', oauth_provider: 'pingone', ciba_login_enabled: 'true' };
 
 describe('PiFlowSignInModal', () => {
   let assign;
@@ -1089,5 +1091,42 @@ describe('PiFlowSignInModal choice screen (passkey / CIBA / password)', () => {
     expect(await screen.findByLabelText('Password')).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: 'Sign in with passkey' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Sign in with CIBA (email or SMS)' })).toBeNull();
+  });
+});
+
+// Flag off (the shipped default): the modal is exactly the pre-CIBA modal, no choice screen, no CIBA button.
+describe('PiFlowSignInModal with ciba_login_enabled off', () => {
+  beforeEach(() => { stubLocation(); });
+  const OFF = { PINGONE_USER_AUTHORIZE_PI_FLOW: 'true', PINGONE_ADMIN_AUTHORIZE_PI_FLOW: 'true', oauth_provider: 'pingone' };
+
+  async function openOff(role, config) {
+    global.fetch = vi.fn((url) => {
+      const u = String(url);
+      if (u.includes('/api/admin/config')) return ok({ config });
+      if (u.includes('/identifier-policy')) return ok({ rejectPlusAddressing: false, allowedIdentifiers: [] });
+      if (u.includes('/login')) return ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' });
+      return ok({}, 404);
+    });
+    render(<PiFlowSignInModal />);
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+    await act(async () => { (role === 'admin' ? navigateToAdminOAuthLogin : navigateToCustomerOAuthLogin)('/x'); });
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+  }
+  const openUrl = () => String(global.fetch.mock.calls.find(([u]) => String(u).includes('pi_flow=1'))[0]);
+
+  test.each([['absent', OFF], ['"false"', { ...OFF, ciba_login_enabled: 'false' }]])('flag %s: customer opens device-first, no choice screen or CIBA button', async (_n, cfg) => {
+    await openOff('customer', cfg);
+    expect(screen.queryByRole('button', { name: 'Sign in with CIBA (email or SMS)' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Use a password instead' })).toBeNull();
+    expect(await screen.findByRole('button', { name: 'Use your password instead' })).toBeInTheDocument();
+    expect(openUrl()).toContain('passwordless=1');
+  });
+
+  test('flag off: admin opens on the password step', async () => {
+    await openOff('admin', OFF);
+    expect(screen.queryByRole('button', { name: 'Sign in with CIBA (email or SMS)' })).toBeNull();
+    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+    expect(openUrl()).not.toContain('passwordless=1');
   });
 });

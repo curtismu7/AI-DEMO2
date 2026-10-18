@@ -8,7 +8,7 @@ import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 import SignInBrand from "./SignInBrand";
 import CibaLoginPanel from "./CibaLoginPanel";
-import { isAicLoginEnabled } from "../utils/aicLogin";
+import { isAicLoginEnabled, isCibaLoginEnabled } from "../utils/aicLogin";
 
 const apiBase = () =>
   process.env.REACT_APP_API_URL ||
@@ -117,6 +117,7 @@ export default function PiFlowSignInModal() {
   const roleRef = useRef("customer");
   const forceRef = useRef(false);
   const providerRef = useRef("pingone");
+  const cibaEnabledRef = useRef(false); // ciba_login_enabled; off = no choice screen (pre-CIBA behaviour)
   // Remember who is signing in as: 800 ms after the last keystroke in a
   // username field, store the value as the role's login hint so the next
   // sign-in prefills it. The sign-in callback also stores it; this covers a
@@ -153,6 +154,7 @@ export default function PiFlowSignInModal() {
         const adminOn = ["true", "1"].includes(String(cfg.PINGONE_ADMIN_AUTHORIZE_PI_FLOW).toLowerCase());
         if (!cancelled) {
           providerRef.current = provider;
+          cibaEnabledRef.current = isCibaLoginEnabled(cfg);
           // AIC login is a redirect to an external IdP — keep the redirect login.
           setUserDrivable(drivable && userOn && !isAicLoginEnabled(cfg));
           setAdminDrivable(drivable && adminOn);
@@ -210,10 +212,10 @@ export default function PiFlowSignInModal() {
     passkeyOptionsRef.current = null;
     // PingFederate has no device-first step (the BFF 409s it): password first.
     const passwordFirst = role === "admin" || providerRef.current === "pingfederate";
-    // Passwordless project: both roles open on a CHOICE screen (passkey / CIBA
+    // With ciba_login_enabled on, both roles open on a CHOICE screen (passkey / CIBA
     // approval link / "use a password") with no flow opened yet. PingFederate
     // and the ?signin=mfa test hook keep the legacy first step below.
-    const choiceFirst = providerRef.current !== "pingfederate" && !mfaRequested();
+    const choiceFirst = cibaEnabledRef.current && providerRef.current !== "pingfederate" && !mfaRequested();
     setStep(choiceFirst ? "choice" : passwordFirst ? "password" : "device");
     setError("");
     setUsername("");
