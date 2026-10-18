@@ -39,7 +39,7 @@
   },
   "agent": {
     "persona": "OAuth Teacher",
-    "greeting": "Hi {name}! I'm your OAuth teacher. I can explain OAuth 2.0/2.1 and OIDC concepts, show you the live token chain, and demonstrate real authorization flows. What would you like to learn?"
+    "greeting": "Hi {name}! I'm your OAuth teacher. I can explain OAuth 2.0/2.1 and OIDC concepts, show you the live token chain, and demonstrate real authorization flows.\n\nTry one of these to get started:\n\n- **OBO**: \"how does token exchange work (rfc 8693)\"\n- **A2A**: \"what is act and may_act delegation\"\n- **MFA**: \"what is step-up authentication\"\n- **Human approval**: \"demonstrate hitl approval\""
   },
   "dashboard": {
     "kind": "oauth-teaching",

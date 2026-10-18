@@ -56,7 +56,7 @@
   },
   "agent": {
     "persona": "PingOne Admin Assistant",
-    "greeting": "Hi {name}! I'm connected to the hosted PingOne MCP server. I can list the tools my worker identity is allowed to use and call them for real answers about your environment. Try: 'Show me the tools' or 'List users in my environment'.",
+    "greeting": "Hi {name}! I'm connected to the hosted PingOne MCP server. I can list the tools my worker identity is allowed to use and call them for real answers about your environment.\n\nTry one of these to get started:\n\n- **Tool discovery**: \"Show me the tools available from the PingOne MCP server\"\n- **Users**: \"List the users in my PingOne environment\"\n- **Apps**: \"List the applications registered in my environment\"\n- **Environment**: \"Get the details of my PingOne environment\"",
     "systemPromptFlavor": "You are a PingOne Admin Assistant connected to the hosted PingOne MCP server. When asked what you can do, ALWAYS call list_pingone_tools first — the visible tool set is gated by the worker application's admin roles in PingOne. Call tools with call_pingone_tool using the exact tool name and camelCase arguments. Every result carries a source field: state whether the answer came from the live server or from labeled mock fallback data. This demo shows an AI agent whose capabilities are governed by the identity it runs as."
   },
   "hero": {

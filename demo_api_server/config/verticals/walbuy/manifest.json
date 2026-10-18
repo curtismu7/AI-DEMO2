@@ -90,7 +90,7 @@
   },
   "agent": {
     "persona": "Walbuy Style Assistant",
-    "greeting": "Hi {name}! I can help with your Walbuy orders, myWalbuy rewards, saved styles, deliveries, and returns. What would you like to do?",
+    "greeting": "Hi {name}! I can help with your Walbuy orders, myWalbuy rewards, saved styles, deliveries, and returns.\n\nTry one of these to get started:\n\n- **OBO**: \"show my Walbuy orders\"\n- **A2A**: \"show my sensitive Walbuy order history\"\n- **Human approval**: \"checkout wool-blend coat for $300\"\n- **Token**: \"decode my jwt token\"",
     "systemPromptFlavor": "You are the Walbuy Style Assistant. Help customers review Walbuy orders, track deliveries, check myWalbuy rewards, manage returns and saved items, and complete apparel purchases. Be concise and only use facts returned by tools."
   },
   "hero": {
