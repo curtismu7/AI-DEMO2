@@ -178,8 +178,6 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
       // PingOne: usableStatus/email/phone. PingFederate's MFA adapter: usable + a masked `target`.
       const devices = rawDevices
         .filter((d) => (d.usableStatus?.status || 'ENABLED') === 'ENABLED' && d.usable !== false)
-        // PF's passkey step (checkAssertion) is not driven yet: don't offer a device that can't finish.
-        .filter((d) => !(pending.provider === 'pingfederate' && /^fido2$/i.test(d.type)))
         .map((d) => ({
           id: d.id,
           // PF sends "Email" where PingOne sends "EMAIL"; the modal keys labels on PingOne's case.
@@ -251,15 +249,18 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
   async function handleAssertionStep(req, res) {
     const pending = openPiFlowOrReject(req, res);
     if (!pending) return undefined;
-    if (pending.provider === 'pingfederate') return res.status(409).json({ error: 'pi_flow_step_unsupported' });
     const { assertion, origin } = req.body || {};
     if (!assertion || typeof assertion !== 'object' || !knownRedirectOrigins.includes(origin)) {
       return res.status(400).json({ error: 'invalid_request' });
     }
     try {
       const { step, body, cookies } = await postPiFlowStep(
-        pending, 'application/vnd.pingidentity.assertion.check+json',
-        // PingOne requires `assertion` as a JSON string, not an object.
+        pending,
+        // PF's MFA adapter names the action checkAssertion; PingOne, assertion.check. Same body.
+        pending.provider === 'pingfederate'
+          ? 'application/vnd.pingidentity.checkAssertion+json'
+          : 'application/vnd.pingidentity.assertion.check+json',
+        // `assertion` goes as a JSON string, not an object.
         { origin, assertion: JSON.stringify(assertion), compatibility: 'FULL' },
       );
       if (step.status === 400) {
