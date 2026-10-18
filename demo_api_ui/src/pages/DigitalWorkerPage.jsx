@@ -215,7 +215,7 @@ function Canvas() {
         <button type="button" onClick={download}>Download JSON</button>
         <button type="button" onClick={() => fileInput.current.click()}>Load JSON</button>
         <input ref={fileInput} type="file" accept="application/json,.json" hidden aria-label="Load diagram JSON" onChange={loadFile} />
-        <button type="button" onClick={() => setConfirmReset(true)}>Reset</button>
+        <button type="button" onClick={() => setConfirmReset(true)}>Reset diagram</button>
         <span>Double-click a box or arrow to rename. Delete removes the selection. Ctrl/Cmd+Z undoes. Drag a dot to connect. Autosaves in this browser.</span>
       </div>
       <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId="dw-steps" />
