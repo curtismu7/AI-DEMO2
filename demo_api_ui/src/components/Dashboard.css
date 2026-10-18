@@ -38,7 +38,7 @@
   z-index: 100;
   padding: 6px 12px;
   background: #fff;
-  border: 1px solid var(--brand-medium-gray, #e2e8f0);
+  border: 1px solid var(--brand-medium-gray, #e0e2e4);
   border-radius: 6px;
   font-size: 0.85rem;
   transition: top 0.15s ease;
@@ -57,7 +57,7 @@
   font-size: 0.95rem;
 }
 .dash-metric-detail__value-box {
-  background: #f3f4f6;
+  background: #eff0f1;
   padding: 1.5rem;
   border-radius: 6px;
   margin-bottom: 1.5rem;
@@ -66,7 +66,7 @@
 .dash-metric-detail__value {
   font-size: 2.5rem;
   font-weight: 700;
-  color: #1e293b;
+  color: #263746;
 }
 .dash-metric-detail__h {
   margin-bottom: 1rem;
@@ -78,7 +78,7 @@
   justify-content: space-between;
   align-items: center;
   padding: 0.75rem 0;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e0e2e4;
 }
 .dash-metric-detail__label {
   color: var(--th-text);
@@ -86,7 +86,7 @@
 }
 .dash-metric-detail__val {
   font-weight: 600;
-  color: #1e293b;
+  color: #263746;
 }
 
 /* ── Dark (:root[data-theme="dark"], never the OS setting). The amber banner's

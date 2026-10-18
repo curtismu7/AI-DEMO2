@@ -2,6 +2,7 @@ import { useEffect, useRef, useState } from 'react';
 
 import PingIdentitySpinner from '../components/shared/PingIdentitySpinner';
 import './SpinnerShowcasePage.css';
+import PageHeader from '../components/common/PageHeader';
 
 export default function SpinnerShowcasePage() {
   const [isFullPagePreviewOpen, setIsFullPagePreviewOpen] = useState(false);
@@ -43,13 +44,7 @@ export default function SpinnerShowcasePage() {
   return (
     <main className="spinner-showcase">
       <div className="spinner-showcase__shell">
-        <header className="spinner-showcase__header">
-          <p className="spinner-showcase__eyebrow">Loading states</p>
-          <h1>Ping spinner in context</h1>
-          <p className="spinner-showcase__intro">
-            The same identity mark scales from a small embedded wait state to a full-page handoff.
-          </p>
-        </header>
+        <PageHeader className="spinner-showcase__header" eyebrow="Loading states" title="Ping spinner in context" summary="The same identity mark scales from a small embedded wait state to a full-page handoff." />
 
         <section className="spinner-showcase__logo-tools" aria-labelledby="custom-logo-heading">
           <div>

@@ -1,7 +1,7 @@
 /* ─── Top Navigation Bar (Phase 120-03) ───────────────────────────────────── */
 
 .topnav {
-  background: linear-gradient(135deg, var(--brand-dashboard-header-start, #1e293b) 0%, var(--brand-dashboard-header-end, #334155) 100%);
+  background: linear-gradient(135deg, var(--brand-dashboard-header-start, #263746) 0%, var(--brand-dashboard-header-end, #263746) 100%);
   border-bottom: 2px solid rgba(255, 255, 255, 0.08);
   position: sticky;
   top: 0;
@@ -310,8 +310,8 @@
 }
 
 .topnav-reset-demo-btn {
-  background: #991b1b;
-  border: 1px solid #991b1b;
+  background: #aa0005;
+  border: 1px solid #aa0005;
   color: #fff;
   font-size: var(--font-size-2xs);
   font-weight: 600;
@@ -322,8 +322,8 @@
 }
 
 .topnav-reset-demo-btn:hover {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: #d20e0f;
+  border-color: #d20e0f;
 }
 
 @media (max-width: 1100px) {
@@ -442,7 +442,7 @@
 
 .topnav-search-input:focus {
   outline: none;
-  border-color: var(--brand-navy, #004687);
+  border-color: var(--brand-navy, #12538d);
 }
 
 /* ─── Mobile Menu ───────────────────────────────────────────────────── */
@@ -491,16 +491,16 @@
 }
 
 .topnav-mobile-item:hover {
-  color: var(--brand-navy, #004687);
+  color: var(--brand-navy, #12538d);
 }
 
 .topnav-mobile-item--logout {
-  color: #b91c1c;
+  color: #d20e0f;
   font-weight: 600;
 }
 
 .topnav-mobile-item--logout:hover {
-  color: #991b1b;
+  color: #aa0005;
 }
 
 /* ─── Responsive Design ───────────────────────────────────────────── */
@@ -612,7 +612,7 @@
      measured 2.77:1. Kept as rgba(0,0,0,a) because DashboardContrast.test.js models the
      pill that way to check the label against every vertical's header. */
   background: rgba(0, 0, 0, 0.78);
-  border: 1px solid #334155;
+  border: 1px solid #263746;
   border-radius: 5px;
   padding: 3px 10px;
   min-width: 0;
@@ -631,7 +631,7 @@
 }
 
 .topnav-token-pill--expired .topnav-token-pill__dot {
-  background: #ef4444;
+  background: #d20e0f;
 }
 
 .topnav-token-pill__name {
@@ -664,7 +664,7 @@
 }
 
 .topnav-token-pill--stale .topnav-token-pill__countdown {
-  color: #94a3b8;
+  color: #909ea4;
 }
 
 .topnav-token-pill__session-label {
@@ -682,7 +682,7 @@
   color: var(--brand-topnav-text, #ffffff);
   background: none;
   border: none;
-  border-left: 1px solid #334155;
+  border-left: 1px solid #263746;
   padding: 0 0 0 8px;
   margin-left: 3px;
   cursor: pointer;
@@ -707,7 +707,7 @@
   width: 120px;
   height: 14px;
   border-radius: 4px;
-  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+  background: linear-gradient(90deg, #263746 25%, #5c646b 50%, #263746 75%);
   background-size: 200% 100%;
   animation: topnav-shimmer 1.4s infinite;
 }

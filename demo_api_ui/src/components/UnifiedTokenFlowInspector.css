@@ -8,8 +8,7 @@
   border-radius: 12px;
   box-shadow: 0 4px 24px rgba(0, 0, 0, 0.12);
   overflow: hidden;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
+  font-family: var(--font-primary);
   color: var(--th-text-body);
 }
 
@@ -101,19 +100,19 @@
 .utfi-btn-close:hover {
   background: #fee2e2;
   border-color: #fca5a5;
-  color: #dc2626;
+  color: #d20e0f;
 }
 
 .utfi-btn-primary {
   background: var(--th-bg-inset);
   border-color: #bfdbfe;
-  color: #2563eb;
+  color: #12538d;
 }
 
 .utfi-btn-primary:hover {
-  background: #dbeafe;
+  background: #e0e2e4;
   border-color: #93c5fd;
-  color: #1d4ed8;
+  color: #12538d;
 }
 
 .utfi-btn-sm {
@@ -202,7 +201,7 @@
   background: var(--th-bg-inset);
   border-radius: 4px;
   font-size: var(--font-size-2xs);
-  color: #2563eb;
+  color: #12538d;
   font-weight: 500;
 }
 
@@ -242,7 +241,7 @@
   padding: 12px;
   cursor: pointer;
   background: var(--th-bg-inset);
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
   transition: all 0.2s ease;
   user-select: none;
 }
@@ -379,7 +378,7 @@
   display: flex;
   gap: 12px;
   padding: 10px 12px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
   font-size: var(--font-size-sm);
 }
 
@@ -399,7 +398,7 @@
   justify-content: center;
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #2563eb;
+  color: #12538d;
   flex-shrink: 0;
 }
 
@@ -449,7 +448,7 @@
 
 .utfi-badge--error {
   background: #fee2e2;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 .utfi-badge--active {
@@ -469,8 +468,8 @@
 }
 
 .utfi-badge--info {
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #e0e2e4;
+  color: #12538d;
   margin-left: 8px;
 }
 
@@ -506,7 +505,7 @@
 .utfi-token-event {
   padding: 8px 10px;
   background: var(--th-bg-card);
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid #12538d;
   border-radius: 4px;
   font-size: var(--font-size-2xs);
   cursor: pointer;
@@ -515,11 +514,11 @@
 
 .utfi-token-event:hover {
   background: var(--th-bg-inset);
-  border-left-color: #1d4ed8;
+  border-left-color: #12538d;
 }
 
 .utfi-token-event--selected {
-  background: #dbeafe;
+  background: #e0e2e4;
   border-left-color: #0d47a1;
   font-weight: 500;
   box-shadow: inset 0 0 0 1px #bfdbfe;
@@ -538,7 +537,7 @@
   font-size: var(--font-size-xs);
   font-weight: 600;
   background: var(--th-bg-inset);
-  color: #2563eb;
+  color: #12538d;
 }
 
 .utfi-token-type--user-token {
@@ -568,7 +567,7 @@
   padding: 2px 6px;
   border-radius: 3px;
   font-family: inherit;
-  color: #1d4ed8;
+  color: #12538d;
   font-size: var(--font-size-xs);
 }
 
@@ -594,7 +593,7 @@
   gap: 12px;
   padding: 8px 0;
   font-size: var(--font-size-sm);
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
 }
 
 .utfi-claim-row:last-child {
@@ -633,7 +632,7 @@
   border-radius: 4px;
   font-size: var(--font-size-2xs);
   font-weight: 500;
-  color: #1d4ed8;
+  color: #12538d;
   white-space: nowrap;
 }
 
@@ -644,7 +643,7 @@
 }
 
 .utfi-expired-text {
-  color: #ef4444;
+  color: #d20e0f;
   font-weight: 600;
 }
 
@@ -699,13 +698,13 @@
 }
 
 .utfi-raw-json::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cdd1d4;
   border-radius: 6px;
-  border: 2px solid #f1f5f9;
+  border: 2px solid #eff0f1;
 }
 
 .utfi-raw-json::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #909ea4;
 }
 
 .utfi-loading {
@@ -717,7 +716,7 @@
 
 .utfi-hint {
   background: var(--th-bg-inset);
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid #12538d;
   padding: 10px 12px;
   border-radius: 4px;
   font-size: var(--font-size-sm);
@@ -760,13 +759,13 @@
 
 .utfi-left::-webkit-scrollbar-thumb,
 .utfi-right::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cdd1d4;
   border-radius: 5px;
 }
 
 .utfi-left::-webkit-scrollbar-thumb:hover,
 .utfi-right::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #909ea4;
 }
 
 /* ============================================================================
@@ -848,12 +847,12 @@
 }
 
 .utfi-exchange-timeline::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cdd1d4;
   border-radius: 3px;
 }
 
 .utfi-exchange-timeline::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #909ea4;
 }
 
 .utfi-exchange-event {
@@ -922,7 +921,7 @@
 }
 
 .utfi-event-status--info {
-  background: #dbeafe;
+  background: #e0e2e4;
   color: #0c2340;
 }
 
@@ -970,8 +969,8 @@
 }
 
 .utfi-event-message--error {
-  border-left-color: #dc2626;
-  color: #991b1b;
+  border-left-color: #d20e0f;
+  color: #aa0005;
   background: #fef2f2;
 }
 
@@ -984,8 +983,8 @@
 .utfi-event-pre {
   margin: 0;
   padding: 8px 10px;
-  background: #0f172a;
-  color: #bae6fd;
+  background: #051727;
+  color: #e0e2e4;
   border-radius: 6px;
   font: 11px/1.45 var(--font-mono);
   white-space: pre-wrap;
@@ -1004,7 +1003,7 @@
 
 .utfi-scopes-inline .utfi-scope-badge {
   background: #fecaca;
-  color: #3b82f6;
+  color: #12538d;
   padding: 2px 6px;
   border-radius: 3px;
   font-size: 0.75rem;
@@ -1069,7 +1068,7 @@
 .utfi-rfc-inline-hint--info {
   background: var(--th-bg-inset);
   border-left-color: #60a5fa;
-  color: #1e40af;
+  color: #051727;
 }
 
 /* act chain display */
@@ -1105,23 +1104,23 @@
   margin-top: 12px;
   padding: 8px 10px;
   background: #f0f9ff;
-  border: 1px solid #bae6fd;
+  border: 1px solid #e0e2e4;
   border-radius: 6px;
   font-size: 0.72rem;
 }
 .utfi-primer-title {
   font-weight: 600;
-  color: #0c4a6e;
+  color: #051727;
   margin-bottom: 6px;
 }
 .utfi-primer-steps {
   margin: 0;
   padding-left: 18px;
-  color: #0369a1;
+  color: #12538d;
   line-height: 1.7;
 }
 .utfi-primer-steps code {
-  background: #e0f2fe;
+  background: #e0e2e4;
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.68rem;
@@ -1136,9 +1135,9 @@
 }
 .utfi-ready-rfc-hint {
   font-size: 0.7rem;
-  color: #0369a1;
+  color: #12538d;
   background: #f0f9ff;
-  border: 1px solid #bae6fd;
+  border: 1px solid #e0e2e4;
   border-radius: 5px;
   padding: 5px 8px;
   line-height: 1.5;
@@ -1170,8 +1169,8 @@
   flex-shrink: 0;
   font-weight: 600;
   font-size: 0.67rem;
-  background: #dbeafe;
-  color: #1d4ed8;
+  background: #e0e2e4;
+  color: #12538d;
   padding: 1px 5px;
   border-radius: 3px;
   font-family: inherit;
@@ -1229,12 +1228,12 @@
 }
 
 .utfi-detailed-steps-list::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cdd1d4;
   border-radius: 4px;
 }
 
 .utfi-detailed-steps-list::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #909ea4;
 }
 
 /* Tab navigation */
@@ -1262,13 +1261,13 @@
 }
 
 .utfi-tab:hover {
-  color: #1e40af;
+  color: #051727;
   background: var(--th-bg-card);
 }
 
 .utfi-tab--active {
-  color: #1e40af;
-  border-bottom-color: #1e40af;
+  color: #051727;
+  border-bottom-color: #051727;
   background: var(--th-bg-card);
 }
 
@@ -1286,4 +1285,41 @@
   min-height: 0;
   overflow-y: auto;
   padding: 12px;
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .utfi-btn-primary {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-tool-name {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-step-num {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-token-type {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-token-claim code {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-scope-badge {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-rfc-inline-hint--info {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-tab:hover {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-tab--active {
+  color: var(--th-status-info-text);
 }

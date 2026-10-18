@@ -1,5 +1,6 @@
 import React, { useMemo, useState } from "react";
 import { Link, useParams } from "react-router-dom";
+import PageHeader, { BackLink } from "../components/common/PageHeader";
 import "./LearningProtocolLabPage.css";
 
 const LABS = {
@@ -27,15 +28,13 @@ const LABS = {
 
 function LabHeader({ lab }) {
   return (
-    <header className="learning-lab__header">
-      <div>
-        <Link className="learning-lab__back" to="/learning">Back to Learning Hub</Link>
-        <p className="learning-lab__eyebrow">Runnable simulated example · {lab.standard}</p>
-        <h1>{lab.title}</h1>
-        <p>{lab.summary}</p>
-      </div>
-      <span className="learning-lab__badge">SIMULATED</span>
-    </header>
+    <PageHeader
+      back={{ to: "/learning", label: "Back to Learning Hub" }}
+      eyebrow={`Runnable simulated example · ${lab.standard}`}
+      title={lab.title}
+      summary={lab.summary}
+      badge="SIMULATED"
+    />
   );
 }
 
@@ -152,7 +151,7 @@ export default function LearningProtocolLabPage() {
   if (!lab) {
     return (
       <main className="learning-lab">
-        <Link className="learning-lab__back" to="/learning">Back to Learning Hub</Link>
+        <BackLink to="/learning">Back to Learning Hub</BackLink>
         <h1>Training lab not found</h1>
         <p className="learning-lab__honesty">Choose a runnable simulated example from the Learning Hub.</p>
       </main>

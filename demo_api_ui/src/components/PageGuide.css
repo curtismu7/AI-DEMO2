@@ -31,11 +31,11 @@
 
 /* Clickable page names inside walkthrough prose (LinkedText). */
 .page-guide__body a {
-  color: var(--th-status-info-text, #2563eb);
+  color: var(--th-status-info-text, #12538d);
   text-decoration: underline;
   font-weight: 600;
 }
 .page-guide__body a:focus-visible {
-  outline: 2px solid var(--th-status-info, #2563eb);
+  outline: 2px solid var(--th-status-info, #12538d);
   outline-offset: 2px;
 }

@@ -4,6 +4,7 @@
 import React from "react";
 import PreviewBanner from "./PreviewBanner";
 import "./agentStudioPreview.css";
+import PageHeader from '../common/PageHeader';
 
 const MOCK_LOG = [
   { agent: "demouser — Claude Desktop", tool: "accounts.read", decision: "permit" },
@@ -18,11 +19,7 @@ export default function PrivilegesGatewayPreviewPage() {
     <div className="asp-root">
       <div className="asp-page">
         <PreviewBanner />
-        <div className="asp-hero">
-          <span className="asp-eyebrow">Agent Studio · Preview</span>
-          <h1>AI Agent Gateway</h1>
-          <p>Every tool call from a governed agent, permitted or denied.</p>
-        </div>
+        <PageHeader eyebrow="Agent Studio · Preview" title="AI Agent Gateway" summary="Every tool call from a governed agent, permitted or denied." />
 
         <div className="asp-stats">
           <div className="asp-stat">

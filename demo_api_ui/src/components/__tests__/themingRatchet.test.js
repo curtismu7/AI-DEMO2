@@ -92,7 +92,7 @@ import path from 'node:path';
 // 71 -> 69: Hub theme links, protocol lab, and Privilege MCP are now themed.
 // 69 -> 68: the Privilege User API Key & Secrets tab uses theme tokens.
 // 60 -> 59: UserMenu.css (the top-nav account dropdown was a white panel in dark).
-const MAX_UNTHEMED = 58;
+const MAX_UNTHEMED = 56;
 
 const SRC = path.join(__dirname, '..', '..');
 

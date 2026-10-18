@@ -44,7 +44,7 @@
   border: 1px solid var(--th-border);
   border-radius: 8px;
   background: var(--th-bg-card);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 8px 22px rgba(5, 23, 39, 0.16);
   padding: 5px;
 }
 
@@ -100,4 +100,4 @@
 :root[data-theme="dark"] .cvm-item-label { color: #ffffff; }
 :root[data-theme="dark"] .cvm-item-count { background: #10331f; color: #5fe39c; }
 :root[data-theme="dark"] .cvm-item-hint { color: #90a0c2; }
-:root[data-theme="dark"] .cvm-note { color: #90a0c2; border-top-color: #26304a; }
+:root[data-theme="dark"] .cvm-note { color: #90a0c2; border-top-color: #051727; }

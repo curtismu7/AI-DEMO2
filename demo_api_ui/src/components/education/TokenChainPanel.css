@@ -243,12 +243,12 @@
   border-color: var(--th-status-info-border);
   background: var(--th-status-info-bg);
   color: var(--th-text-body);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.18);
+  box-shadow: 0 0 0 2px rgba(18, 83, 141, 0.18);
 }
 
 .token-chain-current-bar {
   height: 3px;
-  background: linear-gradient(90deg, #2563eb 0%, #60a5fa 100%);
+  background: linear-gradient(90deg, #12538d 0%, #60a5fa 100%);
   border-radius: 3px 3px 0 0;
   animation: token-chain-bar-pulse 1.8s ease-in-out infinite;
 }

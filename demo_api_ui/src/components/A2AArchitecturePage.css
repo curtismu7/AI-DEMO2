@@ -4,7 +4,7 @@
   padding: 1.5rem 2rem 4rem;
   background: var(--th-bg-page);
   min-height: calc(100vh - 64px);
-  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-family: var(--font-primary);
   color: var(--th-text);
   max-width: none;
 }
@@ -13,38 +13,6 @@
  * main-content width instead of the 1280px header column. */
 .a2a-arch-page .a2a-arch-card {
   max-width: none;
-}
-
-.a2a-arch-header {
-  max-width: 1280px;
-  margin: 0 auto 1.5rem;
-}
-
-.a2a-arch-eyebrow {
-  display: inline-block;
-  background: #1f2937;
-  color: #fff;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 4px 10px;
-  border-radius: 2px;
-  margin-bottom: 12px;
-}
-
-.a2a-arch-header h1 {
-  font-size: var(--font-size-h1);
-  font-weight: 700;
-  color: var(--th-text);
-  margin: 6px 0 4px 0;
-}
-
-.a2a-arch-subtitle {
-  font-size: var(--font-size-base);
-  color: var(--th-text);
-  margin: 0;
-  line-height: 1.55;
-  max-width: 760px;
 }
 
 .a2a-arch-card {
@@ -90,7 +58,7 @@
 .a2a-arch-error {
   background: #fef2f2;
   border: 1px solid #fca5a5;
-  color: #991b1b;
+  color: #aa0005;
   padding: 12px 16px;
   border-radius: 6px;
   font-size: var(--font-size-sm, 0.875rem);
@@ -106,7 +74,7 @@
 .a2a-arch-table td {
   text-align: left;
   padding: 8px 12px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e0e2e4;
 }
 
 .a2a-arch-table th {
@@ -123,11 +91,11 @@
 
 .a2a-arch-links li {
   padding: 6px 0;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
 }
 
 .a2a-arch-links a {
-  color: #1d4ed8;
+  color: #12538d;
   text-decoration: none;
 }
 

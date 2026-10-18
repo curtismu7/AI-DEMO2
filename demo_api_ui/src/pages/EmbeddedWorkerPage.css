@@ -75,12 +75,12 @@
   .ew-crm__search { display: none; }
 }
 
-:root[data-theme="dark"] .embedded-worker-page__identity button { --th-status-info: #1e40af; }
+:root[data-theme="dark"] .embedded-worker-page__identity button { --th-status-info: #051727; }
 
 :root[data-theme="dark"] .ew-crm__global,
 :root[data-theme="dark"] .ew-crm__panel-head button,
 :root[data-theme="dark"] .ew-crm__compose button,
 :root[data-theme="dark"] .ew-crm__msg.is-user {
-  background: #1e40af;
+  background: #051727;
   color: #ffffff;
 }

@@ -4,6 +4,7 @@ import { Link } from "react-router-dom";
 import { DIAGRAMS_INDEX, DIAGRAMS_MORE } from "../../config/diagramsIndex";
 import "../personalAgent/PersonalAgent.css";
 import "./DiagramsIndexPage.css";
+import PageHeader from '../common/PageHeader';
 
 function Cards({ items }) {
   return (
@@ -23,11 +24,7 @@ function Cards({ items }) {
 export default function DiagramsIndexPage() {
   return (
     <main className="pa-page" data-testid="diagrams-index-page">
-      <header className="pa-hero">
-        <div className="pa-eyebrow">Diagrams</div>
-        <h1>All diagrams</h1>
-        <p>Every architecture, token and flow diagram in the demo. Most have a Play and Step bar to walk through the arrows.</p>
-      </header>
+      <PageHeader className="pa-hero" eyebrow="Diagrams" title="All diagrams" summary="Every architecture, token and flow diagram in the demo. Most have a Play and Step bar to walk through the arrows." />
       {DIAGRAMS_INDEX.map((s) => (
         <section key={s.section} aria-label={s.section}>
           <h2>{s.section}</h2>

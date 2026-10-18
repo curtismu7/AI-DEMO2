@@ -63,13 +63,13 @@ textarea::placeholder {
    Type identity is preserved via a colored left accent + icon color, not the body fill.
    Every toast keeps a visible close (X); the X is tinted for the dark surface. */
 .Toastify__toast {
-  background: #1e293b !important;
-  color: #f1f5f9 !important;
-  border-left: 4px solid #64748b;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.35);
+  background: #263746 !important;
+  color: #eff0f1 !important;
+  border-left: 4px solid #5c646b;
+  box-shadow: 0 8px 24px rgba(5, 23, 39, 0.35);
 }
 .Toastify__toast-body {
-  color: #f1f5f9 !important;
+  color: #eff0f1 !important;
 }
 /* The one thing to do, highlighted. Explicit ink + ground so it reads on both the
    dark toast and the light modal surface in either theme. */
@@ -96,7 +96,7 @@ textarea::placeholder {
   border-left-color: #22c55e;
 }
 .Toastify__toast--error {
-  border-left-color: #ef4444;
+  border-left-color: #d20e0f;
 }
 .Toastify__toast--warning {
   border-left-color: #f59e0b;
@@ -106,7 +106,7 @@ textarea::placeholder {
 }
 /* Close (X): always visible and legible on the dark surface. */
 .Toastify__close-button {
-  color: #f1f5f9 !important;
+  color: #eff0f1 !important;
   opacity: 0.7;
 }
 .Toastify__close-button:hover,
@@ -118,16 +118,16 @@ textarea::placeholder {
 :root {
   /* TopNav height — used by fixed-position elements */
   --topnav-height: 60px;
-  --app-primary-red: #b91c1c;
-  --app-primary-red-hover: #991b1b;
-  --app-primary-red-mid: #dc2626;
+  --app-primary-red: #d20e0f;
+  --app-primary-red-hover: #aa0005;
+  --app-primary-red-mid: #d20e0f;
   --app-primary-red-border: #7f1d1d;
   --app-primary-btn-text: #ffffff;
   /* Top-nav vars resolve to dashboard-header vars so a single manifest override
      (--brand-dashboard-header-*) themes both the dashboard hero and the sticky
      top-nav. Fallback colors retained for the no-manifest case. */
-  --brand-topnav-bg-start: var(--brand-dashboard-header-start, #1e293b);
-  --brand-topnav-bg-end: var(--brand-dashboard-header-end, #334155);
+  --brand-topnav-bg-start: var(--brand-dashboard-header-start, #051727);
+  --brand-topnav-bg-end: var(--brand-dashboard-header-end, #12538d);
   --brand-topnav-text: var(--brand-dashboard-header-text, #ffffff);
   --app-primary-blue: var(--brand-navy);
   --app-primary-blue-hover: var(--brand-navy);
@@ -152,20 +152,20 @@ textarea::placeholder {
      --brand-navy resolves to the manifest's --theme-accent so non-banking
      verticals cascade their accent through the hundreds of CSS rules that
      reference --brand-navy. Fallback retained for the no-manifest case. */
-  --brand-navy: var(--theme-accent, #1d4ed8);
-  --brand-navy-dark: #1e40af;
-  --brand-navy-light: #3b82f6;
-  --brand-blue: #2563eb;
-  --brand-blue-light: #60a5fa;
+  --brand-navy: var(--theme-accent, #051727);
+  --brand-navy-dark: #051727;
+  --brand-navy-light: #12538d;
+  --brand-blue: #12538d;
+  --brand-blue-light: #12538d;
 
   /* Phase 120-02: Softer Sidebar Colors */
-  --sidebar-bg: #1e3a8a;
-  --sidebar-bg-active: #1d4ed8;
-  --sidebar-bg-hover: #2563eb;
+  --sidebar-bg: #051727;
+  --sidebar-bg-active: #12538d;
+  --sidebar-bg-hover: color-mix(in srgb, #051727 55%, #12538d);
 
   /* Chase Neutrals */
   --brand-white: #ffffff;
-  --brand-light-gray: #f8fafc;
+  --brand-light-gray: #f7f8f8;
   --brand-medium-gray: #bfdbfe;
   --brand-dark-gray: #333333;
 
@@ -203,12 +203,12 @@ textarea::placeholder {
   /* Card Styles */
   --card-padding: 20px;
   --card-border-radius: var(--radius-xl);
-  --card-shadow: 0 4px 16px rgba(37, 99, 235, 0.12);
+  --card-shadow: 0 4px 16px rgba(18, 83, 141, 0.12);
 
   /* ── Inner card design system (claim rows, event items, list cards) ──── */
   --inner-card-radius: var(--radius-lg);
-  --inner-card-border: 1px solid #e5e7eb;
-  --inner-card-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+  --inner-card-border: 1px solid #e0e2e4;
+  --inner-card-shadow: 0 2px 6px rgba(5, 23, 39, 0.05);
   --inner-card-bg: #ffffff;
   --inner-card-accent: 4px;
 
@@ -217,18 +217,18 @@ textarea::placeholder {
   --modal-shadow:
     0 20px 48px rgba(0, 0, 0, 0.22), 0 4px 12px rgba(0, 0, 0, 0.1);
   --modal-border: 1px solid rgba(0, 0, 0, 0.08);
-  /* Navy, not near-black. #1a1a2e/#16213e read as black beside the demo's own
+  /* Navy, not near-black. #1a1a2e/#051727 read as black beside the demo's own
      dark bands, so every modal looked like it had lost its styling. These are
      the two navies already in the UI: --ba-split-navy (the assistant header)
      into --th-bg-band (the token-chain header bar). One token — every
      DraggableModal and FloatingPanel title bar reads it. */
-  --modal-header-bg: linear-gradient(135deg, #1e3a5f 0%, #16325c 100%);
+  --modal-header-bg: linear-gradient(135deg, #051727 0%, #16325c 100%);
   --modal-header-text: #ffffff;
   --modal-header-sub: rgba(255, 255, 255, 0.65);
   --modal-header-height: 48px;
   --modal-body-bg: #ffffff;
-  --modal-body-text: #111827;
-  --modal-body-text-secondary: #374151;
+  --modal-body-text: #051727;
+  --modal-body-text-secondary: #263746;
   /* Title-bar controls (🪟 pop out, ✕ close). Bumped from 28px / 0.12 alpha:
      at that size and contrast they were hard to see against the dark header. */
   --modal-btn-size: 30px;
@@ -237,8 +237,8 @@ textarea::placeholder {
   --modal-btn-radius: var(--radius-md);
   --modal-overlay-bg: rgba(10, 15, 30, 0.5);
   /* --modal-overlay-blur removed to prevent background blur */
-  --modal-footer-bg: #f9fafb;
-  --modal-footer-border: #e5e7eb;
+  --modal-footer-bg: #f7f8f8;
+  --modal-footer-border: #e0e2e4;
 
   /* Typography */
   --font-primary:
@@ -252,7 +252,7 @@ textarea::placeholder {
      a `--*mono*:` token and checks the rest, so a wrapped stack would trip it.
      `var(--font-mono)` carries no banned literal, which is why that test now
      needs no per-file exemptions at all. */
-  --font-mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+  --font-mono: "IBM Plex Mono", ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
   --font-family-mono: var(--font-mono);
   /* Referenced in 14 files, defined nowhere — each carried its own fallback,
      so nine pages rendered nine slightly different sans stacks. */
@@ -323,14 +323,14 @@ textarea::placeholder {
   color-scheme: light;
   --th-bg-page: #f6f7f9;
   --th-bg-card: #ffffff;
-  --th-bg-inset: #f1f5f9;
-  --th-bg-band: #16325c;
-  --th-text: #0f172a;
-  /* Four emphasis levels, not one. #0f172a / #374151 / #556070 /
-     #94a3b8 are used as heading / body / secondary / faint; collapsing
+  --th-bg-inset: #eff0f1;
+  --th-bg-band: #051727;
+  --th-text: #051727;
+  /* Four emphasis levels, not one. #051727 / #263746 / #556070 /
+     #909ea4 are used as heading / body / secondary / faint; collapsing
      them to a single "text" colour flattens the hierarchy. Values are
      the dominant literal each replaces, so adoption is a no-op in light. */
-  --th-text-body: #374151;
+  --th-text-body: #263746;
   --th-text-muted: var(--th-text);
   --th-text-faint: var(--th-text);
   --th-text-invert: #ffffff;
@@ -352,14 +352,19 @@ textarea::placeholder {
      NOWHERE. Every use carries a fallback, so nothing looked broken — but the
      token was a fiction: the rule reads as themed while no theme switch can
      reach it, and the same token fell back to different colours in different
-     files (--color-text-secondary was #374151 in one and #555 in another).
+     files (--color-text-secondary was #263746 in one and #555 in another).
      Aliasing them onto --th-* makes those 225 uses themed and collapses the
      drift, without touching a single consuming file.
 
-     NOT defined here: --color-primary / --color-accent / --color-danger. Their
-     fallbacks disagree across files (#005f99 vs #d20e0f — a teal and an
-     indigo), so picking one is a brand decision, not a cleanup. They keep
-     rendering their per-file fallback exactly as today. */
+     --color-primary / --color-accent / --color-danger were once left undefined
+     (per-file fallbacks disagreed: teal, indigo, red). Brand decision made
+     2026-10-18: Ping Red accent, one danger red, Core Dark primary. Verticals
+     still override via --theme-accent where they set it. */
+  --color-primary: #051727;
+  --color-accent: #d20e0f;
+  --color-accent-hover: #aa0005;
+  --color-danger: #d20e0f;
+  --color-info: #12538d;
   --color-text: var(--th-text);
   --color-text-primary: var(--th-text);
   --color-heading: var(--th-text);
@@ -369,8 +374,8 @@ textarea::placeholder {
   --color-surface: var(--th-bg-card);
   --color-background-light: var(--th-bg-inset);
   --color-header-bg: var(--th-bg-inset);
-  --th-code-bg: #f1f5f9;
-  --th-code-text: #0f172a;
+  --th-code-bg: #eff0f1;
+  --th-code-text: #051727;
 
   /* ── Corner radius ────────────────────────────────────────────────────────
      ~2150 border-radius declarations span 12+ values (6px x525, 8px x443,
@@ -399,17 +404,17 @@ textarea::placeholder {
   /* Sign-in surfaces (card, strip, interrupt) share ONE accent. Deliberately
      identical in both themes: the whole point is that every "sign in" affordance
      reads the same wherever it appears. Only the tint below changes. */
-  --signin-accent: #1e40af; /* fill under white text: #2563eb was 5.2:1, this is 8.7:1 */
-  --signin-accent-hover: #1e3a8a;
-  --signin-accent-text: #1e40af; /* the same accent used as TEXT on the card */
-  --signin-accent-bg: #eff6ff;
+  --signin-accent: #051727; /* fill under white text: #12538d was 5.2:1, this is 8.7:1 */
+  --signin-accent-hover: #051727;
+  --signin-accent-text: #051727; /* the same accent used as TEXT on the card */
+  --signin-accent-bg: #fcfcfc;
   --signin-accent-border: #bfdbfe;
 
   /* ── Status: success / warning / error / info ───────────────────────────
      Four roles × solid / text / bg / border. Values are the dominant literal
      already used for each role (Tailwind green-600, amber-500, red-600,
      blue-600 and their 800 / 100 / 300 steps), so adoption is a no-op in
-     light. NOTE the reds: #dc2626 / #991b1b are also --app-primary-red-*.
+     light. NOTE the reds: #d20e0f / #aa0005 are also --app-primary-red-*.
      Read --app-primary-red-* for a primary action, --th-status-error for an
      error state — same literal today, different job. */
   --th-status-success: #16a34a;
@@ -421,14 +426,14 @@ textarea::placeholder {
   --th-status-warning-text: #78350f;
   --th-status-warning-bg: #fef3c7;
   --th-status-warning-border: #fcd34d;
-  --th-status-error: #dc2626;
+  --th-status-error: #d20e0f;
   --th-status-error-text: #7f1d1d;
   --th-status-error-bg: #fee2e2;
   --th-status-error-border: #fca5a5;
-  --th-status-info: #2563eb;
-  --th-status-info-text: #1e40af;
-  --th-status-info-solid: #1e40af;
-  --th-status-info-bg: #eff6ff;
+  --th-status-info: #12538d;
+  --th-status-info-text: #051727;
+  --th-status-info-solid: #051727;
+  --th-status-info-bg: #fcfcfc;
   --th-status-info-border: #bfdbfe;
 }
 :root[data-theme="dark"] {
@@ -436,7 +441,7 @@ textarea::placeholder {
   --th-bg-page: #0b1220;
   --th-bg-card: #131c2e;
   --th-bg-inset: #1b2540;
-  --th-bg-band: #102847;
+  --th-bg-band: #051727;
   /* Readable ink must stay bright on every dark surface. The previous slate
      ladder made inherited copy, labels, and helper text disappear against
      dashboard and modal navies. Hierarchy now comes from size/weight, not
@@ -446,12 +451,12 @@ textarea::placeholder {
   --th-text-muted: #ffffff;
   --th-text-faint: #ffffff;
   --th-text-invert: #ffffff;
-  --th-border: #26304a;
+  --th-border: #051727;
   --th-border-strong: #34405e;
   --th-bg-hover: #1b2540;
   --th-bg: var(--th-bg-page);
   --th-bg-emphasis: #93c5fd;
-  --th-text-on-emphasis: #0f172a;
+  --th-text-on-emphasis: #051727;
 
   /* Legacy aliases are used across older pages. Keep their surfaces and ink
      on the same themed token family so dark mode cannot produce dark text on
@@ -461,7 +466,7 @@ textarea::placeholder {
   --brand-medium-gray: var(--th-border-strong);
   --brand-dark-gray: var(--th-text-invert);
   --th-code-bg: #0b1220;
-  --th-code-text: #e2e8f0;
+  --th-code-text: #e0e2e4;
 
   /* Elevation, dark. A 6%-opacity slate shadow is invisible on a #0b1220
      ground, so these are near-black and heavier. Radius does not flip - a
@@ -472,8 +477,8 @@ textarea::placeholder {
   --shadow-lg: 0 8px 24px -8px rgba(0, 0, 0, 0.6);
 
   /* Same accent, darker tint. */
-  --signin-accent: #1e40af;
-  --signin-accent-hover: #1e3a8a;
+  --signin-accent: #051727;
+  --signin-accent-hover: #051727;
   --signin-accent-text: #bfdbfe; /* as text on the dark card */
   --signin-accent-bg: #16233c;
   --signin-accent-border: #2f4a7a;
@@ -485,7 +490,7 @@ textarea::placeholder {
   --modal-body-text: #ffffff;
   --modal-body-text-secondary: #ffffff;
   --modal-footer-bg: #0f1729;
-  --modal-footer-border: #26304a;
+  --modal-footer-border: #051727;
   --modal-border: 1px solid rgba(255, 255, 255, 0.09);
 
   /* Status on the dark ground: lighter solid + text, deep tinted bg. */
@@ -498,15 +503,15 @@ textarea::placeholder {
   --th-status-warning-text: #fcd34d;
   --th-status-warning-bg: #3a2a10;
   --th-status-warning-border: #92400e;
-  --th-status-error: #ef4444;
+  --th-status-error: #d20e0f;
   --th-status-error-text: #fca5a5;
   --th-status-error-bg: #3a1616;
-  --th-status-error-border: #991b1b;
-  --th-status-info: #3b82f6;
+  --th-status-error-border: #aa0005;
+  --th-status-info: #12538d;
   --th-status-info-text: #93c5fd;
-  --th-status-info-solid: #1e40af;
+  --th-status-info-solid: #051727;
   --th-status-info-bg: #16233c;
-  --th-status-info-border: #1e40af;
+  --th-status-info-border: #051727;
 }
 
 html {
@@ -521,7 +526,7 @@ body {
   font-family: var(--font-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* --th-bg-page, not --brand-light-gray. The brand literal is #f8fafc at
+  /* --th-bg-page, not --brand-light-gray. The brand literal is #f7f8f8 at
      :root with NO dark override, so the document ground stayed near-white in
      dark mode and every pixel the app did not paint itself was white. On a
      dark page that reads as a full-window white flash during any reflow —
@@ -542,9 +547,9 @@ body {
 }
 
 .header {
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
+  background: linear-gradient(135deg, #e0e2e4 0%, #bfdbfe 100%);
   color: var(--th-text);
-  color: #1e3a8a;
+  color: #051727;
   padding: 1rem 0;
   box-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   border-bottom: 1px solid #93c5fd;
@@ -592,7 +597,7 @@ body {
   box-shadow: var(--card-shadow);
   padding: var(--card-padding);
   margin-bottom: 1.5rem;
-  border-left: 4px solid var(--brand-card-accent, var(--brand-navy, #1d4ed8));
+  border-left: 4px solid var(--brand-card-accent, var(--brand-navy, #12538d));
 }
 
 .card-header {
@@ -689,7 +694,7 @@ body {
 .modal-heading {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #263746;
   margin: 0 0 0.5rem 0;
 }
 
@@ -705,9 +710,9 @@ body {
   font-size: 0.875rem;
   font-weight: 500;
   border-radius: 0.375rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   background: white;
-  color: var(--th-text);
+  color: #051727;
   cursor: pointer;
 }
 
@@ -720,14 +725,14 @@ body {
   font-size: 0.875rem;
   font-weight: 500;
   border-radius: 0.375rem;
-  border: 1px solid #1e40af;
-  background: #1e40af;
+  border: 1px solid #051727;
+  background: #051727;
   color: white;
   cursor: pointer;
 }
 
 .modal-confirm-button:hover {
-  background: #1d4ed8;
+  background: #12538d;
 }
 
 .modal-header {
@@ -735,8 +740,8 @@ body {
   justify-content: space-between;
   align-items: center;
   padding: 1.5rem;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: var(--th-text);
+  background: linear-gradient(135deg, #e0e2e4 0%, #bfdbfe 100%);
+  color: #051727;
   border-bottom: 1px solid #93c5fd;
 }
 
@@ -949,15 +954,15 @@ body {
 }
 
 .btn-danger {
-  background: linear-gradient(180deg, #dc2626 0%, #b91c1c 100%);
+  background: linear-gradient(180deg, #d20e0f 0%, #d20e0f 100%);
   color: #fff;
   border: 1px solid #7f1d1d;
   box-shadow: 0 1px 3px rgba(127, 29, 29, 0.28);
 }
 
 .btn-danger:hover {
-  background: linear-gradient(180deg, #b91c1c 0%, #991b1b 100%);
-  border-color: #991b1b;
+  background: linear-gradient(180deg, #d20e0f 0%, #aa0005 100%);
+  border-color: #aa0005;
   color: #fff;
 }
 
@@ -980,7 +985,7 @@ body {
 }
 
 .btn-success {
-  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  background: linear-gradient(180deg, #15803d 0%, #166534 100%);
   color: #fff;
   border: 1px solid #14532d;
   box-shadow: 0 1px 3px rgba(20, 83, 45, 0.25);
@@ -1006,7 +1011,7 @@ body {
 .form-input {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 0.375rem;
   font-size: 0.875rem;
   transition: border-color 0.2s;
@@ -1021,7 +1026,7 @@ body {
 .form-select {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 0.375rem;
   font-size: 0.875rem;
   background-color: white;
@@ -1043,7 +1048,7 @@ body {
   display: grid;
   place-items: center;
   padding: clamp(2rem, 7vw, 5rem) 1.25rem;
-  background: linear-gradient(135deg, #eff6ff 0%, #f8fafc 52%, #fee2e2 100%);
+  background: linear-gradient(135deg, #fcfcfc 0%, #f7f8f8 52%, #fee2e2 100%);
   color: #172033;
 }
 
@@ -1099,7 +1104,7 @@ body {
 }
 
 .hosted-registration__field label {
-  color: #334155;
+  color: #263746;
   font-size: 0.875rem;
   font-weight: 650;
 }
@@ -1177,7 +1182,7 @@ body {
   margin-top: 1rem;
   border: 1px solid #fecaca;
   background: #fff1f2;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 @media (max-width: 560px) {
@@ -1201,9 +1206,9 @@ body {
 
 .pagination-btn {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   background-color: white;
-  color: var(--th-text);
+  color: #051727;
   border-radius: 0.375rem;
   cursor: pointer;
   transition: all 0.2s;
@@ -1242,12 +1247,12 @@ body {
 
 .alert-error {
   background-color: #fee2e2;
-  color: #991b1b;
+  color: #aa0005;
   border: 1px solid #fecaca;
 }
 
 .alert-info {
-  background-color: #dbeafe;
+  background-color: #e0e2e4;
   color: var(--brand-navy);
   border: 1px solid #bfdbfe;
 }
@@ -1294,7 +1299,7 @@ body {
 
 .filter-input {
   padding: 0.375rem 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 0.25rem;
   font-size: 0.75rem;
 }
@@ -1337,8 +1342,8 @@ body {
 .login-header {
   text-align: center;
   margin-bottom: 2rem;
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: var(--th-text);
+  background: linear-gradient(135deg, #e0e2e4 0%, #bfdbfe 100%);
+  color: #051727;
   padding: 2rem;
   border-radius: 8px;
   border: 1px solid #93c5fd;
@@ -1439,7 +1444,7 @@ body {
 
 .toggle-btn.active {
   background: white;
-  color: var(--brand-dark-gray);
+  color: #051727;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
@@ -1504,7 +1509,7 @@ body {
 
 .oauth-btn:hover {
   transform: translateY(-1px);
-  box-shadow: 0 10px 15px -3px rgba(185, 28, 28, 0.35);
+  box-shadow: 0 10px 15px -3px rgba(210, 14, 15, 0.35);
 }
 
 .login-footer {
@@ -1619,26 +1624,26 @@ body {
 .oauth-divider span {
   background: white;
   padding: 0 15px;
-  color: #7f8c8d;
+  color: #051727;
   font-size: 0.9rem;
 }
 
 /* Ping One end-user-nano — align with app red CTAs */
 .end-user-nano .btn.btn-secondary {
   --bs-btn-color: #fff;
-  --bs-btn-bg: #b91c1c;
+  --bs-btn-bg: #d20e0f;
   --bs-btn-border-color: #7f1d1d;
   --bs-btn-hover-color: #fff;
-  --bs-btn-hover-bg: #991b1b;
+  --bs-btn-hover-bg: #aa0005;
   --bs-btn-hover-border-color: #7f1d1d;
   --bs-btn-active-color: #ffffff;
-  --bs-btn-active-bg: #991b1b;
+  --bs-btn-active-bg: #aa0005;
   --bs-btn-active-border-color: #7f1d1d;
   --bs-btn-focus-shadow-rgb: 185, 28, 28;
   /* The label stays white (App.css forces it with !important), so the disabled fill has to be dark:
      it was #fca5a5, which put white on pink at 1.9:1. */
   --bs-btn-disabled-color: #ffffff;
-  --bs-btn-disabled-bg: #991b1b;
+  --bs-btn-disabled-bg: #aa0005;
   --bs-btn-disabled-border-color: #7f1d1d;
 }
 
@@ -1675,3 +1680,385 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .table th {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .table th {
+  color: #051727;
+}
+
+/* ── Contrast overrides (generated from scripts/audit-contrast-runtime.mjs) ─────────────────────
+   Text that inherited a colour which is unreadable on a hardcoded background in one theme.
+   Every rule is scoped under the class that owns the background. Move each into its component
+   stylesheet when you next touch that component. */
+:root[data-theme="dark"] .error-details {
+  color: #051727;
+}
+:root[data-theme="dark"] .error-details summary {
+  color: #051727;
+}
+:root[data-theme="dark"] .error-details pre {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .error-details {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .error-details button.btn.btn-copy-error {
+  color: #051727;
+}
+:root[data-theme="dark"] .error-details button.btn.btn-copy-error {
+  color: #051727;
+}
+:root[data-theme="dark"] .ijc-frame {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .ijc-frame span.ijc-frame__n {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .acpc-header {
+  color: #051727;
+}
+:root[data-theme="dark"] .acpc-header span.acpc-endpoint {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-gallery {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-gallery h1 {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-gallery h2 {
+  color: #051727;
+}
+:root[data-theme="dark"] .rst-education {
+  color: #051727;
+}
+:root[data-theme="dark"] .rst-education code {
+  color: #051727;
+}
+:root[data-theme="dark"] .acpc-header a.acpc-doc-link {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-gallery-note {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-gallery-note a {
+  color: #051727;
+}
+:root[data-theme="dark"] .card {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .card p {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .inspector-shell-topbar {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .inspector-shell-topbar span {
+  color: #051727;
+}
+:root[data-theme="dark"] .inspector-shell-col-left {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .inspector-shell-col-left div {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .section-nav-item.active {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .inspector-shell-col-left {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .inspector-shell-col-left div {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-data-agent-auth-card.demo-data-agent-auth-card--active {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-data-agent-auth-card.demo-data-agent-auth-card--active span.demo-data-agent-auth-card__title {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-data-agent-auth-card.demo-data-agent-auth-card--active span.demo-data-agent-auth-card__desc {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-card.is-selected {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-card.is-selected h3 {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-body {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-body p.akp-note {
+  color: #051727;
+}
+:root[data-theme="dark"] .admin-section {
+  color: #051727;
+}
+:root[data-theme="dark"] .admin-section h2 {
+  color: #051727;
+}
+:root[data-theme="dark"] .admin-section label {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-claims-col {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-claims-col h3.aitp-claims-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-claims-col div.aitp-claims-empty {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-learning {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-learning h2.akp-learning-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-learning p.akp-learning-intro {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-learning {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-learning h2.aitp-learning-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-learning p.aitp-learning-intro {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-section-header {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-section-header span.demo-section-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-key-row {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-key-row span.akp-key-label {
+  color: #051727;
+}
+:root[data-theme="dark"] .vfp-header {
+  color: #051727;
+}
+:root[data-theme="dark"] .vfp-header h1.vfp-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .vfp-header p.vfp-subtitle {
+  color: #051727;
+}
+:root[data-theme="dark"] .authz-engine-radio-label.authz-engine-radio-label--active {
+  color: #051727;
+}
+:root[data-theme="dark"] .authz-engine-radio-label.authz-engine-radio-label--active span.authz-engine-radio-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .authz-engine-radio-label.authz-engine-radio-label--active span.authz-engine-radio-desc {
+  color: #051727;
+}
+:root[data-theme="dark"] .cur-titlebar {
+  color: #051727;
+}
+:root[data-theme="dark"] .cur-titlebar button.page-agent-mode__opt {
+  color: #051727;
+}
+:root[data-theme="dark"] .log-stats {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .log-stats span {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .demo-data-static-notice {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-data-static-notice p.demo-data-hint {
+  color: #051727;
+}
+:root[data-theme="dark"] .cur-titlebar span.cur-flow-trigger {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-key-value {
+  color: #051727;
+}
+:root[data-theme="dark"] .lps-notice {
+  color: #051727;
+}
+:root[data-theme="dark"] .lps-notice code {
+  color: #051727;
+}
+:root[data-theme="dark"] .mds-notice {
+  color: #051727;
+}
+:root[data-theme="dark"] .mds-notice code {
+  color: #051727;
+}
+:root[data-theme="dark"] .vfp-header code {
+  color: #051727;
+}
+:root[data-theme="dark"] .configuration-tabs {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .configuration-tabs span.tab-label {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .demo-data-scope-code {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .tet-btn.tet-btn--secondary.tet-btn--inline {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .unified-configuration-page {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .unified-configuration-page button.section-nav-item {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .a2t-node.a2t-node--active {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .a2t-node.a2t-node--active span.a2t-node__icon {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .account-card {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .account-card span.type-icon {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .privilege-a2a__dock-open {
+  color: #051727;
+}
+:root[data-theme="dark"] .privilege-a2a__dock-open {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .status-item {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .status-item span.security-status--warn {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .privilege-a2a__step-panel {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .privilege-a2a__step-panel a {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .demo-map__group {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .demo-map__group span.demo-map__step-num {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .dsla-table-wrap {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .dsla-table-wrap a {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .tc-simulate__card {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .tc-simulate__card span.tc-simulate__card-meta {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .ucd-card {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .ucd-card b {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .afm-picks-bar {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .afm-picks-bar code {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .dsla-truth {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .dsla-truth span.dsla-uc {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .a2t-node {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .a2t-node span.a2t-node__icon {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .dsla-lane.dsla-lane--pingone {
+  color: #051727;
+}
+:root[data-theme="dark"] .mfa-test-section {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .mfa-test-section p {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .react-flow.light {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .react-flow.light a {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .dsla-lane.dsla-lane--mcp {
+  color: #051727;
+}
+:root[data-theme="dark"] .dsla-lane.dsla-lane--browser {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .dsla-lane.dsla-lane--agent {
+  color: #051727;
+}
+:root[data-theme="dark"] .dsla-lane.dsla-lane--bff {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .tab-nav {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .tab-nav button.tab-btn.active {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .dsla-lane.dsla-lane--bff {
+  color: #051727;
+}
+:root[data-theme="dark"] .dsla-lane.dsla-lane--agent {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .dsla-lane.dsla-lane--browser {
+  color: #051727;
+}
+:root[data-theme="dark"] .dsla-lane.dsla-lane--mcp {
+  color: #ffffff;
+}
+
+/* ── Contrast fixes found by the runtime audit (scripts/audit-contrast-runtime.mjs) ─────────────
+   Each rule is scoped to the component that owns the background. Move into the component
+   stylesheet when you next touch it. */
+:root[data-theme="dark"] .check-tabs .chk-tab { color: var(--th-status-info-text); }
+:root[data-theme="dark"] .rst-start-here,
+:root[data-theme="dark"] .rst-start-here strong,
+:root[data-theme="dark"] .rst-start-here em { color: #051727; }
+:root[data-theme="dark"] .demo-data-agent-auth-card .demo-data-agent-auth-card__title,
+:root[data-theme="dark"] .demo-data-agent-auth-card .demo-data-agent-auth-card__desc,
+:root[data-theme="dark"] .afm-card-meta h3 { color: #051727; }
+:root[data-theme="dark"] .promptfoo-page__cli p,
+:root[data-theme="dark"] .log-stats span,
+:root[data-theme="dark"] .demo-section-body .demo-section-concept,
+:root[data-theme="dark"] .lps-card .lps-card-desc,
+:root[data-theme="dark"] .mds-card .mds-card-desc,
+:root[data-theme="dark"] .lps-card-meta span { color: var(--th-text-body); }
+:root[data-theme="dark"] .a2t-node__row .a2t-node__icon,
+:root[data-theme="dark"] .gpb-head .gpb-eyebrow { color: var(--th-status-info-text); }
+.inspector-shell-col-left > div,
+.inspector-shell-topbar__right > span { color: var(--th-text-body); }
+.postman-page__header,
+.postman-page__header h1,
+.postman-page__header p { color: #ffffff; }
+.ping-page-header a:not(.ping-back-link) { color: #ffffff; text-decoration: underline; }
+.pd-page__header-links .priv-demo-signin { color: #ffffff; }

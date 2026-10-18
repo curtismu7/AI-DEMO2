@@ -37,14 +37,14 @@
   --cimd-ok-line: #166534;
   --cimd-bad-text: #fca5a5;
   --cimd-bad-bg: #3a1616;
-  --cimd-bad-line: #991b1b;
+  --cimd-bad-line: #aa0005;
 }
 
 /* Light page. */
 .cur-ide[data-cur-theme="light"] .cimd-ci-results {
   --cimd-ground: #ffffff;
   --cimd-ink: #1e1e1e;
-  --cimd-inset: #f3f4f6;
+  --cimd-inset: #eff0f1;
   --cimd-line: #d0d7de;
   --cimd-line-strong: #bcc3cc;
   --cimd-ok-text: #14532d;

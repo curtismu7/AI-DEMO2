@@ -171,7 +171,7 @@
 .aof-legend-badge--2 { background: #2f6fed; }
 .aof-legend-badge--3 { background: #d20e0f; }
 .aof-legend-badge--4 { background: #d9730d; }
-.aof-legend-badge--5 { background: #a83289; }
+.aof-legend-badge--5 { background: #d20e0f; }
 .aof-legend-badge--6 { background: #44403c; }
 .aof-legend-badge--7 { background: #0891b2; }
 
@@ -182,4 +182,9 @@
   border: 1px dashed var(--aof-brand);
   font-size: var(--font-size-sm);
   line-height: 1.5;
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .aof-share-link {
+  color: var(--th-status-info-text);
 }

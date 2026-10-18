@@ -67,7 +67,7 @@
   line-height: 1;
 }
 .log-action-btn:hover {
-  background: #eff6ff;
+  background: #fcfcfc;
   color: var(--brand-navy);
   border-color: #93c5fd;
 }
@@ -116,10 +116,10 @@
   width: 100%;
   flex-basis: 100%;
   font-size: var(--font-size-2xs);
-  color: var(--th-text);
+  color: #051727;
   margin: 0 0 8px;
   padding: 6px 10px;
-  background: #eff6ff;
+  background: #fcfcfc;
   border-radius: 6px;
   border: 1px solid #bfdbfe;
 }
@@ -153,7 +153,7 @@
 }
 
 .log-details-empty {
-  color: #94a3b8;
+  color: #909ea4;
   font-size: var(--font-size-2xs);
 }
 
@@ -172,7 +172,7 @@
 .runtime-chip:hover {
   border-color: #93c5fd;
   color: var(--brand-navy);
-  background: #eff6ff;
+  background: #fcfcfc;
 }
 
 .runtime-chip.active {
@@ -212,7 +212,7 @@
 .control-group select:focus,
 .control-group input[type="text"]:focus {
   border-color: var(--brand-navy);
-  box-shadow: 0 0 0 2px rgba(59,130,246,0.15);
+  box-shadow: 0 0 0 2px rgba(18, 83, 141,0.15);
 }
 
 .control-group select {
@@ -247,7 +247,7 @@
 .download-button:hover,
 .clear-button:hover,
 .copy-button:hover {
-  background: #eff6ff;
+  background: #fcfcfc;
   color: var(--brand-navy);
   border-color: #93c5fd;
 }
@@ -274,7 +274,7 @@
 
 .pause-button:hover,
 .resume-button:hover {
-  background: #eff6ff;
+  background: #fcfcfc;
   color: var(--brand-navy);
   border-color: #93c5fd;
 }
@@ -304,7 +304,7 @@
 .log-error {
   padding: 12px 24px;
   background: #fef2f2;
-  color: #b91c1c;
+  color: #d20e0f;
   border-bottom: 1px solid #fca5a5;
   font-size: var(--font-size-body);
 }
@@ -356,7 +356,7 @@
 }
 
 .log-time {
-  color: #94a3b8;
+  color: #909ea4;
   font-size: var(--font-size-2xs);
   white-space: nowrap;
 }
@@ -392,13 +392,13 @@
   margin-left: 12px;
   padding: 2px 8px;
   background: #DDDDDD;
-  color: var(--th-text);
+  color: #051727;
   border-radius: 3px;
   font-size: var(--font-size-xs);
 }
 
 .log-row.log-error {
-  background: rgba(239, 68, 68, 0.04);
+  background: rgba(210, 14, 15, 0.04);
 }
 
 .log-row.log-warn {
@@ -409,7 +409,7 @@
 .empty-cell {
   text-align: center;
   padding: 40px;
-  color: #94a3b8;
+  color: #909ea4;
   font-style: italic;
 }
 
@@ -457,7 +457,7 @@
 }
 
 .log-table-container::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #909ea4;
 }
 
 /* Resize grip — bottom-right corner, JS drag */

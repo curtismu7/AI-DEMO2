@@ -8,6 +8,7 @@ import { agentStudioMockStore } from "../../data/agentStudioMockStore";
 import PreviewBanner from "./PreviewBanner";
 import WizardStepper from "./WizardStepper";
 import "./agentStudioPreview.css";
+import PageHeader from '../common/PageHeader';
 
 const STORIES = [
   { id: "browserDevice", label: "Story A · Browser & Device" },
@@ -39,11 +40,7 @@ export default function DiscoveryPreviewPage() {
     <div className="asp-root asp-root--discovery">
       <div className="asp-page">
         <PreviewBanner />
-        <div className="asp-hero">
-          <span className="asp-eyebrow">Discovery · Preview</span>
-          <h1>Discovery</h1>
-          <p>Two stories, sixteen steps — walk either one from the diagram.</p>
-        </div>
+        <PageHeader eyebrow="Discovery · Preview" title="Discovery" summary="Two stories, sixteen steps — walk either one from the diagram." />
 
         <div className="asp-tabs" role="tablist" aria-label="Discovery story">
           {STORIES.map((s) => (

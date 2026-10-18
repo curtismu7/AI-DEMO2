@@ -4,7 +4,7 @@
 .tet-page {
   background: var(--th-bg-page);
   color: var(--th-text);
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-primary);
 }
 
 /* Top bar */
@@ -200,11 +200,11 @@
   color: #fff;
   display: inline-block;
   margin-top: 8px;
-  background: #1e293b;
+  background: #263746;
   text-decoration: none;
   text-align: center;
 }
-.tet-btn--secondary:hover { background: #0f172a; }
+.tet-btn--secondary:hover { background: #051727; }
 .tet-btn--secondary:is(:link, :visited) { color: #fff; }
 
 .tet-no-session button {

@@ -224,7 +224,7 @@
 
 /* ---------- Code block ---------- */
 .cimd-code {
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   padding: 12px 16px;
   border-radius: 6px;
@@ -281,7 +281,7 @@
   border-color: #fde68a;
 }
 .cimd-callout--info {
-  background: #eff6ff;
+  background: #fcfcfc;
   border-color: #bfdbfe;
 }
 
@@ -433,7 +433,7 @@
   border: 1px solid #86efac;
 }
 .cimd-check--info {
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #93c5fd;
 }
 
@@ -557,4 +557,9 @@
 .cimd-setup-step-body span {
   font-size: 0.81rem;
   color: var(--th-text-muted);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .cimd-sim-dot {
+  color: #051727;
 }

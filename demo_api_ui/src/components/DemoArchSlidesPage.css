@@ -39,8 +39,8 @@
   text-decoration: none;
 }
 .das-page a.das-tab--active {
-  background: #991b1b;
-  border-color: #991b1b;
+  background: #aa0005;
+  border-color: #aa0005;
   color: #fff;
 }
 
@@ -67,8 +67,8 @@
   cursor: default;
 }
 .das-btn--primary {
-  background: #991b1b;
-  border-color: #991b1b;
+  background: #aa0005;
+  border-color: #aa0005;
   color: #fff;
 }
 .das-btn--live {

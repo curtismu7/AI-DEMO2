@@ -15,7 +15,7 @@
   flex-direction: column;
   height: 100%;
   overflow: hidden;
-  font-family: var(--font-sans, 'Inter', system-ui, sans-serif);
+  font-family: var(--font-primary);
   font-size: var(--font-size-sm);
   background: var(--surface-primary, #161b22);
   color: var(--text-primary, #e6edf3);
@@ -264,13 +264,13 @@
 .tfd-badge-PINGONE  { color: #f87171; background: rgba(248, 113, 113,.1); }
 .tfd-badge-CHAT     { color: #60a5fa; background: rgba(96,165,250,.1); }
 .tfd-badge-AGENT    { color: #fca5a5; background: rgba(210, 14, 15,.1); }
-.tfd-badge-BFF      { color: #94a3b8; background: rgba(148,163,184,.1); }
+.tfd-badge-BFF      { color: #909ea4; background: rgba(148,163,184,.1); }
 .tfd-badge-AUTHZ    { color: #fb923c; background: rgba(251,146,60,.1); }
 .tfd-badge-HEURISTICS { color: #fb923c; background: rgba(251,146,60,.1); }
 .tfd-badge-LLM      { color: #fca5a5; background: rgba(210, 14, 15,.1); }
 .tfd-badge-GATEWAY  { color: #34d399; background: rgba(52,211,153,.1); }
 .tfd-badge-MCP      { color: #fbbf24; background: rgba(251,191,36,.1); }
-.tfd-badge-API      { color: #94a3b8; background: rgba(148,163,184,.1); }
+.tfd-badge-API      { color: #909ea4; background: rgba(148,163,184,.1); }
 .tfd-notinpath-tag {
   font-size: var(--font-size-3xs); color: var(--text-muted, #8b949e);
   background: var(--surface-tertiary, #21262d); border: 1px solid var(--border-primary, #30363d);
@@ -435,7 +435,7 @@
 .tfd-ct-k { padding: 5px 8px; color: var(--accent, #2f81f7); font-weight: 600; border-right: 1px solid var(--border-primary, #30363d); word-break: break-all; }
 .tfd-ct-v { padding: 5px 8px; color: var(--text-primary, #e6edf3); word-break: break-all; white-space: pre-wrap; }
 .tfd-ct-v.ok   { color: #3fb950; }
-.tfd-ct-v.hi   { color: #bc8cff; }
+.tfd-ct-v.hi   { color: #fecaca; }
 .tfd-ct-v.aud  { color: #39d353; }
 .tfd-ct-v.warn { color: #f85149; }
 
@@ -582,7 +582,7 @@
 .tfd-topo-claim { display: flex; gap: 4px; align-items: baseline; }
 .tfd-topo-ck { color: var(--accent, #2f81f7); font-weight: 600; min-width: 38px; flex-shrink: 0; }
 .tfd-topo-cv { color: var(--text-secondary, #c9d1d9); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; max-width: 100px; }
-.tfd-topo-cv.hi  { color: #bc8cff; }
+.tfd-topo-cv.hi  { color: #fecaca; }
 .tfd-topo-cv.ok  { color: var(--tfd-success, #3fb950); }
 .tfd-topo-cv.aud { color: #39d353; }
 
@@ -742,7 +742,7 @@
 .tfd-root.tfd-light .tfd-json-pre { background: #f0f4f8; color: #000000; }
 .tfd-root.tfd-light .tfd-jk { color: #0550ae; }
 .tfd-root.tfd-light .tfd-js { color: #116329; }
-.tfd-root.tfd-light .tfd-jn { color: #8250df; }
+.tfd-root.tfd-light .tfd-jn { color: #d20e0f; }
 .tfd-root.tfd-light .tfd-fhop--exchange .tfd-fhop-head { background: rgba(9,105,218,.06); border-color: rgba(9,105,218,.2); }
 .tfd-root.tfd-light .tfd-fhop--issued   .tfd-fhop-head { background: rgba(26,127,55,.06); border-color: rgba(26,127,55,.2); }
 .tfd-root.tfd-light .tfd-fhop--deny     .tfd-fhop-head { background: rgba(207,34,46,.06); border-color: rgba(207,34,46,.2); }
@@ -757,7 +757,7 @@
 .tfd-root.tfd-light .tfd-step.selected { background: rgba(9,105,218,.07); border-left-color: #0969da; }
 .tfd-root.tfd-light .tfd-step.halted   { background: rgba(207,34,46,.05); border-left-color: #cf222e; }
 .tfd-root.tfd-light .tfd-ct-v.ok  { color: #1a7f37; }
-.tfd-root.tfd-light .tfd-ct-v.hi  { color: #8250df; }
+.tfd-root.tfd-light .tfd-ct-v.hi  { color: #d20e0f; }
 .tfd-root.tfd-light .tfd-ct-v.aud { color: #116329; }
 .tfd-root.tfd-light .tfd-act-chip { background: rgba(26,127,55,.07); border-color: rgba(26,127,55,.2); color: #1a7f37; }
 .tfd-root.tfd-light .tfd-topo-box { background: #ffffff; border-color: #d0d7de; }
@@ -796,3 +796,12 @@
 ::-webkit-scrollbar { width: 4px; height: 4px; }
 ::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--border-secondary, #3d444d); border-radius: 3px; }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .tfd-fscope--dropped {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .tfd-fscope--dropped {
+  color: #ffffff;
+}

@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react';
 import './GovernanceTimelinePage.css';
 import InlineSpinner from '../components/shared/InlineSpinner';
+import PageHeader from '../components/common/PageHeader';
 
 const LANES = [
   { id: 'all', label: 'All activity' },
@@ -72,11 +73,11 @@ export default function GovernanceTimelinePage() {
 
   return (
     <main className="governance-timeline-page">
-      <header className="governance-timeline-page__hero">
-        <p className="governance-timeline-page__eyebrow">EVIDENCE &amp; GOVERNANCE</p>
-        <h1>Governance Timeline</h1>
-        <p>Follow the evidence from identity and NHI registration through authorization, privilege, and accountable outcomes.</p>
-      </header>
+      <PageHeader
+        eyebrow="Evidence & Governance"
+        title="Governance Timeline"
+        summary="Follow the evidence from identity and NHI registration through authorization, privilege, and accountable outcomes."
+      />
 
       <nav className="governance-timeline-page__filters" aria-label="Governance timeline lanes">
         {LANES.map((lane) => (

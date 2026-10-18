@@ -34,3 +34,8 @@
   background: var(--th-surface-raised, #f7f9fb);
   font-size: var(--font-size-xs, 12px);
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .mcp-transfer-app-frame {
+  color: #051727;
+}

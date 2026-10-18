@@ -2,7 +2,7 @@
   padding: 20px 16px;
   overflow-x: auto;
   overflow-y: auto;
-  font-family: var(--font-sans, sans-serif);
+  font-family: var(--font-primary);
 }
 .iad-title {
   font-size: 1rem;
@@ -19,10 +19,10 @@
 .iad-exchange-banner {
   margin-top: 20px;
   padding: 10px 14px;
-  background: #eff6ff;
+  background: #fcfcfc;
   border-radius: 8px;
   font-size: 0.78rem;
-  border-left: 3px solid #2563eb;
+  border-left: 3px solid #12538d;
 }
 
 .iad-legend {
@@ -46,7 +46,7 @@
 .iad-rfc-row {
   margin-top: 14px;
   font-size: 0.73rem;
-  color: #64748b;
+  color: #5c646b;
   display: flex;
   gap: 10px;
   flex-wrap: wrap;

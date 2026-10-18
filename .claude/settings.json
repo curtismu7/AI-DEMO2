@@ -45,6 +45,19 @@
         ]
       }
     ],
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "node \"$CLAUDE_PROJECT_DIR/demo_api_ui/scripts/check-contrast.mjs\" --hook",
+            "timeout": 30,
+            "statusMessage": "Checking text/background contrast..."
+          }
+        ]
+      }
+    ],
     "SessionStart": [
       {
         "hooks": [

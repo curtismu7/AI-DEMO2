@@ -168,9 +168,9 @@
 
 /* Primary button (matches current theme) */
 .btn-primary {
-  background-color: #007bff;
+  background-color: #12538d;
   color: white;
-  border: 1px solid #007bff;
+  border: 1px solid #12538d;
 }
 
 .btn-primary:hover:not(:disabled) {

@@ -3,7 +3,7 @@
   max-width: 900px;
   margin: 24px auto;
   padding: 0 24px 40px;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-primary);
 }
 
 .pingcli-page__title { color: var(--th-text); font-size: var(--font-size-h2); font-weight: 800; margin: 0 0 6px; }
@@ -117,7 +117,7 @@
 }
 
 .pingcli-code-block {
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   border-radius: 8px;
   border-left: 3px solid #38bdf8;
@@ -136,7 +136,7 @@
   flex: 1;
   min-width: 0;
   background: transparent;
-  color: #f8fafc;
+  color: #f7f8f8;
   font-size: var(--font-size-base);
   font-weight: 500;
   line-height: 1.45;
@@ -147,8 +147,8 @@
 }
 
 .pingcli-copy-btn {
-  background: #334155;
-  color: #f1f5f9;
+  background: #263746;
+  color: #eff0f1;
   border: none;
   border-radius: 5px;
   padding: 7px 12px;
@@ -160,7 +160,7 @@
 }
 
 .pingcli-copy-btn:hover {
-  background: #475569;
+  background: #5c646b;
   color: var(--th-text-invert);
 }
 
@@ -304,7 +304,7 @@
   align-items: center;
   gap: 7px;
   color: #fff;
-  background: #1e40af;
+  background: #051727;
   border: none;
   border-radius: 5px;
   padding: 5px 14px;
@@ -315,7 +315,7 @@
 
 .pingcli-cmd-run:hover:not(:disabled) {
   color: #fff;
-  background: #1e40af;
+  background: #051727;
 }
 
 /* Soften the “all buttons grey out” flash while one command runs. */
@@ -470,7 +470,7 @@
 
 .pingcli-prereqs-cmd {
   display: block;
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   border-radius: 6px;
   padding: 10px 12px;
@@ -497,7 +497,7 @@
 }
 
 .pingcli-terminal-header {
-  background: #1e293b;
+  background: #263746;
   padding: 10px 16px;
   display: flex;
   align-items: center;
@@ -628,7 +628,7 @@
 .pingcli-terminal-status.err  { color: #f87171; }
 
 .pingcli-terminal-body {
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
@@ -745,8 +745,8 @@
   align-items: center;
   gap: 10px;
   padding: 6px 14px;
-  background: #1e293b;
-  border-bottom: 1px solid #334155;
+  background: #263746;
+  border-bottom: 1px solid #263746;
   flex-shrink: 0;
 }
 
@@ -768,9 +768,9 @@
 
 .pingcli-editor-copy {
   margin-left: auto;
-  background: #334155;
+  background: #263746;
   color: #ffffff;
-  border: 1px solid #475569;
+  border: 1px solid #5c646b;
   border-radius: 5px;
   padding: 4px 12px;
   font-size: var(--font-size-xs);
@@ -780,7 +780,7 @@
 }
 
 .pingcli-editor-copy:hover {
-  background: #475569;
+  background: #5c646b;
   color: var(--th-text-invert);
 }
 
@@ -796,7 +796,7 @@
   flex-direction: column;
   padding: 16px 12px 16px 14px;
   background: #0b1222;
-  border-right: 1px solid #1e293b;
+  border-right: 1px solid #263746;
   text-align: right;
   user-select: none;
   flex-shrink: 0;
@@ -831,3 +831,12 @@
 .pingcli-editor-code .j-num  { color: #fca5a5; }
 .pingcli-editor-code .j-bool { color: #fca5a5; }
 .pingcli-editor-code .j-null { color: var(--th-text-faint); font-style: italic; }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .pingcli-cmd-run--done {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .pingcli-cmd-run--done {
+  color: #051727;
+}

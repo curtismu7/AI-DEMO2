@@ -53,7 +53,7 @@
   padding: 8px 12px 5px;
   font-size: 10px;
   font-weight: 700;
-  color: #999;
+  color: #051727;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   background: #fafafa;
@@ -167,7 +167,7 @@
 
 .rp-test-form__input {
   width: 100%;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 5px;
   padding: 6px 10px;
   font-size: var(--font-size-2xs);
@@ -192,7 +192,7 @@
 /* ── Primary button ─────────────────────────────────────────────────────── */
 
 .rp-btn-primary {
-  background: #3730a3;
+  background: #051727;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -204,7 +204,7 @@
 }
 
 .rp-btn-primary:hover:not(:disabled) {
-  background: #2563eb;
+  background: #12538d;
 }
 
 .rp-btn-primary:disabled {

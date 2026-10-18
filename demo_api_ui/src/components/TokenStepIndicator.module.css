@@ -3,15 +3,15 @@
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
-  background: #f8fafc;
+  background: #f7f8f8;
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
 }
 
 .label {
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #334155;
+  color: #263746;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
@@ -37,16 +37,16 @@
 }
 
 .step.pending {
-  background: #e2e8f0;
-  color: #94a3b8;
-  border: 1px solid #cbd5e1;
+  background: #e0e2e4;
+  color: #051727;
+  border: 1px solid #cdd1d4;
 }
 
 .step.active {
-  background: #1e40af;
+  background: #051727;
   color: white;
-  border: 2px solid #1e40af;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border: 2px solid #051727;
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
 }
 
 .step.completed {

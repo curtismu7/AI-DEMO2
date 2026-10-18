@@ -55,7 +55,7 @@
   padding: 0 10px 0 14px;
   background: var(
     --modal-header-bg,
-    linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)
+    linear-gradient(135deg, #1a1a2e 0%, #051727 100%)
   );
   color: var(--modal-header-text, #ffffff);
   cursor: grab;
@@ -143,7 +143,7 @@
   padding: 16px 20px 20px;
 }
 
-/* ConfirmModal's message body. Was a literal #374151 in an inline style —
+/* ConfirmModal's message body. Was a literal #263746 in an inline style —
    correct against the modal's original always-light surface, invisible once
    --modal-body-bg gained a dark value and the literal didn't follow. */
 .confirm-modal-message {
@@ -176,7 +176,7 @@
   gap: 8px;
   padding: 10px 14px;
   /* --modal-footer-* were already defined in index.css and simply not used
-     here; the hard-coded #fafafa had even drifted from the token's #f9fafb. */
+     here; the hard-coded #fafafa had even drifted from the token's #f7f8f8. */
   border-top: 1px solid var(--modal-footer-border);
   position: relative;
   z-index: 1;

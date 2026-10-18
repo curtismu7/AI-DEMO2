@@ -26,7 +26,7 @@
 .ijp-actors { display: grid; grid-template-columns: repeat(auto-fit, minmax(230px, 1fr)); gap: 0.75rem; margin: 1rem 0; }
 .ijp-actor { padding: 0.75rem 0.9rem; border: 1px solid var(--th-border); border-left: 5px solid var(--th-text-muted); border-radius: 8px; background: var(--th-bg-card); }
 .ijp-actor--idp { border-left-color: var(--ijp-red); }
-.ijp-actor--as { border-left-color: #7c3aed; }
+.ijp-actor--as { border-left-color: #d20e0f; }
 .ijp-actor h3 { margin: 0; font-size: 0.95rem; }
 .ijp-actor p { margin: 0.15rem 0 0.4rem; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
 .ijp-actor dl { margin: 0; display: grid; grid-template-columns: auto 1fr; gap: 0.15rem 0.5rem; font-size: var(--font-size-2xs); }

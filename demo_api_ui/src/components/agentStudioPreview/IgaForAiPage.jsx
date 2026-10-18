@@ -7,6 +7,7 @@ import React, { useState, useEffect } from "react";
 import { agentStudioMockStore } from "../../data/agentStudioMockStore";
 import PreviewBanner from "./PreviewBanner";
 import "./agentStudioPreview.css";
+import PageHeader from '../common/PageHeader';
 
 export default function IgaForAiPage() {
   const [snap, setSnap] = useState(() => agentStudioMockStore.getState());
@@ -22,11 +23,7 @@ export default function IgaForAiPage() {
     <div className="asp-root">
       <div className="asp-page asp-page--wide">
         <PreviewBanner />
-        <div className="asp-hero">
-          <span className="asp-eyebrow">Agent Studio · Preview</span>
-          <h1>IGA for AI</h1>
-          <p>One inventory for every agent and MCP — however it was onboarded.</p>
-        </div>
+        <PageHeader eyebrow="Agent Studio · Preview" title="IGA for AI" summary="One inventory for every agent and MCP — however it was onboarded." />
 
         <div className="asp-stats">
           <div className="asp-stat">

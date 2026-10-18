@@ -596,3 +596,12 @@
   border-left: 3px solid var(--th-status-info);
   padding-left: 10px;
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .hmc-chip.hmc-on {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .hmc-btn {
+  color: #051727;
+}

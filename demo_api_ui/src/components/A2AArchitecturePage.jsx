@@ -16,6 +16,7 @@ import {
   A2A_ARCH_WALKTHROUGH_LABELS,
 } from "./a2aArchitectureWalkthrough";
 import "./A2AArchitecturePage.css";
+import PageHeader from './common/PageHeader';
 
 const SPECIALISTS = [
   { vertical: "banking", specialist: "Investment Advisor", tool: "get_portfolio_summary + 3 more" },
@@ -35,17 +36,11 @@ const SPECIALISTS = [
 export default function A2AArchitecturePage() {
   return (
     <div className="a2a-arch-page">
-      <header className="a2a-arch-header">
-        <span className="a2a-arch-eyebrow">UC2 / UC2.5</span>
-        <h1>A2A Delegation — Architecture</h1>
-        <p className="a2a-arch-subtitle">
-          Two layers share the name &ldquo;A2A&rdquo;. The identity layer is a
+      <PageHeader className="a2a-arch-header" eyebrow="UC2 / UC2.5" title="A2A Delegation — Architecture" summary={<>Two layers share the name &ldquo;A2A&rdquo;. The identity layer is a
           nested RFC 8693 <code>act</code> chain approved by PingOne Authorize.
           The wire protocol layer is Agent Card discovery plus JSON-RPC{" "}
           <code>SendMessage</code> over a separate PingOne bearer. The A2A
-          protocol runs only in UC2/UC2.5 — never on ordinary agent runs.
-        </p>
-      </header>
+          protocol runs only in UC2/UC2.5 — never on ordinary agent runs.</>} />
 
       <section className="a2a-arch-card a2a-arch-card--wide">
         <h2>Delegation flow — step through it</h2>
