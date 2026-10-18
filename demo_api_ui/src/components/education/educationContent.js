@@ -151,6 +151,30 @@ const STEP_UP_SEQUENCE = `sequenceDiagram
   MCP-->>BFF: tool result
   BFF-->>Browser: success`;
 
+// "CIBA + token exchange together" — the 11 numbered steps, drawn by SequenceFlowDiagram.
+const CIBA_EXCHANGE_SEQUENCE = `sequenceDiagram
+  participant Agent
+  participant BFF
+  participant P1 as PingOne
+  participant User as User<br/>(email / text link)
+  participant MCP as MCP server
+  participant API as Banking API
+  Agent->>BFF: 1. create_transfer $500
+  BFF->>BFF: 2. session tokens lack scope → step-up
+  BFF->>P1: 3. POST /as/bc-authorize<br/>login_hint, binding_message
+  P1-->>BFF: auth_req_id
+  BFF->>P1: 4. poll /as/token every 5s
+  P1->>User: email / text link
+  User->>P1: 5. approves out of band
+  P1-->>BFF: 6. CIBA tokens (sub=user)
+  BFF->>P1: 7. token exchange (RFC 8693)<br/>subject_token=CIBA AT, aud=MCP
+  P1-->>BFF: 8. MCP token (MCP audience)
+  BFF->>MCP: 9. tools/call create_transfer<br/>Bearer MCP token
+  MCP->>API: 10. transfer
+  API-->>MCP: confirmed
+  MCP-->>BFF: tool result
+  BFF-->>Agent: 11. success — chat continues`;
+
 // Agent Gateway swimlanes (demo_api_server → demo_mcp_gateway → MCP server / RS), drawn by StaticFlowDiagram.
 const GATEWAY_NODES = [
   { id: 'spa', group: 'client', label: 'Web Browser SPA', x: 0, y: 0 },
@@ -166,6 +190,23 @@ const GATEWAY_EDGES = [
   ['gw', 'idp', 'Bearer (original token) — introspection', { vertical: true }],
   ['gw', 'mcp', 'Bearer (original token, forwarded unchanged)'],
   ['mcp', 'rs', 'Bearer (aud = Banking RS)', { vertical: true }],
+];
+
+// Gateway ingress pipeline (the 'gw' card's three steps and outcomes), drawn by StaticFlowDiagram.
+const INGRESS_NODES = [
+  { id: 'introspect', group: 'idp', label: '1. Introspect', sub: ['RFC 7662 vs PingOne (5 s cache)'], x: 0, y: 0 },
+  { id: 'validate', group: 'gateway', label: '2. Validate', sub: ['GatewayTokenPolicy (scope, audience)'], x: 0, y: 130 },
+  { id: 'authorize', group: 'gateway', label: '3. Authorize', sub: ['PingOneAuthorizeClient.evaluate'], x: 0, y: 260 },
+  { id: 'permit', group: 'mcp', label: 'PERMIT', sub: ['forward bearer unchanged'], x: 320, y: 130 },
+  { id: 'deny', group: 'rs', label: 'DENY', sub: ['403 insufficient_scope'], x: 320, y: 260 },
+  { id: 'indeterminate', group: 'agent', label: 'INDETERMINATE', sub: ['403 hitl_required / -32002'], x: 320, y: 390 },
+];
+const INGRESS_EDGES = [
+  ['introspect', 'validate', 'active', { vertical: true }],
+  ['validate', 'authorize', 'scope + aud ok', { vertical: true }],
+  ['authorize', 'permit'],
+  ['authorize', 'deny'],
+  ['authorize', 'indeterminate'],
 ];
 
 const OAUTH_API_CHEATSHEET = `
@@ -458,6 +499,7 @@ export function CibaMcpFlowContent() {
       </ul>
 
       <h3>CIBA + token exchange together</h3>
+      <SequenceFlowDiagram source={CIBA_EXCHANGE_SEQUENCE} label="CIBA plus token exchange sequence diagram" />
       <pre className="edu-code">{`Agent needs to call Banking API:
 
 1. Agent → Backend-for-Frontend (BFF): "create_transfer $500"
@@ -1134,6 +1176,9 @@ export function AgentGatewayContent() {
       <p>
         Every tool call enters the gateway. The demo_mcp_gateway pipeline:
       </p>
+      <figure role="group" aria-label="Gateway ingress pipeline" style={{ margin: '12px 0' }}>
+        <StaticFlowDiagram NODES={INGRESS_NODES} EDGES={INGRESS_EDGES} GROUPS={FULL_STACK_GROUPS} testId="agent-gateway-ingress-diagram" />
+      </figure>
       <pre className="edu-code">{`1. RFC 7662 token introspection against PingOne AS (:9001)
    — fail-closed, 5 second cache in production
 2. GatewayTokenPolicy.validate — scope and audience check

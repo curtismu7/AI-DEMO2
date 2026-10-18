@@ -1,5 +1,5 @@
 // banking_api_ui/src/components/education/TokenChainEducationPanel.js
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
 import { useTokenChainOptional } from '../../context/TokenChainContext';
 import TokenChainTraceRail from '../TokenChainTraceRail';
@@ -47,6 +47,19 @@ const SCOPE_NODES = [
 ];
 const SCOPE_EDGES = [['t1', 't2', 'exchange requests only read', { vertical: true }]];
 
+// Token chain lifecycle stages; each box names the token it produces.
+const LIFECYCLE_NODES = [
+  { id: 'login', group: 'user', label: '1. User login (code + PKCE)', sub: ['→ access_token · refresh_token · id_token', 'sub=user · RFC 7662 introspection'], x: 0, y: 0 },
+  { id: 'actor', group: 'agent', label: '2. Agent actor token', sub: ['client_credentials', '→ actor_token (sub=agent)', 'JWS verified via JWKS'], x: 300, y: 0 },
+  { id: 'exchange', group: 'token', label: '3. Token exchange (RFC 8693)', sub: ['→ exchanged_token', 'sub=user · act={client_id:bff} · aud=mcp', 'scopes narrowed'], x: 150, y: 200 },
+  { id: 'mcp', group: 'resource', label: '4. MCP tool call', sub: ['→ tool result for the user', 'MCP re-verifies JWS + scopes'], x: 150, y: 400 },
+];
+const LIFECYCLE_EDGES = [
+  ['login', 'exchange', 'subject_token', { vertical: true }],
+  ['actor', 'exchange', 'actor_token (2-exchange)', { vertical: true, dashed: true }],
+  ['exchange', 'mcp', 'Bearer', { vertical: true }],
+];
+
 function OverviewTab() {
   return (
     <div>
@@ -67,6 +80,13 @@ function OverviewTab() {
       </ul>
 
       <h4>Token chain lifecycle</h4>
+      <StaticFlowDiagram
+        NODES={LIFECYCLE_NODES}
+        EDGES={LIFECYCLE_EDGES}
+        GROUPS={TC_GROUPS}
+        testId="tc-lifecycle-diagram"
+        ariaLabel="Token chain lifecycle: user login, agent actor token, token exchange, MCP tool call"
+      />
       <pre className="edu-code">{`1. User Login (Authorization Code + PKCE)
    → access_token (sub=user, scopes=read,write,transfer)
    → refresh_token · id_token (nonce verified)
