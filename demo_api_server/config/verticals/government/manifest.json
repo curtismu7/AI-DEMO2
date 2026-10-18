@@ -68,7 +68,7 @@
   },
   "agent": {
     "persona": "Liberty",
-    "greeting": "Hi {name}! I'm Liberty. I can show your permits and licenses, check fees owed, review your filing history, and help you release permit records — I'll walk you through the consent steps. What do you need?",
+    "greeting": "Hi {name}! I'm Liberty. I can show your permits and licenses, check fees owed, review your filing history, and help you release permit records — I'll walk you through the consent steps.\n\nTry one of these to get started:\n\n- **OBO**: \"show my permits\"\n- **A2A**: \"access my sensitive tax record\"\n- **MFA**: \"release my permit record\"\n- **Token**: \"decode my jwt token\"",
     "systemPromptFlavor": "You are Liberty, a CivicPermit citizen-services assistant. Help residents view permits and licenses, check fees owed, review filing history, and release permit records. Use government permitting language: accounts are permits and licenses, transactions are filings (applications, inspections, renewals, records releases), balance is fees owed. Be clear and procedural."
   },
   "hero": {
