@@ -4,6 +4,10 @@ import {
   submitPassword,
   EmbeddedSignInError,
   PASSWORD_CHECK_TYPE,
+  startPasswordlessSignIn,
+  lookupUser,
+  selectDevice,
+  checkOtp,
 } from "../embeddedPiFlow";
 
 const AUTHZ = "https://auth.pingone.com/env-1/as/authorize?client_id=c&state=s1&code_challenge=x";
@@ -108,5 +112,95 @@ describe("embeddedPiFlow", () => {
       .mockResolvedValueOnce(jsonRes({}));
     await expect(submitPassword({ flowId: "f", checkUrl: "u", resumeBase: "b" }, "u", "p"))
       .rejects.toMatchObject({ code: "resume_blocked" });
+  });
+
+  describe("passwordless (acr_values=mfa_only), same steps as piFlowDriver's PingOne branch", () => {
+    const FLOW = { flowId: "flow-1", stepUrl: "https://auth.pingone.com/env-1/flows/flow-1", resumeBase: "https://auth.pingone.com/env-1" };
+    const devices = [
+      { id: "dev-email", type: "EMAIL", email: "d***@example.com", usableStatus: { status: "ENABLED" } },
+      { id: "dev-sms", type: "SMS", phone: "+1*****1234" },
+      { id: "dev-off", type: "SMS", usableStatus: { status: "DISABLED" } },
+    ];
+    const lastPost = () => {
+      const [url, init] = global.fetch.mock.calls.at(-1);
+      return { url, init, body: JSON.parse(init.body) };
+    };
+
+    it("starts the flow with acr_values=mfa_only and needs PingOne's user.lookup link", async () => {
+      const c = client();
+      global.fetch.mockResolvedValueOnce(jsonRes({
+        id: "flow-1",
+        status: "SIGN_ON_REQUIRED",
+        _links: { "user.lookup": { href: "https://auth.pingone.com/env-1/flows/flow-1" } },
+      }));
+
+      const flow = await startPasswordlessSignIn(c);
+
+      expect(c.authorize.url).toHaveBeenCalledWith({ query: { acr_values: "mfa_only" } });
+      expect(new URL(global.fetch.mock.calls[0][0]).searchParams.get("response_mode")).toBe("pi.flow");
+      expect(flow).toEqual(FLOW);
+    });
+
+    it("rejects a flow without user.lookup (policy not passwordless) as unsupported_step", async () => {
+      global.fetch.mockResolvedValueOnce(jsonRes({ id: "flow-1", status: "USERNAME_PASSWORD_REQUIRED", _links: {} }));
+      await expect(startPasswordlessSignIn(client())).rejects.toMatchObject({ code: "unsupported_step" });
+    });
+
+    it("user.lookup -> DEVICE_SELECTION_REQUIRED -> device.select -> OTP_REQUIRED -> otp.check -> COMPLETED -> resume", async () => {
+      global.fetch.mockResolvedValueOnce(jsonRes({ id: "flow-1", status: "DEVICE_SELECTION_REQUIRED", _embedded: { devices } }));
+      const lookup = await lookupUser(FLOW, " demouser ");
+      let post = lastPost();
+      expect(post.url).toBe(FLOW.stepUrl);
+      expect(post.init.method).toBe("POST");
+      expect(post.init.credentials).toBe("include");
+      expect(post.init.headers["Content-Type"]).toBe("application/vnd.pingidentity.user.lookup+json");
+      expect(post.init.headers.Accept).toBe("*/*");
+      expect(post.body).toEqual({ username: "demouser" });
+      expect(lookup).toEqual({
+        step: "device",
+        selectedDeviceId: null,
+        devices: [
+          { id: "dev-email", type: "EMAIL", nickname: null, email: "d***@example.com", phone: null },
+          { id: "dev-sms", type: "SMS", nickname: null, email: null, phone: "+1*****1234" },
+        ],
+      });
+
+      global.fetch.mockResolvedValueOnce(jsonRes({ id: "flow-1", status: "OTP_REQUIRED", selectedDevice: { id: "dev-sms" }, _embedded: { devices } }));
+      const picked = await selectDevice(FLOW, "dev-sms");
+      post = lastPost();
+      expect(post.init.headers["Content-Type"]).toBe("application/vnd.pingidentity.device.select+json");
+      expect(post.body).toEqual({ device: { id: "dev-sms" } });
+      expect(picked).toMatchObject({ step: "otp", selectedDeviceId: "dev-sms" });
+
+      global.fetch
+        .mockResolvedValueOnce(jsonRes({ id: "flow-1", status: "COMPLETED" }))
+        .mockResolvedValueOnce(jsonRes({ authorizeResponse: { code: "code-1", state: "s1" } }));
+      const done = await checkOtp(FLOW, " 123456 ");
+      const [checkUrl, checkInit] = global.fetch.mock.calls.at(-2);
+      expect(checkUrl).toBe(FLOW.stepUrl);
+      expect(checkInit.headers["Content-Type"]).toBe("application/vnd.pingidentity.otp.check+json");
+      expect(JSON.parse(checkInit.body)).toEqual({ otp: "123456" });
+      expect(global.fetch.mock.calls.at(-1)[0]).toBe("https://auth.pingone.com/env-1/as/resume?flowId=flow-1");
+      expect(done).toEqual({ step: "done", code: "code-1", state: "s1" });
+    });
+
+    it("maps PingOne's OTP_VALIDATION_FAILED to invalid_otp", async () => {
+      global.fetch.mockResolvedValueOnce(jsonRes({ code: "INVALID_DATA", details: [{ code: "OTP_VALIDATION_FAILED", message: "bad" }] }, 400));
+      await expect(checkOtp(FLOW, "000000")).rejects.toMatchObject({ code: "invalid_otp" });
+    });
+
+    it("maps a passkey step (ASSERTION_REQUIRED) to unsupported_step with a clear message", async () => {
+      global.fetch.mockResolvedValueOnce(jsonRes({ id: "flow-1", status: "ASSERTION_REQUIRED" }));
+      const err = await lookupUser(FLOW, "demouser").catch((e) => e);
+      expect(err.code).toBe("unsupported_step");
+      expect(err.message).toMatch(/passkey/i);
+    });
+
+    it("maps a password-required answer to unsupported_step pointing at the password form", async () => {
+      global.fetch.mockResolvedValueOnce(jsonRes({ id: "flow-1", status: "PASSWORD_REQUIRED" }));
+      const err = await lookupUser(FLOW, "demouser").catch((e) => e);
+      expect(err.code).toBe("unsupported_step");
+      expect(err.message).toMatch(/password/i);
+    });
   });
 });
