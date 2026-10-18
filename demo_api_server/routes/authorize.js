@@ -23,6 +23,7 @@ const {
   provisionDemoDecisionEndpoints,
   evaluateTransaction: evaluatePingOneTransaction,
   evaluateDecisionEndpoint,
+  peekWorkerToken,
   evaluateDecisionEndpointBulk,
   setEndpointRecording,
   warmup,
@@ -777,7 +778,10 @@ router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
   }
 
   try {
+    const workerTokenCached = !!peekWorkerToken();
     const result = await evaluateDecisionEndpoint(endpointId, parameters);
+    const token = peekWorkerToken();
+    const { buildTokenEvent, decodeJwtClaims } = require('../services/agentMcpTokenService');
     const consent = result.consentRequired || result.hitlRequired || false;
     logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
       `Authorize [console] ${result.decision} — endpoint ${endpointId}`,
@@ -796,6 +800,12 @@ router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
       raw: result.raw,
       pingoneRequest: result._debug?.request,
       pingoneResponse: result._debug?.response,
+      policyEvalMs: result.policyEvalMs ?? null,
+      ruleName: result.ruleName ?? null,
+      ruleCode: result.ruleCode ?? null,
+      workerTokenCached,
+      tokenEvents: token ? [buildTokenEvent('worker-token', 'Worker token (client credentials)', 'active', decodeJwtClaims(token),
+        'The BFF used this token to call PingOne Authorize. It identifies the BFF, not you.', { rfc: 'RFC 6749 §4.4' })] : [],
     });
   } catch (err) {
     console.error('[authorize/evaluate-endpoint] Error:', err.message);

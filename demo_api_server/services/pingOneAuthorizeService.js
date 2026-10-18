@@ -229,6 +229,14 @@ async function _requestWorkerToken({ envId, clientId, clientSecret, regionTld })
   };
 }
 
+/** Cached worker token if still valid for the current credentials; never hits the network. */
+function peekWorkerToken() {
+  const { envId, clientId } = _getCredentials();
+  if (!envId || !clientId) return null;
+  const c = _workerTokenCache;
+  return c && c.credKey === _workerCredKey(clientId, envId) && Date.now() < c.expiresAt ? c.token : null;
+}
+
 async function getWorkerToken() {
   const creds = _getCredentials();
   const { envId, clientId, clientSecret } = creds;
@@ -1746,6 +1754,7 @@ module.exports = {
   isWorkerCredentialReady,
   provisionDemoDecisionEndpoints,
   getWorkerToken,
+  peekWorkerToken,
   warmup,
   checkPolicyReadiness,
 };
