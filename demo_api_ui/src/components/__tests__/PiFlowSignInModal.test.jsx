@@ -495,9 +495,7 @@ describe('PiFlowSignInModal', () => {
       expect(await screen.findByLabelText('Username')).toBeInTheDocument();
     });
 
-    test('admin "Use another method" on the passkey step keeps the redirect login', async () => {
-      // Admin is password-first (its app policy pairs password with MFA); a
-      // passwordless reopen would 409. The hosted page offers every method.
+    test('admin "Use another method" on the passkey step switches to the device step (admin is device-first now)', async () => {
       mockAdminBff({
         config: ADMIN_ON,
         login: () => ok({ flowId: 'fa' }),
@@ -508,7 +506,11 @@ describe('PiFlowSignInModal', () => {
       fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
       fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
       fireEvent.click(await screen.findByRole('button', { name: 'Use another method' }));
-      await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/login'));
+      await waitFor(() => {
+        const reopen = global.fetch.mock.calls.filter(([u]) => String(u).includes('/oauth/login?')).pop();
+        expect(String(reopen[0])).toContain('passwordless=1');
+      });
+      expect(window.location.href).toBe('');
     });
   });
 
@@ -1126,10 +1128,12 @@ describe('PiFlowSignInModal with ciba_login_enabled off', () => {
     expect(openUrl()).toContain('passwordless=1');
   });
 
-  test('flag off: admin opens on the password step', async () => {
+  test('flag off: admin opens device-first (passwordless=1); the password form is one click away', async () => {
     await openOff('admin', OFF);
     expect(screen.queryByRole('button', { name: 'Sign in with CIBA (email or SMS)' })).toBeNull();
-    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
-    expect(openUrl()).not.toContain('passwordless=1');
+    expect(await screen.findByLabelText('Username')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Password')).toBeNull();
+    expect(openUrl()).toContain('passwordless=1');
+    expect(screen.getByRole('button', { name: 'Use your password instead' })).toBeInTheDocument();
   });
 });

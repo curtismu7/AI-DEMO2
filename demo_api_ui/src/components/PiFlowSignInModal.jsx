@@ -213,7 +213,9 @@ export default function PiFlowSignInModal() {
     // PingFederate customers are device-first too (acr_values=mfa_only → identifier first →
     // PingOne MFA, scripts/pingfederate/enable-pf-passwordless.js). ?signin=mfa on PF keeps the
     // password form: its Multi_Factor flow starts with the password.
-    const passwordFirst = role === "admin" || (providerRef.current === "pingfederate" && mfaRequested());
+    // Admin is device-first too (user decision 2026-10-18); "Use your password instead" stays the
+    // break-glass. If the admin app has no mfa_only policy the open fails and snaps to the password form.
+    const passwordFirst = providerRef.current === "pingfederate" && mfaRequested();
     // With ciba_login_enabled on, both roles open on a CHOICE screen (passkey / CIBA
     // approval link / "use a password") with no flow opened yet. PingFederate
     // and the ?signin=mfa test hook keep the legacy first step below.
@@ -582,9 +584,8 @@ export default function PiFlowSignInModal() {
                   // Other methods in the modal: the device step re-opens the flow
                   // passwordless (switchToDevice reuses the typed username). The
                   // step-up MFA request keeps its redirect — a passwordless reopen
-                  // would overwrite the Multi_Factor acr selector — and admin is
-                  // password-first, so its policy would 409 the passwordless open.
-                  if (roleRef.current === 'admin' || mfaRequested()) {
+                  // would overwrite the Multi_Factor acr selector.
+                  if (mfaRequested()) {
                     redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
                     return;
                   }
