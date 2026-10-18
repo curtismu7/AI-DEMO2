@@ -118,6 +118,27 @@ describe('dedupeGatewayCalls', () => {
     expect(dedupeGatewayCalls([mk('a', 10000)], [mk('r', 14000)]).map((c) => c.id)).toEqual(['a']);
     expect(dedupeGatewayCalls([mk('a', 10000)], [mk('r', 16000)]).map((c) => c.id)).toEqual(['r', 'a']);
   });
+  it('lends a matching record\'s audit/steps/chips to a test call that lacks them, keeping the test call\'s own fields', () => {
+    const t = { ...mk('a', 10000), tokens: ['tk'], hops: ['h'], response: { x: 1 }, steps: [], chips: [] };
+    const r = { ...mk('r', 12000), audit: { who: 'w' }, steps: [{ title: 'S' }], chips: [{ label: 'c' }] };
+    const [out] = dedupeGatewayCalls([t], [r]);
+    expect(out).toMatchObject({ id: 'a', tokens: ['tk'], hops: ['h'], response: { x: 1 }, audit: { who: 'w' }, steps: [{ title: 'S' }], chips: [{ label: 'c' }] });
+    expect(t.audit).toBeUndefined();
+  });
+  it('keeps a test call\'s own audit and steps', () => {
+    const t = { ...mk('a', 10000), audit: { own: 1 }, steps: [{ title: 'mine' }] };
+    const r = { ...mk('r', 12000), audit: { who: 'w' }, steps: [{ title: 'S' }] };
+    const [out] = dedupeGatewayCalls([t], [r]);
+    expect(out.audit).toEqual({ own: 1 });
+    expect(out.steps).toEqual([{ title: 'mine' }]);
+  });
+  it('leaves test calls unchanged with no matching record; unmatched records still appear', () => {
+    const t = mk('a', 10000);
+    const r = { ...mk('r', 99000), audit: { who: 'w' } };
+    const out = dedupeGatewayCalls([t], [r]);
+    expect(out.map((c) => c.id)).toEqual(['r', 'a']);
+    expect(out[1]).toEqual(t);
+  });
 });
 
 describe('logLinesFor', () => {

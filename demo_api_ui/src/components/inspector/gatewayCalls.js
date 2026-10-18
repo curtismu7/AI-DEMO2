@@ -198,11 +198,22 @@ export function gatewayCallFromRecord(rec) {
   return n;
 }
 
-/** Drops a record call that a test call from this page already shows. */
+/** Drops a record call that a test call from this page already shows, lending it the record's audit, steps and chips where the test call lacks them. */
 export function dedupeGatewayCalls(testCalls, recordCalls) {
   // ponytail: heuristic dedupe; switch to correlationId once the ingest records it
-  const dup = (r) => testCalls.some((t) => t.title === r.title && t.status.label === r.status.label && Math.abs(t.at - r.at) <= 5000);
-  return [...recordCalls.filter((r) => !dup(r)), ...testCalls].sort((a, b) => b.at - a.at);
+  const match = (t, r) => t.title === r.title && t.status.label === r.status.label && Math.abs(t.at - r.at) <= 5000;
+  const lend = (t) => {
+    const r = recordCalls.find((x) => match(t, x));
+    if (!r) return t;
+    return {
+      ...t,
+      audit: t.audit ?? r.audit,
+      steps: t.steps?.length ? t.steps : r.steps ?? t.steps,
+      chips: t.chips?.length ? t.chips : r.chips ?? t.chips,
+    };
+  };
+  const dup = (r) => testCalls.some((t) => match(t, r));
+  return [...recordCalls.filter((r) => !dup(r)), ...testCalls.map(lend)].sort((a, b) => b.at - a.at);
 }
 
 const ISO = /\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d+)?Z?/;
