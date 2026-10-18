@@ -14,7 +14,7 @@
 
 .dm-panel.acm-modal {
   max-width: calc(100vw - 16px);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   animation: acm-fade-scale-in 180ms ease-out both;
 }
 
@@ -106,7 +106,7 @@
 .acm-card {
   border: 1px solid var(--th-border);
   border-left: 3px solid var(--app-primary-red, #d20e0f);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--th-bg-card);
   box-shadow: 0 1px 2px rgba(5, 23, 39, 0.04);
   overflow: hidden;
@@ -257,7 +257,7 @@
   color: #aa0005;
   background: #fef2f2;
   border: 1px solid #fecaca;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 10px;
 }
 

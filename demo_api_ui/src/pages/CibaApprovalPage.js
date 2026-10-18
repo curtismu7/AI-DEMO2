@@ -54,7 +54,7 @@ const FOOTER_BTN_RETRY = {
   border: "1px solid #0a7c3f",
   borderRadius: 6,
   background: "var(--th-bg-card)",
-  color: "#0a7c3f",
+  color: "var(--th-status-success-text)",
   fontWeight: 600,
   cursor: "pointer",
 };

@@ -59,7 +59,7 @@
 .audit-float-btn {
   background: none;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--color-text-secondary, var(--th-text));
   font-size: 1rem;
   cursor: pointer;
@@ -229,7 +229,7 @@ body.admin-skin-p1 .audit-refresh-select {
 .audit-stat {
   background: var(--color-surface, #f7f8f8);
   border: 1px solid var(--color-border, #e0e2e4);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 16px;
   text-align: center;
   min-width: 80px;
@@ -276,7 +276,7 @@ body.admin-skin-p1 .audit-refresh-select {
 .audit-filter-select {
   padding: 6px 10px;
   border: 1px solid var(--color-border, #e0e2e4);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--color-surface, #fff);
   font-size: 0.875rem;
   color: var(--color-text-primary, #1a1a2e);
@@ -292,7 +292,7 @@ body.admin-skin-p1 .audit-refresh-select {
 .audit-page__error {
   background: var(--th-status-error-bg);
   border: 1px solid var(--th-status-error-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px 16px;
   color: var(--th-status-error-text);
   margin-bottom: 14px;
@@ -309,7 +309,7 @@ body.admin-skin-p1 .audit-refresh-select {
   border-collapse: collapse;
   font-size: 0.85rem;
   background: var(--color-surface, #fff);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   border: 1px solid var(--color-border, #e0e2e4);
 }
@@ -375,7 +375,7 @@ body.admin-skin-p1 .audit-refresh-select {
 .audit-badge {
   display: inline-block;
   padding: 2px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: 0.72rem;
   font-weight: 500;
   white-space: nowrap;
@@ -435,7 +435,7 @@ body.admin-skin-p1 .audit-refresh-select {
   background: #1f6feb;
   color: var(--th-text-invert);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   padding: 7px 14px;
   font-weight: 600;
   font-size: 0.8rem;
@@ -445,17 +445,17 @@ body.admin-skin-p1 .audit-refresh-select {
 .audit-badge--status--permit {
   background: var(--th-status-success-bg);
   color: var(--th-status-success-text);
-  border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
+  border-radius: var(--radius-pill); padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
 }
 .audit-badge--status--deny {
   background: var(--th-status-error-bg);
   color: var(--th-status-error-text);
-  border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
+  border-radius: var(--radius-pill); padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
 }
 .audit-badge--status--stepup {
   background: var(--th-status-warning-bg);
   color: var(--th-status-warning-text);
-  border-radius: 999px; padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
+  border-radius: var(--radius-pill); padding: 2px 9px; font-size: 0.72rem; font-weight: 700;
 }
 .audit-group--pass { color: var(--th-status-success-text); font-weight: 700; }
 .audit-group--fail { color: var(--th-status-error-text); font-weight: 700; }
@@ -472,7 +472,7 @@ body.admin-skin-p1 .audit-refresh-select {
   margin: 6px 0 0;
   font-size: 0.75rem;
   background: var(--color-header-bg, #eff0f1);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 8px;
   overflow-x: auto;
   max-width: 320px;
@@ -485,7 +485,7 @@ body.admin-skin-p1 .audit-refresh-select {
   border: 1px solid var(--color-border, #cdd1d4);
   background: var(--color-surface, #fff);
   color: var(--color-text-primary, #1a1a2e);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 8px;
   font-size: 0.78rem;
   cursor: pointer;
@@ -511,7 +511,7 @@ tr.audit-detail-row > td {
   line-height: 1.5;
   background: #1e2433;
   color: #ffffff;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   overflow-x: auto;
   white-space: pre;
@@ -597,7 +597,7 @@ tr.token-chain-detail-row td {
   grid-template-columns: 1fr 1fr 1fr;
   gap: 12px;
   background-color: var(--th-bg-card);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 12px;
   border: 1px solid var(--th-border);
 }
@@ -630,7 +630,7 @@ tr.token-chain-detail-row td {
 body.admin-skin-p1 .audit-float-window {
   background: var(--th-bg-card);
   border: 1px solid #e4e5e9;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 20px 56px rgba(35, 36, 42, 0.22);
 }
 body.admin-skin-p1 .audit-float-titlebar,
@@ -643,7 +643,7 @@ body.admin-skin-p1 .audit-float-title {
 }
 body.admin-skin-p1 .audit-float-btn {
   color: var(--th-text-body);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 body.admin-skin-p1 .audit-float-btn:hover:not(:disabled) {
   background: #12538d;
@@ -651,7 +651,7 @@ body.admin-skin-p1 .audit-float-btn:hover:not(:disabled) {
 }
 body.admin-skin-p1 .audit-float-close {
   color: var(--th-text-body);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 body.admin-skin-p1 .audit-float-close:hover {
   background: #aa0005;
@@ -668,7 +668,7 @@ body.admin-skin-p1 .audit-popout-page {
 body.admin-skin-p1 .audit-stat {
   background: var(--th-bg-inset);
   border: 1px solid #e4e5e9;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 body.admin-skin-p1 .audit-stat__value {
   color: var(--th-text);
@@ -681,7 +681,7 @@ body.admin-skin-p1 .audit-stat__label {
 body.admin-skin-p1 .audit-filter-select {
   background: var(--th-bg-card);
   border: 1px solid #e4e5e9;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--th-text);
 }
 body.admin-skin-p1 .audit-filter-select:focus {
@@ -708,7 +708,7 @@ body.admin-skin-p1 .audit-view-tab.active {
 /* ── Export buttons ─────────────────────────────────────────────────────── */
 body.admin-skin-p1 .audit-export-btn {
   background: #12538d;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 body.admin-skin-p1 .audit-export-btn:hover {
   background: #1f57b8;
@@ -718,7 +718,7 @@ body.admin-skin-p1 .audit-export-btn:hover {
 body.admin-skin-p1 .audit-table {
   background: var(--th-bg-card);
   border: 1px solid #e4e5e9;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 body.admin-skin-p1 .audit-table thead {
   background: var(--th-bg-inset);
@@ -739,7 +739,7 @@ body.admin-skin-p1 .audit-cell--user {
 body.admin-skin-p1 .audit-details-toggle {
   background: var(--th-bg-card);
   border: 1px solid #e4e5e9;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--th-text);
 }
 body.admin-skin-p1 .audit-details-toggle:hover {

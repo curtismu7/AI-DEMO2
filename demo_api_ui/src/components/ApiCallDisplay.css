@@ -1,6 +1,6 @@
 .api-call-display {
   border: 1px solid #cdd1d4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-top: 1.5rem;
   background: var(--th-bg-card);
   overflow: hidden;
@@ -31,7 +31,7 @@
 .api-call-filter {
   padding: 0.5rem;
   border: 1px solid #cdd1d4;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
   background: var(--th-bg-card);
 }
@@ -39,7 +39,7 @@
 .api-call-button {
   padding: 0.5rem 1rem;
   border: 1px solid #cdd1d4;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-card);
   font-size: 0.875rem;
   cursor: pointer;
@@ -206,7 +206,7 @@
     padding: 0.5rem;
     background: var(--th-bg-card);
     border: 1px solid #e0e2e4;
-    border-radius: 4px;
+    border-radius: var(--radius-sm);
     font-size: 0.75rem;
     color: var(--th-text);
     overflow-x: auto;

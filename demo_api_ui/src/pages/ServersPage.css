@@ -42,7 +42,7 @@
 .servers-refresh {
   padding: 6px 14px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -64,7 +64,7 @@
   margin-bottom: 16px;
   padding: 10px 14px;
   border: 1px solid var(--th-status-error-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-status-error-bg);
   color: var(--th-status-error-text);
   font-size: var(--font-size-body);
@@ -83,7 +83,7 @@
 
 .servers-group h2 {
   margin: 0 0 8px 0;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--th-text);
 }
@@ -91,7 +91,7 @@
 .servers-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
@@ -180,7 +180,7 @@
   display: inline-block;
   padding: 2px 8px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--th-bg-hover);
   color: var(--th-text-body);
   font-size: var(--font-size-xs);

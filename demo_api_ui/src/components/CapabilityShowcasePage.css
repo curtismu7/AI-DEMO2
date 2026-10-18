@@ -13,5 +13,5 @@
 .cap-card:hover { transform: translateY(-2px); border-color: var(--th-status-info); box-shadow: 0 9px 22px rgb(15 23 42 / 12%); }
 .cap-card__title { margin: 0 0 9px; color: var(--th-text); font-size: 1.04rem; line-height: 1.3; }
 .cap-card__one-liner { flex: 1; margin: 0 0 16px; color: var(--th-text); font-size: .91rem; line-height: 1.55; }
-.cap-card__evidence { display: block; padding: 9px 10px; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg-inset); color: var(--th-text); font-size: .76rem; line-height: 1.45; overflow-wrap: anywhere; }
+.cap-card__evidence { display: block; padding: 9px 10px; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg-inset); color: var(--th-text); font-size: .76rem; line-height: 1.45; overflow-wrap: anywhere; }
 @media (max-width: 640px) { .cap-showcase { padding-inline: 14px; } .cap-showcase__header { padding: 22px; } .cap-showcase__theme-toggle { position: static; display: inline-block; margin-bottom: 12px; } }

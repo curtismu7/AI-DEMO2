@@ -41,7 +41,7 @@
   align-items: center;
   justify-content: center;
   gap: 2px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   border: 1.5px solid #909ea4;
   background: var(--th-bg-inset);
   color: var(--th-text);

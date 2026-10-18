@@ -62,7 +62,7 @@
 .dcv-run button {
   appearance: none;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #051727;
   color: #fff;
   cursor: pointer;
@@ -95,7 +95,7 @@
 .dcv-run {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 16px;
 }
@@ -115,7 +115,7 @@
 .dcv-error {
   background: var(--th-bg-inset);
   border-left: 3px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 8px 10px;
   margin: 12px 0 0;
   color: var(--th-text);
@@ -133,7 +133,7 @@
 .dcv-clear-button {
   appearance: none;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   background: var(--th-primary, #12538d);
   color: #fff;
   cursor: pointer;

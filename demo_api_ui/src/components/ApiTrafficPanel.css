@@ -19,7 +19,7 @@
   animation: apiPanelIn 0.2s ease-out;
   resize: both;
   overflow: hidden;
-  font-size: 16px;
+  font-size: var(--font-size-md);
 }
 
 @keyframes apiPanelIn {
@@ -112,7 +112,7 @@
   color: #92400e;
   background: #fef3c7;
   border: 1px solid #f59e0b;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 7px;
 }
 
@@ -179,7 +179,7 @@
 .api-traffic-btn {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--th-text-muted);
   font-size: var(--font-size-base);
   font-weight: 500;
@@ -242,7 +242,7 @@
   padding: 24px 16px;
   text-align: center;
   color: var(--th-text-faint);
-  font-size: 16px;
+  font-size: var(--font-size-md);
   line-height: 1.6;
 }
 
@@ -293,7 +293,7 @@
   background: var(--th-bg-hover);
 }
 .api-turn-group-chevron {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   flex-shrink: 0;
   color: var(--th-text-muted);
 }
@@ -401,7 +401,7 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   padding: 1px 7px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 .api-status-badge--ok {
@@ -455,7 +455,7 @@
   justify-content: center;
   flex: 1;
   color: var(--th-text-faint);
-  font-size: 16px;
+  font-size: var(--font-size-md);
 }
 
 .api-detail-tabs {
@@ -585,7 +585,7 @@ pre.api-json {
   color: #d20e0f;
   background: #fef2f2;
   border: 1px solid #fca5a5;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px 12px;
   margin-bottom: 10px;
 }
@@ -741,7 +741,7 @@ pre.api-json {
 }
 .api-claims-expand-icon {
   color: var(--th-text-muted);
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   margin-left: 4px;
 }
 .api-claims-empty {

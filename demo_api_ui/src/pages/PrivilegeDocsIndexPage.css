@@ -182,7 +182,7 @@
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-inset);
   color: var(--th-text);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0.15rem 0.6rem;
   white-space: nowrap;
   text-decoration: none;

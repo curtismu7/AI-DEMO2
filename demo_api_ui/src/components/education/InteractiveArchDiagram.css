@@ -20,7 +20,7 @@
   margin-top: 20px;
   padding: 10px 14px;
   background: #fcfcfc;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 0.78rem;
   border-left: 3px solid #12538d;
 }

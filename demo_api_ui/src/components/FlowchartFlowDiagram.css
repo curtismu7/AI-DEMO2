@@ -22,7 +22,7 @@
   color: var(--th-text);
   background: var(--th-bg-card);
   border: 1.5px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 .fcd-node--round { border-radius: 16px; }
 .fcd-node--diamond { border-style: dashed; }

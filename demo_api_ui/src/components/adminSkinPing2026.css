@@ -26,7 +26,7 @@ body.admin-skin-p1 .admin-side-nav__ping-mark {
   border-radius: var(--radius-md);
   flex: none;
   color: #102a43;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 800;
 }
 body.admin-skin-p1 .admin-side-nav__ping-wordmark {
@@ -37,12 +37,12 @@ body.admin-skin-p1 .admin-side-nav__ping-wordmark {
   letter-spacing: -0.01em;
 }
 body.admin-skin-p1 .admin-side-nav__ping-wordmark strong {
-  font-size: 15px;
+  font-size: var(--font-size-base);
   font-weight: 700;
 }
 body.admin-skin-p1 .admin-side-nav__ping-wordmark small {
   color: #91abc2;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 600;
   letter-spacing: 0.03em;
 }
@@ -239,7 +239,7 @@ body.admin-skin-p1 .admin-side-nav__group--product-card .admin-side-nav__submenu
 body.admin-skin-p1 .admin-side-nav__group--product-card .admin-side-nav__item--child {
   min-height: 31px;
   padding: 7px 10px 7px 30px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 body.admin-skin-p1 .admin-side-nav__group--product-card .admin-side-nav__item--child::before,
 body.admin-skin-p1 .admin-side-nav__group--utility .admin-side-nav__item--child::before,
@@ -280,7 +280,7 @@ body.admin-skin-p1 .admin-side-nav__group--separate {
 body.admin-skin-p1 .admin-side-nav__group--separate > .admin-side-nav__item--parent,
 body.admin-skin-p1 .admin-side-nav__group--separate > .admin-side-nav__item:not(.admin-side-nav__item--child) {
   padding: 7px 10px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
 }
 body.admin-skin-p1 .admin-side-nav__group--separate > .admin-side-nav__submenu {
   margin-left: 10px;
@@ -324,7 +324,7 @@ body.admin-skin-p1 .admin-side-nav::-webkit-scrollbar-track {
 body.admin-skin-p1 .admin-side-nav__item--highlight-danger,
 body.admin-skin-p1 .admin-side-nav__item--highlight-danger.admin-side-nav__item--active {
   background: #d20e0f !important;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 body.admin-skin-p1 .admin-side-nav__item--highlight-danger:hover,
 body.admin-skin-p1 .admin-side-nav__item--highlight-danger.admin-side-nav__item--active:hover {

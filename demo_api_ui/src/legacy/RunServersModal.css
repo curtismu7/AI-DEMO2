@@ -37,7 +37,7 @@
   font-size: 1rem;
   cursor: pointer;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .rsm-close-btn:hover { color: #ffffff; background: rgba(255,255,255,0.08); }
@@ -64,7 +64,7 @@
 
 .rsm-btn {
   padding: 7px 18px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;

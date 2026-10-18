@@ -13,11 +13,11 @@
 .np-step-label { font-size: 0.88rem; font-weight: 600; color: #263746; line-height: 1.4; }
 .np-step-body  { font-size: 0.8rem; color: var(--th-text); margin-top: 3px; line-height: 1.5; }
 .np-step-claims { display: flex; flex-wrap: wrap; gap: 5px; margin-top: 6px; }
-.np-claim { font-size: 0.67rem; font-family: inherit; background: #eff0f1; border: 1px solid #e0e2e4; border-radius: 4px; padding: 2px 6px; color: #263746; }
+.np-claim { font-size: 0.67rem; font-family: inherit; background: #eff0f1; border: 1px solid #e0e2e4; border-radius: var(--radius-sm); padding: 2px 6px; color: #263746; }
 .np-claim--highlight { background: #fcfcfc; border-color: #bfdbfe; color: #12538d; }
 .np-claim--new { background: #dcfce7; border-color: #bbf7d0; color: #15803d; }
 .np-claim--changed { background: #fef9c3; border-color: #fde68a; color: #854d0e; }
 .np-rfc { font-size: 0.7rem; color: #909ea4; margin-top: 4px; }
 .np-rfc a { color: #12538d; text-decoration: none; }
 .np-rfc a:hover { text-decoration: underline; }
-.np-summary { margin-top: 20px; padding: 12px 14px; background: #fcfcfc; border-radius: 8px; border-left: 3px solid #12538d; font-size: 0.82rem; color: #263746; line-height: 1.6; }
+.np-summary { margin-top: 20px; padding: 12px 14px; background: #fcfcfc; border-radius: var(--radius-lg); border-left: 3px solid #12538d; font-size: 0.82rem; color: #263746; line-height: 1.6; }

@@ -2,7 +2,7 @@
 .lps-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
 .lps-title { font-size: 1.05rem; font-weight: 700; color: var(--color-text, #1a1a2e); margin: 0 0 4px; }
 .lps-sub { font-size: 0.8125rem; color: var(--color-text-muted, #667085); margin: 0; }
-.lps-notice { background: #fef6e7; color: #b54708; border-radius: 8px; padding: 10px 12px; font-size: 0.8125rem; margin-bottom: 12px; }
+.lps-notice { background: #fef6e7; color: #b54708; border-radius: var(--radius-lg); padding: 10px 12px; font-size: 0.8125rem; margin-bottom: 12px; }
 .lps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
 .lps-card { border: 1px solid var(--border, #e0e2e4); border-radius: 10px; padding: 14px; }
 .lps-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -12,7 +12,7 @@
 .lps-card-meta { display: flex; flex-wrap: wrap; gap: 12px; font-size: 0.8125rem; color: #475467; margin-bottom: 10px; }
 .lps-result { margin-top: 10px; display: flex; flex-wrap: wrap; align-items: center; gap: 8px; }
 .lps-engine { font-size: var(--font-size-2xs); color: #667085; }
-.lps-flag { font-size: var(--font-size-xs); font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+.lps-flag { font-size: var(--font-size-xs); font-weight: 700; padding: 1px 8px; border-radius: var(--radius-pill); }
 .lps-flag--stepup { background: #fef6e7; color: #b54708; }
 .lps-flag--consent { background: #fee2e2; color: #aa0005; }
 .lps-error { color: #b42318; font-size: 0.8125rem; margin-top: 8px; }

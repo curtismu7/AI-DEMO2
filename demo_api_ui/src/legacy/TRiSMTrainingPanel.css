@@ -26,7 +26,7 @@
   width: 680px;
   max-width: 95vw;
   max-height: 90vh;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
@@ -78,7 +78,7 @@
 .trism-glossary-toggle {
   padding: 6px 14px;
   border: 1px solid #e0e2e4;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #f7f8f8;
   color: #051727;
   font-size: var(--font-size-sm);
@@ -102,7 +102,7 @@
   height: 32px;
   border: none;
   background: #eff0f1;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-xl);
   color: #051727;
   cursor: pointer;
@@ -139,7 +139,7 @@
 .trism-nav-btn {
   padding: 8px 20px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
@@ -205,7 +205,7 @@
 
 /* Glossary (inline) */
 .trism-glossary h4 {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   color: var(--th-text);
   margin: 0 0 8px;
 }

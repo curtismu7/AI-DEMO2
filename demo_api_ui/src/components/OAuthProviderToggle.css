@@ -72,7 +72,7 @@
   border-radius: var(--radius-sm);
   background: #aa0005;
   color: #fff;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 800;
   letter-spacing: 0;
   line-height: 1;

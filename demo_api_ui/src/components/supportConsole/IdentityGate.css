@@ -22,7 +22,7 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   padding: 0.15rem 0.55rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--th-bg-card);
   color: inherit;
 }
@@ -30,7 +30,7 @@
 .idgate__btn {
   flex: none;
   padding: 0.35rem 0.8rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid currentColor;
   background: var(--th-bg-card);
   color: inherit;

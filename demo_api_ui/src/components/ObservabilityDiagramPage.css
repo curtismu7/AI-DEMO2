@@ -19,39 +19,12 @@
   padding: 24px clamp(12px, 2vw, 28px) 20px;
 }
 
-.obs-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.obs-kicker {
-  margin: 0 0 5px;
-  color: var(--th-status-info-text);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-}
-
-.obs-header h1 {
-  margin: 0;
-  font-size: var(--font-size-h1);
-  letter-spacing: -0.025em;
-}
-
-.obs-lede {
-  margin: 6px 0 0;
-  color: var(--th-text-muted);
-  max-width: 72ch;
-}
-
 .obs-mock-chip {
   flex: none;
   align-self: center;
   padding: 5px 10px;
   border: 1px solid var(--th-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--th-text-muted);
   font-size: var(--font-size-2xs);
   font-weight: 600;
@@ -94,7 +67,7 @@
   gap: 7px;
   padding: 6px 12px;
   border: 1px solid var(--th-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--th-bg-card);
   color: var(--th-text-muted);
   font-size: var(--font-size-xs);
@@ -184,7 +157,7 @@
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
   color: var(--th-text);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 800;
 }
 
@@ -211,7 +184,7 @@
   background: none;
   box-shadow: none;
   color: var(--th-text-muted);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 800;
   letter-spacing: 0.22em;
   writing-mode: vertical-rl;
@@ -278,7 +251,7 @@
 }
 
 .obs-canvas .react-flow__edge-text {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
 }
 
@@ -411,7 +384,7 @@ button.obs-walk__step:disabled {
   margin-top: 6px;
   padding: 3px 9px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--th-status-info-text);
   font-size: var(--font-size-2xs);
   font-weight: 700;

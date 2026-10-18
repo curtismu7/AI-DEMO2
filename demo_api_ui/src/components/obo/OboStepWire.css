@@ -3,5 +3,5 @@
 .obo-wire__line { color: var(--th-text-muted); margin: 0 0 0.35rem; overflow-wrap: anywhere; }
 .obo-wire__block { margin-bottom: 0.5rem; }
 .obo-wire__label { display: flex; justify-content: space-between; align-items: center; color: var(--th-text-muted); font-size: var(--font-size-sm); margin-bottom: 0.2rem; }
-.obo-wire__copy { border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); border-radius: 4px; padding: 0.1rem 0.5rem; cursor: pointer; font-size: var(--font-size-sm); }
-.obo-wire__pre { background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: 6px; padding: 0.6rem; margin: 0; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--font-size-sm); }
+.obo-wire__copy { border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); border-radius: var(--radius-sm); padding: 0.1rem 0.5rem; cursor: pointer; font-size: var(--font-size-sm); }
+.obo-wire__pre { background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-md); padding: 0.6rem; margin: 0; overflow-x: auto; white-space: pre-wrap; overflow-wrap: anywhere; font-size: var(--font-size-sm); }

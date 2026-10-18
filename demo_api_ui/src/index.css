@@ -78,7 +78,7 @@ textarea::placeholder {
   background: #fde047;
   color: #000000;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .pf-down-status {
@@ -1345,7 +1345,7 @@ body {
   background: linear-gradient(135deg, #e0e2e4 0%, #bfdbfe 100%);
   color: #051727;
   padding: 2rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid #93c5fd;
 }
 
@@ -1370,7 +1370,7 @@ body {
   height: 28px;
   padding: 3px;
   background: rgba(30, 64, 175, 0.1);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .login-logo .logo-square {
@@ -1588,7 +1588,7 @@ body {
 
 .oauth-option {
   background: #f8f9fa;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px;
   border: 1px solid #e1e5e9;
 }
@@ -2055,10 +2055,27 @@ body {
 :root[data-theme="dark"] .lps-card-meta span { color: var(--th-text-body); }
 :root[data-theme="dark"] .a2t-node__row .a2t-node__icon,
 :root[data-theme="dark"] .gpb-head .gpb-eyebrow { color: var(--th-status-info-text); }
-.inspector-shell-col-left > div,
-.inspector-shell-topbar__right > span { color: var(--th-text-body); }
-.postman-page__header,
-.postman-page__header h1,
-.postman-page__header p { color: #ffffff; }
+.inspector-shell-col-left > div:not(.rst-start-here),
+.inspector-shell-topbar__right > span:not(.tst-topbar-badge) { color: var(--th-text-body) !important; }
+.postman-page__header h1 { color: #ffffff !important; }
+.postman-page__subtitle { color: var(--th-text-body); }
 .ping-page-header a:not(.ping-back-link) { color: #ffffff; text-decoration: underline; }
 .pd-page__header-links .priv-demo-signin { color: #ffffff; }
+
+/* ── Contrast fixes, round 2 (found by scripts/audit-contrast-runtime.mjs) ───────────────────── */
+:root[data-theme="dark"] .rst-start-here,
+:root[data-theme="dark"] .rst-start-here strong,
+:root[data-theme="dark"] .rst-start-here em { color: #051727 !important; }
+:root[data-theme="dark"] .efd[data-testid="hosted-flow"] h3,
+:root[data-theme="dark"] .efd[data-testid="hosted-flow"] .efd-lede,
+:root[data-theme="dark"] .efd[data-testid="hosted-flow"] .efd-legend li { color: #051727; }
+:root[data-theme="dark"] .log-stats span { color: var(--th-text-body) !important; }
+:root[data-theme="dark"] .promptfoo-page__lead,
+:root[data-theme="dark"] .promptfoo-page__loading,
+:root[data-theme="dark"] .promptfoo-page__cli p,
+:root[data-theme="dark"] .lps-expect,
+:root[data-theme="dark"] .mds-expect { color: var(--th-text-body); }
+.tst-topbar-badge { color: #051727 !important; }
+:root[data-theme="dark"] .page-agent-mode__opt--on { color: #ffffff !important; }
+:root[data-theme="dark"] .acpc-body-label { color: var(--th-text-body); }
+:root[data-theme="dark"] .banking-agent-fab .banking-agent-fab-label { color: #ffffff !important; }

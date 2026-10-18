@@ -18,7 +18,7 @@
   background: var(--th-status-info-bg);
   border-left: 4px solid var(--brand-navy);
   border-radius: 0 6px 6px 0;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--th-status-info-text);
 }
 
@@ -28,7 +28,7 @@
 
 .crp-section-heading {
   margin: 0 0 16px;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 700;
   color: var(--th-text-muted);
   text-transform: uppercase;
@@ -46,12 +46,12 @@
   font-weight: 600;
   margin-bottom: 4px;
   color: var(--th-text);
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .crp-field-hint {
   margin: 4px 0 0;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
 }
 
@@ -61,7 +61,7 @@
   box-sizing: border-box;
   padding: 8px 12px;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: inherit;
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -69,11 +69,11 @@
 }
 
 .crp-input {
-  font-size: 14px;
+  font-size: var(--font-size-body);
 }
 
 .crp-textarea {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   resize: vertical;
 }
 
@@ -86,8 +86,8 @@
 .crp-select {
   padding: 8px 12px;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
-  font-size: 14px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-body);
   font-family: inherit;
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -103,25 +103,25 @@
   display: flex;
   align-items: center;
   gap: 6px;
-  font-size: 14px;
+  font-size: var(--font-size-body);
   color: var(--th-text);
 }
 
 .crp-checkbox-code {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
 }
 
 /* ── Submit ── */
 .crp-submit-box {
   padding: 20px;
   background: var(--th-bg-inset);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--th-border);
   color: var(--th-text);
 }
 
 .crp-submit-hint {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   color: var(--th-text-muted);
   margin-bottom: 14px;
 }
@@ -129,9 +129,9 @@
 .crp-submit-btn {
   padding: 12px 28px;
   border: none;
-  border-radius: 6px;
-  font-weight: 700;
-  font-size: 15px;
+  border-radius: var(--btn-radius);
+  font-weight: var(--btn-weight);
+  font-size: var(--font-size-base);
   background: var(--brand-navy);
   color: var(--app-primary-blue-text, #fff);
   cursor: pointer;
@@ -148,7 +148,7 @@
 .crp-result {
   background: var(--th-status-success-bg);
   border: 1px solid var(--th-status-success-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px;
   color: var(--th-status-success-text);
 }
@@ -161,7 +161,7 @@
 }
 
 .crp-result-icon {
-  font-size: 20px;
+  font-size: var(--font-size-xl);
 }
 
 .crp-result-header h3 {
@@ -174,7 +174,7 @@
 }
 
 .crp-result-field-label {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   color: var(--th-status-success-text);
   margin-bottom: 4px;
@@ -185,7 +185,7 @@
   align-items: center;
   gap: 8px;
   background: var(--th-bg-card);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px 12px;
   border: 1px solid var(--th-status-success-border);
   color: var(--th-text);
@@ -193,16 +193,16 @@
 
 .crp-result-value-row code {
   flex: 1;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   word-break: break-all;
   color: var(--th-text);
 }
 
 .crp-copy-btn {
   padding: 4px 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   border: 1px solid var(--th-status-success-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   background: var(--th-bg-card);
   color: var(--th-status-success-text);
@@ -219,7 +219,7 @@
 
 .crp-cimd-summary {
   cursor: pointer;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--th-status-success-text);
 }
@@ -229,8 +229,8 @@
   padding: 12px;
   background: var(--th-code-bg);
   color: var(--th-code-text);
-  border-radius: 6px;
-  font-size: 12px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-2xs);
   overflow: auto;
   max-height: 300px;
 }
@@ -240,8 +240,8 @@
   padding: 12px;
   background: var(--th-status-warning-bg);
   border: 1px solid var(--th-status-warning-border);
-  border-radius: 6px;
-  font-size: 13px;
+  border-radius: var(--radius-md);
+  font-size: var(--font-size-sm);
   color: var(--th-status-warning-text);
 }
 
@@ -251,7 +251,7 @@
   background: var(--brand-navy);
   color: var(--app-primary-blue-text, #fff);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   font-weight: 600;
 }

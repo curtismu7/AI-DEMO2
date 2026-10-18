@@ -4,7 +4,7 @@ Started 2026-10-18. Goal: make every demo page consistent with Ping Identity sta
 
 - **PR:** #1515 — https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1515 (open; merge by hand, the classifier blocks `gh pr merge`)
 - **Branch / worktree:** `worktree-ui-ping-palette` at `.claude/worktrees/ui-ping-palette`
-- **Last commit when written:** `40a3b4940`
+- **Last commit when written:** `40a3b4940` (PR #1515 merged as `11353b2de`; PR #1530 quiet buttons merged as `0830d5fd`)
 - **To resume:** `cd .claude/worktrees/ui-ping-palette/demo_api_ui` (node_modules already installed there). Use the worktree, never the shared main checkout.
 
 ## Decisions already made (do not re-ask)
@@ -61,20 +61,20 @@ Started 2026-10-18. Goal: make every demo page consistent with Ping Identity sta
 
 ### Contrast — remaining findings
 Last runtime audit (slightly stale): ~38 unique violations on 164 rendered routes.
-- [ ] Re-run `npm run build`, serve with `npx vite preview --port 4173`, then `npm run audit:contrast -- --out report.json`
-- [ ] `/request-access`: white text on a light gradient island in dark theme (`.efd` is themed; the host page's hardcoded gradient is the cause)
-- [ ] `/personal-agent*`: blue buttons (`rgb(0,115,230)`) on dark card, 3.9:1
-- [ ] "🌙 Dark" toggle buttons on `/authz-test`, `/pingone-authorize` (light grey on white)
-- [ ] `/delegation` step labels, `vops__icon` badges (white on mid-tone fills, ~3.7–4.0:1)
-- [ ] `a2t-node__icon` colours on dark (A2A protocol page), `lps-expect`/`mds-expect` labels, `tst-topbar-badge`
-- [ ] `/dev-tools` hint text at 50% white
-- [ ] 74 routes did not render without a backend: re-run the audit against the real local stack (needs sign-in) to cover them
+- [x] Runtime audit re-run: 42 → 3 unique violations on 236/238 rendered routes (PR 2). Audit bugs fixed (it was aborting `/mcp*` page navigations and measuring mid-transition colours)
+- [x] `/request-access` dark theme (scoped to `.efd[data-testid="hosted-flow"]`)
+- [ ] `/personal-agent*`: suggestion chips use the client skin accent `#0073e6` (from `AgentClientSkin.jsx`, a vendor-style skin) on a dark card, 3.9:1. Left as is; lighten the accent for text or exempt as vendor chrome
+- [x] "🌙 Dark" toggle on `/pingone-authorize` (inline style had no text colour). Re-run the audit to confirm `/authz-test`
+- [x] `/delegation` step labels darkened; `vops__icon` per-vertical brand badges are exempt in the audit (vertical brand colours)
+- [x] `lps-expect`/`mds-expect`, `tst-topbar-badge`, promptfoo text, MFA hint, CIBA "Try again"; emoji-only glyphs are skipped by the audit
+- [x] `/dev-tools` hint text raised to 78% white
+- [x] Unrendered routes: it was the audit's own `**/mcp**` block aborting page navigations; now 236/238 render (left: `/pinggateway-test`, `/sdk-login/callback`)
 - [ ] 3 static baseline entries (`.dash`, `.tcd-root`, `.ba-input`) are checker false positives on local token layers; either teach the checker or leave
 - [ ] Move the generated blocks at the end of `index.css` ("Contrast overrides" / "Contrast fixes") into their component stylesheets as each is touched
 - [ ] Decide whether the `FootprintMockGallery` page chrome (currently in the skip list) should be checked too
 
 ### PageHeader rollout (~100 pages still bespoke)
-- [ ] Batch: pages with `<header>` + eyebrow + h1 + summary (`DavinciLoginGuide`, `GuidedJourney`, `ObservabilityDiagram`, `PingFederateDavinciKit`, `PingFederateIdJagExplainer`, `PingFederateIdJag`, `WorkloadAgents`, `SpiffePingoneBridge`, `StandaloneDemoLauncher`)
+- [x] Batch: pages with `<header>` + eyebrow + h1 + summary (`DavinciLoginGuide`, `GuidedJourney`, `ObservabilityDiagram`, `PingFederateDavinciKit`, `PingFederateIdJagExplainer`, `PingFederateIdJag`, `WorkloadAgents`, `SpiffePingoneBridge`, `StandaloneDemoLauncher`) — PR 3
 - [ ] Batch: pages with a plain eyebrow + h1 inside a `div` hero (`pmd-hero` family: 4 pages, `asp-hero` done)
 - [ ] Batch: pages with toolbar-style headers (`LlmGateway`, `LlmTest`, `Tracing`, `TransactionTrace`, `Telemetry`) — need a design decision (actions slot)
 - [ ] Batch: lesson/learning pages with back links (`ExternalAgentLesson`, `IntentBindingLearning`, `MortgagePath`, `PrivilegeMcpLearning`, `VerticalFeature`, `LangChain`, `PingOneSetupGuide`)
@@ -82,17 +82,21 @@ Last runtime audit (slightly stale): ~38 unique violations on 164 rendered route
 - [ ] Re-count pages still using their own header at the end (121 page files had an `<h1>` at the start; grep for `<h1` in `pages/` and `components/*Page*`, minus those now using `<PageHeader`)
 
 ### Consistency not started
-- [ ] Buttons: collapse per-page families (`cur-btn`, `ijp-btn`, `dc-btn`, `uc-run-btn`, `tracing-btn` …) onto `btn` / `btn-primary` / `btn-secondary` / `btn-ghost`
-- [ ] Radius and font-size: literal values (6px, 8px, 10px, 3px, 5px; 631 literal `px` font sizes) → `--radius-*` / `--font-size-*`; add a stylelint rule banning new literals
+- [x] Buttons, shape pass (PR 4): every `*-btn` / `*-button` family base rule uses the shared `--btn-radius` (5–10px near-misses) and `--btn-weight`; nine primary-action buttons that the blue sweep had turned Ping blue are Ping Red again (Configuration Save, setup wizard, run/export, diagram Simulate/Next …); Delegated Commerce navy `#09234b` → Core Dark and danger `#a32620` → `#aa0005`
+- [ ] Buttons, class consolidation: JSX still uses ~20 family class names. The families are small and already token-based, so swapping to `btn btn-primary` is low value; do it only when touching a page. Note: `cur-btn` is the Cursor IDE mock (vendor chrome, exempt) and `dc-` is two unrelated prefixes (Demo Config, Delegated Commerce)
+- [x] Radius and font-size tokens (PR 5): 1,612 exact-match radii (4/6/8/12/999px) and 321 exact-match px font sizes swapped for tokens (no visual change); `src/__tests__/designTokenRatchet.test.js` pins what is left (654 radii, 2,327 font sizes; rem values deliberately not converted, they follow font scaling)
+- [ ] Burn down the token ratchet: radii with no token (3px, 5px, 10px, 7px, 9px, 14px, 20px) need a decision (add `--radius-xs` 3px / `--radius-2xl`?) and the rem long tail (0.78rem, 0.82rem …) needs a type scale decision
 - [ ] Mid blue tints still present (`#93c5fd`, `#60a5fa`, `#7dd3fc`, `#9ec1ff`, `#90a0c2`, GitHub blues in code/diff views) — pick replacements
 - [ ] Other Ping-owned pages that should ignore the vertical accent (welcome, Learning Hub, similar)
 - [ ] Status colours: success greens, warning ambers and `#a33020` negative red were left as-is
-- [ ] Secondary buttons are now all Ping Red (e.g. the Admin toolbar). Decide whether to make secondary/utility buttons quieter (outline or Core Dark)
+- [x] Secondary buttons quieted: shared toolbar button is outline, red only for `--accent`/`--danger` (PR #1530, merged). Not changed: form-action buttons (View Profile …) and `.btn-primary`
 - [ ] Pre-existing glitch: `/authz-test` engine radio cards run title and description together
 
 ### Needs confirmation from the brand hub (SSO-gated)
 - [ ] Gray 300, 500, 600 hex values; `#263746`, `#909ea4`, `#cdd1d4`, `#eff0f1` were taken from pingidentity.com's own CSS, not the hub
 - [ ] Official dark-theme tints of Ping Red and Ping blue (none exist in the palette, so dark theme uses Tailwind tints `#fca5a5` / `#93c5fd` for text)
+
+- [ ] Other off-palette hues: teal (`#05615b` on the ID-JAG pages was one), orange, green accents. The sweeps only covered blue/red/indigo/purple/pink and slate. Scan hue families and decide per accent (several are per-vertical on purpose)
 
 ### Housekeeping
 - [ ] Update the `brand-compliance` skill and `AI-DEMO2/CLAUDE.md` with: mono = IBM Plex Mono via `--font-mono`, the two-red rule, no purple, the contrast hook and `npm run check:contrast` / `audit:contrast`

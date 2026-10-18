@@ -34,7 +34,7 @@
   font-weight: 700;
   color: #134e4a; /* literal ink on a literal light chip; var(--th-text) is white in dark */
   background: #ccfbf1;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 11px;
 }
 .ucph__say .ucph__k { color: #0f766e; }

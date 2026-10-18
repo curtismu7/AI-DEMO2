@@ -2,7 +2,7 @@
 .utfi-security-guarantee {
   background: #fef3c7;
   border: 1px solid #fcd34d;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 16px;
   color: #92400e;
   font-size: var(--font-size-sm);
@@ -23,7 +23,7 @@
   border: none;
   color: #92400e;
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   padding: 0;
   flex-shrink: 0;
 }
@@ -47,7 +47,7 @@
   gap: 12px;
   padding: 12px 16px;
   background: var(--th-bg-inset);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border);
 }
 
@@ -71,7 +71,7 @@
   height: 28px;
   padding: 0 8px;
   background: #e0e2e4;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: #12538d;
@@ -82,7 +82,7 @@
   padding: 6px 12px;
   background: #051727;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--th-text-invert);
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -103,7 +103,7 @@
 /* Expanded table */
 .tems-table-container {
   margin-top: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   border: 1px solid var(--th-border);
 }
@@ -146,7 +146,7 @@
   align-items: center;
   justify-content: center;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-2xs);
   font-weight: 600;
   white-space: nowrap;
@@ -217,7 +217,7 @@
 
 .tlm-modal-content {
   background: var(--th-bg-card);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 10px 40px rgba(0, 0, 0, 0.15);
   max-width: 600px;
   width: 90%;
@@ -280,7 +280,7 @@
 .tlm-swatch {
   width: 60px;
   height: 60px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   flex-shrink: 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -302,7 +302,7 @@
 }
 
 .tlm-item-title {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--th-text-body);
 }
@@ -329,7 +329,7 @@
   }
 
   .tlm-modal-title {
-    font-size: 16px;
+    font-size: var(--font-size-md);
   }
 
   .tlm-close-btn {
@@ -348,7 +348,7 @@
 .utfi-flow-diagram {
   background: var(--th-bg-card);
   border-left: 3px solid #12538d;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 16px;
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
@@ -451,7 +451,7 @@
 /* Modal container */
 .utfi-modal-container {
   background: white;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   width: 90%;
   max-width: 600px;
@@ -487,7 +487,7 @@
   font-weight: 700;
   color: #047857;
   background: #d1fae5;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 2px 9px;
   text-transform: uppercase;
   letter-spacing: 0.03em;
@@ -529,7 +529,7 @@
   gap: 6px;
   padding: 12px;
   background: var(--th-bg-inset);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border-left: 3px solid #12538d;
 }
 
@@ -568,7 +568,7 @@
 /* Modal button */
 .utfi-modal-button {
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: none;
   font-size: var(--font-size-body);
   font-weight: 500;
@@ -644,7 +644,7 @@
 /* Modal container */
 .tlm-modal-content {
   background: white;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   width: 90%;
   max-width: 500px;
@@ -708,7 +708,7 @@
   gap: 12px;
   padding: 16px;
   background: var(--th-bg-inset);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--th-border);
   text-align: center;
 }
@@ -717,7 +717,7 @@
 .tlm-swatch {
   width: 60px;
   height: 60px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
 

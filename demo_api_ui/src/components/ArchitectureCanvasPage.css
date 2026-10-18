@@ -29,14 +29,14 @@
 .canvas-toolbar input[type="text"] {
   padding: 5px 10px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   width: 140px;
 }
 
 .canvas-toolbar button {
   padding: 5px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: none;
   cursor: pointer;
   font-size: var(--font-size-2xs);
@@ -48,7 +48,7 @@
   width: auto;
   padding: 5px 8px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-2xs);
   font-weight: 600;
   background: var(--th-bg-inset);
@@ -116,7 +116,7 @@
   font-family: var(--font-mono);
   color: #ffffff;
   background: #263746;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 7px;
 }
 
@@ -146,7 +146,7 @@
 .rename-input {
   padding: 5px 10px;
   border: 2px solid #12538d;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   width: 200px;
   outline: none;
@@ -160,7 +160,7 @@
   height: 86px;
   box-sizing: border-box;
   border: 1.5px solid var(--cv-stroke);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--cv-fill);
   box-shadow: 0 3px 6px rgba(0, 0, 0, 0.1);
   text-align: center;

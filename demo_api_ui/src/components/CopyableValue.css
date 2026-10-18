@@ -24,7 +24,7 @@
 .copyable-value-chip--source {
   background: #e0e2e4;
   color: #12538d;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 9px;
@@ -35,7 +35,7 @@
 .copyable-value-chip--autofill {
   background: #d1fae5;
   color: #065f46;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 600;
   padding: 1px 7px;
   border-radius: 9px;
@@ -46,7 +46,7 @@
 .copyable-value-chip--required {
   background: #fef3c7;
   color: #92400e;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   padding: 1px 7px;
   border-radius: 9px;
@@ -60,7 +60,7 @@
 .copyable-value-field {
   display: flex;
   align-items: stretch;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 

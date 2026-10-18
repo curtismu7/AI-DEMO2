@@ -66,10 +66,10 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 8px 14px;
   font-size: var(--font-size-sm);
-  font-weight: 650;
+  font-weight: var(--btn-weight);
   cursor: pointer;
 }
 .a2l-architecture-btn:hover { background: var(--th-bg-hover); }
@@ -79,7 +79,7 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 10px;
 }
 
@@ -113,7 +113,7 @@
 }
 .a2l-section[open] > .a2l-summary::before { transform: rotate(45deg); }
 .a2l-summary:hover::before { border-color: var(--th-text); }
-.a2l-summary:focus-visible { outline: 2px solid var(--th-text); outline-offset: 4px; border-radius: 4px; }
+.a2l-summary:focus-visible { outline: 2px solid var(--th-text); outline-offset: 4px; border-radius: var(--radius-sm); }
 .a2l-section > .a2l-summary .a2l-h2 { margin-bottom: 0; }
 .a2l-section[open] > .a2l-summary { margin-bottom: 6px; }
 
@@ -123,7 +123,7 @@
 .a2l-layer {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 14px 16px;
 }
 .a2l-layer h3 { margin: 0 0 8px; font-size: 1rem; color: var(--th-text); }
@@ -167,7 +167,7 @@
 .a2l-pane {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 12px 14px;
   margin-bottom: 12px;
 }
@@ -191,7 +191,7 @@
   background: var(--th-code-bg);
   color: var(--th-code-text);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   overflow-x: auto;
   font-size: 0.8rem;
@@ -204,7 +204,7 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 8px 14px;
   cursor: pointer;
   font-size: 0.9rem;
@@ -221,13 +221,13 @@
 
 .a2l-caveats { margin: 0; padding-left: 20px; display: grid; gap: 8px; }
 .a2l-caveats li { color: var(--th-text-body); max-width: 82ch; }
-.a2l-caveats code { background: var(--th-bg-inset); padding: 1px 5px; border-radius: 4px; }
+.a2l-caveats code { background: var(--th-bg-inset); padding: 1px 5px; border-radius: var(--radius-sm); }
 
 .a2l-lesson-grid { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
 .a2l-lesson {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 14px 16px;
 }
 .a2l-lesson h3 { margin: 0 0 8px; color: var(--th-text); font-size: var(--font-size-md); }
@@ -238,7 +238,7 @@
   padding: 14px 16px;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .a2l-status-block h3 { margin: 0 0 10px; color: var(--th-text); font-size: var(--font-size-md); }
 .a2l-status-list { list-style: none; padding: 0; margin: 0; display: grid; gap: 8px; }

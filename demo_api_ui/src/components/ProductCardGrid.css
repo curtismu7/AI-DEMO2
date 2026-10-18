@@ -45,7 +45,7 @@
   background: #fde68a;
   color: #7c4a03;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .pcg-price-strike {
   font-family: var(--font-mono);
@@ -60,7 +60,7 @@
   background: var(--th-bg-inset, #eef0f8);
   color: #16a34a;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .pcg-title { font-size: 12.5px; font-weight: 600; line-height: 1.3; margin: 0; }
 .pcg-meta { font-size: 10.5px; color: var(--th-text-muted, #5b6178); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -76,7 +76,7 @@
   border: 1px solid #12538d;
   background: #e8edfd;
   color: #12538d;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 8px;
   cursor: pointer;
   text-decoration: none;

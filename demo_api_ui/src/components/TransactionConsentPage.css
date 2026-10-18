@@ -75,7 +75,7 @@
 .hitl-consent-banner__btn {
   flex-shrink: 0;
   padding: 0.55rem 1.25rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
@@ -111,7 +111,7 @@
   display: inline-block;
   margin-top: 0.75rem;
   padding: 0.45rem 0.9rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--brand-navy);
   color: var(--app-primary-blue-text, #fff) !important;
   font-weight: 600;
@@ -126,7 +126,7 @@
   max-width: 36rem;
   margin: 0 auto;
   background: var(--th-bg-card);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem 1.75rem;
   box-shadow: 0 4px 24px rgba(5, 23, 39, 0.08);
   border: 1px solid var(--th-border);
@@ -167,7 +167,7 @@
   margin-bottom: 0.75rem;
   padding: 0.5rem 0.7rem;
   background: linear-gradient(180deg, #fbfcfe 0%, var(--brand-light-gray) 100%);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--th-border);
   box-shadow: 0 1px 3px rgba(5, 23, 39, 0.07);
 }
@@ -189,7 +189,7 @@
   margin-bottom: 0.65rem;
   padding: 0.6rem 0.7rem;
   background: linear-gradient(180deg, #ffffff 0%, #f7f8f8 100%);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--th-border);
   box-shadow: 0 1px 3px rgba(5, 23, 39, 0.07);
 }
@@ -228,7 +228,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
 
 .transaction-consent-card__error {
   padding: 0.65rem 0.85rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #fef2f2;
   border: 1px solid #fecaca;
   color: #aa0005;
@@ -246,7 +246,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
 
 .transaction-consent-btn {
   padding: 0.55rem 1.15rem;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
@@ -269,7 +269,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
   padding: 0.4rem 0.65rem;
   background: #fcfcfc;
   border: 1px solid #bfdbfe;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   /* RFC guidance is the teaching payoff; keep it legible at twice the former size. */
   font-size: 1.4rem;
   color: #051727;
@@ -321,7 +321,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
   max-width: 26rem;
   width: 100%;
   background: var(--th-bg-card);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem 1.5rem 1.25rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   border: 1px solid var(--th-border);
@@ -346,7 +346,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
   color: #7f1d1d;
   background: #fef2f2;
   padding: 0.65rem 0.75rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid #fecaca;
 }
 
@@ -375,7 +375,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
 .tx-otp-panel__lead--warn {
   background: #fff7ed;
   border: 1px solid #fdba74;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.6rem 0.75rem;
   color: #92400e;
   font-size: 0.82rem;
@@ -387,7 +387,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
   gap: 0.25rem;
   background: #fcfcfc;
   border: 1px solid #bfdbfe;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.75rem 1rem;
   margin-bottom: 1.25rem;
   font-size: 0.82rem;

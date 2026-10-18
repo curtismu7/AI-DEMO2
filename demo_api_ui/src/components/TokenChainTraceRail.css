@@ -43,8 +43,8 @@
    neighbouring .tctr-view-mode instead of page-level --th-* tokens. Autonomous
    is amber because it is the class that runs with nobody watching. */
 .tctr-agent-class {
-  font-size: 10px; font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
-  padding: 2px 8px; border-radius: 999px; white-space: nowrap;
+  font-size: var(--font-size-3xs); font-weight: 700; letter-spacing: 0.06em; text-transform: uppercase;
+  padding: 2px 8px; border-radius: var(--radius-pill); white-space: nowrap;
   border: 1px solid rgba(255, 255, 255, 0.45);
   background: rgba(255, 255, 255, 0.12);
 }
@@ -53,10 +53,10 @@
 }
 .tctr-view-mode {
   display: flex; padding: 2px; border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 6px; background: rgba(5, 23, 39, 0.2);
+  border-radius: var(--radius-md); background: rgba(5, 23, 39, 0.2);
 }
 .tctr-view-mode button {
-  border: 0; border-radius: 4px; padding: 2px 7px; background: transparent;
+  border: 0; border-radius: var(--radius-sm); padding: 2px 7px; background: transparent;
   color: #ffffff; font: inherit; font-size: var(--font-size-xs); font-weight: 700; cursor: pointer;
 }
 .tctr-view-mode button.active {
@@ -69,13 +69,13 @@
   gap: 4px;
   padding: 3px;
   border: 1px solid var(--th-border, #dbe2ea);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset, #eff0f1);
   width: fit-content;
 }
 .tctr-chain-tabs button {
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 4px 12px;
   background: transparent;
   color: var(--th-text-muted, #556070);
@@ -122,7 +122,7 @@
 .tctr-back-btn {
   background: none; border: 1px solid rgba(255, 255, 255, 0.35);
   color: #ffffff; font: inherit; font-size: 12.5px; font-weight: 600;
-  border-radius: 5px; padding: 3px 10px; cursor: pointer;
+  border-radius: var(--btn-radius); padding: 3px 10px; cursor: pointer;
 }
 .tctr-back-btn:hover { background: rgba(255, 255, 255, 0.15); color: #fff; }
 
@@ -137,7 +137,7 @@
   position: absolute; top: calc(100% + 5px); right: 0; z-index: 30;
   display: flex; flex-direction: column; align-items: stretch; gap: 8px;
   padding: 9px; min-width: 190px;
-  border: 1px solid var(--tctr-border); border-radius: 8px;
+  border: 1px solid var(--tctr-border); border-radius: var(--radius-lg);
   background: var(--tctr-card-bg, #ffffff);
   box-shadow: 0 8px 22px rgba(5, 23, 39, 0.16);
 }
@@ -158,7 +158,7 @@
 .tctr-legend-btn,
 .tctr-clear-btn {
   background: none; border: 1px solid rgba(255, 255, 255, 0.35);
-  font-size: 12.5px; border-radius: 5px; padding: 3px 8px; cursor: pointer;
+  font-size: 12.5px; border-radius: var(--btn-radius); padding: 3px 8px; cursor: pointer;
 }
 .tctr-theme-btn { color: #ffffff; }
 .tctr-legend-btn { color: #ffffff; }
@@ -175,7 +175,7 @@
 }
 .tctr-live-empty {
   margin: 10px 12px; padding: 16px; border: 1px dashed var(--tctr-border);
-  border-radius: 6px; color: var(--tctr-text); text-align: center; font-size: var(--font-size-2xs);
+  border-radius: var(--radius-md); color: var(--tctr-text); text-align: center; font-size: var(--font-size-2xs);
 }
 
 /* Presenter text size — steps the rail's `zoom` (see TokenChainTraceRail.jsx). */
@@ -245,7 +245,7 @@
 .tctr-step > summary:hover .tctr-step-chev { color: var(--th-text-muted); }
 
 .tctr-lane {
-  font-size: var(--font-size-xs); font-weight: 800; letter-spacing: 0.04em; border-radius: 4px;
+  font-size: var(--font-size-xs); font-weight: 800; letter-spacing: 0.04em; border-radius: var(--radius-sm);
   padding: 1px 5px; flex: 0 0 auto; align-self: center; white-space: nowrap;
 }
 .tctr-lane--pingone { background: #e0e2e4; color: #051727; }
@@ -272,7 +272,7 @@
 .tctr-narrative { margin: 0 0 4px; }
 /* Deny reason, first thing in a failed step. Warning ink on warning ground. */
 .tctr-deny {
-  margin: 0 0 8px; padding: 8px 10px; border-radius: 6px;
+  margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-md);
   background: var(--th-status-warning-bg); border: 1px solid var(--th-status-warning-border);
   color: var(--th-status-warning-text); font-size: var(--font-size-sm);
 }
@@ -284,12 +284,12 @@
 .tctr-deny-rows dt { font-weight: 700; color: var(--th-status-warning-text); }
 .tctr-deny-rows dd { margin: 0; font-weight: 600; color: var(--th-status-warning-text); overflow-wrap: anywhere; }
 .tctr-why {
-  margin: 0 0 8px; padding: 8px 10px; border-radius: 6px;
+  margin: 0 0 8px; padding: 8px 10px; border-radius: var(--radius-md);
   background: #fcfcfc; border: 1px solid #bfdbfe; color: #051727; font-size: var(--font-size-sm);
 }
 .tctr-why-lbl { font-weight: 700; margin-right: 4px; }
 .tctr-story {
-  margin: 0 12px 10px; padding: 10px 12px; border-radius: 8px;
+  margin: 0 12px 10px; padding: 10px 12px; border-radius: var(--radius-lg);
   border: 1px solid var(--tctr-border); background: var(--tctr-step-body-bg);
 }
 .tctr-story--ok { border-color: #86efac; background: #f0fdf4; }
@@ -311,7 +311,7 @@
 .tctr-step-actions { display: flex; flex-wrap: wrap; gap: 8px 14px; margin-top: 6px; }
 .tctr-code {
   background: var(--th-bg-card); color: #e0e2e4; font-size: var(--font-size-2xs); padding: 8px;
-  border-radius: 6px; margin: 4px 0; overflow-x: auto; line-height: 1.5;
+  border-radius: var(--radius-md); margin: 4px 0; overflow-x: auto; line-height: 1.5;
   font-family: var(--font-mono); white-space: pre-wrap; word-break: break-word;
 }
 .tctr-claim-diff {
@@ -333,13 +333,13 @@
 .tctr-kv-v { font-family: var(--font-mono); font-size: var(--font-size-2xs); word-break: break-all; }
 .tctr-kv-v--json {
   margin: 0; padding: 8px; overflow-x: auto; border: 1px solid var(--th-border-strong);
-  border-radius: 6px; background: var(--th-bg-inset); line-height: 1.5; white-space: pre-wrap; word-break: break-word;
+  border-radius: var(--radius-md); background: var(--th-bg-inset); line-height: 1.5; white-space: pre-wrap; word-break: break-word;
 }
 .tctr-rfc {
-  display: inline-block; background: #fecaca; color: #051727; border-radius: 4px;
+  display: inline-block; background: #fecaca; color: #051727; border-radius: var(--radius-sm);
   font-size: var(--font-size-xs); font-weight: 700; padding: 1px 5px; margin: 4px 3px 0 0;
 }
-.tctr-decision { border-radius: 6px; padding: 6px 9px; font-size: 12.5px; font-weight: 700; margin: 4px 0; }
+.tctr-decision { border-radius: var(--radius-md); padding: 6px 9px; font-size: 12.5px; font-weight: 700; margin: 4px 0; }
 .tctr-decision--permit { background: #dcfce7; color: #166534; border: 1px solid #86efac; }
 .tctr-decision--deny, .tctr-decision--indeterminate { background: #fee2e2; color: #aa0005; border: 1px solid #fca5a5; }
 .tctr-decision--step_up { background: #fef3c7; color: #92400e; border: 1px solid #fcd34d; }
@@ -357,7 +357,7 @@
 .tctr-stage-result { color: var(--th-text-muted); margin-left: 6px; font-family: var(--font-mono); }
 .tctr-stage-note { display: block; color: var(--th-text-muted); font-size: 11.5px; margin-top: 1px; }
 .tctr-scope-diff { display: flex; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: 12.5px; flex-wrap: wrap; margin: 4px 0; }
-.tctr-sc { border-radius: 4px; padding: 1px 6px; background: #e0e2e4; }
+.tctr-sc { border-radius: var(--radius-sm); padding: 1px 6px; background: #e0e2e4; }
 .tctr-sc--gone { text-decoration: line-through; color: var(--th-text-muted); }
 .tctr-sc--kept { background: #dcfce7; color: #166534; font-weight: 700; }
 .tctr-sc-note { color: var(--th-text-muted); font-size: var(--font-size-2xs); }
@@ -385,7 +385,7 @@
 .tctr-acc[open] .tctr-chev { transform: rotate(90deg); }
 .tctr-count {
   margin-left: auto; font-size: var(--font-size-2xs); font-weight: 600; color: var(--th-text-muted);
-  background: var(--th-bg-inset); border-radius: 999px; padding: 1px 7px;
+  background: var(--th-bg-inset); border-radius: var(--radius-pill); padding: 1px 7px;
 }
 .tctr-acc-body { padding: 2px 12px 12px; }
 
@@ -399,7 +399,7 @@
 .tctr-tok--user .tctr-tok-name { color: #be185d; }
 .tctr-tok--agent .tctr-tok-name { color: #aa0005; }
 .tctr-tok--mcp .tctr-tok-name { color: #047857; }
-.tctr-tok-role { font-size: 11.5px; color: var(--th-text-muted); background: rgba(255, 255, 255, 0.6); padding: 1px 6px; border-radius: 4px; }
+.tctr-tok-role { font-size: 11.5px; color: var(--th-text-muted); background: rgba(255, 255, 255, 0.6); padding: 1px 6px; border-radius: var(--radius-sm); }
 .tctr-tok-claims { font-family: var(--font-mono); font-size: var(--font-size-2xs); color: var(--th-text); line-height: 1.5; }
 .tctr-tok-inspect {
   float: right; background: var(--th-bg-card); border: 1px solid var(--th-border-strong); border-radius: 5px;
@@ -433,7 +433,7 @@
   display: flex;
   align-items: flex-start;
   gap: 10px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid #d4ddea;
   padding: 10px 12px;
   font-size: var(--font-size-sm);
@@ -456,7 +456,7 @@
   letter-spacing: 0.03em;
   text-transform: uppercase;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
 }
 .tctr-trust__row--ok .tctr-trust__badge {
@@ -480,7 +480,7 @@
   font-size: 12.5px;
   background: rgba(0, 0, 0, 0.06);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   word-break: break-word;
 }
 
@@ -641,7 +641,7 @@
   padding: 0.2rem 0.7rem;
   font-size: 0.72rem;
   border: 1px dashed var(--th-text-muted, #909ea4);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--th-text-muted, #5c646b);
   cursor: pointer;

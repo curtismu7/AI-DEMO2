@@ -46,7 +46,7 @@
 .telemetry-btn {
   padding: 6px 14px;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -100,7 +100,7 @@
   min-width: 200px;
   padding: 6px 10px;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -119,7 +119,7 @@
   min-width: 340px;
   padding: 6px 10px;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   font-size: var(--font-size-sm);
   font-weight: 400;
@@ -204,7 +204,7 @@
   max-width: 280px;
   padding: 8px 10px;
   border: 1px solid #263746;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #051727;
   color: #ffffff;
   font-family: var(--font-primary);
@@ -226,7 +226,7 @@
   height: 30px;
   padding: 0 8px;
   border: 1px solid #263746;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   background: #263746;
   color: #ffffff;
   font-size: var(--font-size-body);
@@ -276,7 +276,7 @@
 .tracing-btn {
   padding: 6px 14px;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-sm);

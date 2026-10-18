@@ -125,7 +125,7 @@
   font-family: inherit;
   background: #eff0f1;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-left: 2px;
 }
 
@@ -163,7 +163,7 @@
   background: #ffffff;
   border: 1px solid #cdd1d4;
   color: #051727;
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   width: 28px;
   height: 28px;
   display: flex;
@@ -261,7 +261,7 @@
   color: #051727;
   background: #ffffff;
   border: 1px solid #cdd1d4;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
   white-space: nowrap;

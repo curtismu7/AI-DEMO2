@@ -87,7 +87,7 @@
 
 .mfa-status-pill {
   padding: 0.5rem 1rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
   font-weight: 500;
   white-space: nowrap;
@@ -107,7 +107,7 @@
 .mfa-test-button {
   padding: 0.5rem 1rem;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -215,7 +215,7 @@
   justify-content: space-between;
   padding: 0.5rem;
   background-color: var(--th-bg-card);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .config-label {
@@ -231,7 +231,7 @@
 .test-card {
   background-color: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 1rem;
   margin-bottom: 1rem;
 }
@@ -330,7 +330,7 @@
   flex: 1;
   padding: 0.65rem 0.75rem;
   border: 2.5px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 1.15rem;
   font-family: inherit;
   letter-spacing: normal;
@@ -368,7 +368,7 @@
   align-items: center;
   padding: 0.75rem;
   background-color: var(--th-bg-card);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-bottom: 0.5rem;
   gap: 1rem;
   flex-wrap: wrap;
@@ -500,7 +500,7 @@
 .section-api-toggle {
   background: none;
   border: 1px solid var(--brand-medium-gray, #bbb);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--brand-dark-gray, #495057);
   cursor: pointer;
   font-size: 0.8rem;
@@ -828,7 +828,7 @@
 .mfa-user-picker__refresh {
   padding: 5px 9px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   cursor: pointer;
   font-size: 0.95rem;
@@ -844,7 +844,7 @@
 .mfa-user-picker__clear {
   padding: 4px 10px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   cursor: pointer;
   font-size: 0.8rem;
@@ -887,7 +887,7 @@
   padding: 0.75rem 1rem;
   background: var(--th-bg-card);
   border: 2px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.95rem;
@@ -1090,7 +1090,7 @@
 
 .mfa-test-card__results {
   padding: 0.75rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-top: 0.75rem;
 }
 
@@ -1131,7 +1131,7 @@
   margin: 0.75rem 0;
   padding: 0.75rem 1rem;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   color: var(--th-text);
 }
@@ -1181,7 +1181,7 @@
   max-width: 28rem;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-family: var(--font-mono);

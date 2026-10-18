@@ -22,7 +22,7 @@
   background: var(--cimd-ground);
   color: var(--cimd-ink);
   border: 1px solid var(--cimd-line);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 /* Dark page (the default): the same palette as the rest of the Settings panel. */
@@ -62,7 +62,7 @@
   margin-bottom: 12px;
   padding: 8px 12px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-base);
   font-weight: 700;
 }

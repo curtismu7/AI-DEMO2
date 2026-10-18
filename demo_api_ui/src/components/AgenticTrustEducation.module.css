@@ -22,7 +22,7 @@
 }
 
 .subtitle {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   color: var(--th-text);
   margin: 0 0 16px;
 }
@@ -32,7 +32,7 @@
   padding: 8px 20px;
   background: #051727;
   color: white;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   text-decoration: none;
   font-size: var(--font-size-body);
   font-weight: 600;
@@ -71,7 +71,7 @@
   overflow-x: auto;
   background: var(--th-bg-inset);
   border: 1px solid #e0e2e4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .flowNode {
@@ -124,7 +124,7 @@
   position: absolute;
   right: -4px;
   top: -8px;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   color: #909ea4;
 }
 
@@ -149,7 +149,7 @@
 
 .pillarCard {
   border: 2px solid #e0e2e4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0;
   cursor: pointer;
   transition:
@@ -221,7 +221,7 @@
   font-size: var(--font-size-2xs);
   font-weight: 600;
   padding: 4px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   white-space: nowrap;
   flex-shrink: 0;
 }
@@ -285,7 +285,7 @@
 .gapNote {
   background: #fef3c7;
   padding: 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid #fbbf24;
 }
 
@@ -354,7 +354,7 @@
 .nextList li {
   padding: 12px 16px;
   border: 1px solid #e0e2e4;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 8px;
   font-size: var(--font-size-body);
   line-height: 1.5;

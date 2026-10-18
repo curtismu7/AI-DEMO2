@@ -283,7 +283,7 @@
   letter-spacing: -0.02em;
 }
 .landing-features-heading p {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   color: var(--lp-text-secondary);
   margin: 0;
   line-height: 1.6;
@@ -323,7 +323,7 @@
   flex-shrink: 0;
 }
 .landing-feature-title {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 700;
   margin: 0 0 10px;
   color: var(--lp-navy);
@@ -417,7 +417,7 @@
     font-size: 44px;
   }
   .landing-hero-subheadline {
-    font-size: 16px;
+    font-size: var(--font-size-md);
   }
   .hero-cta {
     min-width: 140px;
@@ -768,7 +768,7 @@
 
 .landing-callout-body {
   font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif);
-  font-size: 16px;
+  font-size: var(--font-size-md);
   line-height: 1.65;
   color: var(--rd2-accent-text, #ffffff);
   margin: 0 0 12px;

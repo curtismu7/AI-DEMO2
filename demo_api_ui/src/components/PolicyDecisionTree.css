@@ -184,7 +184,7 @@
 
 .p1dt-derived {
   margin-left: auto;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
@@ -205,7 +205,7 @@
   padding: 8px 14px;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .p1dt-collapse-controls__summary {
@@ -314,7 +314,7 @@
   max-width: 260px;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 12px 0;
   box-shadow: 0 1px 2px rgba(5, 23, 39, 0.06);
   transition: all 0.3s ease;
@@ -405,9 +405,9 @@
   background: #fffbeb;
   border: 1px solid #fcd34d;
   color: #92400e;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 800;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1px 7px;
 }
 
@@ -447,7 +447,7 @@
   color: var(--th-text-muted);
   background: var(--th-bg-inset);
   border: 1px dashed var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: all 0.2s ease;
   white-space: nowrap;
@@ -467,7 +467,7 @@
   padding-top: 12px;
 }
 .p1dt-statements-title {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -485,17 +485,17 @@
 .p1dt-stmt code {
   font-size: 10.5px;
   background: var(--th-bg-inset);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 6px;
   color: var(--th-text-body);
 }
 .p1dt-stmt-fulfilled {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   color: #166534;
 }
 .p1dt-stmt-pending {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   color: #b45309;
 }

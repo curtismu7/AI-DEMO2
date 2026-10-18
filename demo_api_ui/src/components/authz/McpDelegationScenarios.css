@@ -2,7 +2,7 @@
 .mds-header { display: flex; align-items: flex-start; justify-content: space-between; gap: 16px; margin-bottom: 12px; }
 .mds-title { font-size: 1.05rem; font-weight: 700; color: var(--color-text, #1a1a2e); margin: 0 0 4px; }
 .mds-sub { font-size: 0.8125rem; color: var(--color-text-muted, #667085); margin: 0; max-width: 60ch; }
-.mds-notice { background: #fef6e7; color: #b54708; border-radius: 8px; padding: 10px 12px; font-size: 0.8125rem; margin-bottom: 12px; }
+.mds-notice { background: #fef6e7; color: #b54708; border-radius: var(--radius-lg); padding: 10px 12px; font-size: 0.8125rem; margin-bottom: 12px; }
 .mds-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
 .mds-card { border: 1px solid var(--border, #e0e2e4); border-radius: 10px; padding: 14px; }
 .mds-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
@@ -11,9 +11,9 @@
 .mds-card-desc { font-size: 0.8125rem; color: #344054; margin: 6px 0 10px; line-height: 1.4; }
 .mds-result { margin-top: 10px; }
 .mds-result-head { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-.mds-flag { font-size: var(--font-size-xs); font-weight: 700; padding: 1px 8px; border-radius: 999px; }
+.mds-flag { font-size: var(--font-size-xs); font-weight: 700; padding: 1px 8px; border-radius: var(--radius-pill); }
 .mds-flag--stepup { background: #fef6e7; color: #b54708; }
 .mds-flag--consent { background: #fee2e2; color: #aa0005; }
 .mds-statements { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 6px; }
-.mds-stmt { font-size: var(--font-size-xs); background: #eff0f1; color: #263746; padding: 2px 6px; border-radius: 4px; font-family: var(--font-mono); }
+.mds-stmt { font-size: var(--font-size-xs); background: #eff0f1; color: #263746; padding: 2px 6px; border-radius: var(--radius-sm); font-family: var(--font-mono); }
 .mds-error { color: #b42318; font-size: 0.8125rem; margin-top: 8px; }

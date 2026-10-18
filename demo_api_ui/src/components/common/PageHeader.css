@@ -9,7 +9,7 @@
 .ping-back-link {
   display: inline-block;
   margin-bottom: 14px;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: #d20e0f;
   text-decoration: none;
@@ -41,11 +41,11 @@
 
 .ping-page-header .ping-page-header__eyebrow {
   margin: 0 0 6px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 700;
   letter-spacing: 0.1em;
   text-transform: uppercase;
-  color: #fcfcfc;
+  color: #fcfcfc !important; /* the band is self-contained: page CSS must not recolour it */
   opacity: 0.8;
 }
 
@@ -55,15 +55,15 @@
   font-weight: 700;
   line-height: 1.2;
   letter-spacing: -0.01em;
-  color: #ffffff;
+  color: #ffffff !important;
 }
 
 .ping-page-header .ping-page-header__summary {
   max-width: 720px;
   margin: 0;
-  font-size: 15px;
+  font-size: var(--font-size-base);
   line-height: 1.55;
-  color: rgba(255, 255, 255, 0.85);
+  color: rgba(255, 255, 255, 0.85) !important;
 }
 
 .ping-page-header .ping-page-header__summary a {
@@ -71,18 +71,28 @@
   text-decoration: underline;
 }
 
+.ping-page-header__copy {
+  flex: 1 1 360px; /* text keeps priority; the side area wraps beneath on narrow widths */
+  min-width: 0;
+}
+
+.ping-page-header__row {
+  flex-wrap: wrap;
+}
+
 .ping-page-header__side {
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
+  justify-content: flex-end;
   gap: 12px;
-  flex-shrink: 0;
 }
 
 .ping-page-header__badge {
   padding: 4px 10px;
   border: 1px solid currentColor;
-  border-radius: 999px;
-  font-size: 11px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-xs);
   font-weight: 700;
   letter-spacing: 0.08em;
 }

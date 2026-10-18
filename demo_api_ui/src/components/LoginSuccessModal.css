@@ -26,7 +26,7 @@
 .lsm-mark {
   width: 46px;
   height: 46px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: rgba(255, 255, 255, 0.16);
   display: grid;
   place-items: center;

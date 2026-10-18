@@ -81,7 +81,7 @@
   background: var(--th-code-bg);
   color: var(--th-code-text);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   overflow: auto;
   max-height: 320px;

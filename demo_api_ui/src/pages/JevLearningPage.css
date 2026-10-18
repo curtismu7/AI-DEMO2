@@ -44,7 +44,7 @@
 .jev-cols { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 16px; margin-top: 16px; }
 .jev-col { padding: 14px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-md); }
 
-.jev-badge { padding: 2px 8px; border-radius: 999px; font-size: var(--font-size-2xs); font-weight: 600; }
+.jev-badge { padding: 2px 8px; border-radius: var(--radius-pill); font-size: var(--font-size-2xs); font-weight: 600; }
 .jev-badge--live { background: var(--th-status-success-bg); color: var(--th-status-success-text); }
 .jev-badge--sim { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
 .jev-badge--rec { background: var(--th-bg-inset); color: var(--th-text-body); border: 1px solid var(--th-border-strong); }
@@ -92,7 +92,7 @@
 .jev-page .jev-step { display: flex; align-items: center; gap: 10px; margin: 18px 0 10px; font-size: var(--font-size-base); font-weight: 600; color: var(--th-text); }
 .jev-page .jev-step-n {
   display: inline-flex; align-items: center; justify-content: center; flex: none;
-  width: 24px; height: 24px; border-radius: 999px; font-size: var(--font-size-xs);
+  width: 24px; height: 24px; border-radius: var(--radius-pill); font-size: var(--font-size-xs);
   border: 1px solid var(--th-text); color: var(--th-text);
 }
 .jev-page .jev-tab, .jev-page .jev-chip {
@@ -105,7 +105,7 @@
 }
 .jev-page .jev-chip { font-weight: 500; box-shadow: 0 1px 2px var(--th-border-strong); }
 .jev-page .jev-chip::before {
-  content: "Use"; margin-right: 10px; padding: 2px 8px; border-radius: 999px;
+  content: "Use"; margin-right: 10px; padding: 2px 8px; border-radius: var(--radius-pill);
   font-size: var(--font-size-xs); font-weight: 700; color: var(--th-bg-card); background: var(--th-status-info-text);
 }
 .jev-page .jev-chip:hover, .jev-page .jev-tab:not(.jev-tab--on):hover {

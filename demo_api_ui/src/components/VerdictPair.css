@@ -24,6 +24,6 @@
 .verdict__chip--unproven { background: #eab308; color: #263746; border-color: #ca8a04; }
 .verdict__chip--running  { background: #051727; color: #fff; border-color: #051727; }
 .verdict__chip--none     { background: #cdd1d4; color: #263746; border-color: #909ea4; }
-.verdict__match { font-size: 0.78rem; font-weight: 800; padding: 3px 9px; border-radius: 999px; }
+.verdict__match { font-size: 0.78rem; font-weight: 800; padding: 3px 9px; border-radius: var(--radius-pill); }
 .verdict__match--ok  { background: #166534; color: #fff; }
 .verdict__match--bad { background: #9a3412; color: #fff; }

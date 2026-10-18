@@ -44,10 +44,10 @@
   border: 1px solid #e8d24a;
   background: #fffbe0;
   color: #7a6f1f;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 1px 7px;
   font-size: var(--font-size-3xs);
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   cursor: pointer;
   opacity: 0;
   transition: opacity 150ms ease;

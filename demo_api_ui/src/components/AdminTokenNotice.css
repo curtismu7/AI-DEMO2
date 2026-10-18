@@ -7,7 +7,7 @@
   padding: 10px 14px;
   border: 1px solid #fcd34d;
   background: #fffbeb;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .admin-token-notice__text {
@@ -23,7 +23,7 @@
   gap: 6px;
   flex-shrink: 0;
   padding: 7px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid #92400e;
   background: #92400e;
   color: #ffffff;

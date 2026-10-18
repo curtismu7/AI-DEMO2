@@ -13,6 +13,7 @@ import "./PingFederateIdJagPage.css";
 import IdJagPathBar from "./IdJagPathBar";
 import IdJagCallPlayer from "./IdJagCallPlayer";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
+import PageHeader from './common/PageHeader';
 
 const MOCK = "MOCK DATA — NOT A REAL TOKEN";
 // ID-JAG samples follow the PF ID-JAG lane in agentMcpTokenService: the BFF
@@ -499,14 +500,9 @@ export default function PingFederateIdJagPage() {
   return (
     <main className="pfj-page" data-testid="pingfederate-id-jag-page">
       <IdJagPathBar current="protocol" />
-      <header className="pfj-header">
-        <div>
-          <p className="pfj-kicker">UC40 · Enterprise-managed MCP authorization</p>
-          <h1>{diagram.title}</h1>
-          <p className="pfj-intro">{diagram.intro}</p>
-        </div>
-        <div className="pfj-provider-badge"><span /> {diagram.badge}</div>
-      </header>
+      <PageHeader className="pfj-header" eyebrow="UC40 · Enterprise-managed MCP authorization" title={diagram.title} summary={diagram.intro}
+        actions={<>        <div className="pfj-provider-badge"><span /> {diagram.badge}</div>
+        </>} />
 
       <nav className="pfj-diagram-tabs" role="tablist" aria-label="Architecture views">
         {Object.entries(DIAGRAMS).map(([id, item]) => (

@@ -84,7 +84,7 @@
   color: var(--srd-ink);
   cursor: pointer;
   font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-weight: var(--btn-weight);
 }
 .srd-button:hover:not(:disabled) {
   border-color: var(--srd-blue);

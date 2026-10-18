@@ -4,6 +4,7 @@ import apiClient from '../services/apiClient';
 import { useVertical } from '../vertical/useVertical';
 import PersonalAgentStudioPage from './PersonalAgentStudioPage';
 import './WorkloadAgentsPage.css';
+import PageHeader from '../components/common/PageHeader';
 
 const SCENARIOS = [
   { id: 'UC38', kind: 'Protected write', cue: 'Choose this to demonstrate identity step-up before a workload agent makes a protected change.', detail: 'Customer MFA is checked before delegation. The registered agent then makes a protected change through the gateway and Authorize.' },
@@ -64,18 +65,13 @@ export default function WorkloadAgentsPage({ user = null }) {
 
   return (
     <main className="workload-agents">
-      <header className="workload-agents__intro">
-        <div>
-          <p className="workload-agents__kicker">Delegated workload identity</p>
-          <h1>Choose what the agent does.</h1>
-          <p>A registered workload agent acts for a signed-in customer. The customer stays <code>sub=user</code>; the agent appears as <code>act=agent</code>. The BFF, gateway, and Authorize enforce each delegated request.</p>
-        </div>
-        <label className="workload-agents__vertical">Vertical
+      <PageHeader className="workload-agents__intro" eyebrow="Delegated workload identity" title="Choose what the agent does." summary={<>A registered workload agent acts for a signed-in customer. The customer stays <code>sub=user</code>; the agent appears as <code>act=agent</code>. The BFF, gateway, and Authorize enforce each delegated request.</>}
+        actions={<>        <label className="workload-agents__vertical">Vertical
           <select value={vertical} onChange={(event) => updateSelection(selectedId, event.target.value)}>
             {verticals.map(({ id, displayName }) => <option key={id} value={id}>{displayName || id}</option>)}
           </select>
         </label>
-      </header>
+        </>} />
 
       {error && <p role="alert" className="workload-agents__error">{error}</p>}
       <div className="workload-agents__choices">

@@ -14,7 +14,7 @@
 
 .rsp-view-tab {
   padding: 8px 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--th-text-faint);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
@@ -42,9 +42,9 @@
   background: var(--th-bg-inset);
   border-bottom: 1px solid var(--th-border);
 }
-.rsp-journey-label { font-size: 10px; color: var(--th-text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
+.rsp-journey-label { font-size: var(--font-size-3xs); color: var(--th-text-muted); text-transform: uppercase; letter-spacing: 0.06em; font-weight: 600; }
 .rsp-journey-link {
-  font-size: var(--font-size-xs); padding: 3px 10px; border-radius: 4px;
+  font-size: var(--font-size-xs); padding: 3px 10px; border-radius: var(--radius-sm);
   text-decoration: none; font-weight: 600; border: 1px solid;
   transition: opacity 0.15s;
 }
@@ -73,7 +73,7 @@
   padding: 40px;
   color: var(--th-status-error-text);
   background: var(--th-status-error-bg);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   border: 1px solid var(--th-status-error-border);
 }
 
@@ -83,7 +83,7 @@
 .rsp-header {
   position: relative;
   background: linear-gradient(135deg, #1a237e 0%, #0d47a1 100%);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 28px 32px;
   margin-bottom: 24px;
   color: #fff;
@@ -126,7 +126,7 @@
   color: var(--th-code-text);
   background: var(--th-code-bg);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.86em;
 }
 
@@ -155,7 +155,7 @@
    .rsp-header, paired with guaranteed-readable white/near-white text. */
 .rsp-hero {
   background: linear-gradient(135deg, #051727 0%, #051727 100%);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 24px;
   color: #fff;
   text-align: center;
@@ -214,7 +214,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--th-text-faint);
   background: var(--th-bg-inset);
 }
@@ -335,7 +335,7 @@
 .rsp-expiry {
   font-size: 0.75rem;
   padding: 3px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--th-status-success-text);
   background: var(--th-status-success-bg);
   font-weight: 600;
@@ -364,7 +364,7 @@
   color: var(--th-status-info-text);
   background: var(--th-status-info-bg);
   padding: 6px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .rsp-claim-key {
@@ -391,7 +391,7 @@
   color: var(--th-status-success-text);
   background: var(--th-status-success-bg);
   border: 1px solid var(--th-status-success-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px !important;
 }
 
@@ -400,7 +400,7 @@
   color: var(--th-text-on-emphasis);
   background: var(--th-status-success);
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-left: 6px;
   vertical-align: middle;
 }
@@ -415,7 +415,7 @@
 .rsp-scope-badge {
   font-size: 0.7rem;
   padding: 2px 8px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   color: var(--th-text-faint);
   background: var(--th-bg-inset);
   font-family: inherit;
@@ -496,7 +496,7 @@
   color: var(--th-code-text);
   background: var(--th-code-bg);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* Phase 266 — credential-path badge for the existing OAuth resource page.

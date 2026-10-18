@@ -18,7 +18,7 @@
   max-height: 86vh;
   overflow-y: auto;
   background: var(--th-bg-card, #ffffff);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
 }
 
@@ -89,7 +89,7 @@
   width: 100%;
   box-sizing: border-box;
   border: 1px solid var(--brand-light-gray, #cdd1d4);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0.45rem 0.6rem;
   font-size: 0.875rem;
   font-family: inherit;
@@ -111,7 +111,7 @@
 
 .ww-creds {
   border: 1px solid var(--brand-light-gray, #e0e2e4);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.6rem 0.75rem;
   margin-top: 0.5rem;
 }
@@ -136,7 +136,7 @@
   background: none;
   border: 1px solid var(--app-primary-red, #d20e0f);
   color: var(--app-primary-red, #d20e0f);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 0.35rem 0.7rem;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -171,7 +171,7 @@
 }
 
 .ww-btn {
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 0.4rem 0.8rem;
   font-size: 0.8125rem;
   font-weight: 500;
