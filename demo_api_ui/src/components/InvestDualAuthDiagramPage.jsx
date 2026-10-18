@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
 import SequenceFlowDiagram from "./SequenceFlowDiagram";
 import "./McpGatewayOauthFlowPage.css";
+import PageHeader from './common/PageHeader';
 
 const MERMAID_SOURCE = `sequenceDiagram
     autonumber
@@ -83,15 +84,9 @@ export default function InvestDualAuthDiagramPage() {
   const [source, setSource] = useState(MERMAID_SOURCE);
   return (
     <div className="mgof-page">
-      <div className="mgof-hero">
-        <span className="mgof-eyebrow">demo_mcp_resource_server — dual auth</span>
-        <h1>Invest Service: Bearer Token vs API Key</h1>
-        <p className="mgof-sub">
-          Two credential paths to the same backend. The left flow uses OAuth token
+      <PageHeader className="mgof-hero" eyebrow="demo_mcp_resource_server — dual auth" title="Invest Service: Bearer Token vs API Key" summary={<>Two credential paths to the same backend. The left flow uses OAuth token
           exchange and WebSocket MCP (Resource Server pattern). The right flow uses a
-          vault-managed API key over HTTP REST (Backend App pattern).
-        </p>
-      </div>
+          vault-managed API key over HTTP REST (Backend App pattern).</>} />
 
       <DiagramExportBar
         source={source}

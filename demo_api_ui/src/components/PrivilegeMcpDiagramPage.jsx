@@ -29,6 +29,7 @@ import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import DiagramStepBar from "./DiagramStepBar";
 import "./PrivilegeMcpDiagramPage.css";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
+import PageHeader from './common/PageHeader';
 
 const ARCHITECTURE_SOURCE = `graph TB
     subgraph browser["Browser — no MCP here"]
@@ -351,14 +352,8 @@ export default function PrivilegeMcpDiagramPage() {
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(activeTabMeta.nodes ? markNodes(activeTabMeta.nodes, currentStep ? [currentStep.from, currentStep.to] : []) : []); // sequence tab has no nodes
   return (
     <div className="pmd-page">
-      <div className="pmd-hero">
-        <span className="pmd-eyebrow">AI Agent Gateway</span>
-        <h1>AI Agent Gateway Diagrams</h1>
-        <p className="pmd-sub">
-          Architecture and protocol flow for the AI Agent Gateway integration.
-          The gateway applies JIT least-privilege authorization to every MCP tool call.
-        </p>
-      </div>
+      <PageHeader className="pmd-hero" eyebrow="AI Agent Gateway" title="AI Agent Gateway Diagrams" summary={<>Architecture and protocol flow for the AI Agent Gateway integration.
+          The gateway applies JIT least-privilege authorization to every MCP tool call.</>} />
 
       <div className="pmd-tabs">
         {TABS.map((tab) => (
