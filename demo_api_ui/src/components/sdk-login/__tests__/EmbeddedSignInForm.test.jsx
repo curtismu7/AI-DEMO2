@@ -23,13 +23,14 @@ describe("EmbeddedSignInForm — device-first", () => {
     startPasswordlessSignIn.mockResolvedValue(flow);
   });
 
-  it("offers a device sign-in and a way back to the password", async () => {
+  it("opens device-first, with a way to the password and back", async () => {
     const user = userEvent.setup();
     render(<EmbeddedSignInForm onSignedIn={vi.fn()} />);
-    await user.click(screen.getByRole("button", { name: /sign in with a device instead/i }));
     expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
     await user.click(screen.getByRole("button", { name: /use your password instead/i }));
     expect(screen.getByLabelText(/password/i)).toBeInTheDocument();
+    await user.click(screen.getByRole("button", { name: /sign in with a device instead/i }));
+    expect(screen.queryByLabelText(/password/i)).not.toBeInTheDocument();
   });
 
   it("goes username -> device picker -> code -> signed in", async () => {
@@ -47,7 +48,6 @@ describe("EmbeddedSignInForm — device-first", () => {
     const user = userEvent.setup();
     render(<EmbeddedSignInForm onSignedIn={onSignedIn} />);
 
-    await user.click(screen.getByRole("button", { name: /sign in with a device instead/i }));
     await user.type(screen.getByLabelText(/username/i), "demouser");
     await user.click(screen.getByRole("button", { name: /^continue$/i }));
     expect(lookupUser).toHaveBeenCalledWith(flow, "demouser");

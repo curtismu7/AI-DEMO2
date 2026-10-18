@@ -17,7 +17,8 @@ export default function EmbeddedSignInForm({ onSignedIn, onUsePopup, onUseRedire
   const [busy, setBusy] = useState(false);
   const [failure, setFailure] = useState(null); // { code, message }
   // "password" | "device" (username) | "pick" (device list) | "otp" (code entry)
-  const [mode, setMode] = useState("password");
+  // Device-first like the main sign-in pop-up (user decision 2026-10-18); password is one click away.
+  const [mode, setMode] = useState("device");
   const [pwlFlow, setPwlFlow] = useState(null);
   const [devices, setDevices] = useState([]);
   const [otp, setOtp] = useState("");
