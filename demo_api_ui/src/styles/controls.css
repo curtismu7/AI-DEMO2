@@ -17,14 +17,14 @@
  */
 
 :root {
-  --ctl-brand: #0b69a3;
+  --ctl-brand: #d20e0f;
   /* Ink and lines read the app's semantic tokens (index.css), which carry
      their own dark pair — so no dark block here. Only the brand stays local. */
   --ctl-ink: var(--th-text);
   --ctl-line: var(--th-border);
   --ctl-line-strong: var(--th-border-strong);
   --ctl-radius: 10px;
-  --ctl-ring: 0 0 0 3px rgba(11, 105, 163, 0.35);
+  --ctl-ring: 0 0 0 3px rgba(210, 14, 15, 0.35);
 }
 
 /* ── Global checkbox sweep — native <input type="checkbox"> → box variant ──
@@ -74,7 +74,7 @@ body input[type="checkbox"]:not(.ctl-raw):disabled { opacity: .55; cursor: not-a
   border: 1.5px solid var(--ctl-line);
   border-radius: var(--ctl-radius);
   background-color: #fff;
-  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%230b69a3' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='12' height='8' viewBox='0 0 12 8'%3E%3Cpath fill='%23d20e0f' d='M1 1l5 5 5-5'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
   background-position: right 12px center;
   padding: 9px 34px 9px 13px;

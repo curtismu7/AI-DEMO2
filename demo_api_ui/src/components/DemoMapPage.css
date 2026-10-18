@@ -4,33 +4,17 @@
   padding: 24px 16px 64px;
 }
 
-.demo-map__eyebrow {
-  font-size: 11px;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-  color: var(--th-text-muted);
-}
-
-.demo-map__header h1 {
-  margin: 6px 0 8px;
-}
-
-.demo-map__lede {
-  color: var(--th-text-body);
-  max-width: 70ch;
-}
-
 .demo-map__legend {
   display: flex;
   flex-wrap: wrap;
   gap: 6px 18px;
   margin-top: 12px;
   font-size: 12px;
-  color: var(--th-text-muted);
+  color: rgba(255, 255, 255, 0.85);
 }
 
 .demo-map__legend b {
-  color: var(--th-text);
+  color: #ffffff;
 }
 
 .demo-map__grid {

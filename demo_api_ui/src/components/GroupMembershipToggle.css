@@ -265,4 +265,4 @@
 .gmt-story { background: var(--th-bg-inset); border-color: var(--th-border); border-left-color: var(--th-status-info); }
 .gmt-story-title, .gmt-story-beats, .gmt-facts dd, .gmt-modal-body { color: var(--th-text); }
 .gmt-facts dt, .gmt-note, .gmt-error-detail { color: var(--th-text-muted); }
-.gmt-retry { background: var(--th-bg-card); border-color: var(--th-status-info); color: var(--th-status-info); }
+.gmt-retry { background: var(--th-bg-card); border-color: var(--th-status-info); color: var(--th-status-info-text); }

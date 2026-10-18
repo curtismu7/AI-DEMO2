@@ -13,13 +13,13 @@
 }
 
 .json-field-summary:hover {
-  color: #1e293b;
+  color: #263746;
 }
 
 .json-field-pre {
   background: #ffffff;
-  color: var(--th-text);
-  border: 1px solid #d1d5db;
+  color: #051727;
+  border: 1px solid #cdd1d4;
   border-radius: 6px;
   padding: 10px;
   font-size: 0.75rem;

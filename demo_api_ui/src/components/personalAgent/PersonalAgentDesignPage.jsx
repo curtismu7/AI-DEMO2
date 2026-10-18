@@ -11,6 +11,7 @@ import StaticFlowDiagram from "../StaticFlowDiagram";
 import { edgeCaptions, useDiagramStepper } from "../../hooks/useDiagramStepper";
 import { DESIGNS, GROUPS } from "./personalAgentData";
 import "./PersonalAgent.css";
+import PageHeader from '../common/PageHeader';
 
 export default function PersonalAgentDesignPage({ variant = "target" }) {
   const design = DESIGNS[variant] || DESIGNS.target;
@@ -22,15 +23,12 @@ export default function PersonalAgentDesignPage({ variant = "target" }) {
 
   return (
     <main className="pa-page" data-testid={`pa-page-${variant}`}>
-      <header className="pa-hero">
-        <div className="pa-eyebrow">{design.eyebrow}</div>
-        <h1>{design.title}</h1>
-        <p>{design.intro}</p>
+      <PageHeader className="pa-hero" eyebrow={design.eyebrow} title={design.title} summary={design.intro}>
         <nav className="pa-links" aria-label="Related personal agent pages">
           <Link to="/personal-agent-review">Why the original design was wrong</Link>
           <Link to={other.path}>{other.title}</Link>
         </nav>
-      </header>
+      </PageHeader>
 
       <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId={`pa-steps-${variant}`} />
 

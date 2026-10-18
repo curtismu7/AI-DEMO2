@@ -5,6 +5,7 @@ import StaticFlowDiagram from "./StaticFlowDiagram";
 import { useDiagramStepper } from "../hooks/useDiagramStepper";
 import { getConfig, useCaseDiagramPath } from "../config/useCaseDiagrams";
 import "./DemoStepsLifelineAuditPage.css";
+import PageHeader from './common/PageHeader';
 
 // Static audit report (read from code on main @ 1a84b4f, 13 Sep 2026). Backticks in strings render as <code>.
 const code = (s) => s.split("`").map((p, i) => (i % 2 ? <code key={i}>{p}</code> : p));
@@ -99,10 +100,7 @@ export default function DemoStepsLifelineAuditPage() {
   const now = (i) => (i === stepper.step ? " is-now" : "");
   return (
     <div className="dsla-page">
-      <header className="dsla-header">
-        <div className="dsla-eyebrow">Sequence view · /dashboard · {STEPS.length} Demo steps</div>
-        <h1>Demo Steps Lifeline Audit</h1>
-        <p className="dsla-lede">Which Demo steps actually reach the live sequence diagram, whether each one shows the thing it exists to demonstrate, and what to fix first. Every finding is marked as checked against the code or reported by an audit agent and not yet re-read.</p>
+      <PageHeader className="dsla-header" eyebrow={<>Sequence view · /dashboard · {STEPS.length} Demo steps</>} title="Demo Steps Lifeline Audit" summary="Which Demo steps actually reach the live sequence diagram, whether each one shows the thing it exists to demonstrate, and what to fix first. Every finding is marked as checked against the code or reported by an audit agent and not yet re-read.">
         <div className="dsla-meta">
           <span>Read from code on <code>main</code> @ <code>1a84b4f</code></span>
           <span>Audited 13 Sep 2026</span>
@@ -124,7 +122,7 @@ export default function DemoStepsLifelineAuditPage() {
         <div className="dsla-lanes" aria-label="Diagram lanes referenced in this audit">
           {LANES.map((l) => <span key={l} className={`dsla-lane dsla-lane--${l}`}>{l.toUpperCase()}</span>)}
         </div>
-      </header>
+      </PageHeader>
 
       <section aria-labelledby="dsla-summary">
         <h2 id="dsla-summary">{shown} of {STEPS.length} show what they demonstrate</h2>

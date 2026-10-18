@@ -10,7 +10,7 @@
 }
 
 .dstc-card {
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
   border-left: 3px solid transparent;
   transition: background 0.1s;
 }
@@ -24,12 +24,12 @@
 }
 
 .dstc-card--fail {
-  border-left-color: #dc2626;
-  background: rgba(239, 68, 68, 0.03);
+  border-left-color: #d20e0f;
+  background: rgba(210, 14, 15, 0.03);
 }
 
 .dstc-card--skip {
-  border-left-color: #e2e8f0;
+  border-left-color: #e0e2e4;
   opacity: 0.5;
 }
 
@@ -59,8 +59,8 @@
   font-family: var(--font-mono);
 }
 
-.dstc-num--ok   { background: #dcfce7; color: #16a34a; }
-.dstc-num--fail { background: #fee2e2; color: #dc2626; }
+.dstc-num--ok   { background: #dcfce7; color: #051727; }
+.dstc-num--fail { background: #fee2e2; color: #d20e0f; }
 .dstc-num--skip { background: var(--th-bg-inset); color: var(--th-text-muted); }
 
 .dstc-info {
@@ -98,15 +98,15 @@
   white-space: nowrap;
 }
 
-.dstc-status--ok   { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
-.dstc-status--fail { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.dstc-status--ok   { background: #dcfce7; color: #051727; border: 1px solid #bbf7d0; }
+.dstc-status--fail { background: #fee2e2; color: #d20e0f; border: 1px solid #fecaca; }
 .dstc-status--skip { background: var(--th-bg-inset); color: var(--th-text-muted); border: 1px solid var(--th-border); }
 .dstc-status--wait { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
 
 .dstc-rfc-pill {
   font-size: var(--font-size-3xs);
-  background: #eff6ff;
-  color: #2563eb;
+  background: #fcfcfc;
+  color: #12538d;
   border: 1px solid #bfdbfe;
   border-radius: 4px;
   padding: 1px 5px;
@@ -127,7 +127,7 @@
 .dstc-claim-row {
   display: grid;
   grid-template-columns: 80px 1fr;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
 }
 
 .dstc-claim-row:last-child {
@@ -136,9 +136,9 @@
 
 .dstc-claim-k {
   padding: 4px 8px;
-  color: #2563eb;
+  color: #12538d;
   font-weight: 500;
-  border-right: 1px solid #f1f5f9;
+  border-right: 1px solid #eff0f1;
   background: var(--th-bg-inset);
   white-space: nowrap;
   overflow: hidden;
@@ -163,10 +163,15 @@
 .dstc-error {
   margin: 0 12px 8px 40px;
   font-size: var(--font-size-xs);
-  color: #b91c1c;
+  color: #d20e0f;
   background: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: 4px;
   padding: 6px 8px;
   font-family: var(--font-mono);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .dstc-claim-k {
+  color: var(--th-status-info-text);
 }

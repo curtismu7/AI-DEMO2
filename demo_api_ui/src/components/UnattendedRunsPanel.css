@@ -81,7 +81,7 @@
   cursor: pointer;
   border-radius: 8px;
 }
-.uarp-open:hover { background: var(--th-bg-inset, #f1f5f9); }
+.uarp-open:hover { background: var(--th-bg-inset, #eff0f1); }
 .uarp-open:focus-visible { outline: 2px solid var(--th-border-strong, #c3cdd9); outline-offset: -2px; }
 
 .uarp-job { font-weight: 600; }

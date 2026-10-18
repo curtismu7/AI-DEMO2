@@ -384,3 +384,16 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .ote-dot {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .ote-dot {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .ote-demo-card--mock .ote-dot {
+  color: #ffffff;
+}

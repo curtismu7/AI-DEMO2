@@ -25,7 +25,7 @@
 
 .stc-table td {
   padding: 8px 12px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
   vertical-align: middle;
 }
 
@@ -55,7 +55,7 @@
 }
 
 .stc-st--halt {
-  color: #dc2626;
+  color: #d20e0f;
   font-size: var(--font-size-2xs);
 }
 
@@ -64,7 +64,7 @@
 }
 
 .stc-st--acquiring {
-  color: #1d4ed8;
+  color: #12538d;
   font-size: var(--font-size-2xs);
 }
 
@@ -74,7 +74,7 @@
 }
 
 .stc-st--failed {
-  color: #dc2626;
+  color: #d20e0f;
   font-size: var(--font-size-2xs);
 }
 
@@ -91,11 +91,11 @@
 
 .stc-row--halted td {
   background: #fef2f2;
-  color: var(--th-text);
+  color: #051727;
 }
 
 .stc-row--halted .stc-step {
-  color: #991b1b;
+  color: #aa0005;
   font-weight: 600;
 }
 

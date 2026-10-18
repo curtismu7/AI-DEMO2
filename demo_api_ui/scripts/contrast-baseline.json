@@ -1,0 +1,5 @@
+[
+ "components/AIAgent.css|.banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock .ba-input|dark|var(--th-text)|var(--ba-input-bg)",
+ "components/TokenChainDisplay.css|.tcd-root|dark|var(--tcd-ink)|linear-gradient(\n    165deg,\n    #ffffff 0%,\n    var(--brand-light-gray) 48%,\n    var(--brand-light-gray) 100%\n  )",
+ "components/dashboard/dashboard.css|.dash|dark|var(--dash-ink)|var(--dash-ground)"
+]

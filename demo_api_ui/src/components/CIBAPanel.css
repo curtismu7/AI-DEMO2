@@ -7,7 +7,7 @@
   font-family: inherit;
   font-size: 0.72rem;
   line-height: 1.45;
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   padding: 12px 14px;
   border-radius: 8px;
@@ -143,7 +143,7 @@
   align-items: flex-start;
   justify-content: space-between;
   padding: 1.1rem 1.25rem 0.75rem;
-  background: #1e3a5f;
+  background: #051727;
   color: #fff;
   flex-shrink: 0;
 }
@@ -223,11 +223,11 @@
 }
 
 .ciba-tab:hover {
-  color: #1e3a5f;
+  color: #051727;
 }
 
 .ciba-tab--active {
-  color: #1e3a5f;
+  color: #051727;
   font-weight: 700;
   border-bottom-color: var(--brand-navy);
 }
@@ -252,7 +252,7 @@
 .ciba-section-title {
   font-size: 0.88rem;
   font-weight: 700;
-  color: #1e3a5f;
+  color: #051727;
   margin: 1.25rem 0 0.4rem;
   text-transform: uppercase;
   letter-spacing: 0.05em;
@@ -283,7 +283,7 @@
 
 /* ---------- Code block ---------- */
 .ciba-code {
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   font-size: 0.74rem;
   line-height: 1.6;
@@ -334,7 +334,7 @@
 }
 
 .ciba-notice--info {
-  background: #eff6ff;
+  background: #fcfcfc;
   border-left: 3px solid var(--brand-navy);
   color: var(--brand-navy);
 }
@@ -347,8 +347,8 @@
 
 .ciba-notice--error {
   background: #fef2f2;
-  border-left: 3px solid #dc2626;
-  color: #991b1b;
+  border-left: 3px solid #d20e0f;
+  color: #aa0005;
 }
 
 .ciba-notice--success {
@@ -375,7 +375,7 @@
 
 .ciba-input {
   padding: 0.45rem 0.65rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 6px;
   font-size: 0.82rem;
   color: var(--th-text);
@@ -385,7 +385,7 @@
 
 .ciba-input:focus {
   border-color: var(--brand-navy);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 2px rgba(18, 83, 141, 0.15);
 }
 
 /* ---------- Buttons ---------- */
@@ -452,7 +452,7 @@
 }
 
 .ciba-poll-log {
-  background: #0f172a;
+  background: #051727;
   border-radius: 8px;
   padding: 0.65rem 0.75rem;
   max-height: 160px;
@@ -461,7 +461,7 @@
 
 .ciba-poll-log-title {
   font-size: 0.68rem;
-  color: #94a3b8;
+  color: #909ea4;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 0.4rem;
@@ -497,7 +497,7 @@
 .ciba-endpoint-row code {
   font-family: inherit;
   font-size: 0.75rem;
-  color: #1e3a5f;
+  color: #051727;
 }
 
 .ciba-endpoint-desc {
@@ -517,7 +517,7 @@
   text-align: center;
 }
 
-.ciba-method--get  { background: #eff6ff; color: var(--brand-navy); }
+.ciba-method--get  { background: #fcfcfc; color: var(--brand-navy); }
 .ciba-method--post { background: #fef9c3; color: #854d0e; }
 
 /* ---------- Setup steps ---------- */
@@ -547,7 +547,7 @@
   flex-shrink: 0;
   width: 1.6rem;
   height: 1.6rem;
-  background: #1e3a5f;
+  background: #051727;
   color: #fff;
   font-size: 0.75rem;
   font-weight: 700;

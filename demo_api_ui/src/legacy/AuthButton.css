@@ -23,19 +23,19 @@
 }
 
 .auth-btn--customer {
-  background: #004687;
+  background: #12538d;
   color: #ffffff;
 }
 
 .auth-btn--admin {
-  background: #991b1b;
+  background: #aa0005;
   color: #ffffff;
 }
 
 .auth-btn--ghost {
   background: transparent;
   color: var(--th-text);
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   font-weight: 500;
   font-size: 0.9rem;
 }

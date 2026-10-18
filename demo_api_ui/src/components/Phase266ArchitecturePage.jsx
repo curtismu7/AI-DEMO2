@@ -15,6 +15,7 @@ import { useMemo, useState } from "react";
 import { PathFilterBar } from "./diagram";
 import StaticFlowDiagram from "./StaticFlowDiagram";
 import "./Phase266ArchitecturePage.css";
+import PageHeader from './common/PageHeader';
 
 // Module-level paths constant — consumed by the shared PathFilterBar component
 const P266_PATHS = [
@@ -247,14 +248,9 @@ export default function Phase266ArchitecturePage() {
 
   return (
     <div className="p266-arch-page">
-      <header className="p266-arch-header">
-        <span className="p266-arch-eyebrow">Phase 266</span>
-        <h1>Three Credential Paths — Architecture</h1>
-        <p className="p266-arch-subtitle">
-          One Gateway, three credential mechanisms. Live React Flow render —
+      <PageHeader className="p266-arch-header" eyebrow="Phase 266" title="Three Credential Paths — Architecture" summary={<>One Gateway, three credential mechanisms. Live React Flow render —
           same graph as the Mermaid original, now interactive: filter by path
-          and click any node for its role.
-        </p>
+          and click any node for its role.</>}>
         <p className="p266-arch-subtitle">
           Scope: this view is intentionally limited to the Phase 266
           credential-disposition paths. The investment MCP server
@@ -269,7 +265,7 @@ export default function Phase266ArchitecturePage() {
           service topology, see{" "}
           <a href="/architecture/overview" target="_blank" rel="noopener noreferrer">Architecture Overview</a>.
         </p>
-      </header>
+      </PageHeader>
 
       <PathFilterBar paths={P266_PATHS} selectedPath={selectedPath} onSelect={(p) => { setSelectedPath(p); setSelectedNode(null); }} className="p266-filter-bar" />
 

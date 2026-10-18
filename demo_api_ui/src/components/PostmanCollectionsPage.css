@@ -229,7 +229,7 @@
 .postman-btn--primary:hover {
   background: linear-gradient(135deg, var(--brand-navy) 0%, var(--brand-navy) 50%, var(--brand-navy) 100%);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.4);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.4);
 }
 
 .postman-btn:active {

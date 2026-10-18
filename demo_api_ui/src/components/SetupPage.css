@@ -82,7 +82,7 @@
 }
 
 .setup-step-badge.pending {
-  border: 2px solid #d1d5db;
+  border: 2px solid #cdd1d4;
   color: var(--th-text-muted);
 }
 
@@ -199,8 +199,8 @@
 }
 
 .helix-substep-connector.done { background: #15803d; }
-.helix-substep-connector.active { background: #2563eb; }
-.helix-substep-connector.pending { background: #e5e7eb; }
+.helix-substep-connector.active { background: #12538d; }
+.helix-substep-connector.pending { background: #e0e2e4; }
 
 .setup-banner-success {
   background: var(--th-status-success-bg);

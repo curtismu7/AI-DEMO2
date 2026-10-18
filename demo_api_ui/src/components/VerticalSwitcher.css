@@ -25,7 +25,7 @@
 
 .vertical-switcher__select:focus {
   border-color: var(--dash-primary, var(--brand-navy));
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 2px rgba(18, 83, 141, 0.15);
 }
 
 .vertical-switcher__loading {
@@ -34,7 +34,7 @@
   gap: 6px;
   font-size: 0.78rem;
   font-weight: 600;
-  color: var(--dash-muted, #64748b);
+  color: var(--dash-muted, #5c646b);
 }
 
 /* Config page variant — pill selector */
@@ -64,7 +64,7 @@
 }
 
 .vertical-switcher__pill:hover {
-  border-color: var(--dash-muted, #94a3b8);
+  border-color: var(--dash-muted, #909ea4);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
@@ -103,12 +103,12 @@
 .vertical-switcher__themes {
   margin-top: 14px;
   padding-top: 12px;
-  border-top: 1px solid var(--dash-line, #e2e8f0);
+  border-top: 1px solid var(--dash-line, #e0e2e4);
 }
 
 .vertical-switcher__themes-title {
   font-size: 0.78rem;
   font-weight: 700;
-  color: var(--dash-ink, #334155);
+  color: var(--dash-ink, #263746);
   margin-bottom: 10px;
 }

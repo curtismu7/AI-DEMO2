@@ -2,8 +2,8 @@
    Light top bar for admin shell — fluid type and wrapping so it does not mash on narrow viewports. */
 
 .app-top-header {
-  background: linear-gradient(135deg, #dbeafe 0%, #bfdbfe 100%);
-  color: var(--th-text);
+  background: linear-gradient(135deg, #e0e2e4 0%, #bfdbfe 100%);
+  color: #051727;
   border-bottom: 1px solid #93c5fd;
   padding: clamp(8px, 1.2vw, 12px) 0;
 }
@@ -35,7 +35,7 @@
 .app-top-header__title {
   font-size: clamp(0.95rem, 1.1vw + 0.65rem, 1.5rem);
   font-weight: 700;
-  color: #6c2eb9;
+  color: #d20e0f;
   margin: 0;
   line-height: 1.2;
 }
@@ -82,14 +82,14 @@
 
 /* P2 — Role switch button: indigo accent to distinguish it from the logout button */
 .header-switch-role-btn {
-  background: #eff6ff;
+  background: #fcfcfc;
   border-color: #bfdbfe;
   color: var(--brand-navy);
   font-weight: 600;
 }
 
 .header-switch-role-btn:hover:not(:disabled) {
-  background: #dbeafe;
+  background: #e0e2e4;
   border-color: #93c5fd;
 }
 
@@ -108,7 +108,7 @@
 }
 
 .header-session-timer--expiring {
-  color: #b91c1c;
+  color: #d20e0f;
   animation: header-timer-pulse 1s ease-in-out infinite;
 }
 

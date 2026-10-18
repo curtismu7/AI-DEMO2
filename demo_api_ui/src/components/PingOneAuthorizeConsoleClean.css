@@ -41,7 +41,7 @@
 }
 
 .p1az-clean-statusbar-button:hover {
-  border-color: #0ea5e9;
+  border-color: #12538d;
 }
 
 /* Endpoint bar */
@@ -126,7 +126,7 @@
 }
 
 .p1az-clean-diff-value-old {
-  color: #dc2626;
+  color: #d20e0f;
   font-family: var(--font-mono);
 }
 
@@ -188,7 +188,7 @@
 }
 
 .p1az-clean-curl-btn:hover {
-  border-color: #0ea5e9;
+  border-color: #12538d;
   background: var(--th-bg-hover);
 }
 
@@ -206,7 +206,7 @@
 }
 
 .p1az-clean-testbtn:hover {
-  border-color: #0ea5e9;
+  border-color: #12538d;
 }
 
 .p1az-clean-testbtn--trigger {

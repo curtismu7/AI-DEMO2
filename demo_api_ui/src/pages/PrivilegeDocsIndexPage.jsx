@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import PageHeader from "../components/common/PageHeader";
 import "./PrivilegeDocsIndexPage.css";
 
 // The canonical Privilege docs index (privilege/DOCUMENTATION-INDEX.md),
@@ -652,11 +653,11 @@ export default function PrivilegeDocsIndexPage() {
 
   return (
     <div className="pdi-page">
-      <header className="pdi-header">
-        <div className="pdi-header-inner">
-          <p className="pdi-eyebrow">Learning Hub · Ping AI Products</p>
-          <h1>Privilege documentation index</h1>
-          <p className="pdi-sub">
+      <PageHeader
+        eyebrow="Learning Hub · Ping AI Products"
+        title="Privilege documentation index"
+        summary={
+          <>
             Every Privilege doc we own, in one place — {totalDocs} documents
             across {SECTIONS.length} sections. All links point at{" "}
             <a
@@ -670,9 +671,9 @@ export default function PrivilegeDocsIndexPage() {
             access needed. Docs without a Drive copy yet link to the folder
             root; the repo path under each title is the maintainer reference
             (sources stay in AI-DEMO2).
-          </p>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <div className="pdi-body">
         <form

@@ -9,7 +9,7 @@
 .jcv-columns {
   display: flex;
   gap: 0;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 6px;
   overflow-x: auto;
   background: #ffffff;
@@ -19,7 +19,7 @@
   flex: 1 0 200px;
   min-width: 180px;
   max-width: 260px;
-  border-right: 1px solid #e2e8f0;
+  border-right: 1px solid #e0e2e4;
   max-height: 360px;
   overflow-y: auto;
 }
@@ -29,7 +29,7 @@
   padding: 8px 12px 4px;
   font-size: 10px;
   font-weight: 700;
-  color: #64748b;
+  color: #5c646b;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   position: sticky;
@@ -46,14 +46,14 @@
   padding: 6px 12px;
   font-size: var(--font-size-sm);
   font-family: var(--font-mono);
-  color: #334155;
+  color: #263746;
   background: none;
   border: none;
   cursor: pointer;
   text-align: left;
   transition: background 0.08s;
 }
-.jcv-row:hover { background: #e2e8f0; }
+.jcv-row:hover { background: #e0e2e4; }
 .jcv-row--leaf { cursor: pointer; }
 
 /* .jcv-row.jcv-row--selected (not just .jcv-row--selected) so this ties
@@ -62,7 +62,7 @@
    with our white selected-text still applied (unreadable). */
 .jcv-row.jcv-row--selected,
 .jcv-row.jcv-row--selected:hover {
-  background: #1e40af;
+  background: #051727;
   color: #ffffff;
 }
 .jcv-row--selected .jcv-row-key,
@@ -73,14 +73,14 @@
 
 .jcv-row-key { color: #0550ae; font-weight: 600; }
 .jcv-row-preview {
-  color: #64748b;
+  color: #5c646b;
   font-size: var(--font-size-xs);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 9rem;
 }
-.jcv-row-caret { color: #94a3b8; font-size: var(--font-size-2xs); }
+.jcv-row-caret { color: #909ea4; font-size: var(--font-size-2xs); }
 
 .jcv-col--detail {
   flex: 1 0 240px;
@@ -91,14 +91,14 @@
   padding: 0 12px 6px;
   font-family: var(--font-mono);
   font-size: var(--font-size-xs);
-  color: #64748b;
+  color: #5c646b;
   word-break: break-all;
 }
 .jcv-detail-value {
   margin: 0 12px;
   padding: 10px 12px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: #eff0f1;
+  border: 1px solid #e0e2e4;
   border-radius: 6px;
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
@@ -111,7 +111,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #64748b;
+  color: #5c646b;
   font-size: var(--font-size-body);
   text-align: center;
   padding: 40px 20px;

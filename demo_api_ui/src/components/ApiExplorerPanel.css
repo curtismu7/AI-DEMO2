@@ -6,7 +6,7 @@
   font-size: var(--font-size-xs);
   color: #f87171;
   padding: 2px 8px;
-  background: rgba(239, 68, 68, 0.1);
+  background: rgba(210, 14, 15, 0.1);
   border-radius: 4px;
 }
 
@@ -20,13 +20,13 @@
   white-space: nowrap;
   flex-shrink: 0;
 }
-.aep-method-badge--GET { background: #dbeafe; color: #1d4ed8; }
+.aep-method-badge--GET { background: #e0e2e4; color: #12538d; }
 .aep-method-badge--POST { background: #dcfce7; color: #166534; }
 .aep-method-badge--PUT { background: #fef3c7; color: #92400e; }
-.aep-method-badge--DELETE { background: #fee2e2; color: #991b1b; }
-.aep-method-badge--PATCH { background: #e2e8f0; color: var(--th-text); }
-.aep-method-badge--OPTIONS { background: #e2e8f0; color: var(--th-text); }
-.aep-method-badge--HEAD { background: #e2e8f0; color: var(--th-text); }
+.aep-method-badge--DELETE { background: #fee2e2; color: #aa0005; }
+.aep-method-badge--PATCH { background: #e0e2e4; color: #051727; }
+.aep-method-badge--OPTIONS { background: #e0e2e4; color: #051727; }
+.aep-method-badge--HEAD { background: #e0e2e4; color: #051727; }
 
 /* Tree item URL text */
 .aep-tree-url {
@@ -48,12 +48,12 @@
   flex-shrink: 0;
 }
 .aep-tree-status--ok { background: #dcfce7; color: #166534; }
-.aep-tree-status--err { background: #fee2e2; color: #991b1b; }
+.aep-tree-status--err { background: #fee2e2; color: #aa0005; }
 
 /* Tree item duration */
 .aep-tree-dur {
   font-size: var(--font-size-3xs);
-  color: #64748b;
+  color: #5c646b;
   flex-shrink: 0;
   margin-left: auto;
 }
@@ -61,19 +61,19 @@
 /* Stats compact in header */
 .aep-stats-compact {
   font-size: var(--font-size-3xs);
-  color: #64748b;
+  color: #5c646b;
   font-weight: 400;
 }
 
 /* Tree footer stats */
 .aep-tree-footer {
   padding: 8px 16px;
-  border-top: 1px solid #cbd5e1;
+  border-top: 1px solid #cdd1d4;
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
   font-size: 10px;
-  color: #64748b;
+  color: #5c646b;
   flex-shrink: 0;
 }
 .aep-tree-footer__stat {
@@ -81,7 +81,7 @@
   gap: 3px;
 }
 .aep-tree-footer__stat strong {
-  color: #334155;
+  color: #263746;
 }
 .aep-tree-footer__ok { color: #16a34a !important; }
-.aep-tree-footer__err { color: #dc2626 !important; }
+.aep-tree-footer__err { color: #d20e0f !important; }

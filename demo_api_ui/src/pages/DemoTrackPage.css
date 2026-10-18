@@ -13,7 +13,7 @@
   --dtp-line: var(--th-border); --dtp-bg: var(--th-bg-page); --dtp-card: var(--th-bg-card);
   --dtp-green: var(--th-status-success); --dtp-green-bg: var(--th-status-success-bg);
   --dtp-deny: var(--th-status-error); --dtp-deny-bg: var(--th-status-error-bg);
-  --dtp-amber: var(--th-status-warning); --dtp-amber-bg: var(--th-status-warning-bg); --dtp-navy: #16324f;
+  --dtp-amber: var(--th-status-warning); --dtp-amber-bg: var(--th-status-warning-bg); --dtp-navy: #051727;
   --dtp-navy-ink: var(--th-status-info-text); --dtp-red-ink: var(--th-status-error-text);
   background: var(--dtp-bg); color: var(--dtp-ink); min-height: 100%;
   line-height: 1.45;

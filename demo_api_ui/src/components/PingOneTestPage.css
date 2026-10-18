@@ -5,8 +5,7 @@
   background: var(--th-bg-page);
   color: var(--th-text);
   padding: 2rem;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", sans-serif;
+  font-family: var(--font-primary);
 }
 
 /* Loading State */
@@ -311,8 +310,7 @@
   padding: 1rem;
   border-radius: 6px;
   border: 1px solid var(--th-border);
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
+  font-family: var(--font-primary);
   font-size: 0.85rem;
   line-height: 1.5;
   overflow-x: auto;
@@ -1233,7 +1231,7 @@ a.pingone-test-button--primary:visited {
   color: #b45309;
 }
 .tld-col--to {
-  color: #0369a1;
+  color: #12538d;
 }
 
 .tld-row {
@@ -1464,8 +1462,8 @@ a.pingone-test-button--primary:visited {
   gap: 8px;
   padding: 10px 14px;
   margin: 8px 0;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border: 1px solid #334155;
+  background: linear-gradient(135deg, #263746 0%, #051727 100%);
+  border: 1px solid #263746;
   border-radius: 12px 12px 12px 2px;
   font-family: inherit;
   font-size: 0.88rem;
@@ -1631,4 +1629,21 @@ a.pingone-test-button--primary:visited {
 .exchange-flow-selector__btn.is-active {
   background: var(--th-bg-emphasis);
   color: var(--th-text-on-emphasis);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .tld-kind--added {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .tld-kind--added {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .tld-kind--removed {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .tld-kind--removed {
+  color: #ffffff;
 }

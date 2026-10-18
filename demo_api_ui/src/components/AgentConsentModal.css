@@ -33,7 +33,7 @@
   background: #fee2e2;
   border-bottom: 1px solid #fca5a5;
   font-size: 0.76rem;
-  color: #1e293b;
+  color: #263746;
   flex-shrink: 0;
 }
 .acm-hitl-badge::before {
@@ -105,10 +105,10 @@
 /* Request summary card */
 .acm-card {
   border: 1px solid var(--th-border);
-  border-left: 3px solid var(--app-primary-red, #b91c1c);
+  border-left: 3px solid var(--app-primary-red, #d20e0f);
   border-radius: 12px;
   background: var(--th-bg-card);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(5, 23, 39, 0.04);
   overflow: hidden;
 }
 .acm-card__head {
@@ -245,7 +245,7 @@
   margin-top: 1px;
   width: 17px;
   height: 17px;
-  accent-color: var(--app-primary-red, #b91c1c);
+  accent-color: var(--app-primary-red, #d20e0f);
   cursor: pointer;
 }
 
@@ -254,7 +254,7 @@
   margin: 0;
   font-size: 0.84rem;
   font-weight: 600;
-  color: #991b1b;
+  color: #aa0005;
   background: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: 8px;
@@ -283,8 +283,8 @@
 .acm-btn--primary {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red-mid, #b91c1c) 0%,
-    var(--app-primary-red, #991b1b) 100%
+    var(--app-primary-red-mid, #d20e0f) 0%,
+    var(--app-primary-red, #aa0005) 100%
   );
   color: var(--app-primary-btn-text, #fff);
   border-color: var(--app-primary-red-border, #7f1d1d);
@@ -293,30 +293,30 @@
 .acm-btn--primary:hover:not(:disabled) {
   background: linear-gradient(
     180deg,
-    var(--app-primary-red, #991b1b) 0%,
+    var(--app-primary-red, #aa0005) 0%,
     var(--app-primary-red-hover, #7f1d1d) 100%
   );
   border-color: var(--app-primary-red-hover, #7f1d1d);
 }
 /* Disabled = "not ready yet": neutral, not a faded brand color */
 .acm-btn--primary:disabled {
-  background: #e2e8f0;
-  color: #94a3b8;
-  border-color: #e2e8f0;
+  background: #e0e2e4;
+  color: #051727;
+  border-color: #e0e2e4;
   box-shadow: none;
   cursor: not-allowed;
 }
 
 .acm-btn--secondary {
   background: #ffffff;
-  color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red, #d20e0f);
   border-color: var(--app-primary-red-border, #7f1d1d);
   box-shadow: 0 1px 2px rgba(0, 0, 0, 0.06);
 }
 .acm-btn--secondary:hover:not(:disabled) {
   background: #fef2f2;
-  border-color: var(--app-primary-red, #b91c1c);
-  color: var(--app-primary-red-hover, #991b1b);
+  border-color: var(--app-primary-red, #d20e0f);
+  color: var(--app-primary-red-hover, #aa0005);
 }
 .acm-btn--secondary:disabled {
   opacity: 0.5;

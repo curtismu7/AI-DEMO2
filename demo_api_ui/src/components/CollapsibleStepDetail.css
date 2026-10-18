@@ -111,8 +111,8 @@
 }
 
 .csd-font-control button[aria-pressed="true"] {
-  background: var(--th-accent, #2563eb);
-  border-color: var(--th-accent, #2563eb);
+  background: var(--th-accent, #12538d);
+  border-color: var(--th-accent, #12538d);
   color: #fff;
 }
 

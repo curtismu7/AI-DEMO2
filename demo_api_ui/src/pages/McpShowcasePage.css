@@ -471,3 +471,12 @@
 
 :root[data-theme="dark"] .mcpsc__outcome--permit { color: var(--th-status-success-text); }
 :root[data-theme="dark"] .mcpsc__outcome--deny { color: var(--th-status-error-text); }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .mcpsc__outcome--permit {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .mcpsc__outcome--deny {
+  color: var(--th-status-error-text);
+}

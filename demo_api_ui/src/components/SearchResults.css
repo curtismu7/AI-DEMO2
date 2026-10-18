@@ -70,7 +70,7 @@
 
 .score {
   font-size: var(--font-size-2xs);
-  color: #059669;
+  color: #051727;
   font-weight: 600;
   white-space: nowrap;
   background: #ecfdf5;
@@ -131,7 +131,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #dc2626;
+  color: #d20e0f;
   font-size: var(--font-size-body);
   min-height: 300px;
   padding: 20px;

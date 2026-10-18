@@ -10,14 +10,10 @@
   border: 1px solid var(--th-border-strong);
   border-radius: 12px;
   box-shadow:
-    0 20px 50px rgba(15, 23, 42, 0.18),
+    0 20px 50px rgba(5, 23, 39, 0.18),
     0 0 0 1px color-mix(in srgb, var(--th-text-invert) 60%, transparent) inset;
   overflow: hidden;
-  font-family: "Montserrat", system-ui,
-    -apple-system,
-    Segoe UI,
-    Roboto,
-    sans-serif;
+  font-family: var(--font-primary);
 }
 
 .afd-panel--maximized {
@@ -175,7 +171,7 @@
   color: var(--th-text);
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-md);
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.18);
+  box-shadow: 0 8px 24px rgba(5, 23, 39, 0.18);
   font-size: 0.75rem;
 }
 
@@ -241,9 +237,9 @@
 }
 
 .afd-step--active .afd-step-dot {
-  background: #2563eb;
-  border-color: #1d4ed8;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.25);
+  background: #12538d;
+  border-color: #12538d;
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.25);
   animation: afd-pulse 1.2s ease-in-out infinite;
 }
 
@@ -253,17 +249,17 @@
 }
 
 .afd-step--error .afd-step-dot {
-  background: #dc2626;
-  border-color: #b91c1c;
+  background: #d20e0f;
+  border-color: #d20e0f;
 }
 
 @keyframes afd-pulse {
   0%,
   100% {
-    box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.2);
+    box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.2);
   }
   50% {
-    box-shadow: 0 0 0 6px rgba(37, 99, 235, 0.12);
+    box-shadow: 0 0 0 6px rgba(18, 83, 141, 0.12);
   }
 }
 
@@ -287,12 +283,12 @@
   color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: 10px;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(5, 23, 39, 0.04);
 }
 
 .afd-step--active .afd-step-card {
   border-color: #93c5fd;
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 1px rgba(18, 83, 141, 0.15);
 }
 
 .afd-step--error .afd-step-card {
@@ -387,7 +383,7 @@
 }
 
 .afd-sequence-row:focus-visible {
-  outline: 2px solid #2563eb;
+  outline: 2px solid #12538d;
   outline-offset: 2px;
 }
 
@@ -398,7 +394,7 @@
 }
 
 .afd-sequence-row--active .afd-sequence-line {
-  stroke: #2563eb;
+  stroke: #12538d;
 }
 
 .afd-sequence-row--dimmed {
@@ -426,7 +422,7 @@
 }
 
 .afd-sequence-dot--active {
-  border-color: #2563eb;
+  border-color: #12538d;
 }
 
 .afd-sequence-dot--dimmed {
@@ -584,8 +580,8 @@
   background: linear-gradient(
     135deg,
     transparent 40%,
-    rgba(37, 99, 235, 0.55) 40%,
-    rgba(37, 99, 235, 0.55) 55%,
+    rgba(18, 83, 141, 0.55) 40%,
+    rgba(18, 83, 141, 0.55) 55%,
     transparent 55%
   );
 }
@@ -704,7 +700,7 @@
 }
 
 .afd-token-type--user_token {
-  background: #dbeafe;
+  background: #e0e2e4;
   color: var(--brand-navy);
   border: 1px solid var(--brand-navy-light);
 }

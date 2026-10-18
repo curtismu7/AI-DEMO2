@@ -34,7 +34,7 @@
     linear-gradient(90deg, var(--th-border, #e0e3ee) 1px, transparent 1px);
   background-size: 12px 12px;
 }
-.pcg-thumb--location svg { stroke: #1e3a5f; }
+.pcg-thumb--location svg { stroke: #051727; }
 .pcg-body { padding: 9px 10px 10px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .pcg-price-row { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
 .pcg-price {
@@ -73,12 +73,17 @@
   justify-content: center;
   font-size: 11.5px;
   font-weight: 600;
-  border: 1px solid #1d4ed8;
+  border: 1px solid #12538d;
   background: #e8edfd;
-  color: #1d4ed8;
+  color: #12538d;
   border-radius: 6px;
   padding: 6px 8px;
   cursor: pointer;
   text-decoration: none;
 }
-.pcg-btn button:hover, .pcg-btn a:hover { background: #1e40af; color: #fff; }
+.pcg-btn button:hover, .pcg-btn a:hover { background: #051727; color: #fff; }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .pcg-status {
+  color: #051727;
+}

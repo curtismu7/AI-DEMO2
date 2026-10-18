@@ -5,6 +5,7 @@
 // regex, so it runs client-side and always works for the demo.
 import { useState } from "react";
 import { scan, scanPrompts, scanResources, HOSTILE_PROMPTS, HOSTILE_RESOURCES, HOSTILE_TOOLS } from "../utils/mcpScanner";
+import PageHeader from "../components/common/PageHeader";
 import "./McpScannerPage.css";
 
 export default function McpScannerPage() {
@@ -43,16 +44,19 @@ export default function McpScannerPage() {
 
   return (
     <div className="mcps-page">
-      <header className="mcps-hero">
-        <p className="mcps-eyebrow">Blue-team · defense in depth</p>
-        <h1 className="mcps-title">MCP Content Scanner</h1>
-        <p className="mcps-lede">
-          The Privilege gateway polices tool <em>calls</em>, not arbitrary MCP <em>content</em> — so poisoned tool
-          metadata, resources, and prompts can reach an agent unfiltered. This scanner reads those surfaces and flags the
-          poison <b>before</b> the agent ingests it. Same detection as{" "}
-          <code className="mcps-code">standalone/mcp-scanner</code>, run here in your browser.
-        </p>
-      </header>
+      <PageHeader
+        className="mcps-hero"
+        eyebrow="Blue-team · defense in depth"
+        title="MCP Content Scanner"
+        summary={
+          <>
+            The Privilege gateway polices tool <em>calls</em>, not arbitrary MCP <em>content</em> — so poisoned tool
+            metadata, resources, and prompts can reach an agent unfiltered. This scanner reads those surfaces and flags the
+            poison <b>before</b> the agent ingests it. Same detection as{" "}
+            <code className="mcps-code">standalone/mcp-scanner</code>, run here in your browser.
+          </>
+        }
+      />
 
       <section className="mcps-panel">
         <div className="mcps-run-row">

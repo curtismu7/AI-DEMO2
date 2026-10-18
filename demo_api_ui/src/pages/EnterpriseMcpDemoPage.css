@@ -135,8 +135,8 @@
 
 .emd-btn--primary {
   color: #fff;
-  border-color: var(--signin-accent, #2563eb);
-  background: var(--signin-accent, #2563eb);
+  border-color: var(--signin-accent, #12538d);
+  background: var(--signin-accent, #12538d);
 }
 
 .emd-btn--reset {

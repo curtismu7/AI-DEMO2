@@ -1,8 +1,5 @@
 .pcat-page { max-width: 1080px; margin: 0 auto; padding: 32px clamp(18px, 4vw, 48px) 56px; color: var(--th-text); }
-.pcat-head { max-width: 760px; margin-bottom: 24px; }
-.pcat-eyebrow { margin: 0 0 8px; color: var(--th-status-info); font-size: var(--font-size-2xs); font-weight: 800; letter-spacing: .12em; }
-.pcat-head h1 { margin: 0 0 10px; font-size: var(--font-size-2xl); line-height: 1.2; }
-.pcat-sub { margin: 0 0 14px; color: var(--th-text-muted); font-size: var(--font-size-base); line-height: 1.6; }
+.pcat-head { margin-bottom: 24px; }
 .pcat-search { width: 100%; max-width: 420px; padding: 8px 12px; border: 1px solid var(--th-border-strong); border-radius: 6px; background: var(--th-bg-card); color: var(--th-text); font: inherit; }
 .pcat-note { margin: 0 0 16px; padding: 12px 14px; border: 1px solid var(--th-status-warning); border-radius: 8px; background: var(--th-bg-inset); color: var(--th-text); font-size: var(--font-size-sm); line-height: 1.5; }
 .pcat-note--error { border-color: var(--th-status-error); }

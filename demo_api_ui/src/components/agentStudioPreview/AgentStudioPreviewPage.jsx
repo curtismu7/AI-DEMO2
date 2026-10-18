@@ -11,6 +11,7 @@ import { agentStudioMockStore } from "../../data/agentStudioMockStore";
 import PreviewBanner from "./PreviewBanner";
 import WizardStepper from "./WizardStepper";
 import "./agentStudioPreview.css";
+import PageHeader from '../common/PageHeader';
 
 const PERSONAS = [
   { id: "enterpriseUser", label: "Enterprise AI User" },
@@ -41,14 +42,8 @@ export default function AgentStudioPreviewPage() {
     <div className="asp-root asp-root--studio">
       <div className="asp-page">
         <PreviewBanner />
-        <div className="asp-hero">
-          <span className="asp-eyebrow">Agent Studio · Preview</span>
-          <h1>Agent Studio</h1>
-          <p>
-            The 1-year-target onboarding experience: users and developers walk
-            a guided flow; admins review what Discovery surfaced.
-          </p>
-        </div>
+        <PageHeader eyebrow="Agent Studio · Preview" title="Agent Studio" summary={<>The 1-year-target onboarding experience: users and developers walk
+            a guided flow; admins review what Discovery surfaced.</>} />
 
         <div className="asp-tabs" role="tablist" aria-label="Persona">
           {PERSONAS.map((p) => (
