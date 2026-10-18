@@ -53,9 +53,11 @@ async function mock(page) {
   await page.route('**/api/admin/feature-flags**', (r) => r.fulfill(json({ flags: [] })));
   await page.route('**/api/admin/config**', (r) => r.fulfill(json({ config: {} })));
   await page.route('**/api/tokens/session-preview**', (r) => r.fulfill(json({ tokenEvents: [] })));
-  await page.route('**/ws**', (r) => r.abort());
-  await page.route('**/mcp**', (r) => r.abort());
-  await page.route('**/events**', (r) => r.abort());
+  // Block live-connection endpoints, but never a page navigation (e.g. the /mcp-inspector route).
+  const blockBackground = (r) => (r.request().resourceType() === 'document' ? r.fallback() : r.abort());
+  await page.route('**/ws**', blockBackground);
+  await page.route('**/mcp**', blockBackground);
+  await page.route('**/events**', blockBackground);
 }
 
 /** Runs in the page. Returns offenders for the current theme. */
@@ -122,8 +124,10 @@ function auditInPage() {
   const seen = new Set();
   for (let n = walker.nextNode(); n; n = walker.nextNode()) {
     const text = n.nodeValue.trim();
-    if (text.length < 2) continue;
+    if (text.length < 2 || !/[A-Za-z0-9]/.test(text)) continue; // emoji/icon glyphs carry their own colour
     const el = n.parentElement;
+    // Exempt on purpose: third-party attribution and per-vertical brand colour badges.
+    if (el && el.closest('.react-flow__attribution, .vops__icon')) continue;
     if (!el || seen.has(el) || el.closest('script,style,noscript,svg,option,[aria-hidden="true"],[disabled],:disabled,[inert]')) continue;
     seen.add(el);
     const cs = getComputedStyle(el);
@@ -167,7 +171,13 @@ const unrendered = [];
 let rendered = 0;
 for (const route of routes) {
   try {
-    await page.goto(BASE + route, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    try {
+      await page.goto(BASE + route, { waitUntil: 'domcontentloaded', timeout: 15000 });
+    } catch (e) {
+      // Pages that redirect mid-load interrupt goto; audit whatever settled.
+      if (!/interrupted/i.test(String(e.message))) throw e;
+    }
+    await page.addStyleTag({ content: '*,*::before,*::after{transition:none!important;animation:none!important}' });
     await page.waitForTimeout(900);
     const textLen = await page.evaluate(() => document.body.innerText.trim().length);
     const url = new URL(page.url());

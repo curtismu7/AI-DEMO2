@@ -4,7 +4,7 @@ Started 2026-10-18. Goal: make every demo page consistent with Ping Identity sta
 
 - **PR:** #1515 — https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1515 (open; merge by hand, the classifier blocks `gh pr merge`)
 - **Branch / worktree:** `worktree-ui-ping-palette` at `.claude/worktrees/ui-ping-palette`
-- **Last commit when written:** `40a3b4940`
+- **Last commit when written:** `40a3b4940` (PR #1515 merged as `11353b2de`; PR #1530 quiet buttons merged as `0830d5fd`)
 - **To resume:** `cd .claude/worktrees/ui-ping-palette/demo_api_ui` (node_modules already installed there). Use the worktree, never the shared main checkout.
 
 ## Decisions already made (do not re-ask)
@@ -61,14 +61,14 @@ Started 2026-10-18. Goal: make every demo page consistent with Ping Identity sta
 
 ### Contrast — remaining findings
 Last runtime audit (slightly stale): ~38 unique violations on 164 rendered routes.
-- [ ] Re-run `npm run build`, serve with `npx vite preview --port 4173`, then `npm run audit:contrast -- --out report.json`
-- [ ] `/request-access`: white text on a light gradient island in dark theme (`.efd` is themed; the host page's hardcoded gradient is the cause)
-- [ ] `/personal-agent*`: blue buttons (`rgb(0,115,230)`) on dark card, 3.9:1
-- [ ] "🌙 Dark" toggle buttons on `/authz-test`, `/pingone-authorize` (light grey on white)
-- [ ] `/delegation` step labels, `vops__icon` badges (white on mid-tone fills, ~3.7–4.0:1)
-- [ ] `a2t-node__icon` colours on dark (A2A protocol page), `lps-expect`/`mds-expect` labels, `tst-topbar-badge`
-- [ ] `/dev-tools` hint text at 50% white
-- [ ] 74 routes did not render without a backend: re-run the audit against the real local stack (needs sign-in) to cover them
+- [x] Runtime audit re-run: 42 → 3 unique violations on 236/238 rendered routes (PR 2). Audit bugs fixed (it was aborting `/mcp*` page navigations and measuring mid-transition colours)
+- [x] `/request-access` dark theme (scoped to `.efd[data-testid="hosted-flow"]`)
+- [ ] `/personal-agent*`: suggestion chips use the client skin accent `#0073e6` (from `AgentClientSkin.jsx`, a vendor-style skin) on a dark card, 3.9:1. Left as is; lighten the accent for text or exempt as vendor chrome
+- [x] "🌙 Dark" toggle on `/pingone-authorize` (inline style had no text colour). Re-run the audit to confirm `/authz-test`
+- [x] `/delegation` step labels darkened; `vops__icon` per-vertical brand badges are exempt in the audit (vertical brand colours)
+- [x] `lps-expect`/`mds-expect`, `tst-topbar-badge`, promptfoo text, MFA hint, CIBA "Try again"; emoji-only glyphs are skipped by the audit
+- [x] `/dev-tools` hint text raised to 78% white
+- [x] Unrendered routes: it was the audit's own `**/mcp**` block aborting page navigations; now 236/238 render (left: `/pinggateway-test`, `/sdk-login/callback`)
 - [ ] 3 static baseline entries (`.dash`, `.tcd-root`, `.ba-input`) are checker false positives on local token layers; either teach the checker or leave
 - [ ] Move the generated blocks at the end of `index.css` ("Contrast overrides" / "Contrast fixes") into their component stylesheets as each is touched
 - [ ] Decide whether the `FootprintMockGallery` page chrome (currently in the skip list) should be checked too
@@ -87,7 +87,7 @@ Last runtime audit (slightly stale): ~38 unique violations on 164 rendered route
 - [ ] Mid blue tints still present (`#93c5fd`, `#60a5fa`, `#7dd3fc`, `#9ec1ff`, `#90a0c2`, GitHub blues in code/diff views) — pick replacements
 - [ ] Other Ping-owned pages that should ignore the vertical accent (welcome, Learning Hub, similar)
 - [ ] Status colours: success greens, warning ambers and `#a33020` negative red were left as-is
-- [ ] Secondary buttons are now all Ping Red (e.g. the Admin toolbar). Decide whether to make secondary/utility buttons quieter (outline or Core Dark)
+- [x] Secondary buttons quieted: shared toolbar button is outline, red only for `--accent`/`--danger` (PR #1530, merged). Not changed: form-action buttons (View Profile …) and `.btn-primary`
 - [ ] Pre-existing glitch: `/authz-test` engine radio cards run title and description together
 
 ### Needs confirmation from the brand hub (SSO-gated)

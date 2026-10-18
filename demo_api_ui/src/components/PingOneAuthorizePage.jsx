@@ -1025,6 +1025,7 @@ export default function PingOneAuthorizePage() {
             padding: '6px 10px',
             border: '1px solid #cbd5e1',
             background: '#fff',
+            color: '#051727',
             borderRadius: '6px',
             fontSize: '14px',
             cursor: 'pointer',
