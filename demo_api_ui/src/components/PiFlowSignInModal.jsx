@@ -344,9 +344,11 @@ export default function PiFlowSignInModal() {
       const body = await res.json().catch(() => ({}));
       if (res.status === 502 && body.error === "approval_unavailable") {
         // Password was fine but the approval link can't be sent: stay on the form as a plain password login.
+        // The server already saw this flow COMPLETE, so it is dead: reopen a fresh password-first one.
         secondFactorRef.current = null;
+        setPassword("");
         setError("Approval link isn't available right now. Sign in with your password instead, or try again.");
-        setBusy(false);
+        openFlow(returnToRef.current, roleRef.current); // stays busy until the new flow is open; failure falls back as usual
         return;
       }
       if (res.ok && body.step === "approval" && Array.isArray(body.channels)) {

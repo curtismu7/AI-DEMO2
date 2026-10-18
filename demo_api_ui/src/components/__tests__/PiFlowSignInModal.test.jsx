@@ -1153,18 +1153,33 @@ describe('PiFlowSignInModal choice screen (passwordless / password + approval li
     expect(await screen.findByRole('button', { name: APPROVAL_BTN })).toBeInTheDocument();
   }, 10000);
 
-  test('502 approval_unavailable stays on the password form; the NEXT submit sends no secondFactor', async () => {
+  test('502 approval_unavailable reopens a FRESH password-first flow; the next submit is plain and works only against it', async () => {
+    // Server model: the 502 means the flow already COMPLETED, so a credentials post is refused
+    // (400 -> 502 pi_flow_failed upstream) unless /login?pi_flow=1 was opened again since.
+    let freshFlow = true;
     let n = 0;
     mockChoiceBff({
-      credentials: () => (++n === 1 ? ok({ error: 'approval_unavailable' }, 502) : ok({ redirectTo: 'https://app.test/cb?x=4' })),
+      credentials: () => {
+        if (++n === 1) { freshFlow = false; return ok({ error: 'approval_unavailable' }, 502); }
+        return freshFlow ? ok({ redirectTo: 'https://app.test/cb?x=4' }) : ok({ error: 'pi_flow_failed' }, 502);
+      },
+    });
+    const base = global.fetch;
+    global.fetch = vi.fn((url, init) => {
+      if (String(url).includes('pi_flow=1') && n >= 1) freshFlow = true;
+      return base(url, init);
     });
     await open('customer');
     fireEvent.click(screen.getByRole('button', { name: APPROVAL_BTN }));
     await submitPassword();
     expect(await screen.findByText(/Approval link isn't available right now\. Sign in with your password instead, or try again\./)).toBeInTheDocument();
-    expect(screen.getByLabelText('Password')).toBeInTheDocument();
     expect(assign).not.toHaveBeenCalled();
+    const opens = () => global.fetch.mock.calls.filter(([u]) => String(u).includes('/login?') && String(u).includes('pi_flow=1'));
+    await waitFor(() => expect(opens()).toHaveLength(2));
+    expect(String(opens()[1][0])).not.toContain('passwordless=1');
+    expect(screen.getByLabelText('Password')).toHaveValue('');
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    await waitFor(() => expect(screen.getByRole('button', { name: 'Sign in' })).not.toBeDisabled());
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/cb?x=4'));
     expect(credentialBodies()).toEqual([
