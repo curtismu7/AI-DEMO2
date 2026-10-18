@@ -813,6 +813,8 @@ app.post('/api/auth/switch', (req, res) => {
     delete req.session.user;
     delete req.session.clientType;
     delete req.session.oauthType;
+    // A return path left by an earlier login would win over the target role's landing page.
+    delete req.session.postLoginReturnToPath;
     clearAuthCookie(res, isProduction);
 
     // Set switch_target cookie so the OAuth callback knows where to redirect
