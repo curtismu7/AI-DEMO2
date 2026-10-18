@@ -2273,6 +2273,12 @@
   overflow-wrap: anywhere;
   text-align: center;
 }
+.ciba-login__hint {
+  margin: -0.4rem 0 0;
+  text-align: center;
+  font-size: 0.85em;
+  opacity: 0.8;
+}
 .ciba-login__timer {
   text-align: center;
   font-variant-numeric: tabular-nums;

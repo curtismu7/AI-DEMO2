@@ -4,19 +4,26 @@ const apiBase = () =>
   process.env.REACT_APP_API_URL ||
   (typeof window !== "undefined" ? window.location.origin : "");
 
+const GRACE_MS = 2000; // polling outlives expiresIn briefly so a last-second approval is not lost
+const START_ERRORS = {
+  429: "Too many attempts. Try again in a few minutes.",
+  409: "Your sign-in timed out. Start again.",
+  502: "The approval link isn't available right now. Try again.",
+};
+
 // Same wording as the step-up waiting text (cibaWaitingText in AIAgent.js).
 const waitingText = (code, channel) =>
   `We sent an approval link by ${channel === "sms" ? "text message" : "email"}. There is nothing to type: open the link, check the page shows match code ${code}, then tap Approve.`;
 
 /**
- * Passwordless sign-in by approval link (CIBA over email or SMS).
- * identifier -> channel (both always offered: the server answers identically
- * for every account) -> waiting (match code to COMPARE, polls the BFF).
+ * Second factor after the password: approval link by email or text (CIBA).
+ * channel (only the channels the server said this user has) -> waiting (match
+ * code to COMPARE, polls the BFF). Any terminal failure stops polling and offers
+ * "Try again", which hands back to the modal (a fresh begin()).
  * authReqId and matchCode live in component state only.
  */
-export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack }) {
-  const [phase, setPhase] = useState("identifier"); // identifier | channel | waiting | error
-  const [identifier, setIdentifier] = useState("");
+export default function CibaApprovalPanel({ channels, onApproved, onCancel }) {
+  const [phase, setPhase] = useState("channel"); // channel | waiting | error
   const [channel, setChannel] = useState("email");
   const [code, setCode] = useState("");
   const [error, setError] = useState("");
@@ -24,7 +31,7 @@ export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack
   const [busy, setBusy] = useState(false);
   const runRef = useRef(0); // bumping this invalidates every in-flight poll/timer
   const timersRef = useRef([]);
-  const headingRef = useRef(null);
+  const focusRef = useRef(null);
   // Synchronous double-start guard: state (`busy`) is stale between two events in
   // the same tick, and every start sends a real message + burns a rate-limit slot.
   const startingRef = useRef(false);
@@ -36,10 +43,8 @@ export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack
   }, []);
   useEffect(() => stop, [stop]);
 
-  // Move focus to the step heading on each step change (the identifier input autofocuses itself).
-  useEffect(() => {
-    if (phase !== "identifier") headingRef.current?.focus();
-  }, [phase]);
+  // Focus the step heading (or the error) on each step change.
+  useEffect(() => { focusRef.current?.focus(); }, [phase]);
 
   const fail = (message) => {
     stop();
@@ -62,7 +67,7 @@ export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack
         if (run !== runRef.current) return;
         if (body.status === "approved" && body.redirectTo) {
           stop();
-          onSignedIn(body.redirectTo);
+          onApproved(body.redirectTo);
           return;
         }
       } catch {
@@ -87,26 +92,24 @@ export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ identifier: identifier.trim(), channel: ch, role }),
+        body: JSON.stringify({ channel: ch }),
       });
       if (run !== runRef.current) return;
-      if (res.status === 429) return fail("Too many attempts. Wait a few minutes and try again.");
-      if (res.status === 503) return fail("Approval-link sign-in is not available for this identity provider. Use a password instead.");
-      if (!res.ok) return fail("Could not send the approval link. Please try again.");
+      if (!res.ok) return fail(START_ERRORS[res.status] || "Could not send the approval link. Please try again.");
       const body = await res.json();
       if (run !== runRef.current) return;
       const ttl = Number(body.expiresIn) || 120;
       const intervalMs = (Number(body.interval) || 2) * 1000;
-      const deadline = Date.now() + ttl * 1000;
+      const deadline = Date.now() + ttl * 1000 + GRACE_MS;
       setCode(body.matchCode);
       setSecondsLeft(ttl);
       setPhase("waiting");
       timersRef.current.push(setInterval(() => {
-        setSecondsLeft(Math.max(0, Math.ceil((deadline - Date.now()) / 1000)));
+        setSecondsLeft(Math.max(0, Math.ceil((deadline - GRACE_MS - Date.now()) / 1000)));
       }, 1000));
       timersRef.current.push(setTimeout(() => {
         if (run === runRef.current) fail("The approval link expired.");
-      }, ttl * 1000));
+      }, ttl * 1000 + GRACE_MS));
       poll(run, body.authReqId, intervalMs, deadline);
     } catch {
       if (run === runRef.current) fail("Could not send the approval link. Please try again.");
@@ -116,15 +119,15 @@ export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack
     }
   };
 
-  const restart = () => { stop(); setError(""); setCode(""); setPhase("identifier"); };
-  const cancel = () => { stop(); onBack(); };
+  const cancel = () => { stop(); onCancel(); };
 
   if (phase === "waiting") {
     return (
       <div className="pi-flow-signin__form ciba-login">
-        <h3 className="ciba-login__heading" tabIndex={-1} ref={headingRef}>Check your {channel === "sms" ? "phone" : "email"}</h3>
+        <h3 className="ciba-login__heading" tabIndex={-1} ref={focusRef}>Check your {channel === "sms" ? "phone" : "email"}</h3>
         <p className="signin-modal__text" role="status" aria-live="polite">{waitingText(code, channel)}</p>
         <div className="ciba-login__code" aria-label={`Match code ${code}`}>{code}</div>
+        {/* Outside the live region: a screen reader must not announce every second. */}
         <p className="signin-modal__text ciba-login__timer">
           Expires in {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}
         </p>
@@ -136,43 +139,22 @@ export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack
   if (phase === "error") {
     return (
       <div className="pi-flow-signin__form ciba-login">
-        <p className="signin-modal__text" role="alert">❌ {error}</p>
-        <button type="button" className="signin-prompt__btn" data-default-button onClick={restart}>Try again</button>
-        <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" onClick={onUsePassword}>Use a password instead</button>
-        <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" onClick={onBack}>Back</button>
-      </div>
-    );
-  }
-
-  if (phase === "channel") {
-    return (
-      <div className="pi-flow-signin__form ciba-login">
-        <h3 className="ciba-login__heading" tabIndex={-1} ref={headingRef}>Where should we send the approval link?</h3>
-        <button type="button" className="signin-prompt__btn" data-default-button disabled={busy} onClick={() => start("email")}>Email</button>
-        <button type="button" className="signin-prompt__btn" disabled={busy} onClick={() => start("sms")}>Text message</button>
-        <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" onClick={() => setPhase("identifier")}>Back</button>
+        <p className="signin-modal__text" role="alert" tabIndex={-1} ref={focusRef}>❌ {error}</p>
+        <button type="button" className="signin-prompt__btn" data-default-button onClick={cancel}>Try again</button>
       </div>
     );
   }
 
   return (
-    <form
-      className="pi-flow-signin__form ciba-login"
-      onSubmit={(e) => { e.preventDefault(); if (identifier.trim()) setPhase("channel"); }}
-    >
-      <label className="pi-flow-signin__label" htmlFor="ciba-login-identifier">Username or email</label>
-      <input
-        id="ciba-login-identifier"
-        className="pi-flow-signin__input"
-        type="text"
-        autoComplete="username"
-        autoFocus
-        value={identifier}
-        onChange={(e) => setIdentifier(e.target.value)}
-      />
-      <button type="submit" className="signin-prompt__btn" data-default-button disabled={!identifier.trim()}>Continue</button>
-      <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" onClick={onBack}>Back</button>
-      <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" onClick={onUsePassword}>Use a password instead</button>
-    </form>
+    <div className="pi-flow-signin__form ciba-login">
+      <h3 className="ciba-login__heading" tabIndex={-1} ref={focusRef}>Where should we send the approval link?</h3>
+      {channels.includes("email") && (
+        <button type="button" className="signin-prompt__btn" data-default-button disabled={busy} onClick={() => start("email")}>Email</button>
+      )}
+      {channels.includes("sms") && (
+        <button type="button" className="signin-prompt__btn" data-default-button={channels.includes("email") ? undefined : true} disabled={busy} onClick={() => start("sms")}>Text message</button>
+      )}
+      <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" onClick={cancel}>Cancel</button>
+    </div>
   );
 }
