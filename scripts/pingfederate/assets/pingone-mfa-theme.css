@@ -1,14 +1,14 @@
 /* Ping branding for the PingOne MFA adapter pages (pingone-mfa-*.html, all of which load
  * assets/css/pingone-mfa.css on top of end-user.css). apply-login-theme.sh copies this file next to
  * pingone-mfa.css and puts one @import for it at the top of that file. Same palette as the login page
- * (assets/login-main.css): Ping red #b3282d accent (white on it is 6.4:1), light ground, real logo. */
+ * (login-theme-ping.css): Ping Red #d20e0f accent (white on it is 5.5:1), light ground, real logo. */
 .page,
 .page.brand-background {
   background: linear-gradient(180deg, #f8fafc 0%, #eef2f7 100%) !important;
 }
 
 .card {
-  border-top: 4px solid #b3282d;
+  border-top: 4px solid #d20e0f;
   box-shadow: 0 14px 24px -14px rgba(15, 23, 42, 0.25);
 }
 
@@ -18,34 +18,34 @@
   width: 72px;
   height: 72px;
   border-radius: 14px;
-  box-shadow: 0 8px 18px -8px rgba(179, 40, 45, 0.6);
+  box-shadow: 0 8px 18px -8px rgba(170, 0, 5, 0.6);
 }
 
 .button--primary,
 .button--primary:active {
-  background: #b3282d;
-  border-color: #b3282d;
+  background: #d20e0f;
+  border-color: #d20e0f;
   color: #fff;
 }
 
 .button--primary:hover {
-  background: #991f24;
-  border-color: #991f24;
+  background: #aa0005;
+  border-color: #aa0005;
   color: #fff;
 }
 
 .text-input:focus,
 .float-label__input:focus {
-  border-color: #b3282d;
+  border-color: #d20e0f;
 }
 
 .float-label__input:focus + .float-label__label {
-  color: #b3282d;
+  color: #d20e0f;
 }
 
 .card a,
 .link-button {
-  color: #b3282d;
+  color: #d20e0f;
 }
 
 .ping-footer .ping-credits {

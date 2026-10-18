@@ -2,7 +2,8 @@
 # Bring PingFederate up in the SE cluster. Called by run-k8.sh se-deploy / se-all (and so by
 # run-pingaws.sh start|deploy), so every cluster deploy also brings PF up: ID-JAG (UC40) runs on it.
 #
-# Idempotent and soft: a running PF is left alone, and any problem is a warning, never a failed deploy.
+# Idempotent and soft: a running PF is left alone (only its sign-on theme is re-applied), and any
+# problem is a warning, never a failed deploy.
 #
 #   SKIP_PINGFEDERATE=1          skip
 #   PINGFEDERATE_NAMESPACE       where PF runs (default: your SE namespace; pin it in demo_api_server/.env)
@@ -31,9 +32,17 @@ ns="${ns:-$app_ns}"
 host="${PINGFEDERATE_HOST:-$(env_value PINGFEDERATE_HOST)}"
 host="${host:-${ns#ping-devops-}-pf.ping-devops.com}"
 
-# Already running: leave it alone.
+# The Ping sign-on theme lives in PF's volume, and a fresh volume or a PF upgrade restores PF's stock
+# pages, so it is re-applied on every deploy (idempotent, no restart).
+login_theme() {
+  bash "$BASEDIR/scripts/pingfederate/apply-login-theme.sh" --k8s "$ns" >/dev/null 2>&1 \
+    || warn "sign-on theme not applied in $ns; run: bash scripts/pingfederate/apply-login-theme.sh --k8s $ns"
+}
+
+# Already running: leave the workload alone.
 if [[ "$(kubectl -n "$ns" get statefulset pingfederate -o jsonpath='{.status.readyReplicas}' 2>/dev/null)" == "1" ]]; then
   say "already running in $ns (https://$host)."
+  login_theme
   exit 0
 fi
 
@@ -60,6 +69,7 @@ if ! sed "s/cmuir-pf\.ping-devops\.com/$host/g" "$BASEDIR/k8s/pingfederate/pingf
 fi
 if kubectl -n "$ns" rollout status statefulset/pingfederate --timeout=300s >/dev/null 2>&1; then
   say "up in $ns: https://$host (admin is private: kubectl -n $ns port-forward svc/pingfederate-admin 9999:9999)."
+  login_theme
 else
   warn "started but not ready within 5 minutes; check: kubectl -n $ns logs pingfederate-0"
 fi
