@@ -298,8 +298,7 @@ describe('PiFlowSignInModal', () => {
       login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
       credentials: () => ok({ redirectTo: 'https://app.test/api/auth/oauth/user/callback?code=c&state=s' }),
     });
-    await mountAndClick(); // PF opens password-first
-    await screen.findByLabelText('Password');
+    await mountAndClickPassword(); // PF opens device-first; the password form is one click away
     expect(window.location.href).toBe('');
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demouser' } });
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
@@ -307,17 +306,20 @@ describe('PiFlowSignInModal', () => {
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/api/auth/oauth/user/callback?code=c&state=s'));
   });
 
-  test('PingFederate opens on the password form with no passwordless open and no device switch', async () => {
+  test('PingFederate customer opens device-first (passwordless=1); the password form offers the device switch', async () => {
     mockBff({
       config: { ...ON, oauth_provider: 'pingfederate' },
-      login: () => ok({ flowId: 'f1', status: 'USERNAME_PASSWORD_REQUIRED' }),
+      login: () => ok({ flowId: 'f1', status: 'AUTHENTICATION_REQUIRED' }),
       credentials: () => ok({}),
     });
     await mountAndClick();
-    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Username')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Password')).toBeNull();
     const loginCall = global.fetch.mock.calls.find(([u]) => String(u).includes('/oauth/user/login'));
-    expect(String(loginCall[0])).not.toContain('passwordless=1');
-    expect(screen.queryByRole('button', { name: 'Use a device instead' })).toBeNull();
+    expect(String(loginCall[0])).toContain('passwordless=1');
+    fireEvent.click(screen.getByRole('button', { name: 'Use your password instead' }));
+    await screen.findByLabelText('Password');
+    expect(screen.getByRole('button', { name: 'Use a device instead' })).toBeInTheDocument();
   });
 
   test('PingFederate: the username hint from the BFF prefills the username box', async () => {
@@ -1085,10 +1087,11 @@ describe('PiFlowSignInModal choice screen (passkey / CIBA / password)', () => {
     expect(screen.getByRole('button', { name: 'Sign in with passkey' })).toBeInTheDocument();
   });
 
-  test('PingFederate: neither new button renders; password-first as before', async () => {
+  test('PingFederate: neither new button renders; legacy device-first step (no choice screen)', async () => {
     mockChoiceBff({ config: { ...ON, oauth_provider: 'pingfederate' } });
     await open('customer');
-    expect(await screen.findByLabelText('Password')).toBeInTheDocument();
+    expect(await screen.findByLabelText('Username')).toBeInTheDocument();
+    expect(screen.queryByLabelText('Password')).toBeNull();
     expect(screen.queryByRole('button', { name: 'Sign in with passkey' })).toBeNull();
     expect(screen.queryByRole('button', { name: 'Sign in with CIBA (email or SMS)' })).toBeNull();
   });

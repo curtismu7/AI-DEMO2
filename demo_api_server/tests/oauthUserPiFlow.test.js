@@ -389,6 +389,7 @@ describe('customer pi.flow sign-in', () => {
         { id: 'pf-sms-1', type: 'SMS', target: '******1586', usable: true, defaultDevice: false },
         { id: 'pf-mail-1', type: 'Email', target: 'cm***@pingone.com', usable: true, defaultDevice: true },
         { id: 'pf-off-1', type: 'SMS', target: '******0000', usable: false, defaultDevice: false },
+        { id: 'pf-fido-1', type: 'FIDO2', target: null, usable: true, defaultDevice: false },
       ];
       async function openPfPasswordless(agent, status) {
         fetchMock.mockResolvedValueOnce(json(200, { id: PF_FLOW, status }, {}, ['PF=first; Path=/; Secure; HttpOnly']));

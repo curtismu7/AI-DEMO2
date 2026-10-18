@@ -210,8 +210,10 @@ export default function PiFlowSignInModal() {
     // username/password form and MFA comes after. If the flow open fails with
     // passwordless=1 the open snaps back to the password form in the modal.
     passkeyOptionsRef.current = null;
-    // PingFederate has no device-first step (the BFF 409s it): password first.
-    const passwordFirst = role === "admin" || providerRef.current === "pingfederate";
+    // PingFederate customers are device-first too (acr_values=mfa_only → identifier first →
+    // PingOne MFA, scripts/pingfederate/enable-pf-passwordless.js). ?signin=mfa on PF keeps the
+    // password form: its Multi_Factor flow starts with the password.
+    const passwordFirst = role === "admin" || (providerRef.current === "pingfederate" && mfaRequested());
     // With ciba_login_enabled on, both roles open on a CHOICE screen (passkey / CIBA
     // approval link / "use a password") with no flow opened yet. PingFederate
     // and the ?signin=mfa test hook keep the legacy first step below.
@@ -769,15 +771,13 @@ export default function PiFlowSignInModal() {
               ❌ {error}
             </p>
           ) : null}
-          {providerRef.current !== "pingfederate" && (
-            <button
-              type="button"
-              className="signin-prompt__btn signin-prompt__btn--ghost"
-              onClick={switchToDevice}
-            >
-              Use a device instead
-            </button>
-          )}
+          <button
+            type="button"
+            className="signin-prompt__btn signin-prompt__btn--ghost"
+            onClick={switchToDevice}
+          >
+            Use a device instead
+          </button>
         </form>
         )}
       </div>
