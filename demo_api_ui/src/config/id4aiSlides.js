@@ -36,11 +36,11 @@ const KINDS = [
   ['SaaS-Embedded Agents', 'Vendor embedded: agents running inside SaaS applications.', 'Salesforce · Glean'],
 ];
 const FOUR_KINDS = {
-  title: 'Four kinds of agents.', subtitle: 'Same outcome, different paths.', aspect: '1560 / 520',
+  title: 'Four kinds of agents.', subtitle: 'Same outcome, different paths.', aspect: '1560 / 440',
   nodes: [
     N('personal', 'card', 0, 0, { w: 740, h: 90, label: 'Personal Agents', sub: 'On the device at work or home' }),
     N('enterprise', 'card', 780, 0, { w: 740, h: 90, label: 'Enterprise Agents', sub: 'In the cloud' }),
-    ...KINDS.map(([t, d, logos], i) => N(`k${i}`, 'card', i * 385, 130, { w: 365, h: 300, label: t, sub: `${d}\n\n${logos}`, steps: [i + 1] })),
+    ...KINDS.map(([t, d, logos], i) => N(`k${i}`, 'card', i * 385, 130, { w: 365, h: 230, label: t, sub: `${d}\n\n${logos}`, steps: [i + 1], top: true })),
   ],
   edges: [],
 };
@@ -233,7 +233,7 @@ const CROSS_APP = {
   nodes: [
     N('idp', 'ping', 300, 20, { w: 62, h: 62, label: 'IdP / OAuth AS' }),
     N('agent', 'robot', 250, 360, { w: 160, h: 160, label: 'Agent' }),
-    N('boundary', 'boundary', 760, 0, { w: 34, h: 640 }),
+    N('boundary', 'boundary', 940, 0, { w: 34, h: 640 }),
     N('as', 'win', 1050, 140, { w: 220, h: 80, label: 'OAuth AS', dashed: true }),
     N('mcp', 'servers', 1050, 440, { mcp: true, label: 'Service A' }),
   ],
@@ -394,16 +394,16 @@ const DIGITAL_WORKER = {
     N('boundary', 'boundary', 0, 20, { w: 34, h: 580 }),
     N('cust', 'user', 130, 270, { w: 84, h: 84 }),
     N('custl', 'text', 130, 366, { label: 'Custodian' }),
-    N('life', 'ping', 480, 20, { w: 62, h: 62, label: 'Agent Lifecycle Mgmt\nonboarding, offboarding, governance' }),
+    N('life', 'ping', 480, 110, { w: 62, h: 62, label: 'Agent Lifecycle Mgmt\nonboarding, offboarding, governance' }),
     N('idp', 'ping', 420, 250, { w: 62, h: 62, label: 'IdP / OAuth AS' }),
     N('reg', 'ping', 760, 250, { w: 62, h: 62, label: 'Agent Registry\nidentifiers, keys, entitlements' }),
     N('agent', 'robot', 380, 480, { w: 130, h: 130, label: 'Agent Credential', sub: '(PK-JWT or SVID-JWT)\nsub: AgentID' }),
     N('mcp', 'servers', 1100, 520, { mcp: true, label: 'Service A' }),
   ],
   edges: [
-    E('cust', 'life', 't', 'l', 1, { dashed: true, label: 'Onboard the agent' }),
-    E('life', 'reg', 'b', 't', 1, { dashed: true }),
-    E('agent', 'idp', 't', 'b', 2, { n: '1', label: 'Agent Auth via Client Credential', dx: -190, off: -14 }),
+    E('cust', 'life', 't', 'l', 1, { dashed: true, label: 'Onboard the agent', dx: -40 }),
+    E('life', 'reg', 'r', 'r', 1, { dashed: true }),
+    E('agent', 'idp', 't', 'b', 2, { n: '1', label: 'Agent Auth via Client Credential', dx: -50, dy: 30, off: -14 }),
     E('idp', 'reg', 'r', 'l', 3, { n: '2', label: 'Look up identity, keys, entitlements' }),
     E('idp', 'agent', 'b', 't', 4, { n: '3', label: 'Access Token', sub: 'sub: AgentID', off: 14, dx: 120 }),
     E('agent', 'mcp', 'r', 'l', 5, { n: '3a', label: 'Access Token', sub: 'sub: AgentID' }),
@@ -421,9 +421,9 @@ const DIGITAL_WORKER_STEPS = [
 const NEEDS_ACCESS = {
   title: 'AI Agents Need', subtitle: 'Access to Data and Services', aspect: '1560 / 560',
   nodes: [
-    N('user', 'card', 0, 120, { w: 290, h: 280, label: 'User' }),
-    N('agent', 'card', 400, 120, { w: 290, h: 280, label: 'Unique Agent Identity' }),
-    N('mcp', 'redcard', 850, 150, { w: 220, h: 200, label: 'MCP  ·  A2A' }),
+    N('user', 'card', 0, 120, { w: 290, h: 280, label: 'User', top: true }),
+    N('agent', 'card', 400, 120, { w: 290, h: 280, label: 'Unique Agent Identity', top: true }),
+    N('mcp', 'redcard', 950, 150, { w: 220, h: 200, label: 'MCP  ·  A2A' }),
     N('apis', 'card', 1220, 0, { w: 280, h: 80, label: 'APIs' }),
     N('dbs', 'card', 1220, 130, { w: 280, h: 80, label: 'DBs' }),
     N('agents', 'card', 1220, 260, { w: 280, h: 80, label: 'Agents' }),
@@ -431,7 +431,7 @@ const NEEDS_ACCESS = {
   ],
   edges: [
     E('user', 'agent', 'r', 'l', 1, { label: 'Delegation' }),
-    E('agent', 'mcp', 'r', 'l', 2, { label: 'Authentication, Authorization and Approvals' }),
+    E('agent', 'mcp', 'r', 'l', 2, { label: 'Authentication, Authorization and Approvals', dy: -48 }),
     E('mcp', 'apis', 'r', 'l', 3), E('mcp', 'dbs', 'r', 'l', 3), E('mcp', 'agents', 'r', 'l', 3), E('mcp', 'web', 'r', 'l', 3),
   ],
 };
@@ -452,7 +452,7 @@ const LAYERS = {
   title: 'Layers of', subtitle: 'Agent Identity', aspect: '1560 / 560',
   nodes: [
     N('h1', 'text', 250, 0, { label: 'Identity Types' }), N('h2', 'text', 700, 0, { label: 'Resource Types' }), N('h3', 'text', 1150, 0, { label: 'Identifiers & Credential Types' }),
-    N('ai', 'card', 0, 50, { w: 120, h: 440, label: 'AI Agents' }),
+    N('ai', 'card', 0, 50, { w: 120, h: 440, label: 'AI Agents', top: true }),
     ...LAYERS_ROWS.flatMap(([a, b, c], i) => [
       N(`a${i}`, 'redcard', 190, 50 + i * 115, { w: 330, h: 90, label: a, steps: [i + 1] }),
       N(`b${i}`, 'card', 640, 50 + i * 115, { w: 330, h: 90, label: b, steps: [i + 1] }),
@@ -469,12 +469,12 @@ const EMA = {
   nodes: [
     N('idp', 'ping', 280, 60, { w: 62, h: 62, label: 'IdP / OAuth AS' }),
     N('agent', 'robot', 230, 380, { w: 160, h: 160, label: 'Agent' }),
-    N('boundary', 'boundary', 760, 0, { w: 34, h: 660 }),
-    N('as', 'win', 1050, 60, { w: 220, h: 110, label: 'OAuth AS', dashed: true }),
+    N('boundary', 'boundary', 950, 0, { w: 34, h: 660 }),
+    N('as', 'win', 1050, 36, { w: 220, h: 110, label: 'OAuth AS', dashed: true }),
     N('mcp', 'servers', 1050, 470, { mcp: true, label: 'Service A' }),
   ],
   edges: [
-    E('idp', 'as', 'r', 'l', 1, { dashed: true, label: 'Trust Relationship' }),
+    E('idp', 'as', 'r', 't', 1, { dashed: true, label: 'Trust Relationship' }),
     E('agent', 'idp', 't', 'b', 2, { n: '1', both: true, label: 'OAuth Assertion Grant Flow', sub: 'OBO credential exchanged for ID-JAG', dx: 150 }),
     E('agent', 'as', 'r', 'l', 3, { n: '2', label: 'ID-JAG exchanged for Access Token', off: -14, dx: -50, dy: -40 }),
     E('as', 'agent', 'l', 'r', 4, { n: '3', label: 'Access Token', off: 14, dx: 60, dy: 10 }),
