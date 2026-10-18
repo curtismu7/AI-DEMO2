@@ -133,6 +133,15 @@ const FLOWS = {
   },
 };
 
+// "All flows" walkthrough: every flow's arrows, flow by flow in step order, each from→to arrow once.
+const ALL_FLOWS = {
+  label: 'All flows',
+  color: '#475569',
+  steps: Object.values(FLOWS)
+    .flatMap(f => f.steps)
+    .filter((s, i, all) => all.findIndex(t => t.from === s.from && t.to === s.to) === i),
+};
+
 // ── Export helpers ────────────────────────────────────────────────────────────
 
 
@@ -260,8 +269,10 @@ function CanvasEditor() {
   const [selectedFlow, setSelectedFlow] = useState(null);
 
   const flow = selectedFlow ? FLOWS[selectedFlow] : null;
-  const stepper = useDiagramStepper(flow ? flow.steps.length : 0);
-  const step = flow ? stepper.step : -1;
+  // walk = what Simulate steps through; flow stays null in All flows so the resting view is unchanged.
+  const walk = flow || ALL_FLOWS;
+  const stepper = useDiagramStepper(walk.steps.length);
+  const step = stepper.step;
   const nodeMap = useMemo(() => Object.fromEntries(nodes.map(n => [n.id, n])), [nodes]);
 
   const rfNodes = useMemo(() => {
@@ -280,7 +291,7 @@ function CanvasEditor() {
         dimmed: !!flow && !inFlow(n.id),
       },
     }));
-    const hot = step >= 0 ? [flow.steps[step].from, flow.steps[step].to] : [];
+    const hot = step >= 0 ? [walk.steps[step].from, walk.steps[step].to] : [];
     const labels = COL_DEFS.map(col => ({
       id: `col-${col.label}`,
       type: 'colLabel',
@@ -291,7 +302,7 @@ function CanvasEditor() {
       deletable: false,
     }));
     return [...markNodes(cards, hot), ...labels];
-  }, [nodes, nodeMap, pingStatus, flow, step, labelPos]);
+  }, [nodes, nodeMap, pingStatus, flow, walk, step, labelPos]);
 
   const rfEdges = useMemo(() => {
     const base = edges
@@ -316,8 +327,8 @@ function CanvasEditor() {
           },
         };
       });
-    if (!flow) return base;
-    const overlay = flow.steps
+    if (!flow && step < 0) return base;
+    const overlay = walk.steps
       .filter(s => nodeMap[s.from] && nodeMap[s.to])
       .map((s, i) => ({
         id: `fs-${i}`,
@@ -330,25 +341,25 @@ function CanvasEditor() {
         deletable: false,
         label: String(i + 1),
         labelStyle: { fill: '#ffffff', fontWeight: 700 },
-        labelBgStyle: { fill: flow.color },
+        labelBgStyle: { fill: walk.color },
         labelBgBorderRadius: 10,
         labelBgPadding: [6, 3],
-        markerEnd: { type: MarkerType.ArrowClosed, color: flow.color },
-        style: { stroke: flow.color, strokeWidth: 2.5 },
+        markerEnd: { type: MarkerType.ArrowClosed, color: walk.color },
+        style: { stroke: walk.color, strokeWidth: 2.5 },
       }));
     return [...base, ...stepEdges(overlay, step)];
-  }, [edges, nodeMap, selectedEdge, layerStyle, flow, step]);
+  }, [edges, nodeMap, selectedEdge, layerStyle, flow, walk, step]);
 
   const reelSteps = useMemo(
-    () => (flow ? flow.steps.map((s, i) => ({
+    () => walk.steps.map((s, i) => ({
       n: i + 1,
       from: s.from,
       to: s.to,
       label: '',
       title: `${nodeMap[s.from]?.label ?? s.from} → ${nodeMap[s.to]?.label ?? s.to}`,
       lines: [{ who: '', text: s.desc }],
-    })) : []),
-    [flow, nodeMap],
+    })),
+    [walk, nodeMap],
   );
 
   const onNodesChange = useCallback((changes) => {
@@ -436,7 +447,7 @@ function CanvasEditor() {
     ? 'Arrow selected — click Delete Edge (or press Backspace) to remove'
     : selectedFlow
     ? 'Simulate walks this flow’s arrows in order — Pause/Resume, Prev/Next and Reset appear while it runs'
-    : 'Drag to reposition · Double-click to rename · Drag from a box’s right dot to another box’s left dot to connect · Click an arrow to select it · Pick a Flow above for the Simulate bar';
+    : 'Drag to reposition · Double-click to rename · Drag from a box’s right dot to another box’s left dot to connect · Click an arrow to select it · Simulate walks every flow’s arrows in turn';
 
   return (
     <div className="canvas-page">
@@ -489,7 +500,7 @@ function CanvasEditor() {
               if (window.confirm('Reset canvas to default layout?')) {
                 resetLayout(); setPingStatus({}); setResultPanel(null);
               }
-            }}>↺ Reset</button>
+            }}>↺ Reset layout</button>
           </>
         )}
       </div>
@@ -509,13 +520,11 @@ function CanvasEditor() {
         </div>
       )}
 
-      {flow && (
-        <DiagramStepBar
-          stepper={stepper}
-          caption={step >= 0 ? reelSteps[step]?.title : undefined}
-          testId="canvas-step-bar"
-        />
-      )}
+      <DiagramStepBar
+        stepper={stepper}
+        caption={step >= 0 ? reelSteps[step]?.title : undefined}
+        testId="canvas-step-bar"
+      />
 
       <div className="canvas-stage-wrap" data-testid="canvas-flow">
         <ReactFlow

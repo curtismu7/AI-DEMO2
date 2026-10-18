@@ -2,6 +2,7 @@
 import { useCallback, useState, useEffect } from 'react';
 import { getDecisions as getLiveDecisions, subscribe as subscribeLiveDecisions } from '../../services/authorizeDecisionStore';
 import EducationDrawer from '../shared/EducationDrawer';
+import StaticFlowDiagram from '../StaticFlowDiagram';
 import JsonHighlight from '../shared/JsonHighlight';
 import { EduImplIntro, SNIP_AUTHORIZE_GATE } from './educationImplementationSnippets';
 
@@ -321,85 +322,38 @@ function RecentDecisionsViewer() {
 
 // ─── Policy diagram (AI / MCP reference architecture) ───────────────────────
 
-/**
- * Renders an inline SVG describing layered authorization: token claims and policy
- * checks (SUB, AUD, act, nested act) before an action is allowed.
- */
+// Layered authorization: token claims and policy checks (SUB, AUD, act, nested act) before an action is allowed.
+const AUTHZ_NODES = [
+  { id: 'token', group: 'token', label: 'Access token', sub: ['validated (JWKS / introspection)'], x: 0, y: 0 },
+  { id: 'sub', group: 'check', label: '1. SUB — user in IdP directory', sub: ['Subject exists / eligible (sent as UserId)'], x: 300, y: 0 },
+  { id: 'aud', group: 'check', label: '2. AUD — audience = resource URL', sub: ['Prevents wrong-audience replay'], x: 600, y: 0 },
+  { id: 'act', group: 'check', label: '3. act — delegation', sub: ['Who exchanged on behalf of sub'], x: 600, y: 160 },
+  { id: 'actact', group: 'check', label: '4. act.act — nested actor', sub: ['Multi-hop must match allow-lists'], x: 300, y: 160 },
+  { id: 'decision', group: 'decision', label: 'PERMIT · DENY · obligations', sub: ['e.g. step-up MFA, audit record'], x: 0, y: 160 },
+];
+const AUTHZ_EDGES = [
+  ['token', 'sub', 'into policy'],
+  ['sub', 'aud', 'then'],
+  ['aud', 'act', 'then', { vertical: true }],
+  ['act', 'actact', 'optional hop'],
+  ['actact', 'decision', 'decide'],
+];
+const AUTHZ_GROUPS = {
+  token: { label: 'Token', bg: 'var(--th-bg-emphasis)' },
+  check: { label: 'Policy check (PingOne Authorize + app / MCP enforcement)', bg: 'var(--th-status-info)' },
+  decision: { label: 'Decision', bg: 'var(--th-status-success)' },
+};
+
 function AuthorizePolicyEducationDiagram() {
   return (
     <figure style={{ margin: '12px 0 4px' }}>
-      <svg
-        viewBox="0 0 420 432"
-        role="img"
-        aria-labelledby="p1z-authz-diagram-title"
-        style={{
-          width: '100%',
-          maxWidth: 420,
-          height: 'auto',
-          display: 'block',
-          borderRadius: 10,
-          border: '1px solid #cbd5e1',
-          background: 'linear-gradient(180deg, #f8fafc 0%, #f1f5f9 100%)',
-        }}
-      >
-        <title id="p1z-authz-diagram-title">
-          Authorization policy: verify subject in directory, audience for resource, and delegation chain before permit or deny
-        </title>
-        <defs>
-          <marker id="authzArrowDown" markerWidth="7" markerHeight="7" refX="3.5" refY="3.5" orient="auto">
-            <polygon points="0 0, 7 3.5, 0 7" fill="#475569" />
-          </marker>
-        </defs>
-
-        {/* Token strip */}
-        <rect x="70" y="12" width="280" height="48" rx="8" fill="#1e293b" stroke="#0f172a" strokeWidth="1" />
-        <text x="210" y="34" textAnchor="middle" fill="#f8fafc" fontSize="13" fontFamily="system-ui, Segoe UI, sans-serif" fontWeight="600">
-          Access token
-        </text>
-        <text x="210" y="50" textAnchor="middle" fill="#94a3b8" fontSize="10" fontFamily="inherit">
-          validated (JWKS / introspection)
-        </text>
-
-        <line x1="210" y1="60" x2="210" y2="78" stroke="#64748b" strokeWidth="2" markerEnd="url(#authzArrowDown)" />
-
-        {/* Policy bracket */}
-        <rect x="24" y="82" width="372" height="246" rx="10" fill="#fff" stroke="#94a3b8" strokeWidth="1.5" />
-        <text x="40" y="106" fill="#0f172a" fontSize="14" fontFamily="system-ui, Segoe UI, sans-serif" fontWeight="700">
-          Policy
-        </text>
-        <text x="40" y="124" fill="#64748b" fontSize="10" fontFamily="system-ui, sans-serif">
-          PingOne Authorize + app / MCP enforcement
-        </text>
-
-        {/* Check rows */}
-        <g fontFamily="system-ui, Segoe UI, sans-serif">
-          <rect x="36" y="136" width="348" height="42" rx="6" fill="#eff6ff" stroke="#93c5fd" />
-          <text x="48" y="156" fill="var(--brand-navy)" fontSize="11" fontWeight="600">1. SUB — user in IdP directory</text>
-          <text x="48" y="170" fill="#475569" fontSize="9">Subject exists / eligible (PingOne user store; sent as UserId to Authorize)</text>
-
-          <rect x="36" y="184" width="348" height="42" rx="6" fill="#f0fdf4" stroke="#86efac" />
-          <text x="48" y="204" fill="#14532d" fontSize="11" fontWeight="600">2. AUD — audience = resource URL</text>
-          <text x="48" y="218" fill="#475569" fontSize="9">Token was minted for this API or MCP resource (prevents wrong-audience replay)</text>
-
-          <rect x="36" y="232" width="348" height="42" rx="6" fill="#faf5ff" stroke="#fca5a5" />
-          <text x="48" y="252" fill="#7f1d1d" fontSize="11" fontWeight="600">3. act — delegation (MCP / exchange layer)</text>
-          <text x="48" y="266" fill="#475569" fontSize="9">Who performed token exchange on behalf of sub (e.g. act.client_id, act.sub)</text>
-
-          <rect x="36" y="280" width="348" height="40" rx="6" fill="#fff7ed" stroke="#fdba74" />
-          <text x="48" y="300" fill="#9a3412" fontSize="11" fontWeight="600">4. act.act — nested actor (e.g. upstream agent)</text>
-          <text x="48" y="314" fill="#475569" fontSize="9">Optional second hop — multi-hop delegation must match allow-lists</text>
-        </g>
-
-        <line x1="210" y1="328" x2="210" y2="346" stroke="#64748b" strokeWidth="2" markerEnd="url(#authzArrowDown)" />
-
-        <rect x="95" y="350" width="230" height="44" rx="8" fill="#0d9488" stroke="#0f766e" strokeWidth="1" />
-        <text x="210" y="372" textAnchor="middle" fill="#fff" fontSize="12" fontFamily="system-ui, sans-serif" fontWeight="700">
-          PERMIT · DENY · obligations
-        </text>
-        <text x="210" y="386" textAnchor="middle" fill="#ccfbf1" fontSize="9" fontFamily="system-ui, sans-serif">
-          (e.g. step-up MFA, audit record)
-        </text>
-      </svg>
+      <StaticFlowDiagram
+        NODES={AUTHZ_NODES}
+        EDGES={AUTHZ_EDGES}
+        GROUPS={AUTHZ_GROUPS}
+        testId="p1z-authz-diagram"
+        ariaLabel="Authorization policy: verify subject, audience and delegation chain before permit or deny"
+      />
       <figcaption style={{ fontSize: '0.78rem', color: '#374151', marginTop: 10, lineHeight: 1.5 }}>
         AI Demo maps these ideas to <strong>Trust Framework parameters</strong> for PingOne Authorize (transactions and optional MCP first-tool
         gate) and to <strong>token validation</strong> on the Banking API and MCP server. The diagram is a mental model — configure attribute names

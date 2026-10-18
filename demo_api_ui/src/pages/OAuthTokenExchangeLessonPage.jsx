@@ -93,6 +93,20 @@ const EXCHANGE_GROUPS = {
   resource: { label: "Resource server", bg: "var(--th-border-strong)" },
 };
 
+// The proof cards below as a walkable diagram, with the deny / step-up branch.
+const PROOF_NODES = [
+  { id: "gateway", group: "agent", label: "Agent Gateway", sub: ["Checks aud, scope, act"], x: 40, y: 60 },
+  { id: "authorize", group: "pingone", label: "PingOne Authorize", sub: ["PERMIT / DENY / STEP-UP"], x: 340, y: 60 },
+  { id: "tool", group: "resource", label: "MCP tool", sub: ["Runs on PERMIT"], x: 640, y: 60 },
+  { id: "challenge", group: "user", label: "Challenge", sub: ["No tool call"], x: 340, y: 230 },
+];
+
+const PROOF_EDGES = [
+  ["gateway", "authorize", "decision request", { detail: DELEGATED_PROOF_STEPS[0].detail }],
+  ["authorize", "tool", "PERMIT", { detail: DELEGATED_PROOF_STEPS[2].detail }],
+  ["authorize", "challenge", "DENY / STEP-UP", { detail: "Stop before tool execution, return the challenge, and require a new decision before retrying." }],
+];
+
 const OAUTH_EDUCATION_LINKS = [  {
     panelId: EDU.RFC_8693,
     tabId: "overview",
@@ -240,6 +254,16 @@ export default function OAuthTokenExchangeLessonPage() {
               {index < DELEGATED_PROOF_STEPS.length - 1 ? <span className="ote-flow__arrow" aria-hidden="true">→</span> : null}
             </div>
           ))}
+        </div>
+        <div className="ote-flow-diagram">
+          <StaticFlowDiagram
+            NODES={PROOF_NODES}
+            EDGES={PROOF_EDGES}
+            GROUPS={EXCHANGE_GROUPS}
+            details={Object.fromEntries(PROOF_NODES.map((n) => [n.id, (PROOF_EDGES.find(([from]) => from === n.id) || [])[3]?.detail || ""]))}
+            ariaLabel="Delegated access authorization walkthrough"
+            testId="ote-proof-diagram"
+          />
         </div>
         <div className="ote-proof-branch" role="note">
           <strong>Deny or step-up</strong>

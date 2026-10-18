@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import React from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { render, screen } from "@testing-library/react";
+import { fireEvent, render, screen } from "@testing-library/react";
 import ReactFlowPocComparePage from "../ReactFlowPocComparePage";
 import EducationRoutes from "../../routes/EducationRoutes";
 
@@ -48,4 +48,20 @@ describe("ReactFlowPocComparePage", () => {
     expect(screen.queryByTestId("rfpc-player")).toBeNull();
     expect(screen.queryByTestId("rfpc-frame")).toBeNull();
   });
+
+  /* eslint-disable testing-library/no-node-access, testing-library/no-container -- React Flow nodes have no role; the "draggable" class is what shows they move */
+  it("diagram rule: both tabs have Simulate, Reset and speed; Flow nodes are draggable", () => {
+    const { container } = renderPage();
+    const nodes = container.querySelectorAll(".react-flow__node");
+    expect(nodes.length).toBeGreaterThan(0);
+    nodes.forEach((n) => expect(n.classList.contains("draggable")).toBe(true));
+    for (const tab of ["Flow", "Sequence"]) {
+      fireEvent.click(screen.getAllByRole("tab", { name: tab })[0]);
+      expect(screen.getByText("Simulate")).toBeTruthy();
+      expect(screen.getByText("↺ Reset")).toBeTruthy();
+      expect(container.querySelector(".dc-steptime-select")).toBeTruthy();
+    }
+    expect(screen.getByTestId("rfps-diagram")).toBeTruthy();
+  });
+  /* eslint-enable testing-library/no-node-access, testing-library/no-container */
 });

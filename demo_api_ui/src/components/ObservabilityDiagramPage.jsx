@@ -4,6 +4,8 @@ import { Background, BackgroundVariant, Handle, Position, ReactFlow } from "@xyf
 import "@xyflow/react/dist/style.css";
 import "./ObservabilityDiagramPage.css";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
+import { edgeCaptions, markNodes, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import DiagramStepBar from "./DiagramStepBar";
 
 /**
  * ObservabilityDiagramPage — /architecture/observability.
@@ -154,6 +156,8 @@ export function withHandleLanes(edges) {
   }));
 }
 
+const CAPTIONS = edgeCaptions(FLOW_EDGES, Object.fromEntries(FLOW_NODES.map((n) => [n.id, n.title])));
+
 const NODE_TYPES = { plane: PlaneNode, band: BandNode };
 
 // Swimlane headers: one per plane band, rendered as borderless label nodes.
@@ -256,8 +260,10 @@ export default function ObservabilityDiagramPage() {
   const [plane, setPlane] = useState("all");
   const [launching, setLaunching] = useState(null);
   const navigate = useNavigate();
-  const nodes = useMemo(() => buildNodes(plane), [plane]);
-  const edges = useMemo(() => withHandleLanes(buildEdges(plane)), [plane]);
+  const stepper = useDiagramStepper(FLOW_EDGES.length);
+  const hot = FLOW_EDGES[stepper.step];
+  const nodes = useMemo(() => markNodes(buildNodes(plane), hot ? [hot.source, hot.target] : []), [plane, hot]);
+  const edges = useMemo(() => stepEdges(withHandleLanes(buildEdges(plane)), stepper.step), [plane, stepper.step]);
   const onPlane = useCallback((p) => setPlane(p), []);
 
   // Demo-step launcher: arm the use case's flags + trigger on the BFF, then
@@ -340,11 +346,13 @@ export default function ObservabilityDiagramPage() {
               <i className="obs-plane-dot obs-plane-dot--logs" /> Logs
             </button>
           </div>
+          <DiagramStepBar stepper={stepper} caption={CAPTIONS[stepper.step]} testId="obs-steps" />
           <div className="obs-canvas">
             <ArrowDefs />
             <ReactFlow
               nodes={dragNodes}
               onNodesChange={onDragNodes}
+              nodesDraggable
               edges={edges}
               nodeTypes={NODE_TYPES}
               fitView

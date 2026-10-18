@@ -66,6 +66,8 @@ export const DIAGRAMS_MORE = [
   D("Agent Onboarding (React Flow)", "/agent-onboarding-flow-mermaid", "Onboarding drawn in React Flow."),
   D("Use-case diagrams", "/use-case-diagrams", "One walkthrough per demo step, deep-linkable by UC id."),
   D("Observability Demo", "/architecture/observability", "Telemetry data flow — emitters, collectors, surfaces — plus the two-part demo walkthrough."),
+  D("Push Approval (simulated phone)", "/mfa-test#push-diagram", "Approve-on-your-phone step-up with a simulated phone, next to the real PingOne MFA push it stands in for."),
+  D("CIBA Approval Link", "/mfa-test#ciba-diagram", "Out-of-band approval by email or SMS link on PingOne, and the PingFederate web-approver path."),
   D("Transaction Consent", "/transaction-consent", "Mock CIBA on a phone, and the real deep-link path (diagram on the simulate page)."),
   D("Group Policy Board", "/group-policy", "One PingOne Authorize decision, and how flipping membership flips it."),
   D("Jev Demo Gallery", "/jev-demos", "How each demo gets its answer: locked scenario, Jev, keyword baseline, escalation band."),

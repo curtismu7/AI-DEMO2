@@ -1,5 +1,5 @@
 import { describe, test, expect, beforeEach, afterEach, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import ArchitectureCanvasPage from '../ArchitectureCanvasPage';
 
 describe('ArchitectureCanvasPage (React Flow)', () => {
@@ -26,13 +26,36 @@ describe('ArchitectureCanvasPage (React Flow)', () => {
 
   test('the hint tells the user where the Simulate bar lives, in both flow states', () => {
     const { rerender } = render(<ArchitectureCanvasPage />);
-    // All flows (default): the editing hint must point at the Flow picker — the
-    // page used to give no sign the playback controls exist behind the picker.
-    expect(screen.getByText(/Pick a Flow above for the Simulate bar/)).toBeInTheDocument();
+    // All flows (default): the editing hint says Simulate walks every flow.
+    expect(screen.getByText(/Simulate walks every flow’s arrows/)).toBeInTheDocument();
     // With a flow picked: the hint explains what Simulate does.
     fireEvent.change(screen.getByLabelText('Flow'), { target: { value: 'agui' } });
     expect(screen.getByText(/Simulate walks this flow/)).toBeInTheDocument();
     rerender(<ArchitectureCanvasPage />);
+  });
+
+  test('boxes drag; a picked flow has Simulate, speed and a walkthrough Reset separate from the layout reset', () => {
+    const { container } = render(<ArchitectureCanvasPage />);
+    // eslint-disable-next-line testing-library/no-container, testing-library/no-node-access -- React Flow marks movable boxes only by class
+    expect(container.querySelector('.react-flow__node.draggable')).not.toBeNull();
+    expect(screen.getByRole('button', { name: '↺ Reset layout' })).toBeInTheDocument();
+    fireEvent.change(screen.getByLabelText('Flow'), { target: { value: 'hitl' } });
+    expect(within(screen.getByTestId('canvas-step-bar')).getByRole('combobox')).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Simulate' }));
+    expect(screen.getByText(/Step 1 of 7/)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Reset' }));
+    expect(screen.getByRole('button', { name: 'Simulate' })).toBeInTheDocument();
+  });
+
+  test('All flows: Simulate walks every unique flow arrow, flow by flow, and Reset returns to Simulate', () => {
+    render(<ArchitectureCanvasPage />);
+    const bar = screen.getByTestId('canvas-step-bar');
+    fireEvent.click(within(bar).getByRole('button', { name: 'Simulate' }));
+    // AG-UI (7) + NL (2 new) + HITL (2 new): 11 distinct from→to arrows.
+    expect(bar).toHaveTextContent(/Step 1 of 11 · \S.* → \S/);
+    expect(screen.queryByTestId('canvas-reel')).toBeNull();
+    fireEvent.click(within(bar).getByRole('button', { name: 'Reset' }));
+    expect(within(bar).getByRole('button', { name: 'Simulate' })).toBeInTheDocument();
   });
 
   test('adding a box puts a new card on the canvas', () => {

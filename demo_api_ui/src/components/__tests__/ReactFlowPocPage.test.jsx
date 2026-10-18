@@ -56,6 +56,18 @@ describe("ReactFlowPocPage", () => {
     expect(screen.getAllByText("HITL").length).toBeGreaterThan(0);
   });
 
+  /* eslint-disable testing-library/no-node-access, testing-library/no-container -- React Flow nodes have no role; the "draggable" class is what shows they move */
+  it("diagram rule: flow nodes are draggable, with Simulate, Reset and step-time speed", () => {
+    const { container } = renderPage();
+    const nodes = container.querySelectorAll(".react-flow__node");
+    expect(nodes.length).toBeGreaterThan(0);
+    nodes.forEach((n) => expect(n.classList.contains("draggable")).toBe(true));
+    expect(screen.getByText("Simulate")).toBeTruthy();
+    expect(screen.getByText("↺ Reset")).toBeTruthy();
+    expect(container.querySelector(".dc-steptime-select")).toBeTruthy();
+  });
+  /* eslint-enable testing-library/no-node-access, testing-library/no-container */
+
   it("has a scenario picker with all four outcomes", () => {
     renderPage();
     const select = screen.getByTestId("rfp-scenario-select");
@@ -91,6 +103,18 @@ describe("ReactFlowPocPage", () => {
     expect(screen.getByText("Reservation Data")).toBeTruthy();
     fireEvent.click(screen.getByText("Flow"));
     expect(screen.queryByTestId("rfps-diagram")).toBeNull();
+  });
+
+  it("sequence view keeps Simulate, Reset and step-time controls and highlights the simulated step", () => {
+    renderPage();
+    fireEvent.click(screen.getByText("Sequence"));
+    expect(screen.getByText("Simulate")).toBeTruthy();
+    expect(screen.getByText("↺ Reset")).toBeTruthy();
+    expect(screen.getByText("Step time:")).toBeTruthy();
+    fireEvent.click(screen.getByText("Simulate"));
+    expect(screen.getByText(/^▶ Step/)).toBeTruthy();
+    fireEvent.click(screen.getByText("↺ Reset"));
+    expect(screen.queryByText(/^▶ Step/)).toBeNull();
   });
 
   it("shows a sample token card for the active step", () => {

@@ -1,4 +1,4 @@
-import { render, screen } from "@testing-library/react";
+import { render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import {
@@ -55,6 +55,15 @@ describe("OAuthTokenExchangeLessonPage", () => {
     expect(screen.getByText(/pingone authorize returns permit, deny, or step-up/i)).toBeInTheDocument();
     expect(screen.getByText(/tool executes only after permit/i)).toBeInTheDocument();
     expect(screen.getByText(/deny or step-up/i)).toBeInTheDocument();
+  });
+
+  it("draws the delegated access proof as a walkable diagram with Simulate, Reset and step time", () => {
+    renderLesson();
+
+    const bar = screen.getByTestId("ote-proof-diagram-steps");
+    expect(within(bar).getByText("Simulate")).toBeInTheDocument();
+    expect(within(bar).getByText("Reset")).toBeInTheDocument();
+    expect(within(bar).getByText("Step time:")).toBeInTheDocument();
   });
 
   it("opens the matching Education Hub topic from the lesson", async () => {

@@ -50,3 +50,23 @@ test('a PingFederate user with no PingOne account is refused, never sent as the 
   expect(res.body.error).toMatch(/no matching PingOne user/);
   expect(mfaService.listMfaDevices).not.toHaveBeenCalled();
 });
+
+test('session-user reports the provider and the PingOne account a PF login maps to', async () => {
+  sessionUser = { oauthProvider: 'pingfederate', oauthId: 'demouser', username: 'demouser' };
+  fetchPingOneUserByUsername.mockResolvedValue({ user: { id: 'p1-uuid' }, error: null });
+  const res = await request(app).get('/api/mfa/test/session-user').expect(200);
+  expect(res.body).toEqual({ provider: 'pingfederate', username: 'demouser', pingOneUserId: 'p1-uuid' });
+});
+
+test('session-user for a PF login with no PingOne account returns pingOneUserId null', async () => {
+  sessionUser = { oauthProvider: 'pingfederate', oauthId: 'pf-only', username: 'pf-only' };
+  fetchPingOneUserByUsername.mockResolvedValue({ user: null, error: 'not_found' });
+  const res = await request(app).get('/api/mfa/test/session-user').expect(200);
+  expect(res.body.pingOneUserId).toBeNull();
+});
+
+test('session-user for a PingOne login returns its own subject', async () => {
+  sessionUser = { oauthProvider: 'pingone', oauthId: 'p1-uuid', username: 'demoUser' };
+  const res = await request(app).get('/api/mfa/test/session-user').expect(200);
+  expect(res.body).toEqual({ provider: 'pingone', username: 'demoUser', pingOneUserId: 'p1-uuid' });
+});

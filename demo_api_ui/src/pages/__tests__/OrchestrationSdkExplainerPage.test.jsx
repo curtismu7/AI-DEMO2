@@ -42,6 +42,14 @@ describe("OrchestrationSdkExplainerPage", () => {
     expect(document.querySelector(".react-flow")).toBeTruthy();
   });
 
+  it("gives the lifecycle diagram Simulate, Reset and step-time controls", () => {
+    render(<OrchestrationSdkExplainerPage />);
+    const bar = within(screen.getByRole("group", { name: "DaVinci SDK client lifecycle" })).getByTestId("diagram-step-bar");
+    expect(within(bar).getByText("Simulate")).toBeTruthy();
+    expect(within(bar).getByText("Reset")).toBeTruthy();
+    expect(within(bar).getByText("Step time:")).toBeTruthy();
+  });
+
   it("shows all three invocation modes, with the SDK one marked as the subject", () => {
     render(<OrchestrationSdkExplainerPage />);
     expect(screen.getByText("Redirect")).toBeInTheDocument();

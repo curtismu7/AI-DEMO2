@@ -1599,6 +1599,7 @@ export default function ReactFlowPocPage({ initialView = "flow" }) {
             <ReactFlow
               nodes={baseNodes}
               onNodesChange={onBaseNodesChange}
+              nodesDraggable
               edges={baseEdges}
               nodeTypes={nodeTypes}
               edgeTypes={edgeTypes}

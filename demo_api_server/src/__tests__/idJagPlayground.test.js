@@ -112,7 +112,7 @@ describe('ID-JAG playground — flow keeps every raw token server-side', () => {
     const idJag = goodIdJag();
     oauthService.performIdJagExchange.mockResolvedValue(idJag);
     axios.post.mockResolvedValue({ status: 200, data: { access_token: accessToken, token_type: 'Bearer', scope: 'accounts:read' } });
-    callToolViaGateway.mockResolvedValue({ tools: [{ name: 'get_my_accounts', description: 'Accounts' }] });
+    callToolViaGateway.mockResolvedValue({ jsonrpc: '2.0', result: { tools: [{ name: 'get_my_accounts', description: 'Accounts', inputSchema: { type: 'object' } }], _meta: { deniedTools: ['transfer_funds'] } } });
 
     const issued = await post(app, '/pg/issue');
     expect(issued.status).toBe(200);
@@ -131,7 +131,8 @@ describe('ID-JAG playground — flow keeps every raw token server-side', () => {
     expect(opts.headers.Authorization).toMatch(/^Basic /);
 
     const listed = await post(app, '/pg/call');
-    expect(listed.body.tools).toEqual([{ name: 'get_my_accounts', description: 'Accounts' }]);
+    expect(listed.body.tools).toEqual([{ name: 'get_my_accounts', description: 'Accounts', inputSchema: { type: 'object' } }]);
+    expect(listed.body.deniedTools).toEqual(['transfer_funds']);
     expect(callToolViaGateway).toHaveBeenCalledWith('https://gw.test', accessToken, null, {}, { rpcMethod: 'tools/list' });
   });
 
@@ -179,5 +180,84 @@ describe('ID-JAG playground — live negative tests', () => {
     const res = await post(appWith(pfSession()), '/pg/negative/client-mismatch');
     expect(res.body.pass).toBe(true);
     expect(new URLSearchParams(axios.post.mock.calls[0][1]).get('client_id')).toBe('mcp-inspector');
+  });
+});
+
+describe('ID-JAG playground — PingFederate on both ends (pf-pf)', () => {
+  const SE = 'https://se-pf.test';
+  beforeEach(() => {
+    process.env.PF_IDJAG_ISSUER_PF_URL = SE;
+    process.env.PF_IDJAG_PF_REDEEMER_CLIENT_SECRET = 'redeemer-secret';
+    Object.assign(CONFIG, { pf_token_endpoint: `${PF}/as/token.oauth2`, pf_user_client_secret: 'user-secret' });
+  });
+  afterEach(() => { delete process.env.PF_IDJAG_ISSUER_PF_URL; delete process.env.PF_IDJAG_PF_REDEEMER_CLIENT_SECRET; });
+
+  it('switches mode, describes the pairing, and clears tokens from the other pairing', async () => {
+    const session = { idJagPlayground: { idJag: 'x' }, save: (cb) => cb() };
+    const res = await post(appWith(session), '/pg/mode', { mode: 'pf-pf' });
+    expect(res.body.mode).toBe('pf-pf');
+    expect(res.body.idp.issuer).toBe(SE);
+    expect(res.body.resourceAs).toEqual(expect.objectContaining({ issuer: PF, clientId: 'ai-demo-pf-idjag-redeemer' }));
+    expect(res.body.request.audience).toBe(PF);
+    expect(res.body.modes.find((m) => m.id === 'pf-pf').available).toBe(true);
+    expect(session.idJagPlayground).toBeUndefined();
+    expect((await post(appWith(session), '/pg/mode', { mode: 'nope' })).status).toBe(400);
+  });
+
+  it('marks pf-pf unavailable without the redeemer secret', async () => {
+    delete process.env.PF_IDJAG_PF_REDEEMER_CLIENT_SECRET;
+    const res = await request(appWith({})).get('/pg/config');
+    expect(res.body.modes.find((m) => m.id === 'pf-pf')).toEqual(expect.objectContaining({ available: false }));
+  });
+
+  it('needs the SE PingFederate sign-in, not the app provider', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingone');
+    const res = await post(appWith({ idJagPlaygroundMode: 'pf-pf' }), '/pg/issue');
+    expect(res.status).toBe(401);
+    expect(res.body.error).toBe('pf_sign_in_required');
+  });
+
+  it('issuer login redirects to the SE PingFederate with PKCE, and the callback keeps the refresh token server-side', async () => {
+    const session = { idJagPlaygroundMode: 'pf-pf', save: (cb) => cb() };
+    const app = appWith(session);
+    const login = await request(app).get('/pg/issuer/login?return_to=/pingfederate-id-jag/playground');
+    const to = new URL(login.headers.location);
+    expect(to.origin + to.pathname).toBe(`${SE}/as/authorization.oauth2`);
+    expect(to.searchParams.get('code_challenge_method')).toBe('S256');
+    expect(to.searchParams.get('redirect_uri')).toBe('https://app.test/api/id-jag-playground/issuer/callback');
+    axios.post.mockResolvedValue({ status: 200, data: { refresh_token: 'se-rt', id_token: jwt({ alg: 'RS256' }, { sub: 'demouser' }) } });
+    const cb = await request(app).get(`/pg/issuer/callback?code=c1&state=${to.searchParams.get('state')}`);
+    expect(cb.headers.location).toBe('/pingfederate-id-jag/playground');
+    expect(session.idJagIssuer).toEqual({ refreshToken: 'se-rt', sub: 'demouser' });
+    expect(axios.post.mock.calls[0][0]).toBe(`${SE}/as/token.oauth2`);
+  });
+
+  it('rejects a callback with the wrong state', async () => {
+    const session = { idJagIssuerLogin: { state: 's1', verifier: 'v', returnTo: '/pingfederate-id-jag/playground', at: Date.now() }, save: (cb) => cb() };
+    const cb = await request(appWith(session)).get('/pg/issuer/callback?code=c1&state=evil');
+    expect(cb.headers.location).toContain('issuer_error=invalid_state');
+    expect(session.idJagIssuer).toBeUndefined();
+  });
+
+  it('issues at the SE PingFederate and redeems at the local PingFederate as the redeemer client', async () => {
+    const session = { idJagPlaygroundMode: 'pf-pf', idJagIssuer: { refreshToken: 'se-rt' } };
+    const app = appWith(session);
+    const idJag = goodIdJag({ iss: SE, aud: PF, client_id: 'ai-demo-pf-idjag-redeemer' });
+    axios.post
+      .mockResolvedValueOnce({ status: 200, data: { access_token: idJag, issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag' } })
+      .mockResolvedValueOnce({ status: 200, data: { access_token: accessToken } });
+    const issued = await post(app, '/pg/issue');
+    expect(issued.status).toBe(200);
+    const [url, form] = axios.post.mock.calls[0];
+    expect(url).toBe(`${SE}/as/token.oauth2`);
+    expect(new URLSearchParams(form).get('audience')).toBe(PF);
+    expect(JSON.stringify(issued.body)).not.toContain('se-rt');
+    expect(oauthService.performIdJagExchange).not.toHaveBeenCalled();
+    const redeemed = await post(app, '/pg/redeem');
+    expect(redeemed.status).toBe(200);
+    const [rUrl, rForm, rOpts] = axios.post.mock.calls[1];
+    expect(rUrl).toBe(`${PF}/as/token.oauth2`);
+    expect(new URLSearchParams(rForm).get('client_id')).toBe('ai-demo-pf-idjag-redeemer');
+    expect(rOpts.headers.Authorization).toBe(`Basic ${Buffer.from('ai-demo-pf-idjag-redeemer:redeemer-secret').toString('base64')}`);
   });
 });

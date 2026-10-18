@@ -27,6 +27,10 @@ const EXACT_BYPASSES = new Set([
   'POST /api/obo/mcp',
   // RFC 9728 metadata the challenge points at; must be fetchable before any sign-in.
   'GET /api/obo/mcp/oauth-protected-resource',
+  // ID-JAG trusted-IdP registry: oauth-mcp and the PingFederate sync script read these
+  // server-to-server with no session. Issuers, JWKS URLs and client ids only, no secrets.
+  'GET /api/id-jag-playground/trusted-idps/registry',
+  'GET /api/id-jag-playground/trusted-idps/pingfederate',
   // Static boot assets the signed-out shell loads: the auth-loading spinner's
   // Ping mark (PingIdentitySpinner) and the tab icons. Gating these 302s the
   // <img> requests to login — broken ping icon + favicon exactly when the

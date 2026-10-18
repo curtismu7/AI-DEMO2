@@ -16,7 +16,7 @@ function DiagramBlock({ source, caption }) {
     <figure className="pp-mermaid">
       {caption && <figcaption className="pp-mermaid__caption">{caption}</figcaption>}
       <div className="pp-mermaid__canvas">
-        <FlowDiagram source={source} label={caption || 'Protocol diagram'} height={420} step={-1} />
+        <FlowDiagram source={source} label={caption || 'Protocol diagram'} height={420} />
       </div>
     </figure>
   );

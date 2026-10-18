@@ -856,6 +856,111 @@ router.post('/integration/enroll-sms-complete', async (req, res) => {
   }
 });
 
+// The TOTP seed must never reach a log: keyUri embeds it too.
+function _redactTotpSecret(body) {
+  if (!body || typeof body !== 'object') return body;
+  const out = { ...body };
+  if (out.secret) out.secret = '[redacted]';
+  if (out.keyUri) out.keyUri = '[redacted]';
+  return out;
+}
+
+/**
+ * POST /api/mfa/test/integration/enroll-totp-init
+ * Enroll a TOTP (authenticator app) device. The browser gets keyUri + secret to scan;
+ * logs get a redacted copy.
+ */
+router.post('/integration/enroll-totp-init', async (req, res) => {
+  try {
+    const { userId } = await _resolveCredentialsForEnrollment(req);
+    const _t = Date.now();
+    const device = await mfaService.enrollTotpDevice(userId);
+    const resBody = {
+      success: true,
+      deviceId: device.id,
+      type: device.type,
+      status: device.status,
+      secret: device.secret,
+      keyUri: device.keyUri,
+    };
+
+    if (device._debug) {
+      resBody.pingoneRequest = normalizePingoneRequest(device._debug && device._debug.request);
+      resBody.pingoneResponse = device._debug.response;
+      mfaLogger.logApiCall({
+        operation: 'Enroll TOTP Device',
+        method: device._debug.request?.method,
+        url: device._debug.request?.url,
+        headers: device._debug.request?.headers,
+        request: device._debug.request?.body,
+        response: _redactTotpSecret(device._debug.response),
+        status: 200,
+        duration: Date.now() - _t,
+        userId
+      });
+    }
+
+    res.json(resBody);
+    trackMfaApiCall(req, res, _t, {
+      ..._redactTotpSecret(resBody),
+      pingoneResponse: _redactTotpSecret(resBody.pingoneResponse),
+    }, 'Enroll TOTP authenticator device');
+  } catch (err) {
+    console.error('[MFA Test Integration] POST /enroll-totp-init failed:', err.message);
+    const errBody = { success: false, error: err.message, pingError: err.pingError };
+    if (err._debug) {
+      errBody.pingoneRequest = normalizePingoneRequest(err._debug && err._debug.request);
+      errBody.pingoneResponse = err._debug.response;
+    }
+    res.status(err.status || 500).json(errBody);
+  }
+});
+
+/**
+ * POST /api/mfa/test/integration/enroll-totp-complete
+ * Activate a TOTP device with the first code from the authenticator app.
+ * Body: { deviceId, otp }
+ */
+router.post('/integration/enroll-totp-complete', async (req, res) => {
+  try {
+    const { userId } = await _resolveCredentialsForEnrollment(req);
+    const { deviceId, otp } = req.body;
+    if (!deviceId || !otp) {
+      return res.status(400).json({ success: false, error: 'invalid_body', message: 'Provide deviceId and otp.' });
+    }
+    const _t = Date.now();
+    const result = await mfaService.activateTotpDevice(userId, deviceId, otp);
+    const resBody = { success: true, deviceId: result.id, status: result.status };
+
+    if (result._debug) {
+      resBody.pingoneRequest = normalizePingoneRequest(result._debug && result._debug.request);
+      resBody.pingoneResponse = result._debug.response;
+      mfaLogger.logApiCall({
+        operation: 'Complete TOTP Enrollment',
+        method: result._debug.request?.method,
+        url: result._debug.request?.url,
+        headers: result._debug.request?.headers,
+        request: result._debug.request?.body,
+        response: result._debug.response,
+        status: 200,
+        duration: Date.now() - _t,
+        userId
+      });
+    }
+
+    res.json(resBody);
+    trackMfaApiCall(req, res, _t, resBody, 'Complete TOTP device enrollment');
+  } catch (err) {
+    console.error('[MFA Test Integration] POST /enroll-totp-complete failed:', err.message);
+    const errBody = { success: false, error: err.message, pingError: err.pingError };
+    if (err._debug) {
+      errBody.pingoneRequest = normalizePingoneRequest(err._debug && err._debug.request);
+      errBody.pingoneResponse = err._debug.response;
+    }
+    res.status(err.status || 500).json(errBody);
+  }
+});
+
 /**
  * POST /api/mfa/test/integration/enroll-email
  * Enroll an email OTP device using PingOne MFA
@@ -1260,16 +1365,42 @@ router.get('/integration/fido2-policy-diag', async (req, res) => {
  * GET /api/mfa/test/worker-token
  * Test worker token acquisition (no user auth required — uses client_credentials)
  */
+// Simulated push phone (step-up card): the BFF plays the phone; no PingOne call, no step-up granted.
+const mockPushPhone = require('../services/mockPushPhoneService');
+const pushReply = (req, res, fn) => {
+  try {
+    const body = fn();
+    req.session.save?.(() => res.json(body));
+  } catch (err) {
+    res.status(err.httpStatus || 500).json({ error: err.code || 'push_mock_failed', message: err.message });
+  }
+};
+router.post('/push-mock/start', (req, res) => pushReply(req, res, () => mockPushPhone.start(req)));
+router.get('/push-mock/status', (req, res) => pushReply(req, res, () => mockPushPhone.poll(req)));
+router.post('/push-mock/decision', (req, res) => pushReply(req, res, () => mockPushPhone.decide(req, req.body?.decision)));
+
+/**
+ * GET /api/mfa/test/session-user
+ * Which login provider signed this session in and the PingOne account MFA acts on.
+ * MFA always runs on PingOne; a PingFederate login maps to the PingOne user with
+ * the same username (pingOneUserId null when there is none).
+ */
+router.get('/session-user', async (req, res) => {
+  const user = req.session?.user;
+  res.json({
+    provider: req.session?.oauthProvider || user?.oauthProvider || null,
+    username: user?.username || null,
+    pingOneUserId: user ? await sessionPingOneUserId(req) : null,
+  });
+});
+
 router.get('/worker-token', async (req, res) => {
   try {
-    const configStore = require('../services/configStore');
-    await configStore.ensureInitialized();
-    const token = await oauthService.getAgentClientCredentialsTokenWithExpiry();
-    res.json({
-      success: true,
-      status: token.token ? 'valid' : 'missing',
-      expiresAt: token.expiresAt,
-    });
+    // The same PingOne worker token the MFA calls use. The agent login it used to
+    // call follows the selected provider, so under PingFederate it hit PF's token
+    // endpoint with PingOne credentials and always failed.
+    const token = await mfaService.getWorkerToken();
+    res.json({ success: true, status: token ? 'valid' : 'missing' });
   } catch (err) {
     console.error('[MFA Test] Worker token error:', err.message);
     res.json({ success: false, error: err.message });

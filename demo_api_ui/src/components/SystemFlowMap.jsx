@@ -16,6 +16,9 @@ import { buildRunStory, buildTraceSteps } from '../services/tokenChainTrace/buil
 import { useThemeOptional } from '../context/ThemeContext';
 import './SystemFlowMap.css';
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
+import { useDiagramStepper, stepEdges, markNodes, edgeCaptions } from '../hooks/useDiagramStepper';
+import DiagramStepBar from './DiagramStepBar';
+import './DiagramReel.css'; // the shared dstep-hot ring on the replayed hop's two boxes
 
 // Presenter map size (A-/A+), same pattern as TokenChainTraceRail's ZOOM_*
 // (readStoredZoom there) — a separate key because the two panels are scaled
@@ -413,6 +416,13 @@ export function buildFlowModel(steps, trace) {
   return { nodeStates, edges, decision, lit };
 }
 
+// What Simulate replays when the map has no traffic yet: the hops of the
+// standard agent run (the store's empty-trace step template) as if they all ran.
+// Gate lanes are dropped — an idle run never reaches MFA/Consent/CIBA.
+export const CANONICAL_EDGES = buildFlowModel(
+  buildTraceSteps({ phases: [], tokenEvents: [] }).map((s) => ({ ...s, status: 'done' })),
+).edges.filter((e) => e.state !== 'skipped');
+
 export function verdictLabel(decision, story) {
   if (decision) return decision.replace(/_/g, ' ');
   if (!story) return 'IDLE';
@@ -452,10 +462,10 @@ function HopNode({ data }) {
 
 // Own path rather than React Flow's default edge, so the existing kind (dash)
 // and state (colour) classes apply unchanged and the step titles show on hover.
-function HopEdge({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, data }) {
+function HopEdge({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, data, style }) {
   const [d] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
   return (
-    <path d={d} className={`sfm-edge sfm-edge--${data.state}`} data-kind={data.kind}>
+    <path d={d} className={`sfm-edge sfm-edge--${data.state}`} data-kind={data.kind} style={style}>
       <title>{data.title}</title>
     </path>
   );
@@ -513,6 +523,18 @@ export function SystemFlowMapView() {
   }, [story, ended, decision]);
   const elapsed = trace?.finishedAt && trace?.startedAt ? trace.finishedAt - trace.startedAt : null;
 
+  // Simulate replays the hops this map already shows, in first-hop order; with
+  // no traffic it walks the canonical path instead. Off (step -1) = live view.
+  const representative = edges.length === 0;
+  const replayEdges = representative ? CANONICAL_EDGES : edges;
+  const stepper = useDiagramStepper(replayEdges.length);
+  const replaying = stepper.active;
+  const shownEdges = replaying ? replayEdges : edges;
+  const focus = replaying ? replayEdges[stepper.step] : null;
+  const replayCaption = focus
+    ? `${edgeCaptions([[focus.from, focus.to, focus.title]], Object.fromEntries(Object.entries(NODES).map(([k, v]) => [k, v.name])))[0]}${representative ? ' — representative path, no recent traffic' : ''}`
+    : '';
+
   const chainNames = useMemo(() => chainNodeNames(steps), [steps]);
   const flowNodes = useMemo(
     () => LAYOUT_NODES.map((n) => (n.type === 'hop'
@@ -521,16 +543,17 @@ export function SystemFlowMapView() {
     [nodeStates, chainNames],
   );
   const flowEdges = useMemo(
-    () => edges.map((e) => {
+    () => stepEdges(shownEdges.map((e) => {
       const [out, into] = sidesFor(e.from, e.to);
       return {
         id: e.id, source: e.from, target: e.to, sourceHandle: `s-${out}`, targetHandle: `t-${into}`, type: 'hop', data: e,
       };
-    }),
-    [edges],
+    }), replaying ? stepper.step : -1),
+    [shownEdges, replaying, stepper.step],
   );
 
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(flowNodes);
+  const shownNodes = focus ? markNodes(dragNodes, [focus.from, focus.to]) : dragNodes;
   return (
     <div className="sfm-root" style={{ zoom }}>
       <div className="sfm-head">
@@ -590,7 +613,7 @@ export function SystemFlowMapView() {
           className="sfm-clear"
           onClick={() => { setViewingRunId(null); tokenChainTraceStore.reset(); }}
         >
-          Reset
+          Clear run
         </button>
       </div>
 
@@ -623,9 +646,11 @@ export function SystemFlowMapView() {
         {displayStory ? displayStory.headline : 'No run yet — send an agent prompt and the hops paint here.'}
       </div>
 
+      <DiagramStepBar stepper={stepper} caption={replayCaption} />
+
       <div className="sfm-canvas">
         <ReactFlow
-          nodes={dragNodes}
+          nodes={shownNodes}
           onNodesChange={onDragNodes}
           edges={flowEdges}
           nodeTypes={NODE_TYPES}

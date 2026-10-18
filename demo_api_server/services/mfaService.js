@@ -118,6 +118,12 @@ function _wrapError(fnName, err, opts = {}) {
     // session_expired. Use a distinct code so the route surfaces it plainly.
     e.code = opts.workerToken ? "mfa_service_auth_failed" : "token_expired";
   } else if (status === 404 || status === 410) e.code = "challenge_expired";
+  // Past the environment's maxAllowedDevices PingOne only says "The request will
+  // exceed your limit." — say what that means for an enrollment.
+  if (pingErr?.details?.some((d) => d.code === "LIMIT_EXCEEDED")) {
+    e.code = "device_limit";
+    e.message = "This user already has the maximum number of MFA devices PingOne allows. Delete one in Devices, then try again.";
+  }
   return e;
 }
 
@@ -677,6 +683,101 @@ async function enrollEmailDevice(userId, email) {
     return { ...data, _debug: { request: debugRequest, response: data } };
   } catch (err) {
     throw _wrapError("enrollEmailDevice", err);
+  }
+}
+
+/**
+ * Enroll a TOTP (authenticator app) device via Management API (worker token).
+ * PingOne returns it ACTIVATION_REQUIRED with `secret` and `keyUri` (otpauth://)
+ * for the user to scan; activateTotpDevice finishes it with the first code.
+ * @param {string} userId
+ * Returns { id, type, status, secret, keyUri }
+ */
+async function enrollTotpDevice(userId) {
+  try {
+    const workerToken = await _getWorkerToken();
+    const url = `${_apiBaseUrl()}/users/${userId}/devices`;
+    const reqBody = { type: "TOTP" };
+    const debugRequest = {
+      method: "POST",
+      url: url,
+      body: reqBody,
+      contentType: "application/json",
+      headers: _debugHeaders(workerToken, "application/json"),
+    };
+    let data;
+    try {
+      const resp = await axios.post(url, reqBody, {
+        headers: {
+          Authorization: `Bearer ${workerToken}`,
+          "Content-Type": "application/json",
+        },
+        timeout: 10000,
+      });
+      data = resp.data;
+    } catch (err) {
+      err._debug = {
+        request: debugRequest,
+        response: err.response?.data || null,
+      };
+      throw err;
+    }
+    mfaDebug(
+      "[MFA] enrolled TOTP device userId=%s deviceId=%s status=%s",
+      userId,
+      data.id,
+      data.status,
+    );
+    return { ...data, _debug: { request: debugRequest, response: data } };
+  } catch (err) {
+    throw _wrapError("enrollTotpDevice", err);
+  }
+}
+
+/**
+ * Activate a TOTP device with the first code from the authenticator app.
+ * POST /users/{userId}/devices/{deviceId}, Content-Type device.activate+json.
+ * Returns { id, status }
+ */
+async function activateTotpDevice(userId, deviceId, otp) {
+  try {
+    const workerToken = await _getWorkerToken();
+    const url = `${_apiBaseUrl()}/users/${userId}/devices/${deviceId}`;
+    const reqBody = { otp };
+    const contentType = "application/vnd.pingidentity.device.activate+json";
+    const debugRequest = {
+      method: "POST",
+      url: url,
+      body: reqBody,
+      contentType,
+      headers: _debugHeaders(workerToken, contentType),
+    };
+    let data;
+    try {
+      const resp = await axios.post(url, reqBody, {
+        headers: {
+          Authorization: `Bearer ${workerToken}`,
+          "Content-Type": contentType,
+        },
+        timeout: 10000,
+      });
+      data = resp.data;
+    } catch (err) {
+      err._debug = {
+        request: debugRequest,
+        response: err.response?.data || null,
+      };
+      throw err;
+    }
+    mfaDebug(
+      "[MFA] activated TOTP device userId=%s deviceId=%s status=%s",
+      userId,
+      data.id,
+      data.status,
+    );
+    return { ...data, _debug: { request: debugRequest, response: data } };
+  } catch (err) {
+    throw _wrapError("activateTotpDevice", err);
   }
 }
 
@@ -1255,8 +1356,9 @@ async function deleteDevice(userId, deviceId) {
 async function updateDeviceNickname(userId, deviceId, nickname) {
   try {
     const workerToken = await _getWorkerToken();
-    const url = `${_apiBaseUrl()}/users/${userId}/devices/${deviceId}`;
-    const { data } = await axios.patch(
+    // PingOne: PUT the nickname sub-resource (PATCH on the device 403s).
+    const url = `${_apiBaseUrl()}/users/${userId}/devices/${deviceId}/nickname`;
+    const { data } = await axios.put(
       url,
       { nickname },
       {
@@ -1410,6 +1512,8 @@ module.exports = {
   enrollSmsDevice,
   completeSmsEnrollment,
   completeEmailEnrollment,
+  enrollTotpDevice,
+  activateTotpDevice,
   initFido2Registration,
   completeFido2Registration,
   deleteDevice,
