@@ -29,4 +29,12 @@ describe("DigitalWorkerPage diagram rule", () => {
     fireEvent.click(within(bar).getByText("Reset"));
     expect(within(bar).getByText("Simulate")).toBeTruthy();
   });
+
+  // Regression: the step bar sat in the canvas under the absolutely positioned .dw-bar, so a real click on
+  // Simulate hit the toolbar instead (jsdom has no layout, so the click test above could not see it).
+  it("step bar lives inside the floating toolbar, not underneath it", () => {
+    localStorage.clear();
+    render(<DigitalWorkerPage />);
+    expect(screen.getByTestId("dw-steps").parentElement.classList.contains("dw-bar")).toBe(true);
+  });
 });
