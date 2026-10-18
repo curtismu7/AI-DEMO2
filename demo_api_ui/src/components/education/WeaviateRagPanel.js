@@ -1,6 +1,25 @@
 // demo_api_ui/src/components/education/WeaviateRagPanel.js
 import React from "react";
 import EducationDrawer from "../shared/EducationDrawer";
+import StaticFlowDiagram from "../StaticFlowDiagram";
+
+const WIRING_GROUPS = {
+  ui: { label: "UI", bg: "var(--th-status-info)" },
+  service: { label: "Service", bg: "var(--th-bg-emphasis)" },
+  store: { label: "Vector store", bg: "var(--th-status-success)" },
+};
+const WIRING_NODES = [
+  { id: "page", group: "ui", label: "Code Search page", x: 0, y: 0 },
+  { id: "svc", group: "service", label: "code-search service", sub: ["1. chunk files", "2. embed each chunk"], x: 300, y: 0 },
+  { id: "emb", group: "service", label: "embeddings (llama.cpp)", sub: ["nomic-embed-text-v1.5, 768-dim"], x: 600, y: 150 },
+  { id: "weaviate", group: "store", label: "Weaviate", sub: ["class: CodeChunk", "vectorizer: none"], x: 300, y: 300 },
+];
+const WIRING_EDGES = [
+  ["page", "svc", "HTTP"],
+  ["svc", "emb", "embed each chunk"],
+  ["emb", "weaviate", "3. store vectors", { vertical: true }],
+  ["svc", "weaviate", "4. query: embed question, nearest-neighbor", { vertical: true }],
+];
 
 function WhatTab() {
   return (
@@ -35,17 +54,13 @@ function HereTab() {
         <strong>no embedding itself</strong>. Embeddings come from a separate
         llama.cpp service running <code>nomic-embed-text-v1.5</code>.
       </p>
-      <pre className="edu-code">{`
-  Code Search page  ──HTTP──▶  code-search service
-                                  │  1. chunk files
-                                  │  2. embed each chunk
-                                  ▼        (nomic-embed-text-v1.5, 768-dim)
-                              embeddings (llama.cpp)
-                                  │
-                                  ▼  3. store vectors
-                              Weaviate  (class: CodeChunk, vectorizer: none)
-                                  ▲
-                                  └── 4. query: embed question, nearest-neighbor`}</pre>
+      <StaticFlowDiagram
+        NODES={WIRING_NODES}
+        EDGES={WIRING_EDGES}
+        GROUPS={WIRING_GROUPS}
+        testId="weaviate-wiring-diagram"
+        ariaLabel="Code Search indexing and query path through llama.cpp embeddings into Weaviate"
+      />
       <ul>
         <li><strong>Internal-only:</strong> Weaviate publishes no host port; it is reachable only as <code>http://weaviate:8080</code> on the compose network.</li>
         <li><strong>One class, <code>CodeChunk</code>:</strong> every chunk carries its <code>codebase_id</code>, <code>file</code>, line range, and <code>snippet</code>; searches filter by <code>codebase_id</code>.</li>
