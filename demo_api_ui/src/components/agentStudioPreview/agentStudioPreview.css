@@ -53,25 +53,25 @@
 /* Discovery Preview — cool teal (vs warm amber Agent Studio). Strong
    chrome differences so the two routes are obvious at a glance. */
 .asp-root.asp-root--discovery {
-  --asp-bg: #dceef2;
+  --asp-bg: #eff0f1;
   --asp-panel: #ffffff;
-  --asp-panel-2: #cfe4ea;
-  --asp-border: #8fb6c0;
-  --asp-ink: #0f2a31;
-  --asp-ink-2: #1f3f49;
-  --asp-ink-3: #234a55;
-  --asp-accent: #055560;
-  --asp-accent-ink: #f2fcfd;
-  --asp-accent-wash: #b6dde4;
+  --asp-panel-2: #eff0f1;
+  --asp-border: #cdd1d4;
+  --asp-ink: #051727;
+  --asp-ink-2: #12538d;
+  --asp-ink-3: #12538d;
+  --asp-accent: #12538d;
+  --asp-accent-ink: #ffffff;
+  --asp-accent-wash: #cdd1d4;
   --asp-shadow: 0 1px 3px rgba(10, 60, 70, 0.08), 0 8px 24px rgba(10, 60, 70, 0.1);
-  border-top: 8px solid #066a76;
-  background-image: linear-gradient(90deg, #066a76 0, #066a76 10px, transparent 10px);
+  border-top: 8px solid #12538d;
+  background-image: linear-gradient(90deg, #12538d 0, #12538d 10px, transparent 10px);
   background-color: var(--asp-bg);
 }
 
 .asp-root.asp-root--discovery .asp-banner {
   border-radius: var(--radius-md);
-  background: #055560;
+  background: #12538d;
   color: #f2fcfd;
   border: none;
 }
@@ -86,23 +86,23 @@
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery {
   --asp-bg: #0c171a;
-  --asp-panel: #142327;
-  --asp-panel-2: #1a3036;
-  --asp-border: #2f4f58;
-  --asp-ink: #e4f0f3;
-  --asp-ink-2: #c4d8de;
+  --asp-panel: #051727;
+  --asp-panel-2: #051727;
+  --asp-border: #12538d;
+  --asp-ink: #eff0f1;
+  --asp-ink-2: #cdd1d4;
   --asp-ink-3: #b3c9d0;
-  --asp-accent: #3ec3d4;
-  --asp-accent-ink: #061316;
-  --asp-accent-wash: #143640;
+  --asp-accent: #12538d;
+  --asp-accent-ink: #ffffff;
+  --asp-accent-wash: #051727;
   --asp-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.32);
-  border-top-color: #3ec3d4;
-  background-image: linear-gradient(90deg, #3ec3d4 0, #3ec3d4 10px, transparent 10px);
+  border-top-color: #12538d;
+  background-image: linear-gradient(90deg, #12538d 0, #12538d 10px, transparent 10px);
   background-color: var(--asp-bg);
 }
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery .asp-banner {
-  background: #1a5560;
+  background: #12538d;
   color: #ffffff;
 }
 

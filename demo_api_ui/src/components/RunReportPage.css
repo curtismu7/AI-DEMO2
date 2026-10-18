@@ -113,7 +113,7 @@
 
 .action-btn:hover {
   border-color: var(--th-text);
-  background: #f0f7fa;
+  background: #eff0f1;
 }
 
 .action-btn.download {

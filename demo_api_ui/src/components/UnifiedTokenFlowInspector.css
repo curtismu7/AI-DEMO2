@@ -1081,7 +1081,7 @@
 .utfi-act-chain-label {
   font-size: 0.7rem;
   font-weight: 600;
-  color: #0f766e;
+  color: #12538d;
   cursor: help;
   text-decoration-line: underline;
   text-decoration-style: dotted;
@@ -1091,12 +1091,12 @@
   font-family: inherit;
   font-size: 0.68rem;
   background: #f0fdfa;
-  border: 1px solid #99f6e4;
+  border: 1px solid #cdd1d4;
   border-radius: var(--radius-sm);
   padding: 4px 8px;
   white-space: pre-wrap;
   word-break: break-all;
-  color: #0f766e;
+  color: #12538d;
 }
 
 /* Flow primer (compact/empty panel) */

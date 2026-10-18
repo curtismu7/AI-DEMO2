@@ -41,13 +41,13 @@
 
 /* TRANSIENT ERROR: Info blue */
 .auth-error-banner.transient {
-  background-color: #d1ecf1;
-  border: 1px solid #17a2b8;
-  color: #0c5460;
+  background-color: #eff0f1;
+  border: 1px solid #12538d;
+  color: #12538d;
 }
 
 .auth-error-banner.transient h3 {
-  color: #0c5460;
+  color: #12538d;
   margin: 0 0 0.5rem 0;
   font-size: var(--font-size-md);
   font-weight: 600;
@@ -55,7 +55,7 @@
 
 .auth-error-banner.transient p {
   margin: 0;
-  color: #0c5460;
+  color: #12538d;
 }
 
 /* CONFIG ERROR: Danger red */

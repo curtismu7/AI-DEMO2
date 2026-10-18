@@ -102,7 +102,7 @@ textarea::placeholder {
   border-left-color: #f59e0b;
 }
 .Toastify__toast--info {
-  border-left-color: #38bdf8;
+  border-left-color: #12538d;
 }
 /* Close (X): always visible and legible on the dark surface. */
 .Toastify__close-button {
@@ -1930,12 +1930,6 @@ body {
 }
 :root[data-theme="dark"] .account-card span.type-icon {
   color: #ffffff;
-}
-:root:not([data-theme="dark"]) .privilege-a2a__dock-open {
-  color: #051727;
-}
-:root[data-theme="dark"] .privilege-a2a__dock-open {
-  color: #051727;
 }
 :root:not([data-theme="dark"]) .status-item {
   color: #051727;

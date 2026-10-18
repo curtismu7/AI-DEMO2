@@ -309,8 +309,8 @@
   flex-shrink: 0;
   padding: 0.25rem 0.5rem;
   font-size: 0.75rem;
-  background-color: #17a2b8;
-  color: #051727;
+  background-color: #12538d;
+  color: #ffffff;
   border: none;
   border-radius: 3px;
   cursor: pointer;
@@ -318,7 +318,7 @@
 }
 
 .swt-recreate-btn:hover:not(:disabled) {
-  background-color: #138496;
+  background-color: #12538d;
 }
 
 .swt-recreate-btn:disabled {

@@ -28,7 +28,7 @@
   width: 9px;
   height: 9px;
   border-radius: 50%;
-  background: #087d76;
+  background: #12538d;
   box-shadow: var(--shadow-sm);
 }
 
@@ -63,7 +63,7 @@
 }
 
 .pfj-diagram-tabs button:hover { color: var(--th-text); background: var(--th-bg-hover); }
-.pfj-diagram-tabs button.is-current { border-color: var(--th-border); border-bottom-color: #087d76; background: var(--th-bg-card); color: var(--th-text); }
+.pfj-diagram-tabs button.is-current { border-color: var(--th-border); border-bottom-color: #12538d; background: var(--th-bg-card); color: var(--th-text); }
 .pfj-diagram-tabs button.is-current small { color: var(--th-status-info-text); }
 .pfj-diagram-tabs button:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
 
@@ -149,16 +149,16 @@
 }
 
 .pfj-node.is-active {
-  border-color: var(--pfj-accent, #126c83);
+  border-color: var(--pfj-accent, #12538d);
   border-left-width: 5px;
   box-shadow: var(--shadow-md);
 }
 
 .pfj-node--request { --pfj-accent: #5c6f8a; }
 .pfj-node--runtime { --pfj-accent: #2a6382; }
-.pfj-node--identity { --pfj-accent: #087d76; }
+.pfj-node--identity { --pfj-accent: #12538d; }
 .pfj-node--token { --pfj-accent: #d20e0f; }
-.pfj-node--agent { --pfj-accent: #2f7480; }
+.pfj-node--agent { --pfj-accent: #12538d; }
 .pfj-node--gateway { --pfj-accent: #365f9a; }
 .pfj-node--policy { --pfj-accent: #946b24; }
 .pfj-node--mcpas { --pfj-accent: #d20e0f; }
@@ -309,7 +309,7 @@
   color: var(--th-text);
   background: var(--th-bg-hover);
 }
-.pfj-step-nav button.is-current { border-color: #087d76; background: #087d76; color: #fff; }
+.pfj-step-nav button.is-current { border-color: #12538d; background: #12538d; color: #fff; }
 .pfj-step-nav button:disabled { opacity: 0.42; cursor: default; }
 .pfj-step-nav button:focus-visible { outline: 3px solid var(--th-status-info); outline-offset: 2px; }
 

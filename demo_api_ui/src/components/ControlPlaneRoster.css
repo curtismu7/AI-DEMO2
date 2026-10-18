@@ -152,7 +152,7 @@ svg.cp-links line.dead{stroke:#d20e0f;opacity:.22;stroke-dasharray:4 7}
 .cp-end .sub b{color:#bfdbfe}
 .cp-end .meta{margin-top:12px;font-size:var(--font-size-xs);opacity:.9;
   border:1px solid rgba(125,211,252,.35);background:rgba(18, 83, 141,.14);border-radius:10px;padding:9px 13px}
-.cp-end .meta b{color:#7dd3fc}
+.cp-end .meta b{color:#cdd1d4}
 .cp-end .x{margin-top:13px;font-size:var(--font-size-xs);opacity:.6;cursor:pointer;text-decoration:underline}
 /* access note + business value */
 .cp-access{position:relative;z-index:2;display:inline-flex;align-items:center;gap:6px;margin:2px 0 0;

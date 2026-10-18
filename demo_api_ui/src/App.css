@@ -1777,7 +1777,7 @@
   letter-spacing: 0.04em;
 }
 .otp-step-up-modal__method-badge--passkey {
-  background: #0f766e;
+  background: #12538d;
 }
 .otp-step-up-modal__method-badge--sms {
   background: #b45309;
@@ -1854,24 +1854,24 @@
   color: var(--th-text);
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-cta {
-  border-color: #7dd3fc;
+  border-color: #cdd1d4;
   background: var(--th-bg-card);
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-cta:hover:not(:disabled) {
   background: #12538d;
   color: #ffffff;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-toggle {
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-toggle:hover {
   color: #e0e2e4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__contact {
   background: #0c2a44;
-  border-color: #155e75;
-  color: #7dd3fc;
+  border-color: #12538d;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__demo-box {
   background: #3a2a10;
@@ -1879,27 +1879,27 @@
   color: #fcd34d;
 }
 :root[data-theme="dark"] .otp-step-up-modal__demo-link {
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__demo-link:hover {
   color: #e0e2e4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__identity-label {
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__rfc-footer {
   background: #0c2a44;
-  border-color: #155e75;
+  border-color: #12538d;
 }
 :root[data-theme="dark"] .otp-step-up-modal__rfc-footer,
 :root[data-theme="dark"] .otp-step-up-modal__rfc-detail {
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__rfc-label {
   color: #e0e2e4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__rfc-detail code {
-  background: #164e63;
+  background: #12538d;
 }
 :root[data-theme="dark"] .otp-step-up-modal__lead strong {
   color: #9ec1ff;

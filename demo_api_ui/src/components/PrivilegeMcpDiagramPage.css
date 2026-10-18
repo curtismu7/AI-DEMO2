@@ -137,7 +137,7 @@
 /* pmd/mgof pages are always dark; the nano link/code inks are tuned for light grounds. */
 .pmd-page.pmd-page:not(.pgt-page) a:any-link,
 .mgof-page.mgof-page a:any-link {
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 .pmd-page.pmd-page:not(.pgt-page) code,
 .mgof-page.mgof-page code {

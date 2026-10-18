@@ -120,7 +120,7 @@
   background: #051727;
   color: #ffffff;
   border-radius: var(--radius-lg);
-  border-left: 3px solid #38bdf8;
+  border-left: 3px solid #12538d;
   padding: 14px 16px;
   font-family: var(--font-mono);
   font-size: var(--font-size-base);
@@ -615,7 +615,7 @@
 }
 
 .pingcli-terminal-prompt span.cmd-text {
-  color: #7dd3fc;
+  color: #cdd1d4;
   font-weight: 600;
 }
 
@@ -647,7 +647,7 @@
 }
 
 /* JSON syntax highlighting in the terminal output pane. */
-.pingcli-terminal-body .j-key  { color: #7dd3fc; }
+.pingcli-terminal-body .j-key  { color: #cdd1d4; }
 .pingcli-terminal-body .j-str  { color: #86efac; }
 .pingcli-terminal-body .j-num  { color: #fca5a5; }
 .pingcli-terminal-body .j-bool { color: #fca5a5; }
@@ -755,7 +755,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #7dd3fc;
+  color: #cdd1d4;
   background: rgba(125, 211, 252, 0.1);
   padding: 2px 8px;
   border-radius: var(--radius-sm);
@@ -826,7 +826,7 @@
 }
 
 /* JSON syntax colors inside the editor code pane */
-.pingcli-editor-code .j-key  { color: #7dd3fc; }
+.pingcli-editor-code .j-key  { color: #cdd1d4; }
 .pingcli-editor-code .j-str  { color: #86efac; }
 .pingcli-editor-code .j-num  { color: #fca5a5; }
 .pingcli-editor-code .j-bool { color: #fca5a5; }

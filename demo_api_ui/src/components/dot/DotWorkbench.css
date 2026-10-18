@@ -4,7 +4,7 @@
   --bg:var(--th-bg-page); --panel:var(--th-bg-card); --panel2:var(--th-bg-inset);
   --ink:var(--th-text); --muted:var(--th-text-muted); --line:var(--th-border);
   --ok:var(--th-status-success-text); --deny:var(--th-status-error-text); --warn:var(--th-status-warning-text);
-  --dot:#2bb3a3; --dot-soft:rgba(43,179,163,.15);
+  --dot:#12538d; --dot-soft:rgba(43,179,163,.15);
   /* the shared DotMemoryPanel reads these two (its other colours are --th-* already) */
   --surface:var(--panel); --border:var(--line);
 }
@@ -18,7 +18,7 @@
 .dot-card { background:var(--panel); border:1px solid var(--line); border-radius:var(--radius-xl); padding:14px 16px; }
 .dot-persona { flex:none; display:flex; gap:14px; align-items:center; margin-bottom:16px; flex-wrap:wrap; }
 .dot-avatar { width:52px; height:52px; border-radius:50%; flex:none; box-shadow:0 0 0 4px var(--dot-soft);
-  background:radial-gradient(circle at 35% 30%, #8ee6da, var(--dot) 60%, #12766b); }
+  background:radial-gradient(circle at 35% 30%, #cdd1d4, var(--dot) 60%, #12538d); }
 .dot-persona h2 { margin:0; font-size:var(--font-size-lg); } .dot-persona p { margin:2px 0 0; color:var(--muted); font-size:12.5px; }
 .dot-muted { font-weight:400; color:var(--muted); }
 .dot-pills { display:flex; flex-wrap:wrap; gap:6px; margin-left:auto; }
