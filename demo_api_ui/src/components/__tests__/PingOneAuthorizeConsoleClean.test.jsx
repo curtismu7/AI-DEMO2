@@ -10,10 +10,10 @@ vi.mock('../../services/bffAxios', () => ({ __esModule: true, default: { get: vi
 
 const DECISION = { data: { decision: 'PERMIT', decisionId: 'd1', pingoneResponse: { decision: 'PERMIT', statements: [] }, pingoneRequest: { body: {} } } };
 
-function Harness(props) {
+function Harness({ url = '/', ...props }) {
   const [records, setRecords] = useState([]);
   return (
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[url]}>
       <PingOneAuthorizeConsoleClean
         endpointId="ep-1" endpoints={[{ id: 'ep-1', name: 'EP' }]} policiesState={{ policies: [], error: null }}
         records={records} setRecords={setRecords} {...props}
@@ -64,5 +64,60 @@ describe('PingOneAuthorizeConsoleClean', () => {
     fireEvent.click(screen.getByRole('button', { name: 'MCP tool' }));
     await new Promise((r) => setTimeout(r, 30));
     expect(bffAxios.post).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe('PingOneAuthorizeConsoleClean Vertical select', () => {
+  const typeOptions = () => [...screen.getByLabelText('Type').options].map((o) => o.value);
+  const toolName = () => screen.getByLabelText('Tool name').value;
+
+  it('defaults to banking: all three presets, three transaction types, ToolName transfer', () => {
+    render(<Harness />);
+    expect(screen.getByLabelText('Vertical').value).toBe('banking');
+    expect(screen.getByRole('button', { name: 'Transaction' })).toBeInTheDocument();
+    expect(typeOptions()).toEqual(['transfer', 'withdrawal', 'deposit']);
+    fireEvent.click(screen.getByRole('button', { name: 'MCP tool' }));
+    expect(toolName()).toBe('transfer');
+  });
+
+  it('?vertical= sets the preset defaults: its approval tool and its transaction type', async () => {
+    render(<Harness url="/?vertical=healthcare" />);
+    expect(screen.getByLabelText('Vertical').value).toBe('healthcare');
+    expect(typeOptions()).toEqual(['transfer']);
+    fireEvent.click(screen.getByRole('button', { name: 'MCP tool' }));
+    expect(toolName()).toBe('pay_bill');
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(bffAxios.post).toHaveBeenCalled());
+    expect(bffAxios.post.mock.calls[0][1].parameters.ToolName).toBe('pay_bill');
+  });
+
+  it('an unknown ?vertical= falls back to banking', () => {
+    render(<Harness url="/?vertical=nope" />);
+    expect(screen.getByLabelText('Vertical').value).toBe('banking');
+    expect(typeOptions()).toEqual(['transfer', 'withdrawal', 'deposit']);
+  });
+
+  it('changing the vertical swaps the preset defaults', async () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'MCP tool' }));
+    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'airlines' } });
+    await waitFor(() => expect(toolName()).toBe('pay_airline_fee'));
+    fireEvent.click(screen.getByRole('button', { name: 'Transaction' }));
+    expect(typeOptions()).toEqual(['transfer']);
+  });
+
+  it('Resend and Edit use the call\'s own input after a vertical change', async () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Transaction' }));
+    fireEvent.change(screen.getByLabelText('Type'), { target: { value: 'withdrawal' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(1));
+    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'retail' } });
+    await waitFor(() => expect(typeOptions()).toEqual(['transfer']));
+    fireEvent.click(screen.getByRole('button', { name: 'Resend' }));
+    await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(2));
+    expect(bffAxios.post.mock.calls[1][1].parameters.TransactionType).toBe('withdrawal');
+    fireEvent.click(screen.getAllByRole('button', { name: /Edit/ })[0]);
+    expect(screen.getByLabelText('Type').value).toBe('withdrawal');
   });
 });

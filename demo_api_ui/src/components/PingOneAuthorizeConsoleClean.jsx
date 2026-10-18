@@ -2,6 +2,7 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { usePingOneAuthorizeConsole } from '../hooks/usePingOneAuthorizeConsole';
 import InspectorLayout from './inspector/InspectorLayout';
+import { useInspectorVertical } from './inspector/useInspectorVertical';
 import { ok, err, idle } from './inspector/inspectorCalls';
 import { authorizeCallFromResult, authorizeCallFromRecent } from './inspector/authorizeCalls';
 
@@ -77,9 +78,21 @@ export default function PingOneAuthorizeConsoleClean({
     if (e.result) persistLastRun(policiesRef.current, e.result);
   }, [onRan, setRecords]);
 
-  const h = usePingOneAuthorizeConsole({
-    endpointId, autoPreset: 'transaction', pendingTest, onClearPendingTest, onEvaluated,
+  // A vertical change loads its MCP tool and transaction type; Transaction is offered only where the vertical sends one.
+  const { vertical, field: verticalField } = useInspectorVertical((v) => {
+    h.setToolName(v.authorize.toolName);
+    h.setTxType(v.authorize.txTypes[0] ?? 'transfer');
+    if (!v.authorize.txTypes.length && h.preset === 'transaction') h.setPreset('mcp');
   });
+  const txTypes = vertical.authorize.txTypes;
+
+  const h = usePingOneAuthorizeConsole({
+    endpointId, autoPreset: txTypes.length ? 'transaction' : 'mcp', defaultToolName: vertical.authorize.toolName,
+    pendingTest, onClearPendingTest, onEvaluated,
+  });
+  // An edited call keeps its own preset and type even when this vertical has neither.
+  const presets = PRESETS.filter((p) => p.value !== 'transaction' || txTypes.length || h.preset === 'transaction');
+  const typeOptions = txTypes.includes(h.txType) ? txTypes : [...txTypes, h.txType];
 
   const calls = useMemo(() => {
     const mine = records.map((r) => authorizeCallFromResult({ ...r, policies }));
@@ -122,8 +135,9 @@ export default function PingOneAuthorizeConsoleClean({
   const send = (
     <div className="insp-send-body">
       <div className="insp-send-row">
+        {verticalField}
         <div className="insp-seg" role="group" aria-label="Decision type">
-          {PRESETS.map((p) => (
+          {presets.map((p) => (
             <button key={p.value} type="button" aria-pressed={h.preset === p.value} onClick={() => h.setPreset(p.value)}>{p.label}</button>
           ))}
         </div>
@@ -133,9 +147,7 @@ export default function PingOneAuthorizeConsoleClean({
             <label className="insp-field">
               <span>Type</span>
               <select value={h.txType} onChange={(e) => h.setTxType(e.target.value)}>
-                <option value="transfer">transfer</option>
-                <option value="withdrawal">withdrawal</option>
-                <option value="deposit">deposit</option>
+                {typeOptions.map((t) => <option key={t} value={t}>{t}</option>)}
               </select>
             </label>
             {field('ACR', h.acr, h.setAcr)}

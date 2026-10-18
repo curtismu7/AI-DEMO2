@@ -9,6 +9,7 @@ import { displayDecision } from '../utils/authorizeResultExplain';
 export function usePingOneAuthorizeConsole({
   endpointId,
   autoPreset,
+  defaultToolName = 'transfer',
   pendingTest,
   onClearPendingTest,
   onEvaluated,
@@ -25,7 +26,7 @@ export function usePingOneAuthorizeConsole({
   const [userId, setUserId] = useState('demoUser');
 
   // MCP preset
-  const [toolName, setToolName] = useState('transfer');
+  const [toolName, setToolName] = useState(defaultToolName);
   const [tokenAudience, setTokenAudience] = useState('mcpgateway.ping.demo');
   const [actClientId, setActClientId] = useState('d21c5124-8ac5-43d1-81f2-31a7ec649b96');
   const [mcpResourceUri, setMcpResourceUri] = useState('mcpgateway.ping.demo');
