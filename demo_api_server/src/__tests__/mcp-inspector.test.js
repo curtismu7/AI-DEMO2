@@ -46,6 +46,8 @@ jest.mock('../../services/mcpWebSocketClient', () => {
       return {
         result,
         frames: {
+          // Real client puts the bearer here (mcpWebSocketClient initParams.agentToken).
+          initializeRequest: { jsonrpc: '2.0', id: 1, method: 'initialize', params: { agentToken: rest[0] } },
           request: { jsonrpc: '2.0', id: 2, method: 'tools/call', params: requestParams },
           response: { jsonrpc: '2.0', id: 2, result },
         },
@@ -289,6 +291,30 @@ describe('MCP Inspector routes', () => {
     });
     expect(res.body.frames.response.result).toEqual({ content: [{ type: 'text', text: '{"ok":true}' }] });
     expect(res.body.tokenEvents).toEqual(tokenEvents);
+  });
+
+  it('POST /api/mcp/inspector/invoke never returns the raw bearer in frames (success and 502)', async () => {
+    const token = bearerToken(['read']);
+    expect(token).toMatch(/^eyJ/);
+    mockResolveMcpAccessTokenWithEvents.mockImplementation(async () => ({ token, userSub: 'u', tokenEvents: [] }));
+    const ok = await request(app)
+      .post('/api/mcp/inspector/invoke')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tool: 'get_my_accounts', params: {} });
+    expect(ok.status).toBe(200);
+    expect(ok.body.frames.initializeRequest.params.agentToken).toBe('(redacted)');
+    expect(JSON.stringify(ok.body)).not.toContain('eyJ');
+
+    mockCall.mockRejectedValueOnce(Object.assign(new Error('boom'), {
+      frames: { initializeRequest: { params: { agentToken: token } } },
+    }));
+    const bad = await request(app)
+      .post('/api/mcp/inspector/invoke')
+      .set('Authorization', `Bearer ${token}`)
+      .send({ tool: 'get_my_accounts', params: {} });
+    expect(bad.status).toBe(502);
+    expect(bad.body.frames.initializeRequest.params.agentToken).toBe('(redacted)');
+    expect(JSON.stringify(bad.body)).not.toContain('eyJ');
   });
 
   it('POST /api/mcp/inspector/invoke passes body.meta through as params._meta.progressToken (Attach progress token toggle)', async () => {

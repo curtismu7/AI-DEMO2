@@ -99,6 +99,7 @@ const REDACT_HEADERS = new Set([
 ]);
 const REDACT_BODY_KEYS = new Set([
   "access_token",
+  "agenttoken",
   "refresh_token",
   "id_token",
   "client_secret",

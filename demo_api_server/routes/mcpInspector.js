@@ -5,6 +5,17 @@
  */
 const express = require('express');
 const router = express.Router();
+
+/** Frames carry the bearer in initialize params.agentToken; the page must never see it. */
+function redactFrames(v) {
+  if (Array.isArray(v)) return v.map(redactFrames);
+  if (v && typeof v === 'object') {
+    const out = {};
+    for (const [k, x] of Object.entries(v)) out[k] = k === 'agentToken' ? '(redacted)' : redactFrames(x);
+    return out;
+  }
+  return v;
+}
 const configStore = require('../services/configStore');
 const { internalSecret } = require('../utils/internalSecret');
 const { resolveMcpAccessTokenWithEvents } = require('../services/agentMcpTokenService');
@@ -330,7 +341,7 @@ async function handleProfileTools(req, res, profileId) {
     return res.json({
       timingsMs: { roundTrip: Date.now() - started },
       tools,
-      frames: frames || null,
+      frames: redactFrames(frames) || null,
       _source: 'profile',
       _profileId: profile.id,
       _profileLabel: profile.label,
@@ -380,7 +391,7 @@ async function handleProfileInvoke(req, res, profileId, tool, params) {
     const { result, frames } = await callToolForProfile(profile, tool, params || {}, req);
     return res.json({
       result,
-      frames: frames || null,
+      frames: redactFrames(frames) || null,
       inspector: {
         tool,
         durationMs: Date.now() - started,
@@ -623,7 +634,7 @@ router.get('/tools', async (req, res) => {
         _source: 'mcp_server',
         // Exact JSON-RPC frames as sent/received (teaching surface — token
         // visibility is intentional in this demo).
-        frames,
+        frames: redactFrames(frames),
       });
     } catch (err) {
       if (isMcpUnreachableError(err)) {
@@ -768,7 +779,7 @@ router.post('/invoke', express.json(), async (req, res) => {
         result,
         // Exact JSON-RPC frames + token-exchange chain (teaching surface —
         // token visibility is intentional in this demo).
-        frames,
+        frames: redactFrames(frames),
         tokenEvents,
         inspector: {
           tool,
@@ -794,7 +805,7 @@ router.post('/invoke', express.json(), async (req, res) => {
     res.status(502).json({
       error: 'mcp_invoke_failed',
       message: err.message,
-      ...(err.frames ? { frames: err.frames } : {}),
+      ...(err.frames ? { frames: redactFrames(err.frames) } : {}),
       ...(err.tokenEvents ? { tokenEvents: err.tokenEvents } : {}),
     });
   }
@@ -886,7 +897,7 @@ router.post('/rpc', requireSession, express.json(), async (req, res) => {
         result,
         // Exact JSON-RPC frames (teaching surface — token visibility is
         // intentional in this demo), same shape as /invoke's response.
-        frames,
+        frames: redactFrames(frames),
         tokenEvents,
         inspector: {
           method,
@@ -903,7 +914,7 @@ router.post('/rpc', requireSession, express.json(), async (req, res) => {
     res.status(502).json({
       error: 'mcp_rpc_failed',
       message: err.message,
-      ...(err.frames ? { frames: err.frames } : {}),
+      ...(err.frames ? { frames: redactFrames(err.frames) } : {}),
       ...(err.tokenEvents ? { tokenEvents: err.tokenEvents } : {}),
     });
   }
