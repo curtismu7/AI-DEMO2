@@ -58,6 +58,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "Group Policy Board": { status: "LIVE" },
   "Transaction Consent": { status: "LIVE" },
   "CIBA Approval Link": { status: "LIVE" },
+  "Device-First Sign-In": { status: "LIVE" },
   "Push Approval (simulated phone)": { status: "SIMULATED" },
   "AIC Token Exchange": { status: "LIVE" },
   "Jev Demo Gallery": { status: "LIVE" },
@@ -288,6 +289,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "CIBA Approval Link",
         description: "Out-of-band approval by email or SMS link, plus the PingFederate approver path (diagram + live test)",
+        icon: "",
+      },
+      {
+        label: "Device-First Sign-In",
+        description: "Username, then a code or a passkey, on PingOne and PingFederate, plus the PF admin group check (diagram)",
         icon: "",
       },
     ],
@@ -641,6 +647,7 @@ export default function LearningHub() {
       "AIC Token Exchange": () => navigate("/aic-token-exchange"),
       "Transaction Consent": () => navigate("/transaction-consent"),
       "CIBA Approval Link": () => navigate("/mfa-test#ciba-diagram"),
+      "Device-First Sign-In": () => navigate("/mfa-test#signin-diagram"),
       "Push Approval (simulated phone)": () => navigate("/mfa-test#push-diagram"),
       "Group Policy Board": () => navigate("/group-policy"),
       "Auth Code + PKCE": () => openEdu(EDU.LOGIN_FLOW, "what"),
