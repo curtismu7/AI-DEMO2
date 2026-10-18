@@ -89,6 +89,29 @@ CIBA is proof of identity only, not the session; passwordless stays as it is; cu
 - Under the default policy a finished password flow may go through an agreement step before `COMPLETED`; the parked flow is
   created only at `COMPLETED`. If the policy shows another step, the existing `fallback:true` behavior applies.
 
+## Amendments from the build and final review (2026-10-18)
+
+- **Parked flow lifetime.** The parked flow is discarded on any VERIFICATION failure (denied, expired, wrong sub, invalid
+  token). A failed or 429 START deliberately KEEPS it, so the user can retry within its 150 s TTL; retries are capped by
+  the per-user send cap. The approval countdown (`expiresIn`) is capped at the parked flow's remaining life and `parkedAt`
+  is never extended.
+- **Match code.** 8 characters for coded verticals (2-char vertical code + 6 hex); 6 random hex for verticals without a code
+  (a2a, oauth-teaching, admin, pingone-admin, shared). Never a literal word.
+- **PingFederate customers are in scope** (owner decision 2026-10-18). The approval always runs on the PingOne CIBA step-up
+  apps; a PF user is mapped to the PingOne user with the same username. Only a flow that reaches `COMPLETED` straight from the
+  PASSWORD step is parked. Three documented cases skip the approval and carry `secondFactorSkipped:true` when it was requested:
+  a PF user with no PingOne account, an enabled user with neither email nor phone (both complete the sign-in, and the UI says
+  so), and a password step that does not end `COMPLETED` (an MFA or policy screen), which returns the existing `{fallback:true}`
+  redirect login. A flow that reaches `COMPLETED` after OTP, passkey, PF `MFA_COMPLETED` or an identifier-first lookup never
+  parks (real MFA already happened) and carries no marker.
+- **Opt-in, not enforced server-side.** Omitting `secondFactor` gives today's password-only login. Before it is ever
+  enforced, also bind at `/callback`: the session's ID-token `sub` (or the user id in the COMPLETED body) must equal the
+  parked `expectedSub` (reviewer finding M4, deferred).
+- **Single API pod.** The in-process pending map and rate limits assume `replicas: 1` (otherwise sticky sessions are needed).
+- **Per-user cap trade-off.** Someone holding a stolen password can keep the owner's approval option at 429 by re-sending
+  every 10 minutes, and demo presenters who test the same user repeatedly will hit the cap. The plain password sign-in stays
+  available in both cases.
+
 ## Left to the builder
 
 Route names, the parked-state shape, modal states and copy, and the test plan.

@@ -597,6 +597,7 @@ router.post('/test', express.json(), async (req, res) => {
             result,
             gwAuditTrail: gwAuditTrail || null,
             tokenEvents,
+            rawInboundToken: token,
         });
     } catch (e) {
         // callToolViaGateway throws structured errors with .code / .httpStatus /
@@ -616,7 +617,9 @@ router.post('/test', express.json(), async (req, res) => {
             rateLimitLayer:   e.rateLimitLayer || null,
             decision,
             rpcData:          e.rpcData || null,
+            gwAuditTrail:     e.gwAuditTrail || null,
             tokenEvents,
+            rawInboundToken:  token,
         });
     }
 });

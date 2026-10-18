@@ -96,3 +96,33 @@ describe('POST /internal/gateway-decision', () => {
     expect(agentGatewayDecisions.recent()).toHaveLength(0);
   });
 });
+
+describe('agentGatewayDecisions.record trail detail', () => {
+  beforeEach(() => { agentGatewayDecisions.clear(); });
+
+  test('keeps parameters, rawResponse, filterChain, mcpAudit and introspectionActive', () => {
+    agentGatewayDecisions.record({
+      introspection: { active: true },
+      authorize: { decision: 'DENY', parameters: { ToolName: 't' }, rawResponse: { decision: 'DENY' } },
+      filterChain: [{ filter: 'P1AZDecision', result: 'blocked' }],
+      mcpAudit: { who: { userSub: 'u' } },
+    });
+    const e = agentGatewayDecisions.recent(1)[0];
+    expect(e.parameters.ToolName).toBe('t');
+    expect(e.rawResponse.decision).toBe('DENY');
+    expect(e.filterChain).toHaveLength(1);
+    expect(e.mcpAudit.who.userSub).toBe('u');
+    expect(e.introspectionActive).toBe(true);
+  });
+
+  test('oversized detail field is replaced by a truncation marker', () => {
+    expect(() => agentGatewayDecisions.record({
+      authorize: { decision: 'DENY', rawResponse: { blob: 'x'.repeat(40000) } },
+    })).not.toThrow();
+    const e = agentGatewayDecisions.recent(1)[0];
+    expect(e.rawResponse).toMatchObject({ truncated: true });
+    expect(e.rawResponse.bytes).toBeGreaterThan(32768);
+    expect(e.filterChain).toBeNull();
+    expect(e.introspectionActive).toBeNull();
+  });
+});
