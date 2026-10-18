@@ -86,6 +86,7 @@ async function startSecondFactor({ channel, req }) {
 
   // A binding message longer than 8 chars makes cibaService generate vertical code + random hex, so the match
   // code is never a literal word (verticals without a code would otherwise echo a short message verbatim).
+  // Verticals WITHOUT a vertical code get 6 random hex chars; coded verticals get 8 (2-char code + 6 hex).
   const expiresIn = Math.min(Number(data.expires_in) > 0 ? Number(data.expires_in) : EXPIRES_IN, EXPIRES_IN);
   const authReqId = crypto.randomBytes(24).toString('hex');
   const t = now();

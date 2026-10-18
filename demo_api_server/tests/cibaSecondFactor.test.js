@@ -38,16 +38,20 @@ const fakeHandlers = {
 };
 
 let server;
-beforeAll(() => {
+beforeAll(async () => {
   const app = express();
   app.set('trust proxy', true);
+  // No keep-alive: a reused idle socket racing the server's close was the source of intermittent
+  // ECONNRESET under CPU load (superagent on Node >= 19 reuses sockets by default).
+  app.use((req, res, next) => { res.set('Connection', 'close'); next(); });
   app.use(express.json());
   app.use(session({ secret: 's', resave: false, saveUninitialized: false }));
   // Test-only: park a flow the way the password step does (body is test setup, not the code under test).
   app.post('/park', (req, res) => { req.session.parked = req.body; res.json({ ok: true }); });
   app.get('/parked', (req, res) => res.json({ parked: !!req.session.parked }));
   app.use('/api/auth/ciba/login', routes);
-  server = require('http').createServer(app).listen(0, '127.0.0.1');
+  server = require('http').createServer(app);
+  await new Promise((resolve) => server.listen(0, '127.0.0.1', resolve));   // settled before any request
 });
 afterAll(() => server.close());
 
@@ -269,7 +273,7 @@ describe('fix round 1', () => {
     expect(cibaService.validateCibaIdToken).toHaveBeenCalledWith('idt', USER.id, '', 'email');
   });
 
-  it('M3 a vertical without a code still gets an 8-char hex match code (binding message > 8 chars so cibaService randomises)', async () => {
+  it('M3 a vertical WITHOUT a vertical code gets a random 6-hex match code (coded verticals get 8 chars: 2-char code + 6 hex); never a literal word', async () => {
     require('../services/verticalManifest').verticalManifest.resolver.activeIdFor.mockReturnValueOnce('shared');
     cibaService.initiateBackchannelAuth.mockImplementationOnce(async (_h, msg) => ({
       auth_req_id: 'PING-AR-1', expires_in: 120, interval: 2,
