@@ -11,8 +11,9 @@ export function useInspectorVertical(onChange) {
   const [params, setParams] = useSearchParams();
   // Same value as useVertical().activeId, read directly: it needs no router location.
   const activeId = useContext(VerticalContext)?.activeId;
+  const known = (v) => v != null && Object.hasOwn(INSPECTOR_VERTICALS, v);
   const requested = params.get('vertical');
-  const id = INSPECTOR_VERTICALS[requested] ? requested : INSPECTOR_VERTICALS[activeId] ? activeId : DEFAULT_VERTICAL;
+  const id = known(requested) ? requested : known(activeId) ? activeId : DEFAULT_VERTICAL;
   const vertical = INSPECTOR_VERTICALS[id];
 
   const [names, setNames] = useState(null);

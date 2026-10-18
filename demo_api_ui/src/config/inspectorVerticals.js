@@ -244,13 +244,13 @@ export function argsFor(vertical, tool) {
   return hit ? hit.args : {};
 }
 
-const OWNERS = {};
+const OWNERS = new Map();
 for (const [id, v] of Object.entries(INSPECTOR_VERTICALS)) {
-  for (const t of v.tools) (OWNERS[t] ||= []).push(id);
+  for (const t of v.tools) OWNERS.set(t, [...(OWNERS.get(t) ?? []), id]);
 }
 
 /** True when another vertical owns this tool and this one does not. Unowned tools show everywhere. */
 export function belongsElsewhere(verticalId, tool) {
-  const owners = OWNERS[tool];
+  const owners = OWNERS.get(tool);
   return !!owners && !owners.includes(verticalId);
 }

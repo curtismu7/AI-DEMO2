@@ -262,8 +262,8 @@ describe('AgentGatewayInspectorClean Vertical select', () => {
     expect(JSON.parse(screen.getByLabelText('Arguments (JSON)').value)).toEqual({ billId: '404', amount: 500 });
   });
 
-  it('an unknown ?vertical= falls back to banking', async () => {
-    renderAt('/?vertical=nope');
+  it.each(['nope', 'constructor'])('an unknown ?vertical=%s falls back to banking', async (v) => {
+    renderAt(`/?vertical=${v}`);
     await ready();
     expect(screen.getByLabelText('Vertical').value).toBe('banking');
     expect(scenarioLabels()).toContain('Read accounts (expect PERMIT)');

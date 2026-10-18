@@ -132,5 +132,6 @@ describe('inspector vertical catalog', () => {
     expect(belongsElsewhere('banking', 'sequential_think')).toBe(false);
     expect(belongsElsewhere('university', 'view_billing')).toBe(false);
     expect(belongsElsewhere('healthcare', 'view_billing')).toBe(false);
+    expect(belongsElsewhere('banking', 'constructor')).toBe(false);
   });
 });
