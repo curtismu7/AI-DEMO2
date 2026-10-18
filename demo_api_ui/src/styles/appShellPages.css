@@ -139,15 +139,12 @@
   font-weight: 600;
   font-family: inherit;
   line-height: 1.25;
-  color: var(--app-primary-btn-text, #fff);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  border: 1px solid var(--app-primary-red-border);
+  /* Outline by default: red is reserved for --accent (primary action) and --danger. */
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(127, 29, 29, 0.22);
+  box-shadow: none;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
@@ -160,14 +157,9 @@
 }
 
 .app-page-toolbar-btn:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
-  box-shadow: 0 2px 8px rgba(127, 29, 29, 0.28);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--th-bg-inset);
+  border-color: var(--th-text);
+  color: var(--th-text);
   transform: translateY(-1px);
 }
 
@@ -195,7 +187,6 @@
 .app-page-toolbar-btn--icon {
   padding: 9px 11px;
   min-width: 40px;
-  color: var(--app-primary-btn-text, #fff);
 }
 
 .app-page-toolbar-btn--danger {
