@@ -26,12 +26,8 @@ import { useTheme } from '../context/ThemeContext';
 import useDividerDrag from '../hooks/useDividerDrag';
 import './TokenTopologyPanel.css';
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
-
-const TOPOLOGY_SPEEDS = [
-  { value: 1200, label: 'Fast' },
-  { value: 2400, label: 'Normal' },
-  { value: 4200, label: 'Slow' },
-];
+import { useDiagramStepper } from '../hooks/useDiagramStepper';
+import DiagramStepBar from './DiagramStepBar';
 
 const TOPOLOGY_NODE_WIDTH = 220;
 const TOPOLOGY_NODE_HEIGHT = 300;
@@ -641,9 +637,6 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     initial: 320,
     invert: true, // inspector pane sits right of its divider
   });
-  const [playing, setPlaying] = useState(false);
-  const [revealCount, setRevealCount] = useState(null);
-  const [speed, setSpeed] = useState(2400);
   // Start at the presentation-friendly size; the inspector controls can still
   // reduce or increase this per session.
   const [fontSize, setFontSize] = useState('large');
@@ -706,16 +699,26 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     applyStepVisibility(steps, trace, { collapsed: !showSkippedNodes });
   const topologyNodes = hasActivity ? buildObservedTopology(firedSteps) : [];
   const ghostNodes = hasActivity && showSkippedNodes ? buildObservedTopology(revealed) : [];
-  const allNodes = [...topologyNodes, ...ghostNodes];
+  const liveNodes = [...topologyNodes, ...ghostNodes];
+  // Simulate replays the hops drawn for this session's run in order; before any
+  // run it walks the canonical chain (the empty trace's step template). Off = live.
+  const representative = liveNodes.length === 0;
+  const replayNodes = representative ? buildObservedTopology(steps) : liveNodes;
+  const stepper = useDiagramStepper(replayNodes.length);
+  const replaying = stepper.active;
+  const allNodes = replaying ? replayNodes : liveNodes;
   const topologySignature = allNodes.map((node) => node.id).join('|');
   const totalNodes = allNodes.length;
-  const visibleCount = revealCount == null ? totalNodes : Math.min(revealCount, totalNodes);
+  const visibleCount = replaying ? Math.min(stepper.step + 1, totalNodes) : totalNodes;
   const visibleNodes = allNodes.slice(0, visibleCount);
   const { spine, branch, anchorId } = partitionSpineBranch(visibleNodes);
   const topologyPartitions = useMemo(() => partitionSpineBranch(allNodes), [topologySignature]);
-  const currentId = playing && visibleNodes.length
+  const currentId = replaying && visibleNodes.length
     ? visibleNodes[visibleNodes.length - 1]?.id
     : allNodes.find((node) => node.step.status === 'active')?.id;
+  const replayCaption = replaying && visibleNodes.length
+    ? `${visibleNodes[visibleNodes.length - 1].name}${representative ? ' — representative path, no recent traffic' : ''}`
+    : '';
 
   // ELK positions the whole trace once per run shape. Status updates therefore
   // repaint evidence without shifting the graph around while it is being read.
@@ -817,43 +820,11 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
     : null;
   const showInspector = inline ? Boolean(selectedStep) : inspectorVisible;
 
+  // A new run takes the canvas back to live.
+  const { stop: stopReplay } = stepper;
   useEffect(() => {
-    if (revealCount == null) setRevealCount(totalNodes);
-  }, [totalNodes, revealCount]);
-
-  useEffect(() => {
-    if (!playing || visibleCount >= totalNodes) {
-      if (playing && totalNodes > 0 && visibleCount >= totalNodes) setPlaying(false);
-      return undefined;
-    }
-    const timer = setTimeout(() => setRevealCount((count) => Math.min((count ?? 0) + 1, totalNodes)), speed);
-    return () => clearTimeout(timer);
-  }, [playing, visibleCount, totalNodes, speed]);
-
-  useEffect(() => {
-    if (trace.runId) {
-      setRevealCount(totalNodes);
-      setPlaying(false);
-    }
-  }, [trace.runId]);
-  // A run that grows mid-flight (new fired hops, chip expansion) must reveal
-  // the additions — revealCount was snapshotted at the run's start.
-  useEffect(() => {
-    if (trace.runId && totalNodes > (revealCount ?? 0)) setRevealCount(totalNodes);
-  }, [totalNodes, revealCount, trace.runId]);
-
-  const handlePlayPause = useCallback(() => {
-    if (!totalNodes) return;
-    if (visibleCount >= totalNodes && !playing) setRevealCount(0);
-    setPlaying((value) => !value);
-  }, [playing, totalNodes, visibleCount]);
-
-  const handleStartOver = useCallback(() => {
-    if (!totalNodes) return;
-    setRevealCount(0);
-    setPlaying(true);
-    setExpandedId(null);
-  }, [totalNodes]);
+    if (trace.runId) stopReplay();
+  }, [trace.runId, stopReplay]);
 
   const content = (
       <div className="ttp-root ttp-reel-layout" data-theme={darkMode ? 'dark' : 'light'} data-font-size={fontSize}>
@@ -878,17 +849,10 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
             {prompt && <><span className="ttp-ctx-lbl">Prompt</span><span className="ttp-ctx-prompt">{str(prompt)}</span></>}
             {routingMode && <span className="ttp-ctx-mode">{str(routingMode)}</span>}
             <span className="ttp-playback-status" aria-live="polite">
-              {playing ? `Playing ${visibleCount}/${totalNodes}` : `Live ${visibleCount}/${totalNodes}`}
+              {replaying ? `Replay ${visibleCount}/${totalNodes}` : `Live ${visibleCount}/${totalNodes}`}
             </span>
           </div>
           <div className="ttp-toolbar-actions">
-            <button type="button" className="ttp-play-btn" onClick={handlePlayPause} disabled={!totalNodes}>
-              {playing ? 'Pause' : visibleCount >= totalNodes ? 'Play' : 'Resume'}
-            </button>
-            <select className="ttp-speed-select" value={speed} onChange={(e) => setSpeed(Number(e.target.value))} title="Adjust topology playback speed">
-              {TOPOLOGY_SPEEDS.map((option) => <option key={option.value} value={option.value}>{option.label}</option>)}
-            </select>
-            <button type="button" className="ttp-start-btn" onClick={handleStartOver} disabled={!totalNodes}>Start over</button>
             <div className="ttp-font-control" aria-label="Token topology font size">
               <button type="button" onClick={() => setFontSize('small')} aria-pressed={fontSize === 'small'} title="Use smaller text">A−</button>
               <button type="button" onClick={() => setFontSize('medium')} aria-pressed={fontSize === 'medium'} title="Use default text">A</button>
@@ -927,6 +891,8 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
           </div>
         </div>
 
+        <DiagramStepBar stepper={stepper} caption={replayCaption} />
+
         {/* Inline details follow the graph; the pop-out keeps its resizable side inspector. */}
         <div className={`ttp-body${selectedStep ? ' has-insp' : ''}`}>
           {showInspector && hasActivity && selectedStep ? (
@@ -963,7 +929,7 @@ export default function TokenTopologyPanel({ isOpen, onClose, inline = false }) 
               </div>
             )}
             </div>
-            {hasActivity ? (
+            {hasActivity || replaying ? (
               <div className="ttp-reel">
                 <div className="ttp-label">Live delegated topology — current step is highlighted; pan or zoom to follow the full path</div>
                 <ReactFlowProvider>
