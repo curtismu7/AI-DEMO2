@@ -129,7 +129,7 @@ describe('inspector vertical catalog', () => {
   });
 
   it('argsFor returns complete sample args only', () => {
-    expect(argsFor(INSPECTOR_VERTICALS.healthcare, 'pay_bill')).toEqual({ billId: '407', amount: 650 });
+    expect(argsFor(INSPECTOR_VERTICALS.healthcare, 'pay_bill')).toEqual({ amount: 650 });
     expect(argsFor(INSPECTOR_VERTICALS.banking, 'create_withdrawal')).toEqual({});
     expect(argsFor(INSPECTOR_VERTICALS.airlines, 'get_flight_status')).toEqual({ flight_number: 'UA328' });
     expect(argsFor(INSPECTOR_VERTICALS.healthcare, 'not_a_tool')).toEqual({});

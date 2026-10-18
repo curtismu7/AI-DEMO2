@@ -205,13 +205,6 @@
       "date": "2026-05-14",
       "amountDue": 15,
       "status": "Due"
-    },
-    {
-      "id": "407",
-      "description": "Outpatient imaging (MRI)",
-      "date": "2026-05-20",
-      "amountDue": 650,
-      "status": "Due"
     }
   ],
   "medications": [

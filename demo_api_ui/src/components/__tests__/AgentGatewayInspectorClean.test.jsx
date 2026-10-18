@@ -297,7 +297,7 @@ describe('AgentGatewayInspectorClean Vertical select', () => {
     expect(optionsOf('Tool')).not.toContain('get_my_accounts');
     fireEvent.change(screen.getByLabelText('Scenario'), { target: { value: 'approval' } });
     expect(screen.getByLabelText('Tool').value).toBe('pay_bill');
-    expect(JSON.parse(screen.getByLabelText('Arguments (JSON)').value)).toEqual({ billId: '407', amount: 650 });
+    expect(JSON.parse(screen.getByLabelText('Arguments (JSON)').value)).toEqual({ amount: 650 });
   });
 
   it.each(['nope', 'constructor'])('an unknown ?vertical=%s falls back to banking', async (v) => {

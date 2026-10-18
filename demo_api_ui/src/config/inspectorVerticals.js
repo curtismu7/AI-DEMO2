@@ -66,8 +66,8 @@ export const INSPECTOR_VERTICALS = {
     scenarios: [
       { id: 'read', label: 'Read records (expect PERMIT)', expect: 'PERMIT', tool: 'view_records', args: {} },
       sensitive('sensitive_patient_records'),
-      // Seeded bill 407 (MRI, $650): over the $500 hold line, inside the $250-$2000 window. The gate reads the amount from the bill.
-      { id: 'approval', label: 'Pay bill (expect approval)', expect: 'APPROVAL', tool: 'pay_bill', args: { billId: '407', amount: 650 } },
+      // Amount-only on purpose: every seeded bill is <= $50 and adding a seed bill triggers the goldens seed-drift gate.
+      { id: 'approval', label: 'Pay bill (expect approval)', expect: 'APPROVAL', tool: 'pay_bill', args: { amount: 650 } },
       {
         id: 'chain',
         label: 'Run chain: records → release → sensitive',

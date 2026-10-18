@@ -70,7 +70,7 @@ describe('MCP Inspector Vertical select', () => {
     expect(toolOptions()).toEqual(['view_records', 'pay_bill', 'sequential_think']);
     pickTool('pay_bill');
     expect(sourceState.current.setSelectedTool).toHaveBeenLastCalledWith(TOOLS[3]);
-    expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({ billId: '407', amount: '650' });
+    expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({ amount: '650' });
   });
 
   it('an unknown ?vertical= falls back to banking', () => {
@@ -97,7 +97,7 @@ describe('MCP Inspector Vertical select', () => {
     sourceState.current = makeSource(TOOLS[3]);
     renderAt('/');
     fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'healthcare' } });
-    await waitFor(() => expect(sourceState.current.setParamValues).toHaveBeenCalledWith({ billId: '407', amount: '650' }));
+    await waitFor(() => expect(sourceState.current.setParamValues).toHaveBeenCalledWith({ amount: '650' }));
     expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
   });
 
