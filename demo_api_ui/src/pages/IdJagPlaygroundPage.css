@@ -37,6 +37,8 @@
 .ijp-step { margin: 1rem 0; padding: 1rem 1.1rem; border: 1px solid var(--th-border); border-radius: 10px; background: var(--th-bg-card); }
 .ijp-step__head { display: flex; align-items: center; gap: 0.6rem; }
 .ijp-step__head h2 { margin: 0; font-size: 1.1rem; }
+.ijp-diagram-link { font-size: var(--font-size-2xs); font-weight: 500; text-transform: none; letter-spacing: normal; }
+.ijp-step__head .ijp-diagram-link { margin-left: auto; }
 .ijp-step__n { display: inline-flex; width: 1.7rem; height: 1.7rem; align-items: center; justify-content: center; border-radius: 50%; background: var(--ijp-grad); color: #fff; font-weight: 700; }
 .ijp-note { color: var(--th-text-muted); font-size: var(--font-size-xs); max-width: 900px; }
 .ijp-status { font-weight: 600; }

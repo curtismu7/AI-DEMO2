@@ -72,8 +72,9 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
     </>
   );
 }
-const nodeTypes = { card: Card, note: Note };
-const edgeTypes = { flow: FlowEdge };
+// Shared with the playground diagrams (IdJagPlaygroundDiagramPage).
+export const nodeTypes = { card: Card, note: Note };
+export const edgeTypes = { flow: FlowEdge };
 
 // ── Edges: [id, from, fromHandle, to, toHandle, label, dashed] ────────────
 const EDGES = [
