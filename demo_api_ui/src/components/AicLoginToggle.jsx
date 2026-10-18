@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import bffAxios from '../services/bffAxios';
 import { isAicLoginEnabled } from '../utils/aicLogin';
 import { notifyError } from '../utils/appToast';
+import DeviceSignInLink from './DeviceSignInLink';
 import './OAuthProviderToggle.css';
 
 /**
@@ -60,18 +61,21 @@ export default function AicLoginToggle() {
   }
 
   return (
-    <button
-      type="button"
-      className={`oauth-provider-toggle oauth-provider-toggle--${enabled ? 'aic' : 'pingone'}${saving ? ' oauth-provider-toggle--saving' : ''}`}
-      onClick={toggle}
-      disabled={saving}
-      title={`Customer sign-in: ${enabled ? 'AIC (federated through PingOne)' : 'PingOne'}. Click to switch to ${enabled ? 'PingOne' : 'AIC'}. You will be signed out and asked to log in again.`}
-      aria-pressed={enabled}
-      aria-label="Toggle AIC customer sign-in"
-    >
-      <span className="oauth-provider-toggle__option">P1</span>
-      <span className="oauth-provider-toggle__knob" aria-hidden="true" />
-      <span className="oauth-provider-toggle__option">AIC</span>
-    </button>
+    <>
+      <button
+        type="button"
+        className={`oauth-provider-toggle oauth-provider-toggle--${enabled ? 'aic' : 'pingone'}${saving ? ' oauth-provider-toggle--saving' : ''}`}
+        onClick={toggle}
+        disabled={saving}
+        title={`Customer sign-in: ${enabled ? 'AIC (federated through PingOne)' : 'PingOne'}. Click to switch to ${enabled ? 'PingOne' : 'AIC'}. You will be signed out and asked to log in again.`}
+        aria-pressed={enabled}
+        aria-label="Toggle AIC customer sign-in"
+      >
+        <span className="oauth-provider-toggle__option">P1</span>
+        <span className="oauth-provider-toggle__knob" aria-hidden="true" />
+        <span className="oauth-provider-toggle__option">AIC</span>
+      </button>
+      <DeviceSignInLink compact />
+    </>
   );
 }
