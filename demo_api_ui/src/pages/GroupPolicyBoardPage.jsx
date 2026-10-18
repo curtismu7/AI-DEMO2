@@ -6,6 +6,7 @@ import { useThemeOptional } from "../context/ThemeContext";
 import EmbeddedFlowDiagram from "../components/EmbeddedFlowDiagram";
 import { GROUP_POLICY_DIAGRAM } from "../config/groupPolicyBoardDiagram";
 import "./GroupPolicyBoardPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 const GROUP_POLICY_FLAG = "ff_authorize_group_policy";
 
@@ -175,14 +176,10 @@ export default function GroupPolicyBoardPage() {
         >
           {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
         </button>
-        <p className="gpb-eyebrow">LIVE AUTHORIZATION EXPLAINER</p>
-        <h1>Group policy — live decisions</h1>
-        <p className="gpb-sub">
-          This page makes one boundary visible: scopes are not entitlements. PingOne
+        <PageHeader eyebrow="LIVE AUTHORIZATION EXPLAINER" title="Group policy — live decisions" summary={<>This page makes one boundary visible: scopes are not entitlements. PingOne
           directory membership is re-read for each group-gated tool call, then the
           resulting decision is shown for the picked vertical. Switch verticals with
-          the picker to see the same group rule enforced in each business.
-        </p>
+          the picker to see the same group rule enforced in each business.</>} />
       </header>
 
       <EmbeddedFlowDiagram

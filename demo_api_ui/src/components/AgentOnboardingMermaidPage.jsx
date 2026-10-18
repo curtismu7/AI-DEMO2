@@ -5,6 +5,7 @@
 import React, { useState } from "react";
 import StaticFlowDiagram from "./StaticFlowDiagram";
 import "./AgentOnboardingMermaidPage.css";
+import PageHeader from './common/PageHeader';
 
 export const AOM_GROUPS = {
   entry: { label: "Entry / Discovery", bg: "#4f8a3d" },
@@ -131,13 +132,9 @@ export default function AgentOnboardingMermaidPage() {
   return (
     <div className="aom-page">
       <div className="aom-hero">
-        <span className="aom-eyebrow">Proposed architecture — T. Madiraju</span>
-        <h1>Enterprise AI Onboarding — Architecture</h1>
-        <p className="aom-sub">
-          Same architecture and detail as the box+arrow diagram, now an
+        <PageHeader eyebrow="Proposed architecture — T. Madiraju" title="Enterprise AI Onboarding — Architecture" summary={<>Same architecture and detail as the box+arrow diagram, now an
           interactive React Flow graph — zoom, pan, and click any node for its
-          role in the onboarding story.
-        </p>
+          role in the onboarding story.</>} />
       </div>
 
       <div className="aom-panel">

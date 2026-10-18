@@ -81,6 +81,9 @@ Last runtime audit (slightly stale): ~38 unique violations on 164 rendered route
 - [ ] Replace the remaining bespoke back-link implementations with `BackLink` (done: Learning lab, Privilege MCP Learning, Intent Binding; left: telemetry, LLM test, m2m, st-back, plp)
 - [ ] Re-count pages still using their own header at the end (121 page files had an `<h1>` at the start; grep for `<h1` in `pages/` and `components/*Page*`, minus those now using `<PageHeader`)
 
+- [x] Batch 4: flat eyebrow + title + lede pages (Resource Server Placement and Checkpoint, Gateway Enforcement Map, Orchestration SDK explainer, Delegation Chain Value, DaVinci explainer, Agent Onboarding Mermaid, Agentic Access Console, Group Policy Board)
+- [ ] Remaining ~70 pages on their own header: mostly consoles/tools and toolbar-style headers (LLM Gateway, Tracing, Telemetry, Transaction Trace, Run Report, Server Topology, Use Case Launcher …). Decision needed: a toolbar-style PageHeader (actions slot) or leave tool pages alone
+
 ### Consistency not started
 - [x] Buttons, shape pass (PR 4): every `*-btn` / `*-button` family base rule uses the shared `--btn-radius` (5–10px near-misses) and `--btn-weight`; nine primary-action buttons that the blue sweep had turned Ping blue are Ping Red again (Configuration Save, setup wizard, run/export, diagram Simulate/Next …); Delegated Commerce navy `#09234b` → Core Dark and danger `#a32620` → `#aa0005`
 - [ ] Buttons, class consolidation: JSX still uses ~20 family class names. The families are small and already token-based, so swapping to `btn btn-primary` is low value; do it only when touching a page. Note: `cur-btn` is the Cursor IDE mock (vendor chrome, exempt) and `dc-` is two unrelated prefixes (Demo Config, Delegated Commerce)

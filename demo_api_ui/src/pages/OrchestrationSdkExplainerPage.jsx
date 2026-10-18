@@ -17,6 +17,7 @@
 // cost. If a sample here stops matching its source file, fix the sample.
 import FlowDiagram from "../components/FlowDiagram";
 import "./OrchestrationSdkExplainerPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 // The three ways a DaVinci flow can reach a user, all three live in this app.
 // `route` is null for the one that has no page of its own (it IS the app login).
@@ -140,15 +141,11 @@ if (err && 'error' in err) {
 export default function OrchestrationSdkExplainerPage() {
   return (
     <div className="osx-page">
-      <p className="osx-eyebrow">DaVinci SDK</p>
-      <h1 className="osx-title">DaVinci SDK</h1>
-      <p className="osx-lede">
-        A DaVinci flow can reach a user three ways, and only one of them lets you render the
+      <PageHeader eyebrow="DaVinci SDK" title="DaVinci SDK" summary={<>A DaVinci flow can reach a user three ways, and only one of them lets you render the
         screens. With <code className="osx-code-inline">@forgerock/davinci-client</code> the flow
         hands you <strong>collectors</strong> &mdash; a description of what it needs next &mdash;
         and you decide what that looks like. The flow stays editable in DaVinci; your app does not
-        ship a release to follow it.
-      </p>
+        ship a release to follow it.</>} />
 
       {/* The working page, above everything else. This lesson used to open with
           the three-mode comparison, whose Widget card links out — so the first
