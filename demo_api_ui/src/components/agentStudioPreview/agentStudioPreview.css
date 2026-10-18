@@ -70,7 +70,7 @@
 }
 
 .asp-root.asp-root--discovery .asp-banner {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #055560;
   color: #f2fcfd;
   border: none;
@@ -81,7 +81,7 @@
 }
 
 .asp-root.asp-root--discovery .asp-tab {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery {
@@ -137,7 +137,7 @@
   color: var(--asp-accent);
   background: var(--asp-accent-wash);
   border: 1px solid var(--asp-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 8px 16px;
   flex: 1 1 auto;
 }
@@ -155,7 +155,7 @@
   color: var(--asp-ink);
   font: 700 12.5px inherit;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   box-shadow: var(--asp-shadow);
 }
@@ -180,7 +180,7 @@
   color: var(--asp-ink-2);
   font: 700 12.5px inherit;
   padding: 9px 16px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   box-shadow: var(--asp-shadow);
 }
@@ -234,7 +234,7 @@
   gap: 14px;
   background: var(--asp-panel);
   border: 1px solid var(--asp-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 13px 16px;
   box-shadow: var(--asp-shadow);
   flex-wrap: wrap;
@@ -262,7 +262,7 @@
   font-size: var(--font-size-xs);
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 .asp-badge--governed,
@@ -286,7 +286,7 @@
   color: var(--asp-ink);
   font: 700 13px inherit;
   padding: 8px 16px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 .asp-btn:hover {
@@ -316,7 +316,7 @@
 }
 .asp-gapcard h3 {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: var(--font-size-md);
 }
 .asp-gapcard p {
   margin: 0 0 10px;
@@ -329,7 +329,7 @@
   font-size: var(--font-size-xs);
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--asp-bad-fill);
   color: var(--asp-bad);
   border: 1px solid var(--asp-bad-border);

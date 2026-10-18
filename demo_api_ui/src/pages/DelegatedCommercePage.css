@@ -23,7 +23,7 @@
   background: var(--th-bg-card);
   color: var(--dc-ink);
   border: 1px solid var(--dc-line);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
 }
 
 .dc-hero {
@@ -162,7 +162,7 @@
   margin: 7px 0 14px;
   padding: 11px;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
@@ -188,7 +188,7 @@
 .dc-trace { overflow: hidden; }
 
 .dc-modal-copy { color: var(--th-text); font-weight: 600; line-height: 1.5; }
-.dc-scope { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0; padding: 14px; border: 1px solid var(--th-border); border-radius: 8px; color: var(--th-text); }
+.dc-scope { display: flex; gap: 12px; align-items: flex-start; margin: 12px 0; padding: 14px; border: 1px solid var(--th-border); border-radius: var(--radius-lg); color: var(--th-text); }
 .dc-scope input { margin-top: 4px; }
 .dc-scope strong, .dc-scope small { display: block; }
 .dc-scope small { margin-top: 5px; color: var(--th-text-muted); }

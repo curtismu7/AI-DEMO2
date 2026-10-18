@@ -12,7 +12,7 @@
 .ba-nomatch-card {
   border: 2px solid var(--brand-warning);
   border-left-width: 5px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 14px 16px;
   background: var(--brand-white);
   color: var(--brand-dark-gray);

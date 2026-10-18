@@ -13,7 +13,7 @@
   margin: 0 auto 2rem;
   background: #ffffff;
   border: 1px solid #e0e2e4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 24px;
   overflow-x: auto;
   box-shadow: var(--shadow-sm);
@@ -34,7 +34,7 @@
   margin: 0 auto 2rem;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px 20px;
   box-shadow: var(--shadow-sm);
 }
@@ -54,7 +54,7 @@
   border: 1px solid #fecaca;
   color: #aa0005;
   padding: 16px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .p266-arch-spec-section,
@@ -63,7 +63,7 @@
   margin: 0 auto 1.5rem;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 22px 26px;
 }
 
@@ -100,7 +100,7 @@
   color: #051727;
   padding: 6px 10px;
   background: #fcfcfc;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   align-self: start;
 }
 

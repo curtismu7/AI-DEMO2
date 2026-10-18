@@ -41,7 +41,7 @@
 .aitp-body {
   background: #fff;
   border: 1px solid #e0e2e4;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 20px;
 }
 
@@ -66,7 +66,7 @@
 .aitp-claims-col {
   background: #f0fdfa;
   border: 1px solid #ccfbf1;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 16px;
 }
 
@@ -116,7 +116,7 @@
   color: #fff;
   border: none;
   padding: 10px 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
@@ -132,7 +132,7 @@
   border: 1px solid #fecaca;
   color: #aa0005;
   padding: 16px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-bottom: 16px;
   font-size: var(--font-size-body);
   line-height: 1.5;
@@ -147,7 +147,7 @@
 .aitp-learning {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 18px;
   margin-top: 20px;
 }
@@ -170,7 +170,7 @@
 
 .aitp-token-rail {
   border: 1px solid #bbf7d0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: #f9fdf9;
   padding: 12px;
   min-height: 200px;

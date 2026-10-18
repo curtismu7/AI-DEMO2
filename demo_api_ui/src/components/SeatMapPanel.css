@@ -47,7 +47,7 @@
 .smp-legend {
   display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: center;
   margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--th-border, #e0e3ee);
-  font-size: 10px; color: var(--th-text-muted, #5b6178);
+  font-size: var(--font-size-3xs); color: var(--th-text-muted, #5b6178);
 }
 .smp-sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
 .smp-summary { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--th-border, #e0e3ee); font-size: 12.5px; }

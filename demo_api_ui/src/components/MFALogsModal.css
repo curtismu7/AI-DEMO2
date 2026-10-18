@@ -366,7 +366,7 @@
 .logs-detail-json::-webkit-scrollbar-thumb,
 .logs-modal-detail::-webkit-scrollbar-thumb {
   background: #cdd1d4;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .logs-list::-webkit-scrollbar-thumb:hover,

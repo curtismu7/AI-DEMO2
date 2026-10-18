@@ -4,7 +4,7 @@
   gap: 12px;
   padding: 8px 12px;
   background: #f7f8f8;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid #e0e2e4;
 }
 
@@ -85,11 +85,11 @@
 .compact .step {
   width: 20px;
   height: 20px;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
 }
 
 .compact .completeLabel {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   margin-left: 2px;
 }
 
@@ -106,6 +106,6 @@
   .step {
     width: 22px;
     height: 22px;
-    font-size: 10px;
+    font-size: var(--font-size-3xs);
   }
 }

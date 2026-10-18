@@ -2,7 +2,7 @@
   width: 100%;
   overflow: auto;
   border: 1px solid var(--rfp-border, #cdd1d4);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--rfp-card, #fff);
   min-height: 560px;
 }

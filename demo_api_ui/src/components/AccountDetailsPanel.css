@@ -7,7 +7,7 @@
 .adp-panel {
   position: fixed;
   box-shadow: 0 4px 12px rgba(0, 0, 0, 0.2);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: #fff;
   display: flex;
@@ -78,7 +78,7 @@
   color: white;
   width: 28px;
   height: 28px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--font-size-body);
   font-weight: bold;
@@ -156,7 +156,7 @@
   gap: 8px;
   background: white;
   border: 1px solid #e0e2e4;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 12px;
 }
 
@@ -417,7 +417,7 @@
 
   .adp-label,
   .adp-detail-label {
-    font-size: 10px;
+    font-size: var(--font-size-3xs);
     margin-bottom: 2px;
   }
 
@@ -450,7 +450,7 @@
 .adp-rfc-item {
   color: #60a5fa;
   font-family: inherit;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   cursor: help;
   border-bottom: 1px dotted #12538d;
   padding-bottom: 1px;

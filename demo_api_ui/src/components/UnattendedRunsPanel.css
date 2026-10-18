@@ -34,7 +34,7 @@
   font: inherit;
   font-size: var(--font-size-2xs);
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border-strong, #c3cdd9);
   background: var(--th-bg-card, #fff);
   color: var(--th-text, var(--th-text));
@@ -60,7 +60,7 @@
 
 .uarp-row {
   border: 1px solid var(--th-border, #dbe2ea);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card, #fff);
   /* Amber stripe: the same signal the Autonomous badge carries on the rail. */
   box-shadow: inset 3px 0 0 #a1620a;
@@ -79,7 +79,7 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .uarp-open:hover { background: var(--th-bg-inset, #eff0f1); }
 .uarp-open:focus-visible { outline: 2px solid var(--th-border-strong, #c3cdd9); outline-offset: -2px; }

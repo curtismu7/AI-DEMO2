@@ -69,7 +69,7 @@
   font-size: var(--font-size-xs); font-weight: 600; letter-spacing: 0.02em;
   color: #1a73e8;
   background: rgba(26, 115, 232, 0.08);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 5px 12px;
 }
 .anp-empty-dot {

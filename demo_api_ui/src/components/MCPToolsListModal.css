@@ -35,7 +35,7 @@
 
 .mcp-tools-modal-content {
   background: var(--modal-body-bg);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 25px 80px rgba(0, 0, 0, 0.25);
   max-width: 600px;
   width: 90%;
@@ -89,7 +89,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition:
     background-color 0.2s,
     color 0.2s;
@@ -114,7 +114,7 @@
   border: 1px solid var(--th-border-strong);
   background: var(--modal-body-bg);
   color: var(--modal-body-text);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-body);
   outline: none;
   transition:
@@ -179,7 +179,7 @@
 }
 
 .mcp-tool-icon {
-  font-size: 16px;
+  font-size: var(--font-size-md);
 }
 
 .mcp-tool-description {
@@ -214,7 +214,7 @@
   background-color: var(--th-status-info-bg);
   color: var(--th-status-info-text);
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   font-weight: 500;
   border: 1px solid var(--th-status-info-border);
@@ -263,7 +263,7 @@
   color: var(--app-primary-blue-text, #fff);
   border: none;
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-body);
   font-weight: 500;
   cursor: pointer;
@@ -290,7 +290,7 @@
 
 .mcp-tools-list::-webkit-scrollbar-thumb {
   background-color: var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: background-color 0.2s;
 }
 
@@ -307,7 +307,7 @@
   }
 
   .mcp-tools-modal-header h2 {
-    font-size: 16px;
+    font-size: var(--font-size-md);
   }
 
   .mcp-tool-name {

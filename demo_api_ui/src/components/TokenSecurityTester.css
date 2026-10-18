@@ -32,7 +32,7 @@
   gap: 8px;
   background: #fffbeb;
   border: 1px solid #fde68a;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 10px 12px;
   margin-bottom: 16px;
   font-size: var(--font-size-2xs);
@@ -61,7 +61,7 @@
 .tst-about-scenarios {
   margin-top: 12px;
   border: 1px solid #e0e2e4;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 

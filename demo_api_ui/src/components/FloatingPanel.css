@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   box-shadow: 0 4px 16px rgba(0,0,0,0.10);
   overflow: hidden;
@@ -88,7 +88,7 @@
   color: var(--modal-header-text, #fff);
   width: 24px;
   height: 24px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--font-size-2xs);
   display: flex;
@@ -201,7 +201,7 @@
 /* Placeholder when popped out */
 .fp-placeholder {
   border: 2px dashed #909ea4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   min-height: 60px;
   display: flex;
@@ -223,9 +223,9 @@
   color: #051727;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   display: flex;
   align-items: center;
   justify-content: center;

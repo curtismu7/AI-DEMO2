@@ -129,7 +129,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   align-items: center;
   justify-content: center;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text-body);
   font-size: 0.85rem;
@@ -252,7 +252,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   align-items: center;
   margin-top: 0.65rem;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.5rem 0.9rem;
   font: inherit;
   font-size: 0.8rem;
@@ -273,7 +273,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 .luw-track > summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.45rem;
   padding: 0.55rem 0.4rem; font-size: 0.86rem; font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.05em; color: var(--th-text-body); border-radius: 6px;
+  letter-spacing: 0.05em; color: var(--th-text-body); border-radius: var(--radius-md);
 }
 .luw-track > summary::-webkit-details-marker { display: none; }
 .luw-track > summary:hover { background: var(--th-bg-card); }

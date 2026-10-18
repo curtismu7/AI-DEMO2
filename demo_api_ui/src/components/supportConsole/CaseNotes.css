@@ -15,7 +15,7 @@
   flex: 1;
   padding: 0.45rem 0.65rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   font: inherit;
@@ -23,7 +23,7 @@
 .cnotes__compose button {
   padding: 0.45rem 0.9rem;
   border: 1px solid #051727;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #051727;
   color: #fff;
   font: inherit;

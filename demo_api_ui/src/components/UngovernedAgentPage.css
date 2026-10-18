@@ -22,7 +22,7 @@
   color: var(--th-text-invert);
   background: #aa0005;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-bottom: 12px;
 }
 .ungov-header h1 {
@@ -31,7 +31,7 @@
   margin: 0 0 8px;
 }
 .ungov-subtitle {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   color: var(--th-text-body);
   margin: 0;
   max-width: 760px;
@@ -66,7 +66,7 @@
   border-radius: 10px;
   background: linear-gradient(110deg, #fff8f5, #f7f8f8 52%, #f1fbf7);
 }
-.ungov-proof-step { flex: 1; display: grid; grid-template-columns: auto 1fr; column-gap: 9px; align-items: center; padding: 10px 12px; border-radius: 8px; background: var(--th-bg-card); border: 1px solid #dce3eb; }
+.ungov-proof-step { flex: 1; display: grid; grid-template-columns: auto 1fr; column-gap: 9px; align-items: center; padding: 10px 12px; border-radius: var(--radius-lg); background: var(--th-bg-card); border: 1px solid #dce3eb; }
 .ungov-proof-step > span { grid-row: span 2; display: grid; place-items: center; width: 26px; height: 26px; border-radius: 50%; background: #0a2540; color: var(--th-text-invert); font-weight: 800; }
 .ungov-proof-step strong { font-size: var(--font-size-sm); color: var(--th-text); }
 .ungov-proof-step small { color: var(--th-text-body); font-size: 11.5px; }
@@ -94,7 +94,7 @@
 /* Comparison table */
 .ungov-table {
   border: 1px solid #e3e8ef;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 .ungov-table__head,
@@ -144,7 +144,7 @@
 }
 .ungov-demo-col {
   border: 1px solid #e3e8ef;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 18px;
   background: var(--th-bg-card);
 }
@@ -171,7 +171,7 @@
   justify-content: space-between;
   gap: 10px;
   background: #051727;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   margin: 0 0 12px;
 }
@@ -187,7 +187,7 @@
   background: #263746;
   color: #ffffff;
   border: 1px solid #263746;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   font-size: var(--font-size-2xs);
   cursor: pointer;
@@ -200,7 +200,7 @@
 /* Recent transfers widget */
 .ungov-widget {
   border: 1px solid #e3e8ef;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 .ungov-widget__head {
@@ -282,7 +282,7 @@
   font-size: 11.5px;
   font-weight: 600;
   padding: 3px 9px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 .ungov-badge--governed {
@@ -306,7 +306,7 @@
 .ungov-threat {
   border: 1px solid #e3e8ef;
   border-left: 3px solid #b42318;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   display: flex;
   flex-wrap: wrap;
@@ -360,7 +360,7 @@
 .ungov-widget__signin {
   padding: 0.25rem 0.75rem;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #051727;
   color: var(--th-text-invert);
   font-weight: 600;

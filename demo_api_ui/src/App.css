@@ -547,7 +547,7 @@
   height: var(--stack-fab-height, 44px);
   min-height: var(--stack-fab-height, 44px);
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(
     135deg,
     var(--app-primary-blue-mid) 0%,
@@ -600,7 +600,7 @@
   height: var(--stack-fab-height, 44px);
   min-height: var(--stack-fab-height, 44px);
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(
     135deg,
     var(--app-primary-blue-mid) 0%,
@@ -1178,7 +1178,7 @@
   overflow-y: auto;
   background: var(--th-bg-card);
   color: var(--th-text);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem 1.5rem 1.25rem;
   box-shadow: var(
     --modal-shadow,
@@ -1208,7 +1208,7 @@
   display: inline-block;
   background: #f0f9ff;
   border: 1px solid #e0e2e4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 6px 14px;
   font-size: 1rem;
   font-weight: 700;
@@ -1227,7 +1227,7 @@
   color: var(--th-text);
   border: 1px solid var(--th-border);
   border-left: 3px solid #12538d;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 12px;
   margin-bottom: 12px;
 }
@@ -1270,7 +1270,7 @@
   margin-top: 8px;
   background: #fffbeb;
   border: 1px solid #fcd34d;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 12px;
   font-size: 0.92rem;
   font-weight: 700;
@@ -1283,7 +1283,7 @@
   background: #fef2f2;
   border: 1px solid #fca5a5;
   border-left: 3px solid #d20e0f;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 12px;
   margin-bottom: 12px;
   font-size: 0.92rem;
@@ -1310,7 +1310,7 @@
 .otp-step-up-modal__close {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: none;
   background: transparent;
   color: var(--th-text-faint);
@@ -1442,7 +1442,7 @@
   color: var(--th-text-muted);
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition:
     color 0.15s,
     background 0.15s;
@@ -1521,7 +1521,7 @@
   overflow-y: auto;
   background: var(--th-bg-card);
   color: var(--th-text);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem 1.5rem 1.25rem;
   box-shadow: var(
     --modal-shadow,
@@ -1546,7 +1546,7 @@
 .otp-step-up-modal__close {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: none;
   background: transparent;
   color: var(--th-text-faint);
@@ -1692,7 +1692,7 @@
   gap: 10px;
   padding: 12px 16px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   cursor: pointer;
@@ -1769,7 +1769,7 @@
   min-width: 2.4rem;
   height: 1.45rem;
   padding: 0 0.35rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: #12538d;
   color: var(--th-text-invert);
   font-size: var(--font-size-3xs);
@@ -1802,7 +1802,7 @@
   color: #12538d;
   font-weight: 700;
   font-size: 0.82rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0.4rem 0.7rem;
   cursor: pointer;
   white-space: nowrap;
@@ -1952,7 +1952,7 @@
   padding: 0.6rem 0.75rem;
   background: #f0f9ff;
   border: 1px solid #e0e2e4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 0.72rem;
   color: #12538d;
   line-height: 1.45;
@@ -2127,7 +2127,7 @@
 .signin-prompt__btn {
   padding: 0.5rem 1.25rem;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--signin-accent);
   color: var(--th-text-invert);
   /* Buttons do NOT inherit font-family from body by default — without this the
@@ -2222,7 +2222,7 @@
   padding: 0.5rem 0.7rem;
   background: var(--th-code-bg);
   color: var(--th-code-text);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-2xs);
   overflow-x: auto;
 }
@@ -2252,7 +2252,7 @@
 .pi-flow-signin__input {
   padding: 0.65rem 0.8rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-family: inherit;
@@ -2275,7 +2275,7 @@
   max-width: 100%;
   padding: 0.5rem 1.25rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   /* App font with fixed-width digits; monospace is banned (uiRegression.test.js). */
@@ -2311,7 +2311,7 @@
   text-align: left;
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-family: inherit;
@@ -2401,7 +2401,7 @@
   gap: 0.75rem;
   margin-bottom: 0.9rem;
   padding: 0.7rem 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(
     90deg,
     var(--brand-dashboard-header-start, var(--th-bg-card)),

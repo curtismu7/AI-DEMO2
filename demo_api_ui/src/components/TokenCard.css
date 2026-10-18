@@ -1,7 +1,7 @@
 /* demo_api_ui/src/components/TokenCard.css */
 
 .token-card {
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.12);
   font-family: var(--font-primary);
@@ -86,7 +86,7 @@
 
 .token-card__section-title {
   font-weight: 700;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   color: #051727;
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -105,7 +105,7 @@
   background: #e7f5ff;
   color: #1971c2;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   font-weight: 600;
   font-family: var(--font-mono);
@@ -115,7 +115,7 @@
   background: #f3f0ff;
   color: #d20e0f;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   font-weight: 600;
   font-family: var(--font-mono);
@@ -179,9 +179,9 @@
 .token-card__raw-json {
   background: #f8f9fa;
   border: 1px solid #e9ecef;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 10px;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-family: var(--font-mono);
   color: #495057;
   line-height: 1.6;
@@ -205,7 +205,7 @@
   background: linear-gradient(90deg, #f0f0f0 25%, #e0e0e0 50%, #f0f0f0 75%);
   background-size: 200% 100%;
   animation: token-card-shimmer 1.4s infinite;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-bottom: 10px;
 }
 
@@ -240,7 +240,7 @@
 .token-card__opaque-pre {
   background: #f5f5f5;
   padding: 0.75rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.8rem;
   word-break: break-all;
   margin-top: 0.5rem;

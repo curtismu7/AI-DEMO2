@@ -4,7 +4,7 @@
   grid-template-columns: auto 1fr auto;
   align-items: start;
   gap: 0.7rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--th-status-warning-border);
   background: var(--th-status-warning-bg);
   padding: 0.65rem 0.75rem;
@@ -37,7 +37,7 @@
   border: 1px solid var(--th-status-warning-border);
   color: var(--th-status-warning-text);
   padding: 0.1rem 0.4rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .flag-gate__error {
@@ -54,7 +54,7 @@
   font-size: 0.75rem;
   font-weight: 600;
   padding: 0.4rem 0.7rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   white-space: nowrap;
 }
 
@@ -93,7 +93,7 @@
   font-size: 0.72rem;
   font-weight: 600;
   padding: 0.3rem 0.6rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   white-space: nowrap;
 }
 

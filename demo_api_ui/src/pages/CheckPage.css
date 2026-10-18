@@ -51,7 +51,7 @@
   background: var(--surface);
 }
 
-.chk-light { width: 11px; height: 11px; border-radius: 999px; flex: none; box-shadow: 0 0 0 3px var(--_ring, transparent); }
+.chk-light { width: 11px; height: 11px; border-radius: var(--radius-pill); flex: none; box-shadow: 0 0 0 3px var(--_ring, transparent); }
 .s-pass .chk-light { background: var(--pass); --_ring: var(--pass-bg); }
 .s-warn .chk-light { background: var(--warn); --_ring: var(--warn-bg); }
 .s-fail .chk-light { background: var(--fail); --_ring: var(--fail-bg); }
@@ -71,7 +71,7 @@
 }
 .verdict-bar .verdict { display: flex; align-items: center; gap: 13px; }
 .verdict-bar .verdict h2 { margin: 0; font-size: var(--font-size-h3); letter-spacing: -.01em; color: var(--text); }
-.verdict-bar .dot { width: 15px; height: 15px; border-radius: 999px; background: var(--idle); box-shadow: 0 0 0 4px var(--idle-bg); }
+.verdict-bar .dot { width: 15px; height: 15px; border-radius: var(--radius-pill); background: var(--idle); box-shadow: 0 0 0 4px var(--idle-bg); }
 .verdict-bar.verdict-ready .dot { background: var(--pass); box-shadow: 0 0 0 4px var(--pass-bg); }
 .verdict-bar.verdict-ready_with_warnings .dot { background: var(--warn); box-shadow: 0 0 0 4px var(--warn-bg); }
 .verdict-bar.verdict-not_ready .dot { background: var(--fail); box-shadow: 0 0 0 4px var(--fail-bg); }
@@ -150,7 +150,7 @@
 .step:last-child::after { display: none; }
 .step.s-pass::after { background: var(--pass); }
 .step .node {
-  width: 32px; height: 32px; border-radius: 999px; display: grid; place-items: center;
+  width: 32px; height: 32px; border-radius: var(--radius-pill); display: grid; place-items: center;
   font-size: var(--font-size-sm); font-weight: 700; z-index: 1; border: 2px solid var(--border-strong);
   background: var(--surface); color: var(--text);
 }
@@ -162,7 +162,7 @@
   background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius);
   box-shadow: var(--shadow); padding: 20px;
 }
-.phase-detail h3 { margin: 0 0 3px; font-size: 16px; display: flex; align-items: center; gap: 10px; color: var(--text); }
+.phase-detail h3 { margin: 0 0 3px; font-size: var(--font-size-md); display: flex; align-items: center; gap: 10px; color: var(--text); }
 .detail-head h3 { color: var(--text); }
 
 /* ---- grouped checklist ---- */
@@ -189,22 +189,22 @@
 .rail-item .n { margin-left: auto; font-family: var(--font-mono); font-size: var(--font-size-xs); font-weight: 700; color: var(--text-muted); }
 .detail-pane { background: var(--surface); color: var(--text); border: 1px solid var(--border); border-radius: var(--radius); box-shadow: var(--shadow); padding: 20px; }
 .detail-head { display: flex; align-items: center; gap: 11px; margin-bottom: 4px; }
-.detail-head h3 { margin: 0; font-size: 16px; }
+.detail-head h3 { margin: 0; font-size: var(--font-size-md); }
 
 .check-page-head { margin-bottom: 16px; }
 .check-page-head-row { display: flex; align-items: center; justify-content: space-between; gap: 12px; }
 .check-page-head h1 { margin: 0 0 6px; font-size: var(--font-size-h2); color: var(--text); }
 .check-page-sub { margin: 0; font-size: 13.5px; color: var(--text-muted); max-width: 52rem; line-height: 1.45; }
 .chk-gate-badge {
-  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: 999px;
-  font-size: 10px; font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
+  display: inline-block; margin-left: 8px; padding: 1px 7px; border-radius: var(--radius-pill);
+  font-size: var(--font-size-3xs); font-weight: 700; letter-spacing: .04em; text-transform: uppercase;
   background: var(--accent-soft); color: var(--accent); vertical-align: middle;
 }
 .chk-next { display: block; margin-top: 4px; color: var(--accent); font-weight: 600; text-align: right; }
 .chk-meta { width: 100%; margin: 8px 0 0; flex-basis: 100%; }
 .chk-meta summary { cursor: pointer; font-size: var(--font-size-2xs); color: var(--text-muted); font-weight: 600; }
 .chk-meta pre {
-  margin: 8px 0 0; padding: 10px 12px; border-radius: 8px; background: var(--surface-2);
+  margin: 8px 0 0; padding: 10px 12px; border-radius: var(--radius-lg); background: var(--surface-2);
   border: 1px solid var(--border); font-family: var(--font-mono); font-size: var(--font-size-xs);
   overflow: auto; max-height: 240px; color: var(--text); text-align: left;
 }

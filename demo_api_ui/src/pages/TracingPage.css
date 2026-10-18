@@ -76,7 +76,7 @@
 .tracing-pill {
   display: inline-block;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: var(--font-size-2xs);
   font-weight: 600;
 }
@@ -95,7 +95,7 @@
   margin-bottom: 16px;
   padding: 10px 14px;
   border: 1px solid var(--th-status-error-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-status-error-bg);
   color: var(--th-status-error-text);
   font-size: var(--font-size-body);
@@ -127,7 +127,7 @@
   min-width: 200px;
   padding: 6px 10px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   font-size: var(--font-size-sm);
 }
@@ -137,7 +137,7 @@
    convention rather than introducing theme tokens it does not otherwise use. */
 .gw-metrics {
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   padding: 12px 16px;
   margin-bottom: 24px;
@@ -201,7 +201,7 @@
 .tracing-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   margin-bottom: 24px;
 }
@@ -332,7 +332,7 @@
   padding: 12px 18px;
   border: 1px solid var(--th-border);
   border-left: 3px solid #12538d;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
 }
 .tracing-explainer summary {
@@ -446,7 +446,7 @@
   max-width: 280px;
   padding: 8px 10px;
   border: 1px solid #263746;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #051727;
   color: #ffffff;
   font-family: var(--font-primary);
@@ -572,7 +572,7 @@
 .tracing-step-card {
   padding: 14px 16px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -718,7 +718,7 @@
   margin: 0;
   padding: 10px 12px;
   background: var(--th-bg-inset);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-2xs);
   color: var(--th-text-body);
   overflow-x: auto;

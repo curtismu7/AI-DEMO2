@@ -40,14 +40,14 @@
   text-transform: uppercase;
   font-size: clamp(12px, 1vw, 14px);
   background: #141a25;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
 }
 
 .tcp-status {
   letter-spacing: 0.05em;
   font-size: clamp(12px, 1vw, 14px);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 4px 10px;
   background: #141a25;
 }
@@ -63,7 +63,7 @@
   border: 1px solid #2b3242;
   background: transparent;
   color: #ffffff;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 7px 16px;
   font-size: clamp(13px, 1.1vw, 15px);
   font-family: inherit;
@@ -161,7 +161,7 @@
   border: 1px solid #2b3242;
   background: transparent;
   color: #ffffff;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 18px;
   font-size: clamp(13px, 1.1vw, 15px);
   font-weight: 600;

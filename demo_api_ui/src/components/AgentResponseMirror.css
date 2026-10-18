@@ -1,7 +1,7 @@
 .arm-panel {
   background: var(--th-bg-card, #fff);
   border: 1px solid var(--brand-medium-gray, #e0e2e4);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin: 0 16px 0;
   overflow: hidden;
 }

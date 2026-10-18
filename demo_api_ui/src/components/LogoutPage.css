@@ -90,7 +90,7 @@
 .logout-mark {
   width: 46px;
   height: 46px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: rgba(255, 255, 255, 0.16);
   display: grid;
   place-items: center;
@@ -186,7 +186,7 @@
    class with white-on-transparent styles that wipe these buttons). */
 .logout-action {
   padding: 8px 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: var(--font-size-body);
   font-weight: 700;
   cursor: pointer;

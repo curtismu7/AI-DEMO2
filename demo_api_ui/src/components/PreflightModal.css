@@ -12,7 +12,7 @@
   font-size: var(--font-size-base);
   font-weight: 700;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 10px;
   border: 1px solid transparent;
 }
@@ -87,7 +87,7 @@
   line-height: 1.45;
   color: #12263a;
   background: #f4f7fa;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 6px 8px;
   overflow-wrap: anywhere;
 }

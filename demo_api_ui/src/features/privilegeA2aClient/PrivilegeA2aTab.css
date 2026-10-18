@@ -278,7 +278,7 @@
   resize: vertical;
   padding: 10px 12px;
   border: 1px solid var(--a2a-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--a2a-ground);
   color: var(--a2a-ink);
   font: inherit;
@@ -292,7 +292,7 @@
   min-height: 40px;
   padding: 8px 12px;
   border: 1px solid var(--a2a-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--a2a-ground);
   color: var(--a2a-ink);
   font-family: inherit;
@@ -330,7 +330,7 @@
   min-height: 36px;
   padding: 7px 13px;
   border: 1px solid var(--a2a-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--a2a-ground);
   color: var(--a2a-ink);
   font: inherit;
@@ -402,7 +402,7 @@
 .privilege-a2a__chips { display: flex; flex-wrap: wrap; gap: 0.5rem; }
 .privilege-a2a__chip {
   border: 1px solid currentColor;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: inherit;
   padding: 0.25rem 0.75rem;
@@ -424,7 +424,7 @@
   min-height: 30px;
   padding: 4px 12px;
   border: 1px solid var(--a2a-accent);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: var(--a2a-accent);
   font: inherit;
@@ -452,25 +452,25 @@
 .cur-ide .privilege-a2a__step-panel h4 { margin: 12px 0 4px; font-size: var(--font-size-sm); color: var(--a2a-muted); }
 .cur-ide .privilege-a2a__step-panel pre { white-space: pre-wrap; word-break: break-word; font-size: var(--font-size-xs); }
 .cur-ide .privilege-a2a__chain { list-style: none; margin: 0 0 14px; padding: 0; display: flex; flex-direction: column; gap: 6px; }
-.cur-ide .privilege-a2a__chain li { border: 1px solid var(--a2a-border); border-radius: 6px; padding: 6px 10px; font-size: var(--font-size-sm); }
+.cur-ide .privilege-a2a__chain li { border: 1px solid var(--a2a-border); border-radius: var(--radius-md); padding: 6px 10px; font-size: var(--font-size-sm); }
 .cur-ide .privilege-a2a__chain li + li::before { content: "↓ acts for"; display: block; font-size: var(--font-size-xs); color: var(--a2a-muted); margin: -2px 0 2px; }
 .cur-ide .privilege-a2a__step-kind { font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; font-size: var(--font-size-xs); color: var(--a2a-accent); }
 .cur-ide .privilege-a2a__trace-entry { cursor: pointer; }
 .cur-ide .privilege-a2a__trace-entry.is-selected { outline: 2px solid var(--a2a-accent); outline-offset: -2px; }
 .cur-ide .privilege-a2a__why { display: block; margin-top: 4px; font-size: var(--font-size-xs); color: var(--a2a-muted); }
-.cur-ide .privilege-a2a__walk { border: 2px solid var(--a2a-accent); border-radius: 8px; padding: 10px 12px; margin: 10px 0; font-size: var(--font-size-sm); }
+.cur-ide .privilege-a2a__walk { border: 2px solid var(--a2a-accent); border-radius: var(--radius-lg); padding: 10px 12px; margin: 10px 0; font-size: var(--font-size-sm); }
 .cur-ide .privilege-a2a__walk p { margin: 0 0 8px; }
 .cur-ide .privilege-a2a__walk button,
-.cur-ide .privilege-a2a__walk-start { border: 1px solid var(--a2a-border); border-radius: 6px; background: transparent; color: inherit; padding: 4px 10px; font: inherit; cursor: pointer; }
+.cur-ide .privilege-a2a__walk-start { border: 1px solid var(--a2a-border); border-radius: var(--radius-md); background: transparent; color: inherit; padding: 4px 10px; font: inherit; cursor: pointer; }
 .cur-ide .privilege-a2a__walk-nav { display: flex; gap: 6px; }
 .cur-ide .privilege-a2a__walk-nav button:last-child { margin-left: auto; }
 .cur-ide .privilege-a2a__breaks { display: flex; flex-wrap: wrap; gap: 6px; margin: 0 0 10px; }
-.cur-ide .privilege-a2a__break { border: 1px dashed var(--a2a-error); border-radius: 999px; background: transparent; color: var(--a2a-error); padding: 3px 10px; font: inherit; font-size: var(--font-size-xs); cursor: pointer; }
+.cur-ide .privilege-a2a__break { border: 1px dashed var(--a2a-error); border-radius: var(--radius-pill); background: transparent; color: var(--a2a-error); padding: 3px 10px; font: inherit; font-size: var(--font-size-xs); cursor: pointer; }
 .cur-ide .privilege-a2a__break:disabled { opacity: 0.5; cursor: not-allowed; }
 /* Suggested questions as pills, in the same family as the Break-it chips (they were bare square boxes). */
 .cur-ide .privilege-a2a__chips .privilege-a2a__chip {
   border: 1px solid var(--a2a-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--a2a-ink);
   padding: 4px 12px;
@@ -493,11 +493,11 @@
 .cur-ide .privilege-a2a__reel-head h3 { margin-bottom: 6px; }
 .cur-ide .privilege-a2a__reel-actions { display: flex; gap: 6px; }
 .cur-ide .privilege-a2a__reel-actions button,
-.cur-ide .privilege-a2a__calls > button { border: 1px solid var(--a2a-border); border-radius: 6px; background: transparent; color: inherit; padding: 3px 9px; font: inherit; font-size: var(--font-size-xs); cursor: pointer; }
+.cur-ide .privilege-a2a__calls > button { border: 1px solid var(--a2a-border); border-radius: var(--radius-md); background: transparent; color: inherit; padding: 3px 9px; font: inherit; font-size: var(--font-size-xs); cursor: pointer; }
 .cur-ide .privilege-a2a__reel-actions button:disabled { opacity: 0.5; cursor: not-allowed; }
 .cur-ide .privilege-a2a__run-totals { font-size: var(--font-size-sm); color: var(--a2a-muted); margin: 0 0 8px; }
 .cur-ide .privilege-a2a__calls { position: relative; display: inline-block; margin: 0 0 10px; }
-.cur-ide .privilege-a2a__calls-menu { position: absolute; left: 0; bottom: 100%; z-index: 30; list-style: none; margin: 0 0 6px; padding: 6px; width: min(460px, 80vw); max-height: 320px; overflow: auto; background: var(--a2a-surface); border: 1px solid var(--a2a-border); border-radius: 8px; box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4); }
+.cur-ide .privilege-a2a__calls-menu { position: absolute; left: 0; bottom: 100%; z-index: 30; list-style: none; margin: 0 0 6px; padding: 6px; width: min(460px, 80vw); max-height: 320px; overflow: auto; background: var(--a2a-surface); border: 1px solid var(--a2a-border); border-radius: var(--radius-lg); box-shadow: 0 10px 26px rgba(0, 0, 0, 0.4); }
 .cur-ide .privilege-a2a__calls-menu li { margin-bottom: 6px; }
 .cur-ide .privilege-a2a__calls-group { display: block; font-size: var(--font-size-xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.05em; color: var(--a2a-muted); padding: 4px 6px; }
 .cur-ide .privilege-a2a__calls-menu button[role="option"] { display: block; width: 100%; text-align: left; border: 0; background: transparent; color: inherit; padding: 5px 8px; border-radius: 5px; font: inherit; font-size: var(--font-size-sm); cursor: pointer; }
@@ -520,7 +520,7 @@
   align-self: flex-start;
   margin: 0 0 10px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--a2a-accent);
   color: #fff;
   padding: 7px 14px;
@@ -544,9 +544,9 @@
   box-shadow: 0 10px 26px rgba(0, 0, 0, 0.35);
 }
 .cur-ide .privilege-a2a__dock-bar { display: flex; align-items: center; justify-content: space-between; font-weight: 700; font-size: var(--font-size-sm); }
-.cur-ide .privilege-a2a__dock-bar button { border: 1px solid var(--a2a-border); border-radius: 6px; background: transparent; color: inherit; padding: 0 8px; cursor: pointer; }
-.cur-ide .privilege-a2a__dock textarea { width: 100%; resize: vertical; border: 1px solid var(--a2a-border); border-radius: 6px; background: var(--a2a-ground); color: var(--a2a-ink); padding: 6px 8px; font: inherit; }
-.cur-ide .privilege-a2a__dock-send { align-self: flex-end; border: 0; border-radius: 6px; background: var(--a2a-accent); color: #fff; padding: 6px 14px; font: inherit; font-weight: 700; cursor: pointer; }
+.cur-ide .privilege-a2a__dock-bar button { border: 1px solid var(--a2a-border); border-radius: var(--radius-md); background: transparent; color: inherit; padding: 0 8px; cursor: pointer; }
+.cur-ide .privilege-a2a__dock textarea { width: 100%; resize: vertical; border: 1px solid var(--a2a-border); border-radius: var(--radius-md); background: var(--a2a-ground); color: var(--a2a-ink); padding: 6px 8px; font: inherit; }
+.cur-ide .privilege-a2a__dock-send { align-self: flex-end; border: 0; border-radius: var(--radius-md); background: var(--a2a-accent); color: #fff; padding: 6px 14px; font: inherit; font-weight: 700; cursor: pointer; }
 .cur-ide .privilege-a2a__dock-send:disabled { opacity: 0.5; cursor: not-allowed; }
 
 /* The A2A page hides the global agent button: its own agent column is the agent (see PrivilegeA2aPage). */

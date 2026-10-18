@@ -162,7 +162,7 @@
   background: var(--admin-surface);
   color: var(--admin-ink);
   border: 1px solid var(--admin-line);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   transition: background 0.15s, border-color 0.15s;
 }
 

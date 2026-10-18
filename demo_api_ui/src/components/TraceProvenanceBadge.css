@@ -2,7 +2,7 @@
   display: inline-flex;
   align-items: center;
   border: 1px solid var(--th-border, #cdd1d4);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 3px 9px;
   color: var(--th-text, #263746);
   background: var(--th-bg-inset, #f7f8f8);

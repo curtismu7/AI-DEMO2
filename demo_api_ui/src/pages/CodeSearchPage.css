@@ -186,7 +186,7 @@
   color: var(--th-text);
   padding: 20px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
 }
 
@@ -207,7 +207,7 @@
   flex: 1;
   padding: 10px 12px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
   font-family: inherit;
 }
@@ -231,7 +231,7 @@
   padding: 10px 20px;
   background-color: var(--cs-accent);
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-weight: 500;
   cursor: pointer;
   font-size: var(--font-size-body);
@@ -254,7 +254,7 @@
   padding: 12px;
   background-color: var(--th-status-error-bg);
   border: 1px solid var(--th-status-error-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
 }
 
@@ -263,7 +263,7 @@
   padding: 12px;
   background-color: var(--th-status-error-bg);
   border: 1px solid var(--th-status-error-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
 }
 
@@ -271,7 +271,7 @@
   color: var(--th-text);
   padding: 20px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
 }
 
@@ -286,7 +286,7 @@
   color: var(--th-status-success-text);
   padding: 10px 12px;
   border: 1px solid var(--th-status-success-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-status-success-bg);
   font-size: var(--font-size-sm);
 }
@@ -312,7 +312,7 @@
   color: var(--th-text);
   padding: 10px 12px;
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition: all 0.2s;
   background: var(--th-bg-card);
@@ -357,7 +357,7 @@
   padding: 8px 24px;
   border: none;
   background: transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: var(--font-primary);
   font-size: var(--font-size-sm);
   font-weight: 600;

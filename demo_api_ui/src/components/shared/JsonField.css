@@ -20,7 +20,7 @@
   background: #ffffff;
   color: #051727;
   border: 1px solid #cdd1d4;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px;
   font-size: 0.75rem;
   font-family: var(--font-mono);

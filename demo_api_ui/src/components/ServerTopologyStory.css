@@ -28,7 +28,7 @@
 .sts-message.is-reverse::after { right: auto; left: 0; transform: rotate(225deg); }
 .sts-message.is-current { border-color: #388bfd; color: #388bfd; outline: 1px solid #388bfd66; }
 .sts-message.is-current::after { color: #388bfd; }
-.sts-message__label { position: absolute; top: -9px; left: 50%; max-width: 90%; padding: 2px 6px; transform: translate(-50%, -100%); border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text-body); font-size: 10px; text-align: center; white-space: nowrap; }
+.sts-message__label { position: absolute; top: -9px; left: 50%; max-width: 90%; padding: 2px 6px; transform: translate(-50%, -100%); border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text-body); font-size: var(--font-size-3xs); text-align: center; white-space: nowrap; }
 .sts-message__label small { display: block; margin-top: 2px; color: var(--th-text-muted); font: 9px var(--font-mono); }
 .sts-current-caption { margin: 8px 3px 4px; color: var(--th-text-body); font-size: var(--font-size-3xs); }
 .sts-current-caption span { color: var(--th-text-muted); }
@@ -42,8 +42,8 @@
 .sts-frame__actors span { flex: 0 0 auto; color: #388bfd; }
 .sts-frame > p { margin: 13px 0 4px; color: var(--th-text); font-size: var(--font-size-2xs); font-weight: 650; }
 .sts-frame > small { color: var(--th-status-info); font: 10px var(--font-mono); }
-.sts-frame__meta { display: flex; flex-direction: column; gap: 5px; margin-top: auto; padding-top: 10px; color: var(--th-text-muted); font-size: 10px; line-height: 1.35; }
-.sts-footnote { padding: 6px 12px 8px; border-top: 1px solid var(--th-border); color: var(--th-text-muted); font-size: 10px; }
+.sts-frame__meta { display: flex; flex-direction: column; gap: 5px; margin-top: auto; padding-top: 10px; color: var(--th-text-muted); font-size: var(--font-size-3xs); line-height: 1.35; }
+.sts-footnote { padding: 6px 12px 8px; border-top: 1px solid var(--th-border); color: var(--th-text-muted); font-size: var(--font-size-3xs); }
 
 @media (max-width: 700px) {
   .sts-controls label, .sts-controls select { flex: 1 1 100%; }

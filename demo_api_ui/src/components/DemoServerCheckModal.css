@@ -125,7 +125,7 @@
   font-family: inherit;
   background: #eff0f1;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-left: 2px;
 }
 

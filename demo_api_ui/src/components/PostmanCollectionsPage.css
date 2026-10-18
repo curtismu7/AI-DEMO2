@@ -22,7 +22,7 @@
 
 .postman-theme-toggle {
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--th-border);
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -86,7 +86,7 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1), 0 2px 4px -1px rgba(0, 0, 0, 0.06);
   transition: all 0.2s ease;
@@ -194,7 +194,7 @@
   padding: 0.25rem 0.5rem;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--th-text-body);
 }
 
@@ -247,7 +247,7 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 2rem;
   box-shadow: 0 4px 6px -1px rgba(0, 0, 0, 0.1);
 }
@@ -295,7 +295,7 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
 }
 
@@ -321,7 +321,7 @@
 .postman-guide__tips code {
   background: var(--th-code-bg);
   padding: 0.125rem 0.25rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
   font-size: 0.8em;
   color: var(--th-code-text);
@@ -336,7 +336,7 @@
 .postman-resource-link {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem;
   text-decoration: none;
   color: inherit;

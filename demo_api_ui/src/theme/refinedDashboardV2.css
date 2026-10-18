@@ -448,7 +448,7 @@
   letter-spacing: .1em;
   text-transform: uppercase;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   background: var(--rd2-surface-2, #f3f3f1);
   color: var(--rd2-ink-2, #4c4c48);
@@ -530,7 +530,7 @@
 }
 .banking-agent-panel .ba-input {
   border: 1px solid var(--rd2-line-2, #d5d5d0) !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
   background: var(--rd2-surface-2, #f3f3f1) !important;
   padding: 7px 14px !important;
   font-family: var(--font-primary) !important;
@@ -546,7 +546,7 @@
 .banking-agent-panel .ba-send-btn {
   background: var(--theme-accent, #051727) !important;
   color: #ffffff !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
   border: none !important;
 }
 .banking-agent-panel .ba-send-btn:hover {
@@ -559,14 +559,14 @@
   color: var(--theme-accent, #051727) !important;
   font-family: var(--font-primary) !important;
   font-size: .8rem !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
 }
 .banking-agent-panel .ba-action-item {
   background: var(--rd2-surface-2, #f3f3f1) !important;
   border-color: var(--rd2-line-1, #e4e4e0) !important;
   font-family: var(--font-primary) !important;
   font-size: .8rem !important;
-  border-radius: 8px !important;
+  border-radius: var(--radius-lg) !important;
   color: var(--rd2-ink-1, #111110) !important;
 }
 .banking-agent-panel .ba-action-item:hover {
@@ -615,7 +615,7 @@
 .ba-embedded-bottom-dock .ba-dock-identity__scope {
   font-family: var(--font-mono);
   font-size: .6rem; letter-spacing: .04em;
-  padding: 2px 7px; border-radius: 999px;
+  padding: 2px 7px; border-radius: var(--radius-pill);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   background: var(--rd2-surface-2, #f3f3f1);
   color: var(--rd2-ink-2, #4c4c48);
@@ -643,7 +643,7 @@
   background: var(--rd2-surface, #ffffff) !important;
   border: 1px solid var(--rd2-line-2, #d5d5d0) !important;
   color: var(--rd2-ink-1, #111110) !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
   font-family: var(--font-primary) !important;
   font-size: .8rem !important;
   font-weight: 500 !important;
@@ -657,7 +657,7 @@
   background: var(--rd2-surface-2, #f3f3f1) !important;
   border: 1px solid var(--rd2-line-1, #e4e4e0) !important;
   color: var(--rd2-ink-1, #111110) !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
   font-family: var(--font-primary) !important;
   font-size: .8rem !important;
 }
@@ -665,7 +665,7 @@
 .ba-embedded-bottom-dock .ba-input-row {
   background: var(--rd2-surface-2, #f3f3f1) !important;
   border: 1px solid var(--rd2-line-2, #d5d5d0) !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
   padding: 5px 5px 5px 16px !important;
 }
 .ba-embedded-bottom-dock .ba-input-row:focus-within {
@@ -684,7 +684,7 @@
   background: var(--theme-accent, #051727) !important;
   color: #ffffff !important;
   border: none !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
 }
 .ba-embedded-bottom-dock .ba-send-btn:hover { opacity: .88 !important; }
 
@@ -896,7 +896,7 @@
   padding: 3px 8px;
   background: color-mix(in srgb, var(--theme-accent, #051727) 10%, #ffffff);
   border: 1px solid var(--theme-accent, #051727);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-family: var(--font-mono);
   font-size: .65rem;
   letter-spacing: .04em;
@@ -1012,7 +1012,7 @@
   padding: 10px 12px;
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-2, #d5d5d0);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: var(--font-primary);
   font-size: .9rem;
   color: var(--rd2-ink-1, #111110);
@@ -1037,7 +1037,7 @@
 [data-rd-v2] .form-actions button {
   padding: 10px 20px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
@@ -1087,7 +1087,7 @@
 [data-rd-v2] .ud-token-rail__item {
   background: var(--rd2-surface, #ffffff);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px;
   margin-bottom: 8px;
   font-family: var(--font-mono);
@@ -1220,7 +1220,7 @@
   letter-spacing: .1em;
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-2, #d5d5d0);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--rd2-ink-1, #111110);
   transition: all 150ms ease-out;
 }
@@ -1265,7 +1265,7 @@
   background: var(--theme-accent, #051727);
   color: #ffffff;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
@@ -1286,7 +1286,7 @@
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   color: var(--rd2-ink-1, #111110);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
@@ -1366,7 +1366,7 @@
 [data-rd-v2] .btn {
   padding: 10px 20px;
   border: 1px solid transparent;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;

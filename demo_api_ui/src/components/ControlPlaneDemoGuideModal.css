@@ -12,7 +12,7 @@
   padding: 10px 14px;
   background: #fcfcfc;
   border: 1px solid #93c5fd;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: #051727;
   font-weight: 600;
 }
@@ -46,7 +46,7 @@
 .cpg-bonus code {
   background: #eff0f1;
   border: 1px solid #e0e2e4;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 5px;
   font-size: var(--font-size-2xs);
   color: #d20e0f;

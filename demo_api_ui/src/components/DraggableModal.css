@@ -187,7 +187,7 @@
   padding: 6px 18px;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--th-text);
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -299,7 +299,7 @@
   z-index: 9999;
   background: var(--th-bg-card);
   border: 2px dashed var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 14px;
   display: flex;
   align-items: center;

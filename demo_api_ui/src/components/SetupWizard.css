@@ -15,7 +15,7 @@
 /* Accordion step */
 .wizard-step {
   border: 1px solid #e0e2e4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 8px;
   overflow: hidden;
 }
@@ -104,7 +104,7 @@
   width: 100%;
   padding: 8px 12px;
   border: 1px solid #cdd1d4;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-body);
   box-sizing: border-box;
   background: var(--th-bg-card);
@@ -128,7 +128,7 @@
   cursor: pointer;
   color: var(--th-text);
   padding: 4px;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   line-height: 1;
 }
 .wizard-error {
@@ -142,7 +142,7 @@
   width: 100%;
   padding: 8px 12px;
   border: 1px solid #cdd1d4;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-body);
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -229,7 +229,7 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   border: 1px solid #e0e2e4;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 16px;
   font-family: inherit;
   font-size: var(--font-size-2xs);
@@ -242,7 +242,7 @@
 /* Completion screen */
 .wizard-complete-banner {
   background: #dcfce7;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 20px 24px;
   margin-bottom: 16px;
 }

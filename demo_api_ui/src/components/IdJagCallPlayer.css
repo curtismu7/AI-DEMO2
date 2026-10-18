@@ -1,7 +1,7 @@
 .ijc { color: var(--th-text); }
 .ijc-bar { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.75rem; margin-bottom: 0.75rem; }
 .ijc-toggle, .ijc-controls { display: flex; align-items: center; gap: 0.4rem; flex-wrap: wrap; }
-.ijc button { font: inherit; font-size: var(--font-size-2xs); padding: 0.3rem 0.8rem; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg-card); color: var(--th-text); cursor: pointer; }
+.ijc button { font: inherit; font-size: var(--font-size-2xs); padding: 0.3rem 0.8rem; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); cursor: pointer; }
 .ijc button:disabled { opacity: 0.45; cursor: default; }
 .ijc-toggle button[aria-pressed="true"], .ijc-play { background: var(--th-accent, #d4001e); border-color: var(--th-accent, #d4001e); color: #fff; font-weight: 600; }
 .ijc-count { color: var(--th-text-muted); font-size: var(--font-size-2xs); }
@@ -13,12 +13,12 @@
 .ijc-frame__n { font-weight: 700; color: var(--th-accent, #d4001e); }
 .ijc-frame__route { font-size: var(--font-size-3xs); color: var(--th-text-muted); }
 .ijc-frame__label { font-weight: 600; }
-.ijc-badge { font-size: var(--font-size-3xs); padding: 0 0.4rem; border: 1px dashed var(--th-border); border-radius: 999px; color: var(--th-text-muted); }
+.ijc-badge { font-size: var(--font-size-3xs); padding: 0 0.4rem; border: 1px dashed var(--th-border); border-radius: var(--radius-pill); color: var(--th-text-muted); }
 
-.ijc-seq { overflow-x: auto; border: 1px solid var(--th-border); border-radius: 8px; background: var(--th-bg-card); }
+.ijc-seq { overflow-x: auto; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
 .ijc-seq svg { min-width: 56rem; display: block; color: var(--th-text-muted); }
 .ijc-seq__actor { fill: var(--th-bg); stroke: var(--th-border); }
-.ijc-seq__actor-label { fill: var(--th-text); font-size: 11px; font-weight: 600; }
+.ijc-seq__actor-label { fill: var(--th-text); font-size: var(--font-size-xs); font-weight: 600; }
 .ijc-seq__life { stroke: var(--th-border); stroke-dasharray: 4 4; }
 .ijc-seq__band { fill: transparent; }
 .ijc-seq__row { cursor: pointer; }
@@ -26,14 +26,14 @@
 .ijc-seq__row.is-active .ijc-seq__arrow { stroke: var(--th-accent, #d4001e); stroke-width: 2.4; color: var(--th-accent, #d4001e); }
 .ijc-seq__row.is-done { opacity: 0.65; }
 .ijc-seq__arrow { stroke: currentColor; stroke-width: 1.4; }
-.ijc-seq__label { fill: var(--th-text); font-size: 11px; }
-.ijc-seq__untraced { fill: var(--th-text-muted); font-size: 10px; font-style: italic; }
+.ijc-seq__label { fill: var(--th-text); font-size: var(--font-size-xs); }
+.ijc-seq__untraced { fill: var(--th-text-muted); font-size: var(--font-size-3xs); font-style: italic; }
 
-.ijc-detail { margin-top: 0.75rem; padding: 0.9rem 1rem; border: 1px solid var(--th-border); border-radius: 8px; background: var(--th-bg-card); }
+.ijc-detail { margin-top: 0.75rem; padding: 0.9rem 1rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
 .ijc-detail h3 { margin: 0.1rem 0 0.3rem; }
 .ijc-detail__phase { margin: 0; font-size: var(--font-size-3xs); color: var(--th-text-muted); text-transform: uppercase; letter-spacing: 0.05em; }
 .ijc-detail__route { margin: 0 0 0.5rem; font-weight: 600; }
 .ijc-detail__route span { font-weight: 400; color: var(--th-text-muted); }
 .ijc-detail__source { margin: 0.5rem 0 0; font-size: var(--font-size-3xs); color: var(--th-text-muted); }
 .ijc-note { font-size: var(--font-size-2xs); font-style: italic; color: var(--th-text-muted); }
-.ijc-live pre { margin: 0.3rem 0 0; padding: 0.5rem; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg); white-space: pre-wrap; word-break: break-word; font-size: var(--font-size-3xs); }
+.ijc-live pre { margin: 0.3rem 0 0; padding: 0.5rem; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); white-space: pre-wrap; word-break: break-word; font-size: var(--font-size-3xs); }

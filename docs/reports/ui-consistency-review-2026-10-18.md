@@ -84,7 +84,8 @@ Last runtime audit (slightly stale): ~38 unique violations on 164 rendered route
 ### Consistency not started
 - [x] Buttons, shape pass (PR 4): every `*-btn` / `*-button` family base rule uses the shared `--btn-radius` (5–10px near-misses) and `--btn-weight`; nine primary-action buttons that the blue sweep had turned Ping blue are Ping Red again (Configuration Save, setup wizard, run/export, diagram Simulate/Next …); Delegated Commerce navy `#09234b` → Core Dark and danger `#a32620` → `#aa0005`
 - [ ] Buttons, class consolidation: JSX still uses ~20 family class names. The families are small and already token-based, so swapping to `btn btn-primary` is low value; do it only when touching a page. Note: `cur-btn` is the Cursor IDE mock (vendor chrome, exempt) and `dc-` is two unrelated prefixes (Demo Config, Delegated Commerce)
-- [ ] Radius and font-size: literal values (6px, 8px, 10px, 3px, 5px; 631 literal `px` font sizes) → `--radius-*` / `--font-size-*`; add a stylelint rule banning new literals
+- [x] Radius and font-size tokens (PR 5): 1,612 exact-match radii (4/6/8/12/999px) and 321 exact-match px font sizes swapped for tokens (no visual change); `src/__tests__/designTokenRatchet.test.js` pins what is left (654 radii, 2,327 font sizes; rem values deliberately not converted, they follow font scaling)
+- [ ] Burn down the token ratchet: radii with no token (3px, 5px, 10px, 7px, 9px, 14px, 20px) need a decision (add `--radius-xs` 3px / `--radius-2xl`?) and the rem long tail (0.78rem, 0.82rem …) needs a type scale decision
 - [ ] Mid blue tints still present (`#93c5fd`, `#60a5fa`, `#7dd3fc`, `#9ec1ff`, `#90a0c2`, GitHub blues in code/diff views) — pick replacements
 - [ ] Other Ping-owned pages that should ignore the vertical accent (welcome, Learning Hub, similar)
 - [ ] Status colours: success greens, warning ambers and `#a33020` negative red were left as-is

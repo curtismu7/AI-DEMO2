@@ -1,4 +1,4 @@
-.annotated-result { border: 1px solid var(--border, #d0d5dd); border-radius: 8px; padding: 12px; margin-top: 12px; }
+.annotated-result { border: 1px solid var(--border, #d0d5dd); border-radius: var(--radius-lg); padding: 12px; margin-top: 12px; }
 .ar-header { display: flex; align-items: center; gap: 12px; margin-bottom: 8px; }
 /* Decision badge styles are reused from .authz-badge in AuthzTestPage.css. */
 .ar-engine { color: #667085; font-size: var(--font-size-2xs); }
@@ -9,4 +9,4 @@
 .ar-statements { margin: 6px 0; }
 .ar-statements-title { font-weight: 600; font-size: var(--font-size-2xs); color: #344054; margin-bottom: 2px; }
 .ar-stmt-type { font-weight: 700; }
-.ar-output pre { background: #f7f8f8; padding: 8px; border-radius: 6px; overflow: auto; font-size: var(--font-size-2xs); }
+.ar-output pre { background: #f7f8f8; padding: 8px; border-radius: var(--radius-md); overflow: auto; font-size: var(--font-size-2xs); }

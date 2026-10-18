@@ -1,6 +1,6 @@
 .squeue {
   border: 1px solid var(--th-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--th-bg-inset);
   color: var(--th-text);
   padding: 0.75rem;
@@ -23,7 +23,7 @@
   font-weight: 700;
   color: var(--th-text);
   background: var(--tint, var(--th-bg-hover));
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 0.1rem 0.5rem;
 }
 .squeue__note {

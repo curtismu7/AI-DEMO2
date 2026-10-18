@@ -25,7 +25,7 @@
   font-family: var(--font-primary);
   color: #263746;
   background: #fff;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   animation: rsi-slide-up 0.3s ease-out;
 }
@@ -49,7 +49,7 @@
   text-transform: uppercase;
   background: var(--rsi-accent, #12538d);
   color: #fff;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-bottom: 0.75rem;
 }
 
@@ -99,7 +99,7 @@
   position: relative;
   width: 200px;
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 2px solid #e0e2e4;
   background: #f7f8f8;
   text-align: center;
@@ -150,7 +150,7 @@
 .rsi-node-pulse {
   position: absolute;
   inset: -2px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 2px solid var(--rsi-accent, #12538d);
   animation: rsi-pulse 1.5s ease-in-out infinite;
   pointer-events: none;
@@ -194,7 +194,7 @@
   margin: 2rem 0;
   padding: 1.5rem;
   border: 1px solid #e0e2e4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #fafbfc;
 }
 

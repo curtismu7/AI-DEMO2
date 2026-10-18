@@ -13,7 +13,7 @@
 .security-card {
   background: var(--th-bg-card);
   color: var(--th-text);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   margin-bottom: 1.5rem;
   overflow: hidden;
@@ -44,7 +44,7 @@
 .security-status {
   background: var(--th-bg-card);
   color: var(--th-text);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
@@ -62,7 +62,7 @@
   gap: 0.75rem;
   padding: 0.75rem;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-inset);
   color: var(--th-text);
 }
