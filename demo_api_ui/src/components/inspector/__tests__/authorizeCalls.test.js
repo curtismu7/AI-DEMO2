@@ -84,3 +84,9 @@ describe('authorizeCallFromRecent', () => {
     expect(c.steps[0].title).toBe('Recorded by PingOne');
   });
 });
+
+describe('authorizeCallFromRecent: no resendable input', () => {
+  it('carries no input so Resend and Edit stay disabled', () => {
+    expect(authorizeCallFromRecent({ id: 'abcdef12345', decision: 'PERMIT', requestedAt: '2026-10-17T10:00:00Z' }).input).toBeUndefined();
+  });
+});

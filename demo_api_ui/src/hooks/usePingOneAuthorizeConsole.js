@@ -1,4 +1,4 @@
-import { useState, useEffect, useMemo, useCallback } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
 import bffAxios from '../services/bffAxios';
 import { displayDecision } from '../utils/authorizeResultExplain';
 
@@ -9,23 +9,14 @@ import { displayDecision } from '../utils/authorizeResultExplain';
 export function usePingOneAuthorizeConsole({
   endpointId,
   autoPreset,
-  policiesState,
   pendingTest,
   onClearPendingTest,
   onEvaluated,
-  reel = [],
 }) {
-  // Output & execution
-  const [outputTab, setOutputTab] = useState('decision');
   const [running, setRunning] = useState(false);
-  const [err, setErr] = useState(null);
-  const [result, setResult] = useState(null);
-  const [lastTrace, setLastTrace] = useState(null);
-  const [lastParameters, setLastParameters] = useState(null);
 
   // Preset & form state
   const [preset, setPreset] = useState(autoPreset);
-  const [policyQuery, setPolicyQuery] = useState('');
 
   // Transaction preset
   const [amount, setAmount] = useState('5000');
@@ -46,19 +37,9 @@ export function usePingOneAuthorizeConsole({
     { key: '', value: '' },
   ]);
 
-  // Reel state
-  const [activeReelId, setActiveReelId] = useState(null);
-
-  const { policies } = policiesState;
-
   // Reset on endpoint/preset change
   useEffect(() => {
     setPreset(autoPreset);
-    setResult(null);
-    setErr(null);
-    setLastTrace(null);
-    setLastParameters(null);
-    setActiveReelId(null);
     onClearPendingTest?.();
   }, [endpointId, autoPreset, onClearPendingTest]);
 
@@ -66,8 +47,6 @@ export function usePingOneAuthorizeConsole({
   useEffect(() => {
     if (!pendingTest) return;
     setPreset(pendingTest.preset);
-    setResult(null);
-    setErr(null);
     const p = pendingTest.parameters;
     if (pendingTest.preset === 'transaction') {
       if (p.Amount !== undefined) setAmount(String(p.Amount));
@@ -138,13 +117,9 @@ export function usePingOneAuthorizeConsole({
   }, [preset, amount, txType, acr, userId, toolName, tokenAudience, actClientId, mcpResourceUri, hitlApproved, customRows]);
 
   // Execute with explicit parameters (allows replay)
-  const runParameters = useCallback(async (parameters) => {
+  // `usedPreset` lets Resend re-run a call under the preset it was made with.
+  const runParameters = useCallback(async (parameters, usedPreset = preset) => {
     setRunning(true);
-    setResult(null);
-    setErr(null);
-    setLastTrace(null);
-    setLastParameters(null);
-    setOutputTab('decision');
     const started = Date.now();
     try {
       const res = await bffAxios.post('/api/authorize/evaluate-endpoint', {
@@ -152,14 +127,8 @@ export function usePingOneAuthorizeConsole({
         parameters,
       });
       const elapsed = Date.now() - started;
-      setLastParameters(parameters);
-      setResult({ ...res.data, elapsedMs: elapsed });
-      setLastTrace({
-        timingsMs: elapsed,
-        error: false,
-      });
       onEvaluated?.({
-        preset,
+        preset: usedPreset,
         decision: displayDecision(res.data),
         engine: res.data.engine,
         stepUpRequired: !!res.data.stepUpRequired,
@@ -171,12 +140,7 @@ export function usePingOneAuthorizeConsole({
     } catch (e) {
       const elapsed = Date.now() - started;
       const message = e.response?.data?.message || e.response?.data?.error || e.message;
-      setErr(message);
-      setLastTrace({
-        timingsMs: elapsed,
-        error: true,
-      });
-      onEvaluated?.({ preset, error: message, parameters, elapsedMs: elapsed });
+      onEvaluated?.({ preset: usedPreset, error: message, parameters, elapsedMs: elapsed });
     } finally {
       setRunning(false);
     }
@@ -187,10 +151,12 @@ export function usePingOneAuthorizeConsole({
     runParameters(buildParameters());
   }, [runParameters, buildParameters]);
 
-  // Auto-run on pendingTest.autoRun
+  // Auto-run on pendingTest.autoRun, once per staged replay (runParameters changes with the preset).
+  const consumedRef = useRef(null);
   useEffect(() => {
-    if (!pendingTest?.autoRun || !endpointId) return;
-    runParameters(pendingTest.parameters);
+    if (!pendingTest?.autoRun || !endpointId || consumedRef.current === pendingTest) return;
+    consumedRef.current = pendingTest;
+    runParameters(pendingTest.parameters, pendingTest.preset);
   }, [pendingTest, endpointId, runParameters]);
 
   // Custom row management
@@ -207,59 +173,12 @@ export function usePingOneAuthorizeConsole({
     setCustomRows(rows => rows.filter((_, idx) => idx !== i));
   }, []);
 
-  // Select a historical reel entry
-  const selectReelEntry = useCallback((entry) => {
-    if (!entry) return;
-    // Restore form state from entry
-    if (entry.preset === 'transaction') {
-      setPreset('transaction');
-      const p = entry.parameters;
-      if (p.Amount !== undefined) setAmount(String(p.Amount));
-      if (p.TransactionType !== undefined) setTxType(p.TransactionType);
-      if (p.Acr !== undefined) setAcr(p.Acr);
-      if (p.UserId !== undefined) setUserId(p.UserId);
-    } else if (entry.preset === 'mcp') {
-      setPreset('mcp');
-      const p = entry.parameters;
-      if (p.ToolName !== undefined) setToolName(p.ToolName);
-      if (p.TokenAudience !== undefined) setTokenAudience(p.TokenAudience);
-      if (p.ActClientId !== undefined) setActClientId(p.ActClientId);
-      if (p.McpResourceUri !== undefined) setMcpResourceUri(p.McpResourceUri);
-      if (p.HitlApproved !== undefined) setHitlApproved(!!p.HitlApproved);
-      if (p.UserId !== undefined) setUserId(p.UserId);
-    } else if (entry.preset === 'custom') {
-      setPreset('custom');
-      const rows = Object.entries(entry.parameters).map(([key, value]) => ({ key, value: String(value) }));
-      rows.push({ key: '', value: '' });
-      setCustomRows(rows);
-    }
-    // Restore result + trace
-    setResult(entry.result);
-    setLastParameters(entry.parameters);
-    setLastTrace(entry.lastTrace);
-    setOutputTab('decision');
-    setActiveReelId(entry.id);
-  }, []);
-
-  // Computed
-  const decision = useMemo(() => displayDecision(result), [result]);
-
   return {
-    // Output & execution
-    outputTab,
-    setOutputTab,
     running,
-    err,
-    result,
-    lastTrace,
-    lastParameters,
-    decision,
 
     // Preset & form
     preset,
     setPreset,
-    policyQuery,
-    setPolicyQuery,
 
     // Transaction fields
     amount,
@@ -293,10 +212,5 @@ export function usePingOneAuthorizeConsole({
     run,
     runParameters,
     buildParameters,
-
-    // Reel
-    activeReelId,
-    setActiveReelId,
-    selectReelEntry,
   };
 }

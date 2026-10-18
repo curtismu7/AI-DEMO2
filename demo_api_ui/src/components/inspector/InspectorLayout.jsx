@@ -12,7 +12,7 @@ export default function InspectorLayout({
   const list = filter === 'all' ? calls : calls.filter(isProblem);
   const selected = calls.find((c) => c.id === selectedId);
   return (
-    <main className="insp">
+    <div className="insp">
       <header className="insp-hero">
         <div>
           <p className="insp-eyebrow">{eyebrow}</p>
@@ -77,6 +77,6 @@ export default function InspectorLayout({
         </aside>
         {selected && <CallDetail call={selected} calls={calls} nodeSubs={nodeSubs} onResend={onResend} onEdit={onEdit} />}
       </div>
-    </main>
+    </div>
   );
 }

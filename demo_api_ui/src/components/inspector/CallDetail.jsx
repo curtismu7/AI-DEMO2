@@ -5,12 +5,13 @@ import JsonFormView from '../shared/JsonFormView.jsx';
 import PolicyDecisionTree from '../PolicyDecisionTree.jsx';
 import EmbeddedFlowDiagram from '../EmbeddedFlowDiagram.jsx';
 import { SRC_LABEL, diffPaths, diagramConfigFromCall } from './inspectorCalls.js';
+import { useThemeOptional } from '../../context/ThemeContext';
 import './Inspector.css';
 
 const CLAIM_ORDER = ['sub', 'aud', 'scope', 'act', 'client_id', 'iat', 'exp'];
 const TIME_CLAIMS = new Set(['iat', 'exp']);
 
-export const formatTime = (ms) => new Date(ms).toLocaleTimeString();
+export const formatTime = (ms) => (Number.isFinite(ms) ? new Date(ms).toLocaleTimeString() : '—');
 
 /** Title with a break opportunity after each underscore (no HTML injection). */
 export function Wrapped({ text }) {
@@ -20,6 +21,8 @@ export function Wrapped({ text }) {
 export function Chip({ chip, className = '' }) {
   return <span className={`insp-chip ${chip.tone} ${className}`.trim()}>{chip.label}</span>;
 }
+
+const NO_RESEND = 'This call has no input that can be sent again.';
 
 const show = (v) => (typeof v === 'string' ? v : Array.isArray(v) && v.every((x) => typeof x !== 'object') ? v.join(', ') : JSON.stringify(v));
 
@@ -31,12 +34,18 @@ function Kv({ rows }) {
   );
 }
 
+/** Scrollable, themed JSON block shared by every pane. */
+function Json({ value }) {
+  const { darkMode } = useThemeOptional();
+  return <pre className={`insp-json${darkMode ? ' jh-dark' : ''}`}><JsonHighlight value={value} deep copyable /></pre>;
+}
+
 function Pane({ label, where, body }) {
   return (
     <div className="insp-pane">
       <div className="insp-pane-head"><h3>{label}</h3></div>
       {where && <p className="insp-pane-where">{where}</p>}
-      <FormJsonToggle value={body} ariaLabel={`${label} view`} defaultView="json" jsonView={<JsonHighlight value={body} deep copyable />}>
+      <FormJsonToggle value={body} ariaLabel={`${label} view`} defaultView="json" jsonView={<Json value={body} />}>
         <JsonFormView value={body} />
       </FormJsonToggle>
     </div>
@@ -68,7 +77,7 @@ function TokenCard({ tk }) {
       {tk.hidden.length > 0 && <p className="insp-hidden-note">{tk.hidden.length} claims hidden by policy: {tk.hidden.join(', ')}</p>}
       <details className="insp-more">
         <summary>All claims (JSON)</summary>
-        <pre className="insp-json"><JsonHighlight value={tk.header ? { header: tk.header, claims: tk.claims } : { claims: tk.claims }} deep copyable /></pre>
+        <Json value={tk.header ? { header: tk.header, claims: tk.claims } : { claims: tk.claims }} />
       </details>
     </article>
   );
@@ -129,6 +138,7 @@ export default function CallDetail({ call, calls, nodeSubs, onResend, onEdit }) 
   const config = useMemo(() => diagramConfigFromCall(call, nodeSubs), [call, nodeSubs]);
   const tabs = [['what', 'What happened', call.steps.length], ['io', 'Request & response'], ['tokens', 'Tokens', call.tokens.length], ['hops', 'API calls', call.hops.length], ['diagram', 'Diagram']];
   const { banner } = call;
+  const canResend = !!call.input && !call.input.partial;
 
   return (
     <section className="insp-card insp-detail">
@@ -144,8 +154,8 @@ export default function CallDetail({ call, calls, nodeSubs, onResend, onEdit }) 
           {call.corr && <span className="insp-chip src mono" title="Correlation id">{call.corr}</span>}
         </div>
         <div className="insp-actions">
-          <button type="button" className="insp-btn ghost" onClick={() => onResend(call)}>Resend</button>
-          <button type="button" className="insp-btn ghost" onClick={() => onEdit(call)}>Edit &amp; resend</button>
+          <button type="button" className="insp-btn ghost" disabled={!canResend} title={canResend ? undefined : NO_RESEND} onClick={() => onResend(call)}>Resend</button>
+          <button type="button" className="insp-btn ghost" disabled={!call.input} title={call.input ? undefined : NO_RESEND} onClick={() => onEdit(call)}>Edit &amp; resend</button>
           <label className="insp-toggle">Compare with{' '}
             <select value={other ? other.id : ''} onChange={(e) => { setCmp({ forId: call.id, id: e.target.value }); if (e.target.value) setTab('io'); }}>
               <option value="">Choose a call…</option>

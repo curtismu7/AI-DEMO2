@@ -23,7 +23,7 @@ const S = {
     background: active ? '#fee2e2' : '#f8fafc',
     color: active ? '#3730a3' : '#334155',
   }),
-  back: { background: 'none', border: 0, padding: 0, marginBottom: '14px', color: '#3730a3', fontSize: '13px', fontWeight: 600, cursor: 'pointer' },
+  back: { background: 'none', border: 0, padding: 0, marginBottom: '14px', color: 'var(--th-text)', fontSize: '13px', fontWeight: 600, cursor: 'pointer' },
 };
 
 // ---------------------------------------------------------------------------
@@ -54,6 +54,8 @@ export default function PingOneAuthorizePage() {
   const [selectedId, setSelectedId] = useState('');
   const [recent, setRecent] = useState({ decisions: [], error: null, loading: false });
   const [pendingTest, setPendingTest] = useState(null);
+  // Decisions made on the console, kept here so they survive the ?tab= round trip.
+  const [records, setRecords] = useState([]);
   // Live policy tree: fetched once, shown read-only in the console and used for the decision-trace diagram.
   const [policiesState, setPoliciesState] = useState({ policies: [], loading: true, error: null, note: null });
 
@@ -164,7 +166,7 @@ export default function PingOneAuthorizePage() {
   };
 
   return (
-    <div style={S.root}>
+    <div style={tab === 'console' ? { ...S.root, padding: 0 } : S.root}>
       {tab !== 'console' && (
         <button type="button" style={S.back} onClick={() => setTab('console')}>← Back to Authorize Inspector</button>
       )}
@@ -198,7 +200,9 @@ export default function PingOneAuthorizePage() {
           endpointId={selectedId}
           endpoints={endpoints}
           onEndpointChange={setSelectedId}
-          simulated={data?.simulatedMode}
+          loadState={loading ? 'loading' : error ? 'error' : 'live'}
+          records={records}
+          setRecords={setRecords}
           policiesState={policiesState}
           pendingTest={pendingTest}
           onClearPendingTest={clearPendingTest}

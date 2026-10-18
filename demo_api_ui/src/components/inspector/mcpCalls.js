@@ -24,6 +24,15 @@ function toolStep(frames, errorMsg) {
   return { title: 'Ran the tool', status: ok('done'), text: 'The MCP server ran the tool and returned a result.' };
 }
 
+/** A 200 can still carry a refusal: gateway showcase DENY, PingOne `error: true`, rsFilter 401. */
+function refusalOf(b) {
+  if (!b || typeof b !== 'object') return null;
+  const code = Number(b.status);
+  if (!b.denied && b.error !== true && !(code >= 400)) return null;
+  const text = [b.message, b.error, b.reason].find((x) => typeof x === 'string' && x) ?? `HTTP ${b.status ?? 200} refusal`;
+  return { label: code >= 400 ? String(code) : b.denied ? 'Denied' : 'Error', text };
+}
+
 /** @returns {import('./inspectorCalls').InspectorCall} */
 export function mcpCallFromStore(entry) {
   const d = entry.detail ?? {};
@@ -34,13 +43,16 @@ export function mcpCallFromStore(entry) {
   const insp = body.inspector ?? {};
   const required = insp.requiredScopesHint ?? body.requiredScopesHint;
   const exchanged = tokenEvents.find((e) => e.id === 'exchanged-token');
-  const okStatus = entry.status >= 200 && entry.status < 300;
+  const httpOk = entry.status >= 200 && entry.status < 300;
+  const refusal = httpOk ? refusalOf(d.response) : null;
+  const errorMsg = entry.errorMsg ?? refusal?.text ?? null;
+  const okStatus = httpOk && !refusal;
 
   const hops = [{
     dir: src === 'you' ? 'Browser → BFF' : 'AI agent → BFF',
     call: src === 'you' ? 'POST /api/mcp/inspector/invoke' : 'POST /api/mcp/tool',
     what: src === 'you' ? 'You sent the tool call to the backend.' : 'The AI agent sent its chosen tool to the backend.',
-    status: okStatus ? ok(String(entry.status)) : err(String(entry.status || 'network')),
+    status: okStatus ? ok(String(entry.status)) : err(refusal?.label ?? String(entry.status || 'network')),
     ms: entry.duration ?? null,
     request: d.params ?? {},
     response: entry.result ?? { error: entry.errorMsg },
@@ -73,7 +85,7 @@ export function mcpCallFromStore(entry) {
   if (init) {
     steps.push({ title: 'Opened the MCP session', status: ok('open'), text: `${init.serverInfo?.name ?? 'MCP server'}, protocol ${init.protocolVersion ?? 'unknown'}.` });
   }
-  steps.push(toolStep(frames, entry.errorMsg));
+  steps.push(toolStep(frames, errorMsg));
 
   const chips = [];
   if (insp.tokenExchangeApplied) chips.push(idle('Token exchange applied'));
@@ -86,9 +98,9 @@ export function mcpCallFromStore(entry) {
     title: entry.tool,
     src,
     ms: entry.duration ?? null,
-    status: okStatus ? ok(`${entry.status} OK`) : err(String(entry.status || 'network')),
+    status: okStatus ? ok(`${entry.status} OK`) : err(refusal?.label ?? String(entry.status || 'network')),
     chips,
-    banner: okStatus ? null : { tone: 'err', title: 'Call failed', text: entry.errorMsg ?? `HTTP ${entry.status}` },
+    banner: okStatus ? null : { tone: 'err', title: 'Call failed', text: errorMsg ?? `HTTP ${entry.status}` },
     corr: null,
     request: frames?.request
       ? { label: 'JSON-RPC request', where: 'BFF → MCP server', body: frames.request }

@@ -19,7 +19,7 @@ const c1 = {
     { status: { tone: 'ok', label: 'ok' }, title: 'Step one', text: 't1' },
     { status: { tone: 'ok', label: 'ok' }, title: 'Step two', text: 't2', kv: [['aud', 'x']] },
   ],
-  audit: { Who: [['userSub', 'u1']] }, logs: ['line one'],
+  audit: { Who: [['userSub', 'u1']] }, logs: ['line one'], input: { tool: 'get_my_accounts', args: {} },
 };
 const c2 = {
   ...base, id: 'c2', at: 1700000100000, kind: 'tools/call', title: 'get_sensitive_account_details', status: { tone: 'err', label: '403' },

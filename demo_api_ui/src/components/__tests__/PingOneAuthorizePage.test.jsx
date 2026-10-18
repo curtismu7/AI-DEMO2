@@ -1,6 +1,6 @@
 // demo_api_ui/src/components/__tests__/PingOneAuthorizePage.test.jsx
 import React from 'react';
-import { render, screen } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import bffAxios from '../../services/bffAxios';
 import PingOneAuthorizePage from '../PingOneAuthorizePage';
 
@@ -12,10 +12,14 @@ vi.mock('../../services/bffAxios', () => ({
   },
 }));
 
+window.ResizeObserver = window.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
+vi.mock('../BulkDecisionPanel', () => ({ __esModule: true, default: () => <div>bulk panel</div> }));
+
 let mockSearch = '';
+const mockSetSearch = vi.fn((fn) => { mockSearch = fn(new URLSearchParams(mockSearch)).toString(); });
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
-  useSearchParams: () => [new URLSearchParams(mockSearch), vi.fn()],
+  useSearchParams: () => [new URLSearchParams(mockSearch), mockSetSearch],
   Link: ({ to, children }) => <a href={to}>{children}</a>,
 }));
 
@@ -120,5 +124,31 @@ describe('PingOneAuthorizePage (full page wiring)', () => {
     mockSearch = 'tab=bulk';
     render(<PingOneAuthorizePage />);
     expect(await screen.findByText('← Back to Authorize Inspector')).toBeInTheDocument();
+  });
+
+  test('mode chip is Live when loaded (even when the engine is simulated) and Unavailable when the live-policy fetch fails', async () => {
+    const { unmount } = render(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Authorize Inspector' });
+    expect(screen.getByText('Live', { selector: '.insp-chip' })).toBeInTheDocument();
+    unmount();
+    bffAxios.get.mockImplementation((url) => (url === '/api/authorize/pingone-live-policy'
+      ? Promise.reject(new Error('boom'))
+      : Promise.resolve({ data: { policies: [], decisions: [] } })));
+    render(<PingOneAuthorizePage />);
+    expect(await screen.findByText('Unavailable', { selector: '.insp-chip' })).toBeInTheDocument();
+  });
+
+  test('calls survive a round trip to a More tools tab', async () => {
+    bffAxios.post.mockResolvedValue({ data: { decision: 'PERMIT', decisionId: 'd1', pingoneResponse: { decision: 'PERMIT', statements: [] }, pingoneRequest: { body: {} } } });
+    const { rerender } = render(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Authorize Inspector' });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByRole('heading', { name: /transfer \$5,000/ });
+
+    mockSearch = 'tab=bulk';
+    rerender(<PingOneAuthorizePage />);
+    fireEvent.click(await screen.findByText('← Back to Authorize Inspector'));
+    rerender(<PingOneAuthorizePage />);
+    await waitFor(() => expect(screen.getByRole('heading', { name: /transfer \$5,000/ })).toBeInTheDocument());
   });
 });

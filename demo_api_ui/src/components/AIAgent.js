@@ -10974,9 +10974,9 @@ export default function BankingAgent({
                             type="button"
                             className="ba-insp-btn ba-insp-btn--gateway"
                             onClick={() => navigate("/agent-gateway-capabilities")}
-                            title="Open the Agent Gateway Inspector"
+                            title="Open the Agent Gateway Tester"
                           >
-                            Agent Gateway Inspector
+                            Agent Gateway Tester
                           </button>
                           <button
                             type="button"
@@ -11592,9 +11592,9 @@ export default function BankingAgent({
                       type="button"
                       className="ba-insp-btn ba-insp-btn--gateway"
                       onClick={() => navigate("/agent-gateway-capabilities")}
-                      title="Open the Agent Gateway Inspector"
+                      title="Open the Agent Gateway Tester"
                     >
-                      Agent Gateway Inspector
+                      Agent Gateway Tester
                     </button>
                     <button
                       type="button"

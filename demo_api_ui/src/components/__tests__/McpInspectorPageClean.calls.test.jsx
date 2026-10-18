@@ -110,4 +110,28 @@ describe('MCP Inspector calls', () => {
     renderPage();
     expect(screen.getByText('Filled from an earlier result')).toBeInTheDocument();
   });
+
+  it('a failed or refused invoke does not flip the chip; a tools-load failure does', () => {
+    sourceState.current = { ...makeSource(), banner: { message: 'Denied by policy', loginUrl: null }, toolsBanner: null };
+    const { unmount } = renderPage();
+    expect(screen.getByText('Live')).toBeInTheDocument();
+    unmount();
+    sourceState.current = { ...makeSource(), banner: { message: 'x', loginUrl: null }, toolsBanner: { message: 'x', loginUrl: null } };
+    renderPage();
+    expect(screen.getByText('Unavailable')).toBeInTheDocument();
+  });
+
+  it('Resend and Edit are disabled for a call whose tool this source does not list', () => {
+    getCalls().length = 0;
+    appendMcpCall('ghost_tool', 200, 5, {}, null, { src: 'you', params: {} });
+    sourceState.current = makeSource();
+    renderPage();
+    expect(screen.getByRole('button', { name: 'Resend' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Edit/ })).toBeDisabled();
+  });
+
+  it('Input schema renders in a scrollable, themed JSON container', () => {
+    renderPage();
+    expect(document.querySelector('details pre.insp-json')).toBeTruthy();
+  });
 });

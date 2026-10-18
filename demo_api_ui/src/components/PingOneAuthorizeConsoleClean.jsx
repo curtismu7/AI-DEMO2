@@ -2,7 +2,7 @@
 import React, { useState, useCallback, useMemo, useRef } from 'react';
 import { usePingOneAuthorizeConsole } from '../hooks/usePingOneAuthorizeConsole';
 import InspectorLayout from './inspector/InspectorLayout';
-import { ok, warn } from './inspector/inspectorCalls';
+import { ok, err, idle } from './inspector/inspectorCalls';
 import { authorizeCallFromResult, authorizeCallFromRecent } from './inspector/authorizeCalls';
 
 const RELATED = [
@@ -56,11 +56,12 @@ function PolicyList({ nodes }) {
 }
 
 export default function PingOneAuthorizeConsoleClean({
-  endpointId, endpoints = [], onEndpointChange, simulated,
+  endpointId, endpoints = [], onEndpointChange, loadState = 'live',
   policiesState, pendingTest, onClearPendingTest,
   recent = [], onIncludeRecent, onRan,
+  // Lifted to the page so calls survive a trip to the "More tools" tabs.
+  records, setRecords,
 }) {
-  const [records, setRecords] = useState([]);
   const [pickedId, setPickedId] = useState(null);
   const [includeRecent, setIncludeRecent] = useState(false);
   const policies = policiesState.policies;
@@ -74,10 +75,10 @@ export default function PingOneAuthorizeConsoleClean({
     setPickedId(null);
     onRan?.();
     if (e.result) persistLastRun(policiesRef.current, e.result);
-  }, [onRan]);
+  }, [onRan, setRecords]);
 
   const h = usePingOneAuthorizeConsole({
-    endpointId, autoPreset: 'transaction', policiesState, pendingTest, onClearPendingTest, onEvaluated,
+    endpointId, autoPreset: 'transaction', pendingTest, onClearPendingTest, onEvaluated,
   });
 
   const calls = useMemo(() => {
@@ -90,7 +91,7 @@ export default function PingOneAuthorizeConsoleClean({
 
   const selectedId = pickedId ?? calls[0]?.id ?? null;
 
-  const onResend = useCallback((call) => { h.runParameters(call.input.parameters); }, [h]);
+  const onResend = useCallback((call) => { h.runParameters(call.input.parameters, call.input.preset); }, [h]);
   const onEdit = useCallback((call) => {
     const { preset, parameters: p } = call.input || {};
     if (!preset) return;
@@ -183,7 +184,7 @@ export default function PingOneAuthorizeConsoleClean({
       title="Authorize Inspector"
       lede="Every decision PingOne Authorize made for this demo: the parameters sent, the verdict and statements returned, the token used, and the API calls behind it."
       related={RELATED}
-      mode={simulated === false ? ok('Live') : warn('Simulated')}
+      mode={loadState === 'loading' ? idle('Loading') : loadState === 'error' ? err('Unavailable') : ok('Live')}
       source={{
         label: 'Endpoint',
         value: endpointId,

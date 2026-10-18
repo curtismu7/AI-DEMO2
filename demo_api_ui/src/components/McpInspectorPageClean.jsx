@@ -4,6 +4,7 @@ import { useSearchParams } from 'react-router-dom';
 import { useInspectorSource } from '../hooks/useInspectorSource';
 import { useInspectorFields } from '../context/InspectorFieldContext';
 import JsonHighlight from './shared/JsonHighlight';
+import { useThemeOptional } from '../context/ThemeContext';
 import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import InspectorLayout from './inspector/InspectorLayout';
@@ -136,6 +137,7 @@ function AddServerForm({ source }) {
 }
 
 function McpInspectorPageClean() {
+  const { darkMode } = useThemeOptional();
   const [searchParams, setSearchParams] = useSearchParams();
   const requested = searchParams.get('source');
   const activeSource = SOURCES.some((s) => s.value === requested) ? requested : 'banking';
@@ -170,7 +172,13 @@ function McpInspectorPageClean() {
     const base = isCalls
       ? source.tools.map((t) => apiCallFromTracker(t._call))
       : source.mcpHistory.map(mcpCallFromStore);
-    if (!pending) return base;
+    // Resend/Edit need a tool this source still lists; otherwise the call carries no input.
+    const resendable = base.map((c) => {
+      if (!c.input || source.tools.some((x) => x[toolKey] === c.input.tool)) return c;
+      const { input: _drop, ...rest } = c;
+      return rest;
+    });
+    if (!pending) return resendable;
     const elicitation = {
       id: ELICIT_ID,
       at: Date.now(),
@@ -197,7 +205,7 @@ function McpInspectorPageClean() {
       hops: [{ dir: 'Browser → BFF', call: 'tools/call', what: 'Waiting for your answer to the MCP server.', status: warn('paused'), ms: null, request: null, response: null }],
       steps: [{ title: 'The MCP server asked you to confirm', status: warn('Waiting for you'), text: 'The tools/call is paused until you answer.' }],
     };
-    return [elicitation, ...base];
+    return [elicitation, ...resendable];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isCalls, source.tools, source.mcpHistory, pending, source.selectedTool, toolKey]);
 
@@ -238,7 +246,7 @@ function McpInspectorPageClean() {
   }, [source]);
 
   const toolsSource = source.toolsSource;
-  const mode = source.banner ? err('Unavailable') : source.loadingTools ? idle('Loading') : toolsSource === 'local_catalog' ? warn('Local fallback') : ok('Live');
+  const mode = source.toolsBanner ? err('Unavailable') : source.loadingTools ? idle('Loading') : toolsSource === 'local_catalog' ? warn('Local fallback') : ok('Live');
 
   const tool = source.selectedTool;
   const matches = tool ? getMatchingFields(Object.keys(source.schemaProps)) : {};
@@ -316,7 +324,7 @@ function McpInspectorPageClean() {
       {tool && (tool.inputSchema || tool.schema) && (
         <details>
           <summary>Input schema</summary>
-          <pre><JsonHighlight value={tool.inputSchema || tool.schema} deep copyable /></pre>
+          <pre className={`insp-json${darkMode ? ' jh-dark' : ''}`}><JsonHighlight value={tool.inputSchema || tool.schema} deep copyable /></pre>
         </details>
       )}
       {source.tools.length > 0 && (

@@ -130,9 +130,11 @@ export function useInspectorSource(sourceKey) {
   const [busy, setBusy] = useState(false);
   const [loadingTools, setLoadingTools] = useState(false);
   const [lastInvoke, setLastInvoke] = useState(null);
-  const [lastTiming, setLastTiming] = useState(null);
   const [mcpHistory, setMcpHistory] = useState(getCalls());
   const [banner, setBanner] = useState(null);
+  // The subset of `banner` that came from loading tools/profiles; a failed invoke must not touch it.
+  const [toolsBanner, setToolsBanner] = useState(null);
+  const setLoadBanner = useCallback((b) => { setBanner(b); setToolsBanner(b); }, []);
   const [servers, setServers] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState('');
@@ -181,14 +183,14 @@ export function useInspectorSource(sourceKey) {
       setSelectedProfileId((prev) => selectId || prev || data.defaultProfileId || '');
     } catch (e) {
       if (profilesReqRef.current !== reqId) return;
-      setBanner({ message: formatAxiosError(e, 'Failed to load server profiles'), loginUrl: null });
+      setLoadBanner({ message: formatAxiosError(e, 'Failed to load server profiles'), loginUrl: null });
     } finally {
       // ponytail: clearing here shows one frame of the empty state before
       // loadTools() re-raises the flag. Thread the selected id back out and
       // hand the flag straight over if that frame ever reads as a flicker.
       if (profilesReqRef.current === reqId) setLoadingTools(false);
     }
-  }, [mode, config.profilesEndpoint]);
+  }, [mode, config.profilesEndpoint, setLoadBanner]);
 
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
 
@@ -216,7 +218,7 @@ export function useInspectorSource(sourceKey) {
     if (!profileId && !error) return;
     if (profileId) setSelectedProfileId(profileId);
     if (error) {
-      setBanner({ message: error, loginUrl: null });
+      setLoadBanner({ message: error, loginUrl: null });
       suppressNextBannerRef.current = true;
     }
     params.delete('profile');
@@ -233,7 +235,7 @@ export function useInspectorSource(sourceKey) {
     const suppressBanner = suppressNextBannerRef.current;
     suppressNextBannerRef.current = false;
     setLoadingTools(true);
-    if (!suppressBanner) setBanner(null);
+    if (!suppressBanner) setLoadBanner(null);
     try {
       const url = mode === 'profiles' && selectedProfileId !== defaultProfileId
         ? `${config.endpoint}?profile=${encodeURIComponent(selectedProfileId)}`
@@ -248,12 +250,12 @@ export function useInspectorSource(sourceKey) {
       setServers(data.servers || []);
       setToolsSource(data._source || null);
       setParamDefaults(data.paramDefaults || {});
-      if (!suppressBanner) setBanner(bannerFromPayload(data));
+      if (!suppressBanner) setLoadBanner(bannerFromPayload(data));
       setSelectedTool(null);
       setLastInvoke(null);
       setParamValues({});
     } catch (e) {
-      if (!suppressBanner) setBanner({
+      if (!suppressBanner) setLoadBanner({
         message: formatAxiosError(e, `Failed to load ${sourceKey} tools`),
         loginUrl: e.response?.data?.loginUrl || null,
       });
@@ -261,7 +263,7 @@ export function useInspectorSource(sourceKey) {
     } finally {
       setLoadingTools(false);
     }
-  }, [sourceKey, config, mode, selectedProfileId, defaultProfileId]);
+  }, [sourceKey, config, mode, selectedProfileId, defaultProfileId, setLoadBanner]);
 
   useEffect(() => {
     loadTools();
@@ -352,7 +354,6 @@ export function useInspectorSource(sourceKey) {
       // it rather than letting the Status chip claim "200 OK" over an error body.
       const payloadBanner = bannerFromPayload(data);
       setBanner(payloadBanner);
-      setLastTiming({ ms, error: Boolean(payloadBanner) });
     } catch (e) {
       const ms = Date.now() - t0;
       const failedTool = execTool[config.toolKey];
@@ -361,7 +362,6 @@ export function useInspectorSource(sourceKey) {
         src: 'you', params, frames: errBody?.frames, tokenEvents: errBody?.tokenEvents, response: errBody,
       });
       setLastInvoke(e.response?.data || { error: formatAxiosError(e) });
-      setLastTiming({ ms, error: true });
       setBanner({
         message: formatAxiosError(e, 'Invoke failed'),
         loginUrl: e.response?.data?.loginUrl || null,
@@ -424,11 +424,11 @@ export function useInspectorSource(sourceKey) {
     busy,
     loadingTools,
     lastInvoke,
-    lastTiming,
     mcpHistory,
     schemaProps,
     requiredParams,
     banner,
+    toolsBanner,
     servers,
     profiles,
     selectedProfileId,

@@ -76,3 +76,21 @@ describe('apiCallFromTracker', () => {
     expect(apiCallFromTracker({ ...call, response: { status: 500, body: null } }).status.tone).toBe('err');
   });
 });
+
+describe('mcpCallFromStore: refusals inside HTTP 200', () => {
+  const run = (response) => mcpCallFromStore({ ...base, detail: { src: 'you', params: {}, response } });
+  it.each([
+    ['gateway showcase DENY', { denied: true, status: 403, error: 'Denied by policy' }, '403', 'Denied by policy'],
+    ['PingOne error true', { error: true, message: 'PingOne said no' }, 'Error', 'PingOne said no'],
+    ['rsFilter 401', { status: 401, message: 'bad token' }, '401', 'bad token'],
+  ])('%s renders as an error with a banner and failing last step', (_n, response, label, text) => {
+    const c = run(response);
+    expect(c.status).toEqual(err(label));
+    expect(c.banner).toMatchObject({ tone: 'err', text });
+    expect(c.steps.at(-1).status.tone).toBe('err');
+    expect(c.steps.at(-1).text).toBe(text);
+  });
+  it('a plain 200 stays ok', () => {
+    expect(run({ result: { a: 1 }, status: 200 }).status.tone).toBe('ok');
+  });
+});
