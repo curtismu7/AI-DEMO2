@@ -347,7 +347,7 @@ router.post('/id-jag/cancel', (req, res) => {
 // password step can't finish (MFA, a policy screen) returns {fallback:true} and
 // the SPA starts the ordinary redirect login instead.
 const { makePiFlowHandlers, piFlowProvider } = require('../services/piFlowDriver');
-const piFlowHandlers = makePiFlowHandlers({ providerConfig: oauthUserConfig, knownRedirectOrigins: KNOWN_REDIRECT_ORIGINS });
+const piFlowHandlers = makePiFlowHandlers({ providerConfig: oauthUserConfig, knownRedirectOrigins: KNOWN_REDIRECT_ORIGINS, allowSecondFactor: true });
 
 router.post('/pi-flow/credentials', piFlowHandlers.handleCredentialsStep);
 
@@ -2006,6 +2006,7 @@ router.post('/agent-permissions', (req, res) => {
 });
 
 module.exports = router;
+module.exports.piFlowHandlers = piFlowHandlers;
 module.exports.sanitizePostLoginReturnPath = sanitizePostLoginReturnPath;
 module.exports.storeLoginHint = storeLoginHint;
 module.exports.reseedIfVerticalMismatch = reseedIfVerticalMismatch;

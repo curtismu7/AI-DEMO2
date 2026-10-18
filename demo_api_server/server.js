@@ -531,7 +531,8 @@ morgan.token('safe-referrer', (req) => {
   }
 });
 app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :safe-url HTTP/:http-version" :status :res[content-length] ":safe-referrer" ":user-agent"', {
-  skip: (req) => POLL_ROUTES.has(req.path),
+  // the CIBA login poll carries a per-request id in its path, so it is matched by prefix (log quieting only)
+  skip: (req) => POLL_ROUTES.has(req.path) || req.path.startsWith('/api/auth/ciba/login/poll/'),
 }));
 
 // Capture the session middleware instance so the langchain chat-WS proxy
@@ -1476,7 +1477,7 @@ app.use('/api/id-jag-playground', require('./routes/idJagPlayground'));
 app.use('/api/consent-mock-phone', require('./routes/consentMockPhone'));
 app.use('/api/aic-demo', require('./routes/aicDemo'));
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
-app.use('/api/auth/ciba/login', require('./routes/cibaLogin')); // pre-auth passwordless login (before the step-up router)
+app.use('/api/auth/ciba/login', require('./routes/cibaLogin')); // CIBA second-factor approval of a parked password sign-in (flag-gated; before the step-up router)
 app.use('/api/auth/ciba', cibaRoutes);
 app.use('/api/auth', parRequestRoutes);
 app.use('/api/auth', dpopRequestRoutes);
