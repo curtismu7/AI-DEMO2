@@ -1409,7 +1409,9 @@ app.get('/api/sdk-demo/config', (req, res) => {
             redirectUri = `${proto}://${host}/sdk-login/callback`;
         }
         res.json({
-            wellknown:   getDiscoveryEndpoint(),
+            // These demos use PingOne apps (public SDK client / DaVinci), so always PingOne's discovery —
+            // the selected provider's (PF in PF mode: an in-cluster hostname) can't serve their client id.
+            wellknown:   getDiscoveryEndpoint('pingone'),
             clientId:    configStore.getEffective('pingone_sdk_demo_client_id'),
             redirectUri,
             scope:       configStore.getEffective('pingone_sdk_demo_scope'),
@@ -1439,7 +1441,9 @@ app.get('/api/davinci-demo/config', (req, res) => {
             redirectUri = `${proto}://${host}/davinci-login/callback`;
         }
         res.json({
-            wellknown:   getDiscoveryEndpoint(),
+            // These demos use PingOne apps (public SDK client / DaVinci), so always PingOne's discovery —
+            // the selected provider's (PF in PF mode: an in-cluster hostname) can't serve their client id.
+            wellknown:   getDiscoveryEndpoint('pingone'),
             clientId:    davinciConfig.login.appId,
             redirectUri,
             flowVersion: configStore.getEffective('davinci_login_flow_version') || 'v1',
