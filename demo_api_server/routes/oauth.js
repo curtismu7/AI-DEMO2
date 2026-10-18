@@ -204,11 +204,10 @@ router.get('/login', (req, res) => {
     // - A forced re-auth DROPS the stored hint — force means a different admin
     //   may be signing in (pinned test; deviation from spec §4, which said
     //   force still sends the hint).
-    // - The stored hint is PINGONE-only: PingFederate BINDS the flow to the
-    //   hint, so a stored username would lock the admin login to whoever
-    //   signed in last. PF keeps its demouser default.
+    // - Sent to PingFederate too (user decision 2026-10-18: prefill wins). PF
+    //   BINDS the flow to the hint, so another admin on the same machine uses
+    //   the forced re-auth above, which never carries it.
     const storedAdminHint = req.query.force === 'true'
-      || (configStore.getOAuthProvider?.() || 'pingone') === 'pingfederate'
       ? null : (() => {
         const v = configStore.getEffective('last_login_hint_admin');
         return (typeof v === 'string' && v.trim()) ? v.trim() : undefined;
