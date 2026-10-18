@@ -112,6 +112,59 @@ export async function trackedUpdate(call, before, desired, state, label, revertL
 
 export const summarize = ({ done, pending }) => `\nSTATE AFTER RUN\n applied: ${done.length ? done.join('; ') : 'none'}\n not applied: ${pending.length ? pending.join('; ') : 'none'}\n (use the REVERT lines printed above to undo)`;
 
+/** Everything after auth: read, back up, plan, and (with apply) perform. `call(method, path, body) -> {status, j}` is injected so tests can drive the real flow. */
+export async function runEnable({ call, out, which = 'both', apply = false, log = console.log, now = () => new Date(), fsApi = fs, userId = '83572007-b2c7-4862-8197-dc225a9fb8e1' }) {
+  const must = (r, what) => { if (r.status >= 300) throw new Error(`${what} failed: ${r.status} ${JSON.stringify(r.j).slice(0, 300)}`); return r.j; };
+  fsApi.mkdirSync(out, { recursive: true });
+  const ROLE_IDS = { user: userId };
+  const list = must(await call('GET', '/applications'), 'GET applications')._embedded.applications;
+  if (which !== 'user') ROLE_IDS.admin = pickByName(list, 'Demo AI App - Admin Login').id;
+  const roles = which === 'both' ? ['user', 'admin'] : [which];
+  const currentApps = []; const assigns = {}; const stamp = now();
+  for (const role of roles) {
+    const app = must(await call('GET', `/applications/${ROLE_IDS[role]}`), `GET ${role} app`);
+    currentApps.push({ role, app });
+    assigns[app.id] = must(await call('GET', `/applications/${app.id}/flowPolicyAssignments`), 'GET flowPolicyAssignments')._embedded?.flowPolicyAssignments || [];
+    const so = must(await call('GET', `/applications/${app.id}/signOnPolicyAssignments`), 'GET signOnPolicyAssignments')._embedded?.signOnPolicyAssignments;
+    if (!Array.isArray(so)) throw new Error(`signOnPolicyAssignments for ${mask(app.id)} missing from response`);
+    fsApi.writeFileSync(path.join(out, backupName(app.id, stamp)), JSON.stringify({ app, flowPolicyAssignments: assigns[app.id], signOnPolicyAssignments: so }, null, 2), { flag: 'wx' });
+  }
+  const fps = must(await call('GET', '/flowPolicies'), 'GET flowPolicies')._embedded?.flowPolicies || [];
+  const ops = planCibaLogin(currentApps, assigns, fps);
+  const nameOf = (id) => currentApps.find((c) => c.app.id === id)?.app.name;
+  const origFiles = Object.fromEntries(currentApps.map((c) => [c.app.id, path.join(out, originalBackup(fsApi.readdirSync(out), c.app.id))]));
+  log(`Backups: ${out}/<appid>.<time>.backup.json (never overwritten; the EARLIEST per app is the ORIGINAL)`);
+  for (const n of ops.notes) log('\n' + n);
+  log(`\nPLAN (${ops.length} op${ops.length === 1 ? '' : 's'}, additive only):`);
+  for (const x of ops) log(' -', x.op === 'update-app' ? `PUT app ${mask(x.target)} '${nameOf(x.target)}': add CIBA grant -> grantTypes [${x.body.grantTypes}]` : `POST flowPolicyAssignment on ${mask(x.target)} '${nameOf(x.target)}': ${mask(x.body.flowPolicy.id)} priority ${x.body.priority}`);
+  if (!apply) { log('\nDRY RUN: nothing changed. Re-run with --apply to perform.'); return { ops, state: null, failed: false }; }
+
+  let failed = false;
+  const state = { done: [], pending: ops.map((x) => `${x.op} ${mask(x.target)}`) };
+  try {
+    for (const x of ops) {
+      const label = `${x.op} ${mask(x.target)}`;
+      if (x.op === 'update-app') {
+        const before = currentApps.find((c) => c.app.id === x.target).app;
+        await trackedUpdate(call, before, x.body, state, label, `REVERT: PUT /applications/${x.target} with the "app" object from ${origFiles[x.target]} (minus id, environment, createdAt, updatedAt, _links); grantTypes back to [${before.grantTypes}]`, log);
+      } else {
+        const r = must(await call('POST', `/applications/${x.target}/flowPolicyAssignments`, x.body), 'POST flowPolicyAssignment');
+        log(`created assignment ${r.id}; REVERT (instruction only, never run by this script): DELETE /applications/${x.target}/flowPolicyAssignments/${r.id}`);
+        state.done.push(`${label} (APPLIED, UNVERIFIED)`); state.pending.shift();
+        const now = must(await call('GET', `/applications/${x.target}/flowPolicyAssignments`), 'read-back assignments')._embedded?.flowPolicyAssignments || [];
+        if (!now.some((a) => a.id === r.id && a.flowPolicy?.id === x.body.flowPolicy.id)) throw new Error(`READ-BACK MISMATCH on assignment ${r.id}`);
+        state.done[state.done.length - 1] = `${label} (applied, verified)`;
+        log('verified:', mask(x.target), mask(x.body.flowPolicy.id));
+      }
+    }
+  } catch (e) {
+    failed = true; log('ERROR: ' + e.message);
+  } finally {
+    log(summarize(state));
+  }
+  return { ops, state, failed };
+}
+
 // ---- CLI ----
 const mask = (s) => (s ? String(s).slice(0, 8) + '…' : s);
 
@@ -159,51 +212,8 @@ async function main() {
     return;
   }
 
-  const ROLE_IDS = { user: '83572007-b2c7-4862-8197-dc225a9fb8e1' };
-  const list = must(await call('GET', '/applications'), 'GET applications')._embedded.applications;
-  if (which !== 'user') ROLE_IDS.admin = pickByName(list, 'Demo AI App - Admin Login').id;
-  const roles = which === 'both' ? ['user', 'admin'] : [which];
-  const currentApps = []; const assigns = {}; const stamp = new Date();
-  for (const role of roles) {
-    const app = must(await call('GET', `/applications/${ROLE_IDS[role]}`), `GET ${role} app`);
-    currentApps.push({ role, app });
-    assigns[app.id] = must(await call('GET', `/applications/${app.id}/flowPolicyAssignments`), 'GET flowPolicyAssignments')._embedded?.flowPolicyAssignments || [];
-    const so = must(await call('GET', `/applications/${app.id}/signOnPolicyAssignments`), 'GET signOnPolicyAssignments')._embedded?.signOnPolicyAssignments;
-    if (!Array.isArray(so)) throw new Error(`signOnPolicyAssignments for ${mask(app.id)} missing from response`);
-    fs.writeFileSync(path.join(out, backupName(app.id, stamp)), JSON.stringify({ app, flowPolicyAssignments: assigns[app.id], signOnPolicyAssignments: so }, null, 2), { flag: 'wx' });
-  }
-  const fps = must(await call('GET', '/flowPolicies'), 'GET flowPolicies')._embedded?.flowPolicies || [];
-  const ops = planCibaLogin(currentApps, assigns, fps);
-  const nameOf = (id) => currentApps.find((c) => c.app.id === id)?.app.name;
-  const origFiles = Object.fromEntries(currentApps.map((c) => [c.app.id, path.join(out, originalBackup(fs.readdirSync(out), c.app.id))]));
-  console.log(`Backups: ${out}/<appid>.<time>.backup.json (never overwritten; the EARLIEST per app is the ORIGINAL)`);
-  for (const n of ops.notes) console.log('\n' + n);
-  console.log(`\nPLAN (${ops.length} op${ops.length === 1 ? '' : 's'}, additive only):`);
-  for (const x of ops) console.log(' -', x.op === 'update-app' ? `PUT app ${mask(x.target)} '${nameOf(x.target)}': add CIBA grant -> grantTypes [${x.body.grantTypes}]` : `POST flowPolicyAssignment on ${mask(x.target)} '${nameOf(x.target)}': ${mask(x.body.flowPolicy.id)} priority ${x.body.priority}`);
-  if (!o.apply) { console.log('\nDRY RUN: nothing changed. Re-run with --apply to perform.'); return; }
-
-  const state = { done: [], pending: ops.map((x) => `${x.op} ${mask(x.target)}`) };
-  try {
-    for (const x of ops) {
-      const label = `${x.op} ${mask(x.target)}`;
-      if (x.op === 'update-app') {
-        const before = currentApps.find((c) => c.app.id === x.target).app;
-        await trackedUpdate(call, before, x.body, state, label, `REVERT: PUT /applications/${x.target} with the "app" object from ${origFiles[x.target]} (minus id, environment, createdAt, updatedAt, _links); grantTypes back to [${before.grantTypes}]`);
-      } else {
-        const r = must(await call('POST', `/applications/${x.target}/flowPolicyAssignments`, x.body), 'POST flowPolicyAssignment');
-        console.log(`created assignment ${r.id}; REVERT (instruction only, never run by this script): DELETE /applications/${x.target}/flowPolicyAssignments/${r.id}`);
-        state.done.push(`${label} (APPLIED, UNVERIFIED)`); state.pending.shift();
-        const now = must(await call('GET', `/applications/${x.target}/flowPolicyAssignments`), 'read-back assignments')._embedded?.flowPolicyAssignments || [];
-        if (!now.some((a) => a.id === r.id && a.flowPolicy?.id === x.body.flowPolicy.id)) throw new Error(`READ-BACK MISMATCH on assignment ${r.id}`);
-        state.done[state.done.length - 1] = `${label} (applied, verified)`;
-        console.log('verified:', mask(x.target), mask(x.body.flowPolicy.id));
-      }
-    }
-  } catch (e) {
-    process.exitCode = 1; console.error('ERROR:', e.message);
-  } finally {
-    console.log(summarize(state));
-  }
+  const r = await runEnable({ call, out, which, apply: o.apply });
+  if (r.failed) process.exitCode = 1;
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((e) => { console.error('ERROR:', e.message); process.exit(1); });
