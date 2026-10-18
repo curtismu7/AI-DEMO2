@@ -40,6 +40,13 @@ function skipChoice(kind) {
   if (btn) fireEvent.click(btn);
 }
 
+// Click through the choice screen, then let the chosen path's flow fetch settle
+// (it starts on click now, not in begin()).
+async function chooseAndSettle(kind) {
+  skipChoice(kind);
+  await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+}
+
 const ON = { PINGONE_USER_AUTHORIZE_PI_FLOW: 'true', oauth_provider: 'pingone' };
 
 describe('PiFlowSignInModal', () => {
@@ -66,9 +73,7 @@ describe('PiFlowSignInModal', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
     await act(async () => { await Promise.resolve(); });
     await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
-    skipChoice('passkey');
-    // the chosen path opens its flow now (not in begin()): let that fetch settle
-    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+    await chooseAndSettle('passkey');
   }
 
   // The modal's default step is the device-only (passwordless) form. Tests that
@@ -256,9 +261,7 @@ describe('PiFlowSignInModal', () => {
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
     await act(async () => { await Promise.resolve(); });
     await act(async () => { navigateToCustomerOAuthForceLogin('/dashboard'); });
-    skipChoice('passkey');
-    // the chosen path opens its flow now (not in begin()): let that fetch settle
-    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+    await chooseAndSettle('passkey');
     fireEvent.click(await screen.findByRole('button', { name: 'Use your password instead' }));
     await waitFor(() => expect(screen.getByLabelText('Password')).toBeInTheDocument());
     fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
@@ -438,9 +441,7 @@ describe('PiFlowSignInModal', () => {
       await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
       await act(async () => { await Promise.resolve(); });
       await act(async () => { navigateToAdminOAuthLogin('/admin'); });
-    skipChoice('password');
-    // the chosen path opens its flow now (not in begin()): let that fetch settle
-    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+    await chooseAndSettle('password');
     }
 
     test('admin flag on: opens the PASSWORD form (username+password then MFA), no passwordless param', async () => {
@@ -486,9 +487,7 @@ describe('PiFlowSignInModal', () => {
       // until the config chain has settled before dispatching.
       await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
       await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
-    skipChoice('passkey');
-    // the chosen path opens its flow now (not in begin()): let that fetch settle
-    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+    await chooseAndSettle('passkey');
       expect(await screen.findByLabelText('Username')).toBeInTheDocument();
     });
 
@@ -628,9 +627,7 @@ describe('PiFlowSignInModal', () => {
       await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
       await act(async () => { await Promise.resolve(); });
       await act(async () => { navigateToAdminOAuthLogin('/admin'); });
-    skipChoice('password');
-    // the chosen path opens its flow now (not in begin()): let that fetch settle
-    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+    await chooseAndSettle('password');
       // Admin defaults to the password form (password-first, then MFA).
       fireEvent.change(await screen.findByLabelText('Password'), { target: { value: 'pw' } });
       fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demoAdmin' } });
@@ -815,18 +812,14 @@ async function mountAndClickLocal() {
   await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
   await act(async () => { await Promise.resolve(); });
   await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
-  skipChoice('passkey');
-  // the chosen path opens its flow now (not in begin()): let that fetch settle
-  await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+  await chooseAndSettle('passkey');
 }
 async function mountAndClickAdminLocal() {
   render(<PiFlowSignInModal />);
   await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
   await act(async () => { await Promise.resolve(); });
   await act(async () => { navigateToAdminOAuthLogin('/admin'); });
-  skipChoice('password');
-  // the chosen path opens its flow now (not in begin()): let that fetch settle
-  await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+  await chooseAndSettle('password');
 }
 
 function stubLocation() {

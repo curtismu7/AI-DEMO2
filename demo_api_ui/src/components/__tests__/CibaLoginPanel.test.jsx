@@ -131,6 +131,22 @@ describe('CibaLoginPanel', () => {
     expect(screen.getByRole('alert')).toHaveTextContent(/not available/i);
   });
 
+  test('two synchronous channel clicks issue exactly ONE start POST', async () => {
+    let release;
+    setup({ start: () => new Promise((r) => { release = r; }) });
+    fireEvent.change(screen.getByLabelText(/username or email/i), { target: { value: 'demo' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Continue' }));
+    const email = screen.getByRole('button', { name: 'Email' });
+    const sms = screen.getByRole('button', { name: 'Text message' });
+    // Same tick, no re-render between: `disabled` cannot save us, only a ref guard can.
+    act(() => { email.click(); email.click(); sms.click(); });
+    const starts = () => global.fetch.mock.calls.filter(([u]) => String(u).includes('/login/start')).length;
+    expect(starts()).toBe(1);
+    release(res(START));
+    await flush();
+    expect(starts()).toBe(1);
+  });
+
   test('use a password instead calls onUsePassword', () => {
     const props = setup();
     fireEvent.click(screen.getByRole('button', { name: 'Use a password instead' }));

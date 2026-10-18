@@ -25,6 +25,9 @@ export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack
   const runRef = useRef(0); // bumping this invalidates every in-flight poll/timer
   const timersRef = useRef([]);
   const headingRef = useRef(null);
+  // Synchronous double-start guard: state (`busy`) is stale between two events in
+  // the same tick, and every start sends a real message + burns a rate-limit slot.
+  const startingRef = useRef(false);
 
   const stop = useCallback(() => {
     runRef.current += 1;
@@ -46,6 +49,7 @@ export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack
 
   const poll = (run, authReqId, intervalMs, deadline) => {
     const t = setTimeout(async () => {
+      timersRef.current = timersRef.current.filter((x) => x !== t); // fired: don't accumulate
       if (run !== runRef.current) return;
       try {
         const res = await fetch(`${apiBase()}/api/auth/ciba/login/poll/${authReqId}`, { credentials: "include" });
@@ -71,7 +75,8 @@ export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack
   };
 
   const start = async (ch) => {
-    if (busy) return;
+    if (startingRef.current) return;
+    startingRef.current = true;
     stop();
     const run = runRef.current;
     setChannel(ch);
@@ -106,6 +111,7 @@ export default function CibaLoginPanel({ role, onSignedIn, onUsePassword, onBack
     } catch {
       if (run === runRef.current) fail("Could not send the approval link. Please try again.");
     } finally {
+      startingRef.current = false;
       setBusy(false);
     }
   };
