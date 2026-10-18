@@ -32,4 +32,5 @@ it('returns decision and gwAuditTrail on the ok:false JSON', async () => {
   expect(res.body.httpStatus).toBe(403);
   expect(res.body.decision).toBe('DENY');
   expect(res.body.gwAuditTrail).toEqual(TRAIL);
+  expect(res.body.rawInboundToken).toBe('tok');
 });

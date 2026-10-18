@@ -109,7 +109,10 @@ export function mcpCallFromStore(entry) {
     response: frames?.response
       ? { label: 'JSON-RPC response', where: 'MCP server → BFF', body: frames.response }
       : { label: 'Result', body: entry.result ?? { error: entry.errorMsg } },
-    tokens: tokensFromEvents(tokenEvents),
+    tokens: tokensFromEvents(tokenEvents).map((t) => {
+      const raw = t.raw ?? (t.label === exchanged?.label ? (frames?.initializeRequest?.params?.agentToken ?? frames?.request?.params?.agentToken) : undefined);
+      return raw ? { ...t, raw } : t;
+    }),
     hops,
     steps,
     input: { tool: entry.tool, params: d.params },

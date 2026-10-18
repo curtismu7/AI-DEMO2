@@ -22,6 +22,14 @@ function statusOf({ rateLimited, ok: isOk, decision, httpStatus, paused }) {
   return decision ? idle(decision) : ok('OK');
 }
 
+function claimsOf(jwt) {
+  try { return JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; }
+}
+
+function sentView(raw) {
+  return { label: 'Token sent to the gateway', role: 'The delegated token the BFF presented to the gateway.', alg: null, rfc: null, status: ok('Sent'), claims: claimsOf(raw), hidden: [], header: null, raw };
+}
+
 function claimsView(introspection) {
   const { email, ...claims } = introspection;
   return {
@@ -113,7 +121,7 @@ function build(n) {
     corr: n.correlationId || null,
     request: { label: 'tools/call request', where: c.entry, body: { tool: n.tool, args: n.args } },
     response: { label: 'Gateway response', where: 'Gateway → ' + c.entry.split(' → ')[0], body: n.response ?? n.rawResponse ?? null },
-    tokens: [...tokensFromEvents(n.tokenEvents), ...(n.introspection ? [claimsView(n.introspection)] : [])],
+    tokens: [...tokensFromEvents(n.tokenEvents), ...(n.rawInboundToken ? [sentView(n.rawInboundToken)] : []), ...(n.introspection ? [claimsView(n.introspection)] : [])],
     hops: hopsFor({ ...c, response: n.response ?? n.rawResponse ?? null }),
     steps: stepsFor(c),
     audit: auditOf(n.mcpAudit && { ...n.mcpAudit, statements: n.statements }),
@@ -150,7 +158,7 @@ export function gatewayCallFromTest(res, { tool, args, at }) {
     id, at, src: 'you', ms: res.durationMs, tool, args, ok: res.ok, httpStatus: res.httpStatus, message: res.message,
     noTrail: !res.gwAuditTrail, decision: a.decision ?? res.decision, backend: a.backend, method: a.method, parameters: a.parameters, rawResponse: a.rawResponse, statements: a.statements,
     resolver: a.resolver, introspection: t.introspection, mcpAudit: t.mcpAudit, filterChain: t.filterChain, stoppedAt: t.denyingFilter,
-    tokenEvents: res.tokenEvents, response: body,
+    tokenEvents: res.tokenEvents, rawInboundToken: res.rawInboundToken, response: body,
   });
 }
 

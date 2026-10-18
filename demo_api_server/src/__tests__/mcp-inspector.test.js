@@ -293,7 +293,7 @@ describe('MCP Inspector routes', () => {
     expect(res.body.tokenEvents).toEqual(tokenEvents);
   });
 
-  it('POST /api/mcp/inspector/invoke never returns the raw bearer in frames (success and 502)', async () => {
+  it('POST /api/mcp/inspector/invoke returns the raw bearer in frames (teaching surface; success and 502)', async () => {
     const token = bearerToken(['read']);
     expect(token).toMatch(/^eyJ/);
     mockResolveMcpAccessTokenWithEvents.mockImplementation(async () => ({ token, userSub: 'u', tokenEvents: [] }));
@@ -302,8 +302,7 @@ describe('MCP Inspector routes', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ tool: 'get_my_accounts', params: {} });
     expect(ok.status).toBe(200);
-    expect(ok.body.frames.initializeRequest.params.agentToken).toBe('(redacted)');
-    expect(JSON.stringify(ok.body)).not.toContain('eyJ');
+    expect(ok.body.frames.initializeRequest.params.agentToken).toBe(token);
 
     mockCall.mockRejectedValueOnce(Object.assign(new Error('boom'), {
       frames: { initializeRequest: { params: { agentToken: token } } },
@@ -313,8 +312,7 @@ describe('MCP Inspector routes', () => {
       .set('Authorization', `Bearer ${token}`)
       .send({ tool: 'get_my_accounts', params: {} });
     expect(bad.status).toBe(502);
-    expect(bad.body.frames.initializeRequest.params.agentToken).toBe('(redacted)');
-    expect(JSON.stringify(bad.body)).not.toContain('eyJ');
+    expect(bad.body.frames.initializeRequest.params.agentToken).toBe(token);
   });
 
   it('POST /api/mcp/inspector/invoke passes body.meta through as params._meta.progressToken (Attach progress token toggle)', async () => {

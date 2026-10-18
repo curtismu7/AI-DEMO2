@@ -28,6 +28,20 @@ const permitRes = () => ({
 });
 const meta = { tool: 'get_my_accounts', args: {}, gatewayUrl: 'https://gw/mcp', at: 1000 };
 
+describe('gatewayCallFromTest: raw inbound token', () => {
+  const jwt = (p) => `h.${btoa(JSON.stringify(p))}.s`;
+  it('adds a Token sent to the gateway view carrying raw', () => {
+    const raw = jwt({ sub: 'user-1' });
+    const c = gatewayCallFromTest({ ...permitRes(), rawInboundToken: raw }, meta);
+    const sent = c.tokens.find((t) => t.label === 'Token sent to the gateway');
+    expect(sent.raw).toBe(raw);
+    expect(sent.claims).toEqual({ sub: 'user-1' });
+  });
+  it('is absent without rawInboundToken', () => {
+    expect(gatewayCallFromTest(permitRes(), meta).tokens.some((t) => t.label === 'Token sent to the gateway')).toBe(false);
+  });
+});
+
 describe('gatewayCallFromTest', () => {
   it('maps a PERMIT to 4 hops, filter steps, tokens and 5W1H', () => {
     const c = gatewayCallFromTest(permitRes(), meta);

@@ -5,7 +5,7 @@
  * @typedef {{ tone: 'ok'|'warn'|'err'|'idle', label: string }} Chip
  * @typedef {{ label: string, where?: string, body: any }} Payload
  * @typedef {{ label: string, role: string, alg: string|null, rfc: string|null, status: Chip,
- *   claims: object, hidden: string[], header: object|null, diff?: Record<string,string> }} TokenView
+ *   claims: object, hidden: string[], header: object|null, raw?: string, diff?: Record<string,string> }} TokenView
  * @typedef {{ dir: string, call: string, what: string, status: Chip, ms: number|null,
  *   request: any, response: any }} Hop
  * @typedef {{ status: Chip, title: string, text: string, tag?: string, kv?: [string,string][],
@@ -78,6 +78,7 @@ export function tokensFromEvents(events) {
         hidden: e.hiddenClaims ?? [],
         header: e.jwtFullDecode?.header ?? null,
       };
+      if (e.raw) view.raw = e.raw;
       if (e.id === 'exchanged-token' && user?.claims) view.diff = diffClaims(user.claims, e.claims);
       return view;
     });

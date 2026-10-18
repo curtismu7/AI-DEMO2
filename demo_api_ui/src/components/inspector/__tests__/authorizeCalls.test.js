@@ -68,6 +68,13 @@ describe('authorizeCallFromResult', () => {
   });
 });
 
+describe('authorizeCallFromResult: raw worker token', () => {
+  it('flows from the token event', () => {
+    const ev = { id: 'worker-token', label: 'Worker token', status: 'active', claims: { aud: 'x' }, raw: 'w.o.rk' };
+    expect(make({ tokenEvents: [ev] }).tokens[0].raw).toBe('w.o.rk');
+  });
+});
+
 describe('authorizeCallFromRecent', () => {
   it('maps a PingOne log row', () => {
     const d = { id: 'd9', requestedAt: '2026-10-17T00:00:00Z', decisionResponse: { decision: 'DENY', statements: [{ name: 'S1' }] } };

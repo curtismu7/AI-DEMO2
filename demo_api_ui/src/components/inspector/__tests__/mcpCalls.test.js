@@ -13,6 +13,20 @@ const frames = {
 };
 const base = { id: 7, tool: 'get_my_accounts', status: 200, duration: 42, result: { a: 1 }, errorMsg: null, timestamp: '2026-10-17T00:00:00Z' };
 
+describe('mcpCallFromStore: raw token', () => {
+  const run = (f, ev = EXCH) => mcpCallFromStore({ ...base, detail: { src: 'you', params: {}, frames: f, tokenEvents: [USER, ev], response: {} } });
+  it('takes the exchanged token raw from the initialize frame, else the request frame', () => {
+    const viaInit = run({ ...frames, initializeRequest: { params: { agentToken: 'i.n.it' } } });
+    expect(viaInit.tokens.find((t) => t.label === 'Exchanged token').raw).toBe('i.n.it');
+    const viaReq = run({ ...frames, initializeRequest: undefined, request: { params: { agentToken: 'r.e.q' } } });
+    expect(viaReq.tokens.find((t) => t.label === 'Exchanged token').raw).toBe('r.e.q');
+  });
+  it('event raw wins; absent when nothing has one', () => {
+    expect(run({ ...frames, initializeRequest: { params: { agentToken: 'x' } } }, { ...EXCH, raw: 'ev.e.nt' }).tokens[1].raw).toBe('ev.e.nt');
+    expect(run(frames).tokens[1]).not.toHaveProperty('raw');
+  });
+});
+
 describe('mcpCallFromStore', () => {
   it('inspector success', () => {
     const c = mcpCallFromStore({

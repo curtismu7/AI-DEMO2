@@ -84,10 +84,10 @@ describe('InspectorLayout', () => {
     expect(screen.getByText('Gateway log lines for this call')).toBeTruthy();
   });
 
-  it('Tokens tab shows the server-decoded note and diff chip', () => {
+  it('Tokens tab shows the decoded-claims note and diff chip', () => {
     setup();
     fireEvent.click(tab(/Tokens/));
-    expect(screen.getByText(/Decoded on the server/)).toBeTruthy();
+    expect(screen.getByText(/Claims are decoded on the server/)).toBeTruthy();
     expect(screen.getByText('narrowed')).toBeTruthy();
     expect(screen.getByText('All claims (JSON)')).toBeTruthy();
   });

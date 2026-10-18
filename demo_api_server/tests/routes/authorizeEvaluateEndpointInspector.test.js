@@ -34,7 +34,7 @@ beforeEach(() => {
 });
 
 describe('POST /evaluate-endpoint inspector facts', () => {
-  test('returns rule facts and a worker-token event without the raw token', async () => {
+  test('returns rule facts and a worker-token event carrying the raw token', async () => {
     svc.peekWorkerToken.mockReturnValue(TOKEN);
     const res = await post();
     expect(res.status).toBe(200);
@@ -44,7 +44,7 @@ describe('POST /evaluate-endpoint inspector facts', () => {
     expect(res.body.workerTokenCached).toBe(true);
     expect(res.body.tokenEvents[0].id).toBe('worker-token');
     expect(res.body.tokenEvents[0].claims.aud).toEqual(['https://api.pingone.com']);
-    expect(JSON.stringify(res.body)).not.toContain(TOKEN);
+    expect(res.body.tokenEvents[0].raw).toBe(TOKEN);
   });
 
   test('no cached token gives empty tokenEvents and workerTokenCached false', async () => {

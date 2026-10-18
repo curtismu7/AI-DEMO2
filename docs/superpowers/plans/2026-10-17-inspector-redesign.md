@@ -35,7 +35,7 @@
 - **Compare** shows the field-level differences (request and response, up to 8 each, then `…and N more`) and the two responses side by side.
 - **Diagram** has one box per system and one numbered arrow per hop. Arrow color: ok green, refused red, held or limited amber, not called dashed. It is built with `EmbeddedFlowDiagram`, never a hand-rolled SVG.
 - **The mode chip is driven by data.** Hard-coded strings are deleted: "LIVE", "DEMO SIMULATION", "Environment: 01d89b06", "Worker: demo-bff-mcp-client".
-- **Tokens come only from server-decoded `tokenEvents` or introspection results.** The page never receives or renders a raw token string.
+- **Raw tokens are shown on purpose (R13, user: "we want raw tokens, this is education").** Claims still come from server-decoded `tokenEvents` or introspection results; the JWT itself rides along as `raw` (event `raw`, MCP `frames...params.agentToken`, gateway `rawInboundToken`) and renders under a "Raw token" disclosure with Copy. This reverses the earlier redaction.
 - **Routes are unchanged:** `/pingone-mcp-inspector`, `/pingone-authorize`, `/agent-gateway-inspector`. These components are rewritten in place: `McpInspectorPageClean.jsx`, `PingOneAuthorizeConsoleClean.jsx`, `AgentGatewayInspectorClean.jsx`.
 - **Kept or restored on MCP:**
   - every source, now in a select

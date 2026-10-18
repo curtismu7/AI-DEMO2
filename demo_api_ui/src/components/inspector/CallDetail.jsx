@@ -75,6 +75,13 @@ function TokenCard({ tk }) {
         ))}
       </dl>
       {tk.hidden.length > 0 && <p className="insp-hidden-note">{tk.hidden.length} claims hidden by policy: {tk.hidden.join(', ')}</p>}
+      {tk.raw && (
+        <details className="insp-more">
+          <summary>Raw token</summary>
+          <pre className="insp-json">{tk.raw}</pre>
+          <button type="button" className="insp-copy" onClick={() => navigator.clipboard?.writeText(tk.raw)}>Copy</button>
+        </details>
+      )}
       <details className="insp-more">
         <summary>All claims (JSON)</summary>
         <Json value={tk.header ? { header: tk.header, claims: tk.claims } : { claims: tk.claims }} />
@@ -210,7 +217,7 @@ export default function CallDetail({ call, calls, nodeSubs, onResend, onEdit }) 
         ))}
         {tab === 'tokens' && (call.tokens.length ? (
           <>
-            <p className="insp-tok-note">Decoded on the server. The raw token strings never reach this page.</p>
+            <p className="insp-tok-note">Claims are decoded on the server. Open &quot;Raw token&quot; to see the JWT itself; this is a demo, so tokens are shown on purpose.</p>
             <div className="insp-tokens">{call.tokens.map((tk, i) => <TokenCard key={i} tk={tk} />)}</div>
           </>
         ) : <p className="insp-tok-note">This call carried no tokens.</p>)}

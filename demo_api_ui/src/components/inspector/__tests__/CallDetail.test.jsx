@@ -56,6 +56,20 @@ describe('CallDetail', () => {
     expect(document.querySelector('.insp-json.jh-dark')).toBeTruthy();
   });
 
+  const tok = (over) => ({ label: 'L', role: 'r', alg: null, rfc: null, status: { tone: 'ok', label: 'OK' }, claims: { sub: 'u' }, hidden: [], header: null, ...over });
+  it('Tokens tab: Raw token details shows the JWT with a Copy button', () => {
+    setup(call({ tokens: [tok({ raw: 'aaa.bbb.ccc' })] }));
+    fireEvent.click(screen.getByRole('tab', { name: /Tokens/ }));
+    expect(screen.getByText('Raw token')).toBeTruthy();
+    expect(screen.getByText('aaa.bbb.ccc').className).toContain('insp-json');
+    expect(screen.getByText('aaa.bbb.ccc').closest('details').querySelector('button.insp-copy').textContent).toBe('Copy');
+  });
+  it('Tokens tab: no Raw token without raw', () => {
+    setup(call({ tokens: [tok()] }));
+    fireEvent.click(screen.getByRole('tab', { name: /Tokens/ }));
+    expect(screen.queryByText('Raw token')).toBeNull();
+  });
+
   it('does not nest a <main> landmark', () => {
     setup(call());
     expect(screen.queryByRole('main')).toBeNull();

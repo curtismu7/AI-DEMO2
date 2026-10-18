@@ -58,6 +58,11 @@ describe('tokensFromEvents', () => {
     expect(t[0].diff).toBeUndefined();
     expect(t[1].diff).toEqual({ aud: 'changed', scope: 'narrowed', act: 'added' });
   });
+  it('copies event.raw when present, omits it otherwise', () => {
+    const t = tokensFromEvents([{ ...USER, raw: 'a.b.c' }, EXCH]);
+    expect(t[0].raw).toBe('a.b.c');
+    expect(t[1]).not.toHaveProperty('raw');
+  });
   it('handles undefined', () => {
     expect(tokensFromEvents(undefined)).toEqual([]);
   });
