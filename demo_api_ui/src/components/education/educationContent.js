@@ -11,6 +11,8 @@
 
 import React from 'react';
 import TokenChainPanel from './TokenChainPanel';
+import StaticFlowDiagram from '../StaticFlowDiagram';
+import SequenceFlowDiagram from '../SequenceFlowDiagram';
 import {
   EduImplIntro,
   SNIP_RESOLVE_MCP_TOKEN,
@@ -21,25 +23,19 @@ import {
 // Raw content strings (shared between components)
 // ---------------------------------------------------------------------------
 
-const SEQUENCE_DIAGRAM = `
-1. App (server) ──POST /bc-authorize──▶ PingOne
-   { login_hint: "user@bank.com", scope: "openid write",
-     binding_message: "Approve $500 transfer" }
-
-2. PingOne ◀─────────────────────────── auth_req_id returned
-
-3. PingOne ──out-of-band approval────▶ User (channel is your PingOne / DaVinci setup)
-   • Email: approval link in inbox  — OR —  • Text message: approval link on phone
-
-4. User approves (link in email or tap Approve on device)
-
-5. App polls POST /token (grant=ciba, auth_req_id=...)
-   → authorization_pending (repeat every 5s)
-   → tokens returned ✓
-
-6. Tokens stored server-side (never sent to browser)
-   Tool call / transaction executes with user context
-`;
+// CIBA's six steps as Mermaid sequence text, drawn by SequenceFlowDiagram.
+const SEQUENCE_DIAGRAM = `sequenceDiagram
+  participant App as App (server)
+  participant P1 as PingOne
+  participant User
+  App->>P1: 1. POST /bc-authorize<br/>login_hint "user@bank.com", scope "openid write"<br/>binding_message "Approve $500 transfer"
+  P1-->>App: 2. auth_req_id returned
+  P1->>User: 3. out-of-band approval (email link OR text link)<br/>channel is your PingOne / DaVinci setup
+  User->>P1: 4. approves (link in email or Approve on device)
+  App->>P1: 5. poll POST /token (grant=ciba, auth_req_id=...)
+  P1-->>App: authorization_pending (repeat every 5s)
+  P1-->>App: tokens returned ✓
+  App->>App: 6. tokens stored server-side (never sent to browser)<br/>tool call / transaction executes with user context`;
 
 const BC_AUTHORIZE_REQUEST = `POST {issuer}/as/bc-authorize
 Content-Type: application/x-www-form-urlencoded
@@ -90,69 +86,87 @@ HTTP/1.1 400 Bad Request
 
 
 
-const FULL_STACK_DIAGRAM = `
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Pattern source: Agent Gateway demo architecture.vsdx (swimlanes + RFC strips) │
-└──────────────────────────────────────────────────────────────────────────────┘
+// Agent Gateway demo architecture.vsdx swimlanes, drawn by StaticFlowDiagram.
+const FULL_STACK_NODES = [
+  { id: 'spa', group: 'client', label: 'Web Browser SPA', sub: ['Session cookie only'], x: 0, y: 0 },
+  { id: 'agent', group: 'agent', label: 'Agent — security strip', sub: ['OAuth 2.1 · RFC 8707 · RFC 9728 · RFC 7523 · RFC 8693', 'LLM · memory · business logic', '(+ Sidecar / SDK where used)'], x: 0, y: 130 },
+  { id: 'ingress', group: 'gateway', label: 'MCP ingress (gateway role)', sub: ['Introspection + scope enforcement for tools', 'MCP authZ RFC 9728 (client ↔ authorization)'], x: 0, y: 330 },
+  { id: 'idp', group: 'idp', label: 'IDP / AS — PingOne', sub: ['/authorize · /token · introspect (RFC 7662) · JWKS', 'Resource indicators RFC 8707 in authorize + token requests'], x: 340, y: 330 },
+  { id: 'mcp', group: 'mcp', label: 'MCP Server + Tool', sub: ['tools/list · tools/call', 'Tool: API Key / Bearer to downstream'], x: 0, y: 520 },
+  { id: 'rs', group: 'rs', label: 'Resource Server (RS) — Banking API HTTPS', sub: ['Validates token + audience (https://…/api) + scopes'], x: 0, y: 690 },
+];
+const FULL_STACK_EDGES = [
+  ['spa', 'agent', 'HTTPS (session cookie) — no raw OAuth tokens in browser JS', { vertical: true }],
+  ['agent', 'ingress', 'REST / WebSocket to BFF', { vertical: true }],
+  ['agent', 'idp', 'REST / WebSocket to BFF'],
+  ['idp', 'ingress', 'introspection · RFC 9728 / RFC 8707'],
+  ['ingress', 'mcp', 'MCP egress — RFC 9728 + 8707 with MCP peer; RFC 8693 exchange bound by RFC 7523 JWT auth or DPoP RFC 9449', { vertical: true }],
+  ['mcp', 'rs', 'Bearer access token (audience = Resource Server)', { vertical: true }],
+  ['rs', 'agent', '401 Unauthorized → OAuth flows (PKCE / CIBA / token exchange on BFF) → retry with Bearer', { dashed: true }],
+];
+const FULL_STACK_GROUPS = {
+  client: { label: 'Browser', bg: 'var(--th-bg-emphasis)' },
+  agent: { label: 'Agent', bg: 'var(--th-status-info)' },
+  gateway: { label: 'MCP gateway', bg: 'var(--th-status-warning)' },
+  idp: { label: 'IDP / AS', bg: 'var(--th-status-success)' },
+  mcp: { label: 'MCP server', bg: 'var(--th-status-info)' },
+  rs: { label: 'Resource server', bg: 'var(--th-bg-emphasis)' },
+};
 
-  Web Browser SPA
-       │
-       │  HTTPS (session cookie). No raw OAuth tokens in browser JS.
-       ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Agent — security strip: OAuth 2.1 · RFC 8707 · RFC 9728 · RFC 7523 · RFC 8693│
-│   ┌─────┐    ┌────────┐    ┌────────────────┐                                 │
-│   │ LLM │    │ memory │    │ business logic │   (+ Sidecar / SDK where used)  │
-│   └─────┘    └────────┘    └────────────────┘                                 │
-└──────────────────────────────────────────────────────────────────────────────┘
-       │ REST / WebSocket to Backend-for-Frontend (BFF)                         │
-       │                                                 │
-       ▼                                                 ▼
-┌──────────────────────────────┐            ┌──────────────────────────────────┐
-│ MCP ingress (gateway role)   │            │ IDP / AS — PingOne              │
-│ • Introspection + scope       │            │ /authorize · /token ·           │
-│   enforcement for tools       │            │ introspect (RFC 7662) · JWKS    │
-│ • MCP authZ RFC 9728          │◀───────────│ Resource indicators RFC 8707   │
-│   (client ↔ authorization)    │            │ in authorize + token requests  │
-└──────────────┬───────────────┘            └──────────────────────────────────┘
-               │
-               │ MCP egress (outbound to MCP server / token actuation)
-               │ • Full RFC 9728 + RFC 8707 sequence with MCP peer
-               │ • Token exchange RFC 8693 with secure binding:
-               │   JWT client auth RFC 7523 or DPoP RFC 9449 (best practice)
-               ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ MCP Server                              Tool                                  │
-│   tools/list · tools/call               API Key / Bearer to downstream       │
-└──────────────────────────────┬───────────────────────────────────────────────┘
-                               │
-                               │  Bearer access token (audience = Resource Server)
-                               ▼
-┌──────────────────────────────────────────────────────────────────────────────┐
-│ Resource Server (RS) — Banking API HTTPS                                      │
-│ RS validates token + audience (https://…/api) + scopes                        │
-└──────────────────────────────────────────────────────────────────────────────┘
+const FULL_STACK_NOTES = `MCP spec: clients MUST support Resource Indicators (RFC 8707) for OAuth —
+https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
 
-  Tool call without acceptable token:
-       HTTP/1.1 401 Unauthorized  →  "attempt run tool"
-       → OAuth flows (PKCE in browser, or CIBA, or token exchange on Backend-for-Frontend (BFF))
-       → "attempt again with bearer token"
-
-  MCP spec: clients MUST support Resource Indicators (RFC 8707) for OAuth —
-  https://modelcontextprotocol.io/specification/2025-11-25/basic/authorization
-
-── Phased OAuth with resource indicator (RFC 8707) — same structure as ref diagram ──
+Phased OAuth with resource indicator (RFC 8707) — same structure as ref diagram
   Phase 1  Authorization request  GET /authorize?…&resource=<RS URL>
   Phase 2  Token request          POST /token  grant=authorization_code &resource=<RS>
            AS limits audience to the requested resource
   Phase 3  Resource access       GET …  Authorization: Bearer <AT for RS>
 
-── Optional: ID-JAG / XAA (draft) — identity assertion authorization grant ──
+Optional: ID-JAG / XAA (draft) — identity assertion authorization grant
   https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/
 
-── This banking demo maps: Web SPA → Banking Backend-for-Frontend (BFF) → PingOne AS → MCP server → Banking RS ──
-   CIBA: POST /bc-authorize + poll /token  (parallel track; email or text link)
-`;
+This banking demo maps: Web SPA → Banking Backend-for-Frontend (BFF) → PingOne AS → MCP server → Banking RS
+   CIBA: POST /bc-authorize + poll /token  (parallel track; email or text link)`;
+
+const STEP_UP_SEQUENCE = `sequenceDiagram
+  participant Browser
+  participant BFF as Backend-for-Frontend (BFF)
+  participant P1 as PingOne
+  participant MCP as MCP Server
+  participant API as Banking API
+  Browser->>BFF: POST tx
+  BFF->>P1: bc-authorize
+  P1-->>BFF: auth_req_id
+  BFF-->>Browser: pending
+  BFF->>P1: poll /token
+  P1-->>BFF: pending
+  Note over Browser,P1: User approves via email/text link — out of band
+  BFF->>P1: poll /token
+  P1-->>BFF: 200 tokens
+  BFF->>P1: token-exch
+  P1-->>BFF: MCP token
+  BFF->>MCP: tools/call
+  MCP->>API: GET /tx
+  API-->>MCP: 200
+  MCP-->>BFF: tool result
+  BFF-->>Browser: success`;
+
+// Agent Gateway swimlanes (demo_api_server → demo_mcp_gateway → MCP server / RS), drawn by StaticFlowDiagram.
+const GATEWAY_NODES = [
+  { id: 'spa', group: 'client', label: 'Web Browser SPA', x: 0, y: 0 },
+  { id: 'bff', group: 'agent', label: 'BFF (demo_api_server :3001) — security strip', sub: ['OAuth 2.1 · RFC 8707 · RFC 9728 · RFC 8693 · RFC 7523', 'POST /api/agent/invoke → runReasonLoop() → demo_agent_service', 'Single RFC 8693 exchange per tool call (mcpToolPipeline.js)'], x: 0, y: 110 },
+  { id: 'gw', group: 'gateway', label: 'demo_mcp_gateway (:3005) — inline per-tool security pipeline', sub: ['Step 1: RFC 7662 introspection vs PingOne AS (:9001, 5s cache)', 'Step 2: GatewayTokenPolicy.validate (scope, audience)', 'Step 3: PingOneAuthorizeClient.evaluate', 'PERMIT → forward original bearer token unchanged', "DENY → HTTP 403 { error: 'insufficient_scope' }", "INDETERMINATE → HTTP 403 { error: 'hitl_required' } or JSON-RPC -32002 (WebSocket)"], x: 0, y: 330 },
+  { id: 'idp', group: 'idp', label: 'IDP / AS — PingOne (:9001)', sub: ['/authorize · /token · /introspect · JWKS'], x: 0, y: 720 },
+  { id: 'mcp', group: 'mcp', label: 'demo_mcp_server (:8080)', sub: ['tools/list · tools/call', 'Validates Bearer (aud = MCP RS)'], x: 330, y: 720 },
+  { id: 'rs', group: 'rs', label: 'Resource Server — Banking API', sub: ['Validates aud, scope, signature'], x: 330, y: 880 },
+];
+const GATEWAY_EDGES = [
+  ['spa', 'bff', 'HTTPS (session cookie only — no OAuth tokens in JS)', { vertical: true }],
+  ['bff', 'gw', 'callToolViaGateway', { vertical: true }],
+  ['gw', 'idp', 'Bearer (original token) — introspection', { vertical: true }],
+  ['gw', 'mcp', 'Bearer (original token, forwarded unchanged)'],
+  ['mcp', 'rs', 'Bearer (aud = Banking RS)', { vertical: true }],
+];
 
 const OAUTH_API_CHEATSHEET = `
 Browser-visible (same origin as app):
@@ -193,7 +207,7 @@ export function CibaWhatContent() {
       </p>
 
       <h3>The flow (6 steps)</h3>
-      <pre className="edu-code">{SEQUENCE_DIAGRAM}</pre>
+      <SequenceFlowDiagram source={SEQUENCE_DIAGRAM} label="CIBA flow sequence diagram" />
 
       <h3>Real HTTP: bc-authorize request &amp; response</h3>
       <pre className="edu-code">{BC_AUTHORIZE_REQUEST}</pre>
@@ -263,7 +277,13 @@ export function CibaFullStackContent() {
       </p>
 
       <h3>Agent Gateway-style architecture map</h3>
-      <pre className="edu-code">{FULL_STACK_DIAGRAM}</pre>
+      <figure role="group" aria-label="Agent Gateway-style architecture map" style={{ margin: '12px 0' }}>
+        <figcaption style={{ fontSize: '0.78rem', color: '#374151', marginBottom: 6 }}>
+          Pattern source: Agent Gateway demo architecture.vsdx (swimlanes + RFC strips)
+        </figcaption>
+        <StaticFlowDiagram NODES={FULL_STACK_NODES} EDGES={FULL_STACK_EDGES} GROUPS={FULL_STACK_GROUPS} testId="ciba-fullstack-diagram" />
+      </figure>
+      <pre className="edu-code">{FULL_STACK_NOTES}</pre>
 
       <h3>How this demo maps to the diagram</h3>
       <ul>
@@ -456,24 +476,7 @@ export function CibaMcpFlowContent() {
 11. Agent receives success; chat continues uninterrupted`}</pre>
 
       <h3>Sequence diagram: step-up with CIBA + MCP</h3>
-      <pre className="edu-code">{`Browser      Backend-for-Frontend (BFF)          PingOne       MCP Server    Banking API
-   │            │               │              │              │
-   │──POST tx──▶│               │              │              │
-   │            │──bc-authorize▶│              │              │
-   │            │◀──auth_req_id─│              │              │
-   │◀──pending──│               │              │              │
-   │            │──poll /token─▶│              │              │
-   │            │◀─pending──────│              │              │
-   │   [User approves via email/text link — out of band]           │
-   │            │──poll /token─▶│              │              │
-   │            │◀──200 tokens──│              │              │
-   │            │──token-exch──▶│              │              │
-   │            │◀──MCP token──│              │              │
-   │            │──tools/call──────────────────▶│             │
-   │            │                              │──GET /tx────▶│
-   │            │                              │◀──200─────────│
-   │            │◀──tool result────────────────│              │
-   │◀──success──│               │              │              │`}</pre>
+      <SequenceFlowDiagram source={STEP_UP_SEQUENCE} label="Step-up with CIBA and MCP sequence diagram" />
     </>
   );
 }
@@ -1123,43 +1126,9 @@ export function AgentGatewayContent() {
       </p>
 
       <h3>Full architecture (swimlanes)</h3>
-      <pre className="edu-code">{`
-  Web Browser SPA
-       │ HTTPS (session cookie only — no OAuth tokens in JS)
-       ▼
-┌──────────────────────────────────────────────────────────────┐
-│ BFF (demo_api_server :3001) — security strip                  │
-│  OAuth 2.1 · RFC 8707 · RFC 9728 · RFC 8693 · RFC 7523       │
-│  POST /api/agent/invoke → runReasonLoop() → demo_agent_service│
-│  Single RFC 8693 exchange per tool call (mcpToolPipeline.js)  │
-└────────────────────────┬─────────────────────────────────────┘
-                         │ callToolViaGateway
-                         ▼
-┌──────────────────────────────────────────────────────────────┐
-│ demo_mcp_gateway (:3005) — inline per-tool security pipeline  │
-│  Step 1: RFC 7662 introspection vs PingOne AS (:9001, 5s cache│
-│  Step 2: GatewayTokenPolicy.validate (scope, audience)        │
-│  Step 3: PingOneAuthorizeClient.evaluate                      │
-│    PERMIT       → forward original bearer token unchanged     │
-│    DENY         → HTTP 403 { error: 'insufficient_scope' }    │
-│    INDETERMINATE → HTTP 403 { error: 'hitl_required' }        │
-│                    or JSON-RPC -32002 (WebSocket)             │
-└────────────────────────┬─────────────────────────────────────┘
-                         │ Bearer (original token, forwarded unchanged)
-          ┌──────────────┴──────────────────┐
-          ▼                                 ▼
-┌──────────────────┐          ┌─────────────────────────────────┐
-│ IDP / AS         │          │ demo_mcp_server (:8080)         │
-│ PingOne (:9001)  │          │ tools/list  ·  tools/call       │
-│ /authorize       │          │ Validates Bearer (aud = MCP RS) │
-│ /token           │          └─────────────────┬───────────────┘
-│ /introspect      │                            │ Bearer (aud = Banking RS)
-│ JWKS             │                            ▼
-└──────────────────┘          ┌─────────────────────────────────┐
-                              │ Resource Server — Banking API   │
-                              │ Validates aud, scope, signature │
-                              └─────────────────────────────────┘
-`}</pre>
+      <figure role="group" aria-label="Agent Gateway full architecture" style={{ margin: '12px 0' }}>
+        <StaticFlowDiagram NODES={GATEWAY_NODES} EDGES={GATEWAY_EDGES} GROUPS={FULL_STACK_GROUPS} testId="agent-gateway-arch-diagram" />
+      </figure>
 
       <h3>Ingress — validating every inbound tool call</h3>
       <p>
