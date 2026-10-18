@@ -15,10 +15,10 @@
  * vertical's own tool schemas + system prompt, two runs, identical results).
  * government is also the deterministic heuristic (\bbalance\b -> view_fees).
  *
- * Not listed, deliberately:
- *   airlines  -> get_loyalty_status, healthcare -> view_billing: neither tool is
- *     in that vertical's read-only list, so they are not granted here.
- *   manufacturing: no balance tool; the model declines.
+ * airlines -> get_loyalty_status and healthcare -> view_billing are granted too:
+ * not in their vertical's read-only fallback list, but plain reads (no consent,
+ * no A2A delegation), which the last test asserts.
+ * Not listed: manufacturing has no balance tool; the model declines.
  */
 
 const { permittedToolsForIntent, mintIntentToken } = require('../services/intentTokenService');
@@ -34,7 +34,11 @@ const TOOL_BY_VERTICAL = {
   university: 'view_billing',
   investment: 'view_portfolio_value',
   government: 'view_fees',
+  airlines: 'get_loyalty_status',
+  healthcare: 'view_billing',
 };
+// Plain reads outside the vertical's read-only fallback list (see header).
+const READ_LIST_EXEMPT = new Set(['airlines', 'healthcare']);
 
 describe('view_balance permits the vertical balance tool the agent dispatches', () => {
   test.each(Object.entries(TOOL_BY_VERTICAL))('%s -> %s', (vertical, tool) => {
@@ -58,7 +62,8 @@ describe('view_balance permits the vertical balance tool the agent dispatches', 
     (vertical) => {
       const readOnly = permittedToolsForIntent('__unclassified__', vertical);
       for (const tool of permittedToolsForIntent('view_balance', vertical)) {
-        expect(readOnly).toContain(tool);
+        if (!READ_LIST_EXEMPT.has(vertical)) expect(readOnly).toContain(tool);
+        expect(topology.tools[tool]).toBeDefined();
         expect(topology.tools[tool].challengeType).toBeUndefined();
         expect(topology.tools[tool].a2aDelegated).toBeUndefined();
       }
