@@ -1001,7 +1001,7 @@ function AppWithAuth() {
                 <Route
                   path="/pinggateway-test"
                   element={
-                    <Navigate to="/agent-gateway-inspector?subtab=tester" replace />
+                    <Navigate to="/agent-gateway-capabilities" replace />
                   }
                 />
                 <Route
