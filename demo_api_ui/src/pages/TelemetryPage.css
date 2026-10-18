@@ -181,7 +181,7 @@
 }
 
 .tracing-graph-node-label {
-  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-primary);
   pointer-events: none;
 }
 
@@ -190,7 +190,7 @@
 }
 
 .tracing-graph-edge-label text {
-  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .tracing-graph-dimmed {
@@ -207,7 +207,7 @@
   border-radius: 6px;
   background: #051727;
   color: #ffffff;
-  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-primary);
   font-size: var(--font-size-2xs);
   line-height: 1.5;
   white-space: pre-wrap;

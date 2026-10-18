@@ -111,7 +111,7 @@
 
 .migration-code-pre {
   flex: 1;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--th-text);
   margin: 0;

@@ -124,7 +124,7 @@
   margin-left: auto;
   font-size: var(--font-size-3xs);
   font-weight: 700;
-  font-family: "Montserrat", -apple-system, sans-serif;
+  font-family: var(--font-primary);
   padding: 1px 5px;
   border-radius: 3px;
   letter-spacing: 0.03em;

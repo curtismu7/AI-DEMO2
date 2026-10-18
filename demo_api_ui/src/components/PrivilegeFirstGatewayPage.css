@@ -20,7 +20,7 @@
   max-width: 68ch;
 }
 .pfg-eyebrow {
-  font-family: var(--pfg-mono);
+  font-family: var(--font-mono);
   font-size: var(--font-size-xs);
   letter-spacing: 0.08em;
   text-transform: uppercase;
@@ -88,7 +88,7 @@
   gap: 4px;
 }
 .pfg-flag code {
-  font-family: var(--pfg-mono);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--th-code-text);
   background: var(--th-code-bg);

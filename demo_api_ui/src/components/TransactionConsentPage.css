@@ -526,7 +526,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
   flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
   border: 2px solid #12538d; color: #12538d; font-weight: 800; font-size: var(--font-size-2xs);
   display: flex; align-items: center; justify-content: center; margin-top: 1px;
-  font-style: italic; font-family: Georgia, serif;
+  font-style: italic; font-family: var(--font-primary);
 }
 
 .tc-simulate__section-title {

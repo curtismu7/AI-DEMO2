@@ -2,7 +2,7 @@
   padding: 20px 16px;
   overflow-x: auto;
   overflow-y: auto;
-  font-family: var(--font-sans, sans-serif);
+  font-family: var(--font-primary);
 }
 .iad-title {
   font-size: 1rem;

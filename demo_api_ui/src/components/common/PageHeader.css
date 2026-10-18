@@ -3,7 +3,7 @@
   padding: 28px 32px;
   background: linear-gradient(90deg, var(--th-bg-band, #051727) 58%, #12538d);
   color: #ffffff;
-  font-family: var(--font-primary, "Montserrat", sans-serif);
+  font-family: var(--font-primary);
 }
 
 .ping-back-link {

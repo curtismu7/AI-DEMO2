@@ -5,8 +5,7 @@
   background: var(--th-bg-page);
   color: var(--th-text);
   padding: 2rem;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", sans-serif;
+  font-family: var(--font-primary);
 }
 
 /* Loading State */
@@ -311,8 +310,7 @@
   padding: 1rem;
   border-radius: 6px;
   border: 1px solid var(--th-border);
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
+  font-family: var(--font-primary);
   font-size: 0.85rem;
   line-height: 1.5;
   overflow-x: auto;

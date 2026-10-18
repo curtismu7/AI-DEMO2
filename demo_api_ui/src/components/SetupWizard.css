@@ -2,9 +2,7 @@
 .setup-wizard {
   max-width: 720px;
   margin: 32px auto;
-  font-family: "Montserrat", system-ui,
-    -apple-system,
-    sans-serif;
+  font-family: var(--font-primary);
   padding: 0 16px;
 }
 .setup-wizard-title {

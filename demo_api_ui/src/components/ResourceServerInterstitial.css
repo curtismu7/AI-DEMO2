@@ -22,7 +22,7 @@
   overflow-y: auto;
   margin: 0 auto;
   padding: 2rem;
-  font-family: "Montserrat", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-primary);
   color: #263746;
   background: #fff;
   border-radius: 12px;

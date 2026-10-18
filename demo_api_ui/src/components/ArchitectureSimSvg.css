@@ -26,7 +26,7 @@
   width: 100%;
   font-size: var(--font-size-3xs);
   color: var(--th-text-body);
-  font-family: "Montserrat", system-ui, sans-serif;
+  font-family: var(--font-primary);
   text-align: center;
   pointer-events: none;
 }
@@ -45,7 +45,7 @@
   border: 1.5px solid #909ea4;
   background: var(--th-bg-inset);
   color: var(--th-text);
-  font-family: "Montserrat", system-ui, sans-serif;
+  font-family: var(--font-primary);
   text-align: center;
   padding: 4px 6px;
   box-shadow: 0 5px 14px rgba(5, 23, 39, 0.1);

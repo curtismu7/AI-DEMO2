@@ -2,8 +2,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .mfa-test-loading,
@@ -398,8 +397,7 @@
 .device-contact {
   color: var(--th-text-muted);
   font-size: 0.85rem;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", sans-serif;
+  font-family: var(--font-primary);
 }
 
 .device-type {
@@ -1033,8 +1031,7 @@
 
 .mfa-test-card__endpoint {
   flex: 1;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", sans-serif;
+  font-family: var(--font-primary);
   color: var(--th-text-body);
   font-size: 0.8rem;
   word-break: break-all;

@@ -1,4 +1,4 @@
-.np-root { padding: 16px 20px; font-family: var(--font-sans, sans-serif); overflow-y: auto; height: 100%; box-sizing: border-box; }
+.np-root { padding: 16px 20px; font-family: var(--font-primary); overflow-y: auto; height: 100%; box-sizing: border-box; }
 .np-title { font-size: 1rem; font-weight: 700; color: var(--brand-navy, #1a365d); margin-bottom: 4px; }
 .np-subtitle { font-size: 0.78rem; color: #5c646b; margin-bottom: 20px; }
 .np-idle { padding: 40px 0; text-align: center; color: #909ea4; font-size: 0.88rem; }

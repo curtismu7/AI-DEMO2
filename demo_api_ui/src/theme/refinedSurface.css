@@ -79,7 +79,7 @@
   border-bottom: 1px solid var(--rd-line);
 }
 [data-refined-surface="customer"] .ud-hero__eyebrow {
-  font-family: var(--rd-font-mono);
+  font-family: var(--font-mono);
   font-size: 0.64rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -91,7 +91,7 @@
   max-width: 56ch;
 }
 [data-refined-surface="customer"] .ud-hero__balance-label {
-  font-family: var(--rd-font-mono);
+  font-family: var(--font-mono);
   font-size: 0.64rem;
   letter-spacing: 0.2em;
   text-transform: uppercase;
@@ -112,7 +112,7 @@
   color: var(--rd-ink-soft);
 }
 [data-refined-surface="customer"] .ud-hero__debt-label {
-  font-family: var(--rd-font-mono);
+  font-family: var(--font-mono);
   font-size: 0.64rem;
   letter-spacing: 0.16em;
   text-transform: uppercase;
@@ -148,7 +148,7 @@
   border-right: none;
 }
 [data-refined-surface="customer"] .vertical-hero-label {
-  font-family: var(--rd-font-mono);
+  font-family: var(--font-mono);
   font-size: 0.68rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -199,12 +199,12 @@
   color: var(--rd-ink);
 }
 [data-refined-surface="customer"] .account-number {
-  font-family: var(--rd-font-mono);
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--rd-ink-faint);
 }
 [data-refined-surface="customer"] .account-type-badge {
-  font-family: var(--rd-font-mono);
+  font-family: var(--font-mono);
   font-size: 0.66rem;
   letter-spacing: 0.04em;
   text-transform: uppercase;
@@ -225,7 +225,7 @@
   color: var(--rd-negative);
 }
 [data-refined-surface="customer"] .account-balance-row .balance-label {
-  font-family: var(--rd-font-mono);
+  font-family: var(--font-mono);
   font-size: 0.64rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -234,7 +234,7 @@
 
 /* ── Transactions (mockup .tx table → live .tx-feed / .tx-row) ── */
 [data-refined-surface="customer"] .tx-feed__date-label {
-  font-family: var(--rd-font-mono);
+  font-family: var(--font-mono);
   font-size: 0.64rem;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -254,7 +254,7 @@
   color: var(--rd-ink);
 }
 [data-refined-surface="customer"] .tx-row__meta {
-  font-family: var(--rd-font-mono);
+  font-family: var(--font-mono);
   font-size: 0.72rem;
   color: var(--rd-ink-faint);
 }
@@ -322,7 +322,7 @@
 /* Subtitle / flow caption — competitor `.tcd-header-sub` (0,1,0): sans, slate.
    We make it the mockup's mono .chain-meta. (0,2,0) wins. */
 [data-refined-surface="customer"] .tcd-header-sub {
-  font-family: var(--rd-font-mono);
+  font-family: var(--font-mono);
   font-size: 0.7rem;
   line-height: 1.5;
   color: var(--rd-ink-faint);

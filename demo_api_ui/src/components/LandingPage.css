@@ -59,7 +59,7 @@
   --rd2-accent: #051727;
   background-color: #f7f7f5 !important;
   color: #111110 !important;
-  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif !important;
+  font-family: var(--font-primary) !important;
 }
 
 /* ========== Header (logged-out only) ========== */

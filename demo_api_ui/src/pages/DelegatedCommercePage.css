@@ -14,7 +14,7 @@
   padding: 28px 24px 80px;
   background: var(--th-bg-page);
   color: var(--dc-ink);
-  font-family: "Montserrat", Helvetica, Arial, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .dc-hero,

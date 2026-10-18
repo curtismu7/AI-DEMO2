@@ -99,7 +99,7 @@
   border-radius: 0;
 }
 [data-rd-v2] .ud-hero__eyebrow {
-  font-family: var(--rd2-font-mono);
+  font-family: var(--font-mono);
   font-size: .62rem;
   letter-spacing: .2em;
   text-transform: uppercase;
@@ -116,7 +116,7 @@
   font-variant-numeric: tabular-nums;
 }
 [data-rd-v2] .ud-hero__balance-label {
-  font-family: var(--rd2-font-mono);
+  font-family: var(--font-mono);
   font-size: .62rem;
   letter-spacing: .2em;
   text-transform: uppercase;
@@ -308,7 +308,7 @@
   justify-content: space-between;
 }
 [data-rd-v2] .account-number {
-  font-family: var(--rd2-font-mono);
+  font-family: var(--font-mono);
   font-size: .75rem;
   color: var(--rd2-ink-3);
   letter-spacing: .05em;
@@ -320,7 +320,7 @@
   margin-top: 6px;
 }
 [data-rd-v2] .account-type-badge {
-  font-family: var(--rd2-font-mono);
+  font-family: var(--font-mono);
   font-size: .62rem;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -345,7 +345,7 @@
   padding: 10px 18px 6px;
 }
 [data-rd-v2] .tx-feed__date-label {
-  font-family: var(--rd2-font-mono);
+  font-family: var(--font-mono);
   font-size: .62rem;
   letter-spacing: .15em;
   text-transform: uppercase;
@@ -435,7 +435,7 @@
 }
 /* Title */
 .rd2-dock .embedded-agent-dock__title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: .96rem;
   font-weight: 600;
   letter-spacing: -.01em;
@@ -459,7 +459,7 @@
 .banking-agent-fab {
   background: var(--theme-accent, #051727) !important;
   color: #ffffff !important;
-  font-family: "Montserrat", sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .88rem !important;
   font-weight: 600 !important;
   border: none !important;
@@ -515,7 +515,7 @@
   border-bottom: 1px solid var(--rd2-line-1, var(--th-border)) !important;
 }
 .banking-agent-panel .ba-title {
-  font-family: "Montserrat", Georgia, serif !important;
+  font-family: var(--font-primary) !important;
   font-weight: 600 !important;
   font-size: .96rem !important;
   letter-spacing: -.01em !important;
@@ -533,7 +533,7 @@
   border-radius: 999px !important;
   background: var(--rd2-surface-2, #f3f3f1) !important;
   padding: 7px 14px !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .88rem !important;
   color: var(--rd2-ink-1, #111110) !important;
 }
@@ -557,14 +557,14 @@
 .banking-agent-panel .ba-suggestion {
   border-color: var(--theme-accent, #051727) !important;
   color: var(--theme-accent, #051727) !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .8rem !important;
   border-radius: 999px !important;
 }
 .banking-agent-panel .ba-action-item {
   background: var(--rd2-surface-2, #f3f3f1) !important;
   border-color: var(--rd2-line-1, #e4e4e0) !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .8rem !important;
   border-radius: 8px !important;
   color: var(--rd2-ink-1, #111110) !important;
@@ -601,7 +601,7 @@
   background: var(--rd2-positive, #1a6b49);
 }
 .ba-embedded-bottom-dock .ba-dock-identity__name {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.05rem; font-weight: 600; letter-spacing: -.015em;
   color: var(--rd2-ink-1, #111110); margin-bottom: 3px;
 }
@@ -644,7 +644,7 @@
   border: 1px solid var(--rd2-line-2, #d5d5d0) !important;
   color: var(--rd2-ink-1, #111110) !important;
   border-radius: 999px !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .8rem !important;
   font-weight: 500 !important;
 }
@@ -658,7 +658,7 @@
   border: 1px solid var(--rd2-line-1, #e4e4e0) !important;
   color: var(--rd2-ink-1, #111110) !important;
   border-radius: 999px !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .8rem !important;
 }
 /* Composer / input row */
@@ -676,7 +676,7 @@
 .ba-embedded-bottom-dock .ba-input {
   background: transparent !important;
   border: none !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .9rem !important;
   color: var(--rd2-ink-1, #111110) !important;
 }
@@ -717,7 +717,7 @@
   padding: 20px clamp(16px, 4vw, 48px);
 }
 [data-rd-v2] .ud-quick-actions__title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -742,7 +742,7 @@
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   border-radius: var(--rd2-r-md, 8px);
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .75rem;
   font-weight: 500;
   letter-spacing: .03em;
@@ -821,7 +821,7 @@
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -861,7 +861,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.2rem;
   font-weight: 700;
   color: #ffffff;
@@ -873,7 +873,7 @@
   gap: 4px;
 }
 [data-rd-v2] .ud-profile-card__name {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -952,7 +952,7 @@
   margin-bottom: 4px;
 }
 [data-rd-v2] .account-card__name {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1001,7 +1001,7 @@
   margin-bottom: 0;
 }
 [data-rd-v2] .form-group label {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1013,7 +1013,7 @@
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-2, #d5d5d0);
   border-radius: 6px;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .9rem;
   color: var(--rd2-ink-1, #111110);
   transition: all 150ms ease-out;
@@ -1038,7 +1038,7 @@
   padding: 10px 20px;
   border: none;
   border-radius: 6px;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1077,7 +1077,7 @@
   background: transparent;
 }
 [data-rd-v2] .ud-token-rail__title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: .95rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1164,7 +1164,7 @@
   border-bottom: 1px solid var(--rd2-line-1, #e4e4e0);
 }
 [data-rd-v2] .otp-step-up-modal__title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1195,7 +1195,7 @@
   flex: 1;
 }
 [data-rd-v2] .otp-step-up-modal__lead {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .9rem;
   line-height: 1.5;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1237,7 +1237,7 @@
 
 /* Error message */
 [data-rd-v2] .otp-step-up-modal__error {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .8rem;
   color: var(--rd2-negative, #c92a2a);
   margin: 8px 0 0 0;
@@ -1245,7 +1245,7 @@
 
 /* Hint text */
 [data-rd-v2] .otp-step-up-modal__hint {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .8rem;
   color: var(--rd2-ink-3, #8c8c88);
   margin: 16px 0 0 0;
@@ -1266,7 +1266,7 @@
   color: #ffffff;
   border: none;
   border-radius: 6px;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1287,7 +1287,7 @@
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   color: var(--rd2-ink-1, #111110);
   border-radius: 6px;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1340,7 +1340,7 @@
 }
 
 [data-rd-v2] .landing-logo-title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1367,7 +1367,7 @@
   padding: 10px 20px;
   border: 1px solid transparent;
   border-radius: 6px;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1407,7 +1407,7 @@
 }
 
 [data-rd-v2] .landing-hero-headline {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: clamp(1.8rem, 5vw, 2.8rem);
   font-weight: 700;
   letter-spacing: -.02em;
@@ -1417,7 +1417,7 @@
 }
 
 [data-rd-v2] .landing-hero-subheadline {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: 1.1rem;
   line-height: 1.6;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1443,7 +1443,7 @@
 }
 
 [data-rd-v2] .landing-features-heading h2 {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.8rem;
   font-weight: 700;
   letter-spacing: -.015em;
@@ -1452,7 +1452,7 @@
 }
 
 [data-rd-v2] .landing-features-heading p {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: 1rem;
   color: var(--rd2-ink-2, #4c4c48);
   margin: 0;
@@ -1486,7 +1486,7 @@
 }
 
 [data-rd-v2] .landing-feature-title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1495,7 +1495,7 @@
 }
 
 [data-rd-v2] .landing-feature-description {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .9rem;
   line-height: 1.5;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1510,7 +1510,7 @@
 }
 
 [data-rd-v2] .landing-footer p {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .85rem;
   color: var(--rd2-ink-2, #4c4c48);
   margin: 0;

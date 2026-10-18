@@ -28,7 +28,7 @@
   color: var(--th-text-muted);
   font-size: var(--font-size-body);
   font-weight: 600;
-  font-family: var(--app-font-family, 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
+  font-family: var(--font-primary);
   cursor: pointer;
   transition: all 0.2s ease;
   border-bottom: 3px solid transparent;
@@ -66,7 +66,7 @@
   font-size: 16px;
   font-weight: 700;
   color: var(--th-text);
-  font-family: var(--app-font-family, 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
+  font-family: var(--font-primary);
 }
 
 .architecture-tab-content p {
@@ -74,7 +74,7 @@
   font-size: var(--font-size-body);
   color: var(--th-text-muted) !important; /* beats an inline #263746 in the JSX */
   line-height: 1.5;
-  font-family: var(--app-font-family, 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
+  font-family: var(--font-primary);
 }
 
 .architecture-tab-content ul {
@@ -84,7 +84,7 @@
   color: var(--th-text-muted);
   font-size: var(--font-size-body);
   line-height: 1.6;
-  font-family: var(--app-font-family, 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
+  font-family: var(--font-primary);
 }
 
 .architecture-tab-content li {

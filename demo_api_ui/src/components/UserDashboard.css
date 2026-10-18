@@ -1302,7 +1302,7 @@
   color: var(--th-text-muted);
   font-size: var(--font-size-xs);
   margin: 0;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   letter-spacing: 0.04em;
 }
 
@@ -1459,7 +1459,7 @@
   font-size: var(--font-size-2xs);
   color: var(--th-text);
   font-weight: 500;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   word-break: break-all;
 }
 
@@ -2509,8 +2509,7 @@
 .user-dashboard-v2 {
   min-height: 100vh;
   background: var(--brand-light-gray);
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Helvetica Neue",
-    Arial, sans-serif;
+  font-family: var(--font-primary);
   display: flex;
   flex-direction: column;
 }

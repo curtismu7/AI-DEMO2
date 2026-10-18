@@ -344,7 +344,7 @@
   background: var(--th-code-bg);
   border: 1px solid var(--th-border);
   border-radius: 4px;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: 0.9em;
   word-break: break-all;
 }

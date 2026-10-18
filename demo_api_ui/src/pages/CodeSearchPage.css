@@ -13,7 +13,7 @@
   padding: 20px;
   color: var(--th-text);
   background: var(--th-bg-page);
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   min-height: 100vh;
 }
 
@@ -358,7 +358,7 @@
   border: none;
   background: transparent;
   border-radius: 6px;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--th-text-muted);
@@ -429,7 +429,7 @@
   cursor: pointer;
   text-align: left;
   font-size: 0.78rem;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   line-height: 1.4;
   transition:
     background 0.12s,
@@ -741,7 +741,7 @@
   border: none;
   background: transparent;
   font-size: 0.9rem;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   color: var(--th-text);
   outline: none;
   min-width: 0;
@@ -768,7 +768,7 @@
   cursor: pointer;
   font-size: 0.78rem;
   font-weight: 600;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   letter-spacing: 0.02em;
   transition: background 0.12s;
 }

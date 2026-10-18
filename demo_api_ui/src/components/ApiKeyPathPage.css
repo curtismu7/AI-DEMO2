@@ -7,7 +7,7 @@
   max-width: 720px;
   margin: 32px auto;
   padding: 24px;
-  font-family: var(--font-sans, system-ui, sans-serif);
+  font-family: var(--font-primary);
 }
 
 .akp-header {

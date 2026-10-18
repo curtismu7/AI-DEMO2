@@ -48,7 +48,7 @@
   min-height: 100vh;
   background: var(--rsj-bg);
   color: var(--rsj-text);
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-primary);
   font-size: var(--font-size-sm);
 }
 

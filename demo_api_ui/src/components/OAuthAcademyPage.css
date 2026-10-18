@@ -268,7 +268,7 @@
   border: none;
   background: transparent;
   font-size: 0.9rem;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   color: var(--th-text);
   outline: none;
   min-width: 0;
@@ -295,7 +295,7 @@
   cursor: pointer;
   font-size: 0.78rem;
   font-weight: 600;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   letter-spacing: 0.02em;
   transition: background 0.12s;
 }
@@ -364,7 +364,7 @@
   cursor: pointer;
   text-align: left;
   font-size: 0.78rem;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   color: var(--th-text-muted);
   line-height: 1.4;
   transition:
