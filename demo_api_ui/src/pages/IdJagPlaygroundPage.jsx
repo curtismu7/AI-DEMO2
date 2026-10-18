@@ -154,6 +154,140 @@ const IDP_FIELDS = [
 ];
 const errText = (e) => e.response?.data?.message || e.response?.data?.error || e.message;
 
+const OIDC_ONLY = new Set(["openid", "profile", "email", "offline_access", "phone", "address"]);
+/** The scopes an ID-JAG grants at the MCP server (login-only scopes grant nothing there). */
+const scopesOf = (claims) => (Array.isArray(claims?.scope) ? claims.scope : String(claims?.scope || "").split(/\s+/))
+  .filter((s) => s && !OIDC_ONLY.has(s));
+
+/** Plain guidance for the OAuth and gateway errors people actually hit here. */
+function explain(e, resource) {
+  if (!e) return null;
+  const text = [e.error, e.error_description, e.pfError, e.pfErrorDescription, e.gatewayErrorCode, e.gatewayMessage, e.message].filter(Boolean).join(" ");
+  if (/invalid jwt token/i.test(text)) {
+    return "PingFederate could not verify the ID-JAG's signature. Its consumer cannot pick a key by x5t, so the issuer's JWKS must hold a single RSA key, or the local PingFederate still has an older copy of that JWKS cached. Publish a single-key JWKS at the issuer, then re-save the IdP connection (or restart the local PingFederate) so it fetches it again.";
+  }
+  if (/invalid_target/i.test(text)) {
+    return `The authorization server knows no resource ${resource || "matching the request"}. On PingFederate, add it to the Resource URIs of the access token manager that mints this token, then request a new ID-JAG.`;
+  }
+  if (/intent_mismatch/i.test(text)) {
+    return `The gateway's intent policy refused this call: ${e.gatewayMessage || e.message}. The token's intent does not cover this tool; call a tool that matches what the token was issued for.`;
+  }
+  if (/already (been )?(used|redeemed)|replay|jti.*(used|seen)/i.test(text)) {
+    return "This ID-JAG was already redeemed, and each one is single-use. Request a new ID-JAG (step 2), then redeem that one.";
+  }
+  if (/expired/i.test(text)) return "It expired: ID-JAGs live about 5 minutes. Request a new ID-JAG (step 2) and redeem it (step 3).";
+  return null;
+}
+
+function ErrorNote({ e, resource }) {
+  const hint = explain(e, resource);
+  return (
+    <div className="ijp-banner ijp-banner--error" role="alert">
+      <strong>{e.error || "Error"}</strong> {e.message || e.error_description || ""}{e.pfErrorDescription ? ` (${e.pfErrorDescription})` : ""}
+      {e.gatewayStatus && (
+        <div className="ijp-cite">
+          Gateway answered HTTP {e.gatewayStatus}{e.gatewayErrorCode ? ` ${e.gatewayErrorCode}` : ""}{e.gatewayMessage && e.gatewayMessage !== e.message ? `: ${e.gatewayMessage}` : ""}
+        </div>
+      )}
+      {hint && <p className="ijp-fix">{hint}</p>}
+    </div>
+  );
+}
+
+/** What the pre-flight found before a button was allowed to send anything. */
+function PreflightPanel({ gate, onRecheck, busy }) {
+  const title = !gate.ok ? "Pre-flight: fix this first, nothing was sent"
+    : gate.checks.length ? "Pre-flight: warnings (sent anyway)" : "Pre-flight: All checks pass. Run the step again.";
+  return (
+    <div className={`ijp-preflight${gate.ok ? "" : " is-fail"}`} role={gate.ok ? "status" : "alert"} data-testid="ijp-preflight">
+      <h4>{title}</h4>
+      {gate.checks.length > 0 && (
+        <ul>
+          {gate.checks.map((c) => (
+            <li key={c.id} className={`is-${c.status}`}>
+              <span className="ijp-preflight__tag">{c.status === "fail" ? "Fail" : "Warn"}</span>
+              <div><strong>{c.label}</strong> {c.detail}{c.fix && <p className="ijp-fix">{c.fix}</p>}</div>
+            </li>
+          ))}
+        </ul>
+      )}
+      <button type="button" className="ijp-btn" onClick={onRecheck} disabled={busy}>{busy ? "Checking…" : "Re-check"}</button>
+    </div>
+  );
+}
+
+/** Time left on an ID-JAG or access token; stale once expired or used. */
+function Lifetime({ id, label, exp, used, now, again }) {
+  if (typeof exp !== "number") return null;
+  const left = exp - Math.floor(now / 1000);
+  const stale = used || left <= 0;
+  const text = used ? `redeemed (single-use). ${again}` : left <= 0 ? `expired. ${again}` : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} left`;
+  return <p className={`ijp-life${stale ? " is-stale" : ""}`} data-testid={`ijp-life-${id}`}><strong>{label}:</strong> {text}</p>;
+}
+
+/** The resource server's answer, drawn as the small app page it protects. */
+function ResourcePage({ r }) {
+  const b = r.body && typeof r.body === "object" ? r.body : {};
+  const ok = r.status === 200;
+  const verified = Array.isArray(b.verified) ? b.verified : [];
+  const failed = verified.find((v) => !v.ok);
+  const subject = String(b.data?.subject || b.principal?.sub || "");
+  return (
+    <div className="ijp-page" data-testid="ijp-resource-page">
+      <div className="ijp-page__bar">
+        <span className="ijp-page__method">{r.request?.method || "GET"}</span>
+        <span className="ijp-page__url">{r.request?.url}</span>
+        <span className={`ijp-pill ${ok ? "is-ok" : "is-bad"}`}>{r.status} {ok ? "OK" : b.error || "refused"}</span>
+      </div>
+      <p className="ijp-cite">Authorization: {r.request?.authorization}</p>
+      {!ok && (
+        <div className="ijp-banner ijp-banner--error" role="alert">
+          The resource server refused: {failed ? `${failed.check} check failed. ${failed.detail}` : b.error_description || b.error || `HTTP ${r.status}`}
+        </div>
+      )}
+      <div className="ijp-page__grid">
+        {b.principal && (
+          <div className="ijp-page__card">
+            <h4>Who the resource server says you are</h4>
+            <dl className="ijp-kv">
+              <dt>sub</dt><dd>{b.principal.sub}</dd>
+              <dt>client_id</dt><dd>{b.principal.client_id ?? "(none)"}</dd>
+              <dt>scope</dt><dd>{b.principal.scope || "(none)"}</dd>
+            </dl>
+          </div>
+        )}
+        {verified.length > 0 && (
+          <div className="ijp-page__card">
+            <h4>How it verified the token</h4>
+            <ul className="ijp-verify">
+              {verified.map((v) => (
+                <li key={v.check} className={v.ok ? "is-pass" : "is-fail"}>
+                  <span className="ijp-verify__mark" aria-hidden="true">{v.ok ? "✔" : "✗"}</span>
+                  <div><span className="ijp-sr">{v.ok ? "pass" : "fail"}</span><strong>{v.check}</strong> <span className="ijp-cite">{v.detail}</span></div>
+                </li>
+              ))}
+            </ul>
+          </div>
+        )}
+        {b.data && (
+          <div className="ijp-page__card ijp-page__profile">
+            <h4>Protected data</h4>
+            <div className="ijp-profile">
+              <span className="ijp-profile__avatar" aria-hidden="true">{subject.slice(0, 2).toUpperCase() || "?"}</span>
+              <div><strong>{subject}</strong><div className="ijp-cite">{b.data.profileId}</div></div>
+            </div>
+            <dl className="ijp-kv">
+              {Object.entries(b.data).filter(([k]) => !["subject", "profileId"].includes(k)).map(([k, v]) => (
+                <Fragment key={k}><dt>{k}</dt><dd>{String(v)}</dd></Fragment>
+              ))}
+            </dl>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+}
+
 /** Registry of outside IdPs whose ID-JAGs our resource authorization servers accept. Admins edit; others read. */
 function TrustedIdpsPanel({ api, endpoints }) {
   const [state, setState] = useState(null);
@@ -279,10 +413,25 @@ export default function IdJagPlaygroundPage() {
   const [byoTarget, setByoTarget] = useState("oauth-mcp");
   const [byoToken, setByoToken] = useState("");
   const [error, setError] = useState(null);
+  const [gate, setGate] = useState(null);
+  const [resource, setResource] = useState(null);
+  const [nowMs, setNowMs] = useState(() => Date.now());
 
   const isMock = mode === "mock";
   const isByo = mode === "byo";
   const api = isMock ? mockApi : bffAxios;
+
+  // The current ID-JAG's claims drive the scope list and the lifetime clocks.
+  const idJagClaims = isByo ? (inspection?.trusted ? inspection.claims : null) : issued?.token?.claims;
+  const scopeOptions = scopesOf(idJagClaims);
+  const scopePick = scopeOptions.includes(redeemScope) ? redeemScope : ""; // a pick the new ID-JAG lacks falls back to all
+  const tokenExp = redeemed?.token?.claims?.exp;
+  useEffect(() => {
+    if (typeof idJagClaims?.exp !== "number" && typeof tokenExp !== "number") return undefined;
+    setNowMs(Date.now());
+    const t = setInterval(() => setNowMs(Date.now()), 1000);
+    return () => clearInterval(t);
+  }, [idJagClaims?.exp, tokenExp]);
 
   const applyConfig = (data) => {
     // An older BFF without this route answers with the SPA's HTML, not JSON.
@@ -311,42 +460,72 @@ export default function IdJagPlaygroundPage() {
   }, []);
 
   const clearResults = () => {
-    setIssued(null); setInspection(null); setRedeemed(null); setTools(null); setCallResult(null); setNegResults({});
+    setIssued(null); setInspection(null); setRedeemed(null); setTools(null); setCallResult(null); setNegResults({}); setResource(null); setGate(null);
   };
 
-  const run = async (label, fn) => {
+  /**
+   * Ask the BFF whether this step can work right now. Failing checks block the action and stay on
+   * screen with their fix; warnings show and let it through. recheck bypasses the BFF's 30 s cache.
+   */
+  const passes = async (step, params = {}, recheck = false) => {
+    let r;
+    try {
+      ({ data: r } = await bffAxios.get(`${API}/preflight`, { params: { step, mode, origin: window.location.origin, ...params, ...(recheck ? { fresh: "1" } : {}) } }));
+      if (!Array.isArray(r?.checks)) throw new Error("This server has no pre-flight checks yet. Deploy the latest BFF.");
+    } catch (e) {
+      r = { checks: [{ id: "preflight", label: "Pre-flight checks ran", status: "fail", detail: errText(e), fix: "Reload the page. If this persists, the BFF is down or older than this page." }] };
+    }
+    const ok = !r.checks.some((c) => c.status === "fail");
+    const shown = r.checks.filter((c) => c.status !== "pass");
+    setGate(shown.length || recheck ? { step, params, ok, checks: shown } : null);
+    return ok;
+  };
+
+  // Every action button goes through here: pre-flight first (real modes), then the action.
+  const run = async (label, fn, check) => {
     setBusy(label);
     setError(null);
-    try { await fn(); } catch (e) { setError({ step: label, ...(e.response?.data || { message: e.message }) }); } finally { setBusy(""); }
+    try {
+      if (check && !(await passes(check.step, check.params))) return;
+      await fn();
+    } catch (e) { setError({ step: label, ...(e.response?.data || { message: e.message }) }); } finally { setBusy(""); }
+  };
+  // Mock mode sends nothing, so it has nothing to pre-flight.
+  const checkFor = (step, params) => (isMock ? null : { step, params });
+
+  const recheck = () => {
+    setBusy("recheck");
+    passes(gate.step, gate.params, true).finally(() => setBusy(""));
   };
 
   const pickMode = (m) => {
     if (m === mode) return;
-    store(MODE_KEY, m);
-    clearResults();
-    setMode(m);
-    if (m === "mock") { setError(null); setConfig(MOCK_CONFIG); loadNegatives(mockApi); return; }
+    if (m === "mock") {
+      store(MODE_KEY, m); clearResults(); setMode(m); setError(null); setConfig(MOCK_CONFIG); loadNegatives(mockApi);
+      return;
+    }
     run("mode", async () => {
+      store(MODE_KEY, m);
+      clearResults();
+      setMode(m);
       applyConfig((await bffAxios.post(`${API}/mode`, { mode: m })).data);
       if (isMock) loadNegatives(bffAxios);
-    });
+    }, { step: "mode", params: { mode: m } });
   };
 
   const pickView = (v) => { store(VIEW_KEY, v); setView(v); };
 
-  const signIn = () => {
+  const signIn = () => run("signin", async () => {
     if (mode === "pf-pf") {
       // Sign in at the issuer PingFederate, not the app's own provider.
       window.location.assign(`${API}/issuer/login?return_to=${RETURN_TO}`);
       return;
     }
-    run("signin", async () => {
-      // Always a PingFederate sign-in: clear whatever session is here first.
-      await bffAxios.post("/api/auth/clear-session").catch(() => {});
-      // PingFederate's own login page: the real IdP sign-in the ID-JAG is minted from.
-      openSignIn({ returnTo: RETURN_TO, force: true, redirect: true });
-    });
-  };
+    // Always a PingFederate sign-in: clear whatever session is here first.
+    await bffAxios.post("/api/auth/clear-session").catch(() => {});
+    // PingFederate's own login page: the real IdP sign-in the ID-JAG is minted from.
+    openSignIn({ returnTo: RETURN_TO, force: true, redirect: true });
+  }, checkFor("signin"));
 
   // byo: the browser sends the user's own ID-JAG once; the BFF keeps it and returns decoded claims.
   const byoInspect = () => run("byo", async () => {
@@ -354,28 +533,39 @@ export default function IdJagPlaygroundPage() {
     const { data } = await bffAxios.post(`${API}/byo/inspect`, { idJag: byoToken.trim(), target: byoTarget });
     if (data.config) applyConfig(data.config);
     setInspection(data);
-  });
+  }, checkFor("issue", { target: byoTarget }));
 
   const issue = () => run("issue", async () => {
-    setRedeemed(null); setTools(null); setCallResult(null); setInspection(null);
+    setRedeemed(null); setTools(null); setCallResult(null); setInspection(null); setResource(null);
     const r = await api.post(`${API}/issue`, {});
     setIssued(r.data);
     setInspection((await api.post(`${API}/inspect`, {})).data);
-  });
+  }, checkFor("issue"));
 
+  // No scope = everything the ID-JAG grants (the AS gives ID-JAG ∩ client): the working default.
+  const scopeBody = scopePick ? { scope: scopePick } : {};
   const redeem = () => run("redeem", async () => {
     setTools(null); setCallResult(null);
-    const r = await api.post(`${API}/redeem`, redeemScope.trim() ? { scope: redeemScope.trim() } : {}, { validateStatus: () => true });
+    const r = await api.post(`${API}/redeem`, scopeBody, { validateStatus: () => true });
+    // A refusal before the AS (sign-in, scope guard) has no request to show: report it as an error.
+    if (!r.data?.request) throw Object.assign(new Error(r.data?.message || `Redeem failed (HTTP ${r.status})`), { response: r });
     setRedeemed(r.data);
-  });
+  }, checkFor("redeem", scopeBody));
 
   const pickTool = (name) => { setTool(name); setArgForm({}); };
 
   const listTools = () => run("list", async () => {
+    setTools(null); setCallResult(null);
     const r = await api.post(`${API}/call`, {});
     setTools(r.data);
     pickTool(r.data.tools?.[0]?.name || "");
-  });
+  }, checkFor("call"));
+
+  const openResource = (variant) => run("resource", async () => {
+    const r = await api.post(`${API}/resource`, { variant }, { validateStatus: () => true });
+    if (!r.data?.request) throw Object.assign(new Error(r.data?.message || `HTTP ${r.status}`), { response: r });
+    setResource(r.data);
+  }, checkFor("resource", { variant }));
 
   const selected = (tools?.tools || []).find((t) => t.name === tool);
   const schemaProps = selected?.inputSchema?.properties;
@@ -386,22 +576,29 @@ export default function IdJagPlaygroundPage() {
     let parsed = {};
     if (useArgForm) parsed = buildArgs(schemaProps, argForm);
     else { try { parsed = JSON.parse(args || "{}"); } catch { throw new Error("Arguments must be JSON"); } }
+    setCallResult(null);
     setCallResult((await api.post(`${API}/call`, { tool, arguments: parsed })).data);
-  });
+  }, checkFor("call"));
 
   const runNegative = (id) => run(`neg-${id}`, async () => {
     const r = await api.post(`${API}/negative/${id}`, {}, { validateStatus: () => true });
     setNegResults((m) => ({ ...m, [id]: r.data }));
-  });
+  }, checkFor("negative"));
 
   const runAllNegatives = () => run("neg-all", async () => {
     for (const t of negatives) {
       const r = await api.post(`${API}/negative/${t.id}`, {}, { validateStatus: () => true });
       setNegResults((m) => ({ ...m, [t.id]: r.data }));
     }
-  });
+  }, checkFor("negative"));
 
   const text = MODE_TEXT[mode];
+  // Each step shows the pre-flight result for its own button (byo's Inspect is step 1's).
+  const gateAt = (panel) => gate && (gate.step === "issue" && isByo ? "signin" : gate.step) === panel
+    && <PreflightPanel gate={gate} onRecheck={recheck} busy={!!busy} />;
+  const errorAt = (...steps) => (error && steps.includes(error.step) ? <ErrorNote e={error} resource={config?.request?.resource} /> : null);
+  const toolList = tools?.tools || [];
+  const pfRedeems = mode === "pf-pf" || config?.target === "pingfederate";
   const pfReady = !!config && (isMock || isByo || (mode === "pf-pf" ? !!config.enabled : config.provider === "pingfederate" && config.enabled));
   const canRun = pfReady && (isMock || isByo || config.signedIn);
   const hasIdJag = isByo ? !!inspection?.trusted : !!issued;
@@ -435,6 +632,7 @@ export default function IdJagPlaygroundPage() {
           <div className="ijp-toolbar__group"><span>Mode</span><Segmented label="Playground mode" options={modeOptions} value={mode} onPick={pickMode} disabled={!!busy} /></div>
           <div className="ijp-toolbar__group"><span>View</span><Segmented label="Data view" options={VIEWS} value={view} onPick={pickView} /></div>
         </div>
+        {gateAt("mode")}
         {isMock && <p className="ijp-mock-badge" role="status" data-testid="ijp-mock-badge">Mock: sample data, nothing is sent</p>}
 
         {config && (
@@ -453,7 +651,7 @@ export default function IdJagPlaygroundPage() {
               : "pf_id_jag_enabled is off on this BFF."}
           </div>
         )}
-        {error && <div className="ijp-banner ijp-banner--error" role="alert"><strong>{error.error || "Error"}</strong> {error.message || error.error_description || ""}</div>}
+        {error && !["list", "call", "resource"].includes(error.step) && <ErrorNote e={error} resource={config?.request?.resource} />}
 
         <Step n={1} title={text.signInTitle} note={text.signInNote}>
           {isByo ? (
@@ -474,10 +672,12 @@ export default function IdJagPlaygroundPage() {
               </button>
             </>
           )}
+          {gateAt("signin")}
         </Step>
 
         <Step n={2} title={isByo ? "Check your ID-JAG against the draft" : "Get an ID-JAG from PingFederate"} note={isByo ? null : SPEC_NOTES.issue}>
           {!isByo && <button type="button" className="ijp-btn ijp-btn--primary" onClick={issue} disabled={!canRun || !!busy}>{busy === "issue" ? "Requesting…" : "Request ID-JAG"}</button>}
+          {gateAt("issue")}
           {isByo && inspection && <div className="ijp-io"><div><h4>Decoded ID-JAG</h4><Data value={{ header: inspection.header, claims: inspection.claims }} /></div></div>}
           {issued && (
             <div className="ijp-io">
@@ -508,10 +708,17 @@ export default function IdJagPlaygroundPage() {
         </Step>
 
         <Step n={3} title={text.redeemTitle} note={SPEC_NOTES.redeem}>
-          <label className="ijp-field">Ask for a narrower scope (optional)
-            <input value={redeemScope} onChange={(e) => setRedeemScope(e.target.value)} placeholder="e.g. accounts:read" />
+          <Lifetime id="idjag" label="ID-JAG" exp={idJagClaims?.exp} used={redeemed?.status === 200} now={nowMs}
+            again={isByo ? "Paste a fresh one to redeem again." : "Request a new one to redeem again."} />
+          <label className="ijp-field">Scope to request
+            <select value={scopePick} disabled={!idJagClaims} onChange={(e) => setRedeemScope(e.target.value)}>
+              <option value="">All scopes in this ID-JAG (recommended)</option>
+              {scopeOptions.map((s) => <option key={s} value={s}>{s}</option>)}
+            </select>
           </label>
+          {!idJagClaims && <p className="ijp-note">{isByo ? "Paste and inspect your ID-JAG first." : "Request an ID-JAG first."}</p>}
           <button type="button" className="ijp-btn ijp-btn--primary" onClick={redeem} disabled={!canRun || !hasIdJag || !!busy}>{busy === "redeem" ? "Redeeming…" : "Redeem ID-JAG"}</button>
+          {gateAt("redeem")}
           {redeemed && (
             <div className="ijp-io">
               <div><h4>Request</h4><Data value={redeemed.request} /></div>
@@ -519,14 +726,17 @@ export default function IdJagPlaygroundPage() {
               {redeemed.token && <div><h4>Decoded access token</h4><Data value={redeemed.token} /></div>}
             </div>
           )}
+          {redeemed && redeemed.status !== 200 && explain(redeemed.response, config?.request?.resource) && (
+            <p className="ijp-fix" role="note">{explain(redeemed.response, config?.request?.resource)}</p>
+          )}
         </Step>
 
         <Step n={4} title="Call the MCP server with the new token" note={text.call}>
+          <Lifetime id="token" label="Access token" exp={tokenExp} now={nowMs} again="Request and redeem a new ID-JAG." />
           <button type="button" className="ijp-btn" onClick={listTools} disabled={!canRun || !redeemed?.token || !!busy}>{busy === "list" ? "Listing…" : "List tools this token can see"}</button>
-          {tools && (
+          {gateAt("call")}
+          {tools && toolList.length > 0 && (
             <div className="ijp-call">
-              <p className="ijp-note" data-testid="ijp-tool-count">{(tools.tools || []).length} tools</p>
-              {tools.deniedTools?.length > 0 && <p className="ijp-note">Hidden by the gateway's policy: {tools.deniedTools.join(", ")}</p>}
               <label className="ijp-field">Tool
                 <select value={tool} onChange={(e) => pickTool(e.target.value)}>
                   {(tools.tools || []).map((t) => <option key={t.name} value={t.name}>{t.name}</option>)}
@@ -566,11 +776,47 @@ export default function IdJagPlaygroundPage() {
               <button type="button" className="ijp-btn ijp-btn--primary" onClick={callTool} disabled={!tool || !!busy}>{busy === "call" ? "Calling…" : "Call tool"}</button>
             </div>
           )}
-          {callResult && <div className="ijp-io"><div><h4>Request</h4><Data value={callResult.request} /></div><div><h4>Result</h4><Data value={callResult.result} /></div></div>}
+          {(tools || callResult || errorAt("list", "call")) && (
+            <div className="ijp-results" data-testid="ijp-results" aria-live="polite">
+              <h3>Results</h3>
+              {errorAt("list", "call")}
+              {tools && (
+                <div className="ijp-io">
+                  <div>
+                    <h4 data-testid="ijp-tool-count">tools/list: {toolList.length} tools</h4>
+                    {toolList.length > 0
+                      ? <Data value={toolList.map(({ name, description }) => ({ name, description }))} />
+                      : <p className="ijp-note">0 tools: the token's scope allows none of this server's tools. Check its scope in step 3.</p>}
+                    {tools.deniedTools?.length > 0 && <p className="ijp-note">{`Hidden by the gateway's policy: ${tools.deniedTools.join(", ")}`}</p>}
+                  </div>
+                  <div><h4>Request</h4><Data value={tools.request} /></div>
+                </div>
+              )}
+              {callResult && <div className="ijp-io"><div><h4>tools/call request</h4><Data value={callResult.request} /></div><div><h4>Result</h4><Data value={callResult.result} /></div></div>}
+            </div>
+          )}
         </Step>
+
+        <section className="ijp-step" aria-labelledby="ijp-resource-h" data-testid="ijp-resource">
+          <header className="ijp-step__head"><h2 id="ijp-resource-h">Protected resource: a real backend page</h2></header>
+          <p className="ijp-note">
+            The resource server also serves a plain page, /protected/profile, behind the same bearer validation as its MCP tools.
+            Open it with the access token from step 3, then try it without a token and with the raw ID-JAG: it must refuse both and say which check failed.
+          </p>
+          {pfRedeems && !isMock && (
+            <p className="ijp-banner">This mode's access token comes from PingFederate. oauth-mcp's page trusts oauth-mcp and PingOne issuers, so expect a refusal at the issuer check; PingFederate → oauth-mcp shows it accepted.</p>
+          )}
+          <button type="button" className="ijp-btn ijp-btn--primary" onClick={() => openResource("token")} disabled={!redeemed?.token || !!busy}>Open the protected page</button>
+          <button type="button" className="ijp-btn" onClick={() => openResource("no-token")} disabled={!config || !!busy}>Try without a token</button>
+          <button type="button" className="ijp-btn" onClick={() => openResource("id-jag")} disabled={!hasIdJag || !!busy}>Try with the raw ID-JAG</button>
+          {gateAt("resource")}
+          {errorAt("resource")}
+          {resource && (view === "json" ? <Data value={resource} /> : <ResourcePage r={resource} />)}
+        </section>
 
         <Step n={5} title="Negative tests against the authorization server" note={isByo ? SPEC_NOTES.negativeByo : SPEC_NOTES.negative}>
           <button type="button" className="ijp-btn" onClick={runAllNegatives} disabled={!canRun || (isByo && !hasIdJag) || !!busy}>{busy === "neg-all" ? "Running…" : "Run all"}</button>
+          {gateAt("negative")}
           <ul className="ijp-negatives">
             {negatives.map((t) => {
               const r = negResults[t.id];

@@ -42,6 +42,12 @@ test('maps an invalid_token 401 to TOKEN_INACTIVE + login_required (friendly re-
   await expect(call()).rejects.toMatchObject({ code: 'TOKEN_INACTIVE', login_required: true, httpStatus: 401 });
 });
 
+test('reads the reason from WWW-Authenticate when the 401 body has none, and keeps the gateway status', async () => {
+  axios.post = jest.fn().mockResolvedValue({ status: 401, data: '',
+    headers: { 'www-authenticate': 'Bearer realm="mcp", error="insufficient_scope", error_description="requires gateway:mcp:invoke"' } });
+  await expect(call()).rejects.toMatchObject({ gatewayStatus: 401, gatewayErrorCode: 'insufficient_scope', gatewayMessage: 'requires gateway:mcp:invoke' });
+});
+
 test('still maps an explicit login_required 401 to TOKEN_INACTIVE', async () => {
   mock401({ error: 'login_required', message: 'Please sign in' });
   await expect(call()).rejects.toMatchObject({ code: 'TOKEN_INACTIVE', login_required: true });

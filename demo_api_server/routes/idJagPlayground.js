@@ -22,8 +22,8 @@ const axios = require('axios');
 const configStore = require('../services/configStore');
 const oauthService = require('../services/oauthService');
 const { decodeJwt } = require('../utils/tokenUtils');
-const { callToolViaGateway, getMcpGatewayHttpUrl } = require('../services/mcpGatewayClient');
-const { getFrontendOrigin } = require('../services/oauthRedirectUris');
+const { callToolViaGateway } = require('../services/mcpGatewayClient');
+const { getFrontendOrigin, getUserRedirectUri } = require('../services/oauthRedirectUris');
 const trustedIdps = require('../services/idJagTrustedIdps');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
@@ -40,6 +40,8 @@ const SPEC = 'draft-ietf-oauth-identity-assertion-authz-grant';
 
 const cfg = (k) => String(configStore.getEffective(k) || '').trim();
 const scopeList = (s) => String(s || '').split(/\s+/).filter(Boolean);
+const claimScopes = (c) => (Array.isArray(c?.scope) ? c.scope.map(String) : scopeList(c?.scope));
+const PLAYGROUND_PATH = '/pingfederate-id-jag/playground';
 
 // Two real pairings. 'oauth-mcp': the app's PingFederate issues, oauth-mcp redeems.
 // 'pf-pf': the SE PingFederate issues and the local PingFederate redeems (JWT bearer via
@@ -87,6 +89,16 @@ function pfPfUnavailableReason() {
 }
 
 const modeOf = (req) => (MODES.includes(req?.session?.idJagPlaygroundMode) ? req.session.idJagPlaygroundMode : 'oauth-mcp');
+
+// Always the Node demo MCP gateway: it trusts oauth-mcp's and PingFederate's tokens. PingGateway
+// (ff_mcp_gateway_pinggateway) demands gateway:mcp:invoke and a PingOne/PF issuer, so it 401s these.
+const nodeGatewayUrl = () => (env('MCP_DEMO_GATEWAY_URL') || cfg('mcp_demo_gateway_url')).replace(/\/$/, '');
+
+// oauth-mcp's REST resource behind its tools-path bearer validation: same server that redeems the ID-JAG.
+const protectedResourceUrl = () => {
+  const tokenEndpoint = cfg('pf_id_jag_redemption_token_endpoint');
+  return tokenEndpoint ? `${tokenEndpoint.replace(/\/token\/?$/, '')}/protected/profile` : '';
+};
 
 function settings(mode = 'oauth-mcp') {
   if (mode === 'pf-pf') return pfPfSettings();
@@ -361,7 +373,276 @@ router.post('/mode', (req, res) => {
   return req.session.save(() => res.json(configFor(req)));
 });
 
-const safeReturnTo = (p) => (typeof p === 'string' && /^\/(?!\/)/.test(p) ? p : '/pingfederate-id-jag/playground');
+// ---- Preflight: what would make the next button fail, checked before it is pressed. ----
+
+const PREFLIGHT_STEPS = ['signin', 'issue', 'redeem', 'call', 'negative', 'resource', 'mode'];
+const PROBE_TTL_MS = 30 * 1000;
+const probes = new Map();
+
+/** GET with a short timeout. HTTP answers are cached 30 s; network failures are not, so a re-check sees a host come back. */
+async function probe(url, fresh) {
+  const hit = probes.get(url);
+  if (!fresh && hit && Date.now() - hit.at < PROBE_TTL_MS) return hit.result;
+  try {
+    const r = await axios.get(url, { timeout: 4000, validateStatus: () => true });
+    const result = { status: r.status, data: r.data };
+    probes.set(url, { at: Date.now(), result });
+    return result;
+  } catch (err) {
+    probes.delete(url);
+    return { error: err.code || err.message };
+  }
+}
+
+const originOf = (u) => { try { return new URL(u).origin; } catch { return ''; } };
+const unreachable = (url, r) => (r.error ? `Could not reach ${url} (${r.error}).` : `${url} answered HTTP ${r.status}.`);
+
+/** Settings the mode cannot run without, by the name the operator sets. Values are never returned. */
+function missingConfig(mode, s) {
+  const pfAs = mode === 'pf-pf' || s.target === 'pingfederate';
+  const need = [
+    ...(mode === 'oauth-mcp' ? [['pf_issuer', s.idp.issuer], ['pf_token_endpoint', s.idp.tokenEndpoint], ['pf_user_client_id', s.idp.exchangeClientId],
+      ['pf_id_jag_redemption_client_id', s.resourceAs.clientId]] : []),
+    ...(mode === 'pf-pf' ? [['PF_IDJAG_ISSUER_PF_URL', s.idp.issuer], ['pf_user_client_id', s.idp.exchangeClientId],
+      ['pf_user_client_secret', cfg('pf_user_client_secret')]] : []),
+    pfAs ? ['pf_issuer', s.resourceAs.issuer] : ['pf_id_jag_audience', s.resourceAs.issuer],
+    pfAs ? ['pf_token_endpoint', s.resourceAs.tokenEndpoint] : ['pf_id_jag_redemption_token_endpoint', s.resourceAs.tokenEndpoint],
+  ];
+  return [...new Set(need.filter(([, v]) => !v).map(([k]) => k))];
+}
+
+function signedInCheck(req, mode, s) {
+  const sess = req.session || {};
+  if (mode === 'pf-pf') {
+    const ok = !!sess.idJagIssuer?.refreshToken;
+    return ['signed-in', 'Signed in at the issuer PingFederate', ok ? 'pass' : 'fail',
+      ok ? 'The BFF holds your issuer session.' : 'No issuer sign-in in this session (never signed in, or the session expired).',
+      'Click "Sign in at the issuer PingFederate" in step 1.'];
+  }
+  const label = 'Signed in with PingFederate';
+  const fix = 'Click "Sign in with PingFederate" in step 1.';
+  if (!sess.oauthTokens) return ['signed-in', label, 'fail', 'Not signed in (or the session expired).', fix];
+  if (sess.oauthProvider !== 'pingfederate') {
+    return ['signed-in', label, 'fail', `Signed in with ${sess.oauthProvider || 'another provider'}, not PingFederate.`, `${fix} It replaces this session.`];
+  }
+  const type = s.request.subjectTokenType;
+  const name = type.split(':').pop().replace('_', ' ');
+  if (!subjectToken(req, type)) {
+    return ['signed-in', label, 'fail', `Signed in, but the session holds no ${name} to exchange for an ID-JAG.`,
+      `Sign in again in step 1.${name === 'refresh token' ? ' PingFederate must grant offline_access so the BFF keeps a refresh token.' : ''}`];
+  }
+  if (type.endsWith(':access_token') && sess.oauthTokens.expiresAt && sess.oauthTokens.expiresAt < Date.now()) {
+    return ['signed-in', label, 'fail', 'Your PingFederate access token expired.', 'Sign in again in step 1.'];
+  }
+  return ['signed-in', label, 'pass', `The session holds a ${name}.`];
+}
+
+/** Every check that can make the next button fail, for the session's mode. Never returns a token or a secret. */
+async function preflight(req, step) {
+  const checks = [];
+  const add = (id, label, status, detail, fix) => checks.push(status === 'pass' ? { id, label, status, detail } : { id, label, status, detail, fix });
+  const at = (...steps) => steps.includes(step);
+  const fresh = req.query.fresh === '1';
+  const nowSec = Math.floor(Date.now() / 1000);
+  const front = getFrontendOrigin();
+  const page = `${front}${PLAYGROUND_PATH}`;
+  const here = originOf(req.query.origin) || originOf(req.get('referer'));
+
+  add('origin', 'This page is on the app host', !here ? 'warn' : here === front ? 'pass' : 'fail',
+    !here ? 'Could not tell which host this page is on.' : here === front ? here : `This page is on ${here}, but sign-in and every action go through ${front}.`,
+    `Open ${page}. Sign-in returns to that host, so a session started on another host is lost ("Invalid state").`);
+
+  if (step === 'mode') {
+    const target = String(req.query.mode || '');
+    const known = MODES.includes(target);
+    const reason = !known ? `"${target}" is not a playground mode.` : target === 'pf-pf' ? pfPfUnavailableReason() : null;
+    add('mode', `This server can run ${known ? target : 'that mode'}`, reason ? 'fail' : 'pass', reason || 'Available.', known ? reason : 'Pick a mode from the toolbar.');
+    return checks;
+  }
+
+  const mode = modeOf(req);
+  if (req.query.mode && req.query.mode !== mode) {
+    add('mode-sync', 'The server session is in this mode', 'fail',
+      `This page is in ${req.query.mode}, the server session in ${mode} (the session was reset, or changed in another tab).`,
+      'Reload the page: it puts the server session back in this mode.');
+    return checks;
+  }
+
+  const byo = mode === 'byo';
+  const s = settingsFor(req);
+  const pg = req.session?.idJagPlayground;
+  const pfRedeems = mode === 'pf-pf' || s.target === 'pingfederate';
+
+  if (step === 'resource') {
+    const url = protectedResourceUrl();
+    if (!url) {
+      add('resource', 'Protected resource is configured', 'fail', 'No oauth-mcp URL: pf_id_jag_redemption_token_endpoint is unset.', 'Set pf_id_jag_redemption_token_endpoint to oauth-mcp\'s /token; its /protected/profile sits beside it.');
+    } else {
+      const r = await probe(url, fresh);
+      const bad = !!r.error || r.status === 404 || r.status >= 500;
+      add('resource', 'Protected resource answers', bad ? 'fail' : 'pass', bad ? unreachable(url, r) : `${url} answered (HTTP ${r.status}).`,
+        r.status === 404 ? 'This oauth-mcp predates /protected/profile: deploy the latest mcp-server image.' : 'Start oauth-mcp (mcp-server), or fix pf_id_jag_redemption_token_endpoint.');
+    }
+    const variant = req.query.variant;
+    if (variant === 'token') {
+      const exp = decodeJwt(pg?.accessToken)?.claims?.exp;
+      const left = typeof exp === 'number' ? exp - nowSec : null;
+      add('access-token', 'Access token from step 3', !pg?.accessToken || (left !== null && left <= 0) ? 'fail' : 'pass',
+        !pg?.accessToken ? 'No access token yet.' : left !== null && left <= 0 ? `It expired ${-left} s ago.` : 'Present.', 'Redeem a fresh ID-JAG in step 3.');
+    }
+    if (variant === 'id-jag') {
+      add('id-jag', 'An ID-JAG to present', pg?.idJag ? 'pass' : 'fail', pg?.idJag ? 'Present.' : 'No ID-JAG in this session yet.',
+        byo ? 'Paste your ID-JAG in step 1.' : 'Click Request ID-JAG (step 2).');
+    }
+    if (pfRedeems && variant === 'token') {
+      add('resource-issuer', 'oauth-mcp trusts this token\'s issuer', 'warn', 'In this mode the access token comes from the local PingFederate; oauth-mcp\'s resource trusts oauth-mcp and PingOne issuers only.',
+        'Expect a refusal at the issuer check. Use PingFederate → oauth-mcp to see the resource accept the token.');
+    }
+    return checks;
+  }
+
+  if (byo && step === 'issue') {
+    const target = req.query.target === 'pingfederate' ? 'pingfederate' : 'oauth-mcp';
+    const n = trustedIdps.list().filter((e) => e.enabled && e.targets.includes(target)).length;
+    add('trusted-idp', `A trusted IdP can redeem at ${target}`, n ? 'pass' : 'warn', `${n} enabled trusted IdP(s) target ${target}.`,
+      `Add your IdP on the Trusted IdPs panel below (admin) with ${target} as a target, or the inspection reports it untrusted.`);
+    return checks;
+  }
+  if (byo && step === 'signin') return checks;
+
+  if (mode === 'oauth-mcp') {
+    const provider = configStore.getOAuthProvider?.() || 'unset';
+    add('provider', 'Login provider is PingFederate', provider === 'pingfederate' ? 'pass' : 'fail', `The app's login provider is ${provider}.`,
+      'Switch the login provider to PingFederate (P1/PF toggle in the top bar, admin), then sign in again in step 1. PingOne does not issue ID-JAGs.');
+  }
+  if (!byo) {
+    add('enabled', 'ID-JAG is enabled', s.enabled ? 'pass' : 'fail', `pf_id_jag_enabled is ${s.enabled ? 'on' : 'off'}.`,
+      'Set pf_id_jag_enabled=true in the BFF configuration, then reload this page.');
+  }
+  const missing = missingConfig(mode, s);
+  add('config', 'Required settings are present', missing.length ? 'fail' : 'pass', missing.length ? `Missing: ${missing.join(', ')}.` : 'All set.',
+    `Set ${missing.join(', ')} in the BFF configuration (config store or environment), then reload this page.`);
+
+  if (mode === 'oauth-mcp' && step === 'signin' && here) {
+    const cb = originOf(getUserRedirectUri(req));
+    if (cb) {
+      add('redirect-host', 'PingFederate returns the sign-in to this host', cb === here ? 'pass' : 'fail',
+        cb === here ? `The callback is on ${cb}.` : `The sign-in callback is on ${cb}, not ${here}: the session would land on the other host.`,
+        cb === front ? `Open ${page} and sign in there.` : `Set pf_user_redirect_uri to ${front}/api/auth/oauth/user/callback (and register it at PingFederate) so sign-in returns to the app host.`);
+    }
+  }
+
+  if (pfRedeems && at('redeem', 'negative')) {
+    const ok = !!env('PF_IDJAG_PF_REDEEMER_CLIENT_SECRET');
+    add('redeemer-secret', 'Redeemer client secret is set', ok ? 'pass' : 'fail',
+      ok ? `Set for ${s.resourceAs.clientId}.` : `No secret for ${s.resourceAs.clientId} at the local PingFederate.`,
+      `Set PF_IDJAG_PF_REDEEMER_CLIENT_SECRET on the BFF to the secret of ${s.resourceAs.clientId} at the local PingFederate, then restart the BFF.`);
+  }
+
+  if (byo && pg?.byo && at('redeem', 'negative')) {
+    const e = trustedIdps.findById(pg.byo.idpId);
+    const ok = !!e && e.enabled && e.targets.includes(pg.byo.target);
+    add('trusted-idp', `Your IdP is trusted at ${pg.byo.target}`, ok ? 'pass' : 'fail',
+      !e ? 'The trusted IdP for this ID-JAG was removed.' : ok ? `${e.name} is enabled for ${pg.byo.target}.` : `${e.name} is ${e.enabled ? 'not targeted at' : 'disabled for'} ${pg.byo.target}.`,
+      `Enable ${e?.name || 'your IdP'} for ${pg.byo.target} on the Trusted IdPs panel (admin), then paste the ID-JAG again.`);
+  }
+
+  if (!byo && step !== 'signin') add(...signedInCheck(req, mode, s));
+
+  if (!byo && at('signin', 'issue', 'negative') && s.idp.issuer) {
+    const key = mode === 'pf-pf' ? 'PF_IDJAG_ISSUER_PF_URL' : 'pf_issuer';
+    const url = `${s.idp.issuer.replace(/\/$/, '')}/.well-known/openid-configuration`;
+    const r = await probe(url, fresh);
+    const got = r.status === 200 ? r.data?.issuer : undefined;
+    add('issuer', `${s.idp.name} is up and is the issuer`, got === s.idp.issuer ? 'pass' : 'fail',
+      r.status !== 200 ? unreachable(url, r) : !got ? `${url} names no issuer.` : got === s.idp.issuer ? `${url} names ${got}.` : `Discovery says the issuer is ${got}, but ${key} is ${s.idp.issuer}.`,
+      got ? `Set ${key} to ${got} exactly.` : `Start ${s.idp.name} at ${s.idp.issuer}, or fix ${key}.`);
+  }
+
+  if (s.idp.jwksUrl && at('issue', 'redeem', 'negative')) {
+    const url = s.idp.jwksUrl;
+    const r = await probe(url, fresh);
+    const keys = Array.isArray(r.data?.keys) ? r.data.keys : [];
+    // A key listed under several kids is one key: count distinct moduli.
+    const rsa = [...new Map(keys.filter((k) => k.kty === 'RSA').map((k) => [`${k.n}.${k.e}`, k])).values()];
+    const withX5t = rsa.filter((k) => k.x5t).length;
+    if (r.error || r.status !== 200) {
+      add('jwks', `${s.idp.name} signing keys`, 'fail', unreachable(url, r), `Make ${url} reachable: the redeemer fetches ${s.idp.name}'s signing keys there.`);
+    } else if (!keys.length) {
+      add('jwks', `${s.idp.name} signing keys`, 'fail', `${url} lists no keys.`, `Give ${s.idp.name} an active signing key.`);
+    } else if (pfRedeems && (rsa.length !== 1 || withX5t !== 1)) {
+      add('jwks', `${s.idp.name} signing keys`, 'warn',
+        `${rsa.length} distinct RSA keys (${withX5t} with x5t): the PingFederate redeemer may pick the wrong key and answer "Invalid JWT token".`,
+        'Publish a single-key JWKS at the issuer (one active RSA signing key), then make the local PingFederate re-fetch it: re-save its IdP connection for this issuer, or restart it, so it drops the cached JWKS.');
+    } else {
+      add('jwks', `${s.idp.name} signing keys`, 'pass', `${keys.length} key(s), ${rsa.length} distinct RSA.`);
+    }
+  }
+
+  if (step === 'redeem' || (byo && step === 'negative')) {
+    const again = byo ? 'Get a fresh ID-JAG from your IdP and paste it in step 1.' : 'Request a new ID-JAG (step 2).';
+    const c = pg?.idJag ? (decodeJwt(pg.idJag)?.claims || {}) : null;
+    const left = typeof c?.exp === 'number' ? c.exp - nowSec : null;
+    if (!c) add('id-jag', 'An unused, unexpired ID-JAG', 'fail', 'No ID-JAG in this session yet.', byo ? 'Paste your ID-JAG and click Inspect ID-JAG (step 1).' : 'Click Request ID-JAG (step 2).');
+    else if (pg.redeemed) add('id-jag', 'An unused, unexpired ID-JAG', 'fail', 'This ID-JAG was already redeemed, and each one is single-use.', again);
+    else if (left !== null && left <= 0) add('id-jag', 'An unused, unexpired ID-JAG', 'fail', `It expired ${-left} s ago (ID-JAGs live about 5 minutes).`, again);
+    else add('id-jag', 'An unused, unexpired ID-JAG', 'pass', left === null ? 'Unused (no exp claim).' : `Unused, ${left} s left.`);
+    if (c && typeof c.exp === 'number' && typeof c.iat === 'number' && c.exp - c.iat > 300) {
+      add('lifetime', 'ID-JAG lifetime is 5 minutes or less', 'warn', `${c.exp - c.iat} s; the profile expects 300 s or less.`,
+        `Lower the ID-JAG lifetime at ${s.idp.name} to 300 s${byo ? '' : ' (on PingFederate: the token lifetime of the access token manager that mints it)'}.`);
+    }
+    if (c && step === 'redeem') {
+      const asked = scopeList(req.query.scope);
+      const extra = asked.filter((x) => !claimScopes(c).includes(x));
+      add('scope', 'Requested scope is in the ID-JAG', extra.length ? 'fail' : 'pass',
+        extra.length ? `The ID-JAG does not grant ${extra.join(' ')}.` : asked.length ? `Narrowing to ${asked.join(' ')}.` : 'All scopes in this ID-JAG.',
+        'Pick a scope from the list in step 3, or "All scopes in this ID-JAG".');
+    }
+  }
+
+  if (at('redeem', 'negative') && s.resourceAs.tokenEndpoint) {
+    const url = s.resourceAs.tokenEndpoint;
+    const r = await probe(url, fresh);
+    const bad = !!r.error || r.status >= 500;
+    add('resource-as', `${s.resourceAs.name} token endpoint answers`, bad ? 'fail' : 'pass', bad ? unreachable(url, r) : `${url} answered (HTTP ${r.status}).`,
+      pfRedeems ? 'Start the local PingFederate, or fix pf_token_endpoint.' : 'Start oauth-mcp (the MCP authorization server), or fix pf_id_jag_redemption_token_endpoint.');
+  }
+
+  if (step === 'call') {
+    const t = pg?.accessToken;
+    const exp = decodeJwt(t)?.claims?.exp;
+    const left = typeof exp === 'number' ? exp - nowSec : null;
+    if (!t) add('access-token', 'Access token from step 3', 'fail', 'No access token yet.', 'Redeem the ID-JAG (step 3).');
+    else if (left !== null && left <= 0) {
+      add('access-token', 'Access token from step 3', 'fail', `It expired ${-left} s ago.`,
+        byo ? 'Paste a fresh ID-JAG (step 1) and redeem it (step 3).' : 'Request a new ID-JAG (step 2) and redeem it (step 3).');
+    } else add('access-token', 'Access token from step 3', 'pass', left === null ? 'Present (opaque; expiry unknown).' : `${left} s left.`);
+    const gw = nodeGatewayUrl();
+    if (!gw) {
+      add('gateway', 'MCP gateway for ID-JAG tokens', 'fail', 'The Node demo MCP gateway URL is not configured.',
+        'Set MCP_DEMO_GATEWAY_URL (or mcp_demo_gateway_url) to the Node demo MCP gateway: it trusts oauth-mcp and PingFederate tokens; PingGateway does not.');
+    } else {
+      const r = await probe(`${gw}/health`, fresh);
+      const bad = !!r.error || r.status >= 500;
+      add('gateway', 'MCP gateway for ID-JAG tokens', bad ? 'fail' : 'pass', bad ? unreachable(`${gw}/health`, r) : `${gw} answered (HTTP ${r.status}).`,
+        `Start the Node demo MCP gateway at ${gw}, or fix MCP_DEMO_GATEWAY_URL.`);
+    }
+  }
+  return checks;
+}
+
+router.get('/preflight', async (req, res) => {
+  const step = String(req.query.step || '');
+  if (!PREFLIGHT_STEPS.includes(step)) return res.status(400).json({ error: 'invalid_step', message: `step must be one of ${PREFLIGHT_STEPS.join(', ')}` });
+  try {
+    const checks = await preflight(req, step);
+    return res.json({ ok: !checks.some((c) => c.status === 'fail'), step, mode: step === 'mode' ? req.query.mode : modeOf(req), checks });
+  } catch (err) {
+    return res.status(500).json({ error: 'preflight_failed', message: err.message });
+  }
+});
+
+const safeReturnTo = (p) => (typeof p === 'string' && /^\/(?!\/)/.test(p) ? p : PLAYGROUND_PATH);
 const issuerRedirectUri = () => `${getFrontendOrigin()}/api/id-jag-playground/issuer/callback`;
 
 /** pf-pf: sign in at the SE PingFederate (code + PKCE) so it holds a refresh token to exchange. */
@@ -454,6 +735,13 @@ router.post('/byo/inspect', async (req, res) => {
 router.post('/redeem', requirePf, async (req, res) => {
   const pg = req.session?.idJagPlayground;
   if (!pg?.idJag) return res.status(409).json({ error: 'no_id_jag', message: 'Issue an ID-JAG first.' });
+  // Narrowing only: never ask the AS for a scope the ID-JAG does not carry (the negative test does that on purpose).
+  const granted = claimScopes(decodeJwt(pg.idJag)?.claims);
+  const extra = scopeList(req.body?.scope).filter((x) => !granted.includes(x));
+  if (extra.length) {
+    return res.status(400).json({ error: 'scope_not_in_id_jag',
+      message: `The ID-JAG does not grant ${extra.join(' ')}. Pick one it carries (${granted.join(' ') || 'none'}), or send no scope to get all of them.` });
+  }
   try {
     const r = await redeem(pg.idJag, { scope: req.body?.scope, ...redeemContext(req) });
     if (r.status === 200 && r.data.access_token) {
@@ -469,22 +757,50 @@ router.post('/redeem', requirePf, async (req, res) => {
 router.post('/call', requirePf, async (req, res) => {
   const token = req.session?.idJagPlayground?.accessToken;
   if (!token) return res.status(409).json({ error: 'no_access_token', message: 'Redeem the ID-JAG first.' });
-  const gatewayUrl = getMcpGatewayHttpUrl();
+  const endpoint = `POST ${nodeGatewayUrl() || '(MCP_DEMO_GATEWAY_URL not set)'}/mcp`;
   const tool = typeof req.body?.tool === 'string' ? req.body.tool : '';
+  const params = req.body?.arguments && typeof req.body.arguments === 'object' ? req.body.arguments : {};
+  const request = { endpoint, authorization: 'Bearer [access token]',
+    body: tool ? { jsonrpc: '2.0', method: 'tools/call', params: { name: tool, arguments: params } } : { jsonrpc: '2.0', method: 'tools/list' } };
+  const pin = { pinNodeGateway: true };
   try {
     if (!tool) {
-      // The client returns the JSON-RPC envelope: the list is at result.result.tools.
-      const result = await callToolViaGateway(gatewayUrl, token, null, {}, { rpcMethod: 'tools/list' });
-      const list = result?.result || {};
+      const result = await callToolViaGateway(null, token, null, {}, { rpcMethod: 'tools/list', ...pin });
+      // The client returns the JSON-RPC envelope (list at result.result); accept a bare { tools } too.
+      const list = result?.result || result || {};
       const tools = (list.tools || []).map((t) => ({ name: t.name, description: (t.description || '').slice(0, 160), inputSchema: t.inputSchema || null }));
       const deniedTools = Array.isArray(list._meta?.deniedTools) ? list._meta.deniedTools : [];
-      return res.json({ request: { endpoint: `POST ${gatewayUrl}`, body: { jsonrpc: '2.0', method: 'tools/list' }, authorization: 'Bearer [access token]' }, tools, deniedTools });
+      return res.json({ request, tools, deniedTools });
     }
-    const params = req.body?.arguments && typeof req.body.arguments === 'object' ? req.body.arguments : {};
-    const result = await callToolViaGateway(gatewayUrl, token, tool, params);
-    return res.json({ request: { endpoint: `POST ${gatewayUrl}`, body: { jsonrpc: '2.0', method: 'tools/call', params: { name: tool, arguments: params } }, authorization: 'Bearer [access token]' }, result });
+    const result = await callToolViaGateway(null, token, tool, params, pin);
+    return res.json({ request, result });
   } catch (err) {
-    return res.status(err.httpStatus && err.httpStatus < 600 ? err.httpStatus : 502).json({ error: err.code || 'gateway_call_failed', message: err.message });
+    // The gateway's own answer (status, error code, reason), not just ours.
+    return res.status(err.httpStatus && err.httpStatus < 600 ? err.httpStatus : 502).json({ error: err.code || 'gateway_call_failed', message: err.message,
+      gatewayStatus: err.gatewayStatus, gatewayErrorCode: err.gatewayErrorCode, gatewayMessage: err.gatewayMessage, request });
+  }
+});
+
+const RESOURCE_VARIANTS = {
+  token: { token: (pg) => pg?.accessToken, shown: 'Bearer [access token]', missing: 'Redeem the ID-JAG first (step 3).' },
+  'no-token': { token: () => null, shown: 'none' },
+  'id-jag': { token: (pg) => pg?.idJag, shown: 'Bearer [the ID-JAG]', missing: 'Request an ID-JAG first (step 2).' },
+};
+
+/** Call oauth-mcp's protected REST resource with the access token, no token, or the raw ID-JAG. Tokens stay server-side. */
+router.post('/resource', async (req, res) => {
+  const v = RESOURCE_VARIANTS[req.body?.variant];
+  if (!v) return res.status(400).json({ error: 'invalid_variant', message: `variant must be one of ${Object.keys(RESOURCE_VARIANTS).join(', ')}` });
+  const url = protectedResourceUrl();
+  if (!url) return res.status(409).json({ error: 'resource_unconfigured', message: 'pf_id_jag_redemption_token_endpoint is unset, so there is no oauth-mcp URL.' });
+  const token = v.token(req.session?.idJagPlayground);
+  if (v.missing && !token) return res.status(409).json({ error: 'no_token', message: v.missing });
+  const request = { method: 'GET', url, authorization: v.shown };
+  try {
+    const r = await axios.get(url, { headers: token ? { Authorization: `Bearer ${token}` } : {}, timeout: 10000, validateStatus: () => true });
+    return res.json({ request, status: r.status, wwwAuthenticate: r.headers?.['www-authenticate'] || null, body: r.data });
+  } catch (err) {
+    return res.status(502).json({ error: 'resource_unreachable', message: `Could not reach ${url} (${err.code || err.message}).`, request });
   }
 });
 
@@ -574,3 +890,4 @@ router.post('/reset', (req, res) => {
 module.exports = router;
 module.exports._inspect = inspect;
 module.exports._settings = settings;
+module.exports._clearProbeCache = () => probes.clear();

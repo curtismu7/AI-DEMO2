@@ -77,3 +77,44 @@
 .ijp-targets { margin: 0.5rem 0; padding: 0.3rem 0.6rem; border: 1px solid var(--th-border); border-radius: 6px; }
 .ijp-targets legend { font-size: var(--font-size-xs); padding: 0 0.3rem; }
 .ijp-targets .ijp-check { display: inline-flex; margin-right: 1rem; }
+
+/* Pre-flight checklist: what blocked (or warned about) the button just pressed. */
+.ijp-preflight { margin: 0.6rem 0; padding: 0.6rem 0.85rem; max-width: 900px; border: 1px solid #b45309; border-left-width: 5px; border-radius: 8px; background: rgba(180, 83, 9, 0.06); }
+.ijp-preflight.is-fail { border-color: var(--ijp-red); background: rgba(210, 14, 15, 0.06); }
+.ijp-preflight h4 { margin: 0 0 0.4rem; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--ijp-strong); }
+.ijp-preflight ul { list-style: none; margin: 0 0 0.3rem; padding: 0; display: grid; gap: 0.45rem; }
+.ijp-preflight li { display: flex; gap: 0.6rem; align-items: flex-start; font-size: var(--font-size-xs); }
+.ijp-preflight__tag { flex: none; min-width: 2.7rem; padding: 0.05rem 0.4rem; border-radius: 999px; text-align: center; font-size: var(--font-size-3xs); font-weight: 700; text-transform: uppercase; letter-spacing: 0.04em; color: #fff; background: #b45309; }
+.ijp-preflight li.is-fail .ijp-preflight__tag { background: var(--ijp-red); }
+.ijp-fix { margin: 0.25rem 0 0; font-weight: 600; color: var(--ijp-strong); }
+
+/* How long the ID-JAG / access token has left; red once stale. */
+.ijp-life { display: block; width: fit-content; margin: 0.35rem 0; padding: 0.15rem 0.65rem; border: 1px solid var(--th-border); border-radius: 999px; font-size: var(--font-size-2xs); font-variant-numeric: tabular-nums; }
+.ijp-life.is-stale { border-color: var(--ijp-red); color: var(--ijp-red-text); }
+
+/* Step 4 output: always in one titled place, never silently empty. */
+.ijp-results { margin-top: 0.9rem; padding: 0.75rem 0.9rem; border: 1px solid var(--th-border); border-top: 3px solid var(--ijp-red); border-radius: 8px; background: var(--th-bg); }
+.ijp-results h3 { margin: 0; font-size: 0.95rem; }
+
+/* Protected resource: drawn as the small app page it protects. */
+.ijp-page { margin-top: 0.75rem; overflow: hidden; border: 1px solid var(--th-border); border-radius: 10px; background: var(--th-bg); box-shadow: 0 6px 18px rgba(5, 23, 39, 0.08); }
+.ijp-page > .ijp-cite, .ijp-page > .ijp-banner { margin: 0.5rem 0.9rem; }
+.ijp-page__bar { display: flex; align-items: center; gap: 0.6rem; padding: 0.55rem 0.9rem; background: var(--ijp-grad); color: #fff; }
+.ijp-page__method { padding: 0.05rem 0.45rem; border-radius: 4px; background: rgba(255, 255, 255, 0.18); font-size: var(--font-size-2xs); font-weight: 700; }
+.ijp-page__url { flex: 1; min-width: 0; overflow-wrap: anywhere; font-size: var(--font-size-xs); }
+.ijp-pill { flex: none; padding: 0.1rem 0.6rem; border-radius: 999px; background: #fff; font-size: var(--font-size-2xs); font-weight: 700; }
+.ijp-pill.is-ok { color: #15803d; }
+.ijp-pill.is-bad { color: var(--ijp-red); }
+.ijp-page__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 0.75rem; padding: 0.4rem 0.9rem 0.9rem; }
+.ijp-page__card { padding: 0.65rem 0.8rem; border: 1px solid var(--th-border); border-radius: 8px; background: var(--th-bg-card); font-size: var(--font-size-xs); }
+.ijp-page__card h4 { margin: 0 0 0.45rem; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--th-text-muted); }
+.ijp-verify { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.35rem; }
+.ijp-verify li { display: flex; gap: 0.45rem; align-items: flex-start; margin: 0; padding: 0; }
+.ijp-verify__mark { display: inline-flex; width: 1.1rem; height: 1.1rem; flex: none; align-items: center; justify-content: center; border-radius: 50%; background: #15803d; color: #fff; font-size: 0.7rem; font-weight: 700; }
+.ijp-verify li.is-fail .ijp-verify__mark { background: var(--ijp-red); }
+.ijp-verify li.is-fail strong { color: var(--ijp-red-text); }
+.ijp-profile { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.5rem; }
+.ijp-profile__avatar { display: inline-flex; flex: none; width: 2.4rem; height: 2.4rem; align-items: center; justify-content: center; border-radius: 50%; background: var(--ijp-grad); color: #fff; font-weight: 700; }
+.ijp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+/* The PingOne end-user stylesheet indents every list; these are flush. */
+.ijp .ijp-negatives, .ijp .ijp-verify, .ijp .ijp-preflight ul { padding-left: 0; }

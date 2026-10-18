@@ -52,6 +52,7 @@ import { resolveEmbeddedIssuer } from '../oauth/embeddedIssuer';
 import { openClientRegistrationEnabled } from '../oauth/ClientRegistry';
 import { BANKING_SCOPES as SHARED_BANKING_SCOPES } from '../oauth/scopes';
 import { httpTransportDuration } from '../metrics';
+import { handleProtectedProfile } from './protectedProfile';
 
 // ---------------------------------------------------------------------------
 // Constants
@@ -345,6 +346,17 @@ export class HttpMCPTransport {
       AuditLogger.clearEvents();
       res.writeHead(200, { 'Content-Type': 'application/json' });
       res.end(JSON.stringify({ ok: true, message: 'Audit log cleared' }));
+      return;
+    }
+
+    // A plain REST resource behind the tools path's bearer validation (ID-JAG playground).
+    // Always enforced, MCP_AUTH_DISABLED or not: showing enforcement is its whole job.
+    if (pathname === '/protected/profile' && req.method === 'GET') {
+      await handleProtectedProfile(req, res, {
+        validate: (token) => this.authManager.validateAgentToken(token),
+        acceptedIssuers: this.acceptedIssuers(),
+        resourceUrl: `${this.resourceBaseUrl()}/protected/profile`,
+      });
       return;
     }
 
@@ -1070,6 +1082,11 @@ export class HttpMCPTransport {
    * Per 2026-07-28 SEP-2468 (RFC 9207), validates the 'iss' claim to prevent
    * authorization server mix-up attacks.
    */
+  /** RFC 9207: PingOne (delegated/exchanged tokens) and this server's embedded AS. Shared with /protected/profile. */
+  private acceptedIssuers(): string[] {
+    return [process.env.PINGONE_ISSUER || this.config.authServerUrl, resolveEmbeddedIssuer()].filter(Boolean);
+  }
+
   private async authenticateBearer(req: IncomingMessage, res: ServerResponse): Promise<AuthenticatedBearer | null> {
     if (this.authDisabled) {
       // Open-access mode still keeps a REAL bearer when one is presented. The
@@ -1129,8 +1146,7 @@ export class HttpMCPTransport {
     // of the DCR work). Anything else is still rejected as a mix-up attack.
     if (tokenInfo.signatureVerified && tokenInfo.verifiedClaims) {
       const issFromToken = (tokenInfo.verifiedClaims as any)?.iss;
-      const pingOneIssuer = process.env.PINGONE_ISSUER || this.config.authServerUrl;
-      const acceptedIssuers = [pingOneIssuer, resolveEmbeddedIssuer()].filter(Boolean);
+      const acceptedIssuers = this.acceptedIssuers();
       if (issFromToken && acceptedIssuers.length > 0 && !acceptedIssuers.includes(issFromToken)) {
         console.warn(
           `[HttpMCPTransport][RFC9207] Issuer mismatch: token iss="${issFromToken}" ` +
