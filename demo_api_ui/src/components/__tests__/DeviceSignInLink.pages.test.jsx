@@ -52,4 +52,10 @@ describe("Sign in with a device or an approval link", () => {
     await user.click(await screen.findByRole("button", LINK));
     await waitFor(() => expect(openSignIn).toHaveBeenCalledWith({ returnTo: "/", force: true }));
   });
+
+  it("AicLoginToggle hides the link once signed in", async () => {
+    render(<AicLoginToggle signedIn />);
+    await screen.findByRole("button", { name: /toggle aic customer sign-in/i });
+    expect(screen.queryByRole("button", LINK)).toBeNull();
+  });
 });

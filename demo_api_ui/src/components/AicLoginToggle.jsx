@@ -14,7 +14,8 @@ import './OAuthProviderToggle.css';
  * Reuses the P1 ⇄ PF pill's styles: "--pingone" highlights the left option,
  * "--aic" the right one with the same amber "non-default mode" tint.
  */
-export default function AicLoginToggle() {
+// signedIn: hide the 'other sign-in' link once the user is signed in (it's for choosing how to sign in).
+export default function AicLoginToggle({ signedIn = false }) {
   const [enabled, setEnabled] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -75,7 +76,7 @@ export default function AicLoginToggle() {
         <span className="oauth-provider-toggle__knob" aria-hidden="true" />
         <span className="oauth-provider-toggle__option">AIC</span>
       </button>
-      <DeviceSignInLink compact />
+      {!signedIn && <DeviceSignInLink compact />}
     </>
   );
 }
