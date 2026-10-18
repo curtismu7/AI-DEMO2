@@ -1963,7 +1963,7 @@ const MFATestPageContent: FC = () => {
             <p
               style={{
                 fontSize: "0.75rem",
-                color: "#6b7280",
+                color: "var(--th-text-body)",
                 margin: "0 0 0.75rem",
               }}
             >

@@ -211,9 +211,9 @@ function HowItWorksPanel() {
             <span style={S.flowArrow}>→</span>
             <div style={S.flowBox('#d20e0f')}>2. Store delegation<br/>+ scopes in LMDB</div>
             <span style={S.flowArrow}>→</span>
-            <div style={S.flowBox('#0891b2')}>3. Send email via<br/>PingOne Messages API</div>
+            <div style={S.flowBox('#0e7490')}>3. Send email via<br/>PingOne Messages API</div>
             <span style={S.flowArrow}>→</span>
-            <div style={S.flowBox('#059669')}>4. Delegate logs in →<br/>BFF issues delegation token</div>
+            <div style={S.flowBox('#047857')}>4. Delegate logs in →<br/>BFF issues delegation token</div>
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginTop: 8 }}>

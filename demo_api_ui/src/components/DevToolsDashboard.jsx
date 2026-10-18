@@ -88,7 +88,7 @@ export default function DevToolsDashboard({
           </button>
         ))}
         <div style={{ flex: 1 }} />
-        <span style={{ alignSelf: "center", paddingBottom: 8, paddingRight: 10, fontSize: "0.7rem", color: "rgba(255,255,255,0.5)" }}>
+        <span style={{ alignSelf: "center", paddingBottom: 8, paddingRight: 10, fontSize: "0.7rem", color: "rgba(255,255,255,0.78)" }}>
           drag · resize · 🪟 pop out
         </span>
         {onClose && (

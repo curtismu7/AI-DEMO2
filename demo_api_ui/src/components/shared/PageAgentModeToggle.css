@@ -18,12 +18,12 @@
 }
 
 .page-agent-mode__opt--on {
-  background: #e4002b;
+  background: #d20e0f;
   color: #fff;
 }
 
 .page-agent-mode__opt:focus-visible {
-  outline: 2px solid var(--th-accent, #e4002b);
+  outline: 2px solid var(--th-accent, #d20e0f);
   outline-offset: 2px;
 }
 
