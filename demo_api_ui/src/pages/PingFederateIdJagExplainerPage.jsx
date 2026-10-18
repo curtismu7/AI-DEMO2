@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import IdJagPathBar from "../components/IdJagPathBar";
 import { diagramLinkProps } from "../utils/diagramLinks";
 import "./PingFederateIdJagExplainerPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 const FLOW = [
   ["01", "Sign in once", "The browser signs in through PingFederate. The BFF keeps the refresh token and browser tokens out of the agent and MCP calls."],
@@ -31,20 +32,13 @@ export default function PingFederateIdJagExplainerPage() {
   return (
     <main className="pfj-explainer" data-testid="pingfederate-id-jag-explainer">
       <IdJagPathBar current="explain" />
-      <header className="pfj-explainer__hero">
-        <div>
-          <p className="pfj-explainer__eyebrow">PingFederate · enterprise-managed authorization</p>
-          <h1>How the ID-JAG demo works</h1>
-          <p className="pfj-explainer__lede">
-            This demo shows PingFederate carrying a user identity across the MCP trust boundary without sending the user through a second consent screen.
-          </p>
-        </div>
-        <div className="pfj-explainer__actions">
+      <PageHeader className="pfj-explainer__hero" eyebrow="PingFederate · enterprise-managed authorization" title="How the ID-JAG demo works" summary="This demo shows PingFederate carrying a user identity across the MCP trust boundary without sending the user through a second consent screen."
+        actions={<>        <div className="pfj-explainer__actions">
           <Link className="pfj-explainer__primary" to="/pingfederate-id-jag/demo">Run the demo</Link>
           <Link className="pfj-explainer__secondary" to="/pingfederate-id-jag/diagram" {...diagramLinkProps("/pingfederate-id-jag/diagram")}>Open the diagram</Link>
           <Link className="pfj-explainer__secondary" to="/pingfederate-id-jag/implementation" {...diagramLinkProps("/pingfederate-id-jag/implementation")}>See how we built it</Link>
         </div>
-      </header>
+        </>} />
 
       <section className="pfj-explainer__definition" aria-labelledby="id-jag-definition">
         <div>

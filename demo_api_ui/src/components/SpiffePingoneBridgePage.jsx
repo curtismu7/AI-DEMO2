@@ -1,6 +1,7 @@
 import { useState } from "react";
 import "./SpiffePingoneBridgePage.css";
 import { runSpiffeBridgeSimulation } from "../services/tokenChainTrace/spiffeBridgeSimulation";
+import PageHeader from './common/PageHeader';
 
 const HANDOFF_STEPS = [
   {
@@ -80,17 +81,10 @@ export default function SpiffePingoneBridgePage() {
 
   return (
     <div className="spiffe-bridge">
-      <header className="spiffe-bridge__hero">
-        <div className="spiffe-bridge__hero-copy">
-          <p className="spiffe-bridge__eyebrow">Identity handoff / implementation preview</p>
-          <h1>SPIFFE → PingOne Bridge</h1>
-          <p className="spiffe-bridge__lede">
-            Translate a workload identity into a PingOne-compatible client assertion
-            without pretending PingOne understands SPIFFE directly.
-          </p>
-        </div>
-        <StatusPill tone="todo">TODO / simulated</StatusPill>
-      </header>
+      <PageHeader className="spiffe-bridge__hero" eyebrow="Identity handoff / implementation preview" title="SPIFFE → PingOne Bridge" summary={<>Translate a workload identity into a PingOne-compatible client assertion
+            without pretending PingOne understands SPIFFE directly.</>}
+        actions={<>        <StatusPill tone="todo">TODO / simulated</StatusPill>
+        </>} />
 
       <section className="spiffe-bridge__demo-controls" aria-labelledby="spiffe-bridge-demo-title">
         <div>

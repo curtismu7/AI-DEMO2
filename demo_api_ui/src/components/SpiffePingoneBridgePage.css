@@ -10,15 +10,6 @@
   color: var(--spiffe-ink);
 }
 
-.spiffe-bridge__hero {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 28px;
-  padding: 8px 0 30px;
-  border-bottom: 1px solid var(--spiffe-line);
-}
-
 .spiffe-bridge__hero-copy { max-width: 760px; }
 .spiffe-bridge__eyebrow,
 .spiffe-bridge__kicker {
@@ -30,8 +21,6 @@
   text-transform: uppercase;
 }
 .spiffe-bridge h1 { margin: 0; font-size: var(--font-size-h1); letter-spacing: -0.045em; line-height: 1; }
-.spiffe-bridge__lede { max-width: 62ch; margin: 18px 0 0; color: var(--spiffe-muted); font-size: var(--font-size-lg); line-height: 1.6; }
-
 .spiffe-bridge__pill {
   display: inline-flex;
   align-items: center;

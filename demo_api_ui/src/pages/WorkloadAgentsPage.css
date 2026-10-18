@@ -1,7 +1,4 @@
 .workload-agents { min-height: 100%; padding: clamp(20px, 3vw, 44px); background: var(--th-bg-page); color: var(--th-text); }
-.workload-agents__intro { display: flex; justify-content: space-between; align-items: end; gap: 32px; max-width: 1380px; margin: 0 auto 28px; }
-.workload-agents__intro > div { max-width: 760px; }
-.workload-agents__kicker { margin: 0 0 10px; font-size: var(--font-size-xs); font-weight: 700; color: var(--th-text-muted); }
 .workload-agents h1 { margin: 0 0 12px; font-size: var(--font-size-4xl); line-height: 1.1; letter-spacing: -.035em; }
 .workload-agents__intro p:not(.workload-agents__kicker) { margin: 0; max-width: 68ch; color: var(--th-text-body); line-height: 1.55; }
 .workload-agents code { padding: 2px 5px; border-radius: var(--radius-sm); background: var(--th-code-bg); color: var(--th-code-text); }
@@ -37,3 +34,7 @@
 .workload-agents__run .workload-agents__status--error { border-color: var(--th-status-error-text); color: var(--th-status-error-text); }
 .workload-agents__chain { display: grid; grid-template-columns: minmax(0, 1fr); grid-template-areas: "chain" "spotlight"; min-width: 0; border: 1px solid var(--th-border); border-radius: var(--radius-md); overflow: hidden; }
 @media (max-width: 800px) { .workload-agents h1 { font-size: var(--font-size-3xl); } .workload-agents__intro { align-items: stretch; flex-direction: column; } .workload-agents__choices { grid-template-columns: 1fr; } .workload-agents__execution-head { flex-direction: column; } }
+
+.workload-agents .ping-page-header__side label {
+  color: #ffffff;
+}
