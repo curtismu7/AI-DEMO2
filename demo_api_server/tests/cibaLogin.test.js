@@ -74,6 +74,7 @@ const adminOAuthService = require('../services/oauthService');
 const cibaLoginService = require('../services/cibaLoginService');
 const cibaLoginRoutes = require('../routes/cibaLogin');
 
+const cfg = (o = {}) => (k) => (k === 'ciba_login_enabled' ? 'true' : (o[k] || ''));
 const POLICY_EMAIL = '99972880d9170ab70d72e269cc944186';
 const POLICY_SMS = '87929b3e4c6857e5ff854502dbde1742';
 const FULL_SCOPE = 'openid profile email offline_access read accounts:read write transfer ai:agent:read';
@@ -124,7 +125,8 @@ afterEach(() => {
 
 beforeEach(() => {
   jest.clearAllMocks();
-  configStore.getEffective.mockImplementation((k) => (k === 'admin_username' ? 'alice' : ''));
+  // The feature ships OFF; the suite exercises the ON behaviour (flag read via configStore.getEffective).
+  configStore.getEffective.mockImplementation(cfg({ admin_username: 'alice' }));
   configStore.getOAuthProvider.mockReturnValue('pingone');
   clock = 1_000_000;
   cibaLoginService._test.reset();
@@ -429,7 +431,7 @@ describe('fix round 1', () => {
 
   describe('admin escalation guard', () => {
     it('a customer-like account approving role:admin gets 403, no session, no cookie', async () => {
-      configStore.getEffective.mockImplementation(() => '');
+      configStore.getEffective.mockImplementation(cfg());
       const { agent, id } = await approved({ role: 'admin' });
       const r = await poll(agent, id);
       expect(r.status).toBe(403);
@@ -439,7 +441,7 @@ describe('fix round 1', () => {
     });
     it('an allowlisted admin succeeds; customer role is unaffected', async () => {
       expect((await poll(...Object.values(await approved({ role: 'admin' })))).body.status).toBe('approved');
-      configStore.getEffective.mockImplementation(() => '');
+      configStore.getEffective.mockImplementation(cfg());
       const c = await approved({ role: 'customer', identifier: 'bob' });
       expect((await poll(c.agent, c.id)).body.status).toBe('approved');
     });
@@ -557,5 +559,32 @@ describe('fix round 1 additions', () => {
     expect(spoofedFresh.status).toBe(429);
     const otherClient = await start(agent, { identifier: 'u10' }).set('X-Forwarded-For', '66.6.6.1, 203.0.113.8');
     expect(otherClient.status).toBe(200);
+  });
+});
+
+describe('ciba_login_enabled flag (ships OFF)', () => {
+  const OFF = { error: 'ciba_login_disabled' };
+  it.each(['', 'false', '0', 'TRUE-ish'])('flag %j: start and poll are 404 ciba_login_disabled for any body', async (v) => {
+    configStore.getEffective.mockImplementation((k) => (k === 'ciba_login_enabled' ? v : ''));
+    const agent = request.agent(makeApp());
+    for (const over of [{}, { channel: 'pigeon' }, { identifier: '' }]) {
+      const r = await start(agent, over);
+      expect(r.status).toBe(404);
+      expect(r.body).toEqual(OFF);
+    }
+    const p = await poll(agent, 'a'.repeat(48));
+    expect(p.status).toBe(404);
+    expect(p.body).toEqual(OFF);
+    const bad = await poll(agent, 'zz');
+    expect(bad.body).toEqual(OFF);
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+  it('disabled even for an unsupported provider (flag checked first)', async () => {
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    configStore.getEffective.mockImplementation(() => '');
+    expect((await start(request.agent(makeApp()))).body).toEqual(OFF);
+  });
+  it('flag on behaves normally', async () => {
+    expect((await start(request.agent(makeApp()))).status).toBe(200);
   });
 });

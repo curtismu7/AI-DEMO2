@@ -12,9 +12,18 @@
 const express = require('express');
 const router = express.Router();
 const cibaLoginService = require('../services/cibaLoginService');
+const configStore = require('../services/configStore');
 
 const CHANNELS = ['email', 'sms'];
 const ROLES = ['customer', 'admin'];
+
+// Ships OFF (needs the CIBA grant on the PingOne login apps). Checked before anything else and identical
+// for every caller, so a disabled deployment reveals nothing.
+router.use((req, res, next) => (
+  String(configStore.getEffective('ciba_login_enabled')).toLowerCase() === 'true'
+    ? next()
+    : res.status(404).json({ error: 'ciba_login_disabled' })
+));
 
 router.post('/start', async (req, res) => {
   // JSON only: a cross-site <form> POST (urlencoded/multipart) must not be able to spray starts.
