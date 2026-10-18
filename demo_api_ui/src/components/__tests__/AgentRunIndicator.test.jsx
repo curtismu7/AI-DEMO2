@@ -28,7 +28,7 @@ describe('AgentWorkingMark', () => {
 
     const mark = container.querySelector('img.ping-spinner__mark--dancing');
     expect(mark).toBeTruthy();
-    expect(mark.getAttribute('src')).toBe('/branding/ping-logo.png');
+    expect(mark.getAttribute('src')).toMatch(/^data:image\/png;base64,/);
     expect(container.querySelector('.ba-typing-dot')).toBeNull();
   });
 
