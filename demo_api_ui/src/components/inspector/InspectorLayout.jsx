@@ -1,6 +1,6 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
-import CallDetail, { Chip, Wrapped, hhmmss } from './CallDetail.jsx';
+import CallDetail, { Chip, Wrapped, formatTime } from './CallDetail.jsx';
 import { SRC_LABEL, isProblem } from './inspectorCalls.js';
 import './Inspector.css';
 
@@ -60,7 +60,7 @@ export default function InspectorLayout({
                       <span className="insp-call-title"><Wrapped text={c.title} /></span>
                       <span className="insp-call-sub">{c.kind} · {SRC_LABEL[c.src]}</span>
                     </span>
-                    <span className="insp-call-meta"><Chip chip={c.status} /><span>{c.ms == null ? 'open' : `${c.ms} ms`} · {hhmmss(c.at)}</span></span>
+                    <span className="insp-call-meta"><Chip chip={c.status} /><span>{c.ms == null ? 'open' : `${c.ms} ms`} · {formatTime(c.at)}</span></span>
                   </button>
                 </li>
               ))}

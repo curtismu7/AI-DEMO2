@@ -9,7 +9,7 @@ window.ResizeObserver = window.ResizeObserver || class { observe() {} unobserve(
 
 const base = { src: 'you', ms: 12, chips: [], corr: 'corr-1', request: { label: 'Request', body: { a: 1 } }, response: { label: 'Response', body: { b: 2 } }, banner: null };
 const c1 = {
-  ...base, id: 'c1', at: 1700000000, kind: 'tools/call', title: 'get_my_accounts', status: { tone: 'ok', label: '200 OK' },
+  ...base, id: 'c1', at: 1700000000000, kind: 'tools/call', title: 'get_my_accounts', status: { tone: 'ok', label: '200 OK' },
   tokens: [{ label: 'MCP token', role: 'r', alg: 'RS256', rfc: 'RFC 8693', status: { tone: 'ok', label: 'Valid' }, claims: { sub: 'u1', scope: 'a', iat: 1700000000 }, hidden: [], header: null, diff: { scope: 'narrowed' } }],
   hops: [
     { dir: 'Browser → BFF', call: 'POST /api/x', what: 'w1', status: { tone: 'ok', label: '200' }, ms: 5, request: {}, response: {} },
@@ -22,7 +22,7 @@ const c1 = {
   audit: { Who: [['userSub', 'u1']] }, logs: ['line one'],
 };
 const c2 = {
-  ...base, id: 'c2', at: 1700000100, kind: 'tools/call', title: 'get_sensitive_account_details', status: { tone: 'err', label: '403' },
+  ...base, id: 'c2', at: 1700000100000, kind: 'tools/call', title: 'get_sensitive_account_details', status: { tone: 'err', label: '403' },
   response: { label: 'Response', body: { b: 3 } },
   banner: { tone: 'err', title: 'Refused', text: 't', testId: 'elicitation-card', actions: [{ label: 'Confirm', onClick: vi.fn() }] },
   tokens: [], hops: [{ dir: 'Browser → BFF', call: 'POST /api/y', what: 'w', status: { tone: 'err', label: '403' }, ms: 3, request: {}, response: {} }],
@@ -51,6 +51,11 @@ describe('InspectorLayout', () => {
     expect(screen.getByText('Live')).toBeTruthy();
     expect(screen.getByText('send card')).toBeTruthy();
     expect(screen.getByRole('heading', { name: /Calls\s*2/ })).toBeTruthy();
+  });
+
+  it('row shows local time of the call', () => {
+    setup();
+    expect(screen.getAllByText(new RegExp(new Date(c1.at).toLocaleTimeString())).length).toBeGreaterThan(0);
   });
 
   it('selecting a row calls onSelect', () => {

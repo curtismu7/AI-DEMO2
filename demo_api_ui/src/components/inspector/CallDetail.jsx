@@ -10,7 +10,7 @@ import './Inspector.css';
 const CLAIM_ORDER = ['sub', 'aud', 'scope', 'act', 'client_id', 'iat', 'exp'];
 const TIME_CLAIMS = new Set(['iat', 'exp']);
 
-export const hhmmss = (sec) => new Date(sec * 1000).toISOString().slice(11, 19);
+export const formatTime = (ms) => new Date(ms).toLocaleTimeString();
 
 /** Title with a break opportunity after each underscore (no HTML injection). */
 export function Wrapped({ text }) {
@@ -138,7 +138,7 @@ export default function CallDetail({ call, calls, nodeSubs, onResend, onEdit }) 
         <div className="insp-chips">
           <Chip chip={call.status} />
           <span className="insp-chip">{call.ms == null ? 'open' : `${call.ms} ms`}</span>
-          <span className="insp-chip">{hhmmss(call.at)} UTC</span>
+          <span className="insp-chip">{formatTime(call.at)}</span>
           <span className="insp-chip src">{SRC_LABEL[call.src]}</span>
           {call.chips.map((c, i) => <Chip key={i} chip={c} />)}
           {call.corr && <span className="insp-chip src mono" title="Correlation id">{call.corr}</span>}
