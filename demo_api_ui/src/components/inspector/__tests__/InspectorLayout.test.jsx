@@ -118,7 +118,9 @@ describe('InspectorLayout', () => {
     fireEvent.change(screen.getByLabelText(/Compare with/), { target: { value: 'c2' } });
     expect(screen.getByText(/fields? differ/)).toBeTruthy();
     expect(screen.getByRole('button', { name: 'Stop comparing' })).toBeTruthy();
-    fireEvent.click(tab(/Request & response/));
+    expect(tab(/Request & response/).getAttribute('aria-selected')).toBe('true');
+    expect(screen.getByRole('heading', { name: 'Call 2 response' })).toBeTruthy();
+    expect(screen.getByRole('heading', { name: 'Call 1 response' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Stop comparing' }));
     expect(screen.queryByRole('button', { name: 'Stop comparing' })).toBeNull();
   });

@@ -126,12 +126,12 @@ export default function CallDetail({ call, calls, nodeSubs, onResend, onEdit }) 
   const [cmp, setCmp] = useState({ forId: null, id: '' });
   const other = cmp.forId === call.id ? calls.find((c) => c.id === cmp.id) : null;
   const no = (c) => calls.length - calls.indexOf(c);
-  const config = useMemo(() => diagramConfigFromCall(call, nodeSubs), [call.id]); // eslint-disable-line react-hooks/exhaustive-deps
+  const config = useMemo(() => diagramConfigFromCall(call, nodeSubs), [call, nodeSubs]);
   const tabs = [['what', 'What happened', call.steps.length], ['io', 'Request & response'], ['tokens', 'Tokens', call.tokens.length], ['hops', 'API calls', call.hops.length], ['diagram', 'Diagram']];
   const { banner } = call;
 
   return (
-    <section className="insp-card insp-detail" aria-live="polite">
+    <section className="insp-card insp-detail">
       <div className="insp-detail-head">
         <p className="insp-label">{call.kind}</p>
         <h2><Wrapped text={call.title} /></h2>
@@ -147,7 +147,7 @@ export default function CallDetail({ call, calls, nodeSubs, onResend, onEdit }) 
           <button type="button" className="insp-btn ghost" onClick={() => onResend(call)}>Resend</button>
           <button type="button" className="insp-btn ghost" onClick={() => onEdit(call)}>Edit &amp; resend</button>
           <label className="insp-toggle">Compare with{' '}
-            <select value={other ? other.id : ''} onChange={(e) => setCmp({ forId: call.id, id: e.target.value })}>
+            <select value={other ? other.id : ''} onChange={(e) => { setCmp({ forId: call.id, id: e.target.value }); if (e.target.value) setTab('io'); }}>
               <option value="">Choose a call…</option>
               {calls.filter((c) => c.id !== call.id).map((o) => (<option key={o.id} value={o.id}>{no(o)} · {o.title} · {o.status.label}</option>))}
             </select>
@@ -167,17 +167,6 @@ export default function CallDetail({ call, calls, nodeSubs, onResend, onEdit }) 
         </div>
       )}
 
-      {other && (
-        <div className="insp-cmp">
-          <div className="insp-cmp-head">
-            <strong>Comparing call {no(call)} with call {no(other)} ({other.title})</strong>
-            <button type="button" className="insp-copy" onClick={() => setCmp({ forId: null, id: '' })}>Stop comparing</button>
-          </div>
-          <DiffList label="Request" d={diffPaths(call.request.body, other.request.body)} />
-          <DiffList label="Response" d={diffPaths(call.response.body, other.response.body)} />
-        </div>
-      )}
-
       <div className="insp-tabs" role="tablist" aria-label="Call details">
         {tabs.map(([k, label, n]) => (
           <button key={k} type="button" role="tab" id={`insp-tab-${k}`} aria-controls="insp-panel" aria-selected={tab === k} className="insp-tab" onClick={() => setTab(k)}>
@@ -189,10 +178,20 @@ export default function CallDetail({ call, calls, nodeSubs, onResend, onEdit }) 
       <div id="insp-panel" role="tabpanel" aria-labelledby={`insp-tab-${tab}`}>
         {tab === 'what' && <WhatHappened call={call} />}
         {tab === 'io' && (other ? (
-          <div className="insp-io">
-            <Pane label={`Call ${no(call)} response`} where={call.response.where} body={call.response.body} />
-            <Pane label={`Call ${no(other)} response`} where={other.response.where} body={other.response.body} />
-          </div>
+          <>
+            <div className="insp-cmp">
+                <div className="insp-cmp-head">
+                  <strong>Comparing call {no(call)} with call {no(other)} ({other.title})</strong>
+                  <button type="button" className="insp-copy" onClick={() => setCmp({ forId: null, id: '' })}>Stop comparing</button>
+                </div>
+                <DiffList label="Request" d={diffPaths(call.request.body, other.request.body)} />
+                <DiffList label="Response" d={diffPaths(call.response.body, other.response.body)} />
+            </div>
+            <div className="insp-io">
+              <Pane label={`Call ${no(call)} response`} where={call.response.where} body={call.response.body} />
+              <Pane label={`Call ${no(other)} response`} where={other.response.where} body={other.response.body} />
+            </div>
+          </>
         ) : (
           <div className="insp-io">
             <Pane label={call.request.label} where={call.request.where} body={call.request.body} />
