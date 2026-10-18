@@ -97,3 +97,14 @@
 - [ ] **Step 1:** PR for Tasks 1–3; owner merges; focused deploy of the API server and frontend (flag stays OFF). Verify the live pods' digests and `ciba_login_enabled=false`.
 - [ ] **Step 2 (owner):** set `CIBA_LOGIN_ENABLED=true`, sign in as the demo customer with password + approval link by email and by text. Expected: password accepted, waiting screen with an 8-char match code starting with the vertical's letters, the approval page shows the same code, approving signs in; a wrong approver or an expired link does not.
 - [ ] **Step 3:** confirm in the PingOne audit log a `CIBA_AUTHENTICATION.SUCCEEDED` for the demo user on the CIBA step-up app, and that plain password and passwordless sign-in still work. Rollback = flag off.
+
+## Amendments during execution
+
+- PingFederate customers are in scope (owner decision); the old PingFederate -> `provider_unsupported` rule was dropped.
+- Fail-closed rulings: an unverifiable second-factor account, a disabled user, or an ambiguous email match never degrades to a
+  password-only session (except the two documented skipped cases below).
+- A `secondFactorSkipped:true` marker is returned when the factor is requested but cannot apply (PF user with no PingOne
+  account; enabled user with no email and no phone).
+- No simulation: `cibaSimulatedService` / `CIBA_LOCAL_SIMULATION` are never used on this path; a CIBA failure is
+  `approval_unavailable` and the parked flow stays for a capped retry.
+- Task 6 was dropped.

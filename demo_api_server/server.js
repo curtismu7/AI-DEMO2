@@ -182,7 +182,6 @@ const mcpTrafficRoutes = require('./routes/mcpTraffic');
 const mcpToolScopesRouter = require('./routes/mcpToolScopes');
 const mcpGatewayConfigRouter = require('./routes/mcpGatewayConfig');
 const agentGatewayConfigRouter = require('./routes/agentGatewayConfig');
-const agentGatewayInspectorRouter = require('./routes/agentGatewayInspector');
 const mcpAuditRouter = require('./routes/mcpAudit');
 const promptFlowRouter = require('./routes/promptFlow');
 const agentIdentityRoutes = require('./routes/agentIdentity');
@@ -531,7 +530,8 @@ morgan.token('safe-referrer', (req) => {
   }
 });
 app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :safe-url HTTP/:http-version" :status :res[content-length] ":safe-referrer" ":user-agent"', {
-  skip: (req) => POLL_ROUTES.has(req.path),
+  // the CIBA login poll carries a per-request id in its path, so it is matched by prefix (log quieting only)
+  skip: (req) => POLL_ROUTES.has(req.path) || req.path.startsWith('/api/auth/ciba/login/poll/'),
 }));
 
 // Capture the session middleware instance so the langchain chat-WS proxy
@@ -1476,7 +1476,7 @@ app.use('/api/id-jag-playground', require('./routes/idJagPlayground'));
 app.use('/api/consent-mock-phone', require('./routes/consentMockPhone'));
 app.use('/api/aic-demo', require('./routes/aicDemo'));
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
-app.use('/api/auth/ciba/login', require('./routes/cibaLogin')); // pre-auth passwordless login (before the step-up router)
+app.use('/api/auth/ciba/login', require('./routes/cibaLogin')); // CIBA second-factor approval of a parked password sign-in (flag-gated; before the step-up router)
 app.use('/api/auth/ciba', cibaRoutes);
 app.use('/api/auth', parRequestRoutes);
 app.use('/api/auth', dpopRequestRoutes);
@@ -1569,7 +1569,6 @@ app.use('/api/mcp-gateway', mcpGatewayConfigRouter);
 // Agent Gateway JSON config editor — view/validate/edit/reload gateway files
 app.use('/api/admin/agent-gateway', agentGatewayConfigRouter);
 // Agent Gateway Inspector — tool introspection and invocation
-app.use('/api/agent-gateway', agentGatewayInspectorRouter);
 app.use('/api/mcp/traffic', requireSession, mcpTrafficRoutes);
 // MCP Audit: read-only observability data for any signed-in user. Mutating and
 // prompt-flow admin surfaces remain separately gated below.
