@@ -211,7 +211,7 @@
 .logout-action--secondary {
   background: #eff0f1;
   border: 1px solid #cdd1d4;
-  color: var(--th-text);
+  color: #051727;
   font-weight: 500;
 }
 

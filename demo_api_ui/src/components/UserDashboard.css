@@ -1277,7 +1277,7 @@
   color: #b45309;
 }
 .account-type-badge.credit {
-  background: #f5ecf0;
+  background: #fee2e2;
   color: #8b3252;
 }
 .account-type-badge.investment,
@@ -1293,7 +1293,7 @@
 .account-demo-badge {
   font-size: 10px;
   background: #e0e2e4;
-  color: var(--th-text);
+  color: #051727;
   border-radius: 4px;
   padding: 2px 6px;
 }
@@ -1973,12 +1973,12 @@
 
 .status.completed {
   background: #d5f4e6;
-  color: #27ae60;
+  color: #051727;
 }
 
 .status.pending {
   background: #fef9e7;
-  color: #f39c12;
+  color: #051727;
 }
 
 .status.failed {
@@ -4199,4 +4199,43 @@
   border-left: none;
   border-right: none;
   border-top: none;
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .user-dashboard {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .user-dashboard {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .ud-detail-pane-resize-handle:hover .ud-detail-pane-resize-grip,
+:root:not([data-theme="dark"]) .ud-detail-pane-resize-handle:focus-visible .ud-detail-pane-resize-grip {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .ud-detail-pane-resize-handle:hover .ud-detail-pane-resize-grip,
+:root[data-theme="dark"] .ud-detail-pane-resize-handle:focus-visible .ud-detail-pane-resize-grip {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .account-type-badge.checking {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .tx-tab--active {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .dashboard-header--surface {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .user-dashboard--2026 .ud-qa-btn--delegate {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .user-dashboard--2026 .ud-super-pill {
+  color: var(--th-status-info-text);
 }

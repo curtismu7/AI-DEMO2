@@ -173,7 +173,7 @@
   border: 1px solid #cdd1d4;
   border-radius: 8px;
   font-size: 0.78rem;
-  color: var(--th-text);
+  color: #051727;
 }
 
 .demo-data-readonly-meta code {
@@ -269,7 +269,7 @@
 
 .demo-data-type-slot__num {
   font-size: 0.7rem;
-  color: var(--th-text);
+  color: #051727;
   background: #dddddd;
   border-radius: 4px;
   padding: 1px 5px;
@@ -702,4 +702,13 @@
 .demo-data-helix-hint {
   font-size: 0.85rem;
   color: var(--dash-muted, var(--th-text));
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .demo-data-page__nav-link:hover {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .demo-data-agent-auth-probe {
+  color: #051727;
 }

@@ -558,3 +558,8 @@
   font-size: 0.81rem;
   color: var(--th-text-muted);
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .cimd-sim-dot {
+  color: #051727;
+}

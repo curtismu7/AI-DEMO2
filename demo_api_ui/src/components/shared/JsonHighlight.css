@@ -8,7 +8,7 @@
 .jh-key { color: #0550ae; }
 .jh-string { color: #15803d; }
 .jh-number { color: #b45309; }
-.jh-keyword { color: #8250df; font-weight: 600; }
+.jh-keyword { color: #d20e0f; font-weight: 600; }
 .jh-punct { color: var(--th-text); }
 .jh-plain { color: inherit; }
 .jh-empty { color: var(--th-text); font-style: italic; }
@@ -24,7 +24,7 @@
 .jh-dark .jh-key { color: #79c0ff; }
 .jh-dark .jh-string { color: #7ee787; }
 .jh-dark .jh-number { color: #ffa657; }
-.jh-dark .jh-keyword { color: #d2a8ff; }
+.jh-dark .jh-keyword { color: #fecaca; }
 .jh-dark .jh-punct { color: #ffffff; }
 .jh-dark .jh-plain { color: inherit; }
 .jh-dark .jh-empty { color: #ffffff; }

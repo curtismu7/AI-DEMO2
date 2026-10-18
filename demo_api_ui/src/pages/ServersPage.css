@@ -187,3 +187,20 @@
   font-weight: 600;
   white-space: nowrap;
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .servers-dot.up {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .servers-dot.up {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .servers-dot.down {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .servers-dot.down {
+  color: #ffffff;
+}

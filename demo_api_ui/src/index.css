@@ -712,7 +712,7 @@ body {
   border-radius: 0.375rem;
   border: 1px solid #cdd1d4;
   background: white;
-  color: var(--th-text);
+  color: #051727;
   cursor: pointer;
 }
 
@@ -741,7 +741,7 @@ body {
   align-items: center;
   padding: 1.5rem;
   background: linear-gradient(135deg, #e0e2e4 0%, #bfdbfe 100%);
-  color: var(--th-text);
+  color: #051727;
   border-bottom: 1px solid #93c5fd;
 }
 
@@ -985,7 +985,7 @@ body {
 }
 
 .btn-success {
-  background: linear-gradient(180deg, #16a34a 0%, #15803d 100%);
+  background: linear-gradient(180deg, #15803d 0%, #166534 100%);
   color: #fff;
   border: 1px solid #14532d;
   box-shadow: 0 1px 3px rgba(20, 83, 45, 0.25);
@@ -1208,7 +1208,7 @@ body {
   padding: 0.5rem 0.75rem;
   border: 1px solid #cdd1d4;
   background-color: white;
-  color: var(--th-text);
+  color: #051727;
   border-radius: 0.375rem;
   cursor: pointer;
   transition: all 0.2s;
@@ -1343,7 +1343,7 @@ body {
   text-align: center;
   margin-bottom: 2rem;
   background: linear-gradient(135deg, #e0e2e4 0%, #bfdbfe 100%);
-  color: var(--th-text);
+  color: #051727;
   padding: 2rem;
   border-radius: 8px;
   border: 1px solid #93c5fd;
@@ -1444,7 +1444,7 @@ body {
 
 .toggle-btn.active {
   background: white;
-  color: var(--brand-dark-gray);
+  color: #051727;
   box-shadow: 0 1px 3px 0 rgba(0, 0, 0, 0.1);
 }
 
@@ -1624,7 +1624,7 @@ body {
 .oauth-divider span {
   background: white;
   padding: 0 15px;
-  color: #7f8c8d;
+  color: #051727;
   font-size: 0.9rem;
 }
 
@@ -1680,3 +1680,385 @@ body {
     scroll-behavior: auto !important;
   }
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .table th {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .table th {
+  color: #051727;
+}
+
+/* ── Contrast overrides (generated from scripts/audit-contrast-runtime.mjs) ─────────────────────
+   Text that inherited a colour which is unreadable on a hardcoded background in one theme.
+   Every rule is scoped under the class that owns the background. Move each into its component
+   stylesheet when you next touch that component. */
+:root[data-theme="dark"] .error-details {
+  color: #051727;
+}
+:root[data-theme="dark"] .error-details summary {
+  color: #051727;
+}
+:root[data-theme="dark"] .error-details pre {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .error-details {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .error-details button.btn.btn-copy-error {
+  color: #051727;
+}
+:root[data-theme="dark"] .error-details button.btn.btn-copy-error {
+  color: #051727;
+}
+:root[data-theme="dark"] .ijc-frame {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .ijc-frame span.ijc-frame__n {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .acpc-header {
+  color: #051727;
+}
+:root[data-theme="dark"] .acpc-header span.acpc-endpoint {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-gallery {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-gallery h1 {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-gallery h2 {
+  color: #051727;
+}
+:root[data-theme="dark"] .rst-education {
+  color: #051727;
+}
+:root[data-theme="dark"] .rst-education code {
+  color: #051727;
+}
+:root[data-theme="dark"] .acpc-header a.acpc-doc-link {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-gallery-note {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-gallery-note a {
+  color: #051727;
+}
+:root[data-theme="dark"] .card {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .card p {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .inspector-shell-topbar {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .inspector-shell-topbar span {
+  color: #051727;
+}
+:root[data-theme="dark"] .inspector-shell-col-left {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .inspector-shell-col-left div {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .section-nav-item.active {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .inspector-shell-col-left {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .inspector-shell-col-left div {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-data-agent-auth-card.demo-data-agent-auth-card--active {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-data-agent-auth-card.demo-data-agent-auth-card--active span.demo-data-agent-auth-card__title {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-data-agent-auth-card.demo-data-agent-auth-card--active span.demo-data-agent-auth-card__desc {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-card.is-selected {
+  color: #051727;
+}
+:root[data-theme="dark"] .afm-card.is-selected h3 {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-body {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-body p.akp-note {
+  color: #051727;
+}
+:root[data-theme="dark"] .admin-section {
+  color: #051727;
+}
+:root[data-theme="dark"] .admin-section h2 {
+  color: #051727;
+}
+:root[data-theme="dark"] .admin-section label {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-claims-col {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-claims-col h3.aitp-claims-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-claims-col div.aitp-claims-empty {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-learning {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-learning h2.akp-learning-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-learning p.akp-learning-intro {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-learning {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-learning h2.aitp-learning-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .aitp-learning p.aitp-learning-intro {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-section-header {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-section-header span.demo-section-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-key-row {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-key-row span.akp-key-label {
+  color: #051727;
+}
+:root[data-theme="dark"] .vfp-header {
+  color: #051727;
+}
+:root[data-theme="dark"] .vfp-header h1.vfp-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .vfp-header p.vfp-subtitle {
+  color: #051727;
+}
+:root[data-theme="dark"] .authz-engine-radio-label.authz-engine-radio-label--active {
+  color: #051727;
+}
+:root[data-theme="dark"] .authz-engine-radio-label.authz-engine-radio-label--active span.authz-engine-radio-title {
+  color: #051727;
+}
+:root[data-theme="dark"] .authz-engine-radio-label.authz-engine-radio-label--active span.authz-engine-radio-desc {
+  color: #051727;
+}
+:root[data-theme="dark"] .cur-titlebar {
+  color: #051727;
+}
+:root[data-theme="dark"] .cur-titlebar button.page-agent-mode__opt {
+  color: #051727;
+}
+:root[data-theme="dark"] .log-stats {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .log-stats span {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .demo-data-static-notice {
+  color: #051727;
+}
+:root[data-theme="dark"] .demo-data-static-notice p.demo-data-hint {
+  color: #051727;
+}
+:root[data-theme="dark"] .cur-titlebar span.cur-flow-trigger {
+  color: #051727;
+}
+:root[data-theme="dark"] .akp-key-value {
+  color: #051727;
+}
+:root[data-theme="dark"] .lps-notice {
+  color: #051727;
+}
+:root[data-theme="dark"] .lps-notice code {
+  color: #051727;
+}
+:root[data-theme="dark"] .mds-notice {
+  color: #051727;
+}
+:root[data-theme="dark"] .mds-notice code {
+  color: #051727;
+}
+:root[data-theme="dark"] .vfp-header code {
+  color: #051727;
+}
+:root[data-theme="dark"] .configuration-tabs {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .configuration-tabs span.tab-label {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .demo-data-scope-code {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .tet-btn.tet-btn--secondary.tet-btn--inline {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .unified-configuration-page {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .unified-configuration-page button.section-nav-item {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .a2t-node.a2t-node--active {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .a2t-node.a2t-node--active span.a2t-node__icon {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .account-card {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .account-card span.type-icon {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .privilege-a2a__dock-open {
+  color: #051727;
+}
+:root[data-theme="dark"] .privilege-a2a__dock-open {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .status-item {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .status-item span.security-status--warn {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .privilege-a2a__step-panel {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .privilege-a2a__step-panel a {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .demo-map__group {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .demo-map__group span.demo-map__step-num {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .dsla-table-wrap {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .dsla-table-wrap a {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .tc-simulate__card {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .tc-simulate__card span.tc-simulate__card-meta {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .ucd-card {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .ucd-card b {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .afm-picks-bar {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .afm-picks-bar code {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .dsla-truth {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .dsla-truth span.dsla-uc {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .a2t-node {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .a2t-node span.a2t-node__icon {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .dsla-lane.dsla-lane--pingone {
+  color: #051727;
+}
+:root[data-theme="dark"] .mfa-test-section {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .mfa-test-section p {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .react-flow.light {
+  color: #ffffff;
+}
+:root[data-theme="dark"] .react-flow.light a {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .dsla-lane.dsla-lane--mcp {
+  color: #051727;
+}
+:root[data-theme="dark"] .dsla-lane.dsla-lane--browser {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .dsla-lane.dsla-lane--agent {
+  color: #051727;
+}
+:root[data-theme="dark"] .dsla-lane.dsla-lane--bff {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .tab-nav {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .tab-nav button.tab-btn.active {
+  color: #051727;
+}
+:root:not([data-theme="dark"]) .dsla-lane.dsla-lane--bff {
+  color: #051727;
+}
+:root[data-theme="dark"] .dsla-lane.dsla-lane--agent {
+  color: #ffffff;
+}
+:root:not([data-theme="dark"]) .dsla-lane.dsla-lane--browser {
+  color: #051727;
+}
+:root[data-theme="dark"] .dsla-lane.dsla-lane--mcp {
+  color: #ffffff;
+}
+
+/* ── Contrast fixes found by the runtime audit (scripts/audit-contrast-runtime.mjs) ─────────────
+   Each rule is scoped to the component that owns the background. Move into the component
+   stylesheet when you next touch it. */
+:root[data-theme="dark"] .check-tabs .chk-tab { color: var(--th-status-info-text); }
+:root[data-theme="dark"] .rst-start-here,
+:root[data-theme="dark"] .rst-start-here strong,
+:root[data-theme="dark"] .rst-start-here em { color: #051727; }
+:root[data-theme="dark"] .demo-data-agent-auth-card .demo-data-agent-auth-card__title,
+:root[data-theme="dark"] .demo-data-agent-auth-card .demo-data-agent-auth-card__desc,
+:root[data-theme="dark"] .afm-card-meta h3 { color: #051727; }
+:root[data-theme="dark"] .promptfoo-page__cli p,
+:root[data-theme="dark"] .log-stats span,
+:root[data-theme="dark"] .demo-section-body .demo-section-concept,
+:root[data-theme="dark"] .lps-card .lps-card-desc,
+:root[data-theme="dark"] .mds-card .mds-card-desc,
+:root[data-theme="dark"] .lps-card-meta span { color: var(--th-text-body); }
+:root[data-theme="dark"] .a2t-node__row .a2t-node__icon,
+:root[data-theme="dark"] .gpb-head .gpb-eyebrow { color: var(--th-status-info-text); }
+.inspector-shell-col-left > div,
+.inspector-shell-topbar__right > span { color: var(--th-text-body); }
+.postman-page__header,
+.postman-page__header h1,
+.postman-page__header p { color: #ffffff; }
+.ping-page-header a:not(.ping-back-link) { color: #ffffff; text-decoration: underline; }
+.pd-page__header-links .priv-demo-signin { color: #ffffff; }

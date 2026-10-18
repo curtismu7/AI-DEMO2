@@ -116,7 +116,7 @@
   width: 100%;
   flex-basis: 100%;
   font-size: var(--font-size-2xs);
-  color: var(--th-text);
+  color: #051727;
   margin: 0 0 8px;
   padding: 6px 10px;
   background: #fcfcfc;
@@ -392,7 +392,7 @@
   margin-left: 12px;
   padding: 2px 8px;
   background: #DDDDDD;
-  color: var(--th-text);
+  color: #051727;
   border-radius: 3px;
   font-size: var(--font-size-xs);
 }

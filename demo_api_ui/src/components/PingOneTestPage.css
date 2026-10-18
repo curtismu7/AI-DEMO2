@@ -1630,3 +1630,20 @@ a.pingone-test-button--primary:visited {
   background: var(--th-bg-emphasis);
   color: var(--th-text-on-emphasis);
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .tld-kind--added {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .tld-kind--added {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .tld-kind--removed {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .tld-kind--removed {
+  color: #ffffff;
+}

@@ -148,7 +148,7 @@ export function loadTokens() {
 }
 
 /** Resolve a CSS value to a list of opaque RGB colours, or null when not fully resolvable. */
-function resolveColors(value, vars, depth = 0) {
+export function resolveColors(value, vars, depth = 0) {
   if (depth > 6 || !value) return null;
   const v = value.trim();
   const found = [];
@@ -189,18 +189,41 @@ function fontPx(decls) {
 // ── checking ─────────────────────────────────────────────────────────────────
 export function checkCss(css, relPath, tokens) {
   const out = [];
-  for (const { selector, decls } of parseRules(css)) {
-    const fgRaw = decls.get('color');
+  const rules = parseRules(css);
+  // Per-theme colour overrides: `:root[data-theme="dark"] .x { color }` / `:root:not([data-theme="dark"]) .x { color }`.
+  const override = new Map();
+  for (const { selector: group, decls } of rules) {
+    const obg = decls.get('background-color') ?? decls.get('background');
+    for (const selector of group.split(',').map((x) => x.trim())) {
+      const m = /^:root(\[data-theme=["']dark["']\]|:not\(\[data-theme=["']dark["']\]\))\s+(.+)$/.exec(selector);
+      if (m && (decls.get('color') || obg)) { const key = `${m[1].startsWith(':not') ? 'light' : 'dark'}|${m[2]}`; const prev = override.get(key) ?? {}; override.set(key, { color: decls.get('color') ?? prev.color, bg: obg ?? prev.bg, vars: new Map([...(prev.vars ?? []), ...[...decls].filter(([k]) => k.startsWith('--'))]) }); }
+    }
+  }
+  const colorOf = new Map();
+  for (const { selector: sel, decls } of rules) if (decls.get('color') && !/:/.test(sel)) colorOf.set(sel, decls.get('color'));
+  for (const { selector, decls } of rules) {
+    if (/:disabled|\[disabled\]|::placeholder|:read-only/.test(selector)) continue; // inactive controls are exempt (WCAG 1.4.3)
+    let fgRaw = decls.get('color');
     const bgRaw = decls.get('background-color') ?? decls.get('background');
-    if (!fgRaw || !bgRaw) continue;
+    if (!bgRaw) continue;
+    // A literal background with NO colour: the text inherits --th-text, which flips white in the dark
+    // theme. Judge that (unless the file gives this selector a colour elsewhere, or it is a state rule).
+    let inherited = false;
+    if (!fgRaw) {
+      if (!process.argv.includes('--inherited') || /var\(/.test(bgRaw) || /:/.test(selector.replace(/:root(\[[^\]]*\]|:not\(\[[^\]]*\]\))?/g, ''))) continue;
+      fgRaw = colorOf.get(selector) ?? 'var(--th-text)';
+      inherited = true;
+    }
     const darkOnly = /\[data-theme=["']dark["']\]/.test(selector);
     const lightOnly = /\[data-theme=["']light["']\]/.test(selector);
     const local = new Map([...decls].filter(([k]) => k.startsWith('--')));
     for (const [theme, base] of [['light', tokens.light], ['dark', tokens.dark]]) {
       if ((darkOnly && theme === 'light') || (lightOnly && theme === 'dark')) continue;
-      const vars = new Map([...base, ...local]);
-      const fg = resolveColors(fgRaw, vars);
-      const bg = resolveColors(bgRaw, vars);
+      const ov0 = selector.split(',').map((x) => override.get(`${theme}|${x.trim()}`)).find(Boolean);
+      const vars = new Map([...base, ...local, ...(ov0?.vars ?? [])]);
+      const ov = selector.split(',').map((x) => override.get(`${theme}|${x.trim()}`)).find(Boolean);
+      const fg = resolveColors(ov?.color ?? fgRaw, vars);
+      const bg = resolveColors(ov?.bg ?? bgRaw, vars);
       if (!fg || !bg || fg.length !== 1) continue;
       const px = fontPx(decls);
       const large = px !== null && (px >= 24 || (px >= 18.66 && /^(bold|[6-9]00)$/.test(decls.get('font-weight') ?? '')));
@@ -208,7 +231,8 @@ export function checkCss(css, relPath, tokens) {
       const worst = Math.min(...bg.map((b) => contrast(fg[0], b)));
       if (worst < need) {
         out.push({
-          key: `${relPath}|${selector}|${theme}|${fgRaw}|${bgRaw}`,
+          key: `${relPath}|${selector}|${theme}|${inherited ? '(inherited)' : fgRaw}|${bgRaw}`,
+          inherited,
           file: relPath,
           selector,
           theme,

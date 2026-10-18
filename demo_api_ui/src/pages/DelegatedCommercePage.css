@@ -138,9 +138,9 @@
      rule below already uses (#71849a + #fff, chosen for contrast in both
      themes since it never flips). */
   background: #166534;
-  color: #fff;
+  color: #ffffff;
 }
-.dc-step-number { flex: 0 0 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #71849a; color: #fff; font-weight: 800; }
+.dc-step-number { flex: 0 0 30px; height: 30px; border-radius: 50%; display: grid; place-items: center; background: #71849a; color: #051727; font-weight: 800; }
 .dc-step strong, .dc-step small { display: block; }
 .dc-step small { margin-top: 4px; color: var(--th-text-muted); line-height: 1.35; }
 .dc-persona { border-top: 1px solid var(--dc-line); padding: 16px 20px; }

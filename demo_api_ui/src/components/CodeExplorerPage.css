@@ -377,3 +377,16 @@
   color: var(--th-text);
   background: var(--th-bg-hover);
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .typing-dot {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .typing-dot {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .reindex-btn:hover:not(:disabled) {
+  color: var(--th-status-info-text);
+}

@@ -301,7 +301,7 @@
 /* Disabled = "not ready yet": neutral, not a faded brand color */
 .acm-btn--primary:disabled {
   background: #e0e2e4;
-  color: #909ea4;
+  color: #051727;
   border-color: #e0e2e4;
   box-shadow: none;
   cursor: not-allowed;

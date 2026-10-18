@@ -281,7 +281,7 @@ a.osx-mode-link:visited,
 
 /* Carries the page class as well as its own, because a lone .osx-code-inline
    (0,1,0) LOST `color` here. end-user-nano.css paints inline <code> the
-   Bootstrap pink #d63384, and it measured 4.16:1 on the dark ground — under
+   Bootstrap pink #d20e0f, and it measured 4.16:1 on the dark ground — under
    the 4.5 needed at this size. Its selector is not readable from script (a
    cross-origin sheet throws on cssRules), but (0,2,1) is above anything of the
    (0,1,1) shape the rest of that sheet uses, and it measures clean. */

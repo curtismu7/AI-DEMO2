@@ -211,3 +211,8 @@
     transition: none;
   }
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .server-restart-content .btn-secondary {
+  color: #051727;
+}

@@ -3327,7 +3327,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock .ba-input:focus {
   border-color: #12538d;
   background: #f1f4f8;
-  color: var(--th-text);
+  color: #051727;
 }
 
 .banking-agent-panel.ba-mode-inline.ba-embedded-bottom-dock
@@ -4130,7 +4130,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   gap: 8px;
   padding: 10px 12px;
   border-radius: 8px;
-  background: linear-gradient(135deg, #12538d, #5a7fdb);
+  background: linear-gradient(135deg, #12538d, #051727);
   border: 1px solid #3b5cc9;
   color: #fff;
   font-weight: 500;
@@ -5674,7 +5674,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 8px;
   border: 1px solid #15803d;
   background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
-  color: #fff;
+  color: #051727;
   font-size: var(--font-size-sm);
   font-weight: 800;
   box-shadow:
@@ -5715,7 +5715,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   border-radius: 8px;
   border: 1px solid #15803d;
   background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
-  color: #fff;
+  color: #051727;
   font-size: var(--font-size-sm);
   font-weight: 800;
   box-shadow:
@@ -8284,4 +8284,58 @@ button.ba-action-btn:hover {
   white-space: normal;
   font-size: var(--font-size-sm);
   color: var(--ba-agent-txt);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .ba-user-filter-btn--secondary {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .ba-middle-col {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .banking-agent-learn-btn {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .banking-agent-learn-toggle {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .banking-agent-learn-chip {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .ba-session-fix-btn--secondary {
+  color: var(--th-status-error-text);
+}
+
+:root[data-theme="dark"] .ba-mode-light .ba-session-fix-btn--secondary {
+  color: var(--th-status-error-text);
+}
+
+:root[data-theme="dark"] .ba-chip:hover:not(:disabled) {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .banking-agent-config-btn {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .bar-rp-table th {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .ba-consent-denied-banner__btn--secondary {
+  color: var(--th-status-error-text);
+}
+
+:root[data-theme="dark"] .banking-agent-panel.ba-mode-light .ba-actions-trigger {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .banking-agent-panel.ba-mode-light .ba-actions-trigger:hover,
+:root[data-theme="dark"] .banking-agent-panel.ba-mode-light .ba-actions-trigger.active {
+  color: var(--th-status-info-text);
 }

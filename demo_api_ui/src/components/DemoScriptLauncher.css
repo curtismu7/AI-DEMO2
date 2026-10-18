@@ -30,7 +30,7 @@
 .dsl-body {
   padding: 4px 2px 8px;
   line-height: 1.55;
-  color: var(--th-text);
+  color: #051727;
   background: #ffffff;
 }
 
@@ -231,7 +231,7 @@
   padding: 4px 14px;
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--th-text);
+  color: #051727;
   background: #ffffff;
   border: 1px solid #cdd1d4;
   border-radius: 6px;

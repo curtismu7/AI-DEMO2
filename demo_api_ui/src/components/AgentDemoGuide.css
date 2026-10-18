@@ -47,7 +47,7 @@
   align-items: center;
   padding: 14px 18px;
   background: linear-gradient(135deg, #e0e2e4 0%, #bfdbfe 100%);
-  color: var(--th-text);
+  color: #051727;
   border-bottom: 1px solid #93c5fd;
   gap: 12px;
   user-select: none;
@@ -717,6 +717,7 @@
 }
 
 :root[data-theme="dark"] .adg-drag-header {
+  color: #ffffff;
   background: linear-gradient(135deg, #051727 0%, #051727 100%);
   border-bottom-color: var(--th-border-strong);
 }
@@ -1133,4 +1134,53 @@
   padding: 12px 0 4px;
   border-top: 1px solid var(--adg-border, #e0e2e4);
   margin-top: auto;
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .adg-scenario-btn.active {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .adg-step-badge {
+  color: var(--th-status-info-text);
+}
+
+:root:not([data-theme="dark"]) .adg-prompt-preview {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .adg-prompt-code {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .adg-toggle-btn.active {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .adg-toggle-btn.active {
+  color: var(--th-status-info-text);
+}
+
+:root:not([data-theme="dark"]) .adg-reset-flags-btn {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .adg-reset-flags-btn {
+  color: var(--th-status-info-text);
+}
+
+:root:not([data-theme="dark"]) .adg-flag-status.loading {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .adg-flag-status.loading {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .adg-presenter-step-num {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .adg-presenter-step-num {
+  color: #051727;
 }

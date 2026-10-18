@@ -431,3 +431,12 @@
 }
 
 :root[data-theme="dark"] .oauth-academy-page .oa-token-chain-label { color: var(--th-status-success-text); }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .oauth-academy-page .typing-dot {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .oauth-academy-page .typing-dot {
+  color: #051727;
+}

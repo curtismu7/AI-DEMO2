@@ -778,7 +778,7 @@
 }
 
 /* PingOne end-user-nano ships dark-on-light defaults for headings (#1a2330), links (#12538d)
-   and inline code (#d63384). On the dark app ground those measured 1.0 to 3.4:1 across 22
+   and inline code (#d20e0f). On the dark app ground those measured 1.0 to 3.4:1 across 22
    routes, so redefine the three variables it reads once, here, instead of per page. */
 .App.end-user-nano {
   --bs-code-color: #9d174d; /* 8.2:1 on white, 7.4:1 on the light page tints */
@@ -787,7 +787,7 @@
 :root[data-theme="dark"] .App.end-user-nano {
   --bs-heading-color: var(--th-text);
   --bs-link-color-rgb: 147, 197, 253;
-  --bs-code-color: #f9a8d4;
+  --bs-code-color: #fecaca;
 }
 /* Bootstrap redeclares --bs-card-bg on .card itself, so it has to be set there. */
 :root[data-theme="dark"] .end-user-nano .card {
@@ -2497,4 +2497,25 @@
 .divider-drag-handle:active {
   background: var(--th-border-strong);
   color: var(--th-text);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .otp-step-up-modal__btn-cancel {
+  color: var(--th-status-error-text);
+}
+
+:root[data-theme="dark"] .otp-step-up-modal__btn-ghost {
+  color: var(--th-status-error-text);
+}
+
+:root[data-theme="dark"] .otp-step-up-modal__method-cta {
+  color: var(--th-status-info-text);
+}
+
+:root:not([data-theme="dark"]) .pi-flow-signin__hero {
+  color: #ffffff;
+}
+
+:root:not([data-theme="dark"]) .pi-flow-signin__brand {
+  color: #ffffff;
 }

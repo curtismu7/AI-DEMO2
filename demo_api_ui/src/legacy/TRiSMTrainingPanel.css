@@ -80,7 +80,7 @@
   border: 1px solid #e0e2e4;
   border-radius: 6px;
   background: #f7f8f8;
-  color: var(--th-text);
+  color: #051727;
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
@@ -104,7 +104,7 @@
   background: #eff0f1;
   border-radius: 6px;
   font-size: var(--font-size-xl);
-  color: var(--th-text);
+  color: #051727;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -114,7 +114,7 @@
 
 .trism-panel-close:hover {
   background: #e0e2e4;
-  color: var(--th-text);
+  color: #051727;
 }
 
 /* Content */
@@ -154,7 +154,7 @@
 
 .trism-nav-prev {
   background: #eff0f1;
-  color: var(--th-text);
+  color: #051727;
 }
 
 .trism-nav-prev:hover:not(:disabled) {

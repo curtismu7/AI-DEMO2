@@ -1286,3 +1286,40 @@
   overflow-y: auto;
   padding: 12px;
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .utfi-btn-primary {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-tool-name {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-step-num {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-token-type {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-token-claim code {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-scope-badge {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-rfc-inline-hint--info {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-tab:hover {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .utfi-tab--active {
+  color: var(--th-status-info-text);
+}

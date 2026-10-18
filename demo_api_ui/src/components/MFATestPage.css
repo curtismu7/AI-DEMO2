@@ -1025,8 +1025,8 @@
 }
 
 .mfa-test-card__method--patch {
-  background: #f3e5f5;
-  color: #6a1b9a;
+  background: #fee2e2;
+  color: #7f1d1d;
 }
 
 .mfa-test-card__endpoint {
@@ -1185,4 +1185,29 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-family: var(--font-mono);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .mfa-test-button--test {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .mfa-test-button--test {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .status-badge--passed {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .status-badge--passed {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .mfa-test-card__status--passed {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .mfa-test-card__status--passed {
+  color: #051727;
 }

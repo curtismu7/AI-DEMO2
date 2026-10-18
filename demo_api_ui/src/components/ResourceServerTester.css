@@ -133,7 +133,7 @@
   padding: 8px 10px;
   border-left: 3px solid #12538d;
   background: #fcfcfc;
-  color: var(--th-text);
+  color: #051727;
   font-size: var(--font-size-2xs);
   line-height: 1.45;
 }

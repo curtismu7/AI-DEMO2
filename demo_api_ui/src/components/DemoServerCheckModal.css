@@ -162,7 +162,7 @@
   flex-shrink: 0;
   background: #ffffff;
   border: 1px solid #cdd1d4;
-  color: var(--th-text);
+  color: #051727;
   border-radius: 5px;
   width: 28px;
   height: 28px;
@@ -178,7 +178,7 @@
 
 .dsm-copy-btn:hover {
   background: #e0e2e4;
-  color: var(--th-text);
+  color: #051727;
 }
 
 .dsm-copy-btn--ok {
@@ -258,7 +258,7 @@
   padding: 5px 14px;
   font-size: 0.82rem;
   font-weight: 600;
-  color: var(--th-text);
+  color: #051727;
   background: #ffffff;
   border: 1px solid #cdd1d4;
   border-radius: 6px;

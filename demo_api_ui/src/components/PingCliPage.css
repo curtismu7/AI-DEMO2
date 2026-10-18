@@ -831,3 +831,12 @@
 .pingcli-editor-code .j-num  { color: #fca5a5; }
 .pingcli-editor-code .j-bool { color: #fca5a5; }
 .pingcli-editor-code .j-null { color: var(--th-text-faint); font-style: italic; }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .pingcli-cmd-run--done {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .pingcli-cmd-run--done {
+  color: #051727;
+}

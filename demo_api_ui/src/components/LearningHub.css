@@ -813,3 +813,16 @@
 :root[data-theme="dark"] .learning-hub__rag-prompts summary { color: var(--th-status-success-text); }
 :root[data-theme="dark"] .learning-hub__status--live { color: var(--th-status-success-text); }
 :root[data-theme="dark"] .learning-hub__status--simulated { color: var(--th-status-warning-text); }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .learning-hub__academy-primary:hover {
+  color: var(--th-status-info-text);
+}
+
+:root[data-theme="dark"] .learning-hub__status--live {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .learning-hub__status--simulated {
+  color: var(--th-status-error-text);
+}

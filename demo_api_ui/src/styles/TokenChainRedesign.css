@@ -153,9 +153,9 @@
 }
 
 .tems-token-badge--user {
-  background: #fce7f3;
+  background: #fee2e2;
   color: #be123c;
-  border: 1px solid #f472b6;
+  border: 1px solid #fecaca;
 }
 
 .tems-token-badge--agent {
@@ -287,8 +287,8 @@
 
 /* Token type gradient swatches */
 .tlm-swatch--user {
-  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
-  border: 2px solid #f472b6;
+  background: linear-gradient(135deg, #fee2e2 0%, #fee2e2 100%);
+  border: 2px solid #fecaca;
 }
 
 .tlm-swatch--agent {
@@ -722,8 +722,8 @@
 }
 
 .tlm-swatch--user {
-  background: linear-gradient(135deg, #fce7f3 0%, #fbcfe8 100%);
-  border: 2px solid #f472b6;
+  background: linear-gradient(135deg, #fee2e2 0%, #fee2e2 100%);
+  border: 2px solid #fecaca;
 }
 
 .tlm-swatch--agent {

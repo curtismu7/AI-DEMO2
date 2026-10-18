@@ -3,7 +3,7 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
 }
 
 .not-found-container {
@@ -26,7 +26,7 @@
   font-size: 5rem;
   font-weight: 800;
   line-height: 1;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -73,7 +73,7 @@
 }
 
 .not-found-button--primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
   color: white;
 }
 

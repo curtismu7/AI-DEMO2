@@ -134,3 +134,8 @@
 .api-preview-body--response.api-preview-status--err {
   border-left: 3px solid #d20e0f;
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .api-preview-status--none {
+  color: #ffffff;
+}

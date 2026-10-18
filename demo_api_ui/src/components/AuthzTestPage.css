@@ -578,7 +578,7 @@
 
 .authz-btn--secondary {
   background: #f0f4f8;
-  color: var(--color-text, #1a1a2e);
+  color: #051727;
   border: 1px solid var(--th-border-strong);
 }
 

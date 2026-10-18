@@ -57,7 +57,7 @@
 .tefd-btn { padding: 5px 11px; border-radius: 4px; font-size: var(--font-size-2xs); cursor: pointer; border: 1px solid transparent; line-height: 1.4; transition: background 0.15s, border-color 0.15s; }
 .tefd-btn--primary   { background: #051727; color: #fff; border-color: #051727; }
 .tefd-btn--primary:hover { background: #051727; }
-.tefd-btn--secondary { background: #fff; color: var(--th-text); border-color: #cdd1d4; }
+.tefd-btn--secondary { background: #fff; color: #051727; border-color: #cdd1d4; }
 .tefd-btn--secondary:hover { background: var(--th-bg-hover); border-color: #909ea4; }
 
 /* Responsive */

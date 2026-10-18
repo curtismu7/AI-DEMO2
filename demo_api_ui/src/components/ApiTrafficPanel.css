@@ -337,7 +337,7 @@
 }
 .api-method-badge--PATCH {
   background: #263746;
-  color: var(--th-text-faint);
+  color: #ffffff;
 }
 .api-method-badge--DELETE {
   background: #7f1d1d;

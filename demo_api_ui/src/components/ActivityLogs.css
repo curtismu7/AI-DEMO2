@@ -76,7 +76,7 @@
 .activity-records-page__action--update_user { background: #ea580c; }
 .activity-records-page__action--delete_user { background: #d20e0f; }
 .activity-records-page__action--admin_access { background: #d20e0f; }
-.activity-records-page__action--view_activity_logs { background: #db2777; }
+.activity-records-page__action--view_activity_logs { background: #d20e0f; }
 .activity-records-page__action--unknown {
   background: var(--th-text-faint);
   color: var(--th-text-invert);
@@ -128,4 +128,9 @@
   .activity-records-page { padding: 16px; }
   .activity-records-page__filters { align-items: stretch; flex-direction: column; }
   .activity-records-page__toolbar { flex-wrap: wrap; }
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .activity-records-page__action--unknown {
+  color: #051727;
 }

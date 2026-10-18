@@ -71,3 +71,12 @@
 a.agal-primary-link:is(:link, :visited), .agal-live-card.agal-live-card a:is(:link, :visited) { color: var(--th-text-invert); }
 :root[data-theme="dark"] .agal-primary-link { --th-status-info: #051727; }
 .agal-live-button, .agal-primary-link { --th-status-info: #051727; }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .agal-primary-link:hover {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .agal-live-button:hover:not(:disabled) {
+  color: #051727;
+}

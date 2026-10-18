@@ -24,9 +24,9 @@
 .aep-method-badge--POST { background: #dcfce7; color: #166534; }
 .aep-method-badge--PUT { background: #fef3c7; color: #92400e; }
 .aep-method-badge--DELETE { background: #fee2e2; color: #aa0005; }
-.aep-method-badge--PATCH { background: #e0e2e4; color: var(--th-text); }
-.aep-method-badge--OPTIONS { background: #e0e2e4; color: var(--th-text); }
-.aep-method-badge--HEAD { background: #e0e2e4; color: var(--th-text); }
+.aep-method-badge--PATCH { background: #e0e2e4; color: #051727; }
+.aep-method-badge--OPTIONS { background: #e0e2e4; color: #051727; }
+.aep-method-badge--HEAD { background: #e0e2e4; color: #051727; }
 
 /* Tree item URL text */
 .aep-tree-url {

@@ -107,3 +107,8 @@
   color: var(--brand-dark-gray);
   overflow-wrap: anywhere;
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .ba-grounded-source {
+  color: var(--th-status-info-text);
+}

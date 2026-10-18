@@ -214,3 +214,8 @@
 .ftcp-placeholder-btn:hover {
   background: var(--th-border);
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .ftcp-tab--active {
+  color: var(--th-status-info-text);
+}

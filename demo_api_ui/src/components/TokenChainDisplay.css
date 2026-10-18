@@ -503,7 +503,7 @@
    dark mode. Surface and text move together or not at all. */
 .tcd-badge--exchanged {
   background: linear-gradient(180deg, #e0e2e4 0%, #cdd1d4 100%);
-  color: var(--th-text);
+  color: #051727;
   border-color: #cdd1d4;
 }
 .tcd-badge--acquiring {
@@ -529,7 +529,7 @@
   border-color: #f87171;
 }
 .tcd-badge--waiting {
-  background: linear-gradient(180deg, var(--brand-light-gray) 0%, #dddddd 100%);
+  background: linear-gradient(180deg, var(--brand-light-gray) 0%, var(--th-bg-inset) 100%);
   color: var(--th-text);
   border-color: var(--th-border-strong);
 }
@@ -570,7 +570,7 @@
 
 .tcd-token-type--unknown,
 .tcd-token-type--invalid {
-  background: linear-gradient(180deg, var(--brand-light-gray) 0%, #dddddd 100%);
+  background: linear-gradient(180deg, var(--brand-light-gray) 0%, var(--th-bg-inset) 100%);
   color: var(--th-text);
   border-color: var(--th-border-strong);
 }
@@ -3039,7 +3039,7 @@ pre.tcd-jwt-dump.jh-dark {
 }
 .tcd-step-explainer__sec--value .tcd-step-explainer__k {
   background: #e6f6ec;
-  color: #15803d;
+  color: #051727;
 }
 .tcd-step-explainer__v {
   font-size: 12.7px;
@@ -3089,4 +3089,9 @@ pre.tcd-jwt-dump.jh-dark {
   margin-top: 2px;
   color: #d20e0f;
   font-weight: 400;
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .tcd-tab.active {
+  color: var(--th-status-info-text);
 }

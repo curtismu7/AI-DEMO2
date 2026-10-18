@@ -58,7 +58,7 @@ svg.cp-links line{stroke:#12538d;stroke-width:2.5;opacity:.55;transition:stroke 
 svg.cp-links line.dead{stroke:#d20e0f;opacity:.22;stroke-dasharray:4 7}
 .cp-anchor{position:absolute;left:50%;top:14px;transform:translateX(-50%);text-align:center;z-index:4}
 .cp-anchor .dot{width:58px;height:58px;border-radius:50%;margin:0 auto;color:#fff;
-  background:radial-gradient(circle at 30% 30%,#5b8def,#12538d);box-shadow:0 0 24px rgba(18, 83, 141,.85);
+  background:radial-gradient(circle at 30% 30%,#12538d,#051727);box-shadow:0 0 24px rgba(18, 83, 141,.85);
   display:flex;align-items:center;justify-content:center;font-weight:800}
 .cp-anchor.armed .dot{animation:cpcore .5s infinite}
 @keyframes cpcore{0%,100%{box-shadow:0 0 24px rgba(18, 83, 141,.85)}50%{box-shadow:0 0 52px rgba(210, 14, 15,1)}}

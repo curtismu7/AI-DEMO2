@@ -92,7 +92,7 @@
 .aap-switch--on {
   border-color: #a1620a;
   background: #fdf3e2;
-  color: #a1620a;
+  color: #051727;
 }
 .aap-switch--on .aap-switch-knob { background: #a1620a; }
 
@@ -131,7 +131,7 @@
   border: 1px solid #a1620a;
   border-radius: 8px;
   background: #fdf3e2;
-  color: var(--th-text);
+  color: #051727;
 }
 .aap-parked-head { margin: 0; font-size: 14.5px; font-weight: 600; color: #a1620a; }
 .aap-parked-body { margin: 0; font-size: var(--font-size-body); line-height: 1.5; }
@@ -311,7 +311,7 @@
   border: 1px solid #a1620a;
   border-radius: 8px;
   background: #fdf3e2;
-  color: var(--th-text);
+  color: #051727;
   font-size: 14.5px;
   line-height: 1.55;
 }

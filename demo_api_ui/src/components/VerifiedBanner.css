@@ -33,7 +33,7 @@
   bottom: 1rem;
   z-index: 9990;
   background: #e9f7ef;
-  color: #16a34a;
+  color: #051727;
   border: 1px solid #16a34a;
   border-radius: 999px;
   font-size: var(--font-size-xs);
@@ -41,4 +41,4 @@
   padding: 4px 10px;
   cursor: pointer;
 }
-.verified-pill--mismatch { background: #fdf1e0; color: #d97706; border-color: #d97706; }
+.verified-pill--mismatch { background: #fdf1e0; color: #051727; border-color: #d97706; }

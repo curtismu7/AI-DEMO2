@@ -82,3 +82,8 @@
   text-decoration: none;
 }
 .pcg-btn button:hover, .pcg-btn a:hover { background: #051727; color: #fff; }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .pcg-status {
+  color: #051727;
+}

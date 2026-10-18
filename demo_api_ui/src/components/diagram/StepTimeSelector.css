@@ -23,7 +23,7 @@
   font-family: inherit;
 }
 .dc-steptime-select:disabled {
-  color: #909ea4;
+  color: #051727;
   cursor: not-allowed;
   background: #f7f8f8;
 }

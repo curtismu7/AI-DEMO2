@@ -249,7 +249,7 @@
   padding: 1px 5px; flex: 0 0 auto; align-self: center; white-space: nowrap;
 }
 .tctr-lane--pingone { background: #e0e2e4; color: #051727; }
-.tctr-lane--chat { background: #fce7f3; color: #9d174d; }
+.tctr-lane--chat { background: #fee2e2; color: #9d174d; }
 .tctr-lane--agent { background: #fee2e2; color: #aa0005; }
 .tctr-lane--llm { background: #fee2e2; color: #d20e0f; }
 .tctr-lane--heuristics { background: #ffedd5; color: #9a3412; }
@@ -391,7 +391,7 @@
 
 /* Token cards in the summary */
 .tctr-tok { border: 1px solid; border-left-width: 4px; border-radius: 7px; padding: 8px 10px; margin-bottom: 8px; }
-.tctr-tok--user { background: #fce7f3; border-color: #f472b6; }
+.tctr-tok--user { background: #fee2e2; border-color: #fecaca; }
 .tctr-tok--agent { background: #fee2e2; border-color: #f87171; }
 .tctr-tok--mcp { background: #d1fae5; border-color: #34d399; }
 .tctr-tok-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
@@ -543,11 +543,11 @@
 /* Lane badges */
 :root[data-theme="dark"] .tctr .tctr-lane--pingone   { background: rgba(30, 64, 175, 0.4);  color: #93c5fd; }
 
-:root[data-theme="dark"] .tctr .tctr-kv-k--user  { color: #f9a8d4; }
+:root[data-theme="dark"] .tctr .tctr-kv-k--user  { color: #fecaca; }
 :root[data-theme="dark"] .tctr .tctr-kv-k--agent { color: #fca5a5; }
 :root[data-theme="dark"] .tctr .tctr-kv-k--mcp   { color: #6ee7b7; }
 
-:root[data-theme="dark"] .tctr .tctr-lane--chat      { background: rgba(157, 23, 77, 0.35); color: #f9a8d4; }
+:root[data-theme="dark"] .tctr .tctr-lane--chat      { background: rgba(157, 23, 77, 0.35); color: #fecaca; }
 
 :root[data-theme="dark"] .tctr .tctr-lane--agent     { background: rgba(210, 14, 15, 0.35); color: #fca5a5; }
 
@@ -582,7 +582,7 @@
 }
 
 /* Token cards */
-:root[data-theme="dark"] .tctr .tctr-tok--user  { background: rgba(244, 114, 182, 0.12); border-color: #f472b6; }
+:root[data-theme="dark"] .tctr .tctr-tok--user  { background: rgba(244, 114, 182, 0.12); border-color: #fecaca; }
 
 :root[data-theme="dark"] .tctr .tctr-tok--agent { background: rgba(192, 132, 252, 0.12); border-color: #f87171; }
 
@@ -648,3 +648,12 @@
 }
 
 .tctr-skipped-chip[aria-expanded="true"] { border-style: solid; }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .tctr-code {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .tctr-tok-inspect {
+  color: var(--th-status-info-text);
+}

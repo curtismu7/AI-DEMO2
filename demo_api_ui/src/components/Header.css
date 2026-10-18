@@ -3,7 +3,7 @@
 
 .app-top-header {
   background: linear-gradient(135deg, #e0e2e4 0%, #bfdbfe 100%);
-  color: var(--th-text);
+  color: #051727;
   border-bottom: 1px solid #93c5fd;
   padding: clamp(8px, 1.2vw, 12px) 0;
 }
@@ -35,7 +35,7 @@
 .app-top-header__title {
   font-size: clamp(0.95rem, 1.1vw + 0.65rem, 1.5rem);
   font-weight: 700;
-  color: #6c2eb9;
+  color: #d20e0f;
   margin: 0;
   line-height: 1.2;
 }

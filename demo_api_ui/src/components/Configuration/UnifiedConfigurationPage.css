@@ -165,7 +165,7 @@
   --tab-accent: #0d6efd;
 }
 .configuration-tab--pingone-config {
-  --tab-accent: #6f42c1;
+  --tab-accent: #d20e0f;
 }
 .configuration-tab--demo-management {
   --tab-accent: #198754;
@@ -1508,4 +1508,9 @@
 }
 .demo-setup-panel {
   width: 100%;
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .idp-copy-btn:hover {
+  color: var(--th-status-info-text);
 }

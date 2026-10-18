@@ -68,7 +68,7 @@
   outline: 5px solid var(--th-bg-inset);
 }
 
-.governance-timeline-event__marker--identity { background: #bd4d82; }
+.governance-timeline-event__marker--identity { background: #d20e0f; }
 .governance-timeline-event__marker--authorization { background: #4777c7; }
 .governance-timeline-event__marker--privilege { background: #b38821; }
 .governance-timeline-event__marker--governance { background: #3b9279; }

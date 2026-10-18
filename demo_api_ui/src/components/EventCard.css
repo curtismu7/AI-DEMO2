@@ -58,7 +58,7 @@
 .ec-badge--result          { background: #ccfbf1; color: #0f766e; }
 .ec-badge--error           { background: #fee2e2; color: #d20e0f; }
 /* Fallback for unknown types */
-.ec-badge--unknown         { background: #eff0f1; color: var(--th-text); }
+.ec-badge--unknown         { background: #eff0f1; color: #051727; }
 
 /* Message text */
 .ec-message {

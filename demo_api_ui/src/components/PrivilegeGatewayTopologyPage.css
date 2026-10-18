@@ -53,7 +53,7 @@
 .pgt-swatch--cloud  { background: #f5d4d5; border: 1px solid #d20e0f; }
 .pgt-swatch--device { background: #d5e2f2; border: 1px solid #3d6ea5; }
 .pgt-swatch--k8s    { background: #d2ecdf; border: 1px solid #2e8b6a; }
-.pgt-swatch--mcp    { background: #e3dbf3; border: 1px solid #6b4fa5; }
+.pgt-swatch--mcp    { background: #fee2e2; border: 1px solid #d20e0f; }
 .pgt-swatch--step   { background: #d20e0f; border: 1px solid #e4636a; border-radius: 50%; }
 .pgt-swatch--lb     { background: var(--th-status-error-bg, #f5d4d5); border: 1px solid var(--th-status-error, #d20e0f); }
 .pgt-swatch--gw     { background: var(--th-status-success-bg, #d2ecdf); border: 1px solid var(--th-status-success-border, #2e8b6a); }

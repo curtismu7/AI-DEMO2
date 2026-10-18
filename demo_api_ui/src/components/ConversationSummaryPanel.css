@@ -102,3 +102,12 @@
   background: var(--ba-chip-bg, #f4f4f4);
   color: var(--ba-chip-txt, var(--th-text));
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .conv-summary-count {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .conv-summary-chip {
+  color: #051727;
+}

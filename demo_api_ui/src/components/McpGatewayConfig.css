@@ -455,15 +455,15 @@
 }
 .mgc-wizard-step-circle--complete {
   background: #28a745;
-  color: var(--th-text-invert);
+  color: #051727;
 }
 .mgc-wizard-step-circle--needs-input {
   background: #ffc107;
-  color: var(--th-text);
+  color: #051727;
 }
 .mgc-wizard-step-circle--pending {
   background: #e2e3e5;
-  color: #6c757d;
+  color: #051727;
 }
 .mgc-wizard-step-label {
   font-size: var(--font-size-lg);
@@ -484,7 +484,7 @@
 /* Phase 264 — Required badge */
 .mgc-badge--required {
   background: #ffc107;
-  color: var(--th-text);
+  color: #051727;
   font-size: var(--font-size-xs);
   font-weight: 600;
   padding: 2px 7px;

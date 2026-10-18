@@ -74,7 +74,7 @@
 .p1dt-decision-banner--indeterminate {
   background: linear-gradient(135deg, #eff0f1 0%, #e0e2e4 100%);
   border-color: var(--th-border-strong);
-  color: var(--th-text);
+  color: #051727;
 }
 
 .p1dt-decision-banner__label {

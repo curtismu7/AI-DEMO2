@@ -68,7 +68,7 @@
 .tst-about-scenarios > summary {
   padding: 8px 12px;
   background: #eff0f1;
-  color: var(--th-text);
+  color: #051727;
   font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
@@ -85,7 +85,7 @@
   padding: 12px;
   background: #ffffff;
   font-size: var(--font-size-2xs);
-  color: var(--th-text);
+  color: #051727;
   line-height: 1.6;
 }
 

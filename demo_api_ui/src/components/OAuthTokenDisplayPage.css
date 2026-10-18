@@ -614,3 +614,22 @@
     grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
   }
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .otdp-flow-step--warn .otdp-flow-step-num {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .otdp-flow-step--warn .otdp-flow-step-num {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .otdp-flow-step--ok .otdp-flow-step-num,
+:root:not([data-theme="dark"]) .otdp-flow-step--done .otdp-flow-step-num {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .otdp-flow-step--ok .otdp-flow-step-num,
+:root[data-theme="dark"] .otdp-flow-step--done .otdp-flow-step-num {
+  color: #051727;
+}

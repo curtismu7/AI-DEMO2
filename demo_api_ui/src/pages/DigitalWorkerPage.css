@@ -31,7 +31,7 @@
 .dw-kind--purple { background: #d6d0ea; border: 1px solid #8077ad; }
 .dw-kind--white { background: #fff; border: 1px solid #444; }
 .dw-kind--note { background: #fcefc7; border: 1px solid #e0cf9a; font-size: var(--font-size-3xs); }
-.dw-kind--pink { background: #e873d3; font-weight: 700; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
+.dw-kind--pink { background: #fecaca; font-weight: 700; clip-path: polygon(50% 0, 100% 50%, 50% 100%, 0 50%); }
 .dw-kind--text { background: transparent; color: var(--th-text); justify-content: flex-start; text-align: left; }
 .dw-kind--shadow { background: rgba(232, 112, 106, 0.9); border: 2px dashed #222; }
 .dw-kind--mcp { background: rgba(255, 250, 170, 0.55); border: 2px dashed #2a4fd6; }

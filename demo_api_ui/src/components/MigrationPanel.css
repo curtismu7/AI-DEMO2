@@ -152,7 +152,7 @@
   background: #f7f8f8;
   border: 1px solid var(--color-border, #e0e2e4);
   font-weight: 600;
-  color: var(--color-text-secondary, var(--th-text));
+  color: #051727;
 }
 
 .migration-table td {

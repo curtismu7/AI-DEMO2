@@ -541,3 +541,8 @@
     margin: 0 0 12px auto;
   }
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .rsp-aud-tag {
+  color: #051727;
+}

@@ -261,12 +261,12 @@
 }
 
 .step-details-check-status--pass {
-  color: #10b981;
+  color: #051727;
   background: #f0fdf4;
 }
 
 .step-details-check-status--warning {
-  color: #f59e0b;
+  color: #051727;
   background: #fef3c7;
 }
 

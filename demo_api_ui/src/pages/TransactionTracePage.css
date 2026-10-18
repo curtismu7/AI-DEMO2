@@ -703,3 +703,8 @@
   border-color: #fecaca;
   font-weight: 600;
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .ttrace-retry-btn {
+  color: var(--th-status-error-text);
+}

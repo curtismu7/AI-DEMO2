@@ -48,7 +48,7 @@
 }
 .step-circle.incomplete {
   background: #cdd1d4;
-  color: var(--th-text);
+  color: #051727;
 }
 .step-circle.active {
   background: #12538d;
@@ -282,3 +282,8 @@
   color: var(--th-text);
 }
 .wizard-danger-zone .wizard-danger-zone__title { color: var(--th-status-error-text); }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .wizard-btn-secondary {
+  color: var(--th-status-error-text);
+}

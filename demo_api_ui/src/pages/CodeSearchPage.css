@@ -891,3 +891,12 @@
     grid-template-columns: 1fr;
   }
 }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .code-search-page .code-search-ask .typing-dot {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .code-search-page .code-search-ask .typing-dot {
+  color: #051727;
+}
