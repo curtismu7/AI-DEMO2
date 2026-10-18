@@ -813,14 +813,14 @@ describe('stored login hint at flow open', () => {
 });
 
 // ── Review-fix pins: the STORED hint is PingOne-only and never on force ──────
-describe('stored login hint is PingOne-only and force-suppressed', () => {
+describe('stored login hint is sent to both providers and force-suppressed', () => {
   let fetchMock;
   beforeEach(() => {
     fetchMock = jest.fn();
     global.fetch = fetchMock;
   });
 
-  test('PingFederate never receives the stored hint (it binds the flow to it)', async () => {
+  test('PingFederate receives the stored hint too (prefill wins over PF binding the flow to it)', async () => {
     configStore.getOAuthProvider.mockReturnValue('pingfederate');
     // Full PF config (a prior describe may have left its own impl installed).
     configStore.getEffective.mockImplementation((key) => ({
@@ -834,7 +834,7 @@ describe('stored login hint is PingOne-only and force-suppressed', () => {
     fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
     const res = await request(app).get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
     const authorizeUrl = fetchMock.mock.calls[0][0];
-    expect(authorizeUrl).not.toContain('login_hint=person-a');
+    expect(new URL(authorizeUrl).searchParams.get('login_hint')).toBe('person-a@pingone.com');
   });
 
   test('forced re-auth on PingOne drops the stored hint (a different person may sign in)', async () => {

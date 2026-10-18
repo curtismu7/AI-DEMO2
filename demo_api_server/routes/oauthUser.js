@@ -605,17 +605,16 @@ router.get('/login', (req, res) => {
         ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'mfa_only' } : {}),
         // The policy must be assigned to this app or PingOne rejects the acr.
         ...(aicLogin ? { acr_values: 'AIC_Login' } : {}),
-        // Session-derived hint wins (fresher). The role's STORED hint is
-        // PINGONE-only: PingOne treats the hint as advisory prefill, but
-        // PingFederate BINDS the flow to it ("username must match the hint"),
-        // so a stored hint would lock a shared demo machine to the previous
-        // person's username. The stored hint also never rides a forced
-        // re-login — force means a DIFFERENT person may be signing in.
+        // Session-derived hint wins (fresher), else the role's STORED hint — for
+        // both providers (user decision 2026-10-18: prefill wins). Trade-off on
+        // PF: it BINDS the flow to the hint ("username must match the hint"), so
+        // a different person on the same machine needs a forced re-login, which
+        // never carries the stored hint — force means a DIFFERENT person.
         // On a PINGONE pi.flow login with NEITHER source, send null explicitly:
         // the service's demoUser default is for the hosted redirect page, and
         // the modal should prefill nothing when the app knows nobody. PF keeps
         // its own demouser default (the PF demo wants the locked-field demo).
-        ...((!forceLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate' && (knownLoginHint(req) || storedHint('customer')))
+        ...((!forceLogin && (knownLoginHint(req) || storedHint('customer')))
           ? { login_hint: knownLoginHint(req) || storedHint('customer') }
           : (piFlowLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate'
             ? { login_hint: null } : {})),
