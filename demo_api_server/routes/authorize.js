@@ -42,6 +42,7 @@ const { getAuthorizationStatusSummary } = require('../services/transactionAuthor
 const { getMcpFirstToolGateStatus, resolveExpectedMcpResourceUri } = require('../services/mcpToolAuthorizationService');
 const { buildActorBridgeHeaders } = require('../services/mcpActorBridge');
 const { logEvent } = require('../services/appEventService');
+const { buildTokenEvent, decodeJwtClaims } = require('../services/agentMcpTokenService');
 const agentPreflightService = require('../services/agentPreflightService');
 const { evaluateLearningDemo, LEARNING_DEMO_TYPES } = require('../services/authorizeLearningDemos');
 
@@ -778,10 +779,17 @@ router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
   }
 
   try {
-    const workerTokenCached = !!peekWorkerToken();
+    let workerTokenCached = false;
+    try { workerTokenCached = !!peekWorkerToken(); } catch (_) { /* best-effort inspector fact */ }
     const result = await evaluateDecisionEndpoint(endpointId, parameters);
-    const token = peekWorkerToken();
-    const { buildTokenEvent, decodeJwtClaims } = require('../services/agentMcpTokenService');
+    let tokenEvents = [];
+    try {
+      const token = peekWorkerToken();
+      if (token) {
+        tokenEvents = [buildTokenEvent('worker-token', 'Worker token (client credentials)', 'active', decodeJwtClaims(token),
+          'The BFF used this token to call PingOne Authorize. It identifies the BFF, not you.', { rfc: 'RFC 6749 §4.4' })];
+      }
+    } catch (_) { /* best-effort inspector fact */ }
     const consent = result.consentRequired || result.hitlRequired || false;
     logEvent('authorize', result.decision === 'PERMIT' ? 'info' : 'warning',
       `Authorize [console] ${result.decision} — endpoint ${endpointId}`,
@@ -804,8 +812,7 @@ router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
       ruleName: result.ruleName ?? null,
       ruleCode: result.ruleCode ?? null,
       workerTokenCached,
-      tokenEvents: token ? [buildTokenEvent('worker-token', 'Worker token (client credentials)', 'active', decodeJwtClaims(token),
-        'The BFF used this token to call PingOne Authorize. It identifies the BFF, not you.', { rfc: 'RFC 6749 §4.4' })] : [],
+      tokenEvents,
     });
   } catch (err) {
     console.error('[authorize/evaluate-endpoint] Error:', err.message);

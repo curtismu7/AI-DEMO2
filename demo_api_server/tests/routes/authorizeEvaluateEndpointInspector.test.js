@@ -53,4 +53,13 @@ describe('POST /evaluate-endpoint inspector facts', () => {
     expect(res.body.tokenEvents).toEqual([]);
     expect(res.body.workerTokenCached).toBe(false);
   });
+
+  test('a throwing peekWorkerToken never fails the decision', async () => {
+    svc.peekWorkerToken.mockImplementation(() => { throw new Error('creds boom'); });
+    const res = await post();
+    expect(res.status).toBe(200);
+    expect(res.body.decision).toBe('DENY');
+    expect(res.body.tokenEvents).toEqual([]);
+    expect(res.body.workerTokenCached).toBe(false);
+  });
 });
