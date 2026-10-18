@@ -1,6 +1,6 @@
 .codebase-uploader {
   padding: 20px;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0e2e4;
   border-radius: 8px;
   background: var(--th-bg-card);
 }
@@ -33,7 +33,7 @@
 .form-group input[type="text"],
 .form-group input[type="file"] {
   padding: 10px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 4px;
   font-size: var(--font-size-body);
   font-family: inherit;
@@ -47,7 +47,7 @@
 }
 
 .form-group input:disabled {
-  background-color: #f3f4f6;
+  background-color: #eff0f1;
   cursor: not-allowed;
 }
 
@@ -87,7 +87,7 @@
 
 .code-search-page .codebase-uploader button:disabled,
 .codebase-uploader button:disabled {
-  background-color: #d1d5db;
+  background-color: #cdd1d4;
   color: #020617;
   cursor: not-allowed;
 }

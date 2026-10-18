@@ -250,10 +250,10 @@
    stage is findable without reading. `notinpath` (never ran) stays visually
    distinct from `error` (ran and refused). */
 .sdp-stages { list-style: decimal; margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
-.sdp-stage { font-size: 12.5px; padding: 3px 8px; border-left: 3px solid var(--th-border, #cbd5e1); background: var(--th-bg-inset, #f8fafc); border-radius: 0 4px 4px 0; }
+.sdp-stage { font-size: 12.5px; padding: 3px 8px; border-left: 3px solid var(--th-border, #cdd1d4); background: var(--th-bg-inset, #f7f8f8); border-radius: 0 4px 4px 0; }
 .sdp-stage[data-status="done"] { border-left-color: #22c55e; }
 .sdp-stage[data-status="error"] { border-left-color: #d20e0f; }
-.sdp-stage[data-status="notinpath"] { border-left-color: #cbd5e1; opacity: .65; }
+.sdp-stage[data-status="notinpath"] { border-left-color: #cdd1d4; opacity: .65; }
 .sdp-stage { color: var(--th-text); }
 .sdp-stage-name { font-weight: 700; color: var(--th-text); }
 .sdp-stage-result { color: var(--th-text-muted); margin-left: 6px; }

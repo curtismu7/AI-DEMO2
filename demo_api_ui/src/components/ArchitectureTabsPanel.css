@@ -72,7 +72,7 @@
 .architecture-tab-content p {
   margin: 8px 0;
   font-size: var(--font-size-body);
-  color: var(--th-text-muted) !important; /* beats an inline #334155 in the JSX */
+  color: var(--th-text-muted) !important; /* beats an inline #263746 in the JSX */
   line-height: 1.5;
   font-family: var(--app-font-family, 'Inter', 'Segoe UI', -apple-system, BlinkMacSystemFont, 'Helvetica Neue', sans-serif);
 }

@@ -609,7 +609,7 @@
   row-gap: clamp(8px, 1.2vw, 12px);
   padding: clamp(6px, 1vw, 10px) clamp(12px, 2vw, 18px);
   background: var(--th-bg-card);
-  border-top: 1px solid rgba(15, 23, 42, 0.08);
+  border-top: 1px solid rgba(5, 23, 39, 0.08);
   overflow-x: auto;
 }
 
@@ -1149,7 +1149,7 @@
 }
 
 .account-summary-row {
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #eff0f1;
 }
 
 .account-summary-row:last-child {
@@ -1200,14 +1200,14 @@
   background: var(--th-bg-card);
   border-radius: 14px;
   border: 1px solid var(--th-border);
-  border-left: 4px solid #94a3b8;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  border-left: 4px solid #909ea4;
+  box-shadow: 0 1px 3px rgba(5, 23, 39, 0.06);
   overflow: hidden;
   transition: box-shadow 0.15s;
 }
 
 .account-card:hover {
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 4px 12px rgba(5, 23, 39, 0.1);
 }
 
 /* Left rail accent per account type */
@@ -1292,7 +1292,7 @@
 
 .account-demo-badge {
   font-size: 10px;
-  background: #e5e7eb;
+  background: #e0e2e4;
   color: var(--th-text);
   border-radius: 4px;
   padding: 2px 6px;
@@ -1393,7 +1393,7 @@
 
 /* Account Details accordion */
 .account-details-section {
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #eff0f1;
 }
 
 .account-profile-toggle {
@@ -1438,7 +1438,7 @@
   gap: 10px 16px;
   padding: 12px 18px 14px;
   background: var(--th-bg-inset);
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #eff0f1;
 }
 
 .account-detail-row {
@@ -1838,7 +1838,7 @@
   grid-template-columns: 1.2fr 0.8fr 1fr 2fr 1.2fr 1fr 1.5fr;
   gap: 16px;
   padding: 16px;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #eff0f1;
   transition: background-color 0.2s ease;
   align-items: center;
 }
@@ -2837,7 +2837,7 @@
 .dashboard-header--surface {
   background: var(--dash-surface, #ffffff);
   color: var(--dash-text, var(--th-text));
-  border-bottom: 1px solid var(--dash-border, rgba(15, 23, 42, 0.08));
+  border-bottom: 1px solid var(--dash-border, rgba(5, 23, 39, 0.08));
   box-shadow: none;
 }
 
@@ -2852,7 +2852,7 @@
 }
 
 .dashboard-header--surface .logo-icon {
-  background: rgba(15, 23, 42, 0.06);
+  background: rgba(5, 23, 39, 0.06);
   backdrop-filter: none;
 }
 
@@ -2906,7 +2906,7 @@
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
   border-left: 4px solid #12538d;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 3px rgba(5, 23, 39, 0.06);
 }
 
 .user-dashboard--2026 .ud-hero__top {
@@ -2977,7 +2977,7 @@
   height: 44px;
   margin-top: 1rem;
   padding-top: 0.5rem;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #eff0f1;
 }
 
 .user-dashboard--2026 .ud-hero__spark span {
@@ -3073,7 +3073,7 @@
   width: 3px;
   height: 3px;
   border-radius: 50%;
-  background: #cbd5e1;
+  background: #cdd1d4;
 }
 
 .user-dashboard--2026 .ud-trust-strip__item--debug {
@@ -3137,7 +3137,7 @@
   border-radius: 14px;
   border: 1px solid var(--th-border);
   border-left: 4px solid #12538d;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 3px rgba(5, 23, 39, 0.06);
   padding: 16px 18px 14px;
   backdrop-filter: none;
 }
@@ -3838,7 +3838,7 @@
 }
 
 .tx-feed__group + .tx-feed__group {
-  border-top: 2px solid #f3f4f6;
+  border-top: 2px solid #eff0f1;
 }
 
 .tx-feed__date-row {
@@ -3876,7 +3876,7 @@
 }
 
 .tx-row + .tx-row {
-  border-top: 1px solid #f9fafb;
+  border-top: 1px solid #f7f8f8;
 }
 
 .tx-row__icon {
@@ -4077,7 +4077,7 @@
   flex-direction: column;
   gap: 4px;
   padding: 8px 0 4px;
-  border-top: 1px solid var(--brand-medium-gray, #e5e7eb);
+  border-top: 1px solid var(--brand-medium-gray, #e0e2e4);
   margin-top: 8px;
 }
 
@@ -4087,15 +4087,15 @@
   font-size: var(--font-size-2xs);
   text-align: left;
   background: var(--th-bg-card, #fff);
-  border: 1px solid var(--brand-medium-gray, #e5e7eb);
+  border: 1px solid var(--brand-medium-gray, #e0e2e4);
   border-radius: 5px;
   color: var(--th-text);
   cursor: pointer;
 }
 
 .ud-float-chain-btn:hover {
-  background: var(--th-bg-hover, #f1f5f9);
-  border-color: #94a3b8;
+  background: var(--th-bg-hover, #eff0f1);
+  border-color: #909ea4;
 }
 
 /* ── 2026 skin: ud-middle-collapsed variants ──────────────────────────────

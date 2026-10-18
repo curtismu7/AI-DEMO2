@@ -611,7 +611,7 @@
 }
 
 .authz-raw-body {
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   border-radius: 6px;
   padding: 12px 14px;
@@ -743,7 +743,7 @@
 
 .authz-history-table td {
   padding: 10px 14px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
   vertical-align: middle;
 }
 
@@ -772,11 +772,11 @@
 
 .authz-api-section {
   padding: 10px 12px;
-  background: #0f172a;
+  background: #051727;
 }
 
 .authz-api-section--downstream {
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid #263746;
   background: #0a0f1e;
 }
 
@@ -860,7 +860,7 @@
 }
 
 .authz-api-pre {
-  background: #1e293b;
+  background: #263746;
   color: #ffffff;
   font-family: inherit;
   font-size: 0.72rem;

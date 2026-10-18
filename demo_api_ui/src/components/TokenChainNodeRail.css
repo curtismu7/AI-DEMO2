@@ -120,7 +120,7 @@
 .tcnr-density button.active {
   background: var(--th-bg-card);
   color: var(--th-text);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 1px 2px rgba(5, 23, 39, 0.12);
 }
 
 .tcnr-track {
@@ -161,7 +161,7 @@
 
 .tcnr-node:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.1);
+  box-shadow: 0 4px 12px rgba(5, 23, 39, 0.1);
 }
 
 .tcnr-node-top {
@@ -226,7 +226,7 @@
 .tcnr-node--done { border-top-color: #16a34a; }
 .tcnr-node--done .tcnr-node-n { border-color: #16a34a; color: #15803d; }
 
-.tcnr-node--pending { border-top-color: #cbd5e1; }
+.tcnr-node--pending { border-top-color: #cdd1d4; }
 
 /* a hop still in flight - amber, and distinct from the selected node */
 .tcnr-node--active { border-top-color: #b45309; }

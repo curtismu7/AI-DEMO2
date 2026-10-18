@@ -131,7 +131,7 @@ svg.cp-links line.dead{stroke:#d20e0f;opacity:.22;stroke-dasharray:4 7}
 .cp-btn{font-weight:700;border:none;border-radius:10px;padding:11px 16px;cursor:pointer;font-size:var(--font-size-sm)}
 .cp-btn:disabled{opacity:.5;cursor:default}
 .cp-btn.stopall{background:linear-gradient(180deg,#d20e0f,#d20e0f);color:#fff;box-shadow:0 6px 18px rgba(210, 14, 15,.4)}
-.cp-btn.cp-btn--comprehensive{background:linear-gradient(180deg,#1e293b,#0f172a);color:#fff;box-shadow:0 6px 18px rgba(15,23,42,.5)}
+.cp-btn.cp-btn--comprehensive{background:linear-gradient(180deg,#263746,#051727);color:#fff;box-shadow:0 6px 18px rgba(5, 23, 39,.5)}
 .cp-btn.reset{background:var(--th-bg-inset);border:1px solid var(--th-border-strong);
   color:var(--th-text)}
 .cp-progress{font-size:var(--font-size-xs);opacity:.85;min-height:16px}

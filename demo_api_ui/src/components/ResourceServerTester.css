@@ -31,10 +31,10 @@
   font-size: var(--font-size-2xs);
   padding: 6px 8px;
   border-radius: 4px;
-  background: #f1f5f9;
+  background: #eff0f1;
 }
 .rst-rules li.fail { background: #fef2f2; }
-.rst-rule-name { font-weight: 600; color: #1e293b; font-family: var(--font-mono); }
+.rst-rule-name { font-weight: 600; color: #263746; font-family: var(--font-mono); }
 .rst-rule-detail { color: var(--th-text); }
 
 /* Error line (light theme) */
@@ -82,15 +82,15 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.04em;
-  color: #64748b;
+  color: #5c646b;
 }
 .rst-raw-token {
   margin: 6px 0 0;
   padding: 12px 14px;
   border-radius: 6px;
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
-  color: #1e293b;
+  background: #eff0f1;
+  border: 1px solid #e0e2e4;
+  color: #263746;
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   line-height: 1.5;
@@ -143,10 +143,10 @@
   gap: 10px;
   margin: 16px;
   padding: 12px;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #cdd1d4;
   border-radius: 6px;
-  background: #f8fafc;
-  color: #334155;
+  background: #f7f8f8;
+  color: #263746;
   font-size: var(--font-size-2xs);
 }
 .rst-education div { display: flex; flex-direction: column; gap: 5px; }

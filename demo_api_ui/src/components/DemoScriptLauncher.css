@@ -8,9 +8,9 @@
   bottom: 16px;
   z-index: 1000;
   padding: 8px 14px;
-  background: #111827;
+  background: #051727;
   color: #ffffff;
-  border: 1px solid #374151;
+  border: 1px solid #263746;
   border-radius: 20px;
   font-size: var(--font-size-sm);
   font-weight: 700;
@@ -19,7 +19,7 @@
 }
 
 .demo-script-launch:hover {
-  background: #1f2937;
+  background: #263746;
 }
 
 /* Teleprompter body - self-contained explicit colors. The pop-out window does
@@ -82,8 +82,8 @@
   position: relative;
   margin: 0 0 12px;
   padding: 8px 64px 8px 10px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
+  background: #f7f8f8;
+  border: 1px solid #e0e2e4;
   border-left: 3px solid #12538d;
   border-radius: 4px;
   display: flex;
@@ -204,14 +204,14 @@
   font-size: var(--font-size-sm);
   font-weight: 800;
   color: #ffffff;
-  background: #111827;
-  border: 1px solid #374151;
+  background: #051727;
+  border: 1px solid #263746;
   border-radius: 6px;
   cursor: pointer;
 }
 
 .dsl-size-btn:hover:not(:disabled) {
-  background: #1f2937;
+  background: #263746;
 }
 
 .dsl-size-btn:disabled {
@@ -233,7 +233,7 @@
   font-weight: 700;
   color: var(--th-text);
   background: #ffffff;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 6px;
   cursor: pointer;
 }

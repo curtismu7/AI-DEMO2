@@ -71,7 +71,7 @@
 /* Previous steps — soft grey, no pulse, stays visible */
 .diagram-region--active-prev {
   fill: rgba(100, 116, 139, 0.18);
-  stroke: #94a3b8;
+  stroke: #909ea4;
   stroke-width: 0.4;
 }
 
@@ -167,7 +167,7 @@
 }
 
 .diagram-region-text--active-prev {
-  fill: #64748b;
+  fill: #5c646b;
   font-weight: 500;
 }
 
@@ -345,7 +345,7 @@
 .arch-token-card__note {
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #eff0f1;
   font-size: 0.76rem;
   color: var(--th-text-muted);
   font-style: italic;
@@ -439,7 +439,7 @@
   -webkit-overflow-scrolling: touch;
 }
 .arch-history__scroll::-webkit-scrollbar { height: 6px; }
-.arch-history__scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.arch-history__scroll::-webkit-scrollbar-thumb { background: #cdd1d4; border-radius: 3px; }
 
 .arch-history__entry {
   flex: 0 0 auto;

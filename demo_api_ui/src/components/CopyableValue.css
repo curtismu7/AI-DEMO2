@@ -133,7 +133,7 @@
 }
 
 .copyable-value-hint code {
-  background: #f3f4f6;
+  background: #eff0f1;
   padding: 1px 4px;
   border-radius: 3px;
   font-family: var(--font-mono);

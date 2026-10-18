@@ -167,7 +167,7 @@
 
 .rp-test-form__input {
   width: 100%;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 5px;
   padding: 6px 10px;
   font-size: var(--font-size-2xs);

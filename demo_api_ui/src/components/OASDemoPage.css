@@ -437,7 +437,7 @@
 }
 
 .oas-tryitout-btn--disabled {
-  background: #9ca3af;
+  background: #909ea4;
   border-color: var(--th-text-faint);
 }
 
@@ -479,7 +479,7 @@
 .oas-tryitout-result {
   margin-top: 0.75rem;
   padding: 0.75rem;
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   border-radius: 6px;
   font-family: var(--font-mono);
@@ -548,7 +548,7 @@
 }
 
 .oas-raw-spec {
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   border-radius: 8px;
   padding: 1.25rem 1.5rem;
@@ -557,7 +557,7 @@
   line-height: 1.5;
   overflow: auto;
   max-height: 500px;
-  border: 1px solid #1e293b;
+  border: 1px solid #263746;
 }
 
 /* ── Loading / Error ── */

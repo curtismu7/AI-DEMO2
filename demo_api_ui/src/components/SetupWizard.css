@@ -16,7 +16,7 @@
 
 /* Accordion step */
 .wizard-step {
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0e2e4;
   border-radius: 8px;
   margin-bottom: 8px;
   overflow: hidden;
@@ -49,7 +49,7 @@
   flex-shrink: 0;
 }
 .step-circle.incomplete {
-  background: #d1d5db;
+  background: #cdd1d4;
   color: var(--th-text);
 }
 .step-circle.active {
@@ -76,7 +76,7 @@
   line-height: 1.4;
 }
 .wizard-step-chevron {
-  color: #9ca3af;
+  color: #909ea4;
   font-size: var(--font-size-2xs);
   transition: transform 0.2s;
 }
@@ -87,7 +87,7 @@
 /* Panel content */
 .wizard-step-panel {
   padding: 16px 20px 24px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #e0e2e4;
   background: var(--th-bg-card);
 }
 
@@ -105,7 +105,7 @@
 .wizard-input {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 6px;
   font-size: var(--font-size-body);
   box-sizing: border-box;
@@ -143,7 +143,7 @@
 .wizard-select {
   width: 100%;
   padding: 8px 12px;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 6px;
   font-size: var(--font-size-body);
   background: var(--th-bg-card);
@@ -230,7 +230,7 @@
 .wizard-code-block {
   background: var(--th-bg-inset);
   color: var(--th-text);
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0e2e4;
   border-radius: 6px;
   padding: 16px;
   font-family: inherit;

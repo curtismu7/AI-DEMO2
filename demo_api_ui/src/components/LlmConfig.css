@@ -189,7 +189,7 @@
 }
 .cfg-card-header {
   padding: 1.1rem 1.5rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -292,7 +292,7 @@
 /* ── Divider ────────────────────────────────────────────────── */
 .cfg-divider {
   border: none;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #eff0f1;
   margin: 0 0 1.25rem;
 }
 

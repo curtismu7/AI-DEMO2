@@ -10,7 +10,7 @@
 }
 
 .dstc-card {
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
   border-left: 3px solid transparent;
   transition: background 0.1s;
 }
@@ -29,7 +29,7 @@
 }
 
 .dstc-card--skip {
-  border-left-color: #e2e8f0;
+  border-left-color: #e0e2e4;
   opacity: 0.5;
 }
 
@@ -127,7 +127,7 @@
 .dstc-claim-row {
   display: grid;
   grid-template-columns: 80px 1fr;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
 }
 
 .dstc-claim-row:last-child {
@@ -138,7 +138,7 @@
   padding: 4px 8px;
   color: #12538d;
   font-weight: 500;
-  border-right: 1px solid #f1f5f9;
+  border-right: 1px solid #eff0f1;
   background: var(--th-bg-inset);
   white-space: nowrap;
   overflow: hidden;

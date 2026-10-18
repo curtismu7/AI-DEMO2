@@ -242,7 +242,7 @@
   padding: 12px;
   cursor: pointer;
   background: var(--th-bg-inset);
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
   transition: all 0.2s ease;
   user-select: none;
 }
@@ -379,7 +379,7 @@
   display: flex;
   gap: 12px;
   padding: 10px 12px;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
   font-size: var(--font-size-sm);
 }
 
@@ -594,7 +594,7 @@
   gap: 12px;
   padding: 8px 0;
   font-size: var(--font-size-sm);
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
 }
 
 .utfi-claim-row:last-child {
@@ -699,13 +699,13 @@
 }
 
 .utfi-raw-json::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cdd1d4;
   border-radius: 6px;
-  border: 2px solid #f1f5f9;
+  border: 2px solid #eff0f1;
 }
 
 .utfi-raw-json::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #909ea4;
 }
 
 .utfi-loading {
@@ -760,13 +760,13 @@
 
 .utfi-left::-webkit-scrollbar-thumb,
 .utfi-right::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cdd1d4;
   border-radius: 5px;
 }
 
 .utfi-left::-webkit-scrollbar-thumb:hover,
 .utfi-right::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #909ea4;
 }
 
 /* ============================================================================
@@ -848,12 +848,12 @@
 }
 
 .utfi-exchange-timeline::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cdd1d4;
   border-radius: 3px;
 }
 
 .utfi-exchange-timeline::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #909ea4;
 }
 
 .utfi-exchange-event {
@@ -984,7 +984,7 @@
 .utfi-event-pre {
   margin: 0;
   padding: 8px 10px;
-  background: #0f172a;
+  background: #051727;
   color: #e0e2e4;
   border-radius: 6px;
   font: 11px/1.45 var(--font-mono);
@@ -1229,12 +1229,12 @@
 }
 
 .utfi-detailed-steps-list::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cdd1d4;
   border-radius: 4px;
 }
 
 .utfi-detailed-steps-list::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #909ea4;
 }
 
 /* Tab navigation */

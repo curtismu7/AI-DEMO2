@@ -106,7 +106,7 @@
 
 .server-restart-content .modal-footer {
   padding: 16px 20px;
-  border-top: 1px solid var(--app-gray-200, #e5e7eb);
+  border-top: 1px solid var(--app-gray-200, #e0e2e4);
   display: flex;
   gap: 10px;
   justify-content: flex-end;
@@ -132,12 +132,12 @@
 
 /* Secondary button (gray) */
 .server-restart-content .btn-secondary {
-  background-color: var(--app-gray-200, #e5e7eb);
+  background-color: var(--app-gray-200, #e0e2e4);
   color: var(--app-gray-900, var(--th-text));
 }
 
 .server-restart-content .btn-secondary:hover {
-  background-color: var(--app-gray-300, #d1d5db);
+  background-color: var(--app-gray-300, #cdd1d4);
   transform: translateY(-1px);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
 }
@@ -190,7 +190,7 @@
   }
 
   .server-restart-content .btn-secondary {
-    border: 2px solid var(--app-gray-900, #111827);
+    border: 2px solid var(--app-gray-900, #051727);
   }
 }
 

@@ -401,7 +401,7 @@
   width: 100%;
   height: 380px;
   min-height: 220px;
-  border: 1px solid #1e293b;
+  border: 1px solid #263746;
   border-radius: 10px;
   background: #0b1220;
   overflow: auto;
@@ -445,9 +445,9 @@
   z-index: 50;
   max-width: 280px;
   padding: 8px 10px;
-  border: 1px solid #334155;
+  border: 1px solid #263746;
   border-radius: 6px;
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
   font-size: var(--font-size-2xs);
@@ -458,7 +458,7 @@
 }
 
 .tracing-graph-tooltip strong {
-  color: #f1f5f9;
+  color: #eff0f1;
   font-weight: 600;
 }
 
@@ -468,7 +468,7 @@
 
 .tracing-graph-tooltip-hr {
   border: none;
-  border-top: 1px solid #334155;
+  border-top: 1px solid #263746;
   margin: 5px 0;
 }
 
@@ -489,9 +489,9 @@
   min-width: 30px;
   height: 30px;
   padding: 0 8px;
-  border: 1px solid #334155;
+  border: 1px solid #263746;
   border-radius: 6px;
-  background: #1e293b;
+  background: #263746;
   color: #ffffff;
   font-size: var(--font-size-body);
   font-weight: 600;
@@ -500,7 +500,7 @@
 }
 
 .tracing-graph-zoom-btn:hover {
-  background: #334155;
+  background: #263746;
 }
 
 /* Detail side panel (rendered by React, overlays the canvas top-right). */
@@ -512,9 +512,9 @@
   max-height: 480px;
   overflow-y: auto;
   padding: 14px 16px;
-  border: 1px solid #1e293b;
+  border: 1px solid #263746;
   border-radius: 10px;
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
@@ -523,7 +523,7 @@
   margin: 10px 0 8px 0;
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: #f1f5f9;
+  color: #eff0f1;
 }
 
 .tracing-graph-panel-facts {
@@ -549,7 +549,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid #263746;
   padding-top: 10px;
 }
 

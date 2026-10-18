@@ -5,7 +5,7 @@
   position: fixed;
   inset: 0;
   z-index: 1300;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(5, 23, 39, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -24,7 +24,7 @@
 
 .ww-progress {
   height: 4px;
-  background: var(--brand-light-gray, #e5e7eb);
+  background: var(--brand-light-gray, #e0e2e4);
   border-radius: 12px 12px 0 0;
 }
 
@@ -88,7 +88,7 @@
 .ww-input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--brand-light-gray, #d1d5db);
+  border: 1px solid var(--brand-light-gray, #cdd1d4);
   border-radius: 6px;
   padding: 0.45rem 0.6rem;
   font-size: 0.875rem;
@@ -110,7 +110,7 @@
 }
 
 .ww-creds {
-  border: 1px solid var(--brand-light-gray, #e5e7eb);
+  border: 1px solid var(--brand-light-gray, #e0e2e4);
   border-radius: 8px;
   padding: 0.6rem 0.75rem;
   margin-top: 0.5rem;
@@ -166,7 +166,7 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem 1rem;
-  border-top: 1px solid var(--brand-light-gray, #e5e7eb);
+  border-top: 1px solid var(--brand-light-gray, #e0e2e4);
   margin-top: 0.75rem;
 }
 
@@ -197,12 +197,12 @@
 
 .ww-btn-secondary {
   background: none;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0e2e4;
   color: var(--modal-body-text, var(--th-text));
 }
 
 .ww-btn-secondary:hover {
-  background: var(--th-bg-muted, #f9fafb);
+  background: var(--th-bg-muted, #f7f8f8);
 }
 
 .ww-dots {
@@ -214,7 +214,7 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--brand-light-gray, #d1d5db);
+  background: var(--brand-light-gray, #cdd1d4);
 }
 
 .ww-dot-active {

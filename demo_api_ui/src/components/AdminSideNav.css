@@ -576,7 +576,7 @@
 }
 
 .admin-side-nav__stop-agent:disabled {
-  color: #9ca3af;
+  color: #909ea4;
   cursor: not-allowed;
   opacity: 0.7;
 }

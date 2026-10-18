@@ -30,7 +30,7 @@
   max-width: 520px;
   overflow: hidden;
   animation: dsm-slide-up 0.25s ease;
-  --th-text: #0f172a;
+  --th-text: #051727;
 }
 
 @keyframes dsm-slide-up {
@@ -116,14 +116,14 @@
 .dsm-server-name {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #1e293b;
+  color: #263746;
 }
 
 .dsm-server-port {
   font-size: 0.8rem;
-  color: #64748b;
+  color: #5c646b;
   font-family: inherit;
-  background: #f1f5f9;
+  background: #eff0f1;
   padding: 1px 5px;
   border-radius: 4px;
   margin-left: 2px;
@@ -132,7 +132,7 @@
 .dsm-server-desc {
   margin: 0 0 8px;
   font-size: 0.82rem;
-  color: #64748b;
+  color: #5c646b;
   line-height: 1.4;
 }
 
@@ -141,10 +141,10 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f1f5f9;
+  background: #eff0f1;
   border-radius: 7px;
   padding: 8px 10px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
 }
 
 .dsm-cmd {
@@ -161,7 +161,7 @@
 .dsm-copy-btn {
   flex-shrink: 0;
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #cdd1d4;
   color: var(--th-text);
   border-radius: 5px;
   width: 28px;
@@ -177,7 +177,7 @@
 }
 
 .dsm-copy-btn:hover {
-  background: #e2e8f0;
+  background: #e0e2e4;
   color: var(--th-text);
 }
 
@@ -191,7 +191,7 @@
 .dsm-hint {
   margin: 0;
   font-size: 0.82rem;
-  color: #64748b;
+  color: #5c646b;
   line-height: 1.5;
   margin-bottom: 12px;
 }
@@ -223,7 +223,7 @@
   align-items: center;
   gap: 8px;
   padding: 10px 22px 14px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #eff0f1;
 }
 
 .dsm-pulse {
@@ -249,7 +249,7 @@
 
 .dsm-checking {
   font-size: 0.8rem;
-  color: #94a3b8;
+  color: #909ea4;
   font-style: italic;
 }
 
@@ -260,7 +260,7 @@
   font-weight: 600;
   color: var(--th-text);
   background: #ffffff;
-  border: 1px solid #cbd5e1;
+  border: 1px solid #cdd1d4;
   border-radius: 6px;
   cursor: pointer;
   transition: background 0.15s, color 0.15s, border-color 0.15s;
@@ -268,9 +268,9 @@
 }
 
 .dsm-dismiss-btn:hover {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  color: #1e293b;
+  background: #eff0f1;
+  border-color: #909ea4;
+  color: #263746;
 }
 
 @media (prefers-reduced-motion: reduce) {

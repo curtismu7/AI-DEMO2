@@ -7,7 +7,7 @@
 
 /* Theme the whole page surface, header included */
 .rfpc-page {
-  background: var(--rfp-bg, #f8fafc);
+  background: var(--rfp-bg, #f7f8f8);
   color: var(--rfp-text);
   border-radius: 10px;
 }
@@ -33,7 +33,7 @@
   display: inline-flex;
   gap: 4px;
   align-self: flex-start;
-  border: 1px solid var(--rfp-border, #cbd5e1);
+  border: 1px solid var(--rfp-border, #cdd1d4);
   border-radius: 8px;
   padding: 3px;
   background: var(--rfp-card, #fff);

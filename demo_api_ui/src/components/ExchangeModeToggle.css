@@ -1,7 +1,7 @@
 /* banking_api_ui/src/components/ExchangeModeToggle.css */
 .emt-root {
   background: #ffffff;
-  border: 1px solid var(--color-border, #e2e8f0);
+  border: 1px solid var(--color-border, #e0e2e4);
   border-radius: 10px;
   padding: 10px 14px;
   margin-bottom: 10px;

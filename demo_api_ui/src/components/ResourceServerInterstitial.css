@@ -5,7 +5,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.6);
+  background: rgba(5, 23, 39, 0.6);
   backdrop-filter: blur(4px);
   animation: rsi-fade-in 0.25s ease-out;
 }
@@ -23,7 +23,7 @@
   margin: 0 auto;
   padding: 2rem;
   font-family: "Montserrat", system-ui, -apple-system, sans-serif;
-  color: #1e293b;
+  color: #263746;
   background: #fff;
   border-radius: 12px;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
@@ -62,11 +62,11 @@
 
 .rsi-subtitle {
   font-size: 0.95rem;
-  color: #64748b;
+  color: #5c646b;
 }
 
 .rsi-subtitle code {
-  background: #f1f5f9;
+  background: #eff0f1;
   padding: 0.15em 0.4em;
   border-radius: 3px;
   font-size: 0.85em;
@@ -82,7 +82,7 @@
 .rsi-arch-label {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #94a3b8;
+  color: #909ea4;
   text-transform: uppercase;
   letter-spacing: 0.05em;
   margin-bottom: 1rem;
@@ -100,8 +100,8 @@
   width: 200px;
   padding: 1rem;
   border-radius: 8px;
-  border: 2px solid #e2e8f0;
-  background: #f8fafc;
+  border: 2px solid #e0e2e4;
+  background: #f7f8f8;
   text-align: center;
   transition: all 0.3s ease;
 }
@@ -128,7 +128,7 @@
 .rsi-node-name {
   font-weight: 700;
   font-size: 0.9rem;
-  color: #1e293b;
+  color: #263746;
 }
 
 .rsi-node--active .rsi-node-name {
@@ -138,12 +138,12 @@
 .rsi-node-port {
   font-size: 0.75rem;
   font-family: var(--font-mono);
-  color: #64748b;
+  color: #5c646b;
 }
 
 .rsi-node-sub {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #909ea4;
   margin-top: 0.25rem;
 }
 
@@ -172,7 +172,7 @@
   width: 200px;
   height: 4px;
   border-radius: 2px;
-  background: #e2e8f0;
+  background: #e0e2e4;
   transition: background 0.3s;
 }
 
@@ -193,7 +193,7 @@
 .rsi-detail-card {
   margin: 2rem 0;
   padding: 1.5rem;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 8px;
   background: #fafbfc;
 }
@@ -202,7 +202,7 @@
   font-size: 1rem;
   font-weight: 700;
   margin: 0 0 1rem;
-  color: #334155;
+  color: #263746;
 }
 
 .rsi-detail-grid {
@@ -215,7 +215,7 @@
 .rsi-detail-grid dt {
   font-size: 0.8rem;
   font-weight: 600;
-  color: #64748b;
+  color: #5c646b;
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -223,11 +223,11 @@
 .rsi-detail-grid dd {
   margin: 0;
   font-size: 0.9rem;
-  color: #1e293b;
+  color: #263746;
 }
 
 .rsi-detail-grid dd code {
-  background: #f1f5f9;
+  background: #eff0f1;
   padding: 0.1em 0.35em;
   border-radius: 3px;
   font-size: 0.85em;
@@ -247,7 +247,7 @@
   font-size: 0.9rem;
   font-weight: 700;
   margin: 0 0 0.5rem;
-  color: #334155;
+  color: #263746;
 }
 
 .rsi-explanation p {
@@ -273,7 +273,7 @@
   gap: 1.5rem;
   margin-top: 2rem;
   padding-top: 1.5rem;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #e0e2e4;
 }
 
 .rsi-continue-btn {
@@ -296,11 +296,11 @@
   padding: 0.5rem 1.25rem;
   font-size: 0.85rem;
   font-weight: 500;
-  color: #94a3b8;
+  color: #909ea4;
   background: transparent;
-  border: 1px solid #334155;
+  border: 1px solid #263746;
   border-radius: 6px;
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s;
 }
-.rsi-skip-btn:hover { color: #ffffff; border-color: #64748b; }
+.rsi-skip-btn:hover { color: #ffffff; border-color: #5c646b; }

@@ -7,8 +7,8 @@
   transform: translate(-50%, -50%);
   width: min(480px, 92vw);
   max-height: 95vh;
-  background: #0f172a;
-  border: 1px solid #334155;
+  background: #051727;
+  border: 1px solid #263746;
   border-radius: 12px;
   box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.7),
@@ -93,8 +93,8 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #1e293b;
-  border: 1px solid #475569;
+  background: #263746;
+  border: 1px solid #5c646b;
   color: var(--th-text-invert);
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -109,8 +109,8 @@
 /* This modal body renders inside DraggableModal's ".dm-panel", which is
    always light regardless of app theme (see DraggableModal.css) — nothing
    in this file uses th- or ba-prefixed custom properties, only literal hex
-   matching the surrounding rules (.ksm-result-scope's #f3f4f6 / #d1d5db,
-   .ksm-result-mechanism's #6b7280), so this block follows the same pattern
+   matching the surrounding rules (.ksm-result-scope's #eff0f1 / #cdd1d4,
+   .ksm-result-mechanism's #5c646b), so this block follows the same pattern
    rather than introducing new token names. */
 .ksm-active-runs {
   margin-bottom: 12px;
@@ -447,7 +447,7 @@
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow:
-    0 4px 0 #374151,
+    0 4px 0 #263746,
     0 6px 12px rgba(0, 0, 0, 0.4);
 }
 

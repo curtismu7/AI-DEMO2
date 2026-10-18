@@ -60,14 +60,14 @@
 /* About These Scenarios collapsible */
 .tst-about-scenarios {
   margin-top: 12px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 4px;
   overflow: hidden;
 }
 
 .tst-about-scenarios > summary {
   padding: 8px 12px;
-  background: #f1f5f9;
+  background: #eff0f1;
   color: var(--th-text);
   font-size: var(--font-size-2xs);
   font-weight: 600;
@@ -77,8 +77,8 @@
 }
 
 .tst-about-scenarios > summary:hover {
-  background: #e2e8f0;
-  color: #1e293b;
+  background: #e0e2e4;
+  color: #263746;
 }
 
 .tst-about-scenarios__body {
@@ -103,7 +103,7 @@
 }
 
 .tst-about-scenarios__body strong {
-  color: #1e293b;
+  color: #263746;
 }
 
 /* Result panel in output column */
@@ -124,14 +124,14 @@
   min-width: 110px;
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #64748b;
+  color: #5c646b;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .tst-result-value {
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: #263746;
   line-height: 1.4;
 }
 
@@ -166,12 +166,12 @@
   color: #12538d;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e0e2e4;
 }
 
 .tst-teaching-message {
   font-size: var(--font-size-body);
-  color: #1e293b;
+  color: #263746;
   line-height: 1.7;
   background: #fcfcfc;
   border-left: 3px solid #12538d;

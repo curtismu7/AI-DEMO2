@@ -63,13 +63,13 @@ textarea::placeholder {
    Type identity is preserved via a colored left accent + icon color, not the body fill.
    Every toast keeps a visible close (X); the X is tinted for the dark surface. */
 .Toastify__toast {
-  background: #1e293b !important;
-  color: #f1f5f9 !important;
-  border-left: 4px solid #64748b;
-  box-shadow: 0 8px 24px rgba(15, 23, 42, 0.35);
+  background: #263746 !important;
+  color: #eff0f1 !important;
+  border-left: 4px solid #5c646b;
+  box-shadow: 0 8px 24px rgba(5, 23, 39, 0.35);
 }
 .Toastify__toast-body {
-  color: #f1f5f9 !important;
+  color: #eff0f1 !important;
 }
 /* The one thing to do, highlighted. Explicit ink + ground so it reads on both the
    dark toast and the light modal surface in either theme. */
@@ -106,7 +106,7 @@ textarea::placeholder {
 }
 /* Close (X): always visible and legible on the dark surface. */
 .Toastify__close-button {
-  color: #f1f5f9 !important;
+  color: #eff0f1 !important;
   opacity: 0.7;
 }
 .Toastify__close-button:hover,
@@ -165,7 +165,7 @@ textarea::placeholder {
 
   /* Chase Neutrals */
   --brand-white: #ffffff;
-  --brand-light-gray: #f8fafc;
+  --brand-light-gray: #f7f8f8;
   --brand-medium-gray: #bfdbfe;
   --brand-dark-gray: #333333;
 
@@ -207,8 +207,8 @@ textarea::placeholder {
 
   /* ── Inner card design system (claim rows, event items, list cards) ──── */
   --inner-card-radius: var(--radius-lg);
-  --inner-card-border: 1px solid #e5e7eb;
-  --inner-card-shadow: 0 2px 6px rgba(15, 23, 42, 0.05);
+  --inner-card-border: 1px solid #e0e2e4;
+  --inner-card-shadow: 0 2px 6px rgba(5, 23, 39, 0.05);
   --inner-card-bg: #ffffff;
   --inner-card-accent: 4px;
 
@@ -227,8 +227,8 @@ textarea::placeholder {
   --modal-header-sub: rgba(255, 255, 255, 0.65);
   --modal-header-height: 48px;
   --modal-body-bg: #ffffff;
-  --modal-body-text: #111827;
-  --modal-body-text-secondary: #374151;
+  --modal-body-text: #051727;
+  --modal-body-text-secondary: #263746;
   /* Title-bar controls (🪟 pop out, ✕ close). Bumped from 28px / 0.12 alpha:
      at that size and contrast they were hard to see against the dark header. */
   --modal-btn-size: 30px;
@@ -237,8 +237,8 @@ textarea::placeholder {
   --modal-btn-radius: var(--radius-md);
   --modal-overlay-bg: rgba(10, 15, 30, 0.5);
   /* --modal-overlay-blur removed to prevent background blur */
-  --modal-footer-bg: #f9fafb;
-  --modal-footer-border: #e5e7eb;
+  --modal-footer-bg: #f7f8f8;
+  --modal-footer-border: #e0e2e4;
 
   /* Typography */
   --font-primary:
@@ -323,14 +323,14 @@ textarea::placeholder {
   color-scheme: light;
   --th-bg-page: #f6f7f9;
   --th-bg-card: #ffffff;
-  --th-bg-inset: #f1f5f9;
+  --th-bg-inset: #eff0f1;
   --th-bg-band: #051727;
-  --th-text: #0f172a;
-  /* Four emphasis levels, not one. #0f172a / #374151 / #556070 /
-     #94a3b8 are used as heading / body / secondary / faint; collapsing
+  --th-text: #051727;
+  /* Four emphasis levels, not one. #051727 / #263746 / #556070 /
+     #909ea4 are used as heading / body / secondary / faint; collapsing
      them to a single "text" colour flattens the hierarchy. Values are
      the dominant literal each replaces, so adoption is a no-op in light. */
-  --th-text-body: #374151;
+  --th-text-body: #263746;
   --th-text-muted: var(--th-text);
   --th-text-faint: var(--th-text);
   --th-text-invert: #ffffff;
@@ -352,7 +352,7 @@ textarea::placeholder {
      NOWHERE. Every use carries a fallback, so nothing looked broken — but the
      token was a fiction: the rule reads as themed while no theme switch can
      reach it, and the same token fell back to different colours in different
-     files (--color-text-secondary was #374151 in one and #555 in another).
+     files (--color-text-secondary was #263746 in one and #555 in another).
      Aliasing them onto --th-* makes those 225 uses themed and collapses the
      drift, without touching a single consuming file.
 
@@ -374,8 +374,8 @@ textarea::placeholder {
   --color-surface: var(--th-bg-card);
   --color-background-light: var(--th-bg-inset);
   --color-header-bg: var(--th-bg-inset);
-  --th-code-bg: #f1f5f9;
-  --th-code-text: #0f172a;
+  --th-code-bg: #eff0f1;
+  --th-code-text: #051727;
 
   /* ── Corner radius ────────────────────────────────────────────────────────
      ~2150 border-radius declarations span 12+ values (6px x525, 8px x443,
@@ -456,7 +456,7 @@ textarea::placeholder {
   --th-bg-hover: #1b2540;
   --th-bg: var(--th-bg-page);
   --th-bg-emphasis: #93c5fd;
-  --th-text-on-emphasis: #0f172a;
+  --th-text-on-emphasis: #051727;
 
   /* Legacy aliases are used across older pages. Keep their surfaces and ink
      on the same themed token family so dark mode cannot produce dark text on
@@ -466,7 +466,7 @@ textarea::placeholder {
   --brand-medium-gray: var(--th-border-strong);
   --brand-dark-gray: var(--th-text-invert);
   --th-code-bg: #0b1220;
-  --th-code-text: #e2e8f0;
+  --th-code-text: #e0e2e4;
 
   /* Elevation, dark. A 6%-opacity slate shadow is invisible on a #0b1220
      ground, so these are near-black and heavier. Radius does not flip - a
@@ -526,7 +526,7 @@ body {
   font-family: var(--font-primary);
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
-  /* --th-bg-page, not --brand-light-gray. The brand literal is #f8fafc at
+  /* --th-bg-page, not --brand-light-gray. The brand literal is #f7f8f8 at
      :root with NO dark override, so the document ground stayed near-white in
      dark mode and every pixel the app did not paint itself was white. On a
      dark page that reads as a full-window white flash during any reflow —
@@ -694,7 +694,7 @@ body {
 .modal-heading {
   font-size: 1.125rem;
   font-weight: 600;
-  color: #1e293b;
+  color: #263746;
   margin: 0 0 0.5rem 0;
 }
 
@@ -710,7 +710,7 @@ body {
   font-size: 0.875rem;
   font-weight: 500;
   border-radius: 0.375rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   background: white;
   color: var(--th-text);
   cursor: pointer;
@@ -1011,7 +1011,7 @@ body {
 .form-input {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 0.375rem;
   font-size: 0.875rem;
   transition: border-color 0.2s;
@@ -1026,7 +1026,7 @@ body {
 .form-select {
   width: 100%;
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 0.375rem;
   font-size: 0.875rem;
   background-color: white;
@@ -1048,7 +1048,7 @@ body {
   display: grid;
   place-items: center;
   padding: clamp(2rem, 7vw, 5rem) 1.25rem;
-  background: linear-gradient(135deg, #fcfcfc 0%, #f8fafc 52%, #fee2e2 100%);
+  background: linear-gradient(135deg, #fcfcfc 0%, #f7f8f8 52%, #fee2e2 100%);
   color: #172033;
 }
 
@@ -1104,7 +1104,7 @@ body {
 }
 
 .hosted-registration__field label {
-  color: #334155;
+  color: #263746;
   font-size: 0.875rem;
   font-weight: 650;
 }
@@ -1206,7 +1206,7 @@ body {
 
 .pagination-btn {
   padding: 0.5rem 0.75rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   background-color: white;
   color: var(--th-text);
   border-radius: 0.375rem;
@@ -1299,7 +1299,7 @@ body {
 
 .filter-input {
   padding: 0.375rem 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 0.25rem;
   font-size: 0.75rem;
 }

@@ -1,11 +1,11 @@
 .trace-provenance {
   display: inline-flex;
   align-items: center;
-  border: 1px solid var(--th-border, #cbd5e1);
+  border: 1px solid var(--th-border, #cdd1d4);
   border-radius: 999px;
   padding: 3px 9px;
-  color: var(--th-text, #334155);
-  background: var(--th-bg-inset, #f8fafc);
+  color: var(--th-text, #263746);
+  background: var(--th-bg-inset, #f7f8f8);
   font-size: var(--font-size-2xs, 11px);
   font-weight: 700;
   line-height: 1.2;

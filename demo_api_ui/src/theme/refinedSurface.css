@@ -306,7 +306,7 @@
   border-radius: var(--rd-radius-lg);
   box-shadow: var(--rd-shadow-card);
 }
-/* Card header — competitor `.tcd-header` (0,1,0): white bg + #e2e8f0 hairline. */
+/* Card header — competitor `.tcd-header` (0,1,0): white bg + #e0e2e4 hairline. */
 [data-refined-surface="customer"] .tcd-header {
   background: linear-gradient(180deg, var(--rd-surface), var(--rd-surface-sunk));
   border-bottom: 1px solid var(--rd-line);

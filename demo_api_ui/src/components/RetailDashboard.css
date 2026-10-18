@@ -1,8 +1,8 @@
 /* banking_api_ui/src/components/RetailDashboard.css */
 .retail-dashboard { display: flex; flex-direction: column; gap: 24px; }
-.retail-section-title { font-size: var(--font-size-h3); font-weight: 600; margin: 0 0 12px; color: #1e293b; }
+.retail-section-title { font-size: var(--font-size-h3); font-weight: 600; margin: 0 0 12px; color: #263746; }
 .retail-product-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(200px, 1fr)); gap: 16px; }
-.retail-product-card { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; background: #fff; display: flex; flex-direction: column; gap: 10px; }
+.retail-product-card { border: 1px solid #e0e2e4; border-radius: 8px; padding: 16px; background: #fff; display: flex; flex-direction: column; gap: 10px; }
 .retail-product-name { font-weight: 600; color: var(--th-text); }
 .retail-product-meta { display: flex; justify-content: space-between; align-items: center; }
 .retail-product-price { font-weight: 700; color: var(--app-primary-red, #0046BE); }
@@ -12,7 +12,7 @@
 .retail-stock--out { background: #fee2e2; color: #aa0005; }
 .retail-add-btn { background: var(--app-primary-red, #0046BE); color: var(--app-primary-btn-text, #fff); border: none; border-radius: 6px; padding: 8px 12px; font-weight: 600; cursor: pointer; min-height: 36px; }
 .retail-add-btn:hover { background: var(--app-primary-red-hover, #003a9e); }
-.retail-cart-summary { border: 1px solid #e2e8f0; border-radius: 8px; padding: 16px; background: #f8fafc; }
+.retail-cart-summary { border: 1px solid #e0e2e4; border-radius: 8px; padding: 16px; background: #f7f8f8; }
 .retail-orders-list { list-style: none; margin: 0; padding: 0; }
-.retail-order-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid #f1f5f9; font-size: var(--font-size-body); }
+.retail-order-row { display: grid; grid-template-columns: 2fr 1fr 1fr 1fr; gap: 8px; padding: 8px 0; border-bottom: 1px solid #eff0f1; font-size: var(--font-size-body); }
 .retail-order-status { font-weight: 600; }

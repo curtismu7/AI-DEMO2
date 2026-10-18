@@ -40,7 +40,7 @@
 
 .aitp-body {
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0e2e4;
   border-radius: 6px;
   padding: 20px;
 }
@@ -112,7 +112,7 @@
 }
 
 .aitp-back-btn {
-  background: #1f2937;
+  background: #263746;
   color: #fff;
   border: none;
   padding: 10px 18px;
@@ -124,7 +124,7 @@
 }
 
 .aitp-back-btn:hover {
-  background: #111827;
+  background: #051727;
 }
 
 .aitp-error {

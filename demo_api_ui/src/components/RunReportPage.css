@@ -33,7 +33,7 @@
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow-x: auto;
   margin-bottom: 2rem;
-  --th-text: #0f172a;
+  --th-text: #051727;
   color: var(--th-text);
 }
 
@@ -309,4 +309,4 @@
   font-weight: 700;
   letter-spacing: 0.03em;
 }
-.stepup-none { color: #9ca3af; }
+.stepup-none { color: #909ea4; }

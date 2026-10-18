@@ -1,7 +1,7 @@
 .rfps-wrap {
   width: 100%;
   overflow: auto;
-  border: 1px solid var(--rfp-border, #cbd5e1);
+  border: 1px solid var(--rfp-border, #cdd1d4);
   border-radius: 8px;
   background: var(--rfp-card, #fff);
   min-height: 560px;
@@ -19,11 +19,11 @@
 .rfps-participant__text {
   font-size: 0.82rem;
   font-weight: 700;
-  fill: var(--rfp-text, #0f172a);
+  fill: var(--rfp-text, #051727);
 }
 
 .rfps-lifeline {
-  stroke: var(--rfp-lifeline, #cbd5e1);
+  stroke: var(--rfp-lifeline, #cdd1d4);
   stroke-dasharray: 4 4;
 }
 
@@ -50,7 +50,7 @@
 }
 
 .rfps-arrowhead--off {
-  fill: var(--rfp-border, #cbd5e1);
+  fill: var(--rfp-border, #cdd1d4);
 }
 
 /* Dark-mode passive arrows need a lighter stroke */

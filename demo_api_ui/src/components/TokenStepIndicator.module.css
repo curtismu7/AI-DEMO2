@@ -3,15 +3,15 @@
   align-items: center;
   gap: 12px;
   padding: 8px 12px;
-  background: #f8fafc;
+  background: #f7f8f8;
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
 }
 
 .label {
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #334155;
+  color: #263746;
   text-transform: uppercase;
   letter-spacing: 0.5px;
   white-space: nowrap;
@@ -37,9 +37,9 @@
 }
 
 .step.pending {
-  background: #e2e8f0;
-  color: #94a3b8;
-  border: 1px solid #cbd5e1;
+  background: #e0e2e4;
+  color: #909ea4;
+  border: 1px solid #cdd1d4;
 }
 
 .step.active {

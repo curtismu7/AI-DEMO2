@@ -1,6 +1,6 @@
 /* banking_api_ui/src/components/ScopeAuditPage.css
  * PingOne Scope Audit page — aligned with FeatureFlagsPage / DemoDataPage 2026.
- * Themed with --th-* per THEMING.md. The var(--text-primary, #0f172a) style
+ * Themed with --th-* per THEMING.md. The var(--text-primary, #051727) style
  * fallbacks below were fictional: --text-primary, --text-muted, the
  * --surface- and --border- families were never defined at any scope this
  * page inherits, so every one of them always fell through to its light

@@ -148,7 +148,7 @@ body.admin-skin-p1 .admin-side-nav__item,
 body.admin-skin-p1 .admin-side-nav__label {
   color: #ffffff;
 }
-/* --th-text-muted (dark: #94a3b8 on #131c2e card) reads as barely-visible for
+/* --th-text-muted (dark: #909ea4 on #131c2e card) reads as barely-visible for
    a 16px icon glyph even though it passes body-text contrast — same finding
    that drove the collapsed-rail fix below, now applied to the expanded rail
    too so icons stay legible next to their label. */
@@ -157,7 +157,7 @@ body.admin-skin-p1 .admin-side-nav__icon {
 }
 /* Collapsed rail: the icon IS the label — no text sits beside it to carry
    legibility. Literal light tone, not --th-text: that token is near-black
-   (#0f172a) in the light theme, which rendered black-on-navy here. */
+   (#051727) in the light theme, which rendered black-on-navy here. */
 body.admin-skin-p1 .admin-side-nav--collapsed .admin-side-nav__icon {
   color: #ffffff;
 }

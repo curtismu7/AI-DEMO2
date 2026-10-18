@@ -5,7 +5,7 @@
 .migration-mode-tabs {
   display: flex;
   gap: 0;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  border-bottom: 1px solid var(--color-border, #e0e2e4);
   margin-bottom: 24px;
 }
 
@@ -94,7 +94,7 @@
   margin-top: 10px;
   padding: 8px 10px;
   background: #fafafa;
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--color-border, #e0e2e4);
   border-radius: 6px;
 }
 
@@ -102,8 +102,8 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f3f4f6;
-  border: 1px solid var(--color-border, #e5e7eb);
+  background: #eff0f1;
+  border: 1px solid var(--color-border, #e0e2e4);
   border-radius: 6px;
   padding: 10px 12px;
   margin: 8px 0 0;
@@ -149,15 +149,15 @@
 .migration-table th {
   text-align: left;
   padding: 6px 10px;
-  background: #f9fafb;
-  border: 1px solid var(--color-border, #e5e7eb);
+  background: #f7f8f8;
+  border: 1px solid var(--color-border, #e0e2e4);
   font-weight: 600;
   color: var(--color-text-secondary, var(--th-text));
 }
 
 .migration-table td {
   padding: 6px 10px;
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--color-border, #e0e2e4);
   color: var(--color-text, var(--th-text));
   font-weight: 400;
 }

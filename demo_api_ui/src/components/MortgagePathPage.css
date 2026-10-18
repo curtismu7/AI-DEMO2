@@ -179,7 +179,7 @@
 }
 
 .mpp-back-btn {
-  background: #1f2937;
+  background: #263746;
   color: #fff;
   border: none;
   padding: 10px 18px;
@@ -189,7 +189,7 @@
   cursor: pointer;
 }
 
-.mpp-back-btn:hover { background: #111827; }
+.mpp-back-btn:hover { background: #051727; }
 
 .mpp-error {
   background: var(--th-status-error-bg);

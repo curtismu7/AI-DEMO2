@@ -2,8 +2,8 @@
 .tcd-root {
   --tcd-accent: var(--brand-navy);
   --tcd-accent-soft: #fcfcfc;
-  --tcd-ink: #0f172a;
-  --tcd-muted: #4b5563;
+  --tcd-ink: #051727;
+  --tcd-muted: #5c646b;
   /* 4-stop type scale — use these instead of arbitrary font-size values */
   --tcd-size-hero: 15px;    /* panel titles, section headings */
   --tcd-size-body: 13px;    /* event labels, primary content */
@@ -24,7 +24,7 @@
   border-radius: 14px;
   border: 1px solid rgba(18, 83, 141, 0.18);
   box-shadow:
-    0 8px 28px rgba(15, 23, 42, 0.08),
+    0 8px 28px rgba(5, 23, 39, 0.08),
     0 1px 0 rgba(255, 255, 255, 0.9) inset;
   overflow: hidden;
   min-width: 0;
@@ -238,7 +238,7 @@
   background: var(--th-bg-card);
   box-shadow:
     0 -2px 0 var(--brand-navy) inset,
-    0 2px 8px rgba(15, 23, 42, 0.06);
+    0 2px 8px rgba(5, 23, 39, 0.06);
 }
 
 .tcd-hist-count {
@@ -329,7 +329,7 @@
   border: 2px solid rgba(148, 163, 184, 0.55);
   border-top: none;
   background: linear-gradient(180deg, #ffffff 0%, var(--brand-light-gray) 100%);
-  box-shadow: 0 2px 8px rgba(15, 23, 42, 0.05);
+  box-shadow: 0 2px 8px rgba(5, 23, 39, 0.05);
   transition:
     border-color 0.15s,
     box-shadow 0.15s;
@@ -490,7 +490,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   border: 1px solid transparent;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 2px rgba(5, 23, 39, 0.06);
 }
 
 .tcd-badge--active {
@@ -502,9 +502,9 @@
    must stay literal too — a themed colour over a fixed light fill inverts in
    dark mode. Surface and text move together or not at all. */
 .tcd-badge--exchanged {
-  background: linear-gradient(180deg, #e2e8f0 0%, #cbd5e1 100%);
+  background: linear-gradient(180deg, #e0e2e4 0%, #cdd1d4 100%);
   color: var(--th-text);
-  border-color: #cbd5e1;
+  border-color: #cdd1d4;
 }
 .tcd-badge--acquiring {
   background: linear-gradient(180deg, #fef9c3 0%, #fde047 100%);
@@ -1130,7 +1130,7 @@ pre.tcd-jwt-dump {
    stays readable regardless of the panel it's nested in (color: inherit
    above was pulling in a dark ancestor color on dark surfaces). */
 pre.tcd-jwt-dump.jh-dark {
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   border-radius: 6px;
 }
@@ -1299,7 +1299,7 @@ pre.tcd-jwt-dump.jh-dark {
 .tcd-connector-line {
   width: 2px;
   height: 20px;
-  background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+  background: linear-gradient(180deg, #909ea4 0%, #5c646b 100%);
   border-radius: 1px;
 }
 
@@ -1347,7 +1347,7 @@ pre.tcd-jwt-dump.jh-dark {
   top: -3px;
   bottom: -3px;
   width: 2px;
-  background: linear-gradient(180deg, #94a3b8 0%, #64748b 100%);
+  background: linear-gradient(180deg, #909ea4 0%, #5c646b 100%);
   border-radius: 1px;
 }
 .tcd-event-wrap--notinpath::after {
@@ -1517,7 +1517,7 @@ pre.tcd-jwt-dump.jh-dark {
   font-weight: 600;
   padding: 6px 12px;
   border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 1px 3px rgba(5, 23, 39, 0.06);
 }
 
 @media (max-width: 380px) {
@@ -1635,38 +1635,38 @@ pre.tcd-jwt-dump.jh-dark {
   /* No max-height: panel height is controlled by the resize handle */
   font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   font-size: var(--font-size-sm);
-  color: var(--modal-body-text, #1e293b);
+  color: var(--modal-body-text, #263746);
   animation: dm-enter 180ms cubic-bezier(0.16, 1, 0.3, 1) both;
 }
 
 .tci-panel[data-theme="light"] {
   --modal-body-bg: #ffffff;
-  --modal-body-text: #1e293b;
+  --modal-body-text: #263746;
   --modal-header-bg: linear-gradient(135deg, #1a1a2e 0%, #051727 100%);
   --modal-header-text: #ffffff;
   --modal-header-sub: rgba(255, 255, 255, 0.65);
   --modal-btn-bg: rgba(255, 255, 255, 0.12);
   --modal-btn-bg-hover: rgba(255, 255, 255, 0.28);
   --th-bg-card: #ffffff;
-  --th-bg-inset: #f8fafc;
-  --th-text: #1e293b;
-  --th-text-body: #334155;
+  --th-bg-inset: #f7f8f8;
+  --th-text: #263746;
+  --th-text-body: #263746;
   --th-text-muted: var(--th-text);
-  --th-border: #e2e8f0;
-  --th-border-strong: #cbd5e1;
+  --th-border: #e0e2e4;
+  --th-border-strong: #cdd1d4;
 }
 
 .tci-panel[data-theme="dark"] {
-  --modal-body-bg: #0f172a;
-  --modal-body-text: #f8fafc;
+  --modal-body-bg: #051727;
+  --modal-body-text: #f7f8f8;
   --modal-header-bg: linear-gradient(135deg, #0b1220 0%, #172554 100%);
-  --modal-header-text: #f8fafc;
-  --modal-header-sub: #cbd5e1;
+  --modal-header-text: #f7f8f8;
+  --modal-header-sub: #cdd1d4;
   --modal-btn-bg: rgba(148, 163, 184, 0.18);
   --modal-btn-bg-hover: rgba(148, 163, 184, 0.34);
   --th-bg-card: #17233d;
-  --th-bg-inset: #1e293b;
-  --th-text: #f8fafc;
+  --th-bg-inset: #263746;
+  --th-text: #f7f8f8;
   --th-text-body: #dbe4f0;
   --th-text-muted: var(--th-text);
   --th-border: #3c4f70;
@@ -1773,12 +1773,12 @@ pre.tcd-jwt-dump.jh-dark {
   background: var(--th-bg-card);
   /* Ensure collapsible <details> elements are never clipped */
   contain: none;
-  --tcd-ink: #1e293b;
-  --tcd-muted: #374151;
+  --tcd-ink: #263746;
+  --tcd-muted: #263746;
 }
 
 .tci-panel[data-theme="dark"] .tci-body {
-  --tcd-ink: #f8fafc;
+  --tcd-ink: #f7f8f8;
   --tcd-muted: #ffffff;
 }
 
@@ -1962,12 +1962,12 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tci-body::-webkit-scrollbar-thumb {
-  background: #cbd5e1;
+  background: #cdd1d4;
   border-radius: var(--radius-sm);
 }
 
 .tci-body::-webkit-scrollbar-thumb:hover {
-  background: #94a3b8;
+  background: #909ea4;
 }
 
 /* -- Inline claims strip -------------------------------------------------- */

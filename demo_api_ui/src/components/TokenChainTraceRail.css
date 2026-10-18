@@ -53,7 +53,7 @@
 }
 .tctr-view-mode {
   display: flex; padding: 2px; border: 1px solid rgba(255, 255, 255, 0.35);
-  border-radius: 6px; background: rgba(15, 23, 42, 0.2);
+  border-radius: 6px; background: rgba(5, 23, 39, 0.2);
 }
 .tctr-view-mode button {
   border: 0; border-radius: 4px; padding: 2px 7px; background: transparent;
@@ -70,7 +70,7 @@
   padding: 3px;
   border: 1px solid var(--th-border, #dbe2ea);
   border-radius: 8px;
-  background: var(--th-bg-inset, #f1f5f9);
+  background: var(--th-bg-inset, #eff0f1);
   width: fit-content;
 }
 .tctr-chain-tabs button {
@@ -87,7 +87,7 @@
 .tctr-chain-tabs button.active {
   background: var(--th-bg-card, #ffffff);
   color: var(--th-text, var(--th-text));
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.15);
+  box-shadow: 0 1px 2px rgba(5, 23, 39, 0.15);
 }
 
 /* Keep the selected node's evidence in view beside the map. The detail pane
@@ -139,7 +139,7 @@
   padding: 9px; min-width: 190px;
   border: 1px solid var(--tctr-border); border-radius: 8px;
   background: var(--tctr-card-bg, #ffffff);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 8px 22px rgba(5, 23, 39, 0.16);
 }
 /* Inside the tray the header's white-on-dark treatment no longer applies. */
 .tctr-more-pop .tctr-view-mode {
@@ -234,7 +234,7 @@
   text-decoration: line-through; text-decoration-thickness: 1.5px; color: var(--th-text-muted);
 }
 .tctr-lane--notinpath {
-  background: var(--th-bg-inset); color: var(--th-text-muted); border: 1px dashed #94a3b8;
+  background: var(--th-bg-inset); color: var(--th-text-muted); border: 1px dashed #909ea4;
 }
 /* Disclosure caret — signals each step is expandable */
 .tctr-step-chev {
@@ -349,15 +349,15 @@
    `error` (a stage that refused). Numbered because the ORDER is the teaching
    point: introspection before policy before the decision before the exchange. */
 .tctr-stages { list-style: decimal; margin: 6px 0; padding-left: 22px; display: flex; flex-direction: column; gap: 4px; }
-.tctr-stage { font-size: 12.5px; padding: 3px 8px; border-left: 3px solid var(--th-border, #cbd5e1); background: var(--th-surface-2, #f8fafc); border-radius: 0 4px 4px 0; }
+.tctr-stage { font-size: 12.5px; padding: 3px 8px; border-left: 3px solid var(--th-border, #cdd1d4); background: var(--th-surface-2, #f7f8f8); border-radius: 0 4px 4px 0; }
 .tctr-stage[data-status="done"] { border-left-color: #22c55e; }
 .tctr-stage[data-status="error"] { border-left-color: #d20e0f; }
-.tctr-stage[data-status="notinpath"] { border-left-color: #cbd5e1; opacity: .65; }
+.tctr-stage[data-status="notinpath"] { border-left-color: #cdd1d4; opacity: .65; }
 .tctr-stage-name { font-weight: 700; }
 .tctr-stage-result { color: var(--th-text-muted); margin-left: 6px; font-family: var(--font-mono); }
 .tctr-stage-note { display: block; color: var(--th-text-muted); font-size: 11.5px; margin-top: 1px; }
 .tctr-scope-diff { display: flex; gap: 6px; align-items: center; font-family: var(--font-mono); font-size: 12.5px; flex-wrap: wrap; margin: 4px 0; }
-.tctr-sc { border-radius: 4px; padding: 1px 6px; background: #e2e8f0; }
+.tctr-sc { border-radius: 4px; padding: 1px 6px; background: #e0e2e4; }
 .tctr-sc--gone { text-decoration: line-through; color: var(--th-text-muted); }
 .tctr-sc--kept { background: #dcfce7; color: #166534; font-weight: 700; }
 .tctr-sc-note { color: var(--th-text-muted); font-size: var(--font-size-2xs); }
@@ -405,7 +405,7 @@
   float: right; background: var(--th-bg-card); border: 1px solid var(--th-border-strong); border-radius: 5px;
   font-size: var(--font-size-2xs); font-weight: 600; padding: 2px 8px; cursor: pointer; color: var(--brand-navy, #12538d);
 }
-.tctr-tok-changes { margin-top: 6px; border-top: 1px dashed rgba(15, 23, 42, 0.15); padding-top: 5px; }
+.tctr-tok-changes { margin-top: 6px; border-top: 1px dashed rgba(5, 23, 39, 0.15); padding-top: 5px; }
 .tctr-tok-change { display: grid; grid-template-columns: 52px 1fr; gap: 6px; font-size: var(--font-size-2xs); }
 .tctr-tok-empty { padding: 10px 12px; font-size: var(--font-size-sm); color: var(--th-text-muted); font-style: italic; }
 
@@ -490,7 +490,7 @@
 :root[data-theme="dark"] .tctr {
   /* The semantic --th-* tokens flip at :root[data-theme="dark"], so the light
      block above already resolves dark. Only rail-specific deviations remain. */
-  --tctr-header-text: #f8fafc;
+  --tctr-header-text: #f7f8f8;
   --tctr-row-hover: var(--th-bg-inset);
 }
 
@@ -555,7 +555,7 @@
 
 :root[data-theme="dark"] .tctr .tctr-lane--heuristics{ background: rgba(154, 52, 18, 0.35); color: #fdba74; }
 
-:root[data-theme="dark"] .tctr .tctr-lane--bff       { background: rgba(51, 65, 85, 0.4);   color: #ffffff; }
+:root[data-theme="dark"] .tctr .tctr-lane--bff       { background: rgba(38, 55, 70, 0.4);   color: #ffffff; }
 
 :root[data-theme="dark"] .tctr .tctr-lane--authz     { background: rgba(146, 64, 14, 0.35); color: #fcd34d; }
 
@@ -602,14 +602,14 @@
 :root[data-theme="dark"] .tctr .tctr-rfc { background: rgba(55, 48, 163, 0.35); color: #fca5a5; }
 
 /* Scope diff chips */
-:root[data-theme="dark"] .tctr .tctr-sc       { background: #1e293b; }
+:root[data-theme="dark"] .tctr .tctr-sc       { background: #263746; }
 
 :root[data-theme="dark"] .tctr .tctr-sc--kept { background: rgba(22, 163, 74, 0.2); color: #86efac; }
 
 /* Token summary accordion */
 :root[data-theme="dark"] .tctr .tctr-acc { border-top-color: var(--tctr-border); }
 
-:root[data-theme="dark"] .tctr .tctr-count { background: #1e293b; color: var(--th-text-muted); }
+:root[data-theme="dark"] .tctr .tctr-count { background: #263746; color: var(--th-text-muted); }
 
 :root[data-theme="dark"] .tctr .tctr-tok-inspect {
   background: #17253a;
@@ -624,7 +624,7 @@
 
 :root[data-theme="dark"] .tctr .tctr-trust__row--off { background: var(--th-bg-inset); border-color: var(--th-text); }
 
-:root[data-theme="dark"] .tctr .tctr-trust__row--off .tctr-trust__badge { background: #1e293b; border-color: var(--th-text); color: var(--th-text-muted); }
+:root[data-theme="dark"] .tctr .tctr-trust__row--off .tctr-trust__badge { background: #263746; border-color: var(--th-text); color: var(--th-text-muted); }
 
 :root[data-theme="dark"] .tctr .tctr-trust { color: #ffffff; }
 
@@ -640,10 +640,10 @@
   margin: 0.5rem 0;
   padding: 0.2rem 0.7rem;
   font-size: 0.72rem;
-  border: 1px dashed var(--th-text-muted, #94a3b8);
+  border: 1px dashed var(--th-text-muted, #909ea4);
   border-radius: 999px;
   background: transparent;
-  color: var(--th-text-muted, #64748b);
+  color: var(--th-text-muted, #5c646b);
   cursor: pointer;
 }
 

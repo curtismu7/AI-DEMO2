@@ -10,7 +10,7 @@
 .luw-topbar {
   display: flex; align-items: center; gap: 0.15rem;
   flex-wrap: wrap;
-  padding: 0.2rem 1.1rem; border-bottom: 1px solid var(--brand-medium-gray, #e2e8f0);
+  padding: 0.2rem 1.1rem; border-bottom: 1px solid var(--brand-medium-gray, #e0e2e4);
   background: var(--th-bg-card);
 }
 
@@ -65,7 +65,7 @@
   content: '';
   position: absolute;
   inset: 0 3px;
-  background: #cbd5e1;
+  background: #cdd1d4;
 }
 .luw-resize:hover::before,
 .luw-resize:focus-visible::before {
@@ -81,7 +81,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   width: 336px;
   z-index: 3;
   border-right: 1px solid var(--th-border);
-  background: var(--brand-light-gray, #f8fafc);
+  background: var(--brand-light-gray, #f7f8f8);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -115,7 +115,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+  box-shadow: 2px 0 6px rgba(5, 23, 39, 0.06);
 }
 .luw-body--drawer-closed .luw-drawer-tab { display: flex; }
 

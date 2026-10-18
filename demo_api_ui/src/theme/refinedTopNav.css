@@ -6,7 +6,7 @@
 
 /* Header bar: vertical gradient */
 .topnav {
-  /* Header text is white (#fff / #f1f5f9) for every vertical, and the brand reds, oranges and
+  /* Header text is white (#fff / #eff0f1) for every vertical, and the brand reds, oranges and
      blues are only 4.8 to 6.7:1 under white. Mixing 24% black into both stops gives about
      7.7:1 at the same hue. */
   background: linear-gradient(

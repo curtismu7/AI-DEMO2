@@ -51,7 +51,7 @@
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: #909ea4;
 }
 .mcp-history__item--ok  .mcp-history__status-dot { background: #22c55e; }
 .mcp-history__item--err .mcp-history__status-dot { background: #d20e0f; }
@@ -70,7 +70,7 @@
 }
 .mcp-history__time {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #909ea4;
 }
 .mcp-history__badge {
   font-size: 0.7rem;
@@ -82,7 +82,7 @@
 .mcp-history__badge--err { background: #fee2e2; color: #aa0005; }
 .mcp-history__duration {
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: #909ea4;
 }
 .mcp-history__result {
   width: 100%;
@@ -195,7 +195,7 @@
   border-radius: 10px;
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.25rem;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(5, 23, 39, 0.04);
 }
 
 .mcp-inspector__panel--compact h2 {
@@ -347,7 +347,7 @@
 .mcp-inspector__pre {
   margin: 0;
   padding: 1rem;
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   border-radius: 8px;
   font-size: 0.75rem;
@@ -457,7 +457,7 @@
   padding: 1rem;
   background: var(--brand-light-gray);
   border-radius: 8px;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed #909ea4;
   font-size: 0.9rem;
   color: var(--brand-dark-gray);
 }
@@ -499,8 +499,8 @@
 .mcp-inspector__code {
   margin: 8px 0 0;
   padding: 12px 14px;
-  background: var(--surface-2, #0f172a);
-  color: var(--code-fg, #e2e8f0);
+  background: var(--surface-2, #051727);
+  color: var(--code-fg, #e0e2e4);
   border-radius: 8px;
   font-size: 0.82rem;
   line-height: 1.5;
@@ -517,7 +517,7 @@
 
 .mcp-inspector__tool {
   padding: 6px 0;
-  border-bottom: 1px solid var(--border, #e2e8f0);
+  border-bottom: 1px solid var(--border, #e0e2e4);
 }
 
 .mcp-inspector__tool:last-child {

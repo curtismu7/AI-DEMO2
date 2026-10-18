@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.92);
+  background: rgba(5, 23, 39, 0.92);
   /* backdrop-filter removed to prevent background blur. No fade-in: it started
      transparent, so the light page showed through as a flash before the overlay. */
 }
@@ -193,7 +193,7 @@
 
 .lo-card .ping-spinner__label,
 .lo-card .lo-message { color: #ffffff; }
-.lo-card .lo-sub { color: #94a3b8; }
+.lo-card .lo-sub { color: #909ea4; }
 .lo-card .lo-endpoint { background: #051727; color: #93c5fd; }
 .lo-card .lo-activity-feed { border-top-color: rgba(255, 255, 255, 0.1); }
 .lo-card .lo-activity-line { color: rgba(255, 255, 255, 0.85); }

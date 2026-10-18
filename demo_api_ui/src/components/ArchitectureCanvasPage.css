@@ -90,8 +90,8 @@
   border-bottom: 1px solid var(--th-border);
 }
 
-.btn-export { background: #0f172a; color: #ffffff; border: 1px solid #334155; }
-.btn-export:hover { background: #1e293b; color: var(--th-text-invert); }
+.btn-export { background: #051727; color: #ffffff; border: 1px solid #263746; }
+.btn-export:hover { background: #263746; color: var(--th-text-invert); }
 .btn-ping { background: #aa0005; color: var(--th-text-invert); }
 .btn-ping:hover { background: #aa0005; }
 .btn-ping.pinging { background: #fca5a5; cursor: default; }
@@ -104,8 +104,8 @@
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  background: #1e293b;
-  border-bottom: 1px solid #334155;
+  background: #263746;
+  border-bottom: 1px solid #263746;
 }
 
 .ping-badge {
@@ -115,7 +115,7 @@
   font-size: var(--font-size-xs);
   font-family: var(--font-mono);
   color: #ffffff;
-  background: #334155;
+  background: #263746;
   border-radius: 4px;
   padding: 2px 7px;
 }
@@ -154,7 +154,7 @@
 
 /* Cards: icon strip on top, label and sub-label below. Colours per layer, light then dark. */
 .cv-card {
-  --cv-fill: #f8fafc; --cv-stroke: #475569; --cv-label: #1e293b; --cv-sub: #64748b;
+  --cv-fill: #f7f8f8; --cv-stroke: #5c646b; --cv-label: #263746; --cv-sub: #5c646b;
   position: relative;
   width: 155px;
   height: 86px;
@@ -171,7 +171,7 @@
 .cv-card--mcp     { --cv-fill: #fffbeb; --cv-stroke: #d97706; --cv-label: #78350f; --cv-sub: #b45309; }
 .cv-card--policy  { --cv-fill: #fdf2f8; --cv-stroke: #db2777; --cv-label: #831843; --cv-sub: #ec4899; }
 .cv-card--backend { --cv-fill: #f0f9ff; --cv-stroke: #0284c7; --cv-label: #051727; --cv-sub: #12538d; }
-:root[data-theme="dark"] .cv-card { --cv-fill: #1b2540; --cv-stroke: #94a3b8; --cv-label: #e2e8f0; --cv-sub: #cbd5e1; }
+:root[data-theme="dark"] .cv-card { --cv-fill: #1b2540; --cv-stroke: #909ea4; --cv-label: #e0e2e4; --cv-sub: #cdd1d4; }
 :root[data-theme="dark"] .cv-card--client  { --cv-fill: #151a33; --cv-stroke: #f87171; --cv-label: #fecaca; --cv-sub: #fca5a5; }
 :root[data-theme="dark"] .cv-card--gateway { --cv-fill: #2a0909; --cv-stroke: #fca5a5; --cv-label: #fee2e2; --cv-sub: #fca5a5; }
 :root[data-theme="dark"] .cv-card--agent   { --cv-fill: #0f2a20; --cv-stroke: #34d399; --cv-label: #d1fae5; --cv-sub: #6ee7b7; }
@@ -215,14 +215,14 @@
   height: 12px;
   border-radius: 50%;
   border: 1.5px solid #ffffff;
-  background: #94a3b8;
+  background: #909ea4;
 }
 .ping-dot.cv-card__dot { position: static; width: 7px; height: 7px; border: none; }
 .cv-card__dot--up      { background: #22c55e; }
 .cv-card__dot--down    { background: #d20e0f; }
 .cv-card__dot--timeout { background: #f59e0b; }
 .cv-card__dot--error   { background: #f97316; }
-.cv-card__dot--unknown { background: #94a3b8; }
+.cv-card__dot--unknown { background: #909ea4; }
 .cv-card__dot--pinging { background: #12538d; }
 
 /* Connection handles: visible dots so "drag from here" is discoverable */

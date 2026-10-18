@@ -1,7 +1,7 @@
 /* ApiCallPreviewCard — PingOne API transparency card */
 
 .api-preview-card {
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 8px;
   overflow: hidden;
   margin-top: 10px;
@@ -14,7 +14,7 @@
   justify-content: space-between;
   gap: 10px;
   background: var(--th-bg-inset);
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e0e2e4;
   padding: 8px 12px;
   flex-wrap: wrap;
 }
@@ -63,7 +63,7 @@
 
 .api-preview-status--ok   { background: #dcfce7; color: #15803d; }
 .api-preview-status--err  { background: #fee2e2; color: #d20e0f; }
-.api-preview-status--none { background: var(--th-bg-inset); color: #64748b; }
+.api-preview-status--none { background: var(--th-bg-inset); color: #5c646b; }
 
 .api-preview-duration {
   font-size: 0.7rem;
@@ -88,19 +88,19 @@
   color: var(--th-text);
   padding: 4px 12px;
   background: var(--th-bg-inset);
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e0e2e4;
 }
 
 .api-preview-no-data {
   font-size: 0.75rem;
-  color: #9ca3af;
+  color: #909ea4;
   font-style: italic;
   padding: 8px 12px;
 }
 
 .api-preview-section {
   padding: 4px 12px 6px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #e0e2e4;
 }
 
 .api-preview-toggle {
@@ -118,7 +118,7 @@
 }
 
 .api-preview-body {
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   border-radius: 6px;
   padding: 10px 12px;

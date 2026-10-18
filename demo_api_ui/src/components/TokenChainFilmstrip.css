@@ -433,7 +433,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   border: 1px solid var(--th-border);
   border-radius: 8px;
   background: var(--th-bg-card);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 8px 22px rgba(5, 23, 39, 0.16);
 }
 
 .tcfs-mode {
@@ -671,7 +671,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
     "chain spotlight";
   grid-template-rows: auto auto;
   width: 100%;
-  border-top: 1px solid var(--th-border, #e2e8f0);
+  border-top: 1px solid var(--th-border, #e0e2e4);
   /* Pinned to the bottom of the viewport. Unpinned, this wrapper is the last
      child of a ~3500px dashboard, so the reel sat at y~2800 and was never on
      screen in float or dock mode — the reason it read as "missing" while focus
@@ -712,7 +712,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   padding: 4px 12px;
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: var(--th-text-muted, #64748b);
+  color: var(--th-text-muted, #5c646b);
   cursor: pointer;
 }
 

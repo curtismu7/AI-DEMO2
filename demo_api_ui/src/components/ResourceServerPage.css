@@ -154,7 +154,7 @@
 /* Deliberately literal — same fixed brand-navy gradient treatment as
    .rsp-header, paired with guaranteed-readable white/near-white text. */
 .rsp-hero {
-  background: linear-gradient(135deg, #051727 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #051727 0%, #051727 100%);
   border-radius: 12px;
   padding: 24px;
   color: #fff;

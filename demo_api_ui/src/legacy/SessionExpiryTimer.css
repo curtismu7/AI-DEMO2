@@ -3,8 +3,8 @@
 .banking-header {
   background: linear-gradient(
     135deg,
-    var(--brand-dashboard-header-start, #1e293b) 0%,
-    var(--brand-dashboard-header-end, #334155) 100%
+    var(--brand-dashboard-header-start, #263746) 0%,
+    var(--brand-dashboard-header-end, #263746) 100%
   );
   color: #ffffff;
   border-bottom: 1px solid rgba(255, 255, 255, 0.08);

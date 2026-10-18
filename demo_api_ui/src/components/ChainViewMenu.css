@@ -44,7 +44,7 @@
   border: 1px solid var(--th-border);
   border-radius: 8px;
   background: var(--th-bg-card);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 8px 22px rgba(5, 23, 39, 0.16);
   padding: 5px;
 }
 

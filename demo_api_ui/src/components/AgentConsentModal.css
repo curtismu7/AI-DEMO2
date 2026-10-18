@@ -33,7 +33,7 @@
   background: #fee2e2;
   border-bottom: 1px solid #fca5a5;
   font-size: 0.76rem;
-  color: #1e293b;
+  color: #263746;
   flex-shrink: 0;
 }
 .acm-hitl-badge::before {
@@ -108,7 +108,7 @@
   border-left: 3px solid var(--app-primary-red, #d20e0f);
   border-radius: 12px;
   background: var(--th-bg-card);
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(5, 23, 39, 0.04);
   overflow: hidden;
 }
 .acm-card__head {
@@ -300,9 +300,9 @@
 }
 /* Disabled = "not ready yet": neutral, not a faded brand color */
 .acm-btn--primary:disabled {
-  background: #e2e8f0;
-  color: #94a3b8;
-  border-color: #e2e8f0;
+  background: #e0e2e4;
+  color: #909ea4;
+  border-color: #e0e2e4;
   box-shadow: none;
   cursor: not-allowed;
 }

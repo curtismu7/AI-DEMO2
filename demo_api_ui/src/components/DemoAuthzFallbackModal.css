@@ -13,8 +13,8 @@
 .demo-authz-fallback__detail {
   margin: 0;
   padding: 12px;
-  background: #f1f5f9;
-  border: 1px solid #cbd5e1;
+  background: #eff0f1;
+  border: 1px solid #cdd1d4;
   border-radius: 8px;
   display: flex;
   flex-direction: column;
@@ -37,7 +37,7 @@
 .demo-authz-fallback__row dd {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: #263746;
   word-break: break-word;
 }
 .demo-authz-fallback__err {

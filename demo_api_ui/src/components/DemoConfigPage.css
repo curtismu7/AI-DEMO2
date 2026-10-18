@@ -13,7 +13,7 @@
   align-items: center;
   gap: 6px;
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 999px;
   padding: 6px 14px;
   font-size: 12.5px;
@@ -80,7 +80,7 @@
 .dc-config-card,
 .dc-new-config {
   background: #fff;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 12px;
 }
 .dc-panel {
@@ -132,7 +132,7 @@
   gap: 10px;
   margin-top: 20px;
   padding-top: 16px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #e0e2e4;
 }
 
 .dc-btn-primary,
@@ -208,7 +208,7 @@
   font-size: 11.5px;
   flex: 1;
   border-radius: 6px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   background: transparent;
   cursor: pointer;
 }
@@ -227,7 +227,7 @@
   font-family: inherit;
   font-size: 12.5px;
   padding: 7px 9px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 6px;
   background: var(--th-bg-inset);
   margin-bottom: 8px;
@@ -247,7 +247,7 @@
 }
 
 .dc-group-row {
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 8px;
   background: #fff;
   cursor: grab;
@@ -259,7 +259,7 @@
 }
 .dc-group-row--hidden {
   opacity: 0.85;
-  background: var(--th-bg-inset, #f1f5f9);
+  background: var(--th-bg-inset, #eff0f1);
 }
 .dc-group-row--drag-over {
   border-color: #12538d;
@@ -308,7 +308,7 @@
   align-items: center;
   gap: 4px;
   background: none;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 6px;
   cursor: pointer;
   padding: 2px 7px;
@@ -332,7 +332,7 @@
 }
 .dc-reorder-btn {
   background: none;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 5px;
   width: 26px;
   height: 26px;
@@ -345,9 +345,9 @@
   padding: 0;
 }
 .dc-reorder-btn:hover:not(:disabled) {
-  background: #f1f5f9;
-  border-color: #94a3b8;
-  color: #1e293b;
+  background: #eff0f1;
+  border-color: #909ea4;
+  color: #263746;
 }
 .dc-reorder-btn:disabled {
   opacity: 0.3;
@@ -361,13 +361,13 @@
   display: flex;
   flex-wrap: wrap;
   gap: 4px 10px;
-  border-top: 1px solid #e2e8f0;
+  border-top: 1px solid #e0e2e4;
 }
 .dc-child-item {
   font-size: 11.5px;
   color: var(--th-text);
   background: var(--th-bg-inset);
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   border-radius: 5px;
   padding: 2px 7px;
 }
@@ -382,7 +382,7 @@
 }
 .dc-child-item--draggable .dc-drag-handle {
   font-size: 10px;
-  color: #94a3b8;
+  color: #909ea4;
 }
 .dc-child-item--drag-over {
   border-color: #12538d;
@@ -395,7 +395,7 @@
   font-weight: 600;
   border-radius: 8px;
   padding: 9px 16px;
-  border: 1px solid #e2e8f0;
+  border: 1px solid #e0e2e4;
   cursor: pointer;
   background: #fff;
   color: var(--th-text);

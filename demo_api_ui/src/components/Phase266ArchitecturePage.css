@@ -15,7 +15,7 @@
 
 .p266-arch-eyebrow {
   display: inline-block;
-  background: #1f2937;
+  background: #263746;
   color: #fff;
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -44,7 +44,7 @@
   max-width: 1480px;
   margin: 0 auto 2rem;
   background: #ffffff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0e2e4;
   border-radius: 8px;
   padding: 24px;
   overflow-x: auto;

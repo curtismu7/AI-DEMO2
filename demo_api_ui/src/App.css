@@ -1036,7 +1036,7 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border-bottom: 1px solid var(--th-border);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 4px 12px rgba(5, 23, 39, 0.12);
   box-sizing: border-box;
 }
 
@@ -1149,7 +1149,7 @@
 .otp-step-up-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(5, 23, 39, 0.55);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -1493,7 +1493,7 @@
 .otp-step-up-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(5, 23, 39, 0.55);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -1769,7 +1769,7 @@
   background: #b45309;
 }
 .otp-step-up-modal__method-badge--extra {
-  background: #475569;
+  background: #5c646b;
 }
 .otp-step-up-modal__method-recommended {
   color: var(--th-text);
@@ -2093,7 +2093,7 @@
   color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 12px rgba(5, 23, 39, 0.08);
   text-align: center;
 }
 

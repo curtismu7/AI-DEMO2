@@ -3,18 +3,18 @@
 .rfp-page,
 .rfpc-page,
 .rfpc-dark {
-  --rfp-bg: #f8fafc;
+  --rfp-bg: #f7f8f8;
   --rfp-card: #ffffff;
   --rfp-live-ink: #166534;
-  --rfp-text: #0f172a;
-  --rfp-text-dim: #0f172a;
-  --rfp-border: #cbd5e1;
+  --rfp-text: #051727;
+  --rfp-text-dim: #051727;
+  --rfp-border: #cdd1d4;
   --rfp-plane-wash: rgba(148, 163, 184, 0.05);
   --rfp-glow-a: rgba(210, 14, 15, 0.07);
   --rfp-glow-b: rgba(14, 116, 144, 0.08);
   --rfp-row-active: rgba(0, 70, 135, 0.07);
-  --rfp-lifeline: #cbd5e1;
-  --rfp-shadow: rgba(15, 23, 42, 0.1);
+  --rfp-lifeline: #cdd1d4;
+  --rfp-shadow: rgba(5, 23, 39, 0.1);
   color-scheme: light;
 }
 
@@ -100,7 +100,7 @@
 .rfp-scenario select {
   padding: 4px 8px;
   border-radius: 6px;
-  border: 1px solid var(--rfp-border, #94a3b8);
+  border: 1px solid var(--rfp-border, #909ea4);
   background: var(--rfp-card, #fff);
   color: var(--rfp-text);
 }
@@ -117,7 +117,7 @@
    height because .rfp-body has flex:1 within a fixed-height page. */
 .rfp-canvas {
   position: relative;
-  border: 1px solid var(--rfp-border, #cbd5e1);
+  border: 1px solid var(--rfp-border, #cdd1d4);
   border-radius: 8px;
   overflow: hidden;
   flex: 1 1 auto;
@@ -169,11 +169,11 @@
   width: 44px;
   height: 4px;
   border-radius: 2px;
-  background: var(--rfp-border, #94a3b8);
+  background: var(--rfp-border, #909ea4);
 }
 
 .rfp-splitter__toggle {
-  border: 1px solid var(--rfp-border, #94a3b8);
+  border: 1px solid var(--rfp-border, #909ea4);
   border-radius: 5px;
   background: var(--rfp-card, #fff);
   color: var(--rfp-text);
@@ -190,7 +190,7 @@
 /* ─── Planes (nested system boundaries, tinted glass) ─────────────────── */
 
 .rfp-plane {
-  border: 2px dashed var(--rfp-border, #94a3b8);
+  border: 2px dashed var(--rfp-border, #909ea4);
   border-radius: 14px;
   background: var(--rfp-plane-wash);
   transition: background 0.3s ease, border-color 0.3s ease;
@@ -233,7 +233,7 @@
 
 .rfp-node {
   background: var(--rfp-card, #fff);
-  border: 2px solid var(--rfp-border, #94a3b8);
+  border: 2px solid var(--rfp-border, #909ea4);
   border-radius: 10px;
   padding: 12px 14px 14px;
   min-width: 180px;
@@ -331,7 +331,7 @@
 /* ─── Side panel ─────────────────────────────────────────────────────── */
 
 .rfp-panel {
-  border: 1px solid var(--rfp-border, #cbd5e1);
+  border: 1px solid var(--rfp-border, #cdd1d4);
   border-radius: 8px;
   padding: 12px 14px;
   background: var(--rfp-card, #fff);
@@ -350,7 +350,7 @@
 .rfp-panel__controls {
   margin: -2px 0 10px;
   padding-bottom: 10px;
-  border-bottom: 1px solid var(--rfp-border, #cbd5e1);
+  border-bottom: 1px solid var(--rfp-border, #cdd1d4);
   display: flex;
   align-items: center;
   gap: 10px;
@@ -431,8 +431,8 @@
 .rfp-panel__narrative-to code {
   font-family: var(--font-mono);
   font-size: 0.74rem;
-  background: var(--rfp-bg, #f1f5f9);
-  border: 1px solid var(--rfp-border, #cbd5e1);
+  background: var(--rfp-bg, #eff0f1);
+  border: 1px solid var(--rfp-border, #cdd1d4);
   border-radius: 4px;
   padding: 0 5px;
   white-space: nowrap;
@@ -452,8 +452,8 @@
 }
 
 .rfp-panel__invariant {
-  border: 1px solid var(--rfp-border, #cbd5e1);
-  border-left: 3px solid #475569;
+  border: 1px solid var(--rfp-border, #cdd1d4);
+  border-left: 3px solid #5c646b;
   border-radius: 6px;
   background: var(--rfp-card, #fff);
   padding: 8px 10px;
@@ -477,7 +477,7 @@
 }
 
 .rfp-panel__back {
-  border: 1px solid var(--rfp-border, #94a3b8);
+  border: 1px solid var(--rfp-border, #909ea4);
   border-radius: 6px;
   background: var(--rfp-card, #fff);
   color: var(--rfp-text);
@@ -487,7 +487,7 @@
 
 .rfp-view-toggle {
   display: inline-flex;
-  border: 1px solid var(--rfp-border, #94a3b8);
+  border: 1px solid var(--rfp-border, #909ea4);
   border-radius: 6px;
   overflow: hidden;
 }
@@ -519,7 +519,7 @@
 }
 .rfp-dark .dc-ctrl-btn:disabled {
   background: #1c2740 !important;
-  color: #64748b !important;
+  color: #5c646b !important;
 }
 .rfp-dark .dc-zoom-btn,
 .rfp-dark .dc-step-label,
@@ -561,11 +561,11 @@
   border-radius: 6px;
 }
 .rfp-dark .react-flow__edge-path {
-  stroke: #475569;
+  stroke: #5c646b;
 }
 .rfp-dark .react-flow__handle {
-  background: #334155;
-  border-color: #475569;
+  background: #263746;
+  border-color: #5c646b;
 }
 
 /* ─── Theme button ───────────────────────────────────────────────────── */
@@ -603,7 +603,7 @@
 }
 
 .rfp-theme-btn {
-  border: 1px solid var(--rfp-border, #94a3b8);
+  border: 1px solid var(--rfp-border, #909ea4);
   border-radius: 6px;
   background: var(--rfp-card, #fff);
   color: var(--rfp-text);
@@ -619,7 +619,7 @@
 }
 
 .rfp-layout-reset {
-  border: 1px solid var(--rfp-border, #94a3b8);
+  border: 1px solid var(--rfp-border, #909ea4);
   border-radius: 6px;
   background: var(--rfp-card, #fff);
   color: var(--rfp-text);
@@ -642,7 +642,7 @@
 /* ─── Sample token card ─────────────────────────────────────────────── */
 
 .rfp-token-card {
-  border: 1px solid var(--rfp-border, #cbd5e1);
+  border: 1px solid var(--rfp-border, #cdd1d4);
   border-left: 4px solid #f59e0b;
   border-radius: 8px;
   background: var(--rfp-card, #fff);
@@ -679,8 +679,8 @@
   font-family: var(--font-mono);
   font-size: 0.78rem;
   line-height: 1.5;
-  background: var(--rfp-bg, #f8fafc);
-  border: 1px solid var(--rfp-border, #cbd5e1);
+  background: var(--rfp-bg, #f7f8f8);
+  border: 1px solid var(--rfp-border, #cdd1d4);
   border-radius: 6px;
   padding: 8px 10px;
   overflow-x: auto;
@@ -745,7 +745,7 @@
 
 .rfp-wire__col {
   min-width: 0;
-  border: 1px solid var(--rfp-border, #cbd5e1);
+  border: 1px solid var(--rfp-border, #cdd1d4);
   border-radius: 8px;
   background: var(--rfp-card, #fff);
   padding: 10px 12px;
@@ -770,8 +770,8 @@
   font-family: var(--font-mono);
   font-size: 0.72rem;
   font-weight: 600;
-  background: var(--rfp-bg, #f1f5f9);
-  border: 1px solid var(--rfp-border, #cbd5e1);
+  background: var(--rfp-bg, #eff0f1);
+  border: 1px solid var(--rfp-border, #cdd1d4);
   border-radius: 4px;
   padding: 1px 6px;
 }
@@ -787,8 +787,8 @@
   font-family: var(--font-mono);
   font-size: 0.72rem;
   line-height: 1.5;
-  background: var(--rfp-bg, #f8fafc);
-  border: 1px solid var(--rfp-border, #cbd5e1);
+  background: var(--rfp-bg, #f7f8f8);
+  border: 1px solid var(--rfp-border, #cdd1d4);
   border-radius: 6px;
   padding: 8px 10px;
   overflow-x: auto;

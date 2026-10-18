@@ -1,6 +1,6 @@
 /* ClientRegistrationPage.css
  * Every element here used to be styled via inline style={{ color, background }}
- * literals (var(--text, #1e293b), var(--border, #e2e8f0), var(--muted, #64748b) —
+ * literals (var(--text, #263746), var(--border, #e0e2e4), var(--muted, #5c646b) —
  * none of those custom properties are defined anywhere, so they always fell
  * through to the light literal fallback). AdminSubPageShell already supplies a
  * dark-mode toggle, but this page's own content never tracked it: the shell

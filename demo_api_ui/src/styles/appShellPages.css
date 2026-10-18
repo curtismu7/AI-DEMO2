@@ -106,7 +106,7 @@
   color: var(--th-text);
   border-radius: 10px;
   margin-bottom: 1.25rem;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 14px rgba(5, 23, 39, 0.06);
 }
 
 /* Back / Home / breadcrumb row — align actions to the left; logout uses spacer */
@@ -318,11 +318,11 @@
 
 .app-page-card {
   background: var(--th-bg-card);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(5, 23, 39, 0.08);
   border-radius: 10px;
   padding: 1.25rem 1.35rem;
   margin-bottom: 1rem;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 14px rgba(5, 23, 39, 0.06);
 }
 
 .app-page-card h2 {

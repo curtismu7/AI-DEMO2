@@ -274,7 +274,7 @@
 .azc-mcp-section {
   margin-top: 20px;
   padding-top: 20px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #eff0f1;
 }
 
 .azc-mcp-section__label {
@@ -529,7 +529,7 @@
 }
 
 .azc-env-table tbody tr {
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
 }
 
 .azc-env-table tbody tr:last-child {

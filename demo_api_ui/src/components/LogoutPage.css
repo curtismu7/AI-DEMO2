@@ -9,7 +9,7 @@
   min-height: 100vh;
   padding: 24px 16px;
   /* Opaque — semi-transparent overlay reads as a white screen over the app chrome */
-  background: #0f172a;
+  background: #051727;
   position: fixed;
   inset: 0;
   z-index: 1000;
@@ -178,7 +178,7 @@
   justify-content: flex-end;
   gap: 8px;
   padding: 10px 14px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #e0e2e4;
   background: #fafafa;
 }
 
@@ -209,8 +209,8 @@
 }
 
 .logout-action--secondary {
-  background: #f3f4f6;
-  border: 1px solid #d1d5db;
+  background: #eff0f1;
+  border: 1px solid #cdd1d4;
   color: var(--th-text);
   font-weight: 500;
 }

@@ -7,7 +7,7 @@
   font-family: inherit;
   font-size: 0.72rem;
   line-height: 1.45;
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   padding: 12px 14px;
   border-radius: 8px;
@@ -283,7 +283,7 @@
 
 /* ---------- Code block ---------- */
 .ciba-code {
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   font-size: 0.74rem;
   line-height: 1.6;
@@ -375,7 +375,7 @@
 
 .ciba-input {
   padding: 0.45rem 0.65rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 6px;
   font-size: 0.82rem;
   color: var(--th-text);
@@ -452,7 +452,7 @@
 }
 
 .ciba-poll-log {
-  background: #0f172a;
+  background: #051727;
   border-radius: 8px;
   padding: 0.65rem 0.75rem;
   max-height: 160px;
@@ -461,7 +461,7 @@
 
 .ciba-poll-log-title {
   font-size: 0.68rem;
-  color: #94a3b8;
+  color: #909ea4;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   margin-bottom: 0.4rem;

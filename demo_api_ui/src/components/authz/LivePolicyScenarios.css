@@ -4,7 +4,7 @@
 .lps-sub { font-size: 0.8125rem; color: var(--color-text-muted, #667085); margin: 0; }
 .lps-notice { background: #fef6e7; color: #b54708; border-radius: 8px; padding: 10px 12px; font-size: 0.8125rem; margin-bottom: 12px; }
 .lps-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 12px; }
-.lps-card { border: 1px solid var(--border, #e2e8f0); border-radius: 10px; padding: 14px; }
+.lps-card { border: 1px solid var(--border, #e0e2e4); border-radius: 10px; padding: 14px; }
 .lps-card-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; }
 .lps-card-label { font-weight: 600; color: var(--color-text, #1a1a2e); }
 .lps-expect { font-size: 0.7rem; font-weight: 600; text-transform: uppercase; letter-spacing: 0.03em; color: #667085; }

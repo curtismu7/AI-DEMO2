@@ -189,7 +189,7 @@
 
 .ssp-input {
   padding: 0.75rem;
-  border: 2px solid #d1d5db;
+  border: 2px solid #cdd1d4;
   border-radius: 8px;
   font-size: 1rem;
   transition: all 0.2s ease;
@@ -239,7 +239,7 @@
 
 .ssp-role-card {
   padding: 1.5rem;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #e0e2e4;
   border-radius: 12px;
   cursor: pointer;
   transition: all 0.2s ease;
@@ -285,7 +285,7 @@
 .ssp-strength-bar {
   flex: 1;
   height: 4px;
-  background: #e5e7eb;
+  background: #e0e2e4;
   border-radius: 2px;
   overflow: hidden;
 }

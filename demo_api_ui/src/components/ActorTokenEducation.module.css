@@ -254,7 +254,7 @@
 }
 
 .liveDemo p {
-  color: var(--th-text) !important; /* beats inline #64748b in the JSX */
+  color: var(--th-text) !important; /* beats inline #5c646b in the JSX */
   line-height: 1.6;
   margin: 8px 0;
 }

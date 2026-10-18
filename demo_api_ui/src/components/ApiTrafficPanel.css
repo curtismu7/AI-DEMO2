@@ -336,7 +336,7 @@
   color: #fde68a;
 }
 .api-method-badge--PATCH {
-  background: #334155;
+  background: #263746;
   color: var(--th-text-faint);
 }
 .api-method-badge--DELETE {
@@ -413,7 +413,7 @@
   color: #fca5a5;
 }
 .api-status-badge--net {
-  background: #374151;
+  background: #263746;
   color: #ffffff;
 }
 .api-status-badge--tok {
@@ -593,7 +593,7 @@ pre.api-json {
 /* ── Token event rows ─────────────────────────────────────────────────────── */
 .api-traffic-entry--token {
   background: var(--th-bg-inset);
-  border-left: 2px solid #334155;
+  border-left: 2px solid #263746;
 }
 .api-traffic-entry--token:hover {
   background: var(--th-bg-inset);

@@ -1464,8 +1464,8 @@ a.pingone-test-button--primary:visited {
   gap: 8px;
   padding: 10px 14px;
   margin: 8px 0;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border: 1px solid #334155;
+  background: linear-gradient(135deg, #263746 0%, #051727 100%);
+  border: 1px solid #263746;
   border-radius: 12px 12px 12px 2px;
   font-family: inherit;
   font-size: 0.88rem;
