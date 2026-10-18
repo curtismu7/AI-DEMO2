@@ -62,12 +62,12 @@ export const INSPECTOR_VERTICALS = {
     tools: w('view_records view_coverage list_appointments view_claims view_billing pay_bill cancel_appointment reschedule_appointment view_medications refill_prescription view_lab_results view_vitals view_care_team list_messages view_referrals view_documents view_immunizations view_allergies view_dependents view_care_plan mark_message_read request_document cancel_referral book_appointment release_records sensitive_patient_records'),
     capture: { tool: 'view_records', family: 'record', arg: 'recordId', hint: 'Run "Read records" first to fill recordId.' },
     extraTools: w('show_health_record'),
-    authorize: { toolName: 'pay_bill', txTypes: ['transfer'], amount: 500 },
+    authorize: { toolName: 'pay_bill', txTypes: ['transfer'], amount: 650 },
     scenarios: [
       { id: 'read', label: 'Read records (expect PERMIT)', expect: 'PERMIT', tool: 'view_records', args: {} },
       sensitive('sensitive_patient_records'),
-      // Seeded bills are $15-50 (none over the hold line), so the stated $500 is what the gate sees; no record to pair it with.
-      { id: 'approval', label: 'Pay bill (expect approval)', expect: 'APPROVAL', tool: 'pay_bill', args: { billId: '404', amount: 500 } },
+      // Seeded bill 407 (MRI, $650): over the $500 hold line, inside the $250-$2000 window. The gate reads the amount from the bill.
+      { id: 'approval', label: 'Pay bill (expect approval)', expect: 'APPROVAL', tool: 'pay_bill', args: { billId: '407', amount: 650 } },
       {
         id: 'chain',
         label: 'Run chain: records → release → sensitive',
@@ -172,7 +172,8 @@ export const INSPECTOR_VERTICALS = {
     scenarios: [
       { id: 'read', label: 'Read work orders (expect PERMIT)', expect: 'PERMIT', tool: 'view_work_orders', args: {} },
       sensitive('sensitive_supplier_contract'),
-      // Seeded pending PO; its $8750 total is above the $2000 deny line, so $500. (PO-6002 is $1240 but already Approved, so the tool errors.)
+      // Seeded pending PO; its $8750 total is above the $2000 deny line, so $500.
+      // Leave as is: for approve_purchase_order the gate reads the STATED amount, not the PO's, so $500 holds; PO-6002 ($1240) is already Approved and the tool errors.
       { id: 'approval', label: 'Approve purchase order (expect approval)', expect: 'APPROVAL', tool: 'approve_purchase_order', args: { poId: 'PO-6001', amount: 500 } },
       {
         id: 'chain',
