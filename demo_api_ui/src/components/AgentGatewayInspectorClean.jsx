@@ -3,6 +3,7 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
+import { extractCapturedValues, unwrapMcpResult } from './AgentGatewayTester';
 import { TOOL_ATTACKS } from '../config/toolAttackCatalog';
 import InspectorLayout from './inspector/InspectorLayout';
 import { ok, warn } from './inspector/inspectorCalls';
@@ -14,7 +15,10 @@ const POLL_MS = 5000;
 const CHAIN_STEPS = ['get_my_accounts', 'get_account_balance', 'get_sensitive_account_details'];
 const CHAIN = 'chain';
 const CUSTOM = 'custom';
-const ACCOUNT = { account_id: 'acc-1' };
+const NEEDS_ACCOUNT_HINT = 'Run "Read accounts" first to fill account_id.';
+
+/** First account id in a get_my_accounts result body, parsed the way the Tester does. */
+const accountIdOf = (body) => extractCapturedValues('get_my_accounts', unwrapMcpResult(body)).find((c) => c.family === 'account')?.value ?? '';
 
 const RELATED = [
   { label: 'Gateway tester', to: '/agent-gateway-capabilities' },
@@ -38,8 +42,8 @@ const SOURCES = [
 const SCENARIOS = [
   { id: CUSTOM, label: 'Custom' },
   { id: 'read', label: 'Read accounts (expect PERMIT)', tool: 'get_my_accounts', args: {} },
-  { id: 'sensitive', label: 'Sensitive read (expect DENY)', tool: 'get_sensitive_account_details', args: ACCOUNT },
-  { id: 'withdrawal', label: 'Withdrawal (expect approval)', tool: 'create_withdrawal', args: { ...ACCOUNT, amount: 500 } },
+  { id: 'sensitive', label: 'Sensitive read (expect DENY)', tool: 'get_sensitive_account_details', args: { account_id: '' } },
+  { id: 'withdrawal', label: 'Withdrawal (expect approval)', tool: 'create_withdrawal', args: { account_id: '', amount: 500 } },
   { id: CHAIN, label: 'Run chain: accounts → balance → sensitive', tool: CHAIN_STEPS[0], args: {} },
   ...TOOL_ATTACKS.map((a) => ({ id: 'attack:' + a.id, label: 'Attack library: ' + a.label, tool: a.tool, args: a.args })),
 ];
@@ -147,7 +151,15 @@ export default function AgentGatewayInspectorClean() {
   const pickScenario = (id) => {
     setScenario(id);
     const s = SCENARIOS.find((x) => x.id === id);
-    if (s?.tool) { setTool(s.tool); setArgsText(JSON.stringify(s.args ?? {}, null, 2)); }
+    if (!s?.tool) return;
+    let args = s.args ?? {};
+    if ('account_id' in args) {
+      const known = calls.filter((c) => c.title === 'get_my_accounts' && c.status.tone === 'ok').map((c) => accountIdOf(c.response.body)).find(Boolean) ?? '';
+      args = { ...args, account_id: known };
+      setHint(known ? '' : NEEDS_ACCOUNT_HINT);
+    } else setHint('');
+    setTool(s.tool);
+    setArgsText(JSON.stringify(args, null, 2));
   };
 
   const callOnce = useCallback(async (t, args) => {
@@ -164,7 +176,13 @@ export default function AgentGatewayInspectorClean() {
       let made;
       if (chain) {
         made = [];
-        for (const step of CHAIN_STEPS) made.push(await callOnce(step, step === CHAIN_STEPS[0] ? {} : ACCOUNT));
+        let account_id = '';
+        for (const step of CHAIN_STEPS) {
+          const call = await callOnce(step, step === CHAIN_STEPS[0] ? {} : { account_id });
+          made.push(call);
+          if (step === CHAIN_STEPS[0]) account_id = accountIdOf(call.response.body);
+        }
+        if (!account_id) setHint(NEEDS_ACCOUNT_HINT);
       } else if (count > 1) {
         const at = Date.now();
         let res;
