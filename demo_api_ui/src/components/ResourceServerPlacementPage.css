@@ -21,28 +21,11 @@
 .rsp-hero {
   margin-bottom: 16px;
 }
-.rsp-eyebrow {
-  display: inline-block;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--rsp-accent);
-  margin-bottom: 8px;
-}
 .rsp-hero h1 {
   font-size: var(--font-size-h2);
   margin: 0 0 8px;
   letter-spacing: -0.01em;
 }
-.rsp-sub {
-  color: var(--rsp-ink-2);
-  font-size: var(--font-size-sm);
-  margin: 0;
-  max-width: 80ch;
-  line-height: 1.5;
-}
-
 .rsp-panel {
   background: var(--rsp-panel);
   border: 1px solid var(--rsp-border);

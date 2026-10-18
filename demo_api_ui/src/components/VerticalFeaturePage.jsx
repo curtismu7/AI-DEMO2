@@ -4,6 +4,7 @@ import { useVertical } from '../vertical/useVertical';
 import { formatValue } from '../utils/formatters';
 import TokenChainTraceRail from './TokenChainTraceRail';
 import './VerticalFeaturePage.css';
+import PageHeader from './common/PageHeader';
 
 export default function VerticalFeaturePage() {
   const navigate  = useNavigate();
@@ -41,16 +42,10 @@ export default function VerticalFeaturePage() {
   if (!raw) {
     return (
       <div className="vfp-container" style={styles}>
-        <header className="vfp-header">
-          <span className="vfp-badge">{fp?.badgeLabel || 'API-KEY PATH'}</span>
-          <h1 className="vfp-title">{fp?.pageTitle || 'Feature data not loaded'}</h1>
-          <p className="vfp-subtitle">
-            This page renders data returned by the MCP gateway's api_key disposition.
+        <PageHeader className="vfp-header" badge={fp?.badgeLabel || 'API-KEY PATH'} title={fp?.pageTitle || 'Feature data not loaded'} summary={<>This page renders data returned by the MCP gateway's api_key disposition.
             To see the data, ask the agent: <code>{fp?.emptyPrompt || 'show feature data'}</code>.
             The agent will call the gateway, which swaps your OAuth bearer for a
-            service API key, calls the backend service, and routes you here with the result.
-          </p>
-        </header>
+            service API key, calls the backend service, and routes you here with the result.</>} />
         <div className="vfp-actions">
           <button className="vfp-back-btn" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
         </div>

@@ -34,17 +34,7 @@
   color: var(--th-text);
 }
 
-.aac-eyebrow {
-  margin: 0 0 8px;
-  color: var(--th-status-info-text);
-  font-size: var(--font-size-2xs);
-  font-weight: 800;
-  letter-spacing: 0.1em;
-  text-transform: uppercase;
-}
 .aac-head h1 { margin: 0 0 10px; font-size: var(--font-size-2xl); line-height: 1.2; }
-.aac-sub { margin: 0; color: var(--th-text-muted); font-size: var(--font-size-body); line-height: 1.6; }
-
 /* Tab bar — plain pill buttons, not a reinvented sidebar. */
 .aac-tabs {
   display: flex;

@@ -12,6 +12,7 @@ import VerticalsSection from "./agenticAccessConsole/VerticalsSection";
 import DelegationSection from "./agenticAccessConsole/DelegationSection";
 import SecuritySection from "./agenticAccessConsole/SecuritySection";
 import "./AgenticAccessConsolePage.css";
+import PageHeader from '../components/common/PageHeader';
 
 /**
  * AgenticAccessConsolePage — read-only, admin-only dashboard summarizing the
@@ -54,13 +55,9 @@ export default function AgenticAccessConsolePage({ user }) {
         >
           {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
         </button>
-        <p className="aac-eyebrow">🔐 Control plane</p>
-        <h1>Agentic Access Console</h1>
-        <p className="aac-sub">
-          A read-only summary of how the demo's agents reach MCP tools: what each
+        <PageHeader eyebrow="🔐 Control plane" title="Agentic Access Console" summary={<>A read-only summary of how the demo's agents reach MCP tools: what each
           agent can call, how PingOne Authorize and RFC 8693 token exchange gate
-          every call, and the AI Broker / CIBA / Agentic Apps layers around it.
-        </p>
+          every call, and the AI Broker / CIBA / Agentic Apps layers around it.</>} />
       </header>
 
       <nav className="aac-tabs" aria-label="Agentic Access Console sections">
