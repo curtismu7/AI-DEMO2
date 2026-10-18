@@ -32,7 +32,8 @@ const discard = jest.fn();
 
 // Session-backed fake of the Task-1 handlers: a parked flow lives in req.session like the real one.
 const fakeHandlers = {
-  getParkedFlow: (req) => (req.session.parked ? { expectedSub: req.session.parked.expectedSub, username: req.session.parked.user.username, user: req.session.parked.user } : null),
+  getParkedFlow: (req) => (req.session.parked && clock - (req.session.parked.parkedAt ?? clock) <= 150_000 ? { expectedSub: req.session.parked.expectedSub, username: req.session.parked.user.username, user: req.session.parked.user } : null),
+  getParkedRemainingMs: (req) => (req.session.parked ? 150_000 - (clock - (req.session.parked.parkedAt ?? clock)) : null),
   discardParkedFlow: (req) => { discard(); delete req.session.parked; },
   completeParkedFlow: async (req) => { await complete(req); delete req.session.parked; return { redirectTo: 'http://localhost:3000/dashboard?oauth=success' }; },
 };
@@ -56,6 +57,7 @@ beforeAll(async () => {
 afterAll(() => server.close());
 
 const parkBody = (user = USER, sub = user.id) => ({ expectedSub: sub, user });
+const parkedAtAgo = async (ms) => { const a = request.agent(server); await a.post('/park').set('X-Forwarded-For', '10.0.0.1').send({ ...parkBody(), parkedAt: clock - ms }); return a; };
 async function parked(user, ip) {
   const agent = request.agent(server);
   await agent.post('/park').set('X-Forwarded-For', ip || '10.0.0.1').send(parkBody(user));
@@ -324,6 +326,41 @@ describe('fix round 1', () => {
       cibaService.initiateBackchannelAuth.mockResolvedValueOnce({ auth_req_id: 'P', expires_in: given, interval: 2, binding_message: 'BK1A2B3C' });
       const ip = `10.7.0.${i}`;
       expect((await start(await parked({ ...USER, id: `x${i}` }, ip), 'email', ip)).body.expiresIn).toBe(want);
+    }
+  });
+});
+
+describe('final review', () => {
+  it('M3 expiresIn is capped at the parked flow\'s remaining life (40 s used -> <= 110), fresh start unchanged', async () => {
+    const res = await start(await parkedAtAgo(40_000));
+    expect(res.body.expiresIn).toBeLessThanOrEqual(110);
+    expect(res.body.expiresIn).toBeGreaterThanOrEqual(109);
+    const fresh = await start(await parked(USER, '10.8.0.1'), 'email', '10.8.0.1');
+    expect(fresh.body.expiresIn).toBe(120);
+  });
+
+  it('M3 near the end the cap is >= 1; past the window there is no parked flow (409)', async () => {
+    expect((await start(await parkedAtAgo(149_500))).body.expiresIn).toBe(1);
+    const gone = await start(await parkedAtAgo(151_000));
+    expect(gone.status).toBe(409);
+  });
+
+  it('M3 the pending TTL follows the capped value', async () => {
+    const agent = await parkedAtAgo(100_000);   // 50 s left
+    const res = await start(agent);
+    expect(res.body.expiresIn).toBe(50);
+    clock += 81 * 1000;                          // 50 s + 30 s grace passed
+    const poll1 = await poll(agent, res.body.authReqId);
+    expect(poll1.status).toBe(410);
+  });
+
+  it.each(['TRUE', 'True'])('M1 flag %s keeps the routes live; false/0/empty stay off', async (v) => {
+    configStore.getEffective.mockReturnValue(v);
+    expect((await start(await parked())).status).toBe(200);
+    for (const off of ['false', '0', '', undefined]) {
+      configStore.getEffective.mockReturnValue(off);
+      expect((await request.agent(server).get(`/api/auth/ciba/login/poll/${'a'.repeat(48)}`)).status).toBe(404);
+      expect((await request.agent(server).get(`/api/auth/ciba/login/poll/${'a'.repeat(48)}`)).body).toEqual({ error: 'ciba_login_disabled' });
     }
   });
 });

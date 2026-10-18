@@ -55,6 +55,7 @@ app.get('/t/parked', (req, res) => res.json({ parked: piFlowHandlers.getParkedFl
 app.get('/t/session', (req, res) => res.json({
   parked: !!req.session.oauthPiFlowParked, open: !!req.session.oauthPiFlow, tokens: !!req.session.oauthTokens, user: !!req.session.user,
 }));
+app.get('/t/remaining', (req, res) => res.json({ ms: piFlowHandlers.getParkedRemainingMs(req) }));
 app.post('/t/complete', async (req, res) => res.json(await piFlowHandlers.completeParkedFlow(req)));
 
 const json = (status, body, setCookies = []) => ({
@@ -166,6 +167,10 @@ describe('pi.flow CIBA second factor parking', () => {
       mockFlags = { ciba_login_enabled: 'false' };
       await redirects((a) => a.post(CREDS).send({ username: 'demoUser', password: 'p', secondFactor: 'ciba' }));
     });
+    test.each(['0', '', 'yes'])('flag value %j', async (v) => {
+      mockFlags = { ciba_login_enabled: v };
+      await redirects((a) => a.post(CREDS).send({ username: 'demoUser', password: 'p', secondFactor: 'ciba' }));
+    });
     test('flag unset', async () => {
       mockFlags = { ciba_login_enabled: undefined };
       await redirects((a) => a.post(CREDS).send({ username: 'demoUser', password: 'p', secondFactor: 'ciba' }));
@@ -176,6 +181,25 @@ describe('pi.flow CIBA second factor parking', () => {
     test('handlers built without allowSecondFactor (admin)', async () => {
       await redirects((a) => a.post('/t/admin-credentials').send({ username: 'demoUser', password: 'p', secondFactor: 'ciba' }));
     });
+  });
+
+  test.each(['TRUE', 'True', ' true '.trim()])('flag value %s parks exactly like true', async (v) => {
+    mockFlags = { ciba_login_enabled: v };
+    const agent = await parkedAgent();
+    expect((await sess(agent)).parked).toBe(true);
+  });
+
+  test('getParkedRemainingMs counts down from park without extending it', async () => {
+    const agent = await parkedAgent();
+    const now = Date.now();
+    const spy = jest.spyOn(Date, 'now');
+    spy.mockReturnValue(now + 40_000);
+    const ms = (await agent.get('/t/remaining')).body.ms;
+    expect(ms).toBeGreaterThan(109_000);
+    expect(ms).toBeLessThanOrEqual(110_000);
+    spy.mockReturnValue(now + 151_000);
+    expect((await agent.get('/t/remaining')).body.ms).toBeNull();
+    spy.mockRestore();
   });
 
   test('(e2) fallback response is byte-identical when the factor is not requested', async () => {

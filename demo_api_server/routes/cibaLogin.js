@@ -14,13 +14,13 @@
 const express = require('express');
 const router = express.Router();
 const svc = require('../services/cibaSecondFactorService');
-const configStore = require('../services/configStore');
+const cibaLoginEnabled = require('../services/cibaLoginFlag');
 
 const CHANNELS = ['email', 'sms'];
 
 // Ships OFF. Checked before anything else and identical for every caller.
 router.use((req, res, next) => (
-  String(configStore.getEffective('ciba_login_enabled')).toLowerCase() === 'true'
+  cibaLoginEnabled()
     ? next()
     : res.status(404).json({ error: 'ciba_login_disabled' })
 ));

@@ -88,7 +88,10 @@ async function startSecondFactor({ channel, req }) {
   // code is never a literal word (verticals without a code would otherwise echo a short message verbatim).
   // Verticals WITHOUT a vertical code get 6 random hex chars; coded verticals get 8 (2-char code + 6 hex).
   const n = Number(data.expires_in);   // integer >= 1, capped at 120; NaN/negative/absent -> 120
-  const expiresIn = Number.isFinite(n) && n > 0 ? Math.min(Math.ceil(n), EXPIRES_IN) : EXPIRES_IN;
+  const pingExpiresIn = Number.isFinite(n) && n > 0 ? Math.min(Math.ceil(n), EXPIRES_IN) : EXPIRES_IN;
+  // The countdown must not outlive the parked flow (it is never extended): cap at what is left, integer >= 1.
+  const left = Math.max(1, Math.floor(handlers().getParkedRemainingMs(req) / 1000));
+  const expiresIn = Math.min(pingExpiresIn, left);
   const authReqId = crypto.randomBytes(24).toString('hex');
   const t = now();
   pending.set(authReqId, { sessionIds: new Set([req.sessionID]), channel, sub: user.id, ttlMs: (expiresIn * 1000) + ENTRY_GRACE_MS, pingAuthReqId: data.auth_req_id, createdAt: t, consumed: false, inFlight: false });

@@ -7,6 +7,7 @@
 // Anything a step can't finish (MFA, a policy screen) returns {fallback:true}
 // and the SPA starts the ordinary redirect login instead.
 const configStore = require('./configStore');
+const cibaLoginEnabled = require('./cibaLoginFlag');
 const { fetchPingOneUserByUsername, fetchPingOneUserByEmail } = require('./pingOneUserLookupService');
 
 const PI_FLOW_TIMEOUT_MS = 10_000;
@@ -172,6 +173,11 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
     return { expectedSub: parked.expectedSub, username: parked.username, user: parked.user };
   }
 
+  // Milliseconds left of the parked window (null if none). Read-only: never extends parkedAt.
+  function getParkedRemainingMs(req) {
+    return getParkedFlow(req) ? PARKED_FLOW_TTL_MS - (Date.now() - req.session.oauthPiFlowParked.parkedAt) : null;
+  }
+
   function discardParkedFlow(req) { clearParked(req); }
 
   // Single use: the parked state is deleted (and persisted) BEFORE the code is fetched.
@@ -236,7 +242,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
 
   const secondFactorRequested = (req) => allowSecondFactor
     && req.body?.secondFactor === 'ciba'
-    && configStore.getEffective('ciba_login_enabled') === 'true';
+    && cibaLoginEnabled();
 
   // What to do with the flow's status after a step. Steps this BFF cannot drive
   // (policy screens) return fallback:true and the SPA restarts the ordinary
@@ -504,6 +510,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
     completePiFlow,
     finishPiFlow,
     getParkedFlow,
+    getParkedRemainingMs,
     completeParkedFlow,
     discardParkedFlow,
     respondAfterPiFlowStep,
