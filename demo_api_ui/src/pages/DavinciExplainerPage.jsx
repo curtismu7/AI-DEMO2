@@ -15,6 +15,7 @@
 // It now follows the app theme like every other page — see the stylesheet,
 // which keeps the private variable names and re-points them at --th-* tokens.
 import "./DavinciExplainerPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 const COMPARISON_ROWS = [
   {
@@ -91,13 +92,9 @@ export default function DavinciExplainerPage() {
   return (
     <div className="davinci-explainer">
       <div>
-        <p className="eyebrow">PingOne DaVinci</p>
-        <h1>Why PingOne DaVinci Orchestration</h1>
-        <p className="lede">
-          A single-connector policy check proves DaVinci can call an API. It does not show why a
+        <PageHeader eyebrow="PingOne DaVinci" title="Why PingOne DaVinci Orchestration" summary={<>A single-connector policy check proves DaVinci can call an API. It does not show why a
           customer would buy it. The value is orchestrating <em>many</em> connector types &mdash;
-          identity and business systems together &mdash; on one visual, no-code canvas.
-        </p>
+          identity and business systems together &mdash; on one visual, no-code canvas.</>} />
 
         {/* The running app goes FIRST. This page previously offered exactly one
             link and it went to the widget guide, so the only way out of a page

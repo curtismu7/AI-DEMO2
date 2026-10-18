@@ -5,6 +5,7 @@ import { EDU } from "../components/education/educationIds";
 import SignInPrompt from "../components/SignInPrompt";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
 import "./IntentBindingLearningPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 /**
  * Intent Binding learning page demonstrating PAR (Pushed Authorization Request).
@@ -262,18 +263,7 @@ export default function IntentBindingLearningPage() {
 
   return (
     <div className="intent-binding-page">
-      <button className="ib-back-btn" onClick={() => navigate("/dashboard")}>
-        Back to Dashboard
-      </button>
-      <header className="ib-header-band">
-        <div className="ib-eyebrow">Learning · Intent Binding</div>
-        <h1>Watch an agent's intent get checked, step by step</h1>
-        <p>
-          Every transfer an agent makes runs this pipeline. The same authorization payload is pushed
-          to PingOne via PAR (RFC 9126), then referenced below in two requests — one within the
-          agent's declared authority, one past it.
-        </p>
-      </header>
+      <PageHeader className="ib-header-band" back={{ to: "/dashboard", label: "Back to Dashboard" }} eyebrow="Learning · Intent Binding" title={<>Watch an agent's intent get checked, step by step</>} summary="Every transfer an agent makes runs this pipeline. The same authorization payload is pushed to PingOne via PAR (RFC 9126), then referenced below in two requests — one within the agent's declared authority, one past it." />
 
       <ol className="ib-pipeline">
         {PIPELINE_STEPS.map((step) => (

@@ -75,11 +75,14 @@ Last runtime audit (slightly stale): ~38 unique violations on 164 rendered route
 
 ### PageHeader rollout (~100 pages still bespoke)
 - [x] Batch: pages with `<header>` + eyebrow + h1 + summary (`DavinciLoginGuide`, `GuidedJourney`, `ObservabilityDiagram`, `PingFederateDavinciKit`, `PingFederateIdJagExplainer`, `PingFederateIdJag`, `WorkloadAgents`, `SpiffePingoneBridge`, `StandaloneDemoLauncher`) — PR 3
-- [ ] Batch: pages with a plain eyebrow + h1 inside a `div` hero (`pmd-hero` family: 4 pages, `asp-hero` done)
+- [x] Batch 3: diagram heroes (`pmd-hero`/`mgof-hero`: Privilege gateway topology, AI Agent Gateway diagrams, External Door, MCP gateway OAuth flow, Invest dual-auth) and lesson pages with back links (Privilege MCP Learning, Intent Binding, Vertical Feature, Mortgage Path)
 - [ ] Batch: pages with toolbar-style headers (`LlmGateway`, `LlmTest`, `Tracing`, `TransactionTrace`, `Telemetry`) — need a design decision (actions slot)
 - [ ] Batch: lesson/learning pages with back links (`ExternalAgentLesson`, `IntentBindingLearning`, `MortgagePath`, `PrivilegeMcpLearning`, `VerticalFeature`, `LangChain`, `PingOneSetupGuide`)
-- [ ] Replace the 6 bespoke back-link implementations with `BackLink`
+- [ ] Replace the remaining bespoke back-link implementations with `BackLink` (done: Learning lab, Privilege MCP Learning, Intent Binding; left: telemetry, LLM test, m2m, st-back, plp)
 - [ ] Re-count pages still using their own header at the end (121 page files had an `<h1>` at the start; grep for `<h1` in `pages/` and `components/*Page*`, minus those now using `<PageHeader`)
+
+- [x] Batch 4: flat eyebrow + title + lede pages (Resource Server Placement and Checkpoint, Gateway Enforcement Map, Orchestration SDK explainer, Delegation Chain Value, DaVinci explainer, Agent Onboarding Mermaid, Agentic Access Console, Group Policy Board)
+- [ ] Remaining ~70 pages on their own header: mostly consoles/tools and toolbar-style headers (LLM Gateway, Tracing, Telemetry, Transaction Trace, Run Report, Server Topology, Use Case Launcher …). Decision needed: a toolbar-style PageHeader (actions slot) or leave tool pages alone
 
 ### Consistency not started
 - [x] Buttons, shape pass (PR 4): every `*-btn` / `*-button` family base rule uses the shared `--btn-radius` (5–10px near-misses) and `--btn-weight`; nine primary-action buttons that the blue sweep had turned Ping blue are Ping Red again (Configuration Save, setup wizard, run/export, diagram Simulate/Next …); Delegated Commerce navy `#09234b` → Core Dark and danger `#a32620` → `#aa0005`

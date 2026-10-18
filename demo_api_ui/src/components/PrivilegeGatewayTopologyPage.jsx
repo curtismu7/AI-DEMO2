@@ -11,6 +11,7 @@ import apiClient from "../services/apiClient";
 import "./PrivilegeMcpDiagramPage.css";
 import "./PrivilegeGatewayTopologyPage.css";
 import "./McpGatewayOauthFlowPage.css";
+import PageHeader from './common/PageHeader';
 
 // Agent-based tab: static hand-placed layout (converted from Mermaid 2026-10-12 —
 // all diagrams are ReactFlow now; the archived Mermaid source's ELK layout also
@@ -415,17 +416,12 @@ export default function PrivilegeGatewayTopologyPage() {
         Auth Mode findings.
       </div>
       )}
-      <div className="pmd-hero">
-        <span className="pmd-eyebrow">PingOne Privilege · MCP Gateway</span>
-        <h1>Privilege Gateway Topologies</h1>
-        <p className="pmd-sub">
-          The live load-balanced mcpgw topology as deployed on the SE cluster, plus
+      <PageHeader className="pmd-hero" eyebrow="PingOne Privilege · MCP Gateway" title="Privilege Gateway Topologies" summary={<>The live load-balanced mcpgw topology as deployed on the SE cluster, plus
           the two deployment variants from the instructional demo setup and the
           agent-to-agent layout, with the
           request flow numbered in order. Dashed lines are control-plane
           configuration; solid lines are the data path. Guillemets (‹ ›) mark
-          values you substitute.
-        </p>
+          values you substitute.</>}>
         <a
           className="pmd-link pgt-doc-link"
           href="https://pingidentity.atlassian.net/wiki/x/SwDRwg"
@@ -434,7 +430,7 @@ export default function PrivilegeGatewayTopologyPage() {
         >
           Setup guide: PingOne Privilege MCP Gateway — Instructional Demo Setup
         </a>
-      </div>
+      </PageHeader>
 
       <div className="pmd-tabs">
         {TABS.map((tab) => (

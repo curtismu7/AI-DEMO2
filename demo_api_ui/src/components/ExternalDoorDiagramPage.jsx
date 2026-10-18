@@ -8,6 +8,7 @@ import StaticFlowDiagram from "./StaticFlowDiagram";
 import FlowDiagram from "./FlowDiagram";
 import "./PrivilegeMcpDiagramPage.css";
 import "./McpGatewayOauthFlowPage.css";
+import PageHeader from './common/PageHeader';
 
 export const EXT_DOOR_GROUPS = {
   client: { label: "External client — never talked to this system before", bg: "#1e40af" },
@@ -138,18 +139,12 @@ export default function ExternalDoorDiagramPage() {
   return (
     <>
       <div className="pmd-page">
-        <div className="pmd-hero">
-          <span className="pmd-eyebrow">External Door</span>
-          <h1>External Door MCP Flow — Architecture</h1>
-          <p className="pmd-sub">
-            Network topology for the public MCP door: how a self-registering external
+        <PageHeader className="pmd-hero" eyebrow="External Door" title="External Door MCP Flow — Architecture" summary={<>Network topology for the public MCP door: how a self-registering external
             client (LM Studio, MCP Inspector, Claude Desktop) reaches oauth-mcp — a
             single process wearing two hats, MCP tool server and its own embedded
             OAuth 2.1 Authorization Server — through ping-gateway's per-request P1AZ
             enforcement, out to the real PingOne login, and on to the Banking API.
-            Click any node for its role.
-          </p>
-        </div>
+            Click any node for its role.</>} />
 
         <div className="pmd-panel">
           <StaticFlowDiagram
@@ -182,17 +177,11 @@ export default function ExternalDoorDiagramPage() {
       </div>
 
       <div className="mgof-page">
-        <div className="mgof-hero">
-          <span className="mgof-eyebrow">oauth-mcp — TokenResolver</span>
-          <h1>External Door: Federated Token vs Self-Issued JWT</h1>
-          <p className="mgof-sub">
-            Two credential paths to the same Banking API call, decided by how the
+        <PageHeader className="mgof-hero" eyebrow="oauth-mcp — TokenResolver" title="External Door: Federated Token vs Self-Issued JWT" summary={<>Two credential paths to the same Banking API call, decided by how the
             external client obtained its bearer. The left flow completed a real
             PingOne login through oauth-mcp's federated authorization_code grant.
             The right flow authenticated with client_credentials — no user ever
-            signed in, so there is no PingOne token to hand downstream.
-          </p>
-        </div>
+            signed in, so there is no PingOne token to hand downstream.</>} />
 
         <DiagramExportBar
           source={seqSource}

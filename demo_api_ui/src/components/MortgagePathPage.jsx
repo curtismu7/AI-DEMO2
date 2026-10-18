@@ -21,6 +21,7 @@ import { formatCurrency, formatPercent } from '../utils/formatters';
 import TokenChainTraceRail from './TokenChainTraceRail';
 import { useThemeOptional } from '../context/ThemeContext';
 import './MortgagePathPage.css';
+import PageHeader from './common/PageHeader';
 
 function ThemeToggleButton() {
   const { darkMode, toggleDarkMode } = useThemeOptional();
@@ -48,17 +49,11 @@ export default function MortgagePathPage() {
     return (
       <div className="mpp-container">
         <ThemeToggleButton />
-        <header className="mpp-header">
-          <span className="mpp-badge">API-KEY PATH</span>
-          <h1 className="mpp-title">Mortgage data not loaded</h1>
-          <p className="mpp-subtitle">
-            This page renders mortgage data returned by the MCP gateway's api_key
+        <PageHeader className="mpp-header" badge={'API-KEY PATH'} title={'Mortgage data not loaded'} summary={<>This page renders mortgage data returned by the MCP gateway's api_key
             disposition. To see the data, ask the agent: <code>show mortgage data</code>.
             The agent will call the gateway, which swaps your OAuth bearer for a
             service API key, calls banking_api_resource_server, and routes you back here
-            with the result.
-          </p>
-        </header>
+            with the result.</>} />
         <div className="mpp-actions">
           <button className="mpp-back-btn" onClick={() => navigate('/dashboard')}>Back to Dashboard</button>
         </div>
