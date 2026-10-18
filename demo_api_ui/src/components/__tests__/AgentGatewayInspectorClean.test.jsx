@@ -210,3 +210,20 @@ describe('AgentGatewayInspectorClean recorded rows', () => {
     expect(screen.getByRole('button', { name: /Edit/ })).toBeEnabled();
   });
 });
+
+describe('AgentGatewayInspectorClean ordering', () => {
+  it('stays Unavailable when the decisions 401 lands before /active 200', async () => {
+    let resolveActive;
+    const unauth = Object.assign(new Error('401'), { response: { status: 401 } });
+    apiClient.get.mockImplementation((url) => {
+      if (url === '/api/mcp-gateway/active') return new Promise((res) => { resolveActive = () => res({ data: { usePingGateway: true, simulated: false } }); });
+      if (url.startsWith('/api/admin/agent-gateway/decisions')) return Promise.reject(unauth);
+      return Promise.resolve({ data: { tools: [], lines: [], ok: true } });
+    });
+    renderPage();
+    await screen.findByText('Unavailable', { selector: '.insp-chip' });
+    await act(async () => { resolveActive(); });
+    expect(screen.getByText('Unavailable', { selector: '.insp-chip' })).toBeInTheDocument();
+    expect(screen.queryByText('Live', { selector: '.insp-chip' })).toBeNull();
+  });
+});

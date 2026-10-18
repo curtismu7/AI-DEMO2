@@ -45,7 +45,8 @@ export default function PingOneAuthorizePage() {
   // Set while a Token Chain replay is staged; see clearPendingTest below.
   const replayPendingRef = useRef(false);
   // The replay has been evaluated: release the clear guard so ordinary endpoint switches reset the panel again.
-  const onRan = useCallback(() => { replayPendingRef.current = false; }, []);
+  // Also drops the staged replay so a remounted console (More tools round trip) cannot re-fire it.
+  const onRan = useCallback(() => { replayPendingRef.current = false; setPendingTest(null); }, []);
 
   const [data, setData] = useState(null);
   const [loading, setLoading] = useState(true);

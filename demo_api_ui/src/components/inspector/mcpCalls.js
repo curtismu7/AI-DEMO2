@@ -28,7 +28,8 @@ function toolStep(frames, errorMsg) {
 function refusalOf(b) {
   if (!b || typeof b !== 'object') return null;
   const code = Number(b.status);
-  if (!b.denied && b.error !== true && !(code >= 400)) return null;
+  const strErr = typeof b.error === 'string' && b.error !== '';
+  if (!b.denied && b.error !== true && !strErr && !(code >= 400)) return null;
   const text = [b.message, b.error, b.reason].find((x) => typeof x === 'string' && x) ?? `HTTP ${b.status ?? 200} refusal`;
   return { label: code >= 400 ? String(code) : b.denied ? 'Denied' : 'Error', text };
 }

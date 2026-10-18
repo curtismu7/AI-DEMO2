@@ -12,6 +12,8 @@ vi.mock('../../services/bffAxios', () => ({
   },
 }));
 
+const mockReplay = vi.fn(() => null);
+vi.mock('../../services/inspectorReplay', () => ({ consumeReplay: (...a) => mockReplay(...a) }));
 window.ResizeObserver = window.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
 vi.mock('../BulkDecisionPanel', () => ({ __esModule: true, default: () => <div>bulk panel</div> }));
 
@@ -150,5 +152,22 @@ describe('PingOneAuthorizePage (full page wiring)', () => {
     fireEvent.click(await screen.findByText('← Back to Authorize Inspector'));
     rerender(<PingOneAuthorizePage />);
     await waitFor(() => expect(screen.getByRole('heading', { name: /transfer \$5,000/ })).toBeInTheDocument());
+  });
+
+  test('a replay fires once, not again after a More tools round trip', async () => {
+    bffAxios.post.mockResolvedValue({ data: { decision: 'PERMIT', decisionId: 'd1', pingoneResponse: { decision: 'PERMIT', statements: [] }, pingoneRequest: { body: {} } } });
+    mockReplay.mockReturnValueOnce({ target: 'p1az', parameters: { A: 'b' } });
+    const { rerender } = render(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Custom decision' });
+    expect(bffAxios.post).toHaveBeenCalledTimes(1);
+
+    mockSearch = 'tab=bulk';
+    rerender(<PingOneAuthorizePage />);
+    fireEvent.click(await screen.findByText('← Back to Authorize Inspector'));
+    rerender(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Custom decision' });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(bffAxios.post).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('heading', { name: /Calls\s*1/ })).toBeInTheDocument();
   });
 });

@@ -94,3 +94,11 @@ describe('mcpCallFromStore: refusals inside HTTP 200', () => {
     expect(run({ result: { a: 1 }, status: 200 }).status.tone).toBe('ok');
   });
 });
+
+describe('mcpCallFromStore: string error in a 200 body', () => {
+  it('is a refusal', () => {
+    const c = mcpCallFromStore({ ...base, detail: { src: 'you', params: {}, response: { denied: false, status: 200, error: 'upstream timed out' } } });
+    expect(c.status.tone).toBe('err');
+    expect(c.banner.text).toBe('upstream timed out');
+  });
+});

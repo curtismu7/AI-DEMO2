@@ -90,7 +90,7 @@ export default function AgentGatewayInspectorClean() {
   const fetchActive = useCallback(async () => {
     try {
       setActive((await apiClient.get('/api/mcp-gateway/active', { _noAuthBanner: true })).data);
-      setGwState('ready');
+      setGwState(signedOut.current ? 'down' : 'ready');
     } catch (e) {
       if (e.response?.status === 401) signedOut.current = true;
       setGwState('down');
