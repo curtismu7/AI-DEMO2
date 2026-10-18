@@ -2,6 +2,8 @@
 // PingOne path: routes/ciba.js + services/cibaService.js (bc-authorize, CIBA-grant poll; email or SMS
 // DaVinci flow sends the link). PingFederate path: routes/pfAiAgent.js + services/pfAiAgentCibaService.js
 // (PF's backchannel endpoint from discovery; web approver or mock phone answers).
+// Sign-in (flag ciba_login_enabled): routes/cibaLogin.js + services/cibaSecondFactorService.js. The approval
+// only proves identity after the normal password step; the session still comes from the normal login client.
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
 const PF = { color: 'var(--th-status-warning)' };
@@ -20,6 +22,7 @@ export const CIBA_LINK_NODES = [
   N('p1', 'pingone', 'PingOne CIBA', ['/as/bc-authorize', 'CIBA-grant poll on /as/token'], 760, 40),
   N('dv', 'pingone', 'DaVinci flow', ['email-only or SMS-only', 'per channel'], 1140, 40),
   N('device', 'device', "User's inbox / phone", ['link + match code', 'approve on any device'], 1140, 260),
+  N('pwd', 'pingone', 'Password step', ['normal login client', 'pi.flow, default policy', 'flow parked at COMPLETED'], 380, 380),
   N('pf', 'pf', 'PingFederate CIBA', ['backchannel endpoint', 'from discovery'], 760, 380),
   N('approver', 'pf', 'PF approver', ['web approver plugin', 'or mock phone (local)'], 1140, 480),
 ];
@@ -38,6 +41,10 @@ export const CIBA_LINK_EDGES = [
   E('pf', 'approver', 'authenticator asks the approver', PF), // 10
   E('approver', 'pf', 'Approve / Deny', PF), // 11
   E('bff', 'pf', 'PF: CIBA-grant poll; browser polls /ciba/status', PF), // 12
+  E('browser', 'pwd', 'Sign-in: username + password via the BFF (secondFactor: ciba)'), // 13
+  E('pwd', 'bff', 'flow COMPLETED: BFF parks it in the session (150 s, single use); no cookie yet'), // 14
+  E('browser', 'bff', 'POST /api/auth/ciba/login/start { channel }; then GET /login/poll/:id'), // 15
+  E('bff', 'browser', 'approved only if the CIBA sub is the password user: parked flow completes, normal session'), // 16
 ];
 
 export const CIBA_LINK_STEPS = [
@@ -48,5 +55,10 @@ export const CIBA_LINK_STEPS = [
   { key: 'check', edges: [7], title: 'Approved only for the right person', what: "The BFF validates the id_token and requires its sub to be the signed-in user's PingOne id; a mismatch is rejected as a different account.", why: 'A link approved by someone else cannot satisfy this user\'s step-up.' },
   { key: 'pf', edges: [8, 9, 10, 11, 12], title: 'PingFederate: same pattern, different approver', what: "With a PingFederate session the PF CIBA routes use PF's backchannel endpoint. PF's authenticator hands the request to the web approver (or the local mock phone); Approve or Deny answers it while the BFF polls PF with the CIBA grant.", why: 'Same request, poll, answer shape; only the issuer and the approver change.' },
 ];
+
+CIBA_LINK_STEPS.push(
+  { key: 'signin-pw', edges: [13, 14], title: 'Sign-in: password first, flow parked', what: 'With password + approval link chosen, the normal pi.flow password step runs with the normal login client. When it finishes, the BFF does not complete the sign-in: it parks the finished flow in the browser session (150 s, single use) and answers that an approval is needed. No session cookie exists yet.', why: 'The password alone is not enough; the approval link is the second factor.' },
+  { key: 'signin-approve', edges: [15, 16], title: 'Sign-in: the approval link completes it', what: 'The user picks email or text; the BFF starts the same CIBA request as step-up for the password user (a PingFederate user maps to the PingOne account with the same username). Only an approval whose id_token sub equals that user completes the parked flow into a normal session. Denied, expired or a different person discards it.', why: 'CIBA proves who is signing in; it never becomes the session, so tokens, refresh and exchange are unchanged.' },
+);
 
 export const CIBA_LINK_DIAGRAM = { GROUPS: CIBA_LINK_GROUPS, NODES: CIBA_LINK_NODES, EDGES: CIBA_LINK_EDGES, STEPS: CIBA_LINK_STEPS };

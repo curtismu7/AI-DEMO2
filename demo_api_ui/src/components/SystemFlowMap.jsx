@@ -60,7 +60,7 @@ export const NODES = {
   // below for the evidence each one actually lights on:
   'p1-mfa': { name: 'MFA', sub: 'Device step-up · PingOne MFA' },
   'p1-consent': { name: 'Consent', sub: 'HITL approval · transfer consent' },
-  'p1-ciba': { name: 'CIBA', sub: 'Backchannel push · OIDC CIBA' },
+  'p1-ciba': { name: 'CIBA', sub: 'Approval link · OIDC CIBA' },
   browser: { name: 'Browser', sub: 'demo_api_ui :4000' },
   bff: { name: 'BFF', sub: 'demo_api_server :3001' },
   agent: { name: 'LangGraph agent', sub: 'demoAgentLangGraphService' },
