@@ -875,9 +875,23 @@
 .App.end-user-nano a.app-page-toolbar-btn:hover,
 .App.end-user-nano a.app-page-toolbar-btn:focus-visible,
 .App.end-user-nano a.app-page-toolbar-btn:active {
+  color: var(--th-text) !important;
+  -webkit-text-fill-color: var(--th-text) !important;
+  text-decoration: none !important;
+}
+
+/* Filled variants (primary red / danger) keep light text */
+.App.end-user-nano a.app-page-toolbar-btn.app-page-toolbar-btn--accent,
+.App.end-user-nano a.app-page-toolbar-btn.app-page-toolbar-btn--accent:any-link,
+.App.end-user-nano a.app-page-toolbar-btn.app-page-toolbar-btn--accent:hover,
+.App.end-user-nano a.app-page-toolbar-btn.app-page-toolbar-btn--danger,
+.App.end-user-nano a.app-page-toolbar-btn.app-page-toolbar-btn--danger:hover,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--accent,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--accent:hover,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--danger,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--danger:hover {
   color: var(--app-primary-btn-text, #fff) !important;
   -webkit-text-fill-color: var(--app-primary-btn-text, #fff) !important;
-  text-decoration: none !important;
 }
 
 /* Toolbar uses <button> on MCP Inspector / Demo config — nano still paints link-blue on buttons */
@@ -897,8 +911,8 @@
 .App.end-user-nano button.app-page-toolbar-btn:focus,
 .App.end-user-nano button.app-page-toolbar-btn:focus-visible,
 .App.end-user-nano button.app-page-toolbar-btn:active {
-  color: var(--app-primary-btn-text, #fff) !important;
-  -webkit-text-fill-color: var(--app-primary-btn-text, #fff) !important;
+  color: var(--th-text) !important;
+  -webkit-text-fill-color: var(--th-text) !important;
 }
 
 .App.end-user-nano a.log-page-nav-btn,
