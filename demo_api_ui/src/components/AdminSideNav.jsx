@@ -1,6 +1,7 @@
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { applyChildOrder } from "../config/navStructureCatalog";
+import { ID4AI_PDF, ID4AI_SLIDES } from "../config/id4aiSlides";
 import useDividerDrag from "../hooks/useDividerDrag";
 import { useAgentUiMode } from "../context/AgentUiModeContext";
 import { useEducationUI } from "../context/EducationUIContext";
@@ -1186,7 +1187,17 @@ export default function AdminSideNav({
         { label: "Workload Agents · Topology", path: "/demo-arch-slides/workload-agents", icon: "arc" },
         { label: "Workload Agents · CIBA Step-up", path: "/demo-arch-slides/ciba-hitl", icon: "arc" },
         { label: "Workload Agents · 3rd-party MCP via ID-JAG", path: "/demo-arch-slides/id-jag", icon: "arc" },
+        { label: "Workload Agent · Digital Assistant (OBO)", path: "/demo-arch-slides/obo-assistant", icon: "arc" },
+        { label: "Employee Agents · Coding Agents", path: "/demo-arch-slides/coding-agents", icon: "arc" },
         { label: "Agentic Control Plane", path: "/demo-arch-slides/control-plane", icon: "arc" },
+      ],
+    },
+    {
+      label: "ID4AI slides 301",
+      icon: "arc",
+      children: [
+        ...ID4AI_SLIDES.map((d) => ({ label: d.label, path: `/id4ai-slides/${d.id}`, icon: "arc" })),
+        { label: "Source deck (PDF)", icon: "log", action: () => window.open(ID4AI_PDF, "_blank", "noopener,noreferrer") },
       ],
     },
     {

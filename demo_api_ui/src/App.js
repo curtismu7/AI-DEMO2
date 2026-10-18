@@ -18,6 +18,7 @@ import Accounts from "./components/Accounts";
 import { ActorTokenEducation } from "./components/ActorTokenEducation";
 import AdminErrorAuditLog from "./components/AdminErrorAuditLog";
 import AdminSideNav from "./components/AdminSideNav";
+import DrawOverlay from "./components/DrawOverlay";
 import PageGuide from "./components/PageGuide";
 import { appRendersSideNav, isNoChromeRoute, normalizePath } from "./routes/sideNavOwner";
 import AdminTokenComplianceAudit from "./components/AdminTokenComplianceAudit";
@@ -33,7 +34,7 @@ import PrivilegeDocsIndexPage from "./pages/PrivilegeDocsIndexPage";
 import SkillsIndexPage from "./pages/SkillsIndexPage";
 import InvestDualAuthDiagramPage from "./components/InvestDualAuthDiagramPage";
 import ExternalDoorDiagramPage from "./components/ExternalDoorDiagramPage";
-import DemoArchSlidesPage from "./components/DemoArchSlidesPage";
+import DemoArchSlidesPage, { Id4aiSlidesRoute } from "./components/DemoArchSlidesPage";
 import DemoStepsLifelineAuditPage from "./components/DemoStepsLifelineAuditPage";
 import DemoMapPage from "./components/DemoMapPage";
 import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
@@ -759,6 +760,7 @@ function AppWithAuth() {
               <PiFlowSignInModal />
               <PingFederateDownModal />
               <PingFederateRequiredModal />
+              <DrawOverlay />
               {sessionReauth && (
                 <SessionReauthBanner
                   message={sessionReauth.message}
@@ -2308,6 +2310,18 @@ function AppWithAuth() {
                             <Route
                               path="/demo-arch-slides/id-jag"
                               element={<DemoArchSlidesPage slide="id-jag" />}
+                            />
+                            <Route
+                              path="/demo-arch-slides/obo-assistant"
+                              element={<DemoArchSlidesPage slide="obo-assistant" />}
+                            />
+                            <Route
+                              path="/demo-arch-slides/coding-agents"
+                              element={<DemoArchSlidesPage slide="coding-agents" />}
+                            />
+                            <Route
+                              path="/id4ai-slides/:slideId"
+                              element={<Id4aiSlidesRoute />}
                             />
                             <Route
                               path="/demo-arch-slides/control-plane"
