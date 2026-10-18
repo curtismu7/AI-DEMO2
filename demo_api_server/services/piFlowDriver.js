@@ -170,6 +170,8 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
       // PingOne: usableStatus/email/phone. PingFederate's MFA adapter: usable + a masked `target`.
       const devices = rawDevices
         .filter((d) => (d.usableStatus?.status || 'ENABLED') === 'ENABLED' && d.usable !== false)
+        // PF's passkey step (checkAssertion) is not driven yet: don't offer a device that can't finish.
+        .filter((d) => !(pending.provider === 'pingfederate' && /^fido2$/i.test(d.type)))
         .map((d) => ({
           id: d.id,
           type: d.type,
