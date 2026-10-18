@@ -3,7 +3,7 @@
 import { Card, Chip } from "./demoArchPrimitives";
 
 export const CONTROL_PLANE_META = {
-  subtitle: "Agentic Control Plane · reference architecture mapped to the Super Banking demo",
+  subtitle: "Agentic Control Plane · reference architecture mapped to the Super AI Demo",
   aria: "Agentic control plane reference architecture: users on the left, an agentic control plane column, an IAM core row (identity provider, fine-grained authorization, credential broker, secret stores, workload identity), an Agent Privilege and Ping Gateway in the middle, agents at the bottom, and MCP servers and LLM providers on the right.",
   caption: "Every block names the component that plays that role in this demo. Red lines are the control path: identity, authorization and credentials flow from the IAM core down through the gateways to the agents; the control plane column on the left watches all of it.",
   steps: [

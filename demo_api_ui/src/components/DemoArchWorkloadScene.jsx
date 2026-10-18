@@ -6,7 +6,7 @@ import { Dots, Robot, Win } from "./demoArchPrimitives";
 
 export const WORKLOAD_META = {
   topology: {
-    subtitle: "Agent Core + Gateway + Authorization · as built in the Super Banking demo",
+    subtitle: "Agent Core + Gateway + Authorization · as built in the Super AI Demo",
     aria: "Workload Agents topology of the AI demo: a customer signs in through PingOne, the BFF exchanges the user token for a delegated agent token, agents call MCP tools through PingGateway, which asks PingOne Authorize for a decision and can route to the human-in-the-loop service; SPIRE issues workload SVIDs to the agents.",
     caption: "How one agent request crosses the trust boundary: the customer signs in to PingOne, the BFF trades the user token plus the agent's identity for a single delegated token, the agent calls an MCP tool through PingGateway, and PingGateway asks PingOne Authorize before the tool runs. A transfer adds the human-in-the-loop hop; SPIRE gives each agent workload its own SVID.",
     steps: [
@@ -22,7 +22,7 @@ export const WORKLOAD_META = {
     ],
   },
   ciba: {
-    subtitle: "Step-up authorization · CIBA (HITL) · as built in the Super Banking demo",
+    subtitle: "Step-up authorization · CIBA (HITL) · as built in the Super AI Demo",
     aria: "Step-up flow of the AI demo: PingOne Authorize returns STEP_UP for a large transfer, PingGateway refuses the tool call, the BFF starts a CIBA backchannel request at PingOne, the customer approves on their own device, and the agent retries with a bound transaction receipt.",
     caption: "What happens when the policy says step up: PingGateway refuses the transfer, the BFF starts a CIBA backchannel request at PingOne for the signed-in customer, the customer approves on their own device without touching the browser, the BFF polls until approved and marks the session step-up verified for five minutes, then the agent retries the same tool call carrying a single-use receipt.",
     steps: [
@@ -37,7 +37,7 @@ export const WORKLOAD_META = {
     ],
   },
   idjag: {
-    subtitle: "3rd-party MCP via ID-JAG · as built in the Super Banking demo",
+    subtitle: "3rd-party MCP via ID-JAG · as built in the Super AI Demo",
     aria: "ID-JAG flow of the AI demo: the user signs in through PingFederate, the BFF exchanges for an Identity Assertion JWT Authorization Grant, discovers the third-party MCP server's authorization server via RFC 9728, redeems the ID-JAG there for a local access token, and calls the third-party MCP tool through PingGateway.",
     caption: "Carrying one identity across two authorization servers without a second consent screen: PingFederate issues an audience-bound ID-JAG, the third-party MCP server's own authorization server redeems it through a JWT bearer grant after checking PingFederate's JWKS, and the resulting access token is what the MCP call actually carries.",
     steps: [

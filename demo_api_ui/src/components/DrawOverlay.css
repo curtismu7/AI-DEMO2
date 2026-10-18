@@ -1,0 +1,37 @@
+/* DrawOverlay.css: pencil layer above everything (modals included) so a box can be circled mid-demo. */
+.draw-canvas {
+  position: fixed;
+  inset: 0;
+  width: 100vw;
+  height: 100vh;
+  z-index: 2147483000;
+  pointer-events: none;
+  touch-action: none;
+}
+.draw-canvas--on { pointer-events: auto; cursor: crosshair; }
+
+.draw-bar {
+  position: fixed;
+  right: 16px;
+  bottom: 16px;
+  z-index: 2147483001;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: var(--radius-pill);
+  background: rgba(18, 22, 32, 0.92);
+  border: 1px solid var(--th-border, rgba(255, 255, 255, 0.18));
+  color: #fff;
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.35);
+  font-size: var(--font-size-sm);
+}
+.draw-swatch { width: 22px; height: 22px; border-radius: 50%; border: 2px solid transparent; cursor: pointer; padding: 0; }
+.draw-swatch--on { border-color: #fff; box-shadow: 0 0 0 2px rgba(255, 255, 255, 0.35); }
+.draw-w { width: 28px; height: 28px; border-radius: 50%; border: 1px solid transparent; background: transparent; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+.draw-w i { display: block; border-radius: 50%; background: #fff; }
+.draw-w--on { border-color: #fff; }
+.draw-btn, .draw-pencil { font: inherit; color: inherit; background: rgba(255, 255, 255, 0.12); border: 0; border-radius: var(--radius-pill); padding: 6px 12px; cursor: pointer; }
+.draw-btn:disabled { opacity: 0.4; cursor: default; }
+.draw-pencil--on { background: #c0291c; }
+@media print { .draw-bar { display: none; } }
