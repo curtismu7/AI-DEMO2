@@ -1,6 +1,6 @@
 # UI control standard (brand toggle system)
 
-One brand color (`#0b69a3`), rounded geometry, fill-on-active, shared focus ring.
+One brand color (Ping Red `#d20e0f`), rounded geometry, fill-on-active, shared focus ring.
 Seeded by the PingOne Agent Builder scope toggle.
 
 > **Decision (2026-06-19): controls are a FIXED PingOne blue, intentionally NOT

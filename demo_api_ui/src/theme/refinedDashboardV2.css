@@ -22,8 +22,8 @@
   --rd2-line-1: var(--th-border);
   --rd2-line-2: var(--th-border-strong);
 
-  /* Accent — from active vertical; fallback to banking blue */
-  --rd2-accent:       var(--theme-accent, #1b3a6b);
+  /* Accent — from active vertical; fallback to Ping Core Dark */
+  --rd2-accent:       var(--theme-accent, #051727);
   --rd2-accent-text:  #ffffff;
   /* Mix against the card surface, not literal white, so accent washes stay
      legible when the dark palette flips --th-bg-card. */
@@ -425,7 +425,7 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   opacity: .85;
 }
 /* Toolbar */
@@ -457,14 +457,14 @@
 
 /* ── Floating FAB ─────────────────────────────────── */
 .banking-agent-fab {
-  background: var(--theme-accent, #1b3a6b) !important;
+  background: var(--theme-accent, #051727) !important;
   color: #ffffff !important;
   font-family: "Montserrat", sans-serif !important;
   font-size: .88rem !important;
   font-weight: 600 !important;
   border: none !important;
   box-shadow:
-    0 8px 24px color-mix(in srgb, var(--theme-accent, #1b3a6b) 40%, transparent),
+    0 8px 24px color-mix(in srgb, var(--theme-accent, #051727) 40%, transparent),
     0 1px 3px rgba(0,0,0,.12) !important;
 }
 .banking-agent-fab:hover {
@@ -472,7 +472,7 @@
   transform: translateY(-2px) !important;
 }
 .banking-agent-fab::before {
-  border-color: var(--theme-accent, #1b3a6b) !important;
+  border-color: var(--theme-accent, #051727) !important;
 }
 
 /* The agent runs on every page, but the --rd2-* neutrals below are declared only under
@@ -502,7 +502,7 @@
   position: relative;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   border-radius: 16px 16px 0 0;
   pointer-events: none;
 }
@@ -538,13 +538,13 @@
   color: var(--rd2-ink-1, #111110) !important;
 }
 .banking-agent-panel .ba-input:focus {
-  border-color: var(--theme-accent, #1b3a6b) !important;
+  border-color: var(--theme-accent, #051727) !important;
   background: var(--rd2-surface, #ffffff) !important;
   outline: none !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #1b3a6b) 20%, #ffffff) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #051727) 20%, #ffffff) !important;
 }
 .banking-agent-panel .ba-send-btn {
-  background: var(--theme-accent, #1b3a6b) !important;
+  background: var(--theme-accent, #051727) !important;
   color: #ffffff !important;
   border-radius: 999px !important;
   border: none !important;
@@ -555,8 +555,8 @@
 
 /* ── Suggestion chips ─────────────────────────────── */
 .banking-agent-panel .ba-suggestion {
-  border-color: var(--theme-accent, #1b3a6b) !important;
-  color: var(--theme-accent, #1b3a6b) !important;
+  border-color: var(--theme-accent, #051727) !important;
+  color: var(--theme-accent, #051727) !important;
   font-family: "Montserrat", ui-sans-serif, sans-serif !important;
   font-size: .8rem !important;
   border-radius: 999px !important;
@@ -570,8 +570,8 @@
   color: var(--rd2-ink-1, #111110) !important;
 }
 .banking-agent-panel .ba-action-item:hover {
-  border-color: var(--theme-accent, #1b3a6b) !important;
-  color: var(--theme-accent, #1b3a6b) !important;
+  border-color: var(--theme-accent, #051727) !important;
+  color: var(--theme-accent, #051727) !important;
 }
 
 /* ── Bottom-dock identity rail (v2 mock) ──────────── */
@@ -649,9 +649,9 @@
   font-weight: 500 !important;
 }
 .ba-embedded-bottom-dock .ba-suggestion:hover {
-  border-color: var(--theme-accent, #1b3a6b) !important;
-  color: var(--theme-accent, #1b3a6b) !important;
-  background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 8%, #ffffff) !important;
+  border-color: var(--theme-accent, #051727) !important;
+  color: var(--theme-accent, #051727) !important;
+  background: color-mix(in srgb, var(--theme-accent, #051727) 8%, #ffffff) !important;
 }
 .ba-embedded-bottom-dock .ba-action-item {
   background: var(--rd2-surface-2, #f3f3f1) !important;
@@ -669,9 +669,9 @@
   padding: 5px 5px 5px 16px !important;
 }
 .ba-embedded-bottom-dock .ba-input-row:focus-within {
-  border-color: var(--theme-accent, #1b3a6b) !important;
+  border-color: var(--theme-accent, #051727) !important;
   background: var(--rd2-surface, #ffffff) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #1b3a6b) 20%, #ffffff) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #051727) 20%, #ffffff) !important;
 }
 .ba-embedded-bottom-dock .ba-input {
   background: transparent !important;
@@ -681,7 +681,7 @@
   color: var(--rd2-ink-1, #111110) !important;
 }
 .ba-embedded-bottom-dock .ba-send-btn {
-  background: var(--theme-accent, #1b3a6b) !important;
+  background: var(--theme-accent, #051727) !important;
   color: #ffffff !important;
   border: none !important;
   border-radius: 999px !important;
@@ -757,12 +757,12 @@
   background: var(--rd2-surface, #ffffff);
 }
 [data-rd-v2] .ud-qa-btn--accent {
-  background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 12%, #ffffff);
-  border-color: var(--theme-accent, #1b3a6b);
-  color: var(--theme-accent, #1b3a6b);
+  background: color-mix(in srgb, var(--theme-accent, #051727) 12%, #ffffff);
+  border-color: var(--theme-accent, #051727);
+  color: var(--theme-accent, #051727);
 }
 [data-rd-v2] .ud-qa-btn--accent:hover {
-  background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 18%, #ffffff);
+  background: color-mix(in srgb, var(--theme-accent, #051727) 18%, #ffffff);
 }
 [data-rd-v2] .ud-qa-btn--delegate {
   background: var(--rd2-positive, #1a6b49);
@@ -779,7 +779,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px clamp(16px, 4vw, 48px);
-  background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 6%, #ffffff);
+  background: color-mix(in srgb, var(--theme-accent, #051727) 6%, #ffffff);
   border-bottom: 1px solid var(--rd2-line-1, #e4e4e0);
   font-size: .75rem;
   font-family: var(--font-mono);
@@ -836,8 +836,8 @@
 }
 [data-rd-v2] .ud-super-pills button[aria-current="page"],
 [data-rd-v2] .ud-super-pills button.active {
-  color: var(--theme-accent, #1b3a6b);
-  border-bottom-color: var(--theme-accent, #1b3a6b);
+  color: var(--theme-accent, #051727);
+  border-bottom-color: var(--theme-accent, #051727);
   font-weight: 600;
 }
 
@@ -857,7 +857,7 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--theme-accent, #1b3a6b), color-mix(in srgb, var(--theme-accent, #1b3a6b) 60%, #ffffff));
+  background: linear-gradient(135deg, var(--theme-accent, #051727), color-mix(in srgb, var(--theme-accent, #1b3a6b) 60%, #ffffff));
   display: flex;
   align-items: center;
   justify-content: center;
@@ -894,13 +894,13 @@
   gap: 4px;
   width: fit-content;
   padding: 3px 8px;
-  background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 10%, #ffffff);
-  border: 1px solid var(--theme-accent, #1b3a6b);
+  background: color-mix(in srgb, var(--theme-accent, #051727) 10%, #ffffff);
+  border: 1px solid var(--theme-accent, #051727);
   border-radius: 999px;
   font-family: var(--font-mono);
   font-size: .65rem;
   letter-spacing: .04em;
-  color: var(--theme-accent, #1b3a6b);
+  color: var(--theme-accent, #051727);
   margin-top: 4px;
 }
 
@@ -1025,8 +1025,8 @@
 [data-rd-v2] .form-group select:focus {
   outline: none;
   background: var(--rd2-surface, #ffffff);
-  border-color: var(--theme-accent, #1b3a6b);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #1b3a6b) 15%, #ffffff);
+  border-color: var(--theme-accent, #051727);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #051727) 15%, #ffffff);
 }
 [data-rd-v2] .form-actions {
   display: flex;
@@ -1046,7 +1046,7 @@
   transition: all 150ms ease-out;
 }
 [data-rd-v2] .form-actions button[type="submit"] {
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   color: #ffffff;
 }
 [data-rd-v2] .form-actions button[type="submit"]:hover {
@@ -1227,8 +1227,8 @@
 [data-rd-v2] .otp-step-up-modal__input input:focus {
   outline: none;
   background: var(--rd2-surface, #ffffff);
-  border-color: var(--theme-accent, #1b3a6b);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #1b3a6b) 15%, #ffffff);
+  border-color: var(--theme-accent, #051727);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #051727) 15%, #ffffff);
 }
 [data-rd-v2] .otp-step-up-modal__input--error input {
   border-color: var(--rd2-negative, #c92a2a);
@@ -1262,7 +1262,7 @@
 [data-rd-v2] .otp-step-up-modal__btn-primary {
   flex: 1;
   padding: 11px 20px;
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   color: #ffffff;
   border: none;
   border-radius: 6px;
@@ -1376,7 +1376,7 @@
 }
 
 [data-rd-v2] .btn-primary {
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   color: #ffffff;
   border: none;
 }
@@ -1481,7 +1481,7 @@
 }
 
 [data-rd-v2] .landing-feature-icon {
-  color: var(--theme-accent, #1b3a6b);
+  color: var(--theme-accent, #051727);
   margin-bottom: 16px;
 }
 
@@ -1771,7 +1771,7 @@ body {
 
 [data-rd-v2] .ud-hero__spark span {
   flex: 1;
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   opacity: .18;
   border-radius: 2px;
 }

@@ -118,16 +118,16 @@ textarea::placeholder {
 :root {
   /* TopNav height — used by fixed-position elements */
   --topnav-height: 60px;
-  --app-primary-red: #b91c1c;
-  --app-primary-red-hover: #991b1b;
-  --app-primary-red-mid: #dc2626;
+  --app-primary-red: #d20e0f;
+  --app-primary-red-hover: #aa0005;
+  --app-primary-red-mid: #d20e0f;
   --app-primary-red-border: #7f1d1d;
   --app-primary-btn-text: #ffffff;
   /* Top-nav vars resolve to dashboard-header vars so a single manifest override
      (--brand-dashboard-header-*) themes both the dashboard hero and the sticky
      top-nav. Fallback colors retained for the no-manifest case. */
-  --brand-topnav-bg-start: var(--brand-dashboard-header-start, #1e293b);
-  --brand-topnav-bg-end: var(--brand-dashboard-header-end, #334155);
+  --brand-topnav-bg-start: var(--brand-dashboard-header-start, #051727);
+  --brand-topnav-bg-end: var(--brand-dashboard-header-end, #12538d);
   --brand-topnav-text: var(--brand-dashboard-header-text, #ffffff);
   --app-primary-blue: var(--brand-navy);
   --app-primary-blue-hover: var(--brand-navy);
@@ -152,16 +152,16 @@ textarea::placeholder {
      --brand-navy resolves to the manifest's --theme-accent so non-banking
      verticals cascade their accent through the hundreds of CSS rules that
      reference --brand-navy. Fallback retained for the no-manifest case. */
-  --brand-navy: var(--theme-accent, #1d4ed8);
-  --brand-navy-dark: #1e40af;
-  --brand-navy-light: #3b82f6;
-  --brand-blue: #2563eb;
-  --brand-blue-light: #60a5fa;
+  --brand-navy: var(--theme-accent, #051727);
+  --brand-navy-dark: #051727;
+  --brand-navy-light: #12538d;
+  --brand-blue: #12538d;
+  --brand-blue-light: #12538d;
 
   /* Phase 120-02: Softer Sidebar Colors */
-  --sidebar-bg: #1e3a8a;
-  --sidebar-bg-active: #1d4ed8;
-  --sidebar-bg-hover: #2563eb;
+  --sidebar-bg: #051727;
+  --sidebar-bg-active: #12538d;
+  --sidebar-bg-hover: color-mix(in srgb, #051727 55%, #12538d);
 
   /* Chase Neutrals */
   --brand-white: #ffffff;
@@ -356,10 +356,15 @@ textarea::placeholder {
      Aliasing them onto --th-* makes those 225 uses themed and collapses the
      drift, without touching a single consuming file.
 
-     NOT defined here: --color-primary / --color-accent / --color-danger. Their
-     fallbacks disagree across files (#005f99 vs #d20e0f — a teal and an
-     indigo), so picking one is a brand decision, not a cleanup. They keep
-     rendering their per-file fallback exactly as today. */
+     --color-primary / --color-accent / --color-danger were once left undefined
+     (per-file fallbacks disagreed: teal, indigo, red). Brand decision made
+     2026-10-18: Ping Red accent, one danger red, Core Dark primary. Verticals
+     still override via --theme-accent where they set it. */
+  --color-primary: #051727;
+  --color-accent: #d20e0f;
+  --color-accent-hover: #aa0005;
+  --color-danger: #d20e0f;
+  --color-info: #12538d;
   --color-text: var(--th-text);
   --color-text-primary: var(--th-text);
   --color-heading: var(--th-text);
