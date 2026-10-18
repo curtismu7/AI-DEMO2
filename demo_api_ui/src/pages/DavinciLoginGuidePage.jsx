@@ -11,6 +11,7 @@ import { LessonLayout, Section } from "../components/lesson";
 import { refreshWidgetSessionIfNeeded } from "../lib/davinciWidgetClient";
 import DavinciLoginWidget from "./DavinciLoginWidget";
 import "./DavinciLoginGuidePage.css";
+import PageHeader from '../components/common/PageHeader';
 
 export default function DavinciLoginGuidePage() {
   const isPopout = new URLSearchParams(window.location.search).get("popout") === "1";
@@ -65,11 +66,7 @@ export default function DavinciLoginGuidePage() {
   if (isPopout) {
     return (
       <main className="dvl-popout-page">
-        <header className="dvl-login-header">
-          <p className="dvl-eyebrow">PingOne DaVinci</p>
-          <h1>DaVinci Widget Login</h1>
-          <p>Run the DaVinci flow in a separate window.</p>
-        </header>
+        <PageHeader className="dvl-login-header" eyebrow="PingOne DaVinci" title="DaVinci Widget Login" summary="Run the DaVinci flow in a separate window." />
         <div className="dvl-popout-card">
           <DavinciLoginWidget />
         </div>

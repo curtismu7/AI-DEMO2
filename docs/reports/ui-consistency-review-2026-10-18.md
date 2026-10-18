@@ -74,7 +74,7 @@ Last runtime audit (slightly stale): ~38 unique violations on 164 rendered route
 - [ ] Decide whether the `FootprintMockGallery` page chrome (currently in the skip list) should be checked too
 
 ### PageHeader rollout (~100 pages still bespoke)
-- [ ] Batch: pages with `<header>` + eyebrow + h1 + summary (`DavinciLoginGuide`, `GuidedJourney`, `ObservabilityDiagram`, `PingFederateDavinciKit`, `PingFederateIdJagExplainer`, `PingFederateIdJag`, `WorkloadAgents`, `SpiffePingoneBridge`, `StandaloneDemoLauncher`)
+- [x] Batch: pages with `<header>` + eyebrow + h1 + summary (`DavinciLoginGuide`, `GuidedJourney`, `ObservabilityDiagram`, `PingFederateDavinciKit`, `PingFederateIdJagExplainer`, `PingFederateIdJag`, `WorkloadAgents`, `SpiffePingoneBridge`, `StandaloneDemoLauncher`) — PR 3
 - [ ] Batch: pages with a plain eyebrow + h1 inside a `div` hero (`pmd-hero` family: 4 pages, `asp-hero` done)
 - [ ] Batch: pages with toolbar-style headers (`LlmGateway`, `LlmTest`, `Tracing`, `TransactionTrace`, `Telemetry`) — need a design decision (actions slot)
 - [ ] Batch: lesson/learning pages with back links (`ExternalAgentLesson`, `IntentBindingLearning`, `MortgagePath`, `PrivilegeMcpLearning`, `VerticalFeature`, `LangChain`, `PingOneSetupGuide`)
@@ -93,6 +93,8 @@ Last runtime audit (slightly stale): ~38 unique violations on 164 rendered route
 ### Needs confirmation from the brand hub (SSO-gated)
 - [ ] Gray 300, 500, 600 hex values; `#263746`, `#909ea4`, `#cdd1d4`, `#eff0f1` were taken from pingidentity.com's own CSS, not the hub
 - [ ] Official dark-theme tints of Ping Red and Ping blue (none exist in the palette, so dark theme uses Tailwind tints `#fca5a5` / `#93c5fd` for text)
+
+- [ ] Other off-palette hues: teal (`#05615b` on the ID-JAG pages was one), orange, green accents. The sweeps only covered blue/red/indigo/purple/pink and slate. Scan hue families and decide per accent (several are per-vertical on purpose)
 
 ### Housekeeping
 - [ ] Update the `brand-compliance` skill and `AI-DEMO2/CLAUDE.md` with: mono = IBM Plex Mono via `--font-mono`, the two-red rule, no purple, the contrast hook and `npm run check:contrast` / `audit:contrast`

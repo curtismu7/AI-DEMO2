@@ -5,23 +5,6 @@
   color: var(--th-text);
 }
 
-.guided-journey__intro {
-  display: flex;
-  align-items: end;
-  justify-content: space-between;
-  gap: 2rem;
-  padding: 1.5rem;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-xl);
-  color: var(--th-text-invert);
-  background: var(--th-bg-band);
-}
-
-.guided-journey__intro h1 {
-  margin: 0;
-  color: var(--th-text-invert);
-}
-
 .journey-step__header h2 {
   margin: 0;
   color: var(--th-text);
@@ -32,13 +15,6 @@
   margin: 0.6rem 0 0;
   color: var(--th-text-invert);
   line-height: 1.6;
-}
-
-.guided-journey__kicker {
-  margin: 0 0 0.35rem;
-  color: var(--th-text-invert);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
 }
 
 .journey-step__header p {
@@ -279,10 +255,3 @@
   text-underline-offset: 0.15em;
 }
 
-@media (max-width: 760px) {
-  .guided-journey__intro {
-    align-items: start;
-    flex-direction: column;
-    gap: 1rem;
-  }
-}

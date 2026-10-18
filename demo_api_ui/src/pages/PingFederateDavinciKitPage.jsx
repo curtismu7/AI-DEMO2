@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import "./PingFederateDavinciKitPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 const PF_LOGIN = "/api/auth/oauth/user/pf-davinci/login";
 
@@ -28,16 +29,9 @@ export default function PingFederateDavinciKitPage() {
 
   return (
     <main className="pf-davinci-page">
-      <header className="pf-davinci-hero">
-        <div className="pf-davinci-hero-copy">
-          <p className="pf-davinci-kicker">PingFederate integration</p>
-          <h1>DaVinci Integration Kit</h1>
-          <p className="pf-davinci-lede">
-            Run the DaVinci flow through PingFederate&rsquo;s installed default Integration Kit.
-            The kit runs in the PF authentication policy, so start with a fresh PF sign-in.
-          </p>
-        </div>
-        <aside className={`pf-davinci-session ${hasPfSession ? "is-ready" : "is-blocked"}`} aria-live="polite">
+      <PageHeader className="pf-davinci-hero" eyebrow="PingFederate integration" title="DaVinci Integration Kit" summary={<>Run the DaVinci flow through PingFederate&rsquo;s installed default Integration Kit.
+            The kit runs in the PF authentication policy, so start with a fresh PF sign-in.</>}
+        actions={<>        <aside className={`pf-davinci-session ${hasPfSession ? "is-ready" : "is-blocked"}`} aria-live="polite">
           <strong>{hasPfSession ? "PingFederate session detected" : "PingFederate sign-in required"}</strong>
           <p>
             {checkingPfStatus
@@ -55,7 +49,7 @@ export default function PingFederateDavinciKitPage() {
             </a>
           )}
         </aside>
-      </header>
+        </>} />
 
       <section className="pf-davinci-section" aria-labelledby="pf-davinci-flow-title">
         <div className="pf-davinci-section-heading">

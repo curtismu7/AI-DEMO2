@@ -19,33 +19,6 @@
   padding: 24px clamp(12px, 2vw, 28px) 20px;
 }
 
-.obs-header {
-  display: flex;
-  align-items: flex-start;
-  justify-content: space-between;
-  gap: 24px;
-  flex-wrap: wrap;
-}
-
-.obs-kicker {
-  margin: 0 0 5px;
-  color: var(--th-status-info-text);
-  font-size: var(--font-size-sm);
-  font-weight: 700;
-}
-
-.obs-header h1 {
-  margin: 0;
-  font-size: var(--font-size-h1);
-  letter-spacing: -0.025em;
-}
-
-.obs-lede {
-  margin: 6px 0 0;
-  color: var(--th-text-muted);
-  max-width: 72ch;
-}
-
 .obs-mock-chip {
   flex: none;
   align-self: center;

@@ -136,6 +136,8 @@ function auditInPage() {
     if (rect.width < 2 || rect.height < 2) continue;
     const fgc = parse(cs.color);
     if (!fgc || fgc.a === 0) continue;
+    const fill = parse(cs.webkitTextFillColor || '');
+    if (fill && fill.a === 0) continue; // gradient-clipped text (background-clip: text) paints its own fill
     lastOwner = null;
     const bgs = backgrounds(el);
     if (!bgs) continue;

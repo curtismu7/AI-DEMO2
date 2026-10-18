@@ -12,6 +12,7 @@ import {
   runLesson,
 } from "../services/lessonExecutionService";
 import "./GuidedJourneyPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 const JOURNEY_SEQUENCE = Object.freeze([
   ["agent-landscape", "Discover agents"],
@@ -171,19 +172,12 @@ export default function GuidedJourneyPage({
 
   return (
     <div className="guided-journey">
-      <header className="guided-journey__intro">
-        <div>
-          <p className="guided-journey__kicker">AI Security Academy</p>
-          <h1>Guided customer journey</h1>
-          <p>
-            Follow one customer story from the business risk to the evidence
-            that proves every agent action stayed governed.
-          </p>
-        </div>
-        <span className="guided-journey__position">
+      <PageHeader className="guided-journey__intro" eyebrow="AI Security Academy" title="Guided customer journey" summary={<>Follow one customer story from the business risk to the evidence
+            that proves every agent action stayed governed.</>}
+        actions={<>        <span className="guided-journey__position">
           {activeIndex + 1} / {steps.length}
         </span>
-      </header>
+        </>} />
 
       <TenantReadinessStrip
         loadReadiness={loadReadiness}
