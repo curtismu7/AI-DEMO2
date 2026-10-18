@@ -1,7 +1,10 @@
-// roleSwitch.js — initiate an OAuth re-login as a different role via the BFF.
-// POST /api/auth/switch clears the current session auth and returns the login
-// URL for the target role; we navigate there, optionally asking the BFF to
-// land on `returnTo` (a same-origin SPA path) after login completes.
+// roleSwitch.js — sign in again as a different role.
+// POST /api/auth/switch clears the current session auth (and any stale
+// post-login return path); the sign-in then goes through the shared entry point
+// — the device-first pi.flow modal, or its redirect fallback — landing on
+// `returnTo` (a same-origin SPA path), else the role's home page.
+import { openSignIn } from "./signInService";
+
 export async function startRoleSwitch(targetRole, returnTo) {
   const r = await fetch("/api/auth/switch", {
     method: "POST",
@@ -10,13 +13,6 @@ export async function startRoleSwitch(targetRole, returnTo) {
     body: JSON.stringify({ targetRole }),
   });
   if (!r.ok) throw new Error(`Switch failed: ${r.status}`);
-  const contentType = r.headers.get('content-type') || '';
-  if (!contentType.includes('application/json')) {
-    throw new Error(`Switch returned ${contentType}, expected application/json`);
-  }
-  const { redirectUrl } = await r.json();
-  const sep = redirectUrl.includes("?") ? "&" : "?";
-  window.location.href = returnTo
-    ? `${redirectUrl}${sep}return_to=${encodeURIComponent(returnTo)}`
-    : redirectUrl;
+  const admin = targetRole === "admin";
+  openSignIn({ role: admin ? "admin" : "customer", returnTo: returnTo || (admin ? "/admin" : "/dashboard"), force: true });
 }
