@@ -15,7 +15,8 @@
 //   node scripts/pingfederate/enable-pi-flow-user-client.js            # dry run: shows what would change
 //   node scripts/pingfederate/enable-pi-flow-user-client.js --apply    # change PF, verify, revert on failure
 //
-// Env overrides: PF_ADMIN_BASE, PF_ENGINE, PF_USER_CLIENT_ID, PF_USER_REDIRECT_URI, PINGFEDERATE_ADMIN_PASSWORD.
+// Env overrides: PF_ADMIN_BASE, PF_ENGINE, PF_USER_CLIENT_ID, PF_USER_REDIRECT_URI, PF_CLIENT_SECRET_ENV, PINGFEDERATE_ADMIN_PASSWORD.
+// Admin client: PF_USER_CLIENT_ID=ai-demo-pf-admin PF_USER_REDIRECT_URI=https://local.ping-devops.com:4000/api/auth/oauth/callback PF_CLIENT_SECRET_ENV=PF_ADMIN_CLIENT_SECRET
 'use strict';
 
 process.env.NODE_TLS_REJECT_UNAUTHORIZED = process.env.NODE_TLS_REJECT_UNAUTHORIZED || '0'; // local mkcert PF
@@ -65,7 +66,8 @@ async function authorize(scope, mode) {
 // bogus code -> invalid_grant means the client authenticated; invalid_client means its secret broke.
 async function clientSecretStillWorks() {
   let secret = '';
-  try { secret = execFileSync('docker', ['exec', 'ai-demo-api-server', 'printenv', 'PF_USER_CLIENT_SECRET']).toString().trim(); } catch (_) { /* not available */ }
+  // PF_CLIENT_SECRET_ENV names the BFF env var holding this client's secret (admin client: PF_ADMIN_CLIENT_SECRET).
+  try { secret = execFileSync('docker', ['exec', 'ai-demo-api-server', 'printenv', process.env.PF_CLIENT_SECRET_ENV || 'PF_USER_CLIENT_SECRET']).toString().trim(); } catch (_) { /* not available */ }
   if (!secret) return 'unchecked';
   const r = await fetch(`${ENGINE}/as/token.oauth2`, {
     method: 'POST',
