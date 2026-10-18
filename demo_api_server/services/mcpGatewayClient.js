@@ -569,10 +569,14 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
 
     if (status === 401) {
         const body401 = response.data || {};
-        const gatewayError = body401.error || 'gateway_auth_failed';
+        // RFC 6750 §3: PingGateway answers with an empty body and the reason in WWW-Authenticate.
+        const wwwAuth = String(response.headers?.['www-authenticate'] || '');
+        const fromHeader = (k) => new RegExp(`(?:^|[\\s,])${k}="([^"]*)"`).exec(wwwAuth)?.[1];
+        const gatewayError = body401.error || fromHeader('error') || 'gateway_auth_failed';
         const gatewayMessage =
             body401.message ||
             body401.error_description ||
+            fromHeader('error_description') ||
             'token may be missing or expired';
         // Classify WHY the bearer was rejected so the surfaced message is accurate
         // and actionable. Decode the rejected token's claims (NOT the raw token;
@@ -703,6 +707,7 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
             {
                 code,
                 httpStatus,
+                gatewayStatus: status,
                 gatewayErrorCode: gatewayError,
                 gatewayMessage,
                 login_required: needsLogin,
