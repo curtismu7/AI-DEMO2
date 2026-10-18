@@ -13,7 +13,9 @@ export const SMS_POLICY = '87929b3e4c6857e5ff854502dbde1742';
 const WANTED = [[EMAIL_POLICY, 'CIBA - EMAIL'], [SMS_POLICY, 'CIBA-SMS']];
 
 // Admin CIBA replaces its sign-on policy with the shared CIBA policy, so PingOne must restrict who can use the app.
-const isRestricted = (ac) => !!(ac && (ac.role?.type || ac.group?.groups?.length));
+// Strict: only the known PingOne restriction shapes count (role ADMIN_USERS_ONLY, or a group restriction with >=1 group).
+const isRestricted = (ac) => !!(ac && (ac.role?.type === 'ADMIN_USERS_ONLY'
+  || (['ANY_GROUP', 'ALL_GROUPS'].includes(ac.group?.type) && Array.isArray(ac.group.groups) && ac.group.groups.length > 0)));
 
 /**
  * @param currentApps [{role:'user'|'admin', app}]
@@ -30,7 +32,8 @@ export function planCibaLogin(currentApps, currentAssignments, flowPolicies) {
       ops.notes.push(`BLOCKED: Admin app '${app.name}' (${String(app.id).slice(0, 8)}…) has no PingOne access restriction (accessControl role/group). Enabling CIBA there would let any customer account approve into an admin session. Restrict it in PingOne first; nothing planned for admin.`);
       continue;
     }
-    if (!app.grantTypes?.includes('CIBA')) ops.push({ op: 'update-app', target: app.id, body: { ...app, grantTypes: [...app.grantTypes, 'CIBA'] } });
+    const grants = app.grantTypes || [];
+    if (!grants.includes('CIBA')) ops.push({ op: 'update-app', target: app.id, body: { ...app, grantTypes: [...grants, 'CIBA'] } });
     const have = currentAssignments[app.id] || [];
     let prio = Math.max(0, ...have.map((a) => a.priority || 0));
     for (const [id] of WANTED) if (!have.some((a) => a.flowPolicy?.id === id)) ops.push({ op: 'add-flow-policy', target: app.id, body: { flowPolicy: { id }, priority: ++prio } });
@@ -38,80 +41,150 @@ export function planCibaLogin(currentApps, currentAssignments, flowPolicies) {
   return ops;
 }
 
+const READONLY = ['id', 'environment', 'createdAt', 'updatedAt', '_links'];
+export const putBody = (app) => Object.fromEntries(Object.entries(app).filter(([k]) => !READONLY.includes(k)));
+const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
+
+/** Names of top-level fields that differ between two apps (values never returned). grantTypes must equal before + 'CIBA' (as a set). */
+export function diffApps(before, after) {
+  const b = putBody(before); const a = putBody(after); const bad = [];
+  for (const k of new Set([...Object.keys(b), ...Object.keys(a)])) {
+    if (k === 'grantTypes') continue;
+    if (JSON.stringify(canon(b[k])) !== JSON.stringify(canon(a[k]))) bad.push(k);
+  }
+  // PingOne returns grantTypes in its own order (observed), so compare as sets: exactly before + CIBA.
+  if (JSON.stringify([...(a.grantTypes || [])].sort()) !== JSON.stringify([...(b.grantTypes || []), 'CIBA'].sort())) bad.push('grantTypes');
+  return bad;
+}
+
+export const backupName = (appId, now = new Date()) => `${appId}.${now.toISOString().replace(/:/g, '-')}.backup.json`;
+/** The ORIGINAL backup is the earliest timestamped one for the app. */
+export const originalBackup = (files, appId) => files.filter((f) => f.startsWith(appId + '.') && f.endsWith('.backup.json')).sort()[0];
+
+export function pickByName(list, name) {
+  const m = list.filter((a) => a.name === name);
+  if (m.length !== 1) throw new Error(`expected exactly one app named '${name}', found ${m.length}`);
+  return m[0];
+}
+
+export function parseArgs(argv) {
+  const r = { app: 'both', apply: false, probe: false };
+  for (let i = 0; i < argv.length; i++) {
+    const a = argv[i];
+    if (a === '--apply' || a === '--probe') r[a.slice(2)] = true;
+    else if (a === '--out' || a === '--app') {
+      const v = argv[++i];
+      if (v === undefined || v.startsWith('--')) throw new Error(`${a} needs a value`);
+      r[a.slice(2)] = v;
+    } else throw new Error(`unknown argument '${a}'`);
+  }
+  if (!r.out) throw new Error('--out <dir> required');
+  if (!['user', 'admin', 'both'].includes(r.app)) throw new Error('--app must be user|admin|both');
+  return r;
+}
+
+/** The ONE write path for an app change (used by --apply and --probe): PUT, re-GET, deep compare. Throws naming differing keys. */
+export async function putAppVerified(call, before, desired) {
+  const r = await call('PUT', `/applications/${before.id}`, putBody(desired));
+  if (r.status >= 300) throw new Error(`PUT app failed: ${r.status} ${JSON.stringify(r.j).slice(0, 300)}`);
+  const g = await call('GET', `/applications/${before.id}`);
+  if (g.status >= 300) throw new Error(`read-back GET failed: ${g.status}`);
+  const bad = diffApps(before, g.j);
+  if (bad.length) throw new Error(`READ-BACK MISMATCH on app ${String(before.id).slice(0, 8)}…; differing fields: ${bad.join(', ')}`);
+  return g.j;
+}
+
 // ---- CLI ----
 const mask = (s) => (s ? String(s).slice(0, 8) + '…' : s);
-const READONLY = ['id', 'environment', 'createdAt', 'updatedAt', '_links'];
-const putBody = (app) => Object.fromEntries(Object.entries(app).filter(([k]) => !READONLY.includes(k)));
 
 async function main() {
-  const args = process.argv.slice(2);
-  const opt = (n, d) => (args.includes('--' + n) ? args[args.indexOf('--' + n) + 1] : d);
-  const flag = (n) => args.includes('--' + n);
-  const out = opt('out'); if (!out) { console.error('--out <dir> required'); process.exit(2); }
-  const which = opt('app', 'both');
+  const o = parseArgs(process.argv.slice(2));
+  const { out, app: which } = o;
   const f = process.env.ENV_FILE || new URL('../../demo_api_server/.env', import.meta.url).pathname;
   const env = Object.fromEntries(fs.readFileSync(f, 'utf8').split('\n').filter((l) => /^[A-Z_0-9]+=/.test(l)).map((l) => { const i = l.indexOf('='); return [l.slice(0, i), l.slice(i + 1).replace(/^["']|["']$/g, '')]; }));
   const E = env.PINGONE_ENVIRONMENT_ID;
   const API = `https://api.pingone.com/v1/environments/${E}`;
   const tr = await fetch(`https://auth.pingone.com/${E}/as/token`, { method: 'POST', headers: { 'content-type': 'application/x-www-form-urlencoded', authorization: 'Basic ' + Buffer.from(`${env.PINGONE_WORKER_CLIENT_ID}:${env.PINGONE_WORKER_CLIENT_SECRET}`).toString('base64') }, body: 'grant_type=client_credentials' });
-  const H = { authorization: 'Bearer ' + (await tr.json()).access_token, 'content-type': 'application/json' };
+  const tj = await tr.json().catch(() => ({}));
+  if (!tr.ok || !tj.access_token) throw new Error(`worker token request failed: ${tr.status} ${tj.error || ''}`);
+  const H = { authorization: 'Bearer ' + tj.access_token, 'content-type': 'application/json' };
   const call = async (method, p, body) => { const r = await fetch(API + p, { method, headers: H, body: body ? JSON.stringify(body) : undefined }); return { status: r.status, j: await r.json().catch(() => ({})) }; };
   const must = (r, what) => { if (r.status >= 300) throw new Error(`${what} failed: ${r.status} ${JSON.stringify(r.j).slice(0, 300)}`); return r.j; };
   fs.mkdirSync(out, { recursive: true });
 
-  if (flag('probe')) {
+  if (o.probe) {
     const user = must(await call('GET', '/applications/83572007-b2c7-4862-8197-dc225a9fb8e1'), 'GET user app');
     const name = 'SPIKE-delete-me-login-copy-' + Math.random().toString(36).slice(2, 8);
-    const mk = await call('POST', '/applications', { name, enabled: true, type: 'WEB_APP', protocol: 'OPENID_CONNECT', grantTypes: ['AUTHORIZATION_CODE', 'REFRESH_TOKEN'], tokenEndpointAuthMethod: 'CLIENT_SECRET_POST', pkceEnforcement: user.pkceEnforcement || 'S256_REQUIRED', responseTypes: ['CODE'], redirectUris: ['https://localhost.invalid/callback'] });
-    console.log('create throwaway:', mk.status, mk.status < 300 ? '' : JSON.stringify(mk.j).slice(0, 400));
+    const { clientId: _omit, ...copy } = putBody(user); // a new app must get its own clientId (PingOne rejects a reused one)
+    const body = { ...copy, name };
+    let mk = await call('POST', '/applications', body);
+    let placeholder = false;
+    if (mk.status >= 300 && (body.redirectUris || body.postLogoutRedirectUris)) { // originals may clash
+      placeholder = true;
+      if (body.redirectUris) body.redirectUris = ['https://localhost.invalid/callback'];
+      if (body.postLogoutRedirectUris) body.postLogoutRedirectUris = ['https://localhost.invalid/logout'];
+      mk = await call('POST', '/applications', body);
+    }
+    console.log('create throwaway (full copy of User Login settings):', mk.status, placeholder ? '(redirect URIs replaced by placeholders)' : '(original redirect URIs kept)', mk.status < 300 ? '' : JSON.stringify(mk.j).slice(0, 400));
     if (mk.status >= 300) process.exit(1);
-    const up = await call('PUT', `/applications/${mk.j.id}`, putBody({ ...mk.j, grantTypes: ['AUTHORIZATION_CODE', 'REFRESH_TOKEN', 'CIBA'] }));
-    const back = (await call('GET', `/applications/${mk.j.id}`)).j;
-    console.log('add CIBA to throwaway:', up.status, up.status < 300 ? '' : JSON.stringify(up.j).slice(0, 400));
-    console.log('read-back grantTypes:', back.grantTypes, 'pkce:', back.pkceEnforcement, 'auth:', back.tokenEndpointAuthMethod);
-    console.log(`PROBE ${up.status < 300 && back.grantTypes?.includes('CIBA') ? 'PASS' : 'FAIL'}. Owner: delete throwaway app '${name}' id ${mk.j.id}`);
+    console.log(`THROWAWAY '${name}' id ${mk.j.id} (owner: delete it)`);
+    console.log('Fields stripped from the copy source:', [...READONLY.filter((k) => k in user), 'clientId (create only)'].join(', '));
+    const created = (await call('GET', `/applications/${mk.j.id}`)).j;
+    const { clientId: _c, ...ub } = putBody(user); const cb = putBody(created);
+    const changed = Object.keys(ub).filter((k) => k !== 'name' && !(placeholder && /RedirectUris$/.test(k)) && JSON.stringify(canon(ub[k])) !== JSON.stringify(canon(cb[k])));
+    const extra = Object.keys(cb).filter((k) => !(k in ub) && k !== 'clientId');
+    console.log('POST copy vs source, fields PingOne changed:', changed.length ? changed.join(', ') : 'none', '| fields PingOne added:', extra.length ? extra.join(', ') : 'none');
+    try {
+      const after = await putAppVerified(call, created, { ...created, grantTypes: [...(created.grantTypes || []), 'CIBA'] });
+      console.log('PUT CIBA via the --apply code path + deep compare: LOSSLESS. grantTypes now', after.grantTypes, 'pkce', after.pkceEnforcement, 'auth', after.tokenEndpointAuthMethod);
+    } catch (e) { console.log('PUT CIBA via the --apply code path: FAILED -', e.message); process.exitCode = 1; }
     return;
   }
 
   const ROLE_IDS = { user: '83572007-b2c7-4862-8197-dc225a9fb8e1' };
   const list = must(await call('GET', '/applications'), 'GET applications')._embedded.applications;
-  const adminApp = list.find((a) => a.name === 'Demo AI App - Admin Login');
-  if (adminApp) ROLE_IDS.admin = adminApp.id; else if (which !== 'user') throw new Error("Admin app 'Demo AI App - Admin Login' not found");
+  if (which !== 'user') ROLE_IDS.admin = pickByName(list, 'Demo AI App - Admin Login').id;
   const roles = which === 'both' ? ['user', 'admin'] : [which];
-  const currentApps = []; const assigns = {};
+  const currentApps = []; const assigns = {}; const stamp = new Date();
   for (const role of roles) {
     const app = must(await call('GET', `/applications/${ROLE_IDS[role]}`), `GET ${role} app`);
     currentApps.push({ role, app });
     assigns[app.id] = must(await call('GET', `/applications/${app.id}/flowPolicyAssignments`), 'GET flowPolicyAssignments')._embedded?.flowPolicyAssignments || [];
-    fs.writeFileSync(path.join(out, `${app.id}.backup.json`), JSON.stringify({ app, flowPolicyAssignments: assigns[app.id], signOnPolicyAssignments: (await call('GET', `/applications/${app.id}/signOnPolicyAssignments`)).j._embedded?.signOnPolicyAssignments }, null, 2));
+    const so = must(await call('GET', `/applications/${app.id}/signOnPolicyAssignments`), 'GET signOnPolicyAssignments')._embedded?.signOnPolicyAssignments;
+    if (!Array.isArray(so)) throw new Error(`signOnPolicyAssignments for ${mask(app.id)} missing from response`);
+    fs.writeFileSync(path.join(out, backupName(app.id, stamp)), JSON.stringify({ app, flowPolicyAssignments: assigns[app.id], signOnPolicyAssignments: so }, null, 2), { flag: 'wx' });
   }
   const fps = must(await call('GET', '/flowPolicies'), 'GET flowPolicies')._embedded?.flowPolicies || [];
   const ops = planCibaLogin(currentApps, assigns, fps);
   const nameOf = (id) => currentApps.find((c) => c.app.id === id)?.app.name;
-  console.log(`Backups written to ${out}/<appid>.backup.json`);
+  const orig = (id) => path.join(out, originalBackup(fs.readdirSync(out), id));
+  console.log(`Backups: ${out}/<appid>.<time>.backup.json (never overwritten; the EARLIEST per app is the ORIGINAL)`);
   for (const n of ops.notes) console.log('\n' + n);
   console.log(`\nPLAN (${ops.length} op${ops.length === 1 ? '' : 's'}, additive only):`);
-  for (const o of ops) console.log(' -', o.op === 'update-app' ? `PUT app ${mask(o.target)} '${nameOf(o.target)}': add CIBA grant -> grantTypes [${o.body.grantTypes}]` : `POST flowPolicyAssignment on ${mask(o.target)} '${nameOf(o.target)}': ${mask(o.body.flowPolicy.id)} priority ${o.body.priority}`);
-  if (!flag('apply')) { console.log('\nDRY RUN: nothing changed. Re-run with --apply to perform.'); return; }
+  for (const x of ops) console.log(' -', x.op === 'update-app' ? `PUT app ${mask(x.target)} '${nameOf(x.target)}': add CIBA grant -> grantTypes [${x.body.grantTypes}]` : `POST flowPolicyAssignment on ${mask(x.target)} '${nameOf(x.target)}': ${mask(x.body.flowPolicy.id)} priority ${x.body.priority}`);
+  if (!o.apply) { console.log('\nDRY RUN: nothing changed. Re-run with --apply to perform.'); return; }
 
-  const revert = [];
-  for (const o of ops) {
-    if (o.op === 'update-app') {
-      const before = currentApps.find((c) => c.app.id === o.target).app;
-      must(await call('PUT', `/applications/${o.target}`, putBody(o.body)), 'PUT app');
-      const after = must(await call('GET', `/applications/${o.target}`), 'read-back app');
-      const same = ['tokenEndpointAuthMethod', 'pkceEnforcement', 'type', 'protocol'].every((k) => JSON.stringify(after[k]) === JSON.stringify(before[k]));
-      if (!same || !before.grantTypes.every((g) => after.grantTypes.includes(g)) || !after.grantTypes.includes('CIBA')) throw new Error(`READ-BACK MISMATCH on app ${mask(o.target)}; revert from backup now`);
-      revert.push(`PUT /applications/${o.target} with the "app" object from ${out}/${o.target}.backup.json (minus id, environment, createdAt, updatedAt, _links)`);
-    } else {
-      const r = must(await call('POST', `/applications/${o.target}/flowPolicyAssignments`, o.body), 'POST flowPolicyAssignment');
-      const now = must(await call('GET', `/applications/${o.target}/flowPolicyAssignments`), 'read-back assignments')._embedded?.flowPolicyAssignments || [];
-      if (!now.some((a) => a.id === r.id && a.flowPolicy?.id === o.body.flowPolicy.id)) throw new Error(`READ-BACK MISMATCH on assignment ${mask(r.id)}`);
-      revert.push(`DELETE /applications/${o.target}/flowPolicyAssignments/${r.id}`);
+  const done = []; const pending = ops.map((x) => `${x.op} ${mask(x.target)}`);
+  try {
+    for (const x of ops) {
+      if (x.op === 'update-app') {
+        const before = currentApps.find((c) => c.app.id === x.target).app;
+        await putAppVerified(call, before, x.body);
+        console.log(`applied + verified: update-app ${mask(x.target)}\nREVERT: PUT /applications/${x.target} with the "app" object from ${orig(x.target)} (minus id, environment, createdAt, updatedAt, _links); grantTypes back to [${before.grantTypes}]`);
+      } else {
+        const r = must(await call('POST', `/applications/${x.target}/flowPolicyAssignments`, x.body), 'POST flowPolicyAssignment');
+        console.log(`created assignment ${r.id}; REVERT (instruction only, never run by this script): DELETE /applications/${x.target}/flowPolicyAssignments/${r.id}`);
+        const now = must(await call('GET', `/applications/${x.target}/flowPolicyAssignments`), 'read-back assignments')._embedded?.flowPolicyAssignments || [];
+        if (!now.some((a) => a.id === r.id && a.flowPolicy?.id === x.body.flowPolicy.id)) throw new Error(`READ-BACK MISMATCH on assignment ${r.id}`);
+        console.log('verified:', mask(x.target), mask(x.body.flowPolicy.id));
+      }
+      done.push(`${x.op} ${mask(x.target)}`); pending.shift();
     }
-    console.log('applied + verified:', o.op, mask(o.target));
+  } catch (e) {
+    process.exitCode = 1; console.error('ERROR:', e.message);
+  } finally {
+    console.log(`\nSTATE AFTER RUN\n applied: ${done.length ? done.join('; ') : 'none'}\n not applied: ${pending.length ? pending.join('; ') : 'none'}\n (use the REVERT lines printed above to undo)`);
   }
-  console.log('\nREVERT (undo in reverse order):\n' + revert.reverse().map((s) => ' - ' + s).join('\n'));
 }
 
 if (process.argv[1] && import.meta.url === pathToFileURL(process.argv[1]).href) main().catch((e) => { console.error('ERROR:', e.message); process.exit(1); });

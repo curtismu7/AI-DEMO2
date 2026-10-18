@@ -57,3 +57,63 @@ test('role-restricted admin (ADMIN_USERS_ONLY) counts as restricted', () => {
   const ops = planCibaLogin(apps({ role: 'admin', app: adminApp({ role: { type: 'ADMIN_USERS_ONLY' } }) }), { a1: [] }, fps);
   assert.equal(ops.length, 3);
 });
+
+import { diffApps, backupName, originalBackup, parseArgs, pickByName } from '../enable-ciba-login.mjs';
+
+test('role without a real type, bogus types, group without type are NOT restrictions', () => {
+  for (const ac of [{ role: {} }, { role: { type: 'BOGUS' } }, { group: { groups: [{ id: 'g' }] } }, { group: { type: 'NOPE', groups: [{ id: 'g' }] } }]) {
+    const ops = planCibaLogin(apps({ role: 'admin', app: adminApp(ac) }), { a1: [] }, fps);
+    assert.equal(ops.length, 0);
+    assert.match(ops.notes[0], /BLOCKED/);
+  }
+});
+
+test('null/missing grantTypes treated as []', () => {
+  for (const g of [null, undefined]) {
+    const a = { ...userApp(), grantTypes: g };
+    const ops = planCibaLogin(apps({ role: 'user', app: a }), { u1: [] }, fps);
+    assert.deepEqual(ops[0].body.grantTypes, ['CIBA']);
+  }
+});
+
+test('planCibaLogin does not mutate inputs', () => {
+  const a = apps({ role: 'user', app: userApp() }); const asg = { u1: [fpa(EMAIL_POLICY, 1)] };
+  const snap = JSON.stringify([a, asg, fps]);
+  planCibaLogin(a, asg, fps);
+  assert.equal(JSON.stringify([a, asg, fps]), snap);
+});
+
+const full = () => ({ id: 'u1', environment: { id: 'e' }, createdAt: 't', name: 'U', grantTypes: ['AUTHORIZATION_CODE'], redirectUris: ['https://a/cb'], accessControl: { group: { type: 'ANY_GROUP', groups: [{ id: 'g' }] } }, tokenLifetime: { a: 1, b: 2 } });
+const withCiba = (x) => ({ ...x, grantTypes: [...x.grantTypes, 'CIBA'] });
+test('diffApps: lossless result (key order and server-populated fields ignored) -> no diffs', () => {
+  const b = full(); const a = withCiba(b); a.updatedAt = 'later'; a.tokenLifetime = { b: 2, a: 1 };
+  assert.deepEqual(diffApps(b, a), []);
+});
+test('diffApps names dropped/changed fields and wrong grants', () => {
+  const b = full();
+  const a = withCiba(b); delete a.redirectUris; a.accessControl = {};
+  assert.deepEqual(diffApps(b, a).sort(), ['accessControl', 'redirectUris']);
+  assert.deepEqual(diffApps(b, b), ['grantTypes']); // CIBA missing
+  const r = withCiba(b); r.grantTypes = ['CIBA', 'AUTHORIZATION_CODE'];
+  assert.deepEqual(diffApps(b, r), []); // PingOne reorders grantTypes: order is not a difference
+  r.grantTypes = ['CIBA']; // a dropped existing grant is
+  assert.deepEqual(diffApps(b, r), ['grantTypes']);
+});
+
+test('backups are timestamped, never the same name twice, original = earliest', () => {
+  const n1 = backupName('u1', new Date('2026-10-17T10:00:00Z')); const n2 = backupName('u1', new Date('2026-10-17T11:00:00Z'));
+  assert.notEqual(n1, n2);
+  assert.ok(!n1.includes(':'));
+  assert.equal(originalBackup([n2, n1, backupName('a1', new Date('2026-01-01T00:00:00Z'))], 'u1'), n1);
+});
+
+test('parseArgs validates', () => {
+  assert.deepEqual(parseArgs(['--out', 'd', '--apply']), { app: 'both', apply: true, probe: false, out: 'd' });
+  for (const bad of [[], ['--out'], ['--out', '--apply'], ['--out', 'd', '--app', 'x'], ['--out', 'd', '--zzz']]) assert.throws(() => parseArgs(bad));
+});
+
+test('duplicate or missing app names fail loudly', () => {
+  assert.throws(() => pickByName([{ name: 'A' }, { name: 'A' }], 'A'), /found 2/);
+  assert.throws(() => pickByName([], 'A'), /found 0/);
+  assert.equal(pickByName([{ name: 'A', id: 1 }], 'A').id, 1);
+});
