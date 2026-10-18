@@ -164,6 +164,9 @@ export function usePingOneAuthorizeConsole({
         engine: res.data.engine,
         stepUpRequired: !!res.data.stepUpRequired,
         decisionId: res.data.decisionId,
+        result: res.data,
+        parameters,
+        elapsedMs: elapsed,
       });
     } catch (e) {
       const elapsed = Date.now() - started;
@@ -173,6 +176,7 @@ export function usePingOneAuthorizeConsole({
         timingsMs: elapsed,
         error: true,
       });
+      onEvaluated?.({ preset, error: message, parameters, elapsedMs: elapsed });
     } finally {
       setRunning(false);
     }
