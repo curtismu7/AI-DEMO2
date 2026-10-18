@@ -213,11 +213,11 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
     }
     const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
     if (!same(user.username, typed) && !(typed.includes('@') && same(user.email, typed))) return { unavailable: true };
-    if (user.enabled === false) return null;
+    if (user.enabled === false) return { unavailable: true };
     const channels = [];
     if (user.email) channels.push('email');
     if (user.mobilePhone) channels.push('sms');
-    if (!channels.length) return null;
+    if (!channels.length) return { passthrough: true }; // nothing to approve on
     const { id, username: uname, email, mobilePhone, enabled } = user;
     req.session.oauthPiFlowParked = {
       pending, cookies, body, username,

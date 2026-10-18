@@ -223,7 +223,7 @@ describe('pi.flow CIBA second factor parking', () => {
     expect((await sess(agent)).parked).toBe(false);
   });
 
-  test('(h) channels reflect the user; disabled or contactless users are not parked', async () => {
+  test('(h) channels reflect the user; contactless users are not parked', async () => {
     const run = async (user, expectChannels) => {
       lookup.fetchPingOneUserByUsername.mockResolvedValue({ user, error: null });
       fetchMock.mockReset();
@@ -238,7 +238,28 @@ describe('pi.flow CIBA second factor parking', () => {
     };
     await run({ ...USER, mobilePhone: '' }, ['email']);
     await run({ ...USER, email: '' }, ['sms']);
-    await run({ ...USER, enabled: false }, null);
+    await run({ ...USER, email: '', mobilePhone: '' }, null);
+  });
+
+  test('(h2) no-contact user completes normally with secondFactorSkipped', async () => {
+    lookup.fetchPingOneUserByUsername.mockResolvedValue({ user: { ...USER, email: '', mobilePhone: '' }, error: null });
+    const agent = request.agent(app);
+    await open(agent);
+    fetchMock.mockResolvedValueOnce(json(200, { status: 'COMPLETED' }))
+      .mockResolvedValueOnce(json(200, { authorizeResponse: { code: 'c' } }));
+    const res = await agent.post(CREDS).send({ username: 'demoUser', password: 'p', secondFactor: 'ciba' }).expect(200);
+    expect(res.body.redirectTo).toBeTruthy();
+    expect(res.body.secondFactorSkipped).toBe(true);
+    expect((await sess(agent)).parked).toBe(false);
+  });
+
+  test('(h3) completion without the factor requested carries no marker', async () => {
+    const agent = request.agent(app);
+    await open(agent);
+    fetchMock.mockResolvedValueOnce(json(200, { status: 'COMPLETED' }))
+      .mockResolvedValueOnce(json(200, { authorizeResponse: { code: 'c' } }));
+    const res = await agent.post(CREDS).send({ username: 'demoUser', password: 'p' }).expect(200);
+    expect(Object.keys(res.body)).toEqual(['redirectTo']);
   });
 
   test('(i) parked state never reaches the browser', async () => {
@@ -298,6 +319,10 @@ describe('pi.flow CIBA second factor parking', () => {
       await closed(await attempt('demoUser'));
       lookup.resolvePingOneIdentifier.mockResolvedValue({ user: { ...USER, username: 'someoneElse', email: 'other@b.test' }, error: null });
       await closed(await attempt('a@b.test'));
+    });
+    test('disabled user -> 502, nothing completed', async () => {
+      lookup.fetchPingOneUserByUsername.mockResolvedValue({ user: { ...USER, enabled: false }, error: null });
+      await closed(await attempt('demoUser'));
     });
     test('exact, case-different and email-typed logins park', async () => {
       for (const typed of ['demoUser', ' DEMOUSER ']) {
