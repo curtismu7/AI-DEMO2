@@ -38,7 +38,12 @@ export default function InspectorLayout({
         </div>
       </header>
 
-      {send && <section className="insp-card insp-send" aria-label="Send a call">{send}</section>}
+      {send && (
+        <section className="insp-card insp-send" aria-labelledby="insp-send-h">
+          <h2 id="insp-send-h" className="insp-label">Send a call</h2>
+          {send}
+        </section>
+      )}
 
       <div className="insp-work">
         <aside className="insp-card insp-calls" aria-label="Calls">

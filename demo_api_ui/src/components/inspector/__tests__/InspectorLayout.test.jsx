@@ -44,6 +44,11 @@ function setup(over = {}) {
 const tab = (re) => screen.getByRole('tab', { name: re });
 
 describe('InspectorLayout', () => {
+  it('shows a visible "Send a call" heading on the send card', () => {
+    setup();
+    expect(screen.getByRole('heading', { name: 'Send a call' })).toBeVisible();
+  });
+
   it('renders header, mode chip and call count', () => {
     setup();
     expect(screen.getByRole('heading', { level: 1, name: 'MCP Inspector' })).toBeTruthy();

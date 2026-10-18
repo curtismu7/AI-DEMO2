@@ -151,3 +151,4 @@
 .insp-browse { list-style: none; margin: .4rem 0 0; padding: 0; display: grid; gap: .35rem; }
 .insp-browse li { display: flex; flex-wrap: wrap; gap: .1rem .5rem; align-items: baseline; }
 .insp-err { color: var(--th-status-error-text); font-size: 13px; }
+.insp-send > .insp-label { flex: 1 1 100%; }

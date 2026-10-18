@@ -148,7 +148,6 @@ function McpInspectorPageClean() {
 
   // null = follow the newest call; set when the user picks a row.
   const [pickedId, setPickedId] = useState(null);
-  const [resendGo, setResendGo] = useState(0);
 
   // Smart field propagation: publish this page's last result for other inspectors.
   useEffect(() => {
@@ -204,25 +203,34 @@ function McpInspectorPageClean() {
 
   const selectedId = pending ? ELICIT_ID : pickedId ?? calls[0]?.id ?? null;
 
-  const loadInput = useCallback((call) => {
+  // The tool and string-valued params a past call was sent with, or null when
+  // this source no longer lists the tool.
+  const inputOf = useCallback((call) => {
     const { tool, params } = call.input || {};
     const t = source.tools.find((x) => x[toolKey] === tool);
-    if (!t) return false;
-    source.setSelectedTool(t);
-    source.setParamValues(Object.fromEntries(Object.entries(params || {}).map(([k, v]) => [k, asText(v)])));
-    return true;
-  }, [source, toolKey]);
+    if (!t) return null;
+    return { tool: t, params: Object.fromEntries(Object.entries(params || {}).map(([k, v]) => [k, asText(v)])) };
+  }, [source.tools, toolKey]);
+
+  const loadInput = useCallback((input) => {
+    source.setSelectedTool(input.tool);
+    source.setParamValues(input.params);
+  }, [source]);
 
   const onEdit = useCallback((call) => {
-    if (loadInput(call)) sendRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
-  }, [loadInput]);
-  const onResend = useCallback((call) => { if (loadInput(call)) setResendGo((n) => n + 1); }, [loadInput]);
+    const input = inputOf(call);
+    if (!input) return;
+    loadInput(input);
+    sendRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [inputOf, loadInput]);
 
-  // Runs after the tool/params state from loadInput has committed.
-  useEffect(() => {
-    if (resendGo) source.handleExecute();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [resendGo]);
+  const onResend = useCallback(async (call) => {
+    const input = inputOf(call);
+    if (!input) return;
+    loadInput(input);
+    await source.handleExecute(input);
+    setPickedId(null);
+  }, [inputOf, loadInput, source]);
 
   const send = useCallback(async () => {
     await source.handleExecute();
@@ -230,7 +238,7 @@ function McpInspectorPageClean() {
   }, [source]);
 
   const toolsSource = source.toolsSource;
-  const mode = source.banner ? err('Unavailable') : toolsSource === 'local_catalog' ? warn('Local fallback') : ok('Live');
+  const mode = source.banner ? err('Unavailable') : source.loadingTools ? idle('Loading') : toolsSource === 'local_catalog' ? warn('Local fallback') : ok('Live');
 
   const tool = source.selectedTool;
   const matches = tool ? getMatchingFields(Object.keys(source.schemaProps)) : {};
@@ -289,7 +297,7 @@ function McpInspectorPageClean() {
           </label>
         ))}
         <button type="button" className="insp-btn" onClick={send} disabled={source.busy || !tool}>
-          {source.busy ? 'Calling...' : 'Send'}
+          {source.busy ? 'Sending…' : 'Send'}
         </button>
       </div>
       {source.servers.length > 0 && (

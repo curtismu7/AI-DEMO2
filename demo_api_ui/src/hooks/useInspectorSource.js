@@ -277,15 +277,18 @@ export function useInspectorSource(sourceKey) {
     return () => clearInterval(id);
   }, [mode]);
 
-  const handleExecute = useCallback(async () => {
+  const handleExecute = useCallback(async (override) => {
+    // `override` ({ tool, params }) lets Resend run a past call without waiting for state.
+    const execTool = override?.tool ?? selectedTool;
+    const execParams = override?.tool ? (override.params ?? {}) : paramValues;
     // A captured call has already happened; there is nothing to execute.
-    if (mode === 'calls' || !selectedTool) return;
+    if (mode === 'calls' || !execTool) return;
 
     const toolKey = config.toolKey;
-    const toolName = selectedTool[toolKey];
-    const props = selectedTool.inputSchema?.properties || selectedTool.schema?.properties || {};
-    const required = selectedTool.inputSchema?.required || selectedTool.schema?.required || [];
-    const missing = required.filter((key) => !String(paramValues[key] ?? '').trim());
+    const toolName = execTool[toolKey];
+    const props = execTool.inputSchema?.properties || execTool.schema?.properties || {};
+    const required = execTool.inputSchema?.required || execTool.schema?.required || [];
+    const missing = required.filter((key) => !String(execParams[key] ?? '').trim());
 
     if (missing.length > 0) {
       notifyError(`Required: ${missing.join(', ')}`);
@@ -319,7 +322,7 @@ export function useInspectorSource(sourceKey) {
     const params = {};
     try {
       for (const [key, schema] of Object.entries(props)) {
-        const coerced = coerceParam(paramValues[key] ?? '', schema?.type);
+        const coerced = coerceParam(execParams[key] ?? '', schema?.type);
         if (coerced !== undefined) params[key] = coerced;
       }
 
@@ -329,8 +332,8 @@ export function useInspectorSource(sourceKey) {
         ...(closeSse ? { flowTraceId: traceIdRefValue } : {}),
         // Multi-server sources (Gateway Showcase) must say WHICH server the
         // selected tool belongs to — the same tool name could exist on both.
-        ...(config.serverKey && selectedTool[config.serverKey]
-          ? { [config.serverKey]: selectedTool[config.serverKey] }
+        ...(config.serverKey && execTool[config.serverKey]
+          ? { [config.serverKey]: execTool[config.serverKey] }
           : {}),
         // Non-default profiles dispatch to their own transport (Custom Server).
         ...(mode === 'profiles' && selectedProfileId && selectedProfileId !== defaultProfileId
@@ -352,7 +355,7 @@ export function useInspectorSource(sourceKey) {
       setLastTiming({ ms, error: Boolean(payloadBanner) });
     } catch (e) {
       const ms = Date.now() - t0;
-      const failedTool = selectedTool[config.toolKey];
+      const failedTool = execTool[config.toolKey];
       const errBody = e.response?.data;
       appendMcpCall(failedTool, e.response?.status ?? 0, ms, null, formatAxiosError(e), {
         src: 'you', params, frames: errBody?.frames, tokenEvents: errBody?.tokenEvents, response: errBody,
