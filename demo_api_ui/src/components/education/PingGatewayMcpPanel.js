@@ -14,9 +14,9 @@ const PGW_GROUPS = {
 
 const ARCH_NODES = [
   { id: 'client', group: 'client', label: 'BFF / Agent', sub: ['(client)'], x: 0, y: 0 },
-  { id: 'gw', group: 'gateway', label: 'PingOne Agent Gateway', sub: ['• Token check', '• Scope enforce', '• Rate limit', '• Audit log'], x: 300, y: 0 },
-  { id: 'mcp', group: 'resource', label: 'MCP Server', sub: ['• tools/list', '• tools/call', '• resources'], x: 600, y: 0 },
-  { id: 'pingone', group: 'pingone', label: 'PingOne', sub: ['/as/introspect', '/as/jwks'], x: 300, y: 200 },
+  { id: 'gw', group: 'gateway', label: 'PingOne Agent Gateway', sub: ['• Token check', '• Scope enforce', '• Rate limit', '• Audit log'], x: 360, y: 130 },
+  { id: 'mcp', group: 'resource', label: 'MCP Server', sub: ['• tools/list', '• tools/call', '• resources'], x: 0, y: 290 },
+  { id: 'pingone', group: 'pingone', label: 'PingOne', sub: ['/as/introspect', '/as/jwks'], x: 360, y: 340 },
 ];
 const ARCH_EDGES = [
   ['client', 'gw', 'MCP request + Bearer token'],
@@ -38,12 +38,12 @@ const SIDECAR_EDGES = [
 
 const STANDALONE_NODES = [
   { id: 'client', group: 'client', label: 'Client', sub: ['Internet'], x: 0, y: 0 },
-  { id: 'gw', group: 'gateway', label: 'PingOne Agent Gateway', sub: ['DMZ', 'Load balanced', 'TLS termination'], x: 300, y: 0 },
-  { id: 'mcp', group: 'resource', label: 'MCP Server', sub: ['Private Network', 'Not internet-facing', 'Internal DNS only'], x: 600, y: 0 },
+  { id: 'gw', group: 'gateway', label: 'PingOne Agent Gateway', sub: ['DMZ', 'Load balanced', 'TLS termination'], x: 330, y: 0 },
+  { id: 'mcp', group: 'resource', label: 'MCP Server', sub: ['Private Network', 'Not internet-facing', 'Internal DNS only'], x: 330, y: 170 },
 ];
 const STANDALONE_EDGES = [
   ['client', 'gw', 'Internet → DMZ'],
-  ['gw', 'mcp', 'DMZ → private network'],
+  ['gw', 'mcp', 'DMZ → private network', { vertical: true }],
 ];
 
 const FILTER_NODES = [

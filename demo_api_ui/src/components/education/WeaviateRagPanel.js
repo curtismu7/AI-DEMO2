@@ -10,12 +10,12 @@ const WIRING_GROUPS = {
 };
 const WIRING_NODES = [
   { id: "page", group: "ui", label: "Code Search page", x: 0, y: 0 },
-  { id: "svc", group: "service", label: "code-search service", sub: ["1. chunk files", "2. embed each chunk"], x: 300, y: 0 },
-  { id: "emb", group: "service", label: "embeddings (llama.cpp)", sub: ["nomic-embed-text-v1.5, 768-dim"], x: 600, y: 150 },
-  { id: "weaviate", group: "store", label: "Weaviate", sub: ["class: CodeChunk", "vectorizer: none"], x: 300, y: 300 },
+  { id: "svc", group: "service", label: "code-search service", sub: ["1. chunk files", "2. embed each chunk"], x: 0, y: 130 },
+  { id: "emb", group: "service", label: "embeddings (llama.cpp)", sub: ["nomic-embed-text-v1.5, 768-dim"], x: 330, y: 130 },
+  { id: "weaviate", group: "store", label: "Weaviate", sub: ["class: CodeChunk", "vectorizer: none"], x: 0, y: 330 },
 ];
 const WIRING_EDGES = [
-  ["page", "svc", "HTTP"],
+  ["page", "svc", "HTTP", { vertical: true }],
   ["svc", "emb", "embed each chunk"],
   ["emb", "weaviate", "3. store vectors", { vertical: true }],
   ["svc", "weaviate", "4. query: embed question, nearest-neighbor", { vertical: true }],

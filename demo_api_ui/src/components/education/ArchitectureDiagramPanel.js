@@ -40,29 +40,29 @@ const CONTAINER_EDGES = [
 
 const COMPONENT_NODES = [
   { id: "oauth", group: "system", label: "OAuth Routes", sub: ["login · callback", "logout · refresh"], x: 0, y: 0 },
-  { id: "tex", group: "system", label: "Token Exchange", sub: ["RFC 8693", "1-exchange · 2-exchange"], x: 300, y: 0 },
-  { id: "ciba", group: "system", label: "CIBA Service", sub: ["backchannel auth + poll"], x: 600, y: 0 },
-  { id: "mfa", group: "system", label: "MFA Service", sub: ["OTP, TOTP, FIDO2, push"], x: 0, y: 150 },
-  { id: "agent", group: "system", label: "AI Agent", sub: ["LangGraph", "heuristic + MCP client"], x: 300, y: 150 },
-  { id: "config", group: "store", label: "ConfigStore", sub: ["LMDB / KV persistence"], x: 600, y: 150 },
+  { id: "tex", group: "system", label: "Token Exchange", sub: ["RFC 8693", "1-exchange · 2-exchange"], x: 280, y: 0 },
+  { id: "ciba", group: "system", label: "CIBA Service", sub: ["backchannel auth + poll"], x: 0, y: 100 },
+  { id: "mfa", group: "system", label: "MFA Service", sub: ["OTP, TOTP, FIDO2, push"], x: 280, y: 100 },
+  { id: "agent", group: "system", label: "AI Agent", sub: ["LangGraph", "heuristic + MCP client"], x: 0, y: 200 },
+  { id: "config", group: "store", label: "ConfigStore", sub: ["LMDB / KV persistence"], x: 280, y: 200 },
   { id: "data", group: "store", label: "DataStore", sub: ["accounts, transactions"], x: 0, y: 300 },
-  { id: "session", group: "store", label: "Session MW", sub: ["Upstash Redis", "PKCE cookies"], x: 300, y: 300 },
-  { id: "delegation", group: "system", label: "Delegation", sub: ["act/may_act", "audit trail"], x: 600, y: 300 },
+  { id: "session", group: "store", label: "Session MW", sub: ["Upstash Redis", "PKCE cookies"], x: 280, y: 300 },
+  { id: "delegation", group: "system", label: "Delegation", sub: ["act/may_act", "audit trail"], x: 0, y: 400 },
 ];
 // No arrows inside the BFF box: the walk visits each component in turn.
 const COMPONENT_WALK = COMPONENT_NODES.map((n) => ({ title: n.label, label: n.sub.join(" · "), nodes: [n.id], edges: [] }));
 
 const CODE_NODES = [
-  { id: "builder", group: "system", label: "agentBuilder.js", sub: ["LLM selection", "OpenAI · Anthropic · Groq · Gemini · Helix"], x: 560, y: 0 },
-  { id: "oauth", group: "system", label: "oauthService.js", sub: ["PKCE, token mgmt"], x: 0, y: 160 },
-  { id: "graph", group: "system", label: "bankingAgentLangGraphService.js", sub: ["LangGraph + heuristic parser"], x: 560, y: 160 },
-  { id: "mcptoken", group: "system", label: "agentMcpTokenService.js", sub: ["RFC 8693 orchestration", "1-exchange or 2-exchange"], x: 280, y: 320 },
-  { id: "ws", group: "system", label: "mcpWebSocketClient.js", sub: ["ws://banking_mcp_server"], x: 840, y: 320 },
-  { id: "p1", group: "external", label: "pingOneClientService.js", sub: ["Management API", "Worker token"], x: 0, y: 480 },
-  { id: "chain", group: "system", label: "tokenChainService.js", sub: ["Token event tracking", "sub, act, aud chain"], x: 560, y: 480 },
-  { id: "mfa", group: "system", label: "mfaService.js", sub: ["OTP/TOTP/FIDO2"], x: 0, y: 640 },
-  { id: "config", group: "store", label: "configStore.js", sub: ["LMDB / Vercel KV", "Persistent config"], x: 280, y: 640 },
-  { id: "store", group: "store", label: "data/store.js", sub: ["Accounts, txns", "In-memory + backup"], x: 560, y: 640 },
+  { id: "builder", group: "system", label: "agentBuilder.js", sub: ["LLM selection", "OpenAI · Anthropic · Groq · Gemini · Helix"], x: 280, y: 0 },
+  { id: "oauth", group: "system", label: "oauthService.js", sub: ["PKCE, token mgmt"], x: 0, y: 140 },
+  { id: "graph", group: "system", label: "bankingAgentLangGraphService.js", sub: ["LangGraph + heuristic parser"], x: 280, y: 140 },
+  { id: "mcptoken", group: "system", label: "agentMcpTokenService.js", sub: ["RFC 8693 orchestration", "1-exchange or 2-exchange"], x: 0, y: 290 },
+  { id: "ws", group: "system", label: "mcpWebSocketClient.js", sub: ["ws://banking_mcp_server"], x: 560, y: 290 },
+  { id: "p1", group: "external", label: "pingOneClientService.js", sub: ["Management API", "Worker token"], x: 0, y: 440 },
+  { id: "chain", group: "system", label: "tokenChainService.js", sub: ["Token event tracking", "sub, act, aud chain"], x: 280, y: 440 },
+  { id: "mfa", group: "system", label: "mfaService.js", sub: ["OTP/TOTP/FIDO2"], x: 0, y: 590 },
+  { id: "config", group: "store", label: "configStore.js", sub: ["LMDB / Vercel KV", "Persistent config"], x: 280, y: 590 },
+  { id: "store", group: "store", label: "data/store.js", sub: ["Accounts, txns", "In-memory + backup"], x: 560, y: 590 },
 ];
 const CODE_EDGES = [
   ["builder", "graph", "LLM for the agent", { vertical: true }],

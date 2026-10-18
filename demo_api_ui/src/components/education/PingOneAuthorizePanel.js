@@ -325,18 +325,18 @@ function RecentDecisionsViewer() {
 // Layered authorization: token claims and policy checks (SUB, AUD, act, nested act) before an action is allowed.
 const AUTHZ_NODES = [
   { id: 'token', group: 'token', label: 'Access token', sub: ['validated (JWKS / introspection)'], x: 0, y: 0 },
-  { id: 'sub', group: 'check', label: '1. SUB — user in IdP directory', sub: ['Subject exists / eligible (sent as UserId)'], x: 300, y: 0 },
-  { id: 'aud', group: 'check', label: '2. AUD — audience = resource URL', sub: ['Prevents wrong-audience replay'], x: 600, y: 0 },
-  { id: 'act', group: 'check', label: '3. act — delegation', sub: ['Who exchanged on behalf of sub'], x: 600, y: 160 },
-  { id: 'actact', group: 'check', label: '4. act.act — nested actor', sub: ['Multi-hop must match allow-lists'], x: 300, y: 160 },
-  { id: 'decision', group: 'decision', label: 'PERMIT · DENY · obligations', sub: ['e.g. step-up MFA, audit record'], x: 0, y: 160 },
+  { id: 'sub', group: 'check', label: '1. SUB — user in IdP directory', sub: ['Subject exists / eligible (sent as UserId)'], x: 0, y: 120 },
+  { id: 'aud', group: 'check', label: '2. AUD — audience = resource URL', sub: ['Prevents wrong-audience replay'], x: 0, y: 250 },
+  { id: 'act', group: 'check', label: '3. act — delegation', sub: ['Who exchanged on behalf of sub'], x: 330, y: 250 },
+  { id: 'actact', group: 'check', label: '4. act.act — nested actor', sub: ['Multi-hop must match allow-lists'], x: 330, y: 370 },
+  { id: 'decision', group: 'decision', label: 'PERMIT · DENY · obligations', sub: ['e.g. step-up MFA, audit record'], x: 330, y: 490 },
 ];
 const AUTHZ_EDGES = [
-  ['token', 'sub', 'into policy'],
-  ['sub', 'aud', 'then'],
-  ['aud', 'act', 'then', { vertical: true }],
-  ['act', 'actact', 'optional hop'],
-  ['actact', 'decision', 'decide'],
+  ['token', 'sub', 'into policy', { vertical: true }],
+  ['sub', 'aud', 'then', { vertical: true }],
+  ['aud', 'act', 'then'],
+  ['act', 'actact', 'optional hop', { vertical: true }],
+  ['actact', 'decision', 'decide', { vertical: true }],
 ];
 const AUTHZ_GROUPS = {
   token: { label: 'Token', bg: 'var(--th-bg-emphasis)' },

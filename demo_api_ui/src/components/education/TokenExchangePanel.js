@@ -55,13 +55,13 @@ function TokenFlowLink({ onClick }) {
 
 const TEX_NODES = [
   { id: 'browser', group: 'user', label: 'Browser / User', x: 0, y: 0 },
-  { id: 'bff', group: 'bff', label: 'Backend-for-Frontend (BFF)', sub: ['Stores the User Token — never forwarded'], x: 300, y: 0 },
-  { id: 'pingone', group: 'pingone', label: 'PingOne', sub: ['Validates grants + issues MCP Token'], x: 600, y: 0 },
-  { id: 'mcp', group: 'resource', label: 'MCP Server', sub: ['Validates MCP Token via introspection'], x: 300, y: 180 },
-  { id: 'api', group: 'resource', label: 'Banking API', sub: ['Checks aud, scope, act claims'], x: 600, y: 180 },
+  { id: 'bff', group: 'bff', label: 'Backend-for-Frontend (BFF)', sub: ['Stores the User Token — never forwarded'], x: 0, y: 130 },
+  { id: 'pingone', group: 'pingone', label: 'PingOne', sub: ['Validates grants + issues MCP Token'], x: 420, y: 130 },
+  { id: 'mcp', group: 'resource', label: 'MCP Server', sub: ['Validates MCP Token via introspection'], x: 0, y: 300 },
+  { id: 'api', group: 'resource', label: 'Banking API', sub: ['Checks aud, scope, act claims'], x: 420, y: 300 },
 ];
 const TEX_EDGES = [
-  ['browser', 'bff', 'User Token'],
+  ['browser', 'bff', 'User Token', { vertical: true }],
   ['bff', 'pingone', 'subject_token (exchange request)'],
   ['pingone', 'bff', 'MCP Token (delegated)'],
   ['bff', 'mcp', 'MCP Token only', { vertical: true }],

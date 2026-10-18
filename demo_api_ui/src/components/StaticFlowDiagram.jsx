@@ -3,8 +3,12 @@
  *
  * Props:
  *   NODES        [{ id, group, label, sub?: string[], x, y }]
- *   EDGES        [[srcId, tgtId, label?, opts?]] — opts: { dashed, color, vertical }
- *                (vertical = leave the bottom of the source, enter the top of the target)
+ *   EDGES        [[srcId, tgtId, label?, opts?]] — opts: { dashed, color, vertical, lane }
+ *                (vertical = leave the bottom of the source, enter the top of the target;
+ *                lane = px: join the left sides of both cards with a curve bowed that far out to the
+ *                left (negative = right sides, bowed right), so a long return arrow runs beside a
+ *                column instead of through it).
+ *                When both A→B and B→A exist, the second one's label sits below the shared line.
  *   GROUPS       { key: { label, bg } }
  *   selectedPath key of the currently highlighted path (dims others)
  *   onNodeClick  (node) => void — node = { id, data }
@@ -60,7 +64,8 @@ const wrapped = (text, per) => Math.max(1, Math.ceil(String(text).length / per))
 const nodeH = (n) =>
   16 + wrapped(n.label, LABEL_CHARS) * 17 + (n.sub || []).reduce((h, s) => h + wrapped(s, SUB_CHARS) * 16, 0);
 
-const FIT = { padding: 0.06 };
+// The left gutter keeps the zoom buttons (bottom-left) off the cards.
+const FIT = { padding: { top: "20px", right: "20px", bottom: "20px", left: "56px" } };
 const HIDDEN = { opacity: 0, width: 1, height: 1 };
 
 function FlowNode({ data }) {
@@ -68,7 +73,7 @@ function FlowNode({ data }) {
   return (
     <div
       className={className}
-      style={{ width: NODE_W, height: nodeH(n), borderColor: color }}
+      style={{ width: NODE_W, minHeight: nodeH(n), borderColor: color }}
       onClick={onClick}
       data-testid={`${testId}-node-${n.id}`}
     >
@@ -88,10 +93,12 @@ function FlowNode({ data }) {
 }
 
 function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }) {
-  const self = data.self;
+  const { self, lane } = data;
   const [path, labelX, labelY] = self
     ? [`M ${sourceX} ${sourceY} C ${sourceX + 60} ${sourceY}, ${sourceX + 60} ${sourceY + 30}, ${sourceX} ${sourceY + 30}`, sourceX + 55, sourceY + 15]
-    : getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+    : lane
+      ? [`M ${sourceX} ${sourceY} C ${sourceX - lane} ${sourceY}, ${targetX - lane} ${targetY}, ${targetX} ${targetY}`, (sourceX + targetX) / 2 - lane * 0.75, (sourceY + targetY) / 2]
+      : getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
   return (
     <g className={data.className}>
       <BaseEdge
@@ -104,7 +111,7 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
         <EdgeLabelRenderer>
           <div
             className={`sfd-edge-label nodrag nopan ${data.className}`}
-            style={{ transform: `translate(-50%, -100%) translate(${labelX}px, ${labelY - 2}px)` }}
+            style={{ transform: data.below ? `translate(-50%, 0) translate(${labelX}px, ${labelY + 2}px)` : `translate(-50%, -100%) translate(${labelX}px, ${labelY - 2}px)` }}
           >
             {data.label}
           </div>
@@ -171,12 +178,14 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
             type: "sfd",
             source: src,
             target: tgt,
-            sourceHandle: opts.vertical ? "sb" : self || forward ? "sr" : "sl",
-            targetHandle: opts.vertical ? "tt" : self ? "tr" : forward ? "tl" : "tr",
+            sourceHandle: opts.vertical ? "sb" : opts.lane ? (opts.lane > 0 ? "sl" : "sr") : self || forward ? "sr" : "sl",
+            targetHandle: opts.vertical ? "tt" : opts.lane ? (opts.lane > 0 ? "tl" : "tr") : self ? "tr" : forward ? "tl" : "tr",
             selectable: false,
             data: {
               label,
               self,
+              lane: opts.lane,
+              below: EDGES.some(([s, t], j) => j < i && s === tgt && t === src),
               dashed: opts.dashed,
               color: opts.color || "var(--sfd-edge)",
               className: `sfd-edge${dimmed ? " dimmed" : ""}${stepClass}`,
