@@ -1,8 +1,64 @@
 // banking_api_ui/src/components/education/PingGatewayMcpPanel.js
 import EducationDrawer from '../shared/EducationDrawer';
+import StaticFlowDiagram from '../StaticFlowDiagram';
 
 const MCP_SECURITY_GATEWAY_DOC =
   'https://docs.pingidentity.com/pinggateway/2026/mcp/index.html';
+
+const PGW_GROUPS = {
+  client: { label: 'Client', bg: 'var(--th-status-info)' },
+  gateway: { label: 'Gateway', bg: 'var(--th-bg-emphasis)' },
+  pingone: { label: 'PingOne', bg: 'var(--th-status-error)' },
+  resource: { label: 'MCP server', bg: 'var(--th-status-success)' },
+};
+
+const ARCH_NODES = [
+  { id: 'client', group: 'client', label: 'BFF / Agent', sub: ['(client)'], x: 0, y: 0 },
+  { id: 'gw', group: 'gateway', label: 'PingOne Agent Gateway', sub: ['• Token check', '• Scope enforce', '• Rate limit', '• Audit log'], x: 300, y: 0 },
+  { id: 'mcp', group: 'resource', label: 'MCP Server', sub: ['• tools/list', '• tools/call', '• resources'], x: 600, y: 0 },
+  { id: 'pingone', group: 'pingone', label: 'PingOne', sub: ['/as/introspect', '/as/jwks'], x: 300, y: 200 },
+];
+const ARCH_EDGES = [
+  ['client', 'gw', 'MCP request + Bearer token'],
+  ['gw', 'pingone', 'Validate token (introspect / JWKS)', { vertical: true }],
+  ['gw', 'mcp', 'Authorized request'],
+  ['mcp', 'gw', 'Tool result', { dashed: true }],
+  ['gw', 'client', 'Response', { dashed: true }],
+];
+
+const SIDECAR_NODES = [
+  { id: 'gw', group: 'gateway', label: 'PingOne Agent Gateway', sub: [':8443 (TLS)', 'Docker Host / K8s Pod'], x: 0, y: 0 },
+  { id: 'mcp', group: 'resource', label: 'MCP Server', sub: [':8080', 'Same Docker Host / K8s Pod'], x: 300, y: 0 },
+  { id: 'ext', group: 'client', label: 'External traffic', x: 0, y: 160 },
+];
+const SIDECAR_EDGES = [
+  ['gw', 'mcp', 'Same host / pod'],
+  ['gw', 'ext', 'Only :8443 exposed', { vertical: true }],
+];
+
+const STANDALONE_NODES = [
+  { id: 'client', group: 'client', label: 'Client', sub: ['Internet'], x: 0, y: 0 },
+  { id: 'gw', group: 'gateway', label: 'PingOne Agent Gateway', sub: ['DMZ', 'Load balanced', 'TLS termination'], x: 300, y: 0 },
+  { id: 'mcp', group: 'resource', label: 'MCP Server', sub: ['Private Network', 'Not internet-facing', 'Internal DNS only'], x: 600, y: 0 },
+];
+const STANDALONE_EDGES = [
+  ['client', 'gw', 'Internet → DMZ'],
+  ['gw', 'mcp', 'DMZ → private network'],
+];
+
+const FILTER_NODES = [
+  { id: 'audit', group: 'gateway', label: 'McpAuditFilter', x: 0, y: 0 },
+  { id: 'protect', group: 'gateway', label: 'McpProtectionFilter', x: 0, y: 110 },
+  { id: 'validate', group: 'gateway', label: 'McpValidationFilter', x: 0, y: 220 },
+  { id: 'more', group: 'gateway', label: '…', sub: ['further filters'], x: 0, y: 330 },
+  { id: 'proxy', group: 'resource', label: 'ReverseProxyHandler', sub: ['forwards to the MCP server'], x: 0, y: 460 },
+];
+const FILTER_EDGES = [
+  ['audit', 'protect', '', { vertical: true }],
+  ['protect', 'validate', '', { vertical: true }],
+  ['validate', 'more', '', { vertical: true }],
+  ['more', 'proxy', '', { vertical: true }],
+];
 
 function OverviewTab() {
   return (
@@ -44,20 +100,13 @@ function OverviewTab() {
       </ul>
 
       <h4>Architecture</h4>
-      <pre className="edu-code">{`┌─────────────┐     ┌──────────────────┐     ┌────────────────┐
-│  BFF / Agent │────▶│   PingOne Agent Gateway    │────▶│   MCP Server   │
-│  (client)    │     │                  │     │                │
-│              │◀────│  • Token check   │◀────│  • tools/list  │
-│              │     │  • Scope enforce │     │  • tools/call  │
-│              │     │  • Rate limit    │     │  • resources   │
-│              │     │  • Audit log     │     │                │
-└─────────────┘     └──────────────────┘     └────────────────┘
-                           │
-                    ┌──────▼──────┐
-                    │   PingOne   │
-                    │ /as/introspect │
-                    │ /as/jwks    │
-                    └─────────────┘`}</pre>
+      <StaticFlowDiagram
+        NODES={ARCH_NODES}
+        EDGES={ARCH_EDGES}
+        GROUPS={PGW_GROUPS}
+        testId="pgw-arch-diagram"
+        ariaLabel="PingOne Agent Gateway between the client and the MCP server, validating tokens with PingOne"
+      />
 
       <p>
         PingOne Agent Gateway acts as a <strong>reverse proxy</strong> — the MCP server never receives
@@ -74,26 +123,22 @@ function ArchitectureTab() {
       <h3 style={{ marginTop: 0 }}>Deployment topology</h3>
 
       <h4>Option A: Sidecar (same host)</h4>
-      <pre className="edu-code">{`┌────────────────────────────────────┐
-│  Docker Host / K8s Pod             │
-│                                    │
-│  ┌──────────────┐  ┌────────────┐ │
-│  │ PingOne Agent Gateway  │──│ MCP Server │ │
-│  │ :8443 (TLS)  │  │ :8080      │ │
-│  └──────────────┘  └────────────┘ │
-│         │                          │
-└─────────┼──────────────────────────┘
-          │ Only :8443 exposed
-          ▼
-   External traffic`}</pre>
+      <StaticFlowDiagram
+        NODES={SIDECAR_NODES}
+        EDGES={SIDECAR_EDGES}
+        GROUPS={PGW_GROUPS}
+        testId="pgw-sidecar-diagram"
+        ariaLabel="Sidecar: gateway and MCP server on the same host, only :8443 exposed"
+      />
 
       <h4>Option B: Standalone gateway</h4>
-      <pre className="edu-code">{`Internet          DMZ                  Private Network
-─────────    ┌──────────────┐    ┌────────────────────┐
-             │ PingOne Agent Gateway  │    │  MCP Server         │
-  Client ───▶│ Load balanced│───▶│  Not internet-facing│
-             │ TLS termination│  │  Internal DNS only  │
-             └──────────────┘    └────────────────────┘`}</pre>
+      <StaticFlowDiagram
+        NODES={STANDALONE_NODES}
+        EDGES={STANDALONE_EDGES}
+        GROUPS={PGW_GROUPS}
+        testId="pgw-standalone-diagram"
+        ariaLabel="Standalone gateway: Internet client, gateway in the DMZ, MCP server on the private network"
+      />
 
       <h4>Token validation flow</h4>
       <ol>
@@ -289,7 +334,13 @@ function OfficialFiltersTab() {
       </p>
 
       <h4>Filter chain order</h4>
-      <pre className="edu-code">{`[McpAuditFilter] → [McpProtectionFilter] → [McpValidationFilter] → … → ReverseProxyHandler`}</pre>
+      <StaticFlowDiagram
+        NODES={FILTER_NODES}
+        EDGES={FILTER_EDGES}
+        GROUPS={PGW_GROUPS}
+        testId="pgw-filter-chain-diagram"
+        ariaLabel="MCP filter chain order, ending at the ReverseProxyHandler"
+      />
       <p style={{ fontSize: '0.82rem', color: '#374151' }}>
         Docs require an <code>McpValidationFilter</code> <em>after</em>{" "}
         <code>McpAuditFilter</code> so <code>McpContext</code> is populated for audit events.
