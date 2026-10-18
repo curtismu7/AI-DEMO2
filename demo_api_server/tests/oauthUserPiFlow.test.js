@@ -33,6 +33,10 @@ jest.mock('../utils/oauthAuthorizeResource', () => ({
   buildPingOneAuthorizeResourceQueryParam: jest.fn(() => ''),
 }));
 jest.mock('../services/appEventService', () => ({ logEvent: jest.fn() }));
+jest.mock('../services/pingOneUserLookupService', () => ({
+  fetchPingOneUserByUsername: jest.fn().mockResolvedValue({ user: null, error: 'not_found' }),
+}));
+jest.mock('../services/pingOneUserService', () => ({ initialize: jest.fn(), makeRequest: jest.fn() }));
 
 const app = express();
 app.use(session({ secret: 'test-secret', resave: false, saveUninitialized: true }));
@@ -410,6 +414,23 @@ describe('customer pi.flow sign-in', () => {
           { id: 'pf-sms-1', type: 'SMS', nickname: null, email: null, phone: '******1586' },
           { id: 'pf-mail-1', type: 'EMAIL', nickname: null, email: 'cm***@pingone.com', phone: null },
         ]);
+      });
+
+      test('device step swaps the masked email for the full PingOne address', async () => {
+        const { fetchPingOneUserByUsername } = require('../services/pingOneUserLookupService');
+        const pingOneUserService = require('../services/pingOneUserService');
+        fetchPingOneUserByUsername.mockResolvedValueOnce({ user: { id: 'p1-user', username: 'demoUser' } });
+        pingOneUserService.makeRequest.mockResolvedValueOnce({
+          _embedded: { devices: [{ id: 'pf-mail-1', type: 'EMAIL', email: 'cmuir+demo@pingone.com' }] },
+        });
+        const agent = request.agent(app);
+        await openPfPasswordless(agent, 'AUTHENTICATION_REQUIRED');
+        fetchMock.mockResolvedValueOnce(json(200, { status: 'DEVICE_SELECTION_REQUIRED', devices: PF_DEVICES }));
+        const res = await agent.post('/api/auth/oauth/user/pi-flow/passwordless').send({ username: 'demouser' }).expect(200);
+        expect(fetchPingOneUserByUsername).toHaveBeenCalledWith('demouser');
+        expect(pingOneUserService.makeRequest).toHaveBeenCalledWith('GET', '/users/p1-user/devices');
+        expect(res.body.devices.find((d) => d.id === 'pf-mail-1').email).toBe('cmuir+demo@pingone.com');
+        expect(res.body.devices.find((d) => d.id === 'pf-sms-1').phone).toBe('******1586');
       });
 
       test('opened at IDENTIFIER_REQUIRED: submits the identifier, then authenticate', async () => {
