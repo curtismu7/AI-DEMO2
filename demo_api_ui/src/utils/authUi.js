@@ -354,13 +354,20 @@ export function errorMessageSuggestsLogin(message) {
 /** Dispatched by navigateToCustomerOAuthLogin; PiFlowSignInModal sets `detail.handled = true`. */
 export const PI_FLOW_SIGNIN_EVENT = 'banking-pi-flow-signin';
 
+/** Current bare path, with the landing page mapped to /dashboard. */
+function currentReturnPath() {
+  if (typeof window === 'undefined') return undefined;
+  const p = window.location.pathname;
+  return p === '/' ? '/dashboard' : p;
+}
+
 /**
  * Redirect to customer (end-user) OAuth Backend-for-Frontend (BFF) route.
  * @param {string} [returnTo] - app path to land on after login (BFF `return_to`).
  *   If not provided, defaults to current page unless on landing page (redirects to /dashboard).
  */
 export function navigateToCustomerOAuthLogin(returnTo) {
-  openSignIn({ role: 'customer', returnTo });
+  openSignIn({ role: 'customer', returnTo: returnTo ?? currentReturnPath() });
 }
 
 // Redirect-only leg (no modal event). signInService's openSignIn falls back to
@@ -370,11 +377,7 @@ export function navigateToCustomerOAuthLoginRaw(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
-  let destination = returnTo;
-  if (!destination && typeof window !== 'undefined') {
-    const currentPath = window.location.pathname;
-    destination = currentPath === '/' ? '/dashboard' : currentPath;
-  }
+  const destination = returnTo || currentReturnPath();
 
   const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';
   navigateWithOverlay(`${apiUrl}/api/auth/oauth/user/login${suffix}`, { message: 'Signing in...' });
@@ -395,11 +398,7 @@ export function navigateToCustomerOAuthForceLoginRaw(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
-  let destination = returnTo;
-  if (!destination && typeof window !== 'undefined') {
-    const currentPath = window.location.pathname;
-    destination = currentPath === '/' ? '/dashboard' : currentPath;
-  }
+  const destination = returnTo || currentReturnPath();
 
   // force=true is already in the query, so return_to joins with &.
   const suffix = destination ? `&return_to=${encodeURIComponent(destination)}` : '';
@@ -418,11 +417,7 @@ export function navigateToAdminOAuthLoginRaw(returnTo) {
   const apiUrl =
     process.env.REACT_APP_API_URL || (typeof window !== 'undefined' ? window.location.origin : '');
 
-  let destination = returnTo;
-  if (!destination && typeof window !== 'undefined') {
-    const currentPath = window.location.pathname;
-    destination = currentPath === '/' ? '/dashboard' : currentPath;
-  }
+  const destination = returnTo || currentReturnPath();
 
   const suffix = destination ? `?return_to=${encodeURIComponent(destination)}` : '';
   navigateWithOverlay(`${apiUrl}/api/auth/oauth/login${suffix}`, { message: 'Signing in...' });
