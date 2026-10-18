@@ -15,6 +15,8 @@ export function useRoleSwitch() {
       await startRoleSwitch(targetRole);
     } catch (e) {
       console.error('[useRoleSwitch] Role switch failed:', e?.message || e);
+    } finally {
+      // The sign-in may be a modal the user can cancel, so never leave the button stuck.
       setSwitching(false);
     }
   };
