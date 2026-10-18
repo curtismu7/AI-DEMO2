@@ -58,7 +58,7 @@ test('role-restricted admin (ADMIN_USERS_ONLY) counts as restricted', () => {
   assert.equal(ops.length, 3);
 });
 
-import { diffApps, backupName, originalBackup, parseArgs, pickByName } from '../enable-ciba-login.mjs';
+import { trackedUpdate, summarize, diffApps, backupName, originalBackup, parseArgs, pickByName } from '../enable-ciba-login.mjs';
 
 test('role without a real type, bogus types, group without type are NOT restrictions', () => {
   for (const ac of [{ role: {} }, { role: { type: 'BOGUS' } }, { group: { groups: [{ id: 'g' }] } }, { group: { type: 'NOPE', groups: [{ id: 'g' }] } }]) {
@@ -85,19 +85,36 @@ test('planCibaLogin does not mutate inputs', () => {
 
 const full = () => ({ id: 'u1', environment: { id: 'e' }, createdAt: 't', name: 'U', grantTypes: ['AUTHORIZATION_CODE'], redirectUris: ['https://a/cb'], accessControl: { group: { type: 'ANY_GROUP', groups: [{ id: 'g' }] } }, tokenLifetime: { a: 1, b: 2 } });
 const withCiba = (x) => ({ ...x, grantTypes: [...x.grantTypes, 'CIBA'] });
-test('diffApps: lossless result (key order and server-populated fields ignored) -> no diffs', () => {
-  const b = full(); const a = withCiba(b); a.updatedAt = 'later'; a.tokenLifetime = { b: 2, a: 1 };
-  assert.deepEqual(diffApps(b, a), []);
+test('diffApps: key order ignored; server-added key passes and is reported', () => {
+  const b = full(); const a = withCiba(b); a.updatedAt = 'later'; a.tokenLifetime = { b: 2, a: 1 }; a.hiddenFromAppPortal = false; a.signing = {};
+  assert.deepEqual(diffApps(b, a), { bad: [], added: ['hiddenFromAppPortal', 'signing'] });
 });
-test('diffApps names dropped/changed fields and wrong grants', () => {
-  const b = full();
-  const a = withCiba(b); delete a.redirectUris; a.accessControl = {};
-  assert.deepEqual(diffApps(b, a).sort(), ['accessControl', 'redirectUris']);
-  assert.deepEqual(diffApps(b, b), ['grantTypes']); // CIBA missing
+test('diffApps fails on dropped, changed, null->missing fields and wrong grants', () => {
+  const b = { ...full(), nullable: null };
+  const a = withCiba(b); delete a.redirectUris; a.accessControl = {}; delete a.nullable;
+  assert.deepEqual(diffApps(b, a).bad.sort(), ['accessControl', 'nullable', 'redirectUris']);
+  assert.deepEqual(diffApps(b, b).bad, ['grantTypes']); // CIBA missing
   const r = withCiba(b); r.grantTypes = ['CIBA', 'AUTHORIZATION_CODE'];
-  assert.deepEqual(diffApps(b, r), []); // PingOne reorders grantTypes: order is not a difference
-  r.grantTypes = ['CIBA']; // a dropped existing grant is
-  assert.deepEqual(diffApps(b, r), ['grantTypes']);
+  assert.deepEqual(diffApps(b, r).bad, []); // PingOne reorders grantTypes
+  r.grantTypes = ['CIBA'];
+  assert.deepEqual(diffApps(b, r).bad, ['grantTypes']);
+});
+
+test('N1: PUT ok but read-back differs -> REVERT emitted before the throw, state APPLIED, UNVERIFIED', async () => {
+  const b = full(); const log = [];
+  const bad = withCiba(b); delete bad.redirectUris;
+  const call = async (m) => (m === 'PUT' ? { status: 200, j: {} } : { status: 200, j: bad });
+  const state = { done: [], pending: ['update-app u1'] };
+  await assert.rejects(trackedUpdate(call, b, withCiba(b), state, 'update-app u1', 'REVERT: put back', (l) => log.push(l)), (e) => { assert.match(e.message, /redirectUris/); assert.equal(e.applied, true); return true; });
+  assert.match(log.join('\n'), /REVERT: put back/);
+  assert.match(summarize(state), /update-app u1 \(APPLIED, UNVERIFIED\)/);
+  assert.match(summarize(state), /not applied: none/);
+});
+
+test('N1: failed PUT records nothing and prints no REVERT', async () => {
+  const b = full(); const log = []; const state = { done: [], pending: ['update-app u1'] };
+  await assert.rejects(trackedUpdate(async () => ({ status: 400, j: {} }), b, withCiba(b), state, 'l', 'REVERT', (l) => log.push(l)));
+  assert.deepEqual([log, state.done], [[], []]);
 });
 
 test('backups are timestamped, never the same name twice, original = earliest', () => {

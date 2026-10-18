@@ -45,16 +45,18 @@ const READONLY = ['id', 'environment', 'createdAt', 'updatedAt', '_links'];
 export const putBody = (app) => Object.fromEntries(Object.entries(app).filter(([k]) => !READONLY.includes(k)));
 const canon = (v) => (Array.isArray(v) ? v.map(canon) : v && typeof v === 'object' ? Object.fromEntries(Object.keys(v).sort().map((k) => [k, canon(v[k])])) : v);
 
-/** Names of top-level fields that differ between two apps (values never returned). grantTypes must equal before + 'CIBA' (as a set). */
+/** Differing top-level fields between two apps (values never returned).
+ *  Keys ABSENT before and present after are benign server-added defaults (returned as `added`); any key present before that
+ *  changes or goes missing (incl. null -> missing) is a difference. grantTypes must equal before + 'CIBA' as a SET (PingOne reorders). */
 export function diffApps(before, after) {
   const b = putBody(before); const a = putBody(after); const bad = [];
-  for (const k of new Set([...Object.keys(b), ...Object.keys(a)])) {
+  const added = Object.keys(a).filter((k) => !(k in b));
+  for (const k of Object.keys(b)) {
     if (k === 'grantTypes') continue;
     if (JSON.stringify(canon(b[k])) !== JSON.stringify(canon(a[k]))) bad.push(k);
   }
-  // PingOne returns grantTypes in its own order (observed), so compare as sets: exactly before + CIBA.
   if (JSON.stringify([...(a.grantTypes || [])].sort()) !== JSON.stringify([...(b.grantTypes || []), 'CIBA'].sort())) bad.push('grantTypes');
-  return bad;
+  return { bad, added: added.filter((k) => k !== 'grantTypes') };
 }
 
 export const backupName = (appId, now = new Date()) => `${appId}.${now.toISOString().replace(/:/g, '-')}.backup.json`;
@@ -83,16 +85,32 @@ export function parseArgs(argv) {
   return r;
 }
 
-/** The ONE write path for an app change (used by --apply and --probe): PUT, re-GET, deep compare. Throws naming differing keys. */
-export async function putAppVerified(call, before, desired) {
+/** The ONE write path for an app change (used by --apply and --probe): PUT, onPut() right after a 2xx (so the caller can print REVERT
+ *  before anything can fail), re-GET, deep compare. A mismatch throws an error with .applied = true (the PUT is live). */
+export async function putAppVerified(call, before, desired, onPut = () => {}) {
   const r = await call('PUT', `/applications/${before.id}`, putBody(desired));
   if (r.status >= 300) throw new Error(`PUT app failed: ${r.status} ${JSON.stringify(r.j).slice(0, 300)}`);
+  onPut();
+  const fail = (m) => Object.assign(new Error(m), { applied: true });
   const g = await call('GET', `/applications/${before.id}`);
-  if (g.status >= 300) throw new Error(`read-back GET failed: ${g.status}`);
-  const bad = diffApps(before, g.j);
-  if (bad.length) throw new Error(`READ-BACK MISMATCH on app ${String(before.id).slice(0, 8)}…; differing fields: ${bad.join(', ')}`);
-  return g.j;
+  if (g.status >= 300) throw fail(`read-back GET failed: ${g.status}`);
+  const { bad, added } = diffApps(before, g.j);
+  if (bad.length) throw fail(`READ-BACK MISMATCH on app ${String(before.id).slice(0, 8)}…; differing fields: ${bad.join(', ')}`);
+  return { after: g.j, added };
 }
+
+/** --apply wrapper: records state the moment the PUT succeeds. state = {done: string[], pending: string[]}. */
+export async function trackedUpdate(call, before, desired, state, label, revertLine, log = console.log) {
+  const r = await putAppVerified(call, before, desired, () => {
+    log(`PUT accepted for ${label} (read-back pending)\n${revertLine}`);
+    state.done.push(`${label} (APPLIED, UNVERIFIED)`); state.pending.shift();
+  });
+  state.done[state.done.length - 1] = `${label} (applied, verified)`;
+  if (r.added.length) log(`PingOne added (not an error): ${r.added.join(', ')}`);
+  return r;
+}
+
+export const summarize = ({ done, pending }) => `\nSTATE AFTER RUN\n applied: ${done.length ? done.join('; ') : 'none'}\n not applied: ${pending.length ? pending.join('; ') : 'none'}\n (use the REVERT lines printed above to undo)`;
 
 // ---- CLI ----
 const mask = (s) => (s ? String(s).slice(0, 8) + '…' : s);
@@ -129,14 +147,14 @@ async function main() {
     if (mk.status >= 300) process.exit(1);
     console.log(`THROWAWAY '${name}' id ${mk.j.id} (owner: delete it)`);
     console.log('Fields stripped from the copy source:', [...READONLY.filter((k) => k in user), 'clientId (create only)'].join(', '));
-    const created = (await call('GET', `/applications/${mk.j.id}`)).j;
+    const created = must(await call('GET', `/applications/${mk.j.id}`), 'GET throwaway');
     const { clientId: _c, ...ub } = putBody(user); const cb = putBody(created);
     const changed = Object.keys(ub).filter((k) => k !== 'name' && !(placeholder && /RedirectUris$/.test(k)) && JSON.stringify(canon(ub[k])) !== JSON.stringify(canon(cb[k])));
     const extra = Object.keys(cb).filter((k) => !(k in ub) && k !== 'clientId');
     console.log('POST copy vs source, fields PingOne changed:', changed.length ? changed.join(', ') : 'none', '| fields PingOne added:', extra.length ? extra.join(', ') : 'none');
     try {
-      const after = await putAppVerified(call, created, { ...created, grantTypes: [...(created.grantTypes || []), 'CIBA'] });
-      console.log('PUT CIBA via the --apply code path + deep compare: LOSSLESS. grantTypes now', after.grantTypes, 'pkce', after.pkceEnforcement, 'auth', after.tokenEndpointAuthMethod);
+      const { after, added } = await putAppVerified(call, created, { ...created, grantTypes: [...(created.grantTypes || []), 'CIBA'] });
+      console.log('PUT CIBA via the --apply code path + deep compare: LOSSLESS (PingOne added, not an error: ' + (added.join(', ') || 'none') + '). grantTypes now', after.grantTypes, 'pkce', after.pkceEnforcement, 'auth', after.tokenEndpointAuthMethod);
     } catch (e) { console.log('PUT CIBA via the --apply code path: FAILED -', e.message); process.exitCode = 1; }
     return;
   }
@@ -157,33 +175,34 @@ async function main() {
   const fps = must(await call('GET', '/flowPolicies'), 'GET flowPolicies')._embedded?.flowPolicies || [];
   const ops = planCibaLogin(currentApps, assigns, fps);
   const nameOf = (id) => currentApps.find((c) => c.app.id === id)?.app.name;
-  const orig = (id) => path.join(out, originalBackup(fs.readdirSync(out), id));
+  const origFiles = Object.fromEntries(currentApps.map((c) => [c.app.id, path.join(out, originalBackup(fs.readdirSync(out), c.app.id))]));
   console.log(`Backups: ${out}/<appid>.<time>.backup.json (never overwritten; the EARLIEST per app is the ORIGINAL)`);
   for (const n of ops.notes) console.log('\n' + n);
   console.log(`\nPLAN (${ops.length} op${ops.length === 1 ? '' : 's'}, additive only):`);
   for (const x of ops) console.log(' -', x.op === 'update-app' ? `PUT app ${mask(x.target)} '${nameOf(x.target)}': add CIBA grant -> grantTypes [${x.body.grantTypes}]` : `POST flowPolicyAssignment on ${mask(x.target)} '${nameOf(x.target)}': ${mask(x.body.flowPolicy.id)} priority ${x.body.priority}`);
   if (!o.apply) { console.log('\nDRY RUN: nothing changed. Re-run with --apply to perform.'); return; }
 
-  const done = []; const pending = ops.map((x) => `${x.op} ${mask(x.target)}`);
+  const state = { done: [], pending: ops.map((x) => `${x.op} ${mask(x.target)}`) };
   try {
     for (const x of ops) {
+      const label = `${x.op} ${mask(x.target)}`;
       if (x.op === 'update-app') {
         const before = currentApps.find((c) => c.app.id === x.target).app;
-        await putAppVerified(call, before, x.body);
-        console.log(`applied + verified: update-app ${mask(x.target)}\nREVERT: PUT /applications/${x.target} with the "app" object from ${orig(x.target)} (minus id, environment, createdAt, updatedAt, _links); grantTypes back to [${before.grantTypes}]`);
+        await trackedUpdate(call, before, x.body, state, label, `REVERT: PUT /applications/${x.target} with the "app" object from ${origFiles[x.target]} (minus id, environment, createdAt, updatedAt, _links); grantTypes back to [${before.grantTypes}]`);
       } else {
         const r = must(await call('POST', `/applications/${x.target}/flowPolicyAssignments`, x.body), 'POST flowPolicyAssignment');
         console.log(`created assignment ${r.id}; REVERT (instruction only, never run by this script): DELETE /applications/${x.target}/flowPolicyAssignments/${r.id}`);
+        state.done.push(`${label} (APPLIED, UNVERIFIED)`); state.pending.shift();
         const now = must(await call('GET', `/applications/${x.target}/flowPolicyAssignments`), 'read-back assignments')._embedded?.flowPolicyAssignments || [];
         if (!now.some((a) => a.id === r.id && a.flowPolicy?.id === x.body.flowPolicy.id)) throw new Error(`READ-BACK MISMATCH on assignment ${r.id}`);
+        state.done[state.done.length - 1] = `${label} (applied, verified)`;
         console.log('verified:', mask(x.target), mask(x.body.flowPolicy.id));
       }
-      done.push(`${x.op} ${mask(x.target)}`); pending.shift();
     }
   } catch (e) {
     process.exitCode = 1; console.error('ERROR:', e.message);
   } finally {
-    console.log(`\nSTATE AFTER RUN\n applied: ${done.length ? done.join('; ') : 'none'}\n not applied: ${pending.length ? pending.join('; ') : 'none'}\n (use the REVERT lines printed above to undo)`);
+    console.log(summarize(state));
   }
 }
 
