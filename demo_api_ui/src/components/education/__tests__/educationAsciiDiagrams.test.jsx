@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { describe, it, expect } from 'vitest';
 import PingGatewayMcpPanel from '../PingGatewayMcpPanel';
 import TokenChainEducationPanel from '../TokenChainEducationPanel';
@@ -44,6 +44,18 @@ describe('education panels — ASCII diagrams drawn with React Flow', () => {
   it('PingGateway MCP filters: filter chain order', () => {
     render(<PingGatewayMcpPanel isOpen onClose={() => {}} initialTabId="official-filters" />);
     expectFlow('pgw-filter-chain-diagram', ['audit', 'protect', 'validate', 'more', 'proxy']);
+  });
+
+  it('Token chain lifecycle: login, actor token, exchange, MCP call — each box names its output token', () => {
+    render(<TokenChainEducationPanel isOpen onClose={() => {}} initialTabId="overview" />);
+    expectFlow('tc-lifecycle-diagram', ['login', 'actor', 'exchange', 'mcp']);
+    const canvas = screen.getByTestId('tc-lifecycle-diagram');
+    expect(within(canvas).getByText(/access_token · refresh_token · id_token/)).toBeInTheDocument();
+    expect(within(canvas).getByText(/→ actor_token/)).toBeInTheDocument();
+    expect(within(canvas).getByText(/→ exchanged_token/)).toBeInTheDocument();
+    const bar = screen.getByTestId('tc-lifecycle-diagram-steps');
+    fireEvent.click(within(bar).getByRole('button', { name: 'Simulate' }));
+    expect(within(bar).getByText(/Step 1 of 3/)).toBeInTheDocument();
   });
 
   it('Token chain exchange paths: 1-exchange, 2-exchange, scope narrowing', () => {

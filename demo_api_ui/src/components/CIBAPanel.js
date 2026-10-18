@@ -20,6 +20,7 @@ import './CIBAPanel.css';
 import {
   CibaWhatContent,
   CibaFullStackContent,
+  CibaMcpFlowContent,
   TokenExchangeContent,
 } from './education/educationContent';
 import { EduImplIntro, SNIP_CIBA_INITIATE } from './education/educationImplementationSnippets';
@@ -392,6 +393,7 @@ export default function CIBAPanel() {
     { id: 'roles',     label: 'Sign-in & roles' },
     { id: 'fullstack', label: 'Full stack' },
     { id: 'tokenx',    label: 'Token exchange' },
+    { id: 'cibamcp',   label: 'CIBA + MCP step-up' },
     { id: 'vslogin',   label: 'vs Login Flow' },
     { id: 'tryit',     label: 'Try It' },
     { id: 'appflow',   label: 'App Flows' },
@@ -511,6 +513,13 @@ export default function CIBAPanel() {
           {activeTab === 'tokenx' && (
             <div className="ciba-tab-content">
               <TokenExchangeContent />
+            </div>
+          )}
+
+          {/* ── CIBA step-up + RFC 8693 exchange + MCP tool call (sequence diagrams) ── */}
+          {activeTab === 'cibamcp' && (
+            <div className="ciba-tab-content">
+              <CibaMcpFlowContent />
             </div>
           )}
 
