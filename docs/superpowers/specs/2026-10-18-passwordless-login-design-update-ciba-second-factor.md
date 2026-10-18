@@ -98,8 +98,12 @@ CIBA is proof of identity only, not the session; passwordless stays as it is; cu
 - **Match code.** 8 characters for coded verticals (2-char vertical code + 6 hex); 6 random hex for verticals without a code
   (a2a, oauth-teaching, admin, pingone-admin, shared). Never a literal word.
 - **PingFederate customers are in scope** (owner decision 2026-10-18). The approval always runs on the PingOne CIBA step-up
-  apps; a PF user is mapped to the PingOne user with the same username. Two documented fall-throughs complete the sign-in
-  with `secondFactorSkipped:true`: a PF user with no PingOne account, and an enabled user with neither email nor phone.
+  apps; a PF user is mapped to the PingOne user with the same username. Only a flow that reaches `COMPLETED` straight from the
+  PASSWORD step is parked. Three documented cases skip the approval and carry `secondFactorSkipped:true` when it was requested:
+  a PF user with no PingOne account, an enabled user with neither email nor phone (both complete the sign-in, and the UI says
+  so), and a password step that does not end `COMPLETED` (an MFA or policy screen), which returns the existing `{fallback:true}`
+  redirect login. A flow that reaches `COMPLETED` after OTP, passkey, PF `MFA_COMPLETED` or an identifier-first lookup never
+  parks (real MFA already happened) and carries no marker.
 - **Opt-in, not enforced server-side.** Omitting `secondFactor` gives today's password-only login. Before it is ever
   enforced, also bind at `/callback`: the session's ID-token `sub` (or the user id in the COMPLETED body) must equal the
   parked `expectedSub` (reviewer finding M4, deferred).
