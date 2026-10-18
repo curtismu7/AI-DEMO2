@@ -1,6 +1,79 @@
 // banking_api_ui/src/components/education/ArchitectureDiagramPanel.js
 import React from "react";
 import EducationDrawer from "../shared/EducationDrawer";
+import StaticFlowDiagram from "../StaticFlowDiagram";
+
+const C4_GROUPS = {
+  person: { label: "Person", bg: "var(--th-bg-emphasis)" },
+  system: { label: "This system", bg: "var(--th-status-info)" },
+  external: { label: "External system", bg: "var(--th-status-success)" },
+  store: { label: "Data store", bg: "var(--th-status-warning)" },
+};
+
+const CONTEXT_NODES = [
+  { id: "user", group: "person", label: "Banking User", sub: ["Customer / Admin"], x: 250, y: 0 },
+  { id: "demo", group: "system", label: "AI Demo", sub: ["AI-powered banking", "RFC 8693 delegation"], x: 250, y: 150 },
+  { id: "pingone", group: "external", label: "PingOne", sub: ["OAuth 2.0", "OIDC · MFA", "Mgmt API"], x: 50, y: 320 },
+  { id: "llm", group: "external", label: "LLM Provider", sub: ["OpenAI · Anthropic", "Groq · Gemini · Helix"], x: 450, y: 320 },
+];
+const CONTEXT_EDGES = [
+  ["user", "demo", "uses", { vertical: true }],
+  ["demo", "pingone", "OAuth+OIDC · RFC 8693", { vertical: true }],
+  ["demo", "llm", "AI inference", { vertical: true }],
+];
+
+const CONTAINER_NODES = [
+  { id: "ui", group: "system", label: "banking_api_ui (React 18 SPA)", sub: ["Vercel Platform", "• Session cookie", "• No raw tokens", "• Education UI"], x: 0, y: 0 },
+  { id: "server", group: "system", label: "banking_api_server (Express BFF)", sub: ["Vercel Platform", "• OAuth routes", "• RFC 8693 exchange", "• CIBA / MFA", "• LangGraph AI agent"], x: 320, y: 0 },
+  { id: "redis", group: "store", label: "Upstash Redis", sub: ["Session store (Vercel KV)"], x: 0, y: 230 },
+  { id: "mcp", group: "system", label: "banking_mcp_server (TypeScript)", sub: ["ws://:8080", "MCP tool server"], x: 320, y: 230 },
+  { id: "pingone", group: "external", label: "PingOne", sub: ["auth.pingone", "api.pingone"], x: 640, y: 230 },
+  { id: "lmdb", group: "store", label: "LMDB (local dev only)", sub: ["Config + session fallback"], x: 0, y: 400 },
+];
+const CONTAINER_EDGES = [
+  ["ui", "server", "session cookie"],
+  ["server", "redis", "sessions", { vertical: true }],
+  ["server", "mcp", "MCP tool calls", { vertical: true }],
+  ["server", "pingone", "OAuth · token exchange", { vertical: true }],
+  ["lmdb", "mcp", "config + session fallback"],
+];
+
+const COMPONENT_NODES = [
+  { id: "oauth", group: "system", label: "OAuth Routes", sub: ["login · callback", "logout · refresh"], x: 0, y: 0 },
+  { id: "tex", group: "system", label: "Token Exchange", sub: ["RFC 8693", "1-exchange · 2-exchange"], x: 300, y: 0 },
+  { id: "ciba", group: "system", label: "CIBA Service", sub: ["backchannel auth + poll"], x: 600, y: 0 },
+  { id: "mfa", group: "system", label: "MFA Service", sub: ["OTP, TOTP, FIDO2, push"], x: 0, y: 150 },
+  { id: "agent", group: "system", label: "AI Agent", sub: ["LangGraph", "heuristic + MCP client"], x: 300, y: 150 },
+  { id: "config", group: "store", label: "ConfigStore", sub: ["LMDB / KV persistence"], x: 600, y: 150 },
+  { id: "data", group: "store", label: "DataStore", sub: ["accounts, transactions"], x: 0, y: 300 },
+  { id: "session", group: "store", label: "Session MW", sub: ["Upstash Redis", "PKCE cookies"], x: 300, y: 300 },
+  { id: "delegation", group: "system", label: "Delegation", sub: ["act/may_act", "audit trail"], x: 600, y: 300 },
+];
+// No arrows inside the BFF box: the walk visits each component in turn.
+const COMPONENT_WALK = COMPONENT_NODES.map((n) => ({ title: n.label, label: n.sub.join(" · "), nodes: [n.id], edges: [] }));
+
+const CODE_NODES = [
+  { id: "builder", group: "system", label: "agentBuilder.js", sub: ["LLM selection", "OpenAI · Anthropic · Groq · Gemini · Helix"], x: 560, y: 0 },
+  { id: "oauth", group: "system", label: "oauthService.js", sub: ["PKCE, token mgmt"], x: 0, y: 160 },
+  { id: "graph", group: "system", label: "bankingAgentLangGraphService.js", sub: ["LangGraph + heuristic parser"], x: 560, y: 160 },
+  { id: "mcptoken", group: "system", label: "agentMcpTokenService.js", sub: ["RFC 8693 orchestration", "1-exchange or 2-exchange"], x: 280, y: 320 },
+  { id: "ws", group: "system", label: "mcpWebSocketClient.js", sub: ["ws://banking_mcp_server"], x: 840, y: 320 },
+  { id: "p1", group: "external", label: "pingOneClientService.js", sub: ["Management API", "Worker token"], x: 0, y: 480 },
+  { id: "chain", group: "system", label: "tokenChainService.js", sub: ["Token event tracking", "sub, act, aud chain"], x: 560, y: 480 },
+  { id: "mfa", group: "system", label: "mfaService.js", sub: ["OTP/TOTP/FIDO2"], x: 0, y: 640 },
+  { id: "config", group: "store", label: "configStore.js", sub: ["LMDB / Vercel KV", "Persistent config"], x: 280, y: 640 },
+  { id: "store", group: "store", label: "data/store.js", sub: ["Accounts, txns", "In-memory + backup"], x: 560, y: 640 },
+];
+const CODE_EDGES = [
+  ["builder", "graph", "LLM for the agent", { vertical: true }],
+  ["oauth", "graph", "user tokens"],
+  ["graph", "mcptoken", "needs MCP token", { vertical: true }],
+  ["graph", "ws", "tool calls", { vertical: true }],
+  ["mcptoken", "p1", "exchange via PingOne", { vertical: true }],
+  ["mcptoken", "chain", "record token events", { vertical: true }],
+  ["p1", "config", "config", { vertical: true }],
+  ["mfa", "config", "config"],
+];
 
 function ContextTab() {
   return (
@@ -11,28 +84,7 @@ function ContextTab() {
         depends on.
       </p>
 
-      <pre className="edu-code">{`
-                    ┌─────────────────────┐
-                    │    Banking User      │
-                    │  (Customer / Admin)  │
-                    └──────────┬──────────┘
-                               │ uses
-                               ▼
-                    ┌─────────────────────┐
-                    │      AI Demo        │
-                    │  AI-powered banking │
-                    │  RFC 8693 delegation│
-                    └───┬──────────┬──────┘
-                        │          │
-          OAuth+OIDC    │          │ AI inference
-          RFC 8693      │          │
-                        ▼          ▼
-          ┌──────────────┐  ┌───────────────────────┐
-          │   PingOne    │  │      LLM Provider      │
-          │  OAuth 2.0   │  │  OpenAI · Anthropic    │
-          │  OIDC · MFA  │  │  Groq · Gemini · Helix │
-          │  Mgmt API    │  └───────────────────────┘
-          └──────────────┘`}</pre>
+      <StaticFlowDiagram NODES={CONTEXT_NODES} EDGES={CONTEXT_EDGES} GROUPS={C4_GROUPS} testId="c4-context-diagram" ariaLabel="C4 system context: user, AI Demo, PingOne and LLM provider" />
 
       <h4>Key relationships</h4>
       <ul>
@@ -60,34 +112,7 @@ function ContainerTab() {
       <h3 style={{ marginTop: 0 }}>C4 Level 2 — Container Diagram</h3>
       <p>The major deployable units and how they communicate.</p>
 
-      <pre className="edu-code">{`
-  ┌──────────────────────────────────────────────────────┐
-  │                    Vercel Platform                    │
-  │                                                      │
-  │  ┌─────────────────┐    ┌──────────────────────┐    │
-  │  │  banking_api_ui  │    │  banking_api_server   │    │
-  │  │  (React 18 SPA)  │───▶│  (Express BFF)        │    │
-  │  │                  │    │                      │    │
-  │  │  • Session cookie│    │  • OAuth routes      │    │
-  │  │  • No raw tokens │    │  • RFC 8693 exchange │    │
-  │  │  • Education UI  │    │  • CIBA / MFA        │    │
-  │  │                  │    │  • LangGraph AI agent│    │
-  │  └─────────────────┘    └──────┬───────────────┘    │
-  │                                │                    │
-  └────────────────────────────────┼────────────────────┘
-                                   │
-          ┌────────────────────────┼────────────────┐
-          │                        │                │
-          ▼                        ▼                ▼
-  ┌──────────────┐   ┌────────────────────┐  ┌──────────────┐
-  │ Upstash Redis│   │ banking_mcp_server  │  │   PingOne    │
-  │              │   │   (TypeScript)     │  │              │
-  │ Session store│   │   ws://:8080       │  │ auth.pingone │
-  │ (Vercel KV)  │   │   MCP tool server  │  │ api.pingone  │
-  └──────────────┘   └────────────────────┘  └──────────────┘
-                               ▲
-                     LMDB (local dev only)
-                     Config + session fallback`}</pre>
+      <StaticFlowDiagram NODES={CONTAINER_NODES} EDGES={CONTAINER_EDGES} GROUPS={C4_GROUPS} testId="c4-container-diagram" ariaLabel="C4 containers: SPA, BFF, MCP server, Redis, PingOne and LMDB" />
 
       <h4>Containers</h4>
       <table
@@ -173,31 +198,7 @@ function ComponentTab() {
         responsibilities.
       </p>
 
-      <pre className="edu-code">{`
-  ┌──────────────────────────────────────────────────────┐
-  │              banking_api_server (BFF)                 │
-  │                                                      │
-  │  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  │
-  │  │ OAuth Routes │  │Token Exchange│  │CIBA Service│  │
-  │  │ login        │  │RFC 8693      │  │backchannel │  │
-  │  │ callback     │  │1-exchange    │  │auth + poll │  │
-  │  │ logout       │  │2-exchange    │  │            │  │
-  │  │ refresh      │  └──────────────┘  └────────────┘  │
-  │  └─────────────┘                                     │
-  │                                                      │
-  │  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  │
-  │  │ MFA Service  │  │   AI Agent   │  │ ConfigStore│  │
-  │  │ OTP, TOTP,   │  │  LangGraph   │  │  LMDB / KV │  │
-  │  │ FIDO2, push  │  │  heuristic   │  │ persistence│  │
-  │  │              │  │  + MCP client│  │            │  │
-  │  └─────────────┘  └──────────────┘  └────────────┘  │
-  │                                                      │
-  │  ┌─────────────┐  ┌──────────────┐  ┌────────────┐  │
-  │  │  DataStore   │  │  Session MW  │  │ Delegation │  │
-  │  │  accounts,   │  │ Upstash Redis│  │ act/may_act│  │
-  │  │  transactions│  │ PKCE cookies │  │ audit trail│  │
-  │  └─────────────┘  └──────────────┘  └────────────┘  │
-  └──────────────────────────────────────────────────────┘`}</pre>
+      <StaticFlowDiagram NODES={COMPONENT_NODES} EDGES={[]} GROUPS={C4_GROUPS} walk={COMPONENT_WALK} testId="c4-component-diagram" ariaLabel="C4 components inside banking_api_server" />
 
       <h4>Component responsibilities</h4>
       <ul>
@@ -249,29 +250,7 @@ function CodeTab() {
       <h3 style={{ marginTop: 0 }}>C4 Level 4 — Code (key services)</h3>
       <p>The critical service files and their call relationships.</p>
 
-      <pre className="edu-code">{`
-  agentBuilder.js ─────────────────────────────────────┐
-    LLM selection                                       │
-    OpenAI · Anthropic · Groq · Gemini · Helix          │
-                                                        ▼
-  oauthService.js ──────────────▶ bankingAgentLangGraphService.js
-    PKCE, token mgmt                LangGraph + heuristic parser
-                                    │                   │
-                                    ▼                   ▼
-                          agentMcpTokenService.js  mcpWebSocketClient.js
-                            RFC 8693 orchestration   ws://banking_mcp_server
-                            1-exchange or 2-exchange
-                                    │
-                    ┌───────────────┤
-                    ▼               ▼
-          pingOneClientService.js  tokenChainService.js
-            Management API          Token event tracking
-            Worker token            sub, act, aud chain
-                    │
-                    ▼
-  mfaService.js ──▶ configStore.js        data/store.js
-    OTP/TOTP/FIDO2   LMDB / Vercel KV     Accounts, txns
-                     Persistent config     In-memory + backup`}</pre>
+      <StaticFlowDiagram NODES={CODE_NODES} EDGES={CODE_EDGES} GROUPS={C4_GROUPS} testId="c4-code-diagram" ariaLabel="C4 code: key service files and their call relationships" />
 
       <h4>Key service files</h4>
       <table
