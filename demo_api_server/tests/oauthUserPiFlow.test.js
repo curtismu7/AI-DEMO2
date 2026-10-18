@@ -408,7 +408,7 @@ describe('customer pi.flow sign-in', () => {
         expect(res.body.step).toBe('device');
         expect(res.body.devices).toEqual([
           { id: 'pf-sms-1', type: 'SMS', nickname: null, email: null, phone: '******1586' },
-          { id: 'pf-mail-1', type: 'Email', nickname: null, email: 'cm***@pingone.com', phone: null },
+          { id: 'pf-mail-1', type: 'EMAIL', nickname: null, email: 'cm***@pingone.com', phone: null },
         ]);
       });
 
