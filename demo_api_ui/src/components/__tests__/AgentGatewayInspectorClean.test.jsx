@@ -169,3 +169,44 @@ describe('AgentGatewayInspectorClean behaviors', () => {
     expect(screen.queryByText(/unrelated_tool/)).toBeNull();
   });
 });
+
+describe('AgentGatewayInspectorClean mode chip and signed-out polling', () => {
+  it('shows Loading until /active answers, then Live', async () => {
+    let resolve;
+    const base = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation((url, ...r) => (url === '/api/mcp-gateway/active'
+      ? new Promise((res) => { resolve = () => res({ data: { usePingGateway: true, simulated: false, url: 'https://gw/mcp' } }); })
+      : base(url, ...r)));
+    renderPage();
+    expect(screen.getByText('Loading', { selector: '.insp-chip' })).toBeInTheDocument();
+    await act(async () => { resolve(); });
+    expect(await screen.findByText('Live', { selector: '.insp-chip' })).toBeInTheDocument();
+  });
+
+  it('shows Unavailable when /active fails, and stops polling decisions on a 401', async () => {
+    vi.useFakeTimers();
+    try {
+      const unauth = Object.assign(new Error('401'), { response: { status: 401 } });
+      apiClient.get.mockImplementation((url) => Promise.reject(unauth));
+      renderPage();
+      await act(async () => { await vi.advanceTimersByTimeAsync(0); });
+      expect(screen.getByText('Unavailable', { selector: '.insp-chip' })).toBeInTheDocument();
+      const base = decisionCalls();
+      await act(async () => { await vi.advanceTimersByTimeAsync(20000); });
+      expect(decisionCalls()).toBe(base);
+      const decisionCfg = apiClient.get.mock.calls.find((c) => c[0].startsWith('/api/admin/agent-gateway/decisions'))[1];
+      expect(decisionCfg._noAuthBanner).toBe(true);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+});
+
+describe('AgentGatewayInspectorClean recorded rows', () => {
+  it('Resend is disabled and Edit enabled for a recorded decision (its parameters are not tool args)', async () => {
+    renderPage();
+    await screen.findByRole('button', { name: /create_\s?withdrawal/ });
+    expect(screen.getByRole('button', { name: 'Resend' })).toBeDisabled();
+    expect(screen.getByRole('button', { name: /Edit/ })).toBeEnabled();
+  });
+});

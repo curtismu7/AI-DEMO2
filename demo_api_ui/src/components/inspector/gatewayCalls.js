@@ -81,8 +81,11 @@ function auditOf(a) {
 
 function hopsFor(c) {
   const stopped = c.stoppedAt;
+  const first = { dir: c.entry, call: 'POST /mcp tools/call', what: c.entry === 'BFF → Gateway' ? 'This page asked the gateway to run the tool.' : 'The AI agent asked the gateway to run the tool.', status: c.status, ms: c.ms, request: { tool: c.tool, args: c.args }, response: c.response };
+  // No audit trail (BFF down, network failure): the gateway never reported, so draw only what we know.
+  if (c.noTrail) return [first];
   return [
-    { dir: c.entry, call: 'POST /mcp tools/call', what: c.entry === 'BFF → Gateway' ? 'This page asked the gateway to run the tool.' : 'The AI agent asked the gateway to run the tool.', status: c.status, ms: c.ms, request: { tool: c.tool, args: c.args }, response: c.response },
+    first,
     { dir: 'Gateway → PingOne', call: 'POST /as/introspect', what: 'The gateway checked the token with PingOne.', status: c.intro.active === false ? err('inactive') : ok('active'), ms: null, request: null, response: c.intro },
     { dir: 'Gateway → PingOne Authorize', call: 'POST /decisionEndpoints/{id}', what: 'The gateway asked PingOne Authorize for a decision.', status: c.decision === 'DENY' ? err('DENY') : c.paused ? warn('PAUSE') : ok(c.decision ?? 'unknown'), ms: null, request: { parameters: c.parameters }, response: c.rawResponse },
     { dir: 'Gateway → MCP server', call: `POST /mcp tools/call ${c.tool}`, what: c.forwarded ? 'The gateway forwarded the call to the MCP server.' : 'Stopped at ' + (stopped ?? 'an earlier step'), status: c.forwarded ? ok('forwarded') : idle('not called'), ms: null, request: { tool: c.tool, args: c.args }, response: null },
@@ -114,7 +117,7 @@ function build(n) {
     hops: hopsFor({ ...c, response: n.response ?? n.rawResponse ?? null }),
     steps: stepsFor(c),
     audit: auditOf(n.mcpAudit && { ...n.mcpAudit, statements: n.statements }),
-    input: { tool: n.tool, args: n.args },
+    input: n.input ?? { tool: n.tool, args: n.args },
   };
 }
 
@@ -145,7 +148,7 @@ export function gatewayCallFromTest(res, { tool, args, at }) {
   const body = res.ok === false ? { error: res.error, httpStatus: res.httpStatus, gatewayErrorCode: res.gatewayErrorCode, message: res.message } : res.result;
   return build({
     id, at, src: 'you', ms: res.durationMs, tool, args, ok: res.ok, httpStatus: res.httpStatus, message: res.message,
-    decision: a.decision, backend: a.backend, method: a.method, parameters: a.parameters, rawResponse: a.rawResponse, statements: a.statements,
+    noTrail: !res.gwAuditTrail, decision: a.decision ?? res.decision, backend: a.backend, method: a.method, parameters: a.parameters, rawResponse: a.rawResponse, statements: a.statements,
     resolver: a.resolver, introspection: t.introspection, mcpAudit: t.mcpAudit, filterChain: t.filterChain, stoppedAt: t.denyingFilter,
     tokenEvents: res.tokenEvents, response: body,
   });
@@ -183,7 +186,7 @@ export function gatewayCallFromRecord(rec) {
   const introspection = { ...claims, ...(rec.email ? { email: rec.email } : {}), ...(rec.introspectionActive != null ? { active: rec.introspectionActive } : {}) };
   const n = build({
     id: `gw-rec-${rec.ts}-${rec.tool}-${rec.correlationId}`, at: Date.parse(rec.ts), src: 'agent', ms: null,
-    tool: rec.tool, args: rec.parameters && !rec.parameters.truncated ? rec.parameters : {}, method: rec.method,
+    tool: rec.tool, args: {}, input: { tool: rec.tool, args: {}, partial: true }, method: rec.method,
     decision: rec.decision, backend: rec.backend, parameters: rec.parameters, rawResponse: rec.rawResponse, statements: rec.statements,
     introspection, mcpAudit: rec.mcpAudit && !rec.mcpAudit.truncated ? rec.mcpAudit : null,
     filterChain: rec.filterChain, stoppedAt: rec.stoppedAt, correlationId: rec.correlationId, message: rec.reason,

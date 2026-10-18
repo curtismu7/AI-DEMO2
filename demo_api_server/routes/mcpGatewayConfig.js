@@ -616,6 +616,7 @@ router.post('/test', express.json(), async (req, res) => {
             rateLimitLayer:   e.rateLimitLayer || null,
             decision,
             rpcData:          e.rpcData || null,
+            gwAuditTrail:     e.gwAuditTrail || null,
             tokenEvents,
         });
     }

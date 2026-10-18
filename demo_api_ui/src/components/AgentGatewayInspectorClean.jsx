@@ -6,7 +6,7 @@ import { formatAxiosError } from '../utils/formatAxiosError';
 import { extractCapturedValues, unwrapMcpResult } from './AgentGatewayTester';
 import { TOOL_ATTACKS } from '../config/toolAttackCatalog';
 import InspectorLayout from './inspector/InspectorLayout';
-import { ok, warn } from './inspector/inspectorCalls';
+import { ok, warn, err, idle } from './inspector/inspectorCalls';
 import {
   gatewayCallFromTest, gatewayCallsFromBurst, gatewayCallFromRecord, dedupeGatewayCalls, logLinesFor,
 } from './inspector/gatewayCalls';
@@ -68,6 +68,8 @@ function failureBody(e) {
 
 export default function AgentGatewayInspectorClean() {
   const [active, setActive] = useState(null);
+  // 'loading' until /active answers; 'down' if it fails or the user is signed out.
+  const [gwState, setGwState] = useState('loading');
   const [tools, setTools] = useState([]);
   const [records, setRecords] = useState([]);
   const [testCalls, setTestCalls] = useState([]);
@@ -83,14 +85,25 @@ export default function AgentGatewayInspectorClean() {
   const recordCache = useRef(new Map());
   const logCache = useRef(new Map());
 
+  const signedOut = useRef(false);
+  // _noAuthBanner: the Unavailable chip answers a 401 here, not the global sign-in modal.
   const fetchActive = useCallback(async () => {
-    try { setActive((await apiClient.get('/api/mcp-gateway/active')).data); } catch { /* keep the last value */ }
+    try {
+      setActive((await apiClient.get('/api/mcp-gateway/active', { _noAuthBanner: true })).data);
+      setGwState('ready');
+    } catch (e) {
+      if (e.response?.status === 401) signedOut.current = true;
+      setGwState('down');
+    }
   }, []);
   const fetchRecords = useCallback(async () => {
+    if (signedOut.current) return;
     try {
-      const { data } = await apiClient.get('/api/admin/agent-gateway/decisions', { params: { limit: 50 } });
+      const { data } = await apiClient.get('/api/admin/agent-gateway/decisions', { params: { limit: 50 }, _noAuthBanner: true });
       setRecords(data.decisions || []);
-    } catch { /* best-effort */ }
+    } catch (e) {
+      if (e.response?.status === 401) { signedOut.current = true; setGwState('down'); }
+    }
   }, []);
 
   useEffect(() => {
@@ -269,7 +282,7 @@ export default function AgentGatewayInspectorClean() {
       title="Agent Gateway Inspector"
       lede="Every tool call that went through the gateway: the request and response, the token it checked, each filter it passed, and each API call the gateway made."
       related={RELATED}
-      mode={active?.simulated ? warn('Simulated authz') : ok('Live')}
+      mode={gwState === 'loading' ? idle('Loading') : gwState === 'down' ? err('Unavailable') : active?.simulated ? warn('Simulated authz') : ok('Live')}
       source={{
         label: 'Gateway',
         value: active?.usePingGateway === false ? 'node' : 'ping',

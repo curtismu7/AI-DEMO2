@@ -117,3 +117,53 @@ describe('logLinesFor', () => {
     expect(logLinesFor(call, lines)).toEqual([lines[0]]);
   });
 });
+
+describe('gatewayCallFromTest: refused calls (server ok:false shape)', () => {
+  const denyRes = (authorizeDecision) => ({
+    gateway: 'PingOne Agent Gateway', ok: false, durationMs: 80, error: 'gateway_error', httpStatus: 403,
+    gatewayErrorCode: 'access_denied', message: 'Denied by PingOne Authorize', retryAfterMs: null, rateLimited: false,
+    rateLimitLayer: null, decision: 'DENY', rpcData: { decision: 'DENY' }, tokenEvents: [],
+    gwAuditTrail: {
+      introspection: INTRO,
+      authorize: { ...(authorizeDecision ? { decision: authorizeDecision } : {}), backend: 'p1az', tool: 'get_sensitive_account_details', method: 'tools/call', parameters: { a: 1 }, rawResponse: { decision: 'DENY' }, statements: [{ name: 'deny-sensitive' }] },
+      mcpAudit: AUDIT,
+      filterChain: [...CHAIN.slice(0, 4), { filter: 'P1AZDecision', result: 'blocked', decision: 'DENY' }],
+      denyingFilter: 'P1AZDecision',
+    },
+  });
+
+  it.each([['trail carries the decision', 'DENY'], ['only the top-level decision', undefined]])('renders DENY with the full filter chain: %s', (_n, d) => {
+    const c = gatewayCallFromTest(denyRes(d), { ...meta, tool: 'get_sensitive_account_details' });
+    expect(c.status.label).toBe('DENY');
+    expect(c.banner.title).toBe('Denied by PingOne Authorize');
+    expect(c.steps.map((s) => s.title)).toEqual(expect.arrayContaining(['McpValidationFilter', 'TokenIntrospection', 'P1AZDecision', 'Upstream MCP server']));
+    expect(c.steps.length).toBe(6);
+    expect(c.audit.Who).toEqual(expect.arrayContaining([['userSub', 'user-1']]));
+    expect(c.hops).toHaveLength(4);
+    expect(c.hops[2].status.label).toBe('DENY');
+  });
+
+  it('dedupes against the matching recorded decision, leaving ONE row', () => {
+    const t = gatewayCallFromTest(denyRes('DENY'), { ...meta, tool: 'get_sensitive_account_details', at: 1760000000000 });
+    const r = gatewayCallFromRecord({
+      ts: new Date(1760000001000).toISOString(), tool: 'get_sensitive_account_details', method: 'tools/call', decision: 'DENY', backend: 'p1az',
+      sub: 'user-1', clientId: 'cli-1', stoppedAt: 'P1AZDecision', correlationId: 'c9', statements: [{ name: 'deny-sensitive' }], parameters: {}, rawResponse: {}, filterChain: null,
+    });
+    expect(dedupeGatewayCalls([t], [r])).toHaveLength(1);
+  });
+
+  it('with no audit trail draws only the first hop (no fake green hops)', () => {
+    const c = gatewayCallFromTest({ ok: false, durationMs: 5, error: 'network', httpStatus: 502, message: 'BFF down' }, meta);
+    expect(c.hops).toHaveLength(1);
+    expect(c.hops[0].status.tone).toBe('err');
+  });
+});
+
+describe('gatewayCallFromRecord: input', () => {
+  it('never reuses Authorize decision parameters as tool args; Resend unavailable (partial)', () => {
+    const c = gatewayCallFromRecord({ ts: '2026-10-17T10:00:00.000Z', tool: 'create_withdrawal', decision: 'DENY', parameters: { Amount: 9, ToolName: 'x' }, correlationId: 'c' });
+    expect(c.input).toEqual({ tool: 'create_withdrawal', args: {}, partial: true });
+    expect(c.request.body.args).toEqual({});
+    expect(c.hops[2].request).toEqual({ parameters: { Amount: 9, ToolName: 'x' } });
+  });
+});
