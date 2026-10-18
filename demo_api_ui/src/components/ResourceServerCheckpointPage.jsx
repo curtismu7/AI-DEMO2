@@ -8,6 +8,7 @@ import React, { useState } from "react";
 import useDividerDrag from "../hooks/useDividerDrag";
 import { useThemeOptional } from "../context/ThemeContext";
 import "./ResourceServerCheckpointPage.css";
+import PageHeader from './common/PageHeader';
 
 const FLOW_STEPS = [
   { id: "agent", label: "agent" },
@@ -215,14 +216,10 @@ export default function ResourceServerCheckpointPage() {
         >
           {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
         </button>
-        <span className="rsc-eyebrow">Last hop · Kong pattern · PingOne Authorize AAM</span>
-        <h1>The final check before your data</h1>
-        <p className="rsc-sub">
-          Every gateway upstream already validated its own token. This page shows the one
+        <PageHeader eyebrow="Last hop · Kong pattern · PingOne Authorize AAM" title="The final check before your data" summary={<>Every gateway upstream already validated its own token. This page shows the one
           check that still matters at the very end: the resource server hands the incoming
           request — token and all — to PingOne Authorize over the AAM sideband, exactly the
-          way a Kong ping-auth plugin would, and only touches banking data on PERMIT.
-        </p>
+          way a Kong ping-auth plugin would, and only touches banking data on PERMIT.</>} />
       </div>
 
       <div className="rsc-whycards">

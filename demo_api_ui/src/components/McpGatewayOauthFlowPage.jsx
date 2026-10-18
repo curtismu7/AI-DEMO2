@@ -8,6 +8,7 @@ import DiagramExportBar from "./DiagramExportBar";
 import FlowDiagram from "./FlowDiagram";
 import "./McpGatewayOauthFlowPage.css";
 import "./PrivilegeMcpDiagramPage.css";
+import PageHeader from './common/PageHeader';
 
 export const ARCHITECTURE_SOURCE = `graph TB
     subgraph client["Client"]
@@ -154,15 +155,9 @@ export default function McpGatewayOauthFlowPage() {
   return (
     <>
     <div className="pmd-page">
-      <div className="pmd-hero">
-        <span className="pmd-eyebrow">demo_mcp_gateway &rarr; demo_mcp_server</span>
-        <h1>Agent Gateway OAuth Flow — Architecture</h1>
-        <p className="pmd-sub">
-          Topology behind the sequence diagram below: the gateway sits between the
+      <PageHeader className="pmd-hero" eyebrow={<>demo_mcp_gateway &rarr; demo_mcp_server</>} title="Agent Gateway OAuth Flow — Architecture" summary={<>Topology behind the sequence diagram below: the gateway sits between the
           agent and the MCP server as an OAuth Resource Server, introspecting and
-          exchanging the token with PingOne before ever forwarding a request downstream.
-        </p>
-      </div>
+          exchanging the token with PingOne before ever forwarding a request downstream.</>} />
 
       <DiagramExportBar
         source={archSource}
@@ -182,16 +177,10 @@ export default function McpGatewayOauthFlowPage() {
     </div>
 
     <div className="mgof-page">
-      <div className="mgof-hero">
-        <span className="mgof-eyebrow">demo_mcp_gateway &rarr; demo_mcp_server</span>
-        <h1>Agent Gateway OAuth Flow, As Built</h1>
-        <p className="mgof-sub">
-          The reference MCP OAuth handshake redrawn against the actual code path: HTTP
+      <PageHeader className="mgof-hero" eyebrow={<>demo_mcp_gateway &rarr; demo_mcp_server</>} title="Agent Gateway OAuth Flow, As Built" summary={<>The reference MCP OAuth handshake redrawn against the actual code path: HTTP
           transport, one backend (demo_mcp_server, the mock AI Demo MCP Server), token
           introspection over local JWT checks, and the RFC 8693 exchange the reference
-          diagram doesn't show.
-        </p>
-      </div>
+          diagram doesn't show.</>} />
 
       <div className="mgof-legend-key">
         <span className="mgof-key-entry mgof-key-delta">&Delta; diverges from the reference diagram</span>

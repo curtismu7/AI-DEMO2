@@ -37,28 +37,11 @@
   border-radius: var(--radius-sm);
 }
 
-.osx-eyebrow {
-  margin: 0 0 6px;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--th-text-muted);
-}
-
 .osx-title {
   margin: 0 0 12px;
   font-size: var(--font-size-h1);
   line-height: 1.2;
   color: var(--th-text);
-}
-
-.osx-lede {
-  margin: 0 0 8px;
-  max-width: 68ch;
-  font-size: var(--font-size-lg);
-  line-height: 1.6;
-  color: var(--th-text-body);
 }
 
 /* Primary call to action: the live page this lesson documents. */

@@ -7,6 +7,7 @@ import StaticFlowDiagram from "./StaticFlowDiagram";
 import DiagramStepBar from "./DiagramStepBar";
 import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
 import "./ResourceServerPlacementPage.css";
+import PageHeader from './common/PageHeader';
 
 export const RSP_NODES = [
   { id: "U", group: "upstream", label: "USER + AI AGENT", sub: ["UI :4000 · local.ping-devops.com", "chat / chips"], x: 0, y: 40 },
@@ -113,14 +114,10 @@ export default function ResourceServerPlacementPage() {
   return (
     <div className="rsp-page">
       <div className="rsp-hero">
-        <span className="rsp-eyebrow">Last hop · Kong pattern · PingOne Authorize AAM</span>
-        <h1>Resource Server Placement</h1>
-        <p className="rsp-sub">
-          Where the Kong-mock checkpoint sits in the agent flow. Every upstream hop keeps its
+        <PageHeader eyebrow="Last hop · Kong pattern · PingOne Authorize AAM" title="Resource Server Placement" summary={<>Where the Kong-mock checkpoint sits in the agent flow. Every upstream hop keeps its
           own token work — the resource server validates exactly one thing: the step-9 token
           addressed to it, and it does that the Kong way, by handing it to PingOne Authorize
-          over the AAM sideband. The store is only reachable on PERMIT. Click any node for its role.
-        </p>
+          over the AAM sideband. The store is only reachable on PERMIT. Click any node for its role.</>} />
       </div>
 
       <div className="rsp-panel">

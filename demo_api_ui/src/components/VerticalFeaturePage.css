@@ -19,40 +19,6 @@
   color: var(--th-text);
 }
 
-.vfp-header {
-  border-left: 6px solid var(--vfp-accent);
-  background: var(--vfp-accent-bg);
-  padding: 18px 22px;
-  margin-bottom: 22px;
-  border-radius: 0 6px 6px 0;
-}
-
-.vfp-badge {
-  display: inline-block;
-  background: #713f12;
-  color: #fff;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 4px 10px;
-  border-radius: 2px;
-  margin-bottom: 10px;
-}
-
-.vfp-title {
-  font-size: var(--font-size-h2);
-  font-weight: 600;
-  color: var(--th-text);
-  margin: 4px 0 6px 0;
-}
-
-.vfp-subtitle {
-  font-size: var(--font-size-body);
-  color: var(--th-text);
-  margin: 0;
-  line-height: 1.5;
-}
-
 .vfp-card {
   background: #fff;
   border: 1px solid #e0e2e4;
