@@ -298,7 +298,7 @@ test("pop-out renders the replay payload read-only and never stages a live re-is
       ...STEP_WITH_EVIDENCE.detail,
       replay: {
         target: "gateway",
-        href: "/agent-gateway-inspector?subtab=tester",
+        href: "/agent-gateway-capabilities",
         label: "Replay in Gateway Tester",
         tool: "get_account_balance",
         arguments: { accountId: "acct-1" },

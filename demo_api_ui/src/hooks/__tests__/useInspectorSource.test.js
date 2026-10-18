@@ -35,7 +35,10 @@ function Probe({ sourceKey }) {
     <div>
       <span data-testid="count">{s.tools.length}</span>
       <span data-testid="mode">{s.mode}</span>
+      <span data-testid="toolsSource">{s.toolsSource || ''}</span>
       <span data-testid="banner">{s.banner?.message || ''}</span>
+      <span data-testid="toolsBanner">{s.toolsBanner?.message || ''}</span>
+      <button data-testid="exec" onClick={() => s.handleExecute({ tool: { name: 'get_my_accounts' }, params: {} })}>exec</button>
       <span data-testid="loginUrl">{s.banner?.loginUrl || ''}</span>
       <span data-testid="first">{s.tools[0]?.[s.config.toolKey] || ''}</span>
       <span data-testid="selectedProfileId">{s.selectedProfileId}</span>
@@ -62,6 +65,12 @@ describe('source endpoints', () => {
   ])('%s reads %s', async (key, endpoint) => {
     renderSource(key);
     await waitFor(() => expect(get).toHaveBeenCalledWith(endpoint));
+  });
+
+  it('exposes the tools response _source as toolsSource', async () => {
+    get.mockResolvedValue({ data: { tools: [], _source: 'mcp_server' } });
+    renderSource('banking');
+    await waitFor(() => expect(screen.getByTestId('toolsSource')).toHaveTextContent('mcp_server'));
   });
 
   it('custom loads profiles first, then that profile\'s tools', async () => {
@@ -208,5 +217,21 @@ describe('a refusal becomes a banner, not an empty list', () => {
     renderSource('banking');
     await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
     expect(screen.getByTestId('banner')).toHaveTextContent('');
+  });
+
+  it('keeps invoke failures out of toolsBanner (they must not flip the page to Unavailable)', async () => {
+    get.mockResolvedValue({ data: { tools: [{ name: 'get_my_accounts' }] } });
+    post.mockRejectedValue({ message: 'invoke exploded' });
+    renderSource('banking');
+    await waitFor(() => expect(screen.getByTestId('count')).toHaveTextContent('1'));
+    fireEvent.click(screen.getByTestId('exec'));
+    await waitFor(() => expect(screen.getByTestId('banner')).toHaveTextContent('invoke exploded'));
+    expect(screen.getByTestId('toolsBanner')).toHaveTextContent('');
+  });
+
+  it('a tools-load failure sets toolsBanner', async () => {
+    get.mockRejectedValue({ message: 'tools down' });
+    renderSource('banking');
+    await waitFor(() => expect(screen.getByTestId('toolsBanner')).toHaveTextContent('tools down'));
   });
 });
