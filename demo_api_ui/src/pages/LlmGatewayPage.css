@@ -48,7 +48,7 @@
   font-size: var(--font-size-sm);
   padding: 0.2rem 0.45rem;
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-card);
   color: var(--th-text-body);
 }
@@ -56,7 +56,7 @@
 .lgw-theme {
   padding: 0.25rem 0.6rem;
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -123,7 +123,7 @@
   gap: 0.6rem;
   padding: 0.85rem;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
@@ -152,7 +152,7 @@
 .lgw-viewtoggle button {
   padding: 0.15rem 0.5rem;
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-card);
   color: var(--th-text-body);
   font-size: var(--font-size-sm);
@@ -319,7 +319,7 @@
   flex-direction: column;
   min-height: 22rem;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   overflow: hidden;
@@ -335,7 +335,7 @@
   padding: 0.55rem 0.7rem;
   border: 1px solid var(--th-status-info-border);
   border-left-width: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-status-info-bg);
   color: var(--th-status-info-text);
   font-size: var(--font-size-sm);
@@ -385,7 +385,7 @@
   min-width: 0;
   padding: 0.5rem;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
@@ -446,7 +446,7 @@
   width: 100%;
   padding: 0.2rem 0.3rem;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   color: inherit;
   font: inherit;
@@ -487,7 +487,7 @@
   max-width: 100%;
   padding: 0.1rem 0.4rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -504,7 +504,7 @@
   width: 100%;
   padding: 0.3rem 0.4rem;
   border: 1px solid transparent;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: transparent;
   text-align: left;
   cursor: pointer;
@@ -571,7 +571,7 @@
   max-height: 12rem;
   overflow: auto;
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   color: var(--th-text-body);
   font-family: var(--font-mono);
@@ -594,7 +594,7 @@
    may never collapse into one colour. */
 .lgw-turn__body.is-warn {
   padding: 0.5rem 0.65rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-status-warning-bg);
   color: var(--th-status-warning-text);
   font-weight: 600;
@@ -603,7 +603,7 @@
 
 .lgw-turn__body.is-bad {
   padding: 0.5rem 0.65rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-status-error-bg);
   color: var(--th-status-error-text);
   font-weight: 600;
@@ -825,7 +825,7 @@
 
 .lgw-path__chip {
   padding: 0.15rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--th-border);
   background: var(--th-bg-inset);
   color: var(--th-text);
@@ -898,7 +898,7 @@
 .lgw-who {
   margin: 0 0 0.9rem;
   padding: 0.5rem 0.7rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   color: var(--th-text);
   box-shadow: inset 0 0 0 1px var(--th-border);
@@ -971,7 +971,7 @@
 .lgw-sidecar {
   padding: 0.85rem 1rem;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-base);
@@ -995,7 +995,7 @@
 .lgw-sidecar__connection {
   padding: 0.15rem 0.5rem;
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -1017,7 +1017,7 @@
 
 .lgw-sidecar__problem {
   padding: 0.5rem 0.65rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin: 0.6rem 0 0;
   font-size: var(--font-size-base);
   overflow-wrap: anywhere;
@@ -1047,7 +1047,7 @@
   box-sizing: border-box;
   padding: 0.4rem 0.55rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-card);
   color: var(--th-text);
   font: inherit;
@@ -1105,7 +1105,7 @@
 .lgw-sidecar__apply {
   padding: 0.4rem 0.9rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-emphasis);
   color: var(--th-text-on-emphasis);
   font: inherit;
@@ -1182,7 +1182,7 @@
   margin-top: 0.75rem;
   padding: 0.65rem;
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-inset);
   color: var(--th-text);
 }

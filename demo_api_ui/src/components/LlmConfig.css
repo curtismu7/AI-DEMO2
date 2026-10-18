@@ -32,7 +32,7 @@
 .cfg-segment-wrap {
   display: inline-flex;
   border: 1.5px solid var(--th-border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--th-bg-inset);
   padding: 3px;
@@ -274,7 +274,7 @@
 .cfg-select {
   padding: 9px 12px;
   border: 1.5px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 0.875rem;
   color: var(--th-text);
   background: var(--th-bg-card);
@@ -451,7 +451,7 @@
   display: block;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0.5rem 0.75rem;
   font-size: 0.82rem;
   color: var(--th-text);

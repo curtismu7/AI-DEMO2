@@ -3,7 +3,7 @@
 .compliance-modal {
   position: fixed;
   background: var(--modal-body-bg);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
@@ -52,7 +52,7 @@
 }
 
 .compliance-modal__last-response-label {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   color: var(--modal-body-text-secondary);
   text-transform: uppercase;
@@ -84,7 +84,7 @@
 .compliance-modal__group-badge {
   background: var(--th-bg-inset);
   padding: 8px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--modal-body-text-secondary);
@@ -100,7 +100,7 @@
   gap: 10px;
   padding: 8px 10px;
   margin-bottom: 4px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
   color: var(--modal-body-text);
   transition: background 0.15s ease;
@@ -152,7 +152,7 @@
   text-transform: uppercase;
   color: var(--modal-body-text-secondary);
   border: 1px dashed var(--th-border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 2px 8px;
   white-space: nowrap;
 }
@@ -190,7 +190,7 @@
   border-top: 1px solid var(--th-border);
   line-height: 1.5;
   background: var(--th-bg-inset);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .compliance-modal__footer {
@@ -231,7 +231,7 @@
   max-height: 700px;
   background: var(--modal-body-bg);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: var(--shadow-lg);
   display: flex;
   flex-direction: column;
@@ -245,7 +245,7 @@
   z-index: 1;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--th-text);
   cursor: pointer;
   font-size: var(--font-size-xl);

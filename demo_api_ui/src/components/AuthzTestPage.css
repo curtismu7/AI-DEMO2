@@ -4,7 +4,7 @@
 .authz-engine-settings {
   margin-bottom: 24px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: var(--th-bg-card);
 }
@@ -68,7 +68,7 @@
   gap: 4px;
   padding: 14px 16px;
   border: 2px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
   position: relative;
@@ -107,7 +107,7 @@
 .authz-engine-creds {
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px;
 }
 
@@ -140,7 +140,7 @@
 /* ─── Save message ───────────────────────────────────────────────────────── */
 .authz-engine-save-msg {
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
   line-height: 1.4;
 }
@@ -165,7 +165,7 @@
   background: #166534;
   color: var(--th-text-invert);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 14px;
   font-size: 0.82rem;
   font-weight: 600;
@@ -188,7 +188,7 @@
   background: #1a2332;
   color: var(--th-text-invert);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 14px;
   font-size: 0.82rem;
   font-weight: 600;
@@ -264,7 +264,7 @@
   flex-wrap: wrap;
   gap: 12px;
   padding: 14px 18px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 28px;
   border: 1px solid transparent;
 }
@@ -308,7 +308,7 @@
   display: inline-flex;
   align-items: center;
   padding: 3px 10px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   font-size: 0.78rem;
   font-weight: 600;
   letter-spacing: 0.02em;
@@ -467,7 +467,7 @@
   display: inline-flex;
   align-items: center;
   padding: 4px 12px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   font-size: 0.8rem;
   font-weight: 700;
   letter-spacing: 0.04em;
@@ -554,7 +554,7 @@
   align-items: center;
   justify-content: center;
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -613,7 +613,7 @@
 .authz-raw-body {
   background: #051727;
   color: #ffffff;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   font-size: 0.78rem;
   overflow-x: auto;
@@ -656,7 +656,7 @@
 .authz-select {
   padding: 8px 10px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.88rem;
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -725,7 +725,7 @@
   font-size: 0.875rem;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 
@@ -765,7 +765,7 @@
 .authz-api-panel {
   margin-top: 10px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   font-size: 0.8rem;
 }
@@ -803,7 +803,7 @@
   font-size: 0.7rem;
   font-weight: 700;
   padding: 2px 7px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
   flex-shrink: 0;
 }
@@ -866,7 +866,7 @@
   font-size: 0.72rem;
   line-height: 1.5;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin: 0;
   overflow-x: auto;
   white-space: pre-wrap;
@@ -890,7 +890,7 @@
 .authz-error {
   margin-top: 8px;
   padding: 8px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #fdeceb;
   color: #b42318;
   font-size: 0.8125rem;

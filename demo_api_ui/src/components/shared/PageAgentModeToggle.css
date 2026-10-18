@@ -3,7 +3,7 @@
 .page-agent-mode {
   display: inline-flex;
   border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 

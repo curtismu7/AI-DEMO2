@@ -20,7 +20,7 @@
 /* ---- file picker ---- */
 .agc-sidebar {
   border: 1px solid #e0e2e4;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: #fff;
   padding: 0.5rem;
 }
@@ -41,7 +41,7 @@
   border: none;
   background: transparent;
   padding: 0.5rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   text-align: left;
   color: #263746;
@@ -55,7 +55,7 @@
   font-size: var(--font-size-3xs);
   font-weight: 700;
   padding: 0.1rem 0.4rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 .agc-badge--auto { background: #dcfce7; color: #166534; }
@@ -64,7 +64,7 @@
 /* ---- editor pane ---- */
 .agc-main {
   border: 1px solid #e0e2e4;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: #fff;
   overflow: hidden;
   display: flex;
@@ -133,7 +133,7 @@
   font-size: var(--font-size-3xs);
   font-weight: 800;
   padding: 0.08rem 0.4rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .agc-issue--error .agc-issue-badge { background: #fee2e2; color: #aa0005; }
 .agc-issue--warn .agc-issue-badge { background: #fef3c7; color: #92400e; }

@@ -35,7 +35,7 @@
 }
 
 .migration-section-title {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--color-text, var(--th-text));
   margin: 0 0 8px;
@@ -95,7 +95,7 @@
   padding: 8px 10px;
   background: #fafafa;
   border: 1px solid var(--color-border, #e0e2e4);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .migration-code-block {
@@ -104,7 +104,7 @@
   gap: 8px;
   background: #eff0f1;
   border: 1px solid var(--color-border, #e0e2e4);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   margin: 8px 0 0;
 }
@@ -127,7 +127,7 @@
   color: var(--color-primary, #d20e0f);
   background: #fff;
   border: 1px solid var(--color-primary, #d20e0f);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
     background 0.15s,
@@ -174,7 +174,7 @@
 .migration-warning {
   background: #fffbeb;
   border: 1px solid #f59e0b;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   font-size: var(--font-size-sm);
   color: #92400e;
@@ -185,7 +185,7 @@
 .migration-info {
   background: #fcfcfc;
   border: 1px solid #93c5fd;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   font-size: var(--font-size-sm);
   color: #051727;

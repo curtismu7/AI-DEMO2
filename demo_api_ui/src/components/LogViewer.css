@@ -11,7 +11,7 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.12);
   z-index: 9999;
   animation: slideUp 0.22s ease-out;
@@ -41,7 +41,7 @@
 .log-viewer-header h2 {
   margin: 0;
   color: var(--th-text);
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 600;
 }
 
@@ -55,10 +55,10 @@
   background: transparent;
   border: 1px solid var(--th-border-strong);
   color: var(--th-text-muted);
-  font-size: 16px;
+  font-size: var(--font-size-md);
   width: 28px;
   height: 28px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -79,7 +79,7 @@
   font-size: var(--font-size-2xl);
   cursor: pointer;
   padding: 4px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition: all 0.2s;
 }
 
@@ -120,7 +120,7 @@
   margin: 0 0 8px;
   padding: 6px 10px;
   background: #fcfcfc;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid #bfdbfe;
 }
 
@@ -146,7 +146,7 @@
   color: var(--th-text);
   background: var(--brand-light-gray);
   border: 1px solid #DDDDDD;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 6px 8px;
   white-space: pre-wrap;
   word-break: break-word;
@@ -162,7 +162,7 @@
   border: 1px solid #CCCCCC;
   color: var(--th-text);
   padding: 6px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
@@ -184,7 +184,7 @@
 .runtime-chip-count {
   margin-left: 8px;
   padding: 1px 7px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(0, 0, 0, 0.10);
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -203,7 +203,7 @@
   border: 1px solid #CCCCCC;
   color: var(--th-text);
   padding: 6px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
   outline: none;
   transition: border-color 0.2s;
@@ -235,7 +235,7 @@
   border: 1px solid #CCCCCC;
   color: var(--th-text);
   padding: 6px 16px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
   font-weight: 500;
   cursor: pointer;
@@ -265,7 +265,7 @@
   color: var(--th-text);
   border: 1px solid #CCCCCC;
   padding: 6px 16px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
   font-weight: 500;
   cursor: pointer;
@@ -453,7 +453,7 @@
 
 .log-table-container::-webkit-scrollbar-thumb {
   background: #CCCCCC;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .log-table-container::-webkit-scrollbar-thumb:hover {

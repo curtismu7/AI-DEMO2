@@ -40,7 +40,7 @@
 .topnav-brand .topnav-brand-icon {
   width: 32px !important;
   height: 32px !important;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   object-fit: contain;
 }
 

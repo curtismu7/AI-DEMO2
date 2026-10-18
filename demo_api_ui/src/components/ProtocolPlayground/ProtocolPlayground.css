@@ -84,7 +84,7 @@
   right: 16px;
   background: var(--pp-btn-bg);
   border: 1px solid var(--pp-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 5px 10px;
   font-size: var(--font-size-2xs);
   color: var(--pp-text-secondary);
@@ -143,7 +143,7 @@
 
 .pp-intro__h {
   margin: 0 0 6px;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -180,7 +180,7 @@
   width: 100%;
   height: 100%;
   color: var(--pp-text-muted);
-  font-size: 16px;
+  font-size: var(--font-size-md);
 }
 
 /* --- Sidebar --- */
@@ -211,7 +211,7 @@
   color: var(--pp-text-secondary);
   font-size: var(--font-size-body);
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
@@ -239,7 +239,7 @@
   flex: 1;
   background: var(--pp-btn-bg);
   border: 1px solid var(--pp-btn-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 8px;
   font-size: var(--font-size-2xs);
   color: var(--pp-btn-text);
@@ -351,7 +351,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--pp-border);
   background-color: var(--pp-bg-surface);
   color: var(--pp-text);
@@ -382,7 +382,7 @@
 
 .pp-explainer__lead {
   display: block;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -401,14 +401,14 @@
 .pp-mermaid {
   margin: 0;
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background-color: var(--pp-bg-surface);
   border: 1px solid var(--pp-border);
 }
 
 .pp-mermaid__caption {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -469,7 +469,7 @@
   background-color: var(--pp-btn-bg);
   color: var(--pp-btn-text);
   border: 1px solid var(--pp-btn-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 16px;
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -499,7 +499,7 @@
   background-color: var(--pp-btn-primary-bg);
   color: var(--pp-btn-primary-text);
   border: 1px solid var(--pp-btn-primary-bg);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 16px;
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -591,7 +591,7 @@
   font-size: var(--font-size-2xs);
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .entry-status.status-ok {
@@ -618,7 +618,7 @@
   background-color: var(--pp-btn-bg);
   color: var(--pp-btn-text);
   border: 1px solid var(--pp-btn-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 3px 10px;
   font-size: var(--font-size-2xs);
   cursor: pointer;
@@ -652,7 +652,7 @@
   padding: 9px 6px;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   text-align: left;
   color: var(--pp-text);
   font: inherit;

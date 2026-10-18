@@ -15,7 +15,7 @@
   padding: 12px;
   background: #eff0f1;
   border: 1px solid #cdd1d4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -53,7 +53,7 @@
   color: #ffffff;
   background: #12538d;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .demo-authz-fallback__ok:hover {

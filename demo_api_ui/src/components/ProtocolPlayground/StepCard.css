@@ -1,6 +1,6 @@
 .step-card {
   border: 1px solid var(--pp-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 12px;
   background: var(--pp-bg-surface);
@@ -63,7 +63,7 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   padding: 4px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   white-space: nowrap;
 }
 
@@ -90,7 +90,7 @@
 .actor-label {
   padding: 4px 10px;
   background: var(--pp-bg-code);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-weight: 500;
 }
@@ -109,7 +109,7 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   border: 1px solid var(--pp-btn-primary-bg);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--pp-btn-primary-bg);
   color: var(--pp-btn-primary-text);
   cursor: pointer;

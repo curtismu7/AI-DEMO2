@@ -313,7 +313,7 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
 .pf-ai-agent__phone-card h3,
 .pf-ai-agent__phone-card p { margin: 0; }
 .pf-ai-agent__phone-app { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: #555; }
-.pf-ai-agent__phone-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: var(--pf-ai-accent); color: #fff; font-size: var(--font-size-xs); font-weight: 800; }
+.pf-ai-agent__phone-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: var(--radius-md); background: var(--pf-ai-accent); color: #fff; font-size: var(--font-size-xs); font-weight: 800; }
 .pf-ai-agent__phone-now { margin-left: auto; text-transform: none; font-weight: 500; }
 .pf-ai-agent__phone-card h3 { font-size: var(--font-size-base); }
 .pf-ai-agent__phone-card p { font-size: var(--font-size-sm); }

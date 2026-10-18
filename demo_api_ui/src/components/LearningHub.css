@@ -54,7 +54,7 @@
   margin: 4px 0 14px;
   padding: 8px 14px;
   border: 1px solid var(--th-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--th-bg-inset);
   color: var(--th-status-info-text);
   font-size: var(--font-size-sm);
@@ -71,7 +71,7 @@
   margin: 0 0 2rem;
   padding: 1.5rem;
   border: 1px solid var(--th-status-success-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--th-status-success-bg);
   color: var(--th-status-success-text);
 }
@@ -105,7 +105,7 @@
   min-width: 0;
   padding: 0.75rem 1rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   font: inherit;
@@ -114,7 +114,7 @@
 .learning-hub__rag-form button {
   padding: 0.75rem 1rem;
   border: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-emphasis);
   color: var(--th-text-on-emphasis);
   font-weight: 700;
@@ -142,7 +142,7 @@
 .learning-hub__rag-answer {
   margin-top: 1.25rem;
   padding: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border);
@@ -188,7 +188,7 @@
 
 .learning-hub__rag-clear {
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-weight: 700;
@@ -224,7 +224,7 @@
 .learning-hub__rag-prompt-grid button {
   padding: 0.6rem 0.75rem;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text-body);
   cursor: pointer;
@@ -272,7 +272,7 @@
   padding: 0.75rem 1rem;
   padding-right: 2.5rem;
   border: 2px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: 1rem;
@@ -551,7 +551,7 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   cursor: pointer;
   transition: all 0.2s;
   text-align: left;
@@ -687,7 +687,7 @@
   background: var(--th-bg-emphasis);
   color: var(--th-text-on-emphasis);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 1rem;
   cursor: pointer;
   transition: background 0.2s;
@@ -723,7 +723,7 @@
 .learning-hub__live-demo {
   background: var(--th-status-success-bg);
   border: 1px solid var(--th-status-success-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 2rem;
   margin: 3rem 0;
   color: var(--th-text);
@@ -744,7 +744,7 @@
 }
 
 .learning-hub__chain-container {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 

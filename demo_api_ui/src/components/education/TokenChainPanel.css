@@ -166,7 +166,7 @@
   font-size: 0.65rem;
   font-weight: 600;
   padding: 0.2rem 0.45rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   text-transform: uppercase;
   letter-spacing: 0.02em;
   display: inline-flex;

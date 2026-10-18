@@ -29,7 +29,7 @@
   color: var(--brand-navy);
   text-decoration: none;
   border: 1px solid #bfdbfe;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #fff;
   transition: background 0.15s, border-color 0.15s;
 }
@@ -49,7 +49,7 @@
   font-family: inherit;
   color: var(--brand-navy);
   border: 1px solid #bfdbfe;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #fff;
   cursor: pointer;
   transition: background 0.15s, border-color 0.15s;

@@ -81,7 +81,7 @@
 
 .stm-workspace { display: grid; grid-template-columns: minmax(0, 1fr) 8px minmax(280px, var(--stm-details-width, 340px)); align-items: stretch; min-height: 0; }
 .stm-workspace--map-only { grid-template-columns: minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
-.stm-pane-resizer { position: relative; z-index: 4; display: flex; align-items: center; justify-content: center; min-width: 8px; min-height: 8px; padding: 0; border: 0; border-radius: 4px; background: transparent; touch-action: none; cursor: row-resize; }
+.stm-pane-resizer { position: relative; z-index: 4; display: flex; align-items: center; justify-content: center; min-width: 8px; min-height: 8px; padding: 0; border: 0; border-radius: var(--radius-sm); background: transparent; touch-action: none; cursor: row-resize; }
 .stm-pane-resizer::before { content: ""; display: block; width: 56px; height: 3px; border-radius: 3px; background: var(--th-border-strong); }
 .stm-pane-resizer--x { cursor: col-resize; }
 .stm-pane-resizer--x::before { width: 3px; height: 42px; }
@@ -196,7 +196,7 @@
 .stm-step-context strong { color: var(--th-status-info-text); font-family: var(--font-mono); }
 .stm-empty-detail { color: var(--th-text); font-size: var(--font-size-2xs); line-height: 1.5; }
 .stm-evidence { margin-top: 13px; padding: 8px; border-left: 2px solid var(--th-status-warning); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); font-size: var(--font-size-3xs); line-height: 1.45; }
-.stm-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; min-height: 0; overflow: auto; padding: 5px 9px; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg-card); color: var(--th-text); font-size: var(--font-size-3xs); line-height: 1.35; }
+.stm-notes { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 14px; min-height: 0; overflow: auto; padding: 5px 9px; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); font-size: var(--font-size-3xs); line-height: 1.35; }
 .stm-notes strong { color: var(--th-text); }
 .stm-notes code { color: var(--th-status-info-text); font: inherit; }
 

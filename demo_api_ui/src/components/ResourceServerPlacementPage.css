@@ -62,7 +62,7 @@
 }
 
 .rsp-page h2 {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   margin: 28px 0 10px;
 }
 

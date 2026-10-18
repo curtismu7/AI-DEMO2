@@ -4,7 +4,7 @@
   width: 100%;
   padding: 11px 20px;
   border: none;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 0.95rem;
   font-weight: 700;
   cursor: pointer;

@@ -10,7 +10,7 @@
   display: flex;
   gap: 0;
   border: 1px solid #e0e2e4;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow-x: auto;
   background: #ffffff;
 }
@@ -27,7 +27,7 @@
 
 .jcv-col-label {
   padding: 8px 12px 4px;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   color: #5c646b;
   text-transform: uppercase;
@@ -99,7 +99,7 @@
   padding: 10px 12px;
   background: #eff0f1;
   border: 1px solid #e0e2e4;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   line-height: 1.7;

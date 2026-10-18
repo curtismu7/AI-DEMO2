@@ -63,7 +63,7 @@
   color: #ffffff;
   cursor: pointer;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -103,7 +103,7 @@
 }
 
 .topnav-brand-name {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 700;
   color: var(--brand-topnav-text, #ffffff);
   letter-spacing: -0.2px;
@@ -125,7 +125,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.25);
   color: var(--brand-topnav-text, #ffffff);
@@ -203,7 +203,7 @@
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.45);
   border-bottom: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .topnav-use-cases-btn--back:hover {
@@ -316,7 +316,7 @@
   font-size: var(--font-size-2xs);
   font-weight: 600;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
@@ -372,7 +372,7 @@
   color: #ffffff;
   cursor: pointer;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition:
     background 0.15s ease,
     color 0.15s ease;
@@ -390,7 +390,7 @@
   color: #ffffff;
   cursor: pointer;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 1rem;
   line-height: 1;
   transition:
@@ -414,7 +414,7 @@
   color: #ffffff;
   cursor: pointer;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.95rem;
   line-height: 1;
   transition:
@@ -434,7 +434,7 @@
 .topnav-search-input {
   padding: 8px 12px;
   border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
   width: 200px;
   transition: border-color 0.15s ease;
@@ -512,7 +512,7 @@
   }
   .topnav-context-chip {
     padding: 3px 8px;
-    font-size: 10px;
+    font-size: var(--font-size-3xs);
   }
   .topnav-token-pill__name {
     display: none;
@@ -544,7 +544,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.4);
   background: rgba(255, 255, 255, 0.15);
   color: #fff;
@@ -585,7 +585,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.4);
   background: transparent;
   color: #fff;
@@ -668,7 +668,7 @@
 }
 
 .topnav-token-pill__session-label {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -706,7 +706,7 @@
   display: inline-block;
   width: 120px;
   height: 14px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: linear-gradient(90deg, #263746 25%, #5c646b 50%, #263746 75%);
   background-size: 200% 100%;
   animation: topnav-shimmer 1.4s infinite;

@@ -8,7 +8,7 @@
   background: var(--th-bg-page);
   color: var(--th-text);
   border: 1px solid var(--th-border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow:
     0 20px 50px rgba(5, 23, 39, 0.18),
     0 0 0 1px color-mix(in srgb, var(--th-text-invert) 60%, transparent) inset;
@@ -104,7 +104,7 @@
   display: inline-block;
   margin-top: 2px;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.625rem;
   font-weight: 700;
   letter-spacing: 0.3px;
@@ -196,7 +196,7 @@
   line-height: 1.45;
   color: var(--th-text-muted);
   background: var(--th-bg-card);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px dashed var(--th-border-strong);
 }
 
@@ -319,7 +319,7 @@
   text-transform: uppercase;
   letter-spacing: 0.04em;
   padding: 0.15rem 0.35rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .afd-badge--pending {
@@ -626,7 +626,7 @@
   line-height: 1.35;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .afd-sse-label {
@@ -645,7 +645,7 @@
   padding: 0.75rem;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .afd-token-header {
@@ -663,7 +663,7 @@
   font-size: 0.7rem;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   color: var(--th-text-body);
 }
@@ -686,13 +686,13 @@
   background: var(--th-bg-inset);
   color: var(--th-text-body);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.7rem;
 }
 
 .afd-token-type {
   padding: 2px 6px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 0.65rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -744,7 +744,7 @@
 
 .afd-tc-card {
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   overflow: hidden;
   transition: border-color 0.15s;
@@ -769,7 +769,7 @@
 .afd-tc-type {
   flex-shrink: 0;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-3xs);
   font-weight: 700;
   text-transform: uppercase;
@@ -909,7 +909,7 @@
   padding: 6px 8px;
   background: var(--th-code-bg);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.64rem;
   line-height: 1.55;
   color: var(--th-code-text);

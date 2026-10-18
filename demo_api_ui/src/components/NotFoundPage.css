@@ -8,7 +8,7 @@
 
 .not-found-container {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 3rem 2rem;
   max-width: 420px;
   width: 100%;
@@ -50,7 +50,7 @@
 .not-found-message code {
   background: #edf2f7;
   padding: 0.1rem 0.4rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.9em;
   color: #2d3748;
   word-break: break-all;

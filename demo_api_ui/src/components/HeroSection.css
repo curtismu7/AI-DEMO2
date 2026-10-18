@@ -32,7 +32,7 @@
   text-align: center;
   color: var(--app-primary-blue-text, #fff);
   margin: 0 1.5rem 1.5rem;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   flex-shrink: 0;
   background: linear-gradient(135deg, color-mix(in srgb, var(--hero-bg-gradient-from, var(--brand-navy-dark, #051727)) 80%, #000) 0%, var(--hero-bg-gradient-to, #051727) 100%);
 }

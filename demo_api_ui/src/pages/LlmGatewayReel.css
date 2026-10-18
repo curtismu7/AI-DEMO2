@@ -46,7 +46,7 @@
   max-width: 15rem;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   color: var(--th-text);
   text-align: left;
@@ -135,7 +135,7 @@
 
 .lgw-reel__detail {
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   color: var(--th-text);
   padding: 0.5rem 0.7rem;

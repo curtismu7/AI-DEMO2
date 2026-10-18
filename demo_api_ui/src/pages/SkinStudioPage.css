@@ -43,7 +43,7 @@
   padding: 32px;
   color: var(--th-text-muted);
   border: 1px dashed var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 
 .ss-layout {
@@ -59,7 +59,7 @@
   flex-direction: column;
   gap: 2px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px;
   background: var(--th-bg-card);
 }
@@ -68,7 +68,7 @@
   text-align: left;
   padding: 7px 10px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: none;
   color: var(--th-text);
   font-size: 0.9rem;
@@ -88,7 +88,7 @@
   flex: 1;
   min-width: 0;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px 20px;
   background: var(--th-bg-card);
 }
@@ -145,7 +145,7 @@
   flex: 0 1 220px;
   padding: 6px 10px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-size: 0.85rem;
@@ -156,7 +156,7 @@
   color: var(--th-text-muted);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 5px 12px;
   cursor: pointer;
 }
@@ -201,7 +201,7 @@
 .ss-field input {
   padding: 7px 10px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-weight: 400;
@@ -231,7 +231,7 @@
 .ss-duplicate-status {
   margin-top: 12px;
   padding: 10px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-inset);
   color: var(--th-text);
@@ -249,7 +249,7 @@
   width: 120px;
   height: 120px;
   border: 1px dashed var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -281,7 +281,7 @@
   display: inline-block;
   padding: 7px 14px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: 0.85rem;

@@ -51,7 +51,7 @@
   background: var(--asp-good);
 }
 .asp-wiz-lbl {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   color: var(--asp-ink-3);
   margin-top: 6px;
   text-align: center;

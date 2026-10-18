@@ -6,7 +6,7 @@
   padding: 10px 12px;
   background: #fef3c7;
   border: 1px solid #fcd34d;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.85rem;
   line-height: 1.5;
   gap: 8px;

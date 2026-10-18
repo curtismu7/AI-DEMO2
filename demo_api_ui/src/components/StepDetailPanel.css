@@ -12,7 +12,7 @@
 
 .sdp {
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   padding: 10px 12px;
   margin-bottom: 10px;
@@ -51,7 +51,7 @@
   margin-left: auto;
   font-size: var(--font-size-xs);
   font-weight: 700;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 2px 9px;
   background: var(--th-bg-hover);
   color: var(--th-text);
@@ -142,7 +142,7 @@
   font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
   background: var(--th-bg-inset);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 9px;
 }
 
@@ -174,7 +174,7 @@
   line-height: 1.45;
   color: var(--th-text);
   background: var(--th-bg-card);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px 10px;
   /* a long payload must not push the rest of the rail off screen */
   max-height: 260px;
@@ -194,7 +194,7 @@
   font-weight: 600;
   color: #051727;
   background: #fecaca;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 7px;
 }
 
@@ -205,7 +205,7 @@
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-card);
   color: var(--th-text);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 4px 11px;
   cursor: pointer;
 }
@@ -265,7 +265,7 @@
   padding: 8px 10px;
   border: 1px solid var(--th-status-info-border);
   border-left-width: 3px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-status-info-bg);
 }
 .sdp-compliance-title { margin: 0 0 4px; color: var(--th-status-info-text); font-weight: 700; }

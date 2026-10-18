@@ -67,7 +67,7 @@
 .setup-form-section {
   color: var(--th-text);
   background: var(--th-bg-inset);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 30px;
   border: 1px solid var(--th-border);
 }
@@ -100,7 +100,7 @@
   color: var(--th-text);
   padding: 12px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 1em;
   background: var(--th-bg-card);
   transition: border-color 0.2s;
@@ -121,7 +121,7 @@
 .btn {
   padding: 12px 24px;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 1em;
   font-weight: 600;
   cursor: pointer;
@@ -152,7 +152,7 @@
 .results-section {
   color: var(--th-text);
   background: var(--th-bg-inset);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 30px;
   border: 2px solid var(--th-border-strong);
 }
@@ -185,7 +185,7 @@
 .step {
   color: var(--th-text);
   padding: 15px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border-left: 4px solid var(--th-border-strong);
   background: var(--th-bg-card);
 }
@@ -250,7 +250,7 @@
   color: var(--th-text);
   background: var(--th-bg-card);
   padding: 20px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-top: 20px;
   border: 1px solid var(--th-border);
 }
@@ -277,7 +277,7 @@
   color: var(--th-status-error-text);
   background: var(--th-status-error-bg);
   border: 2px solid var(--th-status-error-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 30px;
   grid-column: 1 / -1;
 }
@@ -304,7 +304,7 @@
   color: var(--th-text);
   grid-column: 1 / -1;
   background: var(--th-bg-inset);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 25px;
   border: 1px solid var(--th-border);
 }
@@ -343,7 +343,7 @@
   padding: 12px;
   background: var(--th-code-bg);
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: 0.9em;
   word-break: break-all;

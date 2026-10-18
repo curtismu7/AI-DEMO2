@@ -100,7 +100,7 @@
   align-items: flex-end;
   gap: 0.25rem;
   padding: 0.6rem 1.1rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background-color: rgba(255, 255, 255, 0.1);
   border: 1.5px solid rgba(255, 255, 255, 0.2);
   transition: all 0.3s ease;
@@ -144,7 +144,7 @@
   align-items: center;
   gap: 0.85rem;
   padding: 0.55rem 1.1rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background-color: rgba(255, 255, 255, 0.08);
   border: 1.5px solid rgba(255, 255, 255, 0.15);
   /* backdrop-filter removed for modal/overlay compliance */
@@ -202,7 +202,7 @@
 /* Logout Button */
 .banking-header__logout-btn {
   padding: 0.6rem 1.3rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background-color: transparent;
   border: 1.5px solid var(--brand-topnav-text, rgba(255, 255, 255, 0.6));
   color: var(--brand-topnav-text, #ffffff);

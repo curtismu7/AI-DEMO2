@@ -49,7 +49,7 @@
   margin-left: 5px;
   background: var(--surface-tertiary, #21262d);
   border: 1px solid var(--border-secondary, #3d444d);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0 5px;
   font-size: var(--font-size-3xs);
   font-family: var(--font-mono);
@@ -107,7 +107,7 @@
   font-family: var(--font-mono);
   background: var(--surface-tertiary, #21262d);
   border: 1px solid var(--border-secondary, #3d444d);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 8px;
   max-width: 260px;
   overflow: hidden;
@@ -120,7 +120,7 @@
   color: var(--text-muted, #8b949e);
   background: var(--surface-tertiary, #21262d);
   border: 1px solid var(--border-secondary, #3d444d);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 7px;
   flex-shrink: 0;
 }
@@ -129,7 +129,7 @@
 .tfd-banner {
   margin: 8px 12px;
   padding: 8px 11px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
   font-size: 11.5px;
 }
@@ -226,7 +226,7 @@
 .tfd-step-ic.pending { color: var(--text-muted, #8b949e); }
 
 .tfd-step-num {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   color: var(--text-muted, #8b949e);
   min-width: 20px;
   font-weight: 600;
@@ -307,12 +307,12 @@
 .tfd-rfc-pill {
   font-size: var(--font-size-3xs); font-family: var(--font-mono);
   background: rgba(47,129,247,.1); color: var(--accent, #2f81f7);
-  border: 1px solid rgba(47,129,247,.2); border-radius: 4px; padding: 1px 5px;
+  border: 1px solid rgba(47,129,247,.2); border-radius: var(--radius-sm); padding: 1px 5px;
 }
 .tfd-card-inspect {
-  opacity: 0; font-size: 10px; color: var(--accent, #2f81f7);
+  opacity: 0; font-size: var(--font-size-3xs); color: var(--accent, #2f81f7);
   background: none; border: none; cursor: pointer;
-  font-family: inherit; padding: 2px 6px; border-radius: 4px;
+  font-family: inherit; padding: 2px 6px; border-radius: var(--radius-sm);
   transition: opacity .12s, background .1s; flex-shrink: 0;
 }
 .tfd-card-inspect:hover { background: rgba(47,129,247,.1); }
@@ -336,7 +336,7 @@
 .tfd-footer-badge {
   font-size: var(--font-size-3xs); font-family: var(--font-mono);
   background: var(--surface-tertiary, #21262d); border: 1px solid var(--border-secondary, #3d444d);
-  border-radius: 8px; padding: 1px 7px; color: var(--text-muted, #8b949e);
+  border-radius: var(--radius-lg); padding: 1px 7px; color: var(--text-muted, #8b949e);
 }
 
 /* ── Inspector column ── */
@@ -400,13 +400,13 @@
   background: var(--surface-secondary, #1c2333);
   border: 1px solid var(--border-primary, #30363d);
   border-left: 3px solid var(--accent, #2f81f7);
-  border-radius: 6px; padding: 10px 12px;
+  border-radius: var(--radius-md); padding: 10px 12px;
 }
 .tfd-product-name { font-size: var(--font-size-sm); font-weight: 700; color: var(--text-primary, #e6edf3); }
 .tfd-product-call-name { font-size: var(--font-size-xs); color: var(--text-secondary, #c9d1d9); }
 .tfd-product-status {
   align-self: flex-start; margin-top: 3px; padding: 2px 6px;
-  border-radius: 4px; font-size: var(--font-size-3xs); font-family: var(--font-mono);
+  border-radius: var(--radius-sm); font-size: var(--font-size-3xs); font-family: var(--font-mono);
   text-transform: uppercase; color: var(--tfd-success, #3fb950);
   background: rgba(63,185,80,.08);
 }
@@ -442,7 +442,7 @@
 .tfd-act-chip {
   display: inline-flex; align-items: center; gap: 5px;
   background: rgba(63,185,80,.08); border: 1px solid rgba(63,185,80,.2);
-  border-radius: 6px; padding: 4px 10px;
+  border-radius: var(--radius-md); padding: 4px 10px;
   font-size: var(--font-size-xs); font-weight: 600; font-family: var(--font-mono); color: #3fb950;
 }
 
@@ -460,7 +460,7 @@
 
 .tfd-edu-box {
   background: rgba(47,129,247,.07); border: 1px solid rgba(47,129,247,.18);
-  border-radius: 6px; padding: 10px 12px;
+  border-radius: var(--radius-md); padding: 10px 12px;
   font-size: var(--font-size-xs); color: var(--text-secondary, #c9d1d9); line-height: 1.6;
 }
 .tfd-edu-title { font-size: var(--font-size-2xs); font-weight: 600; color: var(--text-primary, #e6edf3); margin-bottom: 6px; }
@@ -498,7 +498,7 @@
 .tfd-fhop-head {
   display: flex; flex-direction: column; align-items: center; gap: 2px;
   background: var(--surface-tertiary, #21262d); border: 1px solid var(--border-secondary, #3d444d);
-  border-radius: 6px; padding: 7px 8px; text-align: center;
+  border-radius: var(--radius-md); padding: 7px 8px; text-align: center;
 }
 .tfd-fhop--exchange .tfd-fhop-head { background: rgba(47,129,247,.07); border-color: rgba(47,129,247,.2); }
 .tfd-fhop--issued   .tfd-fhop-head { background: rgba(63,185,80,.07);  border-color: rgba(63,185,80,.2); }
@@ -558,7 +558,7 @@
 
 .tfd-topo-box {
   background: var(--surface-secondary, #1c2333); border: 1px solid var(--border-secondary, #3d444d);
-  border-radius: 8px; padding: 10px 12px; min-width: 100px; max-width: 120px;
+  border-radius: var(--radius-lg); padding: 10px 12px; min-width: 100px; max-width: 120px;
   display: flex; flex-direction: column; align-items: center; gap: 3px; text-align: center;
   position: relative; transition: border-color .15s, background .12s;
 }
@@ -577,7 +577,7 @@
 .tfd-topo-claims {
   background: var(--surface-primary, #161b22); border: 1px solid var(--border-primary, #30363d);
   border-radius: 5px; padding: 6px 8px; display: flex; flex-direction: column; gap: 2px;
-  font-family: var(--font-mono); font-size: 10px; min-width: 100px;
+  font-family: var(--font-mono); font-size: var(--font-size-3xs); min-width: 100px;
 }
 .tfd-topo-claim { display: flex; gap: 4px; align-items: baseline; }
 .tfd-topo-ck { color: var(--accent, #2f81f7); font-weight: 600; min-width: 38px; flex-shrink: 0; }
@@ -614,7 +614,7 @@
 
 .tfd-x-blast {
   background: rgba(47,129,247,.07); border: 1px solid rgba(47,129,247,.2);
-  border-radius: 6px; padding: 10px 12px;
+  border-radius: var(--radius-md); padding: 10px 12px;
 }
 .tfd-x-blast.deny { background: rgba(248,81,73,.07); border-color: rgba(248,81,73,.2); }
 .tfd-x-blast-title { font-size: var(--font-size-2xs); font-weight: 700; color: var(--text-primary, #e6edf3); margin-bottom: 4px; }
@@ -635,7 +635,7 @@
 .tfd-least-guard {
   display: flex; flex-direction: column; gap: 3px; text-align: left;
   background: var(--surface-secondary, #1c2333); border: 1px solid var(--border-primary, #30363d);
-  border-radius: 6px; padding: 8px 10px;
+  border-radius: var(--radius-md); padding: 8px 10px;
   font-family: inherit; cursor: pointer; transition: border-color .12s, background .12s;
 }
 .tfd-x-guard { cursor: default; }
@@ -648,7 +648,7 @@
 .tfd-least-guard.ok .tfd-least-guard-title { color: var(--tfd-success, #3fb950); }
 .tfd-x-guard-detail,
 .tfd-least-guard-detail {
-  font-size: 10px; font-family: var(--font-mono);
+  font-size: var(--font-size-3xs); font-family: var(--font-mono);
   color: var(--text-muted, #8b949e); line-height: 1.35; word-break: break-word;
 }
 
@@ -657,7 +657,7 @@
   display: flex; flex-direction: column; gap: 3px; text-align: left; width: 100%;
   background: var(--surface-secondary, #1c2333); border: 1px solid var(--border-primary, #30363d);
   border-left: 3px solid var(--border-secondary, #3d444d);
-  border-radius: 6px; padding: 8px 10px;
+  border-radius: var(--radius-md); padding: 8px 10px;
   font-family: inherit; cursor: pointer; transition: border-color .12s, background .12s;
 }
 .tfd-x-hop:hover:not(:disabled) { background: var(--surface-tertiary, #21262d); }
@@ -679,13 +679,13 @@
 }
 .tfd-x-hop-check { font-size: 10.5px; color: var(--text-secondary, #c9d1d9); line-height: 1.35; }
 .tfd-x-hop-proof {
-  font-size: 10px; font-family: var(--font-mono);
+  font-size: var(--font-size-3xs); font-family: var(--font-mono);
   color: var(--text-muted, #8b949e); word-break: break-word;
 }
 
 .tfd-x-receipt {
   background: var(--surface-secondary, #1c2333); border: 1px solid var(--border-primary, #30363d);
-  border-radius: 6px; padding: 9px 12px;
+  border-radius: var(--radius-md); padding: 9px 12px;
 }
 .tfd-x-receipt.deny { border-color: rgba(248,81,73,.3); }
 .tfd-x-receipt-title {
@@ -709,7 +709,7 @@
 }
 .tfd-least-card {
   background: var(--surface-secondary, #1c2333); border: 1px solid var(--border-primary, #30363d);
-  border-radius: 6px; padding: 8px 10px;
+  border-radius: var(--radius-md); padding: 8px 10px;
 }
 .tfd-least-label {
   font-size: var(--font-size-3xs); text-transform: uppercase; letter-spacing: .08em; font-weight: 700;

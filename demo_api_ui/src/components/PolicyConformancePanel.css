@@ -2,7 +2,7 @@
 
 .pcp {
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   /* Ink WITH the ground — see the note in TokenCardGrid.css. <body> ink is
      rgb(51,51,51) in both themes, so unclassed text inside this panel measured
@@ -40,7 +40,7 @@
   flex: 0 0 auto;
   padding: 8px 14px;
   border: 1px solid var(--app-primary-red-border, #d20e0f);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--app-primary-red, #d20e0f);
   color: var(--app-primary-btn-text, #fff);
   font-size: var(--font-size-sm);

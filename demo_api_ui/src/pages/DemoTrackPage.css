@@ -36,7 +36,7 @@
 .dtp-controls { display: flex; align-items: center; gap: 10px; }
 .dtp-theme-toggle {
   /* REGRESSION_PLAN.md §0 H2: was a literal 12.5px, off the scale entirely. */
-  font-size: var(--font-size-sm); font-weight: 600; padding: 6px 14px; border-radius: 999px;
+  font-size: var(--font-size-sm); font-weight: 600; padding: 6px 14px; border-radius: var(--radius-pill);
   border: 1px solid var(--dtp-line); background: var(--dtp-card); color: var(--dtp-ink); cursor: pointer;
 }
 .dtp-theme-toggle:hover {
@@ -44,19 +44,19 @@
   color: var(--dtp-ink);
 }
 .dtp-run-picker { font-size: 12.5px; color: var(--dtp-muted); display: flex; align-items: center; gap: 6px; }
-.dtp-run-picker select { font-size: 12.5px; padding: 4px 6px; border: 1px solid var(--dtp-line); border-radius: 6px; }
+.dtp-run-picker select { font-size: 12.5px; padding: 4px 6px; border: 1px solid var(--dtp-line); border-radius: var(--radius-md); }
 .dtp-newrun {
   font-size: 12.5px; font-weight: 600; color: #fff; background: var(--dtp-navy);
-  border: none; border-radius: 6px; padding: 7px 14px; cursor: pointer;
+  border: none; border-radius: var(--radius-md); padding: 7px 14px; cursor: pointer;
 }
 .dtp-newrun:disabled { opacity: .6; cursor: default; }
 .dtp-newrun--failed { background: var(--dtp-deny); }
-.dtp-history-badge { font-size: var(--font-size-2xs); font-weight: 700; color: var(--dtp-amber); background: var(--dtp-amber-bg); padding: 4px 10px; border-radius: 6px; }
+.dtp-history-badge { font-size: var(--font-size-2xs); font-weight: 700; color: var(--dtp-amber); background: var(--dtp-amber-bg); padding: 4px 10px; border-radius: var(--radius-md); }
 .dtp-wrap { max-width: 880px; margin: 0 auto; padding: 26px 20px 80px; }
 .dtp-act-banner { display: flex; align-items: center; gap: 14px; margin: 30px 0 18px; }
 .dtp-act-label {
   background: var(--dtp-navy); color: #fff; font-size: var(--font-size-2xs); font-weight: 700;
-  letter-spacing: .08em; padding: 6px 14px; border-radius: 4px; white-space: nowrap;
+  letter-spacing: .08em; padding: 6px 14px; border-radius: var(--radius-sm); white-space: nowrap;
 }
 .dtp-act-tagline { color: var(--dtp-muted); font-size: var(--font-size-body); font-style: italic; }
 .dtp-act-rule { flex: 1; border-top: 1px solid var(--dtp-line); }
@@ -84,7 +84,7 @@
 .dtp-step-title { font-weight: 700; font-size: var(--font-size-base); }
 .dtp-step-cap {
   font-size: var(--font-size-xs); font-weight: 600; color: var(--dtp-navy); background: #eaf1f8;
-  padding: 3px 9px; border-radius: 999px; white-space: nowrap;
+  padding: 3px 9px; border-radius: var(--radius-pill); white-space: nowrap;
 }
 .dtp-step-ucs { margin-left: auto; color: var(--dtp-muted); font-size: var(--font-size-2xs); white-space: nowrap; }
 .dtp-step-status { font-size: var(--font-size-2xs); font-weight: 700; color: var(--dtp-green); white-space: nowrap; }
@@ -97,18 +97,18 @@
 }
 .dtp-run-row {
   display: flex; align-items: center; gap: 12px; padding: 10px 12px;
-  border: 1px solid var(--dtp-line); border-radius: 8px; margin-bottom: 8px; background: var(--th-bg-card);
+  border: 1px solid var(--dtp-line); border-radius: var(--radius-lg); margin-bottom: 8px; background: var(--th-bg-card);
   color: var(--th-text);
 }
 .dtp-run-tag {
-  font-size: 10px; font-weight: 800; letter-spacing: .06em; padding: 3px 8px;
-  border-radius: 4px; flex: none; width: 64px; text-align: center;
+  font-size: var(--font-size-3xs); font-weight: 800; letter-spacing: .06em; padding: 3px 8px;
+  border-radius: var(--radius-sm); flex: none; width: 64px; text-align: center;
 }
 .dtp-run-tag--g { background: var(--dtp-green-bg); color: var(--th-status-success-text); }
 .dtp-run-tag--r { background: var(--dtp-deny-bg); color: var(--th-status-error-text); }
 .dtp-chip {
   font-size: var(--font-size-sm); background: var(--th-bg-card); border: 1px solid var(--dtp-line);
-  border-radius: 999px; padding: 5px 13px;
+  border-radius: var(--radius-pill); padding: 5px 13px;
   color: var(--th-text);
 }
 .dtp-run-note { color: var(--dtp-muted); font-size: var(--font-size-2xs); }
@@ -121,8 +121,8 @@
 .dtp-reason--g { color: var(--dtp-green); }
 .dtp-reason--r { color: var(--dtp-deny); }
 .dtp-reason-code {
-  display: inline-block; font-size: 10px; font-weight: 800; letter-spacing: .02em;
-  background: var(--dtp-deny-bg); color: var(--dtp-deny); border-radius: 4px; padding: 1px 7px; margin-right: 7px;
+  display: inline-block; font-size: var(--font-size-3xs); font-weight: 800; letter-spacing: .02em;
+  background: var(--dtp-deny-bg); color: var(--dtp-deny); border-radius: var(--radius-sm); padding: 1px 7px; margin-right: 7px;
 }
 .dtp-g-code {
   display: inline-block; font-size: var(--font-size-3xs); font-weight: 800; margin-left: 6px;
@@ -132,7 +132,7 @@
 /* What the agent actually returned on a Run — see what happened, not just a stamp */
 .dtp-response {
   margin: 2px 0 10px 76px; border: 1px solid var(--dtp-line); border-left: 3px solid var(--dtp-navy);
-  border-radius: 8px; background: var(--th-bg-card); padding: 10px 12px;
+  border-radius: var(--radius-lg); background: var(--th-bg-card); padding: 10px 12px;
   color: var(--th-text);
 }
 .dtp-response-head { font-size: var(--font-size-xs); font-weight: 800; letter-spacing: .04em; color: var(--dtp-navy-ink); margin-bottom: 6px; }
@@ -152,9 +152,9 @@
 .dtp-run-row .dtp-verdict + .dtp-run-btn, .dtp-run-row .dtp-run-note + .dtp-run-btn { margin-left: 10px; }
 .dtp-vertical-badge {
   margin-left: 10px; font-size: var(--font-size-xs); font-weight: 700; color: var(--dtp-navy);
-  background: #eaf1f8; border-radius: 999px; padding: 2px 9px;
+  background: #eaf1f8; border-radius: var(--radius-pill); padding: 2px 9px;
 }
-.dtp-verdict { margin-left: auto; font-size: var(--font-size-2xs); font-weight: 800; padding: 5px 11px; border-radius: 6px; }
+.dtp-verdict { margin-left: auto; font-size: var(--font-size-2xs); font-weight: 800; padding: 5px 11px; border-radius: var(--radius-md); }
 .dtp-verdict--permit { background: var(--dtp-green-bg); color: var(--dtp-green); }
 .dtp-verdict--deny { background: var(--dtp-deny-bg); color: var(--dtp-deny); }
 .dtp-verdict--stepup { background: var(--dtp-amber-bg); color: var(--dtp-amber); }
@@ -169,14 +169,14 @@
 .dtp-mark--r { color: var(--dtp-deny); }
 .dtp-talk-track {
   margin-top: 10px; font-size: var(--font-size-sm); background: var(--dtp-amber-bg);
-  border-radius: 6px; padding: 9px 12px;
+  border-radius: var(--radius-md); padding: 9px 12px;
 }
 .dtp-talk-track b { color: var(--dtp-amber); font-size: var(--font-size-xs); letter-spacing: .06em; }
 .dtp-gauntlet-bar { display: flex; align-items: center; gap: 12px; margin-bottom: 12px; }
 .dtp-gauntlet-score { font-size: var(--font-size-sm); font-weight: 700; color: var(--dtp-green); }
 .dtp-gauntlet { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 4px; }
 .dtp-g-tile {
-  border: 1px solid var(--dtp-line); border-radius: 8px; padding: 11px 12px; background: var(--th-bg-card);
+  border: 1px solid var(--dtp-line); border-radius: var(--radius-lg); padding: 11px 12px; background: var(--th-bg-card);
   color: var(--th-text);
 }
 .dtp-g-name { font-size: 12.5px; font-weight: 600; margin-bottom: 2px; }

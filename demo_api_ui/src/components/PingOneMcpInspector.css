@@ -18,7 +18,7 @@
   align-items: center;
   gap: 14px;
 }
-.p1mcp-topbar h1 { font-size: 16px; font-weight: 600; color: var(--th-text-body); margin: 0; }
+.p1mcp-topbar h1 { font-size: var(--font-size-md); font-weight: 600; color: var(--th-text-body); margin: 0; }
 .p1mcp-topbar__dot { width: 8px; height: 8px; border-radius: 50%; background: #16a34a; flex-shrink: 0; }
 .p1mcp-topbar__dot--off { background: #d20e0f; }
 .p1mcp-topbar__status { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
@@ -26,7 +26,7 @@
 .p1mcp-topbar__btn {
   font-size: var(--font-size-2xs);
   padding: 5px 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-inset);
   color: var(--th-text-body);
@@ -79,7 +79,7 @@
   font-size: var(--font-size-2xs);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--th-text-body);
 }
 .p1mcp-tree-search input:focus { outline: none; border-color: #12538d; }
@@ -90,7 +90,7 @@
 .p1mcp-tree-group {}
 .p1mcp-tree-group__label {
   padding: 8px 16px 4px;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   color: var(--th-text-muted);
   text-transform: uppercase;
@@ -113,7 +113,7 @@
 .p1mcp-tree-item--active {
   background: #051727;
   color: var(--th-text-invert);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin: 1px 8px;
   padding-left: 16px;
 }
@@ -187,7 +187,7 @@
   font-family: var(--font-mono);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--th-text-body);
   resize: vertical;
 }
@@ -213,7 +213,7 @@
   background: #051727;
   color: var(--th-text-invert);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.1s;
 }
@@ -225,7 +225,7 @@
   background: transparent;
   color: var(--th-text-body);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 .p1mcp-btn-clear:hover { background: var(--th-bg-hover); }
@@ -283,7 +283,7 @@
   margin: 0;
   background: var(--th-bg-inset);
   padding: 12px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border);
 }
 

@@ -63,7 +63,7 @@
 
 .btn {
   padding: 8px 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border);
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -131,7 +131,7 @@
 .audit-entries {
   margin-bottom: 20px;
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 

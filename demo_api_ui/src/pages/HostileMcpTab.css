@@ -176,10 +176,10 @@
 
 .hmc-pill {
   display: inline-block;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   padding: 0.1rem 0.45rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   margin-left: 0.4rem;
 }
 
@@ -237,7 +237,7 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   white-space: pre-wrap;
   overflow-wrap: anywhere;
   max-height: 14rem;

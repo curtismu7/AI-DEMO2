@@ -20,7 +20,7 @@
 }
 
 .inspector-clean-title {
-  font-size: 18px;
+  font-size: var(--font-size-h3);
   font-weight: 700;
   margin: 0;
 }
@@ -37,7 +37,7 @@
   border: 1px solid var(--th-border);
   background: var(--th-bg-inset);
   border-radius: var(--radius-sm);
-  font-size: 14px;
+  font-size: var(--font-size-body);
   cursor: pointer;
   transition: all 0.2s;
   color: var(--th-text-body);
@@ -55,7 +55,7 @@
   padding: 12px 24px;
   background: var(--th-bg-card);
   border-bottom: 1px solid var(--th-border);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text-body);
 }
 
@@ -71,7 +71,7 @@
   padding: 4px 8px;
   border-radius: var(--radius-sm);
   font-weight: 600;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
 }
 
 .inspector-clean-content {
@@ -121,7 +121,7 @@
 }
 
 .inspector-clean-panel-label {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-weight: 600;
   color: var(--th-text);
   margin: 0;
@@ -153,7 +153,7 @@
 
 .inspector-clean-field-label {
   display: block;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--th-text-muted);
   text-transform: uppercase;
@@ -161,7 +161,7 @@
 }
 
 .inspector-clean-field-type {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   background: var(--th-bg-inset);
   padding: 2px 4px;
   border-radius: var(--radius-sm);
@@ -178,7 +178,7 @@ textarea {
   padding: 8px 10px;
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   background: var(--th-bg-page);
   color: var(--th-text);
   font-family: inherit;
@@ -195,7 +195,7 @@ textarea {
   border: 1px solid var(--th-border);
   background: var(--th-bg-inset);
   border-radius: var(--radius-sm);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   cursor: pointer;
   transition: all 0.2s;
@@ -257,7 +257,7 @@ textarea {
 
 .inspector-clean-output-tab {
   padding: 8px 12px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   font-weight: 600;
   border: none;
   background: transparent;
@@ -283,7 +283,7 @@ textarea {
   background: var(--th-bg-inset);
   border-radius: var(--radius-sm);
   overflow-y: auto;
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   font-family: var(--font-mono);
   white-space: pre-wrap;
   word-break: break-word;
@@ -382,7 +382,7 @@ textarea {
 }
 
 .inspector-clean-reel-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 600;
   color: var(--th-text-muted);
   margin-bottom: 8px;
@@ -395,7 +395,7 @@ textarea {
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
   border-radius: var(--radius-sm);
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   white-space: nowrap;
   transition: all 0.2s;
   color: var(--th-text-body);
@@ -427,7 +427,7 @@ textarea {
 .inspector-clean-panel-body::-webkit-scrollbar-thumb,
 .inspector-clean-output-content::-webkit-scrollbar-thumb {
   background: var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .inspector-clean-panel-body::-webkit-scrollbar-thumb:hover,
@@ -437,19 +437,19 @@ textarea {
 
 .inspector-clean-json-input {
   font-family: var(--font-mono);
-  font-size: 11px;
+  font-size: var(--font-size-xs);
 }
 
 .inspector-clean-json-error {
   margin-top: 4px;
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   color: var(--th-status-error-text);
 }
 
 .inspector-clean-error-banner {
   margin-top: 12px;
   padding: 8px;
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   border-radius: var(--radius-sm);
   color: var(--th-status-error-text);
   background: var(--th-status-error-bg);

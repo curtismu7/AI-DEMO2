@@ -20,7 +20,7 @@
   gap: 12px;
   padding: 16px 22px;
   border: 1px solid var(--th-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-md);

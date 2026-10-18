@@ -23,7 +23,7 @@
   margin: 0;
   max-width: 64ch;
   color: var(--th-text-muted, #556070);
-  font-size: 16px;
+  font-size: var(--font-size-md);
   line-height: 1.6;
 }
 /* No monospace stack here on purpose: index.css strips monospace from
@@ -33,7 +33,7 @@
   font-size: 0.9em;
   background: var(--th-bg-inset, #eff0f1);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .aap-card {
@@ -71,7 +71,7 @@
   align-items: center;
   gap: 8px;
   padding: 5px 12px 5px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--th-border-strong, #c3cdd9);
   background: var(--th-bg-inset, #eff0f1);
   color: var(--th-text-muted, #556070);
@@ -111,7 +111,7 @@
 .aap-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .aap-row {
   border: 1px solid var(--th-border, #dbe2ea);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: inset 3px 0 0 #a1620a;
 }
 .aap-row--failed,
@@ -129,7 +129,7 @@
   margin: 0 12px 12px;
   padding: 12px;
   border: 1px solid #a1620a;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #fdf3e2;
   color: #051727;
 }
@@ -140,7 +140,7 @@
 .aap-gauge { display: flex; flex-direction: column; gap: 5px; }
 .aap-gauge-head { display: flex; justify-content: space-between; font-size: 13.5px; color: #6b5a3e; }
 .aap-gauge-head b { color: var(--th-text); font-variant-numeric: tabular-nums; font-weight: 600; }
-.aap-gauge-track { height: 7px; border-radius: 4px; background: rgba(161, 98, 10, 0.18); overflow: hidden; }
+.aap-gauge-track { height: 7px; border-radius: var(--radius-sm); background: rgba(161, 98, 10, 0.18); overflow: hidden; }
 /* Full bar on purpose: a parked run is by definition over its ceiling. */
 .aap-gauge-fill { height: 100%; width: 100%; background: #a1620a; }
 
@@ -156,7 +156,7 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .aap-open:hover { background: var(--th-bg-inset, #eff0f1); }
 .aap-open:focus-visible { outline: 2px solid var(--th-border-strong, #c3cdd9); outline-offset: -2px; }
@@ -206,7 +206,7 @@
 .aap-compare-col {
   padding: 12px 14px;
   border: 1px solid var(--th-border, #dbe2ea);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset, #eff0f1);
 }
 .aap-compare-col ul {
@@ -230,7 +230,7 @@
 .aap-use {
   padding: 12px 14px;
   border: 1px solid var(--th-border, #dbe2ea);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .aap-use p {
   margin: 0;
@@ -254,7 +254,7 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid currentColor;
   white-space: nowrap;
 }
@@ -297,7 +297,7 @@
 .aap-reel { display: flex; flex-direction: column; gap: 6px; }
 .aap-reel-frame {
   border: 1px solid var(--th-border, #dbe2ea);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card, #ffffff);
   overflow-x: auto;
   min-height: 260px;
@@ -309,7 +309,7 @@
   margin: 0;
   padding: 10px 12px;
   border: 1px solid #a1620a;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #fdf3e2;
   color: #051727;
   font-size: 14.5px;
