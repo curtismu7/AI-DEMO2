@@ -18,6 +18,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import ConfirmModal from "../components/ConfirmModal";
 import DraggableModal from "../components/DraggableModal";
+import DiagramStepBar from "../components/DiagramStepBar";
+import { edgeCaptions, markNodes, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
 import { notifyError } from "../utils/appToast";
 import { INITIAL_NODES, INITIAL_EDGES, diagramSignature, parseDiagram } from "./digitalWorkerDiagram";
 import "./DigitalWorkerPage.css";
@@ -114,6 +116,10 @@ function Canvas() {
   const [nodes, setNodes] = useState(init.nodes);
   const [edges, setEdges] = useState(init.edges);
   const { fitView } = useReactFlow();
+  // Simulate walks the arrows in their stored order; only the drawn copies are styled, so edits and undo are untouched.
+  const stepper = useDiagramStepper(edges.length);
+  const hot = edges[stepper.step];
+  const captions = edgeCaptions(edges, Object.fromEntries(nodes.map((n) => [n.id, n.data?.label])));
 
   useEffect(() => {
     try { localStorage.setItem(STORE, JSON.stringify({ nodes, edges })); } catch { /* storage unavailable */ }
@@ -209,16 +215,18 @@ function Canvas() {
         <button type="button" onClick={download}>Download JSON</button>
         <button type="button" onClick={() => fileInput.current.click()}>Load JSON</button>
         <input ref={fileInput} type="file" accept="application/json,.json" hidden aria-label="Load diagram JSON" onChange={loadFile} />
-        <button type="button" onClick={() => setConfirmReset(true)}>Reset</button>
+        <button type="button" onClick={() => setConfirmReset(true)}>Reset diagram</button>
         <span>Double-click a box or arrow to rename. Delete removes the selection. Ctrl/Cmd+Z undoes. Drag a dot to connect. Autosaves in this browser.</span>
       </div>
+      <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId="dw-steps" />
       <ReactFlow
-        nodes={nodes}
-        edges={edges}
+        nodes={hot ? markNodes(nodes, [hot.source, hot.target]) : nodes}
+        edges={stepEdges(edges, stepper.step)}
         nodeTypes={nodeTypes}
         onNodesChange={onNodesChange}
         onEdgesChange={onEdgesChange}
         onConnect={onConnect}
+        nodesDraggable
         onEdgeDoubleClick={onEdgeDoubleClick}
         connectionMode={ConnectionMode.Loose}
         deleteKeyCode={["Backspace", "Delete"]}
