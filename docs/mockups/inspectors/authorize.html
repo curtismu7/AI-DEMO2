@@ -1,0 +1,597 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+</head>
+<body>
+<title>Authorize Inspector Mockup</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;500;600;700&display=swap">
+<style>
+:root {
+  /* Layout: title row, a one-line "send a call" bar, then two columns: the calls list on the left and the selected call on the right (tabs: Request & response, Tokens, API calls). One column under 60rem. */
+  --bg: #f6f7f9; --card: #ffffff; --inset: #f1f5f9; --fg: #0f172a; --body: #374151; --muted: #5c646b;
+  --line: #dbe2ea; --line-strong: #c3cdd9; --hover: #eef2f7; --emph: #16325c; --on-emph: #ffffff;
+  --red: #d20e0f; --red-text: #c00d0e; --grad: linear-gradient(90deg, #d20e0f 55%, #aa0005);
+  --ok-fg: #14532d; --ok-bg: #dcfce7; --ok-line: #86efac;
+  --warn-fg: #78350f; --warn-bg: #fef3c7; --warn-line: #fcd34d;
+  --err-fg: #7f1d1d; --err-bg: #fee2e2; --err-line: #fca5a5;
+  --idle-fg: #475569; --idle-bg: #f1f5f9; --idle-line: #cbd5e1;
+  --code-bg: #f8fafc; --j-key: #1e40af; --j-str: #166534; --j-num: #9a3412; --j-lit: #6d28d9;
+  --font: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  --mono: ui-monospace, SFMono-Regular, "SF Mono", Menlo, Consolas, "Liberation Mono", monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #0b1220; --card: #131c2e; --inset: #1b2540; --fg: #f8fafc; --body: #e2e8f0; --muted: #a9b6cc;
+  --line: #26304a; --line-strong: #34405e; --hover: #1b2540; --emph: #93c5fd; --on-emph: #0f172a; --red-text: #ff6b6c;
+  --ok-fg: #bbf7d0; --ok-bg: #0f2e1d; --ok-line: #166534; --warn-fg: #fde68a; --warn-bg: #33240a; --warn-line: #92400e;
+  --err-fg: #fecaca; --err-bg: #3a1212; --err-line: #991b1b; --idle-fg: #cbd5e1; --idle-bg: #1b2540; --idle-line: #34405e;
+  --code-bg: #0b1220; --j-key: #93c5fd; --j-str: #86efac; --j-num: #fdba74; --j-lit: #c4b5fd; color-scheme: dark;
+} }
+:root[data-theme="dark"] {
+  --bg: #0b1220; --card: #131c2e; --inset: #1b2540; --fg: #f8fafc; --body: #e2e8f0; --muted: #a9b6cc;
+  --line: #26304a; --line-strong: #34405e; --hover: #1b2540; --emph: #93c5fd; --on-emph: #0f172a; --red-text: #ff6b6c;
+  --ok-fg: #bbf7d0; --ok-bg: #0f2e1d; --ok-line: #166534; --warn-fg: #fde68a; --warn-bg: #33240a; --warn-line: #92400e;
+  --err-fg: #fecaca; --err-bg: #3a1212; --err-line: #991b1b; --idle-fg: #cbd5e1; --idle-bg: #1b2540; --idle-line: #34405e;
+  --code-bg: #0b1220; --j-key: #93c5fd; --j-str: #86efac; --j-num: #fdba74; --j-lit: #c4b5fd; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+body { background: var(--bg); color: var(--body); font: 14px/1.55 var(--font); }
+button, input, select { font: inherit; }
+:focus-visible { outline: 2px solid var(--emph); outline-offset: 2px; }
+.ins { max-width: 100rem; margin: 0 auto; padding-block: 1.25rem 3rem; padding-inline: clamp(16px, 2.5vw, 2rem); display: grid; gap: 1rem; }
+
+.hero { display: flex; flex-wrap: wrap; gap: 1rem 2rem; justify-content: space-between; align-items: flex-end; }
+.hero > div { min-width: 0; }
+.eyebrow { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; color: var(--red-text); }
+h1 { margin: .2rem 0 .35rem; font-size: 28px; line-height: 1.15; font-weight: 700; color: var(--fg); text-wrap: balance; }
+.lede { margin: 0; max-width: 64ch; }
+.related { margin: .5rem 0 0; font-size: 13px; color: var(--muted); }
+.related a { color: var(--fg); font-weight: 600; text-decoration-color: var(--line-strong); text-underline-offset: 3px; }
+.hero-meta { display: flex; flex-wrap: wrap; gap: .5rem; align-items: center; }
+.hero-meta label { font-size: 12px; font-weight: 600; color: var(--muted); }
+
+.card { background: var(--card); border: 1px solid var(--line); border-radius: 8px; }
+.label { margin: 0; font-size: 12px; font-weight: 700; letter-spacing: .06em; text-transform: uppercase; color: var(--muted); }
+
+input, select { font-size: 13px; padding: .42rem .6rem; border: 1px solid var(--line-strong); border-radius: 6px; background: var(--card); color: var(--fg); min-width: 0; }
+.mono { font-family: var(--mono); }
+.send { padding: .85rem 1rem; display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: flex-end; }
+.send .label { flex-basis: 100%; }
+.field { display: grid; gap: .25rem; min-width: 0; }
+.field.wide { flex: 1 1 18rem; }
+.field.wide input { width: 100%; }
+.field > span { font-size: 12px; font-weight: 600; color: var(--muted); }
+.btn { border: 0; border-radius: 6px; padding: .5rem 1.25rem; font-weight: 700; background: var(--emph); color: var(--on-emph); cursor: pointer; }
+.hint { font-size: 12px; color: var(--muted); align-self: center; }
+
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: 6px; overflow: hidden; flex: none; }
+.seg button { border: 0; background: transparent; padding: .22rem .65rem; font-size: 12px; font-weight: 600; color: var(--body); cursor: pointer; }
+.seg button + button { border-left: 1px solid var(--line-strong); }
+.seg button[aria-pressed="true"] { background: var(--grad); color: #fff; }
+.send .seg button { padding: .42rem .8rem; font-size: 13px; }
+
+.work { display: grid; grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr); gap: 1rem; align-items: start; }
+@media (max-width: 60rem) { .work { grid-template-columns: minmax(0, 1fr); } }
+
+.calls { padding: .75rem; display: grid; gap: .6rem; min-width: 0; }
+.calls-head { display: flex; justify-content: space-between; align-items: center; gap: .5rem; }
+.calls-note { margin: 0; font-size: 12px; color: var(--muted); }
+.call-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .2rem; }
+.call { width: 100%; display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) max-content; gap: .5rem; align-items: start; text-align: left; padding: .55rem .5rem; border: 1px solid transparent; border-radius: 6px; background: transparent; color: inherit; cursor: pointer; }
+.call:hover { background: var(--hover); }
+.call[aria-current="true"] { background: var(--inset); border-color: var(--line-strong); }
+.call-num { font-weight: 700; color: var(--muted); font-variant-numeric: tabular-nums; }
+.call-main { min-width: 0; display: grid; gap: .15rem; }
+.call-title { font-family: var(--mono); font-size: 13px; font-weight: 600; color: var(--fg); overflow-wrap: break-word; }
+.call-sub { font-size: 12px; color: var(--muted); }
+.call-meta { display: grid; justify-items: end; gap: .2rem; font-size: 12px; color: var(--muted); font-variant-numeric: tabular-nums; }
+.empty { padding: 1rem .5rem; font-size: 13px; color: var(--muted); }
+
+.chip { display: inline-flex; align-items: center; font-size: 11px; font-weight: 700; line-height: 1.6; padding: 0 .45rem; border-radius: 4px; border: 1px solid var(--idle-line); background: var(--idle-bg); color: var(--idle-fg); white-space: nowrap; }
+.chip.ok { border-color: var(--ok-line); background: var(--ok-bg); color: var(--ok-fg); }
+.chip.warn { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn-fg); }
+.chip.err { border-color: var(--err-line); background: var(--err-bg); color: var(--err-fg); }
+.chip.src { background: transparent; font-weight: 600; }
+.chip.mock { background: transparent; border-style: dashed; color: var(--muted); font-weight: 600; }
+
+.detail { padding: 1rem; display: grid; gap: .9rem; min-width: 0; }
+.detail-head { display: grid; gap: .35rem; }
+.detail-head h2 { margin: 0; font-family: var(--mono); font-size: 18px; line-height: 1.3; color: var(--fg); overflow-wrap: anywhere; }
+.chips { display: flex; flex-wrap: wrap; gap: .35rem; align-items: center; }
+.banner { border: 1px solid var(--idle-line); background: var(--idle-bg); color: var(--idle-fg); border-radius: 6px; padding: .65rem .8rem; display: grid; gap: .35rem; }
+.banner.warn { border-color: var(--warn-line); background: var(--warn-bg); color: var(--warn-fg); }
+.banner.err { border-color: var(--err-line); background: var(--err-bg); color: var(--err-fg); }
+.banner strong { font-size: 14px; }
+.banner p { margin: 0; font-size: 13px; }
+.banner .row { display: flex; gap: .5rem; flex-wrap: wrap; }
+.banner .btn { padding: .35rem .9rem; font-size: 13px; }
+.btn.ghost { background: var(--card); color: var(--fg); border: 1px solid var(--line-strong); }
+
+.tabs { display: flex; gap: .25rem; border-bottom: 1px solid var(--line); overflow-x: auto; }
+.tab { border: 0; background: none; padding: .55rem .75rem; font-weight: 600; color: var(--muted); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; white-space: nowrap; }
+.tab[aria-selected="true"] { color: var(--fg); border-bottom-color: var(--red); }
+.count { display: inline-block; font-size: 11px; line-height: 1.5; background: var(--inset); border: 1px solid var(--line); border-radius: 999px; padding: 0 .45rem; margin-left: .35rem; color: var(--fg); }
+
+.io { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: .75rem; }
+.pane { display: grid; gap: .4rem; min-width: 0; align-content: start; }
+.pane-head { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: .4rem; }
+.pane-head h3 { margin: 0; font-size: 14px; color: var(--fg); }
+.pane-tools { display: flex; gap: .35rem; align-items: center; }
+.pane-where { margin: 0; font-family: var(--mono); font-size: 12px; color: var(--muted); overflow-wrap: anywhere; }
+pre.json, .form { margin: 0; padding: .7rem .8rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; max-height: 26rem; overflow: auto; }
+pre.json { font: 12.5px/1.55 var(--mono); color: var(--fg); white-space: pre; }
+.jk { color: var(--j-key); } .js { color: var(--j-str); } .jn { color: var(--j-num); } .jl { color: var(--j-lit); }
+.copy { font-size: 12px; font-weight: 600; padding: .18rem .55rem; border: 1px solid var(--line-strong); border-radius: 4px; background: var(--card); color: var(--body); cursor: pointer; }
+
+.kv { display: grid; grid-template-columns: minmax(5.5rem, max-content) minmax(0, 1fr); gap: .3rem .9rem; margin: 0; font-size: 13px; }
+.kv dt { color: var(--muted); font-weight: 600; }
+.kv dd { margin: 0; color: var(--fg); font-family: var(--mono); font-size: 12.5px; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: .35rem; align-items: baseline; }
+.kv .kv { border-left: 2px solid var(--line); padding-left: .6rem; flex-basis: 100%; }
+.cite { font-family: var(--font); font-size: 12px; color: var(--muted); }
+
+.tok-note { margin: 0; font-size: 13px; color: var(--muted); }
+.tokens { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: .75rem; }
+.token { border: 1px solid var(--line); border-radius: 8px; padding: .85rem; display: grid; gap: .65rem; align-content: start; min-width: 0; }
+.token-head { display: flex; justify-content: space-between; gap: .5rem; align-items: flex-start; }
+.token-head h3 { margin: 0; font-size: 15px; color: var(--fg); }
+.token-role { margin: .1rem 0 0; font-size: 12px; color: var(--muted); }
+.hidden-note { margin: 0; font-size: 12px; color: var(--muted); }
+details > summary { cursor: pointer; }
+.more > summary { font-size: 12px; font-weight: 600; color: var(--fg); }
+.more[open] > summary { margin-bottom: .4rem; }
+
+.hops { list-style: none; margin: 0; padding: 0; display: grid; gap: .4rem; }
+.hop { border: 1px solid var(--line); border-radius: 6px; }
+.hop > summary { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) max-content; gap: .6rem; align-items: center; padding: .55rem .7rem; list-style: none; }
+.hop > summary::-webkit-details-marker { display: none; }
+.hop > summary:hover { background: var(--hover); }
+.hop[open] > summary { border-bottom: 1px solid var(--line); }
+.hop-main { min-width: 0; display: grid; gap: .1rem; }
+.hop-dir { font-size: 11px; font-weight: 700; letter-spacing: .05em; text-transform: uppercase; color: var(--muted); }
+.hop-call { font-family: var(--mono); font-size: 12.5px; color: var(--fg); overflow-wrap: anywhere; }
+.hop-what { font-size: 12px; color: var(--muted); }
+.hop-body { padding: .7rem; }
+.hop.skipped .hop-call { color: var(--muted); }
+
+.log { padding: .75rem 1rem; }
+.log > summary { display: flex; gap: .75rem; align-items: baseline; flex-wrap: wrap; }
+.log pre { margin: .6rem 0 0; padding: .7rem .8rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; overflow: auto; font: 12px/1.6 var(--mono); color: var(--fg); }
+.foot { margin: 0; font-size: 12px; color: var(--muted); }
+@media (prefers-reduced-motion: reduce) { * { transition: none !important; scroll-behavior: auto !important; } }
+
+:root {
+  --ok-stroke: #16a34a; --err-stroke: #dc2626; --warn-stroke: #d97706; --idle-stroke: #94a3b8;
+  --g-client: #2563eb; --g-bff: #16325c; --g-pingone: #f59e0b; --g-authorize: #7c3aed; --g-gateway: #d20e0f; --g-mcp: #16a34a;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --ok-stroke: #4ade80; --err-stroke: #f87171; --warn-stroke: #fbbf24; --idle-stroke: #64748b;
+  --g-client: #60a5fa; --g-bff: #93c5fd; --g-pingone: #fbbf24; --g-authorize: #a78bfa; --g-gateway: #ff6b6c; --g-mcp: #4ade80;
+} }
+:root[data-theme="dark"] {
+  --ok-stroke: #4ade80; --err-stroke: #f87171; --warn-stroke: #fbbf24; --idle-stroke: #64748b;
+  --g-client: #60a5fa; --g-bff: #93c5fd; --g-pingone: #fbbf24; --g-authorize: #a78bfa; --g-gateway: #ff6b6c; --g-mcp: #4ade80;
+}
+.hero-meta .seg button { padding: .35rem .7rem; font-size: 12px; }
+.field small { font-size: 11.5px; color: var(--ok-fg); font-weight: 600; }
+.field.narrow input { width: 4.5rem; }
+.send-info { flex-basis: 100%; margin: 0; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-size: 13px; }
+.send-more { flex-basis: 100%; }
+.send-more > summary { font-size: 13px; font-weight: 600; color: var(--fg); }
+.send-more[open] > summary { margin-bottom: .5rem; }
+.item-list { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 17rem), 1fr)); gap: .5rem; }
+.item-list li { border: 1px solid var(--line); border-radius: 6px; padding: .5rem .65rem; display: grid; gap: .25rem; align-content: start; }
+.item-list strong { font-family: var(--mono); font-size: 12.5px; color: var(--fg); overflow-wrap: break-word; }
+.item-list span { font-size: 12px; color: var(--muted); }
+.calls-toggle { display: flex; gap: .45rem; align-items: center; font-size: 12px; font-weight: 600; color: var(--body); }
+.actions { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.actions .btn, .dg-bar .btn { padding: .3rem .8rem; font-size: 12.5px; }
+.detail > * { min-width: 0; }
+.actions .calls-toggle { min-width: 0; flex-wrap: wrap; }
+.actions select { font-size: 12.5px; padding: .3rem .5rem; width: 18rem; max-width: 100%; }
+.detail-head { grid-template-columns: minmax(0, 1fr); }
+.chip.tag { background: transparent; font-weight: 600; color: var(--muted); }
+
+.steps { list-style: none; margin: 0; padding: 0; }
+.stp { display: grid; grid-template-columns: 1.7rem minmax(0, 1fr); gap: .75rem; padding-block: .75rem; border-top: 1px solid var(--line); }
+.stp:first-child { border-top: 0; padding-top: .25rem; }
+.stp-n { width: 1.7rem; height: 1.7rem; border-radius: 50%; background: var(--grad); color: #fff; font-size: 12px; font-weight: 700; display: grid; place-items: center; }
+.stp-body { min-width: 0; display: grid; gap: .35rem; }
+.stp-head { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; }
+.stp-head strong { color: var(--fg); font-size: 14px; }
+.stp p { margin: 0; max-width: 80ch; }
+.tree, .tree ul { list-style: none; margin: 0; padding: 0; }
+.tree ul { margin-left: .5rem; padding-left: .9rem; border-left: 2px solid var(--line); }
+.tree li { padding-block: .2rem; }
+.tree .node { display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-size: 13px; }
+.tree .node strong { color: var(--fg); font-weight: 600; }
+.tree .node em { font-style: normal; color: var(--muted); font-size: 12px; }
+.sub-h { margin: .25rem 0 .5rem; }
+.audit-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: .6rem; }
+.audit-box { border: 1px solid var(--line); border-radius: 6px; padding: .6rem .7rem; display: grid; gap: .35rem; align-content: start; min-width: 0; }
+.audit-box h4 { margin: 0; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--red-text); }
+pre.logpre { margin: 0; padding: .6rem .75rem; background: var(--code-bg); border: 1px solid var(--line); border-radius: 6px; overflow: auto; font: 12px/1.6 var(--mono); color: var(--fg); }
+.cmp { border: 1px solid var(--line-strong); background: var(--inset); border-radius: 6px; padding: .65rem .8rem; display: grid; gap: .4rem; margin-bottom: .75rem; }
+.cmp-head { display: flex; flex-wrap: wrap; gap: .5rem; justify-content: space-between; align-items: center; }
+.cmp ul { margin: 0; padding-left: 1.1rem; font-family: var(--mono); font-size: 12px; }
+.cmp li { overflow-wrap: anywhere; }
+.cmp del { color: var(--err-fg); text-decoration: line-through; } .cmp ins { color: var(--ok-fg); text-decoration: none; font-weight: 600; }
+
+#panel, .dg { min-width: 0; }
+.dg { display: grid; gap: .65rem; }
+.dg-bar { display: flex; flex-wrap: wrap; gap: .45rem; align-items: center; }
+.dg-bar label { font-size: 12px; font-weight: 600; color: var(--muted); display: flex; gap: .35rem; align-items: center; }
+.dg-bar select { font-size: 12.5px; padding: .25rem .4rem; }
+.dg-cap { flex-basis: 100%; margin: 0; font-size: 13px; color: var(--body); min-height: 1.4em; }
+.dg-wrap { overflow: auto; border: 1px solid var(--line); border-radius: 8px; background-color: var(--bg); background-image: radial-gradient(var(--line-strong) 1px, transparent 1px); background-size: 18px 18px; }
+.dg-canvas { position: relative; }
+.dg-edges { position: absolute; inset: 0; overflow: visible; pointer-events: none; }
+.dg-edges path { fill: none; stroke-width: 2; }
+.dg-edges .e-ok { stroke: var(--ok-stroke); } .dg-edges .e-err { stroke: var(--err-stroke); } .dg-edges .e-warn { stroke: var(--warn-stroke); }
+.dg-edges .e-idle { stroke: var(--idle-stroke); stroke-dasharray: 5 5; }
+.dg-edges path.on { stroke-width: 3.5; stroke-dasharray: 9 6; animation: dgflow .7s linear infinite; }
+.dg-edges circle { fill: var(--card); stroke-width: 2; }
+.dg-edges text { font: 700 11px var(--font); fill: var(--fg); text-anchor: middle; dominant-baseline: central; }
+@keyframes dgflow { to { stroke-dashoffset: -30; } }
+.dg-node { position: absolute; width: 210px; min-height: 84px; background: var(--card); border: 1px solid var(--line-strong); border-top: 4px solid var(--g); border-radius: 8px; padding: .45rem .65rem .55rem; cursor: grab; touch-action: none; user-select: none; box-shadow: 0 1px 3px rgba(0,0,0,.08); }
+.dg-node:active { cursor: grabbing; }
+.dg-node.on { outline: 2px solid var(--emph); outline-offset: 2px; }
+.dg-node strong { display: block; color: var(--fg); font-size: 13px; margin-bottom: .15rem; }
+.dg-node span { display: block; font-size: 11.5px; line-height: 1.35; color: var(--muted); }
+.dg-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: .3rem 1rem; font-size: 12px; color: var(--muted); }
+.dg-legend i { display: inline-block; width: 16px; border-top: 4px solid; margin-right: .35rem; vertical-align: middle; }
+.dg-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: .35rem; }
+.dg-steps li { display: grid; grid-template-columns: 1.4rem minmax(0, 1fr) max-content; gap: .6rem; align-items: center; border: 1px solid var(--line); border-radius: 6px; padding: .45rem .65rem; }
+.dg-steps li.on { background: var(--inset); border-color: var(--line-strong); }
+@media (prefers-reduced-motion: reduce) { .dg-edges path.on { animation: none; } }
+</style>
+<main class="ins">
+  <header class="hero">
+    <div>
+      <p class="eyebrow">PingOne Authorize · Inspector</p>
+      <h1>Authorize Inspector</h1>
+      <p class="lede">Every decision PingOne Authorize made for this demo: the parameters sent, the verdict and statements returned, the token used, and the API calls behind it.</p>
+      <p class="related">More tools: <a href="#bulk-decisions">Bulk decisions</a> · <a href="#guided-scenarios">Guided scenarios</a> · <a href="#mock-rules">Mock rules</a> · <a href="#scopes">Scopes</a> · <a href="#snapshot-import">Snapshot import</a> · <a href="#policy-decision-trace">Policy decision trace</a></p>
+    </div>
+    <div class="hero-meta">
+      <span class="chip ok">● Live</span>
+      <label for="source">Endpoint</label>
+      <select id="source"><option>Transaction (7b2f4c10)</option><option>MCP tools (3e9a77d2)</option></select>
+      
+      <span class="chip mock">Mockup v2 · example data</span>
+    </div>
+  </header>
+  <section class="card send" id="send" aria-label="Send a call"></section>
+  <div class="work">
+    <aside class="card calls" aria-label="Calls">
+      <div class="calls-head">
+        <h2 class="label">Calls <span class="count" id="calls-count"></span></h2>
+        <div class="seg" role="group" aria-label="Filter calls">
+          <button type="button" data-filter="all" aria-pressed="true">All</button>
+          <button type="button" data-filter="problems" aria-pressed="false">Problems</button>
+        </div>
+      </div>
+      <label class="calls-toggle"><input type="checkbox" id="calls-pingone" checked> Include PingOne's recent decisions</label>
+      <ol class="call-list" id="calls"></ol>
+      <p class="calls-note">Your decisions from this page, plus PingOne's recent-decisions log (the AI agent's decisions show up there). Newest first. Times in UTC.</p>
+    </aside>
+    <section class="card detail" id="detail" aria-live="polite"></section>
+  </div>
+  
+  <p class="foot">Mockup v2 for the inspector redesign. All values are examples; the real page fills these from live traffic.</p>
+</main>
+<script>const PAGE = {"send": {"fields": [{"id": "preset", "label": "Preset", "type": "seg", "options": ["Transaction", "MCP tool", "Custom"]}, {"id": "amount", "label": "Amount", "type": "number", "value": "12500"}, {"id": "type", "label": "Type", "type": "select", "options": ["TRANSFER", "WITHDRAWAL", "DEPOSIT"]}, {"id": "acr", "label": "ACR", "type": "text", "value": "urn:mace:incommon:iap:silver", "wide": true}, {"id": "user", "label": "User ID", "type": "text", "value": "9c1e5b2a-7d41-4f0e-b3a8-52c6d1e0f7aa", "wide": true}], "button": "Send", "hint": "Calls the live decision endpoint. Nothing is simulated.", "info": null, "details": [{"summary": "Policies on this endpoint · 2 policies, 7 rules", "items": [{"title": "Transaction Authorization", "sub": "Policy · v12 · 3 rules · in Banking Authorization", "chips": [{"tone": "idle", "label": "Allow small transfers"}, {"tone": "idle", "label": "Step-up above $10,000"}, {"tone": "idle", "label": "Deny when risk tier is high"}]}, {"title": "MCP Delegation", "sub": "Policy · v4 · 4 rules · in Banking Authorization", "chips": [{"tone": "idle", "label": "Agent read tools"}, {"tone": "idle", "label": "Human approval for agent writes"}, {"tone": "idle", "label": "Agent may not read sensitive data"}, {"tone": "idle", "label": "Deny unknown audience"}]}]}]}, "calls": [{"id": "a4", "at": 1792233930, "kind": "Decision · MCP tool", "title": "get_my_accounts", "src": "Agent", "ms": 188, "status": {"tone": "ok", "label": "PERMIT"}, "chips": [{"tone": "idle", "label": "Rule: Agent read tools"}, {"tone": "idle", "label": "Policy eval 29 ms"}, {"tone": "idle", "label": "PingOne log"}], "banner": null, "corr": "a4d6c1179e", "request": {"label": "Decision request", "where": "POST https://api.pingone.com/v1/environments/01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41/decisionEndpoints/3e9a77d2-mcp-tools", "body": {"parameters": {"ToolName": "get_my_accounts", "TokenAudience": "https://api.ai-demo.example/mcp", "ActClientId": "ai-agent", "McpResourceUri": "https://api.ai-demo.example/mcp", "HitlApproved": false}}}, "response": {"label": "PingOne Authorize response", "where": "PingOne Authorize → BFF", "body": {"id": "da4-6c1e-4a90", "timestamp": "2026-10-17T10:45:30Z", "elapsedMicroseconds": 29000, "decision": "PERMIT", "statements": []}}, "tokens": [{"label": "Worker token (client credentials)", "alg": "RS256", "rfc": "RFC 6749 §4.4", "status": {"tone": "idle", "label": "Cached, reused"}, "role": "The BFF used this token to call PingOne Authorize. It identifies the BFF, not you.", "checks": [{"tone": "ok", "label": "aud = PingOne API"}], "keys": ["client_id", "aud", "env", "iat", "exp"], "claims": {"iss": "https://auth.pingone.com/01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41/as", "client_id": "demo-bff-mcp-client", "aud": ["https://api.pingone.com"], "env": "01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41", "org": "5f0c2d8e-org", "iat": 1792233030, "exp": 1792236630}, "hidden": [], "header": {"alg": "RS256", "kid": "default", "typ": "JWT"}}, {"label": "Agent's MCP token", "alg": "RS256", "status": {"tone": "ok", "label": "Exchanged"}, "rfc": "RFC 8693 · RFC 8707", "role": "The token the agent presented. Its aud became TokenAudience and its act.sub became ActClientId.", "checks": [{"tone": "ok", "label": "act present"}, {"tone": "ok", "label": "aud matches the MCP server"}], "keys": ["sub", "aud", "scope", "act", "iat", "exp"], "diff": {"aud": "→ TokenAudience", "act": "→ ActClientId"}, "claims": {"iss": "https://auth.pingone.com/01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41/as", "sub": "9c1e5b2a-7d41-4f0e-b3a8-52c6d1e0f7aa", "aud": ["https://api.ai-demo.example/mcp"], "client_id": "ai-demo-bff", "scope": "accounts:read read", "act": {"sub": "ai-agent"}, "iat": 1792233928, "exp": 1792234828, "env": "01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41"}, "hidden": ["email", "acr", "amr", "sid"], "header": {"alg": "RS256", "kid": "default", "typ": "JWT"}}], "hops": [{"dir": "AI agent → BFF", "call": "POST /api/authorize/evaluate-endpoint", "what": "Ask the BFF for a decision", "status": {"tone": "ok", "label": "200"}, "ms": 188, "request": {"endpointId": "3e9a77d2-mcp-tools", "parameters": {"ToolName": "get_my_accounts", "TokenAudience": "https://api.ai-demo.example/mcp", "ActClientId": "ai-agent", "McpResourceUri": "https://api.ai-demo.example/mcp", "HitlApproved": false}}, "response": {"ok": true, "decision": "PERMIT", "engine": "pingone", "decisionId": "da4-6c1e-4a90", "ruleName": "Agent read tools", "policyEvalMs": 29}}, {"dir": "BFF → PingOne", "call": "POST /as/token", "what": "Worker token: cached, so no call was made", "status": {"tone": "idle", "label": "skipped"}, "ms": null, "request": {"note": "The cached worker token is still valid."}, "response": {"note": "No call"}}, {"dir": "BFF → PingOne Authorize", "call": "POST /decisionEndpoints/{id}", "what": "The decision itself", "status": {"tone": "ok", "label": "200"}, "ms": 118, "request": {"parameters": {"ToolName": "get_my_accounts", "TokenAudience": "https://api.ai-demo.example/mcp", "ActClientId": "ai-agent", "McpResourceUri": "https://api.ai-demo.example/mcp", "HitlApproved": false}}, "response": {"id": "da4-6c1e-4a90", "timestamp": "2026-10-17T10:45:30Z", "elapsedMicroseconds": 29000, "decision": "PERMIT", "statements": []}}], "steps": [{"status": {"tone": "ok", "label": "built"}, "title": "Built the decision request", "text": "From the agent's MCP token: aud → TokenAudience, act.sub → ActClientId. Recorded by PingOne's recent-decisions log.", "tag": "Trust Framework parameters", "kv": [["ToolName", "get_my_accounts"], ["TokenAudience", "https://api.ai-demo.example/mcp"], ["ActClientId", "ai-agent"], ["McpResourceUri", "https://api.ai-demo.example/mcp"], ["HitlApproved", "False"]]}, {"status": {"tone": "idle", "label": "cached"}, "title": "Got a worker token", "text": "Reused the cached worker token. It expires in 45 minutes.", "tag": "client_credentials"}, {"status": {"tone": "ok", "label": "200"}, "title": "Called the decision endpoint", "text": "POST …/decisionEndpoints/3e9a77d2-mcp-tools. 118 ms round trip, 29 ms of policy evaluation.", "tag": "PingOne Authorize"}, {"status": {"tone": "ok", "label": "PERMIT"}, "title": "Evaluated the policies", "text": "Rule “Agent read tools” in MCP Delegation decided PERMIT. Matched rules are worked out from the returned statements; PingOne does not return a per-rule trace.", "tag": "Policy tree", "tree": [{"name": "Banking Authorization", "type": "Policy set · v7", "state": {"tone": "idle", "label": "evaluated"}, "children": [{"name": "Transaction Authorization", "type": "Policy · v12 · 3 rules", "state": {"tone": "idle", "label": "not applicable"}, "children": [{"name": "Allow small transfers", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}, {"name": "Step-up above $10,000", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}, {"name": "Deny when risk tier is high", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}]}, {"name": "MCP Delegation", "type": "Policy · v4 · 4 rules", "state": {"tone": "idle", "label": "evaluated"}, "children": [{"name": "Agent read tools", "type": "Rule", "state": {"tone": "ok", "label": "matched · PERMIT"}}, {"name": "Human approval for agent writes", "type": "Rule", "state": {"tone": "idle", "label": "not matched"}}, {"name": "Agent may not read sensitive data", "type": "Rule", "state": {"tone": "idle", "label": "not matched"}}, {"name": "Deny unknown audience", "type": "Rule", "state": {"tone": "idle", "label": "not matched"}}]}]}]}, {"status": {"tone": "ok", "label": "none"}, "title": "No statements", "text": "Nothing else for the app to do.", "tag": "Obligations"}, {"status": {"tone": "ok", "label": "PERMIT"}, "title": "What the app does next", "text": "The agent's tool call goes ahead.", "tag": "Result"}]}, {"id": "a3", "at": 1792233905, "kind": "Decision · MCP tool", "title": "create_withdrawal", "src": "You", "ms": 201, "status": {"tone": "warn", "label": "PERMIT · needs approval"}, "chips": [{"tone": "idle", "label": "Rule: Human approval for agent writes"}, {"tone": "idle", "label": "Policy eval 33 ms"}], "banner": {"tone": "warn", "title": "Permitted, with a condition", "text": "PingOne Authorize returned PERMIT with an obligation. The app must get the user's approval (CIBA) before the tool runs."}, "corr": "a3d6c11785", "request": {"label": "Decision request", "where": "POST https://api.pingone.com/v1/environments/01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41/decisionEndpoints/3e9a77d2-mcp-tools", "body": {"parameters": {"ToolName": "create_withdrawal", "TokenAudience": "https://api.ai-demo.example/mcp", "ActClientId": "ai-agent", "McpResourceUri": "https://api.ai-demo.example/mcp", "HitlApproved": false}}}, "response": {"label": "PingOne Authorize response", "where": "PingOne Authorize → BFF", "body": {"id": "da3-6c1e-4a90", "timestamp": "2026-10-17T10:45:05Z", "elapsedMicroseconds": 33000, "decision": "PERMIT", "statements": [{"id": "st-02", "code": "hitl-approval", "name": "Human approval for agent writes", "payload": "{\"channel\":\"ciba\"}", "obligatory": true}]}}, "tokens": [{"label": "Worker token (client credentials)", "alg": "RS256", "rfc": "RFC 6749 §4.4", "status": {"tone": "idle", "label": "Cached, reused"}, "role": "The BFF used this token to call PingOne Authorize. It identifies the BFF, not you.", "checks": [{"tone": "ok", "label": "aud = PingOne API"}], "keys": ["client_id", "aud", "env", "iat", "exp"], "claims": {"iss": "https://auth.pingone.com/01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41/as", "client_id": "demo-bff-mcp-client", "aud": ["https://api.pingone.com"], "env": "01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41", "org": "5f0c2d8e-org", "iat": 1792233005, "exp": 1792236605}, "hidden": [], "header": {"alg": "RS256", "kid": "default", "typ": "JWT"}}], "hops": [{"dir": "Browser → BFF", "call": "POST /api/authorize/evaluate-endpoint", "what": "Ask the BFF for a decision", "status": {"tone": "ok", "label": "200"}, "ms": 201, "request": {"endpointId": "3e9a77d2-mcp-tools", "parameters": {"ToolName": "create_withdrawal", "TokenAudience": "https://api.ai-demo.example/mcp", "ActClientId": "ai-agent", "McpResourceUri": "https://api.ai-demo.example/mcp", "HitlApproved": false}}, "response": {"ok": true, "decision": "PERMIT", "engine": "pingone", "decisionId": "da3-6c1e-4a90", "ruleName": "Human approval for agent writes", "policyEvalMs": 33}}, {"dir": "BFF → PingOne", "call": "POST /as/token", "what": "Worker token: cached, so no call was made", "status": {"tone": "idle", "label": "skipped"}, "ms": null, "request": {"note": "The cached worker token is still valid."}, "response": {"note": "No call"}}, {"dir": "BFF → PingOne Authorize", "call": "POST /decisionEndpoints/{id}", "what": "The decision itself", "status": {"tone": "ok", "label": "200"}, "ms": 131, "request": {"parameters": {"ToolName": "create_withdrawal", "TokenAudience": "https://api.ai-demo.example/mcp", "ActClientId": "ai-agent", "McpResourceUri": "https://api.ai-demo.example/mcp", "HitlApproved": false}}, "response": {"id": "da3-6c1e-4a90", "timestamp": "2026-10-17T10:45:05Z", "elapsedMicroseconds": 33000, "decision": "PERMIT", "statements": [{"id": "st-02", "code": "hitl-approval", "name": "Human approval for agent writes", "payload": "{\"channel\":\"ciba\"}", "obligatory": true}]}}], "steps": [{"status": {"tone": "ok", "label": "built"}, "title": "Built the decision request", "text": "From the form on this page.", "tag": "Trust Framework parameters", "kv": [["ToolName", "create_withdrawal"], ["TokenAudience", "https://api.ai-demo.example/mcp"], ["ActClientId", "ai-agent"], ["McpResourceUri", "https://api.ai-demo.example/mcp"], ["HitlApproved", "False"]]}, {"status": {"tone": "idle", "label": "cached"}, "title": "Got a worker token", "text": "Reused the cached worker token. It expires in 45 minutes.", "tag": "client_credentials"}, {"status": {"tone": "ok", "label": "200"}, "title": "Called the decision endpoint", "text": "POST …/decisionEndpoints/3e9a77d2-mcp-tools. 131 ms round trip, 33 ms of policy evaluation.", "tag": "PingOne Authorize"}, {"status": {"tone": "warn", "label": "PERMIT · needs approval"}, "title": "Evaluated the policies", "text": "Rule “Human approval for agent writes” in MCP Delegation decided PERMIT. Matched rules are worked out from the returned statements; PingOne does not return a per-rule trace.", "tag": "Policy tree", "tree": [{"name": "Banking Authorization", "type": "Policy set · v7", "state": {"tone": "idle", "label": "evaluated"}, "children": [{"name": "Transaction Authorization", "type": "Policy · v12 · 3 rules", "state": {"tone": "idle", "label": "not applicable"}, "children": [{"name": "Allow small transfers", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}, {"name": "Step-up above $10,000", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}, {"name": "Deny when risk tier is high", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}]}, {"name": "MCP Delegation", "type": "Policy · v4 · 4 rules", "state": {"tone": "idle", "label": "evaluated"}, "children": [{"name": "Agent read tools", "type": "Rule", "state": {"tone": "idle", "label": "not matched"}}, {"name": "Human approval for agent writes", "type": "Rule", "state": {"tone": "ok", "label": "matched · PERMIT"}}, {"name": "Agent may not read sensitive data", "type": "Rule", "state": {"tone": "idle", "label": "not matched"}}, {"name": "Deny unknown audience", "type": "Rule", "state": {"tone": "idle", "label": "not matched"}}]}]}]}, {"status": {"tone": "warn", "label": "1 statement"}, "title": "Returned statements", "text": "Human approval for agent writes (hitl-approval): {\"channel\":\"ciba\"}", "tag": "Obligations"}, {"status": {"tone": "warn", "label": "PERMIT · needs approval"}, "title": "What the app does next", "text": "The app sends a CIBA approval request. When the user approves, it asks again with HitlApproved = true.", "tag": "Result"}]}, {"id": "a2", "at": 1792233878, "kind": "Decision · Transaction", "title": "TRANSFER $12,500", "src": "You", "ms": 196, "status": {"tone": "err", "label": "DENY"}, "chips": [{"tone": "idle", "label": "Rule: Step-up above $10,000"}, {"tone": "idle", "label": "Policy eval 41 ms"}], "banner": {"tone": "err", "title": "Denied until the user steps up", "text": "The amount is over $10,000 and the sign-in was ACR silver. The statement asks for gold, so the app prompts for MFA."}, "corr": "a2d6c1176a", "request": {"label": "Decision request", "where": "POST https://api.pingone.com/v1/environments/01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41/decisionEndpoints/7b2f4c10-transaction", "body": {"parameters": {"Amount": 12500, "TransactionType": "TRANSFER", "ACR": "urn:mace:incommon:iap:silver", "UserId": "9c1e5b2a-7d41-4f0e-b3a8-52c6d1e0f7aa"}}}, "response": {"label": "PingOne Authorize response", "where": "PingOne Authorize → BFF", "body": {"id": "da2-6c1e-4a90", "timestamp": "2026-10-17T10:44:38Z", "elapsedMicroseconds": 41000, "decision": "DENY", "statements": [{"id": "st-01", "code": "step-up", "name": "Step-up above $10,000", "payload": "{\"acr\":\"urn:mace:incommon:iap:gold\"}", "obligatory": true}]}}, "tokens": [{"label": "Worker token (client credentials)", "alg": "RS256", "rfc": "RFC 6749 §4.4", "status": {"tone": "idle", "label": "Cached, reused"}, "role": "The BFF used this token to call PingOne Authorize. It identifies the BFF, not you.", "checks": [{"tone": "ok", "label": "aud = PingOne API"}], "keys": ["client_id", "aud", "env", "iat", "exp"], "claims": {"iss": "https://auth.pingone.com/01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41/as", "client_id": "demo-bff-mcp-client", "aud": ["https://api.pingone.com"], "env": "01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41", "org": "5f0c2d8e-org", "iat": 1792232978, "exp": 1792236578}, "hidden": [], "header": {"alg": "RS256", "kid": "default", "typ": "JWT"}}], "hops": [{"dir": "Browser → BFF", "call": "POST /api/authorize/evaluate-endpoint", "what": "Ask the BFF for a decision", "status": {"tone": "ok", "label": "200"}, "ms": 196, "request": {"endpointId": "7b2f4c10-transaction", "parameters": {"Amount": 12500, "TransactionType": "TRANSFER", "ACR": "urn:mace:incommon:iap:silver", "UserId": "9c1e5b2a-7d41-4f0e-b3a8-52c6d1e0f7aa"}}, "response": {"ok": true, "decision": "DENY", "engine": "pingone", "decisionId": "da2-6c1e-4a90", "ruleName": "Step-up above $10,000", "policyEvalMs": 41}}, {"dir": "BFF → PingOne", "call": "POST /as/token", "what": "Worker token: cached, so no call was made", "status": {"tone": "idle", "label": "skipped"}, "ms": null, "request": {"note": "The cached worker token is still valid."}, "response": {"note": "No call"}}, {"dir": "BFF → PingOne Authorize", "call": "POST /decisionEndpoints/{id}", "what": "The decision itself", "status": {"tone": "ok", "label": "200"}, "ms": 126, "request": {"parameters": {"Amount": 12500, "TransactionType": "TRANSFER", "ACR": "urn:mace:incommon:iap:silver", "UserId": "9c1e5b2a-7d41-4f0e-b3a8-52c6d1e0f7aa"}}, "response": {"id": "da2-6c1e-4a90", "timestamp": "2026-10-17T10:44:38Z", "elapsedMicroseconds": 41000, "decision": "DENY", "statements": [{"id": "st-01", "code": "step-up", "name": "Step-up above $10,000", "payload": "{\"acr\":\"urn:mace:incommon:iap:gold\"}", "obligatory": true}]}}], "steps": [{"status": {"tone": "ok", "label": "built"}, "title": "Built the decision request", "text": "From the form on this page.", "tag": "Trust Framework parameters", "kv": [["Amount", "12500"], ["TransactionType", "TRANSFER"], ["ACR", "urn:mace:incommon:iap:silver"], ["UserId", "9c1e5b2a-7d41-4f0e-b3a8-52c6d1e0f7aa"]]}, {"status": {"tone": "idle", "label": "cached"}, "title": "Got a worker token", "text": "Reused the cached worker token. It expires in 45 minutes.", "tag": "client_credentials"}, {"status": {"tone": "ok", "label": "200"}, "title": "Called the decision endpoint", "text": "POST …/decisionEndpoints/7b2f4c10-transaction. 126 ms round trip, 41 ms of policy evaluation.", "tag": "PingOne Authorize"}, {"status": {"tone": "err", "label": "DENY"}, "title": "Evaluated the policies", "text": "Rule “Step-up above $10,000” in Transaction Authorization decided DENY. Matched rules are worked out from the returned statements; PingOne does not return a per-rule trace.", "tag": "Policy tree", "tree": [{"name": "Banking Authorization", "type": "Policy set · v7", "state": {"tone": "idle", "label": "evaluated"}, "children": [{"name": "Transaction Authorization", "type": "Policy · v12 · 3 rules", "state": {"tone": "idle", "label": "evaluated"}, "children": [{"name": "Allow small transfers", "type": "Rule", "state": {"tone": "idle", "label": "not matched"}}, {"name": "Step-up above $10,000", "type": "Rule", "state": {"tone": "err", "label": "matched · DENY"}}, {"name": "Deny when risk tier is high", "type": "Rule", "state": {"tone": "idle", "label": "not matched"}}]}, {"name": "MCP Delegation", "type": "Policy · v4 · 4 rules", "state": {"tone": "idle", "label": "not applicable"}, "children": [{"name": "Agent read tools", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}, {"name": "Human approval for agent writes", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}, {"name": "Agent may not read sensitive data", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}, {"name": "Deny unknown audience", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}]}]}]}, {"status": {"tone": "warn", "label": "1 statement"}, "title": "Returned statements", "text": "Step-up above $10,000 (step-up): {\"acr\":\"urn:mace:incommon:iap:gold\"}", "tag": "Obligations"}, {"status": {"tone": "err", "label": "DENY"}, "title": "What the app does next", "text": "The app prompts for MFA (ACR gold) and sends the same decision again.", "tag": "Result"}]}, {"id": "a1", "at": 1792233850, "kind": "Decision · Transaction", "title": "TRANSFER $250", "src": "You", "ms": 274, "status": {"tone": "ok", "label": "PERMIT"}, "chips": [{"tone": "idle", "label": "Rule: Allow small transfers"}, {"tone": "idle", "label": "Policy eval 38 ms"}], "banner": null, "corr": "a1d6c1174e", "request": {"label": "Decision request", "where": "POST https://api.pingone.com/v1/environments/01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41/decisionEndpoints/7b2f4c10-transaction", "body": {"parameters": {"Amount": 250, "TransactionType": "TRANSFER", "ACR": "urn:mace:incommon:iap:silver", "UserId": "9c1e5b2a-7d41-4f0e-b3a8-52c6d1e0f7aa"}}}, "response": {"label": "PingOne Authorize response", "where": "PingOne Authorize → BFF", "body": {"id": "da1-6c1e-4a90", "timestamp": "2026-10-17T10:44:10Z", "elapsedMicroseconds": 38000, "decision": "PERMIT", "statements": []}}, "tokens": [{"label": "Worker token (client credentials)", "alg": "RS256", "rfc": "RFC 6749 §4.4", "status": {"tone": "ok", "label": "Fetched"}, "role": "The BFF used this token to call PingOne Authorize. It identifies the BFF, not you.", "checks": [{"tone": "ok", "label": "aud = PingOne API"}], "keys": ["client_id", "aud", "env", "iat", "exp"], "claims": {"iss": "https://auth.pingone.com/01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41/as", "client_id": "demo-bff-mcp-client", "aud": ["https://api.pingone.com"], "env": "01d89b06-5c2e-4a7f-9d1b-3e8f0a6c2b41", "org": "5f0c2d8e-org", "iat": 1792233850, "exp": 1792237450}, "hidden": [], "header": {"alg": "RS256", "kid": "default", "typ": "JWT"}}], "hops": [{"dir": "Browser → BFF", "call": "POST /api/authorize/evaluate-endpoint", "what": "Ask the BFF for a decision", "status": {"tone": "ok", "label": "200"}, "ms": 274, "request": {"endpointId": "7b2f4c10-transaction", "parameters": {"Amount": 250, "TransactionType": "TRANSFER", "ACR": "urn:mace:incommon:iap:silver", "UserId": "9c1e5b2a-7d41-4f0e-b3a8-52c6d1e0f7aa"}}, "response": {"ok": true, "decision": "PERMIT", "engine": "pingone", "decisionId": "da1-6c1e-4a90", "ruleName": "Allow small transfers", "policyEvalMs": 38}}, {"dir": "BFF → PingOne", "call": "POST /as/token", "what": "Worker token (client credentials)", "status": {"tone": "ok", "label": "200"}, "ms": 88, "request": {"grant_type": "client_credentials", "client_id": "demo-bff-mcp-client", "client_secret": "(redacted)"}, "response": {"access_token": "(redacted)", "token_type": "Bearer", "expires_in": 3600}}, {"dir": "BFF → PingOne Authorize", "call": "POST /decisionEndpoints/{id}", "what": "The decision itself", "status": {"tone": "ok", "label": "200"}, "ms": 204, "request": {"parameters": {"Amount": 250, "TransactionType": "TRANSFER", "ACR": "urn:mace:incommon:iap:silver", "UserId": "9c1e5b2a-7d41-4f0e-b3a8-52c6d1e0f7aa"}}, "response": {"id": "da1-6c1e-4a90", "timestamp": "2026-10-17T10:44:10Z", "elapsedMicroseconds": 38000, "decision": "PERMIT", "statements": []}}], "steps": [{"status": {"tone": "ok", "label": "built"}, "title": "Built the decision request", "text": "From the form on this page.", "tag": "Trust Framework parameters", "kv": [["Amount", "250"], ["TransactionType", "TRANSFER"], ["ACR", "urn:mace:incommon:iap:silver"], ["UserId", "9c1e5b2a-7d41-4f0e-b3a8-52c6d1e0f7aa"]]}, {"status": {"tone": "ok", "label": "fetched"}, "title": "Got a worker token", "text": "Fetched a new worker token from PingOne (88 ms).", "tag": "client_credentials"}, {"status": {"tone": "ok", "label": "200"}, "title": "Called the decision endpoint", "text": "POST …/decisionEndpoints/7b2f4c10-transaction. 204 ms round trip, 38 ms of policy evaluation.", "tag": "PingOne Authorize"}, {"status": {"tone": "ok", "label": "PERMIT"}, "title": "Evaluated the policies", "text": "Rule “Allow small transfers” in Transaction Authorization decided PERMIT. Matched rules are worked out from the returned statements; PingOne does not return a per-rule trace.", "tag": "Policy tree", "tree": [{"name": "Banking Authorization", "type": "Policy set · v7", "state": {"tone": "idle", "label": "evaluated"}, "children": [{"name": "Transaction Authorization", "type": "Policy · v12 · 3 rules", "state": {"tone": "idle", "label": "evaluated"}, "children": [{"name": "Allow small transfers", "type": "Rule", "state": {"tone": "ok", "label": "matched · PERMIT"}}, {"name": "Step-up above $10,000", "type": "Rule", "state": {"tone": "idle", "label": "not matched"}}, {"name": "Deny when risk tier is high", "type": "Rule", "state": {"tone": "idle", "label": "not matched"}}]}, {"name": "MCP Delegation", "type": "Policy · v4 · 4 rules", "state": {"tone": "idle", "label": "not applicable"}, "children": [{"name": "Agent read tools", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}, {"name": "Human approval for agent writes", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}, {"name": "Agent may not read sensitive data", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}, {"name": "Deny unknown audience", "type": "Rule", "state": {"tone": "idle", "label": "not evaluated"}}]}]}]}, {"status": {"tone": "ok", "label": "none"}, "title": "No statements", "text": "Nothing else for the app to do.", "tag": "Obligations"}, {"status": {"tone": "ok", "label": "PERMIT"}, "title": "What the app does next", "text": "The transfer goes ahead.", "tag": "Result"}]}], "selected": "a2", "node_subs": {"Browser": ["This page"], "AI agent": ["Asked for a decision", "before running a tool"], "BFF": ["Builds the parameters", "and calls PingOne"], "PingOne": ["Issues the worker token"], "PingOne Authorize": ["Runs the policy tree", "returns decision + statements"]}};</script>
+<script>
+const $ = (s) => document.querySelector(s);
+const esc = (s) => String(s).replace(/[&<>"]/g, (c) => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]));
+const brk = (s) => esc(s).replace(/_/g, '_<wbr>');
+const deep = (v) => { if (typeof v === 'string' && /^[\[{]/.test(v)) { try { return JSON.parse(v); } catch (_) {} } return v; };
+const TIME_KEYS = new Set(['iat', 'exp', 'nbf', 'auth_time']);
+const hhmmss = (sec) => new Date(sec * 1000).toISOString().slice(11, 19);
+const chip = (c, extra = '') => `<span class="chip ${c.tone} ${extra}">${esc(c.label)}</span>`;
+const callNo = (c) => PAGE.calls.length - PAGE.calls.indexOf(c);
+const srcLabel = (c) => (c.src === 'Agent' ? 'AI agent' : 'You');
+const bodies = {};
+const views = {};
+const state = { selected: PAGE.selected, tab: 'what', filter: 'all', compare: null, dg: { step: -1, timer: null, ms: 1000, pos: {} } };
+
+function json(v, ind = 0) {
+  v = deep(v);
+  const p = '  '.repeat(ind), p1 = '  '.repeat(ind + 1);
+  if (v === null || v === undefined) return '<span class="jl">null</span>';
+  if (Array.isArray(v)) return v.length ? '[\n' + v.map((x) => p1 + json(x, ind + 1)).join(',\n') + '\n' + p + ']' : '[]';
+  if (typeof v === 'object') {
+    const k = Object.keys(v);
+    return k.length ? '{\n' + k.map((key) => p1 + '<span class="jk">' + esc(JSON.stringify(key)) + '</span>: ' + json(v[key], ind + 1)).join(',\n') + '\n' + p + '}' : '{}';
+  }
+  if (typeof v === 'string') return '<span class="js">' + esc(JSON.stringify(v)) + '</span>';
+  if (typeof v === 'number') return '<span class="jn">' + v + '</span>';
+  return '<span class="jl">' + v + '</span>';
+}
+function value(k, v) {
+  v = deep(v);
+  if (TIME_KEYS.has(k) && typeof v === 'number') return `${v} <span class="cite">${hhmmss(v)} UTC</span>`;
+  if (v === null || typeof v !== 'object') return esc(v);
+  if (Array.isArray(v) && v.every((x) => x === null || typeof x !== 'object')) return esc(v.join(', ') || '[]');
+  return form(v);
+}
+function form(v) {
+  if (v === null || typeof v !== 'object') return esc(v);
+  return '<dl class="kv">' + Object.entries(v).map(([k, x]) => `<dt>${esc(k)}</dt><dd>${value(k, x)}</dd>`).join('') + '</dl>';
+}
+const kvList = (rows) => '<dl class="kv">' + rows.map(([k, v]) => `<dt>${esc(k)}</dt><dd>${esc(v)}</dd>`).join('') + '</dl>';
+
+function pane(id, label, where, body) {
+  bodies[id] = body;
+  const mode = views[id] || 'json';
+  return `<div class="pane">
+    <div class="pane-head"><h3>${esc(label)}</h3>
+      <div class="pane-tools">
+        <div class="seg" role="group" aria-label="${esc(label)} view">
+          <button type="button" data-view="${id}:form" aria-pressed="${mode === 'form'}">Form</button>
+          <button type="button" data-view="${id}:json" aria-pressed="${mode === 'json'}">JSON</button>
+        </div>
+        <button type="button" class="copy" data-copy="${id}">Copy</button>
+      </div>
+    </div>
+    ${where ? `<p class="pane-where">${esc(where)}</p>` : ''}
+    ${mode === 'json' ? `<pre class="json">${json(body)}</pre>` : `<div class="form">${form(body)}</div>`}
+  </div>`;
+}
+
+/* ---------------- send bar ---------------- */
+function renderSend() {
+  const s = PAGE.send;
+  const fields = s.fields.map((f) => {
+    if (f.type === 'seg') return `<div class="field"><span>${esc(f.label)}</span><div class="seg" role="group" aria-label="${esc(f.label)}">${f.options.map((o, i) => `<button type="button" aria-pressed="${i === 0}">${esc(o)}</button>`).join('')}</div></div>`;
+    const ctl = f.type === 'select'
+      ? `<select id="send-${f.id}">${f.options.map((o) => `<option${o === f.selected ? ' selected' : ''}>${esc(o)}</option>`).join('')}</select>`
+      : `<input id="send-${f.id}" type="${f.type}" value="${esc(f.value || '')}" class="${f.type === 'text' ? 'mono' : ''}">`;
+    return `<label class="field${f.wide ? ' wide' : ''}${f.narrow ? ' narrow' : ''}"><span>${esc(f.label)}</span>${ctl}${f.note ? `<small>${esc(f.note)}</small>` : ''}</label>`;
+  }).join('');
+  const info = s.info ? `<p class="send-info">${esc(s.info.text)} ${s.info.chips.map((c) => chip(c)).join('')}</p>` : '';
+  const more = (s.details || []).map((d) => `<details class="more send-more"><summary>${esc(d.summary)}</summary>${d.json
+    ? `<pre class="json">${json(d.json)}</pre>`
+    : `<ul class="item-list">${d.items.map((it) => `<li><strong>${brk(it.title)}</strong>${it.sub ? `<span>${esc(it.sub)}</span>` : ''}${it.chips.length ? `<div class="chips">${it.chips.map((c) => chip(c)).join('')}</div>` : ''}</li>`).join('')}</ul>`}</details>`).join('');
+  $('#send').innerHTML = `<h2 class="label">Send a call</h2>${fields}<button type="button" class="btn" id="send-btn">${esc(s.button)}</button><span class="hint" id="send-hint">${esc(s.hint)}</span>${info}${more}`;
+}
+
+/* ---------------- calls list ---------------- */
+function renderCalls() {
+  const list = PAGE.calls.filter((c) => state.filter === 'all' || c.status.tone !== 'ok');
+  $('#calls-count').textContent = PAGE.calls.length;
+  $('#calls').innerHTML = list.length ? list.map((c) => `<li><button type="button" class="call" data-call="${c.id}" aria-current="${c.id === state.selected}">
+      <span class="call-num">${callNo(c)}</span>
+      <span class="call-main"><span class="call-title">${brk(c.title)}</span><span class="call-sub">${esc(c.kind)} · ${srcLabel(c)}</span></span>
+      <span class="call-meta">${chip(c.status)}<span>${c.ms == null ? 'open' : c.ms + ' ms'} · ${hhmmss(c.at)}</span></span>
+    </button></li>`).join('') : '<li class="empty">No failed calls. Switch to All to see every call.</li>';
+}
+
+/* ---------------- detail tabs ---------------- */
+function tree(nodes) {
+  return '<ul class="tree">' + nodes.map((n) => `<li><div class="node"><strong>${esc(n.name)}</strong><em>${esc(n.type)}</em>${n.state ? chip(n.state) : ''}</div>${n.children ? tree(n.children) : ''}</li>`).join('') + '</ul>';
+}
+function whatHappened(c) {
+  const steps = `<ol class="steps">${c.steps.map((s, i) => `<li class="stp"><span class="stp-n">${i + 1}</span><div class="stp-body">
+    <div class="stp-head"><strong>${esc(s.title)}</strong>${chip(s.status)}${s.tag ? `<span class="chip tag">${esc(s.tag)}</span>` : ''}</div>
+    <p>${esc(s.text)}</p>${s.kv ? kvList(s.kv) : ''}${s.tree ? tree(s.tree) : ''}</div></li>`).join('')}</ol>`;
+  const audit = c.audit ? `<section><h3 class="label sub-h">MCP audit record (5W1H)</h3><div class="audit-grid">${Object.entries(c.audit).map(([k, rows]) => `<div class="audit-box"><h4>${esc(k)}</h4>${kvList(rows)}</div>`).join('')}</div></section>` : '';
+  const logs = c.logs && c.logs.length ? `<section><h3 class="label sub-h">Gateway log lines for this call</h3><pre class="logpre">${c.logs.map(esc).join('\n')}</pre></section>` : '';
+  return steps + audit + logs;
+}
+function flat(v, prefix = '', out = {}) {
+  v = deep(v);
+  if (v && typeof v === 'object') { const k = Object.keys(v); if (!k.length) out[prefix] = Array.isArray(v) ? '[]' : '{}'; k.forEach((key) => flat(v[key], prefix ? `${prefix}.${key}` : key, out)); }
+  else out[prefix] = JSON.stringify(v);
+  return out;
+}
+function diffs(a, b) {
+  const fa = flat(a), fb = flat(b);
+  return [...new Set([...Object.keys(fa), ...Object.keys(fb)])].filter((k) => fa[k] !== fb[k]).map((k) => ({ k, a: fa[k], b: fb[k] }));
+}
+function diffList(label, d) {
+  if (!d.length) return `<p class="calls-note">${esc(label)}: identical.</p>`;
+  return `<p class="calls-note">${esc(label)}: ${d.length} field${d.length > 1 ? 's' : ''} differ.</p><ul>${d.slice(0, 8).map((x) => `<li>${esc(x.k)}: <del>${esc(x.b ?? '(none)')}</del> → <ins>${esc(x.a ?? '(none)')}</ins></li>`).join('')}${d.length > 8 ? `<li>…and ${d.length - 8} more</li>` : ''}</ul>`;
+}
+function io(c) {
+  const o = state.compare && PAGE.calls.find((x) => x.id === state.compare);
+  if (!o) return `<div class="io">${pane(c.id + '-req', c.request.label, c.request.where, c.request.body)}${pane(c.id + '-res', c.response.label, c.response.where, c.response.body)}</div>`;
+  return `<div class="cmp"><div class="cmp-head"><strong>Comparing call ${callNo(c)} with call ${callNo(o)} (${esc(o.title)})</strong><button type="button" class="copy" data-cmp-clear="1">Stop comparing</button></div>
+    ${diffList('Request', diffs(c.request.body, o.request.body))}${diffList('Response', diffs(c.response.body, o.response.body))}</div>
+    <div class="io">${pane(c.id + '-res', `Call ${callNo(c)} response`, c.response.where, c.response.body)}${pane(o.id + '-res-cmp', `Call ${callNo(o)} response`, o.response.where, o.response.body)}</div>`;
+}
+function tokenCard(tk, i, cid) {
+  const diff = tk.diff || {};
+  const rows = tk.keys.filter((k) => k in tk.claims).map((k) => `<dt>${esc(k)}</dt><dd>${value(k, tk.claims[k])}${diff[k] ? ` <span class="chip warn">${esc(diff[k])}</span>` : ''}</dd>`).join('');
+  return `<article class="token">
+    <div class="token-head"><div><h3>${esc(tk.label)}</h3><p class="token-role">${esc(tk.role)}</p></div>
+      <div class="chips">${chip(tk.status)}${tk.alg ? `<span class="chip">${esc(tk.alg)}</span>` : ''}</div></div>
+    ${(tk.checks || []).length || tk.rfc ? `<div class="chips">${(tk.checks || []).map((x) => chip(x)).join('')}${tk.rfc ? `<span class="chip tag">${esc(tk.rfc)}</span>` : ''}</div>` : ''}
+    <dl class="kv">${rows}</dl>
+    ${tk.hidden.length ? `<p class="hidden-note">${tk.hidden.length} claims hidden by policy: ${esc(tk.hidden.join(', '))}</p>` : ''}
+    <details class="more"><summary>All claims (JSON)</summary><pre class="json">${json(tk.header ? { header: tk.header, claims: tk.claims } : { claims: tk.claims })}</pre></details>
+  </article>`;
+}
+function hopsList(c) {
+  return `<ol class="hops">${c.hops.map((h, i) => `<li><details class="hop${h.status.tone === 'idle' ? ' skipped' : ''}"${i === c.hops.length - 1 && h.status.tone !== 'idle' ? ' open' : ''}>
+    <summary><span class="call-num">${i + 1}</span>
+      <span class="hop-main"><span class="hop-dir">${esc(h.dir)}</span><span class="hop-call">${brk(h.call)}</span><span class="hop-what">${esc(h.what)}</span></span>
+      <span class="call-meta">${chip(h.status)}<span>${h.ms == null ? '—' : h.ms + ' ms'}</span></span></summary>
+    <div class="hop-body"><div class="io">${pane(`${c.id}-h${i}-req`, 'Request', '', h.request)}${pane(`${c.id}-h${i}-res`, 'Response', '', h.response)}</div></div>
+  </details></li>`).join('')}</ol>`;
+}
+
+/* ---------------- diagram ---------------- */
+const GROUPS = { client: 'Caller', bff: 'BFF', pingone: 'PingOne', authorize: 'PingOne Authorize', gateway: 'Agent Gateway', mcp: 'MCP server' };
+const groupOf = (n) => (/Browser|AI agent/.test(n) ? 'client' : n === 'BFF' ? 'bff' : n === 'PingOne Authorize' ? 'authorize' : n === 'PingOne' ? 'pingone' : n === 'Gateway' ? 'gateway' : 'mcp');
+const NW = 210, NH = 84;
+function graph(c) {
+  const nodes = [], edges = [];
+  c.hops.forEach((h, i) => {
+    const [a, b] = h.dir.split(' → ');
+    [a, b].forEach((n) => { if (!nodes.includes(n)) nodes.push(n); });
+    edges.push({ i, a, b, h });
+  });
+  const lvl = { [nodes[0]]: 0 };
+  let changed = true;
+  while (changed) { changed = false; edges.forEach((e) => { if (lvl[e.a] != null && lvl[e.b] == null) { lvl[e.b] = lvl[e.a] + 1; changed = true; } }); }
+  nodes.forEach((n) => { if (lvl[n] == null) lvl[n] = 1; });
+  const byLvl = {};
+  nodes.forEach((n) => (byLvl[lvl[n]] = byLvl[lvl[n]] || []).push(n));
+  const most = Math.max(...Object.values(byLvl).map((l) => l.length));
+  const layout = {};
+  Object.entries(byLvl).forEach(([l, ns]) => ns.forEach((n, k) => { layout[n] = { x: 24 + l * 300, y: 24 + (most - ns.length) * 62 + k * 124 }; }));
+  return { nodes, edges, layout, w: 24 + (Math.max(...Object.keys(byLvl).map(Number)) + 1) * 300, h: 0 };
+}
+function anchor(p, q) {
+  const cx = p.x + NW / 2, cy = p.y + NH / 2, qx = q.x + NW / 2, qy = q.y + NH / 2;
+  if (Math.abs(qx - cx) > NW * 0.6) return { x: qx > cx ? p.x + NW : p.x, y: cy };
+  return { x: cx, y: qy > cy ? p.y + NH : p.y };
+}
+function drawDiagram(c, g) {
+  const pos = state.dg.pos[c.id] || (state.dg.pos[c.id] = JSON.parse(JSON.stringify(g.layout)));
+  const canvas = $('#dg-canvas');
+  if (!canvas) return;
+  const w = Math.max(g.w, ...Object.values(pos).map((p) => p.x + NW + 24)), h = Math.max(g.h, ...Object.values(pos).map((p) => p.y + NH + 24));
+  canvas.style.width = w + 'px'; canvas.style.height = h + 'px';
+  g.nodes.forEach((n) => { const el = canvas.querySelector(`[data-node="${CSS.escape(n)}"]`); el.style.left = pos[n].x + 'px'; el.style.top = pos[n].y + 'px'; });
+  const pairs = {};
+  g.edges.forEach((e) => { const k = [e.a, e.b].sort().join('|'); (pairs[k] = pairs[k] || []).push(e.i); });
+  const svg = g.edges.map((e) => {
+    const P = anchor(pos[e.a], pos[e.b]), Q = anchor(pos[e.b], pos[e.a]);
+    const group = pairs[[e.a, e.b].sort().join('|')], k = group.indexOf(e.i), off = (k - (group.length - 1) / 2) * 46;
+    const dx = Q.x - P.x, dy = Q.y - P.y, len = Math.hypot(dx, dy) || 1;
+    const C = { x: (P.x + Q.x) / 2 - (dy / len) * off, y: (P.y + Q.y) / 2 + (dx / len) * off };
+    const M = { x: 0.25 * P.x + 0.5 * C.x + 0.25 * Q.x, y: 0.25 * P.y + 0.5 * C.y + 0.25 * Q.y };
+    const tone = e.h.status.tone;
+    return `<path class="e-${tone}${state.dg.step === e.i ? ' on' : ''}" d="M${P.x},${P.y} Q${C.x},${C.y} ${Q.x},${Q.y}" marker-end="url(#ar-${tone})"></path>
+      <circle class="e-${tone}" cx="${M.x}" cy="${M.y}" r="11"></circle><text x="${M.x}" y="${M.y}">${e.i + 1}</text>`;
+  }).join('');
+  const marker = (t) => `<marker id="ar-${t}" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path d="M0,0 L10,5 L0,10 z" style="fill: var(--${t}-stroke); stroke: none"></path></marker>`;
+  $('#dg-edges').innerHTML = `<defs>${['ok', 'err', 'warn', 'idle'].map(marker).join('')}</defs>${svg}`;
+}
+function diagram(c) {
+  const g = graph(c);
+  const used = [...new Set(g.nodes.map(groupOf))];
+  return `<div class="dg">
+    <div class="dg-bar">
+      <button type="button" class="btn" data-dg="sim">Simulate</button>
+      <button type="button" class="btn ghost" data-dg="prev" aria-label="Previous step">‹ Prev</button>
+      <button type="button" class="btn ghost" data-dg="next" aria-label="Next step">Next ›</button>
+      <label>Step time <select id="dg-ms">${[[500, '0.5 s'], [1000, '1 s'], [2000, '2 s']].map(([v, l]) => `<option value="${v}"${v === state.dg.ms ? ' selected' : ''}>${l}</option>`).join('')}</select></label>
+      <button type="button" class="btn ghost" data-dg="reset" title="Clear the walkthrough and start over">Reset</button>
+      <p class="dg-cap" id="dg-cap" aria-live="polite"></p>
+    </div>
+    <div class="dg-wrap"><div class="dg-canvas" id="dg-canvas" role="img" aria-label="Diagram of the API calls behind ${esc(c.title)}">
+      <svg class="dg-edges" id="dg-edges" width="100%" height="100%"></svg>
+      ${g.nodes.map((n) => `<div class="dg-node" data-node="${esc(n)}" style="--g: var(--g-${groupOf(n)})"><strong>${esc(n)}</strong>${(PAGE.node_subs[n] || []).map((l) => `<span>${esc(l)}</span>`).join('')}</div>`).join('')}
+    </div></div>
+    <ul class="dg-legend" aria-label="Legend">${used.map((u) => `<li><i style="border-top-color: var(--g-${u})"></i>${GROUPS[u]}</li>`).join('')}
+      <li><i style="border-top-color: var(--ok-stroke)"></i>ok</li><li><i style="border-top-color: var(--err-stroke)"></i>refused</li><li><i style="border-top-color: var(--warn-stroke)"></i>held / limited</li><li><i style="border-top-color: var(--idle-stroke)"></i>not called</li></ul>
+    <ol class="dg-steps" aria-label="Arrows, step by step">${g.edges.map((e) => `<li data-dgstep="${e.i}"><span class="call-num">${e.i + 1}</span><span class="hop-main"><span class="hop-dir">${esc(e.h.dir)}</span><span class="hop-call">${brk(e.h.call)}</span><span class="hop-what">${esc(e.h.what)}</span></span>${chip(e.h.status)}</li>`).join('')}</ol>
+  </div>`;
+}
+function dgShow(c) {
+  const g = graph(c), n = g.edges.length, s = state.dg.step;
+  drawDiagram(c, g);
+  document.querySelectorAll('.dg-node').forEach((el) => el.classList.toggle('on', s >= 0 && [g.edges[s].a, g.edges[s].b].includes(el.dataset.node)));
+  document.querySelectorAll('[data-dgstep]').forEach((el) => el.classList.toggle('on', Number(el.dataset.dgstep) === s));
+  const cap = $('#dg-cap');
+  if (cap) cap.textContent = s < 0 ? `Simulate walks the ${n} arrows in order. Drag any box to tidy the layout.` : `Step ${s + 1} of ${n}: ${g.edges[s].h.dir} · ${g.edges[s].h.call}. ${g.edges[s].h.what.replace(/[.?!]$/, '')}.`;
+}
+function dgStop() { clearInterval(state.dg.timer); state.dg.timer = null; }
+
+/* ---------------- detail ---------------- */
+function renderDetail() {
+  dgStop();
+  const c = PAGE.calls.find((x) => x.id === state.selected);
+  const others = PAGE.calls.filter((x) => x.id !== c.id);
+  const head = `<div class="detail-head"><p class="label">${esc(c.kind)}</p><h2>${brk(c.title)}</h2>
+    <div class="chips">${chip(c.status)}<span class="chip">${c.ms == null ? 'open' : c.ms + ' ms'}</span><span class="chip">${hhmmss(c.at)} UTC</span>
+    <span class="chip src">${srcLabel(c)}</span>${c.chips.map((x) => chip(x)).join('')}<span class="chip src mono" title="Correlation id">${esc(c.corr)}</span></div>
+    <div class="actions"><button type="button" class="btn ghost" data-act="resend">Resend</button><button type="button" class="btn ghost" data-act="edit">Edit &amp; resend</button>
+      <label class="calls-toggle" for="cmp">Compare with <select id="cmp"><option value="">Choose a call…</option>${others.map((o) => `<option value="${o.id}"${o.id === state.compare ? ' selected' : ''}>${callNo(o)} · ${esc(o.title)} · ${esc(o.status.label)}</option>`).join('')}</select></label></div></div>`;
+  const b = c.banner ? `<div class="banner ${c.banner.tone}" role="status"><strong>${esc(c.banner.title)}</strong><p>${esc(c.banner.text)}</p>${c.banner.actions ? `<div class="row">${c.banner.actions.map((a, i) => `<button type="button" class="btn${i ? ' ghost' : ''}">${esc(a)}</button>`).join('')}</div>` : ''}</div>` : '';
+  const tabs = [['what', 'What happened', c.steps.length], ['io', 'Request & response', null], ['tokens', 'Tokens', c.tokens.length], ['hops', 'API calls', c.hops.length], ['diagram', 'Diagram', null]];
+  const tabBar = `<div class="tabs" role="tablist" aria-label="Call details">${tabs.map(([k, l, n]) => `<button type="button" class="tab" role="tab" id="tab-${k}" aria-controls="panel" aria-selected="${state.tab === k}" data-tab="${k}">${l}${n == null ? '' : `<span class="count">${n}</span>`}</button>`).join('')}</div>`;
+  const body = {
+    what: () => whatHappened(c),
+    io: () => io(c),
+    tokens: () => `<p class="tok-note">Decoded on the server. The raw token strings never reach this page.</p><div class="tokens">${c.tokens.map((tk, i) => tokenCard(tk, i, c.id)).join('')}</div>`,
+    hops: () => hopsList(c),
+    diagram: () => diagram(c),
+  }[state.tab]();
+  $('#detail').innerHTML = head + b + tabBar + `<div id="panel" role="tabpanel" aria-labelledby="tab-${state.tab}">${body}</div>`;
+  if (state.tab === 'diagram') dgShow(c);
+}
+
+/* ---------------- events ---------------- */
+document.addEventListener('click', (e) => {
+  const t = e.target.closest('button');
+  if (!t) return;
+  const c = PAGE.calls.find((x) => x.id === state.selected);
+  if (t.dataset.call) { state.selected = t.dataset.call; state.compare = null; state.dg.step = -1; renderCalls(); renderDetail(); }
+  else if (t.dataset.tab) { state.tab = t.dataset.tab; renderDetail(); }
+  else if (t.dataset.filter) {
+    state.filter = t.dataset.filter;
+    document.querySelectorAll('[data-filter]').forEach((b) => b.setAttribute('aria-pressed', b === t));
+    renderCalls();
+  } else if (t.dataset.view) {
+    const [id, mode] = t.dataset.view.split(':');
+    views[id] = mode;
+    const open = [...document.querySelectorAll('.hop')].map((d) => d.open);
+    renderDetail();
+    document.querySelectorAll('.hop').forEach((d, i) => { d.open = open[i]; });
+  } else if (t.dataset.copy) {
+    const text = JSON.stringify(bodies[t.dataset.copy], null, 2);
+    const done = () => { t.textContent = 'Copied'; setTimeout(() => { t.textContent = 'Copy'; }, 1200); };
+    try { navigator.clipboard.writeText(text).then(done, () => { t.textContent = 'Copy failed'; }); } catch (_) { t.textContent = 'Copy failed'; }
+  } else if (t.dataset.cmpClear) { state.compare = null; renderDetail(); }
+  else if (t.dataset.act) {
+    $('#send-hint').textContent = t.dataset.act === 'resend'
+      ? `Mockup: Resend runs call ${callNo(c)} again and adds it as a new row.`
+      : `Mockup: Edit & resend loads call ${callNo(c)} into this bar so you can change it first.`;
+    $('#send').scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+  } else if (t.dataset.dg) {
+    const n = c.hops.length;
+    if (t.dataset.dg === 'sim') {
+      dgStop(); state.dg.step = 0; dgShow(c);
+      state.dg.timer = setInterval(() => { if (state.dg.step >= n - 1) { dgStop(); return; } state.dg.step += 1; dgShow(c); }, state.dg.ms);
+    } else if (t.dataset.dg === 'prev') { dgStop(); state.dg.step = Math.max(0, state.dg.step - 1); dgShow(c); }
+    else if (t.dataset.dg === 'next') { dgStop(); state.dg.step = Math.min(n - 1, state.dg.step + 1); dgShow(c); }
+    else { dgStop(); state.dg.step = -1; delete state.dg.pos[c.id]; dgShow(c); }
+  } else if (t.id === 'send-btn') {
+    $('#send-hint').textContent = 'Mockup: Send would add a new row to Calls and select it.';
+  } else if (t.closest('.send .seg, .hero-meta .seg')) {
+    t.parentElement.querySelectorAll('button').forEach((b) => b.setAttribute('aria-pressed', b === t));
+  }
+});
+document.addEventListener('change', (e) => {
+  if (e.target.id === 'cmp') { state.compare = e.target.value || null; state.tab = 'io'; renderDetail(); }
+  if (e.target.id === 'dg-ms') { state.dg.ms = Number(e.target.value); }
+});
+let drag = null;
+document.addEventListener('pointerdown', (e) => {
+  const el = e.target.closest('.dg-node');
+  if (!el) return;
+  const c = PAGE.calls.find((x) => x.id === state.selected);
+  const p = state.dg.pos[c.id][el.dataset.node];
+  drag = { c, n: el.dataset.node, sx: e.clientX, sy: e.clientY, x: p.x, y: p.y };
+  el.setPointerCapture(e.pointerId);
+});
+document.addEventListener('pointermove', (e) => {
+  if (!drag) return;
+  const p = state.dg.pos[drag.c.id][drag.n];
+  p.x = Math.max(0, drag.x + e.clientX - drag.sx); p.y = Math.max(0, drag.y + e.clientY - drag.sy);
+  drawDiagram(drag.c, graph(drag.c));
+});
+document.addEventListener('pointerup', () => { drag = null; });
+
+renderSend();
+renderCalls();
+renderDetail();
+</script>
+</body>
+</html>

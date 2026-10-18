@@ -1,406 +1,323 @@
-import React, { useEffect, useMemo, useState } from 'react';
-import { useThemeOptional } from '../context/ThemeContext';
-import { useAgentGatewayInspector } from '../hooks/useAgentGatewayInspector';
-import { useInspectorFields } from '../context/InspectorFieldContext';
-import PingIdentitySpinner from './shared/PingIdentitySpinner';
-import JsonFormView from './shared/JsonFormView';
-import JsonHighlight from './shared/JsonHighlight';
-import FormJsonToggle from './shared/FormJsonToggle';
-import './AgentGatewayInspectorClean.css';
+// Agent Gateway Inspector, built on the shared inspector layout (Task 8).
+// Shows real gateway traffic: calls sent from this page plus every decision the gateway reported.
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
+import apiClient from '../services/apiClient';
+import { formatAxiosError } from '../utils/formatAxiosError';
+import { extractCapturedValues, unwrapMcpResult } from './AgentGatewayTester';
+import { TOOL_ATTACKS } from '../config/toolAttackCatalog';
+import { argsFor, belongsElsewhere, toolsFor } from '../config/inspectorVerticals';
+import InspectorLayout from './inspector/InspectorLayout';
+import { useInspectorVertical } from './inspector/useInspectorVertical';
+import { ok, warn, err, idle } from './inspector/inspectorCalls';
+import {
+  gatewayCallFromTest, gatewayCallsFromBurst, gatewayCallFromRecord, dedupeGatewayCalls, logLinesFor,
+} from './inspector/gatewayCalls';
 
-function InspectorJsonToggle({ value, ariaLabel, darkMode }) {
-  return (
-    <FormJsonToggle
-      value={value}
-      ariaLabel={ariaLabel}
-      jsonView={(
-        <pre className={darkMode ? 'jh-dark' : ''}>
-          <JsonHighlight value={value} deep />
-        </pre>
-      )}
-    />
-  );
+const POLL_MS = 5000;
+const CUSTOM = 'custom';
+
+/** The id a capture step's result carries (e.g. the first account id), parsed the way the Tester does. */
+const capturedId = (cap, body) => extractCapturedValues(cap.tool, unwrapMcpResult(body)).find((c) => c.family === cap.family)?.value ?? '';
+/** A sample's empty args are the ids a capture fills. */
+const needsId = (args) => Object.values(args).includes('');
+const fillIds = (args, id) => Object.fromEntries(Object.entries(args).map(([k, v]) => [k, v === '' ? id : v]));
+
+const RELATED = [
+  { label: 'Gateway tester', to: '/agent-gateway-capabilities' },
+  { label: 'Gateway config', to: '/configure?tab=mcp-gateway' },
+];
+
+const NODE_SUBS = {
+  'AI agent': ['Calls the gateway', 'with a delegated token'],
+  BFF: ['Calls the gateway', 'for this page'],
+  Gateway: ['PingOne Agent Gateway', 'filters every MCP call'],
+  PingOne: ['Introspects the token', '(RFC 7662)'],
+  'PingOne Authorize': ['Decides per tool call'],
+  'MCP server': ['Runs the tool'],
+};
+
+const SOURCES = [
+  { value: 'ping', label: 'PingOne Agent Gateway' },
+  { value: 'node', label: 'Demo MCP Gateway (Node)' },
+];
+
+/** The vertical's scenarios, then the attack-library entries that use its tools. */
+const scenariosFor = (v) => [
+  { id: CUSTOM, label: 'Custom' },
+  ...v.scenarios,
+  ...TOOL_ATTACKS.filter((a) => v.tools.includes(a.tool)).map((a) => ({ id: 'attack:' + a.id, label: 'Attack library: ' + a.label, tool: a.tool, args: a.args })),
+];
+
+const argsJson = (v, tool) => JSON.stringify(argsFor(v, tool), null, 2);
+
+const CALLS_NOTE = 'Includes every call the gateway reported, from you and from agents.';
+
+function parseArgs(text) {
+  try {
+    const v = text.trim() ? JSON.parse(text) : {};
+    return v && typeof v === 'object' && !Array.isArray(v) ? { args: v } : { error: true };
+  } catch {
+    return { error: true };
+  }
 }
 
-export default function AgentGatewayInspectorClean({ gatewayId = '' }) {
-  const theme = useThemeOptional();
-  const { registerFields, getMatchingFields } = useInspectorFields();
-  const {
-    selectedGateway,
-    setSelectedGateway,
-    selectedCapabilities,
-    toggleCapability,
-    availableCapabilities,
-    selectedTool,
-    setSelectedTool,
-    isChainMode,
-    setIsChainMode,
-    parameters,
-    setParameters,
-    updateParameter,
-    availablePolicies,
-    selectedPolicy,
-    setSelectedPolicy,
-    running,
-    result,
-    error,
-    outputTab,
-    setOutputTab,
-    invocationHistory,
-    activeReelId,
-    selectReelEntry,
-    run,
-  } = useAgentGatewayInspector({ gatewayId });
+/** The gateway's own body when the request failed with one, else a synthetic failure. */
+function failureBody(e) {
+  const d = e.response?.data;
+  if (d && typeof d === 'object' && 'ok' in d) return d;
+  const message = d?.message || d?.error || formatAxiosError(e, 'Request failed');
+  return { ok: false, error: d?.error || message, httpStatus: e.response?.status, message };
+}
 
-  // Register result fields for other inspectors to use
-  useEffect(() => {
-    if (result?.data) {
-      registerFields('agent-gateway', result.data);
+export default function AgentGatewayInspectorClean() {
+  const [active, setActive] = useState(null);
+  // 'loading' until /active answers; 'down' if it fails or the user is signed out.
+  const [gwState, setGwState] = useState('loading');
+  const [tools, setTools] = useState([]);
+  const [records, setRecords] = useState([]);
+  const [testCalls, setTestCalls] = useState([]);
+  const [logsById, setLogsById] = useState({});
+  const [pickedId, setPickedId] = useState(null);
+  const [scenario, setScenario] = useState(CUSTOM);
+  // A vertical change starts over on that vertical's read tool.
+  const { id: verticalId, vertical, field: verticalField } = useInspectorVertical((v) => {
+    setScenario(CUSTOM);
+    setTool(v.scenarios[0].tool);
+    setArgsText(argsJson(v, v.scenarios[0].tool));
+    setHint('');
+  });
+  const scenarios = useMemo(() => scenariosFor(vertical), [vertical]);
+  const [tool, setTool] = useState(() => vertical.scenarios[0].tool);
+  const [argsText, setArgsText] = useState(() => argsJson(vertical, vertical.scenarios[0].tool));
+  const [repeat, setRepeat] = useState(1);
+  const [busy, setBusy] = useState(false);
+  const [hint, setHint] = useState('');
+  const sendRef = useRef(null);
+  const recordCache = useRef(new Map());
+  const logCache = useRef(new Map());
+
+  const signedOut = useRef(false);
+  // _noAuthBanner: the Unavailable chip answers a 401 here, not the global sign-in modal.
+  const fetchActive = useCallback(async () => {
+    try {
+      setActive((await apiClient.get('/api/mcp-gateway/active', { _noAuthBanner: true })).data);
+      setGwState(signedOut.current ? 'down' : 'ready');
+    } catch (e) {
+      if (e.response?.status === 401) signedOut.current = true;
+      setGwState('down');
     }
-  }, [result, registerFields]);
+  }, []);
+  const fetchRecords = useCallback(async () => {
+    if (signedOut.current) return;
+    try {
+      const { data } = await apiClient.get('/api/admin/agent-gateway/decisions', { params: { limit: 50 }, _noAuthBanner: true });
+      setRecords(data.decisions || []);
+    } catch (e) {
+      if (e.response?.status === 401) { signedOut.current = true; setGwState('down'); }
+    }
+  }, []);
 
-  // Auto-populate parameters from other inspector results
   useEffect(() => {
-    if (!selectedTool) return;
-    const paramNames = selectedTool.parameters ? Object.keys(selectedTool.parameters) : [];
-    const matches = getMatchingFields(paramNames);
-    Object.entries(matches).forEach(([key, value]) => {
-      if (!parameters[key]) {
-        updateParameter(key, String(value));
-      }
-    });
-  }, [selectedTool, getMatchingFields, parameters, updateParameter]);
+    fetchActive();
+    apiClient.get('/api/mcp/inspector/tools').then(({ data }) => setTools(data.tools || [])).catch(() => {});
+    fetchRecords();
+    const id = setInterval(() => { if (document.visibilityState === 'visible') fetchRecords(); }, POLL_MS);
+    return () => clearInterval(id);
+  }, [fetchActive, fetchRecords]);
 
-  const filteredTools = useMemo(
-    () =>
-      availableCapabilities.filter((cap) => {
-        const allSelected = Object.keys(selectedCapabilities).length === 0;
-        const isSelected = selectedCapabilities[cap.name];
-        return allSelected || isSelected;
-      }),
-    [availableCapabilities, selectedCapabilities],
+  // Keep call identity stable across polls so the diagram memo does not reset.
+  const recordCalls = useMemo(() => {
+    const next = new Map();
+    const out = records.map((r) => {
+      const id = `gw-rec-${r.ts}-${r.tool}-${r.correlationId}`;
+      const hit = recordCache.current.get(id);
+      const call = hit?.rec === r ? hit.call : gatewayCallFromRecord(r);
+      next.set(id, { rec: r, call });
+      return call;
+    });
+    recordCache.current = next;
+    return out;
+  }, [records]);
+
+  const calls = useMemo(() => {
+    const next = new Map();
+    const out = dedupeGatewayCalls(testCalls, recordCalls).map((c) => {
+      const lines = logsById[c.id];
+      if (!lines) return c;
+      const hit = logCache.current.get(c.id);
+      const withLogs = hit?.base === c && hit.lines === lines ? hit.out : { ...c, logs: lines };
+      next.set(c.id, { base: c, lines, out: withLogs });
+      return withLogs;
+    });
+    logCache.current = next;
+    return out;
+  }, [testCalls, recordCalls, logsById]);
+
+  const selectedId = pickedId ?? calls[0]?.id ?? null;
+  const selected = calls.find((c) => c.id === selectedId);
+
+  // Gateway log lines for the selected call.
+  const selTitle = selected?.title;
+  const selKey = selected?.id;
+  const selRef = useRef(selected);
+  selRef.current = selected;
+  useEffect(() => {
+    if (!selKey) return undefined;
+    let live = true;
+    apiClient.get('/api/admin/agent-gateway/logs', { params: { tail: 200, filter: selTitle } })
+      .then(({ data }) => {
+        if (live && data.ok) setLogsById((m) => ({ ...m, [selKey]: logLinesFor(selRef.current, data.lines || []) }));
+      })
+      .catch(() => {});
+    return () => { live = false; };
+  }, [selKey, selTitle]);
+
+  const pickScenario = (id) => {
+    setScenario(id);
+    const s = scenarios.find((x) => x.id === id);
+    const first = s?.steps?.[0] ?? s;
+    if (!first?.tool) return;
+    let args = first.args ?? {};
+    const cap = vertical.capture;
+    if (cap && needsId(args)) {
+      const known = calls.filter((c) => c.title === cap.tool && c.status.tone === 'ok').map((c) => capturedId(cap, c.response.body)).find(Boolean) ?? '';
+      args = fillIds(args, known);
+      setHint(known ? '' : cap.hint);
+    } else setHint('');
+    setTool(first.tool);
+    setArgsText(JSON.stringify(args, null, 2));
+  };
+
+  const callOnce = useCallback(async (t, args) => {
+    const at = Date.now();
+    let res;
+    // _noAuthBanner: a 401 here is the gateway refusing the token, not a signed-out user.
+    try { res = (await apiClient.post('/api/mcp-gateway/test', { tool: t, args }, { _noAuthBanner: true })).data; } catch (e) { res = failureBody(e); setHint(res.message); }
+    return gatewayCallFromTest(res, { tool: t, args, gatewayUrl: active?.url, at });
+  }, [active]);
+
+  // chain: { steps, capture } — later steps' empty args get the id step 1 returned.
+  const run = useCallback(async (t, args, count = 1, chain = null) => {
+    setBusy(true);
+    setHint('');
+    try {
+      let made;
+      if (chain) {
+        made = [];
+        const cap = chain.capture;
+        let id = '';
+        for (const [i, step] of chain.steps.entries()) {
+          const call = await callOnce(step.tool, cap ? fillIds(step.args, id) : step.args);
+          made.push(call);
+          if (i === 0 && cap) id = capturedId(cap, call.response.body);
+        }
+        if (cap && !id) setHint(cap.hint);
+      } else if (count > 1) {
+        const at = Date.now();
+        let res;
+        try { res = (await apiClient.post('/api/mcp-gateway/test/burst', { tool: t, args, count }, { _noAuthBanner: true })).data; } catch (e) { const f = failureBody(e); res = { results: [{ index: 0, ...f }] }; setHint(f.message); }
+        made = gatewayCallsFromBurst(res, { tool: t, args, at });
+      } else {
+        made = [await callOnce(t, args)];
+      }
+      setTestCalls((cs) => [...made, ...cs]);
+      setPickedId(null);
+      await fetchRecords();
+    } finally {
+      setBusy(false);
+    }
+  }, [callOnce, fetchRecords]);
+
+  const parsed = parseArgs(argsText);
+  const steps = scenarios.find((s) => s.id === scenario)?.steps;
+  const send = () => run(tool, parsed.args, Number(repeat) || 1, steps ? { steps, capture: vertical.capture } : null);
+
+  const onResend = useCallback((call) => run(call.input.tool, call.input.args), [run]);
+  const onEdit = useCallback((call) => {
+    setScenario(CUSTOM);
+    setTool(call.input.tool);
+    setArgsText(JSON.stringify(call.input.args ?? {}, null, 2));
+    sendRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, []);
+
+  const patchFlag = async (flag, value) => {
+    setHint('');
+    try {
+      await apiClient.patch('/api/admin/feature-flags', { updates: { [flag]: value } });
+      await fetchActive();
+    } catch (e) {
+      setHint(formatAxiosError(e, 'Could not change the setting'));
+    }
+  };
+
+  // The vertical's tools and the global ones, plus the server's tools no other vertical owns.
+  const toolNames = [...new Set([...toolsFor(vertical), ...tools.map((t) => t.name).filter((n) => !belongsElsewhere(verticalId, n))])];
+  if (tool && !toolNames.includes(tool)) toolNames.push(tool);
+
+  const sendCard = (
+    <div className="insp-send-body" ref={sendRef}>
+      <div className="insp-send-row">
+        {verticalField}
+        <label className="insp-field">
+          <span>Scenario</span>
+          <select value={scenario} onChange={(e) => pickScenario(e.target.value)}>
+            {scenarios.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+          </select>
+        </label>
+        <label className="insp-field">
+          <span>Tool</span>
+          <select value={tool} onChange={(e) => { setTool(e.target.value); setScenario(CUSTOM); }}>
+            {toolNames.map((n) => <option key={n} value={n}>{n}</option>)}
+          </select>
+        </label>
+        <label className="insp-field">
+          <span>Arguments (JSON)</span>
+          <textarea rows={3} spellCheck={false} value={argsText} onChange={(e) => { setArgsText(e.target.value); setScenario(CUSTOM); }} />
+          {parsed.error && <small className="insp-err">Invalid JSON</small>}
+        </label>
+        <label className="insp-field">
+          <span>Repeat</span>
+          <input type="number" min={1} max={20} value={repeat} onChange={(e) => setRepeat(Math.min(20, Math.max(1, Number(e.target.value) || 1)))} />
+        </label>
+        <button type="button" className="insp-btn" onClick={send} disabled={busy || !!parsed.error}>{busy ? 'Sending…' : 'Send'}</button>
+      </div>
+      {hint && <p className="insp-err" role="status">{hint}</p>}
+    </div>
   );
 
-  // The textarea holds raw text so invalid intermediate JSON doesn't snap back
-  // to the last valid state mid-keystroke; paramsError surfaces bad syntax
-  // instead of silently discarding the input.
-  const [paramsText, setParamsText] = useState(() => JSON.stringify(parameters, null, 2));
-  const [paramsError, setParamsError] = useState(false);
-  const [outputFontSize, setOutputFontSize] = useState(13);
-  const [responseView, setResponseView] = useState('form');
-
-  // Re-sync the text only when parameters change from outside the textarea
-  // (tool switch, reel restore) — not on every keystroke's parse round-trip.
-  useEffect(() => {
-    setParamsText(JSON.stringify(parameters, null, 2));
-    setParamsError(false);
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [selectedTool, activeReelId]);
+  const heroExtra = active && (
+    <>
+      <span id="insp-authz">Authz</span>
+      <div className="insp-seg" role="group" aria-labelledby="insp-authz">
+        <button type="button" aria-pressed={!active.simulated} onClick={() => patchFlag('ff_authorize_real', true)}>Real</button>
+        <button type="button" aria-pressed={!!active.simulated} onClick={() => patchFlag('ff_authorize_real', false)}>Simulated</button>
+      </div>
+    </>
+  );
 
   return (
-    <div className="inspector-clean-page">
-      {/* Header */}
-      <div className="inspector-clean-header">
-        <div className="inspector-clean-title">Agent Gateway Inspector</div>
-        <div className="inspector-clean-header-controls">
-          <button className="inspector-clean-theme-toggle" onClick={theme.toggleDarkMode} title="Toggle dark mode">
-            {theme.darkMode ? '☀️ Light' : '🌙 Dark'}
-          </button>
-        </div>
-      </div>
-
-      {/* Status Bar */}
-      <div className="inspector-clean-statusbar">
-        <div className="inspector-clean-statusbar-item">
-          <span className="inspector-clean-statusbar-badge">DEMO SIMULATION</span>
-        </div>
-        <div className="inspector-clean-statusbar-item">
-          Environment: <strong>01d89b06</strong>
-        </div>
-        <div className="inspector-clean-statusbar-item">
-          Worker: demo-bff-mcp-client
-        </div>
-      </div>
-
-      {/* Main Content */}
-      <div className="inspector-clean-content">
-        <div className="inspector-clean-main">
-          {/* Left Panel: Gateway & Capability Filters */}
-          <div className="inspector-clean-panel">
-            <div className="inspector-clean-panel-header">
-              <div className="inspector-clean-panel-label">Gateway & Filters</div>
-            </div>
-            <div className="inspector-clean-panel-body">
-              <div className="inspector-clean-field">
-                <label className="inspector-clean-field-label">Gateway</label>
-                <select
-                  value={selectedGateway}
-                  onChange={(e) => {
-                    setSelectedGateway(e.target.value);
-                    setSelectedTool('');
-                  }}
-                >
-                  <option value="">Select a gateway...</option>
-                  <option value="demo-mcp-gateway">Demo MCP Gateway (01d89b06)</option>
-                </select>
-              </div>
-
-              <div className="inspector-clean-field" style={{ marginTop: '16px' }}>
-                <label className="inspector-clean-field-label">Policy</label>
-                <select
-                  value={selectedPolicy}
-                  onChange={(e) => setSelectedPolicy(e.target.value)}
-                >
-                  <option value="">Default policy</option>
-                  {availablePolicies.map((policy) => (
-                    <option key={policy.id || policy.name} value={policy.id || policy.name}>
-                      {policy.name || policy.id}
-                    </option>
-                  ))}
-                  </select>
-                <div className="inspector-clean-policy-note">AI Demo Policies is the demo policy bundle used to evaluate the selected gateway request.</div>
-              </div>
-
-              <div className="inspector-clean-quick-run">
-                <label className="inspector-clean-field-label" htmlFor="gateway-quick-tool">Quick execute</label>
-                <select id="gateway-quick-tool" value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
-                  <option value="">Choose a tool...</option>
-                  {availableCapabilities.map((tool) => (
-                    <option key={tool.name} value={tool.name}>{tool.name}</option>
-                  ))}
-                </select>
-                <button className="inspector-clean-button" onClick={run} disabled={running || !selectedGateway || !selectedTool}>
-                  {running ? 'Executing…' : 'Execute Tool'}
-                </button>
-                {!availableCapabilities.length ? <p className="inspector-clean-capability-note">No tools loaded yet. Refresh the gateway or sign in if the capability endpoint requires a session.</p> : null}
-              </div>
-
-            </div>
-          </div>
-
-          {/* Middle Panel: Tool Invocation Form */}
-          <div className="inspector-clean-panel">
-            <div className="inspector-clean-panel-header">
-              <div style={{ display: 'flex', gap: '8px', alignItems: 'center', flexWrap: 'wrap' }}>
-                <div className="inspector-clean-panel-label">Tool Invocation</div>
-              </div>
-            </div>
-            <div className="inspector-clean-panel-body">
-              <div style={{ display: 'flex', gap: '8px', marginBottom: '12px' }}>
-                <button
-                  className={`inspector-clean-toggle-btn ${!isChainMode ? 'active' : ''}`}
-                  onClick={() => setIsChainMode(false)}
-                >
-                  Single Tool
-                </button>
-                <button
-                  className={`inspector-clean-toggle-btn ${isChainMode ? 'active' : ''}`}
-                  onClick={() => setIsChainMode(true)}
-                >
-                  Tool Chain
-                </button>
-              </div>
-
-              <div className="inspector-clean-field">
-                <label className="inspector-clean-field-label">Select Tool</label>
-                <select value={selectedTool} onChange={(e) => setSelectedTool(e.target.value)}>
-                  <option value="">Choose a tool...</option>
-                  {filteredTools.map((tool) => (
-                    <option key={tool.name} value={tool.name}>
-                      {tool.name}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {selectedTool && (
-                <div style={{ padding: '8px 10px', background: 'var(--th-bg-inset)', borderRadius: '6px', fontSize: '12px', color: 'var(--th-text-muted)', lineHeight: 1.4 }}>
-                  {filteredTools.find((t) => t.name === selectedTool)?.description || 'No description available'}
-                </div>
-              )}
-
-              <div className="inspector-clean-form">
-                {selectedTool && (
-                  <>
-                    <div className="inspector-clean-field">
-                      <label className="inspector-clean-field-label">Custom Parameters (JSON)</label>
-                      <textarea
-                        rows="4"
-                        placeholder='{"key": "value"}'
-                        className="inspector-clean-json-input"
-                        value={paramsText}
-                        onChange={(e) => {
-                          setParamsText(e.target.value);
-                          try {
-                            setParameters(JSON.parse(e.target.value));
-                            setParamsError(false);
-                          } catch {
-                            setParamsError(true);
-                          }
-                        }}
-                      />
-                      {paramsError && (
-                        <div className="inspector-clean-json-error">Invalid JSON — fix the syntax to apply changes</div>
-                      )}
-                    </div>
-                  </>
-                )}
-
-                <button className="inspector-clean-button" onClick={run} disabled={running || !selectedGateway || !selectedTool}>
-                  {running ? 'Executing…' : 'Execute Tool'}
-                </button>
-              </div>
-
-              {error && <div className="inspector-clean-error-banner">❌ Error: {error}</div>}
-            </div>
-          </div>
-
-          {/* Right Panel: Output Tabs */}
-          <div className="inspector-clean-panel">
-            <div className="inspector-clean-panel-header">
-              <div className="inspector-clean-panel-label">Output</div>
-            </div>
-            <div className="inspector-clean-output">
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--th-border)' }}>
-                <div className="inspector-clean-output-tabs">
-                  {['Response', 'Request', 'Trace', 'Logs', 'Performance', 'Diff'].map((tab) => (
-                    <div
-                      key={tab}
-                      className={`inspector-clean-output-tab ${outputTab === tab.toLowerCase() ? 'active' : ''}`}
-                      onClick={() => setOutputTab(tab.toLowerCase())}
-                    >
-                      {tab}
-                    </div>
-                  ))}
-                </div>
-                <div style={{ display: 'flex', gap: '6px', padding: '8px 12px' }}>
-                  <button onClick={() => setOutputFontSize(Math.max(10, outputFontSize - 1))} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', border: '1px solid var(--th-border)', background: 'var(--th-bg-inset)', borderRadius: '4px' }}>−</button>
-                  <span style={{ fontSize: '12px', minWidth: '30px', textAlign: 'center', lineHeight: '1.5' }}>{outputFontSize}px</span>
-                  <button onClick={() => setOutputFontSize(Math.min(20, outputFontSize + 1))} style={{ padding: '4px 8px', fontSize: '12px', cursor: 'pointer', border: '1px solid var(--th-border)', background: 'var(--th-bg-inset)', borderRadius: '4px' }}>+</button>
-                </div>
-              </div>
-
-              <div className="inspector-clean-output-content" style={{ fontSize: `${outputFontSize}px` }}>
-                {running && !result && !error && (
-                  <div style={{ color: 'var(--th-text-muted)', fontSize: '12px', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
-                    <PingIdentitySpinner size={72} label="Executing…" />
-                  </div>
-                )}
-                {!running && !result && !error && (
-                  <div className="inspector-clean-empty-guide">
-                    <h2>What this inspector demonstrates</h2>
-                    <p>The Agent Gateway is the enforcement point in front of the MCP service. Every tool call is checked before the protected resource can run it.</p>
-                    <div className="inspector-clean-empty-guide-grid">
-                      <div><strong>1. Identify</strong><span>Validate the caller, token audience, expiry, scopes, and acting agent.</span></div>
-                      <div><strong>2. Authorize</strong><span>Evaluate the user, action, resource, attributes, and current context.</span></div>
-                      <div><strong>3. Enforce</strong><span>Forward PERMIT, pause for STEP-UP or consent, and stop DENY.</span></div>
-                      <div><strong>4. Audit</strong><span>Capture the request, decision, timing, and downstream result.</span></div>
-                    </div>
-                    <p className="inspector-clean-empty-guide-next">Choose a gateway and tool on the left, then select <strong>Execute Tool</strong>. This inspector currently demonstrates the request and response shape with simulated results; use the Gateway Tester for live gateway evidence.</p>
-                  </div>
-                )}
-
-                {result && outputTab === 'response' && (
-                  <>
-                    <div className="inspector-clean-view-toggle" role="group" aria-label="Response view">
-                      <button
-                        type="button"
-                        className={responseView === 'form' ? 'active' : ''}
-                        aria-pressed={responseView === 'form'}
-                        onClick={() => setResponseView('form')}
-                      >
-                        Form
-                      </button>
-                      <button
-                        type="button"
-                        className={responseView === 'json' ? 'active' : ''}
-                        aria-pressed={responseView === 'json'}
-                        onClick={() => setResponseView('json')}
-                      >
-                        JSON
-                      </button>
-                    </div>
-                    {responseView === 'form' ? (
-                      <JsonFormView value={result.response || result} />
-                    ) : (
-                      <pre className={theme.darkMode ? 'jh-dark' : ''}>
-                        <JsonHighlight value={result.response || result} deep />
-                      </pre>
-                    )}
-                  </>
-                )}
-
-                {result && outputTab === 'request' && (
-                  <InspectorJsonToggle
-                    ariaLabel="Request view"
-                    darkMode={theme.darkMode}
-                    value={{
-                      method: 'POST',
-                      url: '/api/agent-gateway/invoke',
-                      body: result.request || { tool: selectedTool, parameters },
-                    }}
-                  />
-                )}
-
-                {result && outputTab === 'trace' && (
-                  <InspectorJsonToggle ariaLabel="Trace view" darkMode={theme.darkMode} value={result.trace || {}} />
-                )}
-
-                {result && outputTab === 'logs' && (
-                  <pre>{result.logs || 'No logs available'}</pre>
-                )}
-
-                {result && outputTab === 'performance' && (
-                  <InspectorJsonToggle
-                    ariaLabel="Performance view"
-                    darkMode={theme.darkMode}
-                    value={{
-                      durationMs: result.durationMs || 0,
-                      gatewayTime: result.gatewayTime || 0,
-                      toolTime: result.toolTime || 0,
-                      parseTime: result.parseTime || 0,
-                    }}
-                  />
-                )}
-
-                {result && outputTab === 'diff' && (
-                  <div style={{ fontSize: '11px' }}>
-                    {invocationHistory.length < 2 ? (
-                      <div style={{ color: 'var(--th-text-muted)' }}>Need at least 2 invocations to compare</div>
-                    ) : (
-                      <InspectorJsonToggle
-                        ariaLabel="Diff view"
-                        darkMode={theme.darkMode}
-                        value={{
-                          previous: invocationHistory[invocationHistory.length - 2],
-                          current: invocationHistory[invocationHistory.length - 1],
-                        }}
-                      />
-                    )}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Movie Reel */}
-        <div className="inspector-clean-reel">
-          <div className="inspector-clean-reel-label">Recent Invocations</div>
-          <div style={{ display: 'flex', gap: '8px', overflowX: 'auto', paddingBottom: '8px' }}>
-            {invocationHistory.slice(-4).map((entry) => (
-              <div
-                key={entry.id}
-                className={`inspector-clean-reel-frame ${activeReelId === entry.id ? 'active' : ''}`}
-                onClick={() => selectReelEntry(entry)}
-                style={{ cursor: 'pointer' }}
-              >
-                {entry.tool} → {entry.outcome} ({entry.durationMs}ms)
-              </div>
-            ))}
-          </div>
-        </div>
-      </div>
-    </div>
+    <InspectorLayout
+      eyebrow="PingOne Agent Gateway · Inspector"
+      title="Agent Gateway Inspector"
+      lede="Every tool call that went through the gateway: the request and response, the token it checked, each filter it passed, and each API call the gateway made."
+      related={RELATED}
+      mode={gwState === 'loading' ? idle('Loading') : gwState === 'down' ? err('Unavailable') : active?.simulated ? warn('Simulated authz') : ok('Live')}
+      source={{
+        label: 'Gateway',
+        value: active?.usePingGateway === false ? 'node' : 'ping',
+        options: SOURCES,
+        disabled: !active,
+        onChange: (v) => patchFlag('ff_mcp_gateway_pinggateway', v === 'ping'),
+      }}
+      heroExtra={heroExtra}
+      send={sendCard}
+      calls={calls}
+      callsNote={CALLS_NOTE}
+      selectedId={selectedId}
+      onSelect={setPickedId}
+      onResend={onResend}
+      onEdit={onEdit}
+      nodeSubs={NODE_SUBS}
+    />
   );
 }

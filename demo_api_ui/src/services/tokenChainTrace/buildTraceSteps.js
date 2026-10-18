@@ -602,10 +602,8 @@ function buildGatewayReplay(mcpResult, gwAz, simGwDeny) {
     || simGwDeny?.arguments || {};
   return {
     target: "gateway",
-    // Direct route, not /pinggateway-inspector — that path redirects via
-    // <Navigate to="/agent-gateway-inspector" replace/> which drops the query
-    // string, losing both ?subtab=tester and the staged ?replay=<id>.
-    href: "/agent-gateway-inspector?subtab=tester",
+    // The Gateway Tester lives on the capabilities page; the inspector has no tester tab.
+    href: "/agent-gateway-capabilities",
     label: "Replay in Gateway Tester",
     tool: String(tool),
     arguments: args && typeof args === "object" ? args : {},

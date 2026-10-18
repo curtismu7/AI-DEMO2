@@ -674,7 +674,6 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
     } else {
       data = await response.json();
     }
-    appendMcpCall(tool, response.status, Date.now() - t0, data.result);
     const responseTokenEvents = data.tokenEvents || [];
 
     // Merge SSE-collected token events with response body events (backward compat)
@@ -690,6 +689,9 @@ export async function callMcpTool(tool, params = {}, { signal, useCaseId, vertic
         allTokenEvents.push(evt);
       }
     }
+    appendMcpCall(tool, response.status, Date.now() - t0, data.result, null, {
+      src: 'agent', params, tokenEvents: allTokenEvents,
+    });
 
     // Genuine PingOne error-fallback on a permitted MCP tool call (debug modal).
     emitAuthorizeFallback(data);
