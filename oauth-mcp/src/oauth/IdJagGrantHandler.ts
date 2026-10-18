@@ -57,6 +57,8 @@ export interface VerifyOpts {
    * listed must still equal the redeeming client exactly.
    */
   clientAliases?: Record<string, string>;
+  /** Only clientAliases count: an unlisted client_id is refused even if it equals clientId. */
+  strictClientBinding?: boolean;
   /** Accept an ID-JAG with no client_id claim (IdP not yet emitting it). Off by default. */
   allowUnboundClient?: boolean;
   /** Resolves the verification key. Production passes a jose remote JWKS. */
@@ -169,6 +171,11 @@ export async function verifyIdJag(assertion: string, opts: VerifyOpts): Promise<
     if (!boundClient) {
       if (!opts.allowUnboundClient) {
         throw new IdJagError('ID-JAG carries no client_id; it cannot be bound to the redeeming client');
+      }
+    } else if (opts.strictClientBinding) {
+      // Alias values are strings; an inherited key (e.g. "constructor") never equals clientId.
+      if (opts.clientAliases?.[boundClient] !== opts.clientId) {
+        throw new IdJagError('ID-JAG client_id is not assigned to this IdP');
       }
     } else if (boundClient !== opts.clientId && opts.clientAliases?.[boundClient] !== opts.clientId) {
       throw new IdJagError('ID-JAG was issued to a different client');

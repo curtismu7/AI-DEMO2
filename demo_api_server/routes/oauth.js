@@ -31,6 +31,7 @@ const { KNOWN_REDIRECT_ORIGINS } = require('../services/knownRedirectOrigins');
 const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, clearHostedAccessApproval } = require('../services/hostedAccessPolicy');
 const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
 const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
+const { isPingOneAdminByUsername } = require('../services/pingOneGroupMembershipService');
 
 const _isProd = () => !!(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT || process.env.NODE_ENV === 'production');
 
@@ -421,6 +422,18 @@ router.get('/callback', async (req, res) => {
     
     // Create user object from OAuth data
     const oauthUser = oauthService.createUserFromOAuth(mergedUserInfo);
+
+    // PingOne's admin app only lets the pingone-admin group in, but a PF admin sign-in never
+    // touches that app, so enforce the same group here — before the demo store is promoted.
+    if (loginProvider === 'pingfederate'
+      && !(await isPingOneAdminByUsername(oauthUser.username))) {
+      console.warn('[oauth/callback] PF admin sign-in refused: not in the PingOne admin group');
+      finishLoginAudit(req, { outcome: 'denied', reasonCode: 'group_not_allowed' });
+      delete req.session.oauthTokens;
+      delete req.session.user;
+      clearAuthCookie(res, _isProd());
+      return res.redirect(`${getFrontendOrigin()}/login?error=admin_access_required`);
+    }
     
     // Check if user already exists in our system
     let user = dataStore.getUserByUsername(oauthUser.username);

@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 import bffAxios from '../services/bffAxios';
 import { isAicLoginEnabled } from '../utils/aicLogin';
 import { notifyError } from '../utils/appToast';
+import DeviceSignInLink from './DeviceSignInLink';
 import './OAuthProviderToggle.css';
 
 /**
@@ -13,7 +14,8 @@ import './OAuthProviderToggle.css';
  * Reuses the P1 ⇄ PF pill's styles: "--pingone" highlights the left option,
  * "--aic" the right one with the same amber "non-default mode" tint.
  */
-export default function AicLoginToggle() {
+// signedIn: hide the 'other sign-in' link once the user is signed in (it's for choosing how to sign in).
+export default function AicLoginToggle({ signedIn = false }) {
   const [enabled, setEnabled] = useState(null);
   const [saving, setSaving] = useState(false);
 
@@ -60,18 +62,21 @@ export default function AicLoginToggle() {
   }
 
   return (
-    <button
-      type="button"
-      className={`oauth-provider-toggle oauth-provider-toggle--${enabled ? 'aic' : 'pingone'}${saving ? ' oauth-provider-toggle--saving' : ''}`}
-      onClick={toggle}
-      disabled={saving}
-      title={`Customer sign-in: ${enabled ? 'AIC (federated through PingOne)' : 'PingOne'}. Click to switch to ${enabled ? 'PingOne' : 'AIC'}. You will be signed out and asked to log in again.`}
-      aria-pressed={enabled}
-      aria-label="Toggle AIC customer sign-in"
-    >
-      <span className="oauth-provider-toggle__option">P1</span>
-      <span className="oauth-provider-toggle__knob" aria-hidden="true" />
-      <span className="oauth-provider-toggle__option">AIC</span>
-    </button>
+    <>
+      <button
+        type="button"
+        className={`oauth-provider-toggle oauth-provider-toggle--${enabled ? 'aic' : 'pingone'}${saving ? ' oauth-provider-toggle--saving' : ''}`}
+        onClick={toggle}
+        disabled={saving}
+        title={`Customer sign-in: ${enabled ? 'AIC (federated through PingOne)' : 'PingOne'}. Click to switch to ${enabled ? 'PingOne' : 'AIC'}. You will be signed out and asked to log in again.`}
+        aria-pressed={enabled}
+        aria-label="Toggle AIC customer sign-in"
+      >
+        <span className="oauth-provider-toggle__option">P1</span>
+        <span className="oauth-provider-toggle__knob" aria-hidden="true" />
+        <span className="oauth-provider-toggle__option">AIC</span>
+      </button>
+      {!signedIn && <DeviceSignInLink compact />}
+    </>
   );
 }

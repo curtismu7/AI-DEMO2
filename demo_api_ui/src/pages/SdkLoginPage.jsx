@@ -1,6 +1,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import JsonHighlight from "../components/shared/JsonHighlight";
 import EmbeddedSignInForm from "../components/sdk-login/EmbeddedSignInForm";
+import DeviceSignInLink from "../components/DeviceSignInLink";
 import { getSdkClient, isSdkError } from "../lib/oidcSdkClient";
 import { POPUP_RESULT_TYPE, POPUP_WINDOW_NAME } from "../lib/sdkLoginPopup";
 import { decodeJWT } from "../services/tokenInspector";
@@ -536,6 +537,7 @@ export default function SdkLoginPage() {
               <code>client.authorize.url()</code> (the SDK stores <code>state</code> + the PKCE verifier) and
               finishes with <code>client.token.exchange(code, state)</code> in this tab.
             </p>
+            <DeviceSignInLink />
             <div className="sdk-signin-options">
               <div className="sdk-signin-option">
                 <h3>Redirect</h3>

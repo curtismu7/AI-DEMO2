@@ -148,11 +148,21 @@ function settingsFor(req) {
   return byoSettings(byo.target, byo.idpId ? trustedIdps.findById(byo.idpId) : null);
 }
 
+// Settings read by name only: the values never leave the BFF.
+const secretSetting = (k) => env(k) || cfg(k);
+
+// byo IdPs whose redeeming client at oauth-mcp is not ours: trusted-IdP entry id -> the names of the
+// settings holding that client's id and secret (secrets never go in the registry: oauth-mcp reads it).
+// The secret is sent (client_secret_post) only while the entry still names that client.
+const BYO_REDEEM_CLIENTS = { 'xaa-dev': { id: 'XAA_DEV_OUR_AS_CLIENT_ID', secret: 'XAA_DEV_OUR_AS_CLIENT_SECRET' } };
+
 /** Who redeems for this session, and with which default secret. */
 function redeemContext(req) {
   const mode = modeOf(req);
   const s = settingsFor(req);
   if (mode === 'pf-pf' || s.target === 'pingfederate') return { s, defaultSecret: env('PF_IDJAG_PF_REDEEMER_CLIENT_SECRET') };
+  const named = mode === 'byo' ? BYO_REDEEM_CLIENTS[req.session?.idJagPlayground?.byo?.idpId] : null;
+  if (named && secretSetting(named.id) === s.resourceAs.clientId) return { s, defaultSecret: secretSetting(named.secret), secretPost: true };
   // byo to oauth-mcp: the redemption secret belongs to our configured client only.
   const ours = mode !== 'byo' || s.resourceAs.clientId === (cfg('pf_id_jag_redemption_client_id') || 'demo-bff-mcp-client');
   return { s, defaultSecret: ours ? cfg('pf_id_jag_redemption_client_secret') : '' };
@@ -253,14 +263,15 @@ async function mintIdJag(req, scopeOverride) {
 }
 
 /** Redeem at the resource AS and return status + body, error or not (negative tests need both). */
-async function redeem(assertion, { clientId, clientSecret, scope, s = settings(), defaultSecret = '' } = {}) {
+async function redeem(assertion, { clientId, clientSecret, scope, s = settings(), defaultSecret = '', secretPost = false } = {}) {
   const id = clientId ?? s.resourceAs.clientId;
   const secret = clientSecret !== undefined ? clientSecret : defaultSecret;
   const body = new URLSearchParams({ grant_type: JWT_BEARER, assertion, client_id: id });
   if (s.request.resource) body.set('resource', s.request.resource);
   if (scope) body.set('scope', scope);
   const headers = { 'Content-Type': 'application/x-www-form-urlencoded' };
-  if (secret) headers.Authorization = basic(id, secret);
+  if (secret && secretPost) body.set('client_secret', secret);
+  else if (secret) headers.Authorization = basic(id, secret);
   const res = await axios.post(s.resourceAs.tokenEndpoint, body.toString(), { headers, timeout: 15000, validateStatus: () => true });
   return { status: res.status, data: res.data || {}, request: {
     endpoint: `POST ${s.resourceAs.tokenEndpoint}`,
@@ -359,6 +370,8 @@ function configFor(req) {
         tokenEndpoint: (cfg('pf_issuer') || cfg('pf_issuer_uri')) ? `${(cfg('pf_issuer') || cfg('pf_issuer_uri')).replace(/\/$/, '')}/as/token.oauth2` : '' },
     },
     byo: req.session?.idJagPlayground?.byo || null,
+    xaa: { available: !xaaUnavailableReason(), reason: xaaUnavailableReason(), signedIn: !!req.session?.idJagXaa,
+      user: req.session?.idJagXaa ? (req.session.idJagXaa.email || req.session.idJagXaa.sub) : null },
     signedIn: pfSignedIn(req), hasIdJag: !!req.session?.idJagPlayground?.idJag,
     hasAccessToken: !!req.session?.idJagPlayground?.accessToken };
 }
@@ -375,7 +388,7 @@ router.post('/mode', (req, res) => {
 
 // ---- Preflight: what would make the next button fail, checked before it is pressed. ----
 
-const PREFLIGHT_STEPS = ['signin', 'issue', 'redeem', 'call', 'negative', 'resource', 'mode'];
+const PREFLIGHT_STEPS = ['signin', 'issue', 'redeem', 'call', 'negative', 'resource', 'mode', 'xaa'];
 const PROBE_TTL_MS = 30 * 1000;
 const probes = new Map();
 
@@ -498,6 +511,31 @@ async function preflight(req, step) {
       add('resource-issuer', 'oauth-mcp trusts this token\'s issuer', 'warn', 'In this mode the access token comes from the local PingFederate; oauth-mcp\'s resource trusts oauth-mcp and PingOne issuers only.',
         'Expect a refusal at the issuer check. Use PingFederate → oauth-mcp to see the resource accept the token.');
     }
+    return checks;
+  }
+
+  if (step === 'xaa') {
+    const reason = xaaUnavailableReason();
+    add('xaa-available', 'xaa.dev sign-in is available here', reason ? 'fail' : 'pass', reason || 'IdenX client set; oauth-mcp has a public https issuer.',
+      /hosted demo/.test(reason || '') ? 'Use the hosted demo: its oauth-mcp issuer is public and registered at xaa.dev.'
+        : 'Set XAA_DEV_IDP_CLIENT_ID and XAA_DEV_IDP_CLIENT_SECRET (our requesting app at xaa.dev) on the BFF, then restart it.');
+    const url = `${XAA_ISSUER}/.well-known/openid-configuration`;
+    const r = await probe(url, fresh);
+    const up = r.status === 200 && r.data?.issuer === XAA_ISSUER;
+    add('idenx', 'IdenX (xaa.dev) answers', up ? 'pass' : 'fail', up ? `${url} names ${XAA_ISSUER}.` : unreachable(url, r),
+      `xaa.dev may be down (try again later), or the BFF cannot reach ${XAA_ISSUER}.`);
+    const e = trustedIdps.findById(XAA_ENTRY_ID);
+    const trusted = !!e && e.enabled && e.targets.includes('oauth-mcp') && e.issuer === XAA_ISSUER;
+    add('xaa-trusted-idp', 'IdenX is a trusted IdP for oauth-mcp', trusted ? 'pass' : 'fail',
+      !e ? `No trusted IdP "${XAA_ENTRY_ID}".` : trusted ? `${e.name} is enabled for oauth-mcp.`
+        : `${e.name} is ${!e.enabled ? 'disabled' : e.issuer !== XAA_ISSUER ? `for ${e.issuer}, not ${XAA_ISSUER}` : 'not targeted at oauth-mcp'}.`,
+      `On the Trusted IdPs panel (admin), add or fix "${XAA_ENTRY_ID}": issuer ${XAA_ISSUER}, JWKS ${XAA_ISSUER}/jwks, target oauth-mcp, enabled, both client ids = XAA_DEV_OUR_AS_CLIENT_ID.`);
+    const missing = ['XAA_DEV_OUR_AS_CLIENT_ID', 'XAA_DEV_OUR_AS_CLIENT_SECRET'].filter((k) => !secretSetting(k));
+    const named = !!e && secretSetting('XAA_DEV_OUR_AS_CLIENT_ID') === e.clientId;
+    add('xaa-client', 'Our redeeming client at oauth-mcp is configured', !missing.length && named ? 'pass' : 'fail',
+      missing.length ? `Missing: ${missing.join(', ')}.` : named ? `Set, and "${XAA_ENTRY_ID}" names it.` : `"${XAA_ENTRY_ID}" does not name XAA_DEV_OUR_AS_CLIENT_ID as our client at oauth-mcp.`,
+      missing.length ? `Set ${missing.join(' and ')} on the BFF to the client registered at oauth-mcp for xaa.dev, then restart it.`
+        : `Set "Our client at oauth-mcp" on "${XAA_ENTRY_ID}" to XAA_DEV_OUR_AS_CLIENT_ID.`);
     return checks;
   }
 
@@ -709,27 +747,146 @@ router.post('/inspect', requirePf, async (req, res) => {
 
 const JWT_SHAPE = /^[\w-]+\.[\w-]+\.[\w-]*$/;
 
-/** byo step 1: inspect a pasted ID-JAG against the trusted IdP its (unverified) iss names. */
-router.post('/byo/inspect', async (req, res) => {
-  if (modeOf(req) !== 'byo') return res.status(409).json({ error: 'not_byo_mode', message: 'Switch to the "Your IdP" mode first.' });
-  const idJag = typeof req.body?.idJag === 'string' ? req.body.idJag.trim() : '';
-  const target = req.body?.target === 'pingfederate' ? 'pingfederate' : 'oauth-mcp';
-  if (idJag.length > 16384 || !JWT_SHAPE.test(idJag)) return res.status(400).json({ error: 'invalid_id_jag', message: 'Paste a compact JWT (header.payload.signature).' });
+/** byo step 1: inspect an ID-JAG against the trusted IdP its (unverified) iss names, and keep it for redeem. */
+async function loadByoIdJag(req, idJag, target) {
   delete req.session.idJagPlayground;
   const d = decoded(idJag) || { header: {}, claims: {} };
   const iss = d.claims?.iss;
   const entry = trustedIdps.findByIssuer(iss);
   if (!entry || !entry.targets.includes(target)) {
-    return res.json({ ...d, trusted: false,
+    return { ...d, trusted: false,
       hint: entry ? `${entry.name} is trusted, but not for ${target}. Add ${target} to its targets on the Trusted IdPs panel.`
         : 'Add this issuer on the Trusted IdPs panel (admin) so our resource AS trusts it.',
       checks: [{ id: 'trusted-idp', label: 'Issuer is a trusted IdP', status: 'fail',
-        expected: `an enabled Trusted IdP targeting ${target}`, actual: iss || '(missing)', cite: 'RFC 7523 §3: the AS MUST trust the issuer' }] });
+        expected: `an enabled Trusted IdP targeting ${target}`, actual: iss || '(missing)', cite: 'RFC 7523 §3: the AS MUST trust the issuer' }] };
   }
   req.session.idJagPlayground = { idJag, issuedAt: Date.now(), redeemed: false, byo: { target, idpId: entry.id } };
   const s = byoSettings(target, entry);
   const result = await inspect(idJag, { ...s, resourceAs: { ...s.resourceAs, clientId: entry.idJagClientId } });
-  return res.json({ ...result, trusted: true, idp: { id: entry.id, name: entry.name }, config: configFor(req) });
+  return { ...result, trusted: true, idp: { id: entry.id, name: entry.name }, config: configFor(req) };
+}
+
+router.post('/byo/inspect', async (req, res) => {
+  if (modeOf(req) !== 'byo') return res.status(409).json({ error: 'not_byo_mode', message: 'Switch to the "Your IdP" mode first.' });
+  const idJag = typeof req.body?.idJag === 'string' ? req.body.idJag.trim() : '';
+  const target = req.body?.target === 'pingfederate' ? 'pingfederate' : 'oauth-mcp';
+  if (idJag.length > 16384 || !JWT_SHAPE.test(idJag)) return res.status(400).json({ error: 'invalid_id_jag', message: 'Paste a compact JWT (header.payload.signature).' });
+  return res.json(await loadByoIdJag(req, idJag, target));
+});
+
+// ---- xaa.dev (Okta's public XAA playground): its IdP, IdenX, as a real outside IdP for byo. ----
+// Any email + any 6-digit code signs in at IdenX. Our requesting app there is XAA_DEV_IDP_CLIENT_ID; the
+// ID-JAGs it issues name XAA_DEV_OUR_AS_CLIENT_ID, our client at oauth-mcp (trusted-IdP entry xaa-dev).
+// IdenX tokens live in session.idJagXaa only; the browser gets decoded claims.
+
+const XAA_ISSUER = 'https://idp.xaa.dev';
+const XAA_ENTRY_ID = 'xaa-dev';
+const TOKEN_EXCHANGE = 'urn:ietf:params:oauth:grant-type:token-exchange';
+const FORM = { 'Content-Type': 'application/x-www-form-urlencoded' };
+const xaaRedirectUri = () => `${getFrontendOrigin()}/api/id-jag-playground/xaa/callback`;
+const xaaClient = () => ({ client_id: secretSetting('XAA_DEV_IDP_CLIENT_ID'), client_secret: secretSetting('XAA_DEV_IDP_CLIENT_SECRET') });
+
+/** null when this server can run the xaa.dev flow, else why not. */
+function xaaUnavailableReason() {
+  const missing = ['XAA_DEV_IDP_CLIENT_ID', 'XAA_DEV_IDP_CLIENT_SECRET'].filter((k) => !secretSetting(k));
+  if (missing.length) return `${missing.join(' and ')} not set on the BFF (our requesting app at xaa.dev).`;
+  const issuer = settings('oauth-mcp').resourceAs.issuer;
+  if (!/^https:\/\//i.test(issuer)) {
+    return `Available on the hosted demo: xaa.dev addresses its ID-JAGs to a public https issuer, and oauth-mcp's issuer here is ${issuer || '(unset)'}.`;
+  }
+  return null;
+}
+
+let xaaDiscoveryP = null;
+/** IdenX's OIDC discovery, cached per process (a failure is not). */
+function xaaDiscovery() {
+  xaaDiscoveryP ||= axios.get(`${XAA_ISSUER}/.well-known/openid-configuration`, { timeout: 10000 }).then(({ data }) => {
+    if (data?.issuer !== XAA_ISSUER || !data.authorization_endpoint || !data.token_endpoint || !data.jwks_uri) throw new Error(`discovery is not for ${XAA_ISSUER}`);
+    return data;
+  }).catch((err) => { xaaDiscoveryP = null; throw err; });
+  return xaaDiscoveryP;
+}
+
+async function verifyXaaIdToken(idToken, d, nonce) {
+  const { jwtVerify, createLocalJWKSet } = await jose();
+  const { data } = await axios.get(d.jwks_uri, { timeout: 10000 });
+  const { payload } = await jwtVerify(idToken, createLocalJWKSet(data), {
+    issuer: XAA_ISSUER, audience: secretSetting('XAA_DEV_IDP_CLIENT_ID'), algorithms: ['RS256'], clockTolerance: 5,
+  });
+  if (payload.nonce !== nonce) throw new Error('nonce mismatch');
+  return payload;
+}
+
+/** Sign in at IdenX: code + PKCE + state + nonce. */
+router.get('/xaa/login', async (req, res) => {
+  const back = safeReturnTo(req.query.return_to);
+  if (xaaUnavailableReason()) return res.redirect(`${back}?xaa_error=unavailable`);
+  let d;
+  try { d = await xaaDiscovery(); } catch { return res.redirect(`${back}?xaa_error=idenx_unreachable`); }
+  const verifier = crypto.randomBytes(32).toString('base64url');
+  const state = crypto.randomBytes(16).toString('hex');
+  const nonce = crypto.randomBytes(16).toString('hex');
+  req.session.idJagXaaLogin = { state, nonce, verifier, returnTo: back, at: Date.now() };
+  const u = new URL(d.authorization_endpoint);
+  // prompt=consent: an OpenID Provider grants offline_access (the refresh token we exchange) only with it (OIDC Core §11).
+  u.search = new URLSearchParams({
+    response_type: 'code', client_id: secretSetting('XAA_DEV_IDP_CLIENT_ID'), redirect_uri: xaaRedirectUri(),
+    scope: 'openid profile email offline_access', prompt: 'consent', state, nonce,
+    code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256',
+  }).toString();
+  return req.session.save(() => res.redirect(u.toString()));
+});
+
+router.get('/xaa/callback', async (req, res) => {
+  const pending = req.session?.idJagXaaLogin;
+  const back = pending?.returnTo || PLAYGROUND_PATH;
+  delete req.session.idJagXaaLogin;
+  const done = (q) => req.session.save(() => res.redirect(`${back}?${q}`));
+  if (!pending || req.query.state !== pending.state || Date.now() - pending.at > 10 * 60 * 1000) return done('xaa_error=invalid_state');
+  if (!req.query.code) return done(`xaa_error=${encodeURIComponent(String(req.query.error || 'no_code'))}`);
+  try {
+    const d = await xaaDiscovery();
+    const r = await axios.post(d.token_endpoint, new URLSearchParams({
+      grant_type: 'authorization_code', code: String(req.query.code), redirect_uri: xaaRedirectUri(), code_verifier: pending.verifier, ...xaaClient(),
+    }).toString(), { headers: FORM, timeout: 15000, validateStatus: () => true });
+    if (r.status !== 200 || !r.data?.id_token) return done(`xaa_error=${encodeURIComponent(r.data?.error || `http_${r.status}`)}`);
+    let claims;
+    try { claims = await verifyXaaIdToken(r.data.id_token, d, pending.nonce); } catch { return done('xaa_error=invalid_id_token'); }
+    req.session.idJagXaa = { refreshToken: r.data.refresh_token || null, idToken: r.data.id_token, sub: claims.sub, email: claims.email || null };
+    return done('xaa=signed_in');
+  } catch {
+    return done('xaa_error=exchange_failed');
+  }
+});
+
+/** RFC 8693 at IdenX for an ID-JAG addressed to our public oauth-mcp, then the byo inspect path. */
+router.post('/xaa/id-jag', async (req, res) => {
+  if (modeOf(req) !== 'byo') return res.status(409).json({ error: 'not_byo_mode', message: 'Switch to the "Your IdP" mode first.' });
+  const reason = xaaUnavailableReason();
+  if (reason) return res.status(409).json({ error: 'xaa_unavailable', message: reason });
+  const x = req.session?.idJagXaa;
+  if (!x) return res.status(401).json({ error: 'xaa_sign_in_required', message: 'Sign in at IdenX (xaa.dev) first.' });
+  const audience = settings('oauth-mcp').resourceAs.issuer;
+  const [subject, type, name] = x.refreshToken
+    ? [x.refreshToken, 'urn:ietf:params:oauth:token-type:refresh_token', 'refresh token']
+    : [x.idToken, 'urn:ietf:params:oauth:token-type:id_token', 'ID token'];
+  const body = { grant_type: TOKEN_EXCHANGE, requested_token_type: ID_JAG_TOKEN_TYPE, subject_token_type: type,
+    audience, resource: `${audience.replace(/\/$/, '')}/mcp`, scope: 'read' };
+  try {
+    const d = await xaaDiscovery();
+    const request = { endpoint: `POST ${d.token_endpoint}`,
+      body: { ...body, subject_token: `[your IdenX ${name}, kept server-side]`, client_id: secretSetting('XAA_DEV_IDP_CLIENT_ID') } };
+    const r = await axios.post(d.token_endpoint, new URLSearchParams({ ...body, subject_token: subject, ...xaaClient() }).toString(),
+      { headers: FORM, timeout: 15000, validateStatus: () => true });
+    if (r.status !== 200 || !r.data?.access_token) {
+      if (r.data?.error === 'invalid_grant') delete req.session.idJagXaa; // dead IdenX session: the next click signs in again
+      return res.status(502).json({ error: 'xaa_exchange_failed', message: `IdenX refused the ID-JAG exchange (HTTP ${r.status}${r.data?.error ? ` ${r.data.error}` : ''}).`,
+        idpError: r.data?.error, idpErrorDescription: r.data?.error_description, request });
+    }
+    return res.json({ ...(await loadByoIdJag(req, r.data.access_token, 'oauth-mcp')), request, response: redactedTokenResponse(r.data) });
+  } catch (err) {
+    return res.status(502).json({ error: 'xaa_exchange_failed', message: `Could not reach IdenX (${err.code || err.message}).` });
+  }
 });
 
 router.post('/redeem', requirePf, async (req, res) => {
@@ -883,7 +1040,7 @@ router.put('/trusted-idps/:id', ...registryWrite(async (req, res) => res.json(aw
 router.delete('/trusted-idps/:id', ...registryWrite(async (req, res) => { await trustedIdps.remove(req.params.id); res.status(204).end(); }));
 
 router.post('/reset', (req, res) => {
-  if (req.session) { delete req.session.idJagPlayground; delete req.session.idJagIssuer; }
+  if (req.session) { delete req.session.idJagPlayground; delete req.session.idJagIssuer; delete req.session.idJagXaa; }
   res.json({ ok: true });
 });
 
@@ -891,3 +1048,4 @@ module.exports = router;
 module.exports._inspect = inspect;
 module.exports._settings = settings;
 module.exports._clearProbeCache = () => probes.clear();
+module.exports._resetXaaDiscovery = () => { xaaDiscoveryP = null; };
