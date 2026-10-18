@@ -303,14 +303,28 @@ describe('fix round 1', () => {
     expect(cibaService.initiateBackchannelAuth).toHaveBeenCalledTimes(1);
   });
 
-  it('M6 two concurrent polls: exactly one completes, the other is pending', async () => {
+  it('M6 two concurrent polls: exactly one completes, the other is pending (gated, timer-free)', async () => {
     const agent = await parked();
     const { authReqId } = (await start(agent)).body;
-    cibaService.pollForTokens.mockImplementation(() => new Promise((r) => setTimeout(() => r({ id_token: 'idt' }), 100)));
-    const [x, y] = await Promise.all([poll(agent, authReqId), poll(agent, authReqId)]);
-    expect([x.body.status, y.body.status].sort()).toEqual(['approved', 'pending']);
+    let release;
+    cibaService.pollForTokens.mockImplementation(() => new Promise((r) => { release = () => r({ id_token: 'idt' }); }));
+    const first = poll(agent, authReqId).then((r) => r);   // sent now; held inside pollForTokens
+    while (!release) await new Promise((r) => setImmediate(r));
+    const second = await poll(agent, authReqId);            // returns while the first is still in flight
+    expect(second.body).toEqual({ status: 'pending' });
+    release();
+    expect((await first).body.status).toBe('approved');
     expect(complete).toHaveBeenCalledTimes(1);
     expect(cibaService.pollForTokens).toHaveBeenCalledTimes(1);
+  });
+
+  it('M4 expiresIn is an integer >= 1 capped at 120 (0.5 -> 1, NaN/negative/huge/absent -> 120)', async () => {
+    const cases = [[0.5, 1], [59.2, 60], [NaN, 120], [-5, 120], [1e9, 120], [undefined, 120], ['abc', 120]];
+    for (const [i, [given, want]] of cases.entries()) {
+      cibaService.initiateBackchannelAuth.mockResolvedValueOnce({ auth_req_id: 'P', expires_in: given, interval: 2, binding_message: 'BK1A2B3C' });
+      const ip = `10.7.0.${i}`;
+      expect((await start(await parked({ ...USER, id: `x${i}` }, ip), 'email', ip)).body.expiresIn).toBe(want);
+    }
   });
 });
 
