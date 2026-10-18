@@ -23,6 +23,23 @@ export const warn = (label) => ({ tone: 'warn', label });
 export const err = (label) => ({ tone: 'err', label });
 export const idle = (label) => ({ tone: 'idle', label });
 
+const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
+const b64urlJson = (seg) => {
+  const bin = atob(seg.replace(/-/g, '+').replace(/_/g, '/'));
+  return JSON.parse(new TextDecoder().decode(Uint8Array.from(bin, (c) => c.charCodeAt(0))));
+};
+/** Client-side, unverified JWT decode. @returns {{header: object|null, claims: object}|null} */
+export function decodeJwtClient(token) {
+  try {
+    const [h, p] = token.split('.');
+    const claims = b64urlJson(p);
+    if (!isObj(claims)) return null;
+    let header = null;
+    try { const hd = b64urlJson(h); if (isObj(hd)) header = hd; } catch { /* header optional */ }
+    return { header, claims };
+  } catch { return null; }
+}
+
 export const SRC_LABEL = { you: 'You', agent: 'AI agent', log: 'PingOne log' };
 
 const words = (s) => String(s).split(/\s+/).filter(Boolean);

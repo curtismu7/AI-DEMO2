@@ -2,7 +2,7 @@
  * Adapters: Agent Gateway test results, burst results and decision-buffer records -> InspectorCall.
  * Pure functions only.
  */
-import { ok, warn, err, idle, tokensFromEvents } from './inspectorCalls';
+import { ok, warn, err, idle, tokensFromEvents, decodeJwtClient } from './inspectorCalls';
 import { isPause } from '../../services/tokenChainTrace/pauseObligation';
 
 const GW = 'Gateway';
@@ -22,12 +22,8 @@ function statusOf({ rateLimited, ok: isOk, decision, httpStatus, paused }) {
   return decision ? idle(decision) : ok('OK');
 }
 
-function claimsOf(jwt) {
-  try { return JSON.parse(atob(jwt.split('.')[1].replace(/-/g, '+').replace(/_/g, '/'))); } catch { return {}; }
-}
-
 function sentView(raw) {
-  return { label: 'Token sent to the gateway', role: 'The delegated token the BFF presented to the gateway.', alg: null, rfc: null, status: ok('Sent'), claims: claimsOf(raw), hidden: [], header: null, raw };
+  return { label: 'Token sent to the gateway', role: 'The delegated token the BFF presented to the gateway.', alg: null, rfc: null, status: ok('Sent'), claims: decodeJwtClient(raw)?.claims ?? {}, hidden: [], header: null, raw };
 }
 
 function claimsView(introspection) {

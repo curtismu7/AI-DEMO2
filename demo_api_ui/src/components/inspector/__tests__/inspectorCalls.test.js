@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest';
 import {
   ok, warn, err, idle, SRC_LABEL, diffClaims, tokenStatusChip, tokensFromEvents,
-  stepsFromTokenEvents, isProblem, diffPaths, diagramConfigFromCall,
+  stepsFromTokenEvents, isProblem, diffPaths, diagramConfigFromCall, decodeJwtClient,
 } from '../inspectorCalls';
 
 const USER = { id: 'user-token', label: 'User access token', status: 'active', alg: 'RS256', rfc: 'RFC 9068',
@@ -114,5 +114,22 @@ describe('diagramConfigFromCall', () => {
   it('dashes idle hops', () => {
     const c = diagramConfigFromCall({ hops: [hop('A → B', 'x', 'idle')] });
     expect(c.EDGES[0][3]).toEqual({ dashed: true });
+  });
+});
+
+describe('decodeJwtClient', () => {
+  const b64 = (o) => Buffer.from(typeof o === 'string' ? o : JSON.stringify(o)).toString('base64url');
+  const jwt = (payload, header = { alg: 'none' }) => `${b64(header)}.${b64(payload)}.`;
+  it('decodes header and claims', () => {
+    expect(decodeJwtClient(jwt({ sub: 'u1' }, { alg: 'RS256' }))).toEqual({ header: { alg: 'RS256' }, claims: { sub: 'u1' } });
+  });
+  it('returns null for garbage and non-object payloads', () => {
+    expect(decodeJwtClient('garbage')).toBeNull();
+    expect(decodeJwtClient(undefined)).toBeNull();
+    expect(decodeJwtClient(jwt('null'))).toBeNull();
+    expect(decodeJwtClient(jwt('42'))).toBeNull();
+  });
+  it('decodes UTF-8 claims', () => {
+    expect(decodeJwtClient(jwt({ name: 'Zoë ✓' })).claims.name).toBe('Zoë ✓');
   });
 });

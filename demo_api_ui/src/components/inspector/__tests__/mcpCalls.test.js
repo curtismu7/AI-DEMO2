@@ -27,6 +27,29 @@ describe('mcpCallFromStore: raw token', () => {
   });
 });
 
+describe('mcpCallFromStore: token sent fallback', () => {
+  const b64 = (o) => Buffer.from(JSON.stringify(o)).toString('base64url');
+  const tok = `${b64({ alg: 'RS256' })}.${b64({ sub: 'u9' })}.sig`;
+  const withTok = { ...frames, initializeRequest: { params: { agentToken: tok } } };
+  const OTHER = { id: 'mcp-reused', label: 'MCP Token - reused from cache', status: 'active', claims: { sub: 'u9' } };
+  const run = (f, evs) => mcpCallFromStore({ ...base, detail: { src: 'you', params: {}, frames: f, tokenEvents: evs, response: {} } });
+  it('appends one card when no view got raw', () => {
+    const t = run(withTok, [USER, OTHER]).tokens;
+    const extra = t.filter((x) => x.label === 'Token sent to the MCP server');
+    expect(extra).toHaveLength(1);
+    expect(extra[0]).toMatchObject({ raw: tok, alg: 'RS256', rfc: 'RFC 8693', claims: { sub: 'u9' }, hidden: [] });
+    expect(t).toHaveLength(3);
+  });
+  it('no extra card when exchanged-token got raw', () => {
+    const t = run(withTok, [USER, EXCH]).tokens;
+    expect(t).toHaveLength(2);
+    expect(t[1].raw).toBe(tok);
+  });
+  it('no extra card without agentToken', () => {
+    expect(run(frames, [USER, OTHER]).tokens).toHaveLength(2);
+  });
+});
+
 describe('mcpCallFromStore', () => {
   it('inspector success', () => {
     const c = mcpCallFromStore({

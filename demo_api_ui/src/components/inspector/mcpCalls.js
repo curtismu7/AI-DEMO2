@@ -2,7 +2,7 @@
  * Adapters: MCP call-store entries and API-traffic entries -> InspectorCall.
  * Pure functions only.
  */
-import { ok, err, idle, tokensFromEvents, stepsFromTokenEvents } from './inspectorCalls';
+import { ok, err, idle, tokensFromEvents, stepsFromTokenEvents, decodeJwtClient } from './inspectorCalls';
 
 const GRANT = 'urn:ietf:params:oauth:grant-type:token-exchange';
 const words = (s) => String(s ?? '').split(/\s+/).filter(Boolean);
@@ -44,6 +44,18 @@ export function mcpCallFromStore(entry) {
   const insp = body.inspector ?? {};
   const required = insp.requiredScopesHint ?? body.requiredScopesHint;
   const exchanged = tokenEvents.find((e) => e.id === 'exchanged-token');
+  const sentToken = frames?.initializeRequest?.params?.agentToken ?? frames?.request?.params?.agentToken;
+  const tokens = tokensFromEvents(tokenEvents).map((t) => {
+    const raw = t.raw ?? (t.label === exchanged?.label ? sentToken : undefined);
+    return raw ? { ...t, raw } : t;
+  });
+  if (sentToken && !tokens.some((t) => t.raw)) {
+    const dec = decodeJwtClient(sentToken);
+    tokens.push({
+      label: 'Token sent to the MCP server', role: 'The bearer the BFF put in the MCP initialize/tools-call frames. Claims decoded in the browser from the JWT.',
+      alg: dec?.header?.alg ?? null, rfc: 'RFC 8693', status: ok('Sent'), claims: dec?.claims ?? {}, hidden: [], header: dec?.header ?? null, raw: sentToken,
+    });
+  }
   const httpOk = entry.status >= 200 && entry.status < 300;
   const refusal = httpOk ? refusalOf(d.response) : null;
   const errorMsg = entry.errorMsg ?? refusal?.text ?? null;
@@ -109,10 +121,7 @@ export function mcpCallFromStore(entry) {
     response: frames?.response
       ? { label: 'JSON-RPC response', where: 'MCP server → BFF', body: frames.response }
       : { label: 'Result', body: entry.result ?? { error: entry.errorMsg } },
-    tokens: tokensFromEvents(tokenEvents).map((t) => {
-      const raw = t.raw ?? (t.label === exchanged?.label ? (frames?.initializeRequest?.params?.agentToken ?? frames?.request?.params?.agentToken) : undefined);
-      return raw ? { ...t, raw } : t;
-    }),
+    tokens,
     hops,
     steps,
     input: { tool: entry.tool, params: d.params },
