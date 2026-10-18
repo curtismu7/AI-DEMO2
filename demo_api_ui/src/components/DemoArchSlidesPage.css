@@ -309,4 +309,4 @@
 .das-dotfill { fill: var(--th-bg-inset); }
 .das-cur { fill: currentColor; }
 
-.das-select { font: inherit; padding: 8px 12px; border-radius: 999px; border: 1px solid var(--th-border); background: var(--th-bg-card); color: var(--th-text); min-width: 320px; }
+.das-select { font: inherit; padding: 8px 12px; border-radius: var(--radius-pill); border: 1px solid var(--th-border); background: var(--th-bg-card); color: var(--th-text); min-width: 320px; }
