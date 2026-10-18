@@ -1,5 +1,5 @@
 import { createContext, Fragment, useContext, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import IdJagPathBar from "../components/IdJagPathBar";
 import { diagramLinkProps } from "../utils/diagramLinks";
 import { PLAYGROUND_DIAGRAMS, playgroundDiagramPath } from "../utils/idJagPlaygroundDiagrams";
@@ -26,6 +26,7 @@ const MODES = [
 ];
 const BYO_TARGETS = [{ id: "oauth-mcp", label: "oauth-mcp" }, { id: "pingfederate", label: "PingFederate" }];
 const VIEWS = [{ id: "form", label: "Form" }, { id: "json", label: "JSON" }];
+const XAA_BUTTON = "Get an ID-JAG from xaa.dev (IdenX, a free third-party IdP)";
 
 const stored = (key, allowed, fallback) => {
   try { const v = localStorage.getItem(key); return allowed.some((a) => a.id === v) ? v : fallback; } catch { return fallback; }
@@ -426,6 +427,8 @@ export default function IdJagPlaygroundPage() {
   const [gate, setGate] = useState(null);
   const [resource, setResource] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const isMock = mode === "mock";
   const isByo = mode === "byo";
@@ -462,6 +465,11 @@ export default function IdJagPlaygroundPage() {
           if (data.modes?.find((m) => m.id === mode)?.available === false) setMode(data.mode);
           else applyConfig((await bffAxios.post(`${API}/mode`, { mode })).data);
         }
+        // Back from the IdenX sign-in (/xaa/callback): get the ID-JAG at once, or say why sign-in failed.
+        const back = new URLSearchParams(location.search);
+        if (back.has("xaa") || back.has("xaa_error")) navigate(location.pathname, { replace: true });
+        if (back.get("xaa_error")) setError({ step: "xaa", error: "xaa_sign_in_failed", message: `IdenX sign-in did not complete (${back.get("xaa_error")}).` });
+        else if (back.get("xaa") === "signed_in" && mode === "byo") run("xaa", loadXaaIdJag, checkFor("xaa"));
       } catch (e) { setError(e.response?.data || { message: e.message }); }
     })();
     loadNegatives(bffAxios);
@@ -545,6 +553,30 @@ export default function IdJagPlaygroundPage() {
     setInspection(data);
   }, checkFor("issue", { target: byoTarget }));
 
+  // xaa.dev: IdenX (Okta's public playground IdP) issues the ID-JAG. The BFF signs in there, exchanges, and
+  // loads the ID-JAG like a pasted one. Mock mode answers with a sample IdenX ID-JAG.
+  const loadXaaIdJag = async () => {
+    clearResults(); setByoTarget("oauth-mcp");
+    let data;
+    try {
+      ({ data } = await api.post(`${API}/xaa/id-jag`, {}));
+    } catch (e) {
+      // The BFF may have dropped the IdenX session (refused refresh token): refresh so the button signs in again.
+      bffAxios.get(`${API}/config`).then((r) => applyConfig(r.data)).catch(() => {});
+      throw e;
+    }
+    if (data.config) applyConfig(data.config);
+    if (isMock) setIssued(data);
+    setInspection(data);
+  };
+  const xaaIdJag = () => run("xaa", async () => {
+    if (!isMock && !config?.xaa?.signedIn) {
+      window.location.assign(`${API}/xaa/login?return_to=${RETURN_TO}`);
+      return;
+    }
+    await loadXaaIdJag();
+  }, checkFor("xaa"));
+
   const issue = () => run("issue", async () => {
     setRedeemed(null); setTools(null); setCallResult(null); setInspection(null); setResource(null);
     const r = await api.post(`${API}/issue`, {});
@@ -604,7 +636,7 @@ export default function IdJagPlaygroundPage() {
 
   const text = MODE_TEXT[mode];
   // Each step shows the pre-flight result for its own button (byo's Inspect is step 1's).
-  const gateAt = (panel) => gate && (gate.step === "issue" && isByo ? "signin" : gate.step) === panel
+  const gateAt = (panel) => gate && ((gate.step === "issue" && isByo) || gate.step === "xaa" ? "signin" : gate.step) === panel
     && <PreflightPanel gate={gate} onRecheck={recheck} busy={!!busy} />;
   const errorAt = (...steps) => (error && steps.includes(error.step) ? <ErrorNote e={error} resource={config?.request?.resource} /> : null);
   const toolList = tools?.tools || [];
@@ -665,6 +697,19 @@ export default function IdJagPlaygroundPage() {
         {error && !["list", "call", "resource"].includes(error.step) && <ErrorNote e={error} resource={config?.request?.resource} />}
 
         <Step n={1} mode={mode} title={text.signInTitle} note={text.signInNote}>
+          {(isByo || isMock) && (
+            <div className="ijp-xaa" data-testid="ijp-xaa">
+              <button type="button" className="ijp-btn ijp-btn--primary" onClick={xaaIdJag} disabled={!config?.xaa?.available || !!busy}>
+                {busy === "xaa" ? "Getting an ID-JAG…" : XAA_BUTTON}
+              </button>
+              <p className="ijp-note">
+                <a href="https://xaa.dev" target="_blank" rel="noopener noreferrer">xaa.dev</a> is Okta's free Cross App Access playground:
+                its IdP, IdenX, signs you in with any email and any 6-digit code and issues an ID-JAG addressed to our oauth-mcp.
+                {config?.xaa?.signedIn && config.xaa.user ? ` Signed in at IdenX as ${config.xaa.user}.` : ""}
+              </p>
+              {config?.xaa && !config.xaa.available && <p className="ijp-note" role="note" data-testid="ijp-xaa-reason">{config.xaa.reason}</p>}
+            </div>
+          )}
           {isByo ? (
             <>
               <div className="ijp-toolbar__group"><span>Redeem at</span><Segmented label="Target authorization server" options={BYO_TARGETS} value={byoTarget} onPick={setByoTarget} disabled={!!busy} /></div>
@@ -689,7 +734,12 @@ export default function IdJagPlaygroundPage() {
         <Step n={2} mode={mode} title={isByo ? "Check your ID-JAG against the draft" : "Get an ID-JAG from PingFederate"} note={isByo ? null : SPEC_NOTES.issue}>
           {!isByo && <button type="button" className="ijp-btn ijp-btn--primary" onClick={issue} disabled={!canRun || !!busy}>{busy === "issue" ? "Requesting…" : "Request ID-JAG"}</button>}
           {gateAt("issue")}
-          {isByo && inspection && <div className="ijp-io"><div><h4>Decoded ID-JAG</h4><Data value={{ header: inspection.header, claims: inspection.claims }} /></div></div>}
+          {isByo && inspection && (
+            <div className="ijp-io">
+              {inspection.request && <div><h4>Request to IdenX</h4><Data value={inspection.request} /></div>}
+              <div><h4>Decoded ID-JAG</h4><Data value={{ header: inspection.header, claims: inspection.claims }} /></div>
+            </div>
+          )}
           {issued && (
             <div className="ijp-io">
               <div><h4>Request</h4><Data value={issued.request} /></div>
@@ -720,7 +770,7 @@ export default function IdJagPlaygroundPage() {
 
         <Step n={3} mode={mode} title={text.redeemTitle} note={SPEC_NOTES.redeem}>
           <Lifetime id="idjag" label="ID-JAG" exp={idJagClaims?.exp} used={redeemed?.status === 200} now={nowMs}
-            again={isByo ? "Paste a fresh one to redeem again." : "Request a new one to redeem again."} />
+            again={isByo ? "Get or paste a fresh one to redeem again." : "Request a new one to redeem again."} />
           <label className="ijp-field">Scope to request
             <select value={scopePick} disabled={!idJagClaims} onChange={(e) => setRedeemScope(e.target.value)}>
               <option value="">All scopes in this ID-JAG (recommended)</option>

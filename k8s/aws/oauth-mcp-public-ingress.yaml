@@ -1,6 +1,7 @@
 # Public OAuth endpoints of oauth-mcp (the mcp-server container), so an outside party's
 # agent can redeem an ID-JAG from its own IdP at our resource authorization server
-# (RFC 7523 JWT bearer). Only the authorization-server paths are exposed: MCP itself
+# (RFC 7523 JWT bearer). Also the token-protected demo resource (/protected/profile,
+# its own bearer checks) and /health, which xaa.dev's resource tester calls. MCP itself
 # stays behind the MCP gateway. The host is oauth-mcp's issuer (OAUTH_ISSUER), which is
 # also the `aud` an outside IdP must put in the ID-JAG.
 #
@@ -10,6 +11,12 @@ kind: Ingress
 metadata:
   name: oauth-mcp-public
   annotations:
+    # xaa.dev's sandbox calls these from the browser (discovery, /token, the protected
+    # resource). Allow that one origin; every call still needs its own credentials.
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://xaa.dev"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type"
     nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
 spec:
@@ -22,3 +29,31 @@ spec:
           - { path: /jwks, pathType: Exact, backend: { service: { name: mcp-server, port: { number: 8080 } } } }
           - { path: /.well-known/oauth-authorization-server, pathType: Exact, backend: { service: { name: mcp-server, port: { number: 8080 } } } }
           - { path: /.well-known/openid-configuration, pathType: Exact, backend: { service: { name: mcp-server, port: { number: 8080 } } } }
+          - { path: /protected/profile, pathType: Exact, backend: { service: { name: mcp-server, port: { number: 8080 } } } }
+          - { path: /health, pathType: Exact, backend: { service: { name: mcp-server, port: { number: 8080 } } } }
+---
+# xaa.dev's resource tester joins every path onto the registered resource URL
+# (https://cmuir-mcp.ping-devops.com/mcp), so it calls /mcp/health and
+# /mcp/protected/profile. Map exactly those two onto the real routes; /mcp itself
+# (the MCP endpoint) stays private behind the MCP gateway.
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: oauth-mcp-public-xaa-paths
+  annotations:
+    # xaa.dev's sandbox calls these from the browser (discovery, /token, the protected
+    # resource). Allow that one origin; every call still needs its own credentials.
+    nginx.ingress.kubernetes.io/enable-cors: "true"
+    nginx.ingress.kubernetes.io/cors-allow-origin: "https://xaa.dev"
+    nginx.ingress.kubernetes.io/cors-allow-methods: "GET, POST, OPTIONS"
+    nginx.ingress.kubernetes.io/cors-allow-headers: "Authorization, Content-Type"
+    nginx.ingress.kubernetes.io/use-regex: "true"
+    nginx.ingress.kubernetes.io/rewrite-target: /$1
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+spec:
+  ingressClassName: nginx-public
+  rules:
+    - host: cmuir-mcp.ping-devops.com
+      http:
+        paths:
+          - { path: "/mcp/(health|protected/profile)$", pathType: ImplementationSpecific, backend: { service: { name: mcp-server, port: { number: 8080 } } } }

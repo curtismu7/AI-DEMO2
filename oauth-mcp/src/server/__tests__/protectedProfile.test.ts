@@ -83,6 +83,12 @@ describe('GET /protected/profile', () => {
     expect(failed(await run(jwt(evil), verifiedAs(evil)))).toEqual(expect.objectContaining({ check: 'issuer', ok: false }));
   });
 
+  it('serves the profile to the generic read scope (all an xaa.dev IdenX ID-JAG grants)', async () => {
+    const c = claims({ scope: 'read' });
+    const out = await run(jwt(c), verifiedAs(c));
+    expect(out.status).toBe(200);
+  });
+
   it('403s insufficient_scope when the token carries none of the profile scopes', async () => {
     const c = claims({ scope: 'openid profile' });
     const out = await run(jwt(c), verifiedAs(c));

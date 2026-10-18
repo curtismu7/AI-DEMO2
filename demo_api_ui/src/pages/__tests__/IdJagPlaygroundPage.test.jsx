@@ -208,6 +208,79 @@ describe("ID-JAG playground page", () => {
     expect(screen.getByRole("button", { name: "Redeem ID-JAG" })).toBeDisabled();
   });
 
+  // ---- xaa.dev: IdenX (Okta's public XAA playground) as a real outside IdP ----
+
+  const XAA_BUTTON = "Get an ID-JAG from xaa.dev (IdenX, a free third-party IdP)";
+  const XAA_OK = { available: true, reason: null, signedIn: false, user: null };
+  const XAA_INSPECTION = {
+    trusted: true, idp: { id: "xaa-dev", name: "xaa.dev IdenX" }, header: { typ: "oauth-id-jag+jwt" },
+    claims: { iss: "https://idp.xaa.dev", client_id: "xaa-at-oauth-mcp", scope: "read", exp: now() + 300 },
+    checks: [{ id: "iss", label: "Issuer is xaa.dev IdenX", status: "pass", expected: "https://idp.xaa.dev", actual: "https://idp.xaa.dev" }],
+    request: { endpoint: "POST https://idp.xaa.dev/token", body: { audience: "https://as.test", subject_token: "[your IdenX refresh token, kept server-side]" } },
+  };
+  const mountAt = (cfg, path) => {
+    get.mockImplementation(answerGet(cfg, { idps: [], canManage: false }));
+    return render(<MemoryRouter initialEntries={[path]}><IdJagPlaygroundPage /></MemoryRouter>);
+  };
+
+  it("byo: the xaa.dev button signs in at IdenX first (after its pre-flight) and links xaa.dev in a new tab", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    const assign = vi.fn();
+    const orig = window.location;
+    Object.defineProperty(window, "location", { configurable: true, value: { ...orig, assign } });
+    try {
+      mountWith(config({ mode: "byo", publicEndpoints: ENDPOINTS, xaa: XAA_OK }), { idps: [], canManage: false });
+      const link = within(await screen.findByTestId("ijp-xaa")).getByRole("link", { name: "xaa.dev" });
+      expect(link).toHaveAttribute("href", "https://xaa.dev");
+      expect(link).toHaveAttribute("target", "_blank");
+      const btn = screen.getByRole("button", { name: XAA_BUTTON });
+      await waitFor(() => expect(btn).toBeEnabled());
+      fireEvent.click(btn);
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("/api/id-jag-playground/xaa/login?return_to=/pingfederate-id-jag/playground"));
+      expect(get).toHaveBeenCalledWith("/api/id-jag-playground/preflight", { params: expect.objectContaining({ step: "xaa", mode: "byo" }) });
+      expect(post).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: orig });
+    }
+  });
+
+  it("byo: back from IdenX (?xaa=signed_in) it gets the ID-JAG and shows the inspection, ready to redeem", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    post.mockResolvedValue({ data: XAA_INSPECTION });
+    mountAt(config({ mode: "byo", publicEndpoints: ENDPOINTS, xaa: { ...XAA_OK, signedIn: true, user: "alice@example.com" } }),
+      "/pingfederate-id-jag/playground?xaa=signed_in");
+    expect(await screen.findByTestId("ijp-checks")).toHaveTextContent("Spec check: 1 of 1 pass");
+    expect(post).toHaveBeenCalledWith("/api/id-jag-playground/xaa/id-jag", {});
+    expect(screen.getByText("Request to IdenX")).toBeInTheDocument();
+    expect(screen.getByText(/Signed in at IdenX as alice@example.com/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Redeem ID-JAG" })).toBeEnabled());
+  });
+
+  it("byo: shows an IdenX sign-in error from the redirect, and a disabled button with the reason when unavailable", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    mountAt(config({ mode: "byo", publicEndpoints: ENDPOINTS, xaa: { available: false, reason: "Available on the hosted demo: oauth-mcp's issuer here is http://pf-mcp-server:8080." } }),
+      "/pingfederate-id-jag/playground?xaa_error=invalid_state");
+    expect(await screen.findByText(/IdenX sign-in did not complete \(invalid_state\)/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: XAA_BUTTON })).toBeDisabled();
+    expect(screen.getByTestId("ijp-xaa-reason")).toHaveTextContent("Available on the hosted demo");
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("mock: the xaa.dev button gives a sample IdenX ID-JAG that redeems, with no network calls", async () => {
+    localStorage.setItem("idjag.playground.mode", "mock");
+    mount(config());
+    fireEvent.click(screen.getByRole("button", { name: XAA_BUTTON }));
+    const table = await screen.findByTestId("ijp-checks", {}, slow);
+    expect(table).toHaveTextContent("Spec check: 17 of 17 pass");
+    expect(table).toHaveTextContent("https://idp.xaa.dev");
+    const redeem = screen.getByRole("button", { name: "Redeem ID-JAG" });
+    await waitFor(() => expect(redeem).toBeEnabled());
+    fireEvent.click(redeem);
+    expect(await screen.findByText("Response (HTTP 200)", {}, slow)).toBeInTheDocument();
+    expect(get).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  }, 10000);
+
   it("Trusted IdPs: admin adds, edits and deletes (with an in-page confirm)", async () => {
     mountWith(config({ publicEndpoints: ENDPOINTS }), { idps: [IDP], canManage: true });
     post.mockResolvedValue({ data: {} }); put.mockResolvedValue({ data: {} }); del.mockResolvedValue({ data: null });
