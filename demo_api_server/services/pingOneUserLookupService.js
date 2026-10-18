@@ -124,7 +124,7 @@ async function fetchPingOneUserByEmail(email) {
     if (users.length === 0) {
       return { user: null, error: 'not_found' };
     }
-    return { user: normalizePingOneUser(users[0]), error: null };
+    return { user: normalizePingOneUser(users[0]), count: users.length, error: null };
   } catch (err) {
     console.warn('[PingOneUserLookup] email search failed:', err.response?.status, err.response?.data || err.message);
     return { user: null, error: err.response?.data?.message || err.message || 'request_failed' };

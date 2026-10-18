@@ -7,7 +7,7 @@
 // Anything a step can't finish (MFA, a policy screen) returns {fallback:true}
 // and the SPA starts the ordinary redirect login instead.
 const configStore = require('./configStore');
-const { resolvePingOneIdentifier, fetchPingOneUserByUsername } = require('./pingOneUserLookupService');
+const { fetchPingOneUserByUsername, fetchPingOneUserByEmail } = require('./pingOneUserLookupService');
 
 const PI_FLOW_TIMEOUT_MS = 10_000;
 
@@ -203,15 +203,20 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
     if (!secondFactorRequested(req)) return null;
     const typed = username.trim();
     const pf = pending.provider === 'pingfederate';
-    // Username-only lookup removes the UUID-by-id ambiguity; email only when an email was typed.
-    const lookup = !pf && typed.includes('@')
-      ? await resolvePingOneIdentifier(typed)
-      : await fetchPingOneUserByUsername(typed);
+    const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+    // Username-only lookup removes the UUID-by-id ambiguity. An email-looking value is
+    // tried as a username first (that match wins); only then as an email, and only when
+    // EXACTLY ONE account has that email (accounts can share one: ambiguous = fail closed).
+    let lookup = await fetchPingOneUserByUsername(typed);
+    if (!pf && typed.includes('@') && !(lookup?.user && same(lookup.user.username, typed))
+        && (!lookup?.error || lookup.error === 'not_found')) {
+      const byEmail = await fetchPingOneUserByEmail(typed);
+      lookup = byEmail?.count === 1 ? byEmail : { user: null, error: byEmail?.error || 'ambiguous_email' };
+    }
     const user = lookup?.user;
     if (!user?.id) {
       return pf && lookup?.error === 'not_found' ? { passthrough: true } : { unavailable: true };
     }
-    const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
     if (!same(user.username, typed) && !(typed.includes('@') && same(user.email, typed))) return { unavailable: true };
     if (user.enabled === false) return { unavailable: true };
     const channels = [];

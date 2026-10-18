@@ -33,6 +33,7 @@ jest.mock('../services/pingOneUserLookupService', () => ({
   fetchPingOneUserById: jest.fn(),
   fetchPingOneUserByUsername: jest.fn(),
   resolvePingOneIdentifier: jest.fn(),
+  fetchPingOneUserByEmail: jest.fn(),
 }));
 
 const lookup = require('../services/pingOneUserLookupService');
@@ -72,6 +73,7 @@ describe('pi.flow CIBA second factor parking', () => {
     fetchMock = jest.fn();
     global.fetch = fetchMock;
     authCookie.setAuthCookie.mockClear();
+    lookup.fetchPingOneUserByEmail.mockReset().mockResolvedValue({ user: USER, count: 1, error: null });
     lookup.resolvePingOneIdentifier.mockReset().mockResolvedValue({ user: USER, error: null });
     lookup.fetchPingOneUserByUsername.mockReset().mockResolvedValue({ user: USER, error: null });
   });
@@ -296,7 +298,8 @@ describe('pi.flow CIBA second factor parking', () => {
       await closed(await attempt('demoUser'));
     });
     test('PingOne email-typed lookup error -> 502', async () => {
-      lookup.resolvePingOneIdentifier.mockResolvedValue({ user: null, error: 'request_failed' });
+      lookup.fetchPingOneUserByUsername.mockResolvedValue({ user: null, error: 'not_found' });
+      lookup.fetchPingOneUserByEmail.mockResolvedValue({ user: null, count: 0, error: 'request_failed' });
       await closed(await attempt('a@b.test'));
     });
     test('PingOne not_found -> 502', async () => {
@@ -317,7 +320,18 @@ describe('pi.flow CIBA second factor parking', () => {
     test('resolved user whose username/email does not match the typed value -> 502', async () => {
       lookup.fetchPingOneUserByUsername.mockResolvedValue({ user: { ...USER, username: 'someoneElse' }, error: null });
       await closed(await attempt('demoUser'));
-      lookup.resolvePingOneIdentifier.mockResolvedValue({ user: { ...USER, username: 'someoneElse', email: 'other@b.test' }, error: null });
+      lookup.fetchPingOneUserByUsername.mockResolvedValue({ user: null, error: 'not_found' });
+      lookup.fetchPingOneUserByEmail.mockResolvedValue({ user: { ...USER, username: 'someoneElse', email: 'other@b.test' }, count: 1, error: null });
+      await closed(await attempt('a@b.test'));
+    });
+    test('typed email shared by two accounts and equal to no username -> 502', async () => {
+      lookup.fetchPingOneUserByUsername.mockResolvedValue({ user: null, error: 'not_found' });
+      lookup.fetchPingOneUserByEmail.mockResolvedValue({ user: USER, count: 2, error: null });
+      await closed(await attempt('a@b.test'));
+    });
+    test('typed email matching no account and no username -> 502', async () => {
+      lookup.fetchPingOneUserByUsername.mockResolvedValue({ user: null, error: 'not_found' });
+      lookup.fetchPingOneUserByEmail.mockResolvedValue({ user: null, count: 0, error: 'not_found' });
       await closed(await attempt('a@b.test'));
     });
     test('disabled user -> 502, nothing completed', async () => {
@@ -329,10 +343,20 @@ describe('pi.flow CIBA second factor parking', () => {
         const { res } = await attempt(typed);
         expect(res.body.step).toBe('approval');
       }
-      lookup.resolvePingOneIdentifier.mockResolvedValue({ user: USER, error: null });
+      lookup.fetchPingOneUserByUsername.mockResolvedValue({ user: null, error: 'not_found' });
       const { res } = await attempt('A@B.test');
       expect(res.body.step).toBe('approval');
-      expect(lookup.resolvePingOneIdentifier).toHaveBeenCalledWith('A@B.test');
+      expect(lookup.fetchPingOneUserByEmail).toHaveBeenCalledWith('A@B.test');
+      expect(lookup.resolvePingOneIdentifier).not.toHaveBeenCalled();
+    });
+    test('typed value equal to a username (also another user\'s email) parks as the username owner', async () => {
+      const owner = { ...USER, id: 'owner-id', username: 'x@b.test', email: 'owner@b.test' };
+      lookup.fetchPingOneUserByUsername.mockResolvedValue({ user: owner, error: null });
+      lookup.fetchPingOneUserByEmail.mockResolvedValue({ user: USER, count: 2, error: null });
+      const { agent, res } = await attempt('x@b.test');
+      expect(res.body.step).toBe('approval');
+      expect((await agent.get('/t/parked')).body.parked.expectedSub).toBe('owner-id');
+      expect(lookup.fetchPingOneUserByEmail).not.toHaveBeenCalled();
     });
   });
 
