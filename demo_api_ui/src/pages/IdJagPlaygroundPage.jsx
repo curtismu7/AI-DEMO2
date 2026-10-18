@@ -263,8 +263,7 @@ function ResourcePage({ r }) {
               {verified.map((v) => (
                 <li key={v.check} className={v.ok ? "is-pass" : "is-fail"}>
                   <span className="ijp-verify__mark" aria-hidden="true">{v.ok ? "✔" : "✗"}</span>
-                  <span className="ijp-sr">{v.ok ? "pass" : "fail"}</span>
-                  <strong>{v.check}</strong> <span className="ijp-cite">{v.detail}</span>
+                  <div><span className="ijp-sr">{v.ok ? "pass" : "fail"}</span><strong>{v.check}</strong> <span className="ijp-cite">{v.detail}</span></div>
                 </li>
               ))}
             </ul>
