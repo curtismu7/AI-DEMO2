@@ -77,6 +77,8 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
         console.warn('[oauth/pi-flow] authorize did not open a flow: HTTP %s', r.status);
         return res.status(502).json({ error: 'pi_flow_unavailable' });
       }
+      // A new login supersedes any parked (password-verified) flow of this session.
+      delete req.session.oauthPiFlowParked;
       req.session.oauthPiFlow = { flowId: flow.id, provider, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r), status: flow.status };
       // Echo the authorize request's login_hint so the SPA can prefill, as the
       // hosted login page does. PingFederate BINDS the flow to the hint
@@ -151,10 +153,10 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
     return { redirectTo: callback.toString() };
   }
 
-  async function completePiFlow(req, res, pending, cookies, body) {
+  async function completePiFlow(req, res, pending, cookies, body, extra = {}) {
     const result = await finishPiFlow(req, pending, cookies, body);
     if (result.error) return res.status(result.status).json({ error: result.error });
-    return req.session.save(() => res.json({ redirectTo: result.redirectTo }));
+    return req.session.save(() => res.json({ redirectTo: result.redirectTo, ...extra }));
   }
 
   // --- Parked flow: password verified, login withheld until a second factor ---
@@ -177,7 +179,8 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
     const parked = getParkedFlow(req) && req.session.oauthPiFlowParked;
     if (!parked) return { status: 409, error: 'no_parked_flow' };
     clearParked(req);
-    await new Promise((resolve) => { req.session.save(() => resolve()); });
+    const saveErr = await new Promise((resolve) => { req.session.save((err) => resolve(err)); });
+    if (saveErr) return { status: 502, error: 'approval_unavailable' }; // fail closed: never finish unless the burn was persisted
     try {
       return await finishPiFlow(req, parked.pending, parked.cookies, parked.body);
     } catch (error) {
@@ -187,16 +190,30 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
   }
 
   // Park a finished password flow when the browser asked for a CIBA second factor.
-  // PingOne users resolve by username/id/email; a PingFederate user maps to the PingOne
-  // account with the same username. Returns the channels, or null (do not park).
+  // Returns null (factor not requested), { channels } (parked), { passthrough } (PF user with
+  // no PingOne account: normal completion) or { unavailable } (FAIL CLOSED: any failure to
+  // identify the account must never degrade to a password-only session).
+  // The typed username is cross-checked against the resolved account so a crafted value
+  // (another user's id/email) cannot park a flow whose approver is a different person.
+  // Known gaps, by design: only a COMPLETED straight from the password step parks (a flow
+  // reaching COMPLETED after identifier-first lookup, OTP, passkey or PF MFA_COMPLETED never
+  // does), and single use is per session, not atomic across truly concurrent requests (the
+  // downstream PingOne resume / PF code are themselves single-use).
   async function parkIfSecondFactor(req, pending, cookies, body, username) {
-    if (!allowSecondFactor || req.body?.secondFactor !== 'ciba') return null;
-    if (configStore.getEffective('ciba_login_enabled') !== 'true') return null;
-    const lookup = pending.provider === 'pingfederate'
-      ? await fetchPingOneUserByUsername(username)
-      : await resolvePingOneIdentifier(username);
+    if (!secondFactorRequested(req)) return null;
+    const typed = username.trim();
+    const pf = pending.provider === 'pingfederate';
+    // Username-only lookup removes the UUID-by-id ambiguity; email only when an email was typed.
+    const lookup = !pf && typed.includes('@')
+      ? await resolvePingOneIdentifier(typed)
+      : await fetchPingOneUserByUsername(typed);
     const user = lookup?.user;
-    if (!user?.id || user.enabled === false) return null;
+    if (!user?.id) {
+      return pf && lookup?.error === 'not_found' ? { passthrough: true } : { unavailable: true };
+    }
+    const same = (a, b) => String(a || '').trim().toLowerCase() === String(b || '').trim().toLowerCase();
+    if (!same(user.username, typed) && !(typed.includes('@') && same(user.email, typed))) return { unavailable: true };
+    if (user.enabled === false) return null;
     const channels = [];
     if (user.email) channels.push('email');
     if (user.mobilePhone) channels.push('sms');
@@ -209,20 +226,24 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
       parkedAt: Date.now(),
     };
     delete req.session.oauthPiFlow;
-    return channels;
+    return { channels };
   }
+
+  const secondFactorRequested = (req) => allowSecondFactor
+    && req.body?.secondFactor === 'ciba'
+    && configStore.getEffective('ciba_login_enabled') === 'true';
 
   // What to do with the flow's status after a step. Steps this BFF cannot drive
   // (policy screens) return fallback:true and the SPA restarts the ordinary
   // redirect login — a sign-in never dead-ends here.
-  async function respondAfterPiFlowStep(req, res, pending, body, cookies) {
+  async function respondAfterPiFlowStep(req, res, pending, body, cookies, extra = {}) {
     // PingFederate's PingOne MFA adapter ends at MFA_COMPLETED; continueAuthentication moves the
     // policy on (to COMPLETED with the authorizeResponse). Unhandled, it fell back to the hosted
     // login page, which asked for the password after a successful code.
     if (pending.provider === 'pingfederate' && body.status === 'MFA_COMPLETED') {
       const next = await postPiFlowStep({ ...pending, cookies }, 'application/vnd.pingidentity.continueAuthentication+json', {});
       if (!next.step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
-      return respondAfterPiFlowStep(req, res, pending, next.body, next.cookies);
+      return respondAfterPiFlowStep(req, res, pending, next.body, next.cookies, extra);
     }
     if (body.status === 'COMPLETED') return completePiFlow(req, res, pending, cookies, body);
     // Passkey (ASSERTION_REQUIRED) — both providers. PF's shape carries the same
@@ -260,7 +281,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
         aggregateFido2Devices: Boolean(body.aggregateFido2Devices),
       }));
     }
-    return res.json({ fallback: true, status: body.status });
+    return res.json({ fallback: true, status: body.status, ...extra });
   }
 
   function openPiFlowOrReject(req, res) {
@@ -307,10 +328,17 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
       }
       if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
       if (body?.status === 'COMPLETED') {
-        const channels = await parkIfSecondFactor(req, pending, cookies, body, username);
-        if (channels) return req.session.save(() => res.json({ step: 'approval', channels }));
+        const parked = await parkIfSecondFactor(req, pending, cookies, body, username);
+        if (parked?.unavailable) return res.status(502).json({ error: 'approval_unavailable' });
+        if (parked?.passthrough) return await completePiFlow(req, res, pending, cookies, body, { secondFactorSkipped: true });
+        if (parked?.channels) {
+          return req.session.save((err) => {
+            if (err) { delete req.session.oauthPiFlowParked; return res.status(502).json({ error: 'approval_unavailable' }); }
+            return res.json({ step: 'approval', channels: parked.channels });
+          });
+        }
       }
-      return await respondAfterPiFlowStep(req, res, pending, body, cookies);
+      return await respondAfterPiFlowStep(req, res, pending, body, cookies, secondFactorRequested(req) ? { secondFactorSkipped: true } : {});
     } catch (error) {
       console.warn('[oauth/pi-flow] credentials step failed:', error.message);
       return res.status(502).json({ error: 'pi_flow_failed' });
