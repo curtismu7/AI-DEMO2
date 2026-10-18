@@ -41,6 +41,19 @@ describe("ID-JAG playground page", () => {
     expect(screen.getByRole("button", { name: "Request ID-JAG" })).toBeDisabled();
   });
 
+  it("links the current mode's diagram and each step on it, in a new tab", async () => {
+    localStorage.setItem("idjag.playground.mode", "mock");
+    mount(config());
+    const mode = screen.getByRole("link", { name: "View Mock diagram ↗" });
+    expect(mode).toHaveAttribute("href", "/pingfederate-id-jag/playground/diagram/mock");
+    expect(mode).toHaveAttribute("target", "_blank");
+    const step3 = screen.getByRole("link", { name: "see step 3 on the diagram ↗" });
+    expect(step3).toHaveAttribute("href", "/pingfederate-id-jag/playground/diagram/mock?step=3");
+    expect(step3).toHaveAttribute("target", "_blank");
+    expect(step3).toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.getAllByRole("link", { name: /^see step \d on the diagram/ })).toHaveLength(5);
+  });
+
   it("shows a message instead of crashing when the BFF has no playground API", async () => {
     mount("<!doctype html><html></html>");
     expect(await screen.findByText(/does not have the ID-JAG playground API/)).toBeInTheDocument();

@@ -1546,6 +1546,11 @@ export default function AdminSideNav({
         path: "/pingfederate-id-jag/playground",
         searchAlias: "ID-JAG playground XAA cross app access validate test negative tests spec checker PingFederate oauth-mcp",
       },
+      {
+        label: "ID-JAG Playground diagrams",
+        path: "/pingfederate-id-jag/playground/diagram/oauth-mcp",
+        searchAlias: "ID-JAG playground diagram mock oauth-mcp PingFederate to PingFederate bring your own IdP trusted IdPs simulate flow",
+      },
       "PingFederate ID-JAG (Node)",
       "Workload Agents · 3rd-party MCP via ID-JAG",
       "Enterprise-Managed MCP Auth",

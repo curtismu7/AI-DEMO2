@@ -2264,7 +2264,9 @@
   border-radius: 8px;
   background: var(--th-bg-card);
   color: var(--th-text);
-  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  /* App font with fixed-width digits; monospace is banned (uiRegression.test.js). */
+  font-family: inherit;
+  font-variant-numeric: tabular-nums;
   font-size: 2rem;
   font-weight: 700;
   letter-spacing: 0.25em;

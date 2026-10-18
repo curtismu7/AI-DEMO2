@@ -1,5 +1,8 @@
 import { createContext, Fragment, useContext, useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import IdJagPathBar from "../components/IdJagPathBar";
+import { diagramLinkProps } from "../utils/diagramLinks";
+import { PLAYGROUND_DIAGRAMS, playgroundDiagramPath } from "../utils/idJagPlaygroundDiagrams";
 import bffAxios from "../services/bffAxios";
 import { openSignIn } from "../utils/signInService";
 import { MOCK_CONFIG, mockApi } from "../utils/idJagPlaygroundMock";
@@ -119,12 +122,19 @@ function Segmented({ label, options, value, onPick, disabled }) {
   );
 }
 
-function Step({ n, title, note, children }) {
+/** A link to this mode's diagram (step `step` lit); diagrams always open in a new tab. */
+function DiagramLink({ mode, step, children }) {
+  const to = playgroundDiagramPath(mode, step);
+  return <Link className="ijp-diagram-link" to={to} {...diagramLinkProps(to)}>{children}</Link>;
+}
+
+function Step({ n, title, note, mode, children }) {
   return (
     <section className="ijp-step" aria-labelledby={`ijp-step-${n}`}>
       <header className="ijp-step__head">
         <span className="ijp-step__n">{n}</span>
         <h2 id={`ijp-step-${n}`}>{title}</h2>
+        <DiagramLink mode={mode} step={n}>see step {n} on the diagram ↗</DiagramLink>
       </header>
       {note && <p className="ijp-note">{note}</p>}
       {children}
@@ -629,7 +639,8 @@ export default function IdJagPlaygroundPage() {
         </header>
 
         <div className="ijp-toolbar">
-          <div className="ijp-toolbar__group"><span>Mode</span><Segmented label="Playground mode" options={modeOptions} value={mode} onPick={pickMode} disabled={!!busy} /></div>
+          <div className="ijp-toolbar__group"><span>Mode</span><Segmented label="Playground mode" options={modeOptions} value={mode} onPick={pickMode} disabled={!!busy} />
+            <DiagramLink mode={mode}>View {PLAYGROUND_DIAGRAMS[mode].label} diagram ↗</DiagramLink></div>
           <div className="ijp-toolbar__group"><span>View</span><Segmented label="Data view" options={VIEWS} value={view} onPick={pickView} /></div>
         </div>
         {gateAt("mode")}
@@ -653,7 +664,7 @@ export default function IdJagPlaygroundPage() {
         )}
         {error && !["list", "call", "resource"].includes(error.step) && <ErrorNote e={error} resource={config?.request?.resource} />}
 
-        <Step n={1} title={text.signInTitle} note={text.signInNote}>
+        <Step n={1} mode={mode} title={text.signInTitle} note={text.signInNote}>
           {isByo ? (
             <>
               <div className="ijp-toolbar__group"><span>Redeem at</span><Segmented label="Target authorization server" options={BYO_TARGETS} value={byoTarget} onPick={setByoTarget} disabled={!!busy} /></div>
@@ -675,7 +686,7 @@ export default function IdJagPlaygroundPage() {
           {gateAt("signin")}
         </Step>
 
-        <Step n={2} title={isByo ? "Check your ID-JAG against the draft" : "Get an ID-JAG from PingFederate"} note={isByo ? null : SPEC_NOTES.issue}>
+        <Step n={2} mode={mode} title={isByo ? "Check your ID-JAG against the draft" : "Get an ID-JAG from PingFederate"} note={isByo ? null : SPEC_NOTES.issue}>
           {!isByo && <button type="button" className="ijp-btn ijp-btn--primary" onClick={issue} disabled={!canRun || !!busy}>{busy === "issue" ? "Requesting…" : "Request ID-JAG"}</button>}
           {gateAt("issue")}
           {isByo && inspection && <div className="ijp-io"><div><h4>Decoded ID-JAG</h4><Data value={{ header: inspection.header, claims: inspection.claims }} /></div></div>}
@@ -707,7 +718,7 @@ export default function IdJagPlaygroundPage() {
           )}
         </Step>
 
-        <Step n={3} title={text.redeemTitle} note={SPEC_NOTES.redeem}>
+        <Step n={3} mode={mode} title={text.redeemTitle} note={SPEC_NOTES.redeem}>
           <Lifetime id="idjag" label="ID-JAG" exp={idJagClaims?.exp} used={redeemed?.status === 200} now={nowMs}
             again={isByo ? "Paste a fresh one to redeem again." : "Request a new one to redeem again."} />
           <label className="ijp-field">Scope to request
@@ -731,7 +742,7 @@ export default function IdJagPlaygroundPage() {
           )}
         </Step>
 
-        <Step n={4} title="Call the MCP server with the new token" note={text.call}>
+        <Step n={4} mode={mode} title="Call the MCP server with the new token" note={text.call}>
           <Lifetime id="token" label="Access token" exp={tokenExp} now={nowMs} again="Request and redeem a new ID-JAG." />
           <button type="button" className="ijp-btn" onClick={listTools} disabled={!canRun || !redeemed?.token || !!busy}>{busy === "list" ? "Listing…" : "List tools this token can see"}</button>
           {gateAt("call")}
@@ -814,7 +825,7 @@ export default function IdJagPlaygroundPage() {
           {resource && (view === "json" ? <Data value={resource} /> : <ResourcePage r={resource} />)}
         </section>
 
-        <Step n={5} title="Negative tests against the authorization server" note={isByo ? SPEC_NOTES.negativeByo : SPEC_NOTES.negative}>
+        <Step n={5} mode={mode} title="Negative tests against the authorization server" note={isByo ? SPEC_NOTES.negativeByo : SPEC_NOTES.negative}>
           <button type="button" className="ijp-btn" onClick={runAllNegatives} disabled={!canRun || (isByo && !hasIdJag) || !!busy}>{busy === "neg-all" ? "Running…" : "Run all"}</button>
           {gateAt("negative")}
           <ul className="ijp-negatives">
