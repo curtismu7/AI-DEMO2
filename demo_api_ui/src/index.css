@@ -324,7 +324,7 @@ textarea::placeholder {
   --th-bg-page: #f6f7f9;
   --th-bg-card: #ffffff;
   --th-bg-inset: #f1f5f9;
-  --th-bg-band: #16325c;
+  --th-bg-band: #051727;
   --th-text: #0f172a;
   /* Four emphasis levels, not one. #0f172a / #374151 / #556070 /
      #94a3b8 are used as heading / body / secondary / faint; collapsing
@@ -441,7 +441,7 @@ textarea::placeholder {
   --th-bg-page: #0b1220;
   --th-bg-card: #131c2e;
   --th-bg-inset: #1b2540;
-  --th-bg-band: #102847;
+  --th-bg-band: #051727;
   /* Readable ink must stay bright on every dark surface. The previous slate
      ladder made inherited copy, labels, and helper text disappear against
      dashboard and modal navies. Hierarchy now comes from size/weight, not

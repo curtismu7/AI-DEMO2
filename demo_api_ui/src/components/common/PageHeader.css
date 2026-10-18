@@ -1,0 +1,111 @@
+/* Shared page header (option B: Core Dark gradient band). Ping palette only. */
+.ping-page-header {
+  padding: 28px 32px;
+  background: linear-gradient(90deg, var(--th-bg-band, #051727) 58%, #12538d);
+  color: #ffffff;
+  font-family: var(--font-primary, "Montserrat", sans-serif);
+}
+
+.ping-back-link {
+  display: inline-block;
+  margin-bottom: 14px;
+  font-size: 13px;
+  font-weight: 600;
+  color: #d20e0f;
+  text-decoration: none;
+}
+
+.ping-back-link:hover,
+.ping-back-link:focus-visible {
+  color: #aa0005;
+  text-decoration: underline;
+}
+
+.ping-page-header .ping-back-link {
+  color: #ffffff;
+  opacity: 0.85;
+}
+
+.ping-page-header .ping-back-link:hover,
+.ping-page-header .ping-back-link:focus-visible {
+  color: #ffffff;
+  opacity: 1;
+}
+
+.ping-page-header__row {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  gap: 16px;
+}
+
+.ping-page-header .ping-page-header__eyebrow {
+  margin: 0 0 6px;
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: #fcfcfc;
+  opacity: 0.8;
+}
+
+.ping-page-header .ping-page-header__title {
+  margin: 0 0 8px;
+  font-size: var(--font-size-h1, 28px);
+  font-weight: 700;
+  line-height: 1.2;
+  letter-spacing: -0.01em;
+  color: #ffffff;
+}
+
+.ping-page-header .ping-page-header__summary {
+  max-width: 720px;
+  margin: 0;
+  font-size: 15px;
+  line-height: 1.55;
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.ping-page-header .ping-page-header__summary a {
+  color: #ffffff;
+  text-decoration: underline;
+}
+
+.ping-page-header__side {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-shrink: 0;
+}
+
+.ping-page-header__badge {
+  padding: 4px 10px;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.08em;
+}
+
+@media (max-width: 640px) {
+  .ping-page-header {
+    padding: 20px 16px;
+  }
+  .ping-page-header__row {
+    flex-direction: column;
+  }
+}
+
+.ping-page-header > input {
+  display: block;
+  margin-top: 16px;
+}
+
+.ping-page-header .ping-page-header__summary code {
+  color: #ffffff;
+  padding: 0.1rem 0.35rem;
+  border-radius: var(--radius-sm, 4px);
+  background: rgba(255, 255, 255, 0.14);
+  font-family: var(--font-mono);
+  font-size: 0.85em;
+}

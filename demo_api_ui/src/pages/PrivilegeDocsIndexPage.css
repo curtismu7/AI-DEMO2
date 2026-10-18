@@ -12,40 +12,6 @@
   font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
 }
 
-.pdi-header {
-  padding: 2rem 3rem 1.5rem;
-  border-bottom: 1px solid var(--th-border);
-  background: var(--th-bg-band);
-  color: var(--th-text-invert);
-}
-
-.pdi-header-inner {
-  max-width: 1080px;
-  margin: 0 auto;
-  padding: 0 1rem;
-}
-
-.pdi-eyebrow {
-  margin: 0 0 0.5rem;
-  font-size: var(--font-size-xs);
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  color: var(--th-text-invert);
-  opacity: 0.75;
-}
-
-.pdi-header h1 {
-  margin: 0 0 0.5rem;
-  font-size: var(--font-size-h1);
-}
-
-.pdi-sub {
-  margin: 0;
-  max-width: 78ch;
-  font-size: var(--font-size-sm);
-  opacity: 0.85;
-}
-
 .pdi-body {
   max-width: 1080px;
   margin: 0 auto;

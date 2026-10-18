@@ -4,6 +4,7 @@ import { notifyError } from "../utils/appToast";
 import { parsePageCatalog } from "../utils/parsePageCatalog";
 import { NAV_STRUCTURE_CATALOG } from "../config/navStructureCatalog";
 import catalogMd from "../data/pageCatalog.md?raw";
+import PageHeader from "../components/common/PageHeader";
 import "./PageCatalogPage.css";
 
 const GROUPS = parsePageCatalog(catalogMd);
@@ -74,13 +75,12 @@ export default function PageCatalogPage() {
 
   return (
     <div className="pcat-page">
-      <header className="pcat-head">
-        <p className="pcat-eyebrow">PAGE CATALOG</p>
-        <h1>Every page: what it does, teaches and demos</h1>
-        <p className="pcat-sub">
-          Untick a page to hide it from your side nav; tick it to bring it back. {total} pages.
-          Changes save immediately and apply only to you.
-        </p>
+      <PageHeader
+        className="pcat-head"
+        eyebrow="Page Catalog"
+        title="Every page: what it does, teaches and demos"
+        summary={`Untick a page to hide it from your side nav; tick it to bring it back. ${total} pages. Changes save immediately and apply only to you.`}
+      >
         <input
           type="search"
           className="pcat-search"
@@ -89,7 +89,7 @@ export default function PageCatalogPage() {
           onChange={(e) => setQuery(e.target.value)}
           aria-label="Filter pages"
         />
-      </header>
+      </PageHeader>
 
       {error ? <p className="pcat-note pcat-note--error" role="alert">Could not load your side-nav settings: {error}</p> : null}
       {!flagOn && !loading ? (

@@ -5,7 +5,6 @@
   color: var(--th-text);
 }
 
-.mcp-discovery-header,
 .mcp-discovery-panel-heading,
 .mcp-discovery-actions {
   display: flex;
@@ -14,11 +13,9 @@
   gap: 16px;
 }
 
-.mcp-discovery-header { max-width: 1500px; margin: 0 auto 20px; align-items: flex-end; }
+.mcp-discovery-header { max-width: 1500px; margin: 0 auto 20px; border-radius: var(--radius-lg); }
 .mcp-discovery-eyebrow { margin: 0 0 5px; color: var(--th-bg-emphasis); font-size: var(--font-size-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.mcp-discovery-header h1 { margin: 0; color: var(--th-text); font-size: var(--font-size-2xl); }
-.mcp-discovery-subtitle { max-width: 720px; margin: 7px 0 0; color: var(--th-text-body); font-size: var(--font-size-body); }
-.mcp-discovery-updated { color: var(--th-text-body); font-size: var(--font-size-xs); white-space: nowrap; }
+.mcp-discovery-updated { color: #ffffff; font-size: var(--font-size-xs); white-space: nowrap; }
 .mcp-discovery-button {
   border: 1px solid var(--th-border-strong);
   border-radius: 6px;
