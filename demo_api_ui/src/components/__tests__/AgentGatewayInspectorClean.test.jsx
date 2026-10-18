@@ -227,3 +227,101 @@ describe('AgentGatewayInspectorClean ordering', () => {
     expect(screen.queryByText('Live', { selector: '.insp-chip' })).toBeNull();
   });
 });
+
+describe('AgentGatewayInspectorClean Vertical select', () => {
+  const renderAt = (url) => render(<MemoryRouter initialEntries={[url]}><AgentGatewayInspectorClean /></MemoryRouter>);
+  const optionsOf = (label) => [...screen.getByLabelText(label).options].map((o) => o.value);
+  const scenarioLabels = () => [...screen.getByLabelText('Scenario').options].map((o) => o.textContent);
+  const ready = () => screen.findByRole('button', { name: /create_\s?withdrawal/ });
+
+  it('defaults to banking with the original scenarios, tools and args', async () => {
+    renderAt('/');
+    await ready();
+    expect(screen.getByLabelText('Vertical').value).toBe('banking');
+    expect(scenarioLabels()).toEqual([
+      'Custom', 'Read accounts (expect PERMIT)', 'Sensitive read (expect DENY)', 'Withdrawal (expect approval)',
+      'Run chain: accounts → balance → sensitive', 'Attack library: Schema Violation', 'Attack library: Tool Poisoning',
+    ]);
+    expect(screen.getByLabelText('Tool').value).toBe('get_my_accounts');
+    expect(optionsOf('Tool')).not.toContain('view_records');
+    fireEvent.change(screen.getByLabelText('Scenario'), { target: { value: 'withdrawal' } });
+    expect(JSON.parse(screen.getByLabelText('Arguments (JSON)').value)).toEqual({ account_id: '', amount: 500 });
+  });
+
+  it('?vertical= sets the initial vertical, its scenarios and its tools', async () => {
+    renderAt('/?vertical=healthcare');
+    await ready();
+    expect(screen.getByLabelText('Vertical').value).toBe('healthcare');
+    expect(scenarioLabels()).toContain('Read records (expect PERMIT)');
+    expect(scenarioLabels().some((l) => l.startsWith('Attack library'))).toBe(false);
+    expect(screen.getByLabelText('Tool').value).toBe('view_records');
+    expect(optionsOf('Tool')).toContain('release_records');
+    expect(optionsOf('Tool')).not.toContain('get_my_accounts');
+    fireEvent.change(screen.getByLabelText('Scenario'), { target: { value: 'approval' } });
+    expect(screen.getByLabelText('Tool').value).toBe('pay_bill');
+    expect(JSON.parse(screen.getByLabelText('Arguments (JSON)').value)).toEqual({ billId: '404', amount: 500 });
+  });
+
+  it('an unknown ?vertical= falls back to banking', async () => {
+    renderAt('/?vertical=nope');
+    await ready();
+    expect(screen.getByLabelText('Vertical').value).toBe('banking');
+    expect(scenarioLabels()).toContain('Read accounts (expect PERMIT)');
+  });
+
+  it('changing the vertical swaps the tools and re-fills the arguments', async () => {
+    renderAt('/');
+    await ready();
+    fireEvent.change(screen.getByLabelText('Arguments (JSON)'), { target: { value: '{"x":1}' } });
+    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'government' } });
+    await waitFor(() => expect(screen.getByLabelText('Tool').value).toBe('view_permits'));
+    expect(screen.getByLabelText('Arguments (JSON)').value).toBe('{}');
+    expect(optionsOf('Tool')).toContain('pay_fee');
+    expect(optionsOf('Tool')).not.toContain('create_withdrawal');
+    fireEvent.change(screen.getByLabelText('Scenario'), { target: { value: 'approval' } });
+    expect(JSON.parse(screen.getByLabelText('Arguments (JSON)').value)).toEqual({ amount: 480 });
+  });
+
+  it('a vertical chain passes the id captured from step 1 to the step that needs it', async () => {
+    const RECORDS = { success: true, render: 'view_records', data: { records: [{ id: '101', recordType: 'Primary Care' }] } };
+    apiClient.post.mockImplementation((url, body) => Promise.resolve(PERMIT(body.tool === 'view_records' ? RECORDS : {})));
+    renderAt('/?vertical=healthcare');
+    await ready();
+    fireEvent.change(screen.getByLabelText('Scenario'), { target: { value: 'chain' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledTimes(3));
+    expect(apiClient.post.mock.calls.map((c) => c[1])).toEqual([
+      { tool: 'view_records', args: {} },
+      { tool: 'release_records', args: { recordId: '101' } },
+      { tool: 'sensitive_patient_records', args: {} },
+    ]);
+  });
+
+  it('Resend and Edit still use the call\'s own input after a vertical change', async () => {
+    apiClient.post.mockResolvedValue(PERMIT(ACCOUNTS));
+    renderAt('/');
+    await ready();
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByRole('button', { name: /get_\s?my_\s?accounts.*PERMIT/ });
+    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'retail' } });
+    await waitFor(() => expect(screen.getByLabelText('Tool').value).toBe('list_orders'));
+    apiClient.post.mockClear();
+    fireEvent.click(screen.getByRole('button', { name: 'Resend' }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/mcp-gateway/test', { tool: 'get_my_accounts', args: {} }));
+    fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
+    expect(screen.getByLabelText('Tool').value).toBe('get_my_accounts');
+  });
+
+  it('labels verticals with the app list names', async () => {
+    vi.stubGlobal('fetch', vi.fn(() => Promise.resolve({ ok: true, json: () => Promise.resolve([{ id: 'banking', displayName: 'Super Banking' }, { id: 'healthcare', displayName: 'CareConnect' }]) })));
+    try {
+      renderAt('/');
+      await ready();
+      expect(await screen.findByRole('option', { name: 'CareConnect' })).toBeInTheDocument();
+      expect(screen.getByRole('option', { name: 'Super Banking' })).toBeInTheDocument();
+      expect(screen.queryByRole('option', { name: 'retail' })).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
+  });
+});

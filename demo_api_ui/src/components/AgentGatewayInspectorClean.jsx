@@ -5,20 +5,19 @@ import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { extractCapturedValues, unwrapMcpResult } from './AgentGatewayTester';
 import { TOOL_ATTACKS } from '../config/toolAttackCatalog';
+import { argsFor, belongsElsewhere } from '../config/inspectorVerticals';
 import InspectorLayout from './inspector/InspectorLayout';
+import { useInspectorVertical } from './inspector/useInspectorVertical';
 import { ok, warn, err, idle } from './inspector/inspectorCalls';
 import {
   gatewayCallFromTest, gatewayCallsFromBurst, gatewayCallFromRecord, dedupeGatewayCalls, logLinesFor,
 } from './inspector/gatewayCalls';
 
 const POLL_MS = 5000;
-const CHAIN_STEPS = ['get_my_accounts', 'get_account_balance', 'get_sensitive_account_details'];
-const CHAIN = 'chain';
 const CUSTOM = 'custom';
-const NEEDS_ACCOUNT_HINT = 'Run "Read accounts" first to fill account_id.';
 
-/** First account id in a get_my_accounts result body, parsed the way the Tester does. */
-const accountIdOf = (body) => extractCapturedValues('get_my_accounts', unwrapMcpResult(body)).find((c) => c.family === 'account')?.value ?? '';
+/** The id a capture step's result carries (e.g. the first account id), parsed the way the Tester does. */
+const capturedId = (cap, body) => extractCapturedValues(cap.tool, unwrapMcpResult(body)).find((c) => c.family === cap.family)?.value ?? '';
 
 const RELATED = [
   { label: 'Gateway tester', to: '/agent-gateway-capabilities' },
@@ -39,14 +38,14 @@ const SOURCES = [
   { value: 'node', label: 'Demo MCP Gateway (Node)' },
 ];
 
-const SCENARIOS = [
+/** The vertical's scenarios, then the attack-library entries that use its tools. */
+const scenariosFor = (v) => [
   { id: CUSTOM, label: 'Custom' },
-  { id: 'read', label: 'Read accounts (expect PERMIT)', tool: 'get_my_accounts', args: {} },
-  { id: 'sensitive', label: 'Sensitive read (expect DENY)', tool: 'get_sensitive_account_details', args: { account_id: '' } },
-  { id: 'withdrawal', label: 'Withdrawal (expect approval)', tool: 'create_withdrawal', args: { account_id: '', amount: 500 } },
-  { id: CHAIN, label: 'Run chain: accounts → balance → sensitive', tool: CHAIN_STEPS[0], args: {} },
-  ...TOOL_ATTACKS.map((a) => ({ id: 'attack:' + a.id, label: 'Attack library: ' + a.label, tool: a.tool, args: a.args })),
+  ...v.scenarios,
+  ...TOOL_ATTACKS.filter((a) => v.tools.includes(a.tool)).map((a) => ({ id: 'attack:' + a.id, label: 'Attack library: ' + a.label, tool: a.tool, args: a.args })),
 ];
+
+const argsJson = (v, tool) => JSON.stringify(argsFor(v, tool), null, 2);
 
 const CALLS_NOTE = 'Includes every call the gateway reported, from you and from agents.';
 
@@ -76,8 +75,16 @@ export default function AgentGatewayInspectorClean() {
   const [logsById, setLogsById] = useState({});
   const [pickedId, setPickedId] = useState(null);
   const [scenario, setScenario] = useState(CUSTOM);
-  const [tool, setTool] = useState('get_my_accounts');
-  const [argsText, setArgsText] = useState('{}');
+  // A vertical change starts over on that vertical's read tool.
+  const { id: verticalId, vertical, field: verticalField } = useInspectorVertical((v) => {
+    setScenario(CUSTOM);
+    setTool(v.scenarios[0].tool);
+    setArgsText(argsJson(v, v.scenarios[0].tool));
+    setHint('');
+  });
+  const scenarios = useMemo(() => scenariosFor(vertical), [vertical]);
+  const [tool, setTool] = useState(() => vertical.scenarios[0].tool);
+  const [argsText, setArgsText] = useState(() => argsJson(vertical, vertical.scenarios[0].tool));
   const [repeat, setRepeat] = useState(1);
   const [busy, setBusy] = useState(false);
   const [hint, setHint] = useState('');
@@ -163,15 +170,17 @@ export default function AgentGatewayInspectorClean() {
 
   const pickScenario = (id) => {
     setScenario(id);
-    const s = SCENARIOS.find((x) => x.id === id);
-    if (!s?.tool) return;
-    let args = s.args ?? {};
-    if ('account_id' in args) {
-      const known = calls.filter((c) => c.title === 'get_my_accounts' && c.status.tone === 'ok').map((c) => accountIdOf(c.response.body)).find(Boolean) ?? '';
-      args = { ...args, account_id: known };
-      setHint(known ? '' : NEEDS_ACCOUNT_HINT);
+    const s = scenarios.find((x) => x.id === id);
+    const first = s?.steps?.[0] ?? s;
+    if (!first?.tool) return;
+    let args = first.args ?? {};
+    const cap = vertical.capture;
+    if (cap && args[cap.arg] === '') {
+      const known = calls.filter((c) => c.title === cap.tool && c.status.tone === 'ok').map((c) => capturedId(cap, c.response.body)).find(Boolean) ?? '';
+      args = { ...args, [cap.arg]: known };
+      setHint(known ? '' : cap.hint);
     } else setHint('');
-    setTool(s.tool);
+    setTool(first.tool);
     setArgsText(JSON.stringify(args, null, 2));
   };
 
@@ -182,20 +191,22 @@ export default function AgentGatewayInspectorClean() {
     return gatewayCallFromTest(res, { tool: t, args, gatewayUrl: active?.url, at });
   }, [active]);
 
-  const run = useCallback(async (t, args, count = 1, chain = false) => {
+  // chain: { steps, capture } — later steps get the id step 1 returned in capture.arg.
+  const run = useCallback(async (t, args, count = 1, chain = null) => {
     setBusy(true);
     setHint('');
     try {
       let made;
       if (chain) {
         made = [];
-        let account_id = '';
-        for (const step of CHAIN_STEPS) {
-          const call = await callOnce(step, step === CHAIN_STEPS[0] ? {} : { account_id });
+        const cap = chain.capture;
+        let id = '';
+        for (const [i, step] of chain.steps.entries()) {
+          const call = await callOnce(step.tool, cap && step.args[cap.arg] === '' ? { ...step.args, [cap.arg]: id } : step.args);
           made.push(call);
-          if (step === CHAIN_STEPS[0]) account_id = accountIdOf(call.response.body);
+          if (i === 0 && cap) id = capturedId(cap, call.response.body);
         }
-        if (!account_id) setHint(NEEDS_ACCOUNT_HINT);
+        if (cap && !id) setHint(cap.hint);
       } else if (count > 1) {
         const at = Date.now();
         let res;
@@ -213,7 +224,8 @@ export default function AgentGatewayInspectorClean() {
   }, [callOnce, fetchRecords]);
 
   const parsed = parseArgs(argsText);
-  const send = () => run(tool, parsed.args, Number(repeat) || 1, scenario === CHAIN);
+  const steps = scenarios.find((s) => s.id === scenario)?.steps;
+  const send = () => run(tool, parsed.args, Number(repeat) || 1, steps ? { steps, capture: vertical.capture } : null);
 
   const onResend = useCallback((call) => run(call.input.tool, call.input.args), [run]);
   const onEdit = useCallback((call) => {
@@ -233,16 +245,18 @@ export default function AgentGatewayInspectorClean() {
     }
   };
 
-  const toolNames = tools.map((t) => t.name);
+  // The vertical's tools, plus the server's tools no other vertical owns.
+  const toolNames = [...new Set([...vertical.tools, ...tools.map((t) => t.name).filter((n) => !belongsElsewhere(verticalId, n))])];
   if (tool && !toolNames.includes(tool)) toolNames.push(tool);
 
   const sendCard = (
     <div className="insp-send-body" ref={sendRef}>
       <div className="insp-send-row">
+        {verticalField}
         <label className="insp-field">
           <span>Scenario</span>
           <select value={scenario} onChange={(e) => pickScenario(e.target.value)}>
-            {SCENARIOS.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+            {scenarios.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
           </select>
         </label>
         <label className="insp-field">
