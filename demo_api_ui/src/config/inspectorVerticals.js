@@ -17,7 +17,8 @@
 //   amounts    the seeded amount when it sits in the hold band ($250 consent ..
 //              $2000 deny, scope-topology.json policy + demo_authz_server),
 //              else $500 (stepUpThresholdUsd), the banking withdrawal amount.
-//   expect     DENY = a2aDelegated tool (no two-hop act chain from this page);
+//   expect     APPROVAL = also every sensitive read (live Authorize pauses it, not DENY);
+//              DENY = a2aDelegated tool (no two-hop act chain from this page);
 //              APPROVAL = consent/step_up tool with an amount in the hold band;
 //              PERMIT = plain read. Same rules as snapshots/gen-authorize-snapshot.js.
 //   authorize  toolName = the vertical's amount-gated write; txTypes = the types
@@ -32,7 +33,7 @@
 
 const w = (s) => s.split(' ');
 
-const sensitive = (tool) => ({ id: 'sensitive', label: 'Sensitive read (expect DENY)', expect: 'DENY', tool, args: {} });
+const sensitive = (tool) => ({ id: 'sensitive', label: 'Sensitive read (expect approval)', expect: 'APPROVAL', tool, args: {} });
 
 export const INSPECTOR_VERTICALS = {
   // The gateway page's original scenarios (withdrawal key fixed per R11).
@@ -43,7 +44,7 @@ export const INSPECTOR_VERTICALS = {
     authorize: { toolName: 'transfer', txTypes: ['transfer', 'withdrawal', 'deposit'], amount: 5000 },
     scenarios: [
       { id: 'read', label: 'Read accounts (expect PERMIT)', expect: 'PERMIT', tool: 'get_my_accounts', args: {} },
-      { id: 'sensitive', label: 'Sensitive read (expect DENY)', expect: 'DENY', tool: 'get_sensitive_account_details', args: { account_id: '' } },
+      { id: 'sensitive', label: 'Sensitive read (expect approval)', expect: 'APPROVAL', tool: 'get_sensitive_account_details', args: { account_id: '' } },
       // R11: from_account_id is the key create_withdrawal's schema takes (account_id was rejected).
       { id: 'withdrawal', label: 'Withdrawal (expect approval)', expect: 'APPROVAL', tool: 'create_withdrawal', args: { from_account_id: '', amount: 500 } },
       {
@@ -61,12 +62,12 @@ export const INSPECTOR_VERTICALS = {
     tools: w('view_records view_coverage list_appointments view_claims view_billing pay_bill cancel_appointment reschedule_appointment view_medications refill_prescription view_lab_results view_vitals view_care_team list_messages view_referrals view_documents view_immunizations view_allergies view_dependents view_care_plan mark_message_read request_document cancel_referral book_appointment release_records sensitive_patient_records'),
     capture: { tool: 'view_records', family: 'record', arg: 'recordId', hint: 'Run "Read records" first to fill recordId.' },
     extraTools: w('show_health_record'),
-    authorize: { toolName: 'pay_bill', txTypes: ['transfer'], amount: 500 },
+    authorize: { toolName: 'pay_bill', txTypes: ['transfer'], amount: 650 },
     scenarios: [
       { id: 'read', label: 'Read records (expect PERMIT)', expect: 'PERMIT', tool: 'view_records', args: {} },
       sensitive('sensitive_patient_records'),
-      // Seeded bills are $15-50, under the hold band, so this uses $500.
-      { id: 'approval', label: 'Pay bill (expect approval)', expect: 'APPROVAL', tool: 'pay_bill', args: { billId: '404', amount: 500 } },
+      // Amount-only on purpose: every seeded bill is <= $50 and adding a seed bill triggers the goldens seed-drift gate.
+      { id: 'approval', label: 'Pay bill (expect approval)', expect: 'APPROVAL', tool: 'pay_bill', args: { amount: 650 } },
       {
         id: 'chain',
         label: 'Run chain: records → release → sensitive',
@@ -172,6 +173,7 @@ export const INSPECTOR_VERTICALS = {
       { id: 'read', label: 'Read work orders (expect PERMIT)', expect: 'PERMIT', tool: 'view_work_orders', args: {} },
       sensitive('sensitive_supplier_contract'),
       // Seeded pending PO; its $8750 total is above the $2000 deny line, so $500.
+      // Leave as is: for approve_purchase_order the gate reads the STATED amount, not the PO's, so $500 holds; PO-6002 ($1240) is already Approved and the tool errors.
       { id: 'approval', label: 'Approve purchase order (expect approval)', expect: 'APPROVAL', tool: 'approve_purchase_order', args: { poId: 'PO-6001', amount: 500 } },
       {
         id: 'chain',

@@ -45,7 +45,7 @@ describe('inspector vertical catalog', () => {
   // Banking's 'transfer' is the frozen baseline (a legacy alias in the topology).
   it("non-banking Authorize presets use the vertical's approval tool, amount and the transfer type", () => {
     for (const [id, v] of entries.filter(([k]) => k !== 'banking')) {
-      const approval = v.scenarios.find((s) => s.expect === 'APPROVAL');
+      const approval = v.scenarios.find((s) => s.id === 'approval');
       expect(v.authorize.toolName, id).toBe(approval.tool);
       expect(v.authorize.amount, id).toBe(approval.args.amount);
       expect(v.authorize.txTypes, id).toEqual(['transfer']);
@@ -55,7 +55,7 @@ describe('inspector vertical catalog', () => {
   it('banking scenarios are exactly the gateway page baseline', () => {
     expect(INSPECTOR_VERTICALS.banking.scenarios).toEqual([
       { id: 'read', label: 'Read accounts (expect PERMIT)', expect: 'PERMIT', tool: 'get_my_accounts', args: {} },
-      { id: 'sensitive', label: 'Sensitive read (expect DENY)', expect: 'DENY', tool: 'get_sensitive_account_details', args: { account_id: '' } },
+      { id: 'sensitive', label: 'Sensitive read (expect approval)', expect: 'APPROVAL', tool: 'get_sensitive_account_details', args: { account_id: '' } },
       // R11: from_account_id, the key create_withdrawal's schema takes (it rejected account_id).
       { id: 'withdrawal', label: 'Withdrawal (expect approval)', expect: 'APPROVAL', tool: 'create_withdrawal', args: { from_account_id: '', amount: 500 } },
       {
@@ -100,7 +100,8 @@ describe('inspector vertical catalog', () => {
         const where = `${id}/${s.id}: ${s.tool}`;
         if (s.expect === 'DENY') expect(t.a2aDelegated, where).toBe(true);
         if (s.expect === 'PERMIT') expect(!t.challengeType && !t.a2aDelegated, where).toBe(true);
-        if (s.expect === 'APPROVAL') {
+        // Sensitive reads pause too (live policy returns PERMIT-with-approval), amount-free.
+        if (s.id === 'approval') {
           expect(t.challengeType, where).toBeTruthy();
           expect(s.args.amount, where).toBeGreaterThanOrEqual(highValueConsentThresholdUsd);
           expect(s.args.amount, where).toBeLessThanOrEqual(amountLimitsByTier.standard);
@@ -111,7 +112,7 @@ describe('inspector vertical catalog', () => {
 
   it('every vertical has a read, a sensitive read, an approval and a 3-step chain', () => {
     for (const [id, v] of entries) {
-      expect(v.scenarios.map((s) => s.expect ?? 'chain'), id).toEqual(['PERMIT', 'DENY', 'APPROVAL', 'chain']);
+      expect(v.scenarios.map((s) => s.expect ?? 'chain'), id).toEqual(['PERMIT', 'APPROVAL', 'APPROVAL', 'chain']);
       const chain = v.scenarios[3];
       expect(chain.steps, id).toHaveLength(3);
       if (v.capture) {
@@ -128,7 +129,7 @@ describe('inspector vertical catalog', () => {
   });
 
   it('argsFor returns complete sample args only', () => {
-    expect(argsFor(INSPECTOR_VERTICALS.healthcare, 'pay_bill')).toEqual({ billId: '404', amount: 500 });
+    expect(argsFor(INSPECTOR_VERTICALS.healthcare, 'pay_bill')).toEqual({ amount: 650 });
     expect(argsFor(INSPECTOR_VERTICALS.banking, 'create_withdrawal')).toEqual({});
     expect(argsFor(INSPECTOR_VERTICALS.airlines, 'get_flight_status')).toEqual({ flight_number: 'UA328' });
     expect(argsFor(INSPECTOR_VERTICALS.healthcare, 'not_a_tool')).toEqual({});
