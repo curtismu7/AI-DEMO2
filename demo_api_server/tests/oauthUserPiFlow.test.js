@@ -413,6 +413,7 @@ describe('customer pi.flow sign-in', () => {
         expect(res.body.devices).toEqual([
           { id: 'pf-sms-1', type: 'SMS', nickname: null, email: null, phone: '******1586' },
           { id: 'pf-mail-1', type: 'EMAIL', nickname: null, email: 'cm***@pingone.com', phone: null },
+          { id: 'pf-fido-1', type: 'FIDO2', nickname: null, email: null, phone: null },
         ]);
       });
 
@@ -495,13 +496,17 @@ describe('customer pi.flow sign-in', () => {
       });
     });
 
-    test('the passkey endpoint is closed to a PF flow', async () => {
+    test('the passkey step posts PF checkAssertion (JSON-string assertion); a rejection -> 401', async () => {
       const agent = request.agent(app);
       await openPfFlow(agent);
       const calls = fetchMock.mock.calls.length;
-      await agent.post('/api/auth/oauth/user/pi-flow/assertion')
-        .send({ assertion: { id: 'x' }, origin: 'https://local.ping-devops.com:4000' }).expect(409);
-      expect(fetchMock.mock.calls.length).toBe(calls);
+      fetchMock.mockResolvedValueOnce(json(400, { code: 'VALIDATION_ERROR' }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/assertion')
+        .send({ assertion: { id: 'x' }, origin: 'https://local.ping-devops.com:4000' }).expect(401);
+      expect(res.body.error).toBe('assertion_failed');
+      const [, init] = fetchMock.mock.calls[calls];
+      expect(init.headers['Content-Type']).toBe('application/vnd.pingidentity.checkAssertion+json');
+      expect(JSON.parse(init.body)).toEqual({ origin: 'https://local.ping-devops.com:4000', assertion: JSON.stringify({ id: 'x' }), compatibility: 'FULL' });
     });
 
     test('a flow id that is not a plain token is rejected before it can reach a URL path', async () => {
