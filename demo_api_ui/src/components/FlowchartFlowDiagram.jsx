@@ -7,6 +7,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
@@ -32,6 +33,8 @@ const CHAR_W = 7;
 const LINE_H = 17;
 const GROUP_PAD = 16;
 const GROUP_HEADER = 28;
+const FOLLOW_ZOOM = 0.9;
+const NO_REF = { current: null };
 
 const sizeOf = (label) => {
   const lines = label.split("\n");
@@ -153,9 +156,11 @@ export async function layoutFlowchart(model) {
   return { id: layoutSeq, nodes: rfNodes, edges: rfEdges, steps, reelEdges, reelNodes };
 }
 
-function Inner({ source, testId, step, active, details }) {
+function Inner({ source, testId, step, active, details, followSteps }) {
   const ref = useRef(null);
-  useFitOnResize(ref, FIT);
+  // followSteps keeps its own viewport; a refit would throw the reader back to the unreadable overview.
+  useFitOnResize(followSteps ? NO_REF : ref, FIT);
+  const { setCenter, getInternalNode } = useReactFlow();
   const [flow, setFlow] = useState(null);
   const [error, setError] = useState(null);
 
@@ -195,6 +200,22 @@ function Inner({ source, testId, step, active, details }) {
   };
 
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(lit);
+
+  // followSteps: open on the first arrow's source at a readable zoom, then pan to each step's arrow.
+  const followTo = (s) => {
+    const edge = flow?.edges[Math.max(s, 0)];
+    if (!followSteps || !edge) return;
+    const pts = (s < 0 ? [edge.source] : [edge.source, edge.target]).map(getInternalNode).filter(Boolean).map((n) => ({
+      x: n.internals.positionAbsolute.x + (n.measured?.width ?? 0) / 2,
+      y: n.internals.positionAbsolute.y + (n.measured?.height ?? 0) / 2,
+    }));
+    if (!pts.length) return;
+    const avg = (k) => pts.reduce((sum, p) => sum + p[k], 0) / pts.length;
+    setCenter(avg("x"), avg("y"), { zoom: FOLLOW_ZOOM, duration: s < 0 ? 0 : 600 });
+  };
+  // On mount this runs before the viewport exists (setCenter no-ops), so onInit below does the opening view.
+  // eslint-disable-next-line react-hooks/exhaustive-deps -- re-run per step/layout; followTo is rebuilt every render
+  useEffect(() => followTo(stepper.step), [flow, stepper.step, followSteps]);
   if (error) return <p className="fcd-note">Couldn't lay out this diagram: {error}</p>;
   return (
     <>
@@ -208,7 +229,8 @@ function Inner({ source, testId, step, active, details }) {
             edges={shown}
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
-            fitView
+            fitView={!followSteps}
+            onInit={followSteps ? () => followTo(stepper.step) : undefined}
             fitViewOptions={FIT}
             minZoom={0.1}
             maxZoom={2}
@@ -233,11 +255,12 @@ function Inner({ source, testId, step, active, details }) {
 }
 
 /** `step` / `active` work as on SequenceFlowDiagram; leave both undefined for the built-in Play/Step bar. */
-export default function FlowchartFlowDiagram({ source, testId = "flowchart-flow-diagram", label = "Architecture diagram", step, active, details }) {
+/** `followSteps` (opt-in, Full topology): open zoomed on the entry point and pan to each Simulate step. */
+export default function FlowchartFlowDiagram({ source, testId = "flowchart-flow-diagram", label = "Architecture diagram", step, active, details, followSteps = false }) {
   return (
     <div className="fcd" role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} testId={testId} step={step} active={active} details={details} />
+        <Inner source={source} testId={testId} step={step} active={active} details={details} followSteps={followSteps} />
       </ReactFlowProvider>
     </div>
   );
