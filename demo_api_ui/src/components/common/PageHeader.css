@@ -114,6 +114,7 @@
 
 .ping-page-header .ping-page-header__summary code {
   color: #ffffff !important;
+  background: rgba(255, 255, 255, 0.14) !important;
   padding: 0.1rem 0.35rem;
   border-radius: var(--radius-sm, 4px);
   background: rgba(255, 255, 255, 0.14);
@@ -130,4 +131,11 @@
   flex-wrap: wrap;
   gap: 8px 16px;
   margin-top: 14px;
+}
+
+/* links nested in spans/paragraphs/list items inside the band */
+.ping-page-header :is(span, p, li) > a:not(.ping-back-link) {
+  color: #ffffff !important;
+  background: transparent !important;
+  text-decoration: underline;
 }

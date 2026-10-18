@@ -17,15 +17,7 @@
   line-height: 1.6;
 }
 
-.aap-head { display: flex; flex-direction: column; gap: 8px; }
 .aap-title { margin: 0; font-size: var(--font-size-3xl); font-weight: 600; }
-.aap-lede {
-  margin: 0;
-  max-width: 64ch;
-  color: var(--th-text-muted, #556070);
-  font-size: var(--font-size-md);
-  line-height: 1.6;
-}
 /* No monospace stack here on purpose: index.css strips monospace from
    pre/code/kbd/samp/tt repo-wide and a unit test enforces it. The inset
    background and size shift carry "this is an identifier" on their own. */
@@ -47,12 +39,6 @@
 }
 
 .aap-h2 { margin: 0; font-size: var(--font-size-lg); font-weight: 600; }
-.aap-sub {
-  margin: 0;
-  color: var(--th-text-muted, #556070);
-  font-size: 14.5px;
-  line-height: 1.5;
-}
 .aap-empty { margin: 0; color: var(--th-text-muted, #556070); font-size: var(--font-size-base); }
 
 .aap-toggle-row,

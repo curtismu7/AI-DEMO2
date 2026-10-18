@@ -9,11 +9,6 @@
 }
 
 /* Header */
-.ungov-header {
-  border-bottom: 1px solid #e3e8ef;
-  padding-bottom: 24px;
-  margin-bottom: 28px;
-}
 .ungov-badge-hero {
   display: inline-block;
   font-size: var(--font-size-2xs);
@@ -25,19 +20,6 @@
   border-radius: var(--radius-sm);
   margin-bottom: 12px;
 }
-.ungov-header h1 {
-  font-size: var(--font-size-3xl);
-  font-weight: 700;
-  margin: 0 0 8px;
-}
-.ungov-subtitle {
-  font-size: var(--font-size-md);
-  color: var(--th-text-body);
-  margin: 0;
-  max-width: 760px;
-  line-height: 1.5;
-}
-
 /* Sections */
 .ungov-section {
   margin-bottom: 36px;

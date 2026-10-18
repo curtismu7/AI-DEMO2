@@ -14,6 +14,7 @@ import GatewayMcpMetrics from "../components/GatewayMcpMetrics";
 import { useThemeOptional } from "../context/ThemeContext";
 import { PRIMARY_AGENT } from "../config/agentTerminology";
 import InlineSpinner from '../components/shared/InlineSpinner';
+import PageHeader from '../components/common/PageHeader';
 
 const REFRESH_MS = 15000;
 const LOOKBACK_OPTIONS = [
@@ -277,15 +278,9 @@ export default function TracingPage() {
 
   return (
     <div className="tracing-page">
-      <header className="tracing-header">
-        <div>
-          <h1>Tracing</h1>
-          <p className="tracing-subtitle">
-            See how a single request travels across the demo&apos;s services. Generate traffic —
-            sign in, use the {PRIMARY_AGENT.displayName}, make a transfer — then inspect the call path and latency below.
-          </p>
-        </div>
-        <div className="tracing-header-actions">
+      <PageHeader className="tracing-header" title="Tracing" summary={<>See how a single request travels across the demo&apos;s services. Generate traffic —
+            sign in, use the {PRIMARY_AGENT.displayName}, make a transfer — then inspect the call path and latency below.</>}
+        actions={<>        <div className="tracing-header-actions">
           {lastUpdated && (
             <span className="tracing-meta">
               Updated {new Date(lastUpdated).toLocaleTimeString()}
@@ -312,7 +307,7 @@ export default function TracingPage() {
             {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
           </button>
         </div>
-      </header>
+        </>} />
 
       <p className="tracing-bridge">
         Traces show where time is spent across services;{" "}

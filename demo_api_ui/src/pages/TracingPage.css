@@ -6,28 +6,6 @@
   margin: 0 auto;
 }
 
-.tracing-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.tracing-header h1 {
-  margin: 0;
-  font-size: var(--font-size-2xl);
-  font-weight: 700;
-  color: var(--th-text);
-}
-
-.tracing-subtitle {
-  margin: 4px 0 0 0;
-  font-size: var(--font-size-body);
-  color: var(--th-text-body);
-  max-width: 52rem;
-}
-
 .tracing-header-actions {
   display: flex;
   align-items: center;
@@ -753,3 +731,7 @@
   border-bottom-color: #12538d;
 }
 
+
+.ping-page-header .tracing-meta {
+  color: rgba(255, 255, 255, 0.85);
+}

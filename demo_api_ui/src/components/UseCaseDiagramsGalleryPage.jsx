@@ -8,20 +8,16 @@ import { CONFIGS } from "../config/useCaseDiagrams";
 import { DEMO_STEP_GUIDES } from "../config/demoStepGuides";
 import { demoStepNumber } from "../config/demoStepNumbers";
 import "./UseCaseDiagramPage.css";
+import PageHeader from './common/PageHeader';
 
 const TONE_CLASS = { ok: "ucd-pill--ok", warn: "ucd-pill--warn", err: "ucd-pill--err", info: "ucd-pill--info" };
 
 export default function UseCaseDiagramsGalleryPage() {
   return (
     <main className="ucd-page ucd-gallery" data-testid="ucd-gallery">
-      <header className="ucd-head">
-        <h1>Use-case diagrams</h1>
-        <p>
-          One walkthrough per demo step: play it, pause it, walk the arrows. For the
+      <PageHeader className="ucd-head" title="Use-case diagrams" summary={<>One walkthrough per demo step: play it, pause it, walk the arrows. For the
           whole demo — steps, inspectors, diagrams, learning topics on one page — open the{' '}
-          <Link to="/demo-map" className="ucd-cue" {...diagramLinkProps("/demo-map")}>Demo Map</Link>.
-        </p>
-      </header>
+          <Link to="/demo-map" className="ucd-cue" {...diagramLinkProps("/demo-map")}>Demo Map</Link>.</>} />
       <ul className="ucd-gallery__grid">
         {CONFIGS.map((c) => {
           const g = DEMO_STEP_GUIDES[c.id];

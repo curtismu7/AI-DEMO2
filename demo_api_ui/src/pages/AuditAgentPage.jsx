@@ -22,6 +22,7 @@ import { useLocation, useSearchParams } from "react-router-dom";
 import apiClient from "../services/apiClient";
 import ToolsTable from "../components/privilege/ToolsTable";
 import "./AuditAgentPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 const API_BASE = "/api/privilege-mcp";
 // Matches the preset label in demo_api_server/routes/privilegeMcpClient.js.
@@ -135,12 +136,7 @@ export default function AuditAgentPage() {
 
   return (
     <div className="audit-agent-page">
-      <header className="aap-head">
-        <h1>Audit Agent</h1>
-        <p className="aap-sub">
-          An agent restricted to PingOne&apos;s audit log by gateway scope — not by this page.
-        </p>
-      </header>
+      <PageHeader className="aap-head" title="Audit Agent" summary={<>An agent restricted to PingOne&apos;s audit log by gateway scope — not by this page.</>} />
 
       {notice && <div className="aap-notice">{notice}</div>}
 

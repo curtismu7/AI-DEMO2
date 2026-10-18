@@ -5,17 +5,6 @@
   color: var(--text-primary, #1a1a2e);
 }
 
-.promptfoo-page__header h1 {
-  font-size: 1.6rem;
-  margin: 0 0 0.5rem;
-}
-
-.promptfoo-page__lead {
-  color: var(--text-secondary, #555);
-  font-size: 0.95rem;
-  margin: 0 0 1.5rem;
-}
-
 .promptfoo-page__lead code,
 .promptfoo-page__hint code {
   background: var(--bg-subtle, rgba(127, 127, 127, 0.12));

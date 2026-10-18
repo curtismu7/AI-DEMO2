@@ -14,7 +14,8 @@ describe('the DaVinci SDK master lesson is named the same thing in the nav and o
     expect(navLabel, 'AdminSideNav must list /davinci-sdk').toBeTruthy();
 
     const page = read('../OrchestrationSdkExplainerPage.jsx');
-    const heading = page.match(/<h1[^>]*>([^<]+)<\/h1>/)?.[1];
+    // the page title is an <h1> or the shared <PageHeader title="..."> (which renders the <h1>)
+    const heading = page.match(/<h1[^>]*>([^<]+)<\/h1>/)?.[1] ?? page.match(/<PageHeader[^>]*\stitle="([^"]+)"/)?.[1];
     expect(heading, 'DaVinci SDK master lesson must have an h1').toBeTruthy();
 
     expect(heading.trim()).toBe(navLabel.trim());

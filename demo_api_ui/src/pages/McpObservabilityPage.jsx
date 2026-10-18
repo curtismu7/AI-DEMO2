@@ -6,6 +6,7 @@ import "./McpObservabilityPage.css";
 import InlineSpinner from '../components/shared/InlineSpinner';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
 import * as obsFlow from '../config/mcpObservabilityDiagram';
+import PageHeader from '../components/common/PageHeader';
 
 const OBS_FLOW = { GROUPS: obsFlow.MCP_OBS_GROUPS, NODES: obsFlow.MCP_OBS_NODES, EDGES: obsFlow.MCP_OBS_EDGES, STEPS: obsFlow.MCP_OBS_STEPS };
 
@@ -196,10 +197,9 @@ export default function McpObservabilityPage() {
 
   return (
     <div className="mcp-observability-page">
-      <header className="mcp-observability-header">
-        <div><h1>MCP traffic, with the why attached</h1><p>A live view of server health, tool performance, and authorization outcomes across the agent gateway.</p></div>
-        <div className="mcp-observability-header-actions"><span className="mcp-observability-live"><StatusDot status="healthy" /> LIVE · {lastUpdated ? formatTime(lastUpdated) : "connecting"}</span><a className="mcp-observability-button" href={KIBANA_URL} target="_blank" rel="noopener noreferrer">Open Kibana logs</a>{toggleDarkMode && <button type="button" className="mcp-observability-button" onClick={toggleDarkMode}>{darkMode ? "☀️ Light mode" : "🌙 Dark mode"}</button>}<button type="button" className="mcp-observability-button mcp-observability-button--primary" onClick={() => load()}>Refresh</button></div>
-      </header>
+      <PageHeader className="mcp-observability-header" title="MCP traffic, with the why attached" summary="A live view of server health, tool performance, and authorization outcomes across the agent gateway."
+        actions={<>        <div className="mcp-observability-header-actions"><span className="mcp-observability-live"><StatusDot status="healthy" /> LIVE · {lastUpdated ? formatTime(lastUpdated) : "connecting"}</span><a className="mcp-observability-button" href={KIBANA_URL} target="_blank" rel="noopener noreferrer">Open Kibana logs</a>{toggleDarkMode && <button type="button" className="mcp-observability-button" onClick={toggleDarkMode}>{darkMode ? "☀️ Light mode" : "🌙 Dark mode"}</button>}<button type="button" className="mcp-observability-button mcp-observability-button--primary" onClick={() => load()}>Refresh</button></div>
+        </>} />
 
       {error && <div className="mcp-observability-error" role="alert">{error}</div>}
       <section className="mcp-observability-metrics" aria-label="MCP overview metrics">
