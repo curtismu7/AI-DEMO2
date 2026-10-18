@@ -126,7 +126,7 @@ export default function CibaApprovalPanel({ channels, onApproved, onCancel }) {
       <div className="pi-flow-signin__form ciba-login">
         <h3 className="ciba-login__heading" tabIndex={-1} ref={focusRef}>Check your {channel === "sms" ? "phone" : "email"}</h3>
         <p className="signin-modal__text" role="status" aria-live="polite">{waitingText(code, channel)}</p>
-        <div className="ciba-login__code" aria-label={`Match code ${code}`}>{code}</div>
+        <div className="ciba-login__code">{code}</div>
         {/* Outside the live region: a screen reader must not announce every second. */}
         <p className="signin-modal__text ciba-login__timer">
           Expires in {Math.floor(secondsLeft / 60)}:{String(secondsLeft % 60).padStart(2, "0")}

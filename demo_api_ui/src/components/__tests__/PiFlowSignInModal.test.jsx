@@ -439,16 +439,16 @@ describe('PiFlowSignInModal', () => {
       });
     }
 
-    async function mountAndClickAdmin() {
+    // Admin has no choice screen: it opens device-first. `toPassword` (default) strictly clicks
+    // 'Use your password instead' (findBy throws if it is missing); false = no modal expected.
+    async function mountAndClickAdmin({ toPassword = true } = {}) {
       render(<PiFlowSignInModal />);
       await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
       await act(async () => { await Promise.resolve(); });
       await act(async () => { navigateToAdminOAuthLogin('/admin'); });
-      // Admin has no choice screen: it opens device-first, the password form is one click away.
       await chooseAndSettle('password');
-      const toPassword = screen.queryByRole('button', { name: 'Use your password instead' });
       if (toPassword) {
-        fireEvent.click(toPassword);
+        fireEvent.click(await screen.findByRole('button', { name: 'Use your password instead' }));
         await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
       }
     }
@@ -477,7 +477,7 @@ describe('PiFlowSignInModal', () => {
         login: () => ok({}),
         credentials: () => ok({}),
       });
-      await mountAndClickAdmin();
+      await mountAndClickAdmin({ toPassword: false });
       await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/login?return_to=%2Fadmin'));
       expect(screen.queryByLabelText('Username')).toBeNull();
     });
@@ -1173,12 +1173,35 @@ describe('PiFlowSignInModal choice screen (passwordless / password + approval li
     ]);
   });
 
-  test('secondFactorSkipped on a redirect proceeds exactly as today (no extra UI)', async () => {
+  const SKIPPED_MSG = 'Signed in with your password only: no approval link is available for this account.';
+
+  test('approval chosen + secondFactorSkipped redirect: still navigates, and the overlay says password only', async () => {
     mockChoiceBff({ credentials: () => ok({ redirectTo: 'https://app.test/cb?x=5', secondFactorSkipped: true }) });
     await open('customer');
     fireEvent.click(screen.getByRole('button', { name: APPROVAL_BTN }));
     await submitPassword();
     await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/cb?x=5'));
+    expect(screen.getByText(SKIPPED_MSG)).toBeInTheDocument();
+  });
+
+  test('plain redirect after the approval button (no skipped marker) keeps the normal Signing in message', async () => {
+    mockChoiceBff({ credentials: () => ok({ redirectTo: 'https://app.test/cb?x=6' }) });
+    await open('customer');
+    fireEvent.click(screen.getByRole('button', { name: APPROVAL_BTN }));
+    await submitPassword();
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/cb?x=6'));
+    expect(screen.queryByText(SKIPPED_MSG)).toBeNull();
+    expect(screen.getByText('Signing in...')).toBeInTheDocument();
+  });
+
+  test('skipped marker without the approval button (plain password) keeps the normal Signing in message', async () => {
+    mockChoiceBff({ credentials: () => ok({ redirectTo: 'https://app.test/cb?x=7', secondFactorSkipped: true }) });
+    await open('customer');
+    fireEvent.click(screen.getByRole('button', { name: 'Use a password instead' }));
+    await submitPassword();
+    await waitFor(() => expect(assign).toHaveBeenCalledWith('https://app.test/cb?x=7'));
+    expect(screen.queryByText(SKIPPED_MSG)).toBeNull();
+    expect(screen.getByText('Signing in...')).toBeInTheDocument();
   });
 });
 

@@ -317,7 +317,9 @@ export default function PiFlowSignInModal() {
   };
   const usePassword = () => openPasswordStep(null);
   const usePasswordWithApproval = () => openPasswordStep("ciba");
-  // Approval cancelled/failed: a fresh begin() (a new login clears the parked flow server-side).
+  // Approval cancelled/failed: a fresh begin() back to the choice screen. The server drops the parked
+  // (password-verified) flow when the next pi.flow login opens (openPiFlow; tests/piFlowSecondFactor.test.js
+  // 'starting a new pi.flow login discards a parked flow'), i.e. on the next button click, not at begin().
   const restartSignIn = () =>
     begin({ returnTo: returnToRef.current, role: roleRef.current, force: forceRef.current });
 
@@ -361,7 +363,12 @@ export default function PiFlowSignInModal() {
         return;
       }
       if (res.ok && body.redirectTo) {
-        navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
+        // Approval was requested but could not apply: signed in on the password alone — say so.
+        const skipped = body.secondFactorSkipped && secondFactorRef.current === "ciba";
+        navigateWithOverlay(body.redirectTo, {
+          message: skipped ? "Signed in with your password only: no approval link is available for this account." : "Signing in...",
+          assign: true,
+        });
         return;
       }
       if (res.ok && body.step === "passkey") {
