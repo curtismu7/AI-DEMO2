@@ -173,6 +173,16 @@ describe('MCP Inspector routes', () => {
     expect(res.body.timingsMs).toHaveProperty('roundTrip');
   });
 
+  it('GET /api/mcp/inspector/tools adds requiredScopes on live and local-catalog paths', async () => {
+    const token = bearerToken();
+    const live = await request(app).get('/api/mcp/inspector/tools').set('Authorization', `Bearer ${token}`);
+    expect(live.body._source).toBe('mcp_server');
+    expect(live.body.tools[0].requiredScopes).toEqual(['accounts:read']);
+    const local = await request(app).get('/api/mcp/inspector/tools');
+    expect(local.body._source).toBe('local_catalog');
+    expect(local.body.tools.find((t) => t.name === 'get_my_accounts').requiredScopes).toEqual(['accounts:read']);
+  });
+
   it('GET /api/mcp/inspector/tools falls back to local catalog when mcpListTools fails (connection)', async () => {
     mockList.mockRejectedValueOnce(Object.assign(new Error('connect ECONNREFUSED'), { code: 'ECONNREFUSED' }));
     const token = bearerToken();

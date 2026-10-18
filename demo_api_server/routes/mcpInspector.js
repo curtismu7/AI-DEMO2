@@ -51,6 +51,8 @@ function publishDiscoveryPhase(traceId, phase, label, technical, status = 'activ
   }));
 }
 
+const withScopes = (tools) => tools.map((t) => ({ ...t, requiredScopes: MCP_TOOL_SCOPES[t.name] || null }));
+
 const MCP_SESSION_NEEDED_MSG =
   'MCP discovery needs a real OAuth access token in your Backend-for-Frontend (BFF) session. If you see this after a cold open, sign out and sign in again. Cookie-only restored sessions cannot call the MCP server.';
 
@@ -501,7 +503,7 @@ router.get('/tools', async (req, res) => {
     );
     return res.json({
       timingsMs: { roundTrip: 0 },
-      tools: listLocalInspectorTools(),
+      tools: withScopes(listLocalInspectorTools()),
       nextCursor: undefined,
       _source: 'local_catalog',
       _localCatalogReason: reason,
@@ -616,7 +618,7 @@ router.get('/tools', async (req, res) => {
       );
       return res.json({
         timingsMs: { roundTrip: durationMs },
-        tools: result.tools || [],
+        tools: withScopes(result.tools || []),
         nextCursor: result.nextCursor,
         _source: 'mcp_server',
         // Exact JSON-RPC frames as sent/received (teaching surface — token

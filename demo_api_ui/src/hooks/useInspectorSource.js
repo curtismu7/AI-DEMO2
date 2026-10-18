@@ -315,8 +315,8 @@ export function useInspectorSource(sourceKey) {
       elicitationTraceRef.current = closeSse;
     }
 
+    const params = {};
     try {
-      const params = {};
       for (const [key, schema] of Object.entries(props)) {
         const coerced = coerceParam(paramValues[key] ?? '', schema?.type);
         if (coerced !== undefined) params[key] = coerced;
@@ -340,7 +340,9 @@ export function useInspectorSource(sourceKey) {
       const { data } = await apiClient.post(config.invokeEndpoint, payload);
       const ms = Date.now() - t0;
 
-      appendMcpCall(toolName, 200, ms, data.result ?? data);
+      appendMcpCall(toolName, 200, ms, data.result ?? data, null, {
+        src: 'you', params, frames: data.frames, tokenEvents: data.tokenEvents, response: data,
+      });
       setLastInvoke(data);
       // A 200 can still carry a refusal (PingOne auth, a gateway DENY). Surface
       // it rather than letting the Status chip claim "200 OK" over an error body.
@@ -351,7 +353,10 @@ export function useInspectorSource(sourceKey) {
     } catch (e) {
       const ms = Date.now() - t0;
       const failedTool = selectedTool[config.toolKey];
-      appendMcpCall(failedTool, e.response?.status ?? 0, ms, null, formatAxiosError(e));
+      const errBody = e.response?.data;
+      appendMcpCall(failedTool, e.response?.status ?? 0, ms, null, formatAxiosError(e), {
+        src: 'you', params, frames: errBody?.frames, tokenEvents: errBody?.tokenEvents, response: errBody,
+      });
       setLastInvoke(e.response?.data || { error: formatAxiosError(e) });
       setLastTiming({ ms, error: true });
       setBanner({
