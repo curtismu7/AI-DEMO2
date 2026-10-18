@@ -52,7 +52,7 @@
   padding: 16px 20px;
   background: var(
     --modal-header-bg,
-    linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)
+    linear-gradient(135deg, #1a1a2e 0%, #051727 100%)
   );
   color: var(--modal-header-text, #ffffff);
   border-bottom: none;
@@ -151,7 +151,7 @@
   flex: 1;
   font-family: inherit;
   font-size: 0.82rem;
-  color: #b91c1c;
+  color: #d20e0f;
   white-space: nowrap;
   overflow-x: auto;
   background: transparent;

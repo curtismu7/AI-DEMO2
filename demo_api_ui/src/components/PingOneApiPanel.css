@@ -141,7 +141,7 @@
 }
 
 .p1-api-panel-ct-check--ok   { background: #f0fdf4; border-left-color: #16a34a; }
-.p1-api-panel-ct-check--info { background: #eff6ff; border-left-color: #3b82f6; }
+.p1-api-panel-ct-check--info { background: #fcfcfc; border-left-color: #12538d; }
 .p1-api-panel-ct-check--warn { background: #fffbeb; border-left-color: #f59e0b; }
 
 .p1-api-panel-ct-label {
@@ -163,5 +163,5 @@
   font-weight: 700;
 }
 .p1-api-panel-ct-check--ok   .p1-api-panel-ct-badge { color: #15803d; }
-.p1-api-panel-ct-check--info .p1-api-panel-ct-badge { color: #1d4ed8; }
+.p1-api-panel-ct-check--info .p1-api-panel-ct-badge { color: #12538d; }
 .p1-api-panel-ct-check--warn .p1-api-panel-ct-badge { color: #b45309; }

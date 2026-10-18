@@ -153,7 +153,7 @@
 
 .react-flow .react-flow__attribution a { color: var(--th-text-muted); }
 
-.afp-claim--aud { color: #1e3a8a; }
+.afp-claim--aud { color: #051727; }
 .afp-claim--act { color: #14532d; }
 .afp-claim--may-act { color: #78350f; }
 :root[data-theme="dark"] .afp-claim--aud { color: #93c5fd; }

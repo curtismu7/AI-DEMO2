@@ -15,24 +15,24 @@
   --pp-text-secondary: #555;
   --pp-text-muted: #666; /* #888 was 3.5:1 on white */
   --pp-item-hover: #eef0f4;
-  --pp-item-active-bg: #1d4ed8;
+  --pp-item-active-bg: #12538d;
   --pp-item-active-text: #fff;
   --pp-btn-bg: #ffffff;
   --pp-btn-border: #b8bfc9;
   --pp-btn-text: #1a1a1a;
   --pp-btn-hover: #e4e7ec;
-  --pp-btn-primary-bg: #1d4ed8;
+  --pp-btn-primary-bg: #12538d;
   --pp-btn-primary-text: #ffffff;
-  --pp-btn-primary-hover: #1e40af;
+  --pp-btn-primary-hover: #051727;
   --pp-progress-bg: #e2e5ea;
   --pp-error-bg: #fef2f2;
   --pp-error-border: #fecaca;
-  --pp-error-text: #dc2626;
+  --pp-error-text: #d20e0f;
   --pp-ok-bg: #ecfdf5;
   --pp-ok-text: #16a34a;
   --pp-ok-border: #86efac;
   --pp-err-badge-bg: #fef2f2;
-  --pp-err-badge-text: #dc2626;
+  --pp-err-badge-text: #d20e0f;
   --pp-scrollbar: #ccc;
   --pp-scrollbar-hover: #aaa;
 
@@ -54,15 +54,15 @@
   --pp-text-secondary: #ffffff;
   --pp-text-muted: #888;
   --pp-item-hover: #1a1a1a;
-  --pp-item-active-bg: #1d4ed8;
+  --pp-item-active-bg: #12538d;
   --pp-item-active-text: #fff;
   --pp-btn-bg: #232323;
   --pp-btn-border: #3d3d3d;
   --pp-btn-text: #e0e0e0;
   --pp-btn-hover: #2d2d2d;
-  --pp-btn-primary-bg: #2563eb;
+  --pp-btn-primary-bg: #12538d;
   --pp-btn-primary-text: #ffffff;
-  --pp-btn-primary-hover: #3b82f6;
+  --pp-btn-primary-hover: #12538d;
   --pp-progress-bg: #222;
   --pp-error-bg: #1c0a0a;
   --pp-error-border: #3b1111;
@@ -455,7 +455,7 @@
 
 .progress-fill {
   height: 100%;
-  background-color: #1d4ed8;
+  background-color: #12538d;
   border-radius: 2px;
   transition: width 0.25s ease;
 }

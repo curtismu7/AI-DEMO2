@@ -30,7 +30,7 @@
 .videoLink {
   display: inline-block;
   padding: 8px 20px;
-  background: #1e40af;
+  background: #051727;
   color: white;
   border-radius: 6px;
   text-decoration: none;
@@ -40,7 +40,7 @@
 }
 
 .videoLink:hover {
-  background: #1d4ed8;
+  background: #12538d;
 }
 
 /* Sections */
@@ -163,7 +163,7 @@
 }
 
 .pillarCard:focus-within {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #12538d;
   outline-offset: 2px;
 }
 
@@ -176,7 +176,7 @@
 }
 
 .pillargap {
-  border-left: 4px solid #ef4444;
+  border-left: 4px solid #d20e0f;
 }
 
 .pillarHeader {
@@ -294,7 +294,7 @@
   margin-top: 8px;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #2563eb;
+  color: #12538d;
   text-decoration: none;
 }
 

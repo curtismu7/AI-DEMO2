@@ -15,7 +15,7 @@
 
 .demo-tour-progress {
   height: 4px;
-  background: var(--app-primary-red, #b91c1c);
+  background: var(--app-primary-red, #d20e0f);
   transition: width 0.3s ease;
   border-radius: 4px 4px 0 0;
 }
@@ -74,8 +74,8 @@
 
 .demo-tour-action-btn {
   background: none;
-  border: 1px solid var(--app-primary-red, #b91c1c);
-  color: var(--app-primary-red, #b91c1c);
+  border: 1px solid var(--app-primary-red, #d20e0f);
+  color: var(--app-primary-red, #d20e0f);
   border-radius: 6px;
   padding: 0.3rem 0.65rem;
   cursor: pointer;
@@ -127,8 +127,8 @@
 }
 
 .demo-tour-btn-next {
-  background: var(--app-primary-red, #b91c1c);
-  border: 1px solid #991b1b;
+  background: var(--app-primary-red, #d20e0f);
+  border: 1px solid #aa0005;
   color: var(--app-primary-btn-text, #fff);
   border-radius: 6px;
   padding: 0.375rem 0.875rem;
@@ -140,5 +140,5 @@
 }
 
 .demo-tour-btn-next:hover {
-  background: #991b1b;
+  background: #aa0005;
 }

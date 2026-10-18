@@ -24,8 +24,8 @@
 }
 
 .dstc-card--fail {
-  border-left-color: #dc2626;
-  background: rgba(239, 68, 68, 0.03);
+  border-left-color: #d20e0f;
+  background: rgba(210, 14, 15, 0.03);
 }
 
 .dstc-card--skip {
@@ -60,7 +60,7 @@
 }
 
 .dstc-num--ok   { background: #dcfce7; color: #16a34a; }
-.dstc-num--fail { background: #fee2e2; color: #dc2626; }
+.dstc-num--fail { background: #fee2e2; color: #d20e0f; }
 .dstc-num--skip { background: var(--th-bg-inset); color: var(--th-text-muted); }
 
 .dstc-info {
@@ -99,14 +99,14 @@
 }
 
 .dstc-status--ok   { background: #dcfce7; color: #16a34a; border: 1px solid #bbf7d0; }
-.dstc-status--fail { background: #fee2e2; color: #dc2626; border: 1px solid #fecaca; }
+.dstc-status--fail { background: #fee2e2; color: #d20e0f; border: 1px solid #fecaca; }
 .dstc-status--skip { background: var(--th-bg-inset); color: var(--th-text-muted); border: 1px solid var(--th-border); }
 .dstc-status--wait { background: #fef9c3; color: #a16207; border: 1px solid #fde68a; }
 
 .dstc-rfc-pill {
   font-size: var(--font-size-3xs);
-  background: #eff6ff;
-  color: #2563eb;
+  background: #fcfcfc;
+  color: #12538d;
   border: 1px solid #bfdbfe;
   border-radius: 4px;
   padding: 1px 5px;
@@ -136,7 +136,7 @@
 
 .dstc-claim-k {
   padding: 4px 8px;
-  color: #2563eb;
+  color: #12538d;
   font-weight: 500;
   border-right: 1px solid #f1f5f9;
   background: var(--th-bg-inset);
@@ -163,7 +163,7 @@
 .dstc-error {
   margin: 0 12px 8px 40px;
   font-size: var(--font-size-xs);
-  color: #b91c1c;
+  color: #d20e0f;
   background: #fef2f2;
   border: 1px solid #fecaca;
   border-radius: 4px;

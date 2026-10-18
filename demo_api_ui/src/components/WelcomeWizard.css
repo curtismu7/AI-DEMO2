@@ -30,7 +30,7 @@
 
 .ww-progress-bar {
   height: 100%;
-  background: var(--app-primary-red, #b91c1c);
+  background: var(--app-primary-red, #d20e0f);
   transition: width 0.3s ease;
 }
 
@@ -98,14 +98,14 @@
 }
 
 .ww-input:focus {
-  outline: 2px solid var(--app-primary-red, #b91c1c);
+  outline: 2px solid var(--app-primary-red, #d20e0f);
   outline-offset: 1px;
   border-color: transparent;
 }
 
 .ww-error {
   font-size: 0.8rem;
-  color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red, #d20e0f);
   margin: 0.5rem 0 0;
 }
 
@@ -134,8 +134,8 @@
   display: inline-block;
   margin-top: 0.65rem;
   background: none;
-  border: 1px solid var(--app-primary-red, #b91c1c);
-  color: var(--app-primary-red, #b91c1c);
+  border: 1px solid var(--app-primary-red, #d20e0f);
+  color: var(--app-primary-red, #d20e0f);
   border-radius: 6px;
   padding: 0.35rem 0.7rem;
   cursor: pointer;
@@ -181,13 +181,13 @@
 }
 
 .ww-btn-primary {
-  background: var(--app-primary-red, #b91c1c);
+  background: var(--app-primary-red, #d20e0f);
   color: #ffffff;
-  border: 1px solid var(--app-primary-red, #b91c1c);
+  border: 1px solid var(--app-primary-red, #d20e0f);
 }
 
 .ww-btn-primary:hover {
-  background: var(--app-primary-red-hover, #991b1b);
+  background: var(--app-primary-red-hover, #aa0005);
 }
 
 .ww-btn-primary:disabled {
@@ -218,7 +218,7 @@
 }
 
 .ww-dot-active {
-  background: var(--app-primary-red, #b91c1c);
+  background: var(--app-primary-red, #d20e0f);
 }
 
 /* Docked mode — wizard followed a link: non-blocking bottom-right card so the

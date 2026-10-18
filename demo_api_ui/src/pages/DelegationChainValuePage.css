@@ -63,7 +63,7 @@
   appearance: none;
   border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: #1e40af;
+  background: #051727;
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -74,7 +74,7 @@
 }
 
 .dcv-run button:hover:not(:disabled) {
-  background: #1e3a8a;
+  background: #051727;
   box-shadow: 0 2px 6px rgb(15 45 90 / 20%);
 }
 
@@ -134,7 +134,7 @@
   appearance: none;
   border: 1px solid var(--th-border-strong);
   border-radius: 6px;
-  background: var(--th-primary, #1f5fe5);
+  background: var(--th-primary, #12538d);
   color: #fff;
   cursor: pointer;
   font: inherit;

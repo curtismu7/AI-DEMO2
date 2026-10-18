@@ -58,9 +58,9 @@
   background: var(--surface-hover, #f1f5f9);
 }
 .demo-data-page__nav-link--active {
-  color: var(--app-primary-red, #dc2626);
+  color: var(--app-primary-red, #d20e0f);
   font-weight: 700;
-  background: rgba(220, 38, 38, 0.06);
+  background: rgba(210, 14, 15, 0.06);
 }
 @media (max-width: 768px) {
   .demo-data-page__nav {
@@ -182,7 +182,7 @@
   border: 1px solid #d1d5db;
   padding: 0.1rem 0.35rem;
   border-radius: 4px;
-  color: #dc2626;
+  color: #d20e0f;
 }
 
 .demo-data-field--checkbox {
@@ -400,7 +400,7 @@
 
 .demo-data-agent-option:has(input:checked) {
   border-color: #bfdbfe;
-  background: #eff6ff;
+  background: #fcfcfc;
 }
 
 .demo-data-agent-option input {
@@ -429,7 +429,7 @@
 .demo-data-agent-note {
   margin: 0.75rem 0 0;
   padding: 0.65rem 0.85rem;
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #bfdbfe;
   border-radius: 0.35rem;
   font-size: 0.8rem;
@@ -494,12 +494,12 @@
 }
 
 .demo-data-scope-row:hover {
-  background: rgba(29, 78, 216, 0.04);
+  background: rgba(18, 83, 141, 0.04);
   border-color: #93c5fd;
 }
 
 .demo-data-scope-row--on {
-  background: rgba(29, 78, 216, 0.06);
+  background: rgba(18, 83, 141, 0.06);
   border-color: var(--brand-navy);
 }
 
@@ -522,7 +522,7 @@
 .demo-data-scope-code {
   font-size: 0.78rem;
   color: var(--brand-navy);
-  background: #eff6ff;
+  background: #fcfcfc;
   padding: 1px 5px;
   border-radius: 4px;
   width: fit-content;
@@ -619,7 +619,7 @@
 
 .demo-data-agent-auth-card--active {
   border-color: var(--brand-navy);
-  box-shadow: 0 0 0 1px rgba(37, 99, 235, 0.2);
+  box-shadow: 0 0 0 1px rgba(18, 83, 141, 0.2);
 }
 
 .demo-data-agent-auth-card input {

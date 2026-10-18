@@ -131,7 +131,7 @@ body.admin-skin-p1 .admin-side-nav {
   --sidenav-filter-bg-hover: var(--th-bg-inset);
   --sidenav-filter-border-hover: var(--th-border-strong);
   --sidenav-filter-bg-focus: var(--th-bg-card);
-  --sidenav-filter-border-focus: #2767d2;
+  --sidenav-filter-border-focus: #12538d;
   --sidenav-filter-focus-ring: rgba(39, 103, 210, 0.25);
   --sidenav-filter-icon: var(--th-text-muted);
   --sidenav-filter-clear: var(--th-text-faint);
@@ -323,12 +323,12 @@ body.admin-skin-p1 .admin-side-nav::-webkit-scrollbar-track {
    `background: none !important` (and hover/active are !important too). */
 body.admin-skin-p1 .admin-side-nav__item--highlight-danger,
 body.admin-skin-p1 .admin-side-nav__item--highlight-danger.admin-side-nav__item--active {
-  background: #dc2626 !important;
+  background: #d20e0f !important;
   border-radius: 6px;
 }
 body.admin-skin-p1 .admin-side-nav__item--highlight-danger:hover,
 body.admin-skin-p1 .admin-side-nav__item--highlight-danger.admin-side-nav__item--active:hover {
-  background: #b91c1c !important;
+  background: #d20e0f !important;
 }
 body.admin-skin-p1 .admin-side-nav__item--highlight-danger .admin-side-nav__label,
 body.admin-skin-p1 .admin-side-nav__item--highlight-danger .admin-side-nav__icon,

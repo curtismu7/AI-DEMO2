@@ -20,16 +20,16 @@
   --dash-ink: var(--th-text);
   --dash-ink-2: var(--th-text-body);
   --dash-ink-3: var(--th-text-muted);
-  --dash-accent: #1e40af;
+  --dash-accent: #051727;
   /* Ink for text sitting ON --dash-accent. It cannot be a fixed #fff: in dark
      --dash-accent becomes a LIGHT blue (#7aa2f7) tuned to be read against the
      dark ground, and white on it measured 2.52:1 (the .is-on toggle). A token
      tuned as ink is not automatically usable as a ground — check the pairing. */
   --dash-accent-ink: #ffffff;
-  --dash-accent-soft: #dbeafe;
+  --dash-accent-soft: #e0e2e4;
   --dash-ok: #3d9142;
   --dash-warn: #b26a00;
-  --dash-bad: #991b1b;
+  --dash-bad: #aa0005;
 
   display: flex;
   flex-direction: column;

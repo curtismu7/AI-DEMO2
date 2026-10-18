@@ -1104,11 +1104,11 @@
 .ttp-root[data-theme="light"] .ttp-callout-leader { border-left-color: #94a3b8; }
 .ttp-root[data-theme="light"] .ttp-enf-badge { color: #64748b; }
 .ttp-root[data-theme="light"] .ttp-callout--deny { border-color: #f87171; }
-.ttp-root[data-theme="light"] .ttp-callout--deny .ttp-callout-verb { color: #b91c1c; }
+.ttp-root[data-theme="light"] .ttp-callout--deny .ttp-callout-verb { color: #d20e0f; }
 .ttp-root[data-theme="light"] .ttp-callout--deny + .ttp-callout-leader { border-left-color: #f87171; }
 .ttp-root[data-theme="light"] .ttp-enf-badge--deny {
-  background: #991b1b;
-  border-color: #991b1b;
+  background: #aa0005;
+  border-color: #aa0005;
   color: #ffffff;
 }
 .ttp-root[data-theme="light"] .ttp-callout--live { border-color: #d97706; }
@@ -1121,7 +1121,7 @@
 .ttp-root[data-theme="light"] .ttp-branch-elbow { border-left-color: #94a3b8; }
 .ttp-root[data-theme="light"] .ttp-branch-label { color: #64748b; }
 .ttp-root[data-theme="light"] .ttp-conn.blocked .ttp-conn-label {
-  color: #b91c1c;
+  color: #d20e0f;
   background: rgba(248,113,113,.15);
 }
 .ttp-root[data-theme="light"] .ttp-arrowhead {
@@ -1188,14 +1188,14 @@
 .ttp-root[data-theme="light"] .ttp-lane--authz   { color: #9a3412; background: #ffedd5; }
 .ttp-root[data-theme="light"] .ttp-lane--gateway { color: #065f46; background: #d1fae5; }
 .ttp-root[data-theme="light"] .ttp-lane--mcp     { color: #854d0e; background: #fef9c3; }
-.ttp-root[data-theme="light"] .ttp-lane--chat    { color: #1e40af; background: #dbeafe; }
+.ttp-root[data-theme="light"] .ttp-lane--chat    { color: #051727; background: #e0e2e4; }
 .ttp-root[data-theme="light"] .ttp-lane--agent   { color: #d20e0f; background: #fee2e2; }
-.ttp-root[data-theme="light"] .ttp-lane--llm     { color: #991b1b; background: #fee2e2; }
+.ttp-root[data-theme="light"] .ttp-lane--llm     { color: #aa0005; background: #fee2e2; }
 .ttp-root[data-theme="light"] .ttp-lane--browser { color: #334155; background: #e2e8f0; }
 .ttp-root[data-theme="light"] .ttp-lane--api     { color: #155e75; background: #cffafe; }
 .ttp-insp-font-control { display: inline-flex; gap: 2px; margin-left: auto; margin-right: 8px; }
 .ttp-insp-font-control button { border: 1px solid #475569; border-radius: var(--radius-sm); background: transparent; color: inherit; padding: 2px 6px; font-size: var(--font-size-3xs); cursor: pointer; }
-.ttp-insp-font-control button[aria-pressed="true"] { background: #1e40af; color: #fff; border-color: #1e40af; }
+.ttp-insp-font-control button[aria-pressed="true"] { background: #051727; color: #fff; border-color: #051727; }
 
 /* "+N hops not in this run" — the collapse chip (same shape as the rail's). */
 .ttp-skipped-chip {

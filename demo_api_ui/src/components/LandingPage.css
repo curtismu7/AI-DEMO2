@@ -1,6 +1,6 @@
 /* ============================================================================
    Landing Page — Professional B2B identity platform theme
-   Palette: navy #0F172A primary, blue #0369A1 CTA, white/gray-50 background
+   Palette: navy #0F172A primary, blue #12538d CTA, white/gray-50 background
 
    READ BEFORE EDITING — the plain rules in this file are usually NOT what
    renders. LandingPage.js sets `data-rd-v2` unconditionally on the page root,
@@ -317,7 +317,7 @@
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: #eff6ff;
+  background: #fcfcfc;
   color: var(--lp-accent);
   margin-bottom: 18px;
   flex-shrink: 0;

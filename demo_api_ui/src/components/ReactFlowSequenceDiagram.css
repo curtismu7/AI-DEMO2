@@ -46,7 +46,7 @@
 }
 
 .rfps-arrowhead--on {
-  fill: #004687;
+  fill: #12538d;
 }
 
 .rfps-arrowhead--off {
@@ -61,7 +61,7 @@
 
 .rfps-token {
   fill: #f59e0b;
-  stroke: #b91c1c;
+  stroke: #d20e0f;
   stroke-width: 1;
   filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.8));
 }

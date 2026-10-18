@@ -192,7 +192,7 @@
 /* ── Primary button ─────────────────────────────────────────────────────── */
 
 .rp-btn-primary {
-  background: #3730a3;
+  background: #051727;
   color: #fff;
   border: none;
   border-radius: 6px;
@@ -204,7 +204,7 @@
 }
 
 .rp-btn-primary:hover:not(:disabled) {
-  background: #2563eb;
+  background: #12538d;
 }
 
 .rp-btn-primary:disabled {

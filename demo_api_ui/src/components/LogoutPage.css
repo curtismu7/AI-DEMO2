@@ -56,7 +56,7 @@
   min-height: var(--modal-header-height, 48px);
   background: var(
     --modal-header-bg,
-    linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)
+    linear-gradient(135deg, #1a1a2e 0%, #051727 100%)
   );
   color: var(--modal-header-text, #ffffff);
   flex-shrink: 0;

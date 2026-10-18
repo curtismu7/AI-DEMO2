@@ -62,7 +62,7 @@
 }
 
 .api-preview-status--ok   { background: #dcfce7; color: #15803d; }
-.api-preview-status--err  { background: #fee2e2; color: #b91c1c; }
+.api-preview-status--err  { background: #fee2e2; color: #d20e0f; }
 .api-preview-status--none { background: var(--th-bg-inset); color: #64748b; }
 
 .api-preview-duration {
@@ -132,5 +132,5 @@
 }
 
 .api-preview-body--response.api-preview-status--err {
-  border-left: 3px solid #ef4444;
+  border-left: 3px solid #d20e0f;
 }

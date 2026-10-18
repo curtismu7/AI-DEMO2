@@ -5,7 +5,7 @@
 
 /* Actor boxes */
 .tefd-box          { fill: #f5f6fa; stroke: #c8cdd8; stroke-width: 1.5; }
-.tefd-box--user    { fill: #eff6ff; stroke: #93c5fd; }
+.tefd-box--user    { fill: #fcfcfc; stroke: #93c5fd; }
 .tefd-box--bff     { fill: #f9fafb; stroke: #d1d5db; }
 .tefd-box--pingone { fill: #f9fafb; stroke: #d1d5db; }
 .tefd-box--mcp     { fill: #f0fdf4; stroke: #86efac; }
@@ -15,16 +15,16 @@
 
 /* Arrow lines */
 .tefd-arrow-line         { stroke-width: 2; }
-.tefd-arrow-line--user   { stroke: #3b82f6; }
+.tefd-arrow-line--user   { stroke: #12538d; }
 .tefd-arrow-line--agent  { stroke: #f59e0b; }
 .tefd-arrow-line--mcp    { stroke: #22c55e; }
-.tefd-arrowhead--user    { fill: #3b82f6; }
+.tefd-arrowhead--user    { fill: #12538d; }
 .tefd-arrowhead--agent   { fill: #f59e0b; }
 .tefd-arrowhead--mcp     { fill: #22c55e; }
 
 /* Step circles */
 .tefd-step-circle        { stroke: none; }
-.tefd-step-circle--user  { fill: #3b82f6; }
+.tefd-step-circle--user  { fill: #12538d; }
 .tefd-step-circle--agent { fill: #f59e0b; }
 .tefd-step-circle--mcp   { fill: #22c55e; }
 .tefd-step-num { font-size: 10px; font-weight: 700; fill: #fff; dominant-baseline: middle; }
@@ -34,7 +34,7 @@
 
 /* Arrow labels */
 .tefd-conn-label        { font-size: var(--font-size-xs); font-weight: 600; }
-.tefd-conn-label--user  { fill: #1d4ed8; }
+.tefd-conn-label--user  { fill: #12538d; }
 .tefd-conn-label--agent { fill: #b45309; }
 .tefd-conn-label--mcp   { fill: #15803d; }
 .tefd-conn-rfc          { font-size: var(--font-size-3xs); fill: #94a3b8; }
@@ -55,8 +55,8 @@
 /* Education buttons */
 .tefd-education-buttons { display: flex; flex-wrap: wrap; gap: 8px; margin-top: 10px; padding: 0 2px; }
 .tefd-btn { padding: 5px 11px; border-radius: 4px; font-size: var(--font-size-2xs); cursor: pointer; border: 1px solid transparent; line-height: 1.4; transition: background 0.15s, border-color 0.15s; }
-.tefd-btn--primary   { background: #1e40af; color: #fff; border-color: #1e40af; }
-.tefd-btn--primary:hover { background: #1e40af; }
+.tefd-btn--primary   { background: #051727; color: #fff; border-color: #051727; }
+.tefd-btn--primary:hover { background: #051727; }
 .tefd-btn--secondary { background: #fff; color: var(--th-text); border-color: #d1d5db; }
 .tefd-btn--secondary:hover { background: var(--th-bg-hover); border-color: #9ca3af; }
 

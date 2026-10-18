@@ -55,7 +55,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  background: var(--modal-header-bg, linear-gradient(135deg, #1a1a2e 0%, #16213e 100%));
+  background: var(--modal-header-bg, linear-gradient(135deg, #1a1a2e 0%, #051727 100%));
   color: var(--modal-header-text, #fff);
   cursor: grab;
   flex-shrink: 0;

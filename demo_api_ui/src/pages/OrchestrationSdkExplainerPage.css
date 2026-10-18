@@ -20,7 +20,7 @@
 /* Baseline ink for every link on this page, including the ones that carry no
    class at all. Without it a bare <a> falls through to PingOne's
    end-user-nano.css (cross-origin, see the .osx-cta note below), which paints
-   `a:link` the brand primary #277ba5 — measured 3.98:1 on the dark ground.
+   `a:link` the brand primary #12538d — measured 3.98:1 on the dark ground.
 
    (0,2,1), so it beats their (0,1,1). Deliberately FIRST in this file: the
    .osx-cta and .osx-mode-link rules below are also (0,2,1), and at equal
@@ -75,7 +75,7 @@
 
    The competitor is PingOne's own end-user-nano.css, loaded cross-origin from
    assets.pingone.com in public/index.html, which styles `a` with the brand
-   primary #277ba5 plus an underline. Against a single class it won both
+   primary #12538d plus an underline. Against a single class it won both
    properties while `background` and `border` — which it does not set — applied,
    producing the emphasis ground with link-blue ink at 2.71:1. Measured on the
    live page; exactly the ground-without-ink failure REGRESSION_PLAN §0 H1

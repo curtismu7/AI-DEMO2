@@ -21,9 +21,9 @@
   white-space: nowrap;
 }
 .dc-flag-pill--on {
-  color: #1d4ed8;
-  border-color: rgba(29, 78, 216, 0.35);
-  background: rgba(29, 78, 216, 0.06);
+  color: #12538d;
+  border-color: rgba(18, 83, 141, 0.35);
+  background: rgba(18, 83, 141, 0.06);
 }
 
 .dc-error {
@@ -32,7 +32,7 @@
   gap: 10px;
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #991b1b;
+  color: #aa0005;
   border-radius: 8px;
   padding: 10px 14px;
   margin-bottom: 16px;
@@ -119,12 +119,12 @@
   cursor: pointer;
 }
 .dc-nav-check:hover {
-  background: rgba(29, 78, 216, 0.06);
+  background: rgba(18, 83, 141, 0.06);
 }
 .dc-nav-check input {
   width: 15px;
   height: 15px;
-  accent-color: #1d4ed8;
+  accent-color: #12538d;
 }
 
 .dc-panel__actions {
@@ -144,7 +144,7 @@
   padding: 9px 16px;
   border: 1px solid transparent;
   cursor: pointer;
-  background: #1e40af;
+  background: #051727;
   color: #fff;
 }
 .dc-btn-primary:disabled,
@@ -171,8 +171,8 @@
   margin-bottom: 10px;
 }
 .dc-config-card--active {
-  border-color: rgba(29, 78, 216, 0.35);
-  background: rgba(29, 78, 216, 0.06);
+  border-color: rgba(18, 83, 141, 0.35);
+  background: rgba(18, 83, 141, 0.06);
 }
 .dc-config-card__row1 {
   display: flex;
@@ -262,8 +262,8 @@
   background: var(--th-bg-inset, #f1f5f9);
 }
 .dc-group-row--drag-over {
-  border-color: #1d4ed8;
-  background: rgba(29, 78, 216, 0.06);
+  border-color: #12538d;
+  background: rgba(18, 83, 141, 0.06);
 }
 
 .dc-group-row__main {
@@ -274,7 +274,7 @@
 }
 
 .dc-drag-handle {
-  color: var(--th-primary, #1d4ed8);
+  color: var(--th-primary, #12538d);
   font-size: 16px;
   line-height: 1;
   flex-shrink: 0;
@@ -292,7 +292,7 @@
 .dc-group-toggle input[type="checkbox"] {
   width: 15px;
   height: 15px;
-  accent-color: #1d4ed8;
+  accent-color: #12538d;
   flex-shrink: 0;
 }
 .dc-group-label {
@@ -385,8 +385,8 @@
   color: #94a3b8;
 }
 .dc-child-item--drag-over {
-  border-color: #2563eb;
-  box-shadow: inset 2px 0 0 #2563eb;
+  border-color: #12538d;
+  box-shadow: inset 2px 0 0 #12538d;
 }
 
 .dc-btn-secondary {

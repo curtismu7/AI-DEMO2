@@ -503,7 +503,7 @@
 }
 
 .rfp-view-btn--on {
-  background: #004687;
+  background: #12538d;
   color: #fff;
 }
 
@@ -692,7 +692,7 @@
 }
 
 .rfp-token-card__key {
-  color: #0e7490;
+  color: #12538d;
   font-weight: 700;
   min-width: 90px;
 }
@@ -729,9 +729,9 @@
 }
 
 .rfp-token-card__deny {
-  background: rgba(220, 38, 38, 0.12);
-  color: #b91c1c;
-  border: 1px solid rgba(220, 38, 38, 0.4);
+  background: rgba(210, 14, 15, 0.12);
+  color: #d20e0f;
+  border: 1px solid rgba(210, 14, 15, 0.4);
 }
 
 /* ─── Wire-level detail cards ────────────────────────────────────────── */
@@ -759,7 +759,7 @@
 }
 
 .rfp-wire__head--req {
-  color: #0e7490;
+  color: #12538d;
 }
 
 .rfp-wire__head--res {

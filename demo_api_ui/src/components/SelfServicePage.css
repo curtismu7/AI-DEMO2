@@ -77,7 +77,7 @@
 .ssp-error-banner {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #dc2626;
+  color: #d20e0f;
   padding: 1rem;
   margin: 1rem;
   border-radius: 8px;
@@ -96,7 +96,7 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #dc2626;
+  color: #d20e0f;
   padding: 0;
   width: 24px;
   height: 24px;
@@ -200,20 +200,20 @@
 .ssp-input:focus {
   outline: none;
   border-color: var(--brand-navy);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
 }
 
 .ssp-input--error {
-  border-color: #dc2626;
+  border-color: #d20e0f;
 }
 
 .ssp-input--error:focus {
-  border-color: #dc2626;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  border-color: #d20e0f;
+  box-shadow: 0 0 0 3px rgba(210, 14, 15, 0.1);
 }
 
 .ssp-error-text {
-  color: #dc2626;
+  color: #d20e0f;
   font-size: 0.875rem;
   margin-top: 0.25rem;
 }
@@ -249,13 +249,13 @@
 
 .ssp-role-card:hover {
   border-color: var(--brand-navy);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.1);
 }
 
 .ssp-role-card--selected {
   border-color: var(--brand-navy);
   background: var(--th-bg-hover);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.15);
 }
 
 .ssp-role-icon {
@@ -332,7 +332,7 @@
   background: var(--brand-navy);
   filter: brightness(0.85);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.3);
 }
 
 .ssp-submit-btn:disabled {
@@ -451,7 +451,7 @@
 }
 
 .ssp-status--inactive {
-  color: #dc2626;
+  color: #d20e0f;
   font-weight: 600;
 }
 

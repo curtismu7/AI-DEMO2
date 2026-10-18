@@ -244,8 +244,8 @@
   cursor: pointer; transition: background 0.12s, border-color 0.12s;
 }
 .rsj-nav-btn:hover { background: var(--rsj-btn-hover); border-color: var(--rsj-blue); }
-.rsj-nav-btn--primary { background: #1e40af; border-color: #1e40af; color: #fff; }
-.rsj-nav-btn--primary:hover { background: #1e3a8a; }
+.rsj-nav-btn--primary { background: #051727; border-color: #051727; color: #fff; }
+.rsj-nav-btn--primary:hover { background: #051727; }
 
 @media (max-width: 700px) {
   .rsj-split { grid-template-columns: 1fr; }

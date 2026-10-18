@@ -101,8 +101,8 @@
   color: var(--th-text-body);
 }
 .mgc-tab--active {
-  color: var(--brand-navy, #1d4ed8);
-  border-bottom-color: var(--brand-navy, #1d4ed8);
+  color: var(--brand-navy, #12538d);
+  border-bottom-color: var(--brand-navy, #12538d);
   font-weight: 600;
 }
 .mgc-tab--highlight {
@@ -333,8 +333,8 @@
 }
 .mgc-input:focus {
   outline: none;
-  border-color: var(--primary, #1e40af);
-  box-shadow: 0 0 0 2px rgba(37, 99, 235, 0.15);
+  border-color: var(--primary, #051727);
+  box-shadow: 0 0 0 2px rgba(18, 83, 141, 0.15);
 }
 .mgc-field-hint {
   font-size: var(--font-size-sm);
@@ -346,7 +346,7 @@
   align-self: flex-start;
   margin-top: 6px;
   padding: 8px 20px;
-  background: #1e40af;
+  background: #051727;
   color: var(--th-text-invert);
   border: none;
   border-radius: 6px;
@@ -356,7 +356,7 @@
   transition: background 0.15s;
 }
 .mgc-push-btn:hover:not(:disabled) {
-  background: #1e3a8a;
+  background: #051727;
 }
 .mgc-push-btn:disabled {
   opacity: 0.55;
@@ -373,7 +373,7 @@
 .mgc-alert--error {
   background: #fef2f2;
   border: 1px solid #fca5a5;
-  color: #991b1b;
+  color: #aa0005;
   padding: 8px 12px;
   border-radius: 6px;
   font-size: 0.95rem;

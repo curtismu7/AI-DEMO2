@@ -81,7 +81,7 @@
   text-align: center;
 }
 
-.oas-flow-step--spec     { border-color: #93c5fd; background: #eff6ff; }
+.oas-flow-step--spec     { border-color: #93c5fd; background: #fcfcfc; }
 .oas-flow-step--ai       { border-color: #fca5a5; background: #fee2e2; }
 .oas-flow-step--scope    { border-color: #fcd34d; background: #fffbeb; }
 .oas-flow-step--gateway  { border-color: #6ee7b7; background: #ecfdf5; }
@@ -185,7 +185,7 @@
   justify-content: center;
   width: 22px;
   height: 22px;
-  background: #1e40af;
+  background: #051727;
   color: var(--th-text-invert);
   border-radius: 50%;
   font-size: 0.7rem;
@@ -212,13 +212,13 @@
 
 .oas-tag-btn:hover {
   border-color: #93c5fd;
-  color: #1d4ed8;
+  color: #12538d;
 }
 
 .oas-tag-btn--active {
-  border-color: #1d4ed8;
-  background: #eff6ff;
-  color: #1e40af;
+  border-color: #12538d;
+  background: #fcfcfc;
+  color: #051727;
   font-weight: 600;
 }
 
@@ -243,7 +243,7 @@
 
 .oas-op-row--expanded {
   border-color: #93c5fd;
-  box-shadow: 0 2px 12px rgba(29,78,216,0.08);
+  box-shadow: 0 2px 12px rgba(18, 83, 141,0.08);
 }
 
 .oas-op-header {
@@ -315,12 +315,12 @@
 .oas-scope-badge {
   display: inline-block;
   padding: 2px 8px;
-  background: #dbeafe;
+  background: #e0e2e4;
   border: 1px solid #93c5fd;
   border-radius: 4px;
   font-size: 0.7rem;
   font-weight: 600;
-  color: #1e40af;
+  color: #051727;
   white-space: nowrap;
 }
 
@@ -406,7 +406,7 @@
 }
 
 .oas-status-code--ok   { background: #dcfce7; color: #166534; }
-.oas-status-code--err  { background: #fee2e2; color: #991b1b; }
+.oas-status-code--err  { background: #fee2e2; color: #aa0005; }
 .oas-status-code--warn { background: #fef3c7; color: #92400e; }
 
 /* ── Try it out ── */
@@ -422,8 +422,8 @@
   align-items: center;
   padding: 6px 14px;
   border-radius: 6px;
-  border: 1px solid #1e40af;
-  background: #1e40af;
+  border: 1px solid #051727;
+  background: #051727;
   color: var(--th-text-invert);
   font-size: 0.82rem;
   font-weight: 600;
@@ -473,7 +473,7 @@
 .oas-tryitout-error {
   margin-top: 0.5rem;
   font-size: 0.82rem;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 .oas-tryitout-result {
@@ -493,7 +493,7 @@
 .oas-scheme-card {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-left: 4px solid #1d4ed8;
+  border-left: 4px solid #12538d;
   border-radius: 8px;
   padding: 1.1rem 1.25rem;
 }
@@ -544,7 +544,7 @@
 
 .oas-raw-toggle:hover {
   border-color: #93c5fd;
-  color: #1d4ed8;
+  color: #12538d;
 }
 
 .oas-raw-spec {

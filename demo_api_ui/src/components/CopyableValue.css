@@ -22,8 +22,8 @@
 
 /* Source chip: "From Step 2" — blue */
 .copyable-value-chip--source {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: #e0e2e4;
+  color: #12538d;
   font-size: 10px;
   font-weight: 600;
   padding: 1px 7px;
@@ -97,7 +97,7 @@
 
 /* Background tints per state */
 .copyable-value-field--required .copyable-value-input  { background: #fffbeb; color: #92400e; }
-.copyable-value-field--filled .copyable-value-input    { background: #fee2e2; color: #3730a3; }
+.copyable-value-field--filled .copyable-value-input    { background: #fee2e2; color: #051727; }
 .copyable-value-field--autofill .copyable-value-input  { background: #f0fdf4; color: #065f46; }
 
 .copyable-value-copy-btn {
@@ -115,7 +115,7 @@
 
 .copyable-value-field--filled .copyable-value-copy-btn {
   background: #fecaca;
-  color: #3730a3;
+  color: #051727;
   border-left: 1px solid #fca5a5;
 }
 

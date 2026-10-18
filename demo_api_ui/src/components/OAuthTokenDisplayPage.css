@@ -105,7 +105,7 @@
 
 .otdp-retry-btn {
   margin-top: 1.25rem;
-  background: #1e40af;
+  background: #051727;
   color: #fff;
   border: none;
   padding: 0.6rem 1.75rem;
@@ -117,7 +117,7 @@
 }
 
 .otdp-retry-btn:hover {
-  background: #1d4ed8;
+  background: #12538d;
 }
 
 .otdp-card-title {
@@ -444,7 +444,7 @@
 }
 
 .otdp-flow-login-btn {
-  background: #1e40af;
+  background: #051727;
   color: #fff;
   border: none;
   padding: 0.7rem 2rem;
@@ -456,7 +456,7 @@
 }
 
 .otdp-flow-login-btn:hover:not(:disabled) {
-  background: #1d4ed8;
+  background: #12538d;
 }
 
 .otdp-flow-login-btn:disabled {

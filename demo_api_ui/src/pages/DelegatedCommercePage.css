@@ -209,4 +209,4 @@
   .dc-title-row { flex-direction: column; }
 }
 
-:root[data-theme="dark"] .dc-page { --dc-blue-text: #bae6fd; }
+:root[data-theme="dark"] .dc-page { --dc-blue-text: #e0e2e4; }

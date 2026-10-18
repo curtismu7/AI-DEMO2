@@ -69,7 +69,7 @@
 
 .azc-badge--pending_config {
   background: #fee2e2;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 /* ── Refresh Button ───────────────────────────────────────────────────── */
@@ -105,7 +105,7 @@
 .azc-error {
   background: #fee2e2;
   border: 1px solid #fecaca;
-  color: #991b1b;
+  color: #aa0005;
   padding: 12px 16px;
   border-radius: 6px;
   margin-bottom: 20px;
@@ -117,7 +117,7 @@
 
 .azc-error button {
   padding: 4px 10px;
-  background: #991b1b;
+  background: #aa0005;
   color: white;
   border: none;
   border-radius: 4px;
@@ -155,8 +155,8 @@
 }
 
 .azc-tab--active {
-  color: #1d4ed8;
-  border-bottom-color: #1d4ed8;
+  color: #12538d;
+  border-bottom-color: #12538d;
   font-weight: 600;
 }
 
@@ -168,7 +168,7 @@
   border-radius: 12px;
   padding: 28px;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06);
-  border-left: 4px solid var(--brand-navy, #1d4ed8);
+  border-left: 4px solid var(--brand-navy, #12538d);
 }
 
 .azc-section {
@@ -239,7 +239,7 @@
   flex: 15;
 }
 .azc-tier-bar__deny {
-  background: #ef4444;
+  background: #d20e0f;
   flex: 10;
 }
 
@@ -320,7 +320,7 @@
 .azc-tool-chip--deny {
   background: #fee2e2;
   border-color: #fca5a5;
-  color: #991b1b;
+  color: #aa0005;
   font-weight: 600;
 }
 
@@ -362,8 +362,8 @@
 
 .azc-input:focus {
   outline: none;
-  border-color: #1d4ed8;
-  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+  border-color: #12538d;
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
   background: var(--th-bg-card);
 }
 
@@ -385,8 +385,8 @@
 
 .azc-textarea:focus {
   outline: none;
-  border-color: #1d4ed8;
-  box-shadow: 0 0 0 3px rgba(29, 78, 216, 0.1);
+  border-color: #12538d;
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
   background: var(--th-bg-card);
 }
 
@@ -399,7 +399,7 @@
 
 /* Severity tinting on the first three threshold rows */
 .azc-field--deny {
-  border-left: 3px solid #ef4444;
+  border-left: 3px solid #d20e0f;
 }
 .azc-field--stepup {
   border-left: 3px solid #f97316;
@@ -411,7 +411,7 @@
 .azc-field--deny:hover {
   background: var(--th-status-error-bg);
   border-color: var(--th-status-error-border);
-  border-left-color: #ef4444;
+  border-left-color: #d20e0f;
   color: var(--th-text);
 }
 .azc-field--stepup:hover {
@@ -433,7 +433,7 @@
   align-self: flex-start;
   margin-top: 8px;
   padding: 9px 22px;
-  background: #1e40af;
+  background: #051727;
   color: white;
   border: none;
   border-radius: 6px;
@@ -444,7 +444,7 @@
 }
 
 .azc-save-btn:hover:not(:disabled) {
-  background: #1e40af;
+  background: #051727;
 }
 
 .azc-save-btn:disabled {
@@ -475,13 +475,13 @@
 .azc-alert--error {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 .azc-alert--info {
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #bfdbfe;
-  color: #1e40af;
+  color: #051727;
 }
 
 /* ── Info grid (PingOne tab) ─────────────────────────────────────────── */
@@ -628,7 +628,7 @@
 
 .azc-scope-name {
   font-size: var(--font-size-2xs);
-  color: #1d4ed8;
+  color: #12538d;
   font-weight: 700;
   font-family: inherit;
 }
@@ -656,7 +656,7 @@
 .azc-download-btn {
   display: inline-block;
   padding: 9px 20px;
-  background: #1e3a5f;
+  background: #051727;
   color: white;
   border: none;
   border-radius: 6px;

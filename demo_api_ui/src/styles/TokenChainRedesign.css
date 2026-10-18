@@ -70,17 +70,17 @@
   min-width: 28px;
   height: 28px;
   padding: 0 8px;
-  background: #dbeafe;
+  background: #e0e2e4;
   border-radius: 12px;
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #004687;
+  color: #12538d;
   flex-shrink: 0;
 }
 
 .tems-toggle-btn {
   padding: 6px 12px;
-  background: #1e40af;
+  background: #051727;
   border: none;
   border-radius: 6px;
   color: var(--th-text-invert);
@@ -92,12 +92,12 @@
 }
 
 .tems-toggle-btn:hover {
-  background: #1d4ed8;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.3);
+  background: #12538d;
+  box-shadow: 0 2px 8px rgba(18, 83, 141, 0.3);
 }
 
 .tems-toggle-btn:active {
-  background: #1e40af;
+  background: #051727;
 }
 
 /* Expanded table */
@@ -172,7 +172,7 @@
 
 .tems-token-badge--default {
   background: #f0f9ff;
-  color: #0369a1;
+  color: #12538d;
   border: 1px solid #7dd3fc;
 }
 
@@ -231,9 +231,9 @@
   justify-content: space-between;
   align-items: center;
   padding: 20px 24px;
-  background: linear-gradient(135deg, #2563eb 0%, #1e40af 100%);
+  background: linear-gradient(135deg, #12538d 0%, #051727 100%);
   border-radius: 8px 8px 0 0;
-  border-bottom: 1px solid #dbeafe;
+  border-bottom: 1px solid #e0e2e4;
 }
 
 .tlm-modal-title {
@@ -347,7 +347,7 @@
 
 .utfi-flow-diagram {
   background: var(--th-bg-card);
-  border-left: 3px solid #2563eb;
+  border-left: 3px solid #12538d;
   border-radius: 6px;
   padding: 16px;
   font-family: var(--font-mono);
@@ -417,7 +417,7 @@
 
 .utfi-claim-num {
   font-weight: 600;
-  color: #2563eb;
+  color: #12538d;
   margin-right: 6px;
 }
 
@@ -530,14 +530,14 @@
   padding: 12px;
   background: var(--th-bg-inset);
   border-radius: 6px;
-  border-left: 3px solid #2563eb;
+  border-left: 3px solid #12538d;
 }
 
 .utfi-claim-key {
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #2563eb;
+  color: #12538d;
 }
 
 .utfi-claim-value {
@@ -577,17 +577,17 @@
 }
 
 .utfi-modal-button--primary {
-  background: #1e40af;
+  background: #051727;
   color: white;
 }
 
 .utfi-modal-button--primary:hover {
-  background: #1d4ed8;
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  background: #12538d;
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.3);
 }
 
 .utfi-modal-button--primary:active {
-  background: #1e40af;
+  background: #051727;
 }
 
 /* Responsive adjustments */

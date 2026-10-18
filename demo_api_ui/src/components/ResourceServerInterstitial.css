@@ -47,7 +47,7 @@
   font-weight: 700;
   letter-spacing: 0.08em;
   text-transform: uppercase;
-  background: var(--rsi-accent, #2563eb);
+  background: var(--rsi-accent, #12538d);
   color: #fff;
   border-radius: 4px;
   margin-bottom: 0.75rem;
@@ -107,10 +107,10 @@
 }
 
 .rsi-node--active {
-  border-color: var(--rsi-accent, #2563eb);
-  background: color-mix(in srgb, var(--rsi-accent, #2563eb) 6%, white);
-  box-shadow: 0 0 0 4px color-mix(in srgb, var(--rsi-accent, #2563eb) 15%, transparent),
-              0 4px 12px color-mix(in srgb, var(--rsi-accent, #2563eb) 20%, transparent);
+  border-color: var(--rsi-accent, #12538d);
+  background: color-mix(in srgb, var(--rsi-accent, #12538d) 6%, white);
+  box-shadow: 0 0 0 4px color-mix(in srgb, var(--rsi-accent, #12538d) 15%, transparent),
+              0 4px 12px color-mix(in srgb, var(--rsi-accent, #12538d) 20%, transparent);
   transform: scale(1.05);
 }
 
@@ -132,7 +132,7 @@
 }
 
 .rsi-node--active .rsi-node-name {
-  color: var(--rsi-accent, #2563eb);
+  color: var(--rsi-accent, #12538d);
 }
 
 .rsi-node-port {
@@ -151,7 +151,7 @@
   position: absolute;
   inset: -2px;
   border-radius: 8px;
-  border: 2px solid var(--rsi-accent, #2563eb);
+  border: 2px solid var(--rsi-accent, #12538d);
   animation: rsi-pulse 1.5s ease-in-out infinite;
   pointer-events: none;
 }
@@ -177,15 +177,15 @@
 }
 
 .rsi-arrow--active {
-  background: var(--rsi-accent, #2563eb);
+  background: var(--rsi-accent, #12538d);
   animation: rsi-arrow-glow 1.5s ease-in-out infinite;
 }
 
-/* --rsi-accent is never defined; every other use in this file passes #2563eb
+/* --rsi-accent is never defined; every other use in this file passes #12538d
    as the fallback, and these two forgot — so the glow animated with no colour. */
 @keyframes rsi-arrow-glow {
-  0%, 100% { box-shadow: 0 0 4px var(--rsi-accent, #2563eb); }
-  50%      { box-shadow: 0 0 12px var(--rsi-accent, #2563eb); }
+  0%, 100% { box-shadow: 0 0 4px var(--rsi-accent, #12538d); }
+  50%      { box-shadow: 0 0 12px var(--rsi-accent, #12538d); }
 }
 
 /* ── Detail card ──────────────────────────────────────────────── */
@@ -238,8 +238,8 @@
 .rsi-explanation {
   margin: 2rem 0;
   padding: 1.25rem;
-  border-left: 4px solid var(--rsi-accent, #2563eb);
-  background: color-mix(in srgb, var(--rsi-accent, #2563eb) 4%, white);
+  border-left: 4px solid var(--rsi-accent, #12538d);
+  background: color-mix(in srgb, var(--rsi-accent, #12538d) 4%, white);
   border-radius: 0 6px 6px 0;
 }
 
@@ -258,7 +258,7 @@
 }
 
 .rsi-explanation code {
-  background: color-mix(in srgb, var(--rsi-accent, #2563eb) 10%, white);
+  background: color-mix(in srgb, var(--rsi-accent, #12538d) 10%, white);
   padding: 0.1em 0.35em;
   border-radius: 3px;
   font-size: 0.85em;
@@ -281,7 +281,7 @@
   font-size: 0.85rem;
   font-weight: 600;
   color: #fff;
-  background: var(--rsi-accent, #2563eb);
+  background: var(--rsi-accent, #12538d);
   border: none;
   border-radius: 6px;
   cursor: pointer;

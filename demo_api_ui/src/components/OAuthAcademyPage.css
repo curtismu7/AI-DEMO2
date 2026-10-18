@@ -420,14 +420,14 @@
   padding: 0.35rem 1rem;
   border: none;
   border-radius: 6px;
-  background: #1e40af;
+  background: #051727;
   color: #ffffff;
   font-weight: 600;
   cursor: pointer;
 }
 
 .oauth-academy-page .oa-signin-btn:hover {
-  background: #1d4ed8;
+  background: #12538d;
 }
 
 :root[data-theme="dark"] .oauth-academy-page .oa-token-chain-label { color: var(--th-status-success-text); }

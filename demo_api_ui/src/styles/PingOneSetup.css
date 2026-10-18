@@ -109,7 +109,7 @@
 .form-group input:focus {
   outline: none;
   border-color: var(--th-status-info);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.15);
 }
 
 .form-group input:disabled {

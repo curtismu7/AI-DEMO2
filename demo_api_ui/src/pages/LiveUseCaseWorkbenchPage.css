@@ -213,8 +213,8 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   white-space: nowrap;
 }
 .luw-card__rs-badge[data-rs="olb"] {
-  color: #1d4ed8;
-  background: #dbeafe;
+  color: #12538d;
+  background: #e0e2e4;
 }
 .luw-card__rs-badge[data-rs="invest"] {
   color: #047857;
@@ -293,10 +293,10 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 .luw-track--security .luw-track__count { color: #0f766e; }
 
 /* Color-code each group title so the tracks read apart at a glance. */
-.luw-track--foundations > summary { color: #1d4ed8; }
+.luw-track--foundations > summary { color: #12538d; }
 .luw-track--controls > summary    { color: #b45309; }
 .luw-track--hitl > summary        { color: #d20e0f; }
-.luw-track--attacks > summary     { color: #b91c1c; }
+.luw-track--attacks > summary     { color: #d20e0f; }
 /* Those hues are tuned for a white card; on the dark card they measured 2.3 to 3.1:1.
    Same hues, lighter stops. No --th-* token carries these hues. */
 :root[data-theme="dark"] .luw-card__expected-label,

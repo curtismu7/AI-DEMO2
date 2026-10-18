@@ -199,7 +199,7 @@
 }
 
 .helix-substep-connector.done { background: #15803d; }
-.helix-substep-connector.active { background: #2563eb; }
+.helix-substep-connector.active { background: #12538d; }
 .helix-substep-connector.pending { background: #e5e7eb; }
 
 .setup-banner-success {

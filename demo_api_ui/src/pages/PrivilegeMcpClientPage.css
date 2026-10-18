@@ -76,7 +76,7 @@
   width: 7px;
   height: 7px;
   border-radius: 50%;
-  background: #ef4444;
+  background: #d20e0f;
 }
 .cur-status--ok .cur-status-dot { background: #22c55e; }
 .cur-status--ok { color: #a3e635; }
@@ -116,7 +116,7 @@
   z-index: 10;
 }
 .cur-resize-handle:hover,
-.cur-resize-handle:active { background: #007acc; }
+.cur-resize-handle:active { background: #12538d; }
 .cur-resize-handle--v {
   width: 4px;
   cursor: col-resize;
@@ -183,7 +183,7 @@
   transition: border-color 0.15s;
   box-sizing: border-box;
 }
-.cur-input:focus { border-color: #007acc; }
+.cur-input:focus { border-color: #12538d; }
 .cur-input--code { font-family: var(--font-mono); font-size: var(--font-size-sm); }
 select.cur-input { cursor: pointer; }
 
@@ -267,7 +267,7 @@ select.cur-input { cursor: pointer; }
   border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
 }
-.cur-console-row--active { border-color: #007acc; }
+.cur-console-row--active { border-color: #12538d; }
 .cur-console-name { color: #ffffff; font-weight: 600; }
 .cur-console-meta { color: #8b949e; margin-left: auto; overflow-wrap: anywhere; }
 .cur-console-current { color: #86efac; }
@@ -324,7 +324,7 @@ select.cur-input { cursor: pointer; }
 .cur-btn--ghost {
   background: transparent;
   border-color: transparent;
-  color: #007acc;
+  color: #12538d;
   padding: 4px 0;
 }
 .cur-btn--ghost:hover { color: #1a8cd8; background: transparent; border-color: transparent; }
@@ -390,7 +390,7 @@ select.cur-input { cursor: pointer; }
 
 .cur-scope-count {
   font-size: var(--font-size-sm);
-  color: #007acc;
+  color: #12538d;
   background: #1a3a52;
   padding: 1px 6px;
   border-radius: 8px;
@@ -439,7 +439,7 @@ select.cur-input { cursor: pointer; }
 }
 .cur-tool-row:hover { background: #2a2d2e; border-left-color: #4ec9b0; }
 .cur-tool-row--selected { background: #2a2d2e; border-left-color: #6d9eeb; }
-.cur-ide[data-cur-theme="light"] .cur-tool-row--selected { background: #fee2e2; border-left-color: #2563eb; }
+.cur-ide[data-cur-theme="light"] .cur-tool-row--selected { background: #fee2e2; border-left-color: #12538d; }
 .cur-tool-row-name {
   font-family: var(--font-mono);
   font-size: var(--font-size-body);
@@ -591,7 +591,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-tab--chat, .cur-ide .cur-panel--chat { --tab-accent: #0e639c; }
 .cur-ide .cur-tab--tools, .cur-ide .cur-panel--tools { --tab-accent: #0f7b3f; }
 .cur-ide .cur-tab--user-api-keys, .cur-ide .cur-panel--user-api-keys { --tab-accent: #b58900; }
-.cur-ide .cur-tab--mcp, .cur-ide .cur-panel--mcp { --tab-accent: #0e7490; }
+.cur-ide .cur-tab--mcp, .cur-ide .cur-panel--mcp { --tab-accent: #12538d; }
 .cur-ide .cur-tab--rpc, .cur-ide .cur-panel--rpc { --tab-accent: #a1352c; }
 .cur-ide .cur-tab--policies, .cur-ide .cur-panel--policies { --tab-accent: #c2570c; }
 .cur-ide .cur-tab--relay, .cur-ide .cur-panel--relay { --tab-accent: #9d174d; }
@@ -627,16 +627,16 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-editor-area[class*="cur-panel--"] .ptt-table thead th { background: transparent; }
 .cur-ide .cur-tab--active {
   color: #fff;
-  border: 2px solid var(--tab-accent, #007acc);
+  border: 2px solid var(--tab-accent, #12538d);
   /* Same soft mix as the section under it, so tab and section match. */
-  background: color-mix(in srgb, var(--tab-accent, #007acc) 10%, #1e1e1e);
+  background: color-mix(in srgb, var(--tab-accent, #12538d) 10%, #1e1e1e);
 }
 .cur-tab--chat:hover, .cur-tab--tools:hover,
 .cur-tab--user-api-keys:hover, .cur-tab--mcp:hover, .cur-tab--rpc:hover,
 .cur-tab--policies:hover, .cur-tab--relay:hover, .cur-tab--scopes:hover { background: rgba(255, 255, 255, 0.06); }
 /* Hovering the active tab must not drop its color. */
-.cur-ide .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #007acc) 10%, #1e1e1e); }
-.cur-ide[data-cur-theme="light"] .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #007acc) 8%, #ffffff); }
+.cur-ide .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #12538d) 10%, #1e1e1e); }
+.cur-ide[data-cur-theme="light"] .cur-tab--active:hover { background: color-mix(in srgb, var(--tab-accent, #12538d) 8%, #ffffff); }
 
 /* Editor area */
 .cur-editor-area {
@@ -683,7 +683,7 @@ select.cur-input { cursor: pointer; }
 }
 .cur-msg--user { align-self: flex-end; background: #264f78; }
 .cur-msg--assistant { align-self: flex-start; background: #2a2a2a; border: 1px solid #3c3c3c; }
-.cur-msg--system { align-self: center; background: #1a2a3a; color: #7dd3fc; font-size: var(--font-size-body); border: 1px solid #1e3a5f; }
+.cur-msg--system { align-self: center; background: #1a2a3a; color: #7dd3fc; font-size: var(--font-size-body); border: 1px solid #051727; }
 .cur-msg--thinking { align-self: flex-start; background: #2d2640; color: #fca5a5; display: flex; align-items: center; gap: 8px; font-size: var(--font-size-body); }
 
 .cur-msg-header { margin-bottom: 4px; }
@@ -708,7 +708,7 @@ select.cur-input { cursor: pointer; }
 .cur-policy-decision span { grid-column: 1 / -1; color: #ffffff; }
 .cur-policy-decision--allowed { border-color: #22c55e; color: #86efac; }
 .cur-policy-decision--filtered,
-.cur-policy-decision--denied { border-color: #ef4444; color: #fca5a5; }
+.cur-policy-decision--denied { border-color: #d20e0f; color: #fca5a5; }
 .cur-policy-decision--confirmation_required,
 .cur-policy-decision--input_required { border-color: #f59e0b; color: #fcd34d; }
 
@@ -769,7 +769,7 @@ select.cur-input { cursor: pointer; }
   min-height: 36px;
   max-height: 120px;
 }
-.cur-composer-input:focus { border-color: #007acc; }
+.cur-composer-input:focus { border-color: #12538d; }
 
 .cur-composer-send {
   width: 36px;
@@ -893,7 +893,7 @@ select.cur-input { cursor: pointer; }
   cursor: pointer;
 }
 .cur-terminal-tab:hover { color: #aaa; }
-.cur-terminal-tab--active { color: #ffffff; border-bottom-color: #007acc; }
+.cur-terminal-tab--active { color: #ffffff; border-bottom-color: #12538d; }
 
 .cur-terminal-content {
   flex: 1;
@@ -1021,7 +1021,7 @@ select.cur-input { cursor: pointer; }
   padding: 8px 16px;
   background: #1a2a3a;
   border-radius: 6px;
-  border: 1px solid #1e3a5f;
+  border: 1px solid #051727;
   flex-shrink: 0;
 }
 
@@ -1129,7 +1129,7 @@ select.cur-input { cursor: pointer; }
 }
 
 .cur-skin-picker select:hover {
-  border-color: #007acc;
+  border-color: #12538d;
   color: #fff;
 }
 
@@ -1147,7 +1147,7 @@ select.cur-input { cursor: pointer; }
   transition: border-color 0.15s, background 0.15s;
   text-decoration: none;
 }
-.cur-flow-trigger:hover { border-color: #007acc; color: #fff; }
+.cur-flow-trigger:hover { border-color: #12538d; color: #fff; }
 
 /* Settings — red so it stands out in the titlebar, as it always has. It used
    to be U+2699 with a U+FE0E text-presentation selector; verified live, that
@@ -1248,7 +1248,7 @@ select.cur-input { cursor: pointer; }
 }
 .cur-flow-box:hover { border-color: #2f81f7; background: #21262d; }
 
-.cur-flow-box--browser { border-color: #3b82f6; border-left: 3px solid #3b82f6; }
+.cur-flow-box--browser { border-color: #12538d; border-left: 3px solid #12538d; }
 .cur-flow-box--bff { border-color: #d20e0f; border-left: 3px solid #d20e0f; }
 .cur-flow-box--privilege { border-color: #f59e0b; border-left: 3px solid #f59e0b; }
 .cur-flow-box--mcp { border-color: #10b981; border-left: 3px solid #10b981; }
@@ -1355,19 +1355,19 @@ select.cur-input { cursor: pointer; }
    colour survives: green 5.02:1, red 6.47:1, amber 5.02:1, slate 7.58:1 — all
    measured against #ffffff, all >= the 4.5:1 body floor.
    Only rules that sit on the page ground are here. .cur-btn--primary and
-   .cur-composer-send keep #fff because they sit on a #007acc fill. */
+   .cur-composer-send keep #fff because they sit on a #12538d fill. */
 .cur-ide[data-cur-theme="light"] .cur-policy-decision--allowed { color: #15803d; }
 .cur-ide[data-cur-theme="light"] .cur-status--ok { color: #15803d; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-badge--ok { color: #047857; }
 .cur-ide[data-cur-theme="light"] .cur-policy-decision--denied,
-.cur-ide[data-cur-theme="light"] .cur-policy-decision--filtered { color: #b91c1c; }
-.cur-ide[data-cur-theme="light"] .cur-result-item-badge--err { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-policy-decision--filtered { color: #d20e0f; }
+.cur-ide[data-cur-theme="light"] .cur-result-item-badge--err { color: #d20e0f; }
 .cur-ide[data-cur-theme="light"] .cur-policy-decision--confirmation_required,
 .cur-ide[data-cur-theme="light"] .cur-policy-decision--input_required { color: #b45309; }
 .cur-ide[data-cur-theme="light"] .cur-policy-decision span { color: var(--th-text); }
 /* The source rule carries !important, so the override must too. */
-.cur-ide[data-cur-theme="light"] .cur-settings-gear { color: #b91c1c !important; }
-.cur-ide[data-cur-theme="light"] .cur-settings-gear:hover { color: #991b1b !important; }
+.cur-ide[data-cur-theme="light"] .cur-settings-gear { color: #d20e0f !important; }
+.cur-ide[data-cur-theme="light"] .cur-settings-gear:hover { color: #aa0005 !important; }
 
 /* Chrome: title bar, activity bar, sidebar, tabs, composer, terminal */
 .cur-ide[data-cur-theme="light"] .cur-titlebar { background: #f3f3f3; border-bottom-color: #e0e0e0; }
@@ -1385,7 +1385,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab { color: #666; }
 .cur-ide[data-cur-theme="light"] .cur-tab:hover,
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab:hover { color: #222; }
-.cur-ide[data-cur-theme="light"] .cur-tab--active { background: color-mix(in srgb, var(--tab-accent, #007acc) 8%, #ffffff); color: #1e1e1e; border-color: var(--tab-accent, #007acc); }
+.cur-ide[data-cur-theme="light"] .cur-tab--active { background: color-mix(in srgb, var(--tab-accent, #12538d) 8%, #ffffff); color: #1e1e1e; border-color: var(--tab-accent, #12538d); }
 .cur-ide[data-cur-theme="light"] .cur-terminal-tab--active { color: #000; }
 
 /* Status pill + model badge */
@@ -1422,7 +1422,7 @@ select.cur-input { cursor: pointer; }
 /* Chat messages */
 .cur-ide[data-cur-theme="light"] .cur-msg--user { background: #d6e4f5; }
 .cur-ide[data-cur-theme="light"] .cur-msg--assistant { background: #f0f0f0; }
-.cur-ide[data-cur-theme="light"] .cur-msg--system { background: #e3f2fd; color: #0369a1; }
+.cur-ide[data-cur-theme="light"] .cur-msg--system { background: #e3f2fd; color: #12538d; }
 .cur-ide[data-cur-theme="light"] .cur-msg--thinking { background: #fee2e2; color: #aa0005; }
 .cur-ide[data-cur-theme="light"] .cur-msg-meta { background: #f0f0f0; color: #666; }
 
@@ -1440,20 +1440,20 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-code-output--schema { color: #a31515; }
 
 /* Terminal event badges — lighter fills, darker text */
-.cur-ide[data-cur-theme="light"] .cur-terminal-badge--relay { background: #cffafe; color: #0e7490; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--relay { background: #cffafe; color: #12538d; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-badge--oauth { background: #fee2e2; color: #aa0005; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-badge--config { background: #ecfccb; color: #4d7c0f; }
 .cur-ide[data-cur-theme="light"] .cur-terminal-badge--mcp { background: #dcfce7; color: #15803d; }
-.cur-ide[data-cur-theme="light"] .cur-terminal-badge--error { background: #fee2e2; color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-badge--error { background: #fee2e2; color: #d20e0f; }
 
 /* Scopes panel */
 .cur-ide[data-cur-theme="light"] .cur-scopes-summary { background: #e3f2fd; }
-.cur-ide[data-cur-theme="light"] .cur-scopes-count-large { color: #1d4ed8; }
-.cur-ide[data-cur-theme="light"] .cur-scope-count { background: #dbeafe; color: #1d4ed8; }
+.cur-ide[data-cur-theme="light"] .cur-scopes-count-large { color: #12538d; }
+.cur-ide[data-cur-theme="light"] .cur-scope-count { background: #e0e2e4; color: #12538d; }
 
 /* Modals: blocked, flow, settings */
 .cur-ide[data-cur-theme="light"] .cur-modal { background: #ffffff; color: #1e1e1e; }
-.cur-ide[data-cur-theme="light"] .cur-modal h2 { color: #dc2626; }
+.cur-ide[data-cur-theme="light"] .cur-modal h2 { color: #d20e0f; }
 .cur-ide[data-cur-theme="light"] .cur-modal p { color: #333; }
 .cur-ide[data-cur-theme="light"] .cur-flow-modal,
 .cur-ide[data-cur-theme="light"] .cur-settings-modal { background: #ffffff; color: #1e1e1e; border-color: #e0e0e0; }
@@ -1461,7 +1461,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-flow-box { background: #f5f5f5; border-color: #e0e0e0; }
 .cur-ide[data-cur-theme="light"] .cur-flow-box:hover { background: #eaeaea; }
 .cur-ide[data-cur-theme="light"] .cur-flow-claims { background: #f0f0f0; }
-.cur-ide[data-cur-theme="light"] .cur-flow-ck { color: #1d4ed8; }
+.cur-ide[data-cur-theme="light"] .cur-flow-ck { color: #12538d; }
 .cur-ide[data-cur-theme="light"] .cur-flow-cv { color: #333; }
 .cur-ide[data-cur-theme="light"] .cur-flow-cv--hi { color: #d20e0f; }
 .cur-ide[data-cur-theme="light"] .cur-flow-cv--ok,
@@ -1522,7 +1522,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide:not([data-cur-theme="light"]) .cur-scope-count { color: #ffffff; font-weight: 600; }
 /* Lift the darkest pill/badge fills a little so white text sits on real contrast. */
 .cur-ide:not([data-cur-theme="light"]) .scope-mcp { background: #14532d; }
-.cur-ide:not([data-cur-theme="light"]) .scope-p1 { background: #1e3a5f; }
+.cur-ide:not([data-cur-theme="light"]) .scope-p1 { background: #051727; }
 .cur-ide:not([data-cur-theme="light"]) .scope-oidc { background: #3b2f5e; }
 .cur-ide:not([data-cur-theme="light"]) .scope-read { background: #164e59; }
 .cur-ide:not([data-cur-theme="light"]) .scope-write { background: #5a3a1a; }
@@ -1570,7 +1570,7 @@ select.cur-input { cursor: pointer; }
 .cur-scope-pill--selected { outline: 2px solid #6d9eeb; outline-offset: 1px; }
 .cur-scopes-table tr { cursor: pointer; }
 .cur-scope-row--selected > td { background: rgba(109, 158, 235, 0.22); }
-.cur-ide[data-cur-theme="light"] .cur-scope-row--selected > td { background: rgba(37, 99, 235, 0.14); }
+.cur-ide[data-cur-theme="light"] .cur-scope-row--selected > td { background: rgba(18, 83, 141, 0.14); }
 
 /* RESULTS terminal tab — collects tool-call output; flashes on each new result. */
 .cur-terminal-tab-badge {
@@ -1634,9 +1634,9 @@ select.cur-input { cursor: pointer; }
 }
 .cur-ide[data-cur-theme="light"] .cur-result-item { border-color: #e0e0e0; background: #ffffff; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-head { background: #f3f3f3; border-bottom-color: #e0e0e0; }
-.cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #0369a1; }
+.cur-ide[data-cur-theme="light"] .cur-result-item-tool { color: #12538d; }
 .cur-ide[data-cur-theme="light"] .cur-result-item-body { color: #1e1e1e; }
-.cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #1e40af; color: #ffffff; }
+.cur-ide[data-cur-theme="light"] .cur-terminal-tab-badge { background: #051727; color: #ffffff; }
 
 /* MCP Explorer — the whole cur-mcp-* family shipped with no light override, so
    its #ddd/#ccc ink (correct on the dark base) rendered near-white on the light
@@ -1668,7 +1668,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-console-name { color: #1e1e1e; }
 .cur-ide[data-cur-theme="light"] .cur-denial-ok,
 .cur-ide[data-cur-theme="light"] .cur-console-current { color: #0a7d6b; }
-.cur-ide[data-cur-theme="light"] .cur-denial-bad { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-denial-bad { color: #d20e0f; }
 .cur-ide[data-cur-theme="light"] .cur-denial-auth { color: #92600e; }
 .cur-ide[data-cur-theme="light"] .cur-denial-pill { color: #92600e; border-color: #92600e; background: rgba(146, 96, 14, 0.1); }
 .cur-ide[data-cur-theme="light"] .cur-denial-heading { color: #1f2328; }
@@ -1679,7 +1679,7 @@ select.cur-input { cursor: pointer; }
   border-color: #e0e0e0;
   color: #1e1e1e;
 }
-.cur-ide[data-cur-theme="light"] .cur-console-tag { background: #fee2e2; color: #2563eb; }
+.cur-ide[data-cur-theme="light"] .cur-console-tag { background: #fee2e2; color: #12538d; }
 
 /* ─────────────────────────────────────────────────────────────────────────
    Responsive — on smaller displays the fixed IDE layout crushed the main pane
@@ -1720,7 +1720,7 @@ select.cur-input { cursor: pointer; }
   padding: 14px 20px;
   background: linear-gradient(90deg, rgba(190, 24, 43, 0.22), rgba(190, 24, 43, 0.06));
   border-top: 1px solid rgba(248, 113, 113, 0.5);
-  border-bottom: 2px solid #dc2626;
+  border-bottom: 2px solid #d20e0f;
   color: #fee2e2;
 }
 
@@ -1771,14 +1771,14 @@ select.cur-input { cursor: pointer; }
 /* Light skin: the same band on a pale ground needs darker ink, not the same
    pale ink on a washed-out fill. */
 .cur-ide[data-cur-theme="light"] .cur-blocked-band {
-  background: linear-gradient(90deg, rgba(220, 38, 38, 0.14), rgba(220, 38, 38, 0.04));
+  background: linear-gradient(90deg, rgba(210, 14, 15, 0.14), rgba(210, 14, 15, 0.04));
   color: #7f1d1d;
 }
 
-.cur-ide[data-cur-theme="light"] .cur-blocked-band__title { color: #991b1b; }
+.cur-ide[data-cur-theme="light"] .cur-blocked-band__title { color: #aa0005; }
 .cur-ide[data-cur-theme="light"] .cur-blocked-band__detail { color: #7f1d1d; }
 .cur-ide[data-cur-theme="light"] .cur-blocked-band__detail strong { color: #450a0a; }
-.cur-ide[data-cur-theme="light"] .cur-empty-state--blocked { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-empty-state--blocked { color: #d20e0f; }
 .cur-ide[data-cur-theme="light"] .cur-empty-state--blocked strong { color: #7f1d1d; }
 
 /* Policy viewer: a picker plus one detail pane, rather than a stack of
@@ -1946,7 +1946,7 @@ select.cur-input { cursor: pointer; }
   --cur-prompt-ink: #1e1e1e;
   --cur-prompt-muted: #444444;
   --cur-prompt-border: #cccccc;
-  --cur-prompt-error: #b91c1c;
+  --cur-prompt-error: #d20e0f;
   --cur-prompt-accent: #0b5fb0;
 }
 
@@ -2106,7 +2106,7 @@ select.cur-input { cursor: pointer; }
 .cur-ide[data-cur-theme="light"] .cur-rail__url { color: #0b6bb5; }
 .cur-ide[data-cur-theme="light"] .cur-rail__note--bad,
 .cur-ide[data-cur-theme="light"] .cur-rail__bad-text,
-.cur-ide[data-cur-theme="light"] .cur-rail__probe--bad { color: #b91c1c; }
+.cur-ide[data-cur-theme="light"] .cur-rail__probe--bad { color: #d20e0f; }
 .cur-ide[data-cur-theme="light"] .cur-rail__note--warn { color: #92400e; }
 .cur-ide[data-cur-theme="light"] .cur-rail__ok-text,
 .cur-ide[data-cur-theme="light"] .cur-rail__probe--ok { color: #15803d; }

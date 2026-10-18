@@ -11,8 +11,8 @@
      7.7:1 at the same hue. */
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--brand-dashboard-header-start, #1d4ed8) 76%, #000000) 0%,
-    color-mix(in srgb, var(--brand-dashboard-header-end, #1d4ed8) 76%, #000000) 100%
+    color-mix(in srgb, var(--brand-dashboard-header-start, #12538d) 76%, #000000) 0%,
+    color-mix(in srgb, var(--brand-dashboard-header-end, #12538d) 76%, #000000) 100%
   ) !important;
   border-bottom: none;
   /* No fixed height: the container wraps to a second row below 1280px

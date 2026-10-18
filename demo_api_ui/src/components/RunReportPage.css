@@ -45,7 +45,7 @@
 
 .runs-table thead {
   background: #f5f5f5;
-  border-bottom: 2px solid #277ba5;
+  border-bottom: 2px solid #12538d;
 }
 
 .runs-table th {
@@ -181,7 +181,7 @@
 
 .bulk-export-btn {
   padding: 0.75rem 1.5rem;
-  background: #277ba5;
+  background: #12538d;
   color: white;
   border: none;
   border-radius: 4px;
@@ -217,7 +217,7 @@
 
 .vertical-picker {
   padding: 0.6rem 0.9rem;
-  border: 1px solid #277ba5;
+  border: 1px solid #12538d;
   border-radius: 4px;
   background: white;
   color: var(--th-text);
@@ -239,7 +239,7 @@
 
 .run-demo-btn {
   padding: 0.6rem 1.2rem;
-  background: #277ba5;
+  background: #12538d;
   color: white;
   border: none;
   border-radius: 4px;
@@ -284,7 +284,7 @@
 .demo-result__login-btn {
   flex-shrink: 0;
   padding: 0.3rem 0.85rem;
-  background: #991b1b;
+  background: #aa0005;
   color: #fff;
   border: none;
   border-radius: 4px;
@@ -303,7 +303,7 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 10px;
-  background: #1e3a8a;
+  background: #051727;
   color: #fff;
   font-size: 0.72rem;
   font-weight: 700;

@@ -1,8 +1,8 @@
 .pai-eyebrow { display: inline-block; margin-right: 8px; padding: 4px 8px; border-radius: var(--radius-sm); color: var(--th-bg-page); background: var(--th-text); font-size: var(--font-size-2xs); font-weight: 800; letter-spacing: .08em; text-transform: uppercase; }
-.pai-eyebrow--core { background: #1e40af; }
+.pai-eyebrow--core { background: #051727; }
 .pai-eyebrow--gateway { background: #115e59; }
 .pai-eyebrow--authorize { background: #aa0005; }
-.pai-eyebrow--privilege { background: #991b1b; }
+.pai-eyebrow--privilege { background: #aa0005; }
 .pai-eyebrow--protect { color: var(--th-bg-page); background: var(--th-status-error-text); }
 .pai-product-nav { display: flex; flex-wrap: wrap; gap: 8px; margin: 0; padding: 14px 0 0; border-top: 1px solid var(--th-border); }
 .pai-lesson-page .pai-product-nav__link:not(.pai-product-nav__link--active), .pai-lesson-page .pai-product-nav__link:not(.pai-product-nav__link--active):link, .pai-lesson-page .pai-product-nav__link:not(.pai-product-nav__link--active):visited { flex: 1 1 auto; padding: 12px 14px; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--th-text-invert); -webkit-text-fill-color: var(--th-text-invert); font-size: var(--font-size-md); font-weight: 700; line-height: 1.25; text-align: center; text-decoration: none; }
@@ -12,7 +12,7 @@
 .pai-lesson-page .lesson-section-title { font-size: var(--font-size-2xl); }
 .pai-lesson-page .lesson-section h3 { font-size: var(--font-size-lg); }
 .pai-hero { display: grid; grid-template-columns: 70px 1fr; gap: 18px; align-items: center; padding: 26px; border: 1px solid var(--th-border); border-left: 5px solid var(--pai-accent); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); }
-.pai-hero--core { --pai-accent: #1e40af; } .pai-hero--gateway { --pai-accent: #115e59; } .pai-hero--authorize { --pai-accent: #aa0005; } .pai-hero--privilege { --pai-accent: #991b1b; }
+.pai-hero--core { --pai-accent: #051727; } .pai-hero--gateway { --pai-accent: #115e59; } .pai-hero--authorize { --pai-accent: #aa0005; } .pai-hero--privilege { --pai-accent: #aa0005; }
 .pai-hero--protect { --pai-accent: var(--th-status-error-text); }
 .pai-hero--protect .pai-hero-mark { color: var(--th-bg-page); background: var(--th-status-error-text); }
 .pai-hero-mark { display: grid; place-items: center; width: 58px; height: 58px; border-radius: var(--radius-lg); background: var(--pai-accent); color: #fff; font-size: var(--font-size-sm); font-weight: 900; letter-spacing: .08em; }

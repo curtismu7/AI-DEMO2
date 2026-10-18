@@ -148,4 +148,4 @@
   color: var(--th-status-error-text);
 }
 
-:root[data-theme="dark"] .mcps-btn-primary { --th-status-info: #1e40af; }
+:root[data-theme="dark"] .mcps-btn-primary { --th-status-info: #051727; }

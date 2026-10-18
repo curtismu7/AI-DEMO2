@@ -51,12 +51,12 @@
   letter-spacing: 0.01em;
 }
 
-.ec-badge--user_request    { background: #dbeafe; color: #1d4ed8; }
+.ec-badge--user_request    { background: #e0e2e4; color: #12538d; }
 .ec-badge--agent_thinking  { background: #fee2e2; color: #aa0005; }
 .ec-badge--tool_call       { background: #dcfce7; color: #15803d; }
 .ec-badge--token_exchange  { background: #ffedd5; color: #c2410c; }
 .ec-badge--result          { background: #ccfbf1; color: #0f766e; }
-.ec-badge--error           { background: #fee2e2; color: #b91c1c; }
+.ec-badge--error           { background: #fee2e2; color: #d20e0f; }
 /* Fallback for unknown types */
 .ec-badge--unknown         { background: #f3f4f6; color: var(--th-text); }
 
@@ -70,7 +70,7 @@
 }
 
 .ec-card--error .ec-message {
-  color: #b91c1c;
+  color: #d20e0f;
 }
 
 /* Expand toggle chevron */

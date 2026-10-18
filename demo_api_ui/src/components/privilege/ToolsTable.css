@@ -21,7 +21,7 @@
 .ptt-count {
   font-size: var(--font-size-2xs);
   color: #ffffff;
-  background: #007acc;
+  background: #12538d;
   padding: 1px 8px;
   border-radius: 10px;
   margin-left: 6px;
@@ -36,7 +36,7 @@
   outline: none;
   min-width: 220px;
 }
-.ptt-filter:focus { border-color: #007acc; }
+.ptt-filter:focus { border-color: #12538d; }
 .ptt-header-actions { display: flex; align-items: center; gap: 8px; }
 .ptt-present-btn {
   background: #2d2640;
@@ -116,7 +116,7 @@
 .ptt-param--req { color: #ffd479; background: #2e2612; border-color: #4d3f19; font-weight: 700; }
 
 .ptt-run {
-  background: #007acc;
+  background: #12538d;
   color: #ffffff;
   border: none;
   border-radius: 4px;
@@ -150,7 +150,7 @@
 }
 .ptt-execute {
   align-self: flex-start;
-  background: #007acc;
+  background: #12538d;
   color: #ffffff;
   border: none;
   border-radius: 4px;
@@ -244,4 +244,4 @@
 /* Row revealed from the left rail — accent bar + tint so the jump is obvious. */
 .ptt-row--selected td { box-shadow: inset 3px 0 0 #6d9eeb; }
 .ptt-row--selected td:first-child { background: rgba(109, 158, 235, 0.14); }
-.cur-ide[data-cur-theme="light"] .ptt-row--selected td:first-child { background: rgba(37, 99, 235, 0.10); }
+.cur-ide[data-cur-theme="light"] .ptt-row--selected td:first-child { background: rgba(18, 83, 141, 0.10); }

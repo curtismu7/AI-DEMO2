@@ -230,7 +230,7 @@
 .embedded-agent-dock__title {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #1e3a5f;
+  color: #051727;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   margin: 0;
@@ -245,7 +245,7 @@
   letter-spacing: 0.04em;
   text-transform: none;
   background: #e8f0fb;
-  color: #1e3a5f;
+  color: #051727;
   border: 1px solid #c0d0ea;
   border-radius: 10px;
   vertical-align: middle;
@@ -381,17 +381,17 @@
 }
 
 .embedded-dock-resize-handle:hover .embedded-dock-resize-handle__bar {
-  background: rgba(37, 99, 235, 0.5);
+  background: rgba(18, 83, 141, 0.5);
   width: 44px;
 }
 
 .embedded-dock-resize-handle:active {
   cursor: ns-resize;
-  background: #dbeafe;
+  background: #e0e2e4;
 }
 
 .embedded-dock-resize-handle:focus-visible {
-  outline: 2px solid #4169e1;
+  outline: 2px solid #12538d;
   outline-offset: 2px;
 }
 
@@ -560,7 +560,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.3);
+  box-shadow: 0 2px 8px rgba(18, 83, 141, 0.3);
   transition:
     background 0.2s,
     transform 0.15s,
@@ -576,7 +576,7 @@
 
 .nav-home-fab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.4);
   background: linear-gradient(
     135deg,
     var(--app-primary-blue) 0%,
@@ -613,7 +613,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.3);
+  box-shadow: 0 2px 8px rgba(18, 83, 141, 0.3);
   transition:
     background 0.2s,
     transform 0.15s,
@@ -629,7 +629,7 @@
 
 .nav-dashboard-fab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.45);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.45);
   background: linear-gradient(
     135deg,
     var(--app-primary-blue) 0%,
@@ -697,7 +697,7 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 2px 8px rgba(18, 83, 141, 0.35);
   transition:
     background 0.2s,
     transform 0.15s,
@@ -711,7 +711,7 @@
 
 .demo-config-fab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.45);
   background: linear-gradient(
     135deg,
     var(--brand-navy) 0%,
@@ -777,12 +777,12 @@
   -webkit-text-fill-color: var(--th-text) !important;
 }
 
-/* PingOne end-user-nano ships dark-on-light defaults for headings (#1a2330), links (#277ba5)
+/* PingOne end-user-nano ships dark-on-light defaults for headings (#1a2330), links (#12538d)
    and inline code (#d63384). On the dark app ground those measured 1.0 to 3.4:1 across 22
    routes, so redefine the three variables it reads once, here, instead of per page. */
 .App.end-user-nano {
   --bs-code-color: #9d174d; /* 8.2:1 on white, 7.4:1 on the light page tints */
-  --bs-link-color-rgb: 7, 89, 133; /* #075985, 7.6:1 on white */
+  --bs-link-color-rgb: 7, 89, 133; /* #12538d, 7.6:1 on white */
 }
 :root[data-theme="dark"] .App.end-user-nano {
   --bs-heading-color: var(--th-text);
@@ -813,7 +813,7 @@
   -webkit-text-fill-color: var(--th-text) !important;
 }
 
-/* PingOne's own .btn-primary fill is its default blue (#277ba5), which this app never meant to show:
+/* PingOne's own .btn-primary fill is its default blue (#12538d), which this app never meant to show:
    index.css already aligns .btn-secondary to the app red, and the label rule below assumes a
    --app-primary-red fill. Black ink on that blue measured 3.6:1 on four admin pages. */
 .App.end-user-nano .btn .badge:not([class*="bg-"]) {
@@ -1193,12 +1193,12 @@
 .otp-step-up-modal__contact {
   display: inline-block;
   background: #f0f9ff;
-  border: 1px solid #bae6fd;
+  border: 1px solid #e0e2e4;
   border-radius: 8px;
   padding: 6px 14px;
   font-size: 1rem;
   font-weight: 700;
-  color: #0369a1;
+  color: #12538d;
   letter-spacing: 0.04em;
   margin-bottom: 12px;
   font-variant-numeric: tabular-nums;
@@ -1212,7 +1212,7 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  border-left: 3px solid #0369a1;
+  border-left: 3px solid #12538d;
   border-radius: 8px;
   padding: 8px 12px;
   margin-bottom: 12px;
@@ -1222,7 +1222,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #0369a1;
+  color: #12538d;
 }
 .otp-step-up-modal__identity-name {
   font-size: 1rem;
@@ -1245,12 +1245,12 @@
   padding: 0;
   font-size: 0.9rem;
   font-weight: 700;
-  color: #0369a1;
+  color: #12538d;
   text-decoration: underline;
   cursor: pointer;
 }
 .otp-step-up-modal__demo-link:hover {
-  color: #075985;
+  color: #12538d;
 }
 .otp-step-up-modal__demo-box {
   margin-top: 8px;
@@ -1268,13 +1268,13 @@
 .otp-step-up-modal__delivery-error {
   background: #fef2f2;
   border: 1px solid #fca5a5;
-  border-left: 3px solid #dc2626;
+  border-left: 3px solid #d20e0f;
   border-radius: 8px;
   padding: 10px 12px;
   margin-bottom: 12px;
   font-size: 0.92rem;
   font-weight: 600;
-  color: #991b1b;
+  color: #aa0005;
 }
 .otp-step-up-modal__delivery-error strong {
   font-weight: 800;
@@ -1284,8 +1284,8 @@
 /* Register-a-passkey device row */
 .otp-step-up-modal__device-item--register {
   border-style: dashed;
-  border-color: #0369a1;
-  color: #0369a1;
+  border-color: #12538d;
+  color: #12538d;
   font-weight: 700;
 }
 .otp-step-up-modal__device-item--register:disabled {
@@ -1356,18 +1356,18 @@
 }
 
 .otp-step-up-modal__input:focus {
-  border-color: #0ea5e9;
+  border-color: #12538d;
 }
 
 .otp-step-up-modal__input--error {
-  border-color: #dc2626;
+  border-color: #d20e0f;
   background: #fff5f5;
 }
 
 .otp-step-up-modal__error {
   font-size: 0.82rem;
   font-weight: 500;
-  color: #dc2626;
+  color: #d20e0f;
   line-height: 1.4;
   margin-top: 0.5rem;
   margin-bottom: 0;
@@ -1572,16 +1572,16 @@
   transition: border-color 0.15s;
 }
 .otp-step-up-modal__input:focus {
-  border-color: #0ea5e9;
+  border-color: #12538d;
 }
 .otp-step-up-modal__input--error {
-  border-color: #dc2626;
+  border-color: #d20e0f;
   background: #fff5f5;
 }
 .otp-step-up-modal__error {
   font-size: 0.82rem;
   font-weight: 500;
-  color: #dc2626;
+  color: #d20e0f;
   line-height: 1.4;
   margin-top: 0.5rem;
   margin-bottom: 0;
@@ -1688,7 +1688,7 @@
   font-size: 0.95rem;
 }
 .otp-step-up-modal__device-item:hover {
-  border-color: var(--accent-blue, #0066cc);
+  border-color: var(--accent-blue, #12538d);
   box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.15);
 }
 .otp-step-up-modal__device-icon {
@@ -1756,7 +1756,7 @@
   height: 1.45rem;
   padding: 0 0.35rem;
   border-radius: 4px;
-  background: #075985;
+  background: #12538d;
   color: var(--th-text-invert);
   font-size: var(--font-size-3xs);
   font-weight: 800;
@@ -1783,9 +1783,9 @@
 }
 .otp-step-up-modal__method-cta {
   appearance: none;
-  border: 1px solid #0ea5e9;
+  border: 1px solid #12538d;
   background: var(--th-bg-card);
-  color: #0369a1;
+  color: #12538d;
   font-weight: 700;
   font-size: 0.82rem;
   border-radius: 6px;
@@ -1795,7 +1795,7 @@
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 .otp-step-up-modal__method-cta:hover:not(:disabled) {
-  background: #075985;
+  background: #12538d;
   color: var(--th-text-invert);
 }
 .otp-step-up-modal__method-cta:disabled {
@@ -1845,14 +1845,14 @@
   color: #7dd3fc;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-cta:hover:not(:disabled) {
-  background: #075985;
+  background: #12538d;
   color: #ffffff;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-toggle {
   color: #7dd3fc;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-toggle:hover {
-  color: #bae6fd;
+  color: #e0e2e4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__contact {
   background: #0c2a44;
@@ -1868,7 +1868,7 @@
   color: #7dd3fc;
 }
 :root[data-theme="dark"] .otp-step-up-modal__demo-link:hover {
-  color: #bae6fd;
+  color: #e0e2e4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__identity-label {
   color: #7dd3fc;
@@ -1882,7 +1882,7 @@
   color: #7dd3fc;
 }
 :root[data-theme="dark"] .otp-step-up-modal__rfc-label {
-  color: #bae6fd;
+  color: #e0e2e4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__rfc-detail code {
   background: #164e63;
@@ -1899,7 +1899,7 @@
   color: #fecaca;
 }
 :root[data-theme="dark"] .otp-step-up-modal__input--error {
-  border-color: #dc2626;
+  border-color: #d20e0f;
   background: #3a1414;
 }
 :root[data-theme="dark"] .otp-step-up-modal__btn-ghost,
@@ -1917,7 +1917,7 @@
 .otp-step-up-modal__method-toggle {
   background: transparent;
   border: none;
-  color: #0ea5e9;
+  color: #12538d;
   cursor: pointer;
   font-size: 0.85rem;
   text-decoration: underline;
@@ -1937,29 +1937,29 @@
   margin-top: 1.1rem;
   padding: 0.6rem 0.75rem;
   background: #f0f9ff;
-  border: 1px solid #bae6fd;
+  border: 1px solid #e0e2e4;
   border-radius: 8px;
   font-size: 0.72rem;
-  color: #0369a1;
+  color: #12538d;
   line-height: 1.45;
 }
 .otp-step-up-modal__rfc-label {
   font-weight: 600;
-  color: #0c4a6e;
+  color: #051727;
 }
 .otp-step-up-modal__rfc-detail {
-  color: #0369a1;
+  color: #12538d;
 }
 .otp-step-up-modal__rfc-detail code {
   font-family: inherit;
-  background: #e0f2fe;
+  background: #e0e2e4;
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.7rem;
 }
 .otp-step-up-modal__rfc-refs {
   font-size: 0.68rem;
-  color: #0369a1;
+  color: #12538d;
   opacity: 0.8;
   font-style: italic;
 }

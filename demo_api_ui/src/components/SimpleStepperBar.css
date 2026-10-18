@@ -40,7 +40,7 @@
   padding: 1px 8px;
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: #2563eb;
+  color: #12538d;
   background: none;
   border: 1px solid #bfdbfe;
   border-radius: 4px;
@@ -49,5 +49,5 @@
 }
 
 .ssb-toggle:hover {
-  background: #eff6ff;
+  background: #fcfcfc;
 }

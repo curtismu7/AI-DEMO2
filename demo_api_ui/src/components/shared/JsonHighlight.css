@@ -15,10 +15,10 @@
 /* Bright red, not amber-on-amber: the old #92400e ink on the #fef3c7 wash was
    unreadable in the token-claims blocks ("look for this yellow text, you can
    not read it. Make bright red", 2026-08-10). */
-.jh-focus { background: rgba(220, 38, 38, 0.10); color: #dc2626; font-weight: 700; border-radius: 3px; }
+.jh-focus { background: rgba(210, 14, 15, 0.10); color: #d20e0f; font-weight: 700; border-radius: 3px; }
 
 /* Critical fields (decision, outcome, error, status, result) — red */
-.jh-critical { color: #dc2626; font-weight: 600; }
+.jh-critical { color: #d20e0f; font-weight: 600; }
 
 /* Dark — applied via `jh-dark` on the container */
 .jh-dark .jh-key { color: #79c0ff; }

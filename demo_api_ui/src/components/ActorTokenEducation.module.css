@@ -34,7 +34,7 @@
 .introduction {
   background: var(--th-bg-card);
   padding: 16px;
-  border-left: 4px solid #0066cc;
+  border-left: 4px solid #12538d;
   border-radius: 6px;
   margin-bottom: 24px;
 }
@@ -264,7 +264,7 @@
   padding: 16px;
   border-radius: 6px;
   margin-top: 20px;
-  border-left: 4px solid #0066cc;
+  border-left: 4px solid #12538d;
 }
 
 .relatedResources h3 {

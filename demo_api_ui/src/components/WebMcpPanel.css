@@ -49,7 +49,7 @@
 }
 
 .webmcp-discovery-phase--failed .webmcp-discovery-phase__status {
-  background: #dc2626;
+  background: #d20e0f;
 }
 
 .webmcp-discovery-phase__text {
@@ -88,8 +88,8 @@
 }
 
 .webmcp-tool-badge--stepup {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: #e0e2e4;
+  color: #12538d;
   border: 1px solid #38bdf8;
 }
 
@@ -141,7 +141,7 @@
 }
 
 .webmcp-gate-notice--hitl strong { color: #92400e; }
-.webmcp-gate-notice--stepup strong { color: #0369a1; }
+.webmcp-gate-notice--stepup strong { color: #12538d; }
 
 .webmcp-gate-notice p {
   margin: 0;
@@ -157,14 +157,14 @@
   margin-top: 14px;
   padding: 12px 16px;
   border-radius: 6px;
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #bfdbfe;
   font-size: var(--font-size-base);
-  color: #1e40af;
+  color: #051727;
 }
 
 .webmcp-calling-status strong {
-  color: #1e3a8a;
+  color: #051727;
 }
 
 /* ── Pipeline events ────────────────────────────────────────────────────── */
@@ -274,8 +274,8 @@
 }
 
 .webmcp-result-context--hitl strong   { color: #92400e; }
-.webmcp-result-context--stepup strong { color: #0369a1; }
-.webmcp-result-context--tool_error strong { color: #dc2626; }
+.webmcp-result-context--stepup strong { color: #12538d; }
+.webmcp-result-context--tool_error strong { color: #d20e0f; }
 .webmcp-result-context--success strong { color: #15803d; }
 
 .webmcp-result-context p {
@@ -298,7 +298,7 @@
 .webmcp-error p {
   margin: 0 0 6px;
   font-size: var(--font-size-body);
-  color: #dc2626;
+  color: #d20e0f;
 }
 
 .webmcp-error details {

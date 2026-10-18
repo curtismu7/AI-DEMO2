@@ -154,7 +154,7 @@
 /* Deliberately literal — same fixed brand-navy gradient treatment as
    .rsp-header, paired with guaranteed-readable white/near-white text. */
 .rsp-hero {
-  background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #051727 0%, #0f172a 100%);
   border-radius: 12px;
   padding: 24px;
   color: #fff;
@@ -198,7 +198,7 @@
 
 .rsp-account-card:hover {
   border-color: var(--th-status-info);
-  box-shadow: 0 0 12px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 12px rgba(18, 83, 141, 0.15);
 }
 
 .rsp-account-top {
@@ -504,7 +504,7 @@
    of theme. */
 .rsp-path-badge {
   display: inline-block;
-  background: #004687;
+  background: #12538d;
   color: #fff;
   font-size: var(--font-size-xs);
   font-weight: 700;

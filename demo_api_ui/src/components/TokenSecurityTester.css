@@ -137,7 +137,7 @@
 
 .tst-result-value--error {
   background: #fee2e2;
-  color: #dc2626;
+  color: #d20e0f;
   padding: 2px 8px;
   border-radius: 3px;
   font-family: var(--font-mono);
@@ -163,7 +163,7 @@
 .tst-teaching-header {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: #2563eb;
+  color: #12538d;
   margin-bottom: 12px;
   padding-bottom: 8px;
   border-bottom: 1px solid #e2e8f0;
@@ -173,8 +173,8 @@
   font-size: var(--font-size-body);
   color: #1e293b;
   line-height: 1.7;
-  background: #eff6ff;
-  border-left: 3px solid #2563eb;
+  background: #fcfcfc;
+  border-left: 3px solid #12538d;
   padding: 12px 16px;
   border-radius: 0 4px 4px 0;
 }

@@ -559,7 +559,7 @@
 }
 
 .learning-hub__card:hover {
-  border-color: var(--primary, #0066cc);
+  border-color: var(--primary, #12538d);
   box-shadow: 0 4px 12px rgba(0, 102, 204, 0.15);
   transform: translateY(-2px);
 }

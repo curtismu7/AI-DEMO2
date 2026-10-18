@@ -247,7 +247,7 @@
 
 .tracing-link {
   font-weight: 600;
-  color: #1d4ed8;
+  color: #12538d;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -308,7 +308,7 @@
 .tracing-detail-row > td { padding: 0; }
 .tracing-detail { padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
 .tracing-detail--msg { color: var(--th-text-muted); font-size: var(--font-size-sm); }
-.tracing-detail--error { color: #b91c1c; }
+.tracing-detail--error { color: #d20e0f; }
 
 .tracing-span-row { display: grid; grid-template-columns: 260px 1fr 72px; align-items: center; gap: 8px; font-size: var(--font-size-2xs); }
 .tracing-span-label { display: flex; gap: 6px; overflow: hidden; white-space: nowrap; }
@@ -318,11 +318,11 @@
 .tracing-span-bar { position: absolute; top: 0; height: 12px; border-radius: 3px; min-width: 2px; }
 .tracing-span-dur { text-align: right; color: var(--th-text-muted); font-variant-numeric: tabular-nums; }
 
-.tracing-span-bar--c0 { background: #3b82f6; }
+.tracing-span-bar--c0 { background: #12538d; }
 .tracing-span-bar--c1 { background: #10b981; }
 .tracing-span-bar--c2 { background: #f59e0b; }
 .tracing-span-bar--c3 { background: #d20e0f; }
-.tracing-span-bar--c4 { background: #ef4444; }
+.tracing-span-bar--c4 { background: #d20e0f; }
 .tracing-span-bar--c5 { background: #06b6d4; }
 .tracing-span-bar--c6 { background: #ec4899; }
 .tracing-span-bar--c7 { background: #84cc16; }
@@ -331,7 +331,7 @@
   margin-bottom: 16px;
   padding: 12px 18px;
   border: 1px solid var(--th-border);
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid #12538d;
   border-radius: 8px;
   background: var(--th-bg-card);
 }
@@ -618,7 +618,7 @@
 
 .tracing-step-icon--brain {
   background: #bfdbfe;
-  color: #1e40af;
+  color: #051727;
 }
 
 .tracing-step-icon--key {
@@ -633,7 +633,7 @@
 
 .tracing-step-icon--bolt {
   background: #fecaca;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 .tracing-step-icon--database {
@@ -673,7 +673,7 @@
   top: 0;
   height: 8px;
   border-radius: 2px;
-  background: #3b82f6;
+  background: #12538d;
   min-width: 2px;
 }
 
@@ -749,7 +749,7 @@
 }
 
 .tracing-detail-tab--active {
-  color: #1d4ed8;
-  border-bottom-color: #1d4ed8;
+  color: #12538d;
+  border-bottom-color: #12538d;
 }
 

@@ -12,7 +12,7 @@
   border-radius: 12px;
   box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(239, 68, 68, 0.15);
+    0 0 0 1px rgba(210, 14, 15, 0.15);
   z-index: 1201;
   overflow-y: auto;
   animation: ksm-slide-up 0.25s cubic-bezier(0.22, 1, 0.36, 1);
@@ -36,8 +36,8 @@
   align-items: center;
   gap: 10px;
   padding: 14px 20px;
-  background: linear-gradient(135deg, #7f1d1d, #991b1b);
-  border-bottom: 1px solid #b91c1c;
+  background: linear-gradient(135deg, #7f1d1d, #aa0005);
+  border-bottom: 1px solid #d20e0f;
 }
 
 .ksm-header-icon {
@@ -168,8 +168,8 @@
 .ksm-select:focus,
 .ksm-text-input:focus {
   outline: none;
-  border-color: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+  border-color: #d20e0f;
+  box-shadow: 0 0 0 3px rgba(210, 14, 15, 0.12);
 }
 
 .ksm-select:disabled,
@@ -181,8 +181,8 @@
 .ksm-error {
   margin: 0 0 12px;
   padding: 10px 14px;
-  background: rgba(220, 38, 38, 0.15);
-  border: 1px solid rgba(220, 38, 38, 0.5);
+  background: rgba(210, 14, 15, 0.15);
+  border: 1px solid rgba(210, 14, 15, 0.5);
   border-radius: 6px;
   color: var(--th-text-invert);
   font-size: 0.8125rem;
@@ -214,7 +214,7 @@
 }
 
 .ksm-scope-option--selected {
-  border-color: #ef4444;
+  border-color: #d20e0f;
   background: #fef2f2;
 }
 
@@ -259,7 +259,7 @@
 .ksm-result-scope--full {
   background: #fef2f2;
   border-color: #f87171;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 .ksm-result-mechanism {
@@ -358,7 +358,7 @@
   border: 1px solid #fecaca;
   border-radius: 6px;
   font-size: var(--font-size-2xs);
-  color: #991b1b;
+  color: #aa0005;
   line-height: 1.5;
 }
 
@@ -366,8 +366,8 @@
 
 .ksm-confirm-btn {
   padding: 6px 18px;
-  background: #991b1b;
-  border: 1px solid #991b1b;
+  background: #aa0005;
+  border: 1px solid #aa0005;
   border-radius: 6px;
   color: var(--th-text-invert);
   font-size: var(--font-size-sm);
@@ -377,7 +377,7 @@
 }
 
 .ksm-confirm-btn:hover:not(:disabled) {
-  background: #b91c1c;
+  background: #d20e0f;
 }
 
 .ksm-confirm-btn:disabled {
@@ -399,12 +399,12 @@
   height: 130px;
   border-radius: 50%;
   border: 5px solid #7f1d1d;
-  outline: 3px solid rgba(239, 68, 68, 0.25);
+  outline: 3px solid rgba(210, 14, 15, 0.25);
   background: radial-gradient(
     circle at 38% 35%,
     #f87171 0%,
-    #dc2626 45%,
-    #991b1b 100%
+    #d20e0f 45%,
+    #aa0005 100%
   );
   color: var(--th-text-invert);
   cursor: pointer;
@@ -416,7 +416,7 @@
   box-shadow:
     0 6px 0 #7f1d1d,
     0 8px 20px rgba(0, 0, 0, 0.6),
-    0 0 30px rgba(239, 68, 68, 0.4);
+    0 0 30px rgba(210, 14, 15, 0.4);
   transition: all 0.12s ease;
   transform: translateY(0);
   user-select: none;
@@ -426,12 +426,12 @@
   box-shadow:
     0 6px 0 #7f1d1d,
     0 10px 28px rgba(0, 0, 0, 0.65),
-    0 0 45px rgba(239, 68, 68, 0.6);
+    0 0 45px rgba(210, 14, 15, 0.6);
   background: radial-gradient(
     circle at 38% 35%,
     #fca5a5 0%,
-    #ef4444 45%,
-    #b91c1c 100%
+    #d20e0f 45%,
+    #d20e0f 100%
   );
 }
 
@@ -440,7 +440,7 @@
   box-shadow:
     0 1px 0 #7f1d1d,
     0 2px 8px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(239, 68, 68, 0.3);
+    0 0 20px rgba(210, 14, 15, 0.3);
 }
 
 .ksm-emergency-btn:disabled {
@@ -484,7 +484,7 @@
 }
 
 .ksm-cancel-link {
-  background: linear-gradient(135deg, #dc2626, #991b1b);
+  background: linear-gradient(135deg, #d20e0f, #aa0005);
   border: none;
   color: var(--th-text-invert);
   font-size: var(--font-size-sm);
@@ -497,7 +497,7 @@
 }
 
 .ksm-cancel-link:hover:not(:disabled) {
-  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  background: linear-gradient(135deg, #d20e0f, #d20e0f);
   color: var(--th-text-invert);
 }
 

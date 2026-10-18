@@ -37,10 +37,10 @@
 .dsl-lead {
   margin: 0 0 16px;
   padding: 10px 14px;
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #93c5fd;
   border-radius: 6px;
-  color: #1e3a8a;
+  color: #051727;
   font-weight: 600;
 }
 
@@ -84,7 +84,7 @@
   padding: 8px 64px 8px 10px;
   background: #f9fafb;
   border: 1px solid #e5e7eb;
-  border-left: 3px solid #2563eb;
+  border-left: 3px solid #12538d;
   border-radius: 4px;
   display: flex;
   flex-direction: column;
@@ -124,14 +124,14 @@
   font-size: var(--font-size-sm);
   font-weight: 700;
   color: #ffffff;
-  background: #1e40af;
-  border: 1px solid #1e3a8a;
+  background: #051727;
+  border: 1px solid #051727;
   border-radius: 6px;
   cursor: pointer;
 }
 
 .dsl-nav-btn:hover {
-  background: #1e40af;
+  background: #051727;
 }
 
 .dsl-do,
@@ -155,7 +155,7 @@
 }
 
 .dsl-do .dsl-tag {
-  background: #1d4ed8;
+  background: #12538d;
 }
 
 .dsl-see .dsl-tag {
@@ -172,7 +172,7 @@
   background: #fef2f2;
   border: 1px solid #fca5a5;
   border-radius: 6px;
-  color: #991b1b;
+  color: #aa0005;
   font-weight: 600;
 }
 

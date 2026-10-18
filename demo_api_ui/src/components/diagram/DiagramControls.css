@@ -59,8 +59,8 @@
 .dc-step-label {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #004687;
-  background: #eff6ff;
+  color: #12538d;
+  background: #fcfcfc;
   border: 1px solid #bfdbfe;
   border-radius: 5px;
   padding: 0.25rem 0.6rem;
@@ -87,7 +87,7 @@
   cursor: not-allowed;
 }
 
-.dc-ctrl-btn--simulate { background: #004687; color: #fff; }
+.dc-ctrl-btn--simulate { background: #12538d; color: #fff; }
 .dc-ctrl-btn--simulate:hover:not(:disabled) { background: #003366; }
 
 .dc-ctrl-btn--pause  { background: #92400e; color: #fff; }
@@ -96,7 +96,7 @@
 .dc-ctrl-btn--resume { background: #166534; color: #fff; }
 .dc-ctrl-btn--resume:hover:not(:disabled) { background: #16a34a; }
 
-.dc-ctrl-btn--next   { background: #004687; color: #fff; }
+.dc-ctrl-btn--next   { background: #12538d; color: #fff; }
 .dc-ctrl-btn--next:hover:not(:disabled)   { background: #003366; }
 
 .dc-ctrl-btn--stop   { background: #e2e8f0; color: #334155; }
@@ -208,5 +208,5 @@
    .seq-paper — the sequence diagram's participant boxes share the token and
    need the dark-theme pair (see SequenceFlowDiagram.css .sfx-part). */
 :root[data-theme="dark"] .seq-paper .deb-bar {
-  --th-status-info-text: #1e40af;
+  --th-status-info-text: #051727;
 }

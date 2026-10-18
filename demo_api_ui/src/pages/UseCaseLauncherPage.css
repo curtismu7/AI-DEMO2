@@ -51,15 +51,15 @@
   font-weight: 700;
   padding: 0.25rem 0.65rem;
   border-radius: 6px;
-  border: 1px solid #991b1b;
-  background: #991b1b;
+  border: 1px solid #aa0005;
+  background: #aa0005;
   color: var(--th-text-invert);
   cursor: pointer;
 }
 
 .uc-launcher__stop-agent:hover {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: #d20e0f;
+  border-color: #d20e0f;
 }
 
 .uc-launcher__subtitle {
@@ -332,7 +332,7 @@
 
 .uc-maturity--works          { background: #dcfce7; color: #166534; }
 .uc-maturity--flag           { background: #fef3c7; color: #92400e; }
-.uc-maturity--needs-console  { background: #dbeafe; color: #1e40af; }
+.uc-maturity--needs-console  { background: #e0e2e4; color: #051727; }
 .uc-maturity--needs-build    { background: var(--th-bg-inset); color: var(--th-text-body); }
 
 /* Run button */

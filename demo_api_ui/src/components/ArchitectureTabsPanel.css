@@ -40,8 +40,8 @@
 }
 
 .architecture-tab-button[aria-selected="true"] {
-  color: #991b1b;
-  border-bottom-color: #991b1b;
+  color: #aa0005;
+  border-bottom-color: #aa0005;
   background: transparent;
 }
 
@@ -114,11 +114,11 @@
   padding: 8px;
   background: var(--th-bg-inset);
   border-radius: 3px;
-  border-left: 3px solid var(--app-primary-red, #b91c1c);
+  border-left: 3px solid var(--app-primary-red, #d20e0f);
 }
 
 .token-flow-mode-indicator strong {
-  color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red, #d20e0f);
   font-weight: 700;
 }
 
@@ -163,7 +163,7 @@
 .ciba-stepup-step-actor {
   grid-row: span 2;
   font-weight: 700;
-  color: #2563eb;
+  color: #12538d;
   font-size: 0.85rem;
 }
 .ciba-stepup-step-title {

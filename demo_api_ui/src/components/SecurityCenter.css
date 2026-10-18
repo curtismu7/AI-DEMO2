@@ -20,7 +20,7 @@
 }
 
 .security-card__header {
-  background: var(--brand-navy, #004687);
+  background: var(--brand-navy, #12538d);
   color: var(--brand-white, #FFFFFF);
   padding: 0.875rem 1.5rem;
   display: flex;

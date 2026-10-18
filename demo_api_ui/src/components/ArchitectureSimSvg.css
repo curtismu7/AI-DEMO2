@@ -52,7 +52,7 @@
   transition: transform 160ms ease, box-shadow 160ms ease;
 }
 .asim-node:hover { transform: translateY(-2px); box-shadow: 0 9px 20px rgba(15, 23, 42, 0.17); }
-.asim-node[data-category="browser"] { background: #dbeafe; border-color: #3b82f6; color: #1e3a8a; }
+.asim-node[data-category="browser"] { background: #e0e2e4; border-color: #12538d; color: #051727; }
 .asim-node[data-category="bff"], .asim-node[data-category="vault"] { background: #fee2e2; border-color: #d20e0f; color: #7f1d1d; }
 .asim-node[data-category="mcp-gw"] { background: #ffedd5; border-color: #f97316; color: #7c2d12; }
 .asim-node[data-category="agent"], .asim-node[data-category="llm"] { background: #fce7f3; border-color: #ec4899; color: #831843; }
@@ -84,10 +84,10 @@
 }
 .asim-node[data-state="blocked"] {
   border-width: 2px;
-  border-color: #ef4444;
+  border-color: #d20e0f;
   background: #fef2f2;
-  color: #991b1b;
-  filter: drop-shadow(0 0 8px rgba(239, 68, 68, 0.5));
+  color: #aa0005;
+  filter: drop-shadow(0 0 8px rgba(210, 14, 15, 0.5));
 }
 
 @keyframes asim-pulse {
@@ -111,7 +111,7 @@
   animation: dstep-flow 0.9s linear infinite;
 }
 .asim-edge[data-state="done"] { stroke: #22c55e; stroke-width: 3; }
-.asim-edge[data-state="blocked"] { stroke: #ef4444; stroke-width: 3; }
+.asim-edge[data-state="blocked"] { stroke: #d20e0f; stroke-width: 3; }
 
 @media (prefers-reduced-motion: reduce) {
   .asim-edge[data-state="active"] { animation: none; }
@@ -120,7 +120,7 @@
 .asim-arrowhead { fill: #94a3b8; }
 .asim-arrowhead[data-state="active"] { fill: #f59e0b; }
 .asim-arrowhead[data-state="done"] { fill: #22c55e; }
-.asim-arrowhead[data-state="blocked"] { fill: #ef4444; }
+.asim-arrowhead[data-state="blocked"] { fill: #d20e0f; }
 
 @media (max-width: 760px) {
   .asim-canvas { height: 560px; min-width: 680px; }

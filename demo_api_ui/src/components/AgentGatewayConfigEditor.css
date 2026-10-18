@@ -48,7 +48,7 @@
   font-size: 0.85rem;
 }
 .agc-file:hover { background: #f1f5f9; }
-.agc-file--active { background: #e0edff; color: #1d4ed8; font-weight: 600; }
+.agc-file--active { background: #e0edff; color: #12538d; font-weight: 600; }
 .agc-file-label { flex: 1; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
 .agc-badge {
@@ -90,7 +90,7 @@
 }
 .agc-form-parse-error {
   padding: 1rem 1.25rem;
-  color: #991b1b;
+  color: #aa0005;
   font-size: 0.85rem;
 }
 
@@ -106,8 +106,8 @@
 }
 .agc-btn:hover:not(:disabled) { background: #f1f5f9; }
 .agc-btn:disabled { opacity: 0.5; cursor: not-allowed; }
-.agc-btn--primary { background: #1e40af; border-color: #1e40af; color: #fff; }
-.agc-btn--primary:hover:not(:disabled) { background: #1d4ed8; }
+.agc-btn--primary { background: #051727; border-color: #051727; color: #fff; }
+.agc-btn--primary:hover:not(:disabled) { background: #12538d; }
 .agc-btn--warn { background: #92400e; border-color: #92400e; color: #fff; }
 .agc-btn--warn:hover:not(:disabled) { background: #b45309; }
 .agc-btn--active { background: #1e293b; border-color: #1e293b; color: #fff; }
@@ -135,7 +135,7 @@
   padding: 0.08rem 0.4rem;
   border-radius: 4px;
 }
-.agc-issue--error .agc-issue-badge { background: #fee2e2; color: #991b1b; }
+.agc-issue--error .agc-issue-badge { background: #fee2e2; color: #aa0005; }
 .agc-issue--warn .agc-issue-badge { background: #fef3c7; color: #92400e; }
 .agc-issue-path { font-family: var(--font-mono); color: var(--th-text); white-space: nowrap; }
 .agc-issue-msg { color: #334155; }

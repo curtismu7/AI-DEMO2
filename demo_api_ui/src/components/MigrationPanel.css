@@ -183,12 +183,12 @@
 }
 
 .migration-info {
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #93c5fd;
   border-radius: 6px;
   padding: 12px 14px;
   font-size: var(--font-size-sm);
-  color: #1e40af;
+  color: #051727;
   line-height: 1.5;
   margin-top: 8px;
 }

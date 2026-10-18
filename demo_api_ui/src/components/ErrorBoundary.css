@@ -23,7 +23,7 @@
 }
 
 .error-boundary-content h2 {
-  color: #dc2626;
+  color: #d20e0f;
   font-size: var(--font-size-2xl);
   margin-bottom: 12px;
   font-weight: 600;
@@ -100,7 +100,7 @@
 .error-details-agent pre {
   margin: 0;
   font-size: var(--font-size-xs);
-  color: #b91c1c;
+  color: #d20e0f;
   white-space: pre-wrap;
   word-break: break-word;
 }
@@ -122,13 +122,13 @@
 }
 
 .btn-primary {
-  background: #1e40af;
+  background: #051727;
   color: white;
 }
 
 .btn-primary:hover {
-  background: #2563eb;
-  box-shadow: 0 2px 8px rgba(59, 130, 246, 0.3);
+  background: #12538d;
+  box-shadow: 0 2px 8px rgba(18, 83, 141, 0.3);
 }
 
 .btn-secondary {

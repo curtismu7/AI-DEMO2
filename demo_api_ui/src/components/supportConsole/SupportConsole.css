@@ -19,8 +19,8 @@
      literal default keeps the custom property from being formally
      undefined (a silent-drop trap the app-wide signinAccentTokens.test.js
      guards against) if this is ever rendered without that inline style. */
-  --accent: #2563eb;
-  --accent2: #1e3a8a;
+  --accent: #12538d;
+  --accent2: #051727;
   --tint: color-mix(in srgb, var(--accent) 12%, var(--th-bg-card));
   color: var(--th-text);
 }

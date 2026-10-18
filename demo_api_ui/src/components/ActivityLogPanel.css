@@ -111,7 +111,7 @@
 }
 
 /* ─── Per-category pill colours ────────────────────────────────────────────── */
-.alp-cat--oauth         { background: #dbeafe; color: #1e40af; border-color: #93c5fd; }
+.alp-cat--oauth         { background: #e0e2e4; color: #051727; border-color: #93c5fd; }
 .alp-cat--mcp           { background: #fee2e2; color: #7f1d1d; border-color: #fca5a5; }
 .alp-cat--token_exchange{ background: #fee2e2; color: #aa0005; border-color: #fca5a5; }
 .alp-cat--delegation    { background: #fee2e2; color: #7f1d1d; border-color: #f87171; }
@@ -121,7 +121,7 @@
 .alp-cat--threshold     { background: #ffe4e6; color: #881337; border-color: #fda4af; }
 .alp-cat--introspection { background: #cffafe; color: #164e63; border-color: #67e8f9; }
 .alp-cat--helix         { background: #dcfce7; color: #14532d; border-color: #86efac; }
-.alp-cat--agent         { background: #e0f2fe; color: #0c4a6e; border-color: #7dd3fc; }
+.alp-cat--agent         { background: #e0e2e4; color: #051727; border-color: #7dd3fc; }
 .alp-cat--agent_prompt  { background: #ecfccb; color: #365314; border-color: #bef264; }
 .alp-cat--session       { background: var(--th-bg-inset); color: var(--th-text-body); border-color: var(--th-border-strong); }
 .alp-cat--jwks          { background: #f4f4f5; color: #3f3f46; border-color: #a1a1aa; }
@@ -209,7 +209,7 @@
 }
 
 /* ─── Per-category left border colours ─────────────────────────────────────── */
-.alp-cat-border--oauth          { border-left-color: #3b82f6; }
+.alp-cat-border--oauth          { border-left-color: #12538d; }
 .alp-cat-border--mcp            { border-left-color: #d20e0f; }
 .alp-cat-border--token_exchange { border-left-color: #d20e0f; }
 .alp-cat-border--delegation     { border-left-color: #d20e0f; }
@@ -219,7 +219,7 @@
 .alp-cat-border--threshold      { border-left-color: #f43f5e; }
 .alp-cat-border--introspection  { border-left-color: #06b6d4; }
 .alp-cat-border--helix          { border-left-color: #22c55e; }
-.alp-cat-border--agent          { border-left-color: #0ea5e9; }
+.alp-cat-border--agent          { border-left-color: #12538d; }
 .alp-cat-border--agent_prompt   { border-left-color: #84cc16; }
 .alp-cat-border--session        { border-left-color: var(--th-border-strong); }
 .alp-cat-border--jwks           { border-left-color: #a1a1aa; }
@@ -244,7 +244,7 @@
 .alp-flow-divider--start {
   background: #ecfeff;
   border-color: #22d3ee;
-  color: #0e7490;
+  color: #12538d;
 }
 
 .alp-flow-divider--end {

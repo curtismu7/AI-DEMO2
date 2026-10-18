@@ -106,7 +106,7 @@
 }
 
 .iad-recommendation--deny {
-  color: #ef4444;
+  color: #d20e0f;
   font-weight: 700;
 }
 
@@ -118,7 +118,7 @@
 /* Compact mode */
 .iad-compact {
   background: #f3f4f6;
-  border-left: 3px solid #3b82f6;
+  border-left: 3px solid #12538d;
   padding: 8px 12px;
   border-radius: 4px;
   font-size: var(--font-size-2xs);

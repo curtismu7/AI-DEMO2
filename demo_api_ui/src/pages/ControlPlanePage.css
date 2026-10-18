@@ -42,7 +42,7 @@
 .cp-brand { display: flex; align-items: baseline; gap: 10px; min-width: 0; flex: 1; }
 .cp-brand__mark {
   width: 10px; height: 10px; border-radius: 2px;
-  background: var(--th-primary, #1f5fe5);
+  background: var(--th-primary, #12538d);
   transform: translateY(-1px);
   flex: none;
 }
@@ -56,8 +56,8 @@
   border: 1px solid var(--th-border-strong); border-radius: 6px;
   padding: 6px 12px; cursor: pointer;
 }
-.cp-btn:hover:not(:disabled) { border-color: var(--th-primary, #1f5fe5); color: var(--th-primary, #1f5fe5); }
-.cp-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--th-primary, #1f5fe5) 35%, transparent); outline-offset: 2px; }
+.cp-btn:hover:not(:disabled) { border-color: var(--th-primary, #12538d); color: var(--th-primary, #12538d); }
+.cp-btn:focus-visible { outline: 3px solid color-mix(in srgb, var(--th-primary, #12538d) 35%, transparent); outline-offset: 2px; }
 .cp-btn:disabled { opacity: .65; cursor: wait; }
 
 /* ---------- view tabs ---------- */
@@ -74,7 +74,7 @@
 }
 .cp-viewtab:hover { color: var(--th-text); }
 .cp-viewtab[aria-selected="true"] { color: var(--th-status-info-text); border-bottom-color: var(--th-status-info-text); }
-.cp-viewtab:focus-visible { outline: 2px solid var(--th-primary, #1f5fe5); outline-offset: -2px; }
+.cp-viewtab:focus-visible { outline: 2px solid var(--th-primary, #12538d); outline-offset: -2px; }
 .cp-viewtab__badge {
   font-size: 10.5px; font-weight: 700; padding: 1px 6px; border-radius: 8px;
   background: color-mix(in srgb, #c77b00 16%, var(--th-bg-card)); color: #c77b00;
@@ -109,7 +109,7 @@
 .cp-kpi { background: var(--th-bg-card); padding: 14px 16px 15px; text-align: left; }
 button.cp-kpi { font: inherit; color: inherit; border: 0; cursor: pointer; width: 100%; }
 button.cp-kpi:hover { background: var(--th-bg-inset); }
-button.cp-kpi:focus-visible { outline: 2px solid var(--th-primary, #1f5fe5); outline-offset: -2px; }
+button.cp-kpi:focus-visible { outline: 2px solid var(--th-primary, #12538d); outline-offset: -2px; }
 .cp-kpi__label {
   font-size: var(--font-size-xs); font-weight: 700; text-transform: uppercase; letter-spacing: .07em;
   color: var(--th-text-muted); margin-bottom: 7px; display: flex; align-items: center; gap: 6px;
@@ -118,7 +118,7 @@ button.cp-kpi:focus-visible { outline: 2px solid var(--th-primary, #1f5fe5); out
 .cp-kpi__unit { font-size: var(--font-size-sm); color: var(--th-text-muted); font-weight: 400; margin-left: 3px; }
 .cp-kpi__note { font-size: var(--font-size-2xs); color: var(--th-text-muted); margin-top: 6px; }
 .cp-kpi--attention .cp-kpi__val { color: #c77b00; }
-.cp-kpi__go { font-size: var(--font-size-xs); color: var(--th-primary, #1f5fe5); margin-left: auto; }
+.cp-kpi__go { font-size: var(--font-size-xs); color: var(--th-primary, #12538d); margin-left: auto; }
 
 /* ---------- zone grid ---------- */
 .cp-zones { display: grid; grid-template-columns: repeat(3, 1fr); gap: 14px; }
@@ -141,7 +141,7 @@ button.cp-kpi:focus-visible { outline: 2px solid var(--th-primary, #1f5fe5); out
   display: flex; align-items: center; gap: 14px; flex-wrap: wrap; border-radius: 0 0 8px 8px;
 }
 .cp-link {
-  font-size: 12.5px; font-weight: 600; color: var(--th-primary, #1f5fe5); text-decoration: none;
+  font-size: 12.5px; font-weight: 600; color: var(--th-primary, #12538d); text-decoration: none;
   background: none; border: 0; font-family: inherit; cursor: pointer; padding: 0;
 }
 .cp-link:hover { text-decoration: underline; }
@@ -161,7 +161,7 @@ button.cp-kpi:focus-visible { outline: 2px solid var(--th-primary, #1f5fe5); out
 .cp-mini li:last-child, .cp-legend__row:last-child { border-bottom: 0; }
 .cp-mini__name, .cp-legend__name { color: var(--th-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 /* A backend name that is itself the link, rather than a separate row below it. */
-.cp-mini__name--link { color: var(--th-primary, #1f5fe5); font-weight: 600; text-decoration: none; }
+.cp-mini__name--link { color: var(--th-primary, #12538d); font-weight: 600; text-decoration: none; }
 .cp-mini__name--link:hover { text-decoration: underline; }
 .cp-mini__meta, .cp-legend__num { margin-left: auto; font-size: 11.5px; color: var(--th-text-muted); white-space: nowrap; }
 
@@ -201,7 +201,7 @@ button.cp-kpi:focus-visible { outline: 2px solid var(--th-primary, #1f5fe5); out
   border-radius: 8px; padding: 12px 14px; display: flex; flex-direction: column; gap: 6px;
 }
 .cp-enforcement__name { font-weight: 700; font-size: 13.5px; }
-.cp-enforcement__name--link { color: var(--th-primary, #1f5fe5); text-decoration: none; }
+.cp-enforcement__name--link { color: var(--th-primary, #12538d); text-decoration: none; }
 .cp-enforcement__name--link:hover { text-decoration: underline; }
 .cp-enforcement__will { font-size: 12.5px; color: var(--th-text-muted); }
 .cp-enforcement__today { font-size: var(--font-size-2xs); color: var(--th-text-muted); }

@@ -195,7 +195,7 @@
 
 /* Focus states for accessibility */
 .tcg-card__inspect-btn:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #12538d;
   outline-offset: 2px;
 }
 

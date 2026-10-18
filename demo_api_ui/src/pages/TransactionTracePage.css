@@ -515,11 +515,11 @@
 
 /* Unknown must not read as a failure — an unavailable witness is not tampering. */
 .ttrace-recon.match { background: #ecfdf5; color: #047857; }
-.ttrace-recon.mismatch { background: #fef2f2; color: #b91c1c; }
+.ttrace-recon.mismatch { background: #fef2f2; color: #d20e0f; }
 .ttrace-recon.unknown { background: var(--th-bg-inset); color: var(--th-text, var(--th-text)); border-style: dashed; }
 
 .ttrace-links { margin-left: auto; display: flex; gap: 12px; font-size: var(--font-size-sm); }
-.ttrace-links a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
+.ttrace-links a { color: #12538d; font-weight: 600; text-decoration: none; }
 .ttrace-links a:hover { text-decoration: underline; }
 
 .ttrace-detail-error { color: var(--th-status-error-text); font-size: var(--font-size-sm); }
@@ -527,8 +527,8 @@
 
 .ttrace-retry-btn {
   background: var(--th-bg-card);
-  border: 1px solid #b91c1c;
-  color: #b91c1c;
+  border: 1px solid #d20e0f;
+  color: #d20e0f;
   border-radius: 6px;
   padding: 4px 10px;
   font-size: var(--font-size-sm);
@@ -564,7 +564,7 @@
   border-left: 2px solid var(--th-border-strong);
 }
 
-.ttrace-hop--severed { border-left-color: #b91c1c; }
+.ttrace-hop--severed { border-left-color: #d20e0f; }
 
 .ttrace-node {
   position: absolute;
@@ -584,7 +584,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ttrace-hop--severed .ttrace-node { border-color: #b91c1c; color: #b91c1c; }
+.ttrace-hop--severed .ttrace-node { border-color: #d20e0f; color: #d20e0f; }
 
 .ttrace-hop-body { flex: 1; min-width: 0; }
 
@@ -650,8 +650,8 @@
   list-style: none;
   display: block;
   background: #fef2f2;
-  border-left: 2px solid #b91c1c;
-  color: #b91c1c;
+  border-left: 2px solid #d20e0f;
+  color: #d20e0f;
   padding: 8px 12px 8px 26px;
   margin: 0 0 0 9px;
   font-size: var(--font-size-sm);
@@ -698,7 +698,7 @@
 /* Only the filter that actually stopped the call. Red matches the DENY badge
    and the severed spine, so the eye lands on where the chain broke. */
 .ttrace-filter.blocked {
-  color: #b91c1c;
+  color: #d20e0f;
   background: #fef2f2;
   border-color: #fecaca;
   font-weight: 600;

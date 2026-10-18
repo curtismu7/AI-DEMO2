@@ -3,9 +3,9 @@
      to the active theme's primary color so every accent (active borders,
      focus rings, navy buttons, etc.) tracks the theme picker. Falls back
      to the dashboard header color, then to the legacy navy. */
-  --brand-navy: var(--app-primary-red, var(--brand-dashboard-header-start, #1d4ed8));
-  --brand-navy-dark: var(--app-primary-red-hover, var(--brand-dashboard-header-end, #1e40af));
-  --brand-navy-light: var(--app-primary-red-mid, var(--app-primary-red, #3b82f6));
+  --brand-navy: var(--app-primary-red, var(--brand-dashboard-header-start, #12538d));
+  --brand-navy-dark: var(--app-primary-red-hover, var(--brand-dashboard-header-end, #051727));
+  --brand-navy-light: var(--app-primary-red-mid, var(--app-primary-red, #12538d));
 
   width: 100%;
   max-width: min(1920px, 100%);
@@ -283,8 +283,8 @@
 
 .ud-middle-resize-handle:hover,
 .ud-middle-resize-handle:focus-visible {
-  border-top-color: var(--brand-navy, #1d4ed8);
-  background: rgba(29, 78, 216, 0.05);
+  border-top-color: var(--brand-navy, #12538d);
+  background: rgba(18, 83, 141, 0.05);
 }
 
 .ud-middle-resize-handle__grip {
@@ -310,7 +310,7 @@
 
 .ud-middle-resize-handle:hover .ud-middle-resize-handle__bar,
 .ud-middle-resize-handle:focus-visible .ud-middle-resize-handle__bar {
-  background: var(--brand-navy, #1d4ed8);
+  background: var(--brand-navy, #12538d);
 }
 
 .ud-middle-resize-handle__label {
@@ -476,7 +476,7 @@
 
 .ud-dashboard-inline-agent-login-btn {
   padding: 10px 28px;
-  background: var(--brand-navy, #1e3a5f);
+  background: var(--brand-navy, #051727);
   color: var(--app-primary-blue-text, #fff);
   border: none;
   border-radius: 6px;
@@ -1107,7 +1107,7 @@
   padding: clamp(18px, 3vw, 32px);
   box-shadow: 0 4px 6px rgba(0, 0, 0, 0.1);
   border: 1px solid rgba(229, 231, 235, 0.8);
-  border-left: 4px solid var(--brand-navy, #1d4ed8);
+  border-left: 4px solid var(--brand-navy, #12538d);
 }
 :root[data-theme="dark"] .section {
   background: var(--th-bg-card);
@@ -1212,7 +1212,7 @@
 
 /* Left rail accent per account type */
 .account-card--checking {
-  border-left-color: #2c5282;
+  border-left-color: #12538d;
 }
 .account-card--savings {
   border-left-color: #10b981;
@@ -1264,7 +1264,7 @@
 
 .account-type-badge.checking {
   background: var(--th-bg-inset);
-  color: #2c5282;
+  color: #12538d;
 }
 .account-type-badge.savings {
   background: #f0fdf4;
@@ -1368,13 +1368,13 @@
 }
 
 .select-account-btn {
-  background: #2c5282;
-  border: 1.5px solid #2c5282;
+  background: #12538d;
+  border: 1.5px solid #12538d;
   color: #fff;
 }
 .select-account-btn:hover {
-  background: #1e3a5f;
-  border-color: #1e3a5f;
+  background: #051727;
+  border-color: #051727;
   color: #fff;
 }
 
@@ -1533,7 +1533,7 @@
 .form-group input:focus {
   outline: none;
   border-color: var(--brand-navy);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
 }
 
 .form-group select {
@@ -1550,7 +1550,7 @@
 .form-group select:focus {
   outline: none;
   border-color: var(--brand-navy);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
 }
 
 .form-group select option {
@@ -1791,7 +1791,7 @@
 
 .tx-tab--active {
   background: var(--th-bg-card);
-  color: #2c5282;
+  color: #12538d;
   font-weight: 600;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
 }
@@ -2607,11 +2607,11 @@
   border-color: rgba(255, 255, 255, 0.25);
 }
 .ud-hdr-btn--logout {
-  background: rgba(239, 68, 68, 0.2);
-  border-color: rgba(239, 68, 68, 0.4);
+  background: rgba(210, 14, 15, 0.2);
+  border-color: rgba(210, 14, 15, 0.4);
 }
 .ud-hdr-btn--logout:hover {
-  background: rgba(239, 68, 68, 0.35);
+  background: rgba(210, 14, 15, 0.35);
 }
 
 /* ── Alerts ──────────────────────────────────────────────────── */
@@ -2857,7 +2857,7 @@
 }
 
 .dashboard-header--surface .logo-square {
-  background: linear-gradient(135deg, var(--brand-navy), #2c5282);
+  background: linear-gradient(135deg, var(--brand-navy), #12538d);
   opacity: 1;
 }
 
@@ -2905,7 +2905,7 @@
   border-radius: 14px;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-left: 4px solid #2c5282;
+  border-left: 4px solid #12538d;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
 }
 
@@ -2984,7 +2984,7 @@
   flex: 1;
   min-height: 6px;
   border-radius: 4px 4px 0 0;
-  background: linear-gradient(180deg, #2c5282, rgba(44, 82, 130, 0.15));
+  background: linear-gradient(180deg, #12538d, rgba(44, 82, 130, 0.15));
   opacity: 0.7;
 }
 
@@ -2996,7 +2996,7 @@
   letter-spacing: 0.07em;
   color: var(--th-text-muted);
   text-transform: uppercase;
-  border-left: 3px solid #2c5282;
+  border-left: 3px solid #12538d;
   padding-left: 6px;
 }
 
@@ -3034,14 +3034,14 @@
 }
 
 .user-dashboard--2026 .ud-qa-btn--accent {
-  background: #2c5282;
-  border-color: #2c5282;
+  background: #12538d;
+  border-color: #12538d;
   color: #fff;
 }
 
 .user-dashboard--2026 .ud-qa-btn--accent:hover {
-  background: #1e3a5f;
-  border-color: #1e3a5f;
+  background: #051727;
+  border-color: #051727;
   color: #fff;
 }
 
@@ -3049,13 +3049,13 @@
   text-decoration: none;
   border-color: #c5d3e8;
   background: var(--th-bg-inset);
-  color: #2c5282;
+  color: #12538d;
 }
 
 .user-dashboard--2026 .ud-qa-btn--delegate:hover {
   background: #dce3f0;
   border-color: #a3b8d8;
-  color: #1e3a5f;
+  color: #051727;
 }
 
 /* Trust strip */
@@ -3077,7 +3077,7 @@
 }
 
 .user-dashboard--2026 .ud-trust-strip__item--debug {
-  color: #2c5282;
+  color: #12538d;
   text-decoration: none;
   opacity: 0.8;
   transition: opacity 0.15s;
@@ -3101,7 +3101,7 @@
   padding: 5px 11px;
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: #2c5282;
+  color: #12538d;
   background: var(--th-bg-inset);
   border-radius: 20px;
   border: 1px solid #c5d3e8;
@@ -3114,7 +3114,7 @@
 .user-dashboard--2026 .ud-super-pill:hover {
   background: #dce3f0;
   border-color: #a3b8d8;
-  color: #1e3a5f;
+  color: #051727;
   text-decoration: none;
 }
 
@@ -3136,7 +3136,7 @@
   background: var(--th-bg-card);
   border-radius: 14px;
   border: 1px solid var(--th-border);
-  border-left: 4px solid #2c5282;
+  border-left: 4px solid #12538d;
   box-shadow: 0 1px 3px rgba(15, 23, 42, 0.06);
   padding: 16px 18px 14px;
   backdrop-filter: none;
@@ -3482,7 +3482,7 @@
 .ud-form-group select:focus {
   outline: none;
   border-color: var(--brand-navy);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
 }
 
 .ud-submit-btn {
@@ -3743,14 +3743,14 @@
 /* ── Agent full-page result highlight ── */
 .section--agent-updated {
   animation: agent-flash 0.4s ease-out;
-  outline: 2px solid #2563eb;
+  outline: 2px solid #12538d;
   outline-offset: 2px;
   border-radius: 8px;
 }
 
 @keyframes agent-flash {
   0% {
-    background-color: rgba(37, 99, 235, 0.15);
+    background-color: rgba(18, 83, 141, 0.15);
   }
   100% {
     background-color: transparent;
@@ -3784,7 +3784,7 @@
 .ud-account-card--primary {
   background: linear-gradient(
     135deg,
-    var(--brand-navy, #004687) 0%,
+    var(--brand-navy, #12538d) 0%,
     var(--brand-navy-light, #005fa3) 100%
   );
 }
@@ -3802,7 +3802,7 @@
 }
 /* Quick-action button */
 .ud-action-btn {
-  background: var(--brand-blue, #0066cc);
+  background: var(--brand-blue, #12538d);
   color: white;
   border: none;
   border-radius: 8px;
@@ -3971,7 +3971,7 @@
 
 .tx-badge--agent {
   background: #e4eaf4;
-  color: #2c5282;
+  color: #12538d;
 }
 
 /* ── B2B theme overrides — white welcome header & blue buttons ─────────── */
@@ -4025,10 +4025,10 @@
 
 /* 4. Action buttons: muted slate-blue (dashboard-scoped) */
 .user-dashboard {
-  --app-primary-red: #2c5282;
-  --app-primary-red-hover: #1e3a5f;
+  --app-primary-red: #12538d;
+  --app-primary-red-hover: #051727;
   --app-primary-red-mid: #3a6298;
-  --app-primary-red-border: #1e3a5f;
+  --app-primary-red-border: #051727;
 }
 /* Fix box-shadows to match muted slate-blue */
 .user-dashboard .dashboard-toolbar-btn,

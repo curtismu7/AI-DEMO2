@@ -43,10 +43,10 @@
 }
 
 .step.active {
-  background: #1e40af;
+  background: #051727;
   color: white;
-  border: 2px solid #1e40af;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border: 2px solid #051727;
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
 }
 
 .step.completed {

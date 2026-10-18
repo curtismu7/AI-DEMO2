@@ -64,7 +64,7 @@
   padding: 20px;
   background: var(
     --modal-header-bg,
-    linear-gradient(135deg, #1a1a2e 0%, #16213e 100%)
+    linear-gradient(135deg, #1a1a2e 0%, #051727 100%)
   );
   color: var(--modal-header-text, #ffffff);
   border-bottom: none;
@@ -126,7 +126,7 @@
 }
 
 .server-restart-content .btn:focus-visible {
-  outline: 2px solid var(--app-primary-blue, #0066cc);
+  outline: 2px solid var(--app-primary-blue, #12538d);
   outline-offset: 2px;
 }
 

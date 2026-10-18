@@ -86,7 +86,7 @@
 .swt-input-group select:focus,
 .swt-input-group textarea:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: #12538d;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 
@@ -154,7 +154,7 @@
 }
 
 .swt-btn--primary {
-  background-color: #007bff;
+  background-color: #12538d;
   color: white;
 }
 
@@ -364,7 +364,7 @@
 
 .swt-env-textarea:focus {
   outline: none;
-  border-color: #007bff;
+  border-color: #12538d;
   box-shadow: 0 0 0 2px rgba(0, 123, 255, 0.25);
 }
 

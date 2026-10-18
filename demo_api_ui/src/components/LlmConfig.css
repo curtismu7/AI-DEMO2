@@ -229,7 +229,7 @@
 }
 .cfg-badge--active        { background: #dcfce7; color: #14532d; }
 .cfg-badge--unconfigured  { background: #fef9c3; color: #713f12; }
-.cfg-badge--unreachable   { background: #fee2e2; color: #991b1b; }
+.cfg-badge--unreachable   { background: #fee2e2; color: #aa0005; }
 .cfg-badge--loading       { background: var(--th-bg-inset); color: var(--th-text-muted); }
 
 /* ── Field grid ─────────────────────────────────────────────── */
@@ -285,8 +285,8 @@
 .cfg-input:focus,
 .cfg-select:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  border-color: #12538d;
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.08);
 }
 
 /* ── Divider ────────────────────────────────────────────────── */
@@ -319,11 +319,11 @@
   cursor: not-allowed;
 }
 .cfg-btn--primary {
-  background: #1e40af;
+  background: #051727;
   color: var(--th-text-invert);
   border: none;
 }
-.cfg-btn--primary:hover:not(:disabled) { background: #1d4ed8; }
+.cfg-btn--primary:hover:not(:disabled) { background: #12538d; }
 .cfg-btn--green {
   background: #065f46;
   color: var(--th-text-invert);

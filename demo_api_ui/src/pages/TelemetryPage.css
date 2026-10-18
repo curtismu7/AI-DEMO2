@@ -84,7 +84,7 @@
   cursor: pointer;
 }
 .telemetry-mode-tab:hover { color: var(--th-text); }
-.telemetry-mode-tab--active { background: #1e40af; color: #fff; }
+.telemetry-mode-tab--active { background: #051727; color: #fff; }
 
 .telemetry-filters { display: flex; flex-wrap: wrap; gap: 16px; margin-bottom: 16px; }
 

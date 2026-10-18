@@ -84,7 +84,7 @@
 .p266-arch-error {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #991b1b;
+  color: #aa0005;
   padding: 16px;
   border-radius: 4px;
 }
@@ -129,9 +129,9 @@
   font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   font-weight: 600;
-  color: #1e40af;
+  color: #051727;
   padding: 6px 10px;
-  background: #eff6ff;
+  background: #fcfcfc;
   border-radius: 4px;
   align-self: start;
 }

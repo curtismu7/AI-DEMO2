@@ -92,9 +92,9 @@
 }
 
 .trism-glossary-toggle.active {
-  background: #eff6ff;
-  border-color: #1e40af;
-  color: #1e40af;
+  background: #fcfcfc;
+  border-color: #051727;
+  color: #051727;
 }
 
 .trism-panel-close {
@@ -162,12 +162,12 @@
 }
 
 .trism-nav-next {
-  background: #1e40af;
+  background: #051727;
   color: white;
 }
 
 .trism-nav-next:hover:not(:disabled) {
-  background: #1e3a8a;
+  background: #051727;
 }
 
 /* Dot Navigation */
@@ -194,12 +194,12 @@
 
 .trism-dot:hover {
   border-color: #93c5fd;
-  background: #eff6ff;
+  background: #fcfcfc;
 }
 
 .trism-dot.active {
-  border-color: #1e40af;
-  background: #eff6ff;
+  border-color: #051727;
+  background: #fcfcfc;
   box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.2);
 }
 
@@ -235,7 +235,7 @@
 
 .trism-glossary-term {
   font-weight: 700;
-  color: #1e40af;
+  color: #051727;
   font-size: var(--font-size-body);
   margin: 0 0 4px;
 }

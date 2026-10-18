@@ -7,7 +7,7 @@
 }
 
 .transactions-header {
-  background: var(--brand-navy, #004687);
+  background: var(--brand-navy, #12538d);
   color: var(--brand-white, #FFFFFF);
   padding: 1rem 1.5rem;
   border-radius: 8px 8px 0 0;
@@ -44,7 +44,7 @@
 }
 
 .transfer-card:hover {
-  border-color: var(--brand-navy, #004687);
+  border-color: var(--brand-navy, #12538d);
 }
 
 .transfer-icon {

@@ -43,7 +43,7 @@
 .demo-authz-fallback__err {
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
-  color: #b91c1c;
+  color: #d20e0f;
 }
 .demo-authz-fallback__ok {
   align-self: flex-end;
@@ -51,7 +51,7 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   color: #ffffff;
-  background: #4169e1;
+  background: #12538d;
   border: none;
   border-radius: 6px;
   cursor: pointer;

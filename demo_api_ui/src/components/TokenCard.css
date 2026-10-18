@@ -10,7 +10,7 @@
 
 /* ── Header bar ─────────────────────────────────────────────────────────── */
 .token-card__header {
-  background: var(--token-card-header-bg, #1e40af);
+  background: var(--token-card-header-bg, #051727);
   color: white;
   padding: 10px 16px;
   display: flex;
@@ -61,7 +61,7 @@
 }
 
 .token-card__timing-expired {
-  color: #b91c1c;
+  color: #d20e0f;
   font-weight: 600;
 }
 
@@ -87,7 +87,7 @@
 .token-card__section-title {
   font-weight: 700;
   font-size: 10px;
-  color: #1e40af;
+  color: #051727;
   letter-spacing: 0.08em;
   text-transform: uppercase;
   margin-bottom: 8px;
@@ -164,7 +164,7 @@
 
 /* ── Raw JSON ───────────────────────────────────────────────────────────── */
 .token-card__raw-toggle {
-  color: #1e40af;
+  color: #051727;
   font-size: var(--font-size-xs);
   cursor: pointer;
   font-weight: 500;
@@ -233,7 +233,7 @@
 .token-card__opaque-summary {
   cursor: pointer;
   font-size: 0.85rem;
-  color: #0066cc;
+  color: #12538d;
   font-weight: 500;
 }
 
@@ -257,6 +257,6 @@
   border: 1px solid #dee2e6;
   border-top: none;
   border-radius: 0 0 8px 8px;
-  color: #b91c1c;
+  color: #d20e0f;
   font-size: var(--font-size-2xs);
 }

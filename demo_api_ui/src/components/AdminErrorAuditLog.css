@@ -46,7 +46,7 @@
 
 .audit-auto-refresh input[type="checkbox"] {
   cursor: pointer;
-  accent-color: #3b82f6;
+  accent-color: #12538d;
 }
 
 .audit-fetch-error {
@@ -94,25 +94,25 @@
 }
 
 .btn-primary {
-  background: #1e40af;
+  background: #051727;
   color: white;
-  border-color: #1e40af;
+  border-color: #051727;
 }
 
 .btn-primary:hover {
-  background: #2563eb;
-  border-color: #2563eb;
+  background: #12538d;
+  border-color: #12538d;
 }
 
 .btn-danger {
-  background: #991b1b;
+  background: #aa0005;
   color: white;
-  border-color: #991b1b;
+  border-color: #aa0005;
 }
 
 .btn-danger:hover {
-  background: #dc2626;
-  border-color: #dc2626;
+  background: #d20e0f;
+  border-color: #d20e0f;
 }
 
 .badge {
@@ -173,7 +173,7 @@
 }
 
 .audit-entry__header:focus-within {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #12538d;
   outline-offset: -2px;
 }
 

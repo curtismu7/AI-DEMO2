@@ -123,8 +123,8 @@
 }
 
 .mcp-tools-search-input:focus {
-  border-color: #3b82f6;
-  box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.1);
+  border-color: #12538d;
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
 }
 
 /* ─── Tool list ─────────────────────────────────────────────────────────── */
@@ -157,7 +157,7 @@
 .mcp-tool-item:hover {
   border-color: var(--th-status-info-border);
   border-left-color: var(--th-status-info);
-  box-shadow: 0 4px 12px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.15);
   background: var(--th-status-info-bg);
   color: var(--modal-body-text);
   transform: translateX(2px);
