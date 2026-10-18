@@ -25,10 +25,10 @@ const { verticalManifest } = require('./verticalManifest');
 
 const EXPIRES_IN = 120;          // seconds, PingOne's CIBA request lifetime
 const INTERVAL = 2;              // seconds
-const ENTRY_TTL_MS = 150 * 1000;
+const ENTRY_GRACE_MS = 30 * 1000;   // pending TTL = PingOne's expires_in (<= 120 s) + this
 const RATE_WINDOW_MS = 10 * 60 * 1000;
 const RATE_MAX = 5;
-const MAX_ENTRIES = 5000;
+let maxEntries = 5000;
 
 let now = () => Date.now();
 let handlersOverride = null;
@@ -46,7 +46,7 @@ const mask = (s) => `${String(s || '').slice(0, 2)}***`;
 
 function sweep() {
   const t = now();
-  for (const [id, e] of pending) if (t - e.createdAt >= 2 * ENTRY_TTL_MS) pending.delete(id); // kept past the TTL so a late poll gets 410, not 404
+  for (const [id, e] of pending) if (t - e.createdAt >= 2 * e.ttlMs) pending.delete(id); // kept past the TTL so a late poll gets 410, not 404
   for (const [k, arr] of hits) {
     const live = arr.filter((x) => t - x < RATE_WINDOW_MS);
     if (live.length) hits.set(k, live); else hits.delete(k);
@@ -67,14 +67,16 @@ async function startSecondFactor({ channel, req }) {
   if (!parked) throw new NoParkedFlowError('no_parked_flow');
   const { user } = parked;
   if (!user || !(channel === 'sms' ? user.mobilePhone : user.email)) throw new ChannelUnavailableError('channel_unavailable');
+  if (pending.size >= maxEntries) throw new RateLimitedError('capacity');   // before the limiters: a capacity 429 consumes no slot
   rateLimit([`ip:${req.ip}`]);
-  rateLimit([`send:${user.id}`]);   // counts every attempt, so retries after a CIBA failure are capped too
-  if (pending.size >= MAX_ENTRIES) throw new RateLimitedError('capacity');
-
+  // Counts every attempt, so retries after a CIBA failure are capped too. Accepted trade-off (M2): someone
+  // holding a stolen PASSWORD can keep the owner's CIBA option at 429 by re-sending every 10 minutes; the
+  // owner's other sign-in options are unaffected.
+  rateLimit([`send:${user.id}`]);
   let data;
   try {
     data = await cibaService.initiateBackchannelAuth(
-      user.id, 'Approve', 'openid', '', channel, verticalManifest.resolver.activeIdFor(req),
+      user.id, 'Approve sign-in', 'openid', '', channel, verticalManifest.resolver.activeIdFor(req),
     );
   } catch (err) {
     console.warn('[cibaSecondFactor] start failed for %s: %s', mask(user.username), err.response?.data?.error || err.message);
@@ -82,10 +84,13 @@ async function startSecondFactor({ channel, req }) {
   }
   if (!data?.auth_req_id || !data.binding_message) throw new ApprovalUnavailableError('approval_unavailable');
 
+  // A binding message longer than 8 chars makes cibaService generate vertical code + random hex, so the match
+  // code is never a literal word (verticals without a code would otherwise echo a short message verbatim).
+  const expiresIn = Math.min(Number(data.expires_in) > 0 ? Number(data.expires_in) : EXPIRES_IN, EXPIRES_IN);
   const authReqId = crypto.randomBytes(24).toString('hex');
   const t = now();
-  pending.set(authReqId, { sessionIds: new Set([req.sessionID]), channel, pingAuthReqId: data.auth_req_id, createdAt: t, consumed: false, inFlight: false });
-  return { authReqId, matchCode: data.binding_message, expiresIn: EXPIRES_IN, interval: INTERVAL };
+  pending.set(authReqId, { sessionIds: new Set([req.sessionID]), channel, sub: user.id, ttlMs: (expiresIn * 1000) + ENTRY_GRACE_MS, pingAuthReqId: data.auth_req_id, createdAt: t, consumed: false, inFlight: false });
+  return { authReqId, matchCode: data.binding_message, expiresIn, interval: INTERVAL };
 }
 
 /** -> { status: 'pending' | 'approved' | 'expired' | 'denied' | 'notfound', redirectTo? } */
@@ -95,7 +100,10 @@ async function pollSecondFactor({ authReqId, req }) {
   if (!entry || !entry.sessionIds.has(req.sessionID)) return { status: 'notfound' };
   if (entry.consumed) return { status: 'expired' };
   const h = handlers();
-  if (now() - entry.createdAt >= ENTRY_TTL_MS) { entry.consumed = true; h.discardParkedFlow(req); return { status: 'expired' }; }
+  // The parked flow was restarted as someone else: this entry is dead, but the newer flow must survive.
+  const current = h.getParkedFlow(req);
+  if (current && current.expectedSub !== entry.sub) { entry.consumed = true; return { status: 'expired' }; }
+  if (now() - entry.createdAt >= entry.ttlMs) { entry.consumed = true; h.discardParkedFlow(req); return { status: 'expired' }; }
   if (entry.inFlight) return { status: 'pending' };
 
   entry.inFlight = true;
@@ -112,9 +120,9 @@ async function pollSecondFactor({ authReqId, req }) {
     }
     // PingOne tokens are one-time: whatever happens next, this id is finished.
     const parked = h.getParkedFlow(req);
-    if (!parked) { entry.consumed = true; return { status: 'expired' }; }
+    if (!parked || parked.expectedSub !== entry.sub) { entry.consumed = true; return { status: 'expired' }; }
     try {
-      await cibaService.validateCibaIdToken(tokens?.id_token, parked.expectedSub, '', entry.channel);
+      await cibaService.validateCibaIdToken(tokens?.id_token, entry.sub, '', entry.channel);
     } catch (err) {
       console.warn('[cibaSecondFactor] approval refused for %s: %s', mask(parked.username), err.message);
       return fail('denied');
@@ -139,6 +147,7 @@ module.exports = {
   _test: {
     reset() { pending.clear(); hits.clear(); now = () => Date.now(); handlersOverride = null; },
     setNow(fn) { now = fn; },
+    setMaxEntries(n) { maxEntries = n; },
     setHandlers(h) { handlersOverride = h; },
   },
 };

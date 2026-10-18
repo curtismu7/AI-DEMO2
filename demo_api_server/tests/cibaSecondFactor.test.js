@@ -88,7 +88,7 @@ describe('start', () => {
     expect(res.body).toEqual({ authReqId: expect.stringMatching(/^[0-9a-f]{48}$/), matchCode: 'BK1A2B3C', expiresIn: 120, interval: 2 });
     expect(JSON.stringify(res.body)).not.toContain('PING-AR-1');
     expect(cibaService.initiateBackchannelAuth).toHaveBeenCalledTimes(1);
-    expect(cibaService.initiateBackchannelAuth).toHaveBeenCalledWith(USER.id, 'Approve', 'openid', '', 'sms', 'banking');
+    expect(cibaService.initiateBackchannelAuth).toHaveBeenCalledWith(USER.id, 'Approve sign-in', 'openid', '', 'sms', 'banking');
   });
 
   it('(c) a channel the user lacks -> 400 and nothing sent', async () => {
@@ -239,6 +239,74 @@ describe('poll', () => {
     const res = await start(agent);
     expect(res.status).toBe(200);
     expect((await poll(agent, res.body.authReqId)).body.status).toBe('approved');
+  });
+});
+
+describe('fix round 1', () => {
+  const B = { ...USER, id: 'p1-user-2', username: 'bob' };
+  const repark = (agent, user) => agent.post('/park').set('X-Forwarded-For', '10.0.0.1').send(parkBody(user));
+
+  it('M1 an old entry after the session was restarted as someone else -> expired, B parked flow survives and B completes', async () => {
+    const agent = await parked(USER);
+    const a = await start(agent);
+    await repark(agent, B);
+    const old = await poll(agent, a.body.authReqId);
+    expect([old.status, old.body]).toEqual([410, { status: 'expired' }]);
+    expect(discard).not.toHaveBeenCalled();
+    expect(cibaService.pollForTokens).not.toHaveBeenCalled();
+    expect((await agent.get('/parked')).body.parked).toBe(true);
+    const b = await start(agent);
+    expect(cibaService.initiateBackchannelAuth.mock.calls[1][0]).toBe(B.id);
+    expect((await poll(agent, b.body.authReqId)).body.status).toBe('approved');
+    expect(cibaService.validateCibaIdToken).toHaveBeenLastCalledWith('idt', B.id, '', 'email');
+    expect(complete).toHaveBeenCalledTimes(1);
+  });
+
+  it('M1 validation uses the sub bound at start', async () => {
+    const agent = await parked(USER);
+    const a = await start(agent);
+    await poll(agent, a.body.authReqId);
+    expect(cibaService.validateCibaIdToken).toHaveBeenCalledWith('idt', USER.id, '', 'email');
+  });
+
+  it('M3 a vertical without a code still gets an 8-char hex match code (binding message > 8 chars so cibaService randomises)', async () => {
+    require('../services/verticalManifest').verticalManifest.resolver.activeIdFor.mockReturnValueOnce('shared');
+    cibaService.initiateBackchannelAuth.mockImplementationOnce(async (_h, msg) => ({
+      auth_req_id: 'PING-AR-1', expires_in: 120, interval: 2,
+      binding_message: msg.length > 8 ? require('crypto').randomBytes(3).toString('hex').toUpperCase() : msg,
+    }));
+    const res = await start(await parked());
+    expect(res.body.matchCode).toMatch(/^[0-9A-F]{6}$/);
+    expect(cibaService.initiateBackchannelAuth.mock.calls[0][1].length).toBeGreaterThan(8);
+  });
+
+  it('M4 expiresIn = min(PingOne expires_in, 120) and the pending TTL follows it', async () => {
+    cibaService.initiateBackchannelAuth.mockResolvedValueOnce({ auth_req_id: 'P', expires_in: 60, interval: 2, binding_message: 'BK1A2B3C' });
+    const agent = await parked();
+    const res = await start(agent);
+    expect(res.body.expiresIn).toBe(60);
+    clock += 91 * 1000;
+    expect((await poll(agent, res.body.authReqId)).status).toBe(410);
+    cibaService.initiateBackchannelAuth.mockResolvedValueOnce({ auth_req_id: 'P', expires_in: 900, interval: 2, binding_message: 'BK1A2B3C' });
+    expect((await start(await parked(USER, '10.5.0.1'), 'email', '10.5.0.1')).body.expiresIn).toBe(120);
+  });
+
+  it('M5 a capacity 429 consumes no rate-limit slot', async () => {
+    svc._test.setMaxEntries(0);
+    for (let i = 0; i < 6; i += 1) expect((await start(await parked(), 'email', '10.6.0.1')).status).toBe(429);
+    svc._test.setMaxEntries(5000);
+    expect((await start(await parked(), 'email', '10.6.0.1')).status).toBe(200);
+    expect(cibaService.initiateBackchannelAuth).toHaveBeenCalledTimes(1);
+  });
+
+  it('M6 two concurrent polls: exactly one completes, the other is pending', async () => {
+    const agent = await parked();
+    const { authReqId } = (await start(agent)).body;
+    cibaService.pollForTokens.mockImplementation(() => new Promise((r) => setTimeout(() => r({ id_token: 'idt' }), 100)));
+    const [x, y] = await Promise.all([poll(agent, authReqId), poll(agent, authReqId)]);
+    expect([x.body.status, y.body.status].sort()).toEqual(['approved', 'pending']);
+    expect(complete).toHaveBeenCalledTimes(1);
+    expect(cibaService.pollForTokens).toHaveBeenCalledTimes(1);
   });
 });
 
