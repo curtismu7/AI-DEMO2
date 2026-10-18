@@ -138,3 +138,16 @@
 .insp-cmp del { color: var(--th-status-error-text); text-decoration: line-through; }
 .insp-cmp ins { color: var(--th-status-success-text); text-decoration: none; font-weight: 600; }
 @media (prefers-reduced-motion: reduce) { .insp * { transition: none !important; scroll-behavior: auto !important; } }
+
+/* Send card body (MCP inspector): fields, tool info, disclosures */
+.insp-send-body { flex: 1 1 100%; display: grid; gap: .75rem; min-width: 0; }
+.insp-send-row { display: flex; flex-wrap: wrap; gap: .75rem 1rem; align-items: flex-end; }
+.insp-field { display: grid; gap: .25rem; font-size: 12px; font-weight: 600; color: var(--th-text-muted); min-width: 0; }
+.insp-field small { font-weight: 400; color: var(--th-text-muted); }
+.insp-toolinfo { margin: 0; display: flex; flex-wrap: wrap; gap: .4rem; align-items: center; font-size: 13px; }
+.insp-send-body details { font-size: 13px; }
+.insp-send-body summary { cursor: pointer; font-weight: 600; }
+.insp-send-body pre { margin: .4rem 0 0; overflow: auto; }
+.insp-browse { list-style: none; margin: .4rem 0 0; padding: 0; display: grid; gap: .35rem; }
+.insp-browse li { display: flex; flex-wrap: wrap; gap: .1rem .5rem; align-items: baseline; }
+.insp-err { color: var(--th-status-error-text); font-size: 13px; }

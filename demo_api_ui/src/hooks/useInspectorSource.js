@@ -126,7 +126,7 @@ export function useInspectorSource(sourceKey) {
   const [tools, setTools] = useState([]);
   const [selectedTool, setSelectedTool] = useState(null);
   const [paramValues, setParamValues] = useState({});
-  const [outputTab, setOutputTab] = useState('response');
+  const [toolsSource, setToolsSource] = useState(null);
   const [busy, setBusy] = useState(false);
   const [loadingTools, setLoadingTools] = useState(false);
   const [lastInvoke, setLastInvoke] = useState(null);
@@ -246,6 +246,7 @@ export function useInspectorSource(sourceKey) {
         setTools(data.tools || data.methods || data.items || []);
       }
       setServers(data.servers || []);
+      setToolsSource(data._source || null);
       setParamDefaults(data.paramDefaults || {});
       if (!suppressBanner) setBanner(bannerFromPayload(data));
       setSelectedTool(null);
@@ -349,7 +350,6 @@ export function useInspectorSource(sourceKey) {
       const payloadBanner = bannerFromPayload(data);
       setBanner(payloadBanner);
       setLastTiming({ ms, error: Boolean(payloadBanner) });
-      setOutputTab('response');
     } catch (e) {
       const ms = Date.now() - t0;
       const failedTool = selectedTool[config.toolKey];
@@ -412,55 +412,12 @@ export function useInspectorSource(sourceKey) {
     }
   }, [selectedTool, schemaProps, paramDefaults]);
 
-  // The raw value behind each output tab. The page stringifies for the JSON
-  // view and walks the object for the Form view, so both need this un-stringified.
-  const outputValue = useMemo(() => {
-    if (mode === 'calls') {
-      const call = selectedTool?._call;
-      if (!call) return null;
-      switch (outputTab) {
-        case 'response': return call.response ?? null;
-        case 'request': return call.request ?? null;
-        case 'schema': return null;
-        case 'timing': return { durationMs: call.durationMs ?? call.duration ?? null, at: call.timestamp ?? call.at ?? null };
-        case 'headers': return call.request?.headers ?? call.response?.headers ?? null;
-        default: return null;
-      }
-    }
-    switch (outputTab) {
-      case 'response':
-        return lastInvoke ?? null;
-      case 'request':
-        return selectedTool ? {
-          jsonrpc: '2.0',
-          id: 1,
-          method: config.paramsKey === 'method' ? selectedTool[config.toolKey] : 'tools/call',
-          params: config.paramsKey === 'method'
-            ? paramValues
-            : { name: selectedTool[config.toolKey], arguments: paramValues },
-        } : null;
-      case 'schema':
-        return selectedTool?.inputSchema || selectedTool?.schema || null;
-      case 'timing':
-        return lastTiming ? { durationMs: lastTiming.ms, error: lastTiming.error } : null;
-      case 'headers':
-        return { 'Protocol-Version': '2.0', Transport: 'WebSocket JSON-RPC' };
-      default:
-        return null;
-    }
-  }, [mode, outputTab, lastInvoke, selectedTool, paramValues, lastTiming, config]);
-
-  const outputContent = useMemo(
-    () => (outputValue === null || outputValue === undefined ? null : JSON.stringify(outputValue, null, 2)),
-    [outputValue],
-  );
-
   return {
     // Data
     tools,
     selectedTool,
     paramValues,
-    outputTab,
+    toolsSource,
     busy,
     loadingTools,
     lastInvoke,
@@ -468,8 +425,6 @@ export function useInspectorSource(sourceKey) {
     mcpHistory,
     schemaProps,
     requiredParams,
-    outputContent,
-    outputValue,
     banner,
     servers,
     profiles,
@@ -481,7 +436,6 @@ export function useInspectorSource(sourceKey) {
     // Actions
     setSelectedTool,
     setParamValues,
-    setOutputTab,
     setSelectedProfileId,
     handleExecute,
     pendingElicitation,
