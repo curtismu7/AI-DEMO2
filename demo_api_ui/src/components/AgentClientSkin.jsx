@@ -85,9 +85,9 @@ const SKIN_CONFIG = {
     subtitle: 'PingOne Authorize · Delegated Identity',
     placeholder: 'Message Privilege AI…',
     hint: 'Ping Identity · Privileged access enforced',
-    accentColor: '#0073e6',
+    accentColor: '#12538d',
     logo: () => (
-      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#0073e6,#0055b0)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
+      <div style={{ width: 28, height: 28, borderRadius: '50%', background: 'linear-gradient(135deg,#12538d,#051727)', display: 'flex', alignItems: 'center', justifyContent: 'center', flexShrink: 0 }}>
         <svg width="16" height="16" viewBox="0 0 16 16" fill="none">
           <circle cx="8" cy="8" r="6" stroke="white" strokeWidth="1.5" fill="none" />
           <text x="8" y="12" textAnchor="middle" fill="white" fontSize="9" fontWeight="700" fontFamily="sans-serif">P</text>
@@ -98,7 +98,7 @@ const SKIN_CONFIG = {
       bg: '#0b1929', headerBg: '#0d2040', headerBorder: '#1a3560',
       titleColor: '#d8e8ff', subtitleColor: '#8aa9d6',
       agentBubbleBg: '#102040', agentBubbleColor: '#c8dcff',
-      userBubbleBg: '#0073e6', userBubbleColor: '#ffffff',
+      userBubbleBg: '#12538d', userBubbleColor: '#ffffff',
       inputAreaBg: '#0b1929', inputBorder: '#1a3560', inputColor: '#c8dcff',
       toolBg: '#07121e', toolBorder: '#1a3560', toolColor: '#4a90d0',
       toolResultBg: '#051020', toolResultColor: '#3a78b8',
@@ -107,7 +107,7 @@ const SKIN_CONFIG = {
       bg: '#f5f8ff', headerBg: '#ffffff', headerBorder: '#dde8f7',
       titleColor: '#0d2a52', subtitleColor: '#5a7aa8',
       agentBubbleBg: '#ffffff', agentBubbleColor: '#0d2a52',
-      userBubbleBg: '#0073e6', userBubbleColor: '#ffffff',
+      userBubbleBg: '#12538d', userBubbleColor: '#ffffff',
       inputAreaBg: '#f0f4fa', inputBorder: '#dde8f7', inputColor: '#0d2a52',
       toolBg: '#eaf0ff', toolBorder: '#c0d4f0', toolColor: '#2a60a8',
       toolResultBg: '#e0ecff', toolResultColor: '#1a4880',
@@ -411,11 +411,32 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
   );
 }
 
+// Skin accents double as fills and as text. Text must stay readable on the skin's own background
+// (WCAG AA 4.5:1); when the accent is not, fall back to the skin's title colour.
+function luminance(hex) {
+  const n = Number.parseInt(String(hex).replace('#', '').slice(0, 6), 16);
+  if (Number.isNaN(n)) return null;
+  const f = (v) => {
+    const c = v / 255;
+    return c <= 0.03928 ? c / 12.92 : ((c + 0.055) / 1.055) ** 2.4;
+  };
+  return 0.2126 * f((n >> 16) & 255) + 0.7152 * f((n >> 8) & 255) + 0.0722 * f(n & 255);
+}
+
+export function readableAccent(accent, bg, fallback) {
+  const a = luminance(accent);
+  const b = luminance(bg);
+  if (a === null || b === null) return accent;
+  const [hi, lo] = a > b ? [a, b] : [b, a];
+  return (hi + 0.05) / (lo + 0.05) >= 4.5 ? accent : fallback;
+}
+
 export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', messages = [], onSend, showPopOutButton = false, onPopOut, suggestions = [] }) {
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
   const cfg = SKIN_CONFIG[skin] || SKIN_CONFIG.privilege;
   const colors = cfg[theme] || cfg.dark;
+  const accentText = readableAccent(cfg.accentColor, colors.bg, colors.titleColor);
   const isTerminal = !!cfg.isTerminal;
 
   useEffect(() => {
@@ -450,7 +471,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
         {showPopOutButton && (
           <button
             onClick={onPopOut}
-            style={{ fontSize: 11, color: cfg.accentColor, cursor: 'pointer', border: `1px solid ${cfg.accentColor}`, borderRadius: 4, padding: '3px 8px', background: 'transparent', flexShrink: 0 }}
+            style={{ fontSize: 11, color: accentText, cursor: 'pointer', border: `1px solid ${cfg.accentColor}`, borderRadius: 4, padding: '3px 8px', background: 'transparent', flexShrink: 0 }}
           >
             🪟 Pop Out
           </button>
@@ -467,7 +488,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
                 key={label}
                 type="button"
                 onClick={() => onSend?.(message)}
-                style={{ fontSize: 12, color: cfg.accentColor, background: 'transparent', border: `1px solid ${cfg.accentColor}`, borderRadius: 14, padding: '5px 12px', cursor: 'pointer' }}
+                style={{ fontSize: 12, color: accentText, background: 'transparent', border: `1px solid ${cfg.accentColor}`, borderRadius: 14, padding: '5px 12px', cursor: 'pointer' }}
               >
                 {label}
               </button>
@@ -495,7 +516,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
             </button>
           )}
           {isTerminal && (
-            <button onClick={handleSend} style={{ fontSize: 11, color: cfg.accentColor, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'monospace', flexShrink: 0, padding: '0 4px' }}>
+            <button onClick={handleSend} style={{ fontSize: 11, color: accentText, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'monospace', flexShrink: 0, padding: '0 4px' }}>
               [enter]
             </button>
           )}

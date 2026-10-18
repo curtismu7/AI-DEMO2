@@ -90,7 +90,7 @@
 .webmcp-tool-badge--stepup {
   background: #e0e2e4;
   color: #12538d;
-  border: 1px solid #38bdf8;
+  border: 1px solid #12538d;
 }
 
 .webmcp-tool-placeholder {
@@ -126,7 +126,7 @@
 
 .webmcp-gate-notice--stepup {
   background: #f0f9ff;
-  border: 1px solid #38bdf8;
+  border: 1px solid #12538d;
 }
 
 .webmcp-gate-notice__icon {
@@ -253,7 +253,7 @@
 
 .webmcp-result-context--stepup {
   background: #f0f9ff;
-  border: 1px solid #38bdf8;
+  border: 1px solid #12538d;
 }
 
 .webmcp-result-context--tool_error {

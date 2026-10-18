@@ -63,7 +63,7 @@ Started 2026-10-18. Goal: make every demo page consistent with Ping Identity sta
 Last runtime audit (slightly stale): ~38 unique violations on 164 rendered routes.
 - [x] Runtime audit re-run: 42 → 3 unique violations on 236/238 rendered routes (PR 2). Audit bugs fixed (it was aborting `/mcp*` page navigations and measuring mid-transition colours)
 - [x] `/request-access` dark theme (scoped to `.efd[data-testid="hosted-flow"]`)
-- [ ] `/personal-agent*`: suggestion chips use the client skin accent `#0073e6` (from `AgentClientSkin.jsx`, a vendor-style skin) on a dark card, 3.9:1. Left as is; lighten the accent for text or exempt as vendor chrome
+- [x] `/personal-agent*` chips: `AgentClientSkin` text uses `readableAccent()` (falls back to the skin's title colour when the accent is < 4.5:1 on its background); the Privilege skin accent is Ping blue `#12538d` instead of `#0073e6`
 - [x] "🌙 Dark" toggle on `/pingone-authorize` (inline style had no text colour). Re-run the audit to confirm `/authz-test`
 - [x] `/delegation` step labels darkened; `vops__icon` per-vertical brand badges are exempt in the audit (vertical brand colours)
 - [x] `lps-expect`/`mds-expect`, `tst-topbar-badge`, promptfoo text, MFA hint, CIBA "Try again"; emoji-only glyphs are skipped by the audit
@@ -96,10 +96,11 @@ Last runtime audit (slightly stale): ~38 unique violations on 164 rendered route
 - [ ] Gray 300, 500, 600 hex values; `#263746`, `#909ea4`, `#cdd1d4`, `#eff0f1` were taken from pingidentity.com's own CSS, not the hub
 - [ ] Official dark-theme tints of Ping Red and Ping blue (none exist in the palette, so dark theme uses Tailwind tints `#fca5a5` / `#93c5fd` for text)
 
-- [ ] Other off-palette hues: teal (`#05615b` on the ID-JAG pages was one), orange, green accents. The sweeps only covered blue/red/indigo/purple/pink and slate. Scan hue families and decide per accent (several are per-vertical on purpose)
+- [x] Teal/cyan accents (hue 168–200°): 215 values in 55 files mapped to Ping blue / Ping neutrals by lightness; the checks then caught and I fixed 9 pairs (dark ink on the new blue fills)
+- [ ] Orange/amber and green: left on purpose, they are mostly semantic warning/success text and fills (`#92400e`, `#b45309`, `#166534`, `#15803d`). Revisit only if you want status colours moved onto a Ping-specific ramp
 
 ### Housekeeping
-- [ ] Update the `brand-compliance` skill and `AI-DEMO2/CLAUDE.md` with: mono = IBM Plex Mono via `--font-mono`, the two-red rule, no purple, the contrast hook and `npm run check:contrast` / `audit:contrast`
+- [x] `brand-compliance` skill and `CLAUDE.md` updated: mono font, two reds, no purple/pink, neutrals, tokens + ratchet, `PageHeader`, contrast hook and audit
 - [ ] Update `THEMING.md` if it lists the old `--th-bg-band`
 
 ## Commands

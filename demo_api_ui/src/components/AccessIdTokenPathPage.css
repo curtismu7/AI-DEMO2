@@ -11,7 +11,7 @@
 }
 
 .aitp-header {
-  border-left: 6px solid #0d9488;
+  border-left: 6px solid #12538d;
   background: rgba(13, 148, 136, 0.06);
   padding: 16px 20px;
   margin-bottom: 24px;
@@ -20,7 +20,7 @@
 
 .aitp-badge {
   display: inline-block;
-  background: #115e59;
+  background: #12538d;
   color: #fff;
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -73,7 +73,7 @@
 .aitp-claims-title {
   font-size: var(--font-size-body);
   font-weight: 700;
-  color: #0f766e;
+  color: #12538d;
   margin: 0 0 12px 0;
   letter-spacing: 0.03em;
   text-transform: uppercase;

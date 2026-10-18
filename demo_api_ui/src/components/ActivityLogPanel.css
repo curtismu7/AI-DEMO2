@@ -117,11 +117,11 @@
 .alp-cat--delegation    { background: #fee2e2; color: #7f1d1d; border-color: #f87171; }
 .alp-cat--hitl          { background: #fef3c7; color: #78350f; border-color: #fcd34d; }
 .alp-cat--authorize     { background: #ffedd5; color: #7c2d12; border-color: #fdba74; }
-.alp-cat--gateway_path  { background: #ccfbf1; color: #134e4a; border-color: #5eead4; }
+.alp-cat--gateway_path  { background: #ccfbf1; color: #12538d; border-color: #12538d; }
 .alp-cat--threshold     { background: #ffe4e6; color: #881337; border-color: #fda4af; }
-.alp-cat--introspection { background: #cffafe; color: #164e63; border-color: #67e8f9; }
+.alp-cat--introspection { background: #eff0f1; color: #12538d; border-color: #cdd1d4; }
 .alp-cat--helix         { background: #dcfce7; color: #14532d; border-color: #86efac; }
-.alp-cat--agent         { background: #e0e2e4; color: #051727; border-color: #7dd3fc; }
+.alp-cat--agent         { background: #e0e2e4; color: #051727; border-color: #cdd1d4; }
 .alp-cat--agent_prompt  { background: #ecfccb; color: #365314; border-color: #bef264; }
 .alp-cat--session       { background: var(--th-bg-inset); color: var(--th-text-body); border-color: var(--th-border-strong); }
 .alp-cat--jwks          { background: #f4f4f5; color: #3f3f46; border-color: #a1a1aa; }
@@ -215,9 +215,9 @@
 .alp-cat-border--delegation     { border-left-color: #d20e0f; }
 .alp-cat-border--hitl           { border-left-color: #f59e0b; }
 .alp-cat-border--authorize      { border-left-color: #f97316; }
-.alp-cat-border--gateway_path   { border-left-color: #14b8a6; }
+.alp-cat-border--gateway_path   { border-left-color: #12538d; }
 .alp-cat-border--threshold      { border-left-color: #f43f5e; }
-.alp-cat-border--introspection  { border-left-color: #06b6d4; }
+.alp-cat-border--introspection  { border-left-color: #12538d; }
 .alp-cat-border--helix          { border-left-color: #22c55e; }
 .alp-cat-border--agent          { border-left-color: #12538d; }
 .alp-cat-border--agent_prompt   { border-left-color: #84cc16; }
@@ -242,8 +242,8 @@
 }
 
 .alp-flow-divider--start {
-  background: #ecfeff;
-  border-color: #22d3ee;
+  background: #eff0f1;
+  border-color: #12538d;
   color: #12538d;
 }
 

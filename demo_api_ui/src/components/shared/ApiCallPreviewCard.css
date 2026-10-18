@@ -12,4 +12,4 @@
 .acpc-body-label { font-size: 0.68rem; font-weight: 700; color: #5c646b; text-transform: uppercase; letter-spacing: 0.05em; }
 .acpc-copy { padding: 2px 8px; border-radius: var(--radius-sm); border: 1px solid #cdd1d4; background: #fff; color: #5c646b; cursor: pointer; font-size: 0.68rem; font-weight: 600; }
 .acpc-copy:hover { background: #eff0f1; }
-.acpc-json { margin: 0; font-size: 0.72rem; font-family: inherit; background: #263746; color: #7dd3fc; padding: 10px; border-radius: var(--radius-md); overflow-x: auto; max-height: 200px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; }
+.acpc-json { margin: 0; font-size: 0.72rem; font-family: inherit; background: #263746; color: #cdd1d4; padding: 10px; border-radius: var(--radius-md); overflow-x: auto; max-height: 200px; overflow-y: auto; white-space: pre-wrap; line-height: 1.5; }

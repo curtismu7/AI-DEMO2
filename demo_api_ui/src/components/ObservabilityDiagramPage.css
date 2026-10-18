@@ -3,11 +3,11 @@
 .obs-page {
   --obs-canvas: var(--th-bg-page);
   /* Plane hues — validated trio (dataviz six checks, BOTH surfaces):
-     metrics blue #12538d, traces teal #0d9488, logs amber #946b24.
+     metrics blue #12538d, traces teal #12538d, logs amber #946b24.
      The old traces green #16a34a failed the dark-mode lightness band and sat
      at CVD ΔE 6.8 vs the amber; teal clears both in light and dark. */
   --obs-metrics: #12538d;
-  --obs-traces: #0d9488;
+  --obs-traces: #12538d;
   --obs-logs: #946b24;
   color: var(--th-text);
   display: flex;
@@ -223,30 +223,30 @@
 /* Dark-mode edge steps: same hues stepped for the navy surface (validated on
    #0b1220 — the base trio's blue/amber drop below 3:1 on it). */
 :root[data-theme="dark"] .obs-edge--metrics .react-flow__edge-path { stroke: #4f8ff0; }
-:root[data-theme="dark"] .obs-edge--traces .react-flow__edge-path { stroke: #22a39a; }
+:root[data-theme="dark"] .obs-edge--traces .react-flow__edge-path { stroke: #12538d; }
 :root[data-theme="dark"] .obs-edge--logs .react-flow__edge-path { stroke: #b98322; }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .obs-edge--metrics .react-flow__edge-path { stroke: #4f8ff0; }
-  :root:not([data-theme="light"]) .obs-edge--traces .react-flow__edge-path { stroke: #22a39a; }
+  :root:not([data-theme="light"]) .obs-edge--traces .react-flow__edge-path { stroke: #12538d; }
   :root:not([data-theme="light"]) .obs-edge--logs .react-flow__edge-path { stroke: #b98322; }
 }
 
 /* Arrowheads: fills must be literal hexes (SVG marker presentation
    attributes cannot resolve var()); class rules re-step them per theme. */
 .obs-arrow--metrics .obs-arrow__path { fill: #12538d; }
-.obs-arrow--traces .obs-arrow__path { fill: #0d9488; }
+.obs-arrow--traces .obs-arrow__path { fill: #12538d; }
 .obs-arrow--logs .obs-arrow__path { fill: #946b24; }
 
 /* Dark-mode arrow steps: same hues, lighter steps for the navy surface
    (validated trio on #0b1220). */
 :root[data-theme="dark"] .obs-arrow--metrics .obs-arrow__path { fill: #4f8ff0; }
-:root[data-theme="dark"] .obs-arrow--traces .obs-arrow__path { fill: #22a39a; }
+:root[data-theme="dark"] .obs-arrow--traces .obs-arrow__path { fill: #12538d; }
 :root[data-theme="dark"] .obs-arrow--logs .obs-arrow__path { fill: #b98322; }
 
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .obs-arrow--metrics .obs-arrow__path { fill: #4f8ff0; }
-  :root:not([data-theme="light"]) .obs-arrow--traces .obs-arrow__path { fill: #22a39a; }
+  :root:not([data-theme="light"]) .obs-arrow--traces .obs-arrow__path { fill: #12538d; }
   :root:not([data-theme="light"]) .obs-arrow--logs .obs-arrow__path { fill: #b98322; }
 }
 

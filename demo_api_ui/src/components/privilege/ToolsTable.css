@@ -227,7 +227,7 @@
 .cur-ide[data-cur-theme="light"] .ptt-row--click:hover td,
 .cur-ide[data-cur-theme="light"] .ptt-row--open td,
 .cur-ide[data-cur-theme="light"] .ptt-detail-row td { background: #f5f7fa; }
-.cur-ide[data-cur-theme="light"] .ptt-name { color: #0a7d6b; }
+.cur-ide[data-cur-theme="light"] .ptt-name { color: #12538d; }
 .cur-ide[data-cur-theme="light"] .ptt-filter { background: #ffffff; color: #1e1e1e; border-color: #ccc; }
 .cur-ide[data-cur-theme="light"] .ptt-close { color: #444; }
 .cur-ide[data-cur-theme="light"] .ptt-param { color: #0451a5; background: #eaf2fb; border-color: #cfe0f2; }

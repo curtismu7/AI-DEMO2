@@ -1509,7 +1509,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 }
 
 .banking-agent-msg-label--direct-mcp {
-  color: #0f766e;
+  color: #12538d;
 }
 
 .banking-agent-msg-label--prompt {
@@ -5828,7 +5828,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   --insp-c: #d97706;
 }
 .ba-insp-btn--gateway {
-  --insp-c: #0891b2;
+  --insp-c: #12538d;
 }
 
 /* Demo steps popout — same script as /use-cases Demo section */

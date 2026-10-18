@@ -29,7 +29,7 @@
 .conv-summary-caret {
   width: 0;
   height: 0;
-  border-left: 5px solid var(--ba-accent, #0b6e99);
+  border-left: 5px solid var(--ba-accent, #12538d);
   border-top: 4px solid transparent;
   border-bottom: 4px solid transparent;
   transition: transform 150ms ease;
@@ -76,7 +76,7 @@
 
 .conv-summary-badge {
   font-weight: 600;
-  color: var(--ba-accent, #0b6e99);
+  color: var(--ba-accent, #12538d);
 }
 
 .conv-summary-span {

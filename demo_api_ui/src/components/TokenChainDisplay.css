@@ -685,8 +685,8 @@
 }
 
 .tcd-pill--act {
-  background: #d9fbfb;
-  color: #005d5d;
+  background: #eff0f1;
+  color: #12538d;
 }
 
 .tcd-pill--warn {
@@ -1783,8 +1783,8 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tci-panel[data-theme="dark"] .tcd-full-jwt {
-  background: #123b3c;
-  border-color: #2d8f8a;
+  background: #051727;
+  border-color: #12538d;
 }
 
 .tci-panel[data-theme="dark"] .tcd-pill--may-act {
@@ -1792,7 +1792,7 @@ pre.tcd-jwt-dump.jh-dark {
 }
 
 .tci-panel[data-theme="dark"] .tcd-pill--act {
-  color: #99f6e4;
+  color: #cdd1d4;
 }
 
 .tci-panel[data-theme="dark"] .tcd-pill--warn {
@@ -1890,7 +1890,7 @@ pre.tcd-jwt-dump.jh-dark {
 /* Full JWT JSON dump section in inspector */
 .tci-body .tcd-full-jwt {
   background: #f0fdfa;
-  border: 1px solid #99f6e4;
+  border: 1px solid #cdd1d4;
   border-radius: var(--radius-md);
   padding: 10px 12px;
 }
@@ -1910,7 +1910,7 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tci-body .tcd-pill--act {
   background: rgba(20, 184, 166, 0.1);
-  color: #0f766e;
+  color: #12538d;
 }
 
 .tci-body .tcd-pill--warn {
@@ -2000,10 +2000,10 @@ pre.tcd-jwt-dump.jh-dark {
   word-break: break-all;
 }
 .tcd-cs-act .tcd-cs-key {
-  color: #0f766e;
+  color: #12538d;
 }
 .tcd-cs-act .tcd-cs-val {
-  color: #0d9488;
+  color: #12538d;
 }
 .tcd-cs-may .tcd-cs-key {
   color: #12538d;
@@ -2052,7 +2052,7 @@ pre.tcd-jwt-dump.jh-dark {
   white-space: nowrap;
 }
 .tcd-exc-banner--teal .tcd-exc-badge {
-  color: #5eead4;
+  color: #12538d;
 }
 .tcd-exc-banner--blue .tcd-exc-badge {
   color: #93c5fd;
@@ -2207,9 +2207,9 @@ pre.tcd-jwt-dump.jh-dark {
 
 .tcd-mcp-result-note {
   font-size: 0.75rem;
-  color: #0f766e;
+  color: #12538d;
   background: rgba(20, 184, 166, 0.08);
-  border-left: 2px solid #14b8a6;
+  border-left: 2px solid #12538d;
   padding: 6px 8px;
   border-radius: var(--radius-sm);
 }
@@ -2525,7 +2525,7 @@ pre.tcd-jwt-dump.jh-dark {
   background: #ca8a04;
 }
 .tcd-path-dual_token > .tcd-path-badge {
-  background: #0d9488;
+  background: #12538d;
 }
 
 /* ─── Phase 266 R3 — spec-citation pills on each token chain segment ─────── */

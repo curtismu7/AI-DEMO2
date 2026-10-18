@@ -255,7 +255,7 @@
 .tctr-lane--heuristics { background: #ffedd5; color: #9a3412; }
 .tctr-lane--bff { background: var(--th-bg-inset); color: var(--th-text); }
 .tctr-lane--authz { background: #fef3c7; color: #78350f; }
-.tctr-lane--gateway { background: #cffafe; color: #164e63; }
+.tctr-lane--gateway { background: #eff0f1; color: #12538d; }
 .tctr-lane--mcp { background: #d1fae5; color: #064e3b; }
 .tctr-lane--api { background: #fee2e2; color: #7f1d1d; }
 .tctr-lane--mortgage { background: #fde68a; color: #78350f; }
@@ -559,7 +559,7 @@
 
 :root[data-theme="dark"] .tctr .tctr-lane--authz     { background: rgba(146, 64, 14, 0.35); color: #fcd34d; }
 
-:root[data-theme="dark"] .tctr .tctr-lane--gateway   { background: rgba(14, 116, 144, 0.35); color: #67e8f9; }
+:root[data-theme="dark"] .tctr .tctr-lane--gateway   { background: rgba(14, 116, 144, 0.35); color: #cdd1d4; }
 
 :root[data-theme="dark"] .tctr .tctr-lane--mcp       { background: rgba(4, 120, 87, 0.35);  color: #6ee7b7; }
 

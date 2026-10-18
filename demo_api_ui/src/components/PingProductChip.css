@@ -22,7 +22,7 @@
 /* Product colour schemes */
 .pp--idp   { background: #e8f0fe; color: #1545b5; border-color: #bcd2fb; }
 .pp--mfa   { background: #fef3e2; color: #9a5b09; border-color: #f6d9a8; }
-.pp--gw    { background: #e6f7f4; color: #0a6b62; border-color: #a7e3da; }
+.pp--gw    { background: #eff0f1; color: #12538d; border-color: #cdd1d4; }
 .pp--authz { background: #fee2e2; color: #aa0005; border-color: #fee2e2; }
 .pp--protect { background: #e7f5ed; color: #166534; border-color: #b5dfc4; }
 .pp--privilege { background: #fce8ec; color: #881337; border-color: #f9a8c4; }
@@ -30,7 +30,7 @@
 /* SVG dot inherits product foreground color */
 .pp--idp   svg circle { fill: #1545b5; }
 .pp--mfa   svg circle { fill: #9a5b09; }
-.pp--gw    svg circle { fill: #0a6b62; }
+.pp--gw    svg circle { fill: #12538d; }
 .pp--authz svg circle { fill: #aa0005; }
 .pp--protect svg circle { fill: #166534; }
 .pp--privilege svg circle { fill: #9f1239; }

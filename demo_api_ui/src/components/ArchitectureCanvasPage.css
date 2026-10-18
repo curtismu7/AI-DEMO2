@@ -177,7 +177,7 @@
 :root[data-theme="dark"] .cv-card--agent   { --cv-fill: #0f2a20; --cv-stroke: #34d399; --cv-label: #d1fae5; --cv-sub: #6ee7b7; }
 :root[data-theme="dark"] .cv-card--mcp     { --cv-fill: #2a1f0a; --cv-stroke: #fbbf24; --cv-label: #fef3c7; --cv-sub: #fcd34d; }
 :root[data-theme="dark"] .cv-card--policy  { --cv-fill: #3a1616; --cv-stroke: #fecaca; --cv-label: #fee2e2; --cv-sub: #fecaca; }
-:root[data-theme="dark"] .cv-card--backend { --cv-fill: #0c1f2e; --cv-stroke: #38bdf8; --cv-label: #e0e2e4; --cv-sub: #7dd3fc; }
+:root[data-theme="dark"] .cv-card--backend { --cv-fill: #0c1f2e; --cv-stroke: #12538d; --cv-label: #e0e2e4; --cv-sub: #cdd1d4; }
 .cv-card--dim { opacity: 0.2; }
 
 .cv-card__icon {

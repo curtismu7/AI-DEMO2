@@ -23,7 +23,7 @@
   padding: 2px 8px;
   border-radius: 10px;
   color: #ffffff;
-  background: var(--ba-accent, #0b6e99);
+  background: var(--ba-accent, #12538d);
 }
 
 .reasoning-phase--tool_selection { background: #d20e0f; }
@@ -53,7 +53,7 @@
 
 .reasoning-tool-name {
   font-weight: 600;
-  color: var(--ba-accent, #0b6e99);
+  color: var(--ba-accent, #12538d);
 }
 
 .reasoning-tool-confidence {
@@ -85,7 +85,7 @@
 
 .reasoning-context-fill {
   height: 100%;
-  background: var(--ba-accent, #0b6e99);
+  background: var(--ba-accent, #12538d);
   transition: width 200ms ease;
 }
 

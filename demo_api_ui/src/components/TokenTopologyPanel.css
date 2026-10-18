@@ -521,8 +521,8 @@
 .ttp-lane--agent   { color: #fca5a5; background: rgba(210, 14, 15,.1); }
 .ttp-lane--llm     { color: #f87171; background: rgba(248,113,113,.1); }
 .ttp-lane--browser { color: #ffffff; background: rgba(203,213,225,.1); }
-.ttp-lane--api     { color: #22d3ee; background: rgba(34,211,238,.1);  }
-.ttp-lane--data    { color: #7dd3fc; background: rgba(125,211,252,.1); }
+.ttp-lane--api     { color: #12538d; background: rgba(34,211,238,.1);  }
+.ttp-lane--data    { color: #cdd1d4; background: rgba(125,211,252,.1); }
 
 /* token summary claims on node */
 .ttp-node-claims {
@@ -1192,7 +1192,7 @@
 .ttp-root[data-theme="light"] .ttp-lane--agent   { color: #d20e0f; background: #fee2e2; }
 .ttp-root[data-theme="light"] .ttp-lane--llm     { color: #aa0005; background: #fee2e2; }
 .ttp-root[data-theme="light"] .ttp-lane--browser { color: #263746; background: #e0e2e4; }
-.ttp-root[data-theme="light"] .ttp-lane--api     { color: #155e75; background: #cffafe; }
+.ttp-root[data-theme="light"] .ttp-lane--api     { color: #12538d; background: #eff0f1; }
 .ttp-insp-font-control { display: inline-flex; gap: 2px; margin-left: auto; margin-right: 8px; }
 .ttp-insp-font-control button { border: 1px solid #5c646b; border-radius: var(--radius-sm); background: transparent; color: inherit; padding: 2px 6px; font-size: var(--font-size-3xs); cursor: pointer; }
 .ttp-insp-font-control button[aria-pressed="true"] { background: #051727; color: #fff; border-color: #051727; }

@@ -346,7 +346,7 @@
 /* MCP calls */
 .api-method-badge--MCP {
   background: #051727;
-  color: #7dd3fc;
+  color: #cdd1d4;
   letter-spacing: 0.06em;
 }
 /* Token event badges — labels: user access token, agent access token, MCP access token */

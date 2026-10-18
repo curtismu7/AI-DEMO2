@@ -77,8 +77,8 @@
 .logout-left {
   background: linear-gradient(
     165deg,
-    var(--brand-dashboard-header-start, #0e7c86),
-    var(--brand-dashboard-header-end, #0a5960)
+    var(--brand-dashboard-header-start, #12538d),
+    var(--brand-dashboard-header-end, #12538d)
   );
   color: var(--brand-dashboard-header-text, #ffffff);
   padding: 22px 18px;
@@ -166,7 +166,7 @@
 }
 
 .logout-tick {
-  color: var(--theme-accent, #0e7c86);
+  color: var(--theme-accent, #12538d);
   font-size: var(--font-size-sm);
   font-weight: 700;
 }
@@ -194,8 +194,8 @@
 }
 
 .logout-action--primary {
-  background: var(--theme-accent, #0e7c86);
-  border: 1px solid var(--theme-accent, #0e7c86);
+  background: var(--theme-accent, #12538d);
+  border: 1px solid var(--theme-accent, #12538d);
   color: #ffffff;
 }
 
@@ -204,7 +204,7 @@
 }
 
 .logout-action--primary:focus-visible {
-  outline: 2px solid var(--theme-accent, #0e7c86);
+  outline: 2px solid var(--theme-accent, #12538d);
   outline-offset: 2px;
 }
 

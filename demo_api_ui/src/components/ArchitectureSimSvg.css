@@ -56,7 +56,7 @@
 .asim-node[data-category="bff"], .asim-node[data-category="vault"] { background: #fee2e2; border-color: #d20e0f; color: #7f1d1d; }
 .asim-node[data-category="mcp-gw"] { background: #ffedd5; border-color: #f97316; color: #7c2d12; }
 .asim-node[data-category="agent"], .asim-node[data-category="llm"] { background: #fee2e2; border-color: #d20e0f; color: #831843; }
-.asim-node[data-category="pingone"], .asim-node[data-category="pingauthorize"] { background: #cffafe; border-color: #06b6d4; color: #164e63; }
+.asim-node[data-category="pingone"], .asim-node[data-category="pingauthorize"] { background: #eff0f1; border-color: #12538d; color: #12538d; }
 .asim-node[data-category="mcp-server"], .asim-node[data-category="mcp-resource-server"], .asim-node[data-category="mortgage"], .asim-node[data-category="resource-server"] { background: #dcfce7; border-color: #22c55e; color: #14532d; }
 .asim-node[data-category="hitl"] { background: #fef3c7; border-color: #eab308; color: #713f12; }
 .asim-node-label { font-size: var(--font-size-sm); font-weight: 700; }
