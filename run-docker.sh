@@ -356,7 +356,7 @@ ensure_pingfederate() {
     warn "SKIP_PINGFEDERATE=1 - not starting PingFederate; ID-JAG (UC40) and PF logins will not work."
     return 0
   fi
-  [[ -n "$(docker ps -q --filter name='^ai-demo-pingfederate$' 2>/dev/null)" ]] && return 0
+  [[ -n "$(docker ps -q --filter name='^ai-demo-pingfederate$' 2>/dev/null)" ]] && { pingfederate_login_theme; return 0; }
 
   local profile="${PINGFEDERATE_PROFILE_PATH:-$HOME/pingfederate-profile}"
   if [[ ! -f "$profile/instance/server/default/conf/pingfederate.lic" ]]; then
@@ -386,10 +386,19 @@ ensure_pingfederate() {
   local i health
   for i in $(seq 1 30); do
     health="$(docker inspect -f '{{if .State.Health}}{{.State.Health.Status}}{{else}}none{{end}}' ai-demo-pingfederate 2>/dev/null || echo none)"
-    [[ "$health" == "healthy" ]] && { ok "PingFederate is up (https://local.ping-devops.com:9031)."; return 0; }
+    [[ "$health" == "healthy" ]] && { ok "PingFederate is up (https://local.ping-devops.com:9031)."; pingfederate_login_theme; return 0; }
     sleep 4
   done
   warn "PingFederate started but is not healthy yet (state: ${health}); check: docker logs ai-demo-pingfederate"
+}
+
+# A fresh PF volume or a PF upgrade puts PF's stock (generic) sign-on pages back, so the Ping theme
+# is re-applied on every run. Idempotent, about a second; soft.
+pingfederate_login_theme() {
+  local script="$BASEDIR/scripts/pingfederate/apply-login-theme.sh"
+  [[ -f "$script" ]] || return 0
+  bash "$script" >/dev/null 2>&1 \
+    || warn "PingFederate sign-on theme not applied; run: bash scripts/pingfederate/apply-login-theme.sh"
 }
 
 vault_preflight() {

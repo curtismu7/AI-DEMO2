@@ -1,0 +1,40 @@
+/* Ping Identity theme for the demo's own PingFederate (Ping Brand Refresh 2026): Montserrat,
+ * official 2026 logo (demo_api_ui/public/branding/ping-logo.png, copied in as
+ * images/ping-identity-logo.png), Ping Red CTA gradient, Core Dark band gradient. White on
+ * #d20e0f is 5.5:1. Montserrat is self-hosted because PF's CSP blocks Google Fonts
+ * (Montserrat: SIL Open Font License 1.1, see montserrat-OFL.txt). */
+@font-face {
+  font-family: "Montserrat";
+  src: url("../fonts/ai-demo-montserrat-latin.woff2") format("woff2");
+  font-style: normal;
+  font-weight: 300 800;
+  font-display: swap;
+}
+
+:root {
+  --aid-font: "Montserrat", "Helvetica Neue", Arial, sans-serif;
+  --aid-ink: #051727;
+  --aid-muted: #4a5867;
+  --aid-line: #c4cad1;
+  --aid-card-line: #e4e7eb;
+  --aid-ground: #fcfcfc;
+  --aid-page: radial-gradient(1100px 420px at 50% 0, rgba(18, 83, 141, 0.09), rgba(18, 83, 141, 0) 70%) no-repeat, #fcfcfc;
+  --aid-band: linear-gradient(90deg, #051727 58%, #12538d);
+  --aid-band-logo: url("../images/ping-identity-logo.png") left 24px center / 36px 36px no-repeat;
+  --aid-band-pad: 76px;
+  --aid-band-text: "AI IAM Core \00B7  PingFederate";
+  --aid-edge: linear-gradient(90deg, #d20e0f 55%, #aa0005);
+  --aid-cta: linear-gradient(90deg, #d20e0f 55%, #aa0005);
+  --aid-cta-shadow: rgba(170, 0, 5, 0.6);
+  --aid-accent: #d20e0f;
+  --aid-ring: rgba(210, 14, 15, 0.2);
+  --aid-focus: #12538d;
+  --aid-link: #aa0005;
+  --aid-eyebrow: #d20e0f;
+  --aid-error-bg: #fef2f2;
+  --aid-error-line: #fecaca;
+  --aid-error-ink: #7f1d1d;
+  --aid-radius: 12px;
+  --aid-field-radius: 8px;
+  --aid-button-radius: 8px;
+}

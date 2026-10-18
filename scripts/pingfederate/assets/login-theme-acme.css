@@ -1,0 +1,46 @@
+/* "Acme Corp" theme for the outside-company PingFederate (ping-devops-cmuir): a different company
+ * on purpose, so a demo visibly crosses two IdPs. No Ping logo, font or red; system font, slate
+ * and teal, square corners, its own mark (images/acme-mark.svg). White on #0f766e is 5.5:1. */
+:root {
+  --aid-font: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  --aid-ink: #1c2530;
+  --aid-muted: #52606d;
+  --aid-line: #b9c2c9;
+  --aid-card-line: #d6dade;
+  --aid-ground: #f3f4f1;
+  --aid-page: #f3f4f1;
+  --aid-band: linear-gradient(90deg, #1f2a33, #2e3d48);
+  --aid-band-logo: url("../images/acme-mark.svg") left 24px center / 28px 28px no-repeat;
+  --aid-band-pad: 64px;
+  --aid-band-text: "Acme Corp";
+  --aid-edge: linear-gradient(#0f766e, #0f766e);
+  --aid-cta: #0f766e;
+  --aid-cta-shadow: rgba(15, 118, 110, 0.5);
+  --aid-accent: #0f766e;
+  --aid-ring: rgba(15, 118, 110, 0.22);
+  --aid-focus: #0f766e;
+  --aid-link: #0f766e;
+  --aid-eyebrow: #0f766e;
+  --aid-error-bg: #fff7ed;
+  --aid-error-line: #fed7aa;
+  --aid-error-ink: #7c2d12;
+  --aid-radius: 4px;
+  --aid-field-radius: 3px;
+  --aid-button-radius: 3px;
+}
+
+html body::before {
+  font-weight: 800;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+
+/* PF's footer says "Ping Identity"; this IdP belongs to another company. */
+html body .ping-container .ping-footer .ping-credits,
+html body .ping-container .ping-footer .ping-copyright {
+  display: none;
+}
+
+html body .ping-container .ping-footer::after {
+  content: "Acme Corp \00B7  demo outside IdP";
+}
