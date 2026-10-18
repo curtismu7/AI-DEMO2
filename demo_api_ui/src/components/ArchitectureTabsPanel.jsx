@@ -457,7 +457,7 @@ function FocusedArchitectureDiagram({ mmdSource, mmdError, focusKey }) {
       </p>
     );
   }
-  return <FlowchartFlowDiagram source={filteredSource} height={720} testId="arch-focus-diagram" label="System architecture focus" />;
+  return <FlowchartFlowDiagram source={filteredSource} height={720} testId="arch-focus-diagram" label="System architecture focus" followSteps={focusKey === "full"} />;
 }
 
 function SystemArchitectureView() {
