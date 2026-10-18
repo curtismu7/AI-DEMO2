@@ -7,6 +7,7 @@
 // Anything a step can't finish (MFA, a policy screen) returns {fallback:true}
 // and the SPA starts the ordinary redirect login instead.
 const configStore = require('./configStore');
+const { resolvePingOneIdentifier, fetchPingOneUserByUsername } = require('./pingOneUserLookupService');
 
 const PI_FLOW_TIMEOUT_MS = 10_000;
 
@@ -50,7 +51,11 @@ const PI_FLOW_ID = /^[A-Za-z0-9_-]{6,64}$/;
 // providerConfig: config module with authorizationEndpoint/tokenEndpoint getters
 // (config/oauthUser.js or config/oauth.js). KNOWN_REDIRECT_ORIGINS is only
 // needed by the assertion step; pass it from the caller that has it.
-function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
+// A parked flow (password done, approval pending) expires after this long.
+const PARKED_FLOW_TTL_MS = 150_000;
+
+// allowSecondFactor: true ONLY for the customer router. The admin router never parks.
+function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondFactor = false }) {
   async function openPiFlow(req, res, authorizeUrl, provider) {
     try {
       let target = authorizeUrl;
@@ -118,7 +123,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
   // COMPLETED flow -> authorization code -> the unchanged /callback.
   // PingOne: the code comes from /as/resume. PingFederate: it is already in the
   // COMPLETED response as authorizeResponse.{code,state}.
-  async function completePiFlow(req, res, pending, cookies, body) {
+  async function finishPiFlow(req, pending, cookies, body) {
     let code = '';
     if (pending.provider === 'pingfederate') {
       const ar = body?.authorizeResponse || {};
@@ -137,13 +142,74 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
         try { code = new URL(resume.headers.get('location')).searchParams.get('code') || ''; } catch (_) { /* not a URL */ }
       }
     }
-    if (!code) return res.status(502).json({ error: 'pi_flow_no_code' });
+    if (!code) return { status: 502, error: 'pi_flow_no_code' };
 
     delete req.session.oauthPiFlow;
     const callback = new URL(req.session.oauthRedirectUri);
     callback.searchParams.set('code', code);
     callback.searchParams.set('state', req.session.oauthState);
-    return req.session.save(() => res.json({ redirectTo: callback.toString() }));
+    return { redirectTo: callback.toString() };
+  }
+
+  async function completePiFlow(req, res, pending, cookies, body) {
+    const result = await finishPiFlow(req, pending, cookies, body);
+    if (result.error) return res.status(result.status).json({ error: result.error });
+    return req.session.save(() => res.json({ redirectTo: result.redirectTo }));
+  }
+
+  // --- Parked flow: password verified, login withheld until a second factor ---
+  const clearParked = (req) => { delete req.session.oauthPiFlowParked; };
+
+  function getParkedFlow(req) {
+    const parked = req.session?.oauthPiFlowParked;
+    if (!parked) return null;
+    if (!(Date.now() - parked.parkedAt <= PARKED_FLOW_TTL_MS)) {
+      clearParked(req);
+      return null;
+    }
+    return { expectedSub: parked.expectedSub, username: parked.username, user: parked.user };
+  }
+
+  function discardParkedFlow(req) { clearParked(req); }
+
+  // Single use: the parked state is deleted (and persisted) BEFORE the code is fetched.
+  async function completeParkedFlow(req) {
+    const parked = getParkedFlow(req) && req.session.oauthPiFlowParked;
+    if (!parked) return { status: 409, error: 'no_parked_flow' };
+    clearParked(req);
+    await new Promise((resolve) => { req.session.save(() => resolve()); });
+    try {
+      return await finishPiFlow(req, parked.pending, parked.cookies, parked.body);
+    } catch (error) {
+      console.warn('[oauth/pi-flow] parked completion failed:', error.message);
+      return { status: 502, error: 'pi_flow_failed' };
+    }
+  }
+
+  // Park a finished password flow when the browser asked for a CIBA second factor.
+  // PingOne users resolve by username/id/email; a PingFederate user maps to the PingOne
+  // account with the same username. Returns the channels, or null (do not park).
+  async function parkIfSecondFactor(req, pending, cookies, body, username) {
+    if (!allowSecondFactor || req.body?.secondFactor !== 'ciba') return null;
+    if (configStore.getEffective('ciba_login_enabled') !== 'true') return null;
+    const lookup = pending.provider === 'pingfederate'
+      ? await fetchPingOneUserByUsername(username)
+      : await resolvePingOneIdentifier(username);
+    const user = lookup?.user;
+    if (!user?.id || user.enabled === false) return null;
+    const channels = [];
+    if (user.email) channels.push('email');
+    if (user.mobilePhone) channels.push('sms');
+    if (!channels.length) return null;
+    const { id, username: uname, email, mobilePhone, enabled } = user;
+    req.session.oauthPiFlowParked = {
+      pending, cookies, body, username,
+      expectedSub: id,
+      user: { id, username: uname, email, mobilePhone, enabled },
+      parkedAt: Date.now(),
+    };
+    delete req.session.oauthPiFlow;
+    return channels;
   }
 
   // What to do with the flow's status after a step. Steps this BFF cannot drive
@@ -240,6 +306,10 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
         return res.status(401).json({ error: 'invalid_credentials', message: 'Username or password is incorrect.' });
       }
       if (!step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
+      if (body?.status === 'COMPLETED') {
+        const channels = await parkIfSecondFactor(req, pending, cookies, body, username);
+        if (channels) return req.session.save(() => res.json({ step: 'approval', channels }));
+      }
       return await respondAfterPiFlowStep(req, res, pending, body, cookies);
     } catch (error) {
       console.warn('[oauth/pi-flow] credentials step failed:', error.message);
@@ -399,6 +469,10 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
     openPiFlow,
     postPiFlowStep,
     completePiFlow,
+    finishPiFlow,
+    getParkedFlow,
+    completeParkedFlow,
+    discardParkedFlow,
     respondAfterPiFlowStep,
     openPiFlowOrReject,
     handleCredentialsStep,
