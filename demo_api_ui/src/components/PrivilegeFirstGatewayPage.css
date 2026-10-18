@@ -14,30 +14,6 @@
   background: var(--th-bg-page);
 }
 
-.pfg-hero {
-  display: grid;
-  gap: 8px;
-  max-width: 68ch;
-}
-.pfg-eyebrow {
-  font-family: var(--font-mono);
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--th-text-muted);
-}
-.pfg-hero h1 {
-  font-size: var(--font-size-h2);
-  margin: 0;
-  line-height: 1.15;
-  text-wrap: balance;
-}
-.pfg-hero p {
-  margin: 0;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-body);
-}
-
 .pfg-figure {
   margin: 0;
   display: grid;

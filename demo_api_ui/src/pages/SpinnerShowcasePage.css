@@ -10,12 +10,6 @@
   margin: 0 auto;
 }
 
-.spinner-showcase__header {
-  max-width: 720px;
-  margin-bottom: 32px;
-}
-
-.spinner-showcase__eyebrow,
 .spinner-showcase__kicker {
   margin: 0 0 8px;
   color: var(--th-status-info-text);
@@ -36,14 +30,6 @@
   font-size: clamp(var(--font-size-2xl), 4vw, var(--font-size-4xl));
   line-height: 1.05;
   letter-spacing: -.03em;
-}
-
-.spinner-showcase__intro {
-  max-width: 58ch;
-  margin-bottom: 0;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-lg);
-  line-height: 1.55;
 }
 
 .spinner-showcase__logo-tools {

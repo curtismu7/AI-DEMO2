@@ -8,38 +8,6 @@
   color: var(--th-text);
 }
 
-.p266-arch-header {
-  max-width: 1280px;
-  margin: 0 auto 1.5rem;
-}
-
-.p266-arch-eyebrow {
-  display: inline-block;
-  background: #263746;
-  color: #fff;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 4px 10px;
-  border-radius: 2px;
-  margin-bottom: 12px;
-}
-
-.p266-arch-header h1 {
-  font-size: var(--font-size-h1);
-  font-weight: 700;
-  color: var(--th-text);
-  margin: 6px 0 4px 0;
-}
-
-.p266-arch-subtitle {
-  font-size: var(--font-size-base);
-  color: var(--th-text);
-  margin: 0;
-  line-height: 1.55;
-  max-width: 760px;
-}
-
 .p266-arch-diagram-wrapper {
   max-width: 1480px;
   margin: 0 auto 2rem;

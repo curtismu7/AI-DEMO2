@@ -109,3 +109,14 @@
   font-family: var(--font-mono);
   font-size: 0.85em;
 }
+
+.ping-page-header nav a {
+  color: #ffffff;
+  text-decoration: underline;
+}
+.ping-page-header nav {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 16px;
+  margin-top: 14px;
+}

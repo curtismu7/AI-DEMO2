@@ -1,4 +1,5 @@
 import "./ShadowAiDetectorPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 const SIGNALS = [
   {
@@ -43,14 +44,9 @@ const SCORE_RULES = [
 export default function ShadowAiDetectorPage() {
   return (
     <main className="shadow-detector-page">
-      <header className="shadow-detector-hero">
-        <p className="shadow-detector-kicker">AI-Gateway learning page</p>
-        <h1>Shadow AI Detector</h1>
-        <p className="shadow-detector-lede">
-          A browser-side visibility layer for AI usage, OAuth-connected agents,
+      <PageHeader className="shadow-detector-hero" eyebrow="AI-Gateway learning page" title="Shadow AI Detector" summary={<>A browser-side visibility layer for AI usage, OAuth-connected agents,
           and sensitive data flows. This page documents the signals the
-          unpacked Chrome extension actually records.
-        </p>
+          unpacked Chrome extension actually records.</>}>
         <div className="shadow-detector-hero-note">
           <span aria-hidden="true">🔍</span>
           <span>
@@ -58,7 +54,7 @@ export default function ShadowAiDetectorPage() {
             agent is malicious or inspect an agent&apos;s reasoning.
           </span>
         </div>
-      </header>
+      </PageHeader>
 
       <section className="shadow-detector-section">
         <div className="shadow-detector-section-heading">
