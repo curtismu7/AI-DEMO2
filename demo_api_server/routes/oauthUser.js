@@ -421,7 +421,7 @@ router.get('/login', (req, res) => {
     console.log('[oauth/user/login] env_id=%s  user_client_id=%s  user_secret=%s  authorize_pi.flow=%s',
       _mask(configStore.getEffective('pingone_environment_id'), 8),
       _mask(configStore.getEffective('user_client_id'), 8),
-      _mask(configStore.getEffective('user_client_secret'), 4),
+      configStore.getEffective('user_client_secret') ? 'set' : 'MISSING',
       !!oauthUserConfig.authorizeUsesPiFlow
     );
 

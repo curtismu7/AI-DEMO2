@@ -95,6 +95,7 @@ async function startSecondFactor({ channel, req }) {
   const authReqId = crypto.randomBytes(24).toString('hex');
   const t = now();
   pending.set(authReqId, { sessionIds: new Set([req.sessionID]), channel, sub: user.id, ttlMs: (expiresIn * 1000) + ENTRY_GRACE_MS, pingAuthReqId: data.auth_req_id, createdAt: t, consumed: false, inFlight: false });
+  console.log('[cibaSecondFactor] approval sent: channel=%s user=%s expiresIn=%ss', channel, user.id, expiresIn);
   return { authReqId, matchCode: data.binding_message, expiresIn, interval: INTERVAL };
 }
 
@@ -108,7 +109,10 @@ async function pollSecondFactor({ authReqId, req }) {
   // The parked flow was restarted as someone else: this entry is dead, but the newer flow must survive.
   const current = h.getParkedFlow(req);
   if (current && current.expectedSub !== entry.sub) { entry.consumed = true; return { status: 'expired' }; }
-  if (now() - entry.createdAt >= entry.ttlMs) { entry.consumed = true; h.discardParkedFlow(req); return { status: 'expired' }; }
+  if (now() - entry.createdAt >= entry.ttlMs) {
+    console.warn('[cibaSecondFactor] timed out waiting for approval: user=%s', entry.sub);
+    entry.consumed = true; h.discardParkedFlow(req); return { status: 'expired' };
+  }
   if (entry.inFlight) return { status: 'pending' };
 
   entry.inFlight = true;
@@ -134,8 +138,12 @@ async function pollSecondFactor({ authReqId, req }) {
     }
     entry.consumed = true;   // tombstone BEFORE completing: a replay can never finish a second time
     const done = await h.completeParkedFlow(req);
-    if (done.error || !done.redirectTo) return { status: 'expired' };
+    if (done.error || !done.redirectTo) {
+      console.warn('[cibaSecondFactor] approved but completion failed: %s', done.error || 'no_redirect');
+      return { status: 'expired' };
+    }
     entry.sessionIds.add(req.sessionID);   // completion may regenerate the session id
+    console.log('[cibaSecondFactor] approved: channel=%s user=%s; parked flow completed', entry.channel, entry.sub);
     return { status: 'approved', redirectTo: done.redirectTo };
   } catch (err) {
     entry.consumed = true;
