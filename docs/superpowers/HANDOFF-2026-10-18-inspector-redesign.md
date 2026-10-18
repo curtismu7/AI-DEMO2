@@ -2,7 +2,7 @@
 
 Pick-up guide for the MCP / Authorize / Agent Gateway inspector redesign. Tick boxes as work lands.
 
-- Branch: `feat/inspector-redesign`, worktree `.worktrees/inspector-redesign` (HEAD `4e62a1b5a` on top of merged `origin/main` `f1f36d23b`). Not pushed, no PR yet.
+- Branch: `feat/inspector-redesign`, worktree `.worktrees/inspector-redesign`. Pushed; **PR #1529** open against `main` (https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1529).
 - Plan: `docs/superpowers/plans/2026-10-17-inspector-redesign.md`. Mockups: `docs/mockups/inspectors/{mcp,authorize,agent-gateway}.html`.
 - Execution ledger (rulings R1–R15, deferred minors, per-task reports): `.superpowers/sdd/2026-10-17-inspector-redesign/` in the worktree (git-ignored).
 - PR body draft: `.superpowers/sdd/2026-10-17-inspector-redesign/pr-body.md`.
@@ -40,14 +40,19 @@ Pick-up guide for the MCP / Authorize / Agent Gateway inspector redesign. Tick b
 - [x] Gateway: mounts, Vertical/Scenario/Tool wiring, scope-less 401 shows the server message (no sign-in modal; Task 12)
 - [x] No horizontal scroll at 400px; dark mode (`data-theme=dark`) renders on all pages
 - [x] Branch history scrubbed of accidentally committed probe files (browser profile, session state) before any push
+- [x] PingOne-session live check: MCP against the real MCP server (live tools, real frames, token-event steps), gateway PERMIT / PAUSE-approval / chain / Compare / raw inbound token / no duplicate rows after polling
+- [x] Task 13: MCP Tokens tab gets a client-decoded "Token sent to the MCP server" card with the raw JWT when the BFF reused a cached token
+- [x] Task 14: polled gateway records lend their 5W1H audit to the page's own test calls (identity preserved when nothing merges)
+- [x] Stack handed back to main (`scripts/serve-worktree.sh main`); branch pushed; PR #1529 opened
 
 ## Left
 
 ### Before merge
-- [ ] Live check with a **PingOne** session that has MCP scopes (PF gives `openid` only): MCP page against the live MCP server (raw exchanged token in Tokens tab, token-exchange hop), gateway PERMIT → DENY → approval story (Read accounts / Sensitive read / Withdrawal scenarios), chain, AI-agent call appearing in the MCP and Gateway lists. Sign-in redirect host is `https://local.ping-devops.com:4000`; the session cookie lives there.
-- [ ] Hand the local stack back: `bash scripts/serve-worktree.sh main` (peer session "agents-d5" is waiting for this)
-- [ ] Push `feat/inspector-redesign`, open the PR with `pr-body.md`, hand Curtis the `gh pr merge` command (don't run it)
-- [ ] Run CI once (one run at a time); fix anything it finds
+- [ ] Watch CI on PR #1529 (`gh pr checks 1529`; one CI run at a time); fix anything it finds
+- [ ] Merge when green: `gh pr merge 1529 --merge` (Curtis runs it)
+- [ ] After merge: `scripts/sync-main-checkout.sh` (or pull main) so the local stack serves it; remove the worktree (`git worktree remove .worktrees/inspector-redesign`)
+- [ ] Optional live check still not done: an AI-agent call appearing as an "AI agent" row in the MCP and Gateway lists (the PingOne access token expired before that run; adapter/store unit tests cover the path). In this environment `get_my_accounts` returns 500/502 upstream while other tools permit; worth a look on the MCP server side.
+- [ ] "Sensitive read (expect DENY)" scenario label: the live policy here returned PERMIT-with-obligation (PAUSE) rather than DENY; the label is derived from policy code, so confirm against the deployed policy or soften the wording
 
 ### Open questions for Curtis
 - [ ] Every vertical currently shows the Transaction preset (all have a transaction decision path). OK, or should some hide it?
