@@ -182,7 +182,6 @@ const mcpTrafficRoutes = require('./routes/mcpTraffic');
 const mcpToolScopesRouter = require('./routes/mcpToolScopes');
 const mcpGatewayConfigRouter = require('./routes/mcpGatewayConfig');
 const agentGatewayConfigRouter = require('./routes/agentGatewayConfig');
-const agentGatewayInspectorRouter = require('./routes/agentGatewayInspector');
 const mcpAuditRouter = require('./routes/mcpAudit');
 const promptFlowRouter = require('./routes/promptFlow');
 const agentIdentityRoutes = require('./routes/agentIdentity');
@@ -1562,7 +1561,6 @@ app.use('/api/mcp-gateway', mcpGatewayConfigRouter);
 // Agent Gateway JSON config editor — view/validate/edit/reload gateway files
 app.use('/api/admin/agent-gateway', agentGatewayConfigRouter);
 // Agent Gateway Inspector — tool introspection and invocation
-app.use('/api/agent-gateway', agentGatewayInspectorRouter);
 app.use('/api/mcp/traffic', requireSession, mcpTrafficRoutes);
 // MCP Audit: read-only observability data for any signed-in user. Mutating and
 // prompt-flow admin surfaces remain separately gated below.
