@@ -404,7 +404,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.detail.replay).toEqual({
       target: "gateway",
-      href: "/agent-gateway-inspector?subtab=tester",
+      href: "/agent-gateway-capabilities",
       label: "Replay in Gateway Tester",
       tool: "transfer_funds",
       arguments: { amount: 250 },
@@ -423,7 +423,7 @@ describe("buildTraceSteps — statuses from evidence", () => {
     const gw = steps.find((s) => s.id === "gateway");
     expect(gw.detail.replay).toEqual({
       target: "gateway",
-      href: "/agent-gateway-inspector?subtab=tester",
+      href: "/agent-gateway-capabilities",
       label: "Replay in Gateway Tester",
       tool: "create_transfer",
       arguments: { amount: 1, toAccountId: "sim-acc-001" },

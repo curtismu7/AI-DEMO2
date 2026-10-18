@@ -1,10 +1,8 @@
 // demo_api_ui/src/components/__tests__/PingOneAuthorizePage.test.jsx
 import React from 'react';
-import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
+import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import bffAxios from '../../services/bffAxios';
-import PingOneAuthorizePage, { EvaluatePanel, filterPolicyTree, policyNodeMatches } from '../PingOneAuthorizePage';
-// (replaces the Task 1 line `import { EvaluatePanel } from '../PingOneAuthorizePage';` —
-// same module, now importing both the default and the named export in one statement)
+import PingOneAuthorizePage from '../PingOneAuthorizePage';
 
 vi.mock('../../services/bffAxios', () => ({
   __esModule: true,
@@ -14,13 +12,18 @@ vi.mock('../../services/bffAxios', () => ({
   },
 }));
 
-// EvaluatePanel calls useNavigate() unconditionally (the "Open policy decision
-// trace" button navigates to /policy-decision-trace) — mock it so render()
-// doesn't throw "useNavigate() may be used only in the context of a <Router>".
-const mockNavigate = vi.fn();
+const mockReplay = vi.fn(() => null);
+vi.mock('../../services/inspectorReplay', () => ({ consumeReplay: (...a) => mockReplay(...a) }));
+window.ResizeObserver = window.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
+vi.mock('../BulkDecisionPanel', () => ({ __esModule: true, default: () => <div>bulk panel</div> }));
+
+let mockSearch = '';
+const mockSetSearch = vi.fn((fn) => { mockSearch = fn(new URLSearchParams(mockSearch)).toString(); });
 vi.mock('react-router-dom', () => ({
-  useNavigate: () => mockNavigate,
-  useSearchParams: () => [new URLSearchParams(), vi.fn()],
+  useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/pingone-authorize' }),
+  useSearchParams: () => [new URLSearchParams(mockSearch), mockSetSearch],
+  Link: ({ to, children }) => <a href={to}>{children}</a>,
 }));
 
 const ONE_POLICY = [
@@ -73,180 +76,10 @@ const ONE_POLICY = [
   },
 ];
 
-function basePolicies(overrides = {}) {
-  return { policies: ONE_POLICY, loading: false, error: null, note: null, ...overrides };
-}
-
-function renderPanel(props = {}) {
-  return render(
-    <EvaluatePanel
-      endpointId="ep-1"
-      autoPreset="transaction"
-      policiesState={basePolicies()}
-      pendingTest={null}
-      onClearPendingTest={() => {}}
-      onEvaluated={() => {}}
-      onTestRule={() => {}}
-      {...props}
-    />,
-  );
-}
-
 beforeEach(() => {
   vi.clearAllMocks();
   localStorage.clear();
-  // EvaluatePanel fetches MCP-console defaults once on mount regardless of preset.
   bffAxios.get.mockResolvedValue({ data: {} });
-});
-
-test('renders the policy tree in the left column with the rule count, collapsed by default', async () => {
-  renderPanel();
-  expect(await screen.findByText('Banking Authorization')).toBeInTheDocument();
-  expect(screen.getByText(/2 rules/)).toBeInTheDocument();
-  expect(screen.queryByText('Transaction Authorization')).not.toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /Banking Authorization/ }));
-  expect(screen.getByText('Transaction Authorization')).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: /Transaction Authorization/ }));
-  expect(screen.getByText('Deny threshold')).toBeInTheDocument();
-});
-
-test('policy search filters the tree by name or description and highlights matches', async () => {
-  renderPanel();
-  expect(await screen.findByText('Banking Authorization')).toBeInTheDocument();
-  const search = screen.getByRole('searchbox', { name: /Search authorization policies/i });
-  fireEvent.change(search, { target: { value: 'McpFirstTool' } });
-  expect(screen.getByText('MCP Delegation')).toBeInTheDocument();
-  expect(screen.getByText('Require delegated actor')).toBeInTheDocument();
-  expect(screen.queryByText('Deny threshold')).not.toBeInTheDocument();
-  expect(screen.getByText(/Showing matches for/)).toBeInTheDocument();
-  expect(document.querySelector('[data-policy-match="true"]')).toBeTruthy();
-});
-
-test('policy search with no hits shows an empty message', async () => {
-  renderPanel();
-  await screen.findByText('Banking Authorization');
-  fireEvent.change(screen.getByRole('searchbox', { name: /Search authorization policies/i }), {
-    target: { value: 'zz-no-such-policy' },
-  });
-  expect(screen.getByText(/No policies match/)).toBeInTheDocument();
-});
-
-describe('filterPolicyTree helpers', () => {
-  test('policyNodeMatches checks name and description case-insensitively', () => {
-    expect(policyNodeMatches({ name: 'MCP First Tool', description: 'DecisionContext McpFirstTool' }, 'mcpfirsttool')).toBe(true);
-    expect(policyNodeMatches({ name: 'Transaction', description: '' }, 'mcp')).toBe(false);
-  });
-
-  test('filterPolicyTree keeps ancestors of matches and drops unrelated branches', () => {
-    const filtered = filterPolicyTree(ONE_POLICY, 'McpFirstTool');
-    expect(filtered).toHaveLength(1);
-    expect(filtered[0].name).toBe('Banking Authorization');
-    expect(filtered[0].children).toHaveLength(1);
-    expect(filtered[0].children[0].name).toBe('MCP Delegation');
-  });
-});
-
-test('shows a loading message in the left column while policies load', () => {
-  const { container } = renderPanel({ policiesState: basePolicies({ policies: [], loading: true }) });
-  const treeBody = container.querySelector('.inspector-shell-tree-body');
-  expect(within(treeBody).getByText('Loading policies…')).toBeInTheDocument();
-});
-
-test('shows an error message in the left column when policies fail to load', () => {
-  renderPanel({ policiesState: basePolicies({ policies: [], loading: false, error: 'worker not configured' }) });
-  expect(screen.getByText(/worker not configured/)).toBeInTheDocument();
-});
-
-test('clicking a rule\'s Trigger button calls onTestRule with that rule\'s trigger test case', async () => {
-  const onTestRule = vi.fn();
-  renderPanel({ onTestRule });
-  await screen.findByText('Banking Authorization');
-  fireEvent.click(screen.getByRole('button', { name: /Banking Authorization/ }));
-  fireEvent.click(screen.getByRole('button', { name: /Transaction Authorization/ }));
-  await screen.findByText('Deny threshold');
-  // First Trigger belongs to Deny threshold (transaction branch listed before MCP).
-  fireEvent.click(screen.getAllByRole('button', { name: 'Trigger test' })[0]);
-  expect(onTestRule).toHaveBeenCalledWith({
-    ruleName: 'Deny threshold',
-    case: 'trigger',
-    preset: 'transaction',
-    parameters: { Amount: 50000, TransactionType: 'transfer' },
-  });
-});
-
-test('switches preset tabs in the middle column', () => {
-  renderPanel();
-  expect(screen.getByPlaceholderText('e.g. 5000')).toBeInTheDocument();
-  fireEvent.click(screen.getByText('MCP First Tool'));
-  expect(screen.getByText('Tool name')).toBeInTheDocument();
-});
-
-test('output tabs show empty-state text before any evaluation has run', () => {
-  renderPanel();
-  expect(screen.getByText(/Run an evaluation to see the decision/)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Response' }));
-  expect(screen.getByText(/Run an evaluation to see the response/)).toBeInTheDocument();
-  fireEvent.click(screen.getByRole('button', { name: 'Request' }));
-  expect(screen.getByText(/Run an evaluation to see the request/)).toBeInTheDocument();
-});
-
-test('clicking Evaluate posts to /api/authorize/evaluate-endpoint and shows the decision', async () => {
-  bffAxios.post.mockResolvedValueOnce({
-    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide' },
-  });
-  renderPanel();
-  fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
-  await waitFor(() => expect(bffAxios.post).toHaveBeenCalledWith(
-    '/api/authorize/evaluate-endpoint',
-    expect.objectContaining({ endpointId: 'ep-1' }),
-  ));
-  expect(await screen.findByText(/PERMIT/)).toBeInTheDocument();
-});
-
-test('the Response and Request output tabs show the last call\'s trace after an evaluation', async () => {
-  bffAxios.post.mockResolvedValueOnce({
-    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide', pingoneResponse: { decision: 'PERMIT' } },
-  });
-  renderPanel();
-  fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
-  await screen.findByText(/PERMIT/);
-
-  fireEvent.click(screen.getByRole('button', { name: 'Response' }));
-  expect(screen.getByText(/PERMIT/)).toBeInTheDocument();
-
-  fireEvent.click(screen.getByRole('button', { name: 'Request' }));
-  expect(screen.getByText(/ep-1|endpointId/)).toBeInTheDocument();
-});
-
-test('the "Open policy decision trace" button navigates to /policy-decision-trace with the policies and result', async () => {
-  bffAxios.post.mockResolvedValueOnce({
-    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide' },
-  });
-  renderPanel();
-  fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
-  await screen.findByText(/PERMIT/);
-
-  fireEvent.click(screen.getByRole('button', { name: 'Open policy decision trace' }));
-  expect(mockNavigate).toHaveBeenCalledWith(
-    '/policy-decision-trace',
-    expect.objectContaining({ state: expect.objectContaining({ policies: ONE_POLICY }) }),
-  );
-});
-
-test('successful evaluation persists trace payload for the Open Trace page fallback', async () => {
-  bffAxios.post.mockResolvedValueOnce({
-    data: { decision: 'PERMIT', engine: 'simulated', decisionId: 'dec-1', path: '/decide' },
-  });
-  renderPanel();
-  fireEvent.click(screen.getByRole('button', { name: /Evaluate \(live\)/ }));
-  await screen.findByText(/PERMIT/);
-
-  const raw = localStorage.getItem('policyDecisionTrace.lastRun');
-  expect(raw).toBeTruthy();
-  const parsed = JSON.parse(raw);
-  expect(parsed.policies).toEqual(ONE_POLICY);
-  expect(parsed.result.decision).toBe('PERMIT');
-  expect(typeof parsed.savedAt).toBe('number');
 });
 
 const LIVE_POLICY_RESPONSE = {
@@ -280,21 +113,62 @@ function mockPageEndpoints() {
 describe('PingOneAuthorizePage (full page wiring)', () => {
   beforeEach(() => {
     vi.clearAllMocks();
+    mockSearch = '';
     mockPageEndpoints();
   });
 
-  test('renders the new PingOneAuthorizeConsoleClean component with policy list and form', async () => {
+  test('console tab renders the Authorize Inspector with preset buttons', async () => {
     render(<PingOneAuthorizePage />);
-    // New design has left panel with policies, middle form, right output panel
-    await screen.findByText('Available Policies');
-    await screen.findByText('Transaction');
+    await screen.findByRole('heading', { name: 'Authorize Inspector' });
+    expect(screen.getByRole('button', { name: 'Transaction' })).toBeInTheDocument();
   });
 
-  test('console tab renders execute button and output tabs', async () => {
+  test('non-console tab shows a back link to the inspector', async () => {
+    mockSearch = 'tab=bulk';
     render(<PingOneAuthorizePage />);
-    await screen.findByText('Available Policies');
-    // Verify the component's key UI elements exist
-    const buttons = screen.getAllByRole('button');
-    expect(buttons.length).toBeGreaterThan(0);
+    expect(await screen.findByText('← Back to Authorize Inspector')).toBeInTheDocument();
+  });
+
+  test('mode chip is Live when loaded (even when the engine is simulated) and Unavailable when the live-policy fetch fails', async () => {
+    const { unmount } = render(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Authorize Inspector' });
+    expect(screen.getByText('Live', { selector: '.insp-chip' })).toBeInTheDocument();
+    unmount();
+    bffAxios.get.mockImplementation((url) => (url === '/api/authorize/pingone-live-policy'
+      ? Promise.reject(new Error('boom'))
+      : Promise.resolve({ data: { policies: [], decisions: [] } })));
+    render(<PingOneAuthorizePage />);
+    expect(await screen.findByText('Unavailable', { selector: '.insp-chip' })).toBeInTheDocument();
+  });
+
+  test('calls survive a round trip to a More tools tab', async () => {
+    bffAxios.post.mockResolvedValue({ data: { decision: 'PERMIT', decisionId: 'd1', pingoneResponse: { decision: 'PERMIT', statements: [] }, pingoneRequest: { body: {} } } });
+    const { rerender } = render(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Authorize Inspector' });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByRole('heading', { name: /transfer \$5,000/ });
+
+    mockSearch = 'tab=bulk';
+    rerender(<PingOneAuthorizePage />);
+    fireEvent.click(await screen.findByText('← Back to Authorize Inspector'));
+    rerender(<PingOneAuthorizePage />);
+    await waitFor(() => expect(screen.getByRole('heading', { name: /transfer \$5,000/ })).toBeInTheDocument());
+  });
+
+  test('a replay fires once, not again after a More tools round trip', async () => {
+    bffAxios.post.mockResolvedValue({ data: { decision: 'PERMIT', decisionId: 'd1', pingoneResponse: { decision: 'PERMIT', statements: [] }, pingoneRequest: { body: {} } } });
+    mockReplay.mockReturnValueOnce({ target: 'p1az', parameters: { A: 'b' } });
+    const { rerender } = render(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Custom decision' });
+    expect(bffAxios.post).toHaveBeenCalledTimes(1);
+
+    mockSearch = 'tab=bulk';
+    rerender(<PingOneAuthorizePage />);
+    fireEvent.click(await screen.findByText('← Back to Authorize Inspector'));
+    rerender(<PingOneAuthorizePage />);
+    await screen.findByRole('heading', { name: 'Custom decision' });
+    await new Promise((r) => setTimeout(r, 30));
+    expect(bffAxios.post).toHaveBeenCalledTimes(1);
+    expect(screen.getByRole('heading', { name: /Calls\s*1/ })).toBeInTheDocument();
   });
 });

@@ -35,6 +35,7 @@ jest.mock('../../services/pingOneAuthorizeService', () => ({
   isWorkerCredentialReady: jest.fn(() => false),
   provisionDemoDecisionEndpoints: jest.fn(),
   evaluateDecisionEndpoint: jest.fn(),
+  peekWorkerToken: jest.fn(() => null),
   setEndpointRecording: jest.fn(),
   checkPolicyReadiness: jest.fn(),
 }));

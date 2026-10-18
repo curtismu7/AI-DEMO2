@@ -17,7 +17,15 @@
  */
 
 const MAX = 50;
+const DETAIL_MAX = 32 * 1024;
 const buffer = []; // newest last
+
+// Keep a detail field if its JSON fits DETAIL_MAX, else a marker with its size.
+function capped(v) {
+  if (v === undefined || v === null) return null;
+  const bytes = JSON.stringify(v).length;
+  return bytes <= DETAIL_MAX ? v : { truncated: true, bytes };
+}
 
 /**
  * Record a gateway decision from a parsed X-Gw-Audit-Trail payload.
@@ -56,6 +64,11 @@ function record(trail, meta = {}) {
       // "why"); may be absent on the mock backend (which uses `reason`).
       statements: Array.isArray(authorize.statements) ? authorize.statements : null,
       url: authorize.url || '',
+      parameters: capped(authorize.parameters),
+      rawResponse: capped(authorize.rawResponse),
+      filterChain: capped(trail.filterChain),
+      mcpAudit: capped(trail.mcpAudit),
+      introspectionActive: trail.introspection?.active ?? null,
     };
     buffer.push(entry);
     if (buffer.length > MAX) buffer.shift();
