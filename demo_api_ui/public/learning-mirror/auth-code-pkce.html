@@ -20,22 +20,22 @@
 6. Tokens → Backend-for-Frontend (BFF) session; browser gets httpOnly cookie
 7. Page loads at /admin or /dashboard</pre><p><strong>Key property:</strong> the user <em>must</em> be at a browser to click through the redirect. The page navigates away and back — disruptive in agent/chat contexts.</p><h3>CIBA (backchannel)</h3><pre class="edu-code">1. Backend-for-Frontend (BFF) → POST /as/bc-authorize (login_hint, binding_message)
 2. PingOne → { auth_req_id, expires_in, interval }
-   ↳ PingOne delivers approval OUT-OF-BAND (email or push per your DaVinci config)
+   ↳ PingOne delivers approval OUT-OF-BAND (email or text link, per the channel's DaVinci flow)
 3. Backend-for-Frontend (BFF) polls POST /as/token every ~5s
    → authorization_pending until user acts
-4. User approves in email inbox OR on registered device
+4. User opens the link in their email inbox OR text message and approves
 5. Next poll returns tokens; Backend-for-Frontend (BFF) stores them server-side
 6. Chat / agent / dashboard continues with no page load</pre><p><strong>Key property:</strong> the user does <em>not</em> navigate away. No <code>redirect_uri</code> is needed for the approval step — user stays on the same page or chat the whole time.</p><h3>Side-by-side comparison</h3><pre class="edu-code">Feature                  Auth Code + PKCE          CIBA
 ─────────────────────────────────────────────────────────────────
 Browser redirect         YES (to PingOne)           NO
-User interaction device  Same browser               Any (email, phone, push)
+User interaction device  Same browser               Any (email, text message)
 Suitable for agents      No (needs browser)         Yes (out-of-band)
 Suitable for step-up     Disruptive (page reload)   Non-disruptive overlay
 redirect_uri required    YES                        NO (for approval step)
 PingOne setup            Standard PKCE app          CIBA grant + DaVinci flow
 Session established      Immediately on callback    After poll succeeds
 binding_message          N/A                        Shown to user on approval
-Token location           Backend-for-Frontend (BFF) session (httpOnly)     Backend-for-Frontend (BFF) session (httpOnly)</pre><h3>Email vs push — who decides?</h3><p>The delivery channel is controlled by your <strong>PingOne / DaVinci flow</strong>, not by this app. The Backend-for-Frontend (BFF) sends <code>login_hint</code> and <code>binding_message</code>; PingOne decides whether to send an email link or a push notification based on your DaVinci configuration and the user's registered authenticators.</p><ul><li><strong>Email-only</strong> — approval link in inbox; no push-capable MFA device or app required.</li><li><strong>Push</strong> — PingOne MFA policy + registered device (PingID, Microsoft Authenticator, etc.) required.</li></ul><p>For sequence diagrams and a live demo, open the floating <strong>CIBA guide</strong> (bottom-right of the screen, "Try It" tab).</p></section>
+Token location           Backend-for-Frontend (BFF) session (httpOnly)     Backend-for-Frontend (BFF) session (httpOnly)</pre><h3>Email vs text — who decides?</h3><p>The user picks the channel. Each channel is a separate <strong>PingOne CIBA app</strong> with its own <strong>DaVinci flow policy</strong>. The Backend-for-Frontend (BFF) sends <code>login_hint</code> and<code>binding_message</code> to that app; its flow looks the user up and sends a magic link.</p><ul><li><strong>CIBA - EMAIL</strong> — approval link in the inbox; no MFA device or app required.</li><li><strong>CIBA - SMS</strong> — approval link by text message; the user needs a real Mobile phone on their PingOne profile.</li></ul><p>For sequence diagrams and a live demo, open the floating <strong>CIBA guide</strong> (bottom-right of the screen, "Try It" tab).</p></section>
 <section class="snap-tab" id="sec-one-time-code-protection"><h3 class="snap-tab-h">One-time code protection</h3><h3>Why PKCE? (RFC 7636)</h3><p>PKCE (Proof Key for Code Exchange) prevents authorization code interception attacks. An attacker who intercepts the authorization code from the redirect cannot exchange it without the original <code>code_verifier</code> — which is only known to the server that started the flow.</p><p>PKCE also makes <em>public clients</em> (apps that cannot store a client secret) safe to use with the authorization code flow. Even for confidential clients (like this Backend-for-Frontend (BFF)), PKCE is required by OAuth 2.1.</p><h3>How the verifier/challenge pair works</h3><pre class="edu-code">Server generates:
   code_verifier = base64url(random 32 bytes)   e.g. "dBjftJeZ4CVP-mB92K27uhbUJU1p1r_wW..."
   code_challenge = base64url(SHA-256(code_verifier))
