@@ -123,6 +123,14 @@ describe("TableBlock, Status, OnThisRun, MermaidFigure", () => {
     expect(screen.getByText("Server")).toBeTruthy();
     expect(document.querySelector(".react-flow")).toBeTruthy();
   });
+
+  it("gives every lesson diagram Simulate, Reset and step time", () => {
+    render(<MermaidFigure source={"sequenceDiagram\n  participant B as Browser\n  participant S as Server\n  B->>S: hi"} label="The flow" />);
+    expect(screen.getByTestId("diagram-step-bar")).toBeTruthy();
+    expect(screen.getByText("Simulate")).toBeTruthy();
+    expect(screen.getByText("Reset")).toBeTruthy();
+    expect(screen.getByText("Step time:")).toBeTruthy();
+  });
 });
 
 describe("Export PDF (a customer handout)", () => {

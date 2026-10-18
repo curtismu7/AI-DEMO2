@@ -3,6 +3,7 @@ import React, { useState, useEffect } from 'react';
 import bffAxios from '../../services/bffAxios';
 import { useEducationUI } from '../../context/EducationUIContext';
 import EducationDrawer from '../shared/EducationDrawer';
+import StaticFlowDiagram from '../StaticFlowDiagram';
 import JsonHighlight from '../shared/JsonHighlight';
 import { EDU } from './educationIds';
 import {
@@ -52,6 +53,27 @@ function TokenFlowLink({ onClick }) {
 
 // ─── Token Exchange Flow Diagram ──────────────────────────────────────────────
 
+const TEX_NODES = [
+  { id: 'browser', group: 'user', label: 'Browser / User', x: 0, y: 0 },
+  { id: 'bff', group: 'bff', label: 'Backend-for-Frontend (BFF)', sub: ['Stores the User Token — never forwarded'], x: 300, y: 0 },
+  { id: 'pingone', group: 'pingone', label: 'PingOne', sub: ['Validates grants + issues MCP Token'], x: 600, y: 0 },
+  { id: 'mcp', group: 'resource', label: 'MCP Server', sub: ['Validates MCP Token via introspection'], x: 300, y: 180 },
+  { id: 'api', group: 'resource', label: 'Banking API', sub: ['Checks aud, scope, act claims'], x: 600, y: 180 },
+];
+const TEX_EDGES = [
+  ['browser', 'bff', 'User Token'],
+  ['bff', 'pingone', 'subject_token (exchange request)'],
+  ['pingone', 'bff', 'MCP Token (delegated)'],
+  ['bff', 'mcp', 'MCP Token only', { vertical: true }],
+  ['mcp', 'api', 'MCP Token only'],
+];
+const TEX_GROUPS = {
+  user: { label: 'User', bg: 'var(--th-status-info)' },
+  bff: { label: 'BFF', bg: 'var(--th-bg-emphasis)' },
+  pingone: { label: 'PingOne', bg: 'var(--th-status-error)' },
+  resource: { label: 'Resource server', bg: 'var(--th-status-success)' },
+};
+
 function TokenFlowDiagram() {
   return (
     <div style={{ overflowX: 'auto', padding: '8px 0', WebkitOverflowScrolling: 'touch' }}>
@@ -86,49 +108,14 @@ function TokenFlowDiagram() {
             Security guarantee: The User Token NEVER leaves the Backend-for-Frontend (BFF) — only the MCP Token reaches the MCP Server or Banking API.
           </span>
         </div>
-
-        {/* Flow diagram */}
-        <FlowRow
-          left={<Box label="Browser / User" icon="👤" color="#1e3a5f" border="var(--brand-navy)" />}
-          arrow="── User Token ──────────────────→"
-          arrowColor="var(--brand-navy-light)"
-          right={<Box label="Backend-for-Frontend (BFF)" icon="🏦" color="#1e3a5f" border="var(--brand-navy)" note="Stores User Token in session" />}
-        />
-        <ConnectorDown />
-
-        <FlowRow
-          left={<div style={{ width: '180px' }} />}
-          arrow="── User Token (subject_token) ──→"
-          arrowColor="#fca5a5"
-          note="Token Exchange Request"
-          right={<Box label="PingOne" icon="🔐" color="#2d1b69" border="#d20e0f" note="Validates grants + issues MCP Token" />}
-        />
-        <ConnectorDown right />
-
-        <FlowRow
-          left={<div style={{ width: '180px' }} />}
-          arrow="←── MCP Token (delegated) ────"
-          arrowColor="#34d399"
-          arrowRight={false}
-          right={<div style={{ width: '180px' }} />}
-        />
-        <ConnectorDown />
-
-        <FlowRow
-          left={<Box label="Backend-for-Frontend (BFF)" icon="🏦" color="#1e3a5f" border="var(--brand-navy)" note="Holds User Token — never forwarded" />}
-          arrow="── MCP Token only ──────────────→"
-          arrowColor="#34d399"
-          right={<Box label="MCP Server" icon="🤖" color="#1a2e1a" border="#22c55e" note="Validates MCP Token via introspection" />}
-        />
-        <ConnectorDown right />
-
-        <FlowRow
-          left={<div style={{ width: '180px' }} />}
-          arrow="── MCP Token only ──────────────→"
-          arrowColor="#34d399"
-          right={<Box label="Banking API" icon="💳" color="#1a2e1a" border="#22c55e" note="Checks aud, scope, act claims" />}
-        />
       </div>
+      <StaticFlowDiagram
+        NODES={TEX_NODES}
+        EDGES={TEX_EDGES}
+        GROUPS={TEX_GROUPS}
+        testId="tex-flow-diagram"
+        ariaLabel="Token exchange flow: the user token stays in the BFF"
+      />
 
       {/* Token comparison */}
       <div style={{
@@ -162,47 +149,6 @@ function TokenFlowDiagram() {
           ]}
         />
       </div>
-    </div>
-  );
-}
-
-function Box({ label, icon, color, border, note }) {
-  return (
-    <div style={{
-      width: '180px',
-      background: color,
-      border: `1px solid ${border}`,
-      borderRadius: '6px',
-      padding: '8px 10px',
-      textAlign: 'center',
-      fontSize: '0.75rem',
-    }}>
-      <div style={{ fontSize: '1.1rem', marginBottom: '2px' }}>{icon}</div>
-      <div style={{ fontWeight: 700, color: '#f1f5f9' }}>{label}</div>
-      {note && <div style={{ color: '#374151', fontSize: '0.68rem', marginTop: '3px' }}>{note}</div>}
-    </div>
-  );
-}
-
-function FlowRow({ left, arrow, arrowColor, arrowRight = true, right, note }) {
-  return (
-    <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginBottom: '4px' }}>
-      {left}
-      <div style={{ flex: 1, textAlign: 'center' }}>
-        <div style={{ color: arrowColor, fontWeight: 600, fontSize: '0.75rem', whiteSpace: 'nowrap' }}>
-          {arrow}
-        </div>
-        {note && <div style={{ color: '#374151', fontSize: '0.68rem' }}>{note}</div>}
-      </div>
-      {right}
-    </div>
-  );
-}
-
-function ConnectorDown({ right }) {
-  return (
-    <div style={{ display: 'flex', marginBottom: '4px', paddingLeft: right ? 'calc(180px + 8px + 50%)' : '89px' }}>
-      <div style={{ color: '#475569', fontSize: '0.9rem' }}>│</div>
     </div>
   );
 }

@@ -1,5 +1,5 @@
 import React from 'react';
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import TokenExchangePanel from '../TokenExchangePanel';
 import { EducationUIProvider } from '../../../context/EducationUIContext';
 import bffAxios from '../../../services/bffAxios';
@@ -60,5 +60,21 @@ describe('TokenExchangePanel — Live Tokens tab', () => {
     await waitFor(() => expect(screen.getByText(/No session token available — please sign in/)).toBeInTheDocument());
     expect(screen.queryByText(/expired/)).not.toBeInTheDocument();
     expect(bffAxios.get).not.toHaveBeenCalledWith('/api/tokens/session-preview');
+  });
+});
+
+describe('TokenExchangePanel — Flow Diagram tab', () => {
+  it('draws the exchange as a walkable diagram with Simulate, Reset and step time', () => {
+    window.ResizeObserver = window.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
+    bffAxios.get.mockResolvedValue({ data: {} });
+    render(
+      <EducationUIProvider>
+        <TokenExchangePanel isOpen onClose={() => {}} initialTabId="diagram" />
+      </EducationUIProvider>
+    );
+    const bar = screen.getByTestId('tex-flow-diagram-steps');
+    expect(within(bar).getByText('Simulate')).toBeInTheDocument();
+    expect(within(bar).getByText('Reset')).toBeInTheDocument();
+    expect(within(bar).getByText('Step time:')).toBeInTheDocument();
   });
 });

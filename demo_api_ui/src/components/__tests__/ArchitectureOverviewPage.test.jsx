@@ -11,7 +11,7 @@ vi.mock('../../vertical/useVertical', () => ({
 
 vi.mock('../diagram', () => ({
   DiagramControls: ({ extra }) => extra,
-  StepTimeSelector: () => null,
+  StepTimeSelector: () => <span>step-time-selector</span>,
   DEFAULT_STEP_MS: 1000,
   STEP_TIME_OPTIONS: [],
 }));
@@ -53,5 +53,13 @@ describe('ArchitectureOverviewPage', () => {
       .filter(scenario => scenario.group === 'Flows' && scenario.id !== 'full-architecture')
       .reduce((count, scenario) => count + scenario.steps.length, 0);
     expect(screen.getByText(`0/${expectedStepCount}`)).toBeInTheDocument();
+  });
+
+  it('keeps Play, Step, Reset and the step-time selector on the diagram', () => {
+    render(<ArchitectureOverviewPage />);
+
+    expect(screen.getByRole('button', { name: '▶ Play' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: '↺ Reset' })).toBeInTheDocument();
+    expect(screen.getByText('step-time-selector')).toBeInTheDocument();
   });
 });
