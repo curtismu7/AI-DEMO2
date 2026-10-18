@@ -33,6 +33,10 @@ jest.mock('../utils/oauthAuthorizeResource', () => ({
   buildPingOneAuthorizeResourceQueryParam: jest.fn(() => ''),
 }));
 jest.mock('../services/appEventService', () => ({ logEvent: jest.fn() }));
+jest.mock('../services/pingOneUserLookupService', () => ({
+  fetchPingOneUserByUsername: jest.fn().mockResolvedValue({ user: null, error: 'not_found' }),
+}));
+jest.mock('../services/pingOneUserService', () => ({ initialize: jest.fn(), makeRequest: jest.fn() }));
 
 const app = express();
 app.use(session({ secret: 'test-secret', resave: false, saveUninitialized: true }));
@@ -409,7 +413,25 @@ describe('customer pi.flow sign-in', () => {
         expect(res.body.devices).toEqual([
           { id: 'pf-sms-1', type: 'SMS', nickname: null, email: null, phone: '******1586' },
           { id: 'pf-mail-1', type: 'EMAIL', nickname: null, email: 'cm***@pingone.com', phone: null },
+          { id: 'pf-fido-1', type: 'FIDO2', nickname: null, email: null, phone: null },
         ]);
+      });
+
+      test('device step swaps the masked email for the full PingOne address', async () => {
+        const { fetchPingOneUserByUsername } = require('../services/pingOneUserLookupService');
+        const pingOneUserService = require('../services/pingOneUserService');
+        fetchPingOneUserByUsername.mockResolvedValueOnce({ user: { id: 'p1-user', username: 'demoUser' } });
+        pingOneUserService.makeRequest.mockResolvedValueOnce({
+          _embedded: { devices: [{ id: 'pf-mail-1', type: 'EMAIL', email: 'cmuir+demo@pingone.com' }] },
+        });
+        const agent = request.agent(app);
+        await openPfPasswordless(agent, 'AUTHENTICATION_REQUIRED');
+        fetchMock.mockResolvedValueOnce(json(200, { status: 'DEVICE_SELECTION_REQUIRED', devices: PF_DEVICES }));
+        const res = await agent.post('/api/auth/oauth/user/pi-flow/passwordless').send({ username: 'demouser' }).expect(200);
+        expect(fetchPingOneUserByUsername).toHaveBeenCalledWith('demouser');
+        expect(pingOneUserService.makeRequest).toHaveBeenCalledWith('GET', '/users/p1-user/devices');
+        expect(res.body.devices.find((d) => d.id === 'pf-mail-1').email).toBe('cmuir+demo@pingone.com');
+        expect(res.body.devices.find((d) => d.id === 'pf-sms-1').phone).toBe('******1586');
       });
 
       test('opened at IDENTIFIER_REQUIRED: submits the identifier, then authenticate', async () => {
@@ -474,13 +496,17 @@ describe('customer pi.flow sign-in', () => {
       });
     });
 
-    test('the passkey endpoint is closed to a PF flow', async () => {
+    test('the passkey step posts PF checkAssertion (JSON-string assertion); a rejection -> 401', async () => {
       const agent = request.agent(app);
       await openPfFlow(agent);
       const calls = fetchMock.mock.calls.length;
-      await agent.post('/api/auth/oauth/user/pi-flow/assertion')
-        .send({ assertion: { id: 'x' }, origin: 'https://local.ping-devops.com:4000' }).expect(409);
-      expect(fetchMock.mock.calls.length).toBe(calls);
+      fetchMock.mockResolvedValueOnce(json(400, { code: 'VALIDATION_ERROR' }));
+      const res = await agent.post('/api/auth/oauth/user/pi-flow/assertion')
+        .send({ assertion: { id: 'x' }, origin: 'https://local.ping-devops.com:4000' }).expect(401);
+      expect(res.body.error).toBe('assertion_failed');
+      const [, init] = fetchMock.mock.calls[calls];
+      expect(init.headers['Content-Type']).toBe('application/vnd.pingidentity.checkAssertion+json');
+      expect(JSON.parse(init.body)).toEqual({ origin: 'https://local.ping-devops.com:4000', assertion: JSON.stringify({ id: 'x' }), compatibility: 'FULL' });
     });
 
     test('a flow id that is not a plain token is rejected before it can reach a URL path', async () => {
