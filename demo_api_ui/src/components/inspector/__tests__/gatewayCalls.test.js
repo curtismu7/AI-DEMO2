@@ -132,12 +132,17 @@ describe('dedupeGatewayCalls', () => {
     expect(out.audit).toEqual({ own: 1 });
     expect(out.steps).toEqual([{ title: 'mine' }]);
   });
+  it('returns the same test call object when a match has nothing to lend', () => {
+    const t = { ...mk('a', 10000), audit: { own: 1 }, steps: [{ title: 'mine' }], chips: [{ label: 'c' }] };
+    const r = { ...mk('r', 12000), audit: { who: 'w' }, steps: [{ title: 'S' }], chips: [{ label: 'x' }] };
+    expect(dedupeGatewayCalls([t], [r])[0]).toBe(t);
+  });
   it('leaves test calls unchanged with no matching record; unmatched records still appear', () => {
     const t = mk('a', 10000);
     const r = { ...mk('r', 99000), audit: { who: 'w' } };
     const out = dedupeGatewayCalls([t], [r]);
     expect(out.map((c) => c.id)).toEqual(['r', 'a']);
-    expect(out[1]).toEqual(t);
+    expect(out[1]).toBe(t);
   });
 });
 

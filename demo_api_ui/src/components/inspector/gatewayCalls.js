@@ -205,12 +205,11 @@ export function dedupeGatewayCalls(testCalls, recordCalls) {
   const lend = (t) => {
     const r = recordCalls.find((x) => match(t, x));
     if (!r) return t;
-    return {
-      ...t,
-      audit: t.audit ?? r.audit,
-      steps: t.steps?.length ? t.steps : r.steps ?? t.steps,
-      chips: t.chips?.length ? t.chips : r.chips ?? t.chips,
-    };
+    const audit = t.audit ?? r.audit;
+    const steps = t.steps?.length ? t.steps : (r.steps ?? t.steps);
+    const chips = t.chips?.length ? t.chips : (r.chips ?? t.chips);
+    if (audit === t.audit && steps === t.steps && chips === t.chips) return t;
+    return { ...t, ...(audit !== undefined && { audit }), ...(steps !== undefined && { steps }), ...(chips !== undefined && { chips }) };
   };
   const dup = (r) => testCalls.some((t) => match(t, r));
   return [...recordCalls.filter((r) => !dup(r)), ...testCalls.map(lend)].sort((a, b) => b.at - a.at);
