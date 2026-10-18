@@ -19,7 +19,7 @@
   border: 1px solid var(--brand-medium-gray, #e0e0e0);
   border-radius: 12px;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border-left: 4px solid var(--brand-navy, #1d4ed8);
+  border-left: 4px solid var(--brand-navy, #12538d);
 }
 
 .app-page-shell__hero-top {
@@ -35,7 +35,7 @@
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red, #d20e0f);
 }
 
 .app-page-shell__lead {
@@ -50,7 +50,7 @@
 }
 
 .app-page-shell__hero .app-page-shell__lead a {
-  color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red, #d20e0f);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -106,7 +106,7 @@
   color: var(--th-text);
   border-radius: 10px;
   margin-bottom: 1.25rem;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 14px rgba(5, 23, 39, 0.06);
 }
 
 /* Back / Home / breadcrumb row — align actions to the left; logout uses spacer */
@@ -299,7 +299,7 @@
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red, #d20e0f);
 }
 
 .admin-dashboard__headline {
@@ -318,11 +318,11 @@
 
 .app-page-card {
   background: var(--th-bg-card);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(5, 23, 39, 0.08);
   border-radius: 10px;
   padding: 1.25rem 1.35rem;
   margin-bottom: 1rem;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 14px rgba(5, 23, 39, 0.06);
 }
 
 .app-page-card h2 {
@@ -344,7 +344,7 @@
   cursor: pointer;
   font-family: inherit;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(185, 28, 28, 0.35);
+  background: rgba(210, 14, 15, 0.35);
   color: #fff;
   transition:
     background 0.15s ease,
@@ -352,7 +352,7 @@
 }
 
 .app-page-shell__btn:hover {
-  background: rgba(185, 28, 28, 0.55);
+  background: rgba(210, 14, 15, 0.55);
   border-color: rgba(255, 255, 255, 0.55);
   color: #fff;
 }

@@ -62,7 +62,7 @@
 /* Current active step — brand-navy, pulsing */
 .diagram-region--active {
   fill: rgba(0, 70, 135, 0.32);
-  stroke: #004687;
+  stroke: #12538d;
   stroke-width: 0.7;
   animation: diagram-pulse 1.2s ease-in-out infinite;
   filter: drop-shadow(0 0 0.8px rgba(0, 102, 204, 0.9));
@@ -71,17 +71,17 @@
 /* Previous steps — soft grey, no pulse, stays visible */
 .diagram-region--active-prev {
   fill: rgba(100, 116, 139, 0.18);
-  stroke: #94a3b8;
+  stroke: #909ea4;
   stroke-width: 0.4;
 }
 
 /* Error — red pulse */
 .diagram-region--active-error {
-  fill: rgba(239, 68, 68, 0.28);
-  stroke: #ef4444;
+  fill: rgba(210, 14, 15, 0.28);
+  stroke: #d20e0f;
   stroke-width: 0.7;
   animation: diagram-pulse 1.2s ease-in-out infinite;
-  filter: drop-shadow(0 0 0.8px rgba(239, 68, 68, 0.9));
+  filter: drop-shadow(0 0 0.8px rgba(210, 14, 15, 0.9));
 }
 
 /* Permit — green pulse */
@@ -121,17 +121,17 @@
 }
 .diagram-step-arrow--active {
   fill: rgba(0, 70, 135, 0.22);
-  stroke: #004687;
+  stroke: #12538d;
   stroke-width: 0.5;
   animation: step-arrow-pulse 1.0s ease-in-out infinite;
   filter: drop-shadow(0 0 1px rgba(0, 102, 204, 0.8));
 }
 .diagram-step-arrow--active-error {
-  fill: rgba(239, 68, 68, 0.22);
-  stroke: #ef4444;
+  fill: rgba(210, 14, 15, 0.22);
+  stroke: #d20e0f;
   stroke-width: 0.5;
   animation: step-arrow-pulse 1.0s ease-in-out infinite;
-  filter: drop-shadow(0 0 1px rgba(239, 68, 68, 0.8));
+  filter: drop-shadow(0 0 1px rgba(210, 14, 15, 0.8));
 }
 .diagram-step-arrow--active-permit {
   fill: rgba(76, 175, 80, 0.22);
@@ -156,7 +156,7 @@
 /* ── Explanation text inside boxes ───────────────────── */
 
 .diagram-region-text {
-  font-family: "Montserrat", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-primary);
   font-weight: 600;
   letter-spacing: -0.01em;
   user-select: none;
@@ -167,12 +167,12 @@
 }
 
 .diagram-region-text--active-prev {
-  fill: #64748b;
+  fill: #5c646b;
   font-weight: 500;
 }
 
 .diagram-region-text--active-error {
-  fill: #b91c1c;
+  fill: #d20e0f;
 }
 
 .diagram-region-text--active-permit {
@@ -226,7 +226,7 @@
   font-size: 0.8rem;
   font-weight: 700;
 }
-.arch-aud-trail__arrow--past { color: #2563eb; }
+.arch-aud-trail__arrow--past { color: #12538d; }
 
 .arch-aud-trail__hop {
   display: flex;
@@ -240,11 +240,11 @@
   min-width: 88px;
 }
 .arch-aud-trail__hop--on {
-  background: #004687;
-  border-color: #004687;
+  background: #12538d;
+  border-color: #12538d;
 }
 .arch-aud-trail__hop--past {
-  background: #dbeafe;
+  background: #e0e2e4;
   border-color: #93c5fd;
 }
 
@@ -257,7 +257,7 @@
   line-height: 1.2;
 }
 .arch-aud-trail__hop--on  .arch-aud-trail__name { color: var(--th-text-invert); }
-.arch-aud-trail__hop--past .arch-aud-trail__name { color: #1d4ed8; }
+.arch-aud-trail__hop--past .arch-aud-trail__name { color: #12538d; }
 
 .arch-aud-trail__aud {
   font-size: var(--font-size-3xs);
@@ -266,7 +266,7 @@
   line-height: 1.2;
 }
 .arch-aud-trail__hop--on  .arch-aud-trail__aud { color: #bfdbfe; }
-.arch-aud-trail__hop--past .arch-aud-trail__aud { color: #3b82f6; }
+.arch-aud-trail__hop--past .arch-aud-trail__aud { color: #12538d; }
 
 .arch-aud-trail__act,
 .arch-aud-trail__mayact {
@@ -293,11 +293,11 @@
 .arch-token-card {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-left: 4px solid #2563eb;   /* overridden inline per type */
+  border-left: 4px solid #12538d;   /* overridden inline per type */
   border-radius: 10px;
   padding: 14px 16px;
   box-shadow: 0 2px 10px rgba(0,0,0,0.07);
-  font-family: "Montserrat", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .arch-token-card__head {
@@ -319,8 +319,8 @@
 .arch-token-card__rfc {
   font-size: 0.68rem;
   font-weight: 700;
-  background: #eff6ff;
-  color: #1d4ed8;
+  background: #fcfcfc;
+  color: #12538d;
   border: 1px solid #bfdbfe;
   border-radius: 4px;
   padding: 1px 6px;
@@ -345,7 +345,7 @@
 .arch-token-card__note {
   margin-top: 10px;
   padding-top: 8px;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #eff0f1;
   font-size: 0.76rem;
   color: var(--th-text-muted);
   font-style: italic;
@@ -378,7 +378,7 @@
   color: var(--th-text);
   font-weight: 500;
 }
-.arch-claim-val--aud    { color: #1d4ed8; font-weight: 700; }
+.arch-claim-val--aud    { color: #12538d; font-weight: 700; }
 .arch-claim-val--act    { color: #15803d; font-weight: 700; }
 .arch-claim-val--decide { color: #15803d; font-weight: 700; }
 
@@ -439,7 +439,7 @@
   -webkit-overflow-scrolling: touch;
 }
 .arch-history__scroll::-webkit-scrollbar { height: 6px; }
-.arch-history__scroll::-webkit-scrollbar-thumb { background: #cbd5e1; border-radius: 3px; }
+.arch-history__scroll::-webkit-scrollbar-thumb { background: #cdd1d4; border-radius: 3px; }
 
 .arch-history__entry {
   flex: 0 0 auto;
@@ -462,7 +462,7 @@
 
 .arch-history__step-chip {
   flex-shrink: 0;
-  background: #004687;
+  background: #12538d;
   color: var(--th-text-invert);
   font-size: 0.65rem;
   font-weight: 700;
@@ -479,7 +479,7 @@
 .arch-chain-toggle {
   margin-left: auto;
   padding: 6px 12px;
-  background: #1e40af;
+  background: #051727;
   color: var(--th-text-invert);
   border: none;
   border-radius: 4px;
@@ -490,11 +490,11 @@
 }
 
 .arch-chain-toggle:hover {
-  background: #1e3a8a;
+  background: #051727;
 }
 
 .arch-chain-toggle[aria-pressed="true"] {
-  background: #1e3a8a;
+  background: #051727;
 }
 
 .arch-chain-panel {

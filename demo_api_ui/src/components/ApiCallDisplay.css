@@ -1,5 +1,5 @@
 .api-call-display {
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 8px;
   margin-top: 1.5rem;
   background: var(--th-bg-card);
@@ -12,7 +12,7 @@
   align-items: center;
   padding: 1rem;
   background: var(--th-bg-inset);
-  border-bottom: 1px solid #d1d5db;
+  border-bottom: 1px solid #cdd1d4;
 }
 
 .api-call-display-header h3 {
@@ -30,7 +30,7 @@
 
 .api-call-filter {
   padding: 0.5rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 4px;
   font-size: 0.875rem;
   background: var(--th-bg-card);
@@ -38,7 +38,7 @@
 
 .api-call-button {
   padding: 0.5rem 1rem;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 4px;
   background: var(--th-bg-card);
   font-size: 0.875rem;
@@ -65,7 +65,7 @@
   gap: 1rem;
   padding: 0.75rem 1rem;
   background: var(--th-bg-inset);
-  border-bottom: 1px solid #d1d5db;
+  border-bottom: 1px solid #cdd1d4;
   font-size: 0.875rem;
 }
 
@@ -88,7 +88,7 @@
   background: var(--th-status-error-bg);
   color: var(--th-status-error-text);
   font-size: 0.875rem;
-  border-bottom: 1px solid #d1d5db;
+  border-bottom: 1px solid #cdd1d4;
 }
 
 .api-call-list {
@@ -105,7 +105,7 @@
 
 .api-call-item {
   padding: 0.75rem 1rem;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e0e2e4;
   cursor: pointer;
   transition: background 0.2s;
 }
@@ -119,7 +119,7 @@
 }
 
 .api-call-item--error {
-  border-left: 3px solid #dc2626;
+  border-left: 3px solid #d20e0f;
 }
 
 .api-call-summary {
@@ -164,7 +164,7 @@
 }
 
 .api-call-time {
-  color: #9ca3af;
+  color: #909ea4;
   font-size: 0.75rem;
   min-width: 60px;
   text-align: right;
@@ -173,7 +173,7 @@
 .api-call-details {
   padding: 1rem;
   background: var(--th-bg-inset);
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #e0e2e4;
 }
 
 .api-call-detail-section {
@@ -205,7 +205,7 @@
     margin: 0;
     padding: 0.5rem;
     background: var(--th-bg-card);
-    border: 1px solid #e5e7eb;
+    border: 1px solid #e0e2e4;
     border-radius: 4px;
     font-size: 0.75rem;
     color: var(--th-text);

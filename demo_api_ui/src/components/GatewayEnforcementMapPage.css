@@ -94,7 +94,7 @@
 .gwe-verdict--done       { background: #0a2418; color: #6ee7b7; border-color: #059669; }
 .gwe-verdict--bydesign   { background: #062b2b; color: #5eead4; border-color: #0d9488; }
 .gwe-verdict--flagged    { background: #2a1a00; color: #fbbf24; border-color: #d97706; }
-.gwe-verdict--pending    { background: #2d0a0a; color: #fca5a5; border-color: #dc2626; }
+.gwe-verdict--pending    { background: #2d0a0a; color: #fca5a5; border-color: #d20e0f; }
 
 .gwe-table {
   margin-top: 8px;

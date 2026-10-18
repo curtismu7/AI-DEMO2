@@ -324,7 +324,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   line-height: 1.5;
   color: var(--th-text);
   background: var(--th-bg-inset);
-  border-left: 3px solid #1d4ed8;
+  border-left: 3px solid #12538d;
   border-radius: 4px;
   padding: 12px 14px;
   margin-bottom: 14px;
@@ -433,7 +433,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   border: 1px solid var(--th-border);
   border-radius: 8px;
   background: var(--th-bg-card);
-  box-shadow: 0 8px 22px rgba(15, 23, 42, 0.16);
+  box-shadow: 0 8px 22px rgba(5, 23, 39, 0.16);
 }
 
 .tcfs-mode {
@@ -457,7 +457,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   cursor: pointer;
 }
 
-.tcfs-mode button.active { background: #1e40af; color: #ffffff; }
+.tcfs-mode button.active { background: #051727; color: #ffffff; }
 
 .tcfs-more-btn {
   font: inherit;
@@ -473,7 +473,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 }
 
 .tcfs-more-btn:disabled { opacity: 0.45; cursor: default; }
-.tcfs-more-btn:hover:not(:disabled) { border-color: #1d4ed8; color: #1d4ed8; }
+.tcfs-more-btn:hover:not(:disabled) { border-color: #12538d; color: #12538d; }
 
 .tcfs-label {
   font-size: var(--font-size-2xs);
@@ -610,7 +610,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   cursor: pointer;
 }
 
-.tcfs-sheet-close:hover { border-color: #1d4ed8; color: #1d4ed8; }
+.tcfs-sheet-close:hover { border-color: #12538d; color: #12538d; }
 
 .tcfs-zoom {
   display: flex; align-items: center; gap: 2px;
@@ -626,7 +626,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 }
 .tcfs-zoom-pct { min-width: 42px; font-weight: 600; font-variant-numeric: tabular-nums; }
 .tcfs-zoom-btn:hover:not(:disabled),
-.tcfs-zoom-pct:hover:not(:disabled) { border-color: #1d4ed8; color: #1d4ed8; }
+.tcfs-zoom-pct:hover:not(:disabled) { border-color: #12538d; color: #12538d; }
 .tcfs-zoom-btn:disabled,
 .tcfs-zoom-pct:disabled { opacity: 0.4; cursor: default; }
 
@@ -638,19 +638,19 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
 }
 
 /* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
-:root[data-theme="dark"] .tcfs-spotlight { background: var(--th-bg-page); border-left-color: #26304a; border-top-color: #26304a; }
-:root[data-theme="dark"] .tcfs-chain { background: var(--th-bg-page); border-top-color: #26304a; }
+:root[data-theme="dark"] .tcfs-spotlight { background: var(--th-bg-page); border-left-color: #051727; border-top-color: #051727; }
+:root[data-theme="dark"] .tcfs-chain { background: var(--th-bg-page); border-top-color: #051727; }
 :root[data-theme="dark"] .tcfs-spotlight-empty { color: #90a0c2; }
 :root[data-theme="dark"] .tcfs-more-pop { background: var(--th-bg-card); border-color: var(--th-border); box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5); }
 :root[data-theme="dark"] .tcfs-mode { background: var(--th-bg-inset); border-color: var(--th-border); }
 :root[data-theme="dark"] .tcfs-mode button { color: #ffffff; }
-:root[data-theme="dark"] .tcfs-mode button.active { background: #1e40af; color: #ffffff; }
+:root[data-theme="dark"] .tcfs-mode button.active { background: #051727; color: #ffffff; }
 :root[data-theme="dark"] .tcfs-more-btn { background: var(--th-bg-card); border-color: var(--th-border); color: #ffffff; }
 :root[data-theme="dark"] .tcfs-more-btn:hover:not(:disabled) { border-color: #9ec1ff; color: #9ec1ff; }
 :root[data-theme="dark"] .tcfs-label { color: #90a0c2; }
 :root[data-theme="dark"] .tcfs-empty { border-color: var(--th-border); color: #ffffff; }
-:root[data-theme="dark"] .tcfs-sheet { background: var(--th-bg-page); border-top-color: #26304a; }
-:root[data-theme="dark"] .tcfs-sheet-head { background: var(--th-bg-card); border-bottom-color: #26304a; }
+:root[data-theme="dark"] .tcfs-sheet { background: var(--th-bg-page); border-top-color: #051727; }
+:root[data-theme="dark"] .tcfs-sheet-head { background: var(--th-bg-card); border-bottom-color: #051727; }
 :root[data-theme="dark"] .tcfs-sheet-title { color: #ffffff; }
 :root[data-theme="dark"] .tcfs-sheet-close { background: var(--th-bg-card); border-color: var(--th-border); color: #ffffff; }
 :root[data-theme="dark"] .tcfs-sheet-close:hover { border-color: #9ec1ff; color: #9ec1ff; }
@@ -671,7 +671,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
     "chain spotlight";
   grid-template-rows: auto auto;
   width: 100%;
-  border-top: 1px solid var(--th-border, #e2e8f0);
+  border-top: 1px solid var(--th-border, #e0e2e4);
   /* Pinned to the bottom of the viewport. Unpinned, this wrapper is the last
      child of a ~3500px dashboard, so the reel sat at y~2800 and was never on
      screen in float or dock mode — the reason it read as "missing" while focus
@@ -712,7 +712,7 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   padding: 4px 12px;
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: var(--th-text-muted, #64748b);
+  color: var(--th-text-muted, #5c646b);
   cursor: pointer;
 }
 
@@ -721,4 +721,4 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   text-decoration: underline;
 }
 
-:root[data-theme="dark"] .tcfs-float-host { border-top-color: #26304a; }
+:root[data-theme="dark"] .tcfs-float-host { border-top-color: #051727; }

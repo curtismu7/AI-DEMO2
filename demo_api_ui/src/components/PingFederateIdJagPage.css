@@ -183,11 +183,11 @@
 .pfj-node--request { --pfj-accent: #5c6f8a; }
 .pfj-node--runtime { --pfj-accent: #2a6382; }
 .pfj-node--identity { --pfj-accent: #087d76; }
-.pfj-node--token { --pfj-accent: #76549a; }
+.pfj-node--token { --pfj-accent: #d20e0f; }
 .pfj-node--agent { --pfj-accent: #2f7480; }
 .pfj-node--gateway { --pfj-accent: #365f9a; }
 .pfj-node--policy { --pfj-accent: #946b24; }
-.pfj-node--mcpas { --pfj-accent: #73508f; }
+.pfj-node--mcpas { --pfj-accent: #d20e0f; }
 .pfj-node--resource { --pfj-accent: #377452; }
 
 .pfj-node strong {

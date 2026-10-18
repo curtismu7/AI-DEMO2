@@ -28,8 +28,8 @@
      (dashboard/dashboard.css), which this page is not inside, so the var()
      lookups always fell through to their fallbacks. These literals ARE the
      source; the dark block below is the only other one. */
-  --admin-accent: #2563eb;
-  --admin-accent2: #1e3a8a;
+  --admin-accent: #12538d;
+  --admin-accent2: #051727;
   --admin-tint: #eef4ff;
   /* Surfaces, line and ink read the semantic --th-* tokens (index.css) so
      /admin flips with the same dark palette as every other page. */

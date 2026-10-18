@@ -4,7 +4,7 @@
   border-radius: 12px;
   margin: 20px 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .actorTokenEducation h2 {
@@ -34,7 +34,7 @@
 .introduction {
   background: var(--th-bg-card);
   padding: 16px;
-  border-left: 4px solid #0066cc;
+  border-left: 4px solid #12538d;
   border-radius: 6px;
   margin-bottom: 24px;
 }
@@ -254,7 +254,7 @@
 }
 
 .liveDemo p {
-  color: var(--th-text) !important; /* beats inline #64748b in the JSX */
+  color: var(--th-text) !important; /* beats inline #5c646b in the JSX */
   line-height: 1.6;
   margin: 8px 0;
 }
@@ -264,7 +264,7 @@
   padding: 16px;
   border-radius: 6px;
   margin-top: 20px;
-  border-left: 4px solid #0066cc;
+  border-left: 4px solid #12538d;
 }
 
 .relatedResources h3 {

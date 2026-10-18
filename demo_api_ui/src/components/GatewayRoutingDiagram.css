@@ -94,7 +94,7 @@
 	letter-spacing: 0.03em;
 }
 .grd-pill--on  { background: #d6ecdb; color: #1f6b3a; }
-.grd-pill--off { background: #e2e6ec; color: var(--th-text); }
+.grd-pill--off { background: #e2e6ec; color: #051727; }
 
 /* Route cards */
 .grd-route {

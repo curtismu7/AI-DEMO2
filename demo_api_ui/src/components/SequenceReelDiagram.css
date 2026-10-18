@@ -58,7 +58,7 @@
    Project rule: dark is [data-theme="dark"] only, never prefers-color-scheme. */
 .srd-root[data-srd-theme="dark"] {
   --srd-bg: #101827;
-  --srd-text: #f8fafc;
+  --srd-text: #f7f8f8;
   --srd-muted: #ffffff;
   --srd-card: #182235;
   --srd-page: #111c2d;

@@ -1,5 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useState } from 'react';
 import { fetchMcpDiscoveryInventory, requestMcpDiscoveryScan } from '../services/mcpDiscoveryService';
+import PageHeader from '../components/common/PageHeader';
 import './McpDiscoveryPage.css';
 
 const STATUS_ORDER = ['healthy', 'hostile', 'degraded', 'offline', 'candidate', 'unprobed'];
@@ -148,20 +149,19 @@ export default function McpDiscoveryPage() {
 
   return (
     <main className="mcp-discovery-page">
-      <header className="mcp-discovery-header">
-        <div>
-          <p className="mcp-discovery-eyebrow">MCP runtime</p>
-          <h1>Runtime inventory</h1>
-          <p className="mcp-discovery-subtitle">
-            Read-only discovery across host processes, local listeners, Compose services, and configured remote URLs.
-          </p>
-        </div>
-        <div className="mcp-discovery-actions">
-          <span className="mcp-discovery-updated">Last scan {formatTime(inventory?.scannedAt)}</span>
-          <button type="button" className="mcp-discovery-button" onClick={load} disabled={loading}>Refresh</button>
-          <button type="button" className="mcp-discovery-button mcp-discovery-button-primary" onClick={scanNow} disabled={loading}>Scan now</button>
-        </div>
-      </header>
+      <PageHeader
+        className="mcp-discovery-header"
+        eyebrow="MCP runtime"
+        title="Runtime inventory"
+        summary="Read-only discovery across host processes, local listeners, Compose services, and configured remote URLs."
+        actions={
+          <div className="mcp-discovery-actions">
+            <span className="mcp-discovery-updated">Last scan {formatTime(inventory?.scannedAt)}</span>
+            <button type="button" className="mcp-discovery-button" onClick={load} disabled={loading}>Refresh</button>
+            <button type="button" className="mcp-discovery-button mcp-discovery-button-primary" onClick={scanNow} disabled={loading}>Scan now</button>
+          </div>
+        }
+      />
 
       {error && <div className="mcp-discovery-error" role="alert">Discovery agent unavailable: {error}</div>}
       {scanMessage && <div className="mcp-discovery-notice" role="status">{scanMessage}</div>}

@@ -56,7 +56,7 @@
 
 .acp-error {
   font-size: 0.85rem;
-  color: var(--brand-error, #dc2626);
+  color: var(--brand-error, #d20e0f);
   font-weight: 500;
 }
 
@@ -65,8 +65,8 @@
   margin: 0.75rem 0;
   padding: 0.6rem 0.8rem;
   border-radius: 8px;
-  background: rgba(220, 38, 38, 0.08);
-  border: 1px solid rgba(220, 38, 38, 0.25);
+  background: rgba(210, 14, 15, 0.08);
+  border: 1px solid rgba(210, 14, 15, 0.25);
 }
 
 /* Match list */

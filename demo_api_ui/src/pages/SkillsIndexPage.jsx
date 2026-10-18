@@ -1,4 +1,5 @@
 import { useMemo, useState } from "react";
+import PageHeader from "../components/common/PageHeader";
 import "./SkillsIndexPage.css";
 
 // The Claude Code skills catalog (claudSkills/skills-confluence-page.html),
@@ -194,11 +195,11 @@ export default function SkillsIndexPage() {
 
   return (
     <div className="ski-page">
-      <header className="ski-header">
-        <div className="ski-header-inner">
-          <p className="ski-eyebrow">Learning Hub · Claude Code</p>
-          <h1>Skills I use with Claude</h1>
-          <p className="ski-sub">
+      <PageHeader
+        eyebrow="Learning Hub · Claude Code"
+        title="Skills I use with Claude"
+        summary={
+          <>
             {totalSkills} skills across {4 + PROJECT_GROUPS.length} groups, by
             install path. The downloadable bundle is{" "}
             <a href={GITHUB_SKILLS} target="_blank" rel="noopener noreferrer">
@@ -209,9 +210,9 @@ export default function SkillsIndexPage() {
             by .env variable name only). Start here:{" "}
             <code>privilege-console-api</code> (AI-DEMO2 project skill, below)
             — newest and most reused.
-          </p>
-        </div>
-      </header>
+          </>
+        }
+      />
 
       <div className="ski-body">
         <form className="ski-search" onSubmit={(e) => e.preventDefault()} role="search">

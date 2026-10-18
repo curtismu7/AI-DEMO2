@@ -294,7 +294,7 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
   min-height: 480px;
   padding: 12px 14px 10px;
   border-radius: 38px;
-  background: linear-gradient(165deg, #1b2a52 0%, #3d2060 55%, #7b2f5b 100%);
+  background: linear-gradient(165deg, #1b2a52 0%, #7f1d1d 55%, #7f1d1d 100%);
   color: #fff;
 }
 .pf-ai-agent__phone-island { align-self: center; width: 86px; height: 25px; border-radius: 13px; background: #000; }
@@ -323,3 +323,12 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
 .pf-ai-agent__phone-actions .pf-ai-agent__action { border-color: var(--pf-ai-accent); background: var(--pf-ai-accent); color: #fff; }
 .pf-ai-agent__phone-actions .pf-ai-agent__secondary-action { border-color: transparent; background: rgba(255, 255, 255, 0.22); color: #fff; }
 .pf-ai-agent__phone-home { align-self: center; width: 110px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.85); }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .pf-ai-agent__status.is-ready > span {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .pf-ai-agent__status.is-ready > span {
+  color: #051727;
+}

@@ -8,26 +8,6 @@
   margin-bottom: 2rem;
 }
 
-.dsum-eyebrow {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--th-text-muted);
-  margin: 0 0 0.5rem;
-}
-
-.dsum-head h1 {
-  margin: 0 0 0.5rem;
-  font-size: 1.9rem;
-  color: var(--th-text);
-}
-
-.dsum-sub {
-  margin: 0 0 1rem;
-  color: var(--th-text-body);
-}
-
 .dsum-search {
   width: 100%;
   max-width: 480px;

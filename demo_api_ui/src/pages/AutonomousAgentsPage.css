@@ -31,7 +31,7 @@
    background and size shift carry "this is an identifier" on their own. */
 .aap code {
   font-size: 0.9em;
-  background: var(--th-bg-inset, #f1f5f9);
+  background: var(--th-bg-inset, #eff0f1);
   padding: 1px 5px;
   border-radius: 4px;
 }
@@ -73,7 +73,7 @@
   padding: 5px 12px 5px 6px;
   border-radius: 999px;
   border: 1px solid var(--th-border-strong, #c3cdd9);
-  background: var(--th-bg-inset, #f1f5f9);
+  background: var(--th-bg-inset, #eff0f1);
   color: var(--th-text-muted, #556070);
   font: inherit;
   font-size: var(--font-size-body);
@@ -92,7 +92,7 @@
 .aap-switch--on {
   border-color: #a1620a;
   background: #fdf3e2;
-  color: #a1620a;
+  color: #051727;
 }
 .aap-switch--on .aap-switch-knob { background: #a1620a; }
 
@@ -131,7 +131,7 @@
   border: 1px solid #a1620a;
   border-radius: 8px;
   background: #fdf3e2;
-  color: var(--th-text);
+  color: #051727;
 }
 .aap-parked-head { margin: 0; font-size: 14.5px; font-weight: 600; color: #a1620a; }
 .aap-parked-body { margin: 0; font-size: var(--font-size-body); line-height: 1.5; }
@@ -158,7 +158,7 @@
   cursor: pointer;
   border-radius: 8px;
 }
-.aap-open:hover { background: var(--th-bg-inset, #f1f5f9); }
+.aap-open:hover { background: var(--th-bg-inset, #eff0f1); }
 .aap-open:focus-visible { outline: 2px solid var(--th-border-strong, #c3cdd9); outline-offset: -2px; }
 
 .aap-job { font-weight: 600; font-size: var(--font-size-base); }
@@ -207,7 +207,7 @@
   padding: 12px 14px;
   border: 1px solid var(--th-border, #dbe2ea);
   border-radius: 8px;
-  background: var(--th-bg-inset, #f1f5f9);
+  background: var(--th-bg-inset, #eff0f1);
 }
 .aap-compare-col ul {
   margin: 0;
@@ -311,7 +311,7 @@
   border: 1px solid #a1620a;
   border-radius: 8px;
   background: #fdf3e2;
-  color: var(--th-text);
+  color: #051727;
   font-size: 14.5px;
   line-height: 1.55;
 }

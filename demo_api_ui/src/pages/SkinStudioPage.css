@@ -209,7 +209,7 @@
 }
 
 .ss-error {
-  color: var(--th-status-danger-text, #b91c1c);
+  color: var(--th-status-danger-text, #d20e0f);
   font-weight: 600;
 }
 
@@ -299,7 +299,7 @@
 }
 
 .logo-uploader__button--danger {
-  color: var(--th-status-danger-text, #b91c1c);
+  color: var(--th-status-danger-text, #d20e0f);
 }
 
 .logo-uploader__hint {

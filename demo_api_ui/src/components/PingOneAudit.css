@@ -6,7 +6,7 @@
   border: 1px solid var(--th-border);
   padding: 1.5rem;
   margin: 1rem 0;
-  font-family: "Montserrat", system-ui, -apple-system, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .pingone-audit-header {
@@ -95,7 +95,7 @@
 }
 
 .error-message {
-  color: #991b1b;
+  color: #aa0005;
   margin: 0 0 1rem;
   font-size: 0.95rem;
 }
@@ -223,7 +223,7 @@
 
 .status-error {
   background: #fee2e2;
-  color: #991b1b;
+  color: #aa0005;
   border: 1px solid #fecaca;
 }
 
@@ -286,8 +286,8 @@
 }
 
 .scope-tag--expected {
-  background: #eff6ff;
-  color: #0c4a6e;
+  background: #fcfcfc;
+  color: #051727;
   border-color: #bfdbfe;
 }
 
@@ -386,4 +386,9 @@
   .scopes-column {
     max-width: 120px;
   }
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .pingone-audit-button--primary {
+  color: var(--th-status-info-text);
 }

@@ -1,6 +1,6 @@
 .arm-panel {
   background: var(--th-bg-card, #fff);
-  border: 1px solid var(--brand-medium-gray, #e5e7eb);
+  border: 1px solid var(--brand-medium-gray, #e0e2e4);
   border-radius: 8px;
   margin: 0 16px 0;
   overflow: hidden;
@@ -10,8 +10,8 @@
   display: flex;
   align-items: center;
   padding: 8px 14px;
-  background: var(--th-bg-section, #f8fafc);
-  border-bottom: 1px solid var(--brand-medium-gray, #e5e7eb);
+  background: var(--th-bg-section, #f7f8f8);
+  border-bottom: 1px solid var(--brand-medium-gray, #e0e2e4);
 }
 
 .arm-title {
@@ -19,7 +19,7 @@
   font-weight: 600;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: var(--th-text-secondary, #64748b);
+  color: var(--th-text-secondary, #5c646b);
 }
 
 .arm-body {
@@ -32,13 +32,13 @@
   margin: 0;
   font-size: var(--font-size-body);
   line-height: 1.6;
-  color: var(--th-text-primary, #1e293b);
+  color: var(--th-text-primary, #263746);
   white-space: pre-wrap;
 }
 
 .arm-empty {
   margin: 0;
   font-size: var(--font-size-sm);
-  color: var(--th-text-secondary, #94a3b8);
+  color: var(--th-text-secondary, #909ea4);
   font-style: italic;
 }

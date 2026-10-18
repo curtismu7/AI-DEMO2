@@ -596,3 +596,11 @@
   text-decoration: underline;
 }
 
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .ff-error {
+  color: var(--th-status-error-text);
+}
+
+:root[data-theme="dark"] .rc-save-btn:hover:not(:disabled) {
+  color: #051727;
+}

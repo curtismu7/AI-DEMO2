@@ -2,8 +2,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .mfa-test-loading,
@@ -398,8 +397,7 @@
 .device-contact {
   color: var(--th-text-muted);
   font-size: 0.85rem;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", sans-serif;
+  font-family: var(--font-primary);
 }
 
 .device-type {
@@ -744,7 +742,7 @@
   border-radius: 10px;
   font-size: 0.9rem;
   flex-wrap: wrap;
-  box-shadow: 0 1px 5px rgba(59, 130, 246, 0.18);
+  box-shadow: 0 1px 5px rgba(18, 83, 141, 0.18);
 }
 
 .mfa-user-picker__label {
@@ -781,7 +779,7 @@
 .mfa-user-picker__input:focus {
   outline: none;
   border-color: var(--th-status-info);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 0 2px rgba(18, 83, 141, 0.15);
 }
 
 .mfa-user-picker__dropdown {
@@ -1027,14 +1025,13 @@
 }
 
 .mfa-test-card__method--patch {
-  background: #f3e5f5;
-  color: #6a1b9a;
+  background: #fee2e2;
+  color: #7f1d1d;
 }
 
 .mfa-test-card__endpoint {
   flex: 1;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", sans-serif;
+  font-family: var(--font-primary);
   color: var(--th-text-body);
   font-size: 0.8rem;
   word-break: break-all;
@@ -1188,4 +1185,29 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-family: var(--font-mono);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .mfa-test-button--test {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .mfa-test-button--test {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .status-badge--passed {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .status-badge--passed {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .mfa-test-card__status--passed {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .mfa-test-card__status--passed {
+  color: #051727;
 }

@@ -139,7 +139,7 @@
 }
 .api-traffic-search:focus {
   border-color: var(--brand-navy);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 0 2px rgba(18, 83, 141, 0.15);
 }
 
 .api-traffic-filter-label {
@@ -193,7 +193,7 @@
   line-height: 1.4;
 }
 .api-traffic-btn:hover {
-  background: #eff6ff;
+  background: #fcfcfc;
   color: var(--brand-navy);
   border-color: #93c5fd;
 }
@@ -210,13 +210,13 @@
   color: #78350f;
 }
 .api-traffic-btn--close {
-  color: #dc2626;
+  color: #d20e0f;
   border-color: #fca5a5;
   padding: 3px 8px;
 }
 .api-traffic-btn--close:hover {
   background: #fee2e2;
-  color: #b91c1c;
+  color: #d20e0f;
   border-color: #f87171;
 }
 
@@ -261,10 +261,10 @@
   color: var(--th-text);
 }
 .api-traffic-entry--selected {
-  background: #dbeafe !important;
+  background: #e0e2e4 !important;
 }
 .api-traffic-entry--error {
-  border-left: 3px solid #ef4444;
+  border-left: 3px solid #d20e0f;
 }
 .api-traffic-entry--indented {
   padding-left: 28px;
@@ -328,7 +328,7 @@
   color: #86efac;
 }
 .api-method-badge--POST {
-  background: #1e3a5f;
+  background: #051727;
   color: #93c5fd;
 }
 .api-method-badge--PUT {
@@ -336,8 +336,8 @@
   color: #fde68a;
 }
 .api-method-badge--PATCH {
-  background: #334155;
-  color: var(--th-text-faint);
+  background: #263746;
+  color: #ffffff;
 }
 .api-method-badge--DELETE {
   background: #7f1d1d;
@@ -345,7 +345,7 @@
 }
 /* MCP calls */
 .api-method-badge--MCP {
-  background: #0c4a6e;
+  background: #051727;
   color: #7dd3fc;
   letter-spacing: 0.06em;
 }
@@ -379,7 +379,7 @@
   min-width: 32px;
 }
 .api-method-badge--TOKEN-MCP {
-  background: #0c4a6e;
+  background: #051727;
   color: #93c5fd;
   min-width: 68px;
   font-size: var(--font-size-xs);
@@ -413,7 +413,7 @@
   color: #fca5a5;
 }
 .api-status-badge--net {
-  background: #374151;
+  background: #263746;
   color: #ffffff;
 }
 .api-status-badge--tok {
@@ -543,7 +543,7 @@
 .api-detail-mcp-line {
   margin: 10px 0 0;
   font-size: var(--font-size-base);
-  color: #0369a1;
+  color: #12538d;
 }
 
 .api-detail-muted {
@@ -582,7 +582,7 @@ pre.api-json {
 
 .api-detail-err {
   font-size: var(--font-size-base);
-  color: #b91c1c;
+  color: #d20e0f;
   background: #fef2f2;
   border: 1px solid #fca5a5;
   border-radius: 6px;
@@ -593,7 +593,7 @@ pre.api-json {
 /* ── Token event rows ─────────────────────────────────────────────────────── */
 .api-traffic-entry--token {
   background: var(--th-bg-inset);
-  border-left: 2px solid #334155;
+  border-left: 2px solid #263746;
 }
 .api-traffic-entry--token:hover {
   background: var(--th-bg-inset);
@@ -637,11 +637,11 @@ pre.api-json {
 }
 .api-token-event-status--failed {
   background: #fee2e2;
-  color: #b91c1c;
+  color: #d20e0f;
 }
 .api-token-event-status--reused {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: #e0e2e4;
+  color: #12538d;
 }
 .api-token-event-status--acquiring {
   background: var(--brand-light-gray);
@@ -656,7 +656,7 @@ pre.api-json {
 }
 .api-token-event-rfc {
   font-size: var(--font-size-sm);
-  color: #0369a1;
+  color: #12538d;
   margin: 0 0 8px;
 }
 .api-token-event-may-act {
@@ -727,7 +727,7 @@ pre.api-json {
   word-break: break-all;
 }
 .api-claims-td--rfc .api-claims-rfc-ref {
-  color: #0369a1;
+  color: #12538d;
   font-size: var(--font-size-xs);
 }
 .api-claims-td--note {

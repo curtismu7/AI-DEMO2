@@ -62,14 +62,14 @@
 }
 
 .inspector-clean-tab.active {
-  /* White on #0ea5e9 measured 2.77:1; sky-700 gives 5.9:1. Both literals (H1). */
-  background: #0c4a6e;
+  /* White on #12538d measured 2.77:1; sky-700 gives 5.9:1. Both literals (H1). */
+  background: #051727;
   color: #ffffff;
-  border-color: #075985;
+  border-color: #12538d;
 }
 
 .inspector-clean-tab:hover:not(.active) {
-  border-color: #0ea5e9;
+  border-color: #12538d;
 }
 
 .inspector-clean-content {
@@ -138,7 +138,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  /* #0ea5e9 as ink directly on --th-bg-card fails contrast in light mode
+  /* #12538d as ink directly on --th-bg-card fails contrast in light mode
      (~2.8:1) — --th-status-info-text is tuned per-theme for exactly this. */
   color: var(--th-status-info-text);
   padding: 8px 0 4px 0;
@@ -160,12 +160,12 @@
 
 .inspector-clean-item:hover {
   background: var(--th-bg-hover);
-  border-left-color: #0ea5e9;
+  border-left-color: #12538d;
 }
 
 .inspector-clean-item.active {
   /* Same fix as .inspector-clean-tree-group-label: a low-opacity tint of
-     #0ea5e9 barely shifts the panel's --th-bg-card, so the paired literal
+     #12538d barely shifts the panel's --th-bg-card, so the paired literal
      ink failed contrast in light mode (~2.8:1). */
   background: var(--th-status-info-bg);
   color: var(--th-status-info-text);
@@ -229,14 +229,14 @@
 .inspector-clean-field textarea:focus,
 .inspector-clean-field select:focus {
   outline: none;
-  border-color: #0ea5e9;
+  border-color: #12538d;
   box-shadow: 0 0 0 3px rgba(14, 165, 233, 0.1);
   background: var(--th-bg-card);
 }
 
 .inspector-clean-button {
   padding: 10px 16px;
-  background: #075985;
+  background: #12538d;
   color: white;
   border: none;
   border-radius: 6px;
@@ -293,7 +293,7 @@
 }
 
 .inspector-clean-output-tab.active {
-  /* Ink directly on --th-bg-page, same contrast issue as the other #0ea5e9
+  /* Ink directly on --th-bg-page, same contrast issue as the other #12538d
      text uses above. */
   color: var(--th-status-info-text);
   border-bottom-color: var(--th-status-info);
@@ -402,13 +402,13 @@
 
 .inspector-clean-reel-frame:hover {
   background: var(--th-bg-hover);
-  border-color: #0ea5e9;
+  border-color: #12538d;
 }
 
 .inspector-clean-reel-frame.active {
-  background: #075985;
+  background: #12538d;
   color: white;
-  border-color: #075985;
+  border-color: #12538d;
 }
 
 /* Scrollbar styling */

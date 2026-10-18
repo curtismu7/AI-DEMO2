@@ -115,7 +115,7 @@
   user-select: none;
 }
 .admin-side-nav__role-badge--admin {
-  background: rgba(220, 38, 38, 0.18);
+  background: rgba(210, 14, 15, 0.18);
   color: #ff4d4d;
   border: 2px solid #ff4d4d;
 }
@@ -167,14 +167,14 @@
 
 .admin-side-nav__quick-link:hover {
   background: #dfe6f7;
-  color: #2767d2 !important;
+  color: #12538d !important;
   box-shadow: 0 3px 8px rgba(39, 103, 210, 0.3);
   transform: translateY(-1px);
 }
 
 /* Demo Controls shortcut — red-bordered like the dock pill so it's findable */
 .admin-side-nav__quick-link--demo-controls {
-  border: 3px solid #e5484d;
+  border: 3px solid #d20e0f;
 }
 
 .admin-side-nav__quick-link:active {
@@ -209,7 +209,7 @@
 }
 
 .admin-side-nav__quick-link--active {
-  background: #2767d2;
+  background: #12538d;
   color: #fff !important;
   box-shadow: 0 2px 8px rgba(39, 103, 210, 0.45);
 }
@@ -544,7 +544,7 @@
 /* Badge for latest report or new items */
 .admin-side-nav__badge {
   display: inline-block;
-  background: #991b1b;
+  background: #aa0005;
   color: #fff;
   font-size: 0.65rem;
   font-weight: 700;
@@ -566,17 +566,17 @@
 }
 
 .admin-side-nav__stop-agent {
-  color: #ef4444;
+  color: #d20e0f;
   font-weight: 700;
 }
 
 .admin-side-nav__stop-agent:hover {
   background: #fef2f2 !important;
-  color: #dc2626;
+  color: #d20e0f;
 }
 
 .admin-side-nav__stop-agent:disabled {
-  color: #9ca3af;
+  color: #909ea4;
   cursor: not-allowed;
   opacity: 0.7;
 }
@@ -632,11 +632,11 @@
    and the hover/active !important rules above. */
 .admin-side-nav__item--highlight-danger,
 .admin-side-nav__item--highlight-danger.admin-side-nav__item--active {
-  background: #dc2626 !important;
+  background: #d20e0f !important;
   border-radius: 6px;
 }
 .admin-side-nav__item--highlight-danger:hover {
-  background: #b91c1c !important;
+  background: #d20e0f !important;
 }
 .admin-side-nav__item--highlight-danger .admin-side-nav__label,
 .admin-side-nav__item--highlight-danger .admin-side-nav__icon,

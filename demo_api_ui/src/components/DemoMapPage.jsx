@@ -11,6 +11,7 @@ import { getConfig, useCaseDiagramPath } from "../config/useCaseDiagrams";
 import { DEMO_STEP_GUIDES } from "../config/demoStepGuides";
 import { demoStepNumber } from "../config/demoStepNumbers";
 import "./DemoMapPage.css";
+import PageHeader from './common/PageHeader';
 
 export default function DemoMapPage() {
   const live = MISSION_CONTROL_CATALOG.filter((g) => g.status !== "planned");
@@ -40,15 +41,10 @@ export default function DemoMapPage() {
 
   return (
     <div className="demo-map">
-      <header className="demo-map__header">
-        <div className="demo-map__eyebrow">Mission Control · demo steps · diagrams · learning</div>
-        <h1>Demo map</h1>
-        <p className="demo-map__lede">
-          Every demo surface in one view: what runs, what shows the evidence,
+      <PageHeader className="demo-map__header" eyebrow="Mission Control · demo steps · diagrams · learning" title="Demo map" summary={<>Every demo surface in one view: what runs, what shows the evidence,
           what draws the picture, and what teaches the concept. Steps link to
           the live run, ◱ links to the step's diagram, inspectors and diagrams
-          link out, learning topics open the Hub.
-        </p>
+          link out, learning topics open the Hub.</>}>
         <div className="demo-map__legend">
           <span><b>Step links</b> → /use-cases#UCxx (live run)</span>
           <span><b>◱</b> → use-case diagram</span>
@@ -56,7 +52,7 @@ export default function DemoMapPage() {
           <span><b>Diagrams</b> → architecture pages</span>
           <span><b>Learning</b> → /learning topics</span>
         </div>
-      </header>
+      </PageHeader>
 
       <div className="demo-map__grid">
         {live.map((group) => (

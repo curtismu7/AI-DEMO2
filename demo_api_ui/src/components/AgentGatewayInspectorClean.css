@@ -208,15 +208,15 @@ textarea {
 }
 
 .inspector-clean-toggle-btn.active {
-  background: #3730a3;
+  background: #051727;
   color: white;
-  border-color: #3730a3;
+  border-color: #051727;
 }
 
 .inspector-clean-button {
   width: 100%;
   padding: 10px;
-  background: #1e3a5f;
+  background: #051727;
   color: white;
   border: none;
   border-radius: var(--radius-sm);
@@ -402,15 +402,15 @@ textarea {
 }
 
 .inspector-clean-reel-frame:hover {
-  background: #3730a3;
+  background: #051727;
   color: white;
-  border-color: #3730a3;
+  border-color: #051727;
 }
 
 .inspector-clean-reel-frame.active {
-  background: #3730a3;
+  background: #051727;
   color: white;
-  border-color: #3730a3;
+  border-color: #051727;
 }
 
 /* Scrollbar styling */

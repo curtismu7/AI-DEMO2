@@ -44,17 +44,17 @@
   border: 1px solid #DDDDDD;
 }
 .mcp-history__item--ok  { border-left: 3px solid #22c55e; }
-.mcp-history__item--err { border-left: 3px solid #ef4444; }
+.mcp-history__item--err { border-left: 3px solid #d20e0f; }
 .mcp-history__status-dot {
   flex-shrink: 0;
   margin-top: 0.3rem;
   width: 8px;
   height: 8px;
   border-radius: 50%;
-  background: #94a3b8;
+  background: #909ea4;
 }
 .mcp-history__item--ok  .mcp-history__status-dot { background: #22c55e; }
-.mcp-history__item--err .mcp-history__status-dot { background: #ef4444; }
+.mcp-history__item--err .mcp-history__status-dot { background: #d20e0f; }
 .mcp-history__item-body {
   flex: 1;
   display: flex;
@@ -70,7 +70,7 @@
 }
 .mcp-history__time {
   font-size: 0.75rem;
-  color: #94a3b8;
+  color: #909ea4;
 }
 .mcp-history__badge {
   font-size: 0.7rem;
@@ -79,10 +79,10 @@
   border-radius: 4px;
 }
 .mcp-history__badge--ok  { background: #dcfce7; color: #166534; }
-.mcp-history__badge--err { background: #fee2e2; color: #991b1b; }
+.mcp-history__badge--err { background: #fee2e2; color: #aa0005; }
 .mcp-history__duration {
   font-size: 0.72rem;
-  color: #94a3b8;
+  color: #909ea4;
 }
 .mcp-history__result {
   width: 100%;
@@ -186,7 +186,7 @@
 .mcp-inspector__banner--error {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 .mcp-inspector__panel {
@@ -195,7 +195,7 @@
   border-radius: 10px;
   padding: 1.25rem 1.5rem;
   margin-bottom: 1.25rem;
-  box-shadow: 0 1px 2px rgba(15, 23, 42, 0.04);
+  box-shadow: 0 1px 2px rgba(5, 23, 39, 0.04);
 }
 
 .mcp-inspector__panel--compact h2 {
@@ -265,7 +265,7 @@
 
 .mcp-inspector__tool-chip.is-selected {
   border-color: var(--brand-navy);
-  background: #eff6ff;
+  background: #fcfcfc;
 }
 
 .mcp-inspector__tool-name {
@@ -347,7 +347,7 @@
 .mcp-inspector__pre {
   margin: 0;
   padding: 1rem;
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   border-radius: 8px;
   font-size: 0.75rem;
@@ -457,7 +457,7 @@
   padding: 1rem;
   background: var(--brand-light-gray);
   border-radius: 8px;
-  border: 1px dashed #94a3b8;
+  border: 1px dashed #909ea4;
   font-size: 0.9rem;
   color: var(--brand-dark-gray);
 }
@@ -499,8 +499,8 @@
 .mcp-inspector__code {
   margin: 8px 0 0;
   padding: 12px 14px;
-  background: var(--surface-2, #0f172a);
-  color: var(--code-fg, #e2e8f0);
+  background: var(--surface-2, #051727);
+  color: var(--code-fg, #e0e2e4);
   border-radius: 8px;
   font-size: 0.82rem;
   line-height: 1.5;
@@ -517,7 +517,7 @@
 
 .mcp-inspector__tool {
   padding: 6px 0;
-  border-bottom: 1px solid var(--border, #e2e8f0);
+  border-bottom: 1px solid var(--border, #e0e2e4);
 }
 
 .mcp-inspector__tool:last-child {
@@ -538,5 +538,5 @@
 
 .mcp-inspector__notice--error {
   background: var(--error-bg, #fee2e2);
-  color: var(--error-fg, #991b1b);
+  color: var(--error-fg, #aa0005);
 }

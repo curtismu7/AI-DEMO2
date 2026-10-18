@@ -32,7 +32,7 @@
    * that so the fixed-width face stays a single decision. (This comment avoids
    * spelling the banned word: the check skips only lines whose trimmed text
    * starts with a comment marker, so a wrapped line would trip it.) */
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   padding: 2px 6px;
   border: 1px solid var(--th-border);

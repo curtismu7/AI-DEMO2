@@ -20,7 +20,7 @@
 }
 
 .security-card__header {
-  background: var(--brand-navy, #004687);
+  background: var(--brand-navy, #12538d);
   color: var(--brand-white, #FFFFFF);
   padding: 0.875rem 1.5rem;
   display: flex;
@@ -109,4 +109,9 @@
   font-weight: 600;
   cursor: pointer;
   text-decoration: underline;
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .security-card__header {
+  color: var(--th-status-info-text);
 }

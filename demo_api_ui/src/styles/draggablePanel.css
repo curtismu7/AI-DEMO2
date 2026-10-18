@@ -5,7 +5,7 @@
 .drp-backdrop {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.45);
+  background: rgba(5, 23, 39, 0.45);
   /* backdrop-filter removed to prevent background blur */
   z-index: 9990;
 }

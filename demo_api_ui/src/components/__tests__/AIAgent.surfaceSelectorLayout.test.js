@@ -12,8 +12,8 @@ describe("Quick Config surface selector layout contract", () => {
     expect(selector).toMatch(/z-index:\s*\d+/);
     expect(menu).toMatch(/position:\s*absolute/);
     expect(menu).toMatch(/z-index:\s*\d+/);
-    expect(menu).toMatch(/background:\s*#0f172a/);
-    expect(menu).toMatch(/color:\s*#f8fafc/);
+    expect(menu).toMatch(/background:\s*#051727/);
+    expect(menu).toMatch(/color:\s*#f7f8f8/);
   });
 
   it("keeps the floating panel content flexible while row sizing stays local", () => {

@@ -33,7 +33,7 @@
 .rsm-close-btn {
   background: none;
   border: none;
-  color: #94a3b8;
+  color: #909ea4;
   font-size: 1rem;
   cursor: pointer;
   padding: 4px 8px;
@@ -53,7 +53,7 @@
 
 .rsm-note {
   font-size: 0.8rem;
-  color: #64748b;
+  color: #5c646b;
 }
 
 .rsm-actions {
@@ -82,9 +82,9 @@
 .rsm-btn--secondary {
   background: #2a2f3a;
   border-color: #3a3f4b;
-  color: #94a3b8;
+  color: #909ea4;
 }
 
-.rsm-btn--secondary:hover { background: #334155; }
+.rsm-btn--secondary:hover { background: #263746; }
 
-.rsm-waiting { color: #94a3b8; font-style: italic; }
+.rsm-waiting { color: #909ea4; font-style: italic; }

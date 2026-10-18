@@ -28,11 +28,11 @@
   line-height: 1;
   padding: 0.2rem 0.45rem;
   border-radius: 4px;
-  color: #334155;
+  color: #263746;
   transition: background 0.15s;
 }
-.dc-zoom-btn:hover:not(:disabled) { background: #e2e8f0; }
-.dc-zoom-btn:disabled { color: #94a3b8; cursor: not-allowed; }
+.dc-zoom-btn:hover:not(:disabled) { background: #e0e2e4; }
+.dc-zoom-btn:disabled { color: #909ea4; cursor: not-allowed; }
 
 .dc-zoom-label {
   font-size: 0.8rem;
@@ -44,14 +44,14 @@
 
 .dc-zoom-reset {
   font-size: 0.95rem;
-  color: #64748b;
+  color: #5c646b;
 }
 
 /* Divider between zoom and step blocks */
 .dc-divider {
   width: 1px;
   height: 1.2rem;
-  background: #e2e8f0;
+  background: #e0e2e4;
   margin: 0 0.2rem;
 }
 
@@ -59,8 +59,8 @@
 .dc-step-label {
   font-size: 0.82rem;
   font-weight: 700;
-  color: #004687;
-  background: #eff6ff;
+  color: #12538d;
+  background: #fcfcfc;
   border: 1px solid #bfdbfe;
   border-radius: 5px;
   padding: 0.25rem 0.6rem;
@@ -82,12 +82,12 @@
   font-family: inherit;
 }
 .dc-ctrl-btn:disabled {
-  background: #f1f5f9 !important;
-  color: #94a3b8 !important;
+  background: #eff0f1 !important;
+  color: #051727 !important;
   cursor: not-allowed;
 }
 
-.dc-ctrl-btn--simulate { background: #004687; color: #fff; }
+.dc-ctrl-btn--simulate { background: #12538d; color: #fff; }
 .dc-ctrl-btn--simulate:hover:not(:disabled) { background: #003366; }
 
 .dc-ctrl-btn--pause  { background: #92400e; color: #fff; }
@@ -96,17 +96,17 @@
 .dc-ctrl-btn--resume { background: #166534; color: #fff; }
 .dc-ctrl-btn--resume:hover:not(:disabled) { background: #16a34a; }
 
-.dc-ctrl-btn--next   { background: #004687; color: #fff; }
+.dc-ctrl-btn--next   { background: #12538d; color: #fff; }
 .dc-ctrl-btn--next:hover:not(:disabled)   { background: #003366; }
 
-.dc-ctrl-btn--stop   { background: #e2e8f0; color: #334155; }
-.dc-ctrl-btn--stop:hover:not(:disabled)   { background: #cbd5e1; }
+.dc-ctrl-btn--stop   { background: #e0e2e4; color: #263746; }
+.dc-ctrl-btn--stop:hover:not(:disabled)   { background: #cdd1d4; }
 
-.dc-ctrl-btn--prev   { background: #fff; color: #334155; border: 1px solid #e2e8f0; }
-.dc-ctrl-btn--prev:hover:not(:disabled)   { background: #f1f5f9; }
+.dc-ctrl-btn--prev   { background: #fff; color: #263746; border: 1px solid #e0e2e4; }
+.dc-ctrl-btn--prev:hover:not(:disabled)   { background: #eff0f1; }
 
-.dc-ctrl-btn--reset  { background: #fff; color: #334155; border: 1px solid #cbd5e1; }
-.dc-ctrl-btn--reset:hover:not(:disabled)  { background: #f1f5f9; }
+.dc-ctrl-btn--reset  { background: #fff; color: #263746; border: 1px solid #cdd1d4; }
+.dc-ctrl-btn--reset:hover:not(:disabled)  { background: #eff0f1; }
 
 /* .dc-steptime* rules live in StepTimeSelector.css (owned by that component). */
 
@@ -160,10 +160,10 @@
   align-items: center;
   gap: 6px;
   padding: 7px 14px;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #e0e2e4;
   border-radius: 5px;
   background: #ffffff;
-  color: #1e293b;
+  color: #263746;
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
@@ -173,12 +173,12 @@
 }
 
 .pfb-btn:not([data-active="true"]):hover {
-  border-color: #9ca3af;
-  color: #1e293b;
+  border-color: #909ea4;
+  color: #263746;
 }
 
 .pfb-btn[data-active="true"] {
-  background: #1f2937;
+  background: #263746;
   border-color: var(--th-text);
   color: #ffffff;
 }
@@ -191,11 +191,11 @@
   flex-shrink: 0;
 }
 
-/* SequenceDiagramPage paints a literal-light page (inline #fff / #f8fafc), so keep its ink light-mode in dark too. */
+/* SequenceDiagramPage paints a literal-light page (inline #fff / #f7f8f8), so keep its ink light-mode in dark too. */
 :root[data-theme="dark"] .seq-paper {
   color: #020617;
   --th-bg-card: #ffffff;
-  --th-bg-inset: #f1f5f9;
+  --th-bg-inset: #eff0f1;
   --th-border: #dbe2ea;
   --th-text: #020617;
   --th-text-muted: #020617;
@@ -208,5 +208,5 @@
    .seq-paper — the sequence diagram's participant boxes share the token and
    need the dark-theme pair (see SequenceFlowDiagram.css .sfx-part). */
 :root[data-theme="dark"] .seq-paper .deb-bar {
-  --th-status-info-text: #1e40af;
+  --th-status-info-text: #051727;
 }

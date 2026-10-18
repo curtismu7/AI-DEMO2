@@ -15,7 +15,7 @@
   max-width: 880px;
   margin: 32px auto;
   padding: 24px;
-  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-family: var(--font-primary);
   color: var(--th-text);
 }
 
@@ -55,7 +55,7 @@
 
 .vfp-card {
   background: #fff;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0e2e4;
   border-radius: 6px;
   padding: 20px 22px;
   margin-bottom: 18px;
@@ -97,7 +97,7 @@
   grid-template-columns: minmax(180px, 220px) 1fr;
   gap: 16px;
   padding: 8px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #eff0f1;
 }
 
 .vfp-field-row:last-child {
@@ -186,7 +186,7 @@
   grid-template-columns: 120px 1fr;
   gap: 12px;
   padding: 8px 0;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #e0e2e4;
 }
 
 .vfp-flow-detail:first-child {
@@ -219,7 +219,7 @@
 }
 
 .vfp-back-btn {
-  background: #1f2937;
+  background: #263746;
   color: #fff;
   border: none;
   padding: 10px 18px;
@@ -229,7 +229,7 @@
   cursor: pointer;
 }
 
-.vfp-back-btn:hover { background: #111827; }
+.vfp-back-btn:hover { background: #051727; }
 
 .vfp-card--learning {
   background: #f0fdf4;

@@ -8,6 +8,7 @@ import DiagramStepBar from "./DiagramStepBar";
 import StaticFlowDiagram from "./StaticFlowDiagram";
 import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
 import "./PrivilegeFirstGatewayPage.css";
+import PageHeader from './common/PageHeader';
 
 const GROUPS = {
   caller: { label: "Callers", bg: "var(--th-border-strong)" },
@@ -77,17 +78,11 @@ export default function PrivilegeFirstGatewayPage() {
   const stepper = useDiagramStepper(GATEWAY_EDGES.length);
   return (
     <main className="pfg-page">
-      <header className="pfg-hero">
-        <div className="pfg-eyebrow">AI-DEMO2 · plan 2026-09-08</div>
-        <h1>Privilege first, Agent Gateway for the rest</h1>
-        <p>
-          Every LLM call and every MCP tool call enters the PingOne Agent Privilege before anything else.
+      <PageHeader className="pfg-hero" eyebrow="AI-DEMO2 · plan 2026-09-08" title="Privilege first, Agent Gateway for the rest" summary={<>Every LLM call and every MCP tool call enters the PingOne Agent Privilege before anything else.
           Privilege owns the credentials and the human-governed policy. The Agent Gateway behind it keeps doing the
           delegated, per-tool authorization it does today. Agent-to-agent calls take the same front door: each agent
           is a Remote Agent app on the gateway and is called with the caller&apos;s own agent key (see the
-          Agent-to-agent tab on <a href="/privilege-gateway-topologies">Privilege Gateway Topologies</a>).
-        </p>
-      </header>
+          Agent-to-agent tab on <a href="/privilege-gateway-topologies">Privilege Gateway Topologies</a>).</>} />
 
       <DiagramStepBar stepper={stepper} caption={GATEWAY_CAPTIONS[stepper.step]} />
 

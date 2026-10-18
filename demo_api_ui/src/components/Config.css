@@ -1,6 +1,6 @@
 /* banking_api_ui/src/components/Config.css
  * Configuration page styling aligned with PingOne UX (end-user-nano.css loaded in public/index.html).
- * Primary brand: #277ba5 — matches index.css .btn-primary and Ping One patterns.
+ * Primary brand: #12538d — matches index.css .btn-primary and Ping One patterns.
  */
 
 /* When paired with appShellPages.css, body column stays centered under the hero */
@@ -16,14 +16,14 @@
 }
 
 .config-page {
-  --p1-primary: #277ba5;
+  --p1-primary: #12538d;
   --p1-primary-dark: #1e5f82;
   --p1-primary-soft: rgba(39, 123, 165, 0.12);
   --p1-surface: #ffffff;
   --p1-surface-muted: #f0f7fb;
   --p1-surface-accent: #e8f4fa;
   --p1-border: rgba(39, 123, 165, 0.2);
-  --p1-text: #0f172a;
+  --p1-text: #051727;
   --p1-text-secondary: #666666;
   --p1-red-deep: #7f1d1d;
   --p1-red-mid: #aa0005;
@@ -82,7 +82,7 @@
   border: 1px solid var(--p1-border);
   border-radius: 12px;
   box-shadow:
-    0 1px 2px rgba(15, 23, 42, 0.04),
+    0 1px 2px rgba(5, 23, 39, 0.04),
     0 10px 28px rgba(39, 123, 165, 0.07);
   padding: 1.35rem 1.45rem;
   margin-bottom: 1.35rem;
@@ -91,7 +91,7 @@
 
 .config-page .card:hover {
   box-shadow:
-    0 2px 6px rgba(15, 23, 42, 0.06),
+    0 2px 6px rgba(5, 23, 39, 0.06),
     0 14px 36px rgba(39, 123, 165, 0.1);
 }
 
@@ -134,9 +134,9 @@
 }
 
 .config-page__banner--info {
-  background: linear-gradient(180deg, #eff6ff 0%, #e0f2fe 100%);
-  border-color: rgba(59, 130, 246, 0.35);
-  color: #1e3a5f;
+  background: linear-gradient(180deg, #fcfcfc 0%, #e0e2e4 100%);
+  border-color: rgba(18, 83, 141, 0.35);
+  color: #051727;
 }
 
 .config-page__banner--success {
@@ -160,7 +160,7 @@
 .config-page__banner--danger {
   background: linear-gradient(180deg, #fef2f2 0%, #fee2e2 100%);
   border-color: rgba(248, 113, 113, 0.45);
-  color: #991b1b;
+  color: #aa0005;
 }
 
 /* ── Checklist card ─────────────────────────────────────── */
@@ -194,7 +194,7 @@
 /* ── PingOne redirect URIs card ─────────────────────────── */
 .config-page__card--redirect {
   border-color: rgba(210, 14, 15, 0.35);
-  background: linear-gradient(165deg, #fee2e2 0%, #fecaca 55%, #dbeafe 100%);
+  background: linear-gradient(165deg, #fee2e2 0%, #fecaca 55%, #e0e2e4 100%);
   box-shadow:
     0 2px 8px rgba(67, 56, 202, 0.12),
     0 12px 32px rgba(210, 14, 15, 0.1);
@@ -632,7 +632,7 @@
      token gets. The token resolves to a sans stack by house style (see the
      global pre/code reset in index.css and its regression test), so this keeps
      the column consistent rather than changing its face. */
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   padding: 0.15rem 0.5rem 0.15rem 0;
   white-space: nowrap;
   vertical-align: top;
@@ -699,7 +699,7 @@
   flex-shrink: 0;
   border-radius: 10px;
   background: var(--th-bg-card);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 1px 3px rgba(5, 23, 39, 0.08);
 }
 
 .config-page__industry-titles {
@@ -744,7 +744,7 @@
 
 .config-page__agent-scope-row--on {
   border-color: #93c5fd;
-  background: rgba(59, 130, 246, 0.06);
+  background: rgba(18, 83, 141, 0.06);
 }
 
 .config-page__agent-scope-body {

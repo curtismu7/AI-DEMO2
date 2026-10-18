@@ -9,7 +9,7 @@
   align-items: center;
   gap: 8px;
   padding: 7px 14px;
-  border: 3px solid #e5484d;
+  border: 3px solid #d20e0f;
   border-radius: 999px;
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -93,7 +93,7 @@
   border-radius: 8px;
   border: 1px solid #166534;
   background: linear-gradient(180deg, #22c55e 0%, #16a34a 100%);
-  color: #fff;
+  color: #051727;
   font-size: var(--font-size-sm);
   font-weight: 800;
   cursor: pointer;

@@ -80,7 +80,7 @@
   border-left: 3px solid var(--th-status-error);
   border-radius: 0 4px 4px 0;
   background: var(--th-bg-card);
-  color: var(--th-status-error);
+  color: var(--th-status-error-text);
   font-size: var(--font-size-base);
 }
 
@@ -1239,4 +1239,21 @@
     animation: none;
     transition: none;
   }
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .lgw-meter__track i {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .lgw-meter__track i.is-high {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .lgw-path__chip--reached {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .lgw-path__chip--reached {
+  color: #051727;
 }
