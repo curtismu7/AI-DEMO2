@@ -11,7 +11,7 @@ const CIMD_REGISTRATION = `sequenceDiagram
     A->>B: POST /api/admin/clients<br/>{ client_name, redirect_uris, grant_types, … }
     B->>P: POST /environments/{id}/applications
     P-->>B: { id, client_secret }
-    B->>B: Build CIMD document { client_id: URL, redirect_uris, … }<br/>Store in cimdStore Map
+    B->>B: Build CIMD document<br/>{ client_id: URL, … }<br/>Store in cimdStore Map
     B-->>A: { client_id, client_secret, cimd_url, cimd_document }`;
 
 const CIMD_SERVING = `sequenceDiagram

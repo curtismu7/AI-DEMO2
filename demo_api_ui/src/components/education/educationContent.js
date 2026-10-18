@@ -30,7 +30,7 @@ const SEQUENCE_DIAGRAM = `sequenceDiagram
   participant User
   App->>P1: 1. POST /bc-authorize<br/>login_hint "user@bank.com", scope "openid write"<br/>binding_message "Approve $500 transfer"
   P1-->>App: 2. auth_req_id returned
-  P1->>User: 3. out-of-band approval (email link OR text link)<br/>channel is your PingOne / DaVinci setup
+  P1->>User: 3. out-of-band approval<br/>(email or text link —<br/>your PingOne / DaVinci setup)
   User->>P1: 4. approves (link in email or Approve on device)
   App->>P1: 5. poll POST /token (grant=ciba, auth_req_id=...)
   P1-->>App: authorization_pending (repeat every 5s)
@@ -91,7 +91,7 @@ const FULL_STACK_NODES = [
   { id: 'spa', group: 'client', label: 'Web Browser SPA', sub: ['Session cookie only'], x: 0, y: 0 },
   { id: 'agent', group: 'agent', label: 'Agent — security strip', sub: ['OAuth 2.1 · RFC 8707 · RFC 9728 · RFC 7523 · RFC 8693', 'LLM · memory · business logic', '(+ Sidecar / SDK where used)'], x: 0, y: 130 },
   { id: 'ingress', group: 'gateway', label: 'MCP ingress (gateway role)', sub: ['Introspection + scope enforcement for tools', 'MCP authZ RFC 9728 (client ↔ authorization)'], x: 0, y: 330 },
-  { id: 'idp', group: 'idp', label: 'IDP / AS — PingOne', sub: ['/authorize · /token · introspect (RFC 7662) · JWKS', 'Resource indicators RFC 8707 in authorize + token requests'], x: 340, y: 330 },
+  { id: 'idp', group: 'idp', label: 'IDP / AS — PingOne', sub: ['/authorize · /token · introspect (RFC 7662) · JWKS', 'Resource indicators RFC 8707 in authorize + token requests'], x: 420, y: 330 },
   { id: 'mcp', group: 'mcp', label: 'MCP Server + Tool', sub: ['tools/list · tools/call', 'Tool: API Key / Bearer to downstream'], x: 0, y: 520 },
   { id: 'rs', group: 'rs', label: 'Resource Server (RS) — Banking API HTTPS', sub: ['Validates token + audience (https://…/api) + scopes'], x: 0, y: 690 },
 ];
@@ -102,7 +102,7 @@ const FULL_STACK_EDGES = [
   ['idp', 'ingress', 'introspection · RFC 9728 / RFC 8707'],
   ['ingress', 'mcp', 'MCP egress — RFC 9728 + 8707 with MCP peer; RFC 8693 exchange bound by RFC 7523 JWT auth or DPoP RFC 9449', { vertical: true }],
   ['mcp', 'rs', 'Bearer access token (audience = Resource Server)', { vertical: true }],
-  ['rs', 'agent', '401 Unauthorized → OAuth flows (PKCE / CIBA / token exchange on BFF) → retry with Bearer', { dashed: true }],
+  ['rs', 'agent', '401 → OAuth (PKCE / CIBA / token exchange on BFF) → retry with Bearer', { dashed: true, lane: -230 }],
 ];
 const FULL_STACK_GROUPS = {
   client: { label: 'Browser', bg: 'var(--th-bg-emphasis)' },
