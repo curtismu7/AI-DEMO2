@@ -15,6 +15,8 @@ vi.mock('../../context/InspectorFieldContext', () => ({
   InspectorFieldProvider: ({ children }) => children,
 }));
 
+vi.mock('../../utils/authUi', () => ({ navigateToCustomerOAuthLogin: vi.fn() }));
+import { navigateToCustomerOAuthLogin } from '../../utils/authUi';
 import McpInspectorPageClean from '../McpInspectorPageClean';
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
@@ -70,7 +72,7 @@ describe('MCP Inspector Vertical select', () => {
     expect(toolOptions()).toEqual(['view_records', 'pay_bill', 'sequential_think']);
     pickTool('pay_bill');
     expect(sourceState.current.setSelectedTool).toHaveBeenLastCalledWith(TOOLS[3]);
-    expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({ billId: '404', amount: '500' });
+    expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({ amount: '650' });
   });
 
   it('an unknown ?vertical= falls back to banking', () => {
@@ -97,7 +99,7 @@ describe('MCP Inspector Vertical select', () => {
     sourceState.current = makeSource(TOOLS[3]);
     renderAt('/');
     fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'healthcare' } });
-    await waitFor(() => expect(sourceState.current.setParamValues).toHaveBeenCalledWith({ billId: '404', amount: '500' }));
+    await waitFor(() => expect(sourceState.current.setParamValues).toHaveBeenCalledWith({ amount: '650' }));
     expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
   });
 
@@ -130,16 +132,25 @@ describe('MCP Inspector Vertical select', () => {
   });
 
   it('says the local fallback only serves banking when another vertical is picked', () => {
-    const NOTE = 'The local fallback only serves banking tools. Switch to Banking, or sign in for the live MCP server.';
+    const NOTE = 'The local fallback only serves banking tools. Switch to Banking, or log in for the live MCP server.';
     sourceState.current = { ...makeSource(), toolsSource: 'local_catalog' };
     const { unmount } = renderAt('/?vertical=healthcare');
-    expect(screen.getByText(NOTE)).toBeInTheDocument();
+    expect(screen.getByRole('status')).toHaveTextContent(NOTE);
     unmount();
-    renderAt('/');
-    expect(screen.queryByText(NOTE)).toBeNull();
+    const { unmount: unmountBanking } = renderAt('/');
+    expect(screen.getByRole('status')).not.toHaveTextContent('only serves banking');
+    unmountBanking();
     sourceState.current = makeSource();
     renderAt('/?vertical=healthcare');
-    expect(screen.queryByText(NOTE)).toBeNull();
+    expect(screen.queryByRole('status')).toBeNull();
+  });
+
+  it('offers a log-in button that returns to the inspector whenever the tool list is the local fallback', () => {
+    sourceState.current = { ...makeSource(), toolsSource: 'local_catalog' };
+    renderAt('/');
+    fireEvent.click(screen.getByRole('button', { name: /log in for the live MCP server/i }));
+    expect(navigateToCustomerOAuthLogin).toHaveBeenCalledWith(window.location.pathname);
+    sourceState.current = makeSource();
   });
 
   it('keeps ?vertical= when the server changes, and shows no Vertical for PingOne MCP', async () => {

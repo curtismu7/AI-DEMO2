@@ -264,7 +264,7 @@ describe('AgentGatewayInspectorClean Vertical select', () => {
     await ready();
     expect(screen.getByLabelText('Vertical').value).toBe('banking');
     expect(scenarioLabels()).toEqual([
-      'Custom', 'Read accounts (expect PERMIT)', 'Sensitive read (expect DENY)', 'Withdrawal (expect approval)',
+      'Custom', 'Read accounts (expect PERMIT)', 'Sensitive read (expect approval)', 'Withdrawal (expect approval)',
       'Run chain: accounts → balance → sensitive', 'Attack library: Schema Violation', 'Attack library: Tool Poisoning',
     ]);
     expect(screen.getByLabelText('Tool').value).toBe('get_my_accounts');
@@ -297,7 +297,7 @@ describe('AgentGatewayInspectorClean Vertical select', () => {
     expect(optionsOf('Tool')).not.toContain('get_my_accounts');
     fireEvent.change(screen.getByLabelText('Scenario'), { target: { value: 'approval' } });
     expect(screen.getByLabelText('Tool').value).toBe('pay_bill');
-    expect(JSON.parse(screen.getByLabelText('Arguments (JSON)').value)).toEqual({ billId: '404', amount: 500 });
+    expect(JSON.parse(screen.getByLabelText('Arguments (JSON)').value)).toEqual({ amount: 650 });
   });
 
   it.each(['nope', 'constructor'])('an unknown ?vertical=%s falls back to banking', async (v) => {

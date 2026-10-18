@@ -12,6 +12,7 @@ import { Chip } from './inspector/CallDetail';
 import { ok, warn, err, idle } from './inspector/inspectorCalls';
 import { mcpCallFromStore, apiCallFromTracker } from './inspector/mcpCalls';
 import { useInspectorVertical } from './inspector/useInspectorVertical';
+import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import { argsFor, belongsElsewhere } from '../config/inspectorVerticals';
 
 const NEW_PROFILE_DEFAULTS = {
@@ -50,7 +51,7 @@ const NODE_SUBS = {
 const CALLS_NOTE = 'Includes calls the AI agent made in this browser tab.';
 // The sources whose tools are the AI Demo MCP server's per-vertical tools.
 const VERTICAL_SOURCES = ['banking', 'custom'];
-const LOCAL_FALLBACK_NOTE = 'The local fallback only serves banking tools. Switch to Banking, or sign in for the live MCP server.';
+const LOCAL_FALLBACK_NOTE = 'The local fallback only serves banking tools. Switch to Banking, or ';
 const ELICIT_ID = 'elicitation-pending';
 
 /** Tools bucketed by `config.groupBy`, first-seen order. No groupBy: one unlabelled group. */
@@ -328,7 +329,19 @@ function McpInspectorPageClean() {
           {source.busy ? 'Sending…' : 'Send'}
         </button>
       </div>
-      {byVertical && verticalId !== 'banking' && toolsSource === 'local_catalog' && <p className="insp-err" role="status">{LOCAL_FALLBACK_NOTE}</p>}
+      {toolsSource === 'local_catalog' && (() => {
+        const nonBanking = byVertical && verticalId !== 'banking';
+        return (
+          <p className="insp-err" role="status">
+            {nonBanking && LOCAL_FALLBACK_NOTE}
+            <button type="button" className="insp-btn" onClick={() => navigateToCustomerOAuthLogin(window.location.pathname)}>
+              {nonBanking ? 'log in' : 'Log in for the live MCP server'}
+            </button>
+            {nonBanking && ' for the live MCP server.'}
+          </p>
+        );
+      })()}
+
       {source.servers.length > 0 && (
         <div className="insp-chips">
           {source.servers.map((s) => (
