@@ -320,7 +320,7 @@
   color: var(--app-primary-btn-text, #fff);
   border: none;
   padding: 1rem 2rem;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;

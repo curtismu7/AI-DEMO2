@@ -124,7 +124,7 @@
   padding: 0.55rem 0.95rem;
   font-size: 0.88rem;
   font-weight: 600;
-  border-radius: 7px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   border: 1px solid var(--th-border);
   background: var(--th-bg-inset);

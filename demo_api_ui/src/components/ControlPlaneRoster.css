@@ -27,7 +27,7 @@
   background:var(--th-bg-hover);border:1px solid var(--th-border);
   color:var(--th-text)}
 .cp-verb.audit b{color:var(--th-status-info-text)}
-.cp-demo-guide-btn{font-size:var(--font-size-2xs);font-weight:700;letter-spacing:.2px;padding:7px 14px;border-radius:8px;
+.cp-demo-guide-btn{font-size:var(--font-size-2xs);font-weight:var(--btn-weight);letter-spacing:.2px;padding:7px 14px;border-radius:var(--btn-radius);
   background:var(--th-bg-inset);border:1px solid var(--th-border-strong);cursor:pointer;
   color:var(--th-text);
   white-space:nowrap;transition:background .15s,border-color .15s}
@@ -128,7 +128,7 @@ svg.cp-links line.dead{stroke:#d20e0f;opacity:.22;stroke-dasharray:4 7}
 .cp-pulse .rdot{animation:cppulse .6s infinite}
 @keyframes cppulse{0%,100%{transform:scale(1)}50%{transform:scale(1.5)}}
 .cp-actions{display:flex;gap:10px;margin-top:14px;align-items:center;position:relative;z-index:2}
-.cp-btn{font-weight:700;border:none;border-radius:10px;padding:11px 16px;cursor:pointer;font-size:var(--font-size-sm)}
+.cp-btn{font-weight:var(--btn-weight);border:none;border-radius:var(--btn-radius);padding:11px 16px;cursor:pointer;font-size:var(--font-size-sm)}
 .cp-btn:disabled{opacity:.5;cursor:default}
 .cp-btn.stopall{background:linear-gradient(180deg,#d20e0f,#d20e0f);color:#fff;box-shadow:0 6px 18px rgba(210, 14, 15,.4)}
 .cp-btn.cp-btn--comprehensive{background:linear-gradient(180deg,#263746,#051727);color:#fff;box-shadow:0 6px 18px rgba(5, 23, 39,.5)}

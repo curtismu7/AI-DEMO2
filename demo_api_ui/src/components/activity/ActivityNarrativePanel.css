@@ -21,7 +21,7 @@
 .anp-title { font-weight: 600; font-size: var(--font-size-sm); }
 .anp-btn {
   background: rgba(255, 255, 255, 0.18);
-  border: none; color: #fff; border-radius: 6px;
+  border: none; color: #fff; border-radius: var(--btn-radius);
   width: 24px; height: 24px; cursor: pointer; font-size: var(--font-size-sm);
 }
 .anp-body { padding: 10px 12px; overflow-y: auto; flex: 1; }

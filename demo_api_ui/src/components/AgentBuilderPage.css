@@ -52,7 +52,7 @@
 .ab-apply-row { display: flex; align-items: center; gap: 12px; margin-top: 12px; }
 .ab-dirty { color: var(--th-status-warning-text); font-weight: 600; }
 
-.ab-btn { padding: 8px 16px; border-radius: 6px; border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); font-weight: 600; cursor: pointer; }
+.ab-btn { padding: 8px 16px; border-radius: var(--btn-radius); border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); font-weight: 600; cursor: pointer; }
 .ab-btn:disabled { opacity: 0.55; cursor: not-allowed; }
 .ab-btn-primary { color: var(--th-text-on-emphasis); background: var(--th-bg-emphasis); border-color: var(--th-bg-emphasis); }
 .ab-btn-danger { background: #b00020; border-color: #b00020; color: #fff; }

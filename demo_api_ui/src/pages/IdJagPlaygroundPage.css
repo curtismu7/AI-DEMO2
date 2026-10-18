@@ -42,7 +42,7 @@
 .ijp-step__n { display: inline-flex; width: 1.7rem; height: 1.7rem; align-items: center; justify-content: center; border-radius: 50%; background: var(--ijp-grad); color: #fff; font-weight: 700; }
 .ijp-note { color: var(--th-text-muted); font-size: var(--font-size-xs); max-width: 900px; }
 .ijp-status { font-weight: 600; }
-.ijp-btn { font: inherit; padding: 0.4rem 0.9rem; margin: 0.25rem 0.4rem 0.25rem 0; border: 1px solid var(--th-border); border-radius: 6px; background: var(--th-bg); color: var(--th-text); cursor: pointer; }
+.ijp-btn { font: inherit; padding: 0.4rem 0.9rem; margin: 0.25rem 0.4rem 0.25rem 0; border: 1px solid var(--th-border); border-radius: var(--btn-radius); background: var(--th-bg); color: var(--th-text); cursor: pointer; }
 .ijp-btn--primary { background: var(--ijp-grad); border-color: var(--ijp-red); color: #fff; font-weight: 600; }
 .ijp-btn:disabled { opacity: 0.45; cursor: default; }
 .ijp-io { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }

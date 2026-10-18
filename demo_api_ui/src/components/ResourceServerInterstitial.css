@@ -283,7 +283,7 @@
   color: #fff;
   background: var(--rsi-accent, #12538d);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   transition: opacity 0.2s;
 }
@@ -299,7 +299,7 @@
   color: #909ea4;
   background: transparent;
   border: 1px solid #263746;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   transition: color 0.2s, border-color 0.2s;
 }

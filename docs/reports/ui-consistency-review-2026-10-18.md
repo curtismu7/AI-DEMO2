@@ -82,7 +82,8 @@ Last runtime audit (slightly stale): ~38 unique violations on 164 rendered route
 - [ ] Re-count pages still using their own header at the end (121 page files had an `<h1>` at the start; grep for `<h1` in `pages/` and `components/*Page*`, minus those now using `<PageHeader`)
 
 ### Consistency not started
-- [ ] Buttons: collapse per-page families (`cur-btn`, `ijp-btn`, `dc-btn`, `uc-run-btn`, `tracing-btn` …) onto `btn` / `btn-primary` / `btn-secondary` / `btn-ghost`
+- [x] Buttons, shape pass (PR 4): every `*-btn` / `*-button` family base rule uses the shared `--btn-radius` (5–10px near-misses) and `--btn-weight`; nine primary-action buttons that the blue sweep had turned Ping blue are Ping Red again (Configuration Save, setup wizard, run/export, diagram Simulate/Next …); Delegated Commerce navy `#09234b` → Core Dark and danger `#a32620` → `#aa0005`
+- [ ] Buttons, class consolidation: JSX still uses ~20 family class names. The families are small and already token-based, so swapping to `btn btn-primary` is low value; do it only when touching a page. Note: `cur-btn` is the Cursor IDE mock (vendor chrome, exempt) and `dc-` is two unrelated prefixes (Demo Config, Delegated Commerce)
 - [ ] Radius and font-size: literal values (6px, 8px, 10px, 3px, 5px; 631 literal `px` font sizes) → `--radius-*` / `--font-size-*`; add a stylelint rule banning new literals
 - [ ] Mid blue tints still present (`#93c5fd`, `#60a5fa`, `#7dd3fc`, `#9ec1ff`, `#90a0c2`, GitHub blues in code/diff views) — pick replacements
 - [ ] Other Ping-owned pages that should ignore the vertical accent (welcome, Learning Hub, similar)

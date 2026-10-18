@@ -74,7 +74,7 @@
 .dc-ctrl-btn {
   padding: 0.25rem 0.7rem;
   border: none;
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   font-size: 0.8rem;
   font-weight: 600;
   cursor: pointer;
@@ -87,7 +87,7 @@
   cursor: not-allowed;
 }
 
-.dc-ctrl-btn--simulate { background: #12538d; color: #fff; }
+.dc-ctrl-btn--simulate { background: #d20e0f; color: #fff; }
 .dc-ctrl-btn--simulate:hover:not(:disabled) { background: #003366; }
 
 .dc-ctrl-btn--pause  { background: #92400e; color: #fff; }
@@ -96,7 +96,7 @@
 .dc-ctrl-btn--resume { background: #166534; color: #fff; }
 .dc-ctrl-btn--resume:hover:not(:disabled) { background: #16a34a; }
 
-.dc-ctrl-btn--next   { background: #12538d; color: #fff; }
+.dc-ctrl-btn--next   { background: #d20e0f; color: #fff; }
 .dc-ctrl-btn--next:hover:not(:disabled)   { background: #003366; }
 
 .dc-ctrl-btn--stop   { background: #e0e2e4; color: #263746; }
@@ -161,7 +161,7 @@
   gap: 6px;
   padding: 7px 14px;
   border: 2px solid #e0e2e4;
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   background: #ffffff;
   color: #263746;
   font-size: var(--font-size-sm);

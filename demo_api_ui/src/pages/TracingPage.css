@@ -44,7 +44,7 @@
 .tracing-btn {
   padding: 6px 14px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -490,7 +490,7 @@
   height: 30px;
   padding: 0 8px;
   border: 1px solid #263746;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   background: #263746;
   color: #ffffff;
   font-size: var(--font-size-body);

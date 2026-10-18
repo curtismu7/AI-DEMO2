@@ -40,7 +40,7 @@
 .pingone-audit-button {
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: none;
   cursor: pointer;
   font-weight: 500;

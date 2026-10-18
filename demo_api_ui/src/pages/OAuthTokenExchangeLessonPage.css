@@ -72,7 +72,7 @@
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-sm);
   font-size: var(--font-size-sm);
-  font-weight: 800;
+  font-weight: var(--btn-weight);
   text-decoration: none;
 }
 

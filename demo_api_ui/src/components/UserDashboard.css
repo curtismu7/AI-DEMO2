@@ -479,7 +479,7 @@
   background: var(--brand-navy, #051727);
   color: var(--app-primary-blue-text, #fff);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
@@ -631,7 +631,7 @@
     var(--app-primary-red) 100%
   );
   border: 1px solid var(--app-primary-red-border);
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   box-shadow: 0 1px 2px rgba(127, 29, 29, 0.2);
   cursor: pointer;
   text-decoration: none;
@@ -1011,7 +1011,7 @@
     var(--app-primary-red) 100%
   );
   border: 1px solid var(--app-primary-red-border);
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -1081,7 +1081,7 @@
   border: 2px solid rgba(255, 255, 255, 0.3);
   color: white;
   padding: 12px 24px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
@@ -1354,7 +1354,7 @@
   align-items: center;
   justify-content: center;
   padding: 8px 0;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
@@ -1368,13 +1368,13 @@
 }
 
 .select-account-btn {
-  background: #12538d;
-  border: 1.5px solid #12538d;
+  background: #d20e0f;
+  border: 1.5px solid #aa0005;
   color: #fff;
 }
 .select-account-btn:hover {
-  background: #051727;
-  border-color: #051727;
+  background: #aa0005;
+  border-color: #aa0005;
   color: #fff;
 }
 
@@ -1587,7 +1587,7 @@
   color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   padding: 12px 20px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
@@ -1611,7 +1611,7 @@
   color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   padding: 12px 20px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
@@ -1652,7 +1652,7 @@
   color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   padding: 12px 20px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
@@ -1702,7 +1702,7 @@
   color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
   padding: 12px 20px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   font-size: 0.875rem;
   font-weight: 500;
@@ -2589,7 +2589,7 @@
   padding: 6px 12px;
   font-size: 0.78rem;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.15);
   color: white;
@@ -3296,7 +3296,7 @@
   font-size: 0.7rem;
   font-weight: 600;
   padding: 4px 10px;
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   border: 1px solid;
   cursor: pointer;
   white-space: nowrap;
@@ -3397,7 +3397,7 @@
   font-size: 0.72rem;
   font-weight: 600;
   padding: 5px 12px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid rgba(255, 255, 255, 0.4);
   background: rgba(255, 255, 255, 0.15);
   color: white;
@@ -3487,8 +3487,8 @@
 .ud-submit-btn {
   padding: 9px 22px;
   font-size: 0.85rem;
-  font-weight: 700;
-  border-radius: 8px;
+  font-weight: var(--btn-weight);
+  border-radius: var(--btn-radius);
   border: 1px solid var(--app-primary-red-border);
   background: linear-gradient(
     180deg,
@@ -3513,7 +3513,7 @@
   padding: 9px 18px;
   font-size: 0.85rem;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   border: 1px solid var(--app-primary-red-border);
   background: linear-gradient(
     180deg,
@@ -4087,7 +4087,7 @@
   text-align: left;
   background: var(--th-bg-card, #fff);
   border: 1px solid var(--brand-medium-gray, #e0e2e4);
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--th-text);
   cursor: pointer;
 }

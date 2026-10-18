@@ -106,7 +106,7 @@
   font-weight: 600;
   background: var(--th-bg-emphasis);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
 }
 .tet-btn:hover:not(:disabled) {

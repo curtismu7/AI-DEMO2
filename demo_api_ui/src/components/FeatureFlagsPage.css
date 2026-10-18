@@ -545,9 +545,9 @@
   background: var(--th-status-info-solid);
   color: var(--th-text-invert);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   font-size: 0.87rem;
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s;
   flex-shrink: 0;

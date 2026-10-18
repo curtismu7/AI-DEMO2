@@ -135,7 +135,7 @@
   width: 1.85rem;
   height: 1.85rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   background: var(--th-bg-card);
   color: var(--th-text-muted);
   font-size: 1rem;
@@ -481,7 +481,7 @@
   background: var(--th-bg-card);
   color: var(--th-text-muted);
   font-size: 0.68rem;
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   padding: 0.2rem 0.5rem;
   cursor: pointer;
 }

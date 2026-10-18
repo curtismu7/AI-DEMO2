@@ -32,7 +32,7 @@
   font: inherit;
   font-weight: 600;
   padding: 6px 14px;
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   border: 1px solid #26415e;
   background: #26415e;
   color: #fff;

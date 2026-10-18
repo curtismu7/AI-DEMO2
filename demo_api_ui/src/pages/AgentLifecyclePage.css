@@ -71,7 +71,7 @@
   border: none;
   padding: 14px 28px;
   font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   letter-spacing: 0.1em;
   text-transform: uppercase;
   cursor: pointer;

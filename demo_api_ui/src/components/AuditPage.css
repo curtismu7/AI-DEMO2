@@ -59,7 +59,7 @@
 .audit-float-btn {
   background: none;
   border: 1px solid transparent;
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--color-text-secondary, var(--th-text));
   font-size: 1rem;
   cursor: pointer;
@@ -435,7 +435,7 @@ body.admin-skin-p1 .audit-refresh-select {
   background: #1f6feb;
   color: var(--th-text-invert);
   border: none;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   padding: 7px 14px;
   font-weight: 600;
   font-size: 0.8rem;

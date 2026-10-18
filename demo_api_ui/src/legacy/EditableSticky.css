@@ -47,7 +47,7 @@
   border-radius: 999px;
   padding: 1px 7px;
   font-size: var(--font-size-3xs);
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   cursor: pointer;
   opacity: 0;
   transition: opacity 150ms ease;

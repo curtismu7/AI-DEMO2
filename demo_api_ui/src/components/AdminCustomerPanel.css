@@ -155,7 +155,7 @@
   margin-left: auto;
   background: transparent;
   border: 1px solid var(--admin-line);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 0.25rem 0.6rem;
   font-size: 0.8rem;
   cursor: pointer;

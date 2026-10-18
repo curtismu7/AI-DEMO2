@@ -421,7 +421,7 @@
   display: inline-flex;
   align-items: center;
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid #051727;
   background: #051727;
   color: var(--th-text-invert);

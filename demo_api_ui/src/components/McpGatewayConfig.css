@@ -70,7 +70,7 @@
   padding: 6px 14px;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   font-size: var(--font-size-sm);
 }
@@ -227,7 +227,7 @@
   background: #0070f3;
   color: var(--th-text-invert);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   font-size: var(--font-size-2xs);
 }
@@ -349,7 +349,7 @@
   background: #051727;
   color: var(--th-text-invert);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   font-size: 0.9rem;
   font-weight: 600;
   cursor: pointer;

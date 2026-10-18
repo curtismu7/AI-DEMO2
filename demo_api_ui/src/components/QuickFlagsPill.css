@@ -157,7 +157,7 @@
 .qfp-preset-btn {
   width: 100%;
   padding: 7px 10px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid #1b62d6;
   background: #1b62d6;
   color: #fff;

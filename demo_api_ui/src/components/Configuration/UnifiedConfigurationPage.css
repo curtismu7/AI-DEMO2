@@ -63,14 +63,14 @@
 }
 
 .configuration-header__btn--primary {
-  background: #12538d;
+  background: #d20e0f;
   color: white;
-  border-color: #12538d;
+  border-color: #aa0005;
 }
 
 .configuration-header__btn--primary:hover:not(:disabled) {
-  background: #051727;
-  border-color: #051727;
+  background: #aa0005;
+  border-color: #aa0005;
 }
 
 .configuration-header__btn--secondary {
@@ -1362,10 +1362,10 @@
   background: #aa0005;
   color: var(--th-text-invert);
   border: none;
-  border-radius: 7px;
+  border-radius: var(--btn-radius);
   padding: 0.6rem 1.5rem;
   font-size: 0.95rem;
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   cursor: pointer;
   transition:
     background 0.15s,

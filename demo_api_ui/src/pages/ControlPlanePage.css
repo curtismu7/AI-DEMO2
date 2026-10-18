@@ -53,7 +53,7 @@
   appearance: none;
   font: inherit; font-size: var(--font-size-sm); font-weight: 600;
   background: var(--th-bg-card); color: var(--th-text);
-  border: 1px solid var(--th-border-strong); border-radius: 6px;
+  border: 1px solid var(--th-border-strong); border-radius: var(--btn-radius);
   padding: 6px 12px; cursor: pointer;
 }
 .cp-btn:hover:not(:disabled) { border-color: var(--th-primary, #12538d); color: var(--th-primary, #12538d); }

@@ -291,7 +291,7 @@
 .embedded-dock-graph-link-btn {
   background: transparent;
   border: 1px solid rgba(148, 163, 184, 0.4);
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--th-text-faint);
   font-size: var(--font-size-2xs);
   line-height: 1;
