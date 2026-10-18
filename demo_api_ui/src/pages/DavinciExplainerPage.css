@@ -74,15 +74,6 @@
   padding: 32px 24px 96px;
 }
 
-.davinci-explainer .eyebrow {
-  font-size: var(--font-size-2xs);
-  font-weight: 700;
-  letter-spacing: 0.09em;
-  text-transform: uppercase;
-  color: var(--accent);
-  margin: 0 0 14px;
-}
-
 .davinci-explainer h1 {
   font-size: var(--font-size-3xl);
   line-height: 1.18;
@@ -91,13 +82,6 @@
   font-weight: 700;
 }
 
-.davinci-explainer .lede {
-  font-size: var(--font-size-lg);
-  line-height: 1.6;
-  color: var(--text-muted);
-  max-width: 62ch;
-  margin: 0 0 40px;
-}
 .davinci-explainer .lede em { color: var(--text); font-style: normal; font-weight: 600; }
 
 .davinci-explainer h2 {

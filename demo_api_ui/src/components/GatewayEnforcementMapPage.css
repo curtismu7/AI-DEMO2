@@ -14,19 +14,9 @@
   color: var(--th-text);
 }
 
-.gwe-eyebrow {
-  font-size: var(--font-size-2xs);
-  color: var(--th-text-muted);
-}
-
 .gwe-page h1 {
   margin-top: 4px;
   color: var(--th-text);
-}
-
-.gwe-desc {
-  color: var(--th-text-body);
-  max-width: 760px;
 }
 
 .gwe-reading-note {

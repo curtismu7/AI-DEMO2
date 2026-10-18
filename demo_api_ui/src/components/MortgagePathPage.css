@@ -28,41 +28,6 @@
   color: var(--th-text);
 }
 
-.mpp-header {
-  border-left: 6px solid #ca8a04;
-  background: rgba(202, 138, 4, 0.06);
-  padding: 18px 22px;
-  margin-bottom: 22px;
-  border-radius: 0 6px 6px 0;
-  color: var(--th-text);
-}
-
-.mpp-badge {
-  display: inline-block;
-  background: #713f12;
-  color: #fff;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 4px 10px;
-  border-radius: 2px;
-  margin-bottom: 10px;
-}
-
-.mpp-title {
-  font-size: var(--font-size-h2);
-  font-weight: 600;
-  color: var(--th-text);
-  margin: 4px 0 6px 0;
-}
-
-.mpp-subtitle {
-  font-size: var(--font-size-body);
-  color: var(--th-text-muted);
-  margin: 0;
-  line-height: 1.5;
-}
-
 .mpp-card {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);

@@ -34,29 +34,10 @@
   color: var(--th-text);
 }
 
-.dcv-intro {
-  color: var(--th-text-muted);
-  margin-bottom: 24px;
-  line-height: 1.6;
-}
-
 .dcv-page h1 {
   margin: 0 0 8px;
   font-size: clamp(1.6rem, 3vw, 2.2rem);
   line-height: 1.2;
-}
-
-.dcv-eyebrow {
-  /* --th-primary is undefined anywhere in index.css, so this always fell back
-     to the literal — which failed contrast (~3.4:1) against the dark-mode page
-     ground. --th-status-info-text is a real token pair already tuned per-theme
-     for exactly this "coloured label text on page ground" case. */
-  color: var(--th-status-info-text);
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  margin: 0 0 6px;
-  text-transform: uppercase;
 }
 
 .dcv-run button {
