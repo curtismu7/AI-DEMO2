@@ -264,7 +264,7 @@ describe('AgentGatewayInspectorClean Vertical select', () => {
     await ready();
     expect(screen.getByLabelText('Vertical').value).toBe('banking');
     expect(scenarioLabels()).toEqual([
-      'Custom', 'Read accounts (expect PERMIT)', 'Sensitive read (expect DENY)', 'Withdrawal (expect approval)',
+      'Custom', 'Read accounts (expect PERMIT)', 'Sensitive read (expect approval)', 'Withdrawal (expect approval)',
       'Run chain: accounts → balance → sensitive', 'Attack library: Schema Violation', 'Attack library: Tool Poisoning',
     ]);
     expect(screen.getByLabelText('Tool').value).toBe('get_my_accounts');
