@@ -60,6 +60,19 @@ export interface ServerStats {
   startTime: Date;
 }
 
+/**
+ * Paths this server hands to HttpMCPTransport. Every route the transport serves
+ * must be listed here too, or it 404s before reaching the transport (that is how
+ * /protected/profile shipped dark: the transport had it, this gate did not).
+ */
+export function routesToHttpTransport(pathname: string): boolean {
+  return pathname === '/.well-known/oauth-protected-resource'
+    || pathname.startsWith('/.well-known/oauth-protected-resource/')
+    || pathname === '/mcp'
+    || pathname === '/audit'
+    || pathname === '/protected/profile';
+}
+
 export class DemoMCPServer extends EventEmitter {
   private server: WebSocket.Server | null = null;
   private httpServer: HttpServer | null = null;
@@ -943,13 +956,7 @@ export class DemoMCPServer extends EventEmitter {
     // path — this gate has to admit that shape too, or it 404s here before
     // ever reaching HttpMCPTransport.handleRequest's own matching (which
     // already accounts for it).
-    const isResourceMetadataPath =
-      pathname === '/.well-known/oauth-protected-resource' ||
-      pathname.startsWith('/.well-known/oauth-protected-resource/');
-    if (this.httpTransport &&
-        (isResourceMetadataPath ||
-         pathname === '/mcp' ||
-         pathname === '/audit')) {
+    if (this.httpTransport && routesToHttpTransport(pathname)) {
       await this.httpTransport.handleRequest(req, res, pathname);
       return;
     }
