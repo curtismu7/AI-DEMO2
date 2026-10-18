@@ -212,10 +212,29 @@ const INTENT_TO_PERMITTED_TOOLS = {
 // Some intent labels are shared across verticals but resolve to different
 // least-privilege tools. Keep those overrides ahead of the generic intent map
 // so an admin transaction read cannot inherit the customer-only /my tool set.
+//
+// view_balance: nlIntentParser mints it for "show my balance" in EVERY vertical
+// (banking regex, vertical-blind), but the agent dispatches the vertical's own
+// balance tool, so the generic banking grant denied the ID-JAG demo chip:
+//   intent_mismatch: tool "loyalty_balance" not permitted for intent "view_balance"
+// Each entry is the tool the agent picked live (see
+// tests/intentToken.viewBalanceVertical.regression.test.js) and is in that
+// vertical's READ_ONLY_TOOLS_BY_VERTICAL, except airlines (get_loyalty_status) and
+// healthcare (view_billing): plain reads with no consent or A2A step that the
+// read-only fallback list simply does not include.
 const VERTICAL_INTENT_TO_PERMITTED_TOOLS = {
   admin: {
     view_transactions: ['get_customer_transactions'],
   },
+  'sporting-goods': { view_balance: ['loyalty_balance'] },
+  retail:           { view_balance: ['rewards_balance'] },
+  walbuy:           { view_balance: ['rewards_balance'] },
+  workforce:        { view_balance: ['pto_balance'] },
+  university:       { view_balance: ['view_billing'] },
+  investment:       { view_balance: ['view_portfolio_value'] },
+  government:       { view_balance: ['view_fees'] },
+  airlines:         { view_balance: ['get_loyalty_status'] },
+  healthcare:       { view_balance: ['view_billing'] },
 };
 
 const READ_ONLY_TOOLS = [
