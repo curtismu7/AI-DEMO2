@@ -445,6 +445,22 @@ describe('customer pi.flow sign-in', () => {
         expect(res.body.step).toBe('otp');
       });
 
+      test('MFA_COMPLETED -> continueAuthentication -> COMPLETED signs in (no fallback to the hosted password page)', async () => {
+        const agent = request.agent(app);
+        await openPfPasswordless(agent, 'AUTHENTICATION_REQUIRED');
+        fetchMock.mockResolvedValueOnce(json(200, { status: 'OTP_REQUIRED' }));
+        await agent.post('/api/auth/oauth/user/pi-flow/passwordless').send({ username: 'demouser' }).expect(200);
+        fetchMock
+          .mockResolvedValueOnce(json(200, { status: 'MFA_COMPLETED', _links: { continueAuthentication: { href: 'x' } } }))
+          .mockResolvedValueOnce(json(200, { status: 'COMPLETED', authorizeResponse: { code: 'pf-pwless-code' } }));
+        const res = await agent.post('/api/auth/oauth/user/pi-flow/otp').send({ otp: '123456' }).expect(200);
+        expect(ct(3)).toBe('application/vnd.pingidentity.continueAuthentication+json');
+        expect(res.body.fallback).toBeUndefined();
+        const target = new URL(res.body.redirectTo);
+        expect(target.pathname).toBe('/api/auth/oauth/user/callback');
+        expect(target.searchParams.get('code')).toBe('pf-pwless-code');
+      });
+
       test("OTP uses PF's checkOtp; INVALID_OTP -> 401 invalid_otp so the modal re-prompts", async () => {
         const agent = request.agent(app);
         await openPfPasswordless(agent, 'AUTHENTICATION_REQUIRED');
