@@ -605,6 +605,30 @@ describe('OAuthRouter — bring-your-own IdP registry', () => {
     expect(viaOktaAliasOnEnv.status).toBe(400);
   });
 
+  // Registry IdPs bind strictly: the ID-JAG's client_id must be one of the entry's
+  // clientAliases keys and the authenticating client must be its mapped value. A
+  // client that is merely registered here (e.g. a retired one) cannot redeem.
+  it('refuses a registry ID-JAG whose client_id is not an alias key, even when it equals the authenticating client', async () => {
+    serveRegistry([OKTA]);
+    const res = await redeem(mintOkta({ client_id: CLIENT.client_id }));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_grant');
+    expect(res.body.error_description).toMatch(/client_id is not assigned to this IdP/);
+  });
+
+  it('refuses a registry ID-JAG whose alias maps to a different client than the one authenticating', async () => {
+    serveRegistry([{ ...OKTA, clientAliases: { 'okta-agent': 'someone-else' } }]);
+    const res = await redeem(mintOkta());
+    expect(res.status).toBe(400);
+    expect(res.body.error_description).toMatch(/client_id is not assigned to this IdP/);
+  });
+
+  it('keeps the env IdP\'s exact-match binding (no alias needed)', async () => {
+    serveRegistry([OKTA]);
+    const res = await redeem(mintIdJag({ client_id: CLIENT.client_id }));
+    expect(res.status).toBe(200);
+  });
+
   it('caps the granted scope at the IdP\'s registry scopes', async () => {
     serveRegistry([{ ...OKTA, scopes: 'banking:read' }]);
     const res = await redeem(mintOkta({ scope: 'banking:read banking:write' }));

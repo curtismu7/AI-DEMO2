@@ -1,6 +1,52 @@
 // banking_api_ui/src/components/education/GleanPanel.js
 import React from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
+import StaticFlowDiagram from '../StaticFlowDiagram';
+import FlowDiagram from '../FlowDiagram';
+
+const GLEAN_GROUPS = {
+  agent: { label: 'AI agent', bg: 'var(--th-status-info)' },
+  ping: { label: 'Ping', bg: 'var(--th-status-error)' },
+  gateway: { label: 'Gateway', bg: 'var(--th-bg-emphasis)' },
+  resource: { label: 'MCP server', bg: 'var(--th-status-success)' },
+};
+
+const ARCH_NODES = [
+  { id: 'glean', group: 'agent', label: 'Glean Platform', x: 0, y: 0 },
+  { id: 'pf', group: 'ping', label: 'PingFed', sub: ['(Enterprise IdP/SSO)'], x: 320, y: 0 },
+  { id: 'gw', group: 'gateway', label: 'MCP Gateway', x: 0, y: 170 },
+  { id: 'paz', group: 'ping', label: 'PingAuthorize', sub: ['(Fine-grained authz)'], x: 320, y: 170 },
+];
+const ARCH_EDGES = [
+  ['glean', 'pf', 'CIBA/OIDC (two-way)'],
+  ['glean', 'gw', 'tool calls', { vertical: true }],
+  ['gw', 'paz', 'policy eval (two-way)'],
+];
+
+const CIBA_SEQUENCE = `sequenceDiagram
+    participant G as Glean agent
+    participant PF as PingFed
+    participant U as User device
+    G->>G: 1. Needs elevated access
+    G->>PF: 2. CIBA initiation: POST /backchannel/authentication<br/>login_hint: user@ebay.com · scope: openid write:records<br/>binding_message: Approve export?
+    PF->>U: 3. Push approval request (mobile push / authenticator app)
+    U->>PF: 4. User approves on device
+    PF->>G: 5. Delegated access token
+    G->>G: 6. Proceeds with authorized tool call`;
+
+const PIPELINE_NODES = [
+  { id: 'glean', group: 'agent', label: 'Glean', x: 0, y: 0 },
+  { id: 'validate', group: 'gateway', label: '[1] Validate inbound token', sub: ['aud = gateway'], x: 0, y: 110 },
+  { id: 'policy', group: 'gateway', label: '[2] GatewayTokenPolicy', sub: ['sub, act.sub, anti-bypass'], x: 0, y: 240 },
+  { id: 'paz', group: 'ping', label: '[3] PingAuthorize', sub: ['PERMIT / DENY / INDETERMINATE'], x: 0, y: 370 },
+  { id: 'mcp', group: 'resource', label: 'MCP server', x: 0, y: 520 },
+];
+const PIPELINE_EDGES = [
+  ['glean', 'validate', 'tool call + bearer token', { vertical: true }],
+  ['validate', 'policy', '', { vertical: true }],
+  ['policy', 'paz', '', { vertical: true }],
+  ['paz', 'mcp', '[4] Forward original bearer token unchanged', { vertical: true }],
+];
 
 function OverviewTab() {
   return (
@@ -20,24 +66,14 @@ function OverviewTab() {
         onError={(e) => { e.target.style.display = 'none'; }}
       />
 
-      <pre className="edu-code">{`
-  ┌─────────────────────────────────────────────────┐
-  │               eBay Enterprise                    │
-  │                                                  │
-  │  ┌──────────┐   CIBA/OIDC   ┌──────────────┐   │
-  │  │  Glean   │◄─────────────►│   PingFed    │   │
-  │  │ Platform │               │ (Enterprise  │   │
-  │  │          │               │   IdP/SSO)   │   │
-  │  └────┬─────┘               └──────────────┘   │
-  │       │ tool calls                              │
-  │       ▼                                         │
-  │  ┌──────────┐  policy eval  ┌──────────────┐   │
-  │  │   MCP    │◄─────────────►│  PingAuthorize│  │
-  │  │ Gateway  │               │ (Fine-grained │  │
-  │  │          │               │    authz)    │   │
-  │  └──────────┘               └──────────────┘   │
-  │                                                 │
-  └─────────────────────────────────────────────────┘`}</pre>
+      <StaticFlowDiagram
+        NODES={ARCH_NODES}
+        EDGES={ARCH_EDGES}
+        GROUPS={GLEAN_GROUPS}
+        testId="glean-arch-diagram"
+        ariaLabel="eBay Enterprise: Glean, PingFed, MCP Gateway and PingAuthorize"
+      />
+      <p style={{ fontSize: '0.82rem' }}>All four components sit inside the eBay Enterprise boundary.</p>
 
       <h4>Key components</h4>
       <ul>
@@ -74,28 +110,7 @@ function CibaTab() {
         enterprise AI agents that may need elevated permissions for a specific action.
       </p>
 
-      <pre className="edu-code">{`
-  1. Glean agent needs elevated access
-        │
-        ▼
-  2. Glean sends CIBA initiation to PingFed
-     POST /backchannel/authentication
-     { login_hint: "user@ebay.com",
-       scope: "openid write:records",
-       binding_message: "Approve export?" }
-        │
-        ▼
-  3. PingFed pushes approval request to user
-     (mobile push / authenticator app)
-        │
-        ▼
-  4. User approves on device
-        │
-        ▼
-  5. PingFed issues delegated access token
-        │
-        ▼
-  6. Glean proceeds with authorized tool call`}</pre>
+      <FlowDiagram source={CIBA_SEQUENCE} label="Glean CIBA approval sequence diagram" />
 
       <p>
         This pattern keeps the AI agent honest — it cannot act with elevated scope without
@@ -115,19 +130,25 @@ function McpGatewayTab() {
         tool servers. Every tool call passes through the full pipeline:
       </p>
 
-      <pre className="edu-code">{`
-  Glean → [1] Validate inbound token (aud = gateway)
-       → [2] GatewayTokenPolicy (sub, act.sub, anti-bypass)
-       → [3] PingAuthorize PERMIT/DENY/INDETERMINATE
-       → [4] Forward original bearer token unchanged to MCP server
+      <StaticFlowDiagram
+        NODES={PIPELINE_NODES}
+        EDGES={PIPELINE_EDGES}
+        GROUPS={GLEAN_GROUPS}
+        testId="glean-pipeline-diagram"
+        ariaLabel="Agent Gateway pipeline: validate token, GatewayTokenPolicy, PingAuthorize, forward to MCP server"
+      />
 
-  Key invariants:
-  • Token audience scoping is established by the BFF's single RFC 8693
-    exchange before the gateway — gateway enforces policy, does not re-scope
-  • PERMIT → forward original bearer token unchanged to upstream MCP server
-  • DENY from PingAuthorize = 403, no upstream call made
-  • INDETERMINATE = 403 hitl_required (HTTP) or -32002 (WebSocket)
-  • PingAuthorize unreachable = fail closed (403)`}</pre>
+      <h4>Key invariants</h4>
+      <ul>
+        <li>
+          Token audience scoping is established by the BFF's single RFC 8693 exchange before
+          the gateway — gateway enforces policy, does not re-scope
+        </li>
+        <li>PERMIT → forward original bearer token unchanged to upstream MCP server</li>
+        <li>DENY from PingAuthorize = 403, no upstream call made</li>
+        <li>INDETERMINATE = 403 hitl_required (HTTP) or -32002 (WebSocket)</li>
+        <li>PingAuthorize unreachable = fail closed (403)</li>
+      </ul>
 
       <h4>Why this matters</h4>
       <ul>

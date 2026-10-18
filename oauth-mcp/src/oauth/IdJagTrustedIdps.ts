@@ -26,6 +26,11 @@ export interface TrustedIdp {
   scopes: string;
   /** Accept an ID-JAG without client_id. Only the env IdP may opt in. */
   allowUnboundClient?: boolean;
+  /**
+   * Set on every REGISTRY entry: the ID-JAG's client_id must be a clientAliases key
+   * and the redeeming client its mapped value. Exact-match fallback is env-IdP only.
+   */
+  strictClientBinding?: boolean;
 }
 
 const CACHE_MS = 30_000;
@@ -83,6 +88,7 @@ function parseRegistry(data: unknown): TrustedIdp[] {
           .filter(([, v]) => typeof v === 'string')) as Record<string, string>
         : {},
       scopes: typeof e.scopes === 'string' ? e.scopes : '',
+      strictClientBinding: true,
     }));
 }
 

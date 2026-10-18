@@ -12,6 +12,7 @@ import { spinner } from "../services/spinnerService";
 import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import { setDashboardLayout } from "../utils/dashboardLayout";
 import { startRoleSwitch } from "../utils/roleSwitch";
+import { openAdminSignIn } from "../utils/signInService";
 import { useVertical } from "../vertical/useVertical";
 import ConfirmModal from "./ConfirmModal";
 import ControlPlaneIntroModal from "./ControlPlaneIntroModal";
@@ -1546,6 +1547,11 @@ export default function AdminSideNav({
         path: "/pingfederate-id-jag/playground",
         searchAlias: "ID-JAG playground XAA cross app access validate test negative tests spec checker PingFederate oauth-mcp",
       },
+      {
+        label: "ID-JAG Playground diagrams",
+        path: "/pingfederate-id-jag/playground/diagram/oauth-mcp",
+        searchAlias: "ID-JAG playground diagram mock oauth-mcp PingFederate to PingFederate bring your own IdP trusted IdPs simulate flow",
+      },
       "PingFederate ID-JAG (Node)",
       "Workload Agents · 3rd-party MCP via ID-JAG",
       "Enterprise-Managed MCP Auth",
@@ -2269,19 +2275,10 @@ export default function AdminSideNav({
                 navigate("/admin");
                 return;
               }
-              fetch("/api/auth/switch", {
-                method: "POST",
-                credentials: "include",
-                headers: { "Content-Type": "application/json" },
-                body: JSON.stringify({ targetRole: "admin" }),
-              })
-                .then((r) => r.json())
-                .then(({ redirectUrl }) => {
-                  window.location.href = redirectUrl;
-                })
-                .catch((e) =>
-                  console.error("[QuickNav] switch failed:", e.message),
-                );
+              // The shared sign-in (device-first pi.flow modal, or the redirect fallback)
+              // with an explicit /admin return — /switch went straight to the hosted
+              // password page and could land on a stale customer return path.
+              openAdminSignIn({ returnTo: "/admin" });
             }}
           >
             {collapsed ? <span className="admin-side-nav__quick-initial" aria-hidden="true">Ad</span> : <MdSecurity size={16} aria-hidden="true" />}

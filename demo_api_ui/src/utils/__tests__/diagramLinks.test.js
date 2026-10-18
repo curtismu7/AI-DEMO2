@@ -13,6 +13,7 @@ describe("diagram links open in a new tab", () => {
     "/demo-map",
     "/pingfederate-id-jag/diagram",
     "/pingfederate-id-jag/implementation",
+    "/pingfederate-id-jag/playground/diagram/pf-pf?step=3",
     "/agent-onboarding-flow-diagram",
     "/architecture/flow?step=2#top",
   ])("treats %s as a diagram", (p) => {
@@ -20,7 +21,7 @@ describe("diagram links open in a new tab", () => {
     expect(diagramLinkProps(p)).toEqual({ target: "_blank", rel: "noopener noreferrer" });
   });
 
-  it.each(["/", "/dashboard", "/pingfederate-id-jag", "/pingfederate-id-jag/demo", "/use-cases", "/admin", "/learning", undefined, null])(
+  it.each(["/", "/dashboard", "/pingfederate-id-jag", "/pingfederate-id-jag/demo", "/pingfederate-id-jag/playground", "/use-cases", "/admin", "/learning", undefined, null])(
     "leaves %s as a normal link",
     (p) => {
       expect(isDiagramPath(p)).toBe(false);

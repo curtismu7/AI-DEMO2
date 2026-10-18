@@ -812,6 +812,8 @@ app.post('/api/auth/switch', (req, res) => {
     delete req.session.user;
     delete req.session.clientType;
     delete req.session.oauthType;
+    // A return path left by an earlier login would win over the target role's landing page.
+    delete req.session.postLoginReturnToPath;
     clearAuthCookie(res, isProduction);
 
     // Set switch_target cookie so the OAuth callback knows where to redirect
@@ -1469,6 +1471,7 @@ app.use('/api/id-jag-playground', require('./routes/idJagPlayground'));
 app.use('/api/consent-mock-phone', require('./routes/consentMockPhone'));
 app.use('/api/aic-demo', require('./routes/aicDemo'));
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
+app.use('/api/auth/ciba/login', require('./routes/cibaLogin')); // pre-auth passwordless login (before the step-up router)
 app.use('/api/auth/ciba', cibaRoutes);
 app.use('/api/auth', parRequestRoutes);
 app.use('/api/auth', dpopRequestRoutes);

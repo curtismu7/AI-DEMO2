@@ -33,6 +33,17 @@ const PART_H = 64;
 const TOP = 90;
 const LINE_H = 17;
 const FIT = { padding: 0.04 };
+// Floor for the fitted zoom: 13px message labels stay >= 11px on screen (a little headroom for box bands).
+const MIN_ZOOM = 0.88;
+
+/**
+ * Width of the React Flow area: the canvas width, or wider (the canvas scrolls sideways) when
+ * fitView would shrink text below MIN_ZOOM. fitView zooms to width / (drawn width * (1 + padding));
+ * the drawing is bounds.w less its 60px margin on each side.
+ */
+export function flowWidth(canvasW, bounds) {
+  return Math.max(canvasW, Math.ceil((bounds.w - 120) * (1 + FIT.padding) * MIN_ZOOM));
+}
 
 function Participant({ data }) {
   return (
@@ -231,7 +242,8 @@ export function buildSequenceFlow(source) {
 
 function Inner({ source, step, active, details, driver }) {
   const ref = useRef(null);
-  useFitOnResize(ref, FIT);
+  const flowRef = useRef(null);
+  useFitOnResize(flowRef, FIT);
   useFitOnSource(source, FIT);
   const [canvasW, setCanvasW] = useState(0);
   useEffect(() => {
@@ -244,7 +256,9 @@ function Inner({ source, step, active, details, driver }) {
   const { nodes, edges, steps, bounds, messages, people } = useMemo(() => buildSequenceFlow(source), [source]);
   // Fit to the page WIDTH and let the canvas grow to the drawing's height, so a 28-message
   // sequence stays at a readable size instead of shrinking to fit one screen.
-  const zoom = canvasW ? Math.min(1.1, canvasW / bounds.w) : 1;
+  // Too narrow to fit at a readable size: keep MIN_ZOOM and scroll sideways.
+  const zoom = canvasW ? Math.max(MIN_ZOOM, Math.min(1.1, canvasW / bounds.w)) : 1;
+  const flowW = canvasW ? flowWidth(canvasW, bounds) : undefined;
   const fitHeight = canvasW ? Math.max(520, Math.round(bounds.h * zoom) + 24) : undefined;
   const stepper = useDiagramStepper(steps.length);
   const external = step !== undefined || active !== undefined || driver !== undefined;
@@ -271,6 +285,7 @@ function Inner({ source, step, active, details, driver }) {
         <DiagramReel steps={reelSteps} stepper={reelStepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId="sequence-reel" />
       )}
       <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={fitHeight ? { height: fitHeight } : undefined}>
+        <div className="sfx-flow" ref={flowRef} style={flowW > canvasW ? { width: flowW } : undefined}>
         <ReactFlow
           nodes={lit}
           edges={shown}
@@ -290,6 +305,7 @@ function Inner({ source, step, active, details, driver }) {
           <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
           <Controls showInteractive={false} />
         </ReactFlow>
+        </div>
       </div>
     </>
   );

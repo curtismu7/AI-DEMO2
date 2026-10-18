@@ -7,7 +7,8 @@ import {
 import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 import SignInBrand from "./SignInBrand";
-import { isAicLoginEnabled } from "../utils/aicLogin";
+import CibaLoginPanel from "./CibaLoginPanel";
+import { isAicLoginEnabled, isCibaLoginEnabled } from "../utils/aicLogin";
 
 const apiBase = () =>
   process.env.REACT_APP_API_URL ||
@@ -116,6 +117,7 @@ export default function PiFlowSignInModal() {
   const roleRef = useRef("customer");
   const forceRef = useRef(false);
   const providerRef = useRef("pingone");
+  const cibaEnabledRef = useRef(false); // ciba_login_enabled; off = no choice screen (pre-CIBA behaviour)
   // Remember who is signing in as: 800 ms after the last keystroke in a
   // username field, store the value as the role's login hint so the next
   // sign-in prefills it. The sign-in callback also stores it; this covers a
@@ -152,6 +154,7 @@ export default function PiFlowSignInModal() {
         const adminOn = ["true", "1"].includes(String(cfg.PINGONE_ADMIN_AUTHORIZE_PI_FLOW).toLowerCase());
         if (!cancelled) {
           providerRef.current = provider;
+          cibaEnabledRef.current = isCibaLoginEnabled(cfg);
           // AIC login is a redirect to an external IdP — keep the redirect login.
           setUserDrivable(drivable && userOn && !isAicLoginEnabled(cfg));
           setAdminDrivable(drivable && adminOn);
@@ -207,9 +210,17 @@ export default function PiFlowSignInModal() {
     // username/password form and MFA comes after. If the flow open fails with
     // passwordless=1 the open snaps back to the password form in the modal.
     passkeyOptionsRef.current = null;
-    // PingFederate has no device-first step (the BFF 409s it): password first.
-    const passwordFirst = role === "admin" || providerRef.current === "pingfederate";
-    setStep(passwordFirst ? "password" : "device");
+    // PingFederate customers are device-first too (acr_values=mfa_only → identifier first →
+    // PingOne MFA, scripts/pingfederate/enable-pf-passwordless.js). ?signin=mfa on PF keeps the
+    // password form: its Multi_Factor flow starts with the password.
+    // Admin is device-first too (user decision 2026-10-18); "Use your password instead" stays the
+    // break-glass. If the admin app has no mfa_only policy the open fails and snaps to the password form.
+    const passwordFirst = providerRef.current === "pingfederate" && mfaRequested();
+    // With ciba_login_enabled on, both roles open on a CHOICE screen (passkey / CIBA
+    // approval link / "use a password") with no flow opened yet. PingFederate
+    // and the ?signin=mfa test hook keep the legacy first step below.
+    const choiceFirst = cibaEnabledRef.current && providerRef.current !== "pingfederate" && !mfaRequested();
+    setStep(choiceFirst ? "choice" : passwordFirst ? "password" : "device");
     setError("");
     setUsername("");
     setPassword("");
@@ -217,8 +228,9 @@ export default function PiFlowSignInModal() {
     setDeviceUsername("");
     setDevices([]);
     setSelectedDeviceId(null);
-    setBusy(true);
+    setBusy(!choiceFirst);
     setOpen(true);
+    if (choiceFirst) return; // the chosen button opens the flow it needs
     // ?signin=mfa is itself the acr selector (Multi_Factor): sending
     // passwordless=1 alongside would silently win the last-spread and turn
     // the on-demand MFA demo into the device-first policy.
@@ -286,6 +298,15 @@ export default function PiFlowSignInModal() {
     window.addEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
     return () => window.removeEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
   }, [begin, userDrivable, adminDrivable]);
+
+  // Choice screen / CIBA panel -> the existing password step (opens the password-first flow).
+  const usePassword = () => {
+    if (busy) return;
+    setError("");
+    setBusy(true);
+    setStep("password");
+    openFlow(returnToRef.current, roleRef.current);
+  };
 
   const apiForRole = () => (roleRef.current === "admin" ? ADMIN_API : USER_API);
 
@@ -563,9 +584,8 @@ export default function PiFlowSignInModal() {
                   // Other methods in the modal: the device step re-opens the flow
                   // passwordless (switchToDevice reuses the typed username). The
                   // step-up MFA request keeps its redirect — a passwordless reopen
-                  // would overwrite the Multi_Factor acr selector — and admin is
-                  // password-first, so its policy would 409 the passwordless open.
-                  if (roleRef.current === 'admin' || mfaRequested()) {
+                  // would overwrite the Multi_Factor acr selector.
+                  if (mfaRequested()) {
                     redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
                     return;
                   }
@@ -583,7 +603,7 @@ export default function PiFlowSignInModal() {
                 {busy ? "Waiting for passkey" : "Verify with passkey"}
               </button>
             </>
-          ) : (
+          ) : step === "choice" || step === "ciba" ? null : (
             <>
               <button
                 type="submit"
@@ -628,7 +648,26 @@ export default function PiFlowSignInModal() {
     >
       <div className="dm-scroll">
         <SignInBrand welcome={welcome} />
-        {step === "passkey" ? (
+        {step === "choice" ? (
+          <div className="pi-flow-signin__form">
+            <button type="button" className="signin-prompt__btn" data-default-button disabled={busy} onClick={switchToDevice}>
+              Sign in with passkey
+            </button>
+            <button type="button" className="signin-prompt__btn" disabled={busy} onClick={() => { setError(""); setStep("ciba"); }}>
+              Sign in with CIBA (email or SMS)
+            </button>
+            <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" disabled={busy} onClick={usePassword}>
+              Use a password instead
+            </button>
+          </div>
+        ) : step === "ciba" ? (
+          <CibaLoginPanel
+            role={roleRef.current}
+            onSignedIn={(to) => navigateWithOverlay(to, { message: "Signing in...", assign: true })}
+            onUsePassword={usePassword}
+            onBack={() => setStep("choice")}
+          />
+        ) : step === "passkey" ? (
           <div className="pi-flow-signin__form">
             <p className="signin-modal__text">Verify it is you with your passkey.</p>
             {error ? (
@@ -733,15 +772,13 @@ export default function PiFlowSignInModal() {
               ❌ {error}
             </p>
           ) : null}
-          {providerRef.current !== "pingfederate" && (
-            <button
-              type="button"
-              className="signin-prompt__btn signin-prompt__btn--ghost"
-              onClick={switchToDevice}
-            >
-              Use a device instead
-            </button>
-          )}
+          <button
+            type="button"
+            className="signin-prompt__btn signin-prompt__btn--ghost"
+            onClick={switchToDevice}
+          >
+            Use a device instead
+          </button>
         </form>
         )}
       </div>

@@ -1,7 +1,34 @@
 // banking_api_ui/src/components/education/CimdPanel.js
 import React from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
+import FlowDiagram from '../FlowDiagram';
 import { EduImplIntro, SNIP_CIMD_WELL_KNOWN } from './educationImplementationSnippets';
+
+const CIMD_REGISTRATION = `sequenceDiagram
+    participant A as Admin Browser
+    participant B as BFF (this server)
+    participant P as PingOne Mgmt API
+    A->>B: POST /api/admin/clients<br/>{ client_name, redirect_uris, grant_types, … }
+    B->>P: POST /environments/{id}/applications
+    P-->>B: { id, client_secret }
+    B->>B: Build CIMD document<br/>{ client_id: URL, … }<br/>Store in cimdStore Map
+    B-->>A: { client_id, client_secret, cimd_url, cimd_document }`;
+
+const CIMD_SERVING = `sequenceDiagram
+    participant C as Any caller
+    participant B as BFF
+    C->>B: GET /.well-known/oauth-client/{id}
+    B-->>C: CIMD JSON doc<br/>Cache-Control: public, max-age=3600`;
+
+const CIMD_AUTHORIZATION = `sequenceDiagram
+    participant C as Client App
+    participant AS as CIMD-capable AS
+    participant B as BFF CIMD endpoint
+    C->>AS: GET /authorize?client_id=https://…/.well-known/oauth-client/{id}
+    AS->>B: GET /.well-known/oauth-client/{id}
+    B-->>AS: CIMD document
+    AS->>AS: Validates redirect, grant_types, auth method, scopes
+    AS-->>C: Authorization code (normal PKCE flow)`;
 
 export default function CimdPanel({ isOpen, onClose, initialTabId }) {
   const tabs = [
@@ -189,78 +216,16 @@ export default function CimdPanel({ isOpen, onClose, initialTabId }) {
             How client registration and a CIMD-style authorization request flows
             end-to-end in this demo:
           </p>
-          <pre style={{background:'var(--edu-code-bg,#0f172a)',color:'#e2e8f0',padding:'16px',borderRadius:'6px',overflow:'auto',fontSize:'12px',lineHeight:'1.7',fontFamily:'inherit'}}>
-{`┌─────────────────────────────────────────────────────────────────────┐
-│              CIMD Registration + Authorization Flow                 │
-└─────────────────────────────────────────────────────────────────────┘
-
-  REGISTRATION (admin only — one time)
-  ─────────────────────────────────────
-  Admin Browser           Backend-for-Frontend (BFF) — this server          PingOne Mgmt API
-       │                        │                           │
-       │  POST /api/admin/      │                           │
-       │  clients               │                           │
-       │  { client_name,        │                           │
-       │    redirect_uris,      │                           │
-       │    grant_types, … }    │                           │
-       │ ──────────────────────►│                           │
-       │                        │  POST /environments/{id}/ │
-       │                        │  applications             │
-       │                        │ ─────────────────────────►│
-       │                        │◄─────────────────────────┤
-       │                        │  { id, client_secret }    │
-       │                        │                           │
-       │                        │  Build CIMD document      │
-       │                        │  { client_id: URL,        │
-       │                        │    redirect_uris, … }     │
-       │                        │  Store in cimdStore Map   │
-       │◄──────────────────────┤                           │
-       │  { client_id,          │                           │
-       │    client_secret,      │                           │
-       │    cimd_url,           │                           │
-       │    cimd_document }     │                           │
-       │                        │                           │
-
-  DOCUMENT SERVING (public, cacheable)
-  ─────────────────────────────────────
-  Any caller               Backend-for-Frontend (BFF)
-       │                    │
-       │  GET /.well-known/ │
-       │  oauth-client/{id} │
-       │ ──────────────────►│
-       │◄──────────────────┤
-       │  CIMD JSON doc     │
-       │  Cache-Control:    │
-       │  public, max-age=  │
-       │  3600              │
-       │                    │
-
-  AUTHORIZATION (future / CIMD-native AS)
-  ─────────────────────────────────────────
-  Client App              CIMD-capable AS         Backend-for-Frontend (BFF) CIMD endpoint
-       │                        │                       │
-       │  GET /authorize?       │                       │
-       │  client_id=https://…/  │                       │
-       │  .well-known/oauth-    │                       │
-       │  client/{id}           │                       │
-       │ ──────────────────────►│                       │
-       │                        │  GET /.well-known/    │
-       │                        │  oauth-client/{id}    │
-       │                        │ ─────────────────────►│
-       │                        │◄─────────────────────┤
-       │                        │  CIMD document        │
-       │                        │  (validates redirect, │
-       │                        │   grant_types, auth   │
-       │                        │   method, scopes)     │
-       │◄──────────────────────┤                       │
-       │  Authorization code    │                       │
-       │  (normal PKCE flow)    │                       │
-       │                        │                       │
-
-  ⚠  PingOne does NOT yet do the AS→CIMD-endpoint fetch natively.
-     The demo pre-registers via Management API and hosts the doc
-     so you can observe both halves of the pattern.`}
-          </pre>
+          <h4>Registration (admin only — one time)</h4>
+          <FlowDiagram source={CIMD_REGISTRATION} label="CIMD registration sequence diagram" />
+          <h4>Document serving (public, cacheable)</h4>
+          <FlowDiagram source={CIMD_SERVING} label="CIMD document serving sequence diagram" />
+          <h4>Authorization (future / CIMD-native AS)</h4>
+          <FlowDiagram source={CIMD_AUTHORIZATION} label="CIMD authorization sequence diagram" />
+          <p>
+            ⚠ PingOne does NOT yet do the AS→CIMD-endpoint fetch natively. The demo pre-registers
+            via Management API and hosts the doc so you can observe both halves of the pattern.
+          </p>
         </>
       ),
     },

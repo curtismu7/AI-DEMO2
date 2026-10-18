@@ -14,20 +14,44 @@ const config = (over = {}) => ({
   ...over,
 });
 
+const PASS = { ok: true, checks: [] };
+let preflightReply;
+const answerGet = (cfg, registry = []) => (url, opts) => {
+  if (url.endsWith("/config")) return Promise.resolve({ data: cfg });
+  if (url.endsWith("/preflight")) return Promise.resolve({ data: typeof preflightReply === "function" ? preflightReply(opts?.params || {}) : preflightReply });
+  if (url.endsWith("/trusted-idps")) return typeof registry === "function" ? registry() : Promise.resolve({ data: registry });
+  return Promise.resolve({ data: [] });
+};
+
 function mount(cfg) {
-  get.mockImplementation((url) => Promise.resolve({ data: url.endsWith("/config") ? cfg : [] }));
+  get.mockImplementation(answerGet(cfg));
   return render(<MemoryRouter><IdJagPlaygroundPage /></MemoryRouter>);
 }
 
 const slow = { timeout: 4000 };
+const now = () => Math.floor(Date.now() / 1000);
+const posted = (path) => post.mock.calls.some(([u]) => u === `/api/id-jag-playground${path}`);
 
-beforeEach(() => { get.mockReset(); post.mockReset(); put.mockReset(); del.mockReset(); localStorage.clear(); });
+beforeEach(() => { get.mockReset(); post.mockReset(); put.mockReset(); del.mockReset(); localStorage.clear(); preflightReply = PASS; });
 
 describe("ID-JAG playground page", () => {
   it("explains that ID-JAG needs PingFederate when the provider is PingOne", async () => {
     mount(config({ provider: "pingone", signedIn: false }));
     expect(await screen.findByText(/ID-JAG only exists on PingFederate/)).toBeInTheDocument();
     expect(screen.getByRole("button", { name: "Request ID-JAG" })).toBeDisabled();
+  });
+
+  it("links the current mode's diagram and each step on it, in a new tab", async () => {
+    localStorage.setItem("idjag.playground.mode", "mock");
+    mount(config());
+    const mode = screen.getByRole("link", { name: "View Mock diagram ↗" });
+    expect(mode).toHaveAttribute("href", "/pingfederate-id-jag/playground/diagram/mock");
+    expect(mode).toHaveAttribute("target", "_blank");
+    const step3 = screen.getByRole("link", { name: "see step 3 on the diagram ↗" });
+    expect(step3).toHaveAttribute("href", "/pingfederate-id-jag/playground/diagram/mock?step=3");
+    expect(step3).toHaveAttribute("target", "_blank");
+    expect(step3).toHaveAttribute("rel", "noopener noreferrer");
+    expect(screen.getAllByRole("link", { name: /^see step \d on the diagram/ })).toHaveLength(5);
   });
 
   it("shows a message instead of crashing when the BFF has no playground API", async () => {
@@ -61,7 +85,9 @@ describe("ID-JAG playground page", () => {
     fireEvent.click(screen.getByRole("button", { name: "Request ID-JAG" }));
     expect(await screen.findByTestId("ijp-checks", {}, slow)).toHaveTextContent("Spec check: 17 of 17 pass");
 
-    fireEvent.change(screen.getByLabelText(/narrower scope/), { target: { value: "mcp:read admin:all" } });
+    const scope = screen.getByRole("combobox", { name: /Scope to request/ });
+    expect([...scope.options].map((o) => o.value)).toEqual(["", "mcp:read", "mcp:write"]);
+    fireEvent.change(scope, { target: { value: "mcp:read" } });
     fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
     expect(await screen.findByText("Response (HTTP 200)", {}, slow)).toBeInTheDocument();
     expect(screen.getAllByText("mcp:read").length).toBeGreaterThan(0);
@@ -75,14 +101,16 @@ describe("ID-JAG playground page", () => {
     expect(await screen.findByText("Sample result from search_records", {}, slow)).toBeInTheDocument();
     expect(screen.getAllByText("acme").length).toBeGreaterThan(0);
 
-    fireEvent.click(screen.getByRole("button", { name: "Run all" }));
-    await waitFor(() => expect(screen.getAllByText(/refused/)).toHaveLength(4), { timeout: 4000 });
-    expect(screen.getByText(/invalid_client/, { selector: ".ijp-result" })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Open the protected page" }));
+    const page = await screen.findByTestId("ijp-resource-page", {}, slow);
+    expect(page).toHaveTextContent("200");
+    expect(page).toHaveTextContent("user.0042");
+    fireEvent.click(screen.getByRole("button", { name: "Try with the raw ID-JAG" }));
+    await waitFor(() => expect(screen.getByTestId("ijp-resource-page")).toHaveTextContent(/token type check failed/), slow);
 
-    fireEvent.change(screen.getByLabelText(/narrower scope/), { target: { value: "admin:all" } });
-    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
-    expect(await screen.findByText("Response (HTTP 400)", {}, slow)).toBeInTheDocument();
-    expect(screen.getByText("invalid_scope")).toBeInTheDocument();
+    fireEvent.click(screen.getByRole("button", { name: "Run all" }));
+    await waitFor(() => expect(screen.getAllByText(/^✅ refused/)).toHaveLength(4), { timeout: 4000 });
+    expect(screen.getByText(/invalid_client/, { selector: ".ijp-result" })).toBeInTheDocument();
     expect(screen.getByText("Partner Okta (sample)")).toBeInTheDocument();
 
     expect(get).not.toHaveBeenCalled();
@@ -130,7 +158,8 @@ describe("ID-JAG playground page", () => {
       const step1 = (await screen.findByRole("heading", { name: "Sign in at the issuer PingFederate" })).closest("section");
       await waitFor(() => expect(within(step1).getByRole("button")).toBeEnabled());
       fireEvent.click(within(step1).getByRole("button"));
-      expect(assign).toHaveBeenCalledWith("/api/id-jag-playground/issuer/login?return_to=/pingfederate-id-jag/playground");
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("/api/id-jag-playground/issuer/login?return_to=/pingfederate-id-jag/playground"));
+      expect(get).toHaveBeenCalledWith("/api/id-jag-playground/preflight", { params: expect.objectContaining({ step: "signin", mode: "pf-pf" }) });
       expect(post).not.toHaveBeenCalled();
     } finally {
       Object.defineProperty(window, "location", { configurable: true, value: orig });
@@ -140,11 +169,7 @@ describe("ID-JAG playground page", () => {
   const IDP = { id: "partner", name: "Partner IdP", issuer: "https://idp.partner.test", jwksUrl: "https://idp.partner.test/jwks", idJagClientId: "partner-agent", clientId: "demo-bff-mcp-client", pfClientId: "ai-demo-pf-idjag-redeemer", scopes: "", targets: ["oauth-mcp"], enabled: true };
   const ENDPOINTS = { "oauth-mcp": { issuer: "https://as.test", tokenEndpoint: "https://as.test/token" }, pingfederate: { issuer: "https://pf.local", tokenEndpoint: "https://pf.local/as/token.oauth2" } };
   const mountWith = (cfg, registry) => {
-    get.mockImplementation((url) => {
-      if (url.endsWith("/config")) return Promise.resolve({ data: cfg });
-      if (url.endsWith("/trusted-idps")) return typeof registry === "function" ? registry() : Promise.resolve({ data: registry });
-      return Promise.resolve({ data: [] });
-    });
+    get.mockImplementation(answerGet(cfg, registry));
     return render(<MemoryRouter><IdJagPlaygroundPage /></MemoryRouter>);
   };
 
@@ -183,6 +208,79 @@ describe("ID-JAG playground page", () => {
     expect(screen.getByRole("button", { name: "Redeem ID-JAG" })).toBeDisabled();
   });
 
+  // ---- xaa.dev: IdenX (Okta's public XAA playground) as a real outside IdP ----
+
+  const XAA_BUTTON = "Get an ID-JAG from xaa.dev (IdenX, a free third-party IdP)";
+  const XAA_OK = { available: true, reason: null, signedIn: false, user: null };
+  const XAA_INSPECTION = {
+    trusted: true, idp: { id: "xaa-dev", name: "xaa.dev IdenX" }, header: { typ: "oauth-id-jag+jwt" },
+    claims: { iss: "https://idp.xaa.dev", client_id: "xaa-at-oauth-mcp", scope: "read", exp: now() + 300 },
+    checks: [{ id: "iss", label: "Issuer is xaa.dev IdenX", status: "pass", expected: "https://idp.xaa.dev", actual: "https://idp.xaa.dev" }],
+    request: { endpoint: "POST https://idp.xaa.dev/token", body: { audience: "https://as.test", subject_token: "[your IdenX refresh token, kept server-side]" } },
+  };
+  const mountAt = (cfg, path) => {
+    get.mockImplementation(answerGet(cfg, { idps: [], canManage: false }));
+    return render(<MemoryRouter initialEntries={[path]}><IdJagPlaygroundPage /></MemoryRouter>);
+  };
+
+  it("byo: the xaa.dev button signs in at IdenX first (after its pre-flight) and links xaa.dev in a new tab", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    const assign = vi.fn();
+    const orig = window.location;
+    Object.defineProperty(window, "location", { configurable: true, value: { ...orig, assign } });
+    try {
+      mountWith(config({ mode: "byo", publicEndpoints: ENDPOINTS, xaa: XAA_OK }), { idps: [], canManage: false });
+      const link = within(await screen.findByTestId("ijp-xaa")).getByRole("link", { name: "xaa.dev" });
+      expect(link).toHaveAttribute("href", "https://xaa.dev");
+      expect(link).toHaveAttribute("target", "_blank");
+      const btn = screen.getByRole("button", { name: XAA_BUTTON });
+      await waitFor(() => expect(btn).toBeEnabled());
+      fireEvent.click(btn);
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("/api/id-jag-playground/xaa/login?return_to=/pingfederate-id-jag/playground"));
+      expect(get).toHaveBeenCalledWith("/api/id-jag-playground/preflight", { params: expect.objectContaining({ step: "xaa", mode: "byo" }) });
+      expect(post).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: orig });
+    }
+  });
+
+  it("byo: back from IdenX (?xaa=signed_in) it gets the ID-JAG and shows the inspection, ready to redeem", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    post.mockResolvedValue({ data: XAA_INSPECTION });
+    mountAt(config({ mode: "byo", publicEndpoints: ENDPOINTS, xaa: { ...XAA_OK, signedIn: true, user: "alice@example.com" } }),
+      "/pingfederate-id-jag/playground?xaa=signed_in");
+    expect(await screen.findByTestId("ijp-checks")).toHaveTextContent("Spec check: 1 of 1 pass");
+    expect(post).toHaveBeenCalledWith("/api/id-jag-playground/xaa/id-jag", {});
+    expect(screen.getByText("Request to IdenX")).toBeInTheDocument();
+    expect(screen.getByText(/Signed in at IdenX as alice@example.com/)).toBeInTheDocument();
+    await waitFor(() => expect(screen.getByRole("button", { name: "Redeem ID-JAG" })).toBeEnabled());
+  });
+
+  it("byo: shows an IdenX sign-in error from the redirect, and a disabled button with the reason when unavailable", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    mountAt(config({ mode: "byo", publicEndpoints: ENDPOINTS, xaa: { available: false, reason: "Available on the hosted demo: oauth-mcp's issuer here is http://pf-mcp-server:8080." } }),
+      "/pingfederate-id-jag/playground?xaa_error=invalid_state");
+    expect(await screen.findByText(/IdenX sign-in did not complete \(invalid_state\)/)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: XAA_BUTTON })).toBeDisabled();
+    expect(screen.getByTestId("ijp-xaa-reason")).toHaveTextContent("Available on the hosted demo");
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("mock: the xaa.dev button gives a sample IdenX ID-JAG that redeems, with no network calls", async () => {
+    localStorage.setItem("idjag.playground.mode", "mock");
+    mount(config());
+    fireEvent.click(screen.getByRole("button", { name: XAA_BUTTON }));
+    const table = await screen.findByTestId("ijp-checks", {}, slow);
+    expect(table).toHaveTextContent("Spec check: 17 of 17 pass");
+    expect(table).toHaveTextContent("https://idp.xaa.dev");
+    const redeem = screen.getByRole("button", { name: "Redeem ID-JAG" });
+    await waitFor(() => expect(redeem).toBeEnabled());
+    fireEvent.click(redeem);
+    expect(await screen.findByText("Response (HTTP 200)", {}, slow)).toBeInTheDocument();
+    expect(get).not.toHaveBeenCalled();
+    expect(post).not.toHaveBeenCalled();
+  }, 10000);
+
   it("Trusted IdPs: admin adds, edits and deletes (with an in-page confirm)", async () => {
     mountWith(config({ publicEndpoints: ENDPOINTS }), { idps: [IDP], canManage: true });
     post.mockResolvedValue({ data: {} }); put.mockResolvedValue({ data: {} }); del.mockResolvedValue({ data: null });
@@ -213,6 +311,172 @@ describe("ID-JAG playground page", () => {
     fireEvent.click(within(panel).getByRole("button", { name: "Confirm delete" }));
     await waitFor(() => expect(del).toHaveBeenCalledWith("/api/id-jag-playground/trusted-idps/partner"));
     expect(confirmSpy).not.toHaveBeenCalled();
+  });
+
+  // ---- foolproofing: preflight before every button, lifetimes, plain-language errors ----
+
+  const issuedWith = (claims) => ({ request: {}, response: {}, token: { header: { typ: "oauth-id-jag+jwt" }, claims } });
+  const replies = (map) => post.mockImplementation((url, body) => {
+    const key = url.replace("/api/id-jag-playground", "");
+    const v = typeof map[key] === "function" ? map[key](body) : map[key];
+    return v instanceof Error ? Promise.reject(v) : Promise.resolve({ data: v ?? { checks: [] } });
+  });
+  const FIX = "Open https://local.ping-devops.com:4000/pingfederate-id-jag/playground. Sign-in returns to that host.";
+
+  it("a failing preflight blocks the action (nothing is sent), shows the fix, and Re-check runs it again", async () => {
+    mount(config());
+    preflightReply = (p) => (p.step === "issue"
+      ? { ok: false, checks: [{ id: "origin", label: "This page is on the app host", status: "fail", detail: "This page is on https://api.ping.demo:4000.", fix: FIX }] }
+      : PASS);
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    const panel = await screen.findByTestId("ijp-preflight");
+    expect(panel).toHaveTextContent(FIX);
+    expect(panel).toHaveTextContent("nothing was sent");
+    expect(post).not.toHaveBeenCalled();
+    expect(get).toHaveBeenCalledWith("/api/id-jag-playground/preflight", { params: expect.objectContaining({ step: "issue", mode: "oauth-mcp", origin: window.location.origin }) });
+
+    preflightReply = PASS;
+    fireEvent.click(within(panel).getByRole("button", { name: "Re-check" }));
+    await waitFor(() => expect(screen.getByTestId("ijp-preflight")).toHaveTextContent("All checks pass"));
+    expect(get).toHaveBeenLastCalledWith("/api/id-jag-playground/preflight", { params: expect.objectContaining({ step: "issue", fresh: "1" }) });
+    expect(post).not.toHaveBeenCalled();
+  });
+
+  it("warnings show but do not block", async () => {
+    mount(config());
+    preflightReply = { ok: true, checks: [{ id: "jwks", label: "Signing keys", status: "warn", detail: "2 distinct RSA keys: the PingFederate redeemer may pick the wrong key", fix: "Publish a single-key JWKS." }] };
+    replies({ "/issue": issuedWith({ iat: now(), exp: now() + 300 }) });
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    expect(await screen.findByTestId("ijp-preflight")).toHaveTextContent("may pick the wrong key");
+    await waitFor(() => expect(posted("/issue")).toBe(true));
+  });
+
+  it("marks an expired ID-JAG stale, and its preflight failure blocks Redeem", async () => {
+    mount(config());
+    replies({ "/issue": issuedWith({ iat: now() - 400, exp: now() - 100, scope: "mcp:invoke" }) });
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    expect(await screen.findByTestId("ijp-life-idjag")).toHaveTextContent(/expired/);
+    preflightReply = (p) => (p.step === "redeem"
+      ? { ok: false, checks: [{ id: "id-jag", label: "An unused, unexpired ID-JAG", status: "fail", detail: "It expired 100 s ago.", fix: "Request a new ID-JAG (step 2)." }] }
+      : PASS);
+    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
+    expect(await screen.findByTestId("ijp-preflight")).toHaveTextContent("Request a new ID-JAG (step 2).");
+    expect(posted("/redeem")).toBe(false);
+  });
+
+  it("scope dropdown: disabled before an ID-JAG, defaults to all (no scope sent), sends exactly the picked scope, resets a stale pick", async () => {
+    mount(config());
+    const scope = await screen.findByRole("combobox", { name: /Scope to request/ });
+    expect(scope).toBeDisabled();
+    expect(screen.getByText("Request an ID-JAG first.")).toBeInTheDocument();
+    let n = 0;
+    replies({
+      "/issue": () => issuedWith({ iat: now(), exp: now() + 300, scope: (n++ === 0) ? "openid mcp:invoke accounts:read" : "openid mcp:invoke" }),
+      "/redeem": { request: {}, status: 200, response: {}, token: { header: {}, claims: { exp: now() + 600 } } },
+    });
+    fireEvent.click(screen.getByRole("button", { name: "Request ID-JAG" }));
+    await waitFor(() => expect(scope).toBeEnabled());
+    expect([...scope.options].map((o) => [o.value, o.text])).toEqual([["", "All scopes in this ID-JAG (recommended)"], ["mcp:invoke", "mcp:invoke"], ["accounts:read", "accounts:read"]]);
+
+    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
+    await waitFor(() => expect(posted("/redeem")).toBe(true));
+    expect(post.mock.calls.find(([u]) => u.endsWith("/redeem"))[1]).toEqual({});
+
+    fireEvent.change(scope, { target: { value: "accounts:read" } });
+    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
+    await waitFor(() => expect(post.mock.calls.filter(([u]) => u.endsWith("/redeem"))).toHaveLength(2));
+    expect(post.mock.calls.filter(([u]) => u.endsWith("/redeem"))[1][1]).toEqual({ scope: "accounts:read" });
+    expect(get).toHaveBeenCalledWith("/api/id-jag-playground/preflight", { params: expect.objectContaining({ step: "redeem", scope: "accounts:read" }) });
+
+    fireEvent.click(screen.getByRole("button", { name: "Request ID-JAG" }));
+    await waitFor(() => expect([...scope.options].map((o) => o.value)).toEqual(["", "mcp:invoke"]));
+    expect(scope.value).toBe("");
+  });
+
+  it("translates PingFederate's \"Invalid JWT token\" and invalid_target into what to fix", async () => {
+    mount(config());
+    replies({
+      "/issue": issuedWith({ iat: now(), exp: now() + 300 }),
+      "/redeem": { request: {}, status: 400, response: { error: "invalid_grant", error_description: "Invalid JWT token" }, token: null },
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    await waitFor(() => expect(posted("/issue")).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
+    expect(await screen.findByText(/single-key JWKS/)).toBeInTheDocument();
+
+    replies({ "/issue": Object.assign(new Error("502"), { response: { data: { error: "id_jag_issue_failed", message: "SE PingFederate refused the exchange (HTTP 400 invalid_target)", pfError: "invalid_target" } } }) });
+    fireEvent.click(screen.getByRole("button", { name: "Request ID-JAG" }));
+    expect(await screen.findByText(/access token manager/)).toBeInTheDocument();
+  });
+
+  it("step 4 results: an explicit empty state, and a denied call shows the gateway's reason with guidance", async () => {
+    mount(config());
+    replies({
+      "/issue": issuedWith({ iat: now(), exp: now() + 300 }),
+      "/redeem": { request: {}, status: 200, response: {}, token: { header: {}, claims: { exp: now() + 600 } } },
+      "/call": (body) => (body?.tool
+        ? Object.assign(new Error("403"), { response: { data: { error: "gateway_policy_denied", message: "Tool transfer_funds does not match intent read_accounts", gatewayStatus: 403, gatewayErrorCode: "intent_mismatch", gatewayMessage: "Tool transfer_funds does not match intent read_accounts" } } })
+        : { request: { endpoint: "POST https://node-gw.test/mcp" }, tools: [], deniedTools: ["transfer_funds"] }),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    await waitFor(() => expect(posted("/issue")).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "List tools this token can see" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "List tools this token can see" }));
+    const results = await screen.findByTestId("ijp-results");
+    expect(results).toHaveTextContent("0 tools");
+    expect(results).toHaveTextContent("Hidden by the gateway's policy: transfer_funds");
+
+    replies({ "/call": { request: {}, tools: [{ name: "transfer_funds", inputSchema: null }], deniedTools: [] } });
+    fireEvent.click(screen.getByRole("button", { name: "List tools this token can see" }));
+    await waitFor(() => expect(screen.getByTestId("ijp-results")).toHaveTextContent("1 tools"));
+    replies({ "/call": Object.assign(new Error("403"), { response: { data: { error: "gateway_policy_denied", message: "Tool transfer_funds does not match intent read_accounts", gatewayStatus: 403, gatewayErrorCode: "intent_mismatch", gatewayMessage: "Tool transfer_funds does not match intent read_accounts" } } }) });
+    fireEvent.click(screen.getByRole("button", { name: "Call tool" }));
+    await waitFor(() => expect(screen.getByTestId("ijp-results")).toHaveTextContent("intent_mismatch"));
+    expect(screen.getByTestId("ijp-results")).toHaveTextContent(/intent policy/);
+  });
+
+  it("protected resource: renders the resource server's page, and its refusal names the failed check", async () => {
+    mount(config());
+    const ok = { request: { method: "GET", url: "https://as.test/protected/profile", authorization: "Bearer [access token]" }, status: 200,
+      body: { resource: "https://as.test/protected/profile", verified: [{ check: "bearer", ok: true, detail: "present" }, { check: "signature", ok: true, detail: "Verified." }],
+        principal: { sub: "demouser", client_id: "demo-bff-mcp-client", scope: "mcp:invoke" }, data: { profileId: "prf-1234", subject: "demouser", plan: "Standard", status: "active" } } };
+    const none = { request: { method: "GET", url: "https://as.test/protected/profile", authorization: "none" }, status: 401,
+      body: { error: "unauthorized", verified: [{ check: "bearer", ok: false, detail: "No Authorization: Bearer header." }] } };
+    replies({
+      "/issue": issuedWith({ iat: now(), exp: now() + 300 }),
+      "/redeem": { request: {}, status: 200, response: {}, token: { header: {}, claims: { exp: now() + 600 } } },
+      "/resource": (body) => (body.variant === "token" ? ok : none),
+    });
+    const open = await screen.findByRole("button", { name: "Open the protected page" });
+    expect(open).toBeDisabled();
+    fireEvent.click(screen.getByRole("button", { name: "Request ID-JAG" }));
+    await waitFor(() => expect(posted("/issue")).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
+    await waitFor(() => expect(open).toBeEnabled());
+    fireEvent.click(open);
+    const page = await screen.findByTestId("ijp-resource-page");
+    expect(page).toHaveTextContent("https://as.test/protected/profile");
+    expect(page).toHaveTextContent("Who the resource server says you are");
+    expect(page).toHaveTextContent("demouser");
+    expect(page).toHaveTextContent("How it verified the token");
+    expect(page).toHaveTextContent("prf-1234");
+    expect(post).toHaveBeenCalledWith("/api/id-jag-playground/resource", { variant: "token" }, expect.anything());
+
+    fireEvent.click(screen.getByRole("button", { name: "Try without a token" }));
+    await waitFor(() => expect(screen.getByTestId("ijp-resource-page")).toHaveTextContent("bearer check failed"));
+    expect(screen.getByTestId("ijp-resource-page")).toHaveTextContent("401");
+
+    fireEvent.click(screen.getByRole("button", { name: "JSON" }));
+    expect(screen.getByTestId("ijp-resource")).toHaveTextContent('"authorization": "none"');
+  });
+
+  it("a mode switch is preflighted too: an unavailable mode is not posted", async () => {
+    mount(config({ mode: "oauth-mcp", modes: [{ id: "oauth-mcp", available: true }, { id: "byo", available: true }] }));
+    preflightReply = (p) => (p.step === "mode" ? { ok: false, checks: [{ id: "origin", label: "This page is on the app host", status: "fail", detail: "Wrong host.", fix: FIX }] } : PASS);
+    fireEvent.click(await screen.findByRole("button", { name: "Your IdP → our resource AS" }));
+    expect(await screen.findByTestId("ijp-preflight")).toHaveTextContent(FIX);
+    expect(posted("/mode")).toBe(false);
   });
 
   it("Trusted IdPs: non-admins get a read-only list; signed-out visitors a sign-in note", async () => {

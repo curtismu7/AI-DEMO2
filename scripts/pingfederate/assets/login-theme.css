@@ -1,0 +1,322 @@
+/* ai-demo-theme:start
+ * Demo sign-on theme. apply-login-theme.sh appends this file, then login-theme-<ping|acme>.css
+ * (the brand tokens), to PingFederate's stock assets/css/main.css, so every PF page that loads
+ * main.css (sign-on, consent, errors, logout, password reset) gets the same look. A re-run cuts
+ * main.css at the marker line above and appends again. Presentation only: no PF field name, id
+ * or script is involved. PF's CSP (img-src/font-src 'self') means every url() must be a file
+ * copied into the template assets, never a data: URI or a remote host. */
+
+/* Brand band, on every page. The theme file sets the logo, the gradient and the label. */
+html body::before {
+  content: var(--aid-band-text);
+  display: flex;
+  align-items: center;
+  box-sizing: border-box;
+  height: 64px;
+  padding: 0 24px 0 var(--aid-band-pad);
+  background: var(--aid-band-logo), var(--aid-band);
+  color: #ffffff;
+  font: 600 15px/1.2 var(--aid-font);
+  letter-spacing: 0.01em;
+}
+
+html {
+  background: var(--aid-ground);
+}
+
+html body {
+  min-height: 100%;
+  background: var(--aid-page);
+  color: var(--aid-ink);
+  font-family: var(--aid-font);
+  font-weight: 400;
+  -webkit-font-smoothing: antialiased;
+}
+
+html body .ping-container {
+  min-height: calc(100vh - 64px);
+  padding: 56px 16px 112px;
+  background: transparent;
+}
+
+/* Card: PF splits it into a header box and a body box, drawn here as one card (shared side
+ * borders, no border between them, the shadow on the lower box only). */
+html body .ping-container .ping-header,
+html body .ping-container .ping-body-container {
+  max-width: 440px;
+  border: 1px solid var(--aid-card-line);
+  box-shadow: none;
+  animation: aid-rise 320ms ease-out both;
+}
+
+html body .ping-container.ping-large .ping-header,
+html body .ping-container.ping-large .ping-body-container {
+  max-width: 680px;
+}
+
+html body .ping-container .ping-header {
+  padding: 36px 40px 8px;
+  border-top: 0;
+  border-bottom: 0;
+  border-radius: var(--aid-radius) var(--aid-radius) 0 0;
+  background: var(--aid-edge) top / 100% 4px no-repeat, #ffffff;
+  color: var(--aid-ink);
+  font: 700 24px/1.25 var(--aid-font);
+  letter-spacing: -0.01em;
+  text-align: left;
+}
+
+html body .ping-container .ping-body-container {
+  padding: 16px 40px 36px;
+  margin-top: -1px; /* overlap the header by a pixel: no hairline seam at fractional offsets */
+  margin-bottom: 40px;
+  border-top: 0;
+  border-radius: 0 0 var(--aid-radius) var(--aid-radius);
+  background: #ffffff;
+  box-shadow: 0 28px 48px -30px rgba(5, 23, 39, 0.45);
+  text-align: left;
+}
+
+html body .ping-container .ping-header .company-logo {
+  display: none;
+}
+
+/* Sign-on page header (markup from our html.form.login.template.html). */
+html body .ping-container .aid-eyebrow {
+  margin: 0 0 10px;
+  color: var(--aid-eyebrow);
+  font: 700 12px/1.3 var(--aid-font);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+}
+
+html body .ping-container .aid-title {
+  margin: 0;
+  color: var(--aid-ink);
+  font: 700 26px/1.2 var(--aid-font);
+  letter-spacing: -0.015em;
+  text-wrap: balance;
+}
+
+html body .ping-container .section-title {
+  color: var(--aid-ink);
+  font: 600 16px/1.4 var(--aid-font);
+}
+
+/* Fields */
+html body .ping-container .ping-input-label {
+  display: block;
+  float: none;
+  margin: 18px 0 6px;
+  color: var(--aid-ink);
+  font: 600 14px/1.4 var(--aid-font);
+  letter-spacing: 0;
+  text-align: left;
+  text-transform: none;
+}
+
+html body .ping-container .ping-body-container .ping-input-container {
+  position: relative;
+  margin: 0;
+}
+
+html body .ping-container .ping-body-container .ping-input-container input[type=text],
+html body .ping-container .ping-body-container .ping-input-container input[type=password],
+html body .ping-container .ping-body-container .ping-input-container input[type=email],
+html body .ping-container .ping-body-container .ping-input-container input[type=tel] {
+  box-sizing: border-box;
+  width: 100%;
+  height: 48px;
+  margin: 0;
+  padding: 0 14px;
+  border: 1px solid var(--aid-line);
+  border-radius: var(--aid-field-radius);
+  background: #ffffff;
+  color: var(--aid-ink);
+  font: 500 16px/1.2 var(--aid-font);
+  transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+
+html body .ping-container .ping-body-container .ping-input-container.password-container input {
+  padding-right: 48px;
+}
+
+html body .ping-container .ping-body-container .ping-input-container input:focus {
+  border-color: var(--aid-accent);
+  box-shadow: 0 0 0 3px var(--aid-ring);
+  outline: none;
+}
+
+html body .ping-container .ping-body-container .ping-input-container input[disabled] {
+  border-style: dashed;
+  background: #f2f4f6;
+  color: #3b4754;
+  opacity: 1;
+}
+
+html body .ping-container .ping-input-container a.password-show-button {
+  top: 0;
+  right: 12px;
+  display: flex;
+  align-items: center;
+  height: 48px;
+  padding: 0 4px;
+  color: var(--aid-muted);
+}
+
+/* Messages and errors */
+html body .ping-container .ping-messages {
+  font: 500 15px/1.5 var(--aid-font);
+}
+
+html body .ping-container .ping-messages .ping-error {
+  margin: 4px 0 8px;
+  padding: 12px 14px;
+  border: 1px solid var(--aid-error-line);
+  border-left: 4px solid var(--aid-accent);
+  border-radius: var(--aid-field-radius);
+  background: var(--aid-error-bg);
+  color: var(--aid-error-ink);
+  font: 500 14px/1.45 var(--aid-font);
+  text-align: left;
+}
+
+html body .ping-container .tooltip-text {
+  font-family: var(--aid-font);
+}
+
+/* Buttons: primary = brand CTA, the "deny"/cancel button = quiet outline. */
+html body .ping-container .ping-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin: 28px 0 0;
+}
+
+html body .ping-container .ping-buttons .ping-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  min-width: 128px;
+  height: 48px;
+  margin: 0;
+  padding: 0 28px;
+  border: 1px solid var(--aid-line);
+  border-radius: var(--aid-button-radius);
+  background: #ffffff;
+  color: var(--aid-ink);
+  font: 600 16px/1 var(--aid-font);
+  text-decoration: none;
+  cursor: pointer;
+  transition: filter 150ms ease, box-shadow 150ms ease, transform 150ms ease;
+}
+
+html body .ping-container .ping-buttons .ping-button.normal,
+html body .ping-container .ping-buttons .ping-button.allow,
+html body .ping-container .ping-buttons .ping-button.primary {
+  border: 0;
+  background: var(--aid-cta);
+  color: #ffffff;
+  box-shadow: 0 10px 20px -12px var(--aid-cta-shadow);
+}
+
+html body .ping-container .ping-buttons .ping-button:hover {
+  filter: brightness(0.94);
+  text-decoration: none;
+}
+
+html body .ping-container .ping-buttons .ping-button.normal:hover,
+html body .ping-container .ping-buttons .ping-button.allow:hover,
+html body .ping-container .ping-buttons .ping-button.primary:hover {
+  box-shadow: 0 14px 24px -12px var(--aid-cta-shadow);
+  transform: translateY(-1px);
+}
+
+html body .ping-container .ping-buttons .ping-button:focus-visible,
+html body .ping-container a:focus-visible,
+html body .ping-container input[type=checkbox]:focus-visible + .icon {
+  outline: 3px solid var(--aid-focus);
+  outline-offset: 2px;
+}
+
+/* Sign-on page: one full-width Sign On button. */
+html body .ping-container.login-template .ping-buttons {
+  display: block;
+}
+
+html body .ping-container.login-template #signOnButtonSpan,
+html body .ping-container.login-template .ping-buttons .ping-button {
+  display: flex;
+  width: 100%;
+}
+
+/* Links */
+html body .ping-container a,
+html body .ping-container .ping-input-link a,
+html body .ping-container .ping-register a {
+  color: var(--aid-link);
+  font-weight: 600;
+}
+
+html body .ping-container .ping-input-link,
+html body .ping-container .ping-register {
+  margin-top: 20px;
+  color: var(--aid-muted);
+  font: 500 14px/1.5 var(--aid-font);
+  text-align: center;
+}
+
+/* Footer: pinned inside the page (stock overflowed by 20px), PF's white logo drawn dark. */
+html body .ping-container .ping-footer-container {
+  left: 0;
+  right: 0;
+  width: auto;
+}
+
+html body .ping-container .ping-footer {
+  color: var(--aid-muted);
+  font: 500 12px/1.5 var(--aid-font);
+}
+
+html body .ping-container .ping-footer .ping-credits {
+  filter: brightness(0) opacity(0.55);
+}
+
+@keyframes aid-rise {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html body .ping-container .ping-header,
+  html body .ping-container .ping-body-container {
+    animation: none;
+  }
+}
+
+@media (max-width: 520px) {
+  html body::before {
+    height: 56px;
+    font-size: 14px;
+  }
+
+  html body .ping-container {
+    min-height: calc(100vh - 56px);
+    padding: 24px 16px 112px;
+  }
+
+  html body .ping-container .ping-header {
+    padding: 28px 24px 6px;
+  }
+
+  html body .ping-container .ping-body-container {
+    padding: 12px 24px 28px;
+  }
+
+  html body .ping-container .aid-title {
+    font-size: 22px;
+  }
+}

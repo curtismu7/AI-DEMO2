@@ -19,10 +19,8 @@ const { setAuthCookie, clearAuthCookie } = require('../services/authStateCookie'
 const { clearAllAuthCookies, buildPingOneSignoffUrl } = require('../services/sessionCookies');
 const oauthConfig = require('../config/oauth');
 const { buildPingOneAuthorizeResourceQueryParam } = require('../utils/oauthAuthorizeResource');
-const { trackTokenEvent } = require('../services/tokenChainService');
-const { trackToken } = require('../services/apiCallTrackerService');
 const { logEvent: logAppEvent } = require('../services/appEventService');
-const tokenIntrospectionService = require('../services/tokenIntrospectionService');
+const { establishAdminSession } = require('../services/adminSessionService');
 const { validateIdToken, assertUserInfoSubjectMatches } = require('../services/oidcIdTokenValidationService');
 const posthog = require('../services/posthog');
 const archEmit = require('../services/archEventEmitter');
@@ -33,6 +31,7 @@ const { KNOWN_REDIRECT_ORIGINS } = require('../services/knownRedirectOrigins');
 const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, clearHostedAccessApproval } = require('../services/hostedAccessPolicy');
 const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
 const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
+const { isPingOneAdminByUsername } = require('../services/pingOneGroupMembershipService');
 
 const _isProd = () => !!(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT || process.env.NODE_ENV === 'production');
 
@@ -423,6 +422,18 @@ router.get('/callback', async (req, res) => {
     
     // Create user object from OAuth data
     const oauthUser = oauthService.createUserFromOAuth(mergedUserInfo);
+
+    // PingOne's admin app only lets the pingone-admin group in, but a PF admin sign-in never
+    // touches that app, so enforce the same group here — before the demo store is promoted.
+    if (loginProvider === 'pingfederate'
+      && !(await isPingOneAdminByUsername(oauthUser.username))) {
+      console.warn('[oauth/callback] PF admin sign-in refused: not in the PingOne admin group');
+      finishLoginAudit(req, { outcome: 'denied', reasonCode: 'group_not_allowed' });
+      delete req.session.oauthTokens;
+      delete req.session.user;
+      clearAuthCookie(res, _isProd());
+      return res.redirect(`${getFrontendOrigin()}/login?error=admin_access_required`);
+    }
     
     // Check if user already exists in our system
     let user = dataStore.getUserByUsername(oauthUser.username);
@@ -464,14 +475,6 @@ router.get('/callback', async (req, res) => {
         + 'admin app and authorized scopes. Admin session renewal will fail until sign-in again.'
       );
     }
-    const oauthTokens = {
-      accessToken: tokenData.access_token,
-      idToken: tokenData.id_token || null,
-      refreshToken: tokenData.refresh_token,
-      expiresAt: Date.now() + (tokenData.expires_in * 1000),
-      tokenType: tokenData.token_type || 'Bearer',
-      scope: tokenData.scope || null,
-    };
     const clientType = determineClientType(tokenData.access_token);
     const authedUser = user;
     const redirectOrigin = getFrontendOrigin();
@@ -495,128 +498,82 @@ router.get('/callback', async (req, res) => {
     // P3 — Session regenerate failure is now fatal (prevents session fixation).
     // If regenerate fails the user retries sign-in once; the UX cost is acceptable
     // compared to serving the pre-login session ID after authentication.
-    req.session.regenerate((regenErr) => {
-      if (regenErr) {
-        console.error('[oauth/callback] Session regenerate FAILED — aborting login (session fixation risk):', regenErr.message);
-        logAppEvent('oauth', 'error', 'OAuth session regeneration failed',
-          { tag: 'oauth/session-regen-failed', metadata: { error: regenErr.message } });
-        clearAuthCookie(res, _isProd());
-        finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_regenerate_failed' });
-        return res.redirect(`${redirectOrigin}/login?error=session_regenerate_failed`);
-      }
-      req.session.oauthTokens = oauthTokens;
-      req.session.user = authedUser;
-      req.session.clientType = clientType;
-      req.session.oauthProvider = resolvedLoginProvider;
-      if (hostedLoginAudit) req.session.hostedLoginAudit = hostedLoginAudit;
-      if (hostedLoginAudits) req.session.hostedLoginAudits = hostedLoginAudits;
-      if (hostedAccessDecision) {
-        stampHostedAccessApproval(req.session, hostedAccessDecision, hostedAccessPolicy);
-      }
-      archEmit({ nodeId: 'n-pingone', edgeId: 'e-bff-pingone', label: 'PingOne issued access + ID token' });
-
-      // Record initial auth token into token chain so /api/token-chain/current reflects login
-      if (oauthTokens.accessToken && authedUser?.id) {
-        // Use decoded.sub as userId key — must match req.user.id set by authenticateToken middleware
-        const _tcClaims = (() => { try { return require('jsonwebtoken').decode(oauthTokens.accessToken) || {}; } catch { return {}; } })();
-        const _tcUserId = _tcClaims.sub || authedUser.id;
-        trackTokenEvent({
-          eventType: 'auth',
-          token: oauthTokens.accessToken,
-          userId: _tcUserId,
-          description: 'User authenticated via PingOne OAuth',
-        }).catch(err => {
-          console.error('[oauth/callback] Failed to track token event:', err.message);
-        });
-        
-        // Track token for API call display (separate from token chain)
-        trackToken(req.session.id, {
-          token: oauthTokens.accessToken,
-          tokenType: 'user_token',
-          description: 'OAuth Access Token'
-        });
-
-        // RFC 7662 — introspect at login so /api/tokens/session-preview can show
-        // "active-token introspection" in the Token Chain before any tool call.
-        // Fire-and-forget: non-fatal, result stored in session for display only.
-        tokenIntrospectionService.validateToken(oauthTokens.accessToken)
-          .then((intro) => {
-            req.session.loginIntrospection = {
-              active:    intro.valid,
-              sub:       intro.sub,
-              exp:       intro.exp,
-              aud:       intro.aud,
-              scopes:    intro.scopes,
-              client_id: intro.client_id,
-            };
-            req.session.save((e) => { if (e) console.warn('[oauth/callback] loginIntrospection session save:', e.message); });
-          })
-          .catch((err) => {
-            console.debug('[oauth/callback] loginIntrospection skipped:', err.message);
-          });
-      }
-
-      // Save session before redirect to prevent race condition where status
-      // endpoint runs before session is persisted to the store
-      req.session.save((saveErr) => {
-        if (saveErr) {
-          console.error('[oauth/callback] Session save FAILED — aborting admin login:', saveErr.message);
-          finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_persist_failed' });
-          return req.session.destroy((destroyErr) => {
-            if (destroyErr) {
-              console.error('[oauth/callback] session.destroy after failed save:', destroyErr.message);
-            }
-            clearAuthCookie(res, _isProd());
-            return res.redirect(`${redirectOrigin}/login?error=session_persist_failed`);
-          });
+    const established = await establishAdminSession(req, res, {
+      tokenData,
+      provider: resolvedLoginProvider,
+      clientType,
+      user: authedUser,
+      onRegenerated: (session) => {
+        if (hostedLoginAudit) session.hostedLoginAudit = hostedLoginAudit;
+        if (hostedLoginAudits) session.hostedLoginAudits = hostedLoginAudits;
+        if (hostedAccessDecision) {
+          stampHostedAccessApproval(session, hostedAccessDecision, hostedAccessPolicy);
         }
-        console.debug('[oauth/callback] Session saved OK');
-        finishLoginAudit(req, {
-          outcome: 'success',
-          reasonCode: 'allowed',
-          identity: hostedAccessDecision || {},
-        });
-        logAppEvent('oauth', 'info', `OAuth admin login success: ${authedUser?.username || authedUser?.email || 'unknown'}`,
-          { tag: 'oauth/callback-success', username: authedUser?.username,
-            metadata: { role: authedUser?.role, clientType, hasIdToken: !!(oauthTokens?.idToken), response: { hasAccessToken: !!(oauthTokens?.accessToken), hasIdToken: !!(oauthTokens?.idToken), tokenType: oauthTokens?.tokenType || 'Bearer' }, pkce: { code_challenge_method: 'S256' } } });
-        logAppEvent('auth_lifecycle', 'info', 'Session snapshot: admin login', {
-          tag: 'auth_lifecycle/session-snapshot',
-          metadata: { event: 'login', role: authedUser?.role, hasAccessToken: !!(req.session.oauthTokens?.accessToken || oauthTokens?.accessToken), hasIdToken: !!(req.session.oauthTokens?.idToken || oauthTokens?.idToken), hasRefreshToken: !!(req.session.oauthTokens?.refreshToken) },
-        });
-        // Set a signed auth-state cookie so the session-restore middleware can
-        // answer /status and /nl requests even when the session hits a different
-        // serverless instance on Vercel.
-        setAuthCookie(res, {
-          ...authedUser,
-          oauthType: 'admin',
-          expiresAt: oauthTokens.expiresAt,
-          idToken:   oauthTokens.idToken || null,
-        }, _isProd());
-        // Analytics is best-effort and MUST NOT abort a successful login. A throw
-        // here (e.g. posthog rejecting an undefined distinctId) would propagate
-        // into the session store's set() and be misreported as a save failure,
-        // destroying the just-saved session. Keep it isolated.
-        try {
-          posthog.identify({
-            distinctId: authedUser.id,
-            properties: {
-              $set: { email: authedUser.email, username: authedUser.username, role: authedUser.role },
-            },
-          });
-          posthog.capture({
-            distinctId: authedUser.id,
-            event: 'oauth_login_completed',
-            properties: { auth_method: 'pingone_oauth', role: authedUser.role, client_type: clientType },
-          });
-        } catch (analyticsErr) {
-          console.warn('[oauth/callback] analytics (posthog) failed — login unaffected:', analyticsErr.message);
-        }
-        // Clear role-switch cookie if this login was triggered by POST /api/auth/switch
-        res.clearCookie('_switch_target', { path: '/', sameSite: _isProd() ? 'none' : 'lax', secure: _isProd() });
-        const postLoginPath = postLoginReturnToPath || '/admin';
-        res.redirect(`${redirectOrigin}${postLoginPath}?oauth=success`);
-      });
+      },
     });
+    if (!established.ok && established.reason === 'session_regenerate_failed') {
+      logAppEvent('oauth', 'error', 'OAuth session regeneration failed',
+        { tag: 'oauth/session-regen-failed', metadata: { error: established.error.message } });
+      clearAuthCookie(res, _isProd());
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_regenerate_failed' });
+      return res.redirect(`${redirectOrigin}/login?error=session_regenerate_failed`);
+    }
+    if (!established.ok) {
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_persist_failed' });
+      return req.session.destroy((destroyErr) => {
+        if (destroyErr) {
+          console.error('[oauth/callback] session.destroy after failed save:', destroyErr.message);
+        }
+        clearAuthCookie(res, _isProd());
+        return res.redirect(`${redirectOrigin}/login?error=session_persist_failed`);
+      });
+    }
+    const { oauthTokens } = established;
+    console.debug('[oauth/callback] Session saved OK');
+    finishLoginAudit(req, {
+      outcome: 'success',
+      reasonCode: 'allowed',
+      identity: hostedAccessDecision || {},
+    });
+    logAppEvent('oauth', 'info', `OAuth admin login success: ${authedUser?.username || authedUser?.email || 'unknown'}`,
+      { tag: 'oauth/callback-success', username: authedUser?.username,
+        metadata: { role: authedUser?.role, clientType, hasIdToken: !!(oauthTokens?.idToken), response: { hasAccessToken: !!(oauthTokens?.accessToken), hasIdToken: !!(oauthTokens?.idToken), tokenType: oauthTokens?.tokenType || 'Bearer' }, pkce: { code_challenge_method: 'S256' } } });
+    logAppEvent('auth_lifecycle', 'info', 'Session snapshot: admin login', {
+      tag: 'auth_lifecycle/session-snapshot',
+      metadata: { event: 'login', role: authedUser?.role, hasAccessToken: !!(req.session.oauthTokens?.accessToken || oauthTokens?.accessToken), hasIdToken: !!(req.session.oauthTokens?.idToken || oauthTokens?.idToken), hasRefreshToken: !!(req.session.oauthTokens?.refreshToken) },
+    });
+    // Set a signed auth-state cookie so the session-restore middleware can
+    // answer /status and /nl requests even when the session hits a different
+    // serverless instance on Vercel.
+    setAuthCookie(res, {
+      ...authedUser,
+      oauthType: 'admin',
+      expiresAt: oauthTokens.expiresAt,
+      idToken:   oauthTokens.idToken || null,
+    }, _isProd());
+    // Analytics is best-effort and MUST NOT abort a successful login. A throw
+    // here (e.g. posthog rejecting an undefined distinctId) would propagate
+    // into the session store's set() and be misreported as a save failure,
+    // destroying the just-saved session. Keep it isolated.
+    try {
+      posthog.identify({
+        distinctId: authedUser.id,
+        properties: {
+          $set: { email: authedUser.email, username: authedUser.username, role: authedUser.role },
+        },
+      });
+      posthog.capture({
+        distinctId: authedUser.id,
+        event: 'oauth_login_completed',
+        properties: { auth_method: 'pingone_oauth', role: authedUser.role, client_type: clientType },
+      });
+    } catch (analyticsErr) {
+      console.warn('[oauth/callback] analytics (posthog) failed — login unaffected:', analyticsErr.message);
+    }
+    // Clear role-switch cookie if this login was triggered by POST /api/auth/switch
+    res.clearCookie('_switch_target', { path: '/', sameSite: _isProd() ? 'none' : 'lax', secure: _isProd() });
+    const postLoginPath = postLoginReturnToPath || '/admin';
+    res.redirect(`${redirectOrigin}${postLoginPath}?oauth=success`);
   } catch (error) {
     console.error('OAuth callback error:', error?.stack || String(error));
     finishLoginAudit(req, { outcome: 'failure', reasonCode: 'callback_failed' });

@@ -4,8 +4,7 @@
   "provider": "pingone",
   "remove": [
     "scripts/pingfederate/.env.example",
-    "scripts/pingfederate/apply-login-theme.sh",
-    "scripts/pingfederate/assets/",
+    "scripts/pingfederate/assets/pingone-mfa-app-icon.png",
     "scripts/pingfederate/create-pingone-connection.js",
     "scripts/pingfederate/create-pingone-mfa-adapter.js",
     "scripts/pingfederate/docker-compose.logs.local.yml",
@@ -159,6 +158,21 @@
         "scripts/pingfederate/provision-cross-domain-exchange.js",
         "scripts/pingfederate/provision-pf-pingone-user-gate.sh",
         "scripts/pingfederate/provision-readiness-lane.js"
+      ]
+    },
+    {
+      "reason": "PF sign-on theme, named by retained callers run-docker.sh (ensure_pingfederate) and scripts/pingfederate/ensure-se-pingfederate.sh, which re-apply it on every run",
+      "paths": [
+        "scripts/pingfederate/apply-login-theme.sh",
+        "scripts/pingfederate/apply-login-theme.test.sh",
+        "scripts/pingfederate/assets/acme-mark.svg",
+        "scripts/pingfederate/assets/html.form.login.template.html",
+        "scripts/pingfederate/assets/login-theme-acme.css",
+        "scripts/pingfederate/assets/login-theme-ping.css",
+        "scripts/pingfederate/assets/login-theme.css",
+        "scripts/pingfederate/assets/montserrat-OFL.txt",
+        "scripts/pingfederate/assets/montserrat-latin.woff2",
+        "scripts/pingfederate/assets/pingone-mfa-theme.css"
       ]
     }
   ],

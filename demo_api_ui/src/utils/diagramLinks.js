@@ -14,7 +14,7 @@ const DIAGRAM_PATHS = [
   /^\/gateway-enforcement-map$/,
   /^\/resource-server-placement$/,
   /^\/demo-steps-lifeline-audit$/,
-  /^\/pingfederate-id-jag\/(diagram|implementation)$/,
+  /^\/pingfederate-id-jag\/(diagram|implementation|playground\/diagram\/[\w-]+)$/,
   /-diagram(\/|$)/,
 ];
 

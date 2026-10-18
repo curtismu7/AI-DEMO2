@@ -1,9 +1,64 @@
 // banking_api_ui/src/components/education/TokenChainEducationPanel.js
-import React, { useState, useEffect } from 'react';
+import React, { useState } from 'react';
 import EducationDrawer from '../shared/EducationDrawer';
 import { useTokenChainOptional } from '../../context/TokenChainContext';
 import TokenChainTraceRail from '../TokenChainTraceRail';
 import TokenStepIndicator from '../TokenStepIndicator';
+import StaticFlowDiagram from '../StaticFlowDiagram';
+
+const TC_GROUPS = {
+  user: { label: 'User', bg: 'var(--th-status-info)' },
+  agent: { label: 'Agent', bg: 'var(--th-bg-emphasis)' },
+  token: { label: 'Token', bg: 'var(--th-status-error)' },
+  resource: { label: 'MCP server', bg: 'var(--th-status-success)' },
+};
+
+const PATH1_NODES = [
+  { id: 'login', group: 'user', label: 'User Login', x: 0, y: 0 },
+  { id: 't1', group: 'token', label: 'T1: User Token', sub: ['sub=user, aud=bff', 'no may_act; consent = grant'], x: 0, y: 110 },
+  { id: 't2', group: 'token', label: 'T2: Delegated Token', sub: ['sub=user, act={client_id:bff}', 'aud=mcp_server', 'scopes=read'], x: 0, y: 330 },
+  { id: 'mcp', group: 'resource', label: 'MCP tools/call', x: 0, y: 500 },
+];
+const PATH1_EDGES = [
+  ['login', 't1', '', { vertical: true }],
+  ['t1', 't2', 'POST /as/token · grant_type=token-exchange · subject_token=T1 · audience=mcp_server', { vertical: true }],
+  ['t2', 'mcp', '', { vertical: true }],
+];
+
+const PATH2_NODES = [
+  { id: 'login', group: 'user', label: 'User Login', x: 0, y: 0 },
+  { id: 'agent', group: 'agent', label: 'Agent Bootstrap', x: 300, y: 0 },
+  { id: 't1', group: 'token', label: 'T1: User Token', sub: ['sub=user', '(consent is a grant)'], x: 0, y: 110 },
+  { id: 't0', group: 'token', label: 'T0: Agent Token', sub: ['sub=agent', '(client_cred)'], x: 300, y: 110 },
+  { id: 't2', group: 'token', label: 'T2: Delegated Token', sub: ['sub=user', 'act={client_id:bff, act:{client_id:agent}}'], x: 150, y: 300 },
+  { id: 'mcp', group: 'resource', label: 'MCP tools/call', x: 150, y: 450 },
+];
+const PATH2_EDGES = [
+  ['login', 't1', '', { vertical: true }],
+  ['agent', 't0', '', { vertical: true }],
+  ['t1', 't2', 'POST /as/token · subject_token=T1', { vertical: true }],
+  ['t0', 't2', 'actor_token=T0', { vertical: true }],
+  ['t2', 'mcp', '', { vertical: true }],
+];
+
+const SCOPE_NODES = [
+  { id: 't1', group: 'token', label: 'T1 scopes', sub: ['read write transfer admin'], x: 0, y: 0 },
+  { id: 't2', group: 'token', label: 'T2 scopes', sub: ['read'], x: 0, y: 160 },
+];
+const SCOPE_EDGES = [['t1', 't2', 'exchange requests only read', { vertical: true }]];
+
+// Token chain lifecycle stages; each box names the token it produces.
+const LIFECYCLE_NODES = [
+  { id: 'login', group: 'user', label: '1. User login (code + PKCE)', sub: ['→ access_token · refresh_token · id_token', 'sub=user · RFC 7662 introspection'], x: 0, y: 0 },
+  { id: 'actor', group: 'agent', label: '2. Agent actor token', sub: ['client_credentials', '→ actor_token (sub=agent)', 'JWS verified via JWKS'], x: 300, y: 0 },
+  { id: 'exchange', group: 'token', label: '3. Token exchange (RFC 8693)', sub: ['→ exchanged_token', 'sub=user · act={client_id:bff} · aud=mcp', 'scopes narrowed'], x: 150, y: 200 },
+  { id: 'mcp', group: 'resource', label: '4. MCP tool call', sub: ['→ tool result for the user', 'MCP re-verifies JWS + scopes'], x: 150, y: 400 },
+];
+const LIFECYCLE_EDGES = [
+  ['login', 'exchange', 'subject_token', { vertical: true }],
+  ['actor', 'exchange', 'actor_token (2-exchange)', { vertical: true, dashed: true }],
+  ['exchange', 'mcp', 'Bearer', { vertical: true }],
+];
 
 function OverviewTab() {
   return (
@@ -25,6 +80,13 @@ function OverviewTab() {
       </ul>
 
       <h4>Token chain lifecycle</h4>
+      <StaticFlowDiagram
+        NODES={LIFECYCLE_NODES}
+        EDGES={LIFECYCLE_EDGES}
+        GROUPS={TC_GROUPS}
+        testId="tc-lifecycle-diagram"
+        ariaLabel="Token chain lifecycle: user login, agent actor token, token exchange, MCP tool call"
+      />
       <pre className="edu-code">{`1. User Login (Authorization Code + PKCE)
    → access_token (sub=user, scopes=read,write,transfer)
    → refresh_token · id_token (nonce verified)
@@ -166,68 +228,40 @@ function ExchangePathsTab() {
 
       <h4>Path 1: Direct exchange (1-exchange)</h4>
       <p>The BFF exchanges the user's token directly for an MCP-scoped token.</p>
-      <pre className="edu-code">{`User Login
-    │
-    ▼
-┌──────────────────┐
-│ T1: User Token    │  sub=user, aud=bff
-│ (no may_act;      │
-│  consent = grant) │
-└────────┬─────────┘
-         │ POST /as/token
-         │ grant_type=token-exchange
-         │ subject_token=T1
-         │ audience=mcp_server
-         ▼
-┌──────────────────┐
-│ T2: Delegated     │  sub=user, act={client_id:bff}
-│ Token             │  aud=mcp_server
-│                   │  scopes=read
-└────────┬─────────┘
-         │
-         ▼
-    MCP tools/call`}</pre>
+      <StaticFlowDiagram
+        NODES={PATH1_NODES}
+        EDGES={PATH1_EDGES}
+        GROUPS={TC_GROUPS}
+        testId="tc-path1-diagram"
+        ariaLabel="Direct exchange: user token T1 exchanged for delegated token T2"
+      />
 
       <h4>Path 2: Two-token exchange (2-exchange)</h4>
       <p>
         The AI agent first gets its own token (client_credentials), then the BFF
         exchanges both the user token and agent token for a delegated token.
       </p>
-      <pre className="edu-code">{`User Login              Agent Bootstrap
-    │                        │
-    ▼                        ▼
-┌──────────────┐    ┌──────────────┐
-│ T1: User     │    │ T0: Agent    │
-│ Token        │    │ Token        │
-│ sub=user     │    │ sub=agent    │
-│ (consent is  │    │ (client_cred)│
-│  a grant)    │    └──────┬───────┘
-│              │           │
-└──────┬───────┘           │
-       │                   │
-       └───────┬───────────┘
-               │ POST /as/token
-               │ subject_token=T1
-               │ actor_token=T0
-               ▼
-      ┌──────────────────┐
-      │ T2: Delegated     │  sub=user
-      │ Token             │  act={client_id:bff,
-      │                   │       act:{client_id:agent}}
-      └────────┬─────────┘
-               │
-               ▼
-         MCP tools/call`}</pre>
+      <StaticFlowDiagram
+        NODES={PATH2_NODES}
+        EDGES={PATH2_EDGES}
+        GROUPS={TC_GROUPS}
+        testId="tc-path2-diagram"
+        ariaLabel="Two-token exchange: user token T1 and agent token T0 exchanged for delegated token T2"
+      />
 
       <h4>Scope narrowing</h4>
       <p>
         Each exchange can request fewer scopes than the original token. The authorization
         server will never grant more scopes than the subject token has.
       </p>
-      <pre className="edu-code">{`T1 scopes: read write transfer admin
-                    ↓ exchange requests only read
-T2 scopes: read
-// T2 can only read — even though T1 could write and transfer`}</pre>
+      <StaticFlowDiagram
+        NODES={SCOPE_NODES}
+        EDGES={SCOPE_EDGES}
+        GROUPS={TC_GROUPS}
+        testId="tc-scope-diagram"
+        ariaLabel="Scope narrowing: T1 read write transfer admin exchanged for T2 read"
+      />
+      <p>T2 can only read — even though T1 could write and transfer.</p>
     </div>
   );
 }

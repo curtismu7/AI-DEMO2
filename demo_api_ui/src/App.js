@@ -251,6 +251,7 @@ import PublicRoutes, {
   PingFederateIdJagDiagramPageRoute,
   PingFederateIdJagImplementationPageRoute,
   IdJagPlaygroundPageRoute,
+  IdJagPlaygroundDiagramPageRoute,
   PingFederateAiAgentPageRoute,
   AicTokenExchangePageRoute,
   OboDemoPageRoute,
@@ -1487,6 +1488,10 @@ function AppWithAuth() {
                 <Route
                   path="/pingfederate-id-jag/playground"
                   element={<IdJagPlaygroundPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/pingfederate-id-jag/playground/diagram/:mode"
+                  element={<IdJagPlaygroundDiagramPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/pingfederate-ai-agent"

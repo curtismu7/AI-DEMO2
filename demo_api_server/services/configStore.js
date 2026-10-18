@@ -620,6 +620,9 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   // PingOne stays the AS; customer sign-in is handed to the AIC external IdP
   // through the AIC_Login sign-on policy. PingOne provider only.
   aic_login_enabled:             { public: true,  default: 'false' },
+  // Passwordless CIBA sign-in (routes/cibaLogin.js + sign-in modal). OFF until the PingOne login apps
+  // have the CIBA grant; CIBA_LOGIN_ENABLED=true (or this setting) turns it on.
+  ciba_login_enabled:            { public: true,  default: 'false' },
   // AIC token-exchange demo (/aic-token-exchange): a direct AIC sign-in for the user
   // token and a confidential AIC client for the actor token. Separate from login.
   aic_issuer:                    { public: true,  default: '' },

@@ -35,11 +35,13 @@ vi.mock("../../services/apiClient", () => ({
 vi.mock("../../utils/authUi", () => ({ requestSilentReauth: vi.fn() }));
 vi.mock("../../utils/dashboardLayout", () => ({ setDashboardLayout: vi.fn() }));
 vi.mock("../../utils/roleSwitch", () => ({ startRoleSwitch: vi.fn() }));
+vi.mock("../../utils/signInService", () => ({ openAdminSignIn: vi.fn() }));
 vi.mock("../ConfirmModal", () => ({ default: () => null }));
 vi.mock("../ControlPlaneIntroModal", () => ({ default: () => null }));
 vi.mock("../KillSwitchConfirmModal", () => ({ default: () => null }));
 
 import AdminSideNav from "../AdminSideNav";
+import { openAdminSignIn } from "../../utils/signInService";
 import { NAV_ITEM_CATALOG } from "../../config/navItemsCatalog";
 import { NAV_STRUCTURE_CATALOG } from "../../config/navStructureCatalog";
 
@@ -698,3 +700,10 @@ describe("diagram links open in a new tab", () => {
   });
 });
 
+describe("Admin quick link", () => {
+  it("opens the shared admin sign-in returning to /admin for a non-admin", () => {
+    renderNavAsUser(customerUser);
+    fireEvent.click(screen.getByTitle("Admin View"));
+    expect(openAdminSignIn).toHaveBeenCalledWith({ returnTo: "/admin" });
+  });
+});

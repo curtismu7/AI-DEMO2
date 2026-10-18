@@ -133,7 +133,52 @@ describe('ID-JAG playground — flow keeps every raw token server-side', () => {
     const listed = await post(app, '/pg/call');
     expect(listed.body.tools).toEqual([{ name: 'get_my_accounts', description: 'Accounts', inputSchema: { type: 'object' } }]);
     expect(listed.body.deniedTools).toEqual(['transfer_funds']);
-    expect(callToolViaGateway).toHaveBeenCalledWith('https://gw.test', accessToken, null, {}, { rpcMethod: 'tools/list' });
+    expect(callToolViaGateway).toHaveBeenCalledWith(null, accessToken, null, {}, { rpcMethod: 'tools/list', pinNodeGateway: true });
+  });
+
+  it('always calls the Node demo gateway, even with ff_mcp_gateway_pinggateway on (PingGateway 401s these tokens)', async () => {
+    Object.assign(CONFIG, { ff_mcp_gateway_pinggateway: 'true', mcp_demo_gateway_url: 'https://node-gw.test/' });
+    try {
+      const session = pfSession();
+      session.idJagPlayground = { idJag: goodIdJag(), redeemed: true, accessToken };
+      callToolViaGateway.mockResolvedValue({ jsonrpc: '2.0', result: { content: [] } });
+      const res = await post(appWith(session), '/pg/call', { tool: 'get_my_accounts', arguments: {} });
+      expect(callToolViaGateway).toHaveBeenCalledWith(null, accessToken, 'get_my_accounts', {}, { pinNodeGateway: true });
+      expect(res.body.request.endpoint).toBe('POST https://node-gw.test/mcp');
+    } finally {
+      delete CONFIG.ff_mcp_gateway_pinggateway; delete CONFIG.mcp_demo_gateway_url;
+    }
+  });
+
+  it('refuses a redeem scope that is not in the ID-JAG, before calling the resource AS', async () => {
+    const session = pfSession();
+    const app = appWith(session);
+    oauthService.performIdJagExchange.mockResolvedValue(goodIdJag());
+    await post(app, '/pg/issue');
+    const res = await post(app, '/pg/redeem', { scope: 'accounts:read admin:delete' });
+    expect(res.status).toBe(400);
+    expect(res.body).toEqual(expect.objectContaining({ error: 'scope_not_in_id_jag', message: expect.stringContaining('admin:delete') }));
+    expect(axios.post).not.toHaveBeenCalled();
+  });
+
+  it('tools/list also reads a bare { tools } result, not only the JSON-RPC envelope', async () => {
+    const session = pfSession({});
+    session.idJagPlayground = { idJag: goodIdJag(), redeemed: true, accessToken };
+    callToolViaGateway.mockResolvedValue({ tools: [{ name: 'get_my_accounts' }] });
+    const res = await post(appWith(session), '/pg/call');
+    expect(res.body.tools.map((t) => t.name)).toEqual(['get_my_accounts']);
+  });
+
+  it('a denied tools/call returns the gateway reason (e.g. intent_mismatch)', async () => {
+    const session = pfSession();
+    session.idJagPlayground = { idJag: goodIdJag(), redeemed: true, accessToken };
+    callToolViaGateway.mockRejectedValue(Object.assign(new Error('Tool transfer_funds does not match intent read_accounts'), {
+      code: 'gateway_policy_denied', httpStatus: 403, gatewayStatus: 403, gatewayErrorCode: 'intent_mismatch', gatewayMessage: 'Tool transfer_funds does not match intent read_accounts',
+    }));
+    const res = await post(appWith(session), '/pg/call', { tool: 'transfer_funds', arguments: {} });
+    expect(res.status).toBe(403);
+    expect(res.body).toEqual(expect.objectContaining({ error: 'gateway_policy_denied', gatewayStatus: 403, gatewayErrorCode: 'intent_mismatch', gatewayMessage: expect.stringContaining('read_accounts') }));
+    expect(res.body.request.body.params.name).toBe('transfer_funds');
   });
 
   it('reports a refused redemption with its OAuth error and keeps no token', async () => {
@@ -146,6 +191,43 @@ describe('ID-JAG playground — flow keeps every raw token server-side', () => {
     expect(res.status).toBe(422);
     expect(res.body.response.error).toBe('invalid_scope');
     expect(session.idJagPlayground.accessToken).toBeUndefined();
+  });
+});
+
+describe('ID-JAG playground — protected resource (oauth-mcp /protected/profile)', () => {
+  const withTokens = () => ({ ...pfSession(), idJagPlayground: { idJag: goodIdJag(), redeemed: true, accessToken } });
+  const profile = { status: 200, headers: {}, data: { resource: `${AS}/protected/profile`, verified: [{ check: 'bearer', ok: true }], principal: { sub: 'demouser' } } };
+
+  it('calls the resource server with the access token, and returns its answer without the token', async () => {
+    axios.get.mockResolvedValue(profile);
+    const res = await post(appWith(withTokens()), '/pg/resource', { variant: 'token' });
+    expect(res.status).toBe(200);
+    const [url, opts] = axios.get.mock.calls[0];
+    expect(url).toBe(`${AS}/protected/profile`);
+    expect(opts.headers.Authorization).toBe(`Bearer ${accessToken}`);
+    expect(res.body).toEqual(expect.objectContaining({ status: 200, body: profile.data,
+      request: { method: 'GET', url: `${AS}/protected/profile`, authorization: 'Bearer [access token]' } }));
+    expect(JSON.stringify(res.body)).not.toContain(accessToken);
+  });
+
+  it('no-token sends no Authorization; id-jag sends the raw ID-JAG (server-side only) and passes the refusal through', async () => {
+    const session = withTokens();
+    axios.get.mockResolvedValue({ status: 401, headers: { 'www-authenticate': 'Bearer realm="Protected profile"' }, data: { error: 'unauthorized', verified: [{ check: 'bearer', ok: false }] } });
+    const none = await post(appWith(session), '/pg/resource', { variant: 'no-token' });
+    expect(axios.get.mock.calls[0][1].headers.Authorization).toBeUndefined();
+    expect(none.body).toEqual(expect.objectContaining({ status: 401, wwwAuthenticate: 'Bearer realm="Protected profile"' }));
+    expect(none.body.request.authorization).toBe('none');
+    const jag = await post(appWith(session), '/pg/resource', { variant: 'id-jag' });
+    expect(axios.get.mock.calls[1][1].headers.Authorization).toBe(`Bearer ${session.idJagPlayground.idJag}`);
+    expect(jag.body.request.authorization).toBe('Bearer [the ID-JAG]');
+    expect(JSON.stringify(jag.body)).not.toContain(session.idJagPlayground.idJag);
+  });
+
+  it('refuses an unknown variant, and the token variant before step 3', async () => {
+    expect((await post(appWith(withTokens()), '/pg/resource', { variant: 'other' })).status).toBe(400);
+    const res = await post(appWith(pfSession()), '/pg/resource', { variant: 'token' });
+    expect(res.status).toBe(409);
+    expect(axios.get).not.toHaveBeenCalled();
   });
 });
 

@@ -150,6 +150,14 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
   // (policy screens) return fallback:true and the SPA restarts the ordinary
   // redirect login — a sign-in never dead-ends here.
   async function respondAfterPiFlowStep(req, res, pending, body, cookies) {
+    // PingFederate's PingOne MFA adapter ends at MFA_COMPLETED; continueAuthentication moves the
+    // policy on (to COMPLETED with the authorizeResponse). Unhandled, it fell back to the hosted
+    // login page, which asked for the password after a successful code.
+    if (pending.provider === 'pingfederate' && body.status === 'MFA_COMPLETED') {
+      const next = await postPiFlowStep({ ...pending, cookies }, 'application/vnd.pingidentity.continueAuthentication+json', {});
+      if (!next.step.ok) return res.status(502).json({ error: 'pi_flow_failed' });
+      return respondAfterPiFlowStep(req, res, pending, next.body, next.cookies);
+    }
     if (body.status === 'COMPLETED') return completePiFlow(req, res, pending, cookies, body);
     // Passkey (ASSERTION_REQUIRED) — both providers. PF's shape carries the same
     // publicKeyCredentialRequestOptions; PingOne stringifies it.
@@ -170,6 +178,8 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins }) {
       // PingOne: usableStatus/email/phone. PingFederate's MFA adapter: usable + a masked `target`.
       const devices = rawDevices
         .filter((d) => (d.usableStatus?.status || 'ENABLED') === 'ENABLED' && d.usable !== false)
+        // PF's passkey step (checkAssertion) is not driven yet: don't offer a device that can't finish.
+        .filter((d) => !(pending.provider === 'pingfederate' && /^fido2$/i.test(d.type)))
         .map((d) => ({
           id: d.id,
           type: d.type,

@@ -9,6 +9,9 @@ const AS_ISSUER = "https://mcp-as.example.com";
 const RESOURCE = "https://mcp.example.com/mcp";
 const CLIENT_ID = "agent-mcp-client";
 const SCOPE = "openid mcp:read mcp:write";
+// xaa.dev's IdenX (Okta's public XAA playground): a sample of the ID-JAG it issues, so that path trains offline.
+const IDENX = { name: "xaa.dev IdenX (sample)", issuer: "https://idp.xaa.dev", jwks: "https://idp.xaa.dev/jwks" };
+const PF = { name: "PingFederate", issuer: ISSUER, jwks: `${ISSUER}/pf/JWKS` };
 
 export const MOCK_CONFIG = {
   mode: "mock",
@@ -22,6 +25,7 @@ export const MOCK_CONFIG = {
     "oauth-mcp": { issuer: AS_ISSUER, tokenEndpoint: `${AS_ISSUER}/token` },
     pingfederate: { issuer: "https://pingfederate.local.example.com", tokenEndpoint: "https://pingfederate.local.example.com/as/token.oauth2" },
   },
+  xaa: { available: true, reason: null, signedIn: true, user: "alice@example.com (sample)" },
 };
 
 // Trusted-IdP registry: one sample entry, edited in memory for this page load.
@@ -53,29 +57,29 @@ const TOOLS = [
 const scopeList = (s) => String(s || "").split(/\s+/).filter(Boolean);
 const now = () => Math.floor(Date.now() / 1000);
 
-function idJag() {
+function idJag(idp = PF) {
   const iat = now();
   return {
-    header: { typ: "oauth-id-jag+jwt", alg: "RS256", kid: "pf-signing-2026" },
-    claims: { iss: ISSUER, sub: "user.0042", aud: AS_ISSUER, client_id: CLIENT_ID, jti: "b3f1c6e2-7a4d-4c1e-9f2a-5d8e0c3a1b77", iat, exp: iat + 300, resource: RESOURCE, scope: SCOPE },
+    header: { typ: "oauth-id-jag+jwt", alg: "RS256", kid: idp === PF ? "pf-signing-2026" : "idenx-sample" },
+    claims: { iss: idp.issuer, sub: "user.0042", aud: AS_ISSUER, client_id: CLIENT_ID, jti: "b3f1c6e2-7a4d-4c1e-9f2a-5d8e0c3a1b77", iat, exp: iat + 300, resource: RESOURCE, scope: SCOPE },
   };
 }
 
-function inspect() {
-  const { header: h, claims: c } = idJag();
+function inspect(idp = PF) {
+  const { header: h, claims: c } = idJag(idp);
   const checks = [];
   const add = (id, label, expected, actual, cite) => checks.push({ id, label, status: "pass", expected, actual, cite });
   add("typ", "Header typ", "oauth-id-jag+jwt", h.typ, `${SPEC} §3.1 (MUST)`);
   add("alg", "Signed, not alg:none", "RS256 (or another asymmetric alg)", h.alg, "RFC 8725 §3.1");
   for (const k of ["iss", "sub", "aud", "client_id", "jti", "exp", "iat"]) add(`claim-${k}`, `Required claim ${k}`, "present", c[k], `${SPEC} §3.1 (REQUIRED)`);
-  add("iss", "Issuer is PingFederate", ISSUER, c.iss, "RFC 7523 §3");
+  add("iss", `Issuer is ${idp.name}`, idp.issuer, c.iss, "RFC 7523 §3");
   add("aud", "Audience is the resource AS issuer (single value)", AS_ISSUER, c.aud, `${SPEC} §4.4.1 (MUST)`);
   add("client_id", "client_id is the client at the resource AS", CLIENT_ID, c.client_id, `${SPEC} §4.4.1: client_id MUST identify the client authenticating at the resource AS (the IdP maps it)`);
   add("resource", "Resource is the requested MCP resource", RESOURCE, c.resource, "RFC 8707 / MCP profile");
   add("exp", "Not expired", `> ${c.iat}`, c.exp, "RFC 7519 §4.1.4");
   add("lifetime", "Short-lived (5 minutes or less)", "<= 300 s", `${c.exp - c.iat} s`, "Okta / Auth0 / WorkOS issue 300 s ID-JAGs");
   add("scope", "Scope names MCP permissions, not just login scopes", "the MCP scopes the IdP grants for this server", c.scope, `${SPEC} §4.3: the IdP reflects the granted scope; OIDC-only scope grants nothing at the MCP server`);
-  add("signature", "Signature verifies against PingFederate JWKS", `valid against ${ISSUER}/pf/JWKS`, "valid", "RFC 7523 §3 item 9");
+  add("signature", `Signature verifies against ${idp.name} JWKS`, `valid against ${idp.jwks}`, "valid", "RFC 7523 §3 item 9");
   return { header: h, claims: c, checks };
 }
 
@@ -105,6 +109,31 @@ function call(body) {
   };
 }
 
+/** The resource server's protected page: accepted with the access token, refused without one or with the ID-JAG. */
+function resource(variant) {
+  const url = `${AS_ISSUER}/protected/profile`;
+  const authorization = { token: "Bearer [access token]", "no-token": "none", "id-jag": "Bearer [the ID-JAG]" }[variant];
+  const request = { method: "GET", url, authorization };
+  const pass = (check, detail) => ({ check, ok: true, detail });
+  if (variant === "no-token") {
+    return { request, status: 401, wwwAuthenticate: 'Bearer realm="Protected profile"',
+      body: { resource: url, error: "unauthorized", error_description: "A bearer access token is required.", verified: [{ check: "bearer", ok: false, detail: "No Authorization: Bearer header." }] } };
+  }
+  if (variant === "id-jag") {
+    const detail = "This is an ID-JAG (typ oauth-id-jag+jwt): a grant for the authorization server to redeem, never an access token for a resource.";
+    return { request, status: 401, wwwAuthenticate: 'Bearer realm="Protected profile", error="invalid_token"',
+      body: { resource: url, error: "invalid_token", error_description: detail, verified: [pass("bearer", "Authorization: Bearer present."), { check: "token type", ok: false, detail }] } };
+  }
+  return { request, status: 200, wwwAuthenticate: null, body: {
+    resource: url,
+    verified: [pass("bearer", "Authorization: Bearer present."), pass("token type", "JWT (typ at+jwt), not an ID-JAG."), pass("expiry", "3599 s left."),
+      pass("signature", "Verified against the issuer's published keys."), pass("audience", `aud "${RESOURCE}" is this resource server.`),
+      pass("issuer", `iss ${AS_ISSUER} is trusted.`), pass("scope", "Has mcp:read.")],
+    principal: { sub: "user.0042", client_id: CLIENT_ID, scope: "mcp:read mcp:write" },
+    data: { profileId: "prf-5d8e0c3a", subject: "user.0042", status: "active", plan: "Standard", servedBy: "MCP resource server (sample)", servedAt: new Date().toISOString() },
+  } };
+}
+
 function route(method, url, body) {
   const path = url.replace(/^.*\/api\/id-jag-playground/, "");
   if (method === "get" && path === "/config") return MOCK_CONFIG;
@@ -119,8 +148,18 @@ function route(method, url, body) {
     };
   }
   if (path === "/inspect") return inspect();
+  if (path === "/xaa/id-jag") {
+    const s = MOCK_CONFIG.request;
+    return {
+      ...inspect(IDENX), trusted: true, idp: { id: "xaa-dev", name: IDENX.name },
+      request: { endpoint: `POST ${IDENX.issuer}/token`, body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", requested_token_type: ID_JAG_TOKEN_TYPE, subject_token: "[your IdenX refresh token, kept server-side]", subject_token_type: "urn:ietf:params:oauth:token-type:refresh_token", audience: s.audience, resource: s.resource, scope: s.scope, client_id: "playground-at-idenx" } },
+      response: { issued_token_type: ID_JAG_TOKEN_TYPE, token_type: "N_A", access_token: "[the ID-JAG, kept server-side]" },
+      token: idJag(IDENX),
+    };
+  }
   if (path === "/redeem") return redeem(body?.scope);
   if (path === "/call") return call(body);
+  if (path === "/resource") return resource(body?.variant);
   const neg = NEGATIVE_TESTS.find((t) => path === `/negative/${t.id}`);
   if (neg) return { ...neg, pass: true, status: 400 };
   throw new Error(`Mock has no ${method.toUpperCase()} ${path}`);

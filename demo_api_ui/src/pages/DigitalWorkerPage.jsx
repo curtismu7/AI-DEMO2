@@ -217,8 +217,8 @@ function Canvas() {
         <input ref={fileInput} type="file" accept="application/json,.json" hidden aria-label="Load diagram JSON" onChange={loadFile} />
         <button type="button" onClick={() => setConfirmReset(true)}>Reset diagram</button>
         <span>Double-click a box or arrow to rename. Delete removes the selection. Ctrl/Cmd+Z undoes. Drag a dot to connect. Autosaves in this browser.</span>
+        <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId="dw-steps" />
       </div>
-      <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId="dw-steps" />
       <ReactFlow
         nodes={hot ? markNodes(nodes, [hot.source, hot.target]) : nodes}
         edges={stepEdges(edges, stepper.step)}

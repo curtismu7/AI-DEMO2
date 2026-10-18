@@ -28,6 +28,7 @@ import SdkWalkthrough from "../components/davinci/SdkWalkthrough";
 import StepInspector, { summarizeResponse } from "../components/davinci/StepInspector";
 import { createOperationEvent, normalizeTraceEntry } from "../components/davinci/sdkExecutionEvents";
 import DraggableModal from "../components/DraggableModal";
+import DeviceSignInLink from "../components/DeviceSignInLink";
 import { LessonLayout, Section } from "../components/lesson";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 import {
@@ -628,6 +629,7 @@ export default function DavinciSdkLoginPage() {
               <p className="dvsdk-subtitle">
                 Sign in with the embedded orchestration form. Each screen comes from the live DaVinci flow.
               </p>
+              <DeviceSignInLink />
             </header>
             <div className="dvsdk-page">
               {phase === "loading" && <p className="dvsdk-status">Starting the flow...</p>}
