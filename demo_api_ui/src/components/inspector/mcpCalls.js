@@ -2,7 +2,7 @@
  * Adapters: MCP call-store entries and API-traffic entries -> InspectorCall.
  * Pure functions only.
  */
-import { ok, warn, err, idle, tokensFromEvents, stepsFromTokenEvents } from './inspectorCalls';
+import { ok, err, idle, tokensFromEvents, stepsFromTokenEvents } from './inspectorCalls';
 
 const GRANT = 'urn:ietf:params:oauth:grant-type:token-exchange';
 const words = (s) => String(s ?? '').split(/\s+/).filter(Boolean);
@@ -20,9 +20,6 @@ function scopeStep(required, exchanged) {
 function toolStep(frames, errorMsg) {
   const e = frames?.response?.error;
   if (e) return { title: 'Ran the tool', status: err(`${e.code ?? 'error'} ${e.message ?? ''}`.trim()), text: e.message ?? 'The MCP server returned a JSON-RPC error.' };
-  if ((frames?.notifications ?? []).some((n) => /elicitation/.test(n?.method ?? ''))) {
-    return { title: 'Ran the tool', status: warn('waiting'), text: 'The MCP server asked for more input before finishing.' };
-  }
   if (errorMsg) return { title: 'Ran the tool', status: err('failed'), text: errorMsg };
   return { title: 'Ran the tool', status: ok('done'), text: 'The MCP server ran the tool and returned a result.' };
 }
@@ -109,8 +106,10 @@ export function mcpCallFromStore(entry) {
 /** @returns {import('./inspectorCalls').InspectorCall} */
 export function apiCallFromTracker(call) {
   const title = `${call.method} ${call.url}`;
-  const good = call.status >= 200 && call.status < 400;
-  const status = good ? ok(`${call.status} OK`) : err(String(call.status || 'network'));
+  const code = call.response?.status;
+  const status = code >= 200 && code < 400 ? ok(String(code)) : err(String(code || 'network'));
+  const req = call.request?.body ?? null;
+  const res = call.response?.body ?? null;
   return {
     id: `api-${call.id}`,
     at: Date.parse(call.timestamp),
@@ -122,10 +121,10 @@ export function apiCallFromTracker(call) {
     chips: [],
     banner: null,
     corr: null,
-    request: { label: 'Request', body: call.requestBody ?? {} },
-    response: { label: 'Response', body: call.responseBody ?? null },
+    request: { label: 'Request', body: req ?? {} },
+    response: { label: 'Response', body: res },
     tokens: [],
-    hops: [{ dir: 'Browser → BFF', call: title, what: 'The page called the backend API.', status, ms: call.duration ?? null, request: call.requestBody ?? {}, response: call.responseBody ?? null }],
+    hops: [{ dir: 'Browser → BFF', call: title, what: 'The page called the backend API.', status, ms: call.duration ?? null, request: req, response: res }],
     steps: [{ title: 'Called the API', status, text: title }],
   };
 }

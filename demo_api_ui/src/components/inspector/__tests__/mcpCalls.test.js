@@ -60,10 +60,19 @@ describe('mcpCallFromStore', () => {
 });
 
 describe('apiCallFromTracker', () => {
-  it('maps one hop and one step', () => {
-    const c = apiCallFromTracker({ id: 3, method: 'GET', url: '/api/accounts', status: 200, duration: 9, responseBody: { a: 1 }, timestamp: '2026-10-17T00:00:00Z' });
+  const call = { id: 'a1', timestamp: '2026-10-17T10:00:00Z', method: 'GET', url: '/api/accounts', request: { body: null }, response: { status: 200, body: { ok: true } }, duration: 12 };
+  it('maps a tracked call', () => {
+    const c = apiCallFromTracker(call);
     expect(c.title).toBe('GET /api/accounts');
+    expect(c.status).toEqual({ tone: 'ok', label: '200' });
+    expect(c.ms).toBe(12);
+    expect(c.response.body).toEqual({ ok: true });
     expect(c.hops).toHaveLength(1);
+    expect(c.hops[0].dir).toBe('Browser → BFF');
     expect(c.steps).toHaveLength(1);
+    expect(c.tokens).toEqual([]);
+  });
+  it('flags 500 as err', () => {
+    expect(apiCallFromTracker({ ...call, response: { status: 500, body: null } }).status.tone).toBe('err');
   });
 });
