@@ -114,8 +114,21 @@ describe('AgentGatewayInspectorClean behaviors', () => {
     await screen.findByRole('button', { name: /create_\s?withdrawal/ });
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     await screen.findByRole('button', { name: /get_\s?my_\s?accounts.*PERMIT/ });
-    expect(apiClient.post).toHaveBeenCalledWith('/api/mcp-gateway/test', { tool: 'get_my_accounts', args: {} });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/mcp-gateway/test', { tool: 'get_my_accounts', args: {} }, { _noAuthBanner: true });
     expect(screen.getByRole('heading', { name: /Calls/ })).toHaveTextContent('2');
+  });
+
+  it('a 401 on Send never raises the sign-in modal and shows the server message', async () => {
+    const message = 'Token exchange blocked: user token [openid] lacks required scopes for tool get_my_accounts';
+    apiClient.post.mockRejectedValue({ response: { status: 401, data: { error: 'token_resolution_failed', message } } });
+    const { container } = renderPage();
+    await screen.findByRole('button', { name: /create_\s?withdrawal/ });
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await screen.findByText(message, { selector: '.insp-err' });
+    expect(apiClient.post).toHaveBeenCalledWith('/api/mcp-gateway/test', { tool: 'get_my_accounts', args: {} }, { _noAuthBanner: true });
+    expect(screen.getByRole('heading', { name: /Calls/ })).toHaveTextContent('2');
+    // apiClient is mocked here, so the real modal cannot appear; the flag is what suppresses it.
+    expect(container.querySelector('.signin-modal')).toBeNull();
   });
 
   it('Repeat above 1 posts the burst endpoint with count', async () => {
@@ -124,7 +137,7 @@ describe('AgentGatewayInspectorClean behaviors', () => {
     await screen.findByRole('button', { name: /create_\s?withdrawal/ });
     fireEvent.change(screen.getByLabelText('Repeat'), { target: { value: '3' } });
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/mcp-gateway/test/burst', { tool: 'get_my_accounts', args: {}, count: 3 }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/mcp-gateway/test/burst', { tool: 'get_my_accounts', args: {}, count: 3 }, { _noAuthBanner: true }));
     await waitFor(() => expect(screen.getByRole('heading', { name: /Calls/ })).toHaveTextContent('4'));
   });
 
@@ -332,7 +345,7 @@ describe('AgentGatewayInspectorClean Vertical select', () => {
     await waitFor(() => expect(screen.getByLabelText('Tool').value).toBe('list_orders'));
     apiClient.post.mockClear();
     fireEvent.click(screen.getByRole('button', { name: 'Resend' }));
-    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/mcp-gateway/test', { tool: 'get_my_accounts', args: {} }));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/mcp-gateway/test', { tool: 'get_my_accounts', args: {} }, { _noAuthBanner: true }));
     fireEvent.click(screen.getByRole('button', { name: /Edit/ }));
     expect(screen.getByLabelText('Tool').value).toBe('get_my_accounts');
   });

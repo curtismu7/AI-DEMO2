@@ -65,7 +65,8 @@ function parseArgs(text) {
 function failureBody(e) {
   const d = e.response?.data;
   if (d && typeof d === 'object' && 'ok' in d) return d;
-  return { ok: false, error: formatAxiosError(e, 'Request failed'), httpStatus: e.response?.status, message: formatAxiosError(e, 'Request failed') };
+  const message = d?.message || d?.error || formatAxiosError(e, 'Request failed');
+  return { ok: false, error: d?.error || message, httpStatus: e.response?.status, message };
 }
 
 export default function AgentGatewayInspectorClean() {
@@ -190,7 +191,8 @@ export default function AgentGatewayInspectorClean() {
   const callOnce = useCallback(async (t, args) => {
     const at = Date.now();
     let res;
-    try { res = (await apiClient.post('/api/mcp-gateway/test', { tool: t, args })).data; } catch (e) { res = failureBody(e); }
+    // _noAuthBanner: a 401 here is the gateway refusing the token, not a signed-out user.
+    try { res = (await apiClient.post('/api/mcp-gateway/test', { tool: t, args }, { _noAuthBanner: true })).data; } catch (e) { res = failureBody(e); setHint(res.message); }
     return gatewayCallFromTest(res, { tool: t, args, gatewayUrl: active?.url, at });
   }, [active]);
 
@@ -213,7 +215,7 @@ export default function AgentGatewayInspectorClean() {
       } else if (count > 1) {
         const at = Date.now();
         let res;
-        try { res = (await apiClient.post('/api/mcp-gateway/test/burst', { tool: t, args, count })).data; } catch (e) { res = { results: [{ index: 0, ...failureBody(e) }] }; }
+        try { res = (await apiClient.post('/api/mcp-gateway/test/burst', { tool: t, args, count }, { _noAuthBanner: true })).data; } catch (e) { const f = failureBody(e); res = { results: [{ index: 0, ...f }] }; setHint(f.message); }
         made = gatewayCallsFromBurst(res, { tool: t, args, at });
       } else {
         made = [await callOnce(t, args)];
