@@ -5,7 +5,7 @@ import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
 import { extractCapturedValues, unwrapMcpResult } from './AgentGatewayTester';
 import { TOOL_ATTACKS } from '../config/toolAttackCatalog';
-import { argsFor, belongsElsewhere } from '../config/inspectorVerticals';
+import { argsFor, belongsElsewhere, toolsFor } from '../config/inspectorVerticals';
 import InspectorLayout from './inspector/InspectorLayout';
 import { useInspectorVertical } from './inspector/useInspectorVertical';
 import { ok, warn, err, idle } from './inspector/inspectorCalls';
@@ -18,6 +18,9 @@ const CUSTOM = 'custom';
 
 /** The id a capture step's result carries (e.g. the first account id), parsed the way the Tester does. */
 const capturedId = (cap, body) => extractCapturedValues(cap.tool, unwrapMcpResult(body)).find((c) => c.family === cap.family)?.value ?? '';
+/** A sample's empty args are the ids a capture fills. */
+const needsId = (args) => Object.values(args).includes('');
+const fillIds = (args, id) => Object.fromEntries(Object.entries(args).map(([k, v]) => [k, v === '' ? id : v]));
 
 const RELATED = [
   { label: 'Gateway tester', to: '/agent-gateway-capabilities' },
@@ -175,9 +178,9 @@ export default function AgentGatewayInspectorClean() {
     if (!first?.tool) return;
     let args = first.args ?? {};
     const cap = vertical.capture;
-    if (cap && args[cap.arg] === '') {
+    if (cap && needsId(args)) {
       const known = calls.filter((c) => c.title === cap.tool && c.status.tone === 'ok').map((c) => capturedId(cap, c.response.body)).find(Boolean) ?? '';
-      args = { ...args, [cap.arg]: known };
+      args = fillIds(args, known);
       setHint(known ? '' : cap.hint);
     } else setHint('');
     setTool(first.tool);
@@ -191,7 +194,7 @@ export default function AgentGatewayInspectorClean() {
     return gatewayCallFromTest(res, { tool: t, args, gatewayUrl: active?.url, at });
   }, [active]);
 
-  // chain: { steps, capture } — later steps get the id step 1 returned in capture.arg.
+  // chain: { steps, capture } — later steps' empty args get the id step 1 returned.
   const run = useCallback(async (t, args, count = 1, chain = null) => {
     setBusy(true);
     setHint('');
@@ -202,7 +205,7 @@ export default function AgentGatewayInspectorClean() {
         const cap = chain.capture;
         let id = '';
         for (const [i, step] of chain.steps.entries()) {
-          const call = await callOnce(step.tool, cap && step.args[cap.arg] === '' ? { ...step.args, [cap.arg]: id } : step.args);
+          const call = await callOnce(step.tool, cap ? fillIds(step.args, id) : step.args);
           made.push(call);
           if (i === 0 && cap) id = capturedId(cap, call.response.body);
         }
@@ -245,8 +248,8 @@ export default function AgentGatewayInspectorClean() {
     }
   };
 
-  // The vertical's tools, plus the server's tools no other vertical owns.
-  const toolNames = [...new Set([...vertical.tools, ...tools.map((t) => t.name).filter((n) => !belongsElsewhere(verticalId, n))])];
+  // The vertical's tools and the global ones, plus the server's tools no other vertical owns.
+  const toolNames = [...new Set([...toolsFor(vertical), ...tools.map((t) => t.name).filter((n) => !belongsElsewhere(verticalId, n))])];
   if (tool && !toolNames.includes(tool)) toolNames.push(tool);
 
   const sendCard = (

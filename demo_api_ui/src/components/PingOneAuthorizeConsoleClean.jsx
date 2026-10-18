@@ -78,16 +78,18 @@ export default function PingOneAuthorizeConsoleClean({
     if (e.result) persistLastRun(policiesRef.current, e.result);
   }, [onRan, setRecords]);
 
-  // A vertical change loads its MCP tool and transaction type; Transaction is offered only where the vertical sends one.
+  // A vertical change loads its MCP tool, transaction type and amount; Transaction is offered only where the vertical sends one.
   const { vertical, field: verticalField } = useInspectorVertical((v) => {
     h.setToolName(v.authorize.toolName);
+    h.setAmount(String(v.authorize.amount));
     h.setTxType(v.authorize.txTypes[0] ?? 'transfer');
     if (!v.authorize.txTypes.length && h.preset === 'transaction') h.setPreset('mcp');
   });
   const txTypes = vertical.authorize.txTypes;
 
   const h = usePingOneAuthorizeConsole({
-    endpointId, autoPreset: txTypes.length ? 'transaction' : 'mcp', defaultToolName: vertical.authorize.toolName,
+    endpointId, autoPreset: txTypes.length ? 'transaction' : 'mcp',
+    defaultToolName: vertical.authorize.toolName, defaultAmount: String(vertical.authorize.amount),
     pendingTest, onClearPendingTest, onEvaluated,
   });
   // An edited call keeps its own preset and type even when this vertical has neither.

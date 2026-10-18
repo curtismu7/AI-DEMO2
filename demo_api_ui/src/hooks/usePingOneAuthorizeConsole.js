@@ -10,6 +10,7 @@ export function usePingOneAuthorizeConsole({
   endpointId,
   autoPreset,
   defaultToolName = 'transfer',
+  defaultAmount = '5000',
   pendingTest,
   onClearPendingTest,
   onEvaluated,
@@ -20,7 +21,7 @@ export function usePingOneAuthorizeConsole({
   const [preset, setPreset] = useState(autoPreset);
 
   // Transaction preset
-  const [amount, setAmount] = useState('5000');
+  const [amount, setAmount] = useState(defaultAmount);
   const [txType, setTxType] = useState('transfer');
   const [acr, setAcr] = useState('');
   const [userId, setUserId] = useState('demoUser');

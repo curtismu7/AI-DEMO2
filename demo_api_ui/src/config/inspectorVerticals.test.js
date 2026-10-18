@@ -1,14 +1,15 @@
 // Truthfulness guard for the inspector vertical catalog: every tool must be a
-// real topology tool, every scenario must use its own vertical's tools, and
-// every non-banking argument shape must match the MCP server's real schema
-// (mcp-tool-schemas.json, generated from oauth-mcp + demo_mcp_resource_server).
+// real topology tool, every scenario must use its own vertical's tools, every
+// argument shape must match the MCP server's real schema (mcp-tool-schemas.json,
+// generated from oauth-mcp + demo_mcp_resource_server), and every MCP tool must
+// have an owner or be global, so a new tool cannot leak into every vertical.
 // The in-process seed-id check lives server side:
 // demo_api_server/tests/inspectorVerticalsCatalog.test.js.
 import { readFileSync } from 'fs';
 import { dirname, join } from 'path';
 import { fileURLToPath } from 'url';
 import { describe, expect, it } from 'vitest';
-import { INSPECTOR_VERTICALS, argsFor, belongsElsewhere } from './inspectorVerticals';
+import { INSPECTOR_VERTICALS, GLOBAL_TOOLS, UNCOVERED_VERTICAL_TOOLS, argsFor, belongsElsewhere } from './inspectorVerticals';
 import { TOOL_ATTACKS } from './toolAttackCatalog';
 
 const REPO_ROOT = join(dirname(fileURLToPath(import.meta.url)), '../../..');
@@ -20,6 +21,11 @@ const { highValueConsentThresholdUsd, amountLimitsByTier } = topology.policy.aut
 
 const entries = Object.entries(INSPECTOR_VERTICALS);
 const callsOf = (s) => s.steps ?? [s];
+// Every "tool" / "mcpTool" a vertical manifest names (chips, feature page).
+const manifestTools = (id) => [...readFileSync(join(REPO_ROOT, `demo_api_server/config/verticals/${id}/manifest.json`), 'utf8')
+  .matchAll(/"(?:mcpTool|tool)":\s*"([a-z0-9_]+)"/g)].map((m) => m[1]);
+// Names two plugins really both define; the BFF picks by the caller's active vertical.
+const SHARED = ['cancel_appointment', 'cancel_order', 'close_support_ticket', 'view_billing', 'view_documents'];
 
 describe('inspector vertical catalog', () => {
   it('every catalog tool exists in scope-topology.json (scopeTopology.allTools())', () => {
@@ -37,9 +43,11 @@ describe('inspector vertical catalog', () => {
   });
 
   // Banking's 'transfer' is the frozen baseline (a legacy alias in the topology).
-  it("non-banking Authorize presets use the vertical's approval tool and the transfer type", () => {
+  it("non-banking Authorize presets use the vertical's approval tool, amount and the transfer type", () => {
     for (const [id, v] of entries.filter(([k]) => k !== 'banking')) {
-      expect(v.authorize.toolName, id).toBe(v.scenarios.find((s) => s.expect === 'APPROVAL').tool);
+      const approval = v.scenarios.find((s) => s.expect === 'APPROVAL');
+      expect(v.authorize.toolName, id).toBe(approval.tool);
+      expect(v.authorize.amount, id).toBe(approval.args.amount);
       expect(v.authorize.txTypes, id).toEqual(['transfer']);
     }
   });
@@ -48,7 +56,8 @@ describe('inspector vertical catalog', () => {
     expect(INSPECTOR_VERTICALS.banking.scenarios).toEqual([
       { id: 'read', label: 'Read accounts (expect PERMIT)', expect: 'PERMIT', tool: 'get_my_accounts', args: {} },
       { id: 'sensitive', label: 'Sensitive read (expect DENY)', expect: 'DENY', tool: 'get_sensitive_account_details', args: { account_id: '' } },
-      { id: 'withdrawal', label: 'Withdrawal (expect approval)', expect: 'APPROVAL', tool: 'create_withdrawal', args: { account_id: '', amount: 500 } },
+      // R11: from_account_id, the key create_withdrawal's schema takes (it rejected account_id).
+      { id: 'withdrawal', label: 'Withdrawal (expect approval)', expect: 'APPROVAL', tool: 'create_withdrawal', args: { from_account_id: '', amount: 500 } },
       {
         id: 'chain',
         label: 'Run chain: accounts → balance → sensitive',
@@ -60,16 +69,15 @@ describe('inspector vertical catalog', () => {
       },
     ]);
     expect(INSPECTOR_VERTICALS.banking.capture).toEqual({ tool: 'get_my_accounts', family: 'account', arg: 'account_id', hint: 'Run "Read accounts" first to fill account_id.' });
-    expect(INSPECTOR_VERTICALS.banking.authorize).toEqual({ toolName: 'transfer', txTypes: ['transfer', 'withdrawal', 'deposit'] });
+    expect(INSPECTOR_VERTICALS.banking.authorize).toEqual({ toolName: 'transfer', txTypes: ['transfer', 'withdrawal', 'deposit'], amount: 5000 });
   });
 
   it('banking keeps both attack-library entries', () => {
     for (const a of TOOL_ATTACKS) expect(INSPECTOR_VERTICALS.banking.tools).toContain(a.tool);
   });
 
-  // Banking is the frozen baseline; its withdrawal args predate this check.
-  it('non-banking arguments match the MCP server input schema', () => {
-    for (const [id, v] of entries.filter(([k]) => k !== 'banking')) {
+  it('arguments match the MCP server input schema', () => {
+    for (const [id, v] of entries) {
       for (const s of v.scenarios) {
         for (const c of callsOf(s)) {
           const schema = schemas[c.tool]?.inputSchema;
@@ -110,10 +118,10 @@ describe('inspector vertical catalog', () => {
         expect(chain.steps[0].tool, id).toBe(v.capture.tool);
         expect(chain.steps.slice(1).some((c) => c.args[v.capture.arg] === ''), id).toBe(true);
       }
-      // An empty arg is only ever the captured id.
+      // An empty arg is only ever the captured id (from_/to_ prefixes as the Tester strips them).
       for (const s of v.scenarios) {
         for (const c of callsOf(s)) {
-          for (const [k, val] of Object.entries(c.args)) if (val === '') expect(k, `${id}/${s.id}`).toBe(v.capture?.arg);
+          for (const [k, val] of Object.entries(c.args)) if (val === '') expect(k.replace(/^(from|to)_/, ''), `${id}/${s.id}`).toBe(v.capture?.arg);
         }
       }
     }
@@ -133,5 +141,34 @@ describe('inspector vertical catalog', () => {
     expect(belongsElsewhere('university', 'view_billing')).toBe(false);
     expect(belongsElsewhere('healthcare', 'view_billing')).toBe(false);
     expect(belongsElsewhere('banking', 'constructor')).toBe(false);
+    expect(belongsElsewhere('healthcare', 'show_mortgage')).toBe(true);
+    expect(belongsElsewhere('banking', 'show_health_record')).toBe(true);
+    expect(belongsElsewhere('retail', 'list_anf_orders')).toBe(true);
+    expect(belongsElsewhere('retail', 'sequential_think')).toBe(false);
+  });
+
+  // A new MCP tool with no owner would otherwise show in every vertical.
+  it('every MCP tool is owned by a vertical or listed as global, never both', () => {
+    const owners = {};
+    for (const [id, v] of entries) for (const t of [...v.tools, ...v.extraTools]) (owners[t] ||= []).push(id);
+    for (const [id, ts] of Object.entries(UNCOVERED_VERTICAL_TOOLS)) for (const t of ts) (owners[t] ||= []).push(id);
+    for (const t of Object.keys(schemas)) {
+      const owned = Object.hasOwn(owners, t);
+      expect(owned !== GLOBAL_TOOLS.includes(t) ? t : `${t}: ${owned ? 'owned and global' : 'no owner, not global'}`).toBe(t);
+    }
+    expect(Object.keys(owners).filter((t) => owners[t].length > 1).sort()).toEqual(SHARED);
+  });
+
+  it("extra tools are real MCP tools; a non-banking vertical's come from its own manifest", () => {
+    for (const [id, v] of entries) {
+      for (const t of v.extraTools) {
+        expect(schemas[t], `${id}: ${t}`).toBeTruthy();
+        if (id !== 'banking') expect(manifestTools(id), `${id}: ${t}`).toContain(t);
+      }
+    }
+  });
+
+  it('global tools are real tools', () => {
+    for (const t of GLOBAL_TOOLS) expect(Boolean(topology.tools[t] || schemas[t]), t).toBe(true);
   });
 });

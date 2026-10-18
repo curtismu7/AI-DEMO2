@@ -40,6 +40,15 @@ describe('inspector vertical catalog', () => {
     }
   });
 
+  it("banking's extra tools are MCP-registry tools that no vertical plugin defines", () => {
+    const schemas = require('../../mcp-tool-schemas.json').tools;
+    const pluginTools = new Set(entries.flatMap(([id]) => plugin(id).getTools().map((t) => t.name)));
+    for (const t of INSPECTOR_VERTICALS.banking.extraTools) {
+      expect(schemas[t] ? t : `${t} not in mcp-tool-schemas.json`).toBe(t);
+      expect(pluginTools.has(t) ? `${t} is a plugin tool` : t).toBe(t);
+    }
+  });
+
   it.each(inProcess)('%s scenarios run against the seed with no error', async (id, v) => {
     const p = plugin(id);
     for (const s of v.scenarios.filter((x) => !x.steps)) {

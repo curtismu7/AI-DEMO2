@@ -1,16 +1,15 @@
 // The inspectors' Vertical select: ?vertical= wins, then the app's active
 // vertical, then banking. Options are the catalog's verticals, named and
 // limited by the app's own list (GET /api/verticals/list, as VerticalSwitcher).
-import React, { useContext, useEffect, useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { useSearchParams } from 'react-router-dom';
-import { VerticalContext } from '../../vertical/VerticalProvider';
+import { useVertical } from '../../vertical/useVertical';
 import { INSPECTOR_VERTICALS, DEFAULT_VERTICAL } from '../../config/inspectorVerticals';
 
 /** onChange(vertical, id) runs whenever the vertical changes after mount. */
 export function useInspectorVertical(onChange) {
   const [params, setParams] = useSearchParams();
-  // Same value as useVertical().activeId, read directly: it needs no router location.
-  const activeId = useContext(VerticalContext)?.activeId;
+  const { activeId } = useVertical();
   const known = (v) => v != null && Object.hasOwn(INSPECTOR_VERTICALS, v);
   const requested = params.get('vertical');
   const id = known(requested) ? requested : known(activeId) ? activeId : DEFAULT_VERTICAL;

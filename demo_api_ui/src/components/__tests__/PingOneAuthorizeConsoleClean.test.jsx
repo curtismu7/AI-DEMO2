@@ -91,6 +91,18 @@ describe('PingOneAuthorizeConsoleClean Vertical select', () => {
     expect(bffAxios.post.mock.calls[0][1].parameters.ToolName).toBe('pay_bill');
   });
 
+  it("the Transaction amount defaults to the vertical's approval amount; banking keeps 5000", async () => {
+    render(<Harness />);
+    expect(screen.getByLabelText('Amount').value).toBe('5000');
+    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'retail' } });
+    await waitFor(() => expect(screen.getByLabelText('Amount').value).toBe('1999'));
+  });
+
+  it('?vertical= sets the initial Transaction amount', () => {
+    render(<Harness url="/?vertical=healthcare" />);
+    expect(screen.getByLabelText('Amount').value).toBe('500');
+  });
+
   it('an unknown ?vertical= falls back to banking', () => {
     render(<Harness url="/?vertical=nope" />);
     expect(screen.getByLabelText('Vertical').value).toBe('banking');

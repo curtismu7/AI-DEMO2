@@ -16,6 +16,18 @@ vi.mock('../../context/InspectorFieldContext', () => ({
 }));
 
 import McpInspectorPageClean from '../McpInspectorPageClean';
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
+
+const SCHEMA_TOOLS = Object.keys(JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../../../mcp-tool-schemas.json'), 'utf8')).tools);
+
+// The leak the ownership rule closes: with every MCP tool listed by the server, a
+// non-banking vertical shows no banking-only tool and no other vertical's API-key
+// tool, but does show its own and the global ones.
+const BANKING_ONLY = ['show_mortgage', 'get_fee_schedule', 'search_transactions', 'get_investment_accounts', 'adjust_balance', 'freeze_account', 'delete_customer', 'reset_customer_password'];
+const OTHER_MCP_TOOLS = ['show_permit', 'show_work_order', 'show_expense_report', 'show_gear_order', 'show_enrollment', 'show_investment', 'show_large_purchase', 'list_anf_orders'];
+const GLOBALS = ['sequential_think', 'get_weather', 'brave_news_search', 'code_search', 'list_verticals', 'call_pingone_tool', 'list_pingone_tools', 'jwt_decode_full'];
 
 const schema = (props) => ({ type: 'object', properties: Object.fromEntries(props.map((p) => [p, { type: 'string' }])) });
 const TOOLS = [
@@ -105,6 +117,29 @@ describe('MCP Inspector Vertical select', () => {
     expect(sourceState.current.setParamValues).toHaveBeenCalledWith({ account_type: 'checking' });
     fireEvent.click(screen.getByRole('button', { name: 'Resend' }));
     await waitFor(() => expect(sourceState.current.handleExecute).toHaveBeenCalledWith({ tool: TOOLS[0], params: { account_type: 'checking' } }));
+  });
+
+  it('a non-banking Tool list has no banking-only or other-vertical tools, and has its own and the globals', () => {
+    sourceState.current = { ...makeSource(), tools: SCHEMA_TOOLS.map((name) => ({ name, inputSchema: schema([]) })) };
+    renderAt('/?vertical=healthcare');
+    const names = toolOptions();
+    expect(names).toContain('show_health_record');
+    for (const t of [...BANKING_ONLY, ...OTHER_MCP_TOOLS]) expect(names, t).not.toContain(t);
+    // This page lists only what the server returned (jwt_* are not in the schema artifact).
+    for (const t of GLOBALS.filter((g) => SCHEMA_TOOLS.includes(g))) expect(names, t).toContain(t);
+  });
+
+  it('says the local fallback only serves banking when another vertical is picked', () => {
+    const NOTE = 'The local fallback only serves banking tools. Switch to Banking, or sign in for the live MCP server.';
+    sourceState.current = { ...makeSource(), toolsSource: 'local_catalog' };
+    const { unmount } = renderAt('/?vertical=healthcare');
+    expect(screen.getByText(NOTE)).toBeInTheDocument();
+    unmount();
+    renderAt('/');
+    expect(screen.queryByText(NOTE)).toBeNull();
+    sourceState.current = makeSource();
+    renderAt('/?vertical=healthcare');
+    expect(screen.queryByText(NOTE)).toBeNull();
   });
 
   it('keeps ?vertical= when the server changes, and shows no Vertical for PingOne MCP', async () => {

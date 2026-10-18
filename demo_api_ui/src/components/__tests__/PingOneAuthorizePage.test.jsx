@@ -21,6 +21,7 @@ let mockSearch = '';
 const mockSetSearch = vi.fn((fn) => { mockSearch = fn(new URLSearchParams(mockSearch)).toString(); });
 vi.mock('react-router-dom', () => ({
   useNavigate: () => vi.fn(),
+  useLocation: () => ({ pathname: '/pingone-authorize' }),
   useSearchParams: () => [new URLSearchParams(mockSearch), mockSetSearch],
   Link: ({ to, children }) => <a href={to}>{children}</a>,
 }));

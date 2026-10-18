@@ -2,7 +2,19 @@ import React from 'react';
 import { MemoryRouter } from 'react-router-dom';
 import { render, screen, fireEvent, within, waitFor, cleanup, act } from '@testing-library/react';
 import apiClient from '../../services/apiClient';
+import { readFileSync } from 'fs';
+import { dirname, join } from 'path';
+import { fileURLToPath } from 'url';
 import AgentGatewayInspectorClean from '../AgentGatewayInspectorClean';
+
+// The leak the ownership rule closes: with every MCP tool listed by the server, a
+// non-banking vertical shows no banking-only tool and no other vertical's API-key
+// tool, but does show its own and the global ones.
+const BANKING_ONLY = ['show_mortgage', 'get_fee_schedule', 'search_transactions', 'get_investment_accounts', 'adjust_balance', 'freeze_account', 'delete_customer', 'reset_customer_password'];
+const OTHER_MCP_TOOLS = ['show_permit', 'show_work_order', 'show_expense_report', 'show_gear_order', 'show_enrollment', 'show_investment', 'show_large_purchase', 'list_anf_orders'];
+const GLOBALS = ['sequential_think', 'get_weather', 'brave_news_search', 'code_search', 'list_verticals', 'call_pingone_tool', 'list_pingone_tools', 'jwt_decode_full'];
+
+const SCHEMA_TOOLS = Object.keys(JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../../../mcp-tool-schemas.json'), 'utf8')).tools);
 
 vi.mock('../../services/apiClient', () => ({
   __esModule: true,
@@ -144,7 +156,7 @@ describe('AgentGatewayInspectorClean behaviors', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     await screen.findByRole('button', { name: /get_\s?my_\s?accounts.*PERMIT/ });
     fireEvent.change(screen.getByLabelText('Scenario'), { target: { value: 'withdrawal' } });
-    expect(screen.getByLabelText('Arguments (JSON)').value).toMatch(/"account_id": "ACC-9"/);
+    expect(screen.getByLabelText('Arguments (JSON)').value).toMatch(/"from_account_id": "ACC-9"/);
   });
 
   it('the Authz toggle PATCHes ff_authorize_real and a 403 shows in the send hint', async () => {
@@ -245,7 +257,20 @@ describe('AgentGatewayInspectorClean Vertical select', () => {
     expect(screen.getByLabelText('Tool').value).toBe('get_my_accounts');
     expect(optionsOf('Tool')).not.toContain('view_records');
     fireEvent.change(screen.getByLabelText('Scenario'), { target: { value: 'withdrawal' } });
-    expect(JSON.parse(screen.getByLabelText('Arguments (JSON)').value)).toEqual({ account_id: '', amount: 500 });
+    expect(JSON.parse(screen.getByLabelText('Arguments (JSON)').value)).toEqual({ from_account_id: '', amount: 500 });
+  });
+
+  it('a non-banking Tool list has no banking-only or other-vertical tools, and has its own and the globals', async () => {
+    const base = apiClient.get.getMockImplementation();
+    apiClient.get.mockImplementation((url, ...r) => (url === '/api/mcp/inspector/tools'
+      ? Promise.resolve({ data: { tools: SCHEMA_TOOLS.map((name) => ({ name })) } })
+      : base(url, ...r)));
+    renderAt('/?vertical=healthcare');
+    await ready();
+    await waitFor(() => expect(optionsOf('Tool')).toContain('show_health_record'));
+    const names = optionsOf('Tool');
+    for (const t of [...BANKING_ONLY, ...OTHER_MCP_TOOLS]) expect(names, t).not.toContain(t);
+    for (const t of GLOBALS) expect(names, t).toContain(t);
   });
 
   it('?vertical= sets the initial vertical, its scenarios and its tools', async () => {
