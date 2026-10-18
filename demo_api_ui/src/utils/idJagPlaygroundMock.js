@@ -105,6 +105,31 @@ function call(body) {
   };
 }
 
+/** The resource server's protected page: accepted with the access token, refused without one or with the ID-JAG. */
+function resource(variant) {
+  const url = `${AS_ISSUER}/protected/profile`;
+  const authorization = { token: "Bearer [access token]", "no-token": "none", "id-jag": "Bearer [the ID-JAG]" }[variant];
+  const request = { method: "GET", url, authorization };
+  const pass = (check, detail) => ({ check, ok: true, detail });
+  if (variant === "no-token") {
+    return { request, status: 401, wwwAuthenticate: 'Bearer realm="Protected profile"',
+      body: { resource: url, error: "unauthorized", error_description: "A bearer access token is required.", verified: [{ check: "bearer", ok: false, detail: "No Authorization: Bearer header." }] } };
+  }
+  if (variant === "id-jag") {
+    const detail = "This is an ID-JAG (typ oauth-id-jag+jwt): a grant for the authorization server to redeem, never an access token for a resource.";
+    return { request, status: 401, wwwAuthenticate: 'Bearer realm="Protected profile", error="invalid_token"',
+      body: { resource: url, error: "invalid_token", error_description: detail, verified: [pass("bearer", "Authorization: Bearer present."), { check: "token type", ok: false, detail }] } };
+  }
+  return { request, status: 200, wwwAuthenticate: null, body: {
+    resource: url,
+    verified: [pass("bearer", "Authorization: Bearer present."), pass("token type", "JWT (typ at+jwt), not an ID-JAG."), pass("expiry", "3599 s left."),
+      pass("signature", "Verified against the issuer's published keys."), pass("audience", `aud "${RESOURCE}" is this resource server.`),
+      pass("issuer", `iss ${AS_ISSUER} is trusted.`), pass("scope", "Has mcp:read.")],
+    principal: { sub: "user.0042", client_id: CLIENT_ID, scope: "mcp:read mcp:write" },
+    data: { profileId: "prf-5d8e0c3a", subject: "user.0042", status: "active", plan: "Standard", servedBy: "MCP resource server (sample)", servedAt: new Date().toISOString() },
+  } };
+}
+
 function route(method, url, body) {
   const path = url.replace(/^.*\/api\/id-jag-playground/, "");
   if (method === "get" && path === "/config") return MOCK_CONFIG;
@@ -121,6 +146,7 @@ function route(method, url, body) {
   if (path === "/inspect") return inspect();
   if (path === "/redeem") return redeem(body?.scope);
   if (path === "/call") return call(body);
+  if (path === "/resource") return resource(body?.variant);
   const neg = NEGATIVE_TESTS.find((t) => path === `/negative/${t.id}`);
   if (neg) return { ...neg, pass: true, status: 400 };
   throw new Error(`Mock has no ${method.toUpperCase()} ${path}`);
