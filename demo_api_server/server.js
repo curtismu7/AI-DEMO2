@@ -1470,6 +1470,7 @@ app.use('/api/id-jag-playground', require('./routes/idJagPlayground'));
 app.use('/api/consent-mock-phone', require('./routes/consentMockPhone'));
 app.use('/api/aic-demo', require('./routes/aicDemo'));
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
+app.use('/api/auth/ciba/login', require('./routes/cibaLogin')); // pre-auth passwordless login (before the step-up router)
 app.use('/api/auth/ciba', cibaRoutes);
 app.use('/api/auth', parRequestRoutes);
 app.use('/api/auth', dpopRequestRoutes);

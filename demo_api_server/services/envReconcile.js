@@ -101,6 +101,8 @@ const ENV_SCOPED_KEYS = new Set([
   // Only valid where the AIC_Login sign-on policy is assigned to the User Login app;
   // carried into another environment it breaks customer sign-in.
   'aic_login_enabled',
+  // Needs the CIBA grant on this environment's login apps.
+  'ciba_login_enabled',
 ]);
 
 // Keys that SURVIVE an env change (flags, thresholds, UI, deployment topology, internal secrets,

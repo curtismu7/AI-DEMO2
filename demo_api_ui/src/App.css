@@ -2245,6 +2245,37 @@
   font-size: var(--font-size-body);
 }
 
+/* Approval-link (CIBA) sign-in panel + choice screen buttons. */
+.ciba-login .signin-prompt__btn,
+.pi-flow-signin__form > .signin-prompt__btn {
+  width: 100%;
+}
+.ciba-login__heading {
+  margin: 0;
+  font-size: var(--font-size-body);
+  font-weight: 600;
+  color: var(--th-text);
+}
+.ciba-login__code {
+  align-self: center;
+  max-width: 100%;
+  padding: 0.5rem 1.25rem;
+  border: 1px solid var(--th-border-strong);
+  border-radius: 8px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 2rem;
+  font-weight: 700;
+  letter-spacing: 0.25em;
+  overflow-wrap: anywhere;
+  text-align: center;
+}
+.ciba-login__timer {
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+
 /* Device picker (MFA device selection): radio-style list of the devices the
    flow offered — email/SMS/passkey. Token-driven for light and dark. */
 .pi-flow-device-picker {

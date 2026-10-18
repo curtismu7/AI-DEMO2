@@ -29,7 +29,7 @@ const { setPkceCookie, readPkceCookie, clearPkceCookie } = require('../services/
 const { setAuthCookie, clearAuthCookie } = require('../services/authStateCookie');
 const { clearAllAuthCookies, buildPingOneSignoffUrl } = require('../services/sessionCookies');
 const { buildPingOneAuthorizeResourceQueryParam } = require('../utils/oauthAuthorizeResource');
-const { getRoleFromClaims } = require('../services/roleClaimResolver');
+const { resolveEndUserAdminSignals } = require('../services/adminSignalResolver');
 const appEventService = require('../services/appEventService');
 const tokenIntrospectionService = require('../services/tokenIntrospectionService');
 const { validateIdToken, assertUserInfoSubjectMatches } = require('../services/oidcIdTokenValidationService');
@@ -37,6 +37,7 @@ const { terminateAllUserSessions } = require('../services/pingOneSessionService'
 const demoScenarioStore = require('../services/demoScenarioStore');
 const { verticalManifest } = require('../services/verticalManifest');
 const loginFlowTrace = require('../services/loginFlowTraceService');
+const { establishUserSession } = require('../services/userSessionService');
 const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, hasCurrentHostedAccessApproval, clearHostedAccessApproval } = require('../services/hostedAccessPolicy');
 const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
 const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
@@ -1030,44 +1031,11 @@ router.get('/callback', async (req, res) => {
     // Check if user already exists in our system
     let user = dataStore.getUserByUsername(oauthUser.username);
     
-    // Resolve admin role using four signals (any one is sufficient):
-    //  1. admin_username allowlist  — permanent override (demoAdmin, service accounts)
-    //  2. PingOne population ID     — admin users live in a dedicated PingOne population
-    //  3. PingOne custom claim      — attribute named by admin_role_claim matches admin_role value
-    //  4. Existing dataStore record — preserve admin granted in a previous session
-    const configuredAdminRole       = configStore.getEffective('admin_role') || 'admin';
-    const configuredAdminUsernames  = (configStore.getEffective('admin_username') || '')
-      .split(',').map(u => u.trim()).filter(Boolean);
-    const configuredAdminPopulation = (configStore.getEffective('admin_population_id') || '').trim();
-    const configuredRoleClaim       = (configStore.getEffective('admin_role_claim') || '').trim();
+    // Admin role: four signals, any one is sufficient (see adminSignalResolver).
+    const { isAdmin, usernameIsAdmin, populationIsAdmin, claimIsAdmin, resolverIsAdmin, configuredRoleClaim } =
+      resolveEndUserAdminSignals(mergedUserInfo, oauthUser.username);
 
-    // Signal 1: username allowlist — always wins, no PingOne attribute needed
-    const usernameIsAdmin = configuredAdminUsernames.includes(oauthUser.username);
-
-    // Signal 2: population — PingOne includes population.id in userinfo when mapped;
-    // also check top-level populationId as some app configs surface it there.
-    let populationIsAdmin = false;
-    if (configuredAdminPopulation && !usernameIsAdmin) {
-      const popId = mergedUserInfo?.population?.id || mergedUserInfo?.populationId || null;
-      populationIsAdmin = popId === configuredAdminPopulation;
-    }
-
-    // Signal 3: custom claim — supports string or array (e.g. group membership list)
-    let claimIsAdmin = false;
-    if (configuredRoleClaim && !usernameIsAdmin && !populationIsAdmin) {
-      const claimValue = mergedUserInfo[configuredRoleClaim];
-      claimIsAdmin = Array.isArray(claimValue)
-        ? claimValue.includes(configuredAdminRole)
-        : claimValue === configuredAdminRole;
-    }
-
-    // Signal 5: roleClaimResolver — new oauth_role_claim_* config (any IDP)
-    // Note: we do NOT preserve an existing store role — role must be earned from PingOne
-    // signals each login to prevent stale admin entries persisting via the customer app.
-    const resolvedRole    = getRoleFromClaims(mergedUserInfo);
-    const resolverIsAdmin = resolvedRole === 'admin';
-
-    if (usernameIsAdmin || populationIsAdmin || claimIsAdmin || resolverIsAdmin) {
+    if (isAdmin) {
       oauthUser.role = 'admin';
       console.log(`[oauth/user/callback] Granting admin to ${oauthUser.username} (allowlist=${usernameIsAdmin}, population=${populationIsAdmin}, claim[${configuredRoleClaim}]=${claimIsAdmin}, resolver=${resolverIsAdmin})`);
     } else {
@@ -1117,16 +1085,6 @@ router.get('/callback', async (req, res) => {
         + 'user app and include offline_access in authorized scopes. Session renewal will fail until users sign in again.'
       );
     }
-    // Pre-capture data before regenerating session to prevent session fixation
-    const oauthTokens = {
-      accessToken: tokenData.access_token,
-      idToken: tokenData.id_token || null,
-      refreshToken: tokenData.refresh_token,
-      expiresAt: Date.now() + (tokenData.expires_in * 1000),
-      tokenType: tokenData.token_type || 'Bearer',
-      scope: tokenData.scope || null,
-    };
-
     // Determine client type from the original OAuth token
     const clientType = determineClientType(tokenData.access_token);
     const authedUser = user;
@@ -1179,24 +1137,6 @@ router.get('/callback', async (req, res) => {
     const loginElapsedMs = loginStartedAt ? Date.now() - loginStartedAt : null;
     const silentSso = loginElapsedMs !== null && loginElapsedMs < 2000;
 
-    // Decode access token to extract consent ACR and may_act for session storage.
-    // These are used by the consent gate in agentMcpTokenService and the agent UI.
-    let accessTokenAcr = null;
-    let accessTokenMayAct = null;
-    try {
-      const parts = (tokenData.access_token || '').split('.');
-      if (parts.length === 3) {
-        const atClaims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-        accessTokenAcr    = idTokenClaims.acr || null;
-        accessTokenMayAct = atClaims.may_act || null;
-      }
-    } catch (_) { /* non-fatal — acr / may_act stay null */ }
-
-    // Phase 266: cache subject sub so /internal/id-token can look up sessions by sub
-    // without needing the session cookie. Smallest possible additive change — does not
-    // affect any existing behavior.
-    oauthTokens.subjectSub = idTokenClaims.sub || null;
-
     console.log('End user OAuth login successful for:', authedUser.username);
     appEventService.logEvent('auth_lifecycle', 'info', `User authenticated: ${authedUser.username}`, { tag: 'oauth/user/callback', username: authedUser.username });
 
@@ -1209,146 +1149,94 @@ router.get('/callback', async (req, res) => {
       console.warn('[oauth/user/callback] login hint write failed:', hintErr.message);
     }
 
-    // Regenerate session before storing credentials to prevent session fixation.
-    // P3 — failure is now fatal (abort login) to eliminate the session fixation risk.
-    req.session.regenerate((regenErr) => {
-      if (regenErr) {
-        clearPendingIdJagRun(req);
-        clearIdJagCookie(res);
-        console.error('[oauth/user/callback] Session regenerate FAILED — aborting login:', regenErr.message);
+    // Regenerate session, store credentials, introspect, save (see userSessionService).
+    // P3 — failure is fatal (abort login) to eliminate the session fixation risk.
+    const established = await establishUserSession(req, res, {
+      tokenData,
+      idTokenClaims,
+      provider: resolvedLoginProvider,
+      clientType,
+      loginTraceId,
+      user: authedUser,
+      onRegenerated: (session) => {
+        if (validatedIdJagIntent) session.idJagRunIntent = validatedIdJagIntent;
+        if (hostedLoginAudit) session.hostedLoginAudit = hostedLoginAudit;
+        if (hostedLoginAudits) session.hostedLoginAudits = hostedLoginAudits;
+        if (hostedAccessDecision) {
+          stampHostedAccessApproval(session, hostedAccessDecision, hostedAccessPolicy);
+        }
+      },
+    });
+    if (!established.ok && established.reason === 'session_regenerate_failed') {
+      clearPendingIdJagRun(req);
+      clearIdJagCookie(res);
+      clearAuthCookie(res, _isProd());
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_regenerate_failed' });
+      return redirectEndUserOAuthSpaFailure(
+        req,
+        res,
+        { error: 'session_regenerate_failed' },
+        postLoginReturnToPath || '/'
+      );
+    }
+    if (!established.ok) {
+      finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_persist_failed' });
+      return req.session.destroy((destroyErr) => {
+        if (destroyErr) {
+          console.error('[oauth/user/callback] session.destroy after failed save:', destroyErr.message);
+        }
         clearAuthCookie(res, _isProd());
-        finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_regenerate_failed' });
         return redirectEndUserOAuthSpaFailure(
           req,
           res,
-          { error: 'session_regenerate_failed' },
+          { error: 'session_persist_failed' },
           postLoginReturnToPath || '/'
         );
-      }
-
-      req.session.oauthTokens = oauthTokens;
-      req.session.user = authedUser;
-      req.session.clientType = clientType;
-      req.session.oauthType = 'user';
-      req.session.oauthProvider = resolvedLoginProvider;
-      if (validatedIdJagIntent) req.session.idJagRunIntent = validatedIdJagIntent;
-      if (hostedLoginAudit) req.session.hostedLoginAudit = hostedLoginAudit;
-      if (hostedLoginAudits) req.session.hostedLoginAudits = hostedLoginAudits;
-      if (hostedAccessDecision) {
-        stampHostedAccessApproval(req.session, hostedAccessDecision, hostedAccessPolicy);
-      }
-      // D-01: clear pending agent intent — client handles replay via sessionStorage (BX_AGENT_PENDING_NL_KEY)
-      delete req.session.pendingAgentIntent;
-
-      loginFlowTrace.addStep(loginTraceId, {
-        actor: 'bff',
-        title: 'BFF regenerates the session and stores the tokens',
-        detail: 'Session id is rotated (anti-fixation); tokens stored server-side; profile read from the ID token.',
-        protocolDetail: [
-          ['regenerate()', 'new session id'],
-          ['sub', idTokenClaims.sub || 'unknown'],
-        ],
       });
-
-      console.log('[oauth/user/callback] tokens stored — access_token=%s id_token=%s refresh_token=%s',
-        oauthTokens.accessToken  ? 'PRESENT' : 'MISSING',
-        oauthTokens.idToken      ? 'PRESENT' : 'MISSING',
-        oauthTokens.refreshToken ? 'PRESENT' : 'MISSING'
-      );
-
-      // Consent gate: store ACR and may_act from the user access token so the
-      // MCP token-exchange guard can check them without re-decoding the JWT.
-      req.session.consentAcr = accessTokenAcr;
-      req.session.mayAct     = accessTokenMayAct;
-      // Enterprise-managed MCP: evaluate IT policy after SSO login (auto-connect when allowed).
-      const bootstrapEnterprise = async () => {
-        try {
-          const enterpriseMcpPolicy = require('../services/enterpriseMcpPolicyService');
-          if (!enterpriseMcpPolicy.isEnabled()) return;
-          await enterpriseMcpPolicy.establishEnterpriseSession(req);
-        } catch (e) {
-          console.warn('[oauth/user/callback] enterprise MCP policy check skipped:', e.message);
-        }
-      };
-
-      // RFC 7662 — introspect at login so /api/tokens/session-preview shows
-      // "active-token introspection" in the Token Chain before any tool call.
-      // Awaited (bounded, never throws) BEFORE the session is saved and the browser
-      // redirected: the token chain fetches once on mount, so a result written after
-      // the redirect (as the old fire-and-forget did) was never shown.
-      const introspectAtLogin = async () => {
-        try {
-          const loginIntrospection = await tokenIntrospectionService.introspectAtLogin(oauthTokens.accessToken);
-          if (loginIntrospection) req.session.loginIntrospection = loginIntrospection;
-        } catch (err) {
-          console.debug('[oauth/user/callback] loginIntrospection skipped:', err.message);
-        }
-      };
-
-      bootstrapEnterprise().then(introspectAtLogin).finally(() => {
-      req.session.save((saveErr) => {
-        if (saveErr) {
-          console.error('[oauth/user/callback] Session save FAILED — aborting login (no _auth cookie):', saveErr.message);
-          finishLoginAudit(req, { outcome: 'failure', reasonCode: 'session_persist_failed' });
-          return req.session.destroy((destroyErr) => {
-            if (destroyErr) {
-              console.error('[oauth/user/callback] session.destroy after failed save:', destroyErr.message);
-            }
-            clearAuthCookie(res, _isProd());
-            return redirectEndUserOAuthSpaFailure(
-              req,
-              res,
-              { error: 'session_persist_failed' },
-              postLoginReturnToPath || '/'
-            );
-          });
-        }
-        console.log('[oauth/user/callback] Session saved OK');
-        finishLoginAudit(req, {
-          outcome: 'success',
-          reasonCode: 'allowed',
-          identity: hostedAccessDecision || {},
-        });
-
-        // Set a signed auth-state cookie so the session-restore middleware can
-        // answer /status and /nl requests even when the session hits a different
-        // serverless instance on Vercel.
-        setAuthCookie(res, {
-          ...authedUser,
-          oauthType: 'user',
-          expiresAt: oauthTokens.expiresAt,
-          idToken:   oauthTokens.idToken || null,
-        }, _isProd());
-
-        // Clear role-switch cookie if this login was triggered by POST /api/auth/switch
-        res.clearCookie('_switch_target', { path: '/', sameSite: _isProd() ? 'none' : 'lax', secure: _isProd() });
-
-        if (stepUpReturnTo) {
-          return res.redirect(stepUpReturnTo);
-        }
-
-        loginFlowTrace.addStep(loginTraceId, {
-          actor: 'bff',
-          toActor: 'browser',
-          title: 'You land back on the site, signed in',
-          detail: 'BFF redirects home and sets the sid cookie (HttpOnly) — the browser holds only this cookie, no tokens in JS.',
-          protocolDetail: [
-            ['Set-Cookie', 'sid=… · HttpOnly'],
-          ],
-        });
-        const loginTraceParam = loginTraceId ? `&login_trace=${loginTraceId}` : '';
-
-        const ssoParam = silentSso ? '&sso_silent=1' : '';
-        const returnPath = postLoginReturnToPath || '/dashboard';
-        // Land directly on the app (was /success) carrying oauth=success so the
-        // dashboard-level LoginSuccessModal opens once. returnPath is sanitized.
-        const sep = returnPath.includes('?') ? '&' : '?';
-        res.redirect(`${origin}${returnPath}${sep}oauth=success${ssoParam}${loginTraceParam}`);
-
-      });
-      });
+    }
+    const { oauthTokens } = established;
+    console.log('[oauth/user/callback] Session saved OK');
+    finishLoginAudit(req, {
+      outcome: 'success',
+      reasonCode: 'allowed',
+      identity: hostedAccessDecision || {},
     });
-    
+
+    // Set a signed auth-state cookie so the session-restore middleware can
+    // answer /status and /nl requests even when the session hits a different
+    // serverless instance on Vercel.
+    setAuthCookie(res, {
+      ...authedUser,
+      oauthType: 'user',
+      expiresAt: oauthTokens.expiresAt,
+      idToken:   oauthTokens.idToken || null,
+    }, _isProd());
+
+    // Clear role-switch cookie if this login was triggered by POST /api/auth/switch
+    res.clearCookie('_switch_target', { path: '/', sameSite: _isProd() ? 'none' : 'lax', secure: _isProd() });
+
+    if (stepUpReturnTo) {
+      return res.redirect(stepUpReturnTo);
+    }
+
+    loginFlowTrace.addStep(loginTraceId, {
+      actor: 'bff',
+      toActor: 'browser',
+      title: 'You land back on the site, signed in',
+      detail: 'BFF redirects home and sets the sid cookie (HttpOnly) — the browser holds only this cookie, no tokens in JS.',
+      protocolDetail: [
+        ['Set-Cookie', 'sid=… · HttpOnly'],
+      ],
+    });
+    const loginTraceParam = loginTraceId ? `&login_trace=${loginTraceId}` : '';
+
+    const ssoParam = silentSso ? '&sso_silent=1' : '';
+    const returnPath = postLoginReturnToPath || '/dashboard';
+    // Land directly on the app (was /success) carrying oauth=success so the
+    // dashboard-level LoginSuccessModal opens once. returnPath is sanitized.
+    const sep = returnPath.includes('?') ? '&' : '?';
+    res.redirect(`${origin}${returnPath}${sep}oauth=success${ssoParam}${loginTraceParam}`);
+
   } catch (error) {
     clearPendingIdJagRun(req);
     clearIdJagCookie(res);
@@ -2120,6 +2008,7 @@ router.post('/agent-permissions', (req, res) => {
 module.exports = router;
 module.exports.sanitizePostLoginReturnPath = sanitizePostLoginReturnPath;
 module.exports.storeLoginHint = storeLoginHint;
+module.exports.reseedIfVerticalMismatch = reseedIfVerticalMismatch;
 module.exports.setPendingIdJagRun = setPendingIdJagRun;
 module.exports.consumePendingIdJagRun = consumePendingIdJagRun;
 module.exports.clearPendingIdJagRun = clearPendingIdJagRun;

@@ -88,6 +88,11 @@ function _bindingMessage(raw, verticalId) {
     : code + crypto.randomBytes(3).toString('hex').toUpperCase();
 }
 
+/** The 8-char binding_message (2-char vertical code + 6 hex) used as the on-screen match code. */
+function newMatchCode(verticalId = '') {
+  return _bindingMessage('', verticalId);
+}
+
 /**
  * Initiate a CIBA authentication request.
  *
@@ -240,4 +245,5 @@ module.exports = {
   waitForApproval,
   isEnabled,
   availableChannels,
+  newMatchCode,
 };
