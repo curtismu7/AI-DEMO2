@@ -1,21 +1,15 @@
 // AgentGatewayLogPanel.jsx
 //
-// Live log window for the Real Agent Gateway. Two views:
-//   1. Recent decisions — parsed from the gateway's X-Gw-Audit-Trail (why a call
-//      was PERMITted / DENYed, incl. real PingOne Authorize deny statements).
-//   2. Raw container logs — the Agent Gateway stdout (introspection, [P1AZ] REQUEST/RESPONSE/
-//      DECISION, token exchange), read by the BFF over the docker socket.
+// Raw container log window for the Real Agent Gateway: the Agent Gateway stdout
+// (introspection, [P1AZ] REQUEST/RESPONSE/DECISION, token exchange), read by the
+// BFF over the docker socket. Decisions live on the Agent Gateway Inspector.
 //
-// Backend (any signed-in user): GET /api/admin/agent-gateway/decisions,
-//                                GET /api/admin/agent-gateway/logs?tail=&filter=
+// Backend: GET /api/admin/agent-gateway/logs?tail=&filter=
 //
 // Reuses McpGatewayConfig.css (mgc-*) for styling.
 
 import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { isPause } from '../services/tokenChainTrace/pauseObligation';
 import apiClient from '../services/apiClient';
-import CapabilityCallout from './CapabilityCallout';
-import { AGENT_GATEWAY_CAPABILITIES } from '../config/capabilityLedgers/agentGatewayCapabilities';
 // Its only former host (McpGatewayConfig) is no longer routed, so the panel
 // brings its own mgc-* styles to wherever it is mounted.
 import './McpGatewayConfig.css';
@@ -23,42 +17,9 @@ import './McpGatewayConfig.css';
 const TAIL_OPTIONS = [100, 200, 500, 1000];
 const REFRESH_MS = 4000;
 
-// A real PingOne Authorize statement carries a JSON string payload; pull a
-// human message out of it for display, falling back to the statement name.
-function statementMessage(stmt) {
-  if (!stmt) return '';
-  try {
-    const p = typeof stmt.payload === 'string' ? JSON.parse(stmt.payload) : stmt.payload;
-    return (p && (p.message || p.reason)) || stmt.name || stmt.code || '';
-  } catch {
-    return stmt.name || stmt.code || '';
-  }
-}
-
-/**
- * Badge for one gateway decision row.
- *
- * An approval gate is not a denial: INDETERMINATE / STEP_UP / HITL_REQUIRED are
- * HELD and take the amber badge, so only a real refusal shows as an error. Uses
- * isPause() — the same predicate the Token Chain surfaces read — so the gateway
- * log cannot classify a decision differently from the trace rail.
- *
- * Exported so the mapping is testable rather than an inline ternary; the bug in
- * #3019 hid in exactly that shape.
- *
- * @param {{decision?: string}} d  one parsed gateway decision
- * @returns {'mgc-badge--live'|'mgc-badge--warn'|'mgc-badge--error'}
- */
-export function decisionBadgeClass(d) {
-  const decision = String(d?.decision || '').toUpperCase();
-  if (isPause(decision, d)) return 'mgc-badge--warn';
-  return decision === 'PERMIT' ? 'mgc-badge--live' : 'mgc-badge--error';
-}
-
 export default function AgentGatewayLogPanel() {
   const [logs, setLogs] = useState([]);
   const [logError, setLogError] = useState(null);
-  const [decisions, setDecisions] = useState([]);
   const [filter, setFilter] = useState('');
   const [tail, setTail] = useState(200);
   const [autoRefresh, setAutoRefresh] = useState(false);
@@ -67,7 +28,6 @@ export default function AgentGatewayLogPanel() {
   // Monotonic request ids so an older, slower fetch (a previous filter, or a
   // stale autoRefresh tick) can't overwrite a newer one that resolved first.
   const logsReqIdRef = useRef(0);
-  const decisionsReqIdRef = useRef(0);
 
   const fetchLogs = useCallback(async () => {
     const reqId = ++logsReqIdRef.current;
@@ -94,20 +54,7 @@ export default function AgentGatewayLogPanel() {
     }
   }, [tail, filter]);
 
-  const fetchDecisions = useCallback(async () => {
-    const reqId = ++decisionsReqIdRef.current;
-    try {
-      const { data } = await apiClient.get('/api/admin/agent-gateway/decisions', {
-        params: { limit: 20 },
-      });
-      if (reqId !== decisionsReqIdRef.current) return;
-      setDecisions(data.decisions || []);
-    } catch {
-      /* decisions are best-effort; the raw log still renders */
-    }
-  }, []);
-
-  const refresh = useCallback(() => { fetchLogs(); fetchDecisions(); }, [fetchLogs, fetchDecisions]);
+  const refresh = fetchLogs;
 
   useEffect(() => { refresh(); }, [refresh]);
 
@@ -124,48 +71,9 @@ export default function AgentGatewayLogPanel() {
 
   return (
     <div className="mgc-section">
-      <CapabilityCallout
-        capability={AGENT_GATEWAY_CAPABILITIES.find((c) => c.id === 'rate-limiting')}
-        to="/agent-gateway-capabilities"
-      />
       <h4>Real Agent Gateway logs</h4>
-      <p className="mgc-field-hint">
-        Live view of the Agent Gateway container: recent authorize decisions and the
-        raw gateway log (introspection, <code>[P1AZ]</code> decision calls, token exchange).
-        Read by the BFF over the docker socket.
-      </p>
-
-      {/* Recent decisions */}
-      <div className="mgc-field-label" style={{ marginTop: 6 }}>Recent decisions</div>
-      {decisions.length === 0 ? (
-        <p className="mgc-field-hint">No gateway decisions recorded yet. Send a tool call through the PingOne Agent Gateway.</p>
-      ) : (
-        <table className="mgc-env-table">
-          <tbody>
-            {decisions.map((d, i) => {
-              const badgeClass = decisionBadgeClass(d);
-              const why = d.reason
-                || (d.statements || []).map(statementMessage).filter(Boolean).join(' | ')
-                || '';
-              return (
-                <tr key={`${d.ts}-${i}`}>
-                  <td className="mgc-env-key" style={{ whiteSpace: 'nowrap' }}>
-                    <span className={`mgc-badge ${badgeClass}`}>
-                      {d.decision}
-                    </span>
-                  </td>
-                  <td className="mgc-env-val">
-                    <code>{d.tool || '(none)'}</code>
-                    {d.backend ? <span className="mgc-field-hint"> · {d.backend}</span> : null}
-                    {why ? <div className="mgc-field-hint" style={{ marginTop: 2 }}>{why}</div> : null}
-                  </td>
-                </tr>
-              );
-            })}
-          </tbody>
-        </table>
-      )}
-
+      <details className="insp-card insp-log">
+        <summary><strong>Gateway log</strong> · Last {tail} lines. Tokens are redacted.</summary>
       {/* Raw log controls */}
       <div className="mgc-info-grid" style={{ marginTop: 12, alignItems: 'end' }}>
         <label className="mgc-field" style={{ margin: 0 }}>
@@ -200,6 +108,7 @@ export default function AgentGatewayLogPanel() {
           {logs.length ? logs.join('\n') : (logError ? '' : 'No log lines.')}
         </pre>
       </div>
+      </details>
     </div>
   );
 }

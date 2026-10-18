@@ -126,13 +126,15 @@ export function useInspectorSource(sourceKey) {
   const [tools, setTools] = useState([]);
   const [selectedTool, setSelectedTool] = useState(null);
   const [paramValues, setParamValues] = useState({});
-  const [outputTab, setOutputTab] = useState('response');
+  const [toolsSource, setToolsSource] = useState(null);
   const [busy, setBusy] = useState(false);
   const [loadingTools, setLoadingTools] = useState(false);
   const [lastInvoke, setLastInvoke] = useState(null);
-  const [lastTiming, setLastTiming] = useState(null);
   const [mcpHistory, setMcpHistory] = useState(getCalls());
   const [banner, setBanner] = useState(null);
+  // The subset of `banner` that came from loading tools/profiles; a failed invoke must not touch it.
+  const [toolsBanner, setToolsBanner] = useState(null);
+  const setLoadBanner = useCallback((b) => { setBanner(b); setToolsBanner(b); }, []);
   const [servers, setServers] = useState([]);
   const [profiles, setProfiles] = useState([]);
   const [selectedProfileId, setSelectedProfileId] = useState('');
@@ -181,14 +183,14 @@ export function useInspectorSource(sourceKey) {
       setSelectedProfileId((prev) => selectId || prev || data.defaultProfileId || '');
     } catch (e) {
       if (profilesReqRef.current !== reqId) return;
-      setBanner({ message: formatAxiosError(e, 'Failed to load server profiles'), loginUrl: null });
+      setLoadBanner({ message: formatAxiosError(e, 'Failed to load server profiles'), loginUrl: null });
     } finally {
       // ponytail: clearing here shows one frame of the empty state before
       // loadTools() re-raises the flag. Thread the selected id back out and
       // hand the flag straight over if that frame ever reads as a flicker.
       if (profilesReqRef.current === reqId) setLoadingTools(false);
     }
-  }, [mode, config.profilesEndpoint]);
+  }, [mode, config.profilesEndpoint, setLoadBanner]);
 
   useEffect(() => { loadProfiles(); }, [loadProfiles]);
 
@@ -216,7 +218,7 @@ export function useInspectorSource(sourceKey) {
     if (!profileId && !error) return;
     if (profileId) setSelectedProfileId(profileId);
     if (error) {
-      setBanner({ message: error, loginUrl: null });
+      setLoadBanner({ message: error, loginUrl: null });
       suppressNextBannerRef.current = true;
     }
     params.delete('profile');
@@ -233,7 +235,7 @@ export function useInspectorSource(sourceKey) {
     const suppressBanner = suppressNextBannerRef.current;
     suppressNextBannerRef.current = false;
     setLoadingTools(true);
-    if (!suppressBanner) setBanner(null);
+    if (!suppressBanner) setLoadBanner(null);
     try {
       const url = mode === 'profiles' && selectedProfileId !== defaultProfileId
         ? `${config.endpoint}?profile=${encodeURIComponent(selectedProfileId)}`
@@ -246,13 +248,14 @@ export function useInspectorSource(sourceKey) {
         setTools(data.tools || data.methods || data.items || []);
       }
       setServers(data.servers || []);
+      setToolsSource(data._source || null);
       setParamDefaults(data.paramDefaults || {});
-      if (!suppressBanner) setBanner(bannerFromPayload(data));
+      if (!suppressBanner) setLoadBanner(bannerFromPayload(data));
       setSelectedTool(null);
       setLastInvoke(null);
       setParamValues({});
     } catch (e) {
-      if (!suppressBanner) setBanner({
+      if (!suppressBanner) setLoadBanner({
         message: formatAxiosError(e, `Failed to load ${sourceKey} tools`),
         loginUrl: e.response?.data?.loginUrl || null,
       });
@@ -260,7 +263,7 @@ export function useInspectorSource(sourceKey) {
     } finally {
       setLoadingTools(false);
     }
-  }, [sourceKey, config, mode, selectedProfileId, defaultProfileId]);
+  }, [sourceKey, config, mode, selectedProfileId, defaultProfileId, setLoadBanner]);
 
   useEffect(() => {
     loadTools();
@@ -276,15 +279,18 @@ export function useInspectorSource(sourceKey) {
     return () => clearInterval(id);
   }, [mode]);
 
-  const handleExecute = useCallback(async () => {
+  const handleExecute = useCallback(async (override) => {
+    // `override` ({ tool, params }) lets Resend run a past call without waiting for state.
+    const execTool = override?.tool ?? selectedTool;
+    const execParams = override?.tool ? (override.params ?? {}) : paramValues;
     // A captured call has already happened; there is nothing to execute.
-    if (mode === 'calls' || !selectedTool) return;
+    if (mode === 'calls' || !execTool) return;
 
     const toolKey = config.toolKey;
-    const toolName = selectedTool[toolKey];
-    const props = selectedTool.inputSchema?.properties || selectedTool.schema?.properties || {};
-    const required = selectedTool.inputSchema?.required || selectedTool.schema?.required || [];
-    const missing = required.filter((key) => !String(paramValues[key] ?? '').trim());
+    const toolName = execTool[toolKey];
+    const props = execTool.inputSchema?.properties || execTool.schema?.properties || {};
+    const required = execTool.inputSchema?.required || execTool.schema?.required || [];
+    const missing = required.filter((key) => !String(execParams[key] ?? '').trim());
 
     if (missing.length > 0) {
       notifyError(`Required: ${missing.join(', ')}`);
@@ -315,10 +321,10 @@ export function useInspectorSource(sourceKey) {
       elicitationTraceRef.current = closeSse;
     }
 
+    const params = {};
     try {
-      const params = {};
       for (const [key, schema] of Object.entries(props)) {
-        const coerced = coerceParam(paramValues[key] ?? '', schema?.type);
+        const coerced = coerceParam(execParams[key] ?? '', schema?.type);
         if (coerced !== undefined) params[key] = coerced;
       }
 
@@ -328,8 +334,8 @@ export function useInspectorSource(sourceKey) {
         ...(closeSse ? { flowTraceId: traceIdRefValue } : {}),
         // Multi-server sources (Gateway Showcase) must say WHICH server the
         // selected tool belongs to — the same tool name could exist on both.
-        ...(config.serverKey && selectedTool[config.serverKey]
-          ? { [config.serverKey]: selectedTool[config.serverKey] }
+        ...(config.serverKey && execTool[config.serverKey]
+          ? { [config.serverKey]: execTool[config.serverKey] }
           : {}),
         // Non-default profiles dispatch to their own transport (Custom Server).
         ...(mode === 'profiles' && selectedProfileId && selectedProfileId !== defaultProfileId
@@ -340,20 +346,22 @@ export function useInspectorSource(sourceKey) {
       const { data } = await apiClient.post(config.invokeEndpoint, payload);
       const ms = Date.now() - t0;
 
-      appendMcpCall(toolName, 200, ms, data.result ?? data);
+      appendMcpCall(toolName, 200, ms, data.result ?? data, null, {
+        src: 'you', params, frames: data.frames, tokenEvents: data.tokenEvents, response: data,
+      });
       setLastInvoke(data);
       // A 200 can still carry a refusal (PingOne auth, a gateway DENY). Surface
       // it rather than letting the Status chip claim "200 OK" over an error body.
       const payloadBanner = bannerFromPayload(data);
       setBanner(payloadBanner);
-      setLastTiming({ ms, error: Boolean(payloadBanner) });
-      setOutputTab('response');
     } catch (e) {
       const ms = Date.now() - t0;
-      const failedTool = selectedTool[config.toolKey];
-      appendMcpCall(failedTool, e.response?.status ?? 0, ms, null, formatAxiosError(e));
+      const failedTool = execTool[config.toolKey];
+      const errBody = e.response?.data;
+      appendMcpCall(failedTool, e.response?.status ?? 0, ms, null, formatAxiosError(e), {
+        src: 'you', params, frames: errBody?.frames, tokenEvents: errBody?.tokenEvents, response: errBody,
+      });
       setLastInvoke(e.response?.data || { error: formatAxiosError(e) });
-      setLastTiming({ ms, error: true });
       setBanner({
         message: formatAxiosError(e, 'Invoke failed'),
         loginUrl: e.response?.data?.loginUrl || null,
@@ -407,65 +415,20 @@ export function useInspectorSource(sourceKey) {
     }
   }, [selectedTool, schemaProps, paramDefaults]);
 
-  // The raw value behind each output tab. The page stringifies for the JSON
-  // view and walks the object for the Form view, so both need this un-stringified.
-  const outputValue = useMemo(() => {
-    if (mode === 'calls') {
-      const call = selectedTool?._call;
-      if (!call) return null;
-      switch (outputTab) {
-        case 'response': return call.response ?? null;
-        case 'request': return call.request ?? null;
-        case 'schema': return null;
-        case 'timing': return { durationMs: call.durationMs ?? call.duration ?? null, at: call.timestamp ?? call.at ?? null };
-        case 'headers': return call.request?.headers ?? call.response?.headers ?? null;
-        default: return null;
-      }
-    }
-    switch (outputTab) {
-      case 'response':
-        return lastInvoke ?? null;
-      case 'request':
-        return selectedTool ? {
-          jsonrpc: '2.0',
-          id: 1,
-          method: config.paramsKey === 'method' ? selectedTool[config.toolKey] : 'tools/call',
-          params: config.paramsKey === 'method'
-            ? paramValues
-            : { name: selectedTool[config.toolKey], arguments: paramValues },
-        } : null;
-      case 'schema':
-        return selectedTool?.inputSchema || selectedTool?.schema || null;
-      case 'timing':
-        return lastTiming ? { durationMs: lastTiming.ms, error: lastTiming.error } : null;
-      case 'headers':
-        return { 'Protocol-Version': '2.0', Transport: 'WebSocket JSON-RPC' };
-      default:
-        return null;
-    }
-  }, [mode, outputTab, lastInvoke, selectedTool, paramValues, lastTiming, config]);
-
-  const outputContent = useMemo(
-    () => (outputValue === null || outputValue === undefined ? null : JSON.stringify(outputValue, null, 2)),
-    [outputValue],
-  );
-
   return {
     // Data
     tools,
     selectedTool,
     paramValues,
-    outputTab,
+    toolsSource,
     busy,
     loadingTools,
     lastInvoke,
-    lastTiming,
     mcpHistory,
     schemaProps,
     requiredParams,
-    outputContent,
-    outputValue,
     banner,
+    toolsBanner,
     servers,
     profiles,
     selectedProfileId,
@@ -476,7 +439,6 @@ export function useInspectorSource(sourceKey) {
     // Actions
     setSelectedTool,
     setParamValues,
-    setOutputTab,
     setSelectedProfileId,
     handleExecute,
     pendingElicitation,

@@ -29,8 +29,9 @@ function notify() {
  * @param {number|null} duration   Round-trip ms, or null
  * @param {any}         result     Parsed JSON response body (or null on error)
  * @param {string|null} errorMsg   Error message if the call failed
+ * @param {object|null} detail     Full capture: { src, params?, frames?, tokenEvents?, response?, question? }
  */
-export function appendMcpCall(tool, status, duration, result, errorMsg = null) {
+export function appendMcpCall(tool, status, duration, result, errorMsg = null, detail = null) {
   calls = [
     {
       id:        ++seq,
@@ -39,6 +40,7 @@ export function appendMcpCall(tool, status, duration, result, errorMsg = null) {
       duration,
       result,
       errorMsg,
+      detail,
       timestamp: new Date().toISOString(),
     },
     ...calls.slice(0, MAX_CALLS - 1),

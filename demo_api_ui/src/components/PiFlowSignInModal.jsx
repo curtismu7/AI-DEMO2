@@ -7,7 +7,7 @@ import {
 import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 import SignInBrand from "./SignInBrand";
-import CibaLoginPanel from "./CibaLoginPanel";
+import CibaApprovalPanel from "./CibaApprovalPanel";
 import { isAicLoginEnabled, isCibaLoginEnabled } from "../utils/aicLogin";
 
 const apiBase = () =>
@@ -118,6 +118,10 @@ export default function PiFlowSignInModal() {
   const forceRef = useRef(false);
   const providerRef = useRef("pingone");
   const cibaEnabledRef = useRef(false); // ciba_login_enabled; off = no choice screen (pre-CIBA behaviour)
+  // 'ciba' only after the "password + approval link" button; submit() sends it as secondFactor.
+  // Every other path (plain password, passwordless, flag off) leaves it null and sends nothing.
+  const secondFactorRef = useRef(null);
+  const [approvalChannels, setApprovalChannels] = useState([]); // channels the server said this user has
   // Remember who is signing in as: 800 ms after the last keystroke in a
   // username field, store the value as the role's login hint so the next
   // sign-in prefills it. The sign-in callback also stores it; this covers a
@@ -216,10 +220,11 @@ export default function PiFlowSignInModal() {
     // Admin is device-first too (user decision 2026-10-18); "Use your password instead" stays the
     // break-glass. If the admin app has no mfa_only policy the open fails and snaps to the password form.
     const passwordFirst = providerRef.current === "pingfederate" && mfaRequested();
-    // With ciba_login_enabled on, both roles open on a CHOICE screen (passkey / CIBA
-    // approval link / "use a password") with no flow opened yet. PingFederate
-    // and the ?signin=mfa test hook keep the legacy first step below.
-    const choiceFirst = cibaEnabledRef.current && providerRef.current !== "pingfederate" && !mfaRequested();
+    secondFactorRef.current = null;
+    // With ciba_login_enabled on, CUSTOMERS (either provider) open on a CHOICE screen
+    // (passwordless / password + approval link / "use a password") with no flow opened yet.
+    // Admin and the ?signin=mfa test hook keep the legacy first step below.
+    const choiceFirst = cibaEnabledRef.current && role === "customer" && !mfaRequested();
     setStep(choiceFirst ? "choice" : passwordFirst ? "password" : "device");
     setError("");
     setUsername("");
@@ -279,6 +284,7 @@ export default function PiFlowSignInModal() {
   // under the identifier-first policy; the old flow is abandoned (it expires).
   const switchToDevice = () => {
     if (busy) return;
+    secondFactorRef.current = null; // leaving the password+approval path
     // The passkey step reaches this too (from the device-picker path), where the
     // password form was never filled — keep whatever username the user typed.
     if (username) setDeviceUsername(username);
@@ -299,14 +305,23 @@ export default function PiFlowSignInModal() {
     return () => window.removeEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
   }, [begin, userDrivable, adminDrivable]);
 
-  // Choice screen / CIBA panel -> the existing password step (opens the password-first flow).
-  const usePassword = () => {
+  // Choice screen -> the existing password step (opens the password-first flow).
+  // `secondFactor` is 'ciba' only from the "password + approval link" button.
+  const openPasswordStep = (secondFactor) => {
     if (busy) return;
+    secondFactorRef.current = secondFactor;
     setError("");
     setBusy(true);
     setStep("password");
     openFlow(returnToRef.current, roleRef.current);
   };
+  const usePassword = () => openPasswordStep(null);
+  const usePasswordWithApproval = () => openPasswordStep("ciba");
+  // Approval cancelled/failed: a fresh begin() back to the choice screen. The server drops the parked
+  // (password-verified) flow when the next pi.flow login opens (openPiFlow; tests/piFlowSecondFactor.test.js
+  // 'starting a new pi.flow login discards a parked flow'), i.e. on the next button click, not at begin().
+  const restartSignIn = () =>
+    begin({ returnTo: returnToRef.current, role: roleRef.current, force: forceRef.current });
 
   const apiForRole = () => (roleRef.current === "admin" ? ADMIN_API : USER_API);
 
@@ -324,9 +339,25 @@ export default function PiFlowSignInModal() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(secondFactorRef.current ? { username, password, secondFactor: secondFactorRef.current } : { username, password }),
       });
       const body = await res.json().catch(() => ({}));
+      if (res.status === 502 && body.error === "approval_unavailable") {
+        // Password was fine but the approval link can't be sent: stay on the form as a plain password login.
+        // The server already saw this flow COMPLETE, so it is dead: reopen a fresh password-first one.
+        secondFactorRef.current = null;
+        setPassword("");
+        setError("Approval link isn't available right now. Sign in with your password instead, or try again.");
+        openFlow(returnToRef.current, roleRef.current); // stays busy until the new flow is open; failure falls back as usual
+        return;
+      }
+      if (res.ok && body.step === "approval" && Array.isArray(body.channels)) {
+        setPassword("");
+        setApprovalChannels(body.channels);
+        setStep("approval");
+        setBusy(false);
+        return;
+      }
       if (res.status === 401) {
         setPassword("");
         setError(body.message || "Username or password is incorrect.");
@@ -334,7 +365,12 @@ export default function PiFlowSignInModal() {
         return;
       }
       if (res.ok && body.redirectTo) {
-        navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
+        // Approval was requested but could not apply: signed in on the password alone — say so.
+        const skipped = body.secondFactorSkipped && secondFactorRef.current === "ciba";
+        navigateWithOverlay(body.redirectTo, {
+          message: skipped ? "Signed in with your password only: no approval link is available for this account." : "Signing in...",
+          assign: true,
+        });
         return;
       }
       if (res.ok && body.step === "passkey") {
@@ -603,7 +639,7 @@ export default function PiFlowSignInModal() {
                 {busy ? "Waiting for passkey" : "Verify with passkey"}
               </button>
             </>
-          ) : step === "choice" || step === "ciba" ? null : (
+          ) : step === "choice" || step === "approval" ? null : (
             <>
               <button
                 type="submit"
@@ -650,22 +686,23 @@ export default function PiFlowSignInModal() {
         <SignInBrand welcome={welcome} />
         {step === "choice" ? (
           <div className="pi-flow-signin__form">
-            <button type="button" className="signin-prompt__btn" data-default-button disabled={busy} onClick={switchToDevice}>
-              Sign in with passkey
+            {/* Copy call: PingFederate has no passkey step, so the label covers both providers. */}
+            <button type="button" className="signin-prompt__btn" data-default-button disabled={busy} aria-describedby="pi-flow-passwordless-hint" onClick={switchToDevice}>
+              Sign in without a password
             </button>
-            <button type="button" className="signin-prompt__btn" disabled={busy} onClick={() => { setError(""); setStep("ciba"); }}>
-              Sign in with CIBA (email or SMS)
+            <p id="pi-flow-passwordless-hint" className="signin-modal__text ciba-login__hint">passkey or a one-time code</p>
+            <button type="button" className="signin-prompt__btn" disabled={busy} onClick={usePasswordWithApproval}>
+              Sign in with password + approval link (email or text)
             </button>
             <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" disabled={busy} onClick={usePassword}>
               Use a password instead
             </button>
           </div>
-        ) : step === "ciba" ? (
-          <CibaLoginPanel
-            role={roleRef.current}
-            onSignedIn={(to) => navigateWithOverlay(to, { message: "Signing in...", assign: true })}
-            onUsePassword={usePassword}
-            onBack={() => setStep("choice")}
+        ) : step === "approval" ? (
+          <CibaApprovalPanel
+            channels={approvalChannels}
+            onApproved={(to) => navigateWithOverlay(to, { message: "Signing in...", assign: true })}
+            onCancel={restartSignIn}
           />
         ) : step === "passkey" ? (
           <div className="pi-flow-signin__form">
