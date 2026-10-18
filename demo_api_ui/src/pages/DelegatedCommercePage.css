@@ -4,7 +4,7 @@
  * were plain ambient gray/ink aliases with no dark pair, so they now point
  * at the semantic --th-* tokens instead. */
 .dc-page {
-  --dc-navy: #09234b;
+  --dc-navy: #051727;
   --dc-blue: #1769aa;
   --dc-blue-text: #0b4f8a; /* the same accent as TEXT on the card: #1769aa was 5.8:1 */
   --dc-line: var(--th-border);
@@ -44,11 +44,11 @@
 
 .dc-btn {
   border: 1px solid var(--dc-navy);
-  border-radius: 7px;
+  border-radius: var(--btn-radius);
   padding: 11px 16px;
   background: var(--dc-navy);
   color: #fff;
-  font-weight: 750;
+  font-weight: var(--btn-weight);
   cursor: pointer;
 }
 
@@ -57,7 +57,7 @@
   background: var(--th-bg-card);
   color: var(--th-text);
 }
-.dc-btn--danger { background: #a32620; border-color: #a32620; }
+.dc-btn--danger { background: #aa0005; border-color: #aa0005; }
 
 .dc-truth {
   display: flex;
@@ -145,7 +145,7 @@
 .dc-step small { margin-top: 4px; color: var(--th-text-muted); line-height: 1.35; }
 .dc-persona { border-top: 1px solid var(--dc-line); padding: 16px 20px; }
 .dc-persona strong { display: block; margin-bottom: 7px; }
-.dc-link-button { border: 0; padding: 0; background: transparent; color: var(--dc-blue-text); font-weight: 700; cursor: pointer; text-decoration: underline; }
+.dc-link-button { border: 0; padding: 0; background: transparent; color: var(--dc-blue-text); font-weight: var(--btn-weight); cursor: pointer; text-decoration: underline; }
 
 .dc-workspace { overflow: hidden; }
 .dc-workspace-body { padding: 24px; }

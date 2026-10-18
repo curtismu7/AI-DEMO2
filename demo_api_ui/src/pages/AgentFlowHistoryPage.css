@@ -80,7 +80,7 @@
 .afh-retry-btn {
   border: 1px solid var(--th-status-error);
   background: var(--th-bg-card);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 2px 10px;
   font-size: var(--font-size-2xs);
   cursor: pointer;

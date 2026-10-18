@@ -604,7 +604,7 @@
 
 .rfp-theme-btn {
   border: 1px solid var(--rfp-border, #909ea4);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   background: var(--rfp-card, #fff);
   color: var(--rfp-text);
   padding: 5px 12px;

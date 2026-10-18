@@ -87,7 +87,7 @@
 .vops-drawer__body { padding:18px 20px; }
 .vops-kv { display:flex; justify-content:space-between; padding:10px 0; border-bottom:1px solid var(--th-border); font-size:var(--font-size-sm); } .vops-kv span { color:var(--th-text-muted); }
 .vops-drawer__acts { display:flex; gap:8px; flex-wrap:wrap; margin:16px 0; }
-.vops-btn { border:1px solid var(--th-border-strong); background:var(--th-bg-card); color:var(--th-text); border-radius:9px; padding:9px 14px; font-weight:700; font-size:var(--font-size-sm); cursor:pointer; }
+.vops-btn { border:1px solid var(--th-border-strong); background:var(--th-bg-card); color:var(--th-text); border-radius:var(--btn-radius); padding:9px 14px; font-weight:var(--btn-weight); font-size:var(--font-size-sm); cursor:pointer; }
 .vops-btn--primary { background:var(--accent); color:#fff; border-color:var(--accent); }
 .vops-tl__h { font-size:var(--font-size-xs); text-transform:uppercase; color:var(--th-text-muted); margin:18px 0 12px; }
 .vops-tl { border-left:2px solid var(--th-border); margin-left:5px; padding-left:18px; }

@@ -68,9 +68,9 @@
 
 .mcp-observability-header-actions { gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
 .mcp-observability-live { gap: 8px; color: var(--mcp-green); font-size: var(--font-size-2xs); font-family: var(--font-mono); }
-.mcp-observability-button { display: inline-block; border: 1px solid var(--mcp-strong-border); border-radius: 5px; background: var(--mcp-ground); color: var(--mcp-ink); cursor: pointer; padding: 7px 11px; font-size: var(--font-size-sm); text-decoration: none; }
+.mcp-observability-button { display: inline-block; border: 1px solid var(--mcp-strong-border); border-radius: var(--btn-radius); background: var(--mcp-ground); color: var(--mcp-ink); cursor: pointer; padding: 7px 11px; font-size: var(--font-size-sm); text-decoration: none; }
 .mcp-observability-button:hover { background: var(--mcp-inset); }
-.mcp-observability-button--primary { border-color: var(--mcp-cyan); background: var(--mcp-cyan); color: var(--th-text-on-emphasis); font-weight: 700; }
+.mcp-observability-button--primary { border-color: var(--mcp-cyan); background: var(--mcp-cyan); color: var(--th-text-on-emphasis); font-weight: var(--btn-weight); }
 
 .mcp-observability-dot { display: inline-block; width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--mcp-quiet); }
 .mcp-observability-dot--healthy,

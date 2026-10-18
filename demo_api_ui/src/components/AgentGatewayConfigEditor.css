@@ -97,7 +97,7 @@
 .agc-btn {
   padding: 0.45rem 0.9rem;
   border: 1px solid #cdd1d4;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   background: #fff;
   font-size: 0.85rem;
   font-weight: 600;

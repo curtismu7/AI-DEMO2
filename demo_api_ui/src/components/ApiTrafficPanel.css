@@ -179,7 +179,7 @@
 .api-traffic-btn {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--th-text-muted);
   font-size: var(--font-size-base);
   font-weight: 500;

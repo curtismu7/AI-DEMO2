@@ -61,7 +61,7 @@
   background: #fee2e2;
   border: 1px solid #f87171;
   color: #aa0005;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 4px 12px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -93,7 +93,7 @@
   background: #e0e2e4;
   border: 1px solid #93c5fd;
   color: #12538d;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 4px 12px;
   font-size: 0.75rem;
   font-weight: 600;
@@ -1586,7 +1586,7 @@ pre.tcd-jwt-dump.jh-dark {
   padding: 6px 14px;
   background: #051727;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   color: var(--th-text-invert);
   font-size: 0.75rem;
   font-weight: 600;
@@ -2383,12 +2383,12 @@ pre.tcd-jwt-dump.jh-dark {
   min-height: 32px;
   padding: 5px 10px;
   border: 2px solid #12538d;
-  border-radius: 7px;
+  border-radius: var(--btn-radius);
   background: #fcfcfc;
   color: #051727;
   font: inherit;
   font-size: var(--font-size-xs);
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   cursor: pointer;
 }
 .tcd-progress-btn strong {

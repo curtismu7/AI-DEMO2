@@ -114,7 +114,7 @@
   font-weight: 600;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   color: var(--th-text);
 }
@@ -243,7 +243,7 @@
   padding: 0.4rem 1rem;
   font-size: 0.85rem;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-inset);
   cursor: pointer;

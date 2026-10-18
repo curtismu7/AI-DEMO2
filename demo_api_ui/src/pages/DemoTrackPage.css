@@ -143,7 +143,7 @@
 .dtp-response-sim-out { color: var(--dtp-deny); font-weight: 600; }
 .dtp-run-btn {
   margin-left: auto; font-size: 12.5px; font-weight: 600; color: #fff;
-  background: var(--dtp-navy); border: none; border-radius: 6px; padding: 7px 16px; cursor: pointer;
+  background: var(--dtp-navy); border: none; border-radius: var(--btn-radius); padding: 7px 16px; cursor: pointer;
 }
 .dtp-run-btn:hover { background: #1e4066; }
 .dtp-run-btn:disabled { opacity: .6; cursor: default; }

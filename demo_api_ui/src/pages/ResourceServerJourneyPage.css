@@ -91,7 +91,7 @@
 .rsj-back-btn {
   font-size: var(--font-size-xs);
   padding: 5px 14px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid var(--rsj-border);
   background: var(--rsj-btn-bg);
   color: var(--rsj-text-muted);

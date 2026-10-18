@@ -204,7 +204,7 @@
 .ftcp-placeholder-btn {
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--th-text);
   padding: 3px 10px;
   font-size: 0.75rem;

@@ -104,7 +104,7 @@
   /* 13px unweighted made the 🪟 and ✕ glyphs hard to pick out against the
      dark title bar — they are the only controls up there. */
   font-size: var(--font-size-base);
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   line-height: 1;
   display: flex;
   align-items: center;
@@ -311,7 +311,7 @@
 .dm-placeholder-btn {
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--th-text);
   padding: 3px 10px;
   font-size: var(--font-size-2xs);

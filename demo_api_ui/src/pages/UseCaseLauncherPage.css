@@ -345,7 +345,7 @@
   font-size: 0.85rem;
   font-weight: 600;
   padding: 0.45rem 1.2rem;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: none;
   cursor: pointer;
   background: var(--signin-accent);

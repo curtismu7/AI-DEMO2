@@ -129,8 +129,8 @@
 .crp-submit-btn {
   padding: 12px 28px;
   border: none;
-  border-radius: 6px;
-  font-weight: 700;
+  border-radius: var(--btn-radius);
+  font-weight: var(--btn-weight);
   font-size: 15px;
   background: var(--brand-navy);
   color: var(--app-primary-blue-text, #fff);
@@ -251,7 +251,7 @@
   background: var(--brand-navy);
   color: var(--app-primary-blue-text, #fff);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   font-weight: 600;
 }

@@ -100,7 +100,7 @@
   font: inherit;
   font-size: var(--font-size-body);
   padding: 6px 13px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid var(--th-border-strong, #c3cdd9);
   background: var(--th-bg-card, #ffffff);
   color: var(--th-text, var(--th-text));

@@ -136,7 +136,7 @@
   background: none;
   border: 1px solid var(--app-primary-red, #d20e0f);
   color: var(--app-primary-red, #d20e0f);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 0.35rem 0.7rem;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -171,7 +171,7 @@
 }
 
 .ww-btn {
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 0.4rem 0.8rem;
   font-size: 0.8125rem;
   font-weight: 500;

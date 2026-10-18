@@ -61,7 +61,7 @@
 .alp-btn {
   padding: 3px 10px;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   background: var(--th-bg-inset);
   color: var(--th-text-body);
   font-size: var(--font-size-2xs);

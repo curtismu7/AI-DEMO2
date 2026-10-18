@@ -156,9 +156,9 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: #051727;
   color: #fff;
   font-size: var(--font-size-2xs);
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   padding: 6px 12px;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   white-space: nowrap;
 }
@@ -467,10 +467,10 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-user-filter-btn {
   padding: 0.55rem 0.85rem;
   border: 1px solid #051727;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   background: #051727;
   color: #ffffff;
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   cursor: pointer;
 }
 
@@ -490,7 +490,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 7px 10px;
   font-size: var(--font-size-xs);
   font-weight: 500;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   border: 1px solid var(--ba-accent);
   background: var(--ba-accent);
@@ -1146,7 +1146,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 6px 10px;
   background: transparent;
   border: 1px dashed var(--ba-border);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   color: var(--ba-muted);
   font-size: var(--font-size-2xs);
   cursor: pointer;
@@ -1250,7 +1250,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   color: #3158d3;
   background: var(--th-bg-card);
   border: 1px solid #c6d4ff;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   text-align: left;
 }
@@ -2318,7 +2318,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   padding: 8px 12px;
   background-color: #bfdbfe;
   border: 1px solid #93c5fd;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   color: #051727;
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -2329,7 +2329,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   flex-shrink: 0;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   background: var(--ba-accent);
   border: 1px solid var(--ba-accent);
   color: #fff;
@@ -2372,7 +2372,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   flex-shrink: 0;
   width: 34px;
   height: 34px;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   background: var(--ba-accent);
   color: #fff;
   border: none;
@@ -2402,7 +2402,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   flex: 1;
   min-width: 90px;
   padding: 8px 10px;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
@@ -2488,7 +2488,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   background: var(--ba-accent);
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 8px 12px;
   font-size: var(--font-size-sm);
   cursor: pointer;
@@ -2512,7 +2512,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   );
   color: var(--app-primary-btn-text, #fff);
   border: 1px solid var(--app-primary-red-border);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 8px 12px;
   font-size: var(--font-size-sm);
   cursor: pointer;
@@ -3607,7 +3607,7 @@ body > .banking-agent-float-root .banking-agent-panel {
 .ba-consent-btn {
   display: inline-block;
   padding: 0.35rem 0.85rem;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid #92400e;
   background: #92400e;
   color: #fff;
@@ -4827,7 +4827,7 @@ body > .banking-agent-float-root .banking-agent-panel {
   font-size: 10px;
   font-weight: 600;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid var(--ba-border);
   background: transparent;
   color: var(--ba-muted);
@@ -7932,7 +7932,7 @@ body > .banking-agent-float-root .ba-demo-steps-floating-trigger {
   width: auto !important;
   height: 36px !important;
   min-width: 64px !important;
-  border-radius: 8px !important;
+  border-radius: var(--btn-radius) !important;
   background: #aa0005 !important;
   color: #fff !important;
   border: none !important;
