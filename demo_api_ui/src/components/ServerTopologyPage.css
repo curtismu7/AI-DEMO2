@@ -376,7 +376,8 @@
 .stm-node[data-ping-grey="true"] .stm-node__meta { color: #fff; }
 
 /* Arrow labels: the orange number badge always shows; the words show for the step in focus or on hover. */
-.stm-canvas .react-flow__edgelabel-renderer { z-index: 20; }
+/* Above the selected box (1010) and the arrows drawn over it (1011), so no line strikes through a badge. */
+.stm-canvas .react-flow__edgelabel-renderer { z-index: 1100; }
 .stm-edge-label { position: absolute; z-index: 20; display: inline-flex; align-items: center; gap: 6px; padding: 1px 4px; border: 1px solid #c9ced8; border-radius: var(--radius-pill); background: #ffffff; color: #000000; font-size: var(--font-size-sm); font-weight: 700; line-height: 1.3; white-space: nowrap; pointer-events: none; }
 .stm-edge-label:not(.is-words) { padding: 0; border: 0; background: transparent; }
 .stm-edge-label .stm-edge-text { display: none; padding-right: 6px; }

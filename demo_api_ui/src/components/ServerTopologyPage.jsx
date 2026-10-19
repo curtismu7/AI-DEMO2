@@ -20,7 +20,7 @@ import { DEMO_STEP_USE_CASES, GROUPS, PLAYBACKS, RFC, SERVER_EDGES, SERVER_MAP, 
 import { EDGE_COLORS, NODE_TYPE_COLORS } from "./serverTopologyExports";
 import "./ServerTopologyPage.css";
 import ServerTopologyExportControls from "./ServerTopologyExportControls";
-import { layoutEdgeLabels } from "./topologyEdgeLabelLayout";
+import { layoutEdgeLabels, layoutRoutedLabels } from "./topologyEdgeLabelLayout";
 import { rectsKey, routeTopologyEdges, serverRects } from "./topologyRouting";
 import { labelPoint, pathFromPoints } from "../utils/orthoRoute";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
@@ -46,6 +46,8 @@ const EDGE_BY_ID = Object.fromEntries(SERVER_EDGES.map((item) => [item.id, item]
 const NODE_CARD_WIDTH = 218;
 const NODE_CARD_HEIGHT = 104;
 const SELECTED_NODE_SCALE = 1.1;
+// React Flow lifts the selected box to 1000 + its zIndex (10); the arrows of that box sit just above it.
+const FOCUS_EDGE_Z = 1011;
 // Policy-decision hops are drawn dashed (a check, not the request path itself).
 const DECISION_EDGES = new Set(["pinggw-authz", "nodegw-authz"]);
 // Arrows outside the chosen flow are numbered after its last step, in map order.
@@ -107,9 +109,10 @@ const ZoneNode = memo(function ZoneNode({ data }) {
 const nodeTypes = { server: ServerCardNode, zone: ZoneNode };
 
 // The step number(s) of an arrow, drawn as orange badges. They grow when the diagram is zoomed out so they stay readable.
+const badgeScale = (zoom) => Math.min(2.4, Math.max(1, 0.75 / zoom));
 function EdgeBadge({ x, y, numbers, words, showWords, emphasized, extra }) {
   const { zoom } = useViewport();
-  const scale = Math.min(2.4, Math.max(1, 0.75 / zoom));
+  const scale = badgeScale(zoom);
   return (
     <EdgeLabelRenderer>
       <div
@@ -600,18 +603,29 @@ function TopologyCanvas({
   // from a string key that changes only when a box lands elsewhere. While a box is being dragged the cheap smooth-step path is drawn.
   const [dragging, setDragging] = useState(false);
   const nodeLookup = useStore((st) => st.nodeLookup);
-  const absKey = useStore((st) => rectsKey(st.nodeLookup.values()));
+  // The badge size the labels are laid out for, in quarter steps so a zoom drag re-lays them out only a few times.
+  const badgeSize = useStore((st) => Math.round(badgeScale(st.transform[2]) * 4) / 4);
+  // While any box is unmeasured (every step briefly) the previous key stands, so a step does not re-route.
+  const lastKey = useRef("");
+  const absKey = useStore((st) => (lastKey.current = rectsKey(st.nodeLookup.values()) ?? lastKey.current));
   const routing = useMemo(() => {
-    if (dragging) return { rects: {}, routes: {}, fallbacks: null };
+    if (dragging || !absKey) return { rects: {}, routes: {}, fallbacks: null };
     const rects = serverRects(nodeLookup.values());
     return { rects, ...routeTopologyEdges(rects, SERVER_EDGES) };
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [absKey, dragging]);
 
   const positionedEdges = useMemo(() => {
-    const visibleLabels = graphEdges.filter((item) => !item.hidden).map((item) => {
-      const routePts = routing.routes[item.id]?.ok ? routing.routes[item.id].pts : null;
-      if (routePts) return { id: item.id, text: item.label, emphasized: item.data.emphasized, ...labelPoint(routePts) };
+    // Only arrows that draw a badge need a place for it, and only as much room as the badge really takes.
+    const shownLabels = graphEdges.filter((item) => !item.hidden && ((item.data.stepNumbers || []).length > 0 || item.data.showWords)).map((item) => {
+      const badgeText = [...(item.data.stepNumbers || []), ...(item.data.showWords ? [item.data.words] : [])].join(" ");
+      return { item, text: badgeText, emphasized: item.data.emphasized };
+    });
+    const routedLabels = [];
+    const looseLabels = [];
+    for (const { item, text, emphasized } of shownLabels) {
+      const pts = routing.routes[item.id]?.ok ? routing.routes[item.id].pts : null;
+      if (pts) { routedLabels.push({ id: item.id, text, emphasized, pts, ...labelPoint(pts) }); continue; }
       const source = NODE_BY_ID[item.source];
       const target = NODE_BY_ID[item.target];
       const sourceScale = source.id === focusNode ? SELECTED_NODE_SCALE : 1;
@@ -626,8 +640,8 @@ function TopologyCanvas({
         targetY: target.position.y + NODE_CARD_HEIGHT / 2,
         targetPosition: Position.Left,
       });
-      return { id: item.id, text: item.label, emphasized: item.data.emphasized, x, y };
-    });
+      looseLabels.push({ id: item.id, text, emphasized, x, y });
+    }
     const measuredObstacles = Object.values(routing.rects).map((r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2, width: r.w, height: r.h }));
     const serviceObstacles = measuredObstacles.length ? measuredObstacles : graphNodes
       .filter((node) => node.type === "server")
@@ -640,14 +654,19 @@ function TopologyCanvas({
           height: NODE_CARD_HEIGHT * scale,
         };
       });
-    const labelPositions = new Map(layoutEdgeLabels(visibleLabels, serviceObstacles).map((label) => [label.id, label]));
+    const labelPositions = new Map([
+      ...layoutRoutedLabels(routedLabels, serviceObstacles, badgeSize),
+      ...layoutEdgeLabels(looseLabels, serviceObstacles),
+    ].map((label) => [label.id, label]));
 
     return graphEdges.map((item) => ({
       ...item,
       type: "topologyLabeled",
+      // The selected box is drawn larger and would cover the arrowheads of its own arrows, so those arrows are drawn above it.
+      zIndex: item.source === focusNode || item.target === focusNode ? FOCUS_EDGE_Z : undefined,
       data: { ...item.data, labelPosition: labelPositions.get(item.id), route: routing.routes[item.id] },
     }));
-  }, [graphEdges, graphNodes, focusNode, routing]);
+  }, [graphEdges, graphNodes, focusNode, routing, badgeSize]);
 
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(graphNodes, carryZoneMembers);
   return (

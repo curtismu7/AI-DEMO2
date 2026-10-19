@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { rectsKey, routeTopologyEdges, serverRects } from "../topologyRouting";
+import { pickSides, rectsKey, routeTopologyEdges, serverRects, spreadSharedRuns } from "../topologyRouting";
 import { SERVER_EDGES, SERVER_MAP } from "../serverTopologyData";
 
 const node = (id, x, y, extra = {}) => ({ id, type: "server", internals: { positionAbsolute: { x, y } }, measured: { width: 218, height: 104 }, ...extra });
@@ -18,6 +18,56 @@ describe("topology routing helpers", () => {
     expect(rectsKey(base)).toBe(rectsKey([node("a", 10.2, 20.4), node("z", 99, 99, { type: "zone" })]));
     expect(rectsKey(base)).not.toBe(rectsKey([node("a", 10, 40), base[1]]));
     expect(rectsKey(base)).not.toBe(rectsKey([node("a", 10, 20, { measured: { width: 218, height: 120 } }), base[1]]));
+  });
+
+  it("gives no key while a box is unmeasured, so a step does not trigger a second routing", () => {
+    expect(rectsKey([node("a", 10, 20), { id: "b", type: "server", internals: { positionAbsolute: { x: 5, y: 6 } } }])).toBeNull();
+    expect(rectsKey([node("a", 10, 20), node("z", 0, 0, { type: "zone", measured: undefined })])).toMatch(/^a:10,20,218,104\|$/);
+  });
+
+  it("picks the sides facing the target: right to left, left to right, else top and bottom", () => {
+    const a = { x: 500, y: 500, w: 218, h: 104 };
+    expect(pickSides(a, { x: 900, y: 0, w: 218, h: 104 })).toEqual(["r", "l"]);
+    expect(pickSides(a, { x: 100, y: 900, w: 218, h: 104 })).toEqual(["l", "r"]);
+    expect(pickSides(a, { x: 520, y: 900, w: 218, h: 104 })).toEqual(["b", "t"]);
+    expect(pickSides(a, { x: 520, y: 100, w: 218, h: 104 })).toEqual(["t", "b"]);
+  });
+
+  it("starts each arrow of one side, and parallel arrows between the same two boxes, at its own point", () => {
+    const rects = { a: { x: 0, y: 0, w: 218, h: 104 }, b: { x: 700, y: 0, w: 218, h: 104 } };
+    const { routes } = routeTopologyEdges(rects, [{ id: "one", source: "a", target: "b" }, { id: "two", source: "a", target: "b" }]);
+    expect(routes.one.pts[0].y).not.toBe(routes.two.pts[0].y);
+    expect(routes.one.pts.at(-1).y).not.toBe(routes.two.pts.at(-1).y);
+    expect(routes.one.pts[0].x).toBe(218);
+    expect(routes.one.pts.at(-1).x).toBe(700);
+  });
+
+  it("leaves a target on its left from the left side of the source and enters the right side", () => {
+    const rects = { a: { x: 700, y: 0, w: 218, h: 104 }, b: { x: 0, y: 0, w: 218, h: 104 } };
+    const { routes } = routeTopologyEdges(rects, [{ id: "ab", source: "a", target: "b" }]);
+    expect(routes.ab.pts[0].x).toBe(700);
+    expect(routes.ab.pts.at(-1).x).toBe(218);
+  });
+
+  it("slides a run that lies exactly on another arrow's run to a free line, and leaves the lead segments alone", () => {
+    const rects = { box: { x: 1000, y: 1000, w: 10, h: 10 } };
+    const mk = () => ({ ok: true, pts: [{ x: 0, y: 0 }, { x: 14, y: 0 }, { x: 100, y: 0 }, { x: 100, y: 300 }, { x: 186, y: 300 }, { x: 200, y: 300 }] });
+    const out = spreadSharedRuns({ a: mk(), b: mk() }, rects, [{ id: "a" }, { id: "b" }]);
+    expect(out.a.pts[2].x).toBe(100);
+    expect(out.b.pts[2].x).not.toBe(100);
+    expect(out.b.pts[2].x).toBe(out.b.pts[3].x);
+    expect(out.b.pts[0]).toEqual({ x: 0, y: 0 });
+    expect(out.b.pts[1]).toEqual({ x: 14, y: 0 });
+    expect(out.b.pts.at(-1)).toEqual({ x: 200, y: 300 });
+  });
+
+  it("does not slide a run into a box", () => {
+    const rects = { wall: { x: 66, y: 100, w: 400, h: 100 } };
+    const mk = () => ({ ok: true, pts: [{ x: 0, y: 0 }, { x: 14, y: 0 }, { x: 60, y: 0 }, { x: 60, y: 300 }, { x: 186, y: 300 }, { x: 200, y: 300 }] });
+    const out = spreadSharedRuns({ a: mk(), b: mk() }, rects, [{ id: "a" }, { id: "b" }]);
+    const x = out.b.pts[2].x;
+    expect(x).not.toBe(60);
+    expect(x < 66 - 4 || x > 466 + 4).toBe(true);
   });
 
   it("routes around a box standing between source and target, and skips edges with a missing endpoint", () => {

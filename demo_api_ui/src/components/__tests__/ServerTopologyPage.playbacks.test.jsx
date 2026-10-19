@@ -50,7 +50,7 @@ vi.mock("@xyflow/react", async () => {
       zoomOut: vi.fn(),
       zoomTo: reactFlowMocks.zoomTo,
     }),
-    useStore: (selector) => selector({ nodeLookup: new Map() }),
+    useStore: (selector) => selector({ nodeLookup: new Map(), transform: [0, 0, 0.62] }),
     useViewport: () => ({ x: 0, y: 0, zoom: 0.62 }),
   };
 });
@@ -70,7 +70,9 @@ describe("Server topology use-case playback", () => {
   it("positions visible edge labels in separate padded lanes", () => {
     render(<ServerTopologyPage />);
 
-    const edges = reactFlowMocks.edges.filter((edge) => !edge.hidden);
+    // Only an arrow that draws a badge (a step number, or its words) gets a label position.
+    const edges = reactFlowMocks.edges.filter((edge) => !edge.hidden && ((edge.data.stepNumbers || []).length > 0 || edge.data.showWords));
+    expect(edges.length).toBeGreaterThan(0);
     const labels = edges.map((edge) => edge.data.labelPosition);
     expect(edges.every((edge) => edge.type === "topologyLabeled")).toBe(true);
     expect(labels.every((label) => Number.isFinite(label?.x) && Number.isFinite(label?.y))).toBe(true);
@@ -203,8 +205,9 @@ describe("Server topology use-case playback", () => {
 
     const serviceNodes = reactFlowMocks.nodes.filter((node) => node.type === "server");
     const visibleLabels = reactFlowMocks.edges
-      .filter((edge) => !edge.hidden)
+      .filter((edge) => !edge.hidden && ((edge.data.stepNumbers || []).length > 0 || edge.data.showWords))
       .map((edge) => edge.data.labelPosition);
+    expect(visibleLabels.length).toBeGreaterThan(0);
 
     for (const label of visibleLabels) {
       for (const node of serviceNodes) {
