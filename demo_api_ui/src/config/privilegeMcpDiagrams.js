@@ -3,6 +3,8 @@
 // privilegeMcpStandards.js. Source: privilege/PRIVILEGE-MCP.md.
 // Edge opts: vertical = bottom of source to top of target (stacked cards); lane = bow the arrow beside a column,
 // so several arrows between the same two stacked cards each get their own path and badge.
+// A positive lane bows left, a negative one right. fitView leaves 56px on the left and nothing measures the bow,
+// so lanes on the left of the leftmost column stay at 60 or less (bow and badge about 0.75 x lane); bigger ones go right.
 import { ARCH_DETAIL, SEQ_DETAIL, FLOW_DETAIL } from './privilegeMcpStandards';
 
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
@@ -30,12 +32,12 @@ const ARCH_NODES = [
 
 const ARCH_EDGES = [
   ['ui', 'bff', 'HTTPS + session cookie (not MCP)', V], // 0
-  ['bff', 'ui', 'SSE: live relay events', { dashed: true, lane: 70 }], // 1
+  ['bff', 'ui', 'SSE: live relay events', { dashed: true, lane: 60 }], // 1
   ['bff', 'as', 'OAuth 2.0 code+PKCE (user) / client_credentials (machine)'], // 2
   ['bff', 'gw', 'MCP session 1 (JSON-RPC/HTTP)', V], // 3
   ['gw', 'cp', 'outbound gRPC, enrollment JWT'], // 4
   ['gw', 'mcp', 'MCP session 2: policy applied between them', V], // 5
-  ['bff', 'mcp', 'MCP direct: the simple route, works today', { lane: 90 }], // 6
+  ['bff', 'mcp', 'MCP direct: the simple route, works today', { lane: 60 }], // 6
   ['api', 'gw', 'NOT the gateway frontend', D], // 7
 ];
 
@@ -64,26 +66,26 @@ const SEQ_NODES = [
 const SEQ_EDGES = [
   ['U', 'P', 'Sign In with Privilege', V], // 0
   ['P', 'B', 'POST /auth/start, returns authUrl', V], // 1
-  ['B', 'G', 'GET mcpUrl, returns authorization_uri + token_uri (or 401)', V], // 2
+  ['B', 'G', 'GET mcpUrl, returns authorization_uri + token_uri; BFF registers a client (DCR)', V], // 2
   ['U', 'A', 'hosted sign-on (PKCE S256, state, login_hint)'], // 3
   ['A', 'B', 'callback ?code&state, BFF POSTs the code, gets access_token', D], // 4
-  ['B', 'P', 'redirect ?auth=success', { lane: 70 }], // 5
-  ['U', 'P', 'Load Tools', { lane: 80 }], // 6
+  ['B', 'P', 'redirect ?auth=success', { lane: 60 }], // 5
+  ['U', 'P', 'Load Tools', { lane: 60 }], // 6
   ['P', 'B', 'POST /tools/list', { lane: -70 }], // 7
-  ['B', 'G', 'initialize + notifications/initialized, returns MCP-Session-Id', { lane: 70 }], // 8
+  ['B', 'G', 'initialize + notifications/initialized, returns MCP-Session-Id', { lane: 60 }], // 8
   ['B', 'G', 'tools/list (Bearer + session headers)', { lane: -70 }], // 9
   ['G', 'M', 'tools/list, returns tools', V], // 10
   ['U', 'P', 'Run a tool', { lane: -80 }], // 11
-  ['P', 'B', 'POST /tools/call', { lane: 140 }], // 12
-  ['B', 'G', 'tools/call: Privilege decides', { lane: 140 }], // 13
-  ['G', 'M', 'permitted: tools/call, returns result', { lane: 70 }], // 14
-  ['G', 'B', 'denied by policy: 4xx relayed with its own status', { dashed: true, lane: -140 }], // 15
+  ['P', 'B', 'POST /tools/call', { lane: -140 }], // 12
+  ['B', 'G', 'tools/call: Privilege decides', { lane: -140 }], // 13
+  ['G', 'M', 'permitted: tools/call, returns result', { lane: 60 }], // 14
+  ['G', 'B', 'denied by policy: 4xx relayed with its own status', { dashed: true, lane: -210 }], // 15
 ];
 
 const SEQ_STEPS = [
   step('signInClick', [0], 'The operator clicks Sign In', 'The click only calls the BFF. The page has no MCP and no token.', null, SEQ_DETAIL.signInClick),
   step('authStart', [1], 'The BFF builds the sign-in URL', 'POST /auth/start returns authUrl with PKCE S256, state and login_hint.', null, SEQ_DETAIL.authStart),
-  step('discover', [2], 'The BFF asks the gateway where to sign in', 'It GETs the MCP URL and reads authorization_uri and token_uri from the answer, or falls back to PingOne OIDC discovery on a 401.', null, SEQ_DETAIL.discover),
+  step('discover', [2], 'The BFF asks the gateway where to sign in', 'It GETs the MCP URL and reads authorization_uri and token_uri, which are the gateway\'s own authorization server endpoints. It then registers a client there (Dynamic Client Registration). With no such answer it falls back to PingOne OIDC discovery.', null, SEQ_DETAIL.discover),
   step('hostedSignOn', [3], 'The operator signs in at PingOne', 'PingOne hosts the sign-on. The demo never sees the password.', null, SEQ_DETAIL.hostedSignOn),
   step('callback', [4], 'PingOne calls back; the BFF trades the code', 'The BFF verifies state, then POSTs the code with the verifier and client secret and stores access_token and refresh_token.', 'A wrong secret, or an app that is not client_secret_post, stops here with invalid_client.', SEQ_DETAIL.callback),
   step('authSuccess', [5], 'The BFF redirects back to the page', 'The page reloads with ?auth=success and can now load tools.', null, SEQ_DETAIL.authSuccess),
@@ -111,7 +113,7 @@ const FLOW_NODES = [
   G('D', 'app', 'User clicks Sign In', null, 3, 0),
   G('E', 'app', 'POST /auth/start', null, 4, 0),
   G('F', 'safety', 'WWW-Authenticate present?', null, 5, 0),
-  G('G', 'app', "Use header's authorization_uri + token_uri", null, 4, 1),
+  G('G', 'app', "Use the gateway's authorization_uri + token_uri", ['then register a client (DCR)'], 4, 1),
   G('H', 'ping', 'PingOne OIDC fallback', ['.well-known/openid-configuration'], 5, 1),
   G('I', 'app', 'Generate PKCE', ['S256 verifier + state'], 4, 2),
   G('J', 'app', 'Redirect to /authorize', null, 3, 2),
@@ -139,8 +141,8 @@ const FLOW_EDGES = [
   ['C', 'D', 'No', D], // 2
   ['D', 'E', 'sign-in click'], // 3
   ['E', 'F', 'probe the MCP URL'], // 4
-  ['F', 'G', 'Yes: header present', D], // 5
-  ['G', 'I', 'endpoints taken from the header', V], // 6
+  ['F', 'G', 'Yes: gateway advertises its endpoints', D], // 5
+  ['G', 'I', 'client registered, endpoints taken from the gateway', V], // 6
   ['F', 'H', 'No header', VD], // 7
   ['H', 'I', 'endpoints from discovery'], // 8
   ['I', 'J', 'build the authorize URL'], // 9
@@ -167,8 +169,8 @@ const FLOW_STEPS = [
   step('state', [0, 1], 'Load the page and check the session', 'The page asks the BFF for its state; the BFF checks whether the session already holds an access token.', null, FLOW_DETAIL.state),
   step('start', [2, 3], 'No token: Sign In calls /auth/start', 'The sign-in click posts to the BFF.', null, FLOW_DETAIL.start),
   step('probe', [4], 'Probe the MCP URL', 'The BFF asks the gateway for the MCP URL to see whether it answers with WWW-Authenticate.', null, FLOW_DETAIL.probe),
-  step('headerYes', [5, 6], 'Header present: use its endpoints', 'authorization_uri and token_uri come straight from the header.', null, FLOW_DETAIL.headerYes),
-  step('headerNo', [7, 8], 'No header: PingOne OIDC fallback', 'The BFF reads PingOne discovery for the environment in PRIVILEGE_SSO_ENV_ID.', null, FLOW_DETAIL.headerNo),
+  step('headerYes', [5, 6], 'Header present: use its endpoints', 'authorization_uri comes from the body or the header, token_uri from the body. They are the gateway\'s own authorization server, so the BFF registers a client there (Dynamic Client Registration) before the authorize redirect.', null, FLOW_DETAIL.headerYes),
+  step('headerNo', [7, 8], 'No header: PingOne OIDC fallback', 'The BFF reads PingOne discovery for the environment in PRIVILEGE_SSO_ENV_ID and signs in with the configured PingOne app, with no registration.', null, FLOW_DETAIL.headerNo),
   step('pkce', [9, 10], 'PKCE, then the authorize redirect', 'The BFF makes a verifier, an S256 challenge and a state, and sends the browser to PingOne.', null, FLOW_DETAIL.pkce),
   step('callback', [11, 12], 'PingOne redirects to the callback', 'The browser lands on /auth/callback with code and state.', null, FLOW_DETAIL.callback),
   step('token', [13], 'The BFF trades the code for tokens', 'It verifies state, then POSTs token_uri with the client secret and code_verifier.', null, FLOW_DETAIL.token),

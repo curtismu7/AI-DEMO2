@@ -6,9 +6,12 @@
 // MOCK tokens and the standards behind each step. Their data is src/config/privilegeMcpDiagrams.js and
 // privilegeMcpStandards.js. The original Mermaid sources below are kept only so "Download .mmd" still produces
 // the same interop file (Lucidchart/draw.io/mermaid.live) documented in docs/diagrams/DIAGRAMS.md.
+// The Sign-in + Tool Call tab still takes an uploaded .mmd: the upload is drawn by SequenceFlowDiagram (the
+// plain sequence renderer, as before this page moved to the Ping style) until "Back to the Ping-style diagram".
 import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
 import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
+import SequenceFlowDiagram from "./SequenceFlowDiagram";
 import { PMD_ARCH_DIAGRAM, PMD_SEQ_DIAGRAM, PMD_FLOW_DIAGRAM } from "../config/privilegeMcpDiagrams";
 import "./PrivilegeMcpDiagramPage.css";
 import PageHeader from './common/PageHeader';
@@ -148,6 +151,10 @@ const TABS = [
 export default function PrivilegeMcpDiagramPage() {
   const [activeTab, setActiveTab] = useState("arch");
   const tab = TABS.find((t) => t.id === activeTab);
+  // Uploaded Mermaid for the sequence tab; null = the Ping-style diagram.
+  const [uploadedSeq, setUploadedSeq] = useState(null);
+  const isSeq = tab.id === "seq";
+  const showUpload = isSeq && uploadedSeq != null;
 
   return (
     <div className="pmd-page pmd-page--ping">
@@ -159,16 +166,28 @@ export default function PrivilegeMcpDiagramPage() {
           <button
             key={t.id}
             className={`pmd-tab${activeTab === t.id ? " pmd-tab--active" : ""}`}
-            onClick={() => setActiveTab(t.id)}
+            onClick={() => { setActiveTab(t.id); setUploadedSeq(null); }}
           >
             {t.label}
           </button>
         ))}
       </div>
 
-      <DiagramExportBar source={tab.source} sourceFilename={tab.filename} />
+      <DiagramExportBar
+        source={showUpload ? uploadedSeq : tab.source}
+        sourceFilename={tab.filename}
+        onSourceChange={isSeq ? setUploadedSeq : undefined}
+      />
 
       <div className="pmd-panel">
+        {showUpload ? (
+          <>
+            <button type="button" className="pmd-tab" onClick={() => setUploadedSeq(null)}>
+              Back to the Ping-style diagram
+            </button>
+            <SequenceFlowDiagram source={uploadedSeq} label={tab.diagramLabel} />
+          </>
+        ) : (
         <EmbeddedFlowDiagram
           key={tab.id}
           config={tab.config}
@@ -179,6 +198,7 @@ export default function PrivilegeMcpDiagramPage() {
           testId={`pmd-${tab.id}`}
           pingStyle
         />
+        )}
       </div>
 
       <p className="pmd-footer">

@@ -71,4 +71,16 @@ describe('PrivilegeMcpDiagramPage', () => {
     fireEvent.click(within(seq).getByRole('button', { name: 'Reset' }));
     expect(within(seq).getByRole('button', { name: 'Simulate' })).toBeTruthy();
   });
+
+  it('the sequence tab still redraws from an uploaded .mmd, and can go back to the Ping-style diagram', async () => {
+    const { container } = render(<PrivilegeMcpDiagramPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sign-in + Tool Call' }));
+    expect(screen.queryByRole('button', { name: 'Back to the Ping-style diagram' })).toBeNull();
+    const input = container.querySelector('input[type="file"]');
+    const mmd = 'sequenceDiagram\n    participant X as Uploaded Actor\n    participant Y as Other Actor\n    X->>Y: hello';
+    fireEvent.change(input, { target: { files: [new File([mmd], 'seq.mmd', { type: 'text/plain' })] } });
+    expect(await screen.findByRole('button', { name: 'Back to the Ping-style diagram' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the Ping-style diagram' }));
+    expect(screen.getByTestId('pmd-seq')).toBeInTheDocument();
+  });
 });
