@@ -17,6 +17,7 @@ export function initSignInService() {
     inited = (async () => {
       try {
         const res = await fetch(`${apiBase()}/api/admin/config`, { credentials: 'include' });
+        if (!res.ok) throw new Error('config walled');
         const cfg = (await res.json())?.config || {};
         const drivable = ['pingone', 'pingfederate'].includes(cfg.oauth_provider || 'pingone');
         available = {
@@ -26,7 +27,16 @@ export function initSignInService() {
           admin: drivable && ['true', '1'].includes(String(cfg.PINGONE_ADMIN_AUTHORIZE_PI_FLOW).toLowerCase()),
         };
       } catch {
-        available = { customer: false, admin: false }; // redirect fallback
+        // Signed out of the wall, /api/admin/config answers 401, so the config is unknown. The public
+        // identifier-policy says whether the front-door pi.flow can run; only the customer front door exists.
+        available = { customer: false, admin: false }; // redirect fallback unless the front door says otherwise
+        try {
+          const pol = await fetch(`${apiBase()}/api/auth/hosted-access/identifier-policy`, { credentials: 'include' });
+          const body = pol.ok ? await pol.json().catch(() => null) : null;
+          if (body?.frontDoorPiFlow === true) available = { customer: true, admin: false };
+        } catch {
+          /* keep the redirect fallback */
+        }
       }
     })();
   }
