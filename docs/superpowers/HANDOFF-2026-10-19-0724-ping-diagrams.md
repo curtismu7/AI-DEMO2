@@ -66,7 +66,7 @@ Ping-product: CIMD in Privilege, Personal Agent Dual Gateway, Personal Agent Des
 ## Known open items
 
 - `src/utils/__tests__/parseCitations.test.js` "resolves to null when fetch fails" times out (30 s) on unmodified main too. Not ours, not fixed.
-- id-jag-standalone PR #12 merged while its CI was still queued; check the builds when they run.
+- id-jag-standalone PR #12 merged while its CI was still queued; the builds ran afterwards (07:41) and passed (build 20, build 22, secrets): closed.
 - The standards lists and mock tokens are teaching values; draft names/section numbers should be verified before quoting externally.
 - Dark-mode and routing changes for Token Chain are deployed; the Ping-style batch is deployed. Everything merged so far is deployed except what the routing workflow will add.
 - Arrows can still share a channel and overlap each other where routing is not yet applied; the new router adds lane spreading.
