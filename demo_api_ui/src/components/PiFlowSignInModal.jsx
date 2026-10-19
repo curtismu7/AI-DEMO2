@@ -664,7 +664,7 @@ export default function PiFlowSignInModal() {
       <div className="dm-scroll">
         <SignInBrand welcome={welcome} />
         {step === "choice" ? (
-          <div className="pi-flow-signin__form">
+          <div className="pi-flow-signin__form pi-flow-signin__form--choice">
             {/* Copy call: PingFederate has no passkey step, so the label covers both providers. */}
             <button type="button" className="signin-prompt__btn" data-default-button disabled={busy} aria-describedby="pi-flow-passwordless-hint" onClick={switchToDevice}>
               Sign in without a password
