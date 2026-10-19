@@ -21,6 +21,6 @@ it("sign-in goes through the app's sign-in service (pi.flow modal), never forcin
   fireEvent.click(await screen.findByRole("button", { name: "Sign in with PingFederate" }));
   await vi.waitFor(() => expect(openSignIn).toHaveBeenCalled());
   const args = openSignIn.mock.calls[0][0];
-  expect(args).toEqual({ returnTo: "/pingfederate-id-jag/playground", force: true });
+  expect(args).toEqual({ returnTo: "/pingfederate-id-jag/playground", force: true, keepHint: true });
   expect(args.redirect).toBeUndefined();
 });

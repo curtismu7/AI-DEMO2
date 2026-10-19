@@ -49,6 +49,24 @@ const piFlowStepUrl = (pending, providerConfig) => (pending.provider === 'pingfe
 // The flow id goes into a URL path, so only accept the shapes the providers issue.
 const PI_FLOW_ID = /^[A-Za-z0-9_-]{6,64}$/;
 
+// EXTERNAL_AUTHENTICATION_REQUIRED: the sign-on policy hands sign-in to an external IdP (AIC). PingOne's link that
+// starts it carries the flow id and leads the browser to the IdP. The browser only ever gets that exact PingOne
+// origin + path for THIS flow; anything else is dropped (the caller then falls back).
+function externalAuthUrl(pending, body, providerConfig) {
+  const href = body?._embedded?.identityProvider?._links?.authenticate?.href;
+  if (pending.provider !== 'pingone' || !href) return '';
+  try {
+    const u = new URL(href);
+    const base = new URL(piFlowBase(pending.provider, providerConfig));
+    const ok = u.protocol === 'https:' && u.origin === base.origin
+      && u.pathname === `${base.pathname.replace(/\/$/, '')}/rp/authenticate`
+      && u.searchParams.get('flowId') === pending.flowId;
+    return ok ? u.toString() : '';
+  } catch (_) {
+    return '';
+  }
+}
+
 // providerConfig: config module with authorizationEndpoint/tokenEndpoint getters
 // (config/oauthUser.js or config/oauth.js). KNOWN_REDIRECT_ORIGINS is only
 // needed by the assertion step; pass it from the caller that has it.
@@ -111,7 +129,8 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
       const usernameHint = new URL(authorizeUrl).searchParams.get('login_hint') || null;
       return req.session.save((err) => {
         if (err) return res.status(500).json({ error: 'session_save_failed' });
-        return res.json({ flowId: flow.id, status: flow.status, ...(usernameHint ? { usernameHint } : {}) });
+        const externalUrl = flow.status === 'EXTERNAL_AUTHENTICATION_REQUIRED' ? externalAuthUrl({ provider, flowId: flow.id }, flow, providerConfig) : '';
+        return res.json({ flowId: flow.id, status: flow.status, ...(usernameHint ? { usernameHint } : {}), ...(externalUrl ? { externalAuthUrl: externalUrl } : {}) });
       });
     } catch (error) {
       console.warn('[oauth/pi-flow] authorize failed:', error.message);
@@ -316,7 +335,38 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
         aggregateFido2Devices: Boolean(body.aggregateFido2Devices),
       }));
     }
+    // External IdP (AIC): the modal opens the link in a popup and polls handleExternalPoll until the flow moves on.
+    if (body.status === 'EXTERNAL_AUTHENTICATION_REQUIRED') {
+      const url = externalAuthUrl(pending, body, providerConfig);
+      if (url) {
+        req.session.oauthPiFlow = { ...pending, cookies, status: body.status };
+        return req.session.save(() => res.json({ step: 'external', externalAuthUrl: url }));
+      }
+    }
     return res.json({ fallback: true, status: body.status, ...extra });
+  }
+
+  // The popup signs the person in at the external IdP; PingOne records the result on the flow. Read the flow back:
+  // still waiting -> {waiting:true}; anything else goes through the same responder as every other step (COMPLETED ->
+  // redirectTo the unchanged /callback; MFA etc. -> that step). A flow PingOne no longer knows is 410.
+  async function handleExternalPoll(req, res) {
+    const pending = openPiFlowOrReject(req, res);
+    if (!pending) return undefined;
+    try {
+      const r = await fetch(piFlowStepUrl(pending, providerConfig), {
+        headers: { Accept: 'application/json', Cookie: piFlowCookieHeader(pending.cookies) },
+        signal: AbortSignal.timeout(PI_FLOW_TIMEOUT_MS),
+      });
+      if (r.status === 404 || r.status === 410) return res.status(410).json({ error: 'pi_flow_expired' });
+      const body = await r.json().catch(() => null);
+      if (!r.ok || !body) return res.status(502).json({ error: 'pi_flow_failed' });
+      const cookies = mergePiFlowCookies(pending.cookies, r);
+      if (body.status === 'EXTERNAL_AUTHENTICATION_REQUIRED') return res.json({ step: 'external', waiting: true });
+      return await respondAfterPiFlowStep(req, res, pending, body, cookies);
+    } catch (error) {
+      console.warn('[oauth/pi-flow] external poll failed:', error.message);
+      return res.status(502).json({ error: 'pi_flow_failed' });
+    }
   }
 
   function openPiFlowOrReject(req, res) {
@@ -547,6 +597,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
     handleOtpStep,
     handlePasswordlessStart,
     handleDeviceSelectStep,
+    handleExternalPoll,
   };
 }
 

@@ -369,6 +369,8 @@ router.post('/pi-flow/passwordless', piFlowHandlers.handlePasswordlessStart);
 // (email/SMS OTP or a passkey); the flow answers OTP_REQUIRED or
 // ASSERTION_REQUIRED, which the existing endpoints drive.
 router.post('/pi-flow/device', piFlowHandlers.handleDeviceSelectStep);
+// AIC: the popup signs in at the external IdP; the modal polls this until the flow can finish.
+router.get('/pi-flow/external', piFlowHandlers.handleExternalPoll);
 
 // The modal remembers who is signing in as: PUT stores the typed username as
 // the role's login hint so the next sign-in prefills it. Convenience prefill
@@ -442,11 +444,12 @@ router.get('/login', (req, res) => {
     // force=true may combine with pi_flow=1 (prompt=login is preserved on the
     // authorize URL below) so re-auth stays inside the modal too.
     // AIC toggle: PingOne is still the AS, but the AIC_Login sign-on policy
-    // hands authentication to the AIC external IdP. That is a browser redirect
-    // to AIC, which the pi.flow modal cannot drive, so it forces the redirect login.
+    // hands authentication to the AIC external IdP. The flow opens at
+    // EXTERNAL_AUTHENTICATION_REQUIRED; the modal opens PingOne's link in a popup
+    // (the page never navigates) and polls GET /pi-flow/external until it can finish.
     const aicLogin = selectedProvider === 'pingone' && !liveIdJag && !piFlowMode
       && String(configStore.getEffective('aic_login_enabled')).toLowerCase() === 'true';
-    const piFlowLogin = req.query.pi_flow === '1' && !liveIdJag && !piFlowMode && !aicLogin
+    const piFlowLogin = req.query.pi_flow === '1' && !liveIdJag && !piFlowMode
       && (selectedProvider === 'pingone' || selectedProvider === 'pingfederate')
       && oauthUserConfig.authorizeUsesPiFlow;
     const sessionProvider = req.session.user?.oauthProvider;
@@ -614,7 +617,9 @@ router.get('/login', (req, res) => {
         // the service's demoUser default is for the hosted redirect page, and
         // the modal should prefill nothing when the app knows nobody. PF keeps
         // its own demouser default (the PF demo wants the locked-field demo).
-        ...((!forceLogin && (knownLoginHint(req) || storedHint('customer')))
+        // keep_hint=1 (the ID-JAG playground's forced sign-in): still prefill, because the person re-authenticating is the
+        // one the app already knows. Anything else forced stays hint-free.
+        ...(((!forceLogin || req.query.keep_hint === '1') && (knownLoginHint(req) || storedHint('customer')))
           ? { login_hint: knownLoginHint(req) || storedHint('customer') }
           : (piFlowLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate'
             ? { login_hint: null } : {})),
