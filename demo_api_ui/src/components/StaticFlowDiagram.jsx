@@ -51,6 +51,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useStore,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useFitOnResize } from "../hooks/useFitOnResize";
@@ -59,6 +60,7 @@ import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
 import DiagramStepBar from "./DiagramStepBar";
 import DiagramReel from "./DiagramReel";
 import { buildNodeDetail, buildReelSteps, withStepDetail } from "../utils/diagramReel";
+import { createRouter, labelPoint, pathFromPoints } from "../utils/orthoRoute";
 import "./StaticFlowDiagram.css";
 
 const NODE_W = 250;
@@ -74,7 +76,120 @@ const nodeH = (n) =>
 
 // The left gutter keeps the zoom buttons (bottom-left) off the cards.
 const FIT = { padding: { top: "20px", right: "20px", bottom: "20px", left: "56px" } };
+// pingStyle: routed arrows and their number badges run in the free border outside the outermost boxes, so leave room for them.
+const FIT_PING = { padding: { top: "40px", right: "60px", bottom: "40px", left: "100px" } };
 const HIDDEN = { opacity: 0, width: 1, height: 1 };
+
+// Handle ids are sl/sr/sb (source) and tl/tr/tt (target): the second letter is the side of the box (l/r/b/t).
+const handleDir = (id) => id[1];
+
+// A coarser grid than the default 6px: parallel arrows that share a corridor sit cell/2 apart, so 20px keeps them visibly separate.
+// A tight layout (gaps under about cell + 12px) cannot take that, so a layout with unplaceable arrows is retried on a finer grid.
+const ROUTE_CELLS = [20, 16, 12];
+const ROUTE_MARGIN = 60; // createRouter's grid starts `margin` before the outermost box; attach points are snapped onto its lines
+const SLOT_INSET = 8; // keep arrows off the rounded corners of a card
+const LABEL_GAP = 32; // min distance between two number badges
+const LABEL_MIN_RUN = 28; // a badge sits on a straight run at least this long
+
+// Where each routed arrow leaves / enters its box. Arrows that share a side of a box get their own slot along it
+// (ordered by where the other end is, so fans do not cross) instead of all piling onto the side's midpoint. Slots lie on
+// the router's grid lines so the first/last run needs no jog. The side itself is the config's handle side.
+// Returns { edgeId: { start, end } }.
+export function attachPoints(rects, edges, cell = ROUTE_CELLS[0]) {
+  const all = Object.values(rects);
+  if (!all.length) return {};
+  const ox = Math.min(...all.map((r) => r.x)) - ROUTE_MARGIN;
+  const oy = Math.min(...all.map((r) => r.y)) - ROUTE_MARGIN;
+  const groups = new Map(); // "node:side" -> [{ id, role, other }]
+  for (const e of edges) {
+    const a = rects[e.source];
+    const b = rects[e.target];
+    if (e.data?.self || !a || !b) continue;
+    for (const [role, node, side, other] of [["start", e.source, handleDir(e.sourceHandle), b], ["end", e.target, handleDir(e.targetHandle), a]]) {
+      const k = `${node}:${side}`;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push({ id: e.id, role, node, side, other });
+    }
+  }
+  const out = {};
+  for (const list of groups.values()) {
+    const { node, side } = list[0];
+    const r = rects[node];
+    const horiz = side === "l" || side === "r"; // arrows run along the side's y; top/bottom sides slot along x
+    const [lo, hi] = horiz ? [r.y + SLOT_INSET, r.y + r.h - SLOT_INSET] : [r.x + SLOT_INSET, r.x + r.w - SLOT_INSET];
+    const origin = horiz ? oy : ox;
+    const slots = [];
+    for (let v = origin + Math.ceil((lo - origin) / cell) * cell; v <= hi; v += cell) slots.push(v);
+    const mid = horiz ? r.y + r.h / 2 : r.x + r.w / 2;
+    if (!slots.length) slots.push(Math.round((origin + Math.round((mid - origin) / cell) * cell)));
+    const centre = (o) => (horiz ? o.y + o.h / 2 : o.x + o.w / 2);
+    const nearest = (want) => slots.reduce((best, v) => (Math.abs(v - want) < Math.abs(best - want) ? v : best), slots[0]);
+    list.sort((p, q) => centre(p.other) - centre(q.other));
+    list.forEach((it, i) => {
+      // one arrow on the side: aim at the other end's centre (so facing boxes line up); several: spread over the free slots
+      // more arrows than grid lines on this side (a short card): spread them evenly over the side instead (their first run then sits off the grid; harmless)
+      const v = list.length === 1 ? nearest(centre(it.other))
+        : list.length > slots.length ? Math.round(lo + ((hi - lo) * i) / (list.length - 1))
+          : slots[Math.round((i * (slots.length - 1)) / (list.length - 1))];
+      const pt = horiz ? { x: side === "r" ? r.x + r.w : r.x, y: v } : { x: v, y: side === "b" ? r.y + r.h : r.y };
+      (out[it.id] ||= {})[it.role] = pt;
+    });
+  }
+  return out;
+}
+
+// Badge position: the longest run's midpoint, unless another badge is already there; then another run / another spot on it.
+export function pickLabel(pts, placed) {
+  const cands = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    const len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+    if (len < LABEL_MIN_RUN) continue;
+    for (const t of len >= 90 ? [0.5, 0.3, 0.7, 0.15, 0.85] : [0.5]) cands.push({ len, x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  }
+  if (!cands.length) return labelPoint(pts);
+  cands.sort((p, q) => q.len - p.len);
+  const clear = (c) => placed.reduce((m, p) => Math.min(m, Math.hypot(p.x - c.x, p.y - c.y)), Infinity);
+  const ok = cands.find((c) => clear(c) >= LABEL_GAP);
+  const pick = ok || cands.reduce((best, c) => (clear(c) > clear(best) ? c : best), cands[0]);
+  return { x: pick.x, y: pick.y };
+}
+
+// pingStyle routing: rects = { nodeId: {x,y,w,h} }, edges = React Flow edges (source, target, sourceHandle, targetHandle, data.self).
+// Every box is an obstacle (the edge's own two too: the router's lead-in/out reaches the handle). Self-loops keep their curve.
+// Returns { routes: { edgeId: {pts, ok, label} }, fallbacks } where fallbacks counts edges the router could not place.
+export function routeEdges(rects, edges) {
+  let best = null;
+  for (const cell of ROUTE_CELLS) {
+    const res = routeOnce(rects, edges, cell);
+    if (!best || res.fallbacks < best.fallbacks) best = res;
+    if (!best.fallbacks) break;
+  }
+  return best;
+}
+
+function routeOnce(rects, edges, cell) {
+  const router = createRouter({ obstacles: Object.values(rects), cell, margin: ROUTE_MARGIN });
+  const att = attachPoints(rects, edges, cell);
+  const routes = {};
+  const placed = [];
+  let fallbacks = 0;
+  for (const e of edges) {
+    const a = rects[e.source];
+    const b = rects[e.target];
+    if (e.data?.self || !a || !b) continue;
+    const sd = handleDir(e.sourceHandle);
+    const td = handleDir(e.targetHandle);
+    const r = router.route({ start: att[e.id].start, end: att[e.id].end, startDir: sd, endDir: td });
+    if (r.ok) {
+      r.label = pickLabel(r.pts, placed);
+      placed.push(r.label);
+    } else fallbacks += 1;
+    routes[e.id] = r;
+  }
+  return { routes, fallbacks };
+}
 
 function FlowNode({ data }) {
   const { n, color, className, testId, onClick } = data;
@@ -101,9 +216,14 @@ function FlowNode({ data }) {
 }
 
 function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }) {
-  const { self, lane, ping } = data;
+  const { self, lane, ping, route } = data;
   const [hover, setHover] = useState(false);
-  const [path, labelX, labelY] = self
+  // Routed around the boxes when the router found a way; otherwise (or while a box is dragged) the old curve.
+  const routed = ping && !self && route && route.ok;
+  const rl = routed ? route.label || labelPoint(route.pts) : null;
+  const [path, labelX, labelY] = routed
+    ? [pathFromPoints(route.pts), rl.x, rl.y]
+    : self
     ? [`M ${sourceX} ${sourceY} C ${sourceX + 60} ${sourceY}, ${sourceX + 60} ${sourceY + 30}, ${sourceX} ${sourceY + 30}`, sourceX + 55, sourceY + 15]
     : lane
       ? [`M ${sourceX} ${sourceY} C ${sourceX - lane} ${sourceY}, ${targetX - lane} ${targetY}, ${targetX} ${targetY}`, (sourceX + targetX) / 2 - lane * 0.75, (sourceY + targetY) / 2]
@@ -151,8 +271,21 @@ const edgeTypes = { sfd: FlowEdge };
 function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, focusId, ariaLabel, walkStep, visited, pingStyle, selectedId }) {
   const ref = useRef(null);
   const lastDragEnd = useRef(0);
-  useFitOnResize(ref, FIT);
+  const fit = pingStyle ? FIT_PING : FIT;
+  useFitOnResize(ref, fit);
   const byId = useMemo(() => new Map(NODES.map((n) => [n.id, n])), [NODES]);
+  const [dragging, setDragging] = useState(false);
+  const nodeLookup = useStore((st) => st.nodeLookup);
+  // React Flow clamps/moves boxes in place: subscribe to a string of their absolute boxes so a drop re-routes.
+  const absKey = useStore((st) => {
+    if (!pingStyle) return "";
+    let k = "";
+    for (const n of st.nodeLookup.values()) {
+      const p = n.internals.positionAbsolute;
+      k += `${n.id}:${Math.round(p.x)},${Math.round(p.y)},${Math.round(n.measured?.width ?? 0)},${Math.round(n.measured?.height ?? 0)}|`;
+    }
+    return k;
+  });
   const stepEdge = step >= 0 ? EDGES[step] : null;
 
   const laidOut = useMemo(
@@ -228,8 +361,24 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
     [EDGES, byId, selectedPath, step, walkStep, pingStyle],
   );
 
+  // pingStyle only: route every arrow around the boxes; re-run when a box lands, skip while one is dragged.
+  const routing = useMemo(() => {
+    if (!pingStyle || dragging) return { routes: {}, fallbacks: null };
+    const rects = {};
+    for (const n of nodeLookup.values()) {
+      const p = n.internals.positionAbsolute;
+      rects[n.id] = { x: p.x, y: p.y, w: n.measured?.width ?? NODE_W, h: n.measured?.height ?? nodeH(n.data.n) };
+    }
+    return routeEdges(rects, edges);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pingStyle, dragging, absKey, edges]);
+  const routedEdges = useMemo(
+    () => (pingStyle ? edges.map((e) => ({ ...e, data: { ...e.data, route: routing.routes[e.id] } })) : edges),
+    [pingStyle, edges, routing],
+  );
+
   return (
-    <div className={`sfd${pingStyle ? " sfd--ping" : ""}`} data-testid={testId} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
+    <div className={`sfd${pingStyle ? " sfd--ping" : ""}`} data-testid={testId} data-route-fallbacks={routing.fallbacks ?? undefined} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
       <svg width="0" height="0" aria-hidden="true" className="sfd-defs">
         <defs>
           <marker id="sfd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
@@ -239,18 +388,19 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
       </svg>
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={routedEdges}
         onNodesChange={onNodesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
-        fitViewOptions={FIT}
+        fitViewOptions={fit}
         minZoom={0.2}
         maxZoom={2}
         nodesDraggable
         // pingStyle: a small wiggle is still a click; only a deliberate drag (past 5px) is a drag.
         nodeDragThreshold={pingStyle ? 5 : undefined}
-        onNodeDragStop={() => { lastDragEnd.current = Date.now(); }}
+        onNodeDragStart={pingStyle ? () => setDragging(true) : undefined}
+        onNodeDragStop={() => { lastDragEnd.current = Date.now(); setDragging(false); }}
         nodesConnectable={false}
         elementsSelectable={false}
         zoomOnScroll={false}
