@@ -8,7 +8,7 @@ const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
 const DASHED = { dashed: true }; // a token, a code or a decision coming back (blue dashed under pingStyle)
 const DOWN = { vertical: true }; // leave the bottom of the source, enter the top of the target
-const DOWN_DASHED = { vertical: true, dashed: true };
+const LEFT_DASHED = { lane: 1, dashed: true }; // a return arrow between boxes stacked in one column: both left sides
 
 export const PF_ID_JAG_GROUPS = {
   user: { label: 'User, browser and agent', bg: '#151a24' },
@@ -74,34 +74,34 @@ export const JAG_DIAGRAM = { GROUPS: PF_ID_JAG_GROUPS, NODES: JAG_NODES, EDGES: 
 
 // ---- 2. PingFederate login + AI request (8 boxes, 19 arrows) ---------------------------------------------------
 export const LOGIN_NODES = [
-  N('user', 'user', 'User / browser', ['PF sign-in · AI request', 'session cookie only'], 0, 0),
-  N('bff', 'bff', 'Demo BFF', ['OIDC client · token custodian', 'runs the AI request', 'executes the tool call'], 480, 330),
-  N('pingfed', 'ping', 'PingFederate', ['sign-in at /as/authorization.oauth2', 'tokens at /as/token.oauth2', 'login code + standard token exchange'], 960, 0),
-  N('agent', 'bff', 'Agent Service', ['reasoning · tool proposal', 'holds no tokens'], 0, 330),
-  N('authorize', 'ping', 'PingOne Authorize', ['runtime action policy'], 480, 660),
-  N('gateway', 'ping', 'PingGateway', ['MCP token enforcement'], 960, 660),
-  N('mcp', 'res', 'MCP Server', ['protected tools · resource'], 1320, 990),
+  N('user', 'user', 'User / browser', ['PF sign-in · AI request', 'session cookie only', 'never sees a token', 'never hands credentials to the BFF'], 0, 250),
+  N('bff', 'bff', 'Demo BFF', ['OIDC client · token custodian', 'starts the PKCE sign-in', 'keeps tokens in its session', 'runs the AI request', 'executes the tool call'], 480, 250),
+  N('pingfed', 'ping', 'PingFederate', ['sign-in at /as/authorization.oauth2', 'tokens at /as/token.oauth2', 'client ai-demo-pf-user', 'login code + standard token exchange'], 960, 250),
+  N('agent', 'bff', 'Agent Service', ['reasoning · tool proposal', 'holds no tokens'], 0, 560),
+  N('gateway', 'ping', 'PingGateway', ['MCP token enforcement'], 480, 560),
+  N('authorize', 'ping', 'PingOne Authorize', ['runtime action policy'], 960, 560),
+  N('mcp', 'res', 'MCP Server', ['protected tools · resource'], 480, 840),
 ];
 
 export const LOGIN_EDGES = [
-  E('user', 'bff', 'sign in', DOWN), // 0
+  E('user', 'bff', 'sign in'), // 0
   E('bff', 'pingfed', '302 · /authorize + PKCE'), // 1
   E('pingfed', 'user', 'sign-in page'), // 2
   E('user', 'pingfed', 'credentials'), // 3
-  E('pingfed', 'bff', 'code + state', DOWN_DASHED), // 4
+  E('pingfed', 'bff', 'code + state', DASHED), // 4
   E('bff', 'pingfed', 'code + verifier'), // 5
-  E('pingfed', 'bff', 'ID / access / refresh', DOWN_DASHED), // 6
+  E('pingfed', 'bff', 'ID / access / refresh', DASHED), // 6
   E('bff', 'user', 'HTTP-only cookie', DASHED), // 7
-  E('user', 'bff', 'prompt + session', DOWN), // 8
+  E('user', 'bff', 'prompt + session'), // 8
   E('bff', 'agent', 'reason request'), // 9
   E('agent', 'bff', 'tool proposal'), // 10
   E('bff', 'pingfed', '2-exchange delegation'), // 11
-  E('pingfed', 'bff', 'scoped access token', DOWN_DASHED), // 12
+  E('pingfed', 'bff', 'scoped access token', DASHED), // 12
   E('bff', 'gateway', 'MCP request + token', DOWN), // 13
   E('gateway', 'authorize', 'action policy check'), // 14
   E('gateway', 'mcp', 'permitted MCP tool call', DOWN), // 15
   E('mcp', 'gateway', 'MCP tool result', DASHED), // 16
-  E('gateway', 'bff', 'result to BFF', DASHED), // 17
+  E('gateway', 'bff', 'result to BFF', LEFT_DASHED), // 17
   E('bff', 'user', 'AI response'), // 18
 ];
 
