@@ -231,7 +231,7 @@ async function exchangeAtIssuerPf(req, s, scope) {
   });
   if (r.status !== 200 || !r.data?.access_token) {
     const err = new Error(`SE PingFederate refused the exchange (HTTP ${r.status} ${r.data?.error || ''})`);
-    err.pfError = r.data?.error; err.pfErrorDescription = r.data?.error_description;
+    err.httpStatus = r.status; err.pfError = r.data?.error; err.pfErrorDescription = r.data?.error_description;
     throw err;
   }
   return r.data.access_token;
@@ -247,7 +247,12 @@ async function mintIdJag(req, scopeOverride) {
       subjectToken(req, s.request.subjectTokenType), s.request.subjectTokenType,
       s.request.audience, s.request.resource, scopeList(scope),
     );
-  return { idJag, request: {
+  return { idJag, request: exchangeShown(s, scope) };
+}
+
+/** The exchange request as the page shows it (the subject token is never shown). */
+function exchangeShown(s, scope) {
+  return {
     endpoint: `POST ${s.idp.tokenEndpoint}`,
     body: {
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
@@ -259,7 +264,18 @@ async function mintIdJag(req, scopeOverride) {
       scope: scope || undefined,
       client_id: s.idp.exchangeClientId,
     },
-  } };
+  };
+}
+
+/** One exchange attempt, reported as an outcome instead of thrown: revoke-and-prove needs the refusal's error. */
+async function tryMint(req) {
+  const s = settings(modeOf(req));
+  try {
+    await mintIdJag(req);
+    return { ok: true, status: 200, error: null, request: exchangeShown(s, s.request.scope) };
+  } catch (err) {
+    return { ok: false, status: err.httpStatus || 502, error: err.pfError || null, error_description: err.pfErrorDescription || err.message, request: exchangeShown(s, s.request.scope) };
+  }
 }
 
 /** Redeem at the resource AS and return status + body, error or not (negative tests need both). */
@@ -388,7 +404,7 @@ router.post('/mode', (req, res) => {
 
 // ---- Preflight: what would make the next button fail, checked before it is pressed. ----
 
-const PREFLIGHT_STEPS = ['signin', 'issue', 'redeem', 'call', 'negative', 'resource', 'mode', 'xaa'];
+const PREFLIGHT_STEPS = ['signin', 'issue', 'redeem', 'call', 'negative', 'resource', 'mode', 'xaa', 'revoke'];
 const PROBE_TTL_MS = 30 * 1000;
 const probes = new Map();
 
@@ -587,7 +603,7 @@ async function preflight(req, step) {
 
   if (!byo && step !== 'signin') add(...signedInCheck(req, mode, s));
 
-  if (!byo && at('signin', 'issue', 'negative') && s.idp.issuer) {
+  if (!byo && at('signin', 'issue', 'negative', 'revoke') && s.idp.issuer) {
     const key = mode === 'pf-pf' ? 'PF_IDJAG_ISSUER_PF_URL' : 'pf_issuer';
     const url = `${s.idp.issuer.replace(/\/$/, '')}/.well-known/openid-configuration`;
     const r = await probe(url, fresh);
@@ -918,7 +934,7 @@ router.post('/call', requirePf, async (req, res) => {
   const tool = typeof req.body?.tool === 'string' ? req.body.tool : '';
   const params = req.body?.arguments && typeof req.body.arguments === 'object' ? req.body.arguments : {};
   const request = { endpoint, authorization: 'Bearer [access token]',
-    body: tool ? { jsonrpc: '2.0', method: 'tools/call', params: { name: tool, arguments: params } } : { jsonrpc: '2.0', method: 'tools/list' } };
+    body: tool ? { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: tool, arguments: params } } : { jsonrpc: '2.0', id: 1, method: 'tools/list' } };
   const pin = { pinNodeGateway: true };
   try {
     if (!tool) {
@@ -936,6 +952,87 @@ router.post('/call', requirePf, async (req, res) => {
     return res.status(err.httpStatus && err.httpStatus < 600 ? err.httpStatus : 502).json({ error: err.code || 'gateway_call_failed', message: err.message,
       gatewayStatus: err.gatewayStatus, gatewayErrorCode: err.gatewayErrorCode, gatewayMessage: err.gatewayMessage, request });
   }
+});
+
+const PROBE_TIMEOUT_MS = 4000;
+const SLOW_MS = 1500;
+const trimSlash = (u) => String(u || '').replace(/\/$/, '');
+
+/**
+ * One discovery GET per backend, in parallel, from the BFF: up, slow (over 1.5 s) or down (error, non-2xx, or no
+ * answer in 4 s). A backend with no address in this mode is left out, not shown as down.
+ */
+async function probeBackends(s, get = axios.get) {
+  const as = originOf(s.resourceAs.tokenEndpoint);
+  const targets = [
+    ...(s.idp.issuer ? [{ id: 'idp', label: s.idp.name, urls: [`${trimSlash(s.idp.issuer)}/.well-known/openid-configuration`] }] : []),
+    ...(as ? [{ id: 'resource-as', label: s.resourceAs.name, urls: [`${as}/.well-known/oauth-authorization-server`, `${as}/.well-known/openid-configuration`] }] : []),
+  ];
+  return Promise.all(targets.map(async ({ id, label, urls }) => {
+    const started = Date.now();
+    for (const [i, url] of urls.entries()) {
+      let status;
+      try {
+        ({ status } = await get(url, { timeout: PROBE_TIMEOUT_MS, validateStatus: () => true }));
+      } catch (err) {
+        const timedOut = err.code === 'ECONNABORTED' || err.code === 'ETIMEDOUT';
+        return { id, label, url, state: 'down', ms: null, detail: timedOut ? 'no answer in 4 s' : String(err.code || err.message) };
+      }
+      // A resource AS without RFC 8414 metadata (PingFederate as redeemer) answers its OpenID configuration instead.
+      if (status === 404 && i < urls.length - 1) continue;
+      const ms = Date.now() - started;
+      if (status < 200 || status >= 300) return { id, label, url, state: 'down', ms, detail: `HTTP ${status}` };
+      return { id, label, url, state: ms > SLOW_MS ? 'slow' : 'up', ms, detail: `${ms} ms` };
+    }
+    return { id, label, url: urls.at(-1), state: 'down', ms: null, detail: 'HTTP 404' };
+  }));
+}
+
+// Public like /config: the strip answers before anyone signs in. byo's IdP is the user's own, so it is not probed.
+router.get('/backends', async (req, res) => {
+  const s = settingsFor(req);
+  res.json({ backends: await probeBackends(modeOf(req) === 'byo' ? { ...s, idp: { ...s.idp, issuer: '' } } : s) });
+});
+
+const issuerRefreshToken = (req) => (modeOf(req) === 'pf-pf' ? req.session?.idJagIssuer?.refreshToken : req.session?.oauthTokens?.refreshToken);
+
+/**
+ * Revoke and prove it: the exchange must work first (control), then the issuer revokes this session's refresh token
+ * (RFC 7009), then the exchange is tried again. Proved = control ok, revoke accepted, and the retry refused with an
+ * OAuth error. A failed control revokes nothing. The app's own sign-in is not signed out: its refresh token is dead
+ * now, so the next refresh fails and the user signs in again. Tokens never leave the server.
+ */
+router.post('/revoke', requirePf, async (req, res) => {
+  const mode = modeOf(req);
+  if (mode === 'byo') return res.status(409).json({ error: 'byo_mode', message: 'Your IdP holds that session: revoke it there.' });
+  const s = settings(mode);
+  const refresh = issuerRefreshToken(req);
+  if (!refresh) return res.status(401).json({ error: 'pf_sign_in_required', message: 'Sign in with PingFederate first.' });
+  const control = await tryMint(req);
+  if (!control.ok) return res.json({ control, proved: false });
+  const url = `${trimSlash(s.idp.issuer)}/as/revoke_token.oauth2`;
+  let rv;
+  try {
+    rv = await axios.post(url, new URLSearchParams({ token: refresh, token_type_hint: 'refresh_token' }).toString(), {
+      headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: basic(s.idp.exchangeClientId, cfg('pf_user_client_secret')) },
+      timeout: 15000, validateStatus: () => true,
+    });
+  } catch (err) {
+    return res.status(502).json({ error: 'revoke_failed', message: `Could not reach ${s.idp.name} (${err.code || err.message}).` });
+  }
+  const retry = await tryMint(req);
+  if (mode === 'pf-pf') delete req.session.idJagIssuer;
+  delete req.session.idJagPlayground;
+  res.json({
+    control,
+    revoke: {
+      request: { endpoint: `POST ${url}`, body: { token: '[your refresh token, never sent to the browser]', token_type_hint: 'refresh_token', client_id: s.idp.exchangeClientId } },
+      status: rv.status, error: rv.data?.error || null, error_description: rv.data?.error_description || null,
+    },
+    retry,
+    // RFC 8693 §2.2.2 refuses an invalid subject token with invalid_request; some servers say invalid_grant.
+    proved: rv.status === 200 && !retry.ok && ['invalid_request', 'invalid_grant'].includes(retry.error),
+  });
 });
 
 const RESOURCE_VARIANTS = {
@@ -1047,5 +1144,6 @@ router.post('/reset', (req, res) => {
 module.exports = router;
 module.exports._inspect = inspect;
 module.exports._settings = settings;
+module.exports._probeBackends = probeBackends;
 module.exports._clearProbeCache = () => probes.clear();
 module.exports._resetXaaDiscovery = () => { xaaDiscoveryP = null; };

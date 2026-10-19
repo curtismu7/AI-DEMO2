@@ -77,7 +77,7 @@
   },
   "agent": {
     "persona": "Care Assistant",
-    "greeting": "Hi {name}! I can review your appointments, check coverage details, and help you manage records requests. I'll walk you through the consent flows as we go. What do you need?",
+    "greeting": "Hi {name}! I can review your appointments, check coverage details, and help you manage records requests. I'll walk you through the consent flows as we go.\n\nTry one of these to get started:\n\n- **OBO**: \"my appointments\"\n- **A2A**: \"access my sensitive patient records\"\n- **MFA**: \"release my records\"\n- **Token**: \"decode my jwt token\"",
     "systemPromptFlavor": "You are a PingHealth patient assistant. Help patients view their insurance coverage, check patient records, review appointment history, and understand their benefits. Use healthcare language: accounts are patient records, transactions are appointments, consultations, or referrals, balance is coverage amount. Respond with appropriate care and clarity."
   },
   "hero": {

@@ -1,36 +1,14 @@
 #!/usr/bin/env sh
-# Auto-export the public Learning Hub mirror when a merge touches the in-app
-# education panels, so the public GitHub Pages site stops drifting from the
-# app. Runs in the background and never blocks or fails the git operation.
-# Manual escape hatch: npm run export:learning.
-
-#
-# Never fire inside a linked worktree (.claude/worktrees, .kilo/worktrees, or
-# anywhere else), for the same reason as post-checkout: the exporter's
-# `reset --hard origin/main` can land on this checkout's own branch. Here it
-# wiped a `git merge origin/main` mid-merge (2026-09-11). Detection is the
-# same as pre-commit's: in a linked worktree --absolute-git-dir is
-# <repo>/.git/worktrees/<name>, while in the main checkout it equals
-# --git-common-dir. Only the export is skipped; the BFF restart below still runs.
-git_dir=$(git rev-parse --absolute-git-dir 2>/dev/null || true)
-common_dir=$(git rev-parse --path-format=absolute --git-common-dir 2>/dev/null || true)
-in_linked_worktree=0
-if [ -n "$git_dir" ] && [ "$git_dir" != "$common_dir" ]; then
-  in_linked_worktree=1
-fi
-
-if [ "$in_linked_worktree" = "0" ] && git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^demo_api_ui/src/components/education/'; then
-  echo "[post-merge] education panels changed — exporting Learning Hub in background (logs/learning-hub-export.log)..."
-  mkdir -p logs
-  nohup npm run export:learning >> logs/learning-hub-export.log 2>&1 &
-fi
+# The Learning Hub mirror is regenerated manually with `npm run export:learning`
+# and landed through a PR: the export snapshots measured layout and is not
+# deterministic, so it must not run automatically.
 
 # When a merge changes scope-topology.json, restart the BFF in the background.
 # scopeTopology.js hot-reloads the manifest on mtime change, but MCP_TOOL_SCOPES
 # is still frozen at require time, so a restart is needed for that (node --watch
 # watches /app, not the repo-root topology). The file is directory-mounted
 # (docker-compose.yml ./:/repo), so a restart suffices — no recreate. Backgrounded
-# (like the learning-hub export above) so the merge never stalls on Docker's
+# so the merge never stalls on Docker's
 # stop timeout. No-op when Docker or the BFF isn't running.
 if git diff --name-only ORIG_HEAD HEAD 2>/dev/null | grep -q '^scope-topology\.json$'; then
   if command -v docker >/dev/null 2>&1 && docker ps --format '{{.Names}}' 2>/dev/null | grep -q '^ai-demo-api-server$'; then

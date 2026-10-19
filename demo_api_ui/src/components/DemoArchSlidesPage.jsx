@@ -5,10 +5,10 @@
 import { useCallback, useEffect, useState } from "react";
 import { Link, useNavigate, useParams } from "react-router-dom";
 import { DEFAULT_STEP_MS, STEP_TIME_OPTIONS, StepTimeSelector } from "./diagram";
-import DemoArchControlPlaneScene, { CONTROL_PLANE_META } from "./DemoArchControlPlaneScene";
+import { CONTROL_PLANE_META } from "./DemoArchControlPlaneScene";
 import { WORKLOAD_META } from "./DemoArchWorkloadScene";
 import PingSlideFlow from "./PingSlideFlow";
-import { CIBA_SLIDE, TOPOLOGY_SLIDE, ID_JAG_SLIDE, OBO_SLIDE, OBO_STEPS, CODING_SLIDE, CODING_STEPS } from "../config/pingSlideDiagrams";
+import { CIBA_SLIDE, CONTROL_PLANE_SLIDE, CONTROL_PLANE_STEPS, TOPOLOGY_SLIDE, ID_JAG_SLIDE, OBO_SLIDE, OBO_STEPS, CODING_SLIDE, CODING_STEPS } from "../config/pingSlideDiagrams";
 import { ID4AI_PDF, ID4AI_SLIDES } from "../config/id4aiSlides";
 import "./DemoArchSlidesPage.css";
 
@@ -132,7 +132,7 @@ export const DEMO_ARCH_SLIDES = [
   { id: "id-jag", drag: true, label: "Workload Agents · 3rd-party MCP via ID-JAG", path: "/demo-arch-slides/id-jag", meta: WORKLOAD_META.idjag, rows: [...SHARED_ROWS, ...SLIDE_ROWS["id-jag"]], live: liveStepIdJag, render: (st, n, r) => <PingSlideFlow key={r} config={ID_JAG_SLIDE} step={n} /> },
   { id: "obo-assistant", drag: true, label: "Workload Agent · Digital Assistant (OBO)", path: "/demo-arch-slides/obo-assistant", meta: { steps: OBO_STEPS, caption: "A digital assistant acts on behalf of a signed-in user: the IdP mints a transaction token naming both user and agent, and the gateway reaches each backend with the credential it expects." }, rows: OBO_ROWS, live: NO_LIVE, render: (st, n, r) => <PingSlideFlow key={r} config={OBO_SLIDE} step={n} /> },
   { id: "coding-agents", drag: true, label: "Employee Agents · Coding Agents", path: "/demo-arch-slides/coding-agents", meta: { steps: CODING_STEPS, caption: "Coding agents are distinguished from humans and get only just-in-time credentials from the Agent Broker, so nothing long-lived sits on the developer machine." }, rows: CODING_ROWS, live: NO_LIVE, render: (st, n, r) => <PingSlideFlow key={r} config={CODING_SLIDE} step={n} /> },
-  { id: "control-plane", label: "Agentic Control Plane", path: "/demo-arch-slides/control-plane", meta: CONTROL_PLANE_META, rows: CONTROL_PLANE_ROWS, live: liveStepControlPlane, render: (st) => <DemoArchControlPlaneScene st={st} /> },
+  { id: "control-plane", drag: true, label: "Agentic Control Plane", path: "/demo-arch-slides/control-plane", meta: { ...CONTROL_PLANE_META, steps: CONTROL_PLANE_STEPS }, rows: CONTROL_PLANE_ROWS, live: liveStepControlPlane, render: (st, n, r) => <PingSlideFlow key={r} config={CONTROL_PLANE_SLIDE} step={n} /> },
 ];
 
 // "ID4AI slides 301": the architecture diagrams of the ID4AI deck, same page and controls, ReactFlow slides.

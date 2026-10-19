@@ -2,6 +2,7 @@
 // Each edge carries `step` (1-based) = the walkthrough step that animates it; STEPS feeds the page's step bar.
 const N = (id, kind, x, y, o = {}) => ({ id, kind, x, y, ...o });
 const E = (from, to, fs, ts, step, o = {}) => ({ from, to, fs, ts, step, ...o });
+const S = (title, desc) => [title, desc];
 
 export const OBO_SLIDE = {
   title: 'Workload Agent:',
@@ -181,3 +182,69 @@ export const CIBA_SLIDE = {
     E('gw', 'm1', 'r', 'l', 8), E('gw', 'm2', 'r', 'l', 8), E('gw', 'm3', 'r', 'l', 8),
   ],
 };
+
+// ---- Agentic Control Plane (dark): reference architecture of the demo's control plane, one box per role ----
+const CP = (id, kind, x, y, w, h, o = {}) => N(id, kind, x, y, { w, h, ...o });
+export const CONTROL_PLANE_SLIDE = {
+  title: 'Agentic Control Plane',
+  subtitle: 'reference architecture mapped to the Super AI Demo',
+  dark: true,
+  aspect: '1900 / 1000',
+  nodes: [
+    CP('cust', 'card', 0, 60, 150, 90, { label: 'Customers', sub: 'AI consumers', steps: [1] }),
+    CP('ext', 'card', 0, 180, 150, 90, { label: 'External', sub: 'MCP clients', steps: [1] }),
+    CP('build', 'card', 0, 300, 150, 90, { label: 'Builders', sub: 'AI developers', steps: [1] }),
+    CP('admin', 'card', 0, 420, 150, 90, { label: 'IT Admins', sub: 'IAM and security', steps: [1] }),
+    CP('cpcol', 'panel', 180, 20, 210, 880, { label: 'Agentic Control Plane · visibility across agents' }),
+    CP('catalog', 'card', 200, 60, 170, 140, { label: 'Agent/MCP Catalog', sub: '/mcp-tools\n/agent-registry', steps: [8] }),
+    CP('registry', 'card', 200, 230, 170, 140, { label: 'Agent Registry', sub: 'PingOne agent clients\nA2A Agent Cards', steps: [8] }),
+    CP('discovery', 'card', 200, 400, 170, 150, { label: 'Agent Discovery', sub: 'mcp-discovery-agent\nShadow AI detector\n/mcp-discovery', steps: [9] }),
+    CP('govern', 'card', 200, 580, 170, 140, { label: 'Agent Governance', sub: '/agent-lifecycle\nIGA for AI · UC46', steps: [9] }),
+    CP('obs', 'card', 200, 750, 170, 130, { label: 'Observability', sub: 'Grafana · Jaeger · Loki\n/mcp-observability', steps: [9] }),
+    CP('idp', 'redcard', 430, 60, 330, 190, { label: 'IDP / OAuth Authorization Server', sub: 'PingOne · PingFederate · the only issuer of tokens', items: ['SSO · PKCE · passkey', 'Agent identity · clients', 'Token exchange RFC 8693', 'OAuth 2.0 · CIBA · ID-JAG'], steps: [2] }),
+    CP('helix', 'card', 800, 30, 200, 70, { label: 'Helix', sub: 'LLM · intent engine for the agent', steps: [3] }),
+    CP('authz', 'redcard', 800, 120, 200, 190, { label: 'Fine-grained Authz', sub: 'PingOne Authorize · PDP', items: ['PERMIT · DENY · STEP-UP · HITL', 'Intent binding · PAR', 'Attributes (PIP)'], steps: [3] }),
+    CP('jit', 'redcard', 1030, 120, 210, 190, { label: 'JIT Credential Broker', sub: 'PingOne Privilege', items: ['Virtual LLM keys', 'OAuth handling · MCP creds', 'JIT injection · rotation'], steps: [4] }),
+    CP('secrets', 'card', 1270, 120, 170, 190, { label: 'Secret Stores', sub: 'Privilege reads from here\nsecrets.vault · AES-GCM\nPingOne Privilege vault\nK8s secrets (SE cluster)', steps: [4] }),
+    CP('spire', 'dashedcard', 1270, 340, 200, 180, { label: 'Workload IDP', sub: 'SPIRE · credential broker\nWorkload identity · attestation\nSPIFFE JWT-SVID issuance\nJIT injection · spiffe-helper', steps: [5] }),
+    CP('ap', 'panel', 430, 340, 620, 300, { label: 'Agent Privilege · PEP · identity from the IAM core · decisions from Authorize · credentials from Privilege', steps: [6] }),
+    CP('llmgw', 'card', 450, 420, 140, 120, { label: 'LLM Gateway', sub: 'demo_llm_proxy :8090', steps: [6] }),
+    CP('mcpgw', 'card', 610, 420, 140, 120, { label: 'MCP Gateway', sub: 'mcp_gateway :3005', steps: [6] }),
+    CP('a2agw', 'card', 770, 420, 140, 120, { label: 'A2A Gateway', sub: 'UC2 delegation', steps: [6] }),
+    CP('guard', 'card', 930, 420, 100, 120, { label: 'AI Guard', sub: 'Privilege AI Guard', steps: [6] }),
+    CP('ping-gw', 'redbar', 1080, 340, 130, 300, { label: 'Ping Gateway', sub: 'PingGateway (IG) :3036 · ingress PEP', steps: [7] }),
+    CP('custmcp', 'card', 1250, 580, 230, 70, { label: 'Custom MCP Servers', sub: 'oauth-mcp · invest RS · mortgage RS', steps: [7] }),
+    CP('thirdmcp', 'card', 1250, 660, 230, 70, { label: '3rd-party MCP Servers', sub: 'weather · Brave · hosted PingOne MCP', steps: [7] }),
+    CP('virtmcp', 'card', 1250, 740, 230, 70, { label: 'Virtual MCP Servers', sub: 'MCP facade · aggregation at the gateway', steps: [7] }),
+    CP('llmprov', 'card', 1250, 820, 230, 70, { label: 'LLM Providers', sub: 'llama.cpp · OpenAI · Anthropic via Privilege', steps: [7] }),
+    CP('endpoint', 'card', 430, 680, 175, 70, { label: 'Endpoint Controller', sub: 'mcp-discovery-agent · pid: host', steps: [5] }),
+    CP('personal', 'card', 430, 770, 170, 160, { label: 'Personal Agents', sub: 'local developer tools · external door\nLM Studio · Claude · Inspector · LibreChat\nChatGPT · Claude Code', steps: [10] }),
+    CP('enterprise', 'panel', 630, 770, 570, 160, { label: 'Enterprise Workload Agents · an ecosystem of agents' }),
+    CP('saas', 'card', 650, 810, 170, 100, { label: 'SaaS embedded', sub: '/personal-agent · P1 MCP', steps: [10] }),
+    CP('orch', 'card', 830, 810, 170, 100, { label: 'Orchestrator agents', sub: 'demo_agent_service · AG-UI', steps: [10] }),
+    CP('ephem', 'card', 1010, 810, 170, 100, { label: 'Ephemeral agents', sub: 'autonomous runs', steps: [10] }),
+  ],
+  edges: [
+    E('idp', 'authz', 'r', 'l', 3),
+    E('authz', 'jit', 'r', 'l', 4),
+    E('jit', 'secrets', 'r', 'l', 4),
+    E('spire', 'secrets', 't', 'b', 5, { dashed: true }),
+    E('ap', 'authz', 't', 'b', 6, { dashed: true, dx: 280 }),
+    E('ping-gw', 'custmcp', 'r', 'l', 7, { label: 'MCP' }),
+    E('ping-gw', 'llmprov', 'r', 'l', 7, { label: 'LLM' }),
+    E('enterprise', 'ap', 't', 'b', 10),
+  ],
+};
+
+export const CONTROL_PLANE_STEPS = [
+  S('Who shows up', 'Customers in the vertical apps, external MCP clients that have never talked to this system, agent builders, and the IAM and security admins. Four audiences, four trust levels.'),
+  S('One issuer of tokens', 'PingOne (and PingFederate for ID-JAG) is the only place tokens are issued, exchanged or revoked: SSO with passkeys, per-agent OAuth clients, RFC 8693 exchange, CIBA.'),
+  S('Fine-grained decisions', 'PingOne Authorize decides PERMIT, DENY, STEP-UP or HITL for every tool call, with intent binding (PAR) and directory attributes. Helix supplies the language model that turns a prompt into an intent.'),
+  S('Credentials are brokered', 'PingOne Privilege hands agents virtual LLM keys and brokers MCP credentials just in time, reading from the encrypted secrets.vault and its own vault. An agent never holds a provider key.'),
+  S('Workload identity', 'SPIRE attests each agent container and issues SPIFFE JWT-SVIDs through the spiffe-helper sidecar. The SVID becomes the actor_token on the exchange.'),
+  S('Enforcement at the gateways', 'The Agent Privilege tier (LLM proxy, MCP gateway, A2A delegation, AI Guard) and PingGateway as ingress PEP apply those decisions and credentials to every request.'),
+  S('Tools and models', 'Custom MCP servers (banking, invest, mortgage), third-party MCP (weather, Brave, hosted PingOne MCP), a virtual MCP facade, and LLM providers from local llama.cpp to OpenAI and Anthropic via Privilege.'),
+  S('The control plane sees all of it', 'Catalog, registry, discovery, governance and observability: /agent-registry, /mcp-tools, the shadow-AI detector, IGA access reviews (UC46), and Grafana, Jaeger and Loki.'),
+  S('Discovery and governance watch the estate', 'The catalog, registry, discovery, governance and observability columns read from every layer above.'),
+  S('Agents do the work', 'Personal agents (LM Studio, Claude Desktop, MCP Inspector, LibreChat) come in through the external door; enterprise agents run as the AG-UI orchestrator, A2A specialists and ephemeral autonomous runs.'),
+];

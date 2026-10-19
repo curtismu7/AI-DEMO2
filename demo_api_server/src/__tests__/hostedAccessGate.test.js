@@ -161,7 +161,7 @@ describe('hostedAccessGate', () => {
       originalUrl: '/api/use-cases?x=1', method: 'GET',
       headers: { accept: 'text/html,application/xhtml+xml' }, session: {}, hostedSession: {},
     }, nav, jest.fn());
-    expect(nav.redirected).toBe('/api/auth/hosted-access/login?return_to=%2Fapi%2Fuse-cases');
+    expect(nav.redirected).toBe('/api/auth/hosted-access/login?return_to=%2Fapi%2Fuse-cases%3Fx%3D1');
 
     const xhr = response();
     gate({

@@ -5,9 +5,32 @@ import {
   buildPingOneAppListMessage,
   buildPingOneToolListMessage,
   buildPingOneUserListMessage,
+  cibaUseCaseFor,
   HitlChipMark,
   verticalSuggestionChips,
 } from './agentChrome';
+
+describe('cibaUseCaseFor', () => {
+  const manifest = { dashboard: { chips10: [
+    { message: 'transfer $600 from checking to savings with CIBA approval', useCaseId: 'ciba-out-of-band-approval' },
+    { message: 'transfer $600 from checking to savings', useCaseId: 'step-up-required' },
+  ] } };
+  test('typed CIBA chip text carries the CIBA use case', () => {
+    expect(cibaUseCaseFor(' Transfer $600 from checking to savings with CIBA approval ', manifest)).toBe('ciba-out-of-band-approval');
+  });
+  test('other chips and free text carry nothing', () => {
+    expect(cibaUseCaseFor('transfer $600 from checking to savings', manifest)).toBeUndefined();
+    expect(cibaUseCaseFor('with CIBA approval', manifest)).toBeUndefined();
+    expect(cibaUseCaseFor('anything', null)).toBeUndefined();
+  });
+  test('every **CIBA** welcome prompt in a vertical greeting resolves to the CIBA use case', () => {
+    const manifests = import.meta.glob('../../../demo_api_server/config/verticals/*/manifest.json', { eager: true, import: 'default' });
+    const cibaPrompts = Object.values(manifests).flatMap((m) =>
+      [...(m.agent?.greeting || '').matchAll(/^- \*\*CIBA\*\*: "(.+)"$/gm)].map(([, p]) => [p, m]));
+    expect(cibaPrompts.length).toBeGreaterThanOrEqual(3);
+    for (const [p, m] of cibaPrompts) expect(cibaUseCaseFor(p, m)).toBe('ciba-out-of-band-approval');
+  });
+});
 
 describe('HitlChipMark challenge markers', () => {
   test('consent → 👤 only', () => {

@@ -13,8 +13,12 @@ function paint(canvas, strokes) {
   if (!ctx) return; // jsdom has no canvas
   ctx.setTransform(1, 0, 0, 1, 0, 0);
   ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const dpr = canvas.width / canvas.clientWidth || 1;
-  ctx.scale(dpr, dpr);
+  // Strokes are stored in client (pointer) coordinates. Map them through the canvas's
+  // real on-screen box, so a page zoom (the app's font-size setting) can't shift the ink.
+  const r = canvas.getBoundingClientRect();
+  const kx = canvas.width / (r.width || 1);
+  const ky = canvas.height / (r.height || 1);
+  ctx.setTransform(kx, 0, 0, ky, -r.left * kx, -r.top * ky);
   ctx.lineCap = "round";
   ctx.lineJoin = "round";
   for (const s of strokes) {
