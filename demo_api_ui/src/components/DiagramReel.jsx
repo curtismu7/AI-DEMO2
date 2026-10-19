@@ -9,12 +9,15 @@ import "./DiagramReel.css";
  * diagram can pass `nodeDetail` to show that node instead.
  *
  * Props: steps (buildReelSteps), stepper (useDiagramStepper), nodeDetail ({ title, lines } | null),
- * onClearNode, testId.
+ * onClearNode, openKey (optional number: a change opens the details row for the step in focus), testId.
  */
-export default function DiagramReel({ steps, stepper, nodeDetail = null, onClearNode, testId = "diagram-reel" }) {
+export default function DiagramReel({ steps, stepper, nodeDetail = null, onClearNode, openKey = 0, testId = "diagram-reel" }) {
   const [open, setOpen] = useState(false);
   const stripRef = useRef(null);
   const step = stepper?.step ?? -1;
+  useEffect(() => {
+    if (openKey) setOpen(true);
+  }, [openKey]);
 
   // keep the card in focus visible inside the strip (scroll the strip, never the page)
   useEffect(() => {
