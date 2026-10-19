@@ -2,7 +2,11 @@
 // { GROUPS, NODES, EDGES, STEPS } for StaticFlowDiagram. STEPS[i].detail feeds the reel's detail panel:
 // the request on the wire, MOCK decoded tokens (teaching values only, no real secrets) and the standards behind the step.
 // Reel step k = EDGES[k]; STEPS[i].edges lists the EDGES indexes a step covers.
-import { AUTH, BEARER, CREDS, EXCHANGE, MCP, INTROSPECT, AUTHZ, META, SPEC } from "./pingStyleStandards";
+//
+// Sources for the wire formats: docs/ARCHITECTURE-TRUTHS.md T-17, ping-gateway/scripts/groovy/privilege-bridge.groovy
+// and olb-token-exchange.groovy, privilege/CURRENT-CONFIGURATION.md. Where the repo does not pin a value (the
+// Privilege key formats, the door token shape) the form uses a descriptive placeholder instead of an invented prefix.
+import { AUTH, BEARER, EXCHANGE, MCP, INTROSPECT, META, RFC, DRAFT, SPEC } from "./pingStyleStandards";
 
 // Ping palette: red = Ping product (Privilege, Agent Gateway), dark = apps and agents, grey = outside Privilege.
 export const GROUPS = {
@@ -13,7 +17,21 @@ export const GROUPS = {
   ghost: { label: "Unchanged today", bg: "#5a5f69" },
 };
 
+// Product-level standards for this diagram: these are Ping products, not IETF or OpenID documents, so kind is "spec".
+const PRIVILEGE = SPEC("PingOne Agent Privilege", "Agentic Apps: policy, approval and recording on the LLM and MCP lanes");
+const PRIVILEGE_NO_LOCAL = SPEC("PingOne Agent Privilege", "Cloud providers only today: no lane for local models (decision D2)");
+const AUTHORIZE = SPEC("PingOne Authorize", "Per-tool policy decision (P1AZ) before the call is forwarded");
+const PINGGATEWAY = SPEC("PingGateway", "MCP route filters: Privilege bridge, introspection, RFC 8693 exchange");
 const OPENAI_API = SPEC("OpenAI Chat Completions API", "The wire format Privilege's OpenAI lane and llama.cpp both speak");
+// The demo's tx-token is a custom header carrying the caller's exchanged access token. The IETF draft defines a different artifact.
+const TX_ANALOGY = DRAFT(
+  "draft-ietf-oauth-transaction-tokens",
+  "Analogy only: the demo's tx-token header carries an ordinary exchanged access token, not a Txn-Token"
+);
+const BEARER_SYNTAX_ONLY = RFC(6750, "Header syntax only: this bearer is a shared secret, not an OAuth access token");
+
+// Drops duplicate ids so the panel never lists a standard twice (the reel keys refs by id).
+const uniqRefs = (...refs) => refs.filter((r, i) => refs.findIndex((o) => o.id === r.id) === i);
 
 // ---- Figure 1: where every LLM and MCP call enters ----
 
@@ -47,38 +65,60 @@ export const GATEWAY_EDGES = [
   ["ag", "s4", "", { vertical: true }],
 ];
 
+// The caller's token as the Agent Gateway receives it in tx-token: gateway-scoped, before the Exchange #3 swap.
+const TX_TOKEN = {
+  note: "tx-token · caller's token, gateway audience",
+  header: { alg: "RS256", typ: "at+jwt", kid: "mock-key-1" },
+  claims: {
+    iss: "https://auth.pingone.com/MOCK-ENV-ID/as",
+    sub: "user-8f3a",
+    aud: "mcpgateway.ping.demo",
+    scope: "gateway:mcp:invoke",
+    exp: 1790000300,
+  },
+};
+
 // One exchanged-token step per MCP server: the Agent Gateway swaps the caller's token for one whose aud is that server.
+// The PingOne branch of olb-token-exchange.groovy sends resource= (RFC 8707); audience= is silently ignored by PingOne.
 const serverStep = (i, key, host, aud, scope, server, tool, decision) => ({
   key,
   title: `Agent Gateway to ${server}`,
   what: `The Agent Gateway exchanges the caller's token for one scoped to ${aud} and forwards the tool call. ${decision}`,
   edges: [i],
   detail: {
-    form: `POST http://${host}/mcp
+    form: `# 1. at the PingOne token endpoint, Exchange #3 (RFC 8693 + RFC 8707):
+POST https://auth.pingone.com/MOCK-ENV-ID/as/token
+Content-Type: application/x-www-form-urlencoded
+
+grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&subject_token=<caller's token from tx-token>
+&subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&requested_token_type=urn:ietf:params:oauth:token-type:access_token
+&resource=${aud}
+&scope=${scope}
+&client_id=<exchange client>&client_secret=<redacted>
+
+# 2. then the forward:
+POST http://${host}/mcp
 Authorization: Bearer <exchanged token, aud=${aud}>
 Content-Type: application/json
 
-{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"${tool}","arguments":{}}}
-
-# before this hop, at the PingOne token endpoint (RFC 8693):
-# grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-# subject_token=<caller token>&audience=${aud}&scope=${scope}`,
+{"jsonrpc":"2.0","id":7,"method":"tools/call","params":{"name":"${tool}","arguments":{}}}`,
     tokens: [
       {
-        note: `Exchanged token · aud ${server}`,
+        note: `Exchanged token · aud ${aud}`,
         header: { alg: "RS256", typ: "at+jwt", kid: "mock-key-1" },
         claims: {
           iss: "https://auth.pingone.com/MOCK-ENV-ID/as",
           sub: "user-8f3a",
-          act: { sub: "privilege-bridge" },
           aud,
           scope,
-          client_id: "ping-gateway-mock",
+          client_id: "gateway-exchange-client-mock",
           exp: 1790000300,
         },
       },
     ],
-    refs: [EXCHANGE[0], EXCHANGE[1], INTROSPECT[0], AUTHZ[2], BEARER[0], BEARER[2]],
+    refs: uniqRefs(EXCHANGE[0], EXCHANGE[1], INTROSPECT[0], BEARER[2], AUTHORIZE, PINGGATEWAY),
   },
 });
 
@@ -90,11 +130,11 @@ export const GATEWAY_STEPS = [
     edges: [0],
     detail: {
       form: `POST https://privilege.example.com/llm/openai/v1/chat/completions
-Authorization: Bearer vk_MOCK_demo_bff   # Privilege virtual key, not a provider key
+Authorization: Bearer <Privilege virtual key>   # not a provider key
 Content-Type: application/json
 
 {"model":"gpt-4o-mini","messages":[{"role":"user","content":"Summarise my accounts"}]}`,
-      refs: [BEARER[0], OPENAI_API],
+      refs: uniqRefs(PRIVILEGE, OPENAI_API),
     },
   },
   {
@@ -104,25 +144,13 @@ Content-Type: application/json
     edges: [1],
     detail: {
       form: `POST https://privilege.example.com/agent-gateway/mcp
-Authorization: Bearer ak_MOCK_bff_agent   # Privilege agent key
-tx-token: <user's exchanged token, see claims below>
+Authorization: Bearer <Privilege gateway session token>   # privilegeGatewaySession, not the user's token
+tx-token: <caller's token, see claims below>              # custom header, survives the backend hop
 Content-Type: application/json
 
-{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_account_balances","arguments":{"account_id":"acct-1001"}}}`,
-      tokens: [
-        {
-          note: "tx-token · caller's exchanged token",
-          header: { alg: "RS256", typ: "at+jwt", kid: "mock-key-1" },
-          claims: {
-            iss: "https://auth.pingone.com/MOCK-ENV-ID/as",
-            sub: "user-8f3a",
-            aud: "https://privilege.example.com/agent-gateway/mcp",
-            scope: "banking:read",
-            exp: 1790000300,
-          },
-        },
-      ],
-      refs: [MCP[0], MCP[1], MCP[2], EXCHANGE[0], EXCHANGE[2]],
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_account_balance","arguments":{}}}`,
+      tokens: [TX_TOKEN],
+      refs: uniqRefs(PRIVILEGE, MCP[0], MCP[1], MCP[2], EXCHANGE[0], TX_ANALOGY),
     },
   },
   {
@@ -133,41 +161,41 @@ Content-Type: application/json
     detail: {
       form: `# env only, no code change
 AGENT_LLM_BASE_URL=https://privilege.example.com/llm/openai/v1
-AGENT_LLM_API_KEY=vk_MOCK_sidecar
+AGENT_LLM_API_KEY=<Privilege virtual key>
 
 POST /llm/openai/v1/chat/completions
-Authorization: Bearer vk_MOCK_sidecar`,
-      refs: [BEARER[0], OPENAI_API],
+Authorization: Bearer <Privilege virtual key>`,
+      refs: uniqRefs(PRIVILEGE, OPENAI_API),
     },
   },
   {
     key: "ext-mcp",
     title: "External MCP clients sign in through a door",
-    what: "A client such as LM Studio registers itself, runs OAuth with PKCE against the door, then calls the MCP lane with the access token.",
+    what: "A client such as LM Studio registers itself, runs OAuth with PKCE against the door, then calls the MCP lane with the access token. The door's authorization server is the Privilege gateway's own OAuth, not PingOne.",
     edges: [3],
     detail: {
-      form: `GET /.well-known/oauth-protected-resource   # discover the door's authorization server
-POST /register                              # dynamic client registration
-GET  /authorize?response_type=code&client_id=MOCK&code_challenge=MOCK&code_challenge_method=S256&resource=https://privilege.example.com/agent-gateway/mcp
-POST /token  grant_type=authorization_code&code=MOCK&code_verifier=MOCK
+      form: `# <door> is the door's path prefix, e.g. /banking-mcp
+GET  /.well-known/oauth-protected-resource   # discover the door's authorization server
+POST <door>/register                          # dynamic client registration
+GET  <door>/authorize?response_type=code&client_id=MOCK&code_challenge=MOCK&code_challenge_method=S256&resource=https://privilege.example.com/agent-gateway/mcp
+POST <door>/token  grant_type=authorization_code&code=MOCK&code_verifier=MOCK
 
 POST /agent-gateway/mcp
 Authorization: Bearer <door access token>`,
       tokens: [
         {
-          note: "Door access token · issued after DCR and PKCE",
+          note: "Door access token · issued after DCR and PKCE (shape illustrative)",
           header: { alg: "RS256", typ: "at+jwt", kid: "mock-key-1" },
           claims: {
-            iss: "https://auth.pingone.com/MOCK-ENV-ID/as",
+            iss: "https://privilege.example.com",
             sub: "user-8f3a",
             aud: "https://privilege.example.com/agent-gateway/mcp",
             client_id: "dcr-client-mock",
-            scope: "mcp:tools",
             exp: 1790000300,
           },
         },
       ],
-      refs: [...MCP, AUTH[0], AUTH[1], META[0]],
+      refs: uniqRefs(PRIVILEGE, MCP[0], MCP[1], MCP[2], MCP[3], AUTH[0], AUTH[1], META[0]),
     },
   },
   {
@@ -181,7 +209,7 @@ Content-Type: application/json
 # no Authorization header: no key, no model allow-list, no usage cap
 
 {"model":"local-model","messages":[{"role":"user","content":"hello"}]}`,
-      refs: [OPENAI_API],
+      refs: uniqRefs(PRIVILEGE_NO_LOCAL, OPENAI_API),
     },
   },
   {
@@ -197,130 +225,97 @@ Content-Type: application/json
 {"model":"gpt-4o-mini","messages":[{"role":"user","content":"Summarise my accounts"}]}
 
 # Anthropic lane: same swap, header x-api-key instead of Authorization`,
-      refs: [BEARER[0], OPENAI_API],
+      refs: uniqRefs(PRIVILEGE, OPENAI_API),
     },
   },
   {
     key: "mcp-ag",
     title: "Privilege forwards to the Agent Gateway",
-    what: "The MCP lane applies policy, approval and recording, then calls the registered backend. Outcome A (settled 2026-09-10): custom headers such as tx-token survive this hop.",
+    what: "The MCP lane applies policy, approval and recording, then calls the registered backend. Outcome A (settled 2026-09-10): custom headers such as tx-token survive this hop. The bearer on this hop is the Agentic App's Static Token, a shared secret.",
     edges: [6],
     detail: {
       form: `POST http://ping-gateway.ping-devops-cmuir.svc.cluster.local:8080/mcp
-Authorization: Bearer <bridge token>   # Auth Mode Static Token; Auth Mode None sends no Authorization header
-tx-token: <caller's exchanged token>   # custom header passes through unchanged
+Authorization: Bearer <Static Token: shared secret, MCP_GW_PRIVILEGE_BRIDGE_SECRET>   # Auth Mode None sends no Authorization header
+tx-token: <caller's token>             # custom header passes through unchanged
 x-forwarded-for: 203.0.113.9
 Content-Type: application/json
 
-{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_account_balances","arguments":{"account_id":"acct-1001"}}}`,
-      tokens: [
-        {
-          note: "Bridge token · client_credentials",
-          header: { alg: "RS256", typ: "at+jwt", kid: "mock-key-1" },
-          claims: {
-            iss: "https://auth.pingone.com/MOCK-ENV-ID/as",
-            sub: "privilege-bridge",
-            client_id: "privilege-bridge",
-            aud: "ping-gateway-mock",
-            scope: "mcp:tools",
-            exp: 1790000300,
-          },
-        },
-      ],
-      refs: [CREDS[0], BEARER[0], EXCHANGE[2], MCP[0]],
+{"jsonrpc":"2.0","id":3,"method":"tools/call","params":{"name":"get_account_balance","arguments":{}}}
+
+# PingGateway privilege-bridge filter: bearer equals the secret -> tx-token moves into Authorization,
+# X-Privilege-Bridge: true is set for audit, then introspection, P1AZ and the RFC 8693 exchange run on the user.`,
+      tokens: [TX_TOKEN],
+      refs: uniqRefs(PRIVILEGE, PINGGATEWAY, BEARER_SYNTAX_ONLY, MCP[0], TX_ANALOGY),
     },
   },
-  serverStep(7, "ag-s1", "mcp-server:8080", "mcp-server", "banking:read", "mcp-server (banking)", "get_account_balances", "PingOne Authorize permits banking:read for this user."),
-  serverStep(8, "ag-s2", "resource-srv:8081", "resource-srv", "invest:read", "resource-srv (invest)", "get_portfolio", "PingOne Authorize decides per tool before the call is forwarded."),
-  serverStep(9, "ag-s3", "mcp-weather:8896", "mcp-weather", "weather:read", "mcp-weather", "get_forecast", "No user data is involved, so this tool is permitted even without a user subject."),
-  serverStep(10, "ag-s4", "mcp-brave:8897", "mcp-brave", "search:read", "mcp-brave", "web_search", "No user data is involved, so this tool is permitted even without a user subject."),
+  serverStep(7, "ag-s1", "mcp-server:8080", "mcpserver.ping.demo", "read", "mcp-server (banking)", "get_account_balance", "PingOne Authorize permits the read scope for this user."),
+  serverStep(8, "ag-s2", "resource-srv:8081", "mcp-invest.ping.demo", "invest:read", "resource-srv (invest)", "get_portfolio_summary", "PingOne Authorize decides per tool before the call is forwarded."),
+  serverStep(9, "ag-s3", "mcp-weather:8896", "mcpserver.ping.demo", "read", "mcp-weather", "get_weather", "No user data comes back, but the call still carries the user's token: the bridge refuses a tools/call with no subject. The audience shown is the default MCP server resource."),
+  serverStep(10, "ag-s4", "mcp-brave:8897", "mcpserver.ping.demo", "read", "mcp-brave", "brave_web_search", "No user data comes back, but the call still carries the user's token: the bridge refuses a tools/call with no subject. The audience shown is the default MCP server resource."),
 ];
 
 // ---- Figure 2: the identity fork on the Privilege to Agent Gateway hop ----
 
 export const FORK_NODES = [
-  { id: "pa", group: "priv", label: "Outcome A · Privilege", sub: ["bearer in: session token", "user token in: header"], x: 0, y: 20 },
-  { id: "ga", group: "ag", label: "Agent Gateway sees", sub: ["sub = user · act = [privilege-bridge]", "header validated like a bearer", "banking:read: P1AZ decides, PERMIT", "Privilege shows in act chain + audit"], x: 330, y: 20 },
-  { id: "pb", group: "priv", label: "Outcome B · Privilege", sub: ["bearer in: session token", "headers dropped"], x: 740, y: 20 },
-  { id: "gb", group: "ag", label: "Agent Gateway sees", sub: ["sub = privilege-bridge · no user", "no exchange can mint banking:read", "banking tools: DENY, no user", "weather · brave · opensearch: PERMIT"], x: 1070, y: 20 },
+  { id: "pa", group: "priv", label: "Outcome A · Privilege", sub: ["bearer in: Static Token", "user token in: tx-token header"], x: 0, y: 20 },
+  { id: "ga", group: "ag", label: "Agent Gateway sees", sub: ["bridge swaps tx-token in: sub = user", "read scope: P1AZ decides, PERMIT", "Privilege hop marked by header + audit", "act chain does not name Privilege yet"], x: 330, y: 20 },
+  { id: "pb", group: "priv", label: "Outcome B · Privilege", sub: ["bearer in: Static Token", "headers dropped"], x: 740, y: 20 },
+  { id: "gb", group: "ag", label: "Agent Gateway sees", sub: ["bridge secret, no tx-token: no user", "tools/call: refused, no subject", "initialize, tools/list: machine subject", "plan expected weather and brave to pass"], x: 1070, y: 20 },
 ];
 
 export const FORK_EDGES = [
-  ["pa", "ga", "Bearer: bridge token + tx-token: user"],
-  ["pb", "gb", "Bearer: bridge token (client_credentials)"],
+  ["pa", "ga", "Bearer: Static Token + tx-token: user"],
+  ["pb", "gb", "Bearer: Static Token only"],
 ];
 
 export const FORK_STEPS = [
   {
     key: "outcome-a",
     title: "Outcome A: the user token rides in a header",
-    what: "Privilege forwards the bridge token as the bearer and the caller's token in tx-token. The Agent Gateway validates it, exchanges it and records Privilege as the actor.",
+    what: "Privilege forwards the Static Token as the bearer and the caller's token in tx-token. The Agent Gateway swaps the user token in, introspects it, exchanges it and asks PingOne Authorize, all on the real user.",
     edges: [0],
     detail: {
       form: `POST /mcp HTTP/1.1
-Authorization: Bearer <bridge token>
-tx-token: <caller's exchanged token>
+Authorization: Bearer <Static Token: shared secret>
+tx-token: <caller's token>
 Content-Type: application/json
 
-# Agent Gateway: validate tx-token, exchange (RFC 8693) with actor_token=<bridge token>
-# resulting token: sub = user, act = privilege-bridge
-# P1AZ: banking:read for this user -> PERMIT`,
+# privilege-bridge: bearer == MCP_GW_PRIVILEGE_BRIDGE_SECRET -> Authorization := Bearer <tx-token>, tx-token removed
+# X-Privilege-Bridge: true added so audit can record the hop
+# then: introspect, RFC 8693 exchange (subject_token = user token, resource=<server>), P1AZ: read for this user -> PERMIT`,
       tokens: [
+        TX_TOKEN,
         {
-          note: "tx-token · user subject",
+          note: "Token after exchange · what the Agent Gateway forwards to the server",
           header: { alg: "RS256", typ: "at+jwt", kid: "mock-key-1" },
           claims: {
             iss: "https://auth.pingone.com/MOCK-ENV-ID/as",
             sub: "user-8f3a",
-            aud: "https://privilege.example.com/agent-gateway/mcp",
-            scope: "banking:read",
-            exp: 1790000300,
-          },
-        },
-        {
-          note: "Token after exchange · what the Agent Gateway and servers see",
-          header: { alg: "RS256", typ: "at+jwt", kid: "mock-key-1" },
-          claims: {
-            iss: "https://auth.pingone.com/MOCK-ENV-ID/as",
-            sub: "user-8f3a",
-            act: { sub: "privilege-bridge" },
-            aud: "mcp-server",
-            scope: "banking:read",
+            aud: "mcpserver.ping.demo",
+            scope: "read",
+            client_id: "gateway-exchange-client-mock",
             exp: 1790000300,
           },
         },
       ],
-      refs: [EXCHANGE[0], EXCHANGE[2], AUTHZ[3], BEARER[0], INTROSPECT[0]],
+      refs: uniqRefs(PRIVILEGE, PINGGATEWAY, AUTHORIZE, EXCHANGE[0], EXCHANGE[1], INTROSPECT[0], BEARER_SYNTAX_ONLY, TX_ANALOGY),
     },
   },
   {
     key: "outcome-b",
-    title: "Outcome B: headers are dropped, only a machine token arrives",
-    what: "If Privilege dropped custom headers the Agent Gateway would see only the bridge client. No exchange can mint banking:read without a user, so banking tools are denied.",
+    title: "Outcome B: headers are dropped, only the Static Token arrives",
+    what: "If Privilege dropped custom headers the Agent Gateway would see only the shared secret and no user. The plan proposed a machine subject; the shipped bridge refuses a tools/call with no subject, and only read-only discovery may use the gateway's own subject.",
     edges: [1],
     detail: {
       form: `POST /mcp HTTP/1.1
-Authorization: Bearer <bridge token>
+Authorization: Bearer <Static Token: shared secret>
 Content-Type: application/json
 
-# no tx-token: no user subject
-# P1AZ: banking:read with no user -> DENY
-# weather, brave, opensearch: no user data -> PERMIT`,
-      tokens: [
-        {
-          note: "Bridge token · client_credentials, no user",
-          header: { alg: "RS256", typ: "at+jwt", kid: "mock-key-1" },
-          claims: {
-            iss: "https://auth.pingone.com/MOCK-ENV-ID/as",
-            sub: "privilege-bridge",
-            client_id: "privilege-bridge",
-            aud: "ping-gateway-mock",
-            scope: "mcp:tools",
-            exp: 1790000300,
-          },
-        },
-      ],
-      refs: [CREDS[0], EXCHANGE[0], AUTHZ[3], BEARER[0]],
+# no tx-token: the bridge has no subject token
+# tools/call -> 401 invalid_token ("Privilege bridge presented no tx-token"), for every tool
+# initialize and tools/list may use the gateway machine subject (Node gateway; the PingGateway filter refuses all)
+# the plan expected banking DENY and weather, brave, opensearch PERMIT; the shipped bridge refuses instead`,
+      refs: uniqRefs(PRIVILEGE, PINGGATEWAY, BEARER_SYNTAX_ONLY, EXCHANGE[0]),
     },
   },
 ];

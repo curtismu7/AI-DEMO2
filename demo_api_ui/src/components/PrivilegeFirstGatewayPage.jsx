@@ -79,7 +79,7 @@ export default function PrivilegeFirstGatewayPage() {
       </figure>
 
       <figure className="pfg-figure">
-        <DiagramStepBar stepper={forkStepper} caption={FORK_CAPTIONS[forkStepper.step]} />
+        <DiagramStepBar stepper={forkStepper} caption={FORK_CAPTIONS[forkStepper.step]} testId="pfg-fork-step-bar" />
         <StaticFlowDiagram
           NODES={FORK_NODES}
           EDGES={FORK_EDGES}
@@ -89,7 +89,7 @@ export default function PrivilegeFirstGatewayPage() {
           steps={FORK_STEPS}
           testId="pfg-fork-diagram"
           height={260}
-          ariaLabel="The identity fork on the Privilege to Agent Gateway hop. Outcome A: Privilege forwards a subject token header, so the Agent Gateway sees the user with Privilege as an actor and banking tools can be permitted. Outcome B: only a machine token arrives, so the Agent Gateway sees the bridge client with no user and banking tools are denied while weather and brave are permitted."
+          ariaLabel="The identity fork on the Privilege to Agent Gateway hop. Outcome A: Privilege forwards a static bridge secret as the bearer plus the caller's token in the tx-token header, so the Agent Gateway swaps the user token in and runs introspection, exchange and authorization on the real user. Outcome B: only the bridge secret arrives, so there is no user and the Agent Gateway refuses tool calls."
         />
         <figcaption>
           <strong>The fork the plan stops at — settled 2026-09-10 as Outcome A.</strong> A live probe (throwaway
@@ -99,7 +99,7 @@ export default function PrivilegeFirstGatewayPage() {
           instead of collapsing to a machine subject. Auth Mode None itself forwards no Authorization header at
           all; a backend that needs a bearer on this hop requires Auth Mode Static Token instead. (x-forwarded-for
           preserves the real caller address; x-forwarded-host arrives empty — don't key logic on it.) What's left
-          is wiring up the bridge token in the console: Phase 2, Tasks 5–9.
+          is wiring up the bridge secret in the console: Phase 2, Tasks 5–9.
         </figcaption>
       </figure>
 
