@@ -11,6 +11,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  useStore,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
@@ -22,6 +23,8 @@ import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import "./FlowchartFlowDiagram.css";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
+import { labelPoint, pathFromPoints } from "../utils/orthoRoute";
+import { routeFlowchartEdges } from "../utils/flowchartRouting";
 
 /**
  * FlowchartFlowDiagram — a Mermaid `flowchart` (nested subgraphs, labelled edges, classDef
@@ -39,10 +42,16 @@ const GROUP_HEADER = 28;
 const FOLLOW_ZOOM = 0.9;
 const NO_REF = { current: null };
 
-const sizeOf = (label) => {
+const MAX_W = 320;
+export const sizeOf = (label) => {
   const lines = label.split("\n");
   const longest = Math.max(...lines.map((l) => l.length));
-  return { width: Math.min(320, Math.max(140, Math.ceil(longest * CHAR_W) + 28)), height: lines.length * LINE_H + 16 };
+  const width = Math.min(MAX_W, Math.max(140, Math.ceil(longest * CHAR_W) + 28));
+  // A box at max width wraps its long lines (word wrap loses a few characters per line), so count the wrapped lines
+  // or ELK leaves too little room and the real box, taller than planned, overlaps its neighbour.
+  const perLine = width < MAX_W ? Infinity : Math.floor((width - 28) / CHAR_W) - 5;
+  const rows = lines.reduce((sum, l) => sum + Math.max(1, Math.ceil(l.length / perLine)), 0);
+  return { width, height: rows * LINE_H + 16 };
 };
 
 function FNode({ data }) {
@@ -88,7 +97,12 @@ const CLICK_AFTER_DRAG_MS = 300; // the click that ends a drag is not a selectio
 
 /** Ping-style edge: thick path with an orange step-number badge; the words show for the active step or on hover. */
 function PingEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }) {
-  const [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const [smooth, smoothX, smoothY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  // Routed around the boxes when the router found a way; otherwise (or while a box is being dragged) the smooth-step path.
+  const route = data?.route;
+  const routed = route && route.ok;
+  const path = routed ? pathFromPoints(route.pts) : smooth;
+  const { x: labelX, y: labelY } = routed ? labelPoint(route.pts) : { x: smoothX, y: smoothY };
   return (
     <>
       <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={8} />
@@ -146,6 +160,8 @@ export async function layoutFlowchart(model) {
     return {
       id: item.id,
       layoutOptions: {
+        "elk.spacing.nodeNode": "36",
+        "elk.layered.spacing.nodeNodeBetweenLayers": "72",
         "elk.padding": `[top=${GROUP_HEADER + GROUP_PAD / 2},left=${GROUP_PAD},bottom=${GROUP_PAD},right=${GROUP_PAD}]`,
       },
       children: (children.get(item.id) || []).map(toElk),
@@ -297,6 +313,32 @@ function Inner({ source, testId, step, active, details, followSteps, pingStyle, 
     [pingStyle, detailId, flow, details],
   );
 
+  // Routes come from the real boxes (React Flow's absolute positions and measured sizes), not from the layout data: it clamps
+  // boxes into their group and updates its node map in place, so subscribe to a string made from them. Re-route on drop only.
+  const [dragging, setDragging] = useState(false);
+  const nodeLookup = useStore((st) => st.nodeLookup);
+  const boxKey = useStore((st) => {
+    let k = "";
+    for (const n of st.nodeLookup.values()) {
+      const p = n.internals.positionAbsolute;
+      k += `${n.id}:${Math.round(p.x)},${Math.round(p.y)},${Math.round(n.measured?.width ?? 0)}x${Math.round(n.measured?.height ?? 0)}|`;
+    }
+    return k;
+  });
+  const routing = useMemo(() => {
+    const none = { routes: {}, fallbacks: null, ms: null };
+    if (!pingStyle || !flow || dragging) return none;
+    const boxes = {};
+    for (const n of nodeLookup.values()) {
+      if (!n.measured?.width || !n.measured?.height) return none; // not measured yet; the key changes when it is
+      const p = n.internals.positionAbsolute;
+      boxes[n.id] = { x: p.x, y: p.y, w: n.measured.width, h: n.measured.height, leaf: n.type === "fnode" };
+    }
+    const t0 = performance.now();
+    return { ...routeFlowchartEdges(boxes, flow.edges), ms: Math.round(performance.now() - t0) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- boxKey stands for nodeLookup's contents
+  }, [boxKey, dragging, flow, pingStyle]);
+
   // Ping style: numbered, thick arrows. Dashed = future steps, the arrow in focus and the optional hops (blue).
   const pingEdges = useMemo(() => {
     if (!pingStyle) return shown;
@@ -314,10 +356,10 @@ function Inner({ source, testId, step, active, details, followSteps, pingStyle, 
         zIndex: 1,
         className: dashed ? "pfd-dashed" : undefined,
         markerEnd: { type: "arrowclosed", width: 14, height: 14, color },
-        data: { n: i + 1, label: e.label, active: at === i },
+        data: { n: i + 1, label: e.label, active: at === i, route: routing.routes[e.id] },
       };
     });
-  }, [shown, pingStyle, driven, stepper.step]);
+  }, [shown, pingStyle, driven, stepper.step, routing]);
 
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(lit);
 
@@ -340,7 +382,7 @@ function Inner({ source, testId, step, active, details, followSteps, pingStyle, 
   return (
     <>
       {!driven && <DiagramStepBar stepper={stepper} caption={flow?.steps[stepper.step]} testId={`${testId}-steps`} />}
-      <div className="fcd-canvas" data-testid={testId} ref={ref}>
+      <div className="fcd-canvas" data-testid={testId} ref={ref} data-route-fallbacks={routing.fallbacks ?? undefined} data-route-ms={routing.ms ?? undefined}>
         {flow ? (
           <ReactFlow
             key={flow.id}
@@ -351,7 +393,8 @@ function Inner({ source, testId, step, active, details, followSteps, pingStyle, 
             nodeTypes={nodeTypes}
             edgeTypes={pingStyle ? pingEdgeTypes : undefined}
             nodeDragThreshold={pingStyle ? DRAG_THRESHOLD : undefined}
-            onNodeDragStop={pingStyle ? () => { lastDragEnd.current = Date.now(); } : undefined}
+            onNodeDragStart={pingStyle ? () => setDragging(true) : undefined}
+            onNodeDragStop={pingStyle ? () => { lastDragEnd.current = Date.now(); setDragging(false); } : undefined}
             fitView={!followSteps}
             onInit={followSteps ? () => followTo(stepper.step) : undefined}
             fitViewOptions={FIT}
