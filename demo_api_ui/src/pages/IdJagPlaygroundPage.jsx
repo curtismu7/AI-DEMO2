@@ -50,7 +50,7 @@ const SPEC_NOTES = {
 const MODE_TEXT = {
   "oauth-mcp": {
     signInTitle: "Sign in with PingFederate",
-    signInNote: "The ID-JAG is minted from your PingFederate session (the refresh token the BFF holds). This always starts a fresh PingFederate sign-in.",
+    signInNote: "The ID-JAG is minted from your PingFederate session (the refresh token the BFF holds). If you already signed in to this app with PingFederate, this step is done: it uses that same session.",
     redeemTitle: "Redeem it at the MCP authorization server",
     asRole: "Redeems the ID-JAG, mints its own token",
     mcpRole: "Reached through the MCP gateway",
@@ -139,11 +139,11 @@ function DiagramLink({ mode, step, children }) {
   return <Link className="ijp-diagram-link" to={to} {...diagramLinkProps(to)}>{children}</Link>;
 }
 
-function Step({ n, title, note, mode, noDiagram, children }) {
+function Step({ n, title, note, mode, noDiagram, done, children }) {
   return (
     <section className="ijp-step" aria-labelledby={`ijp-step-${n}`}>
       <header className="ijp-step__head">
-        <span className="ijp-step__n">{n}</span>
+        <span className={`ijp-step__n${done ? " is-done" : ""}`}>{done ? <><span aria-hidden="true">✓</span><span className="ijp-sr">{n} (done)</span></> : n}</span>
         <h2 id={`ijp-step-${n}`}>{title}</h2>
         {!noDiagram && <DiagramLink mode={mode} step={n}>see step {n} on the diagram ↗</DiagramLink>}
       </header>
@@ -303,7 +303,8 @@ function Lifetime({ id, label, exp, used, now, again }) {
   const left = exp - Math.floor(now / 1000);
   const stale = used || left <= 0;
   const text = used ? `redeemed (single-use). ${again}` : left <= 0 ? `expired. ${again}` : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} left`;
-  return <p className={`ijp-life${stale ? " is-stale" : ""}`} data-testid={`ijp-life-${id}`}><strong>{label}:</strong> {text}</p>;
+  // Not an error: a used or expired token is the expected end of its life. Redeemed is info (blue), expired is a caution (amber).
+  return <p className={`ijp-life${used ? " is-stale is-used" : stale ? " is-stale is-expired" : ""}`} data-testid={`ijp-life-${id}`}><strong>{label}:</strong> {text}</p>;
 }
 
 /** The resource server's answer, drawn as the small app page it protects. */
@@ -696,6 +697,17 @@ export default function IdJagPlaygroundPage() {
   }, checkFor("call"));
 
   // Revoke and prove it: the issuer's session ends, so everything this session minted is cleared with it.
+  // Each ID-JAG works once, so after a redeem (or any dead end) the way forward is a new one from step 2. This clears
+  // every result and the server's copy of the ID-JAG and access token; the sign-in stays.
+  const startOver = () => run("restart", async () => {
+    await api.post(`${API}/restart`, {});
+    clearResults();
+    setRedeemScope("");
+    setError(null);
+    document.getElementById("ijp-step-2")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  });
+  const hasResults = !!(issued || inspection || redeemed || tools || callResult || resource || revoked || Object.keys(negResults).length);
+
   const revokeAndProve = () => run("revoke", async () => {
     const r = await api.post(`${API}/revoke`, {});
     setIssued(null); setInspection(null); setRedeemed(null); setTools(null); setCallResult(null); setResource(null);
@@ -757,6 +769,10 @@ export default function IdJagPlaygroundPage() {
           <div className="ijp-toolbar__group"><span>Mode</span><Segmented label="Playground mode" options={modeOptions} value={mode} onPick={pickMode} disabled={!!busy} />
             <DiagramLink mode={mode}>View {PLAYGROUND_DIAGRAMS[mode].label} diagram ↗</DiagramLink></div>
           <div className="ijp-toolbar__group"><span>View</span><Segmented label="Data view" options={VIEWS} value={view} onPick={pickView} /></div>
+          <div className="ijp-toolbar__group">
+            <button type="button" className="ijp-btn" onClick={startOver} disabled={!!busy || !hasResults} data-testid="ijp-start-over"
+              title="Clear every result below and start again from step 2. Your sign-in stays.">Start over</button>
+          </div>
         </div>
         {gateAt("mode")}
         <BackendsStrip api={api} mode={mode} />
@@ -780,7 +796,7 @@ export default function IdJagPlaygroundPage() {
         )}
         {error && !["list", "call", "resource"].includes(error.step) && <ErrorNote e={error} resource={config?.request?.resource} />}
 
-        <Step n={1} mode={mode} title={text.signInTitle} note={text.signInNote}>
+        <Step n={1} mode={mode} done={!isMock && !isByo && !!config?.signedIn} title={text.signInTitle} note={text.signInNote}>
           {(isByo || isMock) && (
             <div className="ijp-xaa" data-testid="ijp-xaa">
               <button type="button" className="ijp-btn ijp-btn--primary" onClick={xaaIdJag} disabled={!config?.xaa?.available || !!busy}>
@@ -806,10 +822,20 @@ export default function IdJagPlaygroundPage() {
             </>
           ) : (
             <>
-              <p className="ijp-status" data-testid="ijp-signin-status">{signInStatus}</p>
-              <button type="button" className="ijp-btn ijp-btn--primary" onClick={signIn} disabled={isMock || !pfReady || !!busy}>
-                {config?.signedIn && !isMock ? "Sign in again" : text.signInTitle}
-              </button>
+              {config?.signedIn && !isMock ? (
+                <>
+                  <p className="ijp-status ijp-status--ok" data-testid="ijp-signin-status" role="status">
+                    ✓ {signInStatus.replace(/\.$/, "")}{config.signedInAs ? ` as ${config.signedInAs}` : ""}. Nothing more to do in this step: continue to step 2.
+                  </p>
+                  <button type="button" className="ijp-btn" onClick={signIn} disabled={!pfReady || !!busy}
+                    title="Starts a brand new PingFederate sign-in, for a clean session or a different user.">Sign in as someone else</button>
+                </>
+              ) : (
+                <>
+                  <p className="ijp-status" data-testid="ijp-signin-status">{signInStatus}</p>
+                  <button type="button" className="ijp-btn ijp-btn--primary" onClick={signIn} disabled={isMock || !pfReady || !!busy}>{text.signInTitle}</button>
+                </>
+              )}
             </>
           )}
           {gateAt("signin")}
@@ -864,6 +890,10 @@ export default function IdJagPlaygroundPage() {
           </label>
           {!idJagClaims && <p className="ijp-note">{isByo ? "Paste and inspect your ID-JAG first." : "Request an ID-JAG first."}</p>}
           <button type="button" className="ijp-btn ijp-btn--primary" onClick={redeem} disabled={!canRun || !hasIdJag || !!busy}>{busy === "redeem" ? "Redeeming…" : "Redeem ID-JAG"}</button>
+          {hasIdJag && (
+            <button type="button" className="ijp-btn" onClick={startOver} disabled={!!busy} data-testid="ijp-start-over-step3"
+              title="An ID-JAG works once. Clear the results and request a new one from step 2.">Start over from step 2</button>
+          )}
           {gateAt("redeem")}
           {redeemed && (
             <div className="ijp-io">

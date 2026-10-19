@@ -120,3 +120,31 @@ describe('ID-JAG playground — revoke and prove it', () => {
     expect(res.body.error).toBe('pf_sign_in_required');
   });
 });
+
+describe('ID-JAG playground — start over', () => {
+  const restart = (session) => request(appWith(session)).post('/pg/restart').set('Origin', 'https://app.test').send({});
+
+  it('forgets the ID-JAG and access token but keeps the sign-in at the issuer', async () => {
+    const session = { idJagPlayground: { idJag: 'x.y.z', redeemed: true, accessToken: 'at' }, idJagIssuer: { refreshToken: 'rt-secret' }, oauthTokens: { refreshToken: 'rt' } };
+    const res = await restart(session);
+    expect(res.body).toEqual({ ok: true });
+    expect(session.idJagPlayground).toBeUndefined();
+    expect(session.idJagIssuer).toEqual({ refreshToken: 'rt-secret' });
+    expect(session.oauthTokens).toEqual({ refreshToken: 'rt' });
+  });
+
+  it('is refused from another origin (CSRF), like every write', async () => {
+    const res = await request(appWith(signedIn())).post('/pg/restart').set('Origin', 'https://evil.test').send({});
+    expect(res.status).toBe(403);
+  });
+});
+
+describe('ID-JAG playground — config names who is signed in', () => {
+  it('in oauth-mcp it is the app user, only while signed in', async () => {
+    const asUser = await request(appWith({ ...signedIn(), user: { email: 'cmuir@pingone.com' } })).get('/pg/config');
+    expect(asUser.body.signedIn).toBe(true);
+    expect(asUser.body.signedInAs).toBe('cmuir@pingone.com');
+    const out = await request(appWith({ oauthProvider: 'pingfederate' })).get('/pg/config');
+    expect(out.body.signedInAs).toBeNull();
+  });
+});

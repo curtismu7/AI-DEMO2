@@ -173,6 +173,7 @@ function route(method, url, body) {
       retry, proved: true,
     };
   }
+  if (path === "/restart") return { ok: true };
   if (path === "/redeem") return redeem(body?.scope);
   if (path === "/call") return call(body);
   if (path === "/resource") return resource(body?.variant);

@@ -4,9 +4,12 @@
   --ijp-red-text: #d20e0f;
   --ijp-grad: linear-gradient(90deg, #d20e0f 55%, #aa0005);
   --ijp-strong: #051727;
+  --ijp-ok: #15803d;
+  --ijp-info: #1d4ed8;
+  --ijp-warn: #9a5b00;
   max-width: 1180px; margin: 0 auto; padding: 1rem 1.25rem 3rem; color: var(--th-text);
 }
-:root[data-theme="dark"] .ijp { --ijp-red-text: #ff5a5b; --ijp-strong: var(--th-text); }
+:root[data-theme="dark"] .ijp { --ijp-red-text: #ff5a5b; --ijp-strong: var(--th-text); --ijp-info: #86a8ff; --ijp-warn: #f0b34c; --ijp-ok: #4ade80; }
 .ijp h1, .ijp h2, .ijp h3 { color: var(--ijp-strong); }
 .ijp-hero { display: flex; gap: 1rem; align-items: flex-start; }
 .ijp-logo { width: 3rem; height: 3rem; flex: none; margin-top: 0.2rem; }
@@ -42,6 +45,9 @@
 .ijp-step__n { display: inline-flex; width: 1.7rem; height: 1.7rem; align-items: center; justify-content: center; border-radius: 50%; background: var(--ijp-grad); color: #fff; font-weight: 700; }
 .ijp-note { color: var(--th-text-muted); font-size: var(--font-size-xs); max-width: 900px; }
 .ijp-status { font-weight: 600; }
+.ijp-status--ok { color: var(--ijp-ok); }
+.ijp-step__n.is-done { background: var(--ijp-ok); }
+:root[data-theme="dark"] .ijp-step__n.is-done { color: #052e16; }
 .ijp-btn { font: inherit; padding: 0.4rem 0.9rem; margin: 0.25rem 0.4rem 0.25rem 0; border: 1px solid var(--th-border); border-radius: var(--btn-radius); background: var(--th-bg); color: var(--th-text); cursor: pointer; }
 .ijp-btn--primary { background: var(--ijp-grad); border-color: var(--ijp-red); color: #fff; font-weight: 600; }
 .ijp-btn:disabled { opacity: 0.45; cursor: default; }
@@ -92,7 +98,8 @@
 
 /* How long the ID-JAG / access token has left; red once stale. */
 .ijp-life { display: block; width: fit-content; margin: 0.35rem 0; padding: 0.15rem 0.65rem; border: 1px solid var(--th-border); border-radius: var(--radius-pill); font-size: var(--font-size-2xs); font-variant-numeric: tabular-nums; }
-.ijp-life.is-stale { border-color: var(--ijp-red); color: var(--ijp-red-text); }
+.ijp-life.is-used { border-color: var(--ijp-info); color: var(--ijp-info); }
+.ijp-life.is-expired { border-color: var(--ijp-warn); color: var(--ijp-warn); }
 
 /* Step 4 output: always in one titled place, never silently empty. */
 .ijp-results { margin-top: 0.9rem; padding: 0.75rem 0.9rem; border: 1px solid var(--th-border); border-top: 3px solid var(--ijp-red); border-radius: var(--radius-lg); background: var(--th-bg); }
