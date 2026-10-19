@@ -1,0 +1,2 @@
+/* Legend swatches take the diagram group colours; the dark app group (#151a24) vanishes on a dark page without an outline. */
+.a2a-legend .pa-sw { box-shadow: 0 0 0 1px var(--th-border-strong); }
