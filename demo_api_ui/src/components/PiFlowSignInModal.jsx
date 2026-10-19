@@ -326,6 +326,13 @@ export default function PiFlowSignInModal() {
   // under the identifier-first policy; the old flow is abandoned (it expires).
   const switchToDevice = () => {
     if (busy) return;
+    // Front door: the device step needs app routes the front door does not have, so send the browser
+    // to the hosted page, which runs device sign-in itself.
+    if (frontDoorRef.current) {
+      setBusy(true);
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
+      return;
+    }
     secondFactorRef.current = null; // leaving the password+approval path
     // The passkey step reaches this too (from the device-picker path), where the
     // password form was never filled — keep whatever username the user typed.
