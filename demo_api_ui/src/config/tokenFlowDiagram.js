@@ -11,93 +11,98 @@ export const TOKEN_FLOW_GROUPS = {
   srv: { label: 'LLM, MCP server and API', bg: '#5a5f69' },
 };
 
-// Master layout. Columns 330-420 apart, arrows only run between different columns (or straight down for mcp to rs), so the
-// orthogonal router has a free gap on both sides of every box.
+// Master layout: a 4 by 4 grid (columns about 300 apart, rows 180 apart) so the figure fits the canvas at a readable size. A box keeps its
+// cell in every scenario; a scenario draws only the boxes it uses. Arrows between boxes in different columns run out of the sides;
+// boxes in one column are joined straight down (V) or, going back up, by a bowed curve at the left/right sides (lane).
+const COLX = [0, 300, 660, 960]; // the web app / agent gap is wider: three arrows and the PingOne detours share it
+const ROW = 180;
 const MASTER = [
-  { id: 'user', group: 'app', label: 'User', sub: ['signed in, in the browser'], x: 0, y: 200 },
-  { id: 'webapp', group: 'app', label: 'Web App + Chatbot', sub: ['React SPA', 'holds only a session cookie'], x: 330, y: 200 },
-  { id: 'agent', group: 'app', label: 'Agent (BFF)', sub: ['demo-api-server', 'holds the tokens in its session', 'LangGraph agent + MCP pipeline'], x: 750, y: 200 },
-  { id: 'llm', group: 'srv', label: 'LLM', sub: ['picks the tool to call', 'never sees the tokens'], x: 1080, y: 200 },
-  { id: 'gateway', group: 'ping', label: 'PingOne Agent Gateway', sub: ['checks aud, act and scope', 'asks Authorize per tool'], x: 1080, y: 430 },
-  { id: 'pingone', group: 'ping', label: 'PingOne', sub: ['authorization server', 'RFC 8693 token exchange'], x: 1410, y: -60 },
-  { id: 'authorize', group: 'ping', label: 'PingOne Authorize', sub: ['McpToolsList / McpToolCall', 'PERMIT / DENY / hold'], x: 1410, y: 280 },
-  { id: 'mcp', group: 'srv', label: 'MCP Server', sub: ['banking tools', 'takes the forwarded token'], x: 1410, y: 510 },
-  { id: 'rs', group: 'srv', label: 'Banking API', sub: ['resource server', 'validates the token itself'], x: 1410, y: 730 },
+  { id: 'user', group: 'app', label: 'User', sub: ['signed in, in the browser'], x: COLX[0], y: 1 * ROW },
+  { id: 'webapp', group: 'app', label: 'Web App + Chatbot', sub: ['React SPA', 'holds only a session cookie'], x: COLX[1], y: 1 * ROW },
+  { id: 'pingone', group: 'ping', label: 'PingOne', sub: ['authorization server', 'RFC 8693 token exchange'], x: COLX[2], y: 0 * ROW },
+  { id: 'agent', group: 'app', label: 'Agent (BFF)', sub: ['demo-api-server', 'holds the tokens in its session', 'LangGraph agent + MCP pipeline'], x: COLX[2], y: 1 * ROW },
+  { id: 'llm', group: 'srv', label: 'LLM', sub: ['picks the tool to call', 'never sees the tokens'], x: COLX[2], y: 2 * ROW },
+  { id: 'authorize', group: 'ping', label: 'PingOne Authorize', sub: ['McpToolsList / McpToolCall', 'PERMIT / DENY / hold'], x: COLX[3], y: 0 * ROW },
+  { id: 'gateway', group: 'ping', label: 'PingOne Agent Gateway', sub: ['checks aud, act and scope', 'asks Authorize per tool'], x: COLX[3], y: 1 * ROW },
+  { id: 'mcp', group: 'srv', label: 'MCP Server', sub: ['banking tools', 'takes the forwarded token'], x: COLX[3], y: 2 * ROW },
+  { id: 'rs', group: 'srv', label: 'Banking API', sub: ['resource server', 'validates the token itself'], x: COLX[3], y: 3 * ROW },
 ];
 
 const D = { dashed: true }; // a token or a decision coming back (blue dashed under pingStyle)
 const V = { vertical: true };
+const R = { lane: -1 }; // back up one column along the right-hand sides
+const L = { lane: 1 }; // out of the left side, round over the top to the left side above
 // [from, to, label, opts?] per step. Each list matches its step list on the page, one arrow per step.
 export const TOKEN_FLOW_ENDPOINTS = {
   'full-flow': [
     ['user', 'webapp', 'User sends request'],
     ['webapp', 'agent', 'Chatbot receives message'],
-    ['webapp', 'pingone', 'OAuth 2.0 PKCE login'],
+    ['webapp', 'pingone', 'OAuth 2.0 PKCE login', L],
     ['pingone', 'webapp', 'ID token + access token issued', D],
     ['webapp', 'agent', 'Agent takes over; BFF holds the token'],
-    ['agent', 'llm', 'LLM processes intent, selects tool'],
-    ['agent', 'pingone', 'RFC 8693 exchange: user token to delegation token'],
-    ['pingone', 'agent', 'Delegated token returned', D],
+    ['agent', 'llm', 'LLM processes intent, selects tool', V],
+    ['agent', 'pingone', 'RFC 8693 exchange: user token to delegation token', R],
+    ['pingone', 'agent', 'Delegated token returned', { ...D, ...V }],
     ['agent', 'gateway', 'Delegated token arrives at the gateway'],
-    ['gateway', 'authorize', 'McpToolsList + McpToolCall checks'],
-    ['authorize', 'gateway', 'PERMIT: tool call allowed', D],
-    ['gateway', 'mcp', 'Forward the token unchanged'],
+    ['gateway', 'authorize', 'McpToolsList + McpToolCall checks', R],
+    ['authorize', 'gateway', 'PERMIT: tool call allowed', { ...D, ...V }],
+    ['gateway', 'mcp', 'Forward the token unchanged', V],
     ['mcp', 'rs', 'Banking API: GET /accounts', V],
     ['mcp', 'rs', 'Investments API: same token', V],
     ['agent', 'webapp', 'Results returned to the user'],
   ],
   'id-token': [
-    ['webapp', 'pingone', 'PKCE authorization request'],
-    ['agent', 'pingone', 'Code exchange at the token endpoint'],
-    ['pingone', 'agent', 'ID token issued', D],
-    ['pingone', 'agent', 'Access token issued', D],
+    ['webapp', 'pingone', 'PKCE authorization request', L],
+    ['agent', 'pingone', 'Code exchange at the token endpoint', R],
+    ['pingone', 'agent', 'ID token issued', { ...D, ...V }],
+    ['pingone', 'agent', 'Access token issued', { ...D, ...V }],
     ['agent', 'webapp', 'Session cookie; tokens stay in the BFF'],
   ],
   'user-token': [
     ['webapp', 'agent', 'BFF holds the user access token'],
-    ['agent', 'pingone', 'RFC 8693 exchange #1: user token in, delegation out'],
+    ['agent', 'pingone', 'RFC 8693 exchange #1: user token in, delegation out', R],
     ['agent', 'gateway', 'Delegated token arrives at the gateway'],
-    ['gateway', 'mcp', 'Forward the token unchanged'],
+    ['gateway', 'mcp', 'Forward the token unchanged', V],
     ['mcp', 'rs', 'MCP Server calls the Banking API', V],
   ],
   'get-accounts': [
-    ['agent', 'llm', 'LLM decides: get_my_accounts (read)'],
-    ['gateway', 'authorize', 'McpToolsList'],
-    ['authorize', 'gateway', 'PERMIT: tools discovery allowed', D],
-    ['gateway', 'authorize', 'McpToolCall: get_my_accounts'],
-    ['authorize', 'gateway', 'PERMIT: read is sufficient', D],
+    ['agent', 'llm', 'LLM decides: get_my_accounts (read)', V],
+    ['gateway', 'authorize', 'McpToolsList', R],
+    ['authorize', 'gateway', 'PERMIT: tools discovery allowed', { ...D, ...V }],
+    ['gateway', 'authorize', 'McpToolCall: get_my_accounts', R],
+    ['authorize', 'gateway', 'PERMIT: read is sufficient', { ...D, ...V }],
     ['mcp', 'rs', 'Banking API returns accounts: 200 OK', V],
   ],
   withdrawal: [
-    ['agent', 'llm', 'LLM decides: create_transfer (write)'],
-    ['gateway', 'authorize', 'McpToolCall: create_transfer, high risk'],
-    ['authorize', 'gateway', 'Hold: human consent required', D],
+    ['agent', 'llm', 'LLM decides: create_transfer (write)', V],
+    ['gateway', 'authorize', 'McpToolCall: create_transfer, high risk', R],
+    ['authorize', 'gateway', 'Hold: human consent required', { ...D, ...V }],
     ['agent', 'webapp', 'Agent waits for human approval'],
     ['user', 'webapp', 'User approves'],
     ['mcp', 'rs', 'Banking API executes the transfer: 200 OK', V],
   ],
   'bad-scope': [
     ['agent', 'gateway', 'Read-only token tries a write tool'],
-    ['gateway', 'authorize', 'McpToolCall: create_transfer'],
-    ['authorize', 'gateway', 'DENY: insufficient scope', D],
+    ['gateway', 'authorize', 'McpToolCall: create_transfer', R],
+    ['authorize', 'gateway', 'DENY: insufficient scope', { ...D, ...V }],
     ['gateway', 'agent', '403 Forbidden returned to the agent', D],
     ['agent', 'webapp', 'Agent tells the user, no retry'],
   ],
   'api-key-path': [
     ['agent', 'gateway', 'Path A: user bearer arrives'],
-    ['gateway', 'rs', 'Scope gate, then swap bearer for API key'],
+    ['gateway', 'rs', 'Scope gate, then swap bearer for API key', V],
     ['agent', 'webapp', 'SPA routed to /path/mortgage'],
   ],
   'dual-token-path': [
     ['agent', 'gateway', 'Path B: user bearer arrives'],
-    ['gateway', 'rs', 'Bearer + id_token to /identity'],
-    ['rs', 'gateway', 'Decoded claims returned', D],
+    ['gateway', 'rs', 'Bearer + id_token to /identity', V],
+    ['rs', 'gateway', 'Decoded claims returned', { ...D, ...R }],
     ['agent', 'webapp', 'SPA routed to /path/dualtoken-info'],
   ],
   'oauth-bearer-path': [
     ['agent', 'gateway', 'Path C: user bearer arrives'],
     ['gateway', 'pingone', 'RFC 8693 exchange to a backend-scoped bearer'],
-    ['gateway', 'rs', 'Call the Banking API with the new bearer'],
+    ['gateway', 'rs', 'Call the Banking API with the new bearer', V],
   ],
 };
 
