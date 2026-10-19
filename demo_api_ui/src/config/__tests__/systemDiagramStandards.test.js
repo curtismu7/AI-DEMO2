@@ -56,4 +56,42 @@ describe("systemDiagramStandards", () => {
     expect(bare.refs).toEqual([]);
     expect(bare.lines[0].who).toBe("Standards");
   });
+
+  it("forms are accurate to the repo: real PingOne decision endpoint, 8-char CIBA message, no invented worker scope", () => {
+    const pdp = formFor("PingGW", "PDP");
+    expect(pdp).toMatch(/\/decisionEndpoints\/\{endpointId\}/);
+    expect(pdp).not.toMatch(/policyDecisionPoints/);
+    expect(formFor("AuthorizeService", "PingOneAuthorize")).toMatch(/"parameters"/);
+    const msg = formFor("CibaRoutes", "OIDC_AS").match(/binding_message=(\S+)/)[1];
+    expect(msg.length).toBeLessThanOrEqual(8);
+    for (const e of arrowsOf(MMD)) for (const t of tokensFor(e.from, e.to)) expect(t.claims.scope).not.toBe("p1:read:policy");
+  });
+
+  it("WebSocket hops show a WebSocket form and do not cite MCP authorization (HTTP only)", () => {
+    for (const [f, t] of [["GwProxy", "MCPProtocol"], ["McpInspectorRoutes", "MCPProtocol"], ["MCPClientPy", "MCPProtocol"], ["AgentService", "GwProxy"]]) {
+      expect(formFor(f, t)).toMatch(/WebSocket/);
+      expect(refsFor(f, t).map((r) => r.id)).toContain("RFC 6455");
+      expect(refsFor(f, t).map((r) => r.id)).not.toContain("MCP authorization 2025-11-25");
+    }
+    expect(formFor("PingGW", "WeatherMcp")).toMatch(/^POST \/mcp/);
+  });
+
+  it("every HTTP or protocol call that the diagram names has a request form; token-bearing hops carry a MOCK token", () => {
+    const calls = [
+      ["AdminBrowser", "UI"], ["Login", "AuthRoutes"], ["Dashboard", "AdminRoutes"], ["SecuritySettings", "AdminRoutes"], ["UserDash", "TxRoutes"],
+      ["McpInspector", "HealthInsp"], ["ConfigPage", "ValidationRoutes"], ["ChatWidget", "FastAPI"], ["AgentService", "A2AOrch"], ["A2AOrch", "Specialist"],
+      ["A2AOrch", "PDP"], ["GwAuthorize", "PDP"], ["PingGW", "PDP"], ["PingGW", "AuthzMock"], ["AuthRoutes", "AGUIRoutes"], ["AGUIRoutes", "MastraAgent"],
+    ];
+    expect(calls.filter(([f, t]) => !formFor(f, t))).toEqual([]);
+    for (const [f, t] of [["MCPClientPy", "MCPProtocol"], ["McpInspectorRoutes", "MCPProtocol"], ["PingGW", "PDP"], ["A2AOrch", "PDP"], ["GwAuthorize", "PDP"]]) {
+      expect(tokensFor(f, t).length).toBeGreaterThan(0);
+    }
+  });
+
+  it("in-process gates carry a stated reason, not a standard", () => {
+    for (const [f, t] of [["TxRoutes", "StepUpGate"], ["StepUpGate", "AuthorizeGate"], ["AuthorizeGate", "AuthorizeService"], ["HITLSvc", "AuthRoutes"]]) {
+      expect(refsFor(f, t)).toEqual([]);
+      expect(whyNoRefs(f, t)).toBeTruthy();
+    }
+  });
 });

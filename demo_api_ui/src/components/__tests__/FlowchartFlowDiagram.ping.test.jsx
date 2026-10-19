@@ -54,4 +54,20 @@ describe("FlowchartFlowDiagram pingStyle", () => {
     expect(screen.getByText(/Step 2 of 3/)).toBeTruthy();
     expect(container.querySelector(".react-flow__node.pfd-selected").textContent).toMatch(/Authorization Server/);
   });
+
+  it("stepping never opens the box detail; it opens on a click and Close sticks while stepping", async () => {
+    const container = await setup();
+    expect(screen.queryByTestId("flowchart-flow-diagram-node-detail")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
+    fireEvent.click(screen.getByRole("button", { name: /Pause/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+    fireEvent.click(screen.getByRole("button", { name: /Next/ }));
+    expect(screen.queryByTestId("flowchart-flow-diagram-node-detail")).toBeNull();
+    expect(container.querySelector(".react-flow__node.pfd-selected")).toBeTruthy(); // the highlight still follows the step
+    fireEvent.click(nodeByText("Vault"));
+    expect(screen.getByTestId("flowchart-flow-diagram-node-detail")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Close box detail" }));
+    fireEvent.click(screen.getByRole("button", { name: /Prev/ }));
+    expect(screen.queryByTestId("flowchart-flow-diagram-node-detail")).toBeNull();
+  });
 });

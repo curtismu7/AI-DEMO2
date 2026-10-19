@@ -251,6 +251,7 @@ function Inner({ source, testId, step, active, details, followSteps, pingStyle, 
   }, [flow, driven, details, enrichStep]);
   const [nodeDetail, setNodeDetail] = useState(null);
   const [selectedId, setSelectedId] = useState(null);
+  const [detailId, setDetailId] = useState(null); // box detail opens only on an explicit click, never from the stepper
   const [openKey, setOpenKey] = useState(0);
   const reelRef = useRef(null);
   const lastDragEnd = useRef(0);
@@ -275,6 +276,7 @@ function Inner({ source, testId, step, active, details, followSteps, pingStyle, 
     // The click that ends a drag is not a selection.
     if (Date.now() - lastDragEnd.current < CLICK_AFTER_DRAG_MS) return;
     setSelectedId(node.id);
+    setDetailId(node.id);
     // Jump the reel and step bar to this box's first arrow (into it, else out of it), then bring them into view.
     const into = flow.reelEdges.findIndex((e) => e[1] === node.id);
     const out = flow.reelEdges.findIndex((e) => e[0] === node.id);
@@ -291,8 +293,8 @@ function Inner({ source, testId, step, active, details, followSteps, pingStyle, 
     if (to) setSelectedId((cur) => (cur === from || cur === to ? cur : to));
   }, [pingStyle, stepper.step, flow]);
   const selectedDetail = useMemo(
-    () => (pingStyle && selectedId && flow ? buildNodeDetail(flow.reelNodes.find((x) => x.id === selectedId), details) : null),
-    [pingStyle, selectedId, flow, details],
+    () => (pingStyle && detailId && flow ? buildNodeDetail(flow.reelNodes.find((x) => x.id === detailId), details) : null),
+    [pingStyle, detailId, flow, details],
   );
 
   // Ping style: numbered, thick arrows. Dashed = future steps, the arrow in focus and the optional hops (blue).
@@ -300,10 +302,13 @@ function Inner({ source, testId, step, active, details, followSteps, pingStyle, 
     if (!pingStyle) return shown;
     const at = driven ? -1 : stepper.step;
     return shown.map((e, i) => {
+      const style = { ...e.style };
+      delete style.strokeWidth; // the CSS width (3.2px, 4.2px on hover) must win over the stepper's inline 5 / 2.5
       const dashed = Boolean(e.style?.strokeDasharray); // optional hops, and stepEdges dashes the arrow in focus and the future ones
       const color = dashed ? LINE_BLUE : LINE_BLACK;
       return {
         ...e,
+        style,
         type: "pfdEdge",
         label: undefined,
         zIndex: 1,
@@ -373,7 +378,7 @@ function Inner({ source, testId, step, active, details, followSteps, pingStyle, 
             <section className="dreel-detail pfd-node-detail" data-testid={`${testId}-node-detail`}>
               <header>
                 <h3>{selectedDetail.title}</h3>
-                <button type="button" className="dreel-close" onClick={() => setSelectedId(null)} aria-label="Close box detail">
+                <button type="button" className="dreel-close" onClick={() => setDetailId(null)} aria-label="Close box detail">
                   Close
                 </button>
               </header>
