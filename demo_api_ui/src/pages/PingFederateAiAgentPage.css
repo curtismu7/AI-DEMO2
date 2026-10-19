@@ -15,23 +15,6 @@
 .pf-ai-agent h3,
 .pf-ai-agent p { margin-top: 0; }
 
-.pf-ai-agent__hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(230px, 290px);
-  gap: 30px;
-  align-items: end;
-  padding: 20px 0 26px;
-  border-bottom: 1px solid var(--th-border-strong);
-}
-
-.pf-ai-agent__eyebrow {
-  margin-bottom: 8px;
-  color: var(--th-status-info-text);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.035em;
-}
-
 .pf-ai-agent h1 {
   max-width: 720px;
   margin-bottom: 10px;
@@ -43,14 +26,6 @@
   margin-bottom: 8px;
   font-size: var(--font-size-h2);
   letter-spacing: -0.015em;
-}
-
-.pf-ai-agent__lede {
-  max-width: 710px;
-  margin-bottom: 0;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-body);
-  line-height: 1.6;
 }
 
 .pf-ai-agent__session {

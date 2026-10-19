@@ -3,6 +3,7 @@ import { useThemeOptional } from '../context/ThemeContext';
 import SignInPrompt from './SignInPrompt';
 import PingIdentitySpinner from './shared/PingIdentitySpinner';
 import './PromptFooPage.css';
+import PageHeader from './common/PageHeader';
 
 /**
  * PromptFoo eval runner page (/promptfoo).
@@ -71,15 +72,10 @@ export default function PromptFooPage({ user }) {
 
   return (
     <div className={`promptfoo-page ${theme ? `theme-${theme}` : ''}`} data-testid="promptfoo-page">
-      <header className="promptfoo-page__header">
-        <h1>PromptFoo Evaluations</h1>
-        <p className="promptfoo-page__lead">
-          Run eval suites against the live agent endpoint. Correctness checks assert
+      <PageHeader className="promptfoo-page__header" title="PromptFoo Evaluations" summary={<>Run eval suites against the live agent endpoint. Correctness checks assert
           real store values in reply text; red-team probes assert no secret or
           system-prompt leakage. Runs via <code>npx promptfoo</code> on the BFF —
-          allow-listed configs only.
-        </p>
-      </header>
+          allow-listed configs only.</>} />
 
       <section className="promptfoo-page__suites">
         {error && <div className="promptfoo-page__error" role="alert">{error}</div>}
