@@ -1,4 +1,4 @@
-# Hand-off: Ping-style diagrams, routing rollout, next batch (2026-10-19 07:24, updated 12:41)
+# Hand-off: Ping-style diagrams, routing rollout, next batch (2026-10-19 07:24, updated 12:41, note on #1582 added)
 
 Written because the working session was about to run out of context. Read this first, then continue at "What to do next".
 
@@ -50,6 +50,7 @@ Ping-product: CIMD in Privilege, Personal Agent Dual Gateway, Personal Agent Des
 
 ## Traps already paid for (do not repeat)
 
+- **Pre-commit hook blocks commits from the main checkout, and a failed commit leaves the files staged**: `git diff` then exports an empty patch; use `git diff HEAD`, apply it in a `git worktree add .claude/worktrees/<name> -b <branch> origin/main`, then `git restore --staged --worktree` the files in main.
 - **Router (Token Chain) failed first** for three reasons: (1) the edge's own two boxes must also be obstacles, the lead-in/out reaches the handle, otherwise the route cuts through its target; (2) a "snap bend to the handle row" step collapsed corners into diagonals, never snap; (3) after a drag the node map is stale: React Flow mutates `nodeLookup` in place, so subscribe via `useStore` to a **string key built from `internals.positionAbsolute`** (React Flow clamps children into groups; do your own parent+relative arithmetic and it is wrong). Use cheap paths while dragging, re-route on drop (~40 ms for 36 edges).
 - **Global CSS page zoom (the "A 113%" control)** skews React Flow handle measurement (arrows ~35 px off boxes). `PingSlideFlow` cancels it inside the canvas (`zoom: 1/k`). `getBoundingClientRect` values are scaled, the measure script resets zoom to 1.
 - A worktree has no `node_modules`; `web/node_modules` in id-jag-standalone may exist as a real folder of Vite cache: delete it first, never `ln -s` into an existing directory.
@@ -70,7 +71,8 @@ Ping-product: CIMD in Privilege, Personal Agent Dual Gateway, Personal Agent Des
 - `src/utils/__tests__/parseCitations.test.js` "resolves to null when fetch fails" times out (30 s) on unmodified main too. Not ours, not fixed.
 - id-jag-standalone PR #12 merged while its CI was still queued; the builds ran afterwards (07:41) and passed (build 20, build 22, secrets): closed.
 - The standards lists and mock tokens are teaching values; draft names/section numbers should be verified before quoting externally.
-- Everything merged so far is deployed (hosted frontend `f9e4dc597`, routing included). Batch 2 is not merged.
+- Everything merged so far is deployed (hosted frontend now `001d8f5e6`, which contains routing `f9e4dc597`). Batch 2 is not merged.
+- Unrelated fix in the same window: **PR #1582** (merge `001d8f5e6`): the `/llm-gateway` Malicious MCP tab's "Sign in with Privilege" bounced to `/privilege-mcp-client` because `/auth/start` sent no `returnTo`; it now sends `returnTo: '/llm-gateway'` and reads `oauth.authenticated` from `/state` on mount (`HostileMcpTab.jsx` + test). Deployed to the hosted frontend (pod digest checked, bundle grepped); local :4000 hot-reloads it. NOT clicked through in a browser: the BFF only accepts a bare-path `returnTo` (no `?`), so the bounce lands on `/llm-gateway` and the tab comes back via the last-tab memory in `LlmGatewayCombinedPage`; if it opens Chat instead, that memory is the thing to look at. Related: the Attack Library's Tool Abuse / Tool Poisoning / Schema Violation / Inter-Agent Abuse entries have a `demoPath` and leave the prompt empty on purpose, so Send says "Enter a prompt…" (`guardrailAttackCatalog.js`, `LlmGatewayPage.jsx` ~L497); a tool-path-specific message there is an open nicety, not done.
 - Routing is applied to pingStyle StaticFlowDiagram/EmbeddedFlowDiagram, slides, Server Topology, System Diagram and the playground; other diagram components still draw their own paths.
 - The app's PR #1574 ("Start over button...") is another session's, not ours.
 
