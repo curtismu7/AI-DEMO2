@@ -51,6 +51,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useStore,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useFitOnResize } from "../hooks/useFitOnResize";
@@ -59,6 +60,7 @@ import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
 import DiagramStepBar from "./DiagramStepBar";
 import DiagramReel from "./DiagramReel";
 import { buildNodeDetail, buildReelSteps, withStepDetail } from "../utils/diagramReel";
+import { createRouter, labelPoint, pathFromPoints } from "../utils/orthoRoute";
 import "./StaticFlowDiagram.css";
 
 const NODE_W = 250;
@@ -75,6 +77,38 @@ const nodeH = (n) =>
 // The left gutter keeps the zoom buttons (bottom-left) off the cards.
 const FIT = { padding: { top: "20px", right: "20px", bottom: "20px", left: "56px" } };
 const HIDDEN = { opacity: 0, width: 1, height: 1 };
+
+// Handle ids are sl/sr/sb (source) and tl/tr/tt (target): the second letter is the side of the box (l/r/b/t).
+const handleDir = (id) => id[1];
+const handlePoint = (r, d) =>
+  d === "r" ? { x: r.x + r.w, y: r.y + r.h / 2 }
+    : d === "l" ? { x: r.x, y: r.y + r.h / 2 }
+      : d === "t" ? { x: r.x + r.w / 2, y: r.y }
+        : { x: r.x + r.w / 2, y: r.y + r.h };
+const DIR_POS = { l: Position.Left, r: Position.Right, t: Position.Top, b: Position.Bottom };
+
+// A coarser grid than the default 6px: parallel arrows that share a corridor sit cell/2 apart, so 12px keeps them visibly separate.
+const ROUTE_CELL = 12;
+
+// pingStyle routing: rects = { nodeId: {x,y,w,h} }, edges = React Flow edges (source, target, sourceHandle, targetHandle, data.self).
+// Every box is an obstacle (the edge's own two too: the router's lead-in/out reaches the handle). Self-loops keep their curve.
+// Returns { routes: { edgeId: {pts, ok} }, fallbacks } where fallbacks counts edges the router could not place.
+export function routeEdges(rects, edges) {
+  const router = createRouter({ obstacles: Object.values(rects), cell: ROUTE_CELL });
+  const routes = {};
+  let fallbacks = 0;
+  for (const e of edges) {
+    const a = rects[e.source];
+    const b = rects[e.target];
+    if (e.data?.self || !a || !b) continue;
+    const sd = handleDir(e.sourceHandle);
+    const td = handleDir(e.targetHandle);
+    const r = router.route({ start: handlePoint(a, sd), end: handlePoint(b, td), startDir: sd, endDir: td });
+    routes[e.id] = r;
+    if (!r.ok) fallbacks += 1;
+  }
+  return { routes, fallbacks };
+}
 
 function FlowNode({ data }) {
   const { n, color, className, testId, onClick } = data;
@@ -101,9 +135,14 @@ function FlowNode({ data }) {
 }
 
 function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }) {
-  const { self, lane, ping } = data;
+  const { self, lane, ping, route } = data;
   const [hover, setHover] = useState(false);
-  const [path, labelX, labelY] = self
+  // Routed around the boxes when the router found a way; otherwise (or while a box is dragged) the old curve.
+  const routed = ping && !self && route && route.ok;
+  const rl = routed ? labelPoint(route.pts) : null;
+  const [path, labelX, labelY] = routed
+    ? [pathFromPoints(route.pts), rl.x, rl.y]
+    : self
     ? [`M ${sourceX} ${sourceY} C ${sourceX + 60} ${sourceY}, ${sourceX + 60} ${sourceY + 30}, ${sourceX} ${sourceY + 30}`, sourceX + 55, sourceY + 15]
     : lane
       ? [`M ${sourceX} ${sourceY} C ${sourceX - lane} ${sourceY}, ${targetX - lane} ${targetY}, ${targetX} ${targetY}`, (sourceX + targetX) / 2 - lane * 0.75, (sourceY + targetY) / 2]
@@ -153,6 +192,18 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
   const lastDragEnd = useRef(0);
   useFitOnResize(ref, FIT);
   const byId = useMemo(() => new Map(NODES.map((n) => [n.id, n])), [NODES]);
+  const [dragging, setDragging] = useState(false);
+  const nodeLookup = useStore((st) => st.nodeLookup);
+  // React Flow clamps/moves boxes in place: subscribe to a string of their absolute boxes so a drop re-routes.
+  const absKey = useStore((st) => {
+    if (!pingStyle) return "";
+    let k = "";
+    for (const n of st.nodeLookup.values()) {
+      const p = n.internals.positionAbsolute;
+      k += `${n.id}:${Math.round(p.x)},${Math.round(p.y)},${Math.round(n.measured?.width ?? 0)},${Math.round(n.measured?.height ?? 0)}|`;
+    }
+    return k;
+  });
   const stepEdge = step >= 0 ? EDGES[step] : null;
 
   const laidOut = useMemo(
@@ -228,8 +279,24 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
     [EDGES, byId, selectedPath, step, walkStep, pingStyle],
   );
 
+  // pingStyle only: route every arrow around the boxes; re-run when a box lands, skip while one is dragged.
+  const routing = useMemo(() => {
+    if (!pingStyle || dragging) return { routes: {}, fallbacks: null };
+    const rects = {};
+    for (const n of nodeLookup.values()) {
+      const p = n.internals.positionAbsolute;
+      rects[n.id] = { x: p.x, y: p.y, w: n.measured?.width ?? NODE_W, h: n.measured?.height ?? nodeH(n.data.n) };
+    }
+    return routeEdges(rects, edges);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pingStyle, dragging, absKey, edges]);
+  const routedEdges = useMemo(
+    () => (pingStyle ? edges.map((e) => ({ ...e, data: { ...e.data, route: routing.routes[e.id] } })) : edges),
+    [pingStyle, edges, routing],
+  );
+
   return (
-    <div className={`sfd${pingStyle ? " sfd--ping" : ""}`} data-testid={testId} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
+    <div className={`sfd${pingStyle ? " sfd--ping" : ""}`} data-testid={testId} data-route-fallbacks={routing.fallbacks ?? undefined} ref={ref} role={ariaLabel ? "group" : undefined} aria-label={ariaLabel}>
       <svg width="0" height="0" aria-hidden="true" className="sfd-defs">
         <defs>
           <marker id="sfd-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="10" markerHeight="10" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
@@ -239,7 +306,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
       </svg>
       <ReactFlow
         nodes={nodes}
-        edges={edges}
+        edges={routedEdges}
         onNodesChange={onNodesChange}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
@@ -250,7 +317,8 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
         nodesDraggable
         // pingStyle: a small wiggle is still a click; only a deliberate drag (past 5px) is a drag.
         nodeDragThreshold={pingStyle ? 5 : undefined}
-        onNodeDragStop={() => { lastDragEnd.current = Date.now(); }}
+        onNodeDragStart={pingStyle ? () => setDragging(true) : undefined}
+        onNodeDragStop={() => { lastDragEnd.current = Date.now(); setDragging(false); }}
         nodesConnectable={false}
         elementsSelectable={false}
         zoomOnScroll={false}
