@@ -187,9 +187,17 @@
   align-items: flex-start;
 }
 
-.arch-diagram-body--with-card .arch-diagram-scroll-wrapper {
+.arch-diagram-body--with-card .arch-diagram-scroll-wrapper,
+.arch-diagram-body--with-card .arch-diagram-figure {
   flex: 1 1 0;
   min-width: 0;
+}
+
+/* The Ping-style figure (diagram, key and movie reel) takes the full width and grows with its content. */
+.arch-diagram-figure {
+  width: 100%;
+  min-width: 0;
+  color: var(--th-text);
 }
 
 .arch-token-side {
