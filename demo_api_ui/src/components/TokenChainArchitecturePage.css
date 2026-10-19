@@ -145,3 +145,7 @@
   color: var(--th-status-error);
   margin: 0;
 }
+
+/* Mock tokens shown during the walkthrough: sit under the step bar, readable on light and dark. */
+.tca-step-token { margin: 8px 0; padding: 10px 12px; border: 1px solid #c9ced8; border-radius: var(--radius-lg); background: #f4f5f7; color: #000000; }
+.tca-step-token .tca-node-detail-json { max-height: 220px; overflow: auto; color: #000000; background: #ffffff; }

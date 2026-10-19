@@ -110,3 +110,23 @@ describe('sign-in guardrail', () => {
   });
 });
 
+
+describe('signInService, signed out of the wall', () => {
+  test('config walled (401) but the front door can run: the customer modal is drivable', async () => {
+    _resetSignInServiceForTests();
+    global.fetch = vi.fn((url) => (String(url).includes('/api/admin/config')
+      ? Promise.resolve({ ok: false, status: 401, json: async () => ({}) })
+      : ok({ frontDoorPiFlow: true })));
+    await initSignInService();
+    expect(isSignInAvailable()).toEqual({ customer: true, admin: false });
+  });
+
+  test('config walled and no front door: stays on the redirect', async () => {
+    _resetSignInServiceForTests();
+    global.fetch = vi.fn((url) => (String(url).includes('/api/admin/config')
+      ? Promise.resolve({ ok: false, status: 401, json: async () => ({}) })
+      : ok({ frontDoorPiFlow: false })));
+    await initSignInService();
+    expect(isSignInAvailable()).toEqual({ customer: false, admin: false });
+  });
+});

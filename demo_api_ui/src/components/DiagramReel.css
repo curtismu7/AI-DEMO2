@@ -104,3 +104,14 @@
   outline-offset: 3px;
   border-radius: 10px;
 }
+
+/* Code (request form, mock token) and the standards list in the step detail. */
+.dreel-code { margin: 0; padding: 8px 10px; max-height: 260px; overflow: auto; border: 1px solid #c9ced8; border-radius: var(--radius-md); background: #ffffff; color: #000000; font-family: var(--font-mono); font-size: var(--font-size-2xs); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.dreel-refs { margin-top: 12px; }
+.dreel-refs h4 { margin: 0 0 6px; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: .06em; }
+.dreel-refs ul { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.dreel-refs li { font-size: var(--font-size-xs); }
+.dreel-ref { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: var(--radius-pill); font-size: var(--font-size-3xs); font-weight: 800; color: #ffffff; background: #1f5fbf; }
+.dreel-ref--emerging { background: #ff8c00; color: #000000; }
+.dreel-ref--spec { background: #5a5f69; }
+.dreel-refs-note { margin: 6px 0 0; font-size: var(--font-size-3xs); opacity: .8; }

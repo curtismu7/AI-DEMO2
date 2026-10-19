@@ -100,19 +100,41 @@ describe('customer pi.flow sign-in', () => {
     expect(fetchMock).not.toHaveBeenCalled();
   });
 
-  test('AIC toggle on: redirect login with acr_values=AIC_Login, even when the SPA asks for pi_flow=1', async () => {
+  test('AIC toggle on: plain /login (no pi_flow, the fallback) sends acr_values=AIC_Login; pi_flow=1 opens a flow instead', async () => {
     const base = configStore.getEffective.getMockImplementation();
     configStore.getEffective.mockImplementation((key) => (key === 'aic_login_enabled' ? 'true' : base(key)));
     const addStep = jest.spyOn(loginFlowTrace, 'addStep');
     try {
-      const res = await request(app).get('/api/auth/oauth/user/login?pi_flow=1').expect(302);
+      const res = await request(app).get('/api/auth/oauth/user/login').expect(302);
       expect(new URL(res.headers.location).searchParams.get('acr_values')).toBe('AIC_Login');
       expect(fetchMock).not.toHaveBeenCalled();
+      // The modal path: a pi.flow is opened server-side (JSON, not a 302) under the same policy.
+      fetchMock.mockResolvedValueOnce(json(200, { id: 'flow-aic', status: 'EXTERNAL_AUTHENTICATION_REQUIRED' }));
+      await request(app).get('/api/auth/oauth/user/login?pi_flow=1').expect(200);
+      expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('acr_values')).toBe('AIC_Login');
       // The live login diagram gains the PingOne -> AIC -> PingOne hop.
       const hops = addStep.mock.calls.map(([, s]) => `${s.actor}>${s.toActor}`);
       expect(hops).toEqual(expect.arrayContaining(['pingone>aic', 'aic>pingone']));
     } finally {
       addStep.mockRestore();
+      configStore.getEffective.mockImplementation(base);
+    }
+  });
+
+  test('forced sign-in drops the remembered login_hint, unless keep_hint=1 (the ID-JAG playground) asks to keep it', async () => {
+    const base = configStore.getEffective.getMockImplementation();
+    configStore.getEffective.mockImplementation((key) => (key === 'last_login_hint_customer' ? 'demo.user' : base(key)));
+    try {
+      fetchMock.mockResolvedValue(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+      await request(app).get('/api/auth/oauth/user/login?pi_flow=1&force=true').expect(200);
+      expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('login_hint')).toBeNull();
+      expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('prompt')).toBe('login');
+      fetchMock.mockClear();
+      await request(app).get('/api/auth/oauth/user/login?pi_flow=1&force=true&keep_hint=1').expect(200);
+      const url = new URL(fetchMock.mock.calls[0][0]);
+      expect(url.searchParams.get('login_hint')).toBe('demo.user');
+      expect(url.searchParams.get('prompt')).toBe('login'); // still a fresh sign-in
+    } finally {
       configStore.getEffective.mockImplementation(base);
     }
   });
