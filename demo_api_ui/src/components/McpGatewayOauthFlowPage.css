@@ -116,3 +116,25 @@
 .end-user-nano .mgof-page code {
   color: var(--mgof-ink);
 }
+
+/* Ping-style page (/mcp-gateway-oauth-flow): follows the app theme instead of the fixed-dark palette, so the light-grey
+   canvas, the dark text and the dark-mode canvas all read correctly. Doubled classes outrank the fixed-dark rules. */
+.mgof-page.mgof-page--ping {
+  --mgof-bg: var(--th-bg-page);
+  --mgof-panel: var(--th-bg-card);
+  --mgof-ink: var(--th-text);
+  --mgof-ink-2: var(--th-text-body);
+  --mgof-border: var(--th-border);
+  --mgof-accent: var(--th-status-info);
+  --mgof-delta: var(--th-status-warning-text);
+  --mgof-plus: var(--th-status-success-text);
+  --pmd-bg: var(--th-bg-page);
+  --pmd-panel: var(--th-bg-card);
+  --pmd-ink: var(--th-text);
+  --pmd-ink-2: var(--th-text-body);
+  --pmd-border: var(--th-border);
+  --pmd-accent: var(--th-status-info);
+}
+.mgof-page.mgof-page--ping.mgof-page--ping a:any-link { color: var(--th-status-info); }
+.mgof-page.mgof-page--ping.mgof-page--ping code { color: var(--th-text); }
+.mgof-page--ping .efd h3 { color: var(--th-text); font-size: var(--font-size-lg); }

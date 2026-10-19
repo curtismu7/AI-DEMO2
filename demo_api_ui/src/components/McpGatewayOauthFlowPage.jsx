@@ -1,11 +1,16 @@
 // McpGatewayOauthFlowPage.jsx — the reference MCP OAuth handshake sequence
 // (401 challenge -> protected-resource metadata -> initialize -> list_tools)
 // redrawn against demo_mcp_gateway + demo_mcp_server's actual code path.
-// Follows the mermaid.initialize/render pattern used by
-// AgentOnboardingMermaidPage.jsx.
+// Both figures (architecture, OAuth sequence) are drawn in the Ping style by EmbeddedFlowDiagram (pingStyle): numbered
+// arrows, a step reel with the request on the wire, MOCK tokens and the standards behind each step. Their data is
+// src/config/mcpGatewayOauthDiagrams.js and mcpGatewayOauthStandards.js. The Mermaid sources below are kept so
+// "Download .mmd" still produces the same interop file; an uploaded .mmd is drawn by FlowDiagram (the plain renderer,
+// as before the Ping style) until "Back to the Ping-style diagram".
 import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
+import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
 import FlowDiagram from "./FlowDiagram";
+import { MGOF_ARCH_DIAGRAM, MGOF_SEQ_DIAGRAM } from "../config/mcpGatewayOauthDiagrams";
 import "./McpGatewayOauthFlowPage.css";
 import "./PrivilegeMcpDiagramPage.css";
 import PageHeader from './common/PageHeader';
@@ -42,7 +47,7 @@ export const ARCHITECTURE_SOURCE = `graph TB
     classDef gwNode stroke-width:3px
     class G gwNode`;
 
-const MERMAID_SOURCE = `sequenceDiagram
+export const MERMAID_SOURCE = `sequenceDiagram
     participant U as User
     participant A as Agent (OAuth Client)
     participant G as Agent Gateway (OAuth RS)
@@ -101,6 +106,16 @@ const NOTES = [
       },
       {
         mark: "delta",
+        text: "Steps 5-7: the metadata names the gateway's own OAuth broker as the authorization server (RFC 8414, RFC 7591 registration, PKCE), which relays PingOne's access token. The figures draw PingOne as the authorization server and leave that relay out.",
+        cite: "GatewayServer.ts:546-577, OAuthBrokerRouter.ts:117-153",
+      },
+      {
+        mark: "delta",
+        text: "Steps 6-7 run through the gateway's own OAuth broker: RFC 8414 metadata, open dynamic registration for loopback redirect URIs, PKCE S256. It relays the sign-in to PingOne and returns PingOne's own access token, which the figure draws as one hop to PingOne. The broker has no Client ID Metadata Document support.",
+        cite: "OAuthBrokerRouter.ts",
+      },
+      {
+        mark: "delta",
         text: "WebSocket transport skips steps 2-5 entirely - a missing token just closes the socket (close code 4001), no 401 or WWW-Authenticate.",
         cite: "index.ts:1037-1040",
       },
@@ -149,34 +164,59 @@ const NOTES = [
   },
 ];
 
-export default function McpGatewayOauthFlowPage() {
-  const [source, setSource] = useState(MERMAID_SOURCE);
-  const [archSource, setArchSource] = useState(ARCHITECTURE_SOURCE);
+// One figure: its Ping-style diagram, or the plain rendering of an uploaded .mmd.
+function Figure({ source, uploaded, setUploaded, filename, config, title, lede, ariaLabel, diagramLabel, testId, height }) {
   return (
     <>
-    <div className="pmd-page">
+      <DiagramExportBar source={uploaded ?? source} sourceFilename={filename} onSourceChange={setUploaded} />
+      <div className="pmd-panel">
+        {uploaded != null ? (
+          <>
+            <button type="button" className="pmd-tab" onClick={() => setUploaded(null)}>
+              Back to the Ping-style diagram
+            </button>
+            <FlowDiagram source={uploaded} label={diagramLabel} height={height} />
+          </>
+        ) : (
+          <EmbeddedFlowDiagram config={config} title={title} lede={lede} ariaLabel={ariaLabel} diagramLabel={diagramLabel} testId={testId} pingStyle />
+        )}
+      </div>
+    </>
+  );
+}
+
+export default function McpGatewayOauthFlowPage() {
+  const [uploadedSeq, setUploadedSeq] = useState(null);
+  const [uploadedArch, setUploadedArch] = useState(null);
+  return (
+    <>
+    <div className="pmd-page pmd-page--ping">
       <PageHeader className="pmd-hero" eyebrow={<>demo_mcp_gateway &rarr; demo_mcp_server</>} title="Agent Gateway OAuth Flow — Architecture" summary={<>Topology behind the sequence diagram below: the gateway sits between the
           agent and the MCP server as an OAuth Resource Server, introspecting and
           exchanging the token with PingOne before ever forwarding a request downstream.</>} />
 
-      <DiagramExportBar
-        source={archSource}
-        sourceFilename="mcp-gateway-oauth-flow-architecture.mmd"
-        onSourceChange={setArchSource}
+      <Figure
+        source={ARCHITECTURE_SOURCE}
+        uploaded={uploadedArch}
+        setUploaded={setUploadedArch}
+        filename="mcp-gateway-oauth-flow-architecture.mmd"
+        config={MGOF_ARCH_DIAGRAM}
+        title="Who talks to whom"
+        lede="Follow the numbered arrows. The agent finds the gateway's OAuth broker from a 401, signs in at PingOne, and the gateway introspects and exchanges the token before the MCP server sees a request. Click a box or a card for the request on the wire, the mock tokens and the standards."
+        ariaLabel="Agent Gateway OAuth flow architecture"
+        diagramLabel="Agent Gateway OAuth flow architecture diagram"
+        testId="mgof-arch"
+        height={560}
       />
 
-      <div className="pmd-panel">
-        <FlowDiagram source={archSource} label="Agent Gateway OAuth flow architecture diagram" height={560} />
-      </div>
-
       <p className="pmd-footer">
-        Step numbers match the sequence diagram below — the gateway's own local JWT
-        pre-filter (step 10) is a cheap check, not the authoritative gate; steps
-        11-12 (RFC 7662 introspection) are the real one.
+        The architecture arrows are numbered in their own order; each card names the sequence
+        steps it covers. In the sequence below, the gateway's own local JWT pre-filter (step 10) is
+        a cheap check, not the authoritative gate; steps 11-12 (RFC 7662 introspection) are the real one.
       </p>
     </div>
 
-    <div className="mgof-page">
+    <div className="mgof-page mgof-page--ping">
       <PageHeader className="mgof-hero" eyebrow={<>demo_mcp_gateway &rarr; demo_mcp_server</>} title="Agent Gateway OAuth Flow, As Built" summary={<>The reference MCP OAuth handshake redrawn against the actual code path: HTTP
           transport, one backend (demo_mcp_server, the mock AI Demo MCP Server), token
           introspection over local JWT checks, and the RFC 8693 exchange the reference
@@ -187,15 +227,18 @@ export default function McpGatewayOauthFlowPage() {
         <span className="mgof-key-entry mgof-key-plus">+ step the reference diagram doesn't have</span>
       </div>
 
-      <DiagramExportBar
-        source={source}
-        sourceFilename="mcp-gateway-oauth-flow.mmd"
-        onSourceChange={setSource}
+      <Figure
+        source={MERMAID_SOURCE}
+        uploaded={uploadedSeq}
+        setUploaded={setUploadedSeq}
+        filename="mcp-gateway-oauth-flow.mmd"
+        config={MGOF_SEQ_DIAGRAM}
+        title="The OAuth handshake, step by step"
+        lede="Agent, gateway, MCP server and PingOne in order; arrow n is step n. Steps that happen inside one component (store the token, the local pre-filter, the signature check, the cached re-check) are the grey boxes below their owner. Click a card for the exact request, the mock tokens in play and the standards behind it."
+        ariaLabel="Agent Gateway OAuth flow sequence"
+        diagramLabel="Agent Gateway OAuth flow sequence diagram"
+        testId="mgof-seq"
       />
-
-      <div className="mgof-panel">
-        <FlowDiagram source={source} label="Agent Gateway OAuth flow sequence diagram" />
-      </div>
 
       <div className="mgof-notes">
         {NOTES.map((group) => (

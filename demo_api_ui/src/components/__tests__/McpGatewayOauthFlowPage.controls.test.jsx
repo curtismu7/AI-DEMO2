@@ -6,14 +6,17 @@ import { expectDiagramControls, ResizeObserverStub } from "./diagramControlsHelp
 
 window.ResizeObserver = window.ResizeObserver || ResizeObserverStub;
 
+// Both figures are Ping-style EmbeddedFlowDiagram sections: the controls sit in the section, outside the canvas group.
 describe("McpGatewayOauthFlowPage diagram controls", () => {
-  it("architecture flowchart: Simulate, Reset, speed, draggable", async () => {
+  it("architecture: Simulate, Reset, speed, draggable", async () => {
     render(<McpGatewayOauthFlowPage />);
-    await expectDiagramControls(screen.getByRole("group", { name: "Agent Gateway OAuth flow architecture diagram" }));
+    expect(screen.getByRole("group", { name: "Agent Gateway OAuth flow architecture diagram" })).toBeTruthy();
+    await expectDiagramControls(screen.getByTestId("mgof-arch"));
   });
 
-  it("OAuth sequence: Simulate, Reset, speed (lifelines exempt from drag)", async () => {
+  it("OAuth sequence: Simulate, Reset, speed, draggable boxes", async () => {
     render(<McpGatewayOauthFlowPage />);
-    await expectDiagramControls(screen.getByRole("group", { name: "Agent Gateway OAuth flow sequence diagram" }), { draggable: false });
+    expect(screen.getByRole("group", { name: "Agent Gateway OAuth flow sequence diagram" })).toBeTruthy();
+    await expectDiagramControls(screen.getByTestId("mgof-seq"));
   });
 });
