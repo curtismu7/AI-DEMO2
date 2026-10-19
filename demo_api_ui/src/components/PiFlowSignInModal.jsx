@@ -19,6 +19,9 @@ const mfaRequested = () => new URLSearchParams(window.location.search).get("sign
 
 const ADMIN_API = "/api/auth/oauth";
 const USER_API = "/api/auth/oauth/user";
+// SE's hosted-access front door (the wall in front of the app login). Same pi.flow, its own endpoints.
+const FRONT_DOOR_API = "/api/auth/hosted-access";
+const FRONT_DOOR_RESUME_KEY = "piFlowFrontDoorResume";
 
 const DEVICE_LABEL = { EMAIL: "Email", SMS: "SMS", FIDO2: "Passkey", TOTP: "Authenticator app" };
 
@@ -117,6 +120,11 @@ export default function PiFlowSignInModal() {
   const roleRef = useRef("customer");
   const forceRef = useRef(false);
   const providerRef = useRef("pingone");
+  // Front door: the wall is on and pi.flow can run (identifier-policy says so). `frontDoorRef` = THIS open is the
+  // front-door password step; the app sign-in follows once the hosted /callback has approved the browser.
+  const frontDoorOnRef = useRef(false);
+  const frontDoorRef = useRef(false);
+  const [frontDoor, setFrontDoor] = useState(false);
   const cibaEnabledRef = useRef(false); // ciba_login_enabled; off = no choice screen (pre-CIBA behaviour)
   // 'ciba' only after the "password + approval link" button; submit() sends it as secondFactor.
   // Every other path (plain password, passwordless, flag off) leaves it null and sends nothing.
@@ -161,6 +169,7 @@ export default function PiFlowSignInModal() {
             rejectPlusAddressing: Boolean(body.rejectPlusAddressing),
             allowedIdentifiers: Array.isArray(body.allowedIdentifiers) ? body.allowedIdentifiers : [],
           };
+          frontDoorOnRef.current = body.frontDoorPiFlow === true;
         }
       } catch {
         /* unknown policy → no local check; the server wall applies */
@@ -187,6 +196,36 @@ export default function PiFlowSignInModal() {
     returnToRef.current = target;
     roleRef.current = role;
     forceRef.current = Boolean(detail.force);
+    frontDoorRef.current = false;
+    setFrontDoor(false);
+    if (frontDoorOnRef.current && !detail.resumed) {
+      // Signed out of the wall? Run the front door in the modal first. Approved (204) or unreachable: carry on
+      // with the normal app sign-in. 401 = not approved yet.
+      secondFactorRef.current = null;
+      setStep("password");
+      setError("");
+      setUsername("");
+      setPassword("");
+      setBusy(true);
+      setOpen(true);
+      (async () => {
+        let approved = true;
+        try {
+          const r = await fetch(`${apiBase()}${FRONT_DOOR_API}/check`, { credentials: "include" });
+          approved = r.status !== 401;
+        } catch {
+          /* unknown: let the normal sign-in (and the wall) decide */
+        }
+        if (approved) {
+          begin({ ...detail, resumed: true });
+          return;
+        }
+        frontDoorRef.current = true;
+        setFrontDoor(true);
+        openFlow(target, role);
+      })();
+      return;
+    }
     // Customer signs in passwordless-first: the device-only step is the modal's
     // default under the mfa_only policy. Admin is password-first (the admin
     // app's own policy already pairs password with MFA), so it opens on the
@@ -227,6 +266,14 @@ export default function PiFlowSignInModal() {
   const openFlow = (target, role, { passwordless = false } = {}) => {
     (async () => {
       try {
+        if (frontDoorRef.current) {
+          // Front door: only pi_flow + the page to come back to; no force/mfa/passwordless here.
+          const fd = new URLSearchParams({ pi_flow: "1", return_to: target || "/" });
+          const r = await fetch(`${apiBase()}${FRONT_DOOR_API}/login?${fd}`, { credentials: "include" });
+          if (!r.ok) throw new Error("front door pi.flow unavailable");
+          setBusy(false);
+          return;
+        }
         const qs = new URLSearchParams({ pi_flow: "1" });
         if (target) qs.set("return_to", target);
         if (forceRef.current) qs.set("force", "true");
@@ -284,6 +331,21 @@ export default function PiFlowSignInModal() {
     return () => window.removeEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
   }, [begin, userDrivable, adminDrivable]);
 
+  // Back from the front door's hosted /callback: continue with the app sign-in the user asked for.
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current || (!userDrivable && !adminDrivable)) return; // wait for the config, once
+    resumedRef.current = true;
+    let saved = null;
+    try {
+      saved = JSON.parse(sessionStorage.getItem(FRONT_DOOR_RESUME_KEY) || "null");
+      sessionStorage.removeItem(FRONT_DOOR_RESUME_KEY);
+    } catch { /* no storage or corrupt: nothing to resume */ }
+    // Only a fresh hand-off (set seconds ago, right before the hosted /callback) may reopen the modal.
+    if (!saved || Date.now() - Number(saved.at) > 5 * 60 * 1000) return;
+    if (saved.role === "admin" ? adminDrivable : userDrivable) begin({ ...saved, resumed: true });
+  }, [begin, userDrivable, adminDrivable]);
+
   // Choice screen -> the existing password step (opens the password-first flow).
   // `secondFactor` is 'ciba' only from the "password + approval link" button.
   const openPasswordStep = (secondFactor) => {
@@ -302,7 +364,7 @@ export default function PiFlowSignInModal() {
   const restartSignIn = () =>
     begin({ returnTo: returnToRef.current, role: roleRef.current, force: forceRef.current });
 
-  const apiForRole = () => (roleRef.current === "admin" ? ADMIN_API : USER_API);
+  const apiForRole = () => (frontDoorRef.current ? FRONT_DOOR_API : roleRef.current === "admin" ? ADMIN_API : USER_API);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -346,6 +408,12 @@ export default function PiFlowSignInModal() {
       if (res.ok && body.redirectTo) {
         // Approval was requested but could not apply: signed in on the password alone — say so.
         const skipped = body.secondFactorSkipped && secondFactorRef.current === "ciba";
+        if (frontDoorRef.current) {
+          // The hosted /callback approves this browser and returns here; pick the app sign-in up from there.
+          try {
+            sessionStorage.setItem(FRONT_DOOR_RESUME_KEY, JSON.stringify({ returnTo: returnToRef.current, role: roleRef.current, force: forceRef.current, at: Date.now() }));
+          } catch { /* storage blocked: the user just clicks sign in again */ }
+        }
         navigateWithOverlay(body.redirectTo, {
           message: skipped ? "Signed in with your password only: no approval link is available for this account." : "Signing in...",
           assign: true,
@@ -760,6 +828,9 @@ export default function PiFlowSignInModal() {
           </div>
         ) : (
         <form id="pi-flow-signin-form" className="pi-flow-signin__form" onSubmit={submit}>
+          {frontDoor ? (
+            <p className="signin-modal__text">First, confirm you can access this demo. You will sign in to the app right after.</p>
+          ) : null}
           <label className="pi-flow-signin__label" htmlFor="pi-flow-username">
             Username
           </label>
