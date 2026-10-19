@@ -1,8 +1,8 @@
 /* Scoped to .ijx so the generic class names below cannot leak into the rest of the app. */
 .ijx{--c-user:#64748b;--c-bff:#2563eb;--c-pf:#d4001e;--c-as:#7c3aed;--c-gw:#0f766e;--c-rs:#b45309;--red:#d4001e;
-  height:calc(100vh - 4rem);min-height:32rem;color:var(--th-text);background:var(--th-bg);display:flex;flex-direction:column}
+  /* 9rem = app header + main padding above and below (measured 106px + 32px). */height:calc(100dvh - 9rem);min-height:32rem;color:var(--th-text);background:var(--th-bg);display:flex;flex-direction:column}
 .ijx *{box-sizing:border-box}
-.ijx-app{display:grid;flex:1;min-width:0;min-height:0}
+.ijx-app{display:grid;flex:1;min-width:0;min-height:0;grid-template-rows:minmax(0,1fr)}
 .ijx aside{background:var(--th-bg-card);border-right:1px solid var(--th-border);padding:16px 16px 10px;overflow:auto}
 .ijx h1{font-size:1.15rem;margin:0 0 4px}.ijx .lede{color:var(--th-text-muted);margin:0 0 12px;font-size:.78rem}
 .ijx nav{display:flex;flex-wrap:wrap;gap:6px;margin-bottom:14px}
