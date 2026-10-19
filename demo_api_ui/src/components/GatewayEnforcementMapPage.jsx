@@ -9,12 +9,12 @@ import StaticFlowDiagram from "./StaticFlowDiagram";
 import DiagramStepBar from "./DiagramStepBar";
 import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
 import {
-  GATEWAY_ENFORCEMENT_JOURNEY_GROUPS,
   GATEWAY_ENFORCEMENT_JOURNEY_NODES,
   GATEWAY_ENFORCEMENT_JOURNEY_EDGES,
   GATEWAY_ENFORCEMENT_STAKES,
   GATEWAY_ENFORCEMENT_ROWS,
 } from "./education/gatewayEnforcementDiagram.generated";
+import { PING_GROUPS, STEPS } from "../config/gatewayEnforcementPing";
 import "./GatewayEnforcementMapPage.css";
 import PageHeader from './common/PageHeader';
 
@@ -69,7 +69,9 @@ export default function GatewayEnforcementMapPage() {
       <StaticFlowDiagram
         NODES={GATEWAY_ENFORCEMENT_JOURNEY_NODES}
         EDGES={GATEWAY_ENFORCEMENT_JOURNEY_EDGES}
-        GROUPS={GATEWAY_ENFORCEMENT_JOURNEY_GROUPS}
+        GROUPS={PING_GROUPS}
+        pingStyle
+        steps={STEPS}
         stepper={stepper}
         onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
         testId="gwe-flow-diagram"
