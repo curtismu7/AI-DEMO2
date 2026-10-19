@@ -3,15 +3,17 @@
 // PingFederate: mfa_only selects identifier-first -> PingOne MFA adapter
 // (scripts/pingfederate/enable-pf-passwordless.js). Admin sign-in through PF is gated on PingOne
 // group pingone-admin (routes/oauth.js callback, pingOneGroupMembershipService.isPingOneAdminByUsername).
+import { SIGNIN_DETAIL, withEdgeDetail } from './mfaDiagramsStandards';
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
+const DASH = { dashed: true };
 const PF = { color: 'var(--th-status-warning)' };
 
 export const SIGNIN_GROUPS = {
-  user: { label: 'Browser', bg: 'var(--th-status-info)' },
-  bff: { label: 'BFF', bg: 'var(--th-bg-emphasis)' },
-  pf: { label: 'PingFederate', bg: 'var(--th-status-warning)' },
-  pingone: { label: 'PingOne', bg: 'var(--th-status-success)' },
+  user: { label: 'Browser', bg: '#151a24' },
+  bff: { label: 'BFF', bg: '#151a24' },
+  pf: { label: 'PingFederate', bg: '#b5231a' },
+  pingone: { label: 'PingOne', bg: '#b5231a' },
 };
 
 export const SIGNIN_NODES = [
@@ -30,14 +32,14 @@ export const SIGNIN_EDGES = [
   E('driver', 'pfid', 'PF: pi.flow authorize + username', PF), // 1
   E('driver', 'p1', 'PingOne: pi.flow authorize + user.lookup'), // 2
   E('driver', 'dir', 'full address of each email device'), // 3
-  E('driver', 'modal', 'devices: SMS, Email, Passkey'), // 4
+  E('driver', 'modal', 'devices: SMS, Email, Passkey', DASH), // 4
   E('driver', 'pfmfa', 'selectDevice, checkOtp / checkAssertion', PF), // 5
   E('modal', 'webauthn', 'passkey picked'), // 6
-  E('webauthn', 'modal', 'signed assertion → POST /pi-flow/assertion'), // 7
-  E('pfmfa', 'driver', 'MFA_COMPLETED → continue → code', PF), // 8
+  E('webauthn', 'modal', 'signed assertion → POST /pi-flow/assertion', DASH), // 7
+  E('pfmfa', 'driver', 'MFA_COMPLETED → continue → code', { ...PF, dashed: true }), // 8
   E('driver', 'callback', 'code + state'), // 9
   E('callback', 'dir', 'PF admin: in pingone-admin?'), // 10
-  E('callback', 'modal', 'signed in: /admin or the return path'), // 11
+  E('callback', 'modal', 'signed in: /admin or the return path', DASH), // 11
 ];
 
 export const SIGNIN_STEPS = [
@@ -49,4 +51,4 @@ export const SIGNIN_STEPS = [
   { key: 'gate', edges: [10, 11], title: 'Admin through PF: the PingOne group still decides', what: 'PingOne’s admin app only lets the pingone-admin group in, but a PF admin sign-in never touches that app. So the callback requires the PingOne user with the same username to be enabled and a member of pingone-admin, and refuses admin otherwise (fail closed). Then the session is made and the user lands on /admin or the page they came from.', why: 'One admin list, whichever provider the user signed in with.' },
 ];
 
-export const SIGNIN_DIAGRAM = { GROUPS: SIGNIN_GROUPS, NODES: SIGNIN_NODES, EDGES: SIGNIN_EDGES, STEPS: SIGNIN_STEPS };
+export const SIGNIN_DIAGRAM = { GROUPS: SIGNIN_GROUPS, NODES: SIGNIN_NODES, EDGES: SIGNIN_EDGES, STEPS: withEdgeDetail(SIGNIN_STEPS, SIGNIN_EDGES, SIGNIN_DETAIL) };
