@@ -148,7 +148,7 @@ describe("ID-JAG playground page", () => {
     expect(btn).toHaveAttribute("title", "Local PingFederate not configured");
   });
 
-  it("pf-pf sign-in navigates to the issuer login, not the shared sign-in", async () => {
+  it("pf-pf sign-in falls back to the issuer login redirect when the modal does not take it", async () => {
     localStorage.setItem("idjag.playground.mode", "pf-pf");
     const assign = vi.fn();
     const orig = window.location;
@@ -158,7 +158,7 @@ describe("ID-JAG playground page", () => {
       const step1 = (await screen.findByRole("heading", { name: "Sign in at the issuer PingFederate" })).closest("section");
       await waitFor(() => expect(within(step1).getByRole("button")).toBeEnabled());
       fireEvent.click(within(step1).getByRole("button"));
-      await waitFor(() => expect(assign).toHaveBeenCalledWith("/api/id-jag-playground/issuer/login?return_to=/pingfederate-id-jag/playground"));
+      await waitFor(() => expect(assign).toHaveBeenCalledWith(expect.stringMatching(/\/api\/id-jag-playground\/issuer\/login\?return_to=%2Fpingfederate-id-jag%2Fplayground$/)));
       expect(get).toHaveBeenCalledWith("/api/id-jag-playground/preflight", { params: expect.objectContaining({ step: "signin", mode: "pf-pf" }) });
       expect(post).not.toHaveBeenCalled();
     } finally {

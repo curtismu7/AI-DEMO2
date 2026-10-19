@@ -606,8 +606,9 @@ export default function IdJagPlaygroundPage() {
 
   const signIn = () => run("signin", async () => {
     if (mode === "pf-pf") {
-      // Sign in at the issuer PingFederate, not the app's own provider.
-      window.location.assign(`${API}/issuer/login?return_to=${RETURN_TO}`);
+      // Sign in at the issuer PingFederate, not the app's own provider: the sign-in modal drives its pi.flow
+      // (role "issuer"); the redirect to /issuer/login is only the service's fallback.
+      openSignIn({ role: "issuer", returnTo: RETURN_TO, force: true });
       return;
     }
     // Always a PingFederate sign-in: clear whatever session is here first.

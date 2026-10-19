@@ -56,7 +56,8 @@ export function openSignIn({ role = 'customer', returnTo, force, redirect = fals
     if (detail.handled) return;
   }
   // One fallback, in one place.
-  if (role === 'admin') navigateToAdminOAuthLoginRaw(returnTo);
+  if (role === 'issuer') window.location.assign(`${apiBase()}/api/id-jag-playground/issuer/login${returnTo ? `?return_to=${encodeURIComponent(returnTo)}` : ''}`);
+  else if (role === 'admin') navigateToAdminOAuthLoginRaw(returnTo);
   else if (force) navigateToCustomerOAuthForceLoginRaw(returnTo);
   else navigateToCustomerOAuthLoginRaw(returnTo);
 }
