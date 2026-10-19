@@ -8,6 +8,7 @@ import StaticFlowDiagram from "../StaticFlowDiagram";
 import { edgeCaptions, useDiagramStepper } from "../../hooks/useDiagramStepper";
 import { DELEGATION_DIAGRAM, DISCOVERY_DIAGRAM } from "../../config/a2aArchitectureDiagram";
 import "../personalAgent/PersonalAgent.css";
+import "./a2aArchitecture.css";
 
 function Figure({ config, testId, stepsTestId, ariaLabel }) {
   const { GROUPS, NODES, EDGES, STEPS } = config;
@@ -19,7 +20,7 @@ function Figure({ config, testId, stepsTestId, ariaLabel }) {
       <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId={stepsTestId} />
       <figure className="pa-figure">
         <StaticFlowDiagram NODES={NODES} EDGES={EDGES} GROUPS={GROUPS} stepper={stepper} pingStyle steps={STEPS} testId={testId} height={560} ariaLabel={ariaLabel} />
-        <ul className="pa-legend" aria-label="Legend">
+        <ul className="pa-legend a2a-legend" aria-label="Legend">
           {usedGroups.map((g) => (
             <li key={g}><i className="pa-sw" style={{ borderTopColor: GROUPS[g].bg }} />{GROUPS[g].label}</li>
           ))}

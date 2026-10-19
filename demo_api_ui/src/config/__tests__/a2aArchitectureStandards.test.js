@@ -61,7 +61,22 @@ describe('a2a architecture content matches the repo wire', () => {
     expect(DELEGATION_DETAIL[7].form).toContain('No access token crosses back');
     expect(DELEGATION_DETAIL[8].form).toContain('No token is returned');
   });
-  it('shows an emerging standard distinctly', () => {
-    expect(Object.values(DELEGATION_DETAIL).flatMap((d) => d.refs).some((r) => r.kind === 'emerging')).toBe(true);
+  it('uses the 1.0 wire: SendMessage method, result.message wrapper, signature objects, post-style client auth', () => {
+    expect(DELEGATION_DETAIL[2].form).toContain('"method": "SendMessage"');
+    expect(DELEGATION_DETAIL[2].form).not.toContain('message/send');
+    expect(DELEGATION_DETAIL[7].form).toContain('"message": {');
+    expect(DISCOVERY_DETAIL[1].form).toContain('"protected"');
+    expect(DELEGATION_DETAIL[1].form).toContain('audience=a2a-intermediate-<appKey>.ping.demo');
+    expect(DELEGATION_DETAIL[3].form).toContain('client_id=<appKey>-specialist-client');
+    expect(DELEGATION_DETAIL[3].form).not.toContain('Basic');
+    expect(DELEGATION_DETAIL[3].tokens[2].claims.scope).toBe('purchase:read');
+  });
+  it('attaches only standards that govern the hop: no product docs as specs, no analogy drafts, no unverified at+jwt profile', () => {
+    const refs = [...Object.values(DELEGATION_DETAIL), ...Object.values(DISCOVERY_DETAIL)].flatMap((d) => d.refs);
+    refs.forEach((r) => {
+      expect(r.id).not.toMatch(/^PingOne|Ping Agent Gateway|AuthZEN|RFC 9068|wimse|transaction-tokens|identity-chaining/i);
+      expect(r.title).not.toMatch(/analogy|counterpart|instead/i);
+    });
+    expect(JSON.stringify(DELEGATION_DETAIL)).not.toContain('at+jwt');
   });
 });
