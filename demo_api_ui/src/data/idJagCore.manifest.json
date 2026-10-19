@@ -1,0 +1,11 @@
+{
+  "source": "id-jag-standalone",
+  "commit": "73e2e9fcd4df5d032d50e98171c4d041f6393d13",
+  "files": {
+    "demo_api_ui/src/utils/codeSnippet.js": "7f21df1145f8b93e2dbdefcb1a137eeb32245a742c9538733cd55ff090e9e63e",
+    "demo_api_ui/src/utils/__tests__/codeSnippet.test.js": "9d362720dec738d7a1159d7d9bfdce9496e29bd8a55ff958da5ac3679541fd48",
+    "demo_api_ui/src/utils/realClients.js": "94b372ff12bef605fc905e47e513de7426ed1b525920efaa0690668ef6d3557b",
+    "demo_api_ui/src/data/idJagTerms.json": "3b53a932c600f9f05059ca626a7d08e3d5466b6e37569059c81503261a399f6c",
+    "demo_api_ui/src/data/idJagSources.json": "a39aa0db87619d21f276ac202b86105aa05893fbfe8b5de4340037147af58fd1"
+  }
+}

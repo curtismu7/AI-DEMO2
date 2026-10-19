@@ -227,6 +227,8 @@ jobs:
         run: npm run authz:verify
       - name: Auth-requirement gate — own tests
         run: node --test scripts/check-auth-requirements.test.js
+      - name: ID-JAG vendored files (from the kit) no-drift gate
+        run: node scripts/check-id-jag-core.js && node --test scripts/check-id-jag-core.test.js
       - name: Topology no-drift gate
         run: npm run topology:verify
       # se-undeploy wipes a SHARED cluster namespace, so its confirmation and
