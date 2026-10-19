@@ -19,24 +19,24 @@ const step = (key, edges, title, what, why, detail) => ({ key, edges, title, wha
 
 // ─── Topology ─────────────────────────────────────────────────────────────────
 export const EXT_DOOR_NODES = [
-  N('ext', 'app', 'External client', ['LM Studio, MCP Inspector, Claude Desktop', 'never talked to this system before'], 0, 0),
-  N('ing', 'infra', 'mcp-public-door-ingress', ['2 routing rules, split by path'], 340, 0),
-  N('gw', 'ping', 'ping-gateway :8080', ['PingOne Agent Gateway / ForgeRock IG', 'enforces /mcp only', 'OAuth AS paths pass through unfiltered'], 680, 0),
-  N('mcp', 'app', 'mcp-server :8080 (oauth-mcp)', ['dual role: MCP tool server AND', 'embedded OAuth 2.1 AS', '(DCR, /authorize, /token, /jwks, /introspect)'], 1020, 0),
-  N('api', 'app', 'Banking API (BFF)', ['same REST API browser sessions use', 'reached here over Bearer', 'aud = enduser.ping.demo'], 1360, 0),
-  N('p1az', 'ping', 'PingOne Authorize', ['decision endpoint', 'PERMIT / DENY per MCP call'], 680, 300),
-  N('as', 'ping', 'PingOne', ['auth.pingone.com/{envId}/as', 'real IdP: the actual login'], 1020, 300),
+  N('ext', 'app', 'External client', ['LM Studio, MCP Inspector, Claude Desktop', 'never talked to this system before'], -200, -200),
+  N('ing', 'infra', 'mcp-public-door-ingress', ['2 routing rules, split by path'], 340, -200),
+  N('gw', 'ping', 'ping-gateway :8080', ['PingOne Agent Gateway / ForgeRock IG', 'enforces /mcp only', 'OAuth AS paths pass through unfiltered'], 840, 0),
+  N('mcp', 'app', 'mcp-server :8080 (oauth-mcp)', ['dual role: MCP tool server AND', 'embedded OAuth 2.1 AS', '(DCR, /authorize, /token, /jwks, /introspect)'], 1340, -200),
+  N('api', 'app', 'Banking API (BFF)', ['same REST API browser sessions use', 'reached here over Bearer', 'aud = enduser.ping.demo'], 1900, -200),
+  N('p1az', 'ping', 'PingOne Authorize', ['decision endpoint', 'PERMIT / DENY per MCP call'], 840, 330),
+  N('as', 'ping', 'PingOne', ['auth.pingone.com/{envId}/as', 'real IdP: the actual login'], 1340, 330),
 ];
 
 export const EXT_DOOR_EDGES = [
-  ['ext', 'ing', 'every call enters here: discovery, DCR, OAuth, /mcp'], // 0
+  ['ext', 'ing', 'every call: DCR, OAuth, /mcp'], // 0
   ['ing', 'mcp', '.well-known/oauth-protected-resource: direct, bypasses the gateway', D], // 1
-  ['ing', 'gw', 'everything else: /register /authorize /token /jwks /mcp'], // 2
-  ['gw', 'mcp', 'OAuth AS endpoints: passthrough, unfiltered, NOT P1AZ-gated', D], // 3
-  ['gw', 'mcp', '^/mcp only: introspect, P1AZ decision, tools filter, reverse proxy'], // 4
+  ['ing', 'gw', 'everything else: OAuth + /mcp'], // 2
+  ['gw', 'mcp', 'OAuth endpoints: unfiltered, no P1AZ', D], // 3
+  ['gw', 'mcp', '/mcp only: introspect, P1AZ, filter'], // 4
   ['gw', 'p1az', 'P1AZ decision per MCP request', VD], // 5
-  ['mcp', 'as', 'federated OAuth: own /authorize redirects here, own /token exchanges the code', VD], // 6
-  ['mcp', 'api', 'Bearer: real federated PingOne token or self-issued JWT (fallback)'], // 7
+  ['mcp', 'as', 'federated OAuth: redirect + code exchange', VD], // 6
+  ['mcp', 'api', 'Bearer: PingOne or self JWT'], // 7
 ];
 
 export const EXT_DOOR_STEPS = [
@@ -87,7 +87,7 @@ export const EXT_SEQ_STEPS = [
   step('authorize', [0], 'The client starts the authorization_code flow', 'GET /authorize with the client\'s own PKCE challenge, state, scope and resource.', 'oauth-mcp requires code_challenge: there is no non-PKCE flow.', SEQ_DETAIL.authorize),
   step('redirect-p1', [1], 'oauth-mcp federates to PingOne', 'It makes its own, separate PKCE pair and a relayState, then sends the browser to PingOne\'s real /authorize.', 'Two PKCE pairs, two verifiers: the client never sees the PingOne hop, and its state is not sent to PingOne.', SEQ_DETAIL.redirectP1),
   step('callback', [2], 'The user signs in; PingOne calls back', 'A real PingOne login (username and password), then a redirect to /authorize/callback with the PingOne code and the relayState.', null, SEQ_DETAIL.callback),
-  step('pingone-token', [3], 'oauth-mcp trades the PingOne code for a real token', 'It POSTs the code and its own verifier to PingOne\'s token endpoint and verifies the returned access token against PingOne\'s JWKS.', 'The sub of this token is the real user id.', SEQ_DETAIL.pingoneToken),
+  step('pingone-token', [3], 'oauth-mcp trades the PingOne code for a real token', 'It POSTs the code and its own verifier to PingOne\'s token endpoint and verifies the returned ID token (the access token only if no ID token comes back) against PingOne\'s JWKS.', 'The sub of the verified token is the real user id.', SEQ_DETAIL.pingoneToken),
   step('mint', [4], 'oauth-mcp mints its own JWT and stashes the real one', 'It signs a JWT with its own key and keeps the PingOne token server-side, keyed by the JWT\'s jti. The client gets only the JWT.', 'This JWT, not the PingOne token, is the Bearer for every MCP call from here on.', SEQ_DETAIL.mintJwt),
   step('mcp-call', [5], 'The client calls /mcp with the self-signed JWT', 'POST /mcp tools/call through the gateway, which introspects the bearer and asks PingOne Authorize before mcp-server runs the tool.', null, SEQ_DETAIL.mcpCall),
   step('resolve', [6], 'TokenResolver finds the stashed PingOne token', 'The jti is found, so the real PingOne token is forwarded to the Banking API (source: agent-federated-passthrough).', 'P1AZ saw the real PingOne sub as UserId, so every tool call is attributed to a person.', SEQ_DETAIL.resolveFederated),

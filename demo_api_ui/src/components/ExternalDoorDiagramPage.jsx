@@ -27,7 +27,7 @@ const SEQUENCE_SOURCE = `sequenceDiagram
     Note over P1: real PingOne login —<br/>username/password
     P1-->>OM: GET /authorize/callback<br/>?code&state=relayState
     OM->>P1: POST /token (PingOne code + verifier)
-    P1-->>OM: real PingOne access_token<br/>(verified via JWKS)
+    P1-->>OM: real PingOne tokens<br/>(ID token verified via JWKS)
     OM->>OM: mint self-signed JWT (jti)<br/>stash real PingOne token keyed by jti
     OM-->>Client: self-signed JWT<br/>(Bearer for every MCP call)
     Client->>OM: POST /mcp tools/call<br/>(Bearer self-signed JWT)
@@ -60,7 +60,7 @@ const NOTES = [
     title: "authorization_code — real user federated",
     items: [
       { text: "The client's PKCE and oauth-mcp's own PKCE against PingOne are two entirely separate pairs — the client never sees the PingOne hop." },
-      { text: "PingOne's real access token is verified against PingOne's JWKS and stashed server-side, keyed by the minted JWT's jti — never handed to the client." },
+      { text: "PingOne's ID token (the access token only if no ID token comes back) is verified against PingOne's JWKS, and the real access token is stashed server-side, keyed by the minted JWT's jti — never handed to the client." },
       { text: "TokenResolver finds the stash and forwards the real PingOne token to the Banking API — this is source: 'agent-federated-passthrough'." },
       { text: "P1AZ's UserId parameter is the real PingOne sub — the demo can attribute every tool call to an actual person." },
     ],
