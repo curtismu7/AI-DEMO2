@@ -16,6 +16,20 @@ describe('Resource Server Placement ping-style detail', () => {
     expect(t.claims.aud).toBe('banking-rs');
     expect(t.claims.act).toBeTruthy();
   });
+  it('gateway token act chain nests the current actor outermost (RFC 8693)', () => {
+    const act = RSP_STEP_DETAILS[2].detail.tokens[0].claims.act;
+    expect(act.sub).toBe('mcp-gateway');
+    expect(act.act.sub).toBe('agent1');
+  });
+  it('sideband steps follow the recorded mock contract and cite no invented spec', () => {
+    [4, 5, 6, 7].forEach((i) => {
+      const d = RSP_STEP_DETAILS[i].detail;
+      expect(d.form).toMatch(/illustrative/);
+      expect(d.form).not.toMatch(/"decision"/);
+      d.refs.forEach((r) => expect(r.id).not.toMatch(/sideband/i));
+    });
+    expect(RSP_STEP_DETAILS[4].detail.form).toMatch(/"headers": \[/);
+  });
   it('every node group exists', () => {
     RSP_NODES.forEach((n) => expect(RSP_GROUPS[n.group]).toBeTruthy());
   });
