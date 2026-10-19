@@ -101,3 +101,27 @@ describe('PiFlowSignInModal front door', () => {
     expect(sessionStorage.getItem(KEY)).toBeNull();
   });
 });
+
+describe('PiFlowSignInModal front door: device choice', () => {
+  test('"Use a device instead" leaves for the hosted page instead of calling an app device route', async () => {
+    Object.defineProperty(window, 'location', {
+      configurable: true,
+      value: { origin: 'https://app.test', pathname: '/mfa-test', search: '', href: '', assign: vi.fn() },
+    });
+    global.fetch = vi.fn((url) => {
+      const u = String(url);
+      if (u.includes('/api/admin/config')) return ok({ config: CONFIG });
+      if (u.includes('/hosted-access/identifier-policy')) return ok({ rejectPlusAddressing: false, allowedIdentifiers: [], frontDoorPiFlow: true });
+      if (u.includes('/hosted-access/check')) return Promise.resolve({ ok: false, status: 401 });
+      if (u.includes('/hosted-access/login')) return ok({ flowId: 'fd1', status: 'USERNAME_PASSWORD_REQUIRED' });
+      return ok({}, 404);
+    });
+    render(<PiFlowSignInModal />);
+    await waitFor(() => expect(global.fetch.mock.calls.some(([u]) => String(u).includes('/hosted-access/identifier-policy'))).toBe(true));
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+    await act(async () => { navigateToCustomerOAuthLogin('/mfa-test'); });
+    fireEvent.click(await screen.findByRole('button', { name: 'Use a device instead' }));
+    await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login'));
+    expect(global.fetch.mock.calls.some(([u]) => String(u).includes('/pi-flow/passwordless'))).toBe(false);
+  });
+});
