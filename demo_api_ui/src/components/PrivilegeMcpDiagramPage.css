@@ -18,30 +18,6 @@
 
 .pmd-hero { margin-bottom: 4px; }
 
-.pmd-eyebrow {
-  display: inline-block;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--pmd-accent);
-  margin-bottom: 2px;
-}
-
-.pmd-hero h1 {
-  font-size: var(--font-size-h2);
-  margin: 0 0 4px;
-  letter-spacing: -0.01em;
-}
-
-.pmd-sub {
-  color: var(--pmd-ink-2);
-  font-size: var(--font-size-sm);
-  margin: 0;
-  max-width: 80ch;
-  line-height: 1.5;
-}
-
 .pmd-tabs {
   display: flex;
   gap: 4px;
@@ -156,4 +132,13 @@
 :root[data-theme="light"] .pmd-page.pgt-page.pgt-page {
   --pmd-ink-2: #3a4150;
   --pmd-accent: #0a5c48;
+}
+
+/* still used by the topology tab blurb (.pmd-sub.pgt-blurb) */
+.pmd-sub {
+  color: var(--pmd-ink-2);
+  font-size: var(--font-size-sm);
+  margin: 0;
+  max-width: 80ch;
+  line-height: 1.5;
 }

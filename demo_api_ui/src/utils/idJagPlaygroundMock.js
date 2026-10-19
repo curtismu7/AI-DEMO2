@@ -157,6 +157,22 @@ function route(method, url, body) {
       token: idJag(IDENX),
     };
   }
+  if (method === "get" && path === "/backends") {
+    return { backends: [
+      { id: "idp", label: MOCK_CONFIG.idp.name, url: `${ISSUER}/.well-known/openid-configuration`, state: "up", ms: 0, detail: "sample data" },
+      { id: "resource-as", label: MOCK_CONFIG.resourceAs.name, url: `${AS_ISSUER}/.well-known/oauth-authorization-server`, state: "up", ms: 0, detail: "sample data" },
+    ] };
+  }
+  // Sample of a proved revoke: the control and the revoke succeed, the retry is refused the way PingFederate refuses it.
+  if (path === "/revoke") {
+    const request = { endpoint: `POST ${ISSUER}/as/token.oauth2`, body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", requested_token_type: ID_JAG_TOKEN_TYPE, subject_token: "[your session token, never sent to the browser]", subject_token_type: "urn:ietf:params:oauth:token-type:refresh_token", audience: AS_ISSUER, resource: RESOURCE, scope: SCOPE, client_id: "agent-exchange-client" } };
+    const control = { ok: true, status: 200, error: null, request };
+    const retry = { ok: false, status: 400, error: "invalid_request", error_description: "The refresh token is invalid (sample data).", request };
+    return {
+      control, revoke: { request: { endpoint: `POST ${ISSUER}/as/revoke_token.oauth2`, body: { token: "[your refresh token, never sent to the browser]", token_type_hint: "refresh_token" } }, status: 200, error: null, error_description: null },
+      retry, proved: true,
+    };
+  }
   if (path === "/redeem") return redeem(body?.scope);
   if (path === "/call") return call(body);
   if (path === "/resource") return resource(body?.variant);

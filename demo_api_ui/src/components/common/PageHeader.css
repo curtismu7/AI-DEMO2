@@ -90,6 +90,7 @@
 
 .ping-page-header__badge {
   padding: 4px 10px;
+  color: #ffffff !important;
   border: 1px solid currentColor;
   border-radius: var(--radius-pill);
   font-size: var(--font-size-xs);
@@ -112,7 +113,7 @@
 }
 
 .ping-page-header .ping-page-header__summary code {
-  color: #ffffff;
+  color: #ffffff !important;
   padding: 0.1rem 0.35rem;
   border-radius: var(--radius-sm, 4px);
   background: rgba(255, 255, 255, 0.14);

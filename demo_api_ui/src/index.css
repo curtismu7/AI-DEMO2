@@ -2053,7 +2053,9 @@ body {
 .inspector-shell-topbar__right > span:not(.tst-topbar-badge) { color: var(--th-text-body) !important; }
 .postman-page__header h1 { color: #ffffff !important; }
 .postman-page__subtitle { color: var(--th-text-body); }
-.ping-page-header a:not(.ping-back-link) { color: #ffffff; text-decoration: underline; }
+.ping-page-header .ping-page-header__summary a,
+.ping-page-header nav a,
+.ping-page-header > a:not(.ping-back-link) { color: #ffffff !important; text-decoration: underline; }
 .pd-page__header-links .priv-demo-signin { color: #ffffff; }
 
 /* ── Contrast fixes, round 2 (found by scripts/audit-contrast-runtime.mjs) ───────────────────── */

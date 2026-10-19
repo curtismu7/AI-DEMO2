@@ -120,3 +120,19 @@
 .ijp-sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 /* The PingOne end-user stylesheet indents every list; these are flush. */
 .ijp .ijp-negatives, .ijp .ijp-verify, .ijp .ijp-preflight ul { padding-left: 0; }
+
+/* Backends strip: one chip per backend; the state is text as well as colour. */
+.ijp-backends { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin: 0.5rem 0 1rem; font-size: var(--font-size-sm); }
+.ijp-backends__label { font-weight: 700; color: var(--ijp-strong); }
+.ijp-backends__list { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+.ijp-chip { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.2rem 0.6rem; border: 1px solid var(--th-border); border-radius: var(--radius-pill); background: var(--th-bg-card); }
+.ijp-chip__led { width: 0.55rem; height: 0.55rem; border-radius: 50%; background: var(--th-text-muted); }
+.ijp-chip.is-up .ijp-chip__led { background: #15803d; }
+.ijp-chip.is-slow .ijp-chip__led { background: #b45309; }
+.ijp-chip.is-down .ijp-chip__led { background: var(--ijp-red); }
+.ijp-chip__state { color: var(--th-text-muted); }
+
+/* Real-client panel and the Code view. */
+.ijp-real { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
+.ijp-real summary { cursor: pointer; font-weight: 600; color: var(--ijp-strong); }
+.ijp-code { white-space: pre; overflow-x: auto; font-size: var(--font-size-2xs); line-height: 1.5; }

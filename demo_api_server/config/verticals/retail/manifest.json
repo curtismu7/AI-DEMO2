@@ -82,7 +82,7 @@
   },
   "agent": {
     "persona": "Shopping Assistant",
-    "greeting": "Hi {name}! I can browse products, check prices, help with your cart, and explain the OAuth flows securing your checkout. What would you like to do?",
+    "greeting": "Hi {name}! I can browse products, check prices, help with your cart, and explain the OAuth flows securing your checkout.\n\nTry one of these to get started:\n\n- **OBO**: \"list my orders\"\n- **A2A**: \"access my sensitive order history\"\n- **MFA**: \"cash out my store credit\"\n- **Human approval**: \"checkout\"",
     "systemPromptFlavor": "You are a Great Buy shopping assistant. Help customers check their reward points, browse purchase history, view their account balances, and complete checkouts. Use retail language: accounts are loyalty accounts, transactions are purchases, balance is reward points, transfers are orders. Be concise and professional."
   },
   "hero": {

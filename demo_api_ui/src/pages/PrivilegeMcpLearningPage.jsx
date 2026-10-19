@@ -1,8 +1,8 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
 import useDividerDrag from "../hooks/useDividerDrag";
 import StaticFlowDiagram from "../components/StaticFlowDiagram";
 import "./PrivilegeMcpLearningPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 // The request flow, as a walkthrough: the shared Play/Step bar and movie reel
 // come with StaticFlowDiagram (walk drives them). Replaces the hand-built
@@ -142,7 +142,6 @@ function Section({ id, title, children }) {
 
 export default function PrivilegeMcpLearningPage() {
   const [activeSection, setActiveSection] = useState("overview");
-  const navigate = useNavigate();
   const { size: navWidth, handleProps: navHandleProps } = useDividerDrag({
     min: 180,
     max: 400,
@@ -157,16 +156,7 @@ export default function PrivilegeMcpLearningPage() {
 
   return (
     <div className="plp-page">
-      <header className="plp-header">
-        <button className="plp-back" onClick={() => navigate("/privilege-mcp-client")}>
-          Back to Privilege MCP Client
-        </button>
-        <h1>AI Agent Gateway</h1>
-        <p className="plp-subtitle">
-          Just-in-time, least-privilege access control for MCP servers — hiding backend
-          credentials from AI agents while enforcing tool-level policies with full audit.
-        </p>
-      </header>
+      <PageHeader className="plp-header" back={{ to: "/privilege-mcp-client", label: "Back to Privilege MCP Client" }} title="AI Agent Gateway" summary="Just-in-time, least-privilege access control for MCP servers — hiding backend credentials from AI agents while enforcing tool-level policies with full audit." />
 
       <div className="plp-layout" style={{ "--plp-nav-w": `${navWidth}px` }}>
         <nav className="plp-sidebar">

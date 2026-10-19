@@ -61,7 +61,7 @@ describe('PiFlowSignInModal', () => {
   });
 
   // identity: the active vertical's manifest identity block, or undefined for no provider.
-  async function mountAndClick(identity) {
+  async function mountAndClick(identity, returnTo = '/dashboard') {
     render(
       identity === undefined ? (
         <PiFlowSignInModal />
@@ -73,15 +73,15 @@ describe('PiFlowSignInModal', () => {
     );
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
     await act(async () => { await Promise.resolve(); });
-    await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
+    await act(async () => { navigateToCustomerOAuthLogin(returnTo); });
     await chooseAndSettle('passkey');
   }
 
   // The modal's default step is the device-only (passwordless) form. Tests that
   // exercise the password path click through to it explicitly; the switch
   // re-opens the flow without the passwordless selector.
-  async function mountAndClickPassword(identity) {
-    await mountAndClick(identity);
+  async function mountAndClickPassword(identity, returnTo) {
+    await mountAndClick(identity, returnTo);
     fireEvent.click(await screen.findByRole('button', { name: 'Use your password instead' }));
     await waitFor(() => expect(screen.getByLabelText('Password')).toBeInTheDocument());
     return screen.getByLabelText('Username');
@@ -190,6 +190,20 @@ describe('PiFlowSignInModal', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fdashboard'));
+  });
+
+  test('a returnTo with a query string reaches the redirect login as the bare path', async () => {
+    mockBff({
+      config: ON,
+      login: () => ok({ flowId: 'f1' }),
+      credentials: () => ok({ fallback: true, status: 'DEVICE_SELECTION_REQUIRED' }),
+    });
+    await mountAndClickPassword(undefined, '/pingone-mcp-inspector?vertical=healthcare');
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fpingone-mcp-inspector'));
+    expect(window.location.href).not.toContain('vertical');
   });
 
   test('a transient BFF 5xx on credentials shows a retryable error and stays in pi.flow', async () => {
@@ -849,7 +863,7 @@ describe('PiFlowSignInModal login-hint persistence', () => {
     assign = stubLocation();
   });
 
-  test('username prefills from the open response usernameHint and typing PUTs it to /login-hint after the debounce', async () => {
+  test('username prefills from the open response usernameHint; typing never stores a hint (only a successful sign-in does)', async () => {
     vi.useFakeTimers();
     mockBff({
       config: ON,
@@ -862,12 +876,11 @@ describe('PiFlowSignInModal login-hint persistence', () => {
     fireEvent.change(box, { target: { value: 'typed@pingone.com' } });
     await act(async () => { vi.advanceTimersByTime(900); });
     const put = global.fetch.mock.calls.find(([u, i]) => String(u).includes('/login-hint') && i?.method === 'PUT');
-    expect(put).toBeTruthy();
-    expect(JSON.parse(put[1].body)).toEqual({ value: 'typed@pingone.com' });
+    expect(put).toBeUndefined();
     vi.useRealTimers();
   });
 
-  test('admin role PUTs to the admin login-hint path', async () => {
+  test('admin: prefills from usernameHint; typing never stores a hint', async () => {
     vi.useFakeTimers();
     // mockAdminBff lives in the 'admin pi.flow' describe's scope; inline the
     // same arms here for the admin router's URL set.
@@ -883,9 +896,8 @@ describe('PiFlowSignInModal login-hint persistence', () => {
     expect(box.value).toBe('storedAdmin@pingone.com');
     fireEvent.change(box, { target: { value: 'typedAdmin@pingone.com' } });
     await act(async () => { vi.advanceTimersByTime(900); });
-    const put = global.fetch.mock.calls.find(([u, i]) => String(u).includes('/api/auth/oauth/login-hint') && i?.method === 'PUT');
-    expect(put).toBeTruthy();
-    expect(JSON.parse(put[1].body)).toEqual({ value: 'typedAdmin@pingone.com' });
+    const put = global.fetch.mock.calls.find(([u, i]) => String(u).includes('/login-hint') && i?.method === 'PUT');
+    expect(put).toBeUndefined();
     vi.useRealTimers();
   });
 });

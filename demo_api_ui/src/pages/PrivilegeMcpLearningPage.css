@@ -5,41 +5,9 @@
   font-family: var(--font-primary);
 }
 
-.plp-header {
-  padding: 2rem 3rem 1.5rem;
-  border-bottom: 1px solid var(--th-border);
-  background: var(--th-bg-band);
-  color: var(--th-text-invert);
-}
-
-.plp-back {
-  background: none;
-  border: 1px solid var(--th-border-strong);
-  color: var(--th-text-invert);
-  padding: 0.4rem 0.8rem;
-  border-radius: var(--radius-md);
-  cursor: pointer;
-  font-size: 0.8rem;
-  margin-bottom: 1rem;
-}
 .plp-back:hover {
   background: var(--th-bg-hover);
   color: var(--th-text);
-}
-
-.plp-header h1 {
-  font-size: 1.8rem;
-  font-weight: 600;
-  color: var(--th-text-invert);
-  margin: 0 0 0.5rem;
-}
-
-.plp-subtitle {
-  color: var(--th-text-invert);
-  font-size: 1rem;
-  max-width: 700px;
-  margin: 0;
-  line-height: 1.5;
 }
 
 .plp-layout {

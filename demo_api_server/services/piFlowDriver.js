@@ -253,6 +253,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
     if (user.mobilePhone) channels.push('sms');
     if (!channels.length) return { passthrough: true }; // nothing to approve on
     const { id, username: uname, email, mobilePhone, enabled } = user;
+    console.log('[oauth/pi-flow] password step done, flow parked for approval: user=%s channels=%s', id, channels.join(','));
     req.session.oauthPiFlowParked = {
       pending, cookies, body, username,
       expectedSub: id,
