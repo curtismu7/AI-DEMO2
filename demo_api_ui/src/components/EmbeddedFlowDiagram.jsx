@@ -6,19 +6,21 @@ import './EmbeddedFlowDiagram.css';
 
 // Generic embed of a StaticFlowDiagram config {GROUPS, NODES, EDGES, STEPS} with the stepper, legend and step
 // cards (same shape as HostileA2aDiagramSection). `testId` prefixes the inner test ids.
-export default function EmbeddedFlowDiagram({ config, title, lede, ariaLabel = title, diagramLabel = ariaLabel, testId }) {
+// `pingStyle` (opt-in, default false) turns on the Token Chain look and behaviour in the inner StaticFlowDiagram
+// and feeds it STEPS[i].detail ({ form?, tokens?, refs? }); see StaticFlowDiagram.jsx for the details.
+export default function EmbeddedFlowDiagram({ config, title, lede, ariaLabel = title, diagramLabel = ariaLabel, testId, pingStyle = false }) {
   const { GROUPS, NODES, EDGES, STEPS } = config;
   const stepper = useDiagramStepper(EDGES.length);
   const names = useMemo(() => Object.fromEntries(NODES.map((n) => [n.id, n.label])), [NODES]);
   const captions = useMemo(() => edgeCaptions(EDGES, names), [EDGES, names]);
   const usedGroups = [...new Set(NODES.map((n) => n.group))];
   return (
-    <section className="efd" aria-label={ariaLabel} data-testid={testId}>
+    <section className={`efd${pingStyle ? " efd--ping" : ""}`} aria-label={ariaLabel} data-testid={testId}>
       <h3>{title}</h3>
       <p className="efd-lede">{lede}</p>
       <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId={`${testId}-steps`} />
       <figure className="efd-figure">
-        <StaticFlowDiagram NODES={NODES} EDGES={EDGES} GROUPS={GROUPS} stepper={stepper} testId={`${testId}-flow`} ariaLabel={diagramLabel} />
+        <StaticFlowDiagram NODES={NODES} EDGES={EDGES} GROUPS={GROUPS} stepper={stepper} testId={`${testId}-flow`} ariaLabel={diagramLabel} pingStyle={pingStyle} steps={STEPS} />
         <ul className="efd-legend" aria-label="Legend">
           {usedGroups.map((g) => (
             <li key={g}><i className="efd-sw" style={{ borderTopColor: GROUPS[g].bg }} />{GROUPS[g].label}</li>

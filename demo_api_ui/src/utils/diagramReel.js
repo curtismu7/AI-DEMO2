@@ -35,3 +35,24 @@ export function buildNodeDetail(node, details) {
   const text = detailText(node, details);
   return { title: firstLine(node.label), lines: text ? [{ who: "", text }] : [] };
 }
+
+/**
+ * pingStyle: fold STEPS[i].detail = { form?, tokens?: [{ note, header?, claims }], refs?: [{ id, title, kind }] } into the
+ * reel steps. Reel step k is EDGES[k]; STEPS[i].edges lists the edge indexes a step covers, so every arrow in
+ * STEPS[i].edges shows STEPS[i].detail (request form, then each mock token, then the standards list).
+ */
+export function withStepDetail(reelSteps, steps) {
+  const byEdge = {};
+  (steps || []).forEach((s) => s.detail && (s.edges || []).forEach((e) => { byEdge[e] = s.detail; }));
+  return reelSteps.map((r, i) => {
+    const d = byEdge[i];
+    if (!d) return r;
+    const lines = [...r.lines];
+    if (d.form) lines.push({ who: "Request", code: d.form });
+    (d.tokens || []).forEach((t) => {
+      const decoded = { ...(t.header ? { header: t.header } : {}), claims: t.claims };
+      lines.push({ who: `Token: ${t.note.split("·")[0].trim()}`, code: `${t.note} (MOCK, teaching values only)\n${JSON.stringify(decoded, null, 2)}` });
+    });
+    return { ...r, lines, refs: d.refs || r.refs };
+  });
+}

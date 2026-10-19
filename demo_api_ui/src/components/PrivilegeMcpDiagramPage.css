@@ -142,3 +142,17 @@
   max-width: 80ch;
   line-height: 1.5;
 }
+
+/* Ping-style page (/privilege-mcp-diagrams): follows the app theme instead of the fixed-dark palette, so the light-grey
+   canvas, the dark text and the dark-mode canvas all read correctly. Doubled class outranks the rules above. */
+.pmd-page.pmd-page--ping {
+  --pmd-bg: var(--th-bg-page);
+  --pmd-panel: var(--th-bg-card);
+  --pmd-ink: var(--th-text);
+  --pmd-ink-2: var(--th-text-body);
+  --pmd-border: var(--th-border);
+  --pmd-accent: var(--th-status-info);
+}
+.pmd-page.pmd-page--ping.pmd-page--ping a:any-link { color: var(--th-status-info); }
+.pmd-page.pmd-page--ping.pmd-page--ping code { color: var(--th-text); }
+.pmd-page--ping .efd h3 { color: var(--th-text); font-size: var(--font-size-lg); }

@@ -3,6 +3,7 @@
 // Node `steps` ([n]) light a node on that walkthrough step; edge `step` animates an arrow. Reuses the OBO and
 // Coding Agents slides already built for /demo-arch-slides.
 import { OBO_SLIDE, OBO_STEPS, CODING_SLIDE, CODING_STEPS } from './pingSlideDiagrams';
+import { IDENTITY_FOR_AI_DIAGRAM } from './identityForAiDiagram';
 
 export const ID4AI_PDF = '/id4ai/ID4AI-Maturity-Model-Architecture-501.pdf';
 
@@ -524,7 +525,7 @@ const CONSUMER_REF_STEPS = [
 
 const ep = (subtitle, broker, admin) => ({ config: endpointRef(subtitle, broker, admin), steps: ENDPOINT_STEPS(broker, admin) });
 
-// id, menu label, source pdf page, config, steps, caption
+// id, menu label, source pdf page, config, steps, caption, optional ping (a pingStyle {GROUPS,NODES,EDGES,STEPS} diagram that replaces the PingSlideFlow config)
 export const ID4AI_SLIDES = [
   ['journey', 'The journey to trust AI', 2, JOURNEY, JOURNEY_STEPS, 'Five questions every customer works through: discover, register, authenticate, authorize and govern their agents.'],
   ['four-kinds', 'Four kinds of agents', 3, FOUR_KINDS, FOUR_KINDS_STEPS, 'Personal agents run on the device; enterprise agents run in the cloud. Same outcome, different paths.'],
@@ -547,5 +548,6 @@ export const ID4AI_SLIDES = [
   ['needs-access', 'AI agents need access to data and services', 27, NEEDS_ACCESS, NEEDS_ACCESS_STEPS, 'IAM is central to AI agent success.'],
   ['identity-layers', 'Layers of agent identity', 32, LAYERS, LAYERS_STEPS, 'Identity types, the resources they reach, and the credentials used at each layer.'],
   ['id-jag-ema', 'Enterprise managed authorization via ID-JAG', 43, EMA, EMA_STEPS, 'No per-user consent screens; enterprise-managed runtime policy enforcement.'],
+  ['identity-for-ai', 'Identity for AI General Availability', 45, null, IDENTITY_FOR_AI_DIAGRAM.STEPS.map((x) => [x.title, x.what]), 'Protect, Authorize and Privilege, Agent IAM Core, Agent Gateway and Agent Governance, between users, agents and resources.', IDENTITY_FOR_AI_DIAGRAM],
   ['consumer-ref', 'Ref arch: Consumer Agents', 48, CONSUMER_REF, CONSUMER_REF_STEPS, 'MCP interface and CUA interface paths for consumer agents.'],
-].map(([id, label, page, config, steps, caption]) => ({ id, label, page, config, steps, caption }));
+].map(([id, label, page, config, steps, caption, ping]) => ({ id, label, page, config, steps, caption, ping }));
