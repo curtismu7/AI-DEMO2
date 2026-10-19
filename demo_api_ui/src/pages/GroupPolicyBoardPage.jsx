@@ -188,6 +188,7 @@ export default function GroupPolicyBoardPage() {
         lede="The board and the check panel ask PingOne Authorize the same question about two different users; flipping membership in the PingOne directory flips the next answer."
         ariaLabel="Group policy decision flow"
         testId="gpb-diagram"
+        pingStyle
       />
 
       <section className="gpb-control">
