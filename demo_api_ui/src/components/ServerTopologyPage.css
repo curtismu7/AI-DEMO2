@@ -355,3 +355,16 @@
 }
 
 .stm-service-filter, .stm-service-count, .stm-playback label, .stm-playback__progress, .stm-graph-caption, .stm-legend, .stm-notes, .stm-flow-toggle { font-weight: 600; }
+
+/* Ping slide look (topology): dark Ping cards, dashed zones, identity and gateway nodes in Ping red. */
+.stm-node { background: #151a24; border: 1.5px solid #3a4256; border-radius: var(--radius-lg); }
+.stm-node::before { height: 3px; }
+.stm-node[data-ping-red="true"] { background: #b5231a; border-color: #b5231a; }
+.stm-node[data-ping-red="true"] .stm-node__head strong,
+.stm-node[data-ping-red="true"] .stm-node__service,
+.stm-node[data-ping-red="true"] .stm-node__meta { color: #fff; }
+.stm-node.is-selected { border-color: #4da3ff; box-shadow: 0 0 0 4px #4da3ff55, 0 14px 30px #000a; }
+.stm-zone { border: 1px dashed #5b6375; background: transparent; box-shadow: none; }
+.stm-zone > span { color: #b8bcc8; border-color: #5b6375; }
+.stm-zone--external, .stm-zone--identity, .stm-zone--optional, .stm-zone--observability { background: transparent; }
+.stm-zone--external > span, .stm-zone--identity > span, .stm-zone--observability > span { color: #b8bcc8; }

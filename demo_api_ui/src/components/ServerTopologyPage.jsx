@@ -70,7 +70,7 @@ function labelForEdge(item, layer) {
 const ServerCardNode = memo(function ServerCardNode({ data, selected }) {
   const group = GROUPS[data.group] || GROUPS.core;
   return (
-    <article className={`stm-node stm-node--${data.kind}${selected ? " is-selected" : ""}`} style={{ "--stm-accent": group.color, "--stm-node-type-color": NODE_TYPE_COLORS[data.kind] || group.color }}>
+    <article data-ping-red={data.kind === "identity" || data.kind === "gateway" ? "true" : undefined} className={`stm-node stm-node--${data.kind}${selected ? " is-selected" : ""}`} style={{ "--stm-accent": group.color, "--stm-node-type-color": NODE_TYPE_COLORS[data.kind] || group.color }}>
       <Handle type="target" position={Position.Left} aria-label="Connection input" />
       <div className="stm-node__head">
         <span className="stm-node__dot" aria-hidden="true" />
