@@ -67,3 +67,46 @@ describe('PiFlowSignInModal: AIC in a popup', () => {
     expect(assign).not.toHaveBeenCalled();
   });
 });
+
+// The hosted-access front door is a plain password flow that runs BEFORE the app sign-in, even with AIC on:
+// a flow without an AIC link must not be treated as an AIC failure there.
+describe('PiFlowSignInModal: AIC with the hosted-access front door', () => {
+  const urls = () => global.fetch.mock.calls.map(([u]) => String(u));
+  beforeEach(() => {
+    sessionStorage.clear();
+    Object.defineProperty(window, 'location', { configurable: true, value: { origin: 'https://app.test', pathname: '/dashboard', search: '', href: '', assign: vi.fn() } });
+  });
+  const bff = (checkStatus) => {
+    global.fetch = vi.fn((url) => {
+      const u = String(url);
+      if (u.includes('/api/admin/config')) return ok({ config: CONFIG });
+      if (u.includes('/hosted-access/identifier-policy')) return ok({ rejectPlusAddressing: false, allowedIdentifiers: [], frontDoorPiFlow: true });
+      if (u.includes('/hosted-access/check')) return Promise.resolve({ ok: checkStatus < 400, status: checkStatus });
+      if (u.includes('/hosted-access/login')) return ok({ flowId: 'fd1', status: 'USERNAME_PASSWORD_REQUIRED' });
+      if (u.includes('/oauth/user/login')) return ok({ flowId: 'f1', status: 'EXTERNAL_AUTHENTICATION_REQUIRED', externalAuthUrl: LINK });
+      return ok({}, 404);
+    });
+  };
+  const signIn = async () => {
+    render(<PiFlowSignInModal />);
+    await waitFor(() => expect(urls().some((u) => u.includes('/hosted-access/identifier-policy'))).toBe(true));
+    await act(async () => { for (let i = 0; i < 6; i++) await Promise.resolve(); });
+    await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
+    await act(async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); });
+  };
+
+  test('not past the wall: the front-door password flow opens in the modal, not an AIC step or a redirect', async () => {
+    bff(401);
+    await signIn();
+    expect(urls().some((u) => u.includes('/hosted-access/login'))).toBe(true);
+    expect(await screen.findByLabelText('Username')).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: 'Continue with AIC' })).toBeNull();
+    expect(window.location.assign).not.toHaveBeenCalled();
+  });
+
+  test('past the wall: the app sign-in is the AIC step', async () => {
+    bff(204);
+    await signIn();
+    expect(await screen.findByRole('button', { name: 'Continue with AIC' })).toBeInTheDocument();
+  });
+});

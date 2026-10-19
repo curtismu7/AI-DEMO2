@@ -8,6 +8,7 @@ const YAML = require('yaml');
 const ROOT = path.resolve(__dirname, '..');
 const REQUIRED_BYPASSES = [
   '/api/auth/hosted-access/login',
+  '/api/auth/hosted-access/pi-flow/credentials',
   '/api/auth/hosted-access/callback',
   '/api/auth/hosted-access/logout',
   '/api/auth/hosted-registration/request',
