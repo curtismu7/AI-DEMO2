@@ -117,6 +117,72 @@ export const ID_JAG_SLIDE = {
   ],
 };
 
+// ---- Topology and CIBA slides (dark): same nodes as the ID-JAG slide plus the MCP servers and HITL service ----
+const workloadBase = (opts = {}) => [
+  N('zone', 'zone', 250, -40, { w: 1220, h: 890, label: 'Trust boundary' }),
+  N('user', 'user', 10, 420, { w: 90, h: 90 }),
+  N('uilab', 'text', 0, 520, { label: 'Customer · Admin\nbrowser · passkey' }),
+  N('ui', 'win', 130, 422, { w: 170, h: 90, label: 'demo_api_ui :4000', sub: 'React SPA · cookie only' }),
+  N('bff', 'redbar', 340, 260, { w: 76, h: 400, label: 'demo_api_server :3001', sub: 'BFF · token custodian · session' }),
+  N('idp', 'redbox', 560, 90, { w: 300, h: 80, label: 'PingOne / PingFederate', sub: opts.idpSub }),
+  N('authz', 'redbox', 1080, 90, { w: 280, h: 80, label: 'PingOne Authorize', sub: 'PAP / PDP · mock demo_authz_server :9001' }),
+  N('agents', 'agents', 580, 400, { w: 360, h: 250, label: 'Enterprise agents', items: ['demo_agent_service :3006', 'langchain_agent :8888', 'openai · mastra · pydantic', 'A2A specialist', 'LLM via demo_llm_proxy :8090 (llama.cpp · oMLX)'] }),
+  N('gw', 'redbar', 1140, 300, { w: 80, h: 380, label: 'PingGateway (IG) :3036', sub: 'PEP · alt: demo_mcp_gateway :3005' }),
+  N('m1', 'win', 1580, 300, { w: 230, h: 66, label: 'oauth-mcp :8080', sub: 'Banking · aud mcp_banking' }),
+  N('m2', 'win', 1580, 400, { w: 230, h: 66, label: 'mcp_resource_server :8081', sub: 'Invest MCP · SQLite' }),
+  N('m3', 'win', 1580, 500, { w: 230, h: 66, label: 'api_resource_server :8082', sub: 'mortgage REST · X-API-Key' }),
+  N('hitl', 'win', 1140, 730, { w: 250, h: 70, label: 'demo_hitl_service :3009', sub: 'HITL challenge · receipts' }),
+];
+
+export const TOPOLOGY_SLIDE = {
+  title: 'Workload Agents',
+  subtitle: 'Agent Core + Gateway + Authorization · as built in the Super AI Demo',
+  dark: true,
+  aspect: '1900 / 900',
+  nodes: [
+    ...workloadBase({ idpSub: '(IdP · AS) · RFC 8693 · RFC 7662 · JWKS' }),
+    N('dir', 'redbox', 900, -10, { w: 190, h: 66, label: 'PingOne Directory', sub: 'users · groups · agent clients' }),
+    N('spire', 'grey', 580, 730, { w: 360, h: 80, label: 'SPIRE 1.15.2', sub: 'trust domain spiffe://bxfinance.demo' }),
+    N('third', 'win', 1580, 620, { w: 230, h: 66, label: '3rd-party MCP', sub: 'mcp-weather · mcp-brave · public' }),
+  ],
+  edges: [
+    E('spire', 'agents', 't', 'b', 1, { label: 'JWT-SVID', sub: 'attest · container selectors', dx: 150, dy: -20 }),
+    E('user', 'idp', 't', 't', 2, { label: 'User AuthN', sub: 'OIDC auth code + PKCE · passkey', dx: -40, dy: -10 }),
+    E('idp', 'dir', 'r', 'l', 2),
+    E('user', 'ui', 'r', 'l', 3),
+    E('ui', 'bff', 'r', 'l', 3),
+    E('bff', 'idp', 't', 'l', 4, { label: 'RFC 8693 token exchange', sub: 'subject = user AT · actor = agent', dx: 120, dy: -60 }),
+    E('idp', 'agents', 'b', 't', 4, { both: true, label: 'Delegated AT', sub: 'sub = user · act = agent · aud = mcp-gw', dx: 90 }),
+    E('bff', 'agents', 'r', 'l', 5, { both: true, label: 'AG-UI · SSE · STATE_DELTA', sub: 'OTel traces → Jaeger · Grafana', dy: 46 }),
+    E('agents', 'gw', 'r', 'l', 6, { label: 'MCP tools/call', sub: 'JSON-RPC · WS', off: -26, dy: -50, dx: -40 }),
+    E('gw', 'agents', 'l', 'r', 6, { dashed: true, deny: true, label: 'Invalid token → 401', sub: 'RFC 9728 metadata', off: 26, dy: 52 }),
+    E('gw', 'authz', 't', 'b', 7, { both: true, label: 'Token validation', sub: 'introspect RFC 7662 + decision', dx: -130 }),
+    E('dir', 'authz', 'r', 't', 7, { dashed: true, label: 'PIP', sub: 'user · group · agent attrs' }),
+    E('gw', 'm1', 'r', 'l', 8), E('gw', 'm2', 'r', 'l', 8), E('gw', 'm3', 'r', 'l', 8),
+    E('gw', 'hitl', 'b', 't', 9, { both: true, label: '-32002 / 403 hitl_required', sub: 'challenge opened; tool runs after approval', dx: 130 }),
+  ],
+};
+
+export const CIBA_SLIDE = {
+  title: 'Workload Agents',
+  subtitle: 'Step-up authorization · CIBA (HITL) · as built in the Super AI Demo',
+  dark: true,
+  aspect: '1900 / 900',
+  nodes: workloadBase({ idpSub: '(IdP · AS) · OIDC CIBA Core 1.0 · RFC 8693' }),
+  edges: [
+    E('agents', 'gw', 'r', 'l', 1, { label: 'MCP create_transfer', sub: 'delegated token', off: -26, dy: -50, dx: -40 }),
+    E('gw', 'authz', 't', 'b', 2, { label: 'Token validation + decision', sub: 'STEP_UP · amount ≥ $500', dx: -150 }),
+    E('gw', 'agents', 'l', 'r', 3, { dashed: true, deny: true, label: 'Not authorized', sub: 'step-up required', off: 26, dy: 52 }),
+    E('bff', 'idp', 't', 'l', 4, { label: 'CIBA backchannel request', sub: 'login_hint = session user · binding_message = the transfer', dx: 120, dy: -60 }),
+    E('idp', 'user', 'l', 't', 5, { dashed: true, label: 'Approved', sub: 'out-of-band · MFA push · /ciba-approve', dx: -10, dy: -26 }),
+    E('idp', 'bff', 'b', 't', 6, { dashed: true, label: 'poll → tokens', sub: 'stepUpVerified · 5-min TTL', dx: 70, dy: 10 }),
+    E('bff', 'agents', 'r', 'l', 7, { label: 'retry with receipt', sub: 'TX JWT · single-use', dy: 46 }),
+    E('gw', 'hitl', 'b', 't', 7, { both: true, label: 'Challenge + receipt', dx: 110 }),
+    E('authz', 'gw', 'b', 't', 8, { dashed: true, label: 'Approved · PERMIT', off: 30, dx: 120 }),
+    E('gw', 'm1', 'r', 'l', 8), E('gw', 'm2', 'r', 'l', 8), E('gw', 'm3', 'r', 'l', 8),
+  ],
+};
+
 // ---- Agentic Control Plane (dark): reference architecture of the demo's control plane, one box per role ----
 const CP = (id, kind, x, y, w, h, o = {}) => N(id, kind, x, y, { w, h, ...o });
 export const CONTROL_PLANE_SLIDE = {
