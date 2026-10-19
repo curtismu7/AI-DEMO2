@@ -1,14 +1,14 @@
-/* ResourceServerPlacementPage.css — single dark theme to match the Mermaid
-   diagram's dark rendering. Same structure as McpGatewayOauthFlowPage.css. */
+/* ResourceServerPlacementPage.css — themed with --th-* tokens so the pingStyle diagram
+   (light-grey canvas in light mode, near-black in dark) sits on a matching page. */
 
 .rsp-page {
-  --rsp-bg: #0f1115;
-  --rsp-panel: #161a21;
-  --rsp-ink: #e9ecf3;
-  --rsp-ink-2: #d0d5e0;
-  --rsp-border: #2a313c;
-  --rsp-accent: #ffc2c4;
-  --rsp-hot-bg: rgba(224, 87, 92, 0.1);
+  --rsp-bg: var(--th-bg-page);
+  --rsp-panel: var(--th-bg-card);
+  --rsp-ink: var(--th-text);
+  --rsp-ink-2: var(--th-text-muted);
+  --rsp-border: var(--th-border);
+  --rsp-accent: var(--th-status-error-text);
+  --rsp-hot-bg: var(--th-status-error-bg);
 
   background: var(--rsp-bg);
   color: var(--rsp-ink);
