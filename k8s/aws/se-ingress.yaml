@@ -150,6 +150,15 @@ spec:
             name: frontend
             port:
               number: 4000
+      # Front-door pi.flow password step (the modal's redirect-free sign-in). Public like /login and
+      # rate-limited by this ingress; the allowlist still decides at /callback.
+      - path: /api/auth/hosted-access/pi-flow/credentials
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
       # Sign-in modal reads the plus-addressing policy (public, no secrets).
       - path: /api/auth/hosted-access/identifier-policy
         pathType: Exact

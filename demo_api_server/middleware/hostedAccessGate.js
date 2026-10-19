@@ -10,6 +10,7 @@ const EXACT_BYPASSES = new Set([
   'GET /api/auth/hosted-access/login',
   // Sign-in modal reads the plus-addressing policy before opening the flow.
   'GET /api/auth/hosted-access/identifier-policy',
+  'POST /api/auth/hosted-access/pi-flow/credentials',
   'GET /api/auth/hosted-access/callback',
   'GET /api/auth/hosted-access/logout',
   'POST /api/auth/hosted-registration/request',
