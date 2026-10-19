@@ -10,11 +10,13 @@
  */
 import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
-  BaseEdge, EdgeLabelRenderer, getSmoothStepPath, Handle, Position, ReactFlow, ReactFlowProvider, Controls, useReactFlow, useUpdateNodeInternals,
+  BaseEdge, EdgeLabelRenderer, getSmoothStepPath, Handle, Position, ReactFlow, ReactFlowProvider, Controls, useReactFlow, useStore, useUpdateNodeInternals,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import { useDraggableNodes } from "../hooks/useDraggableNodes";
+import { pathFromPoints, labelPoint } from "../utils/orthoRoute";
+import { isObstacle, routeSlideEdges } from "./pingSlideRouting";
 import "./PingSlideFlow.css";
 
 const SIDE = { l: Position.Left, r: Position.Right, t: Position.Top, b: Position.Bottom, lt: Position.Left };
@@ -177,7 +179,7 @@ function SlideNode({ data }) {
 }
 
 function SlideEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }) {
-  const { off = 0, dashed, state, n, label, sub, at, dx = 0, dy = 0 } = data;
+  const { off = 0, dashed, state, n, label, sub, at, dx = 0, dy = 0, route } = data;
   const horiz = (p) => p === Position.Left || p === Position.Right;
   const sx = sourceX + (horiz(sourcePosition) ? 0 : off);
   const sy = sourceY + (horiz(sourcePosition) ? off : 0);
@@ -186,13 +188,16 @@ function SlideEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetP
   const [path, mx, my] = getSmoothStepPath({
     sourceX: sx, sourceY: sy, targetX: tx, targetY: ty, sourcePosition, targetPosition, borderRadius: 0, offset: 24,
   });
-  const lx = (at === "end" ? tx - 24 : mx) + dx;
-  const ly = (at === "end" ? ty - 8 : my) + dy;
+  // Routed around the boxes when the router found a way; otherwise (or while a box is being dragged) the smooth-step path.
+  const routed = route && route.ok;
+  const lp = routed ? labelPoint(route.pts) : { x: mx, y: my };
+  const lx = (at === "end" ? tx - 24 : lp.x) + dx;
+  const ly = (at === "end" ? ty - 8 : lp.y) + dy;
   const tr = at === "end" ? "translate(-100%, -100%)" : "translate(-50%, -50%)";
   const hot = state === "now";
   return (
     <g className={`ps-edge ps-edge--${state}${data.deny ? " ps-edge--deny" : ""}`}>
-      <BaseEdge path={path} markerEnd={`url(#ps-arrow${hot ? "-hot" : ""})`} markerStart={data.both ? `url(#ps-arrow${hot ? "-hot" : ""})` : undefined} style={{ strokeDasharray: dashed ? "5 4" : undefined }} />
+      <BaseEdge path={routed ? pathFromPoints(route.pts, 0) : path} markerEnd={`url(#ps-arrow${hot ? "-hot" : ""})`} markerStart={data.both ? `url(#ps-arrow${hot ? "-hot" : ""})` : undefined} style={{ strokeDasharray: dashed ? "5 4" : undefined }} />
       {(label || n) && (
         <EdgeLabelRenderer>
           <div className={`ps-elabel nodrag nopan ps-edge--${state}`} style={{ transform: `${tr} translate(${lx}px, ${ly}px)` }}>
@@ -258,6 +263,29 @@ function Inner({ config, step }) {
   );
   const { nodes, onNodesChange } = useDraggableNodes(laidOut);
 
+  // Routes come from the real boxes (React Flow's absolute positions and measured sizes) and are recomputed when a
+  // box lands; while one is being dragged the cheap smooth-step path is drawn. Zones/panels/boundary/text are not obstacles.
+  const [dragging, setDragging] = useState(false);
+  const nodeLookup = useStore((st) => st.nodeLookup);
+  const absKey = useStore((st) => {
+    let k = "";
+    for (const n of st.nodeLookup.values()) {
+      if (isObstacle(n.data.n)) k += `${n.id}:${Math.round(n.internals.positionAbsolute.x)},${Math.round(n.internals.positionAbsolute.y)},${n.measured?.width ?? ""},${n.measured?.height ?? ""}|`;
+    }
+    return k;
+  });
+  const routing = useMemo(() => {
+    if (dragging) return { routes: {}, fallbacks: null };
+    const rects = {};
+    for (const n of nodeLookup.values()) {
+      const p = n.internals.positionAbsolute;
+      if (!n.measured?.width || !n.measured?.height) { if (isObstacle(n.data.n)) return { routes: {}, fallbacks: null }; continue; }
+      rects[n.id] = { x: p.x, y: p.y, w: n.measured.width, h: n.measured.height, kind: n.data.n.kind };
+    }
+    return routeSlideEdges(config.edges, rects);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [absKey, dragging, config]);
+
   const edges = useMemo(
     () => config.edges.map((e, i) => ({
       id: `e${i}`,
@@ -268,13 +296,13 @@ function Inner({ config, step }) {
       targetHandle: `t-${e.ts}`,
       selectable: false,
       zIndex: 2,
-      data: { ...e, state: step === 0 ? "idle" : e.step === step ? "now" : e.step < step ? "past" : "future" },
+      data: { ...e, route: routing.routes[`e${i}`], state: step === 0 ? "idle" : e.step === step ? "now" : e.step < step ? "past" : "future" },
     })),
-    [config, step],
+    [config, step, routing],
   );
 
   return (
-    <div className="ps-canvas" ref={ref} role="group" aria-label={config.title} style={{ ...(config.aspect ? { aspectRatio: config.aspect } : {}), ...(k !== 1 ? { zoom: 1 / k } : {}) }}>
+    <div className="ps-canvas" ref={ref} role="group" aria-label={config.title} data-route-fallbacks={routing.fallbacks ?? undefined} style={{ ...(config.aspect ? { aspectRatio: config.aspect } : {}), ...(k !== 1 ? { zoom: 1 / k } : {}) }}>
       <svg width="0" height="0" aria-hidden="true" className="ps-defs">
         <defs>
           <marker id="ps-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse"><path d="M0 0L10 5L0 10z" className="ps-ah" /></marker>
@@ -285,6 +313,8 @@ function Inner({ config, step }) {
         nodes={nodes}
         edges={edges}
         onNodesChange={onNodesChange}
+        onNodeDragStart={() => setDragging(true)}
+        onNodeDragStop={() => setDragging(false)}
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
