@@ -60,6 +60,27 @@ describe("PrivilegeGatewayTopologyPage diagram data", () => {
     }
   });
 
+  it("does not misattribute standards: no AuthZEN/XACML for the JIT policy, no token exchange or Bearer on the provider-key swap, no RFC 9068 claim", () => {
+    const all = TABS.flatMap((t) => t.stepDetail);
+    const ids = all.flatMap((s) => s.detail.refs.map((r) => r.id));
+    expect(ids).not.toContain("OpenID AuthZEN");
+    expect(ids).not.toContain("XACML 3.0");
+    expect(ids).not.toContain("RFC 9068");
+    const a2a = TABS.find((t) => t.id === "a2a").stepDetail;
+    expect(a2a[7].detail.refs.map((r) => r.id)).not.toContain("RFC 8693");
+    expect(a2a[7].detail.refs.map((r) => r.id)).not.toContain("RFC 6750");
+  });
+
+  it("marks emerging work and shows a MOCK token wherever a token is on the wire", () => {
+    const all = TABS.flatMap((t) => t.stepDetail);
+    expect(all.some((s) => s.detail.refs.some((r) => r.kind === "emerging"))).toBe(true);
+    const byTab = Object.fromEntries(TABS.map((t) => [t.id, t.stepDetail]));
+    const hasTok = (tab, i) => (byTab[tab][i].detail.tokens || []).length > 0;
+    for (const [tab, i] of [["lb", 0], ["agent", 0], ["agent", 2], ["agentless", 0], ["agentless", 1], ["agentless", 4], ["a2a", 7]]) {
+      expect(hasTok(tab, i), `${tab} step ${i} token`).toBe(true);
+    }
+  });
+
   it("numbered steps match the orange arrow numbers; edge labels carry no number of their own", () => {
     for (const tab of TABS) {
       const nums = tab.steps.filter((s) => s.n).map((s) => s.n);
