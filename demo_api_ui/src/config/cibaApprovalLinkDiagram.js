@@ -11,7 +11,17 @@ const DASH = { dashed: true };
 const PFD = { color: 'var(--th-status-warning)', dashed: true };
 const PF = { color: 'var(--th-status-warning)' };
 
+// Theme colours: ArchitectureTabsPanel (no pingStyle) renders CIBA_LINK_DIAGRAM unchanged.
 export const CIBA_LINK_GROUPS = {
+  user: { label: 'Browser that asked', bg: 'var(--th-status-info)' },
+  bff: { label: 'Banking BFF', bg: 'var(--th-bg-emphasis)' },
+  pingone: { label: 'PingOne', bg: 'var(--th-status-success)' },
+  device: { label: "User's email / phone", bg: 'var(--th-status-info)' },
+  pf: { label: 'PingFederate', bg: 'var(--th-status-warning)' },
+};
+
+// Ping palette for the pingStyle render on /mfa-test.
+export const CIBA_LINK_PING_GROUPS = {
   user: { label: 'Browser that asked', bg: '#151a24' },
   bff: { label: 'Banking BFF', bg: '#151a24' },
   pingone: { label: 'PingOne', bg: '#b5231a' },
@@ -64,4 +74,8 @@ CIBA_LINK_STEPS.push(
   { key: 'signin-approve', edges: [15, 16], title: 'Sign-in: the approval link completes it', what: 'The user picks email or text; the BFF starts the same CIBA request as step-up for the password user (a PingFederate user maps to the PingOne account with the same username). Only an approval whose id_token sub equals that user completes the parked flow into a normal session. Denied, expired or a different person discards it.', why: 'CIBA proves who is signing in; it never becomes the session, so tokens, refresh and exchange are unchanged.' },
 );
 
-export const CIBA_LINK_DIAGRAM = { GROUPS: CIBA_LINK_GROUPS, NODES: CIBA_LINK_NODES, EDGES: CIBA_LINK_EDGES, STEPS: withEdgeDetail(CIBA_LINK_STEPS, CIBA_LINK_EDGES, CIBA_DETAIL) };
+// Same arrows without the dashed marks, which only the pingStyle key uses.
+const PLAIN_EDGES = CIBA_LINK_EDGES.map(([src, tgt, label, opts]) => (opts?.color ? E(src, tgt, label, PF) : E(src, tgt, label)));
+
+export const CIBA_LINK_DIAGRAM = { GROUPS: CIBA_LINK_GROUPS, NODES: CIBA_LINK_NODES, EDGES: PLAIN_EDGES, STEPS: CIBA_LINK_STEPS };
+export const CIBA_LINK_PING_DIAGRAM = { GROUPS: CIBA_LINK_PING_GROUPS, NODES: CIBA_LINK_NODES, EDGES: CIBA_LINK_EDGES, STEPS: withEdgeDetail(CIBA_LINK_STEPS, CIBA_LINK_EDGES, CIBA_DETAIL) };

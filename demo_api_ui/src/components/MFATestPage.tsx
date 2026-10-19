@@ -10,7 +10,7 @@ import ApiCallPreviewCard from "./shared/ApiCallPreviewCard";
 import MFATestCard from "./MFATestCard";
 import MFATestCibaSection from "./MFATestCibaSection";
 import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
-import { CIBA_LINK_DIAGRAM } from "../config/cibaApprovalLinkDiagram";
+import { CIBA_LINK_PING_DIAGRAM } from "../config/cibaApprovalLinkDiagram";
 import { SIGNIN_DIAGRAM } from "../config/deviceFirstSignInDiagram";
 import { SIM_PUSH_DIAGRAM } from "../config/simulatedPushDiagram";
 import MFATestConsentSection from "./MFATestConsentSection";
@@ -41,7 +41,7 @@ const CibaDiagramSection: FC = () => (
     <h2 className="mfa-test-section-title">CIBA Approval Link: How It Works</h2>
     <CollapsibleDiagram>
       <EmbeddedFlowDiagram
-        config={CIBA_LINK_DIAGRAM}
+        config={CIBA_LINK_PING_DIAGRAM}
         title="CIBA approval link"
         lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Arrows 9 to 13 are the PingFederate path; dashed blue arrows are answers and tokens. Click an arrow or a box to follow it."
         testId="mfa-ciba-diagram"
