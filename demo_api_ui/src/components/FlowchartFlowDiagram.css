@@ -58,3 +58,100 @@
 .fcd .react-flow__edge-text { font-size: var(--font-size-2xs); fill: var(--th-text); }
 .fcd .react-flow__edge-textbg { fill: var(--th-bg-card); }
 .fcd .react-flow__arrowhead polyline { stroke: var(--th-text-muted); fill: var(--th-text-muted); }
+
+/* ---- Ping style (opt-in, .fcd--ping): light grey canvas, thick black numbered arrows, dashed = blue ---- */
+.fcd--ping .fcd-canvas .react-flow { background: #e4e7ec; }
+:root[data-theme="dark"] .fcd--ping .fcd-canvas .react-flow { background: #0b0e14; }
+
+.fcd--ping .react-flow__edge-path { stroke: #111111; stroke-width: 3.2; }
+.fcd--ping .react-flow__edge { pointer-events: visibleStroke !important; }
+.fcd--ping .react-flow__edge:hover .react-flow__edge-path { stroke-width: 4.2; }
+.fcd--ping .react-flow__edge.pfd-dashed .react-flow__edge-path { stroke: #1f5fbf !important; }
+:root[data-theme="dark"] .fcd--ping .react-flow__edge-path { stroke: #e5e7eb; }
+:root[data-theme="dark"] .fcd--ping .react-flow__edge.pfd-dashed .react-flow__edge-path { stroke: #6ea8ff !important; }
+:root[data-theme="dark"] .fcd--ping marker[id*="111111"] polyline { stroke: #e5e7eb !important; fill: #e5e7eb !important; }
+:root[data-theme="dark"] .fcd--ping marker[id*="1f5fbf"] polyline { stroke: #6ea8ff !important; fill: #6ea8ff !important; }
+
+/* Group titles: dark text on the light canvas, light text on the dark one. */
+.fcd--ping .fcd-group__label { color: #000000; font-weight: 800; }
+:root[data-theme="dark"] .fcd--ping .fcd-group__label { color: #f2f2f4; }
+.fcd--ping .fcd-node { border-width: 2px; }
+
+/* Number badges sit above the arrows and the boxes; the words show for the active step or on hover. */
+.fcd--ping .react-flow__edgelabel-renderer { z-index: 20; }
+.pfd-edge-label {
+  position: absolute;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 1px;
+  white-space: nowrap;
+  pointer-events: all;
+  color: #000000;
+}
+.pfd-edge-num {
+  display: inline-block;
+  min-width: 26px;
+  padding: 0 6px;
+  border-radius: var(--radius-xl);
+  background: #ff8c00;
+  color: #000000;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  line-height: 24px;
+  text-align: center;
+}
+.pfd-edge-text {
+  display: none;
+  padding: 1px 6px;
+  border-radius: var(--radius-sm);
+  background: #ffffff;
+  color: #000000;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  line-height: 1.3;
+}
+.pfd-edge-label.is-active .pfd-edge-text,
+.pfd-edge-label:hover .pfd-edge-text { display: inline; }
+.pfd-edge-label.is-active,
+.pfd-edge-label:hover { z-index: 30; }
+
+/* The box picked on the diagram or by the reel. */
+.fcd--ping .react-flow__node.pfd-selected > .fcd-node,
+.fcd--ping .react-flow__node.pfd-selected > .fcd-group { box-shadow: 0 0 0 4px #ff8c00; }
+.fcd--ping .dreel-n { background: #ff8c00; color: #000000; font-weight: 800; }
+.fcd--ping .dreel-card--now .dreel-n { background: #ff8c00; }
+.fcd--ping .react-flow__node { cursor: pointer; }
+
+.pfd-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 14px;
+  align-items: center;
+  padding: 8px 12px;
+  border: 1px solid var(--th-border);
+  border-top: 0;
+  background: #f4f5f7;
+  color: #000000;
+  font-size: var(--font-size-xs);
+}
+.pfd-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.pfd-sw { display: inline-block; width: 14px; height: 14px; border-radius: var(--radius-sm); }
+.pfd-sw--ping { background: #b5231a; }
+.pfd-sw--app { background: #151a24; }
+.pfd-sw--safety { background: #5a5f69; }
+.pfd-line { display: inline-block; width: 26px; height: 0; border-top: 3px solid #111111; }
+.pfd-line--dashed { border-top-style: dashed; border-top-color: #1f5fbf; }
+.pfd-num-key {
+  display: inline-block;
+  min-width: 24px;
+  padding: 0 6px;
+  border-radius: var(--radius-xl);
+  background: #ff8c00;
+  color: #000000;
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  line-height: 24px;
+  text-align: center;
+}
+.pfd-node-detail { margin-top: 8px; }

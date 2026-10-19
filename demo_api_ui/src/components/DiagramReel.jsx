@@ -13,11 +13,12 @@ import "./DiagramReel.css";
  */
 export default function DiagramReel({ steps, stepper, nodeDetail = null, onClearNode, openKey = 0, testId = "diagram-reel" }) {
   const [open, setOpen] = useState(false);
-  const stripRef = useRef(null);
-  const step = stepper?.step ?? -1;
+  // a box click on the diagram bumps openKey: open the details row for the step it jumped to
   useEffect(() => {
     if (openKey) setOpen(true);
   }, [openKey]);
+  const stripRef = useRef(null);
+  const step = stepper?.step ?? -1;
 
   // keep the card in focus visible inside the strip (scroll the strip, never the page)
   useEffect(() => {
