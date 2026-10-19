@@ -40,7 +40,7 @@ describe('PrivilegeMcpDiagramPage', () => {
     expect(screen.getByText('Tools returned to UI')).toBeInTheDocument();
   });
 
-  it('renders the Sign-in + Tool Call tab as a React Flow sequence diagram with lifelines and numbered messages', () => {
+  it('renders the Sign-in + Tool Call tab as a Ping-style diagram with numbered arrows', () => {
     render(<PrivilegeMcpDiagramPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Sign-in + Tool Call' }));
     expect(screen.getByLabelText('Privilege MCP sequence diagram')).toBeInTheDocument();
@@ -63,7 +63,8 @@ describe('PrivilegeMcpDiagramPage', () => {
   it('the sequence tab has Simulate, Reset and a speed selector that walk its messages', () => {
     render(<PrivilegeMcpDiagramPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Sign-in + Tool Call' }));
-    const seq = screen.getByRole('group', { name: 'Privilege MCP sequence diagram' });
+    // the Ping-style diagram keeps its Play/Step bar in the section that wraps the diagram group
+    const seq = screen.getByTestId('pmd-seq');
     expect(within(seq).getByTitle('Time each step takes during Simulate')).toBeTruthy();
     fireEvent.click(within(seq).getByRole('button', { name: 'Simulate' }));
     expect(within(seq).getByText(/Step 1 of \d+/)).toBeTruthy();
