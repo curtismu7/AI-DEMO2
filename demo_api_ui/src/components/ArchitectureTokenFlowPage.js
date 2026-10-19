@@ -13,6 +13,8 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from "react";
 import apiClient from "../services/apiClient";
 import ArchitectureDiagramPage from "./ArchitectureDiagramPage";
+import StaticFlowDiagram from "./StaticFlowDiagram";
+import { TOKEN_FLOW_DIAGRAMS } from "../config/tokenFlowDiagram";
 import TokenStepIndicator from "./TokenStepIndicator";
 import { STEP_TIME_OPTIONS, DEFAULT_STEP_MS } from "./diagram";
 
@@ -285,7 +287,7 @@ const TOKEN_FLOW_SIMULATE_STEPS = [
   {
     regionIds: ["mcp-gateway-tf", "mcp-olb"],
     colorClass: "active",
-    label: "PingOne Agent Gateway forwards token unchanged → MCP Server",
+    label: "PingOne Agent Gateway forwards the call → MCP Server",
     // AG → MCP  (i82, y=3934)
     stepArrow: { yPct: 77.3, xMinPct: 40.6, xMaxPct: 54.3 },
     token: {
@@ -506,7 +508,7 @@ const SCENARIO_STEPS_TF = {
     {
       regionIds: ["mcp-gateway-tf", "mcp-olb"],
       colorClass: "active",
-      label: "PingOne Agent Gateway forwards token unchanged → MCP Server",
+      label: "PingOne Agent Gateway forwards the call → MCP Server",
       token: {
         type: "Delegated Token (forwarded unchanged)",
         _type: "oauth",
@@ -760,9 +762,9 @@ const SCENARIO_STEPS_TF = {
         type: "HTTP 403 Forbidden",
         _type: "error",
         status: "403 Forbidden",
-        error: "insufficient_scope",
+        error: "access_denied",
         error_description: "write scope required for create_transfer",
-        "WWW-Authenticate": 'Bearer scope="write"',
+        "X-Gw-Audit-Trail": "<json audit trail>",
         note: "PingOne Agent Gateway converts DENY to 403 — agent must NOT retry with same token",
       },
     },
@@ -894,28 +896,21 @@ const SCENARIO_STEPS_TF = {
         _rfcs: ["RFC 6750"],
         credentialPath: "oauth_bearer",
         tool: "demo_show_accounts",
-        note: "Standard bearer token — gateway will exchange via RFC 8693 before forwarding.",
+        note: "Standard bearer token — the gateway asks PingOne Authorize, then forwards it unchanged (no RFC 8693 exchange on this path).",
       },
     },
     {
-      regionIds: ["mcp-gateway-tf", "pingone-aic"],
+      regionIds: ["mcp-gateway-tf", "pingauthorize-tf"],
       colorClass: "active",
-      label: "OAUTH BEARER PATH: RFC 8693 exchange → backend-scoped bearer",
-      isTokenExchange: true,
+      label: "OAUTH BEARER PATH: gateway asks PingOne Authorize (McpToolCall)",
       token: {
-        type: "RFC 8693 Exchange (subject)",
-        _type: "exchange",
-        _rfcs: ["RFC 8693", "RFC 8707"],
+        type: "PingOne Authorize decision",
+        _type: "mcp",
+        _rfcs: [],
         credentialPath: "oauth_bearer",
-        note: "Gateway exchanges user bearer for a new bearer scoped to banking_resource_server.",
-      },
-      tokenOut: {
-        type: "Backend-scoped Bearer",
-        _type: "oauth",
-        _rfcs: ["RFC 8693"],
-        aud: "banking_resource_server",
-        credentialPath: "oauth_bearer",
-        note: "New aud matches banking_resource_server resource URI (RFC 8707 audience binding).",
+        DecisionContext: "McpToolCall",
+        ToolName: "demo_show_accounts",
+        note: "PERMIT is a decision answer, not a token. The bearer is not exchanged on this path.",
       },
     },
     {
@@ -1080,35 +1075,6 @@ function buildLiveHistoryEntry(evt) {
     };
   }
   return null;
-}
-
-// One sequence message per simulation step: first region -> last region, so the reel, the diagram and the
-// token card stay in step. The sub-box "RFC 8693 Token Exchange" lives inside PingOne, so it folds into it.
-const FLOW_LANES = [
-  ["olb-application", "Web App"],
-  ["chatbot", "Chatbot"],
-  ["agent1", "Agent (BFF)"],
-  ["llm", "LLM"],
-  ["pingone-aic", "PingOne"],
-  ["mcp-gateway-tf", "Agent Gateway"],
-  ["pingauthorize-tf", "PingOne Authorize"],
-  ["hitl-tf", "HITL Service"],
-  ["mcp-olb", "MCP Server"],
-  ["mcp-resource-server", "MCP Resource Server"],
-  ["oauth-rs", "Banking API"],
-];
-const LANE_OF = (id) => (id === "token-exchange-box" ? "pingone-aic" : id);
-
-function stepsToSequence(steps) {
-  const ends = steps.map((s) => [LANE_OF(s.regionIds[0]), LANE_OF(s.regionIds[s.regionIds.length - 1])]);
-  const used = new Set(ends.flat());
-  const lanes = FLOW_LANES.filter(([id]) => used.has(id));
-  const sid = (id) => id.replace(/-/g, "_");
-  return [
-    "sequenceDiagram",
-    ...lanes.map(([id, name]) => `  participant ${sid(id)} as ${name}`),
-    ...steps.map((s, i) => `  ${sid(ends[i][0])}->>${sid(ends[i][1])}: ${s.label}`),
-  ].join("\n");
 }
 
 export default function ArchitectureTokenFlowPage({ user }) {
@@ -1359,7 +1325,6 @@ export default function ArchitectureTokenFlowPage({ user }) {
     selectedScenario === "full-flow"
       ? TOKEN_FLOW_SIMULATE_STEPS
       : SCENARIO_STEPS_TF[selectedScenario] || TOKEN_FLOW_SIMULATE_STEPS;
-  const flowSource = useMemo(() => stepsToSequence(scenarioSteps), [scenarioSteps]);
 
   // A click on the movie reel: jump to that step and hold there, like Pause + Next.
   const jumpTo = useCallback(
@@ -1376,6 +1341,20 @@ export default function ArchitectureTokenFlowPage({ user }) {
     [scenarioSteps, applyStep],
   );
   const flowDriver = useMemo(() => ({ step: currentStep, goTo: jumpTo }), [currentStep, jumpTo]);
+  const flow = TOKEN_FLOW_DIAGRAMS[selectedScenario] || TOKEN_FLOW_DIAGRAMS["full-flow"];
+  const diagram = (
+    <StaticFlowDiagram
+      key={selectedScenario}
+      NODES={flow.NODES}
+      EDGES={flow.EDGES}
+      GROUPS={flow.GROUPS}
+      stepper={flowDriver}
+      steps={flow.STEPS}
+      pingStyle
+      testId="token-flow-diagram"
+      ariaLabel="Token flow: User, Web App and Chatbot, Agent (BFF), LLM, PingOne, PingOne Agent Gateway, PingOne Authorize, MCP Server and Banking API, with the RFC 8693 exchange, the delegated token, the authorization decision and the credential paths"
+    />
+  );
 
   const scenarioSelector = (
     <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
@@ -1431,8 +1410,7 @@ export default function ArchitectureTokenFlowPage({ user }) {
       <ArchitectureDiagramPage
         title="Token Flow Diagram"
         imageAlt="Token flow sequence: User, Web App, Chatbot, Agent (BFF in-process LangGraph), LLM, PingOne, Agent Gateway, PingOne Authorization Server, HITL Service, MCP OLB, MCP Resource Server, API Resource Server — RFC 8693 exchanges, Phase 266 credential paths, and HITL consent escalation"
-        flowSource={flowSource}
-        flowDriver={flowDriver}
+        diagram={diagram}
         user={user}
         onSimulate={runSimulation}
         isSimulating={isSimulating}
