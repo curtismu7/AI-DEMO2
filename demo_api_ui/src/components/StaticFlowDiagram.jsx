@@ -76,26 +76,104 @@ const nodeH = (n) =>
 
 // The left gutter keeps the zoom buttons (bottom-left) off the cards.
 const FIT = { padding: { top: "20px", right: "20px", bottom: "20px", left: "56px" } };
+// pingStyle: routed arrows and their number badges run in the free border outside the outermost boxes, so leave room for them.
+const FIT_PING = { padding: { top: "40px", right: "60px", bottom: "40px", left: "100px" } };
 const HIDDEN = { opacity: 0, width: 1, height: 1 };
 
 // Handle ids are sl/sr/sb (source) and tl/tr/tt (target): the second letter is the side of the box (l/r/b/t).
 const handleDir = (id) => id[1];
-const handlePoint = (r, d) =>
-  d === "r" ? { x: r.x + r.w, y: r.y + r.h / 2 }
-    : d === "l" ? { x: r.x, y: r.y + r.h / 2 }
-      : d === "t" ? { x: r.x + r.w / 2, y: r.y }
-        : { x: r.x + r.w / 2, y: r.y + r.h };
-const DIR_POS = { l: Position.Left, r: Position.Right, t: Position.Top, b: Position.Bottom };
 
-// A coarser grid than the default 6px: parallel arrows that share a corridor sit cell/2 apart, so 12px keeps them visibly separate.
-const ROUTE_CELL = 12;
+// A coarser grid than the default 6px: parallel arrows that share a corridor sit cell/2 apart, so 20px keeps them visibly separate.
+// A tight layout (gaps under about cell + 12px) cannot take that, so a layout with unplaceable arrows is retried on a finer grid.
+const ROUTE_CELLS = [20, 16, 12];
+const ROUTE_MARGIN = 60; // createRouter's grid starts `margin` before the outermost box; attach points are snapped onto its lines
+const SLOT_INSET = 8; // keep arrows off the rounded corners of a card
+const LABEL_GAP = 32; // min distance between two number badges
+const LABEL_MIN_RUN = 28; // a badge sits on a straight run at least this long
+
+// Where each routed arrow leaves / enters its box. Arrows that share a side of a box get their own slot along it
+// (ordered by where the other end is, so fans do not cross) instead of all piling onto the side's midpoint. Slots lie on
+// the router's grid lines so the first/last run needs no jog. The side itself is the config's handle side.
+// Returns { edgeId: { start, end } }.
+export function attachPoints(rects, edges, cell = ROUTE_CELLS[0]) {
+  const all = Object.values(rects);
+  if (!all.length) return {};
+  const ox = Math.min(...all.map((r) => r.x)) - ROUTE_MARGIN;
+  const oy = Math.min(...all.map((r) => r.y)) - ROUTE_MARGIN;
+  const groups = new Map(); // "node:side" -> [{ id, role, other }]
+  for (const e of edges) {
+    const a = rects[e.source];
+    const b = rects[e.target];
+    if (e.data?.self || !a || !b) continue;
+    for (const [role, node, side, other] of [["start", e.source, handleDir(e.sourceHandle), b], ["end", e.target, handleDir(e.targetHandle), a]]) {
+      const k = `${node}:${side}`;
+      if (!groups.has(k)) groups.set(k, []);
+      groups.get(k).push({ id: e.id, role, node, side, other });
+    }
+  }
+  const out = {};
+  for (const list of groups.values()) {
+    const { node, side } = list[0];
+    const r = rects[node];
+    const horiz = side === "l" || side === "r"; // arrows run along the side's y; top/bottom sides slot along x
+    const [lo, hi] = horiz ? [r.y + SLOT_INSET, r.y + r.h - SLOT_INSET] : [r.x + SLOT_INSET, r.x + r.w - SLOT_INSET];
+    const origin = horiz ? oy : ox;
+    const slots = [];
+    for (let v = origin + Math.ceil((lo - origin) / cell) * cell; v <= hi; v += cell) slots.push(v);
+    const mid = horiz ? r.y + r.h / 2 : r.x + r.w / 2;
+    if (!slots.length) slots.push(Math.round((origin + Math.round((mid - origin) / cell) * cell)));
+    const centre = (o) => (horiz ? o.y + o.h / 2 : o.x + o.w / 2);
+    const nearest = (want) => slots.reduce((best, v) => (Math.abs(v - want) < Math.abs(best - want) ? v : best), slots[0]);
+    list.sort((p, q) => centre(p.other) - centre(q.other));
+    list.forEach((it, i) => {
+      // one arrow on the side: aim at the other end's centre (so facing boxes line up); several: spread over the free slots
+      // more arrows than grid lines on this side (a short card): spread them evenly over the side instead (their first run then sits off the grid; harmless)
+      const v = list.length === 1 ? nearest(centre(it.other))
+        : list.length > slots.length ? Math.round(lo + ((hi - lo) * i) / (list.length - 1))
+          : slots[Math.round((i * (slots.length - 1)) / (list.length - 1))];
+      const pt = horiz ? { x: side === "r" ? r.x + r.w : r.x, y: v } : { x: v, y: side === "b" ? r.y + r.h : r.y };
+      (out[it.id] ||= {})[it.role] = pt;
+    });
+  }
+  return out;
+}
+
+// Badge position: the longest run's midpoint, unless another badge is already there; then another run / another spot on it.
+export function pickLabel(pts, placed) {
+  const cands = [];
+  for (let i = 1; i < pts.length; i++) {
+    const a = pts[i - 1];
+    const b = pts[i];
+    const len = Math.abs(b.x - a.x) + Math.abs(b.y - a.y);
+    if (len < LABEL_MIN_RUN) continue;
+    for (const t of len >= 90 ? [0.5, 0.3, 0.7, 0.15, 0.85] : [0.5]) cands.push({ len, x: a.x + (b.x - a.x) * t, y: a.y + (b.y - a.y) * t });
+  }
+  if (!cands.length) return labelPoint(pts);
+  cands.sort((p, q) => q.len - p.len);
+  const clear = (c) => placed.reduce((m, p) => Math.min(m, Math.hypot(p.x - c.x, p.y - c.y)), Infinity);
+  const ok = cands.find((c) => clear(c) >= LABEL_GAP);
+  const pick = ok || cands.reduce((best, c) => (clear(c) > clear(best) ? c : best), cands[0]);
+  return { x: pick.x, y: pick.y };
+}
 
 // pingStyle routing: rects = { nodeId: {x,y,w,h} }, edges = React Flow edges (source, target, sourceHandle, targetHandle, data.self).
 // Every box is an obstacle (the edge's own two too: the router's lead-in/out reaches the handle). Self-loops keep their curve.
-// Returns { routes: { edgeId: {pts, ok} }, fallbacks } where fallbacks counts edges the router could not place.
+// Returns { routes: { edgeId: {pts, ok, label} }, fallbacks } where fallbacks counts edges the router could not place.
 export function routeEdges(rects, edges) {
-  const router = createRouter({ obstacles: Object.values(rects), cell: ROUTE_CELL });
+  let best = null;
+  for (const cell of ROUTE_CELLS) {
+    const res = routeOnce(rects, edges, cell);
+    if (!best || res.fallbacks < best.fallbacks) best = res;
+    if (!best.fallbacks) break;
+  }
+  return best;
+}
+
+function routeOnce(rects, edges, cell) {
+  const router = createRouter({ obstacles: Object.values(rects), cell, margin: ROUTE_MARGIN });
+  const att = attachPoints(rects, edges, cell);
   const routes = {};
+  const placed = [];
   let fallbacks = 0;
   for (const e of edges) {
     const a = rects[e.source];
@@ -103,9 +181,12 @@ export function routeEdges(rects, edges) {
     if (e.data?.self || !a || !b) continue;
     const sd = handleDir(e.sourceHandle);
     const td = handleDir(e.targetHandle);
-    const r = router.route({ start: handlePoint(a, sd), end: handlePoint(b, td), startDir: sd, endDir: td });
+    const r = router.route({ start: att[e.id].start, end: att[e.id].end, startDir: sd, endDir: td });
+    if (r.ok) {
+      r.label = pickLabel(r.pts, placed);
+      placed.push(r.label);
+    } else fallbacks += 1;
     routes[e.id] = r;
-    if (!r.ok) fallbacks += 1;
   }
   return { routes, fallbacks };
 }
@@ -139,7 +220,7 @@ function FlowEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targ
   const [hover, setHover] = useState(false);
   // Routed around the boxes when the router found a way; otherwise (or while a box is dragged) the old curve.
   const routed = ping && !self && route && route.ok;
-  const rl = routed ? labelPoint(route.pts) : null;
+  const rl = routed ? route.label || labelPoint(route.pts) : null;
   const [path, labelX, labelY] = routed
     ? [pathFromPoints(route.pts), rl.x, rl.y]
     : self
@@ -190,7 +271,8 @@ const edgeTypes = { sfd: FlowEdge };
 function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, focusId, ariaLabel, walkStep, visited, pingStyle, selectedId }) {
   const ref = useRef(null);
   const lastDragEnd = useRef(0);
-  useFitOnResize(ref, FIT);
+  const fit = pingStyle ? FIT_PING : FIT;
+  useFitOnResize(ref, fit);
   const byId = useMemo(() => new Map(NODES.map((n) => [n.id, n])), [NODES]);
   const [dragging, setDragging] = useState(false);
   const nodeLookup = useStore((st) => st.nodeLookup);
@@ -311,7 +393,7 @@ function Inner({ NODES, EDGES, GROUPS, selectedPath, onNodeClick, testId, step, 
         nodeTypes={nodeTypes}
         edgeTypes={edgeTypes}
         fitView
-        fitViewOptions={FIT}
+        fitViewOptions={fit}
         minZoom={0.2}
         maxZoom={2}
         nodesDraggable
