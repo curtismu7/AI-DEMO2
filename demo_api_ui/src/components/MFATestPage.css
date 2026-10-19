@@ -204,6 +204,13 @@
   color: var(--th-text-body);
 }
 
+.mfa-test-diagram-collapse > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--th-text-body);
+  margin-bottom: 0.5rem;
+}
+
 .config-display {
   display: flex;
   flex-direction: column;

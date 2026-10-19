@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, FC } from "react";
+import { useCallback, useEffect, useRef, useState, FC, ReactNode } from "react";
 import apiClient from "../services/apiClient";
 import { notifyError, notifyInfo, notifySuccess } from "../utils/appToast";
 import {
@@ -28,15 +28,25 @@ import { openSignIn } from "../utils/signInService";
 
 // Explanatory only (no live data), so it also renders signed out: the Learning Hub card and
 // /diagrams link to /mfa-test#ciba-diagram.
+// Diagrams start collapsed so the page stays short; the content stays in the DOM.
+const CollapsibleDiagram: FC<{ children: ReactNode }> = ({ children }) => (
+  <details className="mfa-test-diagram-collapse">
+    <summary>Show diagram</summary>
+    {children}
+  </details>
+);
+
 const CibaDiagramSection: FC = () => (
   <section className="mfa-test-section" id="ciba-diagram">
     <h2 className="mfa-test-section-title">CIBA Approval Link: How It Works</h2>
-    <EmbeddedFlowDiagram
-      config={CIBA_LINK_DIAGRAM}
-      title="CIBA approval link"
-      lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Orange edges are the PingFederate path. Click a step to follow it."
-      testId="mfa-ciba-diagram"
-    />
+    <CollapsibleDiagram>
+      <EmbeddedFlowDiagram
+        config={CIBA_LINK_DIAGRAM}
+        title="CIBA approval link"
+        lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Orange edges are the PingFederate path. Click a step to follow it."
+        testId="mfa-ciba-diagram"
+      />
+    </CollapsibleDiagram>
   </section>
 );
 
@@ -45,22 +55,26 @@ const CibaDiagramSection: FC = () => (
 const SignInDiagramSection: FC = () => (
   <section className="mfa-test-section" id="signin-diagram">
     <h2 className="mfa-test-section-title">Device-First Sign-In: How It Works</h2>
-    <EmbeddedFlowDiagram
-      config={SIGNIN_DIAGRAM}
-      title="Device-first sign-in"
-      lede="The sign-in pop-up drives the provider's flow from the app: username, then a code or a passkey, never a password. Orange edges are the PingFederate path. Click a step to follow it."
-      testId="mfa-signin-diagram"
-    />
+    <CollapsibleDiagram>
+      <EmbeddedFlowDiagram
+        config={SIGNIN_DIAGRAM}
+        title="Device-first sign-in"
+        lede="The sign-in pop-up drives the provider's flow from the app: username, then a code or a passkey, never a password. Orange edges are the PingFederate path. Click a step to follow it."
+        testId="mfa-signin-diagram"
+      />
+    </CollapsibleDiagram>
   </section>
 );
 
 const SimulatedPushDiagram: FC = () => (
-  <EmbeddedFlowDiagram
-    config={SIM_PUSH_DIAGRAM}
-    title="Push approval: simulated phone vs real push"
-    lede="The simulated phone shows the approve-on-your-phone flow with the BFF playing the phone; orange edges are the real PingOne MFA push it stands in for. Click a step to follow it."
-    testId="mfa-push-diagram"
-  />
+  <CollapsibleDiagram>
+    <EmbeddedFlowDiagram
+      config={SIM_PUSH_DIAGRAM}
+      title="Push approval: simulated phone vs real push"
+      lede="The simulated phone shows the approve-on-your-phone flow with the BFF playing the phone; orange edges are the real PingOne MFA push it stands in for. Click a step to follow it."
+      testId="mfa-push-diagram"
+    />
+  </CollapsibleDiagram>
 );
 
 interface PingOneUser {
