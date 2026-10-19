@@ -4,16 +4,19 @@
 // (PF's backchannel endpoint from discovery; web approver or mock phone answers).
 // Sign-in (flag ciba_login_enabled): routes/cibaLogin.js + services/cibaSecondFactorService.js. The approval
 // only proves identity after the normal password step; the session still comes from the normal login client.
+import { CIBA_DETAIL, withEdgeDetail } from './mfaDiagramsStandards';
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
+const DASH = { dashed: true };
+const PFD = { color: 'var(--th-status-warning)', dashed: true };
 const PF = { color: 'var(--th-status-warning)' };
 
 export const CIBA_LINK_GROUPS = {
-  user: { label: 'Browser that asked', bg: 'var(--th-status-info)' },
-  bff: { label: 'Banking BFF', bg: 'var(--th-bg-emphasis)' },
-  pingone: { label: 'PingOne', bg: 'var(--th-status-success)' },
-  device: { label: "User's email / phone", bg: 'var(--th-status-info)' },
-  pf: { label: 'PingFederate', bg: 'var(--th-status-warning)' },
+  user: { label: 'Browser that asked', bg: '#151a24' },
+  bff: { label: 'Banking BFF', bg: '#151a24' },
+  pingone: { label: 'PingOne', bg: '#b5231a' },
+  device: { label: "User's email / phone", bg: '#5a5f69' },
+  pf: { label: 'PingFederate', bg: '#b5231a' },
 };
 
 export const CIBA_LINK_NODES = [
@@ -32,19 +35,19 @@ export const CIBA_LINK_EDGES = [
   E('bff', 'p1', 'bc-authorize: login_hint (PingOne user id), binding_message ≤ 8 chars → auth_req_id'), // 1
   E('p1', 'dv', 'runs the flow for the channel'), // 2
   E('dv', 'device', 'sends the approval link with the match code'), // 3
-  E('device', 'dv', 'user checks the code and approves'), // 4
+  E('device', 'dv', 'user checks the code and approves', DASH), // 4
   E('browser', 'bff', 'GET /api/auth/ciba/poll/:id every few seconds'), // 5
-  E('bff', 'p1', 'CIBA grant: authorization_pending … then tokens'), // 6
-  E('bff', 'browser', 'approved only if the id_token sub is the signed-in PingOne user'), // 7
+  E('bff', 'p1', 'CIBA grant: authorization_pending … then tokens', DASH), // 6
+  E('bff', 'browser', 'approved only if the id_token sub is the signed-in PingOne user', DASH), // 7
   E('browser', 'bff', 'PF: POST /api/pf-ai-agent/ciba/start { loginHint, bindingMessage }', PF), // 8
   E('bff', 'pf', 'PF backchannel request → auth_req_id', PF), // 9
   E('pf', 'approver', 'authenticator asks the approver', PF), // 10
-  E('approver', 'pf', 'Approve / Deny', PF), // 11
+  E('approver', 'pf', 'Approve / Deny', PFD), // 11
   E('bff', 'pf', 'PF: CIBA-grant poll; browser polls /ciba/status', PF), // 12
   E('browser', 'pwd', 'Sign-in: username + password via the BFF (secondFactor: ciba)'), // 13
-  E('pwd', 'bff', 'flow COMPLETED: BFF parks it in the session (150 s, single use); no cookie yet'), // 14
+  E('pwd', 'bff', 'flow COMPLETED: BFF parks it in the session (150 s, single use); no cookie yet', DASH), // 14
   E('browser', 'bff', 'POST /api/auth/ciba/login/start { channel }; then GET /login/poll/:id'), // 15
-  E('bff', 'browser', 'approved only if the CIBA sub is the password user: parked flow completes, normal session'), // 16
+  E('bff', 'browser', 'approved only if the CIBA sub is the password user: parked flow completes, normal session', DASH), // 16
 ];
 
 export const CIBA_LINK_STEPS = [
@@ -61,4 +64,4 @@ CIBA_LINK_STEPS.push(
   { key: 'signin-approve', edges: [15, 16], title: 'Sign-in: the approval link completes it', what: 'The user picks email or text; the BFF starts the same CIBA request as step-up for the password user (a PingFederate user maps to the PingOne account with the same username). Only an approval whose id_token sub equals that user completes the parked flow into a normal session. Denied, expired or a different person discards it.', why: 'CIBA proves who is signing in; it never becomes the session, so tokens, refresh and exchange are unchanged.' },
 );
 
-export const CIBA_LINK_DIAGRAM = { GROUPS: CIBA_LINK_GROUPS, NODES: CIBA_LINK_NODES, EDGES: CIBA_LINK_EDGES, STEPS: CIBA_LINK_STEPS };
+export const CIBA_LINK_DIAGRAM = { GROUPS: CIBA_LINK_GROUPS, NODES: CIBA_LINK_NODES, EDGES: CIBA_LINK_EDGES, STEPS: withEdgeDetail(CIBA_LINK_STEPS, CIBA_LINK_EDGES, CIBA_DETAIL) };

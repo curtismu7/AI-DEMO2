@@ -43,8 +43,9 @@ const CibaDiagramSection: FC = () => (
       <EmbeddedFlowDiagram
         config={CIBA_LINK_DIAGRAM}
         title="CIBA approval link"
-        lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Orange edges are the PingFederate path. Click a step to follow it."
+        lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Arrows 9 to 13 are the PingFederate path; dashed blue arrows are answers and tokens. Click an arrow or a box to follow it."
         testId="mfa-ciba-diagram"
+        pingStyle
       />
     </CollapsibleDiagram>
   </section>
@@ -59,8 +60,9 @@ const SignInDiagramSection: FC = () => (
       <EmbeddedFlowDiagram
         config={SIGNIN_DIAGRAM}
         title="Device-first sign-in"
-        lede="The sign-in pop-up drives the provider's flow from the app: username, then a code or a passkey, never a password. Orange edges are the PingFederate path. Click a step to follow it."
+        lede="The sign-in pop-up drives the provider's flow from the app: username, then a code or a passkey, never a password. Arrows 2, 6 and 9 are the PingFederate path; dashed blue arrows are answers and tokens. Click an arrow or a box to follow it."
         testId="mfa-signin-diagram"
+        pingStyle
       />
     </CollapsibleDiagram>
   </section>
@@ -71,8 +73,9 @@ const SimulatedPushDiagram: FC = () => (
     <EmbeddedFlowDiagram
       config={SIM_PUSH_DIAGRAM}
       title="Push approval: simulated phone vs real push"
-      lede="The simulated phone shows the approve-on-your-phone flow with the BFF playing the phone; orange edges are the real PingOne MFA push it stands in for. Click a step to follow it."
+      lede="The simulated phone shows the approve-on-your-phone flow with the BFF playing the phone; arrows 5 to 7 are the real PingOne MFA push it stands in for. Click an arrow or a box to follow it."
       testId="mfa-push-diagram"
+      pingStyle
     />
   </CollapsibleDiagram>
 );
