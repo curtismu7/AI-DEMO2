@@ -118,3 +118,19 @@
 .tcf-canvas .react-flow__edge:hover .tcf-edge-label { z-index: 30; }
 /* Dashed lines (future steps and decisions) in blue, not black, on the light canvas. */
 .tcf-canvas .react-flow__edge-path[stroke-dasharray] { stroke: #1f5fbf !important; }
+
+/* Dark mode: near-white arrows (black ones vanish on the dark canvas), light-blue dashes, bright blue active step,
+   dark label pills and light legend. Orange number badges keep their dark text. */
+:root[data-theme="dark"] .tcf-canvas .react-flow__edge-path { stroke: #e8e8ec; }
+:root[data-theme="dark"] .tcf-canvas .react-flow__edge.selected .react-flow__edge-path,
+:root[data-theme="dark"] .tcf-canvas .react-flow__edge:hover .react-flow__edge-path { stroke: #ffffff; }
+:root[data-theme="dark"] .tcf-canvas .react-flow__edge-path[stroke-dasharray] { stroke: #6ea8ff !important; }
+:root[data-theme="dark"] .tcf-canvas .tcf-edge-label { background: #151a24 !important; color: #f2f2f4 !important; }
+:root[data-theme="dark"] .tcf-canvas .tcf-group__label,
+:root[data-theme="dark"] .tcf-canvas .tcf-group[style*="border"] .tcf-group__label { color: #f2f2f4 !important; }
+:root[data-theme="dark"] .tcf-legend { background: #151a24; color: #f2f2f4; border-top-color: #3a4256; }
+:root[data-theme="dark"] .tcf-line { border-top-color: #e8e8ec; }
+
+/* Future-step arrows get their dash and fade from an inline style, so match the style attribute. */
+.tcf-canvas .react-flow__edge-path[style*="stroke-dasharray"] { stroke: #1f5fbf !important; opacity: 0.8 !important; }
+:root[data-theme="dark"] .tcf-canvas .react-flow__edge-path[style*="stroke-dasharray"] { stroke: #6ea8ff !important; opacity: 0.85 !important; }
