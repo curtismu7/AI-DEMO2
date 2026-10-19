@@ -40,7 +40,7 @@ describe('PrivilegeMcpDiagramPage', () => {
     expect(screen.getByText('Tools returned to UI')).toBeInTheDocument();
   });
 
-  it('renders the Sign-in + Tool Call tab as a React Flow sequence diagram with lifelines and numbered messages', () => {
+  it('renders the Sign-in + Tool Call tab as a Ping-style diagram with numbered arrows', () => {
     render(<PrivilegeMcpDiagramPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Sign-in + Tool Call' }));
     expect(screen.getByLabelText('Privilege MCP sequence diagram')).toBeInTheDocument();
@@ -63,11 +63,24 @@ describe('PrivilegeMcpDiagramPage', () => {
   it('the sequence tab has Simulate, Reset and a speed selector that walk its messages', () => {
     render(<PrivilegeMcpDiagramPage />);
     fireEvent.click(screen.getByRole('button', { name: 'Sign-in + Tool Call' }));
-    const seq = screen.getByRole('group', { name: 'Privilege MCP sequence diagram' });
+    // the Ping-style diagram keeps its Play/Step bar in the section that wraps the diagram group
+    const seq = screen.getByTestId('pmd-seq');
     expect(within(seq).getByTitle('Time each step takes during Simulate')).toBeTruthy();
     fireEvent.click(within(seq).getByRole('button', { name: 'Simulate' }));
     expect(within(seq).getByText(/Step 1 of \d+/)).toBeTruthy();
     fireEvent.click(within(seq).getByRole('button', { name: 'Reset' }));
     expect(within(seq).getByRole('button', { name: 'Simulate' })).toBeTruthy();
+  });
+
+  it('the sequence tab still redraws from an uploaded .mmd, and can go back to the Ping-style diagram', async () => {
+    const { container } = render(<PrivilegeMcpDiagramPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'Sign-in + Tool Call' }));
+    expect(screen.queryByRole('button', { name: 'Back to the Ping-style diagram' })).toBeNull();
+    const input = container.querySelector('input[type="file"]');
+    const mmd = 'sequenceDiagram\n    participant X as Uploaded Actor\n    participant Y as Other Actor\n    X->>Y: hello';
+    fireEvent.change(input, { target: { files: [new File([mmd], 'seq.mmd', { type: 'text/plain' })] } });
+    expect(await screen.findByRole('button', { name: 'Back to the Ping-style diagram' })).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'Back to the Ping-style diagram' }));
+    expect(screen.getByTestId('pmd-seq')).toBeInTheDocument();
   });
 });
