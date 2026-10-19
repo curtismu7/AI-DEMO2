@@ -1177,6 +1177,13 @@ router.post('/trusted-idps', ...registryWrite(async (req, res) => res.status(201
 router.put('/trusted-idps/:id', ...registryWrite(async (req, res) => res.json(await trustedIdps.update(req.params.id, req.body))));
 router.delete('/trusted-idps/:id', ...registryWrite(async (req, res) => { await trustedIdps.remove(req.params.id); res.status(204).end(); }));
 
+// Start over from step 2: forget the ID-JAG and the access token (each ID-JAG is single-use, so a redeemed one is dead).
+// Unlike /reset this keeps the sign-in at the issuer, so the next Request ID-JAG works straight away.
+router.post('/restart', (req, res) => {
+  if (req.session) delete req.session.idJagPlayground;
+  res.json({ ok: true });
+});
+
 router.post('/reset', (req, res) => {
   if (req.session) { delete req.session.idJagPlayground; delete req.session.idJagIssuer; delete req.session.idJagXaa; }
   res.json({ ok: true });

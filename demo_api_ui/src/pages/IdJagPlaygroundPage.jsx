@@ -696,6 +696,17 @@ export default function IdJagPlaygroundPage() {
   }, checkFor("call"));
 
   // Revoke and prove it: the issuer's session ends, so everything this session minted is cleared with it.
+  // Each ID-JAG works once, so after a redeem (or any dead end) the way forward is a new one from step 2. This clears
+  // every result and the server's copy of the ID-JAG and access token; the sign-in stays.
+  const startOver = () => run("restart", async () => {
+    await api.post(`${API}/restart`, {});
+    clearResults();
+    setRedeemScope("");
+    setError(null);
+    document.getElementById("ijp-step-2")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  });
+  const hasResults = !!(issued || inspection || redeemed || tools || callResult || resource || revoked || Object.keys(negResults).length);
+
   const revokeAndProve = () => run("revoke", async () => {
     const r = await api.post(`${API}/revoke`, {});
     setIssued(null); setInspection(null); setRedeemed(null); setTools(null); setCallResult(null); setResource(null);
@@ -757,6 +768,10 @@ export default function IdJagPlaygroundPage() {
           <div className="ijp-toolbar__group"><span>Mode</span><Segmented label="Playground mode" options={modeOptions} value={mode} onPick={pickMode} disabled={!!busy} />
             <DiagramLink mode={mode}>View {PLAYGROUND_DIAGRAMS[mode].label} diagram ↗</DiagramLink></div>
           <div className="ijp-toolbar__group"><span>View</span><Segmented label="Data view" options={VIEWS} value={view} onPick={pickView} /></div>
+          <div className="ijp-toolbar__group">
+            <button type="button" className="ijp-btn" onClick={startOver} disabled={!!busy || !hasResults} data-testid="ijp-start-over"
+              title="Clear every result below and start again from step 2. Your sign-in stays.">Start over</button>
+          </div>
         </div>
         {gateAt("mode")}
         <BackendsStrip api={api} mode={mode} />
@@ -864,6 +879,10 @@ export default function IdJagPlaygroundPage() {
           </label>
           {!idJagClaims && <p className="ijp-note">{isByo ? "Paste and inspect your ID-JAG first." : "Request an ID-JAG first."}</p>}
           <button type="button" className="ijp-btn ijp-btn--primary" onClick={redeem} disabled={!canRun || !hasIdJag || !!busy}>{busy === "redeem" ? "Redeeming…" : "Redeem ID-JAG"}</button>
+          {hasIdJag && (
+            <button type="button" className="ijp-btn" onClick={startOver} disabled={!!busy} data-testid="ijp-start-over-step3"
+              title="An ID-JAG works once. Clear the results and request a new one from step 2.">Start over from step 2</button>
+          )}
           {gateAt("redeem")}
           {redeemed && (
             <div className="ijp-io">

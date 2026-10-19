@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 
 const { get, post, put, del } = vi.hoisted(() => ({ get: vi.fn(), post: vi.fn(), put: vi.fn(), del: vi.fn() }));
@@ -80,6 +80,20 @@ describe("ID-JAG playground: kit port", () => {
     renderPage();
     fireEvent.click(await screen.findByRole("button", { name: "Revoke and retry" }));
     expect(await screen.findByTestId("ijp-revoke-verdict")).toHaveTextContent("so nothing was revoked");
+  });
+
+  it("Start over clears every result and the server's copy, and keeps the sign-in", async () => {
+    renderPage();
+    const toolbarBtn = await screen.findByTestId("ijp-start-over");
+    expect(toolbarBtn).toBeDisabled(); // nothing to clear yet
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    await screen.findByText("Decoded ID-JAG");
+    expect(screen.getByTestId("ijp-start-over-step3")).toBeInTheDocument();
+    fireEvent.click(screen.getByTestId("ijp-start-over"));
+    await waitFor(() => expect(post).toHaveBeenCalledWith("/api/id-jag-playground/restart", {}));
+    await waitFor(() => expect(screen.queryByText("Decoded ID-JAG")).toBeNull());
+    expect(screen.getByTestId("ijp-start-over")).toBeDisabled();
+    expect(screen.getByRole("button", { name: "Request ID-JAG" })).toBeEnabled(); // still signed in: a new ID-JAG is one click away
   });
 
   it("offers real MCP clients on localhost, pointed at the kit's sample server", async () => {
