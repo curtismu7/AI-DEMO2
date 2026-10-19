@@ -4,14 +4,15 @@
 // demo_api_server/services/aicDemoService.js (beginLogin/completeLogin,
 // fetchActorToken, exchangeTokens, introspectStep) and routes/aicDemo.js.
 // Embedded directly (not a demo step).
+import { AIC_STEP_DETAIL } from './aicTokenExchangeStandards';
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
-const OK = { color: 'var(--th-status-success)' };
+const OK = { dashed: true }; // token or decision coming back
 
 export const AIC_EXCHANGE_GROUPS = {
-  user: { label: 'Browser', bg: 'var(--th-status-info)' },
-  app: { label: 'Demo BFF', bg: 'var(--th-bg-emphasis)' },
-  idp: { label: 'PingOne AIC', bg: 'var(--th-status-warning)' },
+  user: { label: 'Browser', bg: '#5a5f69' },
+  app: { label: 'Demo BFF', bg: '#151a24' },
+  idp: { label: 'PingOne AIC', bg: '#b5231a' },
 };
 
 export const AIC_EXCHANGE_NODES = [
@@ -34,9 +35,16 @@ export const AIC_EXCHANGE_EDGES = [
   E('introspect', 'bff', 'act claim: who is acting for the user', OK), // 8
 ];
 
+// One STEP per arrow so each carries its own detail (the step number equals the arrow badge).
+const S = (key, edge, title, what, why) => ({ key, edges: [edge], title, what, why, detail: AIC_STEP_DETAIL[edge] });
 export const AIC_EXCHANGE_STEPS = [
-  { key: 'user', edges: [0, 1], title: 'User token', what: 'The person signs in directly at AIC with authorization code and PKCE. The BFF redeems the code; the browser never sees a token.', why: 'AIC only exchanges tokens it issued itself, so the app\'s normal PingOne login cannot serve as the subject token.' },
-  { key: 'actor', edges: [2, 3], title: 'Actor token', what: 'The agent authenticates as its own confidential client with client_credentials.', why: 'The exchange needs a second identity: the agent acting for the user.' },
-  { key: 'introspect', edges: [4], title: 'Opaque tokens are introspected', what: 'AIC access tokens are opaque by default, so the BFF asks AIC what a token carries. A client can introspect only its own tokens.', why: 'This is how the page shows claims such as may_act and act at all.' },
-  { key: 'exchange', edges: [5, 6, 7, 8], title: 'Exchange the pair', what: 'With both tokens held, the BFF posts the RFC 8693 exchange as the agent client. AIC checks may_act before issuing; introspecting the result shows the act claim.', why: 'The delegated token records who is acting for the user.' },
+  S('authorize', 0, 'Sign in at AIC', 'The browser is sent to AIC to sign in directly, with authorization code and PKCE.', 'AIC only exchanges tokens it issued itself, so the app\'s normal PingOne login cannot serve as the subject token.'),
+  S('user', 1, 'User token', 'AIC returns a one-time code; the BFF redeems it with the PKCE verifier and keeps the user token. The browser never sees a token.', 'This is the subject token of the exchange.'),
+  S('actor-ask', 2, 'Ask for the agent token', 'The browser asks the BFF to get an actor token.', 'Tokens stay server-side; the browser only triggers the call.'),
+  S('actor', 3, 'Actor token', 'The agent authenticates as its own confidential client with client_credentials.', 'The exchange needs a second identity: the agent acting for the user.'),
+  S('introspect', 4, 'Opaque tokens are introspected', 'AIC access tokens are opaque by default, so the BFF asks AIC what a token carries. A client can introspect only its own tokens.', 'This is how the page shows claims such as may_act and act at all.'),
+  S('exchange-ask', 5, 'Ask for the exchange', 'The browser asks the BFF to exchange the pair; it needs both tokens.', 'The button stays disabled until both tokens are held.'),
+  S('exchange', 6, 'Exchange the pair', 'The BFF posts the RFC 8693 exchange as the agent client with the user token as subject and the agent token as actor.', 'AIC checks may_act before issuing anything.'),
+  S('delegated', 7, 'Delegated token issued', 'AIC returns the delegated token to the BFF.', 'It belongs to the agent client and records who is acting for the user.'),
+  S('act', 8, 'Read the act claim', 'Introspecting the delegated token shows the act claim.', 'The act claim is the proof of who is acting for the user.'),
 ];
