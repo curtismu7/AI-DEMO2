@@ -1,4 +1,5 @@
 import { ACTORS, CALLS } from "../utils/idJagCallSequence";
+import { PF_ID_JAG_GROUPS } from "../config/pfIdJagDiagrams";
 
 const COL = 124;
 const PAD = 70;
@@ -7,10 +8,10 @@ const TOP = 62;
 const idx = (id) => ACTORS.findIndex((a) => a.id === id);
 const x = (id) => PAD + idx(id) * COL;
 
-// Ping palette per actor: red = Ping product, dark = apps and people, grey = the MCP side.
-const ACTOR_COLOR = {
-  browser: "#151a24", bff: "#151a24", agent: "#151a24", pf: "#b5231a",
-  oauthmcp: "#5a5f69", gateway: "#5a5f69", mcp: "#151a24", bank: "#151a24",
+// Same palette as the flow figures above (PF_ID_JAG_GROUPS): red = Ping product, dark = apps and people, grey = the MCP side.
+const ACTOR_GROUP = {
+  browser: "user", bff: "bff", agent: "bff", pf: "ping",
+  oauthmcp: "res", gateway: "ping", mcp: "res", bank: "res",
 };
 
 // ID-JAG-specific sequence diagram: eight lifelines, one row per call, in the shared Ping look
@@ -34,7 +35,7 @@ export default function IdJagCallSequence({ activeIndex, onSelect, calls = CALLS
           <g key={a.id}>
             <line x1={x(a.id)} y1={40} x2={x(a.id)} y2={height - 12} className="ijc-seq__life" />
             <rect x={x(a.id) - 52} y={6} width={104} height={34} rx={6} className="ijc-seq__actor" />
-            <rect x={x(a.id) - 52} y={6} width={5} height={34} fill={ACTOR_COLOR[a.id]} />
+            <rect x={x(a.id) - 52} y={6} width={5} height={34} fill={PF_ID_JAG_GROUPS[ACTOR_GROUP[a.id]].bg} />
             <text x={x(a.id) + 2} y={a.label.includes(" (") ? 20 : 27} textAnchor="middle" className="ijc-seq__actor-label">
               {a.label.split(/ (?=\()/).map((part, k) => <tspan key={part} x={x(a.id) + 2} dy={k ? 13 : 0}>{part}</tspan>)}
             </text>

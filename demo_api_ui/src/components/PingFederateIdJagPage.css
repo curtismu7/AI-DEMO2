@@ -235,13 +235,12 @@
 
 .pfj-protocol__body {
   display: grid;
-  grid-template-columns: minmax(250px, 0.8fr) minmax(0, 1.5fr);
+  grid-template-columns: minmax(0, 1fr);
   gap: 14px;
   padding: 0 14px 14px;
 }
 
-.pfj-protocol__token,
-.pfj-protocol__exchange article {
+.pfj-protocol__arrow {
   color: var(--th-text);
   min-width: 0;
   padding: 13px;
@@ -250,13 +249,11 @@
   background: var(--th-bg-inset);
 }
 
-.pfj-protocol__heading { display: flex; flex-direction: column; align-items: flex-start; gap: 8px; }
+.pfj-protocol__heading { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: flex-start; gap: 8px; }
 .pfj-protocol__eyebrow { color: var(--th-status-info-text); font-size: var(--font-size-3xs); font-weight: 800; letter-spacing: 0.08em; }
 .pfj-protocol h3 { margin: 4px 0 10px; color: var(--th-text); font-size: var(--font-size-sm); }
 .pfj-protocol__mock { padding: 4px 7px; border: 1px solid var(--th-status-info); border-radius: var(--radius-sm); color: var(--th-status-info-text); font-size: var(--font-size-3xs); font-weight: 800; }
-.pfj-protocol__exchange { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
 .pfj-protocol pre { max-height: 310px; overflow: auto; margin: 0; padding: 10px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg-card); color: var(--th-text-body); font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.5; white-space: pre-wrap; overflow-wrap: anywhere; }
-.pfj-protocol__token pre { margin-top: 12px; }
 
 .pfj-learning {
   display: grid;
@@ -293,7 +290,6 @@
   .pfj-guide { align-items: flex-start; flex-direction: column; }
   .pfj-step-nav { align-self: flex-end; }
   .pfj-chain { gap: 5px; font-size: var(--font-size-2xs); }
-  .pfj-protocol__body { grid-template-columns: 1fr; }
   .pfj-learning { grid-template-columns: 1fr; }
   .pfj-learning__docs { align-items: flex-start; flex-direction: column; }
   .pfj-learning__docs > div { justify-content: flex-start; }
@@ -309,7 +305,6 @@
   .pfj-step-nav { align-self: stretch; justify-content: space-between; }
   .pfj-chain { display: none; }
   .pfj-protocol summary { align-items: flex-start; flex-direction: column; }
-  .pfj-protocol__exchange { grid-template-columns: 1fr; }
   .pfj-learning__points { grid-template-columns: 1fr; }
 }
 

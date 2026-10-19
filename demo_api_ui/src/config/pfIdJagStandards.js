@@ -34,11 +34,9 @@ const BFF_PATTERN = DRAFT('draft-ietf-oauth-browser-based-apps', 'OAuth 2.0 for 
 const IDJAG = EXCHANGE.find((r) => r.id === 'draft-ietf-oauth-identity-assertion-authz-grant');
 const MCP_AUTH = MCP[0];
 const MCP_TOOLS = SPEC('MCP tools', 'Tool name, description and JSON Schema inputSchema; tools/call over JSON-RPC 2.0');
-const PF_EXCHANGE = SPEC('PingFederate refresh token to ID-JAG exchange', 'Token exchange processor policy plus an assertion connection that builds the ID-JAG');
-const PF_JWT_GRANT = SPEC('PingFederate OAuth assertion grant', 'JWT bearer assertion connection (the receiving side)');
 const PINGGATEWAY = SPEC('PingGateway', 'Route filters that enforce the access token before the MCP server');
+// Not AuthZEN: the gateway calls PingOne Authorize's own decision-endpoint shape, not the OpenID AuthZEN API.
 const AUTHORIZE = SPEC('PingOne Authorize', 'Per-action policy decision (PERMIT or DENY) before the tool runs');
-const AUTHZEN = SPEC('OpenID AuthZEN', "Standard PEP to PDP API; the call here is PingOne Authorize's own decision-endpoint shape");
 const CLIENT_CREDS = RFC(6749, 'client_credentials grant (section 4.4) for the worker token');
 
 // ---- MOCK tokens -----------------------------------------------------------------------------------------------
@@ -48,24 +46,34 @@ const MCP_RS = 'https://mcp.example.invalid';
 const T0 = 1790000000;
 const RS256 = { alg: 'RS256', typ: 'JWT' };
 
-const REFRESH = {
-  note: 'Refresh token · input (subject_token), opaque to the BFF; PingFederate looks it up',
-  claims: { client_id: 'ai-demo-pf-user', sub: 'user-123', scope: 'openid profile offline_access', custody: 'BFF session only · never sent to the browser' },
+const REFRESH_CLAIMS = { client_id: 'ai-demo-pf-user', sub: 'user-123', scope: 'openid profile offline_access', custody: 'BFF session only · never sent to the browser' };
+// Opaque to the BFF: these are the values PingFederate holds for the handle, not a decodable JWT.
+const REFRESH = { note: 'Refresh token · issued by PingFederate, opaque to the BFF, kept in its session', claims: REFRESH_CLAIMS };
+const REFRESH_IN = { note: 'Refresh token · input (subject_token), opaque to the BFF; PingFederate looks it up', claims: REFRESH_CLAIMS };
+// The PingFederate user access token. This demo's ATM signs Username (it can omit sub); the audience is ENDUSER_AUDIENCE.
+const LOGIN_AT = {
+  note: 'Access token · issued by PingFederate at sign-in (the user token later used as subject_token); signs Username, may omit sub',
+  header: { alg: 'RS256', typ: 'JWT', kid: '<PingFederate signing key id>' },
+  claims: { iss: PF, Username: 'user-123', aud: 'enduser.ping.demo', client_id: 'ai-demo-pf-user', scope: 'openid profile', iat: T0, exp: T0 + 3600 },
 };
 const ID_TOKEN = {
   note: 'ID token · issued by PingFederate at sign-in',
   header: RS256,
   claims: { iss: PF, sub: 'user-123', aud: 'ai-demo-pf-user', nonce: '<nonce from the sign-in request>', iat: T0, exp: T0 + 3600 },
 };
+// client_id is the client of the refresh token (ai-demo-pf-user), not the client that redeems the assertion.
+// oauth-mcp maps it to the redeeming client with ENTERPRISE_IDP_ID_JAG_CLIENT_MAP (ai-demo-pf-user=demo-bff-mcp-client).
+// The lifetime is PingFederate policy: 30 minutes in the lab run recorded for this demo.
 const ID_JAG = {
-  note: 'ID-JAG · signed assertion, about five minutes',
+  note: 'ID-JAG · signed assertion, short-lived (lifetime set by PingFederate policy)',
   header: { alg: 'RS256', typ: 'oauth-id-jag+jwt', kid: '<PingFederate signing key id>' },
-  claims: { jti: '<single-use id>', iss: PF, sub: 'user-123', aud: MCP_AS, resource: MCP_RS, client_id: 'demo-bff-mcp-client', scope: 'accounts:read', iat: T0, exp: T0 + 300 },
+  claims: { jti: '<single-use id>', iss: PF, sub: 'user-123', aud: MCP_AS, resource: MCP_RS, client_id: 'ai-demo-pf-user', scope: 'accounts:read', iat: T0, exp: T0 + 1800 },
 };
+// oauth-mcp TokenIssuer: its own key (kid), a jti, one hour, no act claim (the ID-JAG carries no delegation chain).
 const MCP_AT = {
-  note: 'MCP access token · issued by the MCP authorization server',
-  header: RS256,
-  claims: { iss: MCP_AS, sub: 'user-123', aud: MCP_RS, client_id: 'demo-bff-mcp-client', scope: 'accounts:read', iat: T0 + 5, exp: T0 + 305 },
+  note: 'MCP access token · issued by the MCP authorization server (client_id is the redeeming client)',
+  header: { alg: 'RS256', kid: '<oauth-mcp signing key id>' },
+  claims: { iss: MCP_AS, sub: 'user-123', aud: MCP_RS, client_id: 'demo-bff-mcp-client', scope: 'accounts:read', iat: T0 + 5, exp: T0 + 3605, jti: '<unique id>' },
 };
 const MCP_AT_USED = { ...MCP_AT, note: 'MCP access token · the same token, not re-issued' };
 
@@ -83,24 +91,29 @@ grant_type=urn:ietf:params:oauth:grant-type:token-exchange
 &resource=${MCP_RS}
 &scope=accounts:read
 &client_id=ai-demo-pf-user`;
+// The BFF checks access_token and issued_token_type (oauthService.performIdJagExchange); the draft names no other field it relies on.
 const ID_JAG_RESPONSE = `HTTP/1.1 200 OK
 Content-Type: application/json
 
-${json({ access_token: '<ID-JAG>', issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag', token_type: 'N_A', expires_in: 300 })}`;
+${json({ access_token: '<ID-JAG>', issued_token_type: 'urn:ietf:params:oauth:token-type:id-jag' })}
+# RFC 8693 also requires token_type here (N_A for a token that is not an access token); read it from your PingFederate.`;
 const REDEEM_REQUEST = `POST /token HTTP/1.1
 Host: mcp-as.example.invalid
-Authorization: Basic <client credentials of demo-bff-mcp-client>
+# demo-bff-mcp-client is a public client by default: no Authorization header, client_id in the body.
+# With ENTERPRISE_MCP_AS_CLIENT_SECRET set it becomes confidential: Authorization: Basic <client credentials>
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn:ietf:params:oauth:grant-type:jwt-bearer
 &assertion=<ID-JAG>
 &client_id=demo-bff-mcp-client
 &resource=${MCP_RS}
-&scope=accounts:read`;
+&scope=accounts:read
+# The ID-JAG's client_id is ai-demo-pf-user (the refresh token's client); oauth-mcp maps it to this client
+# with ENTERPRISE_IDP_ID_JAG_CLIENT_MAP before the client_id check.`;
 const REDEEM_RESPONSE = `HTTP/1.1 200 OK
 Content-Type: application/json
 
-${json({ access_token: '<MCP access token>', token_type: 'Bearer', expires_in: 300, scope: 'accounts:read' })}`;
+${json({ access_token: '<MCP access token>', token_type: 'Bearer', expires_in: 3600, scope: 'accounts:read' })}`;
 const MCP_CALL = `POST /mcp HTTP/1.1
 Authorization: Bearer <MCP access token>
 Content-Type: application/json
@@ -143,11 +156,22 @@ const PROPOSAL = `HTTP/1.1 200 OK
 Content-Type: application/json
 
 ${json({ toolCall: { name: 'get_my_accounts', arguments: {} } })}`;
-const P1AZ_REQUEST = `POST https://api.pingone.com/v1/environments/<environment id>/decisionEndpoints/<MCP decision endpoint id> HTTP/1.1
+// The gateway hop (ping-gateway p1az-decision.groovy): DecisionContext McpToolCall for tools/call, plus the
+// token-derived attributes the policy reads. (McpFirstTool is the BFF-side gate, a different call.)
+const P1AZ_URL = `POST https://api.pingone.com/v1/environments/<environment id>/decisionEndpoints/<MCP decision endpoint id> HTTP/1.1
 Authorization: Bearer <worker access token>
-Content-Type: application/json
+Content-Type: application/json`;
+const P1AZ_BASE = { DecisionContext: 'McpToolCall', McpMethod: 'tools/call', ToolName: 'get_my_accounts', UserId: '<token sub>', McpResourceUri: '<gateway resource uri>', TokenAudActual: '<aud of the inbound token>' };
+// ID-JAG path: the redeemed token has no act claim, so there is no actor chain.
+const P1AZ_REQUEST_JAG = `${P1AZ_URL}
 
-${json({ parameters: { DecisionContext: 'McpFirstTool', McpMethod: 'tools/call', UserId: '<user id>', ToolName: 'get_my_accounts' } })}`;
+${json({ parameters: { ...P1AZ_BASE, ClientId: '<token sub>', ActClientId: '', ActChainDepth: '0', NestedActClientId: '' } })}
+# More attributes follow (TokenScopes, TokenExp, TokenIss, Vertical, UseCaseId, tool annotations).`;
+// PingFederate delegation path: the nested act chain is read at both levels.
+const P1AZ_REQUEST_LOGIN = `${P1AZ_URL}
+
+${json({ parameters: { ...P1AZ_BASE, ClientId: '<token sub>', ActClientId: '<MCP actor client id>', ActChainDepth: '2', NestedActClientId: '<agent client id>' } })}
+# More attributes follow (TokenScopes, TokenExp, TokenIss, Vertical, UseCaseId, tool annotations).`;
 const P1AZ_WORKER = {
   note: 'Worker token · client_credentials, used only to call the decision endpoint',
   header: RS256,
@@ -162,13 +186,13 @@ export const JAG_DETAIL = [
   },
   { // 1 bff -> pingfed
     form: ID_JAG_REQUEST,
-    tokens: [REFRESH],
-    refs: [TOKEN_EXCHANGE, RESOURCE, OAUTH, IDJAG, PF_EXCHANGE],
+    tokens: [REFRESH_IN],
+    refs: [TOKEN_EXCHANGE, RESOURCE, OAUTH, IDJAG],
   },
   { // 2 pingfed -> jag (mint)
     form: '# Inside PingFederate (no HTTP call): the token-exchange processor policy (aiDemoPfIdJagPolicy) validates the\n# refresh token, then the assertion connection (aiDemoPfIdJagSp) maps attributes and signs the ID-JAG.',
-    tokens: [REFRESH, ID_JAG],
-    refs: [TOKEN_EXCHANGE, IDJAG, JWT, JWS, JWT_BCP, PF_EXCHANGE],
+    tokens: [REFRESH_IN, ID_JAG],
+    refs: [TOKEN_EXCHANGE, IDJAG, JWT, JWS, JWT_BCP],
   },
   { // 3 jag -> bff (return)
     form: ID_JAG_RESPONSE,
@@ -178,12 +202,12 @@ export const JAG_DETAIL = [
   { // 4 bff -> mcpas
     form: REDEEM_REQUEST,
     tokens: [ID_JAG],
-    refs: [JWT_BEARER, ASSERTION, RESOURCE, IDJAG, JWK, PF_JWT_GRANT],
+    refs: [JWT_BEARER, ASSERTION, RESOURCE, IDJAG, JWK],
   },
   { // 5 mcpas -> bff
     form: REDEEM_RESPONSE,
     tokens: [MCP_AT],
-    refs: [OAUTH, BEARER_USE, RESOURCE],
+    refs: [OAUTH, BEARER_USE],
   },
   { // 6 bff -> gateway
     form: MCP_CALL,
@@ -191,9 +215,9 @@ export const JAG_DETAIL = [
     refs: [BEARER_USE, MCP_AUTH, MCP_TOOLS, PINGGATEWAY],
   },
   { // 7 gateway -> authorize
-    form: P1AZ_REQUEST,
+    form: P1AZ_REQUEST_JAG,
     tokens: [P1AZ_WORKER],
-    refs: [AUTHORIZE, CLIENT_CREDS, AUTHZEN],
+    refs: [AUTHORIZE, CLIENT_CREDS],
   },
   { // 8 gateway -> invest (MCP server)
     form: `${MCP_CALL}\n\n# PingGateway forwards the call after PingOne Authorize answers PERMIT.`,
@@ -203,31 +227,43 @@ export const JAG_DETAIL = [
   { // 9 invest -> banking
     form: ACCOUNTS_CALL,
     tokens: [MCP_AT_USED],
-    refs: [BEARER_USE, JWT, JWK, RESOURCE],
+    refs: [BEARER_USE, JWT, JWK],
   },
 ];
 
 // ---- ARROW DETAIL: PingFederate login + agent authorization ----------------------------------------------------
-const ACT_USER = { note: 'User token · subject_token of exchange 1', header: RS256, claims: { iss: PF, sub: 'user-123', aud: 'ai-demo-pf-user', scope: 'openid profile', iat: T0, exp: T0 + 3600 } };
-const ACT_AGENT = { note: 'Agent actor token · actor_token of exchange 1', header: RS256, claims: { iss: PF, sub: '<agent client id>', client_id: '<agent client id>', iat: T0, exp: T0 + 3600 } };
-const ACT_MID = { note: 'Agent-exchanged token · subject_token of exchange 2', header: RS256, claims: { iss: PF, sub: 'user-123', aud: '<intermediate resource>', act: { sub: '<agent client id>' }, iat: T0 + 2, exp: T0 + 302 } };
-const ACT_MCP = { note: 'MCP actor token · actor_token of exchange 2', header: RS256, claims: { iss: PF, sub: '<MCP actor client id>', client_id: '<MCP actor client id>', iat: T0, exp: T0 + 3600 } };
-const SCOPED = { note: 'Scoped MCP access token · result of exchange 2', header: RS256, claims: { iss: PF, sub: 'user-123', aud: '<PingGateway resource>', scope: 'accounts:read', act: { sub: '<MCP actor client id>' }, iat: T0 + 4, exp: T0 + 304 } };
+// The two-exchange delegation (pfStandardTokenExchangeService): the result audience is derived by PingFederate policy
+// (aiDemoStandardTePolicy), so no audience is sent; each hop runs as its own exchange client and asks for an access token.
+// The live user subject is the PF session ACCESS token (aud enduser.ping.demo), see LOGIN_AT.
+const ACT_USER = { note: 'User access token · subject_token of exchange 1 (the sign-in access token)', header: LOGIN_AT.header, claims: LOGIN_AT.claims };
+const ACT_AGENT = { note: 'Agent actor token · actor_token of exchange 1', header: RS256, claims: { iss: PF, sub: '<agent client id>', client_id: '<agent client id>', scope: 'agent:invoke', iat: T0, exp: T0 + 3600 } };
+const ACT_MID = { note: 'Agent-exchanged token · subject_token of exchange 2 (result of exchange 1)', header: RS256, claims: { iss: PF, sub: 'user-123', aud: 'https://agentgateway.ping.demo', act: { sub: '<agent client id>' }, iat: T0 + 2, exp: T0 + 3602 } };
+const ACT_MCP = { note: 'MCP actor token · actor_token of exchange 2', header: RS256, claims: { iss: PF, sub: '<MCP actor client id>', client_id: '<MCP actor client id>', scope: 'mcp:invoke', iat: T0, exp: T0 + 3600 } };
+// Nested act: act.sub is the MCP service, act.act.sub is the AI agent (validateFinalToken refuses a flat act).
+const SCOPED = { note: 'Scoped MCP access token · result of exchange 2 (nested act chain)', header: RS256, claims: { iss: PF, sub: 'user-123', aud: 'https://api.ping.demo:3036/mcp', scope: 'accounts:read', act: { sub: '<MCP actor client id>', act: { sub: '<agent client id>' } }, iat: T0 + 4, exp: T0 + 3604 } };
 const SCOPED_USED = { ...SCOPED, note: 'Scoped MCP access token · presented, not re-issued' };
 const EXCHANGE_1 = `POST /as/token.oauth2 HTTP/1.1
+Authorization: Basic <agent exchange client credentials>
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn:ietf:params:oauth:grant-type:token-exchange
-&subject_token=<user token>&subject_token_type=urn:ietf:params:oauth:token-type:access_token
+&requested_token_type=urn:ietf:params:oauth:token-type:access_token
+&subject_token=<user access token>&subject_token_type=urn:ietf:params:oauth:token-type:access_token
 &actor_token=<agent actor token>&actor_token_type=urn:ietf:params:oauth:token-type:access_token
-&audience=<intermediate resource>`;
+&scope=<requested scopes>
+&client_id=<agent exchange client id>
+# no audience: PingFederate's token-exchange policy derives the result audience`;
 const EXCHANGE_2 = `POST /as/token.oauth2 HTTP/1.1
+Authorization: Basic <MCP exchange client credentials>
 Content-Type: application/x-www-form-urlencoded
 
 grant_type=urn:ietf:params:oauth:grant-type:token-exchange
+&requested_token_type=urn:ietf:params:oauth:token-type:access_token
 &subject_token=<agent-exchanged token>&subject_token_type=urn:ietf:params:oauth:token-type:access_token
 &actor_token=<MCP actor token>&actor_token_type=urn:ietf:params:oauth:token-type:access_token
-&audience=<PingGateway resource>&scope=accounts:read`;
+&scope=accounts:read
+&client_id=<MCP exchange client id>
+# no audience: the policy derives it (the MCP gateway resource)`;
 
 // Index = EDGES index in pfIdJagDiagrams.js (LOGIN_EDGES).
 export const LOGIN_DETAIL = [
@@ -257,7 +293,7 @@ export const LOGIN_DETAIL = [
   },
   { // 6 pingfed -> bff
     form: TOKENS_RESPONSE,
-    tokens: [ID_TOKEN, REFRESH],
+    tokens: [LOGIN_AT, ID_TOKEN, REFRESH],
     refs: [OAUTH, OIDC, JWT, JWT_BCP, BEARER_USE],
   },
   { // 7 bff -> user
@@ -279,12 +315,12 @@ export const LOGIN_DETAIL = [
   { // 11 bff -> pingfed (two exchanges)
     form: `# Exchange 1: user subject + agent actor\n${EXCHANGE_1}\n\n# Exchange 2: agent-exchanged subject + MCP actor\n${EXCHANGE_2}`,
     tokens: [ACT_USER, ACT_AGENT, ACT_MID, ACT_MCP],
-    refs: [TOKEN_EXCHANGE, RESOURCE, OAUTH, AUTHORIZE, PF_EXCHANGE],
+    refs: [TOKEN_EXCHANGE, OAUTH],
   },
   { // 12 pingfed -> bff
-    form: `HTTP/1.1 200 OK\nContent-Type: application/json\n\n${json({ access_token: '<scoped MCP access token>', issued_token_type: 'urn:ietf:params:oauth:token-type:access_token', token_type: 'Bearer', expires_in: 300, scope: 'accounts:read' })}`,
+    form: `HTTP/1.1 200 OK\nContent-Type: application/json\n\n${json({ access_token: '<scoped MCP access token>', issued_token_type: 'urn:ietf:params:oauth:token-type:access_token', token_type: 'Bearer', expires_in: '<seconds>', scope: 'accounts:read' })}`,
     tokens: [SCOPED],
-    refs: [TOKEN_EXCHANGE, RESOURCE, BEARER_USE, JWT],
+    refs: [TOKEN_EXCHANGE, BEARER_USE, JWT],
   },
   { // 13 bff -> gateway
     form: MCP_CALL,
@@ -292,9 +328,9 @@ export const LOGIN_DETAIL = [
     refs: [BEARER_USE, MCP_AUTH, MCP_TOOLS, PINGGATEWAY],
   },
   { // 14 gateway -> authorize
-    form: P1AZ_REQUEST,
+    form: P1AZ_REQUEST_LOGIN,
     tokens: [P1AZ_WORKER],
-    refs: [AUTHORIZE, CLIENT_CREDS, AUTHZEN],
+    refs: [AUTHORIZE, CLIENT_CREDS],
   },
   { // 15 gateway -> mcp
     form: `${MCP_CALL}\n\n# Forwarded only after PingOne Authorize answers PERMIT.`,
@@ -331,7 +367,7 @@ export const CALL_DETAIL = [
   },
   { // 4 Swap code for tokens
     form: `${CODE_EXCHANGE}\n\n${TOKENS_RESPONSE}`,
-    tokens: [ID_TOKEN, REFRESH],
+    tokens: [LOGIN_AT, ID_TOKEN, REFRESH],
     refs: [OAUTH, PKCE, OIDC, JWT, BEARER_USE],
   },
   { // 5 Run: show my balance
@@ -348,8 +384,8 @@ export const CALL_DETAIL = [
   },
   { // 8 Ask for an ID-JAG
     form: `${ID_JAG_REQUEST}\n\n${ID_JAG_RESPONSE}`,
-    tokens: [REFRESH, ID_JAG],
-    refs: [TOKEN_EXCHANGE, RESOURCE, OAUTH, IDJAG, PF_EXCHANGE],
+    tokens: [REFRESH_IN, ID_JAG],
+    refs: [TOKEN_EXCHANGE, RESOURCE, OAUTH, IDJAG],
   },
   { // 9 Check the ID-JAG
     form: '# Inside the BFF (no HTTP call): decode the assertion, then refuse unless\n#   header.typ === "oauth-id-jag+jwt", sub and iss are present, iss matches the configured PingFederate issuer,\n#   aud contains the requested audience, and exp is in the future.',
@@ -366,7 +402,7 @@ export const CALL_DETAIL = [
     refs: [JWK, JWS, JWT_BCP],
   },
   { // 12 Verify, then mint
-    form: `# Inside oauth-mcp: jwtVerify(assertion, { algorithms: ["RS256"], issuer: <PingFederate issuer>, audience: <oauth-mcp issuer> })\n# then typ = oauth-id-jag+jwt, exp, resource in the accepted list, client_id = the redeeming client, jti not seen before.\n\n${REDEEM_RESPONSE}`,
+    form: `# Inside oauth-mcp: jwtVerify(assertion, { algorithms: ["RS256"], issuer: <PingFederate issuer>, audience: <oauth-mcp issuer> })\n# then typ = oauth-id-jag+jwt, exp, resource in the accepted list, client_id = the redeeming client (after the ENTERPRISE_IDP_ID_JAG_CLIENT_MAP alias), jti not seen before.\n\n${REDEEM_RESPONSE}`,
     tokens: [ID_JAG, MCP_AT],
     refs: [JWT_BEARER, JWT_BCP, JWT, RESOURCE, OAUTH, IDJAG],
   },
@@ -393,12 +429,12 @@ export const CALL_DETAIL = [
   { // 17 Read the accounts
     form: ACCOUNTS_CALL,
     tokens: [MCP_AT_USED],
-    refs: [BEARER_USE, JWT, RESOURCE],
+    refs: [BEARER_USE, JWT],
   },
   { // 18 Verify the token
     form: '# Inside the banking API (auth middleware): recognise the oauth-mcp issuer, verify the signature against its JWKS\n# with an exact issuer check, then apply audience, scope and role checks.',
     tokens: [MCP_AT_USED],
-    refs: [JWT, JWK, JWT_BCP, RESOURCE, BEARER_USE],
+    refs: [JWT, JWK, JWT_BCP, BEARER_USE],
   },
   { // 19 Answer flows back
     form: `HTTP/1.1 200 OK\nContent-Type: application/json\n\n${json({ accounts: [{ id: '<account id>', name: '<account name>', balance: '<balance>' }] })}\n\n${noToken('the answer travels back through the MCP server, gateway and BFF; nobody calls PingFederate again')}`,

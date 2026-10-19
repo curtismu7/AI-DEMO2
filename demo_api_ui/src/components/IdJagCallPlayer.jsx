@@ -6,49 +6,13 @@ import StepTimeSelector from "./diagram/StepTimeSelector";
 import { liveEvidenceFor, useLastRunTrace } from "../utils/idJagLiveClaims";
 import IdJagCallReel from "./IdJagCallReel";
 import IdJagCallSequence from "./IdJagCallSequence";
+import IdJagWireDetail from "./IdJagWireDetail";
 import "./IdJagCallPlayer.css";
 
 const VIEW_KEY = "idjag.callView";
 const readView = () => {
   try { return window.localStorage.getItem(VIEW_KEY) === "sequence" ? "sequence" : "reel"; } catch { return "reel"; }
 };
-
-const KIND_LABEL = { rfc: "RFC", spec: "spec", emerging: "emerging" };
-
-// The request on the wire, the MOCK tokens in play and the standards behind one call (pfIdJagStandards.js).
-function CallDetail({ detail }) {
-  if (!detail) return null;
-  return (
-    <div className="ijc-wire" data-testid="idjag-call-wire">
-      {detail.form && (
-        <section>
-          <h4>Request on the wire</h4>
-          <pre className="ijc-code">{detail.form}</pre>
-        </section>
-      )}
-      {(detail.tokens || []).map((t) => (
-        <section key={t.note}>
-          <h4>{t.note} <span className="ijc-mock">MOCK, teaching values only</span></h4>
-          <pre className="ijc-code">{JSON.stringify({ ...(t.header ? { header: t.header } : {}), claims: t.claims }, null, 2)}</pre>
-        </section>
-      ))}
-      {detail.refs?.length > 0 && (
-        <section className="ijc-refs" data-testid="idjag-call-refs">
-          <h4>Standards behind this call</h4>
-          <ul>
-            {detail.refs.map((r) => (
-              <li key={r.id}>
-                <span className={`ijc-ref ijc-ref--${r.kind}`}>{KIND_LABEL[r.kind]}</span>
-                <strong>{r.id}</strong> {r.title}
-              </li>
-            ))}
-          </ul>
-          <p className="ijc-refs__note">Emerging items are drafts or in-progress work; their status can change.</p>
-        </section>
-      )}
-    </div>
-  );
-}
 
 // Every ID-JAG call, shown as a movie reel OR a sequence diagram (the user picks
 // one), with Simulate/Step/Reset, a step-time choice and a detail panel for the selected call.
@@ -119,7 +83,7 @@ export default function IdJagCallPlayer({ speedMs = DEFAULT_STEP_MS }) {
           </div>
         )}
         {call.evidence && !live && <p className="ijc-note">No run recorded yet. Run the demo and the claims for this call appear here.</p>}
-        <CallDetail detail={CALL_DETAIL[call.n - 1]} />
+        <IdJagWireDetail detail={CALL_DETAIL[call.n - 1]} />
         <p className="ijc-detail__source">Source: {call.source}</p>
       </section>
     </div>

@@ -44,4 +44,25 @@ describe('step and call detail', () => {
     const jag = CALL_DETAIL[7].tokens.find((t) => t.header?.typ === 'oauth-id-jag+jwt');
     expect(Object.keys(jag.claims)).toEqual(expect.arrayContaining(['jti', 'iss', 'sub', 'aud', 'resource', 'client_id', 'scope', 'exp']));
   });
+  it('matches the repo on the wire: nested act, policy-derived audience, gateway decision context, access token at sign-in', () => {
+    const login = (i) => LOGIN_DIAGRAM.STEPS.find((st) => st.edges[0] === i).detail;
+    const scoped = login(12).tokens[0].claims;
+    expect(scoped.act.sub).toBeTruthy();
+    expect(scoped.act.act.sub).toBeTruthy();
+    const exchange = login(11).form;
+    expect(exchange).not.toMatch(/&audience=/);
+    expect(exchange).toMatch(/requested_token_type=urn:ietf:params:oauth:token-type:access_token/);
+    expect(exchange).toMatch(/&client_id=/);
+    const gateway = [JAG_DIAGRAM.STEPS.find((st) => st.edges[0] === 7).detail.form, login(14).form];
+    gateway.forEach((f) => { expect(f).toContain('McpToolCall'); expect(f).not.toContain('McpFirstTool'); expect(f).toContain('ActChainDepth'); });
+    expect(login(6).tokens.map((t) => t.note).join(' ')).toMatch(/Access token[\s\S]*ID token[\s\S]*Refresh token/);
+    expect(CALL_DETAIL[3].tokens.map((t) => t.note).join(' ')).toMatch(/Access token/);
+  });
+  it('attaches a standard only to hops it governs, and invents no spec names', () => {
+    const ids = allDetails.flatMap((d) => d.refs.map((r) => r.id));
+    expect(ids).not.toContain('OpenID AuthZEN');
+    expect(ids.filter((id) => /^PingFederate (refresh token|OAuth assertion)/.test(id))).toEqual([]);
+    allDetails.filter((d) => d.refs.some((r) => r.id === 'RFC 8707')).forEach((d) => expect(d.form).toMatch(/resource/));
+    allDetails.filter((d) => d.refs.some((r) => r.id === 'PingOne Authorize')).forEach((d) => expect(d.form).toMatch(/decisionEndpoints|PingOne Authorize/));
+  });
 });

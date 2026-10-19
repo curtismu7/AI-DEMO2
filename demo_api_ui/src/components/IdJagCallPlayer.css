@@ -35,15 +35,17 @@
 .ijc-seq__actor-label { fill: var(--th-text); font-size: var(--font-size-xs); font-weight: 700; }
 .ijc-seq__life { stroke: var(--th-text-muted); stroke-width: 1.5; stroke-dasharray: 4 4; opacity: 0.6; }
 .ijc-seq__band { fill: transparent; }
-.ijc-seq__row { cursor: pointer; }
+.ijc-seq__row { cursor: pointer; --ijc-halo: var(--ijc-canvas); }
+.ijc-seq__row:hover { --ijc-halo: var(--th-bg-hover); }
 .ijc-seq__row:hover .ijc-seq__band { fill: var(--th-bg-hover); }
 .ijc-seq__row:focus-visible { outline: 2px solid var(--ijc-dash); }
+.ijc-seq__row.is-active { --ijc-halo: var(--th-status-info-bg); }
 .ijc-seq__row.is-active .ijc-seq__band { fill: var(--th-status-info-bg); }
 .ijc-seq__row.is-active .ijc-seq__arrow { stroke: var(--ijc-dash); stroke-dasharray: 8 6; animation: ijc-flow 0.9s linear infinite; }
 .ijc-seq__row.is-active .ijc-seq__head { fill: var(--ijc-dash); }
 .ijc-seq__arrow { stroke: var(--ijc-arrow); stroke-width: 3.2; }
 .ijc-seq__head { fill: var(--ijc-arrow); }
-.ijc-seq__label { fill: var(--th-text); font-size: var(--font-size-xs); font-weight: 600; }
+.ijc-seq__label { fill: var(--th-text); font-size: var(--font-size-xs); font-weight: 600; /* a halo in the row colour keeps the dashed lifelines out of the words */ paint-order: stroke; stroke: var(--ijc-halo); stroke-width: 7px; stroke-linejoin: round; }
 .ijc-seq__num { fill: var(--ijc-orange); }
 .ijc-seq__num-text { fill: #000000; font-size: var(--font-size-xs); font-weight: 800; }
 .ijc-seq__untraced { fill: var(--th-text-muted); font-size: var(--font-size-3xs); font-style: italic; }

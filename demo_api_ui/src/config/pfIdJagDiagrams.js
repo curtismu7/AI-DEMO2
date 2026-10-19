@@ -24,19 +24,19 @@ export const JAG_NODES = [
   N('user', 'user', 'User + agent', ['UC40 · MCP request', 'browser holds a session cookie only'], 0, 250),
   N('bff', 'bff', 'Demo BFF', ['token custodian · OAuth client', 'holds the PingFederate refresh token', 'server-side, never in the browser'], 480, 250),
   N('pingfed', 'ping', 'PingFederate', ['Side 1 · validates + issues', 'policy aiDemoPfIdJagPolicy'], 960, 0),
-  N('jag', 'ping', 'ID-JAG', ['signed JWT assertion', 'typ oauth-id-jag+jwt · about 5 minutes'], 960, 250),
-  N('mcpas', 'res', 'MCP Authorization Server', ['Side 2 · validates + redeems', 'oauth-mcp · mints its own access token'], 960, 500),
+  N('jag', 'ping', 'ID-JAG', ['signed JWT assertion', 'typ oauth-id-jag+jwt · short-lived'], 480, 0),
+  N('mcpas', 'res', 'MCP Authorization Server', ['Side 2 · validates + redeems', 'oauth-mcp · mints its own access token'], 1060, 500),
   N('gateway', 'ping', 'PingGateway', ['access-token enforcement', 'MCP gateway'], 480, 500),
   N('authorize', 'ping', 'PingOne Authorize', ['action policy · PERMIT or DENY'], 0, 500),
   N('invest', 'res', 'MCP server', ['OLB backend · runs the tool', 'get_my_accounts'], 480, 750),
-  N('banking', 'res', 'BFF banking API', ['verifies the token · returns data'], 960, 750),
+  N('banking', 'res', 'BFF banking API', ['verifies the token · returns data'], 1060, 750),
 ];
 
 export const JAG_EDGES = [
   E('user', 'bff', 'POST /api/agent/run'), // 0
   E('bff', 'pingfed', 'token exchange: refresh token'), // 1
-  E('pingfed', 'jag', 'validate, map, sign', DOWN), // 2
-  E('jag', 'bff', 'ID-JAG returned', DASHED), // 3
+  E('pingfed', 'jag', 'validate, map, sign'), // 2
+  E('jag', 'bff', 'ID-JAG returned', { dashed: true, vertical: true }), // 3
   E('bff', 'mcpas', 'JWT bearer grant: assertion=ID-JAG'), // 4
   E('mcpas', 'bff', 'MCP access token', DASHED), // 5
   E('bff', 'gateway', 'tools/call + Bearer', DOWN), // 6
@@ -74,29 +74,30 @@ export const JAG_DIAGRAM = { GROUPS: PF_ID_JAG_GROUPS, NODES: JAG_NODES, EDGES: 
 
 // ---- 2. PingFederate login + AI request (8 boxes, 19 arrows) ---------------------------------------------------
 export const LOGIN_NODES = [
-  N('user', 'user', 'User / browser', ['PF sign-in · AI request', 'session cookie only', 'never sees a token', 'never hands credentials to the BFF'], 0, 250),
-  N('bff', 'bff', 'Demo BFF', ['OIDC client · token custodian', 'starts the PKCE sign-in', 'keeps tokens in its session', 'runs the AI request', 'executes the tool call'], 480, 250),
-  N('pingfed', 'ping', 'PingFederate', ['sign-in at /as/authorization.oauth2', 'tokens at /as/token.oauth2', 'client ai-demo-pf-user', 'login code + standard token exchange'], 960, 250),
-  N('agent', 'bff', 'Agent Service', ['reasoning · tool proposal', 'holds no tokens'], 0, 560),
-  N('gateway', 'ping', 'PingGateway', ['MCP token enforcement'], 480, 560),
-  N('authorize', 'ping', 'PingOne Authorize', ['runtime action policy'], 960, 560),
-  N('mcp', 'res', 'MCP Server', ['protected tools · resource'], 480, 840),
+  N('user', 'user', 'User / browser', ['PF sign-in · AI request', 'session cookie only', 'never sees a token', 'never hands credentials to the BFF'], 0, 0),
+  N('pfauth', 'ping', 'PingFederate · sign-in', ['browser-facing endpoint', '/as/authorization.oauth2', 'authentication policy · login page'], 1150, 0),
+  N('bff', 'bff', 'Demo BFF', ['OIDC client · token custodian', 'starts the PKCE sign-in', 'keeps tokens in its session', 'runs the AI request', 'executes the tool call'], 575, 330),
+  N('pftoken', 'ping', 'PingFederate · token endpoint', ['back-channel endpoint', '/as/token.oauth2 · client ai-demo-pf-user', 'code exchange + standard token exchange'], 1150, 330),
+  N('agent', 'bff', 'Agent Service', ['reasoning · tool proposal', 'holds no tokens'], 0, 660),
+  N('gateway', 'ping', 'PingGateway', ['MCP token enforcement'], 575, 660),
+  N('authorize', 'ping', 'PingOne Authorize', ['runtime action policy'], 1150, 660),
+  N('mcp', 'res', 'MCP Server', ['protected tools · resource'], 575, 960),
 ];
 
 export const LOGIN_EDGES = [
   E('user', 'bff', 'sign in'), // 0
-  E('bff', 'pingfed', '302 · /authorize + PKCE'), // 1
-  E('pingfed', 'user', 'sign-in page'), // 2
-  E('user', 'pingfed', 'credentials'), // 3
-  E('pingfed', 'bff', 'code + state', DASHED), // 4
-  E('bff', 'pingfed', 'code + verifier'), // 5
-  E('pingfed', 'bff', 'ID / access / refresh', DASHED), // 6
+  E('bff', 'pfauth', '302 · /authorize + PKCE'), // 1
+  E('pfauth', 'user', 'sign-in page'), // 2
+  E('user', 'pfauth', 'credentials'), // 3
+  E('pfauth', 'bff', 'code + state', DASHED), // 4
+  E('bff', 'pftoken', 'code + verifier'), // 5
+  E('pftoken', 'bff', 'ID / access / refresh', DASHED), // 6
   E('bff', 'user', 'HTTP-only cookie', DASHED), // 7
   E('user', 'bff', 'prompt + session'), // 8
   E('bff', 'agent', 'reason request'), // 9
   E('agent', 'bff', 'tool proposal'), // 10
-  E('bff', 'pingfed', '2-exchange delegation'), // 11
-  E('pingfed', 'bff', 'scoped access token', DASHED), // 12
+  E('bff', 'pftoken', '2-exchange delegation'), // 11
+  E('pftoken', 'bff', 'scoped access token', DASHED), // 12
   E('bff', 'gateway', 'MCP request + token', DOWN), // 13
   E('gateway', 'authorize', 'action policy check'), // 14
   E('gateway', 'mcp', 'permitted MCP tool call', DOWN), // 15
