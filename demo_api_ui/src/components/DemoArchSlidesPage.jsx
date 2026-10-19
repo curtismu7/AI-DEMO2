@@ -8,6 +8,7 @@ import { DEFAULT_STEP_MS, STEP_TIME_OPTIONS, StepTimeSelector } from "./diagram"
 import { CONTROL_PLANE_META } from "./DemoArchControlPlaneScene";
 import { WORKLOAD_META } from "./DemoArchWorkloadScene";
 import PingSlideFlow from "./PingSlideFlow";
+import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
 import { CIBA_SLIDE, CONTROL_PLANE_SLIDE, CONTROL_PLANE_STEPS, TOPOLOGY_SLIDE, ID_JAG_SLIDE, OBO_SLIDE, OBO_STEPS, CODING_SLIDE, CODING_STEPS } from "../config/pingSlideDiagrams";
 import { ID4AI_PDF, ID4AI_SLIDES } from "../config/id4aiSlides";
 import "./DemoArchSlidesPage.css";
@@ -145,6 +146,7 @@ const ID4AI_DEFS = ID4AI_SLIDES.map((s) => ({
   rows: [],
   live: NO_LIVE,
   drag: true,
+  ping: s.ping,
   render: (st, n, r) => <PingSlideFlow key={r} config={s.config} step={n} />,
 }));
 
@@ -321,6 +323,10 @@ export default function DemoArchSlidesPage({ slide, deck }) {
         </nav>
       )}
 
+      {def.ping ? (
+        // A pingStyle slide brings its own Simulate / Step / Reset / speed bar, reel and detail panel.
+        <EmbeddedFlowDiagram config={def.ping} title={def.label} lede={meta.caption} testId={`id4ai-${def.id}`} pingStyle />
+      ) : (<>
       <div className="das-controls" role="group" aria-label="Walkthrough controls">
         <button type="button" className="das-btn das-btn--primary" onClick={p.playing ? p.pause : p.play} disabled={p.live}>
           {p.playing ? "Pause" : "▶ Play"}
@@ -400,6 +406,7 @@ export default function DemoArchSlidesPage({ slide, deck }) {
           </div>
         </>
       )}
+      </>)}
     </div>
   );
 }

@@ -3,7 +3,7 @@ import { WORKLOAD_META } from '../../components/DemoArchWorkloadScene';
 import { ID4AI_SLIDES } from '../id4aiSlides';
 import { CIBA_SLIDE, CONTROL_PLANE_SLIDE, CONTROL_PLANE_STEPS, TOPOLOGY_SLIDE, ID_JAG_SLIDE, OBO_SLIDE, OBO_STEPS, CODING_SLIDE, CODING_STEPS } from '../pingSlideDiagrams';
 
-describe.each([['obo', OBO_SLIDE, OBO_STEPS], ['coding', CODING_SLIDE, CODING_STEPS], ['id-jag', ID_JAG_SLIDE, WORKLOAD_META.idjag.steps], ['topology', TOPOLOGY_SLIDE, WORKLOAD_META.topology.steps], ['ciba', CIBA_SLIDE, WORKLOAD_META.ciba.steps], ['control-plane', CONTROL_PLANE_SLIDE, CONTROL_PLANE_STEPS], ...ID4AI_SLIDES.map((d) => [d.id, d.config, d.steps])])('%s slide', (_n, slide, steps) => {
+describe.each([['obo', OBO_SLIDE, OBO_STEPS], ['coding', CODING_SLIDE, CODING_STEPS], ['id-jag', ID_JAG_SLIDE, WORKLOAD_META.idjag.steps], ['topology', TOPOLOGY_SLIDE, WORKLOAD_META.topology.steps], ['ciba', CIBA_SLIDE, WORKLOAD_META.ciba.steps], ['control-plane', CONTROL_PLANE_SLIDE, CONTROL_PLANE_STEPS], ...ID4AI_SLIDES.filter((d) => !d.ping).map((d) => [d.id, d.config, d.steps])])('%s slide', (_n, slide, steps) => {
   it('has unique node ids and edges between real nodes', () => {
     const ids = slide.nodes.map((n) => n.id);
     expect(new Set(ids).size).toBe(ids.length);
