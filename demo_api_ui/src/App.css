@@ -2243,6 +2243,15 @@
   padding: 0.25rem 0.1rem;
 }
 
+/* Choice screen: three big buttons need air between them (the shared 0.4rem gap read as crammed). */
+.pi-flow-signin__form--choice {
+  gap: 1rem;
+  padding-top: 0.75rem;
+}
+.pi-flow-signin__form--choice .ciba-login__hint {
+  margin-top: -0.6rem; /* stays attached to the passwordless button above it */
+}
+
 .pi-flow-signin__label {
   font-size: var(--font-size-sm);
   font-weight: 600;
