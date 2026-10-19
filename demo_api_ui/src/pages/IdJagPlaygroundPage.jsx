@@ -614,7 +614,7 @@ export default function IdJagPlaygroundPage() {
     await bffAxios.post("/api/auth/clear-session").catch(() => {});
     // The app's sign-in modal (pi.flow) when the BFF can drive it: still a real PingFederate sign-in, so the
     // session holds the refresh token the ID-JAG is minted from. The service redirects only as its own fallback.
-    openSignIn({ returnTo: RETURN_TO, force: true });
+    openSignIn({ returnTo: RETURN_TO, force: true, keepHint: true });
   }, checkFor("signin"));
 
   // byo: the browser sends the user's own ID-JAG once; the BFF keeps it and returns decoded claims.

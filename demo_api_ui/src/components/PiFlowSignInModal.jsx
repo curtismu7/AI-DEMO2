@@ -119,6 +119,7 @@ export default function PiFlowSignInModal() {
   const returnToRef = useRef(undefined);
   const roleRef = useRef("customer");
   const forceRef = useRef(false);
+  const keepHintRef = useRef(false); // a forced sign-in that still prefills the remembered username
   const providerRef = useRef("pingone");
   // Front door: the wall is on and pi.flow can run (identifier-policy says so). `frontDoorRef` = THIS open is the
   // front-door password step; the app sign-in follows once the hosted /callback has approved the browser.
@@ -204,6 +205,7 @@ export default function PiFlowSignInModal() {
     returnToRef.current = target;
     roleRef.current = role;
     forceRef.current = Boolean(detail.force);
+    keepHintRef.current = Boolean(detail.keepHint);
     frontDoorRef.current = false;
     setFrontDoor(false);
     if (frontDoorOnRef.current && !detail.resumed) {
@@ -288,6 +290,7 @@ export default function PiFlowSignInModal() {
         const qs = new URLSearchParams({ pi_flow: "1" });
         if (target) qs.set("return_to", target);
         if (forceRef.current) qs.set("force", "true");
+        if (keepHintRef.current) qs.set("keep_hint", "1");
         if (mfaRequested()) qs.set("mfa", "1");
         if (passwordless) qs.set("passwordless", "1");
         const api = role === "admin" ? ADMIN_API : USER_API;

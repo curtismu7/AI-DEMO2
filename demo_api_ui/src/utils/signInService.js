@@ -42,7 +42,7 @@ export function initSignInService() {
   return inited;
 }
 
-export function openSignIn({ role = 'customer', returnTo, force, redirect = false } = {}) {
+export function openSignIn({ role = 'customer', returnTo, force, redirect = false, keepHint = false } = {}) {
   // Dispatch when the service KNOWS the role's modal is drivable — or before
   // init has run at all, where "false" just means "unknown" and the modal's
   // own config gate (detail.handled) is the authority. redirect: skip the modal
@@ -51,7 +51,7 @@ export function openSignIn({ role = 'customer', returnTo, force, redirect = fals
   // Every caller lands back on the page it started from; the redirect fallback already did this, the modal did not.
   if (!returnTo && typeof window !== 'undefined' && window.location.pathname !== '/') returnTo = window.location.pathname;
   if (!redirect && (available[known] || !inited) && typeof window !== 'undefined') {
-    const detail = { returnTo, role, force: Boolean(force), handled: false };
+    const detail = { returnTo, role, force: Boolean(force), keepHint: Boolean(keepHint), handled: false };
     window.dispatchEvent(new CustomEvent(PI_FLOW_SIGNIN_EVENT, { detail }));
     if (detail.handled) return;
   }

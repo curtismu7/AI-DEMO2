@@ -617,7 +617,9 @@ router.get('/login', (req, res) => {
         // the service's demoUser default is for the hosted redirect page, and
         // the modal should prefill nothing when the app knows nobody. PF keeps
         // its own demouser default (the PF demo wants the locked-field demo).
-        ...((!forceLogin && (knownLoginHint(req) || storedHint('customer')))
+        // keep_hint=1 (the ID-JAG playground's forced sign-in): still prefill, because the person re-authenticating is the
+        // one the app already knows. Anything else forced stays hint-free.
+        ...(((!forceLogin || req.query.keep_hint === '1') && (knownLoginHint(req) || storedHint('customer')))
           ? { login_hint: knownLoginHint(req) || storedHint('customer') }
           : (piFlowLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate'
             ? { login_hint: null } : {})),
