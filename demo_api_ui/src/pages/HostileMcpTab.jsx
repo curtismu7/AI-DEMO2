@@ -66,6 +66,8 @@ export default function HostileMcpTab() {
       if (cancelled) return;
       setConfig(s.config || {});
       setCurrentUrl(s.config?.mcpUrl || '');
+      // Picks up the session the OAuth bounce just created.
+      setAuthenticated(Boolean(s.oauth?.authenticated));
       const preset = (s.presets || []).find((p) => HOSTILE_PRESET_MATCH.test(p.label || ''));
       if (preset) setDoorUrl(preset.url);
     }).catch((err) => setError(err.message));
@@ -108,7 +110,10 @@ export default function HostileMcpTab() {
     setBusy(true);
     setError('');
     try {
-      const data = await api('/auth/start', { method: 'POST' });
+      // returnTo keeps the OAuth bounce on /llm-gateway; without it the BFF
+      // callback lands on /privilege-mcp-client. The tab itself comes back via
+      // LlmGatewayCombinedPage's last-tab memory (returnTo can't carry ?tab=).
+      const data = await api('/auth/start', { method: 'POST', body: { returnTo: '/llm-gateway' } });
       if (data?.authUrl) { window.location.href = data.authUrl; return; }
       // No authUrl means no redirect was needed (shared token) — we are signed in.
       setAuthenticated(true);
