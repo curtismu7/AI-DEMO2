@@ -1,5 +1,5 @@
 // demo_api_ui/src/components/TokenChainFlowDiagram.jsx
-import React, { useMemo, useRef } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -10,7 +10,9 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getSmoothStepPath,
+  useStore,
 } from '@xyflow/react';
+import { orthoRoute, pathFromPoints, labelPoint } from '../utils/orthoRoute';
 import '@xyflow/react/dist/style.css';
 import { markNodes, stepEdges } from '../hooks/useDiagramStepper';
 import FitOnResize from './FitOnResize';
@@ -319,7 +321,8 @@ function GroupBox({ data }) {
 
 function ChainEdge(props) {
   const { id, sourceX, sourceY, targetX, targetY, style, data } = props;
-  const [path, labelX, labelY] = getSmoothStepPath({
+  const route = data?.route;
+  const [smoothPath, smoothLX, smoothLY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition: Position.Right,
@@ -328,6 +331,12 @@ function ChainEdge(props) {
     targetPosition: Position.Left,
     borderRadius: 12,
   });
+  // Routed around the boxes when the router found a way; otherwise (or while a box is being dragged) a smooth-step path.
+  const routed = route && route.ok;
+  const path = routed ? pathFromPoints(route.pts) : smoothPath;
+  const lp = routed ? labelPoint(route.pts) : { x: smoothLX, y: smoothLY };
+  const labelX = lp.x;
+  const labelY = lp.y;
   const label = data?.label;
   return (
     <>
@@ -384,22 +393,57 @@ export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
     () => markNodes(baseNodes, step >= 0 && EDGES[step] ? [EDGES[step][0], EDGES[step][1]] : []),
     [baseNodes, step],
   );
+  // Routes are computed from the real boxes (absolute positions and measured sizes), only when no box is being dragged.
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes, carryGroupMembers);
+  const [dragging, setDragging] = useState(false);
+  const nodeLookup = useStore((st) => st.nodeLookup);
+  // React Flow clamps boxes into their group and updates its node map in place, so read its absolute positions,
+  // and subscribe to a string made from them: it changes the moment a box lands, which re-runs the routing.
+  const absKey = useStore((st) => {
+    let k = '';
+    for (const n of st.nodeLookup.values()) {
+      if (n.type === 'chain') k += `${n.id}:${Math.round(n.internals.positionAbsolute.x)},${Math.round(n.internals.positionAbsolute.y)}|`;
+    }
+    return k;
+  });
+  const routing = useMemo(() => {
+    if (dragging) return { routes: {}, fallbacks: null };
+    const rects = {};
+    for (const n of nodeLookup.values()) {
+      if (n.type !== 'chain') continue;
+      const p = n.internals.positionAbsolute;
+      rects[n.id] = { x: p.x, y: p.y, w: n.measured?.width ?? 232, h: n.measured?.height ?? 80 };
+    }
+    const routes = {};
+    let fallbacks = 0;
+    EDGES.forEach(([source, target], i) => {
+      const a = rects[source], b = rects[target];
+      if (!a || !b) return;
+      // Every box is an obstacle, the edge's own two included: the lead-in/out in orthoRoute is what lets the arrow reach its handle.
+      const r = orthoRoute({ start: { x: a.x + a.w, y: a.y + a.h / 2 }, end: { x: b.x, y: b.y + b.h / 2 }, obstacles: Object.values(rects) });
+      routes[`e${i}`] = r;
+      if (!r.ok) fallbacks += 1;
+    });
+    return { routes, fallbacks };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [absKey, dragging]);
+
   const edges = useMemo(
     () => stepEdges(EDGES.map(([source, target, label], i) => ({
       id: `e${i}`,
       source,
       target,
       type: 'chain',
-      data: { label, n: i + 1, active: step === i },
+      data: { label, n: i + 1, active: step === i, route: routing.routes[`e${i}`] },
       zIndex: 2,
     })), step),
-    [step],
+    [step, routing],
   );
 
-  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes, carryGroupMembers);
+
   const lastDragEnd = useRef(0);
   return (
-    <div className="tcf-canvas" data-testid="tcf-token-chain-canvas">
+    <div className="tcf-canvas" data-testid="tcf-token-chain-canvas" data-route-fallbacks={routing.fallbacks ?? undefined}>
       <ReactFlow
         nodes={dragNodes}
         onNodesChange={onDragNodes}
@@ -417,7 +461,8 @@ export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
         maxZoom={2.5}
         // A small wiggle is still a click; only a deliberate drag (past 5 px) counts as a drag.
         nodeDragThreshold={5}
-        onNodeDragStop={() => { lastDragEnd.current = Date.now(); }}
+        onNodeDragStart={() => setDragging(true)}
+        onNodeDragStop={() => { lastDragEnd.current = Date.now(); setDragging(false); }}
         onNodeClick={(_, node) => {
           // The click that ends a drag is not a selection: ignore clicks right after a drag.
           if (Date.now() - lastDragEnd.current < 300) return;
