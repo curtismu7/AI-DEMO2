@@ -82,3 +82,39 @@
   border-bottom: 1px solid var(--th-border);
   color: var(--th-text);
 }
+
+/* Ping slide look: heavier arrows and larger labels so the flow reads at a glance. */
+.tcf-canvas .react-flow__edge-path { stroke: #111111; stroke-width: 3.2; }
+.tcf-canvas .react-flow__edge.selected .react-flow__edge-path,
+.tcf-canvas .react-flow__edge:hover .react-flow__edge-path { stroke: #000000; stroke-width: 4.2; }
+.tcf-edge-label { font-size: var(--font-size-sm); font-weight: 700; color: #000000; background: #ffffff; padding: 1px 5px; border-radius: var(--radius-sm); }
+
+.tcf-canvas .tcf-group__label { color: #000000 !important; }
+.tcf-canvas .tcf-group[style*="border"] .tcf-group__label { color: #000000 !important; }
+
+/* Labels sit above the arrows, so a line never runs through the text. */
+.tcf-canvas .react-flow__edgelabel-renderer { z-index: 20; }
+.tcf-canvas .tcf-edge-label { z-index: 20; background: #ffffff !important; color: #000000 !important; }
+
+/* Light mode: a light grey canvas (not white) so the boxes and arrows stand out; dark mode keeps its dark canvas. */
+.tcf-canvas .react-flow { background: #e4e7ec; }
+:root[data-theme="dark"] .tcf-canvas .react-flow { background: #0b0e14; }
+
+/* Trial: numbered arrows and a legend, so the walkthrough reads without the text. */
+.tcf-edge-num { display: inline-block; margin-right: 6px; min-width: 24px; padding: 0 6px; border-radius: 12px; background: #ff8c00; color: #000000; font-weight: 800; text-align: center; font-size: var(--font-size-sm); line-height: 24px; }
+.tcf-legend { display: flex; flex-wrap: wrap; gap: 14px; align-items: center; padding: 8px 12px; font-size: var(--font-size-xs); color: #000000; background: #f4f5f7; border-top: 1px solid #c9ced8; }
+.tcf-legend span { display: inline-flex; align-items: center; gap: 6px; }
+.tcf-sw { display: inline-block; width: 14px; height: 14px; border-radius: 3px; }
+.tcf-sw--ping { background: #b5231a; }
+.tcf-sw--app { background: #151a24; }
+.tcf-sw--safety { background: #5a5f69; }
+.tcf-line { display: inline-block; width: 26px; height: 0; border-top: 3px solid #111111; }
+.tcf-num-key { display: inline-block; min-width: 24px; padding: 0 6px; border-radius: 12px; background: #ff8c00; color: #000000; font-weight: 800; text-align: center; font-size: var(--font-size-sm); line-height: 24px; }
+
+/* Labels: the number is always visible; the words show for the active step or on hover, so they never pile up. */
+.tcf-edge-label .tcf-edge-text { display: none; }
+.tcf-edge-label.is-active .tcf-edge-text { display: inline; }
+.tcf-canvas .react-flow__edge:hover .tcf-edge-text { display: inline; }
+.tcf-canvas .react-flow__edge:hover .tcf-edge-label { z-index: 30; }
+/* Dashed lines (future steps and decisions) in blue, not black, on the light canvas. */
+.tcf-canvas .react-flow__edge-path[stroke-dasharray] { stroke: #1f5fbf !important; }

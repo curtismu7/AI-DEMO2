@@ -6,7 +6,7 @@
  * Flow canvas (TokenChainFlowDiagram) replacing the previous Mermaid render.
  * Zoom/pan is built into React Flow; click a node for its details.
  */
-import React, { useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { ReactFlowProvider } from '@xyflow/react';
 import { Controls } from '@xyflow/react';
 import TokenChainFlowDiagram, { NODES, EDGES, NODE_DETAILS } from './TokenChainFlowDiagram';
@@ -50,10 +50,32 @@ function CanvasWithControls({ onNodeClick, step }) {
 }
 
 export default function TokenChainArchitecturePage({ user }) {
-  const [selected, setSelected] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
   const stepper = useDiagramStepper(EDGES.length);
-  // selected = { group, label, sub, id, detail: { role, mockToken, tokenNote } }
+  // selected = { group, label, sub, id, detail: { role, mockToken, tokenNote } }, built from the selected box id
+  const selected = selectedId ? (() => {
+    const n = NODES.find((x) => x.id === selectedId);
+    return n ? { ...n, id: selectedId, detail: NODE_DETAILS[selectedId] || null } : null;
+  })() : null;
   const info = selected?.detail;
+  const reelRef = useRef(null);
+  const detailRef = useRef(null);
+
+  // A box click jumps the reel to that box's first arrow (arrows into it first, else out of it).
+  const pickNode = (id) => {
+    setSelectedId(id);
+    // Bring the reel and the detail into view when a box is picked on the diagram.
+    requestAnimationFrame(() => (detailRef.current || reelRef.current)?.scrollIntoView({ behavior: 'smooth', block: 'center' }));
+    const into = EDGES.findIndex((e) => e[1] === id);
+    const out = EDGES.findIndex((e) => e[0] === id);
+    if (into >= 0 || out >= 0) stepper.goTo(into >= 0 ? into : out);
+  };
+  // Moving the reel or the step bar selects that step's box, unless the box already picked is part of the step.
+  useEffect(() => {
+    if (stepper.step < 0) return;
+    const [from, to] = EDGES[stepper.step];
+    setSelectedId((cur) => (cur === from || cur === to ? cur : to));
+  }, [stepper.step]);
 
   return (
     <div className="tca-page">
@@ -71,19 +93,41 @@ export default function TokenChainArchitecturePage({ user }) {
           Use + and − to zoom · Drag to pan · Click a node for its role and the (mock) token it carries
         </p>
         <DiagramStepBar stepper={stepper} caption={EDGE_CAPTIONS[stepper.step]} />
-        <CanvasWithControls onNodeClick={(node) => setSelected(node)} step={stepper.step} />
-        <DiagramReel steps={REEL_STEPS} stepper={stepper} testId="tca-reel" />
+        {stepper.step >= 0 && (() => {
+          // The token the request carries at this step: the newest token that has arrived by now (mock, teaching values).
+          let token = null, from = null;
+          for (let j = stepper.step; j >= 0 && !token; j--) {
+            const t = NODE_DETAILS[EDGES[j][1]]?.mockToken;
+            if (t) { token = t; from = j + 1; }
+          }
+          return (
+            <div className="tca-step-token" data-testid="tca-step-token">
+              {token ? (
+                <>
+                  <p className="tca-node-detail-note">
+                    Carried at step {stepper.step + 1}{from !== stepper.step + 1 ? ` (issued at step ${from})` : ''}: {token.note} (MOCK, teaching values only)
+                  </p>
+                  <pre className="tca-node-detail-json">{JSON.stringify(token.claims, null, 2)}</pre>
+                </>
+              ) : (
+                <p className="tca-node-detail-note">Step {stepper.step + 1}: no token has been issued yet.</p>
+              )}
+            </div>
+          );
+        })()}
+        <CanvasWithControls onNodeClick={(node) => pickNode(node.id)} step={stepper.step} />
+        <div ref={reelRef}><DiagramReel steps={REEL_STEPS} stepper={stepper} testId="tca-reel" /></div>
       </div>
 
       {info && (
-        <div className="tca-node-detail" role="status">
+        <div className="tca-node-detail" role="status" ref={detailRef}>
           <div className="tca-node-detail-head">
             <strong>{selected.label}</strong>
             <span className="tca-node-detail-group">· {selected.group} · {selected.id}</span>
             <button
               type="button"
               className="tca-node-detail-close"
-              onClick={() => setSelected(null)}
+              onClick={() => setSelectedId(null)}
               aria-label="Close node detail"
             >
               ✕
