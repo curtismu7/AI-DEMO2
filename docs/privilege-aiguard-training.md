@@ -53,11 +53,16 @@ outcomes. Do not turn them into a pass or deny for the sake of the story.
   evaluator/model layer and its calibration tradeoffs.
 - **Slide 8, “Defaults, limits and measured behaviour”:** use for operational
   limits and benchmark methodology, not as a performance guarantee.
+- **Slide 9, “Agent traffic and roadmap”:** use when the audience asks about
+  agent-to-agent calls, indirect injection or what is coming. Only calls made
+  with an agent key are inspected on the A2A path, and the Q4 items are targets,
+  not commitments.
 
 ## Before presenting
 
-The deck is dated 22 September 2026. Recheck these items with the current
-Privilege tenant or product owner before quoting them:
+The deck was revised on 19 October 2026 (first issued 22 September 2026) from
+the 22 September overview and the 28 September Platform Update. Recheck these
+items with the current Privilege tenant or product owner before quoting them:
 
 - Detector availability, thresholds, default policy, failure posture, and which
   credentials have inspection enabled.
