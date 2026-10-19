@@ -300,7 +300,7 @@ const CONSUMER = {
   edges: [
     E('agent', 'idp', 'r', 'l', 1, { n: '1', label: 'Agent Registration', sub: '(UserID, Agent ID)', dx: 130, dy: 44 }),
     E('user', 'az', 'r', 'l', 2, { n: '2', both: true, label: 'User Authentication', sub: 'CIBA flow for HITL AuthN / AuthZ', dx: 20 }),
-    E('idp', 'user', 't', 'b', 3, { n: '3c', label: 'Delegation Token', sub: '(UserID, AgentID)', dashed: true, off: -30, dx: -80, dy: 20 }),
+    E('idp', 'user', 't', 'b', 3, { n: '3c', label: 'Delegation Token', sub: '(UserID, AgentID)', dashed: true, off: -30, dx: -100, dy: -20 }),
     E('idp', 'gw', 'r', 'l', 4, { n: '4', dashed: true, label: 'TX Token', sub: '(UserID, AgentID)' }),
     E('gw', 'az', 'lt', 'r', 5, { dashed: true, label: 'Decision request', dy: -20 }),
     E('az', 'idp', 'b', 't', 5, { dashed: true }),

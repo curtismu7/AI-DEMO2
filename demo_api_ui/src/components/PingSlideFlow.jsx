@@ -15,7 +15,7 @@ import {
 import "@xyflow/react/dist/style.css";
 import { useFitOnResize } from "../hooks/useFitOnResize";
 import { useDraggableNodes } from "../hooks/useDraggableNodes";
-import { pathFromPoints, labelPoint } from "../utils/orthoRoute";
+import { pathFromPoints } from "../utils/orthoRoute";
 import { isObstacle, routeSlideEdges } from "./pingSlideRouting";
 import "./PingSlideFlow.css";
 
@@ -179,7 +179,7 @@ function SlideNode({ data }) {
 }
 
 function SlideEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, data }) {
-  const { off = 0, dashed, state, n, label, sub, at, dx = 0, dy = 0, route } = data;
+  const { off = 0, dashed, state, n, label, sub, at, dx = 0, dy = 0, route, labelPos } = data;
   const horiz = (p) => p === Position.Left || p === Position.Right;
   const sx = sourceX + (horiz(sourcePosition) ? 0 : off);
   const sy = sourceY + (horiz(sourcePosition) ? off : 0);
@@ -190,9 +190,10 @@ function SlideEdge({ sourceX, sourceY, targetX, targetY, sourcePosition, targetP
   });
   // Routed around the boxes when the router found a way; otherwise (or while a box is being dragged) the smooth-step path.
   const routed = route && route.ok;
-  const lp = routed ? labelPoint(route.pts) : { x: mx, y: my };
-  const lx = (at === "end" ? tx - 24 : lp.x) + dx;
-  const ly = (at === "end" ? ty - 8 : lp.y) + dy;
+  // dx/dy were tuned against the smooth-step midpoint: the routed label sits as near that spot as the line and the boxes allow.
+  const lp = routed && labelPos ? labelPos : { x: mx + dx, y: my + dy };
+  const lx = at === "end" ? tx - 24 + dx : lp.x;
+  const ly = at === "end" ? ty - 8 + dy : lp.y;
   const tr = at === "end" ? "translate(-100%, -100%)" : "translate(-50%, -50%)";
   const hot = state === "now";
   return (
@@ -275,11 +276,11 @@ function Inner({ config, step }) {
     return k;
   });
   const routing = useMemo(() => {
-    if (dragging) return { routes: {}, fallbacks: null };
+    if (dragging) return { routes: {}, labels: {}, fallbacks: null };
     const rects = {};
     for (const n of nodeLookup.values()) {
       const p = n.internals.positionAbsolute;
-      if (!n.measured?.width || !n.measured?.height) { if (isObstacle(n.data.n)) return { routes: {}, fallbacks: null }; continue; }
+      if (!n.measured?.width || !n.measured?.height) { if (isObstacle(n.data.n)) return { routes: {}, labels: {}, fallbacks: null }; continue; }
       rects[n.id] = { x: p.x, y: p.y, w: n.measured.width, h: n.measured.height, kind: n.data.n.kind };
     }
     return routeSlideEdges(config.edges, rects);
@@ -296,7 +297,7 @@ function Inner({ config, step }) {
       targetHandle: `t-${e.ts}`,
       selectable: false,
       zIndex: 2,
-      data: { ...e, route: routing.routes[`e${i}`], state: step === 0 ? "idle" : e.step === step ? "now" : e.step < step ? "past" : "future" },
+      data: { ...e, route: routing.routes[`e${i}`], labelPos: routing.labels?.[`e${i}`], state: step === 0 ? "idle" : e.step === step ? "now" : e.step < step ? "past" : "future" },
     })),
     [config, step, routing],
   );
