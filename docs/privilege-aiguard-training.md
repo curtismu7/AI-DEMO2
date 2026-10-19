@@ -57,11 +57,17 @@ outcomes. Do not turn them into a pass or deny for the sake of the story.
   agent-to-agent calls, indirect injection or what is coming. Only calls made
   with an agent key are inspected on the A2A path, and the Q4 items are targets,
   not commitments.
+- **Slide 10, “Cedar policy and approvals”:** use when the audience asks what
+  decides on top of AIGuard findings: Cedar AI policies, human-in-the-loop
+  approvals and scope-based access. In the verified demo the approver decides
+  in the console; the notification channels on the slide are stated from
+  Ping's update, not demonstrated.
 
 ## Before presenting
 
 The deck was revised on 19 October 2026 (first issued 22 September 2026) from
-the 22 September overview and the 28 September Platform Update. Recheck these
+the 22 September overview, the 28 September Platform Update and the 7 October
+gateway update. Recheck these
 items with the current Privilege tenant or product owner before quoting them:
 
 - Detector availability, thresholds, default policy, failure posture, and which
