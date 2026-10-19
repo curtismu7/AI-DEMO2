@@ -147,4 +147,27 @@ describe("ID-JAG Learn page", () => {
     expect(specs).toHaveAttribute("aria-pressed", "true");
     expect(screen.getByText(/draft-ietf-oauth-identity-assertion-authz-grant/)).toBeInTheDocument();
   });
+
+  it("shows the MCP gateway chip the server reports", async () => {
+    backends = [...backends, { id: "mcp", label: "MCP gateway", url: "https://gw.test/health", state: "up", ms: 8, detail: "8 ms" }];
+    renderPage();
+    const strip = await screen.findByTestId("ijp-backends");
+    expect(await within(strip).findByText("MCP gateway")).toBeInTheDocument();
+  });
+
+  it("downloads the run report as Markdown and as JSON, never with a raw token", async () => {
+    const files = [];
+    const create = vi.fn((blob) => { files.push(blob); return "blob:x"; });
+    Object.assign(URL, { createObjectURL: create, revokeObjectURL: vi.fn() });
+    const click = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Download report" }));
+    fireEvent.click(screen.getByRole("button", { name: "Download JSON" }));
+    expect(click).toHaveBeenCalledTimes(2);
+    expect(files.map((b) => b.type)).toEqual(["text/markdown", "application/json"]);
+    const text = await new Promise((res) => { const r = new FileReader(); r.onload = () => res(String(r.result)); r.readAsText(files[1]); });
+    expect(JSON.parse(text).endpoints.idp.issuer).toBe("https://pf.test");
+    expect(text).not.toMatch(/eyJ[\w-]+\.[\w-]+\./);
+    click.mockRestore();
+  });
 });

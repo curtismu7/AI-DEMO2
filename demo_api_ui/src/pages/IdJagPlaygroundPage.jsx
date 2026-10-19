@@ -7,6 +7,7 @@ import bffAxios from "../services/bffAxios";
 import { openSignIn } from "../utils/signInService";
 import { MOCK_CONFIG, mockApi } from "../utils/idJagPlaygroundMock";
 import { codeSnippet } from "../utils/codeSnippet";
+import { buildReport, downloadFile } from "../utils/runReport";
 import { mcpcCommand, vscodeMcpJson, vscodeSettings } from "../utils/realClients";
 import "./IdJagPlaygroundPage.css";
 
@@ -699,6 +700,16 @@ export default function IdJagPlaygroundPage() {
   // Revoke and prove it: the issuer's session ends, so everything this session minted is cleared with it.
   // Each ID-JAG works once, so after a redeem (or any dead end) the way forward is a new one from step 2. This clears
   // every result and the server's copy of the ID-JAG and access token; the sign-in stays.
+  // Built in the browser from what the page shows (decoded claims, redacted requests): nothing is fetched.
+  const downloadReport = (format) => {
+    const report = buildReport({ mode, modeLabel: MODES.find((m) => m.id === mode)?.label, config, issued, inspection, redeemed,
+      tools, callResult, resource, negatives: negatives.map((t) => ({ ...t, result: negResults[t.id] || null })),
+      preflights: gate ? { [gate.step]: { ok: gate.ok, checks: gate.checks } } : {} });
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    if (format === "json") downloadFile(`id-jag-run-${mode}-${stamp}.json`, JSON.stringify(report.json, null, 2), "application/json");
+    else downloadFile(`id-jag-run-${mode}-${stamp}.md`, report.markdown, "text/markdown");
+  };
+
   const startOver = () => run("restart", async () => {
     await api.post(`${API}/restart`, {});
     clearResults();
@@ -772,6 +783,10 @@ export default function IdJagPlaygroundPage() {
           <div className="ijp-toolbar__group">
             <button type="button" className="ijp-btn" onClick={startOver} disabled={!!busy || !hasResults} data-testid="ijp-start-over"
               title="Clear every result below and start again from step 2. Your sign-in stays.">Start over</button>
+          </div>
+          <div className="ijp-toolbar__group"><span>Report</span>
+            <button type="button" className="ijp-btn" onClick={() => downloadReport("md")}>Download report</button>
+            <button type="button" className="ijp-btn" onClick={() => downloadReport("json")}>Download JSON</button>
           </div>
         </div>
         {gateAt("mode")}

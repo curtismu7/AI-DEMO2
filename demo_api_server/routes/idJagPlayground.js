@@ -1005,11 +1005,13 @@ const trimSlash = (u) => String(u || '').replace(/\/$/, '');
  * One discovery GET per backend, in parallel, from the BFF: up, slow (over 1.5 s) or down (error, non-2xx, or no
  * answer in 4 s). A backend with no address in this mode is left out, not shown as down.
  */
-async function probeBackends(s, get = axios.get) {
+async function probeBackends(s, get = axios.get, mcpUrl = '') {
   const as = originOf(s.resourceAs.tokenEndpoint);
   const targets = [
     ...(s.idp.issuer ? [{ id: 'idp', label: s.idp.name, urls: [`${trimSlash(s.idp.issuer)}/.well-known/openid-configuration`] }] : []),
     ...(as ? [{ id: 'resource-as', label: s.resourceAs.name, urls: [`${as}/.well-known/oauth-authorization-server`, `${as}/.well-known/openid-configuration`] }] : []),
+    // The demo MCP gateway the call step goes through; its /health answers without a token.
+    ...(mcpUrl ? [{ id: 'mcp', label: 'MCP gateway', urls: [`${trimSlash(mcpUrl)}/health`] }] : []),
   ];
   return Promise.all(targets.map(async ({ id, label, urls }) => {
     const started = Date.now();
@@ -1034,7 +1036,7 @@ async function probeBackends(s, get = axios.get) {
 // Public like /config: the strip answers before anyone signs in. byo's IdP is the user's own, so it is not probed.
 router.get('/backends', async (req, res) => {
   const s = settingsFor(req);
-  res.json({ backends: await probeBackends(modeOf(req) === 'byo' ? { ...s, idp: { ...s.idp, issuer: '' } } : s) });
+  res.json({ backends: await probeBackends(modeOf(req) === 'byo' ? { ...s, idp: { ...s.idp, issuer: '' } } : s, axios.get, nodeGatewayUrl()) });
 });
 
 const issuerRefreshToken = (req) => (modeOf(req) === 'pf-pf' ? req.session?.idJagIssuer?.refreshToken : req.session?.oauthTokens?.refreshToken);
