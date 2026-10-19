@@ -121,6 +121,24 @@ describe('customer pi.flow sign-in', () => {
     }
   });
 
+  test('forced sign-in drops the remembered login_hint, unless keep_hint=1 (the ID-JAG playground) asks to keep it', async () => {
+    const base = configStore.getEffective.getMockImplementation();
+    configStore.getEffective.mockImplementation((key) => (key === 'last_login_hint_customer' ? 'demo.user' : base(key)));
+    try {
+      fetchMock.mockResolvedValue(json(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+      await request(app).get('/api/auth/oauth/user/login?pi_flow=1&force=true').expect(200);
+      expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('login_hint')).toBeNull();
+      expect(new URL(fetchMock.mock.calls[0][0]).searchParams.get('prompt')).toBe('login');
+      fetchMock.mockClear();
+      await request(app).get('/api/auth/oauth/user/login?pi_flow=1&force=true&keep_hint=1').expect(200);
+      const url = new URL(fetchMock.mock.calls[0][0]);
+      expect(url.searchParams.get('login_hint')).toBe('demo.user');
+      expect(url.searchParams.get('prompt')).toBe('login'); // still a fresh sign-in
+    } finally {
+      configStore.getEffective.mockImplementation(base);
+    }
+  });
+
   test('AIC toggle off: plain /login sends no acr_values and draws no AIC hop', async () => {
     const addStep = jest.spyOn(loginFlowTrace, 'addStep');
     const res = await request(app).get('/api/auth/oauth/user/login').expect(302);
