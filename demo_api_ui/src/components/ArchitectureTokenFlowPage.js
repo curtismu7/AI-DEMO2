@@ -287,7 +287,7 @@ const TOKEN_FLOW_SIMULATE_STEPS = [
   {
     regionIds: ["mcp-gateway-tf", "mcp-olb"],
     colorClass: "active",
-    label: "PingOne Agent Gateway forwards token unchanged → MCP Server",
+    label: "PingOne Agent Gateway forwards the call → MCP Server",
     // AG → MCP  (i82, y=3934)
     stepArrow: { yPct: 77.3, xMinPct: 40.6, xMaxPct: 54.3 },
     token: {
@@ -508,7 +508,7 @@ const SCENARIO_STEPS_TF = {
     {
       regionIds: ["mcp-gateway-tf", "mcp-olb"],
       colorClass: "active",
-      label: "PingOne Agent Gateway forwards token unchanged → MCP Server",
+      label: "PingOne Agent Gateway forwards the call → MCP Server",
       token: {
         type: "Delegated Token (forwarded unchanged)",
         _type: "oauth",
@@ -762,9 +762,9 @@ const SCENARIO_STEPS_TF = {
         type: "HTTP 403 Forbidden",
         _type: "error",
         status: "403 Forbidden",
-        error: "insufficient_scope",
+        error: "access_denied",
         error_description: "write scope required for create_transfer",
-        "WWW-Authenticate": 'Bearer scope="write"',
+        "X-Gw-Audit-Trail": "<json audit trail>",
         note: "PingOne Agent Gateway converts DENY to 403 — agent must NOT retry with same token",
       },
     },
@@ -896,28 +896,21 @@ const SCENARIO_STEPS_TF = {
         _rfcs: ["RFC 6750"],
         credentialPath: "oauth_bearer",
         tool: "demo_show_accounts",
-        note: "Standard bearer token — gateway will exchange via RFC 8693 before forwarding.",
+        note: "Standard bearer token — the gateway asks PingOne Authorize, then forwards it unchanged (no RFC 8693 exchange on this path).",
       },
     },
     {
-      regionIds: ["mcp-gateway-tf", "pingone-aic"],
+      regionIds: ["mcp-gateway-tf", "pingauthorize-tf"],
       colorClass: "active",
-      label: "OAUTH BEARER PATH: RFC 8693 exchange → backend-scoped bearer",
-      isTokenExchange: true,
+      label: "OAUTH BEARER PATH: gateway asks PingOne Authorize (McpToolCall)",
       token: {
-        type: "RFC 8693 Exchange (subject)",
-        _type: "exchange",
-        _rfcs: ["RFC 8693", "RFC 8707"],
+        type: "PingOne Authorize decision",
+        _type: "mcp",
+        _rfcs: [],
         credentialPath: "oauth_bearer",
-        note: "Gateway exchanges user bearer for a new bearer scoped to banking_resource_server.",
-      },
-      tokenOut: {
-        type: "Backend-scoped Bearer",
-        _type: "oauth",
-        _rfcs: ["RFC 8693"],
-        aud: "banking_resource_server",
-        credentialPath: "oauth_bearer",
-        note: "New aud matches banking_resource_server resource URI (RFC 8707 audience binding).",
+        DecisionContext: "McpToolCall",
+        ToolName: "demo_show_accounts",
+        note: "PERMIT is a decision answer, not a token. The bearer is not exchanged on this path.",
       },
     },
     {

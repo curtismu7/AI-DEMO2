@@ -14,8 +14,8 @@ export const TOKEN_FLOW_GROUPS = {
 // Master layout: a 4 by 4 grid (columns about 300 apart, rows 180 apart) so the figure fits the canvas at a readable size. A box keeps its
 // cell in every scenario; a scenario draws only the boxes it uses. Arrows between boxes in different columns run out of the sides;
 // boxes in one column are joined straight down (V) or, going back up, by a bowed curve at the left/right sides (lane).
-const COLX = [0, 300, 660, 960]; // the web app / agent gap is wider: three arrows and the PingOne detours share it
-const ROW = 180;
+const COLX = [0, 340, 800, 1220]; // the web app / agent gap is wider: three arrows and the PingOne detours share it
+const ROW = 270;
 const MASTER = [
   { id: 'user', group: 'app', label: 'User', sub: ['signed in, in the browser'], x: COLX[0], y: 1 * ROW },
   { id: 'webapp', group: 'app', label: 'Web App + Chatbot', sub: ['React SPA', 'holds only a session cookie'], x: COLX[1], y: 1 * ROW },
@@ -46,7 +46,7 @@ export const TOKEN_FLOW_ENDPOINTS = {
     ['agent', 'gateway', 'Delegated token arrives at the gateway'],
     ['gateway', 'authorize', 'McpToolsList + McpToolCall checks', R],
     ['authorize', 'gateway', 'PERMIT: tool call allowed', { ...D, ...V }],
-    ['gateway', 'mcp', 'Forward the token unchanged', V],
+    ['gateway', 'mcp', 'Gateway forwards the call to the MCP server', V],
     ['mcp', 'rs', 'Banking API: GET /accounts', V],
     ['mcp', 'rs', 'Investments API: same token', V],
     ['agent', 'webapp', 'Results returned to the user'],
@@ -62,21 +62,21 @@ export const TOKEN_FLOW_ENDPOINTS = {
     ['webapp', 'agent', 'BFF holds the user access token'],
     ['agent', 'pingone', 'RFC 8693 exchange #1: user token in, delegation out', R],
     ['agent', 'gateway', 'Delegated token arrives at the gateway'],
-    ['gateway', 'mcp', 'Forward the token unchanged', V],
+    ['gateway', 'mcp', 'Gateway forwards the call to the MCP server', V],
     ['mcp', 'rs', 'MCP Server calls the Banking API', V],
   ],
   'get-accounts': [
     ['agent', 'llm', 'LLM decides: get_my_accounts (read)', V],
     ['gateway', 'authorize', 'McpToolsList', R],
     ['authorize', 'gateway', 'PERMIT: tools discovery allowed', { ...D, ...V }],
-    ['gateway', 'authorize', 'McpToolCall: get_my_accounts', R],
+    ['gateway', 'authorize', 'McpToolCall: get_my_accounts', L],
     ['authorize', 'gateway', 'PERMIT: read is sufficient', { ...D, ...V }],
     ['mcp', 'rs', 'Banking API returns accounts: 200 OK', V],
   ],
   withdrawal: [
     ['agent', 'llm', 'LLM decides: create_transfer (write)', V],
     ['gateway', 'authorize', 'McpToolCall: create_transfer, high risk', R],
-    ['authorize', 'gateway', 'Hold: human consent required', { ...D, ...V }],
+    ['gateway', 'agent', 'Hold: 428, human consent required', D],
     ['agent', 'webapp', 'Agent waits for human approval'],
     ['user', 'webapp', 'User approves'],
     ['mcp', 'rs', 'Banking API executes the transfer: 200 OK', V],
@@ -101,18 +101,37 @@ export const TOKEN_FLOW_ENDPOINTS = {
   ],
   'oauth-bearer-path': [
     ['agent', 'gateway', 'Path C: user bearer arrives'],
-    ['gateway', 'pingone', 'RFC 8693 exchange to a backend-scoped bearer'],
-    ['gateway', 'rs', 'Call the Banking API with the new bearer', V],
+    ['gateway', 'authorize', 'McpToolCall: demo_show_accounts', R],
+    ['gateway', 'rs', 'Forward the bearer unchanged to the Banking API', V],
   ],
 };
+
+// Per-scenario { boxId: { x, y } } overrides of the master layout (filled in where a scenario needs its own spacing).
+const TOKEN_FLOW_LAYOUT = {
+  // the read-only call goes out and the 403 comes back between the same two boxes: offset them so the two arrows do not share a corridor
+  'bad-scope': { gateway: { y: Math.round(1.45 * ROW) } },
+};
+
+// The canvas fits the boxes, not the arrows that bow out beside them, so a figure of only two columns would zoom in until its
+// right and left detours leave the canvas. Spread such a figure's columns until the boxes span at least MIN_SPAN wide.
+const BOX_W = 250;
+const MIN_SPAN = 1050;
+function spread(nodes) {
+  const xs = nodes.map((n) => n.x);
+  const lo = Math.min(...xs);
+  const span = Math.max(...xs) - lo;
+  const k = span > 0 ? Math.min(2.4, Math.max(1, (MIN_SPAN - BOX_W) / span)) : 1;
+  return nodes.map((n) => ({ ...n, x: Math.round(lo + (n.x - lo) * k) }));
+}
 
 function build(key) {
   const edges = TOKEN_FLOW_ENDPOINTS[key];
   const used = new Set(edges.flatMap((e) => [e[0], e[1]]));
   const detail = TOKEN_FLOW_DETAIL[key];
+  const place = (n) => ({ ...n, ...(TOKEN_FLOW_LAYOUT[key] || {})[n.id] });
   return {
     GROUPS: TOKEN_FLOW_GROUPS,
-    NODES: MASTER.filter((n) => used.has(n.id)),
+    NODES: spread(MASTER.filter((n) => used.has(n.id)).map(place)),
     EDGES: edges.map(([a, b, label, opts]) => (opts ? [a, b, label, opts] : [a, b, label])),
     STEPS: edges.map((e, i) => ({ key: `${key}-${i + 1}`, edges: [i], title: e[2], what: `${e[0]} to ${e[1]}: ${e[2]}`, detail: detail[i] })),
   };

@@ -66,4 +66,41 @@ describe('token flow ping-style diagrams', () => {
     expect(TOKEN_FLOW_DETAIL['bad-scope'][3].form).toContain('403 Forbidden');
     expect(TOKEN_FLOW_DETAIL.withdrawal[2].form).toContain('428');
   });
+
+  it('stays grounded in the repo: real callback, scope-topology scopes, no invented specs or headers', () => {
+    const all = Object.values(TOKEN_FLOW_DETAIL).flat();
+    const text = all.map((d) => `${d.form}\n${JSON.stringify(d.tokens)}`).join('\n');
+    expect(text).toContain('/api/auth/oauth/user/callback');
+    expect(text).not.toMatch(/\/api\/auth\/callback/);
+    expect(text).not.toMatch(/banking:(read|write)/);
+    expect(text).not.toContain('WWW-Authenticate');
+    expect(text).not.toContain('approval_required');
+    expect(text).not.toContain('banking_api_resource_server');
+    const titles = all.flatMap((d) => d.refs.map((r) => `${r.id} ${r.title}`)).join('\n');
+    expect(titles).not.toMatch(/PingGateway route filters|PingOne Agent Gateway|CIBA|9470|AuthZEN|XACML|9396/);
+  });
+
+  it('attaches standards only to the hops they govern', () => {
+    const ids = (d) => d.refs.map((r) => r.id);
+    // withdrawal: the approval is an in-app session-cookie action, not CIBA or a step-up challenge; the 428 sits on gateway to agent
+    TOKEN_FLOW_DETAIL.withdrawal.slice(2, 5).forEach((d) => expect(ids(d).join()).not.toMatch(/CIBA|9470/));
+    expect(ids(TOKEN_FLOW_DETAIL.withdrawal[2])).toContain('RFC 6585');
+    expect(TOKEN_FLOW_ENDPOINTS.withdrawal[2].slice(0, 2)).toEqual(['gateway', 'agent']);
+    expect(TOKEN_FLOW_DETAIL.withdrawal[3].form).toContain('hitl_consent');
+    expect(TOKEN_FLOW_DETAIL.withdrawal[4].form).toContain('/api/agent/consent/');
+    // no RFC 8693 outside the steps that exchange, and Path A / Path C do not exchange
+    TOKEN_FLOW_DETAIL['api-key-path'].forEach((d) => expect(ids(d)).not.toContain('RFC 8693'));
+    [0, 2].forEach((i) => expect(ids(TOKEN_FLOW_DETAIL['oauth-bearer-path'][i])).not.toContain('RFC 8693')); // step 2 is the Authorize ask: RFC 8693 there is the act claim
+    TOKEN_FLOW_ENDPOINTS['oauth-bearer-path'].forEach(([a, b]) => expect([a, b]).not.toContain('pingone'));
+    // the decision call is PingOne Authorize's own endpoint
+    TOKEN_FLOW_DETAIL['get-accounts'].forEach((d) => expect(ids(d)).not.toContain('RFC 9396'));
+  });
+
+  it('uses the repo\'s real wire shapes', () => {
+    expect(TOKEN_FLOW_DETAIL['dual-token-path'][1].form).toContain('identity.show');
+    expect(TOKEN_FLOW_DETAIL['dual-token-path'][2].form).toContain('credentialPath');
+    expect(TOKEN_FLOW_DETAIL['full-flow'][0].form).toContain('threadId');
+    expect(TOKEN_FLOW_DETAIL['full-flow'][4].form).toContain('"prompt"');
+    expect(TOKEN_FLOW_DETAIL['bad-scope'][3].form).toContain('"access_denied"');
+  });
 });
