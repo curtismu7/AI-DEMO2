@@ -138,3 +138,13 @@ describe('ID-JAG playground — start over', () => {
     expect(res.status).toBe(403);
   });
 });
+
+describe('ID-JAG playground — config names who is signed in', () => {
+  it('in oauth-mcp it is the app user, only while signed in', async () => {
+    const asUser = await request(appWith({ ...signedIn(), user: { email: 'cmuir@pingone.com' } })).get('/pg/config');
+    expect(asUser.body.signedIn).toBe(true);
+    expect(asUser.body.signedInAs).toBe('cmuir@pingone.com');
+    const out = await request(appWith({ oauthProvider: 'pingfederate' })).get('/pg/config');
+    expect(out.body.signedInAs).toBeNull();
+  });
+});

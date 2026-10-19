@@ -96,6 +96,31 @@ describe("ID-JAG playground: kit port", () => {
     expect(screen.getByRole("button", { name: "Request ID-JAG" })).toBeEnabled(); // still signed in: a new ID-JAG is one click away
   });
 
+  it("step 1 says it is done when already signed in, names who, and offers only a quiet 'Sign in as someone else'", async () => {
+    const base = get.getMockImplementation();
+    get.mockImplementation((url) => (String(url).endsWith("/config") ? Promise.resolve({ data: { ...config, signedInAs: "cmuir@pingone.com" } }) : base(url)));
+    renderPage();
+    const status = await screen.findByTestId("ijp-signin-status");
+    expect(status).toHaveTextContent("Signed in with PingFederate as cmuir@pingone.com. Nothing more to do in this step: continue to step 2.");
+    expect(screen.queryByRole("button", { name: "Sign in again" })).toBeNull();
+    expect(screen.getByRole("button", { name: "Sign in as someone else" })).not.toHaveClass("ijp-btn--primary");
+    const step1 = screen.getByRole("heading", { name: "Sign in with PingFederate" }).closest("section");
+    expect(step1.querySelector(".ijp-step__n")).toHaveClass("is-done");
+    expect(within(step1).getByText("1 (done)")).toBeInTheDocument();
+  });
+
+  it("step 1 is the red sign-in call to action only while not signed in", async () => {
+    const base = get.getMockImplementation();
+    get.mockImplementation((url) => (String(url).endsWith("/config") ? Promise.resolve({ data: { ...config, signedIn: false } }) : base(url)));
+    renderPage();
+    const status = await screen.findByTestId("ijp-signin-status");
+    expect(status).toHaveTextContent("Not signed in");
+    expect(status).not.toHaveClass("ijp-status--ok");
+    expect(screen.getByRole("button", { name: "Sign in with PingFederate" })).toHaveClass("ijp-btn--primary");
+    const step1 = screen.getByRole("heading", { name: "Sign in with PingFederate" }).closest("section");
+    expect(step1.querySelector(".ijp-step__n")).not.toHaveClass("is-done");
+  });
+
   it("offers real MCP clients on localhost, pointed at the kit's sample server", async () => {
     renderPage();
     const panel = await screen.findByTestId("ijp-real-clients");

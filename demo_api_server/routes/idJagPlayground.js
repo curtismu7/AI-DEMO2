@@ -390,6 +390,8 @@ function configFor(req) {
     xaa: { available: !xaaUnavailableReason(), reason: xaaUnavailableReason(), signedIn: !!req.session?.idJagXaa,
       user: req.session?.idJagXaa ? (req.session.idJagXaa.email || req.session.idJagXaa.sub) : null },
     signedIn: pfSignedIn(req), hasIdJag: !!req.session?.idJagPlayground?.idJag,
+    // Who the sign-in belongs to, so step 1 can say so. In oauth-mcp the playground uses the app's own PingFederate session.
+    signedInAs: pfSignedIn(req) && modeOf(req) === 'oauth-mcp' ? (req.session?.user?.email || req.session?.user?.username || null) : null,
     hasAccessToken: !!req.session?.idJagPlayground?.accessToken };
 }
 

@@ -50,7 +50,7 @@ const SPEC_NOTES = {
 const MODE_TEXT = {
   "oauth-mcp": {
     signInTitle: "Sign in with PingFederate",
-    signInNote: "The ID-JAG is minted from your PingFederate session (the refresh token the BFF holds). This always starts a fresh PingFederate sign-in.",
+    signInNote: "The ID-JAG is minted from your PingFederate session (the refresh token the BFF holds). If you already signed in to this app with PingFederate, this step is done: it uses that same session.",
     redeemTitle: "Redeem it at the MCP authorization server",
     asRole: "Redeems the ID-JAG, mints its own token",
     mcpRole: "Reached through the MCP gateway",
@@ -139,11 +139,11 @@ function DiagramLink({ mode, step, children }) {
   return <Link className="ijp-diagram-link" to={to} {...diagramLinkProps(to)}>{children}</Link>;
 }
 
-function Step({ n, title, note, mode, noDiagram, children }) {
+function Step({ n, title, note, mode, noDiagram, done, children }) {
   return (
     <section className="ijp-step" aria-labelledby={`ijp-step-${n}`}>
       <header className="ijp-step__head">
-        <span className="ijp-step__n">{n}</span>
+        <span className={`ijp-step__n${done ? " is-done" : ""}`}>{done ? <><span aria-hidden="true">✓</span><span className="ijp-sr">{n} (done)</span></> : n}</span>
         <h2 id={`ijp-step-${n}`}>{title}</h2>
         {!noDiagram && <DiagramLink mode={mode} step={n}>see step {n} on the diagram ↗</DiagramLink>}
       </header>
@@ -303,7 +303,8 @@ function Lifetime({ id, label, exp, used, now, again }) {
   const left = exp - Math.floor(now / 1000);
   const stale = used || left <= 0;
   const text = used ? `redeemed (single-use). ${again}` : left <= 0 ? `expired. ${again}` : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} left`;
-  return <p className={`ijp-life${stale ? " is-stale" : ""}`} data-testid={`ijp-life-${id}`}><strong>{label}:</strong> {text}</p>;
+  // Not an error: a used or expired token is the expected end of its life. Redeemed is info (blue), expired is a caution (amber).
+  return <p className={`ijp-life${used ? " is-stale is-used" : stale ? " is-stale is-expired" : ""}`} data-testid={`ijp-life-${id}`}><strong>{label}:</strong> {text}</p>;
 }
 
 /** The resource server's answer, drawn as the small app page it protects. */
@@ -795,7 +796,7 @@ export default function IdJagPlaygroundPage() {
         )}
         {error && !["list", "call", "resource"].includes(error.step) && <ErrorNote e={error} resource={config?.request?.resource} />}
 
-        <Step n={1} mode={mode} title={text.signInTitle} note={text.signInNote}>
+        <Step n={1} mode={mode} done={!isMock && !isByo && !!config?.signedIn} title={text.signInTitle} note={text.signInNote}>
           {(isByo || isMock) && (
             <div className="ijp-xaa" data-testid="ijp-xaa">
               <button type="button" className="ijp-btn ijp-btn--primary" onClick={xaaIdJag} disabled={!config?.xaa?.available || !!busy}>
@@ -821,10 +822,20 @@ export default function IdJagPlaygroundPage() {
             </>
           ) : (
             <>
-              <p className="ijp-status" data-testid="ijp-signin-status">{signInStatus}</p>
-              <button type="button" className="ijp-btn ijp-btn--primary" onClick={signIn} disabled={isMock || !pfReady || !!busy}>
-                {config?.signedIn && !isMock ? "Sign in again" : text.signInTitle}
-              </button>
+              {config?.signedIn && !isMock ? (
+                <>
+                  <p className="ijp-status ijp-status--ok" data-testid="ijp-signin-status" role="status">
+                    ✓ {signInStatus.replace(/\.$/, "")}{config.signedInAs ? ` as ${config.signedInAs}` : ""}. Nothing more to do in this step: continue to step 2.
+                  </p>
+                  <button type="button" className="ijp-btn" onClick={signIn} disabled={!pfReady || !!busy}
+                    title="Starts a brand new PingFederate sign-in, for a clean session or a different user.">Sign in as someone else</button>
+                </>
+              ) : (
+                <>
+                  <p className="ijp-status" data-testid="ijp-signin-status">{signInStatus}</p>
+                  <button type="button" className="ijp-btn ijp-btn--primary" onClick={signIn} disabled={isMock || !pfReady || !!busy}>{text.signInTitle}</button>
+                </>
+              )}
             </>
           )}
           {gateAt("signin")}

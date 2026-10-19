@@ -355,7 +355,10 @@ describe("ID-JAG playground page", () => {
     mount(config());
     replies({ "/issue": issuedWith({ iat: now() - 400, exp: now() - 100, scope: "mcp:invoke" }) });
     fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
-    expect(await screen.findByTestId("ijp-life-idjag")).toHaveTextContent(/expired/);
+    const life = await screen.findByTestId("ijp-life-idjag");
+    expect(life).toHaveTextContent(/expired/);
+    // Expired is a caution (amber), never the red of an error.
+    expect(life).toHaveClass("is-expired");
     preflightReply = (p) => (p.step === "redeem"
       ? { ok: false, checks: [{ id: "id-jag", label: "An unused, unexpired ID-JAG", status: "fail", detail: "It expired 100 s ago.", fix: "Request a new ID-JAG (step 2)." }] }
       : PASS);
