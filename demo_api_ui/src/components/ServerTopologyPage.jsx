@@ -12,6 +12,7 @@ import {
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
+  useStore,
   useViewport,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
@@ -20,6 +21,8 @@ import { EDGE_COLORS, NODE_TYPE_COLORS } from "./serverTopologyExports";
 import "./ServerTopologyPage.css";
 import ServerTopologyExportControls from "./ServerTopologyExportControls";
 import { layoutEdgeLabels } from "./topologyEdgeLabelLayout";
+import { rectsKey, routeTopologyEdges, serverRects } from "./topologyRouting";
+import { labelPoint, pathFromPoints } from "../utils/orthoRoute";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
 import { STEP_TIME_OPTIONS, StepTimeSelector } from "./diagram";
 import { formFor, noTokenNote, refsFor, tokenNoteFor, tokensFor } from "../config/serverTopologyStandards";
@@ -136,6 +139,10 @@ const TopologyLabeledEdge = memo(function TopologyLabeledEdge({
     offset: pathOptions?.offset,
     stepPosition: pathOptions?.stepPosition,
   });
+  // Routed around the boxes when the router found a way; otherwise (or while a box is being dragged) the smooth-step path.
+  const route = data?.route;
+  const routed = Boolean(route && route.ok);
+  const drawnPath = routed ? pathFromPoints(route.pts) : path;
   const labelPosition = data?.labelPosition;
   const numbers = data?.stepNumbers || [];
   const showWords = hover || Boolean(data?.showWords);
@@ -143,7 +150,7 @@ const TopologyLabeledEdge = memo(function TopologyLabeledEdge({
   return (
     <>
       <g onMouseEnter={() => setHover(true)} onMouseLeave={() => setHover(false)}>
-        <BaseEdge id={id} path={path} style={style} markerStart={markerStart} markerEnd={markerEnd} interactionWidth={interactionWidth} />
+        <BaseEdge id={id} path={drawnPath} style={style} markerStart={markerStart} markerEnd={markerEnd} interactionWidth={interactionWidth} />
       </g>
       {(numbers.length > 0 || showWords) && (
         <EdgeBadge
@@ -589,8 +596,22 @@ function TopologyCanvas({
     };
   }), [activeLayer, activePlaybackEdge, darkMode, filter, flowOnly, offFlow, playbackSteps, routeEdges, selectedEdge, selectedNode, stepIndex]);
 
+  // Routes depend on where the boxes really are (React Flow's absolute positions), so compute them once per layout,
+  // from a string key that changes only when a box lands elsewhere. While a box is being dragged the cheap smooth-step path is drawn.
+  const [dragging, setDragging] = useState(false);
+  const nodeLookup = useStore((st) => st.nodeLookup);
+  const absKey = useStore((st) => rectsKey(st.nodeLookup.values()));
+  const routing = useMemo(() => {
+    if (dragging) return { rects: {}, routes: {}, fallbacks: null };
+    const rects = serverRects(nodeLookup.values());
+    return { rects, ...routeTopologyEdges(rects, SERVER_EDGES) };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [absKey, dragging]);
+
   const positionedEdges = useMemo(() => {
     const visibleLabels = graphEdges.filter((item) => !item.hidden).map((item) => {
+      const routePts = routing.routes[item.id]?.ok ? routing.routes[item.id].pts : null;
+      if (routePts) return { id: item.id, text: item.label, emphasized: item.data.emphasized, ...labelPoint(routePts) };
       const source = NODE_BY_ID[item.source];
       const target = NODE_BY_ID[item.target];
       const sourceScale = source.id === focusNode ? SELECTED_NODE_SCALE : 1;
@@ -607,7 +628,8 @@ function TopologyCanvas({
       });
       return { id: item.id, text: item.label, emphasized: item.data.emphasized, x, y };
     });
-    const serviceObstacles = graphNodes
+    const measuredObstacles = Object.values(routing.rects).map((r) => ({ x: r.x + r.w / 2, y: r.y + r.h / 2, width: r.w, height: r.h }));
+    const serviceObstacles = measuredObstacles.length ? measuredObstacles : graphNodes
       .filter((node) => node.type === "server")
       .map((node) => {
         const scale = node.id === focusNode ? SELECTED_NODE_SCALE : 1;
@@ -623,13 +645,13 @@ function TopologyCanvas({
     return graphEdges.map((item) => ({
       ...item,
       type: "topologyLabeled",
-      data: { ...item.data, labelPosition: labelPositions.get(item.id) },
+      data: { ...item.data, labelPosition: labelPositions.get(item.id), route: routing.routes[item.id] },
     }));
-  }, [graphEdges, graphNodes, focusNode]);
+  }, [graphEdges, graphNodes, focusNode, routing]);
 
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(graphNodes, carryZoneMembers);
   return (
-    <div className="stm-canvas" aria-label="Interactive server topology graph">
+    <div className="stm-canvas" aria-label="Interactive server topology graph" data-route-fallbacks={routing.fallbacks ?? undefined}>
       <ReactFlow
         nodes={dragNodes}
         onNodesChange={onDragNodes}
@@ -645,7 +667,8 @@ function TopologyCanvas({
         elementsSelectable
         // A small wiggle is still a click; only a deliberate drag (past 5 px) counts as a drag.
         nodeDragThreshold={5}
-        onNodeDragStop={() => { lastDragEnd.current = Date.now(); }}
+        onNodeDragStart={() => setDragging(true)}
+        onNodeDragStop={() => { lastDragEnd.current = Date.now(); setDragging(false); }}
         onNodeClick={(_, node) => {
           // The click that ends a drag is not a selection.
           if (Date.now() - lastDragEnd.current < 300) return;

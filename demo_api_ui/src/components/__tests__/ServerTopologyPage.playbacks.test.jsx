@@ -50,6 +50,7 @@ vi.mock("@xyflow/react", async () => {
       zoomOut: vi.fn(),
       zoomTo: reactFlowMocks.zoomTo,
     }),
+    useStore: (selector) => selector({ nodeLookup: new Map() }),
     useViewport: () => ({ x: 0, y: 0, zoom: 0.62 }),
   };
 });
