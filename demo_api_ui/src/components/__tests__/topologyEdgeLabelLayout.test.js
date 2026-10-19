@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { layoutEdgeLabels } from "../topologyEdgeLabelLayout";
+import { layoutEdgeLabels, layoutRoutedLabels } from "../topologyEdgeLabelLayout";
 
 describe("topology edge label layout", () => {
   it("moves labels clear of their routes and separates labels sharing the same anchor", () => {
@@ -58,5 +58,28 @@ describe("topology edge label layout", () => {
       horizontalDistance >= (label.width + obstacle.width) / 2 + 8
       || verticalDistance >= (label.height + obstacle.height) / 2 + 8,
     ).toBe(true);
+  });
+});
+
+describe("routed label layout", () => {
+  const pts = [{ x: 0, y: 100 }, { x: 14, y: 100 }, { x: 300, y: 100 }, { x: 300, y: 600 }, { x: 586, y: 600 }, { x: 600, y: 600 }];
+  const onRoute = (l) => (l.y === 100 && l.x >= 14 && l.x <= 300) || (l.x === 300 && l.y >= 100 && l.y <= 600) || (l.y === 600 && l.x >= 300 && l.x <= 586);
+
+  it("keeps every label on its own route, even when a box and another label are in the way", () => {
+    const labels = [
+      { id: "a", text: "01", pts, x: 300, y: 350 },
+      { id: "b", text: "02", pts, x: 300, y: 350 },
+    ];
+    const box = { x: 300, y: 350, width: 100, height: 100 };
+    const out = layoutRoutedLabels(labels, [box]);
+    expect(out.map((l) => l.id)).toEqual(["a", "b"]);
+    out.forEach((l) => expect(onRoute(l)).toBe(true));
+    expect(Math.abs(out[0].x - out[1].x) >= out[0].width || Math.abs(out[0].y - out[1].y) >= out[0].height).toBe(true);
+  });
+
+  it("slides along the line to clear a box instead of leaving the line", () => {
+    const out = layoutRoutedLabels([{ id: "a", text: "01", pts, x: 300, y: 350 }], [{ x: 300, y: 350, width: 80, height: 120 }]);
+    expect(onRoute(out[0])).toBe(true);
+    expect(Math.abs(out[0].y - 350) > 60 || out[0].x !== 300).toBe(true);
   });
 });
