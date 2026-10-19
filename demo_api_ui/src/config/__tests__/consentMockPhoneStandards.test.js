@@ -19,6 +19,10 @@ describe('consentMockPhone ping-style detail', () => {
       expect(['rfc', 'spec', 'emerging']).toContain(r.kind);
     });
   });
+  it('real-run arrows are dashed (blue) and no step claims a token', () => {
+    [4, 5].forEach((i) => expect(EDGES[i][3]).toEqual({ dashed: true }));
+    expect(Object.values(CONSENT_MOCK_DETAIL).flatMap((d) => d.tokens || [])).toHaveLength(0);
+  });
   it('mock tokens carry claims and a note', () => {
     Object.values(CONSENT_MOCK_DETAIL).flatMap((d) => d.tokens || []).forEach((t) => {
       expect(t.note).toContain('·');
