@@ -20,4 +20,9 @@ describe("PrivilegeFirstGatewayPage", () => {
     expect(screen.getByText("ff_mcp_gateway_privilege_first")).toBeTruthy();
     expect(screen.getByText("AGENT_LLM_BASE_URL")).toBeTruthy();
   });
+
+  it("uses the Ping style on both figures", () => {
+    const { container } = render(<PrivilegeFirstGatewayPage />);
+    expect(container.querySelectorAll(".sfd--ping").length).toBe(2);
+  });
 });

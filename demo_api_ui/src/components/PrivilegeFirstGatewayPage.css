@@ -44,10 +44,9 @@
   display: inline-block;
   width: 22px;
   height: 0;
-  border-top: 2px solid var(--th-text);
+  border-top: 6px solid var(--th-text);
 }
-.pfg-sw--spike { border-top: 2px dashed var(--th-status-warning); }
-.pfg-sw--ghost { border-top: 2px dashed var(--th-text-muted); }
+.pfg-sw--dashed { border-top: 2px dashed var(--th-status-info); }
 
 .pfg-flags {
   display: grid;
