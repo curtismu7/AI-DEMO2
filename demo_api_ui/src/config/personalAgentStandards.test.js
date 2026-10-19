@@ -48,4 +48,25 @@ describe("personal agent step detail", () => {
     const kinds = Object.values(PA_STEP_DETAIL).flatMap((d) => d.refs.map((r) => r.kind));
     expect(kinds).toContain("emerging");
   });
+  it("shows what PingOne issues: bearer on the wire, act.client_id, audience= on the exchange", () => {
+    const blob = JSON.stringify(PA_STEP_DETAIL);
+    expect(blob).not.toMatch(/Authorization: DPoP|\\nDPoP:|cnf|"act":\{"sub"|actor_token_type=urn:ietf:params:oauth:token-type:jwt|&resource=/);
+    expect(PA_STEP_DETAIL.exchange1.form).toContain("&audience=");
+    expect(PA_STEP_DETAIL.exchange1.form).toContain("actor_token_type=urn:ietf:params:oauth:token-type:access_token");
+    for (const t of PA_STEP_DETAIL.exchange1.tokens.concat(PA_STEP_DETAIL.exchange2.tokens)) expect(JSON.stringify(t.claims)).not.toMatch(/"act":\{"sub"/);
+  });
+  it("attaches standards only to the hops they govern", () => {
+    const ids = (k) => PA_STEP_DETAIL[k].refs.map((r) => r.id);
+    expect(ids("policy")).not.toContain("OpenID AuthZEN");
+    expect(ids("policy")).not.toContain("RFC 9396");
+    expect(ids("model")).not.toContain("MCP authorization 2025-11-25");
+    expect(ids("signin")).not.toContain("RFC 9396");
+    expect(ids("ciba")).not.toContain("RFC 9470");
+    expect(ids("ciba")).not.toContain("OpenID FAPI CIBA profile");
+    expect(ids("checkout")).not.toContain("RFC 9470");
+    for (const k of ["auditTarget", "auditDual", "entryDual", "facade"]) expect(ids(k)).not.toContain("RFC 8693");
+    expect(ids("facade")).not.toContain("RFC 6265");
+    expect(ids("gatewayGap")).toContain("RFC 7662");
+    expect(ids("gatewayGap")).not.toContain("RFC 8705");
+  });
 });
