@@ -4,7 +4,7 @@
 // step detail panel shows). Source: docs/EXTERNAL_DOOR_MCP_FLOW.md and oauth-mcp/src (OAuthRouter, TokenIssuer,
 // TokenResolver), ping-gateway/config/routes/00-mcp-external-door.json and scripts/groovy/p1az-decision.groovy.
 // All hosts, ids and secrets are placeholders; token values are teaching values only.
-import { RFC, SPEC, DRAFT, AUTH, BEARER, INTROSPECT, MCP } from './pingStyleStandards';
+import { RFC, SPEC, AUTH, BEARER, INTROSPECT, MCP } from './pingStyleStandards';
 
 const uniq = (refs) => refs.filter((r, i) => refs.findIndex((x) => x.id === r.id) === i);
 const refs = (...lists) => uniq(lists.flat());
@@ -16,9 +16,7 @@ const CIMD = MCP[4];
 const JSONRPC = SPEC('JSON-RPC 2.0', 'Message framing MCP uses');
 const TRANSPORT = SPEC('MCP transports 2025-11-25', 'Streamable HTTP: POST /mcp with a JSON body');
 const MCP_AUTH = MCP[0];
-const MCP_NEXT = DRAFT('MCP 2026-07-28', 'The newer MCP protocol version oauth-mcp negotiates in its initialize reply');
 const P1AZ = SPEC('PingOne Authorize decision endpoints', 'POST decisionEndpoints/{id} with the request parameters');
-const AUTHZEN = SPEC('OpenID AuthZEN', 'The standard PEP-to-PDP call shape; an analogy, PingOne Authorize uses its own decision endpoint');
 const PKCE = AUTH[1];
 const OIDC = AUTH[3];
 const BCP = AUTH[2];
@@ -37,6 +35,11 @@ const SELF_ISSUED = {
   header: KID,
   claims: { iss: HOST, sub: '<PingOne user id>', aud: 'mcpserver.ping.demo', client_id: '<registered client id>', scope: 'openid mcp:invoke read', iat: 1790000000, exp: 1790003600, jti: 'mock-jti-1' },
 };
+const SELF_ISSUED_ID = {
+  note: 'oauth-mcp ID token (self-signed) · issued next to the access token because the scope includes openid',
+  header: KID,
+  claims: { iss: HOST, sub: '<PingOne user id>', aud: '<registered client id>', preferred_username: '<username>', email: '<user email>', auth_time: 1789999990, amr: ['pwd'], nonce: '<client nonce, when sent>', iat: 1790000000, exp: 1790003600 },
+};
 const SELF_ISSUED_CC = {
   note: 'oauth-mcp access token (self-signed) · client_credentials, no user',
   header: KID,
@@ -45,7 +48,12 @@ const SELF_ISSUED_CC = {
 const PINGONE_TOKEN = {
   note: 'PingOne access token (real, kept server-side) · from the federated login',
   header: { alg: 'RS256', kid: '<PingOne signing key id>' },
-  claims: { iss: 'https://auth.pingone.com/<envId>/as', sub: '<PingOne user id>', aud: 'enduser.ping.demo', client_id: '<OAUTH_MCP_PINGONE_CLIENT_ID>', scope: 'openid profile email', iat: 1790000000, exp: 1790003600, jti: 'mock-jti-3' },
+  claims: { iss: 'https://auth.pingone.com/<envId>/as', sub: '<PingOne user id>', aud: 'enduser.ping.demo', client_id: '<OAUTH_MCP_PINGONE_CLIENT_ID>', scope: 'read', iat: 1790000000, exp: 1790003600, jti: 'mock-jti-3' },
+};
+const PINGONE_ID_TOKEN = {
+  note: 'PingOne ID token (real) · the token oauth-mcp verifies; its sub is the real user',
+  header: { alg: 'RS256', kid: '<PingOne signing key id>' },
+  claims: { iss: 'https://auth.pingone.com/<envId>/as', sub: '<PingOne user id>', aud: '<OAUTH_MCP_PINGONE_CLIENT_ID>', preferred_username: '<username>', email: '<user email>', auth_time: 1789999990, amr: ['pwd'], acr: '<PingOne sign-on policy>', iat: 1790000000, exp: 1790003600 },
 };
 const INTROSPECTION = {
   note: 'Introspection response · what the gateway learns about the bearer (RFC 7662, not a token)',
@@ -60,7 +68,7 @@ const AUTHORIZE = `GET /authorize
   &code_challenge_method=S256
   &redirect_uri=http://127.0.0.1:6274/oauth/callback
   &state=<client's own state>
-  &scope=accounts:read transactions:read transactions:write sensitive:read
+  &scope=openid mcp:invoke read
   &resource=${HOST}/mcp`;
 const TOKEN_CODE = `POST /token HTTP/1.1
 Content-Type: application/x-www-form-urlencoded
@@ -85,7 +93,7 @@ Content-Type: application/json
 const DOOR_GATEWAY = '(through ping-gateway: introspect the bearer, one PingOne Authorize decision, then the reverse proxy)';
 const RESULT = `{ "jsonrpc": "2.0", "id": 2,
   "result": { "content": [ { "type": "text", "text": "<account data>" } ], "structuredContent": { } } }`;
-const MCP_REFS = refs([MCP_AUTH, TRANSPORT, JSONRPC], BEARER.slice(0, 1), [MCP_NEXT]);
+const MCP_REFS = refs([MCP_AUTH, TRANSPORT, JSONRPC], BEARER.slice(0, 1));
 
 // ─── Topology ─────────────────────────────────────────────────────────────────
 export const TOPO_DETAIL = {
@@ -135,7 +143,7 @@ ${MCP_CALL}`,
 
 (ping-gateway route mcp-external-door only matches ^/mcp, so /register, /authorize, /token and /jwks reach mcp-server
  untouched: no introspection, no PingOne Authorize decision, no audit)`,
-    tokens: [SELF_ISSUED],
+    tokens: [SELF_ISSUED, SELF_ISSUED_ID],
     refs: refs([AUTH[0], PKCE, RFC(7591, 'Dynamic Client Registration (/register passes through too)'), RFC(8414, 'Authorization Server Metadata'), JWK], [BCP, OAUTH21, CIMD]),
   },
   enforced: {
@@ -155,7 +163,7 @@ It requires scope mcp:invoke, forwards the Authorization header unchanged (mcp-s
 and trims the tools/list reply to the curated set of tools.
 A missing or bad token gets a 401 with: WWW-Authenticate: Bearer resource_metadata="${HOST}/.well-known/oauth-protected-resource"`,
     tokens: [SELF_ISSUED, INTROSPECTION],
-    refs: refs(INTROSPECT.slice(0, 1), [RFC(9728, 'The 401 challenge carries resource_metadata')], BEARER.slice(0, 1), [MCP_AUTH, TRANSPORT, JSONRPC, MCP_NEXT]),
+    refs: refs(INTROSPECT.slice(0, 1), [RFC(9728, 'The 401 challenge carries resource_metadata')], BEARER.slice(0, 1), [MCP_AUTH, TRANSPORT, JSONRPC]),
   },
   decision: {
     form: `POST https://api.pingone.com/v1/environments/<envId>/decisionEndpoints/<decision endpoint id> HTTP/1.1
@@ -171,14 +179,14 @@ Content-Type: application/json
 One decision per MCP request (initialize, tools/list, tools/call), never once per session.
 UserId is the token's sub: the real PingOne user for authorization_code, the client_id for client_credentials.`,
     tokens: [SELF_ISSUED],
-    refs: refs([P1AZ, AUTHZEN, RFC(6749, 'Client credentials grant (section 4.4): the gateway fetches its Authorize worker token this way'), RFC(9396, 'Rich Authorization Requests: authorization_details can ride in the decision when present')]),
+    refs: refs([P1AZ, RFC(6749, 'Client credentials grant (section 4.4): the gateway fetches its Authorize worker token this way')]),
   },
   federate: {
     form: `Browser redirect from oauth-mcp /authorize:
 Location: https://auth.pingone.com/<envId>/as/authorize
   ?client_id=<OAUTH_MCP_PINGONE_CLIENT_ID>&redirect_uri=${HOST}/authorize/callback&response_type=code
-  &scope=openid profile email&state=<relayState>&code_challenge=<oauth-mcp's own S256 challenge>
-  &code_challenge_method=S256&resource=enduser.ping.demo
+  &scope=openid profile email read&state=<relayState>&code_challenge=<oauth-mcp's own S256 challenge>
+  &code_challenge_method=S256&resource=enduser.ping.demo&max_age=<re-auth window, default 1800>
 
 Then, after the real login, oauth-mcp calls PingOne:
 POST https://auth.pingone.com/<envId>/as/token HTTP/1.1
@@ -187,8 +195,9 @@ Content-Type: application/x-www-form-urlencoded
 grant_type=authorization_code&code=<PingOne code>&redirect_uri=${HOST}/authorize/callback
 &client_id=<OAUTH_MCP_PINGONE_CLIENT_ID>&client_secret=<secret>&code_verifier=<oauth-mcp's own verifier>&resource=enduser.ping.demo
 
-The returned access token is checked against PingOne's JWKS and issuer; its sub is the real user.`,
-    tokens: [PINGONE_TOKEN],
+oauth-mcp verifies the returned ID token against PingOne's JWKS and issuer (the access token only when no ID token comes back); its sub is the real user.
+scope read is there so PingOne audiences the access token to enduser.ping.demo; the access token itself is only stashed.`,
+    tokens: [PINGONE_ID_TOKEN, PINGONE_TOKEN],
     refs: refs([AUTH[0], PKCE, OIDC, RESOURCE, BCP, JWT, JWK], [OAUTH21]),
   },
   bankingApi: {
@@ -217,10 +226,11 @@ export const SEQ_DETAIL = {
 Location: https://auth.pingone.com/<envId>/as/authorize
   ?client_id=<OAUTH_MCP_PINGONE_CLIENT_ID>
   &redirect_uri=${HOST}/authorize/callback
-  &response_type=code&scope=openid profile email
+  &response_type=code&scope=openid profile email read
   &state=<relayState, not the client's state>
   &code_challenge=<oauth-mcp's own S256 challenge>&code_challenge_method=S256
-  &resource=enduser.ping.demo   (only when BANKING_API_RESOURCE_URI is set)
+  &resource=enduser.ping.demo   (only when BANKING_API_RESOURCE_URI is set; without it the scope is openid profile email)
+  &max_age=<re-auth window, default 1800>   (prompt instead, depending on the BFF's mcp_broker_prompt setting)
 
 The client's state is kept in a pending record keyed by relayState (10 minute life), never sent to PingOne.`, 'An authorization request carries only PKCE material and state.'),
     ...NO_TOKEN('An authorization request carries only PKCE material and state.'),
@@ -248,10 +258,11 @@ grant_type=authorization_code
 &code_verifier=<oauth-mcp's own verifier>
 &resource=enduser.ping.demo
 
--> 200 { "access_token": "<PingOne JWT>", "token_type": "Bearer", "expires_in": 3600 }
+-> 200 { "access_token": "<PingOne access token>", "id_token": "<PingOne ID token>", "token_type": "Bearer", "expires_in": 3600 }
 
-oauth-mcp verifies the signature against PingOne's JWKS and the issuer, then reads sub: the real user.`,
-    tokens: [PINGONE_TOKEN],
+oauth-mcp verifies the ID token (the access token only when no ID token comes back) against PingOne's JWKS and the issuer, then
+reads sub and the identity claims from it: the real user. The access token is stashed for the Banking API call.`,
+    tokens: [PINGONE_ID_TOKEN, PINGONE_TOKEN],
     refs: refs([AUTH[0], PKCE, RESOURCE, JWT, JWK, OIDC], [OAUTH21]),
   },
   mintJwt: {
@@ -264,7 +275,7 @@ Location: http://127.0.0.1:6274/oauth/callback?code=<oauth-mcp's own code>&state
 ${TOKEN_CODE}
 
 The JWT is signed with oauth-mcp's own key (published at /jwks). The PingOne token is kept server-side, keyed by the JWT's jti, and never handed to the client.`,
-    tokens: [SELF_ISSUED],
+    tokens: [SELF_ISSUED, SELF_ISSUED_ID],
     refs: refs([AUTH[0], PKCE, JWT, JWK, OIDC], [OAUTH21]),
   },
   mcpCall: {
@@ -288,7 +299,7 @@ Authorization: Bearer <PingOne access token>
   resultFederated: {
     form: withReason(RESULT, 'The tool result is data; the bearer stays with the client and the PingOne token never leaves the server.'),
     ...NO_TOKEN('The tool result is data; the bearer stays with the client and the PingOne token never leaves the server.'),
-    refs: refs([MCP_AUTH, TRANSPORT, JSONRPC, MCP_NEXT]),
+    refs: refs([MCP_AUTH, TRANSPORT, JSONRPC]),
   },
   ccToken: {
     form: withReason(`POST /token HTTP/1.1
@@ -331,6 +342,6 @@ Authorization: Bearer <self-issued access token>
   resultPassthrough: {
     form: withReason(RESULT, 'The tool result is data; no token travels in the reply.'),
     ...NO_TOKEN('The tool result is data; no token travels in the reply.'),
-    refs: refs([MCP_AUTH, TRANSPORT, JSONRPC, MCP_NEXT]),
+    refs: refs([MCP_AUTH, TRANSPORT, JSONRPC]),
   },
 };
