@@ -2,7 +2,10 @@ import React, { useEffect, useMemo, useRef, useState } from "react";
 import {
   Background,
   BackgroundVariant,
+  BaseEdge,
   Controls,
+  EdgeLabelRenderer,
+  getSmoothStepPath,
   Handle,
   Position,
   ReactFlow,
@@ -61,6 +64,60 @@ function FGroup({ data }) {
   );
 }
 const nodeTypes = { fnode: FNode, fgroup: FGroup };
+
+// ---- Ping style (opt-in via `pingStyle`): Ping palette, thick numbered arrows, select + sync ----
+const TONES = {
+  red: { bg: "#b5231a", border: "#b5231a", color: "#ffffff" },
+  dark: { bg: "#151a24", border: "#3a4256", color: "#f2f2f4" },
+  grey: { bg: "#5a5f69", border: "#5a5f69", color: "#ffffff" },
+};
+// red = Ping products, identity, gateway and authorization; grey = safety and step-up; everything else is a dark card
+const RED_IDS = new Set(["PingOneCloud", "PingOneAuthorize", "Gateway", "PingGW", "AuthzMock"]);
+const GREY_IDS = new Set(["Gates", "StepUpGate", "AuthorizeGate", "HITLSvc", "CibaRoutes"]);
+const toneOf = (id, parentOf) => {
+  for (let cur = id; cur; cur = parentOf[cur]) {
+    if (RED_IDS.has(cur)) return TONES.red;
+    if (GREY_IDS.has(cur)) return TONES.grey;
+  }
+  return TONES.dark;
+};
+const LINE_BLACK = "#111111";
+const LINE_BLUE = "#1f5fbf";
+const DRAG_THRESHOLD = 5; // px: a wiggle is still a click
+const CLICK_AFTER_DRAG_MS = 300; // the click that ends a drag is not a selection
+
+/** Ping-style edge: thick path with an orange step-number badge; the words show for the active step or on hover. */
+function PingEdge({ id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, markerEnd, style, data }) {
+  const [path, labelX, labelY] = getSmoothStepPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  return (
+    <>
+      <BaseEdge id={id} path={path} markerEnd={markerEnd} style={style} interactionWidth={8} />
+      <EdgeLabelRenderer>
+        <div
+          className={`pfd-edge-label nodrag nopan${data?.active ? " is-active" : ""}`}
+          style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
+        >
+          <span className="pfd-edge-num">{data?.n}</span>
+          {data?.label && <span className="pfd-edge-text">{data.label}</span>}
+        </div>
+      </EdgeLabelRenderer>
+    </>
+  );
+}
+const pingEdgeTypes = { pfdEdge: PingEdge };
+
+function PingLegend() {
+  return (
+    <div className="pfd-legend" aria-label="Legend" data-testid="pfd-legend">
+      <span><i className="pfd-sw pfd-sw--ping" />Ping product, identity, gateway, authorization</span>
+      <span><i className="pfd-sw pfd-sw--app" />Your app, agent or service</span>
+      <span><i className="pfd-sw pfd-sw--safety" />Step-up and safety</span>
+      <span><b className="pfd-num-key">n</b>arrow = step n in the step bar and the movie reel</span>
+      <span><i className="pfd-line" />solid = a call that has run</span>
+      <span><i className="pfd-line pfd-line--dashed" />dashed (blue) = a step not reached yet, or an optional / fallback hop</span>
+    </div>
+  );
+}
 
 const colourStyle = (def) =>
   def
@@ -156,7 +213,7 @@ export async function layoutFlowchart(model) {
   return { id: layoutSeq, nodes: rfNodes, edges: rfEdges, steps, reelEdges, reelNodes };
 }
 
-function Inner({ source, testId, step, active, details, followSteps }) {
+function Inner({ source, testId, step, active, details, followSteps, pingStyle, enrichStep }) {
   const ref = useRef(null);
   // followSteps keeps its own viewport; a refit would throw the reader back to the unreadable overview.
   useFitOnResize(followSteps ? NO_REF : ref, FIT);
@@ -187,17 +244,75 @@ function Inner({ source, testId, step, active, details, followSteps }) {
     return stepEdges(flow.edges, step !== undefined ? step : stepper.step);
   }, [flow, stepper.step, step, active]);
 
-  const reelSteps = useMemo(
-    () => (flow && !driven ? buildReelSteps({ edges: flow.reelEdges, nodes: flow.reelNodes, details }) : []),
-    [flow, driven, details],
-  );
+  const reelSteps = useMemo(() => {
+    if (!flow || driven) return [];
+    const base = buildReelSteps({ edges: flow.reelEdges, nodes: flow.reelNodes, details });
+    return enrichStep ? base.map(enrichStep) : base;
+  }, [flow, driven, details, enrichStep]);
   const [nodeDetail, setNodeDetail] = useState(null);
+  const [selectedId, setSelectedId] = useState(null);
+  const [openKey, setOpenKey] = useState(0);
+  const reelRef = useRef(null);
+  const lastDragEnd = useRef(0);
   const current = reelSteps[stepper.step];
-  const lit = useMemo(() => (flow ? markNodes(flow.nodes, current ? [current.from, current.to] : []) : []), [flow, current]);
+  const parentOf = useMemo(() => Object.fromEntries((flow?.nodes || []).filter((n) => n.parentId).map((n) => [n.id, n.parentId])), [flow]);
+  const lit = useMemo(() => {
+    if (!flow) return [];
+    const hot = markNodes(flow.nodes, current ? [current.from, current.to] : []);
+    if (!pingStyle) return hot;
+    return hot.map((n) => {
+      const tone = toneOf(n.id, parentOf);
+      const style = { ...n.data.style, background: n.type === "fgroup" ? `${tone.bg}14` : tone.bg, borderColor: tone.border, color: tone.color };
+      return { ...n, className: `${n.className ? `${n.className} ` : ""}${n.id === selectedId ? "pfd-selected" : ""}`.trim(), data: { ...n.data, style } };
+    });
+  }, [flow, current, pingStyle, parentOf, selectedId]);
   const onNodeClick = (_, node) => {
     if (driven || !flow) return;
-    setNodeDetail(buildNodeDetail(flow.reelNodes.find((x) => x.id === node.id), details));
+    if (!pingStyle) {
+      setNodeDetail(buildNodeDetail(flow.reelNodes.find((x) => x.id === node.id), details));
+      return;
+    }
+    // The click that ends a drag is not a selection.
+    if (Date.now() - lastDragEnd.current < CLICK_AFTER_DRAG_MS) return;
+    setSelectedId(node.id);
+    // Jump the reel and step bar to this box's first arrow (into it, else out of it), then bring them into view.
+    const into = flow.reelEdges.findIndex((e) => e[1] === node.id);
+    const out = flow.reelEdges.findIndex((e) => e[0] === node.id);
+    if (into >= 0 || out >= 0) {
+      stepper.goTo(into >= 0 ? into : out);
+      setOpenKey((k) => k + 1);
+    }
+    requestAnimationFrame(() => reelRef.current?.scrollIntoView?.({ behavior: "smooth", block: "center" }));
   };
+  // Moving the reel or the step bar selects that step's box, unless the box already selected is part of the step.
+  useEffect(() => {
+    if (!pingStyle || stepper.step < 0 || !flow) return;
+    const [from, to] = flow.reelEdges[stepper.step] || [];
+    if (to) setSelectedId((cur) => (cur === from || cur === to ? cur : to));
+  }, [pingStyle, stepper.step, flow]);
+  const selectedDetail = useMemo(
+    () => (pingStyle && selectedId && flow ? buildNodeDetail(flow.reelNodes.find((x) => x.id === selectedId), details) : null),
+    [pingStyle, selectedId, flow, details],
+  );
+
+  // Ping style: numbered, thick arrows. Dashed = future steps, the arrow in focus and the optional hops (blue).
+  const pingEdges = useMemo(() => {
+    if (!pingStyle) return shown;
+    const at = driven ? -1 : stepper.step;
+    return shown.map((e, i) => {
+      const dashed = Boolean(e.style?.strokeDasharray); // optional hops, and stepEdges dashes the arrow in focus and the future ones
+      const color = dashed ? LINE_BLUE : LINE_BLACK;
+      return {
+        ...e,
+        type: "pfdEdge",
+        label: undefined,
+        zIndex: 1,
+        className: dashed ? "pfd-dashed" : undefined,
+        markerEnd: { type: "arrowclosed", width: 14, height: 14, color },
+        data: { n: i + 1, label: e.label, active: at === i },
+      };
+    });
+  }, [shown, pingStyle, driven, stepper.step]);
 
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(lit);
 
@@ -226,9 +341,12 @@ function Inner({ source, testId, step, active, details, followSteps }) {
             key={flow.id}
             nodes={dragNodes}
             onNodesChange={onDragNodes}
-            edges={shown}
+            edges={pingEdges}
             onNodeClick={onNodeClick}
             nodeTypes={nodeTypes}
+            edgeTypes={pingStyle ? pingEdgeTypes : undefined}
+            nodeDragThreshold={pingStyle ? DRAG_THRESHOLD : undefined}
+            onNodeDragStop={pingStyle ? () => { lastDragEnd.current = Date.now(); } : undefined}
             fitView={!followSteps}
             onInit={followSteps ? () => followTo(stepper.step) : undefined}
             fitViewOptions={FIT}
@@ -247,8 +365,32 @@ function Inner({ source, testId, step, active, details, followSteps }) {
           <p className="fcd-note">Laying out diagram…</p>
         )}
       </div>
+      {pingStyle && flow && <PingLegend />}
       {!driven && flow && (
-        <DiagramReel steps={reelSteps} stepper={stepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId={`${testId}-reel`} />
+        <div ref={reelRef}>
+          <DiagramReel steps={reelSteps} stepper={stepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} openKey={openKey} testId={`${testId}-reel`} />
+          {selectedDetail && (
+            <section className="dreel-detail pfd-node-detail" data-testid={`${testId}-node-detail`}>
+              <header>
+                <h3>{selectedDetail.title}</h3>
+                <button type="button" className="dreel-close" onClick={() => setSelectedId(null)} aria-label="Close box detail">
+                  Close
+                </button>
+              </header>
+              {selectedDetail.lines.length > 0 ? (
+                <dl>
+                  {selectedDetail.lines.map((l, i) => (
+                    <div key={i}>
+                      <dd>{l.text}</dd>
+                    </div>
+                  ))}
+                </dl>
+              ) : (
+                <p className="dreel-detail-empty">No further detail for this box.</p>
+              )}
+            </section>
+          )}
+        </div>
       )}
     </>
   );
@@ -256,11 +398,12 @@ function Inner({ source, testId, step, active, details, followSteps }) {
 
 /** `step` / `active` work as on SequenceFlowDiagram; leave both undefined for the built-in Play/Step bar. */
 /** `followSteps` (opt-in, Full topology): open zoomed on the entry point and pan to each Simulate step. */
-export default function FlowchartFlowDiagram({ source, testId = "flowchart-flow-diagram", label = "Architecture diagram", step, active, details, followSteps = false }) {
+/** `pingStyle` (opt-in): Ping palette, numbered thick arrows, legend, box click syncs the reel; `enrichStep(step)` adds request form, tokens and standards to each reel step. */
+export default function FlowchartFlowDiagram({ source, testId = "flowchart-flow-diagram", label = "Architecture diagram", step, active, details, followSteps = false, pingStyle = false, enrichStep }) {
   return (
-    <div className="fcd" role="group" aria-label={label}>
+    <div className={`fcd${pingStyle ? " fcd--ping" : ""}`} role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} testId={testId} step={step} active={active} details={details} followSteps={followSteps} />
+        <Inner source={source} testId={testId} step={step} active={active} details={details} followSteps={followSteps} pingStyle={pingStyle} enrichStep={enrichStep} />
       </ReactFlowProvider>
     </div>
   );

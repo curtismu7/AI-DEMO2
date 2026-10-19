@@ -16,6 +16,7 @@ import FlowchartFlowDiagram from "./FlowchartFlowDiagram";
 import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
 import { CIBA_LINK_DIAGRAM } from "../config/cibaApprovalLinkDiagram";
 import { buildFocusDiagram, FOCUS_GROUPS } from "../utils/architectureFocus";
+import { enrichReelStep } from "../config/systemDiagramStandards";
 import "./ArchitectureTabsPanel.css";
 import InlineSpinner from './shared/InlineSpinner';
 
@@ -457,7 +458,7 @@ function FocusedArchitectureDiagram({ mmdSource, mmdError, focusKey }) {
       </p>
     );
   }
-  return <FlowchartFlowDiagram source={filteredSource} height={720} testId="arch-focus-diagram" label="System architecture focus" followSteps={focusKey === "full"} />;
+  return <FlowchartFlowDiagram source={filteredSource} height={720} testId="arch-focus-diagram" label="System architecture focus" followSteps={focusKey === "full"} pingStyle enrichStep={enrichReelStep} />;
 }
 
 function SystemArchitectureView() {
