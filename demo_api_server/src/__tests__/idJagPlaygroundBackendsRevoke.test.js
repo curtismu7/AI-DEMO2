@@ -66,6 +66,13 @@ describe('ID-JAG playground — backends strip', () => {
     expect(resourceAs).toEqual(expect.objectContaining({ id: 'resource-as', state: 'up', url: `${AS}/.well-known/openid-configuration` }));
   });
 
+  it('adds the MCP gateway chip (its /health) when a gateway URL is configured', async () => {
+    const get = answer(200);
+    const backends = await router._probeBackends(s(), get, 'http://gw.test:3005/');
+    expect(backends.map((b) => [b.id, b.state])).toEqual([['idp', 'up'], ['resource-as', 'up'], ['mcp', 'up']]);
+    expect(get.mock.calls.map((c) => c[0])).toContain('http://gw.test:3005/health');
+  });
+
   it('leaves out a backend with no address in this mode', async () => {
     const backends = await router._probeBackends({ ...s(), idp: { name: 'Your IdP', issuer: '' } }, answer(200));
     expect(backends.map((b) => b.id)).toEqual(['resource-as']);
