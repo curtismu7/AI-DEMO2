@@ -97,6 +97,7 @@ function SimulateLanding({ user, onStartSimulation }) {
         lede="Simulate mode keeps the whole CIBA exchange between your browser, the BFF and a mock phone; a real run swaps in PingOne and a deep link."
         ariaLabel="Transaction consent mock CIBA flow"
         testId="tc-diagram"
+        pingStyle
       />
     </div>
   );
