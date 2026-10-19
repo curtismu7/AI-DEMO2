@@ -1,4 +1,4 @@
-// /mcp-gateway-oauth-flow: for each of the 24 steps of the OAuth handshake, the request on the wire, the MOCK token(s) in
+// /mcp-gateway-oauth-flow: for each of the 26 steps of the OAuth handshake, the request on the wire, the MOCK token(s) in
 // play and the standards behind the hop (published RFCs/specs plus emerging work). Grounded in demo_mcp_gateway
 // (GatewayServer.ts, oauth/OAuthBrokerRouter.ts, auth/GatewayIntrospectionClient.ts, auth/McpTokenExchangeClient.ts,
 // auth/PingOneAuthorizeClient.ts) and oauth-mcp (TokenIntrospector.ts). Hosts, ids and secrets are placeholders;
@@ -18,13 +18,11 @@ const MCP_AUTH = MCP[0];
 const PRM = MCP[1]; // RFC 9728
 const RESOURCE = MCP[2]; // RFC 8707
 const BEARER_USE = BEARER[0]; // RFC 6750
-const JWT_PROFILE = BEARER[2]; // RFC 9068
 const DPOP = BEARER[1]; // RFC 9449
 const PKCE = AUTH[1];
 const OAUTH = AUTH[0];
 const BCP = AUTH[2];
 const OAUTH21 = AUTH[6];
-const CIMD = MCP[4];
 const EXCH = EXCHANGE[0]; // RFC 8693
 const JWT = INTROSPECT[2]; // RFC 7519
 const JWK = INTROSPECT[3]; // RFC 7517
@@ -36,21 +34,21 @@ const XACML = SPEC('XACML 3.0', 'The PEP / PDP split: the gateway enforces, Ping
 const ZERO_TRUST = SPEC('NIST SP 800-207', 'Zero Trust Architecture: a policy enforcement point in front of every resource (an analogy; PingOne Authorize applies its own policy)');
 const DISCOVER_NEXT = DRAFT('MCP 2026-07-28', 'The newer MCP protocol version (server/discover, per-request negotiation) the gateway partly supports; this page draws the initialize handshake');
 
-const HEADER = { alg: 'RS256', typ: 'at+jwt', kid: 'mock-kid-1' };
+const HEADER = { alg: 'RS256', typ: 'JWT', kid: 'mock-kid-1' };
 const ACCESS = {
   note: 'Access token · issued by PingOne, audience the gateway',
   header: HEADER,
-  claims: { iss: AS, sub: '<user id>', aud: 'mcpgateway.ping.demo', client_id: '<broker app client id>', scope: 'openid mcp:invoke', iat: 1790000000, exp: 1790003600, jti: 'mock-jti-1' },
+  claims: { iss: AS, sub: '<user id>', aud: 'mcpgateway.ping.demo', client_id: '<broker app client id>', scope: 'openid mcp:invoke', iat: 1790000000, exp: 1790003600 },
 };
 const ACTOR = {
   note: 'Actor token · the gateway\'s own client_credentials token',
   header: HEADER,
-  claims: { iss: AS, sub: '<exchanger client id>', aud: 'mcpgateway.ping.demo', client_id: '<exchanger client id>', scope: 'mcp:invoke', iat: 1790000010, exp: 1790003610, jti: 'mock-jti-2' },
+  claims: { iss: AS, sub: '<exchanger client id>', aud: 'mcpgateway.ping.demo', client_id: '<exchanger client id>', scope: 'mcp:invoke', iat: 1790000010, exp: 1790003610 },
 };
 const EXCHANGED = {
   note: 'Exchanged token · audience the MCP server',
   header: HEADER,
-  claims: { iss: AS, sub: '<user id>', aud: '<MCP server resource URI>', client_id: '<exchanger client id>', scope: 'read', act: { sub: '<exchanger client id>' }, iat: 1790000020, exp: 1790000320, jti: 'mock-jti-3' },
+  claims: { iss: AS, sub: '<user id>', aud: '<MCP server resource URI>', client_id: '<exchanger client id>', scope: 'read', act: { sub: '<exchanger client id>' }, iat: 1790000020, exp: 1790000320 },
 };
 const INTROSPECTION = {
   note: 'Introspection response · RFC 7662 JSON, not a JWT',
@@ -87,17 +85,27 @@ export const SEQ_DETAIL = [
   {
     form: `HTTP/1.1 200 OK   Content-Type: application/json\n{ "resource": "mcpgateway.ping.demo",\n  "authorization_servers": ["${GW}"],\n  "scopes_supported": ["read", "write", "transfer", "mcp:invoke", "..."],\n  "bearer_methods_supported": ["header"],\n  "resource_name": "Demo MCP Gateway" }\n\nauthorization_servers names the gateway's OWN OAuth broker, not PingOne: PingOne has no open dynamic registration.\nThe client then reads the broker's own metadata:\nGET ${GW}/.well-known/oauth-authorization-server\n-> { "issuer": "${GW}", "authorization_endpoint": "${GW}/oauth/authorize",\n     "token_endpoint": "${GW}/oauth/token", "registration_endpoint": "${GW}/oauth/register",\n     "response_types_supported": ["code"], "grant_types_supported": ["authorization_code"],\n     "token_endpoint_auth_methods_supported": ["none"], "code_challenge_methods_supported": ["S256"] }\n\n${NO_TOKEN('discovery documents carry no credentials')}`,
     tokens: [],
-    refs: refs([PRM, AS_META, RESOURCE, MCP_AUTH], [CIMD]),
+    refs: refs([PRM, AS_META, RESOURCE, MCP_AUTH]),
   },
   {
-    form: `Register (the broker accepts only loopback redirect URIs):\nPOST ${GW}/oauth/register\n{ "client_name": "<client name>", "redirect_uris": ["http://127.0.0.1:<port>/callback"],\n  "grant_types": ["authorization_code"], "scope": "mcp:invoke" }\n-> 201 { "client_id": "<new client id>", "token_endpoint_auth_method": "none", "scope": "mcp:invoke", ... }\n\nAuthorize, with PKCE (S256), in the user's browser:\nGET ${GW}/oauth/authorize?response_type=code&client_id=<new client id>\n  &redirect_uri=http://127.0.0.1:<port>/callback&code_challenge=<S256 hash>&code_challenge_method=S256\n  &state=<client state>&scope=mcp:invoke&resource=mcpgateway.ping.demo\n-> 302 Location: ${AS}/authorize?client_id=<broker app client id>\n  &redirect_uri=${GW}/oauth/callback&response_type=code&state=<relay state>\n  &code_challenge=<the broker's own S256 hash>&code_challenge_method=S256\n  &resource=mcpgateway.ping.demo&scope=openid mcp:invoke\n\nThe figure draws this as one hop to PingOne. Two PKCE pairs are in flight: the client's (against the broker) and the broker's (against PingOne).\n${NO_TOKEN('the user is still signing in; the PKCE verifier is a one-time secret, not a token')}`,
+    form: `Register (the broker accepts only loopback redirect URIs):\nPOST ${GW}/oauth/register\n{ "client_name": "<client name>", "redirect_uris": ["http://127.0.0.1:<port>/callback"],\n  "grant_types": ["authorization_code"], "scope": "mcp:invoke" }\n-> 201 { "client_id": "<new client id>", "token_endpoint_auth_method": "none", "scope": "mcp:invoke", ... }\n\nAuthorize, with PKCE (S256), in the user's browser:\nGET ${GW}/oauth/authorize?response_type=code&client_id=<new client id>\n  &redirect_uri=http://127.0.0.1:<port>/callback&code_challenge=<S256 hash>&code_challenge_method=S256\n  &state=<client state>&scope=mcp:invoke&resource=mcpgateway.ping.demo\n-> the broker answers with a redirect to PingOne (step 7)\n\nThe client talks to the gateway's own broker here, not to PingOne. The broker has no Client ID Metadata Document support: registration is RFC 7591 only.\n${NO_TOKEN('the user is still signing in; the PKCE verifier is a one-time secret, not a token')}`,
     tokens: [],
-    refs: refs([OAUTH, PKCE, DCR, RESOURCE, BCP, MCP_AUTH], [OAUTH21, CIMD]),
+    refs: refs([OAUTH, PKCE, DCR, AS_META, RESOURCE, BCP, MCP_AUTH], [OAUTH21]),
   },
   {
-    form: `PingOne redirects the browser: GET ${GW}/oauth/callback?code=<PingOne code>&state=<relay state>\nThe broker redeems it at PingOne with its own verifier, then redirects to the client:\n  302 http://127.0.0.1:<port>/callback?code=<broker code>&state=<client state>\n\nPOST ${GW}/oauth/token HTTP/1.1\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code&code=<broker code>&redirect_uri=http://127.0.0.1:<port>/callback\n&client_id=<new client id>&code_verifier=<PKCE secret>\n\n-> 200 { "access_token": "<access token>", "token_type": "Bearer", "expires_in": 3600, "scope": "mcp:invoke" }\n\nThe broker verifies the client's PKCE, then returns the exact access token PingOne issued (a pass-through).`,
+    form: `302 Location: ${AS}/authorize?client_id=<broker app client id>\n  &redirect_uri=${GW}/oauth/callback&response_type=code&state=<relay state>\n  &code_challenge=<the broker's own S256 hash>&code_challenge_method=S256\n  &resource=mcpgateway.ping.demo&scope=openid mcp:invoke\n\nThe user's browser follows it to PingOne and signs in (password, then whatever MFA the PingOne policy asks for). Two PKCE pairs are in flight: the client's (against the broker) and the broker's (against PingOne).\n${NO_TOKEN('the user is still signing in at PingOne')}`,
+    tokens: [],
+    refs: refs([OAUTH, PKCE, AUTH[3], RESOURCE, BCP]),
+  },
+  {
+    form: `PingOne redirects the browser to the broker:\nGET ${GW}/oauth/callback?code=<PingOne code>&state=<relay state>\n\nThe broker redeems it at PingOne (a public client: no secret, the PKCE verifier proves it):\nPOST ${AS}/token HTTP/1.1\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code&code=<PingOne code>&redirect_uri=${GW}/oauth/callback\n&client_id=<broker app client id>&code_verifier=<broker PKCE secret>&resource=mcpgateway.ping.demo\n\n-> 200 { "access_token": "<access token>", "token_type": "Bearer", "expires_in": 3600, "id_token": "<id token>" }`,
     tokens: [ACCESS],
-    refs: refs([OAUTH, PKCE, BEARER_USE, JWT_PROFILE, BCP, MCP_AUTH], [OAUTH21]),
+    refs: refs([OAUTH, PKCE, RESOURCE, BCP]),
+  },
+  {
+    form: `The broker redirects the browser to the client with its own one-time code:\n302 http://127.0.0.1:<port>/callback?code=<broker code>&state=<client state>\n\nPOST ${GW}/oauth/token HTTP/1.1\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code&code=<broker code>&redirect_uri=http://127.0.0.1:<port>/callback\n&client_id=<new client id>&code_verifier=<PKCE secret>\n\n-> 200 { "access_token": "<access token>", "token_type": "Bearer", "expires_in": 3600, "scope": "mcp:invoke" }\n\nThe broker verifies the client's PKCE, then returns the exact access token PingOne issued (a pass-through).`,
+    tokens: [ACCESS],
+    refs: refs([OAUTH, PKCE, BEARER_USE, BCP, MCP_AUTH], [OAUTH21]),
   },
   {
     form: `(no HTTP: the client keeps the token)\naccess_token = <access token>   expires_in = 3600\n\nThe token is bound to the gateway audience. The client keeps it in its own secure storage and sends it only to this gateway.`,
@@ -110,9 +118,9 @@ export const SEQ_DETAIL = [
     refs: refs([MCP_AUTH, BEARER_USE, DPOP, TRANSPORT, JSONRPC]),
   },
   {
-    form: `(no network call: the gateway decodes the JWT, it does not verify the signature here)\n- aud must be one of MCP_GW_RESOURCE_URI (mcpgateway.ping.demo), exp not passed\n- GatewayTokenPolicy: sub non-empty; act.sub non-empty when an act claim is present\n- anti-bypass: a backend MCP server audience must never appear in the token's aud\nfailure -> 401 WWW-Authenticate: Bearer realm="banking-mcp-gateway", error="invalid_token"\n\nThis is a cheap pre-filter. Steps 11-12 are the authoritative check.`,
+    form: `(no network call to PingOne here)\nWith PINGONE_JWKS_ENDPOINT set, the gateway verifies the signature against that JWKS and fails closed; with it unset (the stock demo stack) it only decodes the JWT.\n- aud must be one of MCP_GW_RESOURCE_URI (mcpgateway.ping.demo), exp not passed\n- GatewayTokenPolicy: sub non-empty; act.sub non-empty when an act claim is present\n- anti-bypass: a backend MCP server audience must never appear in the token's aud\nfailure -> 401 WWW-Authenticate: Bearer realm="banking-mcp-gateway", error="invalid_token"\n\nThis is a cheap pre-filter. Steps 11-12 are the authoritative check.`,
     tokens: [ACCESS],
-    refs: refs([JWT, JWT_PROFILE, RESOURCE]),
+    refs: refs([JWT, RESOURCE]),
   },
   {
     form: `POST ${AS}/introspect HTTP/1.1\nAuthorization: Basic <client id:client secret>   (or client_id + client_secret in the body)\nContent-Type: application/x-www-form-urlencoded\n\ntoken=<access token>&token_type_hint=access_token`,
@@ -122,10 +130,10 @@ export const SEQ_DETAIL = [
   {
     form: `HTTP/1.1 200 OK\n{ "active": true, "sub": "<user id>", "scope": "openid mcp:invoke", "aud": "mcpgateway.ping.demo",\n  "client_id": "<broker app client id>", "exp": 1790003600 }\n\nactive: false (or an unreachable endpoint) fails closed with 401. The result is cached per token: 30 s in dev, 5 s in production, which is also the longest a revoked token keeps working.`,
     tokens: [INTROSPECTION],
-    refs: refs([INTRO], INTROSPECT.slice(1, 2)),
+    refs: refs([INTRO]),
   },
   {
-    form: `POST <PingOne Authorize base>/decisionEndpoints/<decision-endpoint-id>   (the Decision Endpoints API, not AuthZEN)\n{ "parameters": { "DecisionContext": "McpRequest", "McpMethod": "initialize", "ToolName": "",\n    "UserId": "<user id>", "ClientId": "<user id>", "TokenScopes": "openid mcp:invoke",\n    "McpResourceUri": "mcpgateway.ping.demo", "TokenIss": "${AS}", "TokenExp": "1790003600" } }\n-> { "decision": "PERMIT" }   (shape illustrative)\n\nDENY (or PingOne Authorize unreachable) -> 403, fail closed. For tools/call the same call carries ToolName and the arguments.`,
+    form: `POST <PingOne Authorize endpoint>/governance/pap/alpha/policy/<worker id>/decision\n{ "parameters": { "DecisionContext": "McpRequest", "McpMethod": "initialize", "ToolName": "",\n    "UserId": "<user id>", "ClientId": "<user id>", "TokenScopes": "openid mcp:invoke",\n    "McpResourceUri": "mcpgateway.ping.demo", "TokenIss": "${AS}", "TokenExp": "1790003600" } }\n-> { "decision": "PERMIT" }   (shape illustrative; the demo stack answers the same path from its mock PDP)\n\nDENY (or PingOne Authorize unreachable) -> 403, fail closed. For tools/call the same call carries ToolName and the arguments.`,
     tokens: [ACCESS],
     refs: refs([XACML, ZERO_TRUST]),
   },
@@ -137,7 +145,7 @@ export const SEQ_DETAIL = [
   {
     form: `HTTP/1.1 200 OK\n{ "access_token": "<exchanged token>", "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",\n  "token_type": "Bearer", "expires_in": 300 }\n\nThe gateway caches it per (subject token, audience, scopes) until about 5 s before it expires. A rejected exchange (invalid_scope, no overlap between the caller's scopes and the backend's) fails the request.`,
     tokens: [EXCHANGED],
-    refs: refs([EXCH, JWT_PROFILE, PASSTHROUGH]),
+    refs: refs([EXCH, PASSTHROUGH]),
   },
   {
     form: `POST <MCP server url> HTTP/1.1\nAuthorization: Bearer <exchanged token>\nContent-Type: application/json\n\n{ "jsonrpc": "2.0", "id": 2, ${INIT_BODY} }\n\nThe client's original token never leaves the gateway.`,
@@ -147,7 +155,7 @@ export const SEQ_DETAIL = [
   {
     form: `(no network call to the client; one cached key fetch)\nGET ${AS}/jwks   (cached)\nverify: signature against the JWKS key named by the header kid, iss, exp, and aud is one of MCP_SERVER_RESOURCE_URI\nfailure -> 401; the MCP server does not simply trust the gateway's decision.`,
     tokens: [EXCHANGED],
-    refs: refs([JWT, JWK, JWT_PROFILE, RESOURCE, MCP_AUTH]),
+    refs: refs([JWT, JWK, RESOURCE, MCP_AUTH]),
   },
   {
     form: `HTTP/1.1 200 OK\n${INIT_RESULT}\n\n${NO_TOKEN('the answer carries no credential')}`,
@@ -186,7 +194,7 @@ export const SEQ_DETAIL = [
   },
 ];
 
-// The architecture figure draws 11 arrows; each is one or two sequence steps, so its detail is those steps merged.
+// The architecture figure draws 13 arrows; each is one or two sequence steps, so its detail is those steps merged.
 const merge = (...idx) => {
   const parts = idx.map((i) => SEQ_DETAIL[i]);
   return {
@@ -199,12 +207,14 @@ export const ARCH_DETAIL = [
   merge(0, 1), // connect + initialize without a token
   SEQ_DETAIL[2],
   merge(3, 4), // discovery
-  SEQ_DETAIL[5],
-  SEQ_DETAIL[6],
-  merge(8, 9, 12), // Bearer initialize, then the gateway's own local and PingOne Authorize checks
-  merge(10, 11),
-  merge(13, 14),
-  SEQ_DETAIL[15],
-  merge(16, 17),
-  SEQ_DETAIL[18],
+  SEQ_DETAIL[5], // client to the broker
+  SEQ_DETAIL[6], // broker to PingOne
+  SEQ_DETAIL[7], // PingOne back to the broker
+  SEQ_DETAIL[8], // broker to the client
+  merge(10, 11, 14), // Bearer initialize, then the gateway's own local and PingOne Authorize checks
+  merge(12, 13),
+  merge(15, 16),
+  SEQ_DETAIL[17],
+  merge(18, 19),
+  SEQ_DETAIL[20],
 ];

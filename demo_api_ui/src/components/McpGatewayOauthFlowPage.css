@@ -138,3 +138,25 @@
 .mgof-page.mgof-page--ping.mgof-page--ping a:any-link { color: var(--th-status-info); }
 .mgof-page.mgof-page--ping.mgof-page--ping code { color: var(--th-text); }
 .mgof-page--ping .efd h3 { color: var(--th-text); font-size: var(--font-size-lg); }
+
+/* Phase list and variant note (they stand in for the reference diagram's coloured bands and its note). */
+.mgof-phases {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  display: grid;
+  gap: 4px;
+  font-size: var(--font-size-sm);
+  color: var(--mgof-ink-2);
+}
+.mgof-phases b { color: var(--mgof-ink); }
+.mgof-phase-steps {
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  color: var(--mgof-accent);
+}
+.mgof-variant {
+  margin: 0 0 14px;
+  font-size: var(--font-size-sm);
+  line-height: 1.55;
+  color: var(--mgof-ink-2);
+}

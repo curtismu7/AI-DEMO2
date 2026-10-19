@@ -24,8 +24,8 @@ describe('McpGatewayOauthFlowPage in the Ping style', () => {
 
   it('a sequence card opens the request, the MOCK tokens of the exchange and the standards', () => {
     render(<McpGatewayOauthFlowPage />);
-    // gateway -> PingOne appears twice in the sequence (introspect, exchange): the second one is step 14
-    fireEvent.click(screen.getAllByRole('button', { name: /Agent Gateway \(OAuth RS\) → PingOne \(Authorization Server\)/ })[1]);
+    // the token exchange is step 16: gateway -> the second PingOne box
+    fireEvent.click(screen.getByRole('button', { name: /Agent Gateway \(OAuth RS\) → PingOne \(token exchange\)/ }));
     const panel = screen.getByTestId('mgof-seq-flow-reel-detail');
     expect(panel.textContent).toContain('grant_type=urn:ietf:params:oauth:grant-type:token-exchange');
     expect(panel.textContent).toContain('Token: Access token');
@@ -38,6 +38,14 @@ describe('McpGatewayOauthFlowPage in the Ping style', () => {
     render(<McpGatewayOauthFlowPage />);
     fireEvent.click(await screen.findByTestId('mgof-arch-flow-node-G'));
     expect(screen.getByTestId('mgof-arch-flow-reel-detail').textContent).toContain('(no Authorization header)');
+  });
+
+  it('keeps the reference diagram\'s four phases and the privilege-first variant note', () => {
+    render(<McpGatewayOauthFlowPage />);
+    const phases = screen.getByLabelText('Phases of the handshake');
+    ['Initialization', 'User authentication and consent', 'Session init', 'Tool discovery'].forEach((t) => expect(phases.textContent).toContain(t));
+    expect(document.querySelector('.mgof-variant a').getAttribute('href')).toBe('/privilege-first-gateway');
+    expect(document.querySelector('.mgof-variant').textContent).toContain('ff_mcp_gateway_privilege_first');
   });
 
   it('keeps the .mmd download for both figures', () => {
