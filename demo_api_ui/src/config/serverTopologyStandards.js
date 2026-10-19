@@ -12,7 +12,7 @@ const SPEC_X = (id, title) => ({ id, title, kind: "spec" });
 const DRAFT = (id, title) => ({ id, title, kind: "emerging" });
 
 const OAUTH21 = DRAFT("OAuth 2.1 (draft-ietf-oauth-v2-1)", "Consolidates PKCE and current best practice into one OAuth spec");
-const SIGN_IN = [SPEC_X("OpenID Connect Core 1.0", "Sign-in layer on top of OAuth 2.0"), RFC_X(9126, "Pushed Authorization Requests (PAR)"), OAUTH21];
+const SIGN_IN = [SPEC_X("OpenID Connect Core 1.0", "Sign-in layer on top of OAuth 2.0"), OAUTH21];
 const ISSUER = RFC_X(9207, "Authorization Server Issuer Identification (mix-up defence)");
 const BEARER = [RFC_X(6750, "Bearer token usage"), RFC_X(9068, "JWT profile for OAuth access tokens"), RFC_X(9449, "DPoP: sender-constrained tokens")];
 const EXCHANGE_NEXT = [
@@ -37,10 +37,10 @@ const EXTRA = {
   "bff-pingone": [BEARER[1], OAUTH21],
   "bff-pingone-token": [BEARER[1], SPEC_X("OpenID Connect Core 1.0", "ID token returned beside the access token"), OAUTH21],
   "bff-pingfederate-token": [BEARER[1], SPEC_X("OpenID Connect Core 1.0", "ID token returned beside the access token"), OAUTH21],
-  "bff-pinggw": [...BEARER, ...MCP_NEXT],
-  "bff-nodegw": [...BEARER, ...MCP_NEXT],
-  "pinggw-authz": [RFC_X(9701, "JWT response for token introspection"), DRAFT("OpenID AuthZEN Authorization API", "Standard PEP-to-PDP decision API (status may have changed)")],
-  "pinggw-mcpmcp": [BEARER[0], ...MCP_NEXT],
+  "bff-pinggw": [...BEARER],
+  "bff-nodegw": [...BEARER],
+  "pinggw-authz": [RFC_X(7662, "OAuth 2.0 Token Introspection"), DRAFT("OpenID AuthZEN Authorization API", "Standard PEP-to-PDP decision API (status may have changed)")],
+  "pinggw-mcpmcp": [BEARER[0]],
   "nodegw-mcpmcp": [BEARER[0], ...EXCHANGE_NEXT.slice(0, 1), ...WORKLOAD_NEXT],
   "nodegw-authz": [DRAFT("OpenID AuthZEN Authorization API", "Standard PEP-to-PDP decision API (status may have changed)"), RFC_X(7519, "JSON Web Token"), RFC_X(7517, "JSON Web Key (JWKS validation)")],
   "nodegw-pingone": [...EXCHANGE_NEXT],
@@ -77,7 +77,7 @@ const TOKEN_POST = (host, path, body) => `POST ${path} HTTP/1.1\nHost: ${host}\n
 const EXCHANGE_BODY = (subject, resource) => `grant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&subject_token=${subject}\n&subject_token_type=urn:ietf:params:oauth:token-type:access_token\n&resource=${resource}`;
 const AUTHORIZE_QS = "response_type=code&client_id=<app-id>\n  &redirect_uri=https://demo.example.com/api/auth/oauth/user/callback\n  &scope=openid profile&state=<random>\n  &code_challenge=<S256 hash>&code_challenge_method=S256";
 const CALLBACK = "GET /api/auth/oauth/user/callback?code=<one-time code>&state=<random> HTTP/1.1\nHost: demo.example.com";
-const MCP_CALL = (bearer) => `POST /mcp HTTP/1.1\nAuthorization: Bearer ${bearer}\nContent-Type: application/json\n\n{ "jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": { "name": "get_balance", "arguments": {} } }`;
+const MCP_CALL = (bearer) => `POST /mcp HTTP/1.1\n${bearer ? `Authorization: Bearer ${bearer}\n` : ""}Content-Type: application/json\n\n{ "jsonrpc": "2.0", "id": 1, "method": "tools/call", "params": { "name": "get_balance", "arguments": {} } }`;
 const A2A_SEND = (key) => `POST / HTTP/1.1\nAuthorization: Bearer ${key}\nContent-Type: application/json\n\n{ "jsonrpc": "2.0", "id": 1, "method": "message/send",\n  "params": { "message": { "role": "user", "messageId": "m-1", "parts": [{ "kind": "text", "text": "Review access for team A" }] } } }`;
 const SCRAPE = "GET /metrics HTTP/1.1\nAccept: text/plain\n(path and port per the connection label)";
 
@@ -103,18 +103,18 @@ const FORMS = {
   "pinggw-mcpmcp": MCP_CALL("<user access token>"),
   "nodegw-mcpmcp": MCP_CALL("<MCP-audience token>"),
   "browser-mcpmcp-direct": MCP_CALL("<access token>"),
-  "nodegw-authz": "POST <PingOne Authorize decision endpoint> HTTP/1.1\nAuthorization: Bearer <worker token>\nContent-Type: application/json\n\n{ \"subject\": \"user1\", \"action\": \"tools/call\", \"resource\": \"get_balance\" }   (illustrative body)",
+  "nodegw-authz": "POST <PingOne Authorize decision endpoint> HTTP/1.1\nAuthorization: Bearer <worker app token>\nContent-Type: application/json\n\n{ \"subject\": \"user1\", \"action\": \"tools/call\", \"resource\": \"get_balance\" }   (illustrative body)",
   "nodegw-pingone": TOKEN_POST("auth.pingone.com", "/<env-id>/as/token", EXCHANGE_BODY("<user access token>", "https://mcp.demo.example.com")),
   "mcpmcp-pingone-step9": TOKEN_POST("auth.pingone.com", "/<env-id>/as/token", EXCHANGE_BODY("<MCP-audience token>", "<BANKING_API_RESOURCE_URI>")),
   "mcpmcp-pingfederate-step9": TOKEN_POST("pf.example.com:9031", "/as/token.oauth2", EXCHANGE_BODY("<PF-issued bearer>", "<BANKING_API_RESOURCE_URI>")),
   "nodegw-apiresource-apikey": "GET /<resource> HTTP/1.1\nX-API-Key: <server-side API key>\n(no Authorization header: the OAuth bearer is dropped here)",
   "mcpmcp-bff-api": "GET /api/<route> HTTP/1.1\nAuthorization: Bearer <delegated user token>",
-  "mcpmcp-mcpresource": "GET /<resource> HTTP/1.1\nAuthorization: Bearer <delegated token>",
+  "mcpmcp-mcpresource": "GET /<resource> HTTP/1.1\nAuthorization: Bearer <delegated token from the exchange>",
   "bff-langchain": "POST /<agent run route> HTTP/1.1\nAccept: text/event-stream\nContent-Type: application/json\n\n{ \"message\": \"What is my balance?\" }",
   "nodegw-mcpaudit": "POST /<ingest route> HTTP/1.1\nContent-Type: application/json\n\n{ \"event\": \"tools/call\", \"subject\": \"user1\", \"tool\": \"get_balance\", \"decision\": \"permit\" }   (illustrative body)",
   "nodegw-weather": MCP_CALL("<MCP-audience token>").replace("get_balance", "get_weather"),
   "nodegw-brave": MCP_CALL("<MCP-audience token>").replace("get_balance", "news_search"),
-  "mcpproxy-nodegw": "POST /mcp HTTP/1.1\nAuthorization: Bearer <forwarded token>\n(plain REST request converted to a JSON-RPC tools/call)",
+  "mcpproxy-nodegw": "POST /mcp HTTP/1.1\nAuthorization: Bearer <caller's access token, forwarded as received>\n(plain REST request converted to a JSON-RPC tools/call)",
   "prometheus-alertmanager": "POST /api/v2/alerts HTTP/1.1\nContent-Type: application/json\n\n[{ \"labels\": { \"alertname\": \"HighLatency\", \"service\": \"mcp-server\" } }]",
   "grafana-prometheus": "GET /api/v1/query?query=up HTTP/1.1",
   "alloy-loki": "POST /loki/api/v1/push HTTP/1.1\nContent-Type: application/json\n\n{ \"streams\": [{ \"stream\": { \"service\": \"bff\" }, \"values\": [[\"<unix ns>\", \"log line\"]] }] }",
@@ -124,7 +124,7 @@ const FORMS = {
   "privgw-langchain": A2A_SEND("<app static token>"),
   "langchain-privgw": A2A_SEND("<middle agent key>"),
   "privgw-model": "POST <model route> HTTP/1.1\nAuthorization: Bearer <real provider key, held by the gateway>\nContent-Type: application/json\n\n{ \"model\": \"<allowed model>\", \"messages\": [{ \"role\": \"user\", \"content\": \"...\" }] }   (illustrative)",
-  "privgw-mcpmcp": MCP_CALL("<gateway-authenticated call>"),
+  "privgw-mcpmcp": `${MCP_CALL(null)}\n(any backend authentication follows the gateway configuration; the caller's own token is not shown being forwarded)`,
   "browser-privgw": MCP_CALL("<access token>"),
 };
 for (const id of ["pinggw", "nodegw", "mcpmcp", "mcpresource", "apiresource", "mcpproxy", "langchain", "llmproxy"]) FORMS[`prometheus-${id}`] = SCRAPE;
@@ -143,10 +143,19 @@ const ID_TOKEN = {
   label: "ID token", header: { alg: "RS256", kid: "signing-key-1", typ: "JWT" },
   claims: { iss: ISS, sub: "user1", aud: "<app-id>", nonce: "<random>", acr: "Single_Factor", exp: 1788030829 },
 };
-const GATEWAY_TOKEN = {
-  label: "Gateway client token (client_credentials)", header: HEADER,
-  claims: { iss: ISS, sub: "<gateway client id>", aud: ["<PingOne Authorize audience>"], scope: "authorize:decide", exp: 1788030829 },
+const CLIENT_TOKEN = {
+  label: "Client-credentials token (issued to the BFF's own app, no user)", header: HEADER,
+  claims: { iss: ISS, sub: "<bff client id>", client_id: "<bff client id>", aud: ["<gateway audience>"], scope: "<gateway scope>", exp: 1788030829 },
 };
+const WORKER_TOKEN = {
+  label: "Worker app token (client_credentials, authenticates the gateway to Authorize)", header: HEADER,
+  claims: { iss: ISS, sub: "<worker client id>", client_id: "<worker client id>", aud: ["<PingOne API audience>"], scope: "<authorize scope>", exp: 1788030829 },
+};
+const PRIV_ACCESS_TOKEN = {
+  label: "Access token presented at the public MCP door", header: HEADER,
+  claims: { iss: ISS, sub: "user1", aud: ["<privilege MCP door resource>"], scope: "mcp:invoke", exp: 1788030829 },
+};
+const credential = (label, note) => ({ label, claims: { type: "opaque_credential", note } });
 const MCP_TOKEN = {
   label: "MCP-audience token (result of the exchange)", header: HEADER,
   claims: { iss: ISS, sub: "user1", aud: ["https://mcp.demo.example.com"], scope: "mcp:balance:read", exp: 1788030829, note: "audience set and scope narrowed by the exchange" },
@@ -180,15 +189,19 @@ const TOKENS = {
   "pingone-browser-callback": [CODE], "pingfederate-browser-callback": [CODE], "browser-ingress-callback": [CODE], "ingress-bff-callback": [CODE],
   "bff-pingone-token": [USER_TOKEN, ID_TOKEN], "bff-pingfederate-token": [USER_TOKEN, ID_TOKEN],
   "bff-browser-session": [SESSION],
-  "bff-pingone": [USER_TOKEN, GATEWAY_TOKEN],
+  "bff-pingone": [CLIENT_TOKEN],
   "bff-pinggw": [USER_TOKEN], "bff-nodegw": [USER_TOKEN],
   "pinggw-authz": [USER_TOKEN, INTROSPECTION], "pinggw-mcpmcp": [USER_TOKEN],
-  "nodegw-authz": [USER_TOKEN],
+  "nodegw-authz": [WORKER_TOKEN],
   "nodegw-pingone": [USER_TOKEN, MCP_TOKEN],
   "nodegw-mcpmcp": [MCP_TOKEN],
   "mcpmcp-pingone-step9": [MCP_TOKEN, API_TOKEN], "mcpmcp-pingfederate-step9": [{ ...MCP_TOKEN, label: "PF-issued bearer (subject token)" }, API_TOKEN],
   "browser-mcpmcp-direct": [USER_TOKEN],
   "mcpmcp-bff-api": [API_TOKEN],
+  "mcpmcp-mcpresource": [{ ...API_TOKEN, label: "Delegated token (forwarded to the resource)" }],
+  "mcpproxy-nodegw": [{ ...USER_TOKEN, label: "Caller's access token (forwarded as received)" }],
+  "browser-privgw": [PRIV_ACCESS_TOKEN],
+  "privgw-a2aworker": [credential("Gateway credential for the worker (opaque)", "set by the gateway; the caller's key is not forwarded")],
   "nodegw-apiresource-apikey": [API_KEY],
   "nodegw-weather": [MCP_TOKEN], "nodegw-brave": [MCP_TOKEN],
   "a2amain-privgw": [AGENT_KEY("main")], "a2aworker-privgw": [AGENT_KEY("worker")], "langchain-privgw": [AGENT_KEY("middle")],
@@ -199,10 +212,20 @@ const TOKENS = {
 /** MOCK tokens in play on this connection, in the order they appear (two when the step takes one in and issues another). */
 export const tokensFor = (edgeId) => TOKENS[edgeId] || [];
 
+const NOTE_EXCHANGE = "Two tokens: the first goes in, the second is issued by this step.";
+const NOTE_CODE = "One redemption returns both tokens: the access token and the ID token.";
+const TOKEN_NOTES = {
+  "nodegw-pingone": NOTE_EXCHANGE, "mcpmcp-pingone-step9": NOTE_EXCHANGE, "mcpmcp-pingfederate-step9": NOTE_EXCHANGE,
+  "bff-pingone-token": NOTE_CODE, "bff-pingfederate-token": NOTE_CODE,
+  "pinggw-authz": "Two items: the token sent in, and the introspection response that comes back.",
+};
+/** One line saying how to read the tokens shown for this connection (empty when there is nothing to add). */
+export const tokenNoteFor = (edgeId) => TOKEN_NOTES[edgeId] || "";
+
 /** Why no token is shown for a connection that has none. */
 export function noTokenNote(edge) {
   if (!edge) return "";
   if (edge.data.kind === "telemetry") return "No user token: this is service telemetry between operators' tools.";
   if (edge.id === "browser-ingress" || edge.id === "ingress-bff-login" || edge.id === "bff-browser-redirect" || /-login$/.test(edge.id)) return "No token yet: the user is still signing in.";
-  return "No OAuth token is shown for this hop: it is a plain service call inside the network.";
+  return "No token is carried on this hop: it is a plain call between services.";
 }

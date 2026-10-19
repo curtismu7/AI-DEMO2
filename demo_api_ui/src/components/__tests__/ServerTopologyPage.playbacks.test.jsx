@@ -605,6 +605,12 @@ describe("Server topology step detail and box sync", () => {
 
     fireEvent.click(screen.getByRole("button", { name: "Demo Agent Gateway" }));
     expect(screen.getByText(/Step 5 of 9/)).toBeInTheDocument();
+    // the jumped-to step's request, tokens and standards show beside the box detail
+    const boxDetails = screen.getByRole("complementary", { name: /selected topology details/i });
+    expect(within(boxDetails).getByRole("heading", { name: "Request on the wire" })).toBeInTheDocument();
+    expect(within(boxDetails).getByRole("heading", { name: /Mock tokens? in play/ })).toBeInTheDocument();
+    expect(within(boxDetails).getByRole("heading", { name: "Standards behind this step" })).toBeInTheDocument();
+    expect(within(boxDetails).getByRole("heading", { name: "Related RFCs & specs" })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /Step 05:/ }).closest("li")).toHaveAttribute("aria-current", "step");
 
     fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
@@ -638,15 +644,28 @@ describe("Server topology step detail and box sync", () => {
     expect(byId("nodegw-pingone").data.showWords).toBe(false);
   });
 
-  it("draws the steps still to come as dashed lines while the flow plays", () => {
+  it("draws the steps still to come, and the policy decisions, as dashed lines, also when stepping by hand", () => {
     render(<ServerTopologyPage />);
 
     const byId = (id) => reactFlowMocks.edges.find((e) => e.id === id);
-    expect(byId("nodegw-authz").className).not.toContain("stm-edge--dashed");
-    fireEvent.click(screen.getByRole("button", { name: /^Play$/ }));
     expect(byId("browser-ingress").className).not.toContain("stm-edge--dashed");
+    expect(byId("ingress-frontend").className).toContain("stm-edge--dashed");
     expect(byId("nodegw-authz").className).toContain("stm-edge--dashed");
     expect(byId("nodegw-authz").style.strokeDasharray).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Next hop$|^Next$/ }));
+    expect(byId("ingress-frontend").className).not.toContain("stm-edge--dashed");
+    expect(byId("nodegw-pingone").className).toContain("stm-edge--dashed");
+  });
+
+  it("numbers every arrow: step numbers in the flow, later numbers for the others", () => {
+    render(<ServerTopologyPage />);
+    fireEvent.change(screen.getByLabelText(/Filter servers by category/i), { target: { value: "all" } });
+    const lit = reactFlowMocks.edges.filter((e) => !e.hidden && !e.className.includes("stm-edge--dimmed"));
+    expect(lit.length).toBeGreaterThan(40);
+    for (const e of lit) expect(e.data.stepNumbers, e.id).toHaveLength(1);
+    const outside = lit.find((e) => !e.className.includes("stm-edge--route"));
+    expect(outside.data.extraNumber).toBe(true);
+    expect(Number(outside.data.stepNumbers[0])).toBeGreaterThan(Number(reactFlowMocks.edges.filter((e) => e.className.includes("stm-edge--route")).length));
   });
 
   it("treats a drag as a drag: 5 px threshold and no selection from the click that ends it", () => {

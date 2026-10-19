@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { PLAYBACKS, SERVER_EDGES } from "../../components/serverTopologyData";
-import { KINDS, formFor, noTokenNote, refsFor, tokensFor } from "../serverTopologyStandards";
+import { KINDS, formFor, noTokenNote, refsFor, tokenNoteFor, tokensFor } from "../serverTopologyStandards";
 
 const edgeIds = new Set(SERVER_EDGES.map((e) => e.id));
 const EXCHANGE_EDGES = ["nodegw-pingone", "mcpmcp-pingone-step9", "mcpmcp-pingfederate-step9"];
@@ -69,5 +69,29 @@ describe("server topology standards, forms and mock tokens", () => {
       expect(formFor(id), id).toBeTruthy();
     }
     expect(formFor("nodegw-apiresource-apikey")).toMatch(/X-API-Key/);
+  });
+
+  it("shows a token on every hop whose request form carries a bearer, and never says 'no token' for one", () => {
+    for (const { id } of SERVER_EDGES) {
+      if (/Authorization: Bearer/.test(formFor(id) || "")) expect(tokensFor(id).length, `${id} sends a bearer but shows no token`).toBeGreaterThan(0);
+    }
+  });
+
+  it("client-credentials hops take no subject token, and the two-token note only sits on steps where it is true", () => {
+    expect(formFor("bff-pingone")).toMatch(/client_credentials/);
+    expect(tokensFor("bff-pingone")).toHaveLength(1);
+    expect(tokensFor("nodegw-authz")[0].label).toMatch(/Worker/);
+    for (const id of EXCHANGE_EDGES) expect(tokenNoteFor(id)).toMatch(/first goes in/);
+    expect(tokenNoteFor("bff-pingone")).toBe("");
+    expect(tokenNoteFor("bff-pingone-token")).toMatch(/ID token/);
+  });
+
+  it("keeps standards attached only to hops they describe", () => {
+    const ids = (edge) => refsFor(edge).map((r) => r.id);
+    expect(ids("pinggw-authz")).toContain("RFC 7662");
+    expect(ids("pinggw-authz")).not.toContain("RFC 9701");
+    for (const edge of ["ingress-bff-login", "browser-pingone-login", "browser-pingfederate-login"]) expect(ids(edge)).not.toContain("RFC 9126");
+    for (const edge of ["bff-pinggw", "bff-nodegw", "pinggw-mcpmcp", "privgw-mcpmcp"]) expect(ids(edge)).not.toContain("draft-ietf-oauth-client-id-metadata-document");
+    for (const edge of ["browser-privgw", "browser-mcpmcp-direct"]) expect(ids(edge)).toContain("draft-ietf-oauth-client-id-metadata-document");
   });
 });

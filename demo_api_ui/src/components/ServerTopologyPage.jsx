@@ -22,7 +22,7 @@ import ServerTopologyExportControls from "./ServerTopologyExportControls";
 import { layoutEdgeLabels } from "./topologyEdgeLabelLayout";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
 import { STEP_TIME_OPTIONS, StepTimeSelector } from "./diagram";
-import { formFor, noTokenNote, refsFor, tokensFor } from "../config/serverTopologyStandards";
+import { formFor, noTokenNote, refsFor, tokenNoteFor, tokensFor } from "../config/serverTopologyStandards";
 import { useThemeOptional } from "../context/ThemeContext";
 
 const A2A_FLOW_BUTTONS = [["privilegeA2a", "A2A access review"], ["privilegeA2aChain", "A2A agent chain"]];
@@ -43,6 +43,14 @@ const EDGE_BY_ID = Object.fromEntries(SERVER_EDGES.map((item) => [item.id, item]
 const NODE_CARD_WIDTH = 218;
 const NODE_CARD_HEIGHT = 104;
 const SELECTED_NODE_SCALE = 1.1;
+// Policy-decision hops are drawn dashed (a check, not the request path itself).
+const DECISION_EDGES = new Set(["pinggw-authz", "nodegw-authz"]);
+// Arrows outside the chosen flow are numbered after its last step, in map order.
+function offFlowNumbers(steps) {
+  const inFlow = new Set(steps.map((step) => step.edgeId));
+  let n = steps.length;
+  return new Map(SERVER_EDGES.filter((item) => !inFlow.has(item.id)).map((item) => [item.id, String(++n).padStart(2, "0")]));
+}
 
 function flowNodeIds(steps) {
   return new Set(steps.flatMap(({ edgeId }) => {
@@ -96,13 +104,13 @@ const ZoneNode = memo(function ZoneNode({ data }) {
 const nodeTypes = { server: ServerCardNode, zone: ZoneNode };
 
 // The step number(s) of an arrow, drawn as orange badges. They grow when the diagram is zoomed out so they stay readable.
-function EdgeBadge({ x, y, numbers, words, showWords, emphasized }) {
+function EdgeBadge({ x, y, numbers, words, showWords, emphasized, extra }) {
   const { zoom } = useViewport();
   const scale = Math.min(2.4, Math.max(1, 0.75 / zoom));
   return (
     <EdgeLabelRenderer>
       <div
-        className={`stm-edge-label nodrag nopan${showWords ? " is-words" : ""}${emphasized ? " is-emphasized" : ""}`}
+        className={`stm-edge-label nodrag nopan${showWords ? " is-words" : ""}${emphasized ? " is-emphasized" : ""}${extra ? " is-extra" : ""}`}
         style={{ transform: `translate(-50%, -50%) translate(${x}px, ${y}px) scale(${scale})` }}
       >
         {numbers.map((n) => <span className="stm-edge-num" key={n}>{n}</span>)}
@@ -145,6 +153,7 @@ const TopologyLabeledEdge = memo(function TopologyLabeledEdge({
           words={data?.words}
           showWords={showWords}
           emphasized={Boolean(data?.emphasized)}
+          extra={Boolean(data?.extraNumber)}
         />
       )}
     </>
@@ -388,7 +397,7 @@ function TokenSection({ connection }) {
           <pre className="stm-code stm-code--pre">{JSON.stringify({ ...(token.header ? { header: token.header } : {}), claims: token.claims }, null, 2)}</pre>
         </div>
       )) : <p className="stm-subtle">{noTokenNote(connection)}</p>}
-      {tokens.length > 0 && <p className="stm-subtle">Decoded claims, teaching values only. Two tokens appear where a step takes one in and issues another.</p>}
+      {tokens.length > 0 && <p className="stm-subtle">Decoded claims, teaching values only. {tokenNoteFor(connection.id)}</p>}
     </section>
   );
 }
@@ -414,7 +423,7 @@ function DetailPanel({ selectedNode, stepNode, selectedEdge, deployment, activeS
   const stepBox = !server && stepNode ? NODE_BY_ID[stepNode]?.data : null;
   const group = server ? GROUPS[server.group] : null;
   const standards = standardsFor(connection?.data || server || {});
-  const pathLabel = connection ? `${NODE_BY_ID[connection.source]?.data.title} → ${NODE_BY_ID[connection.target]?.data.title}` : server?.title;
+  const pathLabel = server ? server.title : connection ? `${NODE_BY_ID[connection.source]?.data.title} → ${NODE_BY_ID[connection.target]?.data.title}` : null;
   const address = server ? endpointFor(server ? NODE_BY_ID[selectedNode] : null, deployment) : null;
   const incoming = selectedNode ? SERVER_EDGES.filter((item) => item.target === selectedNode) : [];
   const outgoing = selectedNode ? SERVER_EDGES.filter((item) => item.source === selectedNode) : [];
@@ -433,7 +442,7 @@ function DetailPanel({ selectedNode, stepNode, selectedEdge, deployment, activeS
         <span className="stm-details__dot" style={{ "--stm-accent": group?.color || "#388bfd" }} aria-hidden="true" />
         <div className="stm-details__titles">
           <h2>{pathLabel || "Select a server or connection"}</h2>
-          <p>{connection ? "Connection · configured topology" : server ? `${server.service} · ${group.label}` : "No selection"}</p>
+          <p>{server ? `${server.service} · ${group.label}` : connection ? "Connection · configured topology" : "No selection"}</p>
         </div>
         {(server || connection) && <button className="stm-icon-button" type="button" onClick={onClear} aria-label="Clear selection">Clear</button>}
       </header>
@@ -453,7 +462,7 @@ function DetailPanel({ selectedNode, stepNode, selectedEdge, deployment, activeS
         {server && <section className="stm-detail-section"><h3>Role</h3><p>{server.role}</p></section>}
         {server && <section className="stm-detail-section"><h3>Endpoint</h3><div className="stm-code">{address}</div><p className="stm-subtle">{deployment === "local" ? "Local Docker address" : "Kubernetes service address"}</p></section>}
         {stepBox && <section className="stm-detail-section"><h3>Box in this step</h3><p><strong>{stepBox.title}</strong> · {stepBox.service}</p><p>{stepBox.role}</p><div className="stm-code">{endpointFor(NODE_BY_ID[stepNode], deployment)}</div></section>}
-        {connection && <section className="stm-detail-section"><h3>Connection path</h3><p>{endpointFor(NODE_BY_ID[connection.source], deployment)}<br /><span className="stm-path-arrow">to</span><br />{endpointFor(NODE_BY_ID[connection.target], deployment)}</p></section>}
+        {connection && <section className="stm-detail-section"><h3>Connection path</h3><p><strong>{NODE_BY_ID[connection.source]?.data.title} → {NODE_BY_ID[connection.target]?.data.title}</strong><br />{endpointFor(NODE_BY_ID[connection.source], deployment)}<br /><span className="stm-path-arrow">to</span><br />{endpointFor(NODE_BY_ID[connection.target], deployment)}</p></section>}
         {(server || connection) && <section className="stm-detail-section"><h3>Protocol</h3><p>{connection ? connection.data.protocol : server.protocol}</p></section>}
         {(server || connection) && <section className="stm-detail-section"><h3>Network path</h3><p>{connection ? connection.data.network : server.network}</p></section>}
         {(server || connection) && <section className="stm-detail-section"><h3>TLS / authentication</h3><p>{connection ? connection.data.security : server.security}</p></section>}
@@ -461,7 +470,7 @@ function DetailPanel({ selectedNode, stepNode, selectedEdge, deployment, activeS
         {connection && <TokenSection connection={connection} />}
         {connection && <SecurityOptionsPanel connection={connection} />}
         {connection && <StepStandards connection={connection} />}
-        {server && !connection && <section className="stm-detail-section"><h3>Related RFCs & specs</h3>
+        {server && <section className="stm-detail-section"><h3>Related RFCs & specs</h3>
           {standards.length ? <div className="stm-standard-list">{standards.map((standard) => <a key={standard.id} href={standard.url} target="_blank" rel="noreferrer"><strong>{standard.id}</strong><span>{standard.title}</span></a>)}</div> : <p className="stm-subtle">No references mapped for this item.</p>}
           <p className="stm-subtle">References describe related standards; they do not assert conformance. RFC 8705 is specific to OAuth client mTLS, not generic workload mTLS.</p>
         </section>}
@@ -519,6 +528,7 @@ function TopologyCanvas({
     return flowOnly ? serviceNodes : [...zones, ...serviceNodes];
   }, [deployment, filter, flowOnly, routeNodes, selectedNode, stepNode]);
 
+  const offFlow = useMemo(() => offFlowNumbers(playbackSteps), [playbackSteps]);
   const graphEdges = useMemo(() => SERVER_EDGES.filter((item) => !flowOnly || routeEdges.has(item.id)).map((item) => {
     const edgeStep = playbackSteps.findIndex((step) => step.edgeId === item.id);
     const isOnPlayback = edgeStep >= 0;
@@ -531,9 +541,13 @@ function TopologyCanvas({
     const isOffRoute = filter === "flow" && !isOnPlayback && !isFocusedCommunication && !isSelectedEdge;
     const isDimmed = !isSelectedEdge && (!visible || Boolean(selectedNode && !isFocusedCommunication) || isOffRoute);
     const active = activePlaybackEdge === item.id || isSelectedEdge || isFocusedCommunication || isOnPlayback;
-    const stepNumbers = playbackSteps.flatMap((step, i) => (step.edgeId === item.id ? [String(i + 1).padStart(2, "0")] : []));
-    const isFuture = playing && isOnPlayback && !playbackSteps.some((step, i) => step.edgeId === item.id && i <= stepIndex);
-    const isDashed = Boolean(item.data.kind === "telemetry" || item.data.profile || isFuture);
+    // Arrows in the flow carry their step number; every other arrow is numbered after the last step (outline badge).
+    const flowNumbers = playbackSteps.flatMap((step, i) => (step.edgeId === item.id ? [String(i + 1).padStart(2, "0")] : []));
+    const extraNumber = !isOnPlayback && !isDimmed;
+    const stepNumbers = isOnPlayback ? flowNumbers : extraNumber ? [offFlow.get(item.id)] : [];
+    // Dashed: later steps (also when stepping by hand), decisions, telemetry and optional profiles.
+    const isFuture = isOnPlayback && !playbackSteps.some((step, i) => step.edgeId === item.id && i <= stepIndex);
+    const isDashed = Boolean(item.data.kind === "telemetry" || item.data.profile || DECISION_EDGES.has(item.id) || isFuture);
     const inOut = isIncomingToSelection ? "IN · " : isOutgoingFromSelection ? "OUT · " : "";
     const stroke = isIncomingToSelection ? "#bc8cff" : isOutgoingFromSelection ? "#58a6ff" : EDGE_COLORS[item.data.kind] || EDGE_COLORS.mcp;
     const standards = [...(item.data.rfcs || []), ...(item.data.specs || [])];
@@ -558,7 +572,7 @@ function TopologyCanvas({
         stroke,
         strokeWidth: isFocusedCommunication ? 7 : active ? 3.2 : 1.8,
         opacity: isSelectedEdge || isFocusedCommunication ? 1 : !visible ? 0.018 : selectedNode || isOffRoute ? 0.018 : 0.96,
-        strokeDasharray: isFuture ? "8 6" : item.data.kind === "telemetry" || item.data.profile ? "6 5" : undefined,
+        strokeDasharray: isDashed ? "7 5" : undefined,
       },
       // Light canvas: black arrowheads (blue on dashed lines) to match the lines; dark canvas keeps the per-kind colours.
       markerEnd: { type: MarkerType.ArrowClosed, color: darkMode ? stroke : isDashed ? "#1f5fbf" : "#111111" },
@@ -567,12 +581,13 @@ function TopologyCanvas({
         standards,
         emphasized: Boolean(isFocusedCommunication),
         stepNumbers,
+        extraNumber,
         words: `${inOut}${label}`.slice(0, 48),
         // Words show for the arrow in focus; every other arrow shows them on hover, so labels never pile up.
         showWords: Boolean(activePlaybackEdge === item.id || isSelectedEdge || isFocusedCommunication),
       },
     };
-  }), [activeLayer, activePlaybackEdge, darkMode, filter, flowOnly, playbackSteps, playing, routeEdges, selectedEdge, selectedNode, stepIndex]);
+  }), [activeLayer, activePlaybackEdge, darkMode, filter, flowOnly, offFlow, playbackSteps, routeEdges, selectedEdge, selectedNode, stepIndex]);
 
   const positionedEdges = useMemo(() => {
     const visibleLabels = graphEdges.filter((item) => !item.hidden).map((item) => {
@@ -718,7 +733,16 @@ function ServerTopologyContent() {
   }, [playing, playback.steps, stepIndex]);
   // Keep the step in focus visible inside the (scrolling) step bar.
   useEffect(() => {
-    stepListRef.current?.children[stepIndex]?.scrollIntoView?.({ block: "nearest", inline: "nearest" });
+    // Scroll only the step list (scrollIntoView would also move the page).
+    const list = stepListRef.current;
+    const item = list?.children[stepIndex];
+    if (!item) return;
+    const box = list.getBoundingClientRect();
+    const at = item.getBoundingClientRect();
+    if (at.top < box.top) list.scrollTop -= box.top - at.top;
+    else if (at.bottom > box.bottom) list.scrollTop += at.bottom - box.bottom;
+    if (at.left < box.left) list.scrollLeft -= box.left - at.left;
+    else if (at.right > box.right) list.scrollLeft += at.right - box.right;
   }, [stepIndex, scenario]);
 
   useEffect(() => {
@@ -738,11 +762,12 @@ function ServerTopologyContent() {
     setPlaying(false);
     setSelectedNode(id);
     setStepNode(null);
-    setSelectedEdge(null);
     setDetailsOpen(true);
     const steps = playback.steps;
     let first = steps.findIndex((step) => EDGE_BY_ID[step.edgeId]?.target === id);
     if (first < 0) first = steps.findIndex((step) => EDGE_BY_ID[step.edgeId]?.source === id);
+    // The jumped-to step's connection is selected too, so its request, tokens and standards show beside the box detail.
+    setSelectedEdge(first >= 0 ? steps[first].edgeId : null);
     if (first >= 0) setStepIndex(first);
     window.requestAnimationFrame(() => detailsRef.current?.scrollIntoView?.({ behavior: "smooth", block: "nearest" }));
   }, [playback.steps]);
@@ -903,8 +928,9 @@ function ServerTopologyContent() {
             <span><i className="stm-legend__card stm-legend__card--safety" />Safety / step-up (HITL)</span>
             <strong className="stm-legend__heading">Arrows</strong>
             <span><b className="stm-num-key">n</b>Step n, same number as in the step bar</span>
+            <span><b className="stm-num-key stm-num-key--extra">n</b>Arrow outside this flow: numbered after the last step</span>
             <span><i className="stm-legend__solid" />Solid: request path</span>
-            <span><i className="stm-legend__optional" />Dashed: optional profile, telemetry or a later step</span>
+            <span><i className="stm-legend__optional" />Dashed: a later step, a policy decision, optional profile or telemetry</span>
             <span className="stm-legend__kinds">{[["mcp", "MCP / HTTP"], ["oauth", "OAuth / identity"], ["agent", "Agent / model"], ["telemetry", "Telemetry"]].map(([key, label]) => <span key={key}><i style={{ "--stm-accent": EDGE_COLORS[key] }} />{label}</span>)}</span>
             <span>Words show for the step in focus or on hover</span>
           </div>
