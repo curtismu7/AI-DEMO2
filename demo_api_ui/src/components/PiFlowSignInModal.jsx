@@ -21,6 +21,7 @@ const ADMIN_API = "/api/auth/oauth";
 const USER_API = "/api/auth/oauth/user";
 // SE's hosted-access front door (the wall in front of the app login). Same pi.flow, its own endpoints.
 const FRONT_DOOR_API = "/api/auth/hosted-access";
+const ISSUER_API = "/api/id-jag-playground/issuer"; // the ID-JAG playground's pf-pf sign-in at the SE PingFederate
 const FRONT_DOOR_RESUME_KEY = "piFlowFrontDoorResume";
 
 const DEVICE_LABEL = { EMAIL: "Email", SMS: "SMS", FIDO2: "Passkey", TOTP: "Authenticator app" };
@@ -62,7 +63,8 @@ function DevicePicker({ devices, selectedDeviceId, disabled, onPick }) {
 /** Plain redirect login — the path every failure here falls back to. An MFA request keeps its MFA (the step-up route). */
 function redirectLogin(returnTo, role, force) {
   let base;
-  if (role === "admin") base = `${ADMIN_API}/login`;
+  if (role === "issuer") base = `${ISSUER_API}/login`;
+  else if (role === "admin") base = `${ADMIN_API}/login`;
   else if (mfaRequested()) base = `${USER_API}/stepup`;
   else base = force ? `${USER_API}/login?force=true` : `${USER_API}/login`;
   const sep = base.includes("?") ? "&" : "?";
@@ -201,14 +203,14 @@ export default function PiFlowSignInModal() {
   };
   const begin = useCallback((detail) => {
     const target = detail.returnTo?.split("?")[0]; // BFF rejects query strings; keep the bare path
-    const role = detail.role === "admin" ? "admin" : "customer";
+    const role = detail.role === "admin" ? "admin" : detail.role === "issuer" ? "issuer" : "customer";
     returnToRef.current = target;
     roleRef.current = role;
     forceRef.current = Boolean(detail.force);
     keepHintRef.current = Boolean(detail.keepHint);
     frontDoorRef.current = false;
     setFrontDoor(false);
-    if (frontDoorOnRef.current && !detail.resumed) {
+    if (frontDoorOnRef.current && !detail.resumed && role !== "issuer") {
       // Signed out of the wall? Run the front door in the modal first. Approved (204) or unreachable: carry on
       // with the normal app sign-in. 401 = not approved yet.
       secondFactorRef.current = null;
@@ -247,7 +249,8 @@ export default function PiFlowSignInModal() {
     // password form: its Multi_Factor flow starts with the password.
     // Admin is device-first too (user decision 2026-10-18); "Use your password instead" stays the
     // break-glass. If the admin app has no mfa_only policy the open fails and snaps to the password form.
-    const passwordFirst = providerRef.current === "pingfederate" && mfaRequested();
+    // The issuer is the SE PingFederate's own password form, whatever provider the app runs on.
+    const passwordFirst = role === "issuer" || (providerRef.current === "pingfederate" && mfaRequested());
     secondFactorRef.current = null;
     // With ciba_login_enabled on, CUSTOMERS (either provider) open on a CHOICE screen
     // (passwordless / password + approval link / "use a password") with no flow opened yet.
@@ -293,7 +296,7 @@ export default function PiFlowSignInModal() {
         if (keepHintRef.current) qs.set("keep_hint", "1");
         if (mfaRequested()) qs.set("mfa", "1");
         if (passwordless) qs.set("passwordless", "1");
-        const api = role === "admin" ? ADMIN_API : USER_API;
+        const api = role === "admin" ? ADMIN_API : role === "issuer" ? ISSUER_API : USER_API;
         const res = await fetch(`${apiBase()}${api}/login?${qs}`, { credentials: "include" });
         if (!res.ok) throw new Error("pi.flow unavailable");
         // PingFederate locks the flow to a username hint; prefill it like the hosted page does.
@@ -423,7 +426,7 @@ export default function PiFlowSignInModal() {
   const restartSignIn = () =>
     begin({ returnTo: returnToRef.current, role: roleRef.current, force: forceRef.current });
 
-  const apiForRole = () => (frontDoorRef.current ? FRONT_DOOR_API : roleRef.current === "admin" ? ADMIN_API : USER_API);
+  const apiForRole = () => (frontDoorRef.current ? FRONT_DOOR_API : roleRef.current === "admin" ? ADMIN_API : roleRef.current === "issuer" ? ISSUER_API : USER_API);
 
   const submit = async (e) => {
     e.preventDefault();

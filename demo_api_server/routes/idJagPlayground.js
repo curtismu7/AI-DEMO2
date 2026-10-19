@@ -23,6 +23,7 @@ const configStore = require('../services/configStore');
 const oauthService = require('../services/oauthService');
 const { decodeJwt } = require('../utils/tokenUtils');
 const { callToolViaGateway } = require('../services/mcpGatewayClient');
+const { makePiFlowHandlers } = require('../services/piFlowDriver');
 const { getFrontendOrigin, getUserRedirectUri } = require('../services/oauthRedirectUris');
 const trustedIdps = require('../services/idJagTrustedIdps');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
@@ -699,10 +700,41 @@ router.get('/preflight', async (req, res) => {
 const safeReturnTo = (p) => (typeof p === 'string' && /^\/(?!\/)/.test(p) ? p : PLAYGROUND_PATH);
 const issuerRedirectUri = () => `${getFrontendOrigin()}/api/id-jag-playground/issuer/callback`;
 
-/** pf-pf: sign in at the SE PingFederate (code + PKCE) so it holds a refresh token to exchange. */
-router.get('/issuer/login', (req, res) => {
+// pf-pf sign-in without leaving the page: the SAME shared pi.flow driver the app login uses, pointed at the SE
+// PingFederate. Its flow state lives in a private bag on the session (the driver reads oauthState and
+// oauthRedirectUri there), so the app's own sign-in state is never touched. A COMPLETED flow still ends at
+// /issuer/callback below, which does the code exchange: PKCE and the refresh-token capture stay in one place.
+const issuerPiFlow = makePiFlowHandlers({
+  providerConfig: {
+    get authorizationEndpoint() { return pfPfSettings().idp.authorizationEndpoint; },
+    get tokenEndpoint() { return pfPfSettings().idp.tokenEndpoint; },
+  },
+  knownRedirectOrigins: [],
+});
+function onIssuerSession(req) {
+  const bag = (req.session.idJagIssuerPiFlow ||= {});
+  // The driver calls session.save(cb); persist the real session. Non-enumerable, so it is never serialised.
+  Object.defineProperty(bag, 'save', { value: (cb) => req.session.save(cb), configurable: true });
+  return Object.create(req, { session: { value: bag } });
+}
+const issuerPiFlowStep = (handler) => (req, res) => {
+  const reason = pfPfUnavailableReason();
+  if (reason) return res.status(409).json({ error: 'pf_pf_unavailable', message: reason });
+  return handler(onIssuerSession(req), res);
+};
+router.post('/issuer/pi-flow/credentials', issuerPiFlowStep(issuerPiFlow.handleCredentialsStep));
+router.post('/issuer/pi-flow/otp', issuerPiFlowStep(issuerPiFlow.handleOtpStep));
+router.post('/issuer/pi-flow/device', issuerPiFlowStep(issuerPiFlow.handleDeviceSelectStep));
+
+/**
+ * pf-pf: sign in at the SE PingFederate (code + PKCE) so it holds a refresh token to exchange.
+ * ?pi_flow=1 opens the flow and answers JSON for the sign-in modal; without it, the redirect (the modal's fallback).
+ */
+router.get('/issuer/login', async (req, res) => {
   const s = pfPfSettings();
-  if (pfPfUnavailableReason()) return res.redirect(safeReturnTo(req.query.return_to));
+  const reason = pfPfUnavailableReason();
+  const piFlow = req.query.pi_flow === '1';
+  if (reason) return piFlow ? res.status(409).json({ error: 'pf_pf_unavailable', message: reason }) : res.redirect(safeReturnTo(req.query.return_to));
   const verifier = crypto.randomBytes(32).toString('base64url');
   const state = crypto.randomBytes(16).toString('hex');
   req.session.idJagIssuerLogin = { state, verifier, returnTo: safeReturnTo(req.query.return_to), at: Date.now() };
@@ -711,7 +743,15 @@ router.get('/issuer/login', (req, res) => {
     response_type: 'code', client_id: s.idp.exchangeClientId, redirect_uri: issuerRedirectUri(),
     scope: 'openid profile email offline_access', state, prompt: 'login',
     code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256',
+    ...(piFlow ? { response_mode: 'pi.flow' } : {}),
   }).toString();
+  if (piFlow) {
+    const view = onIssuerSession(req);
+    delete view.session.oauthPiFlow;
+    view.session.oauthState = state;
+    view.session.oauthRedirectUri = issuerRedirectUri();
+    return issuerPiFlow.openPiFlow(view, res, u.toString(), 'pingfederate');
+  }
   return req.session.save(() => res.redirect(u.toString()));
 });
 
@@ -719,6 +759,7 @@ router.get('/issuer/callback', async (req, res) => {
   const pending = req.session?.idJagIssuerLogin;
   const back = pending?.returnTo || '/pingfederate-id-jag/playground';
   delete req.session.idJagIssuerLogin;
+  delete req.session.idJagIssuerPiFlow;
   if (!pending || !req.query.code || req.query.state !== pending.state || Date.now() - pending.at > 10 * 60 * 1000) {
     return req.session.save(() => res.redirect(`${back}?issuer_error=invalid_state`));
   }

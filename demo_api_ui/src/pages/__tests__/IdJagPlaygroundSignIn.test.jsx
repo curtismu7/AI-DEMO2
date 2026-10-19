@@ -24,3 +24,14 @@ it("sign-in goes through the app's sign-in service (pi.flow modal), never forcin
   expect(args).toEqual({ returnTo: "/pingfederate-id-jag/playground", force: true, keepHint: true });
   expect(args.redirect).toBeUndefined();
 });
+
+it("pf-pf sign-in asks the sign-in service for the issuer role, not the app's own sign-in", async () => {
+  localStorage.setItem("idjag.playground.mode", "pf-pf");
+  openSignIn.mockClear();
+  get.mockImplementation((url) => Promise.resolve({ data: url.endsWith("/config") ? { ...config, mode: "pf-pf" } : url.endsWith("/preflight") ? { ok: true, checks: [] } : [] }));
+  render(<MemoryRouter><IdJagPlaygroundPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole("button", { name: "Sign in at the issuer PingFederate" }));
+  await vi.waitFor(() => expect(openSignIn).toHaveBeenCalled());
+  expect(openSignIn.mock.calls[0][0]).toEqual({ role: "issuer", returnTo: "/pingfederate-id-jag/playground", force: true });
+  localStorage.removeItem("idjag.playground.mode");
+});
