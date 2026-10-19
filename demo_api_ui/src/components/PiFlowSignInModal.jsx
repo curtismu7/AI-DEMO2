@@ -144,6 +144,7 @@ export default function PiFlowSignInModal() {
     (async () => {
       try {
         const res = await fetch(`${apiBase()}/api/admin/config`, { credentials: "include" });
+        if (!res.ok) throw new Error("config walled");
         const cfg = (await res.json())?.config || {};
         // Both providers the BFF can drive (PingOne, PingFederate); anything else keeps the redirect.
         const provider = cfg.oauth_provider || "pingone";
@@ -158,7 +159,7 @@ export default function PiFlowSignInModal() {
           setAdminDrivable(drivable && adminOn);
         }
       } catch {
-        /* keep the redirect login */
+        /* config walled (signed out of the wall): the front door answer below decides */
       }
     })();
     // Plus-addressing policy: fetched once per mount, best-effort. The
@@ -175,6 +176,8 @@ export default function PiFlowSignInModal() {
             allowedIdentifiers: Array.isArray(body.allowedIdentifiers) ? body.allowedIdentifiers : [],
           };
           frontDoorOnRef.current = body.frontDoorPiFlow === true;
+          // Signed out of the wall the config read is walled, so the front door is what makes this drivable.
+          if (body.frontDoorPiFlow === true) setUserDrivable(true);
         }
       } catch {
         /* unknown policy → no local check; the server wall applies */
