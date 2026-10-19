@@ -12,16 +12,43 @@ import { Controls } from '@xyflow/react';
 import TokenChainFlowDiagram, { NODES, EDGES, NODE_DETAILS } from './TokenChainFlowDiagram';
 import DiagramReel from './DiagramReel';
 import { buildReelSteps } from '../utils/diagramReel';
+import { refsFor, formFor } from '../config/tokenChainStandards';
 import DiagramStepBar from './DiagramStepBar';
 import { useDiagramStepper, edgeCaptions } from '../hooks/useDiagramStepper';
 import './TokenChainArchitecturePage.css';
 
 const EDGE_CAPTIONS = edgeCaptions(EDGES, Object.fromEntries(NODES.map((n) => [n.id, n.label])));
 // The reel's details row reuses each node's role text (the same text the node click panel opens with).
-const REEL_STEPS = buildReelSteps({
+const BASE_REEL = buildReelSteps({
   edges: EDGES,
   nodes: NODES,
   details: Object.fromEntries(Object.entries(NODE_DETAILS).map(([id, d]) => [id, d.role])),
+});
+// Each reel step also shows the request on the wire, the newest mock token carried so far (JSON), and the
+// standards behind the step (published RFCs and emerging work).
+const REEL_STEPS = BASE_REEL.map((step, i) => {
+  const [source, target] = EDGES[i];
+  const lines = [...step.lines];
+  const form = formFor(source, target);
+  if (form) lines.push({ who: 'Request', code: form });
+  let token = null, issued = null;
+  for (let j = i; j >= 0 && !token; j--) {
+    const t = NODE_DETAILS[EDGES[j][1]]?.mockToken;
+    if (t) { token = t; issued = j + 1; }
+  }
+  // The exchange takes two tokens in (human subject_token + agent actor_token): show both.
+  if (source === 'agentSvc' && target === 'txService') {
+    for (const id of ['humanToken', 'agentToken']) {
+      const t = NODE_DETAILS[id]?.mockToken;
+      if (t) lines.push({ who: `Input token: ${t.note.split('·')[0].trim()}`, code: `${t.note} (MOCK, teaching values only)\n${JSON.stringify({ ...(t.header ? { header: t.header } : {}), claims: t.claims }, null, 2)}` });
+    }
+    return { ...step, lines, refs: refsFor(source, target) };
+  }
+  if (token) {
+    const decoded = { ...(token.header ? { header: token.header } : {}), claims: token.claims };
+    lines.push({ who: `Token carried${issued !== i + 1 ? ` (issued at step ${issued})` : ''}`, code: `${token.note} (MOCK, teaching values only)\n${JSON.stringify(decoded, null, 2)}` });
+  }
+  return { ...step, lines, refs: refsFor(source, target) };
 });
 
 const CARDS = [

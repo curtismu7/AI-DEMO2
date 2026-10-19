@@ -31,7 +31,7 @@ export default function DiagramReel({ steps, stepper, nodeDetail = null, onClear
   if (!steps?.length) return null;
 
   const current = step >= 0 ? steps[step] : null;
-  const panel = nodeDetail || (open && current ? { title: current.title, label: current.label, lines: current.lines } : null);
+  const panel = nodeDetail || (open && current ? { title: current.title, label: current.label, lines: current.lines, refs: current.refs } : null);
   const close = () => {
     setOpen(false);
     onClearNode?.();
@@ -78,12 +78,26 @@ export default function DiagramReel({ steps, stepper, nodeDetail = null, onClear
               {panel.lines.map((l, i) => (
                 <div key={i}>
                   {l.who && <dt>{l.who}</dt>}
-                  <dd>{l.text}</dd>
+                  <dd>{l.code ? <pre className="dreel-code">{l.code}</pre> : l.text}</dd>
                 </div>
               ))}
             </dl>
           ) : (
             <p className="dreel-detail-empty">No further detail for this one.</p>
+          )}
+          {panel.refs?.length > 0 && (
+            <div className="dreel-refs" data-testid={`${testId}-refs`}>
+              <h4>Standards behind this step</h4>
+              <ul>
+                {panel.refs.map((r) => (
+                  <li key={r.id}>
+                    <span className={`dreel-ref dreel-ref--${r.kind}`}>{r.kind === 'emerging' ? 'emerging' : r.kind === 'spec' ? 'spec' : 'RFC'}</span>
+                    <strong>{r.id}</strong> {r.title}
+                  </li>
+                ))}
+              </ul>
+              <p className="dreel-refs-note">Emerging items are drafts or in-progress work; their status can change.</p>
+            </div>
           )}
         </section>
       )}
