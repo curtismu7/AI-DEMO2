@@ -4,7 +4,13 @@ Started 2026-10-18. Goal: make every demo page consistent with Ping Identity sta
 
 - **PR:** #1515 — https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1515 (open; merge by hand, the classifier blocks `gh pr merge`)
 - **Branch / worktree:** `worktree-ui-ping-palette` at `.claude/worktrees/ui-ping-palette`
-- **Last commit when written:** `40a3b4940` (PR #1515 merged as `11353b2de`; PR #1530 quiet buttons merged as `0830d5fd`)
+- **Status (2026-10-18, evening):**
+  - **Merged to main:** #1515 (palette, fonts, first PageHeader set, contrast tooling), #1530 (outline secondary buttons), #1533 (contrast round 2), #1534 (PageHeader batch 2), #1535 (button shape pass), #1536 (radius/font-size tokens + ratchet), #1540 (teal accents, readable agent-skin chips, docs), #1545 (PageHeader batch 3), #1546 (PageHeader batch 4)
+  - **Open, waiting on CI (UI tests job was still running at last check):** #1554 (PageHeader batch 5, plus fix for the red `sdkLoginHeadingMatchesNav` test on main). Merge when UI tests show pass, not skipped
+  - **Open, duplicate fix:** #1555 also changes `sdkLoginHeadingMatchesNav` to read the lesson title from PageHeader. Close it once #1554 is merged, or close #1554's copy of that test change if #1555 lands first. Do not merge both
+  - **Not doing more PageHeader batches** (user: "no more batches"). Remaining ~60 bespoke-header pages stay as they are unless touched for other reasons
+  - **Still open for the user:** brand-hub grays (Gray 300/500/600, dark-theme red and blue tints); radius and font-size tokens with no match (3/5/7/9/10/14/20px and rem long tail); signed-in click-through after deploy; confirm the contrast hook loads via `/hooks`
+  - **Last commit written here:** `533c18f8c` era; batch 5 is `worktree-ui-pageheader-batch5`
 - **To resume:** `cd .claude/worktrees/ui-ping-palette/demo_api_ui` (node_modules already installed there). Use the worktree, never the shared main checkout.
 
 ## Decisions already made (do not re-ask)
