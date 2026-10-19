@@ -26,6 +26,56 @@ have moved — verify before acting on it.** No secret values are in this file.
 - **Still needs the user:** rotate the five printed keys; the `/aic-token-exchange`
   signed-in click-through; approve the feature 20 grant; review #1265/#1267/#1268.
 
+## 0b. New workstream, 2026-10-19: PF-token claims → Cedar (AI policy) via the gateway
+
+**Status: scoped and researched only. Nothing built, nothing changed on the console, no commits.**
+(Sections 1–3 below are as of 2026-10-14 and are stale; this section is newer.)
+
+**The ask (user, 2026-10-19):** work out how to set up Privilege so that claims in the token
+coming in from PingFederate are what Cedar (AI policy) protects on; write docs and diagrams
+showing how; and set it up through the Privilege gateway.
+
+**What the repo already has (checked 2026-10-19):**
+- Cedar / AI-policy material exists only for tool and LLM rules: `privilege/GATEWAY-RELEASE-v1.261009-DEMO.md`
+  (PII withhold), `docs/superpowers/plans/2026-10-12-v1.261009-demo-steps.md` (§2.1–2.4: editor at
+  `/ui/admin/ai-policys`, Active vs Candidate), `privilege/AGENT-APPROVALS-DEMO.md` (`agentapprovals` = Cedar per-call).
+- **No doc shows a PF-token claim reaching a Cedar rule.** The only Cedar vocabulary on record is
+  `Action::"mcp:Invoke"`, `Tool::"…"`, `context.args` (from the editor's example). No `context.claims`
+  or `principal.*` attribute is documented anywhere in the repo.
+- Older notes (`privilege/PRIVILEGE-MCP.md` ~L796, ~L1843–1870, written Aug 2026, may be stale): an
+  Agentic App has `ResourceOAuth` (outbound challenge + DCR only, not inbound issuer trust) and no
+  inbound-issuer field; the one untested lever was tenant-level `cyctl object idprovider create`
+  (`IDProvider → OidcServer → IssuerPublicKey`, inferred, never tried). The Oct work (HITL, PII) shows
+  AI policies do enforce, so re-test before trusting these.
+- Related memory: `ping-idjag-dpop-pf-only`, `id-jag-pf-missing-kid-proven`, `ai-demo2-opensearch-hitl-demo`
+  (AI policies live in `aipolicys`, not `pacpolicys`; API-created policies land with `State:''` and
+  must be PUT to `Active` or they are never enforced).
+
+**Open question, asked of the user and NOT yet answered:** which PF claim(s) (scope, group, `act` /
+ID-JAG, other) should decide allow / hold / deny, for which tools and which users? Do not build
+until that is answered. The user was also offered "skip the questions and just start".
+
+**Proposed approach once answered (unapproved):**
+1. Find out empirically what the gateway exposes from a PF-issued token to Cedar: read the editor's
+   vocabulary on the live console, author a throwaway rule per candidate attribute, and watch the
+   gateway log (`mcp_policy_denied` / `mcp_policy_approval_required`, `PolicyIDs`).
+2. Write the doc (`privilege/` MD) from what was measured, not inferred; update both indexes
+   (`privilege/DOCUMENTATION-INDEX.md` and `PrivilegeDocsIndexPage.jsx`) and the Drive copy, per
+   `privilege-docs-workflow`.
+3. ReactFlow diagram via `EmbeddedFlowDiagram` + a `config/*Diagram.js` (movable boxes, Simulate, Reset,
+   speed), registered in `config/__tests__/embeddedDiagrams.test.js`, on its page + `/diagrams` +
+   a Learning Hub card (synced trio).
+4. Live setup changes (policy create/PUT, IdP registration) are state changes on the shared tenant:
+   get the user's explicit OK first; the classifier blocks credential and grant writes without it.
+
+**Tooling traps hit this session:** macOS has no `timeout` (a `timeout 90 grep …` pipeline returned empty
+silently); zsh errors on unquoted `--include=*.md` globs; use `rg` (installed). Empty grep output
+earlier looked like "no Cedar docs" and was wrong, so re-run with `rg`.
+
+**Repo state:** main checkout is 4 commits behind origin, with unrelated staged edits
+(`HostileMcpTab.jsx` + test) and untracked `planning/cloudflare-hybrid-migration.md`. This file edit is
+uncommitted; commit from a worktree, not the shared checkout.
+
 ## 1. Privilege docs session ("Privilege agent features doc") — this session
 
 ### Done and merged
