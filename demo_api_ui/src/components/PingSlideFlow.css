@@ -57,7 +57,7 @@
 .ps-elabel.ps-edge--now .ps-badge { background: var(--ps-hot); }
 @keyframes ps-flow { to { stroke-dashoffset: -20; } }
 @media (prefers-reduced-motion: reduce) { .ps-edge--now path.react-flow__edge-path { animation: none; } }
-.ps-canvas .react-flow__controls-button { background: #fff; border-bottom: 1px solid #ccc; color: #1b1b1f; fill: #1b1b1f; }
+.ps-canvas .react-flow__controls-button { background: #fff; border-bottom: 1px solid var(--th-border, #ccc); color: #1b1b1f; fill: #1b1b1f; }
 .ps-canvas .react-flow__controls-button svg { fill: #1b1b1f; }
 
 .ps-ah { fill: var(--ps-edge); }
@@ -97,7 +97,7 @@
 .ps-zone small { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: var(--font-size-xs); }
 
 .ps-dim { opacity: 0.3; }
-.ps-card { border: 1.5px solid var(--th-border, #cfd2d9); background: #fff; border-radius: var(--radius-lg); box-sizing: border-box; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; text-align: left; }
+.ps-card { border: 1.5px solid #cfd2d9; background: #fff; border-radius: var(--radius-lg); box-sizing: border-box; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; text-align: left; }
 .ps-card--dashed { border: 1.5px dashed var(--ps-red); background: #fdf3f3; }
 .ps-card b { font-size: var(--font-size-body); }
 .ps-card small { font-size: var(--font-size-2xs); font-weight: 400; color: #444; display: block; margin-top: 2px; }
@@ -116,3 +116,5 @@
 .ps-numcard p { margin: 0; font-size: var(--font-size-base); }
 .ps-num { width: 44px; height: 44px; border-radius: 50%; background: var(--ps-red); color: #fff; font-weight: 800; font-size: var(--font-size-xl); display: inline-flex; align-items: center; justify-content: center; }
 .ps-win--dashed { border: 1.5px dashed var(--ps-red); }
+.ps-card--top { justify-content: flex-start; padding-top: 14px; }
+.ps-card--top b { font-size: var(--font-size-md); }

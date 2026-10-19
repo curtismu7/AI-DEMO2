@@ -19,7 +19,8 @@ import "./PingSlideFlow.css";
 
 const SIDE = { l: Position.Left, r: Position.Right, t: Position.Top, b: Position.Bottom, lt: Position.Left };
 const HIDDEN = { opacity: 0, width: 1, height: 1 };
-const FIT = { padding: 0.04 };
+// left gutter keeps the zoom buttons (bottom-left) off the cards
+const FIT = { padding: { top: '12px', right: '12px', bottom: '12px', left: '60px' } };
 
 function Handles({ gateway }) {
   return (
@@ -130,7 +131,7 @@ function SlideNode({ data }) {
     );
   } else if (kind === "card" || kind === "dashedcard") {
     body = (
-      <div className={`ps-card${kind === "dashedcard" ? " ps-card--dashed" : ""}${ring}`} style={{ width: w, height: h }}>
+      <div className={`ps-card${kind === "dashedcard" ? " ps-card--dashed" : ""}${n.top ? " ps-card--top" : ""}${ring}`} style={{ width: w, height: h }}>
         <b>{label}</b>{sub && <small>{lines(sub)}</small>}
       </div>
     );
