@@ -33,10 +33,10 @@ const UNDRIVEN_STEPS = new Set(['otp', 'device', 'approval', 'passkey']);
 function sanitizeReturnPath(raw) {
   if (typeof raw !== 'string') return '/';
   const value = raw.trim();
-  // Optional query string: the wall redirects /api/auth/oauth/user/login?return_to=/page here and the
-  // page must survive the trip. Origin is prepended on redirect, so a query cannot make this off-site.
+  // Optional `?return_to=` only: the wall redirects /api/auth/oauth/user/login?return_to=/page here and the
+  // page must survive the trip. No other query keys, and the origin is prepended, so it cannot go off-site.
   return value.startsWith('/') && !value.startsWith('//') && value.length <= 160
-    && /^\/[/a-zA-Z0-9._~-]*(\?[a-zA-Z0-9._~%=&-]*)?$/.test(value) ? value : '/';
+    && /^\/[/a-zA-Z0-9._~-]*(\?return_to=[a-zA-Z0-9._~%-]*)?$/.test(value) ? value : '/';
 }
 
 function clearHostedOAuthState(session) {
@@ -115,7 +115,8 @@ router.post('/pi-flow/credentials', (req, res) => {
   res.json = (payload) => {
     if (payload && UNDRIVEN_STEPS.has(payload.step)) {
       delete req.hostedSession.oauthPiFlow;
-      return sendJson({ fallback: true, status: payload.step });
+      // The driver already saved the flow before answering; persist the removal too.
+      return req.hostedSession.save(() => sendJson({ fallback: true, status: payload.step }));
     }
     return sendJson(payload);
   };

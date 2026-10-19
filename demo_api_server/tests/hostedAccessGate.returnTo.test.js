@@ -17,3 +17,16 @@ describe('hosted access wall redirect keeps the return path', () => {
       .toBe('/api/auth/hosted-access/login?return_to=%2Fapi%2Fauth%2Foauth%2Fuser%2Flogin%3Freturn_to%3D%252Fmfa-test');
   });
 });
+
+// The front-door login accepts only a plain path, optionally with ?return_to= (nothing else rides along).
+describe('hosted login return_to sanitizer', () => {
+  const re = /^\/[/a-zA-Z0-9._~-]*(\?return_to=[a-zA-Z0-9._~%-]*)?$/;
+  test.each([
+    ['/mfa-test', true],
+    ['/api/auth/oauth/user/login?return_to=%2Fmfa-test', true],
+    ['/a?signin=mfa', false],
+    ['/a?return_to=x&other=y', false],
+    ['/x?u=http://evil.com', false],
+    ['//evil.com', false],
+  ])('%s -> %s', (value, expected) => expect(re.test(value) && !value.startsWith('//')).toBe(expected));
+});
