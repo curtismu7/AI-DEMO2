@@ -1,7 +1,6 @@
-// a2aArchitectureData.js — content for /a2a-architecture.
-// DELEGATION_SOURCE is a copy of docs/a2a-delegation-sequence.mmd for FlowDiagram. The docs file writes "#" as "#35;"
-// because real Mermaid cuts text at "#"; FlowDiagram does not decode it, so the test compares after decoding.
-// The discovery figure mirrors docs/a2a-card-discovery.mmd (three boxes; the capabilities return is folded into the GET arrow's label) as hand-placed nodes.
+// a2aArchitectureData.js — DELEGATION_SOURCE is a copy of docs/a2a-delegation-sequence.mmd (the text people paste into Lucid).
+// The docs file writes "#" as "#35;" because real Mermaid cuts text at "#", so the test compares after decoding.
+// The page draws the same flow as boxes and numbered arrows from config/a2aArchitectureDiagram.js.
 
 export const DELEGATION_SOURCE = `sequenceDiagram
     autonumber
@@ -22,18 +21,3 @@ export const DELEGATION_SOURCE = `sequenceDiagram
     S-->>G: JSON-RPC response
     G-->>U: Result + token-chain events<br/>(a2a-protocol-bearer → a2a-agent-card → a2a-protocol-message)
 `;
-
-const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
-
-export const DISCOVERY_GROUPS = { ag: { label: "Agents", bg: "var(--th-status-info)" } };
-
-export const DISCOVERY_NODES = [
-  N("gen", "ag", "Generalist (Agent 1)", [], 0, 0),
-  N("card", "ag", "Agent Card", ["capabilities"], 580, 0),
-  N("spec", "ag", "Specialist (Agent 2)", [], 0, 200),
-];
-
-export const DISCOVERY_EDGES = [
-  ["gen", "card", "GET /a2a/specialists/:vertical/.well-known/agent-card.json; capabilities return"], // 0
-  ["gen", "spec", "POST /a2a/specialists/:vertical (JSON-RPC SendMessage)", { vertical: true }], // 1
-];

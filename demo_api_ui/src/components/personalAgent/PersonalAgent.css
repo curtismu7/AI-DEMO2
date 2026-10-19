@@ -68,7 +68,9 @@
   width: 22px;
   height: 0;
   border-top: 4px solid var(--th-border-strong);
+  outline: 1px solid var(--th-border-strong);
 }
+.pa-sw--solid { border-top-color: var(--th-text); }
 .pa-sw--traveller,
 .pa-sw--llm { border-top-color: var(--th-text-muted); }
 .pa-sw--team,
@@ -79,6 +81,13 @@
 .pa-sw--ag { border-top-color: var(--th-status-info); }
 .pa-sw--existing,
 .pa-sw--neutral { border-top-color: var(--th-border-strong); }
+/* React Flow zoom controls: the library default is a white block, unreadable on the dark canvas */
+.pa-figure .react-flow__controls-button {
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  border-bottom: 1px solid var(--th-border-strong);
+}
+.pa-figure .react-flow__controls-button svg { fill: var(--th-text); }
 .pa-sw--dashed {
   border-top: 2px dashed var(--th-text-muted);
 }

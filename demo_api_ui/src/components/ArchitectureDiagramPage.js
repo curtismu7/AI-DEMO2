@@ -20,8 +20,7 @@
  *   isTokenExchange {boolean}
  *   isHitl      {boolean}
  *   audHops     {Array}
- *   flowSource  {string}  Mermaid-format sequence text; when set, a React Flow sequence diagram
- *                         (stepped through flowDriver {step, goTo}) replaces the PNG + region overlay
+ *   diagram     {node}    when set, this figure (the page's StaticFlowDiagram) replaces the PNG + region overlay
  */
 import React, { useState } from 'react';
 import { createPortal } from 'react-dom';
@@ -29,7 +28,6 @@ import AdminSubPageShell from './AdminSubPageShell';
 import HistoryModal from './HistoryModal';
 import { DiagramControls } from './diagram';
 import TokenChainTraceRail from './TokenChainTraceRail';
-import SequenceFlowDiagram from './SequenceFlowDiagram';
 import useDividerDrag from '../hooks/useDividerDrag';
 import './ArchitectureDiagramPage.css';
 
@@ -307,8 +305,7 @@ export default function ArchitectureDiagramPage({
   stepMs,
   onSetStepMs,
   onReset,
-  flowSource,
-  flowDriver,
+  diagram,
 }) {
   const [zoom, setZoom] = useState(1.0);
   const [showChainPanel, setShowChainPanel] = useState(false);
@@ -333,10 +330,10 @@ export default function ArchitectureDiagramPage({
         {/* Toolbar */}
         <div className="arch-diagram-toolbar">
           <DiagramControls
-            zoom={flowSource ? undefined : zoom}
-            onZoomIn={flowSource ? undefined : zoomIn}
-            onZoomOut={flowSource ? undefined : zoomOut}
-            onZoomReset={flowSource ? undefined : zoomReset}
+            zoom={diagram ? undefined : zoom}
+            onZoomIn={diagram ? undefined : zoomIn}
+            onZoomOut={diagram ? undefined : zoomOut}
+            onZoomReset={diagram ? undefined : zoomReset}
             currentStep={onSimulate ? (stepNum ?? 0) : undefined}
             totalSteps={totalSteps}
             isSimulating={isSimulating}
@@ -373,10 +370,8 @@ export default function ArchitectureDiagramPage({
           className={`arch-diagram-body${hasCard ? ' arch-diagram-body--with-card' : ''}`}
           style={{ '--arch-token-side-w': `${tokenSideWidth}px` }}
         >
-          {flowSource ? (
-            <div className="arch-diagram-scroll-wrapper">
-              <SequenceFlowDiagram source={flowSource} driver={flowDriver} label={imageAlt || title} />
-            </div>
+          {diagram ? (
+            <div className="arch-diagram-figure">{diagram}</div>
           ) : (
           <div className="arch-diagram-scroll-wrapper">
             <div className="arch-diagram-container" style={{ width: `${zoom * 100}%` }}>
