@@ -49,12 +49,23 @@ describe("IdJagCallPlayer", () => {
   it("plays through the calls on a timer and stops at the end", () => {
     vi.useFakeTimers();
     render(<IdJagCallPlayer speedMs={100} />);
-    fireEvent.click(screen.getByRole("button", { name: "Play" }));
+    fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
     // each step schedules the next from an effect, so advance one tick per call
     for (let i = 0; i < CALLS.length; i += 1) act(() => { vi.advanceTimersByTime(100); });
     expect(screen.getByText(`Call ${CALLS.length} of ${CALLS.length}`)).toBeInTheDocument();
-    expect(screen.getByRole("button", { name: "Play" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Simulate" })).toBeInTheDocument();
     vi.useRealTimers();
+  });
+
+  it("shows the request, mock tokens and standards for every call, and resets", () => {
+    render(<IdJagCallPlayer />);
+    fireEvent.click(screen.getByRole("button", { name: "Call 8: Ask for an ID-JAG" }));
+    const wire = screen.getByTestId("idjag-call-wire");
+    expect(wire.textContent).toContain("requested_token_type=urn:ietf:params:oauth:token-type:id-jag");
+    expect(wire.textContent).toContain("MOCK, teaching values only");
+    expect(screen.getByTestId("idjag-call-refs").textContent).toContain("emerging");
+    fireEvent.click(screen.getByRole("button", { name: "Reset" }));
+    expect(screen.getByText(`Call 1 of ${CALLS.length}`)).toBeInTheDocument();
   });
 
   it("says plainly when a hop was not traced", () => {
