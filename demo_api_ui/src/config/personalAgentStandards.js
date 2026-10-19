@@ -99,7 +99,7 @@ export const PA_STEP_DETAIL = {
   exchange1: {
     form: `${TOKEN_ENDPOINT}\n\n${XCHG}\n&subject_token=<member sign-in token>\n&subject_token_type=${AT}\n&actor_token=<agent assertion signed with the agent key>\n&actor_token_type=${JWT}\n&resource=${MCP_AUD}\n&scope=loyalty:search\n&client_id=chat-agent-client\n\nThe cnf.jkt binding is the design target. DPoP on the PingOne authorization server is not documented, so confirm the sender constraint (DPoP on PingFederate 13.1, or certificate-bound tokens) before relying on it.`,
     tokens: [MEMBER_TOKEN, AGENT_ASSERTION, DELEGATED],
-    refs: [EXCHANGE[0], RESOURCE, RFC(7523, "JWT assertion format for the actor_token"), DPOP, JWT_AT],
+    refs: [EXCHANGE[0], RESOURCE, RFC(7523, "JWT assertion format for the actor_token"), DPOP, JWT_AT, TX_TOKENS],
   },
   entryTarget: {
     form: `${CALL("agent-gateway.airline.example", "/loyalty/mcp", "DPoP <delegated token>", "search_flights", SEARCH_ARGS)}\n\n# A desktop AI app enters the same door with its own registered identity and its own token:\nAuthorization: DPoP <that client's own token>   (client_id is its Client ID Metadata Document URL or a registered id)`,

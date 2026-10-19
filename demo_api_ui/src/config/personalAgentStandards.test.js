@@ -30,6 +30,20 @@ describe("personal agent step detail", () => {
     expect(blob).not.toMatch(/eyJ[A-Za-z0-9_-]{10,}/);
     expect(blob).not.toMatch(/client_secret=[^<&\\]/);
   });
+  it("lays boxes on distinct cells and only draws a downward arrow where the config says so", () => {
+    for (const d of Object.values(DESIGNS)) {
+      const cells = d.nodes.map((n) => `${n.x},${n.y}`);
+      expect(new Set(cells).size).toBe(cells.length);
+      const at = Object.fromEntries(d.nodes.map((n) => [n.id, n]));
+      for (const [src, tgt, , opts] of d.edges) if (opts?.vertical) expect(at[tgt].y, `${src}>${tgt}`).toBeGreaterThan(at[src].y);
+    }
+  });
+  it("draws token arrows dashed and keeps the rest solid", () => {
+    for (const d of Object.values(DESIGNS)) {
+      const dashed = d.edges.filter((e) => e[3]?.dashed).map((e) => e[2]);
+      expect(dashed).toEqual(["sign-in token, kept in the BFF", "exchange: token for one tool", "exchange: token for the facade"]);
+    }
+  });
   it("shows an emerging standard where one applies", () => {
     const kinds = Object.values(PA_STEP_DETAIL).flatMap((d) => d.refs.map((r) => r.kind));
     expect(kinds).toContain("emerging");

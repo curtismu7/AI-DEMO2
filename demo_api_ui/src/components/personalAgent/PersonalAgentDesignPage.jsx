@@ -54,10 +54,6 @@ export default function PersonalAgentDesignPage({ variant = "target" }) {
               {GROUPS[g].label}
             </li>
           ))}
-          <li>
-            <i className="pa-sw pa-sw--dashed" />
-            another client entering through the same door
-          </li>
         </ul>
       </figure>
 
