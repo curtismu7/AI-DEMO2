@@ -1,5 +1,4 @@
 .pfj-page {
-  --pfj-canvas: var(--th-bg-page);
   color: var(--th-text);
   display: flex;
   flex-direction: column;
@@ -96,120 +95,26 @@
 
 .pfj-diagram {
   color: var(--th-text);
-  position: relative;
-  height: clamp(390px, 54vh, 560px);
-  min-height: 370px;
-  overflow: hidden;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-md);
-  background:
-    linear-gradient(180deg, transparent 0 57%, color-mix(in srgb, var(--th-bg-inset) 62%, transparent) 57% 100%),
-    var(--pfj-canvas);
+  display: grid;
+  gap: 10px;
+  min-width: 0;
 }
 
-.pfj-diagram .react-flow {
-  position: absolute;
-  inset: 0;
-}
-
-.pfj-diagram .react-flow__pane {
-  cursor: default;
-}
-
-.pfj-lane {
-  position: absolute;
-  z-index: 1;
-  left: 18px;
-  color: var(--th-text-faint);
+/* The two lane captions that used to sit on the canvas bands. */
+.pfj-lanes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px 18px;
+  margin: 0;
+  color: var(--th-text-muted);
   font-size: var(--font-size-xs);
   font-weight: 700;
-  pointer-events: none;
 }
-
-.pfj-lane--top { top: 22px; }
-.pfj-lane--bottom { top: 59%; }
-
-.pfj-node {
-  position: relative;
-  display: grid;
-  grid-template-columns: 38px minmax(0, 1fr);
-  grid-template-rows: auto auto;
-  align-items: center;
-  column-gap: 10px;
-  width: 194px;
-  min-height: 76px;
-  padding: 12px 13px;
-  border: 1px solid var(--th-border-strong);
-  border-left: 4px solid var(--pfj-accent, #526b7a);
-  border-radius: var(--radius-md);
-  background: var(--th-bg-card);
-  color: var(--th-text);
-  box-shadow: var(--shadow-md);
-  transition: border-color 160ms ease, box-shadow 160ms ease;
-}
-
-.pfj-node.is-active {
-  border-color: var(--pfj-accent, #12538d);
-  border-left-width: 5px;
-  box-shadow: var(--shadow-md);
-}
-
-.pfj-node--request { --pfj-accent: #5c6f8a; }
-.pfj-node--runtime { --pfj-accent: #2a6382; }
-.pfj-node--identity { --pfj-accent: #12538d; }
-.pfj-node--token { --pfj-accent: #d20e0f; }
-.pfj-node--agent { --pfj-accent: #12538d; }
-.pfj-node--gateway { --pfj-accent: #365f9a; }
-.pfj-node--policy { --pfj-accent: #946b24; }
-.pfj-node--mcpas { --pfj-accent: #d20e0f; }
-.pfj-node--resource { --pfj-accent: #377452; }
-
-.pfj-node strong {
-  align-self: end;
-  font-size: var(--font-size-sm);
-  line-height: 1.25;
-}
-
-.pfj-node > span:last-of-type {
-  grid-column: 2;
-  align-self: start;
-  margin-top: 3px;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-2xs);
-  line-height: 1.35;
-}
-
-.pfj-node__mark {
-  grid-row: 1 / span 2;
-  display: grid;
-  place-items: center;
-  width: 34px;
-  height: 34px;
-  border-radius: var(--radius-sm);
-  background: color-mix(in srgb, var(--pfj-accent) 14%, var(--th-bg-card));
-  color: var(--th-text);
-  font-size: var(--font-size-xs);
-  font-weight: 800;
-}
-
-:root[data-theme="dark"] .pfj-node__mark {
-  color: var(--th-text);
-}
-
-.pfj-node .react-flow__handle {
-  width: 5px;
-  height: 5px;
-  border: 0;
-  background: var(--pfj-accent);
-  opacity: 0.65;
-}
+.pfj-lanes span + span::before { content: "·"; margin-right: 18px; color: var(--th-text-faint); }
 
 .pfj-chain {
-  position: absolute;
-  z-index: 3;
-  right: 18px;
-  bottom: 16px;
   display: flex;
+  flex-wrap: wrap;
   align-items: center;
   gap: 10px;
   color: var(--th-text-muted);
@@ -225,20 +130,6 @@
 }
 
 .pfj-chain b { color: var(--th-status-info-text); }
-
-.pfj-diagram .react-flow__controls {
-  overflow: hidden;
-  border: 1px solid var(--th-border);
-  border-radius: var(--radius-sm);
-  box-shadow: none;
-}
-
-.pfj-diagram .react-flow__controls-button {
-  color: var(--th-text);
-  border-bottom-color: var(--th-border);
-  background: var(--th-bg-card);
-  fill: var(--th-text);
-}
 
 .pfj-guide {
   color: var(--th-text);
@@ -399,10 +290,9 @@
 }
 
 @media (max-width: 1000px) {
-  .pfj-diagram { height: 470px; }
   .pfj-guide { align-items: flex-start; flex-direction: column; }
   .pfj-step-nav { align-self: flex-end; }
-  .pfj-chain { gap: 5px; right: 10px; font-size: var(--font-size-2xs); }
+  .pfj-chain { gap: 5px; font-size: var(--font-size-2xs); }
   .pfj-protocol__body { grid-template-columns: 1fr; }
   .pfj-learning { grid-template-columns: 1fr; }
   .pfj-learning__docs { align-items: flex-start; flex-direction: column; }
@@ -413,7 +303,6 @@
   .pfj-page { padding: 16px 10px; gap: 12px; }
   .pfj-provider-badge { padding: 7px 10px; }
   .pfj-diagram-tabs button { padding: 7px 8px; font-size: var(--font-size-xs); }
-  .pfj-diagram { height: 430px; min-height: 350px; }
   .pfj-guide__copy { gap: 9px; }
   .pfj-guide { padding: 12px; }
   .pfj-guide p { font-size: var(--font-size-xs); }
@@ -422,11 +311,6 @@
   .pfj-protocol summary { align-items: flex-start; flex-direction: column; }
   .pfj-protocol__exchange { grid-template-columns: 1fr; }
   .pfj-learning__points { grid-template-columns: 1fr; }
-}
-
-@media (prefers-reduced-motion: reduce) {
-  .pfj-node { transition: none; }
-  .pfj-diagram .react-flow__edge.animated path { animation: none; }
 }
 
 .pfj-calls { margin-top: 2rem; padding: 1rem 0; border-top: 1px solid var(--th-border); }

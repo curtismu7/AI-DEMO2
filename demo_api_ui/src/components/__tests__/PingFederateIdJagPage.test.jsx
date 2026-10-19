@@ -3,7 +3,7 @@ import { act, fireEvent, render, screen, within } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import EducationRoutes from "../../routes/EducationRoutes";
-import { buildEdges, DIAGRAMS } from "../PingFederateIdJagPage";
+import { DIAGRAMS } from "../PingFederateIdJagPage";
 
 vi.mock("../../routes/AppShell", () => ({ default: ({ children }) => children }));
 
@@ -56,7 +56,7 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(screen.getByRole("heading", { name: "PingFederate standard login" })).toBeTruthy();
     expect(DIAGRAMS.pingfederate.chain).toContain("Agent Service");
     expect(DIAGRAMS.pingfederate.steps).toHaveLength(9);
-    expect(DIAGRAMS.pingfederate.participants.map(({ id }) => id)).toEqual(expect.arrayContaining(["agent", "gateway", "authorize", "mcp"]));
+    expect(DIAGRAMS.pingfederate.flow.NODES.map(({ id }) => id)).toEqual(expect.arrayContaining(["agent", "gateway", "authorize", "mcp"]));
     expect(DIAGRAMS.pingfederate.steps.some((step) => /PingOne Authorize permits/.test(`${step.title} ${step.detail}`))).toBe(true);
 
     const panel = screen.getByText("Protocol details").closest("details");
@@ -96,11 +96,13 @@ describe("PingFederate ID-JAG architecture", () => {
     fireEvent.click(screen.getByRole("button", { name: "Step 9: MCP result returns to the user" }));
     expect(panel.textContent).toContain('"method": "tools/call"');
     expect(panel.textContent).toContain("[MOCK MCP RESULT]");
-    expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "mcp-result", source: "mcp", target: "gateway" }));
-    expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "gateway-result", source: "gateway", target: "bff" }));
-    expect(DIAGRAMS.pingfederate.steps[8].links).toContain("gateway-result");
-    expect(DIAGRAMS.pingfederate.links).toContainEqual(expect.objectContaining({ id: "answer", source: "bff", target: "user", label: "AI response" }));
-    expect(DIAGRAMS.pingfederate.steps[8].links).toContain("answer");
+    const { EDGES } = DIAGRAMS.pingfederate.flow;
+    const edgeIndex = (src, tgt) => EDGES.findIndex((e) => e[0] === src && e[1] === tgt);
+    expect(DIAGRAMS.pingfederate.steps[8].edges).toContain(edgeIndex("mcp", "gateway"));
+    expect(DIAGRAMS.pingfederate.steps[8].edges).toContain(edgeIndex("gateway", "bff"));
+    const answer = EDGES.findIndex((e) => e[0] === "bff" && e[1] === "user" && e[2] === "AI response");
+    expect(answer).toBeGreaterThanOrEqual(0);
+    expect(DIAGRAMS.pingfederate.steps[8].edges).toContain(answer);
   });
 
   it("keeps the mid-page controls connected to the same playback state", () => {
@@ -119,7 +121,7 @@ describe("PingFederate ID-JAG architecture", () => {
       expect(within(topControls).getByLabelText("Step time:")).toBeDisabled();
 
       act(() => vi.advanceTimersByTime(800));
-      expect(within(topControls).getByText("Step 2 / 7")).toBeTruthy();
+      expect(within(topControls).getByText("Step 2 / 10")).toBeTruthy();
       fireEvent.click(within(midControls).getByRole("button", { name: "Pause" }));
       expect(within(topControls).getByRole("button", { name: "Resume" })).toBeTruthy();
     } finally {
@@ -146,21 +148,23 @@ describe("PingFederate ID-JAG architecture", () => {
     fireEvent.click(screen.getByRole("button", { name: "Step 2: Side 1 · PingFederate validates the upstream token" }));
     expect(screen.getByText(/token-exchange policy validates the refresh token/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Step 3: PingFederate issues the ID-JAG" }));
-    expect(DIAGRAMS.jag.links).toContainEqual(expect.objectContaining({ id: "return", source: "jag", target: "bff" }));
-    expect(DIAGRAMS.jag.steps[2].links).toContain("return");
-    expect(DIAGRAMS.jag.steps[3].links).toContain("return");
+    const jagEdges = DIAGRAMS.jag.flow.EDGES;
+    expect(DIAGRAMS.jag.steps[2].edges).toContain(jagEdges.findIndex((e) => e[0] === "jag" && e[1] === "bff"));
     expect(screen.getByText(/returns a signed ID-JAG to the BFF/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Step 4: Side 2 · submit ID-JAG for validation" }));
     expect(screen.getAllByText(/JWT bearer assertion/).length).toBeGreaterThan(0);
     expect(screen.getByText(/issuer\/signature, audience, expiry/)).toBeTruthy();
   });
 
-  it("keeps inactive edge labels visible in the ID-JAG view", () => {
-    const jagLabels = buildEdges(DIAGRAMS.jag, 0, false).map(({ label }) => label);
-    const pfLabels = buildEdges(DIAGRAMS.pingfederate, 0, true).map(({ label }) => label);
-    expect(jagLabels).toContain("JWT bearer grant");
-    expect(jagLabels).toContain("policy");
-    expect(pfLabels).not.toContain("tool proposal");
+  it("numbers every arrow in the Ping style and shows the reel with its step detail", () => {
+    const { container } = renderPage();
+    expect(container.querySelector(".sfd--ping")).toBeTruthy();
+    expect(container.querySelectorAll(".dreel-card")).toHaveLength(DIAGRAMS.jag.flow.EDGES.length);
+    fireEvent.click(screen.getByRole("button", { name: /Demo BFF → PingFederate/ }));
+    const detail = screen.getByTestId("pfj-jag-reel-detail");
+    expect(detail.textContent).toContain("requested_token_type=urn:ietf:params:oauth:token-type:id-jag");
+    expect(detail.textContent).toContain("MOCK");
+    expect(screen.getByTestId("pfj-jag-reel-refs").textContent).toContain("RFC 8693");
   });
 
   it("shows step-synced mock claims and API exchanges in the ID-JAG view", () => {
@@ -195,7 +199,7 @@ describe("PingFederate ID-JAG architecture", () => {
     vi.useFakeTimers();
     try {
       renderPage();
-      expect(topControls().getByText("Step 1 / 7")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 10")).toBeTruthy();
       const stepTime = topControls().getByLabelText("Step time:");
       fireEvent.change(stepTime, { target: { value: "800" } });
       fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
@@ -203,20 +207,20 @@ describe("PingFederate ID-JAG architecture", () => {
       expect(stepTime.disabled).toBe(true);
 
       act(() => vi.advanceTimersByTime(800));
-      expect(topControls().getByText("Step 2 / 7")).toBeTruthy();
+      expect(topControls().getByText("Step 2 / 10")).toBeTruthy();
       fireEvent.click(topControls().getByRole("button", { name: "Pause" }));
       fireEvent.click(topControls().getByRole("button", { name: "Next →" }));
-      expect(topControls().getByText("Step 3 / 7")).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 10")).toBeTruthy();
       fireEvent.click(topControls().getByRole("button", { name: "← Prev" }));
-      expect(topControls().getByText("Step 2 / 7")).toBeTruthy();
+      expect(topControls().getByText("Step 2 / 10")).toBeTruthy();
       fireEvent.click(topControls().getByRole("button", { name: "Resume" }));
       act(() => vi.advanceTimersByTime(800));
-      expect(topControls().getByText("Step 3 / 7")).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 10")).toBeTruthy();
       fireEvent.click(topControls().getByRole("button", { name: "Stop" }));
       expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();
-      expect(topControls().getByText("Step 3 / 7")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 10")).toBeTruthy();
       fireEvent.click(topControls().getByRole("button", { name: "↺ Reset" }));
-      expect(topControls().getByText("Step 1 / 7")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 10")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -230,10 +234,10 @@ describe("PingFederate ID-JAG architecture", () => {
       fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
       fireEvent.click(screen.getByRole("button", { name: "Step 3: PingFederate issues the ID-JAG" }));
 
-      expect(topControls().getByText("Step 3 / 7")).toBeTruthy();
-      expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 10")).toBeTruthy();
+      expect(topControls().getByRole("button", { name: "Resume" })).toBeTruthy();
       act(() => vi.advanceTimersByTime(800));
-      expect(topControls().getByText("Step 3 / 7")).toBeTruthy();
+      expect(topControls().getByText("Step 3 / 10")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -247,10 +251,10 @@ describe("PingFederate ID-JAG architecture", () => {
       fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
       fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, PF login + agent authorization" }));
 
-      expect(topControls().getByText("Step 1 / 9")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 19")).toBeTruthy();
       expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();
       act(() => vi.advanceTimersByTime(800));
-      expect(topControls().getByText("Step 1 / 9")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 19")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
@@ -259,9 +263,10 @@ describe("PingFederate ID-JAG architecture", () => {
 
   it("ends the ID-JAG flow at the MCP server and the banking API, not at an abstract resource", () => {
     expect(DIAGRAMS.jag.steps).toHaveLength(7);
-    expect(DIAGRAMS.jag.participants.map(({ id }) => id)).toEqual(expect.arrayContaining(["invest", "banking"]));
-    expect(DIAGRAMS.jag.links).toContainEqual(expect.objectContaining({ id: "data", source: "invest", target: "banking" }));
-    expect(DIAGRAMS.jag.steps[6].active).toEqual(["invest", "banking"]);
+    expect(DIAGRAMS.jag.flow.NODES.map(({ id }) => id)).toEqual(expect.arrayContaining(["invest", "banking"]));
+    const data = DIAGRAMS.jag.flow.EDGES.findIndex((e) => e[0] === "invest" && e[1] === "banking");
+    expect(data).toBeGreaterThanOrEqual(0);
+    expect(DIAGRAMS.jag.steps[6].edges).toEqual([data]);
   });
 
   it("lists every call under the diagram", () => {

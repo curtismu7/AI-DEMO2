@@ -1,19 +1,13 @@
-import React, { memo, useCallback, useEffect, useMemo, useRef, useState } from "react";
-import {
-  Background,
-  BackgroundVariant,
-  Controls,
-  Handle,
-  Position,
-  ReactFlow,
-} from "@xyflow/react";
-import "@xyflow/react/dist/style.css";
-import { DEFAULT_STEP_MS, DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
+import React, { useState } from "react";
+import { DiagramControls, STEP_TIME_OPTIONS } from "./diagram";
 import "./PingFederateIdJagPage.css";
 import IdJagPathBar from "./IdJagPathBar";
 import IdJagCallPlayer from "./IdJagCallPlayer";
-import { useDraggableNodes } from '../hooks/useDraggableNodes';
+import StaticFlowDiagram from "./StaticFlowDiagram";
 import PageHeader from './common/PageHeader';
+import { useDiagramStepper } from "../hooks/useDiagramStepper";
+import { REFIT_EVENT } from "../hooks/useFitOnResize";
+import { JAG_DIAGRAM, JAG_GUIDE, LOGIN_DIAGRAM, LOGIN_GUIDE } from "../config/pfIdJagDiagrams";
 
 const MOCK = "MOCK DATA — NOT A REAL TOKEN";
 // ID-JAG samples follow the PF ID-JAG lane in agentMcpTokenService: the BFF
@@ -200,6 +194,8 @@ function ProtocolDetails({ diagramId, stepIndex, learning }) {
   );
 }
 
+const withDetail = (guide) => guide.map((g) => ({ ...g, detail: g.what }));
+
 export const DIAGRAMS = {
   jag: {
     label: "ID-JAG flow",
@@ -222,38 +218,8 @@ export const DIAGRAMS = {
         { label: "JWT bearer assertion setup", href: "https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_oauth_assertion_grant_idp_connection.html" },
       ],
     },
-    steps: [
-      { title: "Start the UC40 MCP request", detail: "The BFF receives the user's request and keeps OAuth tokens out of the browser. The UC40 PingFederate lane uses its server-held refresh token as the upstream subject.", active: ["user", "bff"], links: ["request"] },
-      { title: "Side 1 · PingFederate validates the upstream token", detail: "The BFF sends a token-exchange request with the refresh token, its token type, the downstream audience/resource, and requested scopes. PingFederate's token-exchange policy validates the refresh token.", active: ["bff", "pingfed"], links: ["issue"] },
-      { title: "PingFederate issues the ID-JAG", detail: "After validation and attribute mapping, PingFederate returns a signed ID-JAG to the BFF. Its audience identifies the downstream authorization server; its resource and scope constrain the MCP access being requested.", active: ["pingfed", "jag", "bff"], links: ["mint", "return"] },
-      { title: "Side 2 · submit ID-JAG for validation", detail: "The BFF sends the ID-JAG to the configured downstream MCP authorization server as a JWT bearer assertion. The MCP AS checks issuer/signature, audience, expiry, ID-JAG type, its resource allowlist, and the single-use jti.", active: ["bff", "jag", "mcpas"], links: ["return", "redeem"] },
-      { title: "Downstream AS issues its local access token", detail: "A successful JWT bearer grant returns a resource-specific MCP access token. The ID-JAG was the grant assertion; the newly issued access token is what authorizes the protected call.", active: ["mcpas", "bff", "gateway"], links: ["local-token"] },
-      { title: "Call the protected MCP tool", detail: "The BFF sends the MCP request to PingGateway with the downstream access token. PingGateway and PingOne Authorize apply the configured access-token and action policy checks before the MCP server is allowed to run the tool.", active: ["bff", "gateway", "authorize", "invest"], links: ["dispatch", "policy", "tool"] },
-      { title: "The MCP server reads the data", detail: "The MCP server (the OLB backend) passes the same access token to the BFF banking API. The banking API verifies the signature and exact issuer, applies audience, scope and role checks, and returns the data. The ID-JAG never reaches this hop.", active: ["invest", "banking"], links: ["data"] },
-    ],
-    participants: [
-      { id: "user", title: "User + agent", subtitle: "UC40 · MCP request", role: "request", position: { x: 0, y: 130 } },
-      { id: "bff", title: "Demo BFF", subtitle: "token custodian · OAuth client", role: "runtime", position: { x: 220, y: 130 } },
-      { id: "pingfed", title: "PingFederate", subtitle: "Side 1 · validates + issues", role: "identity", position: { x: 440, y: 130 } },
-      { id: "jag", title: "ID-JAG", subtitle: "signed JWT assertion", role: "token", position: { x: 660, y: 130 } },
-      { id: "mcpas", title: "MCP Authorization Server", subtitle: "Side 2 · validates + redeems", role: "mcpas", position: { x: 880, y: 130 } },
-      { id: "gateway", title: "PingGateway", subtitle: "access-token enforcement", role: "gateway", position: { x: 220, y: 340 } },
-      { id: "authorize", title: "PingOne Authorize", subtitle: "action policy · PERMIT", role: "policy", position: { x: 550, y: 340 } },
-      { id: "invest", title: "MCP server", subtitle: "OLB backend · runs the tool", role: "resource", position: { x: 880, y: 340 } },
-      { id: "banking", title: "BFF banking API", subtitle: "verifies the token · returns data", role: "resource", position: { x: 1100, y: 340 } },
-    ],
-    links: [
-      { id: "request", source: "user", target: "bff", label: "request" },
-      { id: "issue", source: "bff", target: "pingfed", label: "Ex1" },
-      { id: "mint", source: "pingfed", target: "jag", label: "" },
-      { id: "return", source: "jag", target: "bff", label: "JAG → BFF", sourceHandle: "top", targetHandle: "top" },
-      { id: "redeem", source: "bff", target: "mcpas", label: "JWT bearer grant", sourceHandle: "bottom", targetHandle: "bottom" },
-      { id: "local-token", source: "mcpas", target: "bff", label: "local AT", sourceHandle: "top", targetHandle: "top" },
-      { id: "dispatch", source: "bff", target: "gateway", label: "access token", sourceHandle: "bottom", targetHandle: "top" },
-      { id: "policy", source: "gateway", target: "authorize", label: "policy" },
-      { id: "tool", source: "gateway", target: "invest", label: "tool call" },
-      { id: "data", source: "invest", target: "banking", label: "same Bearer" },
-    ],
+    flow: JAG_DIAGRAM,
+    steps: withDetail(JAG_GUIDE),
   },
   pingfederate: {
     label: "PingFederate login",
@@ -276,227 +242,47 @@ export const DIAGRAMS = {
         { label: "OIDC authorization endpoint", href: "https://docs.pingidentity.com/pingfederate/13.1/developers_reference_guide/pf_authorization_endpoint.html" },
       ],
     },
-    steps: [
-      { title: "Start sign-in with the BFF", detail: "The BFF creates state, nonce, and a PKCE verifier, then redirects the browser to PingFederate's authorization endpoint with the S256 challenge.", active: ["user", "bff"], links: ["start", "authorize"] },
-      { title: "User authenticates with PingFederate", detail: "The browser follows the redirect to PingFederate. The user authenticates there under the configured policy; credentials do not pass through the BFF.", active: ["user", "pingfed"], links: ["authenticate", "credentials"] },
-      { title: "PingFederate returns an authorization code", detail: "After authentication, PingFederate redirects the browser to the BFF callback with a short-lived code and the original state. The BFF validates state and the callback before redeeming the code.", active: ["user", "pingfed", "bff"], links: ["callback"] },
-      { title: "BFF exchanges code for tokens", detail: "The BFF authenticates with its configured PingFederate client-authentication method, then posts the code and original PKCE verifier. It validates the returned ID token, including stored nonce, signature, issuer, audience, and expiry.", active: ["bff", "pingfed"], links: ["token", "tokens"] },
-      { title: "BFF establishes the application session", detail: "The BFF retains the PingFederate tokens server-side and gives the browser an HTTP-only session cookie. OAuth tokens stay out of browser JavaScript.", active: ["bff", "user"], links: ["session"] },
-      { title: "User sends an AI request", detail: "The signed-in browser posts the user's prompt to the BFF with its session cookie. PingFederate was the login provider; PingOne Authorize is used later for runtime access policy.", active: ["user", "bff"], links: ["prompt"] },
-      { title: "Agent Service proposes a tool call", detail: "The BFF asks the reasoning-only Agent Service for a tool proposal. The agent does not receive user OAuth tokens or call MCP directly; the BFF remains the tool executor.", active: ["bff", "agent"], links: ["reason", "proposal"] },
-      { title: "BFF authorizes and routes the MCP call", detail: "The BFF completes the standard two-exchange agent delegation through the PingFederate adapter, then sends the scoped token to PingGateway. PingOne Authorize evaluates the tool action and must permit it before the MCP resource call.", active: ["bff", "pingfed", "gateway", "authorize"], links: ["delegate", "delegated-token", "gateway-call", "policy"] },
-      { title: "MCP result returns to the user", detail: "After PingOne Authorize permits the action, PingGateway forwards the tool call to the MCP server. The MCP result returns through PingGateway and the BFF to the browser; tokens remain server-side.", active: ["bff", "gateway", "authorize", "mcp", "user"], links: ["tool", "mcp-result", "gateway-result", "answer"] },
-    ],
-    participants: [
-      { id: "user", title: "User / browser", subtitle: "PF sign-in · AI request", role: "request", position: { x: 0, y: 120 } },
-      { id: "bff", title: "Demo BFF", subtitle: "OIDC client · token custodian", role: "runtime", position: { x: 270, y: 120 } },
-      { id: "pingfed", title: "PingFederate", subtitle: "login · standard token exchange", role: "identity", position: { x: 540, y: 120 } },
-      { id: "agent", title: "Agent Service", subtitle: "reasoning · tool proposal", role: "agent", position: { x: 270, y: 350 } },
-      { id: "gateway", title: "PingGateway", subtitle: "MCP token enforcement", role: "gateway", position: { x: 540, y: 350 } },
-      { id: "authorize", title: "PingOne Authorize", subtitle: "runtime action policy", role: "policy", position: { x: 810, y: 350 } },
-      { id: "mcp", title: "MCP Server", subtitle: "protected tools · resource", role: "resource", position: { x: 1080, y: 350 } },
-    ],
-    links: [
-      { id: "start", source: "user", target: "bff", label: "sign in" },
-      { id: "authorize", source: "bff", target: "pingfed", label: "302 · /authorize + PKCE" },
-      { id: "authenticate", source: "pingfed", target: "user", label: "authenticate" },
-      { id: "credentials", source: "user", target: "pingfed", label: "credentials" },
-      { id: "callback", source: "pingfed", target: "bff", label: "code + state" },
-      { id: "token", source: "bff", target: "pingfed", label: "code + verifier" },
-      { id: "tokens", source: "pingfed", target: "bff", label: "ID / access / refresh" },
-      { id: "session", source: "bff", target: "user", label: "HTTP-only cookie" },
-      { id: "prompt", source: "user", target: "bff", label: "prompt + session" },
-      { id: "reason", source: "bff", target: "agent", label: "reason request" },
-      { id: "proposal", source: "agent", target: "bff", label: "tool proposal" },
-      { id: "delegate", source: "bff", target: "pingfed", label: "2-exchange delegation", sourceHandle: "bottom", targetHandle: "bottom" },
-      { id: "delegated-token", source: "pingfed", target: "bff", label: "scoped access token", sourceHandle: "bottom", targetHandle: "bottom" },
-      { id: "gateway-call", source: "bff", target: "gateway", label: "MCP request + token" },
-      { id: "policy", source: "gateway", target: "authorize", label: "action policy check" },
-      { id: "tool", source: "gateway", target: "mcp", label: "permitted MCP tool call" },
-      { id: "mcp-result", source: "mcp", target: "gateway", label: "MCP tool result" },
-      { id: "gateway-result", source: "gateway", target: "bff", label: "result to BFF", sourceHandle: "top", targetHandle: "bottom" },
-      { id: "answer", source: "bff", target: "user", label: "AI response", sourceHandle: "bottom", targetHandle: "bottom" },
-    ],
+    flow: LOGIN_DIAGRAM,
+    steps: withDetail(LOGIN_GUIDE),
   },
 };
-const NODE_MARKS = { request: "01", runtime: "BFF", identity: "PF", token: "JAG", agent: "AI", gateway: "IG", policy: "P1AZ", mcpas: "AS", resource: "MCP" };
-const ParticipantNode = memo(function ParticipantNode({ data, selected }) {
-  return (
-    <div className={`pfj-node pfj-node--${data.role}${selected ? " is-active" : ""}`}>
-      <Handle type="target" position={Position.Left} />
-      <Handle id="top" type="target" position={Position.Top} />
-      <Handle id="bottom" type="target" position={Position.Bottom} />
-      <span className="pfj-node__mark" aria-hidden="true">{data.mark}</span>
-      <strong>{data.title}</strong>
-      <span>{data.subtitle}</span>
-      <Handle id="top" type="source" position={Position.Top} />
-      <Handle id="bottom" type="source" position={Position.Bottom} />
-      <Handle type="source" position={Position.Right} />
-    </div>
-  );
-});
-
-const NODE_TYPES = { participant: ParticipantNode };
-
-function ArrowDefs() {
-  return (
-    <svg width="0" height="0" aria-hidden="true" style={{ position: "absolute" }}>
-      <defs>
-        <marker id="pfj-arrow-on" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <path d="M0,0 L8,4 L0,8 z" fill="#126c83" />
-        </marker>
-        <marker id="pfj-arrow-off" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <path d="M0,0 L8,4 L0,8 z" fill="#93a8b7" />
-        </marker>
-      </defs>
-    </svg>
-  );
-}
-
-function buildNodes(diagram, step) {
-  return diagram.participants.map((participant) => ({
-    id: participant.id,
-    type: "participant",
-    position: participant.position || { x: 26, y: 142 },
-    data: { ...participant, mark: NODE_MARKS[participant.role] },
-    selected: step.active.includes(participant.id),
-  }));
-}
-
-export function buildEdges(diagram, activeStep, activeLabelsOnly = false) {
-  const activeLinks = diagram.steps[activeStep].links;
-  return diagram.links.map((link) => {
-    const active = activeLinks.includes(link.id);
-    return {
-      ...link,
-      label: activeLabelsOnly && !active ? "" : link.label,
-      type: "smoothstep",
-      animated: active,
-      markerEnd: `url(#pfj-arrow-${active ? "on" : "off"})`,
-      style: { stroke: active ? "#126c83" : "#b1c0c9", strokeWidth: active ? 2.7 : 1.4 },
-      labelStyle: { fill: active ? "var(--th-status-info-text)" : "var(--th-text-muted)", fontWeight: active ? 700 : 500, fontSize: 11 },
-      labelBgStyle: { fill: "var(--pfj-canvas)", fillOpacity: 0.96 },
-      labelBgPadding: [5, 7],
-      labelBgBorderRadius: 4,
-      zIndex: active ? 2 : 1,
-    };
-  });
-}
 
 export default function PingFederateIdJagPage() {
   const [diagramId, setDiagramId] = useState("jag");
-  const [activeStep, setActiveStep] = useState(0);
-  const [simulating, setSimulating] = useState(false);
-  const [paused, setPaused] = useState(false);
-  const [stepMs, setStepMs] = useState(DEFAULT_STEP_MS);
-  const timerRef = useRef(null);
   const diagram = DIAGRAMS[diagramId];
-  const step = diagram.steps[activeStep];
-  const nodes = useMemo(() => buildNodes(diagram, step), [diagram, step]);
-  const edges = useMemo(() => buildEdges(diagram, activeStep, diagramId === "pingfederate"), [diagram, diagramId, activeStep]);
-  const clearTimer = useCallback(() => {
-    if (timerRef.current !== null) {
-      window.clearTimeout(timerRef.current);
-      timerRef.current = null;
-    }
-  }, []);
-
-  const stopPlayback = useCallback(() => {
-    clearTimer();
-    setSimulating(false);
-    setPaused(false);
-  }, [clearTimer]);
-
-  const scheduleNext = useCallback((fromIndex) => {
-    timerRef.current = window.setTimeout(() => {
-      const nextIndex = fromIndex + 1;
-      if (nextIndex >= diagram.steps.length) {
-        timerRef.current = null;
-        setSimulating(false);
-        setPaused(false);
-        return;
-      }
-
-      setActiveStep(nextIndex);
-      if (nextIndex === diagram.steps.length - 1) {
-        timerRef.current = null;
-        setSimulating(false);
-        setPaused(false);
-      } else {
-        scheduleNext(nextIndex);
-      }
-    }, stepMs);
-  }, [diagram.steps.length, stepMs]);
-
-  useEffect(() => () => clearTimer(), [clearTimer]);
-
-  const goToStep = useCallback((index) => {
-    stopPlayback();
-    setActiveStep(index);
-  }, [stopPlayback]);
-
-  const onNodeClick = useCallback((_event, node) => {
-    const next = diagram.steps.findIndex((item) => item.active.includes(node.id));
-    if (next >= 0) goToStep(next);
-  }, [diagram, goToStep]);
-
-  const onSimulate = () => {
-    clearTimer();
-    setActiveStep(0);
-    setSimulating(true);
-    setPaused(false);
-    if (diagram.steps.length > 1) scheduleNext(0);
-    else setSimulating(false);
+  const { GROUPS, NODES, EDGES, STEPS } = diagram.flow;
+  // One stepper walks the arrows: the diagram, its movie reel, the controls and the guide below all follow it.
+  const stepper = useDiagramStepper(EDGES.length);
+  const guideIndex = stepper.step < 0 ? 0 : Math.max(0, diagram.steps.findIndex((s) => s.edges.includes(stepper.step)));
+  const step = diagram.steps[guideIndex];
+  const goToGuide = (index) => stepper.goTo(diagram.steps[index].edges[0]);
+  const onReset = () => {
+    stepper.stop();
+    window.dispatchEvent(new Event(REFIT_EVENT));
   };
-
-  const onPause = () => {
-    clearTimer();
-    setPaused(true);
-  };
-
-  const onResume = () => {
-    if (activeStep < diagram.steps.length - 1) {
-      setPaused(false);
-      scheduleNext(activeStep);
-    } else {
-      stopPlayback();
-    }
-  };
-
-  const onNext = () => {
-    clearTimer();
-    setActiveStep((current) => Math.min(current + 1, diagram.steps.length - 1));
-  };
-  const onPrev = () => {
-    clearTimer();
-    setActiveStep((current) => Math.max(current - 1, 0));
-  };
-  const onReset = () => goToStep(0);
 
   const selectDiagram = (id) => {
-    stopPlayback();
+    stepper.stop();
     setDiagramId(id);
-    setActiveStep(0);
   };
 
   const controlProps = {
-    currentStep: activeStep + 1,
-    totalSteps: diagram.steps.length,
-    isSimulating: simulating,
-    isPaused: paused,
-    onSimulate,
-    onPrev,
-    onPause,
-    onResume,
-    onNext,
-    onStop: stopPlayback,
+    currentStep: Math.max(stepper.step, 0) + 1,
+    totalSteps: stepper.total,
+    isSimulating: stepper.active,
+    isPaused: stepper.paused,
+    onSimulate: stepper.simulate,
+    onPrev: stepper.prev,
+    onPause: stepper.pause,
+    onResume: stepper.resume,
+    onNext: stepper.next,
+    onStop: stepper.stop,
     onReset,
     stepTimeOptions: STEP_TIME_OPTIONS,
-    stepMs,
-    onSetStepMs: setStepMs,
+    stepMs: stepper.stepMs,
+    onSetStepMs: stepper.setStepMs,
   };
 
-  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes);
   return (
     <main className="pfj-page" data-testid="pingfederate-id-jag-page">
       <IdJagPathBar current="protocol" />
@@ -518,28 +304,18 @@ export default function PingFederateIdJagPage() {
       </div>
 
       <section className="pfj-diagram" aria-label={`Interactive ${diagram.label}`}>
-        <ArrowDefs />
-        <div className="pfj-lane pfj-lane--top">{diagram.lanes[0]}</div>
-        <div className="pfj-lane pfj-lane--bottom">{diagram.lanes[1]}</div>
-        <ReactFlow
+        <p className="pfj-lanes">{diagram.lanes.map((lane) => <span key={lane}>{lane}</span>)}</p>
+        <StaticFlowDiagram
           key={diagramId}
-          nodes={dragNodes}
-          onNodesChange={onDragNodes}
-          edges={edges}
-          nodeTypes={NODE_TYPES}
-          onNodeClick={onNodeClick}
-          fitView
-          fitViewOptions={{ padding: 0.13, minZoom: 0.42, maxZoom: 0.9 }}
-          minZoom={0.35}
-          maxZoom={1.4}
-          nodesDraggable
-          nodesConnectable={false}
-          elementsSelectable={false}
-          proOptions={{ hideAttribution: true }}
-        >
-          <Background variant={BackgroundVariant.Dots} gap={22} size={1} color="#b8c9d1" />
-          <Controls showInteractive={false} />
-        </ReactFlow>
+          NODES={NODES}
+          EDGES={EDGES}
+          GROUPS={GROUPS}
+          stepper={stepper}
+          steps={STEPS}
+          pingStyle
+          testId={`pfj-${diagramId}`}
+          ariaLabel={`Interactive ${diagram.label}`}
+        />
         <div className="pfj-chain" aria-label="Token chain">
           {diagram.chain.map((name, index) => <React.Fragment key={name}>{index > 0 && <b aria-hidden="true">→</b>}<span>{name}</span></React.Fragment>)}
         </div>
@@ -547,15 +323,15 @@ export default function PingFederateIdJagPage() {
 
       <section className="pfj-guide" aria-live="polite">
         <div className="pfj-guide__copy">
-          <span className="pfj-step-count">{String(activeStep + 1).padStart(2, "0")} / {String(diagram.steps.length).padStart(2, "0")}</span>
+          <span className="pfj-step-count">{String(guideIndex + 1).padStart(2, "0")} / {String(diagram.steps.length).padStart(2, "0")}</span>
           <div><h2>{step.title}</h2><p>{step.detail}</p></div>
         </div>
         <nav className="pfj-step-nav" aria-label={`${diagram.label} steps`}>
-          <button type="button" onClick={() => goToStep(Math.max(activeStep - 1, 0))} disabled={activeStep === 0} aria-label="Previous step">‹</button>
+          <button type="button" onClick={() => goToGuide(Math.max(guideIndex - 1, 0))} disabled={guideIndex === 0} aria-label="Previous step">‹</button>
           {diagram.steps.map((item, index) => (
-            <button key={item.title} type="button" className={index === activeStep ? "is-current" : ""} onClick={() => goToStep(index)} aria-label={`Step ${index + 1}: ${item.title}`} aria-current={index === activeStep ? "step" : undefined}>{index + 1}</button>
+            <button key={item.title} type="button" className={index === guideIndex ? "is-current" : ""} onClick={() => goToGuide(index)} aria-label={`Step ${index + 1}: ${item.title}`} aria-current={index === guideIndex ? "step" : undefined}>{index + 1}</button>
           ))}
-          <button type="button" onClick={() => goToStep(Math.min(activeStep + 1, diagram.steps.length - 1))} disabled={activeStep === diagram.steps.length - 1} aria-label="Next step">›</button>
+          <button type="button" onClick={() => goToGuide(Math.min(guideIndex + 1, diagram.steps.length - 1))} disabled={guideIndex === diagram.steps.length - 1} aria-label="Next step">›</button>
         </nav>
       </section>
 
@@ -564,7 +340,7 @@ export default function PingFederateIdJagPage() {
         <DiagramControls {...controlProps} />
       </div>
 
-      <ProtocolDetails diagramId={diagramId} stepIndex={activeStep} learning={diagram.learning} />
+      <ProtocolDetails diagramId={diagramId} stepIndex={guideIndex} learning={diagram.learning} />
 
       {diagramId === "jag" && <p className="pfj-footnote">Two distinct servers validate two distinct credentials: PingFederate validates the upstream token during Side 1; the downstream MCP authorization server validates the ID-JAG during Side 2. The returned MCP access token is used for the resource call.</p>}
       <section className="pfj-calls" aria-labelledby="pfj-calls-h" data-testid="pfj-calls">
