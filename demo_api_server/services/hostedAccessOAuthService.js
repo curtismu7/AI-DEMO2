@@ -18,7 +18,7 @@ function generateCodeChallenge(codeVerifier) {
   return crypto.createHash('sha256').update(codeVerifier).digest('base64url');
 }
 
-function generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce, loginHint }) {
+function generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce, loginHint, responseMode }) {
   const params = new URLSearchParams({
     response_type: 'code',
     client_id: config.clientId,
@@ -30,6 +30,7 @@ function generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce, log
     nonce,
   });
   if (loginHint) params.set('login_hint', loginHint);
+  if (responseMode) params.set('response_mode', responseMode);
   return `${config.authorizationEndpoint}?${params.toString()}`;
 }
 
