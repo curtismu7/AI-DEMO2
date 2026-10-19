@@ -4,7 +4,7 @@ import { GROUP_POLICY_DETAIL as D } from './groupPolicyStandards';
 
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
-const WRITE = { color: 'var(--th-status-warning)' };
+const DASHED = { dashed: true }; // decision answers (blue dashed under pingStyle)
 
 export const GROUP_POLICY_GROUPS = {
   user: { label: 'Page', bg: '#151a24' },
@@ -28,11 +28,11 @@ export const GROUP_POLICY_EDGES = [
   E('board', 'bff', 'GET /decision-board?verticalId='), // 1
   E('bff', 'dir', 'read membership (live)'), // 2
   E('bff', 'authz', 'evaluate the group-gated tool'), // 3
-  E('authz', 'board', 'row: decision + statement codes'), // 4
+  E('authz', 'board', 'row: decision + statement codes', DASHED), // 4
   E('panel', 'bff', 'GET /check?username=&verticalId='), // 5
-  E('authz', 'panel', 'decision for the picked user'), // 6
-  E('toggle', 'bff', 'POST /check/toggle (inGroup)', WRITE), // 7
-  E('bff', 'dir', 'write membership, re-read to verify', WRITE), // 8
+  E('authz', 'panel', 'decision for the picked user', DASHED), // 6
+  E('toggle', 'bff', 'POST /check/toggle (inGroup)'), // 7
+  E('bff', 'dir', 'write membership, re-read to verify'), // 8
 ];
 
 const S = (key, i, title, what, why) => ({ key, edges: [i], title, what, why, detail: D[i] });
