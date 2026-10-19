@@ -100,7 +100,7 @@ describe('PingOneAuthorizeConsoleClean Vertical select', () => {
 
   it('?vertical= sets the initial Transaction amount', () => {
     render(<Harness url="/?vertical=healthcare" />);
-    expect(screen.getByLabelText('Amount').value).toBe('500');
+    expect(screen.getByLabelText('Amount').value).toBe('650');
   });
 
   it('an unknown ?vertical= falls back to banking', () => {

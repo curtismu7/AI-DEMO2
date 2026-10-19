@@ -61,7 +61,7 @@ describe('PiFlowSignInModal', () => {
   });
 
   // identity: the active vertical's manifest identity block, or undefined for no provider.
-  async function mountAndClick(identity) {
+  async function mountAndClick(identity, returnTo = '/dashboard') {
     render(
       identity === undefined ? (
         <PiFlowSignInModal />
@@ -73,15 +73,15 @@ describe('PiFlowSignInModal', () => {
     );
     await waitFor(() => expect(global.fetch).toHaveBeenCalledWith(expect.stringContaining('/api/admin/config'), expect.anything()));
     await act(async () => { await Promise.resolve(); });
-    await act(async () => { navigateToCustomerOAuthLogin('/dashboard'); });
+    await act(async () => { navigateToCustomerOAuthLogin(returnTo); });
     await chooseAndSettle('passkey');
   }
 
   // The modal's default step is the device-only (passwordless) form. Tests that
   // exercise the password path click through to it explicitly; the switch
   // re-opens the flow without the passwordless selector.
-  async function mountAndClickPassword(identity) {
-    await mountAndClick(identity);
+  async function mountAndClickPassword(identity, returnTo) {
+    await mountAndClick(identity, returnTo);
     fireEvent.click(await screen.findByRole('button', { name: 'Use your password instead' }));
     await waitFor(() => expect(screen.getByLabelText('Password')).toBeInTheDocument());
     return screen.getByLabelText('Username');
@@ -190,6 +190,20 @@ describe('PiFlowSignInModal', () => {
     fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
     fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
     await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fdashboard'));
+  });
+
+  test('a returnTo with a query string reaches the redirect login as the bare path', async () => {
+    mockBff({
+      config: ON,
+      login: () => ok({ flowId: 'f1' }),
+      credentials: () => ok({ fallback: true, status: 'DEVICE_SELECTION_REQUIRED' }),
+    });
+    await mountAndClickPassword(undefined, '/pingone-mcp-inspector?vertical=healthcare');
+    fireEvent.change(screen.getByLabelText('Username'), { target: { value: 'demo' } });
+    fireEvent.change(screen.getByLabelText('Password'), { target: { value: 'pw' } });
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    await waitFor(() => expect(window.location.href).toContain('/api/auth/oauth/user/login?return_to=%2Fpingone-mcp-inspector'));
+    expect(window.location.href).not.toContain('vertical');
   });
 
   test('a transient BFF 5xx on credentials shows a retryable error and stays in pi.flow', async () => {

@@ -11,6 +11,7 @@ import MFATestCard from "./MFATestCard";
 import MFATestCibaSection from "./MFATestCibaSection";
 import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
 import { CIBA_LINK_DIAGRAM } from "../config/cibaApprovalLinkDiagram";
+import { SIGNIN_DIAGRAM } from "../config/deviceFirstSignInDiagram";
 import { SIM_PUSH_DIAGRAM } from "../config/simulatedPushDiagram";
 import MFATestConsentSection from "./MFATestConsentSection";
 import MFATestForgotPasswordSection from "./MFATestForgotPasswordSection";
@@ -35,6 +36,20 @@ const CibaDiagramSection: FC = () => (
       title="CIBA approval link"
       lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Orange edges are the PingFederate path. Click a step to follow it."
       testId="mfa-ciba-diagram"
+    />
+  </section>
+);
+
+// Explanatory only, so it renders signed out too: /diagrams and the Learning Hub link to
+// /mfa-test#signin-diagram.
+const SignInDiagramSection: FC = () => (
+  <section className="mfa-test-section" id="signin-diagram">
+    <h2 className="mfa-test-section-title">Device-First Sign-In: How It Works</h2>
+    <EmbeddedFlowDiagram
+      config={SIGNIN_DIAGRAM}
+      title="Device-first sign-in"
+      lede="The sign-in pop-up drives the provider's flow from the app: username, then a code or a passkey, never a password. Orange edges are the PingFederate path. Click a step to follow it."
+      testId="mfa-signin-diagram"
     />
   </section>
 );
@@ -1381,6 +1396,7 @@ const MFATestPageContent: FC = () => {
             Sign in
           </button>
         </div>
+        <SignInDiagramSection />
         <CibaDiagramSection />
         <section className="mfa-test-section" id="push-diagram">
           <h2 className="mfa-test-section-title">Push Approval: How It Works</h2>
@@ -2618,6 +2634,7 @@ const MFATestPageContent: FC = () => {
           )}
         </section>
 
+        <SignInDiagramSection />
         <CibaDiagramSection />
 
         {(["email", "sms"] as const).map((ch) => (

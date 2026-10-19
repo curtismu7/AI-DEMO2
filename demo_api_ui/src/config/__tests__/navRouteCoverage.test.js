@@ -33,6 +33,7 @@ function navPaths() {
 // reached from another page, legacy redirects, dev/showcase pages, and admin sub-consoles opened from
 // their own hub. Keep this list short: a real page belongs in the nav.
 const EXEMPT = new Set([
+  '/pingfederate-id-jag/learn', // deep link from the ID-JAG Playground header
   '/activity',
   '/admin',
   '/admin/walbuy',

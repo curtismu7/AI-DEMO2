@@ -19,8 +19,10 @@ const router = express.Router();
 function sanitizeReturnPath(raw) {
   if (typeof raw !== 'string') return '/';
   const value = raw.trim();
+  // Optional query string: the wall redirects /api/auth/oauth/user/login?return_to=/page here and the
+  // page must survive the trip. Origin is prepended on redirect, so a query cannot make this off-site.
   return value.startsWith('/') && !value.startsWith('//') && value.length <= 160
-    && /^[/a-zA-Z0-9._~-]+$/.test(value) ? value : '/';
+    && /^\/[/a-zA-Z0-9._~-]*(\?[a-zA-Z0-9._~%=&-]*)?$/.test(value) ? value : '/';
 }
 
 function clearHostedOAuthState(session) {

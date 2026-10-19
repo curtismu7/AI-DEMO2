@@ -182,7 +182,7 @@ export default function PiFlowSignInModal() {
     return !allowedIdentifiers.some((id) => String(id).trim().toLowerCase() === value);
   };
   const begin = useCallback((detail) => {
-    const target = detail.returnTo;
+    const target = detail.returnTo?.split("?")[0]; // BFF rejects query strings; keep the bare path
     const role = detail.role === "admin" ? "admin" : "customer";
     returnToRef.current = target;
     roleRef.current = role;

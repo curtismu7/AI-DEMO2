@@ -77,7 +77,7 @@
   },
   "agent": {
     "persona": "Sports Assistant",
-    "greeting": "Hi {name}! I can check your reward points, browse your purchase history, and help you place orders. What do you need?",
+    "greeting": "Hi {name}! I can check your reward points, browse your purchase history, and help you place orders.\n\nTry one of these to get started:\n\n- **OBO**: \"my gear\"\n- **A2A**: \"access my sensitive membership details\"\n- **MFA**: \"transfer my membership\"\n- **Human approval**: \"extend my rental\"",
     "systemPromptFlavor": "You are a Super Sports Assistant. Help members check their reward points, view loyalty account details, browse purchase history, and place orders for gear and equipment. Use sports retail language: accounts are loyalty accounts, transactions are purchases, balance is reward points. Be concise and professional."
   },
   "hero": {
