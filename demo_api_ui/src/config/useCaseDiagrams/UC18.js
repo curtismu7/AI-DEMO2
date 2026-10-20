@@ -5,6 +5,7 @@
  * services and LLM budgets.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "atk", group: "external", label: "Flooding agent", sub: ["burst of calls"], x: 40, y: 150, detail: "Fires rapid sequential tool calls — probing thresholds, running up cost, or plain flooding." },
@@ -56,8 +57,10 @@ const walk = [
 export default {
   id: "UC18",
   result: { label: "THROTTLED", tone: "warn" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC18"],
 };

@@ -8,6 +8,7 @@
  * nothing ever left the BFF.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["signs in once"], x: 40, y: 150, detail: "Signed in; her raw access token is the credential the agent tries to hand to MCP — the thing that must never leave the BFF." },
@@ -76,8 +77,10 @@ const walk = [
 export default {
   id: "UC16b",
   result: { label: "DENY", tone: "err" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC16b"],
 };
