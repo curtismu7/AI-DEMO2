@@ -187,24 +187,20 @@
   box-sizing: border-box;
   border: 1px dashed var(--th-border);
   border-radius: 10px;
-  background: var(--sfm-band-bg, var(--th-bg-inset));
+  background: var(--th-bg-inset);
   color: var(--th-text);
 }
-/* One light, low-saturation tint per band so the five trust boundaries read
-   apart at a glance — deliberately quiet (this is a grouping cue, not a
-   status), so it stays out of the way of the real state colours on the boxes
-   inside. Local vars, not --th-*, since these are five arbitrary hues rather
-   than the app's semantic scale. */
-.sfm-band[data-band-id="ping"] { --sfm-band-bg: #fee2e2; }
-.sfm-band[data-band-id="stack"] { --sfm-band-bg: #f0fdf4; }
-.sfm-band[data-band-id="pep"] { --sfm-band-bg: #fefce8; }
-.sfm-band[data-band-id="backends"] { --sfm-band-bg: #fee2e2; }
-.sfm-band[data-band-id="model"] { --sfm-band-bg: #f0f9ff; }
-:root[data-theme="dark"] .sfm-band[data-band-id="ping"] { --sfm-band-bg: rgba(210, 14, 15, 0.1); }
-:root[data-theme="dark"] .sfm-band[data-band-id="stack"] { --sfm-band-bg: rgba(34, 197, 94, 0.08); }
-:root[data-theme="dark"] .sfm-band[data-band-id="pep"] { --sfm-band-bg: rgba(234, 179, 8, 0.09); }
-:root[data-theme="dark"] .sfm-band[data-band-id="backends"] { --sfm-band-bg: rgba(225, 29, 72, 0.08); }
-:root[data-theme="dark"] .sfm-band[data-band-id="model"] { --sfm-band-bg: rgba(14, 165, 233, 0.09); }
+/* Ping palette, as on the other Ping-style diagrams: a red top edge marks Ping
+   products and the gateway, grey the human-approval boundary, dark everything
+   the team builds. The edge is the only literal colour; the ground and the
+   label stay on --th-* so both themes read. */
+.sfm-band { border-top: 3px solid var(--sfm-band-accent, #151a24); }
+.sfm-band[data-band-id="ping"],
+.sfm-band[data-band-id="pep"] { --sfm-band-accent: #b5231a; }
+.sfm-band[data-band-id="gates"] { --sfm-band-accent: #5a5f69; }
+:root[data-theme="dark"] .sfm-band { --sfm-band-accent: #5a5f69; }
+:root[data-theme="dark"] .sfm-band[data-band-id="ping"],
+:root[data-theme="dark"] .sfm-band[data-band-id="pep"] { --sfm-band-accent: #b5231a; }
 .sfm-band::before {
   content: attr(data-band);
   position: absolute;
@@ -277,7 +273,7 @@
    reads as an OAuth hop. */
 .sfm-edge {
   fill: none;
-  stroke-width: 1.6;
+  stroke-width: 2.5;
   stroke-linecap: round;
   stroke: var(--th-text-muted);
 }
@@ -288,9 +284,40 @@
 
 .sfm-edge--done { stroke: var(--th-status-success); }
 .sfm-edge--active { stroke: var(--th-status-info); stroke-dasharray: 7 9; animation: sfm-dash 0.7s linear infinite; }
-.sfm-edge--held { stroke: var(--th-status-warning); stroke-width: 2; }
-.sfm-edge--error { stroke: var(--th-status-error); stroke-width: 2; }
+.sfm-edge--held { stroke: var(--th-status-warning); stroke-width: 3; }
+.sfm-edge--error { stroke: var(--th-status-error); stroke-width: 3; }
 .sfm-edge--skipped { stroke: var(--th-text-faint); opacity: 0.4; }
+
+/* Arrow heads take the lane's state colour. */
+.sfm-defs { position: absolute; width: 0; height: 0; }
+.sfm-arrow { fill: var(--th-text-muted); }
+.sfm-arrow--done { fill: var(--th-status-success); }
+.sfm-arrow--active { fill: var(--th-status-info); }
+.sfm-arrow--held { fill: var(--th-status-warning); }
+.sfm-arrow--error { fill: var(--th-status-error); }
+.sfm-arrow--skipped { fill: var(--th-text-faint); }
+
+/* The hop's number, on the longest straight run of its lane: the same n as the
+   step bar and the Simulate caption count. Ink and ground both literal (the
+   shared Ping badge: orange with black), so the pair holds in either theme. */
+.sfm-edge-num {
+  position: absolute;
+  pointer-events: all;
+  min-width: 18px;
+  height: 18px;
+  box-sizing: border-box;
+  padding: 0 4px;
+  border-radius: var(--radius-pill);
+  background: #ff8c00;
+  color: #000000;
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  line-height: 18px;
+  text-align: center;
+  font-variant-numeric: tabular-nums;
+}
+.sfm-edge-num--skipped { opacity: 0.5; }
+.sfm-edge-num--key { position: static; }
 
 @keyframes sfm-dash { to { stroke-dashoffset: -16; } }
 @media (prefers-reduced-motion: reduce) {

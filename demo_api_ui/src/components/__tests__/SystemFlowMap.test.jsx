@@ -12,6 +12,11 @@ import {
   NODES,
   BANDS,
   sidesFor,
+  W,
+  H,
+  GAP,
+  PAD,
+  TOP,
 } from '../SystemFlowMap';
 
 const step = (id, status, detail) => ({ id, status, title: id, detail: detail || {} });
@@ -232,7 +237,7 @@ describe('map wiring', () => {
   });
 
   it('every box is placed in exactly one band', () => {
-    const placed = BANDS.flatMap((b) => b.nodes);
+    const placed = BANDS.flatMap((b) => b.nodes).filter(Boolean); // a null leaves a grid cell empty
     expect([...placed].sort()).toEqual(Object.keys(NODES).sort());
   });
 
@@ -327,7 +332,6 @@ describe('support-console operator write (delegation ceremony)', () => {
 describe('band layout', () => {
   it('no two bands overlap', () => {
     // Same geometry as the layout loop in SystemFlowMap.jsx.
-    const W = 160, H = 64, GAP = 14, PAD = 12, TOP = 26;
     const boxes = BANDS.map((band) => {
       const cols = Math.min(band.cols, band.nodes.length);
       const rows = Math.ceil(band.nodes.length / cols);
