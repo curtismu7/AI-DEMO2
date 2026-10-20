@@ -40,8 +40,16 @@ describe("optional steps on a use-case config", () => {
     expect(res.errors.join("\n")).toMatch(re);
   });
 
-  it("only the pilot carries steps in this PR", () => {
-    expect(CONFIGS.filter((c) => c.steps).map((c) => c.id)).toEqual(["UC-NHI2"]);
-    expect(getConfig("UC-NHI2").steps.length).toBe(getConfig("UC-NHI2").walk.length);
+  it("the pilot UC-NHI2 carries a step for every beat", () => {
+    const pilot = getConfig("UC-NHI2");
+    expect(pilot.steps.length).toBe(pilot.walk.length);
+  });
+
+  it("every config that carries steps passes the validator", () => {
+    const withSteps = CONFIGS.filter((c) => c.steps);
+    expect(withSteps.map((c) => c.id)).toContain("UC-NHI2");
+    for (const c of withSteps) {
+      expect(validateConfig(c).errors.filter((e) => /steps/i.test(e))).toEqual([]);
+    }
   });
 });
