@@ -3,32 +3,10 @@
 // MOCK tokens and standards per step). The delegation figure is docs/a2a-delegation-sequence.mmd drawn as boxes; the
 // .mmd text itself stays exported as DELEGATION_SOURCE (a2aArchitectureData.js) for the Lucid paste and its drift test.
 import React from "react";
-import DiagramStepBar from "../DiagramStepBar";
-import StaticFlowDiagram from "../StaticFlowDiagram";
-import { edgeCaptions, useDiagramStepper } from "../../hooks/useDiagramStepper";
+import Figure from "./A2aDiagramFigure";
 import { DELEGATION_DIAGRAM, DISCOVERY_DIAGRAM } from "../../config/a2aArchitectureDiagram";
 import "../personalAgent/PersonalAgent.css";
 import "./a2aArchitecture.css";
-
-function Figure({ config, testId, stepsTestId, ariaLabel }) {
-  const { GROUPS, NODES, EDGES, STEPS } = config;
-  const stepper = useDiagramStepper(EDGES.length);
-  const captions = edgeCaptions(EDGES, Object.fromEntries(NODES.map((n) => [n.id, n.label])));
-  const usedGroups = [...new Set(NODES.map((n) => n.group))];
-  return (
-    <>
-      <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId={stepsTestId} />
-      <figure className="pa-figure">
-        <StaticFlowDiagram NODES={NODES} EDGES={EDGES} GROUPS={GROUPS} stepper={stepper} pingStyle steps={STEPS} testId={testId} height={560} ariaLabel={ariaLabel} />
-        <ul className="pa-legend a2a-legend" aria-label="Legend">
-          {usedGroups.map((g) => (
-            <li key={g}><i className="pa-sw" style={{ borderTopColor: GROUPS[g].bg }} />{GROUPS[g].label}</li>
-          ))}
-        </ul>
-      </figure>
-    </>
-  );
-}
 
 export default function A2aArchitecturePage() {
   return (
