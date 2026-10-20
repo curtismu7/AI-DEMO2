@@ -52,8 +52,8 @@ describe("UseCaseDiagramPage with a pingStyle config (pilot UC-NHI2)", () => {
 
 describe("UseCaseDiagramPage with a config that does not opt in", () => {
   it("is unchanged: no Ping class, key, badges or selection ring; the page panel shows the picked node", async () => {
-    renderAt("UC11");
-    fireEvent.click(await screen.findByTestId("ucd-uc11-node-gw"));
+    renderAt("UC48");
+    fireEvent.click(await screen.findByTestId("ucd-uc48-node-gw"));
     expect(document.querySelector(".sfd--ping")).toBeNull();
     expect(screen.queryByLabelText("Arrow key")).toBeNull();
     expect(screen.queryByTestId("sfd-edge-badge-1")).toBeNull();
@@ -81,7 +81,7 @@ describe("per-step detail (cfg.steps)", () => {
   });
 
   it("a config without steps renders no step detail", async () => {
-    renderAt("UC11");
+    renderAt("UC48");
     await screen.findByTestId("ucd-panel");
     expect(screen.queryByTestId("ucd-step-detail")).toBeNull();
   });

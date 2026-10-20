@@ -4,6 +4,7 @@
  * the amount, and the live request is checked against the pushed grant.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, SPEC } from "../pingStyleStandards";
 
 const NODES = [
   { id: "agent", group: "agent", label: "Banking agent", sub: ["transfer $400"], x: 40, y: 150, detail: "Asks for a within-cap transfer — the intent it pushed is the intent it runs." },
@@ -54,11 +55,67 @@ const walk = [
   },
 ];
 
+// Per-step detail. Tokens are decoded MOCK values. The PAR push mirrors demo_api_server/services/parService.js
+// (client_secret_post, S256 PKCE, authorization_details as a JSON string, request_uri back).
+const ISS = "https://auth.pingone.com/<env id>/as";
+const RAR = { type: "banking_transaction", actions: ["create_transfer"], amount: 500, payee: "{savingsAccountId}" };
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "chat: \"move $400 to savings\"\n\nBFF turns the ask into the intent it will push:\nauthorization_details = [ { \"type\": \"banking_transaction\", \"actions\": [\"create_transfer\"],\n                            \"amount\": 500, \"payee\": \"{savingsAccountId}\" } ]   (cap $500, ask is $400)",
+      tokens: [],
+      refs: [RFC(9396, "Rich Authorization Requests: authorization_details carry the transaction")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "POST /<env id>/as/par\nContent-Type: application/x-www-form-urlencoded\n\nclient_id=<agent client id>&client_secret=<client secret>\n&response_type=code&scope=<scopes>\n&redirect_uri=<registered redirect>\n&code_challenge=<S256 challenge>&code_challenge_method=S256\n&authorization_details=[{\"type\":\"banking_transaction\",\"actions\":[\"create_transfer\"],\"amount\":500,\"payee\":\"{savingsAccountId}\"}]\n\n-> 201 { \"request_uri\": \"urn:ietf:params:oauth:request_uri:<opaque>\", \"expires_in\": <seconds> }",
+      tokens: [],
+      refs: [RFC(9126, "Pushed Authorization Requests (PAR)"), RFC(9396, "authorization_details inside the pushed request"), RFC(7636, "PKCE (S256 required for this client)")],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "GET /<env id>/as/authorize?client_id=<agent client id>&request_uri=urn:ietf:params:oauth:request_uri:<opaque>\n  (single use; the browser carries no intent parameters)\n\nPOST /<env id>/as/token  grant_type=authorization_code&code=<code>&code_verifier=<PKCE verifier>\n-> { \"access_token\": \"<agent access token>\", \"authorization_details\": [ ... ] }",
+      tokens: [{
+        note: "Delegated agent token (MOCK) - the RAR grant it was redeemed against rides in the token",
+        header: { alg: "RS256", typ: "at+jwt" },
+        claims: { iss: ISS, sub: "<user id>", aud: "<banking resource>", act: { sub: "<agent client id>" }, authorization_details: [RAR], exp: "<unix time>" },
+      }],
+      refs: [RFC(9126, "request_uri redeemed at the authorization endpoint"), RFC(9396, "authorization_details returned with the token"), RFC(6749, "Authorization code grant")],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "POST /gateway/mcp\nAuthorization: Bearer <agent access token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"create_transfer\", \"arguments\": { \"amount\": 400, \"to_account_id\": \"{savingsAccountId}\", \"from_account_id\": \"{checkingAccountId}\" } } }\n\nPingOne Authorize: live amount 400 <= granted amount 500, payee matches",
+      tokens: [{
+        note: "Agent token (MOCK) as the gateway reads it - the grant to compare against",
+        claims: { sub: "<user id>", aud: "<banking resource>", act: { sub: "<agent client id>" }, authorization_details: [RAR] },
+      }],
+      refs: [RFC(9396, "The resource server enforces the call is within authorization_details"), SPEC("OpenID AuthZEN", "Gateway asks the decision point with the grant in context")],
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: "Authorize decision: PERMIT (intent verified)\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"result\": { \"content\": [ { \"type\": \"text\", \"text\": \"<transfer confirmation>\" } ] } }\n\ntoken chain: authorize-decision PERMIT, intent binding verified",
+      tokens: [],
+      refs: [RFC(9396, "Executed call is a subset of the granted authorization_details")],
+    },
+  },
+];
+
 export default {
   id: "UC14b",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };
