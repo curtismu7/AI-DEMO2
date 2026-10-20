@@ -29,28 +29,27 @@
 .ijc-frame__label { font-weight: 600; }
 .ijc-badge { font-size: var(--font-size-3xs); padding: 0 0.4rem; border: 1px dashed var(--th-border); border-radius: var(--radius-pill); color: var(--th-text-muted); }
 
-.ijc-seq { overflow-x: auto; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--ijc-canvas); }
-.ijc-seq svg { min-width: 56rem; display: block; color: var(--th-text); }
-.ijc-seq__actor { fill: var(--th-bg-card); stroke: var(--th-border-strong); }
-.ijc-seq__actor-label { fill: var(--th-text); font-size: var(--font-size-xs); font-weight: 700; }
-.ijc-seq__life { stroke: var(--th-text-muted); stroke-width: 1.5; stroke-dasharray: 4 4; opacity: 0.6; }
-.ijc-seq__band { fill: transparent; }
-.ijc-seq__row { cursor: pointer; --ijc-halo: var(--ijc-canvas); }
-.ijc-seq__row:hover { --ijc-halo: var(--th-bg-hover); }
-.ijc-seq__row:hover .ijc-seq__band { fill: var(--th-bg-hover); }
-.ijc-seq__row:focus-visible { outline: 2px solid var(--ijc-dash); }
-.ijc-seq__row.is-active { --ijc-halo: var(--th-status-info-bg); }
-.ijc-seq__row.is-active .ijc-seq__band { fill: var(--th-status-info-bg); }
-.ijc-seq__row.is-active .ijc-seq__arrow { stroke: var(--ijc-dash); stroke-dasharray: 8 6; animation: ijc-flow 0.9s linear infinite; }
-.ijc-seq__row.is-active .ijc-seq__head { fill: var(--ijc-dash); }
-.ijc-seq__arrow { stroke: var(--ijc-arrow); stroke-width: 3.2; }
-.ijc-seq__head { fill: var(--ijc-arrow); }
-.ijc-seq__label { fill: var(--th-text); font-size: var(--font-size-xs); font-weight: 600; /* a halo in the row colour keeps the dashed lifelines out of the words */ paint-order: stroke; stroke: var(--ijc-halo); stroke-width: 7px; stroke-linejoin: round; }
-.ijc-seq__num { fill: var(--ijc-orange); }
-.ijc-seq__num-text { fill: #000000; font-size: var(--font-size-xs); font-weight: 800; }
-.ijc-seq__untraced { fill: var(--th-text-muted); font-size: var(--font-size-3xs); font-style: italic; }
+.ijc-seq { border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--ijc-canvas); overflow: hidden; }
+.ijc-seq__canvas { width: 100%; min-height: 30rem; }
+.ijc-seq .react-flow { background: var(--ijc-canvas); }
+.ijc-seq .react-flow__controls-button { background: var(--th-bg-card); color: var(--th-text); border-bottom: 1px solid var(--th-border-strong); }
+.ijc-seq .react-flow__controls-button svg { fill: var(--th-text); }
+.ijc-actor { width: 100%; height: 100%; box-sizing: border-box; display: flex; align-items: center; justify-content: center; padding: 0 0.4rem 0 0.7rem; text-align: center; background: var(--th-bg-card); border: 1px solid var(--th-border-strong); border-left: 6px solid var(--ijc-group); border-radius: var(--radius-md); cursor: pointer; }
+.ijc-actor:hover { box-shadow: 0 0 0 3px var(--ijc-orange); }
+.ijc-actor__label { color: var(--th-text); font-size: var(--font-size-xs); font-weight: 700; line-height: 1.25; }
+.ijc-life { width: 2px; height: 100%; border-left: 2px dashed var(--th-text-muted); opacity: 0.6; pointer-events: none; }
+.ijc-h { opacity: 0; pointer-events: none; }
+.ijc-seq .react-flow__edge-path.ijc-edge { stroke: var(--ijc-arrow); stroke-width: 3.2px; }
+.ijc-seq .ijc-edge--now.react-flow__edge-path { stroke: var(--ijc-dash); stroke-dasharray: 8 6; animation: ijc-flow 0.9s linear infinite; }
+.ijc-edge__head { fill: var(--ijc-arrow); }
+.ijc-edge__head--now { fill: var(--ijc-dash); }
+.ijc-seq .ijc-edge-label { position: absolute; display: inline-flex; align-items: center; gap: 0.4rem; white-space: nowrap; pointer-events: all; padding: 0.1rem 0.45rem 0.1rem 0.15rem; border: 1px solid transparent; border-radius: var(--radius-pill); background: var(--ijc-canvas); color: var(--th-text); font-size: var(--font-size-xs); font-weight: 600; }
+.ijc-seq .ijc-edge-label:hover { border-color: var(--ijc-dash); }
+.ijc-seq .ijc-edge-label--now { border-color: var(--ijc-dash); background: var(--th-status-info-bg); }
+.ijc-seq .ijc-edge-label:focus-visible { outline: 2px solid var(--ijc-dash); }
+.ijc-edge-label__n { min-width: 1.4rem; padding: 0 0.3rem; border-radius: var(--radius-pill); background: var(--ijc-orange); color: #000000; font-weight: 800; text-align: center; }
 @keyframes ijc-flow { to { stroke-dashoffset: -14; } }
-@media (prefers-reduced-motion: reduce) { .ijc-seq__row.is-active .ijc-seq__arrow { animation: none; } }
+@media (prefers-reduced-motion: reduce) { .ijc-seq .ijc-edge--now.react-flow__edge-path { animation: none; } }
 
 .ijc-key { display: flex; flex-wrap: wrap; gap: 8px 22px; align-items: center; margin: 8px 0 0; padding: 0; list-style: none; font-size: var(--font-size-xs); color: var(--th-text-muted); }
 .ijc-key li { display: inline-flex; align-items: center; gap: 8px; }
@@ -77,3 +76,4 @@
 .ijc-ref--spec { background: #5a5f69; }
 .ijc-ref--emerging { background: var(--ijc-orange); color: #000000; }
 .ijc-refs__note { margin: 0.4rem 0 0; font-size: var(--font-size-3xs); color: var(--th-text-muted); }
+.ijc-seq .react-flow__edgelabel-renderer { z-index: 10; }

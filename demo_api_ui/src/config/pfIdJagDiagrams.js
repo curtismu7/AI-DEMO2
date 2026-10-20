@@ -101,8 +101,8 @@ export const LOGIN_GROUPS = {
 export const LOGIN_NODES = [
   N('user', 'user', 'User / browser', ['PF sign-in', 'session cookie only', 'never sees a token', 'never hands credentials to the BFF'], 0, 0),
   N('pfauth', 'ping', 'PingFederate · sign-in', ['browser-facing endpoint', '/as/authorization.oauth2', 'authentication policy · login page'], 1150, 330),
-  N('bff', 'bff', 'Demo BFF', ['OIDC client · token custodian', 'starts the PKCE sign-in', 'keeps tokens in its session'], 575, 660),
-  N('pftoken', 'ping', 'PingFederate · token endpoint', ['back-channel endpoint', '/as/token.oauth2 · client ai-demo-pf-user', 'code exchange + standard token exchange'], 1150, 660),
+  N('bff', 'bff', 'Demo BFF', ['OIDC client · token custodian', 'starts the PKCE sign-in', 'keeps tokens in its session'], 575, 620),
+  N('pftoken', 'ping', 'PingFederate · token endpoint', ['back-channel endpoint', '/as/token.oauth2 · client ai-demo-pf-user', 'code exchange + standard token exchange'], 1150, 940),
 ];
 
 const LOGIN_HOPS = [[0], [1, 4], [2, 3], [5, 6], [7]];
