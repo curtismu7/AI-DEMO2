@@ -86,12 +86,22 @@ describe('configure-saml-idjag helpers', () => {
     expect(() => h.findSpByEntity([...items, { id: 'c', entityId: 'e1' }], 'e1')).toThrow(/matches 2/);
   });
 
-  test('buildProcessor takes field names from the descriptor', () => {
-    const d = { id: 'desc.Saml20', configDescriptor: { fields: [{ name: 'Audience' }, { name: 'X', defaultValue: 1 }], tables: [{ name: 'Trusted CAs', columns: [{ name: 'Certificate' }] }] } };
-    const p = h.buildProcessor(d, { audience: 'aud', caId: 'aidemosamlca' });
+  test('buildProcessor takes field names from the descriptor and leaves the optional DN tables empty', () => {
+    const d = { id: 'desc.Saml20', configDescriptor: { fields: [{ name: 'Audience' }, { name: 'X', defaultValue: 1 }],
+      tables: [{ name: 'Valid Certificate Issuer DNs', columns: [{ name: 'Issuer DN' }] }, { name: 'Valid Certificate Subject DNs', columns: [{ name: 'Subject DN' }] }] } };
+    const p = h.buildProcessor(d, { audience: 'aud' });
     expect(p.configuration.fields).toEqual(expect.arrayContaining([{ name: 'Audience', value: 'aud' }, { name: 'X', value: '1' }]));
-    expect(p.configuration.tables[0].rows[0].fields).toEqual([{ name: 'Certificate', value: 'aidemosamlca' }]);
-    expect(() => h.buildProcessor({ id: 'd', configDescriptor: { fields: [], tables: [] } }, { audience: 'a', caId: 'c' })).toThrow(/Audience/);
+    expect(p.configuration.tables).toEqual([{ name: 'Valid Certificate Issuer DNs', rows: [] }, { name: 'Valid Certificate Subject DNs', rows: [] }]);
+    expect(JSON.stringify(p)).not.toMatch(/aidemosamlca/);
+    expect(() => h.buildProcessor({ id: 'd', configDescriptor: { fields: [], tables: [] } }, { audience: 'a' })).toThrow(/Audience/);
+  });
+
+  test('buildProcessor restricts only the issuer table when an issuer DN is given', () => {
+    const d = { id: 'd', configDescriptor: { fields: [{ name: 'Audience' }],
+      tables: [{ name: 'Valid Certificate Issuer DNs', columns: [{ name: 'Issuer DN' }] }, { name: 'Valid Certificate Subject DNs', columns: [{ name: 'Subject DN' }] }] } };
+    const p = h.buildProcessor(d, { audience: 'a', issuerDn: 'CN=x,O=y' });
+    expect(p.configuration.tables[0].rows[0].fields).toEqual([{ name: 'Issuer DN', value: 'CN=x,O=y' }]);
+    expect(p.configuration.tables[1].rows).toEqual([]);
   });
 
   test('upsertEnvLine replaces or appends and keeps other lines', () => {

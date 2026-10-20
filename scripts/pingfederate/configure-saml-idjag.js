@@ -168,10 +168,13 @@ function buildCaImport(certPem) { // UNVERIFIED (U2)
 
 /**
  * Token processor body from the descriptor PingFederate returns, so field names are not guessed:
- * the field named like "audience" gets the audience; the trusted-CA table gets a row naming the CA.
- * UNVERIFIED (U1/U3): descriptor shape and field names; throws listing what it saw if nothing matches.
+ * the field named like "audience" gets the audience. The processor's two tables ("Valid Certificate
+ * Issuer DNs" and "Valid Certificate Subject DNs") are OPTIONAL and take certificate DNs, never a CA
+ * id (PingFederate answered "Improperly formatted DN: aidemosamlca"), so they are sent empty and trust
+ * comes from the CA imported into PingFederate. Pass issuerDn to restrict to one issuer DN.
+ * UNVERIFIED (U1/U3): descriptor shape and field names; throws listing what it saw if there is no Audience field.
  */
-function buildProcessor(descriptor, { audience, caId }) {
+function buildProcessor(descriptor, { audience, issuerDn } = {}) {
   const cd = descriptor?.configDescriptor || {};
   const fields = (cd.fields || []).filter((f) => f.defaultValue !== undefined && f.defaultValue !== null)
     .map((f) => ({ name: f.name, value: String(f.defaultValue) }));
@@ -179,12 +182,14 @@ function buildProcessor(descriptor, { audience, caId }) {
   if (!audField) throw new Error(`no Audience field on the SAML 2.0 processor; fields: ${(cd.fields || []).map((f) => f.name).join(' | ')}`);
   const set = (name, value) => { const f = fields.find((x) => x.name === name); if (f) f.value = value; else fields.push({ name, value }); };
   set(audField.name, audience);
-  const caTable = (cd.tables || []).find((t) => /trusted|certificate|ca\b/i.test(t.name));
-  if (!caTable) throw new Error(`no trusted-CA table on the SAML 2.0 processor; tables: ${(cd.tables || []).map((t) => t.name).join(' | ')}`);
-  const col = (caTable.columns || []).find((c) => /cert|ca/i.test(c.name)) || (caTable.columns || [])[0];
+  const tables = (cd.tables || []).map((t) => {
+    const col = (t.columns || [])[0];
+    const restrict = issuerDn && /issuer/i.test(t.name) && col;
+    return { name: t.name, rows: restrict ? [{ defaultRow: false, fields: [{ name: col.name, value: issuerDn }] }] : [] };
+  });
   return {
     id: PROCESSOR_ID, name: 'AI Demo SAML 2.0 processor', pluginDescriptorRef: { id: descriptor.id },
-    configuration: { fields, tables: [{ name: caTable.name, rows: [{ defaultRow: false, fields: [{ name: col.name, value: assertLowerCaseId(caId) }] }] }] },
+    configuration: { fields, tables },
     attributeContract: { coreAttributes: [{ name: 'SAML_SUBJECT', masked: false }], extendedAttributes: [] },
   };
 }
@@ -326,7 +331,7 @@ async function main() {
     const desc = pickSamlDescriptor(d.body?.items);
     if (!desc) throw new Error('no SAML 2.0 token processor descriptor on this PingFederate');
     console.log(`    descriptor ${desc.id}`);
-    return buildProcessor(desc, { audience: AUDIENCE, caId: CA_ID });
+    return buildProcessor(desc, { audience: AUDIENCE, issuerDn: args['issuer-dn'] });
   });
 
   // 3. exchange policy, 4. client
