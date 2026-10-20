@@ -2767,28 +2767,26 @@ function detectRotatedCredentials() {
   // stale 'pingone_admin_client_secret' key name — a drift this derivation
   // makes structurally impossible. Only keys with a canonical env alias in
   // process.env are checked (an unset env var is nothing to compare against).
-  const seen = new Set();
   const watchlist = [];
   const isRotatableSecret = (key) =>
     /(_secret|_password|_api_key)$/.test(key) || SECRET_KEYS.has(key.toUpperCase());
   for (const [configKey, envAliases] of Object.entries(ENV_FALLBACK_MAP)) {
     if (!isRotatableSecret(configKey)) continue;
-    for (const envKey of envAliases) {
-      if (envKey !== envKey.toUpperCase() || !/^[A-Z0-9_]+$/.test(envKey)) continue;
-      if (seen.has(envKey)) continue;
-      seen.add(envKey);
-      // One watch entry PER env alias: the caller may have set any alias (e.g.
-      // PINGONE_AI_CORE_CLIENT_SECRET or PINGONE_ADMIN_CLIENT_SECRET both feed
-      // admin_client_secret), and a rotated value can appear under any of them.
-      watchlist.push([configKey, envKey]);
-    }
+    const aliases = envAliases.filter((k) => k === k.toUpperCase() && /^[A-Z0-9_]+$/.test(k));
+    if (aliases.length) watchlist.push([configKey, aliases]);
   }
 
   const warnings = [];
   try {
-    for (const [configKey, envKey] of watchlist) {
-      const envVal = (process.env[envKey] || '').trim();
-      if (!envVal) continue; // not set in .env — nothing to compare
+    for (const [configKey, aliases] of watchlist) {
+      // Compare only the alias getEffective() reads: the first one set, in
+      // ENV_FALLBACK_MAP order. A lower-priority alias that is set but shadowed
+      // is never used for this key, and some aliases (AGENT_CLIENT_ID/SECRET)
+      // are listed under two keys that name DIFFERENT apps — comparing a
+      // shadowed alias against this key's cache is a guaranteed false warning.
+      const envKey = aliases.find((k) => (process.env[k] || '').trim());
+      if (!envKey) continue; // not set in .env — nothing to compare
+      const envVal = process.env[envKey].trim();
 
       const cached = configStore.get(configKey);
       if (!cached) continue; // not in LMDB — no stale value possible
