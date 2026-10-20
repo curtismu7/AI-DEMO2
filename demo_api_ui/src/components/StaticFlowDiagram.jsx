@@ -30,6 +30,8 @@
  *                (words only for the active step or on hover), a key under the canvas, a step detail panel in the
  *                reel, click-a-box selection that jumps the stepper to the box's first arrow (into it, else out of it)
  *                and scrolls the reel + detail into view; a drag (>5px, or a click within 300ms of drag stop) is not a click.
+ *                pingStyle + walk (use-case pages): arrows are numbered by their EDGES index; Simulate/Reset/speed come from the
+ *                page's stepper; a box click only rings the box (the page owns the detail panel) and `steps` is ignored.
  *   steps        the config's STEPS (only read with pingStyle). STEPS[i].detail = { form?, tokens?, refs? } feeds the
  *                reel's detail panel for EVERY arrow listed in STEPS[i].edges (edge indexes into EDGES): see withStepDetail
  *                in utils/diagramReel.js.
@@ -467,6 +469,8 @@ export default function StaticFlowDiagram({
   const pickNode = useCallback(
     (node) => {
       setSelectedId(node.id);
+      // walk + pingStyle (the use-case pages): the page owns the beat/node panel, so a click only rings the box.
+      if (walk) return;
       const into = EDGES.findIndex((e) => e[1] === node.id);
       const i = into >= 0 ? into : EDGES.findIndex((e) => e[0] === node.id);
       if (driver && !walk && i >= 0) {

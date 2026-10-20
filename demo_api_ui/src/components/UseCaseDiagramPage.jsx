@@ -144,6 +144,7 @@ export default function UseCaseDiagramPage() {
         EDGES={cfg.EDGES}
         GROUPS={cfg.GROUPS}
         walk={activeWalk}
+        pingStyle={cfg.pingStyle === true}
         stepper={stepper}
         onNodeClick={(node) => setPickedNode((prev) => (prev === node.id ? null : node.id))}
         testId={`ucd-${cfg.id.toLowerCase()}`}
