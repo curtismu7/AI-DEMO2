@@ -12,7 +12,7 @@
  * why     = educational explanation shown in the WHY panel below
  * isBlock = true on the final step of attack scenarios (shows red BLOCKED bar)
  *
- * nodeId / edgeId values must match the `id` attributes in ArchitectureSimSvg.jsx.
+ * nodeId / edgeId values must match the ids in config/architectureOverviewDiagram.js.
  */
 
 export const SCENARIOS = [
