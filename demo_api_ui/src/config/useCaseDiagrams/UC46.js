@@ -5,6 +5,7 @@
  * and result — not a browser token, not an RFC 8693 exchange.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, SPEC } from "../pingStyleStandards";
 
 const NODES = [
   { id: "main", group: "agent", label: "MainAgent", sub: ["receives question"], x: 40, y: 150, detail: "Takes the access-review question on the Privilege MCP client page's A2A tab." },
@@ -54,11 +55,57 @@ const walk = [
   },
 ];
 
+// Per-step detail: request forms use placeholders, tokens are decoded MOCK values, refs are published RFCs/specs or marked emerging drafts.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "Analyst types the access-review question on the A2A tab of the Privilege MCP client page.\nThe card opens the tab but never submits for you.",
+      tokens: [],
+      refs: [SPEC("A2A Agent Card", "How agents advertise what they accept")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "POST <WorkerAgent A2A endpoint>   (via the Privilege Gateway)\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"message/send\",\n  \"params\": { \"message\": { \"role\": \"user\", \"parts\": [{ \"kind\": \"text\", \"text\": \"<access-review question>\" }] } } }\n\nThe message carries the question only: no browser token, no RFC 8693 exchange.",
+      tokens: [],
+      refs: [SPEC("A2A protocol", "message/send between agents"), SPEC("JSON-RPC 2.0", "Message envelope")],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "Each agent call to the Privilege Gateway carries its own Agent Access key\n\nAuthorization: Bearer <agent access key>\n\ngateway checks: key valid, a2a scope present, policy for this hop",
+      tokens: [],
+      refs: [RFC(6750, "Bearer credential presentation")],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "POST /mcp   (via the Privilege Gateway)\nAuthorization: Bearer <agent access key>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 2, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"<evidence tool>\", \"arguments\": {} } }\n\nGuardrail on the result: personal data redacted, a poisoned tool result blocked",
+      tokens: [],
+      refs: [SPEC("MCP specification 2025-11-25", "Model Context Protocol tools/call")],
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: "-> JSON-RPC result from WorkerAgent\n{ \"jsonrpc\": \"2.0\", \"id\": 1,\n  \"result\": { \"kind\": \"message\", \"role\": \"agent\", \"parts\": [{ \"kind\": \"text\", \"text\": \"<evidence-backed answer>\" }] } }",
+      tokens: [],
+      refs: [SPEC("A2A protocol", "message/send response")],
+    },
+  },
+];
+
 export default {
   id: "UC46",
   result: { label: "REVIEW", tone: "info" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };
