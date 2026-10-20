@@ -2,7 +2,7 @@
  * UC47 — Privilege A2A three-deep agent chain. Main agent -> LangChain agent
  * -> specialist, each hop an A2A message through the PingOne Privilege AI
  * Gateway. Variants prove the control: the allowed run completes; the
- * prompt-injection run and the ungranted-agent run are refused with a reason.
+ * prompt-injection run, the ungranted-agent run and the poisoned Agent Card run are refused with a reason.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
 import { RFC, SPEC, AUTHZ } from "../pingStyleStandards";
@@ -17,7 +17,7 @@ const NODES = [
 const EDGES = [
   ["main", "lc", "A2A hop 1", { detail: "The LangChain agent presents its own key at the gateway." }],
   ["lc", "spec", "A2A hop 2", { detail: "The second delegation crosses the same governed path." }],
-  ["spec", "pgw", "variants run", { detail: "Allowed, prompt-injection and ungranted variants are each checked per hop." }],
+  ["spec", "pgw", "variants run", { detail: "Allowed, prompt-injection, ungranted and poisoned-card variants are each checked per hop." }],
   ["pgw", "main", "reel shows the run", { detail: "Every hop streams into the movie reel with its decision." }],
 ];
 
@@ -37,8 +37,8 @@ const walk = [
   {
     title: "Variants decide", label: "The control, proven",
     nodes: ["spec", "pgw"], edges: [2],
-    lines: [{ who: "Gateway", text: "Allowed completes; prompt injection and the ungranted agent are refused with the reason." }],
-    tech: [{ t: "POLICY", c: "variants: allowed | injection refused | ungranted refused" }],
+    lines: [{ who: "Gateway", text: "Allowed completes; prompt injection, the ungranted agent and the poisoned Agent Card are refused with the reason." }],
+    tech: [{ t: "POLICY", c: "variants: allowed | injection refused | ungranted refused | poisoned card blocked" }],
   },
   {
     title: "Governed hop by hop", label: "Before the next agent",
@@ -49,18 +49,20 @@ const walk = [
 ];
 
 // Per-step detail. Agent Access keys are opaque, so no JWT is decoded here (tokens: [] with the reason in the form).
-const A2A = SPEC("A2A protocol", "Agent2Agent message/send, JSON-RPC over HTTP");
+const A2A = SPEC("A2A Protocol 1.0", "Agent2Agent SendMessage, JSON-RPC over HTTP");
 const steps = [
   {
     beats: [0],
     detail: {
-      form: `POST {gateway A2A door for the LangChain agent}
+      form: `Entry: POST /api/privilege-a2a/chain  { "message": "<task>", "specialist": "<specialist>" }
+Then, per hop:
+POST {gateway A2A door for the LangChain agent}
 A2A-Version: 1.0
 Authorization: Bearer <LangChain agent key>
 Content-Type: application/json
 
-{ "jsonrpc": "2.0", "id": 1, "method": "message/send",
-  "params": { "message": { "role": "user", "parts": [{ "kind": "text", "text": "<task>" }] } } }
+{ "jsonrpc": "2.0", "id": 1, "method": "SendMessage",
+  "params": { "message": { "messageId": "<uuid>", "role": "ROLE_USER", "parts": [{ "text": "<task>", "mediaType": "text/plain" }] } } }
 
 The key is the LangChain agent's own, never the caller's. Opaque credential: no JWT to decode.`,
       tokens: [],
@@ -75,7 +77,7 @@ A2A-Version: 1.0
 Authorization: Bearer <Specialist agent key>
 Content-Type: application/json
 
-{ "jsonrpc": "2.0", "id": 2, "method": "message/send", "params": { "message": { ... } } }
+{ "jsonrpc": "2.0", "id": 2, "method": "SendMessage", "params": { "message": { ... } } }
 
 Same checks again: key, remote-agent policy, guardrail. Opaque key: no JWT to decode.`,
       tokens: [],
@@ -90,6 +92,7 @@ Same checks again: key, remote-agent policy, guardrail. Opaque key: no JWT to de
 allowed         -> hop completes, result returned
 injection       -> refused, reason: prompt injection detected by the guardrail
 ungranted agent -> refused, reason: caller not granted to the remote agent
+poisoned card   -> reply carrying a hostile agent's text is blocked at the gateway
 
 The refusal carries a reason that the reel displays.`,
       tokens: [],

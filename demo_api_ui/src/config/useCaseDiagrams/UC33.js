@@ -34,7 +34,7 @@ const walk = [
     title: "Same delegated token", label: "Nothing re-minted",
     nodes: ["agent", "gw"], edges: [1],
     lines: [{ who: "Agent", text: "The RFC 8693 exchange already happened — the token carries act={agent} whatever the tool." }],
-    tech: [{ t: "TOKEN", c: "agent AT: act={sub:agent, sub:alice} (same exchange as UC1)" }],
+    tech: [{ t: "TOKEN", c: "agent AT: sub=alice, act={sub:agent} (same exchange as UC1)" }],
   },
   {
     title: "Gateway + Authorize", label: "Same legs, different tool",
@@ -61,7 +61,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"show my mortgage\", \"vertical\": \"super-sports\" }\n\nThe agent routes the ask to the show_mortgage tool.",
+      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"show my mortgage\", \"vertical\": \"banking\" }\n\nThe agent routes the ask to the show_mortgage tool.",
       tokens: [],
       refs: [],
     },

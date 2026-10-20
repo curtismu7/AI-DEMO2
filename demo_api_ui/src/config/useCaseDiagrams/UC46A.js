@@ -57,14 +57,16 @@ const walk = [
 ];
 
 // Per-step detail. Agent Access keys are opaque, so no JWT is decoded on these hops (tokens: [] with the reason in the form).
-const A2A = SPEC("A2A protocol", "Agent2Agent message/send, JSON-RPC over HTTP");
+const A2A = SPEC("A2A Protocol 1.0", "Agent2Agent SendMessage, JSON-RPC over HTTP");
 const steps = [
   {
     beats: [0],
     detail: {
-      form: `Agent chat message (BFF session cookie; no token reaches the browser)
+      form: `POST /api/privilege-a2a/chat   (BFF session cookie; no token reaches the browser)
 
-{ "prompt": "Review who has access to the payments tools and show the evidence" }
+{ "message": "<access-review question>", "sessionId": "<id, optional>" }
+
+The reply streams back as server-sent events.
 
 No OAuth token is minted on this hop, so there is nothing to decode.`,
       tokens: [],
@@ -78,8 +80,8 @@ A2A-Version: 1.0
 Authorization: Bearer <MainAgent Agent Access key>
 Content-Type: application/json
 
-{ "jsonrpc": "2.0", "id": 1, "method": "message/send",
-  "params": { "message": { "role": "user", "parts": [{ "kind": "text", "text": "<review task>" }] } } }
+{ "jsonrpc": "2.0", "id": 1, "method": "SendMessage",
+  "params": { "message": { "messageId": "<uuid>", "role": "ROLE_USER", "parts": [{ "text": "<review task>", "mediaType": "text/plain" }] } } }
 
 Agent keys are opaque, so there is no JWT to decode here.`,
       tokens: [],
@@ -117,7 +119,7 @@ The result passes the guardrail: personal data redacted, a poisoned result block
     beats: [4],
     detail: {
       form: `{ "jsonrpc": "2.0", "id": 1,
-  "result": { "kind": "message", "role": "agent", "parts": [{ "kind": "text", "text": "<findings with evidence>" }] } }`,
+  "result": { "message": { "role": "ROLE_AGENT", "parts": [{ "text": "<findings with evidence>", "mediaType": "text/plain" }] } } }`,
       tokens: [],
       refs: [A2A],
     },

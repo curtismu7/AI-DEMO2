@@ -90,7 +90,7 @@ const steps = [
   {
     beats: [3],
     detail: {
-      form: "PERMIT -> request forwarded to the provider with the provider key held by Privilege\nDENY   -> no upstream request is made\n\nHTTP/1.1 403 Forbidden\n{ \"error\": \"<message>\", \"code\": \"llm_policy_denied\", \"reason\": \"<detector reason>\",\n  \"provider\": \"{provider}\", \"reachedProvider\": false }",
+      form: "PERMIT -> request forwarded to the provider; the BFF attaches the Privilege virtual key and the provider key stays server-side\nDENY   -> no upstream request is made\n\n(a rate-limited call returns 429 with code llm_rate_limited, also reachedProvider: false)\n\nHTTP/1.1 403 Forbidden\n{ \"error\": \"<message>\", \"code\": \"llm_policy_denied\", \"reason\": \"<detector reason>\",\n  \"provider\": \"{provider}\", \"reachedProvider\": false }",
       tokens: [],
       refs: [],
     },

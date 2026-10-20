@@ -17,7 +17,7 @@ const NODES = [
 const EDGES = [
   ["user", "agent", "request protected action", { detail: "The assistant offers the transfer; the customer confirms." }],
   ["agent", "bff", "act for Alice", { detail: "The workload agent presents itself for verification." }],
-  ["bff", "p1", "MFA-satisfied token", { detail: "The BFF demands proof of step-up before anything delegations." }],
+  ["bff", "p1", "MFA-satisfied token", { detail: "The BFF demands proof of step-up before any delegation." }],
   ["p1", "bff", "delegated token", { dashed: true, detail: "RFC 8693: sub=alice, act=workload agent — stamped on every tool call." }],
   ["bff", "user", "action done", { detail: "Gateway + Authorize PERMIT; the result lands in the assistant." }],
 ];
@@ -60,7 +60,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /api/agent/run\nContent-Type: application/json\nCookie: <session cookie>\n\n{ \"messages\": [{ \"role\": \"user\", \"content\": \"transfer $600 from checking to savings\" }] }",
+      form: "POST /api/agent/invoke\nContent-Type: application/json\nCookie: <session cookie>\n\n{ \"prompt\": \"transfer $600 from checking to savings\", \"useCaseId\": \"personal-agent-concierge\" }",
       tokens: [],
       refs: [SPEC("OIDC Core 1.0", "The signed-in session the request rides on")],
     },
@@ -76,7 +76,7 @@ const steps = [
   {
     beats: [2],
     detail: {
-      form: "BFF check on the user access token before any delegation\n\nrequired: acr / amr show MFA satisfied\nmissing   -> step-up challenge, nothing is exchanged",
+      form: "BFF check on the user access token before any delegation\n\nrequired: acr / amr show MFA satisfied\nmissing   -> HTTP 200 { \"error\": \"step_up_required\", \"step_up_required\": true, \"step_up_method\": \"p1mfa\", \"step_up_acr\": \"Multi_Factor\" }, nothing is exchanged",
       tokens: [{
         note: "MFA-satisfied user access token (decoded mock)",
         header: { alg: "RS256", typ: "at+jwt" },
@@ -94,7 +94,7 @@ const steps = [
         { note: "Input 2 · actor_token (workload agent token, decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "workload-agent-client", scope: "agent:invoke" } },
         { note: "Output · delegated token (decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "<MCP resource>", act: { sub: "workload-agent-client" }, exp: 1790000300 } },
       ],
-      refs: [RFC(8693, "Token Exchange and the act claim"), RFC(8707, "Resource Indicators")],
+      refs: [RFC(8693, "Token Exchange and the act claim; audience / resource parameters of the exchange request (section 2.1)")],
     },
   },
   {

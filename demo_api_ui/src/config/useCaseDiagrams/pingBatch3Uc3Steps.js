@@ -64,19 +64,19 @@ export const UC_BATCH3_STEPS = {
     {
       beats: [0],
       detail: {
-        form: `POST /api/demo/attack-sim/run\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ "sim": "impersonation-no-act" }\n\n${note("The sim never calls the token endpoint: no grant_type=" + EXCHANGE_GRANT + " request is made, so PingOne has nothing to stamp act onto.")}`,
+        form: `POST /api/demo/attack-sim/run\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ "sim": "impersonation-no-act" }\n\n${note("The sim exchanges Alice's token with no actor_token, so the minted gateway token has no act claim.")}`,
         tokens: [noActToken],
         refs: [ACT, JWT_PROFILE],
       },
     },
     {
       beats: [1],
-      detail: { form: mcpCall("get_my_accounts").replace("<agent access token>", "<user access token, no act claim>"), tokens: [noActToken], refs: [BEARER_USE, MCP_AUTH, JSONRPC] },
+      detail: { form: mcpCall("create_transfer", { from_account_id: "<from account id>", to_account_id: "<to account id>", amount: 10 }).replace("<agent access token>", "<gateway token, no act claim>"), tokens: [noActToken], refs: [BEARER_USE, MCP_AUTH, JSONRPC] },
     },
     {
       beats: [2],
       detail: {
-        form: `PingOne Authorize decision request\n\nsubject: user-alice-0001\nactor: (none)\nresource: agent-mediated tool call\nattributes: { act: absent }\n\nrule: an agent-mediated call without an act claim has no attribution -> reject`,
+        form: `PingOne Authorize decision request\n\nsubject: user-alice-0001\nactor: (none)\nresource: agent-mediated tool call\nparameters: { DecisionContext: "McpToolCall" (or "McpFirstTool"), ToolName: "create_transfer", ActClientId: "", ActChainDepth: 0, CallerType: "human" }\n\nrule: an agent-mediated call without an act claim has no attribution -> reject`,
         tokens: [],
         refs: [AUTHZEN, ACT],
       },
@@ -84,9 +84,9 @@ export const UC_BATCH3_STEPS = {
     {
       beats: [3],
       detail: {
-        form: `HTTP/1.1 401 Unauthorized\nContent-Type: application/json\n\n{ "error": "<reason: act claim required>" }\n\n${note("No tool dispatched. The response carries no token, so there is nothing to decode.")}`,
+        form: `HTTP/1.1 403 Forbidden\nContent-Type: application/json\n\n{ "error": "missing_act", "reason": "PingOne Authorize DENY - missing_act: tool \"create_transfer\" requires an act claim (agent delegation). Impersonation is not permitted." }\n\n${note("No tool dispatched. The response carries no token, so there is nothing to decode.")}`,
         tokens: [],
-        refs: [RFC(6750, "Bearer token usage: error responses (section 3)"), HTTP],
+        refs: [HTTP],
       },
     },
   ],
@@ -105,7 +105,7 @@ export const UC_BATCH3_STEPS = {
       detail: {
         form: `resolveMcpAccessTokenWithEvents(req, "get_my_accounts")\n  ff_skip_token_exchange = true   (armed and restored in-memory by the sim, persist: false)\n  -> custody check runs first, before any gateway or Authorize call\n\n${note("In-process check inside the BFF: no HTTP request is made, no token is minted.")}`,
         tokens: [],
-        refs: [ACT, RFC(9700, "OAuth 2.0 Security BCP: keep tokens away from components that do not need them")],
+        refs: [ACT, RFC(9700, "OAuth 2.0 Security BCP: audience-restricted, least-privilege tokens (section 2.3)")],
       },
     },
     {
@@ -113,7 +113,7 @@ export const UC_BATCH3_STEPS = {
       detail: {
         form: `HTTP/1.1 403 Forbidden\nContent-Type: application/json\n\n{ "error": "user_token_forwarding_disabled" }\n\n${note("No MCP request is dispatched. The exchange-skipped event records that RFC 8693 was not run.")}`,
         tokens: [],
-        refs: [ACT, RFC(8707, "Resource Indicators: a tool token is minted for its own audience")],
+        refs: [ACT, RFC(8693, "Token Exchange: audience and resource parameters (section 2.1); the aud claim follows RFC 9068 section 3")],
       },
     },
     {
@@ -127,7 +127,7 @@ export const UC_BATCH3_STEPS = {
     {
       beats: [4],
       detail: {
-        form: `HTTP/1.1 200 OK   (sim result)\nContent-Type: application/json\n\n{ "verdict": "DENY_403", "error": "user_token_forwarding_disabled" }\n\n${note("Protection point: BFF token custody. Only exchanged, agent-scoped tokens with an act claim leave the BFF.")}`,
+        form: `HTTP/1.1 200 OK   (sim result)\nContent-Type: application/json\n\n{ "sim": "raw-user-token-forwarding", "useCaseId": "UC16b", "status": 403, "errorCode": "user_token_forwarding_disabled", "reason": "Raw user-token forwarding to MCP is disabled. Use RFC 8693 token exchange instead.", "tokenChainEvents": [ ... ] }\n\n${note("Protection point: BFF token custody. Only exchanged, agent-scoped tokens with an act claim leave the BFF.")}`,
         tokens: [],
         refs: [ACT, RFC(9700, "OAuth 2.0 Security BCP")],
       },
@@ -150,8 +150,8 @@ export const UC_BATCH3_STEPS = {
     {
       beats: [2],
       detail: {
-        form: `POST ${ISS}/introspect HTTP/1.1\nContent-Type: application/x-www-form-urlencoded\n\ntoken=<agent access token>&client_id=GATEWAY_CLIENT_ID&client_secret=CLIENT_SECRET\n\n-> inside the TTL:  { "active": true, "sub": "user-alice-0001", "exp": 1790000300 }\n-> past the TTL:    { "active": false }   (signature still verifies, the call is rejected 401)`,
-        tokens: [agentToken("MOCK token being introspected · valid only while now < exp")],
+        form: `POST ${ISS}/introspect HTTP/1.1\nContent-Type: application/x-www-form-urlencoded\n\ntoken=<agent access token>&client_id=GATEWAY_CLIENT_ID&client_secret=CLIENT_SECRET\n\n-> inside the TTL:  { "active": true, "sub": "user-alice-0001", "exp": 1790000300 }\n-> past the TTL:    { "active": false }   (signature still verifies, the call is rejected 401)\n\n${note("The gateway caches introspection results (up to 5 s in prod), so a just-expired token can pass briefly.")}`,
+        tokens: [agentToken("MOCK token being introspected · active only while now < exp (cached up to 5 s in prod)")],
         refs: [...INTROSPECT.slice(0, 1), INTROSPECT[2]],
       },
     },
@@ -176,12 +176,12 @@ export const UC_BATCH3_STEPS = {
   UC18: [
     {
       beats: [0],
-      detail: { form: `${note("call 1, 2, 3 ... repeated back to back, same agent and same tool")}\n${mcpCall("get_my_accounts")}`, tokens: [agentToken()], refs: [MCP_AUTH, BEARER_USE, JSONRPC] },
+      detail: { form: `${note("call 1, 2, 3 ... repeated back to back, same user sub and same tool")}\n${mcpCall("get_my_accounts")}`, tokens: [agentToken()], refs: [MCP_AUTH, BEARER_USE, JSONRPC] },
     },
     {
       beats: [1],
       detail: {
-        form: `rate window: 3 calls / 10 s per (agent, tool)\n\n${note("In-gateway counter keyed by the calling agent and the tool name. No wire request.")}`,
+        form: `rate window: 3 calls / 10 s per (sub, tool)\n\n${note("In-gateway counter keyed by the user sub and the tool name. No wire request.")}`,
         tokens: [],
         refs: [],
       },
@@ -193,7 +193,7 @@ export const UC_BATCH3_STEPS = {
     {
       beats: [3],
       detail: {
-        form: `HTTP/1.1 429 Too Many Requests\nContent-Type: application/json\nRetry-After: <seconds, if the gateway sets it>\n\n{ "error": "<rate limit exceeded>" }\n\n${note("Throttled, not errored. No tool is dispatched. If the sim reports no 429 the limiter is not active.")}`,
+        form: `HTTP/1.1 429 Too Many Requests\nContent-Type: application/json\nRetry-After: <ceil(retryAfterMs/1000)>\n\n{ "error": "rate_limited", "code": "rate_limited", "message": "Tool call rate limit exceeded. Retry after the indicated interval.", "retryAfterMs": <ms> }\n\n${note("Throttled, not errored. No tool is dispatched.")}`,
         tokens: [],
         refs: [RFC(6585, "Additional HTTP status codes: 429 Too Many Requests"), HTTP],
       },
@@ -208,7 +208,7 @@ export const UC_BATCH3_STEPS = {
     {
       beats: [0],
       detail: {
-        form: `POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ "prompt": "show my balance", "useCaseId": "UC19" }\n\n${note("The agent app then authenticates as itself with its own client credential.")}\n${ccForm("agent-client-0001", "&scope=agent:invoke")}`,
+        form: `POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ "prompt": "show my balance", "useCaseId": "agent-identity-lifecycle" }\n\n${note("The agent app then authenticates as itself with its own client credential.")}\n${ccForm("agent-client-0001", "&scope=agent:invoke")}`,
         tokens: [userToken(), actorToken("agent-client-0001")],
         refs: [CC, JWT_PROFILE],
       },
@@ -269,7 +269,7 @@ export const UC_BATCH3_STEPS = {
       detail: {
         form: `${note("Same request as the second exchange: the scope parameter asks for less than the subject token held.")}\n&scope=purchase:read      (was agent:invoke:<appKey>)\n\n-> 200 { "access_token": "<narrowed access token>", "expires_in": 300 }`,
         tokens: [SPEC_TOKEN],
-        refs: [ACT, RFC(8707, "Resource Indicators: audience mcpgateway-a2a.ping.demo")],
+        refs: [ACT, RFC(8693, "Token Exchange: audience and resource parameters (section 2.1), audience mcpgateway-a2a.ping.demo")],
       },
     },
     {
@@ -315,7 +315,7 @@ export const UC_BATCH3_STEPS = {
       detail: {
         form: `${ccForm("specialist-client", "&audience=a2a-intermediate-<appKey>.ping.demo&scope=agent:invoke:<appKey>")}\n\n${exchangeForm("specialist-client", "mcpgateway-a2a.ping.demo", "purchase:read", "<exchange #1 access token>", "<specialist actor token>")}`,
         tokens: [GEN_TOKEN, actorToken("specialist-client", "a2a-intermediate-<appKey>.ping.demo"), SPEC_TOKEN],
-        refs: [ACT, CC, RFC(8707, "Resource Indicators")],
+        refs: [ACT, CC, RFC(8693, "Token Exchange: audience and resource parameters (section 2.1)")],
       },
     },
     {
@@ -356,7 +356,7 @@ export const UC_BATCH3_STEPS = {
       detail: {
         form: decisionForm(
           { DecisionContext: "McpFirstTool", McpMethod: "tools/call", TokenAudience: "mcpgateway-a2a.ping.demo", ActClientId: "specialist-client", NestedActClientId: "<fabricated unregistered client id>", ActChainDepth: 2, CallerType: "agent_a2a" },
-          { decision: "DENY", statements: [{ code: "invalid_a2a_generalist" }] },
+          { decision: "DENY", reason: "invalid_a2a_generalist: nested act.sub \"<fabricated...>\" is not the authorized generalist", statements: [{ code: "mcp-invalid-a2a-generalist" }] },
         ),
         tokens: [delegated("MOCK probe token · same shape, but the inner act names an unregistered generalist", { aud: "mcpgateway-a2a.ping.demo", scope: "purchase:read", act: { sub: "specialist-client", act: { sub: "fabricated-generalist" } } })],
         refs: [AUTHZEN, ACT],
@@ -365,7 +365,7 @@ export const UC_BATCH3_STEPS = {
     {
       beats: [3],
       detail: {
-        form: `${note("The Authorize answer from the probe above: DENY with statement invalid_a2a_generalist.")}\nNestedActClientId != the registered generalist client id -> DENY\n\n${note("The decision response carries no token.")}`,
+        form: `${note("The Authorize answer from the probe above: DENY with reason invalid_a2a_generalist (statement mcp-invalid-a2a-generalist).")}\nNestedActClientId != the registered generalist client id -> DENY\n\n${note("The decision response carries no token.")}`,
         tokens: [],
         refs: [AUTHZEN],
       },
@@ -402,7 +402,7 @@ export const UC_BATCH3_STEPS = {
       detail: {
         form: `${exchangeForm("generalist-client", "a2a-intermediate-<appKey>.ping.demo", "agent:invoke:<appKey>", "<user access token>", "<generalist actor token>")}\n\n${exchangeForm("specialist-client", "mcpgateway-a2a.ping.demo", "purchase:read", "<exchange #1 access token>", "<specialist actor token>")}`,
         tokens: [GEN_TOKEN, SPEC_TOKEN],
-        refs: [ACT, DRAFT("draft-ietf-oauth-identity-chaining", "Identity chaining across trust domains")],
+        refs: [ACT, DRAFT("draft-ietf-oauth-identity-chaining", "Related, cross-domain: identity chaining across trust domains")],
       },
     },
     {
@@ -418,17 +418,17 @@ export const UC_BATCH3_STEPS = {
   UC21: [
     {
       beats: [0],
-      detail: { form: mcpCall("get_sensitive_details"), tokens: [agentToken("MOCK delegated agent token · premium-tier user in sub")], refs: [MCP_AUTH, BEARER_USE, JSONRPC] },
+      detail: { form: mcpCall("get_sensitive_account_details"), tokens: [agentToken("MOCK delegated agent token · premium-tier user in sub")], refs: [MCP_AUTH, BEARER_USE, JSONRPC] },
     },
     {
       beats: [1],
       detail: {
         form: decisionForm(
-          { DecisionContext: "McpFirstTool", McpMethod: "tools/call", UserId: "USER_ID", ToolName: "get_sensitive_details", "<tier attribute>": "<premium-tier group membership from PingOne>" },
-          { decision: "PERMIT" },
+          { DecisionContext: "McpFirstTool", McpMethod: "tools/call", UserId: "USER_ID", ToolName: "get_sensitive_account_details", UserTier: "PrivateBanking" },
+          { decision: "PERMIT", statements: [{ code: "mcp-tool-authorized" }] },
         ),
         tokens: [],
-        refs: [AUTHZEN, SPEC("XACML 3.0", "Attribute-based policy model: group membership is the tier attribute")],
+        refs: [AUTHZEN, SPEC("XACML 3.0", "Attribute-based policy model: the BFF-resolved UserTier is the tier attribute")],
       },
     },
     {

@@ -33,7 +33,7 @@ const walk = [
     title: "Session not strong enough", label: "ACR below policy floor",
     nodes: ["agent", "gw"], edges: [1],
     lines: [{ who: "Gateway", text: "Read-only session — payments need a higher assurance level." }],
-    tech: [{ t: "POLICY", c: "ACR check: session acr=1 < required acr=2 -> step-up obligation" }],
+    tech: [{ t: "POLICY", c: "ACR check: session acr (single-factor policy) does not meet the required MFA policy -> step-up obligation" }],
   },
   {
     title: "PingOne challenges", label: "MFA out of band",
@@ -51,7 +51,7 @@ const walk = [
     title: "Session upgraded", label: "Retry carries new ACR",
     nodes: ["p1", "gw"], edges: [4],
     lines: [{ who: "Gateway", text: "The same call now arrives with a session policy accepts." }],
-    tech: [{ t: "TOKEN", c: "session acr=2 stamped; re-evaluation inputs refreshed" }],
+    tech: [{ t: "TOKEN", c: "session acr now the MFA policy; re-evaluation inputs refreshed" }],
   },
   {
     title: "PERMIT", label: "Transfer executes",
@@ -65,12 +65,12 @@ const walk = [
 const LOW_ACR = {
   note: "MOCK delegated token · session below the payments assurance floor",
   header: { alg: "RS256", typ: "at+jwt" },
-  claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://mcp.ping.demo", scope: "banking:transactions:write", acr: "1", act: { sub: "agent-0001" }, exp: 1790000000 },
+  claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://mcp.ping.demo", scope: "banking:transactions:write", acr: "<single-factor policy name>", act: { sub: "agent-0001" }, exp: 1790000000 },
 };
 const HIGH_ACR = {
   note: "MOCK delegated token · after MFA, session upgraded",
   header: { alg: "RS256", typ: "at+jwt" },
-  claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://mcp.ping.demo", scope: "banking:transactions:write", acr: "2", amr: ["pwd", "mfa"], act: { sub: "agent-0001" }, exp: 1790000000 },
+  claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://mcp.ping.demo", scope: "banking:transactions:write", acr: "<MFA policy name>", amr: ["pwd", "mfa"], act: { sub: "agent-0001" }, exp: 1790000000 },
 };
 const steps = [
   {
@@ -92,13 +92,14 @@ Authorization: Bearer <delegated access token>
   {
     beats: [1],
     detail: {
-      form: `Policy evaluation: session acr=1 < required acr=2 -> step-up obligation (not a deny).
+      form: `Policy evaluation: session acr (single-factor policy) does not meet the required MFA policy -> step-up obligation (not a deny).
 
 { "jsonrpc": "2.0", "id": 1,
   "error": { "code": -32403, "message": "Step-up authentication required",
     "data": { "error": "step_up_required", "tool": "transfer_funds", "required_scopes": ["<scope>"], "login_required": false } } }
 
-HTTP-transport form: 403 with a WWW-Authenticate step-up challenge.`,
+HTTP-transport form: 403, WWW-Authenticate: Bearer realm="PingOne", error="insufficient_scope", scope="<scopes>", resource_metadata=<protected resource metadata URL>
+body { "error": "step_up_required", "message": "Step-up authentication required", ... }`,
       tokens: [LOW_ACR],
       refs: [STEPUP[1], AUTHZ[0]],
     },
@@ -126,11 +127,11 @@ PingOne records an MFA success bound to this request. The agent cannot answer fo
   {
     beats: [4],
     detail: {
-      form: `Session upgraded: acr=2, amr includes mfa.
+      form: `Session upgraded: acr is the MFA policy, amr includes mfa.
 The retry carries a token minted from the upgraded session.
 
 POST /gateway/mcp
-Authorization: Bearer <delegated access token, acr=2>`,
+Authorization: Bearer <delegated access token, acr=<MFA policy name>>`,
       tokens: [HIGH_ACR],
       refs: [STEPUP[1], RFC(8176, "Authentication Method Reference values (amr)")],
     },
@@ -138,7 +139,7 @@ Authorization: Bearer <delegated access token, acr=2>`,
   {
     beats: [5],
     detail: {
-      form: `PingOne Authorize re-evaluates: acr=2 satisfies the step-up floor -> PERMIT
+      form: `PingOne Authorize re-evaluates: the MFA acr satisfies the step-up floor -> PERMIT
 
 { "jsonrpc": "2.0", "id": 2, "result": { "content": [{ "type": "text", "text": "<transfer receipt>" }] } }`,
       tokens: [HIGH_ACR],

@@ -79,7 +79,7 @@ const steps = [
   {
     beats: [2],
     detail: {
-      form: "POST /token   (MCP authorization server)\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=urn:ietf:params:oauth:grant-type:jwt-bearer\n&assertion=<ID-JAG>\n&scope=<requested scopes>",
+      form: "POST /token   (MCP authorization server)\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=urn:ietf:params:oauth:grant-type:jwt-bearer\n&assertion=<ID-JAG>\n&scope=<requested scopes>\n# public client by default (client_id in body)",
       tokens: [{
         note: "Input · the ID-JAG presented as the assertion (decoded mock)",
         header: { alg: "RS256", typ: "oauth-id-jag+jwt" },
@@ -103,7 +103,7 @@ const steps = [
   {
     beats: [4],
     detail: {
-      form: "Revocation and grant stay at the IdP (no wire request in the demo)\n\nremove employee E from the group -> next ID-JAG request refused",
+      form: "Revocation and grant stay at the IdP (no wire request in the demo)\n\nremove employee E from the group -> next ID-JAG request refused\n\n(RFC 7009 applies only to revoking tokens already issued; it is not what removes group access.)",
       tokens: [],
       refs: [RFC(7009, "Token Revocation"), DRAFT("draft-ietf-oauth-identity-assertion-authz-grant", "Central grant decision at the IdP")],
     },

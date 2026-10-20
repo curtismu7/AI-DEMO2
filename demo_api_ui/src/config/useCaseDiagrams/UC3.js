@@ -17,7 +17,7 @@ const NODES = [
 
 const EDGES = [
   ["user", "agent", "consent grant", { detail: "Her consent is a server-side grant record naming the AI Agent client; PingOne Authorize checks it on every call (revoke = next call denied, no re-login)." }],
-  ["agent", "gw", "tool call", { detail: "'show my balance' becomes a tools/call for get_account_balance, presented with Alice's user token." }],
+  ["agent", "gw", "tool call", { detail: "'show my balance' becomes a tools/call for get_account_balance, made with the exchanged agent token; the BFF keeps Alice's own token." }],
   ["gw", "p1", "actor token → act", { detail: "RFC 8693 exchange: user token as subject_token, agent's client-credentials token as actor_token — PingOne mints act from the actor token onto the minted MCP token." }],
   ["p1", "acct", "every call", { detail: "The decision endpoint checks act.sub against the authorized actor — no act ⇒ DENY missing_act. PERMIT, then the balance read goes out." }],
   ["acct", "user", "back to Alice", { detail: "The answer returns through the agent, and the panels show the three-leg proof: user-token, token-exchange, authorize-decision." }],
@@ -36,10 +36,10 @@ const walk = [
   {
     title: "Agent asks for the balance", label: "tool call",
     nodes: ["agent", "gw"], edges: [1],
-    lines: [{ who: "Agent", text: "'show my balance' becomes a tools/call for get_account_balance, presented with Alice's user token." }],
+    lines: [{ who: "Agent", text: "'show my balance' becomes a tools/call for get_account_balance, made with the exchanged agent token; the BFF keeps Alice's own token." }],
     tech: [
       { t: "API", c: "POST /gateway/mcp  tools/call get_account_balance" },
-      { t: "TOKEN", c: "Authorization: Bearer <user AT>" },
+      { t: "TOKEN", c: "BFF holds <user AT> (never forwarded raw); gateway call carries Bearer <exchanged agent AT>" },
     ],
   },
   {
@@ -92,7 +92,7 @@ const steps = [
   {
     beats: [1],
     detail: {
-      form: "POST /gateway/mcp\nAuthorization: Bearer <user access token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"get_account_balance\", \"arguments\": {} } }",
+      form: "Agent asks for a tool call: get_account_balance. The BFF holds Alice's token and never forwards it raw; it exchanges first (next step), then calls the gateway with the exchanged token:\n\nPOST /gateway/mcp\nAuthorization: Bearer <exchanged agent token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"get_account_balance\", \"arguments\": {} } }",
       tokens: [USER_AT],
       refs: [RFC(6750, "Bearer token usage"), SPEC("MCP authorization 2025-11-25", "Model Context Protocol authorization")],
     },
@@ -110,13 +110,13 @@ const steps = [
         },
         AGENT_AT,
       ],
-      refs: [RFC(8693, "Token Exchange: subject_token + actor_token produce the act claim"), RFC(8707, "Resource Indicators (audience of the minted token)"), RFC(6749, "Client credentials grant for the actor token")],
+      refs: [RFC(8693, "Token Exchange: subject_token + actor_token produce the act claim"), RFC(8693, "Token Exchange: audience and resource parameters (section 2.1)"), RFC(6749, "Client credentials grant for the actor token")],
     },
   },
   {
     beats: [3],
     detail: {
-      form: "POST /governance/pap/alpha/policy/{workerId}/decision\n\nattributes: { \"ActClientId\": \"<AI Agent client_id>\", \"tool\": \"get_account_balance\" }\n\nRule 2: ActClientId equals the authorized actor and the grant exists -> PERMIT\nRule 2.5: agent-mediated tool with no act claim -> DENY missing_act\n\nPERMIT -> GET /api/accounts with Authorization: Bearer <exchanged token> -> 200",
+      form: "POST /governance/pap/alpha/policy/{workerId}/decision\n\nparameters: { \"ActClientId\": \"<AI Agent client_id>\", \"ToolName\": \"get_account_balance\" }\n\nRule 2: ActClientId equals the authorized actor and the grant exists -> PERMIT\nRule 2.5: agent-mediated tool with no act claim -> DENY missing_act\n\nPERMIT -> GET /api/accounts with Authorization: Bearer <exchanged token> -> 200",
       tokens: [AGENT_AT],
       refs: [...AUTHZ.filter((r) => r.id === "OpenID AuthZEN" || r.id === "RFC 8693")],
     },

@@ -60,7 +60,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /gateway/mcp\nAuthorization: Bearer <delegated access token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"create_transfer\",\n             \"arguments\": { \"amount\": 600, \"fromAccountId\": \"{fromAccountId}\", \"toAccountId\": \"{toAccountId}\", \"consentGiven\": true } } }\n\nconsentGiven is the attacker's claim. It used to skip checks; it is no longer read.",
+      form: "POST /gateway/mcp\nAuthorization: Bearer <delegated access token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"create_transfer\",\n             \"arguments\": { \"amount\": 600, \"from_account_id\": \"{fromAccountId}\", \"to_account_id\": \"{toAccountId}\", \"consentGiven\": true } } }\n\nconsentGiven is the attacker's claim. It is not in the tool schema (additionalProperties:false), so a strict gateway rejects it at schema validation; on the BFF path it is simply never read.",
       tokens: [DELEGATED],
       refs: [RFC(6750, "Bearer token usage"), ...MCP.filter((r) => r.id === "MCP authorization 2025-11-25")],
     },
@@ -68,9 +68,9 @@ const steps = [
   {
     beats: [1],
     detail: {
-      form: "BFF receipt check (services/mcpToolPipeline.js)\n\nrequired: a server-issued HITL receipt bound to { user, agent, tool }\nfound:    none (a client-set flag is not a receipt)\nresult:   HitlApproved = false\n\nPingOne Authorize is asked with amount=600 and HitlApproved=false.",
+      form: "BFF receipt check (services/mcpToolPipeline.js)\n\nrequired: a server-issued HITL receipt bound to { user, agent, tool }\nfound:    none (a client-set flag is not a receipt)\nresult:   HitlApproved absent (the BFF omits the key unless true)\n\nPingOne Authorize is asked with amount=600 and no HitlApproved.",
       tokens: [],
-      refs: AUTHZ.filter((r) => r.id === "OpenID AuthZEN" || r.id === "RFC 8693"),
+      refs: AUTHZ.filter((r) => r.id === "OpenID AuthZEN"),
     },
   },
   {

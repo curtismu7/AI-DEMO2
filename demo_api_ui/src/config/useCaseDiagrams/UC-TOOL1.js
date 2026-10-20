@@ -33,7 +33,7 @@ const walk = [
     title: "Least-privilege exchange", label: "code:search only",
     nodes: ["bff", "p1"], edges: [1],
     lines: [{ who: "BFF", text: "RFC 8693 exchange mints a token scoped exactly to the retrieval." }],
-    tech: [{ t: "TOKEN", c: "RFC 8693 -> MCP AT: scp=code:search (nothing broader)" }],
+    tech: [{ t: "TOKEN", c: "RFC 8693 -> MCP AT: scope=code:search (nothing broader)" }],
   },
   {
     title: "Governed path", label: "PERMIT",
@@ -70,7 +70,7 @@ const steps = [
   {
     beats: [1],
     detail: {
-      form: "POST /<env id>/as/token\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&subject_token=<user access token>\n&subject_token_type=urn:ietf:params:oauth:token-type:access_token\n&resource=<code-search MCP URI>\n&scope=code:search",
+      form: "POST /<env id>/as/token\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&subject_token=<user access token>\n&subject_token_type=urn:ietf:params:oauth:token-type:access_token\n&actor_token=<agent access token>\n&actor_token_type=urn:ietf:params:oauth:token-type:access_token\n&resource=<code-search MCP URI>\n&scope=code:search",
       tokens: [
         {
           note: "INPUT subject_token (MOCK) - the signed-in user's token",
@@ -93,7 +93,7 @@ const steps = [
         note: "Delegated MCP token (MOCK) as the gateway sees it - perimeter check, then policy",
         claims: { iss: ISS, sub: "<user id>", aud: "<code-search MCP URI>", scope: "code:search", act: { sub: "<agent client id>" } },
       }],
-      refs: [SPEC("MCP authorization 2025-11-25", "Model Context Protocol authorization"), RFC(6750, "Bearer token usage"), SPEC("OpenID AuthZEN", "Standard authorization API between PEP and PDP")],
+      refs: [SPEC("MCP authorization 2025-11-25", "Model Context Protocol authorization"), RFC(6750, "Bearer token usage"), SPEC("PingOne Authorize decision API", "Policy decision requested for the call")],
     },
   },
   {

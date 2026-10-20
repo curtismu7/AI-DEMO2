@@ -34,7 +34,7 @@ const walk = [
     title: "Agent issues calls", label: "Its choice, not a script",
     nodes: ["agent", "gw"], edges: [1],
     lines: [{ who: "Agent", text: "Free-form reasoning decides what to fetch — and every call lands at the same gateway." }],
-    tech: [{ t: "TOKEN", c: "RFC 8693 exchange per call -> agent AT: act={sub:agent, sub:alice}" }],
+    tech: [{ t: "TOKEN", c: "RFC 8693 exchange per call -> agent AT: sub=alice, act={sub:agent}" }],
   },
   {
     title: "Same legs as a chip", label: "No reasoning shortcut",
@@ -61,7 +61,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"Check for unusual patterns in my recent activity\", \"vertical\": \"super-sports\" }\n\nNo fixed tool behind the chip: the agent (LLM mode) decides what to run.",
+      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"Check for unusual patterns in my recent activity\", \"vertical\": \"banking\" }\n\nNo fixed tool behind the chip: the agent (LLM mode) decides what to run.",
       tokens: [],
       refs: [],
     },

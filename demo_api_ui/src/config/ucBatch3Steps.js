@@ -48,7 +48,7 @@ export const UC_AIC_TX = [
         header: { alg: "RS256", typ: "JWT" },
         claims: { iss: ISS_AIC, sub: "<agent client id>", aud: "<agent client id>", scope: "<scope>", exp: 1790000000 },
       }],
-      refs: [RFC(6749, "Client credentials grant (section 4.4)"), ATJWT],
+      refs: [RFC(6749, "Client credentials grant (section 4.4)")],
     },
   },
   {
@@ -69,7 +69,7 @@ export const UC_AIC_TX = [
           claims: { iss: ISS_AIC, sub: "<alice user id>", act: { sub: "<agent client id>" }, scope: "<scope>", exp: 1790000000 },
         },
       ],
-      refs: [TX, RI, ATJWT, RFC(7662, "Token Introspection (how the claims are shown)"), DRAFT("draft-ietf-oauth-identity-chaining", "Identity chaining across trust domains")],
+      refs: [TX, RFC(7662, "Token Introspection (how the claims are shown)")],
     },
   },
 ];
@@ -87,7 +87,7 @@ export const UC_LOGIN_AIC = [
   {
     beats: [1],
     detail: {
-      form: "302 Location: https://auth.pingone.com/<env-id>/as/authorize\n  ?response_type=code&client_id=<user login app id>\n  &redirect_uri=<bff callback>&scope=openid profile email\n  &acr_values=AIC_Login&prompt=login\n  &state=<state>&nonce=<nonce>\n  &code_challenge=<S256 challenge>&code_challenge_method=S256",
+      form: "NOTE: AIC login is redirect-mode today; pi.flow is not yet supported for the AIC IdP hop.\n\n302 Location: https://auth.pingone.com/<env-id>/as/authorize\n  ?response_type=code&client_id=<user login app id>\n  &redirect_uri=<bff callback>&scope=openid profile email\n  &acr_values=AIC_Login&prompt=login\n  &state=<state>&nonce=<nonce>\n  &code_challenge=<S256 challenge>&code_challenge_method=S256",
       tokens: [],
       refs: [CODE, PKCE, OIDC, BCP],
     },
@@ -107,7 +107,7 @@ export const UC_LOGIN_AIC = [
   {
     beats: [3],
     detail: {
-      form: "GET /api/auth/oauth/user/callback?code=<PingOne code>&state=<state>\n\nPOST https://auth.pingone.com/<env-id>/as/token\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code&code=<PingOne code>\n&redirect_uri=<bff callback>&code_verifier=<code verifier>\n(client authentication as the User Login app)",
+      form: "NOTE: AIC login is redirect-mode today; pi.flow is not yet supported for the AIC IdP hop.\n\nGET /api/auth/oauth/user/callback?code=<PingOne code>&state=<state>\n\nPOST https://auth.pingone.com/<env-id>/as/token\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code&code=<PingOne code>\n&redirect_uri=<bff callback>&code_verifier=<code verifier>\n(client authentication as the User Login app)",
       tokens: [{
         note: mockNote("PingOne id_token for the linked or created user"),
         header: { alg: "RS256", typ: "JWT" },
@@ -145,7 +145,7 @@ export const UC_LOGIN = [
     detail: {
       form: "302 Location: https://auth.pingone.com/<env-id>/as/authorize\n  ?response_type=code&client_id=<user login app id>\n  &redirect_uri=<bff callback>&scope=openid profile email\n  &prompt=login&state=<state>&nonce=<nonce>\n  &code_challenge=<S256 challenge>&code_challenge_method=S256",
       tokens: [],
-      refs: [CODE, PKCE, OIDC, BCP, RFC(9126, "Pushed Authorization Requests (PAR)")],
+      refs: [CODE, PKCE, OIDC, BCP],
     },
   },
   {
@@ -207,7 +207,7 @@ export const UC_MUSE1 = [
         { note: mockNote("input · subject token (Alice)"), claims: { iss: ISS_P1, sub: "<alice user id>", aud: "<door>", scope: "accounts:read", exp: 1790000000 } },
         { note: mockNote("output · delegated token (sub = Alice, act = Muse client)"), claims: { iss: ISS_P1, sub: "<alice user id>", act: { sub: "<muse client id>" }, aud: "<gateway mcp resource>", scope: "accounts:read", exp: 1790000000 } },
       ],
-      refs: [TX, RI, SPEC("OpenID AuthZEN", "Standard authorization API between PEP and PDP"), ATJWT],
+      refs: [TX, RI, SPEC("PingOne Authorize decision API", "Policy decision requested for the call"), ATJWT],
     },
   },
   {
@@ -215,9 +215,9 @@ export const UC_MUSE1 = [
     detail: {
       form: "(gateway -> tool)\nPOST /mcp\nAuthorization: Bearer <delegated access token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"get_my_accounts\", \"arguments\": {} } }",
       tokens: [{
-        note: mockNote("delegated token stamped on the dispatch (aud = mcp-gw)"),
+        note: mockNote("delegated token stamped on the dispatch (aud = gateway mcp resource)"),
         header: { alg: "RS256", typ: "at+jwt" },
-        claims: { iss: ISS_P1, sub: "<alice user id>", act: { sub: "<muse client id>" }, aud: "mcp-gw", scope: "accounts:read", exp: 1790000000 },
+        claims: { iss: ISS_P1, sub: "<alice user id>", act: { sub: "<muse client id>" }, aud: "<gateway mcp resource>", scope: "accounts:read", exp: 1790000000 },
       }],
       refs: [MCP_TOOLS, RFC(6750, "Bearer token usage"), ATJWT],
     },
@@ -247,9 +247,9 @@ export const UC_MUSE2 = [
     detail: {
       form: "POST /oauth/register\nContent-Type: application/json\n\n{ \"client_name\": \"Muse\", \"redirect_uris\": [\"<loopback redirect>\"],\n  \"grant_types\": [\"authorization_code\"], \"token_endpoint_auth_method\": \"none\" }\n  -> { \"client_id\": \"<durable client id>\" }\n\nauthorization code + PKCE sign-in; the same sign-in establishes the server-side gateway session",
       tokens: [{
-        note: mockNote("access token issued by the demo broker to Muse"),
+        note: mockNote("broker-relayed PingOne access token (the broker relays, it does not self-issue)"),
         header: { alg: "RS256", typ: "at+jwt" },
-        claims: { iss: "<facade broker issuer>", sub: "<alice user id>", aud: "<facade>/privilege-gateway/mcp", exp: 1790000000 },
+        claims: { iss: ISS_P1, sub: "<alice user id>", aud: "mcpgateway.ping.demo", exp: 1790000000 },
       }],
       refs: [MCP_SPEC, RFC(7591, "Dynamic Client Registration"), PKCE, RFC(9728, "Protected Resource Metadata"), RFC(8414, "Authorization Server Metadata")],
     },
@@ -259,7 +259,7 @@ export const UC_MUSE2 = [
     detail: {
       form: "(facade -> Agent Privilege, upstream hop only)\nPOST <privilege gateway>/mcp\nAuthorization: Bearer <operator gateway token>\n\n(the caller's bearer is dropped; ownsUpstreamAuth supplies the upstream credential)",
       tokens: [
-        { note: mockNote("dropped · caller bearer (broker token)"), claims: { iss: "<facade broker issuer>", sub: "<alice user id>", exp: 1790000000 } },
+        { note: mockNote("dropped · caller bearer (broker-relayed PingOne token)"), claims: { iss: ISS_P1, sub: "<alice user id>", exp: 1790000000 } },
         { note: mockNote("upstream · operator gateway token"), claims: { iss: ISS_P1, sub: "<operator identity>", aud: "<privilege gateway>", exp: 1790000000 } },
       ],
       refs: [RFC(6750, "Bearer token usage"), MCP_SPEC, BCP],
@@ -270,7 +270,7 @@ export const UC_MUSE2 = [
     detail: {
       form: "(Agent Privilege evaluates the signed-in human's policy)\npolicy grants: [ <tool names> ]  ->  PERMIT / DENY\n\ndispatch to the registered Agentic App\nPOST <app mcp endpoint>\n{ \"jsonrpc\": \"2.0\", \"method\": \"tools/call\", \"params\": { \"name\": \"<tool>\" } }",
       tokens: [],
-      refs: [MCP_TOOLS, SPEC("OpenID AuthZEN", "Standard authorization API between PEP and PDP"), SPEC("XACML 3.0", "Policy decision model")],
+      refs: [MCP_TOOLS, SPEC("PingOne Authorize decision API", "Policy decision requested for the call"), SPEC("XACML 3.0", "Policy decision model")],
     },
   },
   {
@@ -290,7 +290,7 @@ export const UC_NHI1 = [
     detail: {
       form: "GET /api/control-plane/agents\nCookie: <app session cookie>\n\n200 { \"live\": { \"id\": \"demo-agent\", \"kind\": \"live\", \"status\": \"active\", \"vertical\": \"<vertical>\", \"provider\": \"<llm provider>\" },\n       \"demo\": [ ... ] }",
       tokens: [],
-      refs: [SPEC("OpenID CAEP / Shared Signals", "Revoke or re-evaluate after a security event"), RFC(7644, "SCIM 2.0 Protocol (identity inventory shape)")],
+      refs: [RFC(9110, "HTTP Semantics (request and response)")],
     },
   },
   {
@@ -310,7 +310,7 @@ export const UC_NHI1 = [
     detail: {
       form: "PUT /environments/<env-id>/applications/<agent app id>\nAuthorization: Bearer <worker access token>\nContent-Type: application/json\n\n{ \"enabled\": false }\n\n(new token requests for every user of this client now fail until re-enabled)",
       tokens: [],
-      refs: [RFC(6749, "Token endpoint error responses (section 5.2)"), RFC(7009, "OAuth 2.0 Token Revocation")],
+      refs: [RFC(9110, "HTTP Semantics (request and response)")],
     },
   },
   {
@@ -318,7 +318,7 @@ export const UC_NHI1 = [
     detail: {
       form: "401 Unauthorized\nContent-Type: application/json\n\n{ \"error\": \"agent_killed\", \"need_auth\": true,\n  \"revoked_at\": \"<timestamp>\", \"time_to_revoke_ms\": <number> }\n\n(calling session destroyed; the roster row flips to revoked)",
       tokens: [],
-      refs: [RFC(9110, "HTTP Semantics (401 Unauthorized)"), RFC(6750, "Bearer token error responses (section 3)")],
+      refs: [RFC(9110, "HTTP Semantics (401 Unauthorized)")],
     },
   },
 ];
@@ -340,7 +340,7 @@ export const UC_OBO = [
   {
     beats: [1],
     detail: {
-      form: "POST /as/token  (PingOne)\nAuthorization: Basic <AI Agent client id:secret>\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=client_credentials&scope=agent:invoke",
+      form: "POST /as/token  (PingOne)\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=client_credentials&scope=agent:invoke\n&client_id=<AI Agent client id>&client_secret=<secret>",
       tokens: [{
         note: mockNote("actor token (the AI Agent client)"),
         header: { alg: "RS256", typ: "at+jwt" },
@@ -352,12 +352,12 @@ export const UC_OBO = [
   {
     beats: [2],
     detail: {
-      form: "POST /as/token  (PingOne, as the Token Exchanger app)\nAuthorization: Basic <Token Exchanger client id:secret>\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&subject_token=<person access token>\n&subject_token_type=urn:ietf:params:oauth:token-type:access_token\n&actor_token=<agent access token>\n&actor_token_type=urn:ietf:params:oauth:token-type:access_token\n&audience=obo-demo.ping.demo&scope=obo:invoke",
+      form: "POST /as/token  (PingOne, as the Token Exchanger app)\nContent-Type: application/x-www-form-urlencoded\n\nclient_id=<Token Exchanger client id>&client_secret=<secret>\n&grant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&subject_token=<person access token>\n&subject_token_type=urn:ietf:params:oauth:token-type:access_token\n&actor_token=<agent access token>\n&actor_token_type=urn:ietf:params:oauth:token-type:access_token\n&audience=obo-demo.ping.demo&scope=obo:invoke",
       tokens: [
         { note: mockNote("input 1 · subject token (person)"), claims: { iss: ISS_P1, sub: "<person user id>", scope: "openid profile", exp: 1790000000 } },
         { note: mockNote("input 2 · actor token (AI Agent client)"), claims: { iss: ISS_P1, sub: "<agent client id>", scope: "agent:invoke", exp: 1790000000 } },
       ],
-      refs: [TX, RI, ATJWT],
+      refs: [RFC(8693, "OAuth 2.0 Token Exchange (section 2.1 audience parameter)"), ATJWT],
     },
   },
   {
@@ -393,7 +393,7 @@ export const UC_PRIVB = [
     detail: {
       form: "(inside the gateway, before any byte is written)\nresolve policies for identity <user id> on app aggregate-limited\n  -> granted tools: [ <tool a>, <tool b> ]   (2 tools)",
       tokens: [],
-      refs: [SPEC("OpenID AuthZEN", "Standard authorization API between PEP and PDP"), SPEC("XACML 3.0", "Policy decision model")],
+      refs: [SPEC("PingOne Authorize decision API", "Policy decision requested for the call"), SPEC("XACML 3.0", "Policy decision model")],
     },
   },
   {

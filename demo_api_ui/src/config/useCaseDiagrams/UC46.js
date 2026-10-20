@@ -15,43 +15,42 @@ const NODES = [
   ];
 
 const EDGES = [
-  ["main", "worker", "A2A: question", { detail: "The message carries the question and result — no browser token rides along." }],
+  ["main", "worker", "A2A delegate", { detail: "The question travels as an A2A message — no browser token rides along." }],
   ["pgw", "mcp", "governed MCP calls", { detail: "Policy and the guardrail apply to each evidence-gathering call." }],
   ["worker", "main", "A2A: evidence-backed answer", { detail: "The reply travels back over A2A with the evidence attached." }],
-  ["main", "worker", "A2A delegate", { detail: "The question travels as an A2A message — no browser token rides along." }],
   ["worker", "pgw", "key checked", { detail: "Each agent presents its own Agent Access key at the gateway." }],
 ];
 
 const walk = [
   {
     title: "Analyst asks", label: "On the A2A tab",
-    nodes: ["main"], edges: [0],
+    nodes: ["main"], edges: [],
     lines: [{ who: "Analyst", text: "Types the access-review question; the card opens the tab but never submits for you." }],
     tech: [{ t: "A2A", c: "access-review question submitted to MainAgent" }],
   },
   {
     title: "Delegated over A2A", label: "Message, not token",
-    nodes: ["main", "worker"], edges: [1],
+    nodes: ["main", "worker"], edges: [0],
     lines: [{ who: "MainAgent", text: "The question travels as an A2A message — not a browser token, not an exchange." }],
-    tech: [{ t: "A2A", c: "message/send: access-review question -> WorkerAgent" }],
+    tech: [{ t: "A2A", c: "SendMessage: access-review question -> WorkerAgent" }],
   },
   {
     title: "Keys validated", label: "Who may call whom",
-    nodes: ["worker", "pgw"], edges: [4],
+    nodes: ["worker", "pgw"], edges: [3],
     lines: [{ who: "Gateway", text: "Each agent's Agent Access key and its a2a scope are checked at every hop." }],
     tech: [{ t: "POLICY", c: "Agent Access key validated; a2a scope present" }],
   },
   {
     title: "Evidence gathered", label: "Behind the gateway",
-    nodes: ["pgw", "mcp"], edges: [2],
+    nodes: ["pgw", "mcp"], edges: [1],
     lines: [{ who: "WorkerAgent", text: "MCP calls for evidence — each one policed by policy and the guardrail." }],
     tech: [{ t: "POLICY", c: "guardrail: PII redacted; poisoned tool result blocked" }],
   },
   {
     title: "Evidence-backed answer", label: "Back over A2A",
-    nodes: ["worker", "main"], edges: [3],
+    nodes: ["worker", "main"], edges: [2],
     lines: [{ who: "Presenter", text: "The analyst gets the evidence, visibly governed the whole way." }],
-    tech: [{ t: "A2A", c: "message/send: evidence-backed result -> MainAgent" }],
+    tech: [{ t: "A2A", c: "SendMessage: evidence-backed result -> MainAgent" }],
   },
 ];
 
@@ -68,9 +67,9 @@ const steps = [
   {
     beats: [1],
     detail: {
-      form: "POST <WorkerAgent A2A endpoint>   (via the Privilege Gateway)\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"message/send\",\n  \"params\": { \"message\": { \"role\": \"user\", \"parts\": [{ \"kind\": \"text\", \"text\": \"<access-review question>\" }] } } }\n\nThe message carries the question only: no browser token, no RFC 8693 exchange.",
+      form: "POST <WorkerAgent A2A endpoint>   (via the Privilege Gateway)\nA2A-Version: 1.0\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"SendMessage\",\n  \"params\": { \"message\": { \"messageId\": \"<uuid>\", \"role\": \"ROLE_USER\", \"parts\": [{ \"text\": \"<access-review question>\", \"mediaType\": \"text/plain\" }] } } }\n\nThe message carries the question only: no browser token, no RFC 8693 exchange.",
       tokens: [],
-      refs: [SPEC("A2A protocol", "message/send between agents"), SPEC("JSON-RPC 2.0", "Message envelope")],
+      refs: [SPEC("A2A Protocol 1.0", "SendMessage between agents"), SPEC("JSON-RPC 2.0", "Message envelope")],
     },
   },
   {
@@ -92,9 +91,9 @@ const steps = [
   {
     beats: [4],
     detail: {
-      form: "-> JSON-RPC result from WorkerAgent\n{ \"jsonrpc\": \"2.0\", \"id\": 1,\n  \"result\": { \"kind\": \"message\", \"role\": \"agent\", \"parts\": [{ \"kind\": \"text\", \"text\": \"<evidence-backed answer>\" }] } }",
+      form: "-> JSON-RPC result from WorkerAgent\n{ \"jsonrpc\": \"2.0\", \"id\": 1,\n  \"result\": { \"message\": { \"role\": \"ROLE_AGENT\", \"parts\": [{ \"text\": \"<evidence-backed answer>\", \"mediaType\": \"text/plain\" }] } } }",
       tokens: [],
-      refs: [SPEC("A2A protocol", "message/send response")],
+      refs: [SPEC("A2A Protocol 1.0", "SendMessage response")],
     },
   },
 ];

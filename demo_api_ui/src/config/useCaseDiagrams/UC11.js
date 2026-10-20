@@ -77,7 +77,7 @@ const steps = [
   {
     beats: [2],
     detail: {
-      form: "HTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer realm=\"banking-mcp-gateway\", error=\"invalid_token\"\n\nno tool dispatch, no PingOne Authorize call, no decision row in the chain",
+      form: "HTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer realm=\"PingOne\", resource_metadata=\"https://<gateway host>/.well-known/oauth-protected-resource\", error=\"invalid_token\"\n\nno tool dispatch, no PingOne Authorize call, no decision row in the chain",
       tokens: [],
       refs: [RFC(6750, "Bearer token usage: the invalid_token challenge"), RFC(9728, "Protected Resource Metadata: how a client learns the right audience")],
     },

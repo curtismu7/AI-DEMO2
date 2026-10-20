@@ -77,7 +77,7 @@ const steps = [
   {
     beats: [3],
     detail: {
-      form: "-> JSON-RPC error from the gateway\n{ \"jsonrpc\": \"2.0\", \"id\": 1,\n  \"error\": { \"code\": -32000, \"message\": \"<blocked by content policy>\" } }",
+      form: "-> HTTP 403, JSON-RPC error body from the gateway\n{ \"jsonrpc\": \"2.0\", \"id\": 1,\n  \"error\": { \"code\": -32000, \"message\": \"Agent Gateway: Brave search query contains a blocked term ('bitcoin') — demo bank policy\" } }",
       tokens: [],
       refs: [SPEC("JSON-RPC 2.0", "Error object")],
     },

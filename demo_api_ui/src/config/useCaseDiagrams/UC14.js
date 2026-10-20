@@ -71,7 +71,7 @@ const steps = [
         note: "Grant in the token (MOCK) - the pushed contract, retrieved for the comparison",
         claims: { authorization_details: [RAR] },
       }],
-      refs: [RFC(9396, "Rich Authorization Requests"), RFC(9126, "The grant was pushed, not supplied by the browser"), SPEC("OpenID AuthZEN", "Enforcement point passes the grant as decision context")],
+      refs: [RFC(9396, "Rich Authorization Requests"), RFC(9126, "The grant was pushed, not supplied by the browser"), SPEC("PingOne Authorize decision API", "Enforcement point passes the grant as decision context")],
     },
   },
   {

@@ -64,7 +64,7 @@ const steps = [
   {
     beats: [1],
     detail: {
-      form: "POST /as/token   (PingOne)\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&subject_token=<user access token>\n&subject_token_type=urn:ietf:params:oauth:token-type:access_token\n&scope=balance:read balance:write\n\n-> 200 access token with scope=balance:read (write dropped by least privilege)",
+      form: "POST /as/token   (PingOne)\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&subject_token=<user access token>\n&subject_token_type=urn:ietf:params:oauth:token-type:access_token\n&actor_token=<agent token>\n&actor_token_type=urn:ietf:params:oauth:token-type:access_token\n&scope=balance:read balance:write\n\n-> 200 access token with scope=balance:read (write dropped by least privilege)",
       tokens: [
         { note: "Input · subject_token (user access token, decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", scope: "balance:read balance:write" } },
         { note: "Output · narrowed agent token (decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", scope: "balance:read", act: { sub: "banking-agent-client" }, exp: 1790000300 } },

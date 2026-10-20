@@ -77,7 +77,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /api/agent-builder/agent\nCookie: <session cookie>\nContent-Type: application/json\n\n{ \"name\": \"<agent name>\" }\n\none agent per user: an existing agent is returned, never duplicated",
+      form: "POST /api/agent-builder/agent\nCookie: <session cookie>\nContent-Type: application/json\n\n{ }   (optional: { \"grantTypes\": [\"client_credentials\"] })\n\n-> 201 { created: true, agent: ... } | 200 (existing agent returned)\none agent per user: never duplicated",
       tokens: [],
       refs: [SPEC("OIDC Core 1.0", "The signed-in session that owns the registration")],
     },

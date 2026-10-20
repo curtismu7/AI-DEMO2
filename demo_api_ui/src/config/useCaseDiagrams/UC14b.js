@@ -96,7 +96,7 @@ const steps = [
         note: "Agent token (MOCK) as the gateway reads it - the grant to compare against",
         claims: { sub: "<user id>", aud: "<banking resource>", act: { sub: "<agent client id>" }, authorization_details: [RAR] },
       }],
-      refs: [RFC(9396, "The resource server enforces the call is within authorization_details"), SPEC("OpenID AuthZEN", "Gateway asks the decision point with the grant in context")],
+      refs: [RFC(9396, "The resource server enforces the call is within authorization_details"), SPEC("PingOne Authorize decision API", "Gateway asks the decision point with the grant in context")],
     },
   },
   {

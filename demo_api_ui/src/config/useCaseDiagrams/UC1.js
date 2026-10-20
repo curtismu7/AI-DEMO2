@@ -17,7 +17,7 @@ const NODES = [
 const EDGES = [
   ["user", "agent", "acts for Alice", { detail: "Delegated consent — Alice's authority, explicitly granted at sign-in." }],
   ["agent", "gw", "user token", { detail: "Gateway validates the client (CIMD) before any policy check." }],
-  ["gw", "p1", "RFC 8693 exchange", { detail: "User token in, downscoped agent token out with act={sub: agent, sub: alice}." }],
+  ["gw", "p1", "RFC 8693 exchange", { detail: "User token in, downscoped agent token out with sub=alice, act={sub:<agent client id>}." }],
   ["p1", "acct", "agent token · accounts:read", { detail: "Narrowed: read-only, one user, one API." }],
 ];
 
@@ -42,7 +42,7 @@ const walk = [
     nodes: ["gw", "p1"], edges: [2],
     lines: [{ who: "PingOne", text: "The delegated token carries act — who the agent is acting for." }],
     tech: [
-      { t: "TOKEN", c: "RFC 8693 exchange -> agent AT: act={sub:agent, sub:alice}, scp=accounts:read" },
+      { t: "TOKEN", c: "RFC 8693 exchange -> agent AT: sub=alice, act={sub:<agent client id>}, scp=accounts:read" },
       { t: "POLICY", c: "Authorize evaluates the exchange: PERMIT" },
     ],
   },

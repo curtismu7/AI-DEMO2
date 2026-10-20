@@ -29,12 +29,12 @@ const walk = [
     title: "The embedded ask", label: "Inside the SaaS site",
     nodes: ["user", "worker"], edges: [0],
     lines: [{ who: "Alice", text: "She asks the site's own worker for help — the worker will act under its own identity, for her." }],
-    tech: [{ t: "API", c: "Website Worker action request (site-embedded, /embedded-worker)" }],
+    tech: [{ t: "API", c: "Website Worker run via POST /api/agent/invoke (site-embedded, /embedded-worker); MFA step-up gate first" }],
   },
   {
     title: "Worker identity resolved", label: "CIMD/NHI provenance",
     nodes: ["worker", "gw"], edges: [1],
-    lines: [{ who: "BFF", text: "Website session, customer identity and worker identity stay separate — mocked CIMD registration supplies the worker's provenance." }],
+    lines: [{ who: "BFF", text: "MFA (acr Multi_Factor) is checked first, else step_up_required. Website session, customer identity and worker identity stay separate — mocked CIMD registration supplies the worker's provenance." }],
     tech: [
       { t: "POLICY", c: "personal-agent-lookup: worker has its own PingOne AI Agent identity + CIMD/NHI association" },
       { t: "TOKEN", c: "CIMD registration supplies provenance (mocked facade, real association)" },
@@ -68,7 +68,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /api/embedded-worker/action\nCookie: <website session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"redeem my miles\" }\n\nThree identities stay separate: website session, customer, worker.",
+      form: "POST /api/agent/invoke\nCookie: <website session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"redeem my miles\", \"useCaseId\": \"saas-embedded-worker\" }\n\n(worker registration beforehand: POST /api/embedded-worker/agent -> 201 | 200)\nMFA satisfied (acr Multi_Factor) is required first, else step_up_required and nothing is delegated.\n\nThree identities stay separate: website session, customer, worker.",
       tokens: [],
       refs: [SPEC("OIDC Core 1.0", "The customer sign-in behind the website session")],
     },
@@ -90,7 +90,7 @@ const steps = [
         { note: "Input · actor_token (website worker token, decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "website-worker-client", scope: "agent:invoke" } },
         { note: "Output · delegated token (decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "<vertical MCP resource>", act: { sub: "website-worker-client" }, tenant: "<tenant id>", exp: 1790000300 } },
       ],
-      refs: [RFC(8693, "Token Exchange: customer as subject, worker as actor"), RFC(8707, "Resource Indicators")],
+      refs: [RFC(8693, "Token Exchange: customer as subject, worker as actor; audience / resource parameters of the exchange request (section 2.1)")],
     },
   },
   {

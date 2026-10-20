@@ -38,7 +38,7 @@ const walk = [
     title: "Two-hop delegation", label: "Act nests twice",
     nodes: ["pick", "p1"], edges: [2],
     lines: [{ who: "PingOne", text: "Same machinery as UC2 — the routing changed, the governance did not." }],
-    tech: [{ t: "TOKEN", c: "RFC 8693 #1 -> gen AT: sub=alice, act={sub:orchestrator}" }],
+    tech: [{ t: "TOKEN", c: "RFC 8693 #1 -> gen AT: sub=alice, act={sub:generalist}" }],
   },
   {
     title: "Narrowed at the edge", label: "Policy-decided scopes",

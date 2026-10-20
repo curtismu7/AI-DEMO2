@@ -72,7 +72,7 @@ const steps = [
     detail: {
       form: "1. POST /<env id>/as/token  grant_type=urn:ietf:params:oauth:grant-type:token-exchange\n     subject_token=<user access token>  actor_token=<agent token>\n2. BFF preflight: PingOne Authorize decision request (ActClientId attribute)\n3. POST /gateway/mcp with the exchanged token\nNothing is short-cut - the forgery travels the whole governed path.",
       tokens: [],
-      refs: [RFC(8693, "OAuth 2.0 Token Exchange"), SPEC("OpenID AuthZEN", "Policy enforcement point asks the decision point")],
+      refs: [RFC(8693, "OAuth 2.0 Token Exchange"), SPEC("PingOne Authorize decision API", "Policy enforcement point asks the decision point")],
     },
   },
   {

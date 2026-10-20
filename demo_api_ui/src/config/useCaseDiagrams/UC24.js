@@ -52,7 +52,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /api/agent/invoke\nContent-Type: application/json\n\n{ \"prompt\": \"What branches are near me?\", \"vertical\": \"super-sports\" }\n\n(no Authorization header, no session cookie: the visitor has not signed in)",
+      form: "POST /api/agent/invoke\nContent-Type: application/json\n\n{ \"prompt\": \"What branches are near me?\", \"vertical\": \"banking\" }\n\n(no Authorization header, no session cookie: the visitor has not signed in)",
       tokens: [],
       refs: [RFC(9110, "HTTP Semantics: a request with no credentials is a valid request")],
     },

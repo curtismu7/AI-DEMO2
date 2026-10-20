@@ -68,7 +68,7 @@ const walk = [
     nodes: ["p1", "user"], edges: [4],
     lines: [{ who: "Presenter", text: "Only exchanged, agent-scoped tokens with an act claim ever leave the BFF. The user token never crossed a process boundary — to the agent runtime, the gateway, or the LLM context." }],
     tech: [
-      { t: "API", c: "verdict DENY_403 — sim returns user_token_forwarding_disabled" },
+      { t: "API", c: "status 403, errorCode user_token_forwarding_disabled" },
       { t: "POLICY", c: "protection point: BFF token custody (enforced at the source, not downstream)" },
     ],
   },

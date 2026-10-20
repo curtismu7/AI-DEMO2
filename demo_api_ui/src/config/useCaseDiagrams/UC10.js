@@ -68,7 +68,7 @@ const steps = [
     detail: {
       form: "PingOne Authorize decision request\n\nsubject: <alice user id>, actor: <agent client id>\nresource: tool get_account_balance\nattributes: { ResourceOwnerId: \"<account owner id>\", account_id: \"{otherUsersAccountId}\" }\n\npolicy rule: ResourceOwnerId must equal the token subject",
       tokens: [],
-      refs: [SPEC("OpenID AuthZEN", "Standard authorization API between the gateway (PEP) and the policy engine (PDP)"), SPEC("XACML 3.0", "Policy decision model: subject, resource, action, attributes")],
+      refs: [SPEC("PingOne Authorize decision API", "Gateway (PEP) asks the PingOne Authorize policy engine (PDP)"), SPEC("XACML 3.0", "Policy decision model: subject, resource, action, attributes")],
     },
   },
   {

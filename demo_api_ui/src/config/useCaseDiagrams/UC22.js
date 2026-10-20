@@ -28,7 +28,7 @@ const walk = [
     title: "Agent asks for $150", label: "Sensitivity, not amount",
     nodes: ["agent", "p1"], edges: [0],
     lines: [{ who: "Agent", text: "$150 is deliberately below the MFA threshold — CIBA here is about the action class." }],
-    tech: [{ t: "API", c: "POST /bc-authorize scope=transfer amount=150 -> auth_req_id" }],
+    tech: [{ t: "API", c: "POST /bc-authorize login_hint + scope + binding_message -> auth_req_id" }],
   },
   {
     title: "Push to the phone", label: "Out of band",
@@ -67,7 +67,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST https://auth.pingone.com/{envId}/as/bc-authorize\nContent-Type: application/x-www-form-urlencoded\nAuthorization: Basic <client credentials>\n\nlogin_hint=<alice login hint>\n&scope=<transfer scope>\n&binding_message=<short code>\n\n-> 200 { \"auth_req_id\": \"<auth_req_id>\", \"expires_in\": 300, \"interval\": 5 }\n\nNo token yet: the amount (150) is below the MFA threshold; the trigger is the action class.",
+      form: "POST https://auth.pingone.com/{envId}/as/bc-authorize\nContent-Type: application/x-www-form-urlencoded\nAuthorization: Basic <client credentials>\n\nlogin_hint=<alice login hint>\n&scope=<transfer scope>\n&binding_message=<at most 8 chars: 2-char vertical code + 6 hex>\n\n-> 200 { \"auth_req_id\": \"<auth_req_id>\", \"expires_in\": 300, \"interval\": 5 }\n\nNo token yet: the amount (150) is below the MFA threshold; the trigger is the action class.",
       tokens: [],
       refs: [SPEC("OpenID CIBA Core 1.0", "Backchannel authentication request (poll mode)"), RFC(6749, "Client authentication at the AS endpoint")],
     },
@@ -99,7 +99,7 @@ const steps = [
   {
     beats: [4],
     detail: {
-      form: "POST https://auth.pingone.com/{envId}/as/token\n\ngrant_type=urn:openid:params:grant-type:ciba&auth_req_id=<auth_req_id>\n\n-> 200 { \"access_token\": \"<access token>\", \"token_type\": \"Bearer\", \"expires_in\": 3600, \"scope\": \"<transfer scope>\" }",
+      form: "POST https://auth.pingone.com/{envId}/as/token\nAuthorization: Basic <client credentials>\n\ngrant_type=urn:openid:params:grant-type:ciba&auth_req_id=<auth_req_id>\n\n-> 200 { \"access_token\": \"<access token>\", \"token_type\": \"Bearer\", \"expires_in\": 3600, \"scope\": \"<transfer scope>\" }",
       tokens: [{
         note: "MOCK decoded access token issued after the approval",
         header: { alg: "RS256", typ: "at+jwt" },
@@ -111,7 +111,7 @@ const steps = [
   {
     beats: [5],
     detail: {
-      form: "POST /gateway/mcp\nAuthorization: Bearer <access token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"create_transfer\", \"arguments\": { \"amount\": 150, \"fromAccountId\": \"{fromAccountId}\", \"toAccountId\": \"{toAccountId}\" } } }\n\nToken chain order: authorize-decision -> ciba-poll -> tool-dispatched.",
+      form: "POST /gateway/mcp\nAuthorization: Bearer <access token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"create_transfer\", \"arguments\": { \"amount\": 150, \"from_account_id\": \"{fromAccountId}\", \"to_account_id\": \"{toAccountId}\" } } }\n\nToken chain order: authorize-decision -> ciba-poll -> tool-dispatched.",
       tokens: [{
         note: "MOCK decoded access token presented to the gateway (the one the poll returned)",
         header: { alg: "RS256", typ: "at+jwt" },

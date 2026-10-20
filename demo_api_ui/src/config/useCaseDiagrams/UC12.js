@@ -91,7 +91,7 @@ const steps = [
         header: PROOF_HEADER,
         claims: { htm: "POST", htu: "https://<gateway host>/gateway/mcp", iat: "<unix time>", jti: "abc" },
       }],
-      refs: [RFC(9449, "DPoP proofs are single use per jti")],
+      refs: [RFC(9449, "Servers MAY track jti to reject replays (section 11.1)")],
     },
   },
   {

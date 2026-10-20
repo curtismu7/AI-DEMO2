@@ -28,7 +28,7 @@ const walk = [
     title: "Discovery request", label: "tools/list",
     nodes: ["client", "gw"], edges: [0],
     lines: [{ who: "Client", text: "A plain tools/list — discovery is where per-tool grants bite." }],
-    tech: [{ t: "API", c: "GET tools/list over /aggregate-limited/mcp (Agentic App aggregate-limited)" }],
+    tech: [{ t: "API", c: "POST /aggregate-limited/mcp tools/list (Agentic App aggregate-limited)" }],
   },
   {
     title: "Policy filter", label: "Grant resolved first",
@@ -40,7 +40,7 @@ const walk = [
     title: "Backend consulted", label: "9 on the server",
     nodes: ["gw", "backend"], edges: [3],
     lines: [{ who: "Gateway", text: "The backend still holds 9 — the cut is discovery-gating at the gateway (GatewayServer.ts drops them entirely)." }],
-    tech: [{ t: "API", c: "GET tools/list -> 2 tools (9 on backend)" }],
+    tech: [{ t: "API", c: "POST tools/list -> 2 tools (9 on backend)" }],
   },
   {
     title: "Filtered catalog", label: "2 of 9, zero denied reported",

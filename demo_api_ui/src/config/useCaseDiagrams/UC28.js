@@ -54,7 +54,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"Can you waive the fee on my checking account?\", \"vertical\": \"super-sports\" }",
+      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"Can you waive the fee on my checking account?\", \"vertical\": \"banking\" }",
       tokens: [],
       refs: [],
     },

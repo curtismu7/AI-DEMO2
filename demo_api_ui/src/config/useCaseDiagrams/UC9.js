@@ -43,7 +43,7 @@ const walk = [
     title: "403", label: "Enforced instantly",
     nodes: ["gw", "agent"], edges: [3],
     lines: [{ who: "Gateway", text: "No tool dispatch. Entitlement in policy means a console edit changes it, not a deploy." }],
-    tech: [{ t: "API", c: "gateway returns 403 tool_denied; authorize-decision recorded" }],
+    tech: [{ t: "API", c: "gateway returns -32403 insufficient_scope; authorize-decision recorded" }],
   },
 ];
 
@@ -94,7 +94,7 @@ Adding the user to the group flips this with no code change.`,
     beats: [3],
     detail: {
       form: `{ "jsonrpc": "2.0", "id": 1,
-  "error": { "code": -32403, "message": "<deny reason>", "data": { "error": "<deny code>", "login_required": false } } }
+  "error": { "code": -32403, "message": "<deny reason>", "data": { "error": "insufficient_scope", "required_scopes": ["<scope>"], "login_required": false } } }
 
 No tool dispatch. The authorize-decision step is recorded for the token chain.`,
       tokens: [],

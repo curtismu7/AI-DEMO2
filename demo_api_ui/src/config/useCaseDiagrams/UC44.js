@@ -30,7 +30,7 @@ const walk = [
     nodes: ["user", "agent"], edges: [0],
     lines: [{ who: "Alice", text: "Alice asks the hosted Digital Assistant for her balance; the assistant will act under its own identity, for her." }],
     tech: [
-      { t: "API", c: "POST /api/agent/invoke  { prompt: 'show my balance' }" },
+      { t: "API", c: "POST /api/agent/invoke  { prompt: 'show my balance', useCaseId: 'workload-digital-assistant-obo' }" },
       { t: "TOKEN", c: "user AT (session): sub=alice, scope=read — act absent" },
     ],
   },
@@ -77,7 +77,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /api/agent/invoke\nCookie: <session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"show my balance\" }",
+      form: "POST /api/agent/invoke\nCookie: <session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"show my balance\", \"useCaseId\": \"workload-digital-assistant-obo\" }",
       tokens: [{
         note: "User access token from the session (decoded mock) · no act claim yet",
         header: { alg: "RS256", typ: "at+jwt" },
@@ -107,7 +107,7 @@ const steps = [
         { note: "Input · actor_token (agent actor token, decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "digital-assistant-client", scope: "agent:invoke" } },
         { note: "Output · final delegated token (decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "mcpserver.ping.demo", scope: "read", act: { sub: "digital-assistant-client" }, exp: 1790000300 } },
       ],
-      refs: [RFC(8693, "Token Exchange: subject_token, actor_token and act"), RFC(8707, "Resource Indicators (audience per hop)")],
+      refs: [RFC(8693, "Token Exchange: subject_token, actor_token and act; audience parameter per hop (section 2.1)")],
     },
   },
   {

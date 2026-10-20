@@ -49,7 +49,7 @@ const walk = [
   },
   {
     title: "Signed assertion alongside the chain", label: "SD-JWT VC",
-    nodes: ["spec", "p1", "gw"], edges: [3],
+    nodes: ["spec", "p1"], edges: [3],
     lines: [{ who: "PingOne Credentials", text: "A DaVinci flow issues the credential asserting agent_id, acting_for, scope and chain_id — fail-open: if issuance fails, the bearer delegation completes untouched." }],
     tech: [
       { t: "TOKEN", c: "POST orchestrate-api.pingone.com/v1/company/{id}/policy/{flowId}/start {agent_id, acting_for, scope, chain_id} -> {credential, credentialId, expiresAt}" },
@@ -58,7 +58,7 @@ const walk = [
   },
   {
     title: "Dispatched, verified offline", label: "PERMIT",
-    nodes: ["spec", "gw", "user"], edges: [4],
+    nodes: ["spec", "gw"], edges: [4],
     lines: [{ who: "Gateway", text: "Authorize PERMITs over the act chain and the tool dispatches — and the receiving org proved the assertion from its signature alone, no issuer callback." }],
     tech: [
       { t: "POLICY", c: "Authorize evaluates act={specialist -> generalist} -> PERMIT; tool-dispatched" },
@@ -84,7 +84,7 @@ const steps = [
   {
     beats: [1],
     detail: {
-      form: "GET /a2a/specialists/{vertical}/.well-known/agent-card.json\n\n-> 200\n{ \"name\": \"<specialist agent>\",\n  \"securitySchemes\": {\n    \"pingoneBearer\": { \"type\": \"http\", \"scheme\": \"bearer\" },\n    \"verifiedTrustCredential\": { \"format\": \"vc+sd-jwt\" } },\n  \"security\": [{ \"pingoneBearer\": [] }] }",
+      form: "GET /a2a/specialists/{vertical}/.well-known/agent-card.json\n\n-> 200\n{ \"name\": \"<specialist agent>\",\n  \"securitySchemes\": {\n    \"pingoneBearer\": { \"httpAuthSecurityScheme\": { \"scheme\": \"Bearer\", \"bearerFormat\": \"JWT\" } },\n    \"verifiedTrustCredential\": { \"httpAuthSecurityScheme\": { \"scheme\": \"VC-SD-JWT\", \"bearerFormat\": \"SD-JWT\" } } },\n  \"securityRequirements\": [{ \"schemes\": { \"pingoneBearer\": { \"list\": [] } } }] }",
       tokens: [],
       refs: [SPEC("A2A Agent Card", "Agent capability and security-scheme description"), RFC(6750, "Bearer token usage (the required scheme)"), DRAFT("draft-ietf-oauth-sd-jwt-vc", "SD-JWT-based Verifiable Credentials (the additive scheme)")],
     },
@@ -98,19 +98,19 @@ const steps = [
         { note: "Input 2 · actor_token (generalist agent token, decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "generalist-agent-client", aud: "https://bff.ping.demo", scope: "agent:invoke" } },
         { note: "Output · T_invest (decoded mock), act nested inside act", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "<specialist A2A Intermediate resource>", scope: "<a2aDelegatedScope>", act: { sub: "specialist-agent-client", act: { sub: "generalist-agent-client" } }, exp: 1790000300 } },
       ],
-      refs: [RFC(8693, "Token Exchange: subject_token, actor_token and the nested act claim"), RFC(8707, "Resource Indicators (audience narrowing)")],
+      refs: [RFC(8693, "Token Exchange: subject_token, actor_token and the nested act claim; audience parameter per hop (section 2.1)")],
     },
   },
   {
     beats: [3],
     detail: {
-      form: "POST https://orchestrate-api.pingone.com/v1/company/{COMPANY_ID}/policy/{FLOW_ID}/start\nContent-Type: application/json\n\n{ \"agent_id\": \"<specialist agent id>\", \"acting_for\": \"alice-0001\",\n  \"scope\": \"<a2aDelegatedScope>\", \"chain_id\": \"<chain id>\" }\n\n-> 200 { \"credential\": \"<compact SD-JWT VC>\", \"credentialId\": \"<id>\", \"expiresAt\": \"<ISO time>\" }",
+      form: "POST https://orchestrate-api.pingone.com/v1/company/{COMPANY_ID}/policy/{FLOW_ID}/start\nContent-Type: application/json\n<API key header>: <API key>\n\n{ \"agent_id\": \"<specialist agent id>\", \"acting_for\": \"alice-0001\",\n  \"scope\": \"<a2aDelegatedScope>\", \"chain_id\": \"<chain id>\" }\n\n-> 200 { \"credential\": \"<compact SD-JWT VC>\", \"credentialId\": \"<id>\", \"expiresAt\": \"<ISO time>\" }",
       tokens: [{
         note: "Verifiable credential (decoded mock) · signed assertion alongside the chain, never a replacement",
-        header: { alg: "ES256", typ: "vc+sd-jwt" },
+        header: { alg: "ES256", typ: "<SD-JWT VC typ, draft-dependent>" },
         claims: { iss: "<issuer URL>", vct: "<agent assertion type>", agent_id: "<specialist agent id>", acting_for: "alice-0001", scope: "<a2aDelegatedScope>", chain_id: "<chain id>", iat: 1790000000, exp: 1790000600 },
       }],
-      refs: [DRAFT("draft-ietf-oauth-sd-jwt-vc", "SD-JWT-based Verifiable Credentials")],
+      refs: [DRAFT("draft-ietf-oauth-sd-jwt-vc", "SD-JWT-based Verifiable Credentials; the typ header value is draft-dependent")],
     },
   },
   {

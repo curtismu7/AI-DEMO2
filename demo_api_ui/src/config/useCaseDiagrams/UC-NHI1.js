@@ -34,7 +34,7 @@ const walk = [
     lines: [{ who: "Control plane", text: "Stop this instance stops just this session; Stop entire agent goes to the identity layer — every user of that client loses the agent at once." }],
     tech: [
       { t: "API", c: "POST /api/admin/agent/demo-agent/kill-switch  { reason, scope:'full' }" },
-      { t: "TOKEN", c: "RFC 7009 revoke of AT + id_token; PUT /users/{id}/enabled=false" },
+      { t: "TOKEN", c: "RFC 7009 revoke of access and refresh tokens; PUT /users/{id}/enabled=false" },
     ],
   },
   {

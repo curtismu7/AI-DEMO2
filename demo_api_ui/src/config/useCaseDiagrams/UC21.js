@@ -25,7 +25,7 @@ const walk = [
     title: "Tier request", label: "Sensitive details",
     nodes: ["user", "agent"], edges: [0],
     lines: [{ who: "Agent", text: "The request itself is ordinary; the tier is what shapes the answer." }],
-    tech: [{ t: "API", c: "POST /gateway/mcp tools/call get_sensitive_details (tier access)" }],
+    tech: [{ t: "API", c: "POST /gateway/mcp tools/call get_sensitive_account_details (tier access)" }],
   },
   {
     title: "Authorize evaluates tier", label: "Group = tier",

@@ -27,6 +27,12 @@ const ACTOR_NODES = {
   pingone: N('pingone', 'ping', 'PingOne token endpoint', ['RFC 8693 token exchange', 'client_credentials actor tokens'], 600, 320),
 };
 
+// The actor client_credentials request is its own preceding hop; this keeps only the exchange request of the step.
+const exchangeOnly = (d) => {
+  const i = d.form.indexOf('# 2. ');
+  return i < 0 ? d : { ...d, form: d.form.slice(i) };
+};
+
 // Event id -> hop. `detail` is the step detail { form, tokens, refs }; every hop has all three.
 const HOPS = {
   'user-token': {
@@ -52,7 +58,7 @@ const HOPS = {
     title: 'Exchange #1: user to generalist',
     what: 'PingOne exchanges the user token plus the generalist actor token for a delegated token: sub stays the user, act names the generalist.',
     why: 'The act claim records who is acting for the user. This is the token the wire hop will carry.',
-    detail: DELEGATION_DETAIL[1],
+    detail: exchangeOnly(DELEGATION_DETAIL[1]),
   },
   'a2a-protocol-bearer': {
     from: 'generalist', to: 'specialist', label: 'Wire bearer (Exchange #1 token)', opts: {},
@@ -95,7 +101,7 @@ const HOPS = {
     title: 'Exchange #2: the specialist joins the chain',
     what: 'PingOne exchanges the delegated token for an MCP token: act becomes {specialist, act: {generalist}}, subject still the user.',
     why: 'The generalist never sees this token. The nested chain shows every agent that acted for the user.',
-    detail: DELEGATION_DETAIL[3],
+    detail: exchangeOnly(DELEGATION_DETAIL[3]),
   },
   'a2a-mcp-tool': {
     from: 'specialist', to: 'gateway', label: 'MCP tool call (nested-act token)', opts: {},

@@ -42,7 +42,7 @@ const walk = [
     title: "Nothing moved", label: "Enforced instantly",
     nodes: ["gw", "agent"], edges: [3],
     lines: [{ who: "Gateway", text: "No tool dispatch. The audience sees DENY in chat and in the token chain." }],
-    tech: [{ t: "API", c: "gateway returns 403 tool_denied; authorize-decision step recorded" }],
+    tech: [{ t: "API", c: "gateway returns -32403 insufficient_scope (HTTP form: 403); authorize-decision step recorded" }],
   },
 ];
 
@@ -93,7 +93,7 @@ The ceiling is a policy rule: changing it is a console edit, not a deploy.`,
     beats: [3],
     detail: {
       form: `{ "jsonrpc": "2.0", "id": 1,
-  "error": { "code": -32403, "message": "<deny reason>", "data": { "error": "<deny code>", "login_required": false } } }
+  "error": { "code": -32403, "message": "<deny reason>", "data": { "error": "insufficient_scope", "required_scopes": ["<scope>"], "login_required": false } } }
 
 No tool dispatch, no data touched. The authorize-decision step is recorded for the token chain.`,
       tokens: [],

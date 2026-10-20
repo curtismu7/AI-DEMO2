@@ -60,7 +60,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"show my balance\", \"useCaseId\": \"{useCaseId}\", \"vertical\": \"super-sports\" }",
+      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"show my balance\", \"useCaseId\": \"{useCaseId}\", \"vertical\": \"banking\" }",
       tokens: [{
         note: "User access token · who Alice is (held server-side by the BFF)",
         header: { alg: "RS256", typ: "at+jwt" },
