@@ -221,7 +221,7 @@ export default function McpObservabilityPage() {
 
       <EmbeddedFlowDiagram config={OBS_FLOW} testId="mcp-obs-flow" ariaLabel="Where this page's data comes from"
         title="Where this page's data comes from"
-        lede="Four BFF reads feed the page: audit events, health, gateway metrics, and the chain-of-custody trace of the selected request." />
+        lede="Four BFF reads feed the page: audit events, health, gateway metrics, and the chain-of-custody trace of the selected request. Boxes move; Simulate walks the arrows; click a box for the request and the standards." pingStyle />
     </div>
   );
 }

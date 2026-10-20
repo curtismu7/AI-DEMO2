@@ -514,7 +514,7 @@ export default function StaticFlowDiagram({
       </ReactFlowProvider>
       {pingStyle && (
         <ul className="sfd-ping-key" aria-label="Arrow key">
-          <li><b className="sfd-edge-num">n</b>arrow = step n in the walkthrough</li>
+          <li><b className="sfd-edge-num">n</b>{walk ? "arrow = link n between the boxes" : "arrow = step n in the walkthrough"}</li>
           <li><i className="sfd-key-line" />solid = request</li>
           <li><i className="sfd-key-line sfd-key-line--dashed" />dashed = token or decision</li>
         </ul>
