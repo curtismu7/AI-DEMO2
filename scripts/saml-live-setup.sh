@@ -14,7 +14,7 @@
 #   scripts/saml-live-setup.sh --check         # preflight only, changes nothing
 #
 # Environment (all optional):
-#   REPO=/Users/cmuir/Development/AI-DEMO2   PF_NS=ping-devops-curtismuir   PF_PORT=29999
+#   REPO=<path to your checkout>   PF_NS=ping-devops-curtismuir   PF_PORT=29999
 #   APP_NS=ping-devops-cmuir                 OAUTH_MCP_ENTITY=<id>           PF_PF_ENTITY=<id>
 #   GHCR_OWNER=cmuir_pingcorp                IMAGE_SHA=<merge commit>        MAX_WAIT_MIN=20
 #
@@ -32,7 +32,7 @@
 # and has only been syntax-checked and its untracked-file handling tested in a scratch repo. Read each prompt before typing yes.
 set -euo pipefail
 
-REPO="${REPO:-/Users/cmuir/Development/AI-DEMO2}"
+REPO="${REPO:-$(git rev-parse --show-toplevel 2>/dev/null || pwd)}"
 PF_NS="${PF_NS:-ping-devops-curtismuir}"
 PF_PORT="${PF_PORT:-29999}"
 APP_NS="${APP_NS:-ping-devops-cmuir}"
