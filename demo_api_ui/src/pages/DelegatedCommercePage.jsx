@@ -576,6 +576,7 @@ export default function DelegatedCommercePage({ user }) {
         diagramLabel="Register, consent, protected call, approval and revoke for a delegated shopping agent"
         lede="Who talks to whom in each of the four steps above: the administrator and customer, the demo routes, PingOne, and the MCP gateway."
         config={{ GROUPS: DELEGATED_COMMERCE_GROUPS, NODES: DELEGATED_COMMERCE_NODES, EDGES: DELEGATED_COMMERCE_EDGES, STEPS: DELEGATED_COMMERCE_STEPS }}
+        pingStyle
       />
 
       <ConsentModal
