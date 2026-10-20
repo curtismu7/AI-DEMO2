@@ -113,4 +113,18 @@ describe('AgentClientSkin', () => {
     render(<AgentClientSkin {...baseProps} skin="claude" messages={[{ role: 'agent', text: 'Booked.', governance: { decision: 'PERMIT', tools: ['book_flight'] } }]} />);
     expect(screen.queryByTestId('dot-governance')).toBeNull();
   });
+
+  it('never calls scrollIntoView — that scrolls the whole page, not just the chat', () => {
+    const spy = vi.fn();
+    // setupTests.js mocks this on HTMLElement.prototype, which shadows Element.prototype
+    const original = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = spy;
+    try {
+      const { rerender } = render(<AgentClientSkin {...baseProps} />);
+      rerender(<AgentClientSkin {...baseProps} messages={[...baseProps.messages, { role: 'user', text: 'hi' }]} />);
+      expect(spy).not.toHaveBeenCalled();
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original;
+    }
+  });
 });
