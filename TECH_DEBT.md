@@ -18,6 +18,14 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-20 — pf-pf playground mode cannot work on SE while PF_ISSUER points at the SE PingFederate
+
+**What's wrong.** The pf-pf ID-JAG playground mode needs a LOCAL PingFederate as the resource authorization server. On SE, `create-secrets.sh` (`override_pf_for_se`, opt-in via `SE_PF_ISSUER`) points `PF_ISSUER` at the SE PF, so the mode asks the SE PF for an ID-JAG whose audience is that PF's own issuer and gets `invalid_target`. oauth-mcp mode (via `SE_OAUTH_MCP_URL`) is unaffected. `PF_IDJAG_ISSUER_PF_URL` and the pf-pf settings are deliberately left alone by the override.
+
+**Why it wasn't fixed now.** It is a topology decision, not a script fix: it needs either a second PF on SE or the mode hidden there.
+
+**What the real fix looks like.** Decide: deploy a second PingFederate for SE as the resource AS and point the pf-pf settings at it, or hide the pf-pf mode when running on SE.
+
 ### [ ] 2026-10-20 — Overview diagram: dragging the BFF or PingGateway up or down can cross arrows
 
 **What's wrong.** `/architecture/overview` is drawn in the Ping style (`config/architectureOverviewDiagram.js`). At rest it has 0 crossings, and a sweep that drags every box by 120px sideways and (for all but two boxes) 50 or 100px up or down also holds 0 (`config/__tests__/architectureOverviewDiagram.test.js`). The exception is the BFF and PingGateway: each joins PingOne, PingOne Authorize, HITL and each other. Move one of them 50px or more up or down and the shared router puts the jog of the direct BFF-to-gateway arrow next to the gateway, across the arrows that share that side of the box.

@@ -320,12 +320,14 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   # in-cluster pod health-checking them 503s and the startup probe CrashLoops
   # the BFF (2026-09-25). envFrom beats the LMDB store, so this pin makes the
   # toggle a no-op on SE regardless of what LMDB holds.
+  # The pinned value is ${SE_OAUTH_PROVIDER-pingone} (default pingone);
+  # SE_OAUTH_PROVIDER="" (set but empty) un-pins it so the UI toggle works.
   #
   # PINGONE_{USER,ADMIN}_AUTHORIZE_PI_FLOW=true are pinned for the same reason:
   # both default to false, and with them off every SE login silently falls back
   # to the PingOne hosted redirect instead of the in-app pi.flow modal.
   kubectl patch configmap ai-demo-config -n "$NS" --type merge -p \
-    "{\"data\":{\"OAUTH_PROVIDER\":\"pingone\",\"PINGONE_USER_AUTHORIZE_PI_FLOW\":\"true\",\"PINGONE_ADMIN_AUTHORIZE_PI_FLOW\":\"true\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com,demoAdmin@api.ping.demo,demoUser@example.com,test12345@mailinator.com}\"}}"
+    "{\"data\":{\"OAUTH_PROVIDER\":\"${SE_OAUTH_PROVIDER-pingone}\",\"PINGONE_USER_AUTHORIZE_PI_FLOW\":\"true\",\"PINGONE_ADMIN_AUTHORIZE_PI_FLOW\":\"true\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com,demoAdmin@api.ping.demo,demoUser@example.com,test12345@mailinator.com}\"}}"
 fi
 
 # Override the nginx-config ConfigMap from 02-configmap.yaml (which contains the
