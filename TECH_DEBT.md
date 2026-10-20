@@ -18,6 +18,14 @@ An entry that has since been paid off keeps its original text and gains a
 deleted on resolution — the wrong guess is often the more useful half of the
 record.
 
+### [ ] 2026-10-20 — Overview diagram: dragging the BFF or PingGateway up or down can cross arrows
+
+**What's wrong.** `/architecture/overview` is drawn in the Ping style (`config/architectureOverviewDiagram.js`). At rest it has 0 crossings, and a sweep that drags every box by 120px sideways and (for all but two boxes) 50 or 100px up or down also holds 0 (`config/__tests__/architectureOverviewDiagram.test.js`). The exception is the BFF and PingGateway: each joins PingOne, PingOne Authorize, HITL and each other. Move one of them 50px or more up or down and the shared router puts the jog of the direct BFF-to-gateway arrow next to the gateway, across the arrows that share that side of the box.
+
+**Why it wasn't fixed now.** The cause is the greedy channel choice in `utils/orthoRoute.js` (a tie between equal-cost jog positions goes to the one nearest the end), shared by every pingStyle page. Neither edge order nor 380 row/order layouts removed it, and changing the router moves arrows on all of them.
+
+**What the real fix looks like.** Prefer the jog position farthest from a side that already carries other arrows (or route the arrows that share a side before the arrow that must jog, with a crossing cost), then drop the `HUBS` exclusion in the test.
+
 ### [x] 2026-10-07 — Learning Hub document ids are word-tokenized: a shorter id can match a longer one
 
 **What's wrong.** In the live Weaviate, `LearningHubDocumentChunk` still stores `document_id` and `collection_id` with `word` tokenization. `deleteDocument` and `replaceDocumentChunks` (`demo_mcp_code_search/src/weaviateStore.ts`) filter them with `Equal`, and on a word-tokenized property `Equal` matches any value that contains all of the filter's words. So deleting or replacing `learning-hub:token-exchange.html` would also hit the chunks of `learning-hub:token-exchange-rfc-8693.html`. It is the same defect that made `ai-demo2-server` match all 470 `ai-demo2-mcp-server` chunks (fixed for `CodeChunk` in #934). Today it cannot fire: there is one collection and three documents (`ciba-oob`, `token-chain-edu`, `token-exchange-rfc-8693`), and none of their word sets is a subset of another's.

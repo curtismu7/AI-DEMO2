@@ -1,4 +1,5 @@
-import { fireEvent, render, screen } from '@testing-library/react';
+/* eslint-disable testing-library/no-node-access, testing-library/no-container -- React Flow nodes have no role; the class names are what show Ping style and drag */
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import { beforeEach, describe, expect, it, vi } from 'vitest';
 
 import { SCENARIOS } from '../../config/architecture-sim-scenarios';
@@ -9,14 +10,17 @@ vi.mock('../../vertical/useVertical', () => ({
   useVertical: vi.fn(),
 }));
 
-vi.mock('../diagram', () => ({
-  DiagramControls: ({ extra }) => extra,
-  StepTimeSelector: () => <span>step-time-selector</span>,
-  DEFAULT_STEP_MS: 1000,
-  STEP_TIME_OPTIONS: [],
-}));
-
-vi.mock('../ArchitectureSimSvg', () => ({ default: () => null }));
+// jsdom measures nothing, so React Flow draws no nodes or edges unless the observer reports each one.
+class ResizeObserverStub {
+  constructor(cb) { this.cb = cb; }
+  observe(target) { this.cb([{ target, contentRect: { width: 250, height: 40 } }]); }
+  unobserve() {}
+  disconnect() {}
+}
+window.ResizeObserver = ResizeObserverStub;
+Object.defineProperty(HTMLElement.prototype, 'offsetWidth', { configurable: true, get: () => 250 });
+Object.defineProperty(HTMLElement.prototype, 'offsetHeight', { configurable: true, get: () => 40 });
+window.DOMMatrixReadOnly = window.DOMMatrixReadOnly || class {};
 
 describe('ArchitectureOverviewPage', () => {
   beforeEach(() => {
@@ -47,19 +51,54 @@ describe('ArchitectureOverviewPage', () => {
   it('loads the combined flow steps when full architecture is selected', () => {
     render(<ArchitectureOverviewPage />);
 
-    fireEvent.change(screen.getByRole('combobox'), { target: { value: 'full-architecture' } });
+    fireEvent.change(screen.getByRole('combobox', { name: 'Scenario' }), { target: { value: 'full-architecture' } });
 
     const expectedStepCount = SCENARIOS
       .filter(scenario => scenario.group === 'Flows' && scenario.id !== 'full-architecture')
       .reduce((count, scenario) => count + scenario.steps.length, 0);
-    expect(screen.getByText(`0/${expectedStepCount}`)).toBeInTheDocument();
+    expect(screen.getByText(`Simulate walks the ${expectedStepCount} arrows in order.`)).toBeInTheDocument();
   });
 
-  it('keeps Play, Step, Reset and the step-time selector on the diagram', () => {
+  it('draws the diagram in the Ping style with the arrow key and the shared Simulate, Reset and speed controls', () => {
+    const { container } = render(<ArchitectureOverviewPage />);
+
+    expect(container.querySelector('.sfd--ping')).toBeTruthy();
+    expect(screen.getByLabelText('Arrow key')).toBeInTheDocument();
+    const bar = screen.getByTestId('aov-stepbar');
+    expect(within(bar).getByRole('button', { name: 'Simulate' })).toBeInTheDocument();
+    expect(within(bar).getByRole('button', { name: /Reset$/ })).toBeInTheDocument();
+    expect(within(bar).getByTitle(/Time each step takes/)).toBeInTheDocument();
+  });
+
+  it('Simulate starts the walk on the first step of the chosen scenario', () => {
     render(<ArchitectureOverviewPage />);
 
-    expect(screen.getByRole('button', { name: '▶ Play' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: '↺ Reset' })).toBeInTheDocument();
-    expect(screen.getByText('step-time-selector')).toBeInTheDocument();
+    fireEvent.click(within(screen.getByTestId('aov-stepbar')).getByRole('button', { name: 'Simulate' }));
+
+    expect(screen.getByText(/Step 1 of 5/)).toBeInTheDocument();
+  });
+
+  it('shows what a box does when it is clicked', () => {
+    render(<ArchitectureOverviewPage />);
+
+    fireEvent.click(screen.getByTestId('aov-flow-node-n-bff'));
+
+    expect(screen.getByTestId('aov-node-detail').textContent).toContain('Sole OAuth token custodian');
+  });
+
+  it('Live trace waits for events and hides the scenario picker', () => {
+    class FakeEventSource {
+      constructor() { this.listeners = {}; }
+      addEventListener(type, fn) { this.listeners[type] = fn; }
+      close() {}
+    }
+    vi.stubGlobal('EventSource', FakeEventSource);
+    render(<ArchitectureOverviewPage />);
+
+    fireEvent.click(screen.getByRole('button', { name: 'Live trace' }));
+
+    expect(screen.getByText(/Waiting for real system events/)).toBeInTheDocument();
+    expect(screen.queryByRole('combobox', { name: 'Scenario' })).toBeNull();
+    vi.unstubAllGlobals();
   });
 });

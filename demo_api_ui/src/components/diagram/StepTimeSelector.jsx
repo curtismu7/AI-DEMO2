@@ -1,8 +1,8 @@
 /**
  * StepTimeSelector — shared per-step timing (dwell) dropdown.
  *
- * Owns the `.dc-steptime*` markup so both DiagramControls and
- * ArchitectureSimControls render the identical control instead of each
+ * Owns the `.dc-steptime*` markup so DiagramControls and any other toolbar
+ * render the identical control instead of each
  * re-implementing it against the internal CSS class names.
  *
  * Renders nothing when `options` is empty/missing.
