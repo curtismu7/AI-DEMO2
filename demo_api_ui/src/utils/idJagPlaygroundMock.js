@@ -26,7 +26,40 @@ export const MOCK_CONFIG = {
     pingfederate: { issuer: "https://pingfederate.local.example.com", tokenEndpoint: "https://pingfederate.local.example.com/as/token.oauth2" },
   },
   xaa: { available: true, reason: null, signedIn: true, user: "alice@example.com (sample)" },
+  saml: { available: true, reason: null, audience: "idJagDemoSamlAud", issuer: `${ISSUER}/saml`, supportedModes: ["oauth-mcp", "pf-pf"], appSignedIn: true },
 };
+
+const SAML2_TOKEN_TYPE = "urn:ietf:params:oauth:token-type:saml2";
+const MASK = "[…]";
+/** A sample SAML 2.0 assertion shaped like the server's describeAssertion(): digest, signature value and certificate masked. */
+function samlAssertion() {
+  const t = Date.now();
+  const iso = (ms) => new Date(ms).toISOString().replace(/\.\d+Z$/, "Z");
+  const a = MOCK_CONFIG.saml;
+  const [issueInstant, notBefore, notOnOrAfter] = [iso(t), iso(t - 60000), iso(t + 300000)];
+  const nameId = "alice@example.com";
+  const format = "urn:oasis:names:tc:SAML:1.1:nameid-format:emailAddress";
+  const c14n = "http://www.w3.org/2001/10/xml-exc-c14n#";
+  const alg = "http://www.w3.org/2001/04/xmldsig-more#rsa-sha256";
+  const xml = [
+    `<saml:Assertion xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" ID="_sample" Version="2.0" IssueInstant="${issueInstant}">`,
+    `  <saml:Issuer>${a.issuer}</saml:Issuer>`,
+    '  <ds:Signature xmlns:ds="http://www.w3.org/2000/09/xmldsig#">',
+    "    <ds:SignedInfo>",
+    `      <ds:CanonicalizationMethod Algorithm="${c14n}"/>`,
+    `      <ds:SignatureMethod Algorithm="${alg}"/>`,
+    `      <ds:DigestValue>${MASK}</ds:DigestValue>`,
+    "    </ds:SignedInfo>",
+    `    <ds:SignatureValue>${MASK}</ds:SignatureValue>`,
+    `    <ds:KeyInfo><ds:X509Data><ds:X509Certificate>${MASK}</ds:X509Certificate></ds:X509Data></ds:KeyInfo>`,
+    "  </ds:Signature>",
+    `  <saml:Subject><saml:NameID Format="${format}">${nameId}</saml:NameID></saml:Subject>`,
+    `  <saml:Conditions NotBefore="${notBefore}" NotOnOrAfter="${notOnOrAfter}"><saml:AudienceRestriction><saml:Audience>${a.audience}</saml:Audience></saml:AudienceRestriction></saml:Conditions>`,
+    "</saml:Assertion>",
+  ].join("\n");
+  return { issuer: a.issuer, nameId, nameIdFormat: format, audience: a.audience, issueInstant, notBefore, notOnOrAfter,
+    signature: { algorithm: alg, canonicalization: c14n, certSha1: "(sample)" }, xml };
+}
 
 // Trusted-IdP registry: one sample entry, edited in memory for this page load.
 const SAMPLE_IDP = { id: "partner-okta", name: "Partner Okta (sample)", issuer: "https://partner.okta.example.com", jwksUrl: "https://partner.okta.example.com/oauth2/v1/keys", idJagClientId: "partner-agent", clientId: "demo-bff-mcp-client", pfClientId: "ai-demo-pf-idjag-redeemer", scopes: "mcp:read", targets: ["oauth-mcp", "pingfederate"], enabled: true };
@@ -141,10 +174,12 @@ function route(method, url, body) {
   if (method === "get" && path === "/negative") return NEGATIVE_TESTS.map(({ error, error_description, ...t }) => t);
   if (path === "/issue") {
     const s = MOCK_CONFIG.request;
+    const saml = body?.protocol === "saml";
     return {
-      request: { endpoint: `POST ${MOCK_CONFIG.idp.tokenEndpoint}`, body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", requested_token_type: ID_JAG_TOKEN_TYPE, subject_token: "[your session token, never sent to the browser]", subject_token_type: "urn:ietf:params:oauth:token-type:refresh_token", audience: s.audience, resource: s.resource, scope: s.scope, client_id: MOCK_CONFIG.idp.exchangeClientId } },
+      request: { endpoint: `POST ${MOCK_CONFIG.idp.tokenEndpoint}`, body: { grant_type: "urn:ietf:params:oauth:grant-type:token-exchange", requested_token_type: ID_JAG_TOKEN_TYPE, subject_token: saml ? "[the signed assertion, kept server-side]" : "[your session token, never sent to the browser]", subject_token_type: saml ? SAML2_TOKEN_TYPE : "urn:ietf:params:oauth:token-type:refresh_token", audience: s.audience, resource: s.resource, scope: s.scope, client_id: MOCK_CONFIG.idp.exchangeClientId } },
       response: { issued_token_type: ID_JAG_TOKEN_TYPE, token_type: "N_A", access_token: "[the ID-JAG, kept server-side]" },
       token: idJag(),
+      ...(saml ? { assertion: samlAssertion() } : {}),
     };
   }
   if (path === "/inspect") return inspect();

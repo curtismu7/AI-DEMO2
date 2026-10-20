@@ -103,7 +103,7 @@ export const PLAYGROUND_DIAGRAMS = {
     ],
     steps: steps([
       "A fresh sign-in at PingFederate's own login page. The BFF swaps the code for tokens and keeps the refresh token: the ID-JAG is minted from it.",
-      "RFC 8693 token exchange at PingFederate with requested_token_type=…:id-jag. subject_token is the refresh token, audience is oauth-mcp's issuer, resource is the MCP server. PingFederate returns a JWT typed oauth-id-jag+jwt that lives about 5 minutes; the page checks it against the draft.",
+      "RFC 8693 token exchange at PingFederate with requested_token_type=…:id-jag. subject_token is the refresh token, audience is oauth-mcp's issuer, resource is the MCP server. PingFederate returns a JWT typed oauth-id-jag+jwt that lives about 5 minutes; the page checks it against the draft. With the SAML toggle, subject_token is instead a SAML 2.0 assertion the BFF signs for the signed-in user (subject_token_type …:saml2) and PingFederate trades it in the same single exchange.",
       "RFC 7523 JWT bearer grant at oauth-mcp. It reads PingFederate's keys, checks typ, signature, iss, a single aud equal to its issuer, expiry, that client_id is the client redeeming now, and that the jti is unused. It grants at most the ID-JAG's scope and mints its own access token.",
       "tools/list and tools/call go to the Node MCP gateway with oauth-mcp's token. The gateway picks oauth-mcp's JWKS by iss, verifies the token and forwards it. oauth-mcp's /protected/profile takes the same token and must refuse no token and the raw ID-JAG.",
       "Each test mints a fresh ID-JAG, breaks one thing (replay, signature, client, scope) and expects an OAuth error with no token.",
@@ -145,7 +145,7 @@ export const PLAYGROUND_DIAGRAMS = {
     ],
     steps: steps([
       "A sign-in at the SE PingFederate's own login page, separate from the app's sign-in. The BFF runs code + PKCE against the issuer and keeps its refresh token.",
-      "RFC 8693 token exchange at the SE PingFederate with requested_token_type=…:id-jag, subject = the issuer refresh token, audience = the local PingFederate's issuer.",
+      "RFC 8693 token exchange at the SE PingFederate with requested_token_type=…:id-jag, subject = the issuer refresh token, audience = the local PingFederate's issuer. With the SAML toggle, subject_token is instead a SAML 2.0 assertion the BFF signs for the issuer-session user (subject_token_type …:saml2), traded in the same single exchange.",
       "RFC 7523 JWT bearer grant at the local PingFederate as client ai-demo-pf-idjag-redeemer. Its IdP connection to the SE issuer verifies the signature with the issuer's JWKS, then the access token manager mints the token the gateway trusts.",
       "tools/list and tools/call go to the Node MCP gateway with PingFederate's token; the gateway validates it against PingFederate's keys and forwards it. oauth-mcp's protected page refuses this token at the issuer check, as expected.",
       "Each test mints a fresh ID-JAG at the SE PingFederate, breaks one thing and expects the local PingFederate to refuse it with no token.",

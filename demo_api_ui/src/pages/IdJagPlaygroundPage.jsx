@@ -29,6 +29,10 @@ const MODES = [
 ];
 const BYO_TARGETS = [{ id: "oauth-mcp", label: "oauth-mcp" }, { id: "pingfederate", label: "PingFederate" }];
 const VIEWS = [{ id: "form", label: "Form" }, { id: "json", label: "JSON" }, { id: "code", label: "Code" }];
+// What the user signed in with, handed to PingFederate as the subject token: the session's OIDC tokens, or a SAML 2.0 assertion the BFF signs.
+const PROTOCOL_KEY = "idjag.playground.protocol";
+const PROTOCOLS = [{ id: "oidc", label: "OIDC" }, { id: "saml", label: "SAML" }];
+const SAML_REAL_NOTE = "SAML: the BFF signs a SAML 2.0 assertion for the signed-in user and PingFederate trades it for the ID-JAG in one token exchange (subject_token_type …:saml2). The subject is always the signed-in user. The assertion shown here has its digest, signature value and certificate masked.";
 // The standalone kit's PingFederate and sample MCP server: the real clients (mcpc, VS Code) sign in there.
 const KIT = { pfUrl: "https://cmuir-pf.ping-devops.com", mcpUrl: "http://localhost:19090/mcp" };
 const ON_LOCALHOST = typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
@@ -479,6 +483,7 @@ function TrustedIdpsPanel({ api, endpoints }) {
 export default function IdJagPlaygroundPage() {
   const [mode, setMode] = useState(() => stored(MODE_KEY, MODES, "oauth-mcp"));
   const [view, setView] = useState(() => stored(VIEW_KEY, VIEWS, "form"));
+  const [protocol, setProtocol] = useState(() => stored(PROTOCOL_KEY, PROTOCOLS, "oidc"));
   const [realModes, setRealModes] = useState(null);
   const [config, setConfig] = useState(null);
   const [busy, setBusy] = useState("");
@@ -605,6 +610,10 @@ export default function IdJagPlaygroundPage() {
   };
 
   const pickView = (v) => { store(VIEW_KEY, v); setView(v); };
+  const pickProtocol = (p) => {
+    if (p === protocol) return;
+    store(PROTOCOL_KEY, p); clearResults(); setError(null); setProtocol(p);
+  };
 
   const signIn = () => run("signin", async () => {
     if (mode === "pf-pf") {
@@ -654,7 +663,7 @@ export default function IdJagPlaygroundPage() {
 
   const issue = () => run("issue", async () => {
     setRedeemed(null); setTools(null); setCallResult(null); setInspection(null); setResource(null);
-    const r = await api.post(`${API}/issue`, {});
+    const r = await api.post(`${API}/issue`, useSaml ? { protocol: "saml" } : {});
     setIssued(r.data);
     setInspection((await api.post(`${API}/inspect`, {})).data);
   }, checkFor("issue"));
@@ -753,6 +762,12 @@ export default function IdJagPlaygroundPage() {
     const real = realModes?.find((r) => r.id === m.id);
     return real?.available === false ? { ...m, disabled: true, title: real.reason || "Not available on this server" } : m;
   });
+  // SAML is a PingFederate-issued path: not in byo (the ID-JAG is pasted), and only where the BFF can sign.
+  const samlReason = isByo ? "SAML applies to the PingFederate modes: in this mode you bring your own ID-JAG."
+    : !isMock && config?.saml?.supportedModes && !config.saml.supportedModes.includes(mode) ? "SAML is not supported in this mode."
+    : config?.saml?.available ? null : (config?.saml?.reason || "SAML is not available on this server.");
+  const useSaml = protocol === "saml" && !samlReason;
+  const protocolOptions = PROTOCOLS.map((p) => (p.id === "saml" && samlReason ? { ...p, disabled: true, title: samlReason } : p));
   const signInStatus = isMock ? "Mock: no sign-in needed."
     : mode === "pf-pf" ? (config?.signedIn ? "Signed in at the issuer PingFederate." : "Not signed in at the issuer PingFederate.")
     : (config?.signedIn ? "Signed in with PingFederate." : "Not signed in with PingFederate.");
@@ -779,6 +794,9 @@ export default function IdJagPlaygroundPage() {
         <div className="ijp-toolbar">
           <div className="ijp-toolbar__group"><span>Mode</span><Segmented label="Playground mode" options={modeOptions} value={mode} onPick={pickMode} disabled={!!busy} />
             <DiagramLink mode={mode}>View {PLAYGROUND_DIAGRAMS[mode].label} diagram ↗</DiagramLink></div>
+          <div className="ijp-toolbar__group"><span>Subject</span>
+            <Segmented label="Subject token protocol" options={protocolOptions} value={useSaml ? "saml" : "oidc"} onPick={pickProtocol} disabled={!!busy} />
+            {config && samlReason && <span className="ijp-note" data-testid="ijp-saml-reason">{samlReason}</span>}</div>
           <div className="ijp-toolbar__group"><span>View</span><Segmented label="Data view" options={VIEWS} value={view} onPick={pickView} /></div>
           <div className="ijp-toolbar__group">
             <button type="button" className="ijp-btn" onClick={startOver} disabled={!!busy || !hasResults} data-testid="ijp-start-over"
@@ -857,13 +875,23 @@ export default function IdJagPlaygroundPage() {
           {ON_LOCALHOST && <RealClients />}
         </Step>
 
-        <Step n={2} mode={mode} title={isByo ? "Check your ID-JAG against the draft" : "Get an ID-JAG from PingFederate"} note={isByo ? null : SPEC_NOTES.issue}>
+        <Step n={2} mode={mode} title={isByo ? "Check your ID-JAG against the draft" : "Get an ID-JAG from PingFederate"} note={isByo ? null : useSaml ? `${SPEC_NOTES.issue} ${SAML_REAL_NOTE}` : SPEC_NOTES.issue}>
           {!isByo && <button type="button" className="ijp-btn ijp-btn--primary" onClick={issue} disabled={!canRun || !!busy}>{busy === "issue" ? "Requesting…" : "Request ID-JAG"}</button>}
           {gateAt("issue")}
           {isByo && inspection && (
             <div className="ijp-io">
               {inspection.request && <div><h4>Request to IdenX</h4><Data value={inspection.request} /></div>}
               <div><h4>Decoded ID-JAG</h4><Data value={{ header: inspection.header, claims: inspection.claims }} /></div>
+            </div>
+          )}
+          {issued?.assertion && (
+            <div className="ijp-results" data-testid="ijp-assertion">
+              <h3>SAML assertion sent as the subject token</h3>
+              <p className="ijp-note">Signed by the BFF for the signed-in user. Digest, signature value and certificate are masked: the raw assertion never reaches the browser.</p>
+              <div className="ijp-io">
+                <div><h4>Assertion</h4><Data value={{ ...issued.assertion, xml: undefined }} /></div>
+                <div><h4>Assertion XML (masked)</h4><pre className="ijp-json ijp-code" data-testid="ijp-assertion-xml">{issued.assertion.xml}</pre></div>
+              </div>
             </div>
           )}
           {issued && (

@@ -123,6 +123,14 @@ function OverviewContent() {
         playground, signs you in (any email, any 6-digit code) and issues an ID-JAG our oauth-mcp redeems (hosted demo only).
       </Note>
 
+      <Note>
+        <strong>OIDC or SAML subject:</strong> in the{' '}
+        <a href="/pingfederate-id-jag/playground">ID-JAG Playground</a>, the "PingFederate → oauth-mcp" and
+        "PingFederate → PingFederate" modes have an OIDC | SAML toggle. With SAML the BFF signs a SAML 2.0 assertion for the signed-in user and
+        PingFederate trades it for the ID-JAG in one token exchange (subject_token_type urn:ietf:params:oauth:token-type:saml2). The page shows the
+        assertion with its digest, signature and certificate masked. It needs the SAML signing key set on the BFF.
+      </Note>
+
       <Section title="Why it Exists — the Cross-App Problem">
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.6 }}>
           Modern enterprises run many applications, each with its own OAuth Authorization Server or tenant. When a user is already authenticated in App A and an agent, service, or second app (App B) needs to act on their behalf — without sending the user through a browser redirect again — there is no clean standards-based path. The options today are all compromises:
