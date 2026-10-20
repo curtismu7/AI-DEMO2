@@ -101,7 +101,7 @@ const SKIN_CONFIG = {
       userBubbleBg: '#12538d', userBubbleColor: '#ffffff',
       inputAreaBg: '#0b1929', inputBorder: '#1a3560', inputColor: '#c8dcff',
       toolBg: '#07121e', toolBorder: '#1a3560', toolColor: '#4a90d0',
-      toolResultBg: '#051020', toolResultColor: '#3a78b8',
+      toolResultBg: '#051020', toolResultColor: '#6ba3dd',
     },
     light: {
       bg: '#f5f8ff', headerBg: '#ffffff', headerBorder: '#dde8f7',
@@ -139,12 +139,12 @@ const SKIN_CONFIG = {
     ),
     dark: {
       bg: '#1e1410', headerBg: '#231810', headerBorder: '#352010',
-      titleColor: '#ead6bc', subtitleColor: '#7a5a38',
+      titleColor: '#ead6bc', subtitleColor: '#a08058',
       agentBubbleBg: 'transparent', agentBubbleColor: '#ead6bc',
       userBubbleBg: '#2e1e0e', userBubbleColor: '#ead6bc',
       inputAreaBg: '#1e1410', inputBorder: '#352010', inputColor: '#ead6bc',
       toolBg: '#2a1c0c', toolBorder: '#4a2e18', toolColor: '#c07848',
-      toolResultBg: '#1c1408', toolResultColor: '#b06838',
+      toolResultBg: '#1c1408', toolResultColor: '#c98050',
     },
     light: {
       bg: '#fffdf8', headerBg: '#fffdf8', headerBorder: '#f0e6d0',
@@ -171,7 +171,7 @@ const SKIN_CONFIG = {
     ),
     dark: {
       bg: '#0d1117', headerBg: '#0d1117', headerBorder: '#21262d',
-      titleColor: '#ffb454', subtitleColor: '#484f58',
+      titleColor: '#ffb454', subtitleColor: '#8b949e',
       agentBubbleBg: 'transparent', agentBubbleColor: '#c9d1d9',
       userBubbleBg: 'transparent', userBubbleColor: '#79c0ff',
       inputAreaBg: '#0d1117', inputBorder: '#21262d', inputColor: '#c9d1d9',
@@ -180,7 +180,7 @@ const SKIN_CONFIG = {
     },
     light: {
       bg: '#0d1117', headerBg: '#0d1117', headerBorder: '#21262d',
-      titleColor: '#ffb454', subtitleColor: '#484f58',
+      titleColor: '#ffb454', subtitleColor: '#8b949e',
       agentBubbleBg: 'transparent', agentBubbleColor: '#c9d1d9',
       userBubbleBg: 'transparent', userBubbleColor: '#79c0ff',
       inputAreaBg: '#0d1117', inputBorder: '#21262d', inputColor: '#c9d1d9',
@@ -244,11 +244,11 @@ const SKIN_CONFIG = {
     ),
     dark: {
       bg: '#1c1c2e', headerBg: '#1c1c2e', headerBorder: '#2a2a4a',
-      titleColor: '#e0e0ff', subtitleColor: '#5a5a90',
+      titleColor: '#e0e0ff', subtitleColor: '#9c9cd0',
       agentBubbleBg: 'transparent', agentBubbleColor: '#e0e0ff',
       userBubbleBg: '#252545', userBubbleColor: '#e0e0ff',
       inputAreaBg: '#252545', inputBorder: '#3a3a60', inputColor: '#e0e0ff',
-      toolBg: '#1e1e38', toolBorder: '#3a3a60', toolColor: '#7878d8',
+      toolBg: '#1e1e38', toolBorder: '#3a3a60', toolColor: '#9e9ee8',
       toolResultBg: '#181830', toolResultColor: '#9898d8',
     },
     light: {
