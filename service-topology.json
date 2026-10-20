@@ -66,7 +66,7 @@
     "MCP_SERVER_RESOURCE_URI": "literal:mcpserver.ping.demo,mcpgateway.ping.demo",
     "MCP_RESOURCE_SERVER_RESOURCE_URI": "literal:mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo",
     "MCP_RESOURCE_URI": "literal:mcpserver.ping.demo,mcpgateway.ping.demo",
-    "MCP_GW_RESOURCE_URI": "literal:mcpgateway.ping.demo,https://api.ping.demo:3036/mcp",
+    "MCP_GW_RESOURCE_URI": "literal:mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo",
     "PINGONE_RESOURCE_MCP_GATEWAY_URI": "aud:mcpGateway",
     "PINGONE_RESOURCE_AGENT_GATEWAY_URI": "aud:agentGateway",
     "PINGONE_RESOURCE_TWO_EXCHANGE_URI": "aud:mcpGateway",
