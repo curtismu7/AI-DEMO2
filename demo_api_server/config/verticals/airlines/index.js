@@ -188,7 +188,7 @@ const HEURISTICS = [
   // "Occupied" legend swatch + disabled seat styling could never be exercised.
   // A seat MAP should show the whole plane, not just what's left to buy.
   { re: /\b(seat|seats|seat\s*map|row)\b/i, action: 'check_seat_availability', defaultParams: { available_only: false } },
-  { re: /\b(status|gate|boarding|delayed|on\s*time)\b/i, action: 'get_flight_status' },
+  { re: /\b(flight|flights?|ua\s*\d+|[a-z]{2}\s?\d{2,4})\b.*\b(status|gate|boarding|delayed|on\s*time)\b|\b(status|gate|boarding|delayed|on\s*time)\b.*\b(flight|flights?)\b|\b(gate|boarding|delayed|on\s*time)\b/i, action: 'get_flight_status' },
   { re: /\b(reservation|reservations|booking|bookings|itinerar\w*|my\s+trips?|my\s+flights?)\b/i, action: 'get_airline_bookings' },
   // UC38 — Personal Agent Concierge. "miles" / "loyalty" / "upgrade" phrases
   // that are NOT seat-map queries (seat rule above already claimed "upgrade fee"
