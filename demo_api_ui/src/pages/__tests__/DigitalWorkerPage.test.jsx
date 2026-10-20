@@ -14,6 +14,7 @@ window.ResizeObserver = window.ResizeObserver || class { observe() {} unobserve(
 vi.mock("../../services/apiClient", () => ({
   default: { get: vi.fn(), post: vi.fn() },
 }));
+vi.mock("../../utils/signInService", () => ({ openSignIn: vi.fn() }));
 // Prop probe: the page's contract with the studio is the props it passes, and a
 // runNonce bump is invisible in the real studio's DOM.
 vi.mock("../PersonalAgentStudioPage", async () => {
@@ -29,6 +30,7 @@ vi.mock("../PersonalAgentStudioPage", async () => {
 });
 
 import apiClient from "../../services/apiClient";
+import { openSignIn } from "../../utils/signInService";
 
 const UC38 = {
   id: "UC38", useCaseId: "personal-agent-concierge", title: "Workload Agent: MFA-gated protected action",
@@ -178,5 +180,19 @@ describe("DigitalWorkerPage run sections", () => {
     } finally {
       HTMLElement.prototype.scrollIntoView = original;
     }
+  });
+
+  it("a 401 from the wall shows a sign-in invitation that returns to this page, not an error", async () => {
+    const wall = Object.assign(new Error("Unauthorized"), { response: { status: 401, data: { error: "hosted_access_required" } } });
+    apiClient.get.mockImplementation((url) => (url.startsWith("/api/autonomous-runs") ? Promise.resolve({ data: { enabled: false } }) : Promise.reject(wall)));
+    renderPage();
+
+    expect(await screen.findByText("Sign in to run the governed worker.")).toBeTruthy();
+    expect(screen.queryByRole("alert")).toBeNull(); // the red error is for real failures only
+    expect(screen.queryByText("Loading the governed run…")).toBeNull();
+    expect(screen.queryByTestId("studio")).toBeNull();
+
+    fireEvent.click(within(document.getElementById("dw-pane-attended")).getByRole("button", { name: "Sign in" }));
+    expect(openSignIn).toHaveBeenCalledWith({ returnTo: "/digital-worker" });
   });
 });

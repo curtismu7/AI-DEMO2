@@ -11,6 +11,7 @@ import DigitalWorkerRunPanel from '../DigitalWorkerRunPanel';
 vi.mock('../../services/apiClient', () => ({
   default: { get: vi.fn(), post: vi.fn() },
 }));
+vi.mock('../../utils/signInService', () => ({ openSignIn: vi.fn() }));
 vi.mock('../../utils/appToast', () => ({ notifyError: vi.fn(), notifySuccess: vi.fn() }));
 vi.mock('../../components/TokenChainFilmstrip', async () => {
   const { useEffect, useState } = await import('react');
@@ -137,6 +138,15 @@ describe('DigitalWorkerRunPanel', () => {
     expect(await screen.findByRole('switch', { name: /arm/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /fire/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('401 from the wall asks the visitor to sign in instead of showing a dead switch', async () => {
+    apiClient.get.mockRejectedValue(Object.assign(new Error('Unauthorized'), { response: { status: 401, data: { error: 'hosted_access_required' } } }));
+    render(<DigitalWorkerRunPanel />);
+
+    expect(await screen.findByText(/sign in to arm the worker/i)).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Sign in' })).toBeInTheDocument();
+    expect(screen.queryByRole('switch')).not.toBeInTheDocument();
   });
 
   it('403 on fire falls back to disarmed', async () => {

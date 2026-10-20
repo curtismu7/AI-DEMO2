@@ -83,3 +83,7 @@
 /* ── Diagram: reference material, last on the page ── */
 .dw-diagram { margin-top: 1.5rem; scroll-margin-top: 6rem; } /* clear the sticky app header when jumped to */
 .dw-diagram__title { margin: 0 0 0.5rem; font-size: var(--font-size-md); }
+
+/* ── Signed-out visitors on a walled deployment: an invitation, not an error ── */
+.dw-signin { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin: 0 0 0.75rem; }
+.dw-signin p { margin: 0; }

@@ -14,6 +14,7 @@ import apiClient from "../services/apiClient";
 import TokenChainFilmstrip from "../components/TokenChainFilmstrip";
 import { replayUnattendedRun, describeRun } from "../services/tokenChainTrace/replayUnattendedRun";
 import { notifyError, notifySuccess } from "../utils/appToast";
+import DigitalWorkerSignIn from "./DigitalWorkerSignIn";
 
 const FLAG_URL = "/api/autonomous-runs/flag";
 const LIST_URL = "/api/autonomous-runs?limit=5";
@@ -27,6 +28,7 @@ export default function DigitalWorkerRunPanel() {
   const [latestRun, setLatestRun] = useState(null);
   const [notice, setNotice] = useState(null);
   const [busy, setBusy] = useState(false);
+  const [needsSignIn, setNeedsSignIn] = useState(false); // the wall answered 401 to the flag read
 
   const loadRuns = useCallback(async () => {
     try {
@@ -47,10 +49,12 @@ export default function DigitalWorkerRunPanel() {
         setEnabled(on);
         if (on) loadRuns();
       })
-      .catch(() => {
-        // 403 feature_disabled and every other failure read the same to a
-        // visitor: the worker is not armed here.
-        if (!cancelled) setEnabled(false);
+      .catch((err) => {
+        if (cancelled) return;
+        // 401: the wall wants a sign-in first. 403 feature_disabled and every other
+        // failure read the same to a visitor: the worker is not armed here.
+        if (err?.response?.status === 401) setNeedsSignIn(true);
+        setEnabled(false);
       });
     return () => { cancelled = true; };
   }, [loadRuns]);
@@ -166,23 +170,25 @@ export default function DigitalWorkerRunPanel() {
     <section className="dw-run">
       <h2 className="dw-run__title">Unattended: the worker starts itself</h2>
 
-      <div className="dw-run__arm">
-        <label className="dw-run__arm-row">
-          <input
-            type="checkbox"
-            role="switch"
-            aria-label="Arm the worker"
-            checked={Boolean(enabled)}
-            disabled={busy}
-            onChange={toggleArm}
-          />
-          <span>Arm the worker (it authenticates as itself, on its own schedule)</span>
-        </label>
-        {enabled && armExpiresInMs ? (
-          <p className="dw-run__ttl">auto-disarms in {Math.round(armExpiresInMs / 60000)} min</p>
-        ) : null}
-        {notice ? <p className="dw-run__notice" role="status">{notice}</p> : null}
-      </div>
+      {needsSignIn ? <DigitalWorkerSignIn what="arm the worker" /> : (
+        <div className="dw-run__arm">
+          <label className="dw-run__arm-row">
+            <input
+              type="checkbox"
+              role="switch"
+              aria-label="Arm the worker"
+              checked={Boolean(enabled)}
+              disabled={busy}
+              onChange={toggleArm}
+            />
+            <span>Arm the worker (it authenticates as itself, on its own schedule)</span>
+          </label>
+          {enabled && armExpiresInMs ? (
+            <p className="dw-run__ttl">auto-disarms in {Math.round(armExpiresInMs / 60000)} min</p>
+          ) : null}
+          {notice ? <p className="dw-run__notice" role="status">{notice}</p> : null}
+        </div>
+      )}
 
       {enabled ? (
         <>
