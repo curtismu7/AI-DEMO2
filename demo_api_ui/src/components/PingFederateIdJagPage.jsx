@@ -8,7 +8,7 @@ import StaticFlowDiagram from "./StaticFlowDiagram";
 import PageHeader from './common/PageHeader';
 import { useDiagramStepper } from "../hooks/useDiagramStepper";
 import { REFIT_EVENT } from "../hooks/useFitOnResize";
-import { JAG_DIAGRAM, JAG_GUIDE, LOGIN_DIAGRAM, LOGIN_GUIDE } from "../config/pfIdJagDiagrams";
+import { JAG_DIAGRAM, JAG_GUIDE, LOGIN_DIAGRAM, LOGIN_GUIDE, REQUEST_DIAGRAM, REQUEST_GUIDE } from "../config/pfIdJagDiagrams";
 
 const MOCK = "MOCK DATA — NOT A REAL TOKEN";
 
@@ -92,19 +92,17 @@ export const DIAGRAMS = {
   },
   pingfederate: {
     label: "PingFederate login",
-    exchangeSummary: "PF login + agent authorization",
+    exchangeSummary: "OIDC code + PKCE sign-in",
     title: "PingFederate standard login",
-    intro: "PingFederate handles OIDC login. The signed-in user then follows the full AI path: BFF → agent service → PingGateway → PingOne Authorize → MCP server.",
-    badge: "Login: PingFederate · Runtime policy: PingOne Authorize",
-    lanes: ["Standard PingFederate OIDC login", "AI request · BFF-mediated authorization and MCP call"],
-    chain: ["PingFederate login", "BFF session", "Agent Service", "PingGateway + P1AZ", "MCP server"],
+    intro: "PingFederate handles OIDC login. The BFF redeems the code, keeps the tokens server-side and gives the browser only a session cookie. The next tab follows the signed-in user's AI request.",
+    badge: "Login: PingFederate",
+    lanes: ["Standard PingFederate OIDC login"],
+    chain: ["BFF starts PKCE sign-in", "PingFederate authenticates", "code", "BFF session cookie"],
     learning: {
-      summary: "This comparison uses standard PingFederate OIDC login. After login, the BFF runs the AI request and performs the app's separate agent-delegation exchanges before calling the protected MCP tool.",
+      summary: "Standard PingFederate OIDC login with Authorization Code and PKCE. Where one arrow shows a request and its response (for example the code exchange and the tokens that come back), the arrow label names the response in brackets and the protocol details show both.",
       points: [
         { title: "Login · authenticate once", body: "The BFF starts OIDC Authorization Code with PKCE. PingFederate authenticates the user and returns a code; the BFF redeems it, validates the ID token and keeps OAuth tokens server-side behind an HTTP-only browser session." },
-        { title: "Agent · propose, BFF executes", body: "The BFF sends the prompt to the reasoning-only Agent Service. The agent proposes a tool call; it does not receive the user's OAuth tokens or call MCP. The BFF owns credentials and executes the approved request." },
-        { title: "Delegation · two exchanges after login", body: "The two agent exchanges happen after login. The standard PingFederate adapter performs two RFC 8693 exchanges to construct a scoped MCP access token for the agent action. These runtime delegation exchanges are separate from the earlier OIDC code exchange and from the ID-JAG flow in the other tab." },
-        { title: "Policy · protect the MCP action", body: "PingGateway enforces the access token and calls PingOne Authorize. PingOne Authorize evaluates the action policy; PingFederate is the login provider in this view." },
+        { title: "Credentials stay at PingFederate", body: "The user types the password into PingFederate's own sign-in page. The BFF never sees it, and the browser ends up with a cookie, never a token." },
       ],
       docs: [
         { label: "OAuth grant types", href: "https://docs.pingidentity.com/pingfederate/13.1/introduction_to_pingfederate/pf_grant_types.html" },
@@ -113,6 +111,28 @@ export const DIAGRAMS = {
     },
     flow: LOGIN_DIAGRAM,
     steps: withDetail(LOGIN_GUIDE),
+  },
+  pfrequest: {
+    label: "AI request",
+    exchangeSummary: "agent delegation + policy",
+    title: "PingFederate AI request path",
+    intro: "After PingFederate login, the signed-in user follows the full AI path: BFF → agent service → PingFederate delegation → PingGateway → PingOne Authorize → MCP server.",
+    badge: "Login: PingFederate · Runtime policy: PingOne Authorize",
+    lanes: ["AI request · BFF-mediated authorization and MCP call"],
+    chain: ["BFF session", "Agent Service", "PingFederate delegation", "PingGateway + P1AZ", "MCP server"],
+    learning: {
+      summary: "After login, the BFF runs the AI request and performs the app's separate agent-delegation exchanges before calling the protected MCP tool. Where one arrow shows a request and its response, the arrow label names the response in brackets and the protocol details show both.",
+      points: [
+        { title: "Agent · propose, BFF executes", body: "The BFF sends the prompt to the reasoning-only Agent Service. The agent proposes a tool call; it does not receive the user's OAuth tokens or call MCP. The BFF owns credentials and executes the approved request." },
+        { title: "Delegation · two exchanges after login", body: "The two agent exchanges happen after login. The standard PingFederate adapter performs two RFC 8693 exchanges to construct a scoped MCP access token for the agent action. These runtime delegation exchanges are separate from the earlier OIDC code exchange and from the ID-JAG flow in the other tab." },
+        { title: "Policy · protect the MCP action", body: "PingGateway enforces the access token and calls PingOne Authorize. PingOne Authorize evaluates the action policy; PingFederate is the login provider in this view." },
+      ],
+      docs: [
+        { label: "OAuth grant types", href: "https://docs.pingidentity.com/pingfederate/13.1/introduction_to_pingfederate/pf_grant_types.html" },
+      ],
+    },
+    flow: REQUEST_DIAGRAM,
+    steps: withDetail(REQUEST_GUIDE),
   },
 };
 
