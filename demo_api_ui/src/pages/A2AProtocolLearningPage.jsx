@@ -479,6 +479,7 @@ export default function A2AProtocolLearningPage() {
         {runError && <p className="a2l-err">{runError}</p>}
         {detail.present && (
           <A2AFlowVisualizer
+            pingStyle
             tokenEvents={events}
             labels={{
               generalist: detail.generalist || 'Generalist Agent',

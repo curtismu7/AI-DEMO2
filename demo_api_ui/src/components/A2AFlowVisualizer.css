@@ -263,3 +263,9 @@
   .a2fv-canvas { min-height: 320px; }
   .a2fv-packet { font-size: 0.72rem; padding: 4px 8px; }
 }
+
+/* Ping-style variant: the real evidence per hop, listed under the figure. */
+.a2fv-evidence { margin-top: 12px; color: var(--th-text); }
+.a2fv-evidence-title { margin: 0 0 8px; font-size: var(--font-size-base); color: var(--th-text); }
+.a2fv-evidence-item { border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg-inset); padding: 6px 10px; margin-bottom: 6px; }
+.a2fv-evidence-item summary { cursor: pointer; color: var(--th-text); }
