@@ -435,22 +435,6 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         </div>}
       </div>
 
-      {view === 'agent' && (
-        <details open style={{ flexShrink: 0, padding: '0 16px', borderBottom: '1px solid var(--th-border)' }}>
-          <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>How a request flows</summary>
-          <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
-            <EmbeddedFlowDiagram
-        testId="pas-flow-diagram"
-        pingStyle
-        title="How a personal-agent request is governed"
-        ariaLabel="Personal agent request flow diagram"
-        diagramLabel="Agent client to BFF, gateway and PingOne Authorize, with MFA and approval detours"
-        lede="Every skin posts to /api/agent/invoke. The three gates match the security rail; MFA and human approval are the two ways a request is held and retried."
-        config={{ GROUPS: PERSONAL_AGENT_GROUPS, NODES: PERSONAL_AGENT_NODES, EDGES: PERSONAL_AGENT_EDGES, STEPS: PERSONAL_AGENT_STEPS }}
-      />
-          </div>
-        </details>
-      )}
       {view === 'obo' ? (
         <div style={{ flex: 1, overflow: 'auto' }}>
           {user ? <OboDemoPage /> : <SignInPrompt message="The delegation proof runs on your signed-in session." />}
@@ -536,6 +520,22 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
 
       {/* Movie reel — same TokenChainFilmstrip the dashboard uses, so a personal
           agent test shows the RFC 8693 delegation path it exercised. */}
+      {view === 'agent' && (
+        <details style={{ flexShrink: 0, padding: '0 16px', borderTop: '1px solid var(--th-border)' }}>
+          <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>How a request flows</summary>
+          <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
+            <EmbeddedFlowDiagram
+              testId="pas-flow-diagram"
+              pingStyle
+              title="How a personal-agent request is governed"
+              ariaLabel="Personal agent request flow diagram"
+              diagramLabel="Agent client to BFF, gateway and PingOne Authorize, with MFA and approval detours"
+              lede="Every skin posts to /api/agent/invoke. The three gates match the security rail; MFA and human approval are the two ways a request is held and retried."
+              config={{ GROUPS: PERSONAL_AGENT_GROUPS, NODES: PERSONAL_AGENT_NODES, EDGES: PERSONAL_AGENT_EDGES, STEPS: PERSONAL_AGENT_STEPS }}
+            />
+          </div>
+        </details>
+      )}
       <div className="tcfs-float-host" style={{ flexShrink: 0, maxHeight: '45%' }}>
         <TokenChainFilmstrip />
       </div>
