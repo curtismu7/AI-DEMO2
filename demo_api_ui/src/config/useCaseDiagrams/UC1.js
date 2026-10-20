@@ -4,13 +4,14 @@
  * Story beats live in `walk`; title/what/businessValue import from demoStepGuides.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, DRAFT, SPEC } from "../pingStyleStandards";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["Signs in once"], x: 40, y: 150, detail: "Signed in; her agent acts for her under her consent." },
-  { id: "agent", group: "agent", label: "Banking agent", sub: ["Holds Alice's token"], x: 340, y: 150, detail: "Holds Alice's token and needs her account data; never sees her password." },
-  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["CIMD check", "downscope"], x: 640, y: 150, detail: "Validates the client, asks policy, then exchanges the token downscoped." },
-  { id: "p1", group: "pingone", label: "PingOne", sub: ["Authorize", "token exchange"], x: 940, y: 150, detail: "Evaluates the request and mints the delegated token with the act claim." },
-  { id: "acct", group: "resource", label: "Accounts API", sub: ["read-only"], x: 1240, y: 150, detail: "Serves account data to the downscoped caller; validates scope on every call." },
+  { id: "agent", group: "agent", label: "Banking agent", sub: ["Holds Alice's token"], x: 420, y: 150, detail: "Holds Alice's token and needs her account data; never sees her password." },
+  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["CIMD check", "downscope"], x: 800, y: 150, detail: "Validates the client, asks policy, then exchanges the token downscoped." },
+  { id: "p1", group: "pingone", label: "PingOne", sub: ["Authorize", "token exchange"], x: 1180, y: 150, detail: "Evaluates the request and mints the delegated token with the act claim." },
+  { id: "acct", group: "resource", label: "Accounts API", sub: ["read-only"], x: 1560, y: 150, detail: "Serves account data to the downscoped caller; validates scope on every call." },
 ];
 
 const EDGES = [
@@ -53,6 +54,72 @@ const walk = [
   },
 ];
 
+// Per-step detail. Tokens are decoded MOCK values (placeholders, no real ids or JWTs).
+const ISS = "https://auth.pingone.com/<env id>/as";
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /<env id>/as/token\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=authorization_code\n&code=<authorization code>\n&code_verifier=<PKCE verifier>\n&redirect_uri=<registered redirect>\n&client_id=<web app client id>\n\n-> 200 { \"access_token\": \"<user access token>\", \"id_token\": \"<id token>\", \"token_type\": \"Bearer\", \"scope\": \"openid accounts:read\" }",
+      tokens: [{
+        note: "User access token (MOCK, decoded) - Alice's sign-in consent; no act claim yet",
+        header: { alg: "RS256", typ: "at+jwt" },
+        claims: { iss: ISS, sub: "<alice user id>", aud: "<banking resource>", scope: "openid accounts:read", client_id: "<web app client id>", exp: "<unix time>" },
+      }],
+      refs: [RFC(6749, "Authorization code grant"), RFC(7636, "PKCE"), SPEC("OIDC Core 1.0", "OpenID Connect sign-in"), RFC(9068, "JWT profile for access tokens")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "POST /gateway/mcp\nAuthorization: Bearer <user access token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"get_my_accounts\", \"arguments\": {} } }\n\n(the gateway resolves the calling client's CIMD document before it asks policy)",
+      tokens: [{
+        note: "Same user access token (MOCK) - the gateway reads aud and exp, then checks the client",
+        claims: { iss: ISS, sub: "<alice user id>", aud: "<banking resource>", scope: "openid accounts:read", exp: "<unix time>" },
+      }],
+      refs: [
+        SPEC("MCP authorization 2025-11-25", "Model Context Protocol authorization"),
+        RFC(6750, "Bearer token usage"),
+        RFC(9728, "Protected Resource Metadata"),
+        DRAFT("draft-ietf-oauth-client-id-metadata-document", "Client ID Metadata Documents (client_id is a URL to its metadata)"),
+      ],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "POST /<env id>/as/token\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&subject_token=<user access token>\n&subject_token_type=urn:ietf:params:oauth:token-type:access_token\n&actor_token=<agent access token>\n&actor_token_type=urn:ietf:params:oauth:token-type:access_token\n&resource=<accounts API URI>\n&scope=accounts:read",
+      tokens: [
+        {
+          note: "INPUT subject_token (MOCK) - Alice's user token",
+          claims: { iss: ISS, sub: "<alice user id>", aud: "<banking resource>", scope: "openid accounts:read" },
+        },
+        {
+          note: "INPUT actor_token (MOCK) - the agent's own token",
+          claims: { iss: ISS, sub: "<agent client id>", aud: "<token endpoint>", scope: "agent:invoke" },
+        },
+        {
+          note: "OUTPUT delegated agent token (MOCK) - downscoped, act names the agent",
+          header: { alg: "RS256", typ: "at+jwt" },
+          claims: { iss: ISS, sub: "<alice user id>", aud: "<accounts API URI>", scope: "accounts:read", act: { sub: "<agent client id>" }, exp: "<unix time>" },
+        },
+      ],
+      refs: [RFC(8693, "OAuth 2.0 Token Exchange (subject_token, actor_token, act)"), RFC(8707, "Resource Indicators")],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "GET /api/accounts\nAuthorization: Bearer <delegated agent token>\n\n-> 200 { \"accounts\": [ { \"id\": \"{accountId}\", \"type\": \"checking\", \"balance\": <number> } ] }",
+      tokens: [{
+        note: "Delegated agent token (MOCK) - the Accounts API checks aud and scope on every call",
+        claims: { iss: ISS, sub: "<alice user id>", aud: "<accounts API URI>", scope: "accounts:read", act: { sub: "<agent client id>" } },
+      }],
+      refs: [RFC(6750, "Bearer token usage"), RFC(9068, "JWT profile for access tokens"), RFC(8693, "act claim: who is acting for whom")],
+    },
+  },
+];
+
 export default {
   id: "UC1",
   // Backend catalog useCaseId (config/useCases.js). Live overlay matching keys
@@ -68,8 +135,10 @@ export default {
     mcp: ["gw", "acct"], api: ["acct"], reply: ["agent", "user"],
   },
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

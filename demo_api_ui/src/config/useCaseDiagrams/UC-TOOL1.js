@@ -5,12 +5,13 @@
  * The indexed corpus is not an ungoverned side door.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, SPEC } from "../pingStyleStandards";
 
 const NODES = [
   { id: "agent", group: "agent", label: "Banking agent", sub: ["code question"], x: 40, y: 150, detail: "The chip 'find where the BFF performs MCP token exchange' is a retrieval job, not a chat answer." },
-  { id: "bff", group: "gateway", label: "BFF", sub: ["delegates"], x: 340, y: 150, detail: "Exchanges the user token for an MCP token carrying code:search — nothing broader." },
-  { id: "p1", group: "pingone", label: "PingOne Authorize", sub: ["PERMIT"], x: 640, y: 150, detail: "The same governed path as every tool call: perimeter check, then policy decision." },
-  { id: "rag", group: "resource", label: "code-search MCP", sub: ["Weaviate index"], x: 940, y: 150, detail: "Queries the indexed corpus; the answer carries file and line ranges." },
+  { id: "bff", group: "gateway", label: "BFF", sub: ["delegates"], x: 420, y: 150, detail: "Exchanges the user token for an MCP token carrying code:search — nothing broader." },
+  { id: "p1", group: "pingone", label: "PingOne Authorize", sub: ["PERMIT"], x: 800, y: 150, detail: "The same governed path as every tool call: perimeter check, then policy decision." },
+  { id: "rag", group: "resource", label: "code-search MCP", sub: ["Weaviate index"], x: 1180, y: 150, detail: "Queries the indexed corpus; the answer carries file and line ranges." },
 ];
 
 const EDGES = [
@@ -54,11 +55,72 @@ const walk = [
   },
 ];
 
+// Per-step detail. Tokens are decoded MOCK values. code_search request shape mirrors demo_mcp_code_search/src/server.ts
+// (query, codebase_id, limit, file_filter -> results, query_time_ms).
+const ISS = "https://auth.pingone.com/<env id>/as";
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "chip text: \"find where the BFF performs MCP token exchange\"\n\nBFF picks the tool from the phrase:\n{ \"tool\": \"code_search\", \"arguments\": { \"query\": \"<chip text>\", \"limit\": 10 } }",
+      tokens: [],
+      refs: [SPEC("MCP authorization 2025-11-25", "MCP tools are called through an authorized session")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "POST /<env id>/as/token\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&subject_token=<user access token>\n&subject_token_type=urn:ietf:params:oauth:token-type:access_token\n&resource=<code-search MCP URI>\n&scope=code:search",
+      tokens: [
+        {
+          note: "INPUT subject_token (MOCK) - the signed-in user's token",
+          claims: { iss: ISS, sub: "<user id>", aud: "<banking resource>", scope: "openid accounts:read" },
+        },
+        {
+          note: "OUTPUT delegated MCP token (MOCK) - code:search only, nothing broader",
+          header: { alg: "RS256", typ: "at+jwt" },
+          claims: { iss: ISS, sub: "<user id>", aud: "<code-search MCP URI>", scope: "code:search", act: { sub: "<agent client id>" }, exp: "<unix time>" },
+        },
+      ],
+      refs: [RFC(8693, "OAuth 2.0 Token Exchange"), RFC(8707, "Resource Indicators (audience narrowed to one MCP server)")],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "POST /gateway/mcp\nAuthorization: Bearer <delegated MCP token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"code_search\", \"arguments\": { \"query\": \"<chip text>\" } } }\n\nPingOne Authorize decision for tool code_search: PERMIT",
+      tokens: [{
+        note: "Delegated MCP token (MOCK) as the gateway sees it - perimeter check, then policy",
+        claims: { iss: ISS, sub: "<user id>", aud: "<code-search MCP URI>", scope: "code:search", act: { sub: "<agent client id>" } },
+      }],
+      refs: [SPEC("MCP authorization 2025-11-25", "Model Context Protocol authorization"), RFC(6750, "Bearer token usage"), SPEC("OpenID AuthZEN", "Standard authorization API between PEP and PDP")],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "POST <code-search MCP>/search\nContent-Type: application/json\n\n{ \"query\": \"<chip text>\", \"codebase_id\": \"{codebaseId}\", \"limit\": 10 }\n\n-> 200 { \"results\": [ { \"file\": \"<path>\", \"line_start\": <n>, \"line_end\": <n>, \"snippet\": \"<chunk>\" } ], \"query_time_ms\": <n> }",
+      tokens: [],
+      refs: [SPEC("MCP authorization 2025-11-25", "The MCP server only sees calls the gateway authorized")],
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: "{ \"jsonrpc\": \"2.0\", \"id\": 1,\n  \"result\": { \"content\": [ { \"type\": \"text\", \"text\": \"<answer citing file and line ranges>\" } ] } }\n\nevidence rail: delegated identity, scope code:search, PERMIT decision, audit row",
+      tokens: [],
+      refs: [RFC(8693, "act claim keeps who-acts-for-whom on the audit record")],
+    },
+  },
+];
+
 export default {
   id: "UC-TOOL1",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

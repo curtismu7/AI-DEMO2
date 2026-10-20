@@ -4,6 +4,7 @@
  * denies even though the scopes would allow it. Intent is a contract.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, SPEC } from "../pingStyleStandards";
 
 const NODES = [
   { id: "agent", group: "agent", label: "Attack agent", sub: ["asks $2,500"], x: 40, y: 150, detail: "Reuses the PAR grant from UC14b but requests far more than it pushed." },
@@ -46,11 +47,58 @@ const walk = [
   },
 ];
 
+// Per-step detail. Tokens are decoded MOCK values. Same pushed grant as UC14b (cap $500); the live ask is $2,500.
+const ISS = "https://auth.pingone.com/<env id>/as";
+const RAR = { type: "banking_transaction", actions: ["create_transfer"], amount: 500, payee: "{savingsAccountId}" };
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /gateway/mcp\nAuthorization: Bearer <agent access token from UC14b>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"create_transfer\", \"arguments\": { \"amount\": 2500, \"to_account_id\": \"{savingsAccountId}\", \"from_account_id\": \"{checkingAccountId}\" } } }\n\nthe scopes in the token would allow a transfer; the amount is what is wrong",
+      tokens: [{
+        note: "Agent token (MOCK) - valid, scoped, unexpired; the grant caps the amount at 500",
+        header: { alg: "RS256", typ: "at+jwt" },
+        claims: { iss: ISS, sub: "<user id>", aud: "<banking resource>", scope: "banking:transactions:write", act: { sub: "<agent client id>" }, authorization_details: [RAR], exp: "<unix time>" },
+      }],
+      refs: [RFC(9396, "authorization_details define what the grant allows"), RFC(6750, "Bearer token usage")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "PingOne Authorize decision request\n\nsubject: <user id>, actor: <agent client id>\nresource: tool create_transfer\nattributes: { amount: 2500 }\ncontext: authorization_details from the token = [ { amount: 500, payee: \"{savingsAccountId}\" } ]",
+      tokens: [{
+        note: "Grant in the token (MOCK) - the pushed contract, retrieved for the comparison",
+        claims: { authorization_details: [RAR] },
+      }],
+      refs: [RFC(9396, "Rich Authorization Requests"), RFC(9126, "The grant was pushed, not supplied by the browser"), SPEC("OpenID AuthZEN", "Enforcement point passes the grant as decision context")],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "Authorize decision: DENY\nreason: live amount 2500 > granted amount 500 (intent violated)\n\nthe scope check alone would have passed; the intent check is separate and wins",
+      tokens: [],
+      refs: [RFC(9396, "A call outside authorization_details is refused"), SPEC("XACML 3.0", "Decision values PERMIT / DENY")],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "HTTP/1.1 403 Forbidden  (policy denial; the create_transfer tool is not dispatched)\n\nchat: denied by policy, intent exceeded\ntoken chain: authorize-decision DENY recorded; no money moved",
+      tokens: [],
+      refs: [SPEC("XACML 3.0", "The enforcement point honours the DENY decision")],
+    },
+  },
+];
+
 export default {
   id: "UC14",
   result: { label: "DENY", tone: "err" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };
