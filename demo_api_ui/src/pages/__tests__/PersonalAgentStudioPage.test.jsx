@@ -177,4 +177,12 @@ describe('PersonalAgentStudioPage', () => {
     expect(screen.getByTestId('signin')).toBeTruthy();
     expect(screen.queryByTestId('obo-page')).toBeNull();
   });
+
+  it('puts the client setup cards below the agent, not above it', () => {
+    renderStudio();
+    const agent = screen.getByPlaceholderText(/^Message /);
+    const cards = screen.getByText('Personal agent clients');
+    // DOCUMENT_POSITION_FOLLOWING (4): the cards come after the chat input
+    expect(agent.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+  });
 });

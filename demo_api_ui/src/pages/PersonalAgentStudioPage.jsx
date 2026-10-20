@@ -440,8 +440,6 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           {user ? <OboDemoPage /> : <SignInPrompt message="The delegation proof runs on your signed-in session." />}
         </div>
       ) : (<>
-      <PersonalAgentClientCards />
-
       {/* Content area */}
       <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
         {/* Agent panel */}
@@ -539,6 +537,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       <div className="tcfs-float-host" style={{ flexShrink: 0, maxHeight: '45%' }}>
         <TokenChainFilmstrip />
       </div>
+      <PersonalAgentClientCards />
       </>)}
       {mfaModal}
     </div>

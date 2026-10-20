@@ -440,7 +440,10 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
   const isTerminal = !!cfg.isTerminal;
 
   useEffect(() => {
-    messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+    // Scroll the message list itself. scrollIntoView() also scrolls every
+    // scrollable ancestor, so it dragged the whole page down to the chat on load.
+    const list = messagesEndRef.current?.parentElement;
+    if (list) list.scrollTop = list.scrollHeight;
   }, [messages]);
 
   function handleKeyDown(e) {
