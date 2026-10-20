@@ -1635,6 +1635,14 @@ function AppWithAuth() {
                   }
                 />
                 <Route
+                  path="/personal-agent/full"
+                  element={
+                    // Bare full-page variant for sharing from the handoff page —
+                    // no side nav, header or footer. Same page component.
+                    <PersonalAgentStudioPage user={user} />
+                  }
+                />
+                <Route
                   path="/workload-agents"
                   element={
                     <AppShell user={user} logout={logout}>
@@ -1655,6 +1663,14 @@ function AppWithAuth() {
                     <AppShell user={user} logout={logout}>
                       <DotWorkbenchPage user={user} />
                     </AppShell>
+                  }
+                />
+                <Route
+                  path="/personal-agent/dot/full"
+                  element={
+                    // Bare full-page variant for sharing from the handoff page —
+                    // no side nav, header or footer. Same page component.
+                    <DotWorkbenchPage user={user} />
                   }
                 />
                 <Route

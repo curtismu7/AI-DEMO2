@@ -32,6 +32,9 @@ describe("side-nav ownership", () => {
     ["/logs", null, "shell"], // no-chrome stays no-chrome for guests too
     // Pop-out client window is a bare popup — no global sidebar inside it.
     ["/personal-agent/client", user, "shell"],
+    // Bare full-page variants (handoff-page sharing) — no chrome at all.
+    ["/personal-agent/dot/full", user, "shell"],
+    ["/personal-agent/full", user, "shell"],
     // Standalone sample URLs opt out of the global chrome. These routes render
     // no AppShell either, so "shell" here means nothing renders a nav at all —
     // which is the point of them.
