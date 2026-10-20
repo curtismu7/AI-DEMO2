@@ -1365,10 +1365,10 @@ export default function AdminSideNav({
 
   // Listed in both the Digital Worker group and the Diagrams group.
   const digitalWorkerDiagram = {
-    label: "Digital Worker Diagram",
+    label: "Digital Worker",
     path: "/digital-worker",
     icon: "arc",
-    searchAlias: "digital worker agentic token service agent gateway mcp token mediation diagram",
+    searchAlias: "digital worker agentic token service agent gateway mcp token mediation diagram live run autonomous arm uc38",
   };
 
   const allNavItems = [
