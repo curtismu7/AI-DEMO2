@@ -162,6 +162,32 @@ describe('DotWorkbenchPage', () => {
     expect(await screen.findByText(/model/i, { selector: '.dot-m--error' })).toHaveTextContent(/Heuristics/);
   });
 
+  it('renders the diagram OUTSIDE the fixed-height IDE sheet (it would be clipped by its overflow:hidden)', async () => {
+    mockFetch(() => json(200, {}));
+    const { container } = renderPage();
+    expect(await screen.findByText('ag-9')).toBeTruthy();
+    const sheet = container.querySelector('.cur-ide');
+    expect(sheet).toBeTruthy();
+    expect(container.querySelector('.efd')).toBeTruthy();
+    expect(sheet.contains(container.querySelector('.efd'))).toBe(false);
+  });
+
+  it('bare /full variant: sheet drops the chrome-height subtraction (no dead band below)', () => {
+    mockFetch(() => json(200, {}));
+    const { container } = render(
+      <MemoryRouter>
+        <DotWorkbenchPage user={{ email: 'sam@x.com' }} bare />
+      </MemoryRouter>,
+    );
+    expect(container.querySelector('.cur-ide.dot-wb--bare')).toBeTruthy();
+  });
+
+  it('chrome route does not get the bare class', () => {
+    mockFetch(() => json(200, {}));
+    const { container } = renderPage();
+    expect(container.querySelector('.dot-wb--bare')).toBeNull();
+  });
+
   it('skin tabs link to the Studio', () => {
     mockFetch(() => json(200, {}));
     renderPage();

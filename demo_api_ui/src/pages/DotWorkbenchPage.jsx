@@ -19,7 +19,11 @@ import '../components/dot/DotWorkbench.css';
 
 const SKINS = [['privilege', 'Privilege'], ['claude', 'Claude'], ['gpt', 'ChatGPT'], ['gemini', 'Gemini']];
 
-export default function DotWorkbenchPage({ user }) {
+export default function DotWorkbenchPage({ user, bare = false }) {
+  // Bare (/personal-agent/dot/full) renders with no app chrome around it, so
+  // the sheet must not subtract the chrome height; and the diagram is a
+  // sibling of the fixed-height overflow:hidden sheet — inside it, it gets
+  // clipped (it has no scroll of its own).
   const persona = useDotPersona();
   const { activeId, pageManifest } = useVertical();
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent');
@@ -62,7 +66,8 @@ export default function DotWorkbenchPage({ user }) {
 
   const cards = items.filter((i) => i.kind === 'tool');
   return (
-    <div className="cur-ide dot-wb" data-cur-theme={theme} data-testid="dot-workbench-page" style={{ minHeight: 0 }}>
+    <>
+    <div className={`cur-ide dot-wb${bare ? ' dot-wb--bare' : ''}`} data-cur-theme={theme} data-testid="dot-workbench-page" style={{ minHeight: 0 }}>
       <header className="cur-titlebar">
         <div className="cur-titlebar-left"><span className="cur-titlebar-title">Digital Assistant</span></div>
         <nav className="cur-titlebar-center" aria-label="Agent skins">
@@ -116,13 +121,14 @@ export default function DotWorkbenchPage({ user }) {
           <DotGovernsPanel cards={cards} persona={persona} mode={agentMode} />
         </aside>
       </main>
-      <EmbeddedFlowDiagram
-        testId="dot-diagram"
-        pingStyle
-        title="How Dot handles a message"
-        lede="One message, end to end: the BFF route, the optional intent gate, the agent run, the governed tool call and what comes back to this page."
-        config={{ GROUPS: DOT_WORKBENCH_GROUPS, NODES: DOT_WORKBENCH_NODES, EDGES: DOT_WORKBENCH_EDGES, STEPS: DOT_WORKBENCH_STEPS }}
-      />
     </div>
+    <EmbeddedFlowDiagram
+      testId="dot-diagram"
+      pingStyle
+      title="How Dot handles a message"
+      lede="One message, end to end: the BFF route, the optional intent gate, the agent run, the governed tool call and what comes back to this page."
+      config={{ GROUPS: DOT_WORKBENCH_GROUPS, NODES: DOT_WORKBENCH_NODES, EDGES: DOT_WORKBENCH_EDGES, STEPS: DOT_WORKBENCH_STEPS }}
+    />
+    </>
   );
 }
