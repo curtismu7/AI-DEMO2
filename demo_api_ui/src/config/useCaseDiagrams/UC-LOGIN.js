@@ -5,12 +5,13 @@
  * a session cookie.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_LOGIN as steps } from "../ucBatch3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (browser)", sub: ["clicks Sign in"], x: 40, y: 150, detail: "Clicks 'Sign in with PingOne'; after the round trip her browser holds only a session cookie — no token ever reaches page JavaScript." },
-  { id: "bff", group: "gateway", label: "BFF", sub: ["mints PKCE", "holds tokens"], x: 340, y: 150, detail: "Switches the provider to PingOne, destroys the old session, generates the code_verifier server-side, redirects with prompt=login, redeems the code and stores the access, ID and refresh tokens in the server session." },
-  { id: "p1", group: "pingone", label: "PingOne", sub: ["hosted login", "token endpoint"], x: 640, y: 150, detail: "Authenticates the person (prompt=login forces a fresh sign-in instead of SSO bounce), issues the one-time authorization code, then the tokens." },
-  { id: "rs", group: "resource", label: "Resource server", sub: ["/resource-server"], x: 940, y: 150, detail: "The OIDC Resource Server page uses the login token directly: no token exchange, PingOne Authorize or Agent Gateway." },
+  { id: "bff", group: "gateway", label: "BFF", sub: ["mints PKCE", "holds tokens"], x: 480, y: 150, detail: "Switches the provider to PingOne, destroys the old session, generates the code_verifier server-side, redirects with prompt=login, redeems the code and stores the access, ID and refresh tokens in the server session." },
+  { id: "p1", group: "pingone", label: "PingOne", sub: ["hosted login", "token endpoint"], x: 960, y: 150, detail: "Authenticates the person (prompt=login forces a fresh sign-in instead of SSO bounce), issues the one-time authorization code, then the tokens." },
+  { id: "rs", group: "resource", label: "Resource server", sub: ["/resource-server"], x: 1400, y: 150, detail: "The OIDC Resource Server page uses the login token directly: no token exchange, PingOne Authorize or Agent Gateway." },
 ];
 
 const EDGES = [
@@ -62,8 +63,10 @@ const walk = [
 export default {
   id: "UC-LOGIN",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

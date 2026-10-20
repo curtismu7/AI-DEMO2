@@ -5,12 +5,13 @@
  * loses trust at once.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_NHI1 as steps } from "../ucBatch3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Security operator", sub: ["signs in", "opens /ai-control-plane"], x: 40, y: 150, detail: "Signed in as a customer — the same session the live agent runs on, so every stop is demonstrated on a real identity, not a fixture." },
-  { id: "gw", group: "gateway", label: "AI Control Plane", sub: ["roster API", "kill switch"], x: 340, y: 150, detail: "The demo BFF behind /ai-control-plane: GET /api/control-plane/agents builds the roster (live + demo rows), and the Stop buttons front the admin kill-switch routes." },
-  { id: "p1", group: "pingone", label: "PingOne", sub: ["identity layer", "revoke + disable"], x: 640, y: 150, detail: "Where the agent's identity actually lives — its OAuth tokens, its user account, its agent application. Revoking here is what every downstream platform inherits." },
-  { id: "agent", group: "agent", label: "Live agent (NHI)", sub: ["id demo-agent", "real PingOne identity"], x: 940, y: 150, detail: "The roster's live row: the only identity with a real PingOne identity behind it, shown with its current LLM provider and vertical." },
+  { id: "gw", group: "gateway", label: "AI Control Plane", sub: ["roster API", "kill switch"], x: 470, y: 150, detail: "The demo BFF behind /ai-control-plane: GET /api/control-plane/agents builds the roster (live + demo rows), and the Stop buttons front the admin kill-switch routes." },
+  { id: "p1", group: "pingone", label: "PingOne", sub: ["identity layer", "revoke + disable"], x: 950, y: 150, detail: "Where the agent's identity actually lives — its OAuth tokens, its user account, its agent application. Revoking here is what every downstream platform inherits." },
+  { id: "agent", group: "agent", label: "Live agent (NHI)", sub: ["id demo-agent", "real PingOne identity"], x: 1340, y: 150, detail: "The roster's live row: the only identity with a real PingOne identity behind it, shown with its current LLM provider and vertical." },
 ];
 
 const EDGES = [
@@ -59,8 +60,10 @@ const walk = [
 export default {
   id: "UC-NHI1",
   result: { label: "INFO", tone: "info" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

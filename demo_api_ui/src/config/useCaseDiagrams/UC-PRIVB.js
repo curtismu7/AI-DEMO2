@@ -6,18 +6,19 @@
  * undiscoverable, not denied. The catalog a client sees IS its privilege level.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_PRIVB as steps } from "../ucBatch3Steps";
 
 const NODES = [
   { id: "client", group: "agent", label: "MCP client", sub: ["asks tools/list"], x: 40, y: 150, detail: "An ordinary discovery call — the client has no way to ask for tools it cannot see." },
-  { id: "gw", group: "gateway", label: "Agent Privilege gateway", sub: ["filters before responding"], x: 340, y: 150, detail: "Removes every tool outside the policy before the response is written — the denied tools are never in the payload at all." },
-  { id: "backend", group: "resource", label: "MCP backend", sub: ["9 tools"], x: 640, y: 150, detail: "Exposes all 9 tools; the policy's cut happens above it, at the gateway." },
-  { id: "policy", group: "pingone", label: "Policy store", sub: ["policy = 2 tools"], x: 940, y: 150, detail: "The app's policy was edited down to 2 tools — that edit is what the client's catalog reflects." },
+  { id: "gw", group: "gateway", label: "Agent Privilege gateway", sub: ["filters before responding"], x: 470, y: 150, detail: "Removes every tool outside the policy before the response is written — the denied tools are never in the payload at all." },
+  { id: "backend", group: "resource", label: "MCP backend", sub: ["9 tools"], x: 910, y: 150, detail: "Exposes all 9 tools; the policy's cut happens above it, at the gateway." },
+  { id: "policy", group: "pingone", label: "Policy store", sub: ["policy = 2 tools"], x: 470, y: 340, detail: "The app's policy was edited down to 2 tools — that edit is what the client's catalog reflects." },
 ];
 
 const EDGES = [
   ["client", "gw", "tools/list", { detail: "The discovery request — where per-tool grants gate, not at call time." }],
-  ["gw", "policy", "which tools does this identity hold?", { detail: "The gateway resolves the caller's policy before answering." }],
-  ["policy", "gw", "2 granted", { detail: "The policy grants exactly 2 of the backend's 9." }],
+  ["gw", "policy", "which tools does this identity hold?", { vertical: true, detail: "The gateway resolves the caller's policy before answering." }],
+  ["policy", "gw", "2 granted", { lane: -60, detail: "The policy grants exactly 2 of the backend's 9." }],
   ["gw", "backend", "fetch full catalog", { detail: "The gateway still asks the backend for all 9 — the filter is the gateway's job, not the backend's." }],
   ["gw", "client", "filtered catalog", { detail: "Exactly 2 tools return; zero denied are reported because they are undiscoverable, not denied — _meta.deniedTools exists only on the WS transport." }],
 ];
@@ -55,8 +56,10 @@ const walk = [
 export default {
   id: "UC-PRIVB",
   result: { label: "2 OF 9", tone: "info" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };
