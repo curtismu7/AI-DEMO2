@@ -6,12 +6,13 @@
  * modeled on the 2024 Air Canada chatbot case.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, MCP } from "../pingStyleStandards";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["asks for a waiver"], x: 40, y: 150, detail: "\"Can you waive the fee on my checking account?\" — whatever the agent replies, it is backed by a real audited tool call." },
-  { id: "agent", group: "agent", label: "Banking agent", sub: ["LLM promise-maker"], x: 340, y: 150, detail: "Can only call request_fee_waiver: it logs a request for human review. No tool in its catalog grants a waiver, so none can be promised." },
-  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["tool catalog"], x: 640, y: 150, detail: "The catalog is the authorization boundary — the agent cannot invent a tool, and the gateway dispatches only what exists." },
-  { id: "res", group: "resource", label: "Fee-waiver request", sub: ["request-only tool"], x: 940, y: 150, detail: "request_fee_waiver records the ask for human review. It cannot grant anything — a human decides later." },
+  { id: "agent", group: "agent", label: "Banking agent", sub: ["LLM promise-maker"], x: 440, y: 150, detail: "Can only call request_fee_waiver: it logs a request for human review. No tool in its catalog grants a waiver, so none can be promised." },
+  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["tool catalog"], x: 840, y: 150, detail: "The catalog is the authorization boundary — the agent cannot invent a tool, and the gateway dispatches only what exists." },
+  { id: "res", group: "resource", label: "Fee-waiver request", sub: ["request-only tool"], x: 1240, y: 150, detail: "request_fee_waiver records the ask for human review. It cannot grant anything — a human decides later." },
 ];
 
 const EDGES = [
@@ -48,11 +49,52 @@ const walk = [
   },
 ];
 
+// Per-step detail. request_fee_waiver is a real gateway tool (ping-gateway/config/mcp-tool-schemas.json): inputs account_id + reason, required scope write.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"Can you waive the fee on my checking account?\", \"vertical\": \"super-sports\" }",
+      tokens: [],
+      refs: [],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "tools/list (what the agent can call)\n\n{ \"name\": \"request_fee_waiver\",\n  \"inputSchema\": { \"properties\": { \"account_id\": { \"type\": \"string\" }, \"reason\": { \"type\": \"string\" } } } }\n\nNo tool in the catalog grants a waiver. The agent cannot invent a tool, so it cannot promise one.",
+      tokens: [],
+      refs: [...MCP.filter((r) => r.id === "MCP authorization 2025-11-25")],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "POST /gateway/mcp\nAuthorization: Bearer <delegated access token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"request_fee_waiver\", \"arguments\": { \"account_id\": \"{accountId}\", \"reason\": \"<reason>\" } } }\n\n-> 200: request logged, human review pending",
+      tokens: [{
+        note: "MOCK decoded delegated token · the tool's required scope is write",
+        header: { alg: "RS256", typ: "at+jwt" },
+        claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://mcp.ping.demo", scope: "write", act: { sub: "agent-0001" }, exp: 1790000000 },
+      }],
+      refs: [RFC(6750, "Bearer token usage"), RFC(8693, "act claim: the agent acting for Alice")],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "Agent reply (grounded in the tool result)\n\n\"I have filed a fee-waiver request for human review. I cannot grant a waiver.\"\n\nNo wire credential here: the reply is chat text generated from the audited call above.",
+      tokens: [],
+    },
+  },
+];
+
 export default {
   id: "UC28",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };
