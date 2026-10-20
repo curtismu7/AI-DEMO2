@@ -52,6 +52,7 @@ const walk = [
 export default {
   id: "UC-NHI2",
   result: { label: "JML_EVENT_FEED", tone: "info" },
+  pingStyle: true, // pilot: opts this page into the Ping look (see UseCaseDiagramPage)
   GROUPS: G,
   NODES,
   EDGES,
