@@ -299,10 +299,11 @@ export const DESIGNS = {
 // ---------------------------------------------------------------------------------------------
 // The review: the original design, its holes, and where each is closed
 // ---------------------------------------------------------------------------------------------
+// Ping palette: red = carries a finding, dark = done well, grey = no finding.
 export const REVIEW_GROUPS = {
-  risk: { label: "Carries a finding", bg: "var(--th-status-error)" },
-  ok: { label: "Done well", bg: "var(--th-status-success)" },
-  neutral: { label: "No finding", bg: "var(--th-border-strong)" },
+  risk: { label: "Carries a finding", bg: "#b5231a" },
+  ok: { label: "Done well", bg: "#151a24" },
+  neutral: { label: "No finding", bg: "#5a5f69" },
 };
 
 export const ORIGINAL_NODES = [
@@ -319,11 +320,11 @@ export const ORIGINAL_NODES = [
 ];
 export const ORIGINAL_EDGES = [
   E("traveller", "chat", "asks, replies"),
-  E("signin", "chat", "sign-in token", DOWN),
+  E("signin", "chat", "sign-in token", { vertical: true, dashed: true }), // pingStyle: dashed blue = a token
   E("chat", "claude", "what should I do next", DOWN),
   E("chat", "mcp", "tool calls + same token"),
-  E("other", "mcp", "same tools, no gateway", { vertical: true, dashed: true }),
-  E("mcp", "session", "token becomes a member session", DOWN),
+  E("other", "mcp", "same tools, no gateway", DOWN),
+  E("mcp", "session", "token becomes a member session", { vertical: true, dashed: true }),
   E("mcp", "facade", "calls with that session"),
   E("facade", "services", "existing systems", DOWN),
   E("traveller", "checkout", "opens the checkout link", DOWN),

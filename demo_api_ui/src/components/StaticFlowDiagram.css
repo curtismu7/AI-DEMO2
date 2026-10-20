@@ -104,6 +104,9 @@
 .sfd--ping .sfd-edge.step-future path { stroke: var(--sfd-ping-dash); }
 .sfd--ping .sfd-edge.step-now path { stroke: var(--sfd-ping-dash) !important; }
 .sfd--ping .sfd-node--selected { box-shadow: 0 0 0 3px var(--sfd-ping-orange); }
+/* React Flow zoom controls: the library default is a white block, unreadable on the dark canvas */
+.sfd--ping .react-flow__controls-button { background: var(--th-bg-card); color: var(--th-text); border-bottom: 1px solid var(--th-border-strong); }
+.sfd--ping .react-flow__controls-button svg { fill: var(--th-text); }
 
 /* Badge: the step number, always shown; the words only for the active step or on hover. Black on white, above the arrows. */
 .sfd--ping .sfd-edge-label--ping {

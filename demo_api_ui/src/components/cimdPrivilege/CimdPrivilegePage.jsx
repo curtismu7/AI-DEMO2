@@ -1,5 +1,5 @@
 // CimdPrivilegePage.jsx — /cimd-privilege under Diagrams.
-// Two figures in the Personal Agent format: React Flow (StaticFlowDiagram) driven by the shared Play/Step
+// Two figures in the Personal Agent format: React Flow (StaticFlowDiagram, pingStyle) driven by the shared Play/Step
 // bar, with one card per step underneath. Each card says what happens, why it matters, and whether it was
 // observed or is still expected, so the page can be shown to others without overclaiming.
 import React from "react";
@@ -40,6 +40,7 @@ function Figure({ id, title, intro, nodes, edges, groups, steps, ariaLabel }) {
           EDGES={edges}
           GROUPS={groups}
           stepper={stepper}
+          pingStyle
           testId={`cimd-diagram-${id}`}
           height={560}
           ariaLabel={ariaLabel}
@@ -47,7 +48,7 @@ function Figure({ id, title, intro, nodes, edges, groups, steps, ariaLabel }) {
         <ul className="pa-legend" aria-label="Legend">
           {usedGroups.map((g) => (
             <li key={g}>
-              <i className={`pa-sw pa-sw--${g}`} />
+              <i className="pa-sw" style={{ borderTopColor: groups[g].bg }} />
               {groups[g].label}
             </li>
           ))}
