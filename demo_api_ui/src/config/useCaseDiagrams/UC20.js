@@ -10,14 +10,14 @@ const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["same ask as UC1"], x: 40, y: 150, detail: "Sends 'show my balance' — the identical flow, watched for its evidence this time." },
   { id: "agent", group: "agent", label: "Banking agent", sub: ["acts for Alice"], x: 340, y: 150, detail: "The same delegated call; the point now is what the platform recorded." },
   { id: "chain", group: "gateway", label: "Token Chain panel", sub: ["hop by hop"], x: 640, y: 150, detail: "user-token -> token-exchange -> authorize-decision -> tool-dispatched, on the rail." },
-  { id: "act", group: "resource", label: "Activity panel", sub: ["stamped events"], x: 940, y: 150, detail: "The use-case id and act chain are stamped on every token event and activity log." },
+  { id: "act", group: "resource", label: "Activity panel", sub: ["stamped events"], x: 940, y: 310, detail: "The use-case id and act chain are stamped on every token event and activity log." },
   ];
 
 const EDGES = [
   ["user", "agent", "show my balance", { detail: "The flow runs exactly as in UC1." }],
   ["agent", "chain", "every hop recorded", { detail: "The rail reconstructs the whole token journey." }],
   ["agent", "act", "events stamped", { detail: "Attribution rides on the platform, not on log statements." }],
-  ["chain", "act", "correlated", { detail: "The rail and the events tell one reconstructed story." }],
+  ["chain", "act", "correlated", { vertical: true, detail: "The rail and the events tell one reconstructed story." }],
   ["act", "act", "platform-emitted", { detail: "The audit trail exists because the platform emitted it." }],
 ];
 

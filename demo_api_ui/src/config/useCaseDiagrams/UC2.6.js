@@ -19,7 +19,7 @@ const EDGES = [
   ["user", "gen", "governed handoff", { detail: "The UC2 chain: user, then generalist, then specialist — and a real PERMIT." }],
   ["gen", "p1", "authorize -> PERMIT", { detail: "Nested act chain checks out for the registered actor." }],
   ["rogue", "p1", "same-shape probe", { detail: "Same user, same delegation shape — but the acting agent is fabricated and unregistered." }],
-  ["p1", "rogue", "invalid_a2a_generalist", { detail: "DENY on actor identity: who is acting decides, not just who is being acted for." }],
+  ["p1", "rogue", "invalid_a2a_generalist", { dashed: true, detail: "DENY on actor identity: who is acting decides, not just who is being acted for." }],
 ];
 
 const walk = [

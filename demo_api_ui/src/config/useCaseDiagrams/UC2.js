@@ -9,14 +9,14 @@ const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["delegates once"], x: 40, y: 150, detail: "Consented at sign-in; she never sees the handoff between the agents." },
   { id: "gen", group: "agent", label: "Generalist agent", sub: ["Banking Agent"], x: 340, y: 150, detail: "Holds sub=alice, act=generalist. It is not expert in the job, so it hands off." },
   { id: "spec", group: "agent", label: "Specialist agent", sub: ["receives handoff"], x: 640, y: 150, detail: "Exchanges again: act nests the generalist inside the specialist." },
-  { id: "p1", group: "pingone", label: "PingOne", sub: ["RFC 8693 x2"], x: 940, y: 150, detail: "Mints both delegated tokens; each hop carries less scope, not more." },
+  { id: "p1", group: "pingone", label: "PingOne", sub: ["RFC 8693 x2"], x: 1240, y: 150, detail: "Mints both delegated tokens; each hop carries less scope, not more." },
 ];
 
 const EDGES = [
-  ["user", "gen", "consent at sign-in", { detail: "One exchange mints the generalist token: sub=alice, act=generalist." }],
+  ["user", "gen", "consent at sign-in", { dashed: true, detail: "One exchange mints the generalist token: sub=alice, act=generalist." }],
   ["gen", "spec", "handoff", { detail: "The specialist sends its own exchange; the user never sees this hop." }],
   ["spec", "p1", "second RFC 8693", { detail: "act nests: specialist acts for generalist acting for alice." }],
-  ["p1", "spec", "narrowed token", { detail: "Only what the handoff granted — scope narrows at every hop." }],
+  ["p1", "spec", "narrowed token", { dashed: true, detail: "Only what the handoff granted — scope narrows at every hop." }],
   ["spec", "p1", "authorize", { detail: "The policy decides over the whole nested act chain." }],
 ];
 

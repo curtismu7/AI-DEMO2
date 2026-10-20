@@ -14,7 +14,7 @@ const NODES = [
 const EDGES = [
   ["atk", "gw", "present token", { detail: "The envelope is what fails, not the policy." }],
   ["gw", "gw", "aud mismatch", { detail: "The audience does not name this gateway." }],
-  ["gw", "atk", "401", { detail: "Refused on the spot; no tool touched, no Authorize call spent." }],
+  ["gw", "atk", "401", { dashed: true, detail: "Refused on the spot; no tool touched, no Authorize call spent." }],
   ["gw", "gw", "one shield for all", { detail: "The same perimeter validation covers every tool and service." }],
 ];
 

@@ -8,15 +8,15 @@ import { PARTICIPANT_GROUPS as G } from "./palette";
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["approved intent"], x: 40, y: 150, detail: "The approved intent is a signed token — amount, payee, expiry — not a flag." },
   { id: "sim", group: "agent", label: "Attack sim", sub: ["tampered-intent-token"], x: 340, y: 150, detail: "Alters the amount or payee in flight — the signature no longer matches." },
-  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["validates signature"], x: 640, y: 150, detail: "Checks signature and expiry on the request path, before anything else." },
-  { id: "p1", group: "pingone", label: "PingOne", sub: ["issuer keys"], x: 940, y: 150, detail: "Signed the intent token; its keys are what the validation checks against." },
+  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["validates signature"], x: 940, y: 150, detail: "Checks signature and expiry on the request path, before anything else." },
+  { id: "p1", group: "pingone", label: "PingOne", sub: ["issuer keys"], x: 1240, y: 150, detail: "Signed the intent token; its keys are what the validation checks against." },
 ];
 
 const EDGES = [
-  ["user", "sim", "intent token in play", { detail: "The token was valid when minted — that is what makes the tamper interesting." }],
+  ["user", "sim", "intent token in play", { dashed: true, detail: "The token was valid when minted — that is what makes the tamper interesting." }],
   ["sim", "gw", "presents tampered token", { detail: "An altered amount or payee breaks the signature — the whole trick, and the whole tell." }],
   ["gw", "p1", "validate signature", { detail: "Validation runs on every call; no application code verifies intent integrity." }],
-  ["gw", "sim", "401 — tamper detected", { detail: "The cryptographic check caught the alteration; no tool ever ran." }],
+  ["gw", "sim", "401 — tamper detected", { dashed: true, detail: "The cryptographic check caught the alteration; no tool ever ran." }],
 ];
 
 const walk = [
