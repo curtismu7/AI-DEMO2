@@ -51,9 +51,13 @@ showing how; and set it up through the Privilege gateway.
   (AI policies live in `aipolicys`, not `pacpolicys`; API-created policies land with `State:''` and
   must be PUT to `Active` or they are never enforced).
 
-**Open question, asked of the user and NOT yet answered:** which PF claim(s) (scope, group, `act` /
-ID-JAG, other) should decide allow / hold / deny, for which tools and which users? Do not build
-until that is answered. The user was also offered "skip the questions and just start".
+**Answered 2026-10-20 (user):** the PF claim that decides allow / hold / deny is **group or user**
+(i.e. the `groups` claim, or the user's identity such as `sub` / email). The user first ticked scope,
+group and `act` / ID-JAG in a multi-select, then narrowed it to "group or user" in a follow-up, so
+treat that follow-up as the answer. Still open: which tools, and which groups or users, map to
+allow / hold / deny. Ask for that mapping before writing rules. The kit's PF already issues
+`groups` as a list and `email_verified` as a boolean in the ID token (see the ID-JAG roadmap).
+Nothing is built yet, and nothing on the console has changed.
 
 **Proposed approach once answered (unapproved):**
 1. Find out empirically what the gateway exposes from a PF-issued token to Cedar: read the editor's
