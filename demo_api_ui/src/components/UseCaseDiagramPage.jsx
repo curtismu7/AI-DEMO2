@@ -17,6 +17,7 @@ import StaticFlowDiagram from "./StaticFlowDiagram";
 import DiagramStepBar from "./DiagramStepBar";
 import { useDiagramStepper } from "../hooks/useDiagramStepper";
 import { CONFIGS, getConfig } from "../config/useCaseDiagrams";
+import { stepDetailForBeat } from "../config/useCaseDiagrams/stepDetail";
 import { DEMO_STEP_GUIDES } from "../config/demoStepGuides";
 import { demoStepNumber } from "../config/demoStepNumbers";
 import { tokenChainTraceStore } from "../services/tokenChainTrace/tokenChainTraceStore";
@@ -35,6 +36,40 @@ function WireRows({ rows }) {
           <code>{r.c}</code>
         </div>
       ))}
+    </div>
+  );
+}
+
+// Optional per-step detail (cfg.steps): the request form, mock decoded tokens and the standards behind the step.
+function StepDetail({ detail }) {
+  if (!detail) return null;
+  return (
+    <div className="ucd-step" data-testid="ucd-step-detail">
+      {detail.form && (
+        <section className="ucd-step__sec">
+          <h4>Request</h4>
+          <pre className="ucd-step__code">{detail.form}</pre>
+        </section>
+      )}
+      {(detail.tokens || []).map((t, i) => (
+        <section key={i} className="ucd-step__sec">
+          <h4>{`Token: ${t.note.split("·")[0].trim()}`}</h4>
+          <pre className="ucd-step__code">{`${t.note} (MOCK, teaching values only)\n${JSON.stringify({ ...(t.header ? { header: t.header } : {}), claims: t.claims }, null, 2)}`}</pre>
+        </section>
+      ))}
+      {detail.refs?.length > 0 && (
+        <section className="ucd-step__sec" data-testid="ucd-step-refs">
+          <h4>Standards behind this step</h4>
+          <ul className="ucd-step__refs">
+            {detail.refs.map((r) => (
+              <li key={r.id}>
+                <span className={`ucd-step__kind ucd-step__kind--${r.kind}`}>{r.kind === "rfc" ? "RFC" : r.kind}</span>
+                <b>{r.id}</b> {r.title}
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
     </div>
   );
 }
@@ -161,6 +196,8 @@ export default function UseCaseDiagramPage() {
                 <p key={i} className="ucd-panel__line">{l.who ? `${l.who}: ` : ""}{l.text}</p>
               ))}
               <WireRows rows={panel.tech} />
+              {/* curated walk only: a live overlay re-derives the beats, so the config's beat indexes no longer apply */}
+              {!picked && !liveWalk && <StepDetail detail={stepDetailForBeat(cfg, stepper.step)} />}
             </>
           ) : (
             <>
