@@ -99,6 +99,10 @@ snapshot_objects > "$OBJ_SNAPSHOT_BEFORE"
 # it, even when the caller exported it correctly. Broke live sign-in twice
 # (2026-07-13) via the normal se-update-code.sh path, not just standalone runs.
 CALLER_PUBLIC_APP_URL="${PUBLIC_APP_URL:-}"
+# Same clobber hazard for the opt-in SE PingFederate overrides (see
+# override_pf_for_se): snapshot the caller's values before .env is sourced.
+CALLER_SE_PF_ISSUER="${SE_PF_ISSUER:-}"
+CALLER_SE_OAUTH_MCP_URL="${SE_OAUTH_MCP_URL:-}"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 
@@ -553,6 +557,60 @@ override_redirect_uris_for_public_origin() {
   info "  PUBLIC_APP_URL/PINGONE_PUBLIC_APP_URL/PINGONE_ADMIN/USER_REDIRECT_URI overridden to match $origin"
 }
 
+# ── Opt-in SE override: PingFederate endpoints for the hosted SE cluster ─────
+# demo_api_server/.env carries LOCAL-Docker PingFederate values (PF_ISSUER on
+# local.ping-devops.com:9031, PF_ID_JAG_AUDIENCE=http://pf-mcp-server:8080, a
+# local PF_USER_REDIRECT_URI). Shipped verbatim they undo any hand-set SE
+# values on every full deploy, so the PF login and the ID-JAG playground
+# (oauth-mcp mode) break. Runs ONLY when SE_PF_ISSUER is set (shell env, else a
+# SE_PF_ISSUER= line in demo_api_server/.env); otherwise nothing changes.
+# SE_OAUTH_MCP_URL additionally sets PF_ID_JAG_AUDIENCE / PF_ID_JAG_RESOURCE.
+# PF_IDJAG_ISSUER_PF_URL and the pf-pf playground settings are never touched.
+# Logs keys and URLs only, never secret values.
+override_pf_for_se() {
+  local issuer="${CALLER_SE_PF_ISSUER:-}"
+  local mcp_url="${CALLER_SE_OAUTH_MCP_URL:-}"
+  local envf="$ASSET_ROOT/demo_api_server/.env" line
+  if [ -z "$issuer" ] && [ -f "$envf" ]; then
+    line=$(grep -E '^SE_PF_ISSUER=' "$envf" | tail -n1 || true)
+    issuer="${line#SE_PF_ISSUER=}"; issuer="${issuer%\"}"; issuer="${issuer#\"}"
+  fi
+  if [ -z "$mcp_url" ] && [ -f "$envf" ]; then
+    line=$(grep -E '^SE_OAUTH_MCP_URL=' "$envf" | tail -n1 || true)
+    mcp_url="${line#SE_OAUTH_MCP_URL=}"; mcp_url="${mcp_url%\"}"; mcp_url="${mcp_url#\"}"
+  fi
+  [ -n "$issuer" ] || return 0
+  issuer="${issuer%/}"
+  mcp_url="${mcp_url%/}"
+
+  local origin="${CALLER_PUBLIC_APP_URL:-}"
+  if [ -z "$origin" ]; then
+    origin=$(kubectl get configmap ai-demo-config --namespace="$NS" -o jsonpath='{.data.PUBLIC_APP_URL}' 2>/dev/null || true)
+    if [ -n "$origin" ]; then
+      warn "  PUBLIC_APP_URL not set — falling back to existing configmap origin $origin for PF_USER_REDIRECT_URI"
+    fi
+  fi
+  origin="${origin%/}"
+
+  local pairs
+  pairs=$(printf '"PF_ISSUER":"%s","PF_DISCOVERY_ENDPOINT":"%s/.well-known/openid-configuration","PF_AUTHORIZATION_ENDPOINT":"%s/as/authorization.oauth2","PF_TOKEN_ENDPOINT":"%s/as/token.oauth2","PF_USERINFO_ENDPOINT":"%s/idp/userinfo.openid","PF_JWKS_URI":"%s/pf/JWKS","PF_INTROSPECTION_ENDPOINT":"%s/as/introspect.oauth2","PF_REVOCATION_ENDPOINT":"%s/as/revoke_token.oauth2","PF_PAR_ENDPOINT":"%s/as/par.oauth2"' \
+    "$issuer" "$issuer" "$issuer" "$issuer" "$issuer" "$issuer" "$issuer" "$issuer" "$issuer")
+  local keys="PF_ISSUER + PF_*_ENDPOINT/PF_JWKS_URI -> $issuer"
+  if [ -n "$origin" ]; then
+    pairs="$pairs$(printf ',"PF_USER_REDIRECT_URI":"%s/api/auth/oauth/user/callback"' "$origin")"
+    keys="$keys; PF_USER_REDIRECT_URI -> $origin/api/auth/oauth/user/callback"
+  else
+    warn "  PUBLIC_APP_URL not set and no existing configmap origin found — PF_USER_REDIRECT_URI shipped as-is from .env (local value; PF sign-in will break on SE)"
+  fi
+  if [ -n "$mcp_url" ]; then
+    pairs="$pairs$(printf ',"PF_ID_JAG_AUDIENCE":"%s","PF_ID_JAG_RESOURCE":"%s/mcp"' "$mcp_url" "$mcp_url")"
+    keys="$keys; PF_ID_JAG_AUDIENCE -> $mcp_url; PF_ID_JAG_RESOURCE -> $mcp_url/mcp"
+  fi
+  printf '{"stringData":{%s}}' "$pairs" \
+    | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
+  info "  SE PingFederate override (SE_PF_ISSUER set): $keys"
+}
+
 # ── Privilege gateway URLs: two places, two different fixes ─────────────────
 # PRIVILEGE_AGENTLESS_MCPGW_URL (the BFF's Agentless target) and pingone.env's SERVER_URL (the
 # gateway's own front door) both shipped from demo_api_server/.env and
@@ -757,6 +815,7 @@ align_gateway_oidc_secret() {
 info "Creating per-service secrets from each service's .env..."
 secret_from_envfile ai-demo-secrets   "$ASSET_ROOT/demo_api_server/.env"    # BFF (master)
 override_redirect_uris_for_public_origin                                    # public origin beats local .env redirect URIs
+override_pf_for_se                                                          # opt-in (SE_PF_ISSUER): SE PingFederate beats local-Docker PF_* from .env
 align_service_api_keys                                                      # one key for the vault bridge AND the mortgage backend
 secret_from_envfile mcp-secrets       "$ASSET_ROOT/oauth-mcp/.env" legacy-env-only  # MCP server — own independent secret architecture, see oauth-mcp/src/vault.ts
 secret_from_envfile hitl-secrets      "$ASSET_ROOT/demo_hitl_service/.env"  # HITL service — HITL_INTERNAL_SECRET
