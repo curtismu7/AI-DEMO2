@@ -5,6 +5,7 @@
  * even though its signature would still verify.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["signed in once"], x: 40, y: 150, detail: "Her consent started the chain; everything after is short-lived delegated authority." },
@@ -61,8 +62,10 @@ const walk = [
 export default {
   id: "UC17",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC17"],
 };

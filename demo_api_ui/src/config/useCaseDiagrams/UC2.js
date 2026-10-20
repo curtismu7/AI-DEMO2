@@ -4,6 +4,7 @@
  * narrows at each hop. The whole handoff is provable.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["delegates once"], x: 40, y: 150, detail: "Consented at sign-in; she never sees the handoff between the agents." },
@@ -56,8 +57,10 @@ const walk = [
 export default {
   id: "UC2",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC2"],
 };

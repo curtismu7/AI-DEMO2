@@ -4,6 +4,7 @@
  * that credential cuts off every later exchange — no tool is reachable.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["show my balance"], x: 40, y: 150, detail: "The same chip as always — but the identity under test is the agent's own." },
@@ -49,8 +50,10 @@ const walk = [
 export default {
   id: "UC19",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC19"],
 };

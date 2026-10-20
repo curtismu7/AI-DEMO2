@@ -5,6 +5,7 @@
  * Two different credentials for two different layers.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "card", group: "agent", label: "Agent Card", sub: ["discovery"], x: 40, y: 150, detail: "The specialist publishes what it can do and where to call it. Discovery needs no credential." },
@@ -57,8 +58,10 @@ const walk = [
 export default {
   id: "UC2.7",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC2.7"],
 };

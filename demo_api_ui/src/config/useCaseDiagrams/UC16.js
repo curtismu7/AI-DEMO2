@@ -4,6 +4,7 @@
  * before any tool runs, because agent-mediated calls must be on-behalf-of.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["subject, not principal"], x: 40, y: 150, detail: "The sim's token says she is the subject — with no act claim, nobody acts for her on the record." },
@@ -49,8 +50,10 @@ const walk = [
 export default {
   id: "UC16",
   result: { label: "DENY", tone: "err" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC16"],
 };
