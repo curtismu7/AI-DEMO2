@@ -136,4 +136,43 @@ describe("ID-JAG Inspector page", () => {
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
     expect(get).not.toHaveBeenCalledWith(expect.stringContaining("/discovery"));
   });
+
+  it("offers Show token only after an ID-JAG is issued, and shows the raw token read-only on request", async () => {
+    post.mockImplementation(async (url) => {
+      if (url === `${PG}/issue`) return { data: ISSUED };
+      if (url === `${PG}/inspect`) return { data: { header: DECODED.header, claims: DECODED.claims, checks: DECODED.checks } };
+      if (url === "/api/id-jag-inspect/issued-token") return { data: { token: "raw.jwt.value" } };
+      return { data: DECODED };
+    });
+    renderPage();
+    expect(screen.queryByRole("button", { name: "Show token" })).not.toBeInTheDocument();
+    fireEvent.click(await screen.findByRole("button", { name: "Get an ID-JAG" }));
+    const show = await screen.findByRole("button", { name: "Show token" });
+    expect(post).not.toHaveBeenCalledWith("/api/id-jag-inspect/issued-token");
+    expect(screen.queryByDisplayValue("raw.jwt.value")).not.toBeInTheDocument();
+    fireEvent.click(show);
+    const box = await screen.findByDisplayValue("raw.jwt.value");
+    expect(box).toHaveAttribute("readonly");
+    const writeText = vi.fn().mockResolvedValue();
+    Object.defineProperty(navigator, "clipboard", { value: { writeText }, configurable: true });
+    fireEvent.click(screen.getByRole("button", { name: "Copy" }));
+    expect(writeText).toHaveBeenCalledWith("raw.jwt.value");
+    fireEvent.click(screen.getByRole("button", { name: "Hide token" }));
+    expect(screen.queryByDisplayValue("raw.jwt.value")).not.toBeInTheDocument();
+  });
+
+  it("hides a revealed token when a new ID-JAG is minted", async () => {
+    post.mockImplementation(async (url) => {
+      if (url === `${PG}/issue`) return { data: ISSUED };
+      if (url === `${PG}/inspect`) return { data: { header: DECODED.header, claims: DECODED.claims, checks: DECODED.checks } };
+      if (url === "/api/id-jag-inspect/issued-token") return { data: { token: "raw.jwt.value" } };
+      return { data: DECODED };
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Get an ID-JAG" }));
+    fireEvent.click(await screen.findByRole("button", { name: "Show token" }));
+    await screen.findByDisplayValue("raw.jwt.value");
+    fireEvent.click(screen.getByRole("button", { name: "Get an ID-JAG" }));
+    await waitFor(() => expect(screen.queryByDisplayValue("raw.jwt.value")).not.toBeInTheDocument());
+  });
 });

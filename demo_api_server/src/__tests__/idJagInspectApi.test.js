@@ -112,3 +112,46 @@ describe('/decode, /discovery', () => {
     expect(axios.get.mock.calls.every(([u]) => String(u).includes('.well-known'))).toBe(true);
   });
 });
+
+describe('POST /issued-token (reveal the ID-JAG this session minted)', () => {
+  // session: what the playground stored when it minted; user: set by authenticateToken in the real mount
+  const app = (user, session) => { const a = express(); a.use((req, _res, next) => { req.user = user; req.session = session; next(); }); a.use('/api/id-jag-inspect', inspectApi.router); return a; };
+  const USER = { id: 'u1' };
+
+  it("returns this session's minted ID-JAG, no-store", async () => {
+    const t = idJag();
+    const r = await request(app(USER, { idJagPlayground: { idJag: t, issuedAt: 1 } })).post('/api/id-jag-inspect/issued-token');
+    expect(r.status).toBe(200);
+    expect(r.body).toEqual({ token: t });
+    expect(r.headers['cache-control']).toMatch(/no-store/);
+  });
+
+  it('never takes the token from the request and never returns another session\'s token', async () => {
+    const mine = idJag({ jti: 'mine' });
+    const r = await request(app(USER, { idJagPlayground: { idJag: mine, issuedAt: 1 } })).post('/api/id-jag-inspect/issued-token').send({ token: idJag({ jti: 'theirs' }), idJag: 'x' });
+    expect(r.body.token).toBe(mine);
+    const other = await request(app(USER, {})).post('/api/id-jag-inspect/issued-token').send({ token: mine });
+    expect(other.status).toBe(404);
+    expect(JSON.stringify(other.body)).not.toContain(mine);
+  });
+
+  it('401 when signed out', async () => {
+    const r = await request(app(undefined, { idJagPlayground: { idJag: idJag(), issuedAt: 1 } })).post('/api/id-jag-inspect/issued-token');
+    expect(r.status).toBe(401);
+    expect(r.body.token).toBeUndefined();
+  });
+
+  it('404 with a plain message when nothing was minted', async () => {
+    const r = await request(app(USER, {})).post('/api/id-jag-inspect/issued-token');
+    expect(r.status).toBe(404);
+    expect(r.body.message).toMatch(/Get an ID-JAG first/);
+    expect(r.headers['cache-control']).toMatch(/no-store/);
+  });
+
+  it('writes the token to no log', async () => {
+    const t = idJag({ jti: 'secret-jti' });
+    const spies = ['log', 'info', 'warn', 'error', 'debug'].map((m) => jest.spyOn(console, m).mockImplementation(() => {}));
+    await request(app(USER, { idJagPlayground: { idJag: t, issuedAt: 1 } })).post('/api/id-jag-inspect/issued-token');
+    expect(JSON.stringify(spies.flatMap((s) => s.mock.calls))).not.toContain(t);
+  });
+});

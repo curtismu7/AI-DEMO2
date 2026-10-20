@@ -69,6 +69,7 @@ function Decode() {
   const [busy, setBusy] = useState(false);
   const [issued, setIssued] = useState(false);
   const [needSignIn, setNeedSignIn] = useState(false);
+  const [shown, setShown] = useState(null); // the raw ID-JAG, only after an explicit Show token
   // The playground's own state decides sign-in; its server mode follows the mode this browser remembers.
   useEffect(() => {
     (async () => {
@@ -81,7 +82,7 @@ function Decode() {
     })();
   }, []);
   const get = async () => {
-    setError(""); setResult(null); setIssued(false); setBusy(true);
+    setError(""); setResult(null); setIssued(false); setShown(null); setBusy(true);
     try {
       await bffAxios.post(`${PG}/issue`, {});
       const { data } = await bffAxios.post(`${PG}/inspect`, {});
@@ -90,8 +91,11 @@ function Decode() {
       if (e.response?.status === 401) setNeedSignIn(true); else setError(errText(e));
     } finally { setBusy(false); }
   };
+  const show = async () => {
+    try { setShown((await bffAxios.post(`${API}/issued-token`)).data.token); } catch (e) { setError(errText(e)); }
+  };
   const run = async () => {
-    setError(""); setResult(null); setIssued(false);
+    setError(""); setResult(null); setIssued(false); setShown(null);
     try { setResult((await bffAxios.post(`${API}/decode`, { token: token.trim() })).data); } catch (e) { setError(errText(e)); }
   };
   return (
@@ -102,7 +106,17 @@ function Decode() {
           Sign in at PingFederate first. <a href={`${PLAYGROUND}#ijp-step-1`}>Sign in on the ID-JAG playground</a>
         </p>
       )}
-      {issued && <p>The ID-JAG is kept on the server (the demo never sends it to the browser), so the checks below ran there.</p>}
+      {issued && <p>The ID-JAG is kept on the server and the checks below ran there. It only reaches the browser if you click Show token.</p>}
+      {issued && !shown && <button type="button" className="ijin-btn ijin-btn--secondary" onClick={show}>Show token</button>}
+      {shown && (
+        <div className="ijin-reveal">
+          <label className="ijl-search ijin-field">ID-JAG
+            <textarea value={shown} rows={4} readOnly spellCheck={false} />
+          </label>
+          <button type="button" className="ijin-btn ijin-btn--secondary" onClick={() => navigator.clipboard?.writeText(shown)}>Copy</button>{" "}
+          <button type="button" className="ijin-btn ijin-btn--secondary" onClick={() => setShown(null)}>Hide token</button>
+        </div>
+      )}
       <p className="ijin-or">or paste a token from another tool</p>
       <label className="ijl-search ijin-field">Token
         <textarea value={token} rows={5} spellCheck={false} onChange={(e) => setToken(e.target.value)}
