@@ -1,3 +1,4 @@
+<meta charset="utf-8">
 <meta name="claude:viewport-fit-sides" content="cover">
 <title>Personal Agents Field Guide</title>
 
@@ -5,7 +6,7 @@
   Layout concept: a demo handoff card deck. Left rail = section nav (sticky on desktop,
   wraps to chips on phone). Main = one card per demo surface, each with: what it shows,
   what to click, and a "Run it" link straight to the live route. Docs and diagrams get
-  the same card treatment so every row is either a link out or a link out — no dead text.
+  the same card treatment so every row is either a link out or a link out &mdash; no dead text.
   Palette: Ping red as the single accent, ink/graphite neutrals, one green for "verified
   live" and one amber for caveats. Type: Barlow (Ping-adjacent grotesque) for display,
   system sans for body, monospace for the credentials block.
@@ -198,9 +199,9 @@
 
 <div class="wrap">
   <header class="masthead">
-    <p class="eyebrow">Ping Identity · AI IAM Demo · Handoff</p>
+    <p class="eyebrow">Ping Identity &middot; AI IAM Demo &middot; Handoff</p>
     <h1>Personal Agents Field Guide</h1>
-    <p class="standfirst">Every personal-agent demo, design doc, diagram and lesson in one place, each linked to its live route. Sign in with the credentials below — login is PingOne only, password flow, no redirect to anything else.</p>
+    <p class="standfirst">Every personal-agent demo, design doc, diagram and lesson in one place, each linked to its live route. Sign in with the credentials below &mdash; login is PingOne only, password flow, no redirect to anything else.</p>
 
     <div class="creds">
       <div>
@@ -211,7 +212,7 @@
         <span class="label">Password</span>
         <code id="cred-pass">Baseball123!</code><button class="copybtn" data-copy="Baseball123!">Copy</button>
       </div>
-      <p class="how"><strong>How to sign in:</strong> open any demo, hit <strong>Sign In</strong> (header or sidebar), choose <strong>“Use a password instead”</strong>, enter the credentials, and accept the <strong>“Allow AI Agent Access”</strong> consent step if it appears. If PingOne shows its own login page, that is expected — it is still PingOne, just the redirect flavor.</p>
+      <p class="how"><strong>How to sign in:</strong> open any demo, hit <strong>Sign In</strong> (header or sidebar), choose <strong>&ldquo;Use a password instead&rdquo;</strong>, enter the credentials, and accept the <strong>&ldquo;Allow AI Agent Access&rdquo;</strong> consent step if it appears. If PingOne shows its own login page, that is expected &mdash; it is still PingOne, just the redirect flavor.</p>
     </div>
   </header>
 
@@ -219,7 +220,7 @@
     <nav class="rail" aria-label="Sections">
       <p class="rail-title">Contents</p>
       <a href="#run-first">Start here <span class="count">1</span></a>
-      <a href="#dot">Dot — the persona agent <span class="count">2</span></a>
+      <a href="#dot">Dot &mdash; the persona agent <span class="count">2</span></a>
       <a href="#studio">Studio &amp; client skins <span class="count">3</span></a>
       <a href="#design">Design &amp; review pages <span class="count">3</span></a>
       <a href="#diagrams">Diagrams <span class="count">5</span></a>
@@ -238,23 +239,23 @@
             <span class="badge ok">Verified live 2026-10-20</span>
           </div>
           <p class="route">/personal-agent/dot</p>
-          <p>Dot is the customer's <strong>always-on persona agent</strong>: it keeps its own working memory (“call me Sam”, “always book aisle seats”), and the enterprise never governs that memory — only every tool call Dot makes on the user's behalf.</p>
+          <p>Dot is the customer's <strong>always-on persona agent</strong>: it keeps its own working memory (&ldquo;call me Sam&rdquo;, &ldquo;always book aisle seats&rdquo;), and the enterprise never governs that memory &mdash; only every tool call Dot makes on the user's behalf.</p>
           <ul class="steps">
-            <li><strong>Sign in</strong> with the credentials above — the page header flips to “Acts as tarunmadiraju@…”.</li>
-            <li>Click <strong>“Track my latest order”</strong> — a governed tool call runs and returns a PERMIT verdict card with the answer.</li>
-            <li>Say <strong>“Always keep your answers short”</strong> — Dot saves it to its own memory panel (reset is the user's control).</li>
-            <li>Ask <strong>“What do you remember about me?”</strong> — recall without a tool call.</li>
-            <li>Scroll to <strong>“How Dot handles a message”</strong> and press <strong>Simulate</strong> to walk the 10-step flow.</li>
+            <li><strong>Sign in</strong> with the credentials above &mdash; the page header flips to &ldquo;Acts as tarunmadiraju@&hellip;&rdquo;.</li>
+            <li>Click <strong>&ldquo;Track my latest order&rdquo;</strong> &mdash; a governed tool call runs and returns a PERMIT verdict card with the answer.</li>
+            <li>Say <strong>&ldquo;Always keep your answers short&rdquo;</strong> &mdash; Dot saves it to its own memory panel (reset is the user's control).</li>
+            <li>Ask <strong>&ldquo;What do you remember about me?&rdquo;</strong> &mdash; recall without a tool call.</li>
+            <li>Scroll to <strong>&ldquo;How Dot handles a message&rdquo;</strong> and press <strong>Simulate</strong> to walk the 10-step flow.</li>
           </ul>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/dot/full" target="_blank" rel="noopener">Run the Dot workbench →</a>
+            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/dot/full" target="_blank" rel="noopener">Run the Dot workbench &rarr;</a>
             <a class="run ghost" href="https://ai-demo.ping-devops.com/personal-agent/dot" target="_blank" rel="noopener">with app chrome</a>
           </div>
         </div>
       </section>
 
       <section id="dot">
-        <h2>Dot — the persona agent</h2>
+        <h2>Dot &mdash; the persona agent</h2>
         <p class="sec-note">The surfaces built around Dot: the pop-out client and the governed-run storytelling page.</p>
 
         <div class="card">
@@ -263,13 +264,13 @@
             <span class="badge accent">Three gates, live</span>
           </div>
           <p class="route">/personal-agent</p>
-          <p>The full “we don't control the agent, we control the gates” story: <strong>three security gates</strong> fire on every message (identity, intent, policy), MFA step-up appears as a 428 → challenge → retry, and human-approval detours pause the run. Works signed-out too — the gates still fire.</p>
+          <p>The full &ldquo;we don't control the agent, we control the gates&rdquo; story: <strong>three security gates</strong> fire on every message (identity, intent, policy), MFA step-up appears as a 428 &rarr; challenge &rarr; retry, and human-approval detours pause the run. Works signed-out too &mdash; the gates still fire.</p>
           <ul class="steps">
             <li>Send any message and watch the <strong>SecurityRail</strong> light up gate by gate.</li>
             <li>Trigger a sensitive request to see the <strong>MFA step-up</strong> and <strong>HITL approval</strong> detours.</li>
           </ul>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/full" target="_blank" rel="noopener">Run the Studio →</a>
+            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/full" target="_blank" rel="noopener">Run the Studio &rarr;</a>
             <a class="run ghost" href="https://ai-demo.ping-devops.com/personal-agent" target="_blank" rel="noopener">with app chrome</a>
           </div>
         </div>
@@ -280,9 +281,9 @@
             <span class="badge accent">5 skins</span>
           </div>
           <p class="route">/personal-agent/client?skin=dot|privilege|claude|gpt|gemini</p>
-          <p>The agent client as a <strong>separate, independent window</strong> — the same gates fire no matter which AI client the user brought. Open it beside the Studio to prove client-agnostic governance.</p>
+          <p>The agent client as a <strong>separate, independent window</strong> &mdash; the same gates fire no matter which AI client the user brought. Open it beside the Studio to prove client-agnostic governance.</p>
           <div class="btnrow">
-            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/client?skin=dot" target="_blank" rel="noopener">Open Dot pop-out →</a>
+            <a class="run" href="https://ai-demo.ping-devops.com/personal-agent/client?skin=dot" target="_blank" rel="noopener">Open Dot pop-out &rarr;</a>
             <a class="run ghost" href="https://ai-demo.ping-devops.com/personal-agent/client?skin=claude" target="_blank" rel="noopener">Claude skin</a>
             <a class="run ghost" href="https://ai-demo.ping-devops.com/personal-agent/client?skin=gpt" target="_blank" rel="noopener">ChatGPT skin</a>
           </div>
@@ -291,56 +292,56 @@
 
       <section id="studio">
         <h2>Studio &amp; client skins</h2>
-        <p class="sec-note">Every page honors the per-page <strong>Heuristics | llama.cpp</strong> toggle (top right). Heuristics runs with no model call — fast and deterministic for demos; llama.cpp switches in the real model.</p>
+        <p class="sec-note">Every page honors the per-page <strong>Heuristics | llama.cpp</strong> toggle (top right). Heuristics runs with no model call &mdash; fast and deterministic for demos; llama.cpp switches in the real model.</p>
 
         <div class="card">
           <div class="card-top">
             <h3>Model toggle on every page</h3>
             <span class="badge ok">Per page, never global</span>
           </div>
-          <p class="route">PageAgentModeToggle — top-right of each agent page</p>
-          <p><strong>Heuristics</strong> answers via deterministic keyword routing (no model). <strong>llama.cpp</strong> runs the real LLM through the governed path. If llama.cpp times out you'll get an explicit “model unavailable — switch to Heuristics” card rather than a silent failure.</p>
+          <p class="route">PageAgentModeToggle &mdash; top-right of each agent page</p>
+          <p><strong>Heuristics</strong> answers via deterministic keyword routing (no model). <strong>llama.cpp</strong> runs the real LLM through the governed path. If llama.cpp times out you'll get an explicit &ldquo;model unavailable &mdash; switch to Heuristics&rdquo; card rather than a silent failure.</p>
         </div>
       </section>
 
       <section id="design">
         <h2>Design &amp; review pages</h2>
-        <p class="sec-note">The architecture narrative as three pages, each with its own step-by-step diagram. These are the “why” behind the demos.</p>
+        <p class="sec-note">The architecture narrative as three pages, each with its own step-by-step diagram. These are the &ldquo;why&rdquo; behind the demos.</p>
 
         <div class="card">
           <div class="card-top">
-            <h3>Design — Agent Gateway only</h3>
+            <h3>Design &mdash; Agent Gateway only</h3>
             <span class="badge accent">Wire-level</span>
           </div>
           <p class="route">/personal-agent-design</p>
-          <p>The target architecture told step by step with the actual wire shapes: token exchange, gateway enforcement, policy decisions. Mock teaching values only — never real secrets.</p>
-          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/personal-agent-design" target="_blank" rel="noopener">Open the design page →</a></div>
+          <p>The target architecture told step by step with the actual wire shapes: token exchange, gateway enforcement, policy decisions. Mock teaching values only &mdash; never real secrets.</p>
+          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/personal-agent-design" target="_blank" rel="noopener">Open the design page &rarr;</a></div>
         </div>
 
         <div class="card">
           <div class="card-top">
-            <h3>Design — Dual gateway (Privilege first)</h3>
+            <h3>Design &mdash; Dual gateway (Privilege first)</h3>
             <span class="badge accent">Variant</span>
           </div>
           <p class="route">/personal-agent-dual-gateway</p>
           <p>The same request path with Agent Privilege in front and Agent Gateway filling what Privilege does not do yet.</p>
-          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/personal-agent-dual-gateway" target="_blank" rel="noopener">Open the dual-gateway page →</a></div>
+          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/personal-agent-dual-gateway" target="_blank" rel="noopener">Open the dual-gateway page &rarr;</a></div>
         </div>
 
         <div class="card">
           <div class="card-top">
-            <h3>Design review — what was wrong first</h3>
+            <h3>Design review &mdash; what was wrong first</h3>
             <span class="badge accent">Findings pinned to nodes</span>
           </div>
           <p class="route">/personal-agent-review</p>
           <p>Why the original design failed, finding by finding, judged against the <strong>five controls an enterprise review treats as non-negotiable</strong>. Findings are pinned to the diagram nodes that carry them.</p>
-          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/personal-agent-review" target="_blank" rel="noopener">Open the review page →</a></div>
+          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/personal-agent-review" target="_blank" rel="noopener">Open the review page &rarr;</a></div>
         </div>
       </section>
 
       <section id="diagrams">
         <h2>Diagrams</h2>
-        <p class="sec-note">All ReactFlow — movable boxes, a Simulate button, a Reset, and a speed control. Each diagram is also embedded at the bottom of its home page; these links go straight to the diagram index.</p>
+        <p class="sec-note">All ReactFlow &mdash; movable boxes, a Simulate button, a Reset, and a speed control. Each diagram is also embedded at the bottom of its home page; these links go straight to the diagram index.</p>
 
         <div class="card">
           <ul class="doclist">
@@ -348,7 +349,7 @@
               <span class="doc-name">Dot Workbench</span>
               <a href="https://ai-demo.ping-devops.com/personal-agent/dot/full" target="_blank" rel="noopener">bare page</a>
               <a href="https://ai-demo.ping-devops.com/personal-agent/dot" target="_blank" rel="noopener">in-app</a>
-              <span class="doc-desc">One message end to end: BFF route → intent gate → agent run → governed tool call → verdict cards. 10 arrows, walked by Simulate.</span>
+              <span class="doc-desc">One message end to end: BFF route &rarr; intent gate &rarr; agent run &rarr; governed tool call &rarr; verdict cards. 10 arrows, walked by Simulate.</span>
             </li>
             <li>
               <span class="doc-name">Personal Agent Studio</span>
@@ -382,13 +383,13 @@
         <div class="card">
           <div class="card-top">
             <h3>On Users' Personal Agent Design</h3>
-            <span class="badge ok">HTML · PDF · Markdown</span>
+            <span class="badge ok">HTML &middot; PDF &middot; Markdown</span>
           </div>
           <p class="route">docs/personal-agent/ in the repo</p>
-          <p>MileagePlus, the customer's own agent, and the security between them. Nine-hop flow: discover → register (DCR/CIMD) → consent → per-call RFC 8693 exchange → gateway → Authorize + Protect → transaction-bound HITL approval → permit → audit. Includes the no-BFF/no-DPoP compensating stack, the agent-shape table (native CLI / browser-only / cloud agent), what United has already built, and the Facade's five security controls.</p>
+          <p>MileagePlus, the customer's own agent, and the security between them. Nine-hop flow: discover &rarr; register (DCR/CIMD) &rarr; consent &rarr; per-call RFC 8693 exchange &rarr; gateway &rarr; Authorize + Protect &rarr; transaction-bound HITL approval &rarr; permit &rarr; audit. Includes the no-BFF/no-DPoP compensating stack, the agent-shape table (native CLI / browser-only / cloud agent), what United has already built, and the Facade's five security controls.</p>
           <p><strong>One rule survives as absolute:</strong> the member's token is an input to an exchange, never a credential on a tool call.</p>
           <div class="btnrow">
-            <a class="run" href="https://github.com/cmuir_pingcorp/AI-demo/blob/main/docs/personal-agent/On-Users-Personal-Agent-Design.md" target="_blank" rel="noopener">Read on GitHub (Markdown) →</a>
+            <a class="run" href="https://github.com/cmuir_pingcorp/AI-demo/blob/main/docs/personal-agent/On-Users-Personal-Agent-Design.md" target="_blank" rel="noopener">Read on GitHub (Markdown) &rarr;</a>
             <a class="run ghost" href="https://github.com/cmuir_pingcorp/AI-demo/blob/main/docs/personal-agent/On-Users-Personal-Agent-Design.html" target="_blank" rel="noopener">HTML version</a>
           </div>
         </div>
@@ -403,9 +404,9 @@
             <h3>Consumer Agent: Personal Agent lesson</h3>
             <span class="badge accent">Lesson + pop-out</span>
           </div>
-          <p class="route">Academy → Personal Agents category</p>
-          <p>The guided lesson for the studio page, with the three client cards (LibreChat browser client and hosted clients) and the CIMD/DCR chips. Category also carries “Classify the agent” and “Detect the external agent”.</p>
-          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/academy/journey" target="_blank" rel="noopener">Open the Academy →</a></div>
+          <p class="route">Academy &rarr; Personal Agents category</p>
+          <p>The guided lesson for the studio page, with the three client cards (LibreChat browser client and hosted clients) and the CIMD/DCR chips. Category also carries &ldquo;Classify the agent&rdquo; and &ldquo;Detect the external agent&rdquo;.</p>
+          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/academy/journey" target="_blank" rel="noopener">Open the Academy &rarr;</a></div>
         </div>
 
         <div class="card">
@@ -413,9 +414,9 @@
             <h3>Dots lessons</h3>
             <span class="badge accent">3 shorts</span>
           </div>
-          <p class="route">Academy → dots track</p>
-          <p><strong>“Meet the dot”</strong> (what an always-on persona agent is), <strong>“The dot remembers”</strong> (own working memory), <strong>“Governance still holds”</strong> (the enterprise governs tool calls, never the memory).</p>
-          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/academy/demos" target="_blank" rel="noopener">Open standalone demos →</a></div>
+          <p class="route">Academy &rarr; dots track</p>
+          <p><strong>&ldquo;Meet the dot&rdquo;</strong> (what an always-on persona agent is), <strong>&ldquo;The dot remembers&rdquo;</strong> (own working memory), <strong>&ldquo;Governance still holds&rdquo;</strong> (the enterprise governs tool calls, never the memory).</p>
+          <div class="btnrow"><a class="run" href="https://ai-demo.ping-devops.com/academy/demos" target="_blank" rel="noopener">Open standalone demos &rarr;</a></div>
         </div>
       </section>
 
@@ -426,14 +427,14 @@
           <div class="card-top">
             <h3>Verticals change the story, not the mechanics</h3>
           </div>
-          <p>Switch the vertical (top-left dropdown): <strong>Walbuy</strong> gives order-status tools, <strong>Airline</strong> gives seats/miles, <strong>Super Banking</strong> gives balances and transfers. The governed path is identical — only the tool catalogue and prompt chips change.</p>
+          <p>Switch the vertical (top-left dropdown): <strong>Walbuy</strong> gives order-status tools, <strong>Airline</strong> gives seats/miles, <strong>Super Banking</strong> gives balances and transfers. The governed path is identical &mdash; only the tool catalogue and prompt chips change.</p>
         </div>
 
         <div class="card">
           <div class="card-top">
             <h3>Public routes, signed-in runs</h3>
           </div>
-          <p>All personal-agent <strong>pages are public</strong> — you can browse them signed out. Signing in (credentials above) is what unlocks <strong>live agent runs</strong>: tool calls execute under your identity, verdict cards show real decisions, and Dot's memory persists to your account.</p>
+          <p>All personal-agent <strong>pages are public</strong> &mdash; you can browse them signed out. Signing in (credentials above) is what unlocks <strong>live agent runs</strong>: tool calls execute under your identity, verdict cards show real decisions, and Dot's memory persists to your account.</p>
         </div>
 
         <div class="card">
@@ -442,16 +443,16 @@
             <span class="badge warn">Know before you demo</span>
           </div>
           <ul class="steps">
-            <li><strong>403 “Access restricted”</strong> right after sign-in: the account needs the hosted-access group — ask the demo owner to re-run the membership step.</li>
-            <li><strong>“The model did not answer”</strong> card: llama.cpp is down; flip the toggle to Heuristics and retry.</li>
+            <li><strong>403 &ldquo;Access restricted&rdquo;</strong> right after sign-in: the account needs the hosted-access group &mdash; ask the demo owner to re-run the membership step.</li>
+            <li><strong>&ldquo;The model did not answer&rdquo;</strong> card: llama.cpp is down; flip the toggle to Heuristics and retry.</li>
             <li><strong>Old page after a deploy</strong> (404 on assets): hard-refresh the browser.</li>
-            <li>The <strong>Reset dot</strong> button wipes that user's Dot memory — fine to show, it's the feature.</li>
+            <li>The <strong>Reset dot</strong> button wipes that user's Dot memory &mdash; fine to show, it's the feature.</li>
           </ul>
         </div>
       </section>
 
       <footer>
-        Ping Identity AI IAM demo · personal-agent surfaces verified live 2026-10-20 · login is PingOne-only (redirect flavor for this app — still PingOne) · Dot autonomous scheduling and cross-channel memory deliberately not built.
+        Ping Identity AI IAM demo &middot; personal-agent surfaces verified live 2026-10-20 &middot; login is PingOne-only (redirect flavor for this app &mdash; still PingOne) &middot; Dot autonomous scheduling and cross-channel memory deliberately not built.
       </footer>
     </main>
   </div>
