@@ -1,7 +1,11 @@
 import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
-import SequenceFlowDiagram from "./SequenceFlowDiagram";
+import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
+import FlowDiagram from "./FlowDiagram";
+import { INVEST_DIAGRAM } from "../config/investDualAuthDiagram";
+import "./PrivilegeMcpDiagramPage.css";
 import "./McpGatewayOauthFlowPage.css";
+import "./ExternalDoorDiagramPage.css";
 import PageHeader from './common/PageHeader';
 
 const MERMAID_SOURCE = `sequenceDiagram
@@ -39,18 +43,6 @@ const MERMAID_SOURCE = `sequenceDiagram
     App-->>GW2: JSON {invest: {...},<br/>authMechanism: "X-API-Key"}
     GW2-->>Agent2: tools/call result + _meta`;
 
-// Short detail for each participant, shown in the movie reel's details row.
-const PARTICIPANT_DETAILS = {
-  Agent: "The AI agent acting for the signed-in user. It holds the user's token and asks the gateway to call a tool.",
-  GW: "The Agent Gateway. Authorizes the call, then either exchanges the token for the invest audience (left flow) or swaps in a vault-held API key (right flow).",
-  P1: "PingOne's authorization server. Performs the RFC 8693 token exchange and returns a token scoped to the invest service.",
-  RS: "The invest service over WebSocket MCP. Verifies the token's signature, audience, scope and expiry before it answers.",
-  Agent2: "The same agent, this time calling a tool that reaches the invest service through the backend-app path.",
-  GW2: "The same gateway. For this tool it drops the user's OAuth bearer instead of forwarding it.",
-  Vault: "Holds the invest service's API key. The gateway fetches it per call, so the key never reaches the agent.",
-  App: "The invest service over plain HTTP. It checks the shared key with a constant-time comparison and reports which mechanism it used.",
-};
-
 const NOTES = [
   {
     title: "Normal Flow — MCP Resource Server",
@@ -81,21 +73,39 @@ const NOTES = [
 ];
 
 export default function InvestDualAuthDiagramPage() {
-  const [source, setSource] = useState(MERMAID_SOURCE);
+  // Uploaded Mermaid; null = the Ping-style diagram (the .mmd text is still what "Download .mmd" saves).
+  const [uploaded, setUploaded] = useState(null);
   return (
-    <div className="mgof-page">
-      <PageHeader className="mgof-hero" eyebrow="demo_mcp_resource_server — dual auth" title="Invest Service: Bearer Token vs API Key" summary={<>Two credential paths to the same backend. The left flow uses OAuth token
-          exchange and WebSocket MCP (Resource Server pattern). The right flow uses a
+    <div className="mgof-page mgof-page--ping">
+      <PageHeader className="mgof-hero" eyebrow="demo_mcp_resource_server — dual auth" title="Invest Service: Bearer Token vs API Key" summary={<>Two credential paths to the same backend. The top flow uses OAuth token
+          exchange and WebSocket MCP (Resource Server pattern). The bottom flow uses a
           vault-managed API key over HTTP REST (Backend App pattern).</>} />
 
       <DiagramExportBar
-        source={source}
+        source={uploaded ?? MERMAID_SOURCE}
         sourceFilename="invest-dual-auth.mmd"
-        onSourceChange={setSource}
+        onSourceChange={setUploaded}
       />
 
       <div className="mgof-panel">
-        <SequenceFlowDiagram source={source} label="Invest dual-auth sequence diagram" details={PARTICIPANT_DETAILS} />
+        {uploaded != null ? (
+          <>
+            <button type="button" className="pmd-tab" onClick={() => setUploaded(null)}>
+              Back to the Ping-style diagram
+            </button>
+            <FlowDiagram source={uploaded} label="Invest dual-auth sequence diagram" />
+          </>
+        ) : (
+          <EmbeddedFlowDiagram
+            config={INVEST_DIAGRAM}
+            title="Two credential paths, one invest service"
+            lede="The Resource Server path (arrows 1 to 3) exchanges the user token and speaks WebSocket MCP. The Backend App path (arrows 4 to 6) swaps in a vault-held API key over HTTP. The orange number is the step; click a box or a card for the request on the wire, the MOCK tokens and the standards."
+            ariaLabel="Invest dual-auth sequence diagram"
+            diagramLabel="Invest dual-auth credential paths diagram"
+            testId="invest-dual-auth"
+            pingStyle
+          />
+        )}
       </div>
 
       <div className="mgof-notes">

@@ -1,5 +1,6 @@
 import { Link } from "react-router-dom";
 import StaticFlowDiagram from "../components/StaticFlowDiagram";
+import { EXCHANGE_DIAGRAM, PROOF_DIAGRAM } from "../config/delegatedAccessProofDiagrams";
 import RelatedLearningRail from "../components/learning/RelatedLearningRail";
 import { EDU } from "../components/education/educationIds";
 import "./OAuthTokenExchangeLessonPage.css";
@@ -41,70 +42,6 @@ const DELEGATED_PROOF_STEPS = [
     detail: "Tool executes only after PERMIT, using the narrowed token and recording the result as evidence.",
     tone: "tool",
   },
-];
-
-// The same three hops as the cards above, drawn as a walkthrough: Play/Step
-// walks the arrows in order and the shared movie reel opens the claims detail
-// for each hop. StaticFlowDiagram attaches both itself — no extra wiring.
-const EXCHANGE_NODES = [
-  { id: "browser", group: "user", label: "Browser", sub: ["Agent runs here"], x: 40, y: 130 },
-  { id: "bff", group: "agent", label: "BFF", sub: ["Holds the user token"], x: 340, y: 130 },
-  { id: "pingone", group: "pingone", label: "PingOne", sub: ["RFC 8693 exchange"], x: 640, y: 130 },
-  { id: "mcp", group: "resource", label: "MCP Server", sub: ["Verifies act chain"], x: 940, y: 130 },
-];
-
-const EXCHANGE_EDGES = [
-  ["browser", "bff", "user session", { detail: "PingOne authenticated the person; the browser session stays in the BFF." }],
-  ["bff", "pingone", "exchange: subject + actor", { detail: "The BFF presents the user token as subject and the agent token as actor." }],
-  ["pingone", "bff", "scoped MCP token", { detail: "Narrower audience, narrower scopes, act = agent. The user token never left the BFF." }],
-  ["bff", "mcp", "tool call with MCP token", { detail: "The MCP server verifies aud, scope, and act before executing." }],
-];
-
-const EXCHANGE_WALK = [
-  {
-    title: "User session", label: "T1 — who is acting for whom",
-    nodes: ["browser", "bff"], edges: [0],
-    lines: [{ who: "User", text: FLOW_STEPS[0].detail }],
-  },
-  {
-    title: "RFC 8693 exchange", label: "Subject + actor in, authority out",
-    nodes: ["bff", "pingone"], edges: [1],
-    lines: [{ who: "BFF", text: FLOW_STEPS[1].detail }],
-  },
-  {
-    title: "Scoped MCP token", label: "T2 — shaped for its job",
-    nodes: ["pingone", "bff"], edges: [2],
-    lines: [{ who: "PingOne", text: FLOW_STEPS[2].detail }],
-  },
-  {
-    title: "Governed tool call", label: "The gateway can verify every claim",
-    nodes: ["bff", "mcp"], edges: [3],
-    lines: [
-      { who: "Gateway", text: DELEGATED_PROOF_STEPS[0].detail },
-      { who: "Tool", text: DELEGATED_PROOF_STEPS[2].detail },
-    ],
-  },
-];
-
-const EXCHANGE_GROUPS = {
-  user: { label: "User", bg: "var(--th-status-info)" },
-  agent: { label: "Agent / BFF", bg: "var(--th-bg-emphasis)" },
-  pingone: { label: "PingOne", bg: "var(--th-status-success)" },
-  resource: { label: "Resource server", bg: "var(--th-border-strong)" },
-};
-
-// The proof cards below as a walkable diagram, with the deny / step-up branch.
-const PROOF_NODES = [
-  { id: "gateway", group: "agent", label: "Agent Gateway", sub: ["Checks aud, scope, act"], x: 40, y: 60 },
-  { id: "authorize", group: "pingone", label: "PingOne Authorize", sub: ["PERMIT / DENY / STEP-UP"], x: 340, y: 60 },
-  { id: "tool", group: "resource", label: "MCP tool", sub: ["Runs on PERMIT"], x: 640, y: 60 },
-  { id: "challenge", group: "user", label: "Challenge", sub: ["No tool call"], x: 340, y: 230 },
-];
-
-const PROOF_EDGES = [
-  ["gateway", "authorize", "decision request", { detail: DELEGATED_PROOF_STEPS[0].detail }],
-  ["authorize", "tool", "PERMIT", { detail: DELEGATED_PROOF_STEPS[2].detail }],
-  ["authorize", "challenge", "DENY / STEP-UP", { detail: "Stop before tool execution, return the challenge, and require a new decision before retrying." }],
 ];
 
 const OAUTH_EDUCATION_LINKS = [  {
@@ -224,11 +161,9 @@ export default function OAuthTokenExchangeLessonPage() {
         </div>
         <div className="ote-flow-diagram">
           <StaticFlowDiagram
-            NODES={EXCHANGE_NODES}
-            EDGES={EXCHANGE_EDGES}
-            GROUPS={EXCHANGE_GROUPS}
-            walk={EXCHANGE_WALK}
-            details={Object.fromEntries(EXCHANGE_NODES.map((n) => [n.id, (EXCHANGE_EDGES.find(([from]) => from === n.id) || [])[3]?.detail || ""]))}
+            {...EXCHANGE_DIAGRAM}
+            steps={EXCHANGE_DIAGRAM.STEPS}
+            pingStyle
             ariaLabel="RFC 8693 token exchange walkthrough"
             testId="ote-exchange-diagram"
           />
@@ -257,10 +192,9 @@ export default function OAuthTokenExchangeLessonPage() {
         </div>
         <div className="ote-flow-diagram">
           <StaticFlowDiagram
-            NODES={PROOF_NODES}
-            EDGES={PROOF_EDGES}
-            GROUPS={EXCHANGE_GROUPS}
-            details={Object.fromEntries(PROOF_NODES.map((n) => [n.id, (PROOF_EDGES.find(([from]) => from === n.id) || [])[3]?.detail || ""]))}
+            {...PROOF_DIAGRAM}
+            steps={PROOF_DIAGRAM.STEPS}
+            pingStyle
             ariaLabel="Delegated access authorization walkthrough"
             testId="ote-proof-diagram"
           />

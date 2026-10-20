@@ -1,4 +1,4 @@
-import { render, screen, within } from "@testing-library/react";
+import { fireEvent, render, screen, within } from "@testing-library/react";
 import { MemoryRouter } from "react-router-dom";
 import userEvent from "@testing-library/user-event";
 import {
@@ -6,6 +6,18 @@ import {
   useEducationUI,
 } from "../../context/EducationUIContext";
 import OAuthTokenExchangeLessonPage from "../OAuthTokenExchangeLessonPage";
+
+// jsdom measures nothing, so React Flow draws no edges unless the observer reports each node.
+class ResizeObserverStub {
+  constructor(cb) { this.cb = cb; }
+  observe(target) { this.cb([{ target, contentRect: { width: 250, height: 40 } }]); }
+  unobserve() {}
+  disconnect() {}
+}
+window.ResizeObserver = ResizeObserverStub;
+Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: () => 250 });
+Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get: () => 40 });
+window.DOMMatrixReadOnly = window.DOMMatrixReadOnly || class {};
 
 function EducationState() {
   const { panel, tab } = useEducationUI();
@@ -64,6 +76,28 @@ describe("OAuthTokenExchangeLessonPage", () => {
     expect(within(bar).getByText("Simulate")).toBeInTheDocument();
     expect(within(bar).getByText("Reset")).toBeInTheDocument();
     expect(within(bar).getByText("Step time:")).toBeInTheDocument();
+  });
+
+  it("draws both figures in the Ping style and shows the wire form and MOCK tokens on a click", async () => {
+    renderLesson();
+
+    expect(document.querySelectorAll(".sfd--ping").length).toBe(2);
+    const exchange = within(screen.getByTestId("ote-exchange-diagram-steps"));
+    expect(exchange.getByText("Simulate")).toBeInTheDocument();
+    fireEvent.click(await screen.findByTestId("ote-exchange-diagram-node-pingone"));
+    const panel = screen.getByTestId("ote-exchange-diagram-reel-detail");
+    expect(panel.textContent).toContain("grant_type=");
+    expect(panel.textContent).toContain("MOCK, teaching values only");
+    expect(panel.textContent).toContain("RFC 8693");
+  });
+
+  it("the proof figure keeps the PERMIT and the challenge branch", async () => {
+    renderLesson();
+
+    fireEvent.click(await screen.findByTestId("ote-proof-diagram-node-challenge"));
+    const panel = screen.getByTestId("ote-proof-diagram-reel-detail");
+    expect(panel.textContent).toContain("DENY");
+    expect(panel.textContent).toContain("Token: none");
   });
 
   it("opens the matching Education Hub topic from the lesson", async () => {

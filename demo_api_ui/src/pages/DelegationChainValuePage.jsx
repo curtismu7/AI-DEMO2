@@ -117,6 +117,7 @@ export default function DelegationChainValuePage() {
         diagramLabel="Generalist to specialist delegation with token exchanges, and the identity-mismatch probe"
         lede="Both runs go through /api/agent/invoke. The first delegates across two agents with nested act claims; the second probes the same policy decision with an unregistered agent."
         config={{ GROUPS: DELEGATION_CHAIN_GROUPS, NODES: DELEGATION_CHAIN_NODES, EDGES: DELEGATION_CHAIN_EDGES, STEPS: DELEGATION_CHAIN_STEPS }}
+        pingStyle
       />
       {hasResults && (
         <div className="dcv-controls">
