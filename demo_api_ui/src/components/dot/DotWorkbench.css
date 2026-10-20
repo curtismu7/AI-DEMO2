@@ -10,6 +10,10 @@
 }
 /* .cur-ide[data-cur-theme] in the shell sheet sets its own ground; keep the page tokens on top (same specificity, loads later) */
 .dot-wb[data-cur-theme] { background:var(--bg); color:var(--ink); }
+/* Bare route (/personal-agent/dot/full): no app chrome around the sheet, so
+   don't subtract the chrome height — the sheet fills the viewport and the
+   diagram (a sibling, outside the overflow:hidden sheet) scrolls below it. */
+.dot-wb--bare { height: calc(100vh / var(--app-zoom, 1)); }
 /* Desktop: the page is a fixed-height shell, so only the messages and the side column scroll;
    the persona card, chips and composer stay on screen. */
 .dot-wb__main { flex:1; min-height:0; width:100%; box-sizing:border-box; display:grid; grid-template-columns:minmax(0,1fr) 340px; grid-template-rows:minmax(0,1fr); gap:16px; padding:16px 20px; max-width:1280px; margin:0 auto; overflow:hidden; }

@@ -1669,8 +1669,10 @@ function AppWithAuth() {
                   path="/personal-agent/dot/full"
                   element={
                     // Bare full-page variant for sharing from the handoff page —
-                    // no side nav, header or footer. Same page component.
-                    <DotWorkbenchPage user={user} />
+                    // no side nav, header or footer. Same page component; bare
+                    // drops the chrome-height subtraction and moves the diagram
+                    // below the fixed-height sheet.
+                    <DotWorkbenchPage user={user} bare />
                   }
                 />
                 <Route
