@@ -62,3 +62,14 @@
   border-radius: 3px;
   display: inline-block;
 }
+
+/* Ping style: follow the app theme (light grey canvas in light mode, dark in dark mode) instead of the fixed dark palette.
+   The doubled class outranks the rule above. */
+.aom-page--ping.aom-page--ping {
+  --aom-bg: var(--th-bg-page);
+  --aom-panel: var(--th-bg-card);
+  --aom-ink: var(--th-text);
+  --aom-ink-2: var(--th-text-body);
+  --aom-border: var(--th-border);
+  --aom-accent: var(--th-status-info);
+}

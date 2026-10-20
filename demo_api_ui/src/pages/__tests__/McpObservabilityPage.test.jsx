@@ -1,4 +1,4 @@
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import McpObservabilityPage, { buildObservabilitySummary } from "../McpObservabilityPage";
 import apiClient from "../../services/apiClient";
@@ -86,5 +86,15 @@ describe("McpObservabilityPage", () => {
     expect(screen.getAllByText(/c-7f9e2a/).length).toBeGreaterThan(0);
     expect(screen.getByText(/Trace unavailable: no chain-of-custody hops were returned/i)).toBeInTheDocument();
     expect(user.setup).toBe(false);
+  });
+
+  it("draws where the data comes from in the Ping style with Simulate and Reset", async () => {
+    render(<McpObservabilityPage />);
+
+    const flow = await screen.findByRole("region", { name: "Where this page's data comes from" });
+    expect(flow.classList.contains("efd--ping")).toBe(true);
+    expect(flow.querySelector(".sfd--ping")).toBeTruthy();
+    expect(within(flow).getByRole("button", { name: "Simulate" })).toBeInTheDocument();
+    expect(within(flow).getByRole("button", { name: /Reset$/ })).toBeInTheDocument();
   });
 });

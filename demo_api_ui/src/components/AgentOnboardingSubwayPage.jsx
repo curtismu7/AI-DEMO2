@@ -9,7 +9,7 @@ import { STATION_LABELS, collapseStations } from "../data/agentOnboardingStation
 import "./AgentOnboardingSubwayPage.css";
 
 const PER_ROW = 4;
-const GROUPS = { station: { label: "Station", bg: "var(--th-status-info)" } };
+const GROUPS = { station: { label: "Station", bg: "#151a24" } };
 
 // Stations laid out in a snake (left to right, then right to left) so every hop joins neighbours.
 function buildLine(steps) {
@@ -17,7 +17,7 @@ function buildLine(steps) {
   const nodes = slots.map((key, i) => {
     const row = Math.floor(i / PER_ROW);
     const col = row % 2 ? PER_ROW - 1 - (i % PER_ROW) : i % PER_ROW;
-    return { id: `s${i}`, group: "station", label: STATION_LABELS[key] || key, x: col * 260, y: row * 110 };
+    return { id: `s${i}`, group: "station", label: STATION_LABELS[key] || key, x: col * 420, y: row * 160 };
   });
   const edges = slots.slice(1).map((_, i) => [`s${i}`, `s${i + 1}`, "", { vertical: (i + 1) % PER_ROW === 0 }]);
   const walk = steps.map((s, i) => {
@@ -45,7 +45,7 @@ export default function AgentOnboardingSubwayPage() {
   const outcome = flowKey === "admin" ? FLOWS.admin.stories[story].outcome : flow.outcome;
 
   return (
-    <div className="aos-page">
+    <div className="aos-page aos-page--ping">
       <div className="aos-hero">
         <h1>Enterprise AI Onboarding — Subway Map</h1>
         <p className="aos-sub">
@@ -95,6 +95,7 @@ export default function AgentOnboardingSubwayPage() {
         EDGES={line.edges}
         GROUPS={GROUPS}
         walk={line.walk}
+        pingStyle
         testId="aos-line"
         ariaLabel="Onboarding subway map: one station per component, walked in order"
       />

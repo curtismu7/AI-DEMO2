@@ -48,7 +48,7 @@ describe("diagram controls", () => {
     expectDraggable();
     fireEvent.click(screen.getByRole("button", { name: "Simulate" }));
     const edges = flowProps[flowProps.length - 1].edges;
-    expect(edges[0].animated).toBe(true);
+    expect(edges[0].data.active).toBe(true);
   });
 
   it("/architecture/token-flow (sequence view, exempt from movable): Simulate, Reset, speed", () => {

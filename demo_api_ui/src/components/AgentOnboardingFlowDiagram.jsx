@@ -109,6 +109,7 @@ export default function AgentOnboardingFlowDiagram() {
           GROUPS={AOM_GROUPS}
           walk={walk}
           details={AOM_DETAILS}
+          pingStyle
           testId="aof-flow-diagram"
           ariaLabel="Onboarding architecture diagram"
         />

@@ -93,3 +93,15 @@
 .aos-outcome strong {
   color: var(--aos-accent);
 }
+
+/* Ping style: follow the app theme instead of the fixed dark palette. The doubled class outranks the rule above. */
+.aos-page.aos-page.aos-page--ping {
+  --aos-bg: var(--th-bg-page);
+  --aos-panel: var(--th-bg-card);
+  --aos-ink: var(--th-text);
+  --aos-ink-2: var(--th-text-body);
+  --aos-ink-3: var(--th-text-muted);
+  --aos-accent: var(--th-bg-emphasis);
+  --aos-accent-ink: var(--th-text-on-emphasis);
+  --aos-border: var(--th-border);
+}
