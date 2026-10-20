@@ -1,7 +1,7 @@
 import { act, fireEvent, render, screen } from "@testing-library/react";
 import { tokenChainTraceStore } from "../../services/tokenChainTrace/tokenChainTraceStore";
 import IdJagCallPlayer from "../IdJagCallPlayer";
-import { CALLS } from "../../utils/idJagCallSequence";
+import { ACTORS, CALLS } from "../../utils/idJagCallSequence";
 
 function withTrace(trace) {
   vi.spyOn(tokenChainTraceStore, "getState").mockReturnValue({ trace, steps: [], history: [] });
@@ -30,10 +30,14 @@ describe("IdJagCallPlayer", () => {
     expect(screen.getByTestId("idjag-sequence")).toBeInTheDocument();
   });
 
-  it("shows every call as a row in the sequence diagram", () => {
+  it("shows the sequence as a ReactFlow figure with an actor box per lifeline", () => {
+    // jsdom has no layout, so ReactFlow draws the boxes but not the measured arrows: arrows are measured in a real browser.
     render(<IdJagCallPlayer />);
     fireEvent.click(screen.getByRole("button", { name: "Sequence diagram" }));
-    expect(screen.getAllByRole("button", { name: /^Call \d+:/ })).toHaveLength(CALLS.length);
+    const fig = screen.getByTestId("idjag-sequence");
+    expect(fig.querySelector(".react-flow")).not.toBeNull();
+    expect(fig.querySelectorAll(".react-flow__node-actor")).toHaveLength(ACTORS.length);
+    expect(screen.getByTestId("idjag-call-detail")).toBeInTheDocument();
   });
 
   it("steps and selects calls, updating the detail", () => {
