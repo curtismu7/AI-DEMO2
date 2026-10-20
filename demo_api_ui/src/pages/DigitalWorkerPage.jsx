@@ -4,6 +4,7 @@ import apiClient from "../services/apiClient";
 import { useVertical } from "../vertical/useVertical";
 import PersonalAgentStudioPage from "./PersonalAgentStudioPage";
 import DigitalWorkerRunPanel from "./DigitalWorkerRunPanel";
+import DigitalWorkerSignIn from "./DigitalWorkerSignIn";
 // The studio emits workload-agents__* classes styled there; this page mounts the
 // studio outside WorkloadAgentsPage, same as PersonalAgentClientWindow does.
 import "./WorkloadAgentsPage.css";
@@ -305,6 +306,7 @@ export default function DigitalWorkerPage() {
   // one way to start the run; mounting never fires it (its runNonce stays 0).
   const [catalog, setCatalog] = useState({ vertical: null, useCase: null });
   const [error, setError] = useState("");
+  const [needsSignIn, setNeedsSignIn] = useState(false); // the wall answered 401: not an error, an invitation
   const [mode, setMode] = useState("attended");
 
   useEffect(() => {
@@ -313,7 +315,11 @@ export default function DigitalWorkerPage() {
     // picker, so the payload has no consumer here — the server 400s an unknown
     // vertical on the use-case fetch below, and that alert is the real guard.
     apiClient.get("/api/verticals/list")
-      .catch(() => { if (live) setError("Vertical choices could not be loaded."); });
+      .catch((err) => {
+        if (!live) return;
+        if (err?.response?.status === 401) setNeedsSignIn(true);
+        else setError("Vertical choices could not be loaded.");
+      });
     return () => { live = false; };
   }, []);
 
@@ -321,9 +327,14 @@ export default function DigitalWorkerPage() {
     let live = true;
     setCatalog({ vertical: null, useCase: null });
     setError("");
+    setNeedsSignIn(false);
     apiClient.get(`/api/use-cases/UC38?vertical=${encodeURIComponent(vertical)}`)
       .then(({ data }) => { if (live) setCatalog({ vertical, useCase: data.useCase }); })
-      .catch(() => { if (live) setError("The governed run could not be loaded for this vertical."); });
+      .catch((err) => {
+        if (!live) return;
+        if (err?.response?.status === 401) setNeedsSignIn(true);
+        else setError("The governed run could not be loaded for this vertical.");
+      });
     return () => { live = false; };
   }, [vertical]);
 
@@ -368,10 +379,10 @@ export default function DigitalWorkerPage() {
 
         <div role="tabpanel" id="dw-pane-attended" aria-labelledby="dw-tab-attended" hidden={mode !== "attended"} className="dw-agent__pane">
           <p className="dw-agent__intro">UC38 · wire transfer with step-up MFA and HITL</p>
-          {error && <p role="alert" className="dw-run-task__error">{error}</p>}
+          {needsSignIn ? <DigitalWorkerSignIn what="run the governed worker" /> : error && <p role="alert" className="dw-run-task__error">{error}</p>}
           {selected ? (
             <PersonalAgentStudioPage key={`${vertical}:UC38`} scenario={selected} vertical={vertical} />
-          ) : !error && <p role="status" className="dw-agent__intro">Loading the governed run…</p>}
+          ) : !error && !needsSignIn && <p role="status" className="dw-agent__intro">Loading the governed run…</p>}
         </div>
 
         <div role="tabpanel" id="dw-pane-unattended" aria-labelledby="dw-tab-unattended" hidden={mode !== "unattended"} className="dw-agent__pane">
