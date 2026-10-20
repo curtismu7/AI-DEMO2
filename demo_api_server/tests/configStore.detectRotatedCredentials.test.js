@@ -15,6 +15,7 @@ describe('detectRotatedCredentials watchlist derivation', () => {
     jest.resetModules();
     delete process.env.PINGONE_ADMIN_CLIENT_SECRET;
     delete process.env.DEMO_USER_PASSWORD;
+    for (const k of ['PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET', 'AGENT_CLIENT_SECRET', 'PINGONE_AGENT_CLIENT_SECRET']) delete process.env[k];
   });
 
   async function loadWith(cache) {
@@ -52,5 +53,24 @@ describe('detectRotatedCredentials watchlist derivation', () => {
     process.env.DEMO_USER_PASSWORD = 'fresh-from-env';
     const warnings = await loadWith({ demo_password: 'stale-in-lmdb' });
     expect(warnings.some((w) => w.includes('DEMO_USER_PASSWORD'))).toBe(true);
+  });
+
+  // AGENT_CLIENT_SECRET is an alias of BOTH pingone_ai_agent_client_secret (the
+  // actor app) and pingone_agent_client_secret (the main agent app) — different
+  // apps. It must only be compared against the key where it is the effective alias.
+  it('does not warn on a shadowed alias that belongs to a different app', async () => {
+    process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_SECRET = 'actor-secret';
+    process.env.AGENT_CLIENT_SECRET = 'main-agent-secret';
+    const warnings = await loadWith({
+      pingone_ai_agent_client_secret: 'actor-secret',
+      pingone_agent_client_secret: 'main-agent-secret',
+    });
+    expect(warnings.filter((w) => w.includes('config-rotation'))).toEqual([]);
+  });
+
+  it('still warns when the effective alias really drifted', async () => {
+    process.env.AGENT_CLIENT_SECRET = 'rotated-main-agent-secret';
+    const warnings = await loadWith({ pingone_agent_client_secret: 'stale-main-agent-secret' });
+    expect(warnings.some((w) => w.includes('AGENT_CLIENT_SECRET') && w.includes('pingone_agent_client_secret'))).toBe(true);
   });
 });
