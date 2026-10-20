@@ -175,9 +175,18 @@ describe('createCitationResolver', () => {
   });
 
   test('resolves to null when fetch fails', async () => {
-    // In test environment, fetch is not available — should gracefully fail
-    const resolver = createCitationResolver('http://localhost:9999');
-    const result = await resolver.resolve('test', 'K1');
-    expect(result).toBeNull();
+    // Stub fetch: the previous version hit a real localhost:9999, which only
+    // "failed fast" when nothing was listening there and hung to the test
+    // timeout whenever anything accepted the connection without replying.
+    const fetchStub = vi.fn().mockRejectedValue(new TypeError('fetch failed'));
+    vi.stubGlobal('fetch', fetchStub);
+    try {
+      const resolver = createCitationResolver('http://localhost:9999');
+      const result = await resolver.resolve('test', 'K1');
+      expect(fetchStub).toHaveBeenCalledWith('http://localhost:9999/assertions/test');
+      expect(result).toBeNull();
+    } finally {
+      vi.unstubAllGlobals();
+    }
   });
 });
