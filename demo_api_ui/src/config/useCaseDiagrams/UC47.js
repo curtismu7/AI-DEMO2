@@ -5,12 +5,13 @@
  * prompt-injection run and the ungranted-agent run are refused with a reason.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, SPEC, AUTHZ } from "../pingStyleStandards";
 
 const NODES = [
   { id: "main", group: "agent", label: "Main agent", sub: ["starts the reel"], x: 40, y: 150, detail: "Starts the chain on /dashboard; every hop streams into the movie reel." },
-  { id: "lc", group: "agent", label: "LangChain agent", sub: ["hop 1"], x: 340, y: 150, detail: "Receives the first handoff through the gateway, presenting its own key." },
-  { id: "spec", group: "agent", label: "Specialist", sub: ["hop 2"], x: 640, y: 150, detail: "Receives the second handoff; the gateway checked who may call whom first." },
-  { id: "pgw", group: "gateway", label: "Agent Privilege", sub: ["per-hop checks"], x: 940, y: 150, detail: "Each hop: the key's a2a scope, the policy for the remote agent, the guardrail." },
+  { id: "lc", group: "agent", label: "LangChain agent", sub: ["hop 1"], x: 440, y: 150, detail: "Receives the first handoff through the gateway, presenting its own key." },
+  { id: "spec", group: "agent", label: "Specialist", sub: ["hop 2"], x: 840, y: 150, detail: "Receives the second handoff; the gateway checked who may call whom first." },
+  { id: "pgw", group: "gateway", label: "Agent Privilege", sub: ["per-hop checks"], x: 1240, y: 150, detail: "Each hop: the key's a2a scope, the policy for the remote agent, the guardrail." },
   ];
 
 const EDGES = [
@@ -47,11 +48,73 @@ const walk = [
   },
 ];
 
+// Per-step detail. Agent Access keys are opaque, so no JWT is decoded here (tokens: [] with the reason in the form).
+const A2A = SPEC("A2A protocol", "Agent2Agent message/send, JSON-RPC over HTTP");
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: `POST {gateway A2A door for the LangChain agent}
+A2A-Version: 1.0
+Authorization: Bearer <LangChain agent key>
+Content-Type: application/json
+
+{ "jsonrpc": "2.0", "id": 1, "method": "message/send",
+  "params": { "message": { "role": "user", "parts": [{ "kind": "text", "text": "<task>" }] } } }
+
+The key is the LangChain agent's own, never the caller's. Opaque credential: no JWT to decode.`,
+      tokens: [],
+      refs: [A2A, RFC(6750, "Bearer token usage")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: `POST {gateway A2A door for the specialist}
+A2A-Version: 1.0
+Authorization: Bearer <Specialist agent key>
+Content-Type: application/json
+
+{ "jsonrpc": "2.0", "id": 2, "method": "message/send", "params": { "message": { ... } } }
+
+Same checks again: key, remote-agent policy, guardrail. Opaque key: no JWT to decode.`,
+      tokens: [],
+      refs: [A2A, AUTHZ[0]],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: `Variants of the same chain, each decided at the gateway per hop:
+
+allowed         -> hop completes, result returned
+injection       -> refused, reason: prompt injection detected by the guardrail
+ungranted agent -> refused, reason: caller not granted to the remote agent
+
+The refusal carries a reason that the reel displays.`,
+      tokens: [],
+      refs: [AUTHZ[0]],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: `Every hop streams into the movie reel with its decision (allow or refuse + reason).
+Gateway records carry the MITRE ATLAS / NIST / OWASP mapping for each event.
+
+No request leaves the page on this step; it renders what the gateway recorded.`,
+      tokens: [],
+    },
+  },
+];
+
 export default {
+  pingStyle: true,
   id: "UC47",
   result: { label: "CHAIN", tone: "info" },
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };
