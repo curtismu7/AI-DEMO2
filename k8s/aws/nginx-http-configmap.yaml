@@ -96,6 +96,14 @@ data:
         location /api/ {
             proxy_pass https://demo-api-server:3001/api/;
             proxy_ssl_verify off;
+            # The OAuth callback answers 302 + a large session Set-Cookie. nginx's
+            # default response-header buffer (4-8k) rejects it as "upstream sent
+            # too big header" and the browser sees 502 even though the BFF saved
+            # the session. busy_buffers_size must be >= buffer_size and less than
+            # all buffers minus one (8 x 32k), or nginx -t fails.
+            proxy_buffer_size 32k;
+            proxy_buffers 8 32k;
+            proxy_busy_buffers_size 64k;
             proxy_http_version 1.1;
             proxy_set_header Upgrade $http_upgrade;
             proxy_set_header Connection 'upgrade';
