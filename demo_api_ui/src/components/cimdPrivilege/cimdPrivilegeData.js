@@ -11,6 +11,8 @@
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
 const DOWN = { vertical: true };
+const TOKEN = { dashed: true }; // pingStyle: dashed blue = a token, code or decision handed back
+const TOKEN_DOWN = { vertical: true, dashed: true };
 
 const step = (key, edges, title, status, what, why, evidence) => ({ key, edges, title, status, what, why, evidence });
 
@@ -19,14 +21,13 @@ export const STATUS = { observed: "Observed", expected: "Expected" };
 // ---------------------------------------------------------------------------------------------
 // Figure 1: how it works
 // ---------------------------------------------------------------------------------------------
-// Group keys are the ones PersonalAgent.css already styles (.pa-sw--traveller, --priv, --ag, --ping, --team),
-// so the legend needs no inline colour and no new stylesheet.
+// Ping palette: red = Ping products, dark = what the team builds, grey = what sits outside (the client and its document).
 export const FLOW_GROUPS = {
-  traveller: { label: "AI client or agent", bg: "var(--th-text-muted)" },
-  priv: { label: "PingOne Privilege", bg: "var(--th-status-error)" },
-  ag: { label: "Client document", bg: "var(--th-status-info)" },
-  ping: { label: "PingOne sign-in", bg: "var(--th-status-warning)" },
-  team: { label: "MCP server", bg: "var(--th-status-success)" },
+  traveller: { label: "AI client or agent", bg: "#5a5f69" },
+  priv: { label: "PingOne Privilege", bg: "#b5231a" },
+  ag: { label: "Client document", bg: "#5a5f69" },
+  ping: { label: "PingOne sign-in", bg: "#b5231a" },
+  team: { label: "MCP server", bg: "#151a24" },
 };
 
 export const FLOW_NODES = [
@@ -41,10 +42,10 @@ export const FLOW_NODES = [
 
 export const FLOW_EDGES = [
   E("client", "priv", "authorize"), // 0
-  E("list", "priv", "is the URL listed?", DOWN), // 1
+  E("list", "priv", "is the URL listed?", TOKEN_DOWN), // 1
   E("priv", "doc", "fetch the document"), // 2
   E("priv", "user", "sign in and consent"), // 3
-  E("user", "redirect", "code to redirect URI"), // 4
+  E("user", "redirect", "code to redirect URI", TOKEN), // 4
   E("redirect", "priv", "exchange code (PKCE)"), // 5
   E("priv", "mcp", "tool call"), // 6
 ];
@@ -118,11 +119,12 @@ export const FLOW_STEPS = [
 // ---------------------------------------------------------------------------------------------
 // Figure 2: what it can do
 // ---------------------------------------------------------------------------------------------
-// ag = the document, ok = observed, ping = expected: the keys PersonalAgent.css already styles.
+// ag = the document, ok = observed, ping = expected. Ping palette: red = the document everything hangs on,
+// dark = seen in the console or on the live host, grey = follows from the design, not yet exercised.
 export const CAP_GROUPS = {
-  ag: { label: "The client document", bg: "var(--th-status-info)" },
-  ok: { label: "Observed", bg: "var(--th-status-success)" },
-  ping: { label: "Expected, not yet exercised", bg: "var(--th-status-warning)" },
+  ag: { label: "The client document", bg: "#b5231a" },
+  ok: { label: "Observed", bg: "#151a24" },
+  ping: { label: "Expected, not yet exercised", bg: "#5a5f69" },
 };
 
 export const CAP_NODES = [
@@ -141,7 +143,7 @@ export const CAP_EDGES = [
   E("url", "allow", "checked by"), // 1
   E("url", "nosecret", "public client"), // 2
   E("name", "policy", "client_id key"), // 3
-  E("allow", "sprawl", "admits"), // 4
+  E("allow", "sprawl", "admits", TOKEN), // 4
   E("nosecret", "same", "like Claude's"), // 5
   E("policy", "audit", "names client"), // 6
 ];

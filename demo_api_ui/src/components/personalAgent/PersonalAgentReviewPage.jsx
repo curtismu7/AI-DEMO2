@@ -1,7 +1,7 @@
 // PersonalAgentReviewPage.jsx — /personal-agent-review
 // Why the original personal-agent design was wrong, finding by finding, judged against the five
 // controls an enterprise review treats as non-negotiable. Linked from both design pages. The figure is
-// React Flow with the findings pinned to the nodes that carry them.
+// React Flow (StaticFlowDiagram, pingStyle) with the findings pinned to the nodes that carry them.
 import React from "react";
 import { Link } from "react-router-dom";
 import StaticFlowDiagram from "../StaticFlowDiagram";
@@ -73,7 +73,7 @@ export default function PersonalAgentReviewPage() {
           NODES={ORIGINAL_NODES}
           EDGES={ORIGINAL_EDGES}
           GROUPS={REVIEW_GROUPS}
-          step={-1}
+          pingStyle
           testId="pa-review-diagram"
           height={560}
           ariaLabel="The original design. Ping issues a sign-in token to the hosted chat agent, which calls the MCP server with the same token. The MCP server turns it into a full member session and calls the facade. Other AI apps reach the same tools directly. Findings F1 to F10 are pinned to the nodes that carry them."
@@ -81,7 +81,7 @@ export default function PersonalAgentReviewPage() {
         <ul className="pa-legend" aria-label="Legend">
           {Object.entries(REVIEW_GROUPS).map(([key, g]) => (
             <li key={key}>
-              <i className={`pa-sw pa-sw--${key}`} />
+              <i className="pa-sw" style={{ borderTopColor: g.bg }} />
               {g.label}
             </li>
           ))}

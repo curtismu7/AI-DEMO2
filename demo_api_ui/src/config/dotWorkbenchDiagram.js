@@ -7,39 +7,39 @@
 // MCP token resolution, memory save). Embedded directly (not a demo step).
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
-const OK = { color: 'var(--th-status-success)' };
-const STOP = { color: 'var(--th-status-error)' };
+const TOKEN = { dashed: true }; // pingStyle: dashed blue = a token or a decision handed back
 
 export const DOT_WORKBENCH_GROUPS = {
-  user: { label: 'You', bg: 'var(--th-status-info)' },
-  app: { label: 'Demo BFF', bg: 'var(--th-bg-emphasis)' },
-  gate: { label: 'Authorization', bg: 'var(--th-status-warning)' },
-  agent: { label: 'Dot agent', bg: 'var(--th-status-success)' },
-  resource: { label: 'Tools + memory', bg: 'var(--th-text-faint)' },
+  // Ping palette: red = Ping policy, dark = the page and what the team builds, grey = tools and storage.
+  user: { label: 'You', bg: '#151a24' },
+  app: { label: 'Demo BFF', bg: '#151a24' },
+  gate: { label: 'Authorization', bg: '#b5231a' },
+  agent: { label: 'Dot agent', bg: '#151a24' },
+  resource: { label: 'Tools + memory', bg: '#5a5f69' },
 };
 
 export const DOT_WORKBENCH_NODES = [
   N('user', 'user', 'You (Dot workbench)', ['chat message or suggested', 'prompt chip; page sends', 'prompt + vertical + agentMode'], 0, 200),
-  N('invoke', 'app', 'POST /api/agent/invoke', ['session cookie identifies you;', 'promptGuard screens the text;', 'guests get 401 -> sign-in card'], 340, 200),
-  N('memory', 'resource', 'Dot memory', ['preference-only prompt is saved', 'and answered without a tool;', 'preferences in any run saved after'], 340, 0),
+  N('invoke', 'app', 'POST /api/agent/invoke', ['session cookie identifies you;', 'promptGuard screens the text;', 'guests get 401 -> sign-in card'], 340, 0),
+  N('memory', 'resource', 'Dot memory', ['preference-only prompt is saved', 'and answered without a tool;', 'preferences in any run saved after'], 340, 200),
   N('intent', 'gate', 'Intent authorization', ['only when ff_intent_authorization_enabled:', 'allow, 403 deny or 428 consent', 'before the agent runs'], 680, 0),
   N('agent', 'agent', 'Agent run', ['processAgentMessage;', 'Heuristics (no model) or', 'llama.cpp per the mode toggle'], 680, 200),
-  N('tokens', 'gate', 'MCP access token', ['resolved for the tool called,', 'token events recorded for', 'the run report'], 1020, 200),
-  N('tools', 'resource', 'MCP tool', ['the governed tool call', 'on your behalf'], 1020, 400),
-  N('panel', 'user', 'Verdict cards + panels', ['mapInvokeResult -> PERMIT / DENY /', 'CONSENT tool card; "What Ping', 'governs" tally; memory panel'], 340, 400),
+  N('tokens', 'gate', 'MCP access token', ['resolved for the tool called,', 'token events recorded for', 'the run report'], 1020, 400),
+  N('tools', 'resource', 'MCP tool', ['the governed tool call', 'on your behalf'], 1020, 200),
+  N('panel', 'user', 'Verdict cards + panels', ['mapInvokeResult -> PERMIT / DENY /', 'CONSENT tool card; "What Ping', 'governs" tally; memory panel'], 1020, 0),
 ];
 
 export const DOT_WORKBENCH_EDGES = [
   E('user', 'invoke', 'send message'), // 0
-  E('invoke', 'memory', 'preference-only: remember it, no tool runs', OK), // 1
+  E('invoke', 'memory', 'preference-only: remember it, no tool runs'), // 1
   E('invoke', 'intent', 'intent pre-check (flag on)'), // 2
-  E('intent', 'panel', '403 DENY / 428 CONSENT stops the run', STOP), // 3
-  E('intent', 'agent', 'authorized: run the agent', OK), // 4
-  E('agent', 'tokens', 'tool chosen: resolve its access token'), // 5
-  E('tokens', 'tools', 'call the tool', OK), // 6
+  E('intent', 'panel', '403 DENY / 428 CONSENT stops the run', TOKEN), // 3
+  E('intent', 'agent', 'authorized: run the agent', TOKEN), // 4
+  E('agent', 'tokens', 'tool chosen: resolve its access token', TOKEN), // 5
+  E('tokens', 'tools', 'call the tool'), // 6
   E('tools', 'agent', 'result'), // 7
   E('agent', 'memory', 'save preferences found in the prompt'), // 8
-  E('agent', 'panel', 'reply + toolsCalled + dotMemories', OK), // 9
+  E('agent', 'panel', 'reply + toolsCalled + dotMemories'), // 9
 ];
 
 export const DOT_WORKBENCH_STEPS = [

@@ -4,7 +4,7 @@
 .efd-figure { margin: 0; display: grid; gap: 10px; }
 .efd-legend { list-style: none; margin: 0; padding: 0; display: flex; flex-wrap: wrap; gap: 8px 22px; font-size: var(--font-size-sm); color: var(--th-text-muted); }
 .efd-legend li { display: inline-flex; align-items: center; gap: 8px; }
-.efd-sw { display: inline-block; width: 22px; height: 0; border-top: 4px solid var(--th-border-strong); }
+.efd-sw { display: inline-block; width: 22px; height: 0; border-top: 4px solid var(--th-border-strong); outline: 1px solid var(--th-border-strong); }
 .efd-steps { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 380px), 1fr)); gap: 12px; }
 .efd-step { border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg-card); padding: 14px 16px; display: grid; gap: 8px; align-content: start; }
 .efd-step--active { border-color: var(--th-status-info); border-width: 2px; }
