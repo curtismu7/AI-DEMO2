@@ -23,10 +23,20 @@ const DISCOVERY = { backends: [
 
 const renderPage = () => render(<MemoryRouter><IdJagInspectPage /></MemoryRouter>);
 
+const PG = "/api/id-jag-playground";
+let config;
+const ISSUED = { token: { header: { typ: "oauth-id-jag+jwt" }, claims: { iss: "https://pf.test" } }, response: { access_token: "[the ID-JAG, kept server-side]" } };
+
 beforeEach(() => {
   get.mockReset(); post.mockReset();
-  get.mockResolvedValue({ data: DISCOVERY });
-  post.mockResolvedValue({ data: DECODED });
+  try { localStorage.clear(); } catch { /* none */ }
+  config = { signedIn: true, mode: "oauth-mcp" };
+  get.mockImplementation(async (url) => (url === `${PG}/config` ? { data: config } : { data: DISCOVERY }));
+  post.mockImplementation(async (url) => {
+    if (url === `${PG}/issue`) return { data: ISSUED };
+    if (url === `${PG}/inspect`) return { data: { header: DECODED.header, claims: DECODED.claims, checks: DECODED.checks } };
+    return { data: DECODED };
+  });
 });
 
 describe("ID-JAG Inspector page", () => {
@@ -62,12 +72,61 @@ describe("ID-JAG Inspector page", () => {
     expect(await screen.findByRole("alert")).toHaveTextContent(/Sign in/);
   });
 
-  it("shows discovery JSON per backend, the profile-fields note and a failing backend", async () => {
+  it("keeps discovery out of the tab row, in a section that starts collapsed", () => {
     renderPage();
-    fireEvent.click(screen.getByRole("tab", { name: "Discovery" }));
+    expect(screen.queryByRole("tab", { name: "Discovery" })).not.toBeInTheDocument();
+    expect(screen.getByRole("tab", { name: "Live log" })).toBeInTheDocument();
+    const section = screen.getByText("Backends (discovery metadata)").closest("details");
+    expect(section.open).toBe(false);
+    expect(get).not.toHaveBeenCalledWith(expect.stringContaining("/discovery"));
+  });
+
+  it("shows discovery JSON per backend, the profile-fields note and a failing backend once opened", async () => {
+    renderPage();
+    const section = screen.getByText("Backends (discovery metadata)").closest("details");
+    section.open = true;
+    fireEvent(section, new Event("toggle"));
     expect(await screen.findByText(/"issuer": "https:\/\/as.test"/)).toBeInTheDocument();
     expect(screen.getByText(/HTTP 404/)).toBeInTheDocument();
+    expect(screen.getAllByText(/authorization_grant_profiles_supported/, { selector: "code" })[0]).toBeInTheDocument();
     expect(screen.getByText((_, el) => el.tagName === "LI" && /scopes_supported.*not published/.test(el.textContent))).toBeInTheDocument();
+  });
+
+  it("gets an ID-JAG from the playground issue route and checks it, with no pasted token", async () => {
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Get an ID-JAG" }));
+    await waitFor(() => expect(screen.getByText(/Detected: ID-JAG/)).toBeInTheDocument());
+    expect(post).toHaveBeenCalledWith(`${PG}/issue`, {});
+    expect(post).toHaveBeenCalledWith(`${PG}/inspect`, {});
+    expect(post).not.toHaveBeenCalledWith("/api/id-jag-inspect/decode", expect.anything());
+    expect(screen.getByText("Header typ")).toBeInTheDocument();
+    expect(screen.getByText(/kept on the server/i)).toBeInTheDocument();
+    expect(screen.getByText("or paste a token from another tool")).toBeInTheDocument();
+  });
+
+  it("uses the mode the playground remembers", async () => {
+    localStorage.setItem("idjag.playground.mode", "pf-pf");
+    renderPage();
+    await waitFor(() => expect(post).toHaveBeenCalledWith(`${PG}/mode`, { mode: "pf-pf" }));
+  });
+
+  it("says to sign in at PingFederate, with a link, when the playground is not signed in", async () => {
+    config = { signedIn: false, mode: "oauth-mcp" };
+    renderPage();
+    expect(await screen.findByText(/Sign in at PingFederate first/)).toBeInTheDocument();
+    expect(screen.getByRole("link", { name: /playground/i })).toHaveAttribute("href", "/pingfederate-id-jag/playground#ijp-step-1");
+    expect(screen.getByRole("button", { name: "Get an ID-JAG" })).toBeDisabled();
+  });
+
+  it("shows the same plain message, not raw JSON, when issue answers 401", async () => {
+    post.mockImplementation(async (url) => {
+      if (url === `${PG}/issue`) throw { response: { status: 401, data: { error: "pf_sign_in_required", message: "Sign in with PingFederate first; the ID-JAG is minted from your session." } }, message: "HTTP 401" };
+      return { data: DECODED };
+    });
+    renderPage();
+    fireEvent.click(await screen.findByRole("button", { name: "Get an ID-JAG" }));
+    expect(await screen.findByText(/Sign in at PingFederate first/)).toBeInTheDocument();
+    expect(screen.queryByText(/pf_sign_in_required/)).not.toBeInTheDocument();
   });
 
   it("says the live log is not available in the demo, without calling the server", () => {
@@ -75,6 +134,6 @@ describe("ID-JAG Inspector page", () => {
     fireEvent.click(screen.getByRole("tab", { name: "Live log" }));
     expect(screen.getByText(/not available in the demo/i)).toBeInTheDocument();
     expect(screen.queryByRole("alert")).not.toBeInTheDocument();
-    expect(get).not.toHaveBeenCalled();
+    expect(get).not.toHaveBeenCalledWith(expect.stringContaining("/discovery"));
   });
 });
