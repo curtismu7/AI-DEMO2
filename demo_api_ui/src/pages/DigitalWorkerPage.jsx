@@ -287,6 +287,10 @@ const SUPPORTED_VERTICALS = new Set([
   "banking", "healthcare", "retail", "walbuy", "government",
   "university", "workforce", "sporting-goods", "manufacturing", "investment", "airlines",
 ]);
+const MODES = [
+  { id: "attended", label: "Attended", hint: "you ask" },
+  { id: "unattended", label: "Unattended", hint: "it starts itself" },
+];
 const DEFAULT_VERTICAL = "banking"; // uc38's canonical run here: the wire transfer with step-up MFA and HITL
 
 export default function DigitalWorkerPage() {
@@ -303,6 +307,7 @@ export default function DigitalWorkerPage() {
   const [error, setError] = useState("");
   const [runNonce, setRunNonce] = useState(0);
   const runSectionRef = useRef(null);
+  const [mode, setMode] = useState("attended");
 
   useEffect(() => {
     let live = true;
@@ -341,32 +346,59 @@ export default function DigitalWorkerPage() {
         An assistant answers questions. A worker takes action — it holds delegated identity,
         spends it across tools, and every action is governed.
       </p>
-      <div className="dw-page__canvas">
-        <ReactFlowProvider>
-          <Canvas />
-        </ReactFlowProvider>
-      </div>
 
-      <section ref={runSectionRef} className="dw-run-task" aria-label="Governed worker run">
-        <div className="dw-run-task__head">
-          <h2>Governed worker run</h2>
-          <p>UC38 · wire transfer with step-up MFA and HITL</p>
+      {/* The agent comes first: both modes stay mounted (hidden, not unmounted) so the
+          arm state and any run in progress survive a tab switch. */}
+      <section className="dw-agent" aria-label="Digital worker agent">
+        <div className="dw-tabs" role="tablist" aria-label="How the worker runs">
+          {MODES.map((m) => (
+            <button
+              key={m.id}
+              type="button"
+              role="tab"
+              id={`dw-tab-${m.id}`}
+              aria-selected={mode === m.id}
+              aria-controls={`dw-pane-${m.id}`}
+              className="dw-tab"
+              onClick={() => setMode(m.id)}
+            >
+              {m.label}<span className="dw-tab__hint">{m.hint}</span>
+            </button>
+          ))}
         </div>
-        {error && <p role="alert" className="dw-run-task__error">{error}</p>}
-        <button type="button" className="btn btn-primary" disabled={!selected} onClick={runWorkerTask}>
-          Run worker task
-        </button>
-        {selected && (
-          <PersonalAgentStudioPage
-            key={`${vertical}:UC38`}
-            scenario={selected}
-            vertical={vertical}
-            runNonce={runNonce}
-          />
-        )}
+
+        <div role="tabpanel" id="dw-pane-attended" aria-labelledby="dw-tab-attended" hidden={mode !== "attended"} ref={runSectionRef} className="dw-agent__pane dw-run-task">
+          <div className="dw-run-task__head">
+            <h2>Governed worker run</h2>
+            <p>UC38 · wire transfer with step-up MFA and HITL</p>
+          </div>
+          {error && <p role="alert" className="dw-run-task__error">{error}</p>}
+          <button type="button" className="btn btn-primary" disabled={!selected} onClick={runWorkerTask}>
+            Run worker task
+          </button>
+          {selected && (
+            <PersonalAgentStudioPage
+              key={`${vertical}:UC38`}
+              scenario={selected}
+              vertical={vertical}
+              runNonce={runNonce}
+            />
+          )}
+        </div>
+
+        <div role="tabpanel" id="dw-pane-unattended" aria-labelledby="dw-tab-unattended" hidden={mode !== "unattended"} className="dw-agent__pane">
+          <DigitalWorkerRunPanel />
+        </div>
       </section>
 
-      <DigitalWorkerRunPanel />
+      <section className="dw-diagram" aria-label="Architecture diagram">
+        <h2 className="dw-diagram__title">How it works</h2>
+        <div className="dw-page__canvas">
+          <ReactFlowProvider>
+            <Canvas />
+          </ReactFlowProvider>
+        </div>
+      </section>
     </div>
   );
 }

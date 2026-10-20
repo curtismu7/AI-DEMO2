@@ -95,8 +95,40 @@ describe("DigitalWorkerPage run sections", () => {
     // The run stays available while the catalog loads, then the click enables.
     expect(screen.getByRole("button", { name: "Run worker task" })).toBeDisabled();
     expect(await screen.findByRole("button", { name: "Run worker task" })).toBeEnabled();
-    // The panel self-fetches its flag, then shows its unarmed state.
+    // The unattended panel lives on its own tab; it self-fetches its flag, then shows its unarmed state.
+    fireEvent.click(screen.getByRole("tab", { name: /Unattended/ }));
     expect(await screen.findByRole("switch", { name: /arm the worker/i })).toBeTruthy();
+  });
+
+  it("puts the agent first and the diagram last", async () => {
+    renderPage();
+    await screen.findByRole("button", { name: "Run worker task" }); // let the page's fetches settle
+    const agent = screen.getByRole("region", { name: "Digital worker agent" });
+    const diagram = screen.getByRole("region", { name: "Architecture diagram" });
+    // DOCUMENT_POSITION_FOLLOWING: the diagram comes after the agent card.
+    expect(agent.compareDocumentPosition(diagram) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
+    expect(within(diagram).getByRole("heading", { name: "How it works" })).toBeTruthy();
+  });
+
+  it("opens on Attended and switches modes without unmounting either", async () => {
+    renderPage();
+    const attended = screen.getByRole("tab", { name: /Attended/ });
+    const unattended = screen.getByRole("tab", { name: /Unattended/ });
+    expect(attended.getAttribute("aria-selected")).toBe("true");
+    expect(document.getElementById("dw-pane-unattended").hidden).toBe(true);
+
+    fireEvent.click(unattended);
+    expect(unattended.getAttribute("aria-selected")).toBe("true");
+    expect(document.getElementById("dw-pane-attended").hidden).toBe(true);
+    expect(document.getElementById("dw-pane-unattended").hidden).toBe(false);
+
+    // Both panes stay in the DOM, so the studio's run and the panel's arm state survive a switch.
+    fireEvent.click(attended);
+    fireEvent.click(await screen.findByRole("button", { name: "Run worker task" }));
+    await screen.findByTestId("studio");
+    fireEvent.click(unattended);
+    fireEvent.click(attended);
+    expect(screen.getByTestId("studio")).toBeTruthy();
   });
 
   it("clicking Run worker task performs the two use-case fetches and mounts the studio on nonce 1", async () => {
