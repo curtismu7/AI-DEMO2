@@ -1,5 +1,8 @@
-.dw-page { display: flex; flex-direction: column; height: calc(100vh - 4rem); padding: 1rem 1.5rem; color: var(--th-text); }
-.dw-page__title { font-size: 1.4rem; margin: 0 0 0.75rem; }
+/* min-height, not height: the page now scrolls — the live run and unattended panel
+   live below the canvas, and a fixed height would clip them out of reach. */
+.dw-page { display: flex; flex-direction: column; min-height: calc(100vh - 4rem); padding: 1rem 1.5rem; color: var(--th-text); }
+.dw-page__title { font-size: 1.4rem; margin: 0 0 0.5rem; }
+.dw-page__lede { margin: 0 0 0.75rem; max-width: 70ch; color: var(--th-text-muted); }
 .dw-page__canvas { position: relative; flex: 1; min-height: 30rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg); overflow: hidden; }
 .dw-page__canvas .react-flow { background: var(--th-bg); }
 
@@ -43,3 +46,29 @@
 .dw-page .dw-edge--accent .react-flow__edge-text { fill: #d22; }
 .dw-page .react-flow__handle { width: 7px; height: 7px; opacity: 0; }
 .dw-page .react-flow__node:hover .react-flow__handle, .dw-page .react-flow__node.selected .react-flow__handle { opacity: 1; }
+
+/* ── Section A: the attended, governed run (button + PersonalAgentStudioPage) ── */
+.dw-run-task { margin-top: 1.25rem; padding: 1rem 1.25rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
+.dw-run-task__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1rem; margin-bottom: 0.75rem; }
+.dw-run-task__head h2 { margin: 0; font-size: var(--font-size-md); }
+.dw-run-task__head p { margin: 0; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+.dw-run-task__error { margin: 0 0 0.75rem; color: var(--th-status-error-text); }
+
+/* ── Section B: DigitalWorkerRunPanel (Task 1) — its dw-run__* classes had no CSS ── */
+.dw-run { margin-top: 1.25rem; padding: 1rem 1.25rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
+.dw-run__title { margin: 0 0 0.75rem; font-size: var(--font-size-md); }
+.dw-run__arm { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.75rem; }
+.dw-run__arm-row { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
+.dw-run__ttl { margin: 0; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+.dw-run__notice { margin: 0; font-size: var(--font-size-2xs); color: var(--th-text); }
+.dw-run__fire { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-bottom: 0.75rem; }
+.dw-run__job { display: flex; align-items: center; gap: 0.5rem; }
+.dw-run__job select { padding: 4px 8px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg); color: var(--th-text); font: inherit; }
+.dw-run__fire-btn { cursor: pointer; padding: 6px 12px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg); color: var(--th-text); font: inherit; }
+.dw-run__fire-btn:disabled { opacity: 0.5; cursor: default; }
+.dw-run__reel { margin-bottom: 0.75rem; }
+.dw-run__decide { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-bottom: 0.75rem; }
+.dw-run__decide p { margin: 0; flex-basis: 100%; font-size: var(--font-size-2xs); }
+.dw-run__decide button { cursor: pointer; padding: 4px 12px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg); color: var(--th-text); font: inherit; }
+.dw-run__list { margin: 0; padding: 0; list-style: none; display: flex; flex-direction: column; gap: 0.25rem; }
+.dw-run__list-btn { cursor: pointer; width: 100%; text-align: left; padding: 6px 10px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg); color: var(--th-text); font: inherit; font-size: var(--font-size-2xs); }

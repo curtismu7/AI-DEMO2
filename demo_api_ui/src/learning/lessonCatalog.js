@@ -148,6 +148,11 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Connect controls", explain: "Tokens, policy, approvals, protocols, and tools each contribute evidence.", demonstrate: "Filter the timeline by token, policy, approval, protocol, and tool." },
     { title: "Assign product ownership", explain: "The product map identifies which Ping control owns each decision or boundary.", demonstrate: "Follow a timeline event to PingOne, Authorize, Gateway, Privilege, or Governance." },
   ],
+  "digital-worker-live": [
+    { title: "Contrast the assistant and the worker", explain: "An assistant answers questions, while a worker holds delegated identity and spends it taking governed action.", demonstrate: "Read the lede on Digital Worker, then drag a diagram box to show where the worker's identity is spent." },
+    { title: "Run the governed worker task", explain: "A wire transfer runs on the same rails as an attended run: delegated token, policy, step-up MFA, and human approval.", demonstrate: "Click Run worker task in the Governed worker run section and follow the UC38 run through the studio's MFA and approval gates." },
+    { title: "Watch an unattended run", explain: "The worker can start itself with nobody present, so arming carries a dead-man switch and every run stays approvable and auditable.", demonstrate: "In the unattended panel, arm the worker, fire the job without a human turn, then approve the parked run and note the auto-disarm." },
+  ],
 });
 
 export const lessonCatalog = Object.freeze([
@@ -582,6 +587,25 @@ export const lessonCatalog = Object.freeze([
     talkingPoints: [
       "Connect the person, agent, tokens, policy, approvals, protocols, tools, and product ownership in one defensible story.",
       "Every event is labeled by provenance so captured evidence is distinct from explanatory content.",
+    ],
+  }),
+  lesson({
+    id: "digital-worker-live",
+    title: "Digital worker vs digital assistant",
+    audience: "Sales engineers and customer architects",
+    category: "AI concepts",
+    route: "/digital-worker",
+    standaloneRoute: "/digital-worker",
+    run: { action: "ai-architecture", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["assistant-answer", "worker-action", "delegated-identity", "unattended-arm", "approval"], result: REDACTED_RESULT },
+    fallback: { provenance: PROVENANCE.RECORDED, label: "Recorded digital worker run" },
+    maturityStages: [MATURITY_STAGES.AUTHENTICATE, MATURITY_STAGES.AUTHORIZE, MATURITY_STAGES.GOVERN],
+    agentCategory: "Personal and Enterprise Agents",
+    productRoles: ["Agent Governance", "Agent IAM Core"],
+    talkingPoints: [
+      "An assistant answers; a worker acts — and spends delegated identity",
+      "Unattended runs need a dead-man switch, revocation, and audit",
+      "Same governance rails as attended runs: tokens, consent, HITL",
     ],
   }),
 ]);

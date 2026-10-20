@@ -1,4 +1,12 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useLocation } from "react-router-dom";
+import apiClient from "../services/apiClient";
+import { useVertical } from "../vertical/useVertical";
+import PersonalAgentStudioPage from "./PersonalAgentStudioPage";
+import DigitalWorkerRunPanel from "./DigitalWorkerRunPanel";
+// The studio emits workload-agents__* classes styled there; this page mounts the
+// studio outside WorkloadAgentsPage, same as PersonalAgentClientWindow does.
+import "./WorkloadAgentsPage.css";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -273,15 +281,92 @@ function Canvas() {
   );
 }
 
+// The verticals this page can run a workload agent for — mirrors WorkloadAgentsPage's set,
+// so an unsupported active vertical (e.g. pingone-admin) still gets a runnable default.
+const SUPPORTED_VERTICALS = new Set([
+  "banking", "healthcare", "retail", "walbuy", "government",
+  "university", "workforce", "sporting-goods", "manufacturing", "investment", "airlines",
+]);
+const DEFAULT_VERTICAL = "banking"; // uc38's canonical run here: the wire transfer with step-up MFA and HITL
+
 export default function DigitalWorkerPage() {
+  const location = useLocation();
+  const { activeId } = useVertical();
+  const params = new URLSearchParams(location.search);
+  const vertical = params.get("vertical") || (SUPPORTED_VERTICALS.has(activeId) ? activeId : DEFAULT_VERTICAL);
+
+  // Scenario loading mirrors WorkloadAgentsPage: the vertical choices arrive from
+  // /api/verticals/list, the UC38 use case resolves per vertical, and the studio
+  // only mounts once both are in hand. The click (not the mount) triggers the run:
+  // nonce 0 is the studio's "no run yet" and each click re-fires the workload.
+  const [catalog, setCatalog] = useState({ vertical: null, useCase: null });
+  const [error, setError] = useState("");
+  const [runNonce, setRunNonce] = useState(0);
+  const runSectionRef = useRef(null);
+
+  useEffect(() => {
+    let live = true;
+    // Pinned mirror of WorkloadAgentsPage's loading order. This page has no vertical
+    // picker, so the payload has no consumer here — the server 400s an unknown
+    // vertical on the use-case fetch below, and that alert is the real guard.
+    apiClient.get("/api/verticals/list")
+      .catch(() => { if (live) setError("Vertical choices could not be loaded."); });
+    return () => { live = false; };
+  }, []);
+
+  useEffect(() => {
+    let live = true;
+    setCatalog({ vertical: null, useCase: null });
+    setError("");
+    setRunNonce(0); // a new vertical is a new scenario: never auto-fire it on the old run count
+    apiClient.get(`/api/use-cases/UC38?vertical=${encodeURIComponent(vertical)}`)
+      .then(({ data }) => { if (live) setCatalog({ vertical, useCase: data.useCase }); })
+      .catch(() => { if (live) setError("The governed run could not be loaded for this vertical."); });
+    return () => { live = false; };
+  }, [vertical]);
+
+  const cases = catalog.vertical === vertical ? catalog : {};
+  const selected = cases.useCase;
+
+  function runWorkerTask() {
+    if (!selected) return;
+    setRunNonce((nonce) => nonce + 1);
+    runSectionRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  }
+
   return (
     <div className="dw-page">
-      <h1 className="dw-page__title">Digital Worker Diagram</h1>
+      <h1 className="dw-page__title">Digital Worker</h1>
+      <p className="dw-page__lede">
+        An assistant answers questions. A worker takes action — it holds delegated identity,
+        spends it across tools, and every action is governed.
+      </p>
       <div className="dw-page__canvas">
         <ReactFlowProvider>
           <Canvas />
         </ReactFlowProvider>
       </div>
+
+      <section ref={runSectionRef} className="dw-run-task" aria-label="Governed worker run">
+        <div className="dw-run-task__head">
+          <h2>Governed worker run</h2>
+          <p>UC38 · wire transfer with step-up MFA and HITL</p>
+        </div>
+        {error && <p role="alert" className="dw-run-task__error">{error}</p>}
+        <button type="button" className="btn btn-primary" disabled={!selected} onClick={runWorkerTask}>
+          Run worker task
+        </button>
+        {selected && (
+          <PersonalAgentStudioPage
+            key={`${vertical}:UC38`}
+            scenario={selected}
+            vertical={vertical}
+            runNonce={runNonce}
+          />
+        )}
+      </section>
+
+      <DigitalWorkerRunPanel />
     </div>
   );
 }
