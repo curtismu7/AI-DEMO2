@@ -1,20 +1,12 @@
 /**
  * A2AArchitecturePage.jsx — /architecture/a2a
  *
- * Interactive React Flow walkthrough of the UC2/UC2.5 A2A delegation flow,
- * built on A2ATokenFlowDiagram (the same stepper/animated-token canvas the
- * /a2a-protocol-learning page uses). Steps advance with play/pause/stepper
- * controls; clicking an edge or step shows the real claims / request /
- * response JSON in the inspector below the canvas.
- *
- * The dataset is a teaching walkthrough (a2aArchitectureWalkthrough.js), not a
- * live run — the learning page owns the live/recorded run.
+ * The UC2/UC2.5 delegation flow in the shared Ping style: the same DELEGATION_DIAGRAM
+ * config and Figure as /a2a-architecture (movable boxes, Simulate, Reset, speed control).
+ * Click a box or an arrow for the request, MOCK tokens and standards for that step.
  */
-import A2ATokenFlowDiagram from "./A2ATokenFlowDiagram";
-import {
-  A2A_ARCH_WALKTHROUGH_EVENTS,
-  A2A_ARCH_WALKTHROUGH_LABELS,
-} from "./a2aArchitectureWalkthrough";
+import Figure from "./a2aArchitecture/A2aDiagramFigure";
+import { DELEGATION_DIAGRAM } from "../config/a2aArchitectureDiagram";
 import "./A2AArchitecturePage.css";
 import PageHeader from './common/PageHeader';
 
@@ -46,14 +38,15 @@ export default function A2AArchitecturePage() {
         <h2>Delegation flow — step through it</h2>
         <p className="a2a-arch-note">
           Press <strong>Simulate</strong> to play the flow, or step with{" "}
-          <strong>Next / Prev</strong>. The animated dot is the credential
-          crossing that hop — amber for the identity plane (RFC 8693), blue for
-          the A2A wire protocol. Click any edge to inspect the actual token
-          claims, exchange request, or JSON-RPC message in the panel below.
+          <strong>Next / Prev</strong>. Drag a box to tidy the layout; the
+          arrows re-route around it. Click a box or an arrow to inspect the
+          request, the MOCK tokens and the standards for that hop.
         </p>
-        <A2ATokenFlowDiagram
-          tokenEvents={A2A_ARCH_WALKTHROUGH_EVENTS}
-          labels={A2A_ARCH_WALKTHROUGH_LABELS}
+        <Figure
+          config={DELEGATION_DIAGRAM}
+          testId="a2a-arch-diagram"
+          stepsTestId="a2a-arch-steps"
+          ariaLabel="Delegation flow. The browser asks the generalist. The generalist exchanges the user token at PingOne for a delegated token and sends it to the specialist over the A2A wire. The specialist exchanges it for a nested-act token, calls the MCP gateway, which asks PingOne Authorize to decide, and the result returns as data only."
         />
       </section>
 

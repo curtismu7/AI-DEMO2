@@ -74,7 +74,7 @@
 .a2a-arch-table td {
   text-align: left;
   padding: 8px 12px;
-  border-bottom: 1px solid #e0e2e4;
+  border-bottom: 1px solid var(--th-border);
 }
 
 .a2a-arch-table th {
