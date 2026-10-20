@@ -11,17 +11,21 @@ vi.mock("../../services/apiClient", () => ({ default: { get: vi.fn().mockResolve
 const HERE = dirname(fileURLToPath(import.meta.url));
 
 describe("Token Flow page", () => {
-  it("draws the steps as a React Flow sequence with a movie reel, and a reel click opens that step's token card", () => {
+  it("draws the steps as a Ping-style React Flow figure with a movie reel, and a reel click opens that step's token card and detail", () => {
     const { container } = render(
       <MemoryRouter>
         <ArchitectureTokenFlowPage user={null} />
       </MemoryRouter>,
     );
     expect(container.querySelector("img.arch-diagram-img")).toBeNull();
-    expect(container.querySelector(".sfx")).not.toBeNull();
+    expect(container.querySelector(".sfx")).toBeNull();
+    expect(container.querySelector(".sfd--ping")).not.toBeNull();
     const cards = screen.getAllByText("OAuth 2.0 PKCE login");
     fireEvent.click(cards[0]);
     expect(screen.getAllByText("Authorization Code Request").length).toBeGreaterThan(0);
+    // the reel's detail panel: request form, then the standards behind the hop
+    expect(screen.getByTestId("token-flow-diagram-reel-detail").textContent).toContain("code_challenge_method=S256");
+    expect(screen.getByTestId("token-flow-diagram-reel-refs").textContent).toContain("RFC 7636");
   });
 
   it("carries no leftover of the replaced PNG overlay (imageSrc, regions config, keyword scan)", () => {

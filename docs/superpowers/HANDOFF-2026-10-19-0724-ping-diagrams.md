@@ -1,4 +1,4 @@
-# Hand-off: Ping-style diagrams, routing rollout, next batch (2026-10-19 07:24, updated 12:41)
+# Hand-off: Ping-style diagrams, routing rollout, next batch (2026-10-19 07:24, updated 14:15, batch 2 merged and deployed)
 
 Written because the working session was about to run out of context. Read this first, then continue at "What to do next".
 
@@ -12,11 +12,11 @@ Convert the app's diagrams to the **Ping slide look** with learning features, in
 - **Arrows must not cross boxes** (routing, see below).
 - "Do it twice" is to be avoided: build new pages on top of the routing work, not before it.
 
-## Done and live (merged, deployed to the hosted frontend sha `d5c4af626`)
+## Done and live (merged and deployed; hosted frontend was last set to `557c176e2` for batch 2, check `kubectl ... get deploy frontend` for the current sha)
 
-AI-DEMO2 PRs merged: #1537 (ID4AI slides 301 + pencil), #1547, #1556, #1557 (slides, Control Plane), #1570 (Token Chain), #1571 (Ping-style infra + 14 pages), #1573 (Token Chain dark-mode colours), #1575 (Token Chain routing around boxes). id-jag-standalone PRs merged: #9 (restyle), #12 (numbered arrows, step detail, standards on all 4 modes; its CI was still queued at merge time, builds never ran), #21 (routing). Routing PR #1579 and handoff docs #1576 are merged too, see below.
+AI-DEMO2 PRs merged: #1537 (ID4AI slides 301 + pencil), #1547, #1556, #1557 (slides, Control Plane), #1570 (Token Chain), #1571 (Ping-style infra + 14 pages), #1573 (Token Chain dark-mode colours), #1575 (Token Chain routing around boxes), #1579 (arrow routing for static, slides, topology, system), #1585 (batch 2, six pages), docs #1576/#1583/#1584/#1589/#1590 (this doc; #1588 was closed unmerged and redone as #1589). id-jag-standalone PRs merged: #9 (restyle), #12 (numbered arrows, step detail, standards on all 4 modes; its CI was still queued at merge time, builds never ran), #21 (routing). Routing PR #1579 and handoff docs #1576 are merged too, see below.
 
-Converted: all 6 demo-arch slides, 23 ID4AI slides (`/id4ai-slides/*`), Token Chain, Server Topology, System Diagram, AI Agent Gateway (3 tabs), Privilege-First Gateway, Gateway vs P1AZ, Group Policy Board, Resource Server Placement, Privilege Gateway Topologies, 3 MFA diagrams (`/mfa-test`), Transaction Consent, AIC Token Exchange, the Identity for AI slide, and the 4 playground modes. A global pencil overlay (`DrawOverlay`, Ctrl/Cmd+Shift+D) is live.
+Converted: PingFederate ID-JAG, Token Flow, A2A Architecture, Personal Agent Design, MCP Gateway OAuth Flow, External Door (batch 2), all 6 demo-arch slides, 23 ID4AI slides (`/id4ai-slides/*`), Token Chain, Server Topology, System Diagram, AI Agent Gateway (3 tabs), Privilege-First Gateway, Gateway vs P1AZ, Group Policy Board, Resource Server Placement, Privilege Gateway Topologies, 3 MFA diagrams (`/mfa-test`), Transaction Consent, AIC Token Exchange, the Identity for AI slide, and the 4 playground modes. A global pencil overlay (`DrawOverlay`, Ctrl/Cmd+Shift+D) is live.
 
 Key code: shared opt-in `pingStyle` on `StaticFlowDiagram` / `EmbeddedFlowDiagram`; `PingSlideFlow` (slides); `DiagramReel` (reel + detail, supports `{code}` lines and `refs`); `config/pingStyleStandards.js` (RFC/DRAFT/SPEC helpers + bundles); per-diagram configs in `src/config/`; `utils/orthoRoute.js` (router, Token Chain only on main).
 
@@ -27,12 +27,14 @@ Key code: shared opt-in `pingStyle` on `StaticFlowDiagram` / `EmbeddedFlowDiagra
 - Deployed: hosted frontend set to `sha-f9e4dc597869229bf9e3056e32f88051fe863594`, rollout complete, bundle contains `data-route-fallbacks`. Not looked at in a browser on the live host. Local :4000 main checkout fast-forwarded.
 - `rt-*` worktrees, local branches and `feat/routing-integrate` removed. Handoff docs PR #1576 merged.
 
-## Batch 2: in flight, OWNED BY agents-89 (do not edit p2-* worktrees)
-Pages: PingFederate ID-JAG, Token Flow, A2A Architecture, Personal Agent Design, MCP Gateway OAuth Flow, External Door. Script: `/Users/cmuir/.claude/projects/-Users-cmuir--agents/b2df1c6e-8429-4853-9632-0bd084f3f85a/workflows/scripts/ping-batch-2-wf_ef7f20c1-3fb.js` (edited: routing exists on main, acceptance = 0 crossing edges in light and dark and after a drag, 0 router fallbacks; shared diagram files must not be edited).
-- Two runs happened by accident (agents-30 `wf_d9848dcc-2a1`, agents-89 `wf_2fbb37a4-af4`), both hit the account session limit at 10:50 (22 of 41 agents failed in the first). agents-89 resumed its run at ~11:35 and owns all six worktrees `.worktrees/p2-{pf-idjag,token-flow,a2a,personal,mcpgw-oauth,external-door}` (branches `feat/ping2-*`) plus the integration (PRs, CI, merge, deploy). Status at 12:41 (branch: commits ahead of origin/main, last commit): pf-idjag 3, 12:13; token-flow 3, 12:14; external-door 3, 12:09; personal 3, 11:56; a2a 2, 11:57; mcpgw-oauth 1, 09:02 with 9 uncommitted files in `p2-mcpgw-oauth` (agents-89's run is presumably still working there). No batch-2 PR is open, nothing is pushed, nothing is merged or deployed. agents-30 is read-only on them and will run an independent crossing measure before the merge if asked.
-- `p2-a2a-alt` (`feat/ping2-a2a-alt`) is a stray second A2A attempt from agents-30's run; delete it once agents-89 has picked the A2A branch.
-- Reviews known from the first run (journal of `wf_d9848dcc-2a1`): requirements/regressions/accuracy done for external-door, mcpgw-oauth, personal, token-flow; pf-idjag regressions only; a2a none; no visual review, fix or verify finished. Known pf-idjag findings: first Next/Prev click does nothing visible (stepper starts at -1); committed vs on-disk `pfIdJagDiagrams.js` layouts differed (later re-laid out in a fix commit).
-- Integrate like the routing work: new worktree off `origin/main`, merge the six branches, full UI suite, my own measure per page, PR, CI, merge, ff main checkout, deploy.
+## Batch 2: MERGED and DEPLOYED (2026-10-19 ~13:20)
+Pages: PingFederate ID-JAG, Token Flow, A2A Architecture, Personal Agent Design, MCP Gateway OAuth Flow, External Door.
+- **PR #1585** (merge commit `557c176e2`), one combined PR of the six `feat/ping2-*` branches; CI green (UI tests 6m26s, hygiene gates, affected-suite selection). Workflow `wf_2fbb37a4-af4` finished 42 of 42 agents (convert, four review lenses, fix, verify per page) after being resumed past the 10:50 session limit; a second accidental run by agents-30 (`wf_d9848dcc-2a1`) is superseded.
+- **Measured** (agents-89, merged tree, headless): 7 routes (the six + `/personal-agent-dual-gateway`) x light/dark x one box drag = 0 crossing edges, 0 page errors; 17 vitest files green. agents-30's independent default-view measure: 0 on all 14. Not covered by either: other Token Flow scenarios and tabs after a drag, signed-in states, the live host in a browser.
+- **Deployed**: hosted frontend set to `sha-557c176e258bc7e0be9318a0b20d3b3d263a1138`, rollout complete; pod `frontend-67f8cd6bd8-m7jgd` bundle contains the batch-2 test ids `mgof-seq` and `ext-door-seq`. Main checkout fast-forwarded.
+- **Cleaned up**: all `p2-*` worktrees, `p2-integrate`, `feat/ping2-*`, `feat/ping2-batch` and the stray `feat/ping2-a2a-alt` (agents-30's A2A attempt, never merged; its last commit `bbbc1af63` is only in the reflog) are deleted.
+- **Known leftovers**: the 19-call PingFederate sequence is still a hand-built SVG with lifelines (restyled, not router-measured); the PF login figure is crowded between the BFF and PingFederate boxes (0 crossings); wire forms follow the repo's SDK, not a live capture; the sibling `/architecture/a2a` page (A2A Delegation, `A2ATokenFlowDiagram`) is still in the old style; `themingRatchet` pin lowered 55 -> 54.
+- Lessons: run big batches in smaller groups (one session limit failed 13 of 30 agents); `ListAgents` and ask before launching a saved script another session might also run.
 
 ## Remaining diagrams (after batch 2)
 Ping-product: CIMD in Privilege, Personal Agent Dual Gateway, Personal Agent Design Review. Tokens/delegation: Delegated Access Proof, Invest Dual-Auth, Delegated Commerce, Delegation Chain Value. Other architecture: Overview Diagram, System Flow (Live), Phase 266, DaVinci SDK explainer, Observability Demo, MCP Observability. Onboarding/agents: Agent Onboarding Flow (+ Subway, + React Flow), Dot Workbench, Personal Agent Studio. Probably not worth it: Interactive Flow, Sequence Diagram, Canvas Diagram, Demo Steps Lifeline Audit, Demo Map, Jev Demo Gallery, Hosted Registration. Plus the ~68 use-case diagram configs in `src/config/useCaseDiagrams/` (one big batch).
@@ -50,6 +52,7 @@ Ping-product: CIMD in Privilege, Personal Agent Dual Gateway, Personal Agent Des
 
 ## Traps already paid for (do not repeat)
 
+- **Pre-commit hook blocks commits from the main checkout, and a failed commit leaves the files staged**: `git diff` then exports an empty patch; use `git diff HEAD`, apply it in a `git worktree add .claude/worktrees/<name> -b <branch> origin/main`, then `git restore --staged --worktree` the files in main.
 - **Router (Token Chain) failed first** for three reasons: (1) the edge's own two boxes must also be obstacles, the lead-in/out reaches the handle, otherwise the route cuts through its target; (2) a "snap bend to the handle row" step collapsed corners into diagonals, never snap; (3) after a drag the node map is stale: React Flow mutates `nodeLookup` in place, so subscribe via `useStore` to a **string key built from `internals.positionAbsolute`** (React Flow clamps children into groups; do your own parent+relative arithmetic and it is wrong). Use cheap paths while dragging, re-route on drop (~40 ms for 36 edges).
 - **Global CSS page zoom (the "A 113%" control)** skews React Flow handle measurement (arrows ~35 px off boxes). `PingSlideFlow` cancels it inside the canvas (`zoom: 1/k`). `getBoundingClientRect` values are scaled, the measure script resets zoom to 1.
 - A worktree has no `node_modules`; `web/node_modules` in id-jag-standalone may exist as a real folder of Vite cache: delete it first, never `ln -s` into an existing directory.
@@ -70,12 +73,14 @@ Ping-product: CIMD in Privilege, Personal Agent Dual Gateway, Personal Agent Des
 - `src/utils/__tests__/parseCitations.test.js` "resolves to null when fetch fails" times out (30 s) on unmodified main too. Not ours, not fixed.
 - id-jag-standalone PR #12 merged while its CI was still queued; the builds ran afterwards (07:41) and passed (build 20, build 22, secrets): closed.
 - The standards lists and mock tokens are teaching values; draft names/section numbers should be verified before quoting externally.
-- Everything merged so far is deployed (hosted frontend `f9e4dc597`, routing included). Batch 2 is not merged.
+- Everything merged so far is deployed (routing `f9e4dc597` deployed first; later set to `557c176e2` for batch 2; other sessions deploy too, so re-check the live sha). Batch 2 (#1585, `557c176e2`) is merged and deployed.
+- Unrelated fix in the same window: **PR #1582** (merge `001d8f5e6`): the `/llm-gateway` Malicious MCP tab's "Sign in with Privilege" bounced to `/privilege-mcp-client` because `/auth/start` sent no `returnTo`; it now sends `returnTo: '/llm-gateway'` and reads `oauth.authenticated` from `/state` on mount (`HostileMcpTab.jsx` + test). Deployed to the hosted frontend (pod digest checked, bundle grepped); local :4000 hot-reloads it. NOT clicked through in a browser: the BFF only accepts a bare-path `returnTo` (no `?`), so the bounce lands on `/llm-gateway` and the tab comes back via the last-tab memory in `LlmGatewayCombinedPage`; if it opens Chat instead, that memory is the thing to look at. Related: the Attack Library's Tool Abuse / Tool Poisoning / Schema Violation / Inter-Agent Abuse entries have a `demoPath` and leave the prompt empty on purpose, so Send says "Enter a prompt…" (`guardrailAttackCatalog.js`, `LlmGatewayPage.jsx` ~L497); a tool-path-specific message there is an open nicety, not done.
 - Routing is applied to pingStyle StaticFlowDiagram/EmbeddedFlowDiagram, slides, Server Topology, System Diagram and the playground; other diagram components still draw their own paths.
+- Mirror: at ~14:10 another session (agents-03) was checking that everything is committed and merged before AI-DEMO2 is force-mirrored to `curtismu7/AI-DEMO2`. agents-30 reported nothing outstanding; the main checkout had two dirty `planning/` files that are not from this work.
 - The app's PR #1574 ("Start over button...") is another session's, not ours.
 
 ## What to do next (in order)
 
-1. Let agents-89 finish and integrate batch 2 (see above). If it runs out of context, take over from the committed `feat/ping2-*` branches; re-run reviews/fix/verify with `Workflow({scriptPath, resumeFromRunId})` only from the session that started a run, otherwise start a fresh run (stop the old one first).
-2. Then the remaining-diagrams list above, in the order the user chooses (ask).
-3. Clean up worktrees/branches of everything merged (remove `node_modules` links first, check for leftover `node_modules/.vite` directories after `git worktree remove`; `git branch -D`, `git push origin --delete`).
+1. Ask the user which remaining diagrams to convert next (list above). Run them as the same convert -> four review lenses -> fix -> verify workflow, in groups of about 3 pages, and read the `failures` list of every result.
+2. The user should look at batch 2 on the live host, and at the signed-in pages (Group Policy, Transaction Consent, AIC Token Exchange) that headless checks never rendered.
+3. Optional: convert `/architecture/a2a` (A2A Delegation) to the Ping style for consistency with `/a2a-architecture`.
