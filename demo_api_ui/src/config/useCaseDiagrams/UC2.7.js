@@ -15,7 +15,7 @@ const NODES = [
 
 const EDGES = [
   ["card", "rpc", "discover -> call", { detail: "The card gives the URL; the call still needs a bearer." }],
-  ["rpc", "rpc", "401 no bearer", { detail: "A real 401 from a real call — the protocol gate, shown live." }],
+  ["rpc", "rpc", "401 no bearer", { dashed: true, detail: "A real 401 from a real call — the protocol gate, shown live." }],
   ["cc", "ex", "authenticate then delegate", { detail: "client_credentials twice, then RFC 8693 twice — one per hop." }],
   ["ex", "ex", "both layers, one page", { detail: "The walkthrough renders every hop live when signed in." }],
   ["ex", "ex", "both layers live", { detail: "The walkthrough renders every hop live when signed in — two credentials, two layers." }],

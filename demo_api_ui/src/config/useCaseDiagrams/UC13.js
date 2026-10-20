@@ -16,8 +16,8 @@ const EDGES = [
   ["rogue", "pipe", "forged call", { detail: "The claimed actor is injected in a header." }],
   ["pipe", "p1", "evaluate", { detail: "The full pipeline runs; nothing is shortcut." }],
   ["p1", "p1", "native claim", { detail: "The act claim was stamped by PingOne at a real exchange — not request-supplied." }],
-  ["p1", "pipe", "DENY", { detail: "act in the token does not match the claimed actor." }],
-  ["pipe", "rogue", "refused", { detail: "The audience sees the Authorize DENY end to end." }],
+  ["p1", "pipe", "DENY", { dashed: true, detail: "act in the token does not match the claimed actor." }],
+  ["pipe", "rogue", "refused", { dashed: true, detail: "The audience sees the Authorize DENY end to end." }],
 ];
 
 const walk = [

@@ -9,13 +9,13 @@ const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["premium-tier group"], x: 40, y: 150, detail: "The demo user is seeded into the vertical's premium-tier group." },
   { id: "agent", group: "agent", label: "Banking agent", sub: ["tier access"], x: 340, y: 150, detail: "Asks for sensitive account details — the tier decides which tools exist for the call." },
   { id: "gw", group: "gateway", label: "Agent gateway", sub: ["per-tier enforcement"], x: 640, y: 150, detail: "Enforces the per-tier decision: tool set and limits come from policy, not code." },
-  { id: "p1", group: "pingone", label: "PingOne Authorize", sub: ["tier claim"], x: 940, y: 150, detail: "Reads group membership as the tier — policy, not the agent's word." },
+  { id: "p1", group: "pingone", label: "PingOne Authorize", sub: ["tier claim"], x: 1240, y: 150, detail: "Reads group membership as the tier — policy, not the agent's word." },
 ];
 
 const EDGES = [
   ["user", "agent", "asks tier access", { detail: "Membership in the premium-tier group is what the whole call rides on." }],
   ["gw", "p1", "evaluate tier", { detail: "Group membership drives a per-tier tool set and limits." }],
-  ["p1", "gw", "PERMIT — premium tier", { detail: "The tier claim entitles the higher-value tool; standard tier would not be offered it." }],
+  ["p1", "gw", "PERMIT — premium tier", { dashed: true, detail: "The tier claim entitles the higher-value tool; standard tier would not be offered it." }],
   ["gw", "agent", "tool dispatched", { detail: "Promoting the user to a higher tier in PingOne changes this with no code change or redeploy." }],
 ];
 

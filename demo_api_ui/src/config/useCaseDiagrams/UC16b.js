@@ -18,11 +18,11 @@ const NODES = [
 ];
 
 const EDGES = [
-  ["user", "agent", "raw token, no exchange", { detail: "The agent needs a tool token for get_my_accounts and tries the shortcut: hand MCP Alice's own access token as-is." }],
+  ["user", "agent", "raw token, no exchange", { dashed: true, detail: "The agent needs a tool token for get_my_accounts and tries the shortcut: hand MCP Alice's own access token as-is." }],
   ["agent", "bff", "fail-closed at the BFF", { detail: "The BFF is the sole custodian of browser tokens. The sim arms ff_skip_token_exchange, runs the production resolver, and the guard is checked before anything else." }],
-  ["bff", "gw", "403 before any hop", { detail: "The BFF refuses to forward the raw token: 403 user_token_forwarding_disabled. Use RFC 8693 token exchange instead." }],
+  ["bff", "gw", "403 before any hop", { dashed: true, detail: "The BFF refuses to forward the raw token: 403 user_token_forwarding_disabled. Use RFC 8693 token exchange instead." }],
   ["gw", "p1", "gateway + Authorize silent", { detail: "No call ever arrives — and with no exchange, PingOne Authorize never evaluates anything. No authorize-decision evidence exists; the absence is the proof." }],
-  ["p1", "user", "user token never leaves", { detail: "Only exchanged, agent-scoped tokens with an act claim ever leave the BFF. The user token never crossed a process boundary — to the agent runtime, the gateway, or the LLM context." }],
+  ["p1", "user", "user token never leaves", { dashed: true, detail: "Only exchanged, agent-scoped tokens with an act claim ever leave the BFF. The user token never crossed a process boundary — to the agent runtime, the gateway, or the LLM context." }],
 ];
 
 const walk = [

@@ -8,15 +8,15 @@ import { PARTICIPANT_GROUPS as G } from "./palette";
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["show my balance"], x: 40, y: 150, detail: "The same chip as always — but the identity under test is the agent's own." },
   { id: "agent", group: "agent", label: "Agent app", sub: ["first-class identity"], x: 340, y: 150, detail: "A non-human identity in PingOne with its own credential lifecycle." },
-  { id: "p1", group: "pingone", label: "PingOne", sub: ["credential lifecycle"], x: 640, y: 150, detail: "Retiring or rotating the agent app's credential cuts off every later token exchange." },
+  { id: "p1", group: "pingone", label: "PingOne", sub: ["credential lifecycle"], x: 940, y: 150, detail: "Retiring or rotating the agent app's credential cuts off every later token exchange." },
 ];
 
 const EDGES = [
   ["user", "agent", "asks for balance", { detail: "The request runs under the agent's own identity, not just the user's session." }],
   ["agent", "p1", "exchange (live credential)", { detail: "The agent app is enabled with a valid credential — the exchange is the test." }],
-  ["p1", "agent", "token minted — PERMIT", { detail: "The live credential proves out; the tool is reachable and the chain shows the exchange." }],
+  ["p1", "agent", "token minted — PERMIT", { dashed: true, detail: "The live credential proves out; the tool is reachable and the chain shows the exchange." }],
   ["agent", "p1", "re-run after retire/rotate", { detail: "The denial half is manual: retire or rotate the agent app in the console, then run the chip again." }],
-  ["p1", "agent", "exchange fails", { detail: "No valid credential, no delegated token — no tool can be reached. Instant and complete." }],
+  ["p1", "agent", "exchange fails", { dashed: true, detail: "No valid credential, no delegated token — no tool can be reached. Instant and complete." }],
 ];
 
 const walk = [

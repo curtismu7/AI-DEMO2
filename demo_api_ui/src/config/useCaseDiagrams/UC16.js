@@ -8,15 +8,15 @@ import { PARTICIPANT_GROUPS as G } from "./palette";
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["subject, not principal"], x: 40, y: 150, detail: "The sim's token says she is the subject — with no act claim, nobody acts for her on the record." },
   { id: "sim", group: "agent", label: "Attack sim", sub: ["impersonation-no-act"], x: 340, y: 150, detail: "Presents a token with sub=alice and no act claim — pure impersonation shape." },
-  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["requires act"], x: 640, y: 150, detail: "Agent-mediated calls must carry an act claim; a bare user subject is rejected." },
-  { id: "p1", group: "pingone", label: "PingOne", sub: ["attribution policy"], x: 940, y: 150, detail: "An RFC 8693 exchange would mint act={sub:agent} — the sim skipped it." },
+  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["requires act"], x: 940, y: 150, detail: "Agent-mediated calls must carry an act claim; a bare user subject is rejected." },
+  { id: "p1", group: "pingone", label: "PingOne", sub: ["attribution policy"], x: 1240, y: 150, detail: "An RFC 8693 exchange would mint act={sub:agent} — the sim skipped it." },
 ];
 
 const EDGES = [
   ["user", "sim", "sub=alice (no act)", { detail: "The subject is the user; what is missing is who acts for them." }],
   ["sim", "gw", "tool call, no act claim", { detail: "Agent-mediated calls must be on-behalf-of delegation." }],
   ["gw", "p1", "attribution check", { detail: "No act claim, no attribution — a verifiable chain of custody is the rule." }],
-  ["gw", "sim", "401 — blocked", { detail: "Rejected before any tool runs; no silent impersonation." }],
+  ["gw", "sim", "401 — blocked", { dashed: true, detail: "Rejected before any tool runs; no silent impersonation." }],
 ];
 
 const walk = [

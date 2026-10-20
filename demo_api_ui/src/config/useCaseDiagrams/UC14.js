@@ -15,8 +15,8 @@ const NODES = [
 const EDGES = [
   ["agent", "par", "live ask $2,500", { detail: "The token scopes alone would allow this — that is not what policy checks." }],
   ["par", "p1", "grant says $500", { detail: "The pushed contract is retrieved for the comparison." }],
-  ["p1", "gw", "DENY", { detail: "$2,500 > $500: the live ask exceeds the pushed intent." }],
-  ["gw", "agent", "no tool ran", { detail: "DENY lands in chat; an authorize-decision DENY lands in the chain." }],
+  ["p1", "gw", "DENY", { dashed: true, detail: "$2,500 > $500: the live ask exceeds the pushed intent." }],
+  ["gw", "agent", "no tool ran", { dashed: true, detail: "DENY lands in chat; an authorize-decision DENY lands in the chain." }],
 ];
 
 const walk = [

@@ -16,7 +16,7 @@ const EDGES = [
   ["atk", "gw", "burst", { detail: "Calls 1, 2, 3 within the window." }],
   ["gw", "gw", "window counted", { detail: "The limiter counts per agent and per tool." }],
   ["atk", "gw", "calls 4, 5, 6…", { detail: "The burst continues past the allowed rate." }],
-  ["gw", "atk", "429", { detail: "Throttled — not errored — before further tool dispatch." }],
+  ["gw", "atk", "429", { dashed: true, detail: "Throttled — not errored — before further tool dispatch." }],
   ["gw", "tool", "upstream untouched", { detail: "The flood stops at the limiter; the tool and LLM budget never see it." }],
 ];
 

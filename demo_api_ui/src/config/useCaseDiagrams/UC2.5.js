@@ -9,14 +9,14 @@ const NODES = [
   { id: "orch", group: "agent", label: "Orchestrator", sub: ["analyzes request"], x: 40, y: 150, detail: "The generalist agent: not expert in the request, so it must route it." },
   { id: "pick", group: "agent", label: "Specialist pick", sub: ["runtime decision"], x: 340, y: 150, detail: "Chooses the best specialist dynamically (CrewAI, heuristic fallback) — no hard-coded task map." },
   { id: "p1", group: "pingone", label: "PingOne", sub: ["RFC 8693 x2"], x: 640, y: 150, detail: "Mints both delegated tokens; act nests at each hop." },
-  { id: "spec", group: "agent", label: "Specialist", sub: ["narrowed token"], x: 940, y: 150, detail: "Runs with only the scopes the handoff granted — decided by policy, not preference." },
+  { id: "spec", group: "agent", label: "Specialist", sub: ["narrowed token"], x: 1240, y: 150, detail: "Runs with only the scopes the handoff granted — decided by policy, not preference." },
 ];
 
 const EDGES = [
   ["orch", "orch", "analyze request", { detail: "The orchestrator is not expert in the request — routing is its job." }],
   ["orch", "pick", "analyze + choose", { detail: "The pick happens at runtime; the demo shows it on the activity panel." }],
   ["pick", "p1", "delegate hop 1", { detail: "First RFC 8693 exchange mints the generalist token." }],
-  ["p1", "spec", "delegated token", { detail: "Second exchange mints the specialist token with act nesting." }],
+  ["p1", "spec", "delegated token", { dashed: true, detail: "Second exchange mints the specialist token with act nesting." }],
   ["spec", "p1", "authorize", { detail: "The nested chain is evaluated like any other call." }],
 ];
 
