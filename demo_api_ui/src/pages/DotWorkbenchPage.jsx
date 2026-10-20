@@ -82,7 +82,7 @@ export default function DotWorkbenchPage({ user, bare = false }) {
 
       <main className="dot-wb__main">
         <div className="dot-wb__left">
-          <DotPersonaCard persona={persona} identity={identity} />
+          <DotPersonaCard persona={persona} identity={identity} onSignIn={() => openSignIn({})} />
           <div className="dot-card dot-chat">
             <div className="dot-msgs" aria-live="polite">
               {items.map((i, n) => {
@@ -102,7 +102,7 @@ export default function DotWorkbenchPage({ user, bare = false }) {
               <div className="dot-signin" role="alert">
                 <h3>Sign in to use Dot</h3>
                 <p>Dot acts on your behalf under your own identity, so it needs you signed in first.</p>
-                <button type="button" className="dot-chip" onClick={() => openSignIn({ returnTo: '/personal-agent/dot' })}>Sign in</button>
+                <button type="button" className="dot-chip" onClick={() => openSignIn({})}>Sign in</button>
               </div>
             )}
             {items.length === 0 && (

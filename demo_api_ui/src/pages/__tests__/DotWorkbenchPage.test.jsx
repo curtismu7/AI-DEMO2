@@ -188,6 +188,17 @@ describe('DotWorkbenchPage', () => {
     expect(container.querySelector('.dot-wb--bare')).toBeNull();
   });
 
+  it('signed out: the persona card has a Sign in button that returns to the current page; signed in: none', () => {
+    mockFetch(() => json(200, {}));
+    openSignIn.mockClear();
+    const { unmount } = render(<MemoryRouter><DotWorkbenchPage user={null} bare /></MemoryRouter>);
+    fireEvent.click(screen.getByRole('button', { name: 'Sign in' }));
+    expect(openSignIn).toHaveBeenCalledWith({});
+    unmount();
+    renderPage();
+    expect(screen.queryByRole('button', { name: 'Sign in' })).toBeNull();
+  });
+
   it('skin tabs link to the Studio', () => {
     mockFetch(() => json(200, {}));
     renderPage();
