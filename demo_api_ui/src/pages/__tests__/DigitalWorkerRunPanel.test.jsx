@@ -112,7 +112,8 @@ describe('DigitalWorkerRunPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /fire without a human turn/i }));
 
     await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/autonomous-runs/run', { job: 'balance-sweep' }));
-    expect(await screen.findByTestId('dw-filmstrip')).toHaveTextContent('agent-actor-token');
+    // the stub filmstrip is mounted from the start ("no steps"); wait for the store to publish the run
+    await waitFor(() => expect(screen.getByTestId('dw-filmstrip')).toHaveTextContent('agent-actor-token'));
     // flag + initial list + refetch after fire (no GET /:runId)
     expect(apiClient.get).toHaveBeenCalledTimes(3);
   });
