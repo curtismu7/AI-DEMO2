@@ -168,6 +168,10 @@
    through its own --xy-* hooks, so the canvas follows light/dark with the rest. */
 .sfm-canvas {
   flex: 1 1 auto;
+  /* React Flow sizes itself to its parent, so the canvas needs a height of its own:
+     as a page (no sized ancestor) a flex-only height collapses to 0 and nothing draws.
+     Inside the modal flex-shrink still fits it to the pop-out. */
+  height: max(360px, 70dvh);
   min-height: 360px;
   --xy-background-color: var(--th-bg-card);
   --xy-controls-button-background-color: var(--th-bg-card);
