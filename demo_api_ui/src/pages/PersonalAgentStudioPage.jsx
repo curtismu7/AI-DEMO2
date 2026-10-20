@@ -102,7 +102,10 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   // A freeform Dot question that came back 428 (consent required) and is waiting for PingOne MFA, then a retry.
   const [consentRetry, setConsentRetry] = useState(null);
   const [layoutState, setLayoutState] = useState('full');
-  const [activeSkin, setActiveSkin] = useState('privilege');
+  const [activeSkin, setActiveSkin] = useState(() => {
+    const skin = query.get('skin');
+    return SKINS.includes(skin) ? skin : 'privilege';
+  });
   // 'obo' swaps the chat for the RFC 8693 delegation inspector (deep link: ?tab=obo).
   const [view, setView] = useState(query.get('tab') === 'obo' ? 'obo' : 'agent');
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent', 'heuristics');
@@ -196,6 +199,8 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const handleSend = useCallback((text, { retry = false } = {}) => {
     if (!retry) setMessages((prev) => [...prev, { role: 'user', text }]);
     setMessages((prev) => [...prev, { role: 'agent', typing: true, text: '' }]);
+    tokenChainTraceStore.beginTrace({ prompt: text });
+    setTokenEvents?.(null, []);
     fetch('/api/agent/invoke', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -209,6 +214,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         return data;
       })
       .then((data) => {
+        if (Array.isArray(data.tokenEvents)) setTokenEvents?.(data.toolsCalled?.[0] || null, data.tokenEvents);
         setMessages((prev) => [
           ...prev.filter((m) => !m.typing),
           { role: 'agent', text: data.reply || 'The digital assistant completed the request.', dotMemories: data.dotMemories, governance: governanceFrom(data) },
@@ -232,7 +238,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
         ]);
       });
-  }, [agentMode, startChallenge]);
+  }, [agentMode, startChallenge, setTokenEvents]);
 
   // Scripted CUA run: the same invoke path as handleSend, each step labeled as a
   // computer-use action, sequenced so the token chain shows the full path.
@@ -430,7 +436,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       </div>
 
       {view === 'agent' && (
-        <details style={{ flexShrink: 0, padding: '0 16px', borderBottom: '1px solid var(--th-border)' }}>
+        <details open style={{ flexShrink: 0, padding: '0 16px', borderBottom: '1px solid var(--th-border)' }}>
           <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>How a request flows</summary>
           <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
             <EmbeddedFlowDiagram

@@ -97,7 +97,7 @@ const SKIN_CONFIG = {
     dark: {
       bg: '#0b1929', headerBg: '#0d2040', headerBorder: '#1a3560',
       titleColor: '#d8e8ff', subtitleColor: '#8aa9d6',
-      agentBubbleBg: '#102040', agentBubbleColor: '#c8dcff',
+      agentBubbleBg: '#102040', agentBubbleColor: '#ffffff',
       userBubbleBg: '#12538d', userBubbleColor: '#ffffff',
       inputAreaBg: '#0b1929', inputBorder: '#1a3560', inputColor: '#c8dcff',
       toolBg: '#07121e', toolBorder: '#1a3560', toolColor: '#4a90d0',
