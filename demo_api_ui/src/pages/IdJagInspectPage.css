@@ -17,3 +17,6 @@
 .ijin-backends > summary { cursor: pointer; font-weight: 700; }
 .ijl-panel > .ijin-btn, .ijin-backends > .ijin-btn { display: block; margin: 0 0 0.9rem; }
 .ijin-backends > summary { margin-bottom: 0.6rem; }
+.ijin-reveal { margin: 0 0 0.9rem; }
+.ijin-reveal .ijin-btn { display: inline-block; margin: 0.5rem 0 0; }
+.ijl-panel > p + .ijin-btn { margin-top: 0.6rem; }

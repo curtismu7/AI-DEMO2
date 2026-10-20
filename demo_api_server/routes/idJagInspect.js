@@ -118,6 +118,18 @@ router.post('/decode', async (req, res) => {
   return res.json(await checkToken(token));
 });
 
+/**
+ * Reveal the ID-JAG this session minted in the playground, on an explicit click only. The token is read from the
+ * caller's own session (never from the request), sent once with no-store, and never logged.
+ */
+router.post('/issued-token', (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!req.user) return res.status(401).json({ error: 'unauthorized', message: 'Sign in to use the Inspector.' });
+  const minted = req.session?.idJagPlayground;
+  if (!minted?.idJag || !minted.issuedAt) return res.status(404).json({ error: 'no_id_jag', message: 'Get an ID-JAG first.' });
+  return res.json({ token: minted.idJag });
+});
+
 const PROFILE_FIELDS = ['authorization_grant_profiles_supported', 'scopes_supported'];
 
 router.get('/discovery', async (_req, res) => {
