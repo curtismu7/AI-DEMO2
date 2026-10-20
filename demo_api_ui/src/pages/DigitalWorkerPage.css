@@ -50,13 +50,13 @@
 /* ── Section A: the attended, governed run (button + PersonalAgentStudioPage) ── */
 .dw-run-task { margin-top: 1.25rem; padding: 1rem 1.25rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
 .dw-run-task__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1rem; margin-bottom: 0.75rem; }
-.dw-run-task__head h2 { margin: 0; font-size: 1.15rem; }
+.dw-run-task__head h2 { margin: 0; font-size: var(--font-size-md); }
 .dw-run-task__head p { margin: 0; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
 .dw-run-task__error { margin: 0 0 0.75rem; color: var(--th-status-error-text); }
 
 /* ── Section B: DigitalWorkerRunPanel (Task 1) — its dw-run__* classes had no CSS ── */
 .dw-run { margin-top: 1.25rem; padding: 1rem 1.25rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
-.dw-run__title { margin: 0 0 0.75rem; font-size: 1.15rem; }
+.dw-run__title { margin: 0 0 0.75rem; font-size: var(--font-size-md); }
 .dw-run__arm { display: flex; flex-direction: column; gap: 0.25rem; margin-bottom: 0.75rem; }
 .dw-run__arm-row { display: flex; align-items: center; gap: 0.5rem; cursor: pointer; }
 .dw-run__ttl { margin: 0; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
