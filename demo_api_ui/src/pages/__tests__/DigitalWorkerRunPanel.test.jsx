@@ -112,9 +112,9 @@ describe('DigitalWorkerRunPanel', () => {
     fireEvent.click(screen.getByRole('button', { name: /fire without a human turn/i }));
 
     await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/autonomous-runs/run', { job: 'balance-sweep' }));
-    // The POST response already carries the full run record, so nothing more is fetched.
     expect(await screen.findByTestId('dw-filmstrip')).toHaveTextContent('agent-actor-token');
-    expect(apiClient.get).toHaveBeenCalledTimes(2); // flag + list only — no GET /:runId
+    // flag + initial list + refetch after fire (no GET /:runId)
+    expect(apiClient.get).toHaveBeenCalledTimes(3);
   });
 
   it('null run falls back to disarmed', async () => {
@@ -136,6 +136,22 @@ describe('DigitalWorkerRunPanel', () => {
     expect(await screen.findByRole('switch', { name: /arm/i })).toBeInTheDocument();
     expect(screen.queryByRole('button', { name: /fire/i })).not.toBeInTheDocument();
     expect(screen.queryByRole('list')).not.toBeInTheDocument();
+  });
+
+  it('403 on fire falls back to disarmed', async () => {
+    mockFlag(true);
+    // A real disarm mid-session (arm TTL elapsed, another viewer disarmed,
+    // agent revoked) turns the run into 403 feature_disabled on the server.
+    apiClient.post.mockRejectedValueOnce(Object.assign(new Error('Forbidden'), { response: { status: 403, data: { error: 'feature_disabled' } } }));
+    render(<DigitalWorkerRunPanel />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /fire without a human turn/i }));
+
+    expect(await screen.findByText(/worker auto-disarmed/i)).toBeInTheDocument();
+    const armSwitch = screen.getByRole('switch', { name: /arm/i });
+    expect(armSwitch).toBeInTheDocument();
+    expect(armSwitch).not.toBeChecked();
+    expect(screen.queryByRole('button', { name: /fire/i })).not.toBeInTheDocument();
   });
 
   it('parked run shows approve and deny', async () => {

@@ -84,6 +84,7 @@ export default function DigitalWorkerRunPanel() {
         // events — then there is no reel to show and latestRun stays hidden
         // behind its guard below.
         replayUnattendedRun(run);
+        await loadRuns();
       } else {
         // Server refused because the arm window elapsed or the mandate was
         // revoked: report it as what it is and drop back to the armed-off UI.
@@ -94,8 +95,20 @@ export default function DigitalWorkerRunPanel() {
         setRuns([]);
         setLatestRun(null);
       }
-    } catch {
-      notifyError("Could not start a run");
+    } catch (err) {
+      // A null run comes back as 403 feature_disabled: a real disarm mid-session
+      // (arm TTL elapsed, another viewer disarmed, agent revoked) lands here,
+      // so fall back to the same armed-off UI as the { run: null } branch.
+      if (err?.response?.status === 403) {
+        notifyError("Worker auto-disarmed");
+        setNotice("The worker auto-disarmed — its arming window elapsed or its mandate was revoked.");
+        setEnabled(false);
+        setArmExpiresInMs(null);
+        setRuns([]);
+        setLatestRun(null);
+      } else {
+        notifyError("Could not start a run");
+      }
     } finally {
       setBusy(false);
     }
@@ -128,7 +141,11 @@ export default function DigitalWorkerRunPanel() {
           ? "Approved — the transfer went through"
           : run?.status === "denied"
             ? "Declined — nothing moved"
-            : "The approval request had already expired",
+            : run?.status === "expired"
+              ? "The approval request had already expired"
+              : run?.status === "failed"
+                ? "Approved, but the worker's action failed"
+                : "Approval recorded",
       );
       setLatestRun(run);
       replayUnattendedRun(run);

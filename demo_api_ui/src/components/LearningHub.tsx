@@ -69,6 +69,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "Delegation Chain Value": { status: "LIVE" },
   "Hosted Access Registration": { status: "LIVE" },
   "Step-up MFA": { status: "SIMULATED", keywords: ["strong authentication", "challenge", "sensitive action"], lab: "step-up" },
+  "Digital Worker: live run": { status: "LIVE" },
 };
 
 const RECOMMENDED_PATH = [

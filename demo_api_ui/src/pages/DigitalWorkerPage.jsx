@@ -336,7 +336,7 @@ export default function DigitalWorkerPage() {
 
   return (
     <div className="dw-page">
-      <h1 className="dw-page__title">Digital Worker Diagram</h1>
+      <h1 className="dw-page__title">Digital Worker</h1>
       <p className="dw-page__lede">
         An assistant answers questions. A worker takes action — it holds delegated identity,
         spends it across tools, and every action is governed.
