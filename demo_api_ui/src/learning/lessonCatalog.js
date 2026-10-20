@@ -150,8 +150,8 @@ const WALKTHROUGHS = Object.freeze({
   ],
   "digital-worker-live": [
     { title: "Contrast the assistant and the worker", explain: "An assistant answers questions, while a worker holds delegated identity and spends it taking governed action.", demonstrate: "Read the lede on Digital Worker, then drag a diagram box to show where the worker's identity is spent." },
-    { title: "Run the governed worker task", explain: "A wire transfer runs on the same rails as an attended run: delegated token, policy, step-up MFA, and human approval.", demonstrate: "Click Run worker task in the Governed worker run section and follow the UC38 run through the studio's MFA and approval gates." },
-    { title: "Watch an unattended run", explain: "The worker can start itself with nobody present, so arming carries a dead-man switch and every run stays approvable and auditable.", demonstrate: "In the unattended panel, arm the worker, fire the job without a human turn, then approve the parked run and note the auto-disarm." },
+    { title: "Run the governed worker task", explain: "A wire transfer runs on the same rails as an attended run: delegated token, policy, step-up MFA, and human approval.", demonstrate: "On the Attended tab, click Run UC38 action and follow the run through the studio's MFA and approval gates." },
+    { title: "Watch an unattended run", explain: "The worker can start itself with nobody present, so arming carries a dead-man switch and every run stays approvable and auditable.", demonstrate: "On the Unattended tab, arm the worker, fire the job without a human turn, then approve the parked run and note the auto-disarm." },
   ],
 });
 
