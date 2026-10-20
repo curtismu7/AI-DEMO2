@@ -77,6 +77,8 @@ const EXEMPT = new Set([
   '/path/dualtoken-info',
   '/path/feature',
   '/personal-agent/client',
+  '/personal-agent/dot/full',
+  '/personal-agent/full',
   '/pinggateway-inspector',
   '/pinggateway-test',
   '/profile',
