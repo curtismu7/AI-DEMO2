@@ -116,7 +116,7 @@ const WORKFORCE_TOOLS = new Set([
   'submit_expense',
 ]);
 const ANF_TOOLS = new Set([
-  'list_anf_orders',
+  'list_walbuy_orders',
 ]);
 // retail: list_orders is a same-name shadow (SQLite tool already matched the
 // chip name, just needed this entry). order_status is a rename from the

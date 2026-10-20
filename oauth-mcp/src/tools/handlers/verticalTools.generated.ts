@@ -185,7 +185,7 @@ export const GENERATED_VERTICAL_TOOLS: VerticalToolDef[] = [
   {"name":"view_scholarships","scope":"read","vertical":"university"},
   {"name":"view_standing","scope":"read","vertical":"university"},
   {"name":"waitlist_course","scope":"write","vertical":"university","inputSchema":{"type":"object","properties":{"courseId":{"type":"string"}},"required":["courseId"],"additionalProperties":false}},
-  {"name":"list_anf_orders","scope":"read","vertical":"walbuy"},
+  {"name":"list_walbuy_orders","scope":"read","vertical":"walbuy"},
   {"name":"cancel_expense","scope":"write","vertical":"workforce","inputSchema":{"type":"object","properties":{"expenseId":{"type":"string"}},"required":["expenseId"],"additionalProperties":false}},
   {"name":"close_ticket","scope":"write","vertical":"workforce","inputSchema":{"type":"object","properties":{"ticketId":{"type":"string"}},"required":["ticketId"],"additionalProperties":false}},
   {"name":"complete_goal","scope":"write","vertical":"workforce","inputSchema":{"type":"object","properties":{"goalId":{"type":"string"}},"required":["goalId"],"additionalProperties":false}},

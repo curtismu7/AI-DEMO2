@@ -155,9 +155,9 @@ const INTENT_TO_PERMITTED_TOOLS = {
   pay_bill:                 ['pay_bill', 'view_coverage', 'view_records'],
   // Retail
   list_orders:              ['list_orders', 'order_status', 'show_large_purchase'],
-  list_anf_orders:          ['list_anf_orders', 'order_status'],
+  list_walbuy_orders:          ['list_walbuy_orders', 'order_status'],
   view_rewards:             ['rewards_balance', 'loyalty_balance'],
-  checkout:                 ['checkout', 'list_orders', 'list_anf_orders'],
+  checkout:                 ['checkout', 'list_orders', 'list_walbuy_orders'],
   // Sporting-goods
   list_gear:                ['list_gear', 'list_rentals', 'gear_order_status', 'show_gear_order'],
   list_rentals:             ['list_rentals', 'extend_rental', 'list_gear'],
@@ -246,7 +246,7 @@ const READ_ONLY_TOOLS = [
   // Healthcare
   'view_records', 'view_coverage', 'list_appointments', 'show_health_record',
   // Retail
-  'list_orders', 'list_anf_orders', 'order_status', 'rewards_balance', 'show_large_purchase',
+  'list_orders', 'list_walbuy_orders', 'order_status', 'rewards_balance', 'show_large_purchase',
   // Sporting-goods
   'list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order',
   'show_gear_warranty', 'browse_gear',
@@ -285,7 +285,7 @@ const READ_ONLY_TOOLS_BY_VERTICAL = {
   healthcare: ['view_records', 'view_coverage', 'list_appointments', 'show_health_record', 'sequential_think'],
   retail: ['list_orders', 'order_status', 'rewards_balance', 'show_large_purchase', 'sequential_think'],
   'walbuy': [
-    'list_anf_orders', 'order_status', 'rewards_balance', 'view_wishlist',
+    'list_walbuy_orders', 'order_status', 'rewards_balance', 'view_wishlist',
     'view_returns', 'sequential_think',
   ],
   'sporting-goods': ['list_gear', 'list_rentals', 'gear_order_status', 'loyalty_balance', 'show_gear_order', 'show_gear_warranty', 'browse_gear', 'sequential_think'],

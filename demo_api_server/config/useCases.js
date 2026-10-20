@@ -88,7 +88,7 @@ function chipOverrides(textByVertical, extraByVertical = {}) {
 const READ_PRIMARY_TOOL_BY_VERTICAL = {
   healthcare: 'view_coverage',
   retail: 'list_orders',
-  'walbuy': 'list_anf_orders',
+  'walbuy': 'list_walbuy_orders',
   government: 'view_permits',
   university: 'view_courses',
   workforce: 'view_benefits',

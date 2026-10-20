@@ -49,7 +49,7 @@ describe('mintIntentToken', () => {
       vertical: 'walbuy',
     });
     expect(payload.permitted_tools).toEqual(
-      expect.arrayContaining(['checkout', 'list_anf_orders']),
+      expect.arrayContaining(['checkout', 'list_walbuy_orders']),
     );
   });
 

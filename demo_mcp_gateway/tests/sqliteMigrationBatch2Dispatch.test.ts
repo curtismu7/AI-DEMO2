@@ -15,7 +15,7 @@ const cfg: any = {
 // workforce and walbuy (same-name shadow — the SQLite tool name
 // already matched the chip's, it just needed a router.ts entry).
 const RENAMED_TOOLS = ['view_permits', 'view_work_orders', 'view_courses'];
-const SHADOWED_TOOLS = ['list_expenses', 'list_anf_orders'];
+const SHADOWED_TOOLS = ['list_expenses', 'list_walbuy_orders'];
 const ALL_TOOLS = [...RENAMED_TOOLS, ...SHADOWED_TOOLS];
 
 describe('batch-2 tools route to the resource server', () => {

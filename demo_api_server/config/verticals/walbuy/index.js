@@ -7,7 +7,7 @@ const { createAbercrombieFitchStore } = require('./data');
 
 const store = createAbercrombieFitchStore();
 const { tools: retailTools, execute } = buildRetailTools(store);
-const ORDER_LIST_TOOL = 'list_anf_orders';
+const ORDER_LIST_TOOL = 'list_walbuy_orders';
 const ALLOWED_TOOL_NAMES = new Set([
   'initiate_return',
   'add_to_wishlist',

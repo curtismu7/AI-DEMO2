@@ -1623,7 +1623,7 @@
       "requiredScopes": ["write"],
       "surface": "gateway"
     },
-    "list_anf_orders": {
+    "list_walbuy_orders": {
       "requiredScopes": ["read"],
       "surface": "gateway"
     },
