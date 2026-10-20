@@ -12,13 +12,13 @@
 
 .sdp {
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   padding: 10px 12px;
   margin-bottom: 10px;
   /* Keep the detail pane calm and editorial: technical values stay readable
      without switching the reader into a code-console typeface. */
-  font-family: "Montserrat", ui-sans-serif, system-ui, -apple-system, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .sdp[data-font-size="small"] { zoom: 0.9; }
@@ -51,7 +51,7 @@
   margin-left: auto;
   font-size: var(--font-size-xs);
   font-weight: 700;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 2px 9px;
   background: var(--th-bg-hover);
   color: var(--th-text);
@@ -60,7 +60,7 @@
 .sdp-status--done { background: #dcfce7; color: #166534; }
 .sdp-status--active { background: #fef3c7; color: #92400e; }
 .sdp-status--denied,
-.sdp-status--error { background: #fee2e2; color: #991b1b; }
+.sdp-status--error { background: #fee2e2; color: #aa0005; }
 
 .sdp-section { margin-bottom: 9px; }
 
@@ -142,7 +142,7 @@
   font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
   background: var(--th-bg-inset);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 9px;
 }
 
@@ -174,7 +174,7 @@
   line-height: 1.45;
   color: var(--th-text);
   background: var(--th-bg-card);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px 10px;
   /* a long payload must not push the rest of the rail off screen */
   max-height: 260px;
@@ -192,9 +192,9 @@
 .sdp-rfc {
   font-size: var(--font-size-xs);
   font-weight: 600;
-  color: #3730a3;
+  color: #051727;
   background: #fecaca;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 2px 7px;
 }
 
@@ -205,12 +205,12 @@
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-card);
   color: var(--th-text);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 4px 11px;
   cursor: pointer;
 }
 
-.sdp-inspect:hover { border-color: #1d4ed8; color: #1d4ed8; }
+.sdp-inspect:hover { border-color: #12538d; color: #12538d; }
 
 /* ── dark: app-controlled only. Never keyed to the OS setting. ───────── */
 :root[data-theme="dark"] .sdp { background: var(--th-bg-card); border-color: var(--th-border); }
@@ -250,10 +250,10 @@
    stage is findable without reading. `notinpath` (never ran) stays visually
    distinct from `error` (ran and refused). */
 .sdp-stages { list-style: decimal; margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 4px; }
-.sdp-stage { font-size: 12.5px; padding: 3px 8px; border-left: 3px solid var(--th-border, #cbd5e1); background: var(--th-bg-inset, #f8fafc); border-radius: 0 4px 4px 0; }
+.sdp-stage { font-size: 12.5px; padding: 3px 8px; border-left: 3px solid var(--th-border, #cdd1d4); background: var(--th-bg-inset, #f7f8f8); border-radius: 0 4px 4px 0; }
 .sdp-stage[data-status="done"] { border-left-color: #22c55e; }
-.sdp-stage[data-status="error"] { border-left-color: #ef4444; }
-.sdp-stage[data-status="notinpath"] { border-left-color: #cbd5e1; opacity: .65; }
+.sdp-stage[data-status="error"] { border-left-color: #d20e0f; }
+.sdp-stage[data-status="notinpath"] { border-left-color: #cdd1d4; opacity: .65; }
 .sdp-stage { color: var(--th-text); }
 .sdp-stage-name { font-weight: 700; color: var(--th-text); }
 .sdp-stage-result { color: var(--th-text-muted); margin-left: 6px; }
@@ -265,7 +265,7 @@
   padding: 8px 10px;
   border: 1px solid var(--th-status-info-border);
   border-left-width: 3px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-status-info-bg);
 }
 .sdp-compliance-title { margin: 0 0 4px; color: var(--th-status-info-text); font-weight: 700; }

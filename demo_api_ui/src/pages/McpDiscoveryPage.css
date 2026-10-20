@@ -5,7 +5,6 @@
   color: var(--th-text);
 }
 
-.mcp-discovery-header,
 .mcp-discovery-panel-heading,
 .mcp-discovery-actions {
   display: flex;
@@ -14,19 +13,17 @@
   gap: 16px;
 }
 
-.mcp-discovery-header { max-width: 1500px; margin: 0 auto 20px; align-items: flex-end; }
+.mcp-discovery-header { max-width: 1500px; margin: 0 auto 20px; border-radius: var(--radius-lg); }
 .mcp-discovery-eyebrow { margin: 0 0 5px; color: var(--th-bg-emphasis); font-size: var(--font-size-2xs); font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
-.mcp-discovery-header h1 { margin: 0; color: var(--th-text); font-size: var(--font-size-2xl); }
-.mcp-discovery-subtitle { max-width: 720px; margin: 7px 0 0; color: var(--th-text-body); font-size: var(--font-size-body); }
-.mcp-discovery-updated { color: var(--th-text-body); font-size: var(--font-size-xs); white-space: nowrap; }
+.mcp-discovery-updated { color: #ffffff; font-size: var(--font-size-xs); white-space: nowrap; }
 .mcp-discovery-button {
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 8px 12px;
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-sm);
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   cursor: pointer;
 }
 .mcp-discovery-button:hover:not(:disabled) {
@@ -41,7 +38,7 @@
 }
 
 .mcp-discovery-error,
-.mcp-discovery-notice { max-width: 1500px; margin: 0 auto 14px; border: 1px solid var(--th-border-strong); border-radius: 6px; padding: 10px 14px; font-size: var(--font-size-sm); }
+.mcp-discovery-notice { max-width: 1500px; margin: 0 auto 14px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); padding: 10px 14px; font-size: var(--font-size-sm); }
 .mcp-discovery-error {
   border-color: var(--th-status-error-border);
   background: var(--th-status-error-bg);
@@ -55,7 +52,7 @@
 .mcp-discovery-summary { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; max-width: 1500px; margin: 0 auto 16px; }
 .mcp-discovery-summary-card {
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 14px 16px;
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -68,7 +65,7 @@
 .mcp-discovery-panel {
   min-width: 0;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
@@ -132,7 +129,7 @@
 .mcp-discovery-table td strong,
 .mcp-discovery-table td small { display: block; }
 .mcp-discovery-table td small { margin-top: 3px; color: var(--th-text-body); font-size: var(--font-size-2xs); }
-.mcp-discovery-status { display: inline-block; border-radius: 999px; padding: 3px 7px; color: var(--th-text); font-size: var(--font-size-2xs); font-weight: 700; text-transform: capitalize; white-space: nowrap; }
+.mcp-discovery-status { display: inline-block; border-radius: var(--radius-pill); padding: 3px 7px; color: var(--th-text); font-size: var(--font-size-2xs); font-weight: 700; text-transform: capitalize; white-space: nowrap; }
 .mcp-discovery-status-healthy {
   background: var(--th-status-success-bg);
   color: var(--th-status-success-text);

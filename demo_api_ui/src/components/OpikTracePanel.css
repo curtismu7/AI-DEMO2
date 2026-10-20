@@ -9,7 +9,7 @@
   padding: 2px;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .ba-tab {
   font: inherit;
@@ -17,7 +17,7 @@
   font-weight: 600;
   padding: 3px 12px;
   border: 0;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: transparent;
   color: var(--th-text-muted);
   cursor: pointer;
@@ -74,15 +74,15 @@
   font-weight: 600;
   padding: 3px 10px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--th-bg-card);
   color: var(--th-text);
   cursor: pointer;
 }
 .opik-range button[aria-pressed="true"] {
   /* Literal ink+ground pair (H1): --th-text-on-emphasis is dark in dark mode. */
-  background: #1e40af;
-  border-color: #1e40af;
+  background: #051727;
+  border-color: #051727;
   color: #ffffff;
 }
 
@@ -92,7 +92,7 @@
   font-size: var(--font-size-sm);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   color: var(--th-text);
 }
 .opik-note--err {
@@ -121,7 +121,7 @@
   padding: 8px 12px;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .opik-tile__k {
   font-size: var(--font-size-3xs);
@@ -157,7 +157,7 @@
   padding: 10px 12px;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .opik-card h4 {
   display: flex;
@@ -244,7 +244,7 @@
   font-size: var(--font-size-3xs);
   font-weight: 700;
   border: 1px solid;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
 }
 .opik-st--ok {
   background: var(--th-status-success-bg);
@@ -298,7 +298,7 @@
   font-weight: 700;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .opik-wf__track {
   position: relative;
@@ -332,9 +332,9 @@ a.opik-btn:visited {
   font-weight: 600;
   text-decoration: none;
   color: #ffffff;
-  background: #1e40af;
-  border: 1px solid #1e40af;
-  border-radius: 999px;
+  background: #051727;
+  border: 1px solid #051727;
+  border-radius: var(--radius-pill);
 }
 
 @media (min-width: 900px) {

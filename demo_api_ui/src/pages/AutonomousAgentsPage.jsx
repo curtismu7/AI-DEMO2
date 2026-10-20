@@ -14,6 +14,7 @@ import { replayUnattendedRun, describeRun } from "../services/tokenChainTrace/re
 import { notifyError, notifySuccess } from "../utils/appToast";
 import "./AutonomousAgentsPage.css";
 import InlineSpinner from '../components/shared/InlineSpinner';
+import PageHeader from '../components/common/PageHeader';
 
 /** Status → the word a reader actually needs. */
 const STATUS_COPY = {
@@ -152,13 +153,8 @@ export default function AutonomousAgentsPage() {
 
   return (
     <div className="aap">
-      <header className="aap-head">
-        <h1 className="aap-title">Autonomous Agents</h1>
-        <p className="aap-lede">
-          An agent that runs on a schedule, with nobody signed in, and authenticates as
-          itself.
-        </p>
-      </header>
+      <PageHeader className="aap-head" title="Autonomous Agents" summary={<>An agent that runs on a schedule, with nobody signed in, and authenticates as
+          itself.</>} />
 
       {/* ── What this is ───────────────────────────────────────────── */}
       <section className="aap-card aap-explain">

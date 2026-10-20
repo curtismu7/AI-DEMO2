@@ -8,9 +8,9 @@
   bottom: 16px;
   z-index: 1000;
   padding: 8px 14px;
-  background: #111827;
+  background: #051727;
   color: #ffffff;
-  border: 1px solid #374151;
+  border: 1px solid #263746;
   border-radius: 20px;
   font-size: var(--font-size-sm);
   font-weight: 700;
@@ -19,7 +19,7 @@
 }
 
 .demo-script-launch:hover {
-  background: #1f2937;
+  background: #263746;
 }
 
 /* Teleprompter body - self-contained explicit colors. The pop-out window does
@@ -30,17 +30,17 @@
 .dsl-body {
   padding: 4px 2px 8px;
   line-height: 1.55;
-  color: var(--th-text);
+  color: #051727;
   background: #ffffff;
 }
 
 .dsl-lead {
   margin: 0 0 16px;
   padding: 10px 14px;
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #93c5fd;
-  border-radius: 6px;
-  color: #1e3a8a;
+  border-radius: var(--radius-md);
+  color: #051727;
   font-weight: 600;
 }
 
@@ -82,10 +82,10 @@
   position: relative;
   margin: 0 0 12px;
   padding: 8px 64px 8px 10px;
-  background: #f9fafb;
-  border: 1px solid #e5e7eb;
-  border-left: 3px solid #2563eb;
-  border-radius: 4px;
+  background: #f7f8f8;
+  border: 1px solid #e0e2e4;
+  border-left: 3px solid #12538d;
+  border-radius: var(--radius-sm);
   display: flex;
   flex-direction: column;
   gap: 5px;
@@ -103,7 +103,7 @@
   color: #ffffff;
   background: #065f46;
   border: 1px solid #065f46;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
@@ -113,7 +113,7 @@
 
 .dsl-beat--active {
   background: #f0fdfa;
-  border-left: 4px solid #0f766e;
+  border-left: 4px solid #12538d;
   padding-left: 0.6em;
 }
 
@@ -124,14 +124,14 @@
   font-size: var(--font-size-sm);
   font-weight: 700;
   color: #ffffff;
-  background: #1e40af;
-  border: 1px solid #1e3a8a;
-  border-radius: 6px;
+  background: #051727;
+  border: 1px solid #051727;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 
 .dsl-nav-btn:hover {
-  background: #1e40af;
+  background: #051727;
 }
 
 .dsl-do,
@@ -145,7 +145,7 @@
   min-width: 30px;
   margin-right: 6px;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.72em;
   font-weight: 800;
   text-transform: uppercase;
@@ -155,7 +155,7 @@
 }
 
 .dsl-do .dsl-tag {
-  background: #1d4ed8;
+  background: #12538d;
 }
 
 .dsl-see .dsl-tag {
@@ -171,8 +171,8 @@
   padding: 10px 14px;
   background: #fef2f2;
   border: 1px solid #fca5a5;
-  border-radius: 6px;
-  color: #991b1b;
+  border-radius: var(--radius-md);
+  color: #aa0005;
   font-weight: 600;
 }
 
@@ -202,16 +202,16 @@
   min-width: 34px;
   padding: 4px 8px;
   font-size: var(--font-size-sm);
-  font-weight: 800;
+  font-weight: var(--btn-weight);
   color: #ffffff;
-  background: #111827;
-  border: 1px solid #374151;
-  border-radius: 6px;
+  background: #051727;
+  border: 1px solid #263746;
+  border-radius: var(--btn-radius);
   cursor: pointer;
 }
 
 .dsl-size-btn:hover:not(:disabled) {
-  background: #1f2937;
+  background: #263746;
 }
 
 .dsl-size-btn:disabled {
@@ -231,10 +231,10 @@
   padding: 4px 14px;
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: var(--th-text);
+  color: #051727;
   background: #ffffff;
-  border: 1px solid #d1d5db;
-  border-radius: 6px;
+  border: 1px solid #cdd1d4;
+  border-radius: var(--radius-md);
   cursor: pointer;
 }
 

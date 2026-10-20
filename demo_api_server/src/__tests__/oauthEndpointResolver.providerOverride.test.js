@@ -57,3 +57,9 @@ test('selected PF runtime resolution does not use a PingOne discovery cache', as
   configStore.getOAuthProvider.mockReturnValue('pingfederate');
   expect(resolver.getTokenEndpoint()).toBe('');
 });
+
+test('explicit pingone resolves PingOne discovery while PF is selected (SDK / DaVinci demo configs)', () => {
+  configStore.getOAuthProvider.mockReturnValue('pingfederate');
+  expect(resolver.getDiscoveryEndpoint('pingone'))
+    .toBe('https://auth.pingone.com/env-1/as/.well-known/openid-configuration');
+});

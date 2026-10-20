@@ -22,8 +22,8 @@
   --rd2-line-1: var(--th-border);
   --rd2-line-2: var(--th-border-strong);
 
-  /* Accent — from active vertical; fallback to banking blue */
-  --rd2-accent:       var(--theme-accent, #1b3a6b);
+  /* Accent — from active vertical; fallback to Ping Core Dark */
+  --rd2-accent:       var(--theme-accent, #051727);
   --rd2-accent-text:  #ffffff;
   /* Mix against the card surface, not literal white, so accent washes stay
      legible when the dark palette flips --th-bg-card. */
@@ -99,7 +99,7 @@
   border-radius: 0;
 }
 [data-rd-v2] .ud-hero__eyebrow {
-  font-family: var(--rd2-font-mono);
+  font-family: var(--font-mono);
   font-size: .62rem;
   letter-spacing: .2em;
   text-transform: uppercase;
@@ -116,7 +116,7 @@
   font-variant-numeric: tabular-nums;
 }
 [data-rd-v2] .ud-hero__balance-label {
-  font-family: var(--rd2-font-mono);
+  font-family: var(--font-mono);
   font-size: .62rem;
   letter-spacing: .2em;
   text-transform: uppercase;
@@ -308,7 +308,7 @@
   justify-content: space-between;
 }
 [data-rd-v2] .account-number {
-  font-family: var(--rd2-font-mono);
+  font-family: var(--font-mono);
   font-size: .75rem;
   color: var(--rd2-ink-3);
   letter-spacing: .05em;
@@ -320,7 +320,7 @@
   margin-top: 6px;
 }
 [data-rd-v2] .account-type-badge {
-  font-family: var(--rd2-font-mono);
+  font-family: var(--font-mono);
   font-size: .62rem;
   letter-spacing: .1em;
   text-transform: uppercase;
@@ -345,7 +345,7 @@
   padding: 10px 18px 6px;
 }
 [data-rd-v2] .tx-feed__date-label {
-  font-family: var(--rd2-font-mono);
+  font-family: var(--font-mono);
   font-size: .62rem;
   letter-spacing: .15em;
   text-transform: uppercase;
@@ -425,7 +425,7 @@
   position: absolute;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   opacity: .85;
 }
 /* Toolbar */
@@ -435,7 +435,7 @@
 }
 /* Title */
 .rd2-dock .embedded-agent-dock__title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: .96rem;
   font-weight: 600;
   letter-spacing: -.01em;
@@ -448,7 +448,7 @@
   letter-spacing: .1em;
   text-transform: uppercase;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   background: var(--rd2-surface-2, #f3f3f1);
   color: var(--rd2-ink-2, #4c4c48);
@@ -457,14 +457,14 @@
 
 /* ── Floating FAB ─────────────────────────────────── */
 .banking-agent-fab {
-  background: var(--theme-accent, #1b3a6b) !important;
+  background: var(--theme-accent, #051727) !important;
   color: #ffffff !important;
-  font-family: "Montserrat", sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .88rem !important;
   font-weight: 600 !important;
   border: none !important;
   box-shadow:
-    0 8px 24px color-mix(in srgb, var(--theme-accent, #1b3a6b) 40%, transparent),
+    0 8px 24px color-mix(in srgb, var(--theme-accent, #051727) 40%, transparent),
     0 1px 3px rgba(0,0,0,.12) !important;
 }
 .banking-agent-fab:hover {
@@ -472,7 +472,7 @@
   transform: translateY(-2px) !important;
 }
 .banking-agent-fab::before {
-  border-color: var(--theme-accent, #1b3a6b) !important;
+  border-color: var(--theme-accent, #051727) !important;
 }
 
 /* The agent runs on every page, but the --rd2-* neutrals below are declared only under
@@ -502,7 +502,7 @@
   position: relative;
   top: 0; left: 0; right: 0;
   height: 2px;
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   border-radius: 16px 16px 0 0;
   pointer-events: none;
 }
@@ -515,7 +515,7 @@
   border-bottom: 1px solid var(--rd2-line-1, var(--th-border)) !important;
 }
 .banking-agent-panel .ba-title {
-  font-family: "Montserrat", Georgia, serif !important;
+  font-family: var(--font-primary) !important;
   font-weight: 600 !important;
   font-size: .96rem !important;
   letter-spacing: -.01em !important;
@@ -530,23 +530,23 @@
 }
 .banking-agent-panel .ba-input {
   border: 1px solid var(--rd2-line-2, #d5d5d0) !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
   background: var(--rd2-surface-2, #f3f3f1) !important;
   padding: 7px 14px !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .88rem !important;
   color: var(--rd2-ink-1, #111110) !important;
 }
 .banking-agent-panel .ba-input:focus {
-  border-color: var(--theme-accent, #1b3a6b) !important;
+  border-color: var(--theme-accent, #051727) !important;
   background: var(--rd2-surface, #ffffff) !important;
   outline: none !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #1b3a6b) 20%, #ffffff) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #051727) 20%, #ffffff) !important;
 }
 .banking-agent-panel .ba-send-btn {
-  background: var(--theme-accent, #1b3a6b) !important;
+  background: var(--theme-accent, #051727) !important;
   color: #ffffff !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
   border: none !important;
 }
 .banking-agent-panel .ba-send-btn:hover {
@@ -555,23 +555,23 @@
 
 /* ── Suggestion chips ─────────────────────────────── */
 .banking-agent-panel .ba-suggestion {
-  border-color: var(--theme-accent, #1b3a6b) !important;
-  color: var(--theme-accent, #1b3a6b) !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  border-color: var(--theme-accent, #051727) !important;
+  color: var(--theme-accent, #051727) !important;
+  font-family: var(--font-primary) !important;
   font-size: .8rem !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
 }
 .banking-agent-panel .ba-action-item {
   background: var(--rd2-surface-2, #f3f3f1) !important;
   border-color: var(--rd2-line-1, #e4e4e0) !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .8rem !important;
-  border-radius: 8px !important;
+  border-radius: var(--radius-lg) !important;
   color: var(--rd2-ink-1, #111110) !important;
 }
 .banking-agent-panel .ba-action-item:hover {
-  border-color: var(--theme-accent, #1b3a6b) !important;
-  color: var(--theme-accent, #1b3a6b) !important;
+  border-color: var(--theme-accent, #051727) !important;
+  color: var(--theme-accent, #051727) !important;
 }
 
 /* ── Bottom-dock identity rail (v2 mock) ──────────── */
@@ -601,7 +601,7 @@
   background: var(--rd2-positive, #1a6b49);
 }
 .ba-embedded-bottom-dock .ba-dock-identity__name {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.05rem; font-weight: 600; letter-spacing: -.015em;
   color: var(--rd2-ink-1, #111110); margin-bottom: 3px;
 }
@@ -615,7 +615,7 @@
 .ba-embedded-bottom-dock .ba-dock-identity__scope {
   font-family: var(--font-mono);
   font-size: .6rem; letter-spacing: .04em;
-  padding: 2px 7px; border-radius: 999px;
+  padding: 2px 7px; border-radius: var(--radius-pill);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   background: var(--rd2-surface-2, #f3f3f1);
   color: var(--rd2-ink-2, #4c4c48);
@@ -643,48 +643,48 @@
   background: var(--rd2-surface, #ffffff) !important;
   border: 1px solid var(--rd2-line-2, #d5d5d0) !important;
   color: var(--rd2-ink-1, #111110) !important;
-  border-radius: 999px !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  border-radius: var(--radius-pill) !important;
+  font-family: var(--font-primary) !important;
   font-size: .8rem !important;
   font-weight: 500 !important;
 }
 .ba-embedded-bottom-dock .ba-suggestion:hover {
-  border-color: var(--theme-accent, #1b3a6b) !important;
-  color: var(--theme-accent, #1b3a6b) !important;
-  background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 8%, #ffffff) !important;
+  border-color: var(--theme-accent, #051727) !important;
+  color: var(--theme-accent, #051727) !important;
+  background: color-mix(in srgb, var(--theme-accent, #051727) 8%, #ffffff) !important;
 }
 .ba-embedded-bottom-dock .ba-action-item {
   background: var(--rd2-surface-2, #f3f3f1) !important;
   border: 1px solid var(--rd2-line-1, #e4e4e0) !important;
   color: var(--rd2-ink-1, #111110) !important;
-  border-radius: 999px !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  border-radius: var(--radius-pill) !important;
+  font-family: var(--font-primary) !important;
   font-size: .8rem !important;
 }
 /* Composer / input row */
 .ba-embedded-bottom-dock .ba-input-row {
   background: var(--rd2-surface-2, #f3f3f1) !important;
   border: 1px solid var(--rd2-line-2, #d5d5d0) !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
   padding: 5px 5px 5px 16px !important;
 }
 .ba-embedded-bottom-dock .ba-input-row:focus-within {
-  border-color: var(--theme-accent, #1b3a6b) !important;
+  border-color: var(--theme-accent, #051727) !important;
   background: var(--rd2-surface, #ffffff) !important;
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #1b3a6b) 20%, #ffffff) !important;
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #051727) 20%, #ffffff) !important;
 }
 .ba-embedded-bottom-dock .ba-input {
   background: transparent !important;
   border: none !important;
-  font-family: "Montserrat", ui-sans-serif, sans-serif !important;
+  font-family: var(--font-primary) !important;
   font-size: .9rem !important;
   color: var(--rd2-ink-1, #111110) !important;
 }
 .ba-embedded-bottom-dock .ba-send-btn {
-  background: var(--theme-accent, #1b3a6b) !important;
+  background: var(--theme-accent, #051727) !important;
   color: #ffffff !important;
   border: none !important;
-  border-radius: 999px !important;
+  border-radius: var(--radius-pill) !important;
 }
 .ba-embedded-bottom-dock .ba-send-btn:hover { opacity: .88 !important; }
 
@@ -717,7 +717,7 @@
   padding: 20px clamp(16px, 4vw, 48px);
 }
 [data-rd-v2] .ud-quick-actions__title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.1rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -742,7 +742,7 @@
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   border-radius: var(--rd2-r-md, 8px);
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .75rem;
   font-weight: 500;
   letter-spacing: .03em;
@@ -757,12 +757,12 @@
   background: var(--rd2-surface, #ffffff);
 }
 [data-rd-v2] .ud-qa-btn--accent {
-  background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 12%, #ffffff);
-  border-color: var(--theme-accent, #1b3a6b);
-  color: var(--theme-accent, #1b3a6b);
+  background: color-mix(in srgb, var(--theme-accent, #051727) 12%, #ffffff);
+  border-color: var(--theme-accent, #051727);
+  color: var(--theme-accent, #051727);
 }
 [data-rd-v2] .ud-qa-btn--accent:hover {
-  background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 18%, #ffffff);
+  background: color-mix(in srgb, var(--theme-accent, #051727) 18%, #ffffff);
 }
 [data-rd-v2] .ud-qa-btn--delegate {
   background: var(--rd2-positive, #1a6b49);
@@ -779,7 +779,7 @@
   align-items: center;
   gap: 8px;
   padding: 12px clamp(16px, 4vw, 48px);
-  background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 6%, #ffffff);
+  background: color-mix(in srgb, var(--theme-accent, #051727) 6%, #ffffff);
   border-bottom: 1px solid var(--rd2-line-1, #e4e4e0);
   font-size: .75rem;
   font-family: var(--font-mono);
@@ -821,7 +821,7 @@
   background: transparent;
   border: none;
   border-bottom: 2px solid transparent;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -836,8 +836,8 @@
 }
 [data-rd-v2] .ud-super-pills button[aria-current="page"],
 [data-rd-v2] .ud-super-pills button.active {
-  color: var(--theme-accent, #1b3a6b);
-  border-bottom-color: var(--theme-accent, #1b3a6b);
+  color: var(--theme-accent, #051727);
+  border-bottom-color: var(--theme-accent, #051727);
   font-weight: 600;
 }
 
@@ -857,11 +857,11 @@
   width: 56px;
   height: 56px;
   border-radius: 50%;
-  background: linear-gradient(135deg, var(--theme-accent, #1b3a6b), color-mix(in srgb, var(--theme-accent, #1b3a6b) 60%, #ffffff));
+  background: linear-gradient(135deg, var(--theme-accent, #051727), color-mix(in srgb, var(--theme-accent, #1b3a6b) 60%, #ffffff));
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.2rem;
   font-weight: 700;
   color: #ffffff;
@@ -873,7 +873,7 @@
   gap: 4px;
 }
 [data-rd-v2] .ud-profile-card__name {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -894,13 +894,13 @@
   gap: 4px;
   width: fit-content;
   padding: 3px 8px;
-  background: color-mix(in srgb, var(--theme-accent, #1b3a6b) 10%, #ffffff);
-  border: 1px solid var(--theme-accent, #1b3a6b);
-  border-radius: 999px;
+  background: color-mix(in srgb, var(--theme-accent, #051727) 10%, #ffffff);
+  border: 1px solid var(--theme-accent, #051727);
+  border-radius: var(--radius-pill);
   font-family: var(--font-mono);
   font-size: .65rem;
   letter-spacing: .04em;
-  color: var(--theme-accent, #1b3a6b);
+  color: var(--theme-accent, #051727);
   margin-top: 4px;
 }
 
@@ -952,7 +952,7 @@
   margin-bottom: 4px;
 }
 [data-rd-v2] .account-card__name {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1001,7 +1001,7 @@
   margin-bottom: 0;
 }
 [data-rd-v2] .form-group label {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1012,8 +1012,8 @@
   padding: 10px 12px;
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-2, #d5d5d0);
-  border-radius: 6px;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  border-radius: var(--radius-md);
+  font-family: var(--font-primary);
   font-size: .9rem;
   color: var(--rd2-ink-1, #111110);
   transition: all 150ms ease-out;
@@ -1025,8 +1025,8 @@
 [data-rd-v2] .form-group select:focus {
   outline: none;
   background: var(--rd2-surface, #ffffff);
-  border-color: var(--theme-accent, #1b3a6b);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #1b3a6b) 15%, #ffffff);
+  border-color: var(--theme-accent, #051727);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #051727) 15%, #ffffff);
 }
 [data-rd-v2] .form-actions {
   display: flex;
@@ -1037,8 +1037,8 @@
 [data-rd-v2] .form-actions button {
   padding: 10px 20px;
   border: none;
-  border-radius: 6px;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  border-radius: var(--radius-md);
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1046,7 +1046,7 @@
   transition: all 150ms ease-out;
 }
 [data-rd-v2] .form-actions button[type="submit"] {
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   color: #ffffff;
 }
 [data-rd-v2] .form-actions button[type="submit"]:hover {
@@ -1077,7 +1077,7 @@
   background: transparent;
 }
 [data-rd-v2] .ud-token-rail__title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: .95rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1087,7 +1087,7 @@
 [data-rd-v2] .ud-token-rail__item {
   background: var(--rd2-surface, #ffffff);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px;
   margin-bottom: 8px;
   font-family: var(--font-mono);
@@ -1164,7 +1164,7 @@
   border-bottom: 1px solid var(--rd2-line-1, #e4e4e0);
 }
 [data-rd-v2] .otp-step-up-modal__title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1195,7 +1195,7 @@
   flex: 1;
 }
 [data-rd-v2] .otp-step-up-modal__lead {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .9rem;
   line-height: 1.5;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1220,15 +1220,15 @@
   letter-spacing: .1em;
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-2, #d5d5d0);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   color: var(--rd2-ink-1, #111110);
   transition: all 150ms ease-out;
 }
 [data-rd-v2] .otp-step-up-modal__input input:focus {
   outline: none;
   background: var(--rd2-surface, #ffffff);
-  border-color: var(--theme-accent, #1b3a6b);
-  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #1b3a6b) 15%, #ffffff);
+  border-color: var(--theme-accent, #051727);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--theme-accent, #051727) 15%, #ffffff);
 }
 [data-rd-v2] .otp-step-up-modal__input--error input {
   border-color: var(--rd2-negative, #c92a2a);
@@ -1237,7 +1237,7 @@
 
 /* Error message */
 [data-rd-v2] .otp-step-up-modal__error {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .8rem;
   color: var(--rd2-negative, #c92a2a);
   margin: 8px 0 0 0;
@@ -1245,7 +1245,7 @@
 
 /* Hint text */
 [data-rd-v2] .otp-step-up-modal__hint {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .8rem;
   color: var(--rd2-ink-3, #8c8c88);
   margin: 16px 0 0 0;
@@ -1262,11 +1262,11 @@
 [data-rd-v2] .otp-step-up-modal__btn-primary {
   flex: 1;
   padding: 11px 20px;
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   color: #ffffff;
   border: none;
-  border-radius: 6px;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  border-radius: var(--radius-md);
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1286,8 +1286,8 @@
   background: var(--rd2-surface-2, #f3f3f1);
   border: 1px solid var(--rd2-line-1, #e4e4e0);
   color: var(--rd2-ink-1, #111110);
-  border-radius: 6px;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  border-radius: var(--radius-md);
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1340,7 +1340,7 @@
 }
 
 [data-rd-v2] .landing-logo-title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.2rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1366,8 +1366,8 @@
 [data-rd-v2] .btn {
   padding: 10px 20px;
   border: 1px solid transparent;
-  border-radius: 6px;
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  border-radius: var(--radius-md);
+  font-family: var(--font-primary);
   font-size: .85rem;
   font-weight: 500;
   letter-spacing: -.01em;
@@ -1376,7 +1376,7 @@
 }
 
 [data-rd-v2] .btn-primary {
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   color: #ffffff;
   border: none;
 }
@@ -1407,7 +1407,7 @@
 }
 
 [data-rd-v2] .landing-hero-headline {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: clamp(1.8rem, 5vw, 2.8rem);
   font-weight: 700;
   letter-spacing: -.02em;
@@ -1417,7 +1417,7 @@
 }
 
 [data-rd-v2] .landing-hero-subheadline {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: 1.1rem;
   line-height: 1.6;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1443,7 +1443,7 @@
 }
 
 [data-rd-v2] .landing-features-heading h2 {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.8rem;
   font-weight: 700;
   letter-spacing: -.015em;
@@ -1452,7 +1452,7 @@
 }
 
 [data-rd-v2] .landing-features-heading p {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: 1rem;
   color: var(--rd2-ink-2, #4c4c48);
   margin: 0;
@@ -1481,12 +1481,12 @@
 }
 
 [data-rd-v2] .landing-feature-icon {
-  color: var(--theme-accent, #1b3a6b);
+  color: var(--theme-accent, #051727);
   margin-bottom: 16px;
 }
 
 [data-rd-v2] .landing-feature-title {
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -.015em;
@@ -1495,7 +1495,7 @@
 }
 
 [data-rd-v2] .landing-feature-description {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .9rem;
   line-height: 1.5;
   color: var(--rd2-ink-2, #4c4c48);
@@ -1510,7 +1510,7 @@
 }
 
 [data-rd-v2] .landing-footer p {
-  font-family: "Montserrat", ui-sans-serif, sans-serif;
+  font-family: var(--font-primary);
   font-size: .85rem;
   color: var(--rd2-ink-2, #4c4c48);
   margin: 0;
@@ -1771,7 +1771,7 @@ body {
 
 [data-rd-v2] .ud-hero__spark span {
   flex: 1;
-  background: var(--theme-accent, #1b3a6b);
+  background: var(--theme-accent, #051727);
   opacity: .18;
   border-radius: 2px;
 }

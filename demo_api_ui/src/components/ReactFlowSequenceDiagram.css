@@ -1,8 +1,8 @@
 .rfps-wrap {
   width: 100%;
   overflow: auto;
-  border: 1px solid var(--rfp-border, #cbd5e1);
-  border-radius: 8px;
+  border: 1px solid var(--rfp-border, #cdd1d4);
+  border-radius: var(--radius-lg);
   background: var(--rfp-card, #fff);
   min-height: 560px;
 }
@@ -19,11 +19,11 @@
 .rfps-participant__text {
   font-size: 0.82rem;
   font-weight: 700;
-  fill: var(--rfp-text, #0f172a);
+  fill: var(--rfp-text, #051727);
 }
 
 .rfps-lifeline {
-  stroke: var(--rfp-lifeline, #cbd5e1);
+  stroke: var(--rfp-lifeline, #cdd1d4);
   stroke-dasharray: 4 4;
 }
 
@@ -46,11 +46,11 @@
 }
 
 .rfps-arrowhead--on {
-  fill: #004687;
+  fill: #12538d;
 }
 
 .rfps-arrowhead--off {
-  fill: var(--rfp-border, #cbd5e1);
+  fill: var(--rfp-border, #cdd1d4);
 }
 
 /* Dark-mode passive arrows need a lighter stroke */
@@ -61,7 +61,7 @@
 
 .rfps-token {
   fill: #f59e0b;
-  stroke: #b91c1c;
+  stroke: #d20e0f;
   stroke-width: 1;
   filter: drop-shadow(0 0 3px rgba(245, 158, 11, 0.8));
 }

@@ -115,6 +115,14 @@ function OverviewContent() {
         {' '}(re-using RFC 7523 framing with new semantics).
       </Note>
 
+      <Note>
+        <strong>Try it with a real outside IdP:</strong> in the{' '}
+        <a href="/pingfederate-id-jag/playground" style={{ color: '#2563eb' }}>ID-JAG Playground</a>, pick "Your IdP → our resource AS" and
+        click "Get an ID-JAG from xaa.dev". IdenX, the IdP of Okta's free{' '}
+        <a href="https://xaa.dev" target="_blank" rel="noopener noreferrer" style={{ color: '#2563eb' }}>xaa.dev</a>{' '}
+        playground, signs you in (any email, any 6-digit code) and issues an ID-JAG our oauth-mcp redeems (hosted demo only).
+      </Note>
+
       <Section title="Why it Exists — the Cross-App Problem">
         <p style={{ margin: '0 0 0.75rem', fontSize: '0.875rem', color: '#374151', lineHeight: 1.6 }}>
           Modern enterprises run many applications, each with its own OAuth Authorization Server or tenant. When a user is already authenticated in App A and an agent, service, or second app (App B) needs to act on their behalf — without sending the user through a browser redirect again — there is no clean standards-based path. The options today are all compromises:

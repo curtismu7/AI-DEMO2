@@ -1,6 +1,6 @@
 /* ============================================================================
    Landing Page — Professional B2B identity platform theme
-   Palette: navy #0F172A primary, blue #0369A1 CTA, white/gray-50 background
+   Palette: navy #051727 primary, blue #12538d CTA, white/gray-50 background
 
    READ BEFORE EDITING — the plain rules in this file are usually NOT what
    renders. LandingPage.js sets `data-rd-v2` unconditionally on the page root,
@@ -20,17 +20,17 @@
 
 /* ---- Design tokens ---- */
 :root {
-  --lp-bg: #f8fafc;
+  --lp-bg: #f7f8f8;
   --lp-surface: #ffffff;
   --lp-border: var(--th-border);
   --lp-muted: #ffffff;
   --lp-text-primary: #020617;
-  --lp-text-secondary: #64748b;
-  --lp-text-muted: #94a3b8;
-  --lp-navy: #0f172a;
-  --lp-navy-2: #334155;
-  --lp-accent: #0369a1;
-  --lp-accent-hover: #0284c7;
+  --lp-text-secondary: #5c646b;
+  --lp-text-muted: #909ea4;
+  --lp-navy: #051727;
+  --lp-navy-2: #263746;
+  --lp-accent: #12538d;
+  --lp-accent-hover: #051727;
   --lp-destructive: #d20e0f;
   --lp-shadow-sm:
     0 1px 3px rgba(2, 6, 23, 0.08), 0 1px 2px rgba(2, 6, 23, 0.06);
@@ -55,9 +55,11 @@
 
 /* V2 override: use warm-paper background and institutional design */
 .landing-page[data-rd-v2] {
+  /* Ping-owned page: ignore the active vertical's --theme-accent. */
+  --rd2-accent: #051727;
   background-color: #f7f7f5 !important;
   color: #111110 !important;
-  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif !important;
+  font-family: var(--font-primary) !important;
 }
 
 /* ========== Header (logged-out only) ========== */
@@ -281,7 +283,7 @@
   letter-spacing: -0.02em;
 }
 .landing-features-heading p {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   color: var(--lp-text-secondary);
   margin: 0;
   line-height: 1.6;
@@ -315,13 +317,13 @@
   width: 48px;
   height: 48px;
   border-radius: 10px;
-  background: #eff6ff;
+  background: #fcfcfc;
   color: var(--lp-accent);
   margin-bottom: 18px;
   flex-shrink: 0;
 }
 .landing-feature-title {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 700;
   margin: 0 0 10px;
   color: var(--lp-navy);
@@ -415,7 +417,7 @@
     font-size: 44px;
   }
   .landing-hero-subheadline {
-    font-size: 16px;
+    font-size: var(--font-size-md);
   }
   .hero-cta {
     min-width: 140px;
@@ -576,14 +578,14 @@
 }
 
 [data-rd-v2] .btn-primary {
-  background: var(--rd2-accent, #1b3a6b) !important;
+  background: var(--rd2-accent, #051727) !important;
   color: var(--th-text-invert) !important;
   border: none !important;
   box-shadow: var(--rd2-shadow-2, 0 2px 6px rgba(0,0,0,.1)) !important;
 }
 
 [data-rd-v2] .btn-primary:hover {
-  background: color-mix(in srgb, var(--rd2-accent, #1b3a6b) 85%, #000000) !important;
+  background: color-mix(in srgb, var(--rd2-accent, #051727) 85%, #000000) !important;
   box-shadow: var(--rd2-shadow-3, 0 4px 12px rgba(0,0,0,.15)) !important;
 }
 
@@ -694,15 +696,31 @@
 }
 
 [data-rd-v2] .hero-cta-primary {
-  background: var(--rd2-accent, #1b3a6b) !important;
+  background: var(--rd2-accent, #051727) !important;
   color: var(--rd2-accent-text, #ffffff) !important;
   border: none !important;
   box-shadow: var(--rd2-shadow-2, 0 2px 6px rgba(0,0,0,.1)) !important;
 }
 
 [data-rd-v2] .hero-cta-primary:hover {
-  background: color-mix(in srgb, var(--rd2-accent, #1b3a6b) 85%, #000000) !important;
+  background: color-mix(in srgb, var(--rd2-accent, #051727) 85%, #000000) !important;
   box-shadow: var(--rd2-shadow-3, 0 4px 12px rgba(0,0,0,.15)) !important;
+}
+
+/* Landing is Ping-owned: red primary (brand gradient), one button shape. */
+.landing-page[data-rd-v2] .btn-primary,
+.landing-page[data-rd-v2] .hero-cta-primary {
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005) !important;
+  color: #ffffff !important;
+}
+
+.landing-page[data-rd-v2] .btn-primary:hover,
+.landing-page[data-rd-v2] .hero-cta-primary:hover {
+  background: #aa0005 !important;
+}
+
+.landing-page[data-rd-v2] .hero-cta {
+  border-radius: var(--btn-radius);
 }
 
 [data-rd-v2] .hero-cta-secondary {
@@ -721,7 +739,7 @@
 /* V2: Identity evolution callout */
 .landing-callout {
   padding: 64px 32px;
-  background: var(--rd2-accent, #1b3a6b);
+  background: var(--rd2-accent, #051727);
   color: var(--rd2-accent-text, #ffffff);
   text-align: center;
 }
@@ -750,7 +768,7 @@
 
 .landing-callout-body {
   font-family: var(--rd2-font-body, "Montserrat", ui-sans-serif, sans-serif);
-  font-size: 16px;
+  font-size: var(--font-size-md);
   line-height: 1.65;
   color: var(--rd2-accent-text, #ffffff);
   margin: 0 0 12px;
@@ -808,8 +826,8 @@
 }
 
 [data-rd-v2] .landing-feature-icon {
-  background: color-mix(in srgb, var(--rd2-accent, #1b3a6b) 8%, #ffffff) !important;
-  color: var(--rd2-accent, #1b3a6b) !important;
+  background: color-mix(in srgb, var(--rd2-accent, #051727) 8%, #ffffff) !important;
+  color: var(--rd2-accent, #051727) !important;
 }
 
 [data-rd-v2] .landing-feature-title {

@@ -1,5 +1,5 @@
 .pf-ai-agent {
-  --pf-ai-accent: #087d76;
+  --pf-ai-accent: #12538d;
   --pf-ai-accent-soft: color-mix(in srgb, var(--pf-ai-accent) 10%, var(--th-bg-card));
   display: flex;
   flex-direction: column;
@@ -15,23 +15,6 @@
 .pf-ai-agent h3,
 .pf-ai-agent p { margin-top: 0; }
 
-.pf-ai-agent__hero {
-  display: grid;
-  grid-template-columns: minmax(0, 1fr) minmax(230px, 290px);
-  gap: 30px;
-  align-items: end;
-  padding: 20px 0 26px;
-  border-bottom: 1px solid var(--th-border-strong);
-}
-
-.pf-ai-agent__eyebrow {
-  margin-bottom: 8px;
-  color: var(--th-status-info-text);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.035em;
-}
-
 .pf-ai-agent h1 {
   max-width: 720px;
   margin-bottom: 10px;
@@ -43,14 +26,6 @@
   margin-bottom: 8px;
   font-size: var(--font-size-h2);
   letter-spacing: -0.015em;
-}
-
-.pf-ai-agent__lede {
-  max-width: 710px;
-  margin-bottom: 0;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-body);
-  line-height: 1.6;
 }
 
 .pf-ai-agent__session {
@@ -279,7 +254,7 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
    same in light and dark on purpose. */
 .pf-ai-agent__phone-wrap { display: flex; justify-content: center; padding: 16px; }
 .pf-ai-agent__phone {
-  --pf-ai-accent: #087d76;
+  --pf-ai-accent: #12538d;
   width: 100%;
   max-width: 280px;
   padding: 10px;
@@ -294,7 +269,7 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
   min-height: 480px;
   padding: 12px 14px 10px;
   border-radius: 38px;
-  background: linear-gradient(165deg, #1b2a52 0%, #3d2060 55%, #7b2f5b 100%);
+  background: linear-gradient(165deg, #1b2a52 0%, #7f1d1d 55%, #7f1d1d 100%);
   color: #fff;
 }
 .pf-ai-agent__phone-island { align-self: center; width: 86px; height: 25px; border-radius: 13px; background: #000; }
@@ -313,7 +288,7 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
 .pf-ai-agent__phone-card h3,
 .pf-ai-agent__phone-card p { margin: 0; }
 .pf-ai-agent__phone-app { display: flex; align-items: center; gap: 8px; font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.03em; text-transform: uppercase; color: #555; }
-.pf-ai-agent__phone-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: 6px; background: var(--pf-ai-accent); color: #fff; font-size: var(--font-size-xs); font-weight: 800; }
+.pf-ai-agent__phone-icon { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; border-radius: var(--radius-md); background: var(--pf-ai-accent); color: #fff; font-size: var(--font-size-xs); font-weight: 800; }
 .pf-ai-agent__phone-now { margin-left: auto; text-transform: none; font-weight: 500; }
 .pf-ai-agent__phone-card h3 { font-size: var(--font-size-base); }
 .pf-ai-agent__phone-card p { font-size: var(--font-size-sm); }
@@ -323,3 +298,12 @@ a.pf-ai-agent__action, a.pf-ai-agent__action:link, a.pf-ai-agent__action:visited
 .pf-ai-agent__phone-actions .pf-ai-agent__action { border-color: var(--pf-ai-accent); background: var(--pf-ai-accent); color: #fff; }
 .pf-ai-agent__phone-actions .pf-ai-agent__secondary-action { border-color: transparent; background: rgba(255, 255, 255, 0.22); color: #fff; }
 .pf-ai-agent__phone-home { align-self: center; width: 110px; height: 5px; border-radius: 3px; background: rgba(255, 255, 255, 0.85); }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .pf-ai-agent__status.is-ready > span {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .pf-ai-agent__status.is-ready > span {
+  color: #051727;
+}

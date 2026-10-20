@@ -10,6 +10,7 @@
 
 const pingOneUserService = require('./pingOneUserService');
 const groupPolicy = require('./groupPolicy');
+const { fetchPingOneUserByUsername } = require('./pingOneUserLookupService');
 
 const CACHE_TTL_MS = 60_000;
 const _cache = new Map();
@@ -225,7 +226,37 @@ async function setUserGroupMembership({ username, pingOneUserId, groupName, inGr
   return { changed, inGroup, groupId };
 }
 
+/** PingOne group whose members may sign in as admin (the PingOne admin app's access-control group). */
+const ADMIN_GROUP_NAME = 'pingone-admin';
+
+/**
+ * True only when `username` is an enabled PingOne user, with exactly that username, who is a
+ * direct member of ADMIN_GROUP_NAME. Fails closed: any lookup error or ambiguity returns false.
+ * Used to gate PF admin sign-in, which PingOne's app-level group restriction never sees.
+ */
+async function isPingOneAdminByUsername(username) {
+  const name = String(username || '').trim();
+  if (!name) return false;
+  try {
+    const { user } = await fetchPingOneUserByUsername(name);
+    if (!user?.id || !user.enabled) return false;
+    if (String(user.username || '').trim().toLowerCase() !== name.toLowerCase()) return false;
+    pingOneUserService.initialize();
+    const groupId = await _findGroupIdByName(ADMIN_GROUP_NAME);
+    if (!groupId) return false;
+    const resp = await pingOneUserService.makeRequest('GET', `/users/${encodeURIComponent(user.id)}/memberOfGroups`);
+    const body = resp?.data ?? resp;
+    // ponytail: first page only (a 44-group user fits on one); a member past page one is refused, which fails closed.
+    return (body?._embedded?.groupMemberships || []).some((g) => g?.id === groupId);
+  } catch (err) {
+    console.warn('[pingOneGroupMembershipService] admin group check failed — refusing admin:', err?.message);
+    return false;
+  }
+}
+
 module.exports = {
+  isPingOneAdminByUsername,
+  ADMIN_GROUP_NAME,
   setUserGroupMembership,
   TOGGLEABLE_USERNAMES,
   isReady,

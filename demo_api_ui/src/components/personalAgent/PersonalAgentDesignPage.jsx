@@ -1,7 +1,8 @@
 // PersonalAgentDesignPage.jsx — one component for both target designs under Diagrams:
 //   variant="target"  /personal-agent-design        Agent Gateway only
 //   variant="dual"    /personal-agent-dual-gateway  Privilege first, Agent Gateway for the gaps
-// The figure is React Flow (StaticFlowDiagram) driven by the shared Play/Step bar. The write-up under it
+// The figure is React Flow (StaticFlowDiagram, pingStyle) driven by the shared Play/Step bar; each step carries its
+// request on the wire, MOCK tokens and standards from config/personalAgentStandards.js. The write-up under it
 // has one card per step: what happens, why it is needed, how it secures the AI, and what the original
 // design did instead.
 import React from "react";
@@ -9,8 +10,10 @@ import { Link } from "react-router-dom";
 import DiagramStepBar from "../DiagramStepBar";
 import StaticFlowDiagram from "../StaticFlowDiagram";
 import { edgeCaptions, useDiagramStepper } from "../../hooks/useDiagramStepper";
-import { DESIGNS, GROUPS } from "./personalAgentData";
+import { DESIGNS } from "./personalAgentData";
+import { PA_GROUPS as GROUPS, PA_STEP_DETAIL } from "../../config/personalAgentStandards";
 import "./PersonalAgent.css";
+import PageHeader from '../common/PageHeader';
 
 export default function PersonalAgentDesignPage({ variant = "target" }) {
   const design = DESIGNS[variant] || DESIGNS.target;
@@ -18,19 +21,17 @@ export default function PersonalAgentDesignPage({ variant = "target" }) {
   const stepper = useDiagramStepper(design.edges.length);
   const names = Object.fromEntries(design.nodes.map((n) => [n.id, n.label]));
   const captions = edgeCaptions(design.edges, names);
+  const steps = React.useMemo(() => design.steps.map((s) => ({ ...s, detail: PA_STEP_DETAIL[s.key] })), [design]);
   const usedGroups = [...new Set(design.nodes.map((n) => n.group))];
 
   return (
     <main className="pa-page" data-testid={`pa-page-${variant}`}>
-      <header className="pa-hero">
-        <div className="pa-eyebrow">{design.eyebrow}</div>
-        <h1>{design.title}</h1>
-        <p>{design.intro}</p>
+      <PageHeader className="pa-hero" eyebrow={design.eyebrow} title={design.title} summary={design.intro}>
         <nav className="pa-links" aria-label="Related personal agent pages">
           <Link to="/personal-agent-review">Why the original design was wrong</Link>
           <Link to={other.path}>{other.title}</Link>
         </nav>
-      </header>
+      </PageHeader>
 
       <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId={`pa-steps-${variant}`} />
 
@@ -40,6 +41,8 @@ export default function PersonalAgentDesignPage({ variant = "target" }) {
           EDGES={design.edges}
           GROUPS={GROUPS}
           stepper={stepper}
+          pingStyle
+          steps={steps}
           testId={`pa-diagram-${variant}`}
           height={design.height}
           ariaLabel={design.ariaLabel}
@@ -47,13 +50,13 @@ export default function PersonalAgentDesignPage({ variant = "target" }) {
         <ul className="pa-legend" aria-label="Legend">
           {usedGroups.map((g) => (
             <li key={g}>
-              <i className={`pa-sw pa-sw--${g}`} />
+              <i className="pa-sw" style={{ borderTopColor: GROUPS[g].bg }} />
               {GROUPS[g].label}
             </li>
           ))}
           <li>
-            <i className="pa-sw pa-sw--dashed" />
-            another client entering through the same door
+            <i className="pa-sw pa-sw--solid" />
+            the "own identity" arrow: another client entering through the same door
           </li>
         </ul>
       </figure>

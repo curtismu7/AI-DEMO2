@@ -349,6 +349,7 @@ import {
   buildPingOneToolListMessage,
   buildPingOneUserListMessage,
   verticalSuggestionChips,
+  cibaUseCaseFor,
   HitlChipMark,
 } from "./agentChrome";
 import { isNegativeChip, dispatchNegativeChip } from "./negativeChipDispatch";
@@ -6731,6 +6732,7 @@ export default function BankingAgent({
   }
 
   function sendAsNlInner(text, useCaseId, mode) {
+    useCaseId = useCaseId || cibaUseCaseFor(text, pageManifest);
     bindPromptRunContext(text, useCaseId);
     nrLog('ui.agent_message', { useCaseId: useCaseId || null, length: text ? text.length : 0 });
     // A typed message is a new turn: start a fresh token-chain trace with the
@@ -7232,6 +7234,7 @@ export default function BankingAgent({
     useCaseId = undefined,
     mode = undefined,
   ) {
+    useCaseId = useCaseId || cibaUseCaseFor(nlUserText, pageManifest);
     // A /nl error envelope (e.g. the Vite proxy's 502 {"error":"proxy_error"}
     // while the BFF restarts) parses as JSON but carries no `result`, so all
     // three call paths land here with undefined. Reading result.kind then threw
@@ -8889,6 +8892,7 @@ export default function BankingAgent({
           messages: [...priorHistory, { role: "user", content: text }],
           provider: activeLlmProvider,
           mode: agentProviderMode,
+          useCaseId: cibaUseCaseFor(text, pageManifest),
         });
         return;
       }
@@ -10973,10 +10977,10 @@ export default function BankingAgent({
                           <button
                             type="button"
                             className="ba-insp-btn ba-insp-btn--gateway"
-                            onClick={() => navigate("/agent-gateway-inspector?subtab=tester")}
-                            title="Open the Agent Gateway Inspector"
+                            onClick={() => navigate("/agent-gateway-capabilities")}
+                            title="Open the Agent Gateway Tester"
                           >
-                            Agent Gateway Inspector
+                            Agent Gateway Tester
                           </button>
                           <button
                             type="button"
@@ -11591,10 +11595,10 @@ export default function BankingAgent({
                     <button
                       type="button"
                       className="ba-insp-btn ba-insp-btn--gateway"
-                      onClick={() => navigate("/agent-gateway-inspector?subtab=tester")}
-                      title="Open the Agent Gateway Inspector"
+                      onClick={() => navigate("/agent-gateway-capabilities")}
+                      title="Open the Agent Gateway Tester"
                     >
-                      Agent Gateway Inspector
+                      Agent Gateway Tester
                     </button>
                     <button
                       type="button"

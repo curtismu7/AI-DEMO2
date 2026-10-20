@@ -1,0 +1,13 @@
+/* /external-door-diagrams in the Ping style: both sections follow the app theme (light grey canvas and dark text in light
+   mode, dark canvas in dark mode) instead of McpGatewayOauthFlowPage.css's fixed dark palette. The doubled class outranks it. */
+.mgof-page.mgof-page--ping.mgof-page--ping {
+  --mgof-bg: var(--th-bg-page);
+  --mgof-panel: var(--th-bg-card);
+  --mgof-ink: var(--th-text);
+  --mgof-ink-2: var(--th-text-body);
+  --mgof-border: var(--th-border);
+  --mgof-accent: var(--th-status-info);
+}
+.mgof-page--ping.mgof-page--ping a:any-link { color: var(--th-status-info); }
+.mgof-page--ping.mgof-page--ping code { color: var(--th-text); }
+.mgof-page--ping .efd h3 { color: var(--th-text); font-size: var(--font-size-lg); }

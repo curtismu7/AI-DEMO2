@@ -1,6 +1,6 @@
 /**
  * TokenCardGrid.css — 3-column responsive grid for token cards
- * Color-coded: User pink (#ec4899), Agent purple (#d20e0f), MCP green (#10b981)
+ * Color-coded: User pink (#d20e0f), Agent purple (#d20e0f), MCP green (#10b981)
  */
 
 /* Container & Grid */
@@ -37,7 +37,7 @@
      the app-level ink does not flip — so any unclassed text in a card inherits
      near-black onto this now-dark surface. Measured at 1.35:1 before this line. */
   color: var(--th-text-body);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--th-border);
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.08);
   overflow: hidden;
@@ -52,7 +52,7 @@
 /* Card header with colored left border */
 .tcg-card__header {
   padding: 12px 16px;
-  border-left: 4px solid #ec4899;
+  border-left: 4px solid #d20e0f;
   background: var(--th-bg-inset);
   display: flex;
   align-items: center;
@@ -127,7 +127,7 @@
   color: var(--th-text-body);
   text-transform: uppercase;
   letter-spacing: 0.5px;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
 }
 
 .tcg-card__claim-value {
@@ -172,7 +172,7 @@
   font-size: var(--font-size-2xs);
   font-weight: 600;
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-bg-card);
   color: var(--th-text);
   cursor: pointer;
@@ -195,7 +195,7 @@
 
 /* Focus states for accessibility */
 .tcg-card__inspect-btn:focus {
-  outline: 2px solid #3b82f6;
+  outline: 2px solid #12538d;
   outline-offset: 2px;
 }
 

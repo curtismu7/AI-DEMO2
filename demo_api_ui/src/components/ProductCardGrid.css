@@ -34,7 +34,7 @@
     linear-gradient(90deg, var(--th-border, #e0e3ee) 1px, transparent 1px);
   background-size: 12px 12px;
 }
-.pcg-thumb--location svg { stroke: #1e3a5f; }
+.pcg-thumb--location svg { stroke: #051727; }
 .pcg-body { padding: 9px 10px 10px; display: flex; flex-direction: column; gap: 5px; flex: 1; }
 .pcg-price-row { display: flex; align-items: baseline; gap: 5px; flex-wrap: wrap; }
 .pcg-price {
@@ -45,7 +45,7 @@
   background: #fde68a;
   color: #7c4a03;
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .pcg-price-strike {
   font-family: var(--font-mono);
@@ -60,7 +60,7 @@
   background: var(--th-bg-inset, #eef0f8);
   color: #16a34a;
   padding: 1px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 .pcg-title { font-size: 12.5px; font-weight: 600; line-height: 1.3; margin: 0; }
 .pcg-meta { font-size: 10.5px; color: var(--th-text-muted, #5b6178); display: flex; align-items: center; gap: 4px; flex-wrap: wrap; }
@@ -73,12 +73,17 @@
   justify-content: center;
   font-size: 11.5px;
   font-weight: 600;
-  border: 1px solid #1d4ed8;
+  border: 1px solid #12538d;
   background: #e8edfd;
-  color: #1d4ed8;
-  border-radius: 6px;
+  color: #12538d;
+  border-radius: var(--radius-md);
   padding: 6px 8px;
   cursor: pointer;
   text-decoration: none;
 }
-.pcg-btn button:hover, .pcg-btn a:hover { background: #1e40af; color: #fff; }
+.pcg-btn button:hover, .pcg-btn a:hover { background: #051727; color: #fff; }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .pcg-status {
+  color: #051727;
+}

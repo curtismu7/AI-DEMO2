@@ -7,7 +7,7 @@
   max-width: 880px;
   margin: 32px auto;
   padding: 24px;
-  font-family: var(--font-sans, system-ui, -apple-system, sans-serif);
+  font-family: var(--font-primary);
   color: var(--th-text);
 }
 
@@ -28,45 +28,10 @@
   color: var(--th-text);
 }
 
-.mpp-header {
-  border-left: 6px solid #ca8a04;
-  background: rgba(202, 138, 4, 0.06);
-  padding: 18px 22px;
-  margin-bottom: 22px;
-  border-radius: 0 6px 6px 0;
-  color: var(--th-text);
-}
-
-.mpp-badge {
-  display: inline-block;
-  background: #713f12;
-  color: #fff;
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.08em;
-  padding: 4px 10px;
-  border-radius: 2px;
-  margin-bottom: 10px;
-}
-
-.mpp-title {
-  font-size: var(--font-size-h2);
-  font-weight: 600;
-  color: var(--th-text);
-  margin: 4px 0 6px 0;
-}
-
-.mpp-subtitle {
-  font-size: var(--font-size-body);
-  color: var(--th-text-muted);
-  margin: 0;
-  line-height: 1.5;
-}
-
 .mpp-card {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 20px 22px;
   margin-bottom: 18px;
   color: var(--th-text);
@@ -142,7 +107,7 @@
   background: var(--th-status-warning-bg);
   color: var(--th-text);
   padding: 10px 14px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-bottom: 14px;
 }
 
@@ -179,24 +144,24 @@
 }
 
 .mpp-back-btn {
-  background: #1f2937;
+  background: #263746;
   color: #fff;
   border: none;
   padding: 10px 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
 }
 
-.mpp-back-btn:hover { background: #111827; }
+.mpp-back-btn:hover { background: #051727; }
 
 .mpp-error {
   background: var(--th-status-error-bg);
   border: 1px solid var(--th-status-error-border);
   color: var(--th-status-error-text);
   padding: 16px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-bottom: 16px;
   line-height: 1.55;
 }
@@ -222,7 +187,7 @@
 
 .mpp-token-rail {
   border: 1px solid var(--th-status-success-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: var(--th-status-success-bg);
   color: var(--th-text);
   padding: 12px;

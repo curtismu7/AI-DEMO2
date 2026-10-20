@@ -494,7 +494,10 @@ export default function LlmGatewayPage() {
     const text = prompt.trim();
     if (busy) return;
     if (!text) {
-      setSendError('Enter a prompt, or pick one from the Attack Library, before sending.');
+      const toolAttack = attackFor(selectedAttack);
+      setSendError(toolAttack?.demoPath
+        ? `${toolAttack.label} is a tool-path attack, not chat text, so there is nothing to send here. Use "${toolAttack.demoCta || 'Open matching demo'}" instead.`
+        : 'Enter a prompt, or pick one from the Attack Library, before sending.');
       return;
     }
     setSendError('');

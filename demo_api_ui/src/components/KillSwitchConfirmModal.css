@@ -7,12 +7,12 @@
   transform: translate(-50%, -50%);
   width: min(480px, 92vw);
   max-height: 95vh;
-  background: #0f172a;
-  border: 1px solid #334155;
-  border-radius: 12px;
+  background: #051727;
+  border: 1px solid #263746;
+  border-radius: var(--radius-xl);
   box-shadow:
     0 24px 64px rgba(0, 0, 0, 0.7),
-    0 0 0 1px rgba(239, 68, 68, 0.15);
+    0 0 0 1px rgba(210, 14, 15, 0.15);
   z-index: 1201;
   overflow-y: auto;
   animation: ksm-slide-up 0.25s cubic-bezier(0.22, 1, 0.36, 1);
@@ -36,8 +36,8 @@
   align-items: center;
   gap: 10px;
   padding: 14px 20px;
-  background: linear-gradient(135deg, #7f1d1d, #991b1b);
-  border-bottom: 1px solid #b91c1c;
+  background: linear-gradient(135deg, #7f1d1d, #aa0005);
+  border-bottom: 1px solid #d20e0f;
 }
 
 .ksm-header-icon {
@@ -93,8 +93,8 @@
   width: 20px;
   height: 20px;
   border-radius: 50%;
-  background: #1e293b;
-  border: 1px solid #475569;
+  background: #263746;
+  border: 1px solid #5c646b;
   color: var(--th-text-invert);
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -109,13 +109,13 @@
 /* This modal body renders inside DraggableModal's ".dm-panel", which is
    always light regardless of app theme (see DraggableModal.css) — nothing
    in this file uses th- or ba-prefixed custom properties, only literal hex
-   matching the surrounding rules (.ksm-result-scope's #f3f4f6 / #d1d5db,
-   .ksm-result-mechanism's #6b7280), so this block follows the same pattern
+   matching the surrounding rules (.ksm-result-scope's #eff0f1 / #cdd1d4,
+   .ksm-result-mechanism's #5c646b), so this block follows the same pattern
    rather than introducing new token names. */
 .ksm-active-runs {
   margin-bottom: 12px;
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
   font-size: 0.85rem;
@@ -157,7 +157,7 @@
   padding: 9px 12px;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   font-family: inherit;
   color: var(--th-text);
@@ -168,8 +168,8 @@
 .ksm-select:focus,
 .ksm-text-input:focus {
   outline: none;
-  border-color: #ef4444;
-  box-shadow: 0 0 0 3px rgba(239, 68, 68, 0.12);
+  border-color: #d20e0f;
+  box-shadow: 0 0 0 3px rgba(210, 14, 15, 0.12);
 }
 
 .ksm-select:disabled,
@@ -181,9 +181,9 @@
 .ksm-error {
   margin: 0 0 12px;
   padding: 10px 14px;
-  background: rgba(220, 38, 38, 0.15);
-  border: 1px solid rgba(220, 38, 38, 0.5);
-  border-radius: 6px;
+  background: rgba(210, 14, 15, 0.15);
+  border: 1px solid rgba(210, 14, 15, 0.5);
+  border-radius: var(--radius-md);
   color: var(--th-text-invert);
   font-size: 0.8125rem;
   line-height: 1.4;
@@ -203,7 +203,7 @@
   gap: 10px;
   padding: 10px 12px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: border-color 0.15s, background 0.15s;
 }
@@ -214,7 +214,7 @@
 }
 
 .ksm-scope-option--selected {
-  border-color: #ef4444;
+  border-color: #d20e0f;
   background: #fef2f2;
 }
 
@@ -241,7 +241,7 @@
 .ksm-result-scope {
   padding: 10px 14px;
   margin-bottom: 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   font-weight: 600;
   line-height: 1.5;
@@ -259,7 +259,7 @@
 .ksm-result-scope--full {
   background: #fef2f2;
   border-color: #f87171;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 .ksm-result-mechanism {
@@ -274,7 +274,7 @@
 .ksm-result-autoreset {
   margin: 0 0 14px;
   padding: 8px 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
   font-size: var(--font-size-2xs);
@@ -316,7 +316,7 @@
   min-width: 56px;
   text-align: center;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-xs);
   font-weight: 700;
   text-transform: uppercase;
@@ -356,9 +356,9 @@
   padding: 10px 14px;
   background: #fef2f2;
   border: 1px solid #fecaca;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-2xs);
-  color: #991b1b;
+  color: #aa0005;
   line-height: 1.5;
 }
 
@@ -366,9 +366,9 @@
 
 .ksm-confirm-btn {
   padding: 6px 18px;
-  background: #991b1b;
-  border: 1px solid #991b1b;
-  border-radius: 6px;
+  background: #aa0005;
+  border: 1px solid #aa0005;
+  border-radius: var(--radius-md);
   color: var(--th-text-invert);
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -377,7 +377,7 @@
 }
 
 .ksm-confirm-btn:hover:not(:disabled) {
-  background: #b91c1c;
+  background: #d20e0f;
 }
 
 .ksm-confirm-btn:disabled {
@@ -399,12 +399,12 @@
   height: 130px;
   border-radius: 50%;
   border: 5px solid #7f1d1d;
-  outline: 3px solid rgba(239, 68, 68, 0.25);
+  outline: 3px solid rgba(210, 14, 15, 0.25);
   background: radial-gradient(
     circle at 38% 35%,
-    #f87171 0%,
-    #dc2626 45%,
-    #991b1b 100%
+    #d20e0f 0%,
+    #d20e0f 45%,
+    #aa0005 100%
   );
   color: var(--th-text-invert);
   cursor: pointer;
@@ -416,7 +416,7 @@
   box-shadow:
     0 6px 0 #7f1d1d,
     0 8px 20px rgba(0, 0, 0, 0.6),
-    0 0 30px rgba(239, 68, 68, 0.4);
+    0 0 30px rgba(210, 14, 15, 0.4);
   transition: all 0.12s ease;
   transform: translateY(0);
   user-select: none;
@@ -426,12 +426,12 @@
   box-shadow:
     0 6px 0 #7f1d1d,
     0 10px 28px rgba(0, 0, 0, 0.65),
-    0 0 45px rgba(239, 68, 68, 0.6);
+    0 0 45px rgba(210, 14, 15, 0.6);
   background: radial-gradient(
     circle at 38% 35%,
     #fca5a5 0%,
-    #ef4444 45%,
-    #b91c1c 100%
+    #d20e0f 45%,
+    #d20e0f 100%
   );
 }
 
@@ -440,14 +440,14 @@
   box-shadow:
     0 1px 0 #7f1d1d,
     0 2px 8px rgba(0, 0, 0, 0.5),
-    0 0 20px rgba(239, 68, 68, 0.3);
+    0 0 20px rgba(210, 14, 15, 0.3);
 }
 
 .ksm-emergency-btn:disabled {
   opacity: 0.55;
   cursor: not-allowed;
   box-shadow:
-    0 4px 0 #374151,
+    0 4px 0 #263746,
     0 6px 12px rgba(0, 0, 0, 0.4);
 }
 
@@ -470,7 +470,7 @@
   display: none;
 }
 .ksm-emergency-btn--loading .ksm-emergency-btn__label {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   letter-spacing: 0.05em;
   white-space: nowrap;
 }
@@ -484,7 +484,7 @@
 }
 
 .ksm-cancel-link {
-  background: linear-gradient(135deg, #dc2626, #991b1b);
+  background: linear-gradient(135deg, #d20e0f, #aa0005);
   border: none;
   color: var(--th-text-invert);
   font-size: var(--font-size-sm);
@@ -492,12 +492,12 @@
   font-family: inherit;
   cursor: pointer;
   padding: 10px 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   transition: background 0.15s;
 }
 
 .ksm-cancel-link:hover:not(:disabled) {
-  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  background: linear-gradient(135deg, #d20e0f, #d20e0f);
   color: var(--th-text-invert);
 }
 
@@ -510,7 +510,7 @@
 
 @media (max-width: 480px) {
   .ksm-panel {
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
   }
   .ksm-emergency-btn {
     width: 110px;

@@ -5,8 +5,7 @@
   background: var(--th-bg-page);
   color: var(--th-text);
   padding: 2rem;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", sans-serif;
+  font-family: var(--font-primary);
 }
 
 /* Loading State */
@@ -88,7 +87,7 @@
 
 .status-indicator {
   padding: 0.625rem 1.125rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-weight: 600;
   font-size: 0.875rem;
   display: inline-flex;
@@ -210,7 +209,7 @@
 
 .test-card-status {
   padding: 0.375rem 0.875rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 0.75rem;
   font-weight: 700;
   text-transform: uppercase;
@@ -309,10 +308,9 @@
   background: var(--th-bg-inset);
   color: var(--th-text-body);
   padding: 1rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border);
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
+  font-family: var(--font-primary);
   font-size: 0.85rem;
   line-height: 1.5;
   overflow-x: auto;
@@ -416,7 +414,7 @@
 .pingone-test-button {
   padding: 0.625rem 1.25rem;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-weight: 600;
   font-size: 0.9rem;
   cursor: pointer;
@@ -473,7 +471,7 @@ a.pingone-test-button--primary:visited {
 .test-card-update-result {
   margin: 0.5rem 0;
   padding: 0.4rem 0.6rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.8rem;
   line-height: 1.4;
 }
@@ -598,7 +596,7 @@ a.pingone-test-button--primary:visited {
 .form-select {
   padding: 0.75rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.95rem;
   font-family: inherit;
   transition: border-color 0.2s ease;
@@ -708,7 +706,7 @@ a.pingone-test-button--primary:visited {
 
 .asset-card-status {
   padding: 0.25rem 0.75rem;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   font-size: 0.75rem;
   font-weight: 600;
   text-transform: uppercase;
@@ -940,7 +938,7 @@ a.pingone-test-button--primary:visited {
 .section-api-toggle {
   background: none;
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--th-text-muted);
   cursor: pointer;
   font-size: 0.8rem;
@@ -1169,7 +1167,7 @@ a.pingone-test-button--primary:visited {
   background: #fdf4ff;
   border: 1px solid #fee2e2;
   border-left: 4px solid #d20e0f;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-top: 0.75rem;
 }
 
@@ -1233,12 +1231,12 @@ a.pingone-test-button--primary:visited {
   color: #b45309;
 }
 .tld-col--to {
-  color: #0369a1;
+  color: #12538d;
 }
 
 .tld-row {
   align-items: flex-start;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   display: flex;
   flex-wrap: wrap;
   font-size: 0.78rem;
@@ -1351,7 +1349,7 @@ a.pingone-test-button--primary:visited {
   color: var(--th-status-error-text);
   background: var(--th-status-error-bg);
   border: 1px solid var(--th-status-error-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   display: flex;
   flex-direction: column;
   gap: 8px;
@@ -1397,7 +1395,7 @@ a.pingone-test-button--primary:visited {
 .scope-fix-result {
   font-size: 1rem;
   padding: 6px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-top: 4px;
 }
 .scope-fix-result--ok {
@@ -1415,7 +1413,7 @@ a.pingone-test-button--primary:visited {
 .asset-rs-banner {
   font-size: 0.8rem;
   padding: 0.35rem 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 0.5rem;
 }
 .asset-rs-banner--banking {
@@ -1464,8 +1462,8 @@ a.pingone-test-button--primary:visited {
   gap: 8px;
   padding: 10px 14px;
   margin: 8px 0;
-  background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
-  border: 1px solid #334155;
+  background: linear-gradient(135deg, #263746 0%, #051727 100%);
+  border: 1px solid #263746;
   border-radius: 12px 12px 12px 2px;
   font-family: inherit;
   font-size: 0.88rem;
@@ -1616,7 +1614,7 @@ a.pingone-test-button--primary:visited {
   padding: 0.5rem 1rem;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   font-size: 0.9rem;
   font-weight: 600;
@@ -1631,4 +1629,21 @@ a.pingone-test-button--primary:visited {
 .exchange-flow-selector__btn.is-active {
   background: var(--th-bg-emphasis);
   color: var(--th-text-on-emphasis);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .tld-kind--added {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .tld-kind--added {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .tld-kind--removed {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .tld-kind--removed {
+  color: #ffffff;
 }

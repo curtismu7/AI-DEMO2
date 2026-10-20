@@ -1,5 +1,5 @@
 // CimdPrivilegePage.jsx — /cimd-privilege under Diagrams.
-// Two figures in the Personal Agent format: React Flow (StaticFlowDiagram) driven by the shared Play/Step
+// Two figures in the Personal Agent format: React Flow (StaticFlowDiagram, pingStyle) driven by the shared Play/Step
 // bar, with one card per step underneath. Each card says what happens, why it matters, and whether it was
 // observed or is still expected, so the page can be shown to others without overclaiming.
 import React from "react";
@@ -19,6 +19,7 @@ import {
   STATUS,
 } from "./cimdPrivilegeData";
 import "../personalAgent/PersonalAgent.css";
+import PageHeader from '../common/PageHeader';
 
 function Figure({ id, title, intro, nodes, edges, groups, steps, ariaLabel }) {
   const stepper = useDiagramStepper(edges.length);
@@ -39,6 +40,7 @@ function Figure({ id, title, intro, nodes, edges, groups, steps, ariaLabel }) {
           EDGES={edges}
           GROUPS={groups}
           stepper={stepper}
+          pingStyle
           testId={`cimd-diagram-${id}`}
           height={560}
           ariaLabel={ariaLabel}
@@ -46,7 +48,7 @@ function Figure({ id, title, intro, nodes, edges, groups, steps, ariaLabel }) {
         <ul className="pa-legend" aria-label="Legend">
           {usedGroups.map((g) => (
             <li key={g}>
-              <i className={`pa-sw pa-sw--${g}`} />
+              <i className="pa-sw" style={{ borderTopColor: groups[g].bg }} />
               {groups[g].label}
             </li>
           ))}
@@ -87,15 +89,9 @@ function Figure({ id, title, intro, nodes, edges, groups, steps, ariaLabel }) {
 export default function CimdPrivilegePage() {
   return (
     <main className="pa-page" data-testid="cimd-privilege-page">
-      <header className="pa-hero">
-        <div className="pa-eyebrow">Privilege · client documents</div>
-        <h1>CIMD in Privilege</h1>
-        <p>
-          A Client ID Metadata Document lets an AI client identify itself to Privilege with a web address instead of a
+      <PageHeader className="pa-hero" eyebrow="Privilege · client documents" title="CIMD in Privilege" summary={<>A Client ID Metadata Document lets an AI client identify itself to Privilege with a web address instead of a
           registration. The client's client_id is the address of a small JSON file. Privilege keeps a list of the
-          addresses it accepts, fetches each one, and reads the client's name and redirect addresses from it.
-        </p>
-      </header>
+          addresses it accepts, fetches each one, and reads the client's name and redirect addresses from it.</>} />
 
       <Figure
         id="flow"

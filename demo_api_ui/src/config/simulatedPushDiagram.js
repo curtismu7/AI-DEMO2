@@ -1,15 +1,17 @@
 // /mfa-test step-up "PUSH · simulated phone" (services/mockPushPhoneService.js, routes/mfaTest.js push-mock/*,
 // MFATestStepUpSection.tsx) next to the real PingOne MFA push it stands in for. The simulation never calls
 // PingOne and grants nothing; the real path needs a phone app built on the PingOne MFA SDK.
+import { PUSH_DETAIL, withEdgeDetail } from './mfaDiagramsStandards';
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
+const DASH = { dashed: true };
 const REAL = { color: 'var(--th-status-warning)' };
 
 export const SIM_PUSH_GROUPS = {
-  user: { label: 'Browser (step-up card)', bg: 'var(--th-status-info)' },
-  bff: { label: 'Banking BFF', bg: 'var(--th-bg-emphasis)' },
-  device: { label: 'Phone', bg: 'var(--th-status-success)' },
-  ping: { label: 'PingOne (real push only)', bg: 'var(--th-status-warning)' },
+  user: { label: 'Browser (step-up card)', bg: '#151a24' },
+  bff: { label: 'Banking BFF', bg: '#151a24' },
+  device: { label: 'Phone', bg: '#5a5f69' },
+  ping: { label: 'PingOne (real push only)', bg: '#b5231a' },
 };
 
 export const SIM_PUSH_NODES = [
@@ -23,11 +25,11 @@ export const SIM_PUSH_NODES = [
 export const SIM_PUSH_EDGES = [
   E('card', 'bff', 'POST /api/mfa/test/push-mock/start'), // 0
   E('bff', 'sim', 'shows "Approve sign-in?" + number to match'), // 1
-  E('sim', 'bff', 'Approve or Deny tap (POST .../decision)'), // 2
+  E('sim', 'bff', 'Approve or Deny tap (POST .../decision)', DASH), // 2
   E('card', 'bff', 'GET .../status every 2 s: pending, then approved / denied / expired'), // 3
   E('card', 'p1', 'real: PUT /api/auth/mfa/challenge/:daId { MOBILE device }', REAL), // 4
   E('p1', 'app', 'real: push via APNs / FCM', REAL), // 5
-  E('app', 'p1', 'real: approve in the app (SDK signs it)', REAL), // 6
+  E('app', 'p1', 'real: approve in the app (SDK signs it)', { ...REAL, dashed: true }), // 6
 ];
 
 export const SIM_PUSH_STEPS = [
@@ -37,4 +39,4 @@ export const SIM_PUSH_STEPS = [
   { key: 'real', edges: [4, 5, 6], title: 'Real push: what the simulation stands in for', what: 'With a phone app built on the PingOne MFA SDK, picking its MOBILE device makes PingOne send a push through APNs or FCM; approving in the app completes the device authentication and the BFF marks the session stepped up.', why: 'The simulation proves the UX only: it sends no push and grants no step-up.' },
 ];
 
-export const SIM_PUSH_DIAGRAM = { GROUPS: SIM_PUSH_GROUPS, NODES: SIM_PUSH_NODES, EDGES: SIM_PUSH_EDGES, STEPS: SIM_PUSH_STEPS };
+export const SIM_PUSH_DIAGRAM = { GROUPS: SIM_PUSH_GROUPS, NODES: SIM_PUSH_NODES, EDGES: SIM_PUSH_EDGES, STEPS: withEdgeDetail(SIM_PUSH_STEPS, SIM_PUSH_EDGES, PUSH_DETAIL) };

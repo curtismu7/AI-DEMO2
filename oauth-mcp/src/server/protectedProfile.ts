@@ -11,8 +11,9 @@ import { createHash } from 'crypto';
 import type { IncomingMessage, ServerResponse } from 'http';
 import type { AgentTokenInfo } from '../interfaces/auth';
 
-/** Any one of these grants the profile: what an ID-JAG-redeemed token normally carries here. */
-export const PROFILE_SCOPES = ['mcp:invoke', 'accounts:read'];
+/** Any one of these grants the profile: what an ID-JAG-redeemed token normally carries here
+ *  (`read` is all an xaa.dev IdenX ID-JAG grants: the scope registered for our resource there). */
+export const PROFILE_SCOPES = ['mcp:invoke', 'accounts:read', 'read'];
 
 export interface ProtectedProfileDeps {
   validate: (token: string) => Promise<AgentTokenInfo>;

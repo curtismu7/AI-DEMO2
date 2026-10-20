@@ -2,7 +2,7 @@ import React from "react";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 
-const reactFlowMocks = vi.hoisted(() => ({ fitView: vi.fn(), zoomTo: vi.fn(), setViewport: vi.fn(), edges: [], nodes: [] }));
+const reactFlowMocks = vi.hoisted(() => ({ fitView: vi.fn(), zoomTo: vi.fn(), setViewport: vi.fn(), edges: [], nodes: [], props: {} }));
 
 vi.mock("@xyflow/react", async () => {
   const ReactModule = await import("react");
@@ -10,6 +10,7 @@ vi.mock("@xyflow/react", async () => {
     Background: () => null,
     BackgroundVariant: { Dots: "dots" },
     BaseEdge: () => null,
+    EdgeLabelRenderer: ({ children }) => children,
     Panel: ({ children }) => children,
     getSmoothStepPath: ({ sourceX = 0, sourceY = 0, targetX = 0, targetY = 0 }) => [
       `M${sourceX},${sourceY} L${targetX},${targetY}`,
@@ -19,7 +20,9 @@ vi.mock("@xyflow/react", async () => {
     Handle: () => null,
     MarkerType: { ArrowClosed: "arrowclosed" },
     Position: { Left: "left", Right: "right" },
-    ReactFlow: ({ edges = [], nodes = [], onNodeClick, onEdgeClick, children }) => {
+    ReactFlow: (props) => {
+      const { edges = [], nodes = [], onNodeClick, onEdgeClick, children } = props;
+      reactFlowMocks.props = props;
       reactFlowMocks.edges = edges;
       reactFlowMocks.nodes = nodes;
       return ReactModule.createElement(
@@ -47,6 +50,7 @@ vi.mock("@xyflow/react", async () => {
       zoomOut: vi.fn(),
       zoomTo: reactFlowMocks.zoomTo,
     }),
+    useStore: (selector) => selector({ nodeLookup: new Map(), transform: [0, 0, 0.62] }),
     useViewport: () => ({ x: 0, y: 0, zoom: 0.62 }),
   };
 });
@@ -66,7 +70,9 @@ describe("Server topology use-case playback", () => {
   it("positions visible edge labels in separate padded lanes", () => {
     render(<ServerTopologyPage />);
 
-    const edges = reactFlowMocks.edges.filter((edge) => !edge.hidden);
+    // Only an arrow that draws a badge (a step number, or its words) gets a label position.
+    const edges = reactFlowMocks.edges.filter((edge) => !edge.hidden && ((edge.data.stepNumbers || []).length > 0 || edge.data.showWords));
+    expect(edges.length).toBeGreaterThan(0);
     const labels = edges.map((edge) => edge.data.labelPosition);
     expect(edges.every((edge) => edge.type === "topologyLabeled")).toBe(true);
     expect(labels.every((label) => Number.isFinite(label?.x) && Number.isFinite(label?.y))).toBe(true);
@@ -199,8 +205,9 @@ describe("Server topology use-case playback", () => {
 
     const serviceNodes = reactFlowMocks.nodes.filter((node) => node.type === "server");
     const visibleLabels = reactFlowMocks.edges
-      .filter((edge) => !edge.hidden)
+      .filter((edge) => !edge.hidden && ((edge.data.stepNumbers || []).length > 0 || edge.data.showWords))
       .map((edge) => edge.data.labelPosition);
+    expect(visibleLabels.length).toBeGreaterThan(0);
 
     for (const label of visibleLabels) {
       for (const node of serviceNodes) {
@@ -563,5 +570,122 @@ describe("Server topology agent-to-agent buttons", () => {
     expect(screen.getByLabelText("Flow boxes only").checked).toBe(true);
     const visible = reactFlowMocks.nodes.filter((node) => node.type === "server" && !node.hidden).map((node) => node.id).sort();
     expect(visible).toEqual(["a2amain", "langchain", "privgw"]);
+  });
+});
+
+describe("Server topology step detail and box sync", () => {
+  const details = () => screen.getByRole("complementary", { name: /selected topology details/i });
+
+  it("shows the request, the mock tokens and the standards (with emerging work marked) for a step", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Step 07: Demo Agent Gateway → PingOne · RFC 8693 exchange/ }));
+
+    const panel = within(details());
+    expect(panel.getByRole("heading", { name: "Request on the wire" })).toBeInTheDocument();
+    expect(panel.getByText(/grant_type=urn:ietf:params:oauth:grant-type:token-exchange/)).toBeInTheDocument();
+    expect(panel.getByRole("heading", { name: "Mock tokens in play" })).toBeInTheDocument();
+    expect(panel.getAllByText("MOCK")).toHaveLength(2);
+    expect(panel.getByRole("heading", { name: "Standards behind this step" })).toBeInTheDocument();
+    expect(panel.getByText("RFC 8693")).toBeInTheDocument();
+    expect(panel.getAllByText("emerging").length).toBeGreaterThan(0);
+    expect(panel.getByText(/status changes, so verify before quoting/)).toBeInTheDocument();
+  });
+
+  it("selects the box at the end of a step's arrow when the step bar moves", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: /Step 07: Demo Agent Gateway → PingOne · RFC 8693 exchange/ }));
+    expect(reactFlowMocks.nodes.find((n) => n.id === "pingone").selected).toBe(true);
+    expect(within(details()).getByText("Box in this step")).toBeInTheDocument();
+
+    fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
+    expect(reactFlowMocks.nodes.find((n) => n.id === "pingone").selected).toBe(false);
+    expect(reactFlowMocks.nodes.find((n) => n.id === "mcpmcp").selected).toBe(true);
+  });
+
+  it("jumps the step bar to a clicked box's first arrow (into it, else out of it) and keeps that box when it is part of the next step", () => {
+    render(<ServerTopologyPage />);
+
+    fireEvent.click(screen.getByRole("button", { name: "Demo Agent Gateway" }));
+    expect(screen.getByText(/Step 5 of 9/)).toBeInTheDocument();
+    // the jumped-to step's request, tokens and standards show beside the box detail
+    const boxDetails = screen.getByRole("complementary", { name: /selected topology details/i });
+    expect(within(boxDetails).getByRole("heading", { name: "Request on the wire" })).toBeInTheDocument();
+    expect(within(boxDetails).getByRole("heading", { name: /Mock tokens? in play/ })).toBeInTheDocument();
+    expect(within(boxDetails).getByRole("heading", { name: "Standards behind this step" })).toBeInTheDocument();
+    expect(within(boxDetails).getByRole("heading", { name: "Related RFCs & specs" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Step 05:/ }).closest("li")).toHaveAttribute("aria-current", "step");
+
+    fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
+    expect(screen.getByText(/Step 6 of 9/)).toBeInTheDocument();
+    expect(reactFlowMocks.nodes.find((n) => n.id === "nodegw").selected).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
+    expect(screen.getByText(/Step 7 of 9/)).toBeInTheDocument();
+    expect(reactFlowMocks.nodes.find((n) => n.id === "nodegw").selected).toBe(true);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
+    expect(reactFlowMocks.nodes.find((n) => n.id === "nodegw").selected).toBe(true);
+    expect(reactFlowMocks.nodes.find((n) => n.id === "mcpmcp").selected).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: "Next hop" }));
+    expect(reactFlowMocks.nodes.find((n) => n.id === "nodegw").selected).toBe(false);
+    expect(reactFlowMocks.nodes.find((n) => n.id === "bff").selected).toBe(true);
+  });
+
+  it("numbers the arrows of the current flow like the step bar and shows words only for the step in focus", () => {
+    render(<ServerTopologyPage />);
+
+    const byId = (id) => reactFlowMocks.edges.find((e) => e.id === id);
+    expect(byId("browser-ingress").data.stepNumbers).toEqual(["01"]);
+    expect(byId("nodegw-authz").data.stepNumbers).toEqual(["06"]);
+    expect(byId("spire-mcpmcp").data.stepNumbers).toEqual([]);
+    expect(byId("nodegw-authz").data.showWords).toBe(false);
+
+    fireEvent.click(screen.getByRole("button", { name: /Step 06:/ }));
+    expect(byId("nodegw-authz").data.showWords).toBe(true);
+    expect(byId("nodegw-pingone").data.showWords).toBe(false);
+  });
+
+  it("draws the steps still to come, and the policy decisions, as dashed lines, also when stepping by hand", () => {
+    render(<ServerTopologyPage />);
+
+    const byId = (id) => reactFlowMocks.edges.find((e) => e.id === id);
+    expect(byId("browser-ingress").className).not.toContain("stm-edge--dashed");
+    expect(byId("ingress-frontend").className).toContain("stm-edge--dashed");
+    expect(byId("nodegw-authz").className).toContain("stm-edge--dashed");
+    expect(byId("nodegw-authz").style.strokeDasharray).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: /^Next hop$|^Next$/ }));
+    expect(byId("ingress-frontend").className).not.toContain("stm-edge--dashed");
+    expect(byId("nodegw-pingone").className).toContain("stm-edge--dashed");
+  });
+
+  it("numbers every arrow: step numbers in the flow, later numbers for the others", () => {
+    render(<ServerTopologyPage />);
+    fireEvent.change(screen.getByLabelText(/Filter servers by category/i), { target: { value: "all" } });
+    const lit = reactFlowMocks.edges.filter((e) => !e.hidden && !e.className.includes("stm-edge--dimmed"));
+    expect(lit.length).toBeGreaterThan(40);
+    for (const e of lit) expect(e.data.stepNumbers, e.id).toHaveLength(1);
+    const outside = lit.find((e) => !e.className.includes("stm-edge--route"));
+    expect(outside.data.extraNumber).toBe(true);
+    expect(Number(outside.data.stepNumbers[0])).toBeGreaterThan(Number(reactFlowMocks.edges.filter((e) => e.className.includes("stm-edge--route")).length));
+  });
+
+  it("treats a drag as a drag: 5 px threshold and no selection from the click that ends it", () => {
+    const now = vi.spyOn(Date, "now");
+    render(<ServerTopologyPage />);
+    expect(reactFlowMocks.props.nodeDragThreshold).toBe(5);
+
+    now.mockReturnValue(1000);
+    reactFlowMocks.props.onNodeDragStop();
+    now.mockReturnValue(1100);
+    fireEvent.click(screen.getByRole("button", { name: "Demo Agent Gateway" }));
+    expect(screen.queryByRole("complementary", { name: /selected topology details/i })).not.toBeInTheDocument();
+
+    now.mockReturnValue(1400);
+    fireEvent.click(screen.getByRole("button", { name: "Demo Agent Gateway" }));
+    expect(details()).toBeInTheDocument();
+    now.mockRestore();
   });
 });

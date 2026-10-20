@@ -10,7 +10,7 @@
 .luw-topbar {
   display: flex; align-items: center; gap: 0.15rem;
   flex-wrap: wrap;
-  padding: 0.2rem 1.1rem; border-bottom: 1px solid var(--brand-medium-gray, #e2e8f0);
+  padding: 0.2rem 1.1rem; border-bottom: 1px solid var(--brand-medium-gray, #e0e2e4);
   background: var(--th-bg-card);
 }
 
@@ -65,11 +65,11 @@
   content: '';
   position: absolute;
   inset: 0 3px;
-  background: #cbd5e1;
+  background: #cdd1d4;
 }
 .luw-resize:hover::before,
 .luw-resize:focus-visible::before {
-  background: #0f766e;
+  background: #12538d;
 }
 .luw-resize:focus-visible { outline: none; }
 body.luw-resizing,
@@ -81,7 +81,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   width: 336px;
   z-index: 3;
   border-right: 1px solid var(--th-border);
-  background: var(--brand-light-gray, #f8fafc);
+  background: var(--brand-light-gray, #f7f8f8);
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -104,18 +104,18 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   gap: 8px;
   writing-mode: vertical-rl;
   padding: 12px 6px;
-  border: 1px solid #5eead4;
+  border: 1px solid #12538d;
   border-left: 0;
   border-radius: 0 8px 8px 0;
   background: #f0fdfa;
-  color: #0d9488;
+  color: #051727;
   cursor: pointer;
   font: inherit;
   font-size: 0.74rem;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  box-shadow: 2px 0 6px rgba(15, 23, 42, 0.06);
+  box-shadow: 2px 0 6px rgba(5, 23, 39, 0.06);
 }
 .luw-body--drawer-closed .luw-drawer-tab { display: flex; }
 
@@ -129,7 +129,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   align-items: center;
   justify-content: center;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text-body);
   font-size: 0.85rem;
@@ -184,7 +184,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 }
 .luw-card:hover { border-color: var(--th-border-strong); }
 .luw-card.is-active {
-  border-color: #0f766e;
+  border-color: #12538d;
   border-width: 2px;
   padding: calc(0.85rem - 1px) calc(0.95rem - 1px);
 }
@@ -213,8 +213,8 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   white-space: nowrap;
 }
 .luw-card__rs-badge[data-rs="olb"] {
-  color: #1d4ed8;
-  background: #dbeafe;
+  color: #12538d;
+  background: #e0e2e4;
 }
 .luw-card__rs-badge[data-rs="invest"] {
   color: #047857;
@@ -245,20 +245,20 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #0f766e;
+  color: #12538d;
 }
 .luw-card__run {
   display: inline-flex;
   align-items: center;
   margin-top: 0.65rem;
   border: 0;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.5rem 0.9rem;
   font: inherit;
   font-size: 0.8rem;
   font-weight: 700;
   color: var(--th-text-invert);
-  background: #115e59;
+  background: #12538d;
   cursor: pointer;
 }
 .luw-card__run:disabled { opacity: 0.55; cursor: not-allowed; }
@@ -273,7 +273,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 .luw-track > summary {
   list-style: none; cursor: pointer; display: flex; align-items: center; gap: 0.45rem;
   padding: 0.55rem 0.4rem; font-size: 0.86rem; font-weight: 800; text-transform: uppercase;
-  letter-spacing: 0.05em; color: var(--th-text-body); border-radius: 6px;
+  letter-spacing: 0.05em; color: var(--th-text-body); border-radius: var(--radius-md);
 }
 .luw-track > summary::-webkit-details-marker { display: none; }
 .luw-track > summary:hover { background: var(--th-bg-card); }
@@ -282,26 +282,26 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
 /* 15-Min Security Demo: bordered box marks exactly which tiles the 15-minute
    script runs, so the presenter sees the demo scope at a glance. */
 .luw-track--security {
-  border: 2px solid #0f766e;
+  border: 2px solid #12538d;
   border-radius: 10px;
   background: #f0fdfa;
   padding: 0.15rem 0.55rem 0.5rem;
   margin: 0.5rem 0 0.85rem;
 }
-.luw-track--security > summary { color: #0f766e; }
+.luw-track--security > summary { color: #12538d; }
 .luw-track--security > summary:hover { background: #ccfbf1; }
-.luw-track--security .luw-track__count { color: #0f766e; }
+.luw-track--security .luw-track__count { color: #12538d; }
 
 /* Color-code each group title so the tracks read apart at a glance. */
-.luw-track--foundations > summary { color: #1d4ed8; }
+.luw-track--foundations > summary { color: #12538d; }
 .luw-track--controls > summary    { color: #b45309; }
 .luw-track--hitl > summary        { color: #d20e0f; }
-.luw-track--attacks > summary     { color: #b91c1c; }
+.luw-track--attacks > summary     { color: #d20e0f; }
 /* Those hues are tuned for a white card; on the dark card they measured 2.3 to 3.1:1.
    Same hues, lighter stops. No --th-* token carries these hues. */
 :root[data-theme="dark"] .luw-card__expected-label,
 :root[data-theme="dark"] .luw-track--security > summary,
-:root[data-theme="dark"] .luw-track--security .luw-track__count { color: #5eead4; }
+:root[data-theme="dark"] .luw-track--security .luw-track__count { color: #12538d; }
 :root[data-theme="dark"] .luw-track--security { background: var(--th-bg-inset); }
 :root[data-theme="dark"] .luw-track--security > summary:hover { background: var(--th-bg-hover); }
 :root[data-theme="dark"] .luw-track--foundations > summary { color: #93c5fd; }
@@ -483,7 +483,7 @@ body.luw-resizing * { cursor: col-resize !important; user-select: none; }
   top: 0;
   z-index: 1;
   padding: 8px 12px;
-  border-bottom: 2px solid #14b8a6;
+  border-bottom: 2px solid #12538d;
   font-size: 1.05rem;
   font-weight: 900;
   letter-spacing: 0.03em;

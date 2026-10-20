@@ -13,14 +13,30 @@ const {
 const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
 const { resolvePingOneIdentifier } = require('../services/pingOneUserLookupService');
 const { hostedAccessCheck, sendAccessRestricted } = require('../middleware/hostedAccessGate');
+const { makePiFlowHandlers } = require('../services/piFlowDriver');
+const configStore = require('../services/configStore');
+
+// pi.flow needs the PingOne front-door app; under another provider the redirect stays the only way in.
+const piFlowAvailable = () => configStore.getOAuthProvider?.() !== 'pingfederate';
 
 const router = express.Router();
+
+// Redirect-free front-door sign-in (PingOne pi.flow), driven by the SAME shared driver the app login uses.
+// The driver reads/writes req.session; the front door keeps its state in the separate hosted session, so each
+// call runs against a view of the request whose `session` IS the hosted session. The authorization code still
+// lands on the UNCHANGED /callback below, so state, PKCE, nonce and the allowlist decision stay in one place.
+const piFlow = makePiFlowHandlers({ providerConfig: require('../config/hostedAccess'), knownRedirectOrigins: [] });
+const onHostedSession = (req) => Object.create(req, { session: { value: req.hostedSession } });
+// Steps the front door does not drive (MFA device/OTP). Send the SPA to the hosted page instead.
+const UNDRIVEN_STEPS = new Set(['otp', 'device', 'approval', 'passkey']);
 
 function sanitizeReturnPath(raw) {
   if (typeof raw !== 'string') return '/';
   const value = raw.trim();
+  // Optional `?return_to=` only: the wall redirects /api/auth/oauth/user/login?return_to=/page here and the
+  // page must survive the trip. No other query keys, and the origin is prepended, so it cannot go off-site.
   return value.startsWith('/') && !value.startsWith('//') && value.length <= 160
-    && /^[/a-zA-Z0-9._~-]+$/.test(value) ? value : '/';
+    && /^\/[/a-zA-Z0-9._~-]*(\?return_to=[a-zA-Z0-9._~%-]*)?$/.test(value) ? value : '/';
 }
 
 function clearHostedOAuthState(session) {
@@ -29,6 +45,9 @@ function clearHostedOAuthState(session) {
   delete session.hostedOAuthNonce;
   delete session.hostedOAuthRedirectUri;
   delete session.hostedReturnToPath;
+  delete session.oauthState;
+  delete session.oauthRedirectUri;
+  delete session.oauthPiFlow;
 }
 
 function finishFailure(req, reasonCode) {
@@ -71,7 +90,14 @@ router.get('/login', async (req, res) => {
     }
   }
 
-  const authUrl = hostedOAuth.generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce, loginHint });
+  const wantsPiFlow = req.query.pi_flow === '1' && piFlowAvailable();
+  const authUrl = hostedOAuth.generateAuthorizationUrl({ state, codeVerifier, redirectUri, nonce, loginHint, responseMode: wantsPiFlow ? 'pi.flow' : undefined });
+  if (wantsPiFlow) {
+    // finishPiFlow builds the callback URL from these two keys.
+    req.hostedSession.oauthState = state;
+    req.hostedSession.oauthRedirectUri = redirectUri;
+    return piFlow.openPiFlow(onHostedSession(req), res, authUrl, 'pingone');
+  }
   return req.hostedSession.save((err) => {
     if (err) {
       finishFailure(req, 'session_persist_failed');
@@ -79,6 +105,22 @@ router.get('/login', async (req, res) => {
     }
     return res.redirect(authUrl);
   });
+});
+
+// Password step of the front-door pi.flow. Anything but a finished password flow answers {fallback:true}.
+router.post('/pi-flow/credentials', (req, res) => {
+  if (!piFlowAvailable()) return res.status(404).json({ error: 'pi_flow_unavailable' });
+  // res is per-request, so wrapping json here cannot leak; status codes the driver sets pass through untouched.
+  const sendJson = res.json.bind(res);
+  res.json = (payload) => {
+    if (payload && UNDRIVEN_STEPS.has(payload.step)) {
+      delete req.hostedSession.oauthPiFlow;
+      // The driver already saved the flow before answering; persist the removal too.
+      return req.hostedSession.save(() => sendJson({ fallback: true, status: payload.step }));
+    }
+    return sendJson(payload);
+  };
+  return piFlow.handleCredentialsStep(onHostedSession(req), res);
 });
 
 router.get('/callback', async (req, res) => {
@@ -146,6 +188,8 @@ router.get('/identifier-policy', (req, res) => {
   const policy = loadHostedAccessPolicy();
   return res.json({
     rejectPlusAddressing: Boolean(policy.enabled && policy.rejectPlusAddressing),
+    // The SPA only asks for the front-door modal when the wall is on and pi.flow can run.
+    frontDoorPiFlow: Boolean(policy.enabled && piFlowAvailable()),
     allowedIdentifiers: policy.allowedIdentifiers,
   });
 });

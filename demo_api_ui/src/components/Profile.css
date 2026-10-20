@@ -16,7 +16,7 @@
   display: block;
   margin: 0 0 1rem auto;
   padding: 6px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--th-border);
   background: var(--th-bg-card);
   color: var(--th-text);
@@ -308,7 +308,7 @@
 .up-form__field input {
   padding: 0.55rem 0.75rem;
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.95rem;
   color: var(--th-text);
   background: var(--th-bg-card);
@@ -330,7 +330,7 @@
 .up-btn {
   padding: 0.5rem 1.1rem;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -376,7 +376,7 @@
 .up-btn--add {
   width: 100%;
   background: #27ae60;
-  color: #fff;
+  color: #051727;
   padding: 0.6rem 1rem;
   margin-bottom: 0.5rem;
   text-align: center;
@@ -433,7 +433,7 @@
   align-items: center;
   gap: 0.85rem;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0.75rem 1rem;
   background: var(--th-bg-inset);
   color: var(--th-text);
@@ -477,7 +477,7 @@
   width: 220px;
   flex-shrink: 0;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 1rem;
   background: var(--th-bg-inset);
   color: var(--th-text);

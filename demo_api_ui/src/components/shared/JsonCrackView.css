@@ -1,12 +1,12 @@
 .jcv-root {
   position: relative;
   width: 100%;
-  border: 1px solid #e2e8f0;
-  border-radius: 6px;
+  border: 1px solid #e0e2e4;
+  border-radius: var(--radius-md);
   overflow: hidden;
 }
 
 .jcv-empty {
-  color: #94a3b8;
+  color: #909ea4;
   font-style: italic;
 }

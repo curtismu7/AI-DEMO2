@@ -1,10 +1,10 @@
 .actorTokenEducation {
   padding: 24px;
   background: linear-gradient(135deg, var(--th-bg-inset) 0%, var(--brand-light-gray) 100%);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   margin: 20px 0;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.08);
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .actorTokenEducation h2 {
@@ -27,15 +27,15 @@
   color: var(--th-status-info-text);
   margin-top: 12px;
   margin-bottom: 8px;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 600;
 }
 
 .introduction {
   background: var(--th-bg-card);
   padding: 16px;
-  border-left: 4px solid #0066cc;
-  border-radius: 6px;
+  border-left: 4px solid #12538d;
+  border-radius: var(--radius-md);
   margin-bottom: 24px;
 }
 
@@ -57,7 +57,7 @@
 .diagram {
   background: var(--th-bg-card);
   padding: 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin: 16px 0;
   border: 1px solid #e0e6ed;
 }
@@ -65,7 +65,7 @@
 .step {
   background: var(--th-bg-inset);
   padding: 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid #d4dce6;
   margin-bottom: 12px;
 }
@@ -88,7 +88,7 @@
   display: block;
   background: var(--brand-light-gray);
   padding: 12px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: inherit;
   font-size: var(--font-size-2xs);
   color: var(--th-status-info-text);
@@ -108,7 +108,7 @@
   background: var(--th-status-warning-bg);
   padding: 16px;
   border-left: 4px solid #ff9800;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-top: 16px;
   color: var(--th-text);
   line-height: 1.6;
@@ -130,7 +130,7 @@
 .terminology {
   background: var(--th-bg-card);
   padding: 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin: 20px 0;
   border: 1px solid #e0e6ed;
 }
@@ -169,7 +169,7 @@
 .faqSection {
   background: var(--th-bg-card);
   padding: 20px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin: 20px 0;
   border: 1px solid #e0e6ed;
 }
@@ -196,7 +196,7 @@
   cursor: pointer;
   display: flex;
   align-items: flex-start;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   color: var(--th-status-info-text);
   font-weight: 600;
   transition: color 0.2s ease;
@@ -243,7 +243,7 @@
 .liveDemo {
   background: var(--th-status-success-bg);
   padding: 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin: 20px 0;
   border-left: 4px solid #16a34a;
 }
@@ -254,7 +254,7 @@
 }
 
 .liveDemo p {
-  color: var(--th-text) !important; /* beats inline #64748b in the JSX */
+  color: var(--th-text) !important; /* beats inline #5c646b in the JSX */
   line-height: 1.6;
   margin: 8px 0;
 }
@@ -262,9 +262,9 @@
 .relatedResources {
   background: var(--th-status-info-bg);
   padding: 16px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-top: 20px;
-  border-left: 4px solid #0066cc;
+  border-left: 4px solid #12538d;
 }
 
 .relatedResources h3 {

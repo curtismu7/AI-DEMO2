@@ -378,7 +378,7 @@ describe("Header controls after the Actions dropdown removal", () => {
     await openDock();
 
     const inspect = screen.getByRole("region", { name: "Inspect" });
-    for (const name of ["MCP Inspector", "P1AZ Inspector", "Agent Gateway Inspector", "Token Inspector"]) {
+    for (const name of ["MCP Inspector", "P1AZ Inspector", "Agent Gateway Tester", "Token Inspector"]) {
       expect(within(inspect).getByRole("button", { name })).toBeInTheDocument();
     }
   });

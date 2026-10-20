@@ -39,8 +39,8 @@
   text-decoration: none;
 }
 .das-page a.das-tab--active {
-  background: #991b1b;
-  border-color: #991b1b;
+  background: #aa0005;
+  border-color: #aa0005;
   color: #fff;
 }
 
@@ -67,8 +67,8 @@
   cursor: default;
 }
 .das-btn--primary {
-  background: #991b1b;
-  border-color: #991b1b;
+  background: #aa0005;
+  border-color: #aa0005;
   color: #fff;
 }
 .das-btn--live {
@@ -248,25 +248,25 @@
 /* ---- SVG marks ---- */
 .das-title { font-weight: 600; font-size: 54px; fill: currentColor; }
 .das-subtitle { font-weight: 500; font-size: 26px; fill: currentColor; }
-.das-t { font-size: 13px; fill: currentColor; }
-.das-b { font-size: 13px; font-weight: 600; fill: currentColor; }
-.das-s { font-size: 11px; fill: var(--th-text-muted); }
+.das-t { font-size: var(--font-size-sm); fill: currentColor; }
+.das-b { font-size: var(--font-size-sm); font-weight: 600; fill: currentColor; }
+.das-s { font-size: var(--font-size-xs); fill: var(--th-text-muted); }
 .das-i { font-style: italic; }
-.das-fs22 { font-size: 20px; font-weight: 600; }
-.das-fs20 { font-size: 18px; font-weight: 600; }
-.das-fs18 { font-size: 16px; font-weight: 600; }
-.das-fs17 { font-size: 17px; }
-.das-fs14 { font-size: 14px; font-weight: 600; }
-.das-fs13 { font-size: 13px; }
-.das-fs12 { font-size: 12px; }
-.das-fs11 { font-size: 11px; }
+.das-fs22 { font-size: var(--font-size-xl); font-weight: 600; }
+.das-fs20 { font-size: var(--font-size-h3); font-weight: 600; }
+.das-fs18 { font-size: var(--font-size-md); font-weight: 600; }
+.das-fs17 { font-size: var(--font-size-lg); }
+.das-fs14 { font-size: var(--font-size-body); font-weight: 600; }
+.das-fs13 { font-size: var(--font-size-sm); }
+.das-fs12 { font-size: var(--font-size-2xs); }
+.das-fs11 { font-size: var(--font-size-xs); }
 .das-on-red { fill: #fff; }
 .das-red-box { fill: #d20e0f; }
 .das-grey-box { fill: #5b6670; }
 .das-pink-box { fill: #e39a9d; }
 .das-pink-ink { fill: #3a1c1e; }
-.das-deny { fill: var(--th-status-error); font-size: 12px; }
-.das-ok { fill: var(--th-status-success); font-size: 12px; }
+.das-deny { fill: var(--th-status-error); font-size: var(--font-size-2xs); }
+.das-ok { fill: var(--th-status-success); font-size: var(--font-size-2xs); }
 .das-line { stroke: currentColor; stroke-width: 2.2; fill: none; }
 .das-dot {
   stroke: currentColor;
@@ -308,3 +308,5 @@
 .das-ico-ok { stroke: var(--th-status-success); stroke-width: 2; fill: none; }
 .das-dotfill { fill: var(--th-bg-inset); }
 .das-cur { fill: currentColor; }
+
+.das-select { font: inherit; padding: 8px 12px; border-radius: var(--radius-pill); border: 1px solid var(--th-border); background: var(--th-bg-card); color: var(--th-text); min-width: 320px; }

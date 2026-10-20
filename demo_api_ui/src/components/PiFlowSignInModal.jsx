@@ -7,7 +7,7 @@ import {
 import { navigateWithOverlay } from "../utils/navigateWithOverlay";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 import SignInBrand from "./SignInBrand";
-import CibaLoginPanel from "./CibaLoginPanel";
+import CibaApprovalPanel from "./CibaApprovalPanel";
 import { isAicLoginEnabled, isCibaLoginEnabled } from "../utils/aicLogin";
 
 const apiBase = () =>
@@ -19,6 +19,10 @@ const mfaRequested = () => new URLSearchParams(window.location.search).get("sign
 
 const ADMIN_API = "/api/auth/oauth";
 const USER_API = "/api/auth/oauth/user";
+// SE's hosted-access front door (the wall in front of the app login). Same pi.flow, its own endpoints.
+const FRONT_DOOR_API = "/api/auth/hosted-access";
+const ISSUER_API = "/api/id-jag-playground/issuer"; // the ID-JAG playground's pf-pf sign-in at the SE PingFederate
+const FRONT_DOOR_RESUME_KEY = "piFlowFrontDoorResume";
 
 const DEVICE_LABEL = { EMAIL: "Email", SMS: "SMS", FIDO2: "Passkey", TOTP: "Authenticator app" };
 
@@ -59,7 +63,8 @@ function DevicePicker({ devices, selectedDeviceId, disabled, onPick }) {
 /** Plain redirect login — the path every failure here falls back to. An MFA request keeps its MFA (the step-up route). */
 function redirectLogin(returnTo, role, force) {
   let base;
-  if (role === "admin") base = `${ADMIN_API}/login`;
+  if (role === "issuer") base = `${ISSUER_API}/login`;
+  else if (role === "admin") base = `${ADMIN_API}/login`;
   else if (mfaRequested()) base = `${USER_API}/stepup`;
   else base = force ? `${USER_API}/login?force=true` : `${USER_API}/login`;
   const sep = base.includes("?") ? "&" : "?";
@@ -116,36 +121,33 @@ export default function PiFlowSignInModal() {
   const returnToRef = useRef(undefined);
   const roleRef = useRef("customer");
   const forceRef = useRef(false);
+  const keepHintRef = useRef(false); // a forced sign-in that still prefills the remembered username
   const providerRef = useRef("pingone");
+  // Front door: the wall is on and pi.flow can run (identifier-policy says so). `frontDoorRef` = THIS open is the
+  // front-door password step; the app sign-in follows once the hosted /callback has approved the browser.
+  const frontDoorOnRef = useRef(false);
+  const frontDoorRef = useRef(false);
+  const [frontDoor, setFrontDoor] = useState(false);
   const cibaEnabledRef = useRef(false); // ciba_login_enabled; off = no choice screen (pre-CIBA behaviour)
-  // Remember who is signing in as: 800 ms after the last keystroke in a
-  // username field, store the value as the role's login hint so the next
-  // sign-in prefills it. The sign-in callback also stores it; this covers a
-  // value typed then abandoned. Prefill only — never an auth decision.
-  const hintTimerRef = useRef(null);
-  const apiForRoleRef = useRef(() => USER_API);
-  const queueHintWrite = (value) => {
-    clearTimeout(hintTimerRef.current);
-    hintTimerRef.current = setTimeout(() => {
-      const trimmed = String(value || "").trim();
-      if (!trimmed) return;
-      fetch(`${apiBase()}${apiForRoleRef.current()}/login-hint`, {
-        method: "PUT",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ value: trimmed }),
-      }).catch(() => { /* prefill loss is not the user's problem */ });
-    }, 800);
-  };
-  // A pending hint write dies with the modal; without this it fires after
-  // unmount (tests leak it into the next test; prod PUTs a closed modal's key).
-  useEffect(() => () => clearTimeout(hintTimerRef.current), []);
+  // AIC login on: customers sign in at AIC in a popup the modal opens (the page never navigates), then polls.
+  const aicRef = useRef(false);
+  const popupRef = useRef(null);
+  const [externalUrl, setExternalUrl] = useState("");
+  const [aicWaiting, setAicWaiting] = useState(false);
+  // 'ciba' only after the "password + approval link" button; submit() sends it as secondFactor.
+  // Every other path (plain password, passwordless, flag off) leaves it null and sends nothing.
+  const secondFactorRef = useRef(null);
+  const [approvalChannels, setApprovalChannels] = useState([]); // channels the server said this user has
+  // The remembered username (login hint) is stored by the server after a SUCCESSFUL sign-in only.
+  // The modal used to save it as you typed; PingFederate binds the flow to the hint, so a typo
+  // ('demadmin') saved before any sign-in locked the next PF login to it.
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       try {
         const res = await fetch(`${apiBase()}/api/admin/config`, { credentials: "include" });
+        if (!res.ok) throw new Error("config walled");
         const cfg = (await res.json())?.config || {};
         // Both providers the BFF can drive (PingOne, PingFederate); anything else keeps the redirect.
         const provider = cfg.oauth_provider || "pingone";
@@ -155,12 +157,12 @@ export default function PiFlowSignInModal() {
         if (!cancelled) {
           providerRef.current = provider;
           cibaEnabledRef.current = isCibaLoginEnabled(cfg);
-          // AIC login is a redirect to an external IdP — keep the redirect login.
-          setUserDrivable(drivable && userOn && !isAicLoginEnabled(cfg));
+          aicRef.current = isAicLoginEnabled(cfg);
+          setUserDrivable(drivable && userOn);
           setAdminDrivable(drivable && adminOn);
         }
       } catch {
-        /* keep the redirect login */
+        /* config walled (signed out of the wall): the front door answer below decides */
       }
     })();
     // Plus-addressing policy: fetched once per mount, best-effort. The
@@ -176,6 +178,9 @@ export default function PiFlowSignInModal() {
             rejectPlusAddressing: Boolean(body.rejectPlusAddressing),
             allowedIdentifiers: Array.isArray(body.allowedIdentifiers) ? body.allowedIdentifiers : [],
           };
+          frontDoorOnRef.current = body.frontDoorPiFlow === true;
+          // Signed out of the wall the config read is walled, so the front door is what makes this drivable.
+          if (body.frontDoorPiFlow === true) setUserDrivable(true);
         }
       } catch {
         /* unknown policy → no local check; the server wall applies */
@@ -197,13 +202,42 @@ export default function PiFlowSignInModal() {
     return !allowedIdentifiers.some((id) => String(id).trim().toLowerCase() === value);
   };
   const begin = useCallback((detail) => {
-    const target = detail.returnTo;
-    const role = detail.role === "admin" ? "admin" : "customer";
+    const target = detail.returnTo?.split("?")[0]; // BFF rejects query strings; keep the bare path
+    const role = detail.role === "admin" ? "admin" : detail.role === "issuer" ? "issuer" : "customer";
     returnToRef.current = target;
     roleRef.current = role;
     forceRef.current = Boolean(detail.force);
-    apiForRoleRef.current = () => (role === "admin" ? ADMIN_API : USER_API);
-    clearTimeout(hintTimerRef.current);
+    keepHintRef.current = Boolean(detail.keepHint);
+    frontDoorRef.current = false;
+    setFrontDoor(false);
+    if (frontDoorOnRef.current && !detail.resumed && role !== "issuer") {
+      // Signed out of the wall? Run the front door in the modal first. Approved (204) or unreachable: carry on
+      // with the normal app sign-in. 401 = not approved yet.
+      secondFactorRef.current = null;
+      setStep("password");
+      setError("");
+      setUsername("");
+      setPassword("");
+      setBusy(true);
+      setOpen(true);
+      (async () => {
+        let approved = true;
+        try {
+          const r = await fetch(`${apiBase()}${FRONT_DOOR_API}/check`, { credentials: "include" });
+          approved = r.status !== 401;
+        } catch {
+          /* unknown: let the normal sign-in (and the wall) decide */
+        }
+        if (approved) {
+          begin({ ...detail, resumed: true });
+          return;
+        }
+        frontDoorRef.current = true;
+        setFrontDoor(true);
+        openFlow(target, role);
+      })();
+      return;
+    }
     // Customer signs in passwordless-first: the device-only step is the modal's
     // default under the mfa_only policy. Admin is password-first (the admin
     // app's own policy already pairs password with MFA), so it opens on the
@@ -213,12 +247,19 @@ export default function PiFlowSignInModal() {
     // PingFederate customers are device-first too (acr_values=mfa_only → identifier first →
     // PingOne MFA, scripts/pingfederate/enable-pf-passwordless.js). ?signin=mfa on PF keeps the
     // password form: its Multi_Factor flow starts with the password.
-    const passwordFirst = role === "admin" || (providerRef.current === "pingfederate" && mfaRequested());
-    // With ciba_login_enabled on, both roles open on a CHOICE screen (passkey / CIBA
-    // approval link / "use a password") with no flow opened yet. PingFederate
-    // and the ?signin=mfa test hook keep the legacy first step below.
-    const choiceFirst = cibaEnabledRef.current && providerRef.current !== "pingfederate" && !mfaRequested();
-    setStep(choiceFirst ? "choice" : passwordFirst ? "password" : "device");
+    // Admin is device-first too (user decision 2026-10-18); "Use your password instead" stays the
+    // break-glass. If the admin app has no mfa_only policy the open fails and snaps to the password form.
+    // The issuer is the SE PingFederate's own password form, whatever provider the app runs on.
+    const passwordFirst = role === "issuer" || (providerRef.current === "pingfederate" && mfaRequested());
+    secondFactorRef.current = null;
+    // With ciba_login_enabled on, CUSTOMERS (either provider) open on a CHOICE screen
+    // (passwordless / password + approval link / "use a password") with no flow opened yet.
+    // Admin and the ?signin=mfa test hook keep the legacy first step below.
+    const aic = aicRef.current && role === "customer";
+    const choiceFirst = !aic && cibaEnabledRef.current && role === "customer" && !mfaRequested();
+    setExternalUrl("");
+    setAicWaiting(false);
+    setStep(aic ? "aic" : choiceFirst ? "choice" : passwordFirst ? "password" : "device");
     setError("");
     setUsername("");
     setPassword("");
@@ -232,7 +273,7 @@ export default function PiFlowSignInModal() {
     // ?signin=mfa is itself the acr selector (Multi_Factor): sending
     // passwordless=1 alongside would silently win the last-spread and turn
     // the on-demand MFA demo into the device-first policy.
-    openFlow(target, role, { passwordless: !mfaRequested() && !passwordFirst });
+    openFlow(target, role, { passwordless: !aic && !mfaRequested() && !passwordFirst });
   }, []);
 
   // Opens the pi.flow on the BFF. `passwordless` selects the identifier-first
@@ -241,16 +282,30 @@ export default function PiFlowSignInModal() {
   const openFlow = (target, role, { passwordless = false } = {}) => {
     (async () => {
       try {
+        if (frontDoorRef.current) {
+          // Front door: only pi_flow + the page to come back to; no force/mfa/passwordless here.
+          const fd = new URLSearchParams({ pi_flow: "1", return_to: target || "/" });
+          const r = await fetch(`${apiBase()}${FRONT_DOOR_API}/login?${fd}`, { credentials: "include" });
+          if (!r.ok) throw new Error("front door pi.flow unavailable");
+          setBusy(false);
+          return;
+        }
         const qs = new URLSearchParams({ pi_flow: "1" });
         if (target) qs.set("return_to", target);
         if (forceRef.current) qs.set("force", "true");
+        if (keepHintRef.current) qs.set("keep_hint", "1");
         if (mfaRequested()) qs.set("mfa", "1");
         if (passwordless) qs.set("passwordless", "1");
-        const api = role === "admin" ? ADMIN_API : USER_API;
+        const api = role === "admin" ? ADMIN_API : role === "issuer" ? ISSUER_API : USER_API;
         const res = await fetch(`${apiBase()}${api}/login?${qs}`, { credentials: "include" });
         if (!res.ok) throw new Error("pi.flow unavailable");
         // PingFederate locks the flow to a username hint; prefill it like the hosted page does.
         const flow = await res.json().catch(() => ({}));
+        if (aicRef.current && roleRef.current === "customer" && !frontDoorRef.current) {
+          // No link to AIC means the flow is not the AIC one: use the ordinary fallback below.
+          if (typeof flow.externalAuthUrl !== "string") throw new Error("no AIC link");
+          setExternalUrl(flow.externalAuthUrl);
+        }
         if (flow && typeof flow.usernameHint === "string") {
           setUsername(flow.usernameHint);
           setDeviceUsername(flow.usernameHint); // the device step is the first screen
@@ -277,6 +332,14 @@ export default function PiFlowSignInModal() {
   // under the identifier-first policy; the old flow is abandoned (it expires).
   const switchToDevice = () => {
     if (busy) return;
+    // Front door: the device step needs app routes the front door does not have, so send the browser
+    // to the hosted page, which runs device sign-in itself.
+    if (frontDoorRef.current) {
+      setBusy(true);
+      redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
+      return;
+    }
+    secondFactorRef.current = null; // leaving the password+approval path
     // The passkey step reaches this too (from the device-picker path), where the
     // password form was never filled — keep whatever username the user typed.
     if (username) setDeviceUsername(username);
@@ -297,16 +360,80 @@ export default function PiFlowSignInModal() {
     return () => window.removeEventListener(PI_FLOW_SIGNIN_EVENT, onSignIn);
   }, [begin, userDrivable, adminDrivable]);
 
-  // Choice screen / CIBA panel -> the existing password step (opens the password-first flow).
-  const usePassword = () => {
+  // AIC: the click opens PingOne's link in a popup (a click is what keeps popup blockers quiet). The popup walks
+  // PingOne -> AIC -> PingOne; meanwhile the BFF reads the flow back and answers redirectTo when it can finish.
+  const openAicPopup = () => {
+    if (!externalUrl || aicWaiting) return;
+    popupRef.current = window.open(externalUrl, "aic-signin", "popup,width=520,height=720");
+    setError("");
+    setAicWaiting(true);
+  };
+  useEffect(() => {
+    if (step !== "aic" || !aicWaiting) return undefined;
+    let stopped = false;
+    const startedAt = Date.now();
+    let closedAt = 0;
+    const stop = (message) => { stopped = true; setAicWaiting(false); setError(message); };
+    const tick = async () => {
+      if (stopped) return;
+      // The window was closed without finishing: allow a few seconds for a last answer, then say so.
+      if (popupRef.current?.closed) closedAt = closedAt || Date.now();
+      if (Date.now() - startedAt > 5 * 60 * 1000) return stop("AIC sign-in timed out. Try again.");
+      try {
+        const res = await fetch(`${apiBase()}${apiForRole()}/pi-flow/external`, { credentials: "include" });
+        const body = await res.json().catch(() => ({}));
+        if (stopped) return;
+        if (res.ok && body.redirectTo) {
+          stopped = true;
+          popupRef.current?.close?.();
+          navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
+          return;
+        }
+        if (res.status === 409 || res.status === 410) return stop("This sign-in expired. Try again.");
+        if (res.ok && !body.waiting) return stop("AIC sign-in needs another step this window cannot show. Try again.");
+      } catch {
+        /* a failed poll is retried on the next tick */
+      }
+      if (closedAt && Date.now() - closedAt > 6000) stop("The AIC window was closed before sign-in finished.");
+    };
+    const timer = setInterval(tick, 1500);
+    return () => { stopped = true; clearInterval(timer); };
+  }, [step, aicWaiting]);
+
+  // Back from the front door's hosted /callback: continue with the app sign-in the user asked for.
+  const resumedRef = useRef(false);
+  useEffect(() => {
+    if (resumedRef.current || (!userDrivable && !adminDrivable)) return; // wait for the config, once
+    resumedRef.current = true;
+    let saved = null;
+    try {
+      saved = JSON.parse(sessionStorage.getItem(FRONT_DOOR_RESUME_KEY) || "null");
+      sessionStorage.removeItem(FRONT_DOOR_RESUME_KEY);
+    } catch { /* no storage or corrupt: nothing to resume */ }
+    // Only a fresh hand-off (set seconds ago, right before the hosted /callback) may reopen the modal.
+    if (!saved || Date.now() - Number(saved.at) > 5 * 60 * 1000) return;
+    if (saved.role === "admin" ? adminDrivable : userDrivable) begin({ ...saved, resumed: true });
+  }, [begin, userDrivable, adminDrivable]);
+
+  // Choice screen -> the existing password step (opens the password-first flow).
+  // `secondFactor` is 'ciba' only from the "password + approval link" button.
+  const openPasswordStep = (secondFactor) => {
     if (busy) return;
+    secondFactorRef.current = secondFactor;
     setError("");
     setBusy(true);
     setStep("password");
     openFlow(returnToRef.current, roleRef.current);
   };
+  const usePassword = () => openPasswordStep(null);
+  const usePasswordWithApproval = () => openPasswordStep("ciba");
+  // Approval cancelled/failed: a fresh begin() back to the choice screen. The server drops the parked
+  // (password-verified) flow when the next pi.flow login opens (openPiFlow; tests/piFlowSecondFactor.test.js
+  // 'starting a new pi.flow login discards a parked flow'), i.e. on the next button click, not at begin().
+  const restartSignIn = () =>
+    begin({ returnTo: returnToRef.current, role: roleRef.current, force: forceRef.current });
 
-  const apiForRole = () => (roleRef.current === "admin" ? ADMIN_API : USER_API);
+  const apiForRole = () => (frontDoorRef.current ? FRONT_DOOR_API : roleRef.current === "admin" ? ADMIN_API : roleRef.current === "issuer" ? ISSUER_API : USER_API);
 
   const submit = async (e) => {
     e.preventDefault();
@@ -322,9 +449,25 @@ export default function PiFlowSignInModal() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ username, password }),
+        body: JSON.stringify(secondFactorRef.current ? { username, password, secondFactor: secondFactorRef.current } : { username, password }),
       });
       const body = await res.json().catch(() => ({}));
+      if (res.status === 502 && body.error === "approval_unavailable") {
+        // Password was fine but the approval link can't be sent: stay on the form as a plain password login.
+        // The server already saw this flow COMPLETE, so it is dead: reopen a fresh password-first one.
+        secondFactorRef.current = null;
+        setPassword("");
+        setError("Approval link isn't available right now. Sign in with your password instead, or try again.");
+        openFlow(returnToRef.current, roleRef.current); // stays busy until the new flow is open; failure falls back as usual
+        return;
+      }
+      if (res.ok && body.step === "approval" && Array.isArray(body.channels)) {
+        setPassword("");
+        setApprovalChannels(body.channels);
+        setStep("approval");
+        setBusy(false);
+        return;
+      }
       if (res.status === 401) {
         setPassword("");
         setError(body.message || "Username or password is incorrect.");
@@ -332,7 +475,18 @@ export default function PiFlowSignInModal() {
         return;
       }
       if (res.ok && body.redirectTo) {
-        navigateWithOverlay(body.redirectTo, { message: "Signing in...", assign: true });
+        // Approval was requested but could not apply: signed in on the password alone — say so.
+        const skipped = body.secondFactorSkipped && secondFactorRef.current === "ciba";
+        if (frontDoorRef.current) {
+          // The hosted /callback approves this browser and returns here; pick the app sign-in up from there.
+          try {
+            sessionStorage.setItem(FRONT_DOOR_RESUME_KEY, JSON.stringify({ returnTo: returnToRef.current, role: roleRef.current, force: forceRef.current, at: Date.now() }));
+          } catch { /* storage blocked: the user just clicks sign in again */ }
+        }
+        navigateWithOverlay(body.redirectTo, {
+          message: skipped ? "Signed in with your password only: no approval link is available for this account." : "Signing in...",
+          assign: true,
+        });
         return;
       }
       if (res.ok && body.step === "passkey") {
@@ -582,9 +736,8 @@ export default function PiFlowSignInModal() {
                   // Other methods in the modal: the device step re-opens the flow
                   // passwordless (switchToDevice reuses the typed username). The
                   // step-up MFA request keeps its redirect — a passwordless reopen
-                  // would overwrite the Multi_Factor acr selector — and admin is
-                  // password-first, so its policy would 409 the passwordless open.
-                  if (roleRef.current === 'admin' || mfaRequested()) {
+                  // would overwrite the Multi_Factor acr selector.
+                  if (mfaRequested()) {
                     redirectLogin(returnToRef.current, roleRef.current, forceRef.current);
                     return;
                   }
@@ -602,7 +755,7 @@ export default function PiFlowSignInModal() {
                 {busy ? "Waiting for passkey" : "Verify with passkey"}
               </button>
             </>
-          ) : step === "choice" || step === "ciba" ? null : (
+          ) : step === "choice" || step === "approval" || step === "aic" ? null : (
             <>
               <button
                 type="submit"
@@ -648,23 +801,43 @@ export default function PiFlowSignInModal() {
       <div className="dm-scroll">
         <SignInBrand welcome={welcome} />
         {step === "choice" ? (
-          <div className="pi-flow-signin__form">
-            <button type="button" className="signin-prompt__btn" data-default-button disabled={busy} onClick={switchToDevice}>
-              Sign in with passkey
+          <div className="pi-flow-signin__form pi-flow-signin__form--choice">
+            {/* Copy call: PingFederate has no passkey step, so the label covers both providers. */}
+            <button type="button" className="signin-prompt__btn" data-default-button disabled={busy} aria-describedby="pi-flow-passwordless-hint" onClick={switchToDevice}>
+              Sign in without a password
             </button>
-            <button type="button" className="signin-prompt__btn" disabled={busy} onClick={() => { setError(""); setStep("ciba"); }}>
-              Sign in with CIBA (email or SMS)
+            <p id="pi-flow-passwordless-hint" className="signin-modal__text ciba-login__hint">passkey or a one-time code</p>
+            <button type="button" className="signin-prompt__btn" disabled={busy} onClick={usePasswordWithApproval}>
+              Sign in with password + approval link (email or text)
             </button>
             <button type="button" className="signin-prompt__btn signin-prompt__btn--ghost" disabled={busy} onClick={usePassword}>
               Use a password instead
             </button>
           </div>
-        ) : step === "ciba" ? (
-          <CibaLoginPanel
-            role={roleRef.current}
-            onSignedIn={(to) => navigateWithOverlay(to, { message: "Signing in...", assign: true })}
-            onUsePassword={usePassword}
-            onBack={() => setStep("choice")}
+        ) : step === "aic" ? (
+          <div className="pi-flow-signin__form" data-testid="pi-flow-aic">
+            <p className="signin-modal__text">
+              Sign in with AIC. A small window opens for AIC's sign-in; this page stays where it is.
+            </p>
+            {error ? (
+              <p className="signin-modal__text" role="alert">
+                ❌ {error}
+              </p>
+            ) : null}
+            <button type="button" className="signin-prompt__btn" disabled={busy || !externalUrl || aicWaiting} onClick={openAicPopup}>
+              {aicWaiting ? "Waiting for AIC…" : error ? "Try AIC again" : "Continue with AIC"}
+            </button>
+            {aicWaiting && !popupRef.current ? (
+              <p className="signin-modal__text">
+                The window was blocked. <a href={externalUrl} target="_blank" rel="noopener noreferrer">Open AIC sign-in</a> in a new tab; this page finishes by itself.
+              </p>
+            ) : null}
+          </div>
+        ) : step === "approval" ? (
+          <CibaApprovalPanel
+            channels={approvalChannels}
+            onApproved={(to) => navigateWithOverlay(to, { message: "Signing in...", assign: true })}
+            onCancel={restartSignIn}
           />
         ) : step === "passkey" ? (
           <div className="pi-flow-signin__form">
@@ -731,7 +904,7 @@ export default function PiFlowSignInModal() {
                   autoComplete="username"
                   autoFocus
                   value={deviceUsername}
-                  onChange={(e) => { setDeviceUsername(e.target.value); queueHintWrite(e.target.value); }}
+                  onChange={(e) => setDeviceUsername(e.target.value)}
                 />
                 {error ? (
                   <p className="signin-modal__text" role="alert">
@@ -743,6 +916,9 @@ export default function PiFlowSignInModal() {
           </div>
         ) : (
         <form id="pi-flow-signin-form" className="pi-flow-signin__form" onSubmit={submit}>
+          {frontDoor ? (
+            <p className="signin-modal__text">First, confirm you can access this demo. You will sign in to the app right after.</p>
+          ) : null}
           <label className="pi-flow-signin__label" htmlFor="pi-flow-username">
             Username
           </label>
@@ -753,7 +929,7 @@ export default function PiFlowSignInModal() {
             autoComplete="username"
             autoFocus
             value={username}
-            onChange={(e) => { setUsername(e.target.value); queueHintWrite(e.target.value); }}
+            onChange={(e) => setUsername(e.target.value)}
           />
           <label className="pi-flow-signin__label" htmlFor="pi-flow-password">
             Password

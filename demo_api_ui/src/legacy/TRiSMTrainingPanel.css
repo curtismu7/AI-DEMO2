@@ -26,7 +26,7 @@
   width: 680px;
   max-width: 95vw;
   max-height: 90vh;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.3);
   display: flex;
   flex-direction: column;
@@ -48,7 +48,7 @@
 /* Header */
 .trism-panel-header {
   padding: 20px 24px;
-  border-bottom: 1px solid #e5e7eb;
+  border-bottom: 1px solid #e0e2e4;
   display: flex;
   align-items: flex-start;
   justify-content: space-between;
@@ -77,10 +77,10 @@
 
 .trism-glossary-toggle {
   padding: 6px 14px;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
-  background: #f9fafb;
-  color: var(--th-text);
+  border: 1px solid #e0e2e4;
+  border-radius: var(--radius-md);
+  background: #f7f8f8;
+  color: #051727;
   font-size: var(--font-size-sm);
   font-weight: 600;
   cursor: pointer;
@@ -92,19 +92,19 @@
 }
 
 .trism-glossary-toggle.active {
-  background: #eff6ff;
-  border-color: #1e40af;
-  color: #1e40af;
+  background: #fcfcfc;
+  border-color: #051727;
+  color: #051727;
 }
 
 .trism-panel-close {
   width: 32px;
   height: 32px;
   border: none;
-  background: #f3f4f6;
-  border-radius: 6px;
+  background: #eff0f1;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-xl);
-  color: var(--th-text);
+  color: #051727;
   cursor: pointer;
   display: flex;
   align-items: center;
@@ -113,8 +113,8 @@
 }
 
 .trism-panel-close:hover {
-  background: #e5e7eb;
-  color: var(--th-text);
+  background: #e0e2e4;
+  color: #051727;
 }
 
 /* Content */
@@ -127,19 +127,19 @@
 /* Footer */
 .trism-panel-footer {
   padding: 16px 24px;
-  border-top: 1px solid #e5e7eb;
+  border-top: 1px solid #e0e2e4;
   display: flex;
   align-items: center;
   justify-content: space-between;
   flex-shrink: 0;
-  background: #f9fafb;
+  background: #f7f8f8;
 }
 
 /* Navigation Buttons */
 .trism-nav-btn {
   padding: 8px 20px;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
@@ -153,8 +153,8 @@
 }
 
 .trism-nav-prev {
-  background: #f3f4f6;
-  color: var(--th-text);
+  background: #eff0f1;
+  color: #051727;
 }
 
 .trism-nav-prev:hover:not(:disabled) {
@@ -162,12 +162,12 @@
 }
 
 .trism-nav-next {
-  background: #1e40af;
+  background: #051727;
   color: white;
 }
 
 .trism-nav-next:hover:not(:disabled) {
-  background: #1e3a8a;
+  background: #051727;
 }
 
 /* Dot Navigation */
@@ -181,7 +181,7 @@
   width: 36px;
   height: 36px;
   border-radius: 50%;
-  border: 2px solid #e5e7eb;
+  border: 2px solid #e0e2e4;
   background: #ffffff;
   cursor: pointer;
   font-size: var(--font-size-h3);
@@ -194,18 +194,18 @@
 
 .trism-dot:hover {
   border-color: #93c5fd;
-  background: #eff6ff;
+  background: #fcfcfc;
 }
 
 .trism-dot.active {
-  border-color: #1e40af;
-  background: #eff6ff;
+  border-color: #051727;
+  background: #fcfcfc;
   box-shadow: 0 0 0 2px rgba(30, 64, 175, 0.2);
 }
 
 /* Glossary (inline) */
 .trism-glossary h4 {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   color: var(--th-text);
   margin: 0 0 8px;
 }
@@ -226,7 +226,7 @@
 
 .trism-glossary-entry {
   padding: 12px 0;
-  border-bottom: 1px solid #f3f4f6;
+  border-bottom: 1px solid #eff0f1;
 }
 
 .trism-glossary-entry:last-child {
@@ -235,7 +235,7 @@
 
 .trism-glossary-term {
   font-weight: 700;
-  color: #1e40af;
+  color: #051727;
   font-size: var(--font-size-body);
   margin: 0 0 4px;
 }

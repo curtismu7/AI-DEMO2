@@ -159,7 +159,7 @@ const SINGLE_RECORD_PRODUCERS = {
  * unwrap the envelope. Falls through unchanged for shapes that are already
  * the bare payload (e.g. non-envelope responses, or test mocks that skip it).
  */
-function unwrapMcpResult(result) {
+export function unwrapMcpResult(result) {
   const decoded = decodeMcpTextContent(result);
   if (decoded && typeof decoded === 'object' && Array.isArray(decoded.content)) {
     const textPart = decoded.content.find((p) => p && p.type === 'text');
@@ -169,7 +169,7 @@ function unwrapMcpResult(result) {
 }
 
 /** {family, label, value} for every id-bearing item found in a tool result. */
-function extractCapturedValues(toolName, result) {
+export function extractCapturedValues(toolName, result) {
   if (!result || typeof result !== 'object') return [];
   const out = [];
   const producers = SINGLE_RECORD_PRODUCERS[toolName];

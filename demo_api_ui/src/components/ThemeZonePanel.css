@@ -13,7 +13,7 @@
 }
 
 .tzp-group-label {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.07em;
@@ -59,7 +59,7 @@
 }
 
 .tzp-swatch:focus-visible {
-  outline: 2px solid #2767d2;
+  outline: 2px solid #12538d;
   outline-offset: 2px;
 }
 

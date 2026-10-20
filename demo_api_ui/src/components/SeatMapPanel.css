@@ -39,15 +39,15 @@
    slugified: "Economy" -> economy, "Economy Plus" -> economy-plus,
    "United First" -> united-first, "United Polaris" -> united-polaris. */
 .smp-seat--economy { background: var(--th-bg-inset, #eef0f8); border: 1px solid var(--th-border, #e0e3ee); }
-.smp-seat--economy-plus { background: #e0f2fe; border: 1px solid #0284c7; }
+.smp-seat--economy-plus { background: #e0e2e4; border: 1px solid #0284c7; }
 .smp-seat--united-first { background: #fde68a; border: 1px solid #7c4a03; }
 .smp-seat--united-polaris { background: #fecaca; border: 1px solid #aa0005; }
-.smp-seat--selected { background: #1d4ed8 !important; border-color: #1d4ed8 !important; box-shadow: 0 0 0 2px #e8edfd; }
+.smp-seat--selected { background: #12538d !important; border-color: #12538d !important; box-shadow: 0 0 0 2px #e8edfd; }
 .smp-seat:disabled { background: var(--th-border, #e0e3ee) !important; border-color: var(--th-border, #e0e3ee) !important; opacity: 0.5; cursor: default; }
 .smp-legend {
   display: flex; flex-wrap: wrap; gap: 6px 12px; justify-content: center;
   margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--th-border, #e0e3ee);
-  font-size: 10px; color: var(--th-text-muted, #5b6178);
+  font-size: var(--font-size-3xs); color: var(--th-text-muted, #5b6178);
 }
 .smp-sw { display: inline-block; width: 9px; height: 9px; border-radius: 3px; margin-right: 4px; vertical-align: -1px; }
 .smp-summary { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--th-border, #e0e3ee); font-size: 12.5px; }

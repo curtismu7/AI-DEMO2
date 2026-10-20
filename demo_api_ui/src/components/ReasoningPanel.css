@@ -5,7 +5,7 @@
   margin: 6px 8px 8px;
   padding: 8px 10px;
   border: 1px solid var(--ba-border, var(--th-border));
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--ba-surface, var(--th-bg-inset));
   font-size: var(--font-size-2xs);
   color: var(--ba-text, var(--th-text));
@@ -23,7 +23,7 @@
   padding: 2px 8px;
   border-radius: 10px;
   color: #ffffff;
-  background: var(--ba-accent, #0b6e99);
+  background: var(--ba-accent, #12538d);
 }
 
 .reasoning-phase--tool_selection { background: #d20e0f; }
@@ -53,7 +53,7 @@
 
 .reasoning-tool-name {
   font-weight: 600;
-  color: var(--ba-accent, #0b6e99);
+  color: var(--ba-accent, #12538d);
 }
 
 .reasoning-tool-confidence {
@@ -85,7 +85,7 @@
 
 .reasoning-context-fill {
   height: 100%;
-  background: var(--ba-accent, #0b6e99);
+  background: var(--ba-accent, #12538d);
   transition: width 200ms ease;
 }
 

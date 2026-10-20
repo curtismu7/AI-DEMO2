@@ -1,60 +1,17 @@
 // ExternalDoorDiagramPage.jsx — two diagrams for the external-door MCP flow
-// (docs/EXTERNAL_DOOR_MCP_FLOW.md): an architecture graph on React Flow
-// (StaticFlowDiagram) and a dual-credential-path sequence diagram (Mermaid,
-// a true sequence shape) with notes.
+// (docs/EXTERNAL_DOOR_MCP_FLOW.md): the topology and the dual-credential-path sequence, both drawn in the Ping style by
+// EmbeddedFlowDiagram (pingStyle), with notes. Data: config/externalDoorDiagrams.js and externalDoorStandards.js.
+// The Mermaid source below is kept for "Download .mmd" / "Upload .mmd": an uploaded .mmd is drawn by FlowDiagram
+// until "Back to the Ping-style diagram".
 import React, { useState } from "react";
 import DiagramExportBar from "./DiagramExportBar";
-import StaticFlowDiagram from "./StaticFlowDiagram";
+import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
 import FlowDiagram from "./FlowDiagram";
+import { EXT_DOOR_TOPO_DIAGRAM, EXT_DOOR_SEQ_DIAGRAM } from "../config/externalDoorDiagrams";
 import "./PrivilegeMcpDiagramPage.css";
 import "./McpGatewayOauthFlowPage.css";
-
-export const EXT_DOOR_GROUPS = {
-  client: { label: "External client — never talked to this system before", bg: "#1e40af" },
-  ingress: { label: "Ingress — cmuir-mcp.ping-devops.com", bg: "#b45309" },
-  k8s: { label: "K8s cluster (SE)", bg: "#047857" },
-  pingone: { label: "PingOne (cloud) — tenant 01d89b06", bg: "#9d174d" },
-  bff: { label: "demo_api_server — Banking API (BFF)", bg: "#475569" },
-};
-
-export const EXT_DOOR_NODES = [
-  { id: "ext", group: "client", label: "LM Studio / MCP Inspector / Claude Desktop", x: 0, y: 40 },
-  { id: "ing", group: "ingress", label: "mcp-public-door-ingress", sub: ["2 routing rules, split by path"], x: 300, y: 40 },
-  {
-    id: "gw", group: "k8s", label: "ping-gateway :8080",
-    sub: ["PingOne Agent Gateway / ForgeRock IG", "enforces /mcp only", "OAuth AS paths pass through unfiltered"],
-    x: 600, y: 40,
-  },
-  {
-    id: "mcp", group: "k8s", label: "mcp-server :8080 (oauth-mcp) — dual role",
-    sub: ["MCP tool server AND", "embedded OAuth 2.1 AS", "(DCR, /authorize, /token, /jwks, /introspect)"],
-    x: 900, y: 40,
-  },
-  { id: "as", group: "pingone", label: "auth.pingone.com/{envId}/as", sub: ["real IdP — actual login"], x: 600, y: 300 },
-  { id: "p1az", group: "pingone", label: "PingOne Authorize", sub: ["decision endpoint", "PERMIT / DENY per MCP call"], x: 900, y: 300 },
-  { id: "api", group: "bff", label: "Same REST API browser sessions use", sub: ["reached here over Bearer", "aud = enduser.ping.demo"], x: 1200, y: 40 },
-];
-
-export const EXT_DOOR_EDGES = [
-  ["ext", "ing", "well-known discovery, DCR, OAuth (everything except oauth-protected-resource)"],
-  ["ing", "mcp", ".well-known/oauth-protected-resource — direct, bypasses gateway", { dashed: true }],
-  ["ing", "gw", "everything else: /register /authorize /token /jwks /mcp …"],
-  ["gw", "mcp", "^/mcp only: introspect → P1AZ decision → tools-filter → reverse proxy"],
-  ["gw", "mcp", "OAuth AS endpoints: passthrough, unfiltered, NOT P1AZ-gated", { dashed: true }],
-  ["gw", "p1az", "P1AZ decision per MCP request", { dashed: true }],
-  ["mcp", "as", "federated OAuth: own /authorize redirects here, own /token exchanges PingOne's code", { dashed: true }],
-  ["mcp", "api", "Bearer: real federated PingOne token or self-issued JWT (fallback)"],
-];
-
-const EXT_DOOR_DETAILS = {
-  ext: "A self-registering external client — DCR creates its client credentials on first contact.",
-  ing: "The public door. Two routing rules: the well-known resource metadata goes straight to mcp-server; everything else goes through ping-gateway.",
-  gw: "PingOne Agent Gateway / ForgeRock IG. Enforces ^/mcp only — introspection, P1AZ decision, tool filtering — and passes OAuth AS endpoints through unfiltered (a client can't hold a token yet at DCR/authorize time).",
-  mcp: "One process, two hats: MCP tool server AND its own embedded OAuth 2.1 Authorization Server with federated PingOne login.",
-  as: "The real IdP. oauth-mcp's federated OAuth completes actual logins here.",
-  p1az: "PERMIT/DENY per MCP call, attributed to the real PingOne sub (or client_id when no user federated).",
-  api: "The Banking API the browser uses — reached externally over Bearer with aud = enduser.ping.demo.",
-};
+import "./ExternalDoorDiagramPage.css";
+import PageHeader from './common/PageHeader';
 
 const SEQUENCE_SOURCE = `sequenceDiagram
     autonumber
@@ -70,7 +27,7 @@ const SEQUENCE_SOURCE = `sequenceDiagram
     Note over P1: real PingOne login —<br/>username/password
     P1-->>OM: GET /authorize/callback<br/>?code&state=relayState
     OM->>P1: POST /token (PingOne code + verifier)
-    P1-->>OM: real PingOne access_token<br/>(verified via JWKS)
+    P1-->>OM: real PingOne tokens<br/>(ID token verified via JWKS)
     OM->>OM: mint self-signed JWT (jti)<br/>stash real PingOne token keyed by jti
     OM-->>Client: self-signed JWT<br/>(Bearer for every MCP call)
     Client->>OM: POST /mcp tools/call<br/>(Bearer self-signed JWT)
@@ -103,7 +60,7 @@ const NOTES = [
     title: "authorization_code — real user federated",
     items: [
       { text: "The client's PKCE and oauth-mcp's own PKCE against PingOne are two entirely separate pairs — the client never sees the PingOne hop." },
-      { text: "PingOne's real access token is verified against PingOne's JWKS and stashed server-side, keyed by the minted JWT's jti — never handed to the client." },
+      { text: "PingOne's ID token (the access token only if no ID token comes back) is verified against PingOne's JWKS, and the real access token is stashed server-side, keyed by the minted JWT's jti — never handed to the client." },
       { text: "TokenResolver finds the stash and forwards the real PingOne token to the Banking API — this is source: 'agent-federated-passthrough'." },
       { text: "P1AZ's UserId parameter is the real PingOne sub — the demo can attribute every tool call to an actual person." },
     ],
@@ -127,48 +84,30 @@ const NOTES = [
 ];
 
 export default function ExternalDoorDiagramPage() {
-  const [selectedNode, setSelectedNode] = useState(null);
-  const [seqSource, setSeqSource] = useState(SEQUENCE_SOURCE);
-
-  const nodeDetail = selectedNode
-    ? EXT_DOOR_DETAILS[selectedNode.id] ||
-      `${selectedNode.data.label} — participant in the external-door flow.`
-    : null;
+  // Uploaded Mermaid for the sequence figure; null = the Ping-style diagram.
+  const [uploadedSeq, setUploadedSeq] = useState(null);
 
   return (
     <>
-      <div className="pmd-page">
-        <div className="pmd-hero">
-          <span className="pmd-eyebrow">External Door</span>
-          <h1>External Door MCP Flow — Architecture</h1>
-          <p className="pmd-sub">
-            Network topology for the public MCP door: how a self-registering external
+      <div className="pmd-page pmd-page--ping">
+        <PageHeader className="pmd-hero" eyebrow="External Door" title="External Door MCP Flow — Architecture" summary={<>Network topology for the public MCP door: how a self-registering external
             client (LM Studio, MCP Inspector, Claude Desktop) reaches oauth-mcp — a
             single process wearing two hats, MCP tool server and its own embedded
             OAuth 2.1 Authorization Server — through ping-gateway's per-request P1AZ
             enforcement, out to the real PingOne login, and on to the Banking API.
-            Click any node for its role.
-          </p>
-        </div>
+            Click any box for its role, the request on the wire, the mock tokens and the standards.</>} />
 
         <div className="pmd-panel">
-          <StaticFlowDiagram
-            NODES={EXT_DOOR_NODES}
-            EDGES={EXT_DOOR_EDGES}
-            GROUPS={EXT_DOOR_GROUPS}
-            details={EXT_DOOR_DETAILS}
-            onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
+          <EmbeddedFlowDiagram
+            config={EXT_DOOR_TOPO_DIAGRAM}
+            title="Topology: who answers which path"
+            lede="Follow the numbered arrows. The ingress splits the paths: the resource metadata goes straight to oauth-mcp, everything else passes ping-gateway, which enforces /mcp only. Click a box or a card for the request on the wire, the mock tokens and the standards behind each step."
+            ariaLabel="External door topology"
+            diagramLabel="External door topology diagram"
             testId="ext-door-flow-diagram"
-            height={560}
+            pingStyle
           />
         </div>
-
-        {nodeDetail && (
-          <div className="pmd-node-detail" role="status">
-            <strong>{selectedNode.data.label}</strong>
-            <p>{nodeDetail}</p>
-          </div>
-        )}
 
         <p className="pmd-footer">
           Source:{" "}
@@ -181,27 +120,38 @@ export default function ExternalDoorDiagramPage() {
         </p>
       </div>
 
-      <div className="mgof-page">
-        <div className="mgof-hero">
-          <span className="mgof-eyebrow">oauth-mcp — TokenResolver</span>
-          <h1>External Door: Federated Token vs Self-Issued JWT</h1>
-          <p className="mgof-sub">
-            Two credential paths to the same Banking API call, decided by how the
-            external client obtained its bearer. The left flow completed a real
+      <div className="mgof-page mgof-page--ping">
+        <PageHeader className="mgof-hero" eyebrow="oauth-mcp — TokenResolver" title="External Door: Federated Token vs Self-Issued JWT" summary={<>Two credential paths to the same Banking API call, decided by how the
+            external client obtained its bearer. The top flow completed a real
             PingOne login through oauth-mcp's federated authorization_code grant.
-            The right flow authenticated with client_credentials — no user ever
-            signed in, so there is no PingOne token to hand downstream.
-          </p>
-        </div>
+            The bottom flow authenticated with client_credentials — no user ever
+            signed in, so there is no PingOne token to hand downstream.</>} />
 
         <DiagramExportBar
-          source={seqSource}
+          source={uploadedSeq ?? SEQUENCE_SOURCE}
           sourceFilename="external-door-dual-path.mmd"
-          onSourceChange={setSeqSource}
+          onSourceChange={setUploadedSeq}
         />
 
         <div className="mgof-panel">
-          <FlowDiagram source={seqSource} label="External door dual credential path sequence diagram" />
+          {uploadedSeq != null ? (
+            <>
+              <button type="button" className="pmd-tab" onClick={() => setUploadedSeq(null)}>
+                Back to the Ping-style diagram
+              </button>
+              <FlowDiagram source={uploadedSeq} label="External door dual credential path sequence diagram" />
+            </>
+          ) : (
+            <EmbeddedFlowDiagram
+              config={EXT_DOOR_SEQ_DIAGRAM}
+              title="Two credential paths, one tools/call"
+              lede="The authorization_code path (arrows 1 to 8) and the client_credentials path (arrows 9 to 13) end in the same Banking API call. A request and its plain reply share one arrow; the orange number is the step. Click a card for the exact request, the mock tokens and the standards."
+              ariaLabel="External door dual credential path sequence diagram"
+              diagramLabel="External door dual credential path diagram"
+              testId="ext-door-seq"
+              pingStyle
+            />
+          )}
         </div>
 
         <div className="mgof-notes">

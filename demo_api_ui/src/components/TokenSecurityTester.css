@@ -32,7 +32,7 @@
   gap: 8px;
   background: #fffbeb;
   border: 1px solid #fde68a;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 10px 12px;
   margin-bottom: 16px;
   font-size: var(--font-size-2xs);
@@ -60,15 +60,15 @@
 /* About These Scenarios collapsible */
 .tst-about-scenarios {
   margin-top: 12px;
-  border: 1px solid #e2e8f0;
-  border-radius: 4px;
+  border: 1px solid #e0e2e4;
+  border-radius: var(--radius-sm);
   overflow: hidden;
 }
 
 .tst-about-scenarios > summary {
   padding: 8px 12px;
-  background: #f1f5f9;
-  color: var(--th-text);
+  background: #eff0f1;
+  color: #051727;
   font-size: var(--font-size-2xs);
   font-weight: 600;
   cursor: pointer;
@@ -77,15 +77,15 @@
 }
 
 .tst-about-scenarios > summary:hover {
-  background: #e2e8f0;
-  color: #1e293b;
+  background: #e0e2e4;
+  color: #263746;
 }
 
 .tst-about-scenarios__body {
   padding: 12px;
   background: #ffffff;
   font-size: var(--font-size-2xs);
-  color: var(--th-text);
+  color: #051727;
   line-height: 1.6;
 }
 
@@ -103,7 +103,7 @@
 }
 
 .tst-about-scenarios__body strong {
-  color: #1e293b;
+  color: #263746;
 }
 
 /* Result panel in output column */
@@ -124,20 +124,20 @@
   min-width: 110px;
   font-size: var(--font-size-2xs);
   font-weight: 600;
-  color: #64748b;
+  color: #5c646b;
   text-transform: uppercase;
   letter-spacing: 0.3px;
 }
 
 .tst-result-value {
   font-size: var(--font-size-sm);
-  color: #1e293b;
+  color: #263746;
   line-height: 1.4;
 }
 
 .tst-result-value--error {
   background: #fee2e2;
-  color: #dc2626;
+  color: #d20e0f;
   padding: 2px 8px;
   border-radius: 3px;
   font-family: var(--font-mono);
@@ -163,18 +163,18 @@
 .tst-teaching-header {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: #2563eb;
+  color: #12538d;
   margin-bottom: 12px;
   padding-bottom: 8px;
-  border-bottom: 1px solid #e2e8f0;
+  border-bottom: 1px solid #e0e2e4;
 }
 
 .tst-teaching-message {
   font-size: var(--font-size-body);
-  color: #1e293b;
+  color: #263746;
   line-height: 1.7;
-  background: #eff6ff;
-  border-left: 3px solid #2563eb;
+  background: #fcfcfc;
+  border-left: 3px solid #12538d;
   padding: 12px 16px;
   border-radius: 0 4px 4px 0;
 }

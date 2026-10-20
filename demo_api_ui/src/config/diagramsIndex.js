@@ -67,6 +67,7 @@ export const DIAGRAMS_MORE = [
   D("Use-case diagrams", "/use-case-diagrams", "One walkthrough per demo step, deep-linkable by UC id."),
   D("Observability Demo", "/architecture/observability", "Telemetry data flow — emitters, collectors, surfaces — plus the two-part demo walkthrough."),
   D("Push Approval (simulated phone)", "/mfa-test#push-diagram", "Approve-on-your-phone step-up with a simulated phone, next to the real PingOne MFA push it stands in for."),
+  D("Device-First Sign-In", "/mfa-test#signin-diagram", "Username, then an SMS or email code or a passkey, on PingOne and PingFederate, plus the PF admin group check."),
   D("CIBA Approval Link", "/mfa-test#ciba-diagram", "Out-of-band approval by email or SMS link on PingOne, and the PingFederate web-approver path."),
   D("Transaction Consent", "/transaction-consent", "Mock CIBA on a phone, and the real deep-link path (diagram on the simulate page)."),
   D("Group Policy Board", "/group-policy", "One PingOne Authorize decision, and how flipping membership flips it."),

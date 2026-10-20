@@ -428,7 +428,7 @@ export default function TopNav({ user, onLogout }) {
               dock is collapsed. */}
           <OAuthProviderToggle />
           {/* Customer sign-in source (PingOne ⇄ AIC behind PingOne); hidden in PF mode. */}
-          <AicLoginToggle />
+          <AicLoginToggle signedIn={Boolean(user)} />
 
           {/* Theme toggle — always visible (outside the scroll area) so it never
               scrolls off, and available to every page since TopNav is app-wide. */}

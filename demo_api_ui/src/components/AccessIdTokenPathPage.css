@@ -7,11 +7,11 @@
   max-width: 960px;
   margin: 32px auto;
   padding: 24px;
-  font-family: var(--font-sans, system-ui, sans-serif);
+  font-family: var(--font-primary);
 }
 
 .aitp-header {
-  border-left: 6px solid #0d9488;
+  border-left: 6px solid #12538d;
   background: rgba(13, 148, 136, 0.06);
   padding: 16px 20px;
   margin-bottom: 24px;
@@ -20,7 +20,7 @@
 
 .aitp-badge {
   display: inline-block;
-  background: #115e59;
+  background: #12538d;
   color: #fff;
   font-size: var(--font-size-xs);
   font-weight: 700;
@@ -40,8 +40,8 @@
 
 .aitp-body {
   background: #fff;
-  border: 1px solid #e5e7eb;
-  border-radius: 6px;
+  border: 1px solid #e0e2e4;
+  border-radius: var(--radius-md);
   padding: 20px;
 }
 
@@ -66,14 +66,14 @@
 .aitp-claims-col {
   background: #f0fdfa;
   border: 1px solid #ccfbf1;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 16px;
 }
 
 .aitp-claims-title {
   font-size: var(--font-size-body);
   font-weight: 700;
-  color: #0f766e;
+  color: #12538d;
   margin: 0 0 12px 0;
   letter-spacing: 0.03em;
   text-transform: uppercase;
@@ -112,11 +112,11 @@
 }
 
 .aitp-back-btn {
-  background: #1f2937;
+  background: #263746;
   color: #fff;
   border: none;
   padding: 10px 18px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
   font-weight: 600;
   cursor: pointer;
@@ -124,15 +124,15 @@
 }
 
 .aitp-back-btn:hover {
-  background: #111827;
+  background: #051727;
 }
 
 .aitp-error {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #991b1b;
+  color: #aa0005;
   padding: 16px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-bottom: 16px;
   font-size: var(--font-size-body);
   line-height: 1.5;
@@ -147,7 +147,7 @@
 .aitp-learning {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 18px;
   margin-top: 20px;
 }
@@ -170,7 +170,7 @@
 
 .aitp-token-rail {
   border: 1px solid #bbf7d0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: #f9fdf9;
   padding: 12px;
   min-height: 200px;

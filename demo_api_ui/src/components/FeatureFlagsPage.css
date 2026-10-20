@@ -77,7 +77,7 @@
 .ff-saved-toast {
   background: var(--th-status-success-bg);
   border: 1px solid var(--th-status-success-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 14px;
   font-size: 0.85rem;
   color: var(--th-status-success-text);
@@ -190,7 +190,7 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   width: fit-content;
 }
 
@@ -238,7 +238,7 @@
   -webkit-appearance: none;
   padding: 6px 28px 6px 10px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background-color: var(--th-bg-card);
   background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='10' height='6' viewBox='0 0 10 6'%3E%3Cpath d='M1 1l4 4 4-4' stroke='%236b7280' stroke-width='1.5' fill='none' stroke-linecap='round'/%3E%3C/svg%3E");
   background-repeat: no-repeat;
@@ -276,7 +276,7 @@
   color: var(--th-text-body);
   background: var(--brand-light-gray);
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   width: fit-content;
 }
 
@@ -339,7 +339,7 @@
   gap: 4px;
   background: var(--brand-light-gray);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 10px 12px;
 }
 
@@ -362,7 +362,7 @@
   color: var(--th-status-warning-text);
   background: var(--th-status-warning-bg);
   border: 1px solid var(--th-status-warning-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 12px;
   line-height: 1.4;
 }
@@ -445,7 +445,7 @@
   background: var(--brand-light-gray, var(--th-bg-inset));
   color: var(--th-text);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.82em;
 }
 
@@ -479,7 +479,7 @@
   font-family: var(--font-mono);
   font-size: 0.82rem;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .rc-status--set {
@@ -518,7 +518,7 @@
 .rc-field__input {
   padding: 8px 12px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 0.87rem;
   color: var(--th-text);
   background: var(--th-bg-card);
@@ -545,9 +545,9 @@
   background: var(--th-status-info-solid);
   color: var(--th-text-invert);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   font-size: 0.87rem;
-  font-weight: 700;
+  font-weight: var(--btn-weight);
   cursor: pointer;
   transition: background 0.15s, opacity 0.15s;
   flex-shrink: 0;
@@ -596,3 +596,11 @@
   text-decoration: underline;
 }
 
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .ff-error {
+  color: var(--th-status-error-text);
+}
+
+:root[data-theme="dark"] .rc-save-btn:hover:not(:disabled) {
+  color: #051727;
+}

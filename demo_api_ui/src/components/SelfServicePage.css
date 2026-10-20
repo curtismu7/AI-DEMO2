@@ -8,7 +8,7 @@
 /* Page Container */
 .ssp-root {
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(135deg, #667eea 0%, #d20e0f 100%);
   padding: 2rem 1rem;
 }
 
@@ -16,7 +16,7 @@
   max-width: 720px;
   margin: 0 auto;
   background: var(--th-bg-card);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
   overflow: hidden;
 }
@@ -77,10 +77,10 @@
 .ssp-error-banner {
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #dc2626;
+  color: #d20e0f;
   padding: 1rem;
   margin: 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   display: flex;
   align-items: center;
   gap: 0.75rem;
@@ -96,7 +96,7 @@
   border: none;
   font-size: 1.5rem;
   cursor: pointer;
-  color: #dc2626;
+  color: #d20e0f;
   padding: 0;
   width: 24px;
   height: 24px;
@@ -107,7 +107,7 @@
 
 .ssp-error-close:hover {
   background: #fecaca;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* Tabs */
@@ -189,8 +189,8 @@
 
 .ssp-input {
   padding: 0.75rem;
-  border: 2px solid #d1d5db;
-  border-radius: 8px;
+  border: 2px solid #cdd1d4;
+  border-radius: var(--radius-lg);
   font-size: 1rem;
   transition: all 0.2s ease;
   background: var(--th-bg-card);
@@ -200,20 +200,20 @@
 .ssp-input:focus {
   outline: none;
   border-color: var(--brand-navy);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.1);
 }
 
 .ssp-input--error {
-  border-color: #dc2626;
+  border-color: #d20e0f;
 }
 
 .ssp-input--error:focus {
-  border-color: #dc2626;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.1);
+  border-color: #d20e0f;
+  box-shadow: 0 0 0 3px rgba(210, 14, 15, 0.1);
 }
 
 .ssp-error-text {
-  color: #dc2626;
+  color: #d20e0f;
   font-size: 0.875rem;
   margin-top: 0.25rem;
 }
@@ -239,8 +239,8 @@
 
 .ssp-role-card {
   padding: 1.5rem;
-  border: 2px solid #e5e7eb;
-  border-radius: 12px;
+  border: 2px solid #e0e2e4;
+  border-radius: var(--radius-xl);
   cursor: pointer;
   transition: all 0.2s ease;
   text-align: center;
@@ -249,13 +249,13 @@
 
 .ssp-role-card:hover {
   border-color: var(--brand-navy);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.1);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.1);
 }
 
 .ssp-role-card--selected {
   border-color: var(--brand-navy);
   background: var(--th-bg-hover);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.15);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.15);
 }
 
 .ssp-role-icon {
@@ -285,7 +285,7 @@
 .ssp-strength-bar {
   flex: 1;
   height: 4px;
-  background: #e5e7eb;
+  background: #e0e2e4;
   border-radius: 2px;
   overflow: hidden;
 }
@@ -320,7 +320,7 @@
   color: var(--app-primary-btn-text, #fff);
   border: none;
   padding: 1rem 2rem;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   font-size: 1rem;
   font-weight: 600;
   cursor: pointer;
@@ -332,7 +332,7 @@
   background: var(--brand-navy);
   filter: brightness(0.85);
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.3);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.3);
 }
 
 .ssp-submit-btn:disabled {
@@ -356,7 +356,7 @@
 .ssp-credentials {
   background: #f0fdf4;
   border: 1px solid #bbf7d0;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 1.5rem;
   margin-bottom: 1.5rem;
   text-align: left;
@@ -451,7 +451,7 @@
 }
 
 .ssp-status--inactive {
-  color: #dc2626;
+  color: #d20e0f;
   font-weight: 600;
 }
 
@@ -462,7 +462,7 @@
   }
   
   .ssp-container {
-    border-radius: 8px;
+    border-radius: var(--radius-lg);
   }
   
   .ssp-header {

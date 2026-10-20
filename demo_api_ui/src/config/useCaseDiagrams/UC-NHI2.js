@@ -49,11 +49,57 @@ const walk = [
   },
 ];
 
+// Per-step detail (shown for the active beat). Tokens are decoded MOCK values; forms mirror the real routes
+// (POST /api/admin/agent/:agentId/kill-switch, GET /api/control-plane/lifecycle-events, sailpointForwarder).
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /api/admin/agent/{agentId}/kill-switch\nAuthorization: Bearer <operator access token>\nContent-Type: application/json\n\n{ \"reason\": \"manual_red_button\", \"scope\": \"instance\" }",
+      tokens: [{
+        note: "Operator access token · who may flip the switch",
+        header: { alg: "RS256", typ: "at+jwt" },
+        claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "operator-0001", aud: "https://api.ping.demo", scope: "openid profile", exp: 1790000000 },
+      }],
+      refs: [
+        { id: "RFC 9068", title: "JWT Profile for OAuth 2.0 Access Tokens", kind: "rfc" },
+        { id: "RFC 7009", title: "OAuth 2.0 Token Revocation", kind: "rfc" },
+      ],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "agentLifecycleEventStore.append({\n  eventType: \"leaver\",\n  agentId: \"{agentId}\",\n  reason: \"manual_red_button\",\n  actor: { userId, username },\n  auditId: \"aud_01HEXAMPLE\"\n})",
+      refs: [{ id: "RFC 8693", title: "OAuth 2.0 Token Exchange (the delegation chain the audit record preserves)", kind: "rfc" }],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "GET /api/control-plane/lifecycle-events?eventType=leaver&limit=50\nAuthorization: Bearer <operator access token>",
+      refs: [
+        { id: "RFC 7644", title: "SCIM 2.0 Protocol (the provisioning shape IGA tools already speak)", kind: "rfc" },
+        { id: "RFC 8417", title: "Security Event Token (SET): the event-feed pattern", kind: "rfc" },
+      ],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "POST {SAILPOINT_WEBHOOK_URL}\nContent-Type: application/json\nX-Api-Key: <webhook key, if configured>\n\n{ \"source\": \"ai-demo-bff\", \"eventType\": \"agent_lifecycle\",\n  \"event\": { \"eventType\": \"leaver\", \"agentId\": \"{agentId}\", \"auditId\": \"aud_01HEXAMPLE\",\n            \"complianceTags\": [\"TRiSM\", \"AI-Safety\"] } }",
+      refs: [{ id: "RFC 8935", title: "Push-Based SET Delivery over HTTP", kind: "rfc" }],
+    },
+  },
+];
+
 export default {
   id: "UC-NHI2",
   result: { label: "JML_EVENT_FEED", tone: "info" },
+  pingStyle: true, // pilot: opts this page into the Ping look (see UseCaseDiagramPage)
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

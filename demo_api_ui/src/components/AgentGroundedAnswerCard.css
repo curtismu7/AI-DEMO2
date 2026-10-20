@@ -10,7 +10,7 @@
 .ba-grounded-card {
   border: 2px solid var(--brand-success);
   border-left-width: 5px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 14px 16px;
   background: var(--brand-white);
   color: var(--brand-dark-gray);
@@ -85,13 +85,13 @@
 }
 
 .ba-grounded-source-tool {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-weight: 600;
   color: var(--brand-navy);
 }
 
 .ba-grounded-source-scope {
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   color: var(--brand-dark-gray);
 }
 
@@ -106,4 +106,9 @@
   line-height: 1.5;
   color: var(--brand-dark-gray);
   overflow-wrap: anywhere;
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .ba-grounded-source {
+  color: var(--th-status-info-text);
 }

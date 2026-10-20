@@ -35,6 +35,8 @@
     "start": "vite",
     "prebuild": "node --disable-warning=MODULE_TYPELESS_PACKAGE_JSON ../scripts/check-demo-readiness-contract.mjs && node scripts/sync-topology-exports.mjs",
     "build": "vite build",
+    "check:contrast": "node scripts/check-contrast.mjs",
+    "audit:contrast": "node scripts/audit-contrast-runtime.mjs",
     "preview": "vite preview",
     "test": "node scripts/run-vitest-with-memory-guard.mjs --reporter=verbose",
     "test:unit": "node scripts/run-vitest-with-memory-guard.mjs unit",

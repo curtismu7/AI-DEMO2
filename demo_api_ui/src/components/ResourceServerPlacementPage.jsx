@@ -6,12 +6,14 @@ import React, { useState } from "react";
 import StaticFlowDiagram from "./StaticFlowDiagram";
 import DiagramStepBar from "./DiagramStepBar";
 import { edgeCaptions, useDiagramStepper } from "../hooks/useDiagramStepper";
+import { RSP_STEP_DETAILS } from "../config/rspStandards";
 import "./ResourceServerPlacementPage.css";
+import PageHeader from './common/PageHeader';
 
 export const RSP_NODES = [
   { id: "U", group: "upstream", label: "USER + AI AGENT", sub: ["UI :4000 · local.ping-devops.com", "chat / chips"], x: 0, y: 40 },
   { id: "B", group: "upstream", label: "BFF — demo_api_server :3001", sub: ["session ✓ · P1AZ pre-flight gate", "RFC 8693 exchange #1/#2 ⇒ MCP token"], x: 300, y: 40 },
-  { id: "G", group: "upstream", label: "GATEWAY — IG :3036 / MCP-GW :3005", sub: ["✓ token validation (JWKS / introspection)", "P1AZ decision · schema checks · exchange #3"], x: 600, y: 40 },
+  { id: "G", group: "ping", label: "GATEWAY — IG :3036 / MCP-GW :3005", sub: ["✓ token validation (JWKS / introspection)", "P1AZ decision · schema checks · exchange #3"], x: 600, y: 40 },
   { id: "M", group: "upstream", label: "MCP SERVER — oauth-mcp :8080", sub: ["✓ JWKS + last-hop authz (D-05)", "tool scope narrowing · STEP-9 exchange"], x: 900, y: 40 },
   { id: "RS", group: "hot", label: "RESOURCE SERVER — Kong mock", sub: ["/api/accounts · /api/transactions", "validates ONLY the step-9 token", "never re-validates upstream tokens"], x: 900, y: 300 },
   { id: "P", group: "pdp", label: "PingOne Authorize — AAM", sub: ["mock authz :9001 / real sideband"], x: 1200, y: 300 },
@@ -22,7 +24,7 @@ export const RSP_EDGES = [
   ["U", "B", "session cookie"],
   ["B", "G", "MCP token · aud = mcp resource"],
   ["G", "M", "gateway token · aud = mcpserver.ping.demo"],
-  ["M", "RS", "STEP-9 token · aud = banking RS · scopes narrowed · act chain + X-Agent-Sub / X-MCP-Tool", { color: "#e0575c", vertical: true }],
+  ["M", "RS", "STEP-9 token · aud = banking RS · scopes narrowed · act chain + X-Agent-Sub / X-MCP-Tool", { vertical: true }],
   ["RS", "P", "1. /sideband/request — ctx + raw Authorization", { dashed: true }],
   ["P", "RS", "decision — deny = complete direct response", { dashed: true }],
   ["RS", "P", "2. /sideband/response — real body", { dashed: true }],
@@ -31,9 +33,10 @@ export const RSP_EDGES = [
 ];
 
 export const RSP_GROUPS = {
-  upstream: { label: "Agent flow — each hop keeps its own token work", bg: "#2a313c" },
-  hot: { label: "The Kong-mock checkpoint", bg: "#e0575c" },
-  pdp: { label: "P1AZ sideband (AAM)", bg: "#d20e0f" },
+  upstream: { label: "Agent flow — each hop keeps its own token work", bg: "#151a24" },
+  ping: { label: "Ping gateway", bg: "#b5231a" },
+  hot: { label: "The Kong-mock checkpoint", bg: "#5a5f69" },
+  pdp: { label: "P1AZ sideband (AAM)", bg: "#b5231a" },
 };
 
 const RSP_DETAILS = {
@@ -113,14 +116,10 @@ export default function ResourceServerPlacementPage() {
   return (
     <div className="rsp-page">
       <div className="rsp-hero">
-        <span className="rsp-eyebrow">Last hop · Kong pattern · PingOne Authorize AAM</span>
-        <h1>Resource Server Placement</h1>
-        <p className="rsp-sub">
-          Where the Kong-mock checkpoint sits in the agent flow. Every upstream hop keeps its
+        <PageHeader eyebrow="Last hop · Kong pattern · PingOne Authorize AAM" title="Resource Server Placement" summary={<>Where the Kong-mock checkpoint sits in the agent flow. Every upstream hop keeps its
           own token work — the resource server validates exactly one thing: the step-9 token
           addressed to it, and it does that the Kong way, by handing it to PingOne Authorize
-          over the AAM sideband. The store is only reachable on PERMIT. Click any node for its role.
-        </p>
+          over the AAM sideband. The store is only reachable on PERMIT. Click any node for its role.</>} />
       </div>
 
       <div className="rsp-panel">
@@ -133,6 +132,8 @@ export default function ResourceServerPlacementPage() {
           details={RSP_DETAILS}
           onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
           testId="rsp-flow-diagram"
+          pingStyle
+          steps={RSP_STEP_DETAILS}
           height={560}
         />
       </div>

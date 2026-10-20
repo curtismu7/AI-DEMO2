@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link } from "react-router-dom";
 import { parsePageCatalog } from "../utils/parsePageCatalog";
 import catalogMd from "../data/pageCatalog.md?raw";
+import PageHeader from "../components/common/PageHeader";
 import "./DemoSummaryPage.css";
 
 const GROUPS = parsePageCatalog(catalogMd);
@@ -97,16 +98,12 @@ export default function DemoSummaryPage() {
 
   return (
     <div className="dsum-page">
-      <header className="dsum-head">
-        <p className="dsum-eyebrow">DEMO SUMMARY</p>
-        {query ? (
-          <h1>Results for &ldquo;{query}&rdquo;</h1>
-        ) : (
-          <h1>Everything you can demo</h1>
-        )}
-        <p className="dsum-sub">
-          Every demoable page with what it proves, grouped as in the side nav. {total} pages.
-        </p>
+      <PageHeader
+        className="dsum-head"
+        eyebrow="Demo Summary"
+        title={query ? <>Results for &ldquo;{query}&rdquo;</> : "Everything you can demo"}
+        summary={`Every demoable page with what it proves, grouped as in the side nav. ${total} pages.`}
+      >
         <input
           type="search"
           className="dsum-search"
@@ -120,7 +117,7 @@ export default function DemoSummaryPage() {
             Show side menu
           </button>
         ) : null}
-      </header>
+      </PageHeader>
 
       {groups.map((g) => (
         <section key={g.label} className="dsum-group">

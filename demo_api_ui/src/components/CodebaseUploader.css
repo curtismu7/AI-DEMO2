@@ -1,7 +1,7 @@
 .codebase-uploader {
   padding: 20px;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid #e0e2e4;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
 }
 
@@ -33,8 +33,8 @@
 .form-group input[type="text"],
 .form-group input[type="file"] {
   padding: 10px;
-  border: 1px solid #d1d5db;
-  border-radius: 4px;
+  border: 1px solid #cdd1d4;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
   font-family: inherit;
 }
@@ -47,7 +47,7 @@
 }
 
 .form-group input:disabled {
-  background-color: #f3f4f6;
+  background-color: #eff0f1;
   cursor: not-allowed;
 }
 
@@ -61,8 +61,8 @@
   padding: 12px;
   background-color: #fee2e2;
   border: 1px solid #fecaca;
-  border-radius: 4px;
-  color: #991b1b;
+  border-radius: var(--radius-sm);
+  color: #aa0005;
   font-size: var(--font-size-body);
 }
 
@@ -73,7 +73,7 @@
   background-color: #065f46;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-weight: 500;
   cursor: pointer;
   font-size: var(--font-size-body);
@@ -87,7 +87,7 @@
 
 .code-search-page .codebase-uploader button:disabled,
 .codebase-uploader button:disabled {
-  background-color: #d1d5db;
+  background-color: #cdd1d4;
   color: #020617;
   cursor: not-allowed;
 }

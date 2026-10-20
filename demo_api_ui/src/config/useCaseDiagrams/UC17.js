@@ -18,7 +18,7 @@ const EDGES = [
   ["user", "agent", "delegated ask", { detail: "Alice's standing consent; the agent never holds a long-lived secret." }],
   ["agent", "gw", "balance call", { detail: "The agent presents its delegated token — minutes old, by design." }],
   ["gw", "p1", "introspect", { detail: "Signature alone is not enough: the gateway checks the token is still inside its TTL." }],
-  ["p1", "acct", "forward with live token", { detail: "Only a token inside its window reaches the API; a captured-and-expired one dies here." }],
+  ["p1", "acct", "forward with live token", { dashed: true, detail: "Only a token inside its window reaches the API; a captured-and-expired one dies here." }],
   ["acct", "agent", "balance", { detail: "The answer returns on the same short-lived grant." }],
 ];
 

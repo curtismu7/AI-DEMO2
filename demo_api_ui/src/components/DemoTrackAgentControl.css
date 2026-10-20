@@ -1,7 +1,7 @@
 /* Demo Track agent header control + picker (mock: demo-track-agent-mock.html) */
 .dta-trigger {
-  font-size: var(--font-size-xs); border: 1px solid #e3e7eb; border-radius: 999px;
-  background: #fff; padding: 4px 10px; cursor: pointer; color: #16324f; white-space: nowrap;
+  font-size: var(--font-size-xs); border: 1px solid #e3e7eb; border-radius: var(--radius-pill);
+  background: #fff; padding: 4px 10px; cursor: pointer; color: #051727; white-space: nowrap;
 }
 .dta-trigger b { font-weight: 700; }
 .dta-menu { display: flex; flex-direction: column; min-width: 280px; padding: 4px; }
@@ -11,7 +11,7 @@
 }
 .dta-item {
   display: flex; align-items: center; gap: 8px; padding: 7px 8px; border: none;
-  background: none; cursor: pointer; border-radius: 6px; text-align: left; font: inherit;
+  background: none; cursor: pointer; border-radius: var(--radius-md); text-align: left; font: inherit;
   font-size: 12.5px; color: #1a1d21;
 }
 .dta-item:hover { background: #f6f7f9; }
@@ -23,9 +23,9 @@
   border: 1.5px solid #e3e7eb; color: #5f6b76; background: #fff;
 }
 .dta-title { flex: 1; }
-.dta-ucs { font-size: 10px; color: #5f6b76; white-space: nowrap; }
+.dta-ucs { font-size: var(--font-size-3xs); color: #5f6b76; white-space: nowrap; }
 .dta-foot {
   margin: 6px 6px 4px; padding-top: 7px; border-top: 1px solid #e3e7eb;
-  font-size: 11.5px; color: #16324f; text-decoration: none; text-align: center;
+  font-size: 11.5px; color: #051727; text-decoration: none; text-align: center;
 }
 .dta-foot:hover { text-decoration: underline; }

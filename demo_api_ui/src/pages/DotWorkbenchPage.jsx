@@ -118,6 +118,7 @@ export default function DotWorkbenchPage({ user }) {
       </main>
       <EmbeddedFlowDiagram
         testId="dot-diagram"
+        pingStyle
         title="How Dot handles a message"
         lede="One message, end to end: the BFF route, the optional intent gate, the agent run, the governed tool call and what comes back to this page."
         config={{ GROUPS: DOT_WORKBENCH_GROUPS, NODES: DOT_WORKBENCH_NODES, EDGES: DOT_WORKBENCH_EDGES, STEPS: DOT_WORKBENCH_STEPS }}

@@ -15,8 +15,10 @@
 // the page. Three docs in this repo went stale by describing intended code
 // instead of real code — see the header of DavinciLoginPage.jsx for what that
 // cost. If a sample here stops matching its source file, fix the sample.
-import FlowDiagram from "../components/FlowDiagram";
+import StaticFlowDiagram from "../components/StaticFlowDiagram";
+import { DAVINCI_LIFECYCLE_EDGES, DAVINCI_LIFECYCLE_GROUPS, DAVINCI_LIFECYCLE_NODES } from "../config/davinciSdkLifecycleDiagram";
 import "./OrchestrationSdkExplainerPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 // The three ways a DaVinci flow can reach a user, all three live in this app.
 // `route` is null for the one that has no page of its own (it IS the app login).
@@ -86,7 +88,8 @@ const COLLECTOR_CATEGORIES = [
   },
 ];
 
-// One sequence diagram is the whole lesson. Mirrors the architecture block in
+// One sequence is the whole lesson. LIFECYCLE_DIAGRAM keeps it as Mermaid text (export, upload, edit); the page draws the same messages
+// from config/davinciSdkLifecycleDiagram.js (StaticFlowDiagram, pingStyle). Mirrors the architecture block in
 // the plan and the order of calls in davinciSdkClient.js.
 export const LIFECYCLE_DIAGRAM = `sequenceDiagram
   autonumber
@@ -140,15 +143,11 @@ if (err && 'error' in err) {
 export default function OrchestrationSdkExplainerPage() {
   return (
     <div className="osx-page">
-      <p className="osx-eyebrow">DaVinci SDK</p>
-      <h1 className="osx-title">DaVinci SDK</h1>
-      <p className="osx-lede">
-        A DaVinci flow can reach a user three ways, and only one of them lets you render the
+      <PageHeader eyebrow="DaVinci SDK" title="DaVinci SDK" summary={<>A DaVinci flow can reach a user three ways, and only one of them lets you render the
         screens. With <code className="osx-code-inline">@forgerock/davinci-client</code> the flow
         hands you <strong>collectors</strong> &mdash; a description of what it needs next &mdash;
         and you decide what that looks like. The flow stays editable in DaVinci; your app does not
-        ship a release to follow it.
-      </p>
+        ship a release to follow it.</>} />
 
       {/* The working page, above everything else. This lesson used to open with
           the three-mode comparison, whose Widget card links out — so the first
@@ -202,7 +201,14 @@ export default function OrchestrationSdkExplainerPage() {
           status <code className="osx-code-inline">success</code>, carrying the authorization code.
         </p>
         <div className="osx-diagram">
-          <FlowDiagram source={LIFECYCLE_DIAGRAM} label="DaVinci SDK client lifecycle" />
+          <StaticFlowDiagram
+            NODES={DAVINCI_LIFECYCLE_NODES}
+            EDGES={DAVINCI_LIFECYCLE_EDGES}
+            GROUPS={DAVINCI_LIFECYCLE_GROUPS}
+            pingStyle
+            testId="osx-lifecycle-diagram"
+            ariaLabel="DaVinci SDK client lifecycle"
+          />
         </div>
         <pre className="osx-code">
           <code>{INIT_SAMPLE}</code>

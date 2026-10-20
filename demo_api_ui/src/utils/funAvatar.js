@@ -2,15 +2,16 @@
 // the same look, different users land on visibly different faces, no
 // external avatar service or dependency involved.
 
+// Ping palette only (red, dark red, Core Dark, Ping blue); no purple.
 const FACES = [
-  { bg: '#f97316', mouth: 'smile' },
-  { bg: '#22c55e', mouth: 'open' },
-  { bg: '#3b82f6', mouth: 'zigzag' },
-  { bg: '#a855f7', mouth: 'smirk' },
-  { bg: '#ef4444', mouth: 'flat' },
-  { bg: '#14b8a6', mouth: 'smile' },
-  { bg: '#eab308', mouth: 'open' },
-  { bg: '#ec4899', mouth: 'zigzag' },
+  { bg: '#d20e0f', mouth: 'smile' },
+  { bg: '#051727', mouth: 'open' },
+  { bg: '#12538d', mouth: 'zigzag' },
+  { bg: '#aa0005', mouth: 'smirk' },
+  { bg: '#051727', mouth: 'flat' },
+  { bg: '#12538d', mouth: 'smile' },
+  { bg: '#d20e0f', mouth: 'open' },
+  { bg: '#aa0005', mouth: 'zigzag' },
 ];
 
 export function pickFunAvatar(seed) {

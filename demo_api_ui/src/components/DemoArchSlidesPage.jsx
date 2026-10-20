@@ -3,10 +3,14 @@
 // walkthrough. Scenes are hand-drawn inline SVG; the player only toggles
 // classes on the step-tagged groups, so the slide look stays intact.
 import { useCallback, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { Link, useNavigate, useParams } from "react-router-dom";
 import { DEFAULT_STEP_MS, STEP_TIME_OPTIONS, StepTimeSelector } from "./diagram";
-import DemoArchControlPlaneScene, { CONTROL_PLANE_META } from "./DemoArchControlPlaneScene";
-import DemoArchWorkloadScene, { WORKLOAD_META } from "./DemoArchWorkloadScene";
+import { CONTROL_PLANE_META } from "./DemoArchControlPlaneScene";
+import { WORKLOAD_META } from "./DemoArchWorkloadScene";
+import PingSlideFlow from "./PingSlideFlow";
+import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
+import { CIBA_SLIDE, CONTROL_PLANE_SLIDE, CONTROL_PLANE_STEPS, TOPOLOGY_SLIDE, ID_JAG_SLIDE, OBO_SLIDE, OBO_STEPS, CODING_SLIDE, CODING_STEPS } from "../config/pingSlideDiagrams";
+import { ID4AI_PDF, ID4AI_SLIDES } from "../config/id4aiSlides";
 import "./DemoArchSlidesPage.css";
 
 const SHARED_ROWS = [
@@ -20,6 +24,19 @@ const SHARED_ROWS = [
   ["MCP servers", "Banking MCP, Invest MCP, mortgage REST resource server", "8080 · 8081 · 8082", "oauth-mcp/ · demo_mcp_resource_server/"],
   ["SPIFFE (workload identity)", "SPIRE server and agent, trust domain spiffe://bxfinance.demo, JWT-SVID live, X.509 mTLS planned", "·", "docs/SPIFFE_PLAN.md"],
   ["On-prem infrastructure", "Local LLM proxy over llama.cpp or oMLX, so no prompt leaves the stack", "8090", "demo_llm_proxy/"],
+];
+
+const NO_LIVE = () => null;
+const OBO_ROWS = [
+  ["IdP / OAuth AS · Fine Grained AZ", "PingOne (or PingFederate) issues the tokens; PingOne Authorize decides", "hosted", "services/agentMcpTokenService.js · services/pingOneAuthorizeService.js"],
+  ["Agent Credential", "SPIFFE JWT-SVID from spiffe-helper, or a PK-JWT client assertion", "8888", "demo_agent_service/ · docs/SPIFFE_PLAN.md"],
+  ["Agent Gateway", "PingGateway in front of every MCP route, with the Node gateway as fallback", "3036 · 3005", "ping-gateway/ · demo_mcp_gateway/"],
+  ["Services A–D", "Banking, Invest and mortgage backends, each reached with its own credential type", "8080–8082", "oauth-mcp/ · demo_mcp_resource_server/"],
+];
+const CODING_ROWS = [
+  ["Agent Broker", "PingOne Privilege: brokers just-in-time credentials for coding agents", "hosted", "privilege/"],
+  ["Endpoint Controller", "Read-only host inventory of MCP candidates; never invokes tools", "·", "standalone/mcp-discovery-agent/"],
+  ["Services", "Jira, Github / Gitlab, SSH servers and databases behind the broker", "·", "n/a in this demo (reference architecture)"],
 ];
 
 const SLIDE_ROWS = {
@@ -111,11 +128,32 @@ export function liveStepControlPlane(ev) {
 }
 
 export const DEMO_ARCH_SLIDES = [
-  { id: "workload-agents", label: "Workload Agents · Topology", path: "/demo-arch-slides/workload-agents", meta: WORKLOAD_META.topology, rows: [...SHARED_ROWS, ...SLIDE_ROWS["workload-agents"]], live: liveStepTopology, render: (st) => <DemoArchWorkloadScene variant="topology" st={st} /> },
-  { id: "ciba-hitl", label: "Workload Agents · CIBA Step-up", path: "/demo-arch-slides/ciba-hitl", meta: WORKLOAD_META.ciba, rows: [...SHARED_ROWS, ...SLIDE_ROWS["ciba-hitl"]], live: liveStepCiba, render: (st) => <DemoArchWorkloadScene variant="ciba" st={st} /> },
-  { id: "id-jag", label: "Workload Agents · 3rd-party MCP via ID-JAG", path: "/demo-arch-slides/id-jag", meta: WORKLOAD_META.idjag, rows: [...SHARED_ROWS, ...SLIDE_ROWS["id-jag"]], live: liveStepIdJag, render: (st) => <DemoArchWorkloadScene variant="idjag" st={st} /> },
-  { id: "control-plane", label: "Agentic Control Plane", path: "/demo-arch-slides/control-plane", meta: CONTROL_PLANE_META, rows: CONTROL_PLANE_ROWS, live: liveStepControlPlane, render: (st) => <DemoArchControlPlaneScene st={st} /> },
+  { id: "workload-agents", drag: true, label: "Workload Agents · Topology", path: "/demo-arch-slides/workload-agents", meta: WORKLOAD_META.topology, rows: [...SHARED_ROWS, ...SLIDE_ROWS["workload-agents"]], live: liveStepTopology, render: (st, n, r) => <PingSlideFlow key={r} config={TOPOLOGY_SLIDE} step={n} /> },
+  { id: "ciba-hitl", drag: true, label: "Workload Agents · CIBA Step-up", path: "/demo-arch-slides/ciba-hitl", meta: WORKLOAD_META.ciba, rows: [...SHARED_ROWS, ...SLIDE_ROWS["ciba-hitl"]], live: liveStepCiba, render: (st, n, r) => <PingSlideFlow key={r} config={CIBA_SLIDE} step={n} /> },
+  { id: "id-jag", drag: true, label: "Workload Agents · 3rd-party MCP via ID-JAG", path: "/demo-arch-slides/id-jag", meta: WORKLOAD_META.idjag, rows: [...SHARED_ROWS, ...SLIDE_ROWS["id-jag"]], live: liveStepIdJag, render: (st, n, r) => <PingSlideFlow key={r} config={ID_JAG_SLIDE} step={n} /> },
+  { id: "obo-assistant", drag: true, label: "Workload Agent · Digital Assistant (OBO)", path: "/demo-arch-slides/obo-assistant", meta: { steps: OBO_STEPS, caption: "A digital assistant acts on behalf of a signed-in user: the IdP mints a transaction token naming both user and agent, and the gateway reaches each backend with the credential it expects." }, rows: OBO_ROWS, live: NO_LIVE, render: (st, n, r) => <PingSlideFlow key={r} config={OBO_SLIDE} step={n} /> },
+  { id: "coding-agents", drag: true, label: "Employee Agents · Coding Agents", path: "/demo-arch-slides/coding-agents", meta: { steps: CODING_STEPS, caption: "Coding agents are distinguished from humans and get only just-in-time credentials from the Agent Broker, so nothing long-lived sits on the developer machine." }, rows: CODING_ROWS, live: NO_LIVE, render: (st, n, r) => <PingSlideFlow key={r} config={CODING_SLIDE} step={n} /> },
+  { id: "control-plane", drag: true, label: "Agentic Control Plane", path: "/demo-arch-slides/control-plane", meta: { ...CONTROL_PLANE_META, steps: CONTROL_PLANE_STEPS }, rows: CONTROL_PLANE_ROWS, live: liveStepControlPlane, render: (st, n, r) => <PingSlideFlow key={r} config={CONTROL_PLANE_SLIDE} step={n} /> },
 ];
+
+// "ID4AI slides 301": the architecture diagrams of the ID4AI deck, same page and controls, ReactFlow slides.
+const ID4AI_DEFS = ID4AI_SLIDES.map((s) => ({
+  id: s.id,
+  label: s.label,
+  path: `/id4ai-slides/${s.id}`,
+  page: s.page,
+  meta: { steps: s.steps, caption: s.caption },
+  rows: [],
+  live: NO_LIVE,
+  drag: true,
+  ping: s.ping,
+  render: (st, n, r) => <PingSlideFlow key={r} config={s.config} step={n} />,
+}));
+
+export function Id4aiSlidesRoute() {
+  const { slideId } = useParams();
+  return <DemoArchSlidesPage deck="id4ai" slide={slideId} />;
+}
 
 const LIVE_LOG_MAX = 12;
 
@@ -158,6 +196,7 @@ function useSlidePlayer(total, liveMap, storageKey) {
   const [cur, setCur] = useState(0);
   const [playing, setPlaying] = useState(false);
   const [stepMs, setStepMs] = useState(DEFAULT_STEP_MS);
+  const [resets, setResets] = useState(0); // bumps on Reset so scenes with draggable boxes drop their moved positions
   const [live, setLive] = useState(saved.live);
   const [liveStatus, setLiveStatus] = useState("off"); // off | connecting | open | closed
   const [lit, setLit] = useState(() => new Set(saved.lit));
@@ -208,7 +247,7 @@ function useSlidePlayer(total, liveMap, storageKey) {
   const next = useCallback(() => { setPlaying(false); setCur((c) => Math.min(total, c + 1)); }, [total]);
   const back = useCallback(() => { setPlaying(false); setCur((c) => Math.max(0, c - 1)); }, []);
   const clearLive = useCallback(() => { setLit(new Set()); setLiveNow(0); setLiveLog([]); }, []);
-  const reset = useCallback(() => { setPlaying(false); setCur(0); clearLive(); }, [clearLive]);
+  const reset = useCallback(() => { setPlaying(false); setCur(0); clearLive(); setResets((r) => r + 1); }, [clearLive]);
   const toggleLive = useCallback(() => {
     setPlaying(false);
     setCur(0);
@@ -235,7 +274,7 @@ function useSlidePlayer(total, liveMap, storageKey) {
     return "das-st das-st-off";
   }, [cur, live, lit, liveNow]);
 
-  return { cur, playing, stepMs, setStepMs, play, pause, next, back, reset, st, live, liveStatus, liveNow, liveLog, toggleLive };
+  return { resets, cur, playing, stepMs, setStepMs, play, pause, next, back, reset, st, live, liveStatus, liveNow, liveLog, toggleLive };
 }
 
 const LIVE_STATUS_TEXT = {
@@ -249,8 +288,11 @@ function fmtTime(ts) {
   return Number.isNaN(d.getTime()) ? "" : d.toLocaleTimeString([], { hour12: false });
 }
 
-export default function DemoArchSlidesPage({ slide = "workload-agents" }) {
-  const def = DEMO_ARCH_SLIDES.find((s) => s.id === slide) || DEMO_ARCH_SLIDES[0];
+export default function DemoArchSlidesPage({ slide, deck }) {
+  const navigate = useNavigate();
+  const id4ai = deck === "id4ai";
+  const slides = id4ai ? ID4AI_DEFS : DEMO_ARCH_SLIDES;
+  const def = slides.find((s) => s.id === slide) || slides[0];
   const { meta } = def;
   const total = meta.steps.length;
   const p = useSlidePlayer(total, def.live, liveStateKey(def.id));
@@ -261,33 +303,50 @@ export default function DemoArchSlidesPage({ slide = "workload-agents" }) {
 
   return (
     <div className="das-page">
-      <span className="das-eyebrow">Demo arch slides</span>
-      <nav className="das-tabs" aria-label="Slides">
-        {DEMO_ARCH_SLIDES.map((s) => (
-          <Link key={s.id} to={s.path} className={`das-tab${s.id === def.id ? " das-tab--active" : ""}`}>
-            {s.label}
-          </Link>
-        ))}
-      </nav>
+      <span className="das-eyebrow">{id4ai ? "ID4AI slides 301" : "Demo arch slides"}</span>
+      {id4ai ? (
+        <div className="das-tabs">
+          <select className="das-select" value={def.id} onChange={(e) => navigate(`/id4ai-slides/${e.target.value}`)} aria-label="ID4AI slide">
+            {slides.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+          </select>
+          <a className="das-tab" href={`${ID4AI_PDF}#page=${def.page}`} target="_blank" rel="noopener noreferrer">
+            Source deck (PDF) · slide {def.page}
+          </a>
+        </div>
+      ) : (
+        <nav className="das-tabs" aria-label="Slides">
+          {DEMO_ARCH_SLIDES.map((s) => (
+            <Link key={s.id} to={s.path} className={`das-tab${s.id === def.id ? " das-tab--active" : ""}`}>
+              {s.label}
+            </Link>
+          ))}
+        </nav>
+      )}
 
+      {def.ping ? (
+        // A pingStyle slide brings its own Simulate / Step / Reset / speed bar, reel and detail panel.
+        <EmbeddedFlowDiagram config={def.ping} title={def.label} lede={meta.caption} testId={`id4ai-${def.id}`} pingStyle />
+      ) : (<>
       <div className="das-controls" role="group" aria-label="Walkthrough controls">
         <button type="button" className="das-btn das-btn--primary" onClick={p.playing ? p.pause : p.play} disabled={p.live}>
           {p.playing ? "Pause" : "▶ Play"}
         </button>
         <button type="button" className="das-btn" onClick={p.back} disabled={p.live || p.cur === 0}>← Back</button>
         <button type="button" className="das-btn" onClick={p.next} disabled={p.live || p.cur >= total}>Step →</button>
-        <button type="button" className="das-btn" onClick={p.reset} disabled={!p.live && p.cur === 0 && !p.playing}>↺ Reset</button>
+        <button type="button" className="das-btn" onClick={p.reset} disabled={!def.drag && !p.live && p.cur === 0 && !p.playing}>↺ Reset</button>
         <StepTimeSelector value={p.stepMs} options={STEP_TIME_OPTIONS} onChange={p.setStepMs} title="Time each step takes during Play" disabled={p.live} />
-        <button
-          type="button"
-          className={`das-btn das-btn--live${p.live ? " das-btn--live-on" : ""}`}
-          onClick={p.toggleLive}
-          aria-pressed={p.live}
-          title="Light steps from real BFF events instead of the script"
-        >
-          <span className={`das-live-dot das-live-dot--${p.liveStatus}`} aria-hidden="true" />
-          {p.live ? "Live · on" : "Live"}
-        </button>
+        {def.live !== NO_LIVE && (
+          <button
+            type="button"
+            className={`das-btn das-btn--live${p.live ? " das-btn--live-on" : ""}`}
+            onClick={p.toggleLive}
+            aria-pressed={p.live}
+            title="Light steps from real BFF events instead of the script"
+          >
+            <span className={`das-live-dot das-live-dot--${p.liveStatus}`} aria-hidden="true" />
+            {p.live ? "Live · on" : "Live"}
+          </button>
+        )}
         <span className="das-counter">
           {p.live ? `${p.liveLog.length} event${p.liveLog.length === 1 ? "" : "s"}` : p.cur === 0 ? `${total} steps` : `Step ${p.cur} / ${total}`}
         </span>
@@ -321,28 +380,33 @@ export default function DemoArchSlidesPage({ slide = "workload-agents" }) {
       )}
 
       <figure>
-        <div className="das-frame">{def.render(p.st)}</div>
+        <div className="das-frame">{def.render(p.st, p.live ? p.liveNow : p.cur, p.resets)}</div>
         <figcaption className="das-caption">{meta.caption}</figcaption>
       </figure>
 
-      <h2>Slide element → what runs in this demo</h2>
-      <div className="das-table-wrap">
-        <table className="das-table">
-          <thead>
-            <tr><th>Slide box</th><th>In this demo</th><th>Port</th><th>Source</th></tr>
-          </thead>
-          <tbody>
-            {def.rows.map(([box, what, port, src]) => (
-              <tr key={box}>
-                <td>{box}</td>
-                <td>{what}</td>
-                <td>{port}</td>
-                <td><span className="das-src">{src}</span></td>
-              </tr>
-            ))}
-          </tbody>
-        </table>
-      </div>
+      {def.rows.length > 0 && (
+        <>
+          <h2>Slide element → what runs in this demo</h2>
+          <div className="das-table-wrap">
+            <table className="das-table">
+              <thead>
+                <tr><th>Slide box</th><th>In this demo</th><th>Port</th><th>Source</th></tr>
+              </thead>
+              <tbody>
+                {def.rows.map(([box, what, port, src]) => (
+                  <tr key={box}>
+                    <td>{box}</td>
+                    <td>{what}</td>
+                    <td>{port}</td>
+                    <td><span className="das-src">{src}</span></td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </>
+      )}
+      </>)}
     </div>
   );
 }

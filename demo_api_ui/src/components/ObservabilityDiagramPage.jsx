@@ -6,6 +6,7 @@ import "./ObservabilityDiagramPage.css";
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
 import { edgeCaptions, markNodes, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
 import DiagramStepBar from "./DiagramStepBar";
+import PageHeader from './common/PageHeader';
 
 /**
  * ObservabilityDiagramPage — /architecture/observability.
@@ -295,19 +296,12 @@ export default function ObservabilityDiagramPage() {
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes);
   return (
     <div className="obs-page">
-      <header className="obs-header">
-        <div>
-          <p className="obs-kicker">Observability demo</p>
-          <h1>Agent telemetry, end to end</h1>
-          <p className="obs-lede">
-            What each service emits, which collector stores it, and which surface presents it —
-            then the demo story that walks the same path.
-          </p>
-        </div>
-        <span className="obs-mock-chip" title="The diagram maps the shipped stack; it does not query it live.">
+      <PageHeader className="obs-header" eyebrow="Observability demo" title="Agent telemetry, end to end" summary={<>What each service emits, which collector stores it, and which surface presents it —
+            then the demo story that walks the same path.</>}
+        actions={<>        <span className="obs-mock-chip" title="The diagram maps the shipped stack; it does not query it live.">
           ILLUSTRATIVE — maps the shipped stack
         </span>
-      </header>
+        </>} />
 
       <div className="obs-tabs" role="tablist" aria-label="Diagram view">
         <button

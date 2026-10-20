@@ -37,9 +37,9 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0.75rem 1rem;
-  background: linear-gradient(135deg, #1e3a5f 0%, #0f172a 100%);
+  background: linear-gradient(135deg, #051727 0%, #051727 100%);
   border-bottom: 1px solid rgba(255, 255, 255, 0.12);
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.2);
+  box-shadow: 0 4px 14px rgba(5, 23, 39, 0.2);
 }
 
 .hitl-consent-banner__inner {
@@ -75,13 +75,13 @@
 .hitl-consent-banner__btn {
   flex-shrink: 0;
   padding: 0.55rem 1.25rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-weight: 700;
   font-size: 0.95rem;
   cursor: pointer;
   border: none;
   background: #fbbf24;
-  color: var(--th-text);
+  color: #051727;
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.15);
 }
 
@@ -111,7 +111,7 @@
   display: inline-block;
   margin-top: 0.75rem;
   padding: 0.45rem 0.9rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--brand-navy);
   color: var(--app-primary-blue-text, #fff) !important;
   font-weight: 600;
@@ -126,9 +126,9 @@
   max-width: 36rem;
   margin: 0 auto;
   background: var(--th-bg-card);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem 1.75rem;
-  box-shadow: 0 4px 24px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 24px rgba(5, 23, 39, 0.08);
   border: 1px solid var(--th-border);
 }
 
@@ -167,9 +167,9 @@
   margin-bottom: 0.75rem;
   padding: 0.5rem 0.7rem;
   background: linear-gradient(180deg, #fbfcfe 0%, var(--brand-light-gray) 100%);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--th-border);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07);
+  box-shadow: 0 1px 3px rgba(5, 23, 39, 0.07);
 }
 
 .transaction-consent-card__legal p {
@@ -184,14 +184,14 @@
   gap: 14px;
   cursor: pointer;
   font-size: 0.85rem;
-  color: var(--brand-dark-gray);
+  color: #051727;
   line-height: 1.4;
   margin-bottom: 0.65rem;
   padding: 0.6rem 0.7rem;
-  background: linear-gradient(180deg, #ffffff 0%, #f8fafc 100%);
-  border-radius: 8px;
+  background: linear-gradient(180deg, #ffffff 0%, #f7f8f8 100%);
+  border-radius: var(--radius-lg);
   border: 1px solid var(--th-border);
-  box-shadow: 0 1px 3px rgba(15, 23, 42, 0.07);
+  box-shadow: 0 1px 3px rgba(5, 23, 39, 0.07);
 }
 
 /* Dark mode: the DraggableModal body surface flips to a dark ground, but the
@@ -216,7 +216,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
   width: 18px;
   height: 18px;
   cursor: pointer;
-  accent-color: #dc2626;
+  accent-color: #d20e0f;
 }
 
 .transaction-consent-card__check > span {
@@ -228,10 +228,10 @@ body .transaction-consent-card__check input[type="checkbox"] {
 
 .transaction-consent-card__error {
   padding: 0.65rem 0.85rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #fef2f2;
   border: 1px solid #fecaca;
-  color: #991b1b;
+  color: #aa0005;
   font-size: 0.9rem;
   margin-bottom: 1rem;
 }
@@ -246,7 +246,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
 
 .transaction-consent-btn {
   padding: 0.55rem 1.15rem;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   font-weight: 600;
   font-size: 0.95rem;
   cursor: pointer;
@@ -267,17 +267,17 @@ body .transaction-consent-card__check input[type="checkbox"] {
 .transaction-consent-rfc-note {
   margin-top: 0.5rem;
   padding: 0.4rem 0.65rem;
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #bfdbfe;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   /* RFC guidance is the teaching payoff; keep it legible at twice the former size. */
   font-size: 1.4rem;
-  color: #1e40af;
+  color: #051727;
   line-height: 1.45;
 }
 
 .transaction-consent-rfc-note a {
-  color: #1d4ed8;
+  color: #12538d;
   font-weight: 600;
   text-underline-offset: 2px;
 }
@@ -289,28 +289,28 @@ body .transaction-consent-card__check input[type="checkbox"] {
 }
 
 .transaction-consent-btn--primary {
-  background: linear-gradient(135deg, #dc2626, #991b1b);
+  background: linear-gradient(135deg, #d20e0f, #aa0005);
   color: var(--th-text-invert);
 }
 
 .transaction-consent-btn--primary:hover:not(:disabled) {
-  background: linear-gradient(135deg, #ef4444, #b91c1c);
+  background: linear-gradient(135deg, #d20e0f, #d20e0f);
 }
 
 .transaction-consent-btn--danger {
-  background: #991b1b;
+  background: #aa0005;
   color: var(--th-text-invert);
 }
 
 .transaction-consent-btn--danger:hover:not(:disabled) {
-  background: #991b1b;
+  background: #aa0005;
 }
 
 .transaction-consent-modal-overlay {
   position: fixed;
   inset: 0;
   z-index: 100070;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(5, 23, 39, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -321,7 +321,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
   max-width: 26rem;
   width: 100%;
   background: var(--th-bg-card);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem 1.5rem 1.25rem;
   box-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
   border: 1px solid var(--th-border);
@@ -346,7 +346,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
   color: #7f1d1d;
   background: #fef2f2;
   padding: 0.65rem 0.75rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid #fecaca;
 }
 
@@ -375,7 +375,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
 .tx-otp-panel__lead--warn {
   background: #fff7ed;
   border: 1px solid #fdba74;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.6rem 0.75rem;
   color: #92400e;
   font-size: 0.82rem;
@@ -385,13 +385,13 @@ body .transaction-consent-card__check input[type="checkbox"] {
   display: flex;
   flex-direction: column;
   gap: 0.25rem;
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #bfdbfe;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.75rem 1rem;
   margin-bottom: 1.25rem;
   font-size: 0.82rem;
-  color: #1e40af;
+  color: #051727;
   line-height: 1.5;
 }
 
@@ -424,19 +424,19 @@ body .transaction-consent-card__check input[type="checkbox"] {
 }
 
 .tx-otp-panel__input:focus {
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.15);
+  border-color: #12538d;
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.15);
 }
 
 .tx-otp-panel__input--error {
-  border-color: #dc2626;
+  border-color: #d20e0f;
   background: #fff5f5;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 .tx-otp-panel__input--error:focus {
-  border-color: #dc2626;
-  box-shadow: 0 0 0 3px rgba(220, 38, 38, 0.15);
+  border-color: #d20e0f;
+  box-shadow: 0 0 0 3px rgba(210, 14, 15, 0.15);
 }
 
 .tx-otp-panel__verify-btn {
@@ -472,7 +472,7 @@ body .transaction-consent-card__check input[type="checkbox"] {
 
 .tx-otp-panel__error {
   font-size: 0.82rem;
-  color: #dc2626;
+  color: #d20e0f;
   margin: 0.2rem 0 0.65rem;
   font-weight: 500;
 }
@@ -519,14 +519,14 @@ body .transaction-consent-card__check input[type="checkbox"] {
 
 .tc-simulate__info {
   display: flex; align-items: flex-start; gap: 12px;
-  padding: 14px 18px; background: #eff6ff; border: 1px solid #bfdbfe;
-  border-radius: 10px; margin-bottom: 24px; font-size: var(--font-size-sm); color: #1e40af; line-height: 1.55;
+  padding: 14px 18px; background: #fcfcfc; border: 1px solid #bfdbfe;
+  border-radius: 10px; margin-bottom: 24px; font-size: var(--font-size-sm); color: #051727; line-height: 1.55;
 }
 .tc-simulate__info-icon {
   flex-shrink: 0; width: 22px; height: 22px; border-radius: 50%;
-  border: 2px solid #3b82f6; color: #3b82f6; font-weight: 800; font-size: var(--font-size-2xs);
+  border: 2px solid #12538d; color: #12538d; font-weight: 800; font-size: var(--font-size-2xs);
   display: flex; align-items: center; justify-content: center; margin-top: 1px;
-  font-style: italic; font-family: Georgia, serif;
+  font-style: italic; font-family: var(--font-primary);
 }
 
 .tc-simulate__section-title {
@@ -545,11 +545,11 @@ body .transaction-consent-card__check input[type="checkbox"] {
   transition: border-color 0.15s, box-shadow 0.15s;
 }
 .tc-simulate__card:hover {
-  border-color: #3b82f6; box-shadow: 0 0 0 3px rgba(59, 130, 246, 0.12);
+  border-color: #12538d; box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.12);
 }
 .tc-simulate__card-label { font-size: var(--font-size-body); font-weight: 700; color: var(--th-text); }
 .tc-simulate__card-desc { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
-.tc-simulate__card-meta { font-size: var(--font-size-xs); font-weight: 600; color: #3b82f6; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
+.tc-simulate__card-meta { font-size: var(--font-size-xs); font-weight: 600; color: #12538d; margin-top: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
 
 .tc-simulate__flow { margin-top: 8px; }
 
@@ -558,3 +558,8 @@ body .transaction-consent-card__check input[type="checkbox"] {
 }
 .tc-simulate__steps li { margin-bottom: 4px; }
 .tc-simulate__steps code { background: var(--th-bg-inset); padding: 1px 6px; border-radius: 3px; font-size: var(--font-size-2xs); }
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .transaction-consent-btn--ghost {
+  color: var(--th-status-error-text);
+}

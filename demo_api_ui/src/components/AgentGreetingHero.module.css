@@ -3,7 +3,7 @@
   width: 100%;
   height: 400px;
   overflow: hidden;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   margin-bottom: 24px;
   display: flex;
   align-items: center;

@@ -18,13 +18,13 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 36px 44px;
   box-shadow: 0 4px 24px rgba(0,0,0,.07);
   text-align: center;
 }
 .cex-wake-title {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--th-text);
 }
@@ -191,7 +191,7 @@
 
 .input-area:focus-within {
   border-color: var(--th-status-info);
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, .1), 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, .1), 0 4px 16px rgba(0, 0, 0, 0.08), 0 1px 3px rgba(0, 0, 0, 0.04);
 }
 
 .input-area input {
@@ -200,7 +200,7 @@
   border: none;
   background: transparent;
   font-size: 0.9rem;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   color: var(--th-text);
   outline: none;
   min-width: 0;
@@ -227,7 +227,7 @@
   cursor: pointer;
   font-size: 0.78rem;
   font-weight: 600;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   letter-spacing: 0.02em;
   transition: background 0.12s;
 }
@@ -267,7 +267,7 @@
 }
 
 .stop-btn {
-  color: var(--th-text-on-emphasis);
+  color: #ffffff;
   background: var(--th-status-error);
 }
 
@@ -299,7 +299,7 @@
   cursor: pointer;
   text-align: left;
   font-size: 0.78rem;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   line-height: 1.4;
   transition: background 0.12s, border-color 0.12s;
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.06), 0 1px 2px rgba(0, 0, 0, 0.04);
@@ -345,7 +345,7 @@
   cursor: pointer;
   font-size: 0.75rem;
   font-weight: 600;
-  font-family: var(--v2-font-body, sans-serif);
+  font-family: var(--font-primary);
   transition: background 0.12s, border-color 0.12s;
 }
 
@@ -376,4 +376,17 @@
 .code-explorer-theme-toggle:hover {
   color: var(--th-text);
   background: var(--th-bg-hover);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .typing-dot {
+  color: #ffffff;
+}
+
+:root[data-theme="dark"] .typing-dot {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .reindex-btn:hover:not(:disabled) {
+  color: var(--th-status-info-text);
 }

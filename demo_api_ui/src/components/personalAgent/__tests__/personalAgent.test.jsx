@@ -62,7 +62,11 @@ describe("personal agent pages", () => {
     ["dual", "Privilege first, Agent Gateway for the gaps"],
   ])("%s design renders the diagram, one card per step and the links to the review", (variant, heading) => {
     const d = DESIGNS[variant];
-    render(wrap(<PersonalAgentDesignPage variant={variant} />));
+    const { container } = render(wrap(<PersonalAgentDesignPage variant={variant} />));
+    // Ping style: routed diagram with the arrow key, and no legend entry that contradicts it (dashed = token)
+    expect(container.querySelector(".sfd--ping")).toBeTruthy();
+    expect(screen.getByLabelText("Arrow key")).toBeTruthy();
+    expect(container.querySelector(".pa-sw--dashed")).toBeNull();
     expect(screen.getByRole("group", { name: new RegExp(d.ariaLabel.slice(0, 40)) })).toBeTruthy();
     expect(screen.getByRole("heading", { level: 1, name: heading })).toBeTruthy();
     for (let i = 1; i <= d.steps.length; i += 1) {

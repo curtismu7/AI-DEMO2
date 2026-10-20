@@ -11,6 +11,7 @@ import {
   runLesson,
 } from "../services/lessonExecutionService";
 import "./StandaloneDemoLauncherPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 export const SCENARIOS = Object.freeze([
   {
@@ -406,22 +407,13 @@ export default function StandaloneDemoLauncherPage({
 
   return (
     <div className="standalone-demo-launcher">
-      <header className="standalone-demo-launcher__intro">
-        <div>
-          <p className="standalone-demo-launcher__kicker">
-            AI Security Academy
-          </p>
-          <h1>Standalone demo launcher</h1>
-          <p>
-            Choose a short customer story, verify its source, and open the live
-            surface without carrying the full guided journey into the room.
-          </p>
-        </div>
-        <nav aria-label="Learning navigation">
+      <PageHeader className="standalone-demo-launcher__intro" eyebrow="AI Security Academy" title="Standalone demo launcher" summary={<>Choose a short customer story, verify its source, and open the live
+            surface without carrying the full guided journey into the room.</>}
+        actions={<>        <nav aria-label="Learning navigation">
           <Link to="/academy/journey">Return to guided journey</Link>
           <Link to="/learning">Learning hub</Link>
         </nav>
-      </header>
+        </>} />
 
       <TenantReadinessStrip
         loadReadiness={captureReadiness}

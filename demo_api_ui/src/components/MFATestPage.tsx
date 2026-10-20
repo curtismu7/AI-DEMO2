@@ -1,4 +1,4 @@
-import { useCallback, useEffect, useRef, useState, FC } from "react";
+import { useCallback, useEffect, useRef, useState, FC, ReactNode } from "react";
 import apiClient from "../services/apiClient";
 import { notifyError, notifyInfo, notifySuccess } from "../utils/appToast";
 import {
@@ -10,7 +10,8 @@ import ApiCallPreviewCard from "./shared/ApiCallPreviewCard";
 import MFATestCard from "./MFATestCard";
 import MFATestCibaSection from "./MFATestCibaSection";
 import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
-import { CIBA_LINK_DIAGRAM } from "../config/cibaApprovalLinkDiagram";
+import { CIBA_LINK_PING_DIAGRAM } from "../config/cibaApprovalLinkDiagram";
+import { SIGNIN_DIAGRAM } from "../config/deviceFirstSignInDiagram";
 import { SIM_PUSH_DIAGRAM } from "../config/simulatedPushDiagram";
 import MFATestConsentSection from "./MFATestConsentSection";
 import MFATestForgotPasswordSection from "./MFATestForgotPasswordSection";
@@ -27,25 +28,56 @@ import { openSignIn } from "../utils/signInService";
 
 // Explanatory only (no live data), so it also renders signed out: the Learning Hub card and
 // /diagrams link to /mfa-test#ciba-diagram.
+// Diagrams start collapsed so the page stays short; the content stays in the DOM.
+const CollapsibleDiagram: FC<{ children: ReactNode }> = ({ children }) => (
+  <details className="mfa-test-diagram-collapse">
+    <summary>Show diagram</summary>
+    {children}
+  </details>
+);
+
 const CibaDiagramSection: FC = () => (
   <section className="mfa-test-section" id="ciba-diagram">
     <h2 className="mfa-test-section-title">CIBA Approval Link: How It Works</h2>
-    <EmbeddedFlowDiagram
-      config={CIBA_LINK_DIAGRAM}
-      title="CIBA approval link"
-      lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Orange edges are the PingFederate path. Click a step to follow it."
-      testId="mfa-ciba-diagram"
-    />
+    <CollapsibleDiagram>
+      <EmbeddedFlowDiagram
+        config={CIBA_LINK_PING_DIAGRAM}
+        title="CIBA approval link"
+        lede="The app asks PingOne (or PingFederate) to reach the signed-in user out of band, then polls until they approve. Arrows 9 to 13 are the PingFederate path; dashed blue arrows are answers and tokens. Click an arrow or a box to follow it."
+        testId="mfa-ciba-diagram"
+        pingStyle
+      />
+    </CollapsibleDiagram>
+  </section>
+);
+
+// Explanatory only, so it renders signed out too: /diagrams and the Learning Hub link to
+// /mfa-test#signin-diagram.
+const SignInDiagramSection: FC = () => (
+  <section className="mfa-test-section" id="signin-diagram">
+    <h2 className="mfa-test-section-title">Device-First Sign-In: How It Works</h2>
+    <CollapsibleDiagram>
+      <EmbeddedFlowDiagram
+        config={SIGNIN_DIAGRAM}
+        title="Device-first sign-in"
+        lede="The sign-in pop-up drives the provider's flow from the app: username, then a code or a passkey, never a password. Arrows 2, 6 and 9 are the PingFederate path; dashed blue arrows are answers and tokens. Click an arrow or a box to follow it."
+        testId="mfa-signin-diagram"
+        pingStyle
+      />
+    </CollapsibleDiagram>
   </section>
 );
 
 const SimulatedPushDiagram: FC = () => (
-  <EmbeddedFlowDiagram
-    config={SIM_PUSH_DIAGRAM}
-    title="Push approval: simulated phone vs real push"
-    lede="The simulated phone shows the approve-on-your-phone flow with the BFF playing the phone; orange edges are the real PingOne MFA push it stands in for. Click a step to follow it."
-    testId="mfa-push-diagram"
-  />
+  <CollapsibleDiagram>
+    <EmbeddedFlowDiagram
+      config={SIM_PUSH_DIAGRAM}
+      title="Push approval: simulated phone vs real push"
+      lede="The simulated phone shows the approve-on-your-phone flow with the BFF playing the phone; arrows 5 to 7 are the real PingOne MFA push it stands in for. Click an arrow or a box to follow it."
+      testId="mfa-push-diagram"
+      pingStyle
+    />
+  </CollapsibleDiagram>
 );
 
 interface PingOneUser {
@@ -1381,6 +1413,7 @@ const MFATestPageContent: FC = () => {
             Sign in
           </button>
         </div>
+        <SignInDiagramSection />
         <CibaDiagramSection />
         <section className="mfa-test-section" id="push-diagram">
           <h2 className="mfa-test-section-title">Push Approval: How It Works</h2>
@@ -1963,7 +1996,7 @@ const MFATestPageContent: FC = () => {
             <p
               style={{
                 fontSize: "0.75rem",
-                color: "#6b7280",
+                color: "var(--th-text-body)",
                 margin: "0 0 0.75rem",
               }}
             >
@@ -2618,6 +2651,7 @@ const MFATestPageContent: FC = () => {
           )}
         </section>
 
+        <SignInDiagramSection />
         <CibaDiagramSection />
 
         {(["email", "sms"] as const).map((ch) => (

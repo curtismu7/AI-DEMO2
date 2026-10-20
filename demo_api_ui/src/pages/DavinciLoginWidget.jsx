@@ -2,6 +2,7 @@ import { useCallback, useEffect, useRef, useState } from "react";
 import { fetchWidgetConfig, loadWidget, postWidgetSession } from "../lib/davinciWidgetClient";
 import { installWidgetTrace } from "../lib/davinciWidgetTrace";
 import { agentFlowDiagram } from "../services/agentFlowDiagramService";
+import DeviceSignInLink from "../components/DeviceSignInLink";
 import "./DavinciLoginPage.css";
 
 // The live DaVinci widget, embedded as the "Try It Live" section of
@@ -121,6 +122,7 @@ export default function DavinciLoginWidget({ onCall, onStart, onSignedIn }) {
   return (
     <div className="dvl-page">
       {flowVersion && <p className="dvl-version">Policy variant: {flowVersion}</p>}
+      <DeviceSignInLink />
 
       {error && <div className="dvl-error" role="alert">{error}</div>}
       {status === "loading" && <p className="dvl-status">Starting the DaVinci flow...</p>}

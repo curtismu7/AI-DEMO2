@@ -13,7 +13,7 @@
   padding: 12px 14px;
   border: 1px solid var(--th-border);
   border-top: 3px solid var(--th-status-info);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   text-decoration: none;

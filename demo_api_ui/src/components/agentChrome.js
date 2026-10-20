@@ -215,6 +215,18 @@ export function verticalSuggestionChips(pageManifest) {
   }));
 }
 
+// Typed text (and rail chips, which send only their text) that IS the vertical's
+// CIBA chip prompt carries that chip's use case, so the BFF forces CIBA
+// (transactionAuthorizationService CIBA_DEMO_USE_CASE_ID) instead of the env's
+// default step-up method. CIBA only: other use cases arm flags and consent gates.
+export function cibaUseCaseFor(text, pageManifest) {
+  const t = String(text || "").trim().toLowerCase();
+  const chips10 = pageManifest?.dashboard?.chips10 || [];
+  const chip = chips10.find((c) => c.useCaseId === "ciba-out-of-band-approval"
+    && String(c.message || "").trim().toLowerCase() === t);
+  return chip ? chip.useCaseId : undefined;
+}
+
 export function buildPingOneUserListMessage(value) {
   const input = String(value || '').trim();
   if (!input || input.toLowerCase() === 'all' || input === '*') {

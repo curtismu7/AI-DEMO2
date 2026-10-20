@@ -1,5 +1,5 @@
 .pfj-explainer {
-  --pfj-explainer-accent: #05615b;
+  --pfj-explainer-accent: #aa0005;
   display: flex;
   flex-direction: column;
   gap: 28px;
@@ -17,19 +17,6 @@
   grid-template-columns: minmax(0, 1.4fr) minmax(250px, 0.6fr);
   gap: 28px;
   align-items: end;
-}
-
-.pfj-explainer__hero {
-  padding: 22px 0 30px;
-  border-bottom: 1px solid var(--th-border);
-}
-
-.pfj-explainer__eyebrow {
-  margin: 0 0 8px;
-  color: var(--th-status-info-text);
-  font-size: var(--font-size-xs);
-  font-weight: 700;
-  letter-spacing: 0.05em;
 }
 
 .pfj-explainer h1,
@@ -62,8 +49,6 @@
   font-size: var(--font-size-body);
   line-height: 1.6;
 }
-
-.pfj-explainer__lede { max-width: 700px; margin-bottom: 0; }
 
 .pfj-explainer__actions {
   display: flex;

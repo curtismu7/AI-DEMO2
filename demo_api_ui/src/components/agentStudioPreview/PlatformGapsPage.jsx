@@ -6,6 +6,7 @@
 import React from "react";
 import { useThemeOptional } from "../../context/ThemeContext";
 import "./agentStudioPreview.css";
+import PageHeader from '../common/PageHeader';
 
 const GAPS = [
   {
@@ -47,14 +48,8 @@ export default function PlatformGapsPage() {
             {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
           </button>
         </div>
-        <div className="asp-hero">
-          <span className="asp-eyebrow">Agent Studio · what's missing today</span>
-          <h1>Where Ping Identity is missing pieces</h1>
-          <p>
-            These are gaps in the platform, not this demo — everything else you clicked
-            through in Agent Studio (Preview) simulates what each would enable.
-          </p>
-        </div>
+        <PageHeader eyebrow="Agent Studio · what's missing today" title="Where Ping Identity is missing pieces" summary={<>These are gaps in the platform, not this demo — everything else you clicked
+            through in Agent Studio (Preview) simulates what each would enable.</>} />
 
         <div className="asp-gapgrid">
           {GAPS.map((g) => (

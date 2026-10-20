@@ -41,7 +41,7 @@ export const CALLS = [
     does: "Requires a PingFederate session with a live run intent and the ID-JAG feature on, then checks the user is allowed to reach this MCP server. A failure is an error, never a fallback.",
     source: "agentMcpTokenService.js, enterpriseMcpPolicyService.js" },
   { n: 8, phase: "PingFederate side", from: "bff", to: "pf", label: "Ask for an ID-JAG", where: "POST /as/token.oauth2 (RFC 8693, requested_token_type=id-jag)",
-    does: "Sends the BFF-held refresh token as the subject with the target audience, resource and scope. PingFederate checks it under policy aiDemoPfIdJagPolicy, builds the assertion from connection aiDemoPfIdJagSp, signs it, and returns a roughly five-minute JWT of type oauth-id-jag+jwt.",
+    does: "Sends the BFF-held refresh token as the subject with the target audience, resource and scope. PingFederate checks it under policy aiDemoPfIdJagPolicy, builds the assertion from connection aiDemoPfIdJagSp, signs it, and returns a short-lived JWT of type oauth-id-jag+jwt.",
     source: "oauthService.js performIdJagExchange", evidence: "pf-id-jag-issued" },
   { n: 9, phase: "PingFederate side", from: "bff", to: "bff", label: "Check the ID-JAG", where: "type, sub, iss, aud, exp",
     does: "The BFF refuses an assertion with the wrong type, issuer, audience or expiry before using it.",

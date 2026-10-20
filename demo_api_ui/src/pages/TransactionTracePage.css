@@ -28,7 +28,7 @@
   flex-shrink: 0;
   padding: 6px 14px;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -450,7 +450,7 @@
 .ttrace-notice {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   margin-bottom: 12px;
   font-size: var(--font-size-body);
@@ -471,7 +471,7 @@
   padding: 10px 14px;
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 6px;
   font-size: var(--font-size-body);
   text-align: left;
@@ -486,7 +486,7 @@
 .ttrace-detail {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 14px;
   margin: 0 0 12px;
 }
@@ -515,11 +515,11 @@
 
 /* Unknown must not read as a failure — an unavailable witness is not tampering. */
 .ttrace-recon.match { background: #ecfdf5; color: #047857; }
-.ttrace-recon.mismatch { background: #fef2f2; color: #b91c1c; }
+.ttrace-recon.mismatch { background: #fef2f2; color: #d20e0f; }
 .ttrace-recon.unknown { background: var(--th-bg-inset); color: var(--th-text, var(--th-text)); border-style: dashed; }
 
 .ttrace-links { margin-left: auto; display: flex; gap: 12px; font-size: var(--font-size-sm); }
-.ttrace-links a { color: #1d4ed8; font-weight: 600; text-decoration: none; }
+.ttrace-links a { color: #12538d; font-weight: 600; text-decoration: none; }
 .ttrace-links a:hover { text-decoration: underline; }
 
 .ttrace-detail-error { color: var(--th-status-error-text); font-size: var(--font-size-sm); }
@@ -527,9 +527,9 @@
 
 .ttrace-retry-btn {
   background: var(--th-bg-card);
-  border: 1px solid #b91c1c;
-  color: #b91c1c;
-  border-radius: 6px;
+  border: 1px solid #d20e0f;
+  color: #d20e0f;
+  border-radius: var(--btn-radius);
   padding: 4px 10px;
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -564,7 +564,7 @@
   border-left: 2px solid var(--th-border-strong);
 }
 
-.ttrace-hop--severed { border-left-color: #b91c1c; }
+.ttrace-hop--severed { border-left-color: #d20e0f; }
 
 .ttrace-node {
   position: absolute;
@@ -584,7 +584,7 @@
   font-variant-numeric: tabular-nums;
 }
 
-.ttrace-hop--severed .ttrace-node { border-color: #b91c1c; color: #b91c1c; }
+.ttrace-hop--severed .ttrace-node { border-color: #d20e0f; color: #d20e0f; }
 
 .ttrace-hop-body { flex: 1; min-width: 0; }
 
@@ -612,7 +612,7 @@
   color: var(--th-text, var(--th-text));
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0 6px;
 }
 
@@ -640,7 +640,7 @@
   color: #b45309;
   background: #fffbeb;
   border: 1px solid #fcd34d;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0 6px;
   margin-left: 8px;
 }
@@ -650,8 +650,8 @@
   list-style: none;
   display: block;
   background: #fef2f2;
-  border-left: 2px solid #b91c1c;
-  color: #b91c1c;
+  border-left: 2px solid #d20e0f;
+  color: #d20e0f;
   padding: 8px 12px 8px 26px;
   margin: 0 0 0 9px;
   font-size: var(--font-size-sm);
@@ -659,7 +659,7 @@
 }
 
 .ttrace-violation--unanchored {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border-left-width: 3px;
   margin: 0 0 10px;
 }
@@ -690,7 +690,7 @@
   color: var(--th-text-muted);
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0 6px;
   font-family: var(--font-mono);
 }
@@ -698,8 +698,13 @@
 /* Only the filter that actually stopped the call. Red matches the DENY badge
    and the severed spine, so the eye lands on where the chain broke. */
 .ttrace-filter.blocked {
-  color: #b91c1c;
+  color: #d20e0f;
   background: #fef2f2;
   border-color: #fecaca;
   font-weight: 600;
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .ttrace-retry-btn {
+  color: var(--th-status-error-text);
 }

@@ -4,7 +4,7 @@
   display: flex;
   flex-direction: column;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   box-shadow: 0 4px 16px rgba(0,0,0,0.10);
   overflow: hidden;
@@ -55,7 +55,7 @@
   align-items: center;
   justify-content: space-between;
   padding: 6px 12px;
-  background: var(--modal-header-bg, linear-gradient(135deg, #1a1a2e 0%, #16213e 100%));
+  background: var(--modal-header-bg, linear-gradient(135deg, #1a1a2e 0%, #051727 100%));
   color: var(--modal-header-text, #fff);
   cursor: grab;
   flex-shrink: 0;
@@ -88,7 +88,7 @@
   color: var(--modal-header-text, #fff);
   width: 24px;
   height: 24px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-size: var(--font-size-2xs);
   display: flex;
@@ -178,9 +178,9 @@
   width: var(--fp-corner); height: var(--fp-corner);
   cursor: nwse-resize;
   /* visible gripper dots in the corner */
-  background-image: radial-gradient(circle, #9ca3af 1px, transparent 1px),
-                    radial-gradient(circle, #9ca3af 1px, transparent 1px),
-                    radial-gradient(circle, #9ca3af 1px, transparent 1px);
+  background-image: radial-gradient(circle, #909ea4 1px, transparent 1px),
+                    radial-gradient(circle, #909ea4 1px, transparent 1px),
+                    radial-gradient(circle, #909ea4 1px, transparent 1px);
   background-size: 4px 4px;
   background-position: 3px 3px, 7px 7px, 3px 7px;
   background-repeat: no-repeat;
@@ -200,8 +200,8 @@
 
 /* Placeholder when popped out */
 .fp-placeholder {
-  border: 2px dashed #9ca3af;
-  border-radius: 8px;
+  border: 2px dashed #909ea4;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   min-height: 60px;
   display: flex;
@@ -218,18 +218,18 @@
 }
 
 .fp-btn-popin {
-  background: #e5e7eb;
+  background: #e0e2e4;
   border: 1px solid var(--th-border-strong);
-  color: var(--th-text);
+  color: #051727;
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   display: flex;
   align-items: center;
   justify-content: center;
 }
 .fp-btn-popin:hover {
-  background: #d1d5db;
+  background: #cdd1d4;
 }

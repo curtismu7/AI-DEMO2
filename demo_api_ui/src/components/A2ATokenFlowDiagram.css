@@ -1,8 +1,8 @@
 /* A2ATokenFlowDiagram.css — large, zoomable React Flow token-chain canvas.
  *
  * Theme tokens for surfaces/ink; actor colors are the shared diagram palette
- * (identity #d20e0f, runtime #004687, policy #dc2626, specialist #b45309,
- * MCP #0e7490) — same literals ReactFlowPocPage/ReactFlowSequenceDiagram use,
+ * (identity #d20e0f, runtime #12538d, policy #d20e0f, specialist #b45309,
+ * MCP #12538d) — same literals ReactFlowPocPage/ReactFlowSequenceDiagram use,
  * they do not flip with theme.
  */
 
@@ -52,7 +52,7 @@
   color: var(--th-text);
   background: var(--th-bg-hover);
 }
-.a2t-btn--primary { font-weight: 700; }
+.a2t-btn--primary { font-weight: var(--btn-weight); }
 .a2t-counter-label { color: var(--th-text); font-weight: 600; }
 
 .a2t-stage {
@@ -124,7 +124,7 @@
 /* ── Edges ────────────────────────────────────────────────────────────────── */
 
 .a2t-edge-label {
-  font-size: 11px;
+  font-size: var(--font-size-xs);
   font-weight: 650;
   fill: var(--th-text-muted);
   paint-order: stroke;

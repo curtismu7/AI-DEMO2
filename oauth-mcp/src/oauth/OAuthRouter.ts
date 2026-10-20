@@ -569,6 +569,7 @@ export class OAuthRouter {
       clientId,
       clientAliases: idp.clientAliases,
       allowUnboundClient: idp.allowUnboundClient === true,
+      strictClientBinding: idp.strictClientBinding === true,
       idpIssuer: idp.issuer,
       ownIssuer: this.issuer,
       acceptedResources: resolveIdJagResources(),

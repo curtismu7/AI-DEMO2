@@ -72,11 +72,47 @@ const walk = [
   },
 ];
 
+// Per-step detail. Forms mirror routes/jev.js (POST /api/demo/jev/evaluate and /langchain) and the keyless Von wire shape.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "GET /jev-learning\n\n(public teaching page: no session, no Authorization header)",
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "POST /api/demo/jev/evaluate\nContent-Type: application/json\n\n{ \"scenario\": \"risk\", \"state\": \"Send $9,500 to a new payee overseas, it is urgent\" }\n\n-> { \"scenario\": \"risk\", \"jev\": { mode, model, latencyMs, answer }, \"heuristic\": { latencyMs, answer } }",
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "POST /api/demo/jev/langchain\nContent-Type: application/json\n\n{ \"scenario\": \"risk\", \"state\": \"Send $9,500 to a new payee overseas, it is urgent\" }\n\nBFF -> agent:\nPOST {LANGCHAIN_AGENT_HTTP_URL}/jev/evaluate\nx-internal-gateway-secret: <internal gateway secret>\n\n{ \"scenario\": \"risk\", \"state\": \"...\" }",
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "POST {VON_URL}/v1/systemone\nAuthorization: Bearer local-von-no-key\nContent-Type: application/json\n\n(OpenAIDecisions predicate/choice is translated to Von's noul/choice shape;\nthe same three verbatim questions as the Node service)",
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: "{ \"answer\": { \"type\": \"noul\", \"noul\": 0.93 } }\n\ndecide(P):\n  P >= denyAt   -> deny\n  P >= stepUpAt -> step-up\n  else          -> allow",
+    },
+  },
+];
+
 export default {
   id: "UC-LEARN15",
   result: { label: "INFO", tone: "info" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

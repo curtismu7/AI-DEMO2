@@ -117,7 +117,7 @@
 .personal-agent-client-cards__chips span {
   padding: 0.25rem 0.45rem;
   border: 1px solid var(--th-border);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   color: var(--th-text-body);
   background: var(--th-bg-card);
   font-size: var(--font-size-2xs);
@@ -159,4 +159,4 @@
   }
 }
 
-.personal-agent-client-cards__action { --th-status-info: #1e40af; }
+.personal-agent-client-cards__action { --th-status-info: #051727; }

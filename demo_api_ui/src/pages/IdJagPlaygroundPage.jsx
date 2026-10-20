@@ -1,11 +1,14 @@
-import { createContext, Fragment, useContext, useEffect, useState } from "react";
-import { Link } from "react-router-dom";
+import { createContext, Fragment, useContext, useEffect, useRef, useState } from "react";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import IdJagPathBar from "../components/IdJagPathBar";
 import { diagramLinkProps } from "../utils/diagramLinks";
 import { PLAYGROUND_DIAGRAMS, playgroundDiagramPath } from "../utils/idJagPlaygroundDiagrams";
 import bffAxios from "../services/bffAxios";
 import { openSignIn } from "../utils/signInService";
 import { MOCK_CONFIG, mockApi } from "../utils/idJagPlaygroundMock";
+import { codeSnippet } from "../utils/codeSnippet";
+import { buildReport, downloadFile } from "../utils/runReport";
+import { mcpcCommand, vscodeMcpJson, vscodeSettings } from "../utils/realClients";
 import "./IdJagPlaygroundPage.css";
 
 // The real PingFederate ID-JAG flow, one step at a time (after Okta's xaa.dev), with a
@@ -25,7 +28,11 @@ const MODES = [
   { id: "byo", label: "Your IdP → our resource AS" },
 ];
 const BYO_TARGETS = [{ id: "oauth-mcp", label: "oauth-mcp" }, { id: "pingfederate", label: "PingFederate" }];
-const VIEWS = [{ id: "form", label: "Form" }, { id: "json", label: "JSON" }];
+const VIEWS = [{ id: "form", label: "Form" }, { id: "json", label: "JSON" }, { id: "code", label: "Code" }];
+// The standalone kit's PingFederate and sample MCP server: the real clients (mcpc, VS Code) sign in there.
+const KIT = { pfUrl: "https://cmuir-pf.ping-devops.com", mcpUrl: "http://localhost:19090/mcp" };
+const ON_LOCALHOST = typeof window !== "undefined" && ["localhost", "127.0.0.1"].includes(window.location.hostname);
+const XAA_BUTTON = "Get an ID-JAG from xaa.dev (IdenX, a free third-party IdP)";
 
 const stored = (key, allowed, fallback) => {
   try { const v = localStorage.getItem(key); return allowed.some((a) => a.id === v) ? v : fallback; } catch { return fallback; }
@@ -37,13 +44,14 @@ const SPEC_NOTES = {
   redeem: "RFC 7523 JWT bearer grant at the resource authorization server. It verifies typ, the IdP signature, iss, a single aud equal to its own issuer, exp/iat, and that client_id is the client authenticating now. It grants at most the ID-JAG's scope and mints its own access token. It should not return a refresh token.",
   negative: "A resource authorization server must refuse a broken assertion with an OAuth error and no token. Each test mints a fresh ID-JAG, breaks one thing, and checks the refusal.",
   negativeByo: "A resource authorization server must refuse a broken assertion with an OAuth error and no token. We cannot mint at your IdP, so each test reuses your pasted ID-JAG and breaks one thing. Replay is skipped: it would use up your token.",
+  revoke: "Control first: the exchange must work before revoking, or a later refusal proves nothing. Then the issuer revokes this session's refresh token (RFC 7009) and the exchange is tried again. Proved means the retry is refused with an OAuth error (invalid_request, or invalid_grant). Revoking ends this session at the issuer, so sign in again to continue.",
 };
 
 // Per-mode wording: who redeems, who validates the MCP call.
 const MODE_TEXT = {
   "oauth-mcp": {
     signInTitle: "Sign in with PingFederate",
-    signInNote: "The ID-JAG is minted from your PingFederate session (the refresh token the BFF holds). This always starts a fresh PingFederate sign-in.",
+    signInNote: "The ID-JAG is minted from your PingFederate session (the refresh token the BFF holds). If you already signed in to this app with PingFederate, this step is done: it uses that same session.",
     redeemTitle: "Redeem it at the MCP authorization server",
     asRole: "Redeems the ID-JAG, mints its own token",
     mcpRole: "Reached through the MCP gateway",
@@ -104,9 +112,13 @@ function Fields({ value, name }) {
   return <span>{String(value)}</span>;
 }
 
+// A request the page shows (endpoint + body, or method + url): the Code view turns it into fetch().
+const isRequest = (v) => !!v && typeof v === "object" && (typeof v.endpoint === "string" || (typeof v.url === "string" && typeof v.method === "string"));
+
 function Data({ value }) {
   const view = useContext(ViewContext);
   if (value === undefined || value === null) return null;
+  if (view === "code" && isRequest(value)) return <pre className="ijp-json ijp-code" data-testid="ijp-code">{codeSnippet(value)}</pre>;
   if (view === "json") return <pre className="ijp-json">{JSON.stringify(value, null, 2)}</pre>;
   return <div className="ijp-form"><Fields value={value} /></div>;
 }
@@ -128,17 +140,77 @@ function DiagramLink({ mode, step, children }) {
   return <Link className="ijp-diagram-link" to={to} {...diagramLinkProps(to)}>{children}</Link>;
 }
 
-function Step({ n, title, note, mode, children }) {
+function Step({ n, title, note, mode, noDiagram, done, children }) {
   return (
     <section className="ijp-step" aria-labelledby={`ijp-step-${n}`}>
       <header className="ijp-step__head">
-        <span className="ijp-step__n">{n}</span>
+        <span className={`ijp-step__n${done ? " is-done" : ""}`}>{done ? <><span aria-hidden="true">✓</span><span className="ijp-sr">{n} (done)</span></> : n}</span>
         <h2 id={`ijp-step-${n}`}>{title}</h2>
-        <DiagramLink mode={mode} step={n}>see step {n} on the diagram ↗</DiagramLink>
+        {!noDiagram && <DiagramLink mode={mode} step={n}>see step {n} on the diagram ↗</DiagramLink>}
       </header>
       {note && <p className="ijp-note">{note}</p>}
       {children}
     </section>
+  );
+}
+
+/** Which backends answer right now (IdP, resource AS). The newest probe wins: an older one (another mode) may land later. */
+function BackendsStrip({ api, mode }) {
+  const [list, setList] = useState(null);
+  const [checking, setChecking] = useState(false);
+  const seq = useRef(0);
+  const probe = () => {
+    const n = ++seq.current;
+    setChecking(true);
+    api.get(`${API}/backends`)
+      .then((r) => n === seq.current && setList(Array.isArray(r.data?.backends) ? r.data.backends : []))
+      .catch(() => n === seq.current && setList([]))
+      .finally(() => n === seq.current && setChecking(false));
+  };
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useEffect(probe, [api, mode]);
+  return (
+    <div className="ijp-backends" data-testid="ijp-backends" role="group" aria-label="Backends">
+      <span className="ijp-backends__label" aria-hidden="true">Backends</span>
+      <span className="ijp-backends__list" aria-live="polite">
+        {(list || []).map((b) => (
+          <span key={b.id} className={`ijp-chip is-${b.state}`} title={b.url}>
+            <span className="ijp-chip__led" aria-hidden="true" /><span>{b.label}</span>
+            <span className="ijp-chip__state">{b.state === "up" ? "up" : `${b.state}: ${b.detail}`}</span>
+          </span>
+        ))}
+      </span>
+      {list && list.length === 0 && <span className="ijp-note">Could not check the backends.</span>}
+      <button type="button" className="ijp-btn" onClick={probe} disabled={checking}>{checking ? "Checking…" : "Re-check"}</button>
+    </div>
+  );
+}
+
+/** The verdict line for a revoke-and-prove run. */
+function revokeVerdict(r) {
+  if (r.proved) return `Proved: the issuer refused a new ID-JAG (${r.retry.error}).`;
+  if (!r.control.ok) return `Not proved: the exchange already fails before revoking (${r.control.error || `HTTP ${r.control.status}`}), so nothing was revoked.`;
+  if (r.revoke.status !== 200) return `Not proved: the issuer did not accept the revocation (HTTP ${r.revoke.status}${r.revoke.error ? `, ${r.revoke.error}` : ""}).`;
+  if (r.retry.ok) return "Not proved: the issuer still issued an ID-JAG.";
+  return `Not proved: the retry failed without an OAuth refusal (HTTP ${r.retry.status}).`;
+}
+
+/** Real MCP clients against the standalone kit's sample server. Shown on localhost only: the kit runs there. */
+function RealClients() {
+  return (
+    <details className="ijp-real" data-testid="ijp-real-clients">
+      <summary>Try it with a real MCP client (needs the standalone kit running locally)</summary>
+      <p className="ijp-note">
+        mcpc and VS Code sign in at the kit's PingFederate and call its sample MCP server at {KIT.mcpUrl}. Start the kit first
+        (<code>docker compose -f deploy/docker-compose.yml -f deploy/docker-compose.desktop-clients.yml up -d</code> in its repo).
+      </p>
+      <h4>mcpc</h4>
+      <pre className="ijp-code">{mcpcCommand({ pfUrl: KIT.pfUrl, mcpUrl: KIT.mcpUrl })}</pre>
+      <h4>VS Code: user settings</h4>
+      <pre className="ijp-code">{vscodeSettings({ pfUrl: KIT.pfUrl })}</pre>
+      <h4>VS Code: .vscode/mcp.json</h4>
+      <pre className="ijp-code">{vscodeMcpJson({ mcpUrl: KIT.mcpUrl })}</pre>
+    </details>
   );
 }
 
@@ -232,7 +304,8 @@ function Lifetime({ id, label, exp, used, now, again }) {
   const left = exp - Math.floor(now / 1000);
   const stale = used || left <= 0;
   const text = used ? `redeemed (single-use). ${again}` : left <= 0 ? `expired. ${again}` : `${Math.floor(left / 60)}:${String(left % 60).padStart(2, "0")} left`;
-  return <p className={`ijp-life${stale ? " is-stale" : ""}`} data-testid={`ijp-life-${id}`}><strong>{label}:</strong> {text}</p>;
+  // Not an error: a used or expired token is the expected end of its life. Redeemed is info (blue), expired is a caution (amber).
+  return <p className={`ijp-life${used ? " is-stale is-used" : stale ? " is-stale is-expired" : ""}`} data-testid={`ijp-life-${id}`}><strong>{label}:</strong> {text}</p>;
 }
 
 /** The resource server's answer, drawn as the small app page it protects. */
@@ -420,12 +493,15 @@ export default function IdJagPlaygroundPage() {
   const [callResult, setCallResult] = useState(null);
   const [negatives, setNegatives] = useState([]);
   const [negResults, setNegResults] = useState({});
+  const [revoked, setRevoked] = useState(null);
   const [byoTarget, setByoTarget] = useState("oauth-mcp");
   const [byoToken, setByoToken] = useState("");
   const [error, setError] = useState(null);
   const [gate, setGate] = useState(null);
   const [resource, setResource] = useState(null);
   const [nowMs, setNowMs] = useState(() => Date.now());
+  const location = useLocation();
+  const navigate = useNavigate();
 
   const isMock = mode === "mock";
   const isByo = mode === "byo";
@@ -462,6 +538,11 @@ export default function IdJagPlaygroundPage() {
           if (data.modes?.find((m) => m.id === mode)?.available === false) setMode(data.mode);
           else applyConfig((await bffAxios.post(`${API}/mode`, { mode })).data);
         }
+        // Back from the IdenX sign-in (/xaa/callback): get the ID-JAG at once, or say why sign-in failed.
+        const back = new URLSearchParams(location.search);
+        if (back.has("xaa") || back.has("xaa_error")) navigate(location.pathname, { replace: true });
+        if (back.get("xaa_error")) setError({ step: "xaa", error: "xaa_sign_in_failed", message: `IdenX sign-in did not complete (${back.get("xaa_error")}).` });
+        else if (back.get("xaa") === "signed_in" && mode === "byo") run("xaa", loadXaaIdJag, checkFor("xaa"));
       } catch (e) { setError(e.response?.data || { message: e.message }); }
     })();
     loadNegatives(bffAxios);
@@ -470,7 +551,7 @@ export default function IdJagPlaygroundPage() {
   }, []);
 
   const clearResults = () => {
-    setIssued(null); setInspection(null); setRedeemed(null); setTools(null); setCallResult(null); setNegResults({}); setResource(null); setGate(null);
+    setIssued(null); setInspection(null); setRedeemed(null); setTools(null); setCallResult(null); setNegResults({}); setResource(null); setGate(null); setRevoked(null);
   };
 
   /**
@@ -527,14 +608,16 @@ export default function IdJagPlaygroundPage() {
 
   const signIn = () => run("signin", async () => {
     if (mode === "pf-pf") {
-      // Sign in at the issuer PingFederate, not the app's own provider.
-      window.location.assign(`${API}/issuer/login?return_to=${RETURN_TO}`);
+      // Sign in at the issuer PingFederate, not the app's own provider: the sign-in modal drives its pi.flow
+      // (role "issuer"); the redirect to /issuer/login is only the service's fallback.
+      openSignIn({ role: "issuer", returnTo: RETURN_TO, force: true });
       return;
     }
     // Always a PingFederate sign-in: clear whatever session is here first.
     await bffAxios.post("/api/auth/clear-session").catch(() => {});
-    // PingFederate's own login page: the real IdP sign-in the ID-JAG is minted from.
-    openSignIn({ returnTo: RETURN_TO, force: true, redirect: true });
+    // The app's sign-in modal (pi.flow) when the BFF can drive it: still a real PingFederate sign-in, so the
+    // session holds the refresh token the ID-JAG is minted from. The service redirects only as its own fallback.
+    openSignIn({ returnTo: RETURN_TO, force: true, keepHint: true });
   }, checkFor("signin"));
 
   // byo: the browser sends the user's own ID-JAG once; the BFF keeps it and returns decoded claims.
@@ -544,6 +627,30 @@ export default function IdJagPlaygroundPage() {
     if (data.config) applyConfig(data.config);
     setInspection(data);
   }, checkFor("issue", { target: byoTarget }));
+
+  // xaa.dev: IdenX (Okta's public playground IdP) issues the ID-JAG. The BFF signs in there, exchanges, and
+  // loads the ID-JAG like a pasted one. Mock mode answers with a sample IdenX ID-JAG.
+  const loadXaaIdJag = async () => {
+    clearResults(); setByoTarget("oauth-mcp");
+    let data;
+    try {
+      ({ data } = await api.post(`${API}/xaa/id-jag`, {}));
+    } catch (e) {
+      // The BFF may have dropped the IdenX session (refused refresh token): refresh so the button signs in again.
+      bffAxios.get(`${API}/config`).then((r) => applyConfig(r.data)).catch(() => {});
+      throw e;
+    }
+    if (data.config) applyConfig(data.config);
+    if (isMock) setIssued(data);
+    setInspection(data);
+  };
+  const xaaIdJag = () => run("xaa", async () => {
+    if (!isMock && !config?.xaa?.signedIn) {
+      window.location.assign(`${API}/xaa/login?return_to=${RETURN_TO}`);
+      return;
+    }
+    await loadXaaIdJag();
+  }, checkFor("xaa"));
 
   const issue = () => run("issue", async () => {
     setRedeemed(null); setTools(null); setCallResult(null); setInspection(null); setResource(null);
@@ -590,6 +697,35 @@ export default function IdJagPlaygroundPage() {
     setCallResult((await api.post(`${API}/call`, { tool, arguments: parsed })).data);
   }, checkFor("call"));
 
+  // Revoke and prove it: the issuer's session ends, so everything this session minted is cleared with it.
+  // Each ID-JAG works once, so after a redeem (or any dead end) the way forward is a new one from step 2. This clears
+  // every result and the server's copy of the ID-JAG and access token; the sign-in stays.
+  // Built in the browser from what the page shows (decoded claims, redacted requests): nothing is fetched.
+  const downloadReport = (format) => {
+    const report = buildReport({ mode, modeLabel: MODES.find((m) => m.id === mode)?.label, config, issued, inspection, redeemed,
+      tools, callResult, resource, negatives: negatives.map((t) => ({ ...t, result: negResults[t.id] || null })),
+      preflights: gate ? { [gate.step]: { ok: gate.ok, checks: gate.checks } } : {} });
+    const stamp = new Date().toISOString().slice(0, 19).replace(/[:T]/g, "-");
+    if (format === "json") downloadFile(`id-jag-run-${mode}-${stamp}.json`, JSON.stringify(report.json, null, 2), "application/json");
+    else downloadFile(`id-jag-run-${mode}-${stamp}.md`, report.markdown, "text/markdown");
+  };
+
+  const startOver = () => run("restart", async () => {
+    await api.post(`${API}/restart`, {});
+    clearResults();
+    setRedeemScope("");
+    setError(null);
+    document.getElementById("ijp-step-2")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  });
+  const hasResults = !!(issued || inspection || redeemed || tools || callResult || resource || revoked || Object.keys(negResults).length);
+
+  const revokeAndProve = () => run("revoke", async () => {
+    const r = await api.post(`${API}/revoke`, {});
+    setIssued(null); setInspection(null); setRedeemed(null); setTools(null); setCallResult(null); setResource(null);
+    setRevoked(r.data);
+    if (!isMock) applyConfig((await bffAxios.get(`${API}/config`)).data);
+  }, checkFor("revoke"));
+
   const runNegative = (id) => run(`neg-${id}`, async () => {
     const r = await api.post(`${API}/negative/${id}`, {}, { validateStatus: () => true });
     setNegResults((m) => ({ ...m, [id]: r.data }));
@@ -604,7 +740,7 @@ export default function IdJagPlaygroundPage() {
 
   const text = MODE_TEXT[mode];
   // Each step shows the pre-flight result for its own button (byo's Inspect is step 1's).
-  const gateAt = (panel) => gate && (gate.step === "issue" && isByo ? "signin" : gate.step) === panel
+  const gateAt = (panel) => gate && ((gate.step === "issue" && isByo) || gate.step === "xaa" ? "signin" : gate.step) === panel
     && <PreflightPanel gate={gate} onRecheck={recheck} busy={!!busy} />;
   const errorAt = (...steps) => (error && steps.includes(error.step) ? <ErrorNote e={error} resource={config?.request?.resource} /> : null);
   const toolList = tools?.tools || [];
@@ -638,13 +774,24 @@ export default function IdJagPlaygroundPage() {
           </div>
         </header>
 
+        <p className="ijp-note"><Link to="/pingfederate-id-jag/learn">Learn the ID-JAG terms and sources ↗</Link></p>
+
         <div className="ijp-toolbar">
           <div className="ijp-toolbar__group"><span>Mode</span><Segmented label="Playground mode" options={modeOptions} value={mode} onPick={pickMode} disabled={!!busy} />
             <DiagramLink mode={mode}>View {PLAYGROUND_DIAGRAMS[mode].label} diagram ↗</DiagramLink></div>
           <div className="ijp-toolbar__group"><span>View</span><Segmented label="Data view" options={VIEWS} value={view} onPick={pickView} /></div>
+          <div className="ijp-toolbar__group">
+            <button type="button" className="ijp-btn" onClick={startOver} disabled={!!busy || !hasResults} data-testid="ijp-start-over"
+              title="Clear every result below and start again from step 2. Your sign-in stays.">Start over</button>
+          </div>
+          <div className="ijp-toolbar__group"><span>Report</span>
+            <button type="button" className="ijp-btn" onClick={() => downloadReport("md")}>Download report</button>
+            <button type="button" className="ijp-btn" onClick={() => downloadReport("json")}>Download JSON</button>
+          </div>
         </div>
         {gateAt("mode")}
-        {isMock && <p className="ijp-mock-badge" role="status" data-testid="ijp-mock-badge">Mock: sample data, nothing is sent</p>}
+        <BackendsStrip api={api} mode={mode} />
+        {isMock &&<p className="ijp-mock-badge" role="status" data-testid="ijp-mock-badge">Mock: sample data, nothing is sent</p>}
 
         {config && (
           <section className="ijp-actors" aria-label="Who plays which role">
@@ -664,7 +811,20 @@ export default function IdJagPlaygroundPage() {
         )}
         {error && !["list", "call", "resource"].includes(error.step) && <ErrorNote e={error} resource={config?.request?.resource} />}
 
-        <Step n={1} mode={mode} title={text.signInTitle} note={text.signInNote}>
+        <Step n={1} mode={mode} done={!isMock && !isByo && !!config?.signedIn} title={text.signInTitle} note={text.signInNote}>
+          {(isByo || isMock) && (
+            <div className="ijp-xaa" data-testid="ijp-xaa">
+              <button type="button" className="ijp-btn ijp-btn--primary" onClick={xaaIdJag} disabled={!config?.xaa?.available || !!busy}>
+                {busy === "xaa" ? "Getting an ID-JAG…" : XAA_BUTTON}
+              </button>
+              <p className="ijp-note">
+                <a href="https://xaa.dev" target="_blank" rel="noopener noreferrer">xaa.dev</a> is Okta's free Cross App Access playground:
+                its IdP, IdenX, signs you in with any email and any 6-digit code and issues an ID-JAG addressed to our oauth-mcp.
+                {config?.xaa?.signedIn && config.xaa.user ? ` Signed in at IdenX as ${config.xaa.user}.` : ""}
+              </p>
+              {config?.xaa && !config.xaa.available && <p className="ijp-note" role="note" data-testid="ijp-xaa-reason">{config.xaa.reason}</p>}
+            </div>
+          )}
           {isByo ? (
             <>
               <div className="ijp-toolbar__group"><span>Redeem at</span><Segmented label="Target authorization server" options={BYO_TARGETS} value={byoTarget} onPick={setByoTarget} disabled={!!busy} /></div>
@@ -677,19 +837,35 @@ export default function IdJagPlaygroundPage() {
             </>
           ) : (
             <>
-              <p className="ijp-status" data-testid="ijp-signin-status">{signInStatus}</p>
-              <button type="button" className="ijp-btn ijp-btn--primary" onClick={signIn} disabled={isMock || !pfReady || !!busy}>
-                {config?.signedIn && !isMock ? "Sign in again" : text.signInTitle}
-              </button>
+              {config?.signedIn && !isMock ? (
+                <>
+                  <p className="ijp-status ijp-status--ok" data-testid="ijp-signin-status" role="status">
+                    ✓ {signInStatus.replace(/\.$/, "")}{config.signedInAs ? ` as ${config.signedInAs}` : ""}. Nothing more to do in this step: continue to step 2.
+                  </p>
+                  <button type="button" className="ijp-btn" onClick={signIn} disabled={!pfReady || !!busy}
+                    title="Starts a brand new PingFederate sign-in, for a clean session or a different user.">Sign in as someone else</button>
+                </>
+              ) : (
+                <>
+                  <p className="ijp-status" data-testid="ijp-signin-status">{signInStatus}</p>
+                  <button type="button" className="ijp-btn ijp-btn--primary" onClick={signIn} disabled={isMock || !pfReady || !!busy}>{text.signInTitle}</button>
+                </>
+              )}
             </>
           )}
           {gateAt("signin")}
+          {ON_LOCALHOST && <RealClients />}
         </Step>
 
         <Step n={2} mode={mode} title={isByo ? "Check your ID-JAG against the draft" : "Get an ID-JAG from PingFederate"} note={isByo ? null : SPEC_NOTES.issue}>
           {!isByo && <button type="button" className="ijp-btn ijp-btn--primary" onClick={issue} disabled={!canRun || !!busy}>{busy === "issue" ? "Requesting…" : "Request ID-JAG"}</button>}
           {gateAt("issue")}
-          {isByo && inspection && <div className="ijp-io"><div><h4>Decoded ID-JAG</h4><Data value={{ header: inspection.header, claims: inspection.claims }} /></div></div>}
+          {isByo && inspection && (
+            <div className="ijp-io">
+              {inspection.request && <div><h4>Request to IdenX</h4><Data value={inspection.request} /></div>}
+              <div><h4>Decoded ID-JAG</h4><Data value={{ header: inspection.header, claims: inspection.claims }} /></div>
+            </div>
+          )}
           {issued && (
             <div className="ijp-io">
               <div><h4>Request</h4><Data value={issued.request} /></div>
@@ -720,7 +896,7 @@ export default function IdJagPlaygroundPage() {
 
         <Step n={3} mode={mode} title={text.redeemTitle} note={SPEC_NOTES.redeem}>
           <Lifetime id="idjag" label="ID-JAG" exp={idJagClaims?.exp} used={redeemed?.status === 200} now={nowMs}
-            again={isByo ? "Paste a fresh one to redeem again." : "Request a new one to redeem again."} />
+            again={isByo ? "Get or paste a fresh one to redeem again." : "Request a new one to redeem again."} />
           <label className="ijp-field">Scope to request
             <select value={scopePick} disabled={!idJagClaims} onChange={(e) => setRedeemScope(e.target.value)}>
               <option value="">All scopes in this ID-JAG (recommended)</option>
@@ -729,6 +905,10 @@ export default function IdJagPlaygroundPage() {
           </label>
           {!idJagClaims && <p className="ijp-note">{isByo ? "Paste and inspect your ID-JAG first." : "Request an ID-JAG first."}</p>}
           <button type="button" className="ijp-btn ijp-btn--primary" onClick={redeem} disabled={!canRun || !hasIdJag || !!busy}>{busy === "redeem" ? "Redeeming…" : "Redeem ID-JAG"}</button>
+          {hasIdJag && (
+            <button type="button" className="ijp-btn" onClick={startOver} disabled={!!busy} data-testid="ijp-start-over-step3"
+              title="An ID-JAG works once. Clear the results and request a new one from step 2.">Start over from step 2</button>
+          )}
           {gateAt("redeem")}
           {redeemed && (
             <div className="ijp-io">
@@ -844,6 +1024,23 @@ export default function IdJagPlaygroundPage() {
             })}
           </ul>
         </Step>
+
+        {!isByo && (
+          <Step n={6} mode={mode} noDiagram title="Revoke and prove it" note={SPEC_NOTES.revoke}>
+            <button type="button" className="ijp-btn ijp-btn--primary" onClick={revokeAndProve} disabled={!canRun || !!busy}>{busy === "revoke" ? "Revoking…" : "Revoke and retry"}</button>
+            {gateAt("revoke")}
+            {revoked && (
+              <>
+                <p className={`ijp-pill ${revoked.proved ? "is-ok" : "is-bad"}`} data-testid="ijp-revoke-verdict">{revokeVerdict(revoked)}</p>
+                <div className="ijp-io">
+                  <div><h4>1. Control: ask for an ID-JAG (HTTP {revoked.control.status})</h4><Data value={revoked.control.request} /></div>
+                  {revoked.revoke && <div><h4>2. Revoke the refresh token (HTTP {revoked.revoke.status})</h4><Data value={revoked.revoke.request} /></div>}
+                  {revoked.retry && <div><h4>3. Ask again (HTTP {revoked.retry.status})</h4><Data value={revoked.retry.request} /></div>}
+                </div>
+              </>
+            )}
+          </Step>
+        )}
 
         <TrustedIdpsPanel api={api} endpoints={config?.publicEndpoints} />
 

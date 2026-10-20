@@ -5,7 +5,7 @@
 
 .rp-container {
   border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   overflow: hidden;
   background: #fff;
   margin-bottom: 24px;
@@ -51,9 +51,9 @@
 
 .rp-list-group-header {
   padding: 8px 12px 5px;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
-  color: #999;
+  color: #051727;
   text-transform: uppercase;
   letter-spacing: 0.06em;
   background: #fafafa;
@@ -134,7 +134,7 @@
 .rp-test-form {
   background: #f8f9fc;
   border: 1px solid #e5e5e5;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 14px 16px;
   margin-bottom: 12px;
 }
@@ -167,7 +167,7 @@
 
 .rp-test-form__input {
   width: 100%;
-  border: 1px solid #d1d5db;
+  border: 1px solid #cdd1d4;
   border-radius: 5px;
   padding: 6px 10px;
   font-size: var(--font-size-2xs);
@@ -192,10 +192,10 @@
 /* ── Primary button ─────────────────────────────────────────────────────── */
 
 .rp-btn-primary {
-  background: #3730a3;
+  background: #051727;
   color: #fff;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 7px 18px;
   font-size: var(--font-size-2xs);
   font-weight: 600;
@@ -204,7 +204,7 @@
 }
 
 .rp-btn-primary:hover:not(:disabled) {
-  background: #2563eb;
+  background: #12538d;
 }
 
 .rp-btn-primary:disabled {

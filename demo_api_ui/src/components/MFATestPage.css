@@ -2,8 +2,7 @@
   max-width: 1200px;
   margin: 0 auto;
   padding: 2rem;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .mfa-test-loading,
@@ -88,7 +87,7 @@
 
 .mfa-status-pill {
   padding: 0.5rem 1rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
   font-weight: 500;
   white-space: nowrap;
@@ -108,7 +107,7 @@
 .mfa-test-button {
   padding: 0.5rem 1rem;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -205,6 +204,13 @@
   color: var(--th-text-body);
 }
 
+.mfa-test-diagram-collapse > summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: var(--th-text-body);
+  margin-bottom: 0.5rem;
+}
+
 .config-display {
   display: flex;
   flex-direction: column;
@@ -216,7 +222,7 @@
   justify-content: space-between;
   padding: 0.5rem;
   background-color: var(--th-bg-card);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .config-label {
@@ -232,7 +238,7 @@
 .test-card {
   background-color: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 1rem;
   margin-bottom: 1rem;
 }
@@ -331,7 +337,7 @@
   flex: 1;
   padding: 0.65rem 0.75rem;
   border: 2.5px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: 1.15rem;
   font-family: inherit;
   letter-spacing: normal;
@@ -369,7 +375,7 @@
   align-items: center;
   padding: 0.75rem;
   background-color: var(--th-bg-card);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-bottom: 0.5rem;
   gap: 1rem;
   flex-wrap: wrap;
@@ -398,8 +404,7 @@
 .device-contact {
   color: var(--th-text-muted);
   font-size: 0.85rem;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", sans-serif;
+  font-family: var(--font-primary);
 }
 
 .device-type {
@@ -502,7 +507,7 @@
 .section-api-toggle {
   background: none;
   border: 1px solid var(--brand-medium-gray, #bbb);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--brand-dark-gray, #495057);
   cursor: pointer;
   font-size: 0.8rem;
@@ -744,7 +749,7 @@
   border-radius: 10px;
   font-size: 0.9rem;
   flex-wrap: wrap;
-  box-shadow: 0 1px 5px rgba(59, 130, 246, 0.18);
+  box-shadow: 0 1px 5px rgba(18, 83, 141, 0.18);
 }
 
 .mfa-user-picker__label {
@@ -781,7 +786,7 @@
 .mfa-user-picker__input:focus {
   outline: none;
   border-color: var(--th-status-info);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 0 2px rgba(18, 83, 141, 0.15);
 }
 
 .mfa-user-picker__dropdown {
@@ -830,7 +835,7 @@
 .mfa-user-picker__refresh {
   padding: 5px 9px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   cursor: pointer;
   font-size: 0.95rem;
@@ -846,7 +851,7 @@
 .mfa-user-picker__clear {
   padding: 4px 10px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   cursor: pointer;
   font-size: 0.8rem;
@@ -889,7 +894,7 @@
   padding: 0.75rem 1rem;
   background: var(--th-bg-card);
   border: 2px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   transition: all 0.2s;
   font-size: 0.95rem;
@@ -1027,14 +1032,13 @@
 }
 
 .mfa-test-card__method--patch {
-  background: #f3e5f5;
-  color: #6a1b9a;
+  background: #fee2e2;
+  color: #7f1d1d;
 }
 
 .mfa-test-card__endpoint {
   flex: 1;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", "Roboto", "Oxygen", "Ubuntu",
-    "Cantarell", sans-serif;
+  font-family: var(--font-primary);
   color: var(--th-text-body);
   font-size: 0.8rem;
   word-break: break-all;
@@ -1093,7 +1097,7 @@
 
 .mfa-test-card__results {
   padding: 0.75rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-top: 0.75rem;
 }
 
@@ -1134,7 +1138,7 @@
   margin: 0.75rem 0;
   padding: 0.75rem 1rem;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-inset);
   color: var(--th-text);
 }
@@ -1184,8 +1188,33 @@
   max-width: 28rem;
   padding: 0.4rem 0.6rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-inset);
   color: var(--th-text);
   font-family: var(--font-mono);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root:not([data-theme="dark"]) .mfa-test-button--test {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .mfa-test-button--test {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .status-badge--passed {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .status-badge--passed {
+  color: #051727;
+}
+
+:root:not([data-theme="dark"]) .mfa-test-card__status--passed {
+  color: #051727;
+}
+
+:root[data-theme="dark"] .mfa-test-card__status--passed {
+  color: #051727;
 }

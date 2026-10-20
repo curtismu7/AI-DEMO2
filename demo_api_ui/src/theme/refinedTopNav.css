@@ -6,13 +6,13 @@
 
 /* Header bar: vertical gradient */
 .topnav {
-  /* Header text is white (#fff / #f1f5f9) for every vertical, and the brand reds, oranges and
+  /* Header text is white (#fff / #eff0f1) for every vertical, and the brand reds, oranges and
      blues are only 4.8 to 6.7:1 under white. Mixing 24% black into both stops gives about
      7.7:1 at the same hue. */
   background: linear-gradient(
     135deg,
-    color-mix(in srgb, var(--brand-dashboard-header-start, #1d4ed8) 76%, #000000) 0%,
-    color-mix(in srgb, var(--brand-dashboard-header-end, #1d4ed8) 76%, #000000) 100%
+    color-mix(in srgb, var(--brand-dashboard-header-start, #12538d) 76%, #000000) 0%,
+    color-mix(in srgb, var(--brand-dashboard-header-end, #12538d) 76%, #000000) 100%
   ) !important;
   border-bottom: none;
   /* No fixed height: the container wraps to a second row below 1280px
@@ -22,7 +22,7 @@
 /* Brand name */
 .topnav-brand-name {
   color: var(--brand-topnav-text, #ffffff) !important;
-  font-family: "Montserrat", Georgia, serif;
+  font-family: var(--font-primary);
   font-size: 1.05rem;
   font-weight: 600;
   letter-spacing: -0.015em;
@@ -40,7 +40,7 @@
 .topnav-brand .topnav-brand-icon {
   width: 32px !important;
   height: 32px !important;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   object-fit: contain;
 }
 

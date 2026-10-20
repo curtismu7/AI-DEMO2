@@ -32,7 +32,7 @@
 .cfg-segment-wrap {
   display: inline-flex;
   border: 1.5px solid var(--th-border-strong);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   overflow: hidden;
   background: var(--th-bg-inset);
   padding: 3px;
@@ -44,7 +44,7 @@
   background: transparent;
   color: var(--th-text-body);
   border: none;
-  border-radius: 9px;
+  border-radius: var(--btn-radius);
   font-size: 0.875rem;
   font-weight: 500;
   cursor: pointer;
@@ -189,7 +189,7 @@
 }
 .cfg-card-header {
   padding: 1.1rem 1.5rem;
-  border-bottom: 1px solid #f1f5f9;
+  border-bottom: 1px solid #eff0f1;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -229,7 +229,7 @@
 }
 .cfg-badge--active        { background: #dcfce7; color: #14532d; }
 .cfg-badge--unconfigured  { background: #fef9c3; color: #713f12; }
-.cfg-badge--unreachable   { background: #fee2e2; color: #991b1b; }
+.cfg-badge--unreachable   { background: #fee2e2; color: #aa0005; }
 .cfg-badge--loading       { background: var(--th-bg-inset); color: var(--th-text-muted); }
 
 /* ── Field grid ─────────────────────────────────────────────── */
@@ -274,7 +274,7 @@
 .cfg-select {
   padding: 9px 12px;
   border: 1.5px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: 0.875rem;
   color: var(--th-text);
   background: var(--th-bg-card);
@@ -285,14 +285,14 @@
 .cfg-input:focus,
 .cfg-select:focus {
   outline: none;
-  border-color: #2563eb;
-  box-shadow: 0 0 0 3px rgba(37, 99, 235, 0.08);
+  border-color: #12538d;
+  box-shadow: 0 0 0 3px rgba(18, 83, 141, 0.08);
 }
 
 /* ── Divider ────────────────────────────────────────────────── */
 .cfg-divider {
   border: none;
-  border-top: 1px solid #f1f5f9;
+  border-top: 1px solid #eff0f1;
   margin: 0 0 1.25rem;
 }
 
@@ -305,7 +305,7 @@
 }
 .cfg-btn {
   padding: 8px 18px;
-  border-radius: 8px;
+  border-radius: var(--btn-radius);
   font-size: 0.875rem;
   font-weight: 600;
   cursor: pointer;
@@ -319,11 +319,11 @@
   cursor: not-allowed;
 }
 .cfg-btn--primary {
-  background: #1e40af;
+  background: #051727;
   color: var(--th-text-invert);
   border: none;
 }
-.cfg-btn--primary:hover:not(:disabled) { background: #1d4ed8; }
+.cfg-btn--primary:hover:not(:disabled) { background: #12538d; }
 .cfg-btn--green {
   background: #065f46;
   color: var(--th-text-invert);
@@ -451,7 +451,7 @@
   display: block;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0.5rem 0.75rem;
   font-size: 0.82rem;
   color: var(--th-text);

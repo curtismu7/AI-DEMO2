@@ -79,6 +79,18 @@ describe('HostileMcpTab live-run reporting', () => {
   });
 });
 
+describe('HostileMcpTab sign-in bounce', () => {
+  it('asks the BFF to return to /llm-gateway, not the default /privilege-mcp-client', async () => {
+    stubHostileRun({ ok: true, json: async () => ({}) });
+    render(<MemoryRouter><HostileMcpTab /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: /sign in with privilege/i }));
+    await screen.findByRole('button', { name: /run agent/i });
+
+    const call = fetch.mock.calls.find(([url]) => String(url).endsWith('/auth/start'));
+    expect(JSON.parse(call[1].body)).toEqual({ returnTo: '/llm-gateway' });
+  });
+});
+
 describe('HostileMcpTab model routing toggle', () => {
   const agentRunBody = () => {
     const call = fetch.mock.calls.find(([url]) => String(url).endsWith('/agent/run'));

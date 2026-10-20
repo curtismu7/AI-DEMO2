@@ -7,14 +7,16 @@
  *   • Path C (oauth_bearer): Gateway GETs banking_resource_server /accounts + /transactions (blue)
  *
  * Converted from the original Mermaid source to the shared StaticFlowDiagram
- * React Flow renderer — same nodes/edges/groups, plus the PathFilterBar
+ * React Flow renderer (pingStyle: routed arrows, numbered, movable boxes) — same nodes/edges/groups, plus the PathFilterBar
  * dimming now driven by node `path` data instead of SVG tag scraping, and
  * per-node click details.
  */
 import { useMemo, useState } from "react";
 import { PathFilterBar } from "./diagram";
 import StaticFlowDiagram from "./StaticFlowDiagram";
+import { P266_EDGES, P266_GROUPS, P266_NODES } from "../config/phase266Diagram";
 import "./Phase266ArchitecturePage.css";
+import PageHeader from './common/PageHeader';
 
 // Module-level paths constant — consumed by the shared PathFilterBar component
 const P266_PATHS = [
@@ -111,74 +113,7 @@ const PATH_NODE_MAP = {
   C: ["Accounts", "Transactions", "BankingDb"],
 };
 
-// ─── Graph data (converted from MERMAID_SOURCE) ─────────────────────────────
-
-const P266_GROUPS = {
-  bff: { label: "banking_api_server :3001 (BFF + traffic terminus)", bg: "#1e40af" },
-  rs: { label: "banking_resource_server (authenticateToken)", bg: "#047857" },
-};
-
-const P266_NODES = [
-  { id: "User", group: "bff", label: "User / browser", x: 0, y: 40 },
-  {
-    id: "SPA", group: "bff", label: "SPA — banking_api_ui :4000",
-    sub: ["3 result pages:", "ResourceServerPage (blue)", "ApiKeyPathPage (amber)", "AccessIdTokenPathPage (teal)"],
-    x: 0, y: 160,
-  },
-  {
-    id: "Session", group: "bff", label: "Express session",
-    sub: ["oauthTokens.accessToken", "oauthTokens.idToken"],
-    x: 0, y: 330,
-  },
-  { id: "InternalIdToken", group: "bff", label: "/internal/id-token", sub: ["secret-gated", "server-to-server"], path: "B", x: 0, y: 460 },
-  { id: "PathInfo", group: "bff", label: "/api/path/apikey-info", sub: ["masked apiKey last4", "(Path A info marker)"], path: "A", x: 0, y: 560 },
-
-  { id: "Summary", group: "rs", label: "GET /summary", sub: ["existing — untouched"], x: 260, y: 40 },
-  { id: "Identity", group: "rs", label: "POST or GET /identity", sub: ["decodes access+id tokens", "act-chain audit log", "scrubRawJwts walker"], path: "B", x: 260, y: 160 },
-  { id: "Accounts", group: "rs", label: "GET /accounts", sub: ["reads LMDB"], path: "C", x: 260, y: 300 },
-  { id: "Transactions", group: "rs", label: "GET /transactions", sub: ["reads LMDB"], path: "C", x: 260, y: 430 },
-
-  { id: "BankingDb", group: "bff", label: "LMDB store", sub: ["data/persistent/lmdb/", "banking_accounts +", "banking_transactions"], path: "C", x: 0, y: 700 },
-
-  {
-    id: "Gateway", group: "bff", label: "banking_mcp_gateway :3005 — TRAFFIC COP",
-    sub: ["routeTool(name) → credentialPath", "selectCredentialForBackend()", "synthesizes _meta.tokenEvents"],
-    x: 520, y: 160,
-  },
-  { id: "PingOne", group: "bff", label: "PingOne AS", sub: ["RFC 8693 /token", "RFC 7662 /introspect", "RFC 7517 /jwks"], x: 520, y: 470 },
-  {
-    id: "ApiResourceServer", group: "bff", label: "banking_api_resource_server :8082",
-    sub: ["X-API-Key gate", "GET /mortgage", "(no OAuth involved)"],
-    path: "A", x: 520, y: 620,
-  },
-];
-
-const P266_EDGES = [
-  ["User", "SPA", "1. OIDC login (OIDC Core)"],
-  ["SPA", "Session", "session cookie"],
-  ["SPA", "Gateway", "2. 'show my profile card' via bffAxios → BankingAgent"],
-  ["Gateway", "PingOne", "3. RFC 8693 token exchange — subject=user bearer, actor=gateway-client, aud=banking_resource_server"],
-  ["PingOne", "Gateway", "exchanged token — aud=banking_resource_server, act.client_id=gateway-client"],
-  ["Gateway", "InternalIdToken", "fetches id_token (secret-gated)"],
-  ["InternalIdToken", "Session", null],
-  ["Gateway", "ApiResourceServer", "Path A: api_key — GET /mortgage, X-API-Key + X-User-Sub (no OAuth bearer)", { dashed: false, color: "#b45309" }],
-  ["ApiResourceServer", "Gateway", "mortgage record (JSON)", { color: "#b45309" }],
-  ["Gateway", "SPA", "Path A response — credentialPath: api_key + masked last4", { color: "#b45309" }],
-  ["SPA", "PathInfo", "navigate(/path/mortgage, state: mortgagePayload)", { color: "#b45309" }],
-  ["Gateway", "Identity", "Path B: dual_token — POST /identity, Bearer EXCHANGED + idToken body", { color: "#0f766e" }],
-  ["Gateway", "Accounts", "Path C: oauth_bearer — GET /accounts, Bearer EXCHANGED", { color: "#1e40af" }],
-  ["Gateway", "Transactions", "GET /transactions, Bearer EXCHANGED", { color: "#1e40af" }],
-  ["Accounts", "BankingDb", "getAccountsByUserId (parameterized SQL)"],
-  ["Transactions", "BankingDb", "getTransactionsByUserId (parameterized SQL)"],
-  ["Identity", "PingOne", "authenticateToken — RFC 7515 sig (JWKS), RFC 8707 aud, optional RFC 7662", { dashed: true }],
-  ["Accounts", "PingOne", "same validation", { dashed: true }],
-  ["Transactions", "PingOne", "same validation", { dashed: true }],
-  ["Identity", "Gateway", "claims only (sanitizeClaims + scrubRawJwts), NO raw JWT"],
-  ["Accounts", "Gateway", "LMDB rows"],
-  ["Transactions", "Gateway", "LMDB rows"],
-  ["Gateway", "SPA", "_meta.credentialPath + _meta.tokenEvents"],
-  ["SPA", "Summary", "existing (unchanged)", { dashed: true }],
-];
+// Graph data (converted from MERMAID_SOURCE) lives in config/phase266Diagram.js.
 
 // Per-node click detail (teaching values).
 const P266_NODE_DETAILS = {
@@ -247,14 +182,9 @@ export default function Phase266ArchitecturePage() {
 
   return (
     <div className="p266-arch-page">
-      <header className="p266-arch-header">
-        <span className="p266-arch-eyebrow">Phase 266</span>
-        <h1>Three Credential Paths — Architecture</h1>
-        <p className="p266-arch-subtitle">
-          One Gateway, three credential mechanisms. Live React Flow render —
+      <PageHeader className="p266-arch-header" eyebrow="Phase 266" title="Three Credential Paths — Architecture" summary={<>One Gateway, three credential mechanisms. Live React Flow render —
           same graph as the Mermaid original, now interactive: filter by path
-          and click any node for its role.
-        </p>
+          and click any node for its role.</>}>
         <p className="p266-arch-subtitle">
           Scope: this view is intentionally limited to the Phase 266
           credential-disposition paths. The investment MCP server
@@ -269,7 +199,7 @@ export default function Phase266ArchitecturePage() {
           service topology, see{" "}
           <a href="/architecture/overview" target="_blank" rel="noopener noreferrer">Architecture Overview</a>.
         </p>
-      </header>
+      </PageHeader>
 
       <PathFilterBar paths={P266_PATHS} selectedPath={selectedPath} onSelect={(p) => { setSelectedPath(p); setSelectedNode(null); }} className="p266-filter-bar" />
 
@@ -287,6 +217,7 @@ export default function Phase266ArchitecturePage() {
           details={P266_NODE_DETAILS}
           selectedPath={selectedPath}
           onNodeClick={(node) => setSelectedNode(selectedNode?.id === node.id ? null : node)}
+          pingStyle
           testId="p266-flow-diagram"
           height={640}
         />

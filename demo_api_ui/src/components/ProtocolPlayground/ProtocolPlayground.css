@@ -15,24 +15,24 @@
   --pp-text-secondary: #555;
   --pp-text-muted: #666; /* #888 was 3.5:1 on white */
   --pp-item-hover: #eef0f4;
-  --pp-item-active-bg: #1d4ed8;
+  --pp-item-active-bg: #12538d;
   --pp-item-active-text: #fff;
   --pp-btn-bg: #ffffff;
   --pp-btn-border: #b8bfc9;
   --pp-btn-text: #1a1a1a;
   --pp-btn-hover: #e4e7ec;
-  --pp-btn-primary-bg: #1d4ed8;
+  --pp-btn-primary-bg: #12538d;
   --pp-btn-primary-text: #ffffff;
-  --pp-btn-primary-hover: #1e40af;
+  --pp-btn-primary-hover: #051727;
   --pp-progress-bg: #e2e5ea;
   --pp-error-bg: #fef2f2;
   --pp-error-border: #fecaca;
-  --pp-error-text: #dc2626;
+  --pp-error-text: #d20e0f;
   --pp-ok-bg: #ecfdf5;
   --pp-ok-text: #16a34a;
   --pp-ok-border: #86efac;
   --pp-err-badge-bg: #fef2f2;
-  --pp-err-badge-text: #dc2626;
+  --pp-err-badge-text: #d20e0f;
   --pp-scrollbar: #ccc;
   --pp-scrollbar-hover: #aaa;
 
@@ -54,15 +54,15 @@
   --pp-text-secondary: #ffffff;
   --pp-text-muted: #888;
   --pp-item-hover: #1a1a1a;
-  --pp-item-active-bg: #1d4ed8;
+  --pp-item-active-bg: #12538d;
   --pp-item-active-text: #fff;
   --pp-btn-bg: #232323;
   --pp-btn-border: #3d3d3d;
   --pp-btn-text: #e0e0e0;
   --pp-btn-hover: #2d2d2d;
-  --pp-btn-primary-bg: #2563eb;
+  --pp-btn-primary-bg: #12538d;
   --pp-btn-primary-text: #ffffff;
-  --pp-btn-primary-hover: #3b82f6;
+  --pp-btn-primary-hover: #12538d;
   --pp-progress-bg: #222;
   --pp-error-bg: #1c0a0a;
   --pp-error-border: #3b1111;
@@ -84,7 +84,7 @@
   right: 16px;
   background: var(--pp-btn-bg);
   border: 1px solid var(--pp-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 5px 10px;
   font-size: var(--font-size-2xs);
   color: var(--pp-text-secondary);
@@ -143,7 +143,7 @@
 
 .pp-intro__h {
   margin: 0 0 6px;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -180,7 +180,7 @@
   width: 100%;
   height: 100%;
   color: var(--pp-text-muted);
-  font-size: 16px;
+  font-size: var(--font-size-md);
 }
 
 /* --- Sidebar --- */
@@ -211,7 +211,7 @@
   color: var(--pp-text-secondary);
   font-size: var(--font-size-body);
   padding: 10px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.12s, color 0.12s;
 }
@@ -239,7 +239,7 @@
   flex: 1;
   background: var(--pp-btn-bg);
   border: 1px solid var(--pp-btn-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 6px 8px;
   font-size: var(--font-size-2xs);
   color: var(--pp-btn-text);
@@ -351,7 +351,7 @@
   font-weight: 700;
   letter-spacing: 0.04em;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   border: 1px solid var(--pp-border);
   background-color: var(--pp-bg-surface);
   color: var(--pp-text);
@@ -382,7 +382,7 @@
 
 .pp-explainer__lead {
   display: block;
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -401,14 +401,14 @@
 .pp-mermaid {
   margin: 0;
   padding: 16px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background-color: var(--pp-bg-surface);
   border: 1px solid var(--pp-border);
 }
 
 .pp-mermaid__caption {
   font-family: var(--font-mono);
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -455,7 +455,7 @@
 
 .progress-fill {
   height: 100%;
-  background-color: #1d4ed8;
+  background-color: #12538d;
   border-radius: 2px;
   transition: width 0.25s ease;
 }
@@ -469,7 +469,7 @@
   background-color: var(--pp-btn-bg);
   color: var(--pp-btn-text);
   border: 1px solid var(--pp-btn-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 16px;
   font-size: var(--font-size-sm);
   font-weight: 500;
@@ -499,7 +499,7 @@
   background-color: var(--pp-btn-primary-bg);
   color: var(--pp-btn-primary-text);
   border: 1px solid var(--pp-btn-primary-bg);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 16px;
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -591,7 +591,7 @@
   font-size: var(--font-size-2xs);
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .entry-status.status-ok {
@@ -618,7 +618,7 @@
   background-color: var(--pp-btn-bg);
   color: var(--pp-btn-text);
   border: 1px solid var(--pp-btn-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 3px 10px;
   font-size: var(--font-size-2xs);
   cursor: pointer;
@@ -652,7 +652,7 @@
   padding: 9px 6px;
   background: none;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   text-align: left;
   color: var(--pp-text);
   font: inherit;

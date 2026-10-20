@@ -66,6 +66,24 @@ describe("LLM Gateway console - basics and decisions", () => {
     expect(screen.getByTestId("lgw-attack-demo-link")).toHaveAttribute("href", href);
   });
 
+  it.each(["tool_abuse", "tool_poisoning", "schema_violation", "inter_agent_abuse"])(
+    "Send on %s explains it is a tool-path attack instead of asking for a prompt",
+    async (attackId) => {
+      const attack = GUARDRAIL_ATTACKS.find((item) => item.id === attackId);
+      mockFetch(() => new Promise(() => {}));
+      render(<MemoryRouter><LlmGatewayPage /></MemoryRouter>);
+      await screen.findByText("/llm/anthropic/v1/messages");
+
+      fireEvent.change(screen.getByLabelText(/attack library/i), { target: { value: attackId } });
+      fireEvent.click(screen.getByRole("button", { name: /^send$/i }));
+
+      const alert = await screen.findByRole("alert");
+      expect(alert).toHaveTextContent(`${attack.label} is a tool-path attack`);
+      expect(alert).toHaveTextContent(attack.demoCta);
+      expect(alert).not.toHaveTextContent(/enter a prompt/i);
+    },
+  );
+
   it("does not restore a tool/agent attack as chat text after reload", async () => {
     window.localStorage.setItem("lgw-attack-choice", "tool_abuse");
     mockFetch(() => new Promise(() => {}));

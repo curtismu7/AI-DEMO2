@@ -9,6 +9,7 @@ import {
   DELEGATION_CHAIN_EDGES, DELEGATION_CHAIN_GROUPS, DELEGATION_CHAIN_NODES, DELEGATION_CHAIN_STEPS,
 } from "../config/delegationChainValueDiagram";
 import "./DelegationChainValuePage.css";
+import PageHeader from '../components/common/PageHeader';
 
 const VERTICAL = "sporting-goods";
 
@@ -105,14 +106,10 @@ export default function DelegationChainValuePage() {
       >
         {darkMode ? "☀️ Light mode" : "🌙 Dark mode"}
       </button>
-      <p className="dcv-eyebrow">WHY THIS DEMO EXISTS</p>
-      <h1>Prove who acted, and who authorized it</h1>
-      <p className="dcv-intro">
-        Delegated agents create a trust gap: a user may authorize one agent, while a different
+      <PageHeader eyebrow="WHY THIS DEMO EXISTS" title="Prove who acted, and who authorized it" summary={<>Delegated agents create a trust gap: a user may authorize one agent, while a different
         specialist or tool performs the action. This page makes that gap visible. Each scenario
         runs through the live token-exchange and authorization path, then shows the evidence in
-        the token-chain panel.
-      </p>
+        the token-chain panel.</>} />
       <EmbeddedFlowDiagram
         testId="dcv-chain-diagram"
         title="What the two runs do"

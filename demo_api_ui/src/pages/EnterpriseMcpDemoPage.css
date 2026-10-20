@@ -24,7 +24,7 @@
   flex-wrap: wrap;
   margin-bottom: 1rem;
   padding: 0.6rem 0.9rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid var(--th-status-warning-border);
   border-left: 4px solid var(--th-status-warning-border);
   background: var(--th-status-warning-bg);
@@ -104,7 +104,7 @@
   color: var(--th-status-info-text);
   padding: 0.4rem 0.7rem;
   font-size: 0.82rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   border: 1px solid var(--th-status-info-border);
   background: var(--th-status-info-bg);
@@ -124,7 +124,7 @@
   padding: 0.55rem 0.95rem;
   font-size: 0.88rem;
   font-weight: 600;
-  border-radius: 7px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   border: 1px solid var(--th-border);
   background: var(--th-bg-inset);
@@ -135,8 +135,8 @@
 
 .emd-btn--primary {
   color: #fff;
-  border-color: var(--signin-accent, #2563eb);
-  background: var(--signin-accent, #2563eb);
+  border-color: var(--signin-accent, #12538d);
+  background: var(--signin-accent, #12538d);
 }
 
 .emd-btn--reset {

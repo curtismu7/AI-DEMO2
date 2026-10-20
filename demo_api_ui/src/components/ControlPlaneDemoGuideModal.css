@@ -10,10 +10,10 @@
 .cpg-lead {
   margin: 0 0 16px;
   padding: 10px 14px;
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #93c5fd;
-  border-radius: 6px;
-  color: #1e3a8a;
+  border-radius: var(--radius-md);
+  color: #051727;
   font-weight: 600;
 }
 
@@ -44,12 +44,12 @@
 
 .cpg-steps code,
 .cpg-bonus code {
-  background: #f3f4f6;
-  border: 1px solid #e5e7eb;
-  border-radius: 4px;
+  background: #eff0f1;
+  border: 1px solid #e0e2e4;
+  border-radius: var(--radius-sm);
   padding: 1px 5px;
   font-size: var(--font-size-2xs);
-  color: #b91c1c;
+  color: #d20e0f;
 }
 
 .cpg-bonus {

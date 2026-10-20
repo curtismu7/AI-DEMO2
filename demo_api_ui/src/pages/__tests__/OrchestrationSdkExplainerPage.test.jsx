@@ -44,7 +44,8 @@ describe("OrchestrationSdkExplainerPage", () => {
 
   it("gives the lifecycle diagram Simulate, Reset and step-time controls", () => {
     render(<OrchestrationSdkExplainerPage />);
-    const bar = within(screen.getByRole("group", { name: "DaVinci SDK client lifecycle" })).getByTestId("diagram-step-bar");
+    // pingStyle StaticFlowDiagram draws its own Simulate bar just above the diagram group
+    const bar = screen.getByTestId("osx-lifecycle-diagram-steps");
     expect(within(bar).getByText("Simulate")).toBeTruthy();
     expect(within(bar).getByText("Reset")).toBeTruthy();
     expect(within(bar).getByText("Step time:")).toBeTruthy();

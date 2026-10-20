@@ -40,23 +40,23 @@
 .trism-slide-section h4 {
   font-size: var(--font-size-sm);
   font-weight: 700;
-  color: #1e40af;
+  color: #051727;
   text-transform: uppercase;
   letter-spacing: 1px;
   margin: 0 0 12px;
   padding-bottom: 8px;
-  border-bottom: 2px solid #eff6ff;
+  border-bottom: 2px solid #fcfcfc;
 }
 
 /* Explanation block */
 .trism-slide-explanation {
   font-size: var(--font-size-base);
-  color: var(--th-text);
+  color: #051727;
   line-height: 1.6;
-  background: #f9fafb;
+  background: #f7f8f8;
   padding: 12px 16px;
-  border-radius: 8px;
-  border-left: 4px solid #1e40af;
+  border-radius: var(--radius-lg);
+  border-left: 4px solid #051727;
   margin: 0;
 }
 
@@ -69,8 +69,8 @@
 
 .trism-feature-card {
   background: #ffffff;
-  border: 1px solid #e5e7eb;
-  border-radius: 8px;
+  border: 1px solid #e0e2e4;
+  border-radius: var(--radius-lg);
   padding: 14px;
   transition: box-shadow 0.2s ease;
 }
@@ -89,11 +89,11 @@
 .trism-feature-component {
   font-family: inherit;
   font-size: var(--font-size-2xs);
-  color: var(--th-text);
-  background: #f3f4f6;
+  color: #051727;
+  background: #eff0f1;
   display: inline-block;
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   margin-bottom: 6px;
 }
 
@@ -107,7 +107,7 @@
 .trism-demo-section {
   background: #fffbeb;
   border: 1px solid #fde68a;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px;
 }
 
@@ -119,8 +119,8 @@
 .trism-demo-placeholder {
   padding: 12px;
   background: white;
-  border-radius: 6px;
-  border: 1px dashed #d1d5db;
+  border-radius: var(--radius-md);
+  border: 1px dashed #cdd1d4;
 }
 
 .trism-demo-hint {

@@ -29,11 +29,11 @@
 
 .runs-table-container {
   background: white;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   overflow-x: auto;
   margin-bottom: 2rem;
-  --th-text: #0f172a;
+  --th-text: #051727;
   color: var(--th-text);
 }
 
@@ -45,7 +45,7 @@
 
 .runs-table thead {
   background: #f5f5f5;
-  border-bottom: 2px solid #277ba5;
+  border-bottom: 2px solid #12538d;
 }
 
 .runs-table th {
@@ -102,9 +102,9 @@
 .action-btn {
   padding: 0.5rem 0.75rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   background: white;
-  color: var(--th-text);
+  color: #051727;
   cursor: pointer;
   font-size: 0.8rem;
   font-weight: 500;
@@ -113,7 +113,7 @@
 
 .action-btn:hover {
   border-color: var(--th-text);
-  background: #f0f7fa;
+  background: #eff0f1;
 }
 
 .action-btn.download {
@@ -132,7 +132,7 @@
 
 .admin-section {
   background: white;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.1);
   padding: 2rem;
   margin-top: 2rem;
@@ -167,7 +167,7 @@
 .form-group select {
   padding: 0.75rem;
   border: 1px solid #ddd;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.9rem;
   font-family: inherit;
 }
@@ -181,10 +181,10 @@
 
 .bulk-export-btn {
   padding: 0.75rem 1.5rem;
-  background: #277ba5;
+  background: #d20e0f;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 500;
   align-self: flex-end;
@@ -217,10 +217,10 @@
 
 .vertical-picker {
   padding: 0.6rem 0.9rem;
-  border: 1px solid #277ba5;
-  border-radius: 4px;
+  border: 1px solid #12538d;
+  border-radius: var(--radius-sm);
   background: white;
-  color: var(--th-text);
+  color: #051727;
   font-size: 0.9rem;
   font-family: inherit;
   cursor: pointer;
@@ -239,10 +239,10 @@
 
 .run-demo-btn {
   padding: 0.6rem 1.2rem;
-  background: #277ba5;
+  background: #d20e0f;
   color: white;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   font-weight: 600;
   font-size: 0.9rem;
@@ -262,7 +262,7 @@
 .demo-result {
   margin-top: 0.75rem;
   padding: 0.6rem 1rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.9rem;
 }
 
@@ -284,10 +284,10 @@
 .demo-result__login-btn {
   flex-shrink: 0;
   padding: 0.3rem 0.85rem;
-  background: #991b1b;
+  background: #aa0005;
   color: #fff;
   border: none;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.85rem;
   white-space: nowrap;
   cursor: pointer;
@@ -303,10 +303,10 @@
   display: inline-block;
   padding: 2px 8px;
   border-radius: 10px;
-  background: #1e3a8a;
+  background: #051727;
   color: #fff;
   font-size: 0.72rem;
   font-weight: 700;
   letter-spacing: 0.03em;
 }
-.stepup-none { color: #9ca3af; }
+.stepup-none { color: #909ea4; }

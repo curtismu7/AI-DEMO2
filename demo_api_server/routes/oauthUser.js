@@ -347,7 +347,7 @@ router.post('/id-jag/cancel', (req, res) => {
 // password step can't finish (MFA, a policy screen) returns {fallback:true} and
 // the SPA starts the ordinary redirect login instead.
 const { makePiFlowHandlers, piFlowProvider } = require('../services/piFlowDriver');
-const piFlowHandlers = makePiFlowHandlers({ providerConfig: oauthUserConfig, knownRedirectOrigins: KNOWN_REDIRECT_ORIGINS });
+const piFlowHandlers = makePiFlowHandlers({ providerConfig: oauthUserConfig, knownRedirectOrigins: KNOWN_REDIRECT_ORIGINS, allowSecondFactor: true });
 
 router.post('/pi-flow/credentials', piFlowHandlers.handleCredentialsStep);
 
@@ -369,6 +369,8 @@ router.post('/pi-flow/passwordless', piFlowHandlers.handlePasswordlessStart);
 // (email/SMS OTP or a passkey); the flow answers OTP_REQUIRED or
 // ASSERTION_REQUIRED, which the existing endpoints drive.
 router.post('/pi-flow/device', piFlowHandlers.handleDeviceSelectStep);
+// AIC: the popup signs in at the external IdP; the modal polls this until the flow can finish.
+router.get('/pi-flow/external', piFlowHandlers.handleExternalPoll);
 
 // The modal remembers who is signing in as: PUT stores the typed username as
 // the role's login hint so the next sign-in prefills it. Convenience prefill
@@ -421,7 +423,7 @@ router.get('/login', (req, res) => {
     console.log('[oauth/user/login] env_id=%s  user_client_id=%s  user_secret=%s  authorize_pi.flow=%s',
       _mask(configStore.getEffective('pingone_environment_id'), 8),
       _mask(configStore.getEffective('user_client_id'), 8),
-      _mask(configStore.getEffective('user_client_secret'), 4),
+      configStore.getEffective('user_client_secret') ? 'set' : 'MISSING',
       !!oauthUserConfig.authorizeUsesPiFlow
     );
 
@@ -442,11 +444,12 @@ router.get('/login', (req, res) => {
     // force=true may combine with pi_flow=1 (prompt=login is preserved on the
     // authorize URL below) so re-auth stays inside the modal too.
     // AIC toggle: PingOne is still the AS, but the AIC_Login sign-on policy
-    // hands authentication to the AIC external IdP. That is a browser redirect
-    // to AIC, which the pi.flow modal cannot drive, so it forces the redirect login.
+    // hands authentication to the AIC external IdP. The flow opens at
+    // EXTERNAL_AUTHENTICATION_REQUIRED; the modal opens PingOne's link in a popup
+    // (the page never navigates) and polls GET /pi-flow/external until it can finish.
     const aicLogin = selectedProvider === 'pingone' && !liveIdJag && !piFlowMode
       && String(configStore.getEffective('aic_login_enabled')).toLowerCase() === 'true';
-    const piFlowLogin = req.query.pi_flow === '1' && !liveIdJag && !piFlowMode && !aicLogin
+    const piFlowLogin = req.query.pi_flow === '1' && !liveIdJag && !piFlowMode
       && (selectedProvider === 'pingone' || selectedProvider === 'pingfederate')
       && oauthUserConfig.authorizeUsesPiFlow;
     const sessionProvider = req.session.user?.oauthProvider;
@@ -605,17 +608,18 @@ router.get('/login', (req, res) => {
         ...(piFlowLogin && req.query.passwordless === '1' ? { acr_values: 'mfa_only' } : {}),
         // The policy must be assigned to this app or PingOne rejects the acr.
         ...(aicLogin ? { acr_values: 'AIC_Login' } : {}),
-        // Session-derived hint wins (fresher). The role's STORED hint is
-        // PINGONE-only: PingOne treats the hint as advisory prefill, but
-        // PingFederate BINDS the flow to it ("username must match the hint"),
-        // so a stored hint would lock a shared demo machine to the previous
-        // person's username. The stored hint also never rides a forced
-        // re-login — force means a DIFFERENT person may be signing in.
+        // Session-derived hint wins (fresher), else the role's STORED hint — for
+        // both providers (user decision 2026-10-18: prefill wins). Trade-off on
+        // PF: it BINDS the flow to the hint ("username must match the hint"), so
+        // a different person on the same machine needs a forced re-login, which
+        // never carries the stored hint — force means a DIFFERENT person.
         // On a PINGONE pi.flow login with NEITHER source, send null explicitly:
         // the service's demoUser default is for the hosted redirect page, and
         // the modal should prefill nothing when the app knows nobody. PF keeps
         // its own demouser default (the PF demo wants the locked-field demo).
-        ...((!forceLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate' && (knownLoginHint(req) || storedHint('customer')))
+        // keep_hint=1 (the ID-JAG playground's forced sign-in): still prefill, because the person re-authenticating is the
+        // one the app already knows. Anything else forced stays hint-free.
+        ...(((!forceLogin || req.query.keep_hint === '1') && (knownLoginHint(req) || storedHint('customer')))
           ? { login_hint: knownLoginHint(req) || storedHint('customer') }
           : (piFlowLogin && (configStore.getOAuthProvider?.() || 'pingone') !== 'pingfederate'
             ? { login_hint: null } : {})),
@@ -2006,6 +2010,7 @@ router.post('/agent-permissions', (req, res) => {
 });
 
 module.exports = router;
+module.exports.piFlowHandlers = piFlowHandlers;
 module.exports.sanitizePostLoginReturnPath = sanitizePostLoginReturnPath;
 module.exports.storeLoginHint = storeLoginHint;
 module.exports.reseedIfVerticalMismatch = reseedIfVerticalMismatch;

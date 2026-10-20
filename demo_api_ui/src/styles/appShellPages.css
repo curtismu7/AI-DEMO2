@@ -17,9 +17,9 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border: 1px solid var(--brand-medium-gray, #e0e0e0);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 2px 8px rgba(0, 0, 0, 0.05);
-  border-left: 4px solid var(--brand-navy, #1d4ed8);
+  border-left: 4px solid var(--brand-navy, #12538d);
 }
 
 .app-page-shell__hero-top {
@@ -35,7 +35,7 @@
   font-size: 1.5rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red, #d20e0f);
 }
 
 .app-page-shell__lead {
@@ -50,7 +50,7 @@
 }
 
 .app-page-shell__hero .app-page-shell__lead a {
-  color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red, #d20e0f);
   font-weight: 600;
   text-decoration: underline;
   text-underline-offset: 2px;
@@ -106,7 +106,7 @@
   color: var(--th-text);
   border-radius: 10px;
   margin-bottom: 1.25rem;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 14px rgba(5, 23, 39, 0.06);
 }
 
 /* Back / Home / breadcrumb row — align actions to the left; logout uses spacer */
@@ -139,15 +139,12 @@
   font-weight: 600;
   font-family: inherit;
   line-height: 1.25;
-  color: var(--app-primary-btn-text, #fff);
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red-mid) 0%,
-    var(--app-primary-red) 100%
-  );
-  border: 1px solid var(--app-primary-red-border);
-  border-radius: 8px;
-  box-shadow: 0 1px 3px rgba(127, 29, 29, 0.22);
+  /* Outline by default: red is reserved for --accent (primary action) and --danger. */
+  color: var(--th-text);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border-strong);
+  border-radius: var(--btn-radius);
+  box-shadow: none;
   cursor: pointer;
   text-decoration: none;
   white-space: nowrap;
@@ -160,14 +157,9 @@
 }
 
 .app-page-toolbar-btn:hover {
-  background: linear-gradient(
-    180deg,
-    var(--app-primary-red) 0%,
-    var(--app-primary-red-hover) 100%
-  );
-  border-color: var(--app-primary-red-hover);
-  box-shadow: 0 2px 8px rgba(127, 29, 29, 0.28);
-  color: var(--app-primary-btn-text, #fff);
+  background: var(--th-bg-inset);
+  border-color: var(--th-text);
+  color: var(--th-text);
   transform: translateY(-1px);
 }
 
@@ -195,7 +187,6 @@
 .app-page-toolbar-btn--icon {
   padding: 9px 11px;
   min-width: 40px;
-  color: var(--app-primary-btn-text, #fff);
 }
 
 .app-page-toolbar-btn--danger {
@@ -255,7 +246,7 @@
   height: 32px;
   padding: 4px;
   background: rgba(255, 255, 255, 0.2);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   flex-shrink: 0;
 }
 
@@ -299,7 +290,7 @@
   font-size: 1.25rem;
   font-weight: 700;
   letter-spacing: -0.02em;
-  color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red, #d20e0f);
 }
 
 .admin-dashboard__headline {
@@ -318,11 +309,11 @@
 
 .app-page-card {
   background: var(--th-bg-card);
-  border: 1px solid rgba(15, 23, 42, 0.08);
+  border: 1px solid rgba(5, 23, 39, 0.08);
   border-radius: 10px;
   padding: 1.25rem 1.35rem;
   margin-bottom: 1rem;
-  box-shadow: 0 4px 14px rgba(15, 23, 42, 0.06);
+  box-shadow: 0 4px 14px rgba(5, 23, 39, 0.06);
 }
 
 .app-page-card h2 {
@@ -339,12 +330,12 @@
   padding: 0.5rem 1rem;
   font-size: 0.875rem;
   font-weight: 600;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   text-decoration: none;
   cursor: pointer;
   font-family: inherit;
   border: 1px solid rgba(255, 255, 255, 0.35);
-  background: rgba(185, 28, 28, 0.35);
+  background: rgba(210, 14, 15, 0.35);
   color: #fff;
   transition:
     background 0.15s ease,
@@ -352,7 +343,7 @@
 }
 
 .app-page-shell__btn:hover {
-  background: rgba(185, 28, 28, 0.55);
+  background: rgba(210, 14, 15, 0.55);
   border-color: rgba(255, 255, 255, 0.55);
   color: #fff;
 }

@@ -1,6 +1,6 @@
 /* banking_api_ui/src/components/ScopeAuditPage.css
  * PingOne Scope Audit page — aligned with FeatureFlagsPage / DemoDataPage 2026.
- * Themed with --th-* per THEMING.md. The var(--text-primary, #0f172a) style
+ * Themed with --th-* per THEMING.md. The var(--text-primary, #051727) style
  * fallbacks below were fictional: --text-primary, --text-muted, the
  * --surface- and --border- families were never defined at any scope this
  * page inherits, so every one of them always fell through to its light
@@ -57,7 +57,7 @@
   align-items: center;
   gap: 0.4rem;
   padding: 0.5rem 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   font-size: var(--font-size-base, 15px);
   font-weight: 600;
   background: var(--th-bg-inset);
@@ -173,7 +173,7 @@
   font-size: var(--font-size-2xs, 12px);
   font-weight: 600;
   padding: 0.15rem 0.5rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   text-transform: uppercase;
   letter-spacing: 0.03em;
 }
@@ -228,7 +228,7 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   padding: 0.1rem 0.35rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* ── Scope table ── */
@@ -311,7 +311,7 @@
   font-size: var(--font-size-sm, 13px);
   font-weight: 600;
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
   cursor: pointer;
@@ -325,14 +325,14 @@
 }
 
 .scope-audit-btn--primary {
-  background: var(--app-primary-red, #dc2626);
+  background: var(--app-primary-red, #d20e0f);
   color: var(--app-primary-btn-text, #fff); /* white on Super Sports orange was 1.3:1 in dark (the fill is light there) */
-  border-color: var(--app-primary-red, #dc2626);
+  border-color: var(--app-primary-red, #d20e0f);
 }
 
 .scope-audit-btn--primary:hover {
-  background: var(--app-primary-red-hover, #b91c1c);
-  border-color: var(--app-primary-red-hover, #b91c1c);
+  background: var(--app-primary-red-hover, #d20e0f);
+  border-color: var(--app-primary-red-hover, #d20e0f);
 }
 
 .scope-audit-btn--sm {
@@ -380,7 +380,7 @@
   background: var(--th-status-error-bg);
   color: var(--th-status-error-text);
   padding: 0.75rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-top: 0.75rem;
   text-align: left;
   white-space: pre-wrap;

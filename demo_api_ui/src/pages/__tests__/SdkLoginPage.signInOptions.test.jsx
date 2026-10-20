@@ -1,4 +1,4 @@
-import { act, render, screen } from "@testing-library/react";
+import { act, fireEvent, render, screen } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import SdkLoginPage from "../SdkLoginPage";
 import { getSdkClient, isSdkError } from "../../lib/oidcSdkClient";
@@ -13,6 +13,11 @@ vi.mock("../../lib/embeddedPiFlow", async () => {
   const actual = await vi.importActual("../../lib/embeddedPiFlow");
   return { ...actual, startEmbeddedSignIn: vi.fn(), submitPassword: vi.fn() };
 });
+
+// The embedded form opens device-first; these tests exercise the password path.
+async function usePassword() {
+  fireEvent.click(await screen.findByRole("button", { name: /use your password instead/i }));
+}
 
 describe("SdkLoginPage — sign-in options", () => {
   const originalOpen = window.open;
@@ -39,6 +44,7 @@ describe("SdkLoginPage — sign-in options", () => {
 
   it("offers the redirect, the pop-out and the embedded form when signed out", async () => {
     render(<SdkLoginPage />);
+    await usePassword(); // the form opens device-first
     expect(await screen.findByRole("button", { name: /sign in with the sdk/i })).toBeInTheDocument();
     expect(screen.getByRole("button", { name: /sign in in a pop-out/i })).toBeInTheDocument();
     expect(screen.getByLabelText(/username/i)).toBeInTheDocument();
@@ -133,6 +139,7 @@ describe("SdkLoginPage — sign-in options", () => {
     window.open = vi.fn(() => popup);
     const user = userEvent.setup();
     render(<SdkLoginPage />);
+    await usePassword(); // the form opens device-first
     await user.click(await screen.findByRole("button", { name: /sign in in a pop-out/i }));
 
     let resolveExchange;
@@ -195,6 +202,7 @@ describe("SdkLoginPage — sign-in options", () => {
     submitPassword.mockResolvedValue({ code: "c2", state: "s2" });
     const user = userEvent.setup();
     render(<SdkLoginPage />);
+    await usePassword(); // the form opens device-first
 
     await user.type(await screen.findByLabelText(/username/i), "demoUser");
     const passwordField = screen.getByLabelText(/password/i);
@@ -218,6 +226,7 @@ describe("SdkLoginPage — sign-in options", () => {
     );
     const user = userEvent.setup();
     render(<SdkLoginPage />);
+    await usePassword(); // the form opens device-first
 
     await user.type(await screen.findByLabelText(/username/i), "demoUser");
     await user.type(screen.getByLabelText(/password/i), "pw");
@@ -238,6 +247,7 @@ describe("SdkLoginPage — sign-in options", () => {
     submitPassword.mockRejectedValue(new EmbeddedSignInError("unsupported_step", "PingOne asked for MFA_REQUIRED, which this form does not handle.", "MFA_REQUIRED"));
     const user = userEvent.setup();
     render(<SdkLoginPage />);
+    await usePassword(); // the form opens device-first
 
     await user.type(await screen.findByLabelText(/username/i), "demoUser");
     await user.type(screen.getByLabelText(/password/i), "pw");
@@ -253,6 +263,7 @@ describe("SdkLoginPage — sign-in options", () => {
     submitPassword.mockRejectedValue(new EmbeddedSignInError("resume_blocked", "third-party cookies are blocked here"));
     const user = userEvent.setup();
     render(<SdkLoginPage />);
+    await usePassword(); // the form opens device-first
 
     await user.type(await screen.findByLabelText(/username/i), "demoUser");
     const password = screen.getByLabelText(/password/i);
@@ -271,6 +282,7 @@ describe("SdkLoginPage — sign-in options", () => {
     submitPassword.mockRejectedValue(new EmbeddedSignInError("invalid_credentials", "Invalid username or password"));
     const user = userEvent.setup();
     render(<SdkLoginPage />);
+    await usePassword(); // the form opens device-first
 
     await user.type(await screen.findByLabelText(/username/i), "demoUser");
     await user.type(screen.getByLabelText(/password/i), "wrong");

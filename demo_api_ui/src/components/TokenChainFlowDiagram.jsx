@@ -1,5 +1,5 @@
 // demo_api_ui/src/components/TokenChainFlowDiagram.jsx
-import React, { useMemo } from 'react';
+import React, { useMemo, useRef, useState } from 'react';
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -10,7 +10,9 @@ import {
   BaseEdge,
   EdgeLabelRenderer,
   getSmoothStepPath,
+  useStore,
 } from '@xyflow/react';
+import { orthoRoute, pathFromPoints, labelPoint } from '../utils/orthoRoute';
 import '@xyflow/react/dist/style.css';
 import { markNodes, stepEdges } from '../hooks/useDiagramStepper';
 import FitOnResize from './FitOnResize';
@@ -34,15 +36,15 @@ import { useDraggableNodes } from '../hooks/useDraggableNodes';
 
 // Palette carried over verbatim from the Mermaid style directives.
 const GROUPS = {
-  client: { label: 'CLIENT', bg: '#1e3a5f', border: '#0f2438' },
-  auth: { label: '🔐 AUTHENTICATION', bg: '#2e5090', border: '#1a3a5c' },
-  agent: { label: 'AGENT', bg: '#3b5998', border: '#2a3f6c' },
-  exchange: { label: 'TOKEN EXCHANGE', bg: '#2fbf50', border: '#1e7e34', ink: '#020617' },
-  gateway: { label: 'GATEWAY', bg: '#f57c00', border: '#d66b00', ink: '#020617' },
-  authz: { label: '✅ AUTHORIZATION', bg: '#991b1b', border: '#a02830' },
-  mcps: { label: 'MCP SERVERS', bg: '#aa0005', border: '#4a276a' },
-  resources: { label: 'RESOURCES', bg: '#17a2b8', border: '#0e5968', ink: '#020617' },
-  safety: { label: 'SAFETY', bg: '#ffc107', border: '#d9a308', ink: '#020617' },
+  client: { label: 'CLIENT', bg: '#151a24', border: '#3a4256', ink: '#f2f2f4' },
+  auth: { label: 'AUTHENTICATION', bg: '#b5231a', border: '#b5231a', ink: '#ffffff' },
+  agent: { label: 'AGENT', bg: '#151a24', border: '#3a4256', ink: '#f2f2f4' },
+  exchange: { label: 'TOKEN EXCHANGE', bg: '#b5231a', border: '#b5231a', ink: '#ffffff' },
+  gateway: { label: 'GATEWAY', bg: '#b5231a', border: '#b5231a', ink: '#ffffff' },
+  authz: { label: 'AUTHORIZATION', bg: '#b5231a', border: '#b5231a', ink: '#ffffff' },
+  mcps: { label: 'MCP SERVERS', bg: '#151a24', border: '#3a4256', ink: '#f2f2f4' },
+  resources: { label: 'RESOURCES', bg: '#151a24', border: '#3a4256', ink: '#f2f2f4' },
+  safety: { label: 'SAFETY', bg: '#5a5f69', border: '#5a5f69', ink: '#ffffff' },
 };
 
 // node id → { group, label, sub, x, y }
@@ -318,8 +320,9 @@ function GroupBox({ data }) {
 }
 
 function ChainEdge(props) {
-  const { id, sourceX, sourceY, targetX, targetY, sourcePosition, targetPosition, style, data } = props;
-  const [path, labelX, labelY] = getSmoothStepPath({
+  const { id, sourceX, sourceY, targetX, targetY, style, data } = props;
+  const route = data?.route;
+  const [smoothPath, smoothLX, smoothLY] = getSmoothStepPath({
     sourceX,
     sourceY,
     sourcePosition: Position.Right,
@@ -328,6 +331,12 @@ function ChainEdge(props) {
     targetPosition: Position.Left,
     borderRadius: 12,
   });
+  // Routed around the boxes when the router found a way; otherwise (or while a box is being dragged) a smooth-step path.
+  const routed = route && route.ok;
+  const path = routed ? pathFromPoints(route.pts) : smoothPath;
+  const lp = routed ? labelPoint(route.pts) : { x: smoothLX, y: smoothLY };
+  const labelX = lp.x;
+  const labelY = lp.y;
   const label = data?.label;
   return (
     <>
@@ -336,10 +345,11 @@ function ChainEdge(props) {
         // HTML label, not text on the path: a path drawn right-to-left turned the label upside down.
         <EdgeLabelRenderer>
           <div
-            className="tcf-edge-label nodrag nopan"
+            className={`tcf-edge-label nodrag nopan${data?.active ? ' is-active' : ''}`}
             style={{ transform: `translate(-50%, -50%) translate(${labelX}px, ${labelY}px)` }}
           >
-            {label}
+            {data.n != null && <span className="tcf-edge-num">{data.n}</span>}
+            <span className="tcf-edge-text">{label}</span>
           </div>
         </EdgeLabelRenderer>
       )}
@@ -383,21 +393,57 @@ export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
     () => markNodes(baseNodes, step >= 0 && EDGES[step] ? [EDGES[step][0], EDGES[step][1]] : []),
     [baseNodes, step],
   );
+  // Routes are computed from the real boxes (absolute positions and measured sizes), only when no box is being dragged.
+  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes, carryGroupMembers);
+  const [dragging, setDragging] = useState(false);
+  const nodeLookup = useStore((st) => st.nodeLookup);
+  // React Flow clamps boxes into their group and updates its node map in place, so read its absolute positions,
+  // and subscribe to a string made from them: it changes the moment a box lands, which re-runs the routing.
+  const absKey = useStore((st) => {
+    let k = '';
+    for (const n of st.nodeLookup.values()) {
+      if (n.type === 'chain') k += `${n.id}:${Math.round(n.internals.positionAbsolute.x)},${Math.round(n.internals.positionAbsolute.y)}|`;
+    }
+    return k;
+  });
+  const routing = useMemo(() => {
+    if (dragging) return { routes: {}, fallbacks: null };
+    const rects = {};
+    for (const n of nodeLookup.values()) {
+      if (n.type !== 'chain') continue;
+      const p = n.internals.positionAbsolute;
+      rects[n.id] = { x: p.x, y: p.y, w: n.measured?.width ?? 232, h: n.measured?.height ?? 80 };
+    }
+    const routes = {};
+    let fallbacks = 0;
+    EDGES.forEach(([source, target], i) => {
+      const a = rects[source], b = rects[target];
+      if (!a || !b) return;
+      // Every box is an obstacle, the edge's own two included: the lead-in/out in orthoRoute is what lets the arrow reach its handle.
+      const r = orthoRoute({ start: { x: a.x + a.w, y: a.y + a.h / 2 }, end: { x: b.x, y: b.y + b.h / 2 }, obstacles: Object.values(rects) });
+      routes[`e${i}`] = r;
+      if (!r.ok) fallbacks += 1;
+    });
+    return { routes, fallbacks };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [absKey, dragging]);
+
   const edges = useMemo(
     () => stepEdges(EDGES.map(([source, target, label], i) => ({
       id: `e${i}`,
       source,
       target,
       type: 'chain',
-      data: { label },
+      data: { label, n: i + 1, active: step === i, route: routing.routes[`e${i}`] },
       zIndex: 2,
     })), step),
-    [step],
+    [step, routing],
   );
 
-  const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(nodes, carryGroupMembers);
+
+  const lastDragEnd = useRef(0);
   return (
-    <div className="tcf-canvas" data-testid="tcf-token-chain-canvas">
+    <div className="tcf-canvas" data-testid="tcf-token-chain-canvas" data-route-fallbacks={routing.fallbacks ?? undefined}>
       <ReactFlow
         nodes={dragNodes}
         onNodesChange={onDragNodes}
@@ -413,7 +459,13 @@ export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
         nodesConnectable={false}
         minZoom={0.2}
         maxZoom={2.5}
+        // A small wiggle is still a click; only a deliberate drag (past 5 px) counts as a drag.
+        nodeDragThreshold={5}
+        onNodeDragStart={() => setDragging(true)}
+        onNodeDragStop={() => { lastDragEnd.current = Date.now(); setDragging(false); }}
         onNodeClick={(_, node) => {
+          // The click that ends a drag is not a selection: ignore clicks right after a drag.
+          if (Date.now() - lastDragEnd.current < 300) return;
           if (node.type === 'chain') {
             onClickNode?.({ ...node.data, id: node.id, detail: NODE_DETAILS[node.id] || null });
           }
@@ -422,6 +474,13 @@ export default function TokenChainFlowDiagram({ onClickNode, step = -1 }) {
         <Background variant={BackgroundVariant.Dots} gap={22} size={1.5} />
         <FitOnResize />
       </ReactFlow>
+      <div className="tcf-legend" aria-label="Legend">
+        <span><i className="tcf-sw tcf-sw--ping" />Ping product</span>
+        <span><i className="tcf-sw tcf-sw--app" />Your app / agent</span>
+        <span><i className="tcf-sw tcf-sw--safety" />Step-up / safety</span>
+        <span><b className="tcf-num-key">n</b>arrow = step n in the walkthrough</span>
+        <span><i className="tcf-line" />request · dashed = token or decision</span>
+      </div>
     </div>
   );
 }

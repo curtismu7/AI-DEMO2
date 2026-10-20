@@ -1,3 +1,5 @@
+import { validateSteps } from "./stepDetail";
+
 /**
  * Structural validation shared by every UC config test and the drift test.
  * Checks the StaticFlowDiagram contract: node ids unique, edges reference real
@@ -32,5 +34,6 @@ export function validateConfig(cfg) {
   cfg.NODES.forEach((n) => {
     if (!n.detail) errors.push(`node ${n.id}: missing detail`);
   });
+  errors.push(...validateSteps(cfg));
   return { ok: errors.length === 0, errors };
 }

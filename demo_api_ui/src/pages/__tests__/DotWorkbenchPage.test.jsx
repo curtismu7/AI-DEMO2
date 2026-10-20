@@ -44,6 +44,14 @@ describe('DotWorkbenchPage', () => {
     expect(screen.getByRole('group', { name: 'Suggested prompts' })).toBeTruthy();
   });
 
+  it('draws how Dot handles a message as a Ping-style diagram', async () => {
+    mockFetch(() => json(200, {}));
+    const { container } = renderPage();
+    expect(await screen.findByText('ag-9')).toBeTruthy();
+    expect(container.querySelector('.sfd--ping')).toBeTruthy();
+    expect(screen.getByLabelText('Arrow key')).toBeTruthy();
+  });
+
   it('a permitted tool call renders a PERMIT card and Dot reply; memories bump the memory panel', async () => {
     mockFetch(() => json(200, { reply: 'Got it.', success: true, toolsCalled: ['book_flight'], dotMemories: ['aisle seats'] }));
     renderPage();

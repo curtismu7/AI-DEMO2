@@ -18,30 +18,6 @@
 
 .pmd-hero { margin-bottom: 4px; }
 
-.pmd-eyebrow {
-  display: inline-block;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--pmd-accent);
-  margin-bottom: 2px;
-}
-
-.pmd-hero h1 {
-  font-size: var(--font-size-h2);
-  margin: 0 0 4px;
-  letter-spacing: -0.01em;
-}
-
-.pmd-sub {
-  color: var(--pmd-ink-2);
-  font-size: var(--font-size-sm);
-  margin: 0;
-  max-width: 80ch;
-  line-height: 1.5;
-}
-
 .pmd-tabs {
   display: flex;
   gap: 4px;
@@ -70,7 +46,7 @@
   color: var(--pmd-ink);
   background: var(--pmd-panel);
   border: 1px solid var(--pmd-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px;
   margin: 6px 0 12px;
   overflow-x: auto;
@@ -137,11 +113,11 @@
 /* pmd/mgof pages are always dark; the nano link/code inks are tuned for light grounds. */
 .pmd-page.pmd-page:not(.pgt-page) a:any-link,
 .mgof-page.mgof-page a:any-link {
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 .pmd-page.pmd-page:not(.pgt-page) code,
 .mgof-page.mgof-page code {
-  color: #f9a8d4;
+  color: #fecaca;
 }
 
 .end-user-nano .pmd-page a {
@@ -157,3 +133,26 @@
   --pmd-ink-2: #3a4150;
   --pmd-accent: #0a5c48;
 }
+
+/* still used by the topology tab blurb (.pmd-sub.pgt-blurb) */
+.pmd-sub {
+  color: var(--pmd-ink-2);
+  font-size: var(--font-size-sm);
+  margin: 0;
+  max-width: 80ch;
+  line-height: 1.5;
+}
+
+/* Ping-style page (/privilege-mcp-diagrams): follows the app theme instead of the fixed-dark palette, so the light-grey
+   canvas, the dark text and the dark-mode canvas all read correctly. Doubled class outranks the rules above. */
+.pmd-page.pmd-page--ping {
+  --pmd-bg: var(--th-bg-page);
+  --pmd-panel: var(--th-bg-card);
+  --pmd-ink: var(--th-text);
+  --pmd-ink-2: var(--th-text-body);
+  --pmd-border: var(--th-border);
+  --pmd-accent: var(--th-status-info);
+}
+.pmd-page.pmd-page--ping.pmd-page--ping a:any-link { color: var(--th-status-info); }
+.pmd-page.pmd-page--ping.pmd-page--ping code { color: var(--th-text); }
+.pmd-page--ping .efd h3 { color: var(--th-text); font-size: var(--font-size-lg); }

@@ -7,7 +7,7 @@
   align-items: center;
   gap: 4px;
   padding: 4px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid rgba(255, 255, 255, 0.35);
   background: rgba(255, 255, 255, 0.08);
   color: var(--brand-topnav-text, #ffffff); /* pill lives on the topnav; inherit picks up dark body text */
@@ -42,7 +42,7 @@
 .qfp-hint,
 .qfp-error {
   padding: 5px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin-bottom: 6px;
   font-size: var(--font-size-sm);
 }
@@ -58,7 +58,7 @@
 .qfp-retry {
   margin-bottom: 6px;
   padding: 4px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid var(--th-border);
   background: var(--th-bg-inset);
   color: var(--th-text-body);
@@ -105,7 +105,7 @@
 .qfp-toggle {
   width: 38px;
   height: 20px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-hover);
   color: var(--th-text-body);
@@ -136,7 +136,7 @@
 }
 .qfp-preset-status {
   padding: 5px 8px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   margin: 4px 0 6px;
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -157,7 +157,7 @@
 .qfp-preset-btn {
   width: 100%;
   padding: 7px 10px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid #1b62d6;
   background: #1b62d6;
   color: #fff;

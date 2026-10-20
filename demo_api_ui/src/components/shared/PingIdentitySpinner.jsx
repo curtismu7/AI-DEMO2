@@ -2,7 +2,8 @@ import React from 'react';
 import LoadingTip from './LoadingTip';
 import './LoadingOverlay.css';
 
-const DEFAULT_LOGO_SRC = '/branding/ping-logo.png';
+// Inlined into the bundle (data URI) so the spinner still draws while the server is restarting.
+import DEFAULT_LOGO_SRC from '../../../public/branding/ping-logo.png?inline';
 const MIN_TIP_SIZE = 32;
 // Every stand-alone spinner draws at this size, whatever `size` a caller passes, so the
 // boot screen, the sign-in screen, the loading overlay and a modal wait are one picture.
@@ -47,6 +48,8 @@ export default function PingIdentitySpinner({
           className={`ping-spinner__mark ping-spinner__mark--dancing ${isCustomLogo ? 'ping-spinner__custom-mark' : 'ping-spinner__default-mark'}`}
           src={logoSrc || DEFAULT_LOGO_SRC}
           alt=""
+          // The spinner shows while the stack restarts, so the logo fetch can fail; hide the broken-image glyph.
+          onError={(e) => { e.currentTarget.style.visibility = 'hidden'; }}
         />
       </span>
       {label && <span className="ping-spinner__label">{label}</span>}

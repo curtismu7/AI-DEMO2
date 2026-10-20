@@ -8,33 +8,13 @@
   margin-bottom: 2rem;
 }
 
-.dsum-eyebrow {
-  font-size: 0.75rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  text-transform: uppercase;
-  color: var(--th-text-muted);
-  margin: 0 0 0.5rem;
-}
-
-.dsum-head h1 {
-  margin: 0 0 0.5rem;
-  font-size: 1.9rem;
-  color: var(--th-text);
-}
-
-.dsum-sub {
-  margin: 0 0 1rem;
-  color: var(--th-text-body);
-}
-
 .dsum-search {
   width: 100%;
   max-width: 480px;
   padding: 0.55rem 0.9rem;
   font-size: 0.95rem;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
 }
@@ -46,7 +26,7 @@
   font-size: 0.9rem;
   font-weight: 600;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   cursor: pointer;

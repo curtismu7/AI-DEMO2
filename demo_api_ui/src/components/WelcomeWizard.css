@@ -5,11 +5,11 @@
   position: fixed;
   inset: 0;
   z-index: 1300;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(5, 23, 39, 0.55);
   display: flex;
   align-items: center;
   justify-content: center;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+  font-family: var(--font-primary);
 }
 
 .ww-card {
@@ -18,19 +18,19 @@
   max-height: 86vh;
   overflow-y: auto;
   background: var(--th-bg-card, #ffffff);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   box-shadow: 0 8px 32px rgba(0, 0, 0, 0.18);
 }
 
 .ww-progress {
   height: 4px;
-  background: var(--brand-light-gray, #e5e7eb);
+  background: var(--brand-light-gray, #e0e2e4);
   border-radius: 12px 12px 0 0;
 }
 
 .ww-progress-bar {
   height: 100%;
-  background: var(--app-primary-red, #b91c1c);
+  background: var(--app-primary-red, #d20e0f);
   transition: width 0.3s ease;
 }
 
@@ -88,8 +88,8 @@
 .ww-input {
   width: 100%;
   box-sizing: border-box;
-  border: 1px solid var(--brand-light-gray, #d1d5db);
-  border-radius: 6px;
+  border: 1px solid var(--brand-light-gray, #cdd1d4);
+  border-radius: var(--radius-md);
   padding: 0.45rem 0.6rem;
   font-size: 0.875rem;
   font-family: inherit;
@@ -98,20 +98,20 @@
 }
 
 .ww-input:focus {
-  outline: 2px solid var(--app-primary-red, #b91c1c);
+  outline: 2px solid var(--app-primary-red, #d20e0f);
   outline-offset: 1px;
   border-color: transparent;
 }
 
 .ww-error {
   font-size: 0.8rem;
-  color: var(--app-primary-red, #b91c1c);
+  color: var(--app-primary-red, #d20e0f);
   margin: 0.5rem 0 0;
 }
 
 .ww-creds {
-  border: 1px solid var(--brand-light-gray, #e5e7eb);
-  border-radius: 8px;
+  border: 1px solid var(--brand-light-gray, #e0e2e4);
+  border-radius: var(--radius-lg);
   padding: 0.6rem 0.75rem;
   margin-top: 0.5rem;
 }
@@ -134,9 +134,9 @@
   display: inline-block;
   margin-top: 0.65rem;
   background: none;
-  border: 1px solid var(--app-primary-red, #b91c1c);
-  color: var(--app-primary-red, #b91c1c);
-  border-radius: 6px;
+  border: 1px solid var(--app-primary-red, #d20e0f);
+  color: var(--app-primary-red, #d20e0f);
+  border-radius: var(--btn-radius);
   padding: 0.35rem 0.7rem;
   cursor: pointer;
   font-size: 0.8125rem;
@@ -166,12 +166,12 @@
   justify-content: space-between;
   gap: 0.5rem;
   padding: 0.75rem 1.25rem 1rem;
-  border-top: 1px solid var(--brand-light-gray, #e5e7eb);
+  border-top: 1px solid var(--brand-light-gray, #e0e2e4);
   margin-top: 0.75rem;
 }
 
 .ww-btn {
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   padding: 0.4rem 0.8rem;
   font-size: 0.8125rem;
   font-weight: 500;
@@ -181,13 +181,13 @@
 }
 
 .ww-btn-primary {
-  background: var(--app-primary-red, #b91c1c);
+  background: var(--app-primary-red, #d20e0f);
   color: #ffffff;
-  border: 1px solid var(--app-primary-red, #b91c1c);
+  border: 1px solid var(--app-primary-red, #d20e0f);
 }
 
 .ww-btn-primary:hover {
-  background: var(--app-primary-red-hover, #991b1b);
+  background: var(--app-primary-red-hover, #aa0005);
 }
 
 .ww-btn-primary:disabled {
@@ -197,12 +197,12 @@
 
 .ww-btn-secondary {
   background: none;
-  border: 1px solid #e5e7eb;
+  border: 1px solid #e0e2e4;
   color: var(--modal-body-text, var(--th-text));
 }
 
 .ww-btn-secondary:hover {
-  background: var(--th-bg-muted, #f9fafb);
+  background: var(--th-bg-muted, #f7f8f8);
 }
 
 .ww-dots {
@@ -214,11 +214,11 @@
   width: 6px;
   height: 6px;
   border-radius: 50%;
-  background: var(--brand-light-gray, #d1d5db);
+  background: var(--brand-light-gray, #cdd1d4);
 }
 
 .ww-dot-active {
-  background: var(--app-primary-red, #b91c1c);
+  background: var(--app-primary-red, #d20e0f);
 }
 
 /* Docked mode — wizard followed a link: non-blocking bottom-right card so the

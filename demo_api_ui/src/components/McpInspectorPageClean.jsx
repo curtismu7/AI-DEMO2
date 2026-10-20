@@ -1,17 +1,19 @@
-// MCP Inspector — Clean Design
-// Modern minimal three-pane layout with movie reel history and expanded tabs
-import React, { useState, useCallback, useEffect } from 'react';
+// MCP Inspector, built on the shared inspector layout (Task 4).
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useSearchParams } from 'react-router-dom';
 import { useInspectorSource } from '../hooks/useInspectorSource';
 import { useInspectorFields } from '../context/InspectorFieldContext';
-import { useThemeOptional } from '../context/ThemeContext';
-import useDividerDrag from '../hooks/useDividerDrag';
 import JsonHighlight from './shared/JsonHighlight';
-import JsonFormView from './shared/JsonFormView';
-import PingIdentitySpinner from './shared/PingIdentitySpinner';
+import { useThemeOptional } from '../context/ThemeContext';
 import apiClient from '../services/apiClient';
 import { formatAxiosError } from '../utils/formatAxiosError';
-import './McpInspectorPage.clean.css';
+import InspectorLayout from './inspector/InspectorLayout';
+import { Chip } from './inspector/CallDetail';
+import { ok, warn, err, idle } from './inspector/inspectorCalls';
+import { mcpCallFromStore, apiCallFromTracker } from './inspector/mcpCalls';
+import { useInspectorVertical } from './inspector/useInspectorVertical';
+import { navigateToCustomerOAuthLogin } from '../utils/authUi';
+import { argsFor, belongsElsewhere } from '../config/inspectorVerticals';
 
 const NEW_PROFILE_DEFAULTS = {
   label: '',
@@ -24,628 +26,380 @@ const NEW_PROFILE_DEFAULTS = {
 };
 
 const SOURCES = [
-  {
-    key: 'banking', label: 'AI Demo MCP',
-    description: "This app's own banking MCP server — the tools the AI agent actually calls.",
-  },
-  {
-    key: 'pingone', label: 'PingOne MCP',
-    description: 'The hosted PingOne MCP server, reached with a PingOne sign-in of your own account. Your PingOne roles decide which tools appear.',
-  },
-  {
-    key: 'api', label: 'API Calls',
-    description: 'A live log of API calls already captured elsewhere in the app — a read-only history, nothing to execute here.',
-  },
-  {
-    key: 'custom', label: 'Custom Server',
-    description: 'Point this at any saved MCP server profile — the built-in Privilege gateway doors, or one you add yourself.',
-  },
-  {
-    key: 'protocol', label: 'Protocol',
-    description: 'Test raw MCP protocol methods that are not tools/call — resources, prompts, completion, and log level.',
-  },
-  // One tab for BOTH gateway-fronted third-party servers. They are the same
-  // story told twice — PingOne Agent Gateway scoping a server it does not own — and
-  // Brave exposes a single tool, which is a thin thing to give a tab of its own.
-  {
-    key: 'gateway', label: 'Gateway Showcase',
-    description: 'Third-party MCP servers (Weather, Brave) reached through PingOne Agent Gateway, which scopes access to them at the edge.',
-  },
+  { value: 'banking', label: 'AI Demo MCP' },
+  { value: 'pingone', label: 'PingOne MCP' },
+  { value: 'gateway', label: 'Gateway showcase' },
+  { value: 'custom', label: 'Custom server' },
+  { value: 'protocol', label: 'Raw JSON-RPC' },
+  { value: 'api', label: 'All API calls' },
 ];
 
-const OUTPUT_TABS = [
-  { key: 'response', label: 'Response' },
-  { key: 'request', label: 'Request' },
-  { key: 'schema', label: 'Schema' },
-  { key: 'timing', label: 'Timing' },
-  { key: 'headers', label: 'Headers' },
+const RELATED = [
+  { label: 'MCP traffic log', to: '/monitoring/mcp-traffic' },
+  { label: 'Token chain', to: '/monitoring/token-chain' },
+  { label: 'Agent flow', to: '/monitoring/agent-flow' },
 ];
 
-// What the left pane is a list OF. 'calls' mode browses a log, not a toolbox.
-const LIST_LABEL = { calls: 'Calls', profiles: 'Tools', tools: 'Tools' };
+const NODE_SUBS = {
+  Browser: ['This page', 'holds only a session cookie'],
+  'AI agent': ['Asks the BFF to run tools', 'for you'],
+  BFF: ['Holds your tokens', 'exchanges them per call'],
+  PingOne: ['Issues the MCP token', '(RFC 8693 exchange)'],
+  'MCP server': ['Runs the tool'],
+};
 
-/**
- * Tools bucketed by `config.groupBy`, preserving first-seen order so the tree
- * matches the order the BFF returned the servers in. A source without groupBy
- * gets one unlabelled group, which renders identically to the old flat list.
- */
-function groupsFor(source) {
-  const key = source.config.groupBy;
-  if (!key) return [{ label: null, tools: source.tools }];
+const CALLS_NOTE = 'Includes calls the AI agent made in this browser tab.';
+// The sources whose tools are the AI Demo MCP server's per-vertical tools.
+const VERTICAL_SOURCES = ['banking', 'custom'];
+const LOCAL_FALLBACK_NOTE = 'The local fallback only serves banking tools. Switch to Banking, or ';
+const ELICIT_ID = 'elicitation-pending';
+
+/** Tools bucketed by `config.groupBy`, first-seen order. No groupBy: one unlabelled group. */
+function groupsFor(config, tools) {
+  const key = config.groupBy;
+  if (!key) return [{ label: null, tools }];
   const order = [];
   const byLabel = new Map();
-  for (const t of source.tools) {
+  for (const t of tools) {
     const label = t[key] || 'Other';
-    if (!byLabel.has(label)) {
-      byLabel.set(label, []);
-      order.push(label);
-    }
+    if (!byLabel.has(label)) { byLabel.set(label, []); order.push(label); }
     byLabel.get(label).push(t);
   }
   return order.map((label) => ({ label, tools: byLabel.get(label) }));
 }
 
-function McpInspectorPageClean() {
-  const { darkMode, toggleDarkMode } = useThemeOptional();
-  const [searchParams] = useSearchParams();
-  const [activeSource, setActiveSource] = useState(searchParams.get('source') || 'banking');
-  const [activeHistoryId, setActiveHistoryId] = useState(null);
-  const [outputFontSize, setOutputFontSize] = useState(13);
-  // Form reads the response as labelled fields; JSON keeps the raw payload.
-  // Per-page, not per-source — switching tabs should not reset how you read.
-  const [outputView, setOutputView] = useState('json');
-  const { registerFields, getMatchingFields } = useInspectorFields();
+const asText = (v) => (v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v));
+/** The vertical's sample args for a tool, as form strings. */
+const paramsFor = (vertical, name) => Object.fromEntries(Object.entries(argsFor(vertical, name)).map(([k, v]) => [k, asText(v)]));
 
-  // The middle column is the 1fr remainder, so resizing the outer two resizes
-  // all three. `invert` on the right handle because that pane sits to the
-  // divider's right — dragging toward the start grows it.
-  const { size: leftWidth, handleProps: leftHandleProps } = useDividerDrag({
-    min: 180, max: 520, initial: 260, storageKey: 'mcp-inspector-col-left',
-  });
-  const { size: rightWidth, handleProps: rightHandleProps } = useDividerDrag({
-    min: 240, max: 720, initial: 350, storageKey: 'mcp-inspector-col-right', invert: true,
-  });
-
-  // Use unified hook for current source
-  const source = useInspectorSource(activeSource);
-  const mode = source.mode || 'tools';
-
-  // Custom Server: adding a new saved profile (websocket/http/stdio). The
-  // known Privilege-gateway doors and the built-in PingOne/banking profiles
-  // are already seeded server-side (mcpProfileStore.js) and need no form —
-  // this is only for a server not already on that list.
-  const [showAddServer, setShowAddServer] = useState(false);
+function AddServerForm({ source }) {
+  const [open, setOpen] = useState(false);
   const [newProfile, setNewProfile] = useState(NEW_PROFILE_DEFAULTS);
-  const [addProfileError, setAddProfileError] = useState(null);
-  const [addProfileBusy, setAddProfileBusy] = useState(false);
+  const [error, setError] = useState(null);
+  const [busy, setBusy] = useState(false);
+  const set = (k) => (e) => setNewProfile((p) => ({ ...p, [k]: e.target.value }));
 
-  const handleAddProfile = useCallback(async () => {
-    setAddProfileError(null);
+  const save = async () => {
+    setError(null);
     const { label, transport, url, authHeader, authValue, command, argsText } = newProfile;
     const body = { label: label.trim(), transport };
     if (transport === 'stdio') {
-      if (!command.trim()) {
-        setAddProfileError('Command is required.');
-        return;
-      }
+      if (!command.trim()) { setError('Command is required.'); return; }
       body.command = command.trim();
       body.args = argsText.trim() ? argsText.trim().split(/\s+/) : [];
     } else {
-      if (!url.trim()) {
-        setAddProfileError('Server URL is required.');
-        return;
-      }
+      if (!url.trim()) { setError('Server URL is required.'); return; }
       body.url = url.trim();
       if (authHeader.trim() && authValue.trim()) {
         body.authHeader = authHeader.trim();
         body.authValue = authValue.trim();
       }
     }
-    setAddProfileBusy(true);
+    setBusy(true);
     try {
       const { data } = await apiClient.post('/api/mcp/inspector/profiles', body);
       await source.loadProfiles(data.profile.id);
-      setShowAddServer(false);
+      setOpen(false);
       setNewProfile(NEW_PROFILE_DEFAULTS);
     } catch (e) {
-      setAddProfileError(formatAxiosError(e, 'Failed to add server'));
+      setError(formatAxiosError(e, 'Failed to add server'));
     } finally {
-      setAddProfileBusy(false);
+      setBusy(false);
     }
-  }, [newProfile, source]);
+  };
 
-  // Handle source switch
-  const handleSourceChange = useCallback((newSource) => {
-    setActiveSource(newSource);
-    setActiveHistoryId(null);
-  }, []);
+  const field = (label, input) => <label className="insp-field"><span>{label}</span>{input}</label>;
+  return (
+    <>
+      <button type="button" className="insp-btn ghost" onClick={() => setOpen((v) => !v)}>
+        {open ? 'Cancel' : '+ Add server'}
+      </button>
+      {open && (
+        <div className="insp-send-row" style={{ flex: '1 1 100%' }}>
+          {field('Label', <input type="text" value={newProfile.label} onChange={set('label')} placeholder="e.g. Staging MCP server" />)}
+          {field('Transport', (
+            <select value={newProfile.transport} onChange={set('transport')}>
+              <option value="http">http</option>
+              <option value="websocket">websocket</option>
+              <option value="stdio">stdio</option>
+            </select>
+          ))}
+          {newProfile.transport === 'stdio' ? (
+            <>
+              {field('Command', <input type="text" value={newProfile.command} onChange={set('command')} placeholder="node" />)}
+              {field('Args', <input type="text" value={newProfile.argsText} onChange={set('argsText')} placeholder="server.js --stdio" />)}
+            </>
+          ) : (
+            <>
+              {field('Server URL', <input type="text" value={newProfile.url} onChange={set('url')} placeholder="https://example.test/mcp" />)}
+              {field('Auth header', <input type="text" value={newProfile.authHeader} onChange={set('authHeader')} placeholder="Authorization" />)}
+              {field('Auth value', <input type="password" value={newProfile.authValue} onChange={set('authValue')} placeholder="Bearer ..." />)}
+            </>
+          )}
+          <button type="button" className="insp-btn" onClick={save} disabled={busy}>{busy ? 'Saving...' : 'Save'}</button>
+          {error && <div className="insp-err">{error}</div>}
+        </div>
+      )}
+    </>
+  );
+}
 
-  const selectHistoryEntry = useCallback((entry) => {
-    const tool = source.tools.find(t => t[source.config.toolKey] === entry.tool);
-    if (tool) {
-      source.setSelectedTool(tool);
-      setActiveHistoryId(entry.id);
-      source.setOutputTab('response');
-    }
-  }, [source]);
+function McpInspectorPageClean() {
+  const { darkMode } = useThemeOptional();
+  const [searchParams, setSearchParams] = useSearchParams();
+  const requested = searchParams.get('source');
+  const activeSource = SOURCES.some((s) => s.value === requested) ? requested : 'banking';
+  const { registerFields, getMatchingFields } = useInspectorFields();
+  const source = useInspectorSource(activeSource);
+  const isCalls = source.mode === 'calls';
+  const isMethod = source.config.paramsKey === 'method';
+  const toolKey = source.config.toolKey;
+  const sendRef = useRef(null);
+  const byVertical = VERTICAL_SOURCES.includes(activeSource);
+  // A vertical change keeps the selected tool when this vertical may use it, with its sample args.
+  const { id: verticalId, vertical, field: verticalField } = useInspectorVertical((v, id) => {
+    const sel = source.selectedTool;
+    if (!byVertical || !sel) return;
+    const keep = !belongsElsewhere(id, sel[toolKey]);
+    if (!keep) source.setSelectedTool(null);
+    source.setParamValues(keep ? paramsFor(v, sel[toolKey]) : {});
+  });
 
-  // Register result fields for other inspectors to use. This read `source.result`,
-  // which the hook has never returned — so smart field propagation (#2650) never
-  // fired from this page. `lastInvoke` is the result.
+  // null = follow the newest call; set when the user picks a row.
+  const [pickedId, setPickedId] = useState(null);
+
+  // Smart field propagation: publish this page's last result for other inspectors.
   useEffect(() => {
     const result = source.lastInvoke?.result ?? source.lastInvoke;
-    if (result && typeof result === 'object') {
-      registerFields(`mcp-${activeSource}`, result);
-    }
+    if (result && typeof result === 'object') registerFields(`mcp-${activeSource}`, result);
   }, [source.lastInvoke, activeSource, registerFields]);
 
-  // Auto-populate parameters from other inspector results
+  // Auto-populate parameters from other inspector results.
   useEffect(() => {
     if (!source.selectedTool) return;
     const paramNames = source.selectedTool.parameters ? Object.keys(source.selectedTool.parameters) : [];
     const matches = getMatchingFields(paramNames);
     Object.entries(matches).forEach(([key, value]) => {
-      if (!source.paramValues?.[key]) {
-        source.setParamValues((prev) => ({ ...prev, [key]: String(value) }));
-      }
+      if (!source.paramValues?.[key]) source.setParamValues((prev) => ({ ...prev, [key]: String(value) }));
     });
   }, [source.selectedTool, getMatchingFields, source.paramValues, source.setParamValues]);
 
-  return (
-    <div className="inspector-clean-page">
-      <div className="inspector-clean-header">
-        <h1 className="inspector-clean-title">MCP Inspector</h1>
-        <div className="inspector-clean-tabs">
-          {SOURCES.map((s) => (
-            <button
-              key={s.key}
-              className={`inspector-clean-tab ${activeSource === s.key ? 'active' : ''}`}
-              onClick={() => handleSourceChange(s.key)}
-              title={s.description}
-            >
-              {s.label}
-            </button>
-          ))}
-        </div>
-        <button
-          type="button"
-          onClick={toggleDarkMode}
-          className="inspector-clean-theme-toggle"
-          title="Switch this page between light and dark"
-          aria-pressed={darkMode}
-        >
-          {darkMode ? '☀️ Light mode' : '🌙 Dark mode'}
-        </button>
-      </div>
+  const pending = source.pendingElicitation;
+  const calls = useMemo(() => {
+    const base = isCalls
+      ? source.tools.map((t) => apiCallFromTracker(t._call))
+      : source.mcpHistory.map(mcpCallFromStore);
+    // Resend/Edit need a tool this source still lists; otherwise the call carries no input.
+    const resendable = base.map((c) => {
+      if (!c.input || source.tools.some((x) => x[toolKey] === c.input.tool)) return c;
+      const { input: _drop, ...rest } = c;
+      return rest;
+    });
+    if (!pending) return resendable;
+    const elicitation = {
+      id: ELICIT_ID,
+      at: Date.now(),
+      kind: 'mcp',
+      title: source.selectedTool?.[toolKey] ?? 'tools/call',
+      src: 'you',
+      ms: null,
+      status: warn('Waiting for you'),
+      chips: [],
+      banner: {
+        tone: 'warn',
+        testId: 'elicitation-card',
+        title: 'The MCP server is asking you to confirm (elicitation/create)',
+        text: pending.message,
+        actions: [
+          { label: 'Confirm', onClick: () => source.answerElicitation('accept', { confirm: true }) },
+          { label: 'Decline', onClick: () => source.answerElicitation('decline') },
+        ],
+      },
+      corr: null,
+      request: { label: 'Tool call', body: {} },
+      response: { label: 'Waiting', body: null },
+      tokens: [],
+      hops: [{ dir: 'Browser → BFF', call: 'tools/call', what: 'Waiting for your answer to the MCP server.', status: warn('paused'), ms: null, request: null, response: null }],
+      steps: [{ title: 'The MCP server asked you to confirm', status: warn('Waiting for you'), text: 'The tools/call is paused until you answer.' }],
+    };
+    return [elicitation, ...resendable];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCalls, source.tools, source.mcpHistory, pending, source.selectedTool, toolKey]);
 
-      {/* Why a source is empty or refusing, with the sign-in that fixes it when
-          there is one. Without this the tab just renders "No tools available"
-          and the real cause (an un-completed PingOne admin login) is invisible. */}
+  const selectedId = pending ? ELICIT_ID : pickedId ?? calls[0]?.id ?? null;
+
+  // The tool and string-valued params a past call was sent with, or null when
+  // this source no longer lists the tool.
+  const inputOf = useCallback((call) => {
+    const { tool, params } = call.input || {};
+    const t = source.tools.find((x) => x[toolKey] === tool);
+    if (!t) return null;
+    return { tool: t, params: Object.fromEntries(Object.entries(params || {}).map(([k, v]) => [k, asText(v)])) };
+  }, [source.tools, toolKey]);
+
+  const loadInput = useCallback((input) => {
+    source.setSelectedTool(input.tool);
+    source.setParamValues(input.params);
+  }, [source]);
+
+  const onEdit = useCallback((call) => {
+    const input = inputOf(call);
+    if (!input) return;
+    loadInput(input);
+    sendRef.current?.scrollIntoView?.({ behavior: 'smooth', block: 'start' });
+  }, [inputOf, loadInput]);
+
+  const onResend = useCallback(async (call) => {
+    const input = inputOf(call);
+    if (!input) return;
+    loadInput(input);
+    await source.handleExecute(input);
+    setPickedId(null);
+  }, [inputOf, loadInput, source]);
+
+  const send = useCallback(async () => {
+    await source.handleExecute();
+    setPickedId(null);
+  }, [source]);
+
+  const toolsSource = source.toolsSource;
+  const mode = source.toolsBanner ? err('Unavailable') : source.loadingTools ? idle('Loading') : toolsSource === 'local_catalog' ? warn('Local fallback') : ok('Live');
+
+  const tool = source.selectedTool;
+  const matches = tool ? getMatchingFields(Object.keys(source.schemaProps)) : {};
+  const scopes = tool?.requiredScopes || [];
+  // Other verticals' tools are hidden; unowned tools and the selected one stay.
+  const listed = byVertical ? source.tools.filter((t) => t === tool || !belongsElsewhere(verticalId, t[toolKey])) : source.tools;
+
+  const sendCard = isCalls ? null : (
+    <div className="insp-send-body" ref={sendRef}>
       {source.banner && (
-        <div className="inspector-clean-banner" role="status">
-          <span className="inspector-clean-banner-icon" aria-hidden="true">⚠️</span>
-          <span className="inspector-clean-banner-text">{source.banner.message}</span>
-          {source.banner.loginUrl && (
-            <a className="inspector-clean-banner-action" href={source.banner.loginUrl}>Sign in</a>
-          )}
-          <button type="button" className="inspector-clean-banner-action" onClick={source.loadTools}>
-            Retry
-          </button>
+        <div className="insp-banner err" role="status">
+          <p>{source.banner.message}</p>
+          <div className="insp-actions">
+            {source.banner.loginUrl && <a className="insp-btn ghost" href={source.banner.loginUrl}>Sign in</a>}
+            <button type="button" className="insp-btn ghost" onClick={source.loadTools}>Retry</button>
+          </div>
         </div>
       )}
-
-      <div className="inspector-clean-content">
-        {/* Widths ride as CSS vars on the inline style so the mobile stacking
-            media query (which drops to a single column) still wins over them. */}
-        <div
-          className="inspector-clean-main"
-          style={{ '--inspector-col-left': `${leftWidth}px`, '--inspector-col-right': `${rightWidth}px` }}
-        >
-          {/* Left: Tools Tree */}
-          <div className="inspector-clean-panel">
-            <div className="inspector-clean-panel-header">
-              <div className="inspector-clean-panel-label">
-                {LIST_LABEL[mode] || 'Tools'} ({source.tools.length})
-              </div>
-            </div>
-            {/* Custom Server dispatches to a chosen MCP server profile, so the
-                profile has to be pickable before the tool tree means anything. */}
-            {mode === 'profiles' && source.profiles.length > 0 && (
-              <div className="inspector-clean-panel-subhead">
-                <label className="inspector-clean-field-label" htmlFor="inspector-profile">Server profile</label>
-                <select
-                  id="inspector-profile"
-                  value={source.selectedProfileId}
-                  onChange={(e) => source.setSelectedProfileId(e.target.value)}
-                >
-                  {source.profiles.map((p) => (
-                    <option key={p.id} value={p.id}>{p.label || p.id}</option>
-                  ))}
-                </select>
-                <button
-                  type="button"
-                  className="inspector-clean-button inspector-clean-addserver-toggle"
-                  onClick={() => setShowAddServer((v) => !v)}
-                >
-                  {showAddServer ? 'Cancel' : '+ Add server'}
-                </button>
-              </div>
+      <div className="insp-send-row">
+        {source.mode === 'profiles' && source.profiles.length > 0 && (
+          <label className="insp-field">
+            <span>Server profile</span>
+            <select value={source.selectedProfileId} onChange={(e) => source.setSelectedProfileId(e.target.value)}>
+              {source.profiles.map((p) => <option key={p.id} value={p.id}>{p.label || p.id}</option>)}
+            </select>
+          </label>
+        )}
+        {source.mode === 'profiles' && source.profiles.length > 0 && <AddServerForm source={source} />}
+        {byVertical && verticalField}
+        <label className="insp-field">
+          <span>{isMethod ? 'Method' : 'Tool'}</span>
+          <select
+            value={tool ? String(source.tools.indexOf(tool)) : ''}
+            disabled={source.loadingTools}
+            onChange={(e) => {
+              const next = e.target.value === '' ? null : source.tools[Number(e.target.value)];
+              source.setSelectedTool(next);
+              source.setParamValues(next && byVertical ? paramsFor(vertical, next[toolKey]) : {});
+            }}
+          >
+            <option value="">{source.loadingTools ? 'Loading…' : `Select a ${isMethod ? 'method' : 'tool'}`}</option>
+            {groupsFor(source.config, listed).map(({ label, tools }) => {
+              const opts = tools.map((t) => <option key={source.tools.indexOf(t)} value={String(source.tools.indexOf(t))}>{t[toolKey]}</option>);
+              return label ? <optgroup key={label} label={label}>{opts}</optgroup> : opts;
+            })}
+          </select>
+        </label>
+        {tool && Object.entries(source.schemaProps).map(([key, schema]) => (
+          <label key={key} className="insp-field">
+            <span>{key}{source.requiredParams.has(key) ? ' *' : ''}</span>
+            <input
+              type="text"
+              placeholder={schema?.description || schema?.type || 'value'}
+              value={source.paramValues[key] || ''}
+              onChange={(e) => source.setParamValues((prev) => ({ ...prev, [key]: e.target.value }))}
+            />
+            {matches[key] != null && source.paramValues[key] === String(matches[key]) && (
+              <small>Filled from an earlier result</small>
             )}
-            {mode === 'profiles' && showAddServer && (
-              <div className="inspector-clean-panel-subhead inspector-clean-addserver-form">
-                <div className="inspector-clean-field">
-                  <div className="inspector-clean-field-label"><span>Label</span></div>
-                  <input
-                    type="text"
-                    value={newProfile.label}
-                    onChange={(e) => setNewProfile((p) => ({ ...p, label: e.target.value }))}
-                    placeholder="e.g. Staging MCP server"
-                  />
-                </div>
-                <div className="inspector-clean-field">
-                  <div className="inspector-clean-field-label"><span>Transport</span></div>
-                  <select
-                    value={newProfile.transport}
-                    onChange={(e) => setNewProfile((p) => ({ ...p, transport: e.target.value }))}
-                  >
-                    <option value="http">http</option>
-                    <option value="websocket">websocket</option>
-                    <option value="stdio">stdio</option>
-                  </select>
-                </div>
-                {newProfile.transport === 'stdio' ? (
-                  <>
-                    <div className="inspector-clean-field">
-                      <div className="inspector-clean-field-label"><span>Command</span></div>
-                      <input
-                        type="text"
-                        value={newProfile.command}
-                        onChange={(e) => setNewProfile((p) => ({ ...p, command: e.target.value }))}
-                        placeholder="node"
-                      />
-                    </div>
-                    <div className="inspector-clean-field">
-                      <div className="inspector-clean-field-label"><span>Args</span></div>
-                      <input
-                        type="text"
-                        value={newProfile.argsText}
-                        onChange={(e) => setNewProfile((p) => ({ ...p, argsText: e.target.value }))}
-                        placeholder="server.js --stdio"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <div className="inspector-clean-field">
-                      <div className="inspector-clean-field-label"><span>Server URL</span></div>
-                      <input
-                        type="text"
-                        value={newProfile.url}
-                        onChange={(e) => setNewProfile((p) => ({ ...p, url: e.target.value }))}
-                        placeholder="https://example.test/mcp"
-                      />
-                    </div>
-                    <div className="inspector-clean-field">
-                      <div className="inspector-clean-field-label"><span>Auth header</span></div>
-                      <input
-                        type="text"
-                        value={newProfile.authHeader}
-                        onChange={(e) => setNewProfile((p) => ({ ...p, authHeader: e.target.value }))}
-                        placeholder="Authorization"
-                      />
-                    </div>
-                    <div className="inspector-clean-field">
-                      <div className="inspector-clean-field-label"><span>Auth value</span></div>
-                      <input
-                        type="password"
-                        value={newProfile.authValue}
-                        onChange={(e) => setNewProfile((p) => ({ ...p, authValue: e.target.value }))}
-                        placeholder="Bearer ..."
-                      />
-                    </div>
-                  </>
-                )}
-                <button
-                  type="button"
-                  className="inspector-clean-button"
-                  onClick={handleAddProfile}
-                  disabled={addProfileBusy}
-                >
-                  {addProfileBusy ? 'Saving...' : 'Save'}
-                </button>
-                {addProfileError && <div className="inspector-clean-addserver-error">{addProfileError}</div>}
-              </div>
-            )}
-            {/* Gateway Showcase fronts two servers; one can 401 while the other
-                serves. Per-server status keeps a half-working tab honest. */}
-            {source.servers.length > 0 && (
-              <div className="inspector-clean-panel-subhead">
-                {source.servers.map((s) => (
-                  <div key={s.key} className="inspector-clean-server-status">
-                    <span className={`inspector-clean-dot ${s.error ? 'error' : 'ok'}`} aria-hidden="true" />
-                    <span>{s.label}</span>
-                    <span className="inspector-clean-server-detail">{s.error ? s.error : `${s.count} tools`}</span>
-                  </div>
-                ))}
-              </div>
-            )}
-            <div className="inspector-clean-panel-body">
-              {source.loadingTools ? (
-                <div style={{ color: 'var(--inspector-text-tertiary)', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
-                  <PingIdentitySpinner size={56} label="Loading tools…" />
-                </div>
-              ) : source.tools.length === 0 ? (
-                <div style={{ color: 'var(--inspector-text-tertiary)', padding: '20px', textAlign: 'center' }}>
-                  {mode === 'calls'
-                    ? 'No API calls captured yet. Use the AI agent or a demo page to generate some.'
-                    : 'No tools available'}
-                </div>
-              ) : (
-                // A source may declare groupBy (Gateway Showcase groups by
-                // server). Without it the list renders flat exactly as before —
-                // groupsFor() returns a single unlabelled group.
-                groupsFor(source).map(({ label, tools }) => (
-                  <div key={label || '_flat'}>
-                    {label && <div className="inspector-clean-group-label">{label}</div>}
-                    {tools.map((tool, i) => (
-                      <div
-                        key={`${label || ''}:${tool[source.config.toolKey]}:${i}`}
-                        className={`inspector-clean-item ${source.selectedTool === tool ? 'active' : ''}`}
-                        onClick={() => {
-                          source.setSelectedTool(tool);
-                          source.setParamValues({});
-                        }}
-                      >
-                        {tool[source.config.toolKey]}
-                        {tool.description && mode === 'calls' && (
-                          <span className="inspector-clean-item-detail">{tool.description}</span>
-                        )}
-                      </div>
-                    ))}
-                  </div>
-                ))
-              )}
-            </div>
-          </div>
-
-          <div
-            className="divider-drag-handle inspector-clean-divider"
-            aria-label="Resize tool list column"
-            {...leftHandleProps}
-          />
-
-          {/* Middle: Form */}
-          <div className="inspector-clean-panel">
-            <div className="inspector-clean-panel-header inspector-clean-panel-header--action">
-              <div className="inspector-clean-panel-label">{mode === 'calls' ? 'Call' : 'Parameters'}</div>
-              {/* Sticky header, so this stays visible without scrolling past a
-                  long parameter list — a second copy of the same button below
-                  the form, not a replacement for it. */}
-              {mode !== 'calls' && source.selectedTool && (
-                <button
-                  className="inspector-clean-button inspector-clean-button--compact"
-                  onClick={source.handleExecute}
-                  disabled={source.busy}
-                >
-                  {source.busy ? 'Calling...' : 'Execute Call'}
-                </button>
-              )}
-            </div>
-            <div className="inspector-clean-panel-body">
-              {source.selectedTool ? (
-                <div className="inspector-clean-form">
-                  <div className="inspector-clean-form-section">
-                    <div className="inspector-clean-section-title">{source.selectedTool[source.config.toolKey]}</div>
-                    {source.selectedTool.description && (
-                      <div style={{ fontSize: '12px', color: 'var(--inspector-text-secondary)', marginBottom: '12px' }}>
-                        {source.selectedTool.description}
-                      </div>
-                    )}
-                    {mode === 'calls' ? (
-                      // A captured call already happened — there is nothing to
-                      // fill in and nothing to execute. Read it on the right.
-                      <div style={{ color: 'var(--inspector-text-tertiary)', fontSize: '12px' }}>
-                        Already executed. Its request, response and headers are on the right.
-                      </div>
-                    ) : (
-                      <>
-                        {Object.entries(source.schemaProps).map(([key, schema]) => (
-                          <div key={key} className="inspector-clean-field">
-                            <div className="inspector-clean-field-label">
-                              <span>{key}{source.requiredParams.has(key) ? ' *' : ''}</span>
-                              <span className="inspector-clean-field-type">{schema?.type || ''}</span>
-                            </div>
-                            <input
-                              type="text"
-                              placeholder={schema?.description || schema?.type || 'value'}
-                              value={source.paramValues[key] || ''}
-                              onChange={(e) => source.setParamValues(prev => ({
-                                ...prev,
-                                [key]: e.target.value,
-                              }))}
-                            />
-                          </div>
-                        ))}
-                        {Object.keys(source.schemaProps).length === 0 && (
-                          <div style={{ color: 'var(--inspector-text-tertiary)', fontSize: '12px' }}>
-                            No parameters required
-                          </div>
-                        )}
-                      </>
-                    )}
-                  </div>
-                  {mode !== 'calls' && (
-                    <button
-                      className="inspector-clean-button"
-                      onClick={source.handleExecute}
-                      disabled={source.busy}
-                    >
-                      {source.busy ? 'Calling...' : 'Execute Call'}
-                    </button>
-                  )}
-                </div>
-              ) : (
-                <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', textAlign: 'center' }}>
-                  {mode === 'calls' ? 'Select a call to inspect it' : 'Select a tool to see parameters'}
-                </div>
-              )}
-            </div>
-          </div>
-
-          <div
-            className="divider-drag-handle inspector-clean-divider"
-            aria-label="Resize output column"
-            {...rightHandleProps}
-          />
-
-          {/* Right: Output */}
-          <div className="inspector-clean-panel">
-            <div className="inspector-clean-panel-header">
-              <div className="inspector-clean-panel-label">Output</div>
-            </div>
-            <div className="inspector-clean-panel-body">
-              <div className="inspector-clean-output">
-                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid var(--th-border)' }}>
-                  <div className="inspector-clean-output-tabs">
-                    {OUTPUT_TABS.map((t) => (
-                      <button
-                        key={t.key}
-                        className={`inspector-clean-output-tab ${source.outputTab === t.key ? 'active' : ''}`}
-                        onClick={() => source.setOutputTab(t.key)}
-                      >
-                        {t.label}
-                      </button>
-                    ))}
-                  </div>
-                  <div className="inspector-clean-output-controls">
-                    <div className="inspector-clean-viewtoggle" role="group" aria-label="Output view">
-                      <button
-                        type="button"
-                        className={outputView === 'form' ? 'active' : ''}
-                        aria-pressed={outputView === 'form'}
-                        onClick={() => setOutputView('form')}
-                      >
-                        Form
-                      </button>
-                      <button
-                        type="button"
-                        className={outputView === 'json' ? 'active' : ''}
-                        aria-pressed={outputView === 'json'}
-                        onClick={() => setOutputView('json')}
-                      >
-                        JSON
-                      </button>
-                    </div>
-                    <button className="inspector-clean-fontstep" onClick={() => setOutputFontSize(Math.max(10, outputFontSize - 1))} aria-label="Smaller text">−</button>
-                    <span className="inspector-clean-fontsize">{outputFontSize}px</span>
-                    <button className="inspector-clean-fontstep" onClick={() => setOutputFontSize(Math.min(20, outputFontSize + 1))} aria-label="Larger text">+</button>
-                  </div>
-                </div>
-                {source.outputContent ? (
-                  <>
-                    {outputView === 'form' ? (
-                      <div className="inspector-clean-formview" style={{ fontSize: `${outputFontSize}px` }}>
-                        <JsonFormView value={source.outputValue} />
-                      </div>
-                    ) : (
-                      <pre className={`inspector-clean-code${darkMode ? ' jh-dark' : ''}`} style={{ fontSize: `${outputFontSize}px` }}>
-                        <JsonHighlight value={source.outputValue} deep copyable />
-                      </pre>
-                    )}
-                    <div className="inspector-clean-meta">
-                      <div className="inspector-clean-meta-item">
-                        <div className="inspector-clean-meta-label">Status</div>
-                        <div className="inspector-clean-meta-value">
-                          {source.lastTiming?.error ? 'Error' : source.lastTiming ? '200 OK' : '-'}
-                        </div>
-                      </div>
-                      <div className="inspector-clean-meta-item">
-                        <div className="inspector-clean-meta-label">Duration</div>
-                        <div className="inspector-clean-meta-value">
-                          {source.lastTiming?.ms != null ? `${source.lastTiming.ms}ms` : '-'}
-                        </div>
-                      </div>
-                      <div className="inspector-clean-meta-item">
-                        <div className="inspector-clean-meta-label">Transport</div>
-                        <div className="inspector-clean-meta-value">WebSocket JSON-RPC</div>
-                      </div>
-                      <div className="inspector-clean-meta-item">
-                        <div className="inspector-clean-meta-label">Size</div>
-                        <div className="inspector-clean-meta-value">
-                          {source.outputContent ? Math.ceil(source.outputContent.length / 10) * 10 + 'B' : '-'}
-                        </div>
-                      </div>
-                    </div>
-                  </>
-                ) : source.busy ? (
-                  <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', display: 'grid', placeItems: 'center', gap: '12px' }}>
-                    {source.pendingElicitation ? (
-                      <div
-                        data-testid="elicitation-card"
-                        style={{
-                          width: '100%', maxWidth: 420, border: '1px solid #d97706', borderRadius: 8,
-                          padding: '14px 16px', background: 'rgba(217,119,6,0.07)', textAlign: 'left',
-                        }}
-                      >
-                        <p style={{ margin: '0 0 6px', fontWeight: 700, fontSize: '0.85rem' }}>
-                          ✋ MCP server elicitation
-                        </p>
-                        <p style={{ margin: '0 0 10px', fontSize: '0.8rem', color: 'var(--inspector-text-secondary)' }}>
-                          {source.pendingElicitation.message}
-                        </p>
-                        <p style={{ margin: '0 0 12px', fontSize: '0.72rem', color: 'var(--inspector-text-tertiary)' }}>
-                          elicitation/create &middot; mode: {source.pendingElicitation.mode} &middot; the tools/call is paused until you answer
-                        </p>
-                        <div style={{ display: 'flex', gap: 8 }}>
-                          <button
-                            type="button"
-                            onClick={() => source.answerElicitation('accept', { confirm: true })}
-                            style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #16a34a', background: 'rgba(22,163,74,0.12)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}
-                          >
-                            Confirm
-                          </button>
-                          <button
-                            type="button"
-                            onClick={() => source.answerElicitation('decline')}
-                            style={{ padding: '5px 14px', borderRadius: 6, border: '1px solid #dc2626', background: 'rgba(220,38,38,0.08)', fontWeight: 700, fontSize: '0.78rem', cursor: 'pointer' }}
-                          >
-                            Decline
-                          </button>
-                        </div>
-                      </div>
-                    ) : (
-                      <PingIdentitySpinner size={72} label="Calling…" />
-                    )}
-                  </div>
-                ) : (
-                  <div style={{ color: 'var(--inspector-text-secondary)', padding: '20px', textAlign: 'center' }}>
-                    {source.selectedTool ? 'Click Execute to see the response' : 'Select and execute a tool'}
-                  </div>
-                )}
-              </div>
-            </div>
-          </div>
-        </div>
-
-        {/* Movie Reel */}
-        <div className="inspector-clean-reel">
-          <div className="inspector-clean-reel-label">History</div>
-          {source.mcpHistory.length === 0 ? (
-            <div style={{ color: 'var(--inspector-text-tertiary)', fontSize: '11px' }}>No calls yet</div>
-          ) : (
-            source.mcpHistory.slice(-20).reverse().map((entry) => (
-              <button
-                key={entry.id}
-                className={`inspector-clean-reel-frame ${activeHistoryId === entry.id ? 'active' : ''}`}
-                onClick={() => selectHistoryEntry(entry)}
-              >
-                {entry.tool} ({entry.duration}ms)
-              </button>
-            ))
-          )}
-        </div>
+          </label>
+        ))}
+        <button type="button" className="insp-btn" onClick={send} disabled={source.busy || !tool}>
+          {source.busy ? 'Sending…' : 'Send'}
+        </button>
       </div>
+      {toolsSource === 'local_catalog' && (() => {
+        const nonBanking = byVertical && verticalId !== 'banking';
+        return (
+          <p className="insp-err" role="status">
+            {nonBanking && LOCAL_FALLBACK_NOTE}
+            <button type="button" className="insp-btn" onClick={() => navigateToCustomerOAuthLogin(window.location.pathname)}>
+              {nonBanking ? 'log in' : 'Log in for the live MCP server'}
+            </button>
+            {nonBanking && ' for the live MCP server.'}
+          </p>
+        );
+      })()}
+
+      {source.servers.length > 0 && (
+        <div className="insp-chips">
+          {source.servers.map((s) => (
+            <span key={s.key}>{s.label} <Chip chip={s.error ? err(s.error) : ok(`${s.count} tools`)} /></span>
+          ))}
+        </div>
+      )}
+      {tool && (
+        <p className="insp-toolinfo">
+          {tool.description}
+          {scopes.map((s) => <Chip key={s} chip={idle('needs ' + s)} />)}
+        </p>
+      )}
+      {tool && (tool.inputSchema || tool.schema) && (
+        <details>
+          <summary>Input schema</summary>
+          <pre className={`insp-json${darkMode ? ' jh-dark' : ''}`}><JsonHighlight value={tool.inputSchema || tool.schema} deep copyable /></pre>
+        </details>
+      )}
+      {source.tools.length > 0 && (
+        <details>
+          <summary>{`Browse all ${source.tools.length} tools`}</summary>
+          <ul className="insp-browse">
+            {source.tools.map((t, i) => (
+              <li key={i}>
+                <strong className="mono">{t[toolKey]}</strong>
+                {t.description && <span>{t.description}</span>}
+                {(t.requiredScopes || []).map((s) => <Chip key={s} chip={idle(s)} />)}
+              </li>
+            ))}
+          </ul>
+        </details>
+      )}
     </div>
+  );
+
+  return (
+    <InspectorLayout
+      eyebrow="PingOne MCP · Inspector"
+      title="MCP Inspector"
+      lede="Every MCP tool call in one place: what was sent, what came back, the tokens it carried, and the API calls behind it."
+      related={RELATED}
+      mode={mode}
+      source={{
+        label: 'Server',
+        value: activeSource,
+        options: SOURCES,
+        onChange: (v) => { setPickedId(null); setSearchParams((p) => { const n = new URLSearchParams(p); n.set('source', v); return n; }); },
+      }}
+      send={sendCard}
+      calls={calls}
+      callsNote={CALLS_NOTE}
+      selectedId={selectedId}
+      onSelect={setPickedId}
+      onResend={onResend}
+      onEdit={onEdit}
+      nodeSubs={NODE_SUBS}
+    />
   );
 }
 

@@ -16,6 +16,7 @@ import { navigateToCustomerOAuthLogin } from "../utils/authUi";
 import { formatCurrency, formatDateTime } from "../utils/formatters";
 import "./UngovernedAgentPage.css";
 import InlineSpinner from './shared/InlineSpinner';
+import PageHeader from './common/PageHeader';
 
 const OPENCLI_URL = "https://github.com/jackwener/OpenCLI";
 
@@ -198,16 +199,10 @@ export default function UngovernedAgentPage() {
 
   return (
     <div className="ungov-page" data-testid="ungoverned-agent-page">
-      <header className="ungov-header">
-        <div className="ungov-badge-hero" aria-hidden="true">UNGOVERNED</div>
-        <h1>The Ungoverned Agent</h1>
-        <p className="ungov-subtitle">
-          What agent access looks like when you do nothing: an AI agent rides the
+      <PageHeader className="ungov-header" eyebrow="UNGOVERNED" title="The Ungoverned Agent" summary={<>What agent access looks like when you do nothing: an AI agent rides the
           user's own logged-in browser session and moves money through the bank's
           UI — with full user power, and nothing to identify, scope, consent, or
-          audit it.
-        </p>
-      </header>
+          audit it.</>} />
 
       <section className="ungov-section">
         <h2>The anti-pattern</h2>

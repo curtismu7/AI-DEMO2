@@ -31,6 +31,7 @@ const { KNOWN_REDIRECT_ORIGINS } = require('../services/knownRedirectOrigins');
 const { loadHostedAccessPolicy, evaluateHostedIdentity, coherentHostedIdentityClaims, stampHostedAccessApproval, clearHostedAccessApproval } = require('../services/hostedAccessPolicy');
 const { startLoginAudit, resumeLoginAudit, finishLoginAudit } = require('../services/authAccessAuditService');
 const { sendAccessRestricted } = require('../middleware/hostedAccessGate');
+const { isPingOneAdminByUsername } = require('../services/pingOneGroupMembershipService');
 
 const _isProd = () => !!(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT || process.env.NODE_ENV === 'production');
 
@@ -203,11 +204,10 @@ router.get('/login', (req, res) => {
     // - A forced re-auth DROPS the stored hint — force means a different admin
     //   may be signing in (pinned test; deviation from spec §4, which said
     //   force still sends the hint).
-    // - The stored hint is PINGONE-only: PingFederate BINDS the flow to the
-    //   hint, so a stored username would lock the admin login to whoever
-    //   signed in last. PF keeps its demouser default.
+    // - Sent to PingFederate too (user decision 2026-10-18: prefill wins). PF
+    //   BINDS the flow to the hint, so another admin on the same machine uses
+    //   the forced re-auth above, which never carries it.
     const storedAdminHint = req.query.force === 'true'
-      || (configStore.getOAuthProvider?.() || 'pingone') === 'pingfederate'
       ? null : (() => {
         const v = configStore.getEffective('last_login_hint_admin');
         return (typeof v === 'string' && v.trim()) ? v.trim() : undefined;
@@ -421,6 +421,18 @@ router.get('/callback', async (req, res) => {
     
     // Create user object from OAuth data
     const oauthUser = oauthService.createUserFromOAuth(mergedUserInfo);
+
+    // PingOne's admin app only lets the pingone-admin group in, but a PF admin sign-in never
+    // touches that app, so enforce the same group here — before the demo store is promoted.
+    if (loginProvider === 'pingfederate'
+      && !(await isPingOneAdminByUsername(oauthUser.username))) {
+      console.warn('[oauth/callback] PF admin sign-in refused: not in the PingOne admin group');
+      finishLoginAudit(req, { outcome: 'denied', reasonCode: 'group_not_allowed' });
+      delete req.session.oauthTokens;
+      delete req.session.user;
+      clearAuthCookie(res, _isProd());
+      return res.redirect(`${getFrontendOrigin()}/login?error=admin_access_required`);
+    }
     
     // Check if user already exists in our system
     let user = dataStore.getUserByUsername(oauthUser.username);

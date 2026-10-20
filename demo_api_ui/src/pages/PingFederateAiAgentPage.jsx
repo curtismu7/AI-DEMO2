@@ -6,6 +6,7 @@ import apiClient from "../services/apiClient";
 import { notifyError, notifySuccess } from "../utils/appToast";
 import { sequenceSource as pfSequenceSource } from "../utils/pfTraceSequence";
 import "./PingFederateAiAgentPage.css";
+import PageHeader from '../components/common/PageHeader';
 
 function FeatureStatus({ ready }) {
   return (
@@ -424,23 +425,16 @@ export default function PingFederateAiAgentPage({ user }) {
 
   return (
     <main className="pf-ai-agent" data-testid="pingfederate-ai-agent-page">
-      <header className="pf-ai-agent__hero">
-        <div className="pf-ai-agent__hero-copy">
-          <p className="pf-ai-agent__eyebrow">PingFederate · AI agent authorization</p>
-          <h1>PingFederate AI Agent</h1>
-          <p className="pf-ai-agent__lede">
-            Exercise PF client metadata, third-party token exchange, and rich authorization requests.
-            Each request stays on the PingFederate path.
-          </p>
-        </div>
-        <aside className="pf-ai-agent__session" aria-live="polite">
+      <PageHeader className="pf-ai-agent__hero" eyebrow="PingFederate · AI agent authorization" title="PingFederate AI Agent" summary={<>Exercise PF client metadata, third-party token exchange, and rich authorization requests.
+            Each request stays on the PingFederate path.</>}
+        actions={<>        <aside className="pf-ai-agent__session" aria-live="polite">
           <span>Current session</span>
           <strong>{loadingStatus ? "Checking session" : statusLabel(provider)}</strong>
           <p>{supportedSession
             ? "The exchange uses this session's access token as its subject."
             : "Sign in to the app to use a session token as the exchange subject."}</p>
         </aside>
-      </header>
+        </>} />
 
       {callbackResult && (
         <div className={`pf-ai-agent__callback ${callbackResult === "success" || callbackResult === "denied" ? "is-complete" : "is-error"}`} role="status">

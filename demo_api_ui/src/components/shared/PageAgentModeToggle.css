@@ -3,7 +3,7 @@
 .page-agent-mode {
   display: inline-flex;
   border: 1px solid color-mix(in srgb, currentColor 45%, transparent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   overflow: hidden;
 }
 
@@ -18,12 +18,12 @@
 }
 
 .page-agent-mode__opt--on {
-  background: #e4002b;
+  background: #d20e0f;
   color: #fff;
 }
 
 .page-agent-mode__opt:focus-visible {
-  outline: 2px solid var(--th-accent, #e4002b);
+  outline: 2px solid var(--th-accent, #d20e0f);
   outline-offset: 2px;
 }
 

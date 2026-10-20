@@ -13,8 +13,8 @@
 .lsm-left {
   background: linear-gradient(
     165deg,
-    var(--brand-dashboard-header-start, #0e7c86),
-    var(--brand-dashboard-header-end, #0a5960)
+    var(--brand-dashboard-header-start, #12538d),
+    var(--brand-dashboard-header-end, #12538d)
   );
   color: var(--brand-dashboard-header-text, #ffffff);
   padding: 22px 18px;
@@ -26,7 +26,7 @@
 .lsm-mark {
   width: 46px;
   height: 46px;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   background: rgba(255, 255, 255, 0.16);
   display: grid;
   place-items: center;
@@ -99,7 +99,7 @@
 /* Which server signed the user in: the first thing on the right, set apart by an accent rule. */
 .lsm-provider {
   padding-left: 12px;
-  border-left: 3px solid var(--theme-accent, #0e7c86);
+  border-left: 3px solid var(--theme-accent, #12538d);
 }
 
 .lsm-issuer {
@@ -113,7 +113,7 @@
 }
 
 .lsm-tick {
-  color: var(--theme-accent, #0e7c86);
+  color: var(--theme-accent, #12538d);
   font-size: var(--font-size-sm);
   font-weight: 700;
 }
@@ -130,7 +130,7 @@
 }
 
 .lsm-dontshow input {
-  accent-color: var(--theme-accent, #0e7c86);
+  accent-color: var(--theme-accent, #12538d);
 }
 
 

@@ -182,7 +182,6 @@ const mcpTrafficRoutes = require('./routes/mcpTraffic');
 const mcpToolScopesRouter = require('./routes/mcpToolScopes');
 const mcpGatewayConfigRouter = require('./routes/mcpGatewayConfig');
 const agentGatewayConfigRouter = require('./routes/agentGatewayConfig');
-const agentGatewayInspectorRouter = require('./routes/agentGatewayInspector');
 const mcpAuditRouter = require('./routes/mcpAudit');
 const promptFlowRouter = require('./routes/promptFlow');
 const agentIdentityRoutes = require('./routes/agentIdentity');
@@ -531,7 +530,8 @@ morgan.token('safe-referrer', (req) => {
   }
 });
 app.use(morgan(':remote-addr - :remote-user [:date[clf]] ":method :safe-url HTTP/:http-version" :status :res[content-length] ":safe-referrer" ":user-agent"', {
-  skip: (req) => POLL_ROUTES.has(req.path),
+  // the CIBA login poll carries a per-request id in its path, so it is matched by prefix (log quieting only)
+  skip: (req) => POLL_ROUTES.has(req.path) || req.path.startsWith('/api/auth/ciba/login/poll/'),
 }));
 
 // Capture the session middleware instance so the langchain chat-WS proxy
@@ -813,6 +813,8 @@ app.post('/api/auth/switch', (req, res) => {
     delete req.session.user;
     delete req.session.clientType;
     delete req.session.oauthType;
+    // A return path left by an earlier login would win over the target role's landing page.
+    delete req.session.postLoginReturnToPath;
     clearAuthCookie(res, isProduction);
 
     // Set switch_target cookie so the OAuth callback knows where to redirect
@@ -1407,7 +1409,9 @@ app.get('/api/sdk-demo/config', (req, res) => {
             redirectUri = `${proto}://${host}/sdk-login/callback`;
         }
         res.json({
-            wellknown:   getDiscoveryEndpoint(),
+            // These demos use PingOne apps (public SDK client / DaVinci), so always PingOne's discovery —
+            // the selected provider's (PF in PF mode: an in-cluster hostname) can't serve their client id.
+            wellknown:   getDiscoveryEndpoint('pingone'),
             clientId:    configStore.getEffective('pingone_sdk_demo_client_id'),
             redirectUri,
             scope:       configStore.getEffective('pingone_sdk_demo_scope'),
@@ -1437,7 +1441,9 @@ app.get('/api/davinci-demo/config', (req, res) => {
             redirectUri = `${proto}://${host}/davinci-login/callback`;
         }
         res.json({
-            wellknown:   getDiscoveryEndpoint(),
+            // These demos use PingOne apps (public SDK client / DaVinci), so always PingOne's discovery —
+            // the selected provider's (PF in PF mode: an in-cluster hostname) can't serve their client id.
+            wellknown:   getDiscoveryEndpoint('pingone'),
             clientId:    davinciConfig.login.appId,
             redirectUri,
             flowVersion: configStore.getEffective('davinci_login_flow_version') || 'v1',
@@ -1470,7 +1476,7 @@ app.use('/api/id-jag-playground', require('./routes/idJagPlayground'));
 app.use('/api/consent-mock-phone', require('./routes/consentMockPhone'));
 app.use('/api/aic-demo', require('./routes/aicDemo'));
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
-app.use('/api/auth/ciba/login', require('./routes/cibaLogin')); // pre-auth passwordless login (before the step-up router)
+app.use('/api/auth/ciba/login', require('./routes/cibaLogin')); // CIBA second-factor approval of a parked password sign-in (flag-gated; before the step-up router)
 app.use('/api/auth/ciba', cibaRoutes);
 app.use('/api/auth', parRequestRoutes);
 app.use('/api/auth', dpopRequestRoutes);
@@ -1563,7 +1569,6 @@ app.use('/api/mcp-gateway', mcpGatewayConfigRouter);
 // Agent Gateway JSON config editor — view/validate/edit/reload gateway files
 app.use('/api/admin/agent-gateway', agentGatewayConfigRouter);
 // Agent Gateway Inspector — tool introspection and invocation
-app.use('/api/agent-gateway', agentGatewayInspectorRouter);
 app.use('/api/mcp/traffic', requireSession, mcpTrafficRoutes);
 // MCP Audit: read-only observability data for any signed-in user. Mutating and
 // prompt-flow admin surfaces remain separately gated below.

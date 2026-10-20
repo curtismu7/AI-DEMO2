@@ -1,7 +1,7 @@
 // PersonalAgentReviewPage.jsx — /personal-agent-review
 // Why the original personal-agent design was wrong, finding by finding, judged against the five
 // controls an enterprise review treats as non-negotiable. Linked from both design pages. The figure is
-// React Flow with the findings pinned to the nodes that carry them.
+// React Flow (StaticFlowDiagram, pingStyle) with the findings pinned to the nodes that carry them.
 import React from "react";
 import { Link } from "react-router-dom";
 import StaticFlowDiagram from "../StaticFlowDiagram";
@@ -16,6 +16,7 @@ import {
   SEVERITY,
 } from "./personalAgentData";
 import "./PersonalAgent.css";
+import PageHeader from '../common/PageHeader';
 
 const VERDICT = { fail: "Fails", partial: "Partly met" };
 
@@ -23,16 +24,11 @@ export default function PersonalAgentReviewPage() {
   const counts = FINDINGS.reduce((acc, f) => ({ ...acc, [f.severity]: (acc[f.severity] || 0) + 1 }), {});
   return (
     <main className="pa-page" data-testid="pa-review">
-      <header className="pa-hero">
-        <div className="pa-eyebrow">Personal agent · design review</div>
-        <h1>Why the original design was wrong</h1>
-        <p>
-          The original assistant is a sound product shape: payment stays on the airline site and the facade guards
+      <PageHeader className="pa-hero" eyebrow="Personal agent · design review" title="Why the original design was wrong" summary={<>The original assistant is a sound product shape: payment stays on the airline site and the facade guards
           every cart change. As an architecture for an agent that holds a member&apos;s authority, it is an
           impersonation design. The AI acts as the traveller with the traveller&apos;s whole session, and nothing in
           the chain tells the airline an agent rather than the member is calling. {FINDINGS.length} findings follow:{" "}
-          {counts.critical || 0} critical, {counts.high || 0} high and {counts.medium || 0} medium.
-        </p>
+          {counts.critical || 0} critical, {counts.high || 0} high and {counts.medium || 0} medium.</>}>
         <p className="pa-caveat">
           This is a review of a diagram, not of code. Each finding says what the picture shows or leaves out. Confirm
           each one against the implementation before acting on it.
@@ -41,7 +37,7 @@ export default function PersonalAgentReviewPage() {
           <Link to={DESIGNS.target.path}>{DESIGNS.target.title}</Link>
           <Link to={DESIGNS.dual.path}>{DESIGNS.dual.title}</Link>
         </nav>
-      </header>
+      </PageHeader>
 
       <section aria-label="Scorecard against the five controls">
         <h2>Scorecard against the five non-negotiable controls</h2>
@@ -77,7 +73,7 @@ export default function PersonalAgentReviewPage() {
           NODES={ORIGINAL_NODES}
           EDGES={ORIGINAL_EDGES}
           GROUPS={REVIEW_GROUPS}
-          step={-1}
+          pingStyle
           testId="pa-review-diagram"
           height={560}
           ariaLabel="The original design. Ping issues a sign-in token to the hosted chat agent, which calls the MCP server with the same token. The MCP server turns it into a full member session and calls the facade. Other AI apps reach the same tools directly. Findings F1 to F10 are pinned to the nodes that carry them."
@@ -85,7 +81,7 @@ export default function PersonalAgentReviewPage() {
         <ul className="pa-legend" aria-label="Legend">
           {Object.entries(REVIEW_GROUPS).map(([key, g]) => (
             <li key={key}>
-              <i className={`pa-sw pa-sw--${key}`} />
+              <i className="pa-sw" style={{ borderTopColor: g.bg }} />
               {g.label}
             </li>
           ))}

@@ -5,17 +5,6 @@
   color: var(--text-primary, #1a1a2e);
 }
 
-.promptfoo-page__header h1 {
-  font-size: 1.6rem;
-  margin: 0 0 0.5rem;
-}
-
-.promptfoo-page__lead {
-  color: var(--text-secondary, #555);
-  font-size: 0.95rem;
-  margin: 0 0 1.5rem;
-}
-
 .promptfoo-page__lead code,
 .promptfoo-page__hint code {
   background: var(--bg-subtle, rgba(127, 127, 127, 0.12));
@@ -69,7 +58,7 @@
   padding: 0.5rem 1.1rem;
   border: none;
   border-radius: var(--radius-md);
-  background: var(--accent, #6c2bd9);
+  background: var(--accent, #d20e0f);
   color: #fff;
   font-weight: 600;
   cursor: pointer;
@@ -94,7 +83,7 @@
 .promptfoo-page__verdict {
   font-size: 0.72rem;
   padding: 0.15rem 0.55rem;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-weight: 700;
   letter-spacing: 0.03em;
 }

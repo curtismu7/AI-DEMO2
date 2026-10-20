@@ -7,7 +7,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  background: rgba(15, 23, 42, 0.92);
+  background: rgba(5, 23, 39, 0.92);
   /* backdrop-filter removed to prevent background blur. No fade-in: it started
      transparent, so the light page showed through as a flash before the overlay. */
 }
@@ -108,8 +108,8 @@
   width: min(320px, calc(100vw - 32px));
   padding: 12px 14px;
   border: 1px solid #e4e4e0;
-  border-left: 4px solid #dc2626;
-  border-radius: 8px;
+  border-left: 4px solid #d20e0f;
+  border-radius: var(--radius-lg);
   background-color: #ffffff;
   color: #14213d;
   font-size: var(--font-size-sm);
@@ -120,7 +120,7 @@
 .ping-spinner__tip b {
   display: block;
   margin-bottom: 4px;
-  color: #991b1b;
+  color: #aa0005;
   font-size: var(--font-size-xs);
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -133,8 +133,8 @@
   font-style: normal;
 }
 :root[data-theme="dark"] .ping-spinner__tip {
-  border-color: #26304a;
-  border-left-color: #ef4444;
+  border-color: #051727;
+  border-left-color: #d20e0f;
   background-color: #131c2e;
   color: #e6ebf5;
 }
@@ -182,9 +182,9 @@
   font-size: 0.75rem;
   font-family: inherit;
   color: var(--brand-navy);
-  background: #eff6ff;
+  background: #fcfcfc;
   padding: 2px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   letter-spacing: 0.02em;
   word-break: break-all;
   max-width: 480px;
@@ -193,8 +193,8 @@
 
 .lo-card .ping-spinner__label,
 .lo-card .lo-message { color: #ffffff; }
-.lo-card .lo-sub { color: #94a3b8; }
-.lo-card .lo-endpoint { background: #1e3a5f; color: #93c5fd; }
+.lo-card .lo-sub { color: #909ea4; }
+.lo-card .lo-endpoint { background: #051727; color: #93c5fd; }
 .lo-card .lo-activity-feed { border-top-color: rgba(255, 255, 255, 0.1); }
 .lo-card .lo-activity-line { color: rgba(255, 255, 255, 0.85); }
 .lo-card .lo-activity-time { color: rgba(255, 255, 255, 0.5); }
@@ -214,7 +214,7 @@
   color: #ffffff;
 }
 :root[data-theme="dark"] .lo-endpoint {
-  background: #1e3a5f;
+  background: #051727;
   color: #93c5fd;
 }
 
@@ -268,7 +268,7 @@
   width: 44px;
   text-align: right;
   color: var(--th-text);
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
 }
 
 .lo-activity-msg {
@@ -323,7 +323,7 @@
 .lo-card--dark .ping-spinner__label { color: #ffffff; }
 .lo-card--dark .lo-message { color: #ffffff; }
 .lo-card--dark .lo-sub { color: #ffffff; }
-.lo-card--dark .lo-endpoint { background: #1e3a5f; color: #93c5fd; }
+.lo-card--dark .lo-endpoint { background: #051727; color: #93c5fd; }
 .lo-card--dark .lo-activity-feed { border-top-color: rgba(255, 255, 255, 0.1); }
 .lo-card--dark .lo-activity-line { color: #ffffff; }
 .lo-card--dark .lo-activity-time { color: #ffffff; }

@@ -82,7 +82,7 @@
 }
 
 .setup-step-badge.pending {
-  border: 2px solid #d1d5db;
+  border: 2px solid #cdd1d4;
   color: var(--th-text-muted);
 }
 
@@ -114,7 +114,7 @@
   font-weight: 600;
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
   color: var(--th-text);
 }
@@ -148,7 +148,7 @@
   color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 1.25rem 1.5rem;
   margin-bottom: 1rem;
 }
@@ -199,13 +199,13 @@
 }
 
 .helix-substep-connector.done { background: #15803d; }
-.helix-substep-connector.active { background: #2563eb; }
-.helix-substep-connector.pending { background: #e5e7eb; }
+.helix-substep-connector.active { background: #12538d; }
+.helix-substep-connector.pending { background: #e0e2e4; }
 
 .setup-banner-success {
   background: var(--th-status-success-bg);
   border: 1px solid var(--th-status-success-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.75rem 1rem;
   color: var(--th-status-success-text);
   font-size: var(--font-size-sm);
@@ -215,7 +215,7 @@
 .setup-banner-warn {
   background: var(--th-status-warning-bg);
   border: 1px solid var(--th-status-warning-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.75rem 1rem;
   color: var(--th-status-warning-text);
   font-size: var(--font-size-sm);
@@ -225,7 +225,7 @@
 .setup-banner-error {
   background: var(--th-status-error-bg);
   border: 1px solid var(--th-status-error-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.75rem 1rem;
   color: var(--th-status-error-text);
   font-size: var(--font-size-sm);
@@ -243,7 +243,7 @@
   padding: 0.4rem 1rem;
   font-size: 0.85rem;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid var(--th-border-strong);
   background: var(--th-bg-inset);
   cursor: pointer;
@@ -286,7 +286,7 @@
   color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-sm);
   box-sizing: border-box;
 }
@@ -321,7 +321,7 @@
   color: var(--th-text);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 0.75rem 1rem;
 }
 

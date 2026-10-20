@@ -5,7 +5,7 @@
 .migration-mode-tabs {
   display: flex;
   gap: 0;
-  border-bottom: 1px solid var(--color-border, #e5e7eb);
+  border-bottom: 1px solid var(--color-border, #e0e2e4);
   margin-bottom: 24px;
 }
 
@@ -35,7 +35,7 @@
 }
 
 .migration-section-title {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--color-text, var(--th-text));
   margin: 0 0 8px;
@@ -94,24 +94,24 @@
   margin-top: 10px;
   padding: 8px 10px;
   background: #fafafa;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
+  border: 1px solid var(--color-border, #e0e2e4);
+  border-radius: var(--radius-md);
 }
 
 .migration-code-block {
   display: flex;
   align-items: center;
   gap: 8px;
-  background: #f3f4f6;
-  border: 1px solid var(--color-border, #e5e7eb);
-  border-radius: 6px;
+  background: #eff0f1;
+  border: 1px solid var(--color-border, #e0e2e4);
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   margin: 8px 0 0;
 }
 
 .migration-code-pre {
   flex: 1;
-  font-family: var(--font-family-mono);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--th-text);
   margin: 0;
@@ -127,7 +127,7 @@
   color: var(--color-primary, #d20e0f);
   background: #fff;
   border: 1px solid var(--color-primary, #d20e0f);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   cursor: pointer;
   transition:
     background 0.15s,
@@ -149,15 +149,15 @@
 .migration-table th {
   text-align: left;
   padding: 6px 10px;
-  background: #f9fafb;
-  border: 1px solid var(--color-border, #e5e7eb);
+  background: #f7f8f8;
+  border: 1px solid var(--color-border, #e0e2e4);
   font-weight: 600;
-  color: var(--color-text-secondary, var(--th-text));
+  color: #051727;
 }
 
 .migration-table td {
   padding: 6px 10px;
-  border: 1px solid var(--color-border, #e5e7eb);
+  border: 1px solid var(--color-border, #e0e2e4);
   color: var(--color-text, var(--th-text));
   font-weight: 400;
 }
@@ -174,7 +174,7 @@
 .migration-warning {
   background: #fffbeb;
   border: 1px solid #f59e0b;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   font-size: var(--font-size-sm);
   color: #92400e;
@@ -183,12 +183,12 @@
 }
 
 .migration-info {
-  background: #eff6ff;
+  background: #fcfcfc;
   border: 1px solid #93c5fd;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   font-size: var(--font-size-sm);
-  color: #1e40af;
+  color: #051727;
   line-height: 1.5;
   margin-top: 8px;
 }

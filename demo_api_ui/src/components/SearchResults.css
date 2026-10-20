@@ -1,7 +1,7 @@
 .search-results {
   padding: 20px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   min-height: 300px;
   display: flex;
@@ -16,7 +16,7 @@
 
 .results-header h3 {
   margin: 0;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 600;
   color: var(--th-text);
 }
@@ -32,7 +32,7 @@
 
 .result-item {
   border: 1px solid var(--th-border);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   overflow: hidden;
   transition: box-shadow 0.2s;
 }
@@ -70,7 +70,7 @@
 
 .score {
   font-size: var(--font-size-2xs);
-  color: #059669;
+  color: #051727;
   font-weight: 600;
   white-space: nowrap;
   background: #ecfdf5;
@@ -99,7 +99,7 @@
   margin: 0;
   padding: 12px;
   background: var(--th-bg-hover);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-family: var(--font-mono);
   font-size: var(--font-size-2xs);
   line-height: 1.5;
@@ -131,7 +131,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  color: #dc2626;
+  color: #d20e0f;
   font-size: var(--font-size-body);
   min-height: 300px;
   padding: 20px;

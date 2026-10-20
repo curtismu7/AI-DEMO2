@@ -17,7 +17,7 @@
   flex-direction: column;
   box-shadow: 0 20px 25px -5px rgba(0, 0, 0, 0.1);
   animation: slideUp 0.3s ease-out;
-  --th-text: #0f172a;
+  --th-text: #051727;
 }
 
 @keyframes slideUp {
@@ -109,7 +109,7 @@
 
 .logs-btn {
   padding: 0.5rem 1rem;
-  background: #1e40af;
+  background: #051727;
   color: white;
   border: none;
   border-radius: 0.375rem;
@@ -120,20 +120,20 @@
 }
 
 .logs-btn:hover:not(:disabled) {
-  background: #2563eb;
+  background: #12538d;
 }
 
 .logs-btn:disabled {
-  background: #d1d5db;
+  background: #cdd1d4;
   cursor: not-allowed;
 }
 
 .logs-btn--clear {
-  background: #ef4444;
+  background: #d20e0f;
 }
 
 .logs-btn--clear:hover {
-  background: #dc2626;
+  background: #d20e0f;
 }
 
 .logs-btn--refresh {
@@ -178,14 +178,14 @@
 
 .logs-item:hover {
   border-color: var(--th-border-strong);
-  border-left-color: #3b82f6;
-  box-shadow: var(--inner-card-shadow, 0 2px 6px rgba(15, 23, 42, 0.05));
+  border-left-color: #12538d;
+  box-shadow: var(--inner-card-shadow, 0 2px 6px rgba(5, 23, 39, 0.05));
 }
 
 .logs-item--selected {
   border-color: var(--th-border-strong);
-  border-left-color: #3b82f6;
-  box-shadow: 0 4px 6px rgba(59, 130, 246, 0.1);
+  border-left-color: #12538d;
+  box-shadow: 0 4px 6px rgba(18, 83, 141, 0.1);
   background: var(--th-bg-hover);
 }
 
@@ -211,8 +211,8 @@
 }
 
 .logs-type--api_call {
-  background: #dbeafe;
-  color: #1e40af;
+  background: #e0e2e4;
+  color: #051727;
 }
 
 .logs-type--mfa_operation {
@@ -222,7 +222,7 @@
 
 .logs-type--error {
   background: #fee2e2;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 .logs-type--debug {
@@ -267,8 +267,7 @@
 .logs-detail pre {
   margin: 0;
   padding: 0;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
+  font-family: var(--font-primary);
   font-size: 0.7rem;
   color: var(--th-text);
   white-space: pre-wrap;
@@ -324,8 +323,7 @@
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
   border-radius: 0.375rem;
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Oxygen, Ubuntu,
-    Cantarell, sans-serif;
+  font-family: var(--font-primary);
   font-size: 0.7rem;
   color: var(--th-text);
   white-space: pre-wrap;
@@ -367,15 +365,15 @@
 .logs-detail::-webkit-scrollbar-thumb,
 .logs-detail-json::-webkit-scrollbar-thumb,
 .logs-modal-detail::-webkit-scrollbar-thumb {
-  background: #d1d5db;
-  border-radius: 4px;
+  background: #cdd1d4;
+  border-radius: var(--radius-sm);
 }
 
 .logs-list::-webkit-scrollbar-thumb:hover,
 .logs-detail::-webkit-scrollbar-thumb:hover,
 .logs-detail-json::-webkit-scrollbar-thumb:hover,
 .logs-modal-detail::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: #909ea4;
 }
 
 /* Responsive */

@@ -34,36 +34,17 @@
   color: var(--th-text);
 }
 
-.dcv-intro {
-  color: var(--th-text-muted);
-  margin-bottom: 24px;
-  line-height: 1.6;
-}
-
 .dcv-page h1 {
   margin: 0 0 8px;
   font-size: clamp(1.6rem, 3vw, 2.2rem);
   line-height: 1.2;
 }
 
-.dcv-eyebrow {
-  /* --th-primary is undefined anywhere in index.css, so this always fell back
-     to the literal — which failed contrast (~3.4:1) against the dark-mode page
-     ground. --th-status-info-text is a real token pair already tuned per-theme
-     for exactly this "coloured label text on page ground" case. */
-  color: var(--th-status-info-text);
-  font-size: 0.76rem;
-  font-weight: 700;
-  letter-spacing: 0.12em;
-  margin: 0 0 6px;
-  text-transform: uppercase;
-}
-
 .dcv-run button {
   appearance: none;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
-  background: #1e40af;
+  border-radius: var(--radius-md);
+  background: #051727;
   color: #fff;
   cursor: pointer;
   font: inherit;
@@ -74,7 +55,7 @@
 }
 
 .dcv-run button:hover:not(:disabled) {
-  background: #1e3a8a;
+  background: #051727;
   box-shadow: 0 2px 6px rgb(15 45 90 / 20%);
 }
 
@@ -95,7 +76,7 @@
 .dcv-run {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 16px;
   margin-bottom: 16px;
 }
@@ -115,7 +96,7 @@
 .dcv-error {
   background: var(--th-bg-inset);
   border-left: 3px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 8px 10px;
   margin: 12px 0 0;
   color: var(--th-text);
@@ -133,8 +114,8 @@
 .dcv-clear-button {
   appearance: none;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
-  background: var(--th-primary, #1f5fe5);
+  border-radius: var(--btn-radius);
+  background: var(--th-primary, #12538d);
   color: #fff;
   cursor: pointer;
   font: inherit;

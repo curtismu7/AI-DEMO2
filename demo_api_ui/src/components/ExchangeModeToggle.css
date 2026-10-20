@@ -1,7 +1,7 @@
 /* banking_api_ui/src/components/ExchangeModeToggle.css */
 .emt-root {
   background: #ffffff;
-  border: 1px solid var(--color-border, #e2e8f0);
+  border: 1px solid var(--color-border, #e0e2e4);
   border-radius: 10px;
   padding: 10px 14px;
   margin-bottom: 10px;
@@ -11,8 +11,8 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  background: var(--brand-navy, #1e3a5f);
-  border-radius: 6px;
+  background: var(--brand-navy, #051727);
+  border-radius: var(--radius-md);
   padding: 8px 12px;
   margin: -10px -14px 12px -14px;
 }
@@ -24,7 +24,7 @@
 
 .emt-header--collapsed {
   margin-bottom: 0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .emt-header--clickable:hover {
@@ -60,7 +60,7 @@
   font-family: inherit;
   background: rgba(255, 255, 255, 0.16);
   padding: 2px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .emt-desc-main {
@@ -83,9 +83,9 @@
   font-size: 0.84rem;
   line-height: 1.5;
   color: var(--color-text-secondary, var(--th-text));
-  background: rgba(59, 130, 246, 0.05);
-  border-left: 2px solid var(--brand-navy, #1e3a5f);
-  border-radius: 4px;
+  background: rgba(18, 83, 141, 0.05);
+  border-left: 2px solid var(--brand-navy, #051727);
+  border-radius: var(--radius-sm);
   padding: 8px 10px;
   margin: 0 0 12px 0;
 }
@@ -107,7 +107,7 @@
 }
 
 .emt-explainer-hint {
-  color: var(--brand-navy, #1e3a5f);
+  color: var(--brand-navy, #051727);
   font-weight: 600;
 }
 
@@ -115,7 +115,7 @@
 .emt-tokens-table {
   background: rgba(0, 0, 0, 0.02);
   border: 1px solid var(--color-border, #EEEEEE);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   margin-bottom: 12px;
   font-size: 0.88rem;
@@ -152,7 +152,7 @@
 }
 
 .emt-token-row--user {
-  background: rgba(37, 99, 235, 0.04); /* User token highlight */
+  background: rgba(18, 83, 141, 0.04); /* User token highlight */
 }
 
 .emt-token-row--user .emt-tokens-col-name {
@@ -199,10 +199,10 @@
   font-weight: 600;
   margin: 0;
   padding: 8px 10px;
-  background: rgba(59, 130, 246, 0.05);
+  background: rgba(18, 83, 141, 0.05);
   border-left: 2px solid var(--brand-navy);
   color: var(--color-text-secondary, var(--th-text));
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 /* ── Dual-Mode Additions (Phase 198) ──────────────────────────── */

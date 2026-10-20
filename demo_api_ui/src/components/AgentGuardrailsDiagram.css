@@ -84,7 +84,7 @@
   gap: 8px;
   width: fit-content;
   padding: 8px 12px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--agd-accent-soft);
   color: var(--agd-accent-soft-text);
   border: 1px solid var(--agd-border-light);
@@ -102,7 +102,7 @@
 
 .agd-subhead {
   max-width: 880px;
-  font-size: 16px;
+  font-size: var(--font-size-md);
   line-height: 1.5;
   color: var(--agd-text-secondary);
   margin: 0;
@@ -130,7 +130,7 @@
   border: 1px solid var(--agd-border-light);
   background: var(--agd-chip);
   color: var(--agd-text-primary);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 10px 14px;
   font-size: var(--font-size-body);
   font-weight: 600;
@@ -225,7 +225,7 @@
 .agd-tag {
   display: inline-flex;
   align-items: center;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 6px 10px;
   font-size: var(--font-size-2xs);
   font-weight: 700;
@@ -299,7 +299,7 @@
 .agd-swatch {
   width: 18px;
   height: 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--agd-connector);
 }
 .agd-swatch.good { background: var(--agd-success-line); }

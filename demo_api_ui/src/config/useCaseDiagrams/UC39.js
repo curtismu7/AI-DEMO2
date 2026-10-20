@@ -8,19 +8,19 @@
 import { PARTICIPANT_GROUPS as G } from "./palette";
 
 const NODES = [
-  { id: "user", group: "user", label: "Alice (employee)", sub: ["in allowed group"], x: 40, y: 150, detail: "Starts entitled — the baseline run is real access, not a staged pass. Her group membership is the whole story." },
-  { id: "agent", group: "agent", label: "Banking agent", sub: ["same chip, twice"], x: 340, y: 150, detail: "Runs 'show my balance' before and after the console edit — the only thing that changes is the group membership." },
+  { id: "user", group: "user", label: "Alice (employee)", sub: ["in allowed group"], x: 40, y: 300, detail: "Starts entitled — the baseline run is real access, not a staged pass. Her group membership is the whole story." },
+  { id: "agent", group: "agent", label: "Banking agent", sub: ["same chip, twice"], x: 640, y: 300, detail: "Runs 'show my balance' before and after the console edit — the only thing that changes is the group membership." },
   { id: "gw", group: "gateway", label: "Agent gateway / BFF", sub: ["ID-JAG stand-in"], x: 640, y: 150, detail: "Mints the MCP token through RFC 8693, labeled as an ID-JAG stand-in. Nothing downstream can succeed if the IdP refuses to mint." },
   { id: "p1", group: "pingone", label: "PingOne (enterprise IdP)", sub: ["group gate", "revokes tokens"], x: 940, y: 150, detail: "Policy is evaluated at the IdP before an ID-JAG is issued — removal denies the next mint there and revokes any MCP token the session still holds." },
 ];
 
 const EDGES = [
-  ["agent", "gw", "show my balance — run 1", { detail: "The baseline run while entitled: a normal governed call." }],
+  ["agent", "gw", "show my balance — run 1", { lane: 60, detail: "The baseline run while entitled: a normal governed call." }],
   ["gw", "p1", "mint under the group gate", { detail: "The BFF mints the MCP token via RFC 8693; the IdP evaluates group policy first." }],
   ["p1", "gw", "issued — PERMIT", { detail: "In the allowed group: the IdP mints and dispatch proceeds." }],
   ["p1", "p1", "user removed from group", { detail: "One console edit in PingOne. Lower enterprise_mcp_policy_cache_ttl_ms for a live demo — the default 5-minute policy cache delays the effect." }],
   ["p1", "gw", "re-run refused", { detail: "The IdP refuses to issue an ID-JAG: enterprise_mcp_policy_denied. The refusal is at the IdP, not downstream at the resource server." }],
-  ["gw", "agent", "no token, no tool", { detail: "Any MCP token the session held is revoked — access is gone everywhere at once, no per-tool cleanup." }],
+  ["gw", "agent", "no token, no tool", { vertical: true, detail: "Any MCP token the session held is revoked — access is gone everywhere at once, no per-tool cleanup." }],
 ];
 
 const walk = [
@@ -59,11 +59,48 @@ const walk = [
   },
 ];
 
+// Per-step detail. Forms mirror the real routes (POST /api/agent/run, POST /api/enterprise-idp/token and its 403 body);
+// the ID-JAG is a decoded MOCK of the claims routes/enterpriseIdp.js signs. The console edit (beat 2) has no BFF request, so it has no step.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /api/agent/run\nContent-Type: application/json\nCookie: <session cookie>\n\n{ \"messages\": [{ \"role\": \"user\", \"content\": \"show my balance\" }] }",
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "POST /api/enterprise-idp/token\nContent-Type: application/x-www-form-urlencoded\nCookie: <session cookie>\n\ngrant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&requested_token_type=urn:ietf:params:oauth:token-type:id-jag\n&audience=<MCP authorization server issuer>\n&resource=<MCP server URI>\n&scope=<requested scopes>",
+      tokens: [{
+        note: "ID-JAG (stand-in) · issued only after the group gate passes",
+        header: { alg: "RS256", typ: "oauth-id-jag+jwt", kid: "<enterprise idp key id>" },
+        claims: { jti: "00000000-0000-4000-8000-000000000000", iss: "https://enterprise-idp.example", sub: "user-0001", aud: "<MCP authorization server issuer>", resource: "<MCP server URI>", client_id: "demo-bff-mcp-client", scope: "banking:read", iat: 1790000000, exp: 1790000120 },
+      }],
+      refs: [{ id: "RFC 8693", title: "OAuth 2.0 Token Exchange", kind: "rfc" }],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "POST /api/enterprise-idp/token   (same request as run 1)\n\n-> 403 Forbidden\n{ \"error\": \"access_denied\",\n  \"error_description\": \"Your account is not authorized for enterprise-managed MCP access. Contact IT to request access (for example, membership in the banking-agents group).\",\n  \"code\": \"enterprise_mcp_policy_denied\" }",
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      refs: [{ id: "RFC 7009", title: "OAuth 2.0 Token Revocation", kind: "rfc" }],
+    },
+  },
+];
+
 export default {
   id: "UC39",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

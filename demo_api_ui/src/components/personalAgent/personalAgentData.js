@@ -20,6 +20,8 @@ export const GROUPS = {
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
 const DOWN = { vertical: true };
+const TOKEN = { dashed: true }; // pingStyle: dashed blue = a token or decision handed back
+const TOKEN_DOWN = { vertical: true, dashed: true };
 
 // ---------------------------------------------------------------------------------------------
 // Step write-ups. Each design lists its steps in order and points at the arrows (indexes into its
@@ -156,8 +158,8 @@ const step = (key, edges, overrides = {}) => ({ key, edges, ...TEXT[key], ...ove
 const TARGET_NODES = [
   N("signin", "ping", "Ping sign-in", ["OIDC code + PKCE + PAR", "passkey or MFA, consent screen"], 290, 0),
   N("other", "traveller", "Desktop AI apps", ["Claude Desktop, Claude Code", "each with its own identity"], 580, 0),
-  N("token", "ping", "Ping token service", ["RFC 8693 token exchange", "adds the actor, binds the key", "CIBA approval"], 1160, 0),
-  N("phone", "traveller", "Traveller's phone", ["registered MFA device", "push names the exact purchase"], 870, 0),
+  N("token", "ping", "Ping token service", ["RFC 8693 token exchange", "adds the actor, binds the key", "CIBA approval"], 580, 600),
+  N("phone", "traveller", "Traveller's phone", ["registered MFA device", "push names the exact purchase"], 870, 600),
   N("traveller", "traveller", "Traveller", ["web browser, plain English"], 0, 200),
   N("chat", "team", "Hosted chat agent", ["registered agent identity", "BFF holds the session", "key kept in a vault"], 290, 200),
   N("agw", "ag", "Agent Gateway", ["PingGateway MCP module", "aud, scope, key proof", "tool allowlist per client", "audit on every call"], 580, 200),
@@ -165,26 +167,26 @@ const TARGET_NODES = [
   N("facade", "team", "Facade", ["checks aud and actor chain", "session minted from the token", "price re-check, cart guards"], 1160, 200),
   N("checkout", "existing", "Airline checkout page", ["cart-bound link, 5 min, once", "needs the member session", "payment happens here only"], 0, 400),
   N("claude", "llm", "Claude on Bedrock", ["via the LLM gateway", "no credentials in context"], 290, 400),
-  N("policy", "ping", "Policy engine", ["PingOne Authorize", "member, agent, tool, arguments", "permit, deny or step-up"], 580, 400),
-  N("audit", "team", "Audit and SIEM", ["gateway audit + actor chain", "joined on token id"], 870, 400),
+  N("policy", "ping", "Policy engine", ["PingOne Authorize", "member, agent, tool, arguments", "permit, deny or step-up"], 870, 0),
+  N("audit", "team", "Audit and SIEM", ["gateway audit + actor chain", "joined on token id"], 580, 400),
   N("services", "existing", "Airline services", ["shopping, cart, seats, bags", "loyalty, trip insurance"], 1160, 400),
 ];
 const TARGET_EDGES = [
   E("traveller", "chat", "asks, replies"), // 0
   E("traveller", "signin", "signs in, consents"), // 1
-  E("signin", "chat", "sign-in token, kept in the BFF", DOWN), // 2
+  E("signin", "chat", "sign-in token, kept in the BFF", TOKEN_DOWN), // 2
   E("chat", "claude", "prompt and tool list, no tokens", DOWN), // 3
-  E("token", "chat", "exchange: token for one tool", DOWN), // 4
+  E("token", "chat", "exchange: token for one tool", TOKEN), // 4
   E("chat", "agw", "tool call"), // 5
-  E("other", "agw", "own identity", { vertical: true, dashed: true }), // 6
-  E("agw", "policy", "decide, with arguments", DOWN), // 7
+  E("other", "agw", "own identity", DOWN), // 6
+  E("agw", "policy", "decide, with arguments"), // 7
   E("agw", "mcp", "permitted"), // 8
-  E("token", "mcp", "exchange: token for the facade", DOWN), // 9
+  E("token", "mcp", "exchange: token for the facade", TOKEN), // 9
   E("mcp", "facade", "facade token"), // 10
   E("facade", "services", "member session + actor", DOWN), // 11
   E("token", "phone", "approval push"), // 12
   E("traveller", "checkout", "opens the cart-bound link", DOWN), // 13
-  E("agw", "audit", "verdicts + actor chain"), // 14
+  E("agw", "audit", "verdicts + actor chain", DOWN), // 14
 ];
 const TARGET_STEPS = [
   step("ask", [0]),
@@ -207,8 +209,8 @@ const TARGET_STEPS = [
 const DUAL_NODES = [
   N("signin", "ping", "Ping sign-in", ["OIDC code + PKCE + PAR", "passkey or MFA, consent screen"], 290, 0),
   N("other", "traveller", "Desktop AI apps", ["Claude Desktop, Claude Code", "each with its own identity"], 580, 0),
-  N("token", "ping", "Ping token service", ["RFC 8693 token exchange", "adds the actor, binds the key", "CIBA approval"], 1160, 0),
-  N("phone", "traveller", "Traveller's phone", ["registered MFA device", "push names the exact purchase"], 870, 0),
+  N("token", "ping", "Ping token service", ["RFC 8693 token exchange", "adds the actor, binds the key", "CIBA approval"], 580, 600),
+  N("phone", "traveller", "Traveller's phone", ["registered MFA device", "push names the exact purchase"], 290, 600),
   N("traveller", "traveller", "Traveller", ["web browser, plain English"], 0, 200),
   N("chat", "team", "Hosted chat agent", ["registered non-human identity", "BFF holds the session", "key kept in a vault"], 290, 200),
   N("priv", "priv", "Agent Privilege", ["front door for every AI client", "claims-based allow per client", "JIT approval, guardrails, logs", "token passed through intact"], 580, 200),
@@ -217,27 +219,27 @@ const DUAL_NODES = [
   N("facade", "team", "Facade", ["checks aud and actor chain", "session minted from the token", "price re-check, cart guards"], 1160, 400),
   N("checkout", "existing", "Airline checkout page", ["cart-bound link, 5 min, once", "needs the member session", "payment happens here only"], 0, 400),
   N("claude", "llm", "Claude on Bedrock", ["via the LLM gateway", "no credentials in context"], 290, 400),
-  N("policy", "ping", "Policy engine", ["PingOne Authorize", "member, agent, tool, arguments", "permit, deny or step-up"], 870, 400),
-  N("audit", "team", "Audit and SIEM", ["Privilege logs + gateway audit", "joined on token id"], 580, 400),
+  N("policy", "ping", "Policy engine", ["PingOne Authorize", "member, agent, tool, arguments", "permit, deny or step-up"], 1160, 0),
+  N("audit", "team", "Audit and SIEM", ["Privilege logs + gateway audit", "joined on token id"], 870, 400),
   N("services", "existing", "Airline services", ["shopping, cart, seats, bags", "loyalty, trip insurance"], 1160, 600),
 ];
 const DUAL_EDGES = [
   E("traveller", "chat", "asks, replies"), // 0
   E("traveller", "signin", "signs in, consents"), // 1
-  E("signin", "chat", "sign-in token, kept in the BFF", DOWN), // 2
+  E("signin", "chat", "sign-in token, kept in the BFF", TOKEN_DOWN), // 2
   E("chat", "claude", "prompt and tool list, no tokens", DOWN), // 3
-  E("token", "chat", "exchange: token for one tool", DOWN), // 4
+  E("token", "chat", "exchange: token for one tool", TOKEN), // 4
   E("chat", "priv", "tool call"), // 5
-  E("other", "priv", "own identity", { vertical: true, dashed: true }), // 6
+  E("other", "priv", "own identity", DOWN), // 6
   E("priv", "agw", "passthrough"), // 7
-  E("agw", "policy", "decide, with arguments", DOWN), // 8
+  E("agw", "policy", "decide, with arguments"), // 8
   E("agw", "mcp", "permitted"), // 9
-  E("token", "mcp", "exchange: token for the facade", DOWN), // 10
+  E("token", "mcp", "exchange: token for the facade", TOKEN), // 10
   E("mcp", "facade", "facade token", DOWN), // 11
   E("facade", "services", "member session + actor", DOWN), // 12
   E("token", "phone", "approval push"), // 13
   E("traveller", "checkout", "opens the cart-bound link", DOWN), // 14
-  E("agw", "audit", "verdicts + actor chain"), // 15
+  E("agw", "audit", "verdicts + actor chain", DOWN), // 15
 ];
 const DUAL_STEPS = [
   step("ask", [0]),
@@ -299,10 +301,11 @@ export const DESIGNS = {
 // ---------------------------------------------------------------------------------------------
 // The review: the original design, its holes, and where each is closed
 // ---------------------------------------------------------------------------------------------
+// Ping palette: red = carries a finding, dark = done well, grey = no finding.
 export const REVIEW_GROUPS = {
-  risk: { label: "Carries a finding", bg: "var(--th-status-error)" },
-  ok: { label: "Done well", bg: "var(--th-status-success)" },
-  neutral: { label: "No finding", bg: "var(--th-border-strong)" },
+  risk: { label: "Carries a finding", bg: "#b5231a" },
+  ok: { label: "Done well", bg: "#151a24" },
+  neutral: { label: "No finding", bg: "#5a5f69" },
 };
 
 export const ORIGINAL_NODES = [
@@ -319,11 +322,11 @@ export const ORIGINAL_NODES = [
 ];
 export const ORIGINAL_EDGES = [
   E("traveller", "chat", "asks, replies"),
-  E("signin", "chat", "sign-in token", DOWN),
+  E("signin", "chat", "sign-in token", { vertical: true, dashed: true }), // pingStyle: dashed blue = a token
   E("chat", "claude", "what should I do next", DOWN),
   E("chat", "mcp", "tool calls + same token"),
-  E("other", "mcp", "same tools, no gateway", { vertical: true, dashed: true }),
-  E("mcp", "session", "token becomes a member session", DOWN),
+  E("other", "mcp", "same tools, no gateway", DOWN),
+  E("mcp", "session", "token becomes a member session", { vertical: true, dashed: true }),
   E("mcp", "facade", "calls with that session"),
   E("facade", "services", "existing systems", DOWN),
   E("traveller", "checkout", "opens the checkout link", DOWN),

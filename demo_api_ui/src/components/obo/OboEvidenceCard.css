@@ -1,6 +1,6 @@
 .obo-card { color: var(--th-text); }
 .obo-card__pair { display: grid; grid-template-columns: 1fr 1fr; gap: 0.75rem; }
-.obo-card__col { border: 1px solid var(--th-border); background: var(--th-bg-card); border-radius: 6px; padding: 0.75rem; min-width: 0; }
+.obo-card__col { border: 1px solid var(--th-border); background: var(--th-bg-card); border-radius: var(--radius-md); padding: 0.75rem; min-width: 0; }
 .obo-card__heading { font-size: var(--font-size-base); margin: 0 0 0.5rem; }
 .obo-card__row { display: flex; gap: 0.5rem; padding: 0.15rem 0; }
 .obo-card__row dt { color: var(--th-text-muted); min-width: 4.5rem; }

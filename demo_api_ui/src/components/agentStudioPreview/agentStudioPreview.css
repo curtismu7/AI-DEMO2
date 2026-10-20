@@ -53,25 +53,25 @@
 /* Discovery Preview — cool teal (vs warm amber Agent Studio). Strong
    chrome differences so the two routes are obvious at a glance. */
 .asp-root.asp-root--discovery {
-  --asp-bg: #dceef2;
+  --asp-bg: #eff0f1;
   --asp-panel: #ffffff;
-  --asp-panel-2: #cfe4ea;
-  --asp-border: #8fb6c0;
-  --asp-ink: #0f2a31;
-  --asp-ink-2: #1f3f49;
-  --asp-ink-3: #234a55;
-  --asp-accent: #055560;
-  --asp-accent-ink: #f2fcfd;
-  --asp-accent-wash: #b6dde4;
+  --asp-panel-2: #eff0f1;
+  --asp-border: #cdd1d4;
+  --asp-ink: #051727;
+  --asp-ink-2: #12538d;
+  --asp-ink-3: #12538d;
+  --asp-accent: #12538d;
+  --asp-accent-ink: #ffffff;
+  --asp-accent-wash: #cdd1d4;
   --asp-shadow: 0 1px 3px rgba(10, 60, 70, 0.08), 0 8px 24px rgba(10, 60, 70, 0.1);
-  border-top: 8px solid #066a76;
-  background-image: linear-gradient(90deg, #066a76 0, #066a76 10px, transparent 10px);
+  border-top: 8px solid #12538d;
+  background-image: linear-gradient(90deg, #12538d 0, #12538d 10px, transparent 10px);
   background-color: var(--asp-bg);
 }
 
 .asp-root.asp-root--discovery .asp-banner {
-  border-radius: 6px;
-  background: #055560;
+  border-radius: var(--radius-md);
+  background: #12538d;
   color: #f2fcfd;
   border: none;
 }
@@ -80,45 +80,33 @@
   color: #f2fcfd;
 }
 
-.asp-root.asp-root--discovery .asp-eyebrow {
-  background: #055560;
-  color: #f2fcfd;
-  padding: 4px 10px;
-  border-radius: 4px;
-}
-
 .asp-root.asp-root--discovery .asp-tab {
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery {
   --asp-bg: #0c171a;
-  --asp-panel: #142327;
-  --asp-panel-2: #1a3036;
-  --asp-border: #2f4f58;
-  --asp-ink: #e4f0f3;
-  --asp-ink-2: #c4d8de;
+  --asp-panel: #051727;
+  --asp-panel-2: #051727;
+  --asp-border: #12538d;
+  --asp-ink: #eff0f1;
+  --asp-ink-2: #cdd1d4;
   --asp-ink-3: #b3c9d0;
-  --asp-accent: #3ec3d4;
-  --asp-accent-ink: #061316;
-  --asp-accent-wash: #143640;
+  --asp-accent: #12538d;
+  --asp-accent-ink: #ffffff;
+  --asp-accent-wash: #051727;
   --asp-shadow: 0 1px 3px rgba(0, 0, 0, 0.3), 0 8px 30px rgba(0, 0, 0, 0.32);
-  border-top-color: #3ec3d4;
-  background-image: linear-gradient(90deg, #3ec3d4 0, #3ec3d4 10px, transparent 10px);
+  border-top-color: #12538d;
+  background-image: linear-gradient(90deg, #12538d 0, #12538d 10px, transparent 10px);
   background-color: var(--asp-bg);
 }
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery .asp-banner {
-  background: #1a5560;
+  background: #12538d;
   color: #ffffff;
 }
 
 :root[data-theme="dark"] .asp-root.asp-root--discovery .asp-banner a {
-  color: #ffffff;
-}
-
-:root[data-theme="dark"] .asp-root.asp-root--discovery .asp-eyebrow {
-  background: #1a5560;
   color: #ffffff;
 }
 
@@ -149,7 +137,7 @@
   color: var(--asp-accent);
   background: var(--asp-accent-wash);
   border: 1px solid var(--asp-accent);
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 8px 16px;
   flex: 1 1 auto;
 }
@@ -167,7 +155,7 @@
   color: var(--asp-ink);
   font: 700 12.5px inherit;
   padding: 8px 14px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   box-shadow: var(--asp-shadow);
 }
@@ -177,34 +165,6 @@
 }
 
 /* ---------- hero ---------- */
-.asp-hero {
-  text-align: center;
-  margin-bottom: 22px;
-}
-.asp-eyebrow {
-  display: inline-block;
-  font-size: 11.5px;
-  font-weight: 700;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  color: var(--asp-accent);
-  margin-bottom: 8px;
-}
-.asp-hero h1 {
-  font-size: var(--font-size-h1);
-  font-weight: 800;
-  margin: 0 0 8px;
-  letter-spacing: -0.015em;
-  text-wrap: balance;
-}
-.asp-hero p {
-  font-size: 14.5px;
-  color: var(--asp-ink-2);
-  max-width: 58ch;
-  margin: 0 auto;
-  line-height: 1.6;
-}
-
 /* ---------- pill tabs (persona / story selector) ---------- */
 .asp-tabs {
   display: flex;
@@ -220,7 +180,7 @@
   color: var(--asp-ink-2);
   font: 700 12.5px inherit;
   padding: 9px 16px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
   box-shadow: var(--asp-shadow);
 }
@@ -274,7 +234,7 @@
   gap: 14px;
   background: var(--asp-panel);
   border: 1px solid var(--asp-border);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 13px 16px;
   box-shadow: var(--asp-shadow);
   flex-wrap: wrap;
@@ -302,7 +262,7 @@
   font-size: var(--font-size-xs);
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   white-space: nowrap;
 }
 .asp-badge--governed,
@@ -326,7 +286,7 @@
   color: var(--asp-ink);
   font: 700 13px inherit;
   padding: 8px 16px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   cursor: pointer;
 }
 .asp-btn:hover {
@@ -356,7 +316,7 @@
 }
 .asp-gapcard h3 {
   margin: 0 0 8px;
-  font-size: 16px;
+  font-size: var(--font-size-md);
 }
 .asp-gapcard p {
   margin: 0 0 10px;
@@ -369,7 +329,7 @@
   font-size: var(--font-size-xs);
   font-weight: 700;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: var(--asp-bad-fill);
   color: var(--asp-bad);
   border: 1px solid var(--asp-bad-border);

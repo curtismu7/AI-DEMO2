@@ -301,6 +301,20 @@ describe('authUi', () => {
       expect(window.location.href).toMatch(/\/api\/auth\/oauth\/user\/login$/);
     });
 
+    it.each([['/pingone-mcp-inspector', '/pingone-mcp-inspector'], ['/', '/dashboard']])(
+      'navigateToCustomerOAuthLogin() from %s asks the sign-in modal to return to %s',
+      (pathname, expected) => {
+        delete window.location;
+        window.location = { href: '', pathname, assign: vi.fn(), replace: vi.fn(), reload: vi.fn() };
+        const seen = [];
+        const on = (e) => seen.push(e.detail.returnTo);
+        window.addEventListener('banking-pi-flow-signin', on);
+        navigateToCustomerOAuthLogin();
+        window.removeEventListener('banking-pi-flow-signin', on);
+        expect(seen).toEqual([expected]);
+      },
+    );
+
     it('navigateToAdminOAuthLogin sets admin OAuth URL', () => {
       delete window.location;
       window.location = { href: '', assign: vi.fn(), replace: vi.fn(), reload: vi.fn() };

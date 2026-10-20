@@ -15,6 +15,17 @@ Source of truth: Ping's brand hub (brand.pingidentity.com/hub/39, SSO-gated). **
 - **Gradients (90deg):** red `#d20e0f 55% → #aa0005`, dark `#051727 58% → #12538d`, gray `#fcfcfc 45% → #e0e2e4`. Landing hero CTA uses the red gradient; `--lp-destructive` is Ping Red.
 - **Emphasis:** heavier weight, never italics, in display faces.
 
+## Added 2026-10-18 (UI consistency review)
+
+- **Reds:** one accent/danger red `#d20e0f`, hover/dark `#aa0005`. Do not reintroduce Tailwind reds (`#dc2626`, `#b91c1c`, `#ef4444`).
+- **No purple or pink** in CSS, including gradients, code highlighting and avatars. Sweep them to the red family (`#fee2e2` / `#fecaca` / `#d20e0f` / `#7f1d1d` by lightness).
+- **Blues:** Core Dark `#051727` for surfaces and nav, Ping blue `#12538d` for links/info. Primary actions are Ping Red, not blue. Secondary/utility buttons are outline (`app-page-toolbar-btn`).
+- **Neutrals:** `#263746`, `#5c646b` (Gray 700), `#909ea4`, `#cdd1d4`, `#e0e2e4` (Gray 400), `#eff0f1`, `#f7f8f8` (Gray 200). Not Tailwind slate/gray.
+- **Mono font:** `var(--font-mono)` (IBM Plex Mono first). **Sans:** `var(--font-primary)`. No hardcoded stacks.
+- **Tokens, not literals:** `--radius-sm|md|lg|xl|pill`, `--font-size-*`, `--btn-radius`, `--btn-weight`. `designTokenRatchet.test.js` fails on new literals.
+- **Page header:** `<PageHeader eyebrow title summary back badge actions>` and `<BackLink>` from `components/common/PageHeader`. The band keeps its own text colours.
+- **Readability is enforced:** the contrast hook / `check-contrast.mjs` on CSS edits, `npm run audit:contrast` for rendered pages. Never paint `--th-bg-band` as text; never apply generated overrides unscoped.
+
 ## Hardcoded stacks that must stay in sync
 
 Three places define their own `--font-*` variables and must match the token change:

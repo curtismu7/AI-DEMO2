@@ -1,7 +1,7 @@
 /* ─── Top Navigation Bar (Phase 120-03) ───────────────────────────────────── */
 
 .topnav {
-  background: linear-gradient(135deg, var(--brand-dashboard-header-start, #1e293b) 0%, var(--brand-dashboard-header-end, #334155) 100%);
+  background: linear-gradient(135deg, var(--brand-dashboard-header-start, #263746) 0%, var(--brand-dashboard-header-end, #263746) 100%);
   border-bottom: 2px solid rgba(255, 255, 255, 0.08);
   position: sticky;
   top: 0;
@@ -13,7 +13,12 @@
   width: 100%;
   box-sizing: border-box;
   padding: 0 12px 0 24px;
-  height: 60px;
+  /* Wrap at ANY width, not just <=1280px: the page text-size control is CSS zoom,
+     which widens the content without changing the viewport the media queries see,
+     so at 113%+ on a ~1550px window the right cluster (incl. Sign Out) ran off-screen. */
+  min-height: 60px;
+  flex-wrap: wrap;
+  row-gap: 6px;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -58,7 +63,7 @@
   color: #ffffff;
   cursor: pointer;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -98,7 +103,7 @@
 }
 
 .topnav-brand-name {
-  font-size: 16px;
+  font-size: var(--font-size-md);
   font-weight: 700;
   color: var(--brand-topnav-text, #ffffff);
   letter-spacing: -0.2px;
@@ -120,7 +125,7 @@
   letter-spacing: 0.06em;
   text-transform: uppercase;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   background: rgba(255, 255, 255, 0.15);
   border: 1px solid rgba(255, 255, 255, 0.25);
   color: var(--brand-topnav-text, #ffffff);
@@ -198,7 +203,7 @@
   background: rgba(255, 255, 255, 0.16);
   border: 1px solid rgba(255, 255, 255, 0.45);
   border-bottom: 1px solid rgba(255, 255, 255, 0.45);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
 }
 
 .topnav-use-cases-btn--back:hover {
@@ -219,6 +224,7 @@
   flex-shrink: 1;
   overflow: visible;
   min-width: 0;
+  margin-left: auto; /* stays right-aligned when it wraps to its own row */
 }
 
 /* Scrollable middle section — controls/token/search can overflow;
@@ -304,20 +310,20 @@
 }
 
 .topnav-reset-demo-btn {
-  background: #991b1b;
-  border: 1px solid #991b1b;
+  background: #aa0005;
+  border: 1px solid #aa0005;
   color: #fff;
   font-size: var(--font-size-2xs);
   font-weight: 600;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   cursor: pointer;
   transition: background 0.15s ease, border-color 0.15s ease;
 }
 
 .topnav-reset-demo-btn:hover {
-  background: #b91c1c;
-  border-color: #b91c1c;
+  background: #d20e0f;
+  border-color: #d20e0f;
 }
 
 @media (max-width: 1100px) {
@@ -366,7 +372,7 @@
   color: #ffffff;
   cursor: pointer;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition:
     background 0.15s ease,
     color 0.15s ease;
@@ -384,7 +390,7 @@
   color: #ffffff;
   cursor: pointer;
   padding: 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 1rem;
   line-height: 1;
   transition:
@@ -408,7 +414,7 @@
   color: #ffffff;
   cursor: pointer;
   padding: 8px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.95rem;
   line-height: 1;
   transition:
@@ -428,7 +434,7 @@
 .topnav-search-input {
   padding: 8px 12px;
   border: 1px solid #e0e0e0;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-body);
   width: 200px;
   transition: border-color 0.15s ease;
@@ -436,7 +442,7 @@
 
 .topnav-search-input:focus {
   outline: none;
-  border-color: var(--brand-navy, #004687);
+  border-color: var(--brand-navy, #12538d);
 }
 
 /* ─── Mobile Menu ───────────────────────────────────────────────────── */
@@ -485,16 +491,16 @@
 }
 
 .topnav-mobile-item:hover {
-  color: var(--brand-navy, #004687);
+  color: var(--brand-navy, #12538d);
 }
 
 .topnav-mobile-item--logout {
-  color: #b91c1c;
+  color: #d20e0f;
   font-weight: 600;
 }
 
 .topnav-mobile-item--logout:hover {
-  color: #991b1b;
+  color: #aa0005;
 }
 
 /* ─── Responsive Design ───────────────────────────────────────────── */
@@ -506,7 +512,7 @@
   }
   .topnav-context-chip {
     padding: 3px 8px;
-    font-size: 10px;
+    font-size: var(--font-size-3xs);
   }
   .topnav-token-pill__name {
     display: none;
@@ -538,7 +544,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.4);
   background: rgba(255, 255, 255, 0.15);
   color: #fff;
@@ -579,7 +585,7 @@
   align-items: center;
   gap: 6px;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid rgba(255, 255, 255, 0.4);
   background: transparent;
   color: #fff;
@@ -606,7 +612,7 @@
      measured 2.77:1. Kept as rgba(0,0,0,a) because DashboardContrast.test.js models the
      pill that way to check the label against every vertical's header. */
   background: rgba(0, 0, 0, 0.78);
-  border: 1px solid #334155;
+  border: 1px solid #263746;
   border-radius: 5px;
   padding: 3px 10px;
   min-width: 0;
@@ -625,7 +631,7 @@
 }
 
 .topnav-token-pill--expired .topnav-token-pill__dot {
-  background: #ef4444;
+  background: #d20e0f;
 }
 
 .topnav-token-pill__name {
@@ -658,11 +664,11 @@
 }
 
 .topnav-token-pill--stale .topnav-token-pill__countdown {
-  color: #94a3b8;
+  color: #909ea4;
 }
 
 .topnav-token-pill__session-label {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.05em;
   text-transform: uppercase;
@@ -676,7 +682,7 @@
   color: var(--brand-topnav-text, #ffffff);
   background: none;
   border: none;
-  border-left: 1px solid #334155;
+  border-left: 1px solid #263746;
   padding: 0 0 0 8px;
   margin-left: 3px;
   cursor: pointer;
@@ -700,8 +706,8 @@
   display: inline-block;
   width: 120px;
   height: 14px;
-  border-radius: 4px;
-  background: linear-gradient(90deg, #334155 25%, #475569 50%, #334155 75%);
+  border-radius: var(--radius-sm);
+  background: linear-gradient(90deg, #263746 25%, #5c646b 50%, #263746 75%);
   background-size: 200% 100%;
   animation: topnav-shimmer 1.4s infinite;
 }

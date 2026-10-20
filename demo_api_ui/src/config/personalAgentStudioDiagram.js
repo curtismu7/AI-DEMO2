@@ -4,37 +4,37 @@
 // /api/mcp/decision/:id/approve|deny -> retry with hitlChallengeId.
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
 const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt, label]);
-const HOLD = { color: 'var(--th-status-warning)' };
-const SAFE = { color: 'var(--th-status-success)' };
+const TOKEN = { dashed: true }; // pingStyle: dashed blue = a token or a decision handed back
 
 export const PERSONAL_AGENT_GROUPS = {
-  user: { label: 'User', bg: 'var(--th-status-info)' },
-  agent: { label: 'Agent client', bg: 'var(--th-bg-emphasis)' },
-  bff: { label: 'Demo BFF', bg: 'var(--th-text-faint)' },
-  idp: { label: 'PingOne', bg: 'var(--th-status-warning)' },
-  gateway: { label: 'Gateway + Authorize', bg: 'var(--th-status-success)' },
+  // Ping palette: red = Ping products, dark = the page and what the team builds, grey = the outside client.
+  user: { label: 'User', bg: '#151a24' },
+  agent: { label: 'Agent client', bg: '#5a5f69' },
+  bff: { label: 'Demo BFF', bg: '#151a24' },
+  idp: { label: 'PingOne', bg: '#b5231a' },
+  gateway: { label: 'Gateway + Authorize', bg: '#b5231a' },
 };
 
 export const PERSONAL_AGENT_NODES = [
   N('user', 'user', 'User', ['chats or runs a workload', 'action in the selected skin'], 0, 150),
-  N('client', 'agent', 'Agent client (skin)', ['Privilege, Claude, ChatGPT,', 'Gemini, Computer Use, Dot'], 340, 150),
-  N('bff', 'bff', 'POST /api/agent/invoke', ['gate 1: MFA (acr claim)', 'looks up the personal agent'], 680, 150),
-  N('mfa', 'idp', 'PingOne MFA', ['/api/auth/mfa/challenge', 'step-up before the action'], 680, 400),
-  N('gw', 'gateway', 'Gateway: token validation', ['gate 2: audience, act claim,', 'RFC 7662 introspection'], 1020, 0),
-  N('authz', 'gateway', 'PingOne Authorize', ['gate 3: agent identity,', 'loyalty tier, action scope'], 1020, 300),
-  N('approve', 'user', 'Human approval', ['/api/mcp/decision/:id/', 'approve or deny'], 340, 400),
+  N('client', 'agent', 'Agent client (skin)', ['Privilege, Claude, ChatGPT,', 'Gemini, Computer Use, Dot'], 340, 200),
+  N('bff', 'bff', 'POST /api/agent/invoke', ['gate 1: MFA (acr claim)', 'looks up the personal agent'], 0, 400),
+  N('mfa', 'idp', 'PingOne MFA', ['/api/auth/mfa/challenge', 'step-up before the action'], 0, 0),
+  N('gw', 'gateway', 'Gateway: token validation', ['gate 2: audience, act claim,', 'RFC 7662 introspection'], 1020, 400),
+  N('authz', 'gateway', 'PingOne Authorize', ['gate 3: agent identity,', 'loyalty tier, action scope'], 1020, 200),
+  N('approve', 'user', 'Human approval', ['/api/mcp/decision/:id/', 'approve or deny'], 1020, 0),
 ];
 
 export const PERSONAL_AGENT_EDGES = [
   E('user', 'client', 'prompt or Run'), // 0
   E('client', 'bff', 'invoke (credentials included)'), // 1
-  E('bff', 'gw', 'MFA passed; agent token exchanged'), // 2
+  E('bff', 'gw', 'MFA passed; agent token exchanged', TOKEN), // 2
   E('gw', 'authz', 'token valid; ask for a verdict'), // 3
-  E('authz', 'client', 'permit: result and reply returned', SAFE), // 4
-  E('bff', 'mfa', '428 requiresConsent / step_up_required', HOLD), // 5
-  E('mfa', 'client', 'challenge done; the request is retried', SAFE), // 6
-  E('authz', 'approve', 'hitl_required: challenge id', HOLD), // 7
-  E('approve', 'client', 'approve: retry with hitlChallengeId', SAFE), // 8
+  E('authz', 'client', 'permit: result and reply returned', TOKEN), // 4
+  E('bff', 'mfa', '428 requiresConsent / step_up_required', TOKEN), // 5
+  E('mfa', 'client', 'challenge done; the request is retried'), // 6
+  E('authz', 'approve', 'hitl_required: challenge id', TOKEN), // 7
+  E('approve', 'client', 'approve: retry with hitlChallengeId'), // 8
 ];
 
 export const PERSONAL_AGENT_STEPS = [

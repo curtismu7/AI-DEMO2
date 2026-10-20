@@ -81,7 +81,7 @@
 .dashboard-quick-nav__btn:nth-child(even):hover {
   background: var(--brand-navy);
   border-color: rgba(255, 255, 255, 0.2);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.28);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.28);
   transform: translateY(-1px);
 }
 

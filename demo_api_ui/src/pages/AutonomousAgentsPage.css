@@ -17,23 +17,15 @@
   line-height: 1.6;
 }
 
-.aap-head { display: flex; flex-direction: column; gap: 8px; }
 .aap-title { margin: 0; font-size: var(--font-size-3xl); font-weight: 600; }
-.aap-lede {
-  margin: 0;
-  max-width: 64ch;
-  color: var(--th-text-muted, #556070);
-  font-size: 16px;
-  line-height: 1.6;
-}
 /* No monospace stack here on purpose: index.css strips monospace from
    pre/code/kbd/samp/tt repo-wide and a unit test enforces it. The inset
    background and size shift carry "this is an identifier" on their own. */
 .aap code {
   font-size: 0.9em;
-  background: var(--th-bg-inset, #f1f5f9);
+  background: var(--th-bg-inset, #eff0f1);
   padding: 1px 5px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
 }
 
 .aap-card {
@@ -47,12 +39,6 @@
 }
 
 .aap-h2 { margin: 0; font-size: var(--font-size-lg); font-weight: 600; }
-.aap-sub {
-  margin: 0;
-  color: var(--th-text-muted, #556070);
-  font-size: 14.5px;
-  line-height: 1.5;
-}
 .aap-empty { margin: 0; color: var(--th-text-muted, #556070); font-size: var(--font-size-base); }
 
 .aap-toggle-row,
@@ -71,9 +57,9 @@
   align-items: center;
   gap: 8px;
   padding: 5px 12px 5px 6px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid var(--th-border-strong, #c3cdd9);
-  background: var(--th-bg-inset, #f1f5f9);
+  background: var(--th-bg-inset, #eff0f1);
   color: var(--th-text-muted, #556070);
   font: inherit;
   font-size: var(--font-size-body);
@@ -92,7 +78,7 @@
 .aap-switch--on {
   border-color: #a1620a;
   background: #fdf3e2;
-  color: #a1620a;
+  color: #051727;
 }
 .aap-switch--on .aap-switch-knob { background: #a1620a; }
 
@@ -100,7 +86,7 @@
   font: inherit;
   font-size: var(--font-size-body);
   padding: 6px 13px;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   border: 1px solid var(--th-border-strong, #c3cdd9);
   background: var(--th-bg-card, #ffffff);
   color: var(--th-text, var(--th-text));
@@ -111,7 +97,7 @@
 .aap-list { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 6px; }
 .aap-row {
   border: 1px solid var(--th-border, #dbe2ea);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   box-shadow: inset 3px 0 0 #a1620a;
 }
 .aap-row--failed,
@@ -129,9 +115,9 @@
   margin: 0 12px 12px;
   padding: 12px;
   border: 1px solid #a1620a;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #fdf3e2;
-  color: var(--th-text);
+  color: #051727;
 }
 .aap-parked-head { margin: 0; font-size: 14.5px; font-weight: 600; color: #a1620a; }
 .aap-parked-body { margin: 0; font-size: var(--font-size-body); line-height: 1.5; }
@@ -140,7 +126,7 @@
 .aap-gauge { display: flex; flex-direction: column; gap: 5px; }
 .aap-gauge-head { display: flex; justify-content: space-between; font-size: 13.5px; color: #6b5a3e; }
 .aap-gauge-head b { color: var(--th-text); font-variant-numeric: tabular-nums; font-weight: 600; }
-.aap-gauge-track { height: 7px; border-radius: 4px; background: rgba(161, 98, 10, 0.18); overflow: hidden; }
+.aap-gauge-track { height: 7px; border-radius: var(--radius-sm); background: rgba(161, 98, 10, 0.18); overflow: hidden; }
 /* Full bar on purpose: a parked run is by definition over its ceiling. */
 .aap-gauge-fill { height: 100%; width: 100%; background: #a1620a; }
 
@@ -156,9 +142,9 @@
   color: inherit;
   text-align: left;
   cursor: pointer;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
-.aap-open:hover { background: var(--th-bg-inset, #f1f5f9); }
+.aap-open:hover { background: var(--th-bg-inset, #eff0f1); }
 .aap-open:focus-visible { outline: 2px solid var(--th-border-strong, #c3cdd9); outline-offset: -2px; }
 
 .aap-job { font-weight: 600; font-size: var(--font-size-base); }
@@ -206,8 +192,8 @@
 .aap-compare-col {
   padding: 12px 14px;
   border: 1px solid var(--th-border, #dbe2ea);
-  border-radius: 8px;
-  background: var(--th-bg-inset, #f1f5f9);
+  border-radius: var(--radius-lg);
+  background: var(--th-bg-inset, #eff0f1);
 }
 .aap-compare-col ul {
   margin: 0;
@@ -230,7 +216,7 @@
 .aap-use {
   padding: 12px 14px;
   border: 1px solid var(--th-border, #dbe2ea);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
 }
 .aap-use p {
   margin: 0;
@@ -254,7 +240,7 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   padding: 2px 8px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid currentColor;
   white-space: nowrap;
 }
@@ -297,7 +283,7 @@
 .aap-reel { display: flex; flex-direction: column; gap: 6px; }
 .aap-reel-frame {
   border: 1px solid var(--th-border, #dbe2ea);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card, #ffffff);
   overflow-x: auto;
   min-height: 260px;
@@ -309,9 +295,9 @@
   margin: 0;
   padding: 10px 12px;
   border: 1px solid #a1620a;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #fdf3e2;
-  color: var(--th-text);
+  color: #051727;
   font-size: 14.5px;
   line-height: 1.55;
 }

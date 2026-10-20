@@ -14,30 +14,6 @@
   background: var(--th-bg-page);
 }
 
-.pfg-hero {
-  display: grid;
-  gap: 8px;
-  max-width: 68ch;
-}
-.pfg-eyebrow {
-  font-family: var(--pfg-mono);
-  font-size: var(--font-size-xs);
-  letter-spacing: 0.08em;
-  text-transform: uppercase;
-  color: var(--th-text-muted);
-}
-.pfg-hero h1 {
-  font-size: var(--font-size-h2);
-  margin: 0;
-  line-height: 1.15;
-  text-wrap: balance;
-}
-.pfg-hero p {
-  margin: 0;
-  color: var(--th-text-muted);
-  font-size: var(--font-size-body);
-}
-
 .pfg-figure {
   margin: 0;
   display: grid;
@@ -68,10 +44,9 @@
   display: inline-block;
   width: 22px;
   height: 0;
-  border-top: 2px solid var(--th-text);
+  border-top: 6px solid var(--th-text);
 }
-.pfg-sw--spike { border-top: 2px dashed var(--th-status-warning); }
-.pfg-sw--ghost { border-top: 2px dashed var(--th-text-muted); }
+.pfg-sw--dashed { border-top: 2px dashed var(--th-status-info); }
 
 .pfg-flags {
   display: grid;
@@ -88,7 +63,7 @@
   gap: 4px;
 }
 .pfg-flag code {
-  font-family: var(--pfg-mono);
+  font-family: var(--font-mono);
   font-size: var(--font-size-sm);
   color: var(--th-code-text);
   background: var(--th-code-bg);

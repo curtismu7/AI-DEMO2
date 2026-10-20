@@ -7,18 +7,18 @@
   color: #664d03;
   font-size: 0.75rem;
   font-weight: 600;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 2px 8px;
   width: fit-content;
 }
 
 .gcm-challenge-id {
   font-size: 0.78rem;
-  color: #1e293b;
+  color: #263746;
   font-family: inherit;
 }
 
 .gcm-expires {
   font-size: 0.78rem;
-  color: #1e293b;
+  color: #263746;
 }

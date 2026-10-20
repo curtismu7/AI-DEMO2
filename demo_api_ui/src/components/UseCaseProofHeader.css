@@ -2,7 +2,7 @@
 .ucph {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border);
-  border-left: 4px solid #14b8a6;
+  border-left: 4px solid #12538d;
   border-radius: 10px;
   padding: 12px 14px;
 }
@@ -12,8 +12,8 @@
   font-weight: 800;
   letter-spacing: 0.06em;
   color: #fff;
-  background: #115e59; /* #0d9488 was 3.7:1 with white */
-  border: 1px solid #115e59;
+  background: #12538d; /* #12538d was 3.7:1 with white */
+  border: 1px solid #12538d;
   border-radius: 5px;
   padding: 2px 7px;
 }
@@ -32,12 +32,12 @@
   margin: 0.6rem 0 0;
   font-size: 0.95rem;
   font-weight: 700;
-  color: #134e4a; /* literal ink on a literal light chip; var(--th-text) is white in dark */
+  color: #12538d; /* literal ink on a literal light chip; var(--th-text) is white in dark */
   background: #ccfbf1;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 11px;
 }
-.ucph__say .ucph__k { color: #0f766e; }
+.ucph__say .ucph__k { color: #12538d; }
 .ucph__presenter {
   margin: 0.55rem 0 0;
   padding-left: 10px;

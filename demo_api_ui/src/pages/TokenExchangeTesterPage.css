@@ -4,7 +4,7 @@
 .tet-page {
   background: var(--th-bg-page);
   color: var(--th-text);
-  font-family: "Montserrat", -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+  font-family: var(--font-primary);
 }
 
 /* Top bar */
@@ -17,7 +17,7 @@
   align-items: baseline;
   gap: 14px;
 }
-.tet-topbar h1 { font-size: 16px; font-weight: 600; color: var(--th-text); margin: 0; }
+.tet-topbar h1 { font-size: var(--font-size-md); font-weight: 600; color: var(--th-text); margin: 0; }
 .tet-topbar__status { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
 
 .tet-theme-toggle {
@@ -92,7 +92,7 @@
   font-family: var(--font-mono);
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   color: var(--th-text);
   box-sizing: border-box;
   margin-bottom: 6px;
@@ -106,7 +106,7 @@
   font-weight: 600;
   background: var(--th-bg-emphasis);
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   cursor: pointer;
 }
 .tet-btn:hover:not(:disabled) {
@@ -172,7 +172,7 @@
 .tet-ready-card {
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   background: var(--th-bg-inset);
 }
@@ -200,11 +200,11 @@
   color: #fff;
   display: inline-block;
   margin-top: 8px;
-  background: #1e293b;
+  background: #263746;
   text-decoration: none;
   text-align: center;
 }
-.tet-btn--secondary:hover { background: #0f172a; }
+.tet-btn--secondary:hover { background: #051727; }
 .tet-btn--secondary:is(:link, :visited) { color: #fff; }
 
 .tet-no-session button {
@@ -217,7 +217,7 @@
   display: flex;
   gap: 0;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   overflow: hidden;
   width: fit-content;
   margin-bottom: 6px;
@@ -251,7 +251,7 @@
 .tet-step {
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 12px;
   background: var(--th-bg-card);
 }

@@ -230,7 +230,7 @@
 .embedded-agent-dock__title {
   font-size: 0.8125rem;
   font-weight: 600;
-  color: #1e3a5f;
+  color: #051727;
   letter-spacing: 0.02em;
   text-transform: uppercase;
   margin: 0;
@@ -245,7 +245,7 @@
   letter-spacing: 0.04em;
   text-transform: none;
   background: #e8f0fb;
-  color: #1e3a5f;
+  color: #051727;
   border: 1px solid #c0d0ea;
   border-radius: 10px;
   vertical-align: middle;
@@ -291,7 +291,7 @@
 .embedded-dock-graph-link-btn {
   background: transparent;
   border: 1px solid rgba(148, 163, 184, 0.4);
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--th-text-faint);
   font-size: var(--font-size-2xs);
   line-height: 1;
@@ -381,17 +381,17 @@
 }
 
 .embedded-dock-resize-handle:hover .embedded-dock-resize-handle__bar {
-  background: rgba(37, 99, 235, 0.5);
+  background: rgba(18, 83, 141, 0.5);
   width: 44px;
 }
 
 .embedded-dock-resize-handle:active {
   cursor: ns-resize;
-  background: #dbeafe;
+  background: #e0e2e4;
 }
 
 .embedded-dock-resize-handle:focus-visible {
-  outline: 2px solid #4169e1;
+  outline: 2px solid #12538d;
   outline-offset: 2px;
 }
 
@@ -547,7 +547,7 @@
   height: var(--stack-fab-height, 44px);
   min-height: var(--stack-fab-height, 44px);
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(
     135deg,
     var(--app-primary-blue-mid) 0%,
@@ -560,7 +560,7 @@
   font-weight: 700;
   letter-spacing: 0.06em;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.3);
+  box-shadow: 0 2px 8px rgba(18, 83, 141, 0.3);
   transition:
     background 0.2s,
     transform 0.15s,
@@ -576,7 +576,7 @@
 
 .nav-home-fab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.4);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.4);
   background: linear-gradient(
     135deg,
     var(--app-primary-blue) 0%,
@@ -600,7 +600,7 @@
   height: var(--stack-fab-height, 44px);
   min-height: var(--stack-fab-height, 44px);
   padding: 0 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(
     135deg,
     var(--app-primary-blue-mid) 0%,
@@ -613,7 +613,7 @@
   font-weight: 600;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(29, 78, 216, 0.3);
+  box-shadow: 0 2px 8px rgba(18, 83, 141, 0.3);
   transition:
     background 0.2s,
     transform 0.15s,
@@ -629,7 +629,7 @@
 
 .nav-dashboard-fab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(29, 78, 216, 0.45);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.45);
   background: linear-gradient(
     135deg,
     var(--app-primary-blue) 0%,
@@ -697,7 +697,7 @@
   font-weight: 700;
   letter-spacing: 0.02em;
   cursor: pointer;
-  box-shadow: 0 2px 8px rgba(37, 99, 235, 0.35);
+  box-shadow: 0 2px 8px rgba(18, 83, 141, 0.35);
   transition:
     background 0.2s,
     transform 0.15s,
@@ -711,7 +711,7 @@
 
 .demo-config-fab:hover {
   transform: translateY(-1px);
-  box-shadow: 0 4px 12px rgba(37, 99, 235, 0.45);
+  box-shadow: 0 4px 12px rgba(18, 83, 141, 0.45);
   background: linear-gradient(
     135deg,
     var(--brand-navy) 0%,
@@ -777,17 +777,17 @@
   -webkit-text-fill-color: var(--th-text) !important;
 }
 
-/* PingOne end-user-nano ships dark-on-light defaults for headings (#1a2330), links (#277ba5)
-   and inline code (#d63384). On the dark app ground those measured 1.0 to 3.4:1 across 22
+/* PingOne end-user-nano ships dark-on-light defaults for headings (#1a2330), links (#12538d)
+   and inline code (#d20e0f). On the dark app ground those measured 1.0 to 3.4:1 across 22
    routes, so redefine the three variables it reads once, here, instead of per page. */
 .App.end-user-nano {
   --bs-code-color: #9d174d; /* 8.2:1 on white, 7.4:1 on the light page tints */
-  --bs-link-color-rgb: 7, 89, 133; /* #075985, 7.6:1 on white */
+  --bs-link-color-rgb: 7, 89, 133; /* #12538d, 7.6:1 on white */
 }
 :root[data-theme="dark"] .App.end-user-nano {
   --bs-heading-color: var(--th-text);
   --bs-link-color-rgb: 147, 197, 253;
-  --bs-code-color: #f9a8d4;
+  --bs-code-color: #fecaca;
 }
 /* Bootstrap redeclares --bs-card-bg on .card itself, so it has to be set there. */
 :root[data-theme="dark"] .end-user-nano .card {
@@ -813,7 +813,7 @@
   -webkit-text-fill-color: var(--th-text) !important;
 }
 
-/* PingOne's own .btn-primary fill is its default blue (#277ba5), which this app never meant to show:
+/* PingOne's own .btn-primary fill is its default blue (#12538d), which this app never meant to show:
    index.css already aligns .btn-secondary to the app red, and the label rule below assumes a
    --app-primary-red fill. Black ink on that blue measured 3.6:1 on four admin pages. */
 .App.end-user-nano .btn .badge:not([class*="bg-"]) {
@@ -875,9 +875,23 @@
 .App.end-user-nano a.app-page-toolbar-btn:hover,
 .App.end-user-nano a.app-page-toolbar-btn:focus-visible,
 .App.end-user-nano a.app-page-toolbar-btn:active {
+  color: var(--th-text) !important;
+  -webkit-text-fill-color: var(--th-text) !important;
+  text-decoration: none !important;
+}
+
+/* Filled variants (primary red / danger) keep light text */
+.App.end-user-nano a.app-page-toolbar-btn.app-page-toolbar-btn--accent,
+.App.end-user-nano a.app-page-toolbar-btn.app-page-toolbar-btn--accent:any-link,
+.App.end-user-nano a.app-page-toolbar-btn.app-page-toolbar-btn--accent:hover,
+.App.end-user-nano a.app-page-toolbar-btn.app-page-toolbar-btn--danger,
+.App.end-user-nano a.app-page-toolbar-btn.app-page-toolbar-btn--danger:hover,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--accent,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--accent:hover,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--danger,
+.App.end-user-nano button.app-page-toolbar-btn.app-page-toolbar-btn--danger:hover {
   color: var(--app-primary-btn-text, #fff) !important;
   -webkit-text-fill-color: var(--app-primary-btn-text, #fff) !important;
-  text-decoration: none !important;
 }
 
 /* Toolbar uses <button> on MCP Inspector / Demo config — nano still paints link-blue on buttons */
@@ -897,8 +911,8 @@
 .App.end-user-nano button.app-page-toolbar-btn:focus,
 .App.end-user-nano button.app-page-toolbar-btn:focus-visible,
 .App.end-user-nano button.app-page-toolbar-btn:active {
-  color: var(--app-primary-btn-text, #fff) !important;
-  -webkit-text-fill-color: var(--app-primary-btn-text, #fff) !important;
+  color: var(--th-text) !important;
+  -webkit-text-fill-color: var(--th-text) !important;
 }
 
 .App.end-user-nano a.log-page-nav-btn,
@@ -1036,7 +1050,7 @@
   background: var(--th-bg-card);
   color: var(--th-text);
   border-bottom: 1px solid var(--th-border);
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.12);
+  box-shadow: 0 4px 12px rgba(5, 23, 39, 0.12);
   box-sizing: border-box;
 }
 
@@ -1149,7 +1163,7 @@
 .otp-step-up-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(5, 23, 39, 0.55);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -1164,7 +1178,7 @@
   overflow-y: auto;
   background: var(--th-bg-card);
   color: var(--th-text);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem 1.5rem 1.25rem;
   box-shadow: var(
     --modal-shadow,
@@ -1193,12 +1207,12 @@
 .otp-step-up-modal__contact {
   display: inline-block;
   background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
+  border: 1px solid #e0e2e4;
+  border-radius: var(--radius-lg);
   padding: 6px 14px;
   font-size: 1rem;
   font-weight: 700;
-  color: #0369a1;
+  color: #12538d;
   letter-spacing: 0.04em;
   margin-bottom: 12px;
   font-variant-numeric: tabular-nums;
@@ -1212,8 +1226,8 @@
   background: var(--th-bg-inset);
   color: var(--th-text);
   border: 1px solid var(--th-border);
-  border-left: 3px solid #0369a1;
-  border-radius: 8px;
+  border-left: 3px solid #12538d;
+  border-radius: var(--radius-lg);
   padding: 8px 12px;
   margin-bottom: 12px;
 }
@@ -1222,7 +1236,7 @@
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.05em;
-  color: #0369a1;
+  color: #12538d;
 }
 .otp-step-up-modal__identity-name {
   font-size: 1rem;
@@ -1245,18 +1259,18 @@
   padding: 0;
   font-size: 0.9rem;
   font-weight: 700;
-  color: #0369a1;
+  color: #12538d;
   text-decoration: underline;
   cursor: pointer;
 }
 .otp-step-up-modal__demo-link:hover {
-  color: #075985;
+  color: #12538d;
 }
 .otp-step-up-modal__demo-box {
   margin-top: 8px;
   background: #fffbeb;
   border: 1px solid #fcd34d;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   padding: 8px 12px;
   font-size: 0.92rem;
   font-weight: 700;
@@ -1268,13 +1282,13 @@
 .otp-step-up-modal__delivery-error {
   background: #fef2f2;
   border: 1px solid #fca5a5;
-  border-left: 3px solid #dc2626;
-  border-radius: 8px;
+  border-left: 3px solid #d20e0f;
+  border-radius: var(--radius-lg);
   padding: 10px 12px;
   margin-bottom: 12px;
   font-size: 0.92rem;
   font-weight: 600;
-  color: #991b1b;
+  color: #aa0005;
 }
 .otp-step-up-modal__delivery-error strong {
   font-weight: 800;
@@ -1284,8 +1298,8 @@
 /* Register-a-passkey device row */
 .otp-step-up-modal__device-item--register {
   border-style: dashed;
-  border-color: #0369a1;
-  color: #0369a1;
+  border-color: #12538d;
+  color: #12538d;
   font-weight: 700;
 }
 .otp-step-up-modal__device-item--register:disabled {
@@ -1296,7 +1310,7 @@
 .otp-step-up-modal__close {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: none;
   background: transparent;
   color: var(--th-text-faint);
@@ -1356,18 +1370,18 @@
 }
 
 .otp-step-up-modal__input:focus {
-  border-color: #0ea5e9;
+  border-color: #12538d;
 }
 
 .otp-step-up-modal__input--error {
-  border-color: #dc2626;
+  border-color: #d20e0f;
   background: #fff5f5;
 }
 
 .otp-step-up-modal__error {
   font-size: 0.82rem;
   font-weight: 500;
-  color: #dc2626;
+  color: #d20e0f;
   line-height: 1.4;
   margin-top: 0.5rem;
   margin-bottom: 0;
@@ -1428,7 +1442,7 @@
   color: var(--th-text-muted);
   cursor: pointer;
   padding: 2px 6px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   transition:
     color 0.15s,
     background 0.15s;
@@ -1493,7 +1507,7 @@
 .otp-step-up-overlay {
   position: fixed;
   inset: 0;
-  background: rgba(15, 23, 42, 0.55);
+  background: rgba(5, 23, 39, 0.55);
   z-index: 10000;
   display: flex;
   align-items: center;
@@ -1507,7 +1521,7 @@
   overflow-y: auto;
   background: var(--th-bg-card);
   color: var(--th-text);
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 1.5rem 1.5rem 1.25rem;
   box-shadow: var(
     --modal-shadow,
@@ -1532,7 +1546,7 @@
 .otp-step-up-modal__close {
   width: 28px;
   height: 28px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: none;
   background: transparent;
   color: var(--th-text-faint);
@@ -1572,16 +1586,16 @@
   transition: border-color 0.15s;
 }
 .otp-step-up-modal__input:focus {
-  border-color: #0ea5e9;
+  border-color: #12538d;
 }
 .otp-step-up-modal__input--error {
-  border-color: #dc2626;
+  border-color: #d20e0f;
   background: #fff5f5;
 }
 .otp-step-up-modal__error {
   font-size: 0.82rem;
   font-weight: 500;
-  color: #dc2626;
+  color: #d20e0f;
   line-height: 1.4;
   margin-top: 0.5rem;
   margin-bottom: 0;
@@ -1678,7 +1692,7 @@
   gap: 10px;
   padding: 12px 16px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   cursor: pointer;
@@ -1688,7 +1702,7 @@
   font-size: 0.95rem;
 }
 .otp-step-up-modal__device-item:hover {
-  border-color: var(--accent-blue, #0066cc);
+  border-color: var(--accent-blue, #12538d);
   box-shadow: 0 0 0 2px rgba(0, 102, 204, 0.15);
 }
 .otp-step-up-modal__device-icon {
@@ -1755,21 +1769,21 @@
   min-width: 2.4rem;
   height: 1.45rem;
   padding: 0 0.35rem;
-  border-radius: 4px;
-  background: #075985;
+  border-radius: var(--radius-sm);
+  background: #12538d;
   color: var(--th-text-invert);
   font-size: var(--font-size-3xs);
   font-weight: 800;
   letter-spacing: 0.04em;
 }
 .otp-step-up-modal__method-badge--passkey {
-  background: #0f766e;
+  background: #12538d;
 }
 .otp-step-up-modal__method-badge--sms {
   background: #b45309;
 }
 .otp-step-up-modal__method-badge--extra {
-  background: #475569;
+  background: #5c646b;
 }
 .otp-step-up-modal__method-recommended {
   color: var(--th-text);
@@ -1783,19 +1797,19 @@
 }
 .otp-step-up-modal__method-cta {
   appearance: none;
-  border: 1px solid #0ea5e9;
+  border: 1px solid #12538d;
   background: var(--th-bg-card);
-  color: #0369a1;
+  color: #12538d;
   font-weight: 700;
   font-size: 0.82rem;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 0.4rem 0.7rem;
   cursor: pointer;
   white-space: nowrap;
   transition: background 0.15s ease, color 0.15s ease, border-color 0.15s ease;
 }
 .otp-step-up-modal__method-cta:hover:not(:disabled) {
-  background: #075985;
+  background: #12538d;
   color: var(--th-text-invert);
 }
 .otp-step-up-modal__method-cta:disabled {
@@ -1840,24 +1854,24 @@
   color: var(--th-text);
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-cta {
-  border-color: #7dd3fc;
+  border-color: #cdd1d4;
   background: var(--th-bg-card);
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-cta:hover:not(:disabled) {
-  background: #075985;
+  background: #12538d;
   color: #ffffff;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-toggle {
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__method-toggle:hover {
-  color: #bae6fd;
+  color: #e0e2e4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__contact {
   background: #0c2a44;
-  border-color: #155e75;
-  color: #7dd3fc;
+  border-color: #12538d;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__demo-box {
   background: #3a2a10;
@@ -1865,27 +1879,27 @@
   color: #fcd34d;
 }
 :root[data-theme="dark"] .otp-step-up-modal__demo-link {
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__demo-link:hover {
-  color: #bae6fd;
+  color: #e0e2e4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__identity-label {
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__rfc-footer {
   background: #0c2a44;
-  border-color: #155e75;
+  border-color: #12538d;
 }
 :root[data-theme="dark"] .otp-step-up-modal__rfc-footer,
 :root[data-theme="dark"] .otp-step-up-modal__rfc-detail {
-  color: #7dd3fc;
+  color: #cdd1d4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__rfc-label {
-  color: #bae6fd;
+  color: #e0e2e4;
 }
 :root[data-theme="dark"] .otp-step-up-modal__rfc-detail code {
-  background: #164e63;
+  background: #12538d;
 }
 :root[data-theme="dark"] .otp-step-up-modal__lead strong {
   color: #9ec1ff;
@@ -1899,7 +1913,7 @@
   color: #fecaca;
 }
 :root[data-theme="dark"] .otp-step-up-modal__input--error {
-  border-color: #dc2626;
+  border-color: #d20e0f;
   background: #3a1414;
 }
 :root[data-theme="dark"] .otp-step-up-modal__btn-ghost,
@@ -1917,7 +1931,7 @@
 .otp-step-up-modal__method-toggle {
   background: transparent;
   border: none;
-  color: #0ea5e9;
+  color: #12538d;
   cursor: pointer;
   font-size: 0.85rem;
   text-decoration: underline;
@@ -1937,29 +1951,29 @@
   margin-top: 1.1rem;
   padding: 0.6rem 0.75rem;
   background: #f0f9ff;
-  border: 1px solid #bae6fd;
-  border-radius: 8px;
+  border: 1px solid #e0e2e4;
+  border-radius: var(--radius-lg);
   font-size: 0.72rem;
-  color: #0369a1;
+  color: #12538d;
   line-height: 1.45;
 }
 .otp-step-up-modal__rfc-label {
   font-weight: 600;
-  color: #0c4a6e;
+  color: #051727;
 }
 .otp-step-up-modal__rfc-detail {
-  color: #0369a1;
+  color: #12538d;
 }
 .otp-step-up-modal__rfc-detail code {
   font-family: inherit;
-  background: #e0f2fe;
+  background: #e0e2e4;
   padding: 1px 4px;
   border-radius: 3px;
   font-size: 0.7rem;
 }
 .otp-step-up-modal__rfc-refs {
   font-size: 0.68rem;
-  color: #0369a1;
+  color: #12538d;
   opacity: 0.8;
   font-style: italic;
 }
@@ -2093,7 +2107,7 @@
   color: var(--th-text);
   border: 1px solid var(--th-border);
   border-radius: 10px;
-  box-shadow: 0 4px 12px rgba(15, 23, 42, 0.08);
+  box-shadow: 0 4px 12px rgba(5, 23, 39, 0.08);
   text-align: center;
 }
 
@@ -2113,7 +2127,7 @@
 .signin-prompt__btn {
   padding: 0.5rem 1.25rem;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--signin-accent);
   color: var(--th-text-invert);
   /* Buttons do NOT inherit font-family from body by default — without this the
@@ -2208,7 +2222,7 @@
   padding: 0.5rem 0.7rem;
   background: var(--th-code-bg);
   color: var(--th-code-text);
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: var(--font-size-2xs);
   overflow-x: auto;
 }
@@ -2229,6 +2243,15 @@
   padding: 0.25rem 0.1rem;
 }
 
+/* Choice screen: three big buttons need air between them (the shared 0.4rem gap read as crammed). */
+.pi-flow-signin__form--choice {
+  gap: 1rem;
+  padding-top: 0.75rem;
+}
+.pi-flow-signin__form--choice .ciba-login__hint {
+  margin-top: -0.6rem; /* stays attached to the passwordless button above it */
+}
+
 .pi-flow-signin__label {
   font-size: var(--font-size-sm);
   font-weight: 600;
@@ -2238,7 +2261,7 @@
 .pi-flow-signin__input {
   padding: 0.65rem 0.8rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-family: inherit;
@@ -2261,7 +2284,7 @@
   max-width: 100%;
   padding: 0.5rem 1.25rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   /* App font with fixed-width digits; monospace is banned (uiRegression.test.js). */
@@ -2272,6 +2295,12 @@
   letter-spacing: 0.25em;
   overflow-wrap: anywhere;
   text-align: center;
+}
+.ciba-login__hint {
+  margin: -0.4rem 0 0;
+  text-align: center;
+  font-size: 0.85em;
+  opacity: 0.8;
 }
 .ciba-login__timer {
   text-align: center;
@@ -2291,7 +2320,7 @@
   text-align: left;
   padding: 0.55rem 0.8rem;
   border: 1px solid var(--th-border-strong);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-family: inherit;
@@ -2381,7 +2410,7 @@
   gap: 0.75rem;
   margin-bottom: 0.9rem;
   padding: 0.7rem 1rem;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: linear-gradient(
     90deg,
     var(--brand-dashboard-header-start, var(--th-bg-card)),
@@ -2497,4 +2526,25 @@
 .divider-drag-handle:active {
   background: var(--th-border-strong);
   color: var(--th-text);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .otp-step-up-modal__btn-cancel {
+  color: var(--th-status-error-text);
+}
+
+:root[data-theme="dark"] .otp-step-up-modal__btn-ghost {
+  color: var(--th-status-error-text);
+}
+
+:root[data-theme="dark"] .otp-step-up-modal__method-cta {
+  color: var(--th-status-info-text);
+}
+
+:root:not([data-theme="dark"]) .pi-flow-signin__hero {
+  color: #ffffff;
+}
+
+:root:not([data-theme="dark"]) .pi-flow-signin__brand {
+  color: #ffffff;
 }

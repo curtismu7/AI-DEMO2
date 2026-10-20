@@ -45,7 +45,7 @@
 /* Gateway pipeline */
 .grd-gateway {
 	border: 2px solid #2b6cb0;
-	border-radius: 12px;
+	border-radius: var(--radius-xl);
 	background: #ffffff;
 	padding: 10px;
 	height: 100%;
@@ -65,14 +65,14 @@
 	color: #8a5d12;
 	font-size: var(--font-size-xs);
 	font-weight: 600;
-	border-radius: 6px;
+	border-radius: var(--radius-md);
 	padding: 6px 8px;
 	margin-bottom: 10px;
 }
 
 .grd-stage {
 	border: 1px solid #dbe3ec;
-	border-radius: 8px;
+	border-radius: var(--radius-lg);
 	padding: 8px 10px;
 	margin-bottom: 8px;
 }
@@ -85,16 +85,16 @@
 .grd-stage-desc { font-size: var(--font-size-xs); color: #5a6b80; margin: 4px 0 0; line-height: 1.4; }
 
 .grd-pill {
-	font-size: 10px;
+	font-size: var(--font-size-3xs);
 	font-weight: 700;
-	border-radius: 999px;
+	border-radius: var(--radius-pill);
 	padding: 2px 8px;
 	white-space: nowrap;
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
 }
 .grd-pill--on  { background: #d6ecdb; color: #1f6b3a; }
-.grd-pill--off { background: #e2e6ec; color: var(--th-text); }
+.grd-pill--off { background: #e2e6ec; color: #051727; }
 
 /* Route cards */
 .grd-route {
@@ -108,19 +108,19 @@
 .grd-route-name { font-size: var(--font-size-sm); font-weight: 700; color: #1a1a2e; }
 
 .grd-badge {
-	font-size: 10px;
+	font-size: var(--font-size-3xs);
 	font-weight: 700;
-	border-radius: 4px;
+	border-radius: var(--radius-sm);
 	padding: 2px 7px;
 	text-transform: uppercase;
 	letter-spacing: 0.03em;
 }
 .grd-badge--ws   { background: #fecaca; color: #3b3f9c; }
-.grd-badge--http { background: #dcf0ec; color: #1d6b5e; }
+.grd-badge--http { background: #eff0f1; color: #12538d; }
 
 .grd-field { display: flex; flex-direction: column; gap: 2px; margin-bottom: 5px; }
 .grd-field-k {
-	font-size: 10px;
+	font-size: var(--font-size-3xs);
 	font-weight: 600;
 	color: #6b7e96;
 	text-transform: uppercase;
@@ -139,7 +139,7 @@
 	font-size: 10.5px;
 	background: #eef2f7;
 	color: #3a4a5f;
-	border-radius: 4px;
+	border-radius: var(--radius-sm);
 	padding: 2px 6px;
 	font-family: var(--font-mono);
 }

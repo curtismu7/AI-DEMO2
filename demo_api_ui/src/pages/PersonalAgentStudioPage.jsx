@@ -435,6 +435,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
             <EmbeddedFlowDiagram
         testId="pas-flow-diagram"
+        pingStyle
         title="How a personal-agent request is governed"
         ariaLabel="Personal agent request flow diagram"
         diagramLabel="Agent client to BFF, gateway and PingOne Authorize, with MFA and approval detours"

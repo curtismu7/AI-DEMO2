@@ -16,7 +16,7 @@
   align-items: center;
   gap: 0.5rem;
   padding: 0.6rem 0.75rem;
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  background: linear-gradient(135deg, #263746 0%, #263746 100%);
   color: #fff;
   cursor: grab;
   user-select: none;
@@ -73,7 +73,7 @@
 }
 
 .ftcp-btn--close:hover {
-  background: rgba(239, 68, 68, 0.7);
+  background: rgba(210, 14, 15, 0.7);
   color: #fff;
 }
 
@@ -119,8 +119,8 @@
 }
 
 .ftcp-tab--active {
-  color: #2563eb;
-  border-bottom-color: #2563eb;
+  color: #12538d;
+  border-bottom-color: #12538d;
   background: var(--th-bg-card);
 }
 
@@ -141,7 +141,7 @@
   height: 48px;
   border-radius: 50%;
   border: none;
-  background: linear-gradient(135deg, #1e293b 0%, #334155 100%);
+  background: linear-gradient(135deg, #263746 0%, #263746 100%);
   color: #fff;
   font-size: 1.25rem;
   cursor: pointer;
@@ -162,10 +162,10 @@
   right: 56px;
   top: 50%;
   transform: translateY(-50%);
-  background: #1e293b;
+  background: #263746;
   color: #ffffff;
   padding: 4px 10px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.72rem;
   white-space: nowrap;
   pointer-events: none;
@@ -195,7 +195,7 @@
   gap: 10px;
   padding: 10px 14px;
   border: 2px dashed var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text-muted);
   font-size: 0.8125rem;
@@ -204,7 +204,7 @@
 .ftcp-placeholder-btn {
   background: var(--th-bg-inset);
   border: 1px solid var(--th-border);
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--th-text);
   padding: 3px 10px;
   font-size: 0.75rem;
@@ -213,4 +213,9 @@
 
 .ftcp-placeholder-btn:hover {
   background: var(--th-border);
+}
+
+/* contrast: theme-specific text colours (scripts/check-contrast.mjs) */
+:root[data-theme="dark"] .ftcp-tab--active {
+  color: var(--th-status-info-text);
 }

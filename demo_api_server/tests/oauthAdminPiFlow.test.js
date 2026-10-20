@@ -107,6 +107,23 @@ describe('admin pi.flow sign-in', () => {
       expect(url.searchParams.get('code_challenge_method')).toBe('S256');
     });
 
+    test('PingFederate gets the stored admin hint too (prefill wins over PF binding the flow)', async () => {
+      configStore.getOAuthProvider.mockReturnValue('pingfederate');
+      configStore.getEffective.mockImplementation((key) => ({
+        admin_pingone_authorize_pi_flow: 'true',
+        pf_admin_client_id: 'pf-admin-client',
+        pf_authorization_endpoint: 'https://pf.example:9031/as/authorization.oauth2',
+        pf_token_endpoint: 'https://pf.example:9031/as/token.oauth2',
+        last_login_hint_admin: 'demoadmin',
+      })[key]);
+      try {
+        const res = await request(app).get('/api/auth/oauth/login').expect(302);
+        expect(new URL(res.headers.location).searchParams.get('login_hint')).toBe('demoadmin');
+      } finally {
+        configStore.getOAuthProvider.mockReturnValue('pingone');
+      }
+    });
+
     test('plain /login is still a redirect without response_mode', async () => {
       const res = await request(app).get('/api/auth/oauth/login').expect(302);
       expect(res.headers.location).not.toContain('response_mode=pi.flow');

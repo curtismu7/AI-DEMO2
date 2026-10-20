@@ -6,28 +6,6 @@
   margin: 0 auto;
 }
 
-.tracing-header {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 16px;
-  margin-bottom: 12px;
-}
-
-.tracing-header h1 {
-  margin: 0;
-  font-size: var(--font-size-2xl);
-  font-weight: 700;
-  color: var(--th-text);
-}
-
-.tracing-subtitle {
-  margin: 4px 0 0 0;
-  font-size: var(--font-size-body);
-  color: var(--th-text-body);
-  max-width: 52rem;
-}
-
 .tracing-header-actions {
   display: flex;
   align-items: center;
@@ -44,7 +22,7 @@
 .tracing-btn {
   padding: 6px 14px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   background: var(--th-bg-card);
   color: var(--th-text);
   font-size: var(--font-size-sm);
@@ -76,7 +54,7 @@
 .tracing-pill {
   display: inline-block;
   padding: 4px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   font-size: var(--font-size-2xs);
   font-weight: 600;
 }
@@ -95,7 +73,7 @@
   margin-bottom: 16px;
   padding: 10px 14px;
   border: 1px solid var(--th-status-error-border);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-status-error-bg);
   color: var(--th-status-error-text);
   font-size: var(--font-size-body);
@@ -127,7 +105,7 @@
   min-width: 200px;
   padding: 6px 10px;
   border: 1px solid var(--th-border-strong);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: var(--th-bg-card);
   font-size: var(--font-size-sm);
 }
@@ -137,7 +115,7 @@
    convention rather than introducing theme tokens it does not otherwise use. */
 .gw-metrics {
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   padding: 12px 16px;
   margin-bottom: 24px;
@@ -201,7 +179,7 @@
 .tracing-table-wrap {
   overflow-x: auto;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   margin-bottom: 24px;
 }
@@ -247,7 +225,7 @@
 
 .tracing-link {
   font-weight: 600;
-  color: #1d4ed8;
+  color: #12538d;
   text-decoration: none;
   white-space: nowrap;
 }
@@ -308,7 +286,7 @@
 .tracing-detail-row > td { padding: 0; }
 .tracing-detail { padding: 10px 14px; display: flex; flex-direction: column; gap: 4px; }
 .tracing-detail--msg { color: var(--th-text-muted); font-size: var(--font-size-sm); }
-.tracing-detail--error { color: #b91c1c; }
+.tracing-detail--error { color: #d20e0f; }
 
 .tracing-span-row { display: grid; grid-template-columns: 260px 1fr 72px; align-items: center; gap: 8px; font-size: var(--font-size-2xs); }
 .tracing-span-label { display: flex; gap: 6px; overflow: hidden; white-space: nowrap; }
@@ -318,21 +296,21 @@
 .tracing-span-bar { position: absolute; top: 0; height: 12px; border-radius: 3px; min-width: 2px; }
 .tracing-span-dur { text-align: right; color: var(--th-text-muted); font-variant-numeric: tabular-nums; }
 
-.tracing-span-bar--c0 { background: #3b82f6; }
+.tracing-span-bar--c0 { background: #12538d; }
 .tracing-span-bar--c1 { background: #10b981; }
 .tracing-span-bar--c2 { background: #f59e0b; }
 .tracing-span-bar--c3 { background: #d20e0f; }
-.tracing-span-bar--c4 { background: #ef4444; }
-.tracing-span-bar--c5 { background: #06b6d4; }
-.tracing-span-bar--c6 { background: #ec4899; }
+.tracing-span-bar--c4 { background: #d20e0f; }
+.tracing-span-bar--c5 { background: #12538d; }
+.tracing-span-bar--c6 { background: #d20e0f; }
 .tracing-span-bar--c7 { background: #84cc16; }
 
 .tracing-explainer {
   margin-bottom: 16px;
   padding: 12px 18px;
   border: 1px solid var(--th-border);
-  border-left: 3px solid #3b82f6;
-  border-radius: 8px;
+  border-left: 3px solid #12538d;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
 }
 .tracing-explainer summary {
@@ -401,7 +379,7 @@
   width: 100%;
   height: 380px;
   min-height: 220px;
-  border: 1px solid #1e293b;
+  border: 1px solid #263746;
   border-radius: 10px;
   background: #0b1220;
   overflow: auto;
@@ -421,7 +399,7 @@
 }
 
 .tracing-graph-node-label {
-  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-primary);
   pointer-events: none;
 }
 
@@ -430,7 +408,7 @@
 }
 
 .tracing-graph-edge-label text {
-  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-primary);
 }
 
 /* Dim highlighting when a node/edge is selected. */
@@ -445,11 +423,11 @@
   z-index: 50;
   max-width: 280px;
   padding: 8px 10px;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  background: #0f172a;
+  border: 1px solid #263746;
+  border-radius: var(--radius-md);
+  background: #051727;
   color: #ffffff;
-  font-family: "Montserrat", ui-sans-serif, system-ui, sans-serif;
+  font-family: var(--font-primary);
   font-size: var(--font-size-2xs);
   line-height: 1.5;
   white-space: pre-wrap;
@@ -458,7 +436,7 @@
 }
 
 .tracing-graph-tooltip strong {
-  color: #f1f5f9;
+  color: #eff0f1;
   font-weight: 600;
 }
 
@@ -468,7 +446,7 @@
 
 .tracing-graph-tooltip-hr {
   border: none;
-  border-top: 1px solid #334155;
+  border-top: 1px solid #263746;
   margin: 5px 0;
 }
 
@@ -489,9 +467,9 @@
   min-width: 30px;
   height: 30px;
   padding: 0 8px;
-  border: 1px solid #334155;
-  border-radius: 6px;
-  background: #1e293b;
+  border: 1px solid #263746;
+  border-radius: var(--btn-radius);
+  background: #263746;
   color: #ffffff;
   font-size: var(--font-size-body);
   font-weight: 600;
@@ -500,7 +478,7 @@
 }
 
 .tracing-graph-zoom-btn:hover {
-  background: #334155;
+  background: #263746;
 }
 
 /* Detail side panel (rendered by React, overlays the canvas top-right). */
@@ -512,9 +490,9 @@
   max-height: 480px;
   overflow-y: auto;
   padding: 14px 16px;
-  border: 1px solid #1e293b;
+  border: 1px solid #263746;
   border-radius: 10px;
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
   box-shadow: 0 12px 32px rgba(0, 0, 0, 0.5);
 }
@@ -523,7 +501,7 @@
   margin: 10px 0 8px 0;
   font-size: var(--font-size-base);
   font-weight: 600;
-  color: #f1f5f9;
+  color: #eff0f1;
 }
 
 .tracing-graph-panel-facts {
@@ -549,7 +527,7 @@
   display: flex;
   flex-direction: column;
   gap: 4px;
-  border-top: 1px solid #1e293b;
+  border-top: 1px solid #263746;
   padding-top: 10px;
 }
 
@@ -572,7 +550,7 @@
 .tracing-step-card {
   padding: 14px 16px;
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   cursor: pointer;
   transition: all 0.15s ease;
@@ -618,7 +596,7 @@
 
 .tracing-step-icon--brain {
   background: #bfdbfe;
-  color: #1e40af;
+  color: #051727;
 }
 
 .tracing-step-icon--key {
@@ -633,7 +611,7 @@
 
 .tracing-step-icon--bolt {
   background: #fecaca;
-  color: #991b1b;
+  color: #aa0005;
 }
 
 .tracing-step-icon--database {
@@ -673,7 +651,7 @@
   top: 0;
   height: 8px;
   border-radius: 2px;
-  background: #3b82f6;
+  background: #12538d;
   min-width: 2px;
 }
 
@@ -718,7 +696,7 @@
   margin: 0;
   padding: 10px 12px;
   background: var(--th-bg-inset);
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   font-size: var(--font-size-2xs);
   color: var(--th-text-body);
   overflow-x: auto;
@@ -749,7 +727,11 @@
 }
 
 .tracing-detail-tab--active {
-  color: #1d4ed8;
-  border-bottom-color: #1d4ed8;
+  color: #12538d;
+  border-bottom-color: #12538d;
 }
 
+
+.ping-page-header .tracing-meta {
+  color: rgba(255, 255, 255, 0.85);
+}

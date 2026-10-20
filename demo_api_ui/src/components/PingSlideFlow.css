@@ -1,0 +1,120 @@
+/* PingSlideFlow.css: the Ping deck slide look. The slide is a light surface in both themes (it is a
+   brand artifact, like the SVG slides' red boxes), so ink and reds are literal. */
+.ps-slide {
+  --ps-red: #b5231a;
+  --ps-ink: #1b1b1f;
+  --ps-edge: #b5231a;
+  --ps-hot: #0b6bcb;
+  --ps-chip: #fffd;
+  background: linear-gradient(180deg, #ffffff, #ececee);
+  color: var(--ps-ink);
+  font-family: Montserrat, "Helvetica Neue", Arial, sans-serif;
+  padding: 14px 20px 8px;
+}
+.ps-title { display: flex; justify-content: space-between; align-items: flex-start; }
+.ps-title h2 { margin: 0; font-size: var(--font-size-4xl); font-weight: 400; color: var(--ps-ink); }
+.ps-title h2 strong { color: var(--ps-red); font-weight: 800; }
+.ps-title-logo { width: 52px; height: 52px; }
+
+.ps-canvas { position: relative; width: 100%; aspect-ratio: 1560 / 620; min-height: 420px; }
+.ps-defs { position: absolute; }
+.ps-canvas .react-flow { background: transparent; }
+.ps-node { position: relative; color: var(--ps-ink); font-size: var(--font-size-2xs); line-height: 1.25; }
+.ps-logo { width: 62px; height: 62px; display: block; pointer-events: none; }
+.ps-ping { position: relative; }
+.ps-head { position: absolute; bottom: 100%; left: 50%; transform: translateX(-50%); width: 180px; text-align: center; font-weight: 700; padding-bottom: 6px; }
+
+.ps-ico { width: 100%; height: 100%; fill: none; stroke: var(--ps-red); stroke-width: 3; stroke-linecap: round; stroke-linejoin: round; }
+.ps-ico--sm { width: 54px; height: 46px; stroke-width: 2.4; }
+.ps-ico .ps-fill { fill: var(--ps-red); stroke: none; }
+.ps-user { border: 3px solid var(--ps-red); border-radius: 50%; background: #fff; padding: 10px; box-sizing: border-box; }
+.ps-robot { border: 3px solid var(--ps-red); background: #fff; padding: 16px; box-sizing: border-box; }
+.ps-cap { display: flex; gap: 8px; align-items: flex-start; margin-top: 8px; font-size: var(--font-size-2xs); }
+.ps-cap small, .ps-elabel small { display: block; font-weight: 400; font-size: var(--font-size-xs); }
+
+.ps-server { display: flex; align-items: center; gap: 12px; padding: 4px; border-radius: var(--radius-md); }
+.ps-server-icon { position: relative; padding-top: 18px; }
+.ps-mcp { position: absolute; top: 0; left: 0; border: 1.5px dashed var(--ps-red); color: var(--ps-ink); font-weight: 800; font-size: var(--font-size-xs); padding: 0 6px; background: #fff; }
+.ps-server-text { font-size: var(--font-size-sm); }
+.ps-server-text small { display: block; font-size: var(--font-size-xs); color: #444; }
+
+.ps-boundary { background: linear-gradient(90deg, #8e1510, #c8281e 45%, #8e1510); display: flex; align-items: center; justify-content: center; }
+.ps-boundary span { writing-mode: vertical-rl; transform: rotate(180deg); color: #fff; font-size: var(--font-size-lg); letter-spacing: 0.04em; }
+.ps-gateway { position: relative; border: 2px dashed var(--ps-red); background: #fff; display: flex; align-items: center; justify-content: center; box-sizing: border-box; }
+.ps-gateway .ps-logo { position: absolute; top: 0; left: 50%; transform: translateX(-50%); }
+.ps-gateway span { writing-mode: vertical-rl; transform: rotate(180deg); font-size: var(--font-size-2xl); font-weight: 800; margin-top: 70px; }
+.ps-text { font-weight: 700; font-size: var(--font-size-sm); text-align: center; white-space: nowrap; }
+
+.ps-hot { box-shadow: 0 0 0 4px #0b6bcb55; }
+
+.ps-badge { display: inline-flex; align-items: center; justify-content: center; min-width: 22px; height: 22px; padding: 0 4px; background: #111; color: #fff; font-weight: 800; font-size: var(--font-size-2xs); border-radius: var(--radius-sm); box-sizing: border-box; flex: none; }
+.ps-elabel { position: absolute; z-index: 5; display: flex; gap: 8px; align-items: flex-start; width: max-content; max-width: 230px; font-size: var(--font-size-2xs); line-height: 1.25; color: var(--ps-ink); background: var(--ps-chip); padding: 1px 3px; pointer-events: none; }
+.ps-elabel b { font-weight: 800; }
+
+.ps-edge path.react-flow__edge-path { stroke: var(--ps-edge); stroke-width: 1.8; fill: none; }
+.ps-edge--future path.react-flow__edge-path, .ps-elabel.ps-edge--future { opacity: 0.25; }
+.ps-edge--now path.react-flow__edge-path { stroke: var(--ps-hot); stroke-width: 4; stroke-dasharray: 12 8; animation: ps-flow 0.9s linear infinite; }
+.ps-elabel.ps-edge--now .ps-badge { background: var(--ps-hot); }
+@keyframes ps-flow { to { stroke-dashoffset: -20; } }
+@media (prefers-reduced-motion: reduce) { .ps-edge--now path.react-flow__edge-path { animation: none; } }
+.ps-canvas .react-flow__controls-button { background: #fff; border-bottom: 1px solid var(--th-border, #ccc); color: #1b1b1f; fill: #1b1b1f; }
+.ps-canvas .react-flow__controls-button svg { fill: #1b1b1f; }
+
+.ps-ah { fill: var(--ps-edge); }
+.ps-ah-hot { fill: var(--ps-hot); }
+.ps-edge--deny path.react-flow__edge-path { stroke: #ff5a4d; }
+.ps-hot { box-shadow: 0 0 0 4px color-mix(in srgb, var(--ps-hot) 40%, transparent); }
+
+/* dark variant: the dark SVG slides' look (white primary arrows, Ping red boxes) */
+.ps-slide--dark {
+  --ps-red: #e5483b;
+  --ps-ink: #f2f2f4;
+  --ps-edge: #e8e8ec;
+  --ps-hot: #4da3ff;
+  --ps-chip: #0b0e14d0;
+  background: #0b0e14;
+}
+.ps-slide--dark .ps-controls-fix, .ps-slide--dark .react-flow__controls-button { background: #1c2230; color: #f2f2f4; border-bottom-color: #3a4256; }
+.ps-slide--dark .react-flow__controls-button svg { fill: #f2f2f4; }
+.ps-slide--dark .ps-user, .ps-slide--dark .ps-robot, .ps-slide--dark .ps-win, .ps-slide--dark .ps-agents { background: transparent; }
+
+.ps-redbox, .ps-redbar { background: #c0291c; color: #fff; border-radius: var(--radius-sm); box-sizing: border-box; }
+.ps-redbox { display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 6px 10px; }
+.ps-redbox b { font-size: var(--font-size-lg); font-weight: 700; }
+.ps-redbox small, .ps-win small, .ps-grey small, .ps-redbar small { font-size: var(--font-size-2xs); font-weight: 400; display: block; }
+.ps-redbar { display: flex; align-items: center; justify-content: center; }
+.ps-redbar span { writing-mode: vertical-rl; transform: rotate(180deg); text-align: center; }
+.ps-redbar b { font-size: var(--font-size-h3); display: block; }
+.ps-win { position: relative; border: 1.5px solid var(--ps-ink); border-radius: var(--radius-md); box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 14px 6px 4px; }
+.ps-win i { position: absolute; top: 2px; left: 8px; font-style: normal; font-size: var(--font-size-3xs); letter-spacing: 1px; }
+.ps-win b { font-size: var(--font-size-body); }
+.ps-grey { background: #5a5f69; color: #fff; border-radius: var(--radius-lg); box-sizing: border-box; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; padding: 4px 8px; }
+.ps-grey b { font-size: var(--font-size-md); }
+.ps-agents { position: relative; border: 2px solid var(--ps-ink); border-radius: var(--radius-lg); box-sizing: border-box; padding: 10px 12px; display: flex; flex-wrap: wrap; gap: 8px; align-content: flex-start; }
+.ps-agents b { width: 100%; font-size: var(--font-size-base); }
+.ps-agents span { border: 1.5px solid var(--ps-ink); border-radius: var(--radius-md); padding: 6px 10px; font-size: var(--font-size-2xs); font-weight: 700; }
+.ps-zone { border: 2px dashed var(--ps-ink); border-radius: var(--radius-pill); box-sizing: border-box; position: relative; opacity: 0.8; }
+.ps-zone small { position: absolute; top: 10px; left: 50%; transform: translateX(-50%); font-size: var(--font-size-xs); }
+
+.ps-dim { opacity: 0.3; }
+.ps-card { border: 1.5px solid #cfd2d9; background: #fff; border-radius: var(--radius-lg); box-sizing: border-box; padding: 8px 12px; display: flex; flex-direction: column; justify-content: center; text-align: left; }
+.ps-card--dashed { border: 1.5px dashed var(--ps-red); background: #fdf3f3; }
+.ps-card b { font-size: var(--font-size-body); }
+.ps-card small { font-size: var(--font-size-2xs); font-weight: 400; color: #444; display: block; margin-top: 2px; }
+.ps-slide--dark .ps-card { background: #151a24; border-color: #3a4256; }
+.ps-slide--dark .ps-card small { color: #b8bcc8; }
+.ps-redcard { background: #b8212b; color: #fff; border-radius: var(--radius-lg); box-sizing: border-box; padding: 12px 14px; text-align: center; box-shadow: 0 8px 22px #b8212b40; display: flex; flex-direction: column; justify-content: center; align-items: center; }
+.ps-redcard b { font-size: var(--font-size-lg); }
+.ps-redcard small { font-size: var(--font-size-2xs); opacity: 0.92; display: block; margin-top: 3px; }
+.ps-redcard ul { list-style: none; margin: 8px 0 0; padding: 0; width: 100%; }
+.ps-redcard li { background: #ffffff26; border-radius: var(--radius-md); padding: 4px 8px; margin-top: 4px; font-size: var(--font-size-2xs); font-weight: 600; }
+.ps-panel { border: 1.5px solid #dcdfe5; background: #f4f5f7; border-radius: var(--radius-xl); box-sizing: border-box; position: relative; }
+.ps-panel small { position: absolute; top: 10px; left: 16px; font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.05em; text-transform: uppercase; color: #5b6270; }
+.ps-chevron { background: #505b68; color: #fff; font-weight: 800; letter-spacing: 0.04em; display: flex; align-items: center; justify-content: center; clip-path: polygon(0 0, calc(100% - 22px) 0, 100% 50%, calc(100% - 22px) 100%, 0 100%, 22px 50%); font-size: var(--font-size-h3); box-sizing: border-box; }
+.ps-numcard { background: #f1f2f4; border-radius: var(--radius-xl); box-sizing: border-box; padding: 18px 14px; text-align: center; display: flex; flex-direction: column; align-items: center; gap: 10px; }
+.ps-numcard b { font-size: var(--font-size-h3); line-height: 1.2; }
+.ps-numcard p { margin: 0; font-size: var(--font-size-base); }
+.ps-num { width: 44px; height: 44px; border-radius: 50%; background: var(--ps-red); color: #fff; font-weight: 800; font-size: var(--font-size-xl); display: inline-flex; align-items: center; justify-content: center; }
+.ps-win--dashed { border: 1.5px dashed var(--ps-red); }
+.ps-card--top { justify-content: flex-start; padding-top: 14px; }
+.ps-card--top b { font-size: var(--font-size-md); }

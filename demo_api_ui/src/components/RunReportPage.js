@@ -4,6 +4,7 @@ import { resolveApiBaseUrl } from '../utils/resolveApiBaseUrl';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import './RunReportPage.css';
 import PingIdentitySpinner from './shared/PingIdentitySpinner';
+import PageHeader from './common/PageHeader';
 
 // Canned prompts per vertical — chosen to exercise the full auth → token-exchange
 // → MCP tool call pipeline so every step appears in the generated report.
@@ -175,10 +176,7 @@ export default function RunReportPage({ user }) {
   if (!user) {
     return (
       <div className="run-report-page">
-        <header className="page-header">
-          <h1>Run Reports</h1>
-          <p>View and download reports from your agent runs</p>
-        </header>
+        <PageHeader className="page-header" title="Run Reports" summary="View and download reports from your agent runs" />
         <div className="empty-state">
           <p>Sign in to view your run reports.</p>
           <button

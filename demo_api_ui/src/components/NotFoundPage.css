@@ -3,12 +3,12 @@
   align-items: center;
   justify-content: center;
   min-height: 100vh;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
 }
 
 .not-found-container {
   background: white;
-  border-radius: 12px;
+  border-radius: var(--radius-xl);
   padding: 3rem 2rem;
   max-width: 420px;
   width: 100%;
@@ -26,7 +26,7 @@
   font-size: 5rem;
   font-weight: 800;
   line-height: 1;
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
   -webkit-background-clip: text;
   -webkit-text-fill-color: transparent;
   background-clip: text;
@@ -50,7 +50,7 @@
 .not-found-message code {
   background: #edf2f7;
   padding: 0.1rem 0.4rem;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   font-size: 0.9em;
   color: #2d3748;
   word-break: break-all;
@@ -65,7 +65,7 @@
 .not-found-button {
   padding: 0.875rem 1.5rem;
   border: none;
-  border-radius: 6px;
+  border-radius: var(--btn-radius);
   font-size: 0.95rem;
   font-weight: 600;
   cursor: pointer;
@@ -73,7 +73,7 @@
 }
 
 .not-found-button--primary {
-  background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
   color: white;
 }
 

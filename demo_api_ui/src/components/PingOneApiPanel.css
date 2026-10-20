@@ -16,7 +16,7 @@
   font-size: 0.8rem;
   font-weight: 700;
   padding: 3px 8px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   letter-spacing: 0.04em;
   text-transform: uppercase;
   white-space: nowrap;
@@ -24,7 +24,7 @@
 
 .p1-api-panel-endpoint-url {
   font-size: 0.8rem;
-  color: #1e293b;
+  color: #263746;
   word-break: break-all;
   font-family: inherit;
 }
@@ -62,11 +62,11 @@
 
 .p1-api-panel-meta {
   font-size: 0.82rem;
-  color: var(--th-text);
+  color: #051727;
   margin-bottom: 6px;
   margin-top: 8px;
-  background: #f8fafc;
-  border: 1px solid #e2e8f0;
+  background: #f7f8f8;
+  border: 1px solid #e0e2e4;
   border-radius: 5px;
   padding: 6px 10px;
   word-break: break-all;
@@ -78,9 +78,9 @@
 }
 
 .p1-api-panel-body {
-  background: #0f172a;
+  background: #051727;
   color: #ffffff;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 12px 14px;
   font-size: 0.82rem;
   overflow-x: auto;
@@ -93,8 +93,8 @@
 
 /* Request headers table — light background */
 .p1-api-panel-headers {
-  background: #f1f5f9;
-  border: 1px solid #e2e8f0;
+  background: #eff0f1;
+  border: 1px solid #e0e2e4;
   border-radius: 5px;
   padding: 8px 12px;
   margin-top: 6px;
@@ -141,17 +141,17 @@
 }
 
 .p1-api-panel-ct-check--ok   { background: #f0fdf4; border-left-color: #16a34a; }
-.p1-api-panel-ct-check--info { background: #eff6ff; border-left-color: #3b82f6; }
+.p1-api-panel-ct-check--info { background: #fcfcfc; border-left-color: #12538d; }
 .p1-api-panel-ct-check--warn { background: #fffbeb; border-left-color: #f59e0b; }
 
 .p1-api-panel-ct-label {
-  color: #64748b;
+  color: #5c646b;
   white-space: nowrap;
   font-weight: 500;
 }
 
 .p1-api-panel-ct-value {
-  color: #1e293b;
+  color: #263746;
   font-family: inherit;
   font-size: 0.8rem;
   background: transparent;
@@ -163,5 +163,5 @@
   font-weight: 700;
 }
 .p1-api-panel-ct-check--ok   .p1-api-panel-ct-badge { color: #15803d; }
-.p1-api-panel-ct-check--info .p1-api-panel-ct-badge { color: #1d4ed8; }
+.p1-api-panel-ct-check--info .p1-api-panel-ct-badge { color: #12538d; }
 .p1-api-panel-ct-check--warn .p1-api-panel-ct-badge { color: #b45309; }

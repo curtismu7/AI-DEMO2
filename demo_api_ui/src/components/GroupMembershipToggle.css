@@ -7,7 +7,7 @@
   gap: 12px;
   padding: 16px;
   border: 1px solid #c8ccd4;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: #ffffff;
   color: #1a1f2b;
   /* 640px, was 420px: the card now carries the demo's story copy
@@ -20,7 +20,7 @@
 .gmt-story {
   border: 1px solid #c8ccd4;
   border-left: 4px solid #1a4fa0;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 10px 14px;
   background: #f4f7fc;
 }
@@ -68,7 +68,7 @@
   letter-spacing: 0.04em;
   text-transform: uppercase;
   padding: 3px 10px;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   border: 1px solid transparent;
 }
 
@@ -117,7 +117,7 @@
 
 .gmt-toggle {
   padding: 9px 14px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid transparent;
   font-weight: 600;
   font-size: 0.9rem;
@@ -156,7 +156,7 @@
 .gmt-retry {
   margin-left: auto;
   padding: 6px 12px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   border: 1px solid #1a4fa0;
   background: #ffffff;
   color: #1a4fa0;
@@ -187,7 +187,7 @@
   font-size: 0.92rem;
   font-weight: 700;
   padding: 8px 12px;
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   border: 1px solid transparent;
   width: fit-content;
 }
@@ -221,14 +221,14 @@
   color: #1a1f2b;
   background: #eef2f7;
   border: 1px solid #c8ccd4;
-  border-radius: 999px;
+  border-radius: var(--radius-pill);
   padding: 3px 12px;
 }
 
 .gmt-modal-warn {
   margin: 0;
   padding: 10px;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   background: #fff4e0;
   border: 1px solid #a15c00;
   color: #6b3d00;
@@ -265,4 +265,4 @@
 .gmt-story { background: var(--th-bg-inset); border-color: var(--th-border); border-left-color: var(--th-status-info); }
 .gmt-story-title, .gmt-story-beats, .gmt-facts dd, .gmt-modal-body { color: var(--th-text); }
 .gmt-facts dt, .gmt-note, .gmt-error-detail { color: var(--th-text-muted); }
-.gmt-retry { background: var(--th-bg-card); border-color: var(--th-status-info); color: var(--th-status-info); }
+.gmt-retry { background: var(--th-bg-card); border-color: var(--th-status-info); color: var(--th-status-info-text); }

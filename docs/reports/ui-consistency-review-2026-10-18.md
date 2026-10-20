@@ -1,0 +1,127 @@
+# UI consistency review — status and checklist
+
+Started 2026-10-18. Goal: make every demo page consistent with Ping Identity standards (Montserrat, Ping palette, **no purple**), and make sure text is always readable (no dark-on-dark, no light-on-light).
+
+- **PR:** #1515 — https://github.com/cmuir_pingcorp/AI-DEMO2/pull/1515 (open; merge by hand, the classifier blocks `gh pr merge`)
+- **Branch / worktree:** `worktree-ui-ping-palette` at `.claude/worktrees/ui-ping-palette`
+- **Last commit when written:** `40a3b4940` (PR #1515 merged as `11353b2de`; PR #1530 quiet buttons merged as `0830d5fd`)
+- **To resume:** `cd .claude/worktrees/ui-ping-palette/demo_api_ui` (node_modules already installed there). Use the worktree, never the shared main checkout.
+
+## Decisions already made (do not re-ask)
+
+| Topic | Decision |
+|---|---|
+| Control colour (checkboxes, toggles, selects) | Ping Red `#d20e0f` (was PingOne blue `#0b69a3`) |
+| Other blues | Core Dark `#051727` for surfaces/nav, Ping blue `#12538d` for links/info |
+| Reds | Two tokens: `#d20e0f` accent/danger, `#aa0005` hover/dark |
+| Purple / pink | None anywhere (avatar, gradients, code highlights all moved to the red family) |
+| Page header look | Option B: Core Dark → Ping blue gradient band, white text |
+| Ping-owned pages vs vertical accent | Ping pages ignore the vertical's `--theme-accent` (landing done; others open below) |
+| Neutrals | Slate/Tailwind grays mapped to Ping neutrals: `#263746`, `#5c646b`, `#909ea4`, `#cdd1d4`, `#e0e2e4`, `#eff0f1`, `#f7f8f8` |
+| Untouched on purpose | Vendor-mock chrome, clinical vertical, per-vertical typography tokens (`--rd2-font-*`), fake-tenant presets |
+
+## Done
+
+### Palette
+- [x] Static survey of fonts, colours, radius, headers, buttons across `demo_api_ui/src`
+- [x] Root tokens in `index.css` (Ping Red, Core Dark, Ping blue); `--color-primary/accent/danger/info` defined; `--th-bg-band` = Core Dark
+- [x] Controls standard moved to Ping Red (`controls.css`, `CONTROLS_STANDARD.md`)
+- [x] FunAvatar uses Ping palette only (white features)
+- [x] Landing page: ignores vertical accent, red primary, one button radius, Core Dark callout
+- [x] Hex sweep: off-brand reds/blues/indigo across ~175 page CSS files
+- [x] Neutral sweep: slate and Tailwind grays → Ping neutrals (~1,000 values, 159 files)
+- [x] Purple/pink sweep: 91 hex values (incl. the 404 page gradient)
+- [x] Fixed 4 dark-theme text colours the palette sweep introduced
+
+### Fonts
+- [x] ~150 hardcoded font stacks → `var(--font-primary)`; mono aliases → `var(--font-mono)`
+- [x] `--font-mono` now leads with IBM Plex Mono (already loaded)
+- [x] Undefined `--v2-font-body/-display` (were rendering plain sans/Georgia) → brand font
+
+### Shared header
+- [x] `components/common/PageHeader.jsx` + `.css` and `BackLink`, with a test
+- [x] Migrated 22 pages: Learning lab, Governance Timeline, MCP Scanner, Demo Summary, Page Catalog, Skills index, Privilege docs index, MCP Discovery, Cimd Privilege, Personal Agent (design + review), Diagrams Index, Agent Studio Preview (5 pages), Demo Map, Privilege First Gateway, Demo Steps Lifeline Audit, Phase 266 Architecture, Spinner Showcase, Shadow AI Detector, A2A Architecture
+- [x] Found and worked around the third-party `end-user-nano.css` forcing `h1` to weight 400 (raised specificity)
+
+### Contrast tooling
+- [x] `scripts/check-contrast.mjs`: static WCAG AA check, light + dark, resolves `--th-*` tokens, understands per-theme override rules
+- [x] PostToolUse hook in `.claude/settings.json` (Write|Edit on `.css` under `demo_api_ui/src`; exit 2 feeds failures back to Claude). Pipe-tested.
+- [x] vitest ratchet `src/__tests__/contrastRatchet.test.js` + `scripts/contrast-baseline.json` (278 → 3)
+- [x] `scripts/audit-contrast-runtime.mjs` (`npm run audit:contrast`): renders every static route as a mocked admin in both themes, checks composited colours, catches inherited-colour bugs
+- [x] Burn-down: script-fixed rules + scoped overrides in `index.css`; themingRatchet pin 59 → 57
+- [x] Full vitest green (7,026+), `npm run build` green, screenshots of 10 signed-in pages reviewed (light + dark): nothing unreadable seen
+
+## Left to do
+
+### Before / at merge
+- [ ] CI green on #1515, then merge (user)
+- [ ] After merge, open `/hooks` once to confirm the contrast hook loads (only pipe-tested; it cannot fire in the session that wrote it)
+- [ ] Delete the untracked screenshots folder `demo_api_ui/zz-shots/` (20 PNGs) — **not committed, do not commit**
+- [ ] Look at the other 14 screenshots not reviewed (Skills, Governance Timeline, Page Catalog, Personal Agent, the remaining light/dark pairs)
+
+### Contrast — remaining findings
+Last runtime audit (slightly stale): ~38 unique violations on 164 rendered routes.
+- [x] Runtime audit re-run: 42 → 3 unique violations on 236/238 rendered routes (PR 2). Audit bugs fixed (it was aborting `/mcp*` page navigations and measuring mid-transition colours)
+- [x] `/request-access` dark theme (scoped to `.efd[data-testid="hosted-flow"]`)
+- [x] `/personal-agent*` chips: `AgentClientSkin` text uses `readableAccent()` (falls back to the skin's title colour when the accent is < 4.5:1 on its background); the Privilege skin accent is Ping blue `#12538d` instead of `#0073e6`
+- [x] "🌙 Dark" toggle on `/pingone-authorize` (inline style had no text colour). Re-run the audit to confirm `/authz-test`
+- [x] `/delegation` step labels darkened; `vops__icon` per-vertical brand badges are exempt in the audit (vertical brand colours)
+- [x] `lps-expect`/`mds-expect`, `tst-topbar-badge`, promptfoo text, MFA hint, CIBA "Try again"; emoji-only glyphs are skipped by the audit
+- [x] `/dev-tools` hint text raised to 78% white
+- [x] Unrendered routes: it was the audit's own `**/mcp**` block aborting page navigations; now 236/238 render (left: `/pinggateway-test`, `/sdk-login/callback`)
+- [ ] 3 static baseline entries (`.dash`, `.tcd-root`, `.ba-input`) are checker false positives on local token layers; either teach the checker or leave
+- [ ] Move the generated blocks at the end of `index.css` ("Contrast overrides" / "Contrast fixes") into their component stylesheets as each is touched
+- [ ] Decide whether the `FootprintMockGallery` page chrome (currently in the skip list) should be checked too
+
+### PageHeader rollout (~100 pages still bespoke)
+- [x] Batch: pages with `<header>` + eyebrow + h1 + summary (`DavinciLoginGuide`, `GuidedJourney`, `ObservabilityDiagram`, `PingFederateDavinciKit`, `PingFederateIdJagExplainer`, `PingFederateIdJag`, `WorkloadAgents`, `SpiffePingoneBridge`, `StandaloneDemoLauncher`) — PR 3
+- [x] Batch 3: diagram heroes (`pmd-hero`/`mgof-hero`: Privilege gateway topology, AI Agent Gateway diagrams, External Door, MCP gateway OAuth flow, Invest dual-auth) and lesson pages with back links (Privilege MCP Learning, Intent Binding, Vertical Feature, Mortgage Path)
+- [ ] Batch: pages with toolbar-style headers (`LlmGateway`, `LlmTest`, `Tracing`, `TransactionTrace`, `Telemetry`) — need a design decision (actions slot)
+- [ ] Batch: lesson/learning pages with back links (`ExternalAgentLesson`, `IntentBindingLearning`, `MortgagePath`, `PrivilegeMcpLearning`, `VerticalFeature`, `LangChain`, `PingOneSetupGuide`)
+- [ ] Replace the remaining bespoke back-link implementations with `BackLink` (done: Learning lab, Privilege MCP Learning, Intent Binding; left: telemetry, LLM test, m2m, st-back, plp)
+- [ ] Re-count pages still using their own header at the end (121 page files had an `<h1>` at the start; grep for `<h1` in `pages/` and `components/*Page*`, minus those now using `<PageHeader`)
+
+- [x] Batch 4: flat eyebrow + title + lede pages (Resource Server Placement and Checkpoint, Gateway Enforcement Map, Orchestration SDK explainer, Delegation Chain Value, DaVinci explainer, Agent Onboarding Mermaid, Agentic Access Console, Group Policy Board)
+- [x] Batch 5 (toolbar/simple headers via the `actions` slot): Use Case Diagrams Gallery, Ungoverned Agent, Run Reports, MCP Observability, Audit Agent, Autonomous Agents, Tracing, PingFederate AI Agent, PromptFoo
+- [ ] Remaining ~60 pages on their own header. Tried and left: Use Case Launcher (progress bar and many light-surface controls inside the header), Check, Transaction Trace, Telemetry, Server Topology, Client Credentials, Aic Token Exchange, ID-JAG Playground (headers did not match the codemod shapes); LLM Gateway / LLM Test are app bars, not page titles. Convert by hand when touching them, or accept as-is
+- [ ] CI trap: a PR stacked on another PR's branch gets its UI-tests job **skipped**, and it does not re-run after retargeting to main. #1546 reached main that way with one red test (`sdkLoginHeadingMatchesNav`, fixed in batch 5). Open PRs against main, or push an empty commit after retargeting, and check the Checks tab for UI tests = pass
+
+### Consistency not started
+- [x] Buttons, shape pass (PR 4): every `*-btn` / `*-button` family base rule uses the shared `--btn-radius` (5–10px near-misses) and `--btn-weight`; nine primary-action buttons that the blue sweep had turned Ping blue are Ping Red again (Configuration Save, setup wizard, run/export, diagram Simulate/Next …); Delegated Commerce navy `#09234b` → Core Dark and danger `#a32620` → `#aa0005`
+- [ ] Buttons, class consolidation: JSX still uses ~20 family class names. The families are small and already token-based, so swapping to `btn btn-primary` is low value; do it only when touching a page. Note: `cur-btn` is the Cursor IDE mock (vendor chrome, exempt) and `dc-` is two unrelated prefixes (Demo Config, Delegated Commerce)
+- [x] Radius and font-size tokens (PR 5): 1,612 exact-match radii (4/6/8/12/999px) and 321 exact-match px font sizes swapped for tokens (no visual change); `src/__tests__/designTokenRatchet.test.js` pins what is left (654 radii, 2,327 font sizes; rem values deliberately not converted, they follow font scaling)
+- [ ] Burn down the token ratchet: radii with no token (3px, 5px, 10px, 7px, 9px, 14px, 20px) need a decision (add `--radius-xs` 3px / `--radius-2xl`?) and the rem long tail (0.78rem, 0.82rem …) needs a type scale decision
+- [ ] Mid blue tints still present (`#93c5fd`, `#60a5fa`, `#7dd3fc`, `#9ec1ff`, `#90a0c2`, GitHub blues in code/diff views) — pick replacements
+- [ ] Other Ping-owned pages that should ignore the vertical accent (welcome, Learning Hub, similar)
+- [ ] Status colours: success greens, warning ambers and `#a33020` negative red were left as-is
+- [x] Secondary buttons quieted: shared toolbar button is outline, red only for `--accent`/`--danger` (PR #1530, merged). Not changed: form-action buttons (View Profile …) and `.btn-primary`
+- [ ] Pre-existing glitch: `/authz-test` engine radio cards run title and description together
+
+### Needs confirmation from the brand hub (SSO-gated)
+- [ ] Gray 300, 500, 600 hex values; `#263746`, `#909ea4`, `#cdd1d4`, `#eff0f1` were taken from pingidentity.com's own CSS, not the hub
+- [ ] Official dark-theme tints of Ping Red and Ping blue (none exist in the palette, so dark theme uses Tailwind tints `#fca5a5` / `#93c5fd` for text)
+
+- [x] Teal/cyan accents (hue 168–200°): 215 values in 55 files mapped to Ping blue / Ping neutrals by lightness; the checks then caught and I fixed 9 pairs (dark ink on the new blue fills)
+- [ ] Orange/amber and green: left on purpose, they are mostly semantic warning/success text and fills (`#92400e`, `#b45309`, `#166534`, `#15803d`). Revisit only if you want status colours moved onto a Ping-specific ramp
+
+### Housekeeping
+- [x] `brand-compliance` skill and `CLAUDE.md` updated: mono font, two reds, no purple/pink, neutrals, tokens + ratchet, `PageHeader`, contrast hook and audit
+- [ ] Update `THEMING.md` if it lists the old `--th-bg-band`
+
+## Commands
+
+```bash
+cd .claude/worktrees/ui-ping-palette/demo_api_ui
+npm run check:contrast                 # static, fails on NEW violations (baseline: scripts/contrast-baseline.json)
+node scripts/check-contrast.mjs --all  # list every violation, baseline or not
+node scripts/check-contrast.mjs --update-baseline   # after fixing some
+npm run build && npx vite preview --port 4173 &
+npm run audit:contrast -- --out /tmp/report.json    # runtime audit, ~4 minutes, needs the preview running
+npx vitest run src/__tests__/contrastRatchet.test.js src/components/__tests__/themingRatchet.test.js
+```
+
+## Traps learned (save yourself the time)
+- Never run a script's generated CSS overrides without scoping each rule under an owning class. A bare-tag override (`li`, `span`) once turned all light-theme text white (1,399 violations) before it was reverted.
+- A rule can look broken in one stylesheet while another sets the real background with `!important` (`.banking-agent-fab`). Trust the runtime audit over the static check for those.
+- The preview has no backend: signed-in pages need the mocked admin session in `audit-contrast-runtime.mjs`.
+- Do not use shell heredocs or computed paths in Bash in this worktree session; write helper scripts to files first.

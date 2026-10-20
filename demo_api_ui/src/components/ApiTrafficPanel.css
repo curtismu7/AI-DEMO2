@@ -19,7 +19,7 @@
   animation: apiPanelIn 0.2s ease-out;
   resize: both;
   overflow: hidden;
-  font-size: 16px;
+  font-size: var(--font-size-md);
 }
 
 @keyframes apiPanelIn {
@@ -112,7 +112,7 @@
   color: #92400e;
   background: #fef3c7;
   border: 1px solid #f59e0b;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   padding: 1px 7px;
 }
 
@@ -139,7 +139,7 @@
 }
 .api-traffic-search:focus {
   border-color: var(--brand-navy);
-  box-shadow: 0 0 0 2px rgba(59, 130, 246, 0.15);
+  box-shadow: 0 0 0 2px rgba(18, 83, 141, 0.15);
 }
 
 .api-traffic-filter-label {
@@ -179,7 +179,7 @@
 .api-traffic-btn {
   background: var(--th-bg-card);
   border: 1px solid var(--th-border-strong);
-  border-radius: 5px;
+  border-radius: var(--btn-radius);
   color: var(--th-text-muted);
   font-size: var(--font-size-base);
   font-weight: 500;
@@ -193,7 +193,7 @@
   line-height: 1.4;
 }
 .api-traffic-btn:hover {
-  background: #eff6ff;
+  background: #fcfcfc;
   color: var(--brand-navy);
   border-color: #93c5fd;
 }
@@ -210,13 +210,13 @@
   color: #78350f;
 }
 .api-traffic-btn--close {
-  color: #dc2626;
+  color: #d20e0f;
   border-color: #fca5a5;
   padding: 3px 8px;
 }
 .api-traffic-btn--close:hover {
   background: #fee2e2;
-  color: #b91c1c;
+  color: #d20e0f;
   border-color: #f87171;
 }
 
@@ -242,7 +242,7 @@
   padding: 24px 16px;
   text-align: center;
   color: var(--th-text-faint);
-  font-size: 16px;
+  font-size: var(--font-size-md);
   line-height: 1.6;
 }
 
@@ -261,10 +261,10 @@
   color: var(--th-text);
 }
 .api-traffic-entry--selected {
-  background: #dbeafe !important;
+  background: #e0e2e4 !important;
 }
 .api-traffic-entry--error {
-  border-left: 3px solid #ef4444;
+  border-left: 3px solid #d20e0f;
 }
 .api-traffic-entry--indented {
   padding-left: 28px;
@@ -293,7 +293,7 @@
   background: var(--th-bg-hover);
 }
 .api-turn-group-chevron {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   flex-shrink: 0;
   color: var(--th-text-muted);
 }
@@ -328,7 +328,7 @@
   color: #86efac;
 }
 .api-method-badge--POST {
-  background: #1e3a5f;
+  background: #051727;
   color: #93c5fd;
 }
 .api-method-badge--PUT {
@@ -336,8 +336,8 @@
   color: #fde68a;
 }
 .api-method-badge--PATCH {
-  background: #334155;
-  color: var(--th-text-faint);
+  background: #263746;
+  color: #ffffff;
 }
 .api-method-badge--DELETE {
   background: #7f1d1d;
@@ -345,8 +345,8 @@
 }
 /* MCP calls */
 .api-method-badge--MCP {
-  background: #0c4a6e;
-  color: #7dd3fc;
+  background: #051727;
+  color: #cdd1d4;
   letter-spacing: 0.06em;
 }
 /* Token event badges — labels: user access token, agent access token, MCP access token */
@@ -379,7 +379,7 @@
   min-width: 32px;
 }
 .api-method-badge--TOKEN-MCP {
-  background: #0c4a6e;
+  background: #051727;
   color: #93c5fd;
   min-width: 68px;
   font-size: var(--font-size-xs);
@@ -401,7 +401,7 @@
   font-size: var(--font-size-sm);
   font-weight: 600;
   padding: 1px 7px;
-  border-radius: 4px;
+  border-radius: var(--radius-sm);
   flex-shrink: 0;
 }
 .api-status-badge--ok {
@@ -413,7 +413,7 @@
   color: #fca5a5;
 }
 .api-status-badge--net {
-  background: #374151;
+  background: #263746;
   color: #ffffff;
 }
 .api-status-badge--tok {
@@ -455,7 +455,7 @@
   justify-content: center;
   flex: 1;
   color: var(--th-text-faint);
-  font-size: 16px;
+  font-size: var(--font-size-md);
 }
 
 .api-detail-tabs {
@@ -543,7 +543,7 @@
 .api-detail-mcp-line {
   margin: 10px 0 0;
   font-size: var(--font-size-base);
-  color: #0369a1;
+  color: #12538d;
 }
 
 .api-detail-muted {
@@ -582,10 +582,10 @@ pre.api-json {
 
 .api-detail-err {
   font-size: var(--font-size-base);
-  color: #b91c1c;
+  color: #d20e0f;
   background: #fef2f2;
   border: 1px solid #fca5a5;
-  border-radius: 6px;
+  border-radius: var(--radius-md);
   padding: 8px 12px;
   margin-bottom: 10px;
 }
@@ -593,7 +593,7 @@ pre.api-json {
 /* ── Token event rows ─────────────────────────────────────────────────────── */
 .api-traffic-entry--token {
   background: var(--th-bg-inset);
-  border-left: 2px solid #334155;
+  border-left: 2px solid #263746;
 }
 .api-traffic-entry--token:hover {
   background: var(--th-bg-inset);
@@ -637,11 +637,11 @@ pre.api-json {
 }
 .api-token-event-status--failed {
   background: #fee2e2;
-  color: #b91c1c;
+  color: #d20e0f;
 }
 .api-token-event-status--reused {
-  background: #e0f2fe;
-  color: #0369a1;
+  background: #e0e2e4;
+  color: #12538d;
 }
 .api-token-event-status--acquiring {
   background: var(--brand-light-gray);
@@ -656,7 +656,7 @@ pre.api-json {
 }
 .api-token-event-rfc {
   font-size: var(--font-size-sm);
-  color: #0369a1;
+  color: #12538d;
   margin: 0 0 8px;
 }
 .api-token-event-may-act {
@@ -727,7 +727,7 @@ pre.api-json {
   word-break: break-all;
 }
 .api-claims-td--rfc .api-claims-rfc-ref {
-  color: #0369a1;
+  color: #12538d;
   font-size: var(--font-size-xs);
 }
 .api-claims-td--note {
@@ -741,7 +741,7 @@ pre.api-json {
 }
 .api-claims-expand-icon {
   color: var(--th-text-muted);
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   margin-left: 4px;
 }
 .api-claims-empty {

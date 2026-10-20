@@ -6,7 +6,7 @@
   --mcp-inset: var(--th-bg-inset, #f5f7fa);
   --mcp-border: var(--th-border, #d8dee6);
   --mcp-strong-border: var(--th-border-strong, #aab6c3);
-  --mcp-cyan: #197f8b;
+  --mcp-cyan: #12538d;
   --mcp-blue: #4771b8;
   --mcp-amber: #9a5f10;
   --mcp-red: #b23b38;
@@ -25,7 +25,7 @@
   --mcp-inset: #0d1822;
   --mcp-border: #2b3b4b;
   --mcp-strong-border: #53677a;
-  --mcp-cyan: #5ed6dc;
+  --mcp-cyan: #12538d;
   --mcp-blue: #82a9f7;
   --mcp-amber: #e8b064;
   --mcp-red: #ec7c77;
@@ -45,32 +45,11 @@
   align-items: center;
 }
 
-.mcp-observability-header {
-  justify-content: space-between;
-  gap: 20px;
-  margin-bottom: 22px;
-}
-
-.mcp-observability-header h1 {
-  margin: 0;
-  color: var(--mcp-ink);
-  font-size: var(--font-size-2xl);
-  letter-spacing: -0.035em;
-}
-
-.mcp-observability-header p {
-  margin: 7px 0 0;
-  max-width: 720px;
-  color: var(--mcp-muted);
-  font-size: var(--font-size-body);
-  line-height: 1.5;
-}
-
 .mcp-observability-header-actions { gap: 9px; flex-wrap: wrap; justify-content: flex-end; }
-.mcp-observability-live { gap: 8px; color: var(--mcp-green); font-size: var(--font-size-2xs); font-family: var(--font-mono, var(--font-primary)); }
-.mcp-observability-button { display: inline-block; border: 1px solid var(--mcp-strong-border); border-radius: 5px; background: var(--mcp-ground); color: var(--mcp-ink); cursor: pointer; padding: 7px 11px; font-size: var(--font-size-sm); text-decoration: none; }
+.mcp-observability-live { gap: 8px; color: var(--mcp-green); font-size: var(--font-size-2xs); font-family: var(--font-mono); }
+.mcp-observability-button { display: inline-block; border: 1px solid var(--mcp-strong-border); border-radius: var(--btn-radius); background: var(--mcp-ground); color: var(--mcp-ink); cursor: pointer; padding: 7px 11px; font-size: var(--font-size-sm); text-decoration: none; }
 .mcp-observability-button:hover { background: var(--mcp-inset); }
-.mcp-observability-button--primary { border-color: var(--mcp-cyan); background: var(--mcp-cyan); color: var(--th-text-on-emphasis); font-weight: 700; }
+.mcp-observability-button--primary { border-color: var(--mcp-cyan); background: var(--mcp-cyan); color: #ffffff; font-weight: var(--btn-weight); }
 
 .mcp-observability-dot { display: inline-block; width: 7px; height: 7px; flex: 0 0 auto; border-radius: 50%; background: var(--mcp-quiet); }
 .mcp-observability-dot--healthy,
@@ -81,12 +60,12 @@
 .mcp-observability-dot--failure,
 .mcp-observability-dot--unavailable { background: var(--mcp-red); }
 
-.mcp-observability-error { margin-bottom: 16px; border: 1px solid var(--mcp-red); border-radius: 6px; background: color-mix(in srgb, var(--mcp-red) 10%, var(--mcp-ground)); color: var(--mcp-red); padding: 10px 13px; font-size: var(--font-size-body); }
+.mcp-observability-error { margin-bottom: 16px; border: 1px solid var(--mcp-red); border-radius: var(--radius-md); background: color-mix(in srgb, var(--mcp-red) 10%, var(--mcp-ground)); color: var(--mcp-red); padding: 10px 13px; font-size: var(--font-size-body); }
 .mcp-observability-metrics { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 10px; }
-.mcp-observability-metric { position: relative; min-height: 113px; overflow: hidden; border: 1px solid var(--mcp-border); border-radius: 8px; background: var(--mcp-ground); padding: 15px 16px 13px; }
+.mcp-observability-metric { position: relative; min-height: 113px; overflow: hidden; border: 1px solid var(--mcp-border); border-radius: var(--radius-lg); background: var(--mcp-ground); padding: 15px 16px 13px; }
 .mcp-observability-metric::after { content: ""; position: absolute; right: -24px; bottom: -33px; width: 98px; height: 98px; border: 1px solid var(--mcp-border); transform: rotate(45deg); opacity: .6; }
 .mcp-observability-metric__label { display: block; color: var(--mcp-muted); font-size: var(--font-size-sm); }
-.mcp-observability-metric strong { display: block; margin: 11px 0 6px; color: var(--mcp-ink); font-family: var(--font-mono, var(--font-primary)); font-size: var(--font-size-xl); letter-spacing: -0.05em; }
+.mcp-observability-metric strong { display: block; margin: 11px 0 6px; color: var(--mcp-ink); font-family: var(--font-mono); font-size: var(--font-size-xl); letter-spacing: -0.05em; }
 .mcp-observability-metric small { color: var(--mcp-muted); font-size: var(--font-size-2xs); }
 .mcp-observability-metric small::first-letter { color: var(--mcp-green); }
 .mcp-observability-metric.cyan strong { color: var(--mcp-cyan); }
@@ -95,9 +74,9 @@
 
 .mcp-observability-section-title { justify-content: space-between; margin: 22px 0 10px; }
 .mcp-observability-section-title h2 { margin: 0; color: var(--mcp-ink); font-size: var(--font-size-lg); font-weight: 700; }
-.mcp-observability-section-title span { color: var(--mcp-quiet); font-family: var(--font-mono, var(--font-primary)); font-size: var(--font-size-2xs); }
+.mcp-observability-section-title span { color: var(--mcp-quiet); font-family: var(--font-mono); font-size: var(--font-size-2xs); }
 .mcp-observability-health-grid { display: grid; grid-template-columns: minmax(0, 1.6fr) minmax(280px, .8fr); gap: 11px; }
-.mcp-observability-panel { overflow: hidden; border: 1px solid var(--mcp-border); border-radius: 8px; background: var(--mcp-ground); }
+.mcp-observability-panel { overflow: hidden; border: 1px solid var(--mcp-border); border-radius: var(--radius-lg); background: var(--mcp-ground); }
 .mcp-observability-panel-head { justify-content: space-between; gap: 12px; border-bottom: 1px solid var(--mcp-border); padding: 13px 15px; }
 .mcp-observability-panel-head strong { color: var(--mcp-ink); font-size: var(--font-size-sm); }
 .mcp-observability-panel-head span { color: var(--mcp-muted); font-size: var(--font-size-2xs); }
@@ -119,7 +98,7 @@
 .mcp-observability-request-list { border-right: 1px solid var(--mcp-border); }
 .mcp-observability-filterbar { display: flex; gap: 7px; border-bottom: 1px solid var(--mcp-border); padding: 10px 12px; }
 .mcp-observability-filterbar input,
-.mcp-observability-filterbar select { min-width: 0; border: 1px solid var(--mcp-strong-border); border-radius: 4px; background: var(--mcp-inset); color: var(--mcp-ink); padding: 7px 9px; font-size: var(--font-size-2xs); }
+.mcp-observability-filterbar select { min-width: 0; border: 1px solid var(--mcp-strong-border); border-radius: var(--radius-sm); background: var(--mcp-inset); color: var(--mcp-ink); padding: 7px 9px; font-size: var(--font-size-2xs); }
 .mcp-observability-filterbar input { flex: 1; }
 .mcp-observability-request { display: grid; grid-template-columns: 8px minmax(0, 1fr) auto; align-items: start; gap: 9px; width: 100%; border: 0; border-bottom: 1px solid var(--mcp-border); background: transparent; color: var(--mcp-ink); cursor: pointer; padding: 12px 14px; text-align: left; }
 .mcp-observability-request:hover,
@@ -134,7 +113,7 @@
 .mcp-observability-trace-id { color: var(--mcp-cyan); font: var(--font-size-2xs) var(--font-mono, var(--font-primary)); }
 .mcp-observability-trace h3 { margin: 10px 0 4px; color: var(--mcp-ink); font: 700 var(--font-size-lg) var(--font-mono, var(--font-primary)); }
 .mcp-observability-trace p { margin: 0; color: var(--mcp-muted); font-size: var(--font-size-2xs); }
-.mcp-observability-status { border: 1px solid var(--mcp-green); border-radius: 4px; background: color-mix(in srgb, var(--mcp-green) 12%, var(--mcp-ground)); color: var(--mcp-green); padding: 5px 7px; font: var(--font-size-3xs) var(--font-mono, var(--font-primary)); }
+.mcp-observability-status { border: 1px solid var(--mcp-green); border-radius: var(--radius-sm); background: color-mix(in srgb, var(--mcp-green) 12%, var(--mcp-ground)); color: var(--mcp-green); padding: 5px 7px; font: var(--font-size-3xs) var(--font-mono, var(--font-primary)); }
 .mcp-observability-status--denied { border-color: var(--mcp-red); background: color-mix(in srgb, var(--mcp-red) 12%, var(--mcp-ground)); color: var(--mcp-red); }
 .mcp-observability-status--pending { border-color: var(--mcp-amber); background: color-mix(in srgb, var(--mcp-amber) 12%, var(--mcp-ground)); color: var(--mcp-amber); }
 .mcp-observability-waterfall { padding: 16px 15px 11px; }
@@ -172,7 +151,6 @@
 
 @media (max-width: 620px) {
   .mcp-observability-page { padding: 18px 14px 30px; }
-  .mcp-observability-header { display: block; }
   .mcp-observability-header-actions { justify-content: flex-start; margin-top: 14px; }
   .mcp-observability-metrics { gap: 7px; }
   .mcp-observability-metric { min-height: 100px; padding: 12px; }
@@ -180,4 +158,8 @@
   .mcp-observability-filterbar { flex-wrap: wrap; }
   .mcp-observability-filterbar input { flex-basis: 100%; }
   .mcp-observability-filterbar select { flex: 1; }
+}
+
+.ping-page-header .mcp-observability-live {
+  color: #ffffff;
 }

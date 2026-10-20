@@ -10,6 +10,7 @@ const EXACT_BYPASSES = new Set([
   'GET /api/auth/hosted-access/login',
   // Sign-in modal reads the plus-addressing policy before opening the flow.
   'GET /api/auth/hosted-access/identifier-policy',
+  'POST /api/auth/hosted-access/pi-flow/credentials',
   'GET /api/auth/hosted-access/callback',
   'GET /api/auth/hosted-access/logout',
   'POST /api/auth/hosted-registration/request',
@@ -133,7 +134,7 @@ function createHostedAccessGate({
     // that rotated the session) gets bounced to sign-in, not raw JSON. fetch()
     // calls don't ask for text/html, so the SPA keeps its 401 + nudge.
     if (req.method === 'GET' && /\btext\/html\b/.test(req.headers?.accept || '')) {
-      return res.redirect(`/api/auth/hosted-access/login?return_to=${encodeURIComponent(pathname(req.originalUrl || req.url))}`);
+      return res.redirect(`/api/auth/hosted-access/login?return_to=${encodeURIComponent(req.originalUrl || req.url)}`);
     }
     return res.status(401).send({ error: 'hosted_access_required' });
   };

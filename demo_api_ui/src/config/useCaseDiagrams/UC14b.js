@@ -16,9 +16,9 @@ const NODES = [
 const EDGES = [
   ["agent", "bff", "intent: $400 to savings", { detail: "The ask that becomes the pushed contract." }],
   ["bff", "par", "PAR push", { detail: "The intent now lives at PingOne, not in the agent." }],
-  ["par", "tok", "request_uri -> token", { detail: "The token carries the RAR grant it was redeemed against." }],
+  ["par", "tok", "request_uri -> token", { dashed: true, detail: "The token carries the RAR grant it was redeemed against." }],
   ["tok", "gw", "live cap check", { detail: "The gateway hands the actual transfer to the policy with the grant in hand." }],
-  ["gw", "agent", "PERMIT", { detail: "Within cap -> the chain records Intent Verified." }],
+  ["gw", "agent", "PERMIT", { dashed: true, detail: "Within cap -> the chain records Intent Verified." }],
 ];
 
 const walk = [

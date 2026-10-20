@@ -6,7 +6,7 @@
   width: 100%;
   height: max(420px, calc(100vh - 330px));
   border: 1px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   color: var(--th-text);
   overflow: hidden;
@@ -19,7 +19,7 @@
   box-sizing: border-box;
   padding: 8px 10px 0 16px;
   border: 1.5px solid var(--th-border);
-  border-radius: 8px;
+  border-radius: var(--radius-lg);
   background: var(--th-bg-card);
   cursor: pointer;
   overflow: hidden;
@@ -80,3 +80,77 @@
 
 /* Walkthrough mode: nodes from earlier steps stay softly marked. */
 .sfd-node.step-seen { box-shadow: 0 0 0 2px var(--th-status-success-border); }
+
+/* pingStyle (opt-in): the Token Chain look. Light grey canvas, thick black arrows, blue dashed lines,
+   numbered orange badges; the dark theme keeps a dark canvas with light arrows. */
+.sfd--ping,
+.sfd-ping-key {
+  --sfd-ping-arrow: #111111;
+  --sfd-ping-dash: #1f5fbf;
+  --sfd-ping-orange: #ff8c00;
+  --sfd-ping-canvas: #e4e7ec;
+}
+:root[data-theme="dark"] .sfd--ping,
+:root[data-theme="dark"] .sfd-ping-key {
+  --sfd-ping-arrow: #e6e8ee;
+  --sfd-ping-dash: #6ea8ff;
+  --sfd-ping-canvas: #0b0e14;
+}
+.sfd--ping .react-flow { background: var(--sfd-ping-canvas); }
+.sfd--ping .sfd-arrow { fill: var(--sfd-ping-arrow); }
+.sfd--ping .react-flow__edge-path { stroke: var(--sfd-ping-arrow); stroke-width: 3.2px; }
+.sfd--ping .react-flow__edge:hover .react-flow__edge-path { stroke-width: 4.2px; }
+.sfd--ping .sfd-edge--dashed path,
+.sfd--ping .sfd-edge.step-future path { stroke: var(--sfd-ping-dash); }
+.sfd--ping .sfd-edge.step-now path { stroke: var(--sfd-ping-dash) !important; }
+.sfd--ping .sfd-node--selected { box-shadow: 0 0 0 3px var(--sfd-ping-orange); }
+/* React Flow zoom controls: the library default is a white block, unreadable on the dark canvas */
+.sfd--ping .react-flow__controls-button { background: var(--th-bg-card); color: var(--th-text); border-bottom: 1px solid var(--th-border-strong); }
+.sfd--ping .react-flow__controls-button svg { fill: var(--th-text); }
+
+/* Badge: the step number, always shown; the words only for the active step or on hover. Black on white, above the arrows. */
+.sfd--ping .sfd-edge-label--ping {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  max-width: none;
+  padding: 1px 5px 1px 1px;
+  white-space: nowrap;
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  color: #000000;
+  background: #ffffff;
+  border-radius: var(--radius-pill);
+  pointer-events: auto;
+}
+.sfd--ping .sfd-edge-label--ping:not(.is-shown) { padding-right: 1px; background: transparent; }
+.sfd--ping .sfd-edge-label--ping.is-shown { z-index: 30; }
+.sfd--ping .sfd-edge-label--ping .sfd-edge-text { display: none; }
+.sfd--ping .sfd-edge-label--ping.is-shown .sfd-edge-text { display: inline; }
+.sfd-edge-num {
+  display: inline-block;
+  min-width: 26px;
+  padding: 0 7px;
+  border-radius: var(--radius-pill);
+  font-size: var(--font-size-sm);
+  font-weight: 800;
+  line-height: 26px;
+  text-align: center;
+  color: #000000;
+  background: var(--sfd-ping-orange);
+}
+
+.sfd-ping-key {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px 22px;
+  align-items: center;
+  margin: 8px 0 0;
+  padding: 0;
+  list-style: none;
+  font-size: var(--font-size-xs);
+  color: var(--th-text-muted);
+}
+.sfd-ping-key li { display: inline-flex; align-items: center; gap: 8px; }
+.sfd-key-line { display: inline-block; width: 26px; height: 0; border-top: 3px solid var(--sfd-ping-arrow); }
+.sfd-key-line--dashed { border-top-style: dashed; border-top-color: var(--sfd-ping-dash); }
