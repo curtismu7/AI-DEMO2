@@ -8,7 +8,7 @@
 // step and the headline off buildRunStory, so the map cannot disagree with the
 // rail or the Proof verdict.
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { ReactFlow, Controls, Handle, Position, getBezierPath } from '@xyflow/react';
+import { ReactFlow, ReactFlowProvider, Controls, Handle, Position, EdgeLabelRenderer, getBezierPath, useStore } from '@xyflow/react';
 import '@xyflow/react/dist/style.css';
 import DraggableModal from './DraggableModal';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
@@ -18,6 +18,8 @@ import './SystemFlowMap.css';
 import { useDraggableNodes } from '../hooks/useDraggableNodes';
 import { useDiagramStepper, stepEdges, markNodes, edgeCaptions } from '../hooks/useDiagramStepper';
 import DiagramStepBar from './DiagramStepBar';
+import { routeEdges } from './StaticFlowDiagram'; // the shared pingStyle router (orthogonal, around the boxes)
+import { labelPoint, pathFromPoints } from '../utils/orthoRoute';
 import './DiagramReel.css'; // the shared dstep-hot ring on the replayed hop's two boxes
 
 // Presenter map size (A-/A+), same pattern as TokenChainTraceRail's ZOOM_*
@@ -84,11 +86,14 @@ export const NODES = {
 
 // Box and band geometry, in flow units. React Flow scales the whole canvas to
 // fit, so these are proportions, not pixels.
-const W = 160;
-const H = 64; // name + a two-line wrapped subtitle + padding
-const GAP = 14;
-const PAD = 12;
-const TOP = 26; // room for the band label
+export const W = 160;
+export const H = 64; // name + a two-line wrapped subtitle + padding
+// GAP is the corridor the router runs arrows through between two boxes (and the
+// space between bands is BAND_GAP): at 14 the router found no way between
+// neighbours and fell back to straight curves through boxes.
+export const GAP = 64;
+export const PAD = 20;
+export const TOP = 30; // room for the band label
 
 // x/y place each band on the canvas; `cols` wraps its boxes into a grid. The
 // stack puts the agent under the browser, not beside the BFF, so the bff→pep
@@ -99,24 +104,25 @@ export const BANDS = [
     label: 'Ping Identity · PingOne · Authorize PDP',
     x: 0,
     y: 0,
-    cols: 4,
-    nodes: ['p1-signin', 'p1-agenttok', 'p1-exchange', 'p1-authorize', 'p1-mfa', 'p1-consent', 'p1-ciba'],
+    cols: 5,
+    // MFA sits next to Authorize so the gateway's step-up lane to it and the
+    // BFF's token lanes up to the other PingOne boxes do not cross.
+    nodes: ['p1-signin', 'p1-agenttok', 'p1-exchange', 'p1-mfa', 'p1-authorize'],
   },
-  // y: 200, not 122 — the ping band is now two rows (7 boxes at 4 cols) since
-  // MFA/Consent/CIBA split out of the single old stepup box, and these bands
-  // sit directly below it.
-  { id: 'stack', label: 'Demo stack · BFF + agent', x: 0, y: 200, cols: 2, nodes: ['browser', 'bff', 'agent'] },
-  { id: 'pep', label: 'PEP · gateway', x: 378, y: 200, cols: 1, nodes: ['pep'] },
-  { id: 'backends', label: 'MCP servers · data', x: 582, y: 200, cols: 1, nodes: ['mcp', 'api', 'db'] },
-  { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 400, cols: 1, nodes: ['llm'] },
-  // y: 470 clears the three-row backends band above it (200 + 258), which a
-  // band at the model row's y: 400 overlapped.
-  { id: 'privilege', label: 'Privilege A2A · agents through the Agent Privilege', x: 198, y: 470, cols: 4, nodes: ['pa-main', 'pa-gw', 'pa-middle', 'pa-specialist'] },
+  // A null in `nodes` leaves that grid cell empty, so a box can sit directly
+  // under its neighbour (the agent under the BFF) without a lane running past it.
+  { id: 'stack', label: 'Demo stack · BFF + agent', x: 0, y: 184, cols: 2, nodes: ['browser', 'bff', null, 'agent'] },
+  { id: 'pep', label: 'PEP · gateway', x: 494, y: 184, cols: 1, nodes: ['pep'] },
+  { id: 'backends', label: 'MCP servers · data', x: 764, y: 184, cols: 3, nodes: ['mcp', 'api', 'db'] },
+  { id: 'gates', label: 'Human approval · consent + CIBA', x: 494, y: 368, cols: 2, nodes: ['p1-consent', 'p1-ciba'] },
+  { id: 'model', label: 'Model · demo_llm_proxy', x: 0, y: 496, cols: 1, nodes: ['llm'] },
+  { id: 'privilege', label: 'Privilege A2A · agents through the Agent Privilege', x: 0, y: 680, cols: 3, nodes: ['pa-main', 'pa-gw', 'pa-specialist', null, 'pa-middle'] },
 ];
 
 // Bands before their boxes — React Flow requires a parent ahead of its children.
-const LAYOUT_NODES = [];
-const CENTRE = {};
+export const LAYOUT_NODES = [];
+// Absolute {x, y, w, h} of every box at rest, for the first routing pass and the tests.
+export const RECTS = {};
 for (const b of BANDS) {
   const cols = Math.min(b.cols, b.nodes.length);
   const rows = Math.ceil(b.nodes.length / cols);
@@ -130,22 +136,55 @@ for (const b of BANDS) {
     data: { label: b.label, bandKey: b.id },
   });
   b.nodes.forEach((id, i) => {
+    if (!id) return;
     const position = { x: PAD + (i % cols) * (W + GAP), y: TOP + Math.floor(i / cols) * (H + GAP) };
-    CENTRE[id] = { x: b.x + position.x + W / 2, y: b.y + position.y + H / 2 };
+    RECTS[id] = { x: b.x + position.x, y: b.y + position.y, w: W, h: H };
     LAYOUT_NODES.push({ id, type: 'hop', parentId: bandId, position, width: W, height: H, data: NODES[id] });
   });
 }
 
 /**
- * Which sides a lane leaves and enters by: vertical between bands stacked
- * above one another, horizontal between boxes sharing a row.
+ * Which sides a lane leaves and enters by, from where the two boxes really are
+ * (a dragged box changes it). Boxes a column apart and less than two rows apart
+ * face each other sideways; boxes in different rows meet top to bottom.
  * @returns {[string, string]} [source side, target side]
  */
+export function sidesForRects(a, b) {
+  const dx = (b.x + b.w / 2) - (a.x + a.w / 2);
+  const dy = (b.y + b.h / 2) - (a.y + a.h / 2);
+  const sideways = dx > 0 ? ['right', 'left'] : ['left', 'right'];
+  if (Math.abs(dx) >= W + GAP && Math.abs(dy) < 2 * H) return sideways;
+  if (Math.abs(dy) >= H) return dy > 0 ? ['bottom', 'top'] : ['top', 'bottom'];
+  return sideways;
+}
+
+/** The same, for the boxes at rest. */
 export function sidesFor(from, to) {
-  const a = CENTRE[from];
-  const b = CENTRE[to];
-  if (Math.abs(b.y - a.y) >= H) return b.y > a.y ? ['bottom', 'top'] : ['top', 'bottom'];
-  return b.x > a.x ? ['right', 'left'] : ['left', 'right'];
+  return sidesForRects(RECTS[from], RECTS[to]);
+}
+
+/**
+ * Route the lanes around the boxes with the shared pingStyle router.
+ * Shortest lanes are routed first: they take the lanes nearest their boxes, and
+ * a longer lane from the same side then nests outside them instead of cutting
+ * across (the router gives the lane it sees first the best corridor).
+ * @param {Object<string, {x:number,y:number,w:number,h:number}>} measured absolute box rectangles by node id
+ * @param {Array<{id: string, from: string, to: string}>} lanes
+ * @returns {{ routes: object, fallbacks: number, sides: Object<string, [string, string]> }}
+ */
+export function routeLanes(measured, lanes) {
+  // A box React Flow has not placed yet sits where the layout puts it.
+  const rects = { ...RECTS, ...measured };
+  const sides = {};
+  const edges = lanes.map((l) => {
+    const a = rects[l.from];
+    const b = rects[l.to];
+    const [out, into] = sidesForRects(a, b);
+    sides[l.id] = [out, into];
+    return { id: l.id, source: l.from, target: l.to, sourceHandle: `s${out[0]}`, targetHandle: `t${into[0]}`, data: {}, span: Math.abs(a.x - b.x) + Math.abs(a.y - b.y) };
+  });
+  const { routes, fallbacks } = routeEdges(rects, [...edges].sort((p, q) => p.span - q.span));
+  return { routes, fallbacks, sides };
 }
 
 // Which two boxes each hop runs between. Keyed by step baseId (the authorize
@@ -462,17 +501,131 @@ function HopNode({ data }) {
 
 // Own path rather than React Flow's default edge, so the existing kind (dash)
 // and state (colour) classes apply unchanged and the step titles show on hover.
+// Routed around the boxes by the shared router when it found a way; the bezier
+// is the fallback, and what is drawn while a box is being dragged.
 function HopEdge({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition, data, style }) {
-  const [d] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const route = data.route;
+  const routed = Boolean(route && route.ok);
+  const [bezier, bx, by] = getBezierPath({ sourceX, sourceY, sourcePosition, targetX, targetY, targetPosition });
+  const d = routed ? pathFromPoints(route.pts) : bezier;
+  const at = routed ? route.label || labelPoint(route.pts) : { x: bx, y: by };
   return (
-    <path d={d} className={`sfm-edge sfm-edge--${data.state}`} data-kind={data.kind} style={style}>
-      <title>{data.title}</title>
-    </path>
+    <>
+      <path d={d} className={`sfm-edge sfm-edge--${data.state}`} data-kind={data.kind} style={style} markerEnd={`url(#sfm-arrow-${data.state})`}>
+        <title>{data.title}</title>
+      </path>
+      <EdgeLabelRenderer>
+        <div
+          className={`sfm-edge-num nodrag nopan sfm-edge-num--${data.state}`}
+          style={{ transform: `translate(-50%, -50%) translate(${at.x}px, ${at.y}px)` }}
+          title={data.title}
+        >
+          {data.n}
+        </div>
+      </EdgeLabelRenderer>
+    </>
   );
 }
 
 const NODE_TYPES = { band: BandNode, hop: HopNode };
 const EDGE_TYPES = { hop: HopEdge };
+
+const DRAG_THRESHOLD = 5; // px: a wiggle is still a click
+const STATES = ['done', 'active', 'held', 'error', 'skipped'];
+
+// The head of each arrow, one per state so it takes the lane's colour.
+function ArrowDefs() {
+  return (
+    <svg width="0" height="0" aria-hidden="true" className="sfm-defs">
+      <defs>
+        {STATES.map((state) => (
+          <marker key={state} id={`sfm-arrow-${state}`} viewBox="0 0 10 10" refX="9" refY="5" markerWidth="9" markerHeight="9" markerUnits="userSpaceOnUse" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z" className={`sfm-arrow sfm-arrow--${state}`} />
+          </marker>
+        ))}
+      </defs>
+    </svg>
+  );
+}
+
+/**
+ * The React Flow canvas. Arrows are routed around the boxes where they really
+ * are (measured, and after a drag), so this lives inside the provider that
+ * gives it the node store. While a box is being dragged the cheap bezier shows.
+ */
+function FlowCanvas({ nodes, onNodesChange, shownEdges, replaying, step }) {
+  const [dragging, setDragging] = useState(false);
+  const nodeLookup = useStore((st) => st.nodeLookup);
+  // React Flow moves boxes in place: a string of their absolute boxes re-routes on a drop.
+  const absKey = useStore((st) => {
+    let k = '';
+    for (const n of st.nodeLookup.values()) {
+      if (n.type !== 'hop') continue;
+      const p = n.internals.positionAbsolute;
+      k += `${n.id}:${Math.round(p.x)},${Math.round(p.y)},${Math.round(n.measured?.width ?? 0)},${Math.round(n.measured?.height ?? 0)}|`;
+    }
+    return k;
+  });
+
+  const rects = useMemo(() => {
+    const out = {};
+    for (const n of nodeLookup.values()) {
+      if (n.type !== 'hop') continue;
+      const p = n.internals.positionAbsolute;
+      out[n.id] = { x: p.x, y: p.y, w: n.measured?.width ?? W, h: n.measured?.height ?? H };
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [absKey]);
+
+  const routing = useMemo(() => {
+    if (dragging) return { routes: {}, fallbacks: null, sides: {} };
+    return routeLanes(rects, shownEdges.map((e) => ({ id: e.id, from: e.from, to: e.to })));
+  }, [rects, shownEdges, dragging]);
+
+  const flowEdges = useMemo(
+    () => stepEdges(shownEdges.map((e, i) => {
+      // While a box is being dragged the sides come from where the boxes are now, like the route does.
+      const [out, into] = routing.sides[e.id] || sidesForRects({ ...RECTS, ...rects }[e.from], { ...RECTS, ...rects }[e.to]);
+      return {
+        id: e.id,
+        source: e.from,
+        target: e.to,
+        sourceHandle: `s-${out}`,
+        targetHandle: `t-${into}`,
+        type: 'hop',
+        data: { ...e, n: i + 1, route: routing.routes[e.id] },
+      };
+    }), replaying ? step : -1),
+    [shownEdges, rects, routing, replaying, step],
+  );
+
+  return (
+    <div className="sfm-canvas" data-route-fallbacks={routing.fallbacks ?? undefined}>
+      <ArrowDefs />
+      <ReactFlow
+        nodes={nodes}
+        onNodesChange={onNodesChange}
+        edges={flowEdges}
+        nodeTypes={NODE_TYPES}
+        edgeTypes={EDGE_TYPES}
+        nodesDraggable
+        nodesConnectable={false}
+        elementsSelectable={false}
+        nodeDragThreshold={DRAG_THRESHOLD}
+        onNodeDragStart={() => setDragging(true)}
+        onNodeDragStop={() => setDragging(false)}
+        fitView
+        fitViewOptions={{ padding: 0.06 }}
+        minZoom={0.4}
+        maxZoom={2}
+        proOptions={{ hideAttribution: true }}
+      >
+        <Controls showInteractive={false} />
+      </ReactFlow>
+    </div>
+  );
+}
 
 /** The map itself, with no shell — mounted bare as a page and inside the modal. */
 export function SystemFlowMapView() {
@@ -542,16 +695,6 @@ export function SystemFlowMapView() {
       : n)),
     [nodeStates, chainNames],
   );
-  const flowEdges = useMemo(
-    () => stepEdges(shownEdges.map((e) => {
-      const [out, into] = sidesFor(e.from, e.to);
-      return {
-        id: e.id, source: e.from, target: e.to, sourceHandle: `s-${out}`, targetHandle: `t-${into}`, type: 'hop', data: e,
-      };
-    }), replaying ? stepper.step : -1),
-    [shownEdges, replaying, stepper.step],
-  );
-
   const { nodes: dragNodes, onNodesChange: onDragNodes } = useDraggableNodes(flowNodes);
   const shownNodes = focus ? markNodes(dragNodes, [focus.from, focus.to]) : dragNodes;
   return (
@@ -648,24 +791,15 @@ export function SystemFlowMapView() {
 
       <DiagramStepBar stepper={stepper} caption={replayCaption} />
 
-      <div className="sfm-canvas">
-        <ReactFlow
+      <ReactFlowProvider>
+        <FlowCanvas
           nodes={shownNodes}
           onNodesChange={onDragNodes}
-          edges={flowEdges}
-          nodeTypes={NODE_TYPES}
-          edgeTypes={EDGE_TYPES}
-          nodesDraggable
-          nodesConnectable={false}
-          elementsSelectable={false}
-          fitView
-          fitViewOptions={{ padding: 0.06 }}
-          minZoom={0.4}
-          maxZoom={2}
-        >
-          <Controls showInteractive={false} />
-        </ReactFlow>
-      </div>
+          shownEdges={shownEdges}
+          replaying={replaying}
+          step={stepper.step}
+        />
+      </ReactFlowProvider>
 
       <div className="sfm-legend">
         <span><i data-kind="http" />http / MCP</span>
@@ -673,6 +807,7 @@ export function SystemFlowMapView() {
         <span><i data-kind="pdp" />PDP sideband</span>
         <span><i data-kind="ciba" />step-up / HITL</span>
         <span><i data-kind="data" />data</span>
+        <span><b className="sfm-edge-num sfm-edge-num--key">n</b>hop n in the step bar</span>
         <span className="sfm-legend-sep" />
         <span><b className="sfm-swatch sfm-swatch--done" />reached</span>
         <span><b className="sfm-swatch sfm-swatch--held" />held for human</span>
