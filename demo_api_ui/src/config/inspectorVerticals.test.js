@@ -144,7 +144,7 @@ describe('inspector vertical catalog', () => {
     expect(belongsElsewhere('banking', 'constructor')).toBe(false);
     expect(belongsElsewhere('healthcare', 'show_mortgage')).toBe(true);
     expect(belongsElsewhere('banking', 'show_health_record')).toBe(true);
-    expect(belongsElsewhere('retail', 'list_anf_orders')).toBe(true);
+    expect(belongsElsewhere('retail', 'list_walbuy_orders')).toBe(true);
     expect(belongsElsewhere('retail', 'sequential_think')).toBe(false);
   });
 

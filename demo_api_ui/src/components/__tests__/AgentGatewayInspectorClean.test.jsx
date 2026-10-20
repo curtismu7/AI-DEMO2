@@ -11,7 +11,7 @@ import AgentGatewayInspectorClean from '../AgentGatewayInspectorClean';
 // non-banking vertical shows no banking-only tool and no other vertical's API-key
 // tool, but does show its own and the global ones.
 const BANKING_ONLY = ['show_mortgage', 'get_fee_schedule', 'search_transactions', 'get_investment_accounts', 'adjust_balance', 'freeze_account', 'delete_customer', 'reset_customer_password'];
-const OTHER_MCP_TOOLS = ['show_permit', 'show_work_order', 'show_expense_report', 'show_gear_order', 'show_enrollment', 'show_investment', 'show_large_purchase', 'list_anf_orders'];
+const OTHER_MCP_TOOLS = ['show_permit', 'show_work_order', 'show_expense_report', 'show_gear_order', 'show_enrollment', 'show_investment', 'show_large_purchase', 'list_walbuy_orders'];
 const GLOBALS = ['sequential_think', 'get_weather', 'brave_news_search', 'code_search', 'list_verticals', 'call_pingone_tool', 'list_pingone_tools', 'jwt_decode_full'];
 
 const SCHEMA_TOOLS = Object.keys(JSON.parse(readFileSync(join(dirname(fileURLToPath(import.meta.url)), '../../../../mcp-tool-schemas.json'), 'utf8')).tools);

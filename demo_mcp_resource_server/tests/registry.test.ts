@@ -16,7 +16,7 @@ describe('ALL_TOOLS registry', () => {
     expect(names).toContain('list_gear');
     expect(names).toContain('view_courses');
     expect(names).toContain('list_expenses');
-    expect(names).toContain('list_anf_orders');
+    expect(names).toContain('list_walbuy_orders');
   });
 
   it('every tool in ALL_TOOLS has intentHints or is a pre-existing tool', () => {

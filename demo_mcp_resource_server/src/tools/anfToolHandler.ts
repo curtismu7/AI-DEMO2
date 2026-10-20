@@ -6,9 +6,9 @@ export async function dispatchAnfTool(
   args: Record<string, unknown>,
 ): Promise<unknown> {
   switch (toolName) {
-    case 'list_anf_orders': {
+    case 'list_walbuy_orders': {
       const orders = listAnfOrders();
-      return { orders, count: orders.length, render: 'list_anf_orders' };
+      return { orders, count: orders.length, render: 'list_walbuy_orders' };
     }
     case 'get_anf_order': {
       const id = args.order_id as string;

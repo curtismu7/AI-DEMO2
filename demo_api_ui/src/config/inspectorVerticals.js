@@ -257,7 +257,7 @@ export const DEFAULT_VERTICAL = 'banking';
 export const GLOBAL_TOOLS = w('sequential_think get_weather brave_news_search get_branch_hours code_search get_code list_codebases list_verticals list_pingone_tools call_pingone_tool jwt_decode_full jwt_verify_signature jwt_validate_claims jwt_fetch_jwks jwt_inspect_key');
 
 /** Tools of verticals the inspectors do not cover, hidden from every covered vertical. */
-export const UNCOVERED_VERTICAL_TOOLS = { walbuy: ['list_anf_orders'] };
+export const UNCOVERED_VERTICAL_TOOLS = { walbuy: ['list_walbuy_orders'] };
 
 /** Every tool this vertical's Tool list offers: its own, its extra ones, then the global ones. */
 export const toolsFor = (vertical) => [...vertical.tools, ...vertical.extraTools, ...GLOBAL_TOOLS];

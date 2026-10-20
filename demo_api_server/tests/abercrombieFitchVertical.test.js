@@ -32,7 +32,7 @@ describe('Walbuy vertical clone', () => {
   });
 
   test.each([
-    ['show my Walbuy orders', 'list_anf_orders'],
+    ['show my Walbuy orders', 'list_walbuy_orders'],
     ['track my order at Walbuy', 'order_status'],
     ['show my reward points at Walbuy', 'rewards_balance'],
     ['show my saved items at Walbuy', 'view_wishlist'],
@@ -43,7 +43,7 @@ describe('Walbuy vertical clone', () => {
   });
 
   test('returns Walbuy order and rewards values from its own seed', async () => {
-    const orders = await plugin.executeTool('list_anf_orders', {}, { userId: 'anf-ground-truth' });
+    const orders = await plugin.executeTool('list_walbuy_orders', {}, { userId: 'anf-ground-truth' });
     const rewards = await plugin.executeTool('rewards_balance', {}, { userId: 'anf-ground-truth' });
 
     expect(orders.result.orders).toEqual(seed.orders);
@@ -71,7 +71,7 @@ describe('Walbuy vertical clone', () => {
   test('owns complete Walbuy catalog bindings without leaking Great Buy requests', () => {
     expect(VERTICALS).toContain(VERTICAL);
     expect(resolveUseCase('UC1', VERTICAL)).toMatchObject({
-      primaryTool: 'list_anf_orders',
+      primaryTool: 'list_walbuy_orders',
       trigger: { text: 'show my Walbuy orders' },
     });
     expect(resolveUseCase('UC6', VERTICAL)).toMatchObject({

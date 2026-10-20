@@ -4,10 +4,10 @@ import { dispatchAnfTool } from './anfToolHandler';
 
 export const ANF_TOOLS: McpToolDef[] = [
   {
-    // Already the chip-facing name — scope-topology.json's tools.list_anf_orders
+    // Already the chip-facing name — scope-topology.json's tools.list_walbuy_orders
     // entry requires only "read". Backed by a real SQLite table
     // (abercrombieDb.ts), mirroring the other migrated verticals.
-    name: 'list_anf_orders',
+    name: 'list_walbuy_orders',
     description: 'List all Walbuy orders for the authenticated user, including product, amount, status, and date.',
     inputSchema: { type: 'object', properties: {}, required: [] },
     requiredScopes: ['read'],

@@ -16,7 +16,7 @@ const RESOURCE_SERVER_TOOLS = [
   "get_investment_portfolio_summary", "get_investment_transactions", "get_airline_bookings",
   "get_flight_status", "get_loyalty_status", "list_expenses", "get_expense", "submit_expense",
   "view_records", "get_patient_record", "list_orders", "checkout", "list_gear", "gear_order_status",
-  "view_courses", "view_permits", "view_work_orders", "list_anf_orders",
+  "view_courses", "view_permits", "view_work_orders", "list_walbuy_orders",
 ];
 
 const PRIVILEGE_SERVERS = [
