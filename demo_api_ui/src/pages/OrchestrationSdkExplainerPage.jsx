@@ -15,7 +15,8 @@
 // the page. Three docs in this repo went stale by describing intended code
 // instead of real code — see the header of DavinciLoginPage.jsx for what that
 // cost. If a sample here stops matching its source file, fix the sample.
-import FlowDiagram from "../components/FlowDiagram";
+import StaticFlowDiagram from "../components/StaticFlowDiagram";
+import { DAVINCI_LIFECYCLE_EDGES, DAVINCI_LIFECYCLE_GROUPS, DAVINCI_LIFECYCLE_NODES } from "../config/davinciSdkLifecycleDiagram";
 import "./OrchestrationSdkExplainerPage.css";
 import PageHeader from '../components/common/PageHeader';
 
@@ -87,7 +88,8 @@ const COLLECTOR_CATEGORIES = [
   },
 ];
 
-// One sequence diagram is the whole lesson. Mirrors the architecture block in
+// One sequence is the whole lesson. LIFECYCLE_DIAGRAM keeps it as Mermaid text (export, upload, edit); the page draws the same messages
+// from config/davinciSdkLifecycleDiagram.js (StaticFlowDiagram, pingStyle). Mirrors the architecture block in
 // the plan and the order of calls in davinciSdkClient.js.
 export const LIFECYCLE_DIAGRAM = `sequenceDiagram
   autonumber
@@ -199,7 +201,14 @@ export default function OrchestrationSdkExplainerPage() {
           status <code className="osx-code-inline">success</code>, carrying the authorization code.
         </p>
         <div className="osx-diagram">
-          <FlowDiagram source={LIFECYCLE_DIAGRAM} label="DaVinci SDK client lifecycle" />
+          <StaticFlowDiagram
+            NODES={DAVINCI_LIFECYCLE_NODES}
+            EDGES={DAVINCI_LIFECYCLE_EDGES}
+            GROUPS={DAVINCI_LIFECYCLE_GROUPS}
+            pingStyle
+            testId="osx-lifecycle-diagram"
+            ariaLabel="DaVinci SDK client lifecycle"
+          />
         </div>
         <pre className="osx-code">
           <code>{INIT_SAMPLE}</code>
