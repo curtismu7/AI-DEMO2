@@ -789,7 +789,7 @@ export default function IdJagPlaygroundPage() {
           </div>
         </header>
 
-        <p className="ijp-note"><Link to="/pingfederate-id-jag/learn">Learn the ID-JAG terms and sources ↗</Link></p>
+        <p className="ijp-note"><Link to="/pingfederate-id-jag/learn">Learn the ID-JAG terms and sources ↗</Link>{" · "}<Link to="/pingfederate-id-jag/inspect">Inspect a token ↗</Link></p>
 
         <div className="ijp-toolbar">
           <div className="ijp-toolbar__group"><span>Mode</span><Segmented label="Playground mode" options={modeOptions} value={mode} onPick={pickMode} disabled={!!busy} />

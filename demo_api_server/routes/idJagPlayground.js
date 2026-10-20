@@ -1279,5 +1279,7 @@ module.exports = router;
 module.exports._inspect = inspect;
 module.exports._settings = settings;
 module.exports._probeBackends = probeBackends;
+module.exports._byoSettings = byoSettings;
+module.exports._nodeGatewayUrl = nodeGatewayUrl;
 module.exports._clearProbeCache = () => probes.clear();
 module.exports._resetXaaDiscovery = () => { xaaDiscoveryP = null; };

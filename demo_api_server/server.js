@@ -1473,6 +1473,8 @@ app.use('/api/auth/oauth/user', oauthUserRoutes);
 app.use('/api/pf-ai-agent', require('./routes/pfAiAgent'));
 // ID-JAG playground: the real PingFederate ID-JAG flow, one step at a time, with spec checks.
 app.use('/api/id-jag-playground', require('./routes/idJagPlayground'));
+// ID-JAG Inspector: decode a pasted token + spec checks, backend discovery. Signed-in callers only.
+app.use('/api/id-jag-inspect', authenticateToken, require('./routes/idJagInspect').router);
 app.use('/api/consent-mock-phone', require('./routes/consentMockPhone'));
 app.use('/api/aic-demo', require('./routes/aicDemo'));
 registerCallbacks(app, oauthRoutes, oauthUserRoutes, authLimiter);
