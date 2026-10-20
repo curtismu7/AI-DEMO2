@@ -61,3 +61,28 @@ describe("UseCaseDiagramPage with a config that does not opt in", () => {
     expect(screen.getByTestId("ucd-panel").textContent).toContain("Agent gateway");
   });
 });
+
+describe("per-step detail (cfg.steps)", () => {
+  it("the pilot shows form, mock token and standards for the active step, and follows the stepper", async () => {
+    renderAt("UC-NHI2");
+    const d = await screen.findByTestId("ucd-step-detail");
+    expect(d.textContent).toContain("POST /api/admin/agent/{agentId}/kill-switch");
+    expect(d.textContent).toContain("MOCK, teaching values only");
+    expect(screen.getByTestId("ucd-step-refs").textContent).toContain("RFC 7009");
+    fireEvent.click(screen.getByRole("button", { name: /next/i }));
+    expect(screen.getByTestId("ucd-step-detail").textContent).toContain("agentLifecycleEventStore.append");
+    expect(screen.getByTestId("ucd-step-detail").textContent).not.toContain("MOCK");
+  });
+
+  it("hides the step detail while a node is picked", async () => {
+    renderAt("UC-NHI2");
+    fireEvent.click(await screen.findByTestId("ucd-uc-nhi2-node-events"));
+    expect(screen.queryByTestId("ucd-step-detail")).toBeNull();
+  });
+
+  it("a config without steps renders no step detail", async () => {
+    renderAt("UC11");
+    await screen.findByTestId("ucd-panel");
+    expect(screen.queryByTestId("ucd-step-detail")).toBeNull();
+  });
+});

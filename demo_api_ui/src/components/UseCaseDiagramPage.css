@@ -35,6 +35,15 @@
 .ucd-wire__tag--policy { background: var(--th-bg-card); color: var(--th-text-body); border: 1px solid var(--th-border-strong); }
 .ucd-wire__row code { font-family: var(--font-mono); font-size: var(--font-size-xs); color: var(--th-text); word-break: break-word; }
 
+/* Optional per-step detail (cfg.steps): request form, mock tokens, standards. All --th-* so both themes read. */
+.ucd-step { margin-top: 10px; display: grid; gap: 10px; }
+.ucd-step__sec h4 { margin: 0 0 4px; font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: .06em; color: var(--th-text); }
+.ucd-step__code { margin: 0; padding: 8px 10px; max-height: 260px; overflow: auto; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-code-bg); color: var(--th-code-text); font-family: var(--font-mono); font-size: var(--font-size-2xs); line-height: 1.45; white-space: pre-wrap; word-break: break-word; }
+.ucd-step__refs { list-style: none; margin: 0; padding: 0; display: grid; gap: 4px; }
+.ucd-step__refs li { font-size: var(--font-size-xs); color: var(--th-text-body); }
+.ucd-step__refs b { color: var(--th-text); }
+.ucd-step__kind { display: inline-block; margin-right: 8px; padding: 0 7px; border-radius: var(--radius-pill); font-size: var(--font-size-3xs); font-weight: 800; background: var(--th-status-info-bg); color: var(--th-status-info-text); border: 1px solid var(--th-border-strong); }
+.ucd-step__kind--emerging { background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }
 .ucd-panel__step { flex: 0 0 auto; color: var(--th-text-body); font-size: var(--font-size-2xs); }
 .ucd-next { margin-top: 14px; display: flex; gap: 8px; }
 .ucd-next__link { border: 1px solid var(--th-border-strong); border-radius: var(--radius-pill); padding: 4px 12px; font-size: var(--font-size-2xs); font-weight: 700; }
