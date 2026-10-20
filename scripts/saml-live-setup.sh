@@ -254,6 +254,27 @@ phase_secrets() {
 
 # ---------- phase: deploy ----------
 image_exists() { command -v docker >/dev/null 2>&1 && docker manifest inspect "$1" >/dev/null 2>&1; }
+# resolve_image <package>: prints the image ref for the newest commit (first-parent, up to SHA_WALK) that has one.
+resolve_image() {
+  local pkg="$1" c ref
+  if [ -n "${IMAGE_SHA:-}" ]; then
+    ref="ghcr.io/$GHCR_OWNER/$pkg:sha-$IMAGE_SHA"; image_exists "$ref" && { printf '%s\n' "$ref"; return 0; }; return 1
+  fi
+  for c in $(git rev-list --first-parent -n "${SHA_WALK:-60}" HEAD); do
+    ref="ghcr.io/$GHCR_OWNER/$pkg:sha-$c"
+    image_exists "$ref" && { printf '%s\n' "$ref"; return 0; }
+  done
+  return 1
+}
+# describe_image <label> <ref> <head>: says which commit the image is from and how far behind HEAD that is.
+describe_image() {
+  local label="$1" ref="$2" head="$3" sha behind subj
+  sha="${ref##*:sha-}"
+  behind="$(git rev-list --count "$sha..$head" 2>/dev/null || echo '?')"
+  subj="$(git log -1 --format='%s' "$sha" 2>/dev/null || echo '')"
+  say "$label: $ref"
+  say "  built from ${sha:0:9} ($behind commit(s) behind HEAD): $subj"
+}
 set_image() { # set_image <deployment> <image>
   local dep="$1" img="$2" ctr cur
   ctr="$(kubectl -n "$APP_NS" get deploy "$dep" -o jsonpath='{.spec.template.spec.containers[0].name}')"
@@ -272,21 +293,25 @@ phase_deploy() {
   want deploy || return 0
   say "== deploy: bff + frontend images from ghcr.io/$GHCR_OWNER =="
   cd "$REPO"; need kubectl ""
-  local sha="${IMAGE_SHA:-$(git rev-parse HEAD)}"
-  local bff="ghcr.io/$GHCR_OWNER/ai-demo-demo-api-server:sha-$sha" fe="ghcr.io/$GHCR_OWNER/ai-demo-frontend:sha-$sha"
-  say "commit to deploy: $sha"
+  local head; head="$(git rev-parse HEAD)"
+  local bff fe
   if command -v docker >/dev/null 2>&1; then
+    # Build images is diff-driven: a push builds only the services whose files changed, so HEAD often has
+    # no image for a service. Take each service's newest image on the first-parent history (IMAGE_SHA pins one commit).
     local waited=0
-    until image_exists "$bff" && image_exists "$fe"; do
-      [ "$waited" -ge $((MAX_WAIT_MIN * 60)) ] && die "images for sha-$sha not found after ${MAX_WAIT_MIN} min. Check the source repo's Build images run (and docker login ghcr.io)."
-      say "  waiting for both images to exist ... (${waited}s)"; sleep 30; waited=$((waited + 30))
+    until bff="$(resolve_image ai-demo-demo-api-server)" && fe="$(resolve_image ai-demo-frontend)"; do
+      [ "$waited" -ge $((MAX_WAIT_MIN * 60)) ] && die "no demo-api-server / frontend image found in the last ${SHA_WALK:-60} commits after ${MAX_WAIT_MIN} min. Check the source repo's Build images run (and docker login ghcr.io), or set IMAGE_SHA=<commit>."
+      say "  waiting for images to exist ... (${waited}s)"; sleep 30; waited=$((waited + 30))
     done
-    say "both images exist"
+    describe_image demo-api-server "$bff" "$head"
+    describe_image frontend "$fe" "$head"
+    say "If the source repo's Build images run for $head is still going, wait for it and rerun: a newer image may be on its way."
   else
-    say "docker not installed: cannot check that the images exist. Check the source repo's Build images run yourself."
+    say "docker not installed: cannot check that the images exist; assuming HEAD. Check the source repo's Build images run yourself."
+    bff="ghcr.io/$GHCR_OWNER/ai-demo-demo-api-server:sha-${IMAGE_SHA:-$head}"; fe="ghcr.io/$GHCR_OWNER/ai-demo-frontend:sha-${IMAGE_SHA:-$head}"
   fi
   [ "$CHECK" = 1 ] && { say "--check: stopping before any write"; return 0; }
-  confirm "Deploy demo-api-server and frontend at sha-$sha in $APP_NS?"
+  confirm "Deploy demo-api-server and frontend at the images above in $APP_NS?"
   set_image demo-api-server "$bff"
   set_image frontend "$fe"
   say "deployed. Now test both modes in a browser (sign out and in first), as in the checklist 3.9."
