@@ -1,12 +1,7 @@
 /* ArchitectureOverviewPage.css
- * The page previously had no stylesheet -- everything was inline style={{}},
- * including literal colors (REGRESSION_PLAN §0 H3 forbids that; it also
- * can't track the theme). Only the page chrome gets a real stylesheet here;
- * the simulation's own node/edge state colors (idle/active/completed/
- * blocked, in the legend and ArchitectureSimSvg) stay their own literal
- * palette on purpose -- a state-diagram legend needs fixed, recognizable
- * colors matching the diagram itself, the same reasoning as the D3 trace
- * graph canvas elsewhere in this app. */
+ * Page chrome and the legend. The diagram itself is drawn by StaticFlowDiagram
+ * (pingStyle); the legend swatches use the same --th-* participant tokens as
+ * config/useCaseDiagrams/palette.js, so they follow light/dark with the boxes. */
 
 .aov-page {
   padding: 1.5rem;
@@ -29,14 +24,14 @@
 }
 
 .aov-header-row h1 {
-  font-size: 1.5rem;
+  font-size: var(--font-size-2xl);
   font-weight: 700;
   color: var(--th-text);
   margin: 0 0 0.25rem 0;
 }
 
 .aov-subtitle {
-  font-size: 0.9rem;
+  font-size: var(--font-size-base);
   color: var(--th-text-muted);
   margin: 0;
 }
@@ -62,7 +57,7 @@
   background: var(--th-bg-page);
   border: 1px solid var(--th-border);
   border-top: none;
-  font-size: 0.75rem;
+  font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
   flex-wrap: wrap;
 }
@@ -80,14 +75,69 @@
   border-radius: 2px;
   flex-shrink: 0;
 }
-.aov-legend-app { background: #e0e2e4; border: 2px solid #12538d; }
-.aov-legend-bff { background: #fee2e2; border: 2px solid #d20e0f; }
-.aov-legend-identity { background: #eff0f1; border: 2px solid #12538d; }
-.aov-legend-gateway { background: #ffedd5; border: 2px solid #f97316; }
-.aov-legend-data { background: #dcfce7; border: 2px solid #22c55e; }
-.aov-legend-agent { background: #fee2e2; border: 2px solid #d20e0f; }
+.aov-legend-user { background: var(--th-status-info); }
+.aov-legend-external { background: var(--th-text-faint); }
+.aov-legend-pingone { background: var(--th-status-success); }
+.aov-legend-gateway { background: var(--th-status-warning); }
+.aov-legend-resource { background: var(--th-border-strong); }
+.aov-legend-agent { background: var(--th-bg-emphasis); }
 
 .aov-legend-hint {
   margin-left: auto;
   font-style: italic;
+}
+
+.aov-controls {
+  display: flex;
+  align-items: center;
+  gap: 1rem;
+  flex-wrap: wrap;
+  margin: 0.75rem 0 0.5rem;
+}
+
+.aov-modes {
+  display: flex;
+  gap: 2px;
+}
+
+.aov-modes button {
+  padding: 0.25rem 0.7rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  cursor: pointer;
+}
+
+.aov-modes button[aria-pressed="true"] {
+  border-color: var(--th-bg-emphasis);
+  background: var(--th-bg-emphasis);
+  color: var(--th-text-on-emphasis);
+  font-weight: 700;
+}
+
+.aov-scenario {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-sm);
+  font-weight: 600;
+}
+
+.aov-scenario select {
+  padding: 0.25rem 0.5rem;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
+}
+
+.aov-live-wait,
+.aov-node-detail {
+  margin: 0.5rem 0;
+  color: var(--th-text);
+  font-size: var(--font-size-sm);
 }

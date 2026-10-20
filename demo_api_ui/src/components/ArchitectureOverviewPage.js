@@ -1,210 +1,74 @@
 // demo_api_ui/src/components/ArchitectureOverviewPage.js
-import { useCallback, useEffect, useMemo, useReducer, useRef } from 'react';
+// /architecture/overview: the whole-system diagram in the Ping style (StaticFlowDiagram pingStyle + a page-owned walk, the
+// way the use-case diagrams run). A scenario is a walk: each step rings its boxes and runs the dashed line along its arrows,
+// and the movie reel under the diagram carries the step text and its "why". Live trace appends one beat per system event.
+import { useCallback, useEffect, useMemo, useState } from 'react';
 
 import { DEFAULT_SCENARIO_ID, SCENARIO_MAP, SCENARIOS } from '../config/architecture-sim-scenarios';
+import {
+  OVERVIEW_EDGES, OVERVIEW_GROUPS, OVERVIEW_NODES, buildOverviewWalk, liveOverviewBeat,
+} from '../config/architectureOverviewDiagram';
+import { useDiagramStepper } from '../hooks/useDiagramStepper';
 import { useVertical } from '../vertical/useVertical';
-import { DEFAULT_STEP_MS, STEP_TIME_OPTIONS } from './diagram';
-import ArchitectureSimControls from './ArchitectureSimControls';
-import ArchitectureSimStepDesc from './ArchitectureSimStepDesc';
-import ArchitectureSimSvg from './ArchitectureSimSvg';
 import DiagramExportBar from './DiagramExportBar';
-import DiagramReel from './DiagramReel';
+import DiagramStepBar from './DiagramStepBar';
+import StaticFlowDiagram from './StaticFlowDiagram';
 import './ArchitectureOverviewPage.css';
 
-// ─── State machine ───────────────────────────────────────────────────────────
+const MODES = [
+  { id: 'scenario', label: 'Scenario' },
+  { id: 'live', label: 'Live trace' },
+];
 
-const INITIAL_STATE = {
-  mode: 'scenario',            // 'scenario' | 'step' | 'live'
-  scenarioId: DEFAULT_SCENARIO_ID,
-  stepIndex: 0,                // 0 = not started; 1..n = step number
-  playing: false,
-  stepMs: DEFAULT_STEP_MS,      // dwell time per step, in ms (shared STEP_TIME_OPTIONS)
-  nodeStates: {},              // { [nodeId]: 'idle' | 'active' | 'done' }
-  edgeStates: {},              // { [edgeId]: 'idle' | 'active' | 'done' }
-};
+const NODE_BY_ID = Object.fromEntries(OVERVIEW_NODES.map((n) => [n.id, n]));
 
-function advanceState(state, steps) {
-  const nodeStates = { ...state.nodeStates };
-  const edgeStates = { ...state.edgeStates };
-
-  // Promote active → done; 'blocked' stays blocked (red — marks an attack stop point)
-  for (const id of Object.keys(nodeStates)) {
-    if (nodeStates[id] === 'active') nodeStates[id] = 'done';
-  }
-  for (const id of Object.keys(edgeStates)) {
-    if (edgeStates[id] === 'active') edgeStates[id] = 'done';
-  }
-
-  const stepIdx = state.stepIndex;
-  if (stepIdx >= steps.length) return { ...state, playing: false, nodeStates, edgeStates };
-
-  const step = steps[stepIdx];
-  step.nodes.forEach(id => { nodeStates[id] = 'active'; });
-  step.edges.forEach(id => { edgeStates[id] = 'active'; });
-  step.blocked?.forEach(id => { nodeStates[id] = 'blocked'; });
-
-  return {
-    ...state,
-    nodeStates,
-    edgeStates,
-    stepIndex: state.stepIndex + 1,
-  };
-}
-
-function resetStates() {
-  return { nodeStates: {}, edgeStates: {}, stepIndex: 0, playing: false };
-}
-
-function simReducer(state, action) {
-  switch (action.type) {
-    case 'SET_MODE':
-      return { ...state, ...resetStates(), mode: action.mode };
-
-    case 'SET_SCENARIO':
-      return { ...state, ...resetStates(), scenarioId: action.scenarioId };
-
-    case 'SET_STEP_MS':
-      return { ...state, stepMs: action.stepMs };
-
-    case 'PLAY': {
-      if (state.mode === 'live') return { ...state, playing: true };
-      const scenario = SCENARIO_MAP[state.scenarioId];
-      if (!scenario) return state;
-      if (state.stepIndex >= scenario.steps.length) {
-        return { ...state, ...resetStates(), playing: true };
-      }
-      return { ...state, playing: true };
-    }
-
-    case 'PAUSE':
-      return { ...state, playing: false };
-
-    case 'STEP': {
-      const scenario = SCENARIO_MAP[state.scenarioId];
-      if (!scenario) return state;
-      return advanceState({ ...state, playing: false }, scenario.steps);
-    }
-
-    case 'RESET':
-      return { ...state, ...resetStates() };
-
-    case 'GOTO': {
-      // jump straight to step `index` (a click on the movie reel): replay 0..index from a clean slate and pause
-      const scenario = SCENARIO_MAP[state.scenarioId];
-      if (!scenario || state.mode === 'live') return state;
-      let next = { ...state, ...resetStates() };
-      for (let i = 0; i <= action.index && i < scenario.steps.length; i += 1) next = advanceState(next, scenario.steps);
-      return { ...next, playing: false };
-    }
-
-    case 'TICK': {
-      const scenario = SCENARIO_MAP[state.scenarioId];
-      if (!scenario) return { ...state, playing: false };
-      if (state.stepIndex >= scenario.steps.length) {
-        return { ...state, playing: false };
-      }
-      return advanceState(state, scenario.steps);
-    }
-
-    case 'LIVE_EVENT': {
-      const { nodeId, edgeId } = action;
-      const nodeStates = { ...state.nodeStates };
-      const edgeStates = { ...state.edgeStates };
-      for (const id of Object.keys(nodeStates)) {
-        if (nodeStates[id] === 'active') nodeStates[id] = 'done';
-      }
-      for (const id of Object.keys(edgeStates)) {
-        if (edgeStates[id] === 'active') edgeStates[id] = 'done';
-      }
-      if (nodeId) nodeStates[nodeId] = 'active';
-      if (edgeId) edgeStates[edgeId] = 'active';
-      return { ...state, nodeStates, edgeStates, stepIndex: state.stepIndex + 1 };
-    }
-
-    default:
-      return state;
-  }
-}
-
-// ─── Page component ──────────────────────────────────────────────────────────
+// One <optgroup> per scenario group (Flows, Attacks), in the order the scenarios list them.
+const SCENARIO_GROUPS = Object.entries(
+  SCENARIOS.reduce((groups, s) => {
+    (groups[s.group || 'Other'] ||= []).push(s);
+    return groups;
+  }, {}),
+);
 
 export default function ArchitectureOverviewPage() {
   const { activeId, pageManifest } = useVertical();
   const verticalName = activeId === 'banking'
     ? 'Banking'
     : pageManifest?.identity?.displayName || 'Banking';
-  const [sim, dispatch] = useReducer(simReducer, INITIAL_STATE);
-  const playTimerRef = useRef(null);
-  const sseRef = useRef(null);
+  const [mode, setMode] = useState('scenario');
+  const [scenarioId, setScenarioId] = useState(DEFAULT_SCENARIO_ID);
+  const [liveBeats, setLiveBeats] = useState([]);
+  const [pickedId, setPickedId] = useState(null);
 
-  // Auto-play ticker
-  useEffect(() => {
-    if (sim.playing && sim.mode !== 'live') {
-      const delay = sim.stepMs;
-      playTimerRef.current = setTimeout(() => dispatch({ type: 'TICK' }), delay);
-    }
-    return () => clearTimeout(playTimerRef.current);
-  }, [sim.playing, sim.mode, sim.stepMs]);
+  const scenario = SCENARIO_MAP[scenarioId];
+  const scenarioWalk = useMemo(() => buildOverviewWalk(scenario), [scenario]);
+  const walk = mode === 'live' ? liveBeats : scenarioWalk;
+  const stepper = useDiagramStepper(walk.length);
+  const { stop, goTo } = stepper;
 
-  // SSE connection for Live Trace mode
+  // A new scenario or mode is a new story: back to the plain diagram.
+  useEffect(() => { stop(); }, [mode, scenarioId, stop]);
+
+  // Live trace: one beat per event the BFF streams.
   useEffect(() => {
-    if (sim.mode !== 'live' || !sim.playing) {
-      if (sseRef.current) { sseRef.current.close(); sseRef.current = null; }
-      return;
-    }
+    if (mode !== 'live') return undefined;
+    setLiveBeats([]);
     const es = new EventSource('/api/arch-events');
-    sseRef.current = es;
     es.addEventListener('arch-node', (ev) => {
       try {
-        const { nodeId, edgeId } = JSON.parse(ev.data);
-        dispatch({ type: 'LIVE_EVENT', nodeId, edgeId });
-      } catch (_) {}
+        setLiveBeats((beats) => [...beats, liveOverviewBeat(JSON.parse(ev.data))]);
+      } catch (_) { /* a malformed event is skipped */ }
     });
-    es.onerror = () => { es.close(); sseRef.current = null; };
-    return () => { es.close(); sseRef.current = null; };
-  }, [sim.mode, sim.playing]);
+    es.onerror = () => es.close();
+    return () => es.close();
+  }, [mode]);
+  // ...and the diagram follows the newest one.
+  useEffect(() => {
+    if (mode === 'live' && liveBeats.length) goTo(liveBeats.length - 1);
+  }, [mode, liveBeats.length, goTo]);
 
-  const scenario = SCENARIO_MAP[sim.scenarioId];
-  const totalSteps = scenario ? scenario.steps.length : 0;
-  const currentStepDesc = (() => {
-    if (sim.stepIndex === 0) return null;
-    if (!scenario) return null;
-    return scenario.steps[sim.stepIndex - 1]?.desc ?? null;
-  })();
-  const currentStepWhy = (() => {
-    if (sim.stepIndex === 0) return null;
-    if (!scenario) return null;
-    return scenario.steps[sim.stepIndex - 1]?.why ?? null;
-  })();
-  const currentStepIsBlock = (() => {
-    if (!scenario) return false;
-    // When complete, check the last step; otherwise check the current step
-    const idx = sim.stepIndex >= totalSteps ? totalSteps - 1 : sim.stepIndex - 1;
-    return scenario.steps[idx]?.isBlock ?? false;
-  })();
-  // The movie reel under the diagram: one card per step of the scenario, "why" in the details row.
-  const reelSteps = useMemo(
-    () =>
-      scenario
-        ? scenario.steps.map((s, i) => ({ n: i + 1, from: '', to: '', title: s.desc, label: '', lines: s.why ? [{ who: 'Why', text: s.why }] : [] }))
-        : [],
-    [scenario],
-  );
-  const reelDriver = useMemo(
-    () => ({ step: sim.mode === 'live' ? -1 : sim.stepIndex - 1, goTo: (index) => dispatch({ type: 'GOTO', index }) }),
-    [sim.mode, sim.stepIndex],
-  );
-  const isComplete = sim.stepIndex > 0 && sim.stepIndex >= totalSteps && !sim.playing;
-
-  const handlers = {
-    onPlay:        useCallback(() => dispatch({ type: 'PLAY' }),                    []),
-    onPause:       useCallback(() => dispatch({ type: 'PAUSE' }),                   []),
-    onStep:        useCallback(() => dispatch({ type: 'STEP' }),                    []),
-    onReset:       useCallback(() => dispatch({ type: 'RESET' }),                   []),
-    onSetMode:     useCallback((mode) => dispatch({ type: 'SET_MODE', mode }),      []),
-    onSetScenario: useCallback((id) => dispatch({ type: 'SET_SCENARIO', scenarioId: id }), []),
-    onSetStepMs:   useCallback((stepMs) => dispatch({ type: 'SET_STEP_MS', stepMs }), []),
-  };
+  const onNodeClick = useCallback((node) => setPickedId((prev) => (prev === node.id ? null : node.id)), []);
+  const picked = pickedId ? NODE_BY_ID[pickedId] : null;
 
   return (
     <div className="aov-page">
@@ -214,7 +78,7 @@ export default function ArchitectureOverviewPage() {
             <h1>PingOne AI {verticalName} Architecture</h1>
             <p className="aov-subtitle">
               Run the complete request path across PingOne, PingGateway, the BFF vault, agents, and protected
-              resource servers. Choose a flow, then play or step through it. For deeper token-exchange details, see{' '}
+              resource servers. Choose a flow, then Simulate it or step through it. For deeper token-exchange details, see{' '}
               <a href="/sequence-diagram" target="_blank" rel="noopener noreferrer">
                 /sequence-diagram
               </a>.
@@ -222,55 +86,67 @@ export default function ArchitectureOverviewPage() {
           </div>
         </div>
 
-        <ArchitectureSimControls
-          mode={sim.mode}
-          scenarioId={sim.scenarioId}
-          scenarios={SCENARIOS}
-          playing={sim.playing}
-          stepMs={sim.stepMs}
-          stepTimeOptions={STEP_TIME_OPTIONS}
-          stepIndex={sim.stepIndex}
-          totalSteps={totalSteps}
-          {...handlers}
-        />
+        <div className="aov-controls">
+          <div className="aov-modes" role="group" aria-label="Mode">
+            {MODES.map((m) => (
+              <button key={m.id} type="button" aria-pressed={mode === m.id} onClick={() => setMode(m.id)}>
+                {m.label}
+              </button>
+            ))}
+          </div>
+          {mode === 'scenario' && (
+            <label className="aov-scenario">
+              <span>Scenario</span>
+              <select value={scenarioId} onChange={(e) => setScenarioId(e.target.value)}>
+                {SCENARIO_GROUPS.map(([groupName, items]) => (
+                  <optgroup key={groupName} label={groupName}>
+                    {items.map((s) => <option key={s.id} value={s.id}>{s.label}</option>)}
+                  </optgroup>
+                ))}
+              </select>
+            </label>
+          )}
+        </div>
+
+        {mode === 'live' && walk.length === 0 && (
+          <p className="aov-live-wait">
+            Waiting for real system events. Trigger a login or MCP tool call in another tab.
+          </p>
+        )}
+
+        <DiagramStepBar stepper={stepper} testId="aov-stepbar" />
 
         <div className="aov-diagram-wrap">
-          <ArchitectureSimSvg
-            nodeStates={sim.nodeStates}
-            edgeStates={sim.edgeStates}
+          <StaticFlowDiagram
+            NODES={OVERVIEW_NODES}
+            EDGES={OVERVIEW_EDGES}
+            GROUPS={OVERVIEW_GROUPS}
+            walk={walk}
+            stepper={stepper}
+            pingStyle
+            onNodeClick={onNodeClick}
+            testId="aov-flow"
+            ariaLabel="PingOne AI architecture"
           />
         </div>
 
-        {sim.mode !== 'live' && <DiagramReel steps={reelSteps} stepper={reelDriver} testId="aov-reel" />}
+        {picked && (
+          <p className="aov-node-detail" data-testid="aov-node-detail">
+            <strong>{picked.label}</strong>
+            {' '}{picked.detail}
+          </p>
+        )}
 
-        {/* Node color identifies system area; state colors identify playback progress. */}
+        {/* Box colour identifies the system area; the arrow key under the diagram explains the lines. */}
         <div className="aov-legend">
-          {[
-            { className: 'app', label: 'Client' },
-            { className: 'bff', label: 'BFF / Vault' },
-            { className: 'identity', label: 'Ping Identity' },
-            { className: 'gateway', label: 'Gateway' },
-            { className: 'data', label: 'Resources' },
-            { className: 'agent', label: 'Agent / AI' },
-          ].map(({ className, label }) => (
-            <span key={label} className="aov-legend-item">
-              <span className={`aov-legend-swatch aov-legend-${className}`} />
-              {label}
+          {Object.entries(OVERVIEW_GROUPS).map(([key, g]) => (
+            <span key={key} className="aov-legend-item">
+              <span className={`aov-legend-swatch aov-legend-${key}`} />
+              {g.label}
             </span>
           ))}
-          <span className="aov-legend-hint">Amber = active · green = complete · red = denied · hover for details</span>
+          <span className="aov-legend-hint">Click a box for what it does</span>
         </div>
-
-        <ArchitectureSimStepDesc
-          stepIndex={sim.stepIndex}
-          totalSteps={totalSteps}
-          desc={currentStepDesc}
-          why={currentStepWhy}
-          isBlock={currentStepIsBlock}
-          isComplete={isComplete}
-          mode={sim.mode}
-          allSteps={scenario?.steps}
-        />
 
         {/* Downloads of the equivalent clean-view diagram (architecture-simple.mmd) */}
         <DiagramExportBar
