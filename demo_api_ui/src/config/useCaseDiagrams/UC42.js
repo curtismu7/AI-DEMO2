@@ -6,6 +6,7 @@
  * perimeter.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, SPEC } from "../pingStyleStandards";
 
 const NODES = [
   { id: "agent", group: "agent", label: "Banking agent", sub: ["crypto ask"], x: 40, y: 150, detail: "Sends 'search the news for bitcoin price today' — the same chip pattern as UC41; only the query differs." },
@@ -17,7 +18,7 @@ const EDGES = [
   ["agent", "gw", "search the news for bitcoin price today", { detail: "The query names a blocked topic — demo bank policy says no crypto research through the agent gateway." }],
   ["gw", "gw", "'bitcoin' ∈ blocklist", { detail: "The content blocklist matches at the edge: bitcoin, cryptocurrency, crypto." }],
   ["gw", "brave", "nothing forwarded", { detail: "The deny happens before egress — the request is never sent to Brave." }],
-  ["gw", "agent", "DENY before egress", { detail: "The agent gets the refusal from its own gateway — one place, every tool integration, no vendor cooperation." }],
+  ["gw", "agent", "DENY before egress", { dashed: true, detail: "The agent gets the refusal from its own gateway — one place, every tool integration, no vendor cooperation." }],
 ];
 
 const walk = [
@@ -47,11 +48,49 @@ const walk = [
   },
 ];
 
+// Per-step detail: request forms use placeholders, tokens are decoded MOCK values, refs are published RFCs/specs or marked emerging drafts.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /mcp   (Agent Gateway)\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"brave_news_search\", \"arguments\": { \"query\": \"bitcoin price today\" } } }",
+      tokens: [],
+      refs: [SPEC("MCP specification 2025-11-25", "Model Context Protocol tools/call"), SPEC("JSON-RPC 2.0", "Message envelope")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "Gateway content policy (tx-brave-scope.groovy, inline)\n\nblocked terms: [bitcoin, cryptocurrency, crypto]\nquery \"bitcoin price today\" matches \"bitcoin\" -> DENY",
+      tokens: [],
+      refs: [],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "(no request)\n\nNothing is sent to the Brave Search MCP server: no vendor log, no billed call, no data leaves the perimeter.",
+      tokens: [],
+      refs: [],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "-> JSON-RPC error from the gateway\n{ \"jsonrpc\": \"2.0\", \"id\": 1,\n  \"error\": { \"code\": -32000, \"message\": \"<blocked by content policy>\" } }",
+      tokens: [],
+      refs: [SPEC("JSON-RPC 2.0", "Error object")],
+    },
+  },
+];
+
 export default {
   id: "UC42",
   result: { label: "DENY", tone: "err" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };
