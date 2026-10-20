@@ -735,22 +735,13 @@ app.use('/api/admin/hosted-registrations', authenticateToken, requireAdmin, requ
 // Include /api/auth/oauth so GET /api/auth/oauth/user/status (and admin /status) run
 // refresh before the handler — otherwise the SPA sees authenticated:true while
 // /api/accounts/my still gets 401 from validatePingOneCoreToken on an expired JWT.
-app.use(
-    [
-        '/api/users',
-        '/api/accounts',
-        '/api/transactions',
-        '/api/mcp',
-        '/api/demo-agent',
-        '/api/demo/attack-sim',
-        '/api/tokens',
-        '/api/demo-scenario',
-        '/api/delegated-commerce',
-        '/api/auth/oauth',
-        '/api/mfa/test',
-    ],
-    refreshIfExpiring,
-);
+// Silent refresh runs for EVERY /api route, not a hand-kept list of prefixes. It used to be
+// limited to a dozen prefixes, so a page that only called an unlisted route (/api/verticals,
+// POST /api/agent/invoke, /api/canvas ...) never had its ~1h access token refreshed: after a
+// sleeping tab woke up, every call failed with "jwt expired" and the app sent the person back
+// to sign in (SE 2026-10-20, 19:19Z). The middleware is cheap when the token is fresh and
+// non-fatal when a refresh fails, so a global mount is safe. Keep it ahead of the route mounts.
+app.use('/api', refreshIfExpiring);
 
 // Audience (aud) enforcement lives in authenticateToken → validatePingOneCoreToken
 // (middleware/auth.js): always-on when BFF_RESOURCE_URI is configured, and aware of
