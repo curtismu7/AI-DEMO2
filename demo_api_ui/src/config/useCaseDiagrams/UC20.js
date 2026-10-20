@@ -54,11 +54,61 @@ const walk = [
   },
 ];
 
+// Per-step detail. Forms mirror the real routes (POST /api/agent/invoke, GET /api/token-chain,
+// GET /api/admin/agent-gateway/decisions). Tokens are decoded MOCK values.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"show my balance\", \"useCaseId\": \"{useCaseId}\", \"vertical\": \"super-sports\" }",
+      tokens: [{
+        note: "User access token · who Alice is (held server-side by the BFF)",
+        header: { alg: "RS256", typ: "at+jwt" },
+        claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "user-alice-0001", aud: "https://api.ping.demo", scope: "openid profile banking:read", exp: 1790000000 },
+      }],
+      refs: [{ id: "RFC 9068", title: "JWT Profile for OAuth 2.0 Access Tokens", kind: "rfc" }],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "GET /api/token-chain\nCookie: <BFF session cookie>\n\n-> { tokenChain: [ user-token, token-exchange, authorize-decision, tool-dispatched ], ... }",
+      refs: [{ id: "RFC 8693", title: "OAuth 2.0 Token Exchange (the token-exchange hop on the rail)", kind: "rfc" }],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "GET /api/admin/agent-gateway/decisions\nCookie: <BFF session cookie>\n\n-> each entry carries the caller's sub, client id, scopes and the policy verdict",
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      tokens: [{
+        note: "Exchanged agent token · the act chain the panels reconstruct",
+        header: { alg: "RS256", typ: "at+jwt" },
+        claims: {
+          iss: "https://auth.pingone.com/ENV_ID/as",
+          sub: "user-alice-0001",
+          aud: "https://mcp.ping.demo",
+          scope: "banking:read",
+          act: { sub: "agent-client-0001" },
+          exp: 1790000000,
+        },
+      }],
+      refs: [{ id: "RFC 8693", title: "OAuth 2.0 Token Exchange (act claim, section 4.1)", kind: "rfc" }],
+    },
+  },
+];
+
 export default {
   id: "UC20",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

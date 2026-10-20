@@ -71,11 +71,59 @@ const walk = [
   },
 ];
 
+// Per-step detail. Forms mirror the real routes (POST /api/agent/invoke, the 428 envelope of
+// services/mcpToolPipeline.js, POST /api/ciba-login/*). Tokens are decoded MOCK values.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /api/agent/invoke\nContent-Type: application/json\n\n{ \"prompt\": \"What branches are near me?\", \"vertical\": \"super-sports\" }\n\n(no Authorization header, no session: the public catalog answers anonymously)",
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"show my balance\", \"vertical\": \"super-sports\" }",
+      tokens: [{
+        note: "Exchanged agent token · downscoped, delegated on Alice's behalf",
+        header: { alg: "RS256", typ: "at+jwt" },
+        claims: {
+          iss: "https://auth.pingone.com/ENV_ID/as",
+          sub: "user-alice-0001",
+          aud: "https://mcp.ping.demo",
+          scope: "banking:read",
+          act: { sub: "agent-client-0001" },
+          exp: 1790000000,
+        },
+      }],
+      refs: [
+        { id: "RFC 8693", title: "OAuth 2.0 Token Exchange (act claim for delegation)", kind: "rfc" },
+        { id: "RFC 8707", title: "Resource Indicators for OAuth 2.0 (audience of the downscoped token)", kind: "rfc" },
+      ],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "HTTP/1.1 428\n\n{ \"error\": \"mcp_hitl_required\",\n  \"error_description\": \"This transaction requires human approval. Confirm it on the dashboard to continue.\",\n  \"hitl\": { \"type\": \"consent\" },\n  \"authorize_engine\": \"local\" }\n\n(step-up variant: error \"mcp_step_up_required\", with step_up_method / step_up_acr)",
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "POST /api/ciba-login/start\nContent-Type: application/json\n\n{ \"channel\": \"{channel}\" }\n\nGET /api/ciba-login/poll/{authReqId}   (authReqId is 48 hex chars; 403 { \"status\": \"denied\" }, 410 { \"status\": \"expired\" })",
+      refs: [{ id: "OpenID CIBA Core 1.0", title: "Client-Initiated Backchannel Authentication", kind: "spec" }],
+    },
+  },
+];
+
 export default {
   id: "UC23",
   result: { label: "INFO", tone: "info" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };
