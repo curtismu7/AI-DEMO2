@@ -53,7 +53,7 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "PingOne sign-in (authorization code + PKCE)\n\nGET https://auth.pingone.com/{envId}/as/authorize?response_type=code&client_id=<client id>\n    &redirect_uri=<callback>&scope=openid profile&code_challenge=<challenge>&code_challenge_method=S256&state=<state>\n\nThe group policy is evaluated here, at the IdP: outside the allowed group, no enterprise-managed MCP session.",
+      form: "PingOne sign-in, embedded (pi.flow: the BFF drives the flow, no browser redirect)\n\nPOST https://auth.pingone.com/{envId}/as/authorize\n  response_type=code&response_mode=pi.flow&client_id=<client id>\n  &redirect_uri=<callback>&scope=openid profile&code_challenge=<challenge>&code_challenge_method=S256&state=<state>\n-> flow object; the BFF submits the credentials to the flow, then resumes it for the code (PKCE still binds the code to the BFF)\n\nThe group policy is evaluated here, at the IdP: outside the allowed group, no enterprise-managed MCP session.",
       tokens: [{
         note: "MOCK decoded ID token · the group claim is what the gate checks",
         header: { alg: "RS256", typ: "JWT" },

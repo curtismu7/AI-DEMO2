@@ -1,4 +1,4 @@
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, vi } from "vitest";
 import React from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
 import { render, screen, fireEvent, act } from "@testing-library/react";
@@ -15,6 +15,18 @@ window.ResizeObserver = ResizeObserverStub;
 Object.defineProperty(HTMLElement.prototype, "offsetWidth", { configurable: true, get: () => 250 });
 Object.defineProperty(HTMLElement.prototype, "offsetHeight", { configurable: true, get: () => 40 });
 window.DOMMatrixReadOnly = window.DOMMatrixReadOnly || class {};
+
+// Every real config now opts in, so UC48 is served here as a synthetic config that does not.
+vi.mock("../../config/useCaseDiagrams", async (importActual) => {
+  const actual = await importActual();
+  return {
+    ...actual,
+    getConfig: (id) => {
+      const cfg = actual.getConfig(id);
+      return id === "UC48" && cfg ? { ...cfg, pingStyle: false, steps: undefined } : cfg;
+    },
+  };
+});
 
 import UseCaseDiagramPage from "../UseCaseDiagramPage";
 
