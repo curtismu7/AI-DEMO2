@@ -26,6 +26,7 @@ const { callToolViaGateway } = require('../services/mcpGatewayClient');
 const { makePiFlowHandlers } = require('../services/piFlowDriver');
 const { getFrontendOrigin, getUserRedirectUri } = require('../services/oauthRedirectUris');
 const trustedIdps = require('../services/idJagTrustedIdps');
+const saml = require('../services/samlAssertion');
 const { authenticateToken, requireAdmin } = require('../middleware/auth');
 
 const router = express.Router();
@@ -38,6 +39,7 @@ const ID_JAG_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:id-jag';
 const JWT_BEARER = 'urn:ietf:params:oauth:grant-type:jwt-bearer';
 const OIDC_ONLY = new Set(['openid', 'profile', 'email', 'offline_access', 'phone', 'address']);
 const SPEC = 'draft-ietf-oauth-identity-assertion-authz-grant';
+const SAML2_TOKEN_TYPE = 'urn:ietf:params:oauth:token-type:saml2';
 
 const cfg = (k) => String(configStore.getEffective(k) || '').trim();
 const scopeList = (s) => String(s || '').split(/\s+/).filter(Boolean);
@@ -251,6 +253,74 @@ async function mintIdJag(req, scopeOverride) {
   return { idJag, request: exchangeShown(s, scope) };
 }
 
+// ---- SAML: the server signs an assertion for the signed-in user; PingFederate trades it for the ID-JAG. ----
+const SAML_MODES = ['oauth-mcp', 'pf-pf'];
+const samlAudience = () => env('SAML_AUDIENCE') || 'idJagDemoSamlAud';
+const samlIssuer = () => env('SAML_ISSUER') || `${getFrontendOrigin()}/saml`;
+const samlClientId = () => env('PF_SAML_CLIENT_ID') || 'ai-demo-pf-saml';
+
+/** Why the SAML path cannot run (signing material, or the client secret for the exchange); null when it can. */
+function samlUnavailableReason() {
+  return saml.samlUnavailableReason() || (env('PF_SAML_CLIENT_SECRET') ? null : 'PF_SAML_CLIENT_SECRET is not set for the SAML exchange client.');
+}
+
+/** The assertion subject is ALWAYS the signed-in user's email; no request field can choose it. */
+function samlSubject(req) {
+  const email = modeOf(req) === 'pf-pf' ? req.session?.idJagIssuer?.email : req.session?.user?.email;
+  // eslint-disable-next-line no-control-regex
+  if (typeof email !== 'string' || email.length > 254 || !/^[^\s@\u0000-\u001f]+@[^\s@\u0000-\u001f]+$/.test(email)) {
+    const err = new Error(modeOf(req) === 'pf-pf'
+      ? 'The SE PingFederate sign-in has no usable email address; sign in there again.'
+      : 'The signed-in user has no usable email address for the SAML assertion.');
+    err.code = 'saml_subject_invalid';
+    throw err;
+  }
+  return email;
+}
+
+/** Sign an assertion for the session user and exchange it (one call) for an ID-JAG at the mode's PingFederate. */
+async function mintSamlIdJag(req, scopeOverride) {
+  const s = settings(modeOf(req));
+  const scope = scopeOverride ?? s.request.scope;
+  const subject = samlSubject(req);
+  const xml = saml.buildAssertion({ subject, audience: samlAudience(), issuer: samlIssuer() });
+  const body = new URLSearchParams({
+    grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
+    requested_token_type: ID_JAG_TOKEN_TYPE,
+    subject_token: Buffer.from(xml, 'utf8').toString('base64url'),
+    subject_token_type: SAML2_TOKEN_TYPE,
+    audience: s.request.audience,
+  });
+  if (s.request.resource) body.set('resource', s.request.resource);
+  if (scope) body.set('scope', scope);
+  const r = await axios.post(s.idp.tokenEndpoint, body.toString(), {
+    headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: basic(samlClientId(), env('PF_SAML_CLIENT_SECRET')) },
+    timeout: 15000, validateStatus: () => true,
+  });
+  if (r.status !== 200 || !r.data?.access_token) {
+    const err = new Error(`PingFederate refused the SAML exchange (HTTP ${r.status} ${r.data?.error || ''})`);
+    err.httpStatus = r.status; err.pfError = r.data?.error; err.pfErrorDescription = r.data?.error_description;
+    throw err;
+  }
+  const shown = exchangeShown(s, scope);
+  shown.body.subject_token = '[a SAML assertion signed for the signed-in user, never sent to the browser]';
+  shown.body.subject_token_type = SAML2_TOKEN_TYPE;
+  shown.body.client_id = samlClientId();
+  return { idJag: r.data.access_token, request: shown, assertion: saml.describeAssertion(xml) };
+}
+
+/** Refuse a SAML issue before any exchange: unsupported mode, not signed in, signer not configured. */
+function samlGate(req, res, next) {
+  const protocol = req.body?.protocol;
+  if (protocol === undefined || protocol === 'oidc') return next();
+  if (protocol !== 'saml') return res.status(400).json({ error: 'invalid_protocol', message: 'protocol must be "oidc" or "saml".' });
+  if (!SAML_MODES.includes(modeOf(req))) return res.status(409).json({ error: 'saml_unsupported_mode', message: 'SAML runs in the two PingFederate modes; in "Your IdP" the outside IdP issues the ID-JAG.' });
+  if (!pfSignedIn(req)) return res.status(401).json({ error: 'sign_in_required', message: 'Sign in with PingFederate first; the SAML assertion is signed for you.' });
+  const reason = samlUnavailableReason();
+  if (reason) return res.status(409).json({ error: 'saml_not_configured', message: reason });
+  return next();
+}
+
 /** The exchange request as the page shows it (the subject token is never shown). */
 function exchangeShown(s, scope) {
   return {
@@ -387,6 +457,8 @@ function configFor(req) {
         tokenEndpoint: (cfg('pf_issuer') || cfg('pf_issuer_uri')) ? `${(cfg('pf_issuer') || cfg('pf_issuer_uri')).replace(/\/$/, '')}/as/token.oauth2` : '' },
     },
     byo: req.session?.idJagPlayground?.byo || null,
+    saml: { available: !samlUnavailableReason(), reason: samlUnavailableReason(), audience: samlAudience(), issuer: samlIssuer(),
+      supportedModes: SAML_MODES, appSignedIn: Boolean(req.session?.user?.email) },
     xaa: { available: !xaaUnavailableReason(), reason: xaaUnavailableReason(), signedIn: !!req.session?.idJagXaa,
       user: req.session?.idJagXaa ? (req.session.idJagXaa.email || req.session.idJagXaa.sub) : null },
     signedIn: pfSignedIn(req), hasIdJag: !!req.session?.idJagPlayground?.idJag,
@@ -776,7 +848,8 @@ router.get('/issuer/callback', async (req, res) => {
     if (r.status !== 200 || !r.data?.refresh_token) {
       return req.session.save(() => res.redirect(`${back}?issuer_error=${encodeURIComponent(r.data?.error || `http_${r.status}`)}`));
     }
-    req.session.idJagIssuer = { refreshToken: r.data.refresh_token, sub: decodeJwt(r.data.id_token || '')?.claims?.sub || null };
+    const idClaims = decodeJwt(r.data.id_token || '')?.claims;
+    req.session.idJagIssuer = { refreshToken: r.data.refresh_token, sub: idClaims?.sub || null, ...(idClaims?.email ? { email: String(idClaims.email) } : {}) };
     delete req.session.idJagPlayground;
     return req.session.save(() => res.redirect(back));
   } catch (err) {
@@ -784,15 +857,24 @@ router.get('/issuer/callback', async (req, res) => {
   }
 });
 
-router.post('/issue', requirePf, async (req, res) => {
+router.post('/issue', samlGate, requirePf, async (req, res) => {
   if (modeOf(req) === 'byo') return res.status(409).json({ error: 'byo_mode', message: 'Your IdP issues the ID-JAG: paste it in step 1.' });
   try {
-    const { idJag, request } = await mintIdJag(req, req.body?.scope);
+    const isSaml = req.body?.protocol === 'saml';
+    const { idJag, request, assertion } = await (isSaml ? mintSamlIdJag : mintIdJag)(req, req.body?.scope);
     req.session.idJagPlayground = { idJag, issuedAt: Date.now(), redeemed: false };
-    res.json({ request, response: { issued_token_type: ID_JAG_TOKEN_TYPE, token_type: 'N_A', access_token: '[the ID-JAG, kept server-side]' }, token: decoded(idJag) });
+    res.json({ request, response: { issued_token_type: ID_JAG_TOKEN_TYPE, token_type: 'N_A', access_token: '[the ID-JAG, kept server-side]' }, token: decoded(idJag), ...(isSaml ? { assertion } : {}) });
   } catch (err) {
+    if (err.code === 'saml_subject_invalid') return res.status(403).json({ error: err.code, message: err.message });
     res.status(502).json({ error: 'id_jag_issue_failed', message: err.message, pfError: err.pfError, pfErrorDescription: err.pfErrorDescription });
   }
+});
+
+/** The SAML signer's public certificate, for PingFederate's trust anchor (never the key). */
+router.get('/saml/cert', (_req, res) => {
+  const pem = saml.signerCertPem();
+  if (!pem) return res.status(404).json({ error: 'saml_not_configured' });
+  return res.type('application/x-pem-file').send(pem);
 });
 
 router.post('/inspect', requirePf, async (req, res) => {
