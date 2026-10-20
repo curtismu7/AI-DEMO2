@@ -87,22 +87,28 @@ describe("DigitalWorkerPage learning surfaces", () => {
 });
 
 describe("DigitalWorkerPage run sections", () => {
-  it("renders the lede, the governed run section, and the unattended panel", async () => {
+  it("renders the lede, the tabs, the studio, and the unattended panel", async () => {
     renderPage();
-    expect(screen.getByText("An assistant answers questions. A worker takes action — it holds delegated identity, spends it across tools, and every action is governed.")).toBeTruthy();
-    expect(screen.getByRole("heading", { name: "Governed worker run" })).toBeTruthy();
+    expect(screen.getByText(/An assistant answers questions\. A worker takes action — it holds delegated identity, spends it across tools, and every action is governed\./)).toBeTruthy();
     expect(screen.getByText("UC38 · wire transfer with step-up MFA and HITL")).toBeTruthy();
-    // The run stays available while the catalog loads, then the click enables.
-    expect(screen.getByRole("button", { name: "Run worker task" })).toBeDisabled();
-    expect(await screen.findByRole("button", { name: "Run worker task" })).toBeEnabled();
+    // The studio's own "Run UC38 action" is the one way to start a run: the page adds no second button.
+    expect(await screen.findByTestId("studio")).toBeTruthy();
+    expect(screen.queryByRole("button", { name: "Run worker task" })).toBeNull();
     // The unattended panel lives on its own tab; it self-fetches its flag, then shows its unarmed state.
     fireEvent.click(screen.getByRole("tab", { name: /Unattended/ }));
     expect(await screen.findByRole("switch", { name: /arm the worker/i })).toBeTruthy();
   });
 
+  it("says it is loading until the governed run arrives", async () => {
+    renderPage();
+    expect(screen.getByRole("status")).toHaveTextContent("Loading the governed run…");
+    await screen.findByTestId("studio");
+    expect(screen.queryByText("Loading the governed run…")).toBeNull();
+  });
+
   it("puts the agent first and the diagram last", async () => {
     renderPage();
-    await screen.findByRole("button", { name: "Run worker task" }); // let the page's fetches settle
+    await screen.findByTestId("studio"); // let the page's fetches settle
     const agent = screen.getByRole("region", { name: "Digital worker agent" });
     const diagram = screen.getByRole("region", { name: "Architecture diagram" });
     // DOCUMENT_POSITION_FOLLOWING: the diagram comes after the agent card.
@@ -123,42 +129,29 @@ describe("DigitalWorkerPage run sections", () => {
     expect(document.getElementById("dw-pane-unattended").hidden).toBe(false);
 
     // Both panes stay in the DOM, so the studio's run and the panel's arm state survive a switch.
-    fireEvent.click(attended);
-    fireEvent.click(await screen.findByRole("button", { name: "Run worker task" }));
     await screen.findByTestId("studio");
-    fireEvent.click(unattended);
     fireEvent.click(attended);
     expect(screen.getByTestId("studio")).toBeTruthy();
   });
 
-  it("clicking Run worker task performs the two use-case fetches and mounts the studio on nonce 1", async () => {
+  it("mounts UC38 from the two catalog fetches and never auto-runs it", async () => {
     renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: "Run worker task" }));
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith("/api/verticals/list"));
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith("/api/use-cases/UC38?vertical=banking"));
     const studio = await screen.findByTestId("studio");
     expect(studio.dataset.scenario).toBe("UC38");
     expect(studio.dataset.vertical).toBe("banking");
-    expect(studio.dataset.nonce).toBe("1");
-  });
-
-  it("a second click bumps runNonce without refetching the catalog", async () => {
-    renderPage();
-    fireEvent.click(await screen.findByRole("button", { name: "Run worker task" }));
-    await screen.findByTestId("studio");
-    fireEvent.click(screen.getByRole("button", { name: "Run worker task" }));
-    await waitFor(() => expect(screen.getByTestId("studio").dataset.nonce).toBe("2"));
-    expect(apiClient.get.mock.calls.filter(([url]) => url.startsWith("/api/use-cases/UC38"))).toHaveLength(1);
+    // No runNonce is passed, so mounting cannot fire the workload: only the studio's own button does.
+    expect(studio.dataset.nonce).toBeUndefined();
   });
 
   it("honours a ?vertical deep link", async () => {
     renderPage("/digital-worker?vertical=airlines");
-    fireEvent.click(await screen.findByRole("button", { name: "Run worker task" }));
     await waitFor(() => expect(apiClient.get).toHaveBeenCalledWith("/api/use-cases/UC38?vertical=airlines"));
     expect((await screen.findByTestId("studio")).dataset.vertical).toBe("airlines");
   });
 
-  it("names the failed catalog load instead of leaving a dead button", async () => {
+  it("names the failed catalog load instead of leaving a spinner", async () => {
     apiClient.get.mockImplementation((url) => {
       if (url === "/api/verticals/list") return Promise.resolve({ data: [{ id: "banking", displayName: "Banking" }] });
       if (url.startsWith("/api/use-cases/UC38")) return Promise.reject(new Error("catalog down"));
@@ -167,7 +160,23 @@ describe("DigitalWorkerPage run sections", () => {
     });
     renderPage();
     expect(await screen.findByRole("alert")).toHaveTextContent("The governed run could not be loaded for this vertical.");
-    expect(screen.getByRole("button", { name: "Run worker task" })).toBeDisabled();
     expect(screen.queryByTestId("studio")).toBeNull();
+    expect(screen.queryByText("Loading the governed run…")).toBeNull();
+  });
+
+  it("the jump link scrolls to the diagram without navigating", async () => {
+    // Set on HTMLElement.prototype: the suite's setup may already define it there, shadowing Element's.
+    const scroll = vi.fn();
+    const original = HTMLElement.prototype.scrollIntoView;
+    HTMLElement.prototype.scrollIntoView = scroll;
+    try {
+      renderPage();
+      await screen.findByTestId("studio");
+      const notPrevented = fireEvent.click(screen.getByRole("link", { name: /Jump to the diagram/ }));
+      expect(notPrevented).toBe(false); // preventDefault: no hash push onto the router history
+      expect(scroll).toHaveBeenCalledTimes(1);
+    } finally {
+      HTMLElement.prototype.scrollIntoView = original;
+    }
   });
 });

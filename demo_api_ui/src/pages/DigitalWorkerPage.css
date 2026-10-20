@@ -2,11 +2,12 @@
    so the canvas is fixed-height instead of filling what is left. */
 .dw-page { padding: 1rem 1.5rem 2rem; color: var(--th-text); }
 .dw-page__title { font-size: 1.4rem; margin: 0 0 0.5rem; }
-.dw-page__lede { margin: 0 0 0.75rem; max-width: 70ch; color: var(--th-text-muted); }
-.dw-page__canvas { position: relative; height: 38rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg); overflow: hidden; }
-.dw-page__canvas .react-flow { background: var(--th-bg); }
+.dw-page__lede { margin: 0 0 0.75rem; max-width: 70ch; line-height: 1.5; color: var(--th-text-muted); }
+.dw-page__jump { white-space: nowrap; }
+.dw-page__canvas { position: relative; display: flex; flex-direction: column; height: 38rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg); overflow: hidden; }
+.dw-page__canvas .react-flow { flex: 1; min-height: 0; background: var(--th-bg); }
 
-.dw-bar { position: absolute; z-index: 10; top: 10px; left: 10px; display: flex; gap: 6px; align-items: center; flex-wrap: wrap; max-width: calc(100% - 20px); padding: 6px 8px; background: var(--th-bg-card); color: var(--th-text); border: 1px solid var(--th-border); border-radius: var(--radius-md); font-size: var(--font-size-2xs); }
+.dw-bar { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; padding: 6px 8px; background: var(--th-bg-card); color: var(--th-text); border-bottom: 1px solid var(--th-border); font-size: var(--font-size-2xs); }
 .dw-bar > button { cursor: pointer; padding: 4px 10px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg); color: var(--th-text); font: inherit; }
 .dw-bar > button:disabled { opacity: 0.5; cursor: default; }
 .dw-bar > span { color: var(--th-text-muted); }
@@ -48,9 +49,7 @@
 .dw-page .react-flow__node:hover .react-flow__handle, .dw-page .react-flow__node.selected .react-flow__handle { opacity: 1; }
 
 /* ── Section A: the attended, governed run (button + PersonalAgentStudioPage) ── */
-.dw-run-task__head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 1rem; margin-bottom: 0.75rem; }
-.dw-run-task__head h2 { margin: 0; font-size: var(--font-size-md); }
-.dw-run-task__head p { margin: 0; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+.dw-agent__intro { margin: 0 0 0.75rem; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
 .dw-run-task__error { margin: 0 0 0.75rem; color: var(--th-status-error-text); }
 
 /* ── Section B: DigitalWorkerRunPanel (Task 1) — its dw-run__* classes had no CSS ── */
@@ -76,10 +75,11 @@
 .dw-agent { margin-top: 0.5rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
 .dw-tabs { display: flex; flex-wrap: wrap; gap: 0.25rem; padding: 0.5rem 0.75rem 0; border-bottom: 1px solid var(--th-border); }
 .dw-tab { cursor: pointer; padding: 0.5rem 1rem; margin-bottom: -1px; border: 1px solid transparent; border-bottom: 0; border-radius: var(--radius-md) var(--radius-md) 0 0; background: none; color: var(--th-text-muted); font: inherit; font-size: var(--font-size-sm); }
+.dw-tab:hover { color: var(--th-text); }
 .dw-tab[aria-selected="true"] { color: var(--th-text); font-weight: 600; background: var(--th-bg-card); border-color: var(--th-border); }
 .dw-tab__hint { margin-left: 0.5rem; font-size: var(--font-size-2xs); font-weight: 400; color: var(--th-text-muted); }
 .dw-agent__pane { padding: 1rem 1.25rem; }
 
 /* ── Diagram: reference material, last on the page ── */
-.dw-diagram { margin-top: 1.5rem; }
+.dw-diagram { margin-top: 1.5rem; scroll-margin-top: 6rem; } /* clear the sticky app header when jumped to */
 .dw-diagram__title { margin: 0 0 0.5rem; font-size: var(--font-size-md); }

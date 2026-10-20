@@ -301,12 +301,10 @@ export default function DigitalWorkerPage() {
 
   // Scenario loading mirrors WorkloadAgentsPage: the vertical choices arrive from
   // /api/verticals/list, the UC38 use case resolves per vertical, and the studio
-  // only mounts once both are in hand. The click (not the mount) triggers the run:
-  // nonce 0 is the studio's "no run yet" and each click re-fires the workload.
+  // only mounts once both are in hand. The studio's own "Run UC38 action" button is the
+  // one way to start the run; mounting never fires it (its runNonce stays 0).
   const [catalog, setCatalog] = useState({ vertical: null, useCase: null });
   const [error, setError] = useState("");
-  const [runNonce, setRunNonce] = useState(0);
-  const runSectionRef = useRef(null);
   const [mode, setMode] = useState("attended");
 
   useEffect(() => {
@@ -323,7 +321,6 @@ export default function DigitalWorkerPage() {
     let live = true;
     setCatalog({ vertical: null, useCase: null });
     setError("");
-    setRunNonce(0); // a new vertical is a new scenario: never auto-fire it on the old run count
     apiClient.get(`/api/use-cases/UC38?vertical=${encodeURIComponent(vertical)}`)
       .then(({ data }) => { if (live) setCatalog({ vertical, useCase: data.useCase }); })
       .catch(() => { if (live) setError("The governed run could not be loaded for this vertical."); });
@@ -333,18 +330,20 @@ export default function DigitalWorkerPage() {
   const cases = catalog.vertical === vertical ? catalog : {};
   const selected = cases.useCase;
 
-  function runWorkerTask() {
-    if (!selected) return;
-    setRunNonce((nonce) => nonce + 1);
-    runSectionRef.current?.scrollIntoView?.({ behavior: "smooth", block: "start" });
-  }
+
+  // The attended studio is tall; a plain hash link would also push a router entry.
+  const jumpToDiagram = (ev) => {
+    ev.preventDefault();
+    document.getElementById("dw-diagram")?.scrollIntoView?.({ behavior: "smooth", block: "start" });
+  };
 
   return (
     <div className="dw-page">
       <h1 className="dw-page__title">Digital Worker</h1>
       <p className="dw-page__lede">
         An assistant answers questions. A worker takes action — it holds delegated identity,
-        spends it across tools, and every action is governed.
+        spends it across tools, and every action is governed.{" "}
+        <a href="#dw-diagram" className="dw-page__jump" onClick={jumpToDiagram}>Jump to the diagram ↓</a>
       </p>
 
       {/* The agent comes first: both modes stay mounted (hidden, not unmounted) so the
@@ -367,23 +366,12 @@ export default function DigitalWorkerPage() {
           ))}
         </div>
 
-        <div role="tabpanel" id="dw-pane-attended" aria-labelledby="dw-tab-attended" hidden={mode !== "attended"} ref={runSectionRef} className="dw-agent__pane dw-run-task">
-          <div className="dw-run-task__head">
-            <h2>Governed worker run</h2>
-            <p>UC38 · wire transfer with step-up MFA and HITL</p>
-          </div>
+        <div role="tabpanel" id="dw-pane-attended" aria-labelledby="dw-tab-attended" hidden={mode !== "attended"} className="dw-agent__pane">
+          <p className="dw-agent__intro">UC38 · wire transfer with step-up MFA and HITL</p>
           {error && <p role="alert" className="dw-run-task__error">{error}</p>}
-          <button type="button" className="btn btn-primary" disabled={!selected} onClick={runWorkerTask}>
-            Run worker task
-          </button>
-          {selected && (
-            <PersonalAgentStudioPage
-              key={`${vertical}:UC38`}
-              scenario={selected}
-              vertical={vertical}
-              runNonce={runNonce}
-            />
-          )}
+          {selected ? (
+            <PersonalAgentStudioPage key={`${vertical}:UC38`} scenario={selected} vertical={vertical} />
+          ) : !error && <p role="status" className="dw-agent__intro">Loading the governed run…</p>}
         </div>
 
         <div role="tabpanel" id="dw-pane-unattended" aria-labelledby="dw-tab-unattended" hidden={mode !== "unattended"} className="dw-agent__pane">
@@ -391,7 +379,7 @@ export default function DigitalWorkerPage() {
         </div>
       </section>
 
-      <section className="dw-diagram" aria-label="Architecture diagram">
+      <section id="dw-diagram" className="dw-diagram" aria-label="Architecture diagram">
         <h2 className="dw-diagram__title">How it works</h2>
         <div className="dw-page__canvas">
           <ReactFlowProvider>
