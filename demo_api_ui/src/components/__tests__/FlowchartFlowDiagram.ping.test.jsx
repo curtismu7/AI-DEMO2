@@ -15,6 +15,8 @@ const nodeByText = (text) => screen.getByText(text).closest(".react-flow__node")
 async function setup() {
   const { container } = render(<FlowchartFlowDiagram source={SRC} pingStyle enrichStep={enrichReelStep} />);
   await screen.findByRole("button", { name: "Simulate" });
+  // the boxes mount after the controls; tests query them synchronously, so wait for one here
+  await screen.findByText("Auth routes");
   // jsdom never measures the boxes, so React Flow draws no edges here: the badges themselves are checked by eye
   return container;
 }
