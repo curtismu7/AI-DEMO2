@@ -39,37 +39,40 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(screen.getByRole("link", { name: "Refresh token → ID-JAG setup" }).getAttribute("href")).toBe("https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_refresh_token_to_idjag_exchange.html");
     expect(screen.getByRole("link", { name: "JWT bearer assertion setup" }).getAttribute("href")).toBe("https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_oauth_assertion_grant_idp_connection.html");
 
-    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, PF login + agent authorization" }));
+    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, OIDC code + PKCE sign-in" }));
     details = screen.getByText("Protocol details").closest("details");
     expect(details.open).toBe(true);
+    expect(screen.getByText(/Credentials stay at PingFederate/)).toBeTruthy();
+    expect(screen.getByRole("link", { name: "OAuth grant types" }).getAttribute("href")).toBe("https://docs.pingidentity.com/pingfederate/13.1/introduction_to_pingfederate/pf_grant_types.html");
+    expect(screen.getByRole("link", { name: "OIDC authorization endpoint" }).getAttribute("href")).toBe("https://docs.pingidentity.com/pingfederate/13.1/developers_reference_guide/pf_authorization_endpoint.html");
+    fireEvent.click(screen.getByRole("tab", { name: "AI request, agent delegation + policy" }));
     expect(screen.getByText(/The two agent exchanges happen after login/)).toBeTruthy();
     expect(screen.getByText(/PingOne Authorize evaluates the action policy/)).toBeTruthy();
     expect(screen.getByRole("link", { name: "OAuth grant types" }).getAttribute("href")).toBe("https://docs.pingidentity.com/pingfederate/13.1/introduction_to_pingfederate/pf_grant_types.html");
-    expect(screen.getByRole("link", { name: "OIDC authorization endpoint" }).getAttribute("href")).toBe("https://docs.pingidentity.com/pingfederate/13.1/developers_reference_guide/pf_authorization_endpoint.html");
   });
 
-  it("shows PingFederate login followed by the complete AI request path", () => {
+  it("shows PingFederate login, then the AI request path as its own tab", () => {
     renderPage();
     expect(screen.getByText("2 token exchanges")).toBeTruthy();
-    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, PF login + agent authorization" }));
+    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, OIDC code + PKCE sign-in" }));
 
     expect(screen.getByRole("heading", { name: "PingFederate standard login" })).toBeTruthy();
-    expect(DIAGRAMS.pingfederate.chain).toContain("Agent Service");
-    expect(DIAGRAMS.pingfederate.steps).toHaveLength(9);
-    expect(DIAGRAMS.pingfederate.flow.NODES.map(({ id }) => id)).toEqual(expect.arrayContaining(["agent", "gateway", "authorize", "mcp"]));
-    expect(DIAGRAMS.pingfederate.steps.some((step) => /PingOne Authorize permits/.test(`${step.title} ${step.detail}`))).toBe(true);
+    expect(DIAGRAMS.pingfederate.steps).toHaveLength(5);
+    expect(DIAGRAMS.pingfederate.flow.NODES.map(({ id }) => id)).toEqual(["user", "pfauth", "bff", "pftoken"]);
 
     const panel = screen.getByText("Protocol details").closest("details");
     expect(panel.open).toBe(true);
-    expect(screen.getByText("PF login + agent authorization")).toBeTruthy();
-    expect(panel.textContent).toContain("code_challenge_method");
+    expect(screen.getByText("OIDC code + PKCE sign-in")).toBeTruthy();
+
+    // One arrow carries the authorize request and the code that comes back.
+    fireEvent.click(screen.getByRole("button", { name: "Step 2: The BFF sends the browser to PingFederate and gets a code back" }));
     expect(panel.textContent).toContain("S256");
-
-    fireEvent.click(screen.getByRole("button", { name: "Step 3: PingFederate returns an authorization code" }));
     expect(panel.textContent).toContain("state=<state>");
-    expect(panel.textContent).not.toContain("code_verifier");
+    expect(panel.textContent).toContain("code_challenge_method");
+    expect(panel.textContent).not.toContain("&code_verifier=");
 
-    fireEvent.click(screen.getByRole("button", { name: "Step 4: BFF exchanges code for tokens" }));
+    // One arrow carries the code exchange and the tokens that come back.
+    fireEvent.click(screen.getByRole("button", { name: "Step 4: BFF exchanges the code for tokens" }));
     expect(panel.textContent).toContain("authorization_code");
     expect(panel.textContent).toContain("code_verifier");
     expect(panel.textContent).toContain("refresh_token");
@@ -80,32 +83,40 @@ describe("PingFederate ID-JAG architecture", () => {
     fireEvent.click(screen.getByRole("button", { name: "Step 5: BFF establishes the application session" }));
     expect(panel.textContent).toContain("Set-Cookie: <session cookie>; HttpOnly");
 
-    fireEvent.click(screen.getByRole("button", { name: "Step 6: User sends an AI request" }));
-    expect(panel.textContent).toContain("/api/agent/invoke");
-    expect(panel.textContent).toContain('"prompt": "Show my account balance"');
-    expect(panel.textContent).not.toContain('"message": "Show my account balance"');
-    fireEvent.click(screen.getByRole("button", { name: "Step 7: Agent Service proposes a tool call" }));
-    expect(panel.textContent).toContain("/api/agent/reason");
-    expect(panel.textContent).toContain('"messages": [');
-    expect(panel.textContent).toContain('"tools": [');
-    expect(panel.textContent).toContain('"inputSchema": {');
-    expect(panel.textContent).not.toContain('"function": {');
-    expect(panel.textContent).toContain("the BFF validates and executes the tool call");
-    fireEvent.click(screen.getByRole("button", { name: "Step 8: BFF authorizes and routes the MCP call" }));
-    expect(panel.textContent).toContain("PingOne Authorize");
-    expect(panel.textContent).toContain("# Exchange 1");
-    expect(panel.textContent).toContain("# Exchange 2");
-    expect(panel.textContent).toContain("McpToolCall");
-    fireEvent.click(screen.getByRole("button", { name: "Step 9: MCP result returns to the user" }));
-    expect(panel.textContent).toContain('"method": "tools/call"');
-    expect(panel.textContent).toContain("<account list>");
-    const { EDGES } = DIAGRAMS.pingfederate.flow;
-    const edgeIndex = (src, tgt) => EDGES.findIndex((e) => e[0] === src && e[1] === tgt);
-    expect(DIAGRAMS.pingfederate.steps[8].edges).toContain(edgeIndex("mcp", "gateway"));
-    expect(DIAGRAMS.pingfederate.steps[8].edges).toContain(edgeIndex("gateway", "bff"));
-    const answer = EDGES.findIndex((e) => e[0] === "bff" && e[1] === "user" && e[2] === "AI response");
-    expect(answer).toBeGreaterThanOrEqual(0);
-    expect(DIAGRAMS.pingfederate.steps[8].edges).toContain(answer);
+    fireEvent.click(screen.getByRole("tab", { name: "AI request, agent delegation + policy" }));
+    expect(screen.getByRole("heading", { name: "PingFederate AI request path" })).toBeTruthy();
+    expect(DIAGRAMS.pfrequest.chain).toContain("Agent Service");
+    expect(DIAGRAMS.pfrequest.steps).toHaveLength(6);
+    expect(DIAGRAMS.pfrequest.flow.NODES.map(({ id }) => id)).toEqual(expect.arrayContaining(["agent", "gateway", "authorize", "mcp"]));
+    expect(DIAGRAMS.pfrequest.steps.some((step) => /PingOne Authorize/.test(`${step.title} ${step.detail}`))).toBe(true);
+    const req = screen.getByText("Protocol details").closest("details");
+
+    fireEvent.click(screen.getByRole("button", { name: "Step 1: User sends an AI request, gets the answer" }));
+    expect(req.textContent).toContain("/api/agent/invoke");
+    expect(req.textContent).toContain('"prompt": "Show my account balance"');
+    expect(req.textContent).not.toContain('"message": "Show my account balance"');
+    fireEvent.click(screen.getByRole("button", { name: "Step 2: BFF asks the Agent Service to reason" }));
+    expect(req.textContent).toContain("/api/agent/reason");
+    expect(req.textContent).toContain('"messages": [');
+    expect(req.textContent).toContain('"tools": [');
+    expect(req.textContent).toContain('"inputSchema": {');
+    expect(req.textContent).not.toContain('"function": {');
+    expect(req.textContent).toContain("the BFF validates and executes the tool call");
+    fireEvent.click(screen.getByRole("button", { name: "Step 3: BFF delegates MCP access through PingFederate" }));
+    expect(req.textContent).toContain("# Exchange 1");
+    expect(req.textContent).toContain("# Exchange 2");
+    expect(req.textContent).toContain("scoped MCP access token");
+    fireEvent.click(screen.getByRole("button", { name: "Step 5: PingGateway asks PingOne Authorize" }));
+    expect(req.textContent).toContain("McpToolCall");
+    fireEvent.click(screen.getByRole("button", { name: "Step 6: PingGateway forwards the permitted call" }));
+    expect(req.textContent).toContain('"method": "tools/call"');
+    expect(req.textContent).toContain("<account list>");
+
+    // The result arrows are folded into the arrows that made the call; nothing points back at the user from the gateway.
+    const { EDGES } = DIAGRAMS.pfrequest.flow;
+    expect(EDGES).toHaveLength(6);
+    expect(EDGES.some((e) => e[0] === "mcp")).toBe(false);
+    expect(EDGES.some((e) => e[0] === "bff" && e[1] === "user")).toBe(false);
   });
 
   it("keeps the mid-page controls connected to the same playback state", () => {
@@ -138,17 +149,19 @@ describe("PingFederate ID-JAG architecture", () => {
     expect(screen.getByText("ID-JAG token journey")).toBeTruthy();
     expect(container.querySelector(".react-flow")).toBeTruthy();
 
-    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, PF login + agent authorization" }));
+    fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, OIDC code + PKCE sign-in" }));
     expect(screen.getByRole("heading", { name: "PingFederate standard login" })).toBeTruthy();
-    expect(screen.getByText(/Login: PingFederate · Runtime policy: PingOne Authorize/)).toBeTruthy();
     expect(screen.getAllByText("PingFederate · sign-in").length).toBeGreaterThan(0);
     expect(screen.getAllByText("PingFederate · token endpoint").length).toBeGreaterThan(0);
+    fireEvent.click(screen.getByRole("tab", { name: "AI request, agent delegation + policy" }));
+    expect(screen.getByText(/Login: PingFederate · Runtime policy: PingOne Authorize/)).toBeTruthy();
+    expect(container.querySelector(".react-flow")).toBeTruthy();
   });
 
   it("shows both ID-JAG sides: upstream validation and downstream assertion redemption", () => {
     renderPage();
     expect(screen.getByText("2 token exchanges")).toBeTruthy();
-    expect(screen.getByText("PF login + agent authorization")).toBeTruthy();
+    expect(screen.getByText("OIDC code + PKCE sign-in")).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Step 2: Side 1 · PingFederate validates the upstream token" }));
     expect(screen.getByText(/token-exchange policy validates the refresh token/)).toBeTruthy();
     fireEvent.click(screen.getByRole("button", { name: "Step 3: PingFederate issues the ID-JAG" }));
@@ -252,12 +265,12 @@ describe("PingFederate ID-JAG architecture", () => {
       renderPage();
       fireEvent.change(topControls().getByLabelText("Step time:"), { target: { value: "800" } });
       fireEvent.click(topControls().getByRole("button", { name: "Simulate" }));
-      fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, PF login + agent authorization" }));
+      fireEvent.click(screen.getByRole("tab", { name: "PingFederate login, OIDC code + PKCE sign-in" }));
 
-      expect(topControls().getByText("Step 1 / 19")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 5")).toBeTruthy();
       expect(topControls().getByRole("button", { name: "Simulate" })).toBeTruthy();
       act(() => vi.advanceTimersByTime(800));
-      expect(topControls().getByText("Step 1 / 19")).toBeTruthy();
+      expect(topControls().getByText("Step 1 / 5")).toBeTruthy();
     } finally {
       vi.useRealTimers();
     }
