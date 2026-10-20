@@ -6,19 +6,20 @@
  * upstream hop). Per-user policy is enforced by the Agent Privilege.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_MUSE2 as steps } from "../ucBatch3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["signs in once"], x: 40, y: 150, detail: "Her OAuth sign-in is what establishes the gateway leg — one login, both sides." },
-  { id: "agent", group: "external", label: "Muse agent", sub: ["user's machine"], x: 340, y: 150, detail: "Same agent, different door: the facade's privilege-gateway MCP endpoint." },
-  { id: "facade", group: "gateway", label: "MCP facade", sub: ["durable broker"], x: 640, y: 150, detail: "Registers the client durably and holds the upstream gateway leg server-side — client config survives gateway restarts." },
-  { id: "aigw", group: "pingone", label: "Agent Privilege", sub: ["Privilege"], x: 940, y: 150, detail: "PingOne Agent Privilege: per-user policy on the upstream call; the caller's bearer is replaced." },
-  { id: "tool", group: "resource", label: "Registered app", sub: ["Agentic App"], x: 1240, y: 150, detail: "The app registered in Privilege (e.g. banking MCP server) serves the tools." },
+  { id: "agent", group: "external", label: "Muse agent", sub: ["user's machine"], x: 450, y: 150, detail: "Same agent, different door: the facade's privilege-gateway MCP endpoint." },
+  { id: "facade", group: "gateway", label: "MCP facade", sub: ["durable broker"], x: 860, y: 150, detail: "Registers the client durably and holds the upstream gateway leg server-side — client config survives gateway restarts." },
+  { id: "aigw", group: "pingone", label: "Agent Privilege", sub: ["Privilege"], x: 860, y: 350, detail: "PingOne Agent Privilege: per-user policy on the upstream call; the caller's bearer is replaced." },
+  { id: "tool", group: "resource", label: "Registered app", sub: ["Agentic App"], x: 450, y: 350, detail: "The app registered in Privilege (e.g. banking MCP server) serves the tools." },
 ];
 
 const EDGES = [
   ["user", "agent", "same ask, lane 2", { detail: "Same natural-language request; the presenter points the agent at the other door." }],
   ["agent", "facade", "OAuth + connect", { detail: "DCR against the demo broker; the sign-in also establishes the gateway leg." }],
-  ["facade", "aigw", "call with own credential", { detail: "ownsUpstreamAuth: the caller's bearer is swapped for the operator's gateway token." }],
+  ["facade", "aigw", "call with own credential", { vertical: true, detail: "ownsUpstreamAuth: the caller's bearer is swapped for the operator's gateway token." }],
   ["aigw", "tool", "per-user policy", { detail: "Privilege evaluates the human's policy, not a service identity, then dispatches." }],
   ["tool", "user", "answer", { detail: "Result returns through the facade to Muse." }],
 ];
@@ -62,8 +63,10 @@ const walk = [
 export default {
   id: "UC-MUSE2",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

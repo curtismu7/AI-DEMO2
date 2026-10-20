@@ -6,19 +6,20 @@
  * BFF, which holds all three tokens; the browser sees only a redacted trace.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_AIC_TX as steps } from "../ucBatch3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (browser)", sub: ["signs in at AIC"], x: 40, y: 150, detail: "Signs in directly at AIC, beside her app session. Her browser never holds a token — only the redacted trace the BFF returns." },
-  { id: "bff", group: "gateway", label: "BFF", sub: ["holds all three tokens"], x: 340, y: 150, detail: "Runs the AIC sign-in with PKCE, keeps the user token, the actor token and the delegated token in the server session, and makes the agent's calls with the agent client's credentials." },
-  { id: "aic", group: "external", label: "PingOne AIC", sub: ["authorization server", "May Act script"], x: 640, y: 150, detail: "Issues all three tokens. It only exchanges tokens it issued itself, and only when the subject client's May Act script names the actor." },
-  { id: "agent", group: "agent", label: "Agent client", sub: ["confidential", "the actor"], x: 640, y: 340, detail: "A confidential AIC client with the Client Credentials and Token Exchange grants. It is the party the delegated token says is acting for Alice." },
+  { id: "bff", group: "gateway", label: "BFF", sub: ["holds all three tokens"], x: 450, y: 150, detail: "Runs the AIC sign-in with PKCE, keeps the user token, the actor token and the delegated token in the server session, and makes the agent's calls with the agent client's credentials." },
+  { id: "aic", group: "external", label: "PingOne AIC", sub: ["authorization server", "May Act script"], x: 830, y: 150, detail: "Issues all three tokens. It only exchanges tokens it issued itself, and only when the subject client's May Act script names the actor." },
+  { id: "agent", group: "agent", label: "Agent client", sub: ["confidential", "the actor"], x: 830, y: 340, detail: "A confidential AIC client with the Client Credentials and Token Exchange grants. It is the party the delegated token says is acting for Alice." },
 ];
 
 const EDGES = [
   ["user", "bff", "sign in at AIC", { detail: "A second sign-in beside the app session: the app's own login only yields PingOne tokens." }],
   ["bff", "aic", "code + PKCE", { detail: "Authorization code with PKCE on a public client; the access token it returns is the subject token." }],
-  ["agent", "aic", "client credentials", { detail: "The agent authenticates as itself; the access token it gets is the actor token." }],
-  ["aic", "agent", "delegated token", { detail: "A narrower token for Alice, issued to the agent, carrying an act claim that names the agent." }],
+  ["agent", "aic", "client credentials", { lane: -60, detail: "The agent authenticates as itself; the access token it gets is the actor token." }],
+  ["aic", "agent", "delegated token", { lane: 60, detail: "A narrower token for Alice, issued to the agent, carrying an act claim that names the agent." }],
 ];
 
 const walk = [
@@ -66,8 +67,10 @@ const walk = [
 export default {
   id: "UC-AIC-TX",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };
