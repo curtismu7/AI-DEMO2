@@ -17,45 +17,52 @@ const baseActClaim = {
 
 describe('SecurityRail', () => {
   it('renders all three gate names', () => {
-    render(<SecurityRail gates={baseGates} actClaim={null} tokenEvents={[]} onReplay={vi.fn()} />);
+    render(<SecurityRail gates={baseGates} actClaim={null} onReplay={vi.fn()} />);
     expect(screen.getByText('AuthN: MFA Required')).toBeTruthy();
     expect(screen.getByText('Gateway: Token Validation')).toBeTruthy();
     expect(screen.getByText('PingOne Authorize')).toBeTruthy();
   });
 
   it('renders gate statuses', () => {
-    render(<SecurityRail gates={baseGates} actClaim={null} tokenEvents={[]} onReplay={vi.fn()} />);
+    render(<SecurityRail gates={baseGates} actClaim={null} onReplay={vi.fn()} />);
     expect(screen.getByText('PERMIT')).toBeTruthy();
     expect(screen.getByText('CHECKING…')).toBeTruthy();
     expect(screen.getByText('WAITING')).toBeTruthy();
   });
 
   it('renders act claim when provided', () => {
-    render(<SecurityRail gates={baseGates} actClaim={baseActClaim} tokenEvents={[]} onReplay={vi.fn()} />);
+    render(<SecurityRail gates={baseGates} actClaim={baseActClaim} onReplay={vi.fn()} />);
     expect(screen.getByText(/alice@demo.ping/)).toBeTruthy();
     expect(screen.getByText(/privilege-ai-7f2a/)).toBeTruthy();
   });
 
-  it('renders token events', () => {
+  it('does not list token events: the movie reel under the studio is the one place for the chain', () => {
     const events = [
       { id: 'e1', label: 'MFA token verified', description: 'acr = urn:acr:mfa', status: 'success' },
-      { id: 'e2', label: 'Personal agent lookup', description: 'agent found', status: 'success' },
+      { id: 'e2', description: 'an event with no label used to render as a blank dot', status: 'success' },
     ];
-    render(<SecurityRail gates={baseGates} actClaim={null} tokenEvents={events} onReplay={vi.fn()} />);
-    expect(screen.getByText('MFA token verified')).toBeTruthy();
-    expect(screen.getByText('Personal agent lookup')).toBeTruthy();
+    const { container } = render(<SecurityRail gates={baseGates} actClaim={null} tokenEvents={events} onReplay={vi.fn()} />);
+    expect(screen.queryByText('MFA token verified')).toBeNull();
+    expect(screen.queryByText('Token Events')).toBeNull();
+    expect(screen.queryByText(/Waiting for agent activity/)).toBeNull();
+    expect(container.textContent).not.toMatch(/blank dot/);
+  });
+
+  it('shows no Replay button when there is no handler (the digital worker studio passes none)', () => {
+    render(<SecurityRail gates={baseGates} actClaim={null} />);
+    expect(screen.queryByRole('button', { name: /Replay/i })).toBeNull();
   });
 
   it('calls onReplay when Replay button clicked', () => {
     const onReplay = vi.fn();
-    render(<SecurityRail gates={baseGates} actClaim={null} tokenEvents={[]} onReplay={onReplay} />);
+    render(<SecurityRail gates={baseGates} actClaim={null} onReplay={onReplay} />);
     fireEvent.click(screen.getByText(/Replay/i));
     expect(onReplay).toHaveBeenCalled();
   });
 
   it('shows "deny" status label for deny gate', () => {
     const gates = [{ ...baseGates[0], status: 'deny' }];
-    render(<SecurityRail gates={gates} actClaim={null} tokenEvents={[]} onReplay={vi.fn()} />);
+    render(<SecurityRail gates={gates} actClaim={null} onReplay={vi.fn()} />);
     expect(screen.getByText('DENY')).toBeTruthy();
   });
 });

@@ -368,7 +368,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         onCancel={() => setRunState((state) => ({ ...state, prompt: false }))}
       />
       {mfaModal}
-      <SecurityRail gates={workloadGates} actClaim={actClaim} tokenEvents={events} />
+      <SecurityRail gates={workloadGates} actClaim={actClaim} />
       {/* The filmstrip's two halves place themselves by grid-area name. */}
       <div className="workload-agents__chain"><TokenChainFilmstrip /></div>
     </div>
@@ -509,7 +509,6 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           <SecurityRail
             gates={replayGates || gates}
             actClaim={actClaim}
-            tokenEvents={events}
             onReplay={handleReplay}
           />
         )}
