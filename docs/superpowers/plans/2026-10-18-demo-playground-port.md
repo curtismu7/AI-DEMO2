@@ -18,7 +18,7 @@
 
 - **In:** the five kit features above, plus the demo-side server endpoints they need (`/backends`, `/revoke`, `/call` JSON-RPC id).
 - **Out:** changing the demo's `oauth-mcp` MCP server auth. It stays as is (`MCP_AUTH_DISABLED=true` by design; gateways own authz). Memory `ai-demo2-id-jag-playground-and-pf-gotchas`.
-- **Out:** a live SAML subject-token path. SAML stays mock-only and labelled `SAML_UNVERIFIED`, as in the kit.
+- **Out (superseded):** a live SAML subject-token path. This port left SAML out; the real path is now built in `2026-10-19-demo-saml-playground.md` (OIDC | SAML toggle, server-signed assertion, PingFederate token exchange).
 - **Out:** new PingFederate objects, unless Open question 1 is answered yes.
 
 ## Gap audit (Task 0, read-only, done first)
