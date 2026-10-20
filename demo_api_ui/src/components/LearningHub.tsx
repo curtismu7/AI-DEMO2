@@ -413,6 +413,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         description: "Two-agent token chain with nested act claims, and the identity-mismatch probe",
         icon: "",
       },
+      {
+        label: "Digital Worker: live run",
+        description: "Assistant vs worker on one page: a governed UC38 run plus an unattended arm-fire-approve cycle",
+        icon: "",
+      },
     ],
   },
   {
@@ -690,6 +695,7 @@ export default function LearningHub() {
         openEdu(EDU.ENTERPRISE_MANAGED_AUTH, "overview"),
       "Agent Kill Switch": () => openEdu(EDU.KILL_SWITCH, "what"),
       "Shadow AI Detector": () => navigate("/ai-gateway/shadow-ai-detector"),
+      "Digital Worker: live run": () => navigate("/digital-worker"),
     },
     "ping-ai-products": {
       "Agent IAM Core": () => navigate("/ai-products/core"),

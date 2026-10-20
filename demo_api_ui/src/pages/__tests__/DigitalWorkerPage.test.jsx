@@ -5,6 +5,8 @@ import { MemoryRouter } from "react-router-dom";
 import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import DigitalWorkerPage from "../DigitalWorkerPage";
 import { INITIAL_EDGES } from "../digitalWorkerDiagram";
+import { PAGE_GUIDES } from "../../config/pageGuides";
+import { lessonCatalog } from "../../learning/lessonCatalog";
 
 // @xyflow/react observes its container's size — jsdom has no ResizeObserver.
 window.ResizeObserver = window.ResizeObserver || class { observe() {} unobserve() {} disconnect() {} };
@@ -74,6 +76,13 @@ describe("DigitalWorkerPage diagram rule", () => {
     localStorage.clear();
     renderPage();
     expect(screen.getByTestId("dw-steps").parentElement.classList.contains("dw-bar")).toBe(true);
+  });
+});
+
+describe("DigitalWorkerPage learning surfaces", () => {
+  it("page guide lists the digital-worker-live lesson and the catalog has it", () => {
+    expect(PAGE_GUIDES["/digital-worker"].lessons).toContain("digital-worker-live");
+    expect(lessonCatalog.some((lesson) => lesson.id === "digital-worker-live")).toBe(true);
   });
 });
 
