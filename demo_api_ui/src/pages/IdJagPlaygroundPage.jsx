@@ -952,7 +952,7 @@ export default function IdJagPlaygroundPage() {
 
         <Step n={4} mode={mode} title="Call the MCP server with the new token" note={text.call}>
           <Lifetime id="token" label="Access token" exp={tokenExp} now={nowMs} again="Request and redeem a new ID-JAG." />
-          <button type="button" className="ijp-btn" onClick={listTools} disabled={!canRun || !redeemed?.token || !!busy}>{busy === "list" ? "Listing…" : "List tools this token can see"}</button>
+          <button type="button" className="ijp-btn ijp-btn--primary" onClick={listTools} disabled={!canRun || !redeemed?.token || !!busy}>{busy === "list" ? "Listing…" : "List tools this token can see"}</button>
           {gateAt("call")}
           {tools && toolList.length > 0 && (
             <div className="ijp-call">
