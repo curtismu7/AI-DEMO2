@@ -4,12 +4,13 @@
  * before the policy re-evaluates to PERMIT.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, STEPUP, AUTHZ } from "../pingStyleStandards";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["Completes MFA"], x: 40, y: 150, detail: "Answers the MFA challenge — push or OTP — on her enrolled device." },
-  { id: "agent", group: "agent", label: "Banking agent", sub: ["Requests transfer"], x: 340, y: 150, detail: "Requests the $600 transfer. Read-only was fine; moving money is not." },
-  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["ACR check"], x: 640, y: 150, detail: "Checks the session's assurance level; not high enough for payments." },
-  { id: "p1", group: "pingone", label: "PingOne", sub: ["MFA", "re-evaluate"], x: 940, y: 150, detail: "Challenges with MFA, upgrades the session, re-evaluates policy." },
+  { id: "agent", group: "agent", label: "Banking agent", sub: ["Requests transfer"], x: 460, y: 150, detail: "Requests the $600 transfer. Read-only was fine; moving money is not." },
+  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["ACR check"], x: 880, y: 150, detail: "Checks the session's assurance level; not high enough for payments." },
+  { id: "p1", group: "pingone", label: "PingOne", sub: ["MFA", "re-evaluate"], x: 1300, y: 150, detail: "Challenges with MFA, upgrades the session, re-evaluates policy." },
 ];
 
 const EDGES = [
@@ -60,11 +61,99 @@ const walk = [
   },
 ];
 
+// Per-step detail. Tokens are decoded MOCK values. The step_up_required error mirrors demo_mcp_gateway/src/index.ts.
+const LOW_ACR = {
+  note: "MOCK delegated token · session below the payments assurance floor",
+  header: { alg: "RS256", typ: "at+jwt" },
+  claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://mcp.ping.demo", scope: "banking:transactions:write", acr: "1", act: { sub: "agent-0001" }, exp: 1790000000 },
+};
+const HIGH_ACR = {
+  note: "MOCK delegated token · after MFA, session upgraded",
+  header: { alg: "RS256", typ: "at+jwt" },
+  claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "https://mcp.ping.demo", scope: "banking:transactions:write", acr: "2", amr: ["pwd", "mfa"], act: { sub: "agent-0001" }, exp: 1790000000 },
+};
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: `Agent chat
+
+{ "prompt": "Move $600 from checking to savings" }
+
+POST /gateway/mcp
+Authorization: Bearer <delegated access token>
+
+{ "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+  "params": { "name": "transfer_funds", "arguments": { "amount": 600, "fromAccountId": "{fromAccountId}", "toAccountId": "{toAccountId}" } } }`,
+      tokens: [LOW_ACR],
+      refs: [RFC(6750, "Bearer token usage"), RFC(8693, "act claim: who is acting for whom")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: `Policy evaluation: session acr=1 < required acr=2 -> step-up obligation (not a deny).
+
+{ "jsonrpc": "2.0", "id": 1,
+  "error": { "code": -32403, "message": "Step-up authentication required",
+    "data": { "error": "step_up_required", "tool": "transfer_funds", "required_scopes": ["<scope>"], "login_required": false } } }
+
+HTTP-transport form: 403 with a WWW-Authenticate step-up challenge.`,
+      tokens: [LOW_ACR],
+      refs: [STEPUP[1], AUTHZ[0]],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: `PingOne MFA challenge for alice-0001 (push or one-time passcode)
+
+The challenge is created by the BFF/PingOne MFA service and delivered to the user's enrolled device; the agent only waits.`,
+      tokens: [],
+      refs: [STEPUP[1]],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: `On the user's enrolled device:
+  approve the push, or enter the one-time passcode.
+
+PingOne records an MFA success bound to this request. The agent cannot answer for Alice.`,
+      tokens: [],
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: `Session upgraded: acr=2, amr includes mfa.
+The retry carries a token minted from the upgraded session.
+
+POST /gateway/mcp
+Authorization: Bearer <delegated access token, acr=2>`,
+      tokens: [HIGH_ACR],
+      refs: [STEPUP[1], RFC(8176, "Authentication Method Reference values (amr)")],
+    },
+  },
+  {
+    beats: [5],
+    detail: {
+      form: `PingOne Authorize re-evaluates: acr=2 satisfies the step-up floor -> PERMIT
+
+{ "jsonrpc": "2.0", "id": 2, "result": { "content": [{ "type": "text", "text": "<transfer receipt>" }] } }`,
+      tokens: [HIGH_ACR],
+      refs: [AUTHZ[0], AUTHZ[1]],
+    },
+  },
+];
+
 export default {
+  pingStyle: true,
   id: "UC7",
   result: { label: "STEP-UP", tone: "warn" },
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };
