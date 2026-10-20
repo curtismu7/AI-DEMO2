@@ -208,6 +208,7 @@
     "/pingfederate-id-jag/playground": "public",
     "/pingfederate-id-jag/playground/diagram/:mode": "public",
     "/pingfederate-id-jag/learn": "public",
+    "/pingfederate-id-jag/inspect": "public",
     "/pingfederate-ai-agent": "public",
     "/aic-token-exchange": "user",
     "/davinci-login-guide": "public",

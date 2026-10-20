@@ -124,6 +124,13 @@ function OverviewContent() {
       </Note>
 
       <Note>
+        <strong>Check any token:</strong> the{' '}
+        <a href="/pingfederate-id-jag/inspect">ID-JAG Inspector</a> (signed-in users) takes a pasted ID token, ID-JAG, access token or SAML
+        assertion, detects what it is and checks it against the IETF draft and the trusted IdPs. It also shows each backend's discovery
+        metadata. Nothing pasted is stored. The kit's live decision log is not available here: oauth-mcp keeps no such record.
+      </Note>
+
+      <Note>
         <strong>OIDC or SAML subject:</strong> in the{' '}
         <a href="/pingfederate-id-jag/playground">ID-JAG Playground</a>, the "PingFederate → oauth-mcp" and
         "PingFederate → PingFederate" modes have an OIDC | SAML toggle. With SAML the BFF signs a SAML 2.0 assertion for the signed-in user and

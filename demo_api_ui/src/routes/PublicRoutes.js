@@ -60,6 +60,7 @@ import PingFederateIdJagImplementationPage from '../pages/PingFederateIdJagImple
 import IdJagPlaygroundPage from '../pages/IdJagPlaygroundPage';
 import IdJagPlaygroundDiagramPage from '../pages/IdJagPlaygroundDiagramPage';
 import IdJagLearnPage from '../pages/IdJagLearnPage';
+import IdJagInspectPage from '../pages/IdJagInspectPage';
 import PingFederateIdJagPage from '../components/PingFederateIdJagPage';
 import PingFederateAiAgentPage from '../pages/PingFederateAiAgentPage';
 import AicTokenExchangePage from '../pages/AicTokenExchangePage';
@@ -394,6 +395,14 @@ export function IdJagLearnPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <IdJagLearnPage />
+    </AppShell>
+  );
+}
+
+export function IdJagInspectPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <IdJagInspectPage />
     </AppShell>
   );
 }

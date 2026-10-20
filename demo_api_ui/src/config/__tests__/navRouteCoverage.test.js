@@ -34,6 +34,7 @@ function navPaths() {
 // their own hub. Keep this list short: a real page belongs in the nav.
 const EXEMPT = new Set([
   '/pingfederate-id-jag/learn', // deep link from the ID-JAG Playground header
+  '/pingfederate-id-jag/inspect', // deep link from the ID-JAG Playground header and Learn
   '/activity',
   '/admin',
   '/admin/walbuy',
