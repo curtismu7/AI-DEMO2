@@ -114,3 +114,24 @@ test('a session from the previous provider is cleared without sending its refres
   expect(next).toHaveBeenCalledTimes(1);
   expect(res.headers['Set-Cookie']).toContain('_auth=');
 });
+
+test('an expired token is refreshed on a route outside the old prefix list (/api/verticals/me)', async () => {
+  // SE 2026-10-20 19:19Z: /api/verticals/*, /api/agent/invoke failed "jwt expired" because refresh
+  // was only mounted on a fixed list of prefixes. The middleware itself is path-agnostic.
+  const original = {
+    oauthTokens: { accessToken: 'expired-access', refreshToken: 'r1', expiresAt: Date.now() - 1000 },
+    oauthType: 'user',
+    oauthProvider: 'pingone',
+    user: { oauthId: 'user-1', oauthProvider: 'pingone_sso' },
+  };
+  const shared = structuredClone(original);
+  oauthUserService.refreshAccessToken.mockResolvedValue({ access_token: 'fresh-access', refresh_token: 'r2', expires_in: 3600 });
+  const req = { ...makeRequest(makeSession(original, shared)), path: '/api/verticals/me', originalUrl: '/api/verticals/me' };
+  const next = jest.fn();
+
+  await refreshIfExpiring(req, makeResponse(), next);
+
+  expect(oauthUserService.refreshAccessToken).toHaveBeenCalledWith('r1');
+  expect(req.session.oauthTokens.accessToken).toBe('fresh-access');
+  expect(next).toHaveBeenCalledTimes(1);
+});
