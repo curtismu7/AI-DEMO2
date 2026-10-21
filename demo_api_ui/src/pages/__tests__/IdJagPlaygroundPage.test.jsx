@@ -513,3 +513,24 @@ describe("ID-JAG playground page", () => {
     expect(await screen.findByTestId("ijp-trusted-signin")).toBeInTheDocument();
   });
 });
+
+describe("ID-JAG playground step 4 availability", () => {
+  const LIST = { name: "List tools this token can see" };
+  const reason = "The MCP gateway on this deployment validates tokens with PingOne only, so tokens from oauth-mcp or PingFederate cannot be listed here.";
+
+  it("shows the reason in one plain line, with no List tools button, when the gateway cannot validate these tokens", async () => {
+    mount(config({ gateway: { step4: { available: false, reason } } }));
+    expect(await screen.findByText(reason)).toBeInTheDocument();
+    expect(screen.getByText("Call the MCP server with the new token")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: LIST.name })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["available", { gateway: { step4: { available: true, reason: null } } }],
+    ["absent (older server)", {}],
+  ])("keeps the List tools button when step 4 is %s", async (_label, over) => {
+    mount(config(over));
+    expect(await screen.findByRole("button", { name: LIST.name })).toBeInTheDocument();
+    expect(screen.queryByText(reason)).not.toBeInTheDocument();
+  });
+});

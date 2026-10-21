@@ -668,6 +668,8 @@ ff_heuristic_enabled:      { public: true, default: 'true'  }, // Fallback to He
   PF_MCP_SERVICE_ACTOR_TOKEN_ENDPOINT_AUTH_METHOD: { public: true, default: 'basic' },
   PF_STANDARD_MCP_ACTOR_SCOPE: { public: true, default: 'mcp:invoke' },
   PF_ID_JAG_ENABLED:             { public: true,  default: 'false' },
+  // ID-JAG playground step 4 (list tools via the MCP gateway). Empty/unset = on; 'false' hides it where the gateway cannot validate the playground's tokens (SE).
+  ID_JAG_PLAYGROUND_STEP4_ENABLED: { public: true, default: '' },
   PF_ID_JAG_AUDIENCE:            { public: true,  default: '' },
   PF_ID_JAG_RESOURCE:            { public: true,  default: '' },
   PF_ID_JAG_SCOPE:               { public: true,  default: '' },
@@ -1342,6 +1344,7 @@ const ENV_FALLBACK_MAP = {
   pf_standard_mcp_actor_scope: ['PF_STANDARD_MCP_ACTOR_SCOPE'],
   pf_token_exchange_token_endpoint_auth_method: ['PF_TOKEN_EXCHANGE_TOKEN_ENDPOINT_AUTH_METHOD'],
   pf_id_jag_enabled:             ['PF_ID_JAG_ENABLED'],
+  id_jag_playground_step4_enabled: ['ID_JAG_PLAYGROUND_STEP4_ENABLED'],
   pf_id_jag_audience:            ['PF_ID_JAG_AUDIENCE'],
   pf_id_jag_resource:            ['PF_ID_JAG_RESOURCE'],
   pf_id_jag_scope:               ['PF_ID_JAG_SCOPE'],

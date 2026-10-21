@@ -11,7 +11,8 @@
  *
  * What it checks (each line is PASS or FAIL; exit code 1 on any FAIL):
  *   per lane and subject: Request ID-JAG answers 200 and the page shows the right audience, Redeem answers 200
- *   step 4 (List tools): either 200, or a 502 that does NOT raise the sign-in dialog or the "session expired" text
+ *   step 4 (List tools): either 200, or a 502 that does NOT raise the sign-in dialog or the "session expired" text,
+ *     or the deployment hides step 4 and shows its one-line reason instead of the button
  *   Inspector: Get an ID-JAG, 0 failed checks, trusted-IdP row, Show token reveals a 3-part JWT, Hide clears it,
  *              Backends starts collapsed, Discovery is not a tab
  * It never prints tokens: only status codes, lengths and the JWT header type.
@@ -120,7 +121,14 @@ async function main() {
           const ok = st === 200 || (st === 502 && dialogs === 0 && !/session has expired/i.test(tt));
           record('step 4 (List tools): no false "session expired"', ok, `status ${st}, dialogs ${dialogs}${st === 502 ? ', PingOne-only note ' + (/validates tokens with PingOne only/.test(tt) ? 'shown' : 'NOT shown') : ''}`);
           await shot(page, 'step4-listtools');
-        } else record('step 4 (List tools): no false "session expired"', false, 'button not available');
+        } else {
+          // The deployment may hide step 4 on purpose (ID_JAG_PLAYGROUND_STEP4_ENABLED=false): one line, no button.
+          const tt = await bodyText(page);
+          const buttonExists = await page.evaluate(() => [...document.querySelectorAll('button')].some((x) => /List tools this token can see/.test((x.innerText || '').trim())));
+          const hidden = tt.match(/The MCP gateway on this deployment validates tokens with PingOne only[^\n]*/);
+          if (!buttonExists && hidden) record('step 4 (List tools): no false "session expired"', true, `step 4 hidden: ${hidden[0].trim()}`);
+          else record('step 4 (List tools): no false "session expired"', false, 'button not available');
+        }
       }
     }
   }
