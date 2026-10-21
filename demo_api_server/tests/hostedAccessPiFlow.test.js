@@ -121,4 +121,12 @@ describe('front-door pi.flow', () => {
     configStore.getOAuthProvider.mockReturnValue('pingfederate');
     expect((await request(app).get('/api/auth/hosted-access/identifier-policy')).body.frontDoorPiFlow).toBe(false);
   });
+
+  test('identifier-policy says the app sign-in unlocks the wall, so the SPA runs ONE login (not front door + app)', async () => {
+    const body = (await request(app).get('/api/auth/hosted-access/identifier-policy')).body;
+    expect(body.appLoginUnlocksWall).toBe(true);
+    // independent of pi.flow: it describes the gate, which honours the app session whatever the login style
+    configStore.getOAuthProvider.mockReturnValue('pingfederate');
+    expect((await request(app).get('/api/auth/hosted-access/identifier-policy')).body.appLoginUnlocksWall).toBe(true);
+  });
 });

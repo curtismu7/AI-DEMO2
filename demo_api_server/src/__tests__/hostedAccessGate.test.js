@@ -83,7 +83,9 @@ describe('hostedAccessGate', () => {
     ['/api/auth/hosted-access/callback/extra', 'GET'],
     ['/api/auth/hosted-access/login', 'POST'],
     ['/api/auth/hosted-access/callback.evil', 'GET'],
-    ['/api/auth/oauth/user/login', 'GET'],
+    // GET /api/auth/oauth/user/login used to be listed here. The app sign-in is now deliberately reachable before the wall
+    // (see 'the app sign-in unlocks the wall' below); the rest of the app auth routes stay gated.
+    ['/api/auth/oauth/user/consent', 'POST'],
     ['/api/auth/hosted-registration/request/extra', 'POST'],
     ['/api/use-cases', 'GET'],
   ])('rejects bypass confusion %s %s', (path, method) => {
@@ -270,5 +272,85 @@ describe('hostedAccessGate OBO MCP endpoint', () => {
   test('other OBO paths and methods stay walled', () => {
     expect(isHostedAccessBypassPath('/api/obo/mcp', 'GET')).toBe(false);
     expect(isHostedAccessBypassPath('/api/obo/downstream', 'GET')).toBe(false);
+  });
+});
+
+// The app's own sign-in unlocks the wall (one login, not two). The user callback already evaluates the wall's policy
+// and stamps hostedAccessApproval on the APP session; the gate used to read only the separate hosted session, so a
+// second, front-door login was needed. These pin the rule: a current approval on an app session with LIVE tokens opens
+// the wall, every near-miss does not, and only the sign-in endpoints are reachable before it.
+describe('hostedAccessGate — the app sign-in unlocks the wall', () => {
+  const policy = { enabled: true };
+  const hasApproval = (s) => Boolean(s && s.hostedAccessApproval);
+  const live = (over = {}) => ({
+    user: { username: 'sam' }, oauthType: 'user', hostedAccessApproval: { v: 1 },
+    oauthTokens: { accessToken: 'real-token', expiresAt: Date.now() + 60_000 }, ...over,
+  });
+  const run = (session, hostedSession) => {
+    const gate = createHostedAccessGate({ policy, hasApproval });
+    const res = response();
+    const next = jest.fn();
+    gate({ method: 'GET', originalUrl: '/api/accounts/my', headers: {}, session, hostedSession }, res, next);
+    return { res, next };
+  };
+
+  test('an approved app session with live tokens opens the wall', () => {
+    expect(run(live()).next).toHaveBeenCalled();
+  });
+
+  test('the hosted session still opens it on its own', () => {
+    expect(run(undefined, { hostedAccessApproval: { v: 1 } }).next).toHaveBeenCalled();
+  });
+
+  test.each([
+    ['no approval on the app session', live({ hostedAccessApproval: undefined })],
+    ['expired tokens', live({ oauthTokens: { accessToken: 'real-token', expiresAt: Date.now() - 1000 } })],
+    ['cookie-only session marker', live({ oauthTokens: { accessToken: '_cookie_session' } })],
+    ['no access token', live({ oauthTokens: {} })],
+    ['no oauthType', live({ oauthType: undefined })],
+    ['an unknown oauthType', live({ oauthType: 'guest' })],
+  ])('stays walled: %s', (_name, session) => {
+    const { res, next } = run(session);
+    expect(next).not.toHaveBeenCalled();
+    expect(res.statusCode).toBe(401);
+  });
+
+  test('the readiness check agrees with the gate', () => {
+    const check = hostedAccessCheck({ policy, hasApproval });
+    const open = response(); check({ session: live(), hostedSession: undefined }, open);
+    expect(open.statusCode).toBe(204);
+    const shut = response(); check({ session: live({ hostedAccessApproval: undefined }), hostedSession: undefined }, shut);
+    expect(shut.statusCode).toBe(401);
+  });
+
+  test.each([
+    ['GET', '/api/auth/oauth/user/login'],
+    ['GET', '/api/auth/oauth/user/callback'],
+    ['GET', '/api/auth/oauth/user/silent-reauth'],
+    ['GET', '/api/auth/oauth/user/status'],
+    ['POST', '/api/auth/oauth/user/pi-flow/credentials'],
+    ['POST', '/api/auth/oauth/user/pi-flow/assertion'],
+    ['POST', '/api/auth/oauth/user/pi-flow/otp'],
+    ['POST', '/api/auth/oauth/user/pi-flow/passwordless'],
+    ['POST', '/api/auth/oauth/user/pi-flow/device'],
+    ['GET', '/api/auth/oauth/user/pi-flow/external'],
+  ])('the sign-in endpoint %s %s is reachable before the wall', (method, path) => {
+    expect(isHostedAccessBypassPath(path, method)).toBe(true);
+    expect(isHostedAccessBypassPath(`${path}?return_to=%2Fx`, method)).toBe(true);
+  });
+
+  test.each([
+    ['POST', '/api/auth/oauth/user/consent'],
+    ['GET', '/api/auth/oauth/user/token-claims'],
+    ['POST', '/api/auth/oauth/user/refresh'],
+    ['POST', '/api/auth/oauth/user/revoke'],
+    ['POST', '/api/auth/oauth/user/id-jag/intent'],
+    ['GET', '/api/auth/oauth/user/logout'],
+    ['GET', '/api/auth/oauth/user/pi-flow/credentials'],
+    ['POST', '/api/auth/oauth/user/login'],
+    ['GET', '/api/auth/oauth/login'],
+    ['POST', '/api/auth/oauth/pi-flow/credentials'],
+  ])('everything else under the app auth routes stays gated: %s %s', (method, path) => {
+    expect(isHostedAccessBypassPath(path, method)).toBe(false);
   });
 });

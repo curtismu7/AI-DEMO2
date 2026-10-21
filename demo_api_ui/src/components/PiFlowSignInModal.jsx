@@ -126,6 +126,9 @@ export default function PiFlowSignInModal() {
   // Front door: the wall is on and pi.flow can run (identifier-policy says so). `frontDoorRef` = THIS open is the
   // front-door password step; the app sign-in follows once the hosted /callback has approved the browser.
   const frontDoorOnRef = useRef(false);
+  // The BFF gate honours the approval the app sign-in stamps (identifier-policy appLoginUnlocksWall), so the front door is
+  // skipped and the user signs in ONCE, at the app. Without it the front door runs first and the app sign-in follows.
+  const appUnlocksWallRef = useRef(false);
   const frontDoorRef = useRef(false);
   const [frontDoor, setFrontDoor] = useState(false);
   const cibaEnabledRef = useRef(false); // ciba_login_enabled; off = no choice screen (pre-CIBA behaviour)
@@ -179,6 +182,7 @@ export default function PiFlowSignInModal() {
             allowedIdentifiers: Array.isArray(body.allowedIdentifiers) ? body.allowedIdentifiers : [],
           };
           frontDoorOnRef.current = body.frontDoorPiFlow === true;
+          appUnlocksWallRef.current = body.appLoginUnlocksWall === true;
           // Signed out of the wall the config read is walled, so the front door is what makes this drivable.
           if (body.frontDoorPiFlow === true) setUserDrivable(true);
         }
@@ -210,7 +214,7 @@ export default function PiFlowSignInModal() {
     keepHintRef.current = Boolean(detail.keepHint);
     frontDoorRef.current = false;
     setFrontDoor(false);
-    if (frontDoorOnRef.current && !detail.resumed && role !== "issuer") {
+    if (frontDoorOnRef.current && !appUnlocksWallRef.current && !detail.resumed && role !== "issuer") {
       // Signed out of the wall? Run the front door in the modal first. Approved (204) or unreachable: carry on
       // with the normal app sign-in. 401 = not approved yet.
       secondFactorRef.current = null;
