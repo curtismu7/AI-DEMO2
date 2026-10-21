@@ -28,7 +28,19 @@ have moved — verify before acting on it.** No secret values are in this file.
 
 ## 0b. New workstream, 2026-10-19: PF-token claims → Cedar (AI policy) via the gateway
 
-**Status: scoped and researched only. Nothing built, nothing changed on the console, no commits.**
+**Status 2026-10-20: investigated read-only and documented; no console or gateway changes.** Deliverables on
+branch `docs/pf-cedar-claims`: `privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md`, a "PF to Cedar" tab on
+`/privilege-mcp-diagrams` (config `privilegePfCedarDiagram.js`, browser-verified: drag, Simulate, Reset, speed),
+both docs indexes. User chose route A (PF behind PingOne) and the doc-first path. **Findings that change the
+plan:** the door trusts only itself; its token is issued by the Privilege-owned PingOne env `0428ba4f`, which
+federates to the demo env `01d89b06`; Privilege `IDProviders` is empty; Cedar has no raw-claims, `act` or
+ID-JAG hook; PF scopes in `context.token.scopes` are UNTESTED (gateway log never prints scopes, and none of
+the last 72 h of calls were policy decisions). **Still open:** route A write (add PF as an external IdP in
+`01d89b06`, needs user OK), a live call to read real `context.token.scopes`, Drive upload of the new doc.
+**Side effect:** one throwaway DCR client `pf-claims-probe` was registered on the `opensearch-hitl` door;
+no delete endpoint found. (Original 2026-10-19 status below, now superseded.)
+
+**Original status (2026-10-19): scoped and researched only. Nothing built, nothing changed on the console, no commits.**
 (Sections 1–3 below are as of 2026-10-14 and are stale; this section is newer.)
 
 **The ask (user, 2026-10-19):** work out how to set up Privilege so that claims in the token

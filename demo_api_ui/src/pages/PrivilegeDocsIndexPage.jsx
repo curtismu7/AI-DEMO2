@@ -559,6 +559,14 @@ const SECTIONS = [
           "What tool policies do when there is more than one: the union model (create adds, expiry silently subtracts, delete subtracts identically, edit-down does nothing), discovery-gating and why the client never sees \"denied\", the four indistinguishable 403s, groups (documented, not reproduced), per-app scope, and when a \"policy problem\" isn't one — every step measured live 2026-10-10.",
       },
       {
+        title: "PF identity in Cedar policies",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md",
+        pdf: null,
+        covers:
+          "Can a PingFederate token claim drive a Cedar AI policy? Measured 2026-10-20: the door trusts only itself, PF is not registered in Privilege, Cedar reads a fixed attribute set (token scopes, group, tool, args, app) and no raw claims, act or ID-JAG. Route A (PF behind PingOne) vs B, the rule templates, Candidate vs Active, and what is measured vs untested. Diagram: AI Agent Gateway diagrams, PF to Cedar tab.",
+      },
+      {
         title: "Agent mode end to end",
         drive: drive("10oribAOVkel4dH7wsE8XQWN0XZUCk9xL"),
         repo: "privilege/AGENT-MODE-END-TO-END.md",

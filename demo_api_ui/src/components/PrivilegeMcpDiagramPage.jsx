@@ -13,6 +13,7 @@ import DiagramExportBar from "./DiagramExportBar";
 import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
 import SequenceFlowDiagram from "./SequenceFlowDiagram";
 import { PMD_ARCH_DIAGRAM, PMD_SEQ_DIAGRAM, PMD_FLOW_DIAGRAM } from "../config/privilegeMcpDiagrams";
+import { PF_CEDAR_DIAGRAM } from "../config/privilegePfCedarDiagram";
 import "./PrivilegeMcpDiagramPage.css";
 import PageHeader from './common/PageHeader';
 
@@ -146,6 +147,12 @@ const TABS = [
     lede: "Every branch the BFF takes: token already in the session or not, WWW-Authenticate header or the PingOne fallback, a good or a failed token exchange, and a refresh when the token is about to expire.",
     ariaLabel: "Privilege MCP auth flow", diagramLabel: "Privilege MCP auth flow diagram",
   },
+  {
+    id: "pfcedar", label: "PF to Cedar", config: PF_CEDAR_DIAGRAM,
+    title: "PingFederate identity to a Cedar policy decision",
+    lede: "Solid arrows were observed on the SE gateway; dashed arrows are the route-A design that is not set up yet. A PF token never reaches the door: PF would sit behind PingOne, and Cedar protects on who the caller resolves to (user, group, tool), not on raw PF claims.",
+    ariaLabel: "PingFederate identity to Cedar policy", diagramLabel: "PingFederate to Cedar policy diagram",
+  },
 ];
 
 export default function PrivilegeMcpDiagramPage() {
@@ -173,11 +180,13 @@ export default function PrivilegeMcpDiagramPage() {
         ))}
       </div>
 
-      <DiagramExportBar
-        source={showUpload ? uploadedSeq : tab.source}
-        sourceFilename={tab.filename}
-        onSourceChange={isSeq ? setUploadedSeq : undefined}
-      />
+      {tab.source && (
+        <DiagramExportBar
+          source={showUpload ? uploadedSeq : tab.source}
+          sourceFilename={tab.filename}
+          onSourceChange={isSeq ? setUploadedSeq : undefined}
+        />
+      )}
 
       <div className="pmd-panel">
         {showUpload ? (

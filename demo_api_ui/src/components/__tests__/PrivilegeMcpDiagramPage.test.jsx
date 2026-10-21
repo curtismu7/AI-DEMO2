@@ -83,4 +83,15 @@ describe('PrivilegeMcpDiagramPage', () => {
     fireEvent.click(screen.getByRole('button', { name: 'Back to the Ping-style diagram' }));
     expect(screen.getByTestId('pmd-seq')).toBeInTheDocument();
   });
+
+  it('the PF to Cedar tab draws the diagram with Simulate, Reset and speed, and no Mermaid export bar', () => {
+    render(<PrivilegeMcpDiagramPage />);
+    expect(screen.getByText(/Download \.mmd/i)).toBeInTheDocument();
+    fireEvent.click(screen.getByRole('button', { name: 'PF to Cedar' }));
+    const d = screen.getByTestId('pmd-pfcedar');
+    expect(within(d).getByText('AI policy (Cedar)')).toBeInTheDocument();
+    expect(within(d).getByRole('button', { name: 'Simulate' })).toBeTruthy();
+    expect(within(d).getByRole('button', { name: /Reset/ })).toBeTruthy();
+    expect(screen.queryByText(/Download \.mmd/i)).toBeNull();
+  });
 });
