@@ -2421,7 +2421,10 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/uhg-chatgpt-mcp-flow"
-                              element={<UhgChatgptMcpFlowPage />}
+                              element={
+                                // Customer architecture: signed-in users only.
+                                loading ? null : user ? <UhgChatgptMcpFlowPage /> : <SignInRequired />
+                              }
                             />
                             <Route
                               path="/personal-agent-dual-gateway"
