@@ -32,6 +32,7 @@ const {
 const {
   getSimulatedRecentDecisions,
   evaluateTransaction: evaluateSimulatedTransaction,
+  evaluateMcpFirstTool: evaluateSimulatedMcpFirstTool,
   getDenyAmountUsd,
   getStepUpAmountUsd,
   getConfirmAmountUsd,
@@ -766,7 +767,44 @@ function _requireWorker(res) {
  * verdict. Powers the Live Policy Console — always calls real PingOne (no
  * simulated fallback). Body: { endpointId: string, parameters: object }
  */
+// Mock mode of the Inspector console: the same Trust Framework parameters, answered by the in-process simulated
+// engine. No PingOne call and no worker credentials. Returns null for a request the simulated engine cannot read.
+async function _evaluateMock(p) {
+  const userId = p.UserId || 'demoUser';
+  if (p.DecisionContext === 'McpFirstTool' || p.DecisionContext === 'McpToolCall' || p.ToolName) {
+    return evaluateSimulatedMcpFirstTool({
+      userId, toolName: p.ToolName, tokenAudience: p.TokenAudience, actClientId: p.ActClientId,
+      mcpResourceUri: p.McpResourceUri, acr: p.Acr, amount: p.Amount ?? null,
+      hitlApproved: p.HitlApproved === true || p.HitlApproved === 'true',
+    });
+  }
+  if (p.Amount != null && p.TransactionType) {
+    return evaluateSimulatedTransaction({ userId, amount: Number(p.Amount), type: p.TransactionType, acr: p.Acr || undefined });
+  }
+  return null;
+}
+
 router.post('/evaluate-endpoint', authenticateToken, async (req, res) => {
+  if (req.body?.mode === 'mock') {
+    const params = req.body.parameters;
+    if (!params || typeof params !== 'object' || Array.isArray(params)) {
+      return res.status(400).json({ error: 'parameters must be an object' });
+    }
+    try {
+      const result = await _evaluateMock(params);
+      if (!result) {
+        return res.status(400).json({ ok: false, error: 'mock_unsupported_request', message: 'The Mock engine answers Transaction and MCP tool requests. Use one of those, or switch to Live.' });
+      }
+      const consent = result.consentRequired || result.hitlRequired || false;
+      return res.json({
+        ok: true, decision: result.decision, stepUpRequired: !!result.stepUpRequired, consentRequired: consent, hitlRequired: consent,
+        engine: 'simulated', path: result.path, decisionId: result.decisionId, endpointId: null, raw: result.raw,
+        ruleName: result.ruleName ?? null, ruleCode: result.ruleCode ?? null, workerTokenCached: false, tokenEvents: [],
+      });
+    } catch (err) {
+      return res.status(500).json({ ok: false, error: 'mock_evaluation_failed', message: err.message });
+    }
+  }
   if (!_requireWorker(res)) return;
 
   const { endpointId, parameters } = req.body || {};

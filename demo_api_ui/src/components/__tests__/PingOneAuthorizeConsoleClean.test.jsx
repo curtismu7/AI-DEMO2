@@ -67,6 +67,34 @@ describe('PingOneAuthorizeConsoleClean', () => {
   });
 });
 
+describe('PingOneAuthorizeConsoleClean Mock | Live', () => {
+  it('defaults to Live and sends no mode', async () => {
+    render(<Harness />);
+    expect(screen.getByRole('button', { name: 'Live' })).toHaveAttribute('aria-pressed', 'true');
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(1));
+    expect(bffAxios.post.mock.calls[0][1]).not.toHaveProperty('mode');
+  });
+
+  it('Mock sends mode:mock, shows the Mock chip, and works with no endpoint', async () => {
+    render(<Harness endpointId="" endpoints={[]} loadState="error" />);
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled(); // Live needs an endpoint
+    fireEvent.click(screen.getByRole('button', { name: 'Mock' }));
+    expect(screen.getByText('Mock', { selector: '.insp-chip' })).toBeInTheDocument();
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(1));
+    expect(bffAxios.post.mock.calls[0][1]).toMatchObject({ mode: 'mock' });
+  });
+
+  it('switching back to Live restores the endpoint requirement', () => {
+    render(<Harness endpointId="" endpoints={[]} />);
+    fireEvent.click(screen.getByRole('button', { name: 'Mock' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Live' }));
+    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+  });
+});
+
 describe('PingOneAuthorizeConsoleClean Vertical select', () => {
   const typeOptions = () => [...screen.getByLabelText('Type').options].map((o) => o.value);
   const toolName = () => screen.getByLabelText('Tool name').value;
