@@ -11,7 +11,9 @@ vi.mock('../../context/ThemeContext', () => ({ useThemeOptional: () => ({ darkMo
 vi.mock('../../utils/signInService', () => ({ openSignIn: vi.fn() }));
 vi.mock('../../components/TokenChainFilmstrip', () => ({ default: () => <div data-testid="filmstrip" /> }));
 vi.mock('../../components/OtpStepUpModal', () => ({ default: ({ show }) => (show ? <div data-testid="mfa-modal" /> : null) }));
-vi.mock('../../services/tokenChainTrace/tokenChainTraceStore', () => ({ tokenChainTraceStore: { beginTrace: vi.fn() } }));
+const traceStore = vi.hoisted(() => ({ beginTrace: vi.fn(), ingestTokenEvent: vi.fn(), ingestAuthorize: vi.fn(), ingestAuthorizeEvaluations: vi.fn(), completeTrace: vi.fn() }));
+vi.mock('../../services/tokenChainTrace/tokenChainTraceStore', () => ({ tokenChainTraceStore: traceStore }));
+vi.mock('../../services/mcpFlowSseClient', () => ({ openMcpFlowSse: vi.fn(() => vi.fn()) }));
 import { openSignIn } from '../../utils/signInService';
 import PersonalAgentLearnPage from '../PersonalAgentLearnPage';
 
@@ -21,7 +23,7 @@ const json = (status, body) => ({ ok: status < 400, status, json: async () => bo
 const renderPage = (user = { email: 'sam@x.com' }) => render(<MemoryRouter><PersonalAgentLearnPage user={user} /></MemoryRouter>);
 const lesson = (name) => screen.getByRole('button', { name: new RegExp(name, 'i') });
 
-beforeEach(() => { mockEvents = []; mockSetTokenEvents.mockClear(); openSignIn.mockClear(); localStorage.clear(); });
+beforeEach(() => { mockEvents = []; Object.values(traceStore).forEach((f) => f.mockClear()); mockSetTokenEvents.mockClear(); openSignIn.mockClear(); localStorage.clear(); });
 afterEach(cleanup);
 
 describe('PersonalAgentLearnPage', () => {
@@ -113,6 +115,54 @@ describe('PersonalAgentLearnPage', () => {
     fireEvent.click(lesson('Run a simple request'));
     await screen.findByText('Done.');
     await waitFor(() => expect(within(screen.getByTestId('gate-mfa')).getByText('Signed in as sam@x.com, and MFA verified.')).toBeTruthy());
+  });
+
+  // The run must be traced end to end: an id on the request so the BFF streams every step (intent, agent token, exchange,
+  // gateway introspection, Authorize, the tool, its result), and a completed trace so the reel does not stop at "in flight".
+  it('sends a flowTraceId with the prompt, starts the trace with that id, and completes it OK on a normal reply', async () => {
+    global.fetch = vi.fn(async () => json(200, { reply: 'You are Gold.', success: true, toolsCalled: ['get_loyalty_status'], tokenEvents: PERMIT }));
+    renderPage();
+    fireEvent.click(lesson('Run a simple request'));
+    await screen.findByText('You are Gold.');
+    const body = JSON.parse(global.fetch.mock.calls.find(([u]) => String(u).includes('/api/agent/invoke'))[1].body);
+    expect(typeof body.flowTraceId).toBe('string');
+    expect(traceStore.beginTrace).toHaveBeenCalledWith({ prompt: 'What is my loyalty status?', flowTraceId: body.flowTraceId });
+    await waitFor(() => expect(traceStore.completeTrace).toHaveBeenCalledWith(true, body.flowTraceId, null));
+  });
+
+  it('a refusal completes the trace as NOT ok with the refusal as the reason', async () => {
+    global.fetch = vi.fn(async () => json(200, { reply: 'Denied: tier ceiling.', success: false, toolsCalled: ['pay_airline_fee'], tokenEvents: DENY }));
+    renderPage();
+    fireEvent.click(lesson('Go over your limit'));
+    await screen.findByText('Denied: tier ceiling.');
+    await waitFor(() => expect(traceStore.completeTrace).toHaveBeenCalledWith(false, expect.any(String), 'Denied: tier ceiling.'));
+  });
+
+  it('feeds the authorize decision from the reply into the trace', async () => {
+    global.fetch = vi.fn(async () => json(200, { reply: 'ok', success: true, toolsCalled: [], tokenEvents: PERMIT, mcpAuthorizeEvaluation: { decision: 'PERMIT' } }));
+    renderPage();
+    fireEvent.click(lesson('Run a simple request'));
+    await screen.findByText('ok');
+    expect(traceStore.ingestAuthorize).toHaveBeenCalledWith({ decision: 'PERMIT' }, expect.any(String));
+  });
+
+  it('a request held for MFA does not complete the trace (it is retried as a new run)', async () => {
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).includes('/api/auth/mfa/challenge')) return json(200, { daId: 'da1', devices: [] });
+      return json(428, { requiresConsent: true, message: 'This needs your approval.' });
+    });
+    renderPage();
+    fireEvent.click(lesson('Ask for something sensitive'));
+    await screen.findByTestId('mfa-modal');
+    expect(traceStore.completeTrace).not.toHaveBeenCalled();
+  });
+
+  it('a failed request completes the trace as not ok', async () => {
+    global.fetch = vi.fn(async () => json(500, { message: 'Boom' }));
+    renderPage();
+    fireEvent.click(lesson('Run a simple request'));
+    await screen.findByText('Boom');
+    await waitFor(() => expect(traceStore.completeTrace).toHaveBeenCalledWith(false, expect.any(String), 'Boom'));
   });
 });
 

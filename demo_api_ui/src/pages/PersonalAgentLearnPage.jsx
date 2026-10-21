@@ -7,7 +7,7 @@ import PageHeader from '../components/common/PageHeader';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 import { useTokenChainOptional } from '../context/TokenChainContext';
 import { useThemeOptional } from '../context/ThemeContext';
-import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
+import { startFlowTracedRun } from '../utils/flowTracedRun';
 import { openSignIn } from '../utils/signInService';
 import { governanceFrom } from '../utils/dotGovernance';
 import { airlineSuggestions } from '../config/dotSuggestions';
@@ -59,13 +59,14 @@ export default function PersonalAgentLearnPage({ user = null }) {
     setErrorText('');
     if (!retry) setMessages((prev) => [...prev, { role: 'user', text }]);
     setMessages((prev) => [...prev, { role: 'agent', typing: true, text: '' }]);
-    tokenChainTraceStore.beginTrace({ prompt: text });
-    setTokenEvents?.(null, []);
+    // Traced end to end: the id makes the BFF stream every step (intent, agent token, exchange, gateway, Authorize, the
+    // tool, its result) to the reel, and settle() completes the trace so it does not stop at "in flight".
+    const run = startFlowTracedRun(text, { setTokenEvents });
     fetch('/api/agent/invoke', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines', agentMode }),
+      body: JSON.stringify({ prompt: text, vertical: 'airlines', agentMode, flowTraceId: run.flowTraceId }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -74,20 +75,22 @@ export default function PersonalAgentLearnPage({ user = null }) {
         return data;
       })
       .then((data) => {
-        if (Array.isArray(data.tokenEvents)) setTokenEvents?.(data.toolsCalled?.[0] || null, data.tokenEvents);
+        run.ingestResponse(data);
         setMessages((prev) => [
           ...prev.filter((m) => !m.typing),
           { role: 'agent', text: data.reply || 'The digital assistant completed the request.', governance: governanceFrom(data) },
         ]);
         // The BFF answers 200 with step_up_required when the sign-in had no MFA.
-        if (data.step_up_required) { setPhase('held'); return; }
+        if (data.step_up_required) { run.abandon(); setPhase('held'); return; }
+        run.settle(data.success !== false, data.success === false ? data.reply : null);
         setPhase('done');
         const lesson = lessonFor(text);
         if (lesson) setDone((prev) => new Set(prev).add(lesson.id));
       })
       .catch((error) => {
         if (error.consent) {
-          // Consent required: PingOne MFA is the approval. Start the challenge now; finishing it asks again.
+          // Consent required: PingOne MFA is the approval. Start the challenge now; finishing it asks again as a NEW run.
+          run.abandon();
           setPhase('held');
           setMessages((prev) => [...prev.filter((m) => !m.typing), { role: 'agent', text: `${error.message} Verify with PingOne MFA to continue.` }]);
           setConsentRetry({ prompt: text });
@@ -99,6 +102,7 @@ export default function PersonalAgentLearnPage({ user = null }) {
           });
           return;
         }
+        run.settle(false, error.message || null);
         setPhase('error');
         setErrorText(error.message || '');
         setMessages((prev) => [...prev.filter((m) => !m.typing), { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' }]);
