@@ -1176,6 +1176,7 @@ export default function AdminSideNav({
         { label: "Personal Agent Design (Node)", path: "/personal-agent-design", icon: "arc" },
         { label: "Personal Agent Dual Gateway (Node)", path: "/personal-agent-dual-gateway", icon: "arc" },
         { label: "Personal Agent Design Review", path: "/personal-agent-review", icon: "log" },
+        { label: "Personal Agent Request Flow", path: "/personal-agent-flow", icon: "arc" },
         { label: "CIMD in Privilege (Node)", path: "/cimd-privilege", icon: "lck" },
         { label: "A2A Architecture (Node)", path: "/a2a-architecture", icon: "arc" },
       ],
@@ -1537,6 +1538,7 @@ export default function AdminSideNav({
       { label: "Target Design", path: "/personal-agent-design", icon: "arc" },
       { label: "Dual Gateway Design", path: "/personal-agent-dual-gateway", icon: "arc" },
       { label: "Design Review", path: "/personal-agent-review", icon: "log" },
+      { label: "Request Flow Diagram", path: "/personal-agent-flow", icon: "arc" },
     ], "agt"),
     productGroup("Digital Worker", [digitalWorkerDiagram], "agt"),
     productGroup("MCP & Integrations", [
