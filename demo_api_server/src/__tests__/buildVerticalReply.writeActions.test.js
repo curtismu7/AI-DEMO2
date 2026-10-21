@@ -55,8 +55,9 @@ describe('buildVerticalReply — write/confirmation actions', () => {
   test('read actions still use the "Here ... your" phrasing', () => {
     expect(buildVerticalReply('list_appointments', { appointments: [{}] }, 'list_appointments', null))
       .toBe('Here are your appointments (1 total).');
+    // An empty list now says so ("Here is your records." was ungrammatical and said nothing about the data).
     expect(buildVerticalReply('view_records', { records: [] }, 'view_records', null))
-      .toBe('Here is your records.');
+      .toBe('You have no records.');
   });
 });
 
