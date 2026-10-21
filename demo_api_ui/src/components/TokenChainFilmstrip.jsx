@@ -73,17 +73,11 @@ function readStoredViewMode() {
   }
 }
 
-// Before any run, the bottom chain has nothing to render — a bare dashed box
-// reads as broken. These are the pipeline stages a live run will fill in,
-// shown empty (no fabricated claims/tokens) purely so the strip isn't blank.
-const PREVIEW_STAGES = [
-  { id: "signin", label: "Sign-in", color: "#f472b6", bg: "rgba(244,114,182,0.14)" },
-  { id: "agent", label: "Banking Agent", color: "#f87171", bg: "rgba(192,132,252,0.14)" },
-  { id: "exchange", label: "Token Exchange", color: "#60a5fa", bg: "rgba(96,165,250,0.14)" },
-  { id: "authorize", label: "Authorize", color: "#fbbf24", bg: "rgba(251,191,36,0.14)" },
-  { id: "mcp", label: "MCP", color: "#34d399", bg: "rgba(52,211,153,0.14)" },
-  { id: "reply", label: "Reply", color: "#94a3b8", bg: "rgba(148,163,184,0.14)" },
-];
+// Before any run, the bottom chain has nothing to render — a bare dashed box reads as broken. It shows the same
+// chain map a run draws, static, with the hops a typical request passes through. Each node is the store's own
+// step with its status forced to "waiting" and its detail dropped, so no claim, token or fact is invented; the
+// live steps replace it as soon as a prompt runs.
+const PREVIEW_STEP_IDS = ["signin", "prompt", "agent", "llm", "agent-token", "exchange", "authorize", "gateway", "mcp", "reply"];
 
 // `emptyState`: optional node shown in the Token Chain panel while no step is selected, in place of the
 // "What this panel shows" intro (the studio page passes the run's token cards here).
@@ -182,6 +176,10 @@ export default function TokenChainFilmstrip({ emptyState = null }) {
     return [...visible, ...(showSkipped ? revealed : [])].map((step, index) => ({ ...step, num: index + 1 }));
   }, [viewMode, classicSteps, trace, showSkipped]);
   const skippedCount = viewMode === "classic" ? 0 : skippedCountRef.current;
+  const previewSteps = useMemo(() => {
+    const typical = classicSteps.filter((step) => PREVIEW_STEP_IDS.includes(step.id));
+    return (typical.length ? typical : classicSteps).map((step, index) => ({ ...step, status: "pending", detail: {}, num: index + 1 }));
+  }, [classicSteps]);
   const isChainRun = steps.some((step) => String(step?.id).startsWith("pa2a-"));
 
   // Clearing a run must drop the selection, the sheet and the presenter, or the
@@ -419,13 +417,8 @@ export default function TokenChainFilmstrip({ emptyState = null }) {
           </summary>
 
           {viewMode === "live" && steps.length === 0 ? (
-            <div className="tcfs-empty-preview">
-              {PREVIEW_STAGES.map((s) => (
-                <div key={s.id} className="tcfs-empty-chip" style={{ borderColor: s.color, background: s.bg }}>
-                  <span className="tcfs-empty-chip-dot" style={{ background: s.color }} />
-                  <span className="tcfs-empty-chip-label">{s.label}</span>
-                </div>
-              ))}
+            <div className="tcfs-track">
+              <TokenChainNodeRail steps={previewSteps} activeId={null} preview />
             </div>
           ) : (
             <div className="tcfs-track">

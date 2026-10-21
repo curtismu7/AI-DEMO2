@@ -195,7 +195,9 @@ function statusFact(step) {
   }
 }
 
-export default function TokenChainNodeRail({ steps, activeId, onSelect, onPresent }) {
+// `preview`: a static picture of the steps a run will fill in (nothing has run). The nodes cannot be selected and
+// the walk-through controls are hidden, so it reads as the reel waiting for a run rather than a broken one.
+export default function TokenChainNodeRail({ steps, activeId, onSelect, onPresent, preview = false }) {
   const [density, setDensity] = useState(readDensity);
   const [speed, setSpeed] = useState(readSpeed);
   const [running, setRunning] = useState(false);
@@ -266,36 +268,40 @@ export default function TokenChainNodeRail({ steps, activeId, onSelect, onPresen
   if (!Array.isArray(steps) || steps.length === 0) return null;
 
   return (
-    <div className="tcnr" data-density={density}>
+    <div className={`tcnr${preview ? " tcnr--preview" : ""}`} data-density={density} data-preview={preview ? "true" : undefined}>
       <div className="tcnr-head">
         <span className="tcnr-title">Chain map</span>
         <span className="tcnr-count">
-          {steps.length} {steps.length === 1 ? "step" : "steps"}
+          {steps.length} {steps.length === 1 ? "step" : "steps"}{preview ? " · fills in when you run a prompt" : ""}
         </span>
 
-        <button
-          type="button"
-          className="tcnr-run"
-          data-state={running ? "running" : "paused"}
-          onClick={toggleRun}
-        >
-          <span className="tcnr-run-ico" aria-hidden="true" />
-          {running ? "Pause" : atEnd ? "Replay" : "Run"}
-        </button>
-        <select
-          className="tcnr-speed"
-          aria-label="Walk-through speed"
-          value={speed}
-          onChange={(e) => setSpeed(Number(e.target.value))}
-        >
-          {SPEEDS.map((s) => (
-            <option key={s.ms} value={s.ms}>
-              {s.label}
-            </option>
-          ))}
-        </select>
+        {!preview && (
+          <button
+            type="button"
+            className="tcnr-run"
+            data-state={running ? "running" : "paused"}
+            onClick={toggleRun}
+          >
+            <span className="tcnr-run-ico" aria-hidden="true" />
+            {running ? "Pause" : atEnd ? "Replay" : "Run"}
+          </button>
+        )}
+        {!preview && (
+          <select
+            className="tcnr-speed"
+            aria-label="Walk-through speed"
+            value={speed}
+            onChange={(e) => setSpeed(Number(e.target.value))}
+          >
+            {SPEEDS.map((s) => (
+              <option key={s.ms} value={s.ms}>
+                {s.label}
+              </option>
+            ))}
+          </select>
+        )}
 
-        {typeof onPresent === "function" ? (
+        {!preview && typeof onPresent === "function" ? (
           <button type="button" className="tcnr-present" onClick={onPresent}>
             Present
           </button>
@@ -334,6 +340,7 @@ export default function TokenChainNodeRail({ steps, activeId, onSelect, onPresen
                 step.id === activeId ? " tcnr-node--sel" : ""
               }`}
               aria-current={step.id === activeId ? "step" : undefined}
+              disabled={preview}
               onClick={() => select(step.id)}
               title={step.title}
             >
