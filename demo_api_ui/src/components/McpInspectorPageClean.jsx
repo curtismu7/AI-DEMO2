@@ -54,8 +54,10 @@ const VERTICAL_SOURCES = ['banking', 'custom'];
 const LOCAL_FALLBACK_NOTE = 'The local fallback only serves banking tools — switch to Banking, or ';
 
 /** Why live discovery fell back to the local catalog, in words — and whether signing in again can fix it. */
-function fallbackReason(reason) {
+function fallbackReason(reason, provider) {
   const r = String(reason || '');
+  // Live tools only work with the PingOne (P1) login today; re-signing in on PingFederate can't change that.
+  if (provider === 'pingfederate') return { text: 'Live tools only work with the PingOne (P1) login, and this session uses PingFederate. An administrator can switch the provider to P1 in the top bar, then sign in again.', relogin: false };
   if (r.startsWith('mcp_unreachable')) return { text: 'The live MCP server could not be reached.', relogin: false };
   if (r.startsWith('no_mcp_bearer')) return { text: 'This session has no MCP token (restored session).', relogin: true };
   // The BFF's own actor client (client-credentials) was refused — signing in again cannot fix that.
@@ -343,7 +345,7 @@ function McpInspectorPageClean() {
       </div>
       {toolsSource === 'local_catalog' && (() => {
         const nonBanking = byVertical && verticalId !== 'banking';
-        const why = fallbackReason(source.toolsReason);
+        const why = fallbackReason(source.toolsReason, source.toolsProvider);
         return (
           <p className="insp-err" role="status">
             {why.text} {nonBanking && LOCAL_FALLBACK_NOTE}

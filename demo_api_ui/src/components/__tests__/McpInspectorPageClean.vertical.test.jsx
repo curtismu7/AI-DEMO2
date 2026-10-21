@@ -153,6 +153,14 @@ describe('MCP Inspector Vertical select', () => {
     sourceState.current = makeSource();
   });
 
+  it('tells a PingFederate session that live tools need the P1 login, with no useless log-in button', () => {
+    sourceState.current = { ...makeSource(), toolsSource: 'local_catalog', toolsReason: 'token_resolve_failed_agent_not_authorized_by_user', toolsProvider: 'pingfederate' };
+    renderAt('/');
+    expect(screen.getByRole('status')).toHaveTextContent('only work with the PingOne (P1) login');
+    expect(screen.queryByRole('button', { name: /log in again/i })).toBeNull();
+    sourceState.current = makeSource();
+  });
+
   it('says why the tool list fell back, and offers no log-in when the server is simply unreachable', () => {
     sourceState.current = { ...makeSource(), toolsSource: 'local_catalog', toolsReason: 'token_resolve_failed_TOKEN_INACTIVE' };
     const { unmount } = renderAt('/');
