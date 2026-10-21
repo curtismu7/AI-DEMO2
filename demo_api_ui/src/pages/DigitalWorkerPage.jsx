@@ -38,7 +38,7 @@ import "./DigitalWorkerPage.css";
 // Digital Worker: editable architecture diagram. Double-click a box or zone to rename it, double-click
 // an arrow to relabel it, select + Delete to remove, drag to move. Edits autosave to this browser only.
 // Bump the version when the built-in layout changes, so browsers holding an older saved copy pick it up.
-const STORE = "digital-worker-diagram-v2";
+const STORE = "digital-worker-diagram-v3";
 const SIDES = [["t", Position.Top], ["r", Position.Right], ["b", Position.Bottom], ["l", Position.Left]];
 
 function Handles() {
