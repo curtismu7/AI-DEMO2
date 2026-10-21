@@ -1989,6 +1989,8 @@ app.get('/.well-known/oauth-client/:clientId', wellKnownHandler);
 // must be able to fetch them). Derived from scope-topology.json at request
 // time. Consumed by the mocked register-by-URL path (PingOne has no CIMD).
 app.use('/api/cimd', require('./routes/cimdAgentMetadata'));
+// "Add a connector to ChatGPT/Claude" sandbox: CIMD client + authorization server + gateway + policy decision (services/connectorSandbox.js).
+app.use('/api/connector-sandbox', require('./routes/connectorSandbox'));
 
 // RFC 9728 — Protected Resource Metadata (public, no authentication required)
 // RFC 9728 metadata for the OBO MCP endpoint (public; must precede the generic handler below).

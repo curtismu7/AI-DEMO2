@@ -121,11 +121,6 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   // 'obo' swaps the chat for the RFC 8693 delegation inspector (deep link: ?tab=obo).
   // 'connector' = the 12-step "add this MCP server to ChatGPT/Claude" flow (deep link: ?tab=connector).
   const [view, setView] = useState(['obo', 'connector'].includes(query.get('tab')) ? query.get('tab') : 'agent');
-  // The connector's sign-in popup lands back here: the BFF already holds the token, so just close the window.
-  useEffect(() => {
-    if (window.opener && window.name === 'pa-connector' && query.get('auth')) window.close();
-    // eslint-disable-next-line react-hooks/exhaustive-deps -- runs once on landing
-  }, []);
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent', 'heuristics');
   // 'stacked' (chat, then the reel and Token Chain under it) or 'cockpit' (chat left; gates, flow, reel and
   // Token Chain right; client dock along the bottom). Deep link ?layout=cockpit; the choice is remembered per browser.

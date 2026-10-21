@@ -2258,11 +2258,6 @@ router.post('/auth/start', express.json(), async (req, res) => {
     // gateway and telling the operator to set Client ID in Settings.
     const authUrl = await beginOAuthFlow(session, req);
     session.pendingAuth.returnTo = sanitizeReturnTo(req.body?.returnTo);
-    traceStep(session, 'authorize', {
-      endpoint: authUrl.origin + authUrl.pathname,
-      params: { ...Object.fromEntries(authUrl.searchParams), state: '(random, kept server-side)' },
-      clientIdentity: session.pendingAuth.publicClient ? 'cimd' : 'dcr',
-    });
     // Force express-session to persist so connect.sid cookie survives the redirect
     req.session.privilegeOAuthStarted = true;
     emitEvent(session, 'oauth', { phase: 'start', authUrl: authUrl.toString() });
@@ -2328,17 +2323,7 @@ router.get('/auth/callback', async (req, res) => {
       throw new Error('OAuth issuer mismatch.');
     }
 
-    const pending = session.pendingAuth;
-    const tokenData = await exchangeAuthorizationCode(pending, code, session.config.clientId);
-    traceStep(session, 'token', {
-      endpoint: pending.tokenUri,
-      request: {
-        grant_type: 'authorization_code', client_id: pending.dcrClientId || session.config.clientId, redirect_uri: pending.redirectUri,
-        code: '(one-time code from the redirect)', code_verifier: '(PKCE verifier, matches the S256 challenge)',
-        client_authentication: pending.publicClient ? 'none (public client, PKCE only)' : 'client_secret_post',
-      },
-      response: { token_type: tokenData.token_type, scope: tokenData.scope || null, expires_in: tokenData.expires_in || null, refresh_token: Boolean(tokenData.refresh_token) },
-    });
+    const tokenData = await exchangeAuthorizationCode(session.pendingAuth, code, session.config.clientId);
 
     session.oauth.accessToken = tokenData.access_token;
     session.oauth.refreshToken = tokenData.refresh_token || null;
@@ -4133,77 +4118,6 @@ router.post('/agent/run', express.json({ limit: '64kb' }), async (req, res) => {
   } catch (err) {
     res.status(relayFailureStatus(err)).json({ error: err.message, steps, trace: [] });
   }
-});
-
-// ---------------------------------------------------------------------------
-// Connector trace — what the Personal Agent page shows for "add this MCP server to ChatGPT/Claude".
-// Steps 1-3 run live here (a real unauthenticated call, then the two discovery documents); steps 4-9 are recorded as
-// /auth/start and /auth/callback really perform them. Nothing in the trace is invented: a step that has not run is absent.
-// ---------------------------------------------------------------------------
-function traceStep(session, key, data) {
-  if (!session.connectorTrace) session.connectorTrace = {};
-  session.connectorTrace[key] = { at: new Date().toISOString(), ...data };
-}
-
-async function probeRequest(url, init) {
-  const started = Date.now();
-  try {
-    const response = await fetch(url, { ...init, redirect: 'manual', signal: AbortSignal.timeout(8000) });
-    const text = await response.text();
-    let body;
-    try { body = JSON.parse(text); } catch { body = text.slice(0, 400); }
-    return { status: response.status, ms: Date.now() - started, wwwAuthenticate: response.headers.get('www-authenticate'), body };
-  } catch (err) {
-    return { error: err.message, ms: Date.now() - started };
-  }
-}
-
-// POST /connector/probe — steps 1-3: tokenless tool call, protected-resource metadata, authorization-server metadata.
-router.post('/connector/probe', express.json(), async (req, res) => {
-  const session = getClientSession(req);
-  const door = session.config.mcpUrl;
-  session.connectorTrace = {};
-  const call = { jsonrpc: '2.0', id: 1, method: 'tools/call', params: { name: String(req.body?.tool || 'tools_probe'), arguments: {} } };
-  const challenge = await probeRequest(toInternalMcpUrl(door), {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json', Accept: 'application/json, text/event-stream' },
-    body: JSON.stringify(call),
-  });
-  traceStep(session, 'challenge', { request: { method: 'POST', url: door, body: call }, response: challenge });
-
-  const metaMatch = /resource_metadata="([^"]+)"/.exec(challenge.wwwAuthenticate || '');
-  const doorUrl = new URL(door);
-  const resourceUrl = metaMatch ? metaMatch[1] : `${doorUrl.origin}/.well-known/oauth-protected-resource${doorUrl.pathname}`;
-  const resource = await probeRequest(toInternalMcpUrl(resourceUrl), { method: 'GET', headers: { Accept: 'application/json' } });
-  traceStep(session, 'resource', { request: { method: 'GET', url: resourceUrl }, response: resource });
-
-  const issuer = (resource.body && typeof resource.body === 'object' && (resource.body.authorization_servers || [])[0]) || null;
-  if (issuer) {
-    const asUrl = `${String(issuer).replace(/\/+$/, '')}/.well-known/oauth-authorization-server`;
-    const as = await probeRequest(toInternalAs(asUrl), { method: 'GET', headers: { Accept: 'application/json' } });
-    traceStep(session, 'as', { request: { method: 'GET', url: asUrl }, response: as });
-  }
-  res.json({ trace: session.connectorTrace });
-});
-
-// GET /connector/trace — everything recorded so far, plus the access token this session holds (the signed-in
-// user's own token, shown on purpose like the inspector's raw tokens).
-router.get('/connector/trace', (req, res) => {
-  const session = getClientSession(req);
-  const value = session.oauth.accessToken || null;
-  let claims = null;
-  if (value && value.split('.').length === 3) {
-    try { claims = JSON.parse(Buffer.from(value.split('.')[1], 'base64url').toString('utf8')); } catch { /* opaque */ }
-  }
-  res.json({
-    trace: session.connectorTrace || {},
-    door: session.config.mcpUrl,
-    clientIdentity: session.clientIdentity,
-    token: value ? {
-      value, kind: claims ? 'jwt' : 'opaque', claims, scope: session.oauth.scope || '',
-      expiresAt: session.oauth.expiresAt, hasRefreshToken: Boolean(session.oauth.refreshToken),
-    } : null,
-  });
 });
 
 module.exports = router;

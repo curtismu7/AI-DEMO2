@@ -74,4 +74,7 @@
 .cf-token { display: flex; gap: 6px; align-items: center; }
 .cf-token__value { flex: 1; min-width: 0; font-size: var(--font-size-3xs); overflow-wrap: anywhere; }
 
+.cf-diagram { border: 1px solid var(--th-border); border-radius: var(--radius-xl); background: var(--th-bg-card); }
+.cf-diagram > summary { padding: 8px 12px; cursor: pointer; font-size: var(--font-size-xs); font-weight: 600; }
+
 @media (max-width: 900px) { .cf { grid-template-columns: minmax(0, 1fr); } }
