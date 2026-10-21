@@ -64,3 +64,7 @@
 .af-outcome { margin: 0.5rem 0 0; padding: 0.6rem 0.9rem; border-radius: var(--radius-md); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
 .af-outcome--ok { background: #e6f7ee; color: #14532d; border: 1px solid #3ddc97; }
 .af-outcome--block { background: #fdeaea; color: #8a0b0c; border: 1px solid #d20e0f; }
+
+.af-vertical { display: inline-flex; align-items: center; gap: 0.5rem; margin: 0 0 0.75rem; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.af-vertical select { padding: 0.35rem 0.6rem; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); color: var(--th-text); font: inherit; }
+.af-vertical select:focus-visible { outline: 2px solid var(--color-info); outline-offset: 2px; }
