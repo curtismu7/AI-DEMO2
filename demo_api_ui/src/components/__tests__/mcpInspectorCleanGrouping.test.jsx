@@ -4,16 +4,15 @@ import { MemoryRouter } from 'react-router-dom';
 import { describe, it, expect, vi, beforeEach } from 'vitest';
 
 /**
- * The grouped tool tree.
+ * The grouped tools table.
  *
- * Gateway Showcase puts TWO third-party servers behind one tab, so the tree has
+ * Gateway Showcase puts TWO third-party servers behind one tab, so the table has
  * to say which server each tool came from — an ungrouped list of
  * `get_weather, brave_news_search, get_forecast` tells you nothing about which
- * door the gateway would open.
+ * door the gateway would open. It does that with a Group column.
  *
- * The other five sources have no `groupBy` and must keep rendering exactly as
- * they did: a flat list with no headings. That is the regression these two
- * tests guard, in both directions.
+ * The other sources have no `groupBy` and get no Group column. That is the
+ * regression these two tests guard, in both directions.
  */
 
 const sourceState = { current: null };
@@ -71,8 +70,8 @@ const renderPage = () =>
 
 beforeEach(() => vi.clearAllMocks());
 
-describe('grouped tool tree', () => {
-  it('shows a heading per server and every tool under it', () => {
+describe('grouped tools table', () => {
+  it('shows a Group column naming each tool\'s server', () => {
     sourceState.current = makeSource({
       groupBy: 'serverLabel',
       tools: [
@@ -83,24 +82,26 @@ describe('grouped tool tree', () => {
     });
     renderPage();
 
-    expect(screen.getByRole('group', { name: 'Weather MCP' })).toBeInTheDocument();
-    expect(screen.getByRole('group', { name: 'Brave Search MCP' })).toBeInTheDocument();
+    expect(screen.getByRole('columnheader', { name: 'Group' })).toBeInTheDocument();
     for (const t of ['get_weather', 'get_forecast', 'brave_news_search']) {
-      expect(screen.getByRole('option', { name: t })).toBeInTheDocument();
+      expect(screen.getByRole('button', { name: t })).toBeInTheDocument();
     }
+    const rowOf = (name) => screen.getByRole('button', { name }).closest('tr');
+    expect(rowOf('get_weather')).toHaveTextContent('Weather MCP');
+    expect(rowOf('brave_news_search')).toHaveTextContent('Brave Search MCP');
   });
 
-  it('renders a source WITHOUT groupBy as a flat list, no headings', () => {
-    // The over-correction to guard: grouping must not leak into the other five
+  it('renders a source WITHOUT groupBy as a plain table, no Group column', () => {
+    // The over-correction to guard: grouping must not leak into the other
     // sources, which have no server dimension at all.
     sourceState.current = makeSource({
       groupBy: null,
       tools: [{ name: 'get_my_accounts' }, { name: 'create_transfer' }],
     });
-    const { container } = renderPage();
+    renderPage();
 
-    expect(screen.getByRole('option', { name: 'get_my_accounts' })).toBeInTheDocument();
-    expect(container.querySelector('optgroup')).toBeNull();
+    expect(screen.getByRole('button', { name: 'get_my_accounts' })).toBeInTheDocument();
+    expect(screen.queryByRole('columnheader', { name: 'Group' })).toBeNull();
   });
 
   it('offers Gateway showcase as a server', () => {
