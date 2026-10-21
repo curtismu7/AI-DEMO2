@@ -56,7 +56,7 @@ const pendingIdJagRuns = new Map();
 const _isProd = () => !!(process.env.REPL_ID || process.env.REPLIT_DEPLOYMENT || process.env.NODE_ENV === 'production');
 
 /**
- * Same-origin SPA path only — used after customer OAuth to return to landing page instead of /dashboard.
+ * Same-origin SPA path (optional simple query) only — used after customer OAuth to return to landing page instead of /dashboard.
  * @param {unknown} raw
  * @returns {string|null}
  */
@@ -64,7 +64,8 @@ function sanitizePostLoginReturnPath(raw) {
   if (raw == null || typeof raw !== 'string') return null;
   const t = raw.trim();
   if (!t.startsWith('/') || t.startsWith('//') || t.length > 160) return null;
-  if (!/^[/a-zA-Z0-9._~-]+$/.test(t)) return null;
+  // Path, plus an optional plain query (so ?verticalId=… survives sign-in). No '#', no encoded or nested URLs.
+  if (!/^[/a-zA-Z0-9._~-]+(\?[a-zA-Z0-9._~=&,-]*)?$/.test(t)) return null;
   return t;
 }
 

@@ -202,7 +202,7 @@ export default function PiFlowSignInModal() {
     return !allowedIdentifiers.some((id) => String(id).trim().toLowerCase() === value);
   };
   const begin = useCallback((detail) => {
-    const target = detail.returnTo?.split("?")[0]; // BFF rejects query strings; keep the bare path
+    const target = detail.returnTo?.split("#")[0]; // the BFF takes a path + simple query; a hash never reaches the server
     const role = detail.role === "admin" ? "admin" : detail.role === "issuer" ? "issuer" : "customer";
     returnToRef.current = target;
     roleRef.current = role;
@@ -284,7 +284,7 @@ export default function PiFlowSignInModal() {
       try {
         if (frontDoorRef.current) {
           // Front door: only pi_flow + the page to come back to; no force/mfa/passwordless here.
-          const fd = new URLSearchParams({ pi_flow: "1", return_to: target || "/" });
+          const fd = new URLSearchParams({ pi_flow: "1", return_to: (target || "/").split("?")[0] }); // front door accepts a bare path only
           const r = await fetch(`${apiBase()}${FRONT_DOOR_API}/login?${fd}`, { credentials: "include" });
           if (!r.ok) throw new Error("front door pi.flow unavailable");
           setBusy(false);
