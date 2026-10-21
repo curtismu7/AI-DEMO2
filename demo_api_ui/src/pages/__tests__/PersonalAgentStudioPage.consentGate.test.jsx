@@ -100,3 +100,15 @@ describe('PersonalAgentStudioPage consentGate + gateway approval', () => {
     expect(invokeCalls(fetchMock)).toHaveLength(1);
   });
 });
+
+describe('PersonalAgentStudioPage reelEmptyState', () => {
+  it('replaces the long Token Chain intro when a page passes its own line', () => {
+    renderStudio({ reelEmptyState: <p>Run it to see each hop.</p> });
+    expect(screen.getByText('Run it to see each hop.')).toBeTruthy();
+    expect(screen.queryByText('What this panel shows')).toBeNull();
+  });
+  it('keeps the intro by default', () => {
+    renderStudio();
+    expect(screen.getByText('What this panel shows')).toBeTruthy();
+  });
+});
