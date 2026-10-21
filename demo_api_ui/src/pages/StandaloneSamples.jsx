@@ -14,13 +14,26 @@
 // sits above the router, so the --th-* tokens still resolve here and dark mode
 // keeps working. Nothing about the chrome was carrying the theme.
 
-import { useEffect } from "react";
+import { Suspense, lazy, useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { SAMPLE_APPS, getSampleApp } from "../data/sampleApps";
 import SampleAppPage from "./SampleAppPage";
 import M2mCredentialsSamplePage from "./M2mCredentialsSamplePage";
 import "./StandaloneSamples.css";
+
+// Standalone demos that are not PingOne sample apps. Lazy, so the Cedar engine (wasm) loads only on /standalone/cedar.
+const CedarDemoPage = lazy(() => import("./CedarDemoPage"));
+const STANDALONE_DEMOS = [
+  {
+    id: "cedar",
+    label: "Cedar demo",
+    to: "/standalone/cedar",
+    tagline:
+      "A real Cedar policy engine in your browser: pick a caller and a tool call, edit the policies, and see allow, deny or hold. Built on PingFederate-style token claims and Privilege's AI Policies vocabulary.",
+    meta: "runs in the browser · no tenant needed · read-only",
+  },
+];
 
 // Samples whose "open the live runner" button has a standalone twin. Only the
 // M2M runner is a page of its own; the other runners are embedded in their
@@ -69,6 +82,15 @@ function StandaloneShell({ children, current }) {
               {a.label}
             </Link>
           ))}
+          {STANDALONE_DEMOS.map((d) => (
+            <Link
+              key={d.id}
+              to={d.to}
+              className={d.id === current ? "st-link st-on" : "st-link"}
+            >
+              {d.label}
+            </Link>
+          ))}
         </nav>
         <button
           type="button"
@@ -109,6 +131,16 @@ export function StandaloneIndex() {
                   : "runs live, needs a real inbox"}
                 {a.writes ? " · creates tenant resources" : " · read-only"}
               </span>
+            </Link>
+          ))}
+        </div>
+        <h2 className="st-section">Demos</h2>
+        <div className="st-cards">
+          {STANDALONE_DEMOS.map((d) => (
+            <Link key={d.id} className="st-card" to={d.to}>
+              <h2>{d.label}</h2>
+              <p>{d.tagline}</p>
+              <span className="st-card-meta">{d.meta}</span>
             </Link>
           ))}
         </div>
@@ -167,6 +199,19 @@ export function StandaloneRunnerShell() {
   return (
     <StandaloneShell current="m2m-credentials">
       <M2mCredentialsSamplePage />
+    </StandaloneShell>
+  );
+}
+
+// /standalone/cedar: the Cedar policy demo. Its own route, ahead of /standalone/:sampleId, which would otherwise
+// answer "Unknown sample". Suspense because the page (and the wasm engine behind it) is lazy.
+export function StandaloneCedarShell() {
+  useStandaloneTitle("Cedar policy demo");
+  return (
+    <StandaloneShell current="cedar">
+      <Suspense fallback={<p className="st-lede">Loading the Cedar demo…</p>}>
+        <CedarDemoPage />
+      </Suspense>
     </StandaloneShell>
   );
 }

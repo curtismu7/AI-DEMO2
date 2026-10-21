@@ -376,6 +376,7 @@
     "/standalone": "public",
     "/standalone/:sampleId": "public",
     "/standalone/runner/m2m": "public",
+    "/standalone/cedar": "public",
     "/telemetry": "public",
     "/themes": "public",
     "/token-compliance": "user",

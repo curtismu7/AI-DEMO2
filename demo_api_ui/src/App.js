@@ -274,6 +274,7 @@ import PublicRoutes, {
   StandaloneIndexRoute,
   StandaloneSampleRoute,
   StandaloneRunnerRoute,
+  StandaloneCedarRoute,
   SampleM2mPageRoute,
   SampleCustomAdminRolePageRoute,
   SampleUserRegistrationPageRoute,
@@ -885,6 +886,10 @@ function AppWithAuth() {
                 <Route
                   path="/standalone/runner/m2m"
                   element={<StandaloneRunnerRoute />}
+                />
+                <Route
+                  path="/standalone/cedar"
+                  element={<StandaloneCedarRoute />}
                 />
                 <Route
                   path="/standalone/:sampleId"
