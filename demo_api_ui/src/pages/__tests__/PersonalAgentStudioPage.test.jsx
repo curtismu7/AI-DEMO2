@@ -211,6 +211,16 @@ describe('PersonalAgentStudioPage', () => {
     expect(rule('.pas-shell--bare')).not.toContain('176px');
   });
 
+  it('cockpit flows at its natural height: sticky chat, pinned dock, no fixed-height squeeze of the right column', () => {
+    // A fixed-height grid gave the right column ~200px on a laptop, clipping the reel and token detail.
+    const body = (selector) => { const i = css.indexOf(selector + ' {'); return i < 0 ? '' : css.slice(i, css.indexOf('}', i)); };
+    const grid = css.split('.pas-shell--cockpit {').map((chunk) => chunk.slice(0, chunk.indexOf('}'))).find((chunk) => chunk.includes('grid-template-rows'));
+    expect(body('.pas-shell--cockpit > .pas-c-chat')).toContain('position: sticky');
+    expect(body('.pas-shell--cockpit > .personal-agent-client-dock')).toContain('position: sticky');
+    expect(grid).toContain('height: auto');
+    expect(grid).not.toContain('minmax(0, 1fr);');
+  });
+
   describe('layout switch (Stacked | Cockpit)', () => {
     beforeEach(() => { window.localStorage.removeItem('pas-layout'); });
     const shell = () => screen.getByTestId('studio-shell');

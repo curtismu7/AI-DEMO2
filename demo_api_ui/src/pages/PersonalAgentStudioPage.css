@@ -55,11 +55,17 @@
   color: var(--th-text);
 }
 
+/* Cockpit: the chat stays in view (sticky) on the left while the right column flows at its natural height and
+   the page scrolls, so the gates, reel and token detail are never squeezed into whatever a short window leaves over
+   (a fixed-height grid gave the right column ~200px on a laptop). The client dock is pinned to the bottom edge. */
 .pas-shell--cockpit {
   display: grid;
   grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
   /* header, gates, flow disclosure, reel + Token Chain, dock */
-  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+  grid-template-rows: auto auto auto auto auto;
+  height: auto;
+  min-height: calc(100vh / var(--app-zoom, 1) - 176px);
+  overflow: visible;
 }
 
 .pas-shell--cockpit > .pas-c-header { grid-column: 1 / -1; grid-row: 1; }
@@ -67,24 +73,44 @@
 .pas-shell--cockpit > .pas-c-chat {
   grid-column: 1;
   grid-row: 2 / 5;
-  min-height: 0;
+  align-self: start;
+  position: sticky;
+  /* below the app's fixed top bar, or the chat's own header slides underneath it while you scroll */
+  top: calc(112px / var(--app-zoom, 1));
+  height: calc(100vh / var(--app-zoom, 1) - 300px);
+  min-height: 420px;
   border-right: 1px solid var(--th-border);
 }
 
 .pas-shell--cockpit > .pas-c-gates { grid-column: 2; grid-row: 2; }
 .pas-shell--cockpit > .pas-c-flow { grid-column: 2; grid-row: 3; }
 
-/* The reel + Token Chain fill the rest of the right column and scroll inside it. Three classes
-   so this beats the stacked variant's own max-height. */
+/* The reel + Token Chain are a plain block in the right column (no sticky pin, no cap, no inner scroll).
+   Three classes so this beats the stacked variant's own max-height. */
 .pas-shell--cockpit > .pas-c-reel.tcfs-float-host.tcfs-float-host--stacked {
   grid-column: 2;
   grid-row: 4;
+  position: static;
   min-height: 0;
   max-height: none;
-  overflow: auto;
+  overflow: visible;
 }
 
-.pas-shell--cockpit > .personal-agent-client-dock { grid-column: 1 / -1; grid-row: 5; }
+.pas-shell--cockpit > .personal-agent-client-dock {
+  grid-column: 1 / -1;
+  grid-row: 5;
+  position: sticky;
+  bottom: 0;
+  z-index: 5;
+}
+
+/* The right column is about 850px wide, so the Token Chain intro (a 3-column row in the full-width stacked
+   page) reads as one column here instead of three cramped ones. */
+.pas-shell--cockpit .tcfs-float-host--stacked .tcfs-spotlight-intro { grid-template-columns: minmax(0, 1fr); }
+.pas-shell--cockpit .tcfs-float-host--stacked .tcfs-spotlight-intro-title,
+.pas-shell--cockpit .tcfs-float-host--stacked .tcfs-spotlight-intro-list,
+.pas-shell--cockpit .tcfs-float-host--stacked .tcfs-spotlight-intro-value,
+.pas-shell--cockpit .tcfs-float-host--stacked .tcfs-spotlight-intro-cta { grid-column: 1; grid-row: auto; }
 
 /* The chat fills the whole left column instead of stopping at its content height. */
 .pas-shell--cockpit .agent-client-skin { height: 100%; }
@@ -96,7 +122,8 @@
     overflow-y: auto;
   }
 
-  .pas-shell--cockpit > .pas-c-chat { min-height: 420px; border-right: 0; }
+  .pas-shell--cockpit > .pas-c-chat { position: static; height: auto; min-height: 420px; border-right: 0; }
+  .pas-shell--cockpit > .personal-agent-client-dock { position: static; }
 }
 
 .pas-c-chat { min-height: 320px; }
