@@ -259,6 +259,9 @@ function explain(e, resource) {
   if (/intent_mismatch/i.test(text)) {
     return `The gateway's intent policy refused this call: ${e.gatewayMessage || e.message}. The token's intent does not cover this tool; call a tool that matches what the token was issued for.`;
   }
+  if (e.gatewayStatus && /TOKEN_INACTIVE|login_required/i.test(text)) {
+    return "The MCP gateway validates tokens with PingOne only. This token came from the oauth-mcp / PingFederate authorization server, so the gateway cannot confirm it. The ID-JAG exchange (steps 1-3) is not affected.";
+  }
   if (/already (been )?(used|redeemed)|replay|jti.*(used|seen)/i.test(text)) {
     return "This ID-JAG was already redeemed, and each one is single-use. Request a new ID-JAG (step 2), then redeem that one.";
   }
