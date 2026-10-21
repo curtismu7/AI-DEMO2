@@ -118,10 +118,10 @@ describe('PersonalAgentStudioPage', () => {
       return <button onClick={() => navigate('/personal-agent?useCase=UC44&vertical=banking')}>Change query</button>;
     }
     render(<MemoryRouter initialEntries={['/personal-agent?useCase=UC38&vertical=sporting-goods']}><ChangeQuery /><PersonalAgentStudioPage /></MemoryRouter>);
-    expect(await screen.findByRole('button', { name: 'Run UC38 action' })).toBeTruthy();
+    expect(await screen.findByRole('button', { name: 'Run rental extension' })).toBeTruthy();
     fireEvent.click(screen.getByRole('button', { name: 'Change query' }));
     expect(apiClient.get).toHaveBeenCalledWith('/api/use-cases/UC44?vertical=banking');
-    expect(screen.queryByRole('button', { name: 'Run UC38 action' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'Run rental extension' })).toBeNull();
     expect(screen.queryByText('extend my rental $600')).toBeNull();
     resolveSecond({ data: { useCase: { id: 'UC44', title: 'Customer read', useCaseId: 'workload-digital-assistant-obo', primaryTool: 'get_account_balance', runPrompt: 'show my balance' } } });
     expect(await screen.findByRole('button', { name: 'Run UC44 action' })).toBeTruthy();
