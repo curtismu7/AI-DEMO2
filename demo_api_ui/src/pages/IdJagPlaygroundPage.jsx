@@ -266,7 +266,8 @@ function explain(e, resource) {
   if (/already (been )?(used|redeemed)|replay|jti.*(used|seen)/i.test(text)) {
     return "This ID-JAG was already redeemed, and each one is single-use. Request a new ID-JAG (step 2), then redeem that one.";
   }
-  if (/expired/i.test(text)) return "It expired: ID-JAGs live about 5 minutes. Request a new ID-JAG (step 2) and redeem it (step 3).";
+  // A message that rules expiry out ("not an expired session") must not trigger the expiry hint.
+  if (/expired/i.test(text.replace(/\bnot (?:an? )?expired\b/gi, ""))) return "It expired: ID-JAGs live about 5 minutes. Request a new ID-JAG (step 2) and redeem it (step 3).";
   return null;
 }
 
