@@ -149,7 +149,7 @@ spec:
             # 500m, was 750m: the BFF idles near 70m, and on 2026-10-04 a 750m request was the
             # difference between scheduling and "0/27 Insufficient cpu" on the shared SE cluster
             # (maxSurge 0, so a restart needs the slot back). Bursts are covered by the limit.
-            cpu: "500m"
+            cpu: "490m"
           limits:
             memory: "2Gi"
             cpu: "2000m"
@@ -203,7 +203,7 @@ spec:
         resources:
           requests:
             memory: "96Mi"
-            cpu: "25m"
+            cpu: "10m"
           limits:
             memory: "256Mi"
             cpu: "250m"
