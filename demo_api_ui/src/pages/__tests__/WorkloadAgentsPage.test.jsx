@@ -26,6 +26,13 @@ vi.mock('../../context/TokenChainContext', () => ({ useTokenChainOptional: () =>
 
 import apiClient from '../../services/apiClient';
 
+// The run now carries a random flowTraceId (so the BFF can stream this run's authorize decision and tool result).
+const withFlowTrace = (body) => {
+  const head = JSON.stringify(body).slice(0, -1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return expect.stringMatching(new RegExp(`^${head},"flowTraceId":"[^"]+"}$`));
+};
+
+
 function renderPage(route = '/workload-agents?useCase=UC38&vertical=sporting-goods', activeId = null, user = null) {
   return render(<MemoryRouter initialEntries={[route]}><VerticalContext.Provider value={{ activeId }}><WorkloadAgentsPage user={user} /></VerticalContext.Provider></MemoryRouter>);
 }
@@ -101,7 +108,7 @@ describe('WorkloadAgentsPage', () => {
     const action = await screen.findByRole('button', { name: /Run this demo: UC44/i });
     fireEvent.click(action);
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'my gear', vertical: 'sporting-goods', useCaseId: 'workload-digital-assistant-obo', agentMode: 'heuristics' }),
+      body: withFlowTrace({ prompt: 'my gear', vertical: 'sporting-goods', useCaseId: 'workload-digital-assistant-obo', agentMode: 'heuristics' }),
     })));
     expect(screen.getByText(/UC44.*Super Sports.*list_gear/)).toBeTruthy();
   });
@@ -110,7 +117,7 @@ describe('WorkloadAgentsPage', () => {
     renderPage();
     fireEvent.click(await screen.findByRole('button', { name: /Run this demo: UC38/i }));
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge', agentMode: 'heuristics' }),
+      body: withFlowTrace({ prompt: 'extend my rental $600', vertical: 'sporting-goods', useCaseId: 'personal-agent-concierge', agentMode: 'heuristics' }),
     })));
   });
 
@@ -127,7 +134,7 @@ describe('WorkloadAgentsPage', () => {
     expect(screen.queryByText('list_gear')).toBeNull();
     fireEvent.click(screen.getByRole('button', { name: /Run this demo: UC44/i }));
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'show my balance', vertical: 'banking', useCaseId: 'workload-digital-assistant-obo', agentMode: 'heuristics' }),
+      body: withFlowTrace({ prompt: 'show my balance', vertical: 'banking', useCaseId: 'workload-digital-assistant-obo', agentMode: 'heuristics' }),
     })));
   });
 });

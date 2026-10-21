@@ -19,6 +19,13 @@ import PersonalAgentStudioPage from '../PersonalAgentStudioPage';
 import css from '../PersonalAgentStudioPage.css?raw';
 import apiClient from '../../services/apiClient';
 
+// The run now carries a random flowTraceId (so the BFF can stream this run's authorize decision and tool result).
+const withFlowTrace = (body) => {
+  const head = JSON.stringify(body).slice(0, -1).replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
+  return expect.stringMatching(new RegExp(`^${head},"flowTraceId":"[^"]+"}$`));
+};
+
+
 const renderStudio = (url = '/') => render(
   <MemoryRouter initialEntries={[url]}>
     <PersonalAgentStudioPage />
@@ -85,7 +92,7 @@ describe('PersonalAgentStudioPage', () => {
     vi.stubGlobal('fetch', vi.fn().mockResolvedValue({ ok: true, json: async () => ({ reply: 'Read complete.' }) }));
     render(<MemoryRouter><PersonalAgentStudioPage scenario={{ id: 'UC44', useCaseId: 'workload-digital-assistant-obo', primaryTool: 'list_gear', runPrompt: 'my gear' }} vertical="sporting-goods" runNonce={1} /></MemoryRouter>);
     await waitFor(() => expect(fetch).toHaveBeenCalledWith('/api/agent/invoke', expect.objectContaining({
-      body: JSON.stringify({ prompt: 'my gear', vertical: 'sporting-goods', useCaseId: 'workload-digital-assistant-obo', agentMode: 'heuristics' }),
+      body: withFlowTrace({ prompt: 'my gear', vertical: 'sporting-goods', useCaseId: 'workload-digital-assistant-obo', agentMode: 'heuristics' }),
     })));
     expect(screen.queryByRole('textbox')).toBeNull();
     expect(await screen.findByText('Read complete.')).toBeTruthy();

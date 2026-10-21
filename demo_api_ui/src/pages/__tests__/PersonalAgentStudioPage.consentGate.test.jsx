@@ -112,3 +112,20 @@ describe('PersonalAgentStudioPage reelEmptyState', () => {
     expect(screen.getByText('What this panel shows')).toBeTruthy();
   });
 });
+
+describe('PersonalAgentStudioPage proof evidence', () => {
+  it('sends a flowTraceId, feeds the authorize decision to the trace, and completes it', async () => {
+    const authorize = vi.spyOn(tokenChainTraceStore, 'ingestAuthorize');
+    const complete = vi.spyOn(tokenChainTraceStore, 'completeTrace');
+    fetchMock.mockImplementation((url) => Promise.resolve(url === '/api/agent/invoke'
+      ? { ok: true, status: 200, json: async () => ({ success: true, reply: 'Paid.', mcpAuthorizeEvaluation: { decision: 'PERMIT' } }) }
+      : { ok: false, status: 401, json: async () => ({}) }));
+    renderStudio();
+    fireEvent.click(screen.getByRole('button', { name: 'Run tuition payment' }));
+    expect(await screen.findByText('Paid.')).toBeTruthy();
+    const { flowTraceId } = JSON.parse(invokeCalls(fetchMock)[0][1].body);
+    expect(flowTraceId).toMatch(/\S+/);
+    expect(authorize).toHaveBeenCalledWith({ decision: 'PERMIT' }, flowTraceId);
+    expect(complete).toHaveBeenCalledWith(true, flowTraceId, null);
+  });
+});
