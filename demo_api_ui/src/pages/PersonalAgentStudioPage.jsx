@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import AgentClientSkin from '../components/AgentClientSkin';
 import ConfirmModal from '../components/ConfirmModal';
@@ -605,6 +605,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       {view === 'agent' && (
         <details className="pas-c-flow" style={{ flexShrink: 0, borderTop: '1px solid var(--th-border)' }}>
           <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>Expand for Diagram</summary>
+          <p style={{ margin: '0 0 8px', fontSize: 12 }}><Link to="/personal-agent-flow">Open the diagram on its own page</Link></p>
           <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
             <EmbeddedFlowDiagram
               {...PERSONAL_AGENT_DIAGRAM_PROPS}

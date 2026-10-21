@@ -218,6 +218,7 @@ export default function PersonalAgentLearnPage({ user = null }) {
           </div>
           <nav className="pal-deeper" aria-label="Go deeper">
             <strong>Go deeper:</strong>
+            <Link to="/personal-agent-flow">Request flow diagram</Link>
             <Link to="/personal-agent?tab=obo">Delegation proof (OBO)</Link>
             <Link to="/personal-agent-design">Design: Agent Gateway</Link>
             <Link to="/personal-agent-review">Design review</Link>
