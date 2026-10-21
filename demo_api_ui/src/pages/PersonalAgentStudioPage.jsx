@@ -1,5 +1,5 @@
 import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
-import { useLocation } from 'react-router-dom';
+import { Link, useLocation } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import AgentClientSkin from '../components/AgentClientSkin';
 import ConfirmModal from '../components/ConfirmModal';
@@ -19,7 +19,7 @@ import InlineSpinner from '../components/shared/InlineSpinner';
 import OboDemoPage from './OboDemoPage';
 import SignInPrompt from '../components/SignInPrompt';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
-import { PERSONAL_AGENT_EDGES, PERSONAL_AGENT_GROUPS, PERSONAL_AGENT_NODES, PERSONAL_AGENT_STEPS } from '../config/personalAgentStudioDiagram';
+import { PERSONAL_AGENT_DIAGRAM_PROPS, PERSONAL_AGENT_EDGES, PERSONAL_AGENT_GROUPS, PERSONAL_AGENT_NODES, PERSONAL_AGENT_STEPS } from '../config/personalAgentStudioDiagram';
 import { protectedActionLabel } from './protectedActionLabel';
 import { openMcpFlowSse } from '../services/mcpFlowSseClient';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
@@ -605,14 +605,10 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       {view === 'agent' && (
         <details className="pas-c-flow" style={{ flexShrink: 0, borderTop: '1px solid var(--th-border)' }}>
           <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>Expand for Diagram</summary>
+          <p style={{ margin: '0 0 8px', fontSize: 12 }}><Link to="/personal-agent-flow">Open the diagram on its own page</Link></p>
           <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
             <EmbeddedFlowDiagram
-              testId="pas-flow-diagram"
-              pingStyle
-              title="How a personal-agent request is governed"
-              ariaLabel="Personal agent request flow diagram"
-              diagramLabel="Agent client to BFF, gateway and PingOne Authorize, with MFA and approval detours"
-              lede="Every skin posts to /api/agent/invoke. The three gates match the security rail; MFA and human approval are the two ways a request is held and retried."
+              {...PERSONAL_AGENT_DIAGRAM_PROPS}
               config={{ GROUPS: PERSONAL_AGENT_GROUPS, NODES: PERSONAL_AGENT_NODES, EDGES: PERSONAL_AGENT_EDGES, STEPS: PERSONAL_AGENT_STEPS }}
             />
           </div>

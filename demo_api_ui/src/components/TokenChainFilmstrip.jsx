@@ -234,6 +234,11 @@ export default function TokenChainFilmstrip({ emptyState = null }) {
 
   const inspectClaims = inspectType ? resolveInspectClaims(trace.tokenEvents, inspectType) : null;
   const activeStep = activeStepId ? steps.find((s) => s.id === activeStepId) : null;
+  // Tell any diagram on the page which step the reel is showing (display-only; EmbeddedFlowDiagram `reelSync`).
+  useEffect(() => {
+    if (!activeStep) return;
+    try { window.dispatchEvent(new CustomEvent("token-chain-step-select", { detail: { stepId: activeStep.baseId || activeStep.id } })); } catch (_e) { /* display-only */ }
+  }, [activeStep]);
   const sheetOpen = Boolean(view || activeStep);
 
   const closeSheet = () => { setView(null); setActiveStepId(null); };

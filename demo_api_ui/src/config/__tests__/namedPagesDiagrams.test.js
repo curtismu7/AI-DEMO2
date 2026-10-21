@@ -67,3 +67,14 @@ describe('DaVinci SDK lifecycle', () => {
     expect(dashed).not.toContain('POST flow continue');
   });
 });
+
+describe('Personal Agent Studio reel sync', () => {
+  it('every reel card id maps to an arrow of the diagram', () => {
+    ['signin', 'prompt', 'agent', 'llm', 'agent-token', 'exchange', 'authorize', 'authorize:2', 'gateway', 'mcp', 'reply'].forEach((id) => {
+      const i = studio.personalAgentEdgeForReelStep(id);
+      expect(i, id).toBeGreaterThanOrEqual(0);
+      expect(i, id).toBeLessThan(studio.PERSONAL_AGENT_EDGES.length);
+    });
+    expect(studio.personalAgentEdgeForReelStep('something-else')).toBe(-1);
+  });
+});
