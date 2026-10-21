@@ -1267,6 +1267,66 @@ function resolveToolSchemas(activeId, activeManifest) {
 }
 
 // Build a meaningful reply string from vertical plugin result data, themed per vertical terminology.
+// "2026-08-15T08:40:00-05:00" -> "Aug 15, 08:40": the clock time exactly as written (the airport's local time),
+// never converted.
+const CLOCK_MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+function localClock(iso) {
+  const m = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/.exec(String(iso || ''));
+  return m ? `${CLOCK_MONTHS[Number(m[2]) - 1]} ${Number(m[3])}, ${m[4]}` : '';
+}
+const usd = (n) => (n != null && n !== '' && Number.isFinite(Number(n)) ? '$' + Number(n).toFixed(2) : '');
+const miles = (n) => (Number.isFinite(Number(n)) ? Number(n).toLocaleString('en-US') : '');
+const plural = (n, one, many) => `${n} ${n === 1 ? one : many}`;
+
+/**
+ * Reply text for the airlines tools. Each tool returns a result shaped for its own card, never the generic
+ * { items | points | balance } the noun fallback reads, so without this every one of them answered
+ * "Here are your <tool name>." or "Your <tool name> request is complete." with no data, and a failed write
+ * (paid:false, booked:false, cancelled:false, redeemed:false) was reported as complete. A failure passes the
+ * tool's own note through; nothing is invented, and nothing sensitive (passport, card, DOB) is repeated in chat.
+ * Returns undefined for any action that is not one of these.
+ */
+function airlineReply(action, data) {
+  const d = data || {};
+  switch (action) {
+    case 'get_airline_bookings':
+    case 'sensitive_airline_bookings': {
+      const trips = Array.isArray(d.bookings) ? d.bookings : [];
+      if (!trips.length) return d.note || 'You have no upcoming trips.';
+      const line = (b) => [b.flightNumber, b.route, localClock(b.departureTime)].filter(Boolean).join(', ') + (b.confirmationNumber ? ` (${b.confirmationNumber})` : '');
+      return `You have ${plural(trips.length, 'upcoming trip', 'upcoming trips')}: ${trips.slice(0, 3).map(line).join('; ')}${trips.length > 3 ? `; and ${trips.length - 3} more` : ''}.`;
+    }
+    case 'cancel_airline_reservation':
+      if (d.cancelled !== true) return d.note || "I couldn't cancel that reservation.";
+      return `Cancellation recorded for reservation ${d.confirmationNumber || ''}${d.flightNumber ? ` (${[d.flightNumber, d.route].filter(Boolean).join(', ')})` : ''}.`
+        + (d.refund && d.refund.status ? ` Refund ${d.refund.status} to the ${d.refund.method || 'original form of payment'}.` : '')
+        + (d.simulated ? ' Demo: the reservation is left in place so it can be replayed.' : '');
+    case 'pay_airline_fee':
+      if (d.paid !== true) return d.note || "The fee wasn't paid.";
+      return `Paid ${[usd(d.amount), d.feeType && `${d.feeType} fee`].filter(Boolean).join(' ') || 'the fee'}${d.receiptId ? ` — receipt ${d.receiptId}` : ''}.`;
+    case 'book_airline_flight':
+      if (d.booked !== true) return d.note || "I couldn't book that flight.";
+      return `Booked ${d.flightNumber || 'the flight'}${d.route ? ` (${d.route})` : ''}${localClock(d.departureTime) ? `, departing ${localClock(d.departureTime)}` : ''}`
+        + (d.confirmationNumber ? ` — confirmation ${d.confirmationNumber}` : '') + (d.cabin ? `, ${d.cabin}` : '') + (usd(d.amount) ? `, ${usd(d.amount)}` : '') + '.';
+    case 'check_seat_availability': {
+      if (!d.flightNumber) return d.note || "I couldn't read the seat map.";
+      const seats = Array.isArray(d.seats) ? d.seats : [];
+      const free = seats.filter((s) => s.available).length;
+      const count = d.availableOnly ? `${plural(d.seatCount != null ? d.seatCount : free, 'seat', 'seats')} available` : `${free} of ${seats.length} seats available`;
+      return `Seat map for ${d.flightNumber}${d.usedNextFlight ? ' (your next flight)' : ''}: ${count}.`;
+    }
+    case 'redeem_miles':
+      if (d.redeemed !== true) return d.note || "The upgrade didn't go through.";
+      return `Upgraded ${[d.confirmationNumber, d.flightNumber].filter(Boolean).join(' · ') || 'your reservation'} from ${d.previousCabin || 'your cabin'} to ${d.upgradedToCabin || 'the next cabin'}`
+        + (miles(d.pointsRedeemed) ? ` for ${miles(d.pointsRedeemed)} miles` : '') + (miles(d.pointsRemaining) ? `; ${miles(d.pointsRemaining)} miles remaining` : '') + '.';
+    case 'sensitive_passenger_record':
+      if (d.found !== true) return d.note || "I couldn't find a passenger record.";
+      return `Passenger record on file for ${d.name || 'you'}${d.loyalty && d.loyalty.tier ? ` (${d.loyalty.tier}${miles(d.loyalty.points) ? `, ${miles(d.loyalty.points)} miles` : ''})` : ''}. Sensitive fields are not repeated in chat.`;
+    default:
+      return undefined;
+  }
+}
+
 function buildVerticalReply(action, data, render, verticalCtx) {
   const term = verticalCtx && verticalCtx.terminology;
 
@@ -1328,6 +1388,8 @@ function buildVerticalReply(action, data, render, verticalCtx) {
   // `render` — on a failed MCP round-trip `render` degrades to 'text', but the
   // confirmation copy must still hold (and degrade gracefully on empty data)
   // rather than fall through to the noun fallback ("...book appointment.").
+  const airline = airlineReply(action, data);
+  if (airline !== undefined) return airline;
   // Airlines loyalty read. The tool returns { loyaltyTier, loyaltyPoints, name } or
   // { found: false, note }, not the { points | balance } shape of the loyalty_balance
   // render above, so it fell through to "Here are your loyalty status." with no data.
@@ -1346,11 +1408,9 @@ function buildVerticalReply(action, data, render, verticalCtx) {
     if (data && data.found === false) return data.note || "I couldn't find that flight.";
     const num = data && data.flightNumber;
     const route = data && data.route;
-    const dep = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/.exec(String((data && data.departureTime) || ''));
-    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
     const parts = [
       data && data.status,
-      dep && `departs ${MONTHS[Number(dep[2]) - 1]} ${Number(dep[3])}, ${dep[4]}`,
+      localClock(data && data.departureTime) && `departs ${localClock(data && data.departureTime)}`,
       data && data.gate && `gate ${data.gate}`,
     ].filter(Boolean);
     if (!num || !parts.length) return "I couldn't read the flight status.";
