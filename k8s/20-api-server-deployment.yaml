@@ -8,8 +8,14 @@ metadata:
     component: api-server
 spec:
   replicas: 1
-  # Quota-safe restarts: terminate the old pod before creating the new one so a
-  # rollout never surges past the namespace CPU quota (k8s/01-namespace.yaml).
+  # Terminate the old pod before creating the new one. Do NOT "fix" this to
+  # maxSurge: 1 / maxUnavailable: 0: bff-logs and lmdb-data are ReadWriteOnce EBS
+  # volumes pinned to one AZ, so a surge pod on another node hangs in
+  # ContainerCreating (Multi-Attach) while the old pod, which maxUnavailable: 0
+  # keeps alive, never releases them (and a surge pod on the same node would run a
+  # second BFF writing the same LMDB). The ai-demo-quota in k8s/01-namespace.yaml
+  # is not applied on SE. Before an SE rollout run scripts/se-capacity-check.sh;
+  # see docs/runbooks/se-cpu-rightsizing.md.
   strategy:
     type: RollingUpdate
     rollingUpdate:

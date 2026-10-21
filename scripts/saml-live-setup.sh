@@ -12,6 +12,7 @@
 #   scripts/saml-live-setup.sh --only=pf       # one phase
 #   scripts/saml-live-setup.sh --resume        # skip phases recorded as done in ~/.saml-live-setup.state
 #   scripts/saml-live-setup.sh --check         # preflight only, changes nothing
+#   scripts/saml-live-setup.sh --strict-capacity   # deploy phase: stop (not just warn) when the SE cluster has no room for the new pod
 #
 # Environment (all optional):
 #   REPO=<path to your checkout>   PF_NS=ping-devops-curtismuir   PF_PORT=29999
@@ -44,7 +45,7 @@ SECRET_NAME="ai-demo-secrets"
 PF_SCRIPT="scripts/pingfederate/configure-saml-idjag.js"
 SIGNER_ENV="deploy-local/saml/signer.env"
 APP_ENV="demo_api_server/.env"
-ONLY=""; RESUME=0; CHECK=0
+ONLY=""; RESUME=0; CHECK=0; STRICT_CAPACITY=0
 PF_PID=""
 
 for a in "$@"; do
@@ -52,7 +53,8 @@ for a in "$@"; do
     --only=*) ONLY="${a#--only=}" ;;
     --resume) RESUME=1 ;;
     --check) CHECK=1 ;;
-    -h|--help) sed -n '2,38p' "$0"; exit 0 ;;
+    --strict-capacity) STRICT_CAPACITY=1 ;;
+    -h|--help) sed -n '2,39p' "$0"; exit 0 ;;
     *) echo "unknown option: $a (try --help)" >&2; exit 64 ;;
   esac
 done
@@ -289,6 +291,20 @@ set_image() { # set_image <deployment> <image>
     die "stopped after $dep"
   fi
 }
+# capacity_gate: warn (or, with --strict-capacity, stop) when the SE cluster has no node with room for
+# the new demo-api-server pod. The BFF cannot surge (RWO volumes), so a full cluster means a 502 window
+# of minutes while the replacement sits Pending. Read-only; see docs/runbooks/se-cpu-rightsizing.md.
+capacity_gate() {
+  local out rc=0
+  out="$("$REPO/scripts/se-capacity-check.sh" -n "$APP_NS" 2>&1)" || rc=$?
+  say "$out"
+  case "$rc" in
+    0) ;;
+    1) if [ "$STRICT_CAPACITY" = 1 ]; then die "no capacity for the new demo-api-server pod (--strict-capacity). Free CPU first, or rerun without --strict-capacity."
+       else say "WARNING: the deploy below may leave demo-api-server Pending (SE 502) until CPU frees up. Continue only if that is acceptable."; fi ;;
+    *) say "WARNING: could not check cluster capacity (exit $rc); continuing." ;;
+  esac
+}
 phase_deploy() {
   want deploy || return 0
   say "== deploy: bff + frontend images from ghcr.io/$GHCR_OWNER =="
@@ -310,6 +326,7 @@ phase_deploy() {
     say "docker not installed: cannot check that the images exist; assuming HEAD. Check the source repo's Build images run yourself."
     bff="ghcr.io/$GHCR_OWNER/ai-demo-demo-api-server:sha-${IMAGE_SHA:-$head}"; fe="ghcr.io/$GHCR_OWNER/ai-demo-frontend:sha-${IMAGE_SHA:-$head}"
   fi
+  capacity_gate
   [ "$CHECK" = 1 ] && { say "--check: stopping before any write"; return 0; }
   confirm "Deploy demo-api-server and frontend at the images above in $APP_NS?"
   set_image demo-api-server "$bff"
