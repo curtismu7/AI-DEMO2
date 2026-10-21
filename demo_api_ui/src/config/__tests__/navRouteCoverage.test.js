@@ -79,6 +79,7 @@ const EXEMPT = new Set([
   '/path/feature',
   '/personal-agent/client',
   '/personal-agent/dot/full',
+  '/group-policy/full',
   '/personal-agent/full',
   '/pinggateway-inspector',
   '/pinggateway-test',
