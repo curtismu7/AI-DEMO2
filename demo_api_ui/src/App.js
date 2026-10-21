@@ -43,6 +43,7 @@ import ResourceServerPlacementPage from "./components/ResourceServerPlacementPag
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
 import PersonalAgentDesignPage from "./components/personalAgent/PersonalAgentDesignPage";
 import UhgChatgptMcpFlowPage from "./pages/UhgChatgptMcpFlowPage";
+import UnitedPersonalAgentFlowPage from "./pages/UnitedPersonalAgentFlowPage";
 import PersonalAgentFlowPage from "./pages/PersonalAgentFlowPage";
 import PersonalAgentReviewPage from "./components/personalAgent/PersonalAgentReviewPage";
 import CimdPrivilegePage from "./components/cimdPrivilege/CimdPrivilegePage";
@@ -2423,7 +2424,14 @@ function AppWithAuth() {
                               path="/uhg-chatgpt-mcp-flow"
                               element={
                                 // Customer architecture: signed-in users only.
-                                loading ? null : user ? <UhgChatgptMcpFlowPage /> : <SignInRequired />
+                                loading ? null : user ? <UhgChatgptMcpFlowPage /> : <SignInPrompt message="This customer architecture needs a signed-in session." />
+                              }
+                            />
+                            <Route
+                              path="/united-personal-agent-flow"
+                              element={
+                                // Customer architecture: signed-in users only.
+                                loading ? null : user ? <UnitedPersonalAgentFlowPage /> : <SignInPrompt message="This customer architecture needs a signed-in session." />
                               }
                             />
                             <Route

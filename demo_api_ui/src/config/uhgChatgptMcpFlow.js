@@ -3,20 +3,7 @@
 // messages are in the slide's order and wording. Phase colours follow the slide legend: discovery (grey),
 // authentication + PKCE challenge (navy), code redemption + token minting (orange), OBO exchange + downstream
 // authorization (teal), member experience (blue).
-
-// SequenceFlowDiagram sizes each row from the explicit line breaks in a message but also wraps long labels on its own
-// (about 45 characters), which makes a long label overrun the next row. Break messages here so row heights are right.
-const WRAP = 44;
-const wrap = (text) => {
-  const lines = [];
-  let line = '';
-  for (const word of text.split(' ')) {
-    if (line && (line + ' ' + word).length > WRAP) { lines.push(line); line = word; } else { line = line ? line + ' ' + word : word; }
-  }
-  if (line) lines.push(line);
-  return lines.join('<br/>');
-};
-const wrapMessages = (src) => src.replace(/^(\s*\w+->>\w+: )(.*)$/gm, (_, head, text) => head + wrap(text));
+import { wrapMessages } from './sequenceWrap';
 
 const SOURCE = `sequenceDiagram
     autonumber
