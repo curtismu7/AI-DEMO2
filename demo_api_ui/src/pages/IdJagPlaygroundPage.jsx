@@ -104,22 +104,39 @@ function Breakable({ text }) {
   return text.split(/([:/.])/).map((part, i) => (i % 2 ? <Fragment key={i}>{part}<wbr /></Fragment> : part));
 }
 
-function Fields({ value, name }) {
-  if (Array.isArray(value)) {
-    if (value.every((v) => v === null || typeof v !== "object")) return <span>{value.map(String).join(", ") || "(empty)"}</span>;
-    return <ol className="ijp-kv-list">{value.map((v, i) => <li key={i}><Fields value={v} /></li>)}</ol>;
-  }
-  if (value && typeof value === "object") {
-    return (
-      <dl className="ijp-fields">
-        {Object.entries(value).filter(([, v]) => v !== undefined).map(([k, v]) => (
-          <Fragment key={k}><dt>{k}</dt><dd><Fields value={v} name={k} /></dd></Fragment>
-        ))}
-      </dl>
-    );
-  }
+const isLeaf = (v) => !(v && typeof v === "object") || (Array.isArray(v) && v.every((x) => x === null || typeof x !== "object"));
+
+function leafValue(value, name) {
+  if (Array.isArray(value)) return <span>{value.map(String).join(", ") || "(empty)"}</span>;
   if (TIME_CLAIMS.has(name) && typeof value === "number") return <span>{value} <span className="ijp-cite">({new Date(value * 1000).toLocaleString()})</span></span>;
   return <span><Breakable text={String(value)} /></span>;
+}
+
+// Flattens nested objects to one table row per field: a group row (key only) then its children one step in.
+function rowsOf(value, depth, out) {
+  const entries = Array.isArray(value) ? value.map((v, i) => [`[${i}]`, v]) : Object.entries(value);
+  for (const [k, v] of entries) {
+    if (v === undefined) continue;
+    if (isLeaf(v)) out.push({ k, v, depth, leaf: true });
+    else { out.push({ k, depth, leaf: false }); rowsOf(v, depth + 1, out); }
+  }
+  return out;
+}
+
+function Fields({ value, name }) {
+  if (isLeaf(value)) return leafValue(value, name);
+  return (
+    <table className="ijp-fields">
+      <tbody>
+        {rowsOf(value, 0, []).map((r, i) => (
+          <tr key={i} className={r.leaf ? undefined : "ijp-fields__group"}>
+            <th scope="row" style={{ paddingLeft: `${0.5 + r.depth * 0.9}rem` }}>{r.k}</th>
+            <td>{r.leaf ? leafValue(r.v, r.k) : null}</td>
+          </tr>
+        ))}
+      </tbody>
+    </table>
+  );
 }
 
 // A request the page shows (endpoint + body, or method + url): the Code view turns it into fetch().
