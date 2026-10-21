@@ -34,6 +34,7 @@ describe("side-nav ownership", () => {
     ["/personal-agent/client", user, "shell"],
     // Bare full-page variants (handoff-page sharing) — no chrome at all.
     ["/personal-agent/dot/full", user, "shell"],
+    ["/personal-agent/learn", user, "shell"],
     ["/group-policy/full", user, "shell"],
     ["/personal-agent/full", user, "shell"],
     // Standalone sample URLs opt out of the global chrome. These routes render
