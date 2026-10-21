@@ -211,6 +211,22 @@ describe('PersonalAgentStudioPage', () => {
     beforeEach(() => { window.localStorage.removeItem('pas-layout'); });
     const shell = () => screen.getByTestId('studio-shell');
 
+    it('stacked carries the numbered-section hooks; cockpit does not', () => {
+      const { unmount } = renderStudio();
+      expect(shell().classList.contains('pas-shell--stacked')).toBe(true);
+      expect(document.querySelector('.pas-c-cards')).not.toBeNull();
+      unmount();
+      renderStudio('/personal-agent?layout=cockpit');
+      expect(shell().classList.contains('pas-shell--stacked')).toBe(false);
+      expect(document.querySelector('.pas-c-cards')).toBeNull();
+    });
+
+    it('with no token events the Token Chain panel keeps its intro (no empty token cards)', () => {
+      renderStudio();
+      expect(screen.getByText('What this panel shows')).toBeTruthy();
+      expect(document.querySelector('.token-cards')).toBeNull();
+    });
+
     it('defaults to the stacked layout: full client cards, no gate chips, no dock', () => {
       renderStudio();
       expect(shell().classList.contains('pas-shell--cockpit')).toBe(false);

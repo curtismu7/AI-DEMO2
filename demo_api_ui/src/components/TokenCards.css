@@ -1,0 +1,59 @@
+.token-cards {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 12px;
+  width: 100%;
+}
+
+.token-cards__card {
+  min-width: 0;
+  overflow: hidden;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-xl);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  text-align: left;
+}
+
+.token-cards__card h4 {
+  margin: 0;
+  padding: 7px 12px;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: #ffffff;
+}
+
+.token-cards__card--user h4 { background: var(--brand-blue, #12538d); }
+.token-cards__card--actor h4 { background: var(--brand-navy-dark, #051727); }
+.token-cards__card--exchanged h4 { background: var(--app-primary-red, #d20e0f); }
+
+.token-cards__card dl {
+  margin: 0;
+  padding: 8px 12px 10px;
+  display: grid;
+  gap: 3px;
+  font-family: var(--font-mono, ui-monospace, Menlo, monospace);
+  font-size: var(--font-size-2xs);
+}
+
+.token-cards__card dl > div {
+  display: grid;
+  grid-template-columns: 64px minmax(0, 1fr);
+  gap: 8px;
+}
+
+.token-cards__card dt { color: var(--th-text-muted); font-weight: 400; }
+.token-cards__card dd { margin: 0; overflow-wrap: anywhere; }
+
+.token-cards__none {
+  margin: 0;
+  padding: 10px 12px;
+  font-size: var(--font-size-2xs);
+  color: var(--th-text-muted);
+}
+
+@media (max-width: 900px) {
+  .token-cards { grid-template-columns: minmax(0, 1fr); }
+}

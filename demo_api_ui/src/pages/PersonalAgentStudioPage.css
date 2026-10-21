@@ -7,6 +7,15 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+  min-height: 640px;
+}
+
+/* Stacked fits all five sections (chat, flow, reel, token cards) without squeezing the reel; the page
+   scrolls a little instead, like the design mock. */
+.pas-shell--stacked { min-height: 940px; }
+
+@media (max-width: 960px) {
+  .pas-shell--stacked { min-height: 640px; }
 }
 
 .pas-shell--cockpit {
@@ -51,6 +60,66 @@
   }
 
   .pas-shell--cockpit > .pas-c-chat { min-height: 420px; border-right: 0; }
+}
+
+.pas-c-chat { min-height: 320px; }
+.pas-c-flow { padding: 0 16px; }
+
+/* ── Stacked: numbered sections, as in the design mock ──────────────────────────────────────────
+   A red numeral and a small label sit in a left gutter beside each section, so they cost no
+   vertical space (the page is a fixed-height shell). Decorative only: the content is unchanged. */
+.pas-shell--stacked,
+.pas-c-cards { --pas-gutter: 88px; }
+
+.pas-shell--stacked > .pas-c-chat { padding: 8px 28px 8px var(--pas-gutter); min-height: 360px; }
+.pas-shell--stacked > .pas-c-flow { padding: 0 28px 0 var(--pas-gutter); min-height: 58px; }
+.pas-shell--stacked .tcfs-chain { padding-left: var(--pas-gutter); }
+.pas-shell--stacked .tcfs-spotlight-empty { padding: 14px 28px 14px var(--pas-gutter); }
+.pas-c-cards { padding-left: var(--pas-gutter); padding-right: 28px; margin-top: 12px; }
+
+.pas-shell--stacked .agent-client-skin { border-radius: var(--radius-xl); }
+
+:is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards) { position: relative; }
+
+:is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards)::before {
+  position: absolute;
+  left: 26px;
+  top: 8px;
+  font-size: var(--font-size-3xl);
+  font-weight: 800;
+  line-height: 1;
+  color: var(--app-primary-red, #d20e0f);
+  pointer-events: none;
+}
+
+:is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards)::after {
+  position: absolute;
+  left: 26px;
+  top: 42px;
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  color: var(--th-text-muted);
+  pointer-events: none;
+}
+
+.pas-shell--stacked > .pas-c-chat::before { content: "1"; }
+.pas-shell--stacked > .pas-c-chat::after { content: "AGENT"; }
+.pas-shell--stacked > .pas-c-flow::before { content: "2"; }
+.pas-shell--stacked > .pas-c-flow::after { content: "FLOW"; }
+.pas-shell--stacked .tcfs-chain::before { content: "3"; }
+.pas-shell--stacked .tcfs-chain::after { content: "PIPELINE"; }
+.pas-shell--stacked .tcfs-spotlight-empty::before { content: "4"; }
+.pas-shell--stacked .tcfs-spotlight-empty::after { content: "TOKENS"; }
+.pas-c-cards::before { content: "5"; }
+.pas-c-cards::after { content: "CLIENTS"; }
+
+@media (max-width: 960px) {
+  .pas-shell--stacked,
+  .pas-c-cards { --pas-gutter: 20px; }
+
+  :is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards)::before,
+  :is(.pas-shell--stacked > .pas-c-chat, .pas-shell--stacked > .pas-c-flow, .pas-shell--stacked .tcfs-chain, .pas-shell--stacked .tcfs-spotlight-empty, .pas-c-cards)::after { display: none; }
 }
 
 /* Layout switch in the header */
