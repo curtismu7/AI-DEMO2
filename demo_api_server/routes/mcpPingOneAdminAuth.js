@@ -224,6 +224,17 @@ function requireSignedInSession(req, res, next) {
   return next();
 }
 
+/**
+ * Same admin test as routes/adminConfig.js. Only an admin session may publish
+ * its token into the SHARED admin-session store (services/pingoneAdminSession.js),
+ * which serves every façade caller as that one operator. Anyone signed in can
+ * still sign in here and use their OWN token via their session.
+ */
+function isAdminSession(req) {
+  const s = req.session;
+  return !!(s && (s.user?.role === 'admin' || s.oauthType === 'admin' || s.isAdmin));
+}
+
 /** Only a site-relative path, mirroring routes/privilegeMcpClient.js's sanitizeReturnTo. */
 function sanitizeReturnTo(value) {
   if (typeof value !== 'string' || value.length > 200) return null;
@@ -281,13 +292,14 @@ router.get('/login', requireSignedInSession, async (req, res) => {
         clientId: loopback.clientId,
         tokenEndpoint: loopback.tokenEndpoint,
         returnTo,
+        shareable: isAdminSession(req),
       });
       return res.redirect(`${loopback.authorizationEndpoint}?${params.toString()}`);
     }
 
     const app = await ensureApp(req);
 
-    req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri, returnTo };
+    req.session.pingoneMcpAdminOAuth = { state, codeVerifier, redirectUri, returnTo, shareable: isAdminSession(req) };
 
     const resource = `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`;
     const authParams = {
@@ -408,7 +420,7 @@ router.get('/callback', async (req, res) => {
       // completed — and with no session, nothing would later clear it (logout
       // keys off req.session.pingoneMcpAdminToken). See
       // services/pingoneAdminSession.js for the trade this store makes.
-      if (!err) {
+      if (!err && pending.shareable) {
         pingoneAdminSession.remember({
           accessToken: resp.data.access_token,
           refreshToken: resp.data.refresh_token,
@@ -501,7 +513,7 @@ async function handleLoopbackCallback(req, res) {
       timeout: 15000,
     });
     const expiresInMs = (resp.data.expires_in || 3600) * 1000;
-    pingoneAdminSession.remember({
+    if (pending.shareable) pingoneAdminSession.remember({
       accessToken: resp.data.access_token,
       refreshToken: resp.data.refresh_token,
       clientId: pending.clientId,
@@ -520,4 +532,4 @@ module.exports = router;
 module.exports.handleLoopbackCallback = handleLoopbackCallback;
 module.exports.resolveLoopbackClientConfig = resolveLoopbackClientConfig;
 // Test-only exports (pure helpers — no live PingOne calls).
-module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls, pingOneAs };
+module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls, pingOneAs, isAdminSession };
