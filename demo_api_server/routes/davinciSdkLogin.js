@@ -238,7 +238,6 @@ router.post('/callback', async (req, res) => {
     // Regenerate before storing credentials to prevent session fixation
     // (mirrors routes/oauth.js and routes/oauthUser.js). Failure is fatal.
     return regenerateSession(req, res, '[davinci-sdk-login/callback]', () => {
-
       // Lesson-sandbox identity: the DaVinci tokens live in their OWN slot, never
       // in session.oauthTokens. The main app session (restored below) keeps its
       // own tokens — the dashboard's RFC 8693 exchange must never see a

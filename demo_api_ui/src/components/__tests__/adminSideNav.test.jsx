@@ -98,6 +98,21 @@ const renderNavAsUser = (user, path = "/") =>
   );
 
 describe("AdminSideNav — best-of-breed pass", () => {
+  it("still finds the renamed DaVinci pages by their old nav labels", () => {
+    renderNav();
+    const search = screen.getByLabelText(/search navigation/i);
+    const cases = [
+      ["DaVinci SDK Login", "/davinci-sdk"],
+      ["DaVinci Login", "/davinci-widget"],
+      ["Orchestration SDK Guide", "/davinci-orchestration-sdk"],
+    ];
+    for (const [query, href] of cases) {
+      fireEvent.change(search, { target: { value: query } });
+      const link = document.querySelector(`nav a[href="${href}"]`);
+      expect(link, `${href} found by "${query}"`).toBeTruthy();
+    }
+  });
+
   it("opens the local CI dashboard in a separate tab", () => {
     const opened = vi.spyOn(window, "open").mockImplementation(() => null);
     try {
