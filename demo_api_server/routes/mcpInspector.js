@@ -508,6 +508,8 @@ router.get('/tools', async (req, res) => {
       nextCursor: undefined,
       _source: 'local_catalog',
       _localCatalogReason: reason,
+      // Lets the page say "live tools need the PingOne (P1) login" instead of a bare fallback.
+      _loginProvider: (() => { try { return configStore.getOAuthProvider(); } catch { return null; } })(),
     });
   };
 

@@ -44,9 +44,9 @@ const route = require('../../routes/mcpPingOneAdminAuth');
 const ENV = ENV_UNDER_TEST.PINGONE_ENVIRONMENT_ID;
 const BUILTIN = 'pingone-mcp-server';
 
-function buildApp() {
+function buildApp(user = { username: 'demoUser', role: 'admin' }) {
   const app = express();
-  const sess = { user: { username: 'demoUser' } };
+  const sess = { user };
   app.use((req, _res, next) => {
     req.session = sess;
     req.session.save = (cb) => cb && cb(null);
@@ -105,6 +105,16 @@ describe('the pingone-admin door signs in over loopback with the built-in client
     expect(res.status).toBe(302);
     expect(res.headers.Location).toContain('https://local.ping-devops.com:4000');
     expect(res.headers.Location).toContain('pingone_admin_login=success');
+  });
+
+  test('a non-admin signs in but is never published into the shared admin session', async () => {
+    pingoneAdminSession.remember.mockClear();
+    const login = await request(buildApp({ username: 'someCustomer', role: 'customer' })).get('/api/mcp/inspector/pingone-admin/login').expect(302);
+    const state = new URL(login.headers.location).searchParams.get('state');
+    axios.post.mockResolvedValue({ data: { access_token: 'tok2', refresh_token: 'r2', expires_in: 3600 } });
+    const res = await callLoopback(`/callback?code=abc&state=${state}`);
+    expect(res.headers.Location).toContain('pingone_admin_login=success');
+    expect(pingoneAdminSession.remember).not.toHaveBeenCalled();
   });
 
   test('an unknown state is refused outright, not redirected', async () => {

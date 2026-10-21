@@ -127,6 +127,8 @@ export function useInspectorSource(sourceKey) {
   const [selectedTool, setSelectedTool] = useState(null);
   const [paramValues, setParamValues] = useState({});
   const [toolsSource, setToolsSource] = useState(null);
+  const [toolsReason, setToolsReason] = useState(null);
+  const [toolsProvider, setToolsProvider] = useState(null);
   const [busy, setBusy] = useState(false);
   const [loadingTools, setLoadingTools] = useState(false);
   const [lastInvoke, setLastInvoke] = useState(null);
@@ -249,6 +251,8 @@ export function useInspectorSource(sourceKey) {
       }
       setServers(data.servers || []);
       setToolsSource(data._source || null);
+      setToolsReason(data._localCatalogReason || null);
+      setToolsProvider(data._loginProvider || null);
       setParamDefaults(data.paramDefaults || {});
       if (!suppressBanner) setLoadBanner(bannerFromPayload(data));
       setSelectedTool(null);
@@ -421,6 +425,8 @@ export function useInspectorSource(sourceKey) {
     selectedTool,
     paramValues,
     toolsSource,
+    toolsReason,
+    toolsProvider,
     busy,
     loadingTools,
     lastInvoke,
