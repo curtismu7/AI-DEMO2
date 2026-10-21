@@ -54,10 +54,32 @@ const PLAYGROUND_PATH = '/pingfederate-id-jag/playground';
 const MODES = ['oauth-mcp', 'pf-pf', 'byo'];
 const env = (k) => String(process.env[k] || '').trim();
 
+/**
+ * The pf-pf REDEEMER (resource AS). Its own settings, each falling back to the app's login
+ * PingFederate so the local Docker stack (where that PF is the redeemer) needs none of them.
+ * On SE the login PF is the issuer too, so SE sets PF_IDJAG_PF_REDEEMER_ISSUER to the Acme PF.
+ *   issuer          pf_id_jag_pf_redeemer_issuer / PF_IDJAG_PF_REDEEMER_ISSUER      (ID-JAG audience)
+ *   token endpoint  pf_id_jag_pf_redeemer_token_endpoint / PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT
+ *   client id       pf_id_jag_pf_redeemer_client_id / PF_IDJAG_PF_REDEEMER_CLIENT_ID
+ *   resource        pf_id_jag_pf_resource / PF_IDJAG_PF_RESOURCE
+ *   client secret   PF_IDJAG_PF_REDEEMER_CLIENT_SECRET (env only)
+ */
+function pfRedeemerSettings() {
+  const own = (cfg('pf_id_jag_pf_redeemer_issuer') || env('PF_IDJAG_PF_REDEEMER_ISSUER')).replace(/\/$/, '');
+  const issuer = own || cfg('pf_issuer') || cfg('pf_issuer_uri');
+  const tokenEndpoint = cfg('pf_id_jag_pf_redeemer_token_endpoint') || env('PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT')
+    || (own ? `${own}/as/token.oauth2` : cfg('pf_token_endpoint'));
+  return {
+    issuer, tokenEndpoint,
+    clientId: cfg('pf_id_jag_pf_redeemer_client_id') || env('PF_IDJAG_PF_REDEEMER_CLIENT_ID') || 'ai-demo-pf-idjag-redeemer',
+    resource: cfg('pf_id_jag_pf_resource') || env('PF_IDJAG_PF_RESOURCE') || 'https://api.ping.demo:3036/mcp',
+  };
+}
+
 function pfPfSettings() {
   const issuer = (cfg('pf_id_jag_issuer_pf_url') || env('PF_IDJAG_ISSUER_PF_URL')
     || (env('PINGFEDERATE_HOST') ? `https://${env('PINGFEDERATE_HOST')}` : '')).replace(/\/$/, '');
-  const localIssuer = cfg('pf_issuer') || cfg('pf_issuer_uri');
+  const redeemer = pfRedeemerSettings();
   return {
     provider: configStore.getOAuthProvider?.() || null,
     enabled: ['true', true].includes(configStore.getEffective('pf_id_jag_enabled')),
@@ -70,14 +92,14 @@ function pfPfSettings() {
       exchangeClientId: cfg('pf_user_client_id'),
     },
     resourceAs: {
-      name: 'PingFederate (local, resource AS)',
-      issuer: localIssuer,
-      tokenEndpoint: cfg('pf_token_endpoint'),
-      clientId: cfg('pf_id_jag_pf_redeemer_client_id') || 'ai-demo-pf-idjag-redeemer',
+      name: 'PingFederate (redeemer, resource AS)',
+      issuer: redeemer.issuer,
+      tokenEndpoint: redeemer.tokenEndpoint,
+      clientId: redeemer.clientId,
     },
     request: {
-      audience: localIssuer,
-      resource: cfg('pf_id_jag_pf_resource') || 'https://api.ping.demo:3036/mcp',
+      audience: redeemer.issuer,
+      resource: redeemer.resource,
       scope: cfg('pf_id_jag_scope'),
       subjectTokenType: 'urn:ietf:params:oauth:token-type:refresh_token',
     },
@@ -87,7 +109,10 @@ function pfPfSettings() {
 function pfPfUnavailableReason() {
   const s = pfPfSettings();
   if (!s.idp.issuer) return 'Set PF_IDJAG_ISSUER_PF_URL (or PINGFEDERATE_HOST) to the SE PingFederate.';
-  if (!env('PF_IDJAG_PF_REDEEMER_CLIENT_SECRET')) return 'PF_IDJAG_PF_REDEEMER_CLIENT_SECRET is not set for the local PingFederate redeemer.';
+  if (s.resourceAs.issuer && s.resourceAs.issuer.replace(/\/$/, '') === s.idp.issuer) {
+    return 'The issuer and the redeemer are the same PingFederate, and an IdP must not redeem its own ID-JAG. Set PF_IDJAG_PF_REDEEMER_ISSUER to a second PingFederate.';
+  }
+  if (!env('PF_IDJAG_PF_REDEEMER_CLIENT_SECRET')) return 'PF_IDJAG_PF_REDEEMER_CLIENT_SECRET is not set for the redeemer PingFederate.';
   return null;
 }
 
@@ -453,8 +478,8 @@ function configFor(req) {
       // itself uses are not reachable from outside). ID_JAG_PUBLIC_OAUTH_MCP_TOKEN_ENDPOINT overrides.
       'oauth-mcp': { issuer: oauthMcp.resourceAs.issuer,
         tokenEndpoint: env('ID_JAG_PUBLIC_OAUTH_MCP_TOKEN_ENDPOINT') || (oauthMcp.resourceAs.issuer ? `${oauthMcp.resourceAs.issuer.replace(/\/$/, '')}/token` : '') },
-      pingfederate: { issuer: cfg('pf_issuer') || cfg('pf_issuer_uri'),
-        tokenEndpoint: (cfg('pf_issuer') || cfg('pf_issuer_uri')) ? `${(cfg('pf_issuer') || cfg('pf_issuer_uri')).replace(/\/$/, '')}/as/token.oauth2` : '' },
+      pingfederate: { issuer: pfRedeemerSettings().issuer,
+        tokenEndpoint: pfRedeemerSettings().issuer ? `${pfRedeemerSettings().issuer.replace(/\/$/, '')}/as/token.oauth2` : '' },
     },
     byo: req.session?.idJagPlayground?.byo || null,
     saml: { available: !samlUnavailableReason(), reason: samlUnavailableReason(), audience: samlAudience(), issuer: samlIssuer(),

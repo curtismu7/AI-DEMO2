@@ -17,8 +17,8 @@ export STUB_LOG="$TMP/calls.log" STUB_PATCHES="$TMP/patches"
 
 cat > "$BIN/curl" <<'STUB'
 #!/usr/bin/env bash
-out=""; while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift ;; esac; shift; done
-cp "$STUB_DISCOVERY" "$out"
+out=""; url=""; while [ $# -gt 0 ]; do case "$1" in -o) out="$2"; shift ;; http*) url="$1" ;; esac; shift; done
+case "$url" in *acme*) cp "$STUB_REDEEMER_DISCOVERY" "$out" ;; *) cp "$STUB_DISCOVERY" "$out" ;; esac
 STUB
 cat > "$BIN/kubectl" <<'STUB'
 #!/usr/bin/env bash
@@ -93,6 +93,25 @@ grep -q 'PUBLIC_APP_URL' "$TMP/err" && ok "clear message" || bad "clear message"
 STUB_CM_PUBLIC_APP_URL=https://cm.example.com run "yes
 " --apply
 check "falls back to ConfigMap PUBLIC_APP_URL" "$(node -e 'console.log(require(process.argv[1]).stringData.PF_USER_REDIRECT_URI)' "$STUB_PATCHES/secret.json")" "https://cm.example.com/api/auth/oauth/user/callback"
+
+echo "redeemer (SE_PF_REDEEMER_URL)"
+acme='{"issuer":"https://cmuir-pf-acme.ping-devops.com","token_endpoint":"https://cmuir-pf-acme.ping-devops.com/as/token.oauth2"}'
+echo "$acme" > "$TMP/acme.json"
+export STUB_REDEEMER_DISCOVERY="$TMP/acme.json"
+export PUBLIC_APP_URL=https://app.example.com
+SE_PF_REDEEMER_URL=https://cmuir-pf-acme.ping-devops.com/ run "yes
+" --apply
+check "exit 0" "$RC" "0"
+got="$(node -e 'const p=require(process.argv[1]).stringData;console.log(Object.keys(p).length, p.PF_IDJAG_PF_REDEEMER_ISSUER, p.PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT, p.PF_ISSUER)' "$STUB_PATCHES/secret.json")"
+check "adds the two redeemer keys, login PF unchanged" "$got" "14 https://cmuir-pf-acme.ping-devops.com https://cmuir-pf-acme.ping-devops.com/as/token.oauth2 https://cmuir-pf.ping-devops.com"
+SE_PF_REDEEMER_URL=https://cmuir-pf.ping-devops.com STUB_REDEEMER_DISCOVERY="$TMP/good.json" run "yes
+" --apply
+check "redeemer == login PF aborts" "$RC:$(grep -c patch "$STUB_LOG")" "1:0"
+grep -q 'second PingFederate' "$TMP/err" && ok "plain message" || bad "plain message"
+echo '{"issuer":"https://elsewhere.example"}' > "$TMP/wrong.json"
+SE_PF_REDEEMER_URL=https://cmuir-pf-acme.ping-devops.com STUB_REDEEMER_DISCOVERY="$TMP/wrong.json" run "yes
+" --apply
+check "redeemer discovery issuer mismatch aborts" "$RC:$(grep -c patch "$STUB_LOG")" "1:0"
 
 echo
 echo "passed=$PASS failed=$FAIL"

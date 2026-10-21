@@ -26,6 +26,8 @@ record.
 
 **What the real fix looks like.** Decide: deploy a second PingFederate for SE as the resource AS and point the pf-pf settings at it, or hide the pf-pf mode when running on SE.
 
+**PROGRESS 2026-10-21 (not yet RESOLVED).** The second PingFederate already existed (Acme). The redeemer is now a separate setting (`PF_IDJAG_PF_REDEEMER_ISSUER`, falls back to `PF_ISSUER`), pf-pf reports itself unavailable when redeemer and issuer are the same PingFederate, and `scripts/pingfederate/configure-pfpf-se.js` plus `docs/runbooks/idjag-pfpf-se.md` provision both sides. Mark this RESOLVED after the owner runs the runbook on SE and the playground redeems with 200.
+
 ### [ ] 2026-10-20 — Overview diagram: dragging the BFF or PingGateway up or down can cross arrows
 
 **What's wrong.** `/architecture/overview` is drawn in the Ping style (`config/architectureOverviewDiagram.js`). At rest it has 0 crossings, and a sweep that drags every box by 120px sideways and (for all but two boxes) 50 or 100px up or down also holds 0 (`config/__tests__/architectureOverviewDiagram.test.js`). The exception is the BFF and PingGateway: each joins PingOne, PingOne Authorize, HITL and each other. Move one of them 50px or more up or down and the shared router puts the jog of the direct BFF-to-gateway arrow next to the gateway, across the arrows that share that side of the box.
