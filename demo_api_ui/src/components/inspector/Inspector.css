@@ -199,3 +199,10 @@
 .insp-result-data .jfv-empty, .insp-result-data .jfv-empty-state { color: var(--th-text-muted); }
 .insp-result-data .jfv-expand, .insp-result-data .jfv-copy { background: var(--th-bg-card); color: var(--th-text); border-color: var(--th-border-strong); }
 .insp-result-data .jfv-expand:hover, .insp-result-data .jfv-copy:hover { background: var(--th-bg-hover); }
+.insp-result-count { margin: 0 0 .35rem; font-size: var(--font-size-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; color: var(--th-text-muted); }
+/* `.insp` prefix: a broader `ul { padding-left }` rule outranks a bare `.insp-list` (same trap as `.insp-field`). */
+.insp .insp-list { list-style: none; margin: 0; padding: 0; display: grid; gap: .5rem; }
+.insp-list li { display: grid; gap: .1rem; padding-bottom: .5rem; border-bottom: 1px solid var(--th-border); overflow-wrap: anywhere; }
+.insp-list li:last-child { border-bottom: 0; padding-bottom: 0; }
+.insp-list-sub { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+.insp-list-desc { font-size: var(--font-size-sm); color: var(--th-text); }

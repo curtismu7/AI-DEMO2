@@ -103,4 +103,47 @@ describe('ResultPreview', () => {
     expect(await screen.findByRole('button', { name: 'Copy' })).toBeInTheDocument();
     expect(screen.queryByText('Copied to the clipboard')).toBeNull();
   });
+
+  describe('protocol methods (Raw JSON-RPC)', () => {
+    const proto = (method, body, extra = {}) => ({ ...call(body, 'mcp', extra), title: method });
+
+    it('words the card for the server, not a tool', () => {
+      render(<ResultPreview call={proto('server/discover', rpc({ serverInfo: { name: 'bank-mcp' } }))} />);
+      expect(screen.getByRole('region', { name: 'What the server returned' })).toBeInTheDocument();
+      expect(screen.queryByText('What the tool returned')).toBeNull();
+    });
+
+    it('lists resources as names with descriptions, with a count', () => {
+      render(<ResultPreview call={proto('resources/list', rpc({ resources: [{ uri: 'banking://accounts', name: 'Accounts', description: 'All accounts' }, { uri: 'banking://rates', name: 'Rates' }] }))} />);
+      expect(screen.getByText('2 resources')).toBeInTheDocument();
+      expect(screen.getByText('Accounts')).toBeInTheDocument();
+      expect(screen.getByText('banking://accounts')).toBeInTheDocument();
+      expect(screen.getByText('All accounts')).toBeInTheDocument();
+      expect(screen.queryByText('Key Values')).toBeNull();
+    });
+
+    it('says so when the server lists nothing', () => {
+      render(<ResultPreview call={proto('prompts/list', rpc({ prompts: [] }))} />);
+      expect(screen.getByText('0 prompts')).toBeInTheDocument();
+      expect(screen.getByText('The server lists no prompts.')).toBeInTheDocument();
+    });
+
+    it('a failed protocol call says the server did not answer, with the reason', () => {
+      render(<ResultPreview call={proto('resources/list', { error: 'mcp_rpc_failed', message: 'PINGONE_JWKS_ENDPOINT not configured' }, { status: err('502') })} />);
+      expect(screen.getByRole('region', { name: 'Why the server did not answer' })).toBeInTheDocument();
+      expect(screen.getByText('No answer')).toBeInTheDocument();
+      expect(screen.getByText(/PINGONE_JWKS_ENDPOINT not configured/)).toBeInTheDocument();
+    });
+
+    it('a non-list protocol result still uses the readable Key Values view', () => {
+      render(<ResultPreview call={proto('server/discover', rpc({ serverInfo: { name: 'bank-mcp' }, protocolVersion: '2025-06-18' }))} />);
+      expect(screen.getByText('Key Values')).toBeInTheDocument();
+    });
+
+    it('a tool call keeps the tool wording even when its result has a list', () => {
+      render(<ResultPreview call={call(rpc({ content: [text(JSON.stringify({ resources: [{ name: 'x' }] }))] }))} />);
+      expect(screen.getByRole('region', { name: 'What the tool returned' })).toBeInTheDocument();
+      expect(screen.queryByText('1 resource')).toBeNull();
+    });
+  });
 });

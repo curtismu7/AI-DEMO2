@@ -3,9 +3,15 @@ import JsonFormView from '../shared/JsonFormView.jsx';
 import { Chip } from './CallDetail.jsx';
 import { ok, err, idle } from './inspectorCalls.js';
 import { readableResult, failureMessage } from './readableResult.js';
+import { isProtocolMethod, listOf } from './protocolMethod.js';
 
 /** Calls whose response is an MCP tool result worth reading as an answer. */
 export const RESULT_KINDS = ['mcp', 'tools/call'];
+
+const WORDS = {
+  tool: { ret: 'What the tool returned', no: 'Why the tool did not run', error: 'Tool reported an error', noChip: 'Tool did not run' },
+  server: { ret: 'What the server returned', no: 'Why the server did not answer', error: 'Server reported an error', noChip: 'No answer' },
+};
 
 const textOf = (blocks) => blocks.map((b) => (b.type === 'text' ? b.text : JSON.stringify(b.value, null, 2))).join('\n\n');
 
@@ -20,6 +26,27 @@ function classify(call, result) {
   const tone = call.status?.tone;
   if (result.isError || tone === 'err' || tone === 'warn') return 'not-run';
   return 'tool';
+}
+
+/** A *list result (resources, prompts, templates, tools) as names with a one-line description each. */
+function ProtocolList({ list }) {
+  const { noun, items } = list;
+  return (
+    <div className="insp-result-data" tabIndex={0} role="region" aria-label={`Server output: ${noun} list`}>
+      <p className="insp-result-count">{items.length === 1 ? `1 ${noun}` : `${items.length} ${noun}s`}</p>
+      {items.length === 0 ? <p className="insp-empty">{`The server lists no ${noun}s.`}</p> : (
+        <ul className="insp-list">
+          {items.map((it, i) => (
+            <li key={`${it.title}-${i}`}>
+              <strong className="mono">{it.title}</strong>
+              {it.subtitle && <span className="insp-list-sub mono">{it.subtitle}</span>}
+              {it.description && <span className="insp-list-desc">{it.description}</span>}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  );
 }
 
 /**
@@ -41,13 +68,15 @@ export default function ResultPreview({ call }) {
   if (!call || !RESULT_KINDS.includes(call.kind) || call.input?.partial) return null;
   if (call.ms == null && (call.response?.body === null || call.response?.body === undefined)) return null;
 
+  const protocol = isProtocolMethod(call.title);
+  const w = protocol ? WORDS.server : WORDS.tool;
   const mode = classify(call, result);
   const notRun = mode === 'not-run';
   const blocks = result.blocks.length || !notRun || !call.banner?.text ? result.blocks : [{ type: 'text', text: call.banner.text }];
   const chip = mode === 'tool-error'
-    ? err('Tool reported an error')
+    ? err(w.error)
     : notRun
-      ? { tone: call.status?.tone === 'warn' ? 'warn' : 'err', label: 'Tool did not run' }
+      ? { tone: call.status?.tone === 'warn' ? 'warn' : 'err', label: w.noChip }
       : blocks.length === 0 ? idle('Nothing returned') : ok('Returned');
   const failed = mode === 'tool-error' || (notRun && result.isError);
   const copyText = textOf(blocks) || failureMessage(result);
@@ -64,9 +93,9 @@ export default function ResultPreview({ call }) {
   };
 
   return (
-    <section className="insp-card insp-result" aria-label={notRun ? 'Why the tool did not run' : 'What the tool returned'}>
+    <section className="insp-card insp-result" aria-label={notRun ? w.no : w.ret}>
       <div className="insp-result-head">
-        <h2 className="insp-label">{notRun ? 'Why the tool did not run' : 'What the tool returned'}</h2>
+        <h2 className="insp-label">{notRun ? w.no : w.ret}</h2>
         <Chip chip={chip} />
       </div>
       {blocks.length === 0 && (
@@ -76,9 +105,11 @@ export default function ResultPreview({ call }) {
         ? (
           <p key={i} className={failed ? 'insp-prose insp-prose--err' : 'insp-prose'} tabIndex={0} role="region" aria-label="Tool output text">{b.text}</p>
         )
-        : (
-          <div key={i} className="insp-result-data" tabIndex={0} role="region" aria-label="Tool output data"><JsonFormView value={b.value} /></div>
-        )))}
+        : (protocol && listOf(b.value))
+          ? <ProtocolList key={i} list={listOf(b.value)} />
+          : (
+            <div key={i} className="insp-result-data" tabIndex={0} role="region" aria-label="Tool output data"><JsonFormView value={b.value} /></div>
+          )))}
       {blocks.length > 0 && (
         <button type="button" className="insp-btn ghost insp-result-copy" onClick={copy}>{copied ? 'Copied' : 'Copy'}</button>
       )}
