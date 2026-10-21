@@ -31,6 +31,7 @@ import { sequenceDiagramLabel } from "./sequenceDiagramLabels";
 import { buildA2aTokenChainSteps, buildPrivilegeA2aChainSteps } from "./TokenChainTraceRail";
 import { applyStepVisibility } from "../services/tokenChainTrace/stepVisibility";
 import TraceProvenanceBadge from "./TraceProvenanceBadge";
+import SequenceActorHeader from "./SequenceActorHeader";
 import "./SequenceReelDiagram.css";
 
 const COL_WIDTH = 140;
@@ -323,6 +324,26 @@ export default function SequenceReelDiagram({
     return names;
   }, [steps]);
 
+  const laneDisplayLabel = (lane) => {
+    const laneName = lane === "PINGONE" && isNativeIdJagTrace(snap.trace)
+      ? "PINGFEDERATE"
+      : lane === "PINGONE" && isMockIdJagTrace(snap.trace) ? "MOCK IDP" : a2aLaneNames[lane] || laneLabel(lane);
+    return sequenceDiagramLabel(laneName, verticalName);
+  };
+
+  // Header strip: a lane is "done" once any revealed step touches it and
+  // "active" while the newest revealed step does.
+  const headerActors = participants.map((lane) => {
+    const touches = (st) => (st.type === "arrow" ? st.from === lane || st.to === lane : st.lane === lane);
+    const last = lifelineSteps[lifelineSteps.length - 1];
+    const state = last && touches(last) ? "active" : lifelineSteps.some(touches) ? "done" : "idle";
+    return { id: lane, name: laneDisplayLabel(lane), color: `var(--srd-color-${String(lane).toLowerCase()})`, state };
+  });
+  const headerSegments = allLifelineSteps.map((st, i) => ({
+    color: `var(--srd-color-${String(st.type === "arrow" ? st.from : st.lane).toLowerCase()})`,
+    state: i < lifelineSteps.length ? "done" : "idle",
+  }));
+
   const stepsById = useMemo(() => {
     const map = new Map();
     for (const step of steps) map.set(step.id, step);
@@ -559,6 +580,7 @@ export default function SequenceReelDiagram({
   return (
     <div className="srd-root" data-srd-theme={surfaceTheme} data-font-size={fontSize}>
       {toolbar("top")}
+      <SequenceActorHeader actors={headerActors} segments={headerSegments} />
       <div className="srd-scroll" ref={scrollRef}>
         <svg
           viewBox={`0 0 ${width} ${height}`}
@@ -570,10 +592,7 @@ export default function SequenceReelDiagram({
         >
           {participants.map((lane) => {
             const x = colX(lane);
-            const laneName = lane === "PINGONE" && isNativeIdJagTrace(snap.trace)
-              ? "PINGFEDERATE"
-              : lane === "PINGONE" && isMockIdJagTrace(snap.trace) ? "MOCK IDP" : a2aLaneNames[lane] || laneLabel(lane);
-            const label = sequenceDiagramLabel(laneName, verticalName);
+            const label = laneDisplayLabel(lane);
             const fitLabel = actorLabelNeedsFit(label);
             const fitAttrs = fitLabel
               ? { textLength: ACTOR_BOX_W - 8, lengthAdjust: "spacingAndGlyphs" }

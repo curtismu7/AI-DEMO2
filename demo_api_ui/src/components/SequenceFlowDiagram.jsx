@@ -19,6 +19,7 @@ import DiagramReel from "./DiagramReel";
 import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import { useFitOnResize, useFitOnSource } from "../hooks/useFitOnResize";
 import "./SequenceFlowDiagram.css";
+import SequenceActorHeader from "./SequenceActorHeader";
 
 /**
  * SequenceFlowDiagram — a sequence diagram (participants, lifelines, ordered
@@ -272,6 +273,21 @@ function Inner({ source, step, active, details, driver }) {
     [reelStepper, messages, people, details],
   );
   const [nodeDetail, setNodeDetail] = useState(null);
+  // Header strip state. Mirrors stepEdges: step < 0 leaves everything shown,
+  // otherwise edges past the focus are not reached yet. `active` (page-driven)
+  // lights just those messages.
+  const focus = driver ? driver.step : step !== undefined ? step : stepper.step;
+  const msgState = (i) => {
+    if (active !== undefined) return active.includes(i) ? "active" : "idle";
+    if (focus < 0) return "done";
+    return i === focus ? "active" : i < focus ? "done" : "idle";
+  };
+  const headerActors = people.map((p) => {
+    const states = messages.flatMap((m, i) => (m[0] === p.id || m[1] === p.id ? [msgState(i)] : []));
+    const state = states.includes("active") ? "active" : states.includes("done") ? "done" : "idle";
+    return { id: p.id, name: p.label, description: p.sub[0], state };
+  });
+  const headerSegments = messages.map((_, i) => ({ state: msgState(i) }));
   const current = reelStepper ? reelSteps[reelStepper.step] : null;
   const lit = useMemo(() => markNodes(nodes, current ? [`p-${current.from}`, `p-${current.to}`] : []), [nodes, current]);
   const onNodeClick = (_, node) => {
@@ -284,6 +300,7 @@ function Inner({ source, step, active, details, driver }) {
       {reelStepper && (
         <DiagramReel steps={reelSteps} stepper={reelStepper} nodeDetail={nodeDetail} onClearNode={() => setNodeDetail(null)} testId="sequence-reel" />
       )}
+      <SequenceActorHeader actors={headerActors} segments={headerSegments} />
       <div className="sfx-canvas" data-testid="sequence-flow-canvas" ref={ref} style={fitHeight ? { height: fitHeight } : undefined}>
         <div className="sfx-flow" ref={flowRef} style={flowW > canvasW ? { width: flowW } : undefined}>
         <ReactFlow

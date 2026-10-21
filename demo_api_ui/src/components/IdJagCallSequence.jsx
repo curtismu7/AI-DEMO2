@@ -1,10 +1,11 @@
 import { useEffect, useMemo, useRef } from "react";
 import { BaseEdge, Controls, EdgeLabelRenderer, Handle, Position, ReactFlow, ReactFlowProvider, useReactFlow } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
-import { CALLS } from "../utils/idJagCallSequence";
+import { ACTORS, CALLS } from "../utils/idJagCallSequence";
 import { PF_ID_JAG_GROUPS } from "../config/pfIdJagDiagrams";
 import { SEQ_LOOP_H, SEQ_LOOP_W, seqEdges, seqHeight, seqNodes, seqWidth } from "../config/pfIdJagSequence";
 import { useFitOnResize } from "../hooks/useFitOnResize";
+import SequenceActorHeader from "./SequenceActorHeader";
 
 const FIT = { padding: 0.02 };
 
@@ -123,8 +124,15 @@ function Inner({ activeIndex, onSelect, calls }) {
 // draggable; Simulate / Step / Reset / speed and the per-call detail (request form, MOCK tokens, standards) are the
 // player's, next to it. Every call appears whether or not a live run recorded it.
 export default function IdJagCallSequence({ activeIndex, onSelect, calls = CALLS }) {
+  const callState = (i) => (i === activeIndex ? "active" : i < activeIndex ? "done" : "idle");
+  const headerActors = ACTORS.map((a) => {
+    const states = calls.flatMap((c, i) => (c.from === a.id || c.to === a.id ? [callState(i)] : []));
+    const state = states.includes("active") ? "active" : states.includes("done") ? "done" : "idle";
+    return { id: a.id, name: a.label, state };
+  });
   return (
     <div className="ijc-seq" data-testid="idjag-sequence">
+      <SequenceActorHeader actors={headerActors} segments={calls.map((_, i) => ({ state: callState(i) }))} />
       <ReactFlowProvider>
         <Inner activeIndex={activeIndex} onSelect={onSelect} calls={calls} />
       </ReactFlowProvider>
