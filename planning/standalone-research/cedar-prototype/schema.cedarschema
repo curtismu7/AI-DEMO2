@@ -1,0 +1,26 @@
+// Vocabulary deliberately mirrors what the real Privilege console editor exposes (see PF-CLAIMS-IN-CEDAR-POLICIES.md):
+// Action::"mcp:Invoke" / "mcp:InvokeUnattended", Tool::"x", context.app, context.args.*, context.token.scopes,
+// principal in Group::"x", context.approval_count. Fields marked (demo) are extensions the real console does not have.
+entity Group;
+entity User in [Group];                 // sub, email, groups claim -> parents; no attributes needed
+entity Agent in [Group];                // a named agent (client_id)
+entity Tool;
+
+type ToolCallContext = {
+  app: String,                          // the door / MCP app, e.g. "booking"
+  args: { amount?: Long },              // tool arguments (typed per tool in a fuller schema)
+  token: {
+    scopes: Set<String>,
+    client_id: String,                  // (demo) from the PF token
+    actor?: String,                     // (demo) act.sub from the PF token
+  },
+  approval_count: Long,
+  pinnedHash: String,                   // (demo) schema hash approved at onboarding
+  observedHash: String,                 // (demo) hash of what the server advertises now
+};
+
+action "mcp:Invoke", "mcp:InvokeUnattended" appliesTo {
+  principal: [User, Agent],
+  resource: Tool,
+  context: ToolCallContext,
+};

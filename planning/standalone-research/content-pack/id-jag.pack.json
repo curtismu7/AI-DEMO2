@@ -1,0 +1,583 @@
+{
+  "schema": "demo-content-pack/1",
+  "id": "id-jag",
+  "title": "ID-JAG",
+  "version": "0.1.0",
+  "source": {
+    "repo": "cmuir_pingcorp/id-jag-standalone",
+    "commit": "f494d629d8229e29b21c2ac9dd25d084a66d8711",
+    "generated": "2026-10-21"
+  },
+  "demo": {
+    "id": "id-jag-standalone",
+    "name": "ID-JAG playground",
+    "catalog": "C1",
+    "baseUrl": "http://localhost:5173",
+    "doctor": "/api/doctor",
+    "tags": [
+      "tokens",
+      "pingfederate",
+      "mcp"
+    ]
+  },
+  "glossary": [
+    {
+      "id": "id-jag",
+      "term": "ID-JAG",
+      "definition": "Identity Assertion JWT Authorization Grant: a short-lived JWT (typ oauth-id-jag+jwt) that an IdP signs for one client and one target authorization server, so the client can get an access token there without a new user sign-in."
+    },
+    {
+      "id": "xaa",
+      "term": "Cross App Access (XAA)",
+      "definition": "Okta's product name for the ID-JAG pattern. Same protocol; PingFederate's documentation does not use the name."
+    },
+    {
+      "id": "enterprise-managed-authorization",
+      "term": "Enterprise-managed authorization",
+      "definition": "The MCP specification extension (io.modelcontextprotocol/enterprise-managed-authorization) that applies ID-JAG to MCP clients and servers. VS Code and mcpc implement it as clients."
+    },
+    {
+      "id": "identity-assertion",
+      "term": "Identity assertion",
+      "definition": "Proof of the user's sign-in that the client trades for an ID-JAG: an OpenID Connect ID token, a SAML 2.0 assertion, or a refresh token."
+    },
+    {
+      "id": "requesting-app",
+      "term": "Requesting app",
+      "definition": "The client or AI agent that wants to call another app on the user's behalf. In the playground it is this app's server; mcpc and VS Code are real ones."
+    },
+    {
+      "id": "idp-authorization-server",
+      "term": "IdP authorization server",
+      "definition": "The enterprise IdP (here PingFederate) that signs the user in, applies policy and issues ID-JAGs. It is where an administrator decides which app may reach which other app."
+    },
+    {
+      "id": "resource-authorization-server",
+      "term": "Resource authorization server",
+      "definition": "The target app's authorization server. It validates the ID-JAG and issues its own access token; the ID-JAG's aud must equal its issuer exactly."
+    },
+    {
+      "id": "resource-server",
+      "term": "Resource server",
+      "definition": "The REST API or MCP server that accepts the resource authorization server's access token, checking issuer, audience, expiry and scope."
+    },
+    {
+      "id": "token-exchange",
+      "term": "Token exchange (RFC 8693)",
+      "definition": "The grant the client uses at the IdP to get an ID-JAG: grant_type token-exchange with requested_token_type urn:ietf:params:oauth:token-type:id-jag, plus audience and resource."
+    },
+    {
+      "id": "jwt-bearer-grant",
+      "term": "JWT bearer grant (RFC 7523)",
+      "definition": "The grant the client uses at the resource authorization server to trade the ID-JAG for an access token: grant_type jwt-bearer with the ID-JAG as the assertion."
+    },
+    {
+      "id": "jti-replay",
+      "term": "jti replay protection",
+      "definition": "Each ID-JAG is redeemed at most once. The resource authorization server remembers issuer plus jti until the assertion expires and refuses a second use."
+    },
+    {
+      "id": "sub-id",
+      "term": "sub_id",
+      "definition": "An optional structured subject in the ID-JAG, for example a SAML NameID together with its issuer, so two IdPs that use the same NameID never collide."
+    },
+    {
+      "id": "strict-client-binding",
+      "term": "Strict client binding",
+      "definition": "This kit's rule: a trusted IdP may mint only for the client IDs mapped to it in the registry, and the ID-JAG's client_id must map to the client redeeming it."
+    },
+    {
+      "id": "cimd",
+      "term": "CIMD",
+      "definition": "Client ID Metadata Document: a client_id that is an HTTPS URL pointing to the client's metadata, so no registration step is needed. PingFederate 13.1 supports it."
+    },
+    {
+      "id": "dpop",
+      "term": "DPoP (RFC 9449)",
+      "definition": "Sender-constrained tokens: the token carries cnf.jkt and every call proves possession of the matching key. PingFederate 13.1 turns it on per client."
+    },
+    {
+      "id": "par-rar",
+      "term": "PAR and RAR",
+      "definition": "Pushed authorization requests (RFC 9126) and rich authorization requests (RFC 9396, authorization_details). Both appear in the cross-domain variant of the flow."
+    },
+    {
+      "id": "actor-token",
+      "term": "Actor token (act)",
+      "definition": "Delegation: the agent presents its own token as the actor, and the ID-JAG records it in an act claim. may_act on the ID token says who may act for the user."
+    },
+    {
+      "id": "refresh-token-revocation",
+      "term": "Refresh token revocation",
+      "definition": "Revoking the user's refresh token at the IdP (RFC 7009) stops new ID-JAGs from that session. Access tokens already minted stay valid until they expire."
+    }
+  ],
+  "sources": [
+    {
+      "id": "ietf-draft",
+      "title": "IETF draft-ietf-oauth-identity-assertion-authz-grant (-04)",
+      "url": "https://datatracker.ietf.org/doc/draft-ietf-oauth-identity-assertion-authz-grant/",
+      "kind": "Spec",
+      "use": "The source of truth: roles, claims, URNs and validation rules.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "mcp-ema",
+      "title": "MCP enterprise-managed authorization",
+      "url": "https://modelcontextprotocol.io/extensions/auth/enterprise-managed-authorization",
+      "kind": "Spec",
+      "use": "What MCP clients and servers expect: metadata, scopes and resource.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "mcp-client-matrix",
+      "title": "MCP client support matrix",
+      "url": "https://modelcontextprotocol.io/extensions/client-matrix",
+      "kind": "Index",
+      "use": "Which MCP clients support enterprise-managed authorization.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "pf-refresh-to-idjag",
+      "title": "PingFederate 13.1: refresh token to ID-JAG",
+      "url": "https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_refresh_token_to_idjag_exchange.html",
+      "kind": "Ping docs",
+      "use": "Issuer setup on PingFederate.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "pf-assertion-grant",
+      "title": "PingFederate 13.1: OAuth Assertion Grant IdP connection",
+      "url": "https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_oauth_assertion_grant_idp_connection.html",
+      "kind": "Ping docs",
+      "use": "Redeemer setup on PingFederate.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "pf-sp-token-exchange",
+      "title": "PingFederate 13.1: SP connections for OAuth token exchange",
+      "url": "https://docs.pingidentity.com/pingfederate/13.1/administrators_reference_guide/pf_configuring_sp_connections_oauth_token_exchange.html",
+      "kind": "Ping docs",
+      "use": "Allowed token types, Resource URIs, Minutes Before and After.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "ping-authplayground-xaa",
+      "title": "Ping AuthPlayground: XAA / ID-JAG",
+      "url": "https://developer.pingidentity.com/identity-for-ai/protocols/authplayground-xaa-id-jag.html",
+      "kind": "Ping docs",
+      "use": "Four-step teaching flow; shape reference.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "ping-authplayground-cross-domain",
+      "title": "Ping AuthPlayground: full cross-domain access",
+      "url": "https://developer.pingidentity.com/identity-for-ai/protocols/authplayground-cross-domain-access-xaa.html",
+      "kind": "Ping docs",
+      "use": "The PAR + RAR + DPoP + actor variant.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "mcpc",
+      "title": "apify/mcpc",
+      "url": "https://github.com/apify/mcpc",
+      "kind": "Client",
+      "use": "Command-line MCP client that runs the whole ID-JAG flow. Verified against this kit.",
+      "status": "verified",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "vscode-ema",
+      "title": "VS Code 1.123: enterprise-managed MCP authentication",
+      "url": "https://code.visualstudio.com/updates/v1_123#_enterprise-managed-mcp-authentication-preview",
+      "kind": "Client",
+      "use": "VS Code as an ID-JAG client (preview). Its protocol was replayed against this kit.",
+      "status": "verified",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "agentgateway-xaa",
+      "title": "agentgateway cross app access",
+      "url": "https://github.com/agentgateway/agentgateway/tree/main/examples/traffic-cross-app-access",
+      "kind": "Client",
+      "use": "A gateway that does the exchange for its backend; subject token type is configurable.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "mcp-ts-sdk",
+      "title": "MCP TypeScript SDK (CrossAppAccessProvider)",
+      "url": "https://github.com/modelcontextprotocol/typescript-sdk",
+      "kind": "Client",
+      "use": "Library for the redemption step; you supply the IdP exchange.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "mcp-python-sdk",
+      "title": "MCP Python SDK (IdentityAssertionOAuthProvider)",
+      "url": "https://py.sdk.modelcontextprotocol.io/client/identity-assertion/",
+      "kind": "Client",
+      "use": "The Python equivalent of the TypeScript provider.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "xaa-dev",
+      "title": "xaa.dev (run by Okta)",
+      "url": "https://xaa.dev",
+      "kind": "Test tool",
+      "use": "Reference playground: flow tester, inspect, register, docs.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "xaa-dev-docs",
+      "title": "xaa.dev docs (run by Okta)",
+      "url": "https://xaa.dev/docs/overview",
+      "kind": "Test tool",
+      "use": "A docs tree covering OIDC and SAML, REST and MCP.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "xaa-rocks",
+      "title": "xaa.rocks",
+      "url": "https://xaa.rocks",
+      "kind": "Test tool",
+      "use": "Hosted clients and resource apps; motd accepts ID-JAGs from any issuer with a JWKS.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "client-xaa-rocks",
+      "title": "client.xaa.rocks",
+      "url": "https://client.xaa.rocks",
+      "kind": "Test tool",
+      "use": "Hosted client for any OIDC or SAML IdP, with copy-as-curl.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "crossappaccess-guru",
+      "title": "crossappaccess.guru",
+      "url": "https://www.crossappaccess.guru/",
+      "kind": "Test tool",
+      "use": "Hosted learning harness. It keeps secrets in browser storage: test values only.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "id-jag-the-hard-way",
+      "title": "ID-JAG The Hard Way",
+      "url": "https://github.com/athenz-community/id-jag-the-hard-way",
+      "kind": "Tutorial",
+      "use": "Build every part by hand (Keycloak and Athenz).",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "darkedges-pf123",
+      "title": "darkedges/pf12.3-id-jag-poc",
+      "url": "https://github.com/darkedges/pf12.3-id-jag-poc",
+      "kind": "Sample",
+      "use": "ID-JAG on PingFederate 12.3, before native support. No licence: read only.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "better-auth-id-jag",
+      "title": "mmcintosh/better-auth-id-jag",
+      "url": "https://github.com/mmcintosh/better-auth-id-jag",
+      "kind": "Server",
+      "use": "A strict draft -04 receiver in TypeScript; interop target.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "authplane-quickstart",
+      "title": "Authplane quickstart",
+      "url": "https://docs.authplane.ai/quickstart/",
+      "kind": "Server",
+      "use": "MCP authorization server that accepts ID-JAGs; runs in Docker.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "authplane-authserver",
+      "title": "AuthPlane/authserver",
+      "url": "https://github.com/authplane/authserver",
+      "kind": "Server",
+      "use": "Source and licence (AGPL-3.0); its XAA topology doc.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "themsquared-mcp-oauth-xaa",
+      "title": "themsquared/mcp-oauth-xaa",
+      "url": "https://github.com/themsquared/mcp-oauth-xaa",
+      "kind": "Server",
+      "use": "Readable Python reference: resource AS, MCP server and client.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "go-oauth2",
+      "title": "go-oauth2/oauth2",
+      "url": "https://github.com/go-oauth2/oauth2",
+      "kind": "Server",
+      "use": "Go server library with draft -03 JWT bearer support.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "doorkeeper-id-jag",
+      "title": "doorkeeper-id_jag_grant",
+      "url": "https://github.com/doorkeeper-gem/doorkeeper-id_jag_grant",
+      "kind": "Server",
+      "use": "Ruby server-side roles for Doorkeeper; not a client.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "keycloak-idjag",
+      "title": "Keycloak identity-assertion-jwt",
+      "url": "https://www.keycloak.org/nightly/securing-apps/identity-assertion-jwt-authorization-grant",
+      "kind": "Server",
+      "use": "Experimental receiver; interop checks only.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "hmwildermuth-id-jag",
+      "title": "hmwildermuth/id-jag",
+      "url": "https://github.com/hmwildermuth/id-jag",
+      "kind": "Sample",
+      "use": "TypeScript library for both sides (draft -01, one commit). Reference only.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "posthog-idjag",
+      "title": "PostHog ID-JAG",
+      "url": "https://posthog.com/docs/settings/authentication/id-jag",
+      "kind": "Vendor",
+      "use": "A clear sequence; revocation by IdP cutoff.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "litellm-idjag",
+      "title": "LiteLLM ID-JAG overview",
+      "url": "https://docs.litellm.ai/docs/proxy/id_jag/overview",
+      "kind": "Vendor",
+      "use": "A gateway acting as the resource authorization server.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "notion-ema",
+      "title": "Notion: enterprise-managed MCP connections",
+      "url": "https://www.notion.com/help/set-up-enterprise-managed-connections-for-notion-mcp",
+      "kind": "Vendor",
+      "use": "Okta only today; more setups planned.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "scalekit-xaa",
+      "title": "Scalekit: cross app access for agents",
+      "url": "https://www.scalekit.com/blog/cross-app-access-agentic-auth-flows",
+      "kind": "Article",
+      "use": "A newcomer-friendly explainer.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "workos-converged",
+      "title": "WorkOS: cross app access converged",
+      "url": "https://workos.com/blog/cross-app-access-converged-in-eight-days",
+      "kind": "Article",
+      "use": "Who supports it, with dates.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "gupta-glossary",
+      "title": "Deepak Gupta glossary: ID-JAG",
+      "url": "https://guptadeepak.com/ciam-compass/glossary/id-jag/",
+      "kind": "Glossary",
+      "use": "Short definitions to compare ours against.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "awesome-xaa",
+      "title": "awesome-cross-app-access",
+      "url": "https://github.com/dorsha/awesome-cross-app-access",
+      "kind": "Index",
+      "use": "Find new samples and tools.",
+      "status": "read",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "descope-idjag",
+      "title": "Descope: ID-JAG cross app access",
+      "url": "https://www.descope.com/learn/post/id-jag-cross-app-access",
+      "kind": "Vendor",
+      "use": "Says it accepts Okta, Ping and others.",
+      "status": "search-only",
+      "checked": "2026-10-18"
+    },
+    {
+      "id": "supabase-ema",
+      "title": "Supabase enterprise MCP authentication",
+      "url": "https://supabase.com/docs/guides/platform/sso/enterprise-mcp-authentication",
+      "kind": "Vendor",
+      "use": "An MCP server that adopted it.",
+      "status": "search-only",
+      "checked": "2026-10-18"
+    }
+  ],
+  "cards": [
+    {
+      "id": "guide-pf-issuer",
+      "label": "PingFederate as the ID-JAG issuer",
+      "group": "setup",
+      "action": {
+        "type": "route",
+        "href": "/guides#pf-issuer"
+      }
+    },
+    {
+      "id": "guide-pf-redeemer",
+      "label": "PingFederate as the redeemer",
+      "group": "setup",
+      "action": {
+        "type": "route",
+        "href": "/guides#pf-redeemer"
+      }
+    },
+    {
+      "id": "guide-okta",
+      "label": "Okta Cross App Access",
+      "group": "setup",
+      "action": {
+        "type": "route",
+        "href": "/guides#okta"
+      }
+    },
+    {
+      "id": "guide-generic",
+      "label": "Any other IdP: the ID-JAG checklist",
+      "group": "setup",
+      "action": {
+        "type": "route",
+        "href": "/guides#generic"
+      }
+    },
+    {
+      "id": "guide-xaa",
+      "label": "Use xaa.dev (IdenX) as a free outside IdP",
+      "group": "setup",
+      "action": {
+        "type": "route",
+        "href": "/guides#xaa"
+      }
+    },
+    {
+      "id": "guide-desktop",
+      "label": "Use mcpc or VS Code as the client",
+      "group": "setup",
+      "action": {
+        "type": "route",
+        "href": "/guides#desktop"
+      }
+    },
+    {
+      "id": "playground",
+      "label": "ID-JAG Playground",
+      "description": "The flow one step at a time, with every request, response and the code behind it.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/"
+      },
+      "terms": [
+        "id-jag",
+        "token-exchange",
+        "jwt-bearer-grant"
+      ],
+      "story": "S11"
+    },
+    {
+      "id": "trusted-idps",
+      "label": "Trusted IdPs",
+      "description": "Register your IdP so the resource authorization server accepts its ID-JAGs.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/trusted-idps"
+      },
+      "terms": [
+        "resource-authorization-server"
+      ]
+    },
+    {
+      "id": "inspector",
+      "label": "Inspector",
+      "description": "Check an ID-JAG against the draft and the trust registry.",
+      "group": "try-it",
+      "action": {
+        "type": "route",
+        "href": "/inspect"
+      },
+      "terms": [
+        "jti-replay",
+        "strict-client-binding"
+      ]
+    }
+  ],
+  "diagrams": [
+    {
+      "id": "flow-mock",
+      "label": "Mock diagram",
+      "href": "/diagram/mock",
+      "mode": "mock"
+    },
+    {
+      "id": "flow-pf-as",
+      "label": "pf-as diagram",
+      "href": "/diagram/pf-as",
+      "mode": "pf-as"
+    },
+    {
+      "id": "flow-pf-pf",
+      "label": "pf-pf diagram",
+      "href": "/diagram/pf-pf",
+      "mode": "pf-pf"
+    },
+    {
+      "id": "flow-byo",
+      "label": "byo diagram",
+      "href": "/diagram/byo",
+      "mode": "byo"
+    }
+  ],
+  "stories": [
+    {
+      "id": "S11",
+      "title": "Lena from Acme reads a shared dataset",
+      "say": "No shared passwords, no duplicate accounts, and we still decide.",
+      "file": "stories/S11.json"
+    }
+  ]
+}
