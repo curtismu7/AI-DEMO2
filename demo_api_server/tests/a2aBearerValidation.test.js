@@ -20,7 +20,7 @@ function fakeCfg(overrides = {}) {
     pingone_holdings_agent_client_secret: 'shh',
     ...overrides,
   };
-  return { getEffective: (k) => values[k] || '' };
+  return { getEffective: (k) => values[k] || '', ...(overrides.__provider ? { getOAuthProvider: () => overrides.__provider } : {}) };
 }
 
 const GOOD_CLAIMS = {
@@ -97,6 +97,31 @@ describe('verifyA2aBearer', () => {
     await expectRejection(
       { ...GOOD_CLAIMS, act: { client_id: 'some-other-agent' } },
       { code: 'invalid_token', status: 401, challenge: INVALID_TOKEN_CHALLENGE },
+    );
+  });
+
+  test('PF mode: accepts the configured PF actor as the generalist', async () => {
+    // PF mode prefixes https:// onto the scheme-less configured audience (resolveA2aConfig).
+    const cfg = fakeCfg({ __provider: 'pingfederate', pf_ai_agent_actor_client_id: 'pf-actor-id', a2a_intermediate_audience_holdings: 'a2a-intermediate.investment.example' });
+    const claims = await run({ ...GOOD_CLAIMS, aud: ['https://a2a-intermediate.investment.example'], act: { sub: 'pf-actor-id' } }, cfg);
+    expect(claims.sub).toBe('user-123');
+  });
+
+  test('PF mode: still rejects an actor that is neither generalist', async () => {
+    const cfg = fakeCfg({ __provider: 'pingfederate', pf_ai_agent_actor_client_id: 'pf-actor-id', a2a_intermediate_audience_holdings: 'a2a-intermediate.investment.example' });
+    await expectRejection(
+      { ...GOOD_CLAIMS, aud: ['https://a2a-intermediate.investment.example'], act: { sub: 'some-other-agent' } },
+      { code: 'invalid_token', status: 401, challenge: INVALID_TOKEN_CHALLENGE },
+      cfg,
+    );
+  });
+
+  test('PingOne mode: the PF actor id is NOT accepted', async () => {
+    const cfg = fakeCfg({ pf_ai_agent_actor_client_id: 'pf-actor-id' });
+    await expectRejection(
+      { ...GOOD_CLAIMS, act: { sub: 'pf-actor-id' } },
+      { code: 'invalid_token', status: 401, challenge: INVALID_TOKEN_CHALLENGE },
+      cfg,
     );
   });
 
