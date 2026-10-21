@@ -45,6 +45,13 @@ spec:
         # Server-to-server MCP clients omit Origin and remain supported.
         - name: MCP_ALLOWED_ORIGINS
           value: "https://ai-demo.ping-devops.com"
+        # The shared ai-demo-config MCP_GW_RESOURCE_URI now lists mcpserver.ping.demo (so the
+        # gateway accepts it). This server reads the same var as its D-05 anti-bypass list
+        # ("gateway audiences must not reach the upstream"), so the shared value made it reject
+        # every tools/call whose exchanged token has aud=mcpserver.ping.demo (401 at PingGateway,
+        # "gateway rejected the agent's access token"). Override with the list minus its own aud.
+        - name: MCP_GW_RESOURCE_URI
+          value: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo"
         # environments.ts defaults development mode to a relative
         # './dev-data/tokens' path that is never created and unwritable under
         # this container's non-root user (runAsUser 1001) — the Dockerfile

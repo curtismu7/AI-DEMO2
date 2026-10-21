@@ -29,6 +29,7 @@ import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
 import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
 import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
+import CedarDemoPage from "./pages/CedarDemoPage";
 import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
 import PrivilegeDocsIndexPage from "./pages/PrivilegeDocsIndexPage";
 import SkillsIndexPage from "./pages/SkillsIndexPage";
@@ -275,6 +276,7 @@ import PublicRoutes, {
   StandaloneIndexRoute,
   StandaloneSampleRoute,
   StandaloneRunnerRoute,
+  StandaloneCedarRoute,
   SampleM2mPageRoute,
   SampleCustomAdminRolePageRoute,
   SampleUserRegistrationPageRoute,
@@ -886,6 +888,10 @@ function AppWithAuth() {
                 <Route
                   path="/standalone/runner/m2m"
                   element={<StandaloneRunnerRoute />}
+                />
+                <Route
+                  path="/standalone/cedar"
+                  element={<StandaloneCedarRoute />}
                 />
                 <Route
                   path="/standalone/:sampleId"
@@ -2301,6 +2307,11 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-mcp-diagrams"
                               element={<PrivilegeMcpDiagramPage />}
+                            />
+                            {/* Same page as /standalone/cedar, inside the app shell so the side nav stays. */}
+                            <Route
+                              path="/privilege-cedar"
+                              element={<CedarDemoPage />}
                             />
                             <Route
                               path="/privilege-docs-index"

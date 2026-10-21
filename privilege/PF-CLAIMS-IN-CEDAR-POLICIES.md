@@ -172,6 +172,12 @@ under Access Request Approvals before the client retries. See `AGENT-APPROVALS-D
 | `act` / ID-JAG in Cedar | **No hook found** (a PF `act` claim could still be matched by `RequiredClaims`, untested) |
 | Route B (PF as `IDProvider`) | **Untested** |
 
+## Try it
+
+`/standalone/cedar` runs a real open-source Cedar engine in the browser with PingFederate-style claims and the vocabulary above
+(10 scenarios, editable policies, strict validation that rejects `context.claims`). It is a local engine, not Ping's gateway; the
+page marks the attributes the real console does not have.
+
 ## Side effect to know about
 
 Probing registered one throwaway OAuth client (`pf-claims-probe`) through the door via DCR, the same call

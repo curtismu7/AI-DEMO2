@@ -6,7 +6,7 @@ const gates = (a, b, c) => [{ id: 'mfa', status: a }, { id: 'gw', status: b }, {
 describe('studioLearn', () => {
   it('has the three real gates in order and three lessons with real airline prompts', () => {
     expect(GATE_COPY.map((g) => g.id)).toEqual(['mfa', 'gw', 'authz']);
-    expect(LESSONS.map((l) => l.prompt)).toEqual(['What is my loyalty status?', 'access my sensitive airline bookings', 'pay a $300 change fee']);
+    expect(LESSONS.map((l) => l.prompt)).toEqual(['What is my loyalty status?', 'access my sensitive airline bookings', 'pay a $2500 change fee']);
   });
 
   it('labels badges and shows a pending step-up as Held on the Authorize gate only', () => {

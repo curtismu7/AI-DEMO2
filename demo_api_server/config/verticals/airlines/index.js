@@ -195,7 +195,10 @@ const HEURISTICS = [
   // via pay_airline_fee). Order: redeem_miles before get_loyalty_status so a
   // "use my miles" phrase routes to the write action.
   { re: /\b(redeem|use)\b.*\bmiles?\b|\bmiles?\b.*\b(upgrade|reward)\b/i, action: 'redeem_miles' },
-  { re: /\b(miles?|loyalty|tier|mileage\s*plus|points?\s+balance)\b/i, action: 'get_loyalty_status' },
+  // Not for transfers: the airline has no transfer-miles tool, and "Transfer 20,000 of my miles to my
+  // brother" used to land here, so after the transfer-intent consent + MFA the agent answered with the
+  // loyalty balance, a different question. It now matches no airline rule and gets the no-match answer.
+  { re: /^(?!.*\btransfer\b).*\b(miles?|loyalty|tier|mileage\s*plus|points?\s+balance)\b/i, action: 'get_loyalty_status' },
 ];
 
 function systemPrompt(ctx) {
