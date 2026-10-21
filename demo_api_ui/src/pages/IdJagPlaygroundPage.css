@@ -51,7 +51,7 @@
 .ijp-btn { font: inherit; padding: 0.4rem 0.9rem; margin: 0.25rem 0.4rem 0.25rem 0; border: 1px solid var(--th-border); border-radius: var(--btn-radius); background: var(--th-bg); color: var(--th-text); cursor: pointer; }
 .ijp-btn--primary { background: var(--ijp-grad); border-color: var(--ijp-red); color: #fff; font-weight: 600; }
 .ijp-btn:disabled { opacity: 0.45; cursor: default; }
-.ijp-io { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 0.75rem; margin-top: 0.75rem; }
+.ijp-io { display: grid; grid-template-columns: minmax(0, 1fr); gap: 0.75rem; margin-top: 0.75rem; }
 .ijp-io h4, .ijp-checks h4 { margin: 0 0 0.3rem; font-size: var(--font-size-xs); text-transform: uppercase; letter-spacing: 0.05em; color: var(--th-text-muted); }
 .ijp-json, .ijp-form { margin: 0; padding: 0.6rem; max-height: 320px; overflow: auto; border: 1px solid var(--th-border); border-radius: var(--radius-md); background: var(--th-bg); font-family: inherit; font-size: var(--font-size-2xs); }
 .ijp-json { white-space: pre-wrap; word-break: break-word; }
@@ -59,6 +59,11 @@
 .ijp-kv dt { color: var(--th-text-muted); font-weight: 600; }
 .ijp-kv dd { margin: 0; overflow-wrap: anywhere; color: var(--ijp-strong); }
 .ijp-kv .ijp-kv { padding-left: 0.6rem; border-left: 2px solid var(--th-border); }
+.ijp-fields { margin: 0; }
+.ijp-fields dt { margin-top: 0.4rem; color: var(--th-text-muted); font-weight: 600; }
+.ijp-fields dt:first-child { margin-top: 0; }
+.ijp-fields dd { margin: 0 0 0 0.9rem; overflow-wrap: break-word; color: var(--ijp-strong); }
+.ijp-fields .ijp-fields { padding-left: 0.6rem; border-left: 2px solid var(--th-border); }
 .ijp-kv-list { margin: 0; padding-left: 1.1rem; }
 .ijp-checks { margin-top: 0.9rem; overflow-x: auto; }
 .ijp-checks table, .ijp-vendors { width: 100%; border-collapse: collapse; font-size: var(--font-size-2xs); }
