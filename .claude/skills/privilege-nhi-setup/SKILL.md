@@ -165,6 +165,41 @@ The API has full CRUD (`agentaccesskeys`, `pacpolicys`, `applications`, `tagpoli
 - Object `ObjectMeta.ID` is required on app create; omitting it gives a misleading
   "cannot unmarshal string into map[string]json.RawMessage" 400.
 
+## Sensor identity in Docker: crash-loop after a restart
+
+A Docker-hosted sensor (a `NonHumanIdentity` whose credential is a signing key the sensor makes
+itself) can loop forever with:
+
+```text
+open /etc/procyon/nodesensor-signing.pem: read-only file system
+```
+
+The key file *is* the identity: the sensor writes it on first start, and the identity in the console
+pins that key's ID. Two separate failures hide behind the one symptom [verified 2026-10-01, OrbStack]:
+
+1. **Key directory mounted read-only.** `docker inspect <sensor> --format '{{.HostConfig.Binds}}'`
+   showed `/etc/procyon:/etc/procyon:ro`. The sensor must write there on start, so every start
+   fails and `--restart always` keeps it looping (it can look alive in a quick `docker ps` unless
+   you read the status column). Same flags with a writable mount created the key; with `:ro` it
+   failed identically. Fix: recreate the container with `/etc/procyon` writable (only `/sys` and
+   `/var/lib/docker/containers` stay `:ro`).
+2. **A new key means a new identity.** Once it runs, reports fail `Unauthenticated` if the key
+   file was lost, because the console still pins the old key ID. Fix: print the new key set with
+   the sensor's `-mint-jwks` against the same directory and paste it into the identity (Paste
+   Keys). Issuer, subject and audience do not change and no restart is needed.
+
+**Why it comes back after a restart:** on OrbStack, `/etc/procyon` is a path inside the VM whose
+writable layer sits on a tmpfs, so the key file lived in memory and was lost when the VM restarted.
+Put the key on a **named Docker volume** (we used `procyon-nodesensor-key` mounted at
+`/etc/procyon`, copying the existing key in first so the key ID does not change). The volume
+survives on disk, but it is lost if someone runs `docker volume prune` while no sensor container
+exists. We never tested a full restart after the move.
+
+When someone reports "worked, then broke after Docker restarted or the laptop rebooted", do not
+assume it is the same as ours: run the `docker inspect` line first. We only verified OrbStack;
+Docker Desktop bind mounts may behave differently [unverified]. The sensor is usually not in
+compose, so nothing in the repo shows its mounts.
+
 ## Workload identity / NHI federation (secretless)
 
 Privilege can trust an **external token issuer** instead of a static key. Swagger re-read and
