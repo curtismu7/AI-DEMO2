@@ -5,6 +5,7 @@ import { diagramLinkProps } from "../utils/diagramLinks";
 import { PLAYGROUND_DIAGRAMS, playgroundDiagramPath } from "../utils/idJagPlaygroundDiagrams";
 import bffAxios from "../services/bffAxios";
 import { openSignIn } from "../utils/signInService";
+import { PI_FLOW_SIGNIN_EVENT } from "../utils/authUi";
 import { MOCK_CONFIG, mockApi } from "../utils/idJagPlaygroundMock";
 import { codeSnippet } from "../utils/codeSnippet";
 import { buildReport, downloadFile } from "../utils/runReport";
@@ -269,6 +270,11 @@ function explain(e, resource) {
   return null;
 }
 
+// Another dialog (including the sign-in modal itself) is on screen: do not stack a second one on it.
+// The app keeps closed drawers in the DOM with aria-hidden, so those do not count.
+const anotherDialogOpen = () => typeof document !== "undefined"
+  && Array.from(document.querySelectorAll('[role="dialog"], dialog[open]')).some((el) => !el.hidden && !el.closest('[aria-hidden="true"]'));
+
 function ErrorNote({ e, resource }) {
   const hint = explain(e, resource);
   return (
@@ -508,6 +514,8 @@ export default function IdJagPlaygroundPage() {
   const [error, setError] = useState(null);
   const [gate, setGate] = useState(null);
   const [resource, setResource] = useState(null);
+  const [appSignedOut, setAppSignedOut] = useState(false); // the app's own sign-in (hosted-access wall), not PingFederate
+  const appPromptedRef = useRef(false); // the app sign-in opens by itself once per page visit
   const [nowMs, setNowMs] = useState(() => Date.now());
   const location = useLocation();
   const navigate = useNavigate();
@@ -532,6 +540,7 @@ export default function IdJagPlaygroundPage() {
     // An older BFF without this route answers with the SPA's HTML, not JSON.
     if (!data?.idp) throw new Error("This server does not have the ID-JAG playground API yet. Deploy the latest BFF.");
     setConfig(data);
+    setAppSignedOut(false);
     if (data.modes) setRealModes(data.modes);
   };
   const loadNegatives = (a) => a.get(`${API}/negative`).then((r) => setNegatives(Array.isArray(r.data) ? r.data : [])).catch(() => {});
@@ -552,12 +561,34 @@ export default function IdJagPlaygroundPage() {
         if (back.has("xaa") || back.has("xaa_error")) navigate(location.pathname, { replace: true });
         if (back.get("xaa_error")) setError({ step: "xaa", error: "xaa_sign_in_failed", message: `IdenX sign-in did not complete (${back.get("xaa_error")}).` });
         else if (back.get("xaa") === "signed_in" && mode === "byo") run("xaa", loadXaaIdJag, checkFor("xaa"));
-      } catch (e) { setError(e.response?.data || { message: e.message }); }
+      } catch (e) {
+        if (e.response?.status === 401 || e.response?.data?.error === "hosted_access_required") setAppSignedOut(true);
+        setError(e.response?.data || { message: e.message });
+      }
     })();
     loadNegatives(bffAxios);
     // Initial load only: later mode changes go through pickMode.
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
+
+  // Signed out of the app: open its sign-in modal (the event the header Sign In sends) once per visit. A
+  // dismissed modal stays closed; the Sign in button in the banner reopens it. The modal learns whether it can
+  // drive a sign-in from its own fetches, so an early event goes unhandled: retry for a few seconds and never
+  // fall back to the redirect login on our own (openSignIn would; this does not).
+  const openAppSignIn = () => openSignIn({ role: "customer", returnTo: RETURN_TO });
+  useEffect(() => {
+    if (!appSignedOut || appPromptedRef.current) return undefined;
+    let timer;
+    const attempt = (n) => {
+      if (anotherDialogOpen()) return;
+      const detail = { returnTo: RETURN_TO, role: "customer", force: false, keepHint: false, handled: false };
+      window.dispatchEvent(new CustomEvent(PI_FLOW_SIGNIN_EVENT, { detail }));
+      if (detail.handled) appPromptedRef.current = true;
+      else if (n < 10) timer = setTimeout(() => attempt(n + 1), 300);
+    };
+    attempt(0);
+    return () => clearTimeout(timer);
+  }, [appSignedOut]);
 
   const clearResults = () => {
     setIssued(null); setInspection(null); setRedeemed(null); setTools(null); setCallResult(null); setNegResults({}); setResource(null); setGate(null); setRevoked(null);
@@ -598,18 +629,30 @@ export default function IdJagPlaygroundPage() {
     passes(gate.step, gate.params, true).finally(() => setBusy(""));
   };
 
+  // The user just chose a PingFederate lane that signs in at the issuer and is not signed in there: open that
+  // sign-in now (the same call as the red button). Only after an explicit click, never for mock/byo, never over
+  // another dialog, and not while the app's own sign-in is the missing piece.
+  const promptIssuerSignIn = (m, cfg) => {
+    const issuer = m === "pf-pf" || (m === "oauth-mcp" && cfg?.signIn?.via === "issuer");
+    const blocked = cfg?.modes?.find((r) => r.id === m)?.available === false;
+    if (!issuer || blocked || !cfg?.enabled || cfg.signedIn || cfg.signIn?.reason || appSignedOut || anotherDialogOpen()) return;
+    openSignIn({ role: "issuer", returnTo: RETURN_TO, force: true });
+  };
+
   const pickMode = (m) => {
-    if (m === mode) return;
+    if (m === mode) { if (config) promptIssuerSignIn(m, config); return; }
     if (m === "mock") {
-      store(MODE_KEY, m); clearResults(); setMode(m); setError(null); setConfig(MOCK_CONFIG); loadNegatives(mockApi);
+      store(MODE_KEY, m); clearResults(); setMode(m); setError(null); setAppSignedOut(false); setConfig(MOCK_CONFIG); loadNegatives(mockApi);
       return;
     }
     run("mode", async () => {
       store(MODE_KEY, m);
       clearResults();
       setMode(m);
-      applyConfig((await bffAxios.post(`${API}/mode`, { mode: m })).data);
+      const next = (await bffAxios.post(`${API}/mode`, { mode: m })).data;
+      applyConfig(next);
       if (isMock) loadNegatives(bffAxios);
+      promptIssuerSignIn(m, next);
     }, { step: "mode", params: { mode: m } });
   };
 
@@ -837,6 +880,12 @@ export default function IdJagPlaygroundPage() {
               : mode === "oauth-mcp" && !viaIssuer && config.provider !== "pingfederate"
                 ? "The login provider is PingOne. ID-JAG only exists on PingFederate: switch the provider to PingFederate (top-bar P1/PF, admin) and sign in."
                 : "pf_id_jag_enabled is off on this BFF."}
+          </div>
+        )}
+        {appSignedOut && (
+          <div className="ijp-banner" data-testid="ijp-app-sign-in">
+            <strong>Sign in to use the playground</strong>{" "}
+            <button type="button" className="ijp-btn ijp-btn--primary" onClick={openAppSignIn}>Sign in</button>
           </div>
         )}
         {error && !["list", "call", "resource"].includes(error.step) && <ErrorNote e={error} resource={config?.request?.resource} />}
