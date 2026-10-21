@@ -160,3 +160,53 @@
 }
 
 .personal-agent-client-cards__action { --th-status-info: #051727; }
+
+/* variant="dock": a slim row for the cockpit layout */
+.personal-agent-client-dock {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 16px;
+  border-top: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+}
+
+.personal-agent-client-dock__label {
+  margin-right: 4px;
+  font-size: var(--font-size-xs);
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.personal-agent-client-dock__chip {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 5px 6px 5px 12px;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-xl);
+  background: var(--th-bg-page);
+  color: var(--th-text);
+}
+
+.personal-agent-client-dock__chip small {
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.personal-agent-client-dock__chip strong {
+  font-size: var(--font-size-sm);
+}
+
+/* One size for every dock action: the cards give a <button> and a <Link> different defaults. */
+.personal-agent-client-dock__chip .personal-agent-client-cards__action {
+  padding: 6px 12px;
+  font-size: var(--font-size-2xs);
+  line-height: 1.2;
+}

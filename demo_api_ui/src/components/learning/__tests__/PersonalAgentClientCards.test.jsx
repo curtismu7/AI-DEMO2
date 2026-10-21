@@ -52,4 +52,20 @@ describe("PersonalAgentClientCards", () => {
     const rule = css.match(/\.personal-agent-client-cards__groups\s*\{([^}]*)\}/)[1];
     expect(rule).toMatch(/grid-template-columns:\s*repeat\(auto-fit/);
   });
+
+  it('variant="dock" is a slim row with every client and an action, not the full cards', () => {
+    render(
+      <MemoryRouter>
+        <PersonalAgentClientCards variant="dock" />
+      </MemoryRouter>,
+    );
+    expect(screen.getByRole('region', { name: 'Personal agent clients' })).toBeInTheDocument();
+    expect(screen.getByText('Connect a client')).toBeInTheDocument();
+    expect(screen.getByText('LibreChat')).toBeInTheDocument();
+    expect(screen.getByText('LM Studio')).toBeInTheDocument();
+    expect(screen.getByText('Dot')).toBeInTheDocument();
+    // none of the card chrome
+    expect(screen.queryByText('Choose the client boundary')).toBeNull();
+    expect(screen.queryByText('CIMD / DCR')).toBeNull();
+  });
 });

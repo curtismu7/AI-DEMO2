@@ -31,7 +31,7 @@ export const DIAGRAMS_INDEX = [
   {
     section: "Agent Privilege and Privilege",
     items: [
-      D("AI Agent Gateway", "/privilege-mcp-diagrams", "Architecture, sign-in with tool call, and auth flow."),
+      D("AI Agent Gateway", "/privilege-mcp-diagrams", "Architecture, sign-in with tool call, auth flow, and how a PingFederate identity reaches a Cedar policy."),
       D("Privilege-First Gateway", "/privilege-first-gateway", "How the gateway enforces access, in two figures."),
       D("Gateway vs P1AZ Enforcement", "/gateway-enforcement-map", "Where the gateway and PingOne Authorize each enforce."),
       D("Resource Server Placement", "/resource-server-placement", "Where the resource server sits relative to the gateway."),
