@@ -2429,10 +2429,7 @@ function AppWithAuth() {
                             />
                             <Route
                               path="/united-personal-agent-flow"
-                              element={
-                                // Customer architecture: signed-in users only.
-                                loading ? null : user ? <UnitedPersonalAgentFlowPage /> : <SignInPrompt message="This customer architecture needs a signed-in session." />
-                              }
+                              element={<UnitedPersonalAgentFlowPage />}
                             />
                             <Route
                               path="/personal-agent-dual-gateway"
