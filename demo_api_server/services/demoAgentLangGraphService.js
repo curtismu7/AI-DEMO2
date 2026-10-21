@@ -1338,6 +1338,24 @@ function buildVerticalReply(action, data, render, verticalCtx) {
     if (!tier && pts == null) return "I couldn't read your MileagePlus status.";
     return `Your MileagePlus status${tier ? `: ${tier}` : ''}${pts != null ? ` · ${Number(pts).toLocaleString('en-US')} miles` : ''}.`;
   }
+  // Airlines flight status. The tool returns { flightNumber, route, status, departureTime,
+  // gate, usedNextFlight } or { found: false, note }; with no render declared it fell through
+  // to "Here are your flight status." with no data. departureTime is an ISO string in the
+  // origin's local time, so it is shown as written rather than converted.
+  if (action === 'get_flight_status') {
+    if (data && data.found === false) return data.note || "I couldn't find that flight.";
+    const num = data && data.flightNumber;
+    const route = data && data.route;
+    const dep = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}:\d{2})/.exec(String((data && data.departureTime) || ''));
+    const MONTHS = ['Jan', 'Feb', 'Mar', 'Apr', 'May', 'Jun', 'Jul', 'Aug', 'Sep', 'Oct', 'Nov', 'Dec'];
+    const parts = [
+      data && data.status,
+      dep && `departs ${MONTHS[Number(dep[2]) - 1]} ${Number(dep[3])}, ${dep[4]}`,
+      data && data.gate && `gate ${data.gate}`,
+    ].filter(Boolean);
+    if (!num || !parts.length) return "I couldn't read the flight status.";
+    return `${data.usedNextFlight ? 'Your next flight, ' : ''}${num}${route ? ` (${route})` : ''}: ${parts.join(' · ')}.`;
+  }
   if (action === 'book_appointment') {
     const provider = data && data.provider;
     const when = data && data.when;
