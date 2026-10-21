@@ -25,7 +25,28 @@ function ClientAction({ client }) {
     </Link>
   );
 }
-export default function PersonalAgentClientCards() {
+/**
+ * variant="dock": one slim row (client, kind, action) for layouts that keep setup one click away
+ * but do not give it a page section. The default is the full set of cards.
+ */
+function ClientDock() {
+  const KIND_LABEL = { browser: "Browser", mac: "Mac", hosted: "Hosted" };
+  return (
+    <section className="personal-agent-client-dock" aria-label="Personal agent clients">
+      <span className="personal-agent-client-dock__label">Connect a client</span>
+      {PERSONAL_AGENT_CLIENTS.map((client) => (
+        <div className="personal-agent-client-dock__chip" key={client.id}>
+          <small>{KIND_LABEL[client.kind] || client.kind}</small>
+          <strong>{client.label}</strong>
+          <ClientAction client={client} />
+        </div>
+      ))}
+    </section>
+  );
+}
+
+export default function PersonalAgentClientCards({ variant = "cards" }) {
+  if (variant === "dock") return <ClientDock />;
   const groups = [
     {
       label: "Browser personal agent",

@@ -1,0 +1,70 @@
+.gate-chips {
+  list-style: none;
+  margin: 0;
+  padding: 12px 16px;
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.gate-chips__chip {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  min-width: 0;
+  padding: 10px 12px;
+  border: 1px solid var(--th-border);
+  border-left-width: 4px;
+  border-radius: 10px;
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  transition: border-color 0.3s, background 0.3s;
+}
+
+.gate-chips__chip small {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}
+
+.gate-chips__chip strong {
+  font-size: 13px;
+  line-height: 1.25;
+}
+
+.gate-chips__status {
+  font-size: 12px;
+  color: var(--th-text-muted);
+}
+
+.gate-chips__chip--permit {
+  border-color: var(--th-status-success-text);
+  background: var(--th-status-success-bg);
+}
+
+.gate-chips__chip--permit .gate-chips__status {
+  color: var(--th-status-success-text);
+  font-weight: 600;
+}
+
+.gate-chips__chip--deny {
+  border-color: var(--th-status-error-text);
+  background: var(--th-status-error-bg);
+}
+
+.gate-chips__chip--deny .gate-chips__status {
+  color: var(--th-status-error-text);
+  font-weight: 600;
+}
+
+.gate-chips__chip--checking {
+  border-color: var(--th-status-info-text);
+}
+
+@media (max-width: 960px) {
+  .gate-chips {
+    grid-template-columns: 1fr;
+  }
+}

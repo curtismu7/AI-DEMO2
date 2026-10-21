@@ -19,6 +19,8 @@ import SignInPrompt from '../components/SignInPrompt';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
 import { PERSONAL_AGENT_EDGES, PERSONAL_AGENT_GROUPS, PERSONAL_AGENT_NODES, PERSONAL_AGENT_STEPS } from '../config/personalAgentStudioDiagram';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
+import GateChips from '../components/GateChips';
+import './PersonalAgentStudioPage.css';
 
 const SKINS = ['privilege', 'claude', 'claude-terminal', 'gpt', 'gemini', 'cua', 'dot'];
 const SKIN_LABELS = { privilege: 'Privilege', claude: 'Claude', 'claude-terminal': 'Terminal', gpt: 'ChatGPT', gemini: 'Gemini', cua: 'Computer Use', dot: 'Persona Agent (Dot)' };
@@ -109,6 +111,19 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   // 'obo' swaps the chat for the RFC 8693 delegation inspector (deep link: ?tab=obo).
   const [view, setView] = useState(query.get('tab') === 'obo' ? 'obo' : 'agent');
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent', 'heuristics');
+  // 'stacked' (chat, then the reel and Token Chain under it) or 'cockpit' (chat left; gates, flow, reel and
+  // Token Chain right; client dock along the bottom). Deep link ?layout=cockpit; the choice is remembered per browser.
+  const [layoutMode, setLayoutMode] = useState(() => {
+    const asked = query.get('layout');
+    if (asked === 'stacked' || asked === 'cockpit') return asked;
+    try { if (window.localStorage.getItem('pas-layout') === 'cockpit') return 'cockpit'; } catch (_e) { /* storage blocked: default */ }
+    return 'stacked';
+  });
+  const cockpit = layoutMode === 'cockpit' && view === 'agent';
+  const chooseLayout = useCallback((mode) => {
+    setLayoutMode(mode);
+    try { window.localStorage.setItem('pas-layout', mode); } catch (_e) { /* storage blocked: still switches */ }
+  }, []);
   const [theme, setTheme] = useState('dark');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
   const [dotMemoryNonce, setDotMemoryNonce] = useState(0);
@@ -387,9 +402,9 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     // height:'100%' had no definite parent to resolve against, so the page grew to ~1600px and the reel sat far below the fold.
     // Bare (/personal-agent/full) has no app chrome to subtract.
     <>
-    <div data-testid="studio-shell" style={{ display: 'flex', flexDirection: 'column', height: bare ? 'calc(100vh / var(--app-zoom, 1))' : 'calc(100vh / var(--app-zoom, 1) - 176px)', minHeight: 640, overflow: 'hidden', background: 'var(--bg, #0f1117)' }}>
+    <div data-testid="studio-shell" className={`pas-shell${cockpit ? ' pas-shell--cockpit' : ''}`} style={{ height: bare ? 'calc(100vh / var(--app-zoom, 1))' : 'calc(100vh / var(--app-zoom, 1) - 176px)', minHeight: 640, background: 'var(--bg, #0f1117)' }}>
       {/* Page header */}
-      <div style={{ background: 'var(--surface, #1a1d27)', borderBottom: '1px solid var(--border, #2e3347)', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
+      <div className="pas-c-header" style={{ background: 'var(--surface, #1a1d27)', borderBottom: '1px solid var(--border, #2e3347)', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--th-text)', marginRight: 8 }}>Digital Assistant</span>
 
         {/* View tabs */}
@@ -425,12 +440,16 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         {/* Actions */}
         {view === 'agent' && <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', alignItems: 'center' }}>
           <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} />
-          <button
+          <div className="pas-layout-switch" role="group" aria-label="Page layout">
+            <button type="button" aria-pressed={layoutMode === 'stacked'} onClick={() => chooseLayout('stacked')}>Stacked</button>
+            <button type="button" aria-pressed={layoutMode === 'cockpit'} onClick={() => chooseLayout('cockpit')}>Cockpit</button>
+          </div>
+          {!cockpit && <button
             onClick={() => setLayoutState((s) => s === 'split' ? 'full' : 'split')}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'split' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'split' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'split' ? 'var(--th-status-info-text)' : 'var(--th-text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
           >
             Split
-          </button>
+          </button>}
           <button
             onClick={handlePopOut}
             style={{ display: 'flex', alignItems: 'center', gap: 5, padding: '5px 11px', borderRadius: 6, border: `1px solid ${layoutState === 'popped' ? 'var(--accent, #4f8ef7)' : 'var(--border, #2e3347)'}`, background: layoutState === 'popped' ? 'rgba(79,142,247,0.15)' : 'transparent', color: layoutState === 'popped' ? 'var(--th-status-info-text)' : 'var(--th-text-muted)', fontSize: 12, fontWeight: 500, cursor: 'pointer' }}
@@ -453,7 +472,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         </div>
       ) : (<>
       {/* Content area */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 320 }}>
+      <div className="pas-c-chat" style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 320 }}>
         {/* Agent panel */}
         <div style={{ flex: layout.agentFlex, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           {layout.placeholderVisible ? (
@@ -529,8 +548,9 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
 
       {/* Movie reel — same TokenChainFilmstrip the dashboard uses, so a personal
           agent test shows the RFC 8693 delegation path it exercised. */}
+      {cockpit && <GateChips className="pas-c-gates" gates={replayGates || gates} />}
       {view === 'agent' && (
-        <details style={{ flexShrink: 0, padding: '0 16px', borderTop: '1px solid var(--th-border)' }}>
+        <details className="pas-c-flow" style={{ flexShrink: 0, padding: '0 16px', borderTop: '1px solid var(--th-border)' }}>
           <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>How a request flows</summary>
           <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
             <EmbeddedFlowDiagram
@@ -548,15 +568,16 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       {/* Stacked: the reel on top, the long token-chain detail under it at full width. An inline
           maxHeight:'45%' used to cap this, but a % can't resolve in this column, so the block grew
           to ~670px and the fixed-height page clipped it. The class's vh cap does the job. */}
-      <div className="tcfs-float-host tcfs-float-host--stacked" style={{ minHeight: 120 }}>
+      <div className="tcfs-float-host tcfs-float-host--stacked pas-c-reel" style={{ minHeight: 120 }}>
         <TokenChainFilmstrip />
       </div>
       </>)}
+      {cockpit && <PersonalAgentClientCards variant="dock" />}
       {mfaModal}
     </div>
     {/* The client cards sit BELOW the fixed-height shell (the page scrolls to them): inside it they took ~500px of the
         column and were clipped, squeezing the reel. */}
-    {view === 'agent' && <PersonalAgentClientCards />}
+    {view === 'agent' && !cockpit && <PersonalAgentClientCards />}
     </>
   );
 }
