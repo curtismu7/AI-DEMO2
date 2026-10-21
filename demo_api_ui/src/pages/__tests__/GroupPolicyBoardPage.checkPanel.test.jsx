@@ -5,7 +5,7 @@
 // a DENY is shown as a deny with its reason, and a failed probe reads UNKNOWN,
 // never PERMIT.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
-import { MemoryRouter } from 'react-router-dom';
+import { MemoryRouter, useLocation } from 'react-router-dom';
 import GroupPolicyBoardPage from '../GroupPolicyBoardPage';
 import { VerticalContext } from '../../vertical/VerticalProvider';
 
@@ -73,10 +73,13 @@ function fetchMock(handler) {
   });
 }
 
-function renderPage(fetchFn) {
+function Where() { const l = useLocation(); return <output data-testid="where">{l.pathname}{l.search}</output>; }
+
+function renderPage(fetchFn, url = '/') {
   global.fetch = fetchFn;
   return render(
-    <MemoryRouter>
+    <MemoryRouter initialEntries={[url]}>
+      <Where />
       <VerticalContext.Provider value={{ verticalId: 'banking' }}>
         <GroupPolicyBoardPage />
       </VerticalContext.Provider>
@@ -259,5 +262,15 @@ describe('GroupPolicyBoardPage — group check panel', () => {
     expect(toggles[0]).toEqual({ inGroup: false, username: 'demoDelegate', verticalId: 'banking' });
     // The check re-ran after the write.
     await waitFor(() => expect(check.mock.calls.length).toBeGreaterThanOrEqual(2));
+  });
+
+  it('the picked vertical lives in the URL: it loads from ?verticalId= and changing it rewrites the URL', async () => {
+    const fetchFn = fetchMock({ check: () => CHECK_DENY });
+    renderPage(fetchFn, '/group-policy?verticalId=retail');
+    await waitFor(() => expect(screen.getByLabelText('Vertical')).toHaveValue('retail'));
+    expect(fetchFn.mock.calls.some(([u]) => String(u).includes('/decision-board?verticalId=retail'))).toBe(true);
+
+    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'airlines' } });
+    await waitFor(() => expect(screen.getByTestId('where')).toHaveTextContent('/group-policy?verticalId=airlines'));
   });
 });
