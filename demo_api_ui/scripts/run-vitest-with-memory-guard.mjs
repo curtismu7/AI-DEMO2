@@ -17,8 +17,12 @@ const TERMINATE_GRACE_MS = 250
 // every pending `ps` timeout fires in the same millisecond, so three "failures
 // in a row" can span zero real time and kill a healthy run (PR CI, Oct 2026).
 const MAX_CONSECUTIVE_SNAPSHOT_FAILURES = 3
-const MAX_BLIND_MS = 30_000
-const PS_TIMEOUT_MS = 5_000
+// Raised from 30 s / 5 s (Oct 2026): the self-hosted runner is a developer Mac whose EDR agents push
+// host load into the hundreds, and a healthy run (every test file green) was stopped here three times
+// in one day because `ps` stalled past its timeout. A real runaway is still bounded without a fast
+// poll: workers are capped at VITEST_HEAP_LIMIT_MB and the CI job has a 30-minute timeout.
+export const MAX_BLIND_MS = 120_000
+export const PS_TIMEOUT_MS = 15_000
 const TEST_FILES_PER_BATCH = 12
 const execFileAsync = promisify(execFile)
 

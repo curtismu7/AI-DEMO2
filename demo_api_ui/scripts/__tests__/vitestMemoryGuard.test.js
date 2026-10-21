@@ -7,6 +7,8 @@ import {
   monitorVitest,
   parseVitestFileList,
   parseProcessTable,
+  MAX_BLIND_MS,
+  PS_TIMEOUT_MS,
   VITEST_RSS_LIMIT_BYTES,
 } from '../run-vitest-with-memory-guard.mjs'
 import { applyVitestMemoryLimits } from '../vitest-memory-guard.config.mjs'
@@ -252,3 +254,14 @@ describe('Vitest memory guard', () => {
     expect(stopProcessTree).toHaveBeenCalledTimes(1)
   })
 })
+
+describe('guard tolerance on a heavily loaded CI host', () => {
+  it('keeps the process-table timeout and blind window at or above the floors that stopped healthy runs', () => {
+    // Below these the guard killed green runs on the shared runner (host load 60-330).
+    expect(PS_TIMEOUT_MS).toBeGreaterThanOrEqual(15_000)
+    expect(MAX_BLIND_MS).toBeGreaterThanOrEqual(120_000)
+    // ...and never longer than a runaway worker could safely go unwatched.
+    expect(MAX_BLIND_MS).toBeLessThanOrEqual(5 * 60_000)
+  })
+})
+
