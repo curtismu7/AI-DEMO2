@@ -1,9 +1,10 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import InspectorShell from './components/shared/InspectorShell';
 import InspectorTabs from './components/shared/InspectorTabs';
-import InspectorListItem from './components/shared/InspectorListItem';
 import AddServerForm from './components/AddServerForm';
+import ToolList from './components/ToolList';
 import { api } from './lib/api';
+import { explainFailure } from './lib/explain';
 
 const SOURCES = [
   { key: 'tools', label: 'Tools' },
@@ -60,6 +61,9 @@ export default function App() {
 
   const [pingoneStatus, setPingoneStatus] = useState(null);
 
+  const selectedProfile = profiles.find((p) => p.id === selectedProfileId);
+  const selectedLabel = selectedProfile?.label;
+
   const loadProfiles = useCallback(async () => {
     const { data } = await api.get('/api/profiles');
     const list = data?.profiles || [];
@@ -81,47 +85,53 @@ export default function App() {
   }, []);
 
   const loadItems = useCallback(async () => {
-    setSelectedItem(null);
-    setLastInvoke(null);
-    setParamValues({});
-    setBanner(null);
+    try {
+      setSelectedItem(null);
+      setLastInvoke(null);
+      setParamValues({});
+      setBanner(null);
 
-    if (source === 'pingone') {
-      await loadPingoneStatus();
+      if (source === 'pingone') {
+        await loadPingoneStatus();
+        setLoadingItems(true);
+        const { data } = await api.get('/api/pingone/tools');
+        setLoadingItems(false);
+        if (data?.loginRequired) {
+          setItems([]);
+          setBanner({ message: data.message, action: { label: 'Sign in', href: '/api/pingone/login' } });
+          return;
+        }
+        if (data?.error) {
+          setItems([]);
+          setBanner({ message: data.reason });
+          return;
+        }
+        setItems(data?.tools || []);
+        return;
+      }
+
+      if (!selectedProfileId) { setItems([]); return; }
+
+      if (source === 'protocol') {
+        setLoadingItems(true);
+        const { data } = await api.get('/api/protocol-methods');
+        setLoadingItems(false);
+        setItems((data?.methods || []).map((m) => ({ ...m, name: m.method })));
+        return;
+      }
+
+      // source === 'tools'
       setLoadingItems(true);
-      const { data } = await api.get('/api/pingone/tools');
+      const { data } = await api.get(`/api/tools?profile=${encodeURIComponent(selectedProfileId)}`);
       setLoadingItems(false);
-      if (data?.loginRequired) {
-        setItems([]);
-        setBanner({ message: data.message, action: { label: 'Sign in', href: '/api/pingone/login' } });
-        return;
-      }
-      if (data?.error) {
-        setItems([]);
-        setBanner({ message: data.reason });
-        return;
-      }
+      if (data?.error) setBanner({ message: explainFailure(data.reason, { subject: selectedLabel || 'the server' }) });
       setItems(data?.tools || []);
-      return;
-    }
-
-    if (!selectedProfileId) { setItems([]); return; }
-
-    if (source === 'protocol') {
-      setLoadingItems(true);
-      const { data } = await api.get('/api/protocol-methods');
+    } catch (err) {
       setLoadingItems(false);
-      setItems((data?.methods || []).map((m) => ({ ...m, name: m.method })));
-      return;
+      setItems([]);
+      setBanner({ message: explainFailure(err.message, { subject: 'the inspector server' }) });
     }
-
-    // source === 'tools'
-    setLoadingItems(true);
-    const { data } = await api.get(`/api/tools?profile=${encodeURIComponent(selectedProfileId)}`);
-    setLoadingItems(false);
-    if (data?.error) setBanner({ message: data.reason || 'Failed to load tools.' });
-    setItems(data?.tools || []);
-  }, [source, selectedProfileId, loadPingoneStatus]);
+  }, [source, selectedProfileId, selectedLabel, loadPingoneStatus]);
 
   useEffect(() => { loadItems(); }, [loadItems]);
 
@@ -155,9 +165,9 @@ export default function App() {
     setLastTiming({ ms, error: !res.ok || Boolean(res.data?.error) });
     setOutputTab('response');
     if (res.data?.loginRequired || res.data?.error) {
-      setBanner({ message: res.data.message || res.data.reason || 'Request failed.' });
+      setBanner({ message: explainFailure(res.data.message || res.data.reason || 'Request failed.', { subject: source === 'pingone' ? 'PingOne MCP' : (selectedLabel || 'the server') }) });
     }
-  }, [selectedItem, paramValues, schemaProps, requiredParams, source, selectedProfileId]);
+  }, [selectedItem, paramValues, schemaProps, requiredParams, source, selectedProfileId, selectedLabel]);
 
   const outputValue = useMemo(() => {
     switch (outputTab) {
@@ -176,31 +186,24 @@ export default function App() {
     }
   }, [outputTab, lastInvoke, selectedItem, paramValues, source]);
 
-  const selectedProfile = profiles.find((p) => p.id === selectedProfileId);
   const needsProfile = source !== 'pingone';
 
   const left = (
     <div className="tool-tree">
-      {loadingItems && <div className="tool-tree__empty">Loading…</div>}
-      {!loadingItems && items.length === 0 && (
-        <div className="tool-tree__empty">
-          {needsProfile && !selectedProfileId ? 'Add a server to get started.' : 'No tools found.'}
-        </div>
-      )}
-      {items.map((item) => (
-        <InspectorListItem
-          key={item.name}
-          label={item.name}
-          active={selectedItem?.name === item.name}
-          onClick={() => { setSelectedItem(item); setParamValues({}); setLastInvoke(null); }}
-        />
-      ))}
+      <ToolList
+        items={items}
+        selectedName={selectedItem?.name}
+        loading={loadingItems}
+        noun={source === 'protocol' ? 'method' : 'tool'}
+        emptyMessage={needsProfile && !selectedProfileId ? 'Add a server to get started.' : 'No tools found.'}
+        onPick={(item) => { setSelectedItem(item); setParamValues({}); setLastInvoke(null); }}
+      />
     </div>
   );
 
   const middle = (
     <div className="tool-form">
-      {!selectedItem && <div className="tool-form__empty">Select a tool on the left.</div>}
+      {!selectedItem && <div className="tool-form__empty">Pick a tool from the list to fill in its parameters.</div>}
       {selectedItem && (
         <>
           <h2>{selectedItem.name}</h2>
