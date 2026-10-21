@@ -130,3 +130,40 @@ describe('buildVerticalReply — get_loyalty_status (airlines)', () => {
     }
   });
 });
+
+// Airlines get_flight_status returns { flightNumber, route, status, departureTime, gate,
+// usedNextFlight } and declares no render, so the reply was the data-free
+// "Here are your flight status." (observed live, personal-agent page).
+describe('buildVerticalReply — get_flight_status (airlines)', () => {
+  const flight = {
+    found: true, usedNextFlight: false, flightNumber: 'UA328', route: 'ORD to SFO',
+    departureTime: '2026-08-15T08:40:00-05:00', arrivalTime: '2026-08-15T11:25:00-07:00',
+    gate: 'C12', aircraft: 'Boeing 737 MAX 9', status: 'On Time',
+  };
+
+  test('states flight, route, status, departure (as written) and gate', () => {
+    expect(buildVerticalReply('get_flight_status', flight, 'text', null))
+      .toBe('UA328 (ORD to SFO): On Time · departs Aug 15, 08:40 · gate C12.');
+  });
+
+  test('says "Your next flight" when the tool defaulted to it', () => {
+    expect(buildVerticalReply('get_flight_status', { ...flight, usedNextFlight: true }, 'text', null))
+      .toBe('Your next flight, UA328 (ORD to SFO): On Time · departs Aug 15, 08:40 · gate C12.');
+  });
+
+  test('omits what the tool did not return instead of inventing it', () => {
+    expect(buildVerticalReply('get_flight_status', { flightNumber: 'UA9', status: 'Delayed' }, 'text', null))
+      .toBe('UA9: Delayed.');
+  });
+
+  test('passes through the not-found note', () => {
+    const data = { found: false, note: 'No flight UA999 in the airlines database.' };
+    expect(buildVerticalReply('get_flight_status', data, 'text', null)).toBe(data.note);
+  });
+
+  test('never falls back to "Here are your flight status."', () => {
+    for (const data of [{}, null, undefined, { flightNumber: 'UA1' }]) {
+      expect(buildVerticalReply('get_flight_status', data, 'text', null)).not.toMatch(/here are your/i);
+    }
+  });
+});
