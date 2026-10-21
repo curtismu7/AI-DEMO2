@@ -222,6 +222,7 @@
       <a href="#run-first">Start here <span class="count">1</span></a>
       <a href="#dot">Dot &mdash; the persona agent <span class="count">2</span></a>
       <a href="#studio">Studio &amp; client skins <span class="count">3</span></a>
+      <a href="#group">Group policy <span class="count">1</span></a>
       <a href="#design">Design &amp; review pages <span class="count">3</span></a>
       <a href="#diagrams">Diagrams <span class="count">5</span></a>
       <a href="#united">United working draft <span class="count">1</span></a>
@@ -299,6 +300,28 @@
           </div>
           <p class="route">PageAgentModeToggle &mdash; top-right of each agent page</p>
           <p><strong>Heuristics</strong> answers via deterministic keyword routing (no model). <strong>llama.cpp</strong> runs the real LLM through the governed path. If llama.cpp times out you'll get an explicit &ldquo;model unavailable &mdash; switch to Heuristics&rdquo; card rather than a silent failure.</p>
+        </div>
+      </section>
+
+      <section id="group">
+        <h2>Group policy</h2>
+        <p class="sec-note">A standalone demo that does not need the agent: one live PingOne Authorize decision per vertical, driven by the signed-in user&#39;s real group membership.</p>
+
+        <div class="card">
+          <div class="card-top">
+            <h3>Group policy board</h3>
+            <span class="badge accent">Live decisions</span>
+          </div>
+          <p class="route">/group-policy/full</p>
+          <p>Every row is a real Authorize decision from the endpoint the policy enforcement point calls. <strong>Flip the group toggle and all the rows move together</strong> &mdash; the point is the transition, which no single use-case chip can show. Sign in first with the shared login above.</p>
+          <ul class="steps">
+            <li>Sign in, then open the board &mdash; each vertical shows its own PERMIT or DENY for its group-gated tool.</li>
+            <li>Flip the membership toggle and watch every row change at once.</li>
+          </ul>
+          <p class="sec-note">Heads up: the toggle adds or removes the signed-in user from a real PingOne group, so it changes that account for everyone using it. Flip it back when you are done.</p>
+          <div class="btnrow">
+            <a class="run" href="https://ai-demo.ping-devops.com/group-policy/full" target="_blank" rel="noopener">Open the group policy board &rarr;</a>
+          </div>
         </div>
       </section>
 
