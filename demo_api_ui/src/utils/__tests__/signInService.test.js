@@ -31,7 +31,7 @@ describe('signInService', () => {
     expect(isSignInAvailable()).toEqual({ customer: true, admin: false });
   });
 
-  test('openSignIn defaults returnTo to the current page, not for the landing page', async () => {
+  test('openSignIn defaults returnTo to the current page, landing page included', async () => {
     global.fetch = vi.fn(() => ok({ config: ON }));
     await initSignInService();
     window.location.pathname = '/mfa-test';
@@ -39,7 +39,7 @@ describe('signInService', () => {
     expect(handled.returnTo).toBe('/mfa-test');
     window.location.pathname = '/';
     openSignIn();
-    expect(handled.returnTo).toBeUndefined();
+    expect(handled.returnTo).toBe('/');
   });
 
   test('openSignIn dispatches the modal event with role/returnTo/force', async () => {

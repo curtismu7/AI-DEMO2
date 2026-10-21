@@ -49,7 +49,7 @@ export function openSignIn({ role = 'customer', returnTo, force, redirect = fals
   // and go to the provider's own login page.
   const known = role === 'admin' ? 'admin' : 'customer';
   // Every caller lands back on the page it started from; the redirect fallback already did this, the modal did not.
-  if (!returnTo && typeof window !== 'undefined' && window.location.pathname !== '/') returnTo = window.location.pathname;
+  if (!returnTo && typeof window !== 'undefined' && window.location.pathname) returnTo = `${window.location.pathname}${window.location.search || ''}`;
   if (!redirect && (available[known] || !inited) && typeof window !== 'undefined') {
     const detail = { returnTo, role, force: Boolean(force), keepHint: Boolean(keepHint), handled: false };
     window.dispatchEvent(new CustomEvent(PI_FLOW_SIGNIN_EVENT, { detail }));
