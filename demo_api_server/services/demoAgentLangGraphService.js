@@ -371,17 +371,25 @@ function decodeSessionJwtReply(userToken) {
   } catch (_) {
     return envelope('I could not decode your session token — it is not valid base64url JSON.', false);
   }
-  const when = (sec) => (Number.isFinite(sec) ? new Date(sec * 1000).toISOString() : null);
+  const when = (sec) => (Number.isFinite(sec) ? new Date(sec * 1000).toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC') : null);
   const aud = Array.isArray(claims.aud) ? claims.aud.join(', ') : claims.aud;
-  const rows = [
-    ['Algorithm', header.alg], ['Key id', header.kid], ['Issuer', claims.iss], ['Subject', claims.sub],
-    ['Client', claims.client_id], ['Audience', aud], ['Scopes', claims.scope],
-    ['Issued', when(claims.iat)], ['Expires', when(claims.exp)],
-    ['Actor (act)', claims.act ? JSON.stringify(claims.act) : null],
-  ].filter(([, v]) => v != null && v !== '');
-  const expired = Number.isFinite(claims.exp) && claims.exp * 1000 < Date.now();
-  const lines = rows.map(([k, v]) => `• ${k}: ${v}`);
-  return envelope(`Your session access token, decoded (signature not verified):\n${lines.join('\n')}${expired ? '\n⚠️ This token has expired.' : ''}`, true);
+  const left = Number.isFinite(claims.exp) ? Math.round((claims.exp * 1000 - Date.now()) / 60000) : null;
+  const expired = left != null && left < 0;
+  const expires = when(claims.exp) && (left == null ? when(claims.exp) : expired ? `${when(claims.exp)} (expired)` : `${when(claims.exp)} (in ${left} min)`);
+  const section = (title, rows) => {
+    const lines = rows.filter(([, v]) => v != null && v !== '').map(([k, v]) => `   • ${k}: ${v}`);
+    return lines.length ? `${title}\n${lines.join('\n')}` : null;
+  };
+  const body = [
+    section('Who it is for', [['Subject', claims.sub], ['Client', claims.client_id]]),
+    section('Where it came from', [['Issuer', claims.iss], ['Audience', aud], ['Scopes', claims.scope]]),
+    section('Lifetime', [['Issued', when(claims.iat)], ['Expires', expires]]),
+    section('Signing', [['Algorithm', header.alg], ['Key id', header.kid], ['Delegation (act)', claims.act ? JSON.stringify(claims.act) : null]]),
+  ].filter(Boolean).join('\n\n');
+  const head = expired
+    ? '⚠️ Decoded, but this token has expired. Sign in again for a fresh one.'
+    : '✅ Success — your session token was decoded. This is the access token you are signed in with.';
+  return envelope(`${head}\n\n${body}\n\nDecoded locally; the signature was not verified.`, true);
 }
 
 /**

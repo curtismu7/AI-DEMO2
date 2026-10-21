@@ -10,6 +10,7 @@ describe('dispatchBankingAction jwt_decode_demo', () => {
     const token = jwt({ iss: 'https://auth.example/as', sub: 'u1', client_id: 'c1', aud: ['a1'], scope: 'read write', exp: 4102444800 });
     const r = await dispatchBankingAction('jwt_decode_demo', {}, 'u1', { vertical: 'banking', userToken: token });
     expect(r.success).toBe(true);
+    expect(r.reply).toMatch(/^✅ Success/);
     expect(r.reply).toContain('Issuer: https://auth.example/as');
     expect(r.reply).toContain('Scopes: read write');
     expect(r.reply).not.toContain('.sig');
