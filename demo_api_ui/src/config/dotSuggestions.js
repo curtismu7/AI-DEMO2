@@ -21,11 +21,12 @@ export function dotSuggestions(pageManifest) {
 }
 
 // The Studio and pop-out chats talk to the airline demo, so every skin offers the same airline prompts;
-// Dot adds the recall question, which is what makes Dot Dot. Transfer miles shows the PingOne MFA approval.
+// Dot adds the recall question, which is what makes Dot Dot. Paying a fee is a consent-gated write, so it
+// shows the PingOne MFA approval (the airline has no transfer-miles tool, so that prompt can't be offered).
 const AIRLINE_PROMPTS = [
   'What is my loyalty status?',
   'Show my airline bookings',
-  'Transfer 20,000 of my miles to my brother',
+  'pay a $300 change fee',
 ];
 
 /** @returns {{ label: string, message: string }[]} */

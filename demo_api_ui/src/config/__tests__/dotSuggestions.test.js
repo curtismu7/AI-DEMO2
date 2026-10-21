@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { dotSuggestions } from '../dotSuggestions';
+import { dotSuggestions, airlineSuggestions } from '../dotSuggestions';
 
 const chip = (id, extra = {}) => ({ id, label: `Label ${id}`, message: `Prompt ${id}`, ...extra });
 const manifest = (chips10) => ({ dashboard: { chips10 } });
@@ -39,5 +39,12 @@ describe('dotSuggestions', () => {
     expect(dotSuggestions(null)).toEqual(neutral);
     expect(dotSuggestions(manifest([]))).toEqual(neutral);
     expect(dotSuggestions({ identity: {}, theme: {} })).toEqual(neutral);
+  });
+
+  it('airline prompts only offer actions the airline can really do: no transfer-miles prompt, and the MFA demo is the consent-gated fee', () => {
+    const msgs = airlineSuggestions('privilege').map((c) => c.message);
+    expect(msgs).toEqual(['What is my loyalty status?', 'Show my airline bookings', 'pay a $300 change fee']);
+    expect(msgs.join(' ')).not.toMatch(/transfer/i);
+    expect(airlineSuggestions('dot').map((c) => c.message)).toContain('What do you remember about me?');
   });
 });
