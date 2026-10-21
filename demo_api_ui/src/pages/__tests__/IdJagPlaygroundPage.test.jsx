@@ -342,12 +342,13 @@ describe("ID-JAG playground page", () => {
     expect(post).not.toHaveBeenCalled();
   });
 
-  it("shows nested claims as stacked key/value with break points after URN and URL separators", async () => {
+  it("shows claims as one table row per field (key and value side by side) with break points after URN and URL separators", async () => {
     mount(config());
     replies({ "/issue": issuedWith({ iat: now(), exp: now() + 300, iss: "https://cmuir-mcp.ping-devops.com/as", sub: "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent" }) });
     fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
-    const dd = (await screen.findByText(/oasis/)).closest("dd");
-    expect(dd.closest("dl")).toHaveClass("ijp-fields");
+    const dd = (await screen.findByText(/oasis/)).closest("td");
+    expect(dd.closest("table")).toHaveClass("ijp-fields");
+    expect(dd.previousElementSibling).toHaveTextContent("sub");
     expect(dd.querySelectorAll("wbr").length).toBeGreaterThan(5);
     expect(dd).toHaveTextContent("urn:oasis:names:tc:SAML:2.0:nameid-format:persistent");
   });
