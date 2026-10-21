@@ -32,6 +32,7 @@ export function isNoChromeRoute(pathNorm) {
     // Bare/full-page variants of the personal-agent pages for sharing from the
     // handoff page: no side nav, no header, no footer, no FAB — the page only.
     pathNorm === "/personal-agent/dot/full" ||
+    pathNorm === "/personal-agent/learn" ||
     pathNorm === "/personal-agent/full" ||
     pathNorm === "/group-policy/full" ||
     // Embedded movie reel opened from an external MCP client's reel_url (LM
