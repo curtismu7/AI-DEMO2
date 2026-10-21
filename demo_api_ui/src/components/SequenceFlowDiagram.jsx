@@ -125,7 +125,7 @@ const edgeTypes = { msg: MessageEdge, self: SelfEdge };
 const ARROW = { type: "arrowclosed", width: 16, height: 16 };
 
 // Monospace box width for a payload: the longest line, kept inside the participants' span.
-const PAYLOAD_CH = 7.2;
+const PAYLOAD_CH = 7.8; // IBM Plex Mono at the app's size; a system mono is narrower, so it only leaves slack
 const PAYLOAD_LINE_H = 15;
 
 export function buildSequenceFlow(source, payloads = []) {
@@ -200,7 +200,7 @@ export function buildSequenceFlow(source, payloads = []) {
       if (payload) {
         const plines = payload.split("\n");
         const allX = model.participants.map((p) => cx[p.id]);
-        const w = Math.min(560, Math.max(220, Math.ceil(Math.max(...plines.map((l) => l.length)) * PAYLOAD_CH) + 36));
+        const w = Math.min(560, Math.max(220, Math.ceil(Math.max(...plines.map((l) => l.length)) * PAYLOAD_CH) + 40));
         const left = Math.min(cx[it.from], cx[it.to]) - 12;
         const x = Math.max(Math.min(...allX) - 80, Math.min(left, Math.max(...allX) + 80 - w));
         const h = plines.length * PAYLOAD_LINE_H + 16;
