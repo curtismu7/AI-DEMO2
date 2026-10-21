@@ -4,7 +4,7 @@
 import React from 'react';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
-import { UHG_MCP_FLOW_DETAILS, UHG_MCP_FLOW_SOURCE } from '../config/uhgChatgptMcpFlow';
+import { UHG_MCP_FLOW_PAYLOADS, UHG_MCP_FLOW_DETAILS, UHG_MCP_FLOW_SOURCE } from '../config/uhgChatgptMcpFlow';
 
 export default function UhgChatgptMcpFlowPage() {
   return (
@@ -18,6 +18,7 @@ export default function UhgChatgptMcpFlowPage() {
       <SequenceFlowDiagram
         source={UHG_MCP_FLOW_SOURCE}
         details={UHG_MCP_FLOW_DETAILS}
+        payloads={UHG_MCP_FLOW_PAYLOADS}
         label="ChatGPT to the UHG Digital Front Door MCP authorization sequence"
       />
     </main>

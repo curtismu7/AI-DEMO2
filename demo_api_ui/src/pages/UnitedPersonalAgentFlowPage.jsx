@@ -4,7 +4,7 @@
 import React from 'react';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
-import { UNITED_FLOW_DETAILS, UNITED_FLOW_SOURCE } from '../config/unitedPersonalAgentFlow';
+import { UNITED_FLOW_PAYLOADS, UNITED_FLOW_DETAILS, UNITED_FLOW_SOURCE } from '../config/unitedPersonalAgentFlow';
 
 export default function UnitedPersonalAgentFlowPage() {
   return (
@@ -18,6 +18,7 @@ export default function UnitedPersonalAgentFlowPage() {
       <SequenceFlowDiagram
         source={UNITED_FLOW_SOURCE}
         details={UNITED_FLOW_DETAILS}
+        payloads={UNITED_FLOW_PAYLOADS}
         label="United personal-agent MCP door sequence"
       />
     </main>
