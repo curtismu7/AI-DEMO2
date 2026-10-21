@@ -1079,19 +1079,29 @@ function _parseGwAuditTrail(response) {
  * PingGateway's real-P1AZ DENY body (p1az-decision.groovy DENY path) carries
  * only error/decision/backend/tool — the human reason lives in the applied deny
  * statement's payload (e.g. `mcp-tier-amount-exceeded`) inside X-Gw-Audit-Trail.
- * Return the first statement message, or '' when the trail has none.
+ *
+ * The policy also attaches a GENERIC `mcp-authorization-denied` statement to every deny
+ * ("...Token audience ... or actor chain validation failed"), and it can come FIRST
+ * (live airlines "pay a $2500 change fee", 2026-10-21: [generic, tier-amount-exceeded]). That text
+ * blames the token even when the token is fine, so the first statement with a message is the
+ * wrong pick: return the first SPECIFIC statement's message, falling back to the generic one only
+ * when it is all there is. '' when the trail has none.
  * @param {object|null} trail parsed X-Gw-Audit-Trail
  * @returns {string}
  */
+const GENERIC_DENY_STATEMENT_CODE = 'mcp-authorization-denied';
 function _denyStatementMessage(trail) {
     const statements = trail?.authorize?.statements;
     if (!Array.isArray(statements)) return '';
+    let generic = '';
     for (const s of statements) {
         let p = s?.payload;
         if (typeof p === 'string') { try { p = JSON.parse(p); } catch (_) { p = null; } }
-        if (p && typeof p.message === 'string' && p.message) return p.message;
+        if (!(p && typeof p.message === 'string' && p.message)) continue;
+        if (s.code === GENERIC_DENY_STATEMENT_CODE) { generic = generic || p.message; continue; }
+        return p.message;
     }
-    return '';
+    return generic;
 }
 
 /**
