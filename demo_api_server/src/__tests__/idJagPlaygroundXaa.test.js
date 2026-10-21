@@ -125,6 +125,13 @@ describe('xaa.dev sign-in at IdenX', () => {
     expect(res.headers.location).not.toContain('idenx-app-secret');
   });
 
+  it('login pre-fills the signed-in user\'s email as login_hint (IdenX takes any email), and sends none when there is no email', async () => {
+    const withUser = await request(appWith(byoSession({ user: { email: 'cmuir@pingone.com' } }))).get('/pg/xaa/login?return_to=/pingfederate-id-jag/playground');
+    expect(new URL(withUser.headers.location).searchParams.get('login_hint')).toBe('cmuir@pingone.com');
+    const without = await request(appWith(byoSession())).get('/pg/xaa/login?return_to=/pingfederate-id-jag/playground');
+    expect(new URL(without.headers.location).searchParams.has('login_hint')).toBe(false);
+  });
+
   it('callback swaps the code (PKCE verifier, client_secret_post), verifies the id_token and keeps the tokens server-side', async () => {
     const session = byoSession({ idJagXaaLogin: { state: 's-1', nonce: 'n-1', verifier: 'v-1', returnTo: '/pingfederate-id-jag/playground', at: Date.now() } });
     axios.post.mockResolvedValue({ status: 200, data: { id_token: idToken(), refresh_token: 'idenx-rt', access_token: 'idenx-at' } });

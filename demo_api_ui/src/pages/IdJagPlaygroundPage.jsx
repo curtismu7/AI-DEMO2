@@ -522,6 +522,7 @@ export default function IdJagPlaygroundPage() {
   const [busy, setBusy] = useState("");
   const [issued, setIssued] = useState(null);
   const [inspection, setInspection] = useState(null);
+  const [xaaGot, setXaaGot] = useState(false);
   const [redeemScope, setRedeemScope] = useState("");
   const [redeemed, setRedeemed] = useState(null);
   const [tools, setTools] = useState(null);
@@ -583,7 +584,7 @@ export default function IdJagPlaygroundPage() {
         const back = new URLSearchParams(location.search);
         if (back.has("xaa") || back.has("xaa_error")) navigate(location.pathname, { replace: true });
         if (back.get("xaa_error")) setError({ step: "xaa", error: "xaa_sign_in_failed", message: `IdenX sign-in did not complete (${back.get("xaa_error")}).` });
-        else if (back.get("xaa") === "signed_in" && mode === "byo") run("xaa", loadXaaIdJag, checkFor("xaa"));
+        else if (back.get("xaa") === "signed_in" && mode === "byo") run("xaa", () => loadXaaIdJag(false), checkFor("xaa"));
       } catch (e) {
         if (e.response?.status === 401 || e.response?.data?.error === "hosted_access_required") setAppSignedOut(true);
         setError(e.response?.data || { message: e.message });
@@ -709,12 +710,17 @@ export default function IdJagPlaygroundPage() {
 
   // xaa.dev: IdenX (Okta's public playground IdP) issues the ID-JAG. The BFF signs in there, exchanges, and
   // loads the ID-JAG like a pasted one. Mock mode answers with a sample IdenX ID-JAG.
-  const loadXaaIdJag = async () => {
-    clearResults(); setByoTarget("oauth-mcp");
+  const xaaLogin = () => window.location.assign(`${API}/xaa/login?return_to=${RETURN_TO}`);
+  // retryLogin: a dead IdenX session sends the user straight back to sign in instead of an error and a second click.
+  // False on the way back from IdenX, so a refusal there shows its error and cannot loop.
+  const loadXaaIdJag = async (retryLogin = true) => {
+    clearResults(); setByoTarget("oauth-mcp"); setXaaGot(false);
     let data;
     try {
       ({ data } = await api.post(`${API}/xaa/id-jag`, {}));
     } catch (e) {
+      const d = e.response?.data;
+      if (retryLogin && !isMock && (d?.error === "xaa_sign_in_required" || d?.idpError === "invalid_grant")) { xaaLogin(); return; }
       // The BFF may have dropped the IdenX session (refused refresh token): refresh so the button signs in again.
       bffAxios.get(`${API}/config`).then((r) => applyConfig(r.data)).catch(() => {});
       throw e;
@@ -722,10 +728,13 @@ export default function IdJagPlaygroundPage() {
     if (data.config) applyConfig(data.config);
     if (isMock) setIssued(data);
     setInspection(data);
+    setXaaGot(true);
+    // The result lands in step 2, below this button: take the user to it.
+    setTimeout(() => document.getElementById("ijp-step-2")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 50);
   };
   const xaaIdJag = () => run("xaa", async () => {
     if (!isMock && !config?.xaa?.signedIn) {
-      window.location.assign(`${API}/xaa/login?return_to=${RETURN_TO}`);
+      xaaLogin();
       return;
     }
     await loadXaaIdJag();
@@ -921,9 +930,11 @@ export default function IdJagPlaygroundPage() {
               </button>
               <p className="ijp-note">
                 <a href="https://xaa.dev" target="_blank" rel="noopener noreferrer">xaa.dev</a> is Okta's free Cross App Access playground:
-                its IdP, IdenX, signs you in with any email and any 6-digit code and issues an ID-JAG addressed to our oauth-mcp.
+                its IdP, IdenX, issues an ID-JAG addressed to our oauth-mcp. There is no account to create: at IdenX type any email and
+                any 6-digit code (for example 123456). One click here, then we fetch the ID-JAG for you.
                 {config?.xaa?.signedIn && config.xaa.user ? ` Signed in at IdenX as ${config.xaa.user}.` : ""}
               </p>
+              {xaaGot && inspection?.request && <p className="ijp-status ijp-status--ok" data-testid="ijp-xaa-done" role="status">✓ Got an ID-JAG from IdenX. It is decoded and checked in step 2 below.</p>}
               {config?.xaa && !config.xaa.available && <p className="ijp-note" role="note" data-testid="ijp-xaa-reason">{config.xaa.reason}</p>}
             </div>
           )}
