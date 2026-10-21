@@ -31,7 +31,7 @@ describe('PersonalAgentLearnPage', () => {
     expect(screen.getByText('Run a simple request')).toBeTruthy();
     expect(screen.getByText('Ask for something sensitive')).toBeTruthy();
     expect(screen.getByText('Go over your limit')).toBeTruthy();
-    ['Signed in with MFA', 'Gateway token check', 'PingOne Authorize'].forEach((t) => expect(screen.getByText(t)).toBeTruthy());
+    ['Signed in', 'Gateway token check', 'PingOne Authorize'].forEach((t) => expect(screen.getByText(t)).toBeTruthy());
     expect(screen.getByTestId('filmstrip')).toBeTruthy();
     expect(screen.getByTestId('learn-progress').textContent).toBe('0 of 3 complete');
   });
@@ -93,4 +93,26 @@ describe('PersonalAgentLearnPage', () => {
     expect(screen.getByTestId('learn-summary').textContent).toMatch(/did not complete/i);
     expect(screen.getByTestId('learn-progress').textContent).toBe('0 of 3 complete');
   });
+
+  it('a plain read with no MFA event still passes the sign-in gate, and says MFA was not needed (not that it was done)', async () => {
+    const NO_MFA = [{ id: 'gw-introspection', status: 'valid' }, { id: 'gw-authorize', status: 'permit' }];
+    global.fetch = vi.fn(async () => { mockEvents = NO_MFA; return json(200, { reply: 'You are Gold.', success: true, toolsCalled: ['get_loyalty_status'], tokenEvents: NO_MFA }); });
+    renderPage();
+    fireEvent.click(lesson('Run a simple request'));
+    await screen.findByText('You are Gold.');
+    await waitFor(() => expect(screen.getByTestId('gate-mfa').dataset.s).toBe('permit'));
+    expect(within(screen.getByTestId('gate-mfa')).getByText("Signed in as sam@x.com. MFA wasn't needed for this request.")).toBeTruthy();
+    expect(screen.getByTestId('learn-summary').textContent).toMatch(/^Allowed/);
+    expect(screen.queryByText(/with MFA/i)).toBeNull();
+  });
+
+  it('when an MFA event really reports, the gate says MFA verified', async () => {
+    const WITH_MFA = [{ id: 'mfa', status: 'success' }, { id: 'gw-introspection', status: 'valid' }, { id: 'gw-authorize', status: 'permit' }];
+    global.fetch = vi.fn(async () => { mockEvents = WITH_MFA; return json(200, { reply: 'Done.', success: true, toolsCalled: [], tokenEvents: WITH_MFA }); });
+    renderPage();
+    fireEvent.click(lesson('Run a simple request'));
+    await screen.findByText('Done.');
+    await waitFor(() => expect(within(screen.getByTestId('gate-mfa')).getByText('Signed in as sam@x.com, and MFA verified.')).toBeTruthy());
+  });
 });
+
