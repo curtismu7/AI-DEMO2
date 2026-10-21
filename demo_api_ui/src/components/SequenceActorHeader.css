@@ -16,7 +16,7 @@
 .sah__seg {
   flex: 1;
   height: 3px;
-  border-radius: 2px;
+  border-radius: var(--radius-sm);
   background: var(--th-border);
 }
 
