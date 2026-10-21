@@ -240,8 +240,9 @@ Lessons from these:
 - The PF one proves the pattern for an agent: PF as issuer, audience bound to the specific
   door, short expiry, `mcp` scope only. Mint-time cost is a PF client / token-exchange, not a
   Privilege secret.
-- An agent key can also carry `WorkloadIdentity` in place of its VirtualKey (none of our 12 keys
-  do yet).
+- An agent key can carry its own `WorkloadIdentity` in place of a VirtualKey, **or** name an NHI as its
+  custodian and let the NHI supply the federation — never both (the API refuses). See "Wiring an agent
+  NHI end to end" below: an NHI with no key behind it authenticates nobody.
 - Per-rule `PolicyRule.RequiredClaims` in `pacpolicys` is the native claim gate on a *presented*
   token (all listed claims must match). It is **not Cedar**. Snapshot 2026-10-20: 0 of 28
   rules used it.
@@ -283,6 +284,42 @@ Lessons from these:
   backend outage by setting an image to a merge-commit sha CI never built. Check the registry
   manifest first.
 
+## Wiring an agent NHI end to end (found 2026-10-21; gateway acceptance still NOT proven)
+
+An NHI is the identity a key acts as. It does **not** authenticate callers by itself. The pieces,
+and what each one told us [verified unless noted]:
+
+1. **NHI** (`/v1/nonhumanidentities`): issuer, pinned subject, door-bound audience, scopes, expiry.
+2. **Grant** (`pacpolicys`): put the NHI in `IssuedTo` as `{RefKind: NonHumanIdentity, RefID:
+   base64("<tenant>@@@default@@@<name>")}` and give the rule the app and tool list. Existing policies
+   use this shape for the sensor NHIs.
+3. **An agent key whose `CustodianRef` is the NHI.** The gateway log for an NHI with no key says
+   `non-human identity <n> updated, rebuilding 0 key(s)` — that "0" is the tell that nothing can
+   authenticate as it. Creating the key, the API refused two mistakes with clear messages:
+   - `Spec.WorkloadIdentity and a NonHumanIdentity Spec.CustodianRef are mutually exclusive` —
+     leave the key's own `WorkloadIdentity` empty; the NHI supplies the federation.
+   - `Spec.CustodianRef and Spec.UserRef name different principals` — clear `UserRef` if you
+     cloned a key that has a human custodian. No `VirtualKey` or `RealKey` is needed for `mcp`-only.
+   Success shows as `llmgw: upserted workload key <key> issuer=… subject=…` on every gateway node.
+4. **The issuer must be able to mint the token.** On PingFederate, a plain client-credentials
+   request failed twice before it worked:
+   - `invalid_target … did not match any access token manager` — PF only accepts a `resource` value
+     that is listed on a token manager. Our default manager issued opaque reference tokens
+     (2-hour lifetime), which can never satisfy an NHI that needs a JWT, audience and lifetime cap.
+   - Fix without touching shared managers: **add** a JWT token manager cloned from an existing JWT
+     one (audience claim = the door URL, `resourceUris` = the door URL, short lifetime) and copy that
+     manager's CLIENT_CREDENTIALS mapping to it. Token manager "Token Lifetime" is in minutes.
+   Check the minted token's `iss`, `sub`, `aud` and `exp - iat` against the NHI before blaming Privilege.
+
+**Open (a question for Ping):** with all of the above in place and the token claims matching, the
+token was rejected on both the MCP door (`401 Bearer token required`) and the LLM route (`401
+invalid virtual key`), and the gateway logged **no** `workload token accepted/rejected` line for
+either — the check was never reached. We could not tell whether the deployed `privilege-aigw` image
+evaluates workload tokens on these routes, whether the token must be presented differently, or
+whether rejections log below info. Neither the container stdout nor `cyonproxy.log` records
+per-request lines. Do not promise a customer that workload-token auth works on a door until this is
+answered. `Pass Agent Token` (forwarding a caller's token to a remote agent) is a separate mode.
+
 ## When someone is stuck: triage order
 
 1. What exactly does the caller see (status + body)? Map it with the refusal table.
@@ -290,7 +327,7 @@ Lessons from these:
 3. Right scope? Right provider? Model on the allowlist?
 4. Is the target app *selected* on the key (that's the grant)? Did you wait ~4 minutes?
 5. For A2A: what's the remote agent's Auth Mode? Key callers need Static Token.
-6. Read the gateway log for `policy denied`, `requires token-pass`, `workload token rejected`.
+6. Read the gateway log for `policy denied`, `requires token-pass`, `workload token rejected`. For an NHI caller, also look for `rebuilding 0 key(s)` (no key behind the NHI) and `upserted workload key`.
 7. Empty-body 200s → stale gateway node, not auth.
 8. Only then suspect the guardrail (check the key's AI Guard events for a block).
 
