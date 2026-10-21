@@ -1,4 +1,5 @@
 import React, { useRef, useEffect, useState } from 'react';
+import { unusedSuggestions } from '../config/dotSuggestions';
 
 function ToolUseBlock({ toolName, toolInput, colors }) {
   return (
@@ -432,6 +433,8 @@ export function readableAccent(accent, bg, fallback) {
 }
 
 export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', messages = [], onSend, showPopOutButton = false, onPopOut, suggestions = [] }) {
+  // Prompts not yet run stay clickable under the replies ("try next"), instead of vanishing after the first message.
+  const nextPrompts = unusedSuggestions(suggestions, messages.filter((m) => m.role === 'user').map((m) => m.text || ''));
   const [inputValue, setInputValue] = useState('');
   const messagesEndRef = useRef(null);
   const cfg = SKIN_CONFIG[skin] || SKIN_CONFIG.privilege;
@@ -461,7 +464,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
   }
 
   return (
-    <div className="agent-client-skin" style={{ display: 'flex', flexDirection: 'column', flex: 1, background: colors.bg, overflow: 'hidden', fontFamily: isTerminal ? 'monospace' : 'system-ui, -apple-system, sans-serif' }}>
+    <div className="agent-client-skin" style={{ display: 'flex', flexDirection: 'column', flex: 1, height: '100%', minHeight: 0, background: colors.bg, overflow: 'hidden', fontFamily: isTerminal ? 'monospace' : 'system-ui, -apple-system, sans-serif' }}>
       {/* Header */}
       <div style={{ background: colors.headerBg, borderBottom: `1px solid ${colors.headerBorder}`, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <cfg.logo />
@@ -484,9 +487,10 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
       {/* Messages */}
       <div style={{ flex: 1, overflowY: 'auto', padding: isTerminal ? '16px 20px' : 20, display: 'flex', flexDirection: 'column', gap: isTerminal ? 8 : 16 }}>
         {messages.map((msg, i) => renderMessage(msg, i, cfg, colors, isTerminal, skin))}
-        {suggestions.length > 0 && messages.length <= 1 && (
-          <div role="group" aria-label="Suggested prompts" style={{ display: 'flex', flexWrap: 'wrap', gap: 8 }}>
-            {suggestions.map((s) => typeof s === 'string' ? { label: s, message: s } : s).map(({ label, message }) => (
+        {nextPrompts.length > 0 && (
+          <div role="group" aria-label="Suggested prompts" style={{ display: 'flex', flexWrap: 'wrap', alignItems: 'center', gap: 8 }}>
+            {messages.length > 1 && <span style={{ fontSize: 12, color: colors.inputColor, opacity: 0.7 }}>Try next:</span>}
+            {nextPrompts.map(({ label, message }) => (
               <button
                 key={label}
                 type="button"

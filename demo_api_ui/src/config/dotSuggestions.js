@@ -33,3 +33,16 @@ export function airlineSuggestions(skin) {
   const prompts = skin === 'dot' ? [...AIRLINE_PROMPTS, RECALL] : AIRLINE_PROMPTS;
   return prompts.map((t) => ({ label: t, message: t }));
 }
+
+/**
+ * The suggestions still worth offering mid-conversation: everything not already sent. Used to keep
+ * "try next" chips under the replies instead of hiding all chips after the first message.
+ * @param {({ label: string, message: string }|string)[]} suggestions
+ * @param {string[]} sentTexts the user prompts already sent
+ */
+export function unusedSuggestions(suggestions, sentTexts) {
+  const sent = new Set(sentTexts.map((t) => String(t).trim().toLowerCase()));
+  return suggestions
+    .map((s) => (typeof s === 'string' ? { label: s, message: s } : s))
+    .filter(({ message }) => !sent.has(String(message).trim().toLowerCase()));
+}

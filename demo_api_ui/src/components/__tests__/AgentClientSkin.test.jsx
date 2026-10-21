@@ -82,16 +82,33 @@ describe('AgentClientSkin', () => {
       expect(onSend).toHaveBeenCalledWith('What is my checking account balance?');
     });
 
-    it('hides the chips once the conversation has started', () => {
-      const messages = [{ role: 'agent', text: 'Hi' }, { role: 'user', text: 'Hello' }];
+    it('after a reply, keeps the prompts not yet run as "Try next" and drops the one just sent', () => {
+      const messages = [{ role: 'agent', text: 'Hi' }, { role: 'user', text: 'Always book me an aisle seat' }, { role: 'agent', text: 'Noted.' }];
       render(<AgentClientSkin {...baseProps} skin="dot" messages={messages} suggestions={suggestions} />);
       expect(screen.queryByRole('button', { name: 'Always book me an aisle seat' })).toBeNull();
+      expect(screen.getByRole('button', { name: 'What do you remember about me?' })).toBeTruthy();
+      expect(screen.getByText('Try next:')).toBeTruthy();
+    });
+
+    it('shows no "Try next" label on the empty state, and no chips once every prompt has been run', () => {
+      const { rerender } = render(<AgentClientSkin {...baseProps} skin="dot" suggestions={suggestions} />);
+      expect(screen.queryByText('Try next:')).toBeNull();
+      const all = [{ role: 'agent', text: 'Hi' }, ...suggestions.map((t) => ({ role: 'user', text: t })), { role: 'agent', text: 'Done.' }];
+      rerender(<AgentClientSkin {...baseProps} skin="dot" messages={all} suggestions={suggestions} />);
+      expect(screen.queryByRole('group', { name: /suggested/i })).toBeNull();
     });
 
     it('renders no chips when none are passed (other skins unchanged)', () => {
       render(<AgentClientSkin {...baseProps} />);
       expect(screen.queryByRole('group', { name: /suggested/i })).toBeNull();
     });
+  });
+
+  it('constrains its root to the container so a long conversation scrolls instead of pushing the composer out of view', () => {
+    const { container } = render(<AgentClientSkin {...baseProps} />);
+    const root = container.querySelector('.agent-client-skin');
+    expect(root.style.height).toBe('100%');
+    expect(root.style.minHeight).toBe('0');
   });
 
   it('Dot shows what Ping decided under a reply, only when there is a verdict', () => {
