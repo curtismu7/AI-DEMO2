@@ -129,6 +129,9 @@ export function useInspectorSource(sourceKey) {
   const [toolsSource, setToolsSource] = useState(null);
   const [toolsReason, setToolsReason] = useState(null);
   const [toolsProvider, setToolsProvider] = useState(null);
+  // Which source/profile the current `tools` were loaded for. The hook instance survives a source
+  // switch, so for one render the new source still holds the previous source's tools.
+  const [toolsKey, setToolsKey] = useState(null);
   const [busy, setBusy] = useState(false);
   const [loadingTools, setLoadingTools] = useState(false);
   const [lastInvoke, setLastInvoke] = useState(null);
@@ -253,6 +256,7 @@ export function useInspectorSource(sourceKey) {
       setToolsSource(data._source || null);
       setToolsReason(data._localCatalogReason || null);
       setToolsProvider(data._loginProvider || null);
+      setToolsKey(`${sourceKey}:${selectedProfileId || ''}`);
       setParamDefaults(data.paramDefaults || {});
       if (!suppressBanner) setLoadBanner(bannerFromPayload(data));
       setSelectedTool(null);
@@ -264,6 +268,7 @@ export function useInspectorSource(sourceKey) {
         loginUrl: e.response?.data?.loginUrl || null,
       });
       setTools([]);
+      setToolsKey(`${sourceKey}:${selectedProfileId || ''}`);
     } finally {
       setLoadingTools(false);
     }
@@ -427,6 +432,7 @@ export function useInspectorSource(sourceKey) {
     toolsSource,
     toolsReason,
     toolsProvider,
+    toolsKey,
     busy,
     loadingTools,
     lastInvoke,

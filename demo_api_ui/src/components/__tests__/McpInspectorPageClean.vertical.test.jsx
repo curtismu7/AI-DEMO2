@@ -226,6 +226,20 @@ describe('MCP Inspector tools table', () => {
       expect(first.setSelectedTool).toHaveBeenCalledTimes(1);
     });
 
+    it('waits for tools that belong to THIS source: stale tools from the previous source must not use up the pick', () => {
+      const first = { ...makeSource(), toolsKey: 'api:' };
+      sourceState.current = first;
+      const { rerender } = renderAt('/?source=gateway');
+      expect(first.setSelectedTool).not.toHaveBeenCalled();
+      // the gateway tools arrive: now it picks the weather tool
+      const WEATHER = { name: 'get_weather_summary', inputSchema: schema(['city_name']) };
+      const arrived = { ...first, tools: [WEATHER], toolsKey: 'gateway:' };
+      sourceState.current = arrived;
+      rerender(<MemoryRouter initialEntries={['/?source=gateway']}><McpInspectorPageClean /></MemoryRouter>);
+      expect(arrived.setSelectedTool).toHaveBeenCalledWith(WEATHER);
+      expect(arrived.setParamValues).toHaveBeenCalledWith({ city_name: 'Austin, TX' });
+    });
+
     it('selects nothing in the calls log, while tools are still loading, or when no preferred tool is offered', () => {
       sourceState.current = { ...makeSource(), mode: 'calls', config: { toolKey: 'label' }, tools: [{ label: 'GET /api/x', _call: { method: 'GET', url: '/api/x', response: { status: 200 } } }] };
       renderAt('/?source=api');

@@ -231,6 +231,9 @@ function McpInspectorPageClean() {
   useEffect(() => {
     if (isCalls || source.loadingTools || source.selectedTool || !source.tools?.length) return;
     const key = `${activeSource}:${source.selectedProfileId || ''}`;
+    // The hook outlives a source switch: until it reports tools loaded for THIS source/profile, the
+    // list is the previous source's, and picking from it would burn the once-only guard below.
+    if (source.toolsKey !== undefined && source.toolsKey !== key) return;
     if (autoPicked.current === key) return;
     autoPicked.current = key;
     const t = pickDefaultTool(activeSource, source.tools, toolKey);
@@ -238,7 +241,7 @@ function McpInspectorPageClean() {
     source.setSelectedTool(t);
     source.setParamValues(initialParams(t, byVertical ? vertical : null, toolKey));
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isCalls, source.loadingTools, source.selectedTool, source.tools, activeSource, source.selectedProfileId]);
+  }, [isCalls, source.loadingTools, source.selectedTool, source.tools, source.toolsKey, activeSource, source.selectedProfileId]);
 
   // Smart field propagation: publish this page's last result for other inspectors.
   useEffect(() => {
