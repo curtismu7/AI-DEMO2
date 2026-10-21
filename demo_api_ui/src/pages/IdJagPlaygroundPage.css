@@ -152,3 +152,8 @@
 .ijp-real { margin: 0.75rem 0; padding: 0.6rem 0.9rem; border: 1px solid var(--th-border); border-radius: var(--radius-lg); background: var(--th-bg-card); }
 .ijp-real summary { cursor: pointer; font-weight: 600; color: var(--ijp-strong); }
 .ijp-code { white-space: pre; overflow-x: auto; font-size: var(--font-size-2xs); line-height: 1.5; }
+
+.ijp-modal { position: fixed; inset: 0; z-index: var(--z-modal); display: flex; align-items: center; justify-content: center; padding: 1rem; background: rgba(5, 23, 39, 0.55); }
+.ijp-modal__box { width: min(28rem, 100%); padding: 1.25rem 1.5rem; border: 1px solid var(--th-border); border-top: 3px solid var(--ijp-red); border-radius: var(--radius-lg); background: var(--th-bg-card); color: var(--th-text); }
+.ijp-modal__box h3 { margin: 0 0 0.5rem; color: var(--ijp-ok); }
+.ijp-modal__box p { margin: 0 0 1rem; }

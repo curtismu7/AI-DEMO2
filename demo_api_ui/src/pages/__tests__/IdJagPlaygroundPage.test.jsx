@@ -253,7 +253,12 @@ describe("ID-JAG playground page", () => {
     expect(post).toHaveBeenCalledWith("/api/id-jag-playground/xaa/id-jag", {});
     expect(screen.getByText("Request to IdenX")).toBeInTheDocument();
     expect(screen.getByText(/Signed in at IdenX as alice@example.com/)).toBeInTheDocument();
-    expect(screen.getByTestId("ijp-xaa-done")).toHaveTextContent("Got an ID-JAG from IdenX");
+    const done = screen.getByTestId("ijp-xaa-done");
+    expect(done).toHaveAttribute("role", "dialog");
+    expect(done).toHaveTextContent("Got an ID-JAG from IdenX");
+    expect(screen.getByRole("button", { name: "OK" })).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "OK" }));
+    expect(screen.queryByTestId("ijp-xaa-done")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Redeem ID-JAG" })).toBeEnabled());
   });
 

@@ -729,7 +729,10 @@ export default function IdJagPlaygroundPage() {
     if (isMock) setIssued(data);
     setInspection(data);
     setXaaGot(true);
-    // The result lands in step 2, below this button: take the user to it.
+  };
+  // The result lands in step 2, below the button: a modal says so, and OK takes the user to it.
+  const dismissXaaDone = () => {
+    setXaaGot(false);
     setTimeout(() => document.getElementById("ijp-step-2")?.scrollIntoView?.({ behavior: "smooth", block: "start" }), 50);
   };
   const xaaIdJag = () => run("xaa", async () => {
@@ -914,6 +917,16 @@ export default function IdJagPlaygroundPage() {
                 : "pf_id_jag_enabled is off on this BFF."}
           </div>
         )}
+        {xaaGot && inspection?.request && (
+          <div className="ijp-modal" role="dialog" aria-modal="true" aria-labelledby="ijp-xaa-done-title" data-testid="ijp-xaa-done"
+            onKeyDown={(e) => { if (e.key === "Escape") dismissXaaDone(); }}>
+            <div className="ijp-modal__box">
+              <h3 id="ijp-xaa-done-title">✓ Got an ID-JAG from IdenX</h3>
+              <p>Your ID-JAG is loaded, decoded and checked against the draft in step 2. Press OK to go there.</p>
+              <button type="button" className="ijp-btn ijp-btn--primary" data-default-button autoFocus onClick={dismissXaaDone}>OK</button>
+            </div>
+          </div>
+        )}
         {appSignedOut && (
           <div className="ijp-banner" data-testid="ijp-app-sign-in">
             <strong>Sign in to use the playground</strong>{" "}
@@ -934,7 +947,6 @@ export default function IdJagPlaygroundPage() {
                 any 6-digit code (for example 123456). One click here, then we fetch the ID-JAG for you.
                 {config?.xaa?.signedIn && config.xaa.user ? ` Signed in at IdenX as ${config.xaa.user}.` : ""}
               </p>
-              {xaaGot && inspection?.request && <p className="ijp-status ijp-status--ok" data-testid="ijp-xaa-done" role="status">✓ Got an ID-JAG from IdenX. It is decoded and checked in step 2 below.</p>}
               {config?.xaa && !config.xaa.available && <p className="ijp-note" role="note" data-testid="ijp-xaa-reason">{config.xaa.reason}</p>}
             </div>
           )}
