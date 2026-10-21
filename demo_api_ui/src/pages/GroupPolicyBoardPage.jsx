@@ -1,4 +1,5 @@
 import React, { useCallback, useEffect, useRef, useState } from "react";
+import { useSearchParams } from "react-router-dom";
 import apiClient from "../services/apiClient";
 import GroupMembershipToggle from "../components/GroupMembershipToggle";
 import PingIdentitySpinner from "../components/shared/PingIdentitySpinner";
@@ -67,7 +68,13 @@ export default function GroupPolicyBoardPage() {
   // user; this answers "is demoDelegate in Banking_PremiumTier?" live, without
   // signing in as anyone else.
   const [checkUser, setCheckUser] = useState('demoDelegate');
-  const [checkVertical, setCheckVertical] = useState('banking');
+  // The picked vertical lives in the URL (?verticalId=) so a reload, a shared link and
+  // sign-in/sign-out all come back to the same vertical.
+  const [searchParams, setSearchParams] = useSearchParams();
+  const checkVertical = searchParams.get('verticalId') || 'banking';
+  const setCheckVertical = useCallback((id) => {
+    setSearchParams((prev) => { const next = new URLSearchParams(prev); next.set('verticalId', id); return next; }, { replace: true });
+  }, [setSearchParams]);
   const [verticals, setVerticals] = useState(null);
   const [checking, setChecking] = useState(false);
   const [checkResult, setCheckResult] = useState(null);

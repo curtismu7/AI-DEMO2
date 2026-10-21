@@ -291,6 +291,7 @@ import PublicRoutes, {
 import RequireAdminLogin from "./routes/RequireAdminLogin";
 import SignInRequired from "./routes/SignInRequired";
 import SignInPrompt from "./components/SignInPrompt";
+import GroupPolicyBoardPage from "./pages/GroupPolicyBoardPage";
 import AppShell from "./routes/AppShell";
 import { ProtocolPlaygroundPageRoute } from "./routes/ProtocolPlaygroundRoutes";
 import apiClient from "./services/apiClient";
@@ -1446,6 +1447,13 @@ function AppWithAuth() {
                       <SignInRequired />
                     )
                   }
+                />
+                {/* Bare full-page variant for sharing from the handoff page: no side nav, header or
+                    footer. Signed-out visitors get the sign-in prompt alone (SignInRequired would
+                    bring the top nav back). */}
+                <Route
+                  path="/group-policy/full"
+                  element={loading ? null : user ? <GroupPolicyBoardPage /> : <SignInPrompt message="The group policy board reads your own directory membership, so it needs a signed-in session." />}
                 />
                 {/* Page catalog — signed-in users only (it edits their own side-nav prefs). */}
                 <Route
