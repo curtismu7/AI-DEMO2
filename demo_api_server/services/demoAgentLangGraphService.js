@@ -7,6 +7,7 @@
  */
 
 const { getBankingToolDefinitions, MAX_TOOL_ITERATIONS } = require('./agentBuilder');
+const { enrichCannedReply } = require('./replySummary');
 const { READ_PRIMARY_TOOL_BY_VERTICAL } = require('../config/useCases');
 // Actions a signed-out visitor may run (config/auth-requirements.json — the
 // same list agentRun.js's PUBLIC_GUEST_ACTIONS mirrors and authz:verify holds
@@ -1327,7 +1328,14 @@ function airlineReply(action, data) {
   }
 }
 
+// The reply for a tool result. buildVerticalReplyBase is the per-tool logic; when it can only produce a
+// canned sentence built from the tool name ("Here are your permits."), the result's own data is used instead.
 function buildVerticalReply(action, data, render, verticalCtx) {
+  const base = buildVerticalReplyBase(action, data, render, verticalCtx);
+  return enrichCannedReply(base, action, data) || base;
+}
+
+function buildVerticalReplyBase(action, data, render, verticalCtx) {
   const term = verticalCtx && verticalCtx.terminology;
 
   if (render === 'list_gear' || render === 'list_rentals') {
