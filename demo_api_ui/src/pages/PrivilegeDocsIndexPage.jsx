@@ -564,7 +564,7 @@ const SECTIONS = [
         repo: "privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md",
         pdf: null,
         covers:
-          "Can a PingFederate token claim drive a Cedar AI policy? Measured 2026-10-20: the door trusts only itself, PF is not registered in Privilege, Cedar reads a fixed attribute set (token scopes, group, tool, args, app) and no raw claims, act or ID-JAG. Route A (PF behind PingOne) vs B, the rule templates, Candidate vs Active, and what is measured vs untested. Diagram: AI Agent Gateway diagrams, PF to Cedar tab.",
+          "Can a PingFederate token claim drive a Cedar AI policy? Measured 2026-10-20: the door trusts only itself, PF is not registered in Privilege, Cedar reads a fixed attribute set (token scopes, group, tool, args, app) and no raw claims, act or ID-JAG. Route A (PF behind PingOne for people), route C (native workload identity + RequiredClaims for agents), the rule templates, Candidate vs Active, and what is measured vs untested. Diagram: AI Agent Gateway diagrams, PF to Cedar tab.",
       },
       {
         title: "Agent mode end to end",

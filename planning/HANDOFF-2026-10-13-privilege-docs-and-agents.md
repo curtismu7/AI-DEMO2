@@ -34,9 +34,13 @@ branch `docs/pf-cedar-claims`: `privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md`, a "PF
 both docs indexes. User chose route A (PF behind PingOne) and the doc-first path. **Findings that change the
 plan:** the door trusts only itself; its token is issued by the Privilege-owned PingOne env `0428ba4f`, which
 federates to the demo env `01d89b06`; Privilege `IDProviders` is empty; Cedar has no raw-claims, `act` or
-ID-JAG hook; PF scopes in `context.token.scopes` are UNTESTED (gateway log never prints scopes, and none of
+ID-JAG hook; **but Privilege natively trusts external issuers for agent callers** (Non-Human Identity, type
+"OIDC Provider": iss, sub, JWKS, generated audience, End user None/Resolved/Opaque) and the access policy
+(`pacpolicys`) can require token claim values (`RequiredClaims`, dotted paths, claim-conditioned tool tiers):
+route C, designed not built, 4 sensor identities already prove the pattern, 0 rules use RequiredClaims; PF scopes
+in `context.token.scopes` are UNTESTED (gateway log never prints scopes, and none of
 the last 72 h of calls were policy decisions). **Still open:** route A write (add PF as an external IdP in
-`01d89b06`, needs user OK), a live call to read real `context.token.scopes`, Drive upload of the new doc.
+`01d89b06`, needs user OK), route C write (a PF Non-Human Identity, needs user OK), a live call to read real `context.token.scopes`, Drive upload of the new doc.
 **Side effect:** one throwaway DCR client `pf-claims-probe` was registered on the `opensearch-hitl` door;
 no delete endpoint found. (Original 2026-10-19 status below, now superseded.)
 

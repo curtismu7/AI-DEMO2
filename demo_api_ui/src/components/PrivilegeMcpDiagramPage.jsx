@@ -150,7 +150,7 @@ const TABS = [
   {
     id: "pfcedar", label: "PF to Cedar", config: PF_CEDAR_DIAGRAM,
     title: "PingFederate identity to a Cedar policy decision",
-    lede: "Solid arrows were observed on the SE gateway; dashed arrows are the route-A design that is not set up yet. A PF token never reaches the door: PF would sit behind PingOne, and Cedar protects on who the caller resolves to (user, group, tool), not on raw PF claims.",
+    lede: "Solid arrows were observed on the SE gateway; dashed arrows are designs not set up yet. For people, a PF token never reaches the door: PF would sit behind PingOne. For agents, a PF-issued JWT can be trusted natively by a Non-Human Identity, and the access policy can require claim values on it; Cedar then decides per tool and cannot read raw PF claims.",
     ariaLabel: "PingFederate identity to Cedar policy", diagramLabel: "PingFederate to Cedar policy diagram",
   },
 ];
