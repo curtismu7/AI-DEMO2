@@ -130,3 +130,5 @@ a.st-card:active {
 .end-user-nano .st-bar a {
   color: #bfdbfe;
 }
+
+.st-section { margin: 28px 0 12px; font-size: var(--font-size-lg); color: var(--th-text); }

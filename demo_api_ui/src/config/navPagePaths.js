@@ -31,6 +31,7 @@ export const NAV_PAGE_PATHS = {
   "Agent Privilege · MCP": "/ai-products/privilege-mcp",
   "Protected RAG": "/code-search",
   "Agent Privilege Demo": "/privilege-demo",
+  "Cedar Policy Demo": "/privilege-cedar",
   "Skin Studio": "/admin/skin-studio",
   "Weather MCP": "/weather-mcp",
   "Brave Search MCP": "/brave-mcp",
