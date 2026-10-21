@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 
@@ -7,6 +7,10 @@ vi.mock('../../context/TokenChainContext', () => ({
   useTokenChainOptional: () => ({ events: [] }),
 }));
 vi.mock('../../services/apiClient', () => ({ default: { get: vi.fn() } }));
+// The app's ACTIVE vertical, set from the test. null = nothing resolved (guest / no provider): the page falls back to airlines.
+const verticalState = { activeId: null, pageManifest: null };
+vi.mock('../../vertical/useVertical', () => ({ useVertical: () => verticalState }));
+vi.mock('../../components/VerticalSwitcher', () => ({ default: () => <div data-testid="vertical-switcher" /> }));
 
 vi.mock('../OboDemoPage', () => ({ default: () => <div data-testid="obo-page" /> }));
 vi.mock('../../components/SignInPrompt', () => ({ default: ({ message }) => <div data-testid="signin">{message}</div> }));
@@ -226,6 +230,57 @@ describe('PersonalAgentStudioPage', () => {
     expect(body('.pas-shell--cockpit > .personal-agent-client-dock')).toContain('position: sticky');
     expect(grid).toContain('height: auto');
     expect(grid).not.toContain('minmax(0, 1fr);');
+  });
+
+  describe('vertical picker', () => {
+    const sentBody = async (url = '/') => {
+      const fetchMock = vi.fn(() => Promise.resolve({ ok: true, status: 200, json: () => Promise.resolve({ reply: 'ok' }) }));
+      vi.stubGlobal('fetch', fetchMock);
+      renderStudio(url);
+      const input = screen.getAllByPlaceholderText(/^Message /)[0];
+      fireEvent.change(input, { target: { value: 'hello there' } });
+      fireEvent.keyDown(input, { key: 'Enter', code: 'Enter' });
+      await waitFor(() => expect(fetchMock).toHaveBeenCalled());
+      const call = fetchMock.mock.calls.find(([u]) => String(u).includes('/api/agent/invoke'));
+      return JSON.parse(call[1].body);
+    };
+    beforeEach(() => { verticalState.activeId = null; verticalState.pageManifest = null; });
+    afterEach(() => { vi.unstubAllGlobals(); });
+
+    it('shows the vertical picker in the header', () => {
+      renderStudio();
+      expect(screen.getByTestId('vertical-switcher')).toBeTruthy();
+      expect(screen.getByText('Vertical')).toBeTruthy();
+    });
+
+    it('with no vertical resolved the chat still talks to the airline demo', async () => {
+      expect((await sentBody()).vertical).toBe('airlines');
+    });
+
+    it("the chat follows the app's active vertical", async () => {
+      verticalState.activeId = 'retail';
+      expect((await sentBody()).vertical).toBe('retail');
+    });
+
+    it('an explicit ?vertical= beats the active vertical', async () => {
+      verticalState.activeId = 'retail';
+      expect((await sentBody('/personal-agent?vertical=banking')).vertical).toBe('banking');
+    });
+
+    it('the opening line and prompts follow the vertical (no MileagePlus outside airlines)', () => {
+      verticalState.activeId = 'retail';
+      renderStudio();
+      expect(screen.queryByText(/MileagePlus/)).toBeNull();
+      expect(screen.getByText(/I'm your digital assistant\. What would you like to do today\?/)).toBeTruthy();
+      expect(screen.queryByText('What is my loyalty status?')).toBeNull();
+    });
+
+    it('airlines keeps its opening line and tuned prompts', () => {
+      verticalState.activeId = 'airlines';
+      renderStudio();
+      expect(screen.getByText(/MileagePlus/)).toBeTruthy();
+      expect(screen.getAllByText('What is my loyalty status?').length).toBeGreaterThan(0);
+    });
   });
 
   describe('layout switch (Stacked | Cockpit)', () => {
