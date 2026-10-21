@@ -346,12 +346,12 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
 
   if (workloadScenario) return (
     <div className="workload-agents__run">
-      <h3>{workloadScenario.id}: {workloadScenario.title}</h3>
+      <h3>{workloadScenario.id === 'UC38' ? workloadScenario.title : `${workloadScenario.id}: ${workloadScenario.title}`}</h3>
       <p>{workloadScenario.id === 'UC38'
         ? 'Customer MFA is checked before this protected write. The registered workload agent acts only after step-up succeeds.'
         : 'This customer-data read keeps the signed-in customer as sub and the registered workload agent as act.'}</p>
       <p>Action: <strong>{workloadScenario.primaryTool}</strong> · Prompt: <strong>{workloadScenario.runPrompt}</strong></p>
-      <button type="button" disabled={runState.status === 'running'} onClick={() => runWithConsent(workloadScenario)}>Run {workloadScenario.id} action</button>
+      <button type="button" disabled={runState.status === 'running'} onClick={() => runWithConsent(workloadScenario)}>{workloadScenario.id === 'UC38' ? 'Run wire transfer' : `Run ${workloadScenario.id} action`}</button>
       <button type="button" onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</button>
       <p role={runState.status === 'error' ? 'alert' : 'status'} className={`workload-agents__status${runState.status === 'error' ? ' workload-agents__status--error' : ''}`}>{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
       {runState.status === 'step-up' && (

@@ -39,7 +39,7 @@ afterEach(() => vi.unstubAllGlobals());
 describe('PersonalAgentStudioPage consentGate', () => {
   it('runs straight away when no gate is passed (every other page)', async () => {
     renderStudio();
-    fireEvent.click(screen.getByRole('button', { name: 'Run UC38 action' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run wire transfer' }));
     expect(await screen.findByText('Paid.')).toBeTruthy();
     expect(invokeCalls(fetchMock)).toHaveLength(1);
   });
@@ -47,7 +47,7 @@ describe('PersonalAgentStudioPage consentGate', () => {
   it('asks the gate with the scenario and runs once it says yes', async () => {
     const consentGate = vi.fn().mockResolvedValue(true);
     renderStudio({ consentGate });
-    fireEvent.click(screen.getByRole('button', { name: 'Run UC38 action' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run wire transfer' }));
     expect(await screen.findByText('Paid.')).toBeTruthy();
     expect(consentGate).toHaveBeenCalledTimes(1);
     expect(consentGate).toHaveBeenCalledWith(expect.objectContaining({ id: 'UC38', runPrompt: 'pay $600 tuition' }));
@@ -57,7 +57,7 @@ describe('PersonalAgentStudioPage consentGate', () => {
   it('does not run when the gate says no', async () => {
     const consentGate = vi.fn().mockResolvedValue(false);
     renderStudio({ consentGate });
-    fireEvent.click(screen.getByRole('button', { name: 'Run UC38 action' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run wire transfer' }));
     await waitFor(() => expect(consentGate).toHaveBeenCalledTimes(1));
     await Promise.resolve(); // let the awaited gate settle before asserting the absence of a run
     expect(invokeCalls(fetchMock)).toHaveLength(0);
