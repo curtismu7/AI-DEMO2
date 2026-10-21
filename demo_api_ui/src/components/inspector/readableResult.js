@@ -6,12 +6,17 @@
  *   - a JSON-RPC frame      { jsonrpc, id, result: { content:[{type:'text',text}], isError?, structuredContent? } }
  *   - a JSON-RPC error      { jsonrpc, id, error:{ code, message } }
  *   - a gateway wrapper     { status, server, result: <MCP result> }
+ *   - a refusal             { denied:true, status:403, error, message }  /  { error:true, message }
  *   - a local-fallback bare { accounts: [...] } or { error: '...' }
  * A text part that is itself JSON (the banking tools do this) is parsed into data;
  * anything else stays prose exactly as the tool wrote it.
  *
+ * `ranTool` separates "the tool ran and said this" (including an isError result)
+ * from "the call was refused / failed before or around the tool" (a denial, an
+ * auth failure, a JSON-RPC protocol error): those are not the tool's words.
+ *
  * @typedef {{type:'text', text:string} | {type:'data', value:unknown}} Block
- * @typedef {{kind:'text'|'data'|'error'|'empty', isError:boolean, blocks:Block[], summary:string}} Readable
+ * @typedef {{kind:'text'|'data'|'error'|'empty', isError:boolean, ranTool:boolean, blocks:Block[], summary:string}} Readable
  */
 
 const isObj = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -40,15 +45,37 @@ function unwrap(body) {
 }
 
 const firstLine = (s) => String(s).split('\n').find((l) => l.trim()) ?? '';
+const textBlock = (text) => ({ type: 'text', text });
+
+/** Same conditions as mcpCalls.refusalOf: a 200 can still carry a refusal. */
+function refusalText(b) {
+  if (!isObj(b)) return null;
+  const code = Number(b.status);
+  const strErr = typeof b.error === 'string' && b.error !== '';
+  if (!b.denied && b.error !== true && !strErr && !(code >= 400)) return null;
+  const msg = typeof b.message === 'string' ? b.message : '';
+  const errCode = strErr ? b.error : '';
+  const reason = typeof b.reason === 'string' ? b.reason : '';
+  const main = msg || errCode || reason;
+  if (!main) return `HTTP ${b.status ?? 200} refusal`;
+  const tags = [msg ? errCode : '', msg || errCode ? reason : ''].filter(Boolean);
+  return tags.length ? `${main} (${tags.join(', ')})` : main;
+}
 
 /** @returns {Readable} */
 export function readableResult(body) {
-  if (body === null || body === undefined || body === '') return { kind: 'empty', isError: false, blocks: [], summary: '' };
+  if (body === null || body === undefined || body === '') return { kind: 'empty', isError: false, ranTool: true, blocks: [], summary: '' };
 
-  // A JSON-RPC error has no result at all.
+  // A JSON-RPC error has no result at all: the protocol refused, the tool did not speak.
   if (isObj(body) && isObj(body.error) && body.result === undefined) {
     const text = [body.error.message, body.error.code != null ? `(code ${body.error.code})` : ''].filter(Boolean).join(' ');
-    return { kind: 'error', isError: true, blocks: [{ type: 'text', text }], summary: firstLine(text) };
+    return { kind: 'error', isError: true, ranTool: false, blocks: [textBlock(text)], summary: firstLine(text) };
+  }
+
+  // A refusal wrapper (gateway DENY, PingOne flag off, HTTP >= 400, bare {error}).
+  const refusal = refusalText(body);
+  if (refusal !== null && !(isObj(body) && (Array.isArray(body.content) || isObj(body.result)))) {
+    return { kind: 'error', isError: true, ranTool: false, blocks: [textBlock(refusal)], summary: firstLine(refusal) };
   }
 
   const r = unwrap(body);
@@ -57,7 +84,7 @@ export function readableResult(body) {
     const blocks = [];
     for (const part of r.content) {
       if (part && part.type === 'text' && typeof part.text === 'string') blocks.push(parsedTextBlock(part.text));
-      else if (part && part.type) blocks.push({ type: 'text', text: `[${part.type} content — see the JSON]` });
+      else if (part && part.type) blocks.push(textBlock(`[${part.type} content — see the JSON]`));
     }
     if (!blocks.length && r.structuredContent !== undefined) blocks.push({ type: 'data', value: r.structuredContent });
     const isError = r.isError === true;
@@ -65,30 +92,40 @@ export function readableResult(body) {
     return {
       kind: isError ? 'error' : blocks.length ? (blocks.every((b) => b.type === 'data') ? 'data' : 'text') : 'empty',
       isError,
+      ranTool: true,
       blocks,
       summary: lead ? firstLine(lead.text) : '',
     };
   }
 
   if (isObj(r) && r.structuredContent !== undefined) {
-    return { kind: 'data', isError: r.isError === true, blocks: [{ type: 'data', value: r.structuredContent }], summary: '' };
+    return { kind: r.isError === true ? 'error' : 'data', isError: r.isError === true, ranTool: true, blocks: [{ type: 'data', value: r.structuredContent }], summary: '' };
   }
 
-  // Local fallback / non-MCP handlers return the payload bare.
-  if (isObj(r) && typeof r.error === 'string' && r.error) {
-    return { kind: 'error', isError: true, blocks: [{ type: 'text', text: r.message ? `${r.error}: ${r.message}` : r.error }], summary: r.error };
-  }
+  // Wrapped refusal reached after unwrapping (e.g. {response:{result:{error:'x'}}}).
+  const inner = refusalText(r);
+  if (inner !== null) return { kind: 'error', isError: true, ranTool: false, blocks: [textBlock(inner)], summary: firstLine(inner) };
+
   if (typeof r === 'string') {
-    return { kind: 'text', isError: false, blocks: [parsedTextBlock(r)], summary: firstLine(r) };
+    return { kind: 'text', isError: false, ranTool: true, blocks: [parsedTextBlock(r)], summary: firstLine(r) };
   }
   if (isObj(r) || Array.isArray(r)) {
-    return { kind: 'data', isError: false, blocks: [{ type: 'data', value: r }], summary: '' };
+    return { kind: 'data', isError: false, ranTool: true, blocks: [{ type: 'data', value: r }], summary: '' };
   }
-  return { kind: 'text', isError: false, blocks: [{ type: 'text', text: String(r) }], summary: String(r) };
+  return { kind: 'text', isError: false, ranTool: true, blocks: [textBlock(String(r))], summary: String(r) };
 }
 
-/** First line of text from an MCP result, for status chips and the "What happened" step. */
-export function toolErrorText(body) {
+/** The words for a failure: the text blocks, else the data as JSON, else a plain sentence. Never empty. */
+export function failureMessage(readable) {
+  const text = readable.blocks.filter((b) => b.type === 'text').map((b) => b.text).join('\n').trim();
+  if (text) return text;
+  const data = readable.blocks.find((b) => b.type === 'data');
+  if (data) return JSON.stringify(data.value);
+  return 'The tool reported an error.';
+}
+
+/** `{ message, ranTool }` when the body is a failure of any kind, else null. */
+export function failureOf(body) {
   const r = readableResult(body);
-  return r.isError ? (r.blocks.find((b) => b.type === 'text')?.text ?? r.summary ?? '') : '';
+  return r.isError ? { message: failureMessage(r), ranTool: r.ranTool } : null;
 }

@@ -156,3 +156,24 @@ describe('mcpCallFromStore: a tool that reports isError is a failed call', () =>
     expect(c.banner).toBeNull();
   });
 });
+
+describe('mcpCallFromStore: failures that carry no plain text still read as failures', () => {
+  const run = (response) => mcpCallFromStore({ ...base, detail: { src: 'you', params: {}, frames: { ...frames, response }, tokenEvents: [], response: {} } });
+  const rpcResult = (result) => ({ jsonrpc: '2.0', id: 2, result });
+  it('isError with JSON text, empty content or structuredContent only', () => {
+    for (const result of [
+      { isError: true, content: [{ type: 'text', text: '{"error":"bad"}' }] },
+      { isError: true, content: [] },
+      { isError: true, structuredContent: { error: 'x' } },
+    ]) {
+      const c = run(rpcResult(result));
+      expect(c.status, JSON.stringify(result)).toEqual(err('Tool error'));
+      expect(c.banner.text.length).toBeGreaterThan(0);
+    }
+  });
+  it('a JSON-RPC protocol error is labelled Error, not Tool error (the tool never spoke)', () => {
+    const c = run({ jsonrpc: '2.0', id: 2, error: { code: -32601, message: 'Method not found' } });
+    expect(c.status).toEqual(err('Error'));
+    expect(c.banner.text).toContain('Method not found');
+  });
+});
