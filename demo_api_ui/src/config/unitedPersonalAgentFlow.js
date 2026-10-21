@@ -49,7 +49,6 @@ const SOURCE = `sequenceDiagram
     rect rgb(218,240,240)
     Note over G,L: 8 Permit
     G->>L: Only allowed calls get through; reads ride the delegated token, the redemption carries the approval
-    Note over L: The Facade does the DataPower exchange and builds the united.com session in Redis, keyed by a hash of the Ping token
     L-->>A: Result returns through the gateway
     end
     rect rgb(225,229,238)
@@ -72,3 +71,29 @@ export const UNITED_FLOW_DETAILS = {
   L: 'Accepts only its own audience. Behind it the Facade is the only component holding DataPower credentials; the united.com member session lives in Redis keyed by a hash of the Ping token and is never returned to the client.',
   S: 'Gateway and authorization server write sub, act.client_id, jti and the verdict. Disabling the agent\'s client registration revokes its access within one token lifetime; the member\'s own session is unaffected.',
 };
+
+// Wire forms and MOCK tokens shown under each message (index = message order, 0-17). Hosts end in .example and every
+// token value is a teaching value, not a real credential. Claims follow the design doc (sub = member,
+// act.client_id = agent, one aud, minutes-long lifetime).
+const jwt = (title, claims) => `${title} (JWT, MOCK: teaching values only)\n${JSON.stringify(claims, null, 2)}`;
+
+export const UNITED_FLOW_PAYLOADS = [
+  'HTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer\n  resource_metadata="https://mcp.united.example/\n  .well-known/oauth-protected-resource"',
+  'resource: https://mcp.united.example/mcp\nauthorization_servers: [PingOne]\nscopes_supported: [miles:read, miles:redeem]',
+  'CIMD client document (fetched by URL)\nclient_id: https://agent.example/oauth/client.json\nredirect_uris: [https://agent.example/callback]\ntoken_endpoint_auth_method: private_key_jwt\njwks_uri: https://agent.example/jwks.json',
+  null,
+  'Consent (recorded through the Agreement step)\nAgent: <named agent> may\n  read miles\n  redeem miles, with approval\nMember: passkey or MFA, then Approve',
+  'grant_type: authorization_code\ncode: <AUTHORIZATION_CODE>\ncode_verifier: <PKCE_VERIFIER>\nclient_assertion_type: ...jwt-bearer\nclient_assertion: <JWT signed with the agent\'s key>',
+  'grant_type: urn:ietf:params:oauth:grant-type:\n  token-exchange   (RFC 8693)\nsubject_token: <member token>\naudience: <one tool>\nclient_assertion: <private_key_jwt>',
+  jwt('Per-call token', { iss: 'https://auth.pingone.example', sub: '<member id>', act: { client_id: 'https://agent.example/oauth/client.json' }, aud: 'https://mcp.united.example/loyalty', scope: 'miles:read', exp: 'iat + a few minutes', jti: '<unique id>' }),
+  'POST https://mcp.united.example/mcp\nAuthorization: Bearer <per-call token>\n(no DPoP on PingOne: a bearer, so the short TTL\n and single aud carry the load)',
+  'Authorize input: member, agent, tool, amount\nProtect: agentic-automation score on the session',
+  'verdict: PERMIT | DENY | STEP-UP\nredeem_miles is spending: approval required',
+  'Approval request (illustrative)\nRedeem miles for the SFO-HNL trip in March\nOne approval, one action. Timeout = denial',
+  null,
+  'approval receipt (single use)\nbound to this transaction only\nspendable once, then void',
+  'Loyalty MCP accepts only its own audience\nreads: the delegated token\nwrites: the token + the approval receipt\nFacade: does the DataPower exchange, builds the\n  united.com session in Redis keyed by a hash\n  of the Ping token (never returned to the client)',
+  null,
+  'audit record\nsub, act.client_id, jti, tool, verdict,\napproval reference',
+  'audit record (authorization server)\nsub, act.client_id, jti for every exchange',
+];

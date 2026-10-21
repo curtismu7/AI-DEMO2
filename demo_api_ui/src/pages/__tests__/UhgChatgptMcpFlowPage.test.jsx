@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import UhgChatgptMcpFlowPage from '../UhgChatgptMcpFlowPage';
 import { parseSequence } from '../../utils/parseSequence';
-import { UHG_MCP_FLOW_DETAILS, UHG_MCP_FLOW_SOURCE } from '../../config/uhgChatgptMcpFlow';
+import { UHG_MCP_FLOW_DETAILS, UHG_MCP_FLOW_PAYLOADS, UHG_MCP_FLOW_SOURCE } from '../../config/uhgChatgptMcpFlow';
 
 describe('UHG ChatGPT MCP authorization sequence', () => {
   const model = parseSequence(UHG_MCP_FLOW_SOURCE);
@@ -16,6 +16,15 @@ describe('UHG ChatGPT MCP authorization sequence', () => {
     expect(messages[9].text).toMatch(/POST \/as\/token\.oauth2/);
     expect(messages[12].text).toMatch(/RFC 8693 exchange/);
     expect(messages[15].text).toMatch(/Trusted answer/);
+  });
+
+  it('has one payload slot per message, with the tokens the proposal names', () => {
+    expect(UHG_MCP_FLOW_PAYLOADS).toHaveLength(messages.length);
+    const all = UHG_MCP_FLOW_PAYLOADS.filter(Boolean).join('\n');
+    expect(all).toMatch(/ID token from HSID/);
+    expect(all).toMatch(/"aud": "https:\/\/mcp\.uhg\.com"/);
+    expect(all).toMatch(/"act":/);
+    expect(all).toMatch(/code_verifier/);
   });
 
   it('has reel details for every participant', () => {

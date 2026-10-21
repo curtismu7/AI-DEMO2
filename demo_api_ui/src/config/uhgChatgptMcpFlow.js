@@ -61,3 +61,26 @@ export const UHG_MCP_FLOW_DETAILS = {
   G: 'Protected resource at the UHG edge. Serves oauth-protected-resource metadata, answers 401 with a WWW-Authenticate challenge, validates iss, aud, exp and scope, triggers the RFC 8693 OBO exchange, then routes to the domain MCP servers.',
   S: 'Domain MCP servers, tools and internal API gateways. Each re-validates the OBO token (iss, aud, exp, scope) and enforces per-API scope against the systems of record.',
 };
+
+// Wire forms and MOCK tokens shown under each message (index = message order, 0-15). Hosts end in .example and every
+// token value is a teaching value, not a real credential. Claims follow slides 3, 5 and 6 of the proposal.
+const jwt = (title, claims) => `${title} (JWT, MOCK: teaching values only)\n${JSON.stringify(claims, null, 2)}`;
+
+export const UHG_MCP_FLOW_PAYLOADS = [
+  null,
+  'HTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer\n  resource_metadata="https://mcp.uhg.com/.well-known/\n  oauth-protected-resource"',
+  'resource: https://mcp.uhg.com\nauthorization_servers: [https://auth.uhg.example]\nscopes_supported: [rx.price.read, rx.claims.read,\n  benefits.read, claims.read, idcard.read,\n  provider.search, payments.read]',
+  'issuer: https://auth.uhg.example\nauthorization_endpoint: /as/authorization.oauth2\ntoken_endpoint: /as/token.oauth2\ncode_challenge_methods_supported: [S256]\nclient identity: CIMD document URL (DCR only if\n  CIMD is unavailable); no client secret',
+  'client_id: <CIMD document URL of the plugin>\nresponse_type: code\nredirect_uri: <exact allowlisted callback>\nscope: rx.price.read\nresource: https://mcp.uhg.com\ncode_challenge: BASE64URL(SHA256(code_verifier))\ncode_challenge_method: S256',
+  null,
+  'Consent screen (PingFederate + HSID)\nClient: ChatGPT plugin\nWants: rx.price.read (drug pricing and coverage)\nMember: Approve or Deny',
+  jwt('ID token from HSID', { iss: 'https://hsid.uhg.example', aud: 'PingFederate client', sub: '<member id>', acr: 'mfa', amr: ['pwd', 'otp'], email_verified: true }),
+  'GET <redirect_uri>?code=<AUTHORIZATION_CODE>\n  &state=<STATE>&iss=https://auth.uhg.example',
+  'grant_type: authorization_code\ncode: <AUTHORIZATION_CODE>\nredirect_uri: <same callback>\ncode_verifier: <ORIGINAL_PKCE_VERIFIER>\nresource: https://mcp.uhg.com',
+  jwt('Access token', { iss: 'https://auth.uhg.example', aud: 'https://mcp.uhg.com', sub: '<member id>', scope: 'rx.price.read', client_id: '<plugin>', exp: 'iat + a few minutes', jti: '<unique id>' }),
+  'POST https://mcp.uhg.com/mcp\nAuthorization: Bearer <access_token>\nThe gateway validates iss, aud, exp and scope',
+  'grant_type: urn:ietf:params:oauth:grant-type:\n  token-exchange   (RFC 8693)\nsubject_token: <access_token>\nactor: gateway NHI\n' + jwt('OBO token', { iss: 'https://auth.uhg.example', aud: 'rx-member-services MCP', sub: '<member id>', act: { sub: '<gateway NHI>' }, scope: 'rx.price.read:member pharmacy.network.read' }),
+  'Authorization: Bearer <obo_token>\nMCP server, tool and API GW each re-validate\niss, aud, exp and scope, then audit the decision',
+  null,
+  null,
+];

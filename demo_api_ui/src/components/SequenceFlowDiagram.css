@@ -90,3 +90,24 @@
 
 .sfx .react-flow__edge-path { stroke: var(--th-text); stroke-width: 1.6; }
 .sfx .react-flow__edge.animated .react-flow__edge-path { stroke-dasharray: 6 4; }
+
+/* A wire form or mock token under its message. */
+.sfx-payload {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 7px 10px;
+  text-align: left;
+  white-space: pre;
+  overflow: hidden;
+  font-family: var(--font-mono);
+  font-size: var(--font-size-2xs);
+  line-height: 15px;
+  color: var(--th-text);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-sm);
+}
+.react-flow__node.dstep-hot .sfx-payload {
+  border-color: var(--th-status-info);
+  box-shadow: 0 0 0 2px var(--th-status-info-bg);
+}

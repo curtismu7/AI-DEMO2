@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import UnitedPersonalAgentFlowPage from '../UnitedPersonalAgentFlowPage';
 import { parseSequence } from '../../utils/parseSequence';
-import { UNITED_FLOW_DETAILS, UNITED_FLOW_SOURCE } from '../../config/unitedPersonalAgentFlow';
+import { UNITED_FLOW_DETAILS, UNITED_FLOW_PAYLOADS, UNITED_FLOW_SOURCE } from '../../config/unitedPersonalAgentFlow';
 
 describe('United personal-agent MCP door sequence', () => {
   const model = parseSequence(UNITED_FLOW_SOURCE);
@@ -17,6 +17,14 @@ describe('United personal-agent MCP door sequence', () => {
     const at = order.map((s) => text.indexOf(s));
     expect(at.every((i) => i >= 0)).toBe(true);
     expect([...at].sort((a, b) => a - b)).toEqual(at);
+  });
+
+  it('has one payload slot per message, including the per-call token with act.client_id', () => {
+    expect(UNITED_FLOW_PAYLOADS).toHaveLength(messages.length);
+    const all = UNITED_FLOW_PAYLOADS.filter(Boolean).join('\n');
+    expect(all).toMatch(/"act": \{/);
+    expect(all).toMatch(/client_id/);
+    expect(all).toMatch(/approval receipt/);
   });
 
   it('has reel details for every participant', () => {

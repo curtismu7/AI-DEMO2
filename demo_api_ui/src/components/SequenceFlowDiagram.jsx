@@ -10,6 +10,7 @@ import {
   Position,
   ReactFlow,
   ReactFlowProvider,
+  useReactFlow,
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
@@ -72,6 +73,10 @@ function Anchor() {
 function Note({ data }) {
   return <div className="sfx-note" style={{ width: data.w }}>{data.text}</div>;
 }
+// A wire form or mock token shown under its message, like the payload boxes of a hand-drawn sequence diagram.
+function Payload({ data }) {
+  return <pre className="sfx-payload" style={{ width: data.w }}>{data.text}</pre>;
+}
 function Fragment({ data }) {
   return <div className="sfx-frag" style={{ width: data.w }}>{data.text}</div>;
 }
@@ -114,12 +119,16 @@ function SelfEdge({ id, sourceX, sourceY, style, markerEnd, data }) {
   );
 }
 
-const nodeTypes = { part: Participant, lifeline: Lifeline, anchor: Anchor, note: Note, frag: Fragment, box: BoxBand };
+const nodeTypes = { part: Participant, lifeline: Lifeline, anchor: Anchor, note: Note, payload: Payload, frag: Fragment, box: BoxBand };
 const edgeTypes = { msg: MessageEdge, self: SelfEdge };
 
 const ARROW = { type: "arrowclosed", width: 16, height: 16 };
 
-export function buildSequenceFlow(source) {
+// Monospace box width for a payload: the longest line, kept inside the participants' span.
+const PAYLOAD_CH = 7.2;
+const PAYLOAD_LINE_H = 15;
+
+export function buildSequenceFlow(source, payloads = []) {
   const model = parseSequence(source);
   // Two or more `box` groups are separate flows. Draw them stacked, each with its own
   // participant row, instead of side by side, so the diagram stays narrow enough to read.
@@ -140,6 +149,7 @@ export function buildSequenceFlow(source) {
   const nodes = [];
   const edges = [];
   const steps = [];
+  const rows = []; // y of each message arrow, for scrolling a step into view
   const names = Object.fromEntries(model.participants.map((p) => [p.id, p.label.split("\n")[0]]));
   const spans = {}; // group id -> { head, end }
   let cur = null;
@@ -184,7 +194,20 @@ export function buildSequenceFlow(source) {
         zIndex: 2,
       });
       steps.push(`${names[it.from]} → ${names[it.to]}: ${it.text.replace(/\n/g, " ")}`);
+      rows.push(y);
       if (self) y += 26;
+      const payload = payloads[n - 1];
+      if (payload) {
+        const plines = payload.split("\n");
+        const allX = model.participants.map((p) => cx[p.id]);
+        const w = Math.min(560, Math.max(220, Math.ceil(Math.max(...plines.map((l) => l.length)) * PAYLOAD_CH) + 36));
+        const left = Math.min(cx[it.from], cx[it.to]) - 12;
+        const x = Math.max(Math.min(...allX) - 80, Math.min(left, Math.max(...allX) + 80 - w));
+        const h = plines.length * PAYLOAD_LINE_H + 16;
+        y += 8;
+        nodes.push({ id: `pl${n - 1}`, type: "payload", position: { x, y }, data: { text: payload, w }, draggable: false, selectable: false, zIndex: 1 });
+        y += h + 6;
+      }
     } else if (it.type === "note") {
       const xs = it.over.map((id) => cx[id]);
       const x0 = Math.min(...xs) - 90;
@@ -238,10 +261,10 @@ export function buildSequenceFlow(source) {
     const [head, ...rest] = p.label.split("\n");
     return { id: p.id, label: head, sub: rest };
   });
-  return { nodes, edges, steps, bounds, messages, people };
+  return { nodes, edges, steps, bounds, messages, people, rows };
 }
 
-function Inner({ source, step, active, details, driver }) {
+function Inner({ source, step, active, details, driver, payloads }) {
   const ref = useRef(null);
   const flowRef = useRef(null);
   useFitOnResize(flowRef, FIT);
@@ -254,7 +277,8 @@ function Inner({ source, step, active, details, driver }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const { nodes, edges, steps, bounds, messages, people } = useMemo(() => buildSequenceFlow(source), [source]);
+  const { nodes, edges, steps, bounds, messages, people, rows } = useMemo(() => buildSequenceFlow(source, payloads), [source, payloads]);
+  const rf = useReactFlow();
   // Fit to the page WIDTH and let the canvas grow to the drawing's height, so a 28-message
   // sequence stays at a readable size instead of shrinking to fit one screen.
   // Too narrow to fit at a readable size: keep MIN_ZOOM and scroll sideways.
@@ -269,8 +293,13 @@ function Inner({ source, step, active, details, driver }) {
     return stepEdges(edges, driver ? driver.step : step !== undefined ? step : stepper.step);
   }, [edges, stepper.step, step, active, driver]);
   const reelSteps = useMemo(
-    () => (reelStepper ? buildReelSteps({ edges: messages, nodes: people, details }) : []),
-    [reelStepper, messages, people, details],
+    () => {
+      if (!reelStepper) return [];
+      const built = buildReelSteps({ edges: messages, nodes: people, details });
+      // the payload shown under a message is also its request form in the reel's details row
+      return built.map((r, i) => (payloads?.[i] ? { ...r, lines: [...r.lines, { who: "Payload", code: payloads[i] }] } : r));
+    },
+    [reelStepper, messages, people, details, payloads],
   );
   const [nodeDetail, setNodeDetail] = useState(null);
   // Header strip state. Mirrors stepEdges: step < 0 leaves everything shown,
@@ -289,7 +318,21 @@ function Inner({ source, step, active, details, driver }) {
   });
   const headerSegments = messages.map((_, i) => ({ state: msgState(i) }));
   const current = reelStepper ? reelSteps[reelStepper.step] : null;
-  const lit = useMemo(() => markNodes(nodes, current ? [`p-${current.from}`, `p-${current.to}`] : []), [nodes, current]);
+  const lit = useMemo(
+    () => markNodes(nodes, current ? [`p-${current.from}`, `p-${current.to}`, `pl${reelStepper.step}`] : []),
+    [nodes, current, reelStepper],
+  );
+  // A step picked on the movie reel (or reached by Simulate) scrolls its message into view; the arrow and its payload light up.
+  useEffect(() => {
+    const el = ref.current;
+    if (focus < 0 || !el || rows[focus] === undefined) return;
+    try {
+      const { y, zoom } = rf.getViewport();
+      const top = el.getBoundingClientRect().top + window.scrollY + y + rows[focus] * zoom;
+      const vh = window.innerHeight;
+      if (top < window.scrollY + 120 || top > window.scrollY + vh - 160) window.scrollTo({ top: Math.max(0, top - vh * 0.35), behavior: "smooth" });
+    } catch (_) { /* scrolling is a convenience */ }
+  }, [focus, rows, rf]);
   const onNodeClick = (_, node) => {
     if (!reelStepper || node.type !== "part") return;
     setNodeDetail(buildNodeDetail(people.find((p) => `p-${p.id}` === node.id), details));
@@ -335,11 +378,11 @@ function Inner({ source, step, active, details, driver }) {
  * movie reel's details row. A page that runs its own simulator passes `driver` ({ step, goTo }, step =
  * the message index) to get the diagram highlight and the movie reel without a second control bar.
  */
-export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver }) {
+export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver, payloads }) {
   return (
     <div className="sfx" role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} step={step} active={active} details={details} driver={driver} />
+        <Inner source={source} step={step} active={active} details={details} driver={driver} payloads={payloads} />
       </ReactFlowProvider>
     </div>
   );
