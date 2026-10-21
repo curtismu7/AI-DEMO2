@@ -85,7 +85,9 @@ const PREVIEW_STAGES = [
   { id: "reply", label: "Reply", color: "#94a3b8", bg: "rgba(148,163,184,0.14)" },
 ];
 
-export default function TokenChainFilmstrip() {
+// `emptyState`: optional node shown in the Token Chain panel while no step is selected, in place of the
+// "What this panel shows" intro (the studio page passes the run's token cards here).
+export default function TokenChainFilmstrip({ emptyState = null }) {
   const [snap, setSnap] = useState(() => tokenChainTraceStore.getState());
   const [viewMode, setViewMode] = useState(readStoredViewMode);
   // "+N hops not in this run" chip state (completed Live runs only). The count
@@ -361,6 +363,7 @@ export default function TokenChainFilmstrip() {
           // The spotlight is the right column, so it must never be empty — an
           // empty half-screen reads as broken. Say what to do instead.
           <div className="tcfs-spotlight-empty">
+            {emptyState || (
             <div className="tcfs-spotlight-intro">
               <div className="tcfs-spotlight-intro-title">What this panel shows</div>
               {/* A Privilege A2A chain has no tokens in it: agents present agent
@@ -396,6 +399,7 @@ export default function TokenChainFilmstrip() {
                   : "Pick a step on the chain below to see what it changed."}
               </div>
             </div>
+            )}
           </div>
         )}
       </div>

@@ -12,6 +12,7 @@ vi.mock('../OboDemoPage', () => ({ default: () => <div data-testid="obo-page" />
 vi.mock('../../components/SignInPrompt', () => ({ default: ({ message }) => <div data-testid="signin">{message}</div> }));
 
 import PersonalAgentStudioPage from '../PersonalAgentStudioPage';
+import css from '../PersonalAgentStudioPage.css?raw';
 import apiClient from '../../services/apiClient';
 
 const renderStudio = (url = '/') => render(
@@ -199,17 +200,46 @@ describe('PersonalAgentStudioPage', () => {
   });
 
   it('bare variant drops the chrome-height subtraction from the shell', () => {
+    // The height rules live in the stylesheet (so the stacked layout can flow at natural height); the shell
+    // carries a --bare class only when there is no app chrome, and the CSS subtracts the chrome height only without it.
     const { rerender } = renderStudio();
-    const chromed = screen.getByTestId('studio-shell').style.height;
+    expect(screen.getByTestId('studio-shell').classList.contains('pas-shell--bare')).toBe(false);
     rerender(<MemoryRouter><PersonalAgentStudioPage bare /></MemoryRouter>);
-    const bare = screen.getByTestId('studio-shell').style.height;
-    expect(chromed).toContain('176px');
-    expect(bare).not.toContain('176px');
+    expect(screen.getByTestId('studio-shell').classList.contains('pas-shell--bare')).toBe(true);
+    const rule = (selector) => css.match(new RegExp(selector.replace(/[.]/g, '\\.') + '\\s*\\{[^}]*\\}'))?.[0] || '';
+    expect(rule('.pas-shell')).toContain('176px');
+    expect(rule('.pas-shell--bare')).not.toContain('176px');
+  });
+
+  it('cockpit flows at its natural height: sticky chat, pinned dock, no fixed-height squeeze of the right column', () => {
+    // A fixed-height grid gave the right column ~200px on a laptop, clipping the reel and token detail.
+    const body = (selector) => { const i = css.indexOf(selector + ' {'); return i < 0 ? '' : css.slice(i, css.indexOf('}', i)); };
+    const grid = css.split('.pas-shell--cockpit {').map((chunk) => chunk.slice(0, chunk.indexOf('}'))).find((chunk) => chunk.includes('grid-template-rows'));
+    expect(body('.pas-shell--cockpit > .pas-c-chat')).toContain('position: sticky');
+    expect(body('.pas-shell--cockpit > .personal-agent-client-dock')).toContain('position: sticky');
+    expect(grid).toContain('height: auto');
+    expect(grid).not.toContain('minmax(0, 1fr);');
   });
 
   describe('layout switch (Stacked | Cockpit)', () => {
     beforeEach(() => { window.localStorage.removeItem('pas-layout'); });
     const shell = () => screen.getByTestId('studio-shell');
+
+    it('stacked carries the numbered-section hooks; cockpit does not', () => {
+      const { unmount } = renderStudio();
+      expect(shell().classList.contains('pas-shell--stacked')).toBe(true);
+      expect(document.querySelector('.pas-c-cards')).not.toBeNull();
+      unmount();
+      renderStudio('/personal-agent?layout=cockpit');
+      expect(shell().classList.contains('pas-shell--stacked')).toBe(false);
+      expect(document.querySelector('.pas-c-cards')).toBeNull();
+    });
+
+    it('with no token events the Token Chain panel keeps its intro (no empty token cards)', () => {
+      renderStudio();
+      expect(screen.getByText('What this panel shows')).toBeTruthy();
+      expect(document.querySelector('.token-cards')).toBeNull();
+    });
 
     it('defaults to the stacked layout: full client cards, no gate chips, no dock', () => {
       renderStudio();
