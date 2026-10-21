@@ -221,6 +221,7 @@ const ENV_AGNOSTIC_KEYS = new Set([
   'pf_id_jag_scope', 'pf_id_jag_subject_token_type',
   'pf_id_jag_redemption_token_endpoint', 'pf_id_jag_redemption_client_id',
   'pf_id_jag_redemption_client_secret', 'pf_id_jag_redemption_auth_method',
+  'id_jag_playground_step4_enabled',
   'pf_ai_cimd_enabled', 'pf_ai_cross_domain_enabled',
   'pf_ai_cross_domain_client_id', 'pf_ai_cross_domain_client_secret',
   'pf_ai_cross_domain_token_endpoint_auth_method', 'pf_ai_cross_domain_audience',
