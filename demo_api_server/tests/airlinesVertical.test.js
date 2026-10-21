@@ -187,6 +187,25 @@ describe('airlines vertical', () => {
     expect(hit && hit.action).toBe('pay_airline_fee');
   });
 
+  // The airline has no transfer-miles tool. "Transfer ... miles ..." used to fall into the loyalty read: the
+  // transfer-intent policy asked for consent + MFA, then the agent answered with the balance (a different question).
+  test.each([
+    'Transfer 20,000 of my miles to my brother',
+    'transfer my miles to a friend',
+  ])('%s does not route to the loyalty read', (phrase) => {
+    const hit = plugin.getHeuristics().find((h) => h.re.test(phrase));
+    expect(hit && hit.action).not.toBe('get_loyalty_status');
+  });
+
+  test.each([
+    'What is my loyalty status?',
+    'how many miles do I have',
+    'what is my mileage plus tier',
+  ])('%s still routes to the loyalty read', (phrase) => {
+    const hit = plugin.getHeuristics().find((h) => h.re.test(phrase));
+    expect(hit && hit.action).toBe('get_loyalty_status');
+  });
+
   // Important fix: airlinesToolHandler.ts defaults available_only to true, and
   // nothing else in the dispatch path ever set it to false, so occupied seats
   // (and the "Occupied" legend swatch) could never actually be exercised by a
