@@ -210,7 +210,7 @@ describe('PersonalAgentStudioPage workload evidence', () => {
       </TokenChainProvider>
     </MemoryRouter>);
 
-    fireEvent.click(screen.getByRole('button', { name: 'Run wire transfer' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Run rental extension' }));
     expect(pending['personal-agent-concierge']).toBeTypeOf('function');
     fireEvent.click(screen.getByRole('button', { name: 'Switch scenario' }));
     expect(screen.getByRole('button', { name: 'Run UC44 action' })).not.toBeDisabled();

@@ -416,7 +416,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       },
       {
         label: "Digital Worker: live run",
-        description: "Assistant vs worker on one page: a governed wire-transfer run plus an unattended arm-fire-approve cycle",
+        description: "Assistant vs worker on one page: a governed protected-action run plus an unattended arm-fire-approve cycle",
         icon: "",
       },
     ],

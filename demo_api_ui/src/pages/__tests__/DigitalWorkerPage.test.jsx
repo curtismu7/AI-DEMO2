@@ -99,8 +99,8 @@ describe("DigitalWorkerPage run sections", () => {
   it("renders the lede, the tabs, the studio, and the unattended panel", async () => {
     renderPage();
     expect(screen.getByText(/An assistant answers questions\. A worker takes action — it holds delegated identity, spends it across tools, and every action is governed\./)).toBeTruthy();
-    expect(screen.getByText("Wire transfer with step-up MFA and human approval")).toBeTruthy();
-    // The studio's own "Run wire transfer" is the one way to start a run: the page adds no second button.
+    expect(await screen.findByText("Transfer with step-up MFA and human approval")).toBeTruthy();
+    // The studio's own "Run <action>" is the one way to start a run: the page adds no second button.
     expect(await screen.findByTestId("studio")).toBeTruthy();
     expect(screen.queryByRole("button", { name: "Run worker task" })).toBeNull();
     // The unattended panel lives on its own tab; it self-fetches its flag, then shows its unarmed state.

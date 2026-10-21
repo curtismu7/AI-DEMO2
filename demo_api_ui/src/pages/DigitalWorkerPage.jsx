@@ -1,4 +1,5 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { protectedActionLabel } from './protectedActionLabel';
 import { useLocation } from "react-router-dom";
 import apiClient from "../services/apiClient";
 import { useVertical } from "../vertical/useVertical";
@@ -311,8 +312,8 @@ export default function DigitalWorkerPage() {
   const vertical = params.get("vertical") || (SUPPORTED_VERTICALS.has(activeId) ? activeId : DEFAULT_VERTICAL);
 
   // Scenario loading mirrors WorkloadAgentsPage: the vertical choices arrive from
-  // /api/verticals/list, the wire-transfer use case (UC38) resolves per vertical, and the studio
-  // only mounts once both are in hand. The studio's own "Run wire transfer" button is the
+  // /api/verticals/list, the protected-action use case (UC38) resolves per vertical, and the studio
+  // only mounts once both are in hand. The studio's own "Run <action>" button is the
   // one way to start the run; mounting never fires it (its runNonce stays 0).
   const [catalog, setCatalog] = useState({ vertical: null, useCase: null });
   const [error, setError] = useState("");
@@ -399,7 +400,7 @@ export default function DigitalWorkerPage() {
         {consentHost}
 
         <div role="tabpanel" id="dw-pane-attended" aria-labelledby="dw-tab-attended" hidden={mode !== "attended"} className="dw-agent__pane">
-          <p className="dw-agent__intro">Wire transfer with step-up MFA and human approval</p>
+          <p className="dw-agent__intro">{selected ? `${protectedActionLabel(selected)[0].toUpperCase()}${protectedActionLabel(selected).slice(1)}` : "Protected action"} with step-up MFA and human approval</p>
           {needsSignIn ? <DigitalWorkerSignIn what="run the governed worker" /> : error && <p role="alert" className="dw-run-task__error">{error}</p>}
           {selected ? (
             <PersonalAgentStudioPage key={`${vertical}:UC38`} scenario={selected} vertical={vertical} consentGate={consentGate} />
