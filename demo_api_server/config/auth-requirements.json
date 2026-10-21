@@ -298,6 +298,7 @@
     "/path/mortgage": "public",
     "/obo-demo": "user",
     "/digital-worker": "public",
+    "/authorization-flow": "public",
     "/chatgpt-login": "user",
     "/personal-agent": "public",
     "/personal-agent/full": "public",

@@ -1372,6 +1372,13 @@ export default function AdminSideNav({
     searchAlias: "digital worker agentic token service agent gateway mcp token mediation diagram live run autonomous arm uc38",
   };
 
+  const authorizationFlow = {
+    label: "Authorization Flow",
+    path: "/authorization-flow",
+    icon: "arc",
+    searchAlias: "authorization flow personal assistant unmanaged exchange cima ciba pingone authorize 50 cap revoke visualiser sequence",
+  };
+
   const allNavItems = [
     findLegacyItem("Home"),
     findLegacyItem("Security Dashboard"),
@@ -1540,7 +1547,7 @@ export default function AdminSideNav({
       { label: "Design Review", path: "/personal-agent-review", icon: "log" },
       { label: "Request Flow Diagram", path: "/personal-agent-flow", icon: "arc" },
     ], "agt"),
-    productGroup("Digital Worker", [digitalWorkerDiagram], "agt"),
+    productGroup("Digital Worker", [digitalWorkerDiagram, authorizationFlow], "agt"),
     productGroup("MCP & Integrations", [
       "MCP Inspector",
       "Agent Gateway Inspector",
