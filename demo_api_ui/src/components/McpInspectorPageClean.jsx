@@ -14,6 +14,7 @@ import { mcpCallFromStore, apiCallFromTracker } from './inspector/mcpCalls';
 import { useInspectorVertical } from './inspector/useInspectorVertical';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import { argsFor, belongsElsewhere } from '../config/inspectorVerticals';
+import { defaultParamsFor, pickDefaultTool } from '../config/inspectorDefaults';
 
 const NEW_PROFILE_DEFAULTS = {
   label: '',
@@ -71,6 +72,11 @@ const ELICIT_ID = 'elicitation-pending';
 const asText = (v) => (v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v));
 /** The vertical's sample args for a tool, as form strings. */
 const paramsFor = (vertical, name) => Object.fromEntries(Object.entries(argsFor(vertical, name)).map(([k, v]) => [k, asText(v)]));
+/** What a freshly picked tool's form starts with: the defaults for what it declares, then the vertical's sample args on top. */
+const initialParams = (tool, vertical, toolKey) => ({
+  ...defaultParamsFor(tool?.inputSchema?.properties ?? tool?.schema?.properties),
+  ...(vertical ? paramsFor(vertical, tool?.[toolKey]) : {}),
+});
 
 function AddServerForm({ source }) {
   const [open, setOpen] = useState(false);
@@ -213,11 +219,26 @@ function McpInspectorPageClean() {
     if (!byVertical || !sel) return;
     const keep = !belongsElsewhere(id, sel[toolKey]);
     if (!keep) source.setSelectedTool(null);
-    source.setParamValues(keep ? paramsFor(v, sel[toolKey]) : {});
+    source.setParamValues(keep ? initialParams(sel, v, toolKey) : {});
   });
 
   // null = follow the newest call; set when the user picks a row.
   const [pickedId, setPickedId] = useState(null);
+
+  // Pre-select a safe default tool once per source/profile, so a bare Send works. Never fights the user:
+  // it runs only while nothing is selected, and only once for each source and profile.
+  const autoPicked = useRef('');
+  useEffect(() => {
+    if (isCalls || source.loadingTools || source.selectedTool || !source.tools?.length) return;
+    const key = `${activeSource}:${source.selectedProfileId || ''}`;
+    if (autoPicked.current === key) return;
+    autoPicked.current = key;
+    const t = pickDefaultTool(activeSource, source.tools, toolKey);
+    if (!t) return;
+    source.setSelectedTool(t);
+    source.setParamValues(initialParams(t, byVertical ? vertical : null, toolKey));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isCalls, source.loadingTools, source.selectedTool, source.tools, activeSource, source.selectedProfileId]);
 
   // Smart field propagation: publish this page's last result for other inspectors.
   useEffect(() => {
@@ -375,7 +396,7 @@ function McpInspectorPageClean() {
         noun={isMethod ? 'method' : 'tool'}
         onPick={(t) => {
           source.setSelectedTool(t);
-          source.setParamValues(byVertical ? paramsFor(vertical, t[toolKey]) : {});
+          source.setParamValues(initialParams(t, byVertical ? vertical : null, toolKey));
         }}
       />
       {tool ? (
