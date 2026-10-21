@@ -126,7 +126,7 @@
   .pas-shell--cockpit > .personal-agent-client-dock { position: static; }
 }
 
-.pas-c-chat { min-height: 320px; }
+.pas-c-chat { flex: 1; min-height: 320px; }
 .pas-c-flow { padding: 0 16px; }
 
 /* ── Stacked: numbered sections, as in the design mock ──────────────────────────────────────────
@@ -135,8 +135,20 @@
 .pas-shell--stacked,
 .pas-c-cards { --pas-gutter: 88px; }
 
-.pas-shell--stacked > .pas-c-chat { padding: 8px 28px 8px var(--pas-gutter); min-height: 360px; }
-.pas-shell--stacked > .pas-c-flow { padding: 0 28px 0 var(--pas-gutter); min-height: 58px; }
+/* 280px is the chat's floor: with the app chrome and header above it, anything taller pushes the reel below the
+   fold on a 720px window (the e2e guard "movie reel is on screen on Personal Agent Studio"). */
+/* A definite height, so the message list scrolls inside the card instead of the card growing to its content: it follows
+   the window (280px on a short one, up to 460px on a tall one). */
+.pas-shell--stacked > .pas-c-chat {
+  flex: none; /* the shell flows at its natural height here, so the chat takes the height below, not a share of it */
+  min-height: 280px; /* the base rule's 320px floor is for the fixed-height shells */
+  padding: 4px 28px 4px var(--pas-gutter);
+  box-sizing: border-box;
+  height: clamp(280px, calc(100vh / var(--app-zoom, 1) - 440px), 460px);
+}
+
+.pas-shell--stacked .agent-client-skin { height: 100%; }
+.pas-shell--stacked > .pas-c-flow { padding: 0 28px 0 var(--pas-gutter); min-height: 36px; }
 .pas-shell--stacked .tcfs-chain { padding-left: var(--pas-gutter); }
 .pas-shell--stacked .tcfs-spotlight-empty { padding: 14px 28px 14px var(--pas-gutter); }
 .pas-c-cards { padding-left: var(--pas-gutter); padding-right: 28px; margin-top: 12px; }
@@ -169,8 +181,8 @@
 
 .pas-shell--stacked > .pas-c-chat::before { content: "1"; }
 .pas-shell--stacked > .pas-c-chat::after { content: "AGENT"; }
-.pas-shell--stacked > .pas-c-flow::before { content: "2"; }
-.pas-shell--stacked > .pas-c-flow::after { content: "FLOW"; }
+.pas-shell--stacked > .pas-c-flow::before { content: "2"; top: 5px; font-size: var(--font-size-xl); }
+.pas-shell--stacked > .pas-c-flow::after { content: "FLOW"; top: 12px; left: 50px; }
 .pas-shell--stacked .tcfs-chain::before { content: "3"; }
 .pas-shell--stacked .tcfs-chain::after { content: "PIPELINE"; }
 .pas-shell--stacked .tcfs-spotlight-empty::before { content: "4"; }

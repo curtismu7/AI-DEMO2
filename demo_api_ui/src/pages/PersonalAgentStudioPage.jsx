@@ -433,7 +433,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
             <button
               key={s}
               onClick={() => setActiveSkin(s)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${activeSkin === s ? 'var(--pas-pill-on-bg, #051727)' : 'var(--th-border)'}`, background: activeSkin === s ? 'var(--pas-pill-on-bg, #051727)' : 'var(--th-bg-card)', fontSize: 12, fontWeight: 600, color: activeSkin === s ? 'var(--pas-pill-on-fg, #ffffff)' : 'var(--th-text)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '4px 8px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${activeSkin === s ? 'var(--pas-pill-on-bg, #051727)' : 'var(--th-border)'}`, background: activeSkin === s ? 'var(--pas-pill-on-bg, #051727)' : 'var(--th-bg-card)', fontSize: 12, fontWeight: 600, color: activeSkin === s ? 'var(--pas-pill-on-fg, #ffffff)' : 'var(--th-text)' }}
             >
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: SKIN_DOT_COLORS[s], display: 'inline-block' }} />
               {SKIN_LABELS[s]}
@@ -476,7 +476,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         </div>
       ) : (<>
       {/* Content area */}
-      <div className="pas-c-chat" style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div className="pas-c-chat" style={{ display: 'flex', overflow: 'hidden' }}>
         {/* Agent panel */}
         <div style={{ flex: layout.agentFlex, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           {layout.placeholderVisible ? (
