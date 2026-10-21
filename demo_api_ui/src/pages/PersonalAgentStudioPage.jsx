@@ -48,7 +48,8 @@ const DEFAULT_GATES = [
   { id: 'authz', name: 'PingOne Authorize',           desc: 'Policy: agent identity · loyalty tier · action scope', icon: '✅', status: 'waiting' },
 ];
 
-function deriveGates(events) {
+// Exported so the standalone learning page (/personal-agent/learn) reads the same real gate logic.
+export function deriveGates(events) {
   const gates = DEFAULT_GATES.map((g) => ({ ...g }));
   const ids = new Set(events.map((e) => e.id));
   const statuses = Object.fromEntries(events.map((e) => [e.id, e.status]));
@@ -75,7 +76,7 @@ function deriveGates(events) {
   return gates;
 }
 
-function extractActClaim(events) {
+export function extractActClaim(events) {
   const exchEvent = events.find((e) => e.id === 'mcp-exchange' || e.id === 'personal-agent-lookup');
   if (!exchEvent || !exchEvent.token) return null;
   const claims = exchEvent.token?.claims;

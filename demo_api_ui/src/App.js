@@ -187,6 +187,7 @@ import McpObservabilityPage from "./pages/McpObservabilityPage";
 import LangChainPage from "./pages/LangChainPage";
 import SnapshotImport from "./pages/SnapshotImport";
 import PersonalAgentStudioPage from "./pages/PersonalAgentStudioPage";
+import PersonalAgentLearnPage from "./pages/PersonalAgentLearnPage";
 import WorkloadAgentsPage from "./pages/WorkloadAgentsPage";
 import PersonalAgentClientWindow from "./pages/PersonalAgentClientWindow";
 import DotWorkbenchPage from "./pages/DotWorkbenchPage";
@@ -1677,6 +1678,14 @@ function AppWithAuth() {
                     <AppShell user={user} logout={logout}>
                       <DotWorkbenchPage user={user} />
                     </AppShell>
+                  }
+                />
+                <Route
+                  path="/personal-agent/learn"
+                  element={
+                    // Standalone, teaching-first Personal Agent Studio: no side nav, header or footer. Signed-out
+                    // visitors see the page with a sign-in prompt (the agent needs a session to run).
+                    <PersonalAgentLearnPage user={user} />
                   }
                 />
                 <Route
