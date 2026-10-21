@@ -47,7 +47,7 @@ Work in a worktree of `id-jag-standalone`. Local `main` is 2 PRs behind origin (
 | 0.2 | **Phase 3B:** sign-in and self-registration, IdP chosen at setup; admin rights for the Trusted IdPs registry | A new user registers, signs in; an admin approves a trusted IdP |
 | 0.3 | Rest of Phase 3: real `pf-pf` setup; adapt `pingfederate/sync-id-jag-trusted-idps.js` | `pf-pf` runs end to end on a fresh PF |
 | 0.4 | **Presenter mode** | Fullscreen, larger type, step counter, admin UI hidden; playground runs start to finish |
-| 0.5 | **Talk-track panel** | Per step: what's happening, what to say, why it matters; data-driven; every step in every mode has one |
+| 0.5 | **Story engine + vertical packs** | Stories are data (`stories/<id>.json`): goal, obstacle, control, per-step tell/say/why with optional blocked wording, proof. Panel with Allowed/Blocked switch and a vertical picker. **Built** on `feat/story-engine` (757555e): S11 for byo mode; generic, airlines, banking, healthcare, retail packs; 294 web tests. Still to do: a story for each other mode, and `customer.config` choosing the vertical |
 | 0.6 | **`customer.config`** | Brand, vertical, IdP, persona; validated; one file re-skins the demo in under 2 minutes |
 | 0.7 | **`doctor` command** | Checks tenant, ports, certs, env, backend reachability; names the fix; green on a good setup |
 | 0.8 | **One-click Reset** | Clears users, sessions, held states, trusted-IdP registry; result identical to fresh setup |
@@ -82,7 +82,9 @@ Every demo repo must ship all of these:
 7. Own short `CLAUDE.md` and only the skills it needs
 8. Its own CI scoped to its own tests
 9. The diagram, demo and Learning Hub entry stay a synced trio
-10. Emits the shared **trace envelope** (F2) for every hop and renders the built-in trace timeline (F3); optional `--profile otel` for the OTel and Grafana view (F4)
+10. Ships the **story engine** and **vertical packs**: every story is data with `{{cast}}`/`{{vocab.*}}` tokens, and a test fails if any token is undefined in any shipped vertical
+11. Draws its flow diagrams from the shared **diagram data** (E3), never hand-drawn per demo
+12. Emits the shared **trace envelope** (F2) for every hop and renders the built-in trace timeline (F3); optional `--profile otel` for the OTel and Grafana view (F4)
 
 ## Catalog: standalone apps we can build
 
@@ -192,9 +194,9 @@ Legend. **Seed** = existing code in AI-DEMO2 or a sibling folder. ✅ = substant
 |---|---|---|---|---|
 | E1 | **Learning Hub standalone** | Demo | Glossary, sources, Learn index, RAG Q&A; content-pack format that every demo contributes to | ✅ Learning Hub, Tika-RAG plan |
 | E2 | **SE demo shelf (launcher)** | Tool | One page: every demo, status light (ready / needs setup / broken), start button | ❌ |
-| E3 | **Diagram gallery** | Demo | All ReactFlow diagrams in one place | ✅ `/diagrams` index |
+| E3 | **Diagram studio** | Standalone | Decided 2026-10-20: diagrams are their own standalone. Every flow diagram as a data file, ReactFlow only (never mermaid), shared by all demos through the base. Movable boxes, Simulate, Reset and a speed control on every one. Embeddable in a demo page and usable in presenter mode; each diagram step links to its story step and trace hop; exports PNG/SVG for decks | ✅ `/diagrams` index (PR #1457), 22 diagram configs (PR #1145), the ID-JAG kit's per-mode diagrams |
 | E4 | **Talk-track library** | Tool | Searchable talk tracks across demos | ❌ (comes from the Phase 0 panel) |
-| E5 | **Industry skins** | Theme packs | Banking, healthcare, retail, airline, as packs on the base | ✅ vertical picker, United docs |
+| E5 | **Verticals (industry packs)** | Base feature | Decided 2026-10-20: verticals are part of every standalone. A vertical pack is one JSON file (display name, tagline, brand colors, vocabulary, cast roles). Stories are written once with `{{cast}}` and `{{vocab.*}}` tokens and the pack fills them, so a story re-skins with no copy. AI-DEMO2 has 16 vertical manifests to seed from (airlines, banking, government, healthcare, investment, manufacturing, retail, sporting-goods, university, walbuy, workforce, plus admin and teaching ones). Built so far in the ID-JAG kit (branch `feat/story-engine`): generic, airlines, banking, healthcare, retail. Next: the rest, a sync script that refreshes brand/identity from AI-DEMO2 manifests without touching the hand-written vocabulary, and applying brand colors through `customer.config` (0.6) | ✅ AI-DEMO2 `demo_api_server/config/verticals/*/manifest.json`, United docs; 🟡 packs in the kit |
 | E6 | **Customer-specific packs** | Theme packs | e.g. the United engagement, applied via `customer.config` | ✅ United docs |
 | E7 | **Demo health dashboard** | Tool | Readiness across the whole family | ✅ demo readiness catalog |
 
@@ -257,3 +259,18 @@ Default: demos get their own repo; testers are grouped into suites, except MFA t
 ## Next step
 
 Phase 0.1: pull the 2 pending PRs in `id-jag-standalone` and do the clean-clone baseline, in a worktree.
+
+## Status as of 2026-10-20 (end of session 1)
+
+Nothing is pushed or merged. Branches in `~/Development/id-jag-standalone` (worktrees alongside it):
+
+| Branch | Worktree | What | State |
+|---|---|---|---|
+| `feat/registration` | `id-jag-standalone-reg` | 0.2: request-and-approve registration (server + web) | 2 commits, 375 server + 272 web tests |
+| `feat/doctor` | `id-jag-standalone-doctor` | 0.7: doctor CLI + admin route | built on feat/registration, independent review: accept with nits |
+| `feat/reset` | `id-jag-standalone-reset` | 0.8: reset CLI + admin route | built on feat/registration, independent review: accept with nits |
+| `feat/story-engine` | `id-jag-standalone-story` | 0.5: story engine, panel, vertical packs, S11 | from origin/main, 294 web tests |
+
+Known merge friction: `feat/doctor` and `feat/reset` both edit `server/src/app.js` and `server/src/pfUsers.js`; merge them in turn and resolve there.
+Not yet verified: registration, doctor PF checks and reset PF user removal have only run against a mocked PingFederate.
+Research reports (fact-checked): [standalone-research/](standalone-research/): Cedar, MFA tester, Learning Hub.

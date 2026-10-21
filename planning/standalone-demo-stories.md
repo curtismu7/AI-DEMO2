@@ -109,6 +109,8 @@ Names are placeholders; `customer.config` can swap them.
 
 ### 7. Vertical variants (same plot, different skin)
 
+Decided 2026-10-20: a vertical is a **pack** (see the plan, E5), not a separate story. The stories below are the plots to write once with tokens; the pack supplies names and nouns. S11 already ships this way in the ID-JAG kit.
+
 | | |
 |---|---|
 | **S24 Airline:** Mark books, Dot rebooks on cancellation, Priya is the supervisor (United engagement). | S01, S08, S09 |

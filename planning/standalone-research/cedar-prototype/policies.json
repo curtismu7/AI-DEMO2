@@ -1,0 +1,8 @@
+{
+ "s04-analysts-search-ticketing": "@reason(\"Analysts may use Search and Ticketing\")\npermit (principal in Group::\"analysts\", action == Action::\"mcp:Invoke\", resource)\nwhen { context.app == \"search\" || context.app == \"ticketing\" };\n",
+ "s04-payments-finance-only": "@reason(\"Payments is for finance, with the payments:write scope\")\npermit (principal in Group::\"finance\", action == Action::\"mcp:Invoke\", resource)\nwhen { context.app == \"payments\" && context.token.scopes.contains(\"payments:write\") };\n",
+ "s05-rugpull-pin": "@reason(\"Tool schema changed since it was approved\")\nforbid (principal, action, resource)\nwhen { context.pinnedHash != context.observedHash };\n",
+ "s01-hold-large-fare": "@reason(\"Fares over 1000 need a second pair of eyes\")\n@approvers(\"priya\")\nforbid (principal, action == Action::\"mcp:InvokeUnattended\", resource == Tool::\"book_fare\")\nwhen { context.args has amount && context.args.amount > 1000 }\nunless { context.approval_count >= 1 };\n",
+ "s23-permit-travel-agents": "@reason(\"Travel agents may book fares\")\npermit (principal in Group::\"travel-agents\", action in [Action::\"mcp:Invoke\", Action::\"mcp:InvokeUnattended\"], resource)\nwhen { context.app == \"booking\" };\n",
+ "s23-forbid-over-cap": "@reason(\"Hard cap: no booking over 10000 for anyone\")\nforbid (principal, action in [Action::\"mcp:Invoke\", Action::\"mcp:InvokeUnattended\"], resource == Tool::\"book_fare\")\nwhen { context.args has amount && context.args.amount > 10000 };\n"
+}
