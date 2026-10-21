@@ -118,6 +118,14 @@ Decided 2026-10-20: a vertical is a **pack** (see the plan, E5), not a separate 
 | **S26 Healthcare:** Dr. Okafor's agent reads a chart; blocked outside the care team; break-glass requires approval. | S04, S01 |
 | **S27 Retail:** a promo agent applies a discount; capped by policy; an injected review tries to raise it. | S12, S14 |
 
+### 7b. Group policy
+
+| | |
+|---|---|
+| **S33 Mark loses a group mid-session** | **Goal:** Mark asks for a premium upgrade. **Obstacle:** an admin removed Mark from the Premium group a minute ago, but Mark's token still lists it. **Control:** group membership evaluated by PingOne Authorize, plus a fresh token. **Happy:** a new token reflects the change and the request is denied with the group named. **Blocked variant:** the stale token still permits, and the page says why. **Proof:** the decision with its statement code and the `groups` claim before and after. **Say:** "Policy is only as current as the token it reads." **Demos:** B7 |
+| **S34 One rule, three industries** | **Goal:** the same group rule applied in banking, healthcare and an airline. **Obstacle:** each industry names groups and resources differently. **Control:** a rule per vertical pack. **Proof:** three decisions side by side, each with its own deciding rule. **Demos:** B7, verticals |
+| **S35 Dana maps groups to tools** | **Goal:** Dana decides which groups may use which MCP tools. **Obstacle:** three tools, four groups, and one must wait for approval. **Control:** allow / hold / deny mapping. **Proof:** the mapping table and one decision per cell (this is S04 from the admin's side). **Demos:** B7, D1 |
+
 ### 8. Following one transaction (telemetry and workload identity)
 
 | | |

@@ -84,7 +84,8 @@ Every demo repo must ship all of these:
 9. The diagram, demo and Learning Hub entry stay a synced trio
 10. Ships the **story engine** and **vertical packs**: every story is data with `{{cast}}`/`{{vocab.*}}` tokens, and a test fails if any token is undefined in any shipped vertical
 11. Draws its flow diagrams from the shared **diagram data** (E3), never hand-drawn per demo
-12. Emits the shared **trace envelope** (F2) for every hop and renders the built-in trace timeline (F3); optional `--profile otel` for the OTel and Grafana view (F4)
+12. Offers **seeded demo users and groups** next to live IdP login (P1/PF/AIC picked at setup), so every demo runs offline in mock mode with fixed users and runs live with real ones; the header shows which mode is active
+13. Emits the shared **trace envelope** (F2) for every hop and renders the built-in trace timeline (F3); optional `--profile otel` for the OTel and Grafana view (F4)
 
 ## Catalog: standalone apps we can build
 
@@ -129,7 +130,7 @@ Legend. **Seed** = existing code in AI-DEMO2 or a sibling folder. ✅ = substant
 | B4 | **Cedar policy playground** | Tester | Edit Cedar policy locally (open-source engine), see permit/forbid | ❌ |
 | B5 | **Cedar for agent tool calls** | Demo | Permit and forbid rules on MCP tool calls; forbid overrides permit; default deny | ❌ |
 | B6 | **Amazon Verified Permissions variant** | Demo | Same, against live AVP (only if confirmed) | ❌ |
-| B7 | **Group / vertical policy board** | Demo | One decision per vertical, group-driven | ✅ |
+| B7 | **Group Policy** | Standalone | Decided 2026-10-20: its own standalone repo. Group membership drives a PingOne Authorize decision: add or remove a user from a group and the same request flips between permit and deny, with the deciding rule shown. Four parts: (1) group-driven decisions with the statement code that answered; (2) a rule per industry vertical, using the vertical packs; (3) group-to-tool mapping for agents (allow / hold for approval / deny per MCP tool), which is the mapping still owed from the Privilege steps; (4) how group changes reach the token (`groups` claim) and why a stale token still shows the old group. Engine: PingOne Authorize, with mock mode for offline. Users: **seeded demo users and live IdP login (P1/PF/AIC at setup)**, an admin edits membership in the demo | ✅ AI-DEMO2 `/group-policy` board (UC9A, PRs #1212 and #1215: one decision per load via `?verticalId=`, two subjects on the page), group/vertical policy board, p1az predictor |
 | B8 | **Policy-as-code drift checker** | Tester | PAC policy drift against the tenant | ✅ `check-pac-policy-drift` |
 | B9 | **Consent and delegation** | Demo | Act-only consent, `may_act` | ✅ act-only consent |
 
@@ -229,7 +230,7 @@ is the propagation header, so it also works with real OTel. Each demo repo emits
 | Wave | Demos |
 |---|---|
 | 0 | **C1 ID-JAG** (Phase 0), then Phase 1 base extraction |
-| 1 | **E1 Learning Hub**, **E2 demo shelf**, **C2 token-flow workbench**, **C3 token inspector**, **A1 MFA tester**, **F2/F3 trace envelope and timeline** (base) |
+| 1 | **B7 Group Policy**, **E1 Learning Hub**, **E2 demo shelf**, **C2 token-flow workbench**, **C3 token inspector**, **A1 MFA tester**, **F2/F3 trace envelope and timeline** (base) |
 | 2 | **D1 Privilege**, **D2 MCP auth lab**, **D3 to D5 MCP tools**, **C6 OBO**, **D9 A2A**, **D8 prompt-injection**, **D6 and D7 hostile servers** |
 | 3 | **B1 Authorize**, **B3 to B5 Cedar**, **A6 Protect**, **A3/A4 passwordless and CIBA**, **A10 DaVinci**, **A15 PF token factory**, **A19 PingGateway** |
 | 4 | **D12 AI Guard**, **D13 caught errors**, **D14 kill switch**, **D15 HITL**, **D11 Agent Registry**, **D16 shadow agents**, **D17 audit** |
