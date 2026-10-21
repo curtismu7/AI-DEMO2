@@ -309,6 +309,7 @@
     "/group-policy/full": "user",
     "/personal-agent-design": "public",
     "/personal-agent-dual-gateway": "public",
+    "/uhg-chatgpt-mcp-flow": "user",
     "/personal-agent-flow": "public",
     "/personal-agent-review": "public",
     "/cimd-privilege": "public",
