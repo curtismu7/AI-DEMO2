@@ -121,6 +121,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     return 'stacked';
   });
   const cockpit = layoutMode === 'cockpit' && view === 'agent';
+  const stacked = layoutMode !== 'cockpit' && view === 'agent';
   const chooseLayout = useCallback((mode) => {
     setLayoutMode(mode);
     try { window.localStorage.setItem('pas-layout', mode); } catch (_e) { /* storage blocked: still switches */ }
@@ -403,7 +404,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     // height:'100%' had no definite parent to resolve against, so the page grew to ~1600px and the reel sat far below the fold.
     // Bare (/personal-agent/full) has no app chrome to subtract.
     <>
-    <div data-testid="studio-shell" className={`pas-shell${cockpit ? ' pas-shell--cockpit' : view === 'agent' ? ' pas-shell--stacked' : ''}`} style={{ height: bare ? 'calc(100vh / var(--app-zoom, 1))' : 'calc(100vh / var(--app-zoom, 1) - 176px)', background: 'var(--bg, #0f1117)' }}>
+    <div data-testid="studio-shell" className={`pas-shell${cockpit ? ' pas-shell--cockpit' : stacked ? ' pas-shell--stacked' : ''}${bare ? ' pas-shell--bare' : ''}`}>
       {/* Page header */}
       <div className="pas-c-header" style={{ background: 'var(--surface, #1a1d27)', borderBottom: '1px solid var(--border, #2e3347)', padding: '6px 20px', minHeight: 52, flexWrap: 'wrap', rowGap: 6, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--th-text)', marginRight: 8 }}>Digital Assistant</span>
@@ -430,7 +431,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
             <button
               key={s}
               onClick={() => setActiveSkin(s)}
-              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${activeSkin === s ? 'var(--brand-navy-dark, #051727)' : 'var(--th-border)'}`, background: activeSkin === s ? 'var(--brand-navy-dark, #051727)' : 'var(--th-bg-card)', fontSize: 12, fontWeight: 600, color: activeSkin === s ? '#ffffff' : 'var(--th-text)' }}
+              style={{ display: 'flex', alignItems: 'center', gap: 6, padding: '5px 10px', borderRadius: 999, cursor: 'pointer', border: `1px solid ${activeSkin === s ? 'var(--pas-pill-on-bg, #051727)' : 'var(--th-border)'}`, background: activeSkin === s ? 'var(--pas-pill-on-bg, #051727)' : 'var(--th-bg-card)', fontSize: 12, fontWeight: 600, color: activeSkin === s ? 'var(--pas-pill-on-fg, #ffffff)' : 'var(--th-text)' }}
             >
               <span style={{ width: 8, height: 8, borderRadius: '50%', background: SKIN_DOT_COLORS[s], display: 'inline-block' }} />
               {SKIN_LABELS[s]}
@@ -570,7 +571,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           maxHeight:'45%' used to cap this, but a % can't resolve in this column, so the block grew
           to ~670px and the fixed-height page clipped it. The class's vh cap does the job. */}
       <div className="tcfs-float-host tcfs-float-host--stacked pas-c-reel" style={{ minHeight: 120 }}>
-        <TokenChainFilmstrip emptyState={hasTokenCards(events) ? <TokenCards events={events} /> : undefined} />
+        <TokenChainFilmstrip emptyState={hasTokenCards(events) ? <TokenCards events={events} variant={cockpit ? 'rows' : 'cards'} /> : undefined} />
       </div>
       </>)}
       {cockpit && <PersonalAgentClientCards variant="dock" />}

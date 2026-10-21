@@ -8,14 +8,51 @@
   flex-direction: column;
   overflow: hidden;
   min-height: 640px;
+  /* a definite height so the chat can flex; "bare" has no app chrome to subtract */
+  height: calc(100vh / var(--app-zoom, 1) - 176px);
+  background: var(--bg, #0f1117);
 }
 
-/* Stacked fits all five sections (chat, flow, reel, token cards) without squeezing the reel; the page
-   scrolls a little instead, like the design mock. */
-.pas-shell--stacked { min-height: 940px; }
+.pas-shell--bare { height: calc(100vh / var(--app-zoom, 1)); }
 
-@media (max-width: 960px) {
-  .pas-shell--stacked { min-height: 640px; }
+/* Stacked flows at its natural height, like the design mock: the chat, the reel and the full token detail
+   each show in full and the page scrolls. (A fixed-height shell clipped the richer token cards.) */
+.pas-shell--stacked {
+  height: auto;
+  min-height: 0;
+  overflow: visible;
+}
+
+/* The reel host is sticky and capped to half the page elsewhere; in the flowing stacked page it is just a block. */
+.pas-shell--stacked .tcfs-float-host.tcfs-float-host--stacked {
+  position: static;
+  max-height: none;
+  overflow: visible;
+}
+
+/* ── Cockpit: dark theme ────────────────────────────────────────────────────────────────────────
+   The theme tokens are re-pointed on the cockpit shell, so every component inside that reads them (gate chips,
+   reel, Token Chain, token rows, dock, header) goes dark together without per-component overrides. */
+.pas-shell--cockpit {
+  --bg: #06101c;
+  --surface: #0b1c2e;
+  --border: #1d3a58;
+  --th-bg-page: #06101c;
+  --th-bg-card: #0b1c2e;
+  --th-bg-inset: #10263c;
+  --th-border: #1d3a58;
+  --th-text: #e8f0fa;
+  --th-text-muted: #8ea6c4;
+  --th-status-success-text: #31c48d;
+  --th-status-success-bg: rgba(49, 196, 141, 0.12);
+  --th-status-error-text: #ff8a8a;
+  --th-status-error-bg: rgba(210, 14, 15, 0.16);
+  --th-status-info-text: #7fb8f0;
+  --th-status-info-bg: rgba(63, 143, 216, 0.2);
+  --th-status-warning-text: #f2a93b;
+  --pas-pill-on-bg: #ffffff;
+  --pas-pill-on-fg: #06101c;
+  color: var(--th-text);
 }
 
 .pas-shell--cockpit {

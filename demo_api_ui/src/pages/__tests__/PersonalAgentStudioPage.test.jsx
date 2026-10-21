@@ -12,6 +12,7 @@ vi.mock('../OboDemoPage', () => ({ default: () => <div data-testid="obo-page" />
 vi.mock('../../components/SignInPrompt', () => ({ default: ({ message }) => <div data-testid="signin">{message}</div> }));
 
 import PersonalAgentStudioPage from '../PersonalAgentStudioPage';
+import css from '../PersonalAgentStudioPage.css?raw';
 import apiClient from '../../services/apiClient';
 
 const renderStudio = (url = '/') => render(
@@ -199,12 +200,15 @@ describe('PersonalAgentStudioPage', () => {
   });
 
   it('bare variant drops the chrome-height subtraction from the shell', () => {
+    // The height rules live in the stylesheet (so the stacked layout can flow at natural height); the shell
+    // carries a --bare class only when there is no app chrome, and the CSS subtracts the chrome height only without it.
     const { rerender } = renderStudio();
-    const chromed = screen.getByTestId('studio-shell').style.height;
+    expect(screen.getByTestId('studio-shell').classList.contains('pas-shell--bare')).toBe(false);
     rerender(<MemoryRouter><PersonalAgentStudioPage bare /></MemoryRouter>);
-    const bare = screen.getByTestId('studio-shell').style.height;
-    expect(chromed).toContain('176px');
-    expect(bare).not.toContain('176px');
+    expect(screen.getByTestId('studio-shell').classList.contains('pas-shell--bare')).toBe(true);
+    const rule = (selector) => css.match(new RegExp(selector.replace(/[.]/g, '\\.') + '\\s*\\{[^}]*\\}'))?.[0] || '';
+    expect(rule('.pas-shell')).toContain('176px');
+    expect(rule('.pas-shell--bare')).not.toContain('176px');
   });
 
   describe('layout switch (Stacked | Cockpit)', () => {
