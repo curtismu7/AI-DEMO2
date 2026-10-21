@@ -11,7 +11,7 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 import { openSignIn } from '../utils/signInService';
 import { governanceFrom } from '../utils/dotGovernance';
 import { airlineSuggestions } from '../config/dotSuggestions';
-import { GATE_COPY, LESSONS, badgeLabel, gateStatus, gateResult, explainRun } from '../config/studioLearn';
+import { GATE_COPY, LESSONS, badgeLabel, gateStatus, gateResult, explainRun, effectiveGates } from '../config/studioLearn';
 import { deriveGates } from './PersonalAgentStudioPage';
 import './PersonalAgentLearnPage.css';
 
@@ -37,7 +37,11 @@ export default function PersonalAgentLearnPage({ user = null }) {
 
   const tokenChain = useTokenChainOptional();
   const setTokenEvents = tokenChain?.setTokenEvents;
-  const gates = deriveGates(tokenChain?.events || []);
+  const events = tokenChain?.events || [];
+  // The sign-in gate is silent for a plain read; once the request has run and you are signed in it is a pass.
+  const gates = effectiveGates(deriveGates(events), { phase, signedIn: Boolean(user) });
+  const mfaVerified = events.some((e) => e.id === 'mfa' && ['success', 'valid', 'active', 'permit'].includes(e.status));
+  const userLabel = user?.email || user?.username || '';
   const summary = explainRun(gates, { phase, errorText });
   const lessonFor = (text) => LESSONS.find((l) => l.prompt.toLowerCase() === String(text).trim().toLowerCase());
 
@@ -184,7 +188,7 @@ export default function PersonalAgentLearnPage({ user = null }) {
                     <div>
                       <h3>{copy.title} <span className={`pal-badge pal-badge--${s}`}>{badgeLabel(s)}</span></h3>
                       <p className="pal-q">{copy.question}</p>
-                      <p className="pal-res">{gateResult(gate, phase)}</p>
+                      <p className="pal-res">{gateResult(gate, phase, { userLabel, mfaVerified })}</p>
                       <p className="pal-why">Why it matters: {copy.why}</p>
                     </div>
                   </li>

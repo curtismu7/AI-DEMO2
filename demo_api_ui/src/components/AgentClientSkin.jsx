@@ -353,7 +353,7 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
       );
     }
     return (
-      <div key={i} style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6, color: isUser ? colors.userBubbleColor : colors.agentBubbleColor }}>
+      <div key={i} style={{ fontFamily: 'monospace', fontSize: 13, lineHeight: 1.6, whiteSpace: 'pre-wrap', color: isUser ? colors.userBubbleColor : colors.agentBubbleColor }}>
         {prefix}{msg.text}
       </div>
     );
@@ -383,7 +383,7 @@ function renderMessage(msg, i, cfg, colors, isTerminal, skin) {
       {msg.typing ? (
         <TypingIndicator color={cfg.accentColor} />
       ) : (
-        <div style={{ padding: '10px 14px', borderRadius: isUser ? '12px 4px 12px 12px' : '4px 12px 12px 12px', background: isUser ? colors.userBubbleBg : colors.agentBubbleBg, color: isUser ? colors.userBubbleColor : colors.agentBubbleColor, fontSize: 13, lineHeight: 1.6, maxWidth: '100%' }}>
+        <div style={{ padding: '10px 14px', borderRadius: isUser ? '12px 4px 12px 12px' : '4px 12px 12px 12px', background: isUser ? colors.userBubbleBg : colors.agentBubbleBg, color: isUser ? colors.userBubbleColor : colors.agentBubbleColor, fontSize: 13, lineHeight: 1.6, maxWidth: '100%', whiteSpace: 'pre-wrap' }}>
           {msg.text}
           {/* What Ping decided for this reply: the Authorize verdict and the tools it covered. */}
           {!isUser && skin === 'dot' && msg.governance?.decision && (

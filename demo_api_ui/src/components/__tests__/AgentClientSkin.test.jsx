@@ -32,6 +32,12 @@ describe('AgentClientSkin', () => {
     expect(screen.getByText('Gemini')).toBeTruthy();
   });
 
+  it('keeps line breaks in a multi-line agent reply', () => {
+    const text = 'Line one\n\nLine two';
+    render(<AgentClientSkin {...baseProps} skin="claude" messages={[{ role: 'agent', text }]} />);
+    expect(screen.getByText((_, el) => el?.textContent === text && el.style.whiteSpace === 'pre-wrap')).toBeTruthy();
+  });
+
   it('shows user and agent messages', () => {
     const messages = [
       { role: 'agent', text: 'Hello agent' },
