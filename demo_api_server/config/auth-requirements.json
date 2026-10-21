@@ -336,6 +336,7 @@
     "/privilege-mcp-client": "public",
     "/privilege-a2a": "public",
     "/privilege-mcp-diagrams": "public",
+    "/privilege-cedar": "public",
     "/privilege-docs-index": "public",
     "/privilege-mcp-learning": "public",
     "/privileges-gateway-preview": "public",

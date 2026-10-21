@@ -1392,6 +1392,12 @@ export default function AdminSideNav({
       { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
       { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
       { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },
+      {
+        label: "Cedar Policy Demo",
+        path: "/privilege-cedar",
+        icon: "pol",
+        searchAlias: "cedar policy AI policies permit forbid hold allow deny PingFederate token claims scope group",
+      },
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),
     // Every A2A page in one place. The group's own alias makes searching "a2a" show the whole group

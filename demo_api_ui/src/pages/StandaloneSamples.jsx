@@ -14,7 +14,7 @@
 // sits above the router, so the --th-* tokens still resolve here and dark mode
 // keeps working. Nothing about the chrome was carrying the theme.
 
-import { Suspense, lazy, useEffect } from "react";
+import { useEffect } from "react";
 import { Link, useParams } from "react-router-dom";
 import { useTheme } from "../context/ThemeContext";
 import { SAMPLE_APPS, getSampleApp } from "../data/sampleApps";
@@ -22,8 +22,9 @@ import SampleAppPage from "./SampleAppPage";
 import M2mCredentialsSamplePage from "./M2mCredentialsSamplePage";
 import "./StandaloneSamples.css";
 
-// Standalone demos that are not PingOne sample apps. Lazy, so the Cedar engine (wasm) loads only on /standalone/cedar.
-const CedarDemoPage = lazy(() => import("./CedarDemoPage"));
+// Standalone demos that are not PingOne sample apps. The page is a plain import: the Cedar engine's wasm is already
+// lazy inside cedar/loadCedar.js, so it loads only when this page runs.
+import CedarDemoPage from "./CedarDemoPage";
 const STANDALONE_DEMOS = [
   {
     id: "cedar",
@@ -204,14 +205,12 @@ export function StandaloneRunnerShell() {
 }
 
 // /standalone/cedar: the Cedar policy demo. Its own route, ahead of /standalone/:sampleId, which would otherwise
-// answer "Unknown sample". Suspense because the page (and the wasm engine behind it) is lazy.
+// answer "Unknown sample". The same page is in the app shell at /privilege-cedar (side nav, Agent Privilege).
 export function StandaloneCedarShell() {
   useStandaloneTitle("Cedar policy demo");
   return (
     <StandaloneShell current="cedar">
-      <Suspense fallback={<p className="st-lede">Loading the Cedar demo…</p>}>
-        <CedarDemoPage />
-      </Suspense>
+      <CedarDemoPage />
     </StandaloneShell>
   );
 }
