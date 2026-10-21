@@ -45,6 +45,7 @@ export const DIAGRAMS_INDEX = [
       D("Personal Agent Design", "/personal-agent-design", "Agent Gateway only."),
       D("Personal Agent Dual Gateway", "/personal-agent-dual-gateway", "Privilege first."),
       D("Personal Agent Design Review", "/personal-agent-review", "Review of the design."),
+      D("ChatGPT to UHG Digital Front Door", "/uhg-chatgpt-mcp-flow", "Sequence of the proposed MCP authorization: HSID authenticates, PingFederate authorizes, RFC 8693 OBO downstream."),
       D("Personal Agent Request Flow", "/personal-agent-flow", "How one Studio request is governed: MFA, gateway, PingOne Authorize, approval."),
     ],
   },
