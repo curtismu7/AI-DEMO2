@@ -912,7 +912,9 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     // Unknown action — log and suggest fallback
     console.warn('[dispatchBankingAction] Unknown banking action:', action);
     return {
-      reply: `I don't recognize that action (${action}). Try "show my accounts", "my balance", or "transfer money".`,
+      reply: ctx?.catalogCtx
+        ? buildCatalogMessage(ctx.catalogCtx)
+        : `I don't recognize that action (${action}). Try "show my accounts", "my balance", or "transfer money".`,
       success: false,
       toolsCalled: [],
       tokensUsed: 0,
@@ -957,6 +959,8 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
     // branches to every vertical. All other banking aliases keep 'banking' so
     // account seeding and MCP routing stay on the shared banking rails.
     vertical: action === 'branch_hours' ? (activeVerticalId || 'banking') : 'banking',
+    // Off-banking verticals get their own catalog, not banking example prompts.
+    catalogCtx: activeVerticalId && activeVerticalId !== 'banking' ? verticalCtx : null,
   };
 
   return dispatchBankingAction(action, params, userId, ctx);
