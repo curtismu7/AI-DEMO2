@@ -64,6 +64,25 @@ See also "Open questions and owner decisions" below, which merges these with the
 1. AIC and pi.flow: AIC waits for pi.flow, or a documented redirect exception for AIC only. Default: wait (rule: no redirect logins).
 2. Cedar: whether a live Amazon Verified Permissions variant is wanted (default: local open-source engine only).
 
+## Owner-nominated candidates, 2026-10-21
+
+The owner reviewed five live AI-DEMO2 pages and called them candidates for standalone. This section only maps each page to the
+catalog (existing ids are reused, never re-numbered) and lists what is already true of it. It adds no new decision, and it does
+not change any existing row; when a candidate is promoted, its catalog row is updated in the normal way.
+
+| Live page | Catalog home | Seed in AI-DEMO2 | What is already true | What a standalone still needs |
+|---|---|---|---|---|
+| https://ai-demo.ping-devops.com/personal-agent/learn (personal agent studio, learning path) | **New row under D** (id assigned when promoted). Overlaps D21 (personal agent), E1 (Learning Hub) and E11 (client skins) | `demo_api_ui/src/pages/PersonalAgentLearnPage.jsx`, `demo_api_ui/src/config/studioLearn.js` | Chrome-less route; three lessons with real prompts; the "What just happened" text is generated from the real gate results, so it never promises an outcome; works signed-out with a sign-in notice | Own sign-in (pi.flow only); a per-demo mock mode so lesson 3 (a fee over the limit) is a guaranteed refusal; lesson prompts as a content pack (E1 format) |
+| https://ai-demo.ping-devops.com/personal-agent/dot/full (Dot workbench) | **D21 Personal agent (Dot)**, already marked as built | `demo_api_ui/src/pages/DotWorkbenchPage.jsx`, `demo_api_ui/src/components/dot/` | Chrome-less route; persona card with real identity and scopes; memory panel; governs panel; "Try next" prompt chips | Own sign-in; the memory store moved off the shared BFF store |
+| https://ai-demo.ping-devops.com/group-policy/full (Group Policy board) | **B7 Group Policy**, already decided as its own repo | `demo_api_ui/src/pages/GroupPolicyBoardPage.jsx` | Chrome-less route; one live Authorize decision per vertical; a membership toggle moves every row together | Per-demo tenant or the mock-authorize profile: with one shared login the toggle changes a real PingOne group for everyone using it, and the page arms a shared feature flag on arrival |
+| https://ai-demo.ping-devops.com/personal-agent (classic studio) | **E11 Client-chrome costume shells**, with D21 | `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx`, `demo_api_ui/src/components/AgentClientSkin.jsx` | Skins (Privilege, Claude, Terminal, ChatGPT, Gemini, Computer Use, Dot); stacked and cockpit layouts; reel and token chain under the chat | Skin pack split from the page; fictional-brand default per owner decision 6 |
+| https://ai-demo.ping-devops.com/personal-agents-handoff.html (field guide) | **E2 SE demo shelf**, as its static front page | `demo_api_ui/public/personal-agents-handoff.html` | One static file, ASCII-only (entities, charset meta), shared-login block with copy buttons, per-demo click paths, no build step | Generated from the shelf's catalog instead of hand-edited; the login block read from `customer.config` |
+
+Shared groundwork that already exists for all five: chrome-less routes (`/full`, `/learn`), one sign-in instead of two (the app
+sign-in now unlocks the hosted-access wall), and replies that show the tool's real data (`replySummary`). The shared-login
+caveat on the Group Policy row is the one real blocker to hosting any of them for many viewers; it matches the existing
+"why not host the live demos" decision above.
+
 ## Phase 0: Finish ID-JAG standalone and make it the template
 
 Work in a worktree of `id-jag-standalone`. Local `main` is 2 PRs behind origin (#28 inspector-reveal and its follow-up).
@@ -563,26 +582,41 @@ sign-in, the project board and repo creation timing are decided: see "Decisions 
 
 Phase 0.1: pull the 2 pending PRs in `id-jag-standalone` and do the clean-clone baseline, in a worktree.
 
-## Status as of 2026-10-20 (end of session 2: catalog expansion)
+## Build queue (owner decisions 2026-10-21)
 
-Read with `gh` on 2026-10-20.
+Apps are built one lane at a time, each step with an independent reviewer; the next app starts only after the current builds finish their reviews (the dev machine is shared and loaded CI causes flaky timeouts).
 
-**`cmuir_pingcorp/id-jag-standalone`:** 37 PRs, 29 merged, 8 open. Merged since session 1: `feat/doctor` (#30), the inspector PRs (#26 to #28), and earlier phase PRs. Open:
+| Order | App | Catalog id | Notes |
+|---|---|---|---|
+| In flight | Privilege demo (Cedar AI Policies engine, PF-token fed) | D1 | Local repo `~/Development/privilege-demo`. Steps P0 (scaffold) and P1 (server) done; P2 (web) and P3 (Docker, end to end, docs) to go |
+| In flight | SE demo shelf | E2 | Local repo `~/Development/demo-shelf`; plus the `demo-health/1` endpoint on the kit (branch `feat/demo-health`) |
+| In flight | Base extraction, lane 1 | base | PR #41 (W-ISSUER, S1, workspace seam, IdP adapter). Base-sync tool built in the local repo `~/Development/demo-kit-base` (73 tests). The base is a template repo and sync tool, not an app |
+| **Next** | **Learning Hub** | E1 | Owner pick. Reads each demo's `content-pack.json` (the kit's is merged); offline keyword search; no tenant |
+| **After the Learning Hub** | **Hostile MCP / rug-pull** | D6 | Owner request. Repackage `AI-DEMO2/standalone/hostile-mcp-server` onto the demo conventions (doctor, story S05 ungoverned vs governed, mock mode). Pairs with the Privilege demo |
+| Built, repo created 2026-10-21 | **PingOne MCP inspector** (private `cmuir_pingcorp/pingone-mcp-inspector`, PI0-PI2 done, local runner online) | D3 (PingOne source) | Repackage the AI-DEMO2 `/pingone-mcp-inspector` page: PingOne hosted MCP + Custom server + Raw JSON-RPC sources; auth = worker client_credentials and interactive admin OAuth (PKCE); read-only by default, gated writes; verified against in-process stubs, live checks owner-run. Local repo `~/Development/pingone-mcp-inspector`. Never ship AI-DEMO2 env or client ids |
+| Then | MCP inspector, MCP scanner | D3, D4 | Existing `standalone/mcp-inspector` and `standalone/mcp-scanner`; D35 (conformance scorecard) depends on them |
+| Then | Group Policy | B7 | Needs the owner's edits to the group-to-tool table and the base mock-authorize profile |
+| Then | Token-flow workbench | C2 | Partial seed (`par` skill) |
+| Then | MFA tester | A1 | Needs a live PingOne tenant and MFA-state rendering in the base's pi.flow driver (deferred base item K1/K2/P1A) |
 
-| PR | Branch | What |
+Not apps: `demo-kit-base` (template repo, sync tool, and a throwaway `examples/min-demo` used only by its own CI).
+
+## Status as of 2026-10-21
+
+Read with `gh` and `git` on 2026-10-21.
+
+**`cmuir_pingcorp/id-jag-standalone`:** merged since the previous status: #29 (registration), #30 (doctor), #31 (reset), #32 (story engine, vertical packs), #33 (first-user fix), #34 (trace envelope), #35 (content pack), #37 (CI: Node 22 only on PRs), #38 (presenter mode), #39 (stories for all modes), #40 (`customer.config`). Open:
+
+| PR | What | State |
 |---|---|---|
-| #29 | `feat/registration` | 0.2: request-and-approve registration (session 1: 2 commits, 375 server + 272 web tests) |
-| #31 | `feat/reset` | 0.8: reset CLI + admin route (stacked on registration; independent review: accept with nits) |
-| #32 | `feat/story-engine` | 0.5: story engine, talk-track panel, vertical packs, S11 (session 1: 294 web tests) |
-| #33 | `fix/local-signin-needs-user` | configure-local-signin requires a first user |
-| #34 | `feat/trace-envelope` | Trace envelope: shared hop event, traceparent helper, redaction guard (base item F2) |
-| #35 | `feat/content-pack` | Content pack generated from the Learn data (feeds E1) |
-| #36 | `feat/setup` | 0.9: setup command, CI hygiene gates, Quickstart README |
-| #37 | `ci/pr-node-22-only` | CI: newest Node only on pull requests, both on main |
+| #36 | Setup command, CI hygiene gates, Quickstart README | Mergeable; its `forbidden-strings` job fails until the owner adds the `FORBIDDEN_STRINGS` repo secret |
+| #41 | Base seams lane 1 (W-ISSUER, S1, workspace seam, IdP adapter, review fixes) | CI running; merges on green |
 
-Known merge friction (from session 1): `feat/reset` edited `server/src/app.js` and `server/src/pfUsers.js` alongside the doctor branch, which is now merged; expect a rebase conflict there.
-Not yet verified: registration, doctor PF checks and reset PF user removal have only run against a mocked PingFederate.
+Not yet verified: registration, doctor PF checks, the adapter allowlist and reset PF user removal have run against a real PingFederate 13.1.3 once (registration add, duplicate 409, reset removal, doctor PF checks: 10 of 10; found that PF refuses an empty Users table), and otherwise only against fakes. The owner-run live checks (step LV) are still to do.
 
-**`cmuir_pingcorp/AI-DEMO2`:** the plan and stories PR (#1630) is merged. Related and open: #1640 (Cedar policy demo at `/standalone/cedar`, supports D1 and B3 to B5), #1639 and #1638 (unrelated UI work). The ID-JAG playground fixes #1634 and #1637 are merged. This catalog expansion is on branch `docs/standalone-catalog-expansion` in the plan-docs worktree, committed locally only, not pushed and no PR opened.
+**Local repos, not on GitHub** (a repo is created when it has a working slice, announced to the owner first): `privilege-demo`, `demo-shelf`, `demo-kit-base`.
 
-Research reports (fact-checked): [standalone-research/](standalone-research/): Cedar, MFA tester, Learning Hub. Survey reports for the expansion: [standalone-research/more-demos/](standalone-research/more-demos/) (the candidate file there is the pre-correction record).
+**`cmuir_pingcorp/AI-DEMO2`:** plan PRs #1630 and #1642 are merged. #1640 (Cedar policy demo page at `/standalone/cedar`, a browser-side playground inside the AI-DEMO2 app) is open and supports D1 and B3 to B5; it is a different thing from the server-side Privilege demo.
+
+Research reports (fact-checked): [standalone-research/](standalone-research/): Cedar, MFA tester, Learning Hub. Survey reports for the expansion: [standalone-research/more-demos/](standalone-research/more-demos/).
+

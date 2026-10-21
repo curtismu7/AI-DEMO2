@@ -71,3 +71,61 @@ describe('PersonalAgentStudioPage consentGate', () => {
     expect(consentGate).not.toHaveBeenCalled();
   });
 });
+
+describe('PersonalAgentStudioPage consentGate + gateway approval', () => {
+  const hitl = { ok: true, status: 200, json: async () => ({ error: 'hitl_required', hitlChallengeId: 'ch-1', reply: 'Needs approval' }) };
+
+  it('records the phone approval on the gateway challenge instead of showing the approval modal', async () => {
+    fetchMock.mockImplementation((url, init) => {
+      if (url === '/api/agent/invoke') {
+        const body = JSON.parse(init.body);
+        return Promise.resolve(body.hitlChallengeId ? { ok: true, status: 200, json: async () => ({ success: true, reply: 'Paid.' }) } : hitl);
+      }
+      if (String(url).startsWith('/api/mcp/decision/ch-1/approve')) return Promise.resolve({ ok: true, status: 200, json: async () => ({}) });
+      return Promise.resolve({ ok: false, status: 401, json: async () => ({}) });
+    });
+    renderStudio({ consentGate: vi.fn().mockResolvedValue(true) });
+    fireEvent.click(screen.getByRole('button', { name: 'Run tuition payment' }));
+    expect(await screen.findByText('Paid.')).toBeTruthy();
+    expect(screen.queryByText('Approval required')).toBeNull();
+    expect(invokeCalls(fetchMock)).toHaveLength(2);
+    expect(JSON.parse(invokeCalls(fetchMock)[1][1].body).hitlChallengeId).toBe('ch-1');
+  });
+
+  it('still shows the approval modal when no consent gate was used', async () => {
+    fetchMock.mockImplementation((url) => Promise.resolve(url === '/api/agent/invoke' ? hitl : { ok: false, status: 401, json: async () => ({}) }));
+    renderStudio();
+    fireEvent.click(screen.getByRole('button', { name: 'Run tuition payment' }));
+    expect(await screen.findByText('Approval required')).toBeTruthy();
+    expect(invokeCalls(fetchMock)).toHaveLength(1);
+  });
+});
+
+describe('PersonalAgentStudioPage reelEmptyState', () => {
+  it('replaces the long Token Chain intro when a page passes its own line', () => {
+    renderStudio({ reelEmptyState: <p>Run it to see each hop.</p> });
+    expect(screen.getByText('Run it to see each hop.')).toBeTruthy();
+    expect(screen.queryByText('What this panel shows')).toBeNull();
+  });
+  it('keeps the intro by default', () => {
+    renderStudio();
+    expect(screen.getByText('What this panel shows')).toBeTruthy();
+  });
+});
+
+describe('PersonalAgentStudioPage proof evidence', () => {
+  it('sends a flowTraceId, feeds the authorize decision to the trace, and completes it', async () => {
+    const authorize = vi.spyOn(tokenChainTraceStore, 'ingestAuthorize');
+    const complete = vi.spyOn(tokenChainTraceStore, 'completeTrace');
+    fetchMock.mockImplementation((url) => Promise.resolve(url === '/api/agent/invoke'
+      ? { ok: true, status: 200, json: async () => ({ success: true, reply: 'Paid.', mcpAuthorizeEvaluation: { decision: 'PERMIT' } }) }
+      : { ok: false, status: 401, json: async () => ({}) }));
+    renderStudio();
+    fireEvent.click(screen.getByRole('button', { name: 'Run tuition payment' }));
+    expect(await screen.findByText('Paid.')).toBeTruthy();
+    const { flowTraceId } = JSON.parse(invokeCalls(fetchMock)[0][1].body);
+    expect(flowTraceId).toMatch(/\S+/);
+    expect(authorize).toHaveBeenCalledWith({ decision: 'PERMIT' }, flowTraceId);
+    expect(complete).toHaveBeenCalledWith(true, flowTraceId, null);
+  });
+});

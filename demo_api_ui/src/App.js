@@ -29,6 +29,7 @@ import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
 import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
 import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
+import CedarDemoPage from "./pages/CedarDemoPage";
 import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
 import PrivilegeDocsIndexPage from "./pages/PrivilegeDocsIndexPage";
 import SkillsIndexPage from "./pages/SkillsIndexPage";
@@ -41,6 +42,9 @@ import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
 import PersonalAgentDesignPage from "./components/personalAgent/PersonalAgentDesignPage";
+import UhgChatgptMcpFlowPage from "./pages/UhgChatgptMcpFlowPage";
+import UnitedPersonalAgentFlowPage from "./pages/UnitedPersonalAgentFlowPage";
+import PersonalAgentFlowPage from "./pages/PersonalAgentFlowPage";
 import PersonalAgentReviewPage from "./components/personalAgent/PersonalAgentReviewPage";
 import CimdPrivilegePage from "./components/cimdPrivilege/CimdPrivilegePage";
 import A2aArchitecturePage from "./components/a2aArchitecture/A2aArchitecturePage";
@@ -260,6 +264,7 @@ import PublicRoutes, {
   AicTokenExchangePageRoute,
   OboDemoPageRoute,
   DigitalWorkerPageRoute,
+  AuthorizationFlowPageRoute,
   ChatgptLoginPageRoute,
   GroupPolicyBoardPageRoute,
   PageCatalogPageRoute,
@@ -275,6 +280,7 @@ import PublicRoutes, {
   StandaloneIndexRoute,
   StandaloneSampleRoute,
   StandaloneRunnerRoute,
+  StandaloneCedarRoute,
   SampleM2mPageRoute,
   SampleCustomAdminRolePageRoute,
   SampleUserRegistrationPageRoute,
@@ -886,6 +892,10 @@ function AppWithAuth() {
                 <Route
                   path="/standalone/runner/m2m"
                   element={<StandaloneRunnerRoute />}
+                />
+                <Route
+                  path="/standalone/cedar"
+                  element={<StandaloneCedarRoute />}
                 />
                 <Route
                   path="/standalone/:sampleId"
@@ -1553,6 +1563,10 @@ function AppWithAuth() {
                 <Route
                   path="/digital-worker"
                   element={<DigitalWorkerPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/authorization-flow"
+                  element={<AuthorizationFlowPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/privilege-demo"
@@ -2302,6 +2316,11 @@ function AppWithAuth() {
                               path="/privilege-mcp-diagrams"
                               element={<PrivilegeMcpDiagramPage />}
                             />
+                            {/* Same page as /standalone/cedar, inside the app shell so the side nav stays. */}
+                            <Route
+                              path="/privilege-cedar"
+                              element={<CedarDemoPage />}
+                            />
                             <Route
                               path="/privilege-docs-index"
                               element={<PrivilegeDocsIndexPage />}
@@ -2396,6 +2415,24 @@ function AppWithAuth() {
                             <Route
                               path="/personal-agent-design"
                               element={<PersonalAgentDesignPage variant="target" />}
+                            />
+                            <Route
+                              path="/personal-agent-flow"
+                              element={<PersonalAgentFlowPage />}
+                            />
+                            <Route
+                              path="/uhg-chatgpt-mcp-flow"
+                              element={
+                                // Customer architecture: signed-in users only.
+                                loading ? null : user ? <UhgChatgptMcpFlowPage /> : <SignInPrompt message="This customer architecture needs a signed-in session." />
+                              }
+                            />
+                            <Route
+                              path="/united-personal-agent-flow"
+                              element={
+                                // Customer architecture: signed-in users only.
+                                loading ? null : user ? <UnitedPersonalAgentFlowPage /> : <SignInPrompt message="This customer architecture needs a signed-in session." />
+                              }
                             />
                             <Route
                               path="/personal-agent-dual-gateway"

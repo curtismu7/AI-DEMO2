@@ -32,6 +32,7 @@ export const DIAGRAMS_INDEX = [
     section: "Agent Privilege and Privilege",
     items: [
       D("AI Agent Gateway", "/privilege-mcp-diagrams", "Architecture, sign-in with tool call, auth flow, and how a PingFederate identity reaches a Cedar policy."),
+      D("Cedar policy demo", "/privilege-cedar", "A live Cedar engine deciding allow, deny or hold from PingFederate-style claims, with the PF-to-Cedar diagram."),
       D("Privilege-First Gateway", "/privilege-first-gateway", "How the gateway enforces access, in two figures."),
       D("Gateway vs P1AZ Enforcement", "/gateway-enforcement-map", "Where the gateway and PingOne Authorize each enforce."),
       D("Resource Server Placement", "/resource-server-placement", "Where the resource server sits relative to the gateway."),
@@ -44,6 +45,9 @@ export const DIAGRAMS_INDEX = [
       D("Personal Agent Design", "/personal-agent-design", "Agent Gateway only."),
       D("Personal Agent Dual Gateway", "/personal-agent-dual-gateway", "Privilege first."),
       D("Personal Agent Design Review", "/personal-agent-review", "Review of the design."),
+      D("United: a member's agent meets the MCP door", "/united-personal-agent-flow", "Sequence of the personal-agent design: discover, register, consent, per-call exchange, gateway, decision, approval, audit."),
+      D("ChatGPT to UHG Digital Front Door", "/uhg-chatgpt-mcp-flow", "Sequence of the proposed MCP authorization: HSID authenticates, PingFederate authorizes, RFC 8693 OBO downstream."),
+      D("Personal Agent Request Flow", "/personal-agent-flow", "How one Studio request is governed: MFA, gateway, PingOne Authorize, approval."),
     ],
   },
   {

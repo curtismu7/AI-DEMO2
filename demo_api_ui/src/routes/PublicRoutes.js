@@ -30,6 +30,7 @@ import {
   StandaloneIndex,
   StandaloneSample,
   StandaloneRunnerShell,
+  StandaloneCedarShell,
 } from "../pages/StandaloneSamples";
 import PingOneSetup from "../pages/PingOneSetup";
 import SelfServicePage from "../components/SelfServicePage";
@@ -66,6 +67,7 @@ import PingFederateAiAgentPage from '../pages/PingFederateAiAgentPage';
 import AicTokenExchangePage from '../pages/AicTokenExchangePage';
 import OboDemoPage from '../pages/OboDemoPage';
 import DigitalWorkerPage from '../pages/DigitalWorkerPage';
+import AuthorizationFlowPage from '../pages/AuthorizationFlowPage';
 import ChatgptLoginPage from '../pages/ChatgptLoginPage';
 import GroupPolicyBoardPage from '../pages/GroupPolicyBoardPage';
 import PageCatalogPage from '../pages/PageCatalogPage';
@@ -172,6 +174,10 @@ export function StandaloneSampleRoute() {
 
 export function StandaloneRunnerRoute() {
   return <StandaloneRunnerShell />;
+}
+
+export function StandaloneCedarRoute() {
+  return <StandaloneCedarShell />;
 }
 
 export function M2mCredentialsSamplePageRoute({ user, logout }) {
@@ -443,6 +449,14 @@ export function DigitalWorkerPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <DigitalWorkerPage />
+    </AppShell>
+  );
+}
+
+export function AuthorizationFlowPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <AuthorizationFlowPage />
     </AppShell>
   );
 }

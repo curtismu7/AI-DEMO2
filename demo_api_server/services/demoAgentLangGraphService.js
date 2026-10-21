@@ -353,6 +353,46 @@ async function ensureAccountsForVertical(userId, verticalId) {
 }
 
 /**
+ * Chat reply for "decode my jwt token": the session access token's header and
+ * the claims worth reading, decoded locally (no signature check).
+ */
+function decodeSessionJwtReply(userToken) {
+  const envelope = (reply, success) => ({
+    reply, success, toolsCalled: [], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents: [],
+  });
+  const parts = typeof userToken === 'string' ? userToken.split('.') : [];
+  if (parts.length !== 3) {
+    return envelope('Your session token is not a JWT I can decode here (it is opaque or missing). Sign in again and retry.', false);
+  }
+  let header; let claims;
+  try {
+    header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+    claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+  } catch (_) {
+    return envelope('I could not decode your session token — it is not valid base64url JSON.', false);
+  }
+  const when = (sec) => (Number.isFinite(sec) ? new Date(sec * 1000).toISOString().replace('T', ' ').replace(/\.\d+Z$/, ' UTC') : null);
+  const aud = Array.isArray(claims.aud) ? claims.aud.join(', ') : claims.aud;
+  const left = Number.isFinite(claims.exp) ? Math.round((claims.exp * 1000 - Date.now()) / 60000) : null;
+  const expired = left != null && left < 0;
+  const expires = when(claims.exp) && (left == null ? when(claims.exp) : expired ? `${when(claims.exp)} (expired)` : `${when(claims.exp)} (in ${left} min)`);
+  const section = (title, rows) => {
+    const lines = rows.filter(([, v]) => v != null && v !== '').map(([k, v]) => `   • ${k}: ${v}`);
+    return lines.length ? `${title}\n${lines.join('\n')}` : null;
+  };
+  const body = [
+    section('Who it is for', [['Subject', claims.sub], ['Client', claims.client_id]]),
+    section('Where it came from', [['Issuer', claims.iss], ['Audience', aud], ['Scopes', claims.scope]]),
+    section('Lifetime', [['Issued', when(claims.iat)], ['Expires', expires]]),
+    section('Signing', [['Algorithm', header.alg], ['Key id', header.kid], ['Delegation (act)', claims.act ? JSON.stringify(claims.act) : null]]),
+  ].filter(Boolean).join('\n\n');
+  const head = expired
+    ? '⚠️ Decoded, but this token has expired. Sign in again for a fresh one.'
+    : '✅ Success — your session token was decoded. This is the access token you are signed in with.';
+  return envelope(`${head}\n\n${body}\n\nDecoded locally; the signature was not verified.`, true);
+}
+
+/**
  * Dispatch a banking action based on parsed intent.
  * Reusable by both executeHeuristicBanking and banking plugin executeTool.
  * @param {string} action - The banking action (accounts, balance, transactions, transfer, deposit, withdraw, sensitive_account_details)
@@ -364,6 +404,9 @@ async function ensureAccountsForVertical(userId, verticalId) {
 async function dispatchBankingAction(action, params, userId, ctx) {
   const { userToken, req, subjectToken, isAdmin, terminology: _term } = ctx;
   const verticalId = ctx.vertical || 'banking';
+  // Cross-vertical chip ("decode my jwt token"): decode the caller's own session
+  // token here — no vertical data involved, and nothing is verified or exchanged.
+  if (action === 'jwt_decode_demo') return decodeSessionJwtReply(userToken);
   if (action === 'transfer' || action === 'transfer_600_test' || action === 'wire_transfer' || action === 'deposit' || action === 'withdraw') {
     await ensureAccountsForVertical(userId, verticalId);
   }
@@ -912,7 +955,9 @@ async function dispatchBankingAction(action, params, userId, ctx) {
     // Unknown action — log and suggest fallback
     console.warn('[dispatchBankingAction] Unknown banking action:', action);
     return {
-      reply: `I don't recognize that action (${action}). Try "show my accounts", "my balance", or "transfer money".`,
+      reply: ctx?.catalogCtx
+        ? buildCatalogMessage(ctx.catalogCtx)
+        : `I don't recognize that action (${action}). Try "show my accounts", "my balance", or "transfer money".`,
       success: false,
       toolsCalled: [],
       tokensUsed: 0,
@@ -957,6 +1002,8 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
     // branches to every vertical. All other banking aliases keep 'banking' so
     // account seeding and MCP routing stay on the shared banking rails.
     vertical: action === 'branch_hours' ? (activeVerticalId || 'banking') : 'banking',
+    // Off-banking verticals get their own catalog, not banking example prompts.
+    catalogCtx: activeVerticalId && activeVerticalId !== 'banking' ? verticalCtx : null,
   };
 
   return dispatchBankingAction(action, params, userId, ctx);

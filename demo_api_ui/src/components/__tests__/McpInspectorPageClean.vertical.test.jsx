@@ -1,5 +1,6 @@
-// MCP Inspector Vertical select: filters the AI Demo MCP tool list to the
-// vertical's tools and fills Arguments with that vertical's sample args.
+// MCP Inspector tools table: every tool the server returns in one searchable table
+// (no Vertical / Tool dropdowns); picking a row selects it and fills the ?vertical=
+// sample args.
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -52,62 +53,71 @@ function makeSource(selectedTool = null) {
 }
 
 const renderAt = (url) => render(<MemoryRouter initialEntries={[url]}><McpInspectorPageClean /></MemoryRouter>);
-const toolOptions = () => [...screen.getByLabelText('Tool').options].map((o) => o.textContent).slice(1);
-const pickTool = (name) => fireEvent.change(screen.getByLabelText('Tool'), { target: { value: String(TOOLS.findIndex((t) => t.name === name)) } });
+const toolNames = () => [...document.querySelectorAll('.insp-tools__pick')].map((b) => b.textContent);
+const pickTool = (name) => fireEvent.click(screen.getByRole('button', { name }));
 
 beforeEach(() => { sourceState.current = makeSource(); });
 
-describe('MCP Inspector Vertical select', () => {
-  it('defaults to banking: banking and unowned tools, no other vertical\'s, args unchanged', () => {
+describe('MCP Inspector tools table', () => {
+  it('lists every tool the server returned in one table — no Vertical or Tool dropdown', () => {
     renderAt('/');
-    expect(screen.getByLabelText('Vertical').value).toBe('banking');
-    expect(toolOptions()).toEqual(['get_my_accounts', 'create_withdrawal', 'sequential_think']);
-    pickTool('create_withdrawal');
-    expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({});
+    expect(toolNames()).toEqual(TOOLS.map((t) => t.name));
+    expect(screen.queryByLabelText('Vertical')).toBeNull();
+    expect(screen.queryByLabelText('Tool')).toBeNull();
+    expect(screen.getByRole('table')).toBeTruthy();
   });
 
-  it('?vertical= sets the vertical: its tools, and its sample args when a tool is picked', () => {
+  it('lists the whole server catalog, whichever vertical ?vertical= names', () => {
+    sourceState.current = { ...makeSource(), tools: SCHEMA_TOOLS.map((name) => ({ name, inputSchema: schema([]) })) };
     renderAt('/?vertical=healthcare');
-    expect(screen.getByLabelText('Vertical').value).toBe('healthcare');
-    expect(toolOptions()).toEqual(['view_records', 'pay_bill', 'sequential_think']);
+    expect(toolNames()).toHaveLength(SCHEMA_TOOLS.length);
+    expect(toolNames()).toContain('show_health_record');
+    for (const t of [...BANKING_ONLY, ...OTHER_MCP_TOOLS]) expect(toolNames(), t).toContain(t);
+  });
+
+  it('picking a row selects that tool and fills the vertical\'s sample args', () => {
+    renderAt('/?vertical=healthcare');
     pickTool('pay_bill');
     expect(sourceState.current.setSelectedTool).toHaveBeenLastCalledWith(TOOLS[3]);
     expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({ amount: '650' });
   });
 
-  it('an unknown ?vertical= falls back to banking', () => {
+  it('defaults to banking args, and an unknown ?vertical= falls back to banking', () => {
     renderAt('/?vertical=nope');
-    expect(screen.getByLabelText('Vertical').value).toBe('banking');
-  });
-
-  it('changing the vertical swaps the tool options', async () => {
-    renderAt('/');
-    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'healthcare' } });
-    await waitFor(() => expect(toolOptions()).toEqual(['view_records', 'pay_bill', 'sequential_think']));
-  });
-
-  it('changing the vertical drops a selected tool it does not own', async () => {
-    sourceState.current = makeSource(TOOLS[0]);
-    renderAt('/');
-    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'healthcare' } });
-    await waitFor(() => expect(sourceState.current.setSelectedTool).toHaveBeenCalledWith(null));
+    pickTool('create_withdrawal');
     expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({});
-
   });
 
-  it('changing the vertical re-fills the selected tool with the new vertical\'s sample args', async () => {
-    sourceState.current = makeSource(TOOLS[3]);
+  it('search narrows the table by name, description or scope and says how many matched', () => {
+    sourceState.current = { ...makeSource(), tools: TOOLS.map((t) => ({ ...t, description: t.name === 'pay_bill' ? 'Pay a medical bill' : '', requiredScopes: t.name === 'view_records' ? ['records:read'] : [] })) };
     renderAt('/');
-    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'healthcare' } });
-    await waitFor(() => expect(sourceState.current.setParamValues).toHaveBeenCalledWith({ amount: '650' }));
-    expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('searchbox', { name: /search tools/i }), { target: { value: 'medical' } });
+    expect(toolNames()).toEqual(['pay_bill']);
+    expect(screen.getByText('1 of 5')).toBeTruthy();
+    fireEvent.change(screen.getByRole('searchbox', { name: /search tools/i }), { target: { value: 'records:read' } });
+    expect(toolNames()).toEqual(['view_records']);
+    fireEvent.change(screen.getByRole('searchbox', { name: /search tools/i }), { target: { value: 'zzz' } });
+    expect(screen.getByText(/No tools match/)).toBeTruthy();
   });
 
-  it('keeps the selected tool listed when it belongs elsewhere (Edit from another vertical)', () => {
+  it('marks the picked tool\'s row and shows its name with the parameters', () => {
     sourceState.current = makeSource(TOOLS[0]);
-    renderAt('/?vertical=healthcare');
-    expect(toolOptions()).toContain('get_my_accounts');
-    expect(screen.getByLabelText('Tool').value).toBe('0');
+    renderAt('/');
+    expect(screen.getByRole('button', { name: 'get_my_accounts', pressed: true })).toBeTruthy();
+    expect(screen.getByLabelText(/account_type/)).toBeTruthy();
+    expect(screen.queryByText(/Pick a tool above/)).toBeNull();
+  });
+
+  it('asks you to pick a tool until one is picked', () => {
+    renderAt('/');
+    expect(screen.getByText(/Pick a tool above/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+  });
+
+  it('a column a source never fills is dropped (no scopes: no Scopes column)', () => {
+    renderAt('/');
+    expect(screen.queryByRole('columnheader', { name: 'Scopes' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Description' })).toBeNull();
   });
 
   it('Edit and Resend still load the call\'s own tool after a vertical change', async () => {
@@ -121,18 +131,8 @@ describe('MCP Inspector Vertical select', () => {
     await waitFor(() => expect(sourceState.current.handleExecute).toHaveBeenCalledWith({ tool: TOOLS[0], params: { account_type: 'checking' } }));
   });
 
-  it('a non-banking Tool list has no banking-only or other-vertical tools, and has its own and the globals', () => {
-    sourceState.current = { ...makeSource(), tools: SCHEMA_TOOLS.map((name) => ({ name, inputSchema: schema([]) })) };
-    renderAt('/?vertical=healthcare');
-    const names = toolOptions();
-    expect(names).toContain('show_health_record');
-    for (const t of [...BANKING_ONLY, ...OTHER_MCP_TOOLS]) expect(names, t).not.toContain(t);
-    // This page lists only what the server returned (jwt_* are not in the schema artifact).
-    for (const t of GLOBALS.filter((g) => SCHEMA_TOOLS.includes(g))) expect(names, t).toContain(t);
-  });
-
   it('says the local fallback only serves banking when another vertical is picked', () => {
-    const NOTE = 'The local fallback only serves banking tools. Switch to Banking, or log in for the live MCP server.';
+    const NOTE = 'The local fallback only serves banking tools.';
     sourceState.current = { ...makeSource(), toolsSource: 'local_catalog' };
     const { unmount } = renderAt('/?vertical=healthcare');
     expect(screen.getByRole('status')).toHaveTextContent(NOTE);
@@ -148,17 +148,108 @@ describe('MCP Inspector Vertical select', () => {
   it('offers a log-in button that returns to the inspector whenever the tool list is the local fallback', () => {
     sourceState.current = { ...makeSource(), toolsSource: 'local_catalog' };
     renderAt('/');
-    fireEvent.click(screen.getByRole('button', { name: /log in for the live MCP server/i }));
+    fireEvent.click(screen.getByRole('button', { name: /log in again/i }));
     expect(navigateToCustomerOAuthLogin).toHaveBeenCalledWith(window.location.pathname);
     sourceState.current = makeSource();
   });
 
-  it('keeps ?vertical= when the server changes, and shows no Vertical for PingOne MCP', async () => {
-    renderAt('/?vertical=healthcare');
-    fireEvent.change(screen.getByLabelText('Server'), { target: { value: 'pingone' } });
-    await waitFor(() => expect(screen.queryByLabelText('Vertical')).toBeNull());
-    expect(toolOptions()).toContain('get_my_accounts');
-    fireEvent.change(screen.getByLabelText('Server'), { target: { value: 'custom' } });
-    await waitFor(() => expect(screen.getByLabelText('Vertical').value).toBe('healthcare'));
+  it('tells a PingFederate session that live tools need the P1 login, with no useless log-in button', () => {
+    sourceState.current = { ...makeSource(), toolsSource: 'local_catalog', toolsReason: 'token_resolve_failed_agent_not_authorized_by_user', toolsProvider: 'pingfederate' };
+    renderAt('/');
+    expect(screen.getByRole('status')).toHaveTextContent('only work with the PingOne (P1) login');
+    expect(screen.queryByRole('button', { name: /log in again/i })).toBeNull();
+    sourceState.current = makeSource();
+  });
+
+  it('says why the tool list fell back, and offers no log-in when the server is simply unreachable', () => {
+    sourceState.current = { ...makeSource(), toolsSource: 'local_catalog', toolsReason: 'token_resolve_failed_TOKEN_INACTIVE' };
+    const { unmount } = renderAt('/');
+    expect(screen.getByRole('status')).toHaveTextContent('Your token was rejected (TOKEN_INACTIVE).');
+    expect(screen.getByRole('button', { name: /log in again/i })).toBeTruthy();
+    unmount();
+    sourceState.current = { ...makeSource(), toolsSource: 'local_catalog', toolsReason: 'token_resolve_failed_actor_token_invalid' };
+    const { unmount: unmountActor } = renderAt('/');
+    expect(screen.getByRole('status')).toHaveTextContent('not your login');
+    expect(screen.queryByRole('button', { name: /log in again/i })).toBeNull();
+    unmountActor();
+    sourceState.current = { ...makeSource(), toolsSource: 'local_catalog', toolsReason: 'mcp_unreachable: ECONNREFUSED' };
+    renderAt('/');
+    expect(screen.getByRole('status')).toHaveTextContent('could not be reached');
+    expect(screen.queryByRole('button', { name: /log in again/i })).toBeNull();
+    sourceState.current = makeSource();
+  });
+
+  describe('defaults that make a bare Send work', () => {
+    const WEATHER = { name: 'get_weather', inputSchema: schema(['city_name', 'latitude', 'longitude', 'location_name']) };
+    const withWeather = (extra = {}) => ({ ...makeSource(), tools: [{ name: 'brave_news_search', inputSchema: schema(['query']) }, WEATHER], ...extra });
+
+    it('pre-selects get_my_accounts on the AI Demo source, so Send works straight away', () => {
+      renderAt('/');
+      expect(sourceState.current.setSelectedTool).toHaveBeenCalledTimes(1);
+      expect(sourceState.current.setSelectedTool).toHaveBeenCalledWith(TOOLS[0]);
+    });
+
+    it('on the gateway it pre-selects the weather tool and fills city_name with Austin, TX (Texas)', () => {
+      sourceState.current = withWeather();
+      renderAt('/?source=gateway');
+      expect(sourceState.current.setSelectedTool).toHaveBeenCalledWith(WEATHER);
+      expect(sourceState.current.setParamValues).toHaveBeenCalledWith({ city_name: 'Austin, TX' });
+    });
+
+    it('picking the weather tool by hand fills the same default, and never the coordinates or saved location', () => {
+      sourceState.current = withWeather({ selectedTool: TOOLS[0] });
+      renderAt('/?source=gateway');
+      fireEvent.click(screen.getByRole('button', { name: 'get_weather' }));
+      expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({ city_name: 'Austin, TX' });
+    });
+
+    it('leaves a tool without a known default alone', () => {
+      sourceState.current = withWeather({ selectedTool: WEATHER });
+      renderAt('/?source=gateway');
+      fireEvent.click(screen.getByRole('button', { name: 'brave_news_search' }));
+      expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({});
+    });
+
+    it('does not override something already selected', () => {
+      sourceState.current = makeSource(TOOLS[1]);
+      renderAt('/');
+      expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
+    });
+
+    it('pre-selects once, then leaves the user alone even if the selection is cleared by a reload', () => {
+      const first = makeSource();
+      sourceState.current = first;
+      const { rerender } = renderAt('/');
+      expect(first.setSelectedTool).toHaveBeenCalledTimes(1);
+      sourceState.current = { ...first, tools: [...TOOLS] };
+      rerender(<MemoryRouter initialEntries={['/']}><McpInspectorPageClean /></MemoryRouter>);
+      expect(first.setSelectedTool).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for tools that belong to THIS source: stale tools from the previous source must not use up the pick', () => {
+      const first = { ...makeSource(), toolsKey: 'api:' };
+      sourceState.current = first;
+      const { rerender } = renderAt('/?source=gateway');
+      expect(first.setSelectedTool).not.toHaveBeenCalled();
+      // the gateway tools arrive: now it picks the weather tool
+      const WEATHER = { name: 'get_weather_summary', inputSchema: schema(['city_name']) };
+      const arrived = { ...first, tools: [WEATHER], toolsKey: 'gateway:' };
+      sourceState.current = arrived;
+      rerender(<MemoryRouter initialEntries={['/?source=gateway']}><McpInspectorPageClean /></MemoryRouter>);
+      expect(arrived.setSelectedTool).toHaveBeenCalledWith(WEATHER);
+      expect(arrived.setParamValues).toHaveBeenCalledWith({ city_name: 'Austin, TX' });
+    });
+
+    it('selects nothing in the calls log, while tools are still loading, or when no preferred tool is offered', () => {
+      sourceState.current = { ...makeSource(), mode: 'calls', config: { toolKey: 'label' }, tools: [{ label: 'GET /api/x', _call: { method: 'GET', url: '/api/x', response: { status: 200 } } }] };
+      renderAt('/?source=api');
+      expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
+      sourceState.current = { ...makeSource(), loadingTools: true };
+      renderAt('/');
+      expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
+      sourceState.current = { ...makeSource(), tools: [{ name: 'create_deposit', inputSchema: schema(['amount']) }] };
+      renderAt('/');
+      expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
+    });
   });
 });

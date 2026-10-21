@@ -6,10 +6,10 @@
 export const GATE_COPY = [
   {
     id: 'mfa',
-    title: 'Signed in with MFA',
-    question: 'Is this a real, signed-in person who passed MFA?',
-    why: 'The agent never gets power of its own. The server checks your sign-in, and that MFA happened, before it will mint anything for the agent.',
-    results: { permit: 'Signed in and MFA verified', deny: 'Sign-in or MFA check failed', checking: 'Checking your session…' },
+    title: 'Signed in',
+    question: 'Is this a real, signed-in person?',
+    why: 'The agent never gets power of its own. The server checks your sign-in before it will mint anything for the agent. Sensitive actions add MFA on top, only when the policy asks for it (try the second step).',
+    results: { permit: 'Signed in', deny: 'Sign-in or MFA check failed', checking: 'Checking your session…' },
   },
   {
     id: 'gw',
@@ -59,12 +59,28 @@ export function gateStatus(gate, phase) {
 }
 
 /** One line under a gate title describing its current result. */
-export function gateResult(gate, phase) {
+export function gateResult(gate, phase, { userLabel = '', mfaVerified = false } = {}) {
   const copy = GATE_COPY.find((g) => g.id === gate.id);
   const s = gateStatus(gate, phase);
   if (s === 'held') return 'HELD: waiting for step-up (MFA) before this can run';
   if (s === 'waiting') return '';
+  if (gate.id === 'mfa' && s === 'permit') {
+    // Say only what is true: MFA is verified, still to come, or simply not needed for this request.
+    const who = userLabel ? `Signed in as ${userLabel}` : 'Signed in';
+    if (mfaVerified) return `${who}, and MFA verified.`;
+    return phase === 'held' ? `${who}. This request needs MFA before it can run.` : `${who}. MFA wasn't needed for this request.`;
+  }
   return copy?.results[s] || '';
+}
+
+/**
+ * The first gate reports only when MFA is part of the request (a step-up) or the personal-agent lookup runs, so for a
+ * plain read it stays silent and would sit at "waiting" even though you are signed in. Once the request has run (or is
+ * held for step-up) and the user is signed in, a silent sign-in gate is a pass. A reported result is never overridden.
+ */
+export function effectiveGates(gates, { phase, signedIn }) {
+  const settled = phase === 'done' || phase === 'held';
+  return gates.map((g) => (g.id === 'mfa' && g.status === 'waiting' && signedIn && settled ? { ...g, status: 'permit' } : g));
 }
 
 /**

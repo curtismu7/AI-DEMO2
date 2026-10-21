@@ -329,8 +329,12 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   # PINGONE_{USER,ADMIN}_AUTHORIZE_PI_FLOW=true are pinned for the same reason:
   # both default to false, and with them off every SE login silently falls back
   # to the PingOne hosted redirect instead of the in-app pi.flow modal.
+  #
+  # ID_JAG_PLAYGROUND_STEP4_ENABLED=false is pinned because the Node demo MCP gateway's authz sidecar validates
+  # every token with PingOne on SE, so the ID-JAG playground's step 4 (oauth-mcp / PingFederate tokens) would
+  # always fail. false makes the page show one line instead of the "List tools" button. Unset = on (local Docker).
   kubectl patch configmap ai-demo-config -n "$NS" --type merge -p \
-    "{\"data\":{\"OAUTH_PROVIDER\":\"${SE_OAUTH_PROVIDER:-pingone}\",\"PINGONE_USER_AUTHORIZE_PI_FLOW\":\"true\",\"PINGONE_ADMIN_AUTHORIZE_PI_FLOW\":\"true\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com,demoAdmin@api.ping.demo,demoUser@example.com,test12345@mailinator.com,tarunmadiraju@pingidentity.com}\"}}"
+    "{\"data\":{\"ID_JAG_PLAYGROUND_STEP4_ENABLED\":\"false\",\"OAUTH_PROVIDER\":\"${SE_OAUTH_PROVIDER:-pingone}\",\"PINGONE_USER_AUTHORIZE_PI_FLOW\":\"true\",\"PINGONE_ADMIN_AUTHORIZE_PI_FLOW\":\"true\",\"HOSTED_ACCESS_GATE_ENABLED\":\"true\",\"HOSTED_ACCESS_ALLOWED_DOMAINS\":\"pingidentity.com,pingone.com\",\"HOSTED_ACCESS_REQUIRE_VERIFIED_EMAIL\":\"false\",\"HOSTED_ACCESS_REQUIRED_GROUP_ID\":\"${HOSTED_ACCESS_REQUIRED_GROUP_ID}\",\"HOSTED_ACCESS_ALLOWED_IDENTIFIERS\":\"${HOSTED_ACCESS_ALLOWED_IDENTIFIERS:-demoUser,demoAdmin,cmuir+demo-user@pingone.com,demoAdmin@api.ping.demo,demoUser@example.com,test12345@mailinator.com,tarunmadiraju@pingidentity.com}\"}}"
 fi
 
 # Override the nginx-config ConfigMap from 02-configmap.yaml (which contains the

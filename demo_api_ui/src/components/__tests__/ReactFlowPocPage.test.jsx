@@ -1,7 +1,7 @@
 import { describe, expect, it, vi } from "vitest";
 import React from "react";
 import { MemoryRouter, Route, Routes } from "react-router-dom";
-import { fireEvent, render, screen, waitFor } from "@testing-library/react";
+import { fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import ReactFlowPocPage from "../ReactFlowPocPage";
 import EducationRoutes from "../../routes/EducationRoutes";
 
@@ -99,8 +99,9 @@ describe("ReactFlowPocPage", () => {
     renderPage();
     fireEvent.click(screen.getByText("Sequence"));
     expect(screen.getByTestId("rfps-diagram")).toBeTruthy();
-    expect(screen.getByText("MCP Gateway")).toBeTruthy();
-    expect(screen.getByText("Reservation Data")).toBeTruthy();
+    const diagram = within(screen.getByTestId("rfps-diagram"));
+    expect(diagram.getByText("MCP Gateway")).toBeTruthy();
+    expect(diagram.getByText("Reservation Data")).toBeTruthy();
     fireEvent.click(screen.getByText("Flow"));
     expect(screen.queryByTestId("rfps-diagram")).toBeNull();
   });

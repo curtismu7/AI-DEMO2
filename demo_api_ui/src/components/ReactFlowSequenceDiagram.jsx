@@ -10,6 +10,7 @@
  *     active arrow (SVG animateMotion)
  */
 import React, { useMemo } from "react";
+import SequenceActorHeader from "./SequenceActorHeader";
 import "./ReactFlowSequenceDiagram.css";
 
 const PARTICIPANTS = [
@@ -80,7 +81,22 @@ export default function ReactFlowSequenceDiagram({
     [height]
   );
 
+  // Header strip: a participant is "done" once a step up to the active one
+  // passes through it, "active" while the active step does.
+  const onPath = (p, step) => step.path.includes(p.id);
+  const headerActors = PARTICIPANTS.map((p) => {
+    const state = steps[activeStepIndex] && onPath(p, steps[activeStepIndex])
+      ? "active"
+      : steps.slice(0, Math.max(activeStepIndex, 0)).some((st) => onPath(p, st)) ? "done" : "idle";
+    return { id: p.id, name: p.label, color: p.color, state };
+  });
+  const headerSegments = steps.map((_, i) => ({
+    state: i === activeStepIndex ? "active" : i < activeStepIndex ? "done" : "idle",
+  }));
+
   return (
+    <>
+    <SequenceActorHeader actors={headerActors} segments={headerSegments} />
     <div className="rfps-wrap" data-testid="rfps-diagram">
       <svg
         className="rfps-svg"
@@ -217,5 +233,6 @@ export default function ReactFlowSequenceDiagram({
         </defs>
       </svg>
     </div>
+    </>
   );
 }

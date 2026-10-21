@@ -96,6 +96,7 @@ const EXEMPT = new Set([
   '/servers',
   '/spinner-showcase',
   '/standalone',
+  '/standalone/cedar',
   '/standalone/runner/m2m',
   '/themes',
   '/user-accounts',

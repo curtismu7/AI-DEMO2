@@ -134,6 +134,23 @@ describe("AdminSideNav — best-of-breed pass", () => {
     }
   });
 
+  it("lists the Cedar Policy Demo under Agent Privilege, opening the in-app page, public and without an admin badge", () => {
+    renderNavAsUser(customerUser);
+    const navigation = screen.getByRole("navigation", { name: /primary navigation/i });
+    const search = within(navigation).getByLabelText(/search navigation/i);
+    for (const query of ["Cedar Policy Demo", "cedar", "permit forbid"]) {
+      fireEvent.change(search, { target: { value: query } });
+      const link = within(navigation).getAllByRole("link").find((a) => a.getAttribute("href") === "/privilege-cedar");
+      expect(link, `/privilege-cedar appears for the search "${query}"`).toBeTruthy();
+      expect(link).toHaveTextContent("Cedar Policy Demo");
+      expect(link.querySelector(".admin-side-nav__badge")).toBeNull();
+    }
+    // The item belongs to the Agent Privilege group, not just somewhere in the tree.
+    const group = NAV_STRUCTURE_CATALOG.find((g) => g.label === "Agent Privilege");
+    expect(group.children).toContain("Cedar Policy Demo");
+    expect(authRouteRequirements["/privilege-cedar"]).toBe("public");
+  });
+
   it("labels the primary navigation landmark", () => {
     renderNav();
     expect(screen.getByRole("navigation", { name: /primary navigation/i })).toBeTruthy();

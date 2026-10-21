@@ -490,6 +490,14 @@ async function inspect(idJag, s = settings(), verify = verifySignature) {
   return { header: h, claims: c, checks };
 }
 
+// Step 4 sends the redeemed token to the Node demo MCP gateway. Where that gateway's authz sidecar validates every token
+// with PingOne (SE), these tokens always fail, so the deployment turns the step off. Unset = on. byo is unaffected.
+const STEP4_OFF_REASON = 'The MCP gateway on this deployment validates tokens with PingOne only, so tokens from oauth-mcp or PingFederate cannot be listed here.';
+function step4For(req) {
+  const off = ['false', '0', 'no', 'off'].includes(String(configStore.getEffective('id_jag_playground_step4_enabled') ?? '').trim().toLowerCase());
+  return off && modeOf(req) !== 'byo' ? { available: false, reason: STEP4_OFF_REASON } : { available: true, reason: null };
+}
+
 function configFor(req) {
   const mode = modeOf(req);
   const pfPfReason = pfPfUnavailableReason();
@@ -509,6 +517,7 @@ function configFor(req) {
       pingfederate: { issuer: pfRedeemerSettings().issuer,
         tokenEndpoint: pfRedeemerSettings().issuer ? `${pfRedeemerSettings().issuer.replace(/\/$/, '')}/as/token.oauth2` : '' },
     },
+    gateway: { step4: step4For(req) },
     byo: req.session?.idJagPlayground?.byo || null,
     saml: { available: !samlUnavailableReason(), reason: samlUnavailableReason(), audience: samlAudience(), issuer: samlIssuer(),
       supportedModes: SAML_MODES, appSignedIn: Boolean(req.session?.user?.email) },
@@ -1041,6 +1050,8 @@ router.get('/xaa/login', async (req, res) => {
     response_type: 'code', client_id: secretSetting('XAA_DEV_IDP_CLIENT_ID'), redirect_uri: xaaRedirectUri(),
     scope: 'openid profile email offline_access', prompt: 'consent', state, nonce,
     code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256',
+    // IdenX takes any email: pre-fill the signed-in user's so they only type the code.
+    ...(req.session?.user?.email ? { login_hint: req.session.user.email } : {}),
   }).toString();
   return req.session.save(() => res.redirect(u.toString()));
 });
@@ -1120,6 +1131,8 @@ router.post('/redeem', requirePf, async (req, res) => {
 });
 
 router.post('/call', requirePf, async (req, res) => {
+  const step4 = step4For(req);
+  if (!step4.available) return res.status(409).json({ error: 'step4_unavailable', message: step4.reason });
   const token = req.session?.idJagPlayground?.accessToken;
   if (!token) return res.status(409).json({ error: 'no_access_token', message: 'Redeem the ID-JAG first.' });
   const endpoint = `POST ${nodeGatewayUrl() || '(MCP_DEMO_GATEWAY_URL not set)'}/mcp`;

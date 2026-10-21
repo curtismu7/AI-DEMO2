@@ -1176,6 +1176,9 @@ export default function AdminSideNav({
         { label: "Personal Agent Design (Node)", path: "/personal-agent-design", icon: "arc" },
         { label: "Personal Agent Dual Gateway (Node)", path: "/personal-agent-dual-gateway", icon: "arc" },
         { label: "Personal Agent Design Review", path: "/personal-agent-review", icon: "log" },
+        { label: "ChatGPT to UHG Front Door (Seq)", path: "/uhg-chatgpt-mcp-flow", icon: "arc" },
+        { label: "United Agent MCP Door (Seq)", path: "/united-personal-agent-flow", icon: "arc" },
+        { label: "Personal Agent Request Flow", path: "/personal-agent-flow", icon: "arc" },
         { label: "CIMD in Privilege (Node)", path: "/cimd-privilege", icon: "lck" },
         { label: "A2A Architecture (Node)", path: "/a2a-architecture", icon: "arc" },
       ],
@@ -1371,6 +1374,13 @@ export default function AdminSideNav({
     searchAlias: "digital worker agentic token service agent gateway mcp token mediation diagram live run autonomous arm uc38",
   };
 
+  const authorizationFlow = {
+    label: "Authorization Flow",
+    path: "/authorization-flow",
+    icon: "arc",
+    searchAlias: "authorization flow personal assistant unmanaged exchange cima ciba pingone authorize 50 cap revoke visualiser sequence",
+  };
+
   const allNavItems = [
     findLegacyItem("Home"),
     findLegacyItem("Security Dashboard"),
@@ -1392,6 +1402,12 @@ export default function AdminSideNav({
       { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
       { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
       { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },
+      {
+        label: "Cedar Policy Demo",
+        path: "/privilege-cedar",
+        icon: "pol",
+        searchAlias: "cedar policy AI policies permit forbid hold allow deny PingFederate token claims scope group",
+      },
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),
     // Every A2A page in one place. The group's own alias makes searching "a2a" show the whole group
@@ -1531,8 +1547,9 @@ export default function AdminSideNav({
       { label: "Target Design", path: "/personal-agent-design", icon: "arc" },
       { label: "Dual Gateway Design", path: "/personal-agent-dual-gateway", icon: "arc" },
       { label: "Design Review", path: "/personal-agent-review", icon: "log" },
+      { label: "Request Flow Diagram", path: "/personal-agent-flow", icon: "arc" },
     ], "agt"),
-    productGroup("Digital Worker", [digitalWorkerDiagram], "agt"),
+    productGroup("Digital Worker", [digitalWorkerDiagram, authorizationFlow], "agt"),
     productGroup("MCP & Integrations", [
       "MCP Inspector",
       "Agent Gateway Inspector",

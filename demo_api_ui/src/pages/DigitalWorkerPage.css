@@ -96,3 +96,6 @@
 .dw-consent { padding: 0.75rem 1.25rem 0; border-bottom: 1px solid var(--th-border); }
 .dw-consent .cmp { margin: 0 0 0.75rem; }
 .dw-consent .cmp__back { cursor: pointer; padding: 4px 10px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); }
+
+/* The token chain starts as one line, not the long "what this panel shows" explainer */
+.dw-reel-empty { margin: 0; padding: 0.75rem 1rem; font-size: var(--font-size-2xs); color: var(--th-text-muted); }

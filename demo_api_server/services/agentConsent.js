@@ -7,8 +7,18 @@ const delegationStore = require('./lmdb/delegationStore.lmdb');
 
 const legacyMayAct = () => String(configStore.getEffective('ff_may_act_seed') || 'false') === 'true';
 
+// PingFederate mode: the acting agent in the exchanged token's `act` is PF's token-exchange client,
+// not the PingOne AI Agent app, and Rule 2.6 compares the consented actor to that `act`. Grants
+// and the bridged consent must name the same id or every agent-mediated call denies may_act_mismatch.
+function pfActingAgent() {
+  return configStore.getOAuthProvider?.() === 'pingfederate'
+    ? String(configStore.getEffective('pf_token_exchange_client_id') || '')
+    : '';
+}
+
 function agentClientId() {
   return (
+    pfActingAgent() ||
     configStore.getEffective('ai_agent_client_id') ||
     configStore.getEffective('pingone_ai_agent_client_id') ||
     configStore.getEffective('pingone_ai_agent_actor_client_id') ||

@@ -253,7 +253,46 @@ describe("ID-JAG playground page", () => {
     expect(post).toHaveBeenCalledWith("/api/id-jag-playground/xaa/id-jag", {});
     expect(screen.getByText("Request to IdenX")).toBeInTheDocument();
     expect(screen.getByText(/Signed in at IdenX as alice@example.com/)).toBeInTheDocument();
+    const done = screen.getByTestId("ijp-xaa-done");
+    expect(done).toHaveAttribute("role", "dialog");
+    expect(done).toHaveTextContent("Got an ID-JAG from IdenX");
+    expect(screen.getByRole("button", { name: "OK" })).toHaveFocus();
+    fireEvent.click(screen.getByRole("button", { name: "OK" }));
+    expect(screen.queryByTestId("ijp-xaa-done")).not.toBeInTheDocument();
     await waitFor(() => expect(screen.getByRole("button", { name: "Redeem ID-JAG" })).toBeEnabled());
+  });
+
+  it("byo: a dead IdenX session sends the user straight to sign in again, with no error and no second click", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    const assign = vi.fn();
+    const orig = window.location;
+    Object.defineProperty(window, "location", { configurable: true, value: { ...orig, assign } });
+    try {
+      post.mockRejectedValue(Object.assign(new Error("502"), { response: { status: 502, data: { error: "xaa_exchange_failed", idpError: "invalid_grant" } } }));
+      mountWith(config({ mode: "byo", publicEndpoints: ENDPOINTS, xaa: { ...XAA_OK, signedIn: true, user: "alice@example.com" } }), { idps: [], canManage: false });
+      const btn = await screen.findByRole("button", { name: XAA_BUTTON });
+      await waitFor(() => expect(btn).toBeEnabled());
+      fireEvent.click(btn);
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("/api/id-jag-playground/xaa/login?return_to=/pingfederate-id-jag/playground"));
+      expect(screen.queryByTestId("ijp-xaa-done")).not.toBeInTheDocument();
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: orig });
+    }
+  });
+
+  it("byo: back from IdenX, a refused exchange shows its error instead of looping back to sign in", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    const assign = vi.fn();
+    const orig = window.location;
+    Object.defineProperty(window, "location", { configurable: true, value: { ...orig, assign } });
+    try {
+      post.mockRejectedValue(Object.assign(new Error("502"), { response: { status: 502, data: { error: "xaa_exchange_failed", idpError: "invalid_grant", message: "IdenX refused the ID-JAG exchange (HTTP 400 invalid_grant)." } } }));
+      mountAt(config({ mode: "byo", publicEndpoints: ENDPOINTS, xaa: { ...XAA_OK, signedIn: true, user: "alice@example.com" } }), "/pingfederate-id-jag/playground?xaa=signed_in");
+      expect(await screen.findByText(/IdenX refused the ID-JAG exchange/)).toBeInTheDocument();
+      expect(assign).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: orig });
+    }
   });
 
   it("byo: shows an IdenX sign-in error from the redirect, and a disabled button with the reason when unavailable", async () => {
@@ -340,6 +379,17 @@ describe("ID-JAG playground page", () => {
     await waitFor(() => expect(screen.getByTestId("ijp-preflight")).toHaveTextContent("All checks pass"));
     expect(get).toHaveBeenLastCalledWith("/api/id-jag-playground/preflight", { params: expect.objectContaining({ step: "issue", fresh: "1" }) });
     expect(post).not.toHaveBeenCalled();
+  });
+
+  it("shows claims as one table row per field (key and value side by side) with break points after URN and URL separators", async () => {
+    mount(config());
+    replies({ "/issue": issuedWith({ iat: now(), exp: now() + 300, iss: "https://cmuir-mcp.ping-devops.com/as", sub: "urn:oasis:names:tc:SAML:2.0:nameid-format:persistent" }) });
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    const dd = (await screen.findByText(/oasis/)).closest("td");
+    expect(dd.closest("table")).toHaveClass("ijp-fields");
+    expect(dd.previousElementSibling).toHaveTextContent("sub");
+    expect(dd.querySelectorAll("wbr").length).toBeGreaterThan(5);
+    expect(dd).toHaveTextContent("urn:oasis:names:tc:SAML:2.0:nameid-format:persistent");
   });
 
   it("warnings show but do not block", async () => {
@@ -457,6 +507,36 @@ describe("ID-JAG playground page", () => {
     expect(results).toHaveTextContent(/steps 1-3\) is not affected/);
   });
 
+  const stepFourWith = async (data) => {
+    mount(config());
+    replies({
+      "/issue": issuedWith({ iat: now(), exp: now() + 300 }),
+      "/redeem": { request: {}, status: 200, response: {}, token: { header: {}, claims: { exp: now() + 600 } } },
+      "/call": Object.assign(new Error("401"), { response: { status: 401, data } }),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    await waitFor(() => expect(posted("/issue")).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "List tools this token can see" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "List tools this token can see" }));
+    return screen.findByTestId("ijp-results");
+  };
+
+  it("step 4: a gateway message that says 'not an expired session' does not get the ID-JAG expiry hint", async () => {
+    const results = await stepFourWith({
+      error: "GATEWAY_TOKEN_REJECTED",
+      message: "The MCP gateway rejected the agent's access token (No matching JWKS key found for kid=idjagRedeemerAtm-key). Your sign-in is still valid, this is a server-side token-validation problem, not an expired session.",
+      gatewayStatus: 401, gatewayErrorCode: "invalid_token", gatewayMessage: "No matching JWKS key found for kid=idjagRedeemerAtm-key",
+    });
+    expect(results).toHaveTextContent(/not an expired session/);
+    expect(results).not.toHaveTextContent(/It expired: ID-JAGs live about 5 minutes/);
+  });
+
+  it("step 4: a genuinely expired token still gets the ID-JAG expiry hint", async () => {
+    const results = await stepFourWith({ error: "invalid_grant", message: "The ID-JAG has expired", gatewayStatus: 401, gatewayErrorCode: "invalid_token", gatewayMessage: "token expired" });
+    expect(results).toHaveTextContent(/It expired: ID-JAGs live about 5 minutes/);
+  });
+
   it("protected resource: renders the resource server's page, and its refusal names the failed check", async () => {
     mount(config());
     const ok = { request: { method: "GET", url: "https://as.test/protected/profile", authorization: "Bearer [access token]" }, status: 200,
@@ -511,5 +591,26 @@ describe("ID-JAG playground page", () => {
 
     mountWith(config(), () => Promise.reject(Object.assign(new Error("401"), { response: { status: 401, data: {} } })));
     expect(await screen.findByTestId("ijp-trusted-signin")).toBeInTheDocument();
+  });
+});
+
+describe("ID-JAG playground step 4 availability", () => {
+  const LIST = { name: "List tools this token can see" };
+  const reason = "The MCP gateway on this deployment validates tokens with PingOne only, so tokens from oauth-mcp or PingFederate cannot be listed here.";
+
+  it("shows the reason in one plain line, with no List tools button, when the gateway cannot validate these tokens", async () => {
+    mount(config({ gateway: { step4: { available: false, reason } } }));
+    expect(await screen.findByText(reason)).toBeInTheDocument();
+    expect(screen.getByText("Call the MCP server with the new token")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: LIST.name })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["available", { gateway: { step4: { available: true, reason: null } } }],
+    ["absent (older server)", {}],
+  ])("keeps the List tools button when step 4 is %s", async (_label, over) => {
+    mount(config(over));
+    expect(await screen.findByRole("button", { name: LIST.name })).toBeInTheDocument();
+    expect(screen.queryByText(reason)).not.toBeInTheDocument();
   });
 });
