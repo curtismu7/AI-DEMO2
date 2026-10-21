@@ -64,6 +64,25 @@ See also "Open questions and owner decisions" below, which merges these with the
 1. AIC and pi.flow: AIC waits for pi.flow, or a documented redirect exception for AIC only. Default: wait (rule: no redirect logins).
 2. Cedar: whether a live Amazon Verified Permissions variant is wanted (default: local open-source engine only).
 
+## Owner-nominated candidates, 2026-10-21
+
+The owner reviewed five live AI-DEMO2 pages and called them candidates for standalone. This section only maps each page to the
+catalog (existing ids are reused, never re-numbered) and lists what is already true of it. It adds no new decision, and it does
+not change any existing row; when a candidate is promoted, its catalog row is updated in the normal way.
+
+| Live page | Catalog home | Seed in AI-DEMO2 | What is already true | What a standalone still needs |
+|---|---|---|---|---|
+| https://ai-demo.ping-devops.com/personal-agent/learn (personal agent studio, learning path) | **New row under D** (id assigned when promoted). Overlaps D21 (personal agent), E1 (Learning Hub) and E11 (client skins) | `demo_api_ui/src/pages/PersonalAgentLearnPage.jsx`, `demo_api_ui/src/config/studioLearn.js` | Chrome-less route; three lessons with real prompts; the "What just happened" text is generated from the real gate results, so it never promises an outcome; works signed-out with a sign-in notice | Own sign-in (pi.flow only); a per-demo mock mode so lesson 3 (a fee over the limit) is a guaranteed refusal; lesson prompts as a content pack (E1 format) |
+| https://ai-demo.ping-devops.com/personal-agent/dot/full (Dot workbench) | **D21 Personal agent (Dot)**, already marked as built | `demo_api_ui/src/pages/DotWorkbenchPage.jsx`, `demo_api_ui/src/components/dot/` | Chrome-less route; persona card with real identity and scopes; memory panel; governs panel; "Try next" prompt chips | Own sign-in; the memory store moved off the shared BFF store |
+| https://ai-demo.ping-devops.com/group-policy/full (Group Policy board) | **B7 Group Policy**, already decided as its own repo | `demo_api_ui/src/pages/GroupPolicyBoardPage.jsx` | Chrome-less route; one live Authorize decision per vertical; a membership toggle moves every row together | Per-demo tenant or the mock-authorize profile: with one shared login the toggle changes a real PingOne group for everyone using it, and the page arms a shared feature flag on arrival |
+| https://ai-demo.ping-devops.com/personal-agent (classic studio) | **E11 Client-chrome costume shells**, with D21 | `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx`, `demo_api_ui/src/components/AgentClientSkin.jsx` | Skins (Privilege, Claude, Terminal, ChatGPT, Gemini, Computer Use, Dot); stacked and cockpit layouts; reel and token chain under the chat | Skin pack split from the page; fictional-brand default per owner decision 6 |
+| https://ai-demo.ping-devops.com/personal-agents-handoff.html (field guide) | **E2 SE demo shelf**, as its static front page | `demo_api_ui/public/personal-agents-handoff.html` | One static file, ASCII-only (entities, charset meta), shared-login block with copy buttons, per-demo click paths, no build step | Generated from the shelf's catalog instead of hand-edited; the login block read from `customer.config` |
+
+Shared groundwork that already exists for all five: chrome-less routes (`/full`, `/learn`), one sign-in instead of two (the app
+sign-in now unlocks the hosted-access wall), and replies that show the tool's real data (`replySummary`). The shared-login
+caveat on the Group Policy row is the one real blocker to hosting any of them for many viewers; it matches the existing
+"why not host the live demos" decision above.
+
 ## Phase 0: Finish ID-JAG standalone and make it the template
 
 Work in a worktree of `id-jag-standalone`. Local `main` is 2 PRs behind origin (#28 inspector-reveal and its follow-up).
