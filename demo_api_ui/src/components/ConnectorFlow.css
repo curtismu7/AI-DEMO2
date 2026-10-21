@@ -1,0 +1,77 @@
+/* Connector flow: a chat client on the left, the 12 real steps and the tokens on the right. Tokens only (THEMING.md). */
+.cf {
+  display: grid;
+  grid-template-columns: minmax(300px, 380px) minmax(0, 1fr);
+  gap: 16px;
+  padding: 16px 20px;
+  color: var(--th-text);
+  align-items: start;
+}
+.cf-col { display: grid; gap: 12px; min-width: 0; }
+.cf-muted { margin: 0; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+
+.cf-clients { display: flex; gap: 6px; }
+.cf-clients button, .cf-token button, .cf-tool button, .cf-directory__card button {
+  padding: 5px 12px;
+  border-radius: var(--radius-lg);
+  border: 1px solid var(--th-border);
+  background: var(--th-bg-card);
+  color: var(--th-text);
+  font-size: var(--font-size-2xs);
+  font-weight: 600;
+  cursor: pointer;
+}
+.cf-clients button[aria-pressed='true'] { background: var(--pas-pill-on-bg, #051727); color: var(--pas-pill-on-fg, #ffffff); border-color: var(--pas-pill-on-bg, #051727); }
+.cf button:disabled { opacity: 0.55; cursor: default; }
+.cf button.cf-primary { background: var(--app-primary-red, #d20e0f); border-color: var(--app-primary-red, #d20e0f); color: #ffffff; padding: 8px 14px; }
+
+.cf-chat { border: 1px solid var(--th-border); border-radius: var(--radius-xl); background: var(--th-bg-card); overflow: hidden; }
+.cf-chat > header { padding: 10px 14px; font-weight: 700; border-bottom: 1px solid var(--th-border); }
+.cf-chat--chatgpt > header { border-bottom-color: #10a37f; }
+.cf-chat--claude > header { border-bottom-color: #d4603e; }
+.cf-chat__body { display: grid; gap: 12px; padding: 14px; }
+
+.cf-directory h4, .cf-card h4 { margin: 0 0 6px; font-size: var(--font-size-2xs); letter-spacing: 0.06em; text-transform: uppercase; }
+.cf-directory__card { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 8px; padding: 10px; border: 1px solid var(--th-border); border-radius: var(--radius-lg); }
+.cf-directory__card div { display: grid; gap: 2px; min-width: 0; }
+.cf-directory__card code { font-size: var(--font-size-3xs); color: var(--th-text-muted); overflow-wrap: anywhere; }
+
+.cf-ask { display: grid; gap: 10px; }
+.cf-bubble { margin: 0; padding: 8px 12px; border-radius: var(--radius-lg); font-size: var(--font-size-xs); }
+.cf-bubble--user { justify-self: end; background: var(--brand-blue, #12538d); color: #ffffff; }
+.cf-bubble--agent { background: var(--th-bg-subtle, var(--th-bg-card)); border: 1px solid var(--th-border); }
+.cf-bubble--deny { border-color: var(--app-primary-red, #d20e0f); }
+.cf-tool { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 8px; }
+.cf-tool label { display: grid; gap: 3px; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+.cf-tool select { padding: 5px; border-radius: var(--radius-md); border: 1px solid var(--th-border); background: var(--th-bg-card); color: var(--th-text); }
+
+.cf-status, .cf-notice, .cf-error { margin: 0; font-size: var(--font-size-2xs); }
+.cf-status { color: var(--th-text-muted); }
+.cf-notice { color: var(--th-status-info-text); }
+.cf-error { color: var(--th-status-error-text, var(--app-primary-red, #d20e0f)); }
+
+.cf-steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 6px; }
+.cf-step { border: 1px solid var(--th-border); border-left-width: 4px; border-radius: var(--radius-lg); background: var(--th-bg-card); }
+.cf-step--done { border-left-color: var(--th-status-success-text, #15803d); }
+.cf-step--error { border-left-color: var(--app-primary-red, #d20e0f); }
+.cf-step--pending { border-left-color: var(--th-border); }
+.cf-step summary { display: grid; grid-template-columns: 22px auto auto; column-gap: 8px; align-items: baseline; padding: 7px 10px; cursor: pointer; font-size: var(--font-size-xs); }
+.cf-step__n { font-weight: 700; color: var(--th-text-muted); }
+.cf-step__title { font-weight: 600; }
+.cf-step__state { justify-self: end; font-size: var(--font-size-3xs); text-transform: uppercase; letter-spacing: 0.06em; color: var(--th-text-muted); }
+.cf-step__summary { grid-column: 2 / -1; font-size: var(--font-size-2xs); color: var(--th-text-muted); overflow-wrap: anywhere; }
+.cf-step details > .cf-json, .cf-step details > p { margin: 0 10px 10px; }
+
+.cf-json { margin: 0; padding: 8px; max-height: 260px; overflow: auto; border-radius: var(--radius-md); background: var(--th-bg-subtle, var(--th-bg-card)); border: 1px solid var(--th-border); font-size: var(--font-size-3xs); white-space: pre-wrap; overflow-wrap: anywhere; }
+
+.cf-cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 10px; }
+.cf-card { min-width: 0; padding: 10px; border: 1px solid var(--th-border); border-radius: var(--radius-xl); background: var(--th-bg-card); display: grid; gap: 6px; align-content: start; }
+.cf-card h4 { display: flex; justify-content: space-between; }
+.cf-card h4 span { font-weight: 400; color: var(--th-text-muted); }
+.cf-card dl { display: grid; grid-template-columns: auto 1fr; gap: 2px 10px; margin: 0; font-size: var(--font-size-2xs); }
+.cf-card dt { color: var(--th-text-muted); }
+.cf-card dd { margin: 0; overflow-wrap: anywhere; }
+.cf-token { display: flex; gap: 6px; align-items: center; }
+.cf-token__value { flex: 1; min-width: 0; font-size: var(--font-size-3xs); overflow-wrap: anywhere; }
+
+@media (max-width: 900px) { .cf { grid-template-columns: minmax(0, 1fr); } }
