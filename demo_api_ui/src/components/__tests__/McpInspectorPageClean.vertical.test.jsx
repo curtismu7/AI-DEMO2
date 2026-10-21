@@ -1,5 +1,6 @@
-// MCP Inspector Vertical select: filters the AI Demo MCP tool list to the
-// vertical's tools and fills Arguments with that vertical's sample args.
+// MCP Inspector tools table: every tool the server returns in one searchable table
+// (no Vertical / Tool dropdowns); picking a row selects it and fills the ?vertical=
+// sample args.
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -52,62 +53,71 @@ function makeSource(selectedTool = null) {
 }
 
 const renderAt = (url) => render(<MemoryRouter initialEntries={[url]}><McpInspectorPageClean /></MemoryRouter>);
-const toolOptions = () => [...screen.getByLabelText('Tool').options].map((o) => o.textContent).slice(1);
-const pickTool = (name) => fireEvent.change(screen.getByLabelText('Tool'), { target: { value: String(TOOLS.findIndex((t) => t.name === name)) } });
+const toolNames = () => [...document.querySelectorAll('.insp-tools__pick')].map((b) => b.textContent);
+const pickTool = (name) => fireEvent.click(screen.getByRole('button', { name }));
 
 beforeEach(() => { sourceState.current = makeSource(); });
 
-describe('MCP Inspector Vertical select', () => {
-  it('defaults to banking: banking and unowned tools, no other vertical\'s, args unchanged', () => {
+describe('MCP Inspector tools table', () => {
+  it('lists every tool the server returned in one table — no Vertical or Tool dropdown', () => {
     renderAt('/');
-    expect(screen.getByLabelText('Vertical').value).toBe('banking');
-    expect(toolOptions()).toEqual(['get_my_accounts', 'create_withdrawal', 'sequential_think']);
-    pickTool('create_withdrawal');
-    expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({});
+    expect(toolNames()).toEqual(TOOLS.map((t) => t.name));
+    expect(screen.queryByLabelText('Vertical')).toBeNull();
+    expect(screen.queryByLabelText('Tool')).toBeNull();
+    expect(screen.getByRole('table')).toBeTruthy();
   });
 
-  it('?vertical= sets the vertical: its tools, and its sample args when a tool is picked', () => {
+  it('lists the whole server catalog, whichever vertical ?vertical= names', () => {
+    sourceState.current = { ...makeSource(), tools: SCHEMA_TOOLS.map((name) => ({ name, inputSchema: schema([]) })) };
     renderAt('/?vertical=healthcare');
-    expect(screen.getByLabelText('Vertical').value).toBe('healthcare');
-    expect(toolOptions()).toEqual(['view_records', 'pay_bill', 'sequential_think']);
+    expect(toolNames()).toHaveLength(SCHEMA_TOOLS.length);
+    expect(toolNames()).toContain('show_health_record');
+    for (const t of [...BANKING_ONLY, ...OTHER_MCP_TOOLS]) expect(toolNames(), t).toContain(t);
+  });
+
+  it('picking a row selects that tool and fills the vertical\'s sample args', () => {
+    renderAt('/?vertical=healthcare');
     pickTool('pay_bill');
     expect(sourceState.current.setSelectedTool).toHaveBeenLastCalledWith(TOOLS[3]);
     expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({ amount: '650' });
   });
 
-  it('an unknown ?vertical= falls back to banking', () => {
+  it('defaults to banking args, and an unknown ?vertical= falls back to banking', () => {
     renderAt('/?vertical=nope');
-    expect(screen.getByLabelText('Vertical').value).toBe('banking');
-  });
-
-  it('changing the vertical swaps the tool options', async () => {
-    renderAt('/');
-    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'healthcare' } });
-    await waitFor(() => expect(toolOptions()).toEqual(['view_records', 'pay_bill', 'sequential_think']));
-  });
-
-  it('changing the vertical drops a selected tool it does not own', async () => {
-    sourceState.current = makeSource(TOOLS[0]);
-    renderAt('/');
-    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'healthcare' } });
-    await waitFor(() => expect(sourceState.current.setSelectedTool).toHaveBeenCalledWith(null));
+    pickTool('create_withdrawal');
     expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({});
-
   });
 
-  it('changing the vertical re-fills the selected tool with the new vertical\'s sample args', async () => {
-    sourceState.current = makeSource(TOOLS[3]);
+  it('search narrows the table by name, description or scope and says how many matched', () => {
+    sourceState.current = { ...makeSource(), tools: TOOLS.map((t) => ({ ...t, description: t.name === 'pay_bill' ? 'Pay a medical bill' : '', requiredScopes: t.name === 'view_records' ? ['records:read'] : [] })) };
     renderAt('/');
-    fireEvent.change(screen.getByLabelText('Vertical'), { target: { value: 'healthcare' } });
-    await waitFor(() => expect(sourceState.current.setParamValues).toHaveBeenCalledWith({ amount: '650' }));
-    expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
+    fireEvent.change(screen.getByRole('searchbox', { name: /search tools/i }), { target: { value: 'medical' } });
+    expect(toolNames()).toEqual(['pay_bill']);
+    expect(screen.getByText('1 of 5')).toBeTruthy();
+    fireEvent.change(screen.getByRole('searchbox', { name: /search tools/i }), { target: { value: 'records:read' } });
+    expect(toolNames()).toEqual(['view_records']);
+    fireEvent.change(screen.getByRole('searchbox', { name: /search tools/i }), { target: { value: 'zzz' } });
+    expect(screen.getByText(/No tools match/)).toBeTruthy();
   });
 
-  it('keeps the selected tool listed when it belongs elsewhere (Edit from another vertical)', () => {
+  it('marks the picked tool\'s row and shows its name with the parameters', () => {
     sourceState.current = makeSource(TOOLS[0]);
-    renderAt('/?vertical=healthcare');
-    expect(toolOptions()).toContain('get_my_accounts');
-    expect(screen.getByLabelText('Tool').value).toBe('0');
+    renderAt('/');
+    expect(screen.getByRole('button', { name: 'get_my_accounts', pressed: true })).toBeTruthy();
+    expect(screen.getByLabelText(/account_type/)).toBeTruthy();
+    expect(screen.queryByText(/Pick a tool above/)).toBeNull();
+  });
+
+  it('asks you to pick a tool until one is picked', () => {
+    renderAt('/');
+    expect(screen.getByText(/Pick a tool above/)).toBeTruthy();
+    expect(screen.queryByRole('button', { name: 'Send' })).toBeNull();
+  });
+
+  it('a column a source never fills is dropped (no scopes: no Scopes column)', () => {
+    renderAt('/');
+    expect(screen.queryByRole('columnheader', { name: 'Scopes' })).toBeNull();
+    expect(screen.queryByRole('columnheader', { name: 'Description' })).toBeNull();
   });
 
   it('Edit and Resend still load the call\'s own tool after a vertical change', async () => {
@@ -121,18 +131,8 @@ describe('MCP Inspector Vertical select', () => {
     await waitFor(() => expect(sourceState.current.handleExecute).toHaveBeenCalledWith({ tool: TOOLS[0], params: { account_type: 'checking' } }));
   });
 
-  it('a non-banking Tool list has no banking-only or other-vertical tools, and has its own and the globals', () => {
-    sourceState.current = { ...makeSource(), tools: SCHEMA_TOOLS.map((name) => ({ name, inputSchema: schema([]) })) };
-    renderAt('/?vertical=healthcare');
-    const names = toolOptions();
-    expect(names).toContain('show_health_record');
-    for (const t of [...BANKING_ONLY, ...OTHER_MCP_TOOLS]) expect(names, t).not.toContain(t);
-    // This page lists only what the server returned (jwt_* are not in the schema artifact).
-    for (const t of GLOBALS.filter((g) => SCHEMA_TOOLS.includes(g))) expect(names, t).toContain(t);
-  });
-
   it('says the local fallback only serves banking when another vertical is picked', () => {
-    const NOTE = 'The local fallback only serves banking tools — switch to Banking, or';
+    const NOTE = 'The local fallback only serves banking tools.';
     sourceState.current = { ...makeSource(), toolsSource: 'local_catalog' };
     const { unmount } = renderAt('/?vertical=healthcare');
     expect(screen.getByRole('status')).toHaveTextContent(NOTE);
@@ -177,14 +177,5 @@ describe('MCP Inspector Vertical select', () => {
     expect(screen.getByRole('status')).toHaveTextContent('could not be reached');
     expect(screen.queryByRole('button', { name: /log in again/i })).toBeNull();
     sourceState.current = makeSource();
-  });
-
-  it('keeps ?vertical= when the server changes, and shows no Vertical for PingOne MCP', async () => {
-    renderAt('/?vertical=healthcare');
-    fireEvent.change(screen.getByLabelText('Server'), { target: { value: 'pingone' } });
-    await waitFor(() => expect(screen.queryByLabelText('Vertical')).toBeNull());
-    expect(toolOptions()).toContain('get_my_accounts');
-    fireEvent.change(screen.getByLabelText('Server'), { target: { value: 'custom' } });
-    await waitFor(() => expect(screen.getByLabelText('Vertical').value).toBe('healthcare'));
   });
 });

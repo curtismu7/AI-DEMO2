@@ -51,7 +51,7 @@ const NODE_SUBS = {
 const CALLS_NOTE = 'Includes calls the AI agent made in this browser tab.';
 // The sources whose tools are the AI Demo MCP server's per-vertical tools.
 const VERTICAL_SOURCES = ['banking', 'custom'];
-const LOCAL_FALLBACK_NOTE = 'The local fallback only serves banking tools — switch to Banking, or ';
+const LOCAL_FALLBACK_NOTE = 'The local fallback only serves banking tools.';
 
 /** Why live discovery fell back to the local catalog, in words — and whether signing in again can fix it. */
 function fallbackReason(reason, provider) {
@@ -67,20 +67,6 @@ function fallbackReason(reason, provider) {
   return { text: 'Showing the local catalog.', relogin: true };
 }
 const ELICIT_ID = 'elicitation-pending';
-
-/** Tools bucketed by `config.groupBy`, first-seen order. No groupBy: one unlabelled group. */
-function groupsFor(config, tools) {
-  const key = config.groupBy;
-  if (!key) return [{ label: null, tools }];
-  const order = [];
-  const byLabel = new Map();
-  for (const t of tools) {
-    const label = t[key] || 'Other';
-    if (!byLabel.has(label)) { byLabel.set(label, []); order.push(label); }
-    byLabel.get(label).push(t);
-  }
-  return order.map((label) => ({ label, tools: byLabel.get(label) }));
-}
 
 const asText = (v) => (v == null ? '' : typeof v === 'string' ? v : JSON.stringify(v));
 /** The vertical's sample args for a tool, as form strings. */
@@ -158,6 +144,57 @@ function AddServerForm({ source }) {
   );
 }
 
+/** Searchable table of every tool the server offers; picking a row selects it (replaces the old Tool dropdown + dumped list). */
+function ToolsTable({ tools, toolKey, groupBy, selected, loading, noun, onPick }) {
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  // Same table for every source; a column a source never fills (e.g. protocol methods have no scopes) is dropped, not left empty.
+  const hasDesc = tools.some((t) => t.description);
+  const hasScopes = tools.some((t) => (t.requiredScopes || []).length);
+  const cols = 1 + (groupBy ? 1 : 0) + (hasDesc ? 1 : 0) + (hasScopes ? 1 : 0);
+  const rows = q
+    ? tools.filter((t) => `${t[toolKey]} ${groupBy ? t[groupBy] || '' : ''} ${t.description || ''} ${(t.requiredScopes || []).join(' ')}`.toLowerCase().includes(q))
+    : tools;
+  if (loading && !tools.length) return <p className="insp-tools__empty" role="status">{`Loading ${noun}s…`}</p>;
+  if (!tools.length) return null;
+  return (
+    <section className="insp-tools" aria-label={`${noun}s`}>
+      <div className="insp-tools__bar">
+        <input
+          type="search"
+          className="insp-tools__search"
+          placeholder={`Search ${tools.length} ${noun}s…`}
+          aria-label={`Search ${noun}s`}
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+        />
+        <span className="insp-tools__count" aria-live="polite">{rows.length === tools.length ? `${tools.length} ${noun}s` : `${rows.length} of ${tools.length}`}</span>
+      </div>
+      <div className="insp-tools__scroll">
+        <table className="insp-tools__table">
+          <thead>
+            <tr><th scope="col">{noun === 'method' ? 'Method' : 'Tool'}</th>{groupBy && <th scope="col">Group</th>}{hasDesc && <th scope="col">Description</th>}{hasScopes && <th scope="col">Scopes</th>}</tr>
+          </thead>
+          <tbody>
+            {rows.map((t) => {
+              const on = t === selected;
+              return (
+                <tr key={t[toolKey]} className={on ? 'is-selected' : undefined} aria-selected={on}>
+                  <td><button type="button" className="insp-tools__pick mono" aria-pressed={on} onClick={() => onPick(t)}>{t[toolKey]}</button></td>
+                  {groupBy && <td className="insp-tools__group">{t[groupBy] || 'Other'}</td>}
+                  {hasDesc && <td className="insp-tools__desc" title={t.description || undefined}><div className="insp-tools__clamp">{t.description}</div></td>}
+                  {hasScopes && <td className="insp-tools__scopes">{(t.requiredScopes || []).map((sc) => <Chip key={sc} chip={idle(sc)} />)}</td>}
+                </tr>
+              );
+            })}
+            {!rows.length && <tr><td colSpan={cols} className="insp-tools__empty">{`No ${noun}s match "${query}".`}</td></tr>}
+          </tbody>
+        </table>
+      </div>
+    </section>
+  );
+}
+
 function McpInspectorPageClean() {
   const { darkMode } = useThemeOptional();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -171,7 +208,7 @@ function McpInspectorPageClean() {
   const sendRef = useRef(null);
   const byVertical = VERTICAL_SOURCES.includes(activeSource);
   // A vertical change keeps the selected tool when this vertical may use it, with its sample args.
-  const { id: verticalId, vertical, field: verticalField } = useInspectorVertical((v, id) => {
+  const { id: verticalId, vertical } = useInspectorVertical((v, id) => {
     const sel = source.selectedTool;
     if (!byVertical || !sel) return;
     const keep = !belongsElsewhere(id, sel[toolKey]);
@@ -282,8 +319,6 @@ function McpInspectorPageClean() {
   const tool = source.selectedTool;
   const matches = tool ? getMatchingFields(Object.keys(source.schemaProps)) : {};
   const scopes = tool?.requiredScopes || [];
-  // Other verticals' tools are hidden; unowned tools and the selected one stay.
-  const listed = byVertical ? source.tools.filter((t) => t === tool || !belongsElsewhere(verticalId, t[toolKey])) : source.tools;
 
   const sendCard = isCalls ? null : (
     <div className="insp-send-body" ref={sendRef}>
@@ -296,6 +331,7 @@ function McpInspectorPageClean() {
           </div>
         </div>
       )}
+      {source.mode === 'profiles' && source.profiles.length > 0 && (
       <div className="insp-send-row">
         {source.mode === 'profiles' && source.profiles.length > 0 && (
           <label className="insp-field">
@@ -305,44 +341,9 @@ function McpInspectorPageClean() {
             </select>
           </label>
         )}
-        {source.mode === 'profiles' && source.profiles.length > 0 && <AddServerForm source={source} />}
-        {byVertical && verticalField}
-        <label className="insp-field">
-          <span>{isMethod ? 'Method' : 'Tool'}</span>
-          <select
-            value={tool ? String(source.tools.indexOf(tool)) : ''}
-            disabled={source.loadingTools}
-            onChange={(e) => {
-              const next = e.target.value === '' ? null : source.tools[Number(e.target.value)];
-              source.setSelectedTool(next);
-              source.setParamValues(next && byVertical ? paramsFor(vertical, next[toolKey]) : {});
-            }}
-          >
-            <option value="">{source.loadingTools ? 'Loading…' : `Select a ${isMethod ? 'method' : 'tool'}`}</option>
-            {groupsFor(source.config, listed).map(({ label, tools }) => {
-              const opts = tools.map((t) => <option key={source.tools.indexOf(t)} value={String(source.tools.indexOf(t))}>{t[toolKey]}</option>);
-              return label ? <optgroup key={label} label={label}>{opts}</optgroup> : opts;
-            })}
-          </select>
-        </label>
-        {tool && Object.entries(source.schemaProps).map(([key, schema]) => (
-          <label key={key} className="insp-field">
-            <span>{key}{source.requiredParams.has(key) ? ' *' : ''}</span>
-            <input
-              type="text"
-              placeholder={schema?.description || schema?.type || 'value'}
-              value={source.paramValues[key] || ''}
-              onChange={(e) => source.setParamValues((prev) => ({ ...prev, [key]: e.target.value }))}
-            />
-            {matches[key] != null && source.paramValues[key] === String(matches[key]) && (
-              <small>Filled from an earlier result</small>
-            )}
-          </label>
-        ))}
-        <button type="button" className="insp-btn" onClick={send} disabled={source.busy || !tool}>
-          {source.busy ? 'Sending…' : 'Send'}
-        </button>
+        <AddServerForm source={source} />
       </div>
+      )}
       {toolsSource === 'local_catalog' && (() => {
         const nonBanking = byVertical && verticalId !== 'banking';
         const why = fallbackReason(source.toolsReason, source.toolsProvider);
@@ -365,31 +366,55 @@ function McpInspectorPageClean() {
           ))}
         </div>
       )}
-      {tool && (
-        <p className="insp-toolinfo">
-          {tool.description}
-          {scopes.map((s) => <Chip key={s} chip={idle('needs ' + s)} />)}
-        </p>
-      )}
-      {tool && (tool.inputSchema || tool.schema) && (
-        <details>
-          <summary>Input schema</summary>
-          <pre className={`insp-json${darkMode ? ' jh-dark' : ''}`}><JsonHighlight value={tool.inputSchema || tool.schema} deep copyable /></pre>
-        </details>
-      )}
-      {source.tools.length > 0 && (
-        <details>
-          <summary>{`Browse all ${source.tools.length} tools`}</summary>
-          <ul className="insp-browse">
-            {source.tools.map((t, i) => (
-              <li key={i}>
-                <strong className="mono">{t[toolKey]}</strong>
-                {t.description && <span>{t.description}</span>}
-                {(t.requiredScopes || []).map((s) => <Chip key={s} chip={idle(s)} />)}
-              </li>
-            ))}
-          </ul>
-        </details>
+      <ToolsTable
+        tools={source.tools}
+        toolKey={toolKey}
+        groupBy={source.config.groupBy}
+        selected={tool}
+        loading={source.loadingTools}
+        noun={isMethod ? 'method' : 'tool'}
+        onPick={(t) => {
+          source.setSelectedTool(t);
+          source.setParamValues(byVertical ? paramsFor(vertical, t[toolKey]) : {});
+        }}
+      />
+      {tool ? (
+        <div className="insp-picked">
+          <p className="insp-toolinfo">
+            <strong className="mono">{tool[toolKey]}</strong>
+            {tool.description}
+            {scopes.map((s) => <Chip key={s} chip={idle('needs ' + s)} />)}
+          </p>
+          <div className="insp-send-row">
+        {tool && Object.entries(source.schemaProps).map(([key, schema]) => (
+          <label key={key} className="insp-field">
+            <span>{key}{source.requiredParams.has(key) ? ' *' : ''}</span>
+            <input
+              type="text"
+              placeholder={schema?.description || schema?.type || 'value'}
+              value={source.paramValues[key] || ''}
+              onChange={(e) => source.setParamValues((prev) => ({ ...prev, [key]: e.target.value }))}
+            />
+            {matches[key] != null && source.paramValues[key] === String(matches[key]) && (
+              <small>Filled from an earlier result</small>
+            )}
+          </label>
+        ))}
+        <button type="button" className="insp-btn" onClick={send} disabled={source.busy || !tool}>
+          {source.busy ? 'Sending…' : 'Send'}
+        </button>
+          </div>
+          {(tool.inputSchema || tool.schema) && (
+            <details>
+              <summary>Input schema</summary>
+              <pre className={`insp-json${darkMode ? ' jh-dark' : ''}`}><JsonHighlight value={tool.inputSchema || tool.schema} deep copyable /></pre>
+            </details>
+          )}
+        </div>
+      ) : (
+        !source.loadingTools && source.tools.length > 0 && (
+          <p className="insp-hint">{`Pick a ${isMethod ? 'method' : 'tool'} above to fill in its parameters and send it.`}</p>
+        )
       )}
     </div>
   );
