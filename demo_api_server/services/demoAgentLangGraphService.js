@@ -1328,6 +1328,16 @@ function buildVerticalReply(action, data, render, verticalCtx) {
   // `render` — on a failed MCP round-trip `render` degrades to 'text', but the
   // confirmation copy must still hold (and degrade gracefully on empty data)
   // rather than fall through to the noun fallback ("...book appointment.").
+  // Airlines loyalty read. The tool returns { loyaltyTier, loyaltyPoints, name } or
+  // { found: false, note }, not the { points | balance } shape of the loyalty_balance
+  // render above, so it fell through to "Here are your loyalty status." with no data.
+  if (action === 'get_loyalty_status') {
+    if (data && data.found === false) return data.note || "I couldn't find a MileagePlus record for your account.";
+    const tier = data && data.loyaltyTier;
+    const pts = data && data.loyaltyPoints;
+    if (!tier && pts == null) return "I couldn't read your MileagePlus status.";
+    return `Your MileagePlus status${tier ? `: ${tier}` : ''}${pts != null ? ` · ${Number(pts).toLocaleString('en-US')} miles` : ''}.`;
+  }
   if (action === 'book_appointment') {
     const provider = data && data.provider;
     const when = data && data.when;

@@ -101,3 +101,32 @@ describe('buildVerticalReply — generic write confirmation (no hand-written cas
     },
   );
 });
+
+// Airlines get_loyalty_status returns { loyaltyTier, loyaltyPoints } — not the
+// { points | balance } shape the loyalty_balance render reads — so the reply was
+// the data-free "Here are your loyalty status." (observed live, personal-agent page).
+describe('buildVerticalReply — get_loyalty_status (airlines)', () => {
+  test('states the tier and miles from the tool result', () => {
+    const data = { loyaltyTier: 'Gold', loyaltyPoints: 48250, name: 'Pat', passengerRef: 'P1' };
+    expect(buildVerticalReply('get_loyalty_status', data, 'text', null))
+      .toBe('Your MileagePlus status: Gold · 48,250 miles.');
+  });
+
+  test('works with only a tier, or only miles', () => {
+    expect(buildVerticalReply('get_loyalty_status', { loyaltyTier: 'Silver' }, 'text', null))
+      .toBe('Your MileagePlus status: Silver.');
+    expect(buildVerticalReply('get_loyalty_status', { loyaltyPoints: 1200 }, 'text', null))
+      .toBe('Your MileagePlus status · 1,200 miles.');
+  });
+
+  test('passes through the not-found note instead of inventing a status', () => {
+    const data = { found: false, note: 'No passenger records in the airlines database.' };
+    expect(buildVerticalReply('get_loyalty_status', data, 'text', null)).toBe(data.note);
+  });
+
+  test('never falls back to "Here are your loyalty status."', () => {
+    for (const data of [{}, null, undefined, { loyaltyTier: 'Gold' }]) {
+      expect(buildVerticalReply('get_loyalty_status', data, 'text', null)).not.toMatch(/here are your/i);
+    }
+  });
+});
