@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from "react";
 import { Link } from "react-router-dom";
 import terms from "../data/idJagTerms.json";
 import bffAxios from "../services/bffAxios";
+import IdJagPathBar from "../components/IdJagPathBar";
 import "./IdJagLearnPage.css";
 import "./IdJagInspectPage.css";
 
@@ -176,6 +177,7 @@ export default function IdJagInspectPage() {
   const [tab, setTab] = useState("decode");
   return (
     <main className="ijl" data-testid="id-jag-inspect">
+      <IdJagPathBar />
       <header className="ijl-hero">
         <p className="ijl-eyebrow">Inspector</p>
         <h1>Inspect a token</h1>
