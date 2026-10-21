@@ -26,7 +26,6 @@ const crypto = require('crypto');
 const axios = require('axios');
 const router = express.Router();
 const configStore = require('../services/configStore');
-const { getAuthorizationEndpoint, getTokenEndpoint, getParEndpoint } = require('../services/oauthEndpointResolver');
 const { PingOneProvisionService } = require('../services/pingoneProvisionService');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const pingoneAdminSession = require('../services/pingoneAdminSession');
@@ -147,6 +146,21 @@ function resolveLoopbackClientConfig() {
     authorizationEndpoint: `${as}/authorize`,
     tokenEndpoint: `${as}/token`,
   };
+}
+
+/**
+ * PingOne's own authorization server for the environment being administered.
+ * Deliberately NOT services/oauthEndpointResolver: that follows the demo's
+ * ACTIVE sign-in provider, so with PingFederate active the PAR push, authorize
+ * redirect and token exchange all went to PF ("PAR push failed (401): Invalid
+ * client") — this app is a PingOne client and the hosted MCP is PingOne's.
+ */
+function pingOneAs() {
+  const region = process.env.PINGONE_REGION || configStore.getEffective('PINGONE_REGION') || 'com';
+  const envId = process.env.PINGONE_ENVIRONMENT_ID || configStore.getEffective('PINGONE_ENVIRONMENT_ID');
+  if (!envId) throw new Error('PINGONE_ENVIRONMENT_ID is not configured');
+  const as = `https://auth.pingone.${region}/${envId}/as`;
+  return { authorize: `${as}/authorize`, token: `${as}/token`, par: `${as}/par` };
 }
 
 /**
@@ -308,7 +322,7 @@ router.get('/login', requireSignedInSession, async (req, res) => {
     let requestUri;
     try {
       const parResp = await axios.post(
-        getParEndpoint(),
+        pingOneAs().par,
         new URLSearchParams(authParams).toString(),
         { headers: { 'Content-Type': 'application/x-www-form-urlencoded' }, timeout: 15000 },
       );
@@ -328,7 +342,7 @@ router.get('/login', requireSignedInSession, async (req, res) => {
       // Per RFC 9126: only client_id + request_uri on the authorize leg —
       // every other param already travelled in the pushed request above.
       const authorizeParams = new URLSearchParams({ client_id: app.clientId, request_uri: requestUri });
-      res.redirect(`${getAuthorizationEndpoint()}?${authorizeParams.toString()}`);
+      res.redirect(`${pingOneAs().authorize}?${authorizeParams.toString()}`);
     });
   } catch (err) {
     console.error('[mcpPingOneAdminAuth] /login error:', err.message);
@@ -359,7 +373,7 @@ router.get('/callback', async (req, res) => {
     // callback on our origin. The hosted MCP accepts its tokens (re-measured
     // 2026-10-21) and the refresh token lets the BFF keep the session alive.
     const app = await ensureApp(req);
-    const tokenEndpoint = getTokenEndpoint();
+    const tokenEndpoint = pingOneAs().token;
     const body = new URLSearchParams({
       grant_type: 'authorization_code',
       code,
@@ -506,4 +520,4 @@ module.exports = router;
 module.exports.handleLoopbackCallback = handleLoopbackCallback;
 module.exports.resolveLoopbackClientConfig = resolveLoopbackClientConfig;
 // Test-only exports (pure helpers — no live PingOne calls).
-module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls };
+module.exports._test = { CALLBACK_PATH, callbackUrl, inspectorCallbackUrls, pingOneAs };
