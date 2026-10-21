@@ -148,9 +148,32 @@
 .insp-send-body details { font-size: var(--font-size-sm); }
 .insp-send-body summary { cursor: pointer; font-weight: 600; }
 .insp-send-body pre { margin: .4rem 0 0; overflow: auto; }
-.insp-browse { list-style: none; margin: .4rem 0 0; padding: 0; display: grid; gap: .35rem; }
-.insp-browse li { display: flex; flex-wrap: wrap; gap: .1rem .5rem; align-items: baseline; }
 .insp-err { color: var(--th-status-error-text); font-size: var(--font-size-sm); }
 .insp-err .insp-btn { padding: .25rem .8rem; font-size: var(--font-size-sm); margin: 0 .25rem; }
 .insp-send > .insp-label { flex: 1 1 100%; }
 .insp-log { padding: .75rem 1rem; }
+
+.insp-browse { list-style: none; margin: .4rem 0 0; padding: 0; display: grid; gap: .35rem; }
+.insp-browse li { display: flex; flex-wrap: wrap; gap: .1rem .5rem; align-items: baseline; }
+
+/* Tools table (MCP inspector): searchable, scrolls inside its own box so 200+ rows never push the page. */
+.insp-tools { display: grid; gap: .5rem; min-width: 0; }
+.insp-tools__bar { display: flex; flex-wrap: wrap; gap: .5rem 1rem; align-items: center; }
+.insp-tools__search { flex: 1 1 16rem; max-width: 28rem; font: inherit; padding: .45rem .7rem; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); }
+.insp-tools__count { font-size: var(--font-size-sm); color: var(--th-text-muted); }
+.insp-tools__scroll { max-height: 22rem; overflow: auto; border: 1px solid var(--th-border); border-radius: var(--radius-md); }
+.insp-tools__table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+.insp-tools__table th { position: sticky; top: 0; z-index: 1; text-align: left; padding: .45rem .75rem; background: var(--th-bg-card); border-bottom: 1px solid var(--th-border-strong); color: var(--th-text-muted); font-size: var(--font-size-2xs); font-weight: 700; text-transform: uppercase; letter-spacing: .04em; }
+.insp-tools__table td { padding: .45rem .75rem; border-bottom: 1px solid var(--th-border); vertical-align: top; }
+.insp-tools__table tbody tr:last-child td { border-bottom: 0; }
+.insp-tools__table tbody tr:hover { background: var(--th-bg-hover); }
+.insp-tools__table tr.is-selected { background: var(--th-bg-hover); box-shadow: inset 3px 0 0 var(--th-bg-emphasis); }
+.insp-tools__pick { font: inherit; font-weight: 700; padding: 0; border: 0; background: none; color: var(--th-text); text-align: left; cursor: pointer; white-space: nowrap; }
+.insp-tools__pick:focus-visible { outline: 2px solid var(--th-bg-emphasis); outline-offset: 2px; }
+.insp-tools__desc { color: var(--th-text-muted); min-width: 14rem; }
+.insp-tools__clamp { display: -webkit-box; -webkit-line-clamp: 2; line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.insp-tools__group { white-space: nowrap; color: var(--th-text-muted); }
+.insp-tools__scopes { white-space: nowrap; }
+.insp-tools__empty { color: var(--th-text-muted); font-size: var(--font-size-sm); }
+.insp-picked { display: grid; gap: .75rem; padding-top: .25rem; }
+.insp-hint { margin: 0; font-size: var(--font-size-sm); color: var(--th-text-muted); }
