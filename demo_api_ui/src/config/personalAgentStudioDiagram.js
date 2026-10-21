@@ -44,8 +44,21 @@ export const PERSONAL_AGENT_STEPS = [
 export const PERSONAL_AGENT_DIAGRAM_PROPS = {
   testId: 'pas-flow-diagram',
   pingStyle: true,
+  reelSync: (stepId) => personalAgentEdgeForReelStep(stepId),
   title: 'How a personal-agent request is governed',
   ariaLabel: 'Personal agent request flow diagram',
   diagramLabel: 'Sign-in, Banking Agent, token exchange, Authorize, MCP and reply, with an MFA and approval detour',
   lede: 'The same six steps as the movie reel below. Every skin posts to /api/agent/invoke; the three gates match the security rail, and MFA or human approval is how a request is held and retried.',
 };
+
+// Reel card (token-chain step id) -> the diagram arrow to walk to: the first arrow into that card's box.
+const REEL_STEP_NODE = {
+  signin: 'signin', prompt: 'agent', agent: 'agent', llm: 'agent', 'agent-token': 'agent',
+  exchange: 'exchange', authorize: 'authorize', gateway: 'authorize', mcp: 'mcp', reply: 'reply',
+};
+export function personalAgentEdgeForReelStep(stepId) {
+  const node = REEL_STEP_NODE[String(stepId || '').split(':')[0]];
+  if (!node) return -1;
+  const into = PERSONAL_AGENT_EDGES.findIndex(([, target]) => target === node);
+  return into >= 0 ? into : PERSONAL_AGENT_EDGES.findIndex(([source]) => source === node);
+}

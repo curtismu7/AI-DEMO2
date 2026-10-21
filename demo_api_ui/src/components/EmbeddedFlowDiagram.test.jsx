@@ -1,5 +1,5 @@
 import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent } from '@testing-library/react';
+import { render, screen, fireEvent, act } from '@testing-library/react';
 
 // jsdom measures nothing, so React Flow draws no edges unless the observer reports each node (handle bounds come from that report).
 class ResizeObserverStub {
@@ -87,5 +87,22 @@ describe('EmbeddedFlowDiagram pingStyle', () => {
     expect(badge.className).not.toContain('is-shown');
     fireEvent.click(screen.getAllByRole('button', { name: /App → Resource/ })[0]);
     expect(screen.getByTestId('sfd-edge-badge-3').className).toContain('is-shown');
+  });
+});
+
+describe('EmbeddedFlowDiagram reelSync', () => {
+  it('a movie-reel card click walks the diagram to that arrow and opens the <details> it sits in', () => {
+    const { container } = render(
+      <details>
+        <summary>Expand</summary>
+        <EmbeddedFlowDiagram config={config} title="T" lede="L" testId="rs" pingStyle reelSync={(id) => (id === 'rs-card' ? 2 : -1)} />
+      </details>,
+    );
+    expect(container.querySelector('details').open).toBe(false);
+    act(() => { window.dispatchEvent(new CustomEvent('token-chain-step-select', { detail: { stepId: 'nope' } })); });
+    expect(container.querySelector('details').open).toBe(false);
+    act(() => { window.dispatchEvent(new CustomEvent('token-chain-step-select', { detail: { stepId: 'rs-card' } })); });
+    expect(container.querySelector('details').open).toBe(true);
+    expect(screen.getByText(/Step 3 of 3/)).toBeTruthy();
   });
 });
