@@ -213,6 +213,10 @@ data:
         gzip on;
         gzip_vary on;
         gzip_min_length 1024;
-        gzip_proxied expired no-cache no-store private auth;
-        gzip_types text/plain text/css text/xml text/javascript application/x-javascript application/xml+rss;
+        # 'any': the SE ingress sits in front of this nginx, and the hashed assets are served with
+        # Cache-Control: public, so the old list (no-cache no-store private auth) skipped them and the
+        # 11 MB JS bundle went out uncompressed (~20 s per cold load).
+        gzip_proxied any;
+        # Vite emits .js as application/javascript, which the old list did not include.
+        gzip_types text/plain text/css text/xml text/javascript application/javascript application/x-javascript application/xml application/xml+rss image/svg+xml font/ttf font/otf application/vnd.ms-fontobject;
     }
