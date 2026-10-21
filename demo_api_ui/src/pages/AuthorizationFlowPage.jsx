@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useContext, useEffect, useMemo, useState } from "react";
 import {
   ReactFlow,
   ReactFlowProvider,
@@ -16,7 +16,8 @@ import {
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "../components/DiagramStepBar";
 import { useDiagramStepper } from "../hooks/useDiagramStepper";
-import { LANES, MOMENTS, SLOTS } from "./authorizationFlowData";
+import { VerticalContext } from "../vertical/VerticalProvider";
+import { DEFAULT_VERTICAL, PROFILES, SLOTS, VERTICAL_OPTIONS, lanesFor, momentsFor, profileFor } from "./authorizationFlowData";
 import "./AuthorizationFlowPage.css";
 
 // The six moments of the reference demo, on PingOne, in dollars. Lanes are draggable boxes; every message of the
@@ -67,7 +68,7 @@ function MessageEdge({ id, sourceX, sourceY, targetX, targetY, markerEnd, label,
 
 const nodeTypes = { lane: LaneNode };
 const edgeTypes = { msg: MessageEdge };
-const startNodes = LANES.map((l, i) => ({
+const startNodes = (vertical) => lanesFor(vertical).map((l, i) => ({
   id: l.id,
   type: "lane",
   position: { x: i * LANE_GAP, y: 0 },
@@ -79,7 +80,7 @@ const ARROW = {
   light: { plain: "#12538d", ok: "#0a7a4a", block: "#c40d0f" },
 };
 const appTheme = () => (typeof document !== "undefined" && document.documentElement.getAttribute("data-theme") === "dark" ? "dark" : "light");
-const laneIndex = Object.fromEntries(LANES.map((l, i) => [l.id, i]));
+const laneIndex = Object.fromEntries(lanesFor(DEFAULT_VERTICAL).map((l, i) => [l.id, i]));
 
 function edgeFor(step, i, hot, theme) {
   const forward = laneIndex[step.from] < laneIndex[step.to];
@@ -97,8 +98,13 @@ function edgeFor(step, i, hot, theme) {
   };
 }
 
-function Visualiser({ moment, stepper, theme }) {
-  const [nodes, , onNodesChange] = useNodesState(startNodes);
+function Visualiser({ moment, stepper, theme, vertical }) {
+  const [nodes, setNodes, onNodesChange] = useNodesState(startNodes(vertical));
+  // A new vertical renames the system-of-record lane; boxes the viewer has dragged stay where they are.
+  useEffect(() => {
+    const names = Object.fromEntries(lanesFor(vertical).map((l) => [l.id, l]));
+    setNodes((ns) => ns.map((n) => ({ ...n, data: names[n.id] })));
+  }, [vertical, setNodes]);
   const { fitView } = useReactFlow();
   const shown = stepper.step;
   const edges = useMemo(
@@ -134,8 +140,24 @@ function Visualiser({ moment, stepper, theme }) {
 }
 
 export default function AuthorizationFlowPage() {
-  const [momentId, setMomentId] = useState(MOMENTS[0].id);
-  const moment = MOMENTS.find((x) => x.id === momentId);
+  // The vertical: ?vertical= wins, then the app's active vertical, then banking.
+  const activeId = useContext(VerticalContext)?.activeId;
+  const [vertical, setVertical] = useState(() => {
+    const asked = typeof window !== "undefined" ? new URLSearchParams(window.location.search).get("vertical") : null;
+    return [asked, activeId].find((v) => v && PROFILES[v]) || DEFAULT_VERTICAL;
+  });
+  const profile = profileFor(vertical);
+  const moments = useMemo(() => momentsFor(vertical), [vertical]);
+  const [momentId, setMomentId] = useState(moments[0].id);
+  const moment = moments.find((x) => x.id === momentId) || moments[0];
+  const pickVertical = (id) => {
+    setVertical(id);
+    try {
+      const url = new URL(window.location.href);
+      url.searchParams.set("vertical", id);
+      window.history.replaceState(null, "", url);
+    } catch { /* no history in this environment */ }
+  };
   const stepper = useDiagramStepper(moment.steps.length);
   const { stop } = stepper;
   // Starts on the app's theme and follows it until the toggle is used.
@@ -149,7 +171,7 @@ export default function AuthorizationFlowPage() {
   }, [pinned]);
   const toggleTheme = () => { setPinned(true); setTheme((t) => (t === "dark" ? "light" : "dark")); };
 
-  useEffect(() => { stop(); }, [momentId, stop]);
+  useEffect(() => { stop(); }, [momentId, vertical, stop]);
 
   const reached = stepper.step;
   const chat = moment.steps.slice(0, reached + 1).filter((s) => s.chat).map((s) => s.chat);
@@ -162,13 +184,20 @@ export default function AuthorizationFlowPage() {
         <h1>Authorization Flow</h1>
         <p>
           An assistant acts for a customer without becoming the authority. PingOne signs the customer in, runs both
-          token exchanges and the CIBA push; the bank decides. This is a scripted walkthrough of the six moments: no
-          live calls are made from this page.
+          token exchanges and the CIBA push; {profile.org} decides. This is a scripted walkthrough of the six moments:
+          no live calls are made from this page.
         </p>
       </header>
 
+      <label className="af-vertical">
+        Vertical
+        <select value={vertical} onChange={(e) => pickVertical(e.target.value)}>
+          {VERTICAL_OPTIONS.map((v) => <option key={v.id} value={v.id}>{v.label}</option>)}
+        </select>
+      </label>
+
       <div className="af-chips" role="tablist" aria-label="Moments">
-        {MOMENTS.map((x) => (
+        {moments.map((x) => (
           <button
             key={x.id}
             type="button"
@@ -200,7 +229,7 @@ export default function AuthorizationFlowPage() {
             {theme === "dark" ? "Light mode" : "Dark mode"}
           </button>
           <ReactFlowProvider>
-            <Visualiser moment={moment} stepper={stepper} theme={theme} />
+            <Visualiser moment={moment} stepper={stepper} theme={theme} vertical={vertical} />
           </ReactFlowProvider>
           <p className="af-proves"><strong>{moment.num}</strong> {moment.proves}</p>
           {done ? (

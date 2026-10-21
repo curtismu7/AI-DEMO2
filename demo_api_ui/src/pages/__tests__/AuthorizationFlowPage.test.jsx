@@ -1,7 +1,10 @@
 import { describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import AuthorizationFlowPage from "../AuthorizationFlowPage";
-import { LANES, MOMENTS, SLOTS } from "../authorizationFlowData";
+import { DEFAULT_VERTICAL, SLOTS, VERTICAL_OPTIONS, lanesFor, momentsFor } from "../authorizationFlowData";
+
+const LANES = lanesFor(DEFAULT_VERTICAL);
+const MOMENTS = momentsFor(DEFAULT_VERTICAL);
 
 vi.mock("@xyflow/react", async () => {
   const React = await import("react");
@@ -20,32 +23,54 @@ vi.mock("@xyflow/react", async () => {
 });
 
 describe("authorization flow data", () => {
-  it("has the six moments, each arrow joining two real lanes, within the lane's slot count", () => {
-    expect(MOMENTS).toHaveLength(6);
+  it("has six moments per vertical, each arrow joining two real lanes within the slot count", () => {
     const ids = new Set(LANES.map((l) => l.id));
-    for (const mo of MOMENTS) {
-      expect(mo.steps.length, mo.id).toBeLessThanOrEqual(SLOTS);
-      for (const s of mo.steps) {
-        expect(ids.has(s.from), `${mo.id} ${s.from}`).toBe(true);
-        expect(ids.has(s.to), `${mo.id} ${s.to}`).toBe(true);
+    for (const v of VERTICAL_OPTIONS) {
+      const moments = momentsFor(v.id);
+      expect(moments, v.id).toHaveLength(6);
+      for (const mo of moments) {
+        expect(mo.steps.length, `${v.id} ${mo.id}`).toBeLessThanOrEqual(SLOTS);
+        for (const st of mo.steps) {
+          expect(ids.has(st.from), `${v.id} ${mo.id} ${st.from}`).toBe(true);
+          expect(ids.has(st.to), `${v.id} ${mo.id} ${st.to}`).toBe(true);
+        }
       }
     }
   });
 
-  it("uses PingOne, not AIC, and dollars, not pounds", () => {
-    const text = JSON.stringify([LANES, MOMENTS]);
-    expect(text).toContain("PingOne");
-    expect(text).not.toMatch(/\bAIC\b/);
-    expect(text).not.toContain("£");
-    expect(text).toContain("$50");
+  it("uses PingOne, not AIC, and dollars, not pounds, in every vertical", () => {
+    for (const v of VERTICAL_OPTIONS) {
+      const text = JSON.stringify([lanesFor(v.id), momentsFor(v.id)]);
+      expect(text).toContain("PingOne");
+      expect(text).not.toMatch(/\bAIC\b/);
+      expect(text).not.toContain("\u00a3");
+      expect(text).toContain("$50");
+    }
   });
 
-  it("refuses the $60 payment before any device push", () => {
-    const pay60 = MOMENTS.find((x) => x.id === "pay-60");
-    expect(pay60.steps.some((s) => s.block)).toBe(true);
-    expect(pay60.steps.some((s) => s.to === "ud")).toBe(false);
-    const pay25 = MOMENTS.find((x) => x.id === "pay-25");
-    expect(pay25.steps.some((s) => s.to === "ud")).toBe(true);
+  it("never talks about banking outside the banking vertical", () => {
+    for (const v of VERTICAL_OPTIONS.filter((x) => x.id !== "banking")) {
+      const text = JSON.stringify([lanesFor(v.id), momentsFor(v.id)]);
+      expect(text, v.id).not.toMatch(/\b(bank|Bank|balance|ledger|Steven|Blake|transfer)\b/);
+    }
+  });
+
+  it("names the vertical's own business and tool", () => {
+    const air = JSON.stringify(momentsFor("airlines"));
+    expect(air).toContain("pay_airline_fee");
+    expect(air).toContain("the airline");
+    expect(JSON.stringify(momentsFor("healthcare"))).toContain("CareConnect");
+    expect(lanesFor("healthcare").find((l) => l.id === "bc").label).toBe("Billing System");
+  });
+
+  it("refuses the $60 payment before any device push, in every vertical", () => {
+    for (const v of VERTICAL_OPTIONS) {
+      const ms = momentsFor(v.id);
+      const pay60 = ms.find((x) => x.id === "pay-60");
+      expect(pay60.steps.some((st) => st.block), v.id).toBe(true);
+      expect(pay60.steps.some((st) => st.to === "ud"), v.id).toBe(false);
+      expect(ms.find((x) => x.id === "pay-25").steps.some((st) => st.to === "ud"), v.id).toBe(true);
+    }
   });
 });
 
@@ -63,7 +88,7 @@ describe("AuthorizationFlowPage", () => {
     const bar = screen.getByTestId("af-step-bar");
     fireEvent.click(within(bar).getByText("Simulate"));
     expect(screen.getByTestId("flow").dataset.edges).toBe("1");
-    expect(screen.getByText("What’s my balance at Meridian Bank?")).toBeTruthy();
+    expect(screen.getByText("What’s my balance?")).toBeTruthy();
     const total = MOMENTS[0].steps.length;
     fireEvent.click(within(bar).getByText("Pause"));
     for (let i = 1; i < total; i += 1) fireEvent.click(within(bar).getByText(/Next/));
@@ -97,5 +122,30 @@ describe("AuthorizationFlowPage theme", () => {
     const { container } = render(<AuthorizationFlowPage />);
     expect(container.querySelector(".af-canvas").dataset.afTheme).toBe("dark");
     document.documentElement.removeAttribute("data-theme");
+  });
+});
+
+
+describe("AuthorizationFlowPage vertical selector", () => {
+  it("lists every vertical and switches the story, the chips and the system-of-record lane", () => {
+    render(<AuthorizationFlowPage />);
+    const select = screen.getByLabelText("Vertical");
+    expect(select.querySelectorAll("option")).toHaveLength(VERTICAL_OPTIONS.length);
+    expect(screen.getByRole("tab", { name: /Read balance/ })).toBeTruthy();
+    fireEvent.change(select, { target: { value: "airlines" } });
+    expect(screen.getByRole("tab", { name: /Read reservations/ })).toBeTruthy();
+    expect(screen.queryByRole("tab", { name: /Read balance/ })).toBeNull();
+    expect(screen.getByText(/the airline decides/)).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: /Pay \$25/ }));
+    fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText("Simulate"));
+    expect(screen.getByText("Pay a $25 change fee")).toBeTruthy();
+  });
+
+  it("clears the walkthrough when the vertical changes", () => {
+    render(<AuthorizationFlowPage />);
+    fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText("Simulate"));
+    expect(screen.getByTestId("flow").dataset.edges).toBe("1");
+    fireEvent.change(screen.getByLabelText("Vertical"), { target: { value: "healthcare" } });
+    expect(screen.getByTestId("flow").dataset.edges).toBe("0");
   });
 });
