@@ -109,7 +109,7 @@ render() { : > "$PATCHES"; ( NS=test-ns; HOSTED_ACCESS_REQUIRED_GROUP_ID=""; . "
 unset SE_OAUTH_PROVIDER
 contains "default pins pingone" "$(render)" '"OAUTH_PROVIDER":"pingone"'
 SE_OAUTH_PROVIDER=""; export SE_OAUTH_PROVIDER
-contains "empty SE_OAUTH_PROVIDER un-pins" "$(render)" '"OAUTH_PROVIDER":""'
+contains "empty SE_OAUTH_PROVIDER still pins pingone" "$(render)" '"OAUTH_PROVIDER":"pingone"'
 SE_OAUTH_PROVIDER=pingfederate
 contains "explicit value is honoured" "$(render)" '"OAUTH_PROVIDER":"pingfederate"'
 unset SE_OAUTH_PROVIDER
