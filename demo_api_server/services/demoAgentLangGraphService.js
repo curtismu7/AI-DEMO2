@@ -353,6 +353,38 @@ async function ensureAccountsForVertical(userId, verticalId) {
 }
 
 /**
+ * Chat reply for "decode my jwt token": the session access token's header and
+ * the claims worth reading, decoded locally (no signature check).
+ */
+function decodeSessionJwtReply(userToken) {
+  const envelope = (reply, success) => ({
+    reply, success, toolsCalled: [], tokensUsed: 0, requiresConsent: false, agentConfigured: true, tokenEvents: [],
+  });
+  const parts = typeof userToken === 'string' ? userToken.split('.') : [];
+  if (parts.length !== 3) {
+    return envelope('Your session token is not a JWT I can decode here (it is opaque or missing). Sign in again and retry.', false);
+  }
+  let header; let claims;
+  try {
+    header = JSON.parse(Buffer.from(parts[0], 'base64url').toString());
+    claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString());
+  } catch (_) {
+    return envelope('I could not decode your session token — it is not valid base64url JSON.', false);
+  }
+  const when = (sec) => (Number.isFinite(sec) ? new Date(sec * 1000).toISOString() : null);
+  const aud = Array.isArray(claims.aud) ? claims.aud.join(', ') : claims.aud;
+  const rows = [
+    ['Algorithm', header.alg], ['Key id', header.kid], ['Issuer', claims.iss], ['Subject', claims.sub],
+    ['Client', claims.client_id], ['Audience', aud], ['Scopes', claims.scope],
+    ['Issued', when(claims.iat)], ['Expires', when(claims.exp)],
+    ['Actor (act)', claims.act ? JSON.stringify(claims.act) : null],
+  ].filter(([, v]) => v != null && v !== '');
+  const expired = Number.isFinite(claims.exp) && claims.exp * 1000 < Date.now();
+  const lines = rows.map(([k, v]) => `• ${k}: ${v}`);
+  return envelope(`Your session access token, decoded (signature not verified):\n${lines.join('\n')}${expired ? '\n⚠️ This token has expired.' : ''}`, true);
+}
+
+/**
  * Dispatch a banking action based on parsed intent.
  * Reusable by both executeHeuristicBanking and banking plugin executeTool.
  * @param {string} action - The banking action (accounts, balance, transactions, transfer, deposit, withdraw, sensitive_account_details)
@@ -364,6 +396,9 @@ async function ensureAccountsForVertical(userId, verticalId) {
 async function dispatchBankingAction(action, params, userId, ctx) {
   const { userToken, req, subjectToken, isAdmin, terminology: _term } = ctx;
   const verticalId = ctx.vertical || 'banking';
+  // Cross-vertical chip ("decode my jwt token"): decode the caller's own session
+  // token here — no vertical data involved, and nothing is verified or exchanged.
+  if (action === 'jwt_decode_demo') return decodeSessionJwtReply(userToken);
   if (action === 'transfer' || action === 'transfer_600_test' || action === 'wire_transfer' || action === 'deposit' || action === 'withdraw') {
     await ensureAccountsForVertical(userId, verticalId);
   }
