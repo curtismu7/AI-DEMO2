@@ -102,8 +102,10 @@ function resolveWorkerConfig() {
 }
 
 /**
- * How this door signs in: PingOne's OWN built-in client, over a loopback
- * callback.
+ * OPT-IN FALLBACK (PINGONE_MCP_ADMIN_LOOPBACK_PORT): sign in with PingOne's
+ * built-in client over a loopback callback. No longer the default — since
+ * 2026-10-21 the hosted MCP accepts tokens from our own app over HTTPS, so
+ * leave the port unset. The text below is the original 2026-09-10 measurement.
  *
  * THE MEASURED RULE (2026-09-10): the hosted MCP accepts a token only when it
  * was minted for `pingone-mcp-server`, PingOne's built-in client. Two tokens
@@ -353,11 +355,9 @@ router.get('/callback', async (req, res) => {
   if (!code) return failAndRedirect('missing_code');
 
   try {
-    // The legacy cookie-callback path, for a deployment with no loopback port
-    // configured. It cannot reach the hosted MCP — that needs PingOne's built-in
-    // client, which only redirects to loopback — but it is left intact rather
-    // than deleted so an operator who has not opened a port still gets a token
-    // and a clear 401 explaining why, instead of a broken route.
+    // The default sign-in: our own "PingOne MCP Server" app over an HTTPS
+    // callback on our origin. The hosted MCP accepts its tokens (re-measured
+    // 2026-10-21) and the refresh token lets the BFF keep the session alive.
     const app = await ensureApp(req);
     const tokenEndpoint = getTokenEndpoint();
     const body = new URLSearchParams({
@@ -366,11 +366,9 @@ router.get('/callback', async (req, res) => {
       redirect_uri: pending.redirectUri,
       code_verifier: pending.codeVerifier,
       client_id: app.clientId,
-      // Kept for parity with this path's PAR push, which pins it. NOTE: it is
-      // inert — PingOne ignores RFC 8707 `resource` here, measured repeatedly:
-      // the token comes back `aud: https://api.pingone.com` with or without it.
-      // Left in place only because this legacy path is vestigial and not worth
-      // a behaviour change; the working path (loopback) sends none.
+      // Kept for parity with the PAR push, which pins it. Inert: PingOne
+      // ignores RFC 8707 `resource` here (token comes back aud api.pingone.com
+      // either way), and the hosted MCP accepts that token.
       resource: `https://mcp.pingone.${app.region}/admin/${app.environmentId}/mcp`,
     });
 

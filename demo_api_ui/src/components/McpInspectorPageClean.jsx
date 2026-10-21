@@ -51,7 +51,17 @@ const NODE_SUBS = {
 const CALLS_NOTE = 'Includes calls the AI agent made in this browser tab.';
 // The sources whose tools are the AI Demo MCP server's per-vertical tools.
 const VERTICAL_SOURCES = ['banking', 'custom'];
-const LOCAL_FALLBACK_NOTE = 'The local fallback only serves banking tools. Switch to Banking, or ';
+const LOCAL_FALLBACK_NOTE = 'The local fallback only serves banking tools — switch to Banking, or ';
+
+/** Why live discovery fell back to the local catalog, in words — and whether signing in again can fix it. */
+function fallbackReason(reason) {
+  const r = String(reason || '');
+  if (r.startsWith('mcp_unreachable')) return { text: 'The live MCP server could not be reached.', relogin: false };
+  if (r.startsWith('no_mcp_bearer')) return { text: 'This session has no MCP token (restored session).', relogin: true };
+  if (r.startsWith('token_resolve_failed_')) return { text: `Your token was rejected (${r.slice('token_resolve_failed_'.length)}).`, relogin: true };
+  if (r) return { text: 'Live tool discovery failed.', relogin: true };
+  return { text: 'Showing the local catalog.', relogin: true };
+}
 const ELICIT_ID = 'elicitation-pending';
 
 /** Tools bucketed by `config.groupBy`, first-seen order. No groupBy: one unlabelled group. */
@@ -331,13 +341,15 @@ function McpInspectorPageClean() {
       </div>
       {toolsSource === 'local_catalog' && (() => {
         const nonBanking = byVertical && verticalId !== 'banking';
+        const why = fallbackReason(source.toolsReason);
         return (
           <p className="insp-err" role="status">
-            {nonBanking && LOCAL_FALLBACK_NOTE}
-            <button type="button" className="insp-btn" onClick={() => navigateToCustomerOAuthLogin(window.location.pathname)}>
-              {nonBanking ? 'log in' : 'Log in for the live MCP server'}
-            </button>
-            {nonBanking && ' for the live MCP server.'}
+            {why.text} {nonBanking && LOCAL_FALLBACK_NOTE}
+            {why.relogin && (
+              <button type="button" className="insp-btn" onClick={() => navigateToCustomerOAuthLogin(window.location.pathname)}>
+                Log in again
+              </button>
+            )}
           </p>
         );
       })()}

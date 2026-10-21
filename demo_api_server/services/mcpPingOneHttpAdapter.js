@@ -44,12 +44,13 @@ const TIMEOUT_MS = 30_000;
  * Which 401 is this? The hosted server answers "Invalid authentication" for
  * every rejection, so the string alone never says what to change.
  *
- * THE RULE, established by measurement 2026-09-10 and not before: the hosted
- * MCP accepts a token only when it was minted for PingOne's OWN built-in client
- * `pingone-mcp-server`, and only against the endpoint for the SAME environment
- * that issued it. Two tokens identical in aud, scope, sub, env, org, iss and
- * acr — differing only in client_id — behave differently: ours 401s, the
- * built-in one returns 78 tools.
+ * THE RULE: the hosted MCP accepts a token only against the endpoint for the
+ * SAME environment that issued it. It used to also require PingOne's built-in
+ * client `pingone-mcp-server` (measured 2026-09-10: ours 401'd, the built-in
+ * one returned 78 tools). Re-measured 2026-10-21 against env 01d89b06: a token
+ * from our own "PingOne MCP Server" app, signed in over an app-registered
+ * redirect URI, gets HTTP 200 + the full tool list, and its refresh token
+ * rotates. The client_id is no longer the lever, so it is no longer diagnosed.
  *
  * Two earlier revisions of this comment were WRONG, in ways worth naming so
  * they do not come back:
@@ -77,16 +78,6 @@ function _authDiagnosis(token) {
         claims = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
     } catch {
         return 'token could not be decoded.';
-    }
-
-    // Checked first: it is the cause in every case measured so far, and the
-    // environment check below reads as authoritative if this one is skipped.
-    if (claims.client_id && claims.client_id !== BUILTIN_MCP_CLIENT_ID) {
-        return `the token was minted for client ${claims.client_id}, and this server accepts only PingOne's own `
-            + `built-in client "${BUILTIN_MCP_CLIENT_ID}". Measured: two tokens identical in every claim but `
-            + 'client_id, and only the built-in one is accepted. Roles, scopes, audience and app type are NOT the '
-            + 'lever — a full org admin is refused the same way. That client is loopback-redirect-only, which is '
-            + 'why this door signs in through PINGONE_MCP_ADMIN_LOOPBACK_PORT rather than an HTTPS callback.';
     }
 
     const tokenEnv = _issuerEnv(claims.iss);

@@ -132,7 +132,7 @@ describe('MCP Inspector Vertical select', () => {
   });
 
   it('says the local fallback only serves banking when another vertical is picked', () => {
-    const NOTE = 'The local fallback only serves banking tools. Switch to Banking, or log in for the live MCP server.';
+    const NOTE = 'The local fallback only serves banking tools — switch to Banking, or';
     sourceState.current = { ...makeSource(), toolsSource: 'local_catalog' };
     const { unmount } = renderAt('/?vertical=healthcare');
     expect(screen.getByRole('status')).toHaveTextContent(NOTE);
@@ -148,8 +148,21 @@ describe('MCP Inspector Vertical select', () => {
   it('offers a log-in button that returns to the inspector whenever the tool list is the local fallback', () => {
     sourceState.current = { ...makeSource(), toolsSource: 'local_catalog' };
     renderAt('/');
-    fireEvent.click(screen.getByRole('button', { name: /log in for the live MCP server/i }));
+    fireEvent.click(screen.getByRole('button', { name: /log in again/i }));
     expect(navigateToCustomerOAuthLogin).toHaveBeenCalledWith(window.location.pathname);
+    sourceState.current = makeSource();
+  });
+
+  it('says why the tool list fell back, and offers no log-in when the server is simply unreachable', () => {
+    sourceState.current = { ...makeSource(), toolsSource: 'local_catalog', toolsReason: 'token_resolve_failed_TOKEN_INACTIVE' };
+    const { unmount } = renderAt('/');
+    expect(screen.getByRole('status')).toHaveTextContent('Your token was rejected (TOKEN_INACTIVE).');
+    expect(screen.getByRole('button', { name: /log in again/i })).toBeTruthy();
+    unmount();
+    sourceState.current = { ...makeSource(), toolsSource: 'local_catalog', toolsReason: 'mcp_unreachable: ECONNREFUSED' };
+    renderAt('/');
+    expect(screen.getByRole('status')).toHaveTextContent('could not be reached');
+    expect(screen.queryByRole('button', { name: /log in again/i })).toBeNull();
     sourceState.current = makeSource();
   });
 

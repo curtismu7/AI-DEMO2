@@ -3,12 +3,9 @@
 // "PingOne MCP HTTP 401: Invalid authentication" is the same string for every
 // rejection, so the error alone never says what to change.
 //
-// THE RULE, established by measurement 2026-09-10: the hosted MCP accepts a
-// token only when it was minted for PingOne's OWN built-in client
-// `pingone-mcp-server`, and only against the endpoint for the SAME environment
-// that issued it. Two tokens identical in aud, scope, sub, env, org, iss and
-// acr — differing only in client_id — behave differently: an app we register
-// 401s, the built-in one returns 78 tools.
+// THE RULE: the hosted MCP accepts a token only against the endpoint for the
+// SAME environment that issued it. (Until 2026-10-21 it also required the
+// built-in client `pingone-mcp-server`; our own app's token is now accepted.)
 //
 // These tests exist to keep two earlier WRONG conclusions from coming back:
 //   1. "the tenant lacks Remote MCP enablement";
@@ -64,19 +61,6 @@ describe('a 401 from the hosted MCP names which 401 it is', () => {
 
     await expect(adapter.listTools(jwt({ iss: iss(ENV), client_id: BUILTIN }))).rejects.toThrow();
     expect(axios.post).toHaveBeenCalledWith(MCP_URL, expect.anything(), expect.anything());
-  });
-
-  test('a token from a client that is not the built-in one says exactly that', async () => {
-    axios.post.mockRejectedValue(httpErr(401, 'Invalid authentication'));
-    const token = jwt({ iss: iss(ENV), client_id: '2be907e4-4af7-432f-928b-eab0fda2d407', aud: ['https://api.pingone.com'], scope: 'openid' });
-
-    await expect(adapter.listTools(token)).rejects.toThrow(/minted for client 2be907e4/);
-    await expect(adapter.listTools(token)).rejects.toThrow(new RegExp(BUILTIN));
-    // The three answers that cost days and are all wrong.
-    await expect(adapter.listTools(token)).rejects.toThrow(/Roles, scopes, audience and app type are NOT the/);
-    await expect(adapter.listTools(token)).rejects.not.toThrow(/enablement/);
-    // The underlying error must survive — a diagnosis explains, never replaces.
-    await expect(adapter.listTools(token)).rejects.toThrow(/PingOne MCP HTTP 401/);
   });
 
   test('the built-in client against another environment names the mismatch', async () => {
