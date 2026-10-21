@@ -103,6 +103,7 @@ CALLER_PUBLIC_APP_URL="${PUBLIC_APP_URL:-}"
 # override_pf_for_se): snapshot the caller's values before .env is sourced.
 CALLER_SE_PF_ISSUER="${SE_PF_ISSUER:-}"
 CALLER_SE_OAUTH_MCP_URL="${SE_OAUTH_MCP_URL:-}"
+CALLER_SE_PF_REDEEMER_ISSUER="${SE_PF_REDEEMER_ISSUER:-}"
 
 GREEN='\033[0;32m'; YELLOW='\033[1;33m'; RED='\033[0;31m'; NC='\033[0m'
 
@@ -565,11 +566,14 @@ override_redirect_uris_for_public_origin() {
 # (oauth-mcp mode) break. Runs ONLY when SE_PF_ISSUER is set (shell env, else a
 # SE_PF_ISSUER= line in demo_api_server/.env); otherwise nothing changes.
 # SE_OAUTH_MCP_URL additionally sets PF_ID_JAG_AUDIENCE / PF_ID_JAG_RESOURCE.
-# PF_IDJAG_ISSUER_PF_URL and the pf-pf playground settings are never touched.
+# SE_PF_REDEEMER_ISSUER (the Acme PingFederate) additionally sets PF_IDJAG_PF_REDEEMER_ISSUER, the
+# resource AS the pf-pf playground mode redeems at; the app's login PF is the issuer on SE.
+# PF_IDJAG_ISSUER_PF_URL and PF_IDJAG_PF_REDEEMER_CLIENT_SECRET are never touched.
 # Logs keys and URLs only, never secret values.
 override_pf_for_se() {
   local issuer="${CALLER_SE_PF_ISSUER:-}"
   local mcp_url="${CALLER_SE_OAUTH_MCP_URL:-}"
+  local redeemer="${CALLER_SE_PF_REDEEMER_ISSUER:-}"
   local envf="$ASSET_ROOT/demo_api_server/.env" line
   if [ -z "$issuer" ] && [ -f "$envf" ]; then
     line=$(grep -E '^SE_PF_ISSUER=' "$envf" | tail -n1 || true)
@@ -579,8 +583,13 @@ override_pf_for_se() {
     line=$(grep -E '^SE_OAUTH_MCP_URL=' "$envf" | tail -n1 || true)
     mcp_url="${line#SE_OAUTH_MCP_URL=}"; mcp_url="${mcp_url%\"}"; mcp_url="${mcp_url#\"}"
   fi
+  if [ -z "$redeemer" ] && [ -f "$envf" ]; then
+    line=$(grep -E '^SE_PF_REDEEMER_ISSUER=' "$envf" | tail -n1 || true)
+    redeemer="${line#SE_PF_REDEEMER_ISSUER=}"; redeemer="${redeemer%\"}"; redeemer="${redeemer#\"}"
+  fi
   [ -n "$issuer" ] || return 0
   issuer="${issuer%/}"
+  redeemer="${redeemer%/}"
   mcp_url="${mcp_url%/}"
 
   local origin="${CALLER_PUBLIC_APP_URL:-}"
@@ -605,6 +614,10 @@ override_pf_for_se() {
   if [ -n "$mcp_url" ]; then
     pairs="$pairs$(printf ',"PF_ID_JAG_AUDIENCE":"%s","PF_ID_JAG_RESOURCE":"%s/mcp"' "$mcp_url" "$mcp_url")"
     keys="$keys; PF_ID_JAG_AUDIENCE -> $mcp_url; PF_ID_JAG_RESOURCE -> $mcp_url/mcp"
+  fi
+  if [ -n "$redeemer" ]; then
+    pairs="$pairs$(printf ',"PF_IDJAG_PF_REDEEMER_ISSUER":"%s","PF_IDJAG_PF_REDEEMER_TOKEN_ENDPOINT":"%s/as/token.oauth2"' "$redeemer" "$redeemer")"
+    keys="$keys; PF_IDJAG_PF_REDEEMER_ISSUER -> $redeemer"
   fi
   printf '{"stringData":{%s}}' "$pairs" \
     | kubectl patch secret ai-demo-secrets --namespace="$NS" --type merge --patch-file /dev/stdin >/dev/null
