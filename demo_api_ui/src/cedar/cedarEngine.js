@@ -68,6 +68,17 @@ export function validatePolicies(cedar, policies) {
   return errors.length ? { ok: false, stage: 'validate', errors } : { ok: true, errors: [] };
 }
 
+// The bodies to POST to Privilege's AI Policies API (/api/<tenant>/v1/aipolicys), one per policy so the console validates
+// each separately. State "Candidate" = validated and stored but never enforced; the console reports the verdict in
+// Status.Validation / Status.Error. AuthoringMode "text" is the console's "Write Cedar". Names are console-safe slugs.
+export function candidateRequests(policies, { tenant = '<your-tenant-id>', expiresAt = '' } = {}) {
+  return policies.map((p) => ({
+    ObjectMeta: { Name: `cedar-demo-${p.id}`.toLowerCase().replace(/[^a-z0-9_-]/g, '-').slice(0, 63), Namespace: 'default', Tenant: tenant },
+    Spec: { Description: `Cedar demo policy ${p.id}. Candidate: validated, never enforced.`, Cedar: `${p.text.trim()}\n`, AuthoringMode: 'text', BuilderForm: '', TemplateID: '', TemplateParams: { Map: {} }, CandidateExpiresAt: expiresAt },
+    State: 'Candidate',
+  }));
+}
+
 // outcome: allow | deny | hold | default-deny. A deny decided only by forbids that carry @approvers is a HOLD, which is
 // how the real gateway treats such a rule (it opens an approval and the client retries once it is approved).
 export function evaluate(cedar, { policiesText, claims, request }) {

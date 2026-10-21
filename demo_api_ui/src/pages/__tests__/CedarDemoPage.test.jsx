@@ -68,6 +68,17 @@ describe('CedarDemoPage', () => {
     expect(req.context).toMatchObject({ app: 'search', token: { scopes: ['tools:invoke'] } });
   });
 
+  it('exports the editor policies as Candidate AI policy requests, and blocks the export on a syntax error', async () => {
+    await ready();
+    const json = JSON.parse(screen.getByTestId('cedar-export-json').value);
+    expect(json).toHaveLength(6);
+    expect(json.every((r) => r.State === 'Candidate' && r.Spec.AuthoringMode === 'text')).toBe(true);
+    expect(screen.getByTestId('cedar-export')).toHaveTextContent(/never enforces/);
+    fireEvent.change(screen.getByTestId('cedar-editor'), { target: { value: 'permit (principal, action, resource when ;' } });
+    await waitFor(() => expect(screen.getByTestId('cedar-export-blocked')).toBeInTheDocument());
+    expect(screen.queryByTestId('cedar-export-json')).toBeNull();
+  });
+
   it('marks demo-only attributes in the vocabulary table, and embeds the diagram', async () => {
     await ready();
     const vocab = screen.getByTestId('cedar-vocab');

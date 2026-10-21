@@ -2,7 +2,7 @@
 import { describe, it, expect } from 'vitest';
 import cedar from '@cedar-policy/cedar-wasm/nodejs';
 import { DEFAULT_POLICIES, NO_CLAIMS_POLICY, PRESETS, SCENARIOS } from '../../config/cedarDemoScenarios';
-import { buildContext, claimsToEntities, evaluate, parsePolicies } from '../cedarEngine';
+import { buildContext, candidateRequests, claimsToEntities, evaluate, parsePolicies } from '../cedarEngine';
 
 const run = (scn, over = {}) => evaluate(cedar, { policiesText: DEFAULT_POLICIES, claims: PRESETS[scn.preset], request: { ...scn.request, ...over } });
 
@@ -67,5 +67,30 @@ describe('the PF claims mapping layer', () => {
     expect(same.pinnedHash).toBe(same.observedHash);
     const drift = buildContext(PRESETS.mary, { tool: 'search_docs', args: {}, schemaDrift: true });
     expect(drift.pinnedHash).not.toBe(drift.observedHash);
+  });
+});
+
+describe('Candidate AI policy requests for the real console', () => {
+  const reqs = candidateRequests(parsePolicies(cedar, DEFAULT_POLICIES).policies, { tenant: 'tenant-1', expiresAt: '2026-11-01T00:00:00Z' });
+
+  it('makes one Candidate request per policy, never Active, in "Write Cedar" mode', () => {
+    expect(reqs).toHaveLength(6);
+    for (const r of reqs) expect(r).toMatchObject({ State: 'Candidate', Spec: { AuthoringMode: 'text', CandidateExpiresAt: '2026-11-01T00:00:00Z' }, ObjectMeta: { Namespace: 'default', Tenant: 'tenant-1' } });
+    expect(reqs.some((r) => r.State === 'Active')).toBe(false);
+  });
+
+  it('keeps each policy text intact and gives console-safe, unique names', () => {
+    const names = reqs.map((r) => r.ObjectMeta.Name);
+    expect(new Set(names).size).toBe(names.length);
+    for (const n of names) expect(n).toMatch(/^cedar-demo-[a-z0-9_-]+$/);
+    const hold = reqs.find((r) => r.ObjectMeta.Name === 'cedar-demo-s01-hold-large-fare');
+    expect(hold.Spec.Cedar).toMatch(/@approvers\("priya"\)/);
+    expect(hold.Spec.Cedar.trim().endsWith(';')).toBe(true);
+  });
+
+  it('uses a placeholder tenant and no expiry by default, so nothing is silently targeted', () => {
+    const [r] = candidateRequests(parsePolicies(cedar, DEFAULT_POLICIES).policies);
+    expect(r.ObjectMeta.Tenant).toBe('<your-tenant-id>');
+    expect(r.Spec.CandidateExpiresAt).toBe('');
   });
 });
