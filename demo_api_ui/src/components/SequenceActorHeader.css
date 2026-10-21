@@ -1,0 +1,97 @@
+.sah {
+  --sah-color: var(--th-border-strong);
+  background: var(--th-bg-inset);
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  padding: 0.5rem 0.75rem 0.75rem;
+  color: var(--th-text);
+}
+
+.sah__bar {
+  display: flex;
+  gap: 0.25rem;
+  margin-bottom: 0.75rem;
+}
+
+.sah__seg {
+  flex: 1;
+  height: 3px;
+  border-radius: var(--radius-sm);
+  background: var(--th-border);
+}
+
+.sah__seg--done,
+.sah__seg--active {
+  background: var(--sah-color);
+}
+
+.sah__row {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  display: flex;
+  gap: 0.5rem;
+  overflow-x: auto;
+}
+
+.sah__actor {
+  flex: 1 0 5.5rem;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.25rem;
+  text-align: center;
+  opacity: 0.45;
+  transition: opacity 0.2s ease;
+}
+
+.sah__actor--done,
+.sah__actor--active {
+  opacity: 1;
+}
+
+.sah__tile {
+  position: relative;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 1.5px solid var(--sah-color);
+  border-radius: var(--radius-md);
+  background: color-mix(in oklab, var(--sah-color) 12%, transparent);
+  color: var(--sah-color);
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+}
+
+.sah__actor--active .sah__tile {
+  box-shadow: 0 0 0 3px color-mix(in oklab, var(--sah-color) 30%, transparent);
+}
+
+.sah__badge {
+  position: absolute;
+  top: -0.4rem;
+  right: -0.55rem;
+  padding: 0 0.25rem;
+  border-radius: var(--radius-sm);
+  background: var(--th-bg-card);
+  border: 1px solid var(--th-border);
+  color: var(--th-text-muted);
+  font-size: var(--font-size-3xs);
+  font-weight: 600;
+  line-height: 1.3;
+}
+
+.sah__name {
+  font-size: var(--font-size-sm);
+  font-weight: 700;
+  line-height: 1.2;
+}
+
+.sah__desc {
+  font-size: var(--font-size-xs);
+  line-height: 1.3;
+  color: var(--th-text-muted);
+}

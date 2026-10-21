@@ -21,6 +21,7 @@ import SignInPrompt from '../components/SignInPrompt';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
 import { PERSONAL_AGENT_EDGES, PERSONAL_AGENT_GROUPS, PERSONAL_AGENT_NODES, PERSONAL_AGENT_STEPS } from '../config/personalAgentStudioDiagram';
 import { protectedActionLabel } from './protectedActionLabel';
+import { openMcpFlowSse } from '../services/mcpFlowSseClient';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
 import GateChips from '../components/GateChips';
 import TokenCards, { hasTokenCards } from '../components/TokenCards';
@@ -93,7 +94,7 @@ const LAYOUT_STYLES = {
   popped: { agentFlex: '0 0 280px', railWidth: 'auto', railVisible: true, placeholderVisible: true },
 };
 
-export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null, consentGate = null, bare = false }) {
+export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null, consentGate = null, reelEmptyState = undefined, bare = false }) {
   const location = useLocation();
   const query = new URLSearchParams(location.search);
   const routeId = query.get('useCase');
@@ -181,7 +182,26 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     const controller = new AbortController();
     activeWorkloadRun.current = controller;
     const isCurrentRun = () => activeWorkloadRun.current === controller && !controller.signal.aborted;
-    tokenChainTraceStore.beginTrace({ prompt: uc.runPrompt });
+    // Without a flowTraceId the BFF has no stream to publish this run's authorize decision and tool result to, so the
+    // proof check never saw them and read "incomplete" after a run that actually finished.
+    const flowTraceId = typeof crypto !== 'undefined' && typeof crypto.randomUUID === 'function'
+      ? crypto.randomUUID()
+      : `${Date.now()}-${Math.random().toString(36).slice(2, 11)}`;
+    tokenChainTraceStore.beginTrace({ prompt: uc.runPrompt, flowTraceId });
+    const closeSse = openMcpFlowSse(flowTraceId, (event) => {
+      if (event?.type === 'token-event') {
+        const { type, ...tokenEvent } = event;
+        try { tokenChainTraceStore.ingestTokenEvent({ ...tokenEvent, flowTraceId }); } catch (_) { /* display-only */ }
+      }
+      if (event?.type === 'mcp-result') {
+        try { window.dispatchEvent(new CustomEvent('mcp-tool-result-sse', { detail: { ...event, flowTraceId } })); } catch (_) { /* display-only */ }
+      }
+    });
+    // The stream lags the HTTP reply slightly: keep it open briefly so the tool result still lands.
+    const settle = (ok, failure = null) => {
+      try { tokenChainTraceStore.completeTrace(ok, flowTraceId, failure); } catch (_) { /* display-only */ }
+      setTimeout(closeSse, 3000);
+    };
     setTokenEvents?.(uc.primaryTool, []);
     setRunState({ status: 'running', text: '' });
     fetch('/api/agent/invoke', {
@@ -190,11 +210,13 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       credentials: 'include',
       signal: controller.signal,
       // An approved challenge id is what lets the retry through the gateway's approval gate.
-      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId, agentMode, ...(approvedChallengeId ? { hitlChallengeId: approvedChallengeId } : {}) }),
+      body: JSON.stringify({ prompt: uc.runPrompt, vertical, useCaseId: uc.useCaseId, agentMode, flowTraceId, ...(approvedChallengeId ? { hitlChallengeId: approvedChallengeId } : {}) }),
     }).then(async (response) => {
       const data = await response.json().catch(() => ({}));
       if (!isCurrentRun()) return null;
       if (Array.isArray(data.tokenEvents)) setTokenEvents?.(uc.primaryTool, data.tokenEvents);
+      if (data.mcpAuthorizeEvaluation) tokenChainTraceStore.ingestAuthorize(data.mcpAuthorizeEvaluation, flowTraceId);
+      if (data.mcpAuthorizeEvaluations) tokenChainTraceStore.ingestAuthorizeEvaluations(data.mcpAuthorizeEvaluations);
       if (!response.ok) throw new Error(data.message || data.error || `Request failed (${response.status})`);
       return data;
     }).then((data) => {
@@ -209,10 +231,11 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         else setRunState({ status: 'approval', prompt: true, challengeId, text: data.reply || 'This action requires your approval.' });
       }
       // success:false is a refusal or a failed run, not a completed action.
-      else if (data.success === false) setRunState({ status: 'error', text: data.reply || 'The workload agent could not complete the request.' });
-      else setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
+      else if (data.success === false) { settle(false, data.reply); setRunState({ status: 'error', text: data.reply || 'The workload agent could not complete the request.' }); }
+      else { settle(true); setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' }); }
     }).catch((error) => {
-      if (isCurrentRun()) setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' });
+      if (isCurrentRun()) { settle(false, error.message); setRunState({ status: 'error', text: error.message || 'The workload agent could not complete the request.' }); }
+      else closeSse();
     });
   }, [vertical, setTokenEvents, agentMode]);
 
@@ -419,7 +442,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       {mfaModal}
       <SecurityRail gates={workloadGates} actClaim={actClaim} />
       {/* The filmstrip's two halves place themselves by grid-area name. */}
-      <div className="workload-agents__chain"><TokenChainFilmstrip /></div>
+      <div className="workload-agents__chain"><TokenChainFilmstrip emptyState={reelEmptyState} /></div>
     </div>
   );
 

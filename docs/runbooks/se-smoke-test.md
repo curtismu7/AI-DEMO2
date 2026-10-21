@@ -30,7 +30,7 @@ Options: `--base <url>` (default `https://ai-demo.ping-devops.com`), `--out <dir
 |---|---|
 | App | the playground config API answers 200 (you are signed in) |
 | Each lane (oauth-mcp, PF to PF) and subject (OIDC, SAML) | Request ID-JAG answers 200 and the page shows the lane's audience; Redeem answers 200 |
-| Step 4, List tools | answers 200, or a 502 that does not raise the sign-in dialog or the words "session expired". On SE it is a 502 because the MCP gateway validates PingOne tokens only; that is expected. |
+| Step 4, List tools | answers 200, or a 502 that does not raise the sign-in dialog or the words "session expired". On SE the MCP gateway validates PingOne tokens only, so once `ID_JAG_PLAYGROUND_STEP4_ENABLED=false` is set the button is replaced by one line ("The MCP gateway on this deployment validates tokens with PingOne only...") and the check passes as "step 4 hidden"; before that, a 502 is expected. |
 | Inspector | the Decode & check and Live log tabs (Discovery is not a tab); Backends starts collapsed; Get an ID-JAG gives 0 failed checks; the trusted-IdP row names the issuer; Show token reveals a 3-part token of type `oauth-id-jag+jwt`; Hide token clears it; Backends discovery loads |
 
 It never prints tokens: only status codes, counts and the JWT header type.

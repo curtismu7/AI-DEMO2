@@ -457,6 +457,36 @@ describe("ID-JAG playground page", () => {
     expect(results).toHaveTextContent(/steps 1-3\) is not affected/);
   });
 
+  const stepFourWith = async (data) => {
+    mount(config());
+    replies({
+      "/issue": issuedWith({ iat: now(), exp: now() + 300 }),
+      "/redeem": { request: {}, status: 200, response: {}, token: { header: {}, claims: { exp: now() + 600 } } },
+      "/call": Object.assign(new Error("401"), { response: { status: 401, data } }),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    await waitFor(() => expect(posted("/issue")).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "List tools this token can see" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "List tools this token can see" }));
+    return screen.findByTestId("ijp-results");
+  };
+
+  it("step 4: a gateway message that says 'not an expired session' does not get the ID-JAG expiry hint", async () => {
+    const results = await stepFourWith({
+      error: "GATEWAY_TOKEN_REJECTED",
+      message: "The MCP gateway rejected the agent's access token (No matching JWKS key found for kid=idjagRedeemerAtm-key). Your sign-in is still valid, this is a server-side token-validation problem, not an expired session.",
+      gatewayStatus: 401, gatewayErrorCode: "invalid_token", gatewayMessage: "No matching JWKS key found for kid=idjagRedeemerAtm-key",
+    });
+    expect(results).toHaveTextContent(/not an expired session/);
+    expect(results).not.toHaveTextContent(/It expired: ID-JAGs live about 5 minutes/);
+  });
+
+  it("step 4: a genuinely expired token still gets the ID-JAG expiry hint", async () => {
+    const results = await stepFourWith({ error: "invalid_grant", message: "The ID-JAG has expired", gatewayStatus: 401, gatewayErrorCode: "invalid_token", gatewayMessage: "token expired" });
+    expect(results).toHaveTextContent(/It expired: ID-JAGs live about 5 minutes/);
+  });
+
   it("protected resource: renders the resource server's page, and its refusal names the failed check", async () => {
     mount(config());
     const ok = { request: { method: "GET", url: "https://as.test/protected/profile", authorization: "Bearer [access token]" }, status: 200,
@@ -511,5 +541,26 @@ describe("ID-JAG playground page", () => {
 
     mountWith(config(), () => Promise.reject(Object.assign(new Error("401"), { response: { status: 401, data: {} } })));
     expect(await screen.findByTestId("ijp-trusted-signin")).toBeInTheDocument();
+  });
+});
+
+describe("ID-JAG playground step 4 availability", () => {
+  const LIST = { name: "List tools this token can see" };
+  const reason = "The MCP gateway on this deployment validates tokens with PingOne only, so tokens from oauth-mcp or PingFederate cannot be listed here.";
+
+  it("shows the reason in one plain line, with no List tools button, when the gateway cannot validate these tokens", async () => {
+    mount(config({ gateway: { step4: { available: false, reason } } }));
+    expect(await screen.findByText(reason)).toBeInTheDocument();
+    expect(screen.getByText("Call the MCP server with the new token")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: LIST.name })).not.toBeInTheDocument();
+  });
+
+  it.each([
+    ["available", { gateway: { step4: { available: true, reason: null } } }],
+    ["absent (older server)", {}],
+  ])("keeps the List tools button when step 4 is %s", async (_label, over) => {
+    mount(config(over));
+    expect(await screen.findByRole("button", { name: LIST.name })).toBeInTheDocument();
+    expect(screen.queryByText(reason)).not.toBeInTheDocument();
   });
 });

@@ -100,3 +100,32 @@ describe('PersonalAgentStudioPage consentGate + gateway approval', () => {
     expect(invokeCalls(fetchMock)).toHaveLength(1);
   });
 });
+
+describe('PersonalAgentStudioPage reelEmptyState', () => {
+  it('replaces the long Token Chain intro when a page passes its own line', () => {
+    renderStudio({ reelEmptyState: <p>Run it to see each hop.</p> });
+    expect(screen.getByText('Run it to see each hop.')).toBeTruthy();
+    expect(screen.queryByText('What this panel shows')).toBeNull();
+  });
+  it('keeps the intro by default', () => {
+    renderStudio();
+    expect(screen.getByText('What this panel shows')).toBeTruthy();
+  });
+});
+
+describe('PersonalAgentStudioPage proof evidence', () => {
+  it('sends a flowTraceId, feeds the authorize decision to the trace, and completes it', async () => {
+    const authorize = vi.spyOn(tokenChainTraceStore, 'ingestAuthorize');
+    const complete = vi.spyOn(tokenChainTraceStore, 'completeTrace');
+    fetchMock.mockImplementation((url) => Promise.resolve(url === '/api/agent/invoke'
+      ? { ok: true, status: 200, json: async () => ({ success: true, reply: 'Paid.', mcpAuthorizeEvaluation: { decision: 'PERMIT' } }) }
+      : { ok: false, status: 401, json: async () => ({}) }));
+    renderStudio();
+    fireEvent.click(screen.getByRole('button', { name: 'Run tuition payment' }));
+    expect(await screen.findByText('Paid.')).toBeTruthy();
+    const { flowTraceId } = JSON.parse(invokeCalls(fetchMock)[0][1].body);
+    expect(flowTraceId).toMatch(/\S+/);
+    expect(authorize).toHaveBeenCalledWith({ decision: 'PERMIT' }, flowTraceId);
+    expect(complete).toHaveBeenCalledWith(true, flowTraceId, null);
+  });
+});

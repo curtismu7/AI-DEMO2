@@ -38,7 +38,7 @@ import "./DigitalWorkerPage.css";
 // Digital Worker: editable architecture diagram. Double-click a box or zone to rename it, double-click
 // an arrow to relabel it, select + Delete to remove, drag to move. Edits autosave to this browser only.
 // Bump the version when the built-in layout changes, so browsers holding an older saved copy pick it up.
-const STORE = "digital-worker-diagram-v2";
+const STORE = "digital-worker-diagram-v3";
 const SIDES = [["t", Position.Top], ["r", Position.Right], ["b", Position.Bottom], ["l", Position.Left]];
 
 function Handles() {
@@ -403,7 +403,7 @@ export default function DigitalWorkerPage() {
           <p className="dw-agent__intro">{selected ? `${protectedActionLabel(selected)[0].toUpperCase()}${protectedActionLabel(selected).slice(1)}` : "Protected action"} with step-up MFA and human approval</p>
           {needsSignIn ? <DigitalWorkerSignIn what="run the governed worker" /> : error && <p role="alert" className="dw-run-task__error">{error}</p>}
           {selected ? (
-            <PersonalAgentStudioPage key={`${vertical}:UC38`} scenario={selected} vertical={vertical} consentGate={consentGate} />
+            <PersonalAgentStudioPage key={`${vertical}:UC38`} scenario={selected} vertical={vertical} consentGate={consentGate} reelEmptyState={<p className="dw-reel-empty">Run it to see each hop's token here.</p>} />
           ) : !error && !needsSignIn && <p role="status" className="dw-agent__intro">Loading the governed run…</p>}
         </div>
 

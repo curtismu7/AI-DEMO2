@@ -266,7 +266,8 @@ function explain(e, resource) {
   if (/already (been )?(used|redeemed)|replay|jti.*(used|seen)/i.test(text)) {
     return "This ID-JAG was already redeemed, and each one is single-use. Request a new ID-JAG (step 2), then redeem that one.";
   }
-  if (/expired/i.test(text)) return "It expired: ID-JAGs live about 5 minutes. Request a new ID-JAG (step 2) and redeem it (step 3).";
+  // A message that rules expiry out ("not an expired session") must not trigger the expiry hint.
+  if (/expired/i.test(text.replace(/\bnot (?:an? )?expired\b/gi, ""))) return "It expired: ID-JAGs live about 5 minutes. Request a new ID-JAG (step 2) and redeem it (step 3).";
   return null;
 }
 
@@ -1013,7 +1014,11 @@ export default function IdJagPlaygroundPage() {
 
         <Step n={4} mode={mode} title="Call the MCP server with the new token" note={text.call}>
           <Lifetime id="token" label="Access token" exp={tokenExp} now={nowMs} again="Request and redeem a new ID-JAG." />
-          <button type="button" className="ijp-btn ijp-btn--primary" onClick={listTools} disabled={!canRun || !redeemed?.token || !!busy}>{busy === "list" ? "Listing…" : "List tools this token can see"}</button>
+          {config?.gateway?.step4?.available === false ? (
+            <p className="ijp-note">{config.gateway.step4.reason}</p>
+          ) : (
+            <button type="button" className="ijp-btn ijp-btn--primary" onClick={listTools} disabled={!canRun || !redeemed?.token || !!busy}>{busy === "list" ? "Listing…" : "List tools this token can see"}</button>
+          )}
           {gateAt("call")}
           {tools && toolList.length > 0 && (
             <div className="ijp-call">
