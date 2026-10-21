@@ -554,7 +554,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       {cockpit && <GateChips className="pas-c-gates" gates={replayGates || gates} />}
       {view === 'agent' && (
         <details className="pas-c-flow" style={{ flexShrink: 0, borderTop: '1px solid var(--th-border)' }}>
-          <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>How a request flows</summary>
+          <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>Expand for Diagram</summary>
           <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
             <EmbeddedFlowDiagram
               testId="pas-flow-diagram"
