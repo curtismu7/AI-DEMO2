@@ -34,7 +34,7 @@ beforeEach(() => {
   get.mockImplementation(async (url) => (url === `${PG}/config` ? { data: config } : { data: DISCOVERY }));
   post.mockImplementation(async (url) => {
     if (url === `${PG}/issue`) return { data: ISSUED };
-    if (url === `${PG}/inspect`) return { data: { header: DECODED.header, claims: DECODED.claims, checks: DECODED.checks } };
+    if (url === "/api/id-jag-inspect/issued-check") return { data: DECODED };
     return { data: DECODED };
   });
 });
@@ -97,9 +97,12 @@ describe("ID-JAG Inspector page", () => {
     fireEvent.click(await screen.findByRole("button", { name: "Get an ID-JAG" }));
     await waitFor(() => expect(screen.getByText(/Detected: ID-JAG/)).toBeInTheDocument());
     expect(post).toHaveBeenCalledWith(`${PG}/issue`, {});
-    expect(post).toHaveBeenCalledWith(`${PG}/inspect`, {});
+    expect(post).toHaveBeenCalledWith("/api/id-jag-inspect/issued-check");
+    expect(post).not.toHaveBeenCalledWith(`${PG}/inspect`, expect.anything());
     expect(post).not.toHaveBeenCalledWith("/api/id-jag-inspect/decode", expect.anything());
     expect(screen.getByText("Header typ")).toBeInTheDocument();
+    expect(screen.getByText(/trusted IdP "PingFederate"/)).toBeInTheDocument();
+    expect(screen.getByText("Issuer is trusted")).toBeInTheDocument();
     expect(screen.getByText(/kept on the server/i)).toBeInTheDocument();
     expect(screen.getByText("or paste a token from another tool")).toBeInTheDocument();
   });
@@ -140,7 +143,7 @@ describe("ID-JAG Inspector page", () => {
   it("offers Show token only after an ID-JAG is issued, and shows the raw token read-only on request", async () => {
     post.mockImplementation(async (url) => {
       if (url === `${PG}/issue`) return { data: ISSUED };
-      if (url === `${PG}/inspect`) return { data: { header: DECODED.header, claims: DECODED.claims, checks: DECODED.checks } };
+      if (url === "/api/id-jag-inspect/issued-check") return { data: DECODED };
       if (url === "/api/id-jag-inspect/issued-token") return { data: { token: "raw.jwt.value" } };
       return { data: DECODED };
     });
@@ -164,7 +167,7 @@ describe("ID-JAG Inspector page", () => {
   it("hides a revealed token when a new ID-JAG is minted", async () => {
     post.mockImplementation(async (url) => {
       if (url === `${PG}/issue`) return { data: ISSUED };
-      if (url === `${PG}/inspect`) return { data: { header: DECODED.header, claims: DECODED.claims, checks: DECODED.checks } };
+      if (url === "/api/id-jag-inspect/issued-check") return { data: DECODED };
       if (url === "/api/id-jag-inspect/issued-token") return { data: { token: "raw.jwt.value" } };
       return { data: DECODED };
     });

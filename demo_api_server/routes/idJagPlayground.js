@@ -1278,6 +1278,7 @@ router.post('/reset', (req, res) => {
 module.exports = router;
 module.exports._inspect = inspect;
 module.exports._settings = settings;
+module.exports._settingsFor = settingsFor;
 module.exports._probeBackends = probeBackends;
 module.exports._byoSettings = byoSettings;
 module.exports._nodeGatewayUrl = nodeGatewayUrl;

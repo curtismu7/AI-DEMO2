@@ -155,3 +155,53 @@ describe('POST /issued-token (reveal the ID-JAG this session minted)', () => {
     expect(JSON.stringify(spies.flatMap((s) => s.mock.calls))).not.toContain(t);
   });
 });
+
+describe('POST /issued-check (the ID-JAG this session minted, trusted via the playground mode)', () => {
+  const SE = 'https://se-pf.test';
+  const app = (session) => { const a = express(); a.use((req, _res, next) => { req.user = { id: 'u1' }; req.session = session; next(); }); a.use('/api/id-jag-inspect', inspectApi.router); return a; };
+  const check = (session) => request(app(session)).post('/api/id-jag-inspect/issued-check');
+  beforeEach(() => {
+    process.env.PF_IDJAG_ISSUER_PF_URL = SE;
+    axios.get.mockRejectedValue(new Error('jwks offline'));
+  });
+  afterEach(() => { delete process.env.PF_IDJAG_ISSUER_PF_URL; });
+
+  it('oauth-mcp mode: trusts the app PingFederate issuer, by name, and never returns the token', async () => {
+    const t = idJag();
+    const r = await check({ idJagPlayground: { idJag: t, issuedAt: 1 } });
+    expect(r.status).toBe(200);
+    expect(r.body.type).toBe('id-jag');
+    expect(byId(r.body, 'trusted-idp')).toEqual(expect.objectContaining({ status: 'pass', actual: 'PingFederate' }));
+    expect(r.body.idp.name).toBe('PingFederate');
+    expect(JSON.stringify(r.body)).not.toContain(t);
+  });
+
+  it('pf-pf mode: trusts the SE PingFederate issuer (not a false failure) and checks against that mode', async () => {
+    const t = jwt({ alg: 'RS256', typ: 'oauth-id-jag+jwt', x5t: 'thumb' }, { iss: SE, sub: 'u1', aud: PF, client_id: 'ai-demo-pf-idjag-redeemer', jti: 'j', iat: now(), exp: now() + 300, scope: 'mcp:invoke' });
+    const r = await check({ idJagPlaygroundMode: 'pf-pf', idJagPlayground: { idJag: t, issuedAt: 1 } });
+    expect(byId(r.body, 'trusted-idp')).toEqual(expect.objectContaining({ status: 'pass', actual: 'PingFederate (SE, issuer)' }));
+    expect(byId(r.body, 'iss').status).toBe('pass');
+    expect(byId(r.body, 'aud').status).toBe('pass');
+    expect(byId(r.body, 'client_id').status).toBe('pass');
+    expect(axios.get.mock.calls.map(([u]) => u)).toContain(`${SE}/pf/JWKS`);
+  });
+
+  it('an issuer the mode does not know still fails', async () => {
+    for (const session of [{}, { idJagPlaygroundMode: 'pf-pf' }]) {
+      const r = await check({ ...session, idJagPlayground: { idJag: idJag({ iss: 'https://evil.test' }), issuedAt: 1 } });
+      expect(byId(r.body, 'trusted-idp').status).toBe('fail');
+    }
+  });
+
+  it("falls back to the registry when the mode's own issuer does not match", async () => {
+    registry = [{ id: 'acme', name: 'Acme IdP', issuer: 'https://acme.test', jwksUrl: 'https://acme.test/jwks', idJagClientId: 'acme-client', targets: ['oauth-mcp'], enabled: true }];
+    const r = await check({ idJagPlayground: { idJag: idJag({ iss: 'https://acme.test' }), issuedAt: 1 } });
+    expect(byId(r.body, 'trusted-idp')).toEqual(expect.objectContaining({ status: 'pass', actual: 'Acme IdP' }));
+  });
+
+  it('404 when nothing is minted, 401 when signed out', async () => {
+    expect((await check({})).status).toBe(404);
+    const a = express(); a.use((req, _res, next) => { req.session = { idJagPlayground: { idJag: idJag(), issuedAt: 1 } }; next(); }); a.use('/x', inspectApi.router);
+    expect((await request(a).post('/x/issued-check')).status).toBe(401);
+  });
+});

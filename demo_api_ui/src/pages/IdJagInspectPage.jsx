@@ -85,8 +85,9 @@ function Decode() {
     setError(""); setResult(null); setIssued(false); setShown(null); setBusy(true);
     try {
       await bffAxios.post(`${PG}/issue`, {});
-      const { data } = await bffAxios.post(`${PG}/inspect`, {});
-      setResult({ type: "id-jag", ...data }); setIssued(true);
+      // The same checks as a pasted token, on the token the server holds, trusted via the playground's mode.
+      const { data } = await bffAxios.post(`${API}/issued-check`);
+      setResult(data); setIssued(true);
     } catch (e) {
       if (e.response?.status === 401) setNeedSignIn(true); else setError(errText(e));
     } finally { setBusy(false); }
