@@ -235,3 +235,16 @@ describe('a refusal becomes a banner, not an empty list', () => {
     await waitFor(() => expect(screen.getByTestId('toolsBanner')).toHaveTextContent('tools down'));
   });
 });
+
+describe('hook order', () => {
+  // Tab switching re-renders ONE mounted component with a new sourceKey. A
+  // conditional hook anywhere in the hook fails here with React's
+  // "Should have a queue" / "Rendered more hooks" error.
+  it('survives switching through every source on a single mounted component', () => {
+    const keys = ['banking', 'pingone', 'api', 'custom', 'gateway', 'protocol'];
+    const { rerender } = render(<Probe sourceKey={keys[0]} />);
+    for (const k of [...keys.slice(1), ...keys.slice().reverse()]) {
+      expect(() => rerender(<Probe sourceKey={k} />)).not.toThrow();
+    }
+  });
+});
