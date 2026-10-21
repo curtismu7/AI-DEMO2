@@ -30,7 +30,7 @@ describe('PersonalAgentLearnPage', () => {
     expect(screen.getByRole('heading', { name: 'Personal agent studio' })).toBeTruthy();
     expect(screen.getByText('Run a simple request')).toBeTruthy();
     expect(screen.getByText('Ask for something sensitive')).toBeTruthy();
-    expect(screen.getByText('Move money')).toBeTruthy();
+    expect(screen.getByText('Go over your limit')).toBeTruthy();
     ['Signed in with MFA', 'Gateway token check', 'PingOne Authorize'].forEach((t) => expect(screen.getByText(t)).toBeTruthy());
     expect(screen.getByTestId('filmstrip')).toBeTruthy();
     expect(screen.getByTestId('learn-progress').textContent).toBe('0 of 3 complete');
@@ -67,7 +67,7 @@ describe('PersonalAgentLearnPage', () => {
   it('a gate that says deny is explained as a refusal at that gate', async () => {
     global.fetch = vi.fn(async () => json(200, { reply: 'Not allowed.', success: false, toolsCalled: ['pay_airline_fee'], tokenEvents: DENY }));
     renderPage();
-    fireEvent.click(lesson('Move money'));
+    fireEvent.click(lesson('Go over your limit'));
     await screen.findByText('Not allowed.');
     await waitFor(() => expect(screen.getByTestId('learn-summary').textContent).toMatch(/Refused at "PingOne Authorize"/));
     expect(screen.getByTestId('gate-authz').dataset.s).toBe('deny');

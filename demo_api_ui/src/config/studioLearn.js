@@ -42,10 +42,10 @@ export const LESSONS = [
     prompt: 'access my sensitive airline bookings',
   },
   {
-    id: 'money',
-    title: 'Move money',
-    learn: 'Paying a fee is a write, so the bar is higher. Watch what Ping requires before the agent is allowed to act.',
-    prompt: 'pay a $300 change fee',
+    id: 'limit',
+    title: 'Go over your limit',
+    learn: 'A fee far above the usual amount. Watch which gate stops it, and what the agent says about why. (A recorded run of this prompt was refused.)',
+    prompt: 'pay a $2500 change fee',
   },
 ];
 
