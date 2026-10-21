@@ -40,3 +40,15 @@
 .ijx .simple{background:#e8f4ff;color:#14304d;border-left:4px solid var(--c-bff);border-radius:var(--radius-md);padding:8px 10px;font-size:.85rem}
 .ijx .live{margin-top:12px}.ijx .live h3{margin-top:0}
 .ijx .idjag-path{margin:0;border-radius:0;border-width:0 0 1px 0}
+
+.ijx nav.steps{flex-direction:column;flex-wrap:nowrap;gap:4px}
+.ijx nav.steps button{width:100%;text-align:left;border-radius:var(--radius-md);padding:6px 10px}
+.ijx nav.steps button:hover:not(.sel){border-color:var(--red)}
+.ijx section>p{line-height:1.5;color:var(--th-text)}
+.ijx .calls{display:flex;flex-direction:column;gap:12px}
+.ijx .calls__group h4{margin:0 0 4px;font-size:var(--font-size-2xs);font-weight:700;color:var(--th-text)}
+.ijx .calls__group ul{list-style:none;margin:0;padding:0;display:flex;flex-direction:column;gap:0}
+.ijx .calls__group li{padding:5px 0 5px 10px;border-left:2px solid var(--th-border);border-bottom:1px solid var(--th-border);font-size:var(--font-size-2xs);line-height:1.4;overflow-wrap:break-word;color:var(--th-text-muted)}
+.ijx .calls__group li:last-child{border-bottom:0}
+.ijx .calls__group li.is-trust{border-left-style:dashed}
+.ijx .calls__tag{display:inline-block;margin-right:6px;padding:0 6px;border:1px solid var(--th-border);border-radius:var(--radius-pill);font-size:var(--font-size-3xs);font-weight:600;text-transform:uppercase;letter-spacing:.04em}

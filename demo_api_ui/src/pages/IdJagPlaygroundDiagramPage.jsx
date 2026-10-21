@@ -11,6 +11,9 @@ import { PLAYGROUND_DIAGRAMS, PLAYGROUND_DIAGRAM_MODES, playgroundDiagramPath, s
 // One diagram per ID-JAG playground mode (/pingfederate-id-jag/playground/diagram/:mode).
 // ?step=N lights playground step N; the URL is the step state, so every view is a deep link.
 
+// Edge labels carry a leading step glyph (① … ⑤, or ③–⑤); the grouping below shows the step instead.
+const callText = (label) => label.replace(/^[\u2460-\u2473\u2013\s-]+/, "");
+
 function PlaygroundFlow({ mode, d }) {
   const rf = useReactFlow();
   const measured = useNodesInitialized(); // a ?step deep link can only zoom once nodes have sizes
@@ -22,6 +25,11 @@ function PlaygroundFlow({ mode, d }) {
   const [panel, setPanel] = useState(true);
   const [side, setSide] = useState(380);
   const lit = stepParts(d, step);
+  const litEdges = d.edges.filter((e) => lit.edges.includes(e.id));
+  // Overview: each call listed once, under the first step it belongs to. A single step lists just its calls.
+  const callGroups = step
+    ? [{ n: step, edges: litEdges }]
+    : d.steps.map((s) => ({ n: s.n, t: s.t, edges: litEdges.filter((e) => e.steps[0] === s.n) })).filter((g) => g.edges.length);
   const current = step ? d.steps[step - 1] : { t: "Overview", text: d.overview };
 
   const computed = useMemo(() => [
@@ -92,7 +100,7 @@ function PlaygroundFlow({ mode, d }) {
           <button onClick={() => go(0)}>Reset</button>
           <span className="hint">Drag nodes to rearrange</span>
         </div>
-        <nav aria-label="Steps">
+        <nav className="steps" aria-label="Steps">
           {[{ n: 0, t: "Overview" }, ...d.steps].map((s) => (
             <button key={s.n} className={s.n === step ? "sel" : ""} aria-pressed={s.n === step} onClick={() => go(s.n)}>
               {s.n ? `${s.n} · ${s.t}` : s.t}
@@ -103,7 +111,20 @@ function PlaygroundFlow({ mode, d }) {
           <h2>{step ? `Step ${step} · ${current.t}` : current.t}</h2>
           <p>{current.text}</p>
           <h3>{step ? "Calls in this step" : "Every call"}</h3>
-          <ul data-testid="pgd-calls">{d.edges.filter((e) => lit.edges.includes(e.id)).map((e) => <li key={e.id}>{e.label}</li>)}</ul>
+          <div className="calls" data-testid="pgd-calls">
+            {callGroups.map((g) => (
+              <div key={g.n} className="calls__group">
+                {!step && <h4>{g.n} · {g.t}</h4>}
+                <ul>
+                  {g.edges.map((e) => (
+                    <li key={e.id} className={e.dashed ? "is-trust" : undefined}>
+                      {e.dashed && <span className="calls__tag">trust</span>}{callText(e.label)}
+                    </li>
+                  ))}
+                </ul>
+              </div>
+            ))}
+          </div>
         </section>
         <p className="legend">Solid = request/response · dashed = where trust comes from (JWKS or registry read) or an alternate path</p>
         <p className="legend"><Link to="/pingfederate-id-jag/playground">Open the playground</Link> to run this mode for real.</p>
