@@ -86,7 +86,7 @@ const LAYOUT_STYLES = {
   popped: { agentFlex: '0 0 280px', railWidth: 'auto', railVisible: true, placeholderVisible: true },
 };
 
-export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null }) {
+export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null, consentGate = null }) {
   const location = useLocation();
   const query = new URLSearchParams(location.search);
   const routeId = query.get('useCase');
@@ -336,6 +336,14 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     </div>
   );
 
+  // Optional consent step in front of the visible Run button (the digital worker page asks on a mock phone).
+  // consentGate(uc) -> Promise<boolean>. Only this click is gated: the run-nonce effect, the MFA return and the
+  // HITL re-run continue a run someone already agreed to, so they call executeWorkload directly and never re-ask.
+  const runWithConsent = async (uc) => {
+    if (consentGate && !(await consentGate(uc))) return;
+    executeWorkload(uc);
+  };
+
   if (workloadScenario) return (
     <div className="workload-agents__run">
       <h3>{workloadScenario.id}: {workloadScenario.title}</h3>
@@ -343,7 +351,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         ? 'Customer MFA is checked before this protected write. The registered workload agent acts only after step-up succeeds.'
         : 'This customer-data read keeps the signed-in customer as sub and the registered workload agent as act.'}</p>
       <p>Action: <strong>{workloadScenario.primaryTool}</strong> · Prompt: <strong>{workloadScenario.runPrompt}</strong></p>
-      <button type="button" disabled={runState.status === 'running'} onClick={() => executeWorkload(workloadScenario)}>Run {workloadScenario.id} action</button>
+      <button type="button" disabled={runState.status === 'running'} onClick={() => runWithConsent(workloadScenario)}>Run {workloadScenario.id} action</button>
       <button type="button" onClick={() => window.open(`/personal-agent/client?skin=${activeSkin}&theme=${theme}&useCase=${workloadScenario.id}&vertical=${encodeURIComponent(vertical)}`, '_blank', 'width=480,height=700,left=200,top=100,resizable=yes')}>🪟 Open client window</button>
       <p role={runState.status === 'error' ? 'alert' : 'status'} className={`workload-agents__status${runState.status === 'error' ? ' workload-agents__status--error' : ''}`}>{runState.status === 'running' ? 'Running the selected action…' : runState.text || 'Ready to run the selected catalog action.'}</p>
       {runState.status === 'step-up' && (

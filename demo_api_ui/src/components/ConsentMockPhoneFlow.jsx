@@ -14,19 +14,36 @@ const OUTCOME = {
 
 // /transaction-consent simulate mode: start a mock CIBA request through the BFF, show the push on the mock
 // phone, poll like a real client would, and render what came back. Moves no money and issues no token.
-export default function ConsentMockPhoneFlow({ scenario, onDone }) {
+//
+// `embedded` is for pages that put the phone inside their own flow (the digital worker page): it drops the
+// page heading. `onDecision(state)` is told once when the request ends as approved, denied or expired;
+// `onError(err)` gets a failed start (a 401 means the visitor is not signed in). Both are optional.
+export default function ConsentMockPhoneFlow({ scenario, onDone, embedded = false, onDecision, onError }) {
   const [view, setView] = useState(null);
   const [error, setError] = useState('');
   const [phoneClosed, setPhoneClosed] = useState(false);
   const started = useRef(false);
+  const reported = useRef(false);
+  // Held in a ref so a host re-render with fresh callbacks cannot restart the request.
+  const callbacks = useRef({});
+  callbacks.current = { onDecision, onError };
 
   useEffect(() => {
     if (started.current) return;
     started.current = true;
     apiClient.post(`${BASE}/start`, scenario.snapshot)
       .then((r) => setView(r.data))
-      .catch((e) => setError(e?.response?.data?.message || 'Could not start the approval request.'));
+      .catch((e) => {
+        setError(e?.response?.data?.message || 'Could not start the approval request.');
+        callbacks.current.onError?.(e);
+      });
   }, [scenario]);
+
+  useEffect(() => {
+    if (reported.current || !OUTCOME[view?.state]) return;
+    reported.current = true;
+    callbacks.current.onDecision?.(view.state);
+  }, [view?.state]);
 
   const pending = view?.state === 'pending';
   useEffect(() => {
@@ -43,8 +60,8 @@ export default function ConsentMockPhoneFlow({ scenario, onDone }) {
 
   return (
     <div className="cmp">
-      <h1 className="tc-simulate__title">Transaction Consent — Simulate</h1>
-      <p className="tc-simulate__subtitle">{scenario.label}</p>
+      {!embedded && <h1 className="tc-simulate__title">Transaction Consent — Simulate</h1>}
+      {!embedded && <p className="tc-simulate__subtitle">{scenario.label}</p>}
       {error && <p className="cmp__status is-error" role="alert">{error}</p>}
       {pending && (
         <p className="cmp__status" role="status" data-testid="consent-pending">
@@ -58,7 +75,7 @@ export default function ConsentMockPhoneFlow({ scenario, onDone }) {
         </p>
       )}
       {view?.trace?.length > 0 && <ProtocolTrace steps={view.trace} explain={{}} />}
-      <button type="button" className="cmp__back" onClick={onDone}>{pending ? 'Cancel' : 'Pick another scenario'}</button>
+      <button type="button" className="cmp__back" onClick={onDone}>{pending ? 'Cancel' : embedded ? 'Close' : 'Pick another scenario'}</button>
 
       <DraggableModal isOpen={pending && !phoneClosed} onClose={() => setPhoneClosed(true)} title="Mock phone"
         defaultWidth={360} defaultHeight={640} storageKey="consent-mock-phone">

@@ -15,19 +15,26 @@ vi.mock("../../services/apiClient", () => ({
   default: { get: vi.fn(), post: vi.fn() },
 }));
 vi.mock("../../utils/signInService", () => ({ openSignIn: vi.fn() }));
-// Prop probe: the page's contract with the studio is the props it passes, and a
-// runNonce bump is invisible in the real studio's DOM.
+// Prop probe: the page's contract with the studio is the props it passes (scenario, vertical, consentGate),
+// none of which show up in the real studio's DOM. "probe run" calls consentGate the way the Run button does.
 vi.mock("../PersonalAgentStudioPage", async () => {
-  const { createElement } = await import("react");
+  const { createElement, useState } = await import("react");
   return {
-    default: ({ scenario, vertical, runNonce }) => createElement("div", {
-      "data-testid": "studio",
-      "data-scenario": scenario ? scenario.id : "",
-      "data-vertical": vertical || "",
-      "data-nonce": runNonce,
-    }),
+    default: ({ scenario, vertical, runNonce, consentGate }) => {
+      const [gate, setGate] = useState("");
+      return createElement("div", {
+        "data-testid": "studio",
+        "data-scenario": scenario ? scenario.id : "",
+        "data-vertical": vertical || "",
+        "data-nonce": runNonce,
+        "data-has-gate": String(typeof consentGate === "function"),
+        "data-gate-result": gate,
+      }, consentGate ? createElement("button", { type: "button", onClick: async () => setGate(String(await consentGate(scenario))) }, "probe run") : null);
+    },
   };
 });
+// The consent phone is a floating modal; render its body inline so the test can reach the Approve/Deny taps.
+vi.mock("../../components/DraggableModal", () => ({ default: ({ isOpen, children }) => (isOpen ? <div>{children}</div> : null) }));
 
 import apiClient from "../../services/apiClient";
 import { openSignIn } from "../../utils/signInService";
@@ -194,5 +201,76 @@ describe("DigitalWorkerPage run sections", () => {
 
     fireEvent.click(within(document.getElementById("dw-pane-attended")).getByRole("button", { name: "Sign in" }));
     expect(openSignIn).toHaveBeenCalledWith({ returnTo: "/digital-worker" });
+  });
+});
+
+describe("DigitalWorkerPage consent phone", () => {
+  const PARKED = {
+    runId: "r1", job: "balance-sweep", status: "parked", agent: "Super Banking Balance Sweep Agent",
+    tokenEvents: [], findings: [], proposal: { fromAccountId: "chk-1", amount: 1000, fromName: "Checking" },
+    pending: { authReqId: "sim-1", initiatedAt: Date.now(), expiresIn: 300, loginHint: "u1" },
+  };
+  const pending = (body) => ({ state: "pending", loginHint: "tarun", type: "transfer", trace: [], ...body });
+
+  beforeEach(() => {
+    apiClient.post.mockReset();
+    apiClient.post.mockImplementation((url, body) => {
+      if (url === "/api/consent-mock-phone/start") return Promise.resolve({ data: pending(body) });
+      if (url === "/api/consent-mock-phone/decision") return Promise.resolve({ data: pending({ ...UC38_PENDING, state: body.decision === "approve" ? "approved" : "denied" }) });
+      if (url === "/api/autonomous-runs/run") return Promise.resolve({ data: { run: PARKED } });
+      return Promise.resolve({ data: { run: { ...PARKED, status: "completed" } } });
+    });
+  });
+  const UC38_PENDING = { amount: 600, description: "transfer $600 from checking to savings" };
+
+  it("gives the studio a gate that asks on the phone, with the amount read from the run prompt", async () => {
+    renderPage();
+    expect((await screen.findByTestId("studio")).dataset.hasGate).toBe("true");
+    fireEvent.click(screen.getByText("probe run"));
+    await screen.findByTestId("consent-mock-phone");
+    expect(apiClient.post).toHaveBeenCalledWith("/api/consent-mock-phone/start", { amount: 600, type: "transfer", description: "transfer $600 from checking to savings" });
+
+    fireEvent.click(screen.getByText("Approve on mock phone"));
+    await waitFor(() => expect(screen.getByTestId("studio").dataset.gateResult).toBe("true"));
+  });
+
+  it("blocks the run when the phone denies it", async () => {
+    renderPage();
+    await screen.findByTestId("studio");
+    fireEvent.click(screen.getByText("probe run"));
+    await screen.findByTestId("consent-mock-phone");
+    fireEvent.click(screen.getByText("Deny on mock phone"));
+    await waitFor(() => expect(screen.getByTestId("studio").dataset.gateResult).toBe("false"));
+  });
+
+  it("runs without a phone when the run prompt names no amount (nothing to approve)", async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (url.startsWith("/api/use-cases/UC38")) return Promise.resolve({ data: { useCase: { ...UC38, runPrompt: "check my balance" } } });
+      if (url.startsWith("/api/autonomous-runs/flag")) return Promise.resolve({ data: { enabled: false } });
+      return Promise.resolve({ data: {} });
+    });
+    renderPage();
+    await screen.findByTestId("studio");
+    fireEvent.click(screen.getByText("probe run"));
+    await waitFor(() => expect(screen.getByTestId("studio").dataset.gateResult).toBe("true"));
+    expect(apiClient.post).not.toHaveBeenCalledWith("/api/consent-mock-phone/start", expect.anything());
+  });
+
+  it("approves a parked unattended run on the same phone", async () => {
+    apiClient.get.mockImplementation((url) => {
+      if (url.startsWith("/api/use-cases/UC38")) return Promise.resolve({ data: { useCase: UC38 } });
+      if (url.startsWith("/api/autonomous-runs/flag")) return Promise.resolve({ data: { enabled: true } });
+      if (url.startsWith("/api/autonomous-runs")) return Promise.resolve({ data: { runs: [] } });
+      return Promise.resolve({ data: {} });
+    });
+    renderPage();
+    fireEvent.click(screen.getByRole("tab", { name: /Unattended/ }));
+    fireEvent.click(await screen.findByRole("button", { name: /fire without a human turn/i }));
+    fireEvent.click(await screen.findByRole("button", { name: /ask for approval on the phone/i }));
+
+    await screen.findByTestId("consent-mock-phone");
+    expect(apiClient.post).toHaveBeenCalledWith("/api/consent-mock-phone/start", expect.objectContaining({ amount: 1000, type: "transfer" }));
+    fireEvent.click(screen.getByText("Approve on mock phone"));
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith("/api/autonomous-runs/r1/approve"));
   });
 });

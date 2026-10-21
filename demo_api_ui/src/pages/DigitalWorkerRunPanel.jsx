@@ -20,7 +20,7 @@ const FLAG_URL = "/api/autonomous-runs/flag";
 const LIST_URL = "/api/autonomous-runs?limit=5";
 const JOBS = ["balance-sweep", "fraud-watch"];
 
-export default function DigitalWorkerRunPanel() {
+export default function DigitalWorkerRunPanel({ onAskConsent }) {
   const [enabled, setEnabled] = useState(null); // null = not yet known
   const [armExpiresInMs, setArmExpiresInMs] = useState(null);
   const [job, setJob] = useState("balance-sweep");
@@ -164,6 +164,16 @@ export default function DigitalWorkerRunPanel() {
     }
   }
 
+  // Put the transfer the worker is holding on the consent phone; the human's tap decides the run. Anything
+  // other than a tap (expired, cancelled, signed out, busy, error) leaves the run parked for another try.
+  async function askOnPhone(run) {
+    const { amount, fromName } = run.proposal || {};
+    const what = `${run.agent || "Worker"}: move $${amount} from ${fromName || "an account"}`;
+    const answer = await onAskConsent({ amount, type: "transfer", description: what.slice(0, 80) }, what);
+    if (answer === "approved") await decide(run.runId, "approve");
+    else if (answer === "denied") await decide(run.runId, "deny");
+  }
+
   if (enabled === null) return null;
 
   return (
@@ -213,8 +223,14 @@ export default function DigitalWorkerRunPanel() {
           {latestRun?.status === "parked" ? (
             <div className="dw-run__decide">
               <p>Over the standing mandate — waiting on an absent human's approval.</p>
-              <button type="button" disabled={busy} onClick={() => decide(latestRun.runId, "approve")}>Approve</button>
-              <button type="button" disabled={busy} onClick={() => decide(latestRun.runId, "deny")}>Deny</button>
+              {onAskConsent && Number(latestRun.proposal?.amount) > 0 ? (
+                <button type="button" disabled={busy} onClick={() => askOnPhone(latestRun)}>Ask for approval on the phone</button>
+              ) : (
+                <>
+                  <button type="button" disabled={busy} onClick={() => decide(latestRun.runId, "approve")}>Approve</button>
+                  <button type="button" disabled={busy} onClick={() => decide(latestRun.runId, "deny")}>Deny</button>
+                </>
+              )}
             </div>
           ) : null}
 

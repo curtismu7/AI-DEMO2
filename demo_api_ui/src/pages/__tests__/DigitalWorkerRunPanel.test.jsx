@@ -186,3 +186,63 @@ describe('DigitalWorkerRunPanel', () => {
     await waitFor(() => expect(screen.getByRole('button', { name: /approve/i })).toBeEnabled());
   });
 });
+
+describe('DigitalWorkerRunPanel with a consent phone (onAskConsent)', () => {
+  async function renderParked(onAskConsent, run = PARKED_RUN) {
+    mockFlag(true);
+    apiClient.post.mockResolvedValueOnce({ data: { run } });
+    render(<DigitalWorkerRunPanel onAskConsent={onAskConsent} />);
+    fireEvent.click(await screen.findByRole('button', { name: /fire without a human turn/i }));
+    return screen.findByRole('button', { name: /ask for approval on the phone/i });
+  }
+
+  it('replaces the bare Approve/Deny buttons with a request for approval on the phone', async () => {
+    await renderParked(vi.fn());
+    expect(screen.queryByRole('button', { name: /^approve$/i })).not.toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /^deny$/i })).not.toBeInTheDocument();
+  });
+
+  it('puts the held transfer on the phone and completes the run when it is approved', async () => {
+    const onAskConsent = vi.fn().mockResolvedValue('approved');
+    const ask = await renderParked(onAskConsent);
+
+    apiClient.post.mockResolvedValueOnce({ data: { run: { ...PARKED_RUN, status: 'completed' } } });
+    fireEvent.click(ask);
+
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/autonomous-runs/r1/approve'));
+    expect(onAskConsent).toHaveBeenCalledTimes(1);
+    const [snapshot, label] = onAskConsent.mock.calls[0];
+    expect(snapshot).toMatchObject({ amount: 1000, type: 'transfer' });
+    expect(snapshot.description).toMatch(/1000/);
+    expect(snapshot.description.length).toBeLessThanOrEqual(80);
+    expect(label).toMatch(/1000/);
+  });
+
+  it('declines the run when it is denied on the phone', async () => {
+    const ask = await renderParked(vi.fn().mockResolvedValue('denied'));
+    apiClient.post.mockResolvedValueOnce({ data: { run: { ...PARKED_RUN, status: 'denied' } } });
+    fireEvent.click(ask);
+    await waitFor(() => expect(apiClient.post).toHaveBeenCalledWith('/api/autonomous-runs/r1/deny'));
+  });
+
+  it.each(['expired', 'cancelled', 'signin', 'error', 'busy'])('leaves the run parked when the phone answers "%s"', async (answer) => {
+    const onAskConsent = vi.fn().mockResolvedValue(answer);
+    const ask = await renderParked(onAskConsent);
+    const postsBefore = apiClient.post.mock.calls.length;
+    fireEvent.click(ask);
+    await waitFor(() => expect(onAskConsent).toHaveBeenCalled());
+    await Promise.resolve();
+    // No approve/deny request went out, and the button is usable again for another try.
+    expect(apiClient.post.mock.calls.length).toBe(postsBefore);
+    expect(screen.getByRole('button', { name: /ask for approval on the phone/i })).toBeEnabled();
+  });
+
+  it('keeps the plain buttons when the run has no amount to show on a phone', async () => {
+    mockFlag(true);
+    apiClient.post.mockResolvedValueOnce({ data: { run: { ...PARKED_RUN, proposal: { fromAccountId: 'chk-1' } } } });
+    render(<DigitalWorkerRunPanel onAskConsent={vi.fn()} />);
+    fireEvent.click(await screen.findByRole('button', { name: /fire without a human turn/i }));
+    expect(await screen.findByRole('button', { name: /approve/i })).toBeInTheDocument();
+    expect(screen.queryByRole('button', { name: /ask for approval on the phone/i })).not.toBeInTheDocument();
+  });
+});
