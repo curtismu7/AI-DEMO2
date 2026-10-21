@@ -1,6 +1,7 @@
 import React, { useState } from 'react';
 import { Link } from 'react-router-dom';
 import CallDetail, { Chip, Wrapped, formatTime } from './CallDetail.jsx';
+import ResultPreview from './ResultPreview.jsx';
 import { SRC_LABEL, isProblem } from './inspectorCalls.js';
 import './Inspector.css';
 
@@ -46,6 +47,7 @@ export default function InspectorLayout({
       )}
 
       <div className="insp-work">
+        <div className="insp-side">
         <aside className="insp-card insp-calls" aria-label="Calls">
           <div className="insp-calls-head">
             <h2 className="insp-label">Calls <span className="insp-count">{calls.length}</span></h2>
@@ -75,6 +77,8 @@ export default function InspectorLayout({
           )}
           <p className="insp-calls-note">{callsNote}</p>
         </aside>
+        {selected && <ResultPreview call={selected} />}
+        </div>
         {selected && <CallDetail call={selected} calls={calls} nodeSubs={nodeSubs} onResend={onResend} onEdit={onEdit} />}
       </div>
     </div>

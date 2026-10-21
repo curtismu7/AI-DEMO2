@@ -139,3 +139,20 @@ describe('mcpCallFromStore: string error in a 200 body', () => {
     expect(c.banner.text).toBe('upstream timed out');
   });
 });
+
+describe('mcpCallFromStore: a tool that reports isError is a failed call', () => {
+  const failFrames = { ...frames, response: { jsonrpc: '2.0', id: 2, result: { isError: true, content: [{ type: 'text', text: 'Error: Provide one of: coordinates, location_name, or city_name.' }] } } };
+  const run = (f) => mcpCallFromStore({ ...base, detail: { src: 'you', params: {}, frames: f, tokenEvents: [], response: {} } });
+  it('is not shown as 200 OK / done', () => {
+    const c = run(failFrames);
+    expect(c.status).toEqual(err('Tool error'));
+    expect(c.banner).toMatchObject({ tone: 'err', title: 'Call failed' });
+    expect(c.banner.text).toContain('Provide one of');
+    expect(c.steps.at(-1)).toMatchObject({ title: 'Ran the tool', status: err('failed') });
+  });
+  it('a normal result still reads as OK', () => {
+    const c = run({ ...frames, response: { jsonrpc: '2.0', id: 2, result: { content: [{ type: 'text', text: 'Sunny' }] } } });
+    expect(c.status).toEqual(ok('200 OK'));
+    expect(c.banner).toBeNull();
+  });
+});
