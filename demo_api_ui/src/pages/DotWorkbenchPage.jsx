@@ -7,7 +7,7 @@ import DotPersonaCard from '../components/dot/DotPersonaCard';
 import DotGovernsPanel from '../components/dot/DotGovernsPanel';
 import { useDotPersona } from '../components/dot/useDotPersona';
 import { mapInvokeResult } from '../utils/dotChat';
-import { dotSuggestions } from '../config/dotSuggestions';
+import { dotSuggestions, unusedSuggestions } from '../config/dotSuggestions';
 import { useVertical } from '../vertical/useVertical';
 import { useThemeOptional } from '../context/ThemeContext';
 import { openSignIn } from '../utils/signInService';
@@ -65,6 +65,8 @@ export default function DotWorkbenchPage({ user, bare = false }) {
   }
 
   const cards = items.filter((i) => i.kind === 'tool');
+  // Prompts not yet run stay clickable under the replies ("try next"); the first-message-only chips hid them all.
+  const nextPrompts = unusedSuggestions(dotSuggestions(pageManifest), items.filter((i) => i.kind === 'user').map((i) => i.text));
   return (
     <>
     <div className={`cur-ide dot-wb${bare ? ' dot-wb--bare' : ''}`} data-cur-theme={theme} data-testid="dot-workbench-page" style={{ minHeight: 0 }}>
@@ -105,9 +107,10 @@ export default function DotWorkbenchPage({ user, bare = false }) {
                 <button type="button" className="dot-chip" onClick={() => openSignIn({})}>Sign in</button>
               </div>
             )}
-            {items.length === 0 && (
+            {nextPrompts.length > 0 && (
               <div className="dot-chips" role="group" aria-label="Suggested prompts">
-                {dotSuggestions(pageManifest).map(({ label, message }) => <button key={label} type="button" className="dot-chip" onClick={() => send(message)}>{label}</button>)}
+                {items.length > 0 && <span className="dot-muted">Try next:</span>}
+                {nextPrompts.map(({ label, message }) => <button key={label} type="button" className="dot-chip" onClick={() => send(message)}>{label}</button>)}
               </div>
             )}
             <form className="dot-composer" onSubmit={(e) => { e.preventDefault(); send(); }}>

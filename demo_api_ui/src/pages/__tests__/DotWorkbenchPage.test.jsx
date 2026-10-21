@@ -103,12 +103,23 @@ describe('DotWorkbenchPage', () => {
     await waitFor(() => expect(invokes()).toBe(2));
   });
 
-  it('chips send their prompt and disappear after the first message', async () => {
+  it('a chip sends its prompt and goes away; the other prompts stay as "Try next"', async () => {
     mockFetch(() => json(200, { reply: 'ok', success: true, toolsCalled: [] }));
     renderPage();
     fireEvent.click(screen.getByRole('button', { name: 'My claims' }));
     await screen.findByText('ok');
-    expect(screen.queryByRole('group', { name: 'Suggested prompts' })).toBeNull();
+    expect(screen.queryByRole('button', { name: 'My claims' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Find a doctor' })).toBeTruthy();
+    expect(screen.getByText('Try next:')).toBeTruthy();
+  });
+
+  it('a typed prompt that matches a chip also retires that chip', async () => {
+    mockFetch(() => json(200, { reply: 'ok', success: true, toolsCalled: [] }));
+    renderPage();
+    send('show my open claims');
+    await screen.findByText('ok');
+    expect(screen.queryByRole('button', { name: 'My claims' })).toBeNull();
+    expect(screen.getByRole('button', { name: 'Find a doctor' })).toBeTruthy();
   });
 
   it('the page theme IS the app theme: it follows a flip from the main top bar', () => {
