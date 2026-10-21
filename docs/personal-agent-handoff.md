@@ -13,7 +13,7 @@ movie reel (live token chain) and the tokens.
 ## Routes (demo_api_ui/src/App.js)
 
 | Route | What |
-|---|---|
+| --- | --- |
 | `/personal-agent` | The studio (`pages/PersonalAgentStudioPage.jsx`). Tabs: Agent, **Add to ChatGPT / Claude** (`?tab=connector`), Delegation proof (`?tab=obo`). Layout `?layout=stacked\|cockpit`. |
 | `/personal-agent/full` | Same page, bare (no app chrome) |
 | `/personal-agent/client` | Pop-out client window (`PersonalAgentClientWindow.jsx`), `?skin=&theme=` |
@@ -47,7 +47,7 @@ vendor Privilege gateway cannot be made to. The sandbox plays ChatGPT, the autho
 policy decision point and the benefits API in one process. Every leg runs real logic:
 
 | Steps | What actually happens |
-|---|---|
+| --- | --- |
 | 1-3 | Tokenless `tools/call` gets 401 + `resource_metadata`; RFC 9728 and RFC 8414 documents |
 | 4-5 | `/authorize` with PKCE S256 and a client_id that is the CIMD document URL; client acceptance against that document |
 | 6 | Consent page. Approve stores a consent record (id, version, member, client, scope, resource). Deny issues no code |
@@ -84,7 +84,7 @@ font-size pin in `src/__tests__/designTokenRatchet.test.js` was lowered to 2309.
 ## Tests
 
 | Where | Command |
-|---|---|
+| --- | --- |
 | Sandbox end to end (12 steps, Deny, denied consent, replay, wrong-key token, auth, run isolation) | `cd demo_api_server && CI=true npx jest tests/routes/connectorSandbox.flow.test.js --forceExit` |
 | Step logic, diagram config | `cd demo_api_ui && npx vitest run src/utils/__tests__/connectorSteps.test.js src/config/__tests__/connectorFlowDiagram.test.js` |
 | Component against the real sandbox (permit, Deny at step 10, consent denied) | `npx vitest run src/components/__tests__/ConnectorFlow.integration.test.jsx` |
