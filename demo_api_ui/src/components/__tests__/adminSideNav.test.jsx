@@ -207,12 +207,9 @@ describe("AdminSideNav — best-of-breed pass", () => {
     fireEvent.click(screen.getByRole("button", { name: /^DaVinci/ }));
     const group = screen.getByRole("button", { name: /^DaVinci/ }).closest(".admin-side-nav__group");
     expect(within(group).getByRole("link", { name: "DaVinci Widget" })).toHaveAttribute("href", "/davinci-widget");
-    expect(within(group).getByRole("link", { name: "DaVinci Login" })).toHaveAttribute("href", "/davinci-login-guide");
-    expect(within(group).getByRole("link", { name: "DaVinci SDK Login" })).toHaveAttribute("href", "/davinci-sdk-login");
-    expect(within(group).getByRole("link", { name: "DaVinci Orchestration" })).toHaveAttribute("href", "/davinci-orchestration");
+    expect(within(group).getByRole("link", { name: "DaVinci SDK Guide" })).toHaveAttribute("href", "/davinci-sdk");
     expect(within(group).getByRole("link", { name: "DaVinci Orchestration SDK" })).toHaveAttribute("href", "/davinci-orchestration-sdk");
-    expect(within(group).getByRole("link", { name: "Orchestration SDK Guide" })).toHaveAttribute("href", "/orchestration-sdk");
-    expect(within(group).getByRole("link", { name: "DaVinci Orchestration Overview" })).toHaveAttribute("href", "/davinci-orchestration");
+    expect(within(group).getByRole("link", { name: "PingFederate DaVinci Integration Kit" })).toHaveAttribute("href", "/pingfederate-davinci-kit");
   });
 
   it("exposes aria-expanded + aria-controls on expandable groups", () => {

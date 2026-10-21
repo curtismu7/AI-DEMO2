@@ -17,10 +17,9 @@
 // read-and-delete block of a §1 file whose stated invariant is that the block is
 // unchanged.
 //
-// ponytail: the session-establish block below is duplicated from
-// routes/davinciLogin.js rather than extracted — extracting means editing that
-// §1 file. Extract to services/davinciSessionLogin.js when a THIRD DaVinci login
-// path appears.
+// The user lookup, session regenerate and session save steps are shared with
+// routes/davinciLogin.js via services/davinciSessionLogin.js. WHERE the tokens
+// are stored is not shared: this path writes the lesson sandbox slot.
 //
 // The app is a PUBLIC client (tokenEndpointAuthMethod NONE, PKCE S256_REQUIRED),
 // which is what Ping's own SDK tutorial specifies — so there is no client secret
@@ -33,7 +32,7 @@ const davinciConfig = require('../config/davinci');
 const configStore = require('../services/configStore');
 const { getTokenEndpoint, getDiscoveryEndpoint } = require('../services/oauthEndpointResolver');
 const oauthService = require('../services/oauthService');
-const dataStore = require('../data/store');
+const { findDemoUser, regenerateSession, saveSession } = require('../services/davinciSessionLogin');
 const { determineClientType } = require('../middleware/auth');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 const { getScopesForUserType } = require('../config/scopes');
@@ -219,10 +218,8 @@ router.post('/callback', async (req, res) => {
     // Demo customer-login sandbox: authenticate an EXISTING demo user only.
     // Unlike routes/oauth.js's admin flow, never auto-create or auto-admin an
     // account from an arbitrary DaVinci login.
-    const user = dataStore.getUserByUsername(oauthUser.username);
-    if (!user) {
-      return res.status(404).json({ error: 'user_not_found', message: `No demo user found for "${oauthUser.username}".` });
-    }
+    const user = findDemoUser(oauthUser, res);
+    if (!user) return undefined;
 
     // Capture the MAIN app session before regenerate wipes it (fixation
     // protection). Restored after the sandbox is written below, so the lesson's
@@ -240,11 +237,7 @@ router.post('/callback', async (req, res) => {
 
     // Regenerate before storing credentials to prevent session fixation
     // (mirrors routes/oauth.js and routes/oauthUser.js). Failure is fatal.
-    req.session.regenerate((regenErr) => {
-      if (regenErr) {
-        console.error('[davinci-sdk-login/callback] Session regenerate FAILED — aborting login:', regenErr.message);
-        return res.status(500).json({ error: 'session_regenerate_failed', message: 'Could not establish a session.' });
-      }
+    return regenerateSession(req, res, '[davinci-sdk-login/callback]', () => {
 
       // Lesson-sandbox identity: the DaVinci tokens live in their OWN slot, never
       // in session.oauthTokens. The main app session (restored below) keeps its
@@ -292,11 +285,7 @@ router.post('/callback', async (req, res) => {
         req.session.oauthTokenIssuer = mainSession.oauthTokenIssuer;
       }
 
-      req.session.save((saveErr) => {
-        if (saveErr) {
-          console.error('[davinci-sdk-login/callback] Session save FAILED:', saveErr.message);
-          return res.status(500).json({ error: 'session_save_failed', message: 'Could not persist session.' });
-        }
+      saveSession(req, res, '[davinci-sdk-login/callback]', () => {
         // username lets the page say WHO an existing PingOne session signed in
         // as ("Signed in as demoAdmin — continue, or sign out to switch"),
         // which it cannot know otherwise: a reused session completes the flow
