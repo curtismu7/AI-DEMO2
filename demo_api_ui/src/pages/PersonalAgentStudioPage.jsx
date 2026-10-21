@@ -93,7 +93,7 @@ const LAYOUT_STYLES = {
   popped: { agentFlex: '0 0 280px', railWidth: 'auto', railVisible: true, placeholderVisible: true },
 };
 
-export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null, consentGate = null, bare = false }) {
+export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null, consentGate = null, reelEmptyState = undefined, bare = false }) {
   const location = useLocation();
   const query = new URLSearchParams(location.search);
   const routeId = query.get('useCase');
@@ -419,7 +419,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       {mfaModal}
       <SecurityRail gates={workloadGates} actClaim={actClaim} />
       {/* The filmstrip's two halves place themselves by grid-area name. */}
-      <div className="workload-agents__chain"><TokenChainFilmstrip /></div>
+      <div className="workload-agents__chain"><TokenChainFilmstrip emptyState={reelEmptyState} /></div>
     </div>
   );
 

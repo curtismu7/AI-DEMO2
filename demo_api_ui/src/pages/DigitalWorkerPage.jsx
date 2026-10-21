@@ -403,7 +403,7 @@ export default function DigitalWorkerPage() {
           <p className="dw-agent__intro">{selected ? `${protectedActionLabel(selected)[0].toUpperCase()}${protectedActionLabel(selected).slice(1)}` : "Protected action"} with step-up MFA and human approval</p>
           {needsSignIn ? <DigitalWorkerSignIn what="run the governed worker" /> : error && <p role="alert" className="dw-run-task__error">{error}</p>}
           {selected ? (
-            <PersonalAgentStudioPage key={`${vertical}:UC38`} scenario={selected} vertical={vertical} consentGate={consentGate} />
+            <PersonalAgentStudioPage key={`${vertical}:UC38`} scenario={selected} vertical={vertical} consentGate={consentGate} reelEmptyState={<p className="dw-reel-empty">Run it to see each hop's token here.</p>} />
           ) : !error && !needsSignIn && <p role="status" className="dw-agent__intro">Loading the governed run…</p>}
         </div>
 
