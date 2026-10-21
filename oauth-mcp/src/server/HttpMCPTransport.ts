@@ -1235,6 +1235,9 @@ export class HttpMCPTransport {
     requiredScopes?: string[];
     requestId?: string;
   }): void {
+    // The reason lives only in the response body, which the gateway strips; log it
+    // so a 401 on a gateway-forwarded call is diagnosable from this pod's logs.
+    console.warn(`[HttpMCPTransport] 401 unauthorized — ${detail}`);
     const base = this.resourceBaseUrl();
     const scopePart = options?.requiredScopes && options.requiredScopes.length > 0
       ? `, scope="${options.requiredScopes.join(' ')}"`
