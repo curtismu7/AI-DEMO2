@@ -10,6 +10,7 @@ jest.mock('../../services/oauthService', () => ({ performIdJagExchange: jest.fn(
 jest.mock('../../services/mcpGatewayClient', () => ({ callToolViaGateway: jest.fn(), getMcpGatewayHttpUrl: () => 'https://gw.test' }));
 jest.mock('../../services/oauthRedirectUris', () => ({ getFrontendOrigin: () => 'https://app.test' }));
 
+const axios = require('axios');
 const configStore = require('../../services/configStore');
 const router = require('../../routes/idJagPlayground');
 
@@ -98,5 +99,29 @@ describe('pf-pf issuer sign-in through the pi.flow modal', () => {
     expect(r.status).toBe(302);
     expect(new URL(r.headers.location).searchParams.get('response_mode')).toBeNull();
     expect(new URL(r.headers.location).origin).toBe(SE);
+  });
+});
+
+describe('oauth-mcp issuer sign-in on a PingOne-login deployment (pi.flow)', () => {
+  const REGISTERED = 'https://app.test/api/auth/oauth/user/callback';
+  beforeEach(() => { CONFIG.pf_user_redirect_uri = REGISTERED; CONFIG.pf_token_endpoint = 'https://pf.test/as/token.oauth2'; });
+  afterEach(() => { delete CONFIG.pf_user_redirect_uri; delete CONFIG.pf_token_endpoint; });
+
+  it('asks PingFederate with the client\'s registered redirect_uri, lands the browser on the issuer callback, and exchanges with the same redirect_uri', async () => {
+    global.fetch.mockResolvedValueOnce(res(200, { id: 'flow-1', status: 'USERNAME_PASSWORD_REQUIRED' }));
+    const session = { idJagPlaygroundMode: 'oauth-mcp', save: (cb) => cb() };
+    const app = appWith(session);
+    const login = await request(app).get('/pg/issuer/login?pi_flow=1');
+    expect(login.status).toBe(200);
+    const url = new URL(global.fetch.mock.calls[0][0]);
+    expect(url.origin).toBe('https://pf.test');
+    expect(url.searchParams.get('redirect_uri')).toBe(REGISTERED);
+    const { state } = session.idJagIssuerLogin;
+    global.fetch.mockResolvedValueOnce(res(200, { status: 'COMPLETED', authorizeResponse: { code: 'the-code', state } }));
+    const step = await post(app, '/pg/issuer/pi-flow/credentials', { username: 'demo', password: 'pw' });
+    expect(`${new URL(step.body.redirectTo).origin}${new URL(step.body.redirectTo).pathname}`).toBe('https://app.test/api/id-jag-playground/issuer/callback');
+    axios.post.mockResolvedValue({ status: 200, data: { refresh_token: 'rt', id_token: 'x.e30.y' } });
+    await request(app).get(`/pg/issuer/callback?code=the-code&state=${state}`);
+    expect(axios.post.mock.calls[0][1]).toContain(`redirect_uri=${encodeURIComponent(REGISTERED)}`);
   });
 });

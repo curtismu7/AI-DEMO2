@@ -35,3 +35,38 @@ it("pf-pf sign-in asks the sign-in service for the issuer role, not the app's ow
   expect(openSignIn.mock.calls[0][0]).toEqual({ role: "issuer", returnTo: "/pingfederate-id-jag/playground", force: true });
   localStorage.removeItem("idjag.playground.mode");
 });
+
+it("oauth-mcp with a PingOne login provider signs in through the issuer role and is not greyed out", async () => {
+  openSignIn.mockClear(); post.mockClear();
+  const viaIssuer = { ...config, provider: "pingone", signIn: { via: "issuer", reason: null } };
+  get.mockImplementation((url) => Promise.resolve({ data: url.endsWith("/config") ? viaIssuer : url.endsWith("/preflight") ? { ok: true, checks: [] } : [] }));
+  post.mockResolvedValue({ data: {} });
+  render(<MemoryRouter><IdJagPlaygroundPage /></MemoryRouter>);
+  const btn = await screen.findByRole("button", { name: "Sign in with PingFederate" });
+  expect(btn.disabled).toBe(false);
+  expect(screen.queryByText(/login provider is PingOne/)).toBeNull();
+  fireEvent.click(btn);
+  await vi.waitFor(() => expect(openSignIn).toHaveBeenCalled());
+  expect(openSignIn.mock.calls[0][0]).toEqual({ role: "issuer", returnTo: "/pingfederate-id-jag/playground", force: true });
+  expect(post).not.toHaveBeenCalledWith("/api/auth/clear-session");
+});
+
+it("oauth-mcp via the issuer says plainly why it cannot sign in when the server reports a reason", async () => {
+  const blocked = { ...config, provider: "pingone", signIn: { via: "issuer", reason: "Set PF_ISSUER to the PingFederate that issues the ID-JAG." } };
+  get.mockImplementation((url) => Promise.resolve({ data: url.endsWith("/config") ? blocked : url.endsWith("/preflight") ? { ok: true, checks: [] } : [] }));
+  render(<MemoryRouter><IdJagPlaygroundPage /></MemoryRouter>);
+  expect((await screen.findByRole("button", { name: "Sign in with PingFederate" })).disabled).toBe(true);
+  expect(await screen.findByText(/Set PF_ISSUER/)).toBeTruthy();
+});
+
+it("pf-pf on a one-PingFederate deployment is explained and its sign-in is disabled", async () => {
+  localStorage.setItem("idjag.playground.mode", "pf-pf");
+  const reason = "PingFederate → PingFederate needs a second PingFederate as the redeemer; this deployment has only one.";
+  const one = { ...config, mode: "pf-pf", modes: [{ id: "oauth-mcp", available: true }, { id: "pf-pf", available: false, reason }, { id: "byo", available: true }] };
+  get.mockImplementation((url) => Promise.resolve({ data: url.endsWith("/config") ? one : url.endsWith("/preflight") ? { ok: true, checks: [] } : [] }));
+  render(<MemoryRouter><IdJagPlaygroundPage /></MemoryRouter>);
+  expect((await screen.findAllByText(/needs a second PingFederate/)).length).toBeGreaterThan(0);
+  expect(screen.getByTestId("ijp-mode-reason-pf-pf").textContent).toMatch(/Not available here/);
+  expect(screen.getByRole("button", { name: "Sign in at the issuer PingFederate" }).disabled).toBe(true);
+  localStorage.removeItem("idjag.playground.mode");
+});
