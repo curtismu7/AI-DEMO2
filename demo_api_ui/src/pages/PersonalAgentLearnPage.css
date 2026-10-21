@@ -33,7 +33,7 @@
 .pal .pal-lesson p { font-size: var(--font-size-sm); line-height: 1.55; color: var(--th-text-body); margin-bottom: 12px; }
 .pal-go { position: absolute; top: 14px; right: 14px; font-size: var(--font-size-2xs); font-weight: 700; color: var(--th-status-error-text); }
 .pal .pal-lesson.is-done .pal-go { color: var(--th-status-success-text); }
-.pal-prompt { display: block; font-family: var(--font-mono, monospace); font-size: var(--font-size-2xs); background: var(--th-bg-inset); border: 1px dashed var(--th-border-strong); border-radius: var(--radius-lg); padding: 7px 10px; color: var(--th-text); }
+.pal-prompt { display: block; font-family: var(--font-mono); font-size: var(--font-size-2xs); background: var(--th-bg-inset); border: 1px dashed var(--th-border-strong); border-radius: var(--radius-lg); padding: 7px 10px; color: var(--th-text); }
 
 /* ── cards + main grid ── */
 .pal-grid { display: grid; grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr); gap: 20px; padding-block: 18px; }
