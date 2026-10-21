@@ -16,6 +16,8 @@ export function usePingOneAuthorizeConsole({
   onEvaluated,
 }) {
   const [running, setRunning] = useState(false);
+  // 'live' sends to PingOne Authorize; 'mock' is answered by the server's built-in simulated engine (no PingOne call).
+  const [mode, setMode] = useState('live');
 
   // Preset & form state
   const [preset, setPreset] = useState(autoPreset);
@@ -127,6 +129,7 @@ export function usePingOneAuthorizeConsole({
       const res = await bffAxios.post('/api/authorize/evaluate-endpoint', {
         endpointId,
         parameters,
+        ...(mode === 'mock' ? { mode: 'mock' } : {}),
       });
       const elapsed = Date.now() - started;
       onEvaluated?.({
@@ -146,7 +149,7 @@ export function usePingOneAuthorizeConsole({
     } finally {
       setRunning(false);
     }
-  }, [endpointId, preset, onEvaluated]);
+  }, [endpointId, preset, mode, onEvaluated]);
 
   // Execute with current form state
   const run = useCallback(() => {
@@ -177,6 +180,8 @@ export function usePingOneAuthorizeConsole({
 
   return {
     running,
+    mode,
+    setMode,
 
     // Preset & form
     preset,

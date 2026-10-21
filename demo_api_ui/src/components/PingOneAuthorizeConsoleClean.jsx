@@ -137,6 +137,10 @@ export default function PingOneAuthorizeConsoleClean({
   const send = (
     <div className="insp-send-body">
       <div className="insp-send-row">
+        <div className="insp-seg" role="group" aria-label="Engine">
+          <button type="button" aria-pressed={h.mode === 'live'} onClick={() => h.setMode('live')} title="Send to PingOne Authorize">Live</button>
+          <button type="button" aria-pressed={h.mode === 'mock'} onClick={() => h.setMode('mock')} title="Built-in simulated engine, no PingOne call">Mock</button>
+        </div>
         {verticalField}
         <div className="insp-seg" role="group" aria-label="Decision type">
           {presets.map((p) => (
@@ -175,7 +179,7 @@ export default function PingOneAuthorizeConsoleClean({
           </React.Fragment>
         ))}
         {h.preset !== 'custom' && field('User ID', h.userId, h.setUserId)}
-        <button type="button" className="insp-btn" onClick={h.run} disabled={h.running || !endpointId}>{h.running ? 'Sending…' : 'Send'}</button>
+        <button type="button" className="insp-btn" onClick={h.run} disabled={h.running || (h.mode === 'live' && !endpointId)}>{h.running ? 'Sending…' : 'Send'}</button>
       </div>
       <details>
         <summary>{`Policies on this endpoint · ${countKind(policies, 'POLICY')} policies, ${countKind(policies, 'RULE')} rules`}</summary>
@@ -198,7 +202,7 @@ export default function PingOneAuthorizeConsoleClean({
       title="Authorize Inspector"
       lede="Every decision PingOne Authorize made for this demo: the parameters sent, the verdict and statements returned, the token used, and the API calls behind it."
       related={RELATED}
-      mode={loadState === 'loading' ? idle('Loading') : loadState === 'error' ? err('Unavailable') : ok('Live')}
+      mode={h.mode === 'mock' ? ok('Mock') : loadState === 'loading' ? idle('Loading') : loadState === 'error' ? err('Unavailable') : ok('Live')}
       source={{
         label: 'Endpoint',
         value: endpointId,
