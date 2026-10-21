@@ -439,6 +439,24 @@ describe("ID-JAG playground page", () => {
     expect(screen.getByTestId("ijp-results")).toHaveTextContent(/intent policy/);
   });
 
+  it("step 4: a gateway TOKEN_INACTIVE keeps the real error text and adds the PingOne-only note", async () => {
+    mount(config());
+    replies({
+      "/issue": issuedWith({ iat: now(), exp: now() + 300 }),
+      "/redeem": { request: {}, status: 200, response: {}, token: { header: {}, claims: { exp: now() + 600 } } },
+      "/call": Object.assign(new Error("502"), { response: { status: 502, data: { error: "TOKEN_INACTIVE", message: "Gateway answered HTTP 401 login_required", gatewayStatus: 401, gatewayErrorCode: "TOKEN_INACTIVE", gatewayMessage: "login_required" } } }),
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    await waitFor(() => expect(posted("/issue")).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: "List tools this token can see" })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: "List tools this token can see" }));
+    const results = await screen.findByTestId("ijp-results");
+    expect(results).toHaveTextContent("Gateway answered HTTP 401 TOKEN_INACTIVE");
+    expect(results).toHaveTextContent(/The MCP gateway validates tokens with PingOne only/);
+    expect(results).toHaveTextContent(/steps 1-3\) is not affected/);
+  });
+
   it("protected resource: renders the resource server's page, and its refusal names the failed check", async () => {
     mount(config());
     const ok = { request: { method: "GET", url: "https://as.test/protected/profile", authorization: "Bearer [access token]" }, status: 200,

@@ -1140,8 +1140,10 @@ router.post('/call', requirePf, async (req, res) => {
     const result = await callToolViaGateway(null, token, tool, params, pin);
     return res.json({ request, result });
   } catch (err) {
-    // The gateway's own answer (status, error code, reason), not just ours.
-    return res.status(err.httpStatus && err.httpStatus < 600 ? err.httpStatus : 502).json({ error: err.code || 'gateway_call_failed', message: err.message,
+    // The gateway's own answer (status, error code, reason) goes in the body. The HTTP status is ours: forwarding the
+    // gateway's 401/403 would read as "the app session expired" and make the SPA raise its sign-in modal.
+    const forwarded = err.httpStatus && err.httpStatus >= 400 && err.httpStatus < 600 && ![401, 403].includes(err.httpStatus);
+    return res.status(forwarded ? err.httpStatus : 502).json({ error: err.code || 'gateway_call_failed', message: err.message,
       gatewayStatus: err.gatewayStatus, gatewayErrorCode: err.gatewayErrorCode, gatewayMessage: err.gatewayMessage, request });
   }
 });

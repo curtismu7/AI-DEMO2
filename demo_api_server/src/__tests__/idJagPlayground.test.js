@@ -150,6 +150,16 @@ describe('ID-JAG playground — flow keeps every raw token server-side', () => {
     }
   });
 
+  it.each([401, 403])('a gateway %i is reported as 502 with the gateway status in the body, never as the BFF\'s own %i', async (code) => {
+    const session = pfSession();
+    session.idJagPlayground = { idJag: goodIdJag(), redeemed: true, accessToken };
+    callToolViaGateway.mockRejectedValue(Object.assign(new Error('Gateway answered HTTP ' + code), {
+      code: 'TOKEN_INACTIVE', httpStatus: code, gatewayStatus: code, gatewayErrorCode: 'TOKEN_INACTIVE', gatewayMessage: 'login_required' }));
+    const res = await post(appWith(session), '/pg/call');
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual(expect.objectContaining({ error: 'TOKEN_INACTIVE', gatewayStatus: code, gatewayErrorCode: 'TOKEN_INACTIVE', gatewayMessage: 'login_required', request: expect.any(Object) }));
+  });
+
   it('refuses a redeem scope that is not in the ID-JAG, before calling the resource AS', async () => {
     const session = pfSession();
     const app = appWith(session);
@@ -176,7 +186,7 @@ describe('ID-JAG playground — flow keeps every raw token server-side', () => {
       code: 'gateway_policy_denied', httpStatus: 403, gatewayStatus: 403, gatewayErrorCode: 'intent_mismatch', gatewayMessage: 'Tool transfer_funds does not match intent read_accounts',
     }));
     const res = await post(appWith(session), '/pg/call', { tool: 'transfer_funds', arguments: {} });
-    expect(res.status).toBe(403);
+    expect(res.status).toBe(502); // the gateway's 403 is in the body, not ours
     expect(res.body).toEqual(expect.objectContaining({ error: 'gateway_policy_denied', gatewayStatus: 403, gatewayErrorCode: 'intent_mismatch', gatewayMessage: expect.stringContaining('read_accounts') }));
     expect(res.body.request.body.params.name).toBe('transfer_funds');
   });
