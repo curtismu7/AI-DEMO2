@@ -172,6 +172,9 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     };
   }, [workloadContextKey]);
 
+  // True between a "yes" on the consent phone and the gateway's approval gate for that same run.
+  const phoneApproved = useRef(false);
+  const decideRef = useRef(null);
   const executeWorkload = useCallback((uc, approvedChallengeId = null) => {
     if (!uc?.runPrompt || !uc?.useCaseId) return;
     activeWorkloadRun.current?.abort();
@@ -199,7 +202,12 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       // The BFF answers 200 with step_up_required when the sign-in had no MFA.
       if (data.step_up_required) setRunState({ status: 'step-up', prompt: true, text: data.reply || 'Complete multi-factor authentication to continue.' });
       // Human approval: the reply carries the challenge to approve or decline.
-      else if (data.error === 'hitl_required' && (data.hitlChallengeId || data.challengeId)) setRunState({ status: 'approval', prompt: true, challengeId: data.hitlChallengeId || data.challengeId, text: data.reply || 'This action requires your approval.' });
+      else if (data.error === 'hitl_required' && (data.hitlChallengeId || data.challengeId)) {
+        const challengeId = data.hitlChallengeId || data.challengeId;
+        // The consent phone already got this person's yes for this run: record it on the gateway's challenge instead of asking again.
+        if (phoneApproved.current) { phoneApproved.current = false; decideRef.current?.('approve', challengeId); }
+        else setRunState({ status: 'approval', prompt: true, challengeId, text: data.reply || 'This action requires your approval.' });
+      }
       // success:false is a refusal or a failed run, not a completed action.
       else if (data.success === false) setRunState({ status: 'error', text: data.reply || 'The workload agent could not complete the request.' });
       else setRunState({ status: 'complete', text: data.reply || 'The workload agent completed the request.' });
@@ -312,8 +320,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   };
   // Approve or decline through the same decision endpoint the chat agent uses,
   // then retry the action carrying the approved challenge.
-  const decideApproval = (decision) => {
-    const { challengeId } = runState;
+  const decideApproval = (decision, challengeId = runState.challengeId) => {
     setRunState({ status: 'running', text: '' });
     fetch(`/api/mcp/decision/${encodeURIComponent(challengeId)}/${decision}`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } })
       .then(async (response) => {
@@ -323,6 +330,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       })
       .catch((error) => setRunState({ status: 'error', text: error.message }));
   };
+  decideRef.current = decideApproval;
   const finishStepUp = () => {
     setMfaChallenge(null);
     if (consentRetry) {
@@ -369,7 +377,11 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   // consentGate(uc) -> Promise<boolean>. Only this click is gated: the run-nonce effect, the MFA return and the
   // HITL re-run continue a run someone already agreed to, so they call executeWorkload directly and never re-ask.
   const runWithConsent = async (uc) => {
-    if (consentGate && !(await consentGate(uc))) return;
+    phoneApproved.current = false;
+    if (consentGate) {
+      if (!(await consentGate(uc))) return;
+      phoneApproved.current = true;
+    }
     executeWorkload(uc);
   };
 
