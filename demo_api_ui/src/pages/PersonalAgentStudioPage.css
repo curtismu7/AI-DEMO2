@@ -225,6 +225,13 @@
 /* The vertical picker in the header: a quiet label beside the shared VerticalSwitcher dropdown */
 .pas-vertical { display: inline-flex; align-items: center; gap: 6px; }
 
+/* The shared dropdown renders at 15px here (a global select rule outranks its own 0.8rem), well above the 12-13px
+   controls around it. Two classes beat that rule. */
+.pas-vertical .vertical-switcher__select {
+  padding: 3px 6px;
+  font-size: var(--font-size-2xs);
+}
+
 .pas-vertical__label {
   font-size: var(--font-size-3xs);
   font-weight: 700;
