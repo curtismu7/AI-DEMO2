@@ -2792,6 +2792,11 @@ function detectRotatedCredentials() {
       if (!cached) continue; // not in LMDB — no stale value possible
 
       if (cached !== envVal) {
+        // Warn only when the stored value would actually be USED. For ordinary keys getEffective() reads the env
+        // value first, so a different stored copy is shadowed dead data (nothing reads it directly) and "LMDB wins"
+        // would be false — it cried wolf on every boot. The stored copy really wins when the env value is present
+        // but ignored (e.g. an "encrypted:..." value), which getEffective() skips.
+        if (configStore.getEffective(configKey) === envVal) continue;
         warnings.push(
           `[config-rotation] ${envKey}: .env value differs from LMDB cache — ` +
           'LMDB wins for this key (non-bootstrap). If you rotated this credential, ' +

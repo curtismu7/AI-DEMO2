@@ -24,8 +24,18 @@ describe('detectRotatedCredentials watchlist derivation', () => {
     return configStore.detectRotatedCredentials();
   }
 
-  it('warns when the admin client secret differs between env and cache', async () => {
+  // getEffective() reads the env value FIRST for ordinary keys, so a different stored copy is shadowed dead data and
+  // "LMDB wins" would be false. The old check warned on every boot for exactly that case (admin + actor secrets).
+  it('does NOT warn when env wins: a stale stored copy is shadowed, nothing reads it', async () => {
     process.env.PINGONE_ADMIN_CLIENT_SECRET = 'env-rotated-value';
+    const warnings = await loadWith({ admin_client_secret: 'stale-lmdb-value' });
+    expect(warnings.some((w) => w.includes('PINGONE_ADMIN_CLIENT_SECRET'))).toBe(false);
+  });
+
+  // The stored copy genuinely wins when the env value is present but IGNORED (an "encrypted:..." value is skipped by
+  // getEffective), so a rotated credential in .env is silently not used. That is the hazard this check exists for.
+  it('warns when the env value is ignored and the stored value would be used', async () => {
+    process.env.PINGONE_ADMIN_CLIENT_SECRET = 'encrypted:not-a-raw-secret';
     const warnings = await loadWith({ admin_client_secret: 'stale-lmdb-value' });
     const hit = warnings.find((w) => w.includes('PINGONE_ADMIN_CLIENT_SECRET'));
     expect(hit).toBeDefined();
@@ -50,7 +60,7 @@ describe('detectRotatedCredentials watchlist derivation', () => {
   });
 
   it('watches demo_password via its DEMO_USER_PASSWORD alias', async () => {
-    process.env.DEMO_USER_PASSWORD = 'fresh-from-env';
+    process.env.DEMO_USER_PASSWORD = 'encrypted:ignored-by-getEffective';
     const warnings = await loadWith({ demo_password: 'stale-in-lmdb' });
     expect(warnings.some((w) => w.includes('DEMO_USER_PASSWORD'))).toBe(true);
   });
@@ -68,8 +78,8 @@ describe('detectRotatedCredentials watchlist derivation', () => {
     expect(warnings.filter((w) => w.includes('config-rotation'))).toEqual([]);
   });
 
-  it('still warns when the effective alias really drifted', async () => {
-    process.env.AGENT_CLIENT_SECRET = 'rotated-main-agent-secret';
+  it('still checks the alias against its OWN key (warns when that key\'s stored value would win)', async () => {
+    process.env.AGENT_CLIENT_SECRET = 'encrypted:rotated-main-agent-secret';
     const warnings = await loadWith({ pingone_agent_client_secret: 'stale-main-agent-secret' });
     expect(warnings.some((w) => w.includes('AGENT_CLIENT_SECRET') && w.includes('pingone_agent_client_secret'))).toBe(true);
   });
