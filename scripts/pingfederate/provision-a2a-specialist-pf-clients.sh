@@ -6,7 +6,9 @@
 #
 # Grants: CLIENT_CREDENTIALS + TOKEN_EXCHANGE (actor CC + Exchange #2 exchanger).
 # tokenExchangeProcessorPolicyRef is REQUIRED (PF: "Token Exchange Processor Policy mapping not found"
-# without it); the final token is minted by aiDemoPfAgentGwJwtAtm (matches the surviving 2026-09 clients).
+# without it). The final (Exchange #2) token is minted by aiDemoPfMcpGatewayJwtAtm, whose audience
+# https://api.ping.demo:3036/mcp is in P1AZ HasValidMcpAudience; aiDemoPfAgentGwJwtAtm (aud agentgateway.ping.demo)
+# is NOT accepted there, so a specialist on it denied mcp-invalid-audience under PF (report 2026-09-30 fix (b)).
 # Re-run after any specialist id/secret change in demo_api_server/.env: PF only knows the ids it was given.
 set -euo pipefail
 
@@ -42,7 +44,7 @@ for V in $VERTICALS; do
   "bypassApprovalPage": true,
   "restrictScopes": false,
   "tokenExchangeProcessorPolicyRef": { "id": "aiDemoStandardTePolicy" },
-  "defaultAccessTokenManagerRef": { "id": "aiDemoPfAgentGwJwtAtm" },
+  "defaultAccessTokenManagerRef": { "id": "aiDemoPfMcpGatewayJwtAtm" },
   "restrictToDefaultAccessTokenManager": true,
   "persistentGrantExpirationTime": 0
 }

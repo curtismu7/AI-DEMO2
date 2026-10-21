@@ -99,6 +99,11 @@ const VENDORS = [
 const ViewContext = createContext("form");
 const TIME_CLAIMS = new Set(["exp", "iat", "nbf", "auth_time"]);
 
+// A long URN/URL may only break after ":" "/" "." so it wraps at natural points, never mid-word.
+function Breakable({ text }) {
+  return text.split(/([:/.])/).map((part, i) => (i % 2 ? <Fragment key={i}>{part}<wbr /></Fragment> : part));
+}
+
 function Fields({ value, name }) {
   if (Array.isArray(value)) {
     if (value.every((v) => v === null || typeof v !== "object")) return <span>{value.map(String).join(", ") || "(empty)"}</span>;
@@ -106,7 +111,7 @@ function Fields({ value, name }) {
   }
   if (value && typeof value === "object") {
     return (
-      <dl className="ijp-kv">
+      <dl className="ijp-fields">
         {Object.entries(value).filter(([, v]) => v !== undefined).map(([k, v]) => (
           <Fragment key={k}><dt>{k}</dt><dd><Fields value={v} name={k} /></dd></Fragment>
         ))}
@@ -114,7 +119,7 @@ function Fields({ value, name }) {
     );
   }
   if (TIME_CLAIMS.has(name) && typeof value === "number") return <span>{value} <span className="ijp-cite">({new Date(value * 1000).toLocaleString()})</span></span>;
-  return <span>{String(value)}</span>;
+  return <span><Breakable text={String(value)} /></span>;
 }
 
 // A request the page shows (endpoint + body, or method + url): the Code view turns it into fetch().
