@@ -65,6 +65,14 @@ describe('studioSuggestions / studioGreeting (the Studio follows the active vert
     ]);
   });
 
+  it('skips feature-demo chips (show_* tools): chat cannot run them', () => {
+    const out = studioSuggestions('claude', 'investment', manifest([chip('a', { tool: 'show_investment' }), chip('b'), chip('c')]));
+    expect(out).toEqual([
+      { label: 'Label b', message: 'Prompt b' },
+      { label: 'Label c', message: 'Prompt c' },
+    ]);
+  });
+
   it('Dot adds the recall question to another vertical\'s prompts', () => {
     const out = studioSuggestions('dot', 'retail', manifest([chip('a')]));
     expect(out).toEqual([{ label: 'Label a', message: 'Prompt a' }, RECALL]);

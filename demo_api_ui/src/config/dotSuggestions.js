@@ -13,7 +13,9 @@ const NEUTRAL = ['Always keep your answers short', 'Call me Sam'];
  */
 export function dotSuggestions(pageManifest) {
   const own = verticalSuggestionChips(pageManifest)
-    .filter((c) => c.message && c.mode !== 'direct')
+    // show_* chips are the main agent's feature demos: the page-side chip runs them, the chat path has no
+    // handler and answers with the capabilities list. Never offer a prompt chat cannot run.
+    .filter((c) => c.message && c.mode !== 'direct' && !String(c.tool || '').startsWith('show_'))
     .slice(0, 3)
     .map((c) => ({ label: c.label, message: c.message }));
   const lead = own.length ? own : NEUTRAL.map((t) => ({ label: t, message: t }));
@@ -45,7 +47,7 @@ export function airlineSuggestions(skin) {
 export function studioSuggestions(skin, verticalId, pageManifest) {
   if (!verticalId || verticalId === 'airlines') return airlineSuggestions(skin);
   const own = verticalSuggestionChips(pageManifest)
-    .filter((c) => c.message && c.mode !== 'direct')
+    .filter((c) => c.message && c.mode !== 'direct' && !String(c.tool || '').startsWith('show_'))
     .slice(0, 3)
     .map((c) => ({ label: c.label, message: c.message }));
   const lead = own.length ? own : NEUTRAL.map((t) => ({ label: t, message: t }));
