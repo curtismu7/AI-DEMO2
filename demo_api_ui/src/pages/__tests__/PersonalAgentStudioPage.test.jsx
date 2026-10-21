@@ -211,6 +211,13 @@ describe('PersonalAgentStudioPage', () => {
     expect(rule('.pas-shell--bare')).not.toContain('176px');
   });
 
+  it('the flow diagram disclosure says "Expand for Diagram"', () => {
+    renderStudio();
+    const summary = screen.getByText('Expand for Diagram');
+    expect(summary.tagName).toBe('SUMMARY');
+    expect(screen.queryByText('How a request flows')).toBeNull();
+  });
+
   it('cockpit flows at its natural height: sticky chat, pinned dock, no fixed-height squeeze of the right column', () => {
     // A fixed-height grid gave the right column ~200px on a laptop, clipping the reel and token detail.
     const body = (selector) => { const i = css.indexOf(selector + ' {'); return i < 0 ? '' : css.slice(i, css.indexOf('}', i)); };
