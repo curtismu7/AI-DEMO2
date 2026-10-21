@@ -69,11 +69,11 @@ describe('buildVerticalReply — generic write confirmation (no hand-written cas
   const { getRequiredTier } = require('../../services/agentRestrictionsService');
   const scopeTopology = require('../../services/scopeTopology')._manifest();
 
+  // (redeem_miles used to be in this table; it now has a hand-written airlines reply, tested below.)
   test.each([
     ['pay_bill', 'Your pay bill request is complete.'],
     ['withdraw', 'Your withdraw request is complete.'],
     ['transfer', 'Your transfer request is complete.'],
-    ['redeem_miles', 'Your redeem miles request is complete.'],
     ['cancel_order', 'Your cancel order request is complete.'],
     ['buy_security', 'Your buy security request is complete.'],
   ])('%s gets a write confirmation, not "Here are your ..."', (action, expected) => {
@@ -165,5 +165,80 @@ describe('buildVerticalReply — get_flight_status (airlines)', () => {
     for (const data of [{}, null, undefined, { flightNumber: 'UA1' }]) {
       expect(buildVerticalReply('get_flight_status', data, 'text', null)).not.toMatch(/here are your/i);
     }
+  });
+});
+
+// Every airlines tool returns a result shaped for its own card. None matched the generic shape the noun fallback
+// reads, so each answered "Here are your <tool name>." / "Your <tool name> request is complete." with no data, and a
+// failed write (paid / booked / cancelled / redeemed === false) was reported as complete.
+describe('buildVerticalReply — airlines tools', () => {
+  const reply = (action, data) => buildVerticalReply(action, data, action, null);
+  const booking = { confirmationNumber: 'ABC123', flightNumber: 'UA328', route: 'ORD to SFO', departureTime: '2026-08-15T08:40:00-05:00', status: 'Confirmed' };
+  const generic = /here are your|request is complete/i;
+
+  test('bookings list the trips with route, local departure and confirmation', () => {
+    const data = { upcomingTrips: 2, bookings: [booking, { ...booking, confirmationNumber: 'DEF456', flightNumber: 'UA1147', route: 'SFO to EWR', departureTime: '2026-09-03T14:10:00-07:00' }] };
+    expect(reply('get_airline_bookings', data)).toBe('You have 2 upcoming trips: UA328, ORD to SFO, Aug 15, 08:40 (ABC123); UA1147, SFO to EWR, Sep 3, 14:10 (DEF456).');
+    expect(reply('sensitive_airline_bookings', { bookings: [booking] })).toBe('You have 1 upcoming trip: UA328, ORD to SFO, Aug 15, 08:40 (ABC123).');
+  });
+
+  test('bookings cap the list at three and say how many more', () => {
+    const many = Array.from({ length: 5 }, (_, i) => ({ ...booking, confirmationNumber: 'C' + i }));
+    expect(reply('get_airline_bookings', { bookings: many })).toMatch(/5 upcoming trips: .*; and 2 more\.$/);
+  });
+
+  test('no bookings: the tool note, or a plain statement', () => {
+    expect(reply('get_airline_bookings', { bookings: [], note: 'No passenger records in the airlines database.' })).toBe('No passenger records in the airlines database.');
+    expect(reply('get_airline_bookings', { bookings: [] })).toBe('You have no upcoming trips.');
+  });
+
+  test('cancel: confirmation, refund and the demo caveat; a failure passes the note through', () => {
+    const ok = reply('cancel_airline_reservation', { cancelled: true, simulated: true, confirmationNumber: 'ABC123', flightNumber: 'UA328', route: 'ORD to SFO', refund: { status: 'initiated', method: 'original form of payment' } });
+    expect(ok).toBe('Cancellation recorded for reservation ABC123 (UA328, ORD to SFO). Refund initiated to the original form of payment. Demo: the reservation is left in place so it can be replayed.');
+    expect(reply('cancel_airline_reservation', { cancelled: false, note: 'No reservation ZZZ999 for this passenger.' })).toBe('No reservation ZZZ999 for this passenger.');
+  });
+
+  test('pay fee: amount, type and receipt; a failed payment is NOT reported as complete', () => {
+    expect(reply('pay_airline_fee', { paid: true, receiptId: 'rcpt_91', feeType: 'bag', amount: 35 })).toBe('Paid $35.00 bag fee — receipt rcpt_91.');
+    const failed = reply('pay_airline_fee', { paid: false, note: 'A positive fee amount is required.' });
+    expect(failed).toBe('A positive fee amount is required.');
+    expect(failed).not.toMatch(generic);
+  });
+
+  test('book flight: flight, local departure, confirmation, cabin and price; failures pass the note through', () => {
+    expect(reply('book_airline_flight', { booked: true, confirmationNumber: 'XYZ789', flightNumber: 'UA502', route: 'SFO to JFK', departureTime: '2026-09-03T14:10:00-07:00', cabin: 'Economy', amount: 346 }))
+      .toBe('Booked UA502 (SFO to JFK), departing Sep 3, 14:10 — confirmation XYZ789, Economy, $346.00.');
+    expect(reply('book_airline_flight', { booked: false, note: 'No flight UA999 in the airlines database.' })).toBe('No flight UA999 in the airlines database.');
+  });
+
+  test('seat map: how many seats are free, for the named flight', () => {
+    const seats = [{ seat: '1A', available: true }, { seat: '1B', available: false }, { seat: '14A', available: true }];
+    expect(reply('check_seat_availability', { flightNumber: 'UA328', availableOnly: false, seatCount: 3, seats })).toBe('Seat map for UA328: 2 of 3 seats available.');
+    expect(reply('check_seat_availability', { flightNumber: 'UA328', usedNextFlight: true, availableOnly: true, seatCount: 1, seats: [seats[0]] })).toBe('Seat map for UA328 (your next flight): 1 seat available.');
+    expect(reply('check_seat_availability', { seatCount: 0, seats: [], note: 'No upcoming flight on file — name a flight number.' })).toBe('No upcoming flight on file — name a flight number.');
+  });
+
+  test('redeem miles: what was upgraded and the balance left; failures pass the note through', () => {
+    expect(reply('redeem_miles', { redeemed: true, confirmationNumber: 'ABC123', flightNumber: 'UA328', previousCabin: 'Economy', upgradedToCabin: 'Business', pointsRedeemed: 25000, pointsRemaining: 23250 }))
+      .toBe('Upgraded ABC123 · UA328 from Economy to Business for 25,000 miles; 23,250 miles remaining.');
+    expect(reply('redeem_miles', { redeemed: false, note: 'Insufficient miles. 25,000 required, 4,000 available.' })).toBe('Insufficient miles. 25,000 required, 4,000 available.');
+  });
+
+  test('passenger record: names the passenger and never repeats a sensitive field', () => {
+    const data = { found: true, sensitivity: 'pii', name: 'Pat Rivera', dateOfBirth: '1984-03-09', passportNumber: 'X1234567', knownTravelerNumber: 'KTN998877', loyalty: { tier: 'Gold', points: 48250, accountNumber: 'ML-55-1234' }, paymentCard: { brand: 'Visa', last4: '4242' } };
+    const text = reply('sensitive_passenger_record', data);
+    expect(text).toBe('Passenger record on file for Pat Rivera (Gold, 48,250 miles). Sensitive fields are not repeated in chat.');
+    for (const secret of ['1984', 'X1234567', 'KTN998877', 'ML-55-1234', '4242']) expect(text).not.toContain(secret);
+    expect(reply('sensitive_passenger_record', { found: false, note: 'No passenger record on file for P1.' })).toBe('No passenger record on file for P1.');
+  });
+
+  test('missing or empty data never falls back to the generic sentence', () => {
+    for (const action of ['get_airline_bookings', 'sensitive_airline_bookings', 'cancel_airline_reservation', 'pay_airline_fee', 'book_airline_flight', 'check_seat_availability', 'redeem_miles', 'sensitive_passenger_record']) {
+      for (const data of [{}, null, undefined]) expect(`${action}: ${reply(action, data)}`).not.toMatch(generic);
+    }
+  });
+
+  test('other verticals are untouched', () => {
+    expect(buildVerticalReply('checkout', { product: 'Tent', amount: 99 }, 'text', null)).toBe('Order placed for Tent ($99).');
   });
 });
