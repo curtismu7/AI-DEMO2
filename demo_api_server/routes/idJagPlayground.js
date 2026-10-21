@@ -1050,6 +1050,8 @@ router.get('/xaa/login', async (req, res) => {
     response_type: 'code', client_id: secretSetting('XAA_DEV_IDP_CLIENT_ID'), redirect_uri: xaaRedirectUri(),
     scope: 'openid profile email offline_access', prompt: 'consent', state, nonce,
     code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256',
+    // IdenX takes any email: pre-fill the signed-in user's so they only type the code.
+    ...(req.session?.user?.email ? { login_hint: req.session.user.email } : {}),
   }).toString();
   return req.session.save(() => res.redirect(u.toString()));
 });

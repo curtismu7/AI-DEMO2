@@ -253,7 +253,41 @@ describe("ID-JAG playground page", () => {
     expect(post).toHaveBeenCalledWith("/api/id-jag-playground/xaa/id-jag", {});
     expect(screen.getByText("Request to IdenX")).toBeInTheDocument();
     expect(screen.getByText(/Signed in at IdenX as alice@example.com/)).toBeInTheDocument();
+    expect(screen.getByTestId("ijp-xaa-done")).toHaveTextContent("Got an ID-JAG from IdenX");
     await waitFor(() => expect(screen.getByRole("button", { name: "Redeem ID-JAG" })).toBeEnabled());
+  });
+
+  it("byo: a dead IdenX session sends the user straight to sign in again, with no error and no second click", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    const assign = vi.fn();
+    const orig = window.location;
+    Object.defineProperty(window, "location", { configurable: true, value: { ...orig, assign } });
+    try {
+      post.mockRejectedValue(Object.assign(new Error("502"), { response: { status: 502, data: { error: "xaa_exchange_failed", idpError: "invalid_grant" } } }));
+      mountWith(config({ mode: "byo", publicEndpoints: ENDPOINTS, xaa: { ...XAA_OK, signedIn: true, user: "alice@example.com" } }), { idps: [], canManage: false });
+      const btn = await screen.findByRole("button", { name: XAA_BUTTON });
+      await waitFor(() => expect(btn).toBeEnabled());
+      fireEvent.click(btn);
+      await waitFor(() => expect(assign).toHaveBeenCalledWith("/api/id-jag-playground/xaa/login?return_to=/pingfederate-id-jag/playground"));
+      expect(screen.queryByTestId("ijp-xaa-done")).not.toBeInTheDocument();
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: orig });
+    }
+  });
+
+  it("byo: back from IdenX, a refused exchange shows its error instead of looping back to sign in", async () => {
+    localStorage.setItem("idjag.playground.mode", "byo");
+    const assign = vi.fn();
+    const orig = window.location;
+    Object.defineProperty(window, "location", { configurable: true, value: { ...orig, assign } });
+    try {
+      post.mockRejectedValue(Object.assign(new Error("502"), { response: { status: 502, data: { error: "xaa_exchange_failed", idpError: "invalid_grant", message: "IdenX refused the ID-JAG exchange (HTTP 400 invalid_grant)." } } }));
+      mountAt(config({ mode: "byo", publicEndpoints: ENDPOINTS, xaa: { ...XAA_OK, signedIn: true, user: "alice@example.com" } }), "/pingfederate-id-jag/playground?xaa=signed_in");
+      expect(await screen.findByText(/IdenX refused the ID-JAG exchange/)).toBeInTheDocument();
+      expect(assign).not.toHaveBeenCalled();
+    } finally {
+      Object.defineProperty(window, "location", { configurable: true, value: orig });
+    }
   });
 
   it("byo: shows an IdenX sign-in error from the redirect, and a disabled button with the reason when unavailable", async () => {
