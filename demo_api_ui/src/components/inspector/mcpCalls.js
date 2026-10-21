@@ -3,6 +3,7 @@
  * Pure functions only.
  */
 import { ok, err, idle, tokensFromEvents, stepsFromTokenEvents, decodeJwtClient } from './inspectorCalls';
+import { failureOf } from './readableResult';
 
 const GRANT = 'urn:ietf:params:oauth:grant-type:token-exchange';
 const words = (s) => String(s ?? '').split(/\s+/).filter(Boolean);
@@ -34,6 +35,13 @@ function refusalOf(b) {
   return { label: code >= 400 ? String(code) : b.denied ? 'Denied' : 'Error', text };
 }
 
+/** HTTP 200 with a result flagged `isError` (or a JSON-RPC error) is a failed call, not a success. */
+function toolErrorRefusal(body) {
+  const f = failureOf(body);
+  if (!f) return null;
+  return { label: f.ranTool ? 'Tool error' : 'Error', text: f.message.length > 240 ? `${f.message.slice(0, 240)}…` : f.message };
+}
+
 /** @returns {import('./inspectorCalls').InspectorCall} */
 export function mcpCallFromStore(entry) {
   const d = entry.detail ?? {};
@@ -57,7 +65,7 @@ export function mcpCallFromStore(entry) {
     });
   }
   const httpOk = entry.status >= 200 && entry.status < 300;
-  const refusal = httpOk ? refusalOf(d.response) : null;
+  const refusal = httpOk ? (refusalOf(d.response) ?? toolErrorRefusal(frames?.response ?? entry.result)) : null;
   const errorMsg = entry.errorMsg ?? refusal?.text ?? null;
   const okStatus = httpOk && !refusal;
 
