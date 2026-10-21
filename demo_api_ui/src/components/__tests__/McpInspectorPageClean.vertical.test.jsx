@@ -159,6 +159,11 @@ describe('MCP Inspector Vertical select', () => {
     expect(screen.getByRole('status')).toHaveTextContent('Your token was rejected (TOKEN_INACTIVE).');
     expect(screen.getByRole('button', { name: /log in again/i })).toBeTruthy();
     unmount();
+    sourceState.current = { ...makeSource(), toolsSource: 'local_catalog', toolsReason: 'token_resolve_failed_actor_token_invalid' };
+    const { unmount: unmountActor } = renderAt('/');
+    expect(screen.getByRole('status')).toHaveTextContent('not your login');
+    expect(screen.queryByRole('button', { name: /log in again/i })).toBeNull();
+    unmountActor();
     sourceState.current = { ...makeSource(), toolsSource: 'local_catalog', toolsReason: 'mcp_unreachable: ECONNREFUSED' };
     renderAt('/');
     expect(screen.getByRole('status')).toHaveTextContent('could not be reached');

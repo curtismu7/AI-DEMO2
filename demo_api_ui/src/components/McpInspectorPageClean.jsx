@@ -58,6 +58,8 @@ function fallbackReason(reason) {
   const r = String(reason || '');
   if (r.startsWith('mcp_unreachable')) return { text: 'The live MCP server could not be reached.', relogin: false };
   if (r.startsWith('no_mcp_bearer')) return { text: 'This session has no MCP token (restored session).', relogin: true };
+  // The BFF's own actor client (client-credentials) was refused — signing in again cannot fix that.
+  if (r.includes('actor_token_invalid')) return { text: 'The server-side actor client was rejected (locked or misconfigured) — this is not your login.', relogin: false };
   if (r.startsWith('token_resolve_failed_')) return { text: `Your token was rejected (${r.slice('token_resolve_failed_'.length)}).`, relogin: true };
   if (r) return { text: 'Live tool discovery failed.', relogin: true };
   return { text: 'Showing the local catalog.', relogin: true };
