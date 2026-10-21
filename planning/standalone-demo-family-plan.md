@@ -39,11 +39,23 @@ Passed in by the owner's workflow task; they answer questions that were open or 
 
 | Decision | Answer |
 |---|---|
-| Runner and CI | **Local self-hosted runner per repo.** Node 22 only on pull requests (the kit's PR #37 implements this and is open) |
+| Runner and CI | **Local self-hosted runner per repo.** Node 22 only on pull requests (the kit's PR #37 implements this and is merged) |
 | Mock sign-in | A **guarded persona picker** (the exact guard rule is not yet written) |
 | Issuer sign-in | Must become **pi.flow** (consistent with the no-redirect-logins rule) |
 | Project tracking | **No GitHub Project board** |
 | Repo creation | A repo is created **when it has a working slice**, not up front |
+
+## Decisions recorded on 2026-10-21
+
+| Decision | Answer |
+|---|---|
+| Hosting | **Docker/local first for every demo.** Later, a **hosted gallery of mock-mode, stateless demos only** (inspector, JWKS and discovery checkers, Cedar playground, Learning Hub, Diagram studio, trace viewer, standards labs), isolated per browser session. **Live-tenant demos stay local** (no multi-user hosting in v1). Host target decided later (the SE cluster or the Cloudflare hybrid plan). |
+| Why not host the live demos | The kit is single-tenant by design: Reset clears the registry and registered users for everyone, registration writes to one PingFederate user table (`idJagKitPcv`), and sessions, data directory and trace sink are in one process. Multi-user hosting needs per-user isolation, namespaced tenant objects with cleanup, quotas and abuse limits, so it is its own piece of work. |
+| Workspace seam | The base takes a **per-request workspace id (default `default`)** for data directory, sessions, trace sink and registry, now, so hosting later is not a rewrite. Behaviour is unchanged for local use. |
+| Base scope | **Trim hard:** extract only what the ID-JAG rebase uses first; the MFA tester and the rest build later on the proven base. The Group Policy, Privilege and HITL pieces are designed, not built, until those demos start. |
+| Sync credential | A **per-demo fine-grained token** (that repo plus read on the base), not one token for every repo |
+| Mock sign-in in Docker | **No exception:** local-mock sign-in is host-run only; containers always use a real IdP |
+| Redirect fallbacks | The ID-JAG work item removes **both** redirect fallbacks (the issuer sign-in and the app's own `GET /auth/login`); the modal shows a clear error instead of navigating |
 
 ## Still open
 
@@ -101,8 +113,9 @@ Every demo repo must ship all of these:
 10. Ships the **story engine** and **vertical packs**: every story is data with `{{cast}}`/`{{vocab.*}}` tokens, and a test fails if any token is undefined in any shipped vertical
 11. Draws its flow diagrams from the shared **diagram data** (E3), never hand-drawn per demo
 12. Offers **seeded demo users and groups** next to live IdP login (P1/PF/AIC picked at setup), so every demo runs offline in mock mode with fixed users and runs live with real ones; the header shows which mode is active
-13. Emits the shared **trace envelope** (F2) for every hop and renders the built-in trace timeline (F3); optional `--profile otel` for the OTel and Grafana view (F4)
-14. Any demo that depends on PingOne Authorize can run its decisions against the base **`mock-authorize` profile** when no tenant is available
+13. Takes a **workspace id** (default `default`) for its data directory, sessions, trace sink and registry, so a hosted mock-mode build can isolate each browser session later (decision 2026-10-21)
+14. Emits the shared **trace envelope** (F2) for every hop and renders the built-in trace timeline (F3); optional `--profile otel` for the OTel and Grafana view (F4)
+15. Any demo that depends on PingOne Authorize can run its decisions against the base **`mock-authorize` profile** when no tenant is available
 
 ## Catalog: standalone apps we can build
 
@@ -148,7 +161,7 @@ A row's "What it shows" may carry an **Overlaps** note naming catalog ids it sha
 | ID | Name | Kind | What it shows | Seed |
 |---|---|---|---|---|
 | B1 | **PingOne Authorize (P1AZ)** | Demo | Fine-grained decisions with an explainer ("why was I denied") | ✅ group-policy board, p1az predictor |
-| B2 | **Authorize policy playground** | Tester | Edit a policy, pick a request, see the decision and the deciding rule. Folded in from retired B12: type rules in plain words and get an importable PingOne Authorize snapshot (import stays a manual console step; there is no API to import or evaluate a P1AZ policy, so the loop is edit, import, publish, replay) | 🟡 `se-skills-export/p1az-import-generator/SKILL.md` + `reference/example-import.snapshot.json`, `se-skills-export/pingone-authorize-ea-api-build/scripts/walk_policy_tree.py`, `docs/P1AZ_TOKENACTIVE_RULE_SETUP.md` |
+| B2 | **Authorize policy playground** | Tester | Edit a policy, pick a request, see the decision and the deciding rule. Folded in from retired B12: type rules in plain words and get an importable PingOne Authorize snapshot (import stays a manual console step; there is no API to import or evaluate a P1AZ policy, so the loop is edit, import, publish, replay) | 🟡 `se-skills-export/p1az-import-generator/SKILL.md` + `se-skills-export/p1az-import-generator/reference/example-import.snapshot.json`, `se-skills-export/pingone-authorize-ea-api-build/scripts/walk_policy_tree.py`, `docs/P1AZ_TOKENACTIVE_RULE_SETUP.md` |
 | B3 | **Cedar demo** | Demo | Cedar vs PingOne Authorize on the same request, side by side | ❌ |
 | B4 | **Cedar policy playground** | Tester | Edit Cedar policy locally (open-source engine), see permit/forbid | ❌ |
 | B5 | **Cedar for agent tool calls** | Demo | Permit and forbid rules on MCP tool calls; forbid overrides permit; default deny | ❌ |
@@ -157,7 +170,7 @@ A row's "What it shows" may carry an **Overlaps** note naming catalog ids it sha
 | B8 | **Policy-as-code drift checker** | Tester | PAC policy drift against the tenant | ✅ `check-pac-policy-drift` |
 | B9 | **Consent and delegation** | Demo | Act-only consent, `may_act` | ✅ act-only consent |
 | B10 | **AuthZEN PDP tester** | Tester | Send one standard Access Evaluation request (subject, action, resource, context) to Cedar, PingOne Authorize and an OPA-style PDP and compare decisions; fetch `/.well-known/authzen-configuration`. Standards-lab flavour: whether PingOne Authorize exposes an AuthZEN endpoint is UNVERIFIED, so P1AZ may need an adapter. AuthZEN status: verify before customer use. Pairs with B3/B4 (Cedar) | 🟡 `docs/education-panels.md` (AuthZenPanel section), `docs/PINGONE_AUTHORIZE_PLAN.md`, `docs/pingauthorize-policy-parity.md` |
-| B11 | **API access management side-band (PingGateway + P1 Authorize)** | Demo | An API owner gets permit/deny decisions without touching the API: PingGateway asks PingOne Authorize side-band using age and region headers, proxies to a content API, decision shown per request. 3 containers (gateway, api, page). Overlaps A19 (PingGateway route lab) and B1 | ✅ `/Users/cmuir/Development/content-api-aam-demo/` (README.md, `content-api-aam-demo/policy/restrictions.yaml`, ping-gateway, content-api, demo-page; jest tests). Live needs an AAM gateway credential (console setup half done per its docs); mock = local evaluator of the YAML rules. Also `se-skills-export/pingauthorize-aam-ai-demo/SKILL.md`, `docs/p1az-vs-gateway-token-checks.md` |
+| B11 | **API access management side-band (PingGateway + P1 Authorize)** | Demo | An API owner gets permit/deny decisions without touching the API: PingGateway asks PingOne Authorize side-band using age and region headers, proxies to a content API, decision shown per request. 3 containers (gateway, api, page). Overlaps A19 (PingGateway route lab) and B1 | ✅ `/Users/cmuir/Development/content-api-aam-demo/` (README.md, `/Users/cmuir/Development/content-api-aam-demo/policy/restrictions.yaml`, ping-gateway, content-api, demo-page; jest tests). Live needs an AAM gateway credential (console setup half done per its docs); mock = local evaluator of the YAML rules. Also `se-skills-export/pingauthorize-aam-ai-demo/SKILL.md`, `docs/p1az-vs-gateway-token-checks.md` |
 | B13 | **Intent-bound transactions (PAR + RAR + intent token)** | Demo | A user authorizes "transfer up to X to payee Y" via a pushed request; the agent tries more or a different payee and is denied at the gateway; tampered or expired intent tokens are caught. Merges the money-movement demo, the tamper tester and the TraT/intent-binding demo. Overlaps C7/C8 (PAR, RAR testers) and C22 | 🟡 `demo_api_server/services/intentTokenService.js`, `demo_mcp_gateway/src/rarEnforce.ts`, `demo_mcp_gateway/src/intentTokenValidator.ts`, `demo_authz_server/decision.intentTamper.test.js`, `decision.confused-deputy.test.js`, `demo_api_ui/src/pages/IntentInspectorPage.jsx`, `demo_api_server/routes/intentBinding.js`, `docs/INTENT_AUTHORIZATION_GUIDE.md`. UC15 (intent-token tampering) is `needs-build` per the usecases survey. Real PAR/RAR needs live P1 or PF; RAR support on PingOne UNVERIFIED |
 | B14 | **Multi-party (caregiver) delegation** | Demo | A consumer authorizes a caregiver and the caregiver's agent within purpose, scope and expiry; low-risk reads pass, treatment changes are denied or approval-gated. Different from B9: a third-party delegate. Healthcare flavour of the vertical packs (E5) | 🟡 `demo_api_ui/src/pages/StandaloneDemoLauncherPage.jsx` (scenarios), `demo_api_ui/src/learning/lessonCatalog.js`, `demo_mcp_resource_server/seed/healthcare.seed.json` |
 
