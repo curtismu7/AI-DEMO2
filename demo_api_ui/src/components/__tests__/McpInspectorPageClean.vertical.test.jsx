@@ -178,4 +178,78 @@ describe('MCP Inspector tools table', () => {
     expect(screen.queryByRole('button', { name: /log in again/i })).toBeNull();
     sourceState.current = makeSource();
   });
+
+  describe('defaults that make a bare Send work', () => {
+    const WEATHER = { name: 'get_weather', inputSchema: schema(['city_name', 'latitude', 'longitude', 'location_name']) };
+    const withWeather = (extra = {}) => ({ ...makeSource(), tools: [{ name: 'brave_news_search', inputSchema: schema(['query']) }, WEATHER], ...extra });
+
+    it('pre-selects get_my_accounts on the AI Demo source, so Send works straight away', () => {
+      renderAt('/');
+      expect(sourceState.current.setSelectedTool).toHaveBeenCalledTimes(1);
+      expect(sourceState.current.setSelectedTool).toHaveBeenCalledWith(TOOLS[0]);
+    });
+
+    it('on the gateway it pre-selects the weather tool and fills city_name with Austin, TX (Texas)', () => {
+      sourceState.current = withWeather();
+      renderAt('/?source=gateway');
+      expect(sourceState.current.setSelectedTool).toHaveBeenCalledWith(WEATHER);
+      expect(sourceState.current.setParamValues).toHaveBeenCalledWith({ city_name: 'Austin, TX' });
+    });
+
+    it('picking the weather tool by hand fills the same default, and never the coordinates or saved location', () => {
+      sourceState.current = withWeather({ selectedTool: TOOLS[0] });
+      renderAt('/?source=gateway');
+      fireEvent.click(screen.getByRole('button', { name: 'get_weather' }));
+      expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({ city_name: 'Austin, TX' });
+    });
+
+    it('leaves a tool without a known default alone', () => {
+      sourceState.current = withWeather({ selectedTool: WEATHER });
+      renderAt('/?source=gateway');
+      fireEvent.click(screen.getByRole('button', { name: 'brave_news_search' }));
+      expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({});
+    });
+
+    it('does not override something already selected', () => {
+      sourceState.current = makeSource(TOOLS[1]);
+      renderAt('/');
+      expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
+    });
+
+    it('pre-selects once, then leaves the user alone even if the selection is cleared by a reload', () => {
+      const first = makeSource();
+      sourceState.current = first;
+      const { rerender } = renderAt('/');
+      expect(first.setSelectedTool).toHaveBeenCalledTimes(1);
+      sourceState.current = { ...first, tools: [...TOOLS] };
+      rerender(<MemoryRouter initialEntries={['/']}><McpInspectorPageClean /></MemoryRouter>);
+      expect(first.setSelectedTool).toHaveBeenCalledTimes(1);
+    });
+
+    it('waits for tools that belong to THIS source: stale tools from the previous source must not use up the pick', () => {
+      const first = { ...makeSource(), toolsKey: 'api:' };
+      sourceState.current = first;
+      const { rerender } = renderAt('/?source=gateway');
+      expect(first.setSelectedTool).not.toHaveBeenCalled();
+      // the gateway tools arrive: now it picks the weather tool
+      const WEATHER = { name: 'get_weather_summary', inputSchema: schema(['city_name']) };
+      const arrived = { ...first, tools: [WEATHER], toolsKey: 'gateway:' };
+      sourceState.current = arrived;
+      rerender(<MemoryRouter initialEntries={['/?source=gateway']}><McpInspectorPageClean /></MemoryRouter>);
+      expect(arrived.setSelectedTool).toHaveBeenCalledWith(WEATHER);
+      expect(arrived.setParamValues).toHaveBeenCalledWith({ city_name: 'Austin, TX' });
+    });
+
+    it('selects nothing in the calls log, while tools are still loading, or when no preferred tool is offered', () => {
+      sourceState.current = { ...makeSource(), mode: 'calls', config: { toolKey: 'label' }, tools: [{ label: 'GET /api/x', _call: { method: 'GET', url: '/api/x', response: { status: 200 } } }] };
+      renderAt('/?source=api');
+      expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
+      sourceState.current = { ...makeSource(), loadingTools: true };
+      renderAt('/');
+      expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
+      sourceState.current = { ...makeSource(), tools: [{ name: 'create_deposit', inputSchema: schema(['amount']) }] };
+      renderAt('/');
+      expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
+    });
+  });
 });
