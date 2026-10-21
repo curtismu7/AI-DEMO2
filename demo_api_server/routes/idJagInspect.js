@@ -64,9 +64,10 @@ function trustFor(claims) {
   return { name: entry.name, entry, target, s: { ...s, resourceAs: { ...s.resourceAs, clientId: entry.idJagClientId || s.resourceAs.clientId } } };
 }
 
-async function checkIdJag(token, verify) {
+// own: the playground's settings for the mode that minted the token. Its idp is trusted first; the registry is the fallback.
+async function checkIdJag(token, verify, own) {
   const d = decodeJwt(token);
-  const trust = trustFor(d.claims);
+  const trust = own?.idp?.issuer && d.claims.iss === own.idp.issuer ? { name: own.idp.name, s: own } : trustFor(d.claims);
   const s = trust ? trust.s : { ...playground._settings('oauth-mcp'), idp: { name: 'unknown issuer', issuer: d.claims.iss, jwksUrl: '' } };
   const result = await playground._inspect(token, s, trust ? verify : async () => ({ ok: false, note: 'not checked: the issuer is not a trusted IdP' }));
   const { checks, add } = checker();
@@ -102,14 +103,14 @@ function checkSaml(xml) {
 }
 
 /** Detect the token kind and run its checks. verify is injectable for tests. */
-async function checkToken(token, { verify } = {}) {
+async function checkToken(token, { verify, own } = {}) {
   const t = String(token).trim();
   const type = classify(t);
   if (type === 'unknown') return { type, checks: [] };
   if (type === 'saml') {
     try { return { type, ...checkSaml(samlXml(t)) }; } catch { return { type: 'unknown', checks: [] }; }
   }
-  return { type, ...(type === 'id-jag' ? await checkIdJag(t, verify) : checkJwt(type, t)) };
+  return { type, ...(type === 'id-jag' ? await checkIdJag(t, verify, own) : checkJwt(type, t)) };
 }
 
 router.post('/decode', async (req, res) => {
@@ -128,6 +129,15 @@ router.post('/issued-token', (req, res) => {
   const minted = req.session?.idJagPlayground;
   if (!minted?.idJag || !minted.issuedAt) return res.status(404).json({ error: 'no_id_jag', message: 'Get an ID-JAG first.' });
   return res.json({ token: minted.idJag });
+});
+
+/** The same checks as /decode, on the ID-JAG this session minted, trusted via the playground's current mode. Never returns the token. */
+router.post('/issued-check', async (req, res) => {
+  res.set('Cache-Control', 'no-store');
+  if (!req.user) return res.status(401).json({ error: 'unauthorized', message: 'Sign in to use the Inspector.' });
+  const minted = req.session?.idJagPlayground;
+  if (!minted?.idJag || !minted.issuedAt) return res.status(404).json({ error: 'no_id_jag', message: 'Get an ID-JAG first.' });
+  return res.json(await checkToken(minted.idJag, { own: playground._settingsFor(req) }));
 });
 
 const PROFILE_FIELDS = ['authorization_grant_profiles_supported', 'scopes_supported'];
