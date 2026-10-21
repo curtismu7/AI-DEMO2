@@ -1643,8 +1643,9 @@ function AppWithAuth() {
                   path="/personal-agent/full"
                   element={
                     // Bare full-page variant for sharing from the handoff page —
-                    // no side nav, header or footer. Same page component.
-                    <PersonalAgentStudioPage user={user} />
+                    // no side nav, header or footer. Same page component; bare drops
+                    // the chrome-height subtraction from its fixed-height shell.
+                    <PersonalAgentStudioPage user={user} bare />
                   }
                 />
                 <Route

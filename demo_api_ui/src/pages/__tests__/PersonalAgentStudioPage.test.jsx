@@ -185,4 +185,25 @@ describe('PersonalAgentStudioPage', () => {
     // DOCUMENT_POSITION_FOLLOWING (4): the cards come after the chat input
     expect(agent.compareDocumentPosition(cards) & Node.DOCUMENT_POSITION_FOLLOWING).toBeTruthy();
   });
+
+  it('is a fixed-height shell: the reel is stacked under the chat inside it, the client cards sit outside (page scrolls to them)', () => {
+    const { container } = renderStudio();
+    const shell = screen.getByTestId('studio-shell');
+    const host = container.querySelector('.tcfs-float-host');
+    expect(host.classList.contains('tcfs-float-host--stacked')).toBe(true);
+    expect(shell.contains(host)).toBe(true);
+    // inside the shell the cards took ~500px of the column and got clipped, squeezing the reel
+    expect(shell.contains(screen.getByText('Personal agent clients'))).toBe(false);
+    // a percentage max-height can't resolve here; the cap lives in the class (50% of the shell)
+    expect(host.style.maxHeight).toBe('');
+  });
+
+  it('bare variant drops the chrome-height subtraction from the shell', () => {
+    const { rerender } = renderStudio();
+    const chromed = screen.getByTestId('studio-shell').style.height;
+    rerender(<MemoryRouter><PersonalAgentStudioPage bare /></MemoryRouter>);
+    const bare = screen.getByTestId('studio-shell').style.height;
+    expect(chromed).toContain('176px');
+    expect(bare).not.toContain('176px');
+  });
 });

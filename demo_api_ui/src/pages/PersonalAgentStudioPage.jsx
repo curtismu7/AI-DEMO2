@@ -86,7 +86,7 @@ const LAYOUT_STYLES = {
   popped: { agentFlex: '0 0 280px', railWidth: 'auto', railVisible: true, placeholderVisible: true },
 };
 
-export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null, consentGate = null }) {
+export default function PersonalAgentStudioPage({ scenario, vertical: selectedVertical, runNonce = 0, user = null, consentGate = null, bare = false }) {
   const location = useLocation();
   const query = new URLSearchParams(location.search);
   const routeId = query.get('useCase');
@@ -383,7 +383,11 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   );
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden', background: 'var(--bg, #0f1117)' }}>
+    // A fixed-height shell (same rule as the IDE sheet, .cur-ide): chat flexes, the reel stays under it.
+    // height:'100%' had no definite parent to resolve against, so the page grew to ~1600px and the reel sat far below the fold.
+    // Bare (/personal-agent/full) has no app chrome to subtract.
+    <>
+    <div data-testid="studio-shell" style={{ display: 'flex', flexDirection: 'column', height: bare ? 'calc(100vh / var(--app-zoom, 1))' : 'calc(100vh / var(--app-zoom, 1) - 176px)', minHeight: 640, overflow: 'hidden', background: 'var(--bg, #0f1117)' }}>
       {/* Page header */}
       <div style={{ background: 'var(--surface, #1a1d27)', borderBottom: '1px solid var(--border, #2e3347)', padding: '0 20px', height: 52, display: 'flex', alignItems: 'center', gap: 12, flexShrink: 0 }}>
         <span style={{ fontSize: 15, fontWeight: 600, color: 'var(--th-text)', marginRight: 8 }}>Digital Assistant</span>
@@ -449,7 +453,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         </div>
       ) : (<>
       {/* Content area */}
-      <div style={{ flex: 1, display: 'flex', overflow: 'hidden' }}>
+      <div style={{ flex: 1, display: 'flex', overflow: 'hidden', minHeight: 320 }}>
         {/* Agent panel */}
         <div style={{ flex: layout.agentFlex, display: 'flex', flexDirection: 'column', overflow: 'hidden', minWidth: 0 }}>
           {layout.placeholderVisible ? (
@@ -541,12 +545,18 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           </div>
         </details>
       )}
-      <div className="tcfs-float-host" style={{ flexShrink: 0, maxHeight: '45%' }}>
+      {/* Stacked: the reel on top, the long token-chain detail under it at full width. An inline
+          maxHeight:'45%' used to cap this, but a % can't resolve in this column, so the block grew
+          to ~670px and the fixed-height page clipped it. The class's vh cap does the job. */}
+      <div className="tcfs-float-host tcfs-float-host--stacked" style={{ minHeight: 120 }}>
         <TokenChainFilmstrip />
       </div>
-      <PersonalAgentClientCards />
       </>)}
       {mfaModal}
     </div>
+    {/* The client cards sit BELOW the fixed-height shell (the page scrolls to them): inside it they took ~500px of the
+        column and were clipped, squeezing the reel. */}
+    {view === 'agent' && <PersonalAgentClientCards />}
+    </>
   );
 }

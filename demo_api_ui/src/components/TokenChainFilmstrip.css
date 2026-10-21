@@ -692,6 +692,15 @@ body:has(.dashboard-content.ud-body.ud-focus-mode) .footer {
   }
 }
 
+/* Stacked variant (personal-agent studio): reel on top, the token-chain detail under it at full
+   width, so long token strings read across the page instead of a 380px side column. */
+.tcfs-float-host--stacked {
+  grid-template-columns: minmax(0, 1fr);
+  grid-template-areas: "toggle" "chain" "spotlight";
+  max-height: 50%; /* of the studio shell, which has a definite height */
+}
+.tcfs-float-host--stacked .tcfs-spotlight { border-left: 0; border-top: 1px solid var(--th-border); }
+
 /* Collapsed: only the toggle bar remains, still pinned to the bottom. The 40vh
    cap is lifted because the bar sizes itself. Session-only — see ReelDock.jsx
    for why this state is never persisted. */
