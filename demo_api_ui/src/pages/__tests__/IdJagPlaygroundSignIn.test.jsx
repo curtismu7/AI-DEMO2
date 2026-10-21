@@ -65,7 +65,8 @@ it("pf-pf on a one-PingFederate deployment is explained and its sign-in is disab
   const one = { ...config, mode: "pf-pf", modes: [{ id: "oauth-mcp", available: true }, { id: "pf-pf", available: false, reason }, { id: "byo", available: true }] };
   get.mockImplementation((url) => Promise.resolve({ data: url.endsWith("/config") ? one : url.endsWith("/preflight") ? { ok: true, checks: [] } : [] }));
   render(<MemoryRouter><IdJagPlaygroundPage /></MemoryRouter>);
-  expect(await screen.findByText(/needs a second PingFederate/)).toBeTruthy();
+  expect((await screen.findAllByText(/needs a second PingFederate/)).length).toBeGreaterThan(0);
+  expect(screen.getByTestId("ijp-mode-reason-pf-pf").textContent).toMatch(/Not available here/);
   expect(screen.getByRole("button", { name: "Sign in at the issuer PingFederate" }).disabled).toBe(true);
   localStorage.removeItem("idjag.playground.mode");
 });

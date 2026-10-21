@@ -550,11 +550,11 @@ function missingConfig(mode, s) {
 
 function signedInCheck(req, mode, s) {
   const sess = req.session || {};
-  if (mode === 'pf-pf') {
-    const ok = !!sess.idJagIssuer?.refreshToken;
-    return ['signed-in', 'Signed in at the issuer PingFederate', ok ? 'pass' : 'fail',
+  if (usesIssuerSession(req)) {
+    const ok = pfSignedIn(req);
+    return ['signed-in', mode === 'pf-pf' ? 'Signed in at the issuer PingFederate' : 'Signed in with PingFederate on this page', ok ? 'pass' : 'fail',
       ok ? 'The BFF holds your issuer session.' : 'No issuer sign-in in this session (never signed in, or the session expired).',
-      'Click "Sign in at the issuer PingFederate" in step 1.'];
+      mode === 'pf-pf' ? 'Click "Sign in at the issuer PingFederate" in step 1.' : 'Click "Sign in with PingFederate" in step 1.'];
   }
   const label = 'Signed in with PingFederate';
   const fix = 'Click "Sign in with PingFederate" in step 1.';
@@ -672,7 +672,12 @@ async function preflight(req, step) {
   }
   if (byo && step === 'signin') return checks;
 
-  if (mode === 'oauth-mcp') {
+  if (mode === 'oauth-mcp' && usesIssuerSession(req)) {
+    const reason = issuerUnavailableReason('oauth-mcp');
+    add('issuer-sign-in', 'This page signs in at PingFederate itself', reason ? 'fail' : 'pass',
+      reason || `Sign-in at ${s.idp.issuer} as ${s.idp.exchangeClientId}; the app's login provider (${s.provider}) is not used or changed. The pi.flow sign-in uses the client's registered callback; only the redirect fallback needs ${issuerRedirectUri()} registered.`,
+      reason || '');
+  } else if (mode === 'oauth-mcp') {
     const provider = configStore.getOAuthProvider?.() || 'unset';
     add('provider', 'Login provider is PingFederate', provider === 'pingfederate' ? 'pass' : 'fail', `The app's login provider is ${provider}.`,
       'Switch the login provider to PingFederate (P1/PF toggle in the top bar, admin), then sign in again in step 1. PingOne does not issue ID-JAGs.');
@@ -686,11 +691,12 @@ async function preflight(req, step) {
     `Set ${missing.join(', ')} in the BFF configuration (config store or environment), then reload this page.`);
 
   if (mode === 'oauth-mcp' && step === 'signin' && here) {
-    const cb = originOf(getUserRedirectUri(req));
+    const issuerSignIn = usesIssuerSession(req);
+    const cb = originOf(issuerSignIn ? issuerRedirectUri() : getUserRedirectUri(req));
     if (cb) {
       add('redirect-host', 'PingFederate returns the sign-in to this host', cb === here ? 'pass' : 'fail',
         cb === here ? `The callback is on ${cb}.` : `The sign-in callback is on ${cb}, not ${here}: the session would land on the other host.`,
-        cb === front ? `Open ${page} and sign in there.` : `Set pf_user_redirect_uri to ${front}/api/auth/oauth/user/callback (and register it at PingFederate) so sign-in returns to the app host.`);
+        cb === front || issuerSignIn ? `Open ${page} and sign in there.` : `Set pf_user_redirect_uri to ${front}/api/auth/oauth/user/callback (and register it at PingFederate) so sign-in returns to the app host.`);
     }
   }
 
@@ -846,10 +852,14 @@ router.get('/issuer/login', async (req, res) => {
   if (reason) return piFlow ? res.status(409).json({ error: 'pf_pf_unavailable', message: reason }) : res.redirect(safeReturnTo(req.query.return_to));
   const verifier = crypto.randomBytes(32).toString('base64url');
   const state = crypto.randomBytes(16).toString('hex');
-  req.session.idJagIssuerLogin = { state, verifier, returnTo: safeReturnTo(req.query.return_to), at: Date.now(), mode };
+  // oauth-mcp reuses the app's login client, which is registered for the app's own callback only. A pi.flow sign-in never
+  // sends the browser to that callback (the driver hands the code to /issuer/callback), so it can ask PingFederate with the
+  // registered URI and need no new redirect URI. The redirect fallback has no such option: it needs the issuer callback registered.
+  const authzRedirect = mode === 'oauth-mcp' && piFlow ? (cfg('pf_user_redirect_uri') || `${getFrontendOrigin()}/api/auth/oauth/user/callback`) : issuerRedirectUri();
+  req.session.idJagIssuerLogin = { state, verifier, returnTo: safeReturnTo(req.query.return_to), at: Date.now(), mode, redirectUri: authzRedirect };
   const u = new URL(idp.authorizationEndpoint);
   u.search = new URLSearchParams({
-    response_type: 'code', client_id: idp.exchangeClientId, redirect_uri: issuerRedirectUri(),
+    response_type: 'code', client_id: idp.exchangeClientId, redirect_uri: authzRedirect,
     scope: 'openid profile email offline_access', state, prompt: 'login',
     code_challenge: crypto.createHash('sha256').update(verifier).digest('base64url'), code_challenge_method: 'S256',
     ...(piFlow ? { response_mode: 'pi.flow' } : {}),
@@ -875,7 +885,7 @@ router.get('/issuer/callback', async (req, res) => {
   const idp = issuerIdp(pending.mode === 'oauth-mcp' ? 'oauth-mcp' : 'pf-pf');
   try {
     const r = await axios.post(idp.tokenEndpoint, new URLSearchParams({
-      grant_type: 'authorization_code', code: String(req.query.code), redirect_uri: issuerRedirectUri(), code_verifier: pending.verifier,
+      grant_type: 'authorization_code', code: String(req.query.code), redirect_uri: pending.redirectUri || issuerRedirectUri(), code_verifier: pending.verifier,
     }).toString(), {
       headers: { 'Content-Type': 'application/x-www-form-urlencoded', Authorization: basic(idp.exchangeClientId, cfg('pf_user_client_secret')) },
       timeout: 15000, validateStatus: () => true,

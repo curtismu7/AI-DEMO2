@@ -798,6 +798,9 @@ export default function IdJagPlaygroundPage() {
         <div className="ijp-toolbar">
           <div className="ijp-toolbar__group"><span>Mode</span><Segmented label="Playground mode" options={modeOptions} value={mode} onPick={pickMode} disabled={!!busy} />
             <DiagramLink mode={mode}>View {PLAYGROUND_DIAGRAMS[mode].label} diagram ↗</DiagramLink></div>
+          {!isMock && (realModes || []).filter((r) => r.available === false).map((r) => (
+            <p key={r.id} className="ijp-note" data-testid={`ijp-mode-reason-${r.id}`}>Not available here: {r.reason}</p>
+          ))}
           <div className="ijp-toolbar__group"><span>Subject</span>
             <Segmented label="Subject token protocol" options={protocolOptions} value={useSaml ? "saml" : "oidc"} onPick={pickProtocol} disabled={!!busy} />
             {config && samlReason && <span className="ijp-note" data-testid="ijp-saml-reason">{samlReason}</span>}</div>
