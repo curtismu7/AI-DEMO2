@@ -1,0 +1,66 @@
+/* Authorization Flow: a dark visualiser, Ping Core Dark with Ping Red for refusals. Fixed palette so it reads the same in both themes. */
+.af-page { padding: 1rem 1.5rem 2rem; color: var(--th-text); }
+.af-page__head h1 { margin: 0 0 0.4rem; font-size: var(--font-size-h1); font-weight: var(--font-weight-bold); }
+.af-page__head p { margin: 0 0 1rem; max-width: 80ch; line-height: 1.5; color: var(--th-text-muted); }
+
+.af-chips { display: flex; flex-wrap: wrap; gap: 0.5rem; margin-bottom: 1rem; }
+.af-chip { cursor: pointer; padding: 0.45rem 0.9rem; border: 1px solid var(--th-border); border-radius: var(--radius-pill); background: var(--th-bg-card); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); }
+.af-chip span { font-weight: var(--font-weight-bold); color: var(--color-accent); margin-right: 0.25rem; }
+.af-chip:hover { border-color: var(--color-accent); }
+.af-chip--on { background: #051727; border-color: #051727; color: #fff; }
+.af-chip--on span { color: #ff6b6b; }
+.af-chip:focus-visible { outline: 2px solid var(--color-info); outline-offset: 2px; }
+
+.af-grid { display: grid; grid-template-columns: minmax(15rem, 19rem) minmax(0, 1fr); gap: 1rem; align-items: start; }
+@media (max-width: 1000px) { .af-grid { grid-template-columns: 1fr; } }
+
+.af-chat, .af-vis { border: 1px solid var(--th-border); border-top: 3px solid var(--color-accent); border-radius: var(--radius-lg); background: var(--th-bg-card); padding: 0.75rem 1rem; box-shadow: var(--shadow-sm); }
+.af-chat h2 { margin: 0 0 0.25rem; font-size: var(--font-size-md); font-weight: var(--font-weight-bold); }
+.af-chat__prompt { margin: 0 0 0.75rem; font-size: var(--font-size-2xs); color: var(--th-text-muted); }
+.af-chat__log { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 0.5rem; min-height: 12rem; }
+.af-chat__empty { color: var(--th-text-muted); font-size: var(--font-size-sm); }
+.af-bubble { max-width: 90%; padding: 0.5rem 0.75rem; border-radius: var(--radius-lg); font-size: var(--font-size-sm); line-height: 1.4; }
+.af-bubble--user { align-self: flex-end; background: #051727; color: #fff; }
+.af-bubble--assistant { align-self: flex-start; background: var(--th-bg-inset); color: var(--th-text); }
+
+.af-canvas { height: 26rem; margin: 0.5rem 0; border-radius: var(--radius-md); background: var(--af-bg); overflow: hidden; }
+.af-canvas .react-flow { background: var(--af-bg); }
+.af-canvas .react-flow__controls-button { background: var(--af-ctl-bg); color: var(--af-head-tx); border-color: var(--af-head-bd); }
+.af-canvas .react-flow__background { opacity: 0.35; }
+
+/* Dark by default (the reference demo is dark); the light palette keeps Ping Red for refusals. */
+.af-canvas {
+  --af-bg: #051727; --af-head-bg: #0b2a47; --af-head-bd: #3b6ea5; --af-head-tx: #e8eef7; --af-head-sub: #9db4d0; --af-line: #3b6ea5;
+  --af-arrow: #7fb2e6; --af-ok: #3ddc97; --af-block: #ff7b7b; --af-label: #e8eef7;
+  --af-red-bg: #3a0f14; --af-red-bd: #d20e0f; --af-green-bg: #0f2f22; --af-green-bd: #2f8f5b; --af-ctl-bg: #16325c;
+}
+.af-canvas[data-af-theme="light"] {
+  --af-bg: #f4f6f9; --af-head-bg: #fff; --af-head-bd: #9fb3cc; --af-head-tx: #051727; --af-head-sub: #5a6b82; --af-line: #9fb3cc;
+  --af-arrow: #12538d; --af-ok: #0a7a4a; --af-block: #c40d0f; --af-label: #051727;
+  --af-red-bg: #fdeaea; --af-red-bd: #d20e0f; --af-green-bg: #e6f7ee; --af-green-bd: #2f8f5b; --af-ctl-bg: #fff;
+}
+.af-theme { display: block; margin: 0.5rem 0 0 auto; cursor: pointer; padding: 0.3rem 0.8rem; border: 1px solid var(--th-border); border-radius: var(--radius-pill); background: var(--th-bg); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); }
+.af-theme:focus-visible { outline: 2px solid var(--color-info); outline-offset: 2px; }
+.af-lane { width: 100%; position: relative; }
+.af-lane__head { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 2px; height: 70px; padding: 4px; box-sizing: border-box; text-align: center; border: 1px solid var(--af-head-bd); border-radius: var(--radius-md); background: var(--af-head-bg); color: var(--af-head-tx); cursor: grab; }
+.af-lane__head strong { font-size: var(--font-size-sm); }
+.af-lane__head span { font-size: var(--font-size-2xs); color: var(--af-head-sub); line-height: 1.2; }
+.af-lane__head--p1, .af-lane__head--az { border-color: var(--af-red-bd); background: var(--af-red-bg); }
+.af-lane__head--ud { border-color: var(--af-green-bd); background: var(--af-green-bg); }
+.af-lane__line { position: absolute; top: 70px; bottom: 0; left: 50%; border-left: 1px dashed var(--af-line); opacity: 0.6; }
+.af-handle { opacity: 0; width: 1px; height: 1px; min-width: 0; min-height: 0; border: 0; }
+
+.af-edge .react-flow__edge-path { stroke: var(--af-arrow); stroke-width: 2; }
+.af-edge--ok .react-flow__edge-path { stroke: var(--af-ok); }
+.af-edge--block .react-flow__edge-path { stroke: var(--af-block); }
+.af-edge--hot .react-flow__edge-path { stroke-width: 3.5; stroke-dasharray: 10 6; animation: af-flow 0.8s linear infinite; }
+.af-msg { position: absolute; pointer-events: none; white-space: nowrap; font-size: var(--font-size-base); font-weight: var(--font-weight-semibold); color: var(--af-label); text-shadow: 0 0 4px var(--af-bg), 0 0 4px var(--af-bg); }
+.af-msg.af-edge--ok { color: var(--af-ok); }
+.af-msg.af-edge--block { color: var(--af-block); }
+@keyframes af-flow { to { stroke-dashoffset: -16; } }
+
+.af-proves { margin: 0.25rem 0; font-size: var(--font-size-sm); color: var(--th-text-muted); }
+.af-proves strong { color: var(--color-accent); }
+.af-outcome { margin: 0.5rem 0 0; padding: 0.6rem 0.9rem; border-radius: var(--radius-md); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+.af-outcome--ok { background: #e6f7ee; color: #14532d; border: 1px solid #3ddc97; }
+.af-outcome--block { background: #fdeaea; color: #8a0b0c; border: 1px solid #d20e0f; }

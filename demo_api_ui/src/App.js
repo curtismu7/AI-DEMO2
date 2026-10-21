@@ -261,6 +261,7 @@ import PublicRoutes, {
   AicTokenExchangePageRoute,
   OboDemoPageRoute,
   DigitalWorkerPageRoute,
+  AuthorizationFlowPageRoute,
   ChatgptLoginPageRoute,
   GroupPolicyBoardPageRoute,
   PageCatalogPageRoute,
@@ -1559,6 +1560,10 @@ function AppWithAuth() {
                 <Route
                   path="/digital-worker"
                   element={<DigitalWorkerPageRoute user={user} logout={logout} />}
+                />
+                <Route
+                  path="/authorization-flow"
+                  element={<AuthorizationFlowPageRoute user={user} logout={logout} />}
                 />
                 <Route
                   path="/privilege-demo"
