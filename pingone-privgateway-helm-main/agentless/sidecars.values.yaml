@@ -301,9 +301,11 @@ extraContainers:
 # request, three times over, is what left the shared SE cluster with no node for the BFF
 # ("27 Insufficient cpu"). Limits are unchanged, so bursts are still allowed; the startup
 # burst was not measured, so raise the request if a gateway is throttled when it starts.
+# 2026-10-21: cpu 250m -> 105m (3x the 34m max of three snapshots on both gateways) while the
+# SE cluster was CPU-saturated; see docs/runbooks/se-cpu-rightsizing.md.
 resources:
   requests:
-    cpu: 250m
+    cpu: 105m
     memory: 512Mi
   limits:
     cpu: "2"

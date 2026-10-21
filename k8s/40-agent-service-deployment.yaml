@@ -63,7 +63,7 @@ spec:
         resources:
           requests:
             memory: "512Mi"
-            cpu: "500m"
+            cpu: "50m"  # was 500m; SE idle use is a few m, see docs/runbooks/se-cpu-rightsizing.md
           limits:
             memory: "4Gi"
             cpu: "2000m"
