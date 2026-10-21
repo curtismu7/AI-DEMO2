@@ -90,6 +90,11 @@ const _issRegion = process.env.PINGONE_REGION || 'com';
 const EXPECTED_ISS = _issEnvId
   ? `https://auth.pingone.${_issRegion}/${_issEnvId}/as`
   : null;
+// PingFederate is a second legitimate issuer when the stack runs in PF mode. Same shape as the
+// live P1AZ path (PF_ISSUER_URI tokens are exempt from the PingOne issuer comparison): the gateway
+// has already verified the signature against that issuer's JWKS before this rule runs. Only an
+// explicitly configured PF issuer joins the set — an unconfigured or foreign iss is still rejected.
+const PF_ISSUER = String(process.env.PF_ISSUER_URI || process.env.PF_ISSUER || '').trim().replace(/\/+$/, '') || null;
 
 const IAT_MAX_AGE_SECONDS = parseInt(
   process.env.AUTHZ_IAT_MAX_AGE_SECONDS || '7200', 10
@@ -581,7 +586,8 @@ module.exports = async function decisionHandler(req, res) {
   // check. That is the correct, intentional shape for this token type, not
   // an impersonation attempt — same reasoning as the D-05 exemption two
   // rules up, reusing the same verified signal.
-  if (TokenIss && EXPECTED_ISS && TokenIss !== EXPECTED_ISS && !isIdJagIssuedToken) {
+  const isPfIssuedToken = Boolean(PF_ISSUER && String(TokenIss).replace(/\/+$/, '') === PF_ISSUER);
+  if (TokenIss && EXPECTED_ISS && TokenIss !== EXPECTED_ISS && !isIdJagIssuedToken && !isPfIssuedToken) {
     warn(`[AuthzServer/decision] DENY — iss mismatch: "${TokenIss}" expected "${EXPECTED_ISS}"`);
     return deny(res, `invalid_iss: unexpected token issuer`);
   }

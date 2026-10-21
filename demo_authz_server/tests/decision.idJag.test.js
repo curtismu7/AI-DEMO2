@@ -87,6 +87,8 @@ beforeEach(() => {
   delete process.env.REQUIRE_ACT_FOR_AGENT_TOOLS;
   delete process.env.OAUTH_MCP_ID_JAG_ISSUER;
   delete process.env.OAUTH_MCP_ISSUER_URI;
+  delete process.env.PF_ISSUER_URI;
+  delete process.env.PF_ISSUER;
   try { fs.unlinkSync(OVERLAY); } catch (e) { /* ignore */ }
   fresh();
 });
@@ -186,4 +188,29 @@ test('Rule 0f: a genuine PingOne-issued token (iss matches) passes normally', as
     TokenIss: 'https://auth.pingone.com/env-123/as',
   }));
   assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
+});
+
+test('Rule 0f: a PingFederate-issued token passes when PF_ISSUER_URI is configured (PF mode)', async () => {
+  process.env.PINGONE_ENVIRONMENT_ID = 'env-123';
+  process.env.PF_ISSUER_URI = 'https://pf.example.test:9031/';
+  fresh();
+  const result = await decide(readParams({ TokenIss: 'https://pf.example.test:9031' }));
+  assert.strictEqual(result.decision, 'PERMIT', 'Expected PERMIT, got ' + result.decision + ': ' + result.reason);
+});
+
+test('Rule 0f: a PingFederate-looking issuer is still DENYed when PF_ISSUER_URI is not configured', async () => {
+  process.env.PINGONE_ENVIRONMENT_ID = 'env-123';
+  fresh();
+  const result = await decide(readParams({ TokenIss: 'https://pf.example.test:9031' }));
+  assert.strictEqual(result.decision, 'DENY');
+  assert.ok(String(result.reason || '').includes('invalid_iss'), 'got: ' + result.reason);
+});
+
+test('Rule 0f: with PF_ISSUER_URI set, a different foreign issuer is still DENYed', async () => {
+  process.env.PINGONE_ENVIRONMENT_ID = 'env-123';
+  process.env.PF_ISSUER_URI = 'https://pf.example.test:9031';
+  fresh();
+  const result = await decide(readParams({ TokenIss: 'https://evil.example.test/as' }));
+  assert.strictEqual(result.decision, 'DENY');
+  assert.ok(String(result.reason || '').includes('invalid_iss'), 'got: ' + result.reason);
 });
