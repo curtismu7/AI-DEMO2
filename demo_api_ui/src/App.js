@@ -42,6 +42,7 @@ import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
 import PersonalAgentDesignPage from "./components/personalAgent/PersonalAgentDesignPage";
+import UhgChatgptMcpFlowPage from "./pages/UhgChatgptMcpFlowPage";
 import PersonalAgentFlowPage from "./pages/PersonalAgentFlowPage";
 import PersonalAgentReviewPage from "./components/personalAgent/PersonalAgentReviewPage";
 import CimdPrivilegePage from "./components/cimdPrivilege/CimdPrivilegePage";
@@ -2417,6 +2418,10 @@ function AppWithAuth() {
                             <Route
                               path="/personal-agent-flow"
                               element={<PersonalAgentFlowPage />}
+                            />
+                            <Route
+                              path="/uhg-chatgpt-mcp-flow"
+                              element={<UhgChatgptMcpFlowPage />}
                             />
                             <Route
                               path="/personal-agent-dual-gateway"
