@@ -24,10 +24,10 @@ import SignInModal from './SignInModal';
 export default function SessionReauthBanner({ message, detail, role, onDismiss, isHITL = false }) {
   const { open } = useEducationUI();
 
-  // A bare path: the BFF's sanitizePostLoginReturnPath rejects query strings,
-  // so pass pathname only — never window.location.href.
+  // Path + query: the BFF's sanitizePostLoginReturnPath rejects full URLs and '#',
+  // so never pass window.location.href.
   const returnTo =
-    typeof window !== 'undefined' ? window.location.pathname : undefined;
+    typeof window !== 'undefined' ? `${window.location.pathname}${window.location.search || ''}` : undefined;
 
   const handleSignIn = () => {
     if (role === 'admin') navigateToAdminOAuthLogin(returnTo);

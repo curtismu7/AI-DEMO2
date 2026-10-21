@@ -5,6 +5,9 @@
 # runtime config, lost in the 2026-09-26 PF profile rebuild).
 #
 # Grants: CLIENT_CREDENTIALS + TOKEN_EXCHANGE (actor CC + Exchange #2 exchanger).
+# tokenExchangeProcessorPolicyRef is REQUIRED (PF: "Token Exchange Processor Policy mapping not found"
+# without it); the final token is minted by aiDemoPfAgentGwJwtAtm (matches the surviving 2026-09 clients).
+# Re-run after any specialist id/secret change in demo_api_server/.env: PF only knows the ids it was given.
 set -euo pipefail
 
 PF_BASE="${PF_BASE:-https://local.ping-devops.com:9999/pf-admin-api/v1}"
@@ -38,7 +41,9 @@ for V in $VERTICALS; do
   "grantTypes": ["CLIENT_CREDENTIALS", "TOKEN_EXCHANGE"],
   "bypassApprovalPage": true,
   "restrictScopes": false,
-  "defaultAccessTokenManagerRef": { "id": "aiDemoPfJwtAtm" },
+  "tokenExchangeProcessorPolicyRef": { "id": "aiDemoStandardTePolicy" },
+  "defaultAccessTokenManagerRef": { "id": "aiDemoPfAgentGwJwtAtm" },
+  "restrictToDefaultAccessTokenManager": true,
   "persistentGrantExpirationTime": 0
 }
 EOF

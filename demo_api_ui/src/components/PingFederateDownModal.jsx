@@ -34,7 +34,7 @@ export default function PingFederateDownModal() {
     setOpen(false);
   };
   const goToLogin = () => {
-    openSignIn({ returnTo: window.location.pathname });
+    openSignIn({ returnTo: `${window.location.pathname}${window.location.search}` });
   };
   const fail = (err, fallback) => {
     setBusy(false);

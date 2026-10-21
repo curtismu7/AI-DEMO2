@@ -241,7 +241,7 @@ export default function OAuthTokenDisplayPage() {
               <button
                 type="button"
                 className="otdp-flow-login-btn"
-                onClick={() => openSignIn({ returnTo: window.location.pathname })}
+                onClick={() => openSignIn({ returnTo: `${window.location.pathname}${window.location.search}` })}
               >
                 Sign in with PingOne
               </button>

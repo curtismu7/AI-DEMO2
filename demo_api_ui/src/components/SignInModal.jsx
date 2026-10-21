@@ -14,8 +14,8 @@ import {
  * expired"). It is never the first thing the user reads — it lives behind a
  * disclosure so the demo can still show it without leading with it.
  *
- * The sign-in carries `returnTo` (a bare pathname — the BFF's
- * sanitizePostLoginReturnPath rejects query strings), so the user lands back on
+ * The sign-in carries `returnTo` (pathname + query — the BFF's
+ * sanitizePostLoginReturnPath rejects full URLs and '#'), so the user lands back on
  * the page they were interrupted on.
  *
  * @param {{
@@ -36,7 +36,7 @@ export default function SignInModal({
   footerExtra = null,
 }) {
   const returnTo =
-    typeof window !== "undefined" ? window.location.pathname : undefined;
+    typeof window !== "undefined" ? `${window.location.pathname}${window.location.search || ""}` : undefined;
 
   const admin = role === "admin";
 

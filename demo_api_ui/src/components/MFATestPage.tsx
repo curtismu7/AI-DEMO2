@@ -1408,7 +1408,7 @@ const MFATestPageContent: FC = () => {
           <button
             type="button"
             className="mfa-test-button mfa-test-button--primary"
-            onClick={() => openSignIn({ returnTo: window.location.pathname + window.location.hash })}
+            onClick={() => openSignIn({ returnTo: window.location.pathname + window.location.search })}
           >
             Sign in
           </button>
