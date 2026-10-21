@@ -13,14 +13,14 @@ import { ForgotPasswordLink } from "./ForgotPasswordFlow";
  *
  * `admin` switches the CTA to the admin OAuth flow (via POST /api/auth/switch,
  * which works signed-out) for surfaces backed by admin-gated endpoints.
- * `returnTo` must be a bare path — the BFF's sanitizePostLoginReturnPath
- * rejects query strings.
+ * `returnTo` is a same-origin path plus a simple ?query — never window.location.href
+ * (the BFF's sanitizePostLoginReturnPath rejects full URLs and '#').
  */
 export default function SignInPrompt({
   message,
   admin = false,
   variant = "card",
-  returnTo = typeof window !== "undefined" ? window.location.pathname : undefined,
+  returnTo = typeof window !== "undefined" ? `${window.location.pathname}${window.location.search || ""}` : undefined,
 }) {
   const handleSignIn = () => {
     if (admin) {
