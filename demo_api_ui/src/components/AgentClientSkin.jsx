@@ -461,7 +461,7 @@ export default function AgentClientSkin({ skin = 'privilege', theme = 'dark', me
   }
 
   return (
-    <div style={{ display: 'flex', flexDirection: 'column', flex: 1, background: colors.bg, overflow: 'hidden', fontFamily: isTerminal ? 'monospace' : 'system-ui, -apple-system, sans-serif' }}>
+    <div className="agent-client-skin" style={{ display: 'flex', flexDirection: 'column', flex: 1, background: colors.bg, overflow: 'hidden', fontFamily: isTerminal ? 'monospace' : 'system-ui, -apple-system, sans-serif' }}>
       {/* Header */}
       <div style={{ background: colors.headerBg, borderBottom: `1px solid ${colors.headerBorder}`, padding: '10px 16px', display: 'flex', alignItems: 'center', gap: 10, flexShrink: 0 }}>
         <cfg.logo />

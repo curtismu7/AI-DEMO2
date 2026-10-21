@@ -1,5 +1,5 @@
-import { describe, it, expect, vi } from 'vitest';
-import { render, screen, fireEvent, waitFor } from '@testing-library/react';
+import { describe, it, expect, vi, beforeEach } from 'vitest';
+import { render, screen, fireEvent, waitFor, within } from '@testing-library/react';
 import { MemoryRouter, useNavigate } from 'react-router-dom';
 
 // Mock TokenChainContext
@@ -14,8 +14,8 @@ vi.mock('../../components/SignInPrompt', () => ({ default: ({ message }) => <div
 import PersonalAgentStudioPage from '../PersonalAgentStudioPage';
 import apiClient from '../../services/apiClient';
 
-const renderStudio = () => render(
-  <MemoryRouter>
+const renderStudio = (url = '/') => render(
+  <MemoryRouter initialEntries={[url]}>
     <PersonalAgentStudioPage />
   </MemoryRouter>,
 );
@@ -205,5 +205,58 @@ describe('PersonalAgentStudioPage', () => {
     const bare = screen.getByTestId('studio-shell').style.height;
     expect(chromed).toContain('176px');
     expect(bare).not.toContain('176px');
+  });
+
+  describe('layout switch (Stacked | Cockpit)', () => {
+    beforeEach(() => { window.localStorage.removeItem('pas-layout'); });
+    const shell = () => screen.getByTestId('studio-shell');
+
+    it('defaults to the stacked layout: full client cards, no gate chips, no dock', () => {
+      renderStudio();
+      expect(shell().classList.contains('pas-shell--cockpit')).toBe(false);
+      expect(screen.getByText('Personal agent clients')).toBeTruthy();
+      expect(screen.queryByText('Connect a client')).toBeNull();
+      expect(screen.queryByLabelText('Security gates')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Stacked' }).getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('?layout=cockpit opens the cockpit: three gate chips and the client dock instead of the cards', () => {
+      renderStudio('/personal-agent?layout=cockpit');
+      expect(shell().classList.contains('pas-shell--cockpit')).toBe(true);
+      expect(within(screen.getByLabelText('Security gates')).getAllByRole('listitem')).toHaveLength(3);
+      expect(screen.getByText('Connect a client')).toBeTruthy();
+      expect(screen.queryByText('Personal agent clients')).toBeNull();
+      expect(screen.getByRole('button', { name: 'Cockpit' }).getAttribute('aria-pressed')).toBe('true');
+    });
+
+    it('the toggle switches layouts and remembers the choice', () => {
+      renderStudio();
+      fireEvent.click(screen.getByRole('button', { name: 'Cockpit' }));
+      expect(shell().classList.contains('pas-shell--cockpit')).toBe(true);
+      expect(window.localStorage.getItem('pas-layout')).toBe('cockpit');
+      fireEvent.click(screen.getByRole('button', { name: 'Stacked' }));
+      expect(shell().classList.contains('pas-shell--cockpit')).toBe(false);
+      expect(window.localStorage.getItem('pas-layout')).toBe('stacked');
+    });
+
+    it('a remembered cockpit choice is used when the URL does not say', () => {
+      window.localStorage.setItem('pas-layout', 'cockpit');
+      renderStudio();
+      expect(shell().classList.contains('pas-shell--cockpit')).toBe(true);
+    });
+
+    it('an explicit ?layout=stacked beats a remembered cockpit', () => {
+      window.localStorage.setItem('pas-layout', 'cockpit');
+      renderStudio('/personal-agent?layout=stacked');
+      expect(shell().classList.contains('pas-shell--cockpit')).toBe(false);
+    });
+
+    it('switching layouts keeps what you typed (same chat element, no remount)', () => {
+      renderStudio();
+      const input = screen.getAllByPlaceholderText(/^Message /)[0];
+      fireEvent.change(input, { target: { value: 'What is my loyalty status?' } });
+      fireEvent.click(screen.getByRole('button', { name: 'Cockpit' }));
+      expect(screen.getAllByPlaceholderText(/^Message /)[0].value).toBe('What is my loyalty status?');
+    });
   });
 });

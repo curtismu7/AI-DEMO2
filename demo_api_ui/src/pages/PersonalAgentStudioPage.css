@@ -1,0 +1,78 @@
+/* Personal-agent studio shell. Two layouts share the same elements:
+   - stacked (default): chat on top; the reel and Token Chain stack under it.
+   - cockpit: chat on the left; gates, flow diagram, reel and Token Chain in the right
+     column; the client dock along the bottom. Same DOM in both, so the conversation and
+     the live token events survive a layout switch. */
+.pas-shell {
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.pas-shell--cockpit {
+  display: grid;
+  grid-template-columns: minmax(0, 5fr) minmax(0, 6fr);
+  /* header, gates, flow disclosure, reel + Token Chain, dock */
+  grid-template-rows: auto auto auto minmax(0, 1fr) auto;
+}
+
+.pas-shell--cockpit > .pas-c-header { grid-column: 1 / -1; grid-row: 1; }
+
+.pas-shell--cockpit > .pas-c-chat {
+  grid-column: 1;
+  grid-row: 2 / 5;
+  min-height: 0;
+  border-right: 1px solid var(--th-border);
+}
+
+.pas-shell--cockpit > .pas-c-gates { grid-column: 2; grid-row: 2; }
+.pas-shell--cockpit > .pas-c-flow { grid-column: 2; grid-row: 3; }
+
+/* The reel + Token Chain fill the rest of the right column and scroll inside it. Three classes
+   so this beats the stacked variant's own max-height. */
+.pas-shell--cockpit > .pas-c-reel.tcfs-float-host.tcfs-float-host--stacked {
+  grid-column: 2;
+  grid-row: 4;
+  min-height: 0;
+  max-height: none;
+  overflow: auto;
+}
+
+.pas-shell--cockpit > .personal-agent-client-dock { grid-column: 1 / -1; grid-row: 5; }
+
+/* The chat fills the whole left column instead of stopping at its content height. */
+.pas-shell--cockpit .agent-client-skin { height: 100%; }
+
+@media (max-width: 960px) {
+  .pas-shell--cockpit {
+    display: flex;
+    flex-direction: column;
+    overflow-y: auto;
+  }
+
+  .pas-shell--cockpit > .pas-c-chat { min-height: 420px; border-right: 0; }
+}
+
+/* Layout switch in the header */
+.pas-layout-switch {
+  display: inline-flex;
+  border: 1px solid var(--th-border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+
+.pas-layout-switch button {
+  padding: 5px 11px;
+  border: 0;
+  background: transparent;
+  color: var(--th-text-muted);
+  font-size: var(--font-size-2xs);
+  font-weight: 500;
+  cursor: pointer;
+}
+
+.pas-layout-switch button[aria-pressed="true"] {
+  background: var(--th-status-info-bg);
+  color: var(--th-status-info-text);
+  font-weight: 600;
+}
