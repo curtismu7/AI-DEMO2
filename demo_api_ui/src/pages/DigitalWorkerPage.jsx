@@ -5,6 +5,7 @@ import { useVertical } from "../vertical/useVertical";
 import PersonalAgentStudioPage from "./PersonalAgentStudioPage";
 import DigitalWorkerRunPanel from "./DigitalWorkerRunPanel";
 import DigitalWorkerSignIn from "./DigitalWorkerSignIn";
+import useConsentPhone from "./useConsentPhone";
 // The studio emits workload-agents__* classes styled there; this page mounts the
 // studio outside WorkloadAgentsPage, same as PersonalAgentClientWindow does.
 import "./WorkloadAgentsPage.css";
@@ -288,6 +289,15 @@ const SUPPORTED_VERTICALS = new Set([
   "banking", "healthcare", "retail", "walbuy", "government",
   "university", "workforce", "sporting-goods", "manufacturing", "investment", "airlines",
 ]);
+// What goes on the consent phone for a use case, read from its own run prompt ("pay $600 tuition"). A prompt
+// that names no amount has nothing to approve on a phone, so the caller runs it as before.
+function consentSnapshot(uc) {
+  const match = /\$\s*([\d,]+(?:\.\d{1,2})?)/.exec(uc?.runPrompt || "");
+  const amount = match ? Number(match[1].replace(/,/g, "")) : 0;
+  if (!(amount > 0)) return null;
+  return { amount, type: /withdraw/i.test(uc.runPrompt) ? "withdrawal" : "transfer", description: String(uc.runPrompt).slice(0, 80) };
+}
+
 const MODES = [
   { id: "attended", label: "Attended", hint: "you ask" },
   { id: "unattended", label: "Unattended", hint: "it starts itself" },
@@ -307,6 +317,15 @@ export default function DigitalWorkerPage() {
   const [catalog, setCatalog] = useState({ vertical: null, useCase: null });
   const [error, setError] = useState("");
   const [needsSignIn, setNeedsSignIn] = useState(false); // the wall answered 401: not an error, an invitation
+
+  // One consent phone for the page, shared by the attended Run button and the unattended panel (the server
+  // keeps a single pending mock request per session).
+  const { ask: askConsent, host: consentHost } = useConsentPhone();
+  const consentGate = useCallback(async (uc) => {
+    const snapshot = consentSnapshot(uc);
+    if (!snapshot) return true;
+    return (await askConsent(snapshot, `${uc.id}: ${uc.runPrompt}`)) === "approved";
+  }, [askConsent]);
   const [mode, setMode] = useState("attended");
 
   useEffect(() => {
@@ -377,16 +396,18 @@ export default function DigitalWorkerPage() {
           ))}
         </div>
 
+        {consentHost}
+
         <div role="tabpanel" id="dw-pane-attended" aria-labelledby="dw-tab-attended" hidden={mode !== "attended"} className="dw-agent__pane">
           <p className="dw-agent__intro">UC38 · wire transfer with step-up MFA and HITL</p>
           {needsSignIn ? <DigitalWorkerSignIn what="run the governed worker" /> : error && <p role="alert" className="dw-run-task__error">{error}</p>}
           {selected ? (
-            <PersonalAgentStudioPage key={`${vertical}:UC38`} scenario={selected} vertical={vertical} />
+            <PersonalAgentStudioPage key={`${vertical}:UC38`} scenario={selected} vertical={vertical} consentGate={consentGate} />
           ) : !error && !needsSignIn && <p role="status" className="dw-agent__intro">Loading the governed run…</p>}
         </div>
 
         <div role="tabpanel" id="dw-pane-unattended" aria-labelledby="dw-tab-unattended" hidden={mode !== "unattended"} className="dw-agent__pane">
-          <DigitalWorkerRunPanel />
+          <DigitalWorkerRunPanel onAskConsent={askConsent} />
         </div>
       </section>
 

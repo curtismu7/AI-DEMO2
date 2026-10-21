@@ -87,3 +87,8 @@
 /* ── Signed-out visitors on a walled deployment: an invitation, not an error ── */
 .dw-signin { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin: 0 0 0.75rem; }
 .dw-signin p { margin: 0; }
+
+/* ── Consent phone: the request status and outcome sit under the tabs; the phone itself floats ── */
+.dw-consent { padding: 0.75rem 1.25rem 0; border-bottom: 1px solid var(--th-border); }
+.dw-consent .cmp { margin: 0 0 0.75rem; }
+.dw-consent .cmp__back { cursor: pointer; padding: 4px 10px; border: 1px solid var(--th-border); border-radius: var(--radius-sm); background: var(--th-bg); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); }
