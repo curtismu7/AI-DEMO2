@@ -232,6 +232,7 @@ function buildArgs(props, form) {
   return out;
 }
 
+const ISSUER_SIGN_IN_NOTE = "The app signs in with PingOne, so this page signs in at PingFederate on its own. The ID-JAG is minted from that PingFederate session (the refresh token the BFF holds). The app's own sign-in and login provider are not touched.";
 const EMPTY_IDP = { id: "", name: "", issuer: "", jwksUrl: "", idJagClientId: "", clientId: "demo-bff-mcp-client", pfClientId: "ai-demo-pf-idjag-redeemer", scopes: "", targets: ["oauth-mcp"], enabled: true };
 const IDP_FIELDS = [
   ["id", "Id (slug)"], ["name", "Name"], ["issuer", "Issuer (https)"], ["jwksUrl", "JWKS URL (https)"],
@@ -616,7 +617,7 @@ export default function IdJagPlaygroundPage() {
   };
 
   const signIn = () => run("signin", async () => {
-    if (mode === "pf-pf") {
+    if (viaIssuer) {
       // Sign in at the issuer PingFederate, not the app's own provider: the sign-in modal drives its pi.flow
       // (role "issuer"); the redirect to /issuer/login is only the service's fallback.
       openSignIn({ role: "issuer", returnTo: RETURN_TO, force: true });
@@ -753,8 +754,11 @@ export default function IdJagPlaygroundPage() {
     && <PreflightPanel gate={gate} onRecheck={recheck} busy={!!busy} />;
   const errorAt = (...steps) => (error && steps.includes(error.step) ? <ErrorNote e={error} resource={config?.request?.resource} /> : null);
   const toolList = tools?.tools || [];
+  const viaIssuer = mode === "pf-pf" || (mode === "oauth-mcp" && config?.signIn?.via === "issuer");
   const pfRedeems = mode === "pf-pf" || config?.target === "pingfederate";
-  const pfReady = !!config && (isMock || isByo || (mode === "pf-pf" ? !!config.enabled : config.provider === "pingfederate" && config.enabled));
+  const modeBlocked = !isMock ? realModes?.find((r) => r.id === mode && r.available === false)?.reason || null : null;
+  const pfReady = !!config && !modeBlocked && (isMock || isByo || (mode === "pf-pf" ? !!config.enabled
+    : viaIssuer ? !!config.enabled && !config.signIn.reason : config.provider === "pingfederate" && config.enabled));
   const canRun = pfReady && (isMock || isByo || config.signedIn);
   const hasIdJag = isByo ? !!inspection?.trusted : !!issued;
   const passed = inspection ? inspection.checks.filter((c) => c.status === "pass").length : 0;
@@ -822,14 +826,16 @@ export default function IdJagPlaygroundPage() {
 
         {config && !pfReady && (
           <div className="ijp-banner" role="alert">
-            {mode === "oauth-mcp" && config.provider !== "pingfederate"
-              ? "The login provider is PingOne. ID-JAG only exists on PingFederate: switch the provider to PingFederate (top-bar P1/PF, admin) and sign in."
-              : "pf_id_jag_enabled is off on this BFF."}
+            {modeBlocked ? modeBlocked : mode === "oauth-mcp" && viaIssuer && config.signIn.reason
+              ? config.signIn.reason
+              : mode === "oauth-mcp" && !viaIssuer && config.provider !== "pingfederate"
+                ? "The login provider is PingOne. ID-JAG only exists on PingFederate: switch the provider to PingFederate (top-bar P1/PF, admin) and sign in."
+                : "pf_id_jag_enabled is off on this BFF."}
           </div>
         )}
         {error && !["list", "call", "resource"].includes(error.step) && <ErrorNote e={error} resource={config?.request?.resource} />}
 
-        <Step n={1} mode={mode} done={!isMock && !isByo && !!config?.signedIn} title={text.signInTitle} note={text.signInNote}>
+        <Step n={1} mode={mode} done={!isMock && !isByo && !!config?.signedIn} title={text.signInTitle} note={mode === "oauth-mcp" && viaIssuer ? ISSUER_SIGN_IN_NOTE : text.signInNote}>
           {(isByo || isMock) && (
             <div className="ijp-xaa" data-testid="ijp-xaa">
               <button type="button" className="ijp-btn ijp-btn--primary" onClick={xaaIdJag} disabled={!config?.xaa?.available || !!busy}>
