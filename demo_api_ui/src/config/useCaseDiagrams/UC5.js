@@ -4,11 +4,12 @@
  * itself more.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, MCP } from "../pingStyleStandards";
 
 const NODES = [
   { id: "atk", group: "external", label: "Attack agent", sub: ["missing scope"], x: 40, y: 150, detail: "Presents a valid token — right issuer, right audience — but it lacks the scope this tool demands." },
-  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["scope ceiling"], x: 340, y: 150, detail: "Checks the declared tool scope against the token's set before anything else." },
-  { id: "p1", group: "pingone", label: "PingOne Authorize", sub: ["not consulted"], x: 640, y: 150, detail: "Never sees the call — scope fails before the policy question is asked." },
+  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["scope ceiling"], x: 460, y: 150, detail: "Checks the declared tool scope against the token's set before anything else." },
+  { id: "p1", group: "pingone", label: "PingOne Authorize", sub: ["not consulted"], x: 880, y: 150, detail: "Never sees the call — scope fails before the policy question is asked." },
   ];
 
 const EDGES = [
@@ -45,11 +46,67 @@ const walk = [
   },
 ];
 
+// Per-step detail. Tokens are decoded MOCK values. The scope ceiling and the -32403 insufficient_scope error mirror demo_mcp_gateway/src/index.ts.
+const NARROW_TOKEN = {
+  note: "MOCK access token · valid envelope, narrow scope set",
+  header: { alg: "RS256", typ: "at+jwt" },
+  claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "attacker-0001", aud: "https://mcp.ping.demo", scope: "banking:accounts:read", exp: 1790000000 },
+};
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: `POST /gateway/mcp
+Authorization: Bearer <access token>
+Content-Type: application/json
+
+{ "jsonrpc": "2.0", "id": 1, "method": "tools/call",
+  "params": { "name": "<tool that needs a wider scope>", "arguments": { } } }`,
+      tokens: [NARROW_TOKEN],
+      refs: [RFC(6750, "Bearer token usage"), RFC(9068, "JWT profile for access tokens")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: `Gateway check (no network call):
+
+required = scopes the tool declares
+granted  = scp / scope of the token
+required not subset of granted -> hard fail, Authorize is not called`,
+      tokens: [NARROW_TOKEN],
+      refs: [RFC(6749, "Access token scope (section 3.3)"), RFC(9068, "JWT profile for access tokens")],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: `{ "jsonrpc": "2.0", "id": 1,
+  "error": { "code": -32403, "message": "<reason>",
+    "data": { "error": "insufficient_scope", "required_scopes": ["<scope>"], "login_required": false } } }
+
+HTTP-transport form: 403 with WWW-Authenticate: Bearer error="insufficient_scope".`,
+      tokens: [],
+      refs: [RFC(6750, "Bearer token usage: insufficient_scope error (section 3.1)"), MCP[0]],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: `One enforcement point: the gateway perimeter reads each tool's declared scope.
+No tool re-validates scopes in application code, so a new tool gets the same ceiling by declaring its scope.`,
+      tokens: [],
+    },
+  },
+];
+
 export default {
+  pingStyle: true,
   id: "UC5",
   result: { label: "DENY", tone: "err" },
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

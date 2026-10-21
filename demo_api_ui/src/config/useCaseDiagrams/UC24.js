@@ -4,11 +4,12 @@
  * What did NOT happen is the diagram's point.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC } from "../pingStyleStandards";
 
 const NODES = [
   { id: "user", group: "user", label: "Visitor", sub: ["no session cookie"], x: 40, y: 150, detail: "Asks a public question without signing in — no cookie, no token, no consent." },
-  { id: "agent", group: "agent", label: "Banking agent", sub: ["classifies: public"], x: 340, y: 150, detail: "Classifies the question as public catalog data and serves it directly — no privilege escalation." },
-  { id: "tool", group: "resource", label: "Branch lookup", sub: ["public catalog"], x: 640, y: 150, detail: "Answers with branch locations; nothing user-specific is read, so nothing is authorized." },
+  { id: "agent", group: "agent", label: "Banking agent", sub: ["classifies: public"], x: 440, y: 150, detail: "Classifies the question as public catalog data and serves it directly — no privilege escalation." },
+  { id: "tool", group: "resource", label: "Branch lookup", sub: ["public catalog"], x: 840, y: 150, detail: "Answers with branch locations; nothing user-specific is read, so nothing is authorized." },
 ];
 
 const EDGES = [
@@ -46,11 +47,47 @@ const walk = [
 ];
 
 
+// Per-step detail. The public catalog path carries no credentials, so every step states why there is no token.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /api/agent/invoke\nContent-Type: application/json\n\n{ \"prompt\": \"What branches are near me?\", \"vertical\": \"banking\" }\n\n(no Authorization header, no session cookie: the visitor has not signed in)",
+      tokens: [],
+      refs: [RFC(9110, "HTTP Semantics: a request with no credentials is a valid request")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "Agent routing (inside the BFF, no network hop)\n\nclassification: public catalog tool\ntoken exchange: not called\ngateway hop: none\nPingOne Authorize call: none",
+      tokens: [],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "branch lookup -> 200\n{ \"branches\": [\"Austin\", \"Dallas\", \"Houston\", \"Miami\", \"Denver\"] }\n\nNothing about a user was read, so nothing needed to be authorized.",
+      tokens: [],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "Token Chain for this run\n\nuser-token:           absent\ntoken-exchange:       absent\nauthorize-decision:   absent\n\nThe trace is the lesson: step 2 of the progressive-trust story is where a protected ask first adds a Bearer token.",
+      tokens: [],
+      refs: [RFC(6750, "Bearer token usage (what the next, protected step adds)")],
+    },
+  },
+];
+
 export default {
   id: "UC24",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

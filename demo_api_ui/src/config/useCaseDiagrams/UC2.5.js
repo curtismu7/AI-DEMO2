@@ -4,6 +4,7 @@
  * narrowed two-hop delegation runs. Routing is dynamic; governance is not.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "orch", group: "agent", label: "Orchestrator", sub: ["analyzes request"], x: 40, y: 150, detail: "The generalist agent: not expert in the request, so it must route it." },
@@ -37,7 +38,7 @@ const walk = [
     title: "Two-hop delegation", label: "Act nests twice",
     nodes: ["pick", "p1"], edges: [2],
     lines: [{ who: "PingOne", text: "Same machinery as UC2 — the routing changed, the governance did not." }],
-    tech: [{ t: "TOKEN", c: "RFC 8693 #1 -> gen AT: sub=alice, act={sub:orchestrator}" }],
+    tech: [{ t: "TOKEN", c: "RFC 8693 #1 -> gen AT: sub=alice, act={sub:generalist}" }],
   },
   {
     title: "Narrowed at the edge", label: "Policy-decided scopes",
@@ -56,8 +57,10 @@ const walk = [
 export default {
   id: "UC2.5",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC2.5"],
 };

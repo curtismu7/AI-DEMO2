@@ -77,13 +77,13 @@ const steps = [
   {
     beats: [0],
     detail: {
-      form: "POST /api/agent/invoke\nContent-Type: application/json\n\n{ \"prompt\": \"What branches are near me?\", \"vertical\": \"super-sports\" }\n\n(no Authorization header, no session: the public catalog answers anonymously)",
+      form: "POST /api/agent/invoke\nContent-Type: application/json\n\n{ \"prompt\": \"What branches are near me?\", \"vertical\": \"banking\" }\n\n(no Authorization header, no session: the public catalog answers anonymously)",
     },
   },
   {
     beats: [1],
     detail: {
-      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"show my balance\", \"vertical\": \"super-sports\" }",
+      form: "POST /api/agent/invoke\nCookie: <BFF session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"show my balance\", \"vertical\": \"banking\" }",
       tokens: [{
         note: "Exchanged agent token · downscoped, delegated on Alice's behalf",
         header: { alg: "RS256", typ: "at+jwt" },

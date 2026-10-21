@@ -5,11 +5,12 @@
  * even though its signature would still verify.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["signed in once"], x: 40, y: 150, detail: "Her consent started the chain; everything after is short-lived delegated authority." },
   { id: "agent", group: "agent", label: "Banking agent", sub: ["holds a TTL'd token"], x: 340, y: 150, detail: "Holds a delegated token that expires in minutes — the refresh loop keeps it current, never long-lived." },
-  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["introspects every call"], x: 640, y: 150, detail: "Introspects the token on every request: a token past its TTL is rejected 401 even though the signature still verifies." },
+  { id: "gw", group: "gateway", label: "Agent gateway", sub: ["introspects each call"], x: 640, y: 150, detail: "Introspects the token on each request (results cached up to 5 s in prod): a token past its TTL is rejected 401 even though the signature still verifies." },
   { id: "p1", group: "pingone", label: "PingOne", sub: ["TTL on the exchange"], x: 940, y: 150, detail: "Issues the delegated token with a configurable short TTL at the RFC 8693 exchange — the only control needed." },
   { id: "acct", group: "resource", label: "Accounts API", sub: ["balance read"], x: 1240, y: 150, detail: "Serves the balance to the still-valid delegated token; expiry is enforced upstream of here." },
 ];
@@ -27,7 +28,7 @@ const walk = [
     title: "Short-lived by construction", label: "TTL at mint",
     nodes: ["user", "agent"], edges: [0],
     lines: [{ who: "PingOne", text: "The RFC 8693 exchange stamps a tight TTL on the delegated token — configuration, not custom rotation code." }],
-    tech: [{ t: "TOKEN", c: "agent AT: act={sub:agent, sub:alice}, exp = now + minutes" }],
+    tech: [{ t: "TOKEN", c: "agent AT: sub=alice, act={sub:agent}, exp = now + minutes" }],
   },
   {
     title: "Present the token", label: "call inside the window",
@@ -40,7 +41,7 @@ const walk = [
     nodes: ["gw", "p1"], edges: [2],
     lines: [{ who: "Gateway", text: "A stolen token is rejected the moment its TTL passes — no standing credential to abuse." }],
     tech: [
-      { t: "POLICY", c: "introspection: active=true only while now < exp; past-TTL -> 401" },
+      { t: "POLICY", c: "introspection: active=true only while now < exp (cached up to 5 s in prod); past-TTL -> 401" },
       { t: "TOKEN", c: "expired token: signature valid, active=false -> rejected" },
     ],
   },
@@ -61,8 +62,10 @@ const walk = [
 export default {
   id: "UC17",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC17"],
 };

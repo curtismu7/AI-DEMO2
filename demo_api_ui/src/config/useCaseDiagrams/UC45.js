@@ -6,6 +6,7 @@
  * gateway and PingOne Authorize. The token chain keeps the customer as subject.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { RFC, SPEC, DRAFT } from "../pingStyleStandards";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (customer)", sub: ["signs in to the SaaS site"], x: 40, y: 150, detail: "Her sign-in is the customer identity — the subject the delegated token keeps. The website session is a third thing, never conflated with either agent identity." },
@@ -28,12 +29,12 @@ const walk = [
     title: "The embedded ask", label: "Inside the SaaS site",
     nodes: ["user", "worker"], edges: [0],
     lines: [{ who: "Alice", text: "She asks the site's own worker for help — the worker will act under its own identity, for her." }],
-    tech: [{ t: "API", c: "Website Worker action request (site-embedded, /embedded-worker)" }],
+    tech: [{ t: "API", c: "Website Worker run via POST /api/agent/invoke (site-embedded, /embedded-worker); MFA step-up gate first" }],
   },
   {
     title: "Worker identity resolved", label: "CIMD/NHI provenance",
     nodes: ["worker", "gw"], edges: [1],
-    lines: [{ who: "BFF", text: "Website session, customer identity and worker identity stay separate — mocked CIMD registration supplies the worker's provenance." }],
+    lines: [{ who: "BFF", text: "MFA (acr Multi_Factor) is checked first, else step_up_required. Website session, customer identity and worker identity stay separate — mocked CIMD registration supplies the worker's provenance." }],
     tech: [
       { t: "POLICY", c: "personal-agent-lookup: worker has its own PingOne AI Agent identity + CIMD/NHI association" },
       { t: "TOKEN", c: "CIMD registration supplies provenance (mocked facade, real association)" },
@@ -62,11 +63,65 @@ const walk = [
   },
 ];
 
+// Per-step detail: request forms use placeholders, tokens are decoded MOCK values, refs are published RFCs/specs or marked emerging drafts.
+const steps = [
+  {
+    beats: [0],
+    detail: {
+      form: "POST /api/agent/invoke\nCookie: <website session cookie>\nContent-Type: application/json\n\n{ \"prompt\": \"redeem my miles\", \"useCaseId\": \"saas-embedded-worker\" }\n\n(worker registration beforehand: POST /api/embedded-worker/agent -> 201 | 200)\nMFA satisfied (acr Multi_Factor) is required first, else step_up_required and nothing is delegated.\n\nThree identities stay separate: website session, customer, worker.",
+      tokens: [],
+      refs: [SPEC("OIDC Core 1.0", "The customer sign-in behind the website session")],
+    },
+  },
+  {
+    beats: [1],
+    detail: {
+      form: "Personal-agent lookup (inside the BFF, no outbound request)\n\nworker -> its own PingOne AI Agent identity\nworker -> CIMD / NHI association (mocked facade, real association)",
+      tokens: [],
+      refs: [DRAFT("draft-ietf-oauth-client-id-metadata-document", "Client ID Metadata Documents: worker provenance")],
+    },
+  },
+  {
+    beats: [2],
+    detail: {
+      form: "POST /as/token   (PingOne)\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=urn:ietf:params:oauth:grant-type:token-exchange\n&subject_token=<customer access token>\n&subject_token_type=urn:ietf:params:oauth:token-type:access_token\n&actor_token=<website worker token>\n&actor_token_type=urn:ietf:params:oauth:token-type:access_token\n&audience=<vertical MCP resource>",
+      tokens: [
+        { note: "Input · subject_token (customer access token, decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", scope: "<customer scopes>" } },
+        { note: "Input · actor_token (website worker token, decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "website-worker-client", scope: "agent:invoke" } },
+        { note: "Output · delegated token (decoded mock)", header: { alg: "RS256", typ: "at+jwt" }, claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", aud: "<vertical MCP resource>", act: { sub: "website-worker-client" }, tenant: "<tenant id>", exp: 1790000300 } },
+      ],
+      refs: [RFC(8693, "Token Exchange: customer as subject, worker as actor; audience / resource parameters of the exchange request (section 2.1)")],
+    },
+  },
+  {
+    beats: [3],
+    detail: {
+      form: "POST /mcp\nAuthorization: Bearer <delegated token>\nContent-Type: application/json\n\n{ \"jsonrpc\": \"2.0\", \"id\": 1, \"method\": \"tools/call\",\n  \"params\": { \"name\": \"redeem_miles\", \"arguments\": { \"miles\": 5000 } } }\n\nPingOne Authorize: customer + worker actor + scopes + tenant context -> PERMIT",
+      tokens: [{
+        note: "Delegated token the gateway validates (decoded mock)",
+        header: { alg: "RS256", typ: "at+jwt" },
+        claims: { iss: "https://auth.pingone.com/ENV_ID/as", sub: "alice-0001", act: { sub: "website-worker-client" }, tenant: "<tenant id>" },
+      }],
+      refs: [RFC(6750, "Bearer token usage"), SPEC("OpenID AuthZEN", "Standard PEP to PDP authorization API")],
+    },
+  },
+  {
+    beats: [4],
+    detail: {
+      form: "-> 200\n{ \"reply\": \"<redemption confirmation>\" }\n\nToken chain: user-token -> personal-agent-lookup -> token-exchange -> tool-dispatched, sub=customer throughout",
+      tokens: [],
+      refs: [RFC(8693, "act claim keeps the actor visible beside the subject")],
+    },
+  },
+];
+
 export default {
   id: "UC45",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

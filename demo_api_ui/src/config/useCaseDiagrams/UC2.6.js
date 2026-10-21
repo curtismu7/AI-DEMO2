@@ -7,6 +7,7 @@
  * agent credential cannot ride on a legitimate user's delegation.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["same delegation"], x: 40, y: 150, detail: "Same user, same consent, same mayAct delegation — nothing about her changes between PERMIT and DENY." },
@@ -52,8 +53,10 @@ const walk = [
 export default {
   id: "UC2.6",
   result: { label: "PERMIT → DENY", tone: "err" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC2.6"],
 };

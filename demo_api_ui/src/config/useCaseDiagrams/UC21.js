@@ -4,6 +4,7 @@
  * standard-tier agent is never offered those tools at all.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_BATCH3_STEPS } from "./pingBatch3Uc3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["premium-tier group"], x: 40, y: 150, detail: "The demo user is seeded into the vertical's premium-tier group." },
@@ -24,7 +25,7 @@ const walk = [
     title: "Tier request", label: "Sensitive details",
     nodes: ["user", "agent"], edges: [0],
     lines: [{ who: "Agent", text: "The request itself is ordinary; the tier is what shapes the answer." }],
-    tech: [{ t: "API", c: "POST /gateway/mcp tools/call get_sensitive_details (tier access)" }],
+    tech: [{ t: "API", c: "POST /gateway/mcp tools/call get_sensitive_account_details (tier access)" }],
   },
   {
     title: "Authorize evaluates tier", label: "Group = tier",
@@ -49,8 +50,10 @@ const walk = [
 export default {
   id: "UC21",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps: UC_BATCH3_STEPS["UC21"],
 };

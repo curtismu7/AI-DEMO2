@@ -6,19 +6,20 @@
  * is entirely Ping.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_MUSE1 as steps } from "../ucBatch3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Alice (user)", sub: ["owns the agent"], x: 40, y: 150, detail: "Runs Muse on her machine and asks it for her balance — the agent is hers, not the bank's." },
-  { id: "agent", group: "external", label: "Muse agent", sub: ["user's machine"], x: 340, y: 150, detail: "Any spec-compliant MCP client. Discovers the door, self-registers, holds no keys of its own." },
-  { id: "door", group: "gateway", label: "MCP door", sub: ["RFC 9728 + DCR"], x: 640, y: 150, detail: "PingGateway external door: discovery, DCR, PKCE login, then enforcement on every /mcp call." },
-  { id: "p1", group: "pingone", label: "PingOne", sub: ["exchange + policy"], x: 940, y: 150, detail: "Mints the delegated token (sub=alice, act=muse client) and evaluates policy (P1AZ) per tool call." },
-  { id: "tool", group: "resource", label: "Bank tools", sub: ["behind the gateway"], x: 1240, y: 150, detail: "Tools execute only after the gateway's P1AZ decision; every hop is audited." },
+  { id: "agent", group: "external", label: "Muse agent", sub: ["user's machine"], x: 460, y: 150, detail: "Any spec-compliant MCP client. Discovers the door, self-registers, holds no keys of its own." },
+  { id: "door", group: "gateway", label: "MCP door", sub: ["RFC 9728 + DCR"], x: 960, y: 150, detail: "PingGateway external door: discovery, DCR, PKCE login, then enforcement on every /mcp call." },
+  { id: "p1", group: "pingone", label: "PingOne", sub: ["exchange + policy"], x: 960, y: 350, detail: "Mints the delegated token (sub=alice, act=muse client) and evaluates policy (P1AZ) per tool call." },
+  { id: "tool", group: "resource", label: "Bank tools", sub: ["behind the gateway"], x: 530, y: 350, detail: "Tools execute only after the gateway's P1AZ decision; every hop is audited." },
 ];
 
 const EDGES = [
   ["user", "agent", "asks for balance", { detail: "Natural language in Muse; the agent picks the tool." }],
   ["agent", "door", "discover, register, log in", { detail: "RFC 9728 metadata -> RFC 7591 DCR -> PKCE login in Alice's browser." }],
-  ["door", "p1", "exchange + decide", { detail: "RFC 8693 mints sub=alice, act=muse; P1AZ evaluates the call." }],
+  ["door", "p1", "exchange + decide", { vertical: true, detail: "RFC 8693 mints sub=alice, act=muse; P1AZ evaluates the call." }],
   ["p1", "tool", "PERMIT + dispatch", { detail: "Delegated token stamped on the call; the tool runs." }],
   ["tool", "user", "answer", { detail: "Balance lands in Muse; the chain is on the record." }],
 ];
@@ -66,8 +67,10 @@ const walk = [
 export default {
   id: "UC-MUSE1",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

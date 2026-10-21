@@ -5,17 +5,18 @@
  * act = agent). The model, when Claude Code is the client, sees only the result.
  */
 import { PARTICIPANT_GROUPS as G } from "./palette";
+import { UC_OBO as steps } from "../ucBatch3Steps";
 
 const NODES = [
   { id: "user", group: "user", label: "Person", sub: ["signed in"], x: 40, y: 150, detail: "Signed in to the app. Their token stays in the BFF session; the browser and the model never receive it." },
-  { id: "bff", group: "gateway", label: "BFF", sub: ["holds the user token"], x: 340, y: 150, detail: "Runs the exchange from the signed-in session as the Token Exchanger app, then calls the downstream resource with the delegated token." },
-  { id: "p1", group: "external", label: "PingOne", sub: ["authorization server"], x: 640, y: 150, detail: "Issues the agent's token and performs the RFC 8693 exchange. The resource attribute adds act = {client_id} of the actor." },
-  { id: "agent", group: "agent", label: "AI Agent client", sub: ["the actor"], x: 640, y: 340, detail: "A client with its own credentials and scope agent:invoke. It is the party the delegated token says is acting." },
+  { id: "bff", group: "gateway", label: "BFF", sub: ["holds the user token"], x: 470, y: 150, detail: "Runs the exchange from the signed-in session as the Token Exchanger app, then calls the downstream resource with the delegated token." },
+  { id: "p1", group: "external", label: "PingOne", sub: ["authorization server"], x: 880, y: 150, detail: "Issues the agent's token and performs the RFC 8693 exchange. The resource attribute adds act = {client_id} of the actor." },
+  { id: "agent", group: "agent", label: "AI Agent client", sub: ["the actor"], x: 880, y: 340, detail: "A client with its own credentials and scope agent:invoke. It is the party the delegated token says is acting." },
 ];
 
 const EDGES = [
   ["user", "bff", "signed-in session", { detail: "The user token is the subject token; it never leaves the server." }],
-  ["agent", "p1", "client credentials", { detail: "The agent authenticates as itself; this token is the actor token." }],
+  ["agent", "p1", "client credentials", { lane: -60, detail: "The agent authenticates as itself; this token is the actor token." }],
   ["bff", "p1", "token exchange", { detail: "subject_token = user token, actor_token = agent token, audience obo-demo.ping.demo, scope obo:invoke." }],
   ["p1", "bff", "delegated token", { detail: "sub = the person, act = the agent. Delegation, not impersonation." }],
 ];
@@ -56,8 +57,10 @@ const walk = [
 export default {
   id: "UC-OBO",
   result: { label: "PERMIT", tone: "ok" },
+  pingStyle: true,
   GROUPS: G,
   NODES,
   EDGES,
   walk,
+  steps,
 };

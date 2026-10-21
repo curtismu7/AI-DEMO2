@@ -1,6 +1,7 @@
 // demo_api_ui/src/components/A2AFlowVisualizer.jsx
 import React, { useMemo, useState } from 'react';
 import A2ATokenFlowDiagram from './A2ATokenFlowDiagram';
+import A2ALearnPingFlow from './A2ALearnPingFlow';
 import './A2AFlowVisualizer.css';
 
 /**
@@ -74,7 +75,7 @@ function statusOf(ev) {
   return ['error', 'failed', 'failure', 'denied'].includes(s) ? 'error' : 'ok';
 }
 
-export default function A2AFlowVisualizer({ tokenEvents, labels }) {
+export default function A2AFlowVisualizer({ tokenEvents, labels, pingStyle = false }) {
   const [openKey, setOpenKey] = useState(null);
   const [replayKey, setReplayKey] = useState(0);
   const [mode, setMode] = useState('canvas'); // 'canvas' | 'timeline'
@@ -115,17 +116,20 @@ export default function A2AFlowVisualizer({ tokenEvents, labels }) {
   return (
     <div className="a2fv" data-replay={replayKey}>
       <div className="a2fv-toolbar">
-        <button
-          type="button"
-          className="a2fv-replay"
-          onClick={() => { setOpenKey(null); setReplayKey((n) => n + 1); }}
-        >
-          ▶ Replay flow
-        </button>
+        {!pingStyle && (
+          <button
+            type="button"
+            className="a2fv-replay"
+            onClick={() => { setOpenKey(null); setReplayKey((n) => n + 1); }}
+          >
+            ▶ Replay flow
+          </button>
+        )}
         <span className="a2fv-legend">
           <span className="a2fv-legend-chip a2fv-legend-chip--identity">Identity · RFC 8693</span>
           <span className="a2fv-legend-chip a2fv-legend-chip--wire">Wire · A2A protocol</span>
         </span>
+        {!pingStyle && (
         <span className="a2fv-mode" role="group" aria-label="Diagram mode">
           <button
             type="button"
@@ -144,9 +148,28 @@ export default function A2AFlowVisualizer({ tokenEvents, labels }) {
             Timeline
           </button>
         </span>
+        )}
       </div>
 
-      {mode === 'canvas' ? (
+      {pingStyle ? (
+        <>
+          <A2ALearnPingFlow tokenEvents={events} labels={labels} />
+          <div className="a2fv-evidence" data-testid="a2fv-evidence">
+            <h4 className="a2fv-evidence-title">Evidence from this run</h4>
+            {packets.map(({ ev, index }) => {
+              const key = ev.id || `ev-${index}`;
+              const evidence = ev.claims || ev.exchangeRequest || ev.protocolRequest || ev.protocolResponse || ev.agentCard;
+              if (evidence == null) return null;
+              return (
+                <details key={key} className="a2fv-evidence-item">
+                  <summary>{index + 1}. {ev.label || key}</summary>
+                  <pre className="a2fv-detail-json">{JSON.stringify(evidence, null, 2)}</pre>
+                </details>
+              );
+            })}
+          </div>
+        </>
+      ) : mode === 'canvas' ? (
         <A2ATokenFlowDiagram tokenEvents={events} labels={labels} />
       ) : (
       <div className="a2fv-canvas" style={{ '--a2fv-lanes': lanes.length }}>
@@ -224,7 +247,8 @@ export default function A2AFlowVisualizer({ tokenEvents, labels }) {
       )}
 
       <p className="a2fv-footnote">
-        Click any packet to inspect the real claims, request, or response that hop carried.
+        {pingStyle ? 'Click a box or an arrow for the request, MOCK tokens and standards of that hop; open an item above for the real claims, request or response it carried.' : 'Click any packet to inspect the real claims, request, or response that hop carried.'}
+        {' '}
         Packets are built from this run&apos;s token-chain events; no raw token strings are ever shown.
       </p>
     </div>
