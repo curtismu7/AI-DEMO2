@@ -15,14 +15,14 @@
   padding: 10px 12px;
   border: 1px solid var(--th-border);
   border-left-width: 4px;
-  border-radius: 10px;
+  border-radius: var(--radius-xl);
   background: var(--th-bg-card);
   color: var(--th-text);
   transition: border-color 0.3s, background 0.3s;
 }
 
 .gate-chips__chip small {
-  font-size: 10px;
+  font-size: var(--font-size-3xs);
   font-weight: 700;
   letter-spacing: 0.12em;
   text-transform: uppercase;
@@ -30,12 +30,12 @@
 }
 
 .gate-chips__chip strong {
-  font-size: 13px;
+  font-size: var(--font-size-sm);
   line-height: 1.25;
 }
 
 .gate-chips__status {
-  font-size: 12px;
+  font-size: var(--font-size-2xs);
   color: var(--th-text-muted);
 }
 
