@@ -391,11 +391,12 @@ services:
       PF_AI_THIRD_PARTY_SCOPE: "${PF_AI_THIRD_PARTY_SCOPE:-tp:read}"
       # Plain-HTTP façade listener — see the 127.0.0.1:3002 port mapping above.
       MCP_FACADE_HTTP_PORT: "3002"
+      # PINGONE_MCP_ADMIN_LOOPBACK_PORT is deliberately NOT declared here (env_file
+      # supplies it, and the hygiene gate forbids a blanking `${VAR:-}` entry).
       # Unset = the pingone-admin door signs in with our own "PingOne MCP Server"
-      # app over the HTTPS callback (refresh-token capable). Set it only to fall
-      # back to the built-in client's loopback listener; that also needs a
+      # app over the HTTPS callback. Set it in demo_api_server/.env only to fall
+      # back to the built-in client's loopback listener, which also needs a
       # 127.0.0.1:<port>:<port> mapping on this service.
-      PINGONE_MCP_ADMIN_LOOPBACK_PORT: "${PINGONE_MCP_ADMIN_LOOPBACK_PORT:-}"
       # The gateway's OAuth broker advertises itself as localhost:3005 for the
       # BROWSER (published port). The BFF is a sibling container where that is
       # Connection-refused, so its server-side metadata and token-endpoint
