@@ -29,8 +29,8 @@ beforeEach(() => {
 });
 
 describe('PingOneAuthorizeConsoleClean', () => {
-  it.each([['loading', 'Loading'], ['error', 'Unavailable'], ['live', 'Live']])('mode chip for %s is %s', (loadState, label) => {
-    render(<Harness loadState={loadState} />);
+  it.each([['loading', 'Loading'], ['error', 'Unavailable'], ['live', 'Real P1AZ']])('Real P1AZ mode chip for %s is %s', (loadState, label) => {
+    render(<Harness loadState={loadState} defaultMode="live" />);
     expect(screen.getByText(label, { selector: '.insp-chip' })).toBeInTheDocument();
   });
 
@@ -67,31 +67,39 @@ describe('PingOneAuthorizeConsoleClean', () => {
   });
 });
 
-describe('PingOneAuthorizeConsoleClean Mock | Live', () => {
-  it('defaults to Live and sends no mode', async () => {
+describe('PingOneAuthorizeConsoleClean Mock | Real P1AZ', () => {
+  it('opens in Mock: the Mock chip, the Mock button pressed, and a Send that goes out as mode:mock', async () => {
     render(<Harness />);
-    expect(screen.getByRole('button', { name: 'Live' })).toHaveAttribute('aria-pressed', 'true');
-    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
-    await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(1));
-    expect(bffAxios.post.mock.calls[0][1]).not.toHaveProperty('mode');
-  });
-
-  it('Mock sends mode:mock, shows the Mock chip, and works with no endpoint', async () => {
-    render(<Harness endpointId="" endpoints={[]} loadState="error" />);
-    expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled(); // Live needs an endpoint
-    fireEvent.click(screen.getByRole('button', { name: 'Mock' }));
+    expect(screen.getByRole('button', { name: 'Mock' })).toHaveAttribute('aria-pressed', 'true');
     expect(screen.getByText('Mock', { selector: '.insp-chip' })).toBeInTheDocument();
-    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
     fireEvent.click(screen.getByRole('button', { name: 'Send' }));
     await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(1));
     expect(bffAxios.post.mock.calls[0][1]).toMatchObject({ mode: 'mock' });
   });
 
-  it('switching back to Live restores the endpoint requirement', () => {
-    render(<Harness endpointId="" endpoints={[]} />);
-    fireEvent.click(screen.getByRole('button', { name: 'Mock' }));
-    fireEvent.click(screen.getByRole('button', { name: 'Live' }));
+  it('Mock works with no endpoint; Real P1AZ sends no mode and needs one', async () => {
+    render(<Harness endpointId="" endpoints={[]} loadState="error" />);
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Real P1AZ' }));
+    expect(screen.getByText('Unavailable', { selector: '.insp-chip' })).toBeInTheDocument();
     expect(screen.getByRole('button', { name: 'Send' })).toBeDisabled();
+    fireEvent.click(screen.getByRole('button', { name: 'Mock' }));
+    expect(screen.getByRole('button', { name: 'Send' })).toBeEnabled();
+  });
+
+  it('Real P1AZ with an endpoint sends no mode', async () => {
+    render(<Harness />);
+    fireEvent.click(screen.getByRole('button', { name: 'Real P1AZ' }));
+    fireEvent.click(screen.getByRole('button', { name: 'Send' }));
+    await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(1));
+    expect(bffAxios.post.mock.calls[0][1]).not.toHaveProperty('mode');
+  });
+
+  it('a staged replay goes to PingOne, not the simulator, even though Mock is the default', async () => {
+    render(<Harness pendingTest={{ preset: 'custom', parameters: { A: 'b' }, autoRun: true }} />);
+    await waitFor(() => expect(bffAxios.post).toHaveBeenCalledTimes(1));
+    expect(bffAxios.post.mock.calls[0][1]).not.toHaveProperty('mode');
+    expect(screen.getByRole('button', { name: 'Real P1AZ' })).toHaveAttribute('aria-pressed', 'true');
   });
 });
 
