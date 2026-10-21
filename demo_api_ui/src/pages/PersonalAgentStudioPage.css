@@ -221,3 +221,14 @@
   color: var(--th-status-info-text);
   font-weight: 600;
 }
+
+/* The vertical picker in the header: a quiet label beside the shared VerticalSwitcher dropdown */
+.pas-vertical { display: inline-flex; align-items: center; gap: 6px; }
+
+.pas-vertical__label {
+  font-size: var(--font-size-3xs);
+  font-weight: 700;
+  letter-spacing: 0.1em;
+  text-transform: uppercase;
+  color: var(--th-text-muted);
+}

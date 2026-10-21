@@ -1,4 +1,4 @@
-import React, { useState, useCallback, useEffect, useRef } from 'react';
+import React, { useState, useCallback, useEffect, useMemo, useRef } from 'react';
 import { useLocation } from 'react-router-dom';
 import apiClient from '../services/apiClient';
 import AgentClientSkin from '../components/AgentClientSkin';
@@ -8,7 +8,9 @@ import PersonalAgentClientCards from '../components/learning/PersonalAgentClient
 import DotMemoryPanel from '../components/DotMemoryPanel';
 import DotPersonaStrip from '../components/DotPersonaStrip';
 import { governanceFrom } from '../utils/dotGovernance';
-import { airlineSuggestions } from '../config/dotSuggestions';
+import { studioSuggestions, studioGreeting } from '../config/dotSuggestions';
+import { useVertical } from '../vertical/useVertical';
+import VerticalSwitcher from '../components/VerticalSwitcher';
 import SecurityRail from '../components/SecurityRail';
 import TokenChainFilmstrip from '../components/TokenChainFilmstrip';
 import { useTokenChainOptional } from '../context/TokenChainContext';
@@ -96,7 +98,10 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   const query = new URLSearchParams(location.search);
   const routeId = query.get('useCase');
   const routeVertical = query.get('vertical');
-  const vertical = selectedVertical || routeVertical || 'airlines';
+  // The vertical the chat talks to: an explicit prop or ?vertical= first, then the app's ACTIVE vertical (the picker in
+  // this page's header and the top bar both set it), then the airline demo this page was built around.
+  const { activeId, pageManifest } = useVertical();
+  const vertical = selectedVertical || routeVertical || activeId || 'airlines';
   const routeContextKey = routeVertical && ['UC38', 'UC44'].includes(routeId) ? `${routeId}:${vertical}` : null;
   const [routeScenario, setRouteScenario] = useState(null);
   const workloadScenario = scenario || (routeScenario?.key === routeContextKey ? routeScenario.useCase : null);
@@ -130,6 +135,11 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
   }, []);
   const [theme, setTheme] = useState('dark');
   const [messages, setMessages] = useState(INITIAL_MESSAGES);
+  // The opening line follows the vertical (the airline one names MileagePlus), wherever it sits in the history.
+  const chatMessages = useMemo(
+    () => messages.map((m) => (m === INITIAL_MESSAGES[0] ? { ...m, text: studioGreeting(vertical) } : m)),
+    [messages, vertical],
+  );
   const [dotMemoryNonce, setDotMemoryNonce] = useState(0);
   const [replayGates, setReplayGates] = useState(null);
   const replayTimer = useRef(null);
@@ -224,7 +234,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines', agentMode }),
+      body: JSON.stringify({ prompt: text, vertical, agentMode }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -257,7 +267,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' },
         ]);
       });
-  }, [agentMode, startChallenge, setTokenEvents]);
+  }, [agentMode, startChallenge, setTokenEvents, vertical]);
 
   // Scripted CUA run: the same invoke path as handleSend, each step labeled as a
   // computer-use action, sequenced so the token chain shows the full path.
@@ -443,6 +453,10 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
 
         {/* Actions */}
         {view === 'agent' && <div style={{ display: 'flex', gap: 6, marginLeft: 'auto', alignItems: 'center' }}>
+          <span className="pas-vertical" title="The vertical the agent works in: its tools, policies and sample prompts">
+            <span className="pas-vertical__label">Vertical</span>
+            <VerticalSwitcher variant="nav" />
+          </span>
           <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} />
           <div className="pas-layout-switch" role="group" aria-label="Page layout">
             <button type="button" aria-pressed={layoutMode === 'stacked'} onClick={() => chooseLayout('stacked')}>Stacked</button>
@@ -511,7 +525,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
                   <AgentClientSkin
                     skin={activeSkin}
                     theme={theme}
-                    messages={messages}
+                    messages={chatMessages}
                     onSend={handleSend}
                     showPopOutButton={false}
                     onPopOut={handlePopOut}
@@ -525,9 +539,9 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
                   <AgentClientSkin
                     skin={activeSkin}
                     theme={theme}
-                    messages={messages}
+                    messages={chatMessages}
                     onSend={handleSend}
-                    suggestions={airlineSuggestions(activeSkin)}
+                    suggestions={studioSuggestions(activeSkin, vertical, pageManifest)}
                     showPopOutButton={false}
                     onPopOut={handlePopOut}
                   />
