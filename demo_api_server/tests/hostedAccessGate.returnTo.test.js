@@ -13,8 +13,9 @@ function run(url) {
 
 describe('hosted access wall redirect keeps the return path', () => {
   test('keeps the query string of the gated URL', () => {
-    expect(run('/api/auth/oauth/user/login?return_to=%2Fmfa-test'))
-      .toBe('/api/auth/hosted-access/login?return_to=%2Fapi%2Fauth%2Foauth%2Fuser%2Flogin%3Freturn_to%3D%252Fmfa-test');
+    // consent-url is an app auth route that stays gated (the app login steps themselves are open before the wall now)
+    expect(run('/api/auth/oauth/user/consent-url?return_to=%2Fmfa-test'))
+      .toBe('/api/auth/hosted-access/login?return_to=%2Fapi%2Fauth%2Foauth%2Fuser%2Fconsent-url%3Freturn_to%3D%252Fmfa-test');
   });
 });
 

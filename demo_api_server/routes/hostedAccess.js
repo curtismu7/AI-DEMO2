@@ -198,6 +198,9 @@ router.get('/identifier-policy', (req, res) => {
     rejectPlusAddressing: Boolean(policy.enabled && policy.rejectPlusAddressing),
     // The SPA only asks for the front-door modal when the wall is on and pi.flow can run.
     frontDoorPiFlow: Boolean(policy.enabled && piFlowAvailable()),
+    // The gate honours the approval the app sign-in stamps (middleware/hostedAccessGate isApprovedApplicationSession), so the
+    // SPA skips the front-door login and runs just the app sign-in: one login, not two.
+    appLoginUnlocksWall: Boolean(policy.enabled),
     allowedIdentifiers: policy.allowedIdentifiers,
   });
 });
