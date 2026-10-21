@@ -308,6 +308,7 @@
     "/group-policy/full": "user",
     "/personal-agent-design": "public",
     "/personal-agent-dual-gateway": "public",
+    "/personal-agent-flow": "public",
     "/personal-agent-review": "public",
     "/cimd-privilege": "public",
     "/a2a-architecture": "public",

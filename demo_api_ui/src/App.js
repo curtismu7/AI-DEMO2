@@ -42,6 +42,7 @@ import GatewayEnforcementMapPage from "./components/GatewayEnforcementMapPage";
 import ResourceServerPlacementPage from "./components/ResourceServerPlacementPage";
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
 import PersonalAgentDesignPage from "./components/personalAgent/PersonalAgentDesignPage";
+import PersonalAgentFlowPage from "./pages/PersonalAgentFlowPage";
 import PersonalAgentReviewPage from "./components/personalAgent/PersonalAgentReviewPage";
 import CimdPrivilegePage from "./components/cimdPrivilege/CimdPrivilegePage";
 import A2aArchitecturePage from "./components/a2aArchitecture/A2aArchitecturePage";
@@ -2407,6 +2408,10 @@ function AppWithAuth() {
                             <Route
                               path="/personal-agent-design"
                               element={<PersonalAgentDesignPage variant="target" />}
+                            />
+                            <Route
+                              path="/personal-agent-flow"
+                              element={<PersonalAgentFlowPage />}
                             />
                             <Route
                               path="/personal-agent-dual-gateway"
