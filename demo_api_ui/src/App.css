@@ -2258,7 +2258,13 @@
   color: var(--th-text);
 }
 
+/* Keeps room below the field once autoFocus scrolls it into view, so it never
+   lands flush against the modal footer (the focus ring was being clipped). */
+.pi-flow-signin__form {
+  scroll-padding-bottom: 1rem;
+}
 .pi-flow-signin__input {
+  scroll-margin-bottom: 1rem;
   padding: 0.65rem 0.8rem;
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-lg);
@@ -2312,13 +2318,16 @@
 .pi-flow-device-picker {
   display: flex;
   flex-direction: column;
-  gap: 0.4rem;
-  margin-bottom: 0.75rem;
+  gap: 0.3rem;
+  margin-bottom: 0.4rem;
 }
 
 .pi-flow-device-picker__option {
   text-align: left;
-  padding: 0.55rem 0.8rem;
+  padding: 0.4rem 0.7rem;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-lg);
   background: var(--th-bg-card);
