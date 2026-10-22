@@ -253,6 +253,52 @@ describe('MCP Inspector tools table', () => {
     });
   });
 
+  describe('loading spinner', () => {
+    it('shows a labelled spinner, not a blank card or bare text, while the tools load', () => {
+      sourceState.current = { ...makeSource(), tools: [], loadingTools: true };
+      renderAt('/');
+      const spinner = screen.getByRole('status', { name: 'Loading tools…' });
+      expect(spinner).toBeInTheDocument();
+      expect(screen.queryByRole('table')).toBeNull();
+    });
+
+    it('also covers the moment before the load has started (toolsKey still null)', () => {
+      sourceState.current = { ...makeSource(), tools: [], loadingTools: false, toolsKey: null };
+      renderAt('/');
+      expect(screen.getByRole('status', { name: 'Loading tools…' })).toBeInTheDocument();
+    });
+
+    it('says methods for the Raw JSON-RPC source', () => {
+      sourceState.current = { ...makeSource(), tools: [], loadingTools: true, config: { toolKey: 'method', paramsKey: 'method' } };
+      renderAt('/?source=protocol');
+      expect(screen.getByRole('status', { name: 'Loading methods…' })).toBeInTheDocument();
+    });
+
+    it('goes away once the tools have loaded', () => {
+      sourceState.current = { ...makeSource(), loadingTools: false, toolsKey: 'banking:' };
+      renderAt('/');
+      expect(screen.queryByRole('status', { name: /Loading tools/ })).toBeNull();
+      expect(screen.getByRole('table')).toBeInTheDocument();
+    });
+
+    it('keeps the table and shows a small "Refreshing" spinner while a reload is in flight', () => {
+      sourceState.current = { ...makeSource(), loadingTools: true };
+      renderAt('/');
+      expect(screen.getByRole('table')).toBeInTheDocument();
+      expect(screen.getByRole('status', { name: 'Refreshing tools…' })).toBeInTheDocument();
+      expect(screen.getByLabelText('tools', { selector: 'section' })).toHaveAttribute('aria-busy', 'true');
+    });
+
+    it('does not spin forever when there is nothing to load: no server profile yet, or a load that already finished empty', () => {
+      sourceState.current = { ...makeSource(), tools: [], mode: 'profiles', selectedProfileId: '', toolsKey: null };
+      renderAt('/?source=custom');
+      expect(screen.queryByRole('status', { name: /Loading/ })).toBeNull();
+      sourceState.current = { ...makeSource(), tools: [], toolsKey: 'banking:' };
+      renderAt('/');
+      expect(screen.queryByRole('status', { name: /Loading/ })).toBeNull();
+    });
+  });
+
   describe('weather location choice', () => {
     const FULL = { name: 'get_weather_summary', inputSchema: schema(['latitude', 'longitude', 'location_name', 'city_name', 'include', 'days', 'units']) };
     const withValues = (paramValues) => ({ ...makeSource(FULL), tools: [FULL], paramValues, schemaProps: FULL.inputSchema.properties });

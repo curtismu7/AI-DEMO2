@@ -16,6 +16,7 @@ import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import { argsFor, belongsElsewhere } from '../config/inspectorVerticals';
 import { defaultParamsFor, pickDefaultTool, choiceGroupFor, inferOption, applyOption } from '../config/inspectorDefaults';
 import ParamChoice from './inspector/ParamChoice';
+import InlineSpinner from './shared/InlineSpinner';
 
 const NEW_PROFILE_DEFAULTS = {
   label: '',
@@ -162,10 +163,12 @@ function ToolsTable({ tools, toolKey, groupBy, selected, loading, noun, onPick }
   const rows = q
     ? tools.filter((t) => `${t[toolKey]} ${groupBy ? t[groupBy] || '' : ''} ${t.description || ''} ${(t.requiredScopes || []).join(' ')}`.toLowerCase().includes(q))
     : tools;
-  if (loading && !tools.length) return <p className="insp-tools__empty" role="status">{`Loading ${noun}s…`}</p>;
+  if (loading && !tools.length) {
+    return <div className="insp-tools__loading"><InlineSpinner size="md" label={`Loading ${noun}s…`} /></div>;
+  }
   if (!tools.length) return null;
   return (
-    <section className="insp-tools" aria-label={`${noun}s`}>
+    <section className="insp-tools" aria-label={`${noun}s`} aria-busy={loading || undefined}>
       <div className="insp-tools__bar">
         <input
           type="search"
@@ -175,6 +178,7 @@ function ToolsTable({ tools, toolKey, groupBy, selected, loading, noun, onPick }
           value={query}
           onChange={(e) => setQuery(e.target.value)}
         />
+        {loading && <InlineSpinner label={`Refreshing ${noun}s…`} />}
         <span className="insp-tools__count" aria-live="polite">{rows.length === tools.length ? `${tools.length} ${noun}s` : `${rows.length} of ${tools.length}`}</span>
       </div>
       <div className="insp-tools__scroll">
@@ -349,6 +353,10 @@ function McpInspectorPageClean() {
   const matches = tool ? getMatchingFields(Object.keys(source.schemaProps)) : {};
   const scopes = tool?.requiredScopes || [];
 
+  // toolsKey stays null until the first load has finished; before that the effect that starts the load
+  // has not run yet, so loadingTools alone would leave the card blank for a moment (and a slow BFF looks dead).
+  const awaitingFirstLoad = source.toolsKey === null && !isCalls && !(source.mode === 'profiles' && !source.selectedProfileId);
+
   const renderField = (key) => {
     const schema = source.schemaProps[key];
     return (
@@ -432,7 +440,7 @@ function McpInspectorPageClean() {
         toolKey={toolKey}
         groupBy={source.config.groupBy}
         selected={tool}
-        loading={source.loadingTools}
+        loading={source.loadingTools || awaitingFirstLoad}
         noun={isMethod ? 'method' : 'tool'}
         onPick={(t) => {
           source.setSelectedTool(t);
