@@ -96,6 +96,17 @@ export function lanesFor(id) {
   return LANES_BASE.map((l) => (l.id === "bc" ? { ...l, label: core.label, sub: core.sub } : l));
 }
 
+
+// One detail key per step, in order. Shared keys (exchange1-req, forward, ...) are filled with the moment's own tool and scope.
+const STEP_KEYS = {
+  "no-connection": ["ask-read", "call-tool-read", "call-no-token", "refuse-401"],
+  connect: ["ask-connect", "connector-signin", "authorize-req", "sign-in", "consent", "record-delegation", "connect-token"],
+  read: ["ask-read", "call-tool-read", "call-with-token", "exchange1-req", "exchange1-res", "forward", "decide-read", "permit", "gw-to-ms", "exchange2-req", "exchange2-res", "core-read", "read-result"],
+  "pay-25": ["ask-pay", "call-prepare", "exchange1-req", "exchange1-res", "forward", "decide-pay", "permit", "gw-to-ms", "proposal", "confirm-say", "confirm", "ciba-req", "ciba-push", "ciba-approve", "core-commit", "committed"],
+  "pay-60": ["ask-pay", "call-prepare", "exchange1-req", "exchange1-res", "forward", "decide-pay", "deny", "refused-gw"],
+  revoke: ["revoke", "delegation-removed", "ask-read", "call-tool-read", "call-with-token", "exchange1-req", "no-delegation", "refused-edge"],
+};
+
 const m = (from, to, label, extra = {}) => ({ from, to, label, ...extra });
 const say = (role, text) => ({ role, text });
 const cap = (s) => s.charAt(0).toUpperCase() + s.slice(1);
@@ -114,7 +125,7 @@ export function momentsFor(id) {
     ...tail,
   ];
 
-  return [
+  const moments = [
     {
       id: "no-connection", num: "01", chip: "No connection",
       prompt: `“${read.ask}” at ${org}`,
@@ -212,6 +223,12 @@ export function momentsFor(id) {
       ],
     },
   ];
+  // Each step points at its detail record (authorizationFlowDetails.js); payment moments show pay scopes.
+  return moments.map((mo) => {
+    const keys = STEP_KEYS[mo.id];
+    if (keys.length !== mo.steps.length) throw new Error(`step keys for ${mo.id}: ${keys.length} vs ${mo.steps.length}`);
+    return { ...mo, pay: mo.id.startsWith("pay"), amount: mo.id === "pay-25" ? 25 : mo.id === "pay-60" ? 60 : null, steps: mo.steps.map((st, i) => ({ ...st, key: keys[i] })) };
+  });
 }
 
 export const SLOTS = Math.max(...VERTICAL_OPTIONS.flatMap((v) => momentsFor(v.id).map((x) => x.steps.length)));

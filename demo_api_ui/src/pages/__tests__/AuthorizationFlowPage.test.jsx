@@ -1,7 +1,8 @@
-import { describe, expect, it, vi } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { fireEvent, render, screen, within } from "@testing-library/react";
 import AuthorizationFlowPage from "../AuthorizationFlowPage";
-import { DEFAULT_VERTICAL, SLOTS, VERTICAL_OPTIONS, lanesFor, momentsFor } from "../authorizationFlowData";
+import { DEFAULT_VERTICAL, SLOTS, VERTICAL_OPTIONS, lanesFor, momentsFor, profileFor } from "../authorizationFlowData";
+import { detailFor } from "../authorizationFlowDetails";
 
 const LANES = lanesFor(DEFAULT_VERTICAL);
 const MOMENTS = momentsFor(DEFAULT_VERTICAL);
@@ -21,6 +22,9 @@ vi.mock("@xyflow/react", async () => {
     useReactFlow: () => ({ fitView: () => {} }),
   };
 });
+
+// The page keeps the chosen vertical in the URL; start every test on a clean one.
+beforeEach(() => window.history.replaceState(null, "", "/"));
 
 describe("authorization flow data", () => {
   it("has six moments per vertical, each arrow joining two real lanes within the slot count", () => {
@@ -88,7 +92,7 @@ describe("AuthorizationFlowPage", () => {
     const bar = screen.getByTestId("af-step-bar");
     fireEvent.click(within(bar).getByText("Simulate"));
     expect(screen.getByTestId("flow").dataset.edges).toBe("1");
-    expect(screen.getByText("What’s my balance?")).toBeTruthy();
+    expect(document.querySelector(".af-bubble--user").textContent).toBe("What’s my balance?");
     const total = MOMENTS[0].steps.length;
     fireEvent.click(within(bar).getByText("Pause"));
     for (let i = 1; i < total; i += 1) fireEvent.click(within(bar).getByText(/Next/));
@@ -147,5 +151,84 @@ describe("AuthorizationFlowPage vertical selector", () => {
     expect(screen.getByTestId("flow").dataset.edges).toBe("1");
     fireEvent.change(screen.getByLabelText("Vertical"), { target: { value: "healthcare" } });
     expect(screen.getByTestId("flow").dataset.edges).toBe("0");
+  });
+});
+
+
+describe("step detail", () => {
+  it("has a detail record for every step of every moment in every vertical", () => {
+    for (const v of VERTICAL_OPTIONS) {
+      for (const mo of momentsFor(v.id)) {
+        for (const st of mo.steps) {
+          const d = detailFor(st.key, profileFor(v.id), mo.amount || 25, mo.pay);
+          expect(d, `${v.id} ${mo.id} ${st.key}`).toBeTruthy();
+          expect(d.what && d.why && d.checks.length, `${v.id} ${st.key}`).toBeTruthy();
+        }
+      }
+    }
+  });
+
+  it("never talks about banking in another vertical's detail", () => {
+    for (const v of VERTICAL_OPTIONS.filter((x) => x.id !== "banking")) {
+      const text = JSON.stringify(momentsFor(v.id).flatMap((mo) => mo.steps.map((st) => detailFor(st.key, profileFor(v.id), mo.amount || 25, mo.pay))));
+      expect(text, v.id).not.toMatch(/\b(bank|Bank|balance|ledger|Steven|Blake|transfer)\b/);
+    }
+  });
+
+  it("shows the exchange as PingOne's token endpoint with the token-exchange grant, and the delegated token's sub and act", () => {
+    const air = profileFor("airlines");
+    const req = detailFor("exchange1-req", air, 25, true);
+    expect(req.request).toContain("auth.pingone.com");
+    expect(req.request).toContain("urn:ietf:params:oauth:grant-type:token-exchange");
+    expect(req.request).toContain("scope=assistant:pay");
+    const res = detailFor("exchange1-res", air, 25, true);
+    expect(res.token.claims.map((c) => c.claim)).toEqual(expect.arrayContaining(["sub", "act", "aud", "scope"]));
+    expect(res.token.idx).toBe(2);
+  });
+
+  it("translates the scope at Exchange 2 into the business's own vocabulary", () => {
+    const d = detailFor("core-commit", profileFor("airlines"), 25, true);
+    expect(d.token.idx).toBe(3);
+    expect(d.token.claims.find((c) => c.claim === "scope").value).toBe("change-fee.execute");
+  });
+
+  it("the page starts with an idle detail panel, then follows the step", () => {
+    render(<AuthorizationFlowPage />);
+    expect(screen.getByRole("heading", { name: "Press Simulate, or pick a step" })).toBeTruthy();
+    fireEvent.click(screen.getByRole("tab", { name: /Read balance/ }));
+    fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText("Simulate"));
+    fireEvent.click(within(screen.getByTestId("af-step-bar")).getByText("Pause"));
+    expect(screen.getByLabelText("Step detail").textContent).toContain("Step 1 of 13");
+  });
+
+  it("jumps to a step from the list and lights the right token", () => {
+    render(<AuthorizationFlowPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Read balance/ }));
+    const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button");
+    fireEvent.click(steps[4]); // Delegated token: sub, act
+    const detail = screen.getByLabelText("Step detail");
+    expect(detail.textContent).toContain("Step 5 of 13");
+    expect(detail.textContent).toContain("Delegated token");
+    expect(detail.querySelector(".afd__tok--live").textContent).toContain("Delegated token");
+    expect(detail.querySelectorAll(".afd__claims tbody tr").length).toBeGreaterThan(3);
+  });
+
+  it("marks a refusal as refused and lists a failed check mark style", () => {
+    render(<AuthorizationFlowPage />);
+    fireEvent.click(screen.getByRole("tab", { name: /Pay \$60/ }));
+    const steps = within(screen.getByRole("list", { name: "Steps" })).getAllByRole("button");
+    fireEvent.click(steps[6]); // DENY
+    expect(screen.getByLabelText("Step detail").textContent).toContain("Refused");
+    expect(screen.getByLabelText("Step detail").querySelector(".afd__checks--no")).toBeTruthy();
+  });
+
+  it("moves the detail beside the diagram and back", () => {
+    const { container } = render(<AuthorizationFlowPage />);
+    expect(container.querySelector(".af-grid--side")).toBeNull();
+    fireEvent.click(screen.getByRole("button", { name: "Detail on the side" }));
+    expect(container.querySelector(".af-grid--side")).toBeTruthy();
+    expect(container.querySelector(".af-grid--side > .afd")).toBeTruthy();
+    fireEvent.click(screen.getByRole("button", { name: "Detail below" }));
+    expect(container.querySelector(".af-grid--side")).toBeNull();
   });
 });
