@@ -798,6 +798,16 @@ async function runAttackSim(sim, req, attackAmount) {
  * @param {object} err error thrown by callToolViaGateway
  * @returns {'step_up_required'|'elicitation_required'|'hitl_required'|null}
  */
+/**
+ * Extra tool args that confirm a gateway ELICITATION, or null when the error is not one (or carries no id to echo).
+ * @param {object} err error thrown by callToolViaGateway
+ */
+function _elicitationConfirmArgs(err) {
+  if (_approvalChallengeCode(err) !== 'elicitation_required') return null;
+  const id = err?.rpcData?.elicitationId;
+  return id ? { _elicitation_id: id, _elicitation_confirmed: true } : null;
+}
+
 function _approvalChallengeCode(err) {
   if (!err || typeof err !== 'object') return null;
   const data = err.rpcData || {};
@@ -2077,16 +2087,33 @@ async function _runRarPermit(subjectToken, useCaseId, tokenChainEvents, req, req
   }
 
   let transferResult;
+  // from_account_id: required by the gateway's spec-§2 arg schema — see the matching note on the rar-exceeded call above.
+  const callTransfer = (extra = {}) => callToolViaGateway(
+    null,
+    exchanged.token,
+    'create_transfer',
+    { amount, from_account_id: fromAccountId, to_account_id: toAccountId, ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}), ...extra },
+    { tratContextHeader },
+  );
   try {
-    transferResult = await callToolViaGateway(
-      null,
-      exchanged.token,
-      'create_transfer',
-      // from_account_id: required by the gateway's spec-§2 arg schema — see
-      // the matching note on the rar-exceeded call above.
-      { amount, from_account_id: fromAccountId, to_account_id: toAccountId, ...(hitlChallengeId ? { _hitl_challenge_id: hitlChallengeId } : {}) },
-      { tratContextHeader },
-    );
+    try {
+      transferResult = await callTransfer();
+    } catch (firstErr) {
+      // create_transfer is destructive, so P1AZ answers PERMIT + ELICITATION until the caller confirms. This
+      // sim is the legitimate-user counterpart (it already pre-approves the HITL challenge above), so it
+      // confirms once and retries — the same echo-back the agent's confirmation modal performs.
+      const confirm = _elicitationConfirmArgs(firstErr);
+      if (!confirm) throw firstErr;
+      tokenChainEvents.push(buildTokenEvent(
+        'sim-elicitation-confirmed',
+        'Elicitation confirmed (user intent)',
+        'active',
+        null,
+        'The gateway asked for confirmation of a destructive call (PingOne Authorize ELICITATION). The simulated user confirmed; retrying with the one-time elicitation id.',
+        { elicitationId: confirm._elicitation_id },
+      ));
+      transferResult = await callTransfer(confirm);
+    }
   } catch (err) {
     // This path is NOT an offline simulation: the exchange and the gateway call
     // above are real, so a deny here is a real refusal of a call the demo expected
@@ -2415,5 +2442,5 @@ module.exports = {
   runAttackSim: _withSession(runAttackSim),
   runIntentBindingDemo: _withSession(runIntentBindingDemo),
   _exchangeSimToken,
-  __test: { _pfExchangeRefusal, _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _hitlBindingFor, _approvalChallengeCode, _dpopReplayVerdict, _isDpopRejection },
+  __test: { _pfExchangeRefusal, _elicitationConfirmArgs, _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _hitlBindingFor, _approvalChallengeCode, _dpopReplayVerdict, _isDpopRejection },
 };
