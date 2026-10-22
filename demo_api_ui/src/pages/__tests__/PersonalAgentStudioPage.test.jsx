@@ -43,7 +43,7 @@ describe('PersonalAgentStudioPage', () => {
     expect(screen.getByText('Privilege')).toBeTruthy();
     expect(screen.getByText('Claude')).toBeTruthy();
     expect(screen.getByText('Terminal')).toBeTruthy();
-    expect(screen.getByText('ChatGPT')).toBeTruthy();
+    expect(screen.getAllByText('ChatGPT').length).toBeGreaterThan(0); // the diagram below also names ChatGPT as a participant
     expect(screen.getByText('Gemini')).toBeTruthy();
   });
 
