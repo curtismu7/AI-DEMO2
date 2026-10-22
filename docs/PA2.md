@@ -5,6 +5,12 @@ Handoff for the `/personal-agent` page (the "Digital Assistant" Studio). State a
 Test URL: https://ai-demo.ping-devops.com/personal-agent?skin=claude
 Layouts: `?layout=stacked` or `?layout=cockpit`
 
+## The pattern every personal-agent flow follows
+
+Owner rule (2026-10-21): every personal-agent flow and explanation opens the same way. The company publishes its connector to the AI assistant's catalog once (for example ChatGPT's app directory: MCP URL, auth metadata, branding, privacy policy); the catalog reviews and lists it; a member browses the catalog and adds it for free, with nothing to install and no account to create; it appears in the member's own agent, not signed in yet. Sign-in and consent come on first use, then discover, consent and the per-call token exchange.
+
+Where it is drawn (all with one extra participant, "AI assistant catalog", and four messages): `/united-personal-agent-flow`, `/uhg-chatgpt-mcp-flow`, the Studio's "Expand for Diagram" and `/personal-agent-flow` (config/personalAgentSequenceFlow.js; the reel-card to message mapping is shifted by 4), the standalone `agent-mcp-door-demo` (hop 1), and the design doc `docs/personal-agent/On-Users-Personal-Agent-Design` (md, html and pdf). Not yet: the Guided lesson path and the learn page copy, chatgpt-mcp-flow (agents-99) and personal-agent-demo. Catalog payloads are labelled illustrative; no real catalog review rules are claimed.
+
 ## What the page is
 
 `demo_api_ui/src/pages/PersonalAgentStudioPage.jsx` (+ `.css`). One DOM, two layouts (Stacked, Cockpit) switched by a header control. The choice is remembered in `localStorage` key `pas-layout`; `?layout=` in the URL wins.
