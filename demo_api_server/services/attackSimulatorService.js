@@ -887,11 +887,14 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
   const simTool = 'create_transfer';
   const simArgs = { amount: 1, from_account_id: 'sim-acc-002', to_account_id: 'sim-acc-001' };
   try {
+    // pinNodeGateway: this control (per-tool scope) lives on the Node Demo Agent Gateway, so the Node-audienced
+    // token must be routed there; without it the BFF's regular-call guard rejects the token (GATEWAY_AUDIENCE_MISMATCH).
     await callToolViaGateway(
       _nodeGatewayUrl(),
       exchangedToken,
       simTool,
-      simArgs
+      simArgs,
+      { simulatedAttack: true, pinNodeGateway: true }
     );
     // If no error thrown, scope enforcement did not fire — unexpected permit.
     tokenChainEvents.push(buildTokenEvent(
