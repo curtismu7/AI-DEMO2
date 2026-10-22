@@ -1185,7 +1185,11 @@ async function _runRateLimitBurst(subjectToken, useCaseId, tokenChainEvents) {
   try {
   for (let i = 0; i < burstCount; i++) {
     try {
-      await callToolViaGateway(gatewayUrl, exchangedToken, 'get_my_accounts', {});
+      // pinNodeGateway: this sim targets the Node Demo Agent Gateway ON PURPOSE (it owns the limiter), so the
+      // Node-audienced token must be routed there; without it the BFF's regular-call guard rejects the token
+      // (GATEWAY_AUDIENCE_MISMATCH). get_branch_hours needs only 'read', so every burst call is PERMITted
+      // until the limiter answers 429 (get_my_accounts needs accounts:read and was refused before the burst).
+      await callToolViaGateway(gatewayUrl, exchangedToken, 'get_branch_hours', {}, { simulatedAttack: true, pinNodeGateway: true });
       tokenChainEvents.push(buildTokenEvent(
         `sim-burst-${i + 1}`,
         `Burst call ${i + 1} PERMIT`,
@@ -1347,7 +1351,9 @@ async function _runIntrospectionDown(subjectToken, useCaseId, tokenChainEvents) 
       return { sim, useCaseId, status: 502, errorCode, reason, tokenChainEvents };
     }
 
-    await callToolViaGateway(gatewayUrl, exchangedToken, 'get_my_accounts', {});
+    // pinNodeGateway: the control under test (JWKS fail-closed) lives on the Node Demo Agent Gateway, so the
+    // Node-audienced token must be routed there rather than rejected by the BFF's regular-call guard.
+    await callToolViaGateway(gatewayUrl, exchangedToken, 'get_my_accounts', {}, { simulatedAttack: true, pinNodeGateway: true });
     // No throw means the gateway accepted a token while its validation backend
     // was armed down — a fail-OPEN control, which must not render as PERMIT
     // (measured live 2026-09-08: a mislabeled green PERMIT). With jwksSimDown
