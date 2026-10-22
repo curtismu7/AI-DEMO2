@@ -943,6 +943,16 @@ async function _runInsufficientScope(subjectToken, useCaseId, tokenChainEvents) 
  *   Then call get_accounts at the gateway.
  *   The gateway's validateInboundToken sees aud != gatewayResourceUri → 401 invalid_aud.
  */
+/**
+ * PingFederate enforces the audience at exchange time: it will not issue a token for an audience that has no
+ * registered SP connection, answering unauthorized_client / invalid_target. For the wrong-aud sim that refusal IS
+ * the denial (the wrong-audience token never exists), so it is reported as one instead of a 502 sim error.
+ */
+function _pfExchangeRefusal(err, provider) {
+  return provider === 'pingfederate'
+    && ['unauthorized_client', 'invalid_target'].includes(err?.pingoneError || err?.error || '');
+}
+
 async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
   const sim = 'wrong-aud';
   const gatewayAud = _gatewayAud();
@@ -986,6 +996,17 @@ async function _runWrongAud(subjectToken, useCaseId, tokenChainEvents) {
       ['read', 'write']
     );
   } catch (err) {
+    if (_pfExchangeRefusal(err, configStore.getOAuthProvider?.())) {
+      const refusal = `PingFederate refused to issue a token for ${wrongAud}: ${err.message}. The authorization server enforces ` +
+        `the audience at exchange time, so a token for the wrong audience never exists to present to the gateway.`;
+      tokenChainEvents.push(buildTokenEvent('sim-exchange-refused', 'Token Exchange DENIED (wrong audience)', 'error', null, refusal,
+        { error: 'invalid_aud', httpStatus: 401 }));
+      stampUseCaseId(tokenChainEvents, useCaseId);
+      return {
+        sim, useCaseId, status: 401, errorCode: 'invalid_aud', reason: refusal, tokenChainEvents,
+        triedAudience: wrongAud, allowedAudience: gatewayAud,
+      };
+    }
     const errorCode = err.pingoneError || 'exchange_failed';
     const reason = `Token exchange to wrong audience failed: ${err.message}`;
     tokenChainEvents.push(buildTokenEvent(
@@ -2394,5 +2415,5 @@ module.exports = {
   runAttackSim: _withSession(runAttackSim),
   runIntentBindingDemo: _withSession(runIntentBindingDemo),
   _exchangeSimToken,
-  __test: { _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _hitlBindingFor, _approvalChallengeCode, _dpopReplayVerdict, _isDpopRejection },
+  __test: { _pfExchangeRefusal, _resolveForeignAccountId, _gatewayExchangeTarget, _denyFromGateway, _nodeGatewayUrl, IMPERSONATION_TRANSFER_ARGS, pickTransferAccounts, _hitlBindingFor, _approvalChallengeCode, _dpopReplayVerdict, _isDpopRejection },
 };
