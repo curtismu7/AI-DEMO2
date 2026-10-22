@@ -56,3 +56,5 @@
 .cd-table th { color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
 .cd-facts { padding-left: 18px; color: var(--th-text-body); }
 .cd-facts li { margin-bottom: 6px; }
+
+.cd-export { min-height: 220px; }

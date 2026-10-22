@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from 'react';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
 import { PF_CEDAR_DIAGRAM } from '../config/privilegePfCedarDiagram';
 import { ACTIONS, DEFAULT_POLICIES, NO_CLAIMS_POLICY, PRESETS, SCENARIOS, TOOLS, VOCABULARY } from '../config/cedarDemoScenarios';
-import { buildContext, claimsToEntities, evaluate } from '../cedar/cedarEngine';
+import { buildContext, candidateRequests, claimsToEntities, evaluate, parsePolicies } from '../cedar/cedarEngine';
 import { loadCedar } from '../cedar/loadCedar';
 import './CedarDemoPage.css';
 
@@ -88,6 +88,18 @@ export default function CedarDemoPage() {
     if (!TOOLS[request.tool]) return null;
     return { principal: `User::"${claims.sub}"`, parents: (claims.groups || []).map((g) => `Group::"${g}"`), action: `Action::"${request.action}"`, resource: `Tool::"${request.tool}"`, context: buildContext(claims, request) };
   }, [claims, request]);
+
+  // What the real console would be sent for the policies in the editor (null while they do not parse).
+  const exportJson = useMemo(() => {
+    if (!cedar) return null;
+    const parsed = parsePolicies(cedar, policies);
+    return parsed.ok ? JSON.stringify(candidateRequests(parsed.policies), null, 2) : null;
+  }, [cedar, policies]);
+  const [copied, setCopied] = useState(false);
+  const copyExport = () => {
+    if (!exportJson || !navigator.clipboard) return;
+    navigator.clipboard.writeText(exportJson).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1800); }, () => {});
+  };
 
   return (
     <div className="cd-page" data-testid="cedar-demo-page">
@@ -179,6 +191,27 @@ export default function CedarDemoPage() {
           <Decision result={result} onApprove={() => setReq({ approvalCount: 1 })} />
         </section>
       </div>
+
+      <section aria-labelledby="cd-export" className="cd-panel" data-testid="cedar-export">
+        <h2 id="cd-export">Try these policies in the real Privilege console</h2>
+        <p>
+          This page's engine is separate from Privilege's. To find out what the real AI Policies engine accepts, send the policies above to your
+          tenant as <strong>Candidates</strong>: the console validates and stores them but <strong>never enforces</strong> them, and reports the verdict
+          in <code>Status.Validation</code> and <code>Status.Error</code>. One request per policy, so each is judged on its own.
+        </p>
+        <p className="cd-muted">
+          Send each body to <code>POST /api/&lt;tenant&gt;/v1/aipolicys</code> on your console (replace <code>&lt;your-tenant-id&gt;</code>; set <code>CandidateExpiresAt</code> to an
+          ISO date if you want it to expire). This page cannot do it for you: it is public, and the console accepts only a signed-in browser session.
+        </p>
+        {exportJson ? (
+          <>
+            <textarea readOnly aria-label="Candidate AI policy requests" className="cd-editor cd-export" value={exportJson} data-testid="cedar-export-json" />
+            <div className="cd-row"><button type="button" className="cd-btn cd-btn--ghost" onClick={copyExport}>{copied ? 'Copied' : 'Copy requests'}</button></div>
+          </>
+        ) : (
+          <p className="cd-muted" data-testid="cedar-export-blocked">Fix the policy syntax above to export.</p>
+        )}
+      </section>
 
       <section aria-labelledby="cd-real" className="cd-panel" data-testid="cedar-vocab">
         <h2 id="cd-real">What Privilege can read today</h2>
