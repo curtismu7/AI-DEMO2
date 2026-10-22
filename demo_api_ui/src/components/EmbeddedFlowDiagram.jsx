@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef } from 'react';
+import { useMemo } from 'react';
 import DiagramStepBar from './DiagramStepBar';
 import StaticFlowDiagram from './StaticFlowDiagram';
 import { edgeCaptions, useDiagramStepper } from '../hooks/useDiagramStepper';
@@ -8,30 +8,14 @@ import './EmbeddedFlowDiagram.css';
 // cards (same shape as HostileA2aDiagramSection). `testId` prefixes the inner test ids.
 // `pingStyle` (opt-in, default false) turns on the Token Chain look and behaviour in the inner StaticFlowDiagram
 // and feeds it STEPS[i].detail ({ form?, tokens?, refs? }); see StaticFlowDiagram.jsx for the details.
-export default function EmbeddedFlowDiagram({ config, title, lede, ariaLabel = title, diagramLabel = ariaLabel, testId, pingStyle = false, reelSync }) {
+export default function EmbeddedFlowDiagram({ config, title, lede, ariaLabel = title, diagramLabel = ariaLabel, testId, pingStyle = false }) {
   const { GROUPS, NODES, EDGES, STEPS } = config;
   const stepper = useDiagramStepper(EDGES.length);
   const names = useMemo(() => Object.fromEntries(NODES.map((n) => [n.id, n.label])), [NODES]);
   const captions = useMemo(() => edgeCaptions(EDGES, names), [EDGES, names]);
-  const root = useRef(null);
-  // `reelSync(stepId)` -> arrow index: a click on a movie-reel card (TokenChainFilmstrip) walks this diagram to that step,
-  // opening the <details> it sits in if it is collapsed.
-  const { goTo } = stepper;
-  useEffect(() => {
-    if (!reelSync) return undefined;
-    const onSelect = (e) => {
-      const i = reelSync(e.detail?.stepId);
-      if (!Number.isInteger(i) || i < 0 || i >= EDGES.length) return;
-      const box = root.current?.closest('details');
-      if (box) box.open = true;
-      goTo(i);
-    };
-    window.addEventListener('token-chain-step-select', onSelect);
-    return () => window.removeEventListener('token-chain-step-select', onSelect);
-  }, [reelSync, goTo, EDGES.length]);
   const usedGroups = [...new Set(NODES.map((n) => n.group))];
   return (
-    <section ref={root} className={`efd${pingStyle ? " efd--ping" : ""}`} aria-label={ariaLabel} data-testid={testId}>
+    <section className={`efd${pingStyle ? " efd--ping" : ""}`} aria-label={ariaLabel} data-testid={testId}>
       <h3>{title}</h3>
       <p className="efd-lede">{lede}</p>
       <DiagramStepBar stepper={stepper} caption={captions[stepper.step]} testId={`${testId}-steps`} />

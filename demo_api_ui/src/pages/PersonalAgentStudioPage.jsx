@@ -19,7 +19,7 @@ import InlineSpinner from '../components/shared/InlineSpinner';
 import OboDemoPage from './OboDemoPage';
 import SignInPrompt from '../components/SignInPrompt';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
-import { PERSONAL_AGENT_SEQUENCE_DETAILS, PERSONAL_AGENT_SEQUENCE_PAYLOADS, PERSONAL_AGENT_SEQUENCE_SOURCE } from '../config/personalAgentSequenceFlow';
+import { PERSONAL_AGENT_SEQUENCE_DETAILS, PERSONAL_AGENT_SEQUENCE_PAYLOADS, PERSONAL_AGENT_SEQUENCE_SOURCE, personalAgentMessageForReelStep } from '../config/personalAgentSequenceFlow';
 import { protectedActionLabel } from './protectedActionLabel';
 import { openMcpFlowSse } from '../services/mcpFlowSseClient';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
@@ -611,6 +611,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
               source={PERSONAL_AGENT_SEQUENCE_SOURCE}
               details={PERSONAL_AGENT_SEQUENCE_DETAILS}
               payloads={PERSONAL_AGENT_SEQUENCE_PAYLOADS}
+              reelSync={personalAgentMessageForReelStep}
               label="How ChatGPT accesses member benefits: CIMD discovery, IdP consent, P1AZ authorization and permitted MCP access"
             />
           </div>

@@ -105,3 +105,13 @@ export const PERSONAL_AGENT_SEQUENCE_PAYLOADS = [
   'Tool result: only authorized data returned',
   'Example: Your Example PPO coverage is active.',
 ];
+
+// Movie-reel card (token-chain step id) -> the message to walk the diagram to (0-based, message order above).
+const REEL_STEP_MESSAGE = {
+  prompt: 0, agent: 1, llm: 1, signin: 11, 'agent-token': 15, exchange: 15,
+  gateway: 19, authorize: 20, mcp: 22, reply: 25,
+};
+export function personalAgentMessageForReelStep(stepId) {
+  const i = REEL_STEP_MESSAGE[String(stepId || '').split(':')[0]];
+  return i === undefined ? -1 : i;
+}

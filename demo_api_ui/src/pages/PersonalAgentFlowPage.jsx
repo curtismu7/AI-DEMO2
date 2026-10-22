@@ -1,10 +1,10 @@
 // PersonalAgentFlowPage.jsx — the /personal-agent request-flow diagram on its own page, for the Diagrams section.
-// Same data as the "Expand for Diagram" panel on the Personal Agent Studio (config/personalAgentStudioDiagram.js),
+// Same data as the "Expand for Diagram" panel on the Personal Agent Studio (config/personalAgentSequenceFlow.js),
 // so the two stay one diagram.
 import React from 'react';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
-import { PERSONAL_AGENT_SEQUENCE_DETAILS, PERSONAL_AGENT_SEQUENCE_PAYLOADS, PERSONAL_AGENT_SEQUENCE_SOURCE } from '../config/personalAgentSequenceFlow';
+import { PERSONAL_AGENT_SEQUENCE_DETAILS, PERSONAL_AGENT_SEQUENCE_PAYLOADS, PERSONAL_AGENT_SEQUENCE_SOURCE, personalAgentMessageForReelStep } from '../config/personalAgentSequenceFlow';
 
 export default function PersonalAgentFlowPage() {
   return (
@@ -20,6 +20,7 @@ export default function PersonalAgentFlowPage() {
           source={PERSONAL_AGENT_SEQUENCE_SOURCE}
           details={PERSONAL_AGENT_SEQUENCE_DETAILS}
           payloads={PERSONAL_AGENT_SEQUENCE_PAYLOADS}
+          reelSync={personalAgentMessageForReelStep}
           label="How ChatGPT accesses member benefits: CIMD discovery, IdP consent, P1AZ authorization and permitted MCP access"
         />
       </div>
