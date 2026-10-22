@@ -12,7 +12,7 @@ export default function UnitedPersonalAgentFlowPage() {
       <PageHeader
         eyebrow="Diagrams · Personal agent"
         title="A member's agent meets United's MCP door"
-        summary="How a MileagePlus member's own AI agent reaches United: discover, register, consent, per-call token exchange, gateway, policy decision, human approval, audit. The agent is never trusted; every hop past discovery is inside United's boundary."
+        summary="The company lists its connector in the AI assistant's catalog once and members add it for free. Then a MileagePlus member's own AI agent reaches United: discover, register, consent, per-call token exchange, gateway, policy decision, human approval, audit. The agent is never trusted; every hop past discovery is inside United's boundary."
         back={{ to: '/diagrams', label: 'All diagrams' }}
       />
       <SequenceFlowDiagram

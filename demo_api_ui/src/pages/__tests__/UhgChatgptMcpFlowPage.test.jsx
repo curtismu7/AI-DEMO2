@@ -9,13 +9,15 @@ describe('UHG ChatGPT MCP authorization sequence', () => {
   const model = parseSequence(UHG_MCP_FLOW_SOURCE);
   const messages = model.items.filter((i) => i.from && i.to);
 
-  it('has the six participants and the 16 numbered messages of the proposal slide, in order', () => {
-    expect(model.participants.map((p) => p.id)).toEqual(['M', 'C', 'PF', 'H', 'G', 'S']);
-    expect(messages).toHaveLength(16);
-    expect(messages[0].text).toMatch(/Asks a benefits or drug-price question/);
-    expect(messages[9].text).toMatch(/POST \/as\/token\.oauth2/);
-    expect(messages[12].text).toMatch(/RFC 8693 exchange/);
-    expect(messages[15].text).toMatch(/Trusted answer/);
+  it('opens with the catalog pattern, then has the 16 numbered messages of the proposal slide, in order', () => {
+    expect(model.participants.map((p) => p.id)).toEqual(['M', 'K', 'C', 'PF', 'H', 'G', 'S']);
+    expect(messages).toHaveLength(20);
+    expect(messages.slice(0, 4).map((m) => `${m.from}>${m.to}`)).toEqual(['G>K', 'K>G', 'M>K', 'K>C']);
+    expect(messages[0].text.replace(/\s+/g, " ")).toMatch(/publishes its MCP gateway to the catalog/);
+    expect(messages[4].text.replace(/\s+/g, " ")).toMatch(/Asks a benefits or drug-price question/);
+    expect(messages[13].text.replace(/\s+/g, " ")).toMatch(/POST \/as\/token\.oauth2/);
+    expect(messages[16].text.replace(/\s+/g, " ")).toMatch(/RFC 8693 exchange/);
+    expect(messages[19].text.replace(/\s+/g, " ")).toMatch(/Trusted answer/);
   });
 
   it('has one payload slot per message, with the tokens the proposal names', () => {
