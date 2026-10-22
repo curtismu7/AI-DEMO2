@@ -18,8 +18,8 @@ import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTrac
 import InlineSpinner from '../components/shared/InlineSpinner';
 import OboDemoPage from './OboDemoPage';
 import SignInPrompt from '../components/SignInPrompt';
-import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
-import { PERSONAL_AGENT_DIAGRAM_PROPS, PERSONAL_AGENT_EDGES, PERSONAL_AGENT_GROUPS, PERSONAL_AGENT_NODES, PERSONAL_AGENT_STEPS } from '../config/personalAgentStudioDiagram';
+import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
+import { PERSONAL_AGENT_SEQUENCE_DETAILS, PERSONAL_AGENT_SEQUENCE_PAYLOADS, PERSONAL_AGENT_SEQUENCE_SOURCE, personalAgentMessageForReelStep } from '../config/personalAgentSequenceFlow';
 import { protectedActionLabel } from './protectedActionLabel';
 import { openMcpFlowSse } from '../services/mcpFlowSseClient';
 import PageAgentModeToggle, { usePageAgentMode } from '../components/shared/PageAgentModeToggle';
@@ -607,9 +607,12 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
           <summary style={{ cursor: 'pointer', padding: '8px 0', fontSize: 12, color: 'var(--th-text-muted)' }}>Expand for Diagram</summary>
           <p style={{ margin: '0 0 8px', fontSize: 12 }}><Link to="/personal-agent-flow">Open the diagram on its own page</Link></p>
           <div style={{ maxHeight: '55vh', overflow: 'auto' }}>
-            <EmbeddedFlowDiagram
-              {...PERSONAL_AGENT_DIAGRAM_PROPS}
-              config={{ GROUPS: PERSONAL_AGENT_GROUPS, NODES: PERSONAL_AGENT_NODES, EDGES: PERSONAL_AGENT_EDGES, STEPS: PERSONAL_AGENT_STEPS }}
+            <SequenceFlowDiagram
+              source={PERSONAL_AGENT_SEQUENCE_SOURCE}
+              details={PERSONAL_AGENT_SEQUENCE_DETAILS}
+              payloads={PERSONAL_AGENT_SEQUENCE_PAYLOADS}
+              reelSync={personalAgentMessageForReelStep}
+              label="How ChatGPT accesses member benefits: CIMD discovery, IdP consent, P1AZ authorization and permitted MCP access"
             />
           </div>
         </details>

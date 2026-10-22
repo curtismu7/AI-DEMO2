@@ -1,12 +1,10 @@
 import { describe, expect, it } from 'vitest';
 import * as dc from '../delegatedCommerceDiagram';
 import * as chain from '../delegationChainValueDiagram';
-import * as pa from '../personalAgentStudioDiagram';
 
 const cfgs = {
   delegatedCommerce: [dc.DELEGATED_COMMERCE_NODES, dc.DELEGATED_COMMERCE_EDGES, dc.DELEGATED_COMMERCE_GROUPS, dc.DELEGATED_COMMERCE_STEPS],
   delegationChain: [chain.DELEGATION_CHAIN_NODES, chain.DELEGATION_CHAIN_EDGES, chain.DELEGATION_CHAIN_GROUPS, chain.DELEGATION_CHAIN_STEPS],
-  personalAgent: [pa.PERSONAL_AGENT_NODES, pa.PERSONAL_AGENT_EDGES, pa.PERSONAL_AGENT_GROUPS, pa.PERSONAL_AGENT_STEPS],
 };
 
 describe.each(Object.entries(cfgs))('%s diagram config', (_n, [nodes, edges, groups, steps]) => {

@@ -16,6 +16,7 @@ import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "./DiagramStepBar";
 import { parseSequence } from "../utils/parseSequence";
 import { markEdges, markNodes, stepEdges, useDiagramStepper } from "../hooks/useDiagramStepper";
+import { useReelSync } from "../hooks/useReelSync";
 import DiagramReel from "./DiagramReel";
 import { buildNodeDetail, buildReelSteps } from "../utils/diagramReel";
 import { useFitOnResize, useFitOnSource } from "../hooks/useFitOnResize";
@@ -264,7 +265,7 @@ export function buildSequenceFlow(source, payloads = []) {
   return { nodes, edges, steps, bounds, messages, people, rows };
 }
 
-function Inner({ source, step, active, details, driver, payloads }) {
+function Inner({ source, step, active, details, driver, payloads, reelSync }) {
   const ref = useRef(null);
   const flowRef = useRef(null);
   useFitOnResize(flowRef, FIT);
@@ -288,6 +289,7 @@ function Inner({ source, step, active, details, driver, payloads }) {
   const stepper = useDiagramStepper(steps.length);
   const external = step !== undefined || active !== undefined || driver !== undefined;
   const reelStepper = driver || (external ? null : stepper);
+  useReelSync(reelSync, (driver || stepper).goTo, messages.length, ref);
   const shown = useMemo(() => {
     if (active !== undefined) return markEdges(edges, active);
     return stepEdges(edges, driver ? driver.step : step !== undefined ? step : stepper.step);
@@ -378,11 +380,11 @@ function Inner({ source, step, active, details, driver, payloads }) {
  * movie reel's details row. A page that runs its own simulator passes `driver` ({ step, goTo }, step =
  * the message index) to get the diagram highlight and the movie reel without a second control bar.
  */
-export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver, payloads }) {
+export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver, payloads, reelSync }) {
   return (
     <div className="sfx" role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} step={step} active={active} details={details} driver={driver} payloads={payloads} />
+        <Inner source={source} step={step} active={active} details={details} driver={driver} payloads={payloads} reelSync={reelSync} />
       </ReactFlowProvider>
     </div>
   );
