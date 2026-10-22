@@ -30,7 +30,7 @@ import {
   StandaloneIndex,
   StandaloneSample,
   StandaloneRunnerShell,
-  StandaloneCedarShell,
+  StandaloneAiPoliciesShell,
 } from "../pages/StandaloneSamples";
 import PingOneSetup from "../pages/PingOneSetup";
 import SelfServicePage from "../components/SelfServicePage";
@@ -176,8 +176,8 @@ export function StandaloneRunnerRoute() {
   return <StandaloneRunnerShell />;
 }
 
-export function StandaloneCedarRoute() {
-  return <StandaloneCedarShell />;
+export function StandaloneAiPoliciesRoute() {
+  return <StandaloneAiPoliciesShell />;
 }
 
 export function M2mCredentialsSamplePageRoute({ user, logout }) {
