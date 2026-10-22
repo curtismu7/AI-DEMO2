@@ -63,6 +63,9 @@ function buildActorBridgeHeaders({ workloadActorClientId = null, userMayActSub }
   const aiAgentClientId =
     process.env.AGENT_MAY_ACT_SUB ||
     configStore.getEffective('agent_may_act_sub') ||
+    // PingFederate mode: the acting agent in the exchanged token's `act` is PF's token-exchange
+    // client; the bridged id must match it (same rule as services/agentConsent.agentClientId).
+    (configStore.getOAuthProvider?.() === 'pingfederate' ? configStore.getEffective('pf_token_exchange_client_id') : '') ||
     configStore.getEffective('ai_agent_client_id') ||
     configStore.getEffective('pingone_ai_agent_client_id') ||
     process.env.PINGONE_AI_AGENT_CLIENT_ID ||
