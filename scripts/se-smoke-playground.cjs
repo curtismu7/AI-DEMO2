@@ -12,7 +12,7 @@
  * What it checks (each line is PASS or FAIL; exit code 1 on any FAIL):
  *   per lane and subject: Request ID-JAG answers 200 and the page shows the right audience, Redeem answers 200
  *   step 4 (List tools): either 200, or a 502 that does NOT raise the sign-in dialog or the "session expired" text,
- *     or the deployment hides step 4 and shows its one-line reason instead of the button
+ *     or the deployment runs step 4 as a negative test and shows the gateway's refusal as "Refused, as expected"
  *   Inspector: Get an ID-JAG, 0 failed checks, trusted-IdP row, Show token reveals a 3-part JWT, Hide clears it,
  *              Backends starts collapsed, Discovery is not a tab
  * It never prints tokens: only status codes, lengths and the JWT header type.
@@ -122,12 +122,19 @@ async function main() {
           record('step 4 (List tools): no false "session expired"', ok, `status ${st}, dialogs ${dialogs}${st === 502 ? ', PingOne-only note ' + (/validates tokens with PingOne only/.test(tt) ? 'shown' : 'NOT shown') : ''}`);
           await shot(page, 'step4-listtools');
         } else {
-          // The deployment may hide step 4 on purpose (ID_JAG_PLAYGROUND_STEP4_ENABLED=false): one line, no button.
-          const tt = await bodyText(page);
-          const buttonExists = await page.evaluate(() => [...document.querySelectorAll('button')].some((x) => /List tools this token can see/.test((x.innerText || '').trim())));
-          const hidden = tt.match(/The MCP gateway on this deployment validates tokens with PingOne only[^\n]*/);
-          if (!buttonExists && hidden) record('step 4 (List tools): no false "session expired"', true, `step 4 hidden: ${hidden[0].trim()}`);
-          else record('step 4 (List tools): no false "session expired"', false, 'button not available');
+          // The deployment may turn step 4 into a negative test on purpose (ID_JAG_PLAYGROUND_STEP4_ENABLED=false):
+          // the gateway is expected to refuse the token, and the page must show that refusal as a pass.
+          const sent = await clickBtn(page, 'Send this token to the gateway (expected: refused)');
+          if (sent) {
+            await waitFor(async () => lastStatus('/call', since) !== undefined, 30);
+            await sleep(2000);
+            const tt = await bodyText(page);
+            const dialogs = await page.locator('[role=dialog]:visible').count();
+            record('step 4 (negative): gateway refusal shown as a pass', /Refused, as expected/.test(tt) && dialogs === 0 && !/session has expired/i.test(tt), `status ${lastStatus('/call', since)}, dialogs ${dialogs}`);
+            await shot(page, 'step4-negative');
+          } else {
+            record('step 4 (List tools): no false "session expired"', false, 'neither the List tools nor the negative-test button is available');
+          }
         }
       }
     }

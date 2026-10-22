@@ -507,6 +507,42 @@ describe("ID-JAG playground page", () => {
     expect(results).toHaveTextContent(/steps 1-3\) is not affected/);
   });
 
+  const NEG_BUTTON = "Send this token to the gateway (expected: refused)";
+  const reason = "The MCP gateway on this deployment validates tokens with PingOne only. A token from oauth-mcp or PingFederate is the wrong token for it, so the gateway must refuse it.";
+  const negativeSetup = async (callReply) => {
+    mount(config({ gateway: { step4: { available: false, expectRejected: true, reason } } }));
+    replies({
+      "/issue": issuedWith({ iat: now(), exp: now() + 300 }),
+      "/redeem": { request: {}, status: 200, response: {}, token: { header: {}, claims: { exp: now() + 600 } } },
+      "/call": callReply,
+    });
+    fireEvent.click(await screen.findByRole("button", { name: "Request ID-JAG" }));
+    await waitFor(() => expect(posted("/issue")).toBe(true));
+    fireEvent.click(screen.getByRole("button", { name: "Redeem ID-JAG" }));
+    await waitFor(() => expect(screen.getByRole("button", { name: NEG_BUTTON })).toBeEnabled());
+    fireEvent.click(screen.getByRole("button", { name: NEG_BUTTON }));
+  };
+
+  it("frames step 4 as a negative test: the reason is shown, the List tools button is replaced by the expected-refusal button", async () => {
+    mount(config({ gateway: { step4: { available: false, expectRejected: true, reason } } }));
+    expect(await screen.findByText(`Negative test: ${reason}`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: NEG_BUTTON })).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: "List tools this token can see" })).not.toBeInTheDocument();
+  });
+
+  it("shows the gateway's refusal as a pass, not an error", async () => {
+    await negativeSetup(Object.assign(new Error("502"), { response: { status: 502, data: { error: "login_required", message: "Token is revoked or no longer active (RFC 7662)", gatewayStatus: 401, gatewayErrorCode: "login_required", gatewayMessage: "Token is revoked or no longer active (RFC 7662)", request: { endpoint: "POST https://gw.test/mcp" } } } }));
+    const box = await screen.findByTestId("ijp-gateway-negative");
+    expect(box).toHaveTextContent("Refused, as expected");
+    expect(box).toHaveTextContent("HTTP 401 login_required");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+  });
+
+  it("flags it as a failure when the gateway accepts the token", async () => {
+    await negativeSetup({ request: {}, tools: [], deniedTools: [] });
+    expect(await screen.findByTestId("ijp-gateway-negative")).toHaveTextContent("The gateway accepted this token");
+  });
+
   const stepFourWith = async (data) => {
     mount(config());
     replies({
@@ -596,12 +632,13 @@ describe("ID-JAG playground page", () => {
 
 describe("ID-JAG playground step 4 availability", () => {
   const LIST = { name: "List tools this token can see" };
-  const reason = "The MCP gateway on this deployment validates tokens with PingOne only, so tokens from oauth-mcp or PingFederate cannot be listed here.";
+  const reason = "The MCP gateway on this deployment validates tokens with PingOne only. A token from oauth-mcp or PingFederate is the wrong token for it, so the gateway must refuse it.";
 
-  it("shows the reason in one plain line, with no List tools button, when the gateway cannot validate these tokens", async () => {
-    mount(config({ gateway: { step4: { available: false, reason } } }));
-    expect(await screen.findByText(reason)).toBeInTheDocument();
-    expect(screen.getByText("Call the MCP server with the new token")).toBeInTheDocument();
+  const NEG_BUTTON = "Send this token to the gateway (expected: refused)";
+  it("frames step 4 as a negative test: the reason is shown, the List tools button is replaced by the expected-refusal button", async () => {
+    mount(config({ gateway: { step4: { available: false, expectRejected: true, reason } } }));
+    expect(await screen.findByText(`Negative test: ${reason}`)).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: NEG_BUTTON })).toBeInTheDocument();
     expect(screen.queryByRole("button", { name: LIST.name })).not.toBeInTheDocument();
   });
 

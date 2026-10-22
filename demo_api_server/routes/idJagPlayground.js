@@ -491,11 +491,12 @@ async function inspect(idJag, s = settings(), verify = verifySignature) {
 }
 
 // Step 4 sends the redeemed token to the Node demo MCP gateway. Where that gateway's authz sidecar validates every token
-// with PingOne (SE), these tokens always fail, so the deployment turns the step off. Unset = on. byo is unaffected.
-const STEP4_OFF_REASON = 'The MCP gateway on this deployment validates tokens with PingOne only, so tokens from oauth-mcp or PingFederate cannot be listed here.';
+// with PingOne (SE), these tokens always fail, so the deployment turns step 4 into a negative test: the gateway is
+// expected to refuse the token (the wrong token for a PingOne-only gateway). Unset = a normal call. byo is unaffected.
+const STEP4_OFF_REASON = 'The MCP gateway on this deployment validates tokens with PingOne only. A token from oauth-mcp or PingFederate is the wrong token for it, so the gateway must refuse it.';
 function step4For(req) {
   const off = ['false', '0', 'no', 'off'].includes(String(configStore.getEffective('id_jag_playground_step4_enabled') ?? '').trim().toLowerCase());
-  return off && modeOf(req) !== 'byo' ? { available: false, reason: STEP4_OFF_REASON } : { available: true, reason: null };
+  return off && modeOf(req) !== 'byo' ? { available: false, expectRejected: true, reason: STEP4_OFF_REASON } : { available: true, reason: null };
 }
 
 function configFor(req) {
@@ -1131,8 +1132,6 @@ router.post('/redeem', requirePf, async (req, res) => {
 });
 
 router.post('/call', requirePf, async (req, res) => {
-  const step4 = step4For(req);
-  if (!step4.available) return res.status(409).json({ error: 'step4_unavailable', message: step4.reason });
   const token = req.session?.idJagPlayground?.accessToken;
   if (!token) return res.status(409).json({ error: 'no_access_token', message: 'Redeem the ID-JAG first.' });
   const endpoint = `POST ${nodeGatewayUrl() || '(MCP_DEMO_GATEWAY_URL not set)'}/mcp`;
