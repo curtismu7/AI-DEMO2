@@ -15,6 +15,7 @@ import {
 } from "@xyflow/react";
 import "@xyflow/react/dist/style.css";
 import DiagramStepBar from "../components/DiagramStepBar";
+import AuthorizationFlowDetail, { StepList } from "./AuthorizationFlowDetail";
 import { useDiagramStepper } from "../hooks/useDiagramStepper";
 import { VerticalContext } from "../vertical/VerticalProvider";
 import { DEFAULT_VERTICAL, PROFILES, SLOTS, VERTICAL_OPTIONS, lanesFor, momentsFor, profileFor } from "./authorizationFlowData";
@@ -98,7 +99,7 @@ function edgeFor(step, i, hot, theme) {
   };
 }
 
-function Visualiser({ moment, stepper, theme, vertical }) {
+function Visualiser({ moment, stepper, theme, vertical, layoutKey }) {
   const [nodes, setNodes, onNodesChange] = useNodesState(startNodes(vertical));
   // A new vertical renames the system-of-record lane; boxes the viewer has dragged stay where they are.
   useEffect(() => {
@@ -113,9 +114,10 @@ function Visualiser({ moment, stepper, theme, vertical }) {
   );
 
   useEffect(() => {
-    const id = setTimeout(() => fitView({ padding: 0.03 }), 50);
+    // Refit when the detail panel moves: the diagram's column changes width.
+    const id = setTimeout(() => fitView({ padding: 0.03 }), 120);
     return () => clearTimeout(id);
-  }, [fitView]);
+  }, [fitView, layoutKey]);
 
   return (
     <div className="af-canvas" data-af-theme={theme}>
@@ -173,6 +175,8 @@ export default function AuthorizationFlowPage() {
 
   useEffect(() => { stop(); }, [momentId, vertical, stop]);
 
+  // Where the step detail sits: under the diagram, or in a column beside it.
+  const [detailSide, setDetailSide] = useState(false);
   const reached = stepper.step;
   const chat = moment.steps.slice(0, reached + 1).filter((s) => s.chat).map((s) => s.chat);
   const done = reached === moment.steps.length - 1;
@@ -211,7 +215,7 @@ export default function AuthorizationFlowPage() {
         ))}
       </div>
 
-      <div className="af-grid">
+      <div className={`af-grid${detailSide ? " af-grid--side" : ""}`}>
         <section className="af-chat" aria-label="Conversation">
           <h2>Conversation</h2>
           <p className="af-chat__prompt">{moment.prompt}</p>
@@ -221,21 +225,32 @@ export default function AuthorizationFlowPage() {
               <li key={i} className={`af-bubble af-bubble--${c.role}`}>{c.text}</li>
             ))}
           </ol>
+          <h2 className="af-chat__steps">Steps</h2>
+          <StepList moment={moment} vertical={vertical} stepIndex={reached} onPick={stepper.goTo} />
         </section>
 
+        <div className="af-main">
         <section className="af-vis" aria-label="Authorization flow diagram">
           <DiagramStepBar stepper={stepper} caption={current ? current.label : ""} testId="af-step-bar" />
-          <button type="button" className="af-theme" aria-pressed={theme === "dark"} onClick={toggleTheme}>
-            {theme === "dark" ? "Light mode" : "Dark mode"}
-          </button>
+          <div className="af-toggles">
+            <button type="button" className="af-theme" aria-pressed={detailSide} onClick={() => setDetailSide((v) => !v)}>
+              {detailSide ? "Detail below" : "Detail on the side"}
+            </button>
+            <button type="button" className="af-theme" aria-pressed={theme === "dark"} onClick={toggleTheme}>
+              {theme === "dark" ? "Light mode" : "Dark mode"}
+            </button>
+          </div>
           <ReactFlowProvider>
-            <Visualiser moment={moment} stepper={stepper} theme={theme} vertical={vertical} />
+            <Visualiser moment={moment} stepper={stepper} theme={theme} vertical={vertical} layoutKey={detailSide} />
           </ReactFlowProvider>
           <p className="af-proves"><strong>{moment.num}</strong> {moment.proves}</p>
           {done ? (
             <p role="status" className={`af-outcome af-outcome--${moment.outcome.kind}`}>{moment.outcome.text}</p>
           ) : null}
         </section>
+        {detailSide ? null : <AuthorizationFlowDetail moment={moment} vertical={vertical} stepIndex={reached} />}
+        </div>
+        {detailSide ? <AuthorizationFlowDetail moment={moment} vertical={vertical} stepIndex={reached} /> : null}
       </div>
     </div>
   );
