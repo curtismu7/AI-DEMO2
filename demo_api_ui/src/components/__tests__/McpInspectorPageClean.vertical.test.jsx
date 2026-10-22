@@ -252,4 +252,70 @@ describe('MCP Inspector tools table', () => {
       expect(sourceState.current.setSelectedTool).not.toHaveBeenCalled();
     });
   });
+
+  describe('weather location choice', () => {
+    const FULL = { name: 'get_weather_summary', inputSchema: schema(['latitude', 'longitude', 'location_name', 'city_name', 'include', 'days', 'units']) };
+    const withValues = (paramValues) => ({ ...makeSource(FULL), tools: [FULL], paramValues, schemaProps: FULL.inputSchema.properties });
+    const visible = () => [...document.querySelectorAll('.insp-send-row > .insp-field > span, .insp-send-row > label.insp-field > span')].map((e) => e.textContent);
+
+    it('offers City / Coordinates / Saved location as radios, City checked, and shows only the city field', () => {
+      sourceState.current = withValues({ city_name: 'Austin, TX' });
+      renderAt('/?source=gateway');
+      expect(screen.getByRole('radio', { name: 'City' })).toBeChecked();
+      expect(screen.getByRole('radio', { name: 'Coordinates' })).not.toBeChecked();
+      expect(screen.getByRole('radio', { name: 'Saved location' })).not.toBeChecked();
+      expect(screen.getByLabelText('city_name')).toHaveValue('Austin, TX');
+      expect(screen.queryByLabelText('latitude')).toBeNull();
+      expect(screen.queryByLabelText('location_name')).toBeNull();
+    });
+
+    it('folds the other optional settings under "More options", closed by default', () => {
+      sourceState.current = withValues({ city_name: 'Austin, TX' });
+      renderAt('/?source=gateway');
+      const more = screen.getByText('More options (3)').closest('details');
+      expect(more).not.toHaveAttribute('open');
+      expect(more).toContainElement(screen.getByLabelText('days'));
+    });
+
+    it('choosing Coordinates clears the city and fills Austin\'s coordinates', () => {
+      sourceState.current = withValues({ city_name: 'Austin, TX' });
+      renderAt('/?source=gateway');
+      fireEvent.click(screen.getByRole('radio', { name: 'Coordinates' }));
+      expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({ latitude: '30.2672', longitude: '-97.7431' });
+      expect(screen.getByLabelText('latitude')).toBeInTheDocument();
+      expect(screen.getByLabelText('longitude')).toBeInTheDocument();
+      expect(screen.queryByLabelText('city_name')).toBeNull();
+    });
+
+    it('says a saved location is always denied, and clears whatever was filled', () => {
+      sourceState.current = withValues({ city_name: 'Austin, TX' });
+      renderAt('/?source=gateway');
+      fireEvent.click(screen.getByRole('radio', { name: 'Saved location' }));
+      expect(screen.getByText(/always denied by the demo policy/)).toBeInTheDocument();
+      expect(sourceState.current.setParamValues).toHaveBeenLastCalledWith({});
+      expect(screen.getByLabelText('location_name')).toBeInTheDocument();
+    });
+
+    it('an Edit/Resend that restored coordinates opens on Coordinates, not City', () => {
+      sourceState.current = withValues({ latitude: '47.6', longitude: '-122.3' });
+      renderAt('/?source=gateway');
+      expect(screen.getByRole('radio', { name: 'Coordinates' })).toBeChecked();
+    });
+
+    it('when values for more than one alternative are present it hides nothing (never silently sends a hidden value)', () => {
+      sourceState.current = withValues({ city_name: 'Austin', latitude: '30' });
+      renderAt('/?source=gateway');
+      expect(screen.queryByRole('radio', { name: 'City' })).toBeNull();
+      for (const f of ['city_name', 'latitude', 'longitude', 'location_name', 'days']) expect(screen.getByLabelText(f)).toBeInTheDocument();
+    });
+
+    it('a tool without the alternatives is unchanged: every field, no chooser, no More options', () => {
+      sourceState.current = makeSource(TOOLS[1]);
+      renderAt('/');
+      expect(screen.queryByRole('radio')).toBeNull();
+      expect(screen.queryByText(/More options/)).toBeNull();
+      expect(screen.getByLabelText('from_account_id')).toBeInTheDocument();
+    });
+  });
 });
+

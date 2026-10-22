@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { PARAM_DEFAULTS, defaultParamsFor, pickDefaultTool, DEFAULT_TOOLS } from './inspectorDefaults';
+import { PARAM_DEFAULTS, defaultParamsFor, pickDefaultTool, DEFAULT_TOOLS, choiceGroupFor, inferOption, applyOption } from './inspectorDefaults';
 
 describe('defaultParamsFor', () => {
   it('defaults the weather city to Austin, TX (Texas) when the tool declares city_name', () => {
@@ -38,3 +38,38 @@ describe('pickDefaultTool', () => {
     for (const n of names) expect(n, n).not.toMatch(/create|delete|update|withdraw|transfer|deposit|reset|freeze|adjust|set/i);
   });
 });
+
+describe('location choice (city / coordinates / saved location)', () => {
+  const WEATHER = { city_name: {}, latitude: {}, longitude: {}, location_name: {}, days: {}, units: {} };
+  const group = choiceGroupFor(WEATHER);
+
+  it('applies only to a tool that declares every alternative', () => {
+    expect(group?.id).toBe('location');
+    expect(choiceGroupFor({ city_name: {}, latitude: {}, longitude: {} })).toBeNull();
+    expect(choiceGroupFor({ account_type: {} })).toBeNull();
+    expect(choiceGroupFor(undefined)).toBeNull();
+  });
+
+  it('infers the option from what is filled: one -> that one, none -> City, several -> null (show everything)', () => {
+    expect(inferOption(group, { city_name: 'Austin, TX' })).toBe('city');
+    expect(inferOption(group, { latitude: '1', longitude: '2' })).toBe('coords');
+    expect(inferOption(group, { location_name: 'home' })).toBe('saved');
+    expect(inferOption(group, {})).toBe('city');
+    expect(inferOption(group, { city_name: '  ', latitude: '' })).toBe('city');
+    expect(inferOption(group, { city_name: 'Austin', latitude: '30' })).toBeNull();
+  });
+
+  it('switching clears every other alternative and applies the new one\'s defaults, keeping unrelated values', () => {
+    const start = { city_name: 'Austin, TX', days: '3' };
+    expect(applyOption(group, 'coords', start)).toEqual({ days: '3', latitude: '30.2672', longitude: '-97.7431' });
+    expect(applyOption(group, 'saved', { latitude: '30', longitude: '-97', days: '3' })).toEqual({ days: '3' });
+    expect(applyOption(group, 'city', { latitude: '30', longitude: '-97' })).toEqual({ city_name: PARAM_DEFAULTS.city_name });
+  });
+
+  it('says what the demo policy does with each alternative', () => {
+    const hint = (id) => group.options.find((o) => o.id === id).hint;
+    expect(hint('city')).toMatch(/denied/i);
+    expect(hint('saved')).toMatch(/always denied/i);
+  });
+});
+
