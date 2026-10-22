@@ -3,7 +3,7 @@
 const assert = require('node:assert/strict');
 const test = require('node:test');
 const { createControlLog, duplicateRuns, failedJobNames, mainHealth, staleRuns, turnaroundTrend } = require('./insights');
-const { parseTopProcesses, processName } = require('./host-load');
+const { parseTopProcesses, parseVmStat, processName } = require('./host-load');
 
 function run(id, fields = {}) {
   return {
@@ -120,4 +120,10 @@ test('host load parsing keeps the busiest processes and readable names', () => {
     { name: 'OrbStack', cpuPercent: 122.2, memMb: 14053 },
   ]);
   assert.equal(processName('node (vitest)'), 'node');
+});
+
+test('vm_stat parsing counts free, inactive and speculative pages as available', () => {
+  const out = 'Mach Virtual Memory Statistics: (page size of 16384 bytes)\nPages free:                 1000.\nPages active:               5000.\nPages inactive:             2000.\nPages speculative:          1000.\n';
+  assert.deepEqual(parseVmStat(out, 512 * 1048576), { totalMb: 512, usedMb: 512 - 63 });
+  assert.equal(parseVmStat('garbage', 512 * 1048576), null);
 });

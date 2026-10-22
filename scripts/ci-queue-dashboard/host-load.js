@@ -22,16 +22,41 @@ function parseTopProcesses(output, limit = 5) {
   }).filter(Boolean).slice(0, limit);
 }
 
-function readHostLoad({ execFile = nodeExecFile, os = nodeOs, platform = process.platform } = {}) {
-  const base = { load1: Number(os.loadavg()[0].toFixed(1)), cores: os.cpus().length, top: [] };
-  if (platform !== 'darwin' && platform !== 'linux') return Promise.resolve(base);
+// macOS reports "free" far below what is really available, so count inactive
+// and speculative pages (reclaimable cache) as available, like Activity Monitor.
+function parseVmStat(output, totalBytes) {
+  const text = String(output || '');
+  const pageSize = Number(/page size of (\d+) bytes/.exec(text)?.[1]);
+  const pages = (label) => Number(new RegExp(`^Pages ${label}:\\s+(\\d+)\\.`, 'm').exec(text)?.[1]);
+  const reclaimable = pages('free') + pages('inactive') + pages('speculative');
+  if (!pageSize || !Number.isFinite(reclaimable) || !totalBytes) return null;
+  const totalMb = Math.round(totalBytes / 1048576);
+  const availableMb = Math.min(totalMb, Math.round((reclaimable * pageSize) / 1048576));
+  return { totalMb, usedMb: totalMb - availableMb };
+}
+
+function readMemory({ execFile, os, platform }) {
+  const total = os.totalmem();
+  const fallback = { totalMb: Math.round(total / 1048576), usedMb: Math.round((total - os.freemem()) / 1048576) };
+  if (platform !== 'darwin') return Promise.resolve(fallback);
   return new Promise((resolve) => {
-    // Fixed arguments, no shell. -r sorts by CPU on macOS; --sort does on Linux.
-    const args = platform === 'darwin' ? ['-Ao', 'pcpu=,rss=,comm=', '-r'] : ['-eo', 'pcpu=,rss=,comm=', '--sort=-pcpu'];
-    execFile('ps', args, { timeout: 5000, maxBuffer: 1024 * 1024 }, (error, stdout) => {
-      resolve(error ? base : { ...base, top: parseTopProcesses(stdout) });
+    execFile('vm_stat', [], { timeout: 5000, maxBuffer: 1024 * 1024 }, (error, stdout) => {
+      resolve((!error && parseVmStat(stdout, total)) || fallback);
     });
   });
 }
 
-module.exports = { parseTopProcesses, processName, readHostLoad };
+function readHostLoad({ execFile = nodeExecFile, os = nodeOs, platform = process.platform } = {}) {
+  const base = { load1: Number(os.loadavg()[0].toFixed(1)), cores: os.cpus().length, top: [] };
+  if (platform !== 'darwin' && platform !== 'linux') return readMemory({ execFile, os, platform }).then((mem) => ({ ...base, mem }));
+  const memory = readMemory({ execFile, os, platform });
+  return new Promise((resolve) => {
+    // Fixed arguments, no shell. -r sorts by CPU on macOS; --sort does on Linux.
+    const args = platform === 'darwin' ? ['-Ao', 'pcpu=,rss=,comm=', '-r'] : ['-eo', 'pcpu=,rss=,comm=', '--sort=-pcpu'];
+    execFile('ps', args, { timeout: 5000, maxBuffer: 1024 * 1024 }, (error, stdout) => {
+      memory.then((mem) => resolve(error ? { ...base, mem } : { ...base, mem, top: parseTopProcesses(stdout) }));
+    });
+  });
+}
+
+module.exports = { parseTopProcesses, parseVmStat, processName, readHostLoad };
