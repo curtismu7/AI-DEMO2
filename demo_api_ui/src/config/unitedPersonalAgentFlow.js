@@ -6,6 +6,7 @@ import { wrapMessages } from './sequenceWrap';
 const SOURCE = `sequenceDiagram
     autonumber
     participant M as Member\\nUnited MileagePlus member
+    participant K as AI assistant catalog\\ne.g. ChatGPT's app directory
     participant A as Member's own agent\\nChatGPT, mobile assistant, CLI
     participant G as United MCP door\\nPingGateway • public URL
     participant P as PingOne\\nauth server • token service • Agreement
@@ -14,6 +15,13 @@ const SOURCE = `sequenceDiagram
     participant L as Loyalty MCP + Facade\\nholds the DataPower credentials
     participant S as Audit + SIEM\\nthe agent has no write path
 
+    rect rgb(225,229,238)
+    Note over K,G: Before hop 1: the company publishes once, members add it free
+    G->>K: The company publishes its MCP door to the catalog: URL, auth metadata, branding and privacy policy
+    K-->>G: Reviews it and lists it, so any member of the assistant can find it
+    M->>K: Browses the catalog and adds the connector: free, nothing to install, no account to create
+    K-->>A: The connector appears in the member's own agent, not signed in yet
+    end
     rect rgb(226,228,236)
     Note over A,G: 1 Discover
     A->>G: Calls the MCP tool with no token → 401 + resource_metadata
@@ -62,6 +70,7 @@ export const UNITED_FLOW_SOURCE = wrapMessages(SOURCE);
 
 // Text for the movie reel's details row, per participant (from the design doc).
 export const UNITED_FLOW_DETAILS = {
+  K: "The AI assistant vendor's catalog (for example ChatGPT's app directory). The company submits its connector once; the vendor reviews and lists it; members add it from the catalog at no cost. The catalog never holds member credentials: sign-in and consent still happen at the company's own identity provider on first use.",
   M: 'A MileagePlus member. Authenticates United from the agent, but United never sees the member credentials and the agent never sees the member session.',
   A: 'Whatever the member brought: ChatGPT in a browser, a mobile assistant, a coding CLI. United controls none of it and trusts none of it. It holds no standing United credential; it mints a token per call.',
   G: 'The only internet-facing hop. PingGateway MCP module: validates aud and scope, tool allowlist, audit per call. No direct agent-to-resource path exists on the network.',
@@ -78,6 +87,10 @@ export const UNITED_FLOW_DETAILS = {
 const jwt = (title, claims) => `${title} (JWT, MOCK: teaching values only)\n${JSON.stringify(claims, null, 2)}`;
 
 export const UNITED_FLOW_PAYLOADS = [
+  'Connector listing (illustrative)\nname: United rewards\nmcp_url: https://mcp.united.example/mcp\nauth: OAuth, found through the 401 and\n  the metadata (hop 1)\nscopes asked: miles:read, miles:redeem\nbranding + privacy policy URL',
+  'status: listed\nvisible to: members of the assistant\nprice to the member: free',
+  'Add "United rewards"\nprice: free\nnothing to install; sign-in and consent\n  happen on first use (hop 3)',
+  'connector: united-rewards\nstate: added, not signed in yet\nfirst use starts discovery (hop 1)',
   'HTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer\n  resource_metadata="https://mcp.united.example/\n  .well-known/oauth-protected-resource"',
   'resource: https://mcp.united.example/mcp\nauthorization_servers: [PingOne]\nscopes_supported: [miles:read, miles:redeem]',
   'CIMD client document (fetched by URL)\nclient_id: https://agent.example/oauth/client.json\nredirect_uris: [https://agent.example/callback]\ntoken_endpoint_auth_method: private_key_jwt\njwks_uri: https://agent.example/jwks.json',

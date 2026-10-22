@@ -9,9 +9,12 @@ describe('United personal-agent MCP door sequence', () => {
   const model = parseSequence(UNITED_FLOW_SOURCE);
   const messages = model.items.filter((i) => i.from && i.to);
 
-  it('has the eight participants and walks the design doc hops in order', () => {
-    expect(model.participants.map((p) => p.id)).toEqual(['M', 'A', 'G', 'P', 'Z', 'U', 'L', 'S']);
-    expect(messages.length).toBeGreaterThanOrEqual(15);
+  it('has the nine participants, opens with the catalog pattern, then walks the design doc hops in order', () => {
+    expect(model.participants.map((p) => p.id)).toEqual(['M', 'K', 'A', 'G', 'P', 'Z', 'U', 'L', 'S']);
+    expect(messages).toHaveLength(22);
+    expect(messages.slice(0, 4).map((m) => `${m.from}>${m.to}`)).toEqual(['G>K', 'K>G', 'M>K', 'K>A']);
+    expect(messages[0].text.replace(/\s+/g, " ")).toMatch(/publishes its MCP door to the catalog/);
+    expect(messages[2].text.replace(/\s+/g, " ")).toMatch(/free, nothing to install/);
     const text = messages.map((m) => m.text).join('\n');
     const order = ['resource_metadata', 'CIMD', 'Passkey or MFA', 'RFC 8693 exchange', 'bearer token', 'verdict', 'Pending approval', 'approval receipt', 'Writes sub'];
     const at = order.map((s) => text.indexOf(s));
