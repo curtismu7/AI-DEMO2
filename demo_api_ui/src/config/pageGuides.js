@@ -24,6 +24,7 @@ export const PAGE_GUIDES = {
   "/intent-inspector": { title: "Intent Binding Guide", body: "intent-binding" },
   "/dashboard": { title: "Demo Steps Guide", body: "demo-steps" },
   "/digital-worker": { title: "Digital worker", lessons: ["digital-worker-live"] },
+  "/authorization-flow": { title: "Authorization flow", lessons: ["authorization-flow-live"] },
 
   "/protocol-playground": {
     title: "Protocol Playground Guide",

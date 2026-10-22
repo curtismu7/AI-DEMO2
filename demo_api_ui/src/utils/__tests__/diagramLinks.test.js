@@ -10,6 +10,7 @@ describe("diagram links open in a new tab", () => {
     "/diagrams",
     "/sequence-diagram",
     "/digital-worker",
+    "/authorization-flow",
     "/demo-map",
     "/pingfederate-id-jag/diagram",
     "/pingfederate-id-jag/implementation",

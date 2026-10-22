@@ -148,6 +148,12 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Connect controls", explain: "Tokens, policy, approvals, protocols, and tools each contribute evidence.", demonstrate: "Filter the timeline by token, policy, approval, protocol, and tool." },
     { title: "Assign product ownership", explain: "The product map identifies which Ping control owns each decision or boundary.", demonstrate: "Follow a timeline event to PingOne, Authorize, Gateway, Privilege, or Governance." },
   ],
+  "authorization-flow-live": [
+    { title: "Pick a vertical and a moment", explain: "The story follows the vertical: the business, what the assistant reads, what it pays for and which tool it calls. Six moments cover the whole control story.", demonstrate: "Choose a vertical, then walk the six moments: no connection, connect, read, pay $25, pay $60 (refused), revoke." },
+    { title: "Follow the three tokens", explain: "The connect token cannot call the business. Exchange 1 mints a delegated token (sub = customer, act = assistant). Exchange 2 mints an audience token in the business's own scope vocabulary, for five minutes, with no onward delegation.", demonstrate: "Press Simulate on Read, or click steps 4, 5 and 11 in the step list, and watch the lit token card change." },
+    { title: "Read the request, response and claims", explain: "Each step shows the real shape: PingOne's /as/token with the RFC 8693 token-exchange grant, the Authorize decision call, the CIBA request, and every claim of the token explained.", demonstrate: "Open a step, read What is happening and Why it matters, then the request and the decoded claims." },
+    { title: "See the refusals", explain: "Authority dies in three places: at policy before the phone rings ($60 over the $50 limit), at the human (no approval), and at Exchange 1 after the consent is revoked.", demonstrate: "Run Pay $60 and Revoke, and note that no device push is sent and nothing reaches the business." },
+  ],
   "digital-worker-live": [
     { title: "Contrast the assistant and the worker", explain: "An assistant answers questions, while a worker holds delegated identity and spends it taking governed action.", demonstrate: "Read the lede on Digital Worker, then drag a diagram box to show where the worker's identity is spent." },
     { title: "Run the governed worker task", explain: "The vertical's protected action (a transfer in banking, a bill in healthcare) runs on the same rails as an attended run: delegated token, policy, step-up MFA, and human approval. The approval is a mock CIBA push: the request goes to the person's own device, never to the browser that started it.", demonstrate: "On the Attended tab, click the Run button (named for the vertical's action), approve the request on the mock phone, then follow the run through the studio's MFA and approval gates." },
@@ -606,6 +612,25 @@ export const lessonCatalog = Object.freeze([
       "An assistant answers; a worker acts — and spends delegated identity",
       "Unattended runs need a dead-man switch, revocation, and audit",
       "Same governance rails as attended runs: tokens, consent, HITL",
+    ],
+  }),
+  lesson({
+    id: "authorization-flow-live",
+    title: "The assistant acts, the business decides",
+    audience: "Sales engineers and customer architects",
+    category: "AI concepts",
+    route: "/authorization-flow",
+    standaloneRoute: "/authorization-flow",
+    run: { action: "ai-architecture", exposesRawBearerToken: false, result: REDACTED_RESULT },
+    evidence: { events: ["connect-token", "delegated-token", "audience-token", "policy-decision", "ciba-approval"], result: REDACTED_RESULT },
+    fallback: { provenance: PROVENANCE.RECORDED, label: "Scripted authorization flow" },
+    maturityStages: [MATURITY_STAGES.AUTHENTICATE, MATURITY_STAGES.AUTHORIZE, MATURITY_STAGES.GOVERN],
+    agentCategory: "Personal and Enterprise Agents",
+    productRoles: ["Agent IAM Core", "PingOne Authorize", "Agent Gateway"],
+    talkingPoints: [
+      "The assistant requests; the business decides; the human authorises consequence",
+      "Two token exchanges narrow authority at every hop, and each re-checks the live consent",
+      "A policy limit, a human approval and a revocation each stop the action at a different boundary",
     ],
   }),
 ]);
