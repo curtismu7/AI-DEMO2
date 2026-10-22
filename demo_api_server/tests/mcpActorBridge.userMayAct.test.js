@@ -9,7 +9,10 @@
 // correct as-is: it names the agent, and the agent is who is acting.
 
 const mockConfig = {};
-jest.mock('../services/configStore', () => ({ getEffective: jest.fn((key) => mockConfig[key] ?? null) }));
+jest.mock('../services/configStore', () => ({
+  getEffective: jest.fn((key) => mockConfig[key] ?? null),
+  getOAuthProvider: () => mockConfig.__provider || 'pingone',
+}));
 
 const { buildActorBridgeHeaders } = require('../services/mcpActorBridge');
 
@@ -44,4 +47,15 @@ test('empty-string userMayActSub means "no consent" — the header must be OMITT
   const headers = buildActorBridgeHeaders({ userMayActSub: '' });
   expect(headers['X-Act-Client-Id']).toBe('built-in-agent');
   expect(headers).not.toHaveProperty('X-May-Act-Sub');
+});
+
+test('PingFederate mode: the static fallback names the PF acting agent, not the PingOne AI Agent app', () => {
+  mockConfig.__provider = 'pingfederate';
+  mockConfig.pf_token_exchange_client_id = 'pf-exchanger';
+  expect(buildActorBridgeHeaders()).toEqual({ 'X-Act-Client-Id': 'pf-exchanger', 'X-May-Act-Sub': 'pf-exchanger' });
+});
+
+test('PingOne mode ignores the PF client id', () => {
+  mockConfig.pf_token_exchange_client_id = 'pf-exchanger';
+  expect(buildActorBridgeHeaders()['X-Act-Client-Id']).toBe('built-in-agent');
 });
