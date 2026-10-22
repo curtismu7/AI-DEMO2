@@ -2,18 +2,27 @@
 // Source: "ChatGPT to the UHG Digital Front Door" (proposed architecture, for review), slide 2 — the 16 numbered
 // messages are in the slide's order and wording. Phase colours follow the slide legend: discovery (grey),
 // authentication + PKCE challenge (navy), code redemption + token minting (orange), OBO exchange + downstream
-// authorization (teal), member experience (blue).
+// authorization (teal), member experience (blue). The four catalog messages at the top (publish, list, add, available) are
+// the pattern every personal-agent flow shares and are NOT on the slide, so the slide's step 1 is message 5 here.
 import { wrapMessages } from './sequenceWrap';
 
 const SOURCE = `sequenceDiagram
     autonumber
     participant M as Member\\nin ChatGPT
+    participant K as AI assistant catalog\\ne.g. ChatGPT's app directory
     participant C as ChatGPT plugin\\nMCP client • OAuth public client
     participant PF as PingFederate\\nOAuth 2.1 AS • NHI store • STS
     participant H as HSID\\nOIDC IdP • authentication only
     participant G as Public MCP gateway\\nprotected resource • OBO exchange
     participant S as MCP server • tools • API GW\\nUHG private network
 
+    rect rgb(225,229,238)
+    Note over K,G: Before the first question: the company publishes once, members add it free
+    G->>K: UHG publishes its MCP gateway to the catalog: URL, auth metadata, branding and privacy policy
+    K-->>G: Reviews it and lists it, so any member of the assistant can find it
+    M->>K: Browses the catalog and adds the connector: free, nothing to install
+    K-->>C: The connector appears in the member's ChatGPT, not signed in yet
+    end
     rect rgb(225,229,238)
     Note over M,S: Member experience
     M->>C: Asks a benefits or drug-price question
@@ -54,6 +63,7 @@ export const UHG_MCP_FLOW_SOURCE = wrapMessages(SOURCE);
 
 // Text for the movie reel's details row, per participant (from slides 3 and 6).
 export const UHG_MCP_FLOW_DETAILS = {
+  K: "The AI assistant vendor's catalog (for example ChatGPT's app directory). UHG submits its connector once; the vendor reviews and lists it; members add it from the catalog at no cost. The catalog holds no member credentials: HSID sign-in and PingFederate consent still happen on first use.",
   M: 'The member, in a ChatGPT session on the public internet.',
   C: 'OAuth 2.1 public client. CIMD or DCR identity. Generates the code_verifier and holds the member access token. No client secret: PKCE S256 is the only client proof.',
   PF: 'OAuth 2.1 authorization server and RFC 8693 security token service. Caches and verifies the PKCE challenge, mints the access token (aud = mcp.uhg.com). Client records live in its XML / configuration datastore, with no open DCR endpoint.',
@@ -67,6 +77,10 @@ export const UHG_MCP_FLOW_DETAILS = {
 const jwt = (title, claims) => `${title} (JWT, MOCK: teaching values only)\n${JSON.stringify(claims, null, 2)}`;
 
 export const UHG_MCP_FLOW_PAYLOADS = [
+  'Connector listing (illustrative)\nname: UHG benefits and Rx\nmcp_url: https://mcp.uhg.com/mcp\nauth: OAuth, found through the 401 and\n  the protected-resource metadata\nscopes asked: rx.price.read, benefits.read, ...\nbranding + privacy policy URL',
+  'status: listed\nvisible to: members of the assistant\nprice to the member: free',
+  'Add "UHG benefits and Rx"\nprice: free\nnothing to install; sign-in and consent\n  happen on first use',
+  'connector: uhg-benefits-rx\nstate: added, not signed in yet\nfirst use starts discovery',
   null,
   'HTTP/1.1 401 Unauthorized\nWWW-Authenticate: Bearer\n  resource_metadata="https://mcp.uhg.com/.well-known/\n  oauth-protected-resource"',
   'resource: https://mcp.uhg.com\nauthorization_servers: [https://auth.uhg.example]\nscopes_supported: [rx.price.read, rx.claims.read,\n  benefits.read, claims.read, idcard.read,\n  provider.search, payments.read]',

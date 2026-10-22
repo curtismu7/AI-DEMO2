@@ -12,7 +12,7 @@ export default function UhgChatgptMcpFlowPage() {
       <PageHeader
         eyebrow="Diagrams · Personal agent"
         title="ChatGPT to the UHG Digital Front Door"
-        summary="End-to-end MCP authorization: HSID authenticates, PingFederate authorizes. Authorization code + PKCE (S256) at the edge, an RFC 8693 on-behalf-of exchange downstream. Proposed architecture, for review."
+        summary="UHG lists its connector in the AI assistant's catalog once and members add it for free. Then end-to-end MCP authorization: HSID authenticates, PingFederate authorizes. Authorization code + PKCE (S256) at the edge, an RFC 8693 on-behalf-of exchange downstream. Proposed architecture, for review."
         back={{ to: '/diagrams', label: 'All diagrams' }}
       />
       <SequenceFlowDiagram

@@ -32,7 +32,7 @@ import SequenceActorHeader from "./SequenceActorHeader";
 // page width does not shrink the text. Message labels may be wider than a column; each has its own row.
 const colFor = (n) => (n <= 4 ? 270 : n <= 6 ? 225 : n <= 8 ? 185 : 155);
 const PART_H = 64;
-const TOP = 90;
+const TOP = 120; // room for participant boxes of 4 lines before the first row
 const LINE_H = 17;
 const FIT = { padding: 0.04 };
 // Floor for the fitted zoom: 13px message labels stay >= 11px on screen (a little headroom for box bands).
