@@ -523,6 +523,7 @@ export default function IdJagPlaygroundPage() {
   const [issued, setIssued] = useState(null);
   const [inspection, setInspection] = useState(null);
   const [xaaGot, setXaaGot] = useState(false);
+  const [gatewayNeg, setGatewayNeg] = useState(null);
   const [redeemScope, setRedeemScope] = useState("");
   const [redeemed, setRedeemed] = useState(null);
   const [tools, setTools] = useState(null);
@@ -615,7 +616,7 @@ export default function IdJagPlaygroundPage() {
   }, [appSignedOut]);
 
   const clearResults = () => {
-    setIssued(null); setInspection(null); setRedeemed(null); setTools(null); setCallResult(null); setNegResults({}); setResource(null); setGate(null); setRevoked(null);
+    setIssued(null); setInspection(null); setRedeemed(null); setTools(null); setCallResult(null); setNegResults({}); setResource(null); setGate(null); setRevoked(null); setGatewayNeg(null);
   };
 
   /**
@@ -767,6 +768,19 @@ export default function IdJagPlaygroundPage() {
     const r = await api.post(`${API}/call`, {});
     setTools(r.data);
     pickTool(r.data.tools?.[0]?.name || "");
+  }, checkFor("call"));
+
+  // Step 4 as a negative test (the gateway validates PingOne tokens only): refusing this token is the pass.
+  const tryGatewayNegative = () => run("list", async () => {
+    setTools(null); setCallResult(null); setGatewayNeg(null);
+    try {
+      await api.post(`${API}/call`, {});
+      setGatewayNeg({ rejected: false });
+    } catch (e) {
+      const d = e.response?.data;
+      if (!d?.gatewayStatus) throw e;
+      setGatewayNeg({ rejected: true, status: d.gatewayStatus, code: d.gatewayErrorCode, message: d.gatewayMessage || d.message, request: d.request });
+    }
   }, checkFor("call"));
 
   const openResource = (variant) => run("resource", async () => {
@@ -1060,7 +1074,25 @@ export default function IdJagPlaygroundPage() {
         <Step n={4} mode={mode} title="Call the MCP server with the new token" note={text.call}>
           <Lifetime id="token" label="Access token" exp={tokenExp} now={nowMs} again="Request and redeem a new ID-JAG." />
           {config?.gateway?.step4?.available === false ? (
-            <p className="ijp-note">{config.gateway.step4.reason}</p>
+            <>
+              <p className="ijp-note">Negative test: {config.gateway.step4.reason}</p>
+              <button type="button" className="ijp-btn ijp-btn--primary" onClick={tryGatewayNegative} disabled={!canRun || !redeemed?.token || !!busy}>
+                {busy === "list" ? "Sending…" : "Send this token to the gateway (expected: refused)"}
+              </button>
+              {gatewayNeg && (
+                <div className={`ijp-results${gatewayNeg.rejected ? "" : " is-fail"}`} data-testid="ijp-gateway-negative" role="status">
+                  {gatewayNeg.rejected ? (
+                    <>
+                      <strong className="ijp-status ijp-status--ok">✓ Refused, as expected</strong>
+                      <p className="ijp-note">The gateway answered HTTP {gatewayNeg.status}{gatewayNeg.code ? ` ${gatewayNeg.code}` : ""}{gatewayNeg.message ? `: ${gatewayNeg.message}` : ""}. It validates tokens with PingOne only, so it cannot accept this one. The ID-JAG exchange (steps 1-3) is not affected.</p>
+                      {gatewayNeg.request && <Data value={gatewayNeg.request} />}
+                    </>
+                  ) : (
+                    <strong>✗ The gateway accepted this token. It was expected to refuse it.</strong>
+                  )}
+                </div>
+              )}
+            </>
           ) : (
             <button type="button" className="ijp-btn ijp-btn--primary" onClick={listTools} disabled={!canRun || !redeemed?.token || !!busy}>{busy === "list" ? "Listing…" : "List tools this token can see"}</button>
           )}

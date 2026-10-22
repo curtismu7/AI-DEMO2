@@ -50,6 +50,7 @@ describe('ID-JAG playground step 4 availability', () => {
     setting(v);
     const res = await getConfig(session());
     expect(res.body.gateway.step4.available).toBe(false);
+    expect(res.body.gateway.step4.expectRejected).toBe(true);
     expect(res.body.gateway.step4.reason).toMatch(/validates tokens with PingOne only/);
   });
 
@@ -59,12 +60,13 @@ describe('ID-JAG playground step 4 availability', () => {
     expect((await getConfig(session({ idJagPlaygroundMode: 'byo' }))).body.gateway.step4).toEqual({ available: true, reason: null });
   });
 
-  it('refuses POST /call with 409 step4_unavailable and never calls the gateway', async () => {
+  it('still sends the token to the gateway when step 4 is a negative test, and passes its refusal through', async () => {
     setting('false');
+    callToolViaGateway.mockRejectedValue(Object.assign(new Error('Token is revoked or no longer active'), { httpStatus: 401, gatewayStatus: 401, gatewayErrorCode: 'TOKEN_INACTIVE' }));
     const res = await postCall(session());
-    expect(res.status).toBe(409);
-    expect(res.body).toEqual({ error: 'step4_unavailable', message: expect.stringMatching(/PingOne only/) });
-    expect(callToolViaGateway).not.toHaveBeenCalled();
+    expect(callToolViaGateway).toHaveBeenCalledTimes(1);
+    expect(res.status).toBe(502);
+    expect(res.body).toEqual(expect.objectContaining({ gatewayStatus: 401, gatewayErrorCode: 'TOKEN_INACTIVE' }));
   });
 
   it.each([[undefined], ['true']])('still calls the gateway when the setting is %p', async (v) => {
