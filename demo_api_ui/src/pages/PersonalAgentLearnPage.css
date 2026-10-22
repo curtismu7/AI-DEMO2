@@ -100,9 +100,9 @@
 @media (prefers-reduced-motion: reduce) { .pal * { transition: none !important; } }
 
 /* Held action: the gateway needs a yes or no before the prompt runs again. */
-.pal .pal-approval { margin: 12px 0; padding: 14px 16px; border: 1px solid var(--th-border-strong); border-left: 4px solid var(--th-status-warn, var(--th-border-strong)); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); font-size: var(--font-size-sm); }
+.pal .pal-approval { margin: 12px 0; padding: 14px 16px; border: 1px solid var(--th-border-strong); border-left: 4px solid var(--th-status-warning); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); font-size: var(--font-size-sm); }
 .pal .pal-approval p { margin: 0 0 8px; }
 .pal .pal-approval-note { color: var(--th-text-muted); font-size: var(--font-size-xs); }
 .pal .pal-approval-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .pal .pal-approval-actions button { border-radius: var(--radius-pill); padding: 7px 14px; font-size: var(--font-size-sm); font-weight: 600; cursor: pointer; border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); }
-.pal .pal-approval-actions .pal-approve { background: var(--th-status-ok, var(--th-accent)); border-color: transparent; color: var(--th-text-on-emphasis, #fff); }
+.pal .pal-approval-actions .pal-approve { background: var(--th-status-success); border-color: transparent; color: var(--th-text-on-emphasis); }
