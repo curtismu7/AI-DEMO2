@@ -29,7 +29,7 @@ import AgentOnboardingSubwayPage from "./components/AgentOnboardingSubwayPage";
 import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage";
 import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
-import CedarDemoPage from "./pages/CedarDemoPage";
+import PrivilegeAiPoliciesDemoPage from "./pages/PrivilegeAiPoliciesDemoPage";
 import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
 import PrivilegeDocsIndexPage from "./pages/PrivilegeDocsIndexPage";
 import SkillsIndexPage from "./pages/SkillsIndexPage";
@@ -280,7 +280,7 @@ import PublicRoutes, {
   StandaloneIndexRoute,
   StandaloneSampleRoute,
   StandaloneRunnerRoute,
-  StandaloneCedarRoute,
+  StandaloneAiPoliciesRoute,
   SampleM2mPageRoute,
   SampleCustomAdminRolePageRoute,
   SampleUserRegistrationPageRoute,
@@ -894,8 +894,13 @@ function AppWithAuth() {
                   element={<StandaloneRunnerRoute />}
                 />
                 <Route
+                  path="/standalone/ai-policies"
+                  element={<StandaloneAiPoliciesRoute />}
+                />
+                {/* The first version of this page was a browser Cedar toy at /standalone/cedar; keep shared links alive. */}
+                <Route
                   path="/standalone/cedar"
-                  element={<StandaloneCedarRoute />}
+                  element={<Navigate to="/standalone/ai-policies" replace />}
                 />
                 <Route
                   path="/standalone/:sampleId"
@@ -2316,10 +2321,14 @@ function AppWithAuth() {
                               path="/privilege-mcp-diagrams"
                               element={<PrivilegeMcpDiagramPage />}
                             />
-                            {/* Same page as /standalone/cedar, inside the app shell so the side nav stays. */}
+                            {/* The live demo, inside the app shell so the side nav stays (/standalone/ai-policies is the walkthrough). */}
+                            <Route
+                              path="/privilege-ai-policies"
+                              element={<PrivilegeAiPoliciesDemoPage />}
+                            />
                             <Route
                               path="/privilege-cedar"
-                              element={<CedarDemoPage />}
+                              element={<Navigate to="/privilege-ai-policies" replace />}
                             />
                             <Route
                               path="/privilege-docs-index"

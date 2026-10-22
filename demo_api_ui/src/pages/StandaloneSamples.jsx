@@ -22,17 +22,16 @@ import SampleAppPage from "./SampleAppPage";
 import M2mCredentialsSamplePage from "./M2mCredentialsSamplePage";
 import "./StandaloneSamples.css";
 
-// Standalone demos that are not PingOne sample apps. The page is a plain import: the Cedar engine's wasm is already
-// lazy inside cedar/loadCedar.js, so it loads only when this page runs.
-import CedarDemoPage from "./CedarDemoPage";
+// Standalone demos that are not PingOne sample apps.
+import PrivilegeAiPoliciesDemoPage from "./PrivilegeAiPoliciesDemoPage";
 const STANDALONE_DEMOS = [
   {
-    id: "cedar",
-    label: "Cedar demo",
-    to: "/standalone/cedar",
+    id: "ai-policies",
+    label: "AI Policies demo",
+    to: "/standalone/ai-policies",
     tagline:
-      "A real Cedar policy engine in your browser: pick a caller and a tool call, edit the policies, and see allow, deny or hold. Built on PingFederate-style token claims and Privilege's AI Policies vocabulary.",
-    meta: "runs in the browser · no tenant needed · read-only",
+      "How Privilege decides an AI agent's tool calls with Cedar policies inside the gateway: allowed, refused, or held for a human, next to the real policies that decide it. A walkthrough here; live runs are in the app.",
+    meta: "walkthrough · no sign-in needed · live runs need a Privilege sign-in",
   },
 ];
 
@@ -204,13 +203,14 @@ export function StandaloneRunnerShell() {
   );
 }
 
-// /standalone/cedar: the Cedar policy demo. Its own route, ahead of /standalone/:sampleId, which would otherwise
-// answer "Unknown sample". The same page is in the app shell at /privilege-cedar (side nav, Agent Privilege).
-export function StandaloneCedarShell() {
-  useStandaloneTitle("Cedar policy demo");
+// /standalone/ai-policies: the Privilege AI Policies demo as a walkthrough. Its own route, ahead of
+// /standalone/:sampleId, which would otherwise answer "Unknown sample". It makes no calls (a public page has no Privilege
+// session); the live version is in the app shell at /privilege-ai-policies (side nav, Agent Privilege).
+export function StandaloneAiPoliciesShell() {
+  useStandaloneTitle("Privilege AI Policies demo");
   return (
-    <StandaloneShell current="cedar">
-      <CedarDemoPage />
+    <StandaloneShell current="ai-policies">
+      <PrivilegeAiPoliciesDemoPage live={false} />
     </StandaloneShell>
   );
 }

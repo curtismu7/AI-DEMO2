@@ -1403,10 +1403,10 @@ export default function AdminSideNav({
       { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
       { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },
       {
-        label: "Cedar Policy Demo",
-        path: "/privilege-cedar",
+        label: "AI Policies Demo",
+        path: "/privilege-ai-policies",
         icon: "pol",
-        searchAlias: "cedar policy AI policies permit forbid hold allow deny PingFederate token claims scope group",
+        searchAlias: "cedar AI policies policy permit forbid hold allow deny human approval PingFederate token claims scope group",
       },
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),

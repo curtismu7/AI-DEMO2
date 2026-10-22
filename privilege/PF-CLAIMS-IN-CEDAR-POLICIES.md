@@ -174,9 +174,10 @@ under Access Request Approvals before the client retries. See `AGENT-APPROVALS-D
 
 ## Try it
 
-`/standalone/cedar` runs a real open-source Cedar engine in the browser with PingFederate-style claims and the vocabulary above
-(10 scenarios, editable policies, strict validation that rejects `context.claims`). It is a local engine, not Ping's gateway; the
-page marks the attributes the real console does not have.
+The **AI Policies demo** (`/privilege-ai-policies`, side nav: Agent Privilege > "AI Policies Demo") sends real tool calls through the
+`opensearch-hitl` door and shows what the gateway answers (a hold with its approval id, a hard deny, an allowed call) next to the real
+Active policy that decided it. Cedar runs inside Privilege; the page runs no engine and decides nothing. A walkthrough without live
+calls is at `/standalone/ai-policies`. The PingFederate-agent scenario is shown as not proven (see route C above).
 
 ## Side effect to know about
 
