@@ -4,8 +4,9 @@ import { PERSONAL_AGENT_SEQUENCE_PAYLOADS, PERSONAL_AGENT_SEQUENCE_SOURCE, perso
 
 describe('personal agent 12-step sequence', () => {
   const built = buildSequenceFlow(PERSONAL_AGENT_SEQUENCE_SOURCE, PERSONAL_AGENT_SEQUENCE_PAYLOADS);
-  it('has seven participants and one payload slot per message', () => {
-    expect(built.people.map((p) => p.id)).toEqual(['U', 'C', 'G', 'I', 'Z', 'B', 'O']);
+  it('opens with the catalog pattern, has eight participants and one payload slot per message', () => {
+    expect(built.people.map((p) => p.id)).toEqual(['U', 'K', 'C', 'G', 'I', 'Z', 'B', 'O']);
+    expect(built.messages.slice(0, 4).map((m) => `${m[0]}>${m[1]}`)).toEqual(['G>K', 'K>G', 'U>K', 'K>C']);
     expect(built.messages.length).toBe(PERSONAL_AGENT_SEQUENCE_PAYLOADS.length);
   });
   it('uses only .example hosts', () => {

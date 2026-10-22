@@ -201,7 +201,7 @@ export function buildSequenceFlow(source, payloads = []) {
       if (payload) {
         const plines = payload.split("\n");
         const allX = model.participants.map((p) => cx[p.id]);
-        const w = Math.min(560, Math.max(220, Math.ceil(Math.max(...plines.map((l) => l.length)) * PAYLOAD_CH) + 40));
+        const w = Math.min(780, Math.max(220, Math.ceil(Math.max(...plines.map((l) => l.length)) * PAYLOAD_CH) + 40));
         const left = Math.min(cx[it.from], cx[it.to]) - 12;
         const x = Math.max(Math.min(...allX) - 80, Math.min(left, Math.max(...allX) + 80 - w));
         const h = plines.length * PAYLOAD_LINE_H + 16;

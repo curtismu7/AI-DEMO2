@@ -12,7 +12,7 @@ export default function PersonalAgentFlowPage() {
       <PageHeader
         eyebrow="Diagrams"
         title="Personal Agent request flow"
-        summary="How one request from the Personal Agent Studio is governed: sign-in, token exchange, PingOne Authorize and the MCP tool, with the step-up and human-approval detour."
+        summary="The company lists its connector in the AI assistant's catalog once and members add it for free. Then one request from the Personal Agent Studio is governed: sign-in, token exchange, PingOne Authorize and the MCP tool, with the step-up and human-approval detour."
         back={{ to: '/diagrams', label: 'All diagrams' }}
       />
       <div data-testid="pa-flow-page-diagram">
