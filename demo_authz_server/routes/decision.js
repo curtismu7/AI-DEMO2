@@ -723,8 +723,12 @@ module.exports = async function decisionHandler(req, res) {
     // The deployed stack sets only the ACTOR name (the same client, read by
     // Rule 2 below); reading just the first name left this check skipped.
     const authorizedGeneralist = process.env.PINGONE_AI_AGENT_CLIENT_ID || process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID || '';
-    if (authorizedGeneralist && NestedActClientId !== authorizedGeneralist) {
-      warn(`[AuthzServer/decision] DENY — invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the registered AI Agent "${authorizedGeneralist}"`);
+    // A PF-issued token's generalist is PF's own actor client (the PF SP connections stamp it into act),
+    // not the PingOne AI Agent app — accepted only for tokens from the configured PF issuer.
+    const pfGeneralist = isPfIssuedToken ? String(process.env.PF_AI_AGENT_ACTOR_CLIENT_ID || '') : '';
+    const allowedGeneralists = [authorizedGeneralist, pfGeneralist].filter(Boolean);
+    if (allowedGeneralists.length && !allowedGeneralists.includes(NestedActClientId)) {
+      warn(`[AuthzServer/decision] DENY — invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the registered AI Agent "${allowedGeneralists.join(' | ')}"`);
       return deny(res, `invalid_a2a_generalist: nested act.sub "${NestedActClientId}" is not the authorized generalist`);
     }
     a2aDelegationVerified = true;
