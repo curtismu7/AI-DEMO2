@@ -89,6 +89,9 @@ beforeEach(() => {
   delete process.env.OAUTH_MCP_ISSUER_URI;
   delete process.env.PF_ISSUER_URI;
   delete process.env.PF_ISSUER;
+  delete process.env.PF_AI_AGENT_ACTOR_CLIENT_ID;
+  delete process.env.PINGONE_AI_AGENT_CLIENT_ID;
+  delete process.env.PINGONE_AI_AGENT_ACTOR_CLIENT_ID;
   try { fs.unlinkSync(OVERLAY); } catch (e) { /* ignore */ }
   fresh();
 });
@@ -213,4 +216,47 @@ test('Rule 0f: with PF_ISSUER_URI set, a different foreign issuer is still DENYe
   const result = await decide(readParams({ TokenIss: 'https://evil.example.test/as' }));
   assert.strictEqual(result.decision, 'DENY');
   assert.ok(String(result.reason || '').includes('invalid_iss'), 'got: ' + result.reason);
+});
+
+// A2A-delegated tool, depth 2: the nested generalist must be the registered AI Agent — or, for a PF-issued
+// token, PF's own actor client (PF SP connections stamp it into act).
+function a2aParams(extra) {
+  return readParams(Object.assign({
+    ToolName: 'sensitive_membership_details',
+    ActChainDepth: '2',
+    NestedActClientId: 'pf-generalist',
+    ActClientId: 'specialist-1',
+  }, extra || {}));
+}
+
+test('A2A: a PF-issued token whose nested generalist is the configured PF actor passes the generalist check', async () => {
+  process.env.PINGONE_ENVIRONMENT_ID = 'env-123';
+  process.env.PINGONE_AI_AGENT_CLIENT_ID = 'p1-generalist';
+  process.env.PF_AI_AGENT_ACTOR_CLIENT_ID = 'pf-generalist';
+  process.env.PF_ISSUER_URI = 'https://pf.example.test:9031';
+  fresh();
+  const result = await decide(a2aParams({ TokenIss: 'https://pf.example.test:9031' }));
+  assert.ok(!String(result.reason || '').includes('invalid_a2a_generalist'), 'got: ' + result.reason);
+});
+
+test('A2A: the PF generalist is NOT accepted on a PingOne-issued token', async () => {
+  process.env.PINGONE_ENVIRONMENT_ID = 'env-123';
+  process.env.PINGONE_AI_AGENT_CLIENT_ID = 'p1-generalist';
+  process.env.PF_AI_AGENT_ACTOR_CLIENT_ID = 'pf-generalist';
+  process.env.PF_ISSUER_URI = 'https://pf.example.test:9031';
+  fresh();
+  const result = await decide(a2aParams({ TokenIss: 'https://auth.pingone.com/env-123/as' }));
+  assert.strictEqual(result.decision, 'DENY');
+  assert.ok(String(result.reason || '').includes('invalid_a2a_generalist'), 'got: ' + result.reason);
+});
+
+test('A2A: a PF-issued token with some other nested generalist is still DENYed', async () => {
+  process.env.PINGONE_ENVIRONMENT_ID = 'env-123';
+  process.env.PINGONE_AI_AGENT_CLIENT_ID = 'p1-generalist';
+  process.env.PF_AI_AGENT_ACTOR_CLIENT_ID = 'pf-generalist';
+  process.env.PF_ISSUER_URI = 'https://pf.example.test:9031';
+  fresh();
+  const result = await decide(a2aParams({ TokenIss: 'https://pf.example.test:9031', NestedActClientId: 'rogue' }));
+  assert.strictEqual(result.decision, 'DENY');
+  assert.ok(String(result.reason || '').includes('invalid_a2a_generalist'), 'got: ' + result.reason);
 });
