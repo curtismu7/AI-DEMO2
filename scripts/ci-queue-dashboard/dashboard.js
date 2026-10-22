@@ -393,7 +393,9 @@ function renderHostLoad(host) {
   elements.hostLoad.hidden = !host;
   if (!host) return;
   const ratio = host.cores ? host.load1 / host.cores : 0;
-  elements.hostLoadFigure.textContent = `Load ${host.load1} on ${host.cores} cores`;
+  const mem = host.mem;
+  const memText = mem?.totalMb ? ` · Memory ${(mem.usedMb / 1024).toFixed(1)} of ${(mem.totalMb / 1024).toFixed(0)} GB used` : '';
+  elements.hostLoadFigure.textContent = `Load ${host.load1} on ${host.cores} cores${memText}`;
   elements.hostLoad.dataset.pressure = ratio >= 2 ? 'high' : ratio >= 1 ? 'raised' : 'normal';
   elements.hostLoadContent.replaceChildren();
   if (ratio >= 1) {
