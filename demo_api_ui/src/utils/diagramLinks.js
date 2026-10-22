@@ -9,6 +9,7 @@ const DIAGRAM_PATHS = [
   /^\/diagrams$/,
   /^\/sequence-diagram$/,
   /^\/digital-worker$/,
+  /^\/authorization-flow$/,
   /^\/demo-map$/,
   /^\/invest-dual-auth$/,
   /^\/gateway-enforcement-map$/,

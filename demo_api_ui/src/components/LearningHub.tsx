@@ -70,6 +70,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "Hosted Access Registration": { status: "LIVE" },
   "Step-up MFA": { status: "SIMULATED", keywords: ["strong authentication", "challenge", "sensitive action"], lab: "step-up" },
   "Digital Worker: live run": { status: "LIVE" },
+  "Authorization Flow: six moments": { status: "SIMULATED" },
 };
 
 const RECOMMENDED_PATH = [
@@ -419,6 +420,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         description: "Assistant vs worker on one page: a governed protected-action run plus an unattended arm-fire-approve cycle",
         icon: "",
       },
+      {
+        label: "Authorization Flow: six moments",
+        description: "A scripted walkthrough of an assistant acting without becoming the authority: tokens, requests, responses and refusals at every step, per vertical",
+        icon: "",
+      },
     ],
   },
   {
@@ -697,6 +703,7 @@ export default function LearningHub() {
       "Agent Kill Switch": () => openEdu(EDU.KILL_SWITCH, "what"),
       "Shadow AI Detector": () => navigate("/ai-gateway/shadow-ai-detector"),
       "Digital Worker: live run": () => navigate("/digital-worker"),
+      "Authorization Flow: six moments": () => navigate("/authorization-flow"),
     },
     "ping-ai-products": {
       "Agent IAM Core": () => navigate("/ai-products/core"),
