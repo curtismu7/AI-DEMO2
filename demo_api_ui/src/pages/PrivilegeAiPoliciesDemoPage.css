@@ -43,3 +43,19 @@
 .apd-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); margin: 10px 0; }
 .apd-table th, .apd-table td { text-align: left; padding: 7px 10px; border-bottom: 1px solid var(--th-border); vertical-align: top; }
 .apd-table th { color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
+
+.apd-changed { margin: 8px 0 0; padding: 8px 12px; border: 1px solid var(--th-status-info-border); background: var(--th-status-info-bg); color: var(--th-status-info-text); border-radius: var(--radius-sm); }
+.apd-lab { display: grid; grid-template-columns: minmax(260px, 1fr) minmax(300px, 1.3fr); gap: 18px; margin: 12px 0; }
+@media (max-width: 860px) { .apd-lab { grid-template-columns: 1fr; } }
+.apd-lab-form { display: flex; flex-direction: column; gap: 10px; }
+.apd-lab-form label { display: flex; flex-direction: column; gap: 4px; font-size: var(--font-size-xs); color: var(--th-text-muted); }
+.apd-lab-form select { padding: 7px 9px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-sm); background: var(--th-bg-page); color: var(--th-text); font: inherit; font-size: var(--font-size-sm); }
+.apd-check { flex-direction: row !important; align-items: center; gap: 8px !important; }
+.apd-lab-cedar pre { overflow: auto; max-height: 300px; padding: 10px; margin: 6px 0; background: var(--th-bg-inset); border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--font-size-xs); line-height: 1.5; }
+.apd-warn { padding: 8px 12px; border: 1px solid var(--th-status-warning-border); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); border-radius: var(--radius-sm); font-size: var(--font-size-sm); }
+.apd-row--changed td { background: var(--th-status-warning-bg); }
+.apd-steps { padding-left: 20px; color: var(--th-text-body); }
+.apd-steps li { margin-bottom: 6px; }
+.apd-tag--measured { border-color: var(--th-status-success-border); background: var(--th-status-success-bg); color: var(--th-status-success-text); }
+.apd-tag--console-text { border-color: var(--th-status-info-border); background: var(--th-status-info-bg); color: var(--th-status-info-text); }
+.apd-tag--inferred { border-color: var(--th-status-warning-border); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); }

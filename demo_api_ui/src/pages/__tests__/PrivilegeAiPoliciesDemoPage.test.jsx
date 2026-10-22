@@ -41,6 +41,19 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     fireEvent.click(within(scn).getByTestId('apd-retry'));
     await waitFor(() => expect(within(scn).getByTestId('apd-verdict')).toHaveAttribute('data-outcome', 'allow'));
     expect(runTool).toHaveBeenCalledTimes(2);
+    expect(within(scn).getByTestId('apd-changed')).toHaveTextContent(/HELD.*ALLOWED/);
+  });
+
+  it('shows no change note when the gateway answers the same as last time', async () => {
+    connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
+    runTool.mockResolvedValue(DENY);
+    page();
+    await waitFor(() => expect(screen.getByTestId('apd-run-deny')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('apd-run-deny'));
+    await waitFor(() => expect(within(screen.getByTestId('apd-scn-deny')).getByTestId('apd-verdict')).toBeInTheDocument());
+    fireEvent.click(screen.getByTestId('apd-run-deny'));
+    await waitFor(() => expect(runTool).toHaveBeenCalledTimes(2));
+    expect(within(screen.getByTestId('apd-scn-deny')).queryByTestId('apd-changed')).toBeNull();
   });
 
   it('hard deny: runs the unrestricted API tool and shows the gateway refusal with the real policy beside it', async () => {
@@ -88,6 +101,63 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     const pf = screen.getByTestId('apd-scn-pf-agent');
     expect(pf).toHaveTextContent('Not proven');
     expect(within(pf).queryByRole('button')).toBeNull();
+  });
+});
+
+describe('Options lab: change an option, see the Cedar and the impact', () => {
+  const lab = () => screen.getByTestId('apd-lab');
+  const row = (k) => within(lab()).getByTestId(`apd-impact-${k}`);
+
+  it('starts on the live hold rule: its Cedar is the live policy and nothing changes', () => {
+    page({ live: false });
+    expect(within(lab()).getByTestId('apd-lab-cedar')).toHaveTextContent('Action::"mcp:InvokeUnattended"');
+    expect(within(lab()).getByTestId('apd-lab-cedar')).toHaveTextContent('Tool::"SearchIndexTool"');
+    expect(['hold', 'deny', 'allow'].every((k) => row(k).getAttribute('data-changed') === 'no')).toBe(true);
+    expect(within(lab()).getByTestId('apd-lab-nochange')).toBeInTheDocument();
+    expect(within(lab()).getByTestId('apd-lab-honest')).toHaveTextContent(/prediction/);
+  });
+
+  it('switching the outcome to refuse rewrites the Cedar to mcp:Invoke and makes the search DENIED', () => {
+    page({ live: false });
+    fireEvent.change(within(lab()).getByTestId('apd-lab-outcome'), { target: { value: 'refuse' } });
+    expect(within(lab()).getByTestId('apd-lab-cedar')).toHaveTextContent('Action::"mcp:Invoke"');
+    expect(within(lab()).getByTestId('apd-lab-cedar')).not.toHaveTextContent('@approvers');
+    expect(row('hold')).toHaveAttribute('data-changed', 'yes');
+    expect(row('hold')).toHaveTextContent(/DENIED.*changed/);
+    expect(row('deny')).toHaveAttribute('data-changed', 'no');
+  });
+
+  it('saving as a Candidate says it is never enforced and the search falls back to ALLOWED', () => {
+    page({ live: false });
+    fireEvent.change(within(lab()).getByTestId('apd-lab-state'), { target: { value: 'Candidate' } });
+    expect(within(lab()).getByTestId('apd-lab-candidate')).toHaveTextContent(/never enforced/);
+    expect(row('hold')).toHaveTextContent(/ALLOWED.*changed/);
+  });
+
+  it('dropping the unless condition warns that approval never lifts the hold, and the after-approval column stays HELD', () => {
+    page({ live: false });
+    fireEvent.click(within(lab()).getByTestId('apd-lab-lifts'));
+    expect(within(lab()).getByTestId('apd-lab-nolift')).toHaveTextContent(/refuses the approval it asked for/);
+    expect(within(lab()).getByTestId('apd-lab-cedar')).not.toHaveTextContent('unless');
+    expect(row('hold')).toHaveAttribute('data-changed', 'yes');
+    expect(row('hold').querySelectorAll('td')[3]).toHaveTextContent('HELD');
+    expect(row('hold')).toHaveTextContent(/same, but approval no longer lifts it/);
+    expect(row('hold')).not.toHaveTextContent(/HELD \(changed\)/);
+  });
+
+  it('a new rule on ListIndexTool changes the allowed scenario, and the make-it-real steps name the console path', () => {
+    page({ live: false });
+    fireEvent.change(within(lab()).getByTestId('apd-lab-rule'), { target: { value: 'new' } });
+    fireEvent.change(within(lab()).getByTestId('apd-lab-tool'), { target: { value: 'ListIndexTool' } });
+    expect(row('allow')).toHaveAttribute('data-changed', 'yes');
+    expect(row('allow')).toHaveTextContent(/DENIED.*changed/);
+    expect(lab()).toHaveTextContent(/Access Management → AI Policies/);
+    expect(lab()).toHaveTextContent(/Save as Candidate|Candidate first/);
+  });
+
+  it('every option note says how we know it', () => {
+    page({ live: false });
+    for (const tag of ['measured', 'console-text', 'inferred']) expect(within(lab()).getAllByText(tag).length).toBeGreaterThan(0);
   });
 });
 

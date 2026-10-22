@@ -13,7 +13,7 @@ import DiagramExportBar from "./DiagramExportBar";
 import EmbeddedFlowDiagram from "./EmbeddedFlowDiagram";
 import SequenceFlowDiagram from "./SequenceFlowDiagram";
 import { PMD_ARCH_DIAGRAM, PMD_SEQ_DIAGRAM, PMD_FLOW_DIAGRAM } from "../config/privilegeMcpDiagrams";
-import { PF_CEDAR_DIAGRAM } from "../config/privilegePfCedarDiagram";
+import { AI_POLICIES_DIAGRAM } from "../config/privilegeAiPoliciesDiagram";
 import "./PrivilegeMcpDiagramPage.css";
 import PageHeader from './common/PageHeader';
 
@@ -148,10 +148,10 @@ const TABS = [
     ariaLabel: "Privilege MCP auth flow", diagramLabel: "Privilege MCP auth flow diagram",
   },
   {
-    id: "pfcedar", label: "PF to Cedar", config: PF_CEDAR_DIAGRAM,
-    title: "PingFederate identity to a Cedar policy decision",
-    lede: "Solid arrows were observed on the SE gateway; dashed arrows are designs not set up yet. For people, a PF token never reaches the door: PF would sit behind PingOne. For agents, a PF-issued JWT can be trusted natively by a Non-Human Identity, and the access policy can require claim values on it; Cedar then decides per tool and cannot read raw PF claims.",
-    ariaLabel: "PingFederate identity to Cedar policy", diagramLabel: "PingFederate to Cedar policy diagram",
+    id: "aipolicies", label: "AI Policies", config: AI_POLICIES_DIAGRAM,
+    title: "How Privilege decides a tool call: Cedar runs inside the gateway",
+    lede: "Our demo page is only a client: it sends a real call through a real door and shows the real verdict. Privilege authenticates, resolves who is calling, applies the grant, and Cedar decides: allow, refuse, or hold for a human. Solid arrows were observed on the SE gateway; dashed arrows are inferred or not proven, including an agent with a PingFederate token. Click a card for the step.",
+    ariaLabel: "How Privilege decides a tool call with Cedar", diagramLabel: "Privilege AI Policies diagram",
   },
 ];
 

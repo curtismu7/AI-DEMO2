@@ -101,3 +101,89 @@ export const OUTCOMES = {
   'tool-error': { label: 'UNCLEAR', note: 'The gateway returned an error result. It may be a policy refusal or a tool error; read the raw response below.' },
   error: { label: 'ERROR', note: 'The request did not complete.' },
 };
+
+// ---------------------------------------------------------------------------------------------------------------------
+// Options lab: mirrors the Privilege console's AI Policies "Build a rule" form (From a template | Build a rule | Write Cedar):
+// When it runs, Outcome, MCP server, Caller, Target, Conditions, Reason, and "Save as Candidate to validate a change without
+// enforcing it". The Cedar text is generated the way the console's builder generates it (shapes copied from the two live
+// policies above). The impact is a PREDICTION from documented behaviour for these three tools only: the gateway decides for
+// real when the change is saved in the console and the scenario is run again.
+// ---------------------------------------------------------------------------------------------------------------------
+
+export const LAB_TOOLS = ['SearchIndexTool', 'GenericOpenSearchApiTool', 'ListIndexTool'];
+
+// The two live rules, in the builder's own terms. outcome: 'hold' (ask a human on the unattended action) | 'refuse'.
+export const BASELINE_RULES = [
+  { id: 'hitl-opensearch', outcome: 'hold', tool: 'SearchIndexTool', state: 'Active', liftsOnApproval: true },
+  { id: 'hitl-block-generic-api', outcome: 'refuse', tool: 'GenericOpenSearchApiTool', state: 'Active', liftsOnApproval: false },
+];
+
+export const OUTCOME_CHOICES = [
+  { value: 'refuse', label: 'Refuse the request', note: 'The request is refused. No approval can lift it. (Action mcp:Invoke.)' },
+  { value: 'hold', label: 'Hold for a human', note: 'The call is held and an approval is opened. (Action mcp:InvokeUnattended; only the "On the request" stage can ask a human.)' },
+];
+
+// The Cedar the builder saves. Refuse = forbid on mcp:Invoke; hold = forbid on mcp:InvokeUnattended with the approval
+// annotations and an `unless` that lifts the hold once an approval is on record. The approver id is elided on purpose.
+export function buildCedar({ outcome, tool, liftsOnApproval = true, app = DOOR_NAME, reason }) {
+  if (outcome === 'refuse') {
+    return `@reason("${reason || `${tool} is refused`}")
+forbid (
+  principal,
+  action == Action::"mcp:Invoke",
+  resource == Tool::"${tool}"
+)
+when   { context.app == "${app}" };`;
+  }
+  return `@grant("capability")
+@ttl("900")
+@request_ttl("3600")
+@approvers("<approver id elided>")
+@reason("${reason || `${tool} needs a human`}")
+forbid (
+  principal,
+  action == Action::"mcp:InvokeUnattended",
+  resource == Tool::"${tool}"
+)
+when   { context.app == "${app}" }${liftsOnApproval ? '\nunless { context has approval_count && context.approval_count >= 1 };' : ';'}`;
+}
+
+// What each tool's call does for a set of rules. Only Active rules are enforced (Candidates are stored, never enforced), a refuse
+// beats a hold, and a hold lifts after approval only when the rule has the `unless approval_count` clause. A tool no rule names
+// is decided by the access grant alone (allowed here, if the grant covers it).
+export function predictImpact(rules) {
+  const out = {};
+  for (const tool of LAB_TOOLS) {
+    const active = rules.filter((r) => r.tool === tool && r.state === 'Active');
+    const refuse = active.find((r) => r.outcome === 'refuse');
+    const hold = active.find((r) => r.outcome === 'hold');
+    if (refuse) out[tool] = { outcome: 'deny', afterApproval: null, by: refuse.id };
+    else if (hold) out[tool] = { outcome: 'hold', afterApproval: hold.liftsOnApproval ? 'allow' : 'hold', by: hold.id };
+    else out[tool] = { outcome: 'allow', afterApproval: null, by: null };
+  }
+  return out;
+}
+
+// Replace the rule being edited (or add a new one) and predict again. editing: a baseline id, or 'new'.
+export function applyEdit(editing, edit) {
+  const rule = { id: editing === 'new' ? 'your-new-rule' : editing, ...edit };
+  const rules = editing === 'new' ? [...BASELINE_RULES, rule] : BASELINE_RULES.map((r) => (r.id === editing ? rule : r));
+  return { rules, impact: predictImpact(rules) };
+}
+
+// One note per option, with how we know. evidence: measured (seen on this tenant or in the console text), console-text
+// (stated by the console UI or its warnings, behaviour not re-run), inferred (follows from the above, not run).
+export const OPTION_NOTES = [
+  { option: 'When it runs', where: 'On the request / on the response', effect: 'On the request runs before content inspection and is the only stage that can ask a human. A response-side rule can withhold a completion but cannot hold the call.', evidence: 'console-text' },
+  { option: 'Outcome', where: 'Refuse the request / hold', effect: 'Refuse is a forbid on mcp:Invoke and no approval lifts it. Hold is a forbid on mcp:InvokeUnattended: the call is held, an approval is opened, and the client retries once it is approved. Our two live policies are exactly these two shapes.', evidence: 'measured' },
+  { option: 'MCP server and Target', where: 'opensearch-hitl · one named tool', effect: 'The rule only applies to that server and tool. Name a different tool and the original tool stops being covered by it; a typo means the rule never matches anything.', evidence: 'inferred' },
+  { option: 'Caller', where: 'Any caller / a group / a named agent', effect: 'Narrows who the rule applies to. Groups must exist in the Privilege directory: the console reports a group it cannot find as an unresolved entity.', evidence: 'measured' },
+  { option: 'Conditions', where: 'Add a condition', effect: 'Adds `when` / `unless` clauses. For a hold, leaving out `unless approval_count >= 1` makes the console warn that it "asks for a human and then refuses the approval it asked for": approving never lets the call through.', evidence: 'console-text' },
+  { option: 'Save as', where: 'Save changes / Save as Candidate', effect: 'Candidate validates and stores the rule without enforcing it, so it changes nothing about any call. The console also refuses a save that does not compile and stores nothing.', evidence: 'measured' },
+];
+
+export const EVIDENCE = {
+  measured: 'measured on this tenant or in the console',
+  'console-text': 'stated by the console, behaviour not re-run',
+  inferred: 'inferred, not run',
+};
