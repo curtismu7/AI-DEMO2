@@ -3,8 +3,8 @@
 // so the two stay one diagram.
 import React from 'react';
 import PageHeader from '../components/common/PageHeader';
-import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
-import { PERSONAL_AGENT_DIAGRAM_PROPS, PERSONAL_AGENT_EDGES, PERSONAL_AGENT_GROUPS, PERSONAL_AGENT_NODES, PERSONAL_AGENT_STEPS } from '../config/personalAgentStudioDiagram';
+import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
+import { PERSONAL_AGENT_SEQUENCE_DETAILS, PERSONAL_AGENT_SEQUENCE_PAYLOADS, PERSONAL_AGENT_SEQUENCE_SOURCE } from '../config/personalAgentSequenceFlow';
 
 export default function PersonalAgentFlowPage() {
   return (
@@ -15,11 +15,14 @@ export default function PersonalAgentFlowPage() {
         summary="How one request from the Personal Agent Studio is governed: sign-in, token exchange, PingOne Authorize and the MCP tool, with the step-up and human-approval detour."
         back={{ to: '/diagrams', label: 'All diagrams' }}
       />
-      <EmbeddedFlowDiagram
-        {...PERSONAL_AGENT_DIAGRAM_PROPS}
-        testId="pa-flow-page-diagram"
-        config={{ GROUPS: PERSONAL_AGENT_GROUPS, NODES: PERSONAL_AGENT_NODES, EDGES: PERSONAL_AGENT_EDGES, STEPS: PERSONAL_AGENT_STEPS }}
-      />
+      <div data-testid="pa-flow-page-diagram">
+        <SequenceFlowDiagram
+          source={PERSONAL_AGENT_SEQUENCE_SOURCE}
+          details={PERSONAL_AGENT_SEQUENCE_DETAILS}
+          payloads={PERSONAL_AGENT_SEQUENCE_PAYLOADS}
+          label="How ChatGPT accesses member benefits: CIMD discovery, IdP consent, P1AZ authorization and permitted MCP access"
+        />
+      </div>
     </main>
   );
 }
