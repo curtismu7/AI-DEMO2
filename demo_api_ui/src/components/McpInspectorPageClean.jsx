@@ -14,7 +14,8 @@ import { mcpCallFromStore, apiCallFromTracker } from './inspector/mcpCalls';
 import { useInspectorVertical } from './inspector/useInspectorVertical';
 import { navigateToCustomerOAuthLogin } from '../utils/authUi';
 import { argsFor, belongsElsewhere } from '../config/inspectorVerticals';
-import { defaultParamsFor, pickDefaultTool } from '../config/inspectorDefaults';
+import { defaultParamsFor, pickDefaultTool, choiceGroupFor, inferOption, applyOption } from '../config/inspectorDefaults';
+import ParamChoice from './inspector/ParamChoice';
 
 const NEW_PROFILE_DEFAULTS = {
   label: '',
@@ -225,6 +226,10 @@ function McpInspectorPageClean() {
   // null = follow the newest call; set when the user picks a row.
   const [pickedId, setPickedId] = useState(null);
 
+  // Which alternative the user picked for a choice group (e.g. Location by City / Coordinates); reset per tool.
+  const [chosenOption, setChosenOption] = useState(null);
+  useEffect(() => { setChosenOption(null); }, [source.selectedTool]);
+
   // Pre-select a safe default tool once per source/profile, so a bare Send works. Never fights the user:
   // it runs only while nothing is selected, and only once for each source and profile.
   const autoPicked = useRef('');
@@ -344,6 +349,38 @@ function McpInspectorPageClean() {
   const matches = tool ? getMatchingFields(Object.keys(source.schemaProps)) : {};
   const scopes = tool?.requiredScopes || [];
 
+  const renderField = (key) => {
+    const schema = source.schemaProps[key];
+    return (
+      <label key={key} className="insp-field">
+        <span>{key}{source.requiredParams.has(key) ? ' *' : ''}</span>
+        <input
+          type="text"
+          placeholder={schema?.description || schema?.type || 'value'}
+          value={source.paramValues[key] || ''}
+          onChange={(e) => source.setParamValues((prev) => ({ ...prev, [key]: e.target.value }))}
+        />
+        {matches[key] != null && source.paramValues[key] === String(matches[key]) && (
+          <small>Filled from an earlier result</small>
+        )}
+      </label>
+    );
+  };
+
+  // Alternative parameters (the weather tool's city / coordinates / saved location) become one choice,
+  // showing only the chosen alternative's fields; the rest of the optional settings fold under "More options".
+  const group = tool ? choiceGroupFor(source.schemaProps) : null;
+  const activeId = group ? (chosenOption ?? inferOption(group, source.paramValues)) : null;
+  const choice = group && activeId ? (() => {
+    const inGroup = new Set(group.options.flatMap((o) => o.fields));
+    const shown = group.options.find((o) => o.id === activeId).fields;
+    return { group, active: activeId, shown, more: Object.keys(source.schemaProps).filter((k) => !inGroup.has(k)) };
+  })() : null;
+  const pickOption = (id) => {
+    setChosenOption(id);
+    source.setParamValues(applyOption(group, id, source.paramValues));
+  };
+
   const sendCard = isCalls ? null : (
     <div className="insp-send-body" ref={sendRef}>
       {source.banner && (
@@ -410,23 +447,22 @@ function McpInspectorPageClean() {
             {scopes.map((s) => <Chip key={s} chip={idle('needs ' + s)} />)}
           </p>
           <div className="insp-send-row">
-        {tool && Object.entries(source.schemaProps).map(([key, schema]) => (
-          <label key={key} className="insp-field">
-            <span>{key}{source.requiredParams.has(key) ? ' *' : ''}</span>
-            <input
-              type="text"
-              placeholder={schema?.description || schema?.type || 'value'}
-              value={source.paramValues[key] || ''}
-              onChange={(e) => source.setParamValues((prev) => ({ ...prev, [key]: e.target.value }))}
-            />
-            {matches[key] != null && source.paramValues[key] === String(matches[key]) && (
-              <small>Filled from an earlier result</small>
-            )}
-          </label>
-        ))}
+        {tool && !choice && Object.keys(source.schemaProps).map(renderField)}
+        {tool && choice && (
+          <>
+            <ParamChoice group={choice.group} active={choice.active} onChange={pickOption} />
+            {choice.shown.map(renderField)}
+          </>
+        )}
         <button type="button" className="insp-btn" onClick={send} disabled={source.busy || !tool}>
           {source.busy ? 'Sending…' : 'Send'}
         </button>
+        {tool && choice && choice.more.length > 0 && (
+          <details className="insp-more">
+            <summary>{`More options (${choice.more.length})`}</summary>
+            <div className="insp-send-row">{choice.more.map(renderField)}</div>
+          </details>
+        )}
           </div>
           {(tool.inputSchema || tool.schema) && (
             <details>

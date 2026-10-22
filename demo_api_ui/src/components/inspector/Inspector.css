@@ -206,3 +206,17 @@
 .insp-list li:last-child { border-bottom: 0; padding-bottom: 0; }
 .insp-list-sub { font-size: var(--font-size-2xs); color: var(--th-text-muted); }
 .insp-list-desc { font-size: var(--font-size-sm); color: var(--th-text); }
+
+/* Alternative parameters as one choice (e.g. Location by City / Coordinates / Saved location). */
+.insp .insp-choice { flex: 1 1 100%; border: 0; margin: 0; padding: 0; display: grid; gap: .35rem; min-width: 0; }
+.insp .insp-choice legend { padding: 0; margin-bottom: .25rem; font-size: var(--font-size-2xs); font-weight: 600; color: var(--th-text-muted); }
+.insp .insp-choice-opts { display: inline-flex; width: fit-content; max-width: 100%; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); overflow: hidden; }
+.insp .insp-choice-opt { position: relative; display: block; }
+.insp .insp-choice-opt + .insp-choice-opt { border-left: 1px solid var(--th-border-strong); }
+.insp .insp-choice-opt input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.insp .insp-choice-opt span { display: block; padding: .4rem .9rem; font-size: var(--font-size-sm); font-weight: 600; background: var(--th-bg-card); color: var(--th-text); white-space: nowrap; }
+.insp .insp-choice-opt input:checked + span { background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); }
+.insp .insp-choice-opt input:focus-visible + span { outline: 2px solid var(--th-bg-emphasis); outline-offset: 2px; }
+.insp .insp-more { flex: 1 1 100%; }
+.insp .insp-more .insp-send-row { margin-top: .6rem; }
+
