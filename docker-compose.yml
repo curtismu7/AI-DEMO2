@@ -1653,7 +1653,7 @@ services:
       # a cached grant — the token keeps aud https://api.ping.demo:3036/mcp.
       # Accepting it here keeps UC2 working under PF (the P1AZ decision at the
       # gateway is the real gate).
-      MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,https://mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo,https://api.ping.demo:3036/mcp"
+      MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,https://mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,priv-nhi-fa3gvmpkubxvuipp3gyuaolsltbulhkc"
       # Secondary issuer (PingFederate, 2026-09-22 A2A-under-PF): tokens issued
       # by PF (the gateway's Exchange #3 under PF mode) verify against the PF
       # JWKS. Unset/empty = PingOne-only.
