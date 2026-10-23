@@ -64,7 +64,7 @@
     "HEALTH_HTTP_PORT": "port:langchain-agent.health",
     "AGUI_HTTP_HOST": "literal:0.0.0.0",
     "MCP_SERVER_RESOURCE_URI": "literal:mcpserver.ping.demo,mcpgateway.ping.demo",
-    "MCP_RESOURCE_SERVER_RESOURCE_URI": "literal:mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo",
+    "MCP_RESOURCE_SERVER_RESOURCE_URI": "literal:mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo,priv-nhi-fa3gvmpkubxvuipp3gyuaolsltbulhkc",
     "MCP_RESOURCE_URI": "literal:mcpserver.ping.demo,mcpgateway.ping.demo",
     "MCP_GW_RESOURCE_URI": "literal:mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo",
     "PINGONE_RESOURCE_MCP_GATEWAY_URI": "aud:mcpGateway",

@@ -897,7 +897,7 @@ export default function PiFlowSignInModal() {
                 onPick={pickDevice}
               />
             ) : (
-              <form id="pi-flow-device-form" onSubmit={submitPasswordless}>
+              <form id="pi-flow-device-form" className="pi-flow-signin__form" onSubmit={submitPasswordless}>
                 <label className="pi-flow-signin__label" htmlFor="pi-flow-device-username">
                   Username
                 </label>
