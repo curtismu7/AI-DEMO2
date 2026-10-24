@@ -54,7 +54,7 @@ function DiagramGlyph() {
   );
 }
 
-const DEMO_STEPS_DRAWER_OPEN_KEY = 'demo_steps_drawer_open_v1';
+const DEMO_STEPS_DRAWER_OPEN_KEY = 'demo_steps_drawer_open_v2';
 const DEMO_STEPS_FLOATING_BUTTON_POS_KEY = 'demo_steps_floating_button_pos_v1';
 const DEMO_STEPS_FLOATING_BUTTON_SIZE = 48;
 const AGENT_TYPE_GROUP_ID = 'agent-types';
@@ -63,9 +63,9 @@ const PRIVILEGE_GROUP_ID = 'privilege';
 export function readStoredDemoStepsOpen() {
   try {
     const value = window.localStorage.getItem(DEMO_STEPS_DRAWER_OPEN_KEY);
-    return value === null ? true : value === 'true';
+    return value === null ? false : value === 'true';
   } catch {
-    return true;
+    return false;
   }
 }
 
