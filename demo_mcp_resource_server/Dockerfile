@@ -5,6 +5,9 @@ WORKDIR /app
 COPY package*.json tsconfig.json ./
 # Lockfiles are gitignored repo-wide, so install (not `npm ci`) to build
 # reliably from a fresh checkout.
+# Retry stalled registry fetches instead of hanging the install (CI builds on the
+# self-hosted Macs died with "npm error Exit handler never called").
+ENV npm_config_fetch_retries=5 npm_config_fetch_retry_mintimeout=20000 npm_config_fetch_retry_maxtimeout=120000 npm_config_fetch_timeout=300000
 RUN npm install --legacy-peer-deps --no-audit --no-fund
 
 COPY src/ ./src/
@@ -30,6 +33,9 @@ WORKDIR /app
 COPY package*.json ./
 # Lockfiles are gitignored repo-wide, so install (not `npm ci`) to build
 # reliably from a fresh checkout.
+# Retry stalled registry fetches instead of hanging the install (CI builds on the
+# self-hosted Macs died with "npm error Exit handler never called").
+ENV npm_config_fetch_retries=5 npm_config_fetch_retry_mintimeout=20000 npm_config_fetch_retry_maxtimeout=120000 npm_config_fetch_timeout=300000
 RUN npm install --legacy-peer-deps --omit=dev --no-audit --no-fund
 
 COPY --from=builder /app/dist ./dist

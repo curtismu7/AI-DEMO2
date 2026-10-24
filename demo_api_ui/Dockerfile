@@ -22,6 +22,10 @@ WORKDIR /app
 # Copy package files
 COPY demo_api_ui/package*.json ./
 
+# Retry stalled registry fetches instead of hanging the install (CI builds on the
+# self-hosted Macs died with "npm error Exit handler never called").
+ENV npm_config_fetch_retries=5 npm_config_fetch_retry_mintimeout=20000 npm_config_fetch_retry_maxtimeout=120000 npm_config_fetch_timeout=300000
+
 # --legacy-peer-deps required: react-table@7 doesn't declare React 19 support
 RUN npm install --legacy-peer-deps
 
