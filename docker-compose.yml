@@ -494,7 +494,11 @@ services:
       # lists must move together; docker-compose.enterpriseIdJagAllowlist.test.js
       # fails if they drift apart again.
       ENTERPRISE_MCP_RESOURCE_URIS: "${ENTERPRISE_MCP_RESOURCE_URIS:-mcpserver.ping.demo,mcpgateway.ping.demo,http://localhost:8080/mcp,https://api.ping.demo:3036/mcp}"
-      NODE_OPTIONS: "-r /otel/otel-instrument.js"
+      # The OrbStack network has no IPv6 route. Node's default happy-eyeballs
+      # connect stalls on the AAAA addresses of auth.pingone.com, so the code
+      # exchange times out, the callback fails and the person is sent back to
+      # sign in on every attempt. Prefer IPv4 and skip family autoselection.
+      NODE_OPTIONS: "-r /otel/otel-instrument.js --dns-result-order=ipv4first --no-network-family-autoselection"
       JAEGER_QUERY_URL: "http://jaeger:16686"
       # Where the BROWSER opens traces. Without this the BFF derives
       # "<public_app_url>/grafana", which is right in k8s (nginx proxies
