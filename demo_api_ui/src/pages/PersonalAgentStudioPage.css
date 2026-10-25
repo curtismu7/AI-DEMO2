@@ -151,7 +151,8 @@
 .pas-shell--stacked > .pas-c-flow { padding: 0 28px 0 var(--pas-gutter); min-height: 36px; }
 .pas-shell--stacked .tcfs-chain { padding-left: var(--pas-gutter); }
 .pas-shell--stacked .tcfs-spotlight-empty { padding: 14px 28px 14px var(--pas-gutter); }
-.pas-c-cards { padding-left: var(--pas-gutter); padding-right: 28px; margin-top: 12px; }
+/* A visible rule between 4 (Tokens) and 5 (Clients), so the two sections do not run together. */
+.pas-c-cards { padding-left: var(--pas-gutter); padding-right: 28px; margin-top: 12px; border-top: 2px solid var(--th-border); }
 
 .pas-shell--stacked .agent-client-skin { border-radius: var(--radius-xl); }
 

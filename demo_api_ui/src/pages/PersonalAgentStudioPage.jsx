@@ -17,6 +17,7 @@ import { useTokenChainOptional } from '../context/TokenChainContext';
 import { tokenChainTraceStore } from '../services/tokenChainTrace/tokenChainTraceStore';
 import InlineSpinner from '../components/shared/InlineSpinner';
 import OboDemoPage from './OboDemoPage';
+import ConnectorFlow from '../components/ConnectorFlow';
 import SignInPrompt from '../components/SignInPrompt';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import { PERSONAL_AGENT_SEQUENCE_DETAILS, PERSONAL_AGENT_SEQUENCE_PAYLOADS, PERSONAL_AGENT_SEQUENCE_SOURCE, personalAgentMessageForReelStep } from '../config/personalAgentSequenceFlow';
@@ -118,7 +119,8 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
     return SKINS.includes(skin) ? skin : 'privilege';
   });
   // 'obo' swaps the chat for the RFC 8693 delegation inspector (deep link: ?tab=obo).
-  const [view, setView] = useState(query.get('tab') === 'obo' ? 'obo' : 'agent');
+  // 'connector' = the 12-step "add this MCP server to ChatGPT/Claude" flow (deep link: ?tab=connector).
+  const [view, setView] = useState(['obo', 'connector'].includes(query.get('tab')) ? query.get('tab') : 'agent');
   const [agentMode, setAgentMode] = usePageAgentMode('personal-agent', 'heuristics');
   // 'stacked' (chat, then the reel and Token Chain under it) or 'cockpit' (chat left; gates, flow, reel and
   // Token Chain right; client dock along the bottom). Deep link ?layout=cockpit; the choice is remembered per browser.
@@ -458,7 +460,7 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
 
         {/* View tabs */}
         <div role="tablist" style={{ display: 'flex', gap: 4 }}>
-          {[['agent', 'Agent'], ['obo', 'Delegation proof (OBO)']].map(([id, label]) => (
+          {[['agent', 'Agent'], ['connector', 'Add to ChatGPT / Claude'], ['obo', 'Delegation proof (OBO)']].map(([id, label]) => (
             <button
               key={id}
               type="button"
@@ -519,7 +521,11 @@ export default function PersonalAgentStudioPage({ scenario, vertical: selectedVe
         </div>}
       </div>
 
-      {view === 'obo' ? (
+      {view === 'connector' ? (
+        <div style={{ flex: 1, overflow: 'auto' }}>
+          {user ? <ConnectorFlow /> : <SignInPrompt message="The connector flow runs on your signed-in session." />}
+        </div>
+      ) : view === 'obo' ? (
         <div style={{ flex: 1, overflow: 'auto' }}>
           {user ? <OboDemoPage /> : <SignInPrompt message="The delegation proof runs on your signed-in session." />}
         </div>
