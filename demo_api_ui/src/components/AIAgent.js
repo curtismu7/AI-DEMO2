@@ -86,7 +86,7 @@ import JsonField from "./shared/JsonField";
 import AgentGreetingHero from "./AgentGreetingHero";
 import AgentConsentModal from "./AgentConsentModal";
 import AgentDemoGuide from "./AgentDemoGuide";
-import DemoStepsDropdown, { DemoStepsTrigger, readStoredDemoStepsOpen } from "./DemoStepsDropdown";
+import DemoStepsDropdown, { DemoStepsTrigger } from "./DemoStepsDropdown";
 import AgentRunIndicator, { AgentWorkingMark, HideWhileGlobalSpinner } from "./AgentRunIndicator";
 import { runFailureMessage } from "../utils/a2aRunFailureMessage";
 import { PRIVILEGE_A2A_CHAIN_USE_CASE_ID } from "../utils/privilegeA2aChainRun";
@@ -674,9 +674,7 @@ export default function BankingAgent({
   /** Discovery popout — "All actions" overlay. */
   const [showDiscovery, setShowDiscovery] = useState(false);
   /** Demo steps popout — same list as /use-cases Demo section. */
-  const [showDemoSteps, setShowDemoSteps] = useState(() =>
-    splitChrome ? false : readStoredDemoStepsOpen(),
-  );
+  const [showDemoSteps, setShowDemoSteps] = useState(false);
   const [floatingDemoStepsOpen, setFloatingDemoStepsOpen] = useState(false);
   // Demo Steps was opened from inside the popped-out agent, so it opens in that
   // window: the main window may sit behind it and script cannot raise it.
