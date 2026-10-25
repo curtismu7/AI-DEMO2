@@ -88,6 +88,8 @@ export const PERSONAL_AGENT_SEQUENCE_DETAILS = {
 
 // Wire forms shown under each message and in the reel's details row (index = message order, 0-29). Hosts end in
 // .example; every token value is a teaching placeholder, not a real credential. Messages 0-3 are the catalog pattern.
+// Token and decision payloads are full JSON, decoded, with placeholders. Every value is a teaching placeholder.
+const json = (title, obj) => `${title} (MOCK: teaching values, not a credential)\n${JSON.stringify(obj, null, 2)}`;
 export const PERSONAL_AGENT_SEQUENCE_PAYLOADS = [
   'Connector listing (illustrative)\nname: Optum benefits\nmcp_url: https://mcp.optum.example/mcp\nauth: OAuth, found through the 401 and\n  the protected-resource metadata\nscopes asked: benefits:read\nbranding + privacy policy URL',
   'status: listed\nvisible to: members of the assistant\nprice to the member: free',
@@ -105,19 +107,19 @@ export const PERSONAL_AGENT_SEQUENCE_PAYLOADS = [
   'GET https://chatgpt.example/oauth/client.json\nPing validates the callback and the client acceptance policy',
   'client_id: https://chatgpt.example/oauth/client.json\nredirect_uris: [https://chatgpt.example/connector_platform_oauth_redirect]\ntoken_endpoint_auth_method: private_key_jwt\njwks_uri: https://chatgpt.example/oauth/jwks.json',
   'PING IDP CONSENT SCREEN (example)\nClient: ChatGPT | Member: signed-in Optum user\nAllow: /members/{me}/benefits (read)\nDownstream: Optum Benefits API | Purpose: current coverage\n[ Deny ]  [ Allow benefits:read ]  (consent id + version persisted)',
-  'Approve: consent record stored (id, version, member, client, scope, resource)\nDeny: no authorization code is issued',
+  json('Consent record (stored on approve)', { consent_id: '<CONSENT_ID>', version: 1, member: '<member id>', client: 'https://chatgpt.example/oauth/client.json', scope: 'benefits:read', resource: 'https://mcp.optum.example/mcp' }),
   'HTTP/1.1 302 Found\nLocation: https://chatgpt.example/\n  connector_platform_oauth_redirect\n  ?code=<AUTHORIZATION_CODE>&state=<RANDOM_STATE>',
   'GET /connector_platform_oauth_redirect?code=<AUTHORIZATION_CODE>&state=<RANDOM_STATE>',
-  'grant_type: authorization_code\ncode: <AUTHORIZATION_CODE>\nclient_id: https://chatgpt.example/oauth/client.json\nredirect_uri: https://chatgpt.example/connector_platform_oauth_redirect\nresource: https://mcp.optum.example/mcp\ncode_verifier: <ORIGINAL_PKCE_VERIFIER>\nclient_assertion_type: ...:jwt-bearer\nclient_assertion: <JWT_SIGNED_BY_CHATGPT>',
+  `grant_type: authorization_code\ncode: <AUTHORIZATION_CODE>\nredirect_uri: https://chatgpt.example/connector_platform_oauth_redirect\nresource: https://mcp.optum.example/mcp\ncode_verifier: <ORIGINAL_PKCE_VERIFIER>\n` + json('client_assertion, decoded (signed by ChatGPT)', { header: { alg: 'RS256', kid: '<KEY_ID>', typ: 'JWT' }, payload: { iss: 'https://chatgpt.example/oauth/client.json', sub: 'https://chatgpt.example/oauth/client.json', aud: 'https://login.optum.example/oauth/token', iat: '<now>', exp: '<now + 5 min>', jti: '<unique id>' }, signature: '<RS256 signature>' }),
   'GET https://chatgpt.example/oauth/jwks.json',
   'keys: [{ kty: RSA, kid: <KEY_ID>,\n  use: sig, n: <PUBLIC_MODULUS>, e: AQAB }]',
-  'HTTP/1.1 200 OK\n{ "access_token": "<audience-bound JWT, MOCK>",\n  "token_type": "Bearer", "scope": "benefits:read" }\nVerified: assertion signature, code, PKCE, redirect_uri',
-  'POST https://mcp.optum.example/mcp\nAuthorization: Bearer <access_token>\ntool: get_my_benefits | scope: benefits:read\nValidate token, audience, expiration, member and consent; deny if validation fails',
-  'P1AZ input: member, client=ChatGPT, tool, action=benefits.read\nresource=member/{me}/benefits\ncontext=consent_id, scope, risk\nPolicy: member owns target; consent active; no expanded access',
-  'Permit: gateway may call the benefits API\nDeny: do not invoke the downstream tool or API',
+  `HTTP/1.1 200 OK\n` + json('Token response body', { token_type: 'Bearer', expires_in: 300, scope: 'benefits:read', access_token: '<JWT, decoded below>' }) + '\n' + json('access_token, decoded', { header: { alg: 'RS256', kid: '<KEY_ID>', typ: 'JWT' }, payload: { iss: 'https://login.optum.example', aud: 'https://mcp.optum.example/mcp', sub: '<member id>', client_id: 'https://chatgpt.example/oauth/client.json', scope: 'benefits:read', iat: '<now>', exp: '<now + 300>', jti: '<unique id>' }, signature: '<RS256 signature>' }),
+  `POST https://mcp.optum.example/mcp\nAuthorization: Bearer <access_token>\n` + json('Checks at the gateway', { iss: 'matches the AS', aud: 'matches mcp.optum.example/mcp', exp: 'not passed', scope: 'includes benefits:read', member: 'matches the token sub', consent: 'consent_id active' }),
+  json('P1AZ input', { subject: { member: '<member id>' }, client: { id: 'https://chatgpt.example/oauth/client.json', name: 'ChatGPT' }, tool: 'get_my_benefits', action: 'benefits.read', resource: 'member/{me}/benefits', context: { consent_id: '<CONSENT_ID>', scope: 'benefits:read', risk: 'low' } }),
+  json('P1AZ decision', { decision: 'Permit', policy: 'member owns target; consent active; no expanded access', obligations: [] }) + '\nDeny: the downstream tool and API are not called',
   'GET /members/{me}/benefits\n(only after a Permit)',
-  'Permitted benefits for the signed-in member',
-  'Tool result: only authorized data returned',
+  json('Benefits API response (only after a Permit)', { member: '<member id>', coverage: { plan: 'Example PPO', status: 'active' } }),
+  json('Tool result returned to ChatGPT', { content: 'Your Example PPO coverage is active.', scope: 'benefits:read', fields_returned: ['plan', 'status'] }),
   'Example: Your Example PPO coverage is active.',
 ];
 
