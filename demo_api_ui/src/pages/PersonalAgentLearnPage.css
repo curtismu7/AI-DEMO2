@@ -106,3 +106,9 @@
 .pal .pal-approval-actions { display: flex; gap: 8px; flex-wrap: wrap; }
 .pal .pal-approval-actions button { border-radius: var(--radius-pill); padding: 7px 14px; font-size: var(--font-size-sm); font-weight: 600; cursor: pointer; border: 1px solid var(--th-border-strong); background: var(--th-bg-card); color: var(--th-text); }
 .pal .pal-approval-actions .pal-approve { background: var(--th-status-success-bg); border-color: var(--th-status-success); color: var(--th-status-success-text); }
+
+/* Approval over the whole page: a held action must not be missed at the bottom of the chat. */
+.pal .pal-modal-backdrop { position: fixed; inset: 0; z-index: 1000; display: flex; align-items: center; justify-content: center; padding: 16px; background: rgba(0, 0, 0, 0.55); }
+.pal .pal-approval--modal { width: min(480px, 100%); margin: 0; padding: 22px 24px; box-shadow: 0 12px 40px rgba(0, 0, 0, 0.35); }
+.pal .pal-approval--modal h2 { margin: 0 0 8px; font-size: var(--font-size-lg); color: var(--th-text); }
+.pal .pal-approval-prompt { margin: 0 0 12px; padding: 10px 12px; border-left: 3px solid var(--th-status-warning); background: var(--th-bg-inset); color: var(--th-text); font-style: normal; }
