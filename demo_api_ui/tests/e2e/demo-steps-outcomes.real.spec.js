@@ -183,6 +183,10 @@ for (const vertical of RUN_VERTICALS) {
             if (!authed) await new Promise((r) => setTimeout(r, 1_000));
           }
           expect(authed, 'customer session authenticated').toBe(true);
+          // Agent consent is a per-user grant (agent-authorization), not implied by signing in. Grant it once so the
+          // delegated/agent-mediated steps are judged on their policy outcome, not on a missing grant (UC7/UC8/UC22).
+          const grant = await ctx.request.post('/api/agent-authorization/grant', { data: {} });
+          expect(grant.ok(), 'agent consent granted for the customer').toBe(true);
           prevVertical = (await (await ctx.request.get('/api/verticals/active')).json()).id;
           await activateVertical(ctx.request, vertical);
         }
