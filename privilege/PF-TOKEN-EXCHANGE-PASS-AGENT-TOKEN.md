@@ -104,7 +104,7 @@ Deploy here means the console configuration above. There is no image or containe
 
 1. **Door:** set `pftoken` to Pass Agent Token. Save. (Console, Edit.)
 2. **Identity:** set NHI `PFtoken` to section 3. Read back.
-3. **PF token exchange:** configure PF so the exchange issues `sub` = the user and `act.sub` = `pf-route-c-test`, with the audience in section 4. [expected] PF token-exchange configuration is not built; this is the step that needs Ping or PF work.
+3. **PF token exchange:** the exchange already exists on the shared token manager `aiDemoPfJwtAtm` [measured 2026-10-25]: token-exchange mappings `aiDemoStandardTePolicy`, `aiDemoPfStep9TePolicy` and `aiDemoSpiffeTePolicy` set `sub` = the subject token's subject, `act` = `{sub: spiffeId, act: priorAct}`, and `client_id`. It was built for the OBO demo. What is not tested is whether an exchange for our agent yields `act.sub` = `pf-route-c-test`, and with the audience in section 4. Next step: run one exchange with a user subject token and read the claims.
 4. **Discovery:** confirm the nine tools are discovered on `pftoken` (Overview tab).
 5. **Grant:** create the policy for `pftoken-agent` with the nine tools. Save. Do not sync.
 6. **Check persistence:** the grant must still exist 90 seconds later. If not, stop and find the deleter.
@@ -132,13 +132,30 @@ Our current test [measured 2026-10-22] reached the policy step and was refused, 
 2. Does the console list NHI-custodied keys in Create Policy? (blocks step 5)
 3. What deletes `pftoken-agent-grant`? (blocks step 6)
 4. Is a per-MCP audience acceptable in production, or must it be the gateway? (Suman says gateway)
-5. Does PF issue the exchanged token with `act.sub` and `sub` as section 1 needs? (not built)
+5. Does PF issue the exchanged token with `act.sub` and `sub` as section 1 needs? (exchange exists for OBO; the claims for our agent are untested)
 6. When does `context.token.claims["act.sub"]` reach Cedar? (Suman: next release)
 
 ## 11. Ping thread, summarized
 
 - Federico (2026-10-23): the agent's token has user in `sub` and agent in `act.sub`; Privilege expects the agent id in `sub`. The attributes are inverted for OBO. Audience should live with the MCP, not the agent. The logs and policies should resolve both attributes.
 - Suman (2026-10-23): the subject config is the issue. Use Subject `*` (or AllowAnySubject), `RequiredClaims["act.sub"]` = the agent, `UserClaim` = `sub`, `SubjectBinding` = `resolved` (or `opaque`). The audience must include the gateway; OBO is the intended route. Cedar `context.token.claims` checks are coming in the next release.
+
+## 12. Test results, 2026-10-25
+
+What was checked, and what could not be checked.
+
+| Check | Result | Tag |
+|---|---|---|
+| Shared manager `aiDemoPfJwtAtm`: Option A `CLIENT_CREDENTIALS` mapping (`sub` = client id, plus `act`, `Username`, `spiffeId`) | **Gone.** Removed. The cleanup item is done. | [measured] |
+| Shared manager: token-exchange mappings | Present. Fill `sub`, `act`, `client_id`, `scope`, `spiffeId`. Built for the OBO demo. | [measured] |
+| Client `pf-route-c-test` | Still exists (PF admin API returns 200). Cleanup item still open. | [measured] |
+| Token manager `routeCTestAtm` | Exists. Audience and resource URI = the `pftoken` door URL. | [measured] |
+| Privilege console (`local.procyon.ai:8643`) | **Down** at 2026-10-25, even after reopening PingOne Privilege. Cannot read or change Privilege. Auth mode, grants and tool discovery were not re-read. | [measured] |
+| Demo page `https://ai-demo.ping-devops.com/privilege-ai-policies`, hold scenario | **Not run.** The browser extension was not connected, so the page could not be opened from here. | not tested |
+| Demo user's access to `opensearch-hitl` | **Not settled.** `opensearch-hitl` is on User Token, which should remove the 403 that the demo user saw, but nobody has run it. | not tested |
+| `pftoken` auth mode | **Still unconfirmed.** Our last saved read was User Token (15:57 UTC, 2026-10-22). The open dialog on 2026-10-25 showed Pass Agent Token. | unresolved |
+
+What to run once the console is back: re-read the `pftoken` auth mode and tool discovery; re-check whether `pftoken-agent-grant` exists; run the demo page's hold scenario in a signed-in browser.
 
 ## Related
 
