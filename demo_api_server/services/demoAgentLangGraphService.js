@@ -1811,7 +1811,8 @@ async function dispatchVerticalIntent(heuristic, { userId, userToken, req, token
       success: false,
       action,
       requiresConsent: !isStepUp,
-      hitlChallengeId: parsed.hitlChallengeId || null,
+      // The gateway's held body names the challenge `challengeId` (mcpToolPipeline hitlBody); `hitlChallengeId` is the envelope name.
+      hitlChallengeId: parsed.hitlChallengeId || parsed.challengeId || null,
       toolsCalled: [action],
       tokensUsed: 0,
       agentConfigured: true,

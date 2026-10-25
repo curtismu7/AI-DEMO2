@@ -34,6 +34,7 @@ export default function PersonalAgentLearnPage({ user = null }) {
   const [mfaChallenge, setMfaChallenge] = useState(null);
   // A prompt that came back 428 (consent required) and is waiting for PingOne MFA, then a retry.
   const [consentRetry, setConsentRetry] = useState(null);
+  const [approval, setApproval] = useState(null); // { challengeId, prompt } while a held action waits for a yes or no
 
   const tokenChain = useTokenChainOptional();
   const setTokenEvents = tokenChain?.setTokenEvents;
@@ -53,7 +54,7 @@ export default function PersonalAgentLearnPage({ user = null }) {
     setMfaChallenge({ daId, devices: devices || [] });
   }, []);
 
-  const send = useCallback((text, { retry = false } = {}) => {
+  const send = useCallback((text, { retry = false, hitlChallengeId = null } = {}) => {
     if (!user) { openSignIn({}); return; }
     setPhase('running');
     setErrorText('');
@@ -66,7 +67,7 @@ export default function PersonalAgentLearnPage({ user = null }) {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       credentials: 'include',
-      body: JSON.stringify({ prompt: text, vertical: 'airlines', agentMode, flowTraceId: run.flowTraceId }),
+      body: JSON.stringify({ prompt: text, vertical: 'airlines', agentMode, flowTraceId: run.flowTraceId, ...(hitlChallengeId ? { hitlChallengeId } : {}) }),
     })
       .then(async (response) => {
         const data = await response.json().catch(() => ({}));
@@ -82,6 +83,13 @@ export default function PersonalAgentLearnPage({ user = null }) {
         ]);
         // The BFF answers 200 with step_up_required when the sign-in had no MFA.
         if (data.step_up_required) { run.abandon(); setPhase('held'); return; }
+        // Human approval: the gateway holds the action and names the challenge. Approve it, then the same prompt runs again.
+        if (data.error === 'hitl_required' && data.hitlChallengeId) {
+          run.abandon();
+          setPhase('held');
+          setApproval({ challengeId: data.hitlChallengeId, prompt: text });
+          return;
+        }
         run.settle(data.success !== false, data.success === false ? data.reply : null);
         setPhase('done');
         const lesson = lessonFor(text);
@@ -108,6 +116,29 @@ export default function PersonalAgentLearnPage({ user = null }) {
         setMessages((prev) => [...prev.filter((m) => !m.typing), { role: 'agent', text: error.message || 'The digital assistant could not complete the request.' }]);
       });
   }, [user, agentMode, setTokenEvents, startChallenge]);
+
+  // Approve or decline the held action through the same decision endpoint the Studio uses. Approve re-runs the prompt
+  // with the challenge id; decline ends the request without running it.
+  const decideApproval = async (decision) => {
+    if (!approval) return;
+    const { challengeId, prompt } = approval;
+    setApproval(null);
+    if (decision === 'deny') {
+      setPhase('idle');
+      setMessages((prev) => [...prev, { role: 'agent', text: 'Declined. The action was not run.' }]);
+      return;
+    }
+    try {
+      const response = await fetch(`/api/mcp/decision/${encodeURIComponent(challengeId)}/approve`, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' } });
+      if (!response.ok) throw new Error((await response.json().catch(() => ({}))).message || `The approval could not be recorded (${response.status})`);
+    } catch (error) {
+      setPhase('error');
+      setErrorText(error.message || '');
+      setMessages((prev) => [...prev, { role: 'agent', text: error.message || 'The approval could not be recorded.' }]);
+      return;
+    }
+    send(prompt, { retry: true, hitlChallengeId: challengeId });
+  };
 
   const finishStepUp = () => {
     setMfaChallenge(null);
@@ -226,6 +257,17 @@ export default function PersonalAgentLearnPage({ user = null }) {
           </nav>
         </section>
       </div>
+
+      {approval && (
+        <section className="pal-approval" aria-label="Approval needed" data-testid="pal-approval">
+          <p><strong>Approval needed.</strong> The gateway held this request: “{approval.prompt}”</p>
+          <p className="pal-approval-note">Simulated approval. No push is sent to a real phone; approving records the decision on the gateway's challenge and runs the request again.</p>
+          <div className="pal-approval-actions">
+            <button type="button" className="pal-approve" onClick={() => decideApproval('approve')}>Approve</button>
+            <button type="button" className="pal-decline" onClick={() => decideApproval('deny')}>Decline</button>
+          </div>
+        </section>
+      )}
 
       <OtpStepUpModal
         show={Boolean(mfaChallenge)}

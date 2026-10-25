@@ -164,5 +164,31 @@ describe('PersonalAgentLearnPage', () => {
     await screen.findByText('Boom');
     await waitFor(() => expect(traceStore.completeTrace).toHaveBeenCalledWith(false, expect.any(String), 'Boom'));
   });
-});
 
+  it('a held action shows the approval, and Approve records the decision and runs the prompt again with the challenge', async () => {
+    const held = { error: 'hitl_required', reply: 'Transaction requires human approval (HITL consent)', hitlChallengeId: 'chal-42', success: false, tokenEvents: [] };
+    global.fetch = vi.fn(async (url) => {
+      if (String(url).startsWith('/api/mcp/decision/')) return json(200, {});
+      return json(200, global.fetch.mock.calls.length === 1 ? held : { reply: 'Here are your bookings.', success: true, toolsCalled: ['sensitive_account_details'], tokenEvents: [] });
+    });
+    renderPage();
+    fireEvent.click(lesson('Ask for something sensitive'));
+    const card = await screen.findByTestId('pal-approval');
+    expect(within(card).getByText(/Simulated approval/)).toBeTruthy();
+    fireEvent.click(within(card).getByRole('button', { name: 'Approve' }));
+    await waitFor(() => expect(global.fetch).toHaveBeenCalledTimes(3));
+    expect(global.fetch.mock.calls[1][0]).toBe('/api/mcp/decision/chal-42/approve');
+    expect(JSON.parse(global.fetch.mock.calls[2][1].body).hitlChallengeId).toBe('chal-42');
+    await screen.findByText('Here are your bookings.');
+  });
+
+  it('Decline ends the held action without running it again', async () => {
+    const held = { error: 'hitl_required', reply: 'held', hitlChallengeId: 'chal-7', success: false, tokenEvents: [] };
+    global.fetch = vi.fn(async () => json(200, held));
+    renderPage();
+    fireEvent.click(lesson('Ask for something sensitive'));
+    fireEvent.click(within(await screen.findByTestId('pal-approval')).getByRole('button', { name: 'Decline' }));
+    expect(await screen.findByText('Declined. The action was not run.')).toBeTruthy();
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+});
