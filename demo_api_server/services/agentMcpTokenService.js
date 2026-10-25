@@ -3122,8 +3122,14 @@ async function _performTwoExchangeDelegation(
     const apikeyToolScopes = isApikeyTool
       ? effectiveToolScopes.filter((s) => s !== 'mcp:invoke')
       : [];
+    // PingFederate scopes are global (no per-resource exclusivity), so the coarse-path token can also carry the
+    // tool's own scope(s). Without it the Node gateway's per-tool check denies (missing [code:search]). PingOne
+    // keeps the single coarse scope: its one-scope-per-app-per-resource rule forbids the extra scopes here.
+    const pfToolScopes = configStore.getOAuthProvider?.() === 'pingfederate' && !isApikeyTool
+      ? effectiveToolScopes.filter((s) => s !== 'mcp:invoke' && s !== gatewayInvokeScope)
+      : [];
     const ex2Scopes = usePingGatewayForExchange
-      ? (isApikeyTool ? [apikeyInvokeScope, ...apikeyToolScopes] : [gatewayInvokeScope])
+      ? (isApikeyTool ? [apikeyInvokeScope, ...apikeyToolScopes] : [gatewayInvokeScope, ...pfToolScopes])
       : exchange2RequestedScopes;
     finalToken = provider
       ? await provider.performExchange(providerConfig, 'mcp', agentExchangedToken, mcpActorToken, finalAudiences, ex2Scopes)
