@@ -2444,7 +2444,7 @@ const RAW_USE_CASES = [
     // unless the amount IS the demo, and here it is: $600 crosses the
     // consent/step-up boundary. Same tier as UC7/UC9/UC22, not a new magic number.
     trigger: { type: 'chip', text: 'transfer $600 from checking to savings' },
-    expectedOutcome: 'HITL_REQUIRED',
+    expectedOutcome: 'STEP_UP',
     evidence: { tokenChain: ['user-token', 'authorize-decision'], activity: ['token', 'mcp', 'hitl'] },
     codeRefs: ['demo_api_server/services/agentPreflightService.js', 'demo_api_server/tests/hitlBypass.regression.test.js'],
     maturity: 'works',
