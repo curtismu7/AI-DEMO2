@@ -12,7 +12,7 @@ const PF = { color: 'var(--th-status-warning)' };
 
 export const AI_POLICIES_GROUPS = {
   demo: { label: 'Our demo page (a client; it evaluates nothing)', bg: 'var(--th-status-info)' },
-  priv: { label: 'Privilege gateway (Cedar runs inside)', bg: 'var(--th-bg-emphasis)' },
+  priv: { label: 'Agent Privilege gateway (Cedar runs inside)', bg: 'var(--th-bg-emphasis)' },
   pf: { label: 'PingFederate (agent path measured 2026-10-26)', bg: 'var(--th-status-warning)' },
 };
 
