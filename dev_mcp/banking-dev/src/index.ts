@@ -7,7 +7,6 @@ import {
   Tool,
 } from "@modelcontextprotocol/sdk/types.js";
 import { z, ZodTypeAny } from "zod";
-import { zodToJsonSchema } from "zod-to-json-schema";
 
 import { loadEnv } from "./shared/env";
 import {
@@ -81,13 +80,9 @@ interface ToolEntry {
   readOnly: boolean;
 }
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
-const _zodToJsonSchema = zodToJsonSchema as unknown as (s: any, o: any) => any;
-
 function toJsonSchema(s: ZodTypeAny): Record<string, unknown> {
-  // The library's return type recurses past TS's depth limit under strict mode.
-  // Cast at the call site; runtime result is a plain JSON Schema object.
-  const out: Record<string, unknown> = _zodToJsonSchema(s, { $refStrategy: "none" });
+  // zod 4 emits JSON Schema itself; zod-to-json-schema only understands zod 3.
+  const out: Record<string, unknown> = z.toJSONSchema(s) as Record<string, unknown>;
   delete out.$schema;
   return out;
 }
@@ -125,17 +120,17 @@ const STATE_KEY_LIST_SCHEMA = toJsonSchema(z.object({
 
 const STATE_GENERIC_SCHEMA = toJsonSchema(z.object({
   summary: z.string(),
-  details: z.record(z.unknown()).optional(),
+  details: z.record(z.string(), z.unknown()).optional(),
 }));
 
 const TOKEN_DECODE_SCHEMA = toJsonSchema(z.object({
-  header: z.record(z.unknown()),
-  payload: z.record(z.unknown()),
+  header: z.record(z.string(), z.unknown()),
+  payload: z.record(z.string(), z.unknown()),
   summary: z.object({
     aud: z.union([z.string(), z.array(z.string())]).optional(),
     scope: z.string().optional(),
-    act: z.record(z.unknown()).optional(),
-    may_act: z.record(z.unknown()).optional(),
+    act: z.record(z.string(), z.unknown()).optional(),
+    may_act: z.record(z.string(), z.unknown()).optional(),
     exp: z.number().optional(),
     expired: z.boolean(),
   }),
@@ -153,7 +148,7 @@ const TOKEN_DIFF_SCHEMA = toJsonSchema(z.object({
 const TOKEN_EXPLAIN_SCHEMA = toJsonSchema(z.object({
   verdict: z.enum(['ok', 'warning', 'fail']),
   reasons: z.array(z.string()),
-  payload: z.record(z.unknown()).optional(),
+  payload: z.record(z.string(), z.unknown()).optional(),
 }));
 
 const PINGONE_USERS_SCHEMA = toJsonSchema(z.object({
@@ -169,7 +164,7 @@ const PINGONE_USERS_SCHEMA = toJsonSchema(z.object({
 
 const PINGONE_USER_SCHEMA = toJsonSchema(z.object({
   found: z.boolean(),
-  user: z.record(z.unknown()).nullable(),
+  user: z.record(z.string(), z.unknown()).nullable(),
 }));
 
 const PINGONE_APPS_SCHEMA = toJsonSchema(z.object({
@@ -185,8 +180,8 @@ const PINGONE_APPS_SCHEMA = toJsonSchema(z.object({
 
 const PINGONE_APP_SCHEMA = toJsonSchema(z.object({
   found: z.boolean(),
-  app: z.record(z.unknown()).nullable(),
-  grants: z.array(z.record(z.unknown())).optional(),
+  app: z.record(z.string(), z.unknown()).nullable(),
+  grants: z.array(z.record(z.string(), z.unknown())).optional(),
 }));
 
 const PINGONE_RESOURCES_SCHEMA = toJsonSchema(z.object({
