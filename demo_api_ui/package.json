@@ -78,6 +78,7 @@
     "@vitest/ui": "^4.1.11",
     "browserslist": "^4.28.2",
     "dotenv": "^17.4.2",
+    "esbuild": "^0.28.0",
     "eslint": "^8.57.1",
     "eslint-config-react-app": "^7.0.1",
     "husky": "^9.1.7",
@@ -86,8 +87,7 @@
     "prettier": "^3.8.3",
     "typescript": "^5.1.6",
     "vitest": "^4.1.11",
-    "wait-on": "^9.0.5",
-    "esbuild": "^0.28.0"
+    "wait-on": "^9.0.5"
   },
   "eslintConfig": {
     "extends": [
@@ -185,5 +185,10 @@
     "src/**/*.{css,scss}": [
       "prettier --write"
     ]
+  },
+  "overrides": {
+    "@microsoft/agents-activity": {
+      "zod": "^4.6.7"
+    }
   }
 }
