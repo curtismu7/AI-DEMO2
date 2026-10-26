@@ -42,7 +42,7 @@ export const PF_TOKEN_DIAGRAM = {
   GROUPS: {
     demo: { label: 'This page (a client; decides nothing)', bg: 'var(--th-status-info)' },
     pf: { label: 'PingFederate', bg: 'var(--th-status-warning)' },
-    priv: { label: 'Privilege gateway', bg: 'var(--th-bg-emphasis)' },
+    priv: { label: 'Agent Privilege (gateway)', bg: 'var(--th-bg-emphasis)' },
   },
   NODES: [
     N('bff', 'demo', 'Demo BFF', ['holds the client secret;', 'returns claims, never the token'], 0, 0),
