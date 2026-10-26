@@ -28,8 +28,8 @@ Our route C token is different [measured 2026-10-22]: a client-credentials token
 
 | Setting | Required value | Status |
 |---|---|---|
-| Auth Mode | **Pass Agent Token** (`token-pass`) | Currently **User Token** (saved; console screenshot 2026-10-25). Switch to Pass Agent Token is still to do. |
-| MCP Server URL | `http://opensearch-mcp-server.ping-devops-cmuir.svc.cluster.local:9900/mcp` | [measured] |
+| Auth Mode | **Pass Agent Token** (`token-pass`) | **Pass Agent Token, saved 2026-10-26** [measured, console] |
+| MCP Server URL | `http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp` | Changed 2026-10-26. The old `opensearch-mcp-server…:9900` Service no longer exists; see section 14 [measured] |
 | Mesh cluster | `ai-demo-cmuir` | [measured] |
 | Tools | the nine HITL tools (below) | [measured]: discovery shows none under User Token, and the console can't discover under Pass Agent Token. See section 6. |
 
@@ -105,7 +105,7 @@ Deploy here means the console configuration above. There is no image or containe
 1. **Door:** set `pftoken` to Pass Agent Token. Save. (Console, Edit.)
 2. **Identity:** set NHI `PFtoken` to section 3. Read back.
 3. **PF token exchange:** the exchange already exists on the shared token manager `aiDemoPfJwtAtm` [measured 2026-10-25]: token-exchange mappings `aiDemoStandardTePolicy`, `aiDemoPfStep9TePolicy` and `aiDemoSpiffeTePolicy` set `sub` = the subject token's subject, `act` = `{sub: spiffeId, act: priorAct}`, and `client_id`. It was built for the OBO demo. What is not tested is whether an exchange for our agent yields `act.sub` = `pf-route-c-test`, and with the audience in section 4. Next step: run one exchange with a user subject token and read the claims.
-4. **Discovery:** confirm the nine tools are discovered on `pftoken` (Overview tab).
+4. **Discovery:** make one agent call with the token (step 7 works for this even before the grant exists; it is refused on policy but triggers discovery). Then confirm the nine tools on `pftoken` (Overview tab). Needs gateway v1.261024 or later and a backend URL that resolves (section 14).
 5. **Grant:** create the policy for `pftoken-agent` with the nine tools. Save. Do not sync.
 6. **Check persistence:** the grant must still exist 90 seconds later. If not, stop and find the deleter.
 7. **Use:** the agent calls `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` with the exchanged token as the bearer, and calls `tools/list` then one tool.
@@ -128,7 +128,7 @@ Our current test [measured 2026-10-22] reached the policy step and was refused, 
 
 ## 10. Open questions
 
-1. Can Privilege discover tools on a Pass Agent Token door? (blocks step 4)
+1. ~~Can Privilege discover tools on a Pass Agent Token door?~~ **Answered (gateway v1.261024):** yes, from the first accepted agent call. It needs a backend URL that resolves (section 14).
 2. Does the console list NHI-custodied keys in Create Policy? (blocks step 5)
 3. What deletes `pftoken-agent-grant`? (blocks step 6)
 4. Is a per-MCP audience acceptable in production, or must it be the gateway? (Suman says gateway)
@@ -217,6 +217,75 @@ For this guide, set Auth Mode to **Pass Agent Token** and Save. Under User Token
 ![pftoken Agent Registry tab](images/pf-token-exchange/23-app-pftoken-agent-registry.png)
 
 The door has one entity (AI Agent DemoAdmin) and one policy (`SlaveRiver-3869364f3144`), which is the access config for key `pftoken-wl`. The key the PF token actually maps to, `pftoken-agent`, has no access config here. That is the missing grant.
+
+## 14. Gateway v1.261024 (2026-10-26): what changed, and how to troubleshoot
+
+The gateway was updated to `privilege-aigw:v1.261024`. With it, a Pass Agent Token door **discovers its tools from the first agent call** instead of needing a person to sign in.
+
+### What the console shows
+
+Before the first agent call, on Pass Agent Token:
+
+![pftoken on Pass Agent Token, awaiting first agent call](images/pf-token-exchange/31-pftoken-overview-passagent.png)
+
+The banner reads "Awaiting first agent call - tools will be discovered from a forwarded assertion". The equivalent banner on User Token reads "Awaiting first user credential - tools will be discovered on first sign-in" (section 13).
+
+| Banner | Auth mode | What triggers discovery |
+|---|---|---|
+| Awaiting first user credential - tools will be discovered on first sign-in | User Token | A person signs in to the door once |
+| Awaiting first agent call - tools will be discovered from a forwarded assertion | Pass Agent Token | The first agent call with a token the gateway accepts |
+
+### What happened on the first agent call
+
+The PF token call (2026-10-26 10:39 UTC) produced, in order [measured, gateway log]:
+
+1. `mcpgw: workload token accepted for key pftoken-agent issuer=https://cmuir-pf.ping-devops.com subject=pf-route-c-test`
+2. `[mcpgw] policy denied PFtoken access to pftoken (agent=true): Access Denied for` (no grant for `pftoken-agent`)
+3. `[mcpgw] tool discovery for pftoken failed: calling "initialize": ... dial tcp: lookup opensearch-mcp-server.ping-devops-cmuir.svc.cluster.local on 172.20.0.10:53: no such host`
+
+So discovery **was** triggered by the agent's call, even though the call itself was refused on policy. It failed because the door's backend URL pointed at a Kubernetes Service that no longer exists.
+
+### The backend fix
+
+- `opensearch-mcp-server.ping-devops-cmuir.svc.cluster.local:9900` has no Service in `ping-devops-cmuir`. The OpenSearch MCP server now runs as a container inside the gateway pod, and the in-cluster address is `opensearch-mcp-noget` (port 80, endpoint on 8080; the nginx front that refuses `GET /mcp`).
+- Both `pftoken` and `opensearch-hitl` were moved to `http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp` on 2026-10-26. Auth modes unchanged: `pftoken` Pass Agent Token, `opensearch-hitl` User Token.
+- `opensearch-hitl` is the door behind the AI Policies demo page. Its nine tools were listed from an earlier discovery, but any call forwarded to the backend (the "allow" scenario, a retry after approval) would have failed until this change.
+
+![pftoken after the backend change](images/pf-token-exchange/41-pftoken-overview-after.png)
+
+![opensearch-hitl after the backend change](images/pf-token-exchange/41-opensearch-hitl-overview-after.png)
+
+The second PF call after the change (11:11 UTC) was accepted and refused on policy again, and logged no discovery error. Whether `pftoken` now lists its nine tools has to be read in the console (Overview, Tools). Next step after that: create the policy for `pftoken-agent` (section 5), then rerun the test (section 9).
+
+### Finding the right gateway log
+
+The public host `mcpgw.ai-demo.ping-devops.com` is fronted by `mcpgw-lb`, which spreads requests over **three** gateway pods in two namespaces. A request is logged only on the pod that served it, so search all three:
+
+```bash
+kubectl --context us -n ping-devops-cmuir     get pods | grep agentless-mcpgw
+kubectl --context us -n ping-devops-curtismuir get pods | grep agentless-mcpgw
+# then, for each pod:
+kubectl --context us -n <namespace> logs <pod> --all-containers --since=5m \
+  | grep -E 'workload token|policy denied|tool discovery|auth rejected' | grep -i pftoken
+```
+
+The request lines are in the log-tailer output, so `--all-containers` is needed.
+
+| Log line | Meaning | Fix |
+|---|---|---|
+| `workload token accepted for key <key> issuer=… subject=…` | The NHI check passed (issuer, audience, subject, required claims, lifetime) | none |
+| `policy denied <NHI> access to <app> (agent=true)` | No grant for that key on that door | create the policy for the key (section 5) |
+| `tool discovery for <app> failed: … no such host` | The door's backend URL does not resolve | fix the MCP Server URL (this section) |
+| `auth rejected: reason=token_not_found` | Logged after a policy denial for the same request; it is the refusal, not a second cause | as above |
+| no `workload token` line at all | The token was not recognised as a workload token: check issuer, audience, subject, required claims and lifetime against the NHI | section 3 |
+
+The client only ever sees a bare `403 Forbidden` for a policy denial, and `401 Bearer token required` for a token the gateway did not accept at all. The log is the only place that says which.
+
+### Claims you can check today (Suman, 2026-10-23)
+
+- Claim conditions can be set today in the **Access Policy** step of the Agent Registry creation flow, on four fixed claims only: **scopes, `client_id`, subject, issuer**.
+- Cedar cannot read token claims yet. `context.token.claims` (including `act.sub`) is coming in the next release.
+- The audience must contain the gateway; a wildcard is not allowed (RFC 7519 §4.1.3). OBO, in staging and due at the end of next week, is the intended route for per-MCP audiences. An allow-list of audiences is possible on request.
 
 ## Related
 
