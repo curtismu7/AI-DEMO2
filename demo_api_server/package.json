@@ -179,6 +179,9 @@
   },
   "overrides": {
     "@ai-sdk/provider-utils": "^4.0.33",
-    "basic-ftp": "^6.2.1"
+    "basic-ftp": "^6.2.1",
+    "@scalar/json-magic": {
+      "undici": "7.30.1"
+    }
   }
 }
