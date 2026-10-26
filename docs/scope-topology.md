@@ -28,6 +28,7 @@
 | `holdings:read` | high | Super Banking API | Read sensitive investment holdings (investment vertical A2A specialist scope) |
 | `airlines:read` | low | Super Banking API | Read reservations, flight status, and seat maps from the airlines SQLite database (airlines vertical) |
 | `pnr:read` | high | Super Banking API | Read the sensitive passenger record — passport, date of birth, payment card and MileagePlus account (airlines vertical A2A specialist scope) |
+| `whoami:read` | low | Super Banking API | Read back the identity the MCP resource server verified on the token it received (whoami); used to show a Privilege Pass Agent Token passthrough |
 | `airlines:write` | high | Super Banking API | Modify reservations — change seat, add checked bag (airlines vertical, Phase 2) |
 | `ai:agent:read` | medium | Super Banking API | Agent invocation permission |
 | `mcp:invoke` | medium | Super Banking MCP Server | Invoke MCP tools via the gateway (RFC 8693 exchange) |

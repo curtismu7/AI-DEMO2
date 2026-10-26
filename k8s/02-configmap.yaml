@@ -60,7 +60,7 @@ data:
   HEALTH_HTTP_PORT: "8890"
   AGUI_HTTP_HOST: "0.0.0.0"
   MCP_SERVER_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
-  MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo,priv-nhi-fa3gvmpkubxvuipp3gyuaolsltbulhkc"
+  MCP_RESOURCE_SERVER_RESOURCE_URI: "mcp-invest.ping.demo,mcp-resource-server.ping.demo,mcpgateway.ping.demo,priv-nhi-fa3gvmpkubxvuipp3gyuaolsltbulhkc,https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp"
   MCP_RESOURCE_URI: "mcpserver.ping.demo,mcpgateway.ping.demo"
   MCP_GW_RESOURCE_URI: "mcpgateway.ping.demo,https://api.ping.demo:3036/mcp,mcpgateway-a2a.ping.demo,mcpserver.ping.demo"
   # The authz-server sidecar also loads ai-demo-secrets (last envFrom), whose single-value
