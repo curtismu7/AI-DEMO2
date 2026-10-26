@@ -28,7 +28,9 @@ function isWriteTool(toolName) {
   if (!toolName) return false;
   const entry = tools[toolName];
   if (!entry) return false;
-  return (entry.requiredScopes || []).includes('write');
+  // Vertical write scopes (airlines:write, ...) mutate too; matching only the bare
+  // 'write' skipped the deny ceiling for those tools (UC6 on airlines got HITL, not DENY).
+  return (entry.requiredScopes || []).some((s) => s === 'write' || s.endsWith(':write'));
 }
 
 /**
