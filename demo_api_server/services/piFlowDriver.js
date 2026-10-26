@@ -405,7 +405,9 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
       const { step, body, cookies } = await postPiFlowStep(
         pending,
         pf ? 'application/vnd.pingidentity.checkUsernamePassword+json' : 'application/vnd.pingidentity.usernamePassword.check+json',
-        { username, password },
+        // PF's simple password credential validator matches usernames case-sensitively
+        // and the demo users are lowercase, so fold case for PF (PingOne already ignores it).
+        { username: pf ? username.trim().toLowerCase() : username, password },
       );
       const badCredentials = pf ? 'CREDENTIAL_VALIDATION_FAILED' : 'INVALID_CREDENTIALS';
       if (step.status === 400 && body?.details?.some((d) => d.code === badCredentials)) {
