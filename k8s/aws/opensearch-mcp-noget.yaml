@@ -9,7 +9,9 @@
 # The console app `opensearch` points here:
 #   Backends = http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local
 # Not applied by deploy.sh. Apply by hand:  kubectl apply -f k8s/aws/opensearch-mcp-noget.yaml
-# Revert: point the `opensearch` app back at the server and delete these three objects.
+# Also used by the `pftoken` and `opensearch-hitl` doors (since 2026-10-26).
+# Revert: point the apps back at the server and delete the noget ConfigMap, Deployment and Service.
+# Keep the opensearch-mcp-server Service and the two NetworkPolicies: other doors need them.
 apiVersion: v1
 kind: ConfigMap
 metadata:
@@ -63,3 +65,50 @@ metadata:
 spec:
   selector: { app: opensearch-mcp-noget }
   ports: [{ name: http, port: 80, targetPort: 8080 }]
+---
+# The upstream the nginx front above proxies to. This Service was found deleted on 2026-10-26
+# (the Deployment `opensearch-mcp-server` was still running), so every call through noget
+# timed out (504) and Pass Agent Token discovery failed with "no such host". Restored by hand.
+apiVersion: v1
+kind: Service
+metadata:
+  name: opensearch-mcp-server
+  namespace: ping-devops-cmuir
+  labels: { app: opensearch-mcp-server }
+spec:
+  type: ClusterIP
+  selector: { app: opensearch-mcp-server }
+  ports: [{ name: http, port: 9900, targetPort: 9900 }]
+---
+# mcpgw-lb spreads requests over three gateway pods; two live in ping-devops-curtismuir.
+# ai-demo-internal only admits same-namespace pods here, so those two timed out.
+# These two policies only add access, port 8080, gateway pods to the noget front.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: opensearch-mcp-noget-from-gateways
+  namespace: ping-devops-cmuir
+spec:
+  podSelector: { matchLabels: { app: opensearch-mcp-noget } }
+  policyTypes: [Ingress]
+  ingress:
+    - from:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ping-devops-curtismuir } }
+          podSelector: { matchExpressions: [{ key: app, operator: In, values: [agentless-mcpgw, agentless-mcpgw3] }] }
+      ports: [{ port: 8080, protocol: TCP }]
+---
+# Matching egress: ai-demo-internal in ping-devops-curtismuir only allows 80/443/53 off-namespace,
+# and a Service on port 80 reaches the noget pod on 8080.
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: gateways-to-opensearch-mcp-noget
+  namespace: ping-devops-curtismuir
+spec:
+  podSelector: { matchExpressions: [{ key: app, operator: In, values: [agentless-mcpgw, agentless-mcpgw3] }] }
+  policyTypes: [Egress]
+  egress:
+    - to:
+        - namespaceSelector: { matchLabels: { kubernetes.io/metadata.name: ping-devops-cmuir } }
+          podSelector: { matchLabels: { app: opensearch-mcp-noget } }
+      ports: [{ port: 8080, protocol: TCP }]
