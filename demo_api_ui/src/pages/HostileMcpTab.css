@@ -316,11 +316,13 @@
 .hmc-explain p { margin: 0.5rem 0 0; max-width: 80ch; }
 .hmc-explain ol { margin: 0.5rem 0 0; padding-left: 1.25rem; }
 
+/* Ping brand: the next-step hint is the one line to read first. */
 .hmc-next {
-  padding: 0.4rem 0.6rem;
-  border-inline-start: 3px solid var(--th-status-warning);
-  background: var(--th-bg-inset);
-  font-weight: 600;
+  padding: 0.5rem 0.75rem;
+  border-inline-start: 4px solid #d20e0f;
+  background: #fcfcfc;
+  color: #051727;
+  font-weight: 700;
 }
 
 .hmc-shortcut { margin: 0; color: var(--th-text-body); }

@@ -45,28 +45,32 @@
   font: inherit;
 }
 
+/* Ping brand: the light gray gradient with Core Dark ink for secondary actions. */
 .hmd-panel__run {
   padding: 0.5rem 1rem;
-  border: 2px solid var(--th-status-info);
-  box-shadow: 0 2px 0 var(--th-status-info);
+  border: 1px solid #c4c8cc;
+  box-shadow: none;
   font-weight: 600;
   border-radius: var(--radius-sm);
-  background: var(--th-status-info-bg);
-  color: var(--th-status-info-text);
+  background: linear-gradient(90deg, #fcfcfc 45%, #e0e2e4);
+  color: #051727;
   font: inherit;
   cursor: pointer;
 }
 
 .hmd-panel__run:disabled { opacity: 0.6; cursor: not-allowed; }
 
-/* Until a scenario has run, this is the button to press: ring + gentle pulse. */
+/* Until a scenario has run, this is the button to press: Ping Red gradient + ring + gentle pulse. */
 .hmd-panel__run--next:not(:disabled) {
-  box-shadow: 0 0 0 3px var(--th-status-info-border);
+  border-color: #aa0005;
+  background: linear-gradient(90deg, #d20e0f 55%, #aa0005);
+  color: #fcfcfc;
+  box-shadow: 0 0 0 3px rgba(210, 14, 15, 0.25);
   animation: hmd-run-pulse 1.6s ease-in-out infinite;
 }
 
 @keyframes hmd-run-pulse {
-  50% { box-shadow: 0 0 0 6px var(--th-status-info-border); }
+  50% { box-shadow: 0 0 0 6px rgba(210, 14, 15, 0.12); }
 }
 
 @media (prefers-reduced-motion: reduce) {
@@ -74,7 +78,7 @@
 }
 .hmd-panel__error,
 .hmd-panel__decision--denied strong { color: var(--th-status-error-text); }
-.hmd-panel__error { margin: 0.6rem 0 0; }
+.hmd-panel__error { margin: 1.25rem 0 0; }
 
 .hmd-panel__evidence {
   display: grid;
