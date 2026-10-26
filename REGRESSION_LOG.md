@@ -5,6 +5,28 @@ Update this file whenever a bug is fixed: add the bug, cause, fix, and test refe
 
 ---
 
+## 2026-10-26 — sensitive airline bookings: token exchange failed with HTTP 400 (then 401)
+
+**Symptom**: Asking for "access my sensitive airline bookings" and approving it ended in "The MCP gateway rejected the
+agent's access token ... check PINGONE_JWKS_URI". The JWKS setting was correct; the message is the generic fallback
+for a gateway 401.
+
+**Root cause**: P1AZ permitted the call, then Exchange #3 failed. `sensitive_airline_bookings` requests
+`airlines:read sensitive:read` on the invest resource (`mcp-invest.ping.demo`), but the exchange client (`TE_CLIENT_ID`)
+already held `sensitive:read` from the banking resource, and PingOne does not allow one application the same scope
+name from two resources (it rejected the exchange with HTTP 400; the grant PUT said "Multiple scopes with the same name
+cannot be added"). The 403s seen while trying to edit the grant were the API front end refusing PATCH, not permissions.
+
+**Fix**: a dedicated PingOne client with a grant only on the invest resource, selected by
+`INVEST_SENSITIVE_TE_CLIENT_ID/SECRET` for that one tool on the PingOne path (PF unchanged; unset = old client).
+`ping-gateway-secrets` takes the two keys, and `ping-gateway/.env` must carry them or a redeploy drops them. A secret
+set to a placeholder shows as HTTP 401 `invalid_client` in `[InvestDispatch] Exchange #3`.
+
+**Test**: `demo_mcp_gateway/tests/airlinesDispatch.test.ts` (dedicated client only for this tool, PingOne path only);
+`demo_api_server/src/__tests__/olbTokenExchangeProviderRouting.test.js` (PF credential lines stay pinned).
+
+---
+
 ## 2026-08-05 — Token Chain could not distinguish live hops from possible steps
 
 **Symptom**: Token Chain rendered the full possible pipeline before the agent

@@ -83,6 +83,17 @@ HTTP transport; the gateway-audience token (`mcpgateway.ping.demo`) the Node gat
 forwards is handled on the WebSocket path. See `.env.example` for the full env contract and
 the MCP-server-side reconciliation vars.
 
+### Sensitive airline tool uses its own exchange client
+
+`sensitive_airline_bookings` asks for `sensitive:read` on the invest resource, but `TE_CLIENT_ID` already holds
+`sensitive:read` from the banking resource (`mcpserver.ping.demo`), and PingOne will not give one application the same
+scope name from two resources: the exchange fails with HTTP 400. `INVEST_SENSITIVE_TE_CLIENT_ID` /
+`INVEST_SENSITIVE_TE_CLIENT_SECRET` name a second client whose only grant is on `mcp-invest.ping.demo`
+(`airlines:read`, `airlines:write`, `invest:read`, `pnr:read`, `sensitive:read`). `invest-dispatch.groovy` uses it for
+that one tool on the PingOne path only; PF is unchanged, and unset falls back to `TE_CLIENT_ID`. Do not move
+`sensitive:read` to the invest grant of `TE_CLIENT_ID`, and do not rename the scope without changing the topology, the
+resource server and the PF scope list together.
+
 ## Error states (all fail closed)
 
 | Condition | Response |
