@@ -259,14 +259,18 @@ export default function PersonalAgentLearnPage({ user = null }) {
       </div>
 
       {approval && (
-        <section className="pal-approval" aria-label="Approval needed" data-testid="pal-approval">
-          <p><strong>Approval needed.</strong> The gateway held this request: “{approval.prompt}”</p>
-          <p className="pal-approval-note">Simulated approval. No push is sent to a real phone; approving records the decision on the gateway's challenge and runs the request again.</p>
-          <div className="pal-approval-actions">
-            <button type="button" className="pal-approve" onClick={() => decideApproval('approve')}>Approve</button>
-            <button type="button" className="pal-decline" onClick={() => decideApproval('deny')}>Decline</button>
-          </div>
-        </section>
+        <div className="pal-modal-backdrop">
+          <section role="dialog" aria-modal="true" aria-labelledby="pal-approval-title" className="pal-approval pal-approval--modal" data-testid="pal-approval">
+            <h2 id="pal-approval-title">Approval needed</h2>
+            <p>The gateway held this request until you approve it:</p>
+            <blockquote className="pal-approval-prompt">{approval.prompt}</blockquote>
+            <p className="pal-approval-note">Simulated approval. No push is sent to a real phone; approving records the decision on the gateway's challenge and runs the request again.</p>
+            <div className="pal-approval-actions">
+              <button type="button" className="pal-approve" autoFocus onClick={() => decideApproval('approve')}>Approve</button>
+              <button type="button" className="pal-decline" onClick={() => decideApproval('deny')}>Decline</button>
+            </div>
+          </section>
+        </div>
       )}
 
       <OtpStepUpModal

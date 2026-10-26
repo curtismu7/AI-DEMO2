@@ -43,7 +43,7 @@ describe('dotSuggestions', () => {
 
   it('airline prompts only offer actions the airline can really do: no transfer-miles prompt, and the MFA demo is the consent-gated fee', () => {
     const msgs = airlineSuggestions('privilege').map((c) => c.message);
-    expect(msgs).toEqual(['What is my loyalty status?', 'Show my airline bookings', 'pay a $300 change fee']);
+    expect(msgs).toEqual(['What is my loyalty status?', 'Show my airline bookings', 'pay a $300 change fee', 'access my sensitive airline bookings']);
     expect(msgs.join(' ')).not.toMatch(/transfer/i);
     expect(airlineSuggestions('dot').map((c) => c.message)).toContain('What do you remember about me?');
   });

@@ -29,6 +29,7 @@ const AIRLINE_PROMPTS = [
   'What is my loyalty status?',
   'Show my airline bookings',
   'pay a $300 change fee',
+  'access my sensitive airline bookings',
 ];
 
 /** @returns {{ label: string, message: string }[]} */
