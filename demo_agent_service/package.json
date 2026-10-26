@@ -22,7 +22,7 @@
     "forceExit": true
   },
   "dependencies": {
-    "@ag-ui/core": "0.0.53",
+    "@ag-ui/core": "1.0.3",
     "@anthropic-ai/sdk": "^0.97.1",
     "@dotenvx/dotenvx": "^2.21.0",
     "@langchain/core": "^1.2.1",
