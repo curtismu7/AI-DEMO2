@@ -200,6 +200,7 @@
     "holdings:read": { "description": "Read sensitive investment holdings (investment vertical A2A specialist scope)", "riskLevel": "high", "resource": "Super Banking API", "category": "feature" },
     "airlines:read": { "description": "Read reservations, flight status, and seat maps from the airlines SQLite database (airlines vertical)", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "pnr:read": { "description": "Read the sensitive passenger record — passport, date of birth, payment card and MileagePlus account (airlines vertical A2A specialist scope)", "riskLevel": "high", "resource": "Super Banking API", "category": "feature" },
+    "whoami:read": { "description": "Read back the identity the MCP resource server verified on the token it received (whoami); used to show a Privilege Pass Agent Token passthrough", "riskLevel": "low", "resource": "Super Banking API", "category": "feature" },
     "airlines:write": { "description": "Modify reservations — change seat, add checked bag (airlines vertical, Phase 2)", "riskLevel": "high", "resource": "Super Banking API", "category": "feature" },
     "ai:agent:read": { "description": "Agent invocation permission", "riskLevel": "medium", "resource": "Super Banking API", "category": "agent" },
     "mcp:invoke": { "description": "Invoke MCP tools via the gateway (RFC 8693 exchange)", "riskLevel": "medium", "resource": "Super Banking MCP Server", "category": "infra" },

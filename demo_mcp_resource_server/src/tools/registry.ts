@@ -20,6 +20,7 @@ import { SPORTING_GOODS_TOOLS } from './sportingGoodsTools';
 import { UNIVERSITY_TOOLS } from './universityTools';
 import { WORKFORCE_TOOLS } from './workforceTools';
 import { ANF_TOOLS } from './anfTools';
+import { IDENTITY_TOOLS, IDENTITY_TOOL_NAMES, dispatchIdentityTool } from './identityTools';
 import { dispatchTool as dispatchInvestTool } from './investToolHandler';
 import { AIRLINES_TOOL_NAMES, dispatchAirlinesTool } from './airlinesToolHandler';
 import { dispatchBankingTool } from './bankingToolHandler';
@@ -44,6 +45,7 @@ export const ALL_TOOLS: McpToolDef[] = [
   ...UNIVERSITY_TOOLS,
   ...WORKFORCE_TOOLS,
   ...ANF_TOOLS,
+  ...IDENTITY_TOOLS,
 ];
 
 /**
@@ -74,6 +76,7 @@ export function dispatch(
   token: string,
   subject: string,
 ): Promise<unknown> {
+  if (IDENTITY_TOOL_NAMES.has(toolName)) return dispatchIdentityTool(toolName, token, subject);
   if (AIRLINES_TOOL_NAMES.has(toolName)) return dispatchAirlinesTool(toolName, args, subject);
   if (BANKING_TOOL_NAMES.has(toolName)) return dispatchBankingTool(toolName, args, subject);
   if (HEALTHCARE_TOOL_NAMES.has(toolName)) return dispatchHealthcareTool(toolName, args);
