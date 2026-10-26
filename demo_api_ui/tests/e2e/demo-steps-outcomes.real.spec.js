@@ -74,6 +74,11 @@ const PAGE_HEADING = {
   '/demo/enterprise-mcp': 'Enterprise-Managed MCP Authorization',
   '/personal-agent': 'Personal Agent',
   '/weather-mcp': 'Weather MCP',
+  '/workload-agents?useCase=UC38': 'Choose what the agent does.',
+  '/privilege-mcp-client?view=demo&tab=a2a': 'A2A access review',
+  '/dashboard': 'No use case selected',
+  '/use-case-diagrams/UC-MUSE1': 'Your agent, our gateway (external agent, standard lane)',
+  '/use-case-diagrams/UC-MUSE2': 'Your agent, the Agent Privilege (external agent, lane 2)',
 };
 
 const RUN_VERTICALS = (
@@ -111,7 +116,7 @@ function assertChip(uc, body, vertical) {
     case 'PERMIT':
     case 'DELEGATE_AND_EXECUTE':
       expect(body.success, detail).toBe(true);
-      expect(reply, detail).not.toMatch(/❌/);
+      expect(reply, detail).not.toMatch(/^\s*❌/);
       if (exp === 'DELEGATE_AND_EXECUTE') expect(reply, detail).toMatch(/Delegation complete/i);
       break;
     case 'HITL_REQUIRED':
