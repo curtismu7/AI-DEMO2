@@ -21,10 +21,10 @@ Everything below had to be true at the same time:
 | PF mapping `client_credentials\|routeCTestAtm` | `sub`, `client_id` | the client id (`pf-route-c-test`) |
 | PF mapping `client_credentials\|routeCTestAtm` | `act` | expression `#{"sub": "pf-route-c-test"}` (an object, not the text `"{}"`) |
 | NHI `PFtoken` | Issuer / JWKS | `https://cmuir-pf.ping-devops.com` / `https://cmuir-pf.ping-devops.com/pf/JWKS` |
-| NHI `PFtoken` | Subject | `*` with **Allow any subject** ticked |
+| NHI `PFtoken` | Subject | `*` (Allow any subject was left **unticked** in the saved, working setup; the agent is pinned by the required claims instead) |
 | NHI `PFtoken` | Audience | `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` |
 | NHI `PFtoken` | Required claims | `client_id` = `pf-route-c-test` and `act.sub` = `pf-route-c-test` |
-| NHI `PFtoken` | End user | Opaque, claim `sub` |
+| NHI `PFtoken` | End user | Opaque — record the end user, never look them up; End-user claim left empty (= `sub`) |
 | Agent key `pftoken-agent` | custodian / scope | NHI `PFtoken` / `mcp` |
 | Door `pftoken` | Auth Mode / backend | Pass Agent Token / `http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp` |
 | Grant | policy | the key's own console-made grant `KarunRiver-5a485737526f`, with a rule added for app `pftoken`, key `pftoken-agent`, the nine tools |
@@ -43,12 +43,40 @@ The token that passed (claims only):
 }
 ```
 
+### Screenshots of the working setup (2026-10-26)
+
+Taken with Playwright from the local console after the passing test. Dialogs were opened and cancelled; nothing was saved.
+
+**1. Identity `PFtoken`: issuer, subject `*`, JWKS, End user = Opaque.**
+
+![PFtoken edit, top](images/pf-token-exchange/working/02-nhi-pftoken-edit-top.png)
+
+**2. Identity `PFtoken`: End-user claim empty (uses `sub`), audience = the door URL.**
+
+![PFtoken edit, end user and audience](images/pf-token-exchange/working/03-nhi-pftoken-edit-end-user.png)
+
+**3. Identity `PFtoken`: required claims `act.sub` and `client_id` = `pf-route-c-test`.**
+
+![PFtoken edit, required claims](images/pf-token-exchange/working/04-nhi-pftoken-edit-claims.png)
+
+**4. Door `pftoken`: Pass Agent Token, noget backend, nine tools discovered.**
+
+![pftoken overview with nine tools](images/pf-token-exchange/working/05-door-pftoken-overview.png)
+
+**5. Door `pftoken`, Agent Registry tab: `pftoken-agent` via `KarunRiver-5a485737526f` (the grant that made it work), next to `pftoken-wl`.**
+
+![pftoken agent registry tab](images/pf-token-exchange/working/06-door-pftoken-agent-registry.png)
+
+**6. Door `pftoken`, Edit: Auth Mode = Pass Agent Token, MCP Server URL = the noget front.**
+
+![pftoken edit dialog](images/pf-token-exchange/working/09-door-pftoken-edit-auth-mode.png)
+
 ### What broke along the way, and the fix
 
 | Symptom (client) | Gateway log | Cause | Fix |
 |---|---|---|---|
 | 401 Unauthorized | `workload token rejected: required claim "act.sub" does not match` | the NHI required `act.sub` = `aud` (a typo), and the token's `act` was the text `"{}"` | set the required claim to the agent id; make PF emit `act` as an object |
-| 401 Unauthorized | no `workload token` line at all | NHI Subject `*` with Allow any subject **off** (matched literally) | tick Allow any subject |
+| 401 Unauthorized | no `workload token` line in the first read of the log | same cause as the `act.sub` row above; a later request logged `required claim "act.sub" does not match`. (We first blamed Subject `*` with Allow any subject off; that was wrong: the working setup has exactly that.) | fix the required claim; always read the log line that names the claim |
 | console error on save: "Spec.UserClaim resolves to \"sub\" … every caller reads as the same end user" | — | End user Opaque on `sub` while Subject pins `sub` to one value | widen Subject to `*` + Allow any subject, and pin the agent with a required claim instead |
 | 403 Forbidden | `policy denied PFtoken access to pftoken (agent=true)` | no grant for the key on the door | add a rule to the key's existing grant (below) |
 | tools stay empty | `tool discovery for pftoken failed: … no such host` | backend Service deleted | restore the Service; point the door at the noget front |
