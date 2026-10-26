@@ -31,3 +31,39 @@ logShipping:
   opensearchUrl: "http://opensearch.ping-devops-curtismuir.svc.cluster.local:9200"
   index: gateway-events
   authSecret: ""
+
+# Pin the gateway image to the deployed build (latest only refreshes on pod recreation, and the
+# ECR latest tag still points at the older 2026-10-21 build).
+image:
+  tag: v1.261024
+
+# Gateway 2's per-node OpenSearch MCP sidecar, added by hand with kubectl; a helm upgrade dropped
+# it on 2026-10-25. OPENSEARCH_URL resolves in this namespace's own opensearch Service.
+nodeExtraContainers:
+  - name: opensearch-mcp-server
+    image: cjmuir710/opensearch-mcp-server:latest
+    imagePullPolicy: Always
+    args: ["--transport", "stream", "--host", "0.0.0.0", "--port", "9900"]
+    env:
+      - {name: OPENSEARCH_URL, value: "http://opensearch:9200"}
+      - {name: OPENSEARCH_NO_AUTH, value: "true"}
+    ports:
+      - containerPort: 9900
+    livenessProbe:
+      tcpSocket: {port: 9900}
+      initialDelaySeconds: 15
+      periodSeconds: 30
+    readinessProbe:
+      tcpSocket: {port: 9900}
+      initialDelaySeconds: 10
+      periodSeconds: 10
+    resources:
+      requests: {cpu: 25m, memory: 256Mi}
+      limits: {cpu: 500m, memory: 512Mi}
+
+# The opensearch Deployment's live CPU request was set to 25m by hand; match it so Helm's
+# server-side apply doesn't conflict on that field.
+opensearch:
+  resources:
+    requests:
+      cpu: 25m
