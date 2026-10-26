@@ -258,10 +258,10 @@ export default function PrivilegeAiPoliciesDemoPage({ live = true }) {
         <div className="apd-cards">
           {SCENARIOS.map((s) => <Scenario key={s.id} s={s} live={live} ready={ready} state={runs[s.id]} onRun={run} />)}
           <article className="apd-card apd-card--unproven" data-testid="apd-scn-pf-agent">
-            <h3>{PF_AGENT.title} <span className="apd-tag apd-tag--warn">{PF_AGENT.status}</span></h3>
+            <h3>{PF_AGENT.title} <span className="apd-tag apd-tag--measured">{PF_AGENT.status}</span></h3>
             <p>{PF_AGENT.story}</p>
             <ul>{PF_AGENT.facts.map((f) => <li key={f}>{f}</li>)}</ul>
-            <p className="apd-muted">There is no live run for this one on purpose.</p>
+            <p><Link to={PF_AGENT.link} data-testid="apd-pf-link">Run it on the PingFederate Token Demo page</Link></p>
           </article>
         </div>
       </section>

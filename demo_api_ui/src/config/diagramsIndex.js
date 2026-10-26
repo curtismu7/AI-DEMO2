@@ -32,6 +32,7 @@ export const DIAGRAMS_INDEX = [
     section: "Agent Privilege and Privilege",
     items: [
       D("AI Agent Gateway", "/privilege-mcp-diagrams", "Architecture, sign-in with tool call, auth flow, and how a PingFederate identity reaches a Cedar policy."),
+      D("PingFederate Token demo", "/privilege-pf-token", "A PingFederate-issued JWT accepted by the Privilege gateway: identity, agent key, grant, and the tools that come back, with a live run."),
       D("AI Policies demo", "/privilege-ai-policies", "Privilege deciding agent tool calls with Cedar inside the gateway: allowed, refused or held, with a diagram of where this page and PingFederate fit."),
       D("Privilege-First Gateway", "/privilege-first-gateway", "How the gateway enforces access, in two figures."),
       D("Gateway vs P1AZ Enforcement", "/gateway-enforcement-map", "Where the gateway and PingOne Authorize each enforce."),
