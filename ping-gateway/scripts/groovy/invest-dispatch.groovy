@@ -118,6 +118,11 @@ def pfTokenEndpoint = System.getenv('PF_TOKEN_ENDPOINT') ?: ''
 def pfTeClientId    = System.getenv('PF_TE_CLIENT_ID') ?: ''
 def pfTeClientSecret= System.getenv('PF_TE_CLIENT_SECRET') ?: ''
 def pfTeAuthMethod  = (System.getenv('PF_TE_AUTH_METHOD') ?: 'basic').toLowerCase()
+// The PF token-exchange policy requires an actor token (actorTokenRequired); same actor as olb-token-exchange.groovy.
+def pfMcpActorClientId = System.getenv('PF_MCP_ACTOR_CLIENT_ID') ?: ''
+def pfMcpActorClientSecret = System.getenv('PF_MCP_ACTOR_CLIENT_SECRET') ?: ''
+def pfMcpActorAuthMethod = (System.getenv('PF_MCP_ACTOR_AUTH_METHOD') ?: 'basic').toLowerCase()
+def pfMcpActorScope = System.getenv('PF_MCP_ACTOR_SCOPE') ?: ''
 def pfExchangeConfigValid = {
     if (!pfIssuer || !pfTokenEndpoint || !pfTeClientId || !pfTeClientSecret) return false
     if (!(pfTeAuthMethod in ['basic', 'client_secret_basic', 'post', 'client_secret_post'])) return false
@@ -267,9 +272,83 @@ try {
     }
 } catch (Exception ignored) {}
 def isPfSubject = pfIssuer && subjectIss == pfIssuer
-if (isPfSubject && !pfExchangeConfigValid()) {
+if (isPfSubject && (!pfExchangeConfigValid()
+        || !pfMcpActorClientId || !pfMcpActorClientSecret || !pfMcpActorScope
+        || !(pfMcpActorAuthMethod in ['basic', 'post']))) {
     logger.warn('[InvestDispatch] PF Exchange #3 is not configured')
     return Promises.newResultPromise(rpcError(rpcId, -32603, 'pf_exchange_not_configured'))
+}
+
+def pfActorToken = null
+if (isPfSubject) {
+    def actorParams = [
+        'grant_type': 'client_credentials',
+        'scope': pfMcpActorScope.trim(),
+    ]
+    def actorHeaders = [:]
+    if (pfMcpActorAuthMethod == 'post') {
+        actorParams['client_id'] = pfMcpActorClientId
+        actorParams['client_secret'] = pfMcpActorClientSecret
+    } else {
+        def actorCredentials = pfMcpActorClientId + ':' + pfMcpActorClientSecret
+        def encodedActorCredentials = java.util.Base64.getEncoder().encodeToString(actorCredentials.getBytes('UTF-8'))
+        actorHeaders['Authorization'] = 'Basic ' + encodedActorCredentials
+    }
+    def actorFormBody = actorParams.collect { k, v ->
+        java.net.URLEncoder.encode(k, 'UTF-8') + '=' + java.net.URLEncoder.encode(v as String, 'UTF-8')
+    }.join('&')
+    logger.info('[InvestDispatch] PF MCP actor-token request scope=' + pfMcpActorScope.trim())
+    def actorResp = httpPostForm(pfTokenEndpoint, actorFormBody, actorHeaders)
+    if (actorResp.code != 200) {
+        logger.warn('[InvestDispatch] PF MCP actor-token request failed HTTP ' + actorResp.code)
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
+    try {
+        pfActorToken = new JsonSlurper().parseText(actorResp.body ?: '{}')?.access_token as String
+    } catch (Exception ignored) {}
+    if (!pfActorToken) {
+        logger.warn('[InvestDispatch] PF MCP actor-token response omitted access_token')
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
+    // Match the BFF's PF actor checks before forwarding this token: require a
+    // JWT access token for the configured actor client with every requested scope.
+    def actorTokenValid = false
+    try {
+        def actorJwtParts = pfActorToken.split('\\.', -1)
+        if (actorJwtParts.length != 3) throw new IllegalArgumentException('malformed actor JWT')
+        def actorHeader = new JsonSlurper().parseText(
+            new String(java.util.Base64.getUrlDecoder().decode(actorJwtParts[0]), 'UTF-8'))
+        def actorClaims = new JsonSlurper().parseText(
+            new String(java.util.Base64.getUrlDecoder().decode(actorJwtParts[1]), 'UTF-8'))
+        if ((actorHeader?.typ ?: '').toString().toLowerCase().contains('id-jag')) {
+            throw new IllegalArgumentException('actor token is an ID-JAG')
+        }
+        def actorIdentity = actorClaims.client_id ?: actorClaims.sub
+        if (actorIdentity?.toString() != pfMcpActorClientId) {
+            throw new IllegalArgumentException('actor identity mismatch')
+        }
+        def actorScopes = [] as Set
+        if (actorClaims.scope instanceof Collection) {
+            actorScopes.addAll(actorClaims.scope.collect { it?.toString() })
+        } else {
+            actorScopes.addAll((actorClaims.scope ?: '').toString().split(/\s+/).findAll { it })
+        }
+        def expectedActorScopes = pfMcpActorScope.trim().split(/\s+/).findAll { it }
+        actorTokenValid = expectedActorScopes && expectedActorScopes.every { actorScopes.contains(it) }
+    } catch (Exception ignored) {}
+    if (!actorTokenValid) {
+        logger.warn('[InvestDispatch] PF MCP actor token failed identity/scope/format validation')
+        def errResp = new Response(Status.BAD_GATEWAY)
+        errResp.headers.put('Content-Type', ['application/json'])
+        errResp.entity.setString('{"error":"pf_actor_token_failed"}')
+        return Promises.newResultPromise(errResp)
+    }
 }
 
 if (!isPfSubject && (!tokenEndpoint || !teClientId || !teClientSecret || !investAudience)) {
@@ -311,6 +390,10 @@ def params = [
     'client_secret'       : exClientSecret,
 ]
 if (wantScope) params['scope'] = wantScope
+if (isPfSubject) {
+    params['actor_token'] = pfActorToken
+    params['actor_token_type'] = 'urn:ietf:params:oauth:token-type:access_token'
+}
 
 def exchangeHeaders = [:]
 if (isPfSubject && pfTeAuthMethod in ['basic', 'client_secret_basic']) {
