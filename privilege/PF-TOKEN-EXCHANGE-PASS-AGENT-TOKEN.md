@@ -28,7 +28,7 @@ Our route C token is different [measured 2026-10-22]: a client-credentials token
 
 | Setting | Required value | Status |
 |---|---|---|
-| Auth Mode | **Pass Agent Token** (`token-pass`) | Not yet confirmed saved. Our read at 15:57 UTC was User Token. The open dialog on 2026-10-25 shows Pass Agent Token selected. |
+| Auth Mode | **Pass Agent Token** (`token-pass`) | Currently **User Token** (saved; console screenshot 2026-10-25). Switch to Pass Agent Token is still to do. |
 | MCP Server URL | `http://opensearch-mcp-server.ping-devops-cmuir.svc.cluster.local:9900/mcp` | [measured] |
 | Mesh cluster | `ai-demo-cmuir` | [measured] |
 | Tools | the nine HITL tools (below) | [measured]: discovery shows none under User Token, and the console can't discover under Pass Agent Token. See section 6. |
@@ -153,9 +153,70 @@ What was checked, and what could not be checked.
 | Privilege console (`local.procyon.ai:8643`) | **Down** at 2026-10-25, even after reopening PingOne Privilege. Cannot read or change Privilege. Auth mode, grants and tool discovery were not re-read. | [measured] |
 | Demo page `https://ai-demo.ping-devops.com/privilege-ai-policies`, hold scenario | **Not run.** The browser extension was not connected, so the page could not be opened from here. | not tested |
 | Demo user's access to `opensearch-hitl` | **Not settled.** `opensearch-hitl` is on User Token, which should remove the 403 that the demo user saw, but nobody has run it. | not tested |
-| `pftoken` auth mode | **Still unconfirmed.** Our last saved read was User Token (15:57 UTC, 2026-10-22). The open dialog on 2026-10-25 showed Pass Agent Token. | unresolved |
+| `pftoken` auth mode | **User Token** (saved). The Pass Agent Token seen in a 2026-10-25 dialog was not saved. The target for this guide is Pass Agent Token; switching back is still to do. | [measured, console screenshot] |
+| `pftoken` tool discovery | Overview says "Awaiting first user credential - tools will be discovered on first sign-in". Under User Token, discovery waits for a person to sign in to the door once. Nobody has, so Tools is empty. | [measured, console screenshot] |
+| `pftoken` Activity Logs, 2026-10-18 to 2026-10-25 | **No data.** The grant deletions are not recorded on this tab. | [measured, console screenshot] |
+| `pftoken` Agent Registry tab | One access config: key `pftoken-wl`, policy `SlaveRiver-3869364f3144`, expires 2026-11-21. `pftoken-agent` has no access config on this door. | [measured, console screenshot] |
 
-What to run once the console is back: re-read the `pftoken` auth mode and tool discovery; re-check whether `pftoken-agent-grant` exists; run the demo page's hold scenario in a signed-in browser.
+Still to run: the demo page's hold scenario in a signed-in browser.
+
+## 13. Console walkthrough (screenshots, 2026-10-25)
+
+Taken with Playwright against the local console (`https://local.procyon.ai:8643`, signed in as the tenant admin). Dialogs were opened and cancelled; nothing was saved.
+
+### Non-Human Identities list
+
+![Non-Human Identities list](images/pf-token-exchange/03-nhi-list.png)
+
+`PFtoken` is an OIDC Provider identity with subject `pf-route-c-test`. End user shows "not resolved". Scopes: `shadowai:write`, `llm`, `policy:read`, `mcp`, `a2a`.
+
+### Edit PFtoken: identity, keys, permissions, end user
+
+![Edit PFtoken, upper half](images/pf-token-exchange/11-nhi-pftoken-edit.png)
+
+Where Suman's recipe goes in this screen:
+
+| Recipe field | Console control | Current | Recipe |
+|---|---|---|---|
+| Subject | Subject (sub) | `pf-route-c-test` | `*`, with Allow any subject on (lower half) |
+| UserClaim + SubjectBinding | End user → "End user in a presented token" | None — the identity is the only principal | Resolved (or Opaque if the user is not in Privilege), claim `sub` |
+| Scopes | Permissions | all five ticked | `mcp` only |
+| JWKS | Key source → Fetch from URL | `https://cmuir-pf.ping-devops.com/pf/JWKS` | unchanged |
+
+The console note under End user: "Only Resolved enables per-user model rules on an access key that names this identity as custodian."
+
+### Edit PFtoken: subject, audience, required claims
+
+![Edit PFtoken, lower half](images/pf-token-exchange/12-nhi-pftoken-edit-lower.png)
+
+| Recipe field | Console control | Current | Recipe |
+|---|---|---|---|
+| Allow any subject | checkbox | off | on |
+| Audience | Audience | `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` | the gateway audience (section 4) |
+| Required claims | Required claims | `client_id` = `pf-route-c-test` | `act.sub` = `pf-route-c-test` |
+| Max token lifetime | Max token lifetime (seconds) | 0 (controller default, 3600) | 7200 |
+
+The page header says the audience cannot be changed in the console ("every deployed workload is bound to them"). We changed it through the API on 2026-10-22 and the gateway honoured it. Treat a console-side audience change as "register a new identity".
+
+### The `pftoken` door: Overview
+
+![pftoken Overview](images/pf-token-exchange/20-app-pftoken-overview.png)
+
+Auth Mode is User Token. Tools, Prompts and Resources are empty, with the banner "Awaiting first user credential - tools will be discovered on first sign-in".
+
+### The `pftoken` door: Edit (Auth Mode)
+
+![pftoken Edit dialog](images/pf-token-exchange/24-app-pftoken-edit.png)
+
+For this guide, set Auth Mode to **Pass Agent Token** and Save. Under User Token, the console says the token "will be sourced automatically from the user's vault credential at request time".
+
+### The `pftoken` door: Access Summary and Agent Registry
+
+![pftoken Access Summary](images/pf-token-exchange/21-app-pftoken-access-summary.png)
+
+![pftoken Agent Registry tab](images/pf-token-exchange/23-app-pftoken-agent-registry.png)
+
+The door has one entity (AI Agent DemoAdmin) and one policy (`SlaveRiver-3869364f3144`), which is the access config for key `pftoken-wl`. The key the PF token actually maps to, `pftoken-agent`, has no access config here. That is the missing grant.
 
 ## Related
 
