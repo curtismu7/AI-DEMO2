@@ -203,23 +203,35 @@ export default function SequenceReelDiagram({
     return [...base.slice(0, at + 1), ...a2a, ...base.slice(at + 1)];
   }, [externalSteps, snap.steps, snap.trace]);
 
-  const allLifelineSteps = useMemo(() => {
-    // The shared policy: fired hops only (in-flight and completed alike — the
-    // reel is a playback surface and renders no collapse chip).
+  // "+N hops not in this run": completed Live runs collapse the hops that never
+  // fired behind a chip; expanding appends them greyed after the real hops, each
+  // with its skip narrative. A handed-in externalSteps list is by definition the
+  // hops that happened, so it never has any.
+  const [showSkipped, setShowSkipped] = useState(false);
+  const { lifelineSource, skippedCount, revealedById } = useMemo(() => {
+    // The shared policy: fired hops only while a run is in flight; a completed
+    // run adds the chip's skipped hops (see above).
     // The recorded-trace pages (TransactionTraceEmbedPage et al) hand the reel
     // externalSteps and never touch the token-chain store — the store trace is
-    // EMPTY_TRACE, with no activity for the policy's gate to see. A handed-in
-    // list is by definition the hops that happened: score it against a
-    // synthetic completed trace so the embed keeps drawing.
+    // EMPTY_TRACE, with no activity for the policy's gate to see. Score a
+    // handed-in list against a synthetic completed trace so the embed keeps drawing.
     const trace = Array.isArray(externalSteps)
       ? { ...snap.trace, startedAt: snap.trace?.startedAt || 1, outcome: snap.trace?.outcome || "ok" }
       : snap.trace;
-    const { visible } = applyStepVisibility(steps, trace);
+    const external = Array.isArray(externalSteps);
+    const { visible, skipped, revealed } = applyStepVisibility(steps, trace, { collapsed: external || !showSkipped });
     const failureIndex = visible.findIndex((step) => step.status === "error");
     const visibleSteps = failureIndex === -1 ? visible : visible.slice(0, failureIndex + 1);
-    if (!visibleSteps.some((step) => !SESSION_STEP_IDS.has(step.id))) return [];
-    return deriveLifelineSteps(visibleSteps);
-  }, [steps, externalSteps, snap.trace]);
+    return {
+      lifelineSource: [...visibleSteps, ...(external ? [] : revealed)],
+      skippedCount: external ? 0 : skipped.length,
+      revealedById: new Map(revealed.map((step) => [step.id, step])),
+    };
+  }, [steps, externalSteps, snap.trace, showSkipped]);
+  const allLifelineSteps = useMemo(() => {
+    if (!lifelineSource.some((step) => !SESSION_STEP_IDS.has(step.id))) return [];
+    return deriveLifelineSteps(lifelineSource);
+  }, [lifelineSource]);
   const runId = externalRunId ?? snap.trace?.runId ?? null;
   const runProvenance = provenance || resolveTraceProvenance(snap.trace);
   const traceFinished = externalTraceFinished ?? (["ok", "error", "mock-success"].includes(snap.trace?.outcome));
@@ -353,10 +365,10 @@ export default function SequenceReelDiagram({
   const selectStep = useCallback(
     (id) => {
       if (typeof onSelectStep !== "function") return;
-      const fullStep = stepsById.get(id);
+      const fullStep = revealedById.get(id) || stepsById.get(id);
       if (fullStep) onSelectStep(fullStep);
     },
-    [onSelectStep, stepsById],
+    [onSelectStep, stepsById, revealedById],
   );
 
   // Keep the currently-executing step in view as the diagram grows — the
@@ -643,7 +655,7 @@ export default function SequenceReelDiagram({
             // the authority: nothing is still running once it has one.
             const isActive = step.status === "active" && !traceFinished;
             const stepLaneClass = laneClass(step.type === "note" ? step.lane : step.to);
-            const groupClass = `${statusClass} ${stepLaneClass}${isSelected ? " srd-selected" : ""}`;
+            const groupClass = `${statusClass} ${stepLaneClass}${isSelected ? " srd-selected" : ""}${revealedById.has(step.id) ? " srd-skipped" : ""}`;
             const displayLabel = sequenceDiagramLabel(step.label, verticalName);
             const setStepRef = (el) => {
               if (step.id === activeStepId) activeStepRef.current = el;
@@ -741,6 +753,17 @@ export default function SequenceReelDiagram({
           </defs>
         </svg>
       </div>
+      {skippedCount > 0 && (
+        <button
+          type="button"
+          className="srd-skipped-chip"
+          data-testid="srd-skipped-chip"
+          aria-expanded={showSkipped}
+          onClick={() => setShowSkipped((v) => !v)}
+        >
+          {showSkipped ? `− ${skippedCount} hops not in this run` : `+ ${skippedCount} hops not in this run`}
+        </button>
+      )}
       {toolbar("bottom")}
     </div>
   );

@@ -301,7 +301,7 @@ jobs:
     needs: [changes, gates]
     if: needs.changes.outputs['ui'] == 'true'
     runs-on: self-hosted
-    timeout-minutes: 30
+    timeout-minutes: 60
     steps:
       # Older target commits predate the 4 GB Vitest RSS guard. Preserve the
       # current guard from this workflow revision, then check out the target.

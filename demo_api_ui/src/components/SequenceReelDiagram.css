@@ -411,6 +411,31 @@
   font-weight: 700;
 }
 
+/* A hop revealed from behind the "+N hops not in this run" chip: it did not
+   happen, so it is drawn faint and dashed. */
+.srd-skipped {
+  opacity: 0.45;
+}
+
+.srd-skipped .srd-arrow,
+.srd-skipped .srd-note-box {
+  stroke-dasharray: 4 3;
+}
+
+.srd-skipped-chip {
+  display: block;
+  margin: 0.5rem auto;
+  padding: 0.2rem 0.7rem;
+  font-size: var(--font-size-3xs);
+  border: 1px dashed var(--th-text-muted, #909ea4);
+  border-radius: var(--radius-pill);
+  background: transparent;
+  color: var(--th-text-muted, #5c646b);
+  cursor: pointer;
+}
+
+.srd-skipped-chip[aria-expanded="true"] { border-style: solid; }
+
 .srd-active-dot {
   fill: var(--th-status-info);
 }
