@@ -104,6 +104,12 @@ def SCOPE_FOR_TOOL = [
 def tokenEndpoint  = System.getenv('PINGONE_TOKEN_ENDPOINT') ?: ''
 def teClientId     = System.getenv('TE_CLIENT_ID') ?: ''
 def teClientSecret = System.getenv('TE_CLIENT_SECRET') ?: ''
+// sensitive_airline_bookings requests sensitive:read on the invest resource, but the client above already holds
+// sensitive:read from the banking resource, and PingOne will not give one application the same scope name from two
+// resources, so that exchange fails with HTTP 400. A dedicated client with a grant only on the invest resource carries it.
+// Unset = the client above (the previous behaviour).
+def investSensTeClientId     = System.getenv('INVEST_SENSITIVE_TE_CLIENT_ID') ?: ''
+def investSensTeClientSecret = System.getenv('INVEST_SENSITIVE_TE_CLIENT_SECRET') ?: ''
 // PingFederate secondary issuer (2026-09-22 A2A-under-PF): PF-issued subject
 // tokens cannot be exchanged by PingOne. Route Exchange #3 to PF when the
 // subject's iss matches PF_ISSUER_URI.
@@ -283,8 +289,9 @@ def subjectType = (isPfSubject && subjectTyp == 'oauth-id-jag+jwt')
     ? 'urn:ietf:params:oauth:token-type:id-jag'
     : 'urn:ietf:params:oauth:token-type:access_token'
 def exEndpoint  = isPfSubject ? pfTokenEndpoint : tokenEndpoint
-def exClientId  = isPfSubject ? pfTeClientId : teClientId
-def exClientSecret = isPfSubject ? pfTeClientSecret : teClientSecret
+def useSensitiveTe = !isPfSubject && toolName == 'sensitive_airline_bookings' && investSensTeClientId && investSensTeClientSecret
+def exClientId  = isPfSubject ? pfTeClientId : (useSensitiveTe ? investSensTeClientId : teClientId)
+def exClientSecret = isPfSubject ? pfTeClientSecret : (useSensitiveTe ? investSensTeClientSecret : teClientSecret)
 def params = [
     'grant_type'          : 'urn:ietf:params:oauth:grant-type:token-exchange',
     'subject_token'       : subjectToken,
