@@ -17,7 +17,14 @@
             "mappings": { "/mcp/brave": "/mcp" }
           }
         },
-        "rsFilter",
+        {
+          "name": "JwksTokenValidation",
+          "type": "ScriptableFilter",
+          "config": {
+            "type": "application/x-groovy",
+            "file": "jwks-token-validation.groovy"
+          }
+        },
         {
           "name": "McpProtocol",
           "type": "McpValidationFilter",
