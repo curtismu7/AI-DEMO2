@@ -94,4 +94,14 @@ describe('PrivilegeMcpDiagramPage', () => {
     expect(within(d).getByRole('button', { name: /Reset/ })).toBeTruthy();
     expect(screen.queryByText(/Download \.mmd/i)).toBeNull();
   });
+
+  it('the PF Token tab draws the PingFederate path with Simulate and Reset', () => {
+    render(<PrivilegeMcpDiagramPage />);
+    fireEvent.click(screen.getByRole('button', { name: 'PF Token' }));
+    const d = screen.getByTestId('pmd-pftoken');
+    expect(within(d).getByText('Identity PFtoken')).toBeInTheDocument();
+    expect(within(d).getByText('Agent key pftoken-agent')).toBeInTheDocument();
+    expect(within(d).getByRole('button', { name: 'Simulate' })).toBeTruthy();
+    expect(within(d).getByRole('button', { name: /Reset/ })).toBeTruthy();
+  });
 });

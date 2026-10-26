@@ -95,11 +95,12 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     expect(screen.getByTestId('apd-run-hold')).toBeDisabled();
   });
 
-  it('the PF-agent scenario is marked not proven and has no run button', async () => {
+  it('the PF-agent scenario is marked measured and links to its own demo page, with no run button here', async () => {
     connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
     page();
     const pf = screen.getByTestId('apd-scn-pf-agent');
-    expect(pf).toHaveTextContent('Not proven');
+    expect(pf).toHaveTextContent('Measured 2026-10-26');
+    expect(within(pf).getByTestId('apd-pf-link')).toHaveAttribute('href', '/privilege-pf-token');
     expect(within(pf).queryByRole('button')).toBeNull();
   });
 });

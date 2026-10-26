@@ -5,8 +5,9 @@ import { CIBA_LINK_DIAGRAM } from '../cibaApprovalLinkDiagram';
 import { SIM_PUSH_DIAGRAM } from '../simulatedPushDiagram';
 import { SIGNIN_DIAGRAM } from '../deviceFirstSignInDiagram';
 import { AI_POLICIES_DIAGRAM } from '../privilegeAiPoliciesDiagram';
+import { PF_TOKEN_DIAGRAM } from '../privilegePfTokenDemo';
 
-describe.each([['consentMockPhone', CONSENT_MOCK_DIAGRAM], ['groupPolicyBoard', GROUP_POLICY_DIAGRAM], ['cibaApprovalLink', CIBA_LINK_DIAGRAM], ['simulatedPush', SIM_PUSH_DIAGRAM], ['deviceFirstSignIn', SIGNIN_DIAGRAM], ['privilegeAiPolicies', AI_POLICIES_DIAGRAM]])('%s diagram', (_n, c) => {
+describe.each([['consentMockPhone', CONSENT_MOCK_DIAGRAM], ['groupPolicyBoard', GROUP_POLICY_DIAGRAM], ['cibaApprovalLink', CIBA_LINK_DIAGRAM], ['simulatedPush', SIM_PUSH_DIAGRAM], ['deviceFirstSignIn', SIGNIN_DIAGRAM], ['privilegeAiPolicies', AI_POLICIES_DIAGRAM], ['privilegePfToken', PF_TOKEN_DIAGRAM]])('%s diagram', (_n, c) => {
   const ids = c.NODES.map((n) => n.id);
   it('has unique nodes in declared groups', () => {
     expect(new Set(ids).size).toBe(ids.length);

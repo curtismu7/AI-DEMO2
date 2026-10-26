@@ -8,18 +8,18 @@ const E = (src, tgt, label, opts) => (opts ? [src, tgt, label, opts] : [src, tgt
 const DASH = { dashed: true };
 const V = { vertical: true };
 const VD = { vertical: true, dashed: true };
-const PFD = { color: 'var(--th-status-warning)', dashed: true };
+const PF = { color: 'var(--th-status-warning)' };
 
 export const AI_POLICIES_GROUPS = {
   demo: { label: 'Our demo page (a client; it evaluates nothing)', bg: 'var(--th-status-info)' },
   priv: { label: 'Privilege gateway (Cedar runs inside)', bg: 'var(--th-bg-emphasis)' },
-  pf: { label: 'PingFederate (agent path not proven)', bg: 'var(--th-status-warning)' },
+  pf: { label: 'PingFederate (agent path measured 2026-10-26)', bg: 'var(--th-status-warning)' },
 };
 
 export const AI_POLICIES_NODES = [
   N('page', 'demo', 'AI Policies demo page', ['pick a scenario; shows the real', 'verdict + the real policy'], 0, 0),
   N('bff', 'demo', 'Privilege client (BFF)', ['tools/call with YOUR', 'Privilege sign-in'], 380, 0),
-  N('pfagent', 'pf', 'Agent with a PF token', ['route C: a workload-identity', 'key trusts the PF issuer'], 0, 170),
+  N('pfagent', 'pf', 'Agent with a PF token', ['identity trusts the PF issuer;', 'act.sub pins the agent'], 0, 170),
   N('door', 'priv', 'Gateway door', ['opensearch-hitl: advertises', 'itself as the auth server'], 380, 170),
   N('auth', 'priv', 'Authenticate, resolve who', ['people: door OAuth, PingOne', '(PF = sign-in source only)', 'user by email alias + groups'], 760, 170),
   N('pac', 'priv', 'Access grant (pacpolicys)', ['union of grants per app;', 'optional RequiredClaims'], 1140, 170),
@@ -33,7 +33,7 @@ export const AI_POLICIES_NODES = [
 export const AI_POLICIES_EDGES = [
   E('page', 'bff', 'scenario'), // 0
   E('bff', 'door', 'tools/call', V), // 1
-  E('pfagent', 'door', 'route C', PFD), // 2
+  E('pfagent', 'door', 'PF JWT', PF), // 2
   E('door', 'auth', ''), // 3
   E('auth', 'pac', 'grants', DASH), // 4
   E('pac', 'cedar', '', VD), // 5
@@ -54,7 +54,7 @@ export const AI_POLICIES_STEPS = [
   { key: 'hold', edges: [8, 9], title: 'Outcome: hold for a human (measured, verified 2026-10-13)', what: 'A forbid that names approvers on the unattended action opens an approval and returns its id. Someone approves it in the console; then Retry on the page passes.', why: 'Clients that are not hold-aware show a cryptic result and give up, so the page shows the approval id and the Retry step.' },
   { key: 'show', edges: [6, 7, 8], title: 'The page shows what the gateway returned', what: 'Whatever the gateway returned is shown as it is: the result, the real error, or the approval id, with the real Cedar policy text and name that decided it (mirrored from the live Active policies) and the raw response.', why: 'Everything on screen came from the gateway, not from the page.' },
   { key: 'pf-people', edges: [3], title: 'PingFederate and people (inferred)', what: 'For a person, PingFederate would only be a sign-in source behind PingOne: the Privilege user and their groups are what Cedar sees, not a PF claim. Adding PF there is a PingOne configuration, not a Privilege one.', why: 'So protecting on a PF claim cannot be done in Cedar for people.' },
-  { key: 'pf-agent', edges: [2], title: 'PingFederate and agents (not proven)', what: 'For an agent, Privilege can trust a PF issuer natively: a workload-identity key with the PF issuer and audience, claims pinned with RequiredClaims. The gateway then applies the grant and Cedar. The decisive test ran but its output was lost, so this is designed, not proven.', why: 'The page shows this scenario as not proven, with no live run.' },
+  { key: 'pf-agent', edges: [2], title: 'PingFederate and agents (measured 2026-10-26)', what: 'An agent presents a PingFederate-issued JWT. The gateway verifies it against a non-human identity that trusts the PF issuer (audience = the door, act.sub and client_id pinned as required claims), maps it to the agent key, and applies the key\'s grant: tools/list returned 200 with all nine tools.', why: 'Claims are checked by the identity and the grant, not by Cedar. Try it on the PingFederate Token Demo page.' },
 ];
 
 export const AI_POLICIES_DIAGRAM = { GROUPS: AI_POLICIES_GROUPS, NODES: AI_POLICIES_NODES, EDGES: AI_POLICIES_EDGES, STEPS: AI_POLICIES_STEPS };
