@@ -78,7 +78,7 @@
 }
 .hmd-panel__error,
 .hmd-panel__decision--denied strong { color: var(--th-status-error-text); }
-.hmd-panel__error { margin: 0.6rem 0 0; }
+.hmd-panel__error { margin: 1.25rem 0 0; }
 
 .hmd-panel__evidence {
   display: grid;
