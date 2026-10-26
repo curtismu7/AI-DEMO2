@@ -39,4 +39,11 @@ describe('United personal-agent MCP door sequence', () => {
     expect(screen.getByRole('heading', { level: 1, name: "A member's agent meets United's MCP door" })).toBeTruthy();
     expect(screen.getByRole('link', { name: /All diagrams/ }).getAttribute('href')).toBe('/diagrams');
   });
+
+  it('links to the original United as-built diagram on Drive', () => {
+    render(<MemoryRouter><UnitedPersonalAgentFlowPage /></MemoryRouter>);
+    const a = screen.getByRole('link', { name: /as-built diagram/ });
+    expect(a.getAttribute('href')).toMatch(/^https:\/\/drive\.google\.com\/file\/d\/1W0fCnzQf9c_zv27w5bLSqeWRv8AE-bAz\//);
+    expect(a.getAttribute('target')).toBe('_blank');
+  });
 });
