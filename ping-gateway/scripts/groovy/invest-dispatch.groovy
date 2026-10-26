@@ -361,6 +361,10 @@ if (!isPfSubject && (!tokenEndpoint || !teClientId || !teClientSecret || !invest
 // TE client holds grants on several; `audience=` alone is silently ignored and
 // the issued token keeps the gateway aud, which the backend then rejects.
 def wantScope = SCOPE_FOR_TOOL[toolName]
+// The A2A Passenger Records tool needs pnr:read on the backend token (the resource server
+// answers -32005 without it). PingOne's exchange grants it from the A2A delegation; PF only
+// issues what is requested, so ask for it explicitly.
+if (isPfSubject && toolName == 'sensitive_passenger_record') wantScope = 'read pnr:read'
 logger.info('[InvestDispatch] provider=' + (isPfSubject ? 'pingfederate' : 'pingone') + ' subject_typ=' + (subjectTyp ?: '(unset)'))
 // Only an exactly typed PF ID-JAG subject uses id-jag typing. All other
 // subjects, including ordinary PF ATM access tokens, use access_token.
