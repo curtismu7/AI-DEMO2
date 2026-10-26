@@ -289,9 +289,14 @@ def subjectType = (isPfSubject && subjectTyp == 'oauth-id-jag+jwt')
     ? 'urn:ietf:params:oauth:token-type:id-jag'
     : 'urn:ietf:params:oauth:token-type:access_token'
 def exEndpoint  = isPfSubject ? pfTokenEndpoint : tokenEndpoint
+def exClientId  = isPfSubject ? pfTeClientId : teClientId
+def exClientSecret = isPfSubject ? pfTeClientSecret : teClientSecret
+// Override only for the sensitive airline tool on the PingOne path (PF keeps its own credentials above).
 def useSensitiveTe = !isPfSubject && toolName == 'sensitive_airline_bookings' && investSensTeClientId && investSensTeClientSecret
-def exClientId  = isPfSubject ? pfTeClientId : (useSensitiveTe ? investSensTeClientId : teClientId)
-def exClientSecret = isPfSubject ? pfTeClientSecret : (useSensitiveTe ? investSensTeClientSecret : teClientSecret)
+if (useSensitiveTe) {
+    exClientId = investSensTeClientId
+    exClientSecret = investSensTeClientSecret
+}
 def params = [
     'grant_type'          : 'urn:ietf:params:oauth:grant-type:token-exchange',
     'subject_token'       : subjectToken,

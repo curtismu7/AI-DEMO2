@@ -127,6 +127,6 @@ describe('PingGateway invest-dispatch mirrors the handler set', () => {
     expect(src).toContain("System.getenv('INVEST_SENSITIVE_TE_CLIENT_ID')");
     expect(src).toContain("System.getenv('INVEST_SENSITIVE_TE_CLIENT_SECRET')");
     expect(src).toMatch(/def useSensitiveTe = !isPfSubject && toolName == 'sensitive_airline_bookings' && investSensTeClientId && investSensTeClientSecret/);
-    expect(src).toMatch(/def exClientId\s+= isPfSubject \? pfTeClientId : \(useSensitiveTe \? investSensTeClientId : teClientId\)/);
+    expect(src).toMatch(/if \(useSensitiveTe\) \{\s*exClientId = investSensTeClientId\s*exClientSecret = investSensTeClientSecret\s*\}/);
   });
 });
