@@ -121,12 +121,12 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
       }
       // A new login supersedes any parked (password-verified) flow of this session.
       delete req.session.oauthPiFlowParked;
-      req.session.oauthPiFlow = { flowId: flow.id, provider, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r), status: flow.status };
       // Echo the authorize request's login_hint so the SPA can prefill, as the
       // hosted login page does. PingFederate BINDS the flow to the hint
       // ("Username must match the provided username hint"); for PingOne the
       // hint is advisory prefill only — signing in as someone else is fine.
       const usernameHint = new URL(authorizeUrl).searchParams.get('login_hint') || null;
+      req.session.oauthPiFlow = { flowId: flow.id, provider, startedAt: Date.now(), cookies: mergePiFlowCookies({}, r), status: flow.status, usernameHint };
       return req.session.save((err) => {
         if (err) return res.status(500).json({ error: 'session_save_failed' });
         const externalUrl = flow.status === 'EXTERNAL_AUTHENTICATION_REQUIRED' ? externalAuthUrl({ provider, flowId: flow.id }, flow, providerConfig) : '';
@@ -378,6 +378,13 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
     return pending;
   }
 
+  // PF binds the flow to its login_hint ("username must match the hint"), so a name that equals
+  // the hint in any case is sent as the hint itself; otherwise fold case (PF's PCV is case-sensitive).
+  function pfUsername(typed, hint) {
+    const t = typed.trim();
+    return hint && hint.toLowerCase() === t.toLowerCase() ? hint : t.toLowerCase();
+  }
+
   async function handleCredentialsStep(req, res) {
     let pending = openPiFlowOrReject(req, res);
     if (!pending) return undefined;
@@ -407,7 +414,7 @@ function makePiFlowHandlers({ providerConfig, knownRedirectOrigins, allowSecondF
         pf ? 'application/vnd.pingidentity.checkUsernamePassword+json' : 'application/vnd.pingidentity.usernamePassword.check+json',
         // PF's simple password credential validator matches usernames case-sensitively
         // and the demo users are lowercase, so fold case for PF (PingOne already ignores it).
-        { username: pf ? username.trim().toLowerCase() : username, password },
+        { username: pf ? pfUsername(username, pending.usernameHint) : username, password },
       );
       const badCredentials = pf ? 'CREDENTIAL_VALIDATION_FAILED' : 'INVALID_CREDENTIALS';
       if (step.status === 400 && body?.details?.some((d) => d.code === badCredentials)) {
