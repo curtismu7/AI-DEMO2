@@ -111,3 +111,78 @@
   border-color: var(--th-status-info);
   box-shadow: 0 0 0 2px var(--th-status-info-bg);
 }
+
+/* Dashboard look (opt-in through the `lanes` prop): the same lane hues as the dashboard's Sequence view
+   (SequenceReelDiagram.css), solid lane-coloured actor boxes, lane-coloured arrows, boxed labels. */
+.sfx--lanes {
+  --sfx-color-browser: #2a78d6;
+  --sfx-color-chat: color-mix(in oklab, #2a78d6 60%, white);
+  --sfx-color-agent: #eb6834;
+  --sfx-color-gateway: color-mix(in oklab, #1baf7a 60%, white);
+  --sfx-color-pingone: #eda100;
+  --sfx-color-authz: color-mix(in oklab, #eda100 60%, white);
+  --sfx-color-bff: #e87ba4;
+  --sfx-color-api: color-mix(in oklab, #e87ba4 55%, white);
+  --sfx-color-data: color-mix(in oklab, #e87ba4 30%, white);
+}
+[data-theme="dark"] .sfx--lanes {
+  --sfx-color-browser: #4a9eff;
+  --sfx-color-chat: color-mix(in oklab, #4a9eff 80%, white);
+  --sfx-color-agent: #ff6b4a;
+  --sfx-color-gateway: color-mix(in oklab, #2ed9a3 80%, white);
+  --sfx-color-pingone: #ffa500;
+  --sfx-color-authz: color-mix(in oklab, #ffa500 80%, white);
+  --sfx-color-bff: #ff5599;
+  --sfx-color-api: color-mix(in oklab, #ff5599 75%, white);
+  --sfx-color-data: color-mix(in oklab, #ff5599 55%, white);
+}
+.sfx-lane-browser { --sfx-lane: var(--sfx-color-browser); }
+.sfx-lane-chat { --sfx-lane: var(--sfx-color-chat); }
+.sfx-lane-agent { --sfx-lane: var(--sfx-color-agent); }
+.sfx-lane-gateway { --sfx-lane: var(--sfx-color-gateway); }
+.sfx-lane-pingone { --sfx-lane: var(--sfx-color-pingone); }
+.sfx-lane-authz { --sfx-lane: var(--sfx-color-authz); }
+.sfx-lane-bff { --sfx-lane: var(--sfx-color-bff); }
+.sfx-lane-api { --sfx-lane: var(--sfx-color-api); }
+.sfx-lane-data { --sfx-lane: var(--sfx-color-data); }
+
+/* Darkened to a fixed lightness so the white label clears contrast on every lane (the tints are built as strokes). */
+.sfx--lanes .sfx-part {
+  background: color-mix(in oklab, var(--sfx-lane, var(--th-text-muted)) 62%, black);
+  border: 2px solid var(--sfx-lane, var(--th-border-strong));
+  color: #fff;
+}
+.sfx--lanes .sfx-lifeline { border-left: 2.5px dashed var(--th-border-strong); opacity: 0.7; }
+.sfx--lanes .sfx-label {
+  padding: 2px 8px;
+  color: var(--th-text-muted);
+  background: var(--th-bg-page);
+  border: 1px solid var(--th-border);
+}
+
+/* The issue overlay: red edge for the problem, amber for a known gap. */
+.sfx-issue {
+  box-sizing: border-box;
+  padding: 8px 12px;
+  color: var(--th-text);
+  background: var(--th-status-error-bg);
+  border: 1px solid var(--th-status-error);
+  border-left-width: 5px;
+  border-radius: var(--radius-sm);
+}
+.sfx-issue__title {
+  margin-bottom: 4px;
+  font-size: var(--font-size-2xs);
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+  color: var(--th-status-error-text);
+}
+.sfx-issue__row { margin: 0 0 6px; font-size: var(--font-size-xs); line-height: 17px; white-space: normal; }
+.sfx-issue__row b { margin-right: 6px; font-size: var(--font-size-2xs); text-transform: uppercase; letter-spacing: 0.04em; }
+.sfx-issue__row--gap {
+  padding: 3px 6px;
+  color: var(--th-status-warning-text);
+  background: var(--th-status-warning-bg);
+  border-radius: var(--radius-sm);
+}

@@ -50,7 +50,7 @@ export function flowWidth(canvasW, bounds) {
 
 function Participant({ data }) {
   return (
-    <div className="sfx-part" style={{ width: data.w }}>
+    <div className={`sfx-part${data.lane ? ` sfx-lane-${data.lane}` : ""}`} style={{ width: data.w }}>
       {data.label.split("\n").map((l, i) => (
         <div key={i} className={i ? "sfx-part__sub" : "sfx-part__title"}>{l}</div>
       ))}
@@ -77,6 +77,19 @@ function Note({ data }) {
 // A wire form or mock token shown under its message, like the payload boxes of a hand-drawn sequence diagram.
 function Payload({ data }) {
   return <pre className="sfx-payload" style={{ width: data.w }}>{data.text}</pre>;
+}
+// The issue overlay under a hop's first message: the problem the hop exists to solve, what it does about it, and (when
+// the design is still open) the known gap.
+function Issue({ data }) {
+  const { issue } = data;
+  return (
+    <div className="sfx-issue" style={{ width: data.w }}>
+      <div className="sfx-issue__title">{issue.title}</div>
+      <p className="sfx-issue__row"><b>Issue</b> {issue.problem}</p>
+      <p className="sfx-issue__row"><b>Answer</b> {issue.answer}</p>
+      {issue.gap && <p className="sfx-issue__row sfx-issue__row--gap"><b>Known gap</b> {issue.gap}</p>}
+    </div>
+  );
 }
 function Fragment({ data }) {
   return <div className="sfx-frag" style={{ width: data.w }}>{data.text}</div>;
@@ -120,7 +133,7 @@ function SelfEdge({ id, sourceX, sourceY, style, markerEnd, data }) {
   );
 }
 
-const nodeTypes = { part: Participant, lifeline: Lifeline, anchor: Anchor, note: Note, payload: Payload, frag: Fragment, box: BoxBand };
+const nodeTypes = { part: Participant, lifeline: Lifeline, anchor: Anchor, note: Note, payload: Payload, issue: Issue, frag: Fragment, box: BoxBand };
 const edgeTypes = { msg: MessageEdge, self: SelfEdge };
 
 const ARROW = { type: "arrowclosed", width: 16, height: 16 };
@@ -129,7 +142,16 @@ const ARROW = { type: "arrowclosed", width: 16, height: 16 };
 const PAYLOAD_CH = 7.8; // IBM Plex Mono at the app's size; a system mono is narrower, so it only leaves slack
 const PAYLOAD_LINE_H = 15;
 
-export function buildSequenceFlow(source, payloads = []) {
+// Height of an issue box: its text wraps at about ISSUE_CH characters a line.
+const ISSUE_W = 600;
+const ISSUE_CH = 82;
+export function issueHeight(issue) {
+  const rows = [issue.problem, issue.answer, issue.gap].filter(Boolean);
+  const lines = rows.reduce((sum, t) => sum + Math.ceil((t.length + 10) / ISSUE_CH), 0);
+  return 18 + 24 + lines * 17 + rows.length * 6;
+}
+
+export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {}) {
   const model = parseSequence(source);
   // Two or more `box` groups are separate flows. Draw them stacked, each with its own
   // participant row, instead of side by side, so the diagram stays narrow enough to read.
@@ -181,6 +203,8 @@ export function buildSequenceFlow(source, payloads = []) {
       nodes.push({ id: b, type: "anchor", position: { x: cx[it.to] - 3, y: y + (self ? 23 : -3) }, data: {}, draggable: false, selectable: false, zIndex: 3 });
       n += 1;
       const text = model.autonumber ? `${n}. ${it.text}` : it.text;
+      const lane = lanes?.[it.from];
+      const stroke = lane ? `var(--sfx-color-${lane})` : undefined;
       edges.push({
         id: `m${i}`,
         source: a,
@@ -188,9 +212,9 @@ export function buildSequenceFlow(source, payloads = []) {
         sourceHandle: self || rightward ? "sr" : "sl",
         targetHandle: self ? "tr" : rightward ? "tl" : "tr",
         type: self ? "self" : "msg",
-        markerEnd: ARROW,
-        style: it.dashed ? { strokeDasharray: "6 4" } : undefined,
-        data: { text },
+        markerEnd: lane ? { ...ARROW, color: stroke } : ARROW,
+        style: { ...(it.dashed ? { strokeDasharray: "6 4" } : null), ...(lane ? { stroke, strokeWidth: 3 } : null) },
+        data: { text, stroke },
         selectable: false,
         zIndex: 2,
       });
@@ -208,6 +232,14 @@ export function buildSequenceFlow(source, payloads = []) {
         y += 8;
         nodes.push({ id: `pl${n - 1}`, type: "payload", position: { x, y }, data: { text: payload, w }, draggable: false, selectable: false, zIndex: 1 });
         y += h + 6;
+      }
+      const issue = issues?.[n - 1];
+      if (issue) {
+        const allX = model.participants.map((p) => cx[p.id]);
+        const x = Math.max(Math.min(...allX) - 80, Math.min(Math.min(cx[it.from], cx[it.to]) - 12, Math.max(...allX) + 80 - ISSUE_W));
+        y += 8;
+        nodes.push({ id: `is${n - 1}`, type: "issue", position: { x, y }, data: { issue, w: ISSUE_W }, draggable: false, selectable: false, zIndex: 1 });
+        y += issueHeight(issue) + 6;
       }
     } else if (it.type === "note") {
       const xs = it.over.map((id) => cx[id]);
@@ -235,7 +267,7 @@ export function buildSequenceFlow(source, payloads = []) {
 
   model.participants.forEach((p) => {
     const span = spans[groupOf(p)] || spans[cur];
-    nodes.push({ id: `p-${p.id}`, type: "part", position: { x: cx[p.id] - PART_W / 2, y: span.head }, data: { label: p.label, w: PART_W }, draggable: false, zIndex: 4 });
+    nodes.push({ id: `p-${p.id}`, type: "part", position: { x: cx[p.id] - PART_W / 2, y: span.head }, data: { label: p.label, w: PART_W, lane: lanes?.[p.id] }, draggable: false, zIndex: 4 });
     nodes.push({ id: `l-${p.id}`, type: "lifeline", position: { x: cx[p.id] - 1, y: span.head + PART_H }, data: { h: Math.max(20, span.end - span.head - PART_H) }, draggable: false, selectable: false, zIndex: 0 });
   });
   model.boxes.forEach((b, i) => {
@@ -265,7 +297,7 @@ export function buildSequenceFlow(source, payloads = []) {
   return { nodes, edges, steps, bounds, messages, people, rows };
 }
 
-function Inner({ source, step, active, details, driver, payloads, reelSync }) {
+function Inner({ source, step, active, details, driver, payloads, reelSync, lanes, issues }) {
   const ref = useRef(null);
   const flowRef = useRef(null);
   useFitOnResize(flowRef, FIT);
@@ -278,7 +310,7 @@ function Inner({ source, step, active, details, driver, payloads, reelSync }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, []);
-  const { nodes, edges, steps, bounds, messages, people, rows } = useMemo(() => buildSequenceFlow(source, payloads), [source, payloads]);
+  const { nodes, edges, steps, bounds, messages, people, rows } = useMemo(() => buildSequenceFlow(source, payloads, { lanes, issues }), [source, payloads, lanes, issues]);
   const rf = useReactFlow();
   // Fit to the page WIDTH and let the canvas grow to the drawing's height, so a 28-message
   // sequence stays at a readable size instead of shrinking to fit one screen.
@@ -291,9 +323,10 @@ function Inner({ source, step, active, details, driver, payloads, reelSync }) {
   const reelStepper = driver || (external ? null : stepper);
   useReelSync(reelSync, (driver || stepper).goTo, messages.length, ref);
   const shown = useMemo(() => {
-    if (active !== undefined) return markEdges(edges, active);
-    return stepEdges(edges, driver ? driver.step : step !== undefined ? step : stepper.step);
-  }, [edges, stepper.step, step, active, driver]);
+    const stepped = active !== undefined ? markEdges(edges, active) : stepEdges(edges, driver ? driver.step : step !== undefined ? step : stepper.step);
+    // Lane colours stay on the arrows while a step is in focus: the focus shows as weight and motion, never as a hue change.
+    return lanes ? stepped.map((e) => (e.data?.stroke ? { ...e, style: { ...e.style, stroke: e.data.stroke } } : e)) : stepped;
+  }, [edges, stepper.step, step, active, driver, lanes]);
   const reelSteps = useMemo(
     () => {
       if (!reelStepper) return [];
@@ -380,11 +413,11 @@ function Inner({ source, step, active, details, driver, payloads, reelSync }) {
  * movie reel's details row. A page that runs its own simulator passes `driver` ({ step, goTo }, step =
  * the message index) to get the diagram highlight and the movie reel without a second control bar.
  */
-export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver, payloads, reelSync }) {
+export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver, payloads, reelSync, lanes, issues }) {
   return (
-    <div className="sfx" role="group" aria-label={label}>
+    <div className={`sfx${lanes ? " sfx--lanes" : ""}`} role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} step={step} active={active} details={details} driver={driver} payloads={payloads} reelSync={reelSync} />
+        <Inner source={source} step={step} active={active} details={details} driver={driver} payloads={payloads} reelSync={reelSync} lanes={lanes} issues={issues} />
       </ReactFlowProvider>
     </div>
   );
