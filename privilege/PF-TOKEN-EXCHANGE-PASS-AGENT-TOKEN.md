@@ -8,6 +8,93 @@ Set up, deploy and use the agent-presents-token path: a PingFederate token excha
 
 Companion docs: `PF-TOKEN-ON-PRIVILEGE-STATUS.md` (where the test stands and the restart checklist) and `PF-CLAIMS-IN-CEDAR-POLICIES.md` (what Cedar can read).
 
+## Use case: federated agents
+
+**Federated agents** are AI agents whose identity already lives in the customer's own identity provider (here PingFederate). The agent presents a token its IdP issued, and Privilege trusts that IdP instead of handing the agent a Privilege-issued static key.
+
+> **Naming.** "Federated Agents" is the new name that is coming for what the Privilege console currently calls **Non-Human Identities** (and the **NHI Agents** page). This guide uses the console's current labels so the steps match the screens; read "Non-Human Identity" as "Federated Agent".
+
+What this covers:
+
+| Covered | How |
+|---|---|
+| An agent authenticates to a Privilege MCP door with a PingFederate-issued JWT | Non-human identity trusting the PF issuer and JWKS |
+| No Privilege secret in the agent | The PF token is the only credential |
+| Only one specific agent is accepted | Required claims `act.sub` and `client_id` pin the agent |
+| The token is bound to one door | Audience = the door URL |
+| What the agent may do on the door | The agent key's grant (tools per door) |
+| The MCP server can verify the token itself | Pass Agent Token forwards the verified token |
+
+What it does not cover yet:
+
+- **On behalf of a user** (user in `sub`, agent in `act.sub`, via PingFederate token exchange): the identity settings below already fit this shape, but it has not been run end to end. Privilege's OBO support is in staging (Ping, 2026-10-23).
+- **Token claims in Cedar policies**: `context.token.claims` is coming in a later release. Today claim checks live in the identity (required claims) and in the Access Policy step of the agent key.
+- **Per-MCP audiences on a shared identity**: the audience must contain the gateway; an allow-list of audiences is possible on request.
+
+Example: a customer such as NYLife has agents registered in PingFederate and wants Privilege to govern which MCP tools those agents may call, without issuing each agent a Privilege key.
+
+## Step-by-step setup
+
+Values in angle brackets are yours; the values we used are in brackets. Every step was done on 2026-10-26 and the result is in "Working configuration" below.
+
+### Before you start
+
+1. The Privilege gateway is `privilege-aigw:v1.261024` or later. (Earlier versions cannot discover tools on a Pass Agent Token door.)
+2. The MCP door's backend is reachable from **every** gateway pod. (Ours needed a restored Service and two network policies; see section 14.)
+
+### A. PingFederate: make the agent's token
+
+1. **Client.** Create an OAuth client for the agent with the `client_credentials` grant. [`pf-route-c-test`]
+2. **Access token manager.** Create a JWT token manager for this agent (clone an existing JWT one; give it a unique Key ID).
+   - Audience claim value: the door URL. [`https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp`]
+   - Resource URIs: the same door URL.
+3. **Access token mapping** for the `CLIENT_CREDENTIALS` context on that token manager:
+   - `sub` ← Context: ClientId
+   - `client_id` ← Context: ClientId
+   - `act` ← Expression: `#{"sub": "<agent id>"}` [`#{"sub": "pf-route-c-test"}`]. It must be an **object**; text `"{}"` will not work.
+4. Set the client's default access token manager to the one from step 2.
+5. **Check:** mint a token and decode it. You need `iss`, `sub`, `aud` = the door URL, `client_id`, and `act.sub` = the agent id (see "The token that passed").
+
+### B. Privilege: register the federated agent (Non-Human Identity)
+
+Console: **Non-Human Identities → Register Identity** (or **Edit** on an existing one).
+
+1. **Token issuer type:** OIDC Provider.
+2. **Issuer (iss):** exactly the token's `iss`. [`https://cmuir-pf.ping-devops.com`]
+3. **Key source:** Fetch from URL; **JWKS URL** = the PingFederate JWKS. [`https://cmuir-pf.ping-devops.com/pf/JWKS`]
+4. **Subject (sub):** `*`. (The agent is pinned by the required claims in step 7, so the subject can stay open for an end user later.)
+5. **End user in a presented token:** Opaque; End-user claim empty (= `sub`). Use Resolved instead if the end user exists in Privilege.
+6. **Audience:** the door URL, the same value PingFederate puts in `aud`.
+7. **Required claims:** `act.sub` = `<agent id>` and `client_id` = `<client id>`. [both `pf-route-c-test`]
+8. **Permissions:** `mcp` (add `llm` or `a2a` only if the agent needs them).
+9. Save. If the console refuses with "Spec.UserClaim resolves to "sub" …", the subject is pinned while End user reads `sub`: set Subject to `*` as in step 4.
+
+### C. Privilege: the MCP door
+
+Console: **Agentic Apps → <door> → Edit**.
+
+1. **MCP Server URL:** a backend address that resolves from every gateway pod. [`http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp`]
+2. **Auth Mode:** Pass Agent Token.
+3. Save. The Overview shows "Awaiting first agent call - tools will be discovered from a forwarded assertion".
+
+### D. Privilege: the agent key and its tools
+
+Console: **Agent Registry → Add Agent** (or **Edit** an existing key).
+
+1. **Custodian:** the identity from part B. Scope: `mcp`. [key `pftoken-agent`, custodian `PFtoken`]
+2. **Gateway & Apps:** select the door from part C.
+3. **Configure Tool Access:** MCP Server = the door; Access tier Everyone; select the tools (selecting none grants every tool). Optional: **Add Claim** to require a token claim for this tier.
+4. Save Configuration, finish the wizard and save the key. The door's **Agent Registry** tab now lists the key with its grant.
+
+Do **not** create the grant as a separate policy through the API: every such policy was deleted by the gateway within seconds (section 7). Editing the key's own grant works.
+
+### E. First call and test
+
+1. Make one agent call with the PingFederate token (for example `tools/list`). Even if it is refused, it triggers tool discovery; the door's Overview then lists the tools.
+2. Call again. Expected: **200** with the tool list. A garbage bearer still gets 401.
+3. Check the gateway log (all three pods, `--all-containers`, section 14): `workload token accepted for key <key>` and no `policy denied`.
+4. Live demo of exactly this: the **PingFederate Token Demo** page, `https://ai-demo.ping-devops.com/privilege-pf-token`.
+
 ## Working configuration (verified 2026-10-26, 18:12 UTC)
 
 A PingFederate-issued token was accepted by the gateway and `tools/list` on `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` returned **HTTP 200 with all nine tools**. A garbage bearer still got 401. Gateway log: `workload token accepted for key pftoken-agent issuer=https://cmuir-pf.ping-devops.com subject=pf-route-c-test`, no policy denial. [measured]
