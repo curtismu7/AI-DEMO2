@@ -119,4 +119,14 @@ describe('PingGateway invest-dispatch mirrors the handler set', () => {
   test.each(AIRLINES_TOOLS)('%s has a SCOPE_FOR_TOOL entry', (tool) => {
     expect(scoped).toContain(tool);
   });
+
+  // PingOne rejects one application holding the same scope name from two resources, so sensitive:read for the airline
+  // tool comes from a dedicated client. Only that tool uses it, and only on the PingOne path; unset falls back.
+  test('sensitive_airline_bookings alone uses the dedicated exchange client, PingOne path only', () => {
+    const src = readFileSync(GROOVY_SRC, 'utf8');
+    expect(src).toContain("System.getenv('INVEST_SENSITIVE_TE_CLIENT_ID')");
+    expect(src).toContain("System.getenv('INVEST_SENSITIVE_TE_CLIENT_SECRET')");
+    expect(src).toMatch(/def useSensitiveTe = !isPfSubject && toolName == 'sensitive_airline_bookings' && investSensTeClientId && investSensTeClientSecret/);
+    expect(src).toMatch(/if \(useSensitiveTe\) \{\s*exClientId = investSensTeClientId\s*exClientSecret = investSensTeClientSecret\s*\}/);
+  });
 });
