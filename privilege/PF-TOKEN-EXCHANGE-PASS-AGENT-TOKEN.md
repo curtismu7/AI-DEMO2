@@ -1,12 +1,64 @@
 # PingFederate token exchange into Privilege, with Pass Agent Token
 
-Set up, deploy and use the agent-presents-token path: a PingFederate token exchange produces a token that acts for an agent, the agent sends it to a Privilege MCP door, and the door forwards the verified token to the MCP server (Pass Agent Token). Expected configuration follows the recipe from the Ping thread (Federico Carbone and Suman Sharma, 2026-10-23). Status as of 2026-10-25: **not working end to end.** Each claim below is tagged:
+Set up, deploy and use the agent-presents-token path: a PingFederate token exchange produces a token that acts for an agent, the agent sends it to a Privilege MCP door, and the door forwards the verified token to the MCP server (Pass Agent Token). Expected configuration follows the recipe from the Ping thread (Federico Carbone and Suman Sharma, 2026-10-23). Status as of 2026-10-26: **working end to end** on gateway `v1.261024` (see "Working configuration" right below). Each claim below is tagged:
 
 - **[measured]**: seen on our tenant or in the gateway log, 2026-10-22.
 - **[ping]**: stated by Ping engineers in the thread. Not yet verified on our tenant.
 - **[expected]**: our reading of what must be true. Not tested.
 
 Companion docs: `PF-TOKEN-ON-PRIVILEGE-STATUS.md` (where the test stands and the restart checklist) and `PF-CLAIMS-IN-CEDAR-POLICIES.md` (what Cedar can read).
+
+## Working configuration (verified 2026-10-26, 18:12 UTC)
+
+A PingFederate-issued token was accepted by the gateway and `tools/list` on `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` returned **HTTP 200 with all nine tools**. A garbage bearer still got 401. Gateway log: `workload token accepted for key pftoken-agent issuer=https://cmuir-pf.ping-devops.com subject=pf-route-c-test`, no policy denial. [measured]
+
+Everything below had to be true at the same time:
+
+| Layer | Setting | Value |
+|---|---|---|
+| Gateway | image | `privilege-aigw:v1.261024` or later (discovers tools on a Pass Agent Token door from the first agent call) |
+| PF token manager `routeCTestAtm` | audience claim and resource URI | `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` |
+| PF mapping `client_credentials\|routeCTestAtm` | `sub`, `client_id` | the client id (`pf-route-c-test`) |
+| PF mapping `client_credentials\|routeCTestAtm` | `act` | expression `#{"sub": "pf-route-c-test"}` (an object, not the text `"{}"`) |
+| NHI `PFtoken` | Issuer / JWKS | `https://cmuir-pf.ping-devops.com` / `https://cmuir-pf.ping-devops.com/pf/JWKS` |
+| NHI `PFtoken` | Subject | `*` with **Allow any subject** ticked |
+| NHI `PFtoken` | Audience | `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp` |
+| NHI `PFtoken` | Required claims | `client_id` = `pf-route-c-test` and `act.sub` = `pf-route-c-test` |
+| NHI `PFtoken` | End user | Opaque, claim `sub` |
+| Agent key `pftoken-agent` | custodian / scope | NHI `PFtoken` / `mcp` |
+| Door `pftoken` | Auth Mode / backend | Pass Agent Token / `http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp` |
+| Grant | policy | the key's own console-made grant `KarunRiver-5a485737526f`, with a rule added for app `pftoken`, key `pftoken-agent`, the nine tools |
+| Cluster | Service and policies | Service `opensearch-mcp-server` (9900) in `ping-devops-cmuir`; network policies `opensearch-mcp-noget-from-gateways` (cmuir) and `gateways-to-opensearch-mcp-noget` (curtismuir) |
+
+The token that passed (claims only):
+
+```json
+{
+  "iss": "https://cmuir-pf.ping-devops.com",
+  "sub": "pf-route-c-test",
+  "aud": "https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp",
+  "client_id": "pf-route-c-test",
+  "act": { "sub": "pf-route-c-test" },
+  "scope": "openid"
+}
+```
+
+### What broke along the way, and the fix
+
+| Symptom (client) | Gateway log | Cause | Fix |
+|---|---|---|---|
+| 401 Unauthorized | `workload token rejected: required claim "act.sub" does not match` | the NHI required `act.sub` = `aud` (a typo), and the token's `act` was the text `"{}"` | set the required claim to the agent id; make PF emit `act` as an object |
+| 401 Unauthorized | no `workload token` line at all | NHI Subject `*` with Allow any subject **off** (matched literally) | tick Allow any subject |
+| console error on save: "Spec.UserClaim resolves to \"sub\" … every caller reads as the same end user" | — | End user Opaque on `sub` while Subject pins `sub` to one value | widen Subject to `*` + Allow any subject, and pin the agent with a required claim instead |
+| 403 Forbidden | `policy denied PFtoken access to pftoken (agent=true)` | no grant for the key on the door | add a rule to the key's existing grant (below) |
+| tools stay empty | `tool discovery for pftoken failed: … no such host` | backend Service deleted | restore the Service; point the door at the noget front |
+| 504 / timeouts to the backend | noget log: `upstream timed out` | noget nginx forwards to the deleted Service | restore Service `opensearch-mcp-server`, restart noget |
+| timeouts from some gateway pods only | — | network policy `ai-demo-internal` blocks the curtismuir gateway pods | add the two narrow policies above |
+
+### How the grant must be made
+
+- **Works:** add a rule to the key's **existing** grant policy (the one the console created for the key, here `KarunRiver-5a485737526f`), through the console's tool-access screen for the key or a `PUT` of that policy. It survived 90 s and the gateway honoured it.
+- **Does not work:** `POST` a **new** separate grant policy for the key. Every one (`pftoken-agent-grant` x4, `tmp-pf-route-c-grant`) was deleted by the gateway within 11 to 80 seconds (`RDP terminate: policy deleted`). The cause is still not known; avoid this route.
 
 ## 1. What the agent presents
 

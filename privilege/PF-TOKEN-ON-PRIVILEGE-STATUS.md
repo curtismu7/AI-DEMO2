@@ -2,7 +2,7 @@
 
 Status as of 2026-10-22 (about 15:00 UTC). Tenant `0428ba4f-169c-436b-aff9-b230496e0e3b`, gateway `mcpgw.ai-demo.ping-devops.com`. No secret values are in this file.
 
-**Bottom line:** a PingFederate-issued token now gets past the gateway's sign-in check. The gateway matches it to the agent key `pftoken-agent`, and then refuses it on policy, because that key has no grant that lists tools on `pftoken`. The grant can't be created from the console yet, because the `pftoken` app discovers no tools. Until that is fixed, we cannot show a PF token listing or calling tools.
+**Bottom line (updated 2026-10-26):** **it works.** A PingFederate-issued token is accepted by the gateway (key `pftoken-agent`) and `tools/list` on the `pftoken` door returns 200 with all nine tools. The full working configuration, and every fix it took, is in [`PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md`](PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md), section "Working configuration". The rest of this file is the history up to 2026-10-22.
 
 ## What is proven
 
