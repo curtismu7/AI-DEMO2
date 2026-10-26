@@ -30,6 +30,7 @@ import AgentOnboardingMermaidPage from "./components/AgentOnboardingMermaidPage"
 import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 const PrivilegeAiPoliciesDemoPage = lazy(() => import("./pages/PrivilegeAiPoliciesDemoPage"));
+const PrivilegePfTokenDemoPage = lazy(() => import("./pages/PrivilegePfTokenDemoPage"));
 import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
 const PrivilegeDocsIndexPage = lazy(() => import("./pages/PrivilegeDocsIndexPage"));
 const SkillsIndexPage = lazy(() => import("./pages/SkillsIndexPage"));
@@ -2325,6 +2326,11 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-ai-policies"
                               element={<PrivilegeAiPoliciesDemoPage />}
+                            />
+                            {/* PingFederate token on Privilege: live run through the BFF (run needs a session; the page is public). */}
+                            <Route
+                              path="/privilege-pf-token"
+                              element={<PrivilegePfTokenDemoPage />}
                             />
                             <Route
                               path="/privilege-cedar"

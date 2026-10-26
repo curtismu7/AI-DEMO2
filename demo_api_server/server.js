@@ -1553,6 +1553,8 @@ app.use('/api/privilege-a2a', require('./routes/privilegeA2aClient'));
 // Minimal machine-to-machine sibling of the above: client_credentials token in,
 // MCP JSON-RPC out. Separate route on purpose — the interactive flow is untouched.
 app.use('/api/privilege-mcp-simple', require('./routes/privilegeMcpSimple'));
+// PingFederate token on Privilege demo (/privilege-pf-token): PF-minted JWT to the pftoken door.
+app.use('/api/pf-token-demo', require('./routes/pfTokenPrivilegeDemo'));
 // Illustrative OAuth config admin page for banking-mcp — see docs/mocks/mcp-oauth-config-mock.html
 app.use('/api/mcp-oauth-config', require('./routes/mcpOAuthConfig'));
 // MCP Gateway Config — status + generated PingGateway mcp.json (open to any authenticated session)

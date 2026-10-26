@@ -1408,6 +1408,12 @@ export default function AdminSideNav({
         icon: "pol",
         searchAlias: "cedar AI policies policy permit forbid hold allow deny human approval PingFederate token claims scope group",
       },
+      {
+        label: "PingFederate Token Demo",
+        path: "/privilege-pf-token",
+        icon: "key",
+        searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent",
+      },
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),
     // Every A2A page in one place. The group's own alias makes searching "a2a" show the whole group
