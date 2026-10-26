@@ -110,3 +110,71 @@ export const UNITED_FLOW_PAYLOADS = [
   'audit record\nsub, act.client_id, jti, tool, verdict,\napproval reference',
   'audit record (authorization server)\nsub, act.client_id, jti for every exchange',
 ];
+
+// Dashboard lane colour per participant (lane keys from SequenceFlowDiagram.css, same families as the dashboard's
+// Sequence view): browser/chat = blue, agent = orange, gateway = green, PingOne/Authorize = amber, app/Facade/audit = pink.
+export const UNITED_FLOW_LANES = { M: 'browser', K: 'chat', A: 'agent', G: 'gateway', P: 'pingone', Z: 'authz', U: 'bff', L: 'api', S: 'data' };
+
+// The issue overlay: for the first message of each hop, the problem that hop exists to solve (problem), what the hop
+// does about it (answer), and where the design is still open (gap, only when the design doc says so). Index = message
+// order, 0-21. Every line comes from docs/personal-agent/On-Users-Personal-Agent-Design.md.
+export const UNITED_FLOW_ISSUES = (() => {
+  const out = new Array(22).fill(null);
+  out[0] = {
+    title: 'Before hop 1',
+    problem: "United cannot know or pre-register a member's own agent. It arrives from outside, unknown.",
+    answer: 'The company publishes the connector to the catalog once. Members add it free; the catalog never holds member credentials.',
+  };
+  out[4] = {
+    title: 'Hop 1 · Discover',
+    problem: 'An agent with no United relationship has no way to learn how to authenticate, and United must not hand out anything before it knows who is asking.',
+    answer: 'The tool call with no token gets a 401 and the RFC 9728 metadata: only where to authenticate, nothing else.',
+  };
+  out[6] = {
+    title: 'Hop 2 · Register',
+    problem: "Without its own identity the agent would borrow the member's. Consent, scope and a kill switch would have nothing to name.",
+    answer: 'The agent self-registers and gets its own client identity, which United can name in consent, scope and disable.',
+    gap: 'On PingOne today: CIMD behind a feature flag, or direct API registration. DCR is not yet available.',
+  };
+  out[7] = {
+    title: 'Hop 3 · Consent',
+    problem: 'The member must sign in and consent without their credentials or session ever entering the agent.',
+    answer: 'Sign-in and consent happen in the browser at PingOne (code + PKCE). The consent screen names this agent and what it may do.',
+  };
+  out[10] = {
+    title: 'Hop 4 · Exchange, per call',
+    problem: 'A standing sign-in token (about an hour, unbound) works on every tool. One stolen bearer is worth an hour of everything.',
+    answer: 'A fresh RFC 8693 exchange per call: sub = member, act.client_id = agent, one aud, a lifetime of minutes. private_key_jwt means a stolen token cannot mint more.',
+    gap: 'PingOne issues bearer tokens only: no DPoP, no mTLS binding. The short life and single audience replace key binding. PingOne transaction tokens are coming.',
+  };
+  out[12] = {
+    title: 'Hop 5 · Call through the gateway',
+    problem: 'Any direct path from the agent to the resource would skip every control behind the door.',
+    answer: 'Only PingGateway is reachable. It validates aud and scope against the tool allowlist; no agent-to-resource path exists on the network.',
+    gap: 'Because the token is a bearer, validation, the minutes-long TTL and the single-audience binding carry the whole load at this hop.',
+  };
+  out[13] = {
+    title: 'Hop 6 · Decide',
+    problem: 'Authorization written as code means every threshold change is a deploy, with no step-up verdicts, and agentic automation looks like a normal session.',
+    answer: 'PingOne Authorize decides on member, agent, tool and amount (permit, deny, step-up). Protect scores the session for machine-speed behaviour.',
+    gap: "A member's own agent launched outside United's pipeline rides the public door, so the door and Protect's identity-level protections carry that traffic.",
+  };
+  out[15] = {
+    title: 'Hop 7 · Approve what is consequential',
+    problem: 'A model can be talked into spending miles, and an approval in the agent chat or a generic push could be forged or auto-accepted.',
+    answer: "The member approves the exact redemption in United's own app. One approval, one action; the receipt is single-use and timeout is denial.",
+  };
+  out[18] = {
+    title: 'Hop 8 · Permit',
+    problem: 'The united.com credentials must sit where nothing on the agent path can reach them.',
+    answer: 'Only the Facade holds the DataPower credentials. The member session lives in Redis keyed by a hash of the Ping token and is never returned to the client.',
+    gap: 'Roadmap: a separate clone of the .com API layer for the agentic channel, so nothing on the agent path can affect united.com.',
+  };
+  out[20] = {
+    title: 'Hop 9 · Log and revoke',
+    problem: 'Afterwards nobody can say which agent did what for which member, or switch off one agent without signing the member out.',
+    answer: "Gateway and authorization server both write sub, act.client_id, jti, tool and verdict. Disabling the agent's client registration revokes it; the member session is untouched.",
+    gap: 'Revocation takes effect within one token lifetime (minutes), not instantly.',
+  };
+  return out;
+})();
