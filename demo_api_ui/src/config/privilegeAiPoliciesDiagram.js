@@ -34,13 +34,13 @@ export const AI_POLICIES_EDGES = [
   E('page', 'bff', 'scenario'), // 0
   E('bff', 'door', 'tools/call', V), // 1
   E('pfagent', 'door', 'PF JWT', PF), // 2
-  E('door', 'auth', ''), // 3
+  E('door', 'auth', 'who is calling'), // 3
   E('auth', 'pac', 'grants', DASH), // 4
-  E('pac', 'cedar', '', VD), // 5
+  E('pac', 'cedar', 'then Cedar runs', VD), // 5
   E('cedar', 'tool', 'ALLOW', V), // 6
   E('cedar', 'refuse', 'DENY', V), // 7
   E('cedar', 'hold', 'HOLD', V), // 8
-  E('hold', 'approver', '', V), // 9
+  E('hold', 'approver', 'approve in console', V), // 9
 ];
 
 export const AI_POLICIES_STEPS = [
