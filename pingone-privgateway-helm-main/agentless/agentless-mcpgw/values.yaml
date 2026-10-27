@@ -211,6 +211,9 @@ opensearchMcpServer:
 #       - containerPort: 8080
 extraContainers: []
 
+# Containers added to this release's pod only, after extraContainers. Local addition.
+nodeExtraContainers: []
+
 # Pull secrets for the gateway pod. Needed by any private image added through
 # extraContainers — without this the pod references no secret at all and a
 # private sidecar fails with a GHCR 401, even when the namespace already holds
