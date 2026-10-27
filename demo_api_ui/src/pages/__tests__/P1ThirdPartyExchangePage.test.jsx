@@ -1,6 +1,6 @@
 /* eslint-disable no-template-curly-in-string -- SpEL expressions are asserted as text */
-import { describe, it, expect } from 'vitest';
-import { render, screen, fireEvent, within } from '@testing-library/react';
+import { describe, it, expect, vi } from 'vitest';
+import { cleanup, render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import P1ThirdPartyExchangePage from '../P1ThirdPartyExchangePage';
 import { parseSequence } from '../../utils/parseSequence';
@@ -211,78 +211,216 @@ describe('diagram source', () => {
   });
 });
 
-describe('P1ThirdPartyExchangePage', () => {
-  const mount = () => render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
-  it('labels itself simulated and shows the legend', () => {
-    mount();
+window.scrollTo = vi.fn();
+
+describe('P1ThirdPartyExchangePage: guided walk', () => {
+  const mountAt = (n = 1) => {
+    try { localStorage.clear(); } catch { /* storage unavailable in this environment: the page still works */ }
+    window.history.replaceState(null, '', `#walk=${n}`);
+    return render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
+  };
+  const toStep = (n) => fireEvent.click(screen.getByTestId(`p1x-rail-${n}`));
+  const verdictOk = () => screen.getByTestId('p1x-verdict').dataset.ok;
+
+  it('starts on step 1, labels itself simulated and shows the legend and the four setup steps', () => {
+    mountAt(1);
+    expect(screen.getByTestId('p1x-step-idea')).toBeTruthy();
     expect(screen.getByTestId('p1x-banner').textContent).toMatch(/Simulated/);
     expect(within(screen.getByTestId('p1x-legend')).getAllByText(/MEASURED|GUIDE|SAMPLE|OUR CHOICE|UNVERIFIED/).length).toBe(5);
+    expect(within(screen.getByTestId('p1x-setup-steps')).getAllByRole('listitem')).toHaveLength(4);
+    expect(screen.getByTestId('p1x-where').textContent).toBe('The idea');
   });
-  it('shows the issued act claim for the default issuer and nothing when refused', () => {
-    mount();
-    expect(screen.getByTestId('p1x-verdict').dataset.ok).toBe('true');
-    expect(screen.getByTestId('p1x-issued').textContent).toContain('"act"');
+  it('shows one idea per screen: only the current step is rendered', () => {
+    mountAt(2);
+    expect(screen.getByTestId('p1x-step-issuer')).toBeTruthy();
+    expect(screen.queryByTestId('p1x-step-idea')).toBeNull();
+    expect(screen.queryByTestId('p1x-verdict')).toBeNull();
+    expect(screen.queryByTestId('p1x-compare')).toBeNull();
+  });
+  it('Back/Next move through all 7 steps, Back is disabled on the first, and Next becomes Start over on the last', () => {
+    mountAt(1);
+    expect(screen.getByTestId('p1x-back').disabled).toBe(true);
+    const seen = [screen.getByTestId('p1x-where').textContent];
+    for (let i = 0; i < 6; i += 1) { fireEvent.click(screen.getByTestId('p1x-next')); seen.push(screen.getByTestId('p1x-where').textContent); }
+    expect(seen).toEqual(['The idea', 'Pick an issuer', 'Set the trust', 'Send it', 'Read the result', 'Compare', 'What to know']);
+    expect(screen.getByTestId('p1x-next').textContent).toBe('Start over');
+    fireEvent.click(screen.getByTestId('p1x-next'));
+    expect(screen.getByTestId('p1x-where').textContent).toBe('The idea');
+  });
+  it('deep links with #walk=N, and writes the hash as you move', () => {
+    mountAt(5);
+    expect(screen.getByTestId('p1x-step-result')).toBeTruthy();
+    fireEvent.click(screen.getByTestId('p1x-back'));
+    expect(window.location.hash).toBe('#walk=4');
+    window.history.replaceState(null, '', '#walk=99');
+    cleanup();
+    render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
+    expect(screen.getByTestId('p1x-step-know')).toBeTruthy();
+  });
+  it('follows a link that changes only the hash while the page is open', () => {
+    mountAt(1);
+    window.history.replaceState(null, '', '#walk=6');
+    fireEvent(window, new HashChangeEvent('hashchange'));
+    expect(screen.getByTestId('p1x-step-compare')).toBeTruthy();
+  });
+  it('left and right arrow keys move between steps, but not while typing in a field', () => {
+    mountAt(3);
+    fireEvent.keyDown(window, { key: 'ArrowRight' });
+    expect(screen.getByTestId('p1x-step-send')).toBeTruthy();
+    fireEvent.keyDown(window, { key: 'ArrowLeft' });
+    expect(screen.getByTestId('p1x-step-trust')).toBeTruthy();
+    fireEvent.keyDown(screen.getByTestId('p1x-aud'), { key: 'ArrowRight' });
+    expect(screen.getByTestId('p1x-step-trust')).toBeTruthy();
+  });
+  it('moves focus to the new step heading', () => {
+    mountAt(1);
+    fireEvent.click(screen.getByTestId('p1x-next'));
+    expect(screen.getByRole('heading', { name: 'Pick an issuer' })).toHaveFocus();
+  });
+  it('the rail marks the current step', () => {
+    mountAt(4);
+    expect(screen.getByTestId('p1x-rail-4').getAttribute('aria-current')).toBe('step');
+    expect(screen.getByTestId('p1x-rail-3').hasAttribute('aria-current')).toBe(false);
+  });
+
+  it('keeps the choices across steps: a refusal set on step 3 is read on step 5, and Reset restores it', () => {
+    mountAt(3);
     fireEvent.click(screen.getByTestId('p1x-state-expired'));
-    expect(screen.getByTestId('p1x-verdict').dataset.ok).toBe('false');
+    toStep(5);
+    expect(verdictOk()).toBe('false');
+    expect(screen.getByTestId('p1x-error').textContent).toMatch(/invalid_request[\s\S]*The provided JWT has expired/);
     expect(screen.queryByTestId('p1x-issued')).toBeNull();
-  });
-  it('requiring nbf flips Okta to refused and Reset restores it', () => {
-    mount();
-    fireEvent.click(screen.getByTestId('p1x-vendor-okta'));
-    fireEvent.click(screen.getByTestId('p1x-nbf'));
-    expect(screen.getByTestId('p1x-verdict').dataset.ok).toBe('false');
+    toStep(3);
     fireEvent.click(screen.getByTestId('p1x-reset'));
-    expect(screen.getByTestId('p1x-verdict').dataset.ok).toBe('true');
+    toStep(5);
+    expect(verdictOk()).toBe('true');
+    expect(screen.getByTestId('p1x-issued').textContent).toContain('"act"');
   });
-  it('lists every issuer and the comparison table', () => {
-    mount();
+  it('requiring nbf flips Okta to refused and picking the issuer is remembered on the next steps', () => {
+    mountAt(2);
+    fireEvent.click(screen.getByTestId('p1x-vendor-okta'));
+    toStep(3);
+    fireEvent.click(screen.getByTestId('p1x-nbf'));
+    expect(screen.getByTestId('p1x-trust-body').textContent).toContain('"nbfRequired": true');
+    toStep(5);
+    expect(verdictOk()).toBe('false');
+    expect(screen.getByTestId('p1x-error').textContent).toContain('Missing nbf claim');
+    toStep(4);
+    expect(screen.getByTestId('p1x-feat-10').textContent).toContain('Token exchange (refused)');
+  });
+  it('step 2 lists every issuer and shows the raw and decoded tokens', () => {
+    mountAt(2);
     for (const v of VENDORS) expect(screen.getByTestId(`p1x-vendor-${v.id}`)).toBeTruthy();
-    expect(within(screen.getByTestId('p1x-compare')).getAllByRole('row').length).toBe(COMPARE_ROWS.length + 1);
-  });
-  it('shows the raw tokens in full and every API call on the page', () => {
-    mount();
     expect(screen.getByTestId('p1x-raw-actor-raw').textContent.split('.')).toHaveLength(3);
     expect(screen.getByTestId('p1x-raw-subject-raw').textContent.length).toBeGreaterThan(200);
-    expect(screen.getByTestId('p1x-raw-issued-raw')).toBeTruthy();
-    const wire = screen.getByTestId('p1x-wire');
-    expect(within(wire).getAllByText(/Copy/).length).toBeGreaterThan(10);
+    expect(within(screen.getByTestId('p1x-step-issuer')).getAllByTestId('p1x-decoded').length).toBeGreaterThan(0);
+  });
+  it('step 3 shows the live trusted-issuer request body for the chosen settings', () => {
+    mountAt(3);
+    const before = JSON.parse(screen.getByTestId('p1x-trust-body').textContent);
+    expect(before.nbfRequired).toBe(false);
+    fireEvent.change(screen.getByTestId('p1x-skew'), { target: { value: '45' } });
+    expect(JSON.parse(screen.getByTestId('p1x-trust-body').textContent).clockSkew).toBe(45);
+  });
+  it('step 4 shows the diagram, the full exchange request and every API call behind a disclosure', () => {
+    mountAt(4);
+    expect(screen.getByTestId('p1x-request').textContent).toContain('actor_token_type=urn:ietf:params:oauth:token-type:jwt');
+    expect(screen.getByTestId('p1x-feat-10-req').textContent).toMatch(/^POST https:\/\/auth\.pingone\.example\/[0-9a-f-]+\/as\/token/);
+    const all = within(screen.getByTestId('p1x-wire'));
+    expect(all.getByText(/Show all \d+ API calls/)).toBeTruthy();
     expect(screen.getByTestId('p1x-call-1-req').textContent).toMatch(/^POST https:\/\/api\.pingone\.example\/v1\/environments\/[0-9a-f-]+\/trustedIssuers/);
     expect(screen.getByTestId('p1x-call-1-res').textContent).toMatch(/HTTP 201 Created[\s\S]*Cache-Control: no-store/);
   });
-  it('decodes tokens inline by default, with claims readable on screen, and the switch turns it off and is remembered', () => {
-    try { localStorage.clear(); } catch { /* storage unavailable in this environment: the switch still works */ }
-    mount();
+  it('step 5 shows the issued token raw and decoded, with the checks and mapping', () => {
+    mountAt(5);
+    expect(verdictOk()).toBe('true');
+    expect(screen.getByTestId('p1x-raw-issued-raw').textContent.split('.')).toHaveLength(3);
+    expect(within(screen.getByTestId('p1x-step-result')).getAllByTestId('p1x-decoded').length).toBeGreaterThan(0);
+    expect(within(screen.getByTestId('p1x-checks')).getAllByRole('row').length).toBeGreaterThan(5);
+    expect(screen.getByTestId('p1x-maps').textContent).toMatch(/act/);
+  });
+  it('step 6 has the comparison table and step 7 says what the page does not show', () => {
+    mountAt(6);
+    expect(within(screen.getByTestId('p1x-compare')).getAllByRole('row').length).toBe(COMPARE_ROWS.length + 1);
+    toStep(7);
+    expect(screen.getByTestId('p1x-notshown').textContent).toMatch(/SUBJECT token/);
+    expect(screen.getByTestId('p1x-api-issuer').textContent).toContain('"issuer"');
+  });
+
+  it('decodes tokens inline by default; the switch turns it off and is remembered', () => {
+    mountAt(4);
     const sw = screen.getByTestId('p1x-decode');
     expect(sw.checked).toBe(true);
-    const call = screen.getByTestId('p1x-call-10');
-    expect(within(call).getAllByTestId('p1x-decoded').length).toBeGreaterThan(0);
-    expect(call.textContent).toMatch(/act[\s\S]*cc_client/);
-    expect(call.textContent).toMatch(/valid, expires in 59 min|valid, expires in 1 hour/);
-    expect(screen.getByTestId('p1x-call-10-res').textContent).toContain('chars, decoded below');
+    const feat = screen.getByTestId('p1x-feat-10');
+    expect(within(feat).getAllByTestId('p1x-decoded').length).toBeGreaterThan(0);
+    expect(feat.textContent).toMatch(/valid, expires in 59 min|valid, expires in 1 hour/);
+    expect(screen.getByTestId('p1x-feat-10-res').textContent).toContain('chars, decoded below');
     fireEvent.click(sw);
-    expect(screen.queryAllByTestId('p1x-decoded')).toHaveLength(0);
-    expect(screen.getByTestId('p1x-call-10-res').textContent).not.toContain('chars, decoded below');
-    let stored = '0';
+    expect(within(feat).queryAllByTestId('p1x-decoded')).toHaveLength(0);
+    expect(screen.getByTestId('p1x-feat-10-res').textContent).not.toContain('chars, decoded below');
+    let stored = '1';
     try { stored = localStorage.getItem('p1x-decode'); } catch { stored = '0'; }
     expect(stored).toBe('0');
   });
   it('the per-call raw toggle restores the full token in the text', () => {
-    try { localStorage.clear(); } catch { /* see above */ }
-    mount();
-    const before = screen.getByTestId('p1x-call-10-res').textContent;
-    expect(before).toContain('decoded below');
-    fireEvent.click(screen.getByTestId('p1x-call-10-raw'));
-    const after = screen.getByTestId('p1x-call-10-res').textContent;
+    mountAt(4);
+    const before = screen.getByTestId('p1x-feat-10-res').textContent;
+    fireEvent.click(screen.getByTestId('p1x-feat-10-raw'));
+    const after = screen.getByTestId('p1x-feat-10-res').textContent;
     expect(after).not.toContain('decoded below');
     expect(after.length).toBeGreaterThan(before.length + 500);
   });
-  it('shows the real PingOne error body when refused', () => {
-    mount();
-    fireEvent.click(screen.getByTestId('p1x-state-expired'));
-    expect(screen.getByTestId('p1x-error').textContent).toMatch(/invalid_request[\s\S]*The provided JWT has expired/);
+});
+
+describe('P1ThirdPartyExchangePage: text size control', () => {
+  const mountFs = () => {
+    try { localStorage.clear(); } catch { /* see above */ }
+    window.history.replaceState(null, '', '#walk=1');
+    return render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
+  };
+  const page = () => screen.getByTestId('p1-third-party-exchange-page');
+  it('starts at 100% and steps up and down in 10% steps, announcing the value', () => {
+    mountFs();
+    expect(screen.getByTestId('p1x-fs-val').textContent).toBe('100%');
+    expect(screen.getByTestId('p1x-fs-val').getAttribute('aria-live')).toBe('polite');
+    fireEvent.click(screen.getByTestId('p1x-fs-up'));
+    fireEvent.click(screen.getByTestId('p1x-fs-up'));
+    expect(screen.getByTestId('p1x-fs-val').textContent).toBe('120%');
+    expect(page().dataset.fs).toBe('120');
+    fireEvent.click(screen.getByTestId('p1x-fs-down'));
+    expect(page().dataset.fs).toBe('110');
   });
-  it('states what it does not show', () => {
-    mount();
-    expect(screen.getByTestId('p1x-notshown').textContent).toMatch(/SUBJECT token/);
+  it('stops at 80% and 170% (the buttons disable) and Reset returns to 100%', () => {
+    mountFs();
+    for (let i = 0; i < 12; i += 1) fireEvent.click(screen.getByTestId('p1x-fs-up'));
+    expect(page().dataset.fs).toBe('170');
+    expect(screen.getByTestId('p1x-fs-up').disabled).toBe(true);
+    for (let i = 0; i < 12; i += 1) fireEvent.click(screen.getByTestId('p1x-fs-down'));
+    expect(page().dataset.fs).toBe('80');
+    expect(screen.getByTestId('p1x-fs-down').disabled).toBe(true);
+    fireEvent.click(screen.getByTestId('p1x-fs-reset'));
+    expect(page().dataset.fs).toBe('100');
+    expect(screen.getByTestId('p1x-fs-reset').disabled).toBe(true);
+  });
+  it('is remembered across a reload', () => {
+    mountFs();
+    fireEvent.click(screen.getByTestId('p1x-fs-up'));
+    fireEvent.click(screen.getByTestId('p1x-fs-up'));
+    fireEvent.click(screen.getByTestId('p1x-fs-up'));
+    cleanup();
+    render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
+    expect(page().dataset.fs).toBe('130');
+  });
+  it('ignores a corrupt stored value and keeps working when storage throws', () => {
+    try { localStorage.setItem('p1x-fs', '9999'); } catch { /* ok */ }
+    window.history.replaceState(null, '', '#walk=1');
+    render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
+    expect(page().dataset.fs).toBe('100');
+    cleanup();
+    const spy = vi.spyOn(Storage.prototype, 'setItem').mockImplementation(() => { throw new Error('blocked'); });
+    render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
+    fireEvent.click(screen.getByTestId('p1x-fs-up'));
+    expect(page().dataset.fs).toBe('110');
+    spy.mockRestore();
   });
 });
