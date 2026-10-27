@@ -26,7 +26,7 @@ export const PRIVILEGE_CAN = [
 export const PRIVILEGE_CANNOT = [
   { what: 'Token exchange (on behalf of a user)', how: 'Privilege does not exchange tokens. A user in sub with the agent in act has to come from PingFederate. Privilege\'s OBO support is in staging (Ping, 2026-10-23).' },
   { what: 'Narrow the token it forwards', how: 'The MCP server gets the same token the agent sent, with every scope in it. A down-scoped token needs a token exchange in front of the gateway.' },
-  { what: 'Cedar rules on token claims', how: 'Cedar cannot read the token yet (context.token.claims is due in a later release). Claim checks today are the identity\'s required claims and the grant rules\' RequiredClaims, exact match only.' },
+  { what: 'Cedar rules on any token claim', how: 'Cedar sees the token\'s scopes (context.token.scopes is in the policy editor; not yet tried with a PingFederate token) but no other claim: context.token.claims (act.sub, client_id …) is due in a later release. Other claim checks today are the identity\'s required claims and the grant rules\' RequiredClaims, exact match only.' },
   { what: 'Wildcard audiences', how: 'The audience must name the gateway; no wildcard. An allow-list of audiences is possible on request.' },
   { what: 'New grant policies through the API', how: 'Grants created with POST are deleted within about a minute (cause unknown). Edit the key\'s existing grant instead.' },
 ];
@@ -74,8 +74,9 @@ export const PF_TOKEN_DIAGRAM = {
     N('door', 'priv', 'P1 Privilege Agent App pftoken', ['Pass Agent Token'], 0, 200),
     N('nhi', 'priv', 'Identity PFtoken', ['issuer, audience, subject *,', 'act.sub + client_id pinned'], 380, 200),
     N('key', 'priv', 'Agent key pftoken-agent', ['custodian = PFtoken'], 760, 200),
-    N('grant', 'priv', 'Grant on the key', ['agent app pftoken, nine tools'], 760, 400),
+    N('grant', 'priv', 'Grant on the key', ['scope tiers (RequiredClaims):', 'admin -> 9 tools, read -> 3, else 403'], 760, 400),
     N('tools', 'priv', 'OpenSearch MCP', ['tools/list answered'], 380, 400),
+    N('rs', 'priv', 'Agent app pftoken-rs -> MCP resource server', ['whoami: the claims it verified', 'on the forwarded token'], 0, 400),
   ],
   EDGES: [
     E('bff', 'pf', 'mint'), // 0
@@ -83,13 +84,15 @@ export const PF_TOKEN_DIAGRAM = {
     E('door', 'nhi', 'verify'), // 2
     E('nhi', 'key', 'match'), // 3
     E('key', 'grant', 'authorize', V), // 4
-    E('grant', 'tools', 'allowed'), // 5
+    E('grant', 'tools', 'allowed by scope'), // 5
+    E('grant', 'rs', 'same JWT, passed through'), // 6
   ],
   STEPS: [
-    { key: 'mint', edges: [0], title: 'PingFederate mints the agent\'s token', what: 'The BFF asks PingFederate for a client-credentials token for pf-route-c-test. The token carries sub, client_id, the agent app URL as aud, and act = {"sub": "pf-route-c-test"}.', why: 'act.sub names the agent; it is what the identity pins.' },
+    { key: 'mint', edges: [0], title: 'PingFederate mints the agent\'s token', what: 'The BFF asks PingFederate for client-credentials tokens for pf-route-c-test, one per scope tier (opensearch:admin, opensearch:read, neither). Each carries sub, client_id, the agent app URL as aud, act = {"sub": "pf-route-c-test"} and the requested scope.', why: 'act.sub names the agent; it is what the identity pins. scope is what the grant reads.' },
     { key: 'present', edges: [1], title: 'The token goes to the P1 Privilege Agent App', what: 'The BFF calls tools/list on the pftoken agent app with the PingFederate JWT as the bearer. The agent app is on Pass Agent Token.', why: 'No Privilege secret is involved; the PingFederate token is the credential.' },
     { key: 'verify', edges: [2, 3], title: 'The gateway verifies it against the identity', what: 'Issuer and signature (from the PingFederate JWKS), audience, subject, the required claims act.sub and client_id, and lifetime. A match maps the token to the agent key pftoken-agent.', why: 'A mismatch is a 401, and the log names the claim.' },
-    { key: 'grant', edges: [4], title: 'The key\'s grant decides the agent app', what: 'The rule on the key\'s grant lets pftoken-agent use the nine tools on pftoken.', why: 'No rule is a 403 "policy denied", even with a valid token.' },
-    { key: 'tools', edges: [5], title: 'The tools come back', what: 'The gateway forwards to the OpenSearch MCP server and returns the tool list.', why: 'The page shows exactly what the gateway returned.' },
+    { key: 'grant', edges: [4], title: 'The key\'s grant decides by scope', what: 'The key\'s grant has two rules for pftoken, each with RequiredClaims on scope: opensearch:admin gets all nine tools, opensearch:read the three read tools.', why: 'Same agent, same agent app: a token with neither scope matches no rule and gets 403.' },
+    { key: 'tools', edges: [5], title: 'The tools come back', what: 'The gateway forwards to the OpenSearch MCP server and returns the tool list the matching rule allows.', why: 'The page shows exactly what the gateway returned for each scope.' },
+    { key: 'passthrough', edges: [6], title: 'The backend sees the agent\'s own token', what: 'On the agent app pftoken-rs the same PingFederate JWT reaches the MCP resource server unchanged. Its whoami tool returns every claim it verified.', why: 'Pass Agent Token forwards the token; it does not swap in a gateway credential or narrow the scopes.' },
   ],
 };

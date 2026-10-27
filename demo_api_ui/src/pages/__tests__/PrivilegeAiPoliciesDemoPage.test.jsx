@@ -99,7 +99,7 @@ describe('PrivilegeAiPoliciesDemoPage (live)', () => {
     connectDoor.mockResolvedValue({ ok: true, url: 'u', authenticated: true });
     page();
     const pf = screen.getByTestId('apd-scn-pf-agent');
-    expect(pf).toHaveTextContent('Measured 2026-10-26');
+    expect(pf).toHaveTextContent('Measured 2026-10-27');
     expect(within(pf).getByTestId('apd-pf-link')).toHaveAttribute('href', '/privilege-pf-token');
     expect(within(pf).queryByRole('button')).toBeNull();
   });

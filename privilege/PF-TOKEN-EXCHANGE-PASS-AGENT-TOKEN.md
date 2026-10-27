@@ -56,7 +56,7 @@ Example: a customer such as NYLife has agents registered in PingFederate and wan
 |---|---|
 | Token exchange (on behalf of a user) | Privilege does not exchange tokens. A token with the user in `sub` and the agent in `act` has to come from PingFederate. Privilege's OBO support is in staging (Ping, 2026-10-23). |
 | Narrow the token it forwards | The MCP server gets the same token the agent sent, with every scope in it. A down-scoped token needs a token exchange in front of the gateway. |
-| Cedar rules on token claims | Cedar cannot read the token yet (`context.token.claims` is due in a later release). Claim checks today: the identity's required claims and the grant rules' `RequiredClaims`, exact match only. |
+| Cedar rules on any token claim | Cedar sees the token's scopes (`context.token.scopes` is in the policy editor's vocabulary; not yet tried with a PingFederate token) but no other claim: `context.token.claims` (`act.sub`, `client_id` …) is due in a later release. Other claim checks today: the identity's required claims and the grant rules' `RequiredClaims`, exact match only. |
 | Wildcard audiences | The audience must name the gateway; no wildcard. An allow-list is possible on request. |
 | New grant policies through the API | A POSTed grant is deleted within about a minute (cause unknown). Edit the key's existing grant. |
 
