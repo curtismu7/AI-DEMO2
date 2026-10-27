@@ -1481,6 +1481,7 @@ export default function AdminSideNav({
       "Transaction Consent",
       "Actor Token Education",
       "Family Delegation",
+      { label: "P1 Third-Party Token Exchange", path: "/p1-third-party-exchange", icon: "lck", searchAlias: "PingOne third party token exchange trusted issuer JWT actor token subject token Okta Auth0 Microsoft PingFederate RFC 8693 RFC 9068 attribute mapping" },
     ], "dlg"),
     productGroup("Exploring", [
       "Code Explorer",

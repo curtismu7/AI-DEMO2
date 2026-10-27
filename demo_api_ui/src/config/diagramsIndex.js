@@ -20,6 +20,7 @@ export const DIAGRAMS_INDEX = [
     items: [
       D("Token Flow", "/architecture/token-flow", "Interactive token flow."),
       D("Token Chain Architecture", "/architecture/token-chain", "How tokens are exchanged and chained, step by step."),
+      D("P1 Third-Party Token Exchange", "/p1-third-party-exchange", "PingOne accepting an Okta, Auth0, Microsoft, PingFederate or other-PingOne JWT as actor token, with trusted issuer checks and claim mapping. Simulated."),
       D("Interactive Flow", "/architecture/flow", "Step through the end-to-end flow."),
       D("Sequence Diagram", "/sequence-diagram", "Sequence view of a run."),
       D("Canvas Diagram", "/architecture/canvas", "Editable canvas for drawing your own diagram."),

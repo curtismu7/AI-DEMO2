@@ -44,6 +44,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "PingOne Authorize": { status: "LIVE / CONFIG", keywords: ["P1AZ", "policy", "permit", "deny", "step-up", "decision"] },
   "MCP Protocol": { status: "LIVE", keywords: ["tools/list", "tools/call", "MCP Inspector", "tool invocation"] },
   "Agent-to-Agent (A2A)": { status: "LIVE", keywords: ["agent card", "nested act", "specialist", "delegation"] },
+  "P1 Third-Party Token Exchange": { status: "SIMULATED", keywords: ["third party", "trusted issuer", "actor token", "jwt", "okta", "auth0", "microsoft", "rfc 8693"] },
   "On behalf of the user (OBO)": { status: "LIVE", keywords: ["obo", "on behalf of", "delegation", "act claim", "token exchange"] },
   "Jev: Decision Model": { status: "LIVE / CONFIG", keywords: ["System One", "guardrail", "intent routing", "confidence", "threshold", "Von", "bake-off"] },
   "Agent Gateway Authorization": { status: "LIVE", keywords: ["P1AZ", "delegated access", "MCP policy", "PERMIT", "DENY", "STEP-UP", "audit"] },
@@ -462,6 +463,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         demoStep: { useCaseId: "UC46" },
       },
       {
+        label: "P1 Third-Party Token Exchange",
+        description: "PingOne trusts a JWT from Okta, Auth0, Microsoft or PingFederate as actor token and maps its claims into the issued token",
+        icon: "🔄",
+      },
+      {
         label: "On behalf of the user (OBO)",
         description: "An agent acts for the signed-in user through RFC 8693 delegation, never as the user",
         icon: "🔗",
@@ -717,6 +723,7 @@ export default function LearningHub() {
       "Privilege for AI — LLM": () => navigate("/ai-products/privilege-llm"),
       "Privilege for AI — A2A": () => navigate("/ai-products/privilege-a2a"),
       "On behalf of the user (OBO)": () => navigate("/obo-demo"),
+      "P1 Third-Party Token Exchange": () => navigate("/p1-third-party-exchange"),
       "Privilege for AI — MCP": () => navigate("/ai-products/privilege-mcp"),
       "Federated agents: PingFederate token": () => navigate("/privilege-pf-token"),
     },
