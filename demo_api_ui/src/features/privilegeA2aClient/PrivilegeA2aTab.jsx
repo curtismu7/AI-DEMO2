@@ -178,7 +178,7 @@ export default function PrivilegeA2aTab() {
       }));
       await run;
     } catch (requestError) {
-      if (controller.signal.aborted) setError('Request cancelled.');
+      if (controller.signal.aborted) setError(controller.discarded ? '' : 'Request cancelled.');
       else setError(requestError instanceof Error ? requestError.message : 'The A2A request failed.');
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
@@ -191,6 +191,26 @@ export default function PrivilegeA2aTab() {
   };
 
   const cancelRequest = () => abortRef.current?.abort();
+
+  // Back to a blank page: stop a run in flight, drop its conversation, trace and gateway record, and clear the boxes. The agent mode stays.
+  const resetPage = () => {
+    if (abortRef.current) {
+      abortRef.current.discarded = true;
+      abortRef.current.abort();
+    }
+    clearTimeout(recordTimerRef.current);
+    setTurns([]);
+    setTrace([]);
+    setRecord(null);
+    setSessionId('');
+    setError('');
+    setInput('');
+    setDockText('');
+    setSelectedQuestion('');
+    setSelectedStep(null);
+    setWalkStep(-1);
+    setReplaying(false);
+  };
 
   return (
     <section className="privilege-a2a" aria-labelledby="privilege-a2a-title">
@@ -333,11 +353,18 @@ export default function PrivilegeA2aTab() {
           maxLength={4000}
           rows={3}
           placeholder="For example: Review Carol Nguyen's current entitlements."
-          disabled={busy}
         />
         <div className="privilege-a2a__actions">
           <span>Send a question to trigger Main agent → A2A → Analyst → MCP tools.</span>
           {busy && <button className="privilege-a2a__cancel" type="button" onClick={cancelRequest}>Cancel</button>}
+          <button
+            type="button"
+            onClick={resetPage}
+            disabled={!busy && !turns.length && !trace.length && !error && !input}
+            title="Stop any run and clear the conversation, trace and question box"
+          >
+            Reset
+          </button>
           <div className="privilege-a2a__calls">
             <button type="button" aria-expanded={callsOpen} aria-controls="privilege-a2a-calls" onClick={() => setCallsOpen((open) => !open)}>Calls ▾</button>
             {callsOpen && (

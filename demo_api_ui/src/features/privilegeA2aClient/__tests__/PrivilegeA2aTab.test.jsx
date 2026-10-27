@@ -331,4 +331,47 @@ describe('compact agent', () => {
     await user.click(screen.getByRole('button', { name: 'Send' }));
     expect(await screen.findByText('Compact answer.')).toBeTruthy();
   });
+  test('Reset is off on a blank page, then clears the conversation and the question box', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's1' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    const reset = screen.getByRole('button', { name: 'Reset' });
+    expect(reset).toBeDisabled();
+
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol Nguyen');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    expect(await screen.findByText('Done.')).toBeTruthy();
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'a follow-up');
+    expect(reset).toBeEnabled();
+
+    await user.click(reset);
+    expect(screen.queryByText('Done.')).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Your question' })).toHaveValue('');
+    expect(reset).toBeDisabled();
+  });
+
+  test('the question box takes typing while a run is in flight, and Reset stops that run without an error', async () => {
+    global.fetch.mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    }));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    const box = screen.getByRole('textbox', { name: 'Your question' });
+    await user.type(box, 'Review Carol Nguyen');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+
+    expect(await screen.findByRole('button', { name: 'Cancel' })).toBeTruthy();
+    expect(box).toBeEnabled();
+    await user.type(box, 'next question');
+    expect(box).toHaveValue('next question');
+    expect(screen.getByRole('button', { name: 'Reviewing…' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Reset' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull());
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(box).toHaveValue('');
+  });
 });
