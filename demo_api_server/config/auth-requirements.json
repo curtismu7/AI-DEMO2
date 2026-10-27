@@ -344,6 +344,7 @@
     "/privilege-cedar": "public",
     "/privilege-ai-policies": "public",
     "/privilege-pf-token": "public",
+    "/gateway-claims": "public",
     "/privilege-docs-index": "public",
     "/privilege-mcp-learning": "public",
     "/privileges-gateway-preview": "public",
