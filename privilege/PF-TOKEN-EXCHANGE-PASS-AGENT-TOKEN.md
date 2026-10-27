@@ -101,6 +101,16 @@ Console: **Non-Human Identities → Register Identity** (or **Edit** on an exist
 8. **Permissions:** `mcp` (add `llm` or `a2a` only if the agent needs them).
 9. Save. If the console refuses with "Spec.UserClaim resolves to "sub" …", the subject is pinned while End user reads `sub`: set Subject to `*` as in step 4.
 
+Screens (the finished identity, `PFtoken`):
+
+![Non-Human Identities list](images/pf-token-exchange/guide/b1-nhi-list.png)
+
+![PFtoken edit: issuer, key source, subject](images/pf-token-exchange/working/02-nhi-pftoken-edit-top.png)
+
+![PFtoken edit: end user and audience](images/pf-token-exchange/working/03-nhi-pftoken-edit-end-user.png)
+
+![PFtoken edit: required claims](images/pf-token-exchange/working/04-nhi-pftoken-edit-claims.png)
+
 ### C. Privilege: the P1 Privilege Agent App
 
 Console: **Agentic Apps → Add Application → MCP Server** (or **Edit** an existing one).
@@ -109,6 +119,18 @@ Console: **Agentic Apps → Add Application → MCP Server** (or **Edit** an exi
 2. **Auth Mode:** Pass Agent Token.
 3. **Mesh cluster:** the one your gateway pods serve. [`ai-demo-cmuir`]
 4. Save. The Overview shows "Awaiting first agent call - tools will be discovered from a forwarded assertion".
+
+Screens:
+
+![Agentic Apps list](images/pf-token-exchange/guide/c1-agentic-apps.png)
+
+The Edit dialog of our second agent app, `pftoken-rs`: URL ending in `/mcp`, Auth Mode Pass Agent Token, the mesh cluster.
+
+![pftoken-rs edit dialog](images/pf-token-exchange/guide/c5-pftoken-rs-edit.png)
+
+After the first accepted agent call the Overview lists the discovered tools (ours includes `whoami`).
+
+![pftoken-rs overview with tools](images/pf-token-exchange/guide/c2-pftoken-rs-overview.png)
 
 ### D. Privilege: the agent key and its tools
 
@@ -120,6 +142,18 @@ Console: **Agent Registry → Add Agent** (or **Edit** an existing key).
 4. Save Configuration, finish the wizard and save the key. The agent app's **Agent Registry** tab now lists the key with its grant.
 
 Do **not** create the grant as a separate policy through the API: every such policy was deleted by the gateway within seconds (section 7). Editing the key's own grant works.
+
+Screens: the agent app's **Agent Registry** tab lists the key and the grant that belongs to it, and **View Config** shows the client config for that key.
+
+![pftoken Agent Registry tab](images/pf-token-exchange/guide/d2-pftoken-agent-registry.png)
+
+![pftoken-agent View Config](images/pf-token-exchange/guide/d3-pftoken-agent-view-config.png)
+
+The same tab on the second agent app, `pftoken-rs`:
+
+![pftoken-rs Agent Registry tab](images/pf-token-exchange/guide/c4-pftoken-rs-agent-registry.png)
+
+Grants and keys expire (ours, 2026-10-29: the console shows "Ends in N days"). Renew them before a demo.
 
 ### E. First call and test
 
@@ -188,7 +222,7 @@ The grant decides which tools the agent may see; an AI policy (Cedar) can then r
 
 ```cedar
 @reason("SearchIndexTool needs the opensearch:search scope in the agent's token")
-forbid (principal, action in [Action::"mcp:Invoke", Action::"mcp:InvokeUnattended"], resource == Tool::"SearchIndexTool")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"SearchIndexTool")
 when   { context.app == "pftoken" }
 unless { context has token && context.token.scopes.contains("opensearch:search") };
 ```
@@ -202,6 +236,14 @@ unless { context has token && context.token.scopes.contains("opensearch:search")
 | `openid opensearch:admin opensearch:search` | 200, search results | allowed |
 
 Gateway log for the block: `aipolicy: denied PFtoken calling SearchIndexTool on pftoken (policies=[pftoken-scope-search:1])`. Measured 2026-10-27 on gateway `v1.261027`; our policy is `pftoken-scope-search`.
+
+Screens. The policy page shows the Cedar text, `State: Active`, and the buttons that change the state (**Candidate**, **Disabled**):
+
+![pftoken-scope-search policy page](images/pf-token-exchange/guide/i4-pftoken-scope-search-detail.png)
+
+In the AI Policies list, a policy in **Candidate** (here `llm-response-pii-withhold`) has an **Enforce** button; one that is enforced (`pftoken-scope-search`) shows **Active** and a **Disable** button. Clicking **Enforce** is the console way to do step 2.
+
+![AI Policies list: Candidate with Enforce, and Active](images/pf-token-exchange/guide/i3-ai-policies-page2.png)
 
 Cedar sees only the token's scopes. Other claims (`act.sub`, `client_id`) are not in Cedar yet; use the identity's required claims or the grant's `RequiredClaims` for those.
 

@@ -27,7 +27,7 @@ export const PRIVILEGE_CAN = [
 
 // The AI policy the page's Cedar check runs against (State Active on the tenant).
 export const CEDAR_POLICY = `@reason("SearchIndexTool needs the opensearch:search scope in the agent's token")
-forbid (principal, action in [Action::"mcp:Invoke", Action::"mcp:InvokeUnattended"], resource == Tool::"SearchIndexTool")
+forbid (principal, action == Action::"mcp:Invoke", resource == Tool::"SearchIndexTool")
 when   { context.app == "pftoken" }
 unless { context has token && context.token.scopes.contains("opensearch:search") };`;
 
