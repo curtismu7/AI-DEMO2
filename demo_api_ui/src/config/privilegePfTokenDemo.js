@@ -22,6 +22,8 @@ export const WORKING_SETUP = [
   { layer: 'Privilege agent key', setting: 'pftoken-agent', value: 'custodian = the PFtoken identity, scope mcp' },
   { layer: 'Privilege grant', setting: 'KarunRiver-5a485737526f', value: 'rule for door pftoken, key pftoken-agent, nine OpenSearch tools' },
   { layer: 'Privilege door', setting: 'pftoken', value: 'Pass Agent Token, backend opensearch-mcp-noget' },
+  { layer: 'Privilege door', setting: 'pftoken-rs', value: 'Pass Agent Token, backend mcp-resource-server :8081/mcp (whoami); grant rule: tool whoami' },
+  { layer: 'Resource server', setting: 'Trust', value: 'PF_ISSUER = cmuir-pf, the pftoken door URL in its accepted audiences, PF scope includes whoami:read' },
   { layer: 'Gateway', setting: 'Version', value: 'privilege-aigw v1.261024 or later (discovers tools from the first agent call)' },
 ];
 
@@ -29,6 +31,7 @@ export const WORKING_SETUP = [
 export const FAILURES = [
   { seen: '401', log: 'workload token rejected: required claim "act.sub" does not match', fix: 'Set the identity\'s act.sub to the agent id; make PingFederate emit act as an object.' },
   { seen: '403', log: 'policy denied PFtoken access to pftoken (agent=true)', fix: 'Add a rule for the door to the agent key\'s existing grant.' },
+  { seen: '404', log: 'rejecting /mcp on app pftoken-rs: outside entry path "/mc"', fix: 'The door\'s MCP Server URL must end in exactly /mcp; the gateway splits the path off as the entry path.' },
   { seen: 'no tools', log: 'tool discovery for pftoken failed: … no such host', fix: 'Point the door at a backend that resolves.' },
   { seen: 'grant vanishes', log: 'RDP terminate: policy deleted', fix: 'Do not create a new grant policy for the key; edit the key\'s existing one.' },
   { seen: 'console refuses save', log: 'Spec.UserClaim resolves to "sub" …', fix: 'With End user on sub, widen the subject to * and pin the agent with required claims.' },

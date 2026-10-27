@@ -12,9 +12,10 @@ global.ResizeObserver = global.ResizeObserver || class { observe() {} unobserve(
 const STATE = { configured: true, issuer: 'https://cmuir-pf.ping-devops.com', clientId: 'pf-route-c-test', doorUrl: 'https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp' };
 const PASS = {
   at: '2026-10-26T18:12:44.473Z',
-  mint: { status: 200, claims: { sub: 'pf-route-c-test', act: { sub: 'pf-route-c-test' } } },
+  mint: { status: 200, claims: { iss: 'https://cmuir-pf.ping-devops.com', sub: 'pf-route-c-test', act: { sub: 'pf-route-c-test' } } },
   pfToken: { status: 200, verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'], detail: '' },
   garbage: { status: 401, verdict: 'token-rejected', tools: [], detail: 'Bearer token required' },
+  backend: { status: 200, verdict: 'allowed', detail: '', received: { issuer: 'https://cmuir-pf.ping-devops.com', subject: 'pf-route-c-test', actor: { sub: 'pf-route-c-test' } } },
 };
 
 beforeEach(() => { vi.resetAllMocks(); });
@@ -33,6 +34,19 @@ describe('PrivilegePfTokenDemoPage', () => {
     expect(pf).toHaveAttribute('data-verdict', 'allowed');
     expect(within(pf).getByText('ListIndexTool')).toBeInTheDocument();
     expect(screen.getByTestId('ppt-answer-garbage')).toHaveAttribute('data-verdict', 'token-rejected');
+    expect(screen.getByTestId('ppt-backend')).toHaveTextContent('What the backend received');
+    expect(screen.getByTestId('ppt-backend-iss')).toHaveAttribute('data-same', 'true');
+    expect(screen.getByTestId('ppt-backend-act')).toHaveAttribute('data-same', 'true');
+  });
+
+  it('shows the gateway answer in place of the backend table when whoami was refused', async () => {
+    getState.mockResolvedValue({ status: 200, data: STATE });
+    runDemo.mockResolvedValue({ status: 200, data: { ...PASS, backend: { status: 403, verdict: 'refused-by-policy', received: null, detail: 'Forbidden' } } });
+    render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
+    fireEvent.click(screen.getByTestId('ppt-run'));
+    await waitFor(() => expect(screen.getByTestId('ppt-backend')).toHaveAttribute('data-verdict', 'refused-by-policy'));
+    expect(screen.queryByTestId('ppt-backend-iss')).toBeNull();
   });
 
   it('labels a 403 as refused by policy', async () => {

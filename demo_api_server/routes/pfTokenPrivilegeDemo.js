@@ -4,6 +4,9 @@
 //   BFF -> PingFederate (client_credentials, client pf-route-c-test) -> JWT with act.sub = the agent
 //   BFF -> Privilege door pftoken (Pass Agent Token) with that JWT as the bearer -> tools/list
 //   BFF -> the same door with a garbage bearer, as the control
+//   BFF -> door pftoken-rs (Pass Agent Token, backend = mcp-resource-server) -> tools/call whoami,
+//          which returns the identity the backend verified on the token it received: proof the gateway
+//          passed the agent's own PingFederate token through rather than swapping in its own credential
 //
 // The gateway matches the token to its non-human identity (NHI PFtoken) and agent key
 // (pftoken-agent), then applies the key's grant. Setup and every failure seen on the way:
@@ -29,6 +32,7 @@ function config() {
     issuer: process.env.PF_TOKEN_DEMO_ISSUER || 'https://cmuir-pf.ping-devops.com',
     clientId: process.env.PF_TOKEN_DEMO_CLIENT_ID || 'pf-route-c-test',
     doorUrl: process.env.PF_TOKEN_DEMO_DOOR_URL || 'https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp',
+    whoamiUrl: process.env.PF_TOKEN_DEMO_WHOAMI_URL || 'https://mcpgw.ai-demo.ping-devops.com/pftoken-rs/mcp',
     clientSecret: process.env.PF_TOKEN_DEMO_CLIENT_SECRET || storedSecret,
   };
 }
@@ -78,31 +82,49 @@ function verdictFor(status, tools) {
   return 'error';
 }
 
+async function postRpc(doorUrl, bearer, method, params) {
+  const res = await fetch(doorUrl, {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+      accept: 'application/json, text/event-stream',
+      authorization: `Bearer ${bearer}`,
+    },
+    body: JSON.stringify({ jsonrpc: '2.0', id: 1, method, params }),
+    signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
+  });
+  const text = await res.text();
+  const rpc = parseRpc(text);
+  const detail = rpc?.error?.message || (res.status === 200 ? '' : text.replace(/\s+/g, ' ').trim().slice(0, 200));
+  return { status: res.status, rpc, detail };
+}
+
 async function listTools(doorUrl, bearer) {
   try {
-    const res = await fetch(doorUrl, {
-      method: 'POST',
-      headers: {
-        'content-type': 'application/json',
-        accept: 'application/json, text/event-stream',
-        authorization: `Bearer ${bearer}`,
-      },
-      body: JSON.stringify({ jsonrpc: '2.0', id: 1, method: 'tools/list' }),
-      signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
-    });
-    const text = await res.text();
-    const rpc = parseRpc(text);
+    const { status, rpc, detail } = await postRpc(doorUrl, bearer, 'tools/list', {});
     const tools = Array.isArray(rpc?.result?.tools) ? rpc.result.tools.map((t) => t.name).filter(Boolean) : [];
-    const detail = rpc?.error?.message || (res.status === 200 ? '' : text.replace(/\s+/g, ' ').trim().slice(0, 200));
-    return { status: res.status, verdict: verdictFor(res.status, tools), tools, detail };
+    return { status, verdict: verdictFor(status, tools), tools, detail };
   } catch (err) {
     return { status: 0, verdict: 'error', tools: [], detail: err.message };
   }
 }
 
+// whoami on the resource server answers with the issuer, subject, actor and audience of the token it verified.
+async function askBackend(whoamiUrl, bearer) {
+  try {
+    const { status, rpc, detail } = await postRpc(whoamiUrl, bearer, 'tools/call', { name: 'whoami', arguments: {} });
+    let received = null;
+    try { received = JSON.parse(rpc?.result?.content?.[0]?.text || 'null'); } catch { received = null; }
+    const verdict = status === 200 && received ? 'allowed' : status === 200 ? 'allowed-no-tools' : verdictFor(status, []);
+    return { status, verdict, received, detail: detail || (rpc?.result?.isError ? 'whoami returned an error' : '') };
+  } catch (err) {
+    return { status: 0, verdict: 'error', received: null, detail: err.message };
+  }
+}
+
 router.get('/state', (req, res) => {
   const cfg = config();
-  res.json({ configured: Boolean(cfg.clientSecret), issuer: cfg.issuer, clientId: cfg.clientId, doorUrl: cfg.doorUrl });
+  res.json({ configured: Boolean(cfg.clientSecret), issuer: cfg.issuer, clientId: cfg.clientId, doorUrl: cfg.doorUrl, whoamiUrl: cfg.whoamiUrl });
 });
 
 router.post('/run', authenticateToken, async (req, res) => {
@@ -120,11 +142,14 @@ router.post('/run', authenticateToken, async (req, res) => {
   if (!mint.token) {
     return res.json({ at, doorUrl: cfg.doorUrl, mint: { status: mint.status, error: mint.error } });
   }
-  const [pfToken, garbage] = await Promise.all([
+  const [pfToken, garbage, backend] = await Promise.all([
     listTools(cfg.doorUrl, mint.token),
     listTools(cfg.doorUrl, 'not-a-valid-token'),
+    askBackend(cfg.whoamiUrl, mint.token),
   ]);
-  return res.json({ at, doorUrl: cfg.doorUrl, mint: { status: mint.status, claims: mint.claims }, pfToken, garbage });
+  return res.json({
+    at, doorUrl: cfg.doorUrl, whoamiUrl: cfg.whoamiUrl, mint: { status: mint.status, claims: mint.claims }, pfToken, garbage, backend,
+  });
 });
 
 module.exports = router;

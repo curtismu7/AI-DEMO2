@@ -23,7 +23,7 @@ What this covers:
 | Only one specific agent is accepted | Required claims `act.sub` and `client_id` pin the agent |
 | The token is bound to one door | Audience = the door URL |
 | What the agent may do on the door | The agent key's grant (tools per door) |
-| The MCP server can verify the token itself | Pass Agent Token forwards the verified token |
+| The MCP server can verify the token itself | Pass Agent Token forwards the verified token (proven with `whoami`, section 15) |
 
 What it does not cover yet:
 
@@ -168,6 +168,7 @@ Taken with Playwright from the local console after the passing test. Dialogs wer
 | 403 Forbidden | `policy denied PFtoken access to pftoken (agent=true)` | no grant for the key on the door | add a rule to the key's existing grant (below) |
 | tools stay empty | `tool discovery for pftoken failed: … no such host` | backend Service deleted | restore the Service; point the door at the noget front |
 | 504 / timeouts to the backend | noget log: `upstream timed out` | noget nginx forwards to the deleted Service | restore Service `opensearch-mcp-server`, restart noget |
+| 404 Not found from a new door | `rejecting /mcp on app pftoken-rs: outside entry path "/mc"` | the door's MCP Server URL was saved ending in `/mc`; the gateway splits the URL path off as the door's entry path | edit the door: the URL must end in exactly `/mcp` |
 | timeouts from some gateway pods only | — | network policy `ai-demo-internal` blocks the curtismuir gateway pods | add the two narrow policies above |
 
 ### How the grant must be made
@@ -453,6 +454,45 @@ The client only ever sees a bare `403 Forbidden` for a policy denial, and `401 B
 - Claim conditions can be set today in the **Access Policy** step of the Agent Registry creation flow, on four fixed claims only: **scopes, `client_id`, subject, issuer**.
 - Cedar cannot read token claims yet. `context.token.claims` (including `act.sub`) is coming in the next release.
 - The audience must contain the gateway; a wildcard is not allowed (RFC 7519 §4.1.3). OBO, in staging and due at the end of next week, is the intended route for per-MCP audiences. An allow-list of audiences is possible on request.
+
+## 15. Proving the passthrough: `whoami` behind door `pftoken-rs` (2026-10-27 UTC)
+
+**Question:** with Pass Agent Token, does the MCP server really get the agent's PingFederate token, or a gateway credential? **Answer [measured]:** the agent's own token. The MCP server verified it against PingFederate's JWKS and reported its claims.
+
+### What was set up
+
+| Where | Setting | Value |
+|---|---|---|
+| MCP resource server (`demo_mcp_resource_server`) | new tool `whoami` (scope `whoami:read`) | returns the issuer, subject, `act`, audience, `client_id` and scope of the token it verified; never the token |
+| MCP resource server | trust PingFederate | `PF_ISSUER=https://cmuir-pf.ping-devops.com`, `PF_JWKS_URI=https://cmuir-pf.ping-devops.com/pf/JWKS`; the `pftoken` door URL added to `MCP_RESOURCE_SERVER_RESOURCE_URI` (the accepted audiences) |
+| k8s | network policies | `mcp-resource-server-from-gateways` (ingress, port 8081) and `gateways-to-mcp-resource-server` (egress from the curtismuir gateway pods), `k8s/aws/mcp-resource-server-from-gateways.yaml` |
+| PingFederate, mapping `client_credentials\|routeCTestAtm` | scope | TEXT `openid whoami:read` |
+| Privilege door | `pftoken-rs` | MCP Server, URL `http://mcp-resource-server.ping-devops-cmuir.svc.cluster.local:8081/mcp`, Auth Mode **Pass Agent Token**, mesh `ai-demo-cmuir` |
+| Privilege grant | `KarunRiver-5a485737526f` | a third rule added by `PUT`: door `pftoken-rs`, key `pftoken-agent`, tool `whoami` |
+
+No change to the identity `PFtoken` or the key `pftoken-agent`. The same token works on both doors: the audience is still the `pftoken` door URL, and the identity checks the audience, not the door it arrives at.
+
+### What happened
+
+1. First call: 404. Gateway log: `rejecting /mcp on app pftoken-rs: outside entry path "/mc"`. The URL had been saved ending in `/mc`. Fixed in the door's Edit dialog.
+2. Second call: 403, `workload token accepted for key pftoken-agent issuer=https://cmuir-pf.ping-devops.com subject=pf-route-c-test`, then `policy denied PFtoken access to pftoken-rs`, then `discovered 35 tools for app pftoken-rs`. Accepted, no grant yet, tools discovered.
+3. After the grant rule: `tools/list` 200 with `["whoami"]`, and `tools/call whoami` 200:
+
+```json
+{
+ "verifiedBy": "mcp-resource-server",
+ "issuer": "https://cmuir-pf.ping-devops.com",
+ "subject": "pf-route-c-test",
+ "actor": { "sub": "pf-route-c-test" },
+ "audience": "https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp",
+ "clientId": "pf-route-c-test",
+ "scope": "openid whoami:read"
+}
+```
+
+Two layers each cut the tool list: the grant (one tool on this door) and the MCP server's own scope filter (only tools whose scope is in the token). Why discovery saw 35 tools when the token carries only `whoami:read` is **not known**; discovery may run with a different credential.
+
+The demo page shows this live: [https://ai-demo.ping-devops.com/privilege-pf-token](https://ai-demo.ping-devops.com/privilege-pf-token), panel "What the backend received" (PingFederate's claims beside the backend's, row by row).
 
 ## Related
 

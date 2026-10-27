@@ -24,6 +24,43 @@ function Answer({ title, result, testId }) {
   );
 }
 
+// Same claim, two places: what PingFederate put in the token, and what the backend behind the gateway verified.
+const RECEIVED_ROWS = [
+  ['Issuer', 'iss', 'issuer'],
+  ['Subject', 'sub', 'subject'],
+  ['Actor (act)', 'act', 'actor'],
+  ['Audience', 'aud', 'audience'],
+  ['Scope', 'scope', 'scope'],
+];
+const show = (v) => (v == null ? '—' : typeof v === 'string' ? v : JSON.stringify(v));
+
+function BackendReceived({ result, claims }) {
+  const got = result.received;
+  if (!got) return <Answer title="What the backend received" result={result} testId="ppt-backend" />;
+  return (
+    <div className="ppt-answer ppt-answer--ok" data-testid="ppt-backend" data-verdict={result.verdict} role="status">
+      <h3>What the backend received</h3>
+      <p>
+        The MCP server behind door <code>pftoken-rs</code> verified the bearer itself and its <code>whoami</code> tool reports it.
+        It is the agent&apos;s own PingFederate token: the gateway checked it and passed it through, it did not swap in its own.
+      </p>
+      <table className="ppt-table">
+        <thead><tr><th>Claim</th><th>PingFederate issued</th><th>Backend received</th><th>Same</th></tr></thead>
+        <tbody>
+          {RECEIVED_ROWS.map(([label, claim, field]) => {
+            const same = show(claims?.[claim]) === show(got[field]);
+            return (
+              <tr key={claim} data-testid={`ppt-backend-${claim}`} data-same={same}>
+                <td>{label}</td><td><code>{show(claims?.[claim])}</code></td><td><code>{show(got[field])}</code></td><td>{same ? 'yes' : 'no'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function PrivilegePfTokenDemoPage() {
   const [state, setState] = useState(null);
   const [running, setRunning] = useState(false);
@@ -90,6 +127,7 @@ export default function PrivilegePfTokenDemoPage() {
                   <Answer title="PingFederate token" result={result.pfToken} testId="ppt-answer-pf" />
                   <Answer title="Control: a garbage token" result={result.garbage} testId="ppt-answer-garbage" />
                 </div>
+                {result.backend && <BackendReceived result={result.backend} claims={result.mint?.claims} />}
               </>
             )}
             <p className="ppt-muted">Run at {result.at}.</p>
