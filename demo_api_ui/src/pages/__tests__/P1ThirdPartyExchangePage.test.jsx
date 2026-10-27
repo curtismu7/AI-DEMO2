@@ -1,10 +1,11 @@
+/* eslint-disable no-template-curly-in-string -- SpEL expressions are asserted as text */
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import P1ThirdPartyExchangePage from '../P1ThirdPartyExchangePage';
 import { parseSequence } from '../../utils/parseSequence';
 import {
-  COMPARE_COLUMNS, COMPARE_ROWS, DIAGRAM_DETAILS, TRUSTED_ISSUER_DEFAULTS, VENDORS, applyMapping, exchangeDiagram, mockJwt, validateExchange,
+  COMPARE_COLUMNS, COMPARE_ROWS, DIAGRAM_DETAILS, TRUSTED_ISSUER_DEFAULTS, VENDORS, applyMapping, buildWire, decodeJwt, exchangeDiagram, mockJwt, toCurl, validateExchange,
 } from '../../config/p1ThirdPartyExchange';
 
 const NOW = 1_800_000_000;
@@ -96,6 +97,66 @@ describe('data integrity', () => {
   });
 });
 
+describe('buildWire: every call in full', () => {
+  const wireFor = (id, over = {}) => { const r = run(id, over); return { r, w: buildWire({ vendor: VENDORS.find((v) => v.id === id), run: r, settings: TRUSTED_ISSUER_DEFAULTS, assigned: over.assigned ?? true, now: NOW }) }; };
+  it('has setup and runtime calls, each with every field and a curl', () => {
+    const { w } = wireFor('okta');
+    expect(w.all.length).toBeGreaterThanOrEqual(9);
+    for (const c of w.all) {
+      for (const k of ['n', 'phase', 'label', 'method', 'url', 'requestHeaders', 'status', 'statusText', 'responseHeaders', 'responseBody', 'curl', 'evidence']) expect(c[k], `${c.n}/${k}`).toBeDefined();
+      expect(c.url).toMatch(/^https:\/\//);
+      expect(!(c.phase === 'setup' || /pingone/.test(c.url)) || /^https:\/\/(api|auth)\.pingone\.example\//.test(c.url), `${c.n} pingone host`).toBe(true);
+      expect(JSON.stringify(c)).not.toMatch(/01d89b06|c6bcf635|imokfarm|ping-eng/);
+      expect(c.curl).toContain(`curl -X ${c.method}`);
+      expect(c.requestHeaders.length).toBeGreaterThan(0);
+    }
+    expect(w.all.map((c) => c.n)).toEqual(w.all.map((_, i) => i + 1));
+  });
+  it('shows the full raw tokens: nothing is truncated or a placeholder, and each decodes', () => {
+    const { w, r } = wireFor('pf-cc');
+    for (const t of [w.tokens.subject, w.tokens.actor, w.tokens.issued]) {
+      expect(t.split('.')).toHaveLength(3);
+      expect(t).not.toMatch(/[<>.]{3}|…/);
+      expect(() => decodeJwt(t)).not.toThrow();
+    }
+    expect(decodeJwt(w.tokens.actor).payload).toEqual(r.claims);
+    expect(decodeJwt(w.tokens.issued).payload.act).toEqual({ sub: 'cc_client' });
+  });
+  it('puts the full raw JWTs in the exchange request body and the issued JWT in the response body', () => {
+    const { w } = wireFor('okta');
+    const ex = w.runtime.at(-1);
+    const form = new URLSearchParams(ex.requestBody);
+    expect(form.get('actor_token')).toBe(w.tokens.actor);
+    expect(form.get('subject_token')).toBe(w.tokens.subject);
+    expect(form.get('actor_token_type')).toBe('urn:ietf:params:oauth:token-type:jwt');
+    expect(JSON.parse(ex.responseBody).access_token).toBe(w.tokens.issued);
+    expect(ex.requestHeaders.find(([k]) => k === 'Authorization')[1]).toMatch(/^Basic [A-Za-z0-9+/=]+$/);
+  });
+  it('shows the full 400 body, with no issued token, when refused', () => {
+    const { w } = wireFor('okta', { state: 'expired' });
+    const ex = w.runtime.at(-1);
+    expect(ex.status).toBe(400);
+    expect(JSON.parse(ex.responseBody).error).toBe('invalid_request');
+    expect(JSON.parse(ex.responseBody).error_description).toContain('The provided JWT has expired');
+    expect(w.tokens.issued).toBeNull();
+  });
+  it('sends the inline JWKS and the issuer settings in the trusted-issuer call, and drops the assignment when unassigned', () => {
+    const { w } = wireFor('okta');
+    const body = JSON.parse(w.setup[0].requestBody);
+    expect(body.issuer).toBe(VENDORS.find((v) => v.id === 'okta').issuer);
+    expect(typeof body.jwks).toBe('string');
+    expect(JSON.parse(body.jwks).keys[0].kty).toBe('RSA');
+    expect(wireFor('okta', { assigned: false }).w.setup.some((c) => /trustedIssuerAssignments/.test(c.url))).toBe(false);
+  });
+  it('carries the measured SpEL expressions for the mappings', () => {
+    const { w } = wireFor('pf-cc');
+    expect(w.setup.find((c) => /Map attribute: act/.test(c.label)).requestBody).toContain("${{'sub': #root.context.requestData.actorToken.sub}}");
+  });
+  it('toCurl quotes single quotes safely', () => {
+    expect(toCurl({ method: 'POST', url: 'https://x.example/a', requestHeaders: [['H', "it's"]], requestBody: "a'b" })).toContain("'H: it'\\''s'");
+  });
+});
+
 describe('diagram source', () => {
   it('parses for every vendor, success and failure, with a payload per message', () => {
     for (const v of VENDORS) {
@@ -139,6 +200,16 @@ describe('P1ThirdPartyExchangePage', () => {
     mount();
     for (const v of VENDORS) expect(screen.getByTestId(`p1x-vendor-${v.id}`)).toBeTruthy();
     expect(within(screen.getByTestId('p1x-compare')).getAllByRole('row').length).toBe(COMPARE_ROWS.length + 1);
+  });
+  it('shows the raw tokens in full and every API call on the page', () => {
+    mount();
+    expect(screen.getByTestId('p1x-raw-actor-raw').textContent.split('.')).toHaveLength(3);
+    expect(screen.getByTestId('p1x-raw-subject-raw').textContent.length).toBeGreaterThan(200);
+    expect(screen.getByTestId('p1x-raw-issued-raw')).toBeTruthy();
+    const wire = screen.getByTestId('p1x-wire');
+    expect(within(wire).getAllByText(/Copy/).length).toBeGreaterThan(10);
+    expect(screen.getByTestId('p1x-call-1-req').textContent).toMatch(/^POST https:\/\/api\.pingone\.example\/v1\/environments\/[0-9a-f-]+\/trustedIssuers/);
+    expect(screen.getByTestId('p1x-call-1-res').textContent).toMatch(/HTTP 201 Created[\s\S]*Cache-Control: no-store/);
   });
   it('shows the real PingOne error body when refused', () => {
     mount();

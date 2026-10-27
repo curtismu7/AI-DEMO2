@@ -39,3 +39,13 @@
 .p1x-facts dt { font-weight: 600; }
 .p1x-facts dd { margin: 0; color: var(--th-text-body); }
 @media (max-width: 640px) { .p1x-grid { grid-template-columns: minmax(0, 1fr); } .p1x-facts { grid-template-columns: minmax(0, 1fr); } }
+
+.p1x-copy { margin-left: 8px; padding: 1px 8px; font: inherit; font-size: var(--font-size-xs); color: var(--th-text); background: var(--th-bg-card); border: 1px solid var(--th-border-strong); border-radius: var(--radius-sm); cursor: pointer; }
+.p1x-token { margin: 8px 0; }
+.p1x-token-head { font-size: var(--font-size-sm); margin-bottom: 4px; }
+.p1x-jwt-h { color: var(--th-status-error-text); }
+.p1x-jwt-p { color: var(--th-status-success-text); }
+.p1x-jwt-s { color: var(--th-status-warning-text); }
+.p1x-call { border: 1px solid var(--th-border); border-radius: var(--radius-sm); padding: 6px 10px; margin: 8px 0; }
+.p1x-call summary { cursor: pointer; font-size: var(--font-size-sm); }
+.p1x-call h4 { margin: 10px 0 4px; font-size: var(--font-size-sm); }

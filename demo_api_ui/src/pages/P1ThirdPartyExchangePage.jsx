@@ -6,7 +6,7 @@ import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import {
   ADMIN_FACTS, API_SAMPLES, COMPARE_COLUMNS, COMPARE_ROWS, DIAGRAM_DETAILS, DIAGRAM_LANES, EVIDENCE, NOT_SHOWN, P1_ISSUER, STEPS,
-  TOKEN_STATES, TRUSTED_ISSUER_DEFAULTS, VENDORS, applyMapping, exchangeDiagram, mockJwt, requestText, resultClaims, subjectClaims, validateExchange,
+  TOKEN_STATES, TRUSTED_ISSUER_DEFAULTS, VENDORS, applyMapping, buildWire, exchangeDiagram, requestText, resultClaims, subjectClaims, validateExchange,
 } from '../config/p1ThirdPartyExchange';
 import './P1ThirdPartyExchangePage.css';
 
@@ -14,6 +14,45 @@ const SETUP_DOC = 'docs/runbooks/p1-third-party-token-exchange.md';
 
 function Tag({ kind }) {
   return <span className={`p1x-tag p1x-tag--${kind}`} title={EVIDENCE[kind].note}>{EVIDENCE[kind].label}</span>;
+}
+
+const copy = (text) => { try { navigator.clipboard?.writeText(text); } catch { /* clipboard blocked: the text is on screen */ } };
+
+function CopyBtn({ text, label = 'Copy' }) {
+  return <button type="button" className="p1x-copy" onClick={() => copy(text)}>{label}</button>;
+}
+
+/** A raw JWT in full (never truncated), its three parts, and a copy button. */
+function RawToken({ title, token, testId }) {
+  if (!token) return null;
+  const [h, p, sig] = token.split('.');
+  return (
+    <div className="p1x-token" data-testid={testId}>
+      <div className="p1x-token-head"><strong>{title}</strong> <CopyBtn text={token} label="Copy token" /></div>
+      <pre className="p1x-pre p1x-wrap" data-testid={`${testId}-raw`}><span className="p1x-jwt-h">{h}</span>.<span className="p1x-jwt-p">{p}</span>.<span className="p1x-jwt-s">{sig}</span></pre>
+    </div>
+  );
+}
+
+function WireCall({ c }) {
+  return (
+    <details className="p1x-call" data-testid={`p1x-call-${c.n}`} open={c.phase === 'runtime'}>
+      <summary><code>{c.n}</code> {c.label} <span className={c.status < 300 ? 'p1x-ok' : 'p1x-bad'}>{c.status} {c.statusText}</span> <Tag kind={c.evidence} /></summary>
+      <p className="p1x-muted">{c.notes}</p>
+      <div className="p1x-grid">
+        <div>
+          <h4>Request <CopyBtn text={`${c.method} ${c.url}\n${c.requestHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}${c.requestBody ? `\n\n${c.requestBody}` : ''}`} /></h4>
+          <pre className="p1x-pre p1x-wrap" data-testid={`p1x-call-${c.n}-req`}>{`${c.method} ${c.url}\n${c.requestHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}${c.requestBody ? `\n\n${c.requestBody}` : ''}`}</pre>
+          <h4>curl <CopyBtn text={c.curl} /></h4>
+          <pre className="p1x-pre p1x-wrap">{c.curl}</pre>
+        </div>
+        <div>
+          <h4>Response <CopyBtn text={c.responseBody} /></h4>
+          <pre className="p1x-pre p1x-wrap" data-testid={`p1x-call-${c.n}-res`}>{`HTTP ${c.status} ${c.statusText}\n${c.responseHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${c.responseBody}`}</pre>
+        </div>
+      </div>
+    </details>
+  );
 }
 
 function Json({ value, testId }) {
@@ -33,6 +72,7 @@ export default function P1ThirdPartyExchangePage() {
   const mapped = useMemo(() => vendor.mappings.map((m) => ({ m, r: applyMapping(m, run.claims) })), [vendor, run.claims]);
   const issued = useMemo(() => resultClaims(subject, run.ok ? { claim: Object.assign({}, ...mapped.map(({ r }) => r.claim || {})) } : null, now), [subject, mapped, run.ok, now]);
   const diagram = useMemo(() => exchangeDiagram(vendor, run), [vendor, run]);
+  const wire = useMemo(() => buildWire({ vendor, run, settings, assigned, now }), [vendor, run, settings, assigned, now]);
   const set = (k) => (e) => setSettings((s) => ({ ...s, [k]: e.target.type === 'checkbox' ? e.target.checked : e.target.value }));
   const reset = () => { setState('valid'); setSettings(TRUSTED_ISSUER_DEFAULTS); setAssigned(true); };
 
@@ -125,13 +165,14 @@ export default function P1ThirdPartyExchangePage() {
           <div>
             <h3>Subject token (PingOne, placeholder values)</h3>
             <Json value={subject} testId="p1x-subject" />
+            <RawToken title="Subject token, raw (mock)" token={wire.tokens.subject} testId="p1x-raw-subject" />
           </div>
         </div>
         <div className="p1x-grid">
           <div>
             <h3>Actor token: {vendor.name}</h3>
             <Json value={run.claims} testId="p1x-actor" />
-            <details><summary>As a mock JWT (never verifiable)</summary><pre className="p1x-pre p1x-wrap">{mockJwt(run.claims)}</pre></details>
+            <RawToken title="Actor token, raw (mock signature, never verifiable)" token={wire.tokens.actor} testId="p1x-raw-actor" />
           </div>
           <div>
             <h3>Attribute mapping on the custom resource</h3>
@@ -143,6 +184,7 @@ export default function P1ThirdPartyExchangePage() {
             </ul>
             <h3>{run.ok ? 'Issued access token' : 'Nothing issued'}</h3>
             {run.ok ? <Json value={issued} testId="p1x-issued" /> : <p className="p1x-muted">The exchange was refused, so no token is issued.</p>}
+            {run.ok ? <RawToken title="Issued access token, raw (mock)" token={wire.tokens.issued} testId="p1x-raw-issued" /> : null}
           </div>
         </div>
 
@@ -154,6 +196,18 @@ export default function P1ThirdPartyExchangePage() {
           lanes={DIAGRAM_LANES}
           label={`Third-party token exchange: ${vendor.name}`}
         />
+      </section>
+
+      <section className="p1x-card" aria-labelledby="p1x-wire" data-testid="p1x-wire">
+        <h2 id="p1x-wire">Every API call, in full <Tag kind="measured" /></h2>
+        <p className="p1x-muted">
+          All headers, the exact request body and the exact response body, with the raw tokens. Values are mock: the client secret shown is made up on purpose,
+          the JWT signatures and the JWKS key are fake. Request and response shapes follow what PingOne returned in the live run. Each call has a curl you can adapt.
+        </p>
+        <h3>Setup: what an admin creates</h3>
+        {wire.setup.map((c) => <WireCall key={c.n} c={c} />)}
+        <h3>Runtime: what the application sends</h3>
+        {wire.runtime.map((c) => <WireCall key={c.n} c={c} />)}
       </section>
 
       <section className="p1x-card" aria-labelledby="p1x-compare">

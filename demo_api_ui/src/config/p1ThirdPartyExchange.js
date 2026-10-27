@@ -280,3 +280,79 @@ export const COMPARE_ROWS = [
   ['nbf', null, null, null, null, null, 'nbf', 'nbf'],
   ['Client auth method', 'Custom', null, null, null, null, 'appidacr', 'azpacr'],
 ];
+
+// ---- Full wire log: every HTTP call, with every header, the raw body and the raw tokens (nothing abbreviated). ----
+// MOCK values throughout: the client secret below is a made-up value shown on purpose (education, mock only), the JWT
+// signatures are fake, and the JWKS modulus is a stand-in. Shapes follow what PingOne returned in the 2026-10-27 live run.
+export const MOCK_CLIENT_SECRET = 'mock-client-secret-not-a-real-credential';
+const ENV_ID = '00000000-0000-0000-0000-000000000001';
+const API_BASE = `https://api.pingone.example/v1/environments/${ENV_ID}`;
+const AUTH_BASE = `https://auth.pingone.example/${ENV_ID}/as`;
+const IDS = { issuer: '33333333-3333-3333-3333-333333333333', resource: '44444444-4444-4444-4444-444444444444', scope: '55555555-5555-5555-5555-555555555555', app: APP_CLIENT_ID, grant: '66666666-6666-6666-6666-666666666666', assignment: '77777777-7777-7777-7777-777777777777' };
+const VENDOR_TOKEN_CALL = {
+  'pf-cc': { path: '/as/token.oauth2', host: 'https://pf.example.com:9031' }, 'pf-oidc': { path: '/as/token.oauth2', host: 'https://pf.example.com:9031' },
+  p1: { path: '/00000000-0000-0000-0000-000000000002/as/token', host: 'https://auth.pingone.example' }, okta: { path: '/oauth2/aus1example/v1/token', host: 'https://example.okta.com' },
+  auth0: { path: '/oauth/token', host: 'https://my-domain.auth0.com' }, rfc9068: { path: '/token', host: 'https://authorization-server.example.com' },
+  ms1: { path: '/aaaaaaaa-0000-0000-0000-000000000001/oauth2/token', host: 'https://login.microsoftonline.com' }, ms2: { path: '/aaaaaaaa-0000-0000-0000-000000000001/oauth2/v2.0/token', host: 'https://login.microsoftonline.com' },
+};
+const q = (s) => `'${String(s).replace(/'/g, `'\\''`)}'`;
+export const toCurl = ({ method, url, requestHeaders, requestBody }) =>
+  [`curl -X ${method} ${q(url)}`, ...requestHeaders.map(([k, v]) => `  -H ${q(`${k}: ${v}`)}`), ...(requestBody ? [`  --data ${q(requestBody)}`] : [])].join(' \\\n');
+const basic = (id, secret) => `Basic ${btoa(`${id}:${secret}`)}`;
+const respHeaders = (type = 'application/json') => [['Content-Type', type], ['Cache-Control', 'no-store'], ['Pragma', 'no-cache'], ['X-Correlation-Id', 'mock-correlation-id-0000']];
+
+/** The decoded payload of a JWT string. Used by tests and the page to prove a displayed token decodes. */
+export function decodeJwt(token) {
+  const [h, p] = token.split('.');
+  const dec = (s) => JSON.parse(atob(s.replace(/-/g, '+').replace(/_/g, '/')));
+  return { header: dec(h), payload: dec(p) };
+}
+
+export function buildWire({ vendor, run, settings, assigned, now }) {
+  const subject = subjectClaims(now);
+  const subjectJwt = mockJwt(subject);
+  const actorJwt = mockJwt(run.claims);
+  const mapped = vendor.mappings.map((m) => ({ m, r: applyMapping(m, run.claims) }));
+  const issued = resultClaims(subject, run.ok ? { claim: Object.assign({}, ...mapped.map(({ r }) => r.claim || {})) } : null, now);
+  const jwks = JSON.stringify({ keys: [{ kty: 'RSA', kid: 'mock-key', use: 'sig', alg: 'RS256', n: 'MOCK-MODULUS-NOT-A-REAL-KEY', e: 'AQAB' }] });
+  const mgmt = [['Authorization', 'Bearer <worker token: a management token from the worker app>'], ['Content-Type', 'application/json'], ['Accept', 'application/json']];
+  const wanted = settings.audiences.split(',').map((s) => s.trim()).filter(Boolean);
+  const call = (n, phase, label, method, url, requestHeaders, body, status, statusText, responseBody, notes, evidence = 'measured') => {
+    const requestBody = body === undefined ? '' : typeof body === 'string' ? body : JSON.stringify(body, null, 2);
+    const item = { n, phase, label, method, url, requestHeaders, requestBody, status, statusText, responseHeaders: respHeaders(), responseBody: typeof responseBody === 'string' ? responseBody : JSON.stringify(responseBody, null, 2), notes, evidence };
+    return { ...item, curl: toCurl(item) };
+  };
+  const setup = [
+    call(1, 'setup', 'Create the trusted issuer (inline JWKS)', 'POST', `${API_BASE}/trustedIssuers`, mgmt,
+      { name: `${vendor.name} (trusted)`, issuer: vendor.issuer, jwks, expRequired: settings.expRequired, iatRequired: settings.iatRequired, nbfRequired: settings.nbfRequired, clockSkew: Number(settings.clockSkew) || 0, maxFutureValidity: Number(settings.maxFutureValidity) || 0, ...(wanted.length ? { audiences: wanted } : {}) },
+      201, 'Created', { id: IDS.issuer, name: `${vendor.name} (trusted)`, issuer: vendor.issuer, jwksUrl: null, expRequired: settings.expRequired, iatRequired: settings.iatRequired, nbfRequired: settings.nbfRequired, clockSkew: Number(settings.clockSkew) || 0, maxFutureValidity: Number(settings.maxFutureValidity) || 0 },
+      'The field is `jwks`, a JSON string. Use `jwksUrl` instead to have PingOne fetch the keys. clockSkew is capped at 60.'),
+    call(2, 'setup', 'Create the custom resource (the audience of the new token)', 'POST', `${API_BASE}/resources`, mgmt, { name: 'address-api', audience: RESOURCE_AUD, accessTokenValiditySeconds: 3600 }, 201, 'Created', { id: IDS.resource, name: 'address-api', audience: RESOURCE_AUD, accessTokenValiditySeconds: 3600 }, 'Its audience becomes the aud of the issued token.'),
+    call(3, 'setup', 'Add a scope to the resource', 'POST', `${API_BASE}/resources/${IDS.resource}/scopes`, mgmt, { name: RESOURCE_SCOPE, description: 'read the address API' }, 201, 'Created', { id: IDS.scope, name: RESOURCE_SCOPE }),
+    ...mapped.map(({ m }, i) => call(4 + i, 'setup', `Map attribute: ${m.target}`, 'POST', `${API_BASE}/resources/${IDS.resource}/attributes`, mgmt,
+      { name: m.target, type: 'CUSTOM', value: m.wrap === 'act' ? `\${{'sub': #root.context.requestData.actorToken.${m.source}}}` : `\${#root.context.requestData.actorToken.${m.source}}` },
+      201, 'Created', { id: `88888888-8888-8888-8888-88888888888${i}`, name: m.target }, m.note, m.evidence)),
+    call(4 + mapped.length, 'setup', 'Create the application that sends the exchange', 'POST', `${API_BASE}/applications`, mgmt,
+      { name: 'exchanger', enabled: true, type: 'WEB_APP', protocol: 'OPENID_CONNECT', grantTypes: ['CLIENT_CREDENTIALS', 'TOKEN_EXCHANGE'], tokenEndpointAuthMethod: 'CLIENT_SECRET_BASIC' },
+      201, 'Created', { id: IDS.app, name: 'exchanger', type: 'WEB_APP', grantTypes: ['TOKEN_EXCHANGE', 'CLIENT_CREDENTIALS'], tokenEndpointAuthMethod: 'CLIENT_SECRET_BASIC' }),
+    call(5 + mapped.length, 'setup', "Grant the resource's scope to the application", 'POST', `${API_BASE}/applications/${IDS.app}/grants`, mgmt, { resource: { id: IDS.resource }, scopes: [{ id: IDS.scope }] }, 201, 'Created', { id: IDS.grant }),
+    ...(assigned ? [call(6 + mapped.length, 'setup', 'Assign the trusted issuer to the application', 'POST', `${API_BASE}/applications/${IDS.app}/trustedIssuerAssignments`, mgmt, { trustedIssuer: { id: IDS.issuer } }, 201, 'Created', { id: IDS.assignment, trustedIssuer: { id: IDS.issuer } })] : []),
+  ];
+  let n = setup.length;
+  const tokenHeaders = (id, secret) => [['Authorization', basic(id, secret)], ['Content-Type', 'application/x-www-form-urlencoded'], ['Accept', 'application/json']];
+  const subjForm = 'grant_type=client_credentials&scope=' + encodeURIComponent(RESOURCE_SCOPE);
+  const vtc = VENDOR_TOKEN_CALL[vendor.id];
+  const exForm = new URLSearchParams({ grant_type: GRANT_TYPE, subject_token: subjectJwt, subject_token_type: ACCESS_TYPE, actor_token: actorJwt, actor_token_type: JWT_TYPE, scope: RESOURCE_SCOPE }).toString();
+  const runtime = [
+    call(++n, 'runtime', 'Get the PingOne subject token (client credentials)', 'POST', `${AUTH_BASE}/token`, tokenHeaders(APP_CLIENT_ID, MOCK_CLIENT_SECRET), subjForm, 200, 'OK',
+      { access_token: subjectJwt, token_type: 'Bearer', expires_in: 3600, scope: RESOURCE_SCOPE }, 'The subject token. In the real flow it is usually a signed-in user\'s access token; the live run used this form.', 'measured'),
+    call(++n, 'runtime', `Get the third-party token from ${vendor.name}`, 'POST', `${vtc.host}${vtc.path}`, tokenHeaders('third-party-client-id', MOCK_CLIENT_SECRET), 'grant_type=client_credentials', 200, 'OK',
+      { access_token: actorJwt, token_type: 'Bearer', expires_in: 600 }, `The issuer's real endpoint and response shape differ; this is the generic form. The access_token is the actor token, shown decoded on the page.`, 'derived'),
+    run.ok
+      ? call(++n, 'runtime', 'Token exchange', 'POST', `${AUTH_BASE}/token`, tokenHeaders(APP_CLIENT_ID, MOCK_CLIENT_SECRET), exForm, 200, 'OK',
+        { access_token: mockJwt(issued), token_type: 'Bearer', expires_in: 3600, scope: RESOURCE_SCOPE, issued_token_type: ACCESS_TYPE }, 'The new access token: audience is the custom resource, with the mapped claims.')
+      : call(++n, 'runtime', 'Token exchange (refused)', 'POST', `${AUTH_BASE}/token`, tokenHeaders(APP_CLIENT_ID, MOCK_CLIENT_SECRET), exForm, 400, 'Bad Request',
+        { error: run.error.error, error_description: `${run.error.error_description} (Correlation ID: mock-correlation-id-0000)` }, 'PingOne refuses with invalid_request and says which check failed. No token is issued.'),
+  ];
+  return { setup, runtime, all: [...setup, ...runtime], tokens: { subject: subjectJwt, actor: actorJwt, issued: run.ok ? mockJwt(issued) : null }, issued };
+}
