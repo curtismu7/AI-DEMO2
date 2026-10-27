@@ -1512,6 +1512,8 @@ app.use('/api/document-rag', authenticateToken, require('./routes/documentRag'))
 // OBO demo: Claude-facing MCP endpoint + downstream verifier. Self-authenticating (own Bearer check).
 const oboRoutes = require('./routes/obo');
 app.use('/api/obo', oboRoutes.router);
+// Muse personal-agent page: real PingOne sign-in + RFC 8693 delegation. Session-gated routes plus a state-keyed callback.
+app.use('/api/muse', require('./routes/muse').router);
 app.use('/api', intentAuthRoutes);
 app.use('/api', delegationGate, agentInvokeRoutes);
 app.use('/api/agent', delegationGate, transactionTurnMiddleware, agentRunRoutes); // AG-UI Step 2: /api/agent/run

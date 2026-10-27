@@ -1546,6 +1546,7 @@ export default function AdminSideNav({
       "Personal Agent",
       "Personal Agent Clients",
       { label: "Dot Workbench", path: "/personal-agent/dot", icon: "agt", searchAlias: "dot persona agent memory workbench personal always-on preferences" },
+      { label: "Muse", path: "/personal-agent/muse", icon: "agt", searchAlias: "muse personal agent pingone sign in delegation 401 airline points loyalty" },
       { label: "Workload Agents", path: "/workload-agents", icon: "agt", searchAlias: "workload agents digital assistant obo uc38 uc44 delegated" },
       { label: "Embedded Worker", path: "/embedded-worker", icon: "agt", searchAlias: "embedded worker saas uc45 agent" },
       { label: "OBO Demo", path: "/obo-demo", icon: "lck" },

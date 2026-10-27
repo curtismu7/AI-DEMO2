@@ -196,6 +196,7 @@ const PersonalAgentLearnPage = lazy(() => import("./pages/PersonalAgentLearnPage
 const WorkloadAgentsPage = lazy(() => import("./pages/WorkloadAgentsPage"));
 const PersonalAgentClientWindow = lazy(() => import("./pages/PersonalAgentClientWindow"));
 const DotWorkbenchPage = lazy(() => import("./pages/DotWorkbenchPage"));
+const MusePage = lazy(() => import("./pages/MusePage"));
 const GovernanceTimelinePage = lazy(() => import("./pages/GovernanceTimelinePage"));
 const EmbeddedWorkerPage = lazy(() => import("./pages/EmbeddedWorkerPage"));
 const TransactionTraceEmbedPage = lazy(() => import("./pages/TransactionTraceEmbedPage"));
@@ -1698,6 +1699,19 @@ function AppWithAuth() {
                     <AppShell user={user} logout={logout}>
                       <DotWorkbenchPage user={user} />
                     </AppShell>
+                  }
+                />
+                {/* Muse: real PingOne sign-in + delegation. Signed-in only (the BFF keys the flow to the session). */}
+                <Route
+                  path="/personal-agent/muse"
+                  element={
+                    loading ? null : user ? (
+                      <AppShell user={user} logout={logout}>
+                        <MusePage />
+                      </AppShell>
+                    ) : (
+                      <SignInRequired />
+                    )
                   }
                 />
                 <Route
