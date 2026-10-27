@@ -27,4 +27,11 @@
 .ppt-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); margin: 8px 0; }
 .ppt-table th, .ppt-table td { text-align: left; vertical-align: top; padding: 7px 8px; border-bottom: 1px solid var(--th-border); }
 .ppt-table th { color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
+.ppt-section > summary { cursor: pointer; list-style: none; display: flex; align-items: center; gap: 8px; }
+.ppt-section > summary::-webkit-details-marker { display: none; }
+.ppt-section > summary::before { content: '▸'; color: var(--th-text-muted); transition: transform 0.15s; }
+.ppt-section[open] > summary::before { transform: rotate(90deg); }
+.ppt-section > summary h2 { display: inline; margin: 0; }
+.ppt-section[open] > summary { margin-bottom: 10px; }
+.ppt-section:not(.ppt-card) { margin-top: 16px; }
 @media (max-width: 640px) { .ppt-page { padding: 16px 16px 48px; } .ppt-table { display: block; overflow-x: auto; } }

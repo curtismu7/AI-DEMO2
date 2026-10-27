@@ -39,6 +39,7 @@ describe('whoami', () => {
       scope: 'openid whoami:read',
       expiresAt: '2027-01-15T08:00:00.000Z',
     });
+    expect(r.claims).toMatchObject({ iss: 'https://cmuir-pf.ping-devops.com', act: { sub: 'pf-route-c-test' }, exp: 1800000000 });
     expect(JSON.stringify(r)).not.toContain(PF_TOKEN);
   });
 

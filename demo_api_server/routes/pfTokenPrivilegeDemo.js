@@ -2,16 +2,16 @@
 // Backs /privilege-pf-token: proves a PingFederate-issued token is accepted by the Privilege gateway.
 //
 //   BFF -> PingFederate (client_credentials, client pf-route-c-test) -> JWT with act.sub = the agent
-//   BFF -> Privilege door pftoken (Pass Agent Token) with that JWT as the bearer -> tools/list
-//   BFF -> the same door with a garbage bearer, as the control
-//   BFF -> door pftoken-rs (Pass Agent Token, backend = mcp-resource-server) -> tools/call whoami,
+//   BFF -> P1 Privilege Agent App pftoken (Pass Agent Token) with that JWT as the bearer -> tools/list
+//   BFF -> the same agent app with a garbage bearer, as the control
+//   BFF -> agent app pftoken-rs (Pass Agent Token, backend = mcp-resource-server) -> tools/call whoami,
 //          which returns the identity the backend verified on the token it received: proof the gateway
 //          passed the agent's own PingFederate token through rather than swapping in its own credential
 //
 // The gateway matches the token to its non-human identity (NHI PFtoken) and agent key
 // (pftoken-agent), then applies the key's grant. Setup and every failure seen on the way:
-// privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md. The token itself never leaves this route;
-// only its claims are returned.
+// privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md. The token itself (and its signature) never
+// leaves this route; all of its claims are returned.
 
 'use strict';
 
@@ -22,8 +22,6 @@ const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
 const CALL_TIMEOUT_MS = 15000;
-// Claims worth showing; the raw token is never sent to the browser.
-const SHOWN_CLAIMS = ['iss', 'sub', 'aud', 'client_id', 'act', 'scope', 'iat', 'exp'];
 
 function config() {
   let storedSecret = '';
@@ -41,8 +39,7 @@ function decodeClaims(jwt) {
   const parts = String(jwt || '').split('.');
   if (parts.length < 2) return null;
   try {
-    const all = JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
-    return Object.fromEntries(SHOWN_CLAIMS.filter((k) => k in all).map((k) => [k, all[k]]));
+    return JSON.parse(Buffer.from(parts[1], 'base64url').toString('utf8'));
   } catch {
     return null;
   }
@@ -109,7 +106,7 @@ async function listTools(doorUrl, bearer) {
   }
 }
 
-// whoami on the resource server answers with the issuer, subject, actor and audience of the token it verified.
+// whoami on the resource server answers with every claim of the token it verified.
 async function askBackend(whoamiUrl, bearer) {
   try {
     const { status, rpc, detail } = await postRpc(whoamiUrl, bearer, 'tools/call', { name: 'whoami', arguments: {} });

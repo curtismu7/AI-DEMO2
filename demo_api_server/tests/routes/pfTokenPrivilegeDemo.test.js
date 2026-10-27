@@ -1,7 +1,7 @@
 'use strict';
 /**
  * /api/pf-token-demo: mints a PingFederate token and sends it to the Privilege pftoken door.
- * The raw token must never reach the browser; only selected claims do. fetch is stubbed.
+ * The raw token must never reach the browser; its claims (all of them) do. fetch is stubbed.
  */
 
 const request = require('supertest');
@@ -60,11 +60,11 @@ describe('GET /state', () => {
 });
 
 describe('POST /run', () => {
-  it('returns the claims, the tools and the control, and never the raw token', async () => {
+  it('returns every claim, the tools and the control, and never the raw token', async () => {
     const res = await request(app).post('/api/pf-token-demo/run');
     expect(res.status).toBe(200);
     expect(res.body.mint.claims).toMatchObject({ sub: 'pf-route-c-test', act: { sub: 'pf-route-c-test' } });
-    expect(res.body.mint.claims.jti).toBeUndefined();
+    expect(res.body.mint.claims).toEqual(CLAIMS);
     expect(res.body.pfToken).toMatchObject({ status: 200, verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] });
     expect(res.body.garbage).toMatchObject({ status: 401, verdict: 'token-rejected' });
     expect(res.body.backend).toMatchObject({ status: 200, verdict: 'allowed', received: RECEIVED });
