@@ -112,3 +112,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=5s --retries=3 \
 ENTRYPOINT ["/otel/otel-python-entrypoint.sh"]
 # Default command
 CMD ["python", "-m", "src.main"]
+
+# Rebuild trigger for SE image refresh (no functional change).
