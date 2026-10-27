@@ -540,7 +540,9 @@ module.exports = async function decisionHandler(req, res) {
   if (McpResourceUri && TokenAudience) {
     const tokenAudList = parseAudList(TokenAudience);
     const resourceUriList = parseAudList(McpResourceUri);
-    if (!tokenAudList.some((a) => resourceUriList.includes(a))) {
+    // Parity with snapshots/gen-authorize-snapshot.js: optional extra exact audiences (empty by default).
+    const extraAudList = (process.env.PINGONE_EXTRA_MCP_AUDIENCES || '').split(',').map((a) => a.trim()).filter(Boolean);
+    if (!tokenAudList.some((a) => resourceUriList.includes(a) || extraAudList.includes(a))) {
       warn(`[AuthzServer/decision] DENY — TokenAudience [${tokenAudList.join(',')}] does not name McpResourceUri [${resourceUriList.join(',')}]`);
       return deny(res, `invalid_aud: TokenAudience "${TokenAudience}" does not match McpResourceUri "${McpResourceUri}"`);
     }

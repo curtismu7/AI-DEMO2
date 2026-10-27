@@ -17800,3 +17800,13 @@ match wildcards or blank entries.
 **Verify:** `node --test ping-gateway/scripts/check-jwks-extra-audience.test.js`. Live: send a
 token with the extra audience and scope through the route with the settings set (200), and
 with them unset (401 `audience_mismatch`).
+
+**Addendum — Authorize policy audience (same change, second layer):** PingOne Authorize's
+`HasValidMcpAudience` condition is generated from `scope-topology.json`, so the same caller path was
+denied there ("MCP Denied — Invalid Audience"). `snapshots/gen-authorize-snapshot.js` now reads an
+optional, comma-separated, exact-match `PINGONE_EXTRA_MCP_AUDIENCES` and adds each value as an accepted
+`TokenAudience`; `demo_authz_server/routes/decision.js` (rule 0c) reads the same variable. Unset, the
+generated snapshot is byte-identical (`node snapshots/gen-authorize-snapshot.js --check` stays green) and
+the object version does not change. Importing a snapshot generated with the variable set is still a console
+step (Authorize, Trust Framework, Import). Verify: `node --test snapshots/authorizeSnapshotExtraAudience.test.js`
+and the two `demo_authz_server/decision.*parity.test.js` suites.
