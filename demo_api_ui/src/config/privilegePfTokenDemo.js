@@ -11,6 +11,26 @@ export const VERDICTS = {
   error: { label: 'ERROR', tone: 'bad', note: 'The call did not complete.' },
 };
 
+// What Privilege does for a PingFederate-token agent, and what it cannot do yet. `status` says how we know.
+export const PRIVILEGE_CAN = [
+  { what: 'Trust PingFederate as the agent\'s issuer', how: 'The identity checks the signature (PingFederate JWKS), iss, aud (bound to one agent app) and token lifetime. Anything else is 401.', status: 'measured' },
+  { what: 'Accept only this agent', how: 'Required claims on the identity (act.sub, client_id) must match exactly, or the token is rejected (401).', status: 'measured' },
+  { what: 'Hold no secret for the agent', how: 'The PingFederate token is the only credential. Privilege issues no key value to the agent.', status: 'measured' },
+  { what: 'Decide which tools, per agent app', how: 'The agent key\'s grant lists tools per agent app. No rule for the app is 403; tools not listed are hidden.', status: 'measured' },
+  { what: 'Give different tools by scope (tiers)', how: 'Two grant rules for the same app, each with RequiredClaims on scope: the token\'s scope picks 3 tools, 9 tools, or 403. Each scope is matched on its own; a list means any of.', status: 'measured 2026-10-27' },
+  { what: 'Pass the agent\'s token through', how: 'Pass Agent Token forwards the PingFederate token unchanged, so the MCP server can verify it too (see What the backend received).', status: 'measured' },
+  { what: 'Find the tools without a person signing in', how: 'The first accepted agent call discovers the app\'s tools (gateway v1.261024).', status: 'measured' },
+  { what: 'Switch the agent off', how: 'Disable the identity or revoke the key.', status: 'not tested on this path' },
+];
+
+export const PRIVILEGE_CANNOT = [
+  { what: 'Token exchange (on behalf of a user)', how: 'Privilege does not exchange tokens. A user in sub with the agent in act has to come from PingFederate. Privilege\'s OBO support is in staging (Ping, 2026-10-23).' },
+  { what: 'Narrow the token it forwards', how: 'The MCP server gets the same token the agent sent, with every scope in it. A down-scoped token needs a token exchange in front of the gateway.' },
+  { what: 'Cedar rules on token claims', how: 'Cedar cannot read the token yet (context.token.claims is due in a later release). Claim checks today are the identity\'s required claims and the grant rules\' RequiredClaims, exact match only.' },
+  { what: 'Wildcard audiences', how: 'The audience must name the gateway; no wildcard. An allow-list of audiences is possible on request.' },
+  { what: 'New grant policies through the API', how: 'Grants created with POST are deleted within about a minute (cause unknown). Edit the key\'s existing grant instead.' },
+];
+
 // Every row had to be true at the same time for the 200.
 export const WORKING_SETUP = [
   { layer: 'PingFederate', setting: 'Client', value: 'pf-route-c-test (client credentials)' },

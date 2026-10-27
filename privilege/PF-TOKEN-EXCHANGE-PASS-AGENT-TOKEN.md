@@ -35,6 +35,31 @@ What it does not cover yet:
 
 Example: a customer such as NYLife has agents registered in PingFederate and wants Privilege to govern which MCP tools those agents may call, without issuing each agent a Privilege key.
 
+## What Privilege does here, and what it can't
+
+**Privilege does** (all measured on our tenant unless marked):
+
+| What | How |
+|---|---|
+| Trusts PingFederate as the agent's issuer | The identity checks the signature (PingFederate JWKS), `iss`, `aud` (bound to one P1 Privilege Agent App) and token lifetime. Anything else is 401. |
+| Accepts only this agent | Required claims on the identity (`act.sub`, `client_id`) must match exactly, or 401. |
+| Holds no secret for the agent | The PingFederate token is the only credential. |
+| Decides which tools, per agent app | The agent key's grant lists tools per agent app. No rule for the app is 403; unlisted tools are hidden. |
+| Gives different tools by scope (tiers) | Two grant rules for the same app, each with `RequiredClaims` on `scope`: the token's scope picks 3 tools, 9 tools, or 403. Measured 2026-10-27, section 16. |
+| Passes the agent's token through | Pass Agent Token forwards the PingFederate token unchanged; the MCP server verifies it too (section 15). |
+| Finds the tools without a person signing in | The first accepted agent call discovers the app's tools (gateway `v1.261024`). |
+| Switches the agent off | Disable the identity or revoke the key. **Not tested on this path.** |
+
+**Privilege can't (yet):**
+
+| What | Why, and what to use instead |
+|---|---|
+| Token exchange (on behalf of a user) | Privilege does not exchange tokens. A token with the user in `sub` and the agent in `act` has to come from PingFederate. Privilege's OBO support is in staging (Ping, 2026-10-23). |
+| Narrow the token it forwards | The MCP server gets the same token the agent sent, with every scope in it. A down-scoped token needs a token exchange in front of the gateway. |
+| Cedar rules on token claims | Cedar cannot read the token yet (`context.token.claims` is due in a later release). Claim checks today: the identity's required claims and the grant rules' `RequiredClaims`, exact match only. |
+| Wildcard audiences | The audience must name the gateway; no wildcard. An allow-list is possible on request. |
+| New grant policies through the API | A POSTed grant is deleted within about a minute (cause unknown). Edit the key's existing grant. |
+
 ## Step-by-step setup
 
 Values in angle brackets are yours; the values we used are in brackets. Every step was done on 2026-10-26 and the result is in "Working configuration" below.
@@ -495,6 +520,44 @@ No change to the identity `PFtoken` or the key `pftoken-agent`. The same token w
 Two layers each cut the tool list: the grant (one tool on this agent app) and the MCP server's own scope filter (only tools whose scope is in the token). Why discovery saw 35 tools when the token carries only `whoami:read` is **not known**; discovery may run with a different credential.
 
 The demo page shows this live: [https://ai-demo.ping-devops.com/privilege-pf-token](https://ai-demo.ping-devops.com/privilege-pf-token), panel "What the backend received": every claim PingFederate put in the token beside the same claim as the backend verified it, one row per claim. The page's sections collapse.
+
+## 16. Scope tiers with `RequiredClaims` on grant rules (measured 2026-10-27)
+
+A grant rule (`pacpolicys` → `Spec.ActionMap.MCP.PolicyRule[]`) has a `RequiredClaims` field: claims the presented token must carry for that rule to apply. It is not Cedar. We tested it on `pftoken-agent`'s grant `KarunRiver-5a485737526f` with a PingFederate token whose `scope` is `openid whoami:read`.
+
+**Format.** Each claim's value is a list:
+
+```json
+"RequiredClaims": { "Map": { "scope": { "Elems": ["whoami:read"] }, "act.sub": { "Elems": ["pf-route-c-test"] } } }
+```
+
+A plain string value is refused with 400 `cannot unmarshal string into Go value of type map[string]json.RawMessage`.
+
+**What we measured** (each change took effect in about 20 seconds):
+
+| Rule condition | Token | Result |
+|---|---|---|
+| `act.sub` = `pf-route-c-test` | matches | 200 |
+| `act.sub` = `some-other-agent` | does not match | 403 on `tools/list` and `tools/call` |
+| `scope` = `whoami:read` | scope `openid whoami:read` | 200: each scope is matched on its own |
+| `scope` = `openid whoami:read` (whole string) | same token | 403: the whole string is not one scope |
+| `scope` = [`opensearch:admin`, `whoami:read`] | same token | 200: a list means any of |
+
+**Tiers.** Two rules for the same app (`pftoken`) and key, different tools and different conditions:
+
+| Rule 1 (3 read tools) | Rule 2 (all 9 tools) | Result for the same token |
+|---|---|---|
+| `scope` has `whoami:read` | `scope` has `opensearch:admin` | 200, 3 tools |
+| `scope` has `opensearch:admin` | `scope` has `whoami:read` | 200, 9 tools |
+| `scope` has `opensearch:read` | `scope` has `opensearch:admin` | 403, 0 tools |
+
+**Traps.**
+
+- To remove a condition, delete the `RequiredClaims` field from the rule. A PUT with `{"Map": {}}` is ignored and the old condition stays.
+- The gateway log line for a claim mismatch was not found; the client only sees 403.
+- The grant was put back afterwards: one 9-tool rule on `pftoken`, `whoami` on `pftoken-rs`, no conditions.
+
+To show tiers on the demo page, PingFederate has to mint tokens with different scopes for the same agent; today the mapping sets `scope` to the fixed text `openid whoami:read`.
 
 ## Related
 

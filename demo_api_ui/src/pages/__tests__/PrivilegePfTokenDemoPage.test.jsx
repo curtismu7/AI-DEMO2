@@ -97,7 +97,7 @@ describe('PrivilegePfTokenDemoPage', () => {
   it('puts every section in a collapsible, open by default', async () => {
     getState.mockResolvedValue({ status: 200, data: STATE });
     render(<PrivilegePfTokenDemoPage />);
-    for (const id of ['run', 'setup', 'fail', 'flow']) {
+    for (const id of ['run', 'scope', 'setup', 'fail', 'flow']) {
       const section = screen.getByTestId(`ppt-section-${id}`);
       expect(section.tagName).toBe('DETAILS');
       expect(section).toHaveAttribute('open');
@@ -110,6 +110,8 @@ describe('PrivilegePfTokenDemoPage', () => {
     render(<PrivilegePfTokenDemoPage />);
     expect(screen.getByTestId('ppt-setup')).toHaveTextContent('act.sub = pf-route-c-test');
     expect(screen.getByTestId('ppt-failures')).toHaveTextContent('policy denied');
+    expect(screen.getByTestId('ppt-can')).toHaveTextContent('RequiredClaims on scope');
+    expect(screen.getByTestId('ppt-cannot')).toHaveTextContent('Token exchange');
     expect(screen.getByTestId('ppt-diagram')).toBeInTheDocument();
     expect(runDemo).not.toHaveBeenCalled();
   });

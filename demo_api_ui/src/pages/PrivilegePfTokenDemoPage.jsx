@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
 import SignInPrompt from '../components/SignInPrompt';
-import { DOC_URL, FAILURES, PF_TOKEN_DIAGRAM, VERDICTS, WORKING_SETUP } from '../config/privilegePfTokenDemo';
+import { DOC_URL, FAILURES, PF_TOKEN_DIAGRAM, PRIVILEGE_CAN, PRIVILEGE_CANNOT, VERDICTS, WORKING_SETUP } from '../config/privilegePfTokenDemo';
 import { getState, runDemo } from '../services/privilegePfTokenDemoService';
 import './PrivilegePfTokenDemoPage.css';
 
@@ -144,8 +144,22 @@ export default function PrivilegePfTokenDemoPage() {
         )}
       </details>
 
+      <details className="ppt-card ppt-section" open data-testid="ppt-section-scope">
+        <summary><h2 id="ppt-scope-h">2. What Privilege does here, and what it can&apos;t</h2></summary>
+        <h3>Privilege does</h3>
+        <table className="ppt-table" data-testid="ppt-can">
+          <thead><tr><th>What</th><th>How</th><th>Status</th></tr></thead>
+          <tbody>{PRIVILEGE_CAN.map((r) => <tr key={r.what}><td>{r.what}</td><td>{r.how}</td><td>{r.status}</td></tr>)}</tbody>
+        </table>
+        <h3>Privilege can&apos;t (yet)</h3>
+        <table className="ppt-table" data-testid="ppt-cannot">
+          <thead><tr><th>What</th><th>Why, and what to use instead</th></tr></thead>
+          <tbody>{PRIVILEGE_CANNOT.map((r) => <tr key={r.what}><td>{r.what}</td><td>{r.how}</td></tr>)}</tbody>
+        </table>
+      </details>
+
       <details className="ppt-card ppt-section" open data-testid="ppt-section-setup">
-        <summary><h2 id="ppt-setup-h">2. What has to be true</h2></summary>
+        <summary><h2 id="ppt-setup-h">3. What has to be true</h2></summary>
         <p className="ppt-muted">Every row at the same time. Verified 2026-10-26.</p>
         <table className="ppt-table" data-testid="ppt-setup">
           <thead><tr><th>Where</th><th>Setting</th><th>Value</th></tr></thead>
@@ -154,7 +168,7 @@ export default function PrivilegePfTokenDemoPage() {
       </details>
 
       <details className="ppt-card ppt-section" open data-testid="ppt-section-fail">
-        <summary><h2 id="ppt-fail-h">3. When it does not work</h2></summary>
+        <summary><h2 id="ppt-fail-h">4. When it does not work</h2></summary>
         <p className="ppt-muted">The client only sees 401 or 403. The gateway log says which layer refused it.</p>
         <table className="ppt-table" data-testid="ppt-failures">
           <thead><tr><th>You see</th><th>Gateway log</th><th>Fix</th></tr></thead>
@@ -163,7 +177,7 @@ export default function PrivilegePfTokenDemoPage() {
       </details>
 
       <details className="ppt-section" open data-testid="ppt-section-flow">
-        <summary><h2 id="ppt-flow-h">4. The path</h2></summary>
+        <summary><h2 id="ppt-flow-h">5. The path</h2></summary>
         <EmbeddedFlowDiagram
           config={PF_TOKEN_DIAGRAM}
           title="PingFederate token through the Privilege gateway"
