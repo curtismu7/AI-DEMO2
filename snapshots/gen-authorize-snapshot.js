@@ -409,6 +409,12 @@ function deriveSot(sot) {
   };
   const acceptedGatewayAudiences = gatewayResourceNames(resources).map((name) =>
     requireUri(name, 'the accepted MCP audience set (HasValidMcpAudience)'));
+  // Optional, comma-separated, exact-match audiences added to HasValidMcpAudience for a second caller
+  // path (for example an Agent Privilege app in front of the gateway, whose tokens carry the audience
+  // Privilege generated for the caller's identity). Empty by default: the emitted snapshot is then
+  // byte-identical to what it was. demo_authz_server/routes/decision.js reads the same variable.
+  const extraMcpAudiences = (process.env.PINGONE_EXTRA_MCP_AUDIENCES || '')
+    .split(',').map((a) => a.trim()).filter(Boolean);
   // Parity with demo_authz_server/scopeTopology.js upstreamAudiences(): SoT
   // upstream URIs + banking RS (same env var, same default), minus the MCP
   // Gateway's own URI. Multi-aud tokens (space-joined) are only caught at the
@@ -437,7 +443,7 @@ function deriveSot(sot) {
     : null;
   return {
     consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences,
-    externalDoorIssuers, externalDoorAudience, consentTools,
+    externalDoorIssuers, externalDoorAudience, consentTools, extraMcpAudiences,
   };
 }
 
@@ -507,7 +513,7 @@ function loadTiers() {
   return deriveTiers(JSON.parse(fs.readFileSync(BANKING_MANIFEST, 'utf8')));
 }
 
-function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences, externalDoorIssuers = [], externalDoorAudience = null }, tiers = loadTiers()) {
+function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGatewayAudiences, upstreamAudiences, extraMcpAudiences = [], externalDoorIssuers = [], externalDoorAudience = null }, tiers = loadTiers()) {
   const byId = new Map(snap.map((o) => [o.id, o]));
   const sepIdx = snap.findIndex((o) => o.type === 'SnapshotPackageFile$PackageSeparator');
 
@@ -521,7 +527,7 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   const audCond = byId.get(COND.HasValidMcpAudience);
   audCond.description =
     `TokenAudience (the token's real aud) is one of the accepted gateway identities ` +
-    `(${acceptedGatewayAudiences.join(', ')}). A token minted for any other resource fails this ` +
+    `(${[...acceptedGatewayAudiences, ...extraMcpAudiences].join(', ')}). A token minted for any other resource fails this ` +
     `and is denied by "MCP Deny — Invalid Token Audience". Generated from scope-topology.json ` +
     `gateway resource URIs for the AI Demo environment — do not hand-edit.` +
     (externalDoorAudience
@@ -545,6 +551,9 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
     ...acceptedGatewayAudiences.map((uri) => ({
       comparison: { left: { attribute: { id: ATTR.TokenAudience } }, op: 'Equals', right: { constant: { value: uri } } },
     })),
+    ...extraMcpAudiences.map((uri) => ({
+      comparison: { left: { attribute: { id: ATTR.TokenAudience } }, op: 'Equals', right: { constant: { value: uri } } },
+    })),
     ...externalDoorBranches,
   ] } };
   // Content-derived version (see ver() note): mutate-in-place at a frozen
@@ -553,8 +562,10 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   // externalDoor* MUST be in the version input: mutate-in-place at a frozen
   // version means PingOne skips the object on import and the exemption never
   // lands — the #1311/#1897 trap class this ver() note warns about.
+  // extraMcpAudiences joins the version input only when set, so the default snapshot keeps its version.
   audCond.version = ver('bbbbbbbb', COND.HasValidMcpAudience, {
     acceptedGatewayAudiences, externalDoorIssuers, externalDoorAudience,
+    ...(extraMcpAudiences.length ? { extraMcpAudiences } : {}),
   });
 
   // 0b) BUG — the mcp-invalid-audience diagnostic named the wrong operand.
@@ -574,7 +585,7 @@ function reconcile(snap, { consent, stepUp, writeTools, a2aDelegated, acceptedGa
   // state the allowlist this package deploys, and keep the caller-declared set
   // alongside it so policy/scope-topology drift is visible in the deny itself.
   const audStmt = byId.get(STMT.invalidAudience);
-  const audAccepted = acceptedGatewayAudiences.join(', ');
+  const audAccepted = [...acceptedGatewayAudiences, ...extraMcpAudiences].join(', ');
   const audExemption = externalDoorAudience
     ? ` ${externalDoorAudience} is accepted only when TokenIss is one of ${externalDoorIssuers.join(', ')}.`
     : '';
