@@ -167,6 +167,7 @@ export const NAV_PAGE_PATHS = {
   "MCP Scanner": "/mcp-scanner",
   "Personal Agent Clients": "/personal-agent",
   "Dot Workbench": "/personal-agent/dot",
+  "Muse": "/personal-agent/muse",
   "Workload Agents": "/workload-agents",
   "Embedded Worker": "/embedded-worker",
   "Governance Timeline": "/governance-timeline",

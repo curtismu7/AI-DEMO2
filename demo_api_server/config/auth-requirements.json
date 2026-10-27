@@ -304,6 +304,7 @@
     "/personal-agent/full": "public",
     "/personal-agent/client": "public",
     "/personal-agent/dot": "public",
+    "/personal-agent/muse": "user",
     "/personal-agent/dot/full": "public",
     "/personal-agent/learn": "public",
     "/group-policy/full": "user",
