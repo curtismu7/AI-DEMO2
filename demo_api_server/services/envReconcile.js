@@ -41,6 +41,8 @@ const ENV_SCOPED_KEYS = new Set([
   'pingone_mcp_token_exchanger_client_id', 'pingone_mcp_token_exchanger_client_secret',
   'pingone_token_exchanger_client_id', 'pingone_token_exchanger_client_secret',
   'pingone_mcp_gateway_client_id', 'pingone_mcp_gateway_client_secret',
+  // Muse personal-agent app (PingOne app id + secret are env-specific)
+  'pingone_muse_client_id', 'pingone_muse_client_secret',
   'mcp_gw_client_id', 'mcp_gw_client_secret',
   'gw_introspection_client_id', 'gw_introspection_client_secret',
   // a2a specialists (FIELD_DEFS uses pingone_a2a_ prefix)
