@@ -3,6 +3,7 @@
 // and exactly what the gateway answered, with a garbage-token control next to it.
 import { useCallback, useEffect, useState } from 'react';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
+import SignInPrompt from '../components/SignInPrompt';
 import { DOC_URL, FAILURES, PF_TOKEN_DIAGRAM, VERDICTS, WORKING_SETUP } from '../config/privilegePfTokenDemo';
 import { getState, runDemo } from '../services/privilegePfTokenDemoService';
 import './PrivilegePfTokenDemoPage.css';
@@ -70,7 +71,10 @@ export default function PrivilegePfTokenDemoPage() {
   const [problem, setProblem] = useState('');
 
   useEffect(() => {
-    getState().then(({ data }) => setState(data)).catch(() => setState({ configured: false }));
+    // 401 here is the hosted-access wall (no session), not a missing secret.
+    getState()
+      .then(({ status, data }) => setState(status === 401 ? { signedOut: true } : data))
+      .catch(() => setState({ configured: false }));
   }, []);
 
   const run = useCallback(async () => {
@@ -78,7 +82,7 @@ export default function PrivilegePfTokenDemoPage() {
     setProblem('');
     try {
       const { status, data } = await runDemo();
-      if (status === 401) setProblem('Sign in to the demo app to run this.');
+      if (status === 401) setState((s) => ({ ...s, signedOut: true }));
       else if (status === 503) setProblem('The PingFederate client secret is not set on the api-server (PF_TOKEN_DEMO_CLIENT_SECRET).');
       else setResult(data);
     } catch (e) {
@@ -100,12 +104,15 @@ export default function PrivilegePfTokenDemoPage() {
 
       <details className="ppt-card ppt-section" open data-testid="ppt-section-run">
         <summary><h2 id="ppt-run-h">1. Run it</h2></summary>
-        {state && (
+        {state?.signedOut && (
+          <SignInPrompt variant="strip" message="Sign in to the demo app to mint a PingFederate token and run this." />
+        )}
+        {state?.issuer && (
           <p className="ppt-muted" data-testid="ppt-target">
             Client <code>{state.clientId}</code> at <code>{state.issuer}</code>, P1 Privilege Agent App <code>{state.doorUrl}</code>
           </p>
         )}
-        {state && !state.configured && (
+        {state && !state.signedOut && !state.configured && (
           <p className="ppt-warn" data-testid="ppt-not-configured">
             Not configured: the PingFederate client secret is not set on the api-server, so the run button is off.
           </p>

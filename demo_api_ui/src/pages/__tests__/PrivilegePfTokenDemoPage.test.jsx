@@ -82,7 +82,16 @@ describe('PrivilegePfTokenDemoPage', () => {
     render(<PrivilegePfTokenDemoPage />);
     await waitFor(() => expect(screen.getByTestId('ppt-run')).toBeEnabled());
     fireEvent.click(screen.getByTestId('ppt-run'));
-    await waitFor(() => expect(screen.getByTestId('ppt-problem')).toHaveTextContent(/Sign in/));
+    await waitFor(() => expect(screen.getByText('Sign in required')).toBeInTheDocument());
+  });
+
+  it('shows a sign-in prompt, not "not configured", when the state call is refused for no session', async () => {
+    getState.mockResolvedValue({ status: 401, data: { error: 'hosted_access_required' } });
+    render(<PrivilegePfTokenDemoPage />);
+    await waitFor(() => expect(screen.getByText('Sign in required')).toBeInTheDocument());
+    expect(screen.queryByTestId('ppt-not-configured')).toBeNull();
+    expect(screen.queryByTestId('ppt-target')).toBeNull();
+    expect(screen.getByTestId('ppt-run')).toBeDisabled();
   });
 
   it('puts every section in a collapsible, open by default', async () => {
