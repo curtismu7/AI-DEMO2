@@ -43,7 +43,7 @@ export function subjectClaims(now) {
 export const VENDORS = [
   {
     id: 'pf-cc', name: 'PingFederate: client credentials', evidence: 'guide', issuer: 'https://pf.example.com:9031',
-    note: 'Token 2 of the guide\'s sample A. A machine identity: the agent app\'s own PingFederate token. No iat or nbf, only exp.',
+    note: 'Token 2 of the guide\'s sample A. A machine identity: the agent app\'s own PingFederate token. No iat or nbf, only exp. A REAL PingFederate token of this kind was also accepted by PingOne via the PingFederate JWKS URL (measured 2026-10-27).',
     claims: (now) => ({ jatm_scope: '', jatm_client_id: 'cc_client', iss: 'https://pf.example.com:9031', aud: 'cc_client', jti: 'mock-jti-pf-cc', sub: 'cc_client', subj: 'PF admin maps what PF admin wants', exp: now + 3600 }),
     mappings: [
       { id: 'act', label: 'act.sub from the actor token sub', target: 'act', source: 'sub', wrap: 'act', evidence: 'measured', note: "Guide sample A, reproduced live. Expression on the resource: ${{'sub': #root.context.requestData.actorToken.sub}}. A client-credentials token with no actor gets act.sub null, so expect that on tokens issued without an actor." },
@@ -246,6 +246,7 @@ export const ADMIN_FACTS = [
   ['Audit and webhook events', 'Trusted Issuer and Trusted Issuer Assignment, each with Created, Read, Update, Delete (eight events).'],
   ['License packages (any one)', 'TRIAL, ENHANCED TRIAL, AGENT IAM CORE, WORKFORCE PLUS, WORKFORCE PREMIUM, CIAM PLUS, CIAM PASSWORDLESS, CIAM PREMIUM. Four internal packages also have it.'],
   ['Measured limits (2026-10-27)', 'clockSkew is in seconds and PingOne rejects more than 60 (it loosens exp and nbf). maxFutureValidity is in seconds, 0 means no limit, and refuses an exp further ahead than that. Inline JWKS is the jwks field, a JSON string.'],
+  ['Measured with a real PingFederate token', 'Accepted when the trusted issuer used the PingFederate JWKS URL (<base>/pf/JWKS) and the token\'s iss equalled the issuer exactly. The token manager must publish its keys to that JWKS and the token\'s kid must match one. A damaged signature gives JWT signature verification failed; a different issuer string gives the issuer-does-not-match message. A nested claim such as actorToken.act.sub can be mapped.'],
   ['Coming soon (per the guide)', 'Trusted issuer assignments to AI agents, and configuration management and promotion.'],
 ];
 

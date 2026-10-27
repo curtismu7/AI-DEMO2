@@ -8,7 +8,7 @@ Every step is labelled:
 - **MEASURED**: run live against a PingOne environment (North America, feature flag on) on 2026-10-27. We created a trusted issuer whose signing key we generated ourselves, signed the third-party tokens with it, ran the exchanges, then deleted everything. Error text below is exactly what PingOne returned.
 - **UNVERIFIED**: neither stated nor measured. Check it in your environment before you quote it.
 
-What the live run did NOT cover: a signed-in user as the subject token (every subject token we used was a client-credentials PingOne access token, because a user sign-in needs a browser), real PingFederate / Okta / Auth0 / Microsoft tokens (we signed look-alike JWTs, so JWKS-URL fetching was not exercised), and PingOne's order of evaluation when several faults occur at once.
+What the first live run did NOT cover (signed-in user as the subject token, real vendor tokens, a JWKS URL fetched by PingOne, PingOne's order of evaluation when several faults occur at once): a second live run with a **real PingFederate token** covered the JWKS URL and PingFederate, see "Measured with a real PingFederate token" below. Still not covered: a signed-in user as the subject, real Okta, Auth0 or Microsoft tokens, and the order of evaluation.
 
 ## What it does (GUIDE)
 
@@ -136,6 +136,20 @@ Expected response (GUIDE sample): `token_type: Bearer`, `expires_in: 3600`, the 
 | `actor_token_type` missing | `No value supplied for required parameter: actor_token_type` |
 
 Two things that are easy to misread: an untrusted issuer and an unassigned issuer give **different** messages, and a token whose `aud` is an array passes if **any** value matches the audience list (blank list accepts any). `nbfRequired` with an `nbf` in the past passes.
+
+## Measured with a real PingFederate token (2026-10-27)
+
+A token from a real PingFederate (13.1) JWT access token manager was used as the actor token, with the trusted issuer pointing at that PingFederate's **JWKS URL** (so PingOne fetched and used the live keys itself).
+
+- **Trusted issuer:** `issuer` exactly equal to the token's `iss` (the PingFederate base URL, no trailing slash), `jwksUrl` = `<PingFederate base URL>/pf/JWKS`, `expRequired` and `iatRequired` true. Audiences left blank: the PingFederate token's `aud` was a gateway URL and PingOne accepted it.
+- **What the PingFederate token looked like:** RS256 JWT with `kid` in the header (the signing key's id) and `typ: JWT`; claims `iss`, `aud`, `sub`, `client_id`, `iat`, `exp` (60 minutes), `jti`, `scope`, and an `act` that PingFederate had already emitted as an **object** (`{"sub": "<agent>"}`).
+- **PingFederate settings that made it work:** the token manager has "Publish Keys to the PingFederate JWKS Endpoint" turned on, and the token's `kid` matches a key in `<base>/pf/JWKS`. These are exactly the two things to check first if PingOne reports `JWT signature verification failed`.
+- **Results (one fault at a time):**
+  1. The real token: **HTTP 200**. The issued token had `act: {"sub": <actor sub>}` from the usual mapping, plus claims mapped from the actor token.
+  2. The same token with its signature damaged: HTTP 400 `JWT signature verification failed`. So PingOne really verifies against the PingFederate keys.
+  3. The trusted issuer changed to a different string: HTTP 400 `The token issuer does not match any Trusted Issuer assigned to the application`.
+- **Nested claims can be mapped:** `${#root.context.requestData.actorToken.act.sub}` returned the nested value, so you can pull `act.sub` out of a token that already carries an `act` object. The plain `${#root.context.requestData.actorToken.iss}` and `.client_id` also work.
+- **Cleanup:** everything created in PingOne was deleted afterwards and the throwaway PingFederate client was removed; the token itself expires on its own.
 
 ## Which switches fit which issuer
 
