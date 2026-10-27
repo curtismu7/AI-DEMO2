@@ -83,6 +83,7 @@ export const NAV_PAGE_PATHS = {
   "PingOne Test": "/pingone-test",
   "MFA Test": "/mfa-test",
   "Token Exchange Tester": "/token-exchange-tester",
+  "P1 Third-Party Token Exchange": "/p1-third-party-exchange",
   "OAuth Academy": "/oauth-academy",
   "Agent Identity Academy": "/academy/identity",
   "OAS Demo": "/oas-demo",

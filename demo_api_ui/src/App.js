@@ -31,6 +31,7 @@ import McpGatewayOauthFlowPage from "./components/McpGatewayOauthFlowPage";
 import PrivilegeMcpDiagramPage from "./components/PrivilegeMcpDiagramPage";
 const PrivilegeAiPoliciesDemoPage = lazy(() => import("./pages/PrivilegeAiPoliciesDemoPage"));
 const PrivilegePfTokenDemoPage = lazy(() => import("./pages/PrivilegePfTokenDemoPage"));
+const P1ThirdPartyExchangePage = lazy(() => import("./pages/P1ThirdPartyExchangePage"));
 import PrivilegeGatewayTopologyPage from "./components/PrivilegeGatewayTopologyPage";
 const PrivilegeDocsIndexPage = lazy(() => import("./pages/PrivilegeDocsIndexPage"));
 const SkillsIndexPage = lazy(() => import("./pages/SkillsIndexPage"));
@@ -2343,6 +2344,11 @@ function AppWithAuth() {
                               element={<PrivilegeAiPoliciesDemoPage />}
                             />
                             {/* PingFederate token on Privilege: live run through the BFF (run needs a session; the page is public). */}
+                            {/* PingOne token exchange with third-party JWTs (Ping UAT guide, Oct 2026). Mock, no live call. */}
+                            <Route
+                              path="/p1-third-party-exchange"
+                              element={<P1ThirdPartyExchangePage />}
+                            />
                             <Route
                               path="/privilege-pf-token"
                               element={<PrivilegePfTokenDemoPage />}

@@ -76,6 +76,7 @@
     { "file": "glean-pingone.html", "title": "Glean + PingOne", "card": "Glean + PingOne" },
     { "file": "authzen.html", "title": "AuthZEN", "card": "AuthZEN", "skip": "card now routes to /pingone-authorize?tab=guided (no education drawer to capture); the last captured page is kept" },
 
+    { "file": "p1-third-party-token-exchange.html", "title": "P1 Third-Party Token Exchange", "card": "P1 Third-Party Token Exchange", "skip": "card routes to /p1-third-party-exchange (no education drawer to capture); no mirror page yet" },
     { "file": "agent-kill-switch.html", "title": "Agent Kill Switch", "card": "Agent Kill Switch" },
     { "file": "spiffe-svid-workload-identity.html", "title": "SPIFFE / SVID Workload Identity", "card": "SPIFFE / SVID Workload Identity" },
     { "file": "gateway-nested-claims.html", "title": "Gateway Nested Claims", "card": "Gateway Nested Claims", "skip": "card routes to /gateway-claims (no education drawer to capture); no mirror page yet" },
