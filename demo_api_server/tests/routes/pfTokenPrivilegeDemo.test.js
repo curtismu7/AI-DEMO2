@@ -96,6 +96,8 @@ describe('POST /run', () => {
     const res = await request(app).post('/api/pf-token-demo/run');
     const scopes = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/as/token.oauth2')).map(([, o]) => new URLSearchParams(String(o.body)).get('scope'));
     expect(scopes.sort()).toEqual(['openid opensearch:admin whoami:read', 'openid opensearch:read', 'openid whoami:read']);
+    const resources = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/as/token.oauth2')).map(([, o]) => new URLSearchParams(String(o.body)).get('resource'));
+    expect(new Set(resources)).toEqual(new Set(['https://gw.example/pftoken/mcp']));
     expect(res.body.tiers).toEqual([
       expect.objectContaining({ key: 'full', scope: 'openid opensearch:admin whoami:read', verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] }),
       expect.objectContaining({ key: 'read', scope: 'openid opensearch:read', verdict: 'allowed', tools: ['ListIndexTool'] }),

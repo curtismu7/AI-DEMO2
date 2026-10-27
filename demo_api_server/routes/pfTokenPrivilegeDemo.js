@@ -61,7 +61,9 @@ async function mintToken(cfg, scope) {
       'content-type': 'application/x-www-form-urlencoded',
       authorization: `Basic ${Buffer.from(`${cfg.clientId}:${cfg.clientSecret}`).toString('base64')}`,
     },
-    body: new URLSearchParams({ grant_type: 'client_credentials', scope }),
+    // resource selects PingFederate's token manager for this agent app. Without it, a request that names a
+    // scope gets another manager (other audience, no sub or act) and the gateway does not recognize the token.
+    body: new URLSearchParams({ grant_type: 'client_credentials', scope, resource: cfg.doorUrl }),
     signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
   });
   const body = await res.json().catch(() => ({}));

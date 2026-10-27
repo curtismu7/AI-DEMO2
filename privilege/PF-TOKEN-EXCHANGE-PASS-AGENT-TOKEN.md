@@ -195,6 +195,7 @@ Taken with Playwright from the local console after the passing test. Dialogs wer
 | 403 Forbidden | `policy denied PFtoken access to pftoken (agent=true)` | no grant for the key on the agent app | add a rule to the key's existing grant (below) |
 | tools stay empty | `tool discovery for pftoken failed: … no such host` | backend Service deleted | restore the Service; point the agent app at the noget front |
 | 504 / timeouts to the backend | noget log: `upstream timed out` | noget nginx forwards to the deleted Service | restore Service `opensearch-mcp-server`, restart noget |
+| 401, log `auth rejected: reason=token_not_found` (only when a scope is requested) | `auth rejected: reason=token_not_found app=pftoken` | PingFederate served the request from another token manager (audience `enduser.ping.demo`, no `sub`/`act`) | send `resource=<agent app URL>` with the token request |
 | 404 Not found from a new agent app | `rejecting /mcp on app pftoken-rs: outside entry path "/mc"` | the agent app's MCP Server URL was saved ending in `/mc`; the gateway splits the URL path off as the agent app's entry path | edit the agent app: the URL must end in exactly `/mcp` |
 | timeouts from some gateway pods only | — | network policy `ai-demo-internal` blocks the curtismuir gateway pods | add the two narrow policies above |
 
@@ -558,7 +559,11 @@ A plain string value is refused with 400 `cannot unmarshal string into Go value 
 
 ### The tiers as set up for the demo page
 
-**PingFederate.** Scopes `opensearch:admin`, `opensearch:read` and `whoami:read` added to the authorization server's scope list (added only; nothing else changed). The client `pf-route-c-test` does not restrict scopes, and the token manager writes the requested scopes into `scope`. With no scope requested, the mapping's fixed text `openid whoami:read` is used. No mapping change was needed.
+**PingFederate.**
+
+- Scopes `opensearch:admin`, `opensearch:read`, `opensearch:search` and `whoami:read` added to the authorization server's scope list (added only). The client `pf-route-c-test` does not restrict scopes.
+- The `scope` attribute was removed from the token manager `routeCTestAtm` and its client-credentials mapping (it was the fixed text `openid whoami:read`). The manager now writes the granted scopes into `scope` itself (its Scope Claim Name).
+- **Send `resource=<agent app URL>` with every token request.** Without it, a request that names a scope is served by a different token manager: audience `enduser.ping.demo`, no `sub`, no `act`. The gateway then logs `auth rejected: reason=token_not_found` and answers 401. We hit this on 2026-10-27; a request with no scope still picked the client's default manager, which hid it.
 
 **Privilege.** The key's grant `KarunRiver-5a485737526f` has two rules for `pftoken`:
 

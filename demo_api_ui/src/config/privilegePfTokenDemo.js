@@ -35,7 +35,7 @@ export const PRIVILEGE_CANNOT = [
 export const WORKING_SETUP = [
   { layer: 'PingFederate', setting: 'Client', value: 'pf-route-c-test (client credentials)' },
   { layer: 'PingFederate', setting: 'Token manager', value: 'routeCTestAtm — audience and resource URI = the agent app URL' },
-  { layer: 'PingFederate', setting: 'Scopes', value: 'opensearch:admin, opensearch:read and whoami:read registered; the requested scope goes into the token (no scope requested = the mapping\'s "openid whoami:read")' },
+  { layer: 'PingFederate', setting: 'Scopes', value: 'opensearch:admin, opensearch:read, opensearch:search and whoami:read registered; routeCTestAtm writes the granted scopes (no fixed scope in the mapping). Every request sends resource = the agent app URL, or PingFederate picks another token manager' },
   { layer: 'PingFederate', setting: 'act claim', value: 'expression #{"sub": "pf-route-c-test"} (an object, not the text "{}")' },
   { layer: 'Privilege identity (NHI)', setting: 'PFtoken', value: 'issuer cmuir-pf, JWKS /pf/JWKS, subject *, audience = the agent app URL' },
   { layer: 'Privilege identity (NHI)', setting: 'Required claims', value: 'client_id = pf-route-c-test and act.sub = pf-route-c-test' },
