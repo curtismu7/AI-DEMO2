@@ -76,8 +76,8 @@ export default function PrivilegeA2aPage({ user }) {
       <ol className="cur-rail cur-rail--4" aria-label="Who is asking and which agents answer">
         {row(1, 'Identity', identity || '—', 'a2a-identity')}
         {row(2, 'Vertical', profile?.vertical || '—', 'a2a-vertical')}
-        {row(3, 'Main agent', profile?.agentName || 'Main agent', 'a2a-main-agent')}
-        {row(4, 'Worker agent', profile?.specialistName || 'Analyst', 'a2a-worker-agent')}
+        {row(3, 'A2A Client', profile?.agentName || 'Main agent', 'a2a-main-agent')}
+        {row(4, 'Remote Agent', profile?.specialistName || 'Analyst', 'a2a-worker-agent')}
       </ol>
 
       <main className="cur-a2a-main">
