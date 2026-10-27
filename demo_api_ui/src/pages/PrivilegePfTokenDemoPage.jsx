@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
 import SignInPrompt from '../components/SignInPrompt';
-import { DOC_URL, FAILURES, PF_TOKEN_DIAGRAM, VERDICTS, WORKING_SETUP } from '../config/privilegePfTokenDemo';
+import { CEDAR_POLICY, DOC_URL, FAILURES, PF_TOKEN_DIAGRAM, PRIVILEGE_CAN, PRIVILEGE_CANNOT, VERDICTS, WORKING_SETUP } from '../config/privilegePfTokenDemo';
 import { getState, runDemo } from '../services/privilegePfTokenDemoService';
 import './PrivilegePfTokenDemoPage.css';
 
@@ -55,6 +55,63 @@ function BackendReceived({ result, claims }) {
             return (
               <tr key={claim} data-testid={`ppt-backend-${claim}`} data-same={same}>
                 <td><code>{claim}</code></td><td><code>{show(claims?.[claim])}</code></td><td><code>{show(backendClaims[claim])}</code></td><td>{same ? 'yes' : 'no'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// Same agent, same app, three scopes: the grant's rules pick the tools by the scope in the token.
+function ScopeTiers({ tiers }) {
+  return (
+    <div className="ppt-answer" data-testid="ppt-tiers">
+      <h3>Same agent, different scope</h3>
+      <p>
+        Three PingFederate tokens for the same agent, differing only in <code>scope</code>, sent to the same P1 Privilege Agent App.
+        The agent key&apos;s grant has one rule per tier, each requiring a scope: Privilege picks the tools from the token.
+      </p>
+      <table className="ppt-table">
+        <thead><tr><th>Scope in the token</th><th>Privilege answered</th><th>Tools</th></tr></thead>
+        <tbody>
+          {tiers.map((t) => {
+            const v = VERDICTS[t.verdict] || VERDICTS.error;
+            return (
+              <tr key={t.key} data-testid={`ppt-tier-${t.key}`} data-verdict={t.verdict}>
+                <td><code>{t.scope}</code></td>
+                <td><strong className={`ppt-tier-verdict ppt-tier-verdict--${v.tone}`}>{v.label}</strong> <span className="ppt-muted">HTTP {t.status || 'none'}</span></td>
+                <td>{t.tools?.length ? `${t.tools.length}: ${t.tools.join(', ')}` : t.detail || '—'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+// The same tool call, two tokens: the AI policy (Cedar) reads the token's scopes and blocks one.
+function CedarCheck({ cases }) {
+  return (
+    <div className="ppt-answer" data-testid="ppt-cedar">
+      <h3>Cedar blocks by scope</h3>
+      <p>
+        Both tokens have <code>opensearch:admin</code>, so the grant allows <code>SearchIndexTool</code>. This AI policy then
+        reads the token&apos;s scopes and blocks the call unless it also has <code>opensearch:search</code>:
+      </p>
+      <pre className="ppt-code">{CEDAR_POLICY}</pre>
+      <table className="ppt-table">
+        <thead><tr><th>Scope in the token</th><th>SearchIndexTool</th><th>What came back</th></tr></thead>
+        <tbody>
+          {cases.map((c) => {
+            const v = VERDICTS[c.verdict] || VERDICTS.error;
+            return (
+              <tr key={c.key} data-testid={`ppt-cedar-${c.key}`} data-verdict={c.verdict}>
+                <td><code>{c.scope}</code></td>
+                <td><strong className={`ppt-tier-verdict ppt-tier-verdict--${v.tone}`}>{v.label}</strong> <span className="ppt-muted">HTTP {c.status || 'none'}</span></td>
+                <td>{c.message || '—'}</td>
               </tr>
             );
           })}
@@ -136,6 +193,8 @@ export default function PrivilegePfTokenDemoPage() {
                   <Answer title="PingFederate token" result={result.pfToken} testId="ppt-answer-pf" />
                   <Answer title="Control: a garbage token" result={result.garbage} testId="ppt-answer-garbage" />
                 </div>
+                {result.tiers?.length > 0 && <ScopeTiers tiers={result.tiers} />}
+                {result.cedar?.length > 0 && <CedarCheck cases={result.cedar} />}
                 {result.backend && <BackendReceived result={result.backend} claims={result.mint?.claims} />}
               </>
             )}
@@ -144,8 +203,22 @@ export default function PrivilegePfTokenDemoPage() {
         )}
       </details>
 
+      <details className="ppt-card ppt-section" open data-testid="ppt-section-scope">
+        <summary><h2 id="ppt-scope-h">2. What Privilege does here, and what it can&apos;t</h2></summary>
+        <h3>Privilege does</h3>
+        <table className="ppt-table" data-testid="ppt-can">
+          <thead><tr><th>What</th><th>How</th><th>Status</th></tr></thead>
+          <tbody>{PRIVILEGE_CAN.map((r) => <tr key={r.what}><td>{r.what}</td><td>{r.how}</td><td>{r.status}</td></tr>)}</tbody>
+        </table>
+        <h3>Privilege can&apos;t (yet)</h3>
+        <table className="ppt-table" data-testid="ppt-cannot">
+          <thead><tr><th>What</th><th>Why, and what to use instead</th></tr></thead>
+          <tbody>{PRIVILEGE_CANNOT.map((r) => <tr key={r.what}><td>{r.what}</td><td>{r.how}</td></tr>)}</tbody>
+        </table>
+      </details>
+
       <details className="ppt-card ppt-section" open data-testid="ppt-section-setup">
-        <summary><h2 id="ppt-setup-h">2. What has to be true</h2></summary>
+        <summary><h2 id="ppt-setup-h">3. What has to be true</h2></summary>
         <p className="ppt-muted">Every row at the same time. Verified 2026-10-26.</p>
         <table className="ppt-table" data-testid="ppt-setup">
           <thead><tr><th>Where</th><th>Setting</th><th>Value</th></tr></thead>
@@ -154,7 +227,7 @@ export default function PrivilegePfTokenDemoPage() {
       </details>
 
       <details className="ppt-card ppt-section" open data-testid="ppt-section-fail">
-        <summary><h2 id="ppt-fail-h">3. When it does not work</h2></summary>
+        <summary><h2 id="ppt-fail-h">4. When it does not work</h2></summary>
         <p className="ppt-muted">The client only sees 401 or 403. The gateway log says which layer refused it.</p>
         <table className="ppt-table" data-testid="ppt-failures">
           <thead><tr><th>You see</th><th>Gateway log</th><th>Fix</th></tr></thead>
@@ -163,7 +236,7 @@ export default function PrivilegePfTokenDemoPage() {
       </details>
 
       <details className="ppt-section" open data-testid="ppt-section-flow">
-        <summary><h2 id="ppt-flow-h">4. The path</h2></summary>
+        <summary><h2 id="ppt-flow-h">5. The path</h2></summary>
         <EmbeddedFlowDiagram
           config={PF_TOKEN_DIAGRAM}
           title="PingFederate token through the Privilege gateway"

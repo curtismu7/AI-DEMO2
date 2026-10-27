@@ -68,6 +68,8 @@ describe('POST /run', () => {
     expect(res.body.pfToken).toMatchObject({ status: 200, verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] });
     expect(res.body.garbage).toMatchObject({ status: 401, verdict: 'token-rejected' });
     expect(res.body.backend).toMatchObject({ status: 200, verdict: 'allowed', received: RECEIVED });
+    expect(res.body.tiers.map((t) => t.key)).toEqual(['full', 'read', 'none']);
+    expect(res.body.tiers[0]).toMatchObject({ verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] });
     expect(JSON.stringify(res.body)).not.toContain(JWT);
     expect(JSON.stringify(res.body)).not.toContain('test-secret');
   });
@@ -77,6 +79,53 @@ describe('POST /run', () => {
     const res = await request(app).post('/api/pf-token-demo/run');
     expect(res.body.pfToken).toMatchObject({ status: 403, verdict: 'refused-by-policy' });
     expect(res.body.backend).toMatchObject({ status: 403, verdict: 'refused-by-policy', received: null });
+  });
+
+  it('mints one token per scope tier for the same client and reports each tier\'s answer', async () => {
+    global.fetch.mockImplementation(async (url, opts) => {
+      if (String(url).endsWith('/as/token.oauth2')) {
+        const scope = new URLSearchParams(String(opts.body)).get('scope');
+        return reply(200, { access_token: `${b64u({ alg: 'RS256' })}.${b64u({ ...CLAIMS, scope })}.sig` });
+      }
+      const scope = JSON.parse(Buffer.from(String(opts.headers.authorization).split('.')[1] || '', 'base64url').toString() || '{}').scope || '';
+      if (String(url).endsWith('/pftoken-rs/mcp')) return reply(200, WHOAMI_SSE, false);
+      if (scope.includes('opensearch:admin')) return reply(200, TOOLS_SSE, false);
+      if (scope.includes('opensearch:read')) return reply(200, `data: ${JSON.stringify({ jsonrpc: '2.0', id: 1, result: { tools: [{ name: 'ListIndexTool' }] } })}\n`, false);
+      return reply(403, 'Forbidden ', false);
+    });
+    const res = await request(app).post('/api/pf-token-demo/run');
+    const scopes = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/as/token.oauth2')).map(([, o]) => new URLSearchParams(String(o.body)).get('scope'));
+    expect(scopes).toEqual(expect.arrayContaining(['openid opensearch:admin whoami:read', 'openid opensearch:read', 'openid whoami:read']));
+    const resources = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/as/token.oauth2')).map(([, o]) => new URLSearchParams(String(o.body)).get('resource'));
+    expect(new Set(resources)).toEqual(new Set(['https://gw.example/pftoken/mcp']));
+    expect(res.body.tiers).toEqual([
+      expect.objectContaining({ key: 'full', scope: 'openid opensearch:admin whoami:read', verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] }),
+      expect.objectContaining({ key: 'read', scope: 'openid opensearch:read', verdict: 'allowed', tools: ['ListIndexTool'] }),
+      expect.objectContaining({ key: 'none', scope: 'openid whoami:read', status: 403, verdict: 'refused-by-policy' }),
+    ]);
+    expect(JSON.stringify(res.body)).not.toContain('.sig');
+  });
+
+  it('reports Cedar blocking SearchIndexTool without opensearch:search and allowing it with, never the results', async () => {
+    global.fetch.mockImplementation(async (url, opts) => {
+      if (String(url).endsWith('/as/token.oauth2')) {
+        const scope = new URLSearchParams(String(opts.body)).get('scope');
+        return reply(200, { access_token: `${b64u({ alg: 'RS256' })}.${b64u({ ...CLAIMS, scope })}.sig` });
+      }
+      const body = JSON.parse(String(opts.body));
+      if (body.method !== 'tools/call' || body.params.name !== 'SearchIndexTool') return reply(200, TOOLS_SSE, false);
+      const scope = JSON.parse(Buffer.from(String(opts.headers.authorization).split('.')[1], 'base64url').toString()).scope;
+      if (!scope.includes('opensearch:search')) {
+        return reply(400, { jsonrpc: '2.0', error: { code: -32600, message: "action denied by policy: SearchIndexTool needs the opensearch:search scope in the agent's token" } });
+      }
+      return reply(200, `data: ${JSON.stringify({ jsonrpc: '2.0', id: 1, result: { content: [{ type: 'text', text: 'Search results: {"hits":{"total":{"value":935},"hits":[{"PRIVATE_ROW":1}]}}' }] } })}\n`, false);
+    });
+    const res = await request(app).post('/api/pf-token-demo/run');
+    expect(res.body.cedar).toEqual([
+      expect.objectContaining({ key: 'without', scope: 'openid opensearch:admin', status: 400, verdict: 'blocked-by-cedar', message: expect.stringContaining('needs the opensearch:search scope') }),
+      expect.objectContaining({ key: 'with', scope: 'openid opensearch:admin opensearch:search', status: 200, verdict: 'allowed', message: 'search ran (935 documents matched)' }),
+    ]);
+    expect(JSON.stringify(res.body)).not.toContain('PRIVATE_ROW');
   });
 
   it('sends whoami to the pftoken-rs door with the same PingFederate token', async () => {

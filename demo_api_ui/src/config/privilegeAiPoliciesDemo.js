@@ -74,12 +74,12 @@ export const SCENARIOS = [
 export const PF_AGENT = {
   id: 'pf-agent',
   title: 'An agent with a PingFederate token',
-  status: 'Measured 2026-10-26',
+  status: 'Measured 2026-10-27',
   link: '/privilege-pf-token',
-  story: 'Privilege trusts a PingFederate issuer natively: a non-human identity with the PF issuer and the door as audience, act.sub and client_id pinned as required claims, backing the agent key pftoken-agent. A PF-issued JWT got tools/list 200 with all nine tools.',
+  story: 'Privilege trusts a PingFederate issuer natively: a non-human identity with the PF issuer and the P1 Privilege Agent App as audience, act.sub and client_id pinned as required claims, backing the agent key pftoken-agent. The key\'s grant gives tools by the token\'s scope (opensearch:admin 9 tools, opensearch:read 3, neither 403), and the MCP server behind pftoken-rs receives the agent\'s own token unchanged.',
   facts: [
-    'People: PF is only a sign-in source behind PingOne. The door\'s token comes from the Privilege-owned PingOne environment, and Cedar sees a Privilege user and their groups, not a PF claim.',
-    'Agents: the identity pins the agent through required claims (act.sub, client_id), and the key\'s grant decides the door. Cedar still cannot read the token\'s claims; Ping says context.token.claims is coming.',
+    'People: PF is only a sign-in source behind PingOne. The agent app\'s token comes from the Privilege-owned PingOne environment, and Cedar sees a Privilege user and their groups, not a PF claim.',
+    'Agents: the identity pins the agent through required claims (act.sub, client_id), and the key\'s grant decides the tools per agent app, by scope with RequiredClaims. Cedar sees token scopes but not other claims; Ping says context.token.claims is coming.',
   ],
 };
 

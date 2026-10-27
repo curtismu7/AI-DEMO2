@@ -559,6 +559,14 @@ const SECTIONS = [
           "What tool policies do when there is more than one: the union model (create adds, expiry silently subtracts, delete subtracts identically, edit-down does nothing), discovery-gating and why the client never sees \"denied\", the four indistinguishable 403s, groups (documented, not reproduced), per-app scope, and when a \"policy problem\" isn't one — every step measured live 2026-10-10.",
       },
       {
+        title: "Federated agents: PingFederate token on Privilege",
+        drive: DRIVE_FOLDER,
+        repo: "privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md",
+        pdf: null,
+        covers:
+          "Step-by-step setup (parts A to I, with console screenshots) for an agent that presents its own PingFederate token to a P1 Privilege Agent App: the PingFederate client, token manager and scopes, the identity with required claims, the agent app, the key and grant. What Privilege does and can't do here, tools by scope with RequiredClaims tiers, the token passed through to the MCP server, Cedar blocking a tool by token scope, and every failure with its gateway log line. Measured 2026-10-26 and 2026-10-27. Live demo: PingFederate Token Demo.",
+      },
+      {
         title: "PF identity in Cedar policies",
         drive: DRIVE_FOLDER,
         repo: "privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md",
