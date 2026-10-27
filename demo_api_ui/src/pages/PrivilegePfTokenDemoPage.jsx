@@ -1,5 +1,5 @@
 // /privilege-pf-token: a PingFederate-issued token, accepted by the Privilege gateway.
-// The BFF mints the token and calls the real pftoken door; this page shows the token's claims (never the token)
+// The BFF mints the token and calls the real pftoken P1 Privilege Agent App; this page shows the token's claims (never the token)
 // and exactly what the gateway answered, with a garbage-token control next to it.
 import { useCallback, useEffect, useState } from 'react';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
@@ -20,6 +20,45 @@ function Answer({ title, result, testId }) {
         </ul>
       )}
       {result.detail && <p className="ppt-muted">{result.detail}</p>}
+    </div>
+  );
+}
+
+// Every claim, two places: what PingFederate put in the token, and what the backend behind the gateway verified.
+// An older resource server reports only named fields; map those back to their claims.
+const NAMED_FIELDS = { iss: 'issuer', sub: 'subject', act: 'actor', aud: 'audience', client_id: 'clientId', scope: 'scope' };
+function receivedClaims(got) {
+  if (got.claims) return got.claims;
+  return Object.fromEntries(Object.entries(NAMED_FIELDS).filter(([, f]) => f in got).map(([c, f]) => [c, got[f]]));
+}
+const show = (v) => (v == null ? '—' : typeof v === 'string' ? v : JSON.stringify(v));
+
+function BackendReceived({ result, claims }) {
+  const got = result.received;
+  const backendClaims = got ? receivedClaims(got) : {};
+  const names = [...new Set([...Object.keys(claims || {}), ...Object.keys(backendClaims)])];
+  if (!got) return <Answer title="What the backend received" result={result} testId="ppt-backend" />;
+  return (
+    <div className="ppt-answer ppt-answer--ok" data-testid="ppt-backend" data-verdict={result.verdict} role="status">
+      <h3>What the backend received</h3>
+      <p>
+        The MCP server behind the P1 Privilege Agent App <code>pftoken-rs</code> verified the bearer itself and its <code>whoami</code> tool reports it.
+        It is the agent&apos;s own PingFederate token: the gateway checked it and passed it through, it did not swap in its own.
+        Every claim in the token is listed.
+      </p>
+      <table className="ppt-table">
+        <thead><tr><th>Claim</th><th>PingFederate issued</th><th>Backend received</th><th>Same</th></tr></thead>
+        <tbody>
+          {names.map((claim) => {
+            const same = show(claims?.[claim]) === show(backendClaims[claim]);
+            return (
+              <tr key={claim} data-testid={`ppt-backend-${claim}`} data-same={same}>
+                <td><code>{claim}</code></td><td><code>{show(claims?.[claim])}</code></td><td><code>{show(backendClaims[claim])}</code></td><td>{same ? 'yes' : 'no'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
     </div>
   );
 }
@@ -54,16 +93,16 @@ export default function PrivilegePfTokenDemoPage() {
       <header>
         <h1>PingFederate token on Privilege</h1>
         <p className="ppt-lede">
-          An agent presents a <strong>PingFederate-issued JWT</strong> to a Privilege MCP door. The gateway verifies it against a
+          An agent presents a <strong>PingFederate-issued JWT</strong> to a P1 Privilege Agent App. The gateway verifies it against a
           non-human identity, maps it to the agent&apos;s key, applies the key&apos;s grant, and returns the tools. Nothing is mocked.
         </p>
       </header>
 
-      <section className="ppt-card" aria-labelledby="ppt-run-h">
-        <h2 id="ppt-run-h">1. Run it</h2>
+      <details className="ppt-card ppt-section" open data-testid="ppt-section-run">
+        <summary><h2 id="ppt-run-h">1. Run it</h2></summary>
         {state && (
           <p className="ppt-muted" data-testid="ppt-target">
-            Client <code>{state.clientId}</code> at <code>{state.issuer}</code>, door <code>{state.doorUrl}</code>
+            Client <code>{state.clientId}</code> at <code>{state.issuer}</code>, P1 Privilege Agent App <code>{state.doorUrl}</code>
           </p>
         )}
         {state && !state.configured && (
@@ -72,7 +111,7 @@ export default function PrivilegePfTokenDemoPage() {
           </p>
         )}
         <button type="button" className="ppt-btn" onClick={run} disabled={running || !state?.configured} data-testid="ppt-run">
-          {running ? 'Running…' : 'Mint a PingFederate token and call the door'}
+          {running ? 'Running…' : 'Mint a PingFederate token and call the agent app'}
         </button>
         {problem && <p className="ppt-warn" role="alert" data-testid="ppt-problem">{problem}</p>}
 
@@ -90,33 +129,34 @@ export default function PrivilegePfTokenDemoPage() {
                   <Answer title="PingFederate token" result={result.pfToken} testId="ppt-answer-pf" />
                   <Answer title="Control: a garbage token" result={result.garbage} testId="ppt-answer-garbage" />
                 </div>
+                {result.backend && <BackendReceived result={result.backend} claims={result.mint?.claims} />}
               </>
             )}
             <p className="ppt-muted">Run at {result.at}.</p>
           </div>
         )}
-      </section>
+      </details>
 
-      <section className="ppt-card" aria-labelledby="ppt-setup-h">
-        <h2 id="ppt-setup-h">2. What has to be true</h2>
+      <details className="ppt-card ppt-section" open data-testid="ppt-section-setup">
+        <summary><h2 id="ppt-setup-h">2. What has to be true</h2></summary>
         <p className="ppt-muted">Every row at the same time. Verified 2026-10-26.</p>
         <table className="ppt-table" data-testid="ppt-setup">
           <thead><tr><th>Where</th><th>Setting</th><th>Value</th></tr></thead>
           <tbody>{WORKING_SETUP.map((r) => <tr key={`${r.layer}-${r.setting}`}><td>{r.layer}</td><td>{r.setting}</td><td>{r.value}</td></tr>)}</tbody>
         </table>
-      </section>
+      </details>
 
-      <section className="ppt-card" aria-labelledby="ppt-fail-h">
-        <h2 id="ppt-fail-h">3. When it does not work</h2>
+      <details className="ppt-card ppt-section" open data-testid="ppt-section-fail">
+        <summary><h2 id="ppt-fail-h">3. When it does not work</h2></summary>
         <p className="ppt-muted">The client only sees 401 or 403. The gateway log says which layer refused it.</p>
         <table className="ppt-table" data-testid="ppt-failures">
           <thead><tr><th>You see</th><th>Gateway log</th><th>Fix</th></tr></thead>
           <tbody>{FAILURES.map((f) => <tr key={f.log}><td>{f.seen}</td><td><code>{f.log}</code></td><td>{f.fix}</td></tr>)}</tbody>
         </table>
-      </section>
+      </details>
 
-      <section aria-labelledby="ppt-flow-h">
-        <h2 id="ppt-flow-h">4. The path</h2>
+      <details className="ppt-section" open data-testid="ppt-section-flow">
+        <summary><h2 id="ppt-flow-h">4. The path</h2></summary>
         <EmbeddedFlowDiagram
           config={PF_TOKEN_DIAGRAM}
           title="PingFederate token through the Privilege gateway"
@@ -124,7 +164,7 @@ export default function PrivilegePfTokenDemoPage() {
           testId="ppt-diagram"
           pingStyle
         />
-      </section>
+      </details>
 
       <p className="ppt-muted">
         Full setup, screenshots and troubleshooting: <a href={DOC_URL} target="_blank" rel="noreferrer">PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md</a>.

@@ -2,23 +2,23 @@
 
 Status as of 2026-10-22 (about 15:00 UTC). Tenant `0428ba4f-169c-436b-aff9-b230496e0e3b`, gateway `mcpgw.ai-demo.ping-devops.com`. No secret values are in this file.
 
-**Bottom line (updated 2026-10-26):** **it works.** A PingFederate-issued token is accepted by the gateway (key `pftoken-agent`) and `tools/list` on the `pftoken` door returns 200 with all nine tools. The full working configuration, and every fix it took, is in [`PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md`](PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md), section "Working configuration". The rest of this file is the history up to 2026-10-22.
+**Bottom line (updated 2026-10-26):** **it works.** A PingFederate-issued token is accepted by the gateway (key `pftoken-agent`) and `tools/list` on the `pftoken` agent app returns 200 with all nine tools. The full working configuration, and every fix it took, is in [`PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md`](PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md), section "Working configuration". The rest of this file is the history up to 2026-10-22.
 
 ## What is proven
 
 | Step | Result | Evidence |
 |---|---|---|
-| PF mints a client-credentials token for `pf-route-c-test` | Works | `sub` = `pf-route-c-test`, `aud` = the door URL, lifetime 3600 s |
+| PF mints a client-credentials token for `pf-route-c-test` | Works | `sub` = `pf-route-c-test`, `aud` = the agent app URL, lifetime 3600 s |
 | Gateway accepts the PF token as a workload identity | Works | `mcpgw: workload token accepted for key pftoken-agent issuer=https://cmuir-pf.ping-devops.com subject=pf-route-c-test` |
 | Gateway refuses the PF token on policy | Happens | `mcpgw: policy denied PFtoken access to pftoken (agent=true)`, then the client gets a bare `403 Forbidden` |
 | Garbage bearer is refused at sign-in | Happens | `401 Bearer token required` |
-| Audience check passes when the PF audience equals the door URL | Works | Token `aud` = door URL, accepted (the policy denial is the next step) |
+| Audience check passes when the PF audience equals the agent app URL | Works | Token `aud` = agent app URL, accepted (the policy denial is the next step) |
 
-The `pftoken` and `opensearch-hitl` doors look the same from outside. Their plain `403 Forbidden` is a policy refusal in the log, not an auth-mode refusal.
+The `pftoken` and `opensearch-hitl` agent apps look the same from outside. Their plain `403 Forbidden` is a policy refusal in the log, not an auth-mode refusal.
 
 ## What is NOT proven
 
-- That a PF token can list or call tools on any door. No PF test has returned a tool list.
+- That a PF token can list or call tools on any agent app. No PF test has returned a tool list.
 - Whether the console can discover tools on `pftoken` at all. It can't yet.
 - Why `pftoken-agent-grant` keeps disappearing (see below).
 
@@ -34,7 +34,7 @@ The `pftoken` and `opensearch-hitl` doors look the same from outside. Their plai
 | Grant `SlaveRiver-3869364f3144` | Exists. Rule for app `pftoken` / key `pftoken-wl`: nine HITL tools. Rule for `opensearch-hitl` / `pftoken-wl`: `.*` | Changed by us 2026-10-22 (tools added to the `pftoken` rule). Created in the console. |
 | Grant `KarunRiver-5a485737526f` | Exists. App `agent-gateway` / key `pftoken-agent`, no tools | Console-made, untouched |
 | Grant `pftoken-agent-grant` | **MISSING**. Created through the API three times, deleted each time | See "Grant deletions" |
-| Token manager `routeCTestAtm` | Audience and resource URI = `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp`. Client `pf-route-c-test` is pointed at it. | Was `priv-nhi-…` and the `opensearch-hitl` door. Clone of `aiDemoPfJwtAtm`, with a unique key id suffix `-routec`. |
+| Token manager `routeCTestAtm` | Audience and resource URI = `https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp`. Client `pf-route-c-test` is pointed at it. | Was `priv-nhi-…` and the `opensearch-hitl` agent app. Clone of `aiDemoPfJwtAtm`, with a unique key id suffix `-routec`. |
 | Shared token manager `aiDemoPfJwtAtm` | Has a `CLIENT_CREDENTIALS` mapping added 2026-10-21 (Option A). It adds `sub` = client id, and also `act`, `Username`, `spiffeId` to client-credentials tokens. | Still present. Not removed. Shared with OBO and A2A. See "Still to clean up". |
 
 ## Grant deletions (unexplained)
@@ -78,7 +78,7 @@ Scratchpad: `/private/tmp/claude-502/-Users-cmuir--agents/28437301-59e1-4d0f-ba3
 
 | File | What it does |
 |---|---|
-| `route-c-test.mjs` | Mints a PF token (client `pf-route-c-test`) and calls the door `DOOR` with it. Writes `result.json`. Currently `DOOR` = `pftoken`. |
+| `route-c-test.mjs` | Mints a PF token (client `pf-route-c-test`) and calls the agent app `DOOR` with it. Writes `result.json`. Currently `DOOR` = `pftoken`. |
 | `grant-check.mjs` | Read-only: is `pftoken-agent-grant` present. |
 | `grant-pftoken-agent.mjs` | Creates `pftoken-agent-grant` (nine HITL tools, key `pftoken-agent`, app `pftoken`). |
 | `grant-tmp.mjs` | Creates or deletes `tmp-pf-route-c-grant` on `aggregate-limited`. |

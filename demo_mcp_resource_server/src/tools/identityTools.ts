@@ -5,7 +5,7 @@
  *
  * Behind a Privilege door in Pass Agent Token mode, the gateway forwards the agent's own token (for example a
  * PingFederate JWT) instead of swapping in a gateway credential. This tool lets a demo prove that: it returns
- * the issuer, subject, actor (act) and audience of the token that reached this server. index.ts has already
+ * the issuer, subject, actor (act) and audience of the token that reached this server, plus every claim in it. index.ts has already
  * verified the signature, issuer and audience before any tool runs, so this only reads the checked token.
  * Gated on whoami:read so it stays out of every other caller's tools/list (least privilege).
  */
@@ -15,7 +15,7 @@ import { McpToolDef } from './toolTypes';
 export const IDENTITY_TOOLS: McpToolDef[] = [
   {
     name: 'whoami',
-    description: 'Return the identity this server verified on the token it received: issuer, subject, actor (act), audience and scopes. Shows which token the gateway forwarded.',
+    description: 'Return the identity this server verified on the token it received: issuer, subject, actor (act), audience, scopes and every other claim. Shows which token the gateway forwarded.',
     inputSchema: { type: 'object', properties: {}, required: [] },
     requiredScopes: ['whoami:read'],
     readOnly: true,
@@ -48,5 +48,6 @@ export async function dispatchIdentityTool(toolName: string, token: string, subj
     clientId: c.client_id ?? null,
     scope,
     expiresAt: typeof c.exp === 'number' ? new Date(c.exp * 1000).toISOString() : null,
+    claims: c,
   };
 }
