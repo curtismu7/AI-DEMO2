@@ -12,6 +12,7 @@ const guardrailAttemptLog = require('../services/guardrailAttemptLog');
 const externalGuardrailForwarder = require('../services/externalGuardrailForwarder');
 const { requireSession } = require('../middleware/auth');
 const { resolveActingIdentity } = require('../middleware/transactionTurn');
+const configStore = require('../services/configStore');
 const router = express.Router();
 
 // Same marker the LLM Gateway console (LlmGatewayPage.jsx) uses to detect a
@@ -1765,7 +1766,8 @@ async function beginOAuthFlow(session, req, { callbackPath, callbackOrigin } = {
   authUrl.searchParams.set('scope', requestedScopes);
   authUrl.searchParams.set('redirect_uri', redirectUri);
   authUrl.searchParams.set('state', oauthState);
-  const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email;
+  // The session's email is empty for some accounts; the name the sign-in modal remembers fills the gap.
+  const loginHint = process.env.PRIVILEGE_LOGIN_HINT || req.session?.user?.email || configStore.getEffective('last_login_hint_customer');
   if (loginHint) authUrl.searchParams.set('login_hint', loginHint);
 
   // Reuse an existing IdP browser session when either the main app or a prior
