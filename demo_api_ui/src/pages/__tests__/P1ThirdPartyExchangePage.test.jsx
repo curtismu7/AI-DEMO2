@@ -5,7 +5,7 @@ import { MemoryRouter } from 'react-router-dom';
 import P1ThirdPartyExchangePage from '../P1ThirdPartyExchangePage';
 import { parseSequence } from '../../utils/parseSequence';
 import {
-  COMPARE_COLUMNS, COMPARE_ROWS, DIAGRAM_DETAILS, TRUSTED_ISSUER_DEFAULTS, VENDORS, applyMapping, buildWire, decodeJwt, exchangeDiagram, mockJwt, toCurl, validateExchange,
+  COMPARE_COLUMNS, COMPARE_ROWS, DIAGRAM_DETAILS, TRUSTED_ISSUER_DEFAULTS, VENDORS, applyMapping, buildWire, collapseJwts, decodeJwt, findJwts, relTime, exchangeDiagram, mockJwt, toCurl, validateExchange,
 } from '../../config/p1ThirdPartyExchange';
 
 const NOW = 1_800_000_000;
@@ -157,6 +157,44 @@ describe('buildWire: every call in full', () => {
   });
 });
 
+describe('inline token decoding', () => {
+  it('finds every JWT in a urlencoded request body and in a JSON response body, decoded', () => {
+    const w = buildWire({ vendor: VENDORS[0], run: run('pf-cc'), settings: TRUSTED_ISSUER_DEFAULTS, assigned: true, now: NOW });
+    const ex = w.runtime.at(-1);
+    const inReq = findJwts(ex.requestBody);
+    expect(inReq).toHaveLength(2);
+    expect(inReq.every((t) => t.ok)).toBe(true);
+    expect(inReq[1].payload.sub).toBe('cc_client');
+    const inRes = findJwts(ex.responseBody);
+    expect(inRes).toHaveLength(1);
+    expect(inRes[0].payload.act).toEqual({ sub: 'cc_client' });
+    expect(inRes[0].raw).toBe(w.tokens.issued);
+  });
+  it('tolerates malformed tokens, huge input and non-strings without throwing', () => {
+    expect(findJwts('eyJhbGciOi.eyJzdWI.sig').every((t) => t.ok === false || t.ok === true)).toBe(true);
+    expect(findJwts('eyJ!!!.@@@.x')).toEqual([]);
+    expect(findJwts(undefined)).toEqual([]);
+    expect(findJwts('eyJabcd.eyJabcd.')[0].error).toBe('not a valid JWT');
+    expect(findJwts(('eyJhbGciOi.eyJzdWIi.sig ').repeat(50))).toHaveLength(8);
+    expect(findJwts(`eyJ${'a'.repeat(25000)}.eyJ${'b'.repeat(10)}.c`)[0].error).toMatch(/too long/);
+  });
+  it('shortens tokens only for display, keeping the full raw text recoverable', () => {
+    const w = buildWire({ vendor: VENDORS[0], run: run('pf-cc'), settings: TRUSTED_ISSUER_DEFAULTS, assigned: true, now: NOW });
+    const body = w.runtime.at(-1).responseBody;
+    const short = collapseJwts(body);
+    expect(short).toContain('chars, decoded below');
+    expect(short).not.toContain(w.tokens.issued);
+    expect(short.length).toBeLessThan(body.length);
+    expect(body).toContain(w.tokens.issued);
+  });
+  it('says when a time claim is, in plain English', () => {
+    expect(relTime(NOW + 3540, NOW)).toBe('in 59 min');
+    expect(relTime(NOW - 120, NOW)).toBe('2 min ago');
+    expect(relTime(NOW + 86400 * 2, NOW)).toBe('in 2 days');
+    expect(relTime(NOW + 1, NOW)).toBe('in 1 sec');
+  });
+});
+
 describe('diagram source', () => {
   it('parses for every vendor, success and failure, with a payload per message', () => {
     for (const v of VENDORS) {
@@ -210,6 +248,33 @@ describe('P1ThirdPartyExchangePage', () => {
     expect(within(wire).getAllByText(/Copy/).length).toBeGreaterThan(10);
     expect(screen.getByTestId('p1x-call-1-req').textContent).toMatch(/^POST https:\/\/api\.pingone\.example\/v1\/environments\/[0-9a-f-]+\/trustedIssuers/);
     expect(screen.getByTestId('p1x-call-1-res').textContent).toMatch(/HTTP 201 Created[\s\S]*Cache-Control: no-store/);
+  });
+  it('decodes tokens inline by default, with claims readable on screen, and the switch turns it off and is remembered', () => {
+    try { localStorage.clear(); } catch { /* storage unavailable in this environment: the switch still works */ }
+    mount();
+    const sw = screen.getByTestId('p1x-decode');
+    expect(sw.checked).toBe(true);
+    const call = screen.getByTestId('p1x-call-10');
+    expect(within(call).getAllByTestId('p1x-decoded').length).toBeGreaterThan(0);
+    expect(call.textContent).toMatch(/act[\s\S]*cc_client/);
+    expect(call.textContent).toMatch(/valid, expires in 59 min|valid, expires in 1 hour/);
+    expect(screen.getByTestId('p1x-call-10-res').textContent).toContain('chars, decoded below');
+    fireEvent.click(sw);
+    expect(screen.queryAllByTestId('p1x-decoded')).toHaveLength(0);
+    expect(screen.getByTestId('p1x-call-10-res').textContent).not.toContain('chars, decoded below');
+    let stored = '0';
+    try { stored = localStorage.getItem('p1x-decode'); } catch { stored = '0'; }
+    expect(stored).toBe('0');
+  });
+  it('the per-call raw toggle restores the full token in the text', () => {
+    try { localStorage.clear(); } catch { /* see above */ }
+    mount();
+    const before = screen.getByTestId('p1x-call-10-res').textContent;
+    expect(before).toContain('decoded below');
+    fireEvent.click(screen.getByTestId('p1x-call-10-raw'));
+    const after = screen.getByTestId('p1x-call-10-res').textContent;
+    expect(after).not.toContain('decoded below');
+    expect(after.length).toBeGreaterThan(before.length + 500);
   });
   it('shows the real PingOne error body when refused', () => {
     mount();

@@ -356,3 +356,41 @@ export function buildWire({ vendor, run, settings, assigned, now }) {
   ];
   return { setup, runtime, all: [...setup, ...runtime], tokens: { subject: subjectJwt, actor: actorJwt, issued: run.ok ? mockJwt(issued) : null }, issued };
 }
+
+// ---- Inline token decoding for the wire log (no external decoder needed). Pure, bounded, never throws. ----
+const JWT_RE = /eyJ[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]{4,}\.[A-Za-z0-9_-]*/g;
+const MAX_JWTS = 8;
+const MAX_JWT_LEN = 20000;
+const b64uJson = (seg) => JSON.parse(decodeURIComponent(escape(atob(seg.replace(/-/g, '+').replace(/_/g, '/').padEnd(Math.ceil(seg.length / 4) * 4, '=')))));
+
+/** Every JWT-looking string in a body, in order, with a decode (or an error). Bounded in count and length. */
+export function findJwts(text) {
+  const out = [];
+  for (const m of String(text || '').matchAll(JWT_RE)) {
+    if (out.length >= MAX_JWTS) break;
+    const raw = m[0];
+    if (raw.length > MAX_JWT_LEN) { out.push({ raw, ok: false, error: 'token too long to decode here' }); continue; }
+    try {
+      const [h, p, sig] = raw.split('.');
+      const header = b64uJson(h); const payload = b64uJson(p);
+      if (typeof header !== 'object' || typeof payload !== 'object' || !header || !payload) throw new Error('not JSON objects');
+      out.push({ raw, ok: true, header, payload, signature: sig });
+    } catch { out.push({ raw, ok: false, error: 'not a valid JWT' }); }
+  }
+  return out;
+}
+
+/** 'in 59 min' / 'expired 2 min ago' for a unix-seconds claim. */
+export function relTime(secs, now) {
+  const d = secs - now; const a = Math.abs(d);
+  const u = a >= 86400 ? [Math.round(a / 86400), 'day'] : a >= 3600 ? [Math.round(a / 3600), 'hour'] : a >= 60 ? [Math.round(a / 60), 'min'] : [a, 'sec'];
+  const t = `${u[0]} ${u[1]}${u[0] === 1 || u[1] === 'min' || u[1] === 'sec' ? '' : 's'}`;
+  return d >= 0 ? `in ${t}` : `${t} ago`;
+}
+export const TIME_CLAIMS = ['exp', 'iat', 'nbf', 'auth_time'];
+export const KEY_CLAIMS = ['iss', 'sub', 'aud', 'scope', 'scp', 'act', 'client_id', 'cid', 'azp', 'appid'];
+
+/** The on-screen text of a body: each JWT shortened to a one-line placeholder. The raw text is what Copy and curl use. */
+export function collapseJwts(text) {
+  return String(text || '').replace(JWT_RE, (raw) => `${raw.slice(0, 12)}…(${raw.length} chars, decoded below)`);
+}

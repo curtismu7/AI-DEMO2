@@ -49,3 +49,12 @@
 .p1x-call { border: 1px solid var(--th-border); border-radius: var(--radius-sm); padding: 6px 10px; margin: 8px 0; }
 .p1x-call summary { cursor: pointer; font-size: var(--font-size-sm); }
 .p1x-call h4 { margin: 10px 0 4px; font-size: var(--font-size-sm); }
+
+.p1x-switch { display: flex; gap: 10px; align-items: flex-start; margin: 8px 0 4px; padding: 10px 12px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-sm); background: var(--th-bg-inset); }
+.p1x-switch input { width: 18px; height: 18px; margin-top: 2px; }
+.p1x-rawtoggle { display: inline-flex; gap: 6px; align-items: center; font-size: var(--font-size-sm); margin: 4px 0; }
+.p1x-decoded { margin: 6px 0 10px; }
+.p1x-dec { border: 1px solid var(--th-status-success-border); border-radius: var(--radius-sm); padding: 8px 10px; margin: 8px 0; background: var(--th-bg-card); }
+.p1x-dec-head { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; font-size: var(--font-size-sm); }
+.p1x-dec h5 { margin: 8px 0 4px; font-size: var(--font-size-xs); color: var(--th-text-muted); text-transform: uppercase; letter-spacing: 0.04em; }
+.p1x-req td:first-child { font-weight: 700; }

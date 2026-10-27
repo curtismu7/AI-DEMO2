@@ -6,7 +6,7 @@ import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import {
   ADMIN_FACTS, API_SAMPLES, COMPARE_COLUMNS, COMPARE_ROWS, DIAGRAM_DETAILS, DIAGRAM_LANES, EVIDENCE, NOT_SHOWN, P1_ISSUER, STEPS,
-  TOKEN_STATES, TRUSTED_ISSUER_DEFAULTS, VENDORS, applyMapping, buildWire, exchangeDiagram, requestText, resultClaims, subjectClaims, validateExchange,
+  TOKEN_STATES, TRUSTED_ISSUER_DEFAULTS, VENDORS, applyMapping, buildWire, collapseJwts, exchangeDiagram, findJwts, KEY_CLAIMS, relTime, TIME_CLAIMS, requestText, resultClaims, subjectClaims, validateExchange,
 } from '../config/p1ThirdPartyExchange';
 import './P1ThirdPartyExchangePage.css';
 
@@ -34,21 +34,73 @@ function RawToken({ title, token, testId }) {
   );
 }
 
-function WireCall({ c }) {
+const readPref = (k, d) => { try { const v = localStorage.getItem(k); return v === null ? d : v === '1'; } catch { return d; } };
+const savePref = (k, v) => { try { localStorage.setItem(k, v ? '1' : '0'); } catch { /* blocked storage: the switch still works for this visit */ } };
+
+/** Decoded view of every JWT found in a body: header, payload, claims with readable times, expiry badge. */
+function DecodedTokens({ text, where, now }) {
+  const found = findJwts(text);
+  if (!found.length) return null;
+  return (
+    <div className="p1x-decoded" data-testid="p1x-decoded">
+      {found.map((t, i) => {
+        if (!t.ok) return <p key={i} className="p1x-muted">Token {i + 1}: {t.error}. Raw text kept above.</p>;
+        const exp = t.payload.exp;
+        const live = typeof exp === 'number' ? exp > now : null;
+        return (
+          <div key={i} className="p1x-dec">
+            <div className="p1x-dec-head">
+              <strong>Decoded token {found.length > 1 ? i + 1 : ''}</strong> <span className="p1x-muted">({where})</span>
+              {live === null ? null : <span className={`p1x-tag ${live ? 'p1x-tag--guide' : 'p1x-tag--unverified'}`}>{live ? `valid, expires ${relTime(exp, now)}` : `expired ${relTime(exp, now)}`}</span>}
+              <CopyBtn text={JSON.stringify(t.payload, null, 2)} label="Copy decoded payload" />
+            </div>
+            <div className="p1x-grid">
+              <div><h5>Header</h5><pre className="p1x-pre">{JSON.stringify(t.header, null, 2)}</pre></div>
+              <div><h5>Signature</h5><pre className="p1x-pre p1x-wrap">{t.signature || '(none)'}</pre></div>
+            </div>
+            <table className="p1x-table" aria-label="Decoded claims"><thead><tr><th>Claim</th><th>Value</th><th>In plain English</th></tr></thead>
+              <tbody>
+                {Object.entries(t.payload).map(([k, v]) => (
+                  <tr key={k} className={KEY_CLAIMS.includes(k) ? 'p1x-req' : undefined}>
+                    <td><code>{k}</code></td>
+                    <td><code>{typeof v === 'string' ? v : JSON.stringify(v)}</code></td>
+                    <td>{TIME_CLAIMS.includes(k) && typeof v === 'number' ? `${new Date(v * 1000).toISOString().replace('.000Z', 'Z')} (${relTime(v, now)})` : ''}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function WireCall({ c, decode, now }) {
+  const [rawOn, setRawOn] = useState(false);
+  const reqFull = `${c.method} ${c.url}\n${c.requestHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}${c.requestBody ? `\n\n${c.requestBody}` : ''}`;
+  const resFull = `HTTP ${c.status} ${c.statusText}\n${c.responseHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${c.responseBody}`;
+  const hasTokens = findJwts(c.requestBody).length + findJwts(c.responseBody).length > 0;
+  const shrink = decode && hasTokens && !rawOn;
   return (
     <details className="p1x-call" data-testid={`p1x-call-${c.n}`} open={c.phase === 'runtime'}>
       <summary><code>{c.n}</code> {c.label} <span className={c.status < 300 ? 'p1x-ok' : 'p1x-bad'}>{c.status} {c.statusText}</span> <Tag kind={c.evidence} /></summary>
       <p className="p1x-muted">{c.notes}</p>
+      {hasTokens && decode ? (
+        <label className="p1x-rawtoggle"><input type="checkbox" checked={rawOn} onChange={(e) => setRawOn(e.target.checked)} data-testid={`p1x-call-${c.n}-raw`} /> Show the full raw tokens in the text below</label>
+      ) : null}
       <div className="p1x-grid">
         <div>
-          <h4>Request <CopyBtn text={`${c.method} ${c.url}\n${c.requestHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}${c.requestBody ? `\n\n${c.requestBody}` : ''}`} /></h4>
-          <pre className="p1x-pre p1x-wrap" data-testid={`p1x-call-${c.n}-req`}>{`${c.method} ${c.url}\n${c.requestHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}${c.requestBody ? `\n\n${c.requestBody}` : ''}`}</pre>
+          <h4>Request <CopyBtn text={reqFull} /></h4>
+          <pre className="p1x-pre p1x-wrap" data-testid={`p1x-call-${c.n}-req`}>{shrink ? collapseJwts(reqFull) : reqFull}</pre>
+          {decode ? <DecodedTokens text={c.requestBody} where="request body" now={now} /> : null}
           <h4>curl <CopyBtn text={c.curl} /></h4>
           <pre className="p1x-pre p1x-wrap">{c.curl}</pre>
         </div>
         <div>
-          <h4>Response <CopyBtn text={c.responseBody} /></h4>
-          <pre className="p1x-pre p1x-wrap" data-testid={`p1x-call-${c.n}-res`}>{`HTTP ${c.status} ${c.statusText}\n${c.responseHeaders.map(([k, v]) => `${k}: ${v}`).join('\n')}\n\n${c.responseBody}`}</pre>
+          <h4>Response <CopyBtn text={resFull} /> <CopyBtn text={c.responseBody} label="Copy body" /></h4>
+          <pre className="p1x-pre p1x-wrap" data-testid={`p1x-call-${c.n}-res`}>{shrink ? collapseJwts(resFull) : resFull}</pre>
+          {decode ? <DecodedTokens text={c.responseBody} where="response body" now={now} /> : null}
         </div>
       </div>
     </details>
@@ -65,6 +117,8 @@ export default function P1ThirdPartyExchangePage() {
   const [settings, setSettings] = useState(TRUSTED_ISSUER_DEFAULTS);
   const [assigned, setAssigned] = useState(true);
   const [now] = useState(() => Math.floor(Date.now() / 1000));
+  const [decode, setDecode] = useState(() => readPref('p1x-decode', true));
+  const toggleDecode = (on) => { setDecode(on); savePref('p1x-decode', on); };
 
   const vendor = VENDORS.find((v) => v.id === vendorId);
   const run = useMemo(() => validateExchange({ vendor, state, settings, assigned, now }), [vendor, state, settings, assigned, now]);
@@ -204,10 +258,14 @@ export default function P1ThirdPartyExchangePage() {
           All headers, the exact request body and the exact response body, with the raw tokens. Values are mock: the client secret shown is made up on purpose,
           the JWT signatures and the JWKS key are fake. Request and response shapes follow what PingOne returned in the live run. Each call has a curl you can adapt.
         </p>
+        <label className="p1x-switch" data-testid="p1x-decode-switch">
+          <input type="checkbox" checked={decode} onChange={(e) => toggleDecode(e.target.checked)} data-testid="p1x-decode" />
+          <span><strong>Decode tokens inline</strong> <span className="p1x-muted">(on: each token is shown decoded under its call, so you don't need to copy it to a decoder; Copy always gives the full raw token)</span></span>
+        </label>
         <h3>Setup: what an admin creates</h3>
-        {wire.setup.map((c) => <WireCall key={c.n} c={c} />)}
+        {wire.setup.map((c) => <WireCall key={c.n} c={c} decode={decode} now={now} />)}
         <h3>Runtime: what the application sends</h3>
-        {wire.runtime.map((c) => <WireCall key={c.n} c={c} />)}
+        {wire.runtime.map((c) => <WireCall key={c.n} c={c} decode={decode} now={now} />)}
       </section>
 
       <section className="p1x-card" aria-labelledby="p1x-compare">
