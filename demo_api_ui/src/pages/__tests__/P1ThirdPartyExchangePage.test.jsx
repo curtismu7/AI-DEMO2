@@ -424,3 +424,60 @@ describe('P1ThirdPartyExchangePage: text size control', () => {
     spy.mockRestore();
   });
 });
+
+// The original page was one long scroll. Splitting it into a guided walk must not lose any of its detail, so this is the
+// inventory of everything that page showed, and each item must still be reachable (on the one-page view and in the walk).
+const ORIGINAL_TEST_IDS = [
+  'p1x-banner', 'p1x-legend', 'p1x-setup-steps',
+  ...VENDORS.map((v) => `p1x-vendor-${v.id}`),
+  'p1x-exp', 'p1x-iat', 'p1x-nbf', 'p1x-skew', 'p1x-maxfuture', 'p1x-aud', 'p1x-assigned',
+  'p1x-state-valid', 'p1x-state-expired', 'p1x-state-wrong-issuer', 'p1x-state-bad-signature', 'p1x-reset',
+  'p1x-verdict', 'p1x-checks', 'p1x-request', 'p1x-subject', 'p1x-actor', 'p1x-maps', 'p1x-issued',
+  'p1x-raw-actor', 'p1x-raw-subject', 'p1x-raw-issued', 'p1x-wire', 'p1x-compare', 'p1x-api-issuer', 'p1x-api-assignment', 'p1x-notshown',
+  ...Array.from({ length: 10 }, (_, i) => `p1x-call-${i + 1}`),
+];
+const ORIGINAL_HEADINGS = [
+  /Token request/, /Subject token \(PingOne/, /Actor token:/, /Attribute mapping on the custom resource/, /Admin API, permissions and licensing/,
+  /What this page does not show/, /Setup: what an admin creates/, /Runtime: what the application sends/, /Issued access token/,
+];
+
+describe('nothing from the original dense page is lost', () => {
+  const mountView = (hash) => {
+    try { localStorage.clear(); } catch { /* storage unavailable: fine */ }
+    window.history.replaceState(null, '', hash);
+    return render(<MemoryRouter><P1ThirdPartyExchangePage /></MemoryRouter>);
+  };
+  it('the one-page view contains every element, heading and the diagram of the original', () => {
+    mountView('#walk=all');
+    for (const id of ORIGINAL_TEST_IDS) expect(screen.getAllByTestId(id).length, id).toBeGreaterThan(0);
+    const text = screen.getByTestId('p1-third-party-exchange-page').textContent;
+    for (const re of ORIGINAL_HEADINGS) expect(text, String(re)).toMatch(re);
+    expect(screen.getByRole('group', { name: /Third-party token exchange/ })).toBeTruthy();
+    expect(screen.queryByTestId('p1x-rail')).toBeNull();
+    expect(screen.getAllByTestId(/^p1x-all-/).length).toBeGreaterThanOrEqual(7);
+  });
+  it('every original element is reachable in the walk too: each id lives on at least one of the seven steps', () => {
+    const found = new Set();
+    for (let n = 1; n <= 7; n += 1) {
+      mountView(`#walk=${n}`);
+      for (const id of ORIGINAL_TEST_IDS) if (screen.queryAllByTestId(id).length) found.add(id);
+      cleanup();
+    }
+    expect(ORIGINAL_TEST_IDS.filter((id) => !found.has(id))).toEqual([]);
+  });
+  it('toggles between the walk and the one-page view, remembering the step you were on', () => {
+    mountView('#walk=4');
+    fireEvent.click(screen.getByTestId('p1x-all-toggle'));
+    expect(window.location.hash).toBe('#walk=all');
+    expect(screen.getByTestId('p1x-contents')).toBeTruthy();
+    expect(screen.getByTestId('p1x-all-toggle').textContent).toBe('Back to the walk');
+    fireEvent.click(screen.getByTestId('p1x-all-toggle'));
+    expect(window.location.hash).toBe('#walk=4');
+    expect(screen.getByTestId('p1x-step-send')).toBeTruthy();
+  });
+  it('a #walk=all link opens the one-page view, and the text-size control still works there', () => {
+    mountView('#walk=all');
+    fireEvent.click(screen.getByTestId('p1x-fs-up'));
+    expect(screen.getByTestId('p1-third-party-exchange-page').dataset.fs).toBe('110');
+  });
+});

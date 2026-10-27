@@ -124,6 +124,9 @@ const FS_STEPS = [80, 90, 100, 110, 120, 130, 140, 150, 160, 170];
 const readStep = () => {
   try { const m = /walk=(\d+)/.exec(window.location.hash); const n = m ? Number(m[1]) : 1; return Math.min(Math.max(n, 1), WALK.length); } catch { return 1; }
 };
+const readAll = () => {
+  try { return /walk=all/.test(window.location.hash); } catch { return false; }
+};
 const readFs = () => {
   try { const n = Number(localStorage.getItem('p1x-fs')); return FS_STEPS.includes(n) ? n : 100; } catch { return 100; }
 };
@@ -139,6 +142,7 @@ function DecodeSwitch({ decode, onChange }) {
 
 export default function P1ThirdPartyExchangePage() {
   const [step, setStep] = useState(readStep);
+  const [all, setAll] = useState(readAll);
   const [fs, setFs] = useState(readFs);
   const [vendorId, setVendorId] = useState('pf-cc');
   const [state, setState] = useState('valid');
@@ -153,8 +157,14 @@ export default function P1ThirdPartyExchangePage() {
   const go = useCallback((n) => {
     const next = Math.min(Math.max(n, 1), WALK.length);
     setStep(next);
+    setAll(false);
     try { window.history.replaceState(null, '', `#walk=${next}`); } catch { /* history unavailable: the walk still works */ }
   }, []);
+  const toggleAll = () => {
+    const next = !all;
+    setAll(next);
+    try { window.history.replaceState(null, '', next ? '#walk=all' : `#walk=${step}`); } catch { /* history unavailable */ }
+  };
   const changeFs = (n) => {
     const next = Math.min(Math.max(n, 80), 170);
     setFs(next);
@@ -167,7 +177,7 @@ export default function P1ThirdPartyExchangePage() {
     window.scrollTo?.({ top: 0 });
   }, [step]);
   useEffect(() => {
-    const onHash = () => setStep(readStep());
+    const onHash = () => { setStep(readStep()); setAll(readAll()); };
     window.addEventListener('hashchange', onHash);
     return () => window.removeEventListener('hashchange', onHash);
   }, []);
@@ -193,7 +203,7 @@ export default function P1ThirdPartyExchangePage() {
   const meta = WALK[step - 1];
   const exchangeCall = wire.runtime[wire.runtime.length - 1];
 
-  const body = {
+  const bodies = {
     idea: (
       <>
         <p className="p1x-lede">An app has a PingOne token for the user, and a token from somewhere else (PingFederate, Okta, Auth0, Microsoft). PingOne can now check the second one and mix what it says into the token it hands back.</p>
@@ -287,7 +297,7 @@ export default function P1ThirdPartyExchangePage() {
           lanes={DIAGRAM_LANES}
           label={`Third-party token exchange: ${vendor.name}`}
         />
-        <h3>The request <Tag kind="measured" /></h3>
+        <h3>Token request <Tag kind="measured" /></h3>
         <pre className="p1x-pre" data-testid="p1x-request">{requestText()}</pre>
         <DecodeSwitch decode={decode} onChange={toggleDecode} />
         <WireCall key={`ex-${exchangeCall.n}`} c={exchangeCall} decode={decode} now={now} idPrefix="p1x-feat-" open />
@@ -379,7 +389,8 @@ export default function P1ThirdPartyExchangePage() {
         <p className="p1x-muted">Want to try it for real? The standalone p1-third-party-exchange app has Real exchange tabs that send an actual request to your own PingOne. Setup steps: <code>{SETUP_DOC}</code>.</p>
       </>
     ),
-  }[meta.id];
+  };
+  const body = bodies[meta.id];
 
   const kicker = `Step ${step} of ${WALK.length} · ${meta.min} ${meta.min === 1 ? 'minute' : 'minutes'}`;
   return (
@@ -396,6 +407,7 @@ export default function P1ThirdPartyExchangePage() {
           <strong>Simulated.</strong> No PingOne call is made, but the refusal messages and settings behaviour were measured live against PingOne on 2026-10-27.
           The capability is behind a feature flag (Phase 2 of P14C-83104): the guide gives no flag name, so check with Ping that it is on in your environment.
         </p>
+        <button type="button" className="p1x-chip" onClick={toggleAll} aria-pressed={all} data-testid="p1x-all-toggle">{all ? 'Back to the walk' : 'See everything on one page'}</button>
         <div className="p1x-fsctl" role="group" aria-label="Text size" data-testid="p1x-fsctl">
           <button type="button" onClick={() => changeFs(fs - 10)} disabled={fs <= 80} aria-label="Smaller text" data-testid="p1x-fs-down">A−</button>
           <output aria-live="polite" data-testid="p1x-fs-val">{fs}%</output>
@@ -404,6 +416,24 @@ export default function P1ThirdPartyExchangePage() {
         </div>
       </div>
 
+      {all ? (
+        <>
+          <nav className="p1x-contents" aria-label="Contents" data-testid="p1x-contents">
+            <strong>Everything on one page:</strong>
+            {WALK.map((w, i) => (
+              <button key={w.id} type="button" className="p1x-link" onClick={() => document.getElementById(`p1x-all-${w.id}`)?.scrollIntoView?.({ behavior: 'smooth' })}>{i + 1} · {w.title}</button>
+            ))}
+          </nav>
+          {WALK.map((w, i) => (
+            <section key={w.id} id={`p1x-all-${w.id}`} className="p1x-step p1x-step--all" aria-labelledby={`p1x-all-h-${w.id}`} data-testid={`p1x-all-${w.id}`}>
+              <div className="p1x-kicker">{`Step ${i + 1} of ${WALK.length}`}</div>
+              <h2 id={`p1x-all-h-${w.id}`} className="p1x-step-h">{w.title}</h2>
+              {bodies[w.id]}
+            </section>
+          ))}
+        </>
+      ) : (
+        <>
       <nav className="p1x-rail" aria-label="Walk steps" data-testid="p1x-rail">
         {WALK.map((w, i) => (
           <button key={w.id} type="button" onClick={() => go(i + 1)} aria-current={i + 1 === step ? 'step' : undefined}
@@ -424,6 +454,8 @@ export default function P1ThirdPartyExchangePage() {
         <span className="p1x-where" data-testid="p1x-where">{meta.title}</span>
         <button type="button" className="p1x-btn p1x-btn--go" onClick={() => go(step === WALK.length ? 1 : step + 1)} data-testid="p1x-next">{step === WALK.length ? 'Start over' : 'Next →'}</button>
       </div>
+        </>
+      )}
     </main>
   );
 }
