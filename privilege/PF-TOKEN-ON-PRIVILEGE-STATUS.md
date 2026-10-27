@@ -7,6 +7,7 @@ Status as of 2026-10-22 (about 15:00 UTC). Tenant `0428ba4f-169c-436b-aff9-b2304
 **Added 2026-10-27:**
 
 - **Passthrough proven** (section 15 of that doc): on the agent app `pftoken-rs`, the MCP resource server's `whoami` returns every claim of the PingFederate token it verified. The gateway forwards the agent's own token.
+- **Cedar blocks by token scope** (setup part I): the AI policy `pftoken-scope-search` denies `SearchIndexTool` unless the PingFederate token's scopes contain `opensearch:search`. An API-created AI policy is a candidate (`State: ""`) until set to `Active`.
 - **Scope tiers proven** (section 16): grant rules with `RequiredClaims` on `scope` give the same agent 9 tools, 3 tools or 403 on the same agent app.
 - **What Privilege does here and what it can't** is a table near the top of that doc and a section on https://ai-demo.ping-devops.com/privilege-pf-token.
 

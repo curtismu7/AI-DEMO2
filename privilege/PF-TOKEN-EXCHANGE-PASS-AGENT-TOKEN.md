@@ -45,6 +45,7 @@ Example: a customer such as NYLife has agents registered in PingFederate and wan
 | Accepts only this agent | Required claims on the identity (`act.sub`, `client_id`) must match exactly, or 401. |
 | Holds no secret for the agent | The PingFederate token is the only credential. |
 | Decides which tools, per agent app | The agent key's grant lists tools per agent app. No rule for the app is 403; unlisted tools are hidden. |
+| Blocks one tool by token scope (Cedar) | An AI policy reads `context.token.scopes`: `SearchIndexTool` is denied unless the scope has `opensearch:search`; other tools still work. The policy must be State Active (part I). Measured 2026-10-27. |
 | Gives different tools by scope (tiers) | Two grant rules for the same app, each with `RequiredClaims` on `scope`: the token's scope picks 3 tools, 9 tools, or 403. Measured 2026-10-27, section 16. |
 | Passes the agent's token through | Pass Agent Token forwards the PingFederate token unchanged; the MCP server verifies it too (section 15). |
 | Finds the tools without a person signing in | The first accepted agent call discovers the app's tools (gateway `v1.261024`). |
@@ -56,31 +57,35 @@ Example: a customer such as NYLife has agents registered in PingFederate and wan
 |---|---|
 | Token exchange (on behalf of a user) | Privilege does not exchange tokens. A token with the user in `sub` and the agent in `act` has to come from PingFederate. Privilege's OBO support is in staging (Ping, 2026-10-23). |
 | Narrow the token it forwards | The MCP server gets the same token the agent sent, with every scope in it. A down-scoped token needs a token exchange in front of the gateway. |
-| Cedar rules on any token claim | Cedar sees the token's scopes (`context.token.scopes` is in the policy editor's vocabulary; not yet tried with a PingFederate token) but no other claim: `context.token.claims` (`act.sub`, `client_id` …) is due in a later release. Other claim checks today: the identity's required claims and the grant rules' `RequiredClaims`, exact match only. |
+| Cedar rules on other token claims | Cedar reads the token's scopes (part I) but no other claim: `context.token.claims` (`act.sub`, `client_id` …) is due in a later release. Other claim checks today: the identity's required claims and the grant rules' `RequiredClaims`, exact match only. |
 | Wildcard audiences | The audience must name the gateway; no wildcard. An allow-list is possible on request. |
 | New grant policies through the API | A POSTed grant is deleted within about a minute (cause unknown). Edit the key's existing grant. |
 
 ## Step-by-step setup
 
-Values in angle brackets are yours; the values we used are in brackets. Every step was done on 2026-10-26 and the result is in "Working configuration" below.
+Values in angle brackets are yours; the values we used are in brackets. Parts A to E are the core setup (verified 2026-10-26). Parts F to H are optional extras (verified 2026-10-27 unless marked). The result we measured is in "Working configuration" below.
 
 ### Before you start
 
-1. The Privilege gateway is `privilege-aigw:v1.261024` or later. (Earlier versions cannot discover tools on a Pass Agent Token agent app.)
+1. The Privilege gateway is `privilege-aigw:v1.261024` or later. (Earlier versions cannot discover tools on a Pass Agent Token agent app.) Tested on `v1.261024` and `v1.261027`.
 2. The P1 Privilege Agent App's backend is reachable from **every** gateway pod. (Ours needed a restored Service and two network policies; see section 14.)
+3. You can change PingFederate (admin console or admin API) and the Privilege console.
 
 ### A. PingFederate: make the agent's token
 
-1. **Client.** Create an OAuth client for the agent with the `client_credentials` grant. [`pf-route-c-test`]
-2. **Access token manager.** Create a JWT token manager for this agent (clone an existing JWT one; give it a unique Key ID).
+1. **Client.** Create an OAuth client for the agent with the `client_credentials` grant. Leave scopes unrestricted, or allow the scopes from step 2. [`pf-route-c-test`]
+2. **Scopes.** Under the authorization server's scope settings, add the scopes your tiers and policies will use. [`opensearch:admin`, `opensearch:read`, `opensearch:search`, `whoami:read`]
+3. **Access token manager.** Create a JWT token manager for this agent (clone an existing JWT one; give it a unique Key ID).
    - Audience claim value: the agent app URL. [`https://mcpgw.ai-demo.ping-devops.com/pftoken/mcp`]
    - Resource URIs: the same agent app URL.
-3. **Access token mapping** for the `CLIENT_CREDENTIALS` context on that token manager:
+   - Scope Claim Name: `scope` (the default). Do **not** add `scope` to the attribute contract; the manager then writes the granted scopes itself.
+4. **Access token mapping** for the `CLIENT_CREDENTIALS` context on that token manager:
    - `sub` ← Context: ClientId
    - `client_id` ← Context: ClientId
    - `act` ← Expression: `#{"sub": "<agent id>"}` [`#{"sub": "pf-route-c-test"}`]. It must be an **object**; text `"{}"` will not work.
-4. Set the client's default access token manager to the one from step 2.
-5. **Check:** mint a token and decode it. You need `iss`, `sub`, `aud` = the agent app URL, `client_id`, and `act.sub` = the agent id (see "The token that passed").
+5. Set the client's default access token manager to the one from step 3.
+6. **Every token request sends `resource=<agent app URL>`.** Without it, a request that names a scope can be served by a different token manager (we got audience `enduser.ping.demo` and no `sub` or `act`), and the gateway answers 401 `token_not_found`.
+7. **Check:** mint a token and decode it (command in part H). You need `iss`, `sub`, `aud` = the agent app URL, `client_id`, `act.sub` = the agent id, and `scope` = what you asked for.
 
 ### B. Privilege: register the federated agent (Non-Human Identity)
 
@@ -98,11 +103,12 @@ Console: **Non-Human Identities → Register Identity** (or **Edit** on an exist
 
 ### C. Privilege: the P1 Privilege Agent App
 
-Console: **Agentic Apps → <agent app> → Edit**.
+Console: **Agentic Apps → Add Application → MCP Server** (or **Edit** an existing one).
 
-1. **MCP Server URL:** a backend address that resolves from every gateway pod. [`http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp`]
+1. **MCP Server URL:** a backend address that resolves from every gateway pod, ending in exactly `/mcp`. The gateway takes the URL's path as the app's entry path: a URL saved as `…/mc` gave 404 and the log line `outside entry path "/mc"`. [`http://opensearch-mcp-noget.ping-devops-cmuir.svc.cluster.local/mcp`]
 2. **Auth Mode:** Pass Agent Token.
-3. Save. The Overview shows "Awaiting first agent call - tools will be discovered from a forwarded assertion".
+3. **Mesh cluster:** the one your gateway pods serve. [`ai-demo-cmuir`]
+4. Save. The Overview shows "Awaiting first agent call - tools will be discovered from a forwarded assertion".
 
 ### D. Privilege: the agent key and its tools
 
@@ -110,7 +116,7 @@ Console: **Agent Registry → Add Agent** (or **Edit** an existing key).
 
 1. **Custodian:** the identity from part B. Scope: `mcp`. [key `pftoken-agent`, custodian `PFtoken`]
 2. **Gateway & Apps:** select the agent app from part C.
-3. **Configure Tool Access:** MCP Server = the agent app; Access tier Everyone; select the tools (selecting none grants every tool). Optional: **Add Claim** to require a token claim for this tier.
+3. **Configure Tool Access:** MCP Server = the agent app; Access tier Everyone; select the tools (selecting none grants every tool).
 4. Save Configuration, finish the wizard and save the key. The agent app's **Agent Registry** tab now lists the key with its grant.
 
 Do **not** create the grant as a separate policy through the API: every such policy was deleted by the gateway within seconds (section 7). Editing the key's own grant works.
@@ -120,7 +126,84 @@ Do **not** create the grant as a separate policy through the API: every such pol
 1. Make one agent call with the PingFederate token (for example `tools/list`). Even if it is refused, it triggers tool discovery; the agent app's Overview then lists the tools.
 2. Call again. Expected: **200** with the tool list. A garbage bearer still gets 401.
 3. Check the gateway log (all three pods, `--all-containers`, section 14): `workload token accepted for key <key>` and no `policy denied`.
-4. Live demo of exactly this: the **PingFederate Token Demo** page, `https://ai-demo.ping-devops.com/privilege-pf-token`.
+
+### F. Optional: tools by scope (tiers)
+
+Same agent, same agent app, different tools depending on the token's `scope`. Each rule in the key's grant can require token claims (`RequiredClaims`); two rules for the same app make two tiers.
+
+1. Read the key's grant (`GET /api/<tenant>/v1/pacpolicys`, the policy whose rules name your key; ours is `KarunRiver-5a485737526f`). Save a backup.
+2. In `Spec.ActionMap.MCP.PolicyRule`, replace the app's rule with two copies of it, each with its own tools and condition:
+
+```json
+{ "...": "copy of the app's rule",
+  "Capabilities": { "Map": { "tools": { "Elems": ["ListIndexTool", "SearchIndexTool", "CountTool"] } } },
+  "RequiredClaims": { "Map": { "scope": { "Elems": ["opensearch:read"] } } } }
+```
+
+   and the same with all tools and `"Elems": ["opensearch:admin"]`.
+3. `PUT /api/<tenant>/v1/pacpolicys/default/<grant name>` with the whole policy. It takes effect in about 20 seconds.
+4. Test with three tokens (part H): `opensearch:admin` lists every tool, `opensearch:read` lists the three, a token with neither gets 403.
+
+Rules (measured): a value list means any of; each scope in the token is matched on its own (requiring `opensearch:read` matches `openid opensearch:read`; requiring the whole string `openid opensearch:read` does not); claim paths can be dotted (`act.sub`). To remove a condition, delete the `RequiredClaims` field; a PUT with `{"Map": {}}` is ignored. The key wizard's **Add Claim** button may set the same field; we did not check.
+
+### G. Optional: prove the token is passed through
+
+Point a second agent app (Pass Agent Token) at an MCP server that verifies the token itself and can report what it received. Ours is `pftoken-rs` → the demo MCP resource server, whose `whoami` tool returns every claim it verified (section 15). That server must trust the PingFederate issuer and JWKS and accept the token's audience. Add a rule for the second app (tool `whoami`) to the key's grant, then call `whoami`: the issuer, `act` and scopes it reports are the PingFederate token's.
+
+### H. Commands
+
+Mint (replace the values; the secret comes from your own store, never paste it into chat):
+
+```bash
+curl -s https://<pf-host>/as/token.oauth2 -u "<client id>:$CLIENT_SECRET" \
+  -d grant_type=client_credentials \
+  -d "scope=openid opensearch:read" \
+  -d "resource=https://<gateway-host>/<agent app>/mcp"
+```
+
+Decode the payload (`cut -d. -f2 | base64 -d`, add padding if needed) and check the claims from part A step 7. Then list the tools:
+
+```bash
+curl -s https://<gateway-host>/<agent app>/mcp \
+  -H "Authorization: Bearer $TOKEN" -H 'Content-Type: application/json' \
+  -H 'Accept: application/json, text/event-stream' \
+  -d '{"jsonrpc":"2.0","id":1,"method":"tools/list"}'
+```
+
+| You get | Means | Where to look |
+|---|---|---|
+| 200 + tools | working | — |
+| 401 | the token was not accepted: issuer, audience, required claim, lifetime, or the wrong PingFederate token manager | gateway log `workload token rejected: …` or `token_not_found` |
+| 403 | token accepted, no grant rule matched (no rule for the app, or no tier's `RequiredClaims` matched) | gateway log `policy denied …` |
+| 404 | the app's MCP Server URL does not end in `/mcp` | gateway log `outside entry path` |
+| 200, no tools | tools not discovered yet, or the backend is unreachable | gateway log `tool discovery … failed` |
+
+Live demo of all of this: `https://ai-demo.ping-devops.com/privilege-pf-token` (sign-in required).
+
+### I. Optional: block one tool by scope with Cedar
+
+The grant decides which tools the agent may see; an AI policy (Cedar) can then refuse a single call based on the token. Cedar reads the PingFederate token's scopes as `context.token.scopes`.
+
+1. Console: **AI Policies → Add** (or `POST /api/<tenant>/v1/aipolicys`). Cedar text:
+
+```cedar
+@reason("SearchIndexTool needs the opensearch:search scope in the agent's token")
+forbid (principal, action in [Action::"mcp:Invoke", Action::"mcp:InvokeUnattended"], resource == Tool::"SearchIndexTool")
+when   { context.app == "pftoken" }
+unless { context has token && context.token.scopes.contains("opensearch:search") };
+```
+
+2. **Make it Active.** A policy created through the API has `State: ""`: it is a candidate, compiled and logged but never enforced. The gateway log then says `candidate policy would have returned deny where the active set returned allow`. Set `State` to `Active` (console, or `PUT /api/<tenant>/v1/aipolicys/default/<name>` with the whole object and `"State": "Active"`). It takes effect within seconds.
+3. Test (part H, `tools/call` instead of `tools/list`):
+
+| Token scope | `SearchIndexTool` | Other tools |
+|---|---|---|
+| `openid opensearch:admin` | **400**, JSON-RPC `-32600` `action denied by policy: SearchIndexTool needs the opensearch:search scope in the agent's token` | allowed |
+| `openid opensearch:admin opensearch:search` | 200, search results | allowed |
+
+Gateway log for the block: `aipolicy: denied PFtoken calling SearchIndexTool on pftoken (policies=[pftoken-scope-search:1])`. Measured 2026-10-27 on gateway `v1.261027`; our policy is `pftoken-scope-search`.
+
+Cedar sees only the token's scopes. Other claims (`act.sub`, `client_id`) are not in Cedar yet; use the identity's required claims or the grant's `RequiredClaims` for those.
 
 ## Working configuration (verified 2026-10-26, 18:12 UTC)
 

@@ -4,7 +4,7 @@
 import { useCallback, useEffect, useState } from 'react';
 import EmbeddedFlowDiagram from '../components/EmbeddedFlowDiagram';
 import SignInPrompt from '../components/SignInPrompt';
-import { DOC_URL, FAILURES, PF_TOKEN_DIAGRAM, PRIVILEGE_CAN, PRIVILEGE_CANNOT, VERDICTS, WORKING_SETUP } from '../config/privilegePfTokenDemo';
+import { CEDAR_POLICY, DOC_URL, FAILURES, PF_TOKEN_DIAGRAM, PRIVILEGE_CAN, PRIVILEGE_CANNOT, VERDICTS, WORKING_SETUP } from '../config/privilegePfTokenDemo';
 import { getState, runDemo } from '../services/privilegePfTokenDemoService';
 import './PrivilegePfTokenDemoPage.css';
 
@@ -92,6 +92,35 @@ function ScopeTiers({ tiers }) {
   );
 }
 
+// The same tool call, two tokens: the AI policy (Cedar) reads the token's scopes and blocks one.
+function CedarCheck({ cases }) {
+  return (
+    <div className="ppt-answer" data-testid="ppt-cedar">
+      <h3>Cedar blocks by scope</h3>
+      <p>
+        Both tokens have <code>opensearch:admin</code>, so the grant allows <code>SearchIndexTool</code>. This AI policy then
+        reads the token&apos;s scopes and blocks the call unless it also has <code>opensearch:search</code>:
+      </p>
+      <pre className="ppt-code">{CEDAR_POLICY}</pre>
+      <table className="ppt-table">
+        <thead><tr><th>Scope in the token</th><th>SearchIndexTool</th><th>What came back</th></tr></thead>
+        <tbody>
+          {cases.map((c) => {
+            const v = VERDICTS[c.verdict] || VERDICTS.error;
+            return (
+              <tr key={c.key} data-testid={`ppt-cedar-${c.key}`} data-verdict={c.verdict}>
+                <td><code>{c.scope}</code></td>
+                <td><strong className={`ppt-tier-verdict ppt-tier-verdict--${v.tone}`}>{v.label}</strong> <span className="ppt-muted">HTTP {c.status || 'none'}</span></td>
+                <td>{c.message || '—'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function PrivilegePfTokenDemoPage() {
   const [state, setState] = useState(null);
   const [running, setRunning] = useState(false);
@@ -165,6 +194,7 @@ export default function PrivilegePfTokenDemoPage() {
                   <Answer title="Control: a garbage token" result={result.garbage} testId="ppt-answer-garbage" />
                 </div>
                 {result.tiers?.length > 0 && <ScopeTiers tiers={result.tiers} />}
+                {result.cedar?.length > 0 && <CedarCheck cases={result.cedar} />}
                 {result.backend && <BackendReceived result={result.backend} claims={result.mint?.claims} />}
               </>
             )}

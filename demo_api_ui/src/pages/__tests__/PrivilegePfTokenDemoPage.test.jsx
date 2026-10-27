@@ -20,6 +20,10 @@ const PASS = {
     { key: 'read', scope: 'openid opensearch:read', status: 200, verdict: 'allowed', tools: ['ListIndexTool'] },
     { key: 'none', scope: 'openid whoami:read', status: 403, verdict: 'refused-by-policy', tools: [], detail: 'Forbidden' },
   ],
+  cedar: [
+    { key: 'without', scope: 'openid opensearch:admin', status: 400, verdict: 'blocked-by-cedar', message: "action denied by policy: SearchIndexTool needs the opensearch:search scope in the agent's token" },
+    { key: 'with', scope: 'openid opensearch:admin opensearch:search', status: 200, verdict: 'allowed', message: 'search ran (935 documents matched)' },
+  ],
   backend: { status: 200, verdict: 'allowed', detail: '', received: { issuer: 'https://cmuir-pf.ping-devops.com', claims: { iss: 'https://cmuir-pf.ping-devops.com', sub: 'pf-route-c-test', act: { sub: 'pf-route-c-test' }, jti: 'abc' } } },
 };
 
@@ -43,6 +47,9 @@ describe('PrivilegePfTokenDemoPage', () => {
     expect(screen.getByTestId('ppt-tier-full')).toHaveTextContent('2: ListIndexTool, SearchIndexTool');
     expect(screen.getByTestId('ppt-tier-read')).toHaveAttribute('data-verdict', 'allowed');
     expect(screen.getByTestId('ppt-tier-none')).toHaveTextContent('REFUSED BY POLICY');
+    expect(screen.getByTestId('ppt-cedar-without')).toHaveTextContent('BLOCKED BY CEDAR');
+    expect(screen.getByTestId('ppt-cedar-with')).toHaveAttribute('data-verdict', 'allowed');
+    expect(screen.getByTestId('ppt-cedar')).toHaveTextContent('context.token.scopes.contains');
     expect(screen.getByTestId('ppt-backend-iss')).toHaveAttribute('data-same', 'true');
     expect(screen.getByTestId('ppt-backend-act')).toHaveAttribute('data-same', 'true');
     expect(screen.getByTestId('ppt-backend-jti')).toHaveAttribute('data-same', 'true');

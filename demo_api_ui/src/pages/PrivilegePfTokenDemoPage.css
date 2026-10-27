@@ -34,6 +34,7 @@
 .ppt-section > summary h2 { display: inline; margin: 0; }
 .ppt-section[open] > summary { margin-bottom: 10px; }
 .ppt-section:not(.ppt-card) { margin-top: 16px; }
+.ppt-code { margin: 6px 0 10px; padding: 10px; background: var(--th-bg-inset); border: 1px solid var(--th-border); border-radius: var(--radius-sm); overflow: auto; line-height: 1.5; white-space: pre; }
 .ppt-tier-verdict--ok { color: var(--th-status-success-text); }
 .ppt-tier-verdict--warn { color: var(--th-status-warning-text); }
 .ppt-tier-verdict--bad { color: var(--th-status-error-text); }

@@ -8,6 +8,7 @@ export const VERDICTS = {
   'allowed-no-tools': { label: 'ALLOWED, NO TOOLS', tone: 'warn', note: 'Accepted, but the agent app listed no tools. Its tools may not be discovered yet.' },
   'refused-by-policy': { label: 'REFUSED BY POLICY', tone: 'bad', note: 'The token was accepted, then a Privilege grant refused the call (403). The key has no grant on this agent app.' },
   'token-rejected': { label: 'TOKEN REJECTED', tone: 'bad', note: 'The gateway did not accept the token (401): issuer, audience, subject, a required claim or lifetime did not match the identity.' },
+  'blocked-by-cedar': { label: 'BLOCKED BY CEDAR', tone: 'bad', note: 'The grant allowed the tool; an AI policy (Cedar) denied this call.' },
   error: { label: 'ERROR', tone: 'bad', note: 'The call did not complete.' },
 };
 
@@ -20,13 +21,20 @@ export const PRIVILEGE_CAN = [
   { what: 'Give different tools by scope (tiers)', how: 'Two grant rules for the same app, each with RequiredClaims on scope: the token\'s scope picks 3 tools, 9 tools, or 403. Each scope is matched on its own; a list means any of.', status: 'measured 2026-10-27' },
   { what: 'Pass the agent\'s token through', how: 'Pass Agent Token forwards the PingFederate token unchanged, so the MCP server can verify it too (see What the backend received).', status: 'measured' },
   { what: 'Find the tools without a person signing in', how: 'The first accepted agent call discovers the app\'s tools (gateway v1.261024).', status: 'measured' },
+  { what: 'Block one tool by token scope (Cedar)', how: 'An AI policy reads context.token.scopes from the PingFederate token: SearchIndexTool is denied unless the scope has opensearch:search, while other tools still work. The policy must be State Active; created through the API it starts as a candidate that is only logged.', status: 'measured 2026-10-27' },
   { what: 'Switch the agent off', how: 'Disable the identity or revoke the key.', status: 'not tested on this path' },
 ];
+
+// The AI policy the page's Cedar check runs against (State Active on the tenant).
+export const CEDAR_POLICY = `@reason("SearchIndexTool needs the opensearch:search scope in the agent's token")
+forbid (principal, action in [Action::"mcp:Invoke", Action::"mcp:InvokeUnattended"], resource == Tool::"SearchIndexTool")
+when   { context.app == "pftoken" }
+unless { context has token && context.token.scopes.contains("opensearch:search") };`;
 
 export const PRIVILEGE_CANNOT = [
   { what: 'Token exchange (on behalf of a user)', how: 'Privilege does not exchange tokens. A user in sub with the agent in act has to come from PingFederate. Privilege\'s OBO support is in staging (Ping, 2026-10-23).' },
   { what: 'Narrow the token it forwards', how: 'The MCP server gets the same token the agent sent, with every scope in it. A down-scoped token needs a token exchange in front of the gateway.' },
-  { what: 'Cedar rules on any token claim', how: 'Cedar sees the token\'s scopes (context.token.scopes is in the policy editor; not yet tried with a PingFederate token) but no other claim: context.token.claims (act.sub, client_id …) is due in a later release. Other claim checks today are the identity\'s required claims and the grant rules\' RequiredClaims, exact match only.' },
+  { what: 'Cedar rules on other token claims', how: 'Cedar reads the token\'s scopes but no other claim: context.token.claims (act.sub, client_id …) is due in a later release. Other claim checks today are the identity\'s required claims and the grant rules\' RequiredClaims, exact match only.' },
   { what: 'Wildcard audiences', how: 'The audience must name the gateway; no wildcard. An allow-list of audiences is possible on request.' },
   { what: 'New grant policies through the API', how: 'Grants created with POST are deleted within about a minute (cause unknown). Edit the key\'s existing grant instead.' },
 ];
@@ -77,6 +85,7 @@ export const PF_TOKEN_DIAGRAM = {
     N('grant', 'priv', 'Grant on the key', ['scope tiers (RequiredClaims):', 'admin -> 9 tools, read -> 3, else 403'], 760, 400),
     N('tools', 'priv', 'OpenSearch MCP', ['tools/list answered'], 380, 400),
     N('rs', 'priv', 'Agent app pftoken-rs -> MCP resource server', ['whoami: the claims it verified', 'on the forwarded token'], 0, 400),
+    N('cedar', 'priv', 'AI policy (Cedar)', ['SearchIndexTool needs', 'opensearch:search in token scopes'], 380, 600),
   ],
   EDGES: [
     E('bff', 'pf', 'mint'), // 0
@@ -86,6 +95,7 @@ export const PF_TOKEN_DIAGRAM = {
     E('key', 'grant', 'authorize', V), // 4
     E('grant', 'tools', 'allowed by scope'), // 5
     E('grant', 'rs', 'same JWT, passed through'), // 6
+    E('tools', 'cedar', 'tools/call checked', V), // 7
   ],
   STEPS: [
     { key: 'mint', edges: [0], title: 'PingFederate mints the agent\'s token', what: 'The BFF asks PingFederate for client-credentials tokens for pf-route-c-test, one per scope tier (opensearch:admin, opensearch:read, neither). Each carries sub, client_id, the agent app URL as aud, act = {"sub": "pf-route-c-test"} and the requested scope.', why: 'act.sub names the agent; it is what the identity pins. scope is what the grant reads.' },
@@ -93,6 +103,7 @@ export const PF_TOKEN_DIAGRAM = {
     { key: 'verify', edges: [2, 3], title: 'The gateway verifies it against the identity', what: 'Issuer and signature (from the PingFederate JWKS), audience, subject, the required claims act.sub and client_id, and lifetime. A match maps the token to the agent key pftoken-agent.', why: 'A mismatch is a 401, and the log names the claim.' },
     { key: 'grant', edges: [4], title: 'The key\'s grant decides by scope', what: 'The key\'s grant has two rules for pftoken, each with RequiredClaims on scope: opensearch:admin gets all nine tools, opensearch:read the three read tools.', why: 'Same agent, same agent app: a token with neither scope matches no rule and gets 403.' },
     { key: 'tools', edges: [5], title: 'The tools come back', what: 'The gateway forwards to the OpenSearch MCP server and returns the tool list the matching rule allows.', why: 'The page shows exactly what the gateway returned for each scope.' },
+    { key: 'cedar', edges: [7], title: 'Cedar checks the call by scope', what: 'The AI policy pftoken-scope-search reads context.token.scopes from the PingFederate token. SearchIndexTool is denied unless the scope has opensearch:search; other tools are not affected.', why: 'The grant says which tools exist for the agent; Cedar decides each call. The policy must be State Active.' },
     { key: 'passthrough', edges: [6], title: 'The backend sees the agent\'s own token', what: 'On the agent app pftoken-rs the same PingFederate JWT reaches the MCP resource server unchanged. Its whoami tool returns every claim it verified.', why: 'Pass Agent Token forwards the token; it does not swap in a gateway credential or narrow the scopes.' },
   ],
 };

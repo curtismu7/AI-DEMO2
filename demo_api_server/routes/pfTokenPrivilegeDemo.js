@@ -9,6 +9,8 @@
 //          passed the agent's own PingFederate token through rather than swapping in its own credential
 //   BFF -> PingFederate twice more, same agent, other scopes -> the same app, to show the scope tiers:
 //          the key's grant has one rule per tier, each with RequiredClaims on scope (doc section 16)
+//   BFF -> SearchIndexTool on the same app with and without opensearch:search: the AI policy
+//          pftoken-scope-search (Cedar) blocks the call unless the token's scopes contain it
 //
 // The gateway matches the token to its non-human identity (NHI PFtoken) and agent key
 // (pftoken-agent), then applies the key's grant. Setup and every failure seen on the way:
@@ -130,6 +132,29 @@ async function askBackend(whoamiUrl, bearer) {
   }
 }
 
+// Cedar check: the same tool call with two tokens. Only the outcome is returned, never the search results.
+const CEDAR_CASES = [
+  { key: 'without', scope: 'openid opensearch:admin' },
+  { key: 'with', scope: 'openid opensearch:admin opensearch:search' },
+];
+const CEDAR_CALL = { name: 'SearchIndexTool', arguments: { index: 'gateway-events', query_dsl: { query: { match_all: {} }, size: 1 } } };
+
+async function cedarCase(cfg, c) {
+  try {
+    const m = await mintToken(cfg, c.scope);
+    if (!m.token) return { key: c.key, scope: c.scope, status: 0, verdict: 'error', message: `PingFederate: ${m.error}` };
+    const { status, rpc, detail } = await postRpc(cfg.doorUrl, m.token, 'tools/call', CEDAR_CALL);
+    const denied = /denied by policy/i.test(rpc?.error?.message || '');
+    const text = rpc?.result?.content?.[0]?.text || '';
+    const hits = /"total":\s*\{\s*"value":\s*(\d+)/.exec(text)?.[1];
+    const verdict = denied ? 'blocked-by-cedar' : status === 200 && !rpc?.error && !rpc?.result?.isError ? 'allowed' : verdictFor(status, []);
+    const message = denied ? rpc.error.message : verdict === 'allowed' ? `search ran${hits ? ` (${hits} documents matched)` : ''}` : detail;
+    return { key: c.key, scope: m.claims?.scope ?? c.scope, status, verdict, message };
+  } catch (err) {
+    return { key: c.key, scope: c.scope, status: 0, verdict: 'error', message: err.message };
+  }
+}
+
 // One tier: mint for this scope, then ask the app for its tools. `scope` is what the token carried.
 async function tierAnswer(cfg, tier) {
   try {
@@ -161,15 +186,16 @@ router.post('/run', authenticateToken, async (req, res) => {
   if (!mint.token) {
     return res.json({ at, doorUrl: cfg.doorUrl, mint: { status: mint.status, error: mint.error } });
   }
-  const [pfToken, garbage, backend, ...others] = await Promise.all([
+  const [pfToken, garbage, backend, cedar, ...others] = await Promise.all([
     listTools(cfg.doorUrl, mint.token),
     listTools(cfg.doorUrl, 'not-a-valid-token'),
     askBackend(cfg.whoamiUrl, mint.token),
+    Promise.all(CEDAR_CASES.map((c) => cedarCase(cfg, c))),
     ...SCOPE_TIERS.slice(1).map((t) => tierAnswer(cfg, t)),
   ]);
   const tiers = [{ key: SCOPE_TIERS[0].key, scope: mint.claims?.scope ?? SCOPE_TIERS[0].scope, ...pfToken }, ...others];
   return res.json({
-    at, doorUrl: cfg.doorUrl, whoamiUrl: cfg.whoamiUrl, mint: { status: mint.status, claims: mint.claims }, pfToken, garbage, backend, tiers,
+    at, doorUrl: cfg.doorUrl, whoamiUrl: cfg.whoamiUrl, mint: { status: mint.status, claims: mint.claims }, pfToken, garbage, backend, tiers, cedar,
   });
 });
 
