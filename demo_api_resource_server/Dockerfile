@@ -30,3 +30,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
 USER node
 
 CMD ["node", "server.js"]
+
+# Rebuild trigger for SE image refresh (no functional change).

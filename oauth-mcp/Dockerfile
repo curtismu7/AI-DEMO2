@@ -82,3 +82,5 @@ CMD ["node", "dist/index.js"]
 LABEL maintainer="AI Demo MCP Server Team"
 LABEL version="1.0.0"
 LABEL description="AI Demo MCP Server for AI agent banking operations"
+
+# Rebuild trigger for SE image refresh (no functional change).

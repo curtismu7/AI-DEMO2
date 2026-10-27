@@ -27,3 +27,5 @@ HEALTHCHECK --interval=30s --timeout=10s --start-period=15s --retries=3 \
   CMD wget -qO- http://127.0.0.1:3009/health || exit 1
 
 CMD ["node", "src/index.js"]
+
+# Rebuild trigger for SE image refresh (no functional change).
