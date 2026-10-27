@@ -474,6 +474,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         // the confused-deputy attack, a different story.
         demoStep: { useCaseId: "UC17" },
       },
+      {
+        label: "Federated agents: PingFederate token",
+        description: "An agent's own PingFederate token on a P1 Privilege Agent App: tools by scope, the token passed through, and what Privilege can't do yet",
+        icon: "🔑",
+      },
     ],
   },
   {
@@ -713,6 +718,7 @@ export default function LearningHub() {
       "Privilege for AI — A2A": () => navigate("/ai-products/privilege-a2a"),
       "On behalf of the user (OBO)": () => navigate("/obo-demo"),
       "Privilege for AI — MCP": () => navigate("/ai-products/privilege-mcp"),
+      "Federated agents: PingFederate token": () => navigate("/privilege-pf-token"),
     },
     "standards-architecture": {
       "RFC & Spec Index": () => openEdu(EDU.RFC_INDEX, "index"),
