@@ -7,6 +7,8 @@
 //   BFF -> agent app pftoken-rs (Pass Agent Token, backend = mcp-resource-server) -> tools/call whoami,
 //          which returns the identity the backend verified on the token it received: proof the gateway
 //          passed the agent's own PingFederate token through rather than swapping in its own credential
+//   BFF -> PingFederate twice more, same agent, other scopes -> the same app, to show the scope tiers:
+//          the key's grant has one rule per tier, each with RequiredClaims on scope (doc section 16)
 //
 // The gateway matches the token to its non-human identity (NHI PFtoken) and agent key
 // (pftoken-agent), then applies the key's grant. Setup and every failure seen on the way:
@@ -22,6 +24,13 @@ const { authenticateToken } = require('../middleware/auth');
 const router = express.Router();
 
 const CALL_TIMEOUT_MS = 15000;
+// Same agent, three scopes. The grant gives opensearch:admin all tools, opensearch:read the read tools,
+// and nothing to a token with neither. The first tier's token is also the one used for the main answer.
+const SCOPE_TIERS = [
+  { key: 'full', scope: 'openid opensearch:admin whoami:read' },
+  { key: 'read', scope: 'openid opensearch:read' },
+  { key: 'none', scope: 'openid whoami:read' },
+];
 
 function config() {
   let storedSecret = '';
@@ -45,14 +54,14 @@ function decodeClaims(jwt) {
   }
 }
 
-async function mintToken(cfg) {
+async function mintToken(cfg, scope) {
   const res = await fetch(`${cfg.issuer}/as/token.oauth2`, {
     method: 'POST',
     headers: {
       'content-type': 'application/x-www-form-urlencoded',
       authorization: `Basic ${Buffer.from(`${cfg.clientId}:${cfg.clientSecret}`).toString('base64')}`,
     },
-    body: new URLSearchParams({ grant_type: 'client_credentials' }),
+    body: new URLSearchParams({ grant_type: 'client_credentials', scope }),
     signal: AbortSignal.timeout(CALL_TIMEOUT_MS),
   });
   const body = await res.json().catch(() => ({}));
@@ -119,6 +128,17 @@ async function askBackend(whoamiUrl, bearer) {
   }
 }
 
+// One tier: mint for this scope, then ask the app for its tools. `scope` is what the token carried.
+async function tierAnswer(cfg, tier) {
+  try {
+    const m = await mintToken(cfg, tier.scope);
+    if (!m.token) return { key: tier.key, scope: tier.scope, status: 0, verdict: 'error', tools: [], detail: `PingFederate: ${m.error}` };
+    return { key: tier.key, scope: m.claims?.scope ?? tier.scope, ...(await listTools(cfg.doorUrl, m.token)) };
+  } catch (err) {
+    return { key: tier.key, scope: tier.scope, status: 0, verdict: 'error', tools: [], detail: err.message };
+  }
+}
+
 router.get('/state', (req, res) => {
   const cfg = config();
   res.json({ configured: Boolean(cfg.clientSecret), issuer: cfg.issuer, clientId: cfg.clientId, doorUrl: cfg.doorUrl, whoamiUrl: cfg.whoamiUrl });
@@ -132,20 +152,22 @@ router.post('/run', authenticateToken, async (req, res) => {
   const at = new Date().toISOString();
   let mint;
   try {
-    mint = await mintToken(cfg);
+    mint = await mintToken(cfg, SCOPE_TIERS[0].scope);
   } catch (err) {
     return res.json({ at, doorUrl: cfg.doorUrl, mint: { status: 0, error: err.message } });
   }
   if (!mint.token) {
     return res.json({ at, doorUrl: cfg.doorUrl, mint: { status: mint.status, error: mint.error } });
   }
-  const [pfToken, garbage, backend] = await Promise.all([
+  const [pfToken, garbage, backend, ...others] = await Promise.all([
     listTools(cfg.doorUrl, mint.token),
     listTools(cfg.doorUrl, 'not-a-valid-token'),
     askBackend(cfg.whoamiUrl, mint.token),
+    ...SCOPE_TIERS.slice(1).map((t) => tierAnswer(cfg, t)),
   ]);
+  const tiers = [{ key: SCOPE_TIERS[0].key, scope: mint.claims?.scope ?? SCOPE_TIERS[0].scope, ...pfToken }, ...others];
   return res.json({
-    at, doorUrl: cfg.doorUrl, whoamiUrl: cfg.whoamiUrl, mint: { status: mint.status, claims: mint.claims }, pfToken, garbage, backend,
+    at, doorUrl: cfg.doorUrl, whoamiUrl: cfg.whoamiUrl, mint: { status: mint.status, claims: mint.claims }, pfToken, garbage, backend, tiers,
   });
 });
 

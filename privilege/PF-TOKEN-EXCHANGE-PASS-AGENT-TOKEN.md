@@ -555,9 +555,21 @@ A plain string value is refused with 400 `cannot unmarshal string into Go value 
 
 - To remove a condition, delete the `RequiredClaims` field from the rule. A PUT with `{"Map": {}}` is ignored and the old condition stays.
 - The gateway log line for a claim mismatch was not found; the client only sees 403.
-- The grant was put back afterwards: one 9-tool rule on `pftoken`, `whoami` on `pftoken-rs`, no conditions.
 
-To show tiers on the demo page, PingFederate has to mint tokens with different scopes for the same agent; today the mapping sets `scope` to the fixed text `openid whoami:read`.
+### The tiers as set up for the demo page
+
+**PingFederate.** Scopes `opensearch:admin`, `opensearch:read` and `whoami:read` added to the authorization server's scope list (added only; nothing else changed). The client `pf-route-c-test` does not restrict scopes, and the token manager writes the requested scopes into `scope`. With no scope requested, the mapping's fixed text `openid whoami:read` is used. No mapping change was needed.
+
+**Privilege.** The key's grant `KarunRiver-5a485737526f` has two rules for `pftoken`:
+
+| Rule | Tools | `RequiredClaims` |
+|---|---|---|
+| full | all 9 | `scope` has `opensearch:admin` |
+| read | `ListIndexTool`, `SearchIndexTool`, `CountTool` | `scope` has `opensearch:read` |
+
+`pftoken-rs` (`whoami`) has no condition.
+
+**The page.** Run mints three tokens for the same agent: `openid opensearch:admin whoami:read` (also used for the main answer and `whoami`), `openid opensearch:read`, and `openid whoami:read`, and shows what the agent app answered for each.
 
 ## Related
 

@@ -68,6 +68,8 @@ describe('POST /run', () => {
     expect(res.body.pfToken).toMatchObject({ status: 200, verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] });
     expect(res.body.garbage).toMatchObject({ status: 401, verdict: 'token-rejected' });
     expect(res.body.backend).toMatchObject({ status: 200, verdict: 'allowed', received: RECEIVED });
+    expect(res.body.tiers.map((t) => t.key)).toEqual(['full', 'read', 'none']);
+    expect(res.body.tiers[0]).toMatchObject({ verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] });
     expect(JSON.stringify(res.body)).not.toContain(JWT);
     expect(JSON.stringify(res.body)).not.toContain('test-secret');
   });
@@ -77,6 +79,29 @@ describe('POST /run', () => {
     const res = await request(app).post('/api/pf-token-demo/run');
     expect(res.body.pfToken).toMatchObject({ status: 403, verdict: 'refused-by-policy' });
     expect(res.body.backend).toMatchObject({ status: 403, verdict: 'refused-by-policy', received: null });
+  });
+
+  it('mints one token per scope tier for the same client and reports each tier\'s answer', async () => {
+    global.fetch.mockImplementation(async (url, opts) => {
+      if (String(url).endsWith('/as/token.oauth2')) {
+        const scope = new URLSearchParams(String(opts.body)).get('scope');
+        return reply(200, { access_token: `${b64u({ alg: 'RS256' })}.${b64u({ ...CLAIMS, scope })}.sig` });
+      }
+      const scope = JSON.parse(Buffer.from(String(opts.headers.authorization).split('.')[1] || '', 'base64url').toString() || '{}').scope || '';
+      if (String(url).endsWith('/pftoken-rs/mcp')) return reply(200, WHOAMI_SSE, false);
+      if (scope.includes('opensearch:admin')) return reply(200, TOOLS_SSE, false);
+      if (scope.includes('opensearch:read')) return reply(200, `data: ${JSON.stringify({ jsonrpc: '2.0', id: 1, result: { tools: [{ name: 'ListIndexTool' }] } })}\n`, false);
+      return reply(403, 'Forbidden ', false);
+    });
+    const res = await request(app).post('/api/pf-token-demo/run');
+    const scopes = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/as/token.oauth2')).map(([, o]) => new URLSearchParams(String(o.body)).get('scope'));
+    expect(scopes.sort()).toEqual(['openid opensearch:admin whoami:read', 'openid opensearch:read', 'openid whoami:read']);
+    expect(res.body.tiers).toEqual([
+      expect.objectContaining({ key: 'full', scope: 'openid opensearch:admin whoami:read', verdict: 'allowed', tools: ['ListIndexTool', 'SearchIndexTool'] }),
+      expect.objectContaining({ key: 'read', scope: 'openid opensearch:read', verdict: 'allowed', tools: ['ListIndexTool'] }),
+      expect.objectContaining({ key: 'none', scope: 'openid whoami:read', status: 403, verdict: 'refused-by-policy' }),
+    ]);
+    expect(JSON.stringify(res.body)).not.toContain('.sig');
   });
 
   it('sends whoami to the pftoken-rs door with the same PingFederate token', async () => {

@@ -64,6 +64,34 @@ function BackendReceived({ result, claims }) {
   );
 }
 
+// Same agent, same app, three scopes: the grant's rules pick the tools by the scope in the token.
+function ScopeTiers({ tiers }) {
+  return (
+    <div className="ppt-answer" data-testid="ppt-tiers">
+      <h3>Same agent, different scope</h3>
+      <p>
+        Three PingFederate tokens for the same agent, differing only in <code>scope</code>, sent to the same P1 Privilege Agent App.
+        The agent key&apos;s grant has one rule per tier, each requiring a scope: Privilege picks the tools from the token.
+      </p>
+      <table className="ppt-table">
+        <thead><tr><th>Scope in the token</th><th>Privilege answered</th><th>Tools</th></tr></thead>
+        <tbody>
+          {tiers.map((t) => {
+            const v = VERDICTS[t.verdict] || VERDICTS.error;
+            return (
+              <tr key={t.key} data-testid={`ppt-tier-${t.key}`} data-verdict={t.verdict}>
+                <td><code>{t.scope}</code></td>
+                <td><strong className={`ppt-tier-verdict ppt-tier-verdict--${v.tone}`}>{v.label}</strong> <span className="ppt-muted">HTTP {t.status || 'none'}</span></td>
+                <td>{t.tools?.length ? `${t.tools.length}: ${t.tools.join(', ')}` : t.detail || '—'}</td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
 export default function PrivilegePfTokenDemoPage() {
   const [state, setState] = useState(null);
   const [running, setRunning] = useState(false);
@@ -136,6 +164,7 @@ export default function PrivilegePfTokenDemoPage() {
                   <Answer title="PingFederate token" result={result.pfToken} testId="ppt-answer-pf" />
                   <Answer title="Control: a garbage token" result={result.garbage} testId="ppt-answer-garbage" />
                 </div>
+                {result.tiers?.length > 0 && <ScopeTiers tiers={result.tiers} />}
                 {result.backend && <BackendReceived result={result.backend} claims={result.mint?.claims} />}
               </>
             )}
