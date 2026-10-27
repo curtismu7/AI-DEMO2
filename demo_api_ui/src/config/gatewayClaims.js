@@ -74,8 +74,8 @@ export const SCENARIOS = [
     id: 'act-text',
     label: 'act is the text "{}"',
     claims: { ...BASE, act: '{}' },
-    evidence: 'verified',
-    evidenceNote: 'The symptom was measured 2026-10-26: act arrived as the text "{}" and the gateway logged required claim "act.sub" does not match (401). In that run the required value was also mistyped, so the text alone was not isolated.',
+    evidence: 'inferred',
+    evidenceNote: 'Seen only together with a second fault. On 2026-10-26 act arrived as the text "{}" and the gateway logged required claim "act.sub" does not match (401), but the required value was also mistyped in that run, so the text alone was never isolated.',
     story: 'The real trap. The PingFederate mapping emitted act as a string. A string has no sub, so nothing flattens to act.sub. The token looks right in a decoder and still fails. The fix is the mapping expression #{"sub": "<agent id>"}, which yields an object.',
   },
   {

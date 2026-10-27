@@ -22,6 +22,15 @@ describe('flattenClaims', () => {
   });
 });
 
+describe('scenario evidence labels', () => {
+  it('marks only the match run VERIFIED; the "{}" text was never isolated from the mistyped value', () => {
+    const ev = Object.fromEntries(SCENARIOS.map((s) => [s.id, s.evidence]));
+    expect(ev.match).toBe('verified');
+    expect(ev['act-text']).toBe('inferred');
+    expect(Object.values(ev).filter((e) => e === 'verified')).toHaveLength(1);
+  });
+});
+
 describe('evaluateRule scenarios', () => {
   const by = Object.fromEntries(SCENARIOS.map((s) => [s.id, s.result]));
   it('allows only the matching token', () => {
