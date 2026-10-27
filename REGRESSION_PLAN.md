@@ -17777,3 +17777,26 @@ the enforcement points. The guard intentionally also 403s the `/webmcp` and
 with "Switch to user token". `curl` `GET /api/accounts/my` with an admin session
 returns 403 `admin_token_forbidden`. Sign in as a customer → `/dashboard`
 hydrates normally. `cd demo_api_ui && npm run build` exits 0.
+
+### 2026-10-27 — PingGateway local JWKS route: optional extra audience and scope
+
+**Files:** `ping-gateway/scripts/groovy/jwks-token-validation.groovy`,
+`ping-gateway/.env.example`,
+`ping-gateway/scripts/check-jwks-extra-audience.test.js`.
+
+**What changed:** The JWKS validation script accepts two optional, comma-separated,
+exact-match settings, `PG_JWKS_EXTRA_AUDIENCES` and `PG_JWKS_EXTRA_SCOPES`. They let a
+second caller path (an Agent Privilege app in front of the gateway, whose tokens carry
+the audience Privilege generated for the caller's identity) pass the route without
+changing the audience or scope every other caller uses. PingOne cannot give one app the
+same scope name on two resources, so that caller cannot also carry the gateway's own scope.
+
+**Do not break:** With both settings unset the checks are exactly what they were:
+`aud` must contain `PG_GATEWAY_RESOURCE_URI` or `PG_GATEWAY_RESOURCE_ID`, `scope` must
+contain `PG_INBOUND_SCOPE`, and the `aud_config_missing` fail-closed guard still fires when
+neither gateway audience is configured. The extras never replace those values and do not
+match wildcards or blank entries.
+
+**Verify:** `node --test ping-gateway/scripts/check-jwks-extra-audience.test.js`. Live: send a
+token with the extra audience and scope through the route with the settings set (200), and
+with them unset (401 `audience_mismatch`).

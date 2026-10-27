@@ -12,7 +12,13 @@
  *   anything else (incl. none) -> 401
  *
  * Claim checks: exp/nbf (30s skew), aud must contain PG_GATEWAY_RESOURCE_URI or
- * PG_GATEWAY_RESOURCE_ID, scope must contain PG_INBOUND_SCOPE. iss: RS256
+ * PG_GATEWAY_RESOURCE_ID (or one of the optional comma-separated
+ * PG_JWKS_EXTRA_AUDIENCES), scope must contain PG_INBOUND_SCOPE (or one of the
+ * optional comma-separated PG_JWKS_EXTRA_SCOPES). Both extras are empty by
+ * default, which leaves the checks exactly as they were; they exist so a
+ * second caller path (for example an Agent Privilege app in front of this
+ * gateway, whose tokens carry a platform-issued audience) can be allowed
+ * without changing the audience or scope every other caller uses. iss: RS256
  * requires PINGONE_ISSUER_URI; HS256 checks AUTHZ_ISSUER_URI only when set
  * (secret possession is the mock trust anchor).
  *
@@ -56,6 +62,10 @@ def gatewayResourceId  = System.getenv('PG_GATEWAY_RESOURCE_ID') ?: ''
 // Fallback must match the BFF Exchange #2 default (agentMcpTokenService.js
 // gateway_mcp_invoke_scope) or an unset PG_INBOUND_SCOPE denies every request.
 def requiredScope      = System.getenv('PG_INBOUND_SCOPE') ?: 'gateway:mcp:invoke'
+// Optional extras (empty by default = behaviour unchanged). Exact string matches only; no wildcards.
+def csv = { String name -> (System.getenv(name) ?: '').tokenize(',').collect { it.trim() }.findAll { it } }
+def extraAudiences     = csv('PG_JWKS_EXTRA_AUDIENCES')
+def extraScopes        = csv('PG_JWKS_EXTRA_SCOPES')
 
 /**
  * Build the RFC 9728 protected-resource metadata URL for a resource identifier.
@@ -238,7 +248,7 @@ if (alg == 'RS256') {
 if (!gatewayResourceUri && !gatewayResourceId) return deny('aud_config_missing')
 def rawAud = claims['aud']
 def audList = rawAud instanceof List ? rawAud.collect { it as String } : (rawAud ? [rawAud as String] : [])
-def audOk = audList.any { it && (it == gatewayResourceUri || it == gatewayResourceId) }
+def audOk = audList.any { it && (it == gatewayResourceUri || it == gatewayResourceId || extraAudiences.contains(it)) }
 if (!audOk) return deny('audience_mismatch')
 
 // scope may be a space-delimited string (PingOne) or a JSON array (PingFederate
@@ -247,7 +257,7 @@ def rawScope = claims['scope']
 def scopes = (rawScope instanceof List
     ? rawScope.collect { it as String }
     : ((rawScope ?: '') as String).tokenize(' '))
-if (!scopes.contains(requiredScope)) return deny('insufficient_scope')
+if (!scopes.contains(requiredScope) && !scopes.any { extraScopes.contains(it) }) return deny('insufficient_scope')
 
 // ── 4. Success: expose claims to downstream filters, stamp the demo header ────
 attributes['oauth2AccessToken'] = claims
