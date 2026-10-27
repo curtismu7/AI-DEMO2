@@ -1,0 +1,164 @@
+// /gateway-claims: what Privilege gateway (mcpgw) v1.261024 added. Public, no live call: it explains and simulates.
+// Part 1 matches a PingFederate token's object-valued act claim against a Privilege RequiredClaims rule (verified live
+// 2026-10-26). Part 2 lists the AgentCore posture fields seen only in the gateway binary (unverified). The diagram is
+// SequenceFlowDiagram (React Flow): Simulate, step speed, Reset and the movie reel.
+import React, { useMemo, useState } from 'react';
+import PageHeader from '../components/common/PageHeader';
+import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
+import {
+  DIAGRAM_DETAILS, DIAGRAM_LANES, DOC_PATH, EVIDENCE, GATEWAY_VERSION, MAPPING_ROWS, POSTURE_GROUPS, POSTURE_SAMPLE,
+  REQUIRED_CLAIMS, SCENARIOS, TRAP_ROWS, WHAT_CHANGED, scenarioDiagram,
+} from '../config/gatewayClaims';
+import './GatewayClaimsPage.css';
+
+const show = (v) => (v === undefined ? 'missing' : typeof v === 'string' ? v : JSON.stringify(v));
+
+function Tag({ kind }) {
+  const e = EVIDENCE[kind];
+  return <span className={`gwc-tag gwc-tag--${kind}`} title={e.note}>{e.label}</span>;
+}
+
+export default function GatewayClaimsPage() {
+  const [scenarioId, setScenarioId] = useState('match');
+  const scenario = SCENARIOS.find((s) => s.id === scenarioId);
+  const diagram = useMemo(() => scenarioDiagram(scenario), [scenario]);
+  const { result } = scenario;
+
+  return (
+    <main className="gwc-page" data-testid="gateway-claims-page">
+      <PageHeader
+        eyebrow="Diagrams · Privilege"
+        title={`What Privilege gateway ${GATEWAY_VERSION} added`}
+        summary="The gateway can now match a rule on a nested claim, such as act.sub inside a PingFederate token. It also carries new AgentCore posture metadata. This page runs against the real product, so each statement is labelled by how well we know it."
+        back={{ to: '/diagrams', label: 'All diagrams' }}
+      />
+
+      <section className="gwc-legend" aria-label="Evidence labels" data-testid="gwc-legend">
+        {Object.keys(EVIDENCE).map((k) => (
+          <p key={k}><Tag kind={k} /> {EVIDENCE[k].note}</p>
+        ))}
+      </section>
+
+      <section className="gwc-card" data-testid="gwc-what-changed">
+        <h2>What changed in {WHAT_CHANGED.version}</h2>
+        <p><strong>How we found out.</strong> {WHAT_CHANGED.how}</p>
+        <p><Tag kind="verified" /> {WHAT_CHANGED.confirmed}</p>
+        <p><Tag kind="unverified" /> {WHAT_CHANGED.inferred}</p>
+      </section>
+
+      <section className="gwc-card" aria-labelledby="gwc-p1">
+        <h2 id="gwc-p1">1. The nested-claim gate <Tag kind="verified" /></h2>
+        <p className="gwc-lede">
+          A PingFederate token carries <code>act</code> as an object, <code>{'{ "sub": "<agent id>" }'}</code>. A Privilege rule
+          with Required claims <code>client_id</code> and <code>act.sub</code> equal to the agent id accepts only tokens acting for that agent.
+          Nested matching working on {GATEWAY_VERSION} is verified (HTTP 200, nine tools, 2026-10-26). Whether this release is where it first appeared is not (see above).
+        </p>
+        <div className="gwc-grid">
+          <div>
+            <h3>The rule</h3>
+            <pre className="gwc-pre" data-testid="gwc-rule">{JSON.stringify({ requiredClaims: REQUIRED_CLAIMS }, null, 2)}</pre>
+            <table className="gwc-table" aria-label="Where each setting lives">
+              <thead><tr><th>Where</th><th>Value</th></tr></thead>
+              <tbody>{MAPPING_ROWS.map((r) => <tr key={r.where}><td>{r.where}</td><td><code>{r.value}</code></td></tr>)}</tbody>
+            </table>
+          </div>
+          <div>
+            <h3>Pick a token</h3>
+            <div role="radiogroup" aria-label="Scenario" className="gwc-scenarios">
+              {SCENARIOS.map((s) => (
+                <button
+                  key={s.id}
+                  type="button"
+                  role="radio"
+                  aria-checked={s.id === scenarioId}
+                  className={`gwc-chip${s.id === scenarioId ? ' gwc-chip--on' : ''}`}
+                  data-testid={`gwc-scenario-${s.id}`}
+                  onClick={() => setScenarioId(s.id)}
+                >
+                  {s.label}
+                </button>
+              ))}
+            </div>
+            <div className={`gwc-verdict gwc-verdict--${result.allowed ? 'ok' : 'bad'}`} role="status" data-testid="gwc-verdict" data-allowed={String(result.allowed)}>
+              <strong>{result.allowed ? 'ALLOW: HTTP 200' : 'DENY: HTTP 401'}</strong>
+              <span> <Tag kind={scenario.evidence} /></span>
+              <p>{scenario.story}</p>
+              <p className="gwc-muted">{scenario.evidenceNote}</p>
+            </div>
+          </div>
+        </div>
+
+        <div className="gwc-grid">
+          <div>
+            <h3>Decoded token (placeholder values)</h3>
+            <pre className="gwc-pre" data-testid="gwc-token">{JSON.stringify(scenario.claims, null, 2)}</pre>
+          </div>
+          <div>
+            <h3>Flattened claims and the checks</h3>
+            <table className="gwc-table" data-testid="gwc-flat" aria-label="Flattened claims">
+              <thead><tr><th>Flattened path</th><th>Value</th></tr></thead>
+              <tbody>
+                {Object.entries(result.flat).map(([k, v]) => (
+                  <tr key={k} className={k in REQUIRED_CLAIMS ? 'gwc-req' : undefined}><td><code>{k}</code></td><td><code>{show(v)}</code></td></tr>
+                ))}
+              </tbody>
+            </table>
+            <table className="gwc-table" data-testid="gwc-checks" aria-label="Required claim checks">
+              <thead><tr><th>Required</th><th>Token has</th><th>Result</th></tr></thead>
+              <tbody>
+                {result.checks.map((c) => (
+                  <tr key={c.path}>
+                    <td><code>{c.path} = {c.expected}</code></td>
+                    <td><code>{show(c.actual)}</code></td>
+                    <td className={c.ok ? 'gwc-ok' : 'gwc-bad'}>{c.ok ? 'match' : 'no match'}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+            {result.log && <p className="gwc-muted">Gateway log: <code>{result.log}</code></p>}
+          </div>
+        </div>
+
+        <SequenceFlowDiagram
+          key={scenario.id}
+          source={diagram.source}
+          payloads={diagram.payloads}
+          details={DIAGRAM_DETAILS}
+          lanes={DIAGRAM_LANES}
+          label={`Gateway claim check: ${scenario.label}`}
+        />
+
+        <h3>The failure we hit, and the fix <Tag kind="verified" /></h3>
+        <table className="gwc-table" aria-label="Failure and fix">
+          <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+          <tbody>{TRAP_ROWS.map((r) => <tr key={r.symptom}><td><code>{r.symptom}</code></td><td>{r.cause}</td><td>{r.fix}</td></tr>)}</tbody>
+        </table>
+        <p className="gwc-muted">Source: <code>{DOC_PATH}</code>, section &quot;Working configuration&quot;.</p>
+      </section>
+
+      <section className="gwc-card" aria-labelledby="gwc-p2" data-testid="gwc-posture">
+        <h2 id="gwc-p2">2. AgentCore gateway posture <Tag kind="unverified" /></h2>
+        <p className="gwc-warn" role="note">
+          Inferred from the gateway binary, UNVERIFIED, not yet in the console API (the swagger baseline of 2026-10-26 has no such types).
+          Field names below are our reading of symbol names. We have no live values, so none are shown.
+        </p>
+        <p className="gwc-lede">
+          {GATEWAY_VERSION} appears to extend the controller model so Privilege can describe AWS AgentCore gateways and their policy engines, and score the account&apos;s posture.
+        </p>
+        <div className="gwc-groups">
+          {POSTURE_GROUPS.map((g) => (
+            <div key={g.object} className="gwc-group">
+              <h3>{g.object}</h3>
+              <dl>
+                {g.fields.map(([name, what]) => (<React.Fragment key={name}><dt>{name}</dt><dd>{what}</dd></React.Fragment>))}
+              </dl>
+            </div>
+          ))}
+        </div>
+        <h3>Sample shape (not real data)</h3>
+        <pre className="gwc-pre" data-testid="gwc-sample">{JSON.stringify(POSTURE_SAMPLE, null, 2)}</pre>
+        <p className="gwc-muted">Every value above is a placeholder to show the shape. The real structure may differ.</p>
+      </section>
+    </main>
+  );
+}

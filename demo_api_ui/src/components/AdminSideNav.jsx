@@ -1414,6 +1414,12 @@ export default function AdminSideNav({
         icon: "key",
         searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent",
       },
+      {
+        label: "Gateway v1.261024: Claims",
+        path: "/gateway-claims",
+        icon: "key",
+        searchAlias: "gateway mcpgw v1.261024 nested claim act.sub RequiredClaims FlatClaims AgentCore posture policy engine scorecard",
+      },
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),
     // Every A2A page in one place. The group's own alias makes searching "a2a" show the whole group
