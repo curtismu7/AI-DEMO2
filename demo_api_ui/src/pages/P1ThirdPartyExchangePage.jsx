@@ -46,8 +46,9 @@ export default function P1ThirdPartyExchangePage() {
       />
 
       <p className="p1x-banner" role="note" data-testid="p1x-banner">
-        <strong>Simulated.</strong> This page makes no PingOne call. The capability is behind a feature flag (Phase 2 of P14C-83104, for Ping staff and
-        selected customers): the guide gives no flag name, so check with Ping that it is on in your environment. Setup steps:{' '}
+        <strong>Simulated.</strong> This page makes no PingOne call, but its refusal messages and settings behaviour were measured live against PingOne on
+        2026-10-27. The capability is behind a feature flag (Phase 2 of P14C-83104, for Ping staff and selected customers): the guide gives no flag name,
+        so check with Ping that it is on in your environment. Setup steps:{' '}
         <code>{SETUP_DOC}</code>.
       </p>
 
@@ -76,10 +77,16 @@ export default function P1ThirdPartyExchangePage() {
 
         <div className="p1x-grid">
           <fieldset className="p1x-fields">
-            <legend>Trusted issuer settings <Tag kind="guide" /></legend>
+            <legend>Trusted issuer settings <Tag kind="measured" /></legend>
             <label><input type="checkbox" checked={settings.expRequired} onChange={set('expRequired')} data-testid="p1x-exp" /> exp required</label>
             <label><input type="checkbox" checked={settings.iatRequired} onChange={set('iatRequired')} data-testid="p1x-iat" /> iat required</label>
             <label><input type="checkbox" checked={settings.nbfRequired} onChange={set('nbfRequired')} data-testid="p1x-nbf" /> nbf required</label>
+            <label>Clock skew, seconds (0 to 60)
+              <input type="number" min="0" max="60" value={settings.clockSkew} onChange={set('clockSkew')} data-testid="p1x-skew" />
+            </label>
+            <label>Max future validity, seconds (0 = no limit)
+              <input type="number" min="0" value={settings.maxFutureValidity} onChange={set('maxFutureValidity')} data-testid="p1x-maxfuture" />
+            </label>
             <label>Audiences (comma separated, blank accepts any)
               <input type="text" value={settings.audiences} onChange={set('audiences')} data-testid="p1x-aud" placeholder="blank" />
             </label>
@@ -96,8 +103,9 @@ export default function P1ThirdPartyExchangePage() {
 
         <div className={`p1x-verdict p1x-verdict--${run.ok ? 'ok' : 'bad'}`} role="status" data-testid="p1x-verdict" data-ok={String(run.ok)}>
           <strong>{run.ok ? 'Exchange succeeds: a token is issued' : `Exchange refused: ${run.failed.label}`}</strong>
-          <span> <Tag kind="unverified" /></span>
-          <p className="p1x-muted">Which checks PingOne runs comes from the guide. The order and the refusal wording are our mock; the guide describes no error responses.</p>
+          <span> <Tag kind="measured" /></span>
+          {run.ok ? null : <pre className="p1x-pre" data-testid="p1x-error">{`HTTP ${run.error.status}\n${JSON.stringify({ error: run.error.error, error_description: run.error.error_description }, null, 2)}`}</pre>}
+          <p className="p1x-muted">Each refusal text is what PingOne returned for that fault, run on its own. The order PingOne checks things in is not known, so with two faults at once it may name the other one.</p>
         </div>
 
         <table className="p1x-table" data-testid="p1x-checks" aria-label="Checks on the third-party token">
@@ -111,7 +119,7 @@ export default function P1ThirdPartyExchangePage() {
 
         <div className="p1x-grid">
           <div>
-            <h3>Token request <Tag kind="unverified" /></h3>
+            <h3>Token request <Tag kind="measured" /></h3>
             <pre className="p1x-pre" data-testid="p1x-request">{requestText()}</pre>
           </div>
           <div>

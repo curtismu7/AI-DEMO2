@@ -5,7 +5,10 @@ Audience: SEs and customers who have the capability enabled. Source: Ping's UAT 
 Every step is labelled:
 
 - **GUIDE**: stated in the UAT guide.
-- **UNVERIFIED**: not in the guide, or the guide shows it only as a screenshot we could not read. Check it in your environment before you quote it.
+- **MEASURED**: run live against a PingOne environment (North America, feature flag on) on 2026-10-27. We created a trusted issuer whose signing key we generated ourselves, signed the third-party tokens with it, ran the exchanges, then deleted everything. Error text below is exactly what PingOne returned.
+- **UNVERIFIED**: neither stated nor measured. Check it in your environment before you quote it.
+
+What the live run did NOT cover: a signed-in user as the subject token (every subject token we used was a client-credentials PingOne access token, because a user sign-in needs a browser), real PingFederate / Okta / Auth0 / Microsoft tokens (we signed look-alike JWTs, so JWKS-URL fetching was not exercised), and PingOne's order of evaluation when several faults occur at once.
 
 ## What it does (GUIDE)
 
@@ -18,7 +21,7 @@ Two uses in the guide:
 
 ## Before you start
 
-1. The capability is behind a **feature flag** (GUIDE says it is being added; **UNVERIFIED**: no flag name is given). Ask Ping to confirm it is on for your environment.
+1. The capability is behind a **feature flag** (the guide gives no flag name). Quick check that it is on for your environment (MEASURED): `GET https://api.pingone.com/v1/environments/<ENV_ID>/trustedIssuers` returns HTTP 200 with a count, even if it is 0. If the flag is off, expect an error instead.
 2. A license package that includes it (GUIDE, any one): TRIAL, ENHANCED TRIAL, AGENT IAM CORE, WORKFORCE PLUS, WORKFORCE PREMIUM, CIAM PLUS, CIAM PASSWORDLESS, CIAM PREMIUM.
 3. The right role (GUIDE). Creating, updating and deleting trusted issuers and assignments: **Environment Admin**. Read: also Client Application Developer, Application Owner, Configuration Read Only. The permissions are `trustedIssuers:create|read|update|delete:trustedIssuer` and `applications:create|read|update|delete:trustedIssuerAssignment`.
 4. An **OIDC-based, non-worker application** that is allowed to use the token exchange grant (GUIDE). This is the application that sends the exchange.
@@ -38,7 +41,12 @@ Console: Trusted issuers. Fields:
 | JWKS URL or JWKS | yes, one of the two | |
 | Audience | no | Blank accepts any `aud`. If set, at least one `aud` in the token must match one of these |
 
-The admin API also shows `expRequired`, `iatRequired`, `nbfRequired`, `clockSkew` and `maxFutureValidity`. The guide does not explain `clockSkew` or `maxFutureValidity` (both 0 in its sample): leave them alone unless Ping tells you otherwise (**UNVERIFIED**).
+The admin API also has `expRequired`, `iatRequired`, `nbfRequired`, `clockSkew` and `maxFutureValidity`. The guide does not explain the last two; measured:
+
+- `clockSkew` is in **seconds, maximum 60** (PingOne rejects more: `clockSkew must be less than or equal to 60`). It loosens `exp` (an `exp` 30 s ago passed with skew 60; 120 s ago failed) and `nbf` (a future `nbf` beyond the skew is refused).
+- `maxFutureValidity` is in **seconds, 0 = no limit**. With 3600, an `exp` one day ahead was refused and one 10 minutes ahead passed. (Tested on tokens with no `iat`, so whether it is measured from `now` or from `iat` is UNVERIFIED.)
+- `expRequired` defaults to true. With it on, a token with no `exp` is refused. We did not test it off.
+- **Inline JWKS (MEASURED):** use the `jwks` field with the key set as a **JSON string**; the response then shows `jwksUrl: null`. This means you can trust an issuer, or test one, without hosting a JWKS endpoint.
 
 API (`POST /trustedIssuers` on the PingOne management API for your environment):
 
@@ -54,16 +62,16 @@ API (`POST /trustedIssuers` on the PingOne management API for your environment):
 }
 ```
 
-**Which switches to set depends on the issuer's tokens.** From the comparison sheet and the vendors' sample tokens: Okta, Auth0 and RFC 9068 tokens have `iat` and `exp` but **no `nbf`**; Microsoft v1.0 and v2.0 have `iat`, `nbf` and `exp`; a PingFederate client-credentials token has `exp` only (no `iat`). Turning `nbfRequired` on would refuse Okta, Auth0 and PingFederate tokens, and `iatRequired` would refuse the PingFederate client-credentials token. The demo page lets you try this.
-
 ## 2. Assign it to the application (GUIDE)
 
-Console: the application, Trusted issuer assignments. API:
+Console: the application, Trusted issuer assignments. API (MEASURED: create returns 201, delete returns 204 at `/applications/<appId>/trustedIssuerAssignments/<assignmentId>`):
 
 ```
 POST /applications/<appId>/trustedIssuerAssignments
 { "trustedIssuer": { "id": "<trusted issuer id>" } }
 ```
+
+The application we used was a `WEB_APP` with grant types `CLIENT_CREDENTIALS` and `TOKEN_EXCHANGE` and `tokenEndpointAuthMethod` `CLIENT_SECRET_BASIC`, with the custom resource's scope granted to it.
 
 Assignments to **AI agents** are marked "coming soon" in the guide. Configuration management and promotion between environments is also "coming soon": repeat the steps by hand per environment.
 
@@ -74,11 +82,17 @@ This is the existing resource attribute mapping. On the custom resource that is 
 - Sample A: attribute `act`, expression takes the actor token's `sub`. Result: `"act": { "sub": "<actor sub>" }`.
 - Sample B: attribute `security`, expression takes the actor token's `securityLevel`. Result: `"security": "Class 3"`.
 
-**UNVERIFIED:** the guide shows the exact expressions only in screenshots (its Figures 4, 5, 7 and 8) that we could not read. Open the same screens in the PingOne console and copy the expression from there. Do not type one from memory.
+**MEASURED expressions** (the guide's own figures were screenshots we could not read; these are the ones that worked, created as `CUSTOM` attributes on the resource):
 
-If the source claim is absent from the third-party token, expect the attribute to be missing from the issued token (**UNVERIFIED**, inferred; the demo page shows this).
+| Attribute | Expression | Result |
+|---|---|---|
+| `act` | `${{'sub': #root.context.requestData.actorToken.sub}}` | `"act": {"sub": "<actor sub>"}` (an object) |
+| `security` | `${#root.context.requestData.actorToken.securityLevel}` | `"security": "Class 3"` |
+| any claim of a third-party **subject** token | `${#root.context.requestData.subjectToken.<claim>}` | the claim's value (tested with `sub` and `email`) |
 
-## 4. Send the token exchange (GUIDE for the token type, rest UNVERIFIED)
+Notes: a bare `${...sub}` for `act` would give a string, so wrap it in `{'sub': ...}` as above. If the source claim is absent, PingOne **leaves the attribute out and still issues the token** (MEASURED). If there is no actor token at all, an `act` attribute like the one above comes out as `"act": {"sub": null}` (MEASURED), so only put it on a resource that is always exchanged with an actor, or check for it downstream.
+
+## 4. Send the token exchange (MEASURED)
 
 ```
 POST https://auth.pingone.<region>/<ENV_ID>/as/token
@@ -92,9 +106,9 @@ actor_token_type=urn:ietf:params:oauth:token-type:jwt
 scope=<scope on the custom resource>
 ```
 
-plus client authentication as for any PingOne token request. The guide states that `actor_token_type` (or `subject_token_type`) must be `urn:ietf:params:oauth:token-type:jwt` for a third-party token. The other parameters follow RFC 8693 and PingOne's existing exchange documentation; the guide's request figures are screenshots we could not read.
+Client authentication was HTTP Basic with the application's client id and secret. This exact shape returned HTTP 200 (MEASURED). No `audience` or `resource` parameter was needed: the issued token's `aud` is the custom resource that owns the requested scope. `actor_token_type` must be `urn:ietf:params:oauth:token-type:jwt` for a third-party token; PingOne refuses `access_token` for it and refuses a missing one (see the error table).
 
-Use a **subject** third-party token only after checking the result: the guide says it is accepted, but both of its samples use a third-party **actor** token, so what the issued `sub` becomes is **UNVERIFIED**.
+**Third-party JWT as the subject token (MEASURED):** accepted (`subject_token_type=urn:ietf:params:oauth:token-type:jwt`), with or without an actor token. But the issued token then has **no `sub` claim at all**, because there is no PingOne user to take it from. Map what you need with `subjectToken.<claim>` (table above). If your API expects a `sub`, create a `sub`-less design deliberately or map the external subject into another claim.
 
 Expected response (GUIDE sample): `token_type: Bearer`, `expires_in: 3600`, the scope, and `issued_token_type: urn:ietf:params:oauth:token-type:access_token`.
 
@@ -102,18 +116,30 @@ Expected response (GUIDE sample): `token_type: Bearer`, `expires_in: 3600`, the 
 
 1. Decode the issued token. Its `aud` is the custom resource, `scope` is the requested scope, `sub` is the original user, and the mapped claim (`act` or `security`) is present with the value from the third-party token.
 2. Audit: PingOne emits Trusted Issuer and Trusted Issuer Assignment events (Created, Read, Update, Delete, eight in all).
-3. Negative tests worth running: an unassigned issuer, an expired third-party token, an issuer string that does not match, and an audience that is not on the list. Record the real error responses, because the guide does not describe them.
+3. Negative tests: the table below is what PingOne returns for each. Every failure is **HTTP 400** with `error: invalid_request` and a description that starts `The request could not be completed. The request was malformed or invalid.: ` followed by the text below and a correlation id.
 
-## Troubleshooting (all UNVERIFIED: our expectations from the checks the guide lists)
+## Error responses (MEASURED, one fault at a time)
 
-| Symptom | Likely cause |
+| What was wrong | PingOne's text (after the common prefix) |
 |---|---|
-| Exchange refused, third-party token only | Trusted issuer not assigned to the calling application |
-| Refused for an Okta, Auth0 or PingFederate token | `nbfRequired` (or `iatRequired` for PingFederate client credentials) is on and the token has no such claim |
-| Refused for one environment only | `iss` differs from the Issuer field (trailing slash, tenant id, port) |
-| Refused on audience | Audience list is set and none of the token's `aud` values is on it. Blank the list to accept any |
-| Refused as expired | Third-party token `exp` is past |
-| Token issued but mapped claim missing | The source claim is not in the third-party token (for example Okta has `cid`, not `client_id`) |
+| Actor token `exp` in the past | `The provided JWT has expired` |
+| Signed with a different key, or unknown `kid` | `JWT signature verification failed` |
+| `iss` matches no trusted issuer assigned to the app | `The token issuer does not match any Trusted Issuer assigned to the application` |
+| Issuer exists but is not assigned to the calling app | `The token issuer does not match any Trusted Issuer for the requesting application` |
+| No `exp`, `expRequired` on | `Missing exp claim; the Trusted Issuer requires an expiration time` |
+| No `nbf`, `nbfRequired` on | `Missing nbf claim; the Trusted Issuer requires a not-before time` |
+| `nbf` in the future beyond skew | `The nbf claim is in the future beyond the allowed clock skew` |
+| No `iat`, `iatRequired` on | `Missing iat claim; the Trusted Issuer requires an issued-at time` |
+| Audience list set and no `aud` matches | `None of the token's aud values match the Trusted Issuer's configured audiences` |
+| `exp` beyond `maxFutureValidity` | `The exp claim exceeds the maximum allowed future validity` |
+| `actor_token_type` is `access_token` for a third-party JWT | `Provided token type must be urn:ietf:params:oauth:token-type:jwt` |
+| `actor_token_type` missing | `No value supplied for required parameter: actor_token_type` |
+
+Two things that are easy to misread: an untrusted issuer and an unassigned issuer give **different** messages, and a token whose `aud` is an array passes if **any** value matches the audience list (blank list accepts any). `nbfRequired` with an `nbf` in the past passes.
+
+## Which switches fit which issuer
+
+From the comparison sheet and the vendors' sample tokens: Okta, Auth0 and RFC 9068 tokens have `iat` and `exp` but **no `nbf`**; Microsoft v1.0 and v2.0 have `iat`, `nbf` and `exp`; a PingFederate client-credentials token has `exp` only. So `nbfRequired` would refuse Okta, Auth0 and PingFederate tokens, and `iatRequired` would refuse the PingFederate client-credentials token. The demo page lets you try this (the page's refusals reuse the texts above).
 
 ## Which claim names each issuer uses
 

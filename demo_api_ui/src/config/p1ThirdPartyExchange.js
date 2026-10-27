@@ -1,11 +1,13 @@
+/* eslint-disable no-template-curly-in-string -- SpEL expressions are shown as text */
 // /p1-third-party-exchange: PingOne token exchange (RFC 8693) accepting third-party signed JWTs as subject/actor tokens.
 // Sources: Ping's UAT guide "Token Exchange to support third-party signed JWTs as subject and actor tokens" (23 Oct 2026,
 // Ping staff and selected customers; feature-flagged; this page calls the guide GUIDE) and the "Token claims from Auth0,
-// Okta, Microsoft, RFC9068, and PingOne" comparison sheets (public vendor sample tokens; SAMPLE). Nothing here calls PingOne:
-// it is a mock. Every issuer, client id, user id and host is a placeholder; real tenant ids from the guide are NOT copied.
+// Okta, Microsoft, RFC9068, and PingOne" comparison sheets (public vendor sample tokens; SAMPLE). The page itself calls nothing:
+// it is a mock. Its refusal wording and settings behaviour were MEASURED live against PingOne on 2026-10-27 (see MEASURED below). Every issuer, client id, user id and host is a placeholder; real tenant ids from the guide are NOT copied.
 import { wrapMessages } from './sequenceWrap';
 
 export const EVIDENCE = {
+  measured: { label: 'MEASURED', note: 'Run live against a PingOne environment (North America) on 2026-10-27, with a trusted issuer whose key we generated ourselves. Exact error text is what PingOne returned.' },
   guide: { label: 'GUIDE', note: "Stated in Ping's UAT guide (23 Oct 2026)." },
   sample: { label: 'SAMPLE', note: "A vendor's published sample token or the comparison sheet. Ids, hosts and times are placeholders." },
   derived: { label: 'OUR CHOICE', note: 'Our illustration of how a mapping could look. Not from the guide.' },
@@ -44,7 +46,7 @@ export const VENDORS = [
     note: 'Token 2 of the guide\'s sample A. A machine identity: the agent app\'s own PingFederate token. No iat or nbf, only exp.',
     claims: (now) => ({ jatm_scope: '', jatm_client_id: 'cc_client', iss: 'https://pf.example.com:9031', aud: 'cc_client', jti: 'mock-jti-pf-cc', sub: 'cc_client', subj: 'PF admin maps what PF admin wants', exp: now + 3600 }),
     mappings: [
-      { id: 'act', label: 'act.sub from the actor token sub', target: 'act', source: 'sub', wrap: 'act', evidence: 'guide', note: "Guide sample A: the actor token's sub becomes the act claim of the resulting token." },
+      { id: 'act', label: 'act.sub from the actor token sub', target: 'act', source: 'sub', wrap: 'act', evidence: 'measured', note: "Guide sample A, reproduced live. Expression on the resource: ${{'sub': #root.context.requestData.actorToken.sub}}. A client-credentials token with no actor gets act.sub null, so expect that on tokens issued without an actor." },
     ],
   },
   {
@@ -52,7 +54,7 @@ export const VENDORS = [
     note: 'Token 2 of the guide\'s sample B. A user ID token carrying a custom securityLevel claim.',
     claims: (now) => ({ sub: 'jsmith', aud: 'oic_client', jti: 'mock-jti-pf-id', iss: 'https://pf.example.com:9031', iat: now - 60, exp: now + 3540, sid: 'mock-sid', amr: ['oidcPolicy'], auth_time: now - 60, acr: 'oidcPolicy', securityLevel: 'Class 3' }),
     mappings: [
-      { id: 'sec', label: 'security from the securityLevel claim', target: 'security', source: 'securityLevel', evidence: 'guide', note: 'Guide sample B: securityLevel on the actor token becomes security on the resulting token. The guide also shows bestie = jsmith, from the same sample.' },
+      { id: 'sec', label: 'security from the securityLevel claim', target: 'security', source: 'securityLevel', evidence: 'measured', note: 'Guide sample B, reproduced live. Expression: ${#root.context.requestData.actorToken.securityLevel}. If the actor token has no such claim, PingOne leaves the attribute out and still issues the token (measured).' },
     ],
   },
   {
@@ -94,7 +96,10 @@ export const VENDORS = [
 ];
 
 // Trusted issuer fields from the guide's admin API sample. maxFutureValidity exists but the guide does not say how it acts.
-export const TRUSTED_ISSUER_DEFAULTS = { expRequired: true, iatRequired: false, nbfRequired: false, audiences: '' };
+// clockSkew (seconds, MEASURED: PingOne rejects more than 60) loosens exp and nbf. maxFutureValidity (seconds, 0 = no limit,
+// MEASURED) refuses an exp that is further ahead than that. Both are in the guide's API sample (value 0) but unexplained there.
+export const TRUSTED_ISSUER_DEFAULTS = { expRequired: true, iatRequired: false, nbfRequired: false, audiences: '', clockSkew: 0, maxFutureValidity: 0 };
+export const MAX_CLOCK_SKEW = 60;
 
 export const TOKEN_STATES = [
   { id: 'valid', label: 'Valid' },
@@ -113,26 +118,31 @@ export function stateClaims(vendor, state, now) {
   return c;
 }
 
+const P1_ERROR_PREFIX = 'The request could not be completed. The request was malformed or invalid.: ';
+
 /**
- * Mock of PingOne's checks on a third-party JWT used as actor token. The checks and their settings come from the guide
- * (issuer, JWKS, audience, exp/iat/nbf required, assignment to the application). The ORDER and the refusal wording are
- * ours (UNVERIFIED): the guide does not describe error responses.
+ * Mock of PingOne's checks on a third-party JWT used as actor token. Every `message` below is the text PingOne returned
+ * when we ran the same case live on 2026-10-27 (HTTP 400, error invalid_request). The ORDER in which PingOne evaluates
+ * the checks is NOT known: when several fail at once, PingOne may report a different one first.
  */
 export function validateExchange({ vendor, state, settings, assigned, now }) {
   const claims = stateClaims(vendor, state, now);
   const aud = audList(claims.aud);
   const wanted = settings.audiences.split(',').map((s) => s.trim()).filter(Boolean);
+  const skew = Math.min(Math.max(Number(settings.clockSkew) || 0, 0), MAX_CLOCK_SKEW);
+  const maxFuture = Math.max(Number(settings.maxFutureValidity) || 0, 0);
   const checks = [
-    { id: 'assigned', label: 'Trusted issuer is assigned to the application', ok: assigned, detail: assigned ? 'assigned' : 'not assigned to the calling application' },
-    { id: 'issuer', label: 'iss equals the trusted issuer', ok: claims.iss === vendor.issuer, detail: `token iss: ${claims.iss}` },
-    { id: 'signature', label: 'Signature verifies against the issuer JWKS', ok: state !== 'bad-signature', detail: state === 'bad-signature' ? 'signature does not match any key in the JWKS' : 'verified against JWKS (mock)' },
-    { id: 'exp', label: settings.expRequired ? 'exp present and not past' : 'exp not required', ok: settings.expRequired ? claims.exp !== undefined && claims.exp > now : claims.exp === undefined || claims.exp > now, detail: claims.exp === undefined ? 'token has no exp' : claims.exp > now ? 'in the future' : 'in the past' },
-    { id: 'iat', label: settings.iatRequired ? 'iat present' : 'iat not required', ok: !settings.iatRequired || claims.iat !== undefined, detail: claims.iat === undefined ? 'token has no iat' : 'present' },
-    { id: 'nbf', label: settings.nbfRequired ? 'nbf present and reached' : 'nbf not required', ok: !settings.nbfRequired || (claims.nbf !== undefined && claims.nbf <= now), detail: claims.nbf === undefined ? 'token has no nbf' : 'present' },
-    { id: 'aud', label: wanted.length ? 'aud has one of the trusted audiences' : 'Trusted audiences blank: any aud accepted', ok: !wanted.length || aud.some((a) => wanted.includes(a)), detail: `token aud: ${aud.length ? aud.join(', ') : 'none'}` },
+    { id: 'assigned', label: 'Trusted issuer is assigned to the application', ok: assigned, detail: assigned ? 'assigned' : 'not assigned to the calling application', message: 'The token issuer does not match any Trusted Issuer for the requesting application' },
+    { id: 'issuer', label: 'iss equals the trusted issuer', ok: claims.iss === vendor.issuer, detail: `token iss: ${claims.iss}`, message: 'The token issuer does not match any Trusted Issuer assigned to the application' },
+    { id: 'signature', label: 'Signature verifies against the issuer JWKS', ok: state !== 'bad-signature', detail: state === 'bad-signature' ? 'signature does not match any key in the JWKS' : 'verified against JWKS (mock)', message: 'JWT signature verification failed' },
+    { id: 'exp', label: settings.expRequired ? 'exp present and not past' : 'exp not required', ok: claims.exp === undefined ? !settings.expRequired : claims.exp > now - skew, detail: claims.exp === undefined ? 'token has no exp' : claims.exp > now - skew ? 'in the future' : 'in the past', message: claims.exp === undefined ? 'Missing exp claim; the Trusted Issuer requires an expiration time' : 'The provided JWT has expired' },
+    { id: 'maxfuture', label: maxFuture ? `exp no more than ${maxFuture}s ahead` : 'maximum future validity off', ok: !maxFuture || claims.exp === undefined || claims.exp - now <= maxFuture, detail: claims.exp === undefined ? 'no exp' : `exp is ${claims.exp - now}s ahead`, message: 'The exp claim exceeds the maximum allowed future validity' },
+    { id: 'iat', label: settings.iatRequired ? 'iat present' : 'iat not required', ok: !settings.iatRequired || claims.iat !== undefined, detail: claims.iat === undefined ? 'token has no iat' : 'present', message: 'Missing iat claim; the Trusted Issuer requires an issued-at time' },
+    { id: 'nbf', label: settings.nbfRequired ? 'nbf present and reached' : 'nbf not required', ok: claims.nbf === undefined ? !settings.nbfRequired : claims.nbf <= now + skew, detail: claims.nbf === undefined ? 'token has no nbf' : 'present', message: claims.nbf === undefined ? 'Missing nbf claim; the Trusted Issuer requires a not-before time' : 'The nbf claim is in the future beyond the allowed clock skew' },
+    { id: 'aud', label: wanted.length ? 'aud has one of the trusted audiences' : 'Trusted audiences blank: any aud accepted', ok: !wanted.length || aud.some((a) => wanted.includes(a)), detail: `token aud: ${aud.length ? aud.join(', ') : 'none'}`, message: "None of the token's aud values match the Trusted Issuer's configured audiences" },
   ];
   const failed = checks.find((c) => !c.ok);
-  return { claims, checks, ok: !failed, failed };
+  return { claims, checks, ok: !failed, failed, error: failed ? { status: 400, error: 'invalid_request', error_description: P1_ERROR_PREFIX + failed.message } : null };
 }
 
 /** Run a mapping against the actor token claims. A source claim the vendor does not issue adds nothing. */
@@ -162,7 +172,7 @@ export function requestText() {
     'actor_token=<third-party JWT>',
     `actor_token_type=${JWT_TYPE}`,
     `scope=${RESOURCE_SCOPE}`,
-    '(client authentication: as for any PingOne token request)',
+    '(client authentication: the application\'s client id and secret, HTTP Basic, as for any PingOne token request)',
   ].join('\n');
 }
 
@@ -184,7 +194,7 @@ export function exchangeDiagram(vendor, run) {
     '    Note over A,P: 2 Exchange',
     '    A->>P: Token exchange: subject, actor, actor_token_type jwt',
     '    P->>V: Fetch the trusted issuer JWKS to verify the actor token',
-    ok ? '    P->>P: Trusted issuer, assignment, exp, iat, nbf and aud all pass' : `    P-->>A: Refused: ${run.failed.label}`,
+    ok ? '    P->>P: Trusted issuer, assignment, exp, iat, nbf and aud all pass' : `    P-->>A: HTTP 400 invalid_request: ${run.failed.message}`,
     '    end',
     ...(ok ? [
       '    rect rgb(225,229,238)',
@@ -200,7 +210,7 @@ export function exchangeDiagram(vendor, run) {
     `${vendor.name}\n${vendor.issuer}\nThe token is shown decoded on the page.`,
     requestText(),
     `GET <JWKS URL of the trusted issuer>\nkeys for ${vendor.issuer}`,
-    ok ? 'Checks passed:\n' + run.checks.map((c) => `- ${c.label}`).join('\n') : `Failed check:\n${run.failed.label}\n${run.failed.detail}\n(exact error response not described in the guide)`,
+    ok ? 'Checks passed:\n' + run.checks.map((c) => `- ${c.label}`).join('\n') : `HTTP 400 invalid_request\n${run.error.error_description}`,
     ...(ok ? [
       `Custom resource ${RESOURCE_AUD}\nattribute mapping defined on the resource`,
       'Mapped from the actor token',
@@ -235,14 +245,16 @@ export const ADMIN_FACTS = [
   ['Permissions: assignments', 'applications:create|read|update|delete:trustedIssuerAssignment, same role split.'],
   ['Audit and webhook events', 'Trusted Issuer and Trusted Issuer Assignment, each with Created, Read, Update, Delete (eight events).'],
   ['License packages (any one)', 'TRIAL, ENHANCED TRIAL, AGENT IAM CORE, WORKFORCE PLUS, WORKFORCE PREMIUM, CIAM PLUS, CIAM PASSWORDLESS, CIAM PREMIUM. Four internal packages also have it.'],
+  ['Measured limits (2026-10-27)', 'clockSkew is in seconds and PingOne rejects more than 60 (it loosens exp and nbf). maxFutureValidity is in seconds, 0 means no limit, and refuses an exp further ahead than that. Inline JWKS is the jwks field, a JSON string.'],
   ['Coming soon (per the guide)', 'Trusted issuer assignments to AI agents, and configuration management and promotion.'],
 ];
 
 export const NOT_SHOWN = [
   'Third-party token as the SUBJECT token. The guide says it is accepted, but its two samples only use a third-party actor token, so the page does not guess what the issued sub becomes.',
-  'The exact token request and the error responses. The guide shows the requests as images and describes no errors. The request here follows RFC 8693; the refusal wording is ours.',
-  'The feature flag name and which environments have it. The guide says the capability is being added ("in the future") and gives no flag name.',
-  'maxFutureValidity and clockSkew. They appear in the admin API response (both 0) but the guide does not say how they act, so the mock ignores them.',
+  'The order PingOne evaluates the checks in. Each refusal text is real, but when two things are wrong at once PingOne may name a different one first. We tested one fault at a time.',
+  'A third-party JWT as the SUBJECT token. PingOne accepts it (measured), and you can map its claims with subjectToken, but the issued token then has no sub of its own. The page simulates the actor case only.',
+  'A signed-in USER as the subject. Our live runs used a client-credentials PingOne access token as the subject, because a user sign-in needs a browser.',
+  'The feature flag name. The guide gives none; the flag was on in the environment we tested.',
 ];
 
 // Comparison sheet (claims each issuer puts in its access token). null = "Not included" / "Not defined" on the sheet.

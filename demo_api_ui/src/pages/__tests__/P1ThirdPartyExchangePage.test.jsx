@@ -34,6 +34,32 @@ describe('validateExchange', () => {
     expect(run('auth0', { settings: s('x, https://example.com/health-api') }).ok).toBe(true);
     expect(run('okta', { settings: s('other') }).failed.id).toBe('aud');
   });
+  it('returns the exact PingOne refusal text measured live, as a 400 invalid_request', () => {
+    const msg = (id, over) => run(id, over).error.error_description.split('.: ')[1];
+    expect(run('okta', { state: 'expired' }).error).toMatchObject({ status: 400, error: 'invalid_request' });
+    expect(msg('okta', { state: 'expired' })).toBe('The provided JWT has expired');
+    expect(msg('okta', { state: 'bad-signature' })).toBe('JWT signature verification failed');
+    expect(msg('okta', { state: 'wrong-issuer' })).toBe('The token issuer does not match any Trusted Issuer assigned to the application');
+    expect(msg('okta', { assigned: false })).toBe('The token issuer does not match any Trusted Issuer for the requesting application');
+    expect(msg('okta', { settings: { ...TRUSTED_ISSUER_DEFAULTS, nbfRequired: true } })).toBe('Missing nbf claim; the Trusted Issuer requires a not-before time');
+    expect(msg('pf-cc', { settings: { ...TRUSTED_ISSUER_DEFAULTS, iatRequired: true } })).toBe('Missing iat claim; the Trusted Issuer requires an issued-at time');
+    expect(msg('okta', { settings: { ...TRUSTED_ISSUER_DEFAULTS, audiences: 'other' } })).toBe("None of the token's aud values match the Trusted Issuer's configured audiences");
+  });
+  it('clock skew rescues a recently expired token only up to 60s, as measured', () => {
+    const okta = VENDORS.find((v) => v.id === 'okta');
+    const expiredBy = (secs, clockSkew) => validateExchange({ vendor: { ...okta, claims: (n) => ({ ...okta.claims(n), exp: n - secs }) }, state: 'valid', settings: { ...TRUSTED_ISSUER_DEFAULTS, clockSkew }, assigned: true, now: NOW }).ok;
+    expect(expiredBy(30, 60)).toBe(true);
+    expect(expiredBy(120, 60)).toBe(false);
+    expect(expiredBy(30, 0)).toBe(false);
+    expect(expiredBy(120, 999)).toBe(false);
+  });
+  it('maxFutureValidity refuses an exp that is too far ahead and 0 means no limit', () => {
+    const okta = VENDORS.find((v) => v.id === 'okta');
+    const far = { ...okta, claims: (n) => ({ ...okta.claims(n), exp: n + 86400 }) };
+    const r = (maxFutureValidity) => validateExchange({ vendor: far, state: 'valid', settings: { ...TRUSTED_ISSUER_DEFAULTS, maxFutureValidity }, assigned: true, now: NOW });
+    expect(r(3600).error.error_description).toContain('The exp claim exceeds the maximum allowed future validity');
+    expect(r(0).ok).toBe(true);
+  });
   it('ignores a missing exp only when exp is not required', () => {
     const settings = { ...TRUSTED_ISSUER_DEFAULTS, expRequired: false };
     expect(run('pf-oidc', { settings }).ok).toBe(true);
@@ -91,7 +117,7 @@ describe('P1ThirdPartyExchangePage', () => {
   it('labels itself simulated and shows the legend', () => {
     mount();
     expect(screen.getByTestId('p1x-banner').textContent).toMatch(/Simulated/);
-    expect(within(screen.getByTestId('p1x-legend')).getAllByText(/GUIDE|SAMPLE|OUR CHOICE|UNVERIFIED/).length).toBe(4);
+    expect(within(screen.getByTestId('p1x-legend')).getAllByText(/MEASURED|GUIDE|SAMPLE|OUR CHOICE|UNVERIFIED/).length).toBe(5);
   });
   it('shows the issued act claim for the default issuer and nothing when refused', () => {
     mount();
@@ -113,6 +139,11 @@ describe('P1ThirdPartyExchangePage', () => {
     mount();
     for (const v of VENDORS) expect(screen.getByTestId(`p1x-vendor-${v.id}`)).toBeTruthy();
     expect(within(screen.getByTestId('p1x-compare')).getAllByRole('row').length).toBe(COMPARE_ROWS.length + 1);
+  });
+  it('shows the real PingOne error body when refused', () => {
+    mount();
+    fireEvent.click(screen.getByTestId('p1x-state-expired'));
+    expect(screen.getByTestId('p1x-error').textContent).toMatch(/invalid_request[\s\S]*The provided JWT has expired/);
   });
   it('states what it does not show', () => {
     mount();
