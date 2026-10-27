@@ -3944,7 +3944,7 @@ router.put('/env', express.json(), requireAdminSession, (req, res) => {
 // Both are direct here on purpose: Privilege's role in this demo is the TOOL
 // call gateway, not the LLM lane. Tool results carry the gateway verdict
 // verbatim, so a denial reaches the model as "tool result: denied".
-const AGENT_MAX_ROUNDS = 4;
+const AGENT_MAX_ROUNDS = 2;
 
 // MCP inputSchema → OpenAI function-definition. Hostile metadata passes through
 // byte-for-byte — normalising it here would weaken the attack the demo shows.
