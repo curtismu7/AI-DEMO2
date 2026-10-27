@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>How Muse works</title>
+<style>
+/* Layout: one column of short sections, one wide flow diagram, one facts table. Palette and type carried over from the first version. */
+:root {
+  --bg: #f5f5f2; --surface: #ffffff; --fg: #1d1f23; --muted: #5d636d;
+  --line: #dfe1dc; --accent: #b5231a; --accent-soft: #faeceb;
+  --ok: #1d6b35; --ok-soft: #e7f5ea; --warn: #8a5a00; --warn-soft: #fff6e0; --bad: #a1211c;
+  color-scheme: light;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #111317; --surface: #181b21; --fg: #e9ebef; --muted: #9aa0ab;
+    --line: #2a2f38; --accent: #e5544a; --accent-soft: #3a2422;
+    --ok: #6fd08c; --ok-soft: #17291d; --warn: #f0c060; --warn-soft: #2b2415; --bad: #ff8a80; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #111317; --surface: #181b21; --fg: #e9ebef; --muted: #9aa0ab;
+  --line: #2a2f38; --accent: #e5544a; --accent-soft: #3a2422;
+  --ok: #6fd08c; --ok-soft: #17291d; --warn: #f0c060; --warn-soft: #2b2415; --bad: #ff8a80; color-scheme: dark;
+}
+body { background: var(--bg); color: var(--fg); margin: 0; font: 16px/1.6 system-ui, -apple-system, "Segoe UI", sans-serif; }
+main { max-width: 760px; margin: 0 auto; padding-block: 32px 48px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); display: grid; gap: 28px; }
+h1 { font-size: 30px; line-height: 1.2; margin: 0; text-wrap: balance; }
+h2 { font-size: 20px; margin: 0 0 8px; text-wrap: balance; }
+p, li { margin: 0; }
+ul, ol { margin: 0; padding-left: 20px; display: grid; gap: 6px; }
+.lede { font-size: 18px; color: var(--muted); }
+.muted { color: var(--muted); font-size: 14px; }
+section { background: var(--surface); border: 1px solid var(--line); border-radius: 12px; padding: 20px; display: grid; gap: 12px; min-width: 0; }
+.note { border: 1px solid var(--line); border-left: 3px solid var(--warn); padding: 10px 14px; background: var(--surface); border-radius: 8px; font-size: 14px; }
+.wide { overflow-x: auto; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--line); vertical-align: top; }
+th { color: var(--muted); font-weight: 600; }
+.tag { display: inline-block; border: 1px solid currentColor; border-radius: 999px; padding: 0 8px; font-size: 12px; white-space: nowrap; }
+.sim { color: var(--warn); }
+.real { color: var(--ok); }
+.todo { color: var(--muted); }
+code { font: 13px ui-monospace, SFMono-Regular, Menlo, monospace; background: var(--accent-soft); padding: 1px 5px; border-radius: 4px; overflow-wrap: anywhere; }
+svg { display: block; width: 100%; height: auto; min-width: 560px; }
+svg text { font-family: system-ui, -apple-system, "Segoe UI", sans-serif; fill: var(--fg); }
+svg .sub { fill: var(--muted); }
+svg .box { fill: var(--surface); stroke: var(--line); stroke-width: 1.4; }
+svg .you { fill: var(--accent-soft); stroke: var(--accent); stroke-width: 1.4; }
+svg .ping { fill: var(--warn-soft); stroke: var(--warn); stroke-width: 1.4; }
+svg .done { fill: var(--ok-soft); stroke: var(--ok); stroke-width: 1.4; }
+svg .arrow { stroke: var(--muted); stroke-width: 1.6; fill: none; }
+svg .dash { stroke: var(--muted); stroke-width: 1.4; fill: none; stroke-dasharray: 5 4; }
+svg .head { fill: var(--muted); }
+a { color: var(--accent); }
+.back { max-width: 760px; margin: 0 auto; padding: 16px max(16px, env(safe-area-inset-left, 0px)) 0; font-size: 14px; }
+</style>
+
+</head>
+<body>
+<p class="back"><a href="/personal-agent/muse">Back to Muse</a></p>
+<main>
+  <header>
+    <h1>How Muse works</h1>
+    <p class="lede">Muse is a personal agent that acts for Sam. It asks, gets turned away, sends Sam to PingOne to sign in, and then asks again with a token that says Muse is acting for Sam. Every step in the real mode talks to the real systems.</p>
+  </header>
+
+  <section aria-labelledby="flow">
+    <h2 id="flow">The path of one request</h2>
+    <p>Sam asks "Show my airline points". The first call carries no token on purpose, so the gateway answers 401 and tells Muse where to sign in.</p>
+    <div class="wide">
+      <svg viewBox="0 0 900 330" role="img" aria-label="Sam asks Muse. Muse calls the gateway with no token and gets 401. Muse sends Sam to PingOne, where a DaVinci flow signs Sam in, checks Protect, asks for MFA on medium risk, shows that an AI agent was detected, and asks for consent. PingOne returns a code. Muse exchanges it for a token that names Muse as the actor, then calls the gateway again. PingOne Authorize decides, and the tool returns the points.">
+        <defs><marker id="a" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse"><path class="head" d="M0 0 L10 5 L0 10 z"/></marker></defs>
+        <rect class="you" x="10" y="20" width="120" height="64" rx="10"/><text x="70" y="48" text-anchor="middle" font-size="16" font-weight="600">Sam</text><text class="sub" x="70" y="66" text-anchor="middle" font-size="13">asks for points</text>
+        <rect class="box" x="160" y="20" width="120" height="64" rx="10"/><text x="220" y="48" text-anchor="middle" font-size="16" font-weight="600">Muse</text><text class="sub" x="220" y="66" text-anchor="middle" font-size="13">personal agent</text>
+        <rect class="ping" x="310" y="20" width="130" height="64" rx="10"/><text x="375" y="48" text-anchor="middle" font-size="16" font-weight="600">Gateway</text><text class="sub" x="375" y="66" text-anchor="middle" font-size="13">no token: 401</text>
+        <rect class="ping" x="470" y="20" width="200" height="64" rx="10"/><text x="570" y="48" text-anchor="middle" font-size="16" font-weight="600">PingOne sign-in</text><text class="sub" x="570" y="66" text-anchor="middle" font-size="13">DaVinci flow, airline theme</text>
+        <rect class="you" x="700" y="20" width="190" height="64" rx="10"/><text x="795" y="48" text-anchor="middle" font-size="16" font-weight="600">Agent detected</text><text class="sub" x="795" y="66" text-anchor="middle" font-size="13">then Sam consents</text>
+        <rect class="box" x="700" y="130" width="190" height="64" rx="10"/><text x="795" y="158" text-anchor="middle" font-size="16" font-weight="600">Code to Muse</text><text class="sub" x="795" y="176" text-anchor="middle" font-size="13">redirect back</text>
+        <rect class="box" x="440" y="130" width="230" height="64" rx="10"/><text x="555" y="158" text-anchor="middle" font-size="16" font-weight="600">Muse acts for Sam</text><text class="sub" x="555" y="176" text-anchor="middle" font-size="13">agent token + 2 exchanges</text>
+        <rect class="ping" x="160" y="240" width="190" height="64" rx="10"/><text x="255" y="268" text-anchor="middle" font-size="16" font-weight="600">Gateway, retry</text><text class="sub" x="255" y="286" text-anchor="middle" font-size="13">token checked</text>
+        <rect class="ping" x="380" y="240" width="190" height="64" rx="10"/><text x="475" y="268" text-anchor="middle" font-size="16" font-weight="600">PingOne Authorize</text><text class="sub" x="475" y="286" text-anchor="middle" font-size="13">audience, actor, tool</text>
+        <rect class="done" x="600" y="240" width="170" height="64" rx="10"/><text x="685" y="268" text-anchor="middle" font-size="16" font-weight="600">Tool runs</text><text class="sub" x="685" y="286" text-anchor="middle" font-size="13">4,500 points, Gold</text>
+        <g class="arrow" marker-end="url(#a)"><line x1="130" y1="52" x2="160" y2="52"/><line x1="280" y1="52" x2="310" y2="52"/><line x1="440" y1="52" x2="470" y2="52"/><line x1="670" y1="52" x2="700" y2="52"/><line x1="795" y1="84" x2="795" y2="130"/><line x1="700" y1="162" x2="670" y2="162"/><path d="M440 162 L255 162 L255 240"/><line x1="350" y1="272" x2="380" y2="272"/><line x1="570" y1="272" x2="600" y2="272"/></g>
+        <path class="dash" marker-end="url(#a)" d="M375 84 L375 112 L220 112 L220 84"/><text class="sub" x="300" y="106" text-anchor="middle" font-size="13">where to sign in</text>
+        <text class="sub" x="560" y="124" text-anchor="middle" font-size="13">retry with the new token</text>
+      </svg>
+    </div>
+  </section>
+
+  <section aria-labelledby="steps">
+    <h2 id="steps">The steps, in order</h2>
+    <ol>
+      <li><strong>Sam asks.</strong> A request such as "Show my airline points".</li>
+      <li><strong>Muse calls the gateway with no token and gets 401.</strong> The answer points to the sign-in server. Nothing authenticated has been sent.</li>
+      <li><strong>Muse sends Sam to PingOne</strong> with a fresh sign-in (auth code with PKCE, always asking for the password). The user name is pre-filled, so Sam types only the password.</li>
+      <li><strong>PingOne runs a DaVinci flow.</strong> It checks the user, asks PingOne Protect for a risk level, and acts on it (next section).</li>
+      <li><strong>PingOne returns a code to Muse.</strong> Muse swaps it for Sam's token. The token stays on Muse's server.</li>
+      <li><strong>Muse acts for Sam.</strong> It gets its own agent token, then makes two token exchanges. The result names Sam as the subject and Muse as the actor.</li>
+      <li><strong>Muse asks again with that token.</strong> The gateway checks the signature, audience and scope.</li>
+      <li><strong>PingOne Authorize decides.</strong> It checks the audience, that Muse is a registered actor, and that the tool is allowed.</li>
+      <li><strong>The tool runs</strong> and Muse tells Sam "You have 4,500 points (Gold)."</li>
+    </ol>
+  </section>
+
+  <section aria-labelledby="signin">
+    <h2 id="signin">What PingOne does at sign-in</h2>
+    <ul>
+      <li><strong>Protect scores the sign-in.</strong> The flow sends the user, the address, the browser and the app to a risk evaluation. The level comes back as LOW, MEDIUM or HIGH.</li>
+      <li><strong>HIGH stops the sign-in.</strong> Sam sees "Sign-in blocked: this login looks high risk."</li>
+      <li><strong>MEDIUM asks for MFA.</strong> Muse has a PingOne MFA switch. With it off, the flow skips MFA for that sign-in.</li>
+      <li><strong>The flow recognizes Muse by its app id.</strong> Protect only receives that id as the target. It does not know Muse is an agent. The flow makes that call.</li>
+      <li><strong>An "AI agent detected" screen comes first.</strong> It shows what the flow knows about the requester, then Sam gives consent.</li>
+    </ul>
+    <div class="wide">
+      <table>
+        <thead><tr><th>Shown on the screen</th><th>Where it comes from</th></tr></thead>
+        <tbody>
+          <tr><td>Agent name, id, type</td><td>The PingOne app that started the sign-in</td></tr>
+          <tr><td>Signing in as</td><td>The user name from the sign-in hint</td></tr>
+          <tr><td>Request from IP, browser</td><td>The request that reached PingOne</td></tr>
+          <tr><td>Protect risk and evaluation id</td><td>The risk evaluation the flow just created</td></tr>
+          <tr><td>PingOne MFA</td><td>On, or switched off for this sign-in</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  <section aria-labelledby="act">
+    <h2 id="act">How Muse acts for Sam</h2>
+    <p>Muse never sends Sam's token as if it were Sam. It trades it for a token that says who is acting for whom (RFC 8693, on behalf of).</p>
+    <ul>
+      <li><strong>Agent token.</strong> Muse proves its own identity with its client credentials.</li>
+      <li><strong>Exchange 1.</strong> Sam's token plus Muse's token become one token for Sam with an <code>act</code> claim naming Muse.</li>
+      <li><strong>Exchange 2.</strong> The same token is re-issued for the gateway's audience, and <code>act</code> carries over.</li>
+    </ul>
+    <p class="muted">The final token has Sam as <code>sub</code> and Muse's client id as <code>act.sub</code>. Authorize requires Muse to be on its registered actor list, and Muse is.</p>
+  </section>
+
+  <section aria-labelledby="lanes">
+    <h2 id="lanes">Two ways to reach the tools</h2>
+    <div class="wide">
+      <table>
+        <thead><tr><th>Lane</th><th>Path</th><th>Status</th></tr></thead>
+        <tbody>
+          <tr><td>Agent Gateway</td><td>Muse calls the gateway directly. The gateway validates the token against PingOne's keys and runs Authorize.</td><td><span class="tag real">Works</span></td></tr>
+          <tr><td>Agent Privilege, then Agent Gateway</td><td>Muse calls a Privilege app in front of the gateway. Privilege matches the token to Muse's identity and key, passes it on, and the gateway and Authorize decide.</td><td><span class="tag real">Works</span></td></tr>
+          <tr><td>Agent Privilege alone</td><td>Privilege cannot do the on-behalf-of exchange yet, so the gateway has to.</td><td><span class="tag todo">Waiting on Privilege</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+    <p class="muted">The Privilege lane needed Privilege's own audience to be accepted by the gateway and by Authorize. Both now allow it as an extra audience, and nothing changes for other callers.</p>
+  </section>
+
+  <section aria-labelledby="real">
+    <h2 id="real">What is real and what is not</h2>
+    <ul>
+      <li><span class="tag real">Real</span> The PingOne sign-in, the DaVinci flow, the Protect risk evaluation, MFA, the agent screen and consent.</li>
+      <li><span class="tag real">Real</span> The token exchanges, the Agent Gateway, Privilege's identity and key check, and PingOne Authorize.</li>
+      <li><span class="tag real">Real</span> The tool call. The points come back from the gateway's tool server, which holds sample data.</li>
+      <li><span class="tag sim">Mock</span> The offline Muse. It keeps the same screens with a stub gateway and stub checks, and contacts nothing. It is still there for demos with no network.</li>
+      <li><span class="tag sim">Simple</span> Muse reads a request by keyword. In real mode it answers points requests and refuses anything else. There is no language model yet.</li>
+      <li><span class="tag todo">Open</span> Protect does not score Muse differently from a person, and the device fingerprint is not passed in yet, so demouser lands on MEDIUM.</li>
+    </ul>
+    <p class="note">Real mode is owner-run. It needs the PingOne app's secret and the local gateway, and it does not run on the hosted mock build.</p>
+  </section>
+</main>
+
+</body>
+</html>

@@ -57,6 +57,7 @@ export default function MusePage() {
   return (
     <main className="muse" data-testid="muse-page">
       <PageHeader eyebrow="Personal Agents" title="Muse" summary="A personal agent that asks first, gets a 401, sends you to PingOne to sign in, then acts on your behalf." />
+      <p className="muse__muted"><a href="/how-muse-works.html">How it works</a></p>
       {!state.configured ? (
         <p role="alert" className="muse__notice" data-testid="muse-not-configured">
           Muse is not configured. Set <code>pingone_muse_client_secret</code> (env <code>PINGONE_MUSE_CLIENT_SECRET</code>) on the BFF, then reload.
@@ -65,9 +66,9 @@ export default function MusePage() {
         <section className="muse__chat" aria-label="Muse">
           <div className="muse__lanes seg" role="group" aria-label="Gateway lane">
             <button type="button" aria-pressed={lane === "gateway"} onClick={() => pickLane("gateway")} disabled={busy}>Agent Gateway</button>
-            <button type="button" aria-pressed={lane === "privilege"} onClick={() => pickLane("privilege")} disabled={busy}>Agent Privilege (not working yet)</button>
+            <button type="button" aria-pressed={lane === "privilege"} onClick={() => pickLane("privilege")} disabled={busy}>Agent Privilege, then Agent Gateway</button>
           </div>
-          {lane === "privilege" && <p className="muse__muted">Not working yet: the Privilege hop still fails with 401 token_not_found.</p>}
+          {lane === "privilege" && <p className="muse__muted">Goes through the Agent Privilege app in front of the gateway. It needs <code>MUSE_PRIVILEGE_URL</code> on the BFF.</p>}
           <div className="muse__feed" role="log" aria-live="polite">
             {!la.ask && <p className="muse__muted muse__center">Ask Muse for something, for example: {POINTS_PROMPT.toLowerCase()}.</p>}
             {la.ask && <div className="muse__bubble muse__bubble--user">{la.ask.prompt}</div>}

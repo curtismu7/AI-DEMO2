@@ -39,10 +39,18 @@ describe("MusePage", () => {
     expect(screen.queryByRole("button", { name: /continue to pingone/i })).toBeNull();
   });
 
-  it("renders the answer and labels the privilege lane as not working yet", async () => {
+  it("renders the answer and names the privilege lane", async () => {
     get.mockResolvedValue({ data: { ...asked, liveAuth: { ...asked.liveAuth, signedIn: true, answer: { points: 12345, tier: "Gold" } } } });
     wrap();
     await waitFor(() => expect(screen.getByTestId("answer")).toHaveTextContent("12,345 points (Gold)"));
-    expect(screen.getByRole("button", { name: /Agent Privilege \(not working yet\)/ })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /Agent Privilege, then Agent Gateway/ })).toBeInTheDocument();
+    expect(screen.queryByText(/not working yet/i)).not.toBeInTheDocument();
+  });
+
+  it("links to the how-it-works page", async () => {
+    get.mockResolvedValue({ data: asked });
+    wrap();
+    const link = await screen.findByRole("link", { name: /how it works/i });
+    expect(link).toHaveAttribute("href", "/how-muse-works.html");
   });
 });
