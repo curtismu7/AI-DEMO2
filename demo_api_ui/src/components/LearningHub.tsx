@@ -274,6 +274,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         demoStep: { useCaseId: "UC43" },
       },
       {
+        label: "Gateway Nested Claims",
+        description: "What gateway v1.261024 added: act.sub matching, and the AgentCore posture fields (verified vs unverified)",
+        icon: "🔑",
+      },
+      {
         label: "Group Policy Board",
         description: "One PingOne Authorize decision per vertical, and how flipping group membership flips it",
         icon: "",
@@ -683,6 +688,7 @@ export default function LearningHub() {
       "RAR (RFC 9396)": () => navigate(`/learning-lab/${LESSON_REGISTRY["RAR (RFC 9396)"].lab}`),
       "JWT Client Auth (RFC 7523)": () => navigate(`/learning-lab/${LESSON_REGISTRY["JWT Client Auth (RFC 7523)"].lab}`),
       "OAuth: CIMD": () => navigate("/cimd-privilege"),
+      "Gateway Nested Claims": () => navigate("/gateway-claims"),
     },
     "mcp-agents": {
       "Delegation Chain Value": () => navigate("/delegation-chain-value"),

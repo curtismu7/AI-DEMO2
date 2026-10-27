@@ -44,6 +44,7 @@ import ResourceServerPlacementPage from "./components/ResourceServerPlacementPag
 import PrivilegeFirstGatewayPage from "./components/PrivilegeFirstGatewayPage";
 import PersonalAgentDesignPage from "./components/personalAgent/PersonalAgentDesignPage";
 const UhgChatgptMcpFlowPage = lazy(() => import("./pages/UhgChatgptMcpFlowPage"));
+const GatewayClaimsPage = lazy(() => import("./pages/GatewayClaimsPage"));
 const UnitedPersonalAgentFlowPage = lazy(() => import("./pages/UnitedPersonalAgentFlowPage"));
 const PersonalAgentFlowPage = lazy(() => import("./pages/PersonalAgentFlowPage"));
 import PersonalAgentReviewPage from "./components/personalAgent/PersonalAgentReviewPage";
@@ -2345,6 +2346,11 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-pf-token"
                               element={<PrivilegePfTokenDemoPage />}
+                            />
+                            {/* What gateway v1.261024 added: nested-claim gate + AgentCore posture. Explains only, no live call. */}
+                            <Route
+                              path="/gateway-claims"
+                              element={<GatewayClaimsPage />}
                             />
                             <Route
                               path="/privilege-cedar"
