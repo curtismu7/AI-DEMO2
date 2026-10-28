@@ -10305,186 +10305,7 @@ export default function BankingAgent({
                   win={poppedOutWin || window}
                 >
                   <div className="ba-header-tools cmd-dock-tools">
-                    <section className="cmd-dock-sec" aria-label="Session">
-                      <h3 className="cmd-dock-sec__label">Session</h3>
-                      <div className="cmd-dock-sec__body">
-                    {/* Dashboard controls — relocated into the dock on
-                        split-column. The OAuth provider switch stays in TopNav
-                        so it remains available while this dock is collapsed. */}
-                    {splitChrome && (
-                      <>
-                        <VerticalSwitcher variant="nav" />
-                        <QuickFlagsPill user={user} />
-                        <div className="topnav-dashboard-controls" role="toolbar" aria-label="Dashboard actions">
-                          <ThresholdControls />
-                          <button
-                            type="button"
-                            className="topnav-reset-demo-btn"
-                            title="Reset demo: clear agent history and token chain"
-                            onClick={() => window.dispatchEvent(new CustomEvent("dashboard:open-reset-modal"))}
-                          >
-                            Reset Demo
-                          </button>
-                        </div>
-                      </>
-                    )}
-                    {/* Session + text-size — relocated from the float header top
-                        row (same handlers, unchanged behavior). */}
-                    {isLoggedIn && (effectiveUser?.id || effectiveUser?.username) && (
-                      <span className="cmd-dock-session" title="PingOne user id">
-                        {effectiveUser?.id || effectiveUser?.username}
-                        <SessionExpiryTimer
-                          sessionInfo={effectiveUser}
-                          className="ba-header-session-timer"
-                        />
-                      </span>
-                    )}
-                    {isLoggedIn && (
-                      <button
-                        type="button"
-                        className="ba-header-signout-btn"
-                        onClick={() => onLogout?.()}
-                      >
-                        Sign out
-                      </button>
-                    )}
-                      </div>
-                    </section>
-                    <section className="cmd-dock-sec" aria-label="Agent">
-                      <h3 className="cmd-dock-sec__label">Agent</h3>
-                      <div className="cmd-dock-sec__body">
-                    {!pageOwnsAgentChrome && (
-                    <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
-                    )}
-                    <AgentModeSelector
-                      heuristicFallback={heuristicEnabled}
-                      onHeuristicFallbackChange={setHeuristicEnabled}
-                    />
-                    <AgentPageModeToggle key={location.pathname} pathname={location.pathname} />
-                    {isLoggedIn && !pageOwnsAgentChrome && (
-                      <ScopePicker
-                        allowWrite={agentAllowWrite}
-                        disabled={agentToolsLoading}
-                        onChange={setAgentAllowWrite}
-                      />
-                    )}
-                    {modelAdvisory && (
-                      <span
-                        className="ams-degraded-chip ba-model-advisory-chip"
-                        role="note"
-                        title={modelAdvisory}
-                      >
-                        {modelAdvisory}
-                        <button
-                          type="button"
-                          aria-label="Dismiss"
-                          className="ba-model-advisory-dismiss"
-                          onClick={() => setModelAdvisory(null)}
-                        >×</button>
-                      </span>
-                    )}
-                    {pendingLlmFallback && (
-                      <span className="ams-degraded-chip ba-model-advisory-chip" role="note">
-                        Provider unavailable
-                        <button
-                          type="button"
-                          className="ba-model-advisory-dismiss"
-                          style={{ width: "auto", padding: "0 8px", borderRadius: 10 }}
-                          onClick={async () => {
-                            const pend = pendingLlmFallback;
-                            setPendingLlmFallback(null);
-                            await dispatchNlResult(pend.result, "heuristic", pend.text, pend.useCaseId, pend.mode);
-                          }}
-                        >Use Heuristics</button>
-                        <button
-                          type="button"
-                          aria-label="Dismiss"
-                          className="ba-model-advisory-dismiss"
-                          onClick={() => {
-                            if (pendingLlmFallback.mode === 'live-id-jag') tokenChainTraceStore.completeTrace(false);
-                            setPendingLlmFallback(null);
-                          }}
-                        >×</button>
-                      </span>
-                    )}
-                      </div>
-                    </section>
-                    <section className="cmd-dock-sec" aria-label="Display">
-                      <h3 className="cmd-dock-sec__label">Display</h3>
-                      <div className="cmd-dock-sec__body">
-                    <div className="ba-textsize" role="group" aria-label="Response text size">
-                      <button
-                        type="button"
-                        className="ba-textsize-btn"
-                        onClick={() =>
-                          setChatZoom((z) => Math.max(CHAT_ZOOM_MIN, +(z - CHAT_ZOOM_STEP).toFixed(2)))
-                        }
-                        disabled={chatZoom <= CHAT_ZOOM_MIN}
-                        title="Smaller response text"
-                        aria-label="Decrease response text size"
-                      >
-                        A−
-                      </button>
-                      <button
-                        type="button"
-                        className="ba-textsize-pct"
-                        onClick={() => setChatZoom(CHAT_ZOOM_DEFAULT)}
-                        disabled={chatZoom === CHAT_ZOOM_DEFAULT}
-                        title="Reset response text size"
-                      >
-                        {Math.round(chatZoom * 100)}%
-                      </button>
-                      <button
-                        type="button"
-                        className="ba-textsize-btn"
-                        onClick={() =>
-                          setChatZoom((z) => Math.min(CHAT_ZOOM_MAX, +(z + CHAT_ZOOM_STEP).toFixed(2)))
-                        }
-                        disabled={chatZoom >= CHAT_ZOOM_MAX}
-                        title="Bigger response text"
-                        aria-label="Increase response text size"
-                      >
-                        A+
-                      </button>
-                    </div>
-                    {/* Dark/light toggle — shared app theme (ThemeProvider), same
-                        control the "Dark mode" switch in Quick Config drives. */}
-                    <button
-                      type="button"
-                      className="ba-icon-btn"
-                      onClick={toggleDarkMode}
-                      aria-label="Toggle dark mode"
-                      aria-pressed={darkMode}
-                      title="Switch this agent between light and dark"
-                    >
-                      {darkMode ? "☀️" : "🌙"}
-                    </button>
-                      </div>
-                    </section>
-                    <section className="cmd-dock-sec" aria-label="Tools">
-                      <h3 className="cmd-dock-sec__label">Tools</h3>
-                      <div className="cmd-dock-sec__body">
-                    {!pageOwnsAgentChrome && (
-                    <button
-                      type="button"
-                      className={`ba-actions-trigger${demoApprovalOpen ? " active" : ""}`}
-                      title={hitlPendingIntent ? "An approval request is already open" : "Open a safe demo approval drawer"}
-                      onClick={() => setDemoApprovalOpen(true)}
-                      disabled={Boolean(hitlPendingIntent)}
-                    >
-                      Approval
-                    </button>
-                    )}
-                    {!pageOwnsAgentChrome && (
-                    <button
-                      type="button"
-                      className={`ba-actions-trigger${showTokenChain ? " active" : ""}`}
-                      title="View token exchange and authorization decisions (RFC 8693)"
-                      onClick={() => setShowTokenChain(v => !v)}
-                    >
-                      Flow Detail
-                    </button>
-                    )}
+                    <div className="cmd-dock-quickconfig">
                     <div className="ba-header-more" ref={headerMoreRef}>
                       <button
                         type="button"
@@ -10496,6 +10317,8 @@ export default function BankingAgent({
                         onClick={(event) => {
                           const rect = event.currentTarget.getBoundingClientRect();
                           setHeaderMorePosition({
+                            vw: event.currentTarget.ownerDocument.defaultView?.innerWidth ?? window.innerWidth,
+                            vh: event.currentTarget.ownerDocument.defaultView?.innerHeight ?? window.innerHeight,
                             top: rect.bottom + 6,
                             right: Math.max(8, window.innerWidth - rect.right),
                           });
@@ -10509,12 +10332,12 @@ export default function BankingAgent({
                         <FloatingPanel
                           title="Quick Config"
                           className={`ba-header-more-pop ba-header-more-pop--${headerMoreTheme} ba-header-more-pop--font-${headerMoreFontScale}${openSurfaceSelector ? " ba-header-more-pop--surface-open" : ""}`}
-                          defaultWidth={Math.min(760, Math.max(560, window.innerWidth - 24))}
-                          defaultHeight={Math.min(760, Math.max(420, window.innerHeight - 24))}
-                          defaultX={headerMorePosition ? Math.max(8, window.innerWidth - headerMorePosition.right - Math.min(760, Math.max(560, window.innerWidth - 24))) : null}
-                          defaultY={headerMorePosition?.top ?? null}
-                          minWidth={Math.min(560, window.innerWidth - 16)}
-                          minHeight={Math.min(420, window.innerHeight - 16)}
+                          defaultWidth={Math.min(760, Math.max(560, (headerMorePosition?.vw ?? window.innerWidth) - 24))}
+                          defaultHeight={Math.min(760, Math.max(420, (headerMorePosition?.vh ?? window.innerHeight) - 24))}
+                          defaultX={headerMorePosition ? Math.max(8, (headerMorePosition?.vw ?? window.innerWidth) - headerMorePosition.right - Math.min(760, Math.max(560, (headerMorePosition?.vw ?? window.innerWidth) - 24))) : null}
+                          defaultY={headerMorePosition ? Math.max(8, Math.min(headerMorePosition.top, (headerMorePosition?.vh ?? window.innerHeight) - Math.min(760, Math.max(420, (headerMorePosition?.vh ?? window.innerHeight) - 24)) - 8)) : null}
+                          minWidth={Math.min(560, (headerMorePosition?.vw ?? window.innerWidth) - 16)}
+                          minHeight={Math.min(420, (headerMorePosition?.vh ?? window.innerHeight) - 16)}
                           zIndex={100061}
                           onClose={() => {
                             setHeaderMoreOpen(false);
@@ -10893,6 +10716,187 @@ export default function BankingAgent({
                         </FloatingPanel>
                       )}
                     </div>
+                    </div>
+                    <section className="cmd-dock-sec" aria-label="Session">
+                      <h3 className="cmd-dock-sec__label">Session</h3>
+                      <div className="cmd-dock-sec__body">
+                    {/* Dashboard controls — relocated into the dock on
+                        split-column. The OAuth provider switch stays in TopNav
+                        so it remains available while this dock is collapsed. */}
+                    {splitChrome && (
+                      <>
+                        <VerticalSwitcher variant="nav" />
+                        <QuickFlagsPill user={user} />
+                        <div className="topnav-dashboard-controls" role="toolbar" aria-label="Dashboard actions">
+                          <ThresholdControls />
+                          <button
+                            type="button"
+                            className="topnav-reset-demo-btn"
+                            title="Reset demo: clear agent history and token chain"
+                            onClick={() => window.dispatchEvent(new CustomEvent("dashboard:open-reset-modal"))}
+                          >
+                            Reset Demo
+                          </button>
+                        </div>
+                      </>
+                    )}
+                    {/* Session + text-size — relocated from the float header top
+                        row (same handlers, unchanged behavior). */}
+                    {isLoggedIn && (effectiveUser?.id || effectiveUser?.username) && (
+                      <span className="cmd-dock-session" title="PingOne user id">
+                        {effectiveUser?.id || effectiveUser?.username}
+                        <SessionExpiryTimer
+                          sessionInfo={effectiveUser}
+                          className="ba-header-session-timer"
+                        />
+                      </span>
+                    )}
+                    {isLoggedIn && (
+                      <button
+                        type="button"
+                        className="ba-header-signout-btn"
+                        onClick={() => onLogout?.()}
+                      >
+                        Sign out
+                      </button>
+                    )}
+                      </div>
+                    </section>
+                    <section className="cmd-dock-sec" aria-label="Agent">
+                      <h3 className="cmd-dock-sec__label">Agent</h3>
+                      <div className="cmd-dock-sec__body">
+                    {!pageOwnsAgentChrome && (
+                    <DemoTrackAgentControl onPickStep={handleTrackStepPick} onStepComplete={handleTrackStepComplete} />
+                    )}
+                    <AgentModeSelector
+                      heuristicFallback={heuristicEnabled}
+                      onHeuristicFallbackChange={setHeuristicEnabled}
+                    />
+                    <AgentPageModeToggle key={location.pathname} pathname={location.pathname} />
+                    {isLoggedIn && !pageOwnsAgentChrome && (
+                      <ScopePicker
+                        allowWrite={agentAllowWrite}
+                        disabled={agentToolsLoading}
+                        onChange={setAgentAllowWrite}
+                      />
+                    )}
+                    {modelAdvisory && (
+                      <span
+                        className="ams-degraded-chip ba-model-advisory-chip"
+                        role="note"
+                        title={modelAdvisory}
+                      >
+                        {modelAdvisory}
+                        <button
+                          type="button"
+                          aria-label="Dismiss"
+                          className="ba-model-advisory-dismiss"
+                          onClick={() => setModelAdvisory(null)}
+                        >×</button>
+                      </span>
+                    )}
+                    {pendingLlmFallback && (
+                      <span className="ams-degraded-chip ba-model-advisory-chip" role="note">
+                        Provider unavailable
+                        <button
+                          type="button"
+                          className="ba-model-advisory-dismiss"
+                          style={{ width: "auto", padding: "0 8px", borderRadius: 10 }}
+                          onClick={async () => {
+                            const pend = pendingLlmFallback;
+                            setPendingLlmFallback(null);
+                            await dispatchNlResult(pend.result, "heuristic", pend.text, pend.useCaseId, pend.mode);
+                          }}
+                        >Use Heuristics</button>
+                        <button
+                          type="button"
+                          aria-label="Dismiss"
+                          className="ba-model-advisory-dismiss"
+                          onClick={() => {
+                            if (pendingLlmFallback.mode === 'live-id-jag') tokenChainTraceStore.completeTrace(false);
+                            setPendingLlmFallback(null);
+                          }}
+                        >×</button>
+                      </span>
+                    )}
+                      </div>
+                    </section>
+                    <section className="cmd-dock-sec" aria-label="Display">
+                      <h3 className="cmd-dock-sec__label">Display</h3>
+                      <div className="cmd-dock-sec__body">
+                    <div className="ba-textsize" role="group" aria-label="Response text size">
+                      <button
+                        type="button"
+                        className="ba-textsize-btn"
+                        onClick={() =>
+                          setChatZoom((z) => Math.max(CHAT_ZOOM_MIN, +(z - CHAT_ZOOM_STEP).toFixed(2)))
+                        }
+                        disabled={chatZoom <= CHAT_ZOOM_MIN}
+                        title="Smaller response text"
+                        aria-label="Decrease response text size"
+                      >
+                        A−
+                      </button>
+                      <button
+                        type="button"
+                        className="ba-textsize-pct"
+                        onClick={() => setChatZoom(CHAT_ZOOM_DEFAULT)}
+                        disabled={chatZoom === CHAT_ZOOM_DEFAULT}
+                        title="Reset response text size"
+                      >
+                        {Math.round(chatZoom * 100)}%
+                      </button>
+                      <button
+                        type="button"
+                        className="ba-textsize-btn"
+                        onClick={() =>
+                          setChatZoom((z) => Math.min(CHAT_ZOOM_MAX, +(z + CHAT_ZOOM_STEP).toFixed(2)))
+                        }
+                        disabled={chatZoom >= CHAT_ZOOM_MAX}
+                        title="Bigger response text"
+                        aria-label="Increase response text size"
+                      >
+                        A+
+                      </button>
+                    </div>
+                    {/* Dark/light toggle — shared app theme (ThemeProvider), same
+                        control the "Dark mode" switch in Quick Config drives. */}
+                    <button
+                      type="button"
+                      className="ba-icon-btn"
+                      onClick={toggleDarkMode}
+                      aria-label="Toggle dark mode"
+                      aria-pressed={darkMode}
+                      title="Switch this agent between light and dark"
+                    >
+                      {darkMode ? "☀️" : "🌙"}
+                    </button>
+                      </div>
+                    </section>
+                    <section className="cmd-dock-sec" aria-label="Tools">
+                      <h3 className="cmd-dock-sec__label">Tools</h3>
+                      <div className="cmd-dock-sec__body">
+                    {!pageOwnsAgentChrome && (
+                    <button
+                      type="button"
+                      className={`ba-actions-trigger${demoApprovalOpen ? " active" : ""}`}
+                      title={hitlPendingIntent ? "An approval request is already open" : "Open a safe demo approval drawer"}
+                      onClick={() => setDemoApprovalOpen(true)}
+                      disabled={Boolean(hitlPendingIntent)}
+                    >
+                      Approval
+                    </button>
+                    )}
+                    {!pageOwnsAgentChrome && (
+                    <button
+                      type="button"
+                      className={`ba-actions-trigger${showTokenChain ? " active" : ""}`}
+                      title="View token exchange and authorization decisions (RFC 8693)"
+                      onClick={() => setShowTokenChain(v => !v)}
+                    >
+                      Flow Detail
+                    </button>
+                    )}
                     {!pageOwnsAgentChrome && (
                     <button
                       type="button"
@@ -11108,6 +11112,8 @@ export default function BankingAgent({
                     onClick={(event) => {
                       const rect = event.currentTarget.getBoundingClientRect();
                       setHeaderMorePosition({
+                        vw: event.currentTarget.ownerDocument.defaultView?.innerWidth ?? window.innerWidth,
+                        vh: event.currentTarget.ownerDocument.defaultView?.innerHeight ?? window.innerHeight,
                         top: rect.bottom + 6,
                         right: Math.max(8, window.innerWidth - rect.right),
                       });
@@ -11121,12 +11127,12 @@ export default function BankingAgent({
                     <FloatingPanel
                       title="Quick Config"
                       className={`ba-header-more-pop ba-header-more-pop--${headerMoreTheme} ba-header-more-pop--font-${headerMoreFontScale}${openSurfaceSelector ? " ba-header-more-pop--surface-open" : ""}`}
-                      defaultWidth={Math.min(760, Math.max(560, window.innerWidth - 24))}
-                      defaultHeight={Math.min(760, Math.max(420, window.innerHeight - 24))}
-                      defaultX={headerMorePosition ? Math.max(8, window.innerWidth - headerMorePosition.right - Math.min(760, Math.max(560, window.innerWidth - 24))) : null}
-                      defaultY={headerMorePosition?.top ?? null}
-                      minWidth={Math.min(560, window.innerWidth - 16)}
-                      minHeight={Math.min(420, window.innerHeight - 16)}
+                      defaultWidth={Math.min(760, Math.max(560, (headerMorePosition?.vw ?? window.innerWidth) - 24))}
+                      defaultHeight={Math.min(760, Math.max(420, (headerMorePosition?.vh ?? window.innerHeight) - 24))}
+                      defaultX={headerMorePosition ? Math.max(8, (headerMorePosition?.vw ?? window.innerWidth) - headerMorePosition.right - Math.min(760, Math.max(560, (headerMorePosition?.vw ?? window.innerWidth) - 24))) : null}
+                      defaultY={headerMorePosition ? Math.max(8, Math.min(headerMorePosition.top, (headerMorePosition?.vh ?? window.innerHeight) - Math.min(760, Math.max(420, (headerMorePosition?.vh ?? window.innerHeight) - 24)) - 8)) : null}
+                      minWidth={Math.min(560, (headerMorePosition?.vw ?? window.innerWidth) - 16)}
+                      minHeight={Math.min(420, (headerMorePosition?.vh ?? window.innerHeight) - 16)}
                       zIndex={100061}
                       onClose={() => {
                         setHeaderMoreOpen(false);
