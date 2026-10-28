@@ -32,3 +32,5 @@
 .muse__raw pre { overflow-x: auto; background: var(--th-bg-inset); color: var(--th-text); padding: 0.5rem; border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--font-size-xs); white-space: pre-wrap; overflow-wrap: anywhere; }
 .muse code { font-family: var(--font-mono); overflow-wrap: anywhere; }
 @media (max-width: 40rem) { .muse__bubble { max-width: 100%; } .muse__composer { flex-wrap: wrap; } }
+
+.muse__user { margin-top: 0.75rem; }

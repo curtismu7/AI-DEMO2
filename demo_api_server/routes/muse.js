@@ -40,6 +40,8 @@ function createMuseRouter({ fetchImpl = (...a) => fetch(...a), getConfig = muse.
     lane: w.lane,
     laneAvailable: cfg.laneAvailable,
     origin: cfg.origin,
+    userLogin: Boolean(cfg.userClientId),
+    user: w.user ?? null,
     liveAuth: {
       registered: Boolean(w.client), signedIn: Boolean(w.token), claims: w.claims, error: w.error,
       ask: w.ask, answer: w.answer, steps: [...(w.discovery?.steps ?? []).filter((s) => !w.steps.some((x) => x.n === s.n)), ...w.steps].sort((a, b) => a.n - b.n),
@@ -100,6 +102,21 @@ function createMuseRouter({ fetchImpl = (...a) => fetch(...a), getConfig = muse.
     return res.json({ url: r.url });
   });
 
+  // Just a user: Sam signs in as himself through the user-only PingOne app. No agent screen, no consent, no exchange.
+  router.post('/user-signin', express.json(), requireSession, (req, res) => {
+    const w = workspace(req);
+    const lane = laneOf(req.body?.lane ?? w.lane);
+    const cfg = getConfig(lane);
+    if (!cfg.configured) return res.status(503).json({ error: 'Muse is not configured', need_config: ['pingone_muse_client_secret'] });
+    if (!cfg.userClientId) return res.status(409).json({ error: 'The user-only sign-in is not configured (MUSE_USER_CLIENT_ID).' });
+    if (!cfg.laneAvailable) return res.status(409).json({ error: 'That lane has no gateway URL configured.' });
+    const r = muse.startUserSignIn(cfg, { mfa: req.body?.mfa !== 'off' });
+    for (const [k, v] of pending) if (now() - v.at > PENDING_MS) pending.delete(k);
+    pending.set(r.state, { wsId: req.sessionID, verifier: r.verifier, lane, kind: 'user', at: now() });
+    w.user = null;
+    return res.json({ url: r.url });
+  });
+
   // Step 6. PingOne sends the browser back here with a code. No session cookie is assumed: the state is the key.
   router.get('/callback', async (req, res) => {
     const state = String(req.query.state ?? '');
@@ -109,6 +126,20 @@ function createMuseRouter({ fetchImpl = (...a) => fetch(...a), getConfig = muse.
     if (!w) return res.status(400).type('text').send('Unknown or expired sign-in. Start again from Muse.');
     const back = () => res.set('Cache-Control', 'no-store').redirect(302, PAGE_PATH);
     if (req.query.error) { w.error = `Sign-in was refused: ${String(req.query.error).slice(0, 60)}.`; return back(); }
+    if (p.kind === 'user') {
+      try {
+        const cfg = getConfig(p.lane);
+        const r = await muse.exchangeUserCode(cfg, fetchImpl, { code: String(req.query.code ?? ''), verifier: p.verifier });
+        w.user = { claims: r.claims ?? null, steps: [r.step].filter(Boolean), error: r.error ?? null, denied: null, lane: p.lane };
+        if (r.token) {
+          // Sam's own token straight to the gateway: no act claim, no exchange. The token is dropped right after this call.
+          const steps = await muse.callGateway(cfg, fetchImpl, r.token, { tool: 'loyalty_balance' });
+          w.user.steps.push(...steps);
+          w.user.denied = steps.some((x) => x.response && x.response.status >= 400);
+        }
+      } catch (e) { w.user = { claims: null, steps: [], error: failed(e).error, denied: null }; }
+      return back();
+    }
     try {
       const cfg = getConfig(p.lane);
       const r = await muse.exchangeCode(cfg, fetchImpl, { code: String(req.query.code ?? ''), verifier: p.verifier, resource: p.resource });

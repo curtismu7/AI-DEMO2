@@ -45,6 +45,10 @@ export default function MusePage() {
     await refresh(); setOpen(null);
     if (r.data?.state === "auth_required" && auto) setTimeout(() => signIn(), 1500);
   });
+  const userSignIn = () => guarded(async () => {
+    const r = await apiClient.post("/api/muse/user-signin", { lane, mfa: mfa ? "on" : "off" });
+    window.location.assign(r.data.url);
+  });
   const reset = () => guarded(async () => { await apiClient.post("/api/muse/reset"); await refresh(); setOpen(null); });
 
   if (!state) return <main className="muse"><PageHeader eyebrow="Personal Agents" title="Muse" />{loadError ? <p role="alert" className="muse__bad">{loadError}</p> : <p className="muse__muted">Loading…</p>}</main>;
@@ -126,6 +130,26 @@ export default function MusePage() {
       </ol>
       {la.stopped && <p role="alert" className="muse__small muse__bad">Stopped: {la.stopped}</p>}
       {(error || la.error) && <p role="alert" className="muse__small muse__bad">{error || la.error}</p>}
+      {state.userLogin && (
+        <section className="muse__chat muse__user" aria-label="Just a user, no agent" data-testid="muse-user-panel">
+          <strong>Just a user, no agent</strong>
+          <p className="muse__small">Sam signs in as himself through a different PingOne app: no "AI agent detected" screen, no consent, and nothing is exchanged. His own token then goes straight to the gateway.</p>
+          <div className="muse__prompts"><button type="button" className="muse__primary" onClick={userSignIn} disabled={busy}>Sign in as Sam (no agent)</button></div>
+          {state.user && (
+            <div data-testid="muse-user-result">
+              {state.user.error && <p role="alert" className="muse__small muse__bad">{state.user.error}</p>}
+              {state.user.claims && <p className="muse__small">Token claims: <code>{JSON.stringify({ sub: state.user.claims.sub, aud: state.user.claims.aud, scope: state.user.claims.scope, act: state.user.claims.act ?? "none" })}</code></p>}
+              <ol className="muse__steps">
+                {state.user.steps.map((x) => (
+                  <li key={x.n}><span className="muse__head"><b>{x.n}</b> {x.title}{x.response && <code className={x.response.status >= 400 ? "muse__bad" : "muse__ok"}>{x.response.status}</code>}</span><p className="muse__small">{x.note}</p></li>
+                ))}
+              </ol>
+              {state.user.denied === true && <p className="muse__small" data-testid="muse-user-denied"><strong>Denied.</strong> The gateway refused Sam's own token. Only a token that names an agent acting for him gets through.</p>}
+              {state.user.denied === false && <p className="muse__small" data-testid="muse-user-allowed"><strong>Allowed.</strong> The gateway accepted Sam's own token.</p>}
+            </div>
+          )}
+        </section>
+      )}
       {la.claims && <p className="muse__small" data-testid="claims">Token claims (the token itself stays on the Muse server): <code>{JSON.stringify(la.claims)}</code></p>}
     </main>
   );
