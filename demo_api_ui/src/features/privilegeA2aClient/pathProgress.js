@@ -1,5 +1,5 @@
 // The header's request path, as five fixed segments. Each trace event the run produces lands on one of them.
-export const PATH_STEPS = ['Main agent', 'Agent Privilege', 'Worker agent', 'Agent Privilege', 'MCP tools'];
+export const PATH_STEPS = ['A2A Client', 'Agent Privilege', 'Remote Agent', 'Agent Privilege', 'MCP tools'];
 
 /** Which segment a trace entry belongs to, or -1 when it says nothing about the path (session line, errors). */
 export function stepIndexFor(entry) {

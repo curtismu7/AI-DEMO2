@@ -53,6 +53,13 @@
   );
 }
 
+/* Pages that fill the window with a fixed-height panel (.cur-ide) size it with
+   100vh / --app-zoom. The shell's own 100vh ignores the root zoom, so at 112.5%
+   it stood 12.5% taller than the window and pushed the footer below the fold. */
+.App:has(.cur-ide) {
+  min-height: calc(100vh / var(--app-zoom, 1));
+}
+
 /* Split3 dashboard (embedded agent layout) is a one-page viewport layout: the
    shell is exactly viewport-tall and every scroll happens inside a column.
    Scoped with :has() so it only engages when that dashboard is actually

@@ -163,6 +163,36 @@ describe('PrivilegeA2aTab', () => {
     window.removeEventListener('agent-demo-step-select', handoff);
   });
 
+  test('names the agents by the A2A spec, links the spec, and shows the client-to-remote exchange finishing', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'Send Message' } },
+      { event: 'trace', data: { kind: 'mcp-call', from: 'analyst', to: 'mcp', text: 'tools/call' } },
+      { event: 'trace', data: { kind: 'result', from: 'analyst', to: 'main', text: 'Remote Agent finished' } },
+      { event: 'token', data: { text: 'Carol has one grant.' } },
+      { event: 'done', data: { sessionId: 's1' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+
+    const exchange = within(screen.getByRole('list', { name: 'A2A exchange' }));
+    expect(exchange.getByRole('button', { name: /1\. Send Message/ }).disabled).toBe(true);
+    expect(screen.getAllByRole('link', { name: 'Send Message' })[0].getAttribute('href'))
+      .toBe('https://a2a-protocol.org/latest/specification/#311-send-message');
+    expect(screen.getByRole('link', { name: 'A2A specification' }).getAttribute('href')).toBe('https://a2a-protocol.org/latest/specification/');
+    expect(screen.getByText('A2A Client (main agent)')).toBeTruthy();
+    expect(screen.getByText('Remote Agent (A2A Server)')).toBeTruthy();
+
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol Nguyen');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    await screen.findByText('Carol has one grant.');
+
+    for (const label of [/1\. Send Message/, /2\. Remote Agent works/, /3\. Reply returned/, /4\. Client answers/]) {
+      expect(exchange.getByRole('button', { name: label }).textContent).toMatch(/done/);
+    }
+    await user.click(exchange.getByRole('button', { name: /3\. Reply returned/ }));
+    expect(screen.getAllByText('Remote Agent finished').length).toBeGreaterThan(1);
+  });
+
   test('submits through the same-origin BFF and carries the returned session ID forward', async () => {
     global.fetch
       .mockResolvedValueOnce(streamResponse([
@@ -330,5 +360,48 @@ describe('compact agent', () => {
     await user.type(box, 'List all entitlements for Carol Nguyen.');
     await user.click(screen.getByRole('button', { name: 'Send' }));
     expect(await screen.findByText('Compact answer.')).toBeTruthy();
+  });
+  test('Reset is off on a blank page, then clears the conversation and the question box', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's1' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    const reset = screen.getByRole('button', { name: 'Reset' });
+    expect(reset).toBeDisabled();
+
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol Nguyen');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    expect(await screen.findByText('Done.')).toBeTruthy();
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'a follow-up');
+    expect(reset).toBeEnabled();
+
+    await user.click(reset);
+    expect(screen.queryByText('Done.')).toBeNull();
+    expect(screen.getByRole('textbox', { name: 'Your question' })).toHaveValue('');
+    expect(reset).toBeDisabled();
+  });
+
+  test('the question box takes typing while a run is in flight, and Reset stops that run without an error', async () => {
+    global.fetch.mockImplementationOnce((_url, init) => new Promise((_resolve, reject) => {
+      init.signal.addEventListener('abort', () => reject(Object.assign(new Error('aborted'), { name: 'AbortError' })));
+    }));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    const box = screen.getByRole('textbox', { name: 'Your question' });
+    await user.type(box, 'Review Carol Nguyen');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+
+    expect(await screen.findByRole('button', { name: 'Cancel' })).toBeTruthy();
+    expect(box).toBeEnabled();
+    await user.type(box, 'next question');
+    expect(box).toHaveValue('next question');
+    expect(screen.getByRole('button', { name: 'Reviewing…' })).toBeDisabled();
+
+    await user.click(screen.getByRole('button', { name: 'Reset' }));
+    await waitFor(() => expect(screen.queryByRole('button', { name: 'Cancel' })).toBeNull());
+    expect(screen.queryByRole('alert')).toBeNull();
+    expect(box).toHaveValue('');
   });
 });
