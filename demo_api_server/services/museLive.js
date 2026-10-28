@@ -68,6 +68,8 @@ function museConfig(lane = 'gateway', env = process.env) {
     audience,
     origin: url ? new URL(url).origin : null,
     allow,
+    // A second PingOne app for "just a user": Sam signs in as himself, no agent, no consent, nothing exchanged. Public client with PKCE.
+    userClientId: /^[0-9a-f-]{36}$/i.test(env.MUSE_USER_CLIENT_ID ?? '') ? env.MUSE_USER_CLIENT_ID : null,
     redirectUri: env.MUSE_REDIRECT_URI || DEFAULT_REDIRECT_URI,
     idp: {
       clientId, clientSecret, loginHint: env.MUSE_LOGIN_HINT || 'demouser',
@@ -178,6 +180,19 @@ function startSignIn(cfg, { mfa = true } = {}) {
   return { url: u.href, state, verifier, resource };
 }
 
+/** Just a user: the authorize URL for the user-only app. No resource, openid only, and the login hint carries no agent marker. */
+function startUserSignIn(cfg, { mfa = true } = {}) {
+  const verifier = b64u(randomBytes(32));
+  const state = b64u(randomBytes(16));
+  const u = new URL(cfg.idp.authorizeEndpoint);
+  u.search = new URLSearchParams({
+    response_type: 'code', client_id: cfg.userClientId, redirect_uri: cfg.redirectUri, state, prompt: 'login',
+    login_hint: mfa ? cfg.idp.loginHint : `${cfg.idp.loginHint}.nomfa`,
+    code_challenge: b64u(createHash('sha256').update(verifier).digest()), code_challenge_method: 'S256', scope: 'openid',
+  }).toString();
+  return { url: u.href, state, verifier };
+}
+
 function claimsOf(token) {
   const parts = token.split('.');
   if (parts.length !== 3 || !parts[1]) return null;
@@ -193,6 +208,19 @@ async function exchangeCode(cfg, fetchImpl, { code, verifier, resource }) {
     n: 6, title: 'Swap the code for a token', method: 'POST', url: cfg.idp.tokenEndpoint,
     form: { grant_type: 'authorization_code', code, redirect_uri: cfg.redirectUri, client_id: cfg.idp.clientId, client_secret: cfg.idp.clientSecret, code_verifier: verifier, ...(resource ? { resource } : {}) },
     note: 'The token is held by the Muse server. This page only shows its claims.',
+  });
+  if (r.step.skipped) return { step: r.step, error: 'The token endpoint is on an origin that is not allowed.' };
+  const token = r.parsed?.access_token;
+  if (r.res.status !== 200 || typeof token !== 'string') return { step: r.step, error: `The token request was refused (${r.res.status}).` };
+  return { step: r.step, token, claims: claimsOf(token) };
+}
+
+/** Just a user: swap the code for Sam's own token. A public client, so no secret. */
+async function exchangeUserCode(cfg, fetchImpl, { code, verifier }) {
+  const r = await send(cfg, fetchImpl, {
+    n: 6, title: "Swap the code for Sam's own token", method: 'POST', url: cfg.idp.tokenEndpoint,
+    form: { grant_type: 'authorization_code', code, redirect_uri: cfg.redirectUri, client_id: cfg.userClientId, code_verifier: verifier },
+    note: 'Public client with PKCE. No agent token and no exchange: this is the user acting as himself.',
   });
   if (r.step.skipped) return { step: r.step, error: 'The token endpoint is on an origin that is not allowed.' };
   const token = r.parsed?.access_token;
@@ -246,4 +274,4 @@ function answerFrom(steps) {
   try { const d = JSON.parse(r.body.result.content[0].text).data; return { points: d.points, tier: d.tier }; } catch { return null; }
 }
 
-module.exports = { museConfig, liveDiscovery, startSignIn, exchangeCode, delegate, callGateway, answerFrom, claimsOf, DEFAULT_REDIRECT_URI };
+module.exports = { museConfig, liveDiscovery, startSignIn, startUserSignIn, exchangeUserCode, exchangeCode, delegate, callGateway, answerFrom, claimsOf, DEFAULT_REDIRECT_URI };

@@ -307,3 +307,59 @@ describe('museConfig: gateway lane address vs token audience (SE: PingGateway in
     expect(d.steps[1].note).toMatch(/PingOne name/);
   });
 });
+
+describe('Muse: just a user (no agent, no consent, own token to the gateway)', () => {
+  const UID = '2e73d4ff-8164-4c9c-849f-55f1180a94e7';
+  const withUserApp = () => { process.env.MUSE_USER_CLIENT_ID = UID; };
+  afterEach(() => { delete process.env.MUSE_USER_CLIENT_ID; });
+  // The gateway refuses Sam's own token (no act claim); every other call behaves as in net().
+  const refusingNet = () => { const n = net(); const f = async (url, init = {}) => { if (String(url) === GW && init.headers?.authorization === `Bearer ${USER_TOKEN}`) { n.seen.push({ url: String(url), init, form: null }); return json(401, { error: 'unauthorized' }); } return n.f(url, init); }; return { f, seen: n.seen }; };
+
+  test('not offered until MUSE_USER_CLIENT_ID is set; refused if called anyway', async () => {
+    const app = boot(net().f);
+    expect((await request(app).get('/api/muse/state')).body.userLogin).toBe(false);
+    expect((await request(app).post('/api/muse/user-signin').send({})).status).toBe(409);
+    withUserApp();
+    expect((await request(app).get('/api/muse/state')).body.userLogin).toBe(true);
+  });
+
+  test('sign-in goes to the user app: openid only, no resource, no agent marker, PKCE', async () => {
+    withUserApp();
+    const app = boot(net().f);
+    const si = await request(app).post('/api/muse/user-signin').send({ mfa: 'off' });
+    const u = new URL(si.body.url);
+    expect(u.searchParams.get('client_id')).toBe(UID);
+    expect(u.searchParams.get('scope')).toBe('openid');
+    expect(u.searchParams.has('resource')).toBe(false);
+    expect(u.searchParams.get('login_hint')).toBe('demouser.nomfa');
+    expect(u.searchParams.get('code_challenge_method')).toBe('S256');
+  });
+
+  test('callback: one code swap, no secret, no agent token, no exchange; own token to the gateway is refused; page sees claims and steps only', async () => {
+    withUserApp();
+    const n = refusingNet(); const app = boot(n.f);
+    const u = new URL((await request(app).post('/api/muse/user-signin').send({})).body.url);
+    n.seen.length = 0;
+    const cb = await request(app).get(`/api/muse/callback?code=abc&state=${u.searchParams.get('state')}`);
+    expect(cb.status).toBe(302);
+    const posts = n.seen.filter((s) => s.url === `${AS_BASE}/token`).map((s) => s.form);
+    expect(posts.map((p) => p.grant_type)).toEqual(['authorization_code']);
+    expect(posts[0].client_id).toBe(UID); expect(posts[0].client_secret).toBeUndefined(); expect(posts[0].code_verifier).toBeTruthy();
+    const gw = n.seen.filter((s) => s.url === GW);
+    expect(gw.length).toBeGreaterThan(0);
+    expect(gw.every((c) => c.init.headers.authorization === `Bearer ${USER_TOKEN}`)).toBe(true);
+    const st = (await request(app).get('/api/muse/state')).body;
+    expect(st.user.denied).toBe(true);
+    expect(st.user.claims.act).toBeUndefined();
+    expect(st.liveAuth.signedIn).toBe(false);
+    expect(JSON.stringify({ st, text: cb.text })).not.toContain(USER_TOKEN);
+  });
+
+  test('if the gateway did accept the token the page says so (allowed), not denied', async () => {
+    withUserApp();
+    const n = net(); const app = boot(n.f);
+    const u = new URL((await request(app).post('/api/muse/user-signin').send({})).body.url);
+    await request(app).get(`/api/muse/callback?code=abc&state=${u.searchParams.get('state')}`);
+    expect((await request(app).get('/api/muse/state')).body.user.denied).toBe(false);
+  });
+});
