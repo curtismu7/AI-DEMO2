@@ -94,4 +94,14 @@ describe('GatewayClaimsPage', () => {
     fireEvent.click(screen.getByTestId('gwc-scenario-match'));
     expect(within(screen.getByTestId('gwc-flat')).getByText('act.sub')).toBeTruthy();
   });
+
+  it('shows the v1.261027 section, says novelty is undiffed, and labels both results VERIFIED', () => {
+    renderPage();
+    const sec = screen.getByTestId('gwc-next-release');
+    expect(within(sec).getByText(/Newer gateway: v1\.261027/)).toBeTruthy();
+    expect(sec.textContent).toContain('have not diffed v1.261027 against v1.261024');
+    expect(within(sec).getAllByText('VERIFIED').length).toBe(2);
+    expect(screen.getByTestId('gwc-cedar').textContent).toContain('context.token.scopes.contains("opensearch:search")');
+    expect(sec.textContent).toContain('State "Active"');
+  });
 });

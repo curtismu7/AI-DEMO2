@@ -206,3 +206,30 @@ export const POSTURE_GROUPS = [
     ['Cedar statements for AgentCore', 'The gateway can read Cedar statements from AgentCore policies'],
   ] },
 ];
+
+// Part 3: measured 2026-10-27 (source: the two measured-run notes; Cedar run on gateway v1.261027, scope-tier run on v1.261024).
+// Names below are the demo's own sample app/tool/scope names, not tenant identifiers.
+export const NEXT_RELEASE = {
+  version: 'v1.261027',
+  novelty: 'We have not diffed v1.261027 against v1.261024, so we do not know which of these behaviours are new in this tag. They are what we measured on the real gateway.',
+  cedarPolicy: [
+    'forbid (principal,',
+    '  action in [Action::"mcp:Invoke", Action::"mcp:InvokeUnattended"],',
+    '  resource == Tool::"SearchIndexTool")',
+    'when { context.app == "pftoken" }',
+    'unless { context has token && context.token.scopes.contains("opensearch:search") };',
+  ].join('\n'),
+};
+
+export const NEXT_RELEASE_RESULTS = [
+  { evidence: 'verified', gateway: 'v1.261027', what: 'Cedar gates a tool call on the PingFederate token scope',
+    detail: 'Without opensearch:search the call is refused with JSON-RPC 400 -32600 "action denied by policy". With it the call returns 200. Other tools are unaffected. The gateway log shows a policy_decision event.' },
+  { evidence: 'verified', gateway: 'v1.261024', what: 'Grant rules gate on token claims, and two rules make tiers',
+    detail: 'Two rules on the same agent app with different tools and different required claims gave 3 tools, 9 tools or 403, depending on the token scope. A list of values means any of them. A scope is split per value, so requiring whoami:read matches the scope "openid whoami:read". A mismatch is a 403.' },
+];
+
+export const NEXT_RELEASE_TRAPS = [
+  { symptom: 'Policy made through the API never denies', cause: 'It is stored with State "" (a candidate). It is compiled and shadow-evaluated only, and logs mcp_policy_shadow_delta.', fix: 'PUT the policy with State "Active".' },
+  { symptom: '401 token_not_found after asking PingFederate for a scope', cause: 'A client_credentials request with scope= is served by a different token manager, with no sub and no act.', fix: 'Send resource=<the agent app URL> so PingFederate picks the token manager the gateway trusts.' },
+  { symptom: 'Clearing required claims does nothing', cause: 'PUT with an empty claims map is ignored; the old value stays.', fix: 'Delete the RequiredClaims field from the rule.' },
+];
