@@ -59,6 +59,24 @@ const CALL_GROUPS = [
   ] },
 ];
 
+// What one step sent and got back, as labelled blocks. A step with no wire payload shows its detail text instead.
+function WireBlocks({ entry, open = false }) {
+  const blocks = [['Request', entry?.request], ['Response', entry?.response]].filter(([, body]) => body);
+  if (!blocks.length && entry?.detail) blocks.push(['Detail', entry.detail]);
+  if (!blocks.length) return null;
+  return (
+    <details className="privilege-a2a__wire" open={open} onClick={(event) => event.stopPropagation()}>
+      <summary>{blocks.map(([label]) => label).join(' · ')}</summary>
+      {blocks.map(([label, body]) => (
+        <div key={label}>
+          {blocks.length > 1 && <h4>{label}</h4>}
+          <pre>{body}</pre>
+        </div>
+      ))}
+    </details>
+  );
+}
+
 export default function PrivilegeA2aTab() {
   const profile = usePrivilegeA2aProfile();
   // Save the run as the trace the page shows (no secrets: the same fields the reel already displays).
@@ -500,6 +518,7 @@ export default function PrivilegeA2aTab() {
                   {entry.from && entry.to && (
                     <span className="privilege-a2a__trace-route">{entry.from} → {entry.to}</span>
                   )}
+                  <WireBlocks entry={entry} />
                 </li>
               ))}
             </ol>
@@ -515,6 +534,7 @@ export default function PrivilegeA2aTab() {
                   <span>{row.who}</span>
                   <em>{row.state === 'done' ? 'done' : row.state === 'working' ? 'working…' : row.state === 'stopped' ? 'stopped' : 'waiting'}</em>
                 </button>
+                {row.step >= 0 && <WireBlocks entry={trace[row.step]} open />}
               </li>
             ))}
           </ol>

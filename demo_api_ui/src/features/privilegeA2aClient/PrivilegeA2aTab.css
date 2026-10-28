@@ -565,3 +565,9 @@ body.privilege-a2a-route > .banking-agent-float-root { display: none; }
 .cur-ide .privilege-a2a__exchange li.is-done button { border-color: var(--a2a-accent); }
 .cur-ide .privilege-a2a__exchange li.is-working button { border-color: var(--a2a-accent); border-style: dashed; }
 .cur-ide .privilege-a2a__exchange li.is-stopped button { border-color: var(--a2a-error); }
+
+/* Request / response of one step, shown under the step itself. */
+.cur-ide .privilege-a2a__wire { margin-top: 4px; font-size: var(--font-size-xs); }
+.cur-ide .privilege-a2a__wire summary { cursor: pointer; color: var(--a2a-muted); }
+.cur-ide .privilege-a2a__wire h4 { margin: 6px 0 2px; font-size: var(--font-size-xs); color: var(--a2a-muted); }
+.cur-ide .privilege-a2a__wire pre { margin: 0; padding: 6px 8px; max-height: 160px; overflow: auto; white-space: pre-wrap; word-break: break-all; border: 1px solid var(--a2a-border); border-radius: var(--radius-md); }
