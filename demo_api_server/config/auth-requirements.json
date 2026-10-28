@@ -297,6 +297,7 @@
     "/path/feature": "public",
     "/path/mortgage": "public",
     "/obo-demo": "user",
+    "/session-lab": "user",
     "/digital-worker": "public",
     "/authorization-flow": "public",
     "/chatgpt-login": "user",

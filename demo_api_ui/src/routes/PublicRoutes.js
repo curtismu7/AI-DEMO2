@@ -66,6 +66,7 @@ import PingFederateIdJagPage from '../components/PingFederateIdJagPage';
 import PingFederateAiAgentPage from '../pages/PingFederateAiAgentPage';
 import AicTokenExchangePage from '../pages/AicTokenExchangePage';
 import OboDemoPage from '../pages/OboDemoPage';
+import SessionLabPage from '../pages/SessionLabPage';
 import DigitalWorkerPage from '../pages/DigitalWorkerPage';
 import AuthorizationFlowPage from '../pages/AuthorizationFlowPage';
 import ChatgptLoginPage from '../pages/ChatgptLoginPage';
@@ -433,6 +434,14 @@ export function OboDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <OboDemoPage />
+    </AppShell>
+  );
+}
+
+export function SessionLabPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SessionLabPage />
     </AppShell>
   );
 }

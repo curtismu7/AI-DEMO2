@@ -85,5 +85,6 @@ export const DIAGRAMS_MORE = [
   D("AIC Token Exchange", "/aic-token-exchange", "User token, agent token and the RFC 8693 exchange against AIC."),
   D("Delegated Commerce", "/delegation", "Register, consent, protected call, approval and revoke for a delegated agent."),
   D("Delegation Chain Value", "/delegation-chain-value", "Two-agent token chain with nested act claims, and the identity-mismatch probe."),
+  D("Session Lab", "/session-lab", "How a flow's Return Success Response writes the PingOne session and Check Session reads it."),
   D("Personal Agent Studio", "/personal-agent", "How a request is governed: three gates, MFA step-up and human approval detours."),
 ];
