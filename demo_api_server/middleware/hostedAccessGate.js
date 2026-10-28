@@ -26,6 +26,8 @@ const EXACT_BYPASSES = new Set([
   'GET /api/auth/hosted-access/identifier-policy',
   'POST /api/auth/hosted-access/pi-flow/credentials',
   'GET /api/auth/hosted-access/callback',
+  // Muse: PingOne sends the browser back with a code; the route is keyed by a one-time state, never the session (mirrors se-ingress.yaml).
+  'GET /api/muse/callback',
   'GET /api/auth/hosted-access/logout',
   'POST /api/auth/hosted-registration/request',
   'POST /api/auth/hosted-registration/verify',

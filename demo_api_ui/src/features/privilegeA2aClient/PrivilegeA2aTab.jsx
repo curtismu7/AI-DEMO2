@@ -355,13 +355,9 @@ export default function PrivilegeA2aTab() {
                   </div>
                 </article>
               ))}
-            </div>
-          )}
-          {turns.length > 0 && (
-            <details className="privilege-a2a__more-q">
-              <summary>More questions</summary>
+              <p className="privilege-a2a__empty">Ask another:</p>
               {suggestedQuestions}
-            </details>
+            </div>
           )}
           {error && <p className="privilege-a2a__error" role="alert">{error}</p>}
           <form className="privilege-a2a__composer" onSubmit={submitQuestion}>

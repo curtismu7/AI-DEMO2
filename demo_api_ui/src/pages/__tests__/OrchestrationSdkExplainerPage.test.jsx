@@ -52,10 +52,12 @@ describe("OrchestrationSdkExplainerPage", () => {
   });
 
   it("shows all three invocation modes, with the SDK one marked as the subject", () => {
-    render(<OrchestrationSdkExplainerPage />);
-    expect(screen.getByText("Redirect")).toBeInTheDocument();
-    expect(screen.getByText("Widget")).toBeInTheDocument();
-    const sdk = screen.getByText("Orchestration SDK");
+    const { container } = render(<OrchestrationSdkExplainerPage />);
+    // Scoped to the comparison: the family switcher also has a "Widget" link.
+    const modes = within(container.querySelector(".osx-modes"));
+    expect(modes.getByText("Redirect")).toBeInTheDocument();
+    expect(modes.getByText("Widget")).toBeInTheDocument();
+    const sdk = modes.getByText("Orchestration SDK");
     expect(sdk).toBeInTheDocument();
     expect(sdk.closest(".osx-mode")).toHaveClass("is-featured");
   });

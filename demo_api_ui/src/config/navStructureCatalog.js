@@ -23,8 +23,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Game Agent", "Context Compaction", "Trading Bot", "Paper Organizer",
   ] },
   { label: "DaVinci", children: [
-    "DaVinci Widget", "DaVinci Login", "DaVinci SDK Login", "DaVinci Orchestration",
-    "DaVinci Orchestration SDK", "Orchestration SDK Guide", "DaVinci Orchestration Overview", "PingFederate DaVinci Integration Kit",
+    "DaVinci SDK Guide", "DaVinci Widget", "DaVinci Orchestration SDK", "PingFederate DaVinci Integration Kit",
   ] },
   { label: "Ping products", children: [
     "PingOne Protect", "PingOne Verify & Recognize", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
