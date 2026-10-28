@@ -357,6 +357,9 @@ jobs:
         run: npm --prefix demo_api_ui run test:unit:pr
         env:
           CI: 'true'
+          # 4 workers: full suite measured 1667 s at 2, 961 s at 4 (8 was 569 s but flaked when
+          # three runners ran at once). Related runs only; nightly and pinned runs stay at 2.
+          VITEST_MAX_WORKERS: '4'
           VITEST_RELATED_FILES_JSON: ${{ needs.changes.outputs['ui-changed-files'] }}
       - name: Full Vitest suite for pinned target refs (4 GB guarded)
         if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
