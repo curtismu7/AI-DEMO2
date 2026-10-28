@@ -110,7 +110,8 @@ describe("LessonShell", () => {
 
     renderAcademyRoute(["/academy/delegation/guided"]);
 
-    const runButton = screen.getByRole("button", { name: /Check live evidence/i });
+    // The lesson route loads lazily: wait for it once.
+    const runButton = await screen.findByRole("button", { name: /Check live evidence/i });
     expect(runButton).toBeEnabled();
     fireEvent.click(runButton);
 

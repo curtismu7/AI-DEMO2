@@ -1,11 +1,12 @@
+import lazyWithRetry from "../utils/lazyWithRetry";
 import { Navigate, useNavigate, useParams } from "react-router-dom";
-import TopNav from "../components/TopNav";
-import LessonShell from "../components/learning/LessonShell";
+const TopNav = lazyWithRetry(() => import("../components/TopNav"));
+const LessonShell = lazyWithRetry(() => import("../components/learning/LessonShell"));
 import { getLesson } from "../learning/lessonCatalog";
-import GuidedJourneyPage from "../pages/GuidedJourneyPage";
-import StandaloneDemoLauncherPage from "../pages/StandaloneDemoLauncherPage";
-import OAuthTokenExchangeLessonPage from "../pages/OAuthTokenExchangeLessonPage";
-import AgentIdentityAcademyPage from "../pages/AgentIdentityAcademyPage";
+const GuidedJourneyPage = lazyWithRetry(() => import("../pages/GuidedJourneyPage"));
+const StandaloneDemoLauncherPage = lazyWithRetry(() => import("../pages/StandaloneDemoLauncherPage"));
+const OAuthTokenExchangeLessonPage = lazyWithRetry(() => import("../pages/OAuthTokenExchangeLessonPage"));
+const AgentIdentityAcademyPage = lazyWithRetry(() => import("../pages/AgentIdentityAcademyPage"));
 import {
   canObserveLesson,
   resetLesson,

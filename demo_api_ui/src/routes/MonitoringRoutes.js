@@ -1,21 +1,22 @@
+import lazyWithRetry from "../utils/lazyWithRetry";
 import { Navigate, Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
-import ActivityLogPage from "../components/ActivityLogPage";
-import ActivityLogs from "../components/ActivityLogs";
-import ApiTrafficPage from "../components/ApiTrafficPage";
-import DevToolsDashboard from "../components/DevToolsDashboard";
-import LogViewerPage from "../components/LogViewerPage";
-import McpTrafficPage from "../components/McpTrafficPage";
-import NewRelicDashboard from "../components/NewRelicDashboard";
-import P1AzDashboard from "../components/P1AzDashboard";
-import PingOneEventPanel from "../components/PingOneEventPanel";
-import SequenceDiagramPage from "../components/SequenceDiagramPage";
-import TokenChainTraceRail from "../components/TokenChainTraceRail";
+const ActivityLogPage = lazyWithRetry(() => import("../components/ActivityLogPage"));
+const ActivityLogs = lazyWithRetry(() => import("../components/ActivityLogs"));
+const ApiTrafficPage = lazyWithRetry(() => import("../components/ApiTrafficPage"));
+const DevToolsDashboard = lazyWithRetry(() => import("../components/DevToolsDashboard"));
+const LogViewerPage = lazyWithRetry(() => import("../components/LogViewerPage"));
+const McpTrafficPage = lazyWithRetry(() => import("../components/McpTrafficPage"));
+const NewRelicDashboard = lazyWithRetry(() => import("../components/NewRelicDashboard"));
+const P1AzDashboard = lazyWithRetry(() => import("../components/P1AzDashboard"));
+const PingOneEventPanel = lazyWithRetry(() => import("../components/PingOneEventPanel"));
+const SequenceDiagramPage = lazyWithRetry(() => import("../components/SequenceDiagramPage"));
+const TokenChainTraceRail = lazyWithRetry(() => import("../components/TokenChainTraceRail"));
 import { SystemFlowMapView } from "../components/SystemFlowMap";
-import TokenExchangeDashboard from "../components/TokenExchangeDashboard";
-import WebMcpPanel from "../components/WebMcpPanel";
-import AgentFlowHistoryPage from "../pages/AgentFlowHistoryPage";
-import LoginFlowDiagramPage from "../pages/LoginFlowDiagramPage";
+const TokenExchangeDashboard = lazyWithRetry(() => import("../components/TokenExchangeDashboard"));
+const WebMcpPanel = lazyWithRetry(() => import("../components/WebMcpPanel"));
+const AgentFlowHistoryPage = lazyWithRetry(() => import("../pages/AgentFlowHistoryPage"));
+const LoginFlowDiagramPage = lazyWithRetry(() => import("../pages/LoginFlowDiagramPage"));
 
 // Passed as prop to avoid circular dependency — AgentFlowPage is defined in App.js
 export default function MonitoringRoutes({ user, logout, AgentFlowPage }) {
