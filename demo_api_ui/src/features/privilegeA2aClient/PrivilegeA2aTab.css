@@ -571,3 +571,10 @@ body.privilege-a2a-route > .banking-agent-float-root { display: none; }
 .cur-ide .privilege-a2a__wire summary { cursor: pointer; color: var(--a2a-muted); }
 .cur-ide .privilege-a2a__wire h4 { margin: 6px 0 2px; font-size: var(--font-size-xs); color: var(--a2a-muted); }
 .cur-ide .privilege-a2a__wire pre { margin: 0; padding: 6px 8px; max-height: 160px; overflow: auto; white-space: pre-wrap; word-break: break-all; border: 1px solid var(--a2a-border); border-radius: var(--radius-md); }
+
+/* What is happening right now, under the request path. */
+.cur-ide .privilege-a2a__path-wrap { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
+.cur-ide .privilege-a2a__now { margin: 0; max-width: 460px; text-align: right; font-size: var(--font-size-body); color: var(--a2a-ink); }
+.cur-ide .privilege-a2a__start .privilege-a2a__chips { margin-top: 8px; }
+.cur-ide .privilege-a2a__more-q { margin: 6px 0; font-size: var(--font-size-sm); }
+.cur-ide .privilege-a2a__more-q summary { cursor: pointer; color: var(--a2a-muted); }

@@ -192,6 +192,27 @@ describe('PrivilegeA2aTab', () => {
     expect(screen.getAllByText('Remote Agent finished').length).toBeGreaterThan(1);
   });
 
+  test('a status line says what is happening now, and the walkthrough and Break-it rows sit in the guide column', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'Send Message' } },
+      { event: 'trace', data: { kind: 'result', from: 'analyst', to: 'main', text: 'finished' } },
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's1' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+
+    expect(screen.getByRole('status').textContent).toMatch(/Pick a question/);
+    const guide = within(screen.getByRole('complementary', { name: 'Step details' }));
+    expect(guide.getByRole('button', { name: 'Start walkthrough' })).toBeTruthy();
+    expect(guide.getByRole('button', { name: 'Break it: ungranted user' })).toBeTruthy();
+
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    await screen.findByText('Done.');
+    expect(screen.getByRole('status').textContent).toMatch(/Done\. Click any step/);
+  });
+
   test('shows each step\'s request and response under the step, open on the exchange rows', async () => {
     global.fetch.mockResolvedValueOnce(streamResponse([
       { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'Send Message', request: 'POST /a2a\n{"method":"message/send"}' } },
