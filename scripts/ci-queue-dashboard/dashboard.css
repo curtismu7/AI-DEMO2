@@ -379,6 +379,7 @@ h1 { margin-bottom: 5px; font-size: clamp(29px, 4vw, 40px); line-height: 1.08; l
 .host-load[data-pressure="high"] .section-count { color: var(--red); font-weight: 700; }
 .host-load[data-pressure="raised"] .section-count { color: var(--amber); font-weight: 700; }
 .host-load-note { margin: 12px 0 0; color: var(--ink); font-size: 12px; }
+.host-load-groups { margin: 8px 0 0; color: var(--ink); font-size: 12px; font-weight: 650; }
 .host-load-list { display: flex; flex-wrap: wrap; gap: 6px 18px; margin: 12px 0 0; padding: 0; list-style: none; }
 .host-load-item { color: var(--ink-soft); font-size: 12px; font-variant-numeric: tabular-nums; }
 
@@ -414,6 +415,9 @@ h1 { margin-bottom: 5px; font-size: clamp(29px, 4vw, 40px); line-height: 1.08; l
 .deploy-row--pending .deploy-detail { color: var(--amber); }
 .deploy-services { overflow-wrap: anywhere; font-weight: 650; }
 .deploy-detail { color: var(--ink-soft); font-variant-numeric: tabular-nums; }
+.deploy-se-state { margin-left: 8px; font-weight: 700; }
+.deploy-se-state[data-state="pending"] { color: var(--amber); }
+.deploy-se-state[data-state="current"] { color: var(--green); }
 .deploy-note { margin: 6px 0 0; color: var(--ink-quiet); font-size: 11px; }
 .deploy-note--warn { color: var(--amber); font-weight: 650; }
 @media (max-width: 760px) { .deploy-grid { grid-template-columns: 1fr; } }
