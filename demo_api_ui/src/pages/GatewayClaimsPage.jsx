@@ -6,7 +6,7 @@ import React, { useMemo, useState } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import {
-  DIAGRAM_DETAILS, DIAGRAM_LANES, DOC_PATH, EVIDENCE, GATEWAY_VERSION, MAPPING_ROWS, POSTURE_GROUPS, POSTURE_SAMPLE,
+  DIAGRAM_DETAILS, DIAGRAM_LANES, DOC_PATH, EVIDENCE, GATEWAY_VERSION, MAPPING_ROWS, NEXT_RELEASE, NEXT_RELEASE_RESULTS, NEXT_RELEASE_TRAPS, POSTURE_GROUPS, POSTURE_SAMPLE,
   REQUIRED_CLAIMS, SCENARIOS, TRAP_ROWS, WHAT_CHANGED, scenarioDiagram,
 } from '../config/gatewayClaims';
 import './GatewayClaimsPage.css';
@@ -158,6 +158,22 @@ export default function GatewayClaimsPage() {
         <h3>Sample shape (not real data)</h3>
         <pre className="gwc-pre" data-testid="gwc-sample">{JSON.stringify(POSTURE_SAMPLE, null, 2)}</pre>
         <p className="gwc-muted">Every value above is a placeholder to show the shape. The real structure may differ.</p>
+      </section>
+      <section className="gwc-card" aria-labelledby="gwc-p3" data-testid="gwc-next-release">
+        <h2 id="gwc-p3">3. Newer gateway: {NEXT_RELEASE.version}</h2>
+        <p className="gwc-warn" role="note">{NEXT_RELEASE.novelty}</p>
+        <ul>
+          {NEXT_RELEASE_RESULTS.map((r) => (
+            <li key={r.what}><Tag kind={r.evidence} /> <strong>{r.what}</strong> (measured on {r.gateway}). {r.detail}</li>
+          ))}
+        </ul>
+        <h3>The Cedar policy we ran</h3>
+        <pre className="gwc-pre" data-testid="gwc-cedar">{NEXT_RELEASE.cedarPolicy}</pre>
+        <h3>Traps we hit</h3>
+        <table className="gwc-table">
+          <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+          <tbody>{NEXT_RELEASE_TRAPS.map((r) => <tr key={r.symptom}><td>{r.symptom}</td><td>{r.cause}</td><td>{r.fix}</td></tr>)}</tbody>
+        </table>
       </section>
     </main>
   );
