@@ -541,7 +541,7 @@ What was checked, and what could not be checked.
 |---|---|---|
 | Shared manager `aiDemoPfJwtAtm`: Option A `CLIENT_CREDENTIALS` mapping (`sub` = client id, plus `act`, `Username`, `spiffeId`) | **Gone.** Removed. The cleanup item is done. | [measured] |
 | Shared manager: token-exchange mappings | Present. Fill `sub`, `act`, `client_id`, `scope`, `spiffeId`. Built for the OBO demo. | [measured] |
-| Client `pf-route-c-test` | Still exists (PF admin API returns 200). Cleanup item still open. | [measured] |
+| Client `pf-route-c-test` | Permanent demo client (renamed "Privilege PF token demo agent" on 2026-10-28; the id stays because the identity's required `client_id` claim, the demo env and the secret all use it). Do not delete. | [measured] |
 | Token manager `routeCTestAtm` | Exists. Audience and resource URI = the `pftoken` agent app URL. | [measured] |
 | Privilege console (`local.procyon.ai:8643`) | **Down** at 2026-10-25, even after reopening PingOne Privilege. Cannot read or change Privilege. Auth mode, grants and tool discovery were not re-read. | [measured] |
 | Demo page `https://ai-demo.ping-devops.com/privilege-ai-policies`, hold scenario | **Not run.** The browser extension was not connected, so the page could not be opened from here. | not tested |
