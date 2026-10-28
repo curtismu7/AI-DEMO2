@@ -8,12 +8,16 @@ import { usePrivilegeA2aProfile } from './usePrivilegeA2aProfile';
 import { PATH_STEPS, pathProgress } from './pathProgress';
 import './PrivilegeA2aTab.css';
 
+// The A2A specification, at the Send Message operation this page demonstrates.
+export const A2A_SPEC_SEND_MESSAGE_URL = 'https://a2a-protocol.org/latest/specification/#311-send-message';
+const A2A_SPEC_URL = 'https://a2a-protocol.org/latest/specification/';
+
 const WALK = [
   'Ask: type a question below, or pick a suggested one. You watch the agent work.',
-  'Delegate: the main agent hands the lookup to the analyst. The details column shows who acts for whom.',
+  'Delegate: the A2A Client hands the lookup to the Remote Agent with Send Message. The details column shows who acts for whom.',
   'Check access: the reel in the middle shows each step, and each step says why it happened.',
   'Call the tool: click a step to see exactly what was sent and what came back.',
-  'Answer: the agent replies from the tool result only. Then check your understanding.',
+  'Answer: the Remote Agent returns its result to the A2A Client, which replies from that result only. Then check your understanding.',
 ];
 const BREAKS = [
   { label: 'Break it: ungranted user', question: 'Show entitlements for an ungranted user.' },
@@ -23,7 +27,7 @@ const BREAKS = [
 const WHY = {
   delegate: 'Delegation passes the request on, not the user\'s password.',
   'mcp-call': 'The gateway checks the grant before the tool runs.',
-  result: 'The result goes back to the main agent to be shown.',
+  result: 'The Remote Agent finished; its result goes back to the A2A Client to be shown.',
   error: 'Something stopped this step. Its details say what.',
   model: 'The model decides the next step. Its tokens are what that decision used.',
 };
@@ -38,12 +42,12 @@ const runTokens = (trace) => trace.reduce((sum, entry) => ({
   calls: sum.calls + (entry.tokens ? 1 : 0),
 }), { input: 0, output: 0, calls: 0 });
 const CALL_GROUPS = [
-  { label: 'Ask the analyst', items: [
+  { label: 'Ask the Remote Agent', items: [
     'List all entitlements for Carol Nguyen.',
     'Which grants on prod-db-primary have never been used?',
     'Who is offboarding and still has active access?',
   ] },
-  { label: 'Tools the analyst can call', items: [
+  { label: 'Tools the Remote Agent can call', items: [
     'Who has the prod-db-admin role?',
     'Show the access grants on prod-db-primary.',
     'Open a ticket to review Carol Nguyen\'s access to prod-db-primary.',
@@ -178,7 +182,7 @@ export default function PrivilegeA2aTab() {
       }));
       await run;
     } catch (requestError) {
-      if (controller.signal.aborted) setError('Request cancelled.');
+      if (controller.signal.aborted) setError(controller.discarded ? '' : 'Request cancelled.');
       else setError(requestError instanceof Error ? requestError.message : 'The A2A request failed.');
     } finally {
       if (abortRef.current === controller) abortRef.current = null;
@@ -192,13 +196,47 @@ export default function PrivilegeA2aTab() {
 
   const cancelRequest = () => abortRef.current?.abort();
 
+  // Back to a blank page: stop a run in flight, drop its conversation, trace and gateway record, and clear the boxes. The agent mode stays.
+  const resetPage = () => {
+    if (abortRef.current) {
+      abortRef.current.discarded = true;
+      abortRef.current.abort();
+    }
+    clearTimeout(recordTimerRef.current);
+    setTurns([]);
+    setTrace([]);
+    setRecord(null);
+    setSessionId('');
+    setError('');
+    setInput('');
+    setDockText('');
+    setSelectedQuestion('');
+    setSelectedStep(null);
+    setWalkStep(-1);
+    setReplaying(false);
+  };
+
+  // The A2A exchange, read off the trace: the client's Send Message, the Remote Agent's work, its reply, the client's answer.
+  const sentAt = trace.findIndex((entry) => entry.kind === 'delegate');
+  const replyAt = trace.map((entry) => entry.kind).lastIndexOf('result');
+  const failed = trace.some((entry) => entry.kind === 'error');
+  const toolCalls = trace.filter((entry) => entry.kind === 'mcp-call').length;
+  const answered = Boolean(turns.length && turns[turns.length - 1].answer);
+  const exchange = [
+    { label: '1. Send Message', who: 'A2A Client → Remote Agent', step: sentAt, state: sentAt >= 0 ? 'done' : 'waiting' },
+    { label: '2. Remote Agent works', who: toolCalls ? `${toolCalls} MCP tool call${toolCalls === 1 ? '' : 's'}` : 'checks access data', step: trace.findIndex((entry) => entry.kind === 'mcp-call'),
+      state: replyAt >= 0 ? 'done' : failed ? 'stopped' : sentAt >= 0 && busy ? 'working' : 'waiting' },
+    { label: '3. Reply returned', who: 'Remote Agent → A2A Client', step: replyAt, state: replyAt >= 0 ? 'done' : failed && sentAt >= 0 ? 'stopped' : 'waiting' },
+    { label: '4. Client answers', who: 'A2A Client → you', step: -1, state: answered && replyAt >= 0 ? 'done' : replyAt >= 0 && busy ? 'working' : 'waiting' },
+  ];
+
   return (
     <section className="privilege-a2a" aria-labelledby="privilege-a2a-title">
       <header className="privilege-a2a__header">
         <div>
           <h2 id="privilege-a2a-title">A2A access review</h2>
           <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} disabled={busy} />
-          <p>Ask about an entitlement. The main agent hands the lookup to a worker agent, which checks access data through MCP. In gateway mode every hop goes through the PingOne Agent Privilege: each agent uses its own agent key, and the gateway screens the messages and the tool results.</p>
+          <p>Ask about an entitlement. The A2A Client (the main agent) sends the lookup to a Remote Agent (the A2A Server) with the A2A <a href={A2A_SPEC_SEND_MESSAGE_URL} target="_blank" rel="noreferrer">Send Message</a> operation. The Remote Agent checks access data through MCP and returns its result. In gateway mode every hop goes through the PingOne Agent Privilege: each agent uses its own agent key, and the gateway screens the messages and the tool results.</p>
         </div>
         <ol className="privilege-a2a__path" aria-label="Agent request path">
           {PATH_STEPS.map((label, index) => (
@@ -333,11 +371,18 @@ export default function PrivilegeA2aTab() {
           maxLength={4000}
           rows={3}
           placeholder="For example: Review Carol Nguyen's current entitlements."
-          disabled={busy}
         />
         <div className="privilege-a2a__actions">
-          <span>Send a question to trigger Main agent → A2A → Analyst → MCP tools.</span>
+          <span>Send a question to trigger A2A Client → Send Message → Remote Agent → MCP tools.</span>
           {busy && <button className="privilege-a2a__cancel" type="button" onClick={cancelRequest}>Cancel</button>}
+          <button
+            type="button"
+            onClick={resetPage}
+            disabled={!busy && !turns.length && !trace.length && !error && !input}
+            title="Stop any run and clear the conversation, trace and question box"
+          >
+            Reset
+          </button>
           <div className="privilege-a2a__calls">
             <button type="button" aria-expanded={callsOpen} aria-controls="privilege-a2a-calls" onClick={() => setCallsOpen((open) => !open)}>Calls ▾</button>
             {callsOpen && (
@@ -461,11 +506,26 @@ export default function PrivilegeA2aTab() {
           )}
         </aside>
         <aside className="privilege-a2a__step-panel" aria-label="Step details">
+          <h3>A2A exchange</h3>
+          <ol className="privilege-a2a__exchange" aria-label="A2A exchange">
+            {exchange.map((row) => (
+              <li key={row.label} className={`is-${row.state}`}>
+                <button type="button" disabled={row.step < 0} onClick={() => setSelectedStep(row.step)}>
+                  <b>{row.label}</b>
+                  <span>{row.who}</span>
+                  <em>{row.state === 'done' ? 'done' : row.state === 'working' ? 'working…' : row.state === 'stopped' ? 'stopped' : 'waiting'}</em>
+                </button>
+              </li>
+            ))}
+          </ol>
+          <p className="privilege-a2a__empty">
+            Per the <a href={A2A_SPEC_SEND_MESSAGE_URL} target="_blank" rel="noreferrer">Send Message</a> operation, the Remote Agent answers with a Task (states such as working, completed, input-required) or a direct Message. <a href={A2A_SPEC_URL} target="_blank" rel="noreferrer">A2A specification</a>
+          </p>
           <h3>Who acts for whom</h3>
           <ol className="privilege-a2a__chain">
             <li><span>Signed-in user</span></li>
-            <li><span>Main agent{profile?.agentName ? `: ${profile.agentName}` : ''}</span></li>
-            <li><span>Analyst{profile?.specialistName ? `: ${profile.specialistName}` : ''}</span></li>
+            <li><span>A2A Client (main agent){profile?.agentName ? `: ${profile.agentName}` : ''}</span></li>
+            <li><span>Remote Agent (A2A Server){profile?.specialistName ? `: ${profile.specialistName}` : ''}</span></li>
             <li><span>MCP tools, through the gateway</span></li>
           </ol>
           <h3>Selected step</h3>

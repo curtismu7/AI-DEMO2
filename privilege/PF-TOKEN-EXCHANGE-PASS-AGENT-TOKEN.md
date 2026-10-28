@@ -87,6 +87,44 @@ Values in angle brackets are yours; the values we used are in brackets. Parts A 
 6. **Every token request sends `resource=<agent app URL>`.** Without it, a request that names a scope can be served by a different token manager (we got audience `enduser.ping.demo` and no `sub` or `act`), and the gateway answers 401 `token_not_found`.
 7. **Check:** mint a token and decode it (command in part H). You need `iss`, `sub`, `aud` = the agent app URL, `client_id`, `act.sub` = the agent id, and `scope` = what you asked for.
 
+Screens (PingFederate admin console, 13.1; the client `pf-route-c-test`, token manager `routeCTestAtm`):
+
+The OAuth clients list. Our client is the first row; expand a row to see its tabs.
+
+![PingFederate clients list](images/pf-token-exchange/guide/a1-pf-clients-list.png)
+
+Client, General Info: client ID and authentication type (secret).
+
+![PingFederate client, General Info](images/pf-token-exchange/guide/a2-pf-client-general.png)
+
+Client, OAuth Settings: grant type `CLIENT_CREDENTIALS`; common scopes are not restricted, so the client can request any scope on the list.
+
+![PingFederate client, OAuth Settings](images/pf-token-exchange/guide/a3-pf-client-oauth-settings.png)
+
+Client, Token Manager tab: the default access token manager is `routeCTestAtm`.
+
+![PingFederate client, Token Manager](images/pf-token-exchange/guide/a4-pf-client-token-manager.png)
+
+The scopes added for the demo (System, OAuth Settings, Scope Management, searched for `opensearch`).
+
+![PingFederate scope list](images/pf-token-exchange/guide/a5-pf-scopes-opensearch.png)
+
+Access Token Management: our manager, `routeCTestAtm`, next to the others. The **default** manager is `aiDemoPfJwtAtm`, which is why a request must send `resource=` to be served by `routeCTestAtm`.
+
+![PingFederate token managers list](images/pf-token-exchange/guide/a6-pf-token-managers-list.png)
+
+Token manager summary, middle: Scope Claim Name `scope`, the issuer, and the audience claim value (the agent app URL).
+
+![PingFederate token manager, claims and audience](images/pf-token-exchange/guide/a7-pf-token-manager-audience-scope-claim.png)
+
+Token manager summary, end: the attribute contract has `act`, `client_id`, `spiffeId`, `sub`, `Username` and **no `scope`**; the Resource URI is the agent app URL.
+
+![PingFederate token manager, attribute contract and resource URI](images/pf-token-exchange/guide/a8-pf-token-manager-attribute-contract.png)
+
+The client-credentials access token mapping: `sub`, `client_id` and `Username` from the client ID, and `act` from the expression `#{"sub": "pf-route-c-test"}`.
+
+![PingFederate access token mapping](images/pf-token-exchange/guide/a9-pf-access-token-mapping.png)
+
 ### B. Privilege: register the federated agent (Non-Human Identity)
 
 Console: **Non-Human Identities → Register Identity** (or **Edit** on an existing one).
@@ -213,6 +251,40 @@ curl -s https://<gateway-host>/<agent app>/mcp \
 | 200, no tools | tools not discovered yet, or the backend is unreachable | gateway log `tool discovery … failed` |
 
 Live demo of all of this: `https://ai-demo.ping-devops.com/privilege-pf-token` (sign-in required).
+
+#### What the demo page shows
+
+Screens from `https://ai-demo.ping-devops.com/privilege-pf-token` after pressing **Run** (real calls, 2026-10-27). The page mints PingFederate tokens, calls the P1 Privilege Agent Apps, and shows only outcomes and claims, never a token.
+
+The claims PingFederate put in the token:
+
+![Claims of the PingFederate token](images/pf-token-exchange/guide/pg1-claims.png)
+
+The gateway accepted the token and returned the tools; a garbage token is the control and gets 401:
+
+![Allowed: the tools the gateway returned](images/pf-token-exchange/guide/pg2-allowed.png)
+
+![Control: a garbage token](images/pf-token-exchange/guide/pg3-garbage-control.png)
+
+Same agent, same agent app, three scopes: 9 tools, 3 tools, 403 (part F):
+
+![Same agent, different scope](images/pf-token-exchange/guide/pg4-scope-tiers.png)
+
+Cedar blocks `SearchIndexTool` without `opensearch:search`, and allows it with (part I):
+
+![Cedar blocks by scope](images/pf-token-exchange/guide/pg5-cedar-blocks-by-scope.png)
+
+What the MCP server behind `pftoken-rs` received: every claim of the PingFederate token, unchanged (part G):
+
+![What the backend received](images/pf-token-exchange/guide/pg6-backend-received.png)
+
+The page's table of what Privilege does and can't do:
+
+![What Privilege does here, and what it can't](images/pf-token-exchange/guide/pg7-what-privilege-does.png)
+
+The flow, as drawn on the page (the arrows walk through in order with **Simulate**):
+
+![Flow diagram](images/pf-token-exchange/guide/pg8-flow-diagram.png)
 
 ### I. Optional: block one tool by scope with Cedar
 

@@ -2,7 +2,10 @@
 
 /* Fit the space left by the app chrome (top nav + main-content padding +
    footer). A flat 100vh made the document taller than the viewport, so the
-   page loaded already scrolled and the terminal/logs pane fell below the fold. */
+   page loaded already scrolled and the terminal/logs pane fell below the fold.
+   216px is measured: nav and title area above the panel (it varies by about 11px with
+   the banners shown), main-content bottom padding and the footer below it. 176px left
+   the footer 30 to 40px under the fold. */
 .cur-ide {
   --cur-prompt-surface: #252526;
   --cur-prompt-ink: #d4d4d4;
@@ -10,7 +13,7 @@
   --cur-prompt-border: #454545;
   --cur-prompt-error: #f87171;
   --cur-prompt-accent: #3794ff;
-  height: calc(100vh / var(--app-zoom, 1) - 176px);
+  height: calc(100vh / var(--app-zoom, 1) - 216px);
   min-height: 520px;
   display: flex;
   flex-direction: column;
@@ -2408,8 +2411,19 @@ select.cur-input { cursor: pointer; }
      sat over the walkthrough and the Break-it rows whatever the window height. */
 }
 /* Many suggestions scroll inside their own box instead of growing the composer. */
-.cur-ide .cur-a2a-main .privilege-a2a__chips { max-height: 112px; overflow-y: auto; }
-.cur-ide .cur-a2a-main .privilege-a2a__composer textarea { min-height: 48px; }
+.cur-ide .cur-a2a-main .privilege-a2a__chips { max-height: 40px; overflow-y: auto; }
+.cur-ide .cur-a2a-main .privilege-a2a__composer textarea { height: 56px; min-height: 48px; }
+/* The hint takes its own row, so Reset, Cancel, Calls and Send keep their width in a narrow column. */
+.cur-ide .cur-a2a-main .privilege-a2a__actions { flex-wrap: wrap; row-gap: 6px; }
+.cur-ide .cur-a2a-main .privilege-a2a__actions > span { flex: 1 1 100%; }
+/* The question box and Send stay at the foot of the column while the walkthrough, Break-it rows and answers scroll
+   under them. At 126px of chips and a 3-row box the composer was 340px of a 400px column, so the box sat out of view. */
+.cur-ide .cur-a2a-main .privilege-a2a__composer {
+  position: sticky;
+  bottom: 0;
+  z-index: 2;
+  background: var(--cur-prompt-surface);
+}
 /* The suggestion chips above already offer every question the select lists. */
 .cur-ide .cur-a2a-main .privilege-a2a__composer label[for="privilege-a2a-demo-question"],
 .cur-ide .cur-a2a-main #privilege-a2a-demo-question { display: none; }
@@ -2442,6 +2456,11 @@ select.cur-input { cursor: pointer; }
   .cur-ide .cur-a2a-main .privilege-a2a__composer textarea { min-height: 36px; }
   /* On short windows the floating "AI Agent" pill rides up over this row too. */
   .cur-ide .cur-a2a-main .privilege-a2a__composer { padding-right: 160px; }
+}
+/* Very short windows: the Calls menu lists the same questions as the chips, so the chips give way to the question box. */
+@media (max-height: 640px) {
+  .cur-ide .cur-a2a-main .privilege-a2a__chips { display: none; }
+  .cur-ide .cur-a2a-main .privilege-a2a__composer textarea { height: 40px; min-height: 36px; }
 }
 
 /* ── Inspect drawer ─────────────────────────────────────────────────────── */
