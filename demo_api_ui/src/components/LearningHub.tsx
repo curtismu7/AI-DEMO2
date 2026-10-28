@@ -57,6 +57,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "RAR (RFC 9396)": { status: "SIMULATED", keywords: ["authorization_details", "transaction", "amount", "payee"], lab: "rar" },
   "JWT Client Auth (RFC 7523)": { status: "SIMULATED", keywords: ["private_key_jwt", "client assertion", "token endpoint"], lab: "jwt-client-auth" },
   "Group Policy Board": { status: "LIVE" },
+  "Session Lab": { status: "SIMULATED", keywords: ["session", "cookie", "return success response", "check session", "idle timeout", "authentication methods", "davinci"] },
   "Transaction Consent": { status: "LIVE" },
   "CIBA Approval Link": { status: "LIVE" },
   "Device-First Sign-In": { status: "LIVE" },
@@ -282,6 +283,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       {
         label: "Group Policy Board",
         description: "One PingOne Authorize decision per vertical, and how flipping group membership flips it",
+        icon: "",
+      },
+      {
+        label: "Session Lab",
+        description: "How a DaVinci flow writes the PingOne session and Check Session reads it: your real session, then a simulated one you change",
         icon: "",
       },
       {
@@ -678,6 +684,7 @@ export default function LearningHub() {
       "Device-First Sign-In": () => navigate("/mfa-test#signin-diagram"),
       "Push Approval (simulated phone)": () => navigate("/mfa-test#push-diagram"),
       "Group Policy Board": () => navigate("/group-policy"),
+      "Session Lab": () => navigate("/session-lab"),
       "Auth Code + PKCE": () => openEdu(EDU.LOGIN_FLOW, "what"),
       "PKCE Deep Dive": () => openEdu(EDU.LOGIN_FLOW, "pkce"),
       "CIBA (OOB)": () =>
