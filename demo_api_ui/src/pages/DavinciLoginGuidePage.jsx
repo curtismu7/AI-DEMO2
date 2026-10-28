@@ -12,6 +12,7 @@ import { refreshWidgetSessionIfNeeded } from "../lib/davinciWidgetClient";
 import DavinciLoginWidget from "./DavinciLoginWidget";
 import "./DavinciLoginGuidePage.css";
 import PageHeader from '../components/common/PageHeader';
+import DavinciFamilyNav from "../components/davinci/DavinciFamilyNav";
 
 export default function DavinciLoginGuidePage() {
   const isPopout = new URLSearchParams(window.location.search).get("popout") === "1";
@@ -90,6 +91,7 @@ export default function DavinciLoginGuidePage() {
       sections={WIDGET_LESSON_SECTIONS}
       storageKey="dvl-lesson-nav-width"
     >
+      <DavinciFamilyNav current="widget" />
       <Section id="try-it-live" title="Try It Live">
         <p className="dvl-live-intro">
           Choose a path on the first DaVinci screen. The trace records each transition and the app session

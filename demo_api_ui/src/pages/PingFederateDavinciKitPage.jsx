@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import "./PingFederateDavinciKitPage.css";
 import PageHeader from '../components/common/PageHeader';
+import DavinciFamilyNav from "../components/davinci/DavinciFamilyNav";
 
 const PF_LOGIN = "/api/auth/oauth/user/pf-davinci/login";
 
@@ -29,6 +30,7 @@ export default function PingFederateDavinciKitPage() {
 
   return (
     <main className="pf-davinci-page">
+      <DavinciFamilyNav current="pf-kit" />
       <PageHeader className="pf-davinci-hero" eyebrow="PingFederate integration" title="DaVinci Integration Kit" summary={<>Run the DaVinci flow through PingFederate&rsquo;s installed default Integration Kit.
             The kit runs in the PF authentication policy, so start with a fresh PF sign-in.</>}
         actions={<>        <aside className={`pf-davinci-session ${hasPfSession ? "is-ready" : "is-blocked"}`} aria-live="polite">

@@ -27,7 +27,7 @@ const configStore = require('../services/configStore');
 const oauthService = require('../services/oauthService');
 const tokenVerificationService = require('../services/tokenVerificationService');
 const { validateIdToken, assertUserInfoSubjectMatches } = require('../services/oidcIdTokenValidationService');
-const dataStore = require('../data/store');
+const { findDemoUser, regenerateSession, saveSession } = require('../services/davinciSessionLogin');
 const { determineClientType } = require('../middleware/auth');
 const { normalizeAxiosError } = require('../utils/normalizeAxiosError');
 
@@ -59,10 +59,8 @@ async function establishSession(req, res, tokens, label, expectedNonce) {
   // This is a demo customer-login sandbox — authenticate an EXISTING demo user only
   // (mirrors routes/oauthUser.js's lookup). Unlike routes/oauth.js's admin flow, never
   // auto-create or auto-admin an account from an arbitrary DaVinci login.
-  const user = dataStore.getUserByUsername(oauthUser.username);
-  if (!user) {
-    return res.status(404).json({ error: 'user_not_found', message: `No demo user found for "${oauthUser.username}".` });
-  }
+  const user = findDemoUser(oauthUser, res);
+  if (!user) return undefined;
 
   const persistAndRespond = () => {
     req.session.oauthTokens = tokens;
@@ -78,16 +76,13 @@ async function establishSession(req, res, tokens, label, expectedNonce) {
     // carry no refresh token (2026-09-13 tech debt), so this is the only signal.
     if (label === 'widget-session') { req.session.davinciWidgetLogin = true; }
 
-    req.session.save((saveErr) => {
-      if (saveErr) {
-        console.error(`[davinci-login/${label}] Session save FAILED:`, saveErr.message);
-        return res.status(500).json({ error: 'session_save_failed', message: 'Could not persist session.' });
-      }
+    saveSession(req, res, `[davinci-login/${label}]`, () => {
       // The username rides back with the result, as routes/davinciSdkLogin.js
       // does: GET /api/auth/me looks the user up by the token's sub and is not
       // guaranteed to find this record, so the page must not ask it.
       return res.json({ ok: true, username: user.username || null });
     });
+    return undefined;
   };
 
   // A widget session silently refreshing its own already-established sign-in
@@ -101,13 +96,7 @@ async function establishSession(req, res, tokens, label, expectedNonce) {
 
   // Regenerate session before storing credentials to prevent session fixation
   // (mirrors routes/oauth.js and routes/oauthUser.js). Failure is fatal.
-  req.session.regenerate((regenErr) => {
-    if (regenErr) {
-      console.error(`[davinci-login/${label}] Session regenerate FAILED — aborting login:`, regenErr.message);
-      return res.status(500).json({ error: 'session_regenerate_failed', message: 'Could not establish a session.' });
-    }
-    persistAndRespond();
-  });
+  return regenerateSession(req, res, `[davinci-login/${label}]`, persistAndRespond);
 }
 
 // A widget session carries no refresh token (see file header), so the only
