@@ -233,3 +233,156 @@ export const NEXT_RELEASE_TRAPS = [
   { symptom: '401 token_not_found after asking PingFederate for a scope', cause: 'A client_credentials request with scope= is served by a different token manager, with no sub and no act.', fix: 'Send resource=<the agent app URL> so PingFederate picks the token manager the gateway trusts.' },
   { symptom: 'Clearing required claims does nothing', cause: 'PUT with an empty claims map is ignored; the old value stays.', fix: 'Delete the RequiredClaims field from the rule.' },
 ];
+
+// ---------------------------------------------------------------------------------------------------------------------
+// v1.261027 lab: three measured behaviours, each as a tiny pure model so the page can run them. Source: privilege/
+// PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md (parts F and H, sections 15 and 16) and privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md,
+// measured 2026-10-27. Hosts, ids and tokens are placeholders; only the SHAPE and the outcomes are real.
+// ---------------------------------------------------------------------------------------------------------------------
+export const GATEWAY_VERSION_NEXT = 'v1.261027';
+export const APP_URL = 'https://mcpgw.example.com/pftoken/mcp';
+export const OPENSEARCH_TOOLS_READ = ['ListIndexTool', 'SearchIndexTool', 'CountTool'];
+export const GUARDED_TOOL = 'SearchIndexTool';
+export const GUARDED_SCOPE = 'opensearch:search';
+
+export const NEXT_GROUPS = [
+  { id: 'cedar', label: 'Cedar scope gate', blurb: 'An AI policy (Cedar) refuses a tool call unless the PingFederate token carries a scope.' },
+  { id: 'pf', label: 'PingFederate resource= trap', blurb: 'Which PingFederate token manager answers decides whether the gateway accepts the token at all.' },
+  { id: 'tiers', label: 'RequiredClaims scope tiers', blurb: 'Two grant rules on one agent app give the same agent 9 tools, 3 tools or a 403, by token scope.' },
+];
+
+/** AI policy decision for one tools/call. state "Active" enforces; the API-created state "" is a candidate: shadow only. */
+export function evaluateCedarScope({ tool, scopes, state }) {
+  const scopeList = String(scopes || '').split(/\s+/).filter(Boolean);
+  const wouldDeny = tool === GUARDED_TOOL && !scopeList.includes(GUARDED_SCOPE);
+  if (wouldDeny && state === 'Active') {
+    return { allowed: false, status: 400, rpcCode: -32600, message: `action denied by policy: ${GUARDED_TOOL} needs the ${GUARDED_SCOPE} scope in the agent's token`, log: `aipolicy: denied PFtoken calling ${GUARDED_TOOL} on pftoken (policies=[pftoken-scope-search:1])`, event: 'policy_decision', wouldDeny };
+  }
+  if (wouldDeny) {
+    return { allowed: true, status: 200, log: 'mcp_policy_shadow_delta: candidate policy would have returned deny where the active set returned allow', event: 'mcp_policy_shadow_delta', wouldDeny };
+  }
+  return { allowed: true, status: 200, log: 'workload token accepted for key pftoken-agent, no policy denial', event: null, wouldDeny };
+}
+
+/** Which PingFederate token manager answers a client_credentials request, and what the gateway then does with the token. */
+export function evaluatePfRequest({ param }) {
+  if (param === 'resource') {
+    return { manager: 'routeCTestAtm (JWT)', aud: APP_URL, hasSubAct: true, allowed: true, status: 200, log: 'workload token accepted for key pftoken-agent' };
+  }
+  return { manager: 'pi.atm (q0cl)', aud: 'enduser.ping.demo', hasSubAct: false, allowed: false, status: 401, log: 'auth rejected: reason=token_not_found app=pftoken method=POST path=/pftoken/mcp' };
+}
+
+/** Two grant rules on one app, each with RequiredClaims on scope. A listed value means any of; the token scope is split per value. */
+export const TIER_RULES = [
+  { name: 'Tier 1 (read)', tools: OPENSEARCH_TOOLS_READ, requiredScopes: ['opensearch:read'] },
+  { name: 'Tier 2 (admin)', tools: ['all nine tools'], toolCount: 9, requiredScopes: ['opensearch:admin'] },
+];
+export function evaluateTiers({ scope, rules = TIER_RULES }) {
+  const have = String(scope || '').split(/\s+/).filter(Boolean);
+  const matched = rules.filter((r) => r.requiredScopes.some((s) => have.includes(s)));
+  if (!matched.length) return { allowed: false, status: 403, count: 0, matched: [], log: 'policy denied: no grant rule matched the token claims' };
+  const size = (r) => r.toolCount || r.tools.length;
+  const widest = matched.reduce((a, b) => (size(b) > size(a) ? b : a));
+  return { allowed: true, status: 200, count: size(widest), matched: matched.map((r) => r.name), log: `workload token accepted for key pftoken-agent, rule "${widest.name}"` };
+}
+
+const MEASURED = 'Measured 2026-10-27 on the real gateway.';
+const cedarSc = (id, label, input, evidenceNote, story) => ({ id, group: 'cedar', label, input, result: evaluateCedarScope(input), evidence: 'verified', evidenceNote, story });
+const tierSc = (id, label, input, evidenceNote, story, rules) => ({ id, group: 'tiers', label, input, result: evaluateTiers({ ...input, rules }), evidence: 'verified', evidenceNote, story });
+
+export const NEXT_SCENARIOS = [
+  cedarSc('cedar-missing', 'No opensearch:search, policy Active', { tool: GUARDED_TOOL, scopes: 'openid opensearch:admin', state: 'Active' },
+    `${MEASURED} gateway v1.261027: JSON-RPC 400, code -32600.`, 'The token is valid and the key is allowed the tool, but the Cedar forbid fires because the token has no opensearch:search scope.'),
+  cedarSc('cedar-present', 'With opensearch:search', { tool: GUARDED_TOOL, scopes: 'openid opensearch:admin opensearch:search', state: 'Active' },
+    `${MEASURED} HTTP 200 with search results.`, 'Same token plus the one scope the policy asks for: the unless clause is true, so the forbid does not apply.'),
+  cedarSc('cedar-other-tool', 'Other tool, no scope', { tool: 'ListIndexTool', scopes: 'openid opensearch:admin', state: 'Active' },
+    `${MEASURED} Other tools were unaffected.`, 'The forbid names SearchIndexTool only, so every other tool call goes through on the same token.'),
+  cedarSc('cedar-candidate', 'Policy still a candidate', { tool: GUARDED_TOOL, scopes: 'openid opensearch:admin', state: '' },
+    `${MEASURED} The call was allowed and the log said the candidate policy would have denied.`, 'A policy created through the API is stored with State "" (a candidate). It is compiled and logged in shadow, never enforced. PUT it with State "Active" to make it bite.'),
+  { id: 'pf-scope-only', group: 'pf', label: 'Token request with scope= only', input: { param: 'scope' }, result: evaluatePfRequest({ param: 'scope' }), evidence: 'verified',
+    evidenceNote: `${MEASURED} Audience enduser.ping.demo, no sub, no act; gateway 401 token_not_found.`, story: 'A client_credentials request that names a scope but no resource is served by a different token manager. The token is a perfectly good PingFederate token, but it is not one the gateway accepts.' },
+  { id: 'pf-resource', group: 'pf', label: 'Token request with resource=', input: { param: 'resource' }, result: evaluatePfRequest({ param: 'resource' }), evidence: 'verified',
+    evidenceNote: `${MEASURED} HTTP 200 on tools/list.`, story: 'Sending resource=<the agent app URL> makes PingFederate pick the token manager the gateway trusts. The token carries the agent audience, sub and the object-valued act.' },
+  tierSc('tier-admin', 'Token scope opensearch:admin', { scope: 'openid opensearch:admin' }, `${MEASURED} All nine tools listed.`, 'The admin rule requires opensearch:admin; the scope is split per value, so it matches "openid opensearch:admin".', TIER_RULES),
+  tierSc('tier-read', 'Token scope opensearch:read', { scope: 'openid opensearch:read' }, `${MEASURED} The three read tools listed.`, 'Only the read rule matches, so the same agent sees three tools.', TIER_RULES),
+  tierSc('tier-none', 'Neither scope', { scope: 'openid' }, `${MEASURED} HTTP 403.`, 'The token is accepted but no grant rule matches its claims, so the gateway answers 403 and logs policy denied.', TIER_RULES),
+  tierSc('tier-whole-string', 'Rule asks for the whole scope string', { scope: 'openid opensearch:read' }, `${MEASURED} Requiring "openid opensearch:read" did not match that token.`,
+    'Scopes are matched one at a time. A rule that lists the whole space-joined string never matches, so the agent gets 403 even though the text is in the token.', [{ name: 'Whole-string rule', tools: OPENSEARCH_TOOLS_READ, requiredScopes: ['openid opensearch:read'] }]),
+];
+
+const tokenFor = (s) => {
+  if (s.group === 'pf') {
+    const r = s.result;
+    return { iss: 'https://pf.example.com', aud: r.aud, client_id: 'agent-example-01', ...(r.hasSubAct ? { sub: 'agent-example-01', act: { sub: 'agent-example-01' } } : {}), scope: 'openid opensearch:read', exp: 1790000600 };
+  }
+  const scope = s.input.scopes ?? s.input.scope;
+  return { iss: 'https://pf.example.com', sub: 'agent-example-01', aud: APP_URL, client_id: 'agent-example-01', act: { sub: 'agent-example-01' }, scope, exp: 1790000600 };
+};
+
+/** The wire for a scenario: request and response text, plus the decoded token, as the page shows them. */
+export function nextWire(s) {
+  const r = s.result;
+  const token = tokenFor(s);
+  if (s.group === 'pf') {
+    return {
+      token,
+      request: `POST https://pf.example.com/as/token.oauth2\nAuthorization: Basic <client id:secret, never shown>\nContent-Type: application/x-www-form-urlencoded\n\ngrant_type=client_credentials&scope=openid opensearch:read${s.input.param === 'resource' ? `&resource=${APP_URL}` : ''}`,
+      response: `Token manager: ${r.manager}\n${JSON.stringify(token, null, 2)}\n\nThen: POST ${APP_URL}  {"method":"tools/list"}\n=> HTTP ${r.status}\nGateway log: ${r.log}`,
+    };
+  }
+  const call = s.group === 'cedar'
+    ? { method: 'tools/call', params: { name: s.input.tool, arguments: { query: 'example' } } }
+    : { method: 'tools/list' };
+  const request = `POST ${APP_URL}\nAuthorization: Bearer <token below>\nContent-Type: application/json\n\n${JSON.stringify({ jsonrpc: '2.0', id: 1, ...call })}`;
+  let response;
+  if (s.group === 'cedar') {
+    response = r.allowed ? 'HTTP 200\n{"result": "search results"}' : `HTTP 400\n${JSON.stringify({ jsonrpc: '2.0', id: 1, error: { code: r.rpcCode, message: r.message } })}`;
+  } else {
+    response = r.allowed ? `HTTP 200\n${r.count} tools` : 'HTTP 403 Forbidden';
+  }
+  return { token, request, response: `${response}\nGateway log: ${r.log}` };
+}
+
+export const NEXT_DETAILS = {
+  A: 'The caller. It holds a PingFederate token and presents it as a bearer. It never holds a Privilege-issued key.',
+  F: 'PingFederate. Which token manager answers (decided by resource=) sets the audience and whether sub and act exist.',
+  G: 'Privilege gateway, mcpgw. Verifies the token, then runs the grant rules and the AI policies on the call.',
+  N: 'The decision point for this scenario: the AI policy (Cedar) for the scope gate, the grant rules with RequiredClaims for the tiers.',
+  B: 'The MCP server behind the P1 Privilege Agent App, reached only when the gateway allows the call.',
+};
+export const NEXT_LANES = DIAGRAM_LANES;
+
+export function nextScenarioDiagram(s) {
+  const r = s.result;
+  const w = nextWire(s);
+  const rows = ['sequenceDiagram', '    autonumber', '    participant A as Agent\\nthe caller'];
+  const msgs = [];
+  if (s.group === 'pf') {
+    rows.push('    participant F as PingFederate\\nissues the token', '    participant G as Privilege gateway\\nmcpgw v1.261027', '    participant B as MCP server\\nbehind the Agent App');
+    msgs.push([`A->>F: Token request, ${s.input.param === 'resource' ? 'scope and resource' : 'scope only'}`, w.request]);
+    msgs.push([`F-->>A: Token from ${r.manager}, aud ${r.aud}${r.hasSubAct ? ', with sub and act' : ', no sub, no act'}`, JSON.stringify(w.token, null, 2)]);
+    msgs.push(['A->>G: tools/list with the bearer', `POST ${APP_URL}\nAuthorization: Bearer <token>`]);
+    if (r.allowed) {
+      msgs.push(['G->>B: Forwards the verified token', 'Authorization: Bearer <same token>']);
+      msgs.push(['B-->>A: HTTP 200 with the tools', 'HTTP 200\n9 tools']);
+    } else {
+      msgs.push([`G-->>A: HTTP 401, token_not_found`, `HTTP 401\n${r.log}`]);
+    }
+  } else {
+    rows.push('    participant G as Privilege gateway\\nmcpgw v1.261027', `    participant N as ${s.group === 'cedar' ? 'AI policy (Cedar)\\npftoken-scope-search' : 'Grant rules\\nRequiredClaims on scope'}`, '    participant B as MCP server\\nbehind the Agent App');
+    msgs.push([`A->>G: ${s.group === 'cedar' ? `tools/call ${s.input.tool}` : 'tools/list'} with the bearer`, w.request]);
+    msgs.push(['G->>N: ' + (s.group === 'cedar' ? `Evaluate with context.token.scopes = [${String(s.input.scopes).split(' ').join(', ')}]` : `Match the rules against scope "${s.input.scope}"`), JSON.stringify(w.token, null, 2)]);
+    const verdict = s.group === 'cedar'
+      ? (r.allowed ? (r.wouldDeny ? 'N-->>G: Candidate: would deny, logged in shadow, so allowed' : 'N-->>G: No forbid applies, allowed') : `N-->>G: forbid fires: ${r.message}`)
+      : (r.allowed ? `N-->>G: Rule matched, ${r.count} tools` : 'N-->>G: No rule matched');
+    msgs.push([verdict, r.log]);
+    if (r.allowed) {
+      msgs.push(['G->>B: Forwards the call', 'Authorization: Bearer <same token>']);
+      msgs.push(['B-->>A: HTTP 200', w.response]);
+    } else {
+      msgs.push([`G-->>A: HTTP ${r.status}`, w.response]);
+    }
+  }
+  rows.push('    rect rgb(225,229,238)', ...msgs.map(([m]) => `    ${m}`), '    end');
+  return { source: wrapMessages(`${rows.join('\n')}\n`), payloads: msgs.map(([, p]) => p) };
+}
