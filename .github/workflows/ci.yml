@@ -16,8 +16,9 @@ on:
     # the same concurrency group, which cancels the stale one; that run's own
     # jobs all skip (see `changes`), so it never takes a runner.
     types: [opened, synchronize, reopened, ready_for_review, closed]
-  push:
-    branches: [main]
+  # No push-to-main trigger: every merge used to start a second full run on the
+  # overloaded self-hosted runners. PRs are tested before merge, and the nightly
+  # run below tests main and carries the "Main is red" alert.
   schedule:
     - cron: '17 9 * * *'
 
@@ -584,7 +585,7 @@ jobs:
     # Guard against the 2026-09-26 failure mode: main's CI sat 32-runs red for
     # days because triggers were disabled and nothing watched for redness —
     # broken tests accumulated as invisible debt (the ciba mock drift being
-    # the worst case). This job runs ONLY on push-to-main, fails loudly when
+    # the worst case). This job runs ONLY on the nightly run of main, fails loudly when
     # any suite is red, and writes a machine-readable summary so a future
     # notifier (Slack/webhook) has one file to read. It does not replace
     # branch protection — it makes "main is red" un-missable in the run list.
@@ -593,7 +594,7 @@ jobs:
     # A newer merge cancels this run (the concurrency group above), which makes
     # the upstream jobs "cancelled" — not red. Alerting on that is a false
     # positive, so stay quiet unless every upstream job actually finished.
-    if: always() && github.event_name == 'push' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'cancelled')
+    if: always() && github.event_name == 'schedule' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'cancelled')
     runs-on: self-hosted
     timeout-minutes: 5
     steps:
@@ -612,8 +613,7 @@ jobs:
             echo "| standalone-a2a-tests | ${{ contains(needs.standalone-a2a-tests.result, 'success') && '✅' || '❌ ' }} ${{ needs.standalone-a2a-tests.result }} |"
             echo "| authz-decision-tests | ${{ contains(needs.authz-decision-tests.result, 'success') && '✅' || '❌ ' }} ${{ needs.authz-decision-tests.result }} |"
           } >> "$GITHUB_STEP_SUMMARY"
-          # Push-to-main is path-filtered, so a suite the merge did not touch
-          # is `skipped` — that is not red. Gates always run and must pass.
+          # A suite that was skipped is not red. Gates always run and must pass.
           ok() { [[ "$1" == "success" || "$1" == "skipped" ]]; }
           if [[ "${{ needs.gates.result }}" != "success" ]] \
              || ! ok "${{ needs.api-server-tests.result }}" \
