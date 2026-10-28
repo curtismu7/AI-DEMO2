@@ -4,7 +4,8 @@ import { MemoryRouter } from 'react-router-dom';
 import GatewayClaimsPage from '../GatewayClaimsPage';
 import { parseSequence } from '../../utils/parseSequence';
 import {
-  AGENT_ID, DIAGRAM_DETAILS, REQUIRED_CLAIMS, SCENARIOS, evaluateRule, flattenClaims, scenarioDiagram,
+  AGENT_ID, DIAGRAM_DETAILS, NEXT_DETAILS, NEXT_SCENARIOS, REQUIRED_CLAIMS, SCENARIOS, TIER_RULES,
+  evaluateCedarScope, evaluatePfRequest, evaluateRule, evaluateTiers, flattenClaims, nextScenarioDiagram, nextWire, scenarioDiagram,
 } from '../../config/gatewayClaims';
 
 describe('flattenClaims', () => {
@@ -66,12 +67,52 @@ describe('scenario diagrams', () => {
   });
 });
 
+describe('v1.261027 models', () => {
+  it('Cedar scope gate: denies SearchIndexTool without opensearch:search only when the policy is Active', () => {
+    const deny = evaluateCedarScope({ tool: 'SearchIndexTool', scopes: 'openid opensearch:admin', state: 'Active' });
+    expect(deny).toMatchObject({ allowed: false, status: 400, rpcCode: -32600 });
+    expect(deny.message).toContain('action denied by policy');
+    expect(evaluateCedarScope({ tool: 'SearchIndexTool', scopes: 'openid opensearch:admin opensearch:search', state: 'Active' }).allowed).toBe(true);
+    expect(evaluateCedarScope({ tool: 'ListIndexTool', scopes: 'openid', state: 'Active' }).allowed).toBe(true);
+  });
+  it('a candidate policy (State "") only shadows: allowed, with the shadow log', () => {
+    const r = evaluateCedarScope({ tool: 'SearchIndexTool', scopes: 'openid', state: '' });
+    expect(r).toMatchObject({ allowed: true, status: 200, wouldDeny: true, event: 'mcp_policy_shadow_delta' });
+  });
+  it('PingFederate: scope= alone gets the wrong token manager and a 401; resource= gets the right one', () => {
+    expect(evaluatePfRequest({ param: 'scope' })).toMatchObject({ allowed: false, status: 401, aud: 'enduser.ping.demo', hasSubAct: false });
+    expect(evaluatePfRequest({ param: 'scope' }).log).toContain('token_not_found');
+    expect(evaluatePfRequest({ param: 'resource' })).toMatchObject({ allowed: true, status: 200, hasSubAct: true });
+  });
+  it('tiers: admin 9 tools, read 3, neither 403; the scope is matched per value, never as the whole string', () => {
+    expect(evaluateTiers({ scope: 'openid opensearch:admin' })).toMatchObject({ allowed: true, count: 9 });
+    expect(evaluateTiers({ scope: 'openid opensearch:read' })).toMatchObject({ allowed: true, count: 3 });
+    expect(evaluateTiers({ scope: 'openid' })).toMatchObject({ allowed: false, status: 403 });
+    expect(evaluateTiers({ scope: 'openid opensearch:read', rules: [{ name: 'w', tools: ['x'], requiredScopes: ['openid opensearch:read'] }] }).status).toBe(403);
+    expect(TIER_RULES).toHaveLength(2);
+  });
+  it('every scenario is labelled VERIFIED, has a diagram with one payload per message, and reel details for each lane', () => {
+    expect(NEXT_SCENARIOS.every((s) => s.evidence === 'verified')).toBe(true);
+    for (const s of NEXT_SCENARIOS) {
+      const d = nextScenarioDiagram(s);
+      const model = parseSequence(d.source);
+      const messages = model.items.filter((i) => i.from && i.to);
+      expect(d.payloads).toHaveLength(messages.length);
+      for (const p of model.participants) expect(NEXT_DETAILS[p.id]).toBeTruthy();
+    }
+  });
+  it('contains no real-looking hosts or ids', () => {
+    const all = NEXT_SCENARIOS.map((s) => nextScenarioDiagram(s).source + JSON.stringify(nextWire(s))).join('\n');
+    expect(all).not.toMatch(/ping-devops|pf-route-c-test|cmuir|01d89b06/);
+  });
+});
+
 describe('GatewayClaimsPage', () => {
   const renderPage = () => render(<MemoryRouter><GatewayClaimsPage /></MemoryRouter>);
 
   it('has the title, back link, evidence legend and both parts', () => {
     renderPage();
-    expect(screen.getByRole('heading', { level: 1, name: /What Privilege gateway v1\.261024 added/ })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /What Privilege gateway v1\.261024 and v1\.261027 added/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: /All diagrams/ }).getAttribute('href')).toBe('/diagrams');
     const legend = screen.getByTestId('gwc-legend');
     for (const l of ['VERIFIED', 'INFERRED', 'UNVERIFIED']) expect(within(legend).getByText(l)).toBeTruthy();
@@ -103,5 +144,24 @@ describe('GatewayClaimsPage', () => {
     expect(within(sec).getAllByText('VERIFIED').length).toBe(2);
     expect(screen.getByTestId('gwc-cedar').textContent).toContain('context.token.scopes.contains("opensearch:search")');
     expect(sec.textContent).toContain('State "Active"');
+  });
+
+  it('runs the v1.261027 lab: groups, verdict, full request, token, response and the shadow trap', () => {
+    renderPage();
+    const lab = screen.getByTestId('gwc-next-lab');
+    expect(within(lab).getByTestId('gwc-next-verdict').getAttribute('data-status')).toBe('400');
+    expect(within(lab).getByTestId('gwc-next-response').textContent).toContain('-32600');
+    expect(within(lab).getByTestId('gwc-next-request').textContent).toContain('"tools/call"');
+    fireEvent.click(screen.getByTestId('gwc-next-cedar-candidate'));
+    expect(within(lab).getByTestId('gwc-next-verdict').getAttribute('data-allowed')).toBe('true');
+    expect(within(lab).getByTestId('gwc-next-response').textContent).toContain('mcp_policy_shadow_delta');
+    fireEvent.click(screen.getByTestId('gwc-group-pf'));
+    expect(within(lab).getByTestId('gwc-next-verdict').getAttribute('data-status')).toBe('401');
+    expect(within(lab).getByTestId('gwc-next-response').textContent).toContain('enduser.ping.demo');
+    fireEvent.click(screen.getByTestId('gwc-next-pf-resource'));
+    expect(within(lab).getByTestId('gwc-next-request').textContent).toContain('resource=');
+    fireEvent.click(screen.getByTestId('gwc-group-tiers'));
+    fireEvent.click(screen.getByTestId('gwc-next-tier-none'));
+    expect(within(lab).getByTestId('gwc-next-verdict').getAttribute('data-status')).toBe('403');
   });
 });
