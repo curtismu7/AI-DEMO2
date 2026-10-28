@@ -166,4 +166,16 @@ describe('GatewayClaimsPage', () => {
     fireEvent.click(screen.getByTestId('gwc-next-tier-none'));
     expect(within(lab).getByTestId('gwc-next-verdict').getAttribute('data-status')).toBe('403');
   });
+
+  it('labels every cell of a stacked table, so the narrow layout keeps its column headings', () => {
+    const { container } = renderPage();
+    const stacked = container.querySelectorAll('table.gwc-table--stack');
+    expect(stacked.length).toBeGreaterThanOrEqual(5);
+    stacked.forEach((t) => {
+      const heads = [...t.querySelectorAll('thead th')].map((h) => h.textContent);
+      t.querySelectorAll('tbody tr').forEach((row) => {
+        [...row.children].forEach((td, i) => expect(td.getAttribute('data-label')).toBe(heads[i]));
+      });
+    });
+  });
 });

@@ -115,9 +115,9 @@ export default function GatewayClaimsPage() {
           <div>
             <h3>The rule</h3>
             <pre className="gwc-pre" data-testid="gwc-rule">{JSON.stringify({ requiredClaims: REQUIRED_CLAIMS }, null, 2)}</pre>
-            <table className="gwc-table" aria-label="Where each setting lives">
+            <table className="gwc-table gwc-table--stack" aria-label="Where each setting lives">
               <thead><tr><th>Where</th><th>Value</th></tr></thead>
-              <tbody>{MAPPING_ROWS.map((r) => <tr key={r.where}><td>{r.where}</td><td><code>{r.value}</code></td></tr>)}</tbody>
+              <tbody>{MAPPING_ROWS.map((r) => <tr key={r.where}><td data-label="Where">{r.where}</td><td data-label="Value"><code>{r.value}</code></td></tr>)}</tbody>
             </table>
           </div>
           <div>
@@ -153,22 +153,22 @@ export default function GatewayClaimsPage() {
           </div>
           <div>
             <h3>Flattened claims and the checks</h3>
-            <table className="gwc-table" data-testid="gwc-flat" aria-label="Flattened claims">
+            <table className="gwc-table gwc-table--stack" data-testid="gwc-flat" aria-label="Flattened claims">
               <thead><tr><th>Flattened path</th><th>Value</th></tr></thead>
               <tbody>
                 {Object.entries(result.flat).map(([k, v]) => (
-                  <tr key={k} className={k in REQUIRED_CLAIMS ? 'gwc-req' : undefined}><td><code>{k}</code></td><td><code>{show(v)}</code></td></tr>
+                  <tr key={k} className={k in REQUIRED_CLAIMS ? 'gwc-req' : undefined}><td data-label="Flattened path"><code>{k}</code></td><td data-label="Value"><code>{show(v)}</code></td></tr>
                 ))}
               </tbody>
             </table>
-            <table className="gwc-table" data-testid="gwc-checks" aria-label="Required claim checks">
+            <table className="gwc-table gwc-table--stack" data-testid="gwc-checks" aria-label="Required claim checks">
               <thead><tr><th>Required</th><th>Token has</th><th>Result</th></tr></thead>
               <tbody>
                 {result.checks.map((c) => (
                   <tr key={c.path}>
-                    <td><code>{c.path} = {c.expected}</code></td>
-                    <td><code>{show(c.actual)}</code></td>
-                    <td className={c.ok ? 'gwc-ok' : 'gwc-bad'}>{c.ok ? 'match' : 'no match'}</td>
+                    <td data-label="Required"><code>{c.path} = {c.expected}</code></td>
+                    <td data-label="Token has"><code>{show(c.actual)}</code></td>
+                    <td data-label="Result" className={c.ok ? 'gwc-ok' : 'gwc-bad'}>{c.ok ? 'match' : 'no match'}</td>
                   </tr>
                 ))}
               </tbody>
@@ -187,9 +187,9 @@ export default function GatewayClaimsPage() {
         />
 
         <h3>The failure we hit, and the fix <Tag kind="verified" /></h3>
-        <table className="gwc-table" aria-label="Failure and fix">
+        <table className="gwc-table gwc-table--stack" aria-label="Failure and fix">
           <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
-          <tbody>{TRAP_ROWS.map((r) => <tr key={r.symptom}><td><code>{r.symptom}</code></td><td>{r.cause}</td><td>{r.fix}</td></tr>)}</tbody>
+          <tbody>{TRAP_ROWS.map((r) => <tr key={r.symptom}><td data-label="Symptom"><code>{r.symptom}</code></td><td data-label="Cause">{r.cause}</td><td data-label="Fix">{r.fix}</td></tr>)}</tbody>
         </table>
         <p className="gwc-muted">Source: <code>{DOC_PATH}</code>, section &quot;Working configuration&quot;.</p>
       </section>
@@ -226,16 +226,16 @@ export default function GatewayClaimsPage() {
           ))}
         </ul>
         <h3>What the binary diff shows <Tag kind="unverified" /></h3>
-        <table className="gwc-table" aria-label="Symbols new in v1.261027" data-testid="gwc-diff">
+        <table className="gwc-table gwc-table--stack" aria-label="Symbols new in v1.261027" data-testid="gwc-diff">
           <thead><tr><th>Change</th><th>Symbols</th><th>Our reading</th></tr></thead>
-          <tbody>{NEXT_RELEASE_DIFF.map((r) => <tr key={r.change}><td>{r.change}</td><td><code>{r.symbols}</code></td><td>{r.reading}</td></tr>)}</tbody>
+          <tbody>{NEXT_RELEASE_DIFF.map((r) => <tr key={r.change}><td data-label="Change">{r.change}</td><td data-label="Symbols"><code>{r.symbols}</code></td><td data-label="Our reading">{r.reading}</td></tr>)}</tbody>
         </table>
         <h3>The Cedar policy we ran</h3>
         <pre className="gwc-pre" data-testid="gwc-cedar">{NEXT_RELEASE.cedarPolicy}</pre>
         <h3>Traps we hit</h3>
-        <table className="gwc-table">
+        <table className="gwc-table gwc-table--stack">
           <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
-          <tbody>{NEXT_RELEASE_TRAPS.map((r) => <tr key={r.symptom}><td>{r.symptom}</td><td>{r.cause}</td><td>{r.fix}</td></tr>)}</tbody>
+          <tbody>{NEXT_RELEASE_TRAPS.map((r) => <tr key={r.symptom}><td data-label="Symptom">{r.symptom}</td><td data-label="Cause">{r.cause}</td><td data-label="Fix">{r.fix}</td></tr>)}</tbody>
         </table>
       </section>
       <NextLab />

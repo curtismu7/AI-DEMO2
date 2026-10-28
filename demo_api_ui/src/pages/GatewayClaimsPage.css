@@ -34,4 +34,11 @@
 .gwc-group dl { margin: 0; }
 .gwc-group dt { font-weight: 600; font-size: var(--font-size-sm); margin-top: 8px; }
 .gwc-group dd { margin: 2px 0 0; color: var(--th-text-muted); font-size: var(--font-size-sm); }
-@media (max-width: 640px) { .gwc-table { display: block; overflow-x: auto; } .gwc-grid { grid-template-columns: minmax(0, 1fr); } }
+@media (max-width: 640px) {
+  .gwc-table--stack thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); }
+  .gwc-table--stack, .gwc-table--stack tbody, .gwc-table--stack tr, .gwc-table--stack td { display: block; }
+  .gwc-table--stack tr { padding: 6px 0; border-bottom: 1px solid var(--th-border); }
+  .gwc-table--stack td { padding: 2px 4px; border: 0; overflow-wrap: anywhere; }
+  .gwc-table--stack td::before { content: attr(data-label); display: block; color: var(--th-text-muted); font-size: var(--font-size-xs); font-weight: 600; }
+  .gwc-grid { grid-template-columns: minmax(0, 1fr); }
+}
