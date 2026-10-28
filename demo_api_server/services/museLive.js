@@ -46,16 +46,26 @@ function museConfig(lane = 'gateway', env = process.env) {
   const configured = Boolean(envId && clientId && clientSecret);
   const useLane = lane === 'privilege' ? 'privilege' : 'gateway';
   const url = useLane === 'privilege' ? privilegeUrl : gatewayBase;
+  // The token audience is the gateway's PingOne resource, which is not always the address Muse calls (on SE the gateway is called
+  // inside the cluster while PingOne knows it as https://api.ping.demo:3036/mcp). Same value as the call address when nothing is set.
+  const audience = useLane === 'privilege' ? null : (env.MUSE_GATEWAY_AUDIENCE || configStore.getEffective('pingone_resource_pinggateway_uri') || url);
   const base = `https://auth.pingone.${region}`;
   const allow = new Set([base]);
   for (const o of [url, gatewayBase, privilegeUrl, ...(env.MUSE_ALLOW_ORIGINS ?? '').split(',').map((x) => x.trim())]) {
-    try { if (o) { const ou = new URL(o); if (ou.protocol === 'https:') allow.add(ou.origin); } } catch { /* ignore */ }
+    try {
+      if (!o) continue;
+      const ou = new URL(o);
+      if (ou.protocol === 'https:') allow.add(ou.origin);
+      // One exception to https-only: the gateway address the owner set in MUSE_GATEWAY_URL, when it is a cluster-local service name (no dots).
+      else if (ou.protocol === 'http:' && env.MUSE_GATEWAY_URL && o === env.MUSE_GATEWAY_URL && !ou.hostname.includes('.')) allow.add(ou.origin);
+    } catch { /* ignore */ }
   }
   return {
     configured,
     lane: useLane,
     laneAvailable: Boolean(url),
     url,
+    audience,
     origin: url ? new URL(url).origin : null,
     allow,
     redirectUri: env.MUSE_REDIRECT_URI || DEFAULT_REDIRECT_URI,
@@ -127,7 +137,17 @@ async function liveDiscovery(cfg, fetchImpl) {
   const m = /resource_metadata="([^"]+)"/.exec(first.res.headers.get('www-authenticate') ?? '');
   if (!m) return stop('The 401 has no resource_metadata in WWW-Authenticate, so Muse cannot discover how to sign in.');
 
-  const prm = await call(2, 'Read the resource metadata', 'GET', m[1], null, 'This names the authorization server Muse must use, and the audience the token must carry.');
+  // The gateway may advertise its metadata under its PingOne name (https://api.ping.demo:3036/...), which Muse cannot reach from here.
+  // Only when that is the audience's own origin, read the same path from the address Muse calls, and say so.
+  let prmUrl = m[1], prmNote = '';
+  try {
+    const adv = new URL(m[1]);
+    if (!cfg.allow.has(adv.origin) && cfg.audience && adv.origin === new URL(cfg.audience).origin) {
+      prmUrl = `${new URL(cfg.url).origin}${adv.pathname}${adv.search}`;
+      prmNote = `The gateway advertised ${m[1]} (its PingOne name). Muse read the same path from ${new URL(cfg.url).origin}, the address it calls.`;
+    }
+  } catch { /* leave as advertised */ }
+  const prm = await call(2, 'Read the resource metadata', 'GET', prmUrl, null, ['This names the authorization server Muse must use, and the audience the token must carry.', prmNote].filter(Boolean).join(' '));
   if (!prm) return stop('The resource metadata origin is not allowed.');
   const issuer = prm.parsed?.authorization_servers?.[0];
   if (prm.res.status !== 200 || typeof issuer !== 'string') return stop('The resource metadata did not name an authorization server.');
@@ -147,7 +167,7 @@ function startSignIn(cfg, { mfa = true } = {}) {
   const u = new URL(cfg.idp.authorizeEndpoint);
   const privilege = cfg.lane === 'privilege';
   // Gateway lane: the user token is minted for the gateway up front (resource + gateway scope). Privilege lane: openid only.
-  const resource = privilege ? null : cfg.url;
+  const resource = privilege ? null : (cfg.audience || cfg.url);
   u.search = new URLSearchParams({
     response_type: 'code', client_id: cfg.idp.clientId, redirect_uri: cfg.redirectUri, state,
     ...(resource ? { resource } : {}), prompt: 'login',

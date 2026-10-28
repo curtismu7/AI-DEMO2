@@ -266,3 +266,44 @@ describe('museConfig', () => {
     expect(c.idp.gatewayScope).toBe('mcp:invoke');
   });
 });
+
+describe('museConfig: gateway lane address vs token audience (SE: PingGateway inside the cluster)', () => {
+  beforeEach(() => setConfig({ pingone_resource_pinggateway_uri: GW }));
+  const env = { MUSE_GATEWAY_URL: 'http://ping-gateway:8080/mcp' };
+  it('calls the cluster address but asks PingOne for the gateway resource as the audience', () => {
+    const c = museConfig('gateway', env);
+    expect(c.url).toBe('http://ping-gateway:8080/mcp');
+    expect(c.audience).toBe(GW);
+    expect(c.allow.has('http://ping-gateway:8080')).toBe(true);
+    const { startSignIn } = require('../services/museLive');
+    const r = startSignIn(c, { mfa: true });
+    expect(new URL(r.url).searchParams.get('resource')).toBe(GW);
+    expect(r.resource).toBe(GW);
+  });
+  it('allows http only for the owner-set, dotless service name; any other http origin stays refused', () => {
+    expect(museConfig('gateway', { MUSE_GATEWAY_URL: 'http://gw.example.com:8080/mcp' }).allow.has('http://gw.example.com:8080')).toBe(false);
+    expect(museConfig('gateway', { ...env, MUSE_ALLOW_ORIGINS: 'http://other:9' }).allow.has('http://other:9')).toBe(false);
+  });
+  it('with no gateway setting the audience is the same as the call address (local run unchanged)', () => {
+    setConfig({});
+    const c = museConfig('gateway', {});
+    expect(c.audience).toBe(c.url);
+  });
+  it('privilege lane has no audience', () => { expect(museConfig('privilege', { MUSE_PRIVILEGE_URL: 'https://priv.example/mcp' }).audience).toBeNull(); });
+  it('discovery reads the metadata from the call address when the gateway advertises its PingOne name', async () => {
+    const { liveDiscovery } = require('../services/museLive');
+    const c = museConfig('gateway', env);
+    const seen = [];
+    const f = async (url, init = {}) => {
+      const u = String(url); seen.push(u);
+      if (u === 'http://ping-gateway:8080/mcp') return json(401, {}, { 'www-authenticate': `Bearer resource_metadata="https://api.ping.demo:3036/.well-known/oauth-protected-resource/mcp"` });
+      if (u === 'http://ping-gateway:8080/.well-known/oauth-protected-resource/mcp') return json(200, { resource: GW, authorization_servers: [AS_BASE] });
+      if (u.startsWith(`${AS_BASE}/.well-known`) || u.includes('oauth-authorization-server')) return json(200, { issuer: AS_BASE, authorization_endpoint: `${AS_BASE}/authorize`, token_endpoint: `${AS_BASE}/token`, code_challenge_methods_supported: ['S256'] });
+      throw new Error(`unexpected ${u}`);
+    };
+    const d = await liveDiscovery(c, f);
+    expect(d.stopped).toBeNull();
+    expect(seen.some((u) => u.includes('api.ping.demo'))).toBe(false);
+    expect(d.steps[1].note).toMatch(/PingOne name/);
+  });
+});
