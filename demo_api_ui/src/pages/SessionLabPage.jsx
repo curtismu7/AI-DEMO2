@@ -54,14 +54,14 @@ function RealSession() {
             ["auth_time", pick("auth_time") ? `${pick("auth_time")} (${WHEN(pick("auth_time"))})` : "not in these tokens"],
             ["amr", [].concat(pick("amr") || []).join(", ") || "not in these tokens"],
             ["sid", pick("sid")],
-            ["iat", WHEN(pick("iat"))],
-            ["exp", WHEN(pick("exp"))],
+            ["iat (ID token)", WHEN(pick("iat"))],
+            ["exp (ID token)", WHEN(pick("exp"))],
           ]} />
         </div>
       </div>
       <p className="session-lab__note">
-        The PingOne session cookie is set on the PingOne host. A page on this app cannot read it, so the facts above come from
-        this app's own session and the tokens it holds. Whether PingOne sets <code>auth_time</code> and <code>amr</code> the
+        The identity provider's own session cookie (PingOne or PingFederate, whichever you signed in with) is set on that provider's host. A page on this app cannot read it, so the facts above come from
+        this app's own session and the tokens it holds. <code>amr</code> and <code>sid</code> only appear when the provider puts them in the tokens, and whether PingOne sets <code>auth_time</code> and <code>amr</code> the
         same way on a single sign-on through an existing session is UNVERIFIED.
       </p>
     </>
