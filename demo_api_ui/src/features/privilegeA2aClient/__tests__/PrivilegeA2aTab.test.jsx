@@ -213,6 +213,23 @@ describe('PrivilegeA2aTab', () => {
     expect(screen.getByRole('status').textContent).toMatch(/Done\. Click any step/);
   });
 
+  test('the suggested questions stay under the answer after a run, and a click runs the next one', async () => {
+    global.fetch
+      .mockResolvedValueOnce(streamResponse([{ event: 'token', data: { text: 'First answer.' } }, { event: 'done', data: { sessionId: 's' } }]))
+      .mockResolvedValueOnce(streamResponse([{ event: 'token', data: { text: 'Second answer.' } }, { event: 'done', data: { sessionId: 's' } }]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+
+    await user.click(await screen.findByRole('button', { name: 'Review access on prod-db-primary.' }));
+    await screen.findByText('First answer.');
+
+    const chips = screen.getByRole('group', { name: 'Suggested questions for this vertical' });
+    expect(chips.closest('details')).toBeNull();
+    expect(chips.closest('.privilege-a2a__turns')).not.toBeNull();
+    await user.click(within(chips).getByRole('button', { name: 'List all entitlements for Carol Nguyen.' }));
+    expect(await screen.findByText('Second answer.')).toBeTruthy();
+  });
+
   test('shows each step\'s request and response under the step, open on the exchange rows', async () => {
     global.fetch.mockResolvedValueOnce(streamResponse([
       { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'Send Message', request: 'POST /a2a\n{"method":"message/send"}' } },
