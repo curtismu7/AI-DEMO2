@@ -4,6 +4,7 @@ const readline = require('node:readline/promises');
 const { stdin, stdout, stderr } = require('node:process');
 const { startReadinessRun } = require('../demo_api_server/services/demoReadinessRunner');
 const { redactReadinessValue } = require('../demo_api_server/services/demoReadinessReport');
+const { runThroughBff } = require('./demo-readiness-bff');
 
 const HELP = `Usage: npm run demo:ready -- [options]
 
@@ -18,7 +19,23 @@ Repairs are shown in full and require typing the exact repair plan digest once. 
 counts toward the single 15-minute deadline. This standalone CLI has no verified administrator
 identity, so a typed digest can never authorize a repair write; use Admin sidebar Reset Demo for
 administrator-bound repair. Exit status is 0 only for full READY — BOTH TARGETS.
+
+BFF lane: set DEMO_READINESS_BFF_URL (the BFF origin) and DEMO_READINESS_BFF_ADMIN_TOKEN (an admin
+access token, never printed) to run the audit inside the BFF, which can read its effective
+configuration. The BFF always runs both targets, so --target is refused with this lane. The CLI
+never confirms a repair; a pending repair preview ends the run and is applied from Admin sidebar
+Reset Demo.
 `;
+
+// The BFF lane is chosen by its two environment settings. Setting only one is an error, so a missing
+// token can never fall back silently to the in-process run.
+function bffLane(env = {}, fetchImpl = fetch) {
+  const baseUrl = env.DEMO_READINESS_BFF_URL;
+  const token = env.DEMO_READINESS_BFF_ADMIN_TOKEN;
+  if (!baseUrl && !token) return null;
+  if (!baseUrl || !token) throw new Error('Set both DEMO_READINESS_BFF_URL and DEMO_READINESS_BFF_ADMIN_TOKEN, or neither.');
+  return ({ onProgress }) => runThroughBff({ baseUrl, token, onProgress, fetchImpl });
+}
 
 function parseArgs(argv = []) {
   const parsed = { targets: ['local', 'se'], json: false, help: false };
@@ -81,9 +98,22 @@ async function runCli(argv = process.argv.slice(2), options = {}) {
     return 0;
   }
 
+  let start = options.start;
+  if (!start) {
+    try {
+      start = bffLane(options.env || process.env, options.fetchImpl) || startReadinessRun;
+    } catch (error) {
+      err.write(error.message + '\n');
+      return 2;
+    }
+    if (start !== startReadinessRun && parsed.targets.join(',') !== 'local,se') {
+      err.write('The BFF lane runs both targets; remove --target.\n');
+      return 2;
+    }
+  }
+
   let previewPrinted = false;
   const confirm = options.confirm || ((promptText) => terminalConfirm(promptText));
-  const start = options.start || startReadinessRun;
   const result = await start({
     targets: parsed.targets,
     confirmRepairs: async ({ digest, preview }) => confirm('Type the exact repair plan digest ' + digest + ' to apply these changes: ', { digest, preview }),
