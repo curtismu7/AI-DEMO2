@@ -401,7 +401,13 @@ ${inlineStyles}
         </div>
 
         {/* Scrollable body */}
-        <div className="dm-body">{children}</div>
+        <div
+          className="dm-body"
+          // Content can mark a strip (e.g. a toolbar row) with data-drag-handle so it drags the panel like the title bar.
+          onPointerDown={(e) => { if (e.target.closest("[data-drag-handle]")) handleDragStart(e); }}
+        >
+          {children}
+        </div>
 
         {/* Footer */}
         {footerBar}

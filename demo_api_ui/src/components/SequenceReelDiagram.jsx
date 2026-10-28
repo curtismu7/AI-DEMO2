@@ -481,7 +481,7 @@ export default function SequenceReelDiagram({
   // looking at the bottom of a tall reveal, and reaching back to the top row to
   // press Next defeats the point.
   const toolbar = (position) => (
-    <div className={`srd-toolbar srd-toolbar--${position}`}>
+    <div className={`srd-toolbar srd-toolbar--${position}`} data-drag-handle="true">
       <TraceProvenanceBadge provenance={runProvenance} />
       <button type="button" className="srd-zoom-btn" onClick={() => handleZoom(-ZOOM_STEP)} title="Zoom out">
         −
