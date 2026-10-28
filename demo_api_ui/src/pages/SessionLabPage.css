@@ -12,10 +12,8 @@
 .session-lab__buttons button:focus-visible, .session-lab__buttons select:focus-visible, .session-lab__buttons input:focus-visible { outline: 3px solid color-mix(in srgb, var(--th-status-info) 35%, transparent); outline-offset: 2px; }
 .session-lab__buttons label { display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); }
 .session-lab__buttons select, .session-lab__buttons input { padding: 6px 8px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); font: inherit; }
-.session-lab__note, .session-lab__sim, .session-lab__warn { margin: 12px 0 0; padding: 12px 14px; border: 1px solid #c77b00; border-radius: var(--radius-lg); background: color-mix(in srgb, #c77b00 10%, var(--th-bg-card)); color: var(--th-text); font-size: var(--font-size-sm); line-height: 1.5; }
-.session-lab__ok, .session-lab__bad { margin: 12px 0 0; font-weight: 800; }
-.session-lab__ok { color: #187443; }
-.session-lab__bad { color: #a32219; }
-:root[data-theme="dark"] .session-lab__ok { color: #86efac; }
-:root[data-theme="dark"] .session-lab__bad { color: #fca5a5; }
+.session-lab__note, .session-lab__sim, .session-lab__warn { margin: 12px 0 0; padding: 12px 14px; border: 1px solid var(--th-status-warning-border); border-radius: var(--radius-lg); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); font-size: var(--font-size-sm); line-height: 1.5; }
+.session-lab [data-testid="session-lab-result"] { margin: 12px 0 0; min-height: 1.5em; font-weight: 800; }
+.session-lab__ok { color: var(--th-status-success-text); }
+.session-lab__bad { color: var(--th-status-error-text); }
 .session-lab__log { margin: 0; padding-left: 20px; font-size: var(--font-size-sm); line-height: 1.6; }

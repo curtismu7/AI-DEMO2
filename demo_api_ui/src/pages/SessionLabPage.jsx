@@ -3,13 +3,17 @@ import apiClient from "../services/apiClient";
 import PageHeader from "../components/common/PageHeader";
 import EmbeddedFlowDiagram from "../components/EmbeddedFlowDiagram";
 import { SESSION_LAB_DIAGRAM } from "../config/sessionLabDiagram";
-import { METHODS, initial, report, revoke, advance, check, isLive } from "../config/sessionLabModel";
+import { METHODS, DEFAULT_IDLE_MIN, initial, report, revoke, advance, check, isLive } from "../config/sessionLabModel";
 import "./SessionLabPage.css";
 
 // Real session on top (read-only: the BFF's own session and the claims in the tokens it holds). Mock
 // PingOne session below (simulated, in this browser tab only, never calls PingOne). The PingOne cookie
 // lives on the PingOne host, so this page cannot show it; the cookie it can describe is the BFF's.
-const MIN = (ms) => (ms == null ? "-" : `${Math.round((ms - Date.now()) / 60000)} min from now`);
+const MIN = (ms) => {
+  if (ms == null) return "-";
+  const m = Math.round((ms - Date.now()) / 60000);
+  return m < 0 ? "expired" : `${m} min from now`;
+};
 const WHEN = (sec) => (sec ? new Date(sec * 1000).toISOString().replace("T", " ").slice(0, 19) + " UTC" : "-");
 
 function Table({ rows }) {
@@ -24,17 +28,27 @@ function RealSession() {
   const [state, setState] = useState({ loading: true });
   useEffect(() => {
     let live = true;
-    Promise.all([apiClient.get("/api/auth/oauth/user/status"), apiClient.get("/api/auth/oauth/user/token-claims")])
-      .then(([s, c]) => live && setState({ status: s.data, claims: c.data }))
-      .catch(() => live && setState({ error: true }));
+    Promise.allSettled([apiClient.get("/api/auth/oauth/user/status"), apiClient.get("/api/auth/oauth/user/token-claims")])
+      .then(([st, cl]) => live && setState({
+        status: st.status === "fulfilled" ? st.value.data : null,
+        claims: cl.status === "fulfilled" ? cl.value.data : null,
+        failed: [st, cl].some((r) => r.status === "rejected"),
+      }));
     return () => { live = false; };
   }, []);
   if (state.loading) return <p>Reading your session…</p>;
-  if (state.error || !state.status?.authenticated) return <p className="session-lab__warn">Could not read a signed-in session.</p>;
-  const { status, claims } = state;
+  const { status, claims, failed } = state;
+  if (!status) return <p className="session-lab__warn">Could not read your session (the status request failed).</p>;
+  if (!status.authenticated) return <p className="session-lab__warn">Not signed in, so there is no session to show.</p>;
   const id = claims?.idToken?.payload || {};
   const at = claims?.decoded?.payload || {};
-  const pick = (k) => id[k] ?? at[k];
+  // Say which token a value came from; never show an access-token value under an ID-token label.
+  const pick = (k) => {
+    if (id[k] != null) return { v: id[k], from: "ID token" };
+    if (at[k] != null) return { v: at[k], from: "access token" };
+    return { v: null, from: null };
+  };
+  const show = (k, fmt = (v) => v) => { const { v, from } = pick(k); return v == null ? (claims?.authenticated === false ? "no tokens held for this session" : "not in these tokens") : `${fmt(v)} (${from})`; };
   return (
     <>
       <div className="session-lab__grid">
@@ -51,14 +65,15 @@ function RealSession() {
         <div>
           <h3>Sign-on facts in your tokens</h3>
           <Table rows={[
-            ["auth_time", pick("auth_time") ? `${pick("auth_time")} (${WHEN(pick("auth_time"))})` : "not in these tokens"],
-            ["amr", [].concat(pick("amr") || []).join(", ") || "not in these tokens"],
-            ["sid", pick("sid")],
-            ["iat (ID token)", WHEN(pick("iat"))],
-            ["exp (ID token)", WHEN(pick("exp"))],
+            ["auth_time", show("auth_time", (v) => `${v}, ${WHEN(v)}`)],
+            ["amr", show("amr", (v) => [].concat(v).join(", "))],
+            ["sid", show("sid")],
+            ["iat", show("iat", WHEN)],
+            ["exp", show("exp", WHEN)],
           ]} />
         </div>
       </div>
+      {failed && <p className="session-lab__warn">One of the two requests failed, so some facts may be missing.</p>}
       <p className="session-lab__note">
         The identity provider's own session cookie (PingOne or PingFederate, whichever you signed in with) is set on that provider's host. A page on this app cannot read it, so the facts above come from
         this app's own session and the tokens it holds. <code>amr</code> and <code>sid</code> only appear when the provider puts them in the tokens, and whether PingOne sets <code>auth_time</code> and <code>amr</code> the
@@ -80,14 +95,14 @@ const reduce = (s, a) => {
 function MockLab() {
   const [s, dispatch] = useReducer(reduce, undefined, initial);
   const [method, setMethod] = useState("pwd");
-  const [within, setWithin] = useState(480);
+  const [within, setWithin] = useState("480");
   const [result, setResult] = useState(null);
   const x = s.session;
   const live = isLive(s);
   const act = (a) => { setResult(null); dispatch(a); };
   const rows = x ? [
     ["status", live ? "active" : "idle timeout passed"],
-    ["idle timeout", `${x.idleMin} min`],
+    ["idle timeout", `${x.idleMin} min${x.idleMin === DEFAULT_IDLE_MIN ? " (default, inferred: UNVERIFIED)" : ""}`],
     ["idle ends at", `t+${x.activeAt + x.idleMin} min`],
     ...Object.entries(x.authenticators).map(([m, at]) => [`last sign-on · ${m}`, `t+${at} min (${s.now - at} min ago)`]),
   ] : [["status", "no session"]];
@@ -120,11 +135,11 @@ function MockLab() {
       </div>
       <h3>Check Session</h3>
       <div className="session-lab__buttons">
-        <label>Method <select value={method} onChange={(e) => setMethod(e.target.value)}>{METHODS.map((m) => <option key={m}>{m}</option>)}</select></label>
-        <label>Within (min) <input type="number" min="1" value={within} onChange={(e) => setWithin(Math.max(1, Number(e.target.value) || 1))} /></label>
-        <button type="button" onClick={() => setResult(check(s, { method, withinMin: within }))}>Check</button>
+        <label>Method <select value={method} onChange={(e) => { setMethod(e.target.value); setResult(null); }}>{METHODS.map((m) => <option key={m}>{m}</option>)}</select></label>
+        <label>Within (min) <input type="number" min="1" value={within} onChange={(e) => { setWithin(e.target.value); setResult(null); }} /></label>
+        <button type="button" onClick={() => setResult(check(s, { method, withinMin: Math.max(1, Number(within) || 1) }))}>Check</button>
       </div>
-      {result && <p role="status" data-testid="session-lab-result" className={result.ok ? "session-lab__ok" : "session-lab__bad"}>{result.ok ? "PASS" : "FAIL"}: {result.reason}</p>}
+      <p role="status" data-testid="session-lab-result" className={result ? (result.ok ? "session-lab__ok" : "session-lab__bad") : undefined}>{result ? `${result.ok ? "PASS" : "FAIL"}: ${result.reason}` : ""}</p>
       <h3>What happened</h3>
       <ol className="session-lab__log">{s.log.map((l, i) => (<li key={i}>t+{l.at}: {l.text}</li>))}</ol>
     </div>
