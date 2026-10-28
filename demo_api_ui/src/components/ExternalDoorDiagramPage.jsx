@@ -97,6 +97,14 @@ export default function ExternalDoorDiagramPage() {
             enforcement, out to the real PingOne login, and on to the Banking API.
             Click any box for its role, the request on the wire, the mock tokens and the standards.</>} />
 
+        <p className="mgof-why" data-testid="pmd-why">
+          <b>Why we care:</b> this map shows where the checks happen. The gateway enforces policy on every /mcp call,
+          but the sign-in paths (register, authorize, token) pass straight through to oauth-mcp, where the login is
+          decided. An external client you don't control can reach this public address, so knowing which box does which
+          job tells you where a request is checked, where it is only passed along, and what to look at when a call is
+          refused.
+        </p>
+
         <div className="pmd-panel">
           <EmbeddedFlowDiagram
             config={EXT_DOOR_TOPO_DIAGRAM}
