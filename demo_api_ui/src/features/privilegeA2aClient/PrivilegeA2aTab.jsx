@@ -59,6 +59,24 @@ const CALL_GROUPS = [
   ] },
 ];
 
+// What one step sent and got back, as labelled blocks. A step with no wire payload shows its detail text instead.
+function WireBlocks({ entry, open = false }) {
+  const blocks = [['Request', entry?.request], ['Response', entry?.response]].filter(([, body]) => body);
+  if (!blocks.length && entry?.detail) blocks.push(['Detail', entry.detail]);
+  if (!blocks.length) return null;
+  return (
+    <details className="privilege-a2a__wire" open={open} onClick={(event) => event.stopPropagation()}>
+      <summary>{blocks.map(([label]) => label).join(' · ')}</summary>
+      {blocks.map(([label, body]) => (
+        <div key={label}>
+          {blocks.length > 1 && <h4>{label}</h4>}
+          <pre>{body}</pre>
+        </div>
+      ))}
+    </details>
+  );
+}
+
 export default function PrivilegeA2aTab() {
   const profile = usePrivilegeA2aProfile();
   // Save the run as the trace the page shows (no secrets: the same fields the reel already displays).
@@ -230,14 +248,40 @@ export default function PrivilegeA2aTab() {
     { label: '4. Client answers', who: 'A2A Client → you', step: -1, state: answered && replyAt >= 0 ? 'done' : replyAt >= 0 && busy ? 'working' : 'waiting' },
   ];
 
+  const suggestedQuestions = (
+        <div className="privilege-a2a__chips" role="group" aria-label="Suggested questions for this vertical">
+          {demoQuestions.map(question => (
+            <button
+              key={question}
+              type="button"
+              className="privilege-a2a__chip"
+              onClick={() => submitQuestion(null, question)}
+              disabled={busy}
+            >
+              {question}
+            </button>
+          ))}
+        </div>
+  );
+
+  const nowLine = (() => {
+    if (error && !busy) return 'Stopped. The step marked "stopped" says why.';
+    if (!trace.length && !busy) return turns.length ? 'Done. Ask another question, or press Reset.' : 'Pick a question, or type your own, then press Send.';
+    if (busy && sentAt < 0) return 'The A2A Client is deciding what to ask the Remote Agent…';
+    if (busy && replyAt < 0) return toolCalls ? 'The Remote Agent is calling MCP tools through the gateway…' : 'The A2A Client sent Send Message. The Remote Agent is working…';
+    if (busy) return 'The Remote Agent replied. The A2A Client is writing the answer…';
+    return 'Done. Click any step to see what was sent and what came back.';
+  })();
+
   return (
     <section className="privilege-a2a" aria-labelledby="privilege-a2a-title">
       <header className="privilege-a2a__header">
         <div>
           <h2 id="privilege-a2a-title">A2A access review</h2>
           <PageAgentModeToggle mode={agentMode} onChange={setAgentMode} disabled={busy} />
-          <p>Ask about an entitlement. The A2A Client (the main agent) sends the lookup to a Remote Agent (the A2A Server) with the A2A <a href={A2A_SPEC_SEND_MESSAGE_URL} target="_blank" rel="noreferrer">Send Message</a> operation. The Remote Agent checks access data through MCP and returns its result. In gateway mode every hop goes through the PingOne Agent Privilege: each agent uses its own agent key, and the gateway screens the messages and the tool results.</p>
+          <p>The A2A Client sends your question to a Remote Agent with <a href={A2A_SPEC_SEND_MESSAGE_URL} target="_blank" rel="noreferrer">Send Message</a>. The Remote Agent checks access data through MCP.</p>
         </div>
+        <div className="privilege-a2a__path-wrap">
         <ol className="privilege-a2a__path" aria-label="Agent request path">
           {PATH_STEPS.map((label, index) => (
             <li
@@ -249,6 +293,8 @@ export default function PrivilegeA2aTab() {
             </li>
           ))}
         </ol>
+          <p className="privilege-a2a__now" role="status">{nowLine}</p>
+        </div>
       </header>
 
       <div className="privilege-a2a__workspace">
@@ -295,7 +341,10 @@ export default function PrivilegeA2aTab() {
             </button>
           </div>
           {turns.length === 0 ? (
-            <p className="privilege-a2a__empty">Ask who has access to a resource, what roles a person holds, or whether an access ticket exists.</p>
+            <div className="privilege-a2a__start">
+              <p className="privilege-a2a__empty">Ask who has access to a resource, what roles a person holds, or whether a ticket exists:</p>
+              {suggestedQuestions}
+            </div>
           ) : (
             <div className="privilege-a2a__turns" aria-live={busy ? "off" : "polite"}>
               {turns.map((turn, index) => (
@@ -308,45 +357,14 @@ export default function PrivilegeA2aTab() {
               ))}
             </div>
           )}
+          {turns.length > 0 && (
+            <details className="privilege-a2a__more-q">
+              <summary>More questions</summary>
+              {suggestedQuestions}
+            </details>
+          )}
           {error && <p className="privilege-a2a__error" role="alert">{error}</p>}
-          <div className="privilege-a2a__walk" aria-label="Walkthrough">
-            {walkStep < 0 ? (
-              <button type="button" className="privilege-a2a__walk-start" onClick={() => setWalkStep(0)}>Start walkthrough</button>
-            ) : (
-              <>
-                <p><b>Step {walkStep + 1} of {WALK.length}.</b> {WALK[walkStep]}</p>
-                <div className="privilege-a2a__walk-nav">
-                  <button type="button" onClick={() => setWalkStep((s) => Math.max(0, s - 1))} disabled={walkStep === 0}>Back</button>
-                  <button type="button" onClick={() => (walkStep === WALK.length - 1 ? setWalkStep(-1) : setWalkStep((s) => s + 1))}>
-                    {walkStep === WALK.length - 1 ? 'Finish' : 'Next'}
-                  </button>
-                  <button type="button" onClick={() => setWalkStep(-1)}>Stop</button>
-                </div>
-              </>
-            )}
-          </div>
-          <div className="privilege-a2a__breaks" role="group" aria-label="Try a case that stops">
-            {BREAKS.map((item) => (
-              <button key={item.label} type="button" className="privilege-a2a__break" disabled={busy}
-                onClick={() => { setInput(item.question); setSelectedQuestion(''); }}>
-                {item.label}
-              </button>
-            ))}
-          </div>
           <form className="privilege-a2a__composer" onSubmit={submitQuestion}>
-        <div className="privilege-a2a__chips" role="group" aria-label="Suggested questions for this vertical">
-          {demoQuestions.map(question => (
-            <button
-              key={question}
-              type="button"
-              className="privilege-a2a__chip"
-              onClick={() => submitQuestion(null, question)}
-              disabled={busy}
-            >
-              {question}
-            </button>
-          ))}
-        </div>
         <label htmlFor="privilege-a2a-demo-question">Demo question</label>
         <select
           id="privilege-a2a-demo-question"
@@ -373,7 +391,6 @@ export default function PrivilegeA2aTab() {
           placeholder="For example: Review Carol Nguyen's current entitlements."
         />
         <div className="privilege-a2a__actions">
-          <span>Send a question to trigger A2A Client → Send Message → Remote Agent → MCP tools.</span>
           {busy && <button className="privilege-a2a__cancel" type="button" onClick={cancelRequest}>Cancel</button>}
           <button
             type="button"
@@ -500,12 +517,38 @@ export default function PrivilegeA2aTab() {
                   {entry.from && entry.to && (
                     <span className="privilege-a2a__trace-route">{entry.from} → {entry.to}</span>
                   )}
+                  <WireBlocks entry={entry} />
                 </li>
               ))}
             </ol>
           )}
         </aside>
         <aside className="privilege-a2a__step-panel" aria-label="Step details">
+          <h3>Guide</h3>
+          <div className="privilege-a2a__walk" aria-label="Walkthrough">
+            {walkStep < 0 ? (
+              <button type="button" className="privilege-a2a__walk-start" onClick={() => setWalkStep(0)}>Start walkthrough</button>
+            ) : (
+              <>
+                <p><b>Step {walkStep + 1} of {WALK.length}.</b> {WALK[walkStep]}</p>
+                <div className="privilege-a2a__walk-nav">
+                  <button type="button" onClick={() => setWalkStep((s) => Math.max(0, s - 1))} disabled={walkStep === 0}>Back</button>
+                  <button type="button" onClick={() => (walkStep === WALK.length - 1 ? setWalkStep(-1) : setWalkStep((s) => s + 1))}>
+                    {walkStep === WALK.length - 1 ? 'Finish' : 'Next'}
+                  </button>
+                  <button type="button" onClick={() => setWalkStep(-1)}>Stop</button>
+                </div>
+              </>
+            )}
+          </div>
+          <div className="privilege-a2a__breaks" role="group" aria-label="Try a case that stops">
+            {BREAKS.map((item) => (
+              <button key={item.label} type="button" className="privilege-a2a__break" disabled={busy}
+                onClick={() => { setInput(item.question); setSelectedQuestion(''); }}>
+                {item.label}
+              </button>
+            ))}
+          </div>
           <h3>A2A exchange</h3>
           <ol className="privilege-a2a__exchange" aria-label="A2A exchange">
             {exchange.map((row) => (
@@ -515,6 +558,7 @@ export default function PrivilegeA2aTab() {
                   <span>{row.who}</span>
                   <em>{row.state === 'done' ? 'done' : row.state === 'working' ? 'working…' : row.state === 'stopped' ? 'stopped' : 'waiting'}</em>
                 </button>
+                {row.step >= 0 && <WireBlocks entry={trace[row.step]} open />}
               </li>
             ))}
           </ol>

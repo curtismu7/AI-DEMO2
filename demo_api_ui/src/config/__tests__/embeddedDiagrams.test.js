@@ -16,6 +16,9 @@ describe.each([['consentMockPhone', CONSENT_MOCK_DIAGRAM], ['groupPolicyBoard', 
   it('every edge references nodes', () => {
     c.EDGES.forEach(([s, t]) => { expect(ids).toContain(s); expect(ids).toContain(t); });
   });
+  it('every arrow names what travels or happens on it (the label shows next to its number on the line)', () => {
+    c.EDGES.forEach((e, i) => expect(String(e[2] || '').trim(), `edge ${i} (${e[0]} -> ${e[1]}) has no label`).not.toBe(''));
+  });
   it('steps reference real edges and cover all of them', () => {
     const covered = new Set(c.STEPS.flatMap((s) => s.edges));
     c.STEPS.forEach((s) => s.edges.forEach((e) => expect(c.EDGES[e]).toBeTruthy()));

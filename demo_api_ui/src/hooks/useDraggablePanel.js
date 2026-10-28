@@ -105,8 +105,11 @@ export function useDraggablePanel(initialPos, initialSize, options = {}) {
     // Don't steal pointer from interactive children (buttons, inputs, links, …)
     if (e.target.closest('button, input, textarea, select, a')) return;
     e.preventDefault();
-    const offX = e.clientX - posRef.current.x;
-    const offY = e.clientY - posRef.current.y;
+    // The app zooms the whole page (root CSS zoom, 112.5% by default). Pointer coordinates are in window pixels but
+    // left/top are in zoomed pixels, so without this the panel moves 12.5% farther than the cursor and slides off it.
+    const zoom = parseFloat(getComputedStyle(document.documentElement).zoom) || 1;
+    const offX = e.clientX / zoom - posRef.current.x;
+    const offY = e.clientY / zoom - posRef.current.y;
     const target = e.currentTarget;
     // Capture pointer so drag continues when cursor exits the viewport
     if (target.setPointerCapture && e.pointerId != null) {
@@ -114,7 +117,7 @@ export function useDraggablePanel(initialPos, initialSize, options = {}) {
     }
     const onMove = (ev) => {
       // No clamping — allow drag off-screen to second monitor
-      setPos({ x: ev.clientX - offX, y: ev.clientY - offY });
+      setPos({ x: ev.clientX / zoom - offX, y: ev.clientY / zoom - offY });
     };
     const onUp   = () => {
       target.removeEventListener('pointermove', onMove);

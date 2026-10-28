@@ -28,9 +28,10 @@ function renderPage() {
 }
 
 describe("ReactFlowPocPage", () => {
-  it("renders the canvas, legend, and idle explanation panel", () => {
+  it("renders the canvas, legend, and idle explanation panel", async () => {
     renderPage();
-    expect(screen.getByTestId("reactflow-poc-page")).toBeTruthy();
+    // The route page loads lazily: wait for it once.
+    expect(await screen.findByTestId("reactflow-poc-page")).toBeTruthy();
     expect(screen.getByTestId("rfp-explain-panel")).toBeTruthy();
     expect(screen.getByText("Guided tour")).toBeTruthy();
     expect(screen.getByText("React UI (demo_api_ui)")).toBeTruthy();

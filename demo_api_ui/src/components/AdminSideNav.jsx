@@ -1400,6 +1400,7 @@ export default function AdminSideNav({
       { from: "PingOne Authorize", rename: "PingOne Authorize", path: "/ai-products/authorize" },
       { from: "Privilege · LLM", rename: "Agent Privilege · LLM" },
       { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
+      { label: "External Agent App Diagrams", path: "/external-door-diagrams", icon: "arc" },
       { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
       { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },
       {
@@ -1415,10 +1416,10 @@ export default function AdminSideNav({
         searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent",
       },
       {
-        label: "Gateway v1.261024: Claims",
+        label: "Gateway v1.261024 and v1.261027: Claims",
         path: "/gateway-claims",
         icon: "key",
-        searchAlias: "gateway mcpgw v1.261024 nested claim act.sub RequiredClaims FlatClaims AgentCore posture policy engine scorecard",
+        searchAlias: "gateway mcpgw v1.261024 v1.261027 nested claim act.sub Cedar token scopes tiers resource RequiredClaims FlatClaims AgentCore posture policy engine scorecard",
       },
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),
@@ -1554,6 +1555,8 @@ export default function AdminSideNav({
       "Personal Agent Clients",
       { label: "Dot Workbench", path: "/personal-agent/dot", icon: "agt", searchAlias: "dot persona agent memory workbench personal always-on preferences" },
       { label: "Muse", path: "/personal-agent/muse", icon: "agt", searchAlias: "muse personal agent pingone sign in delegation 401 airline points loyalty" },
+      // Static page (public/united-demos.html): opens in a new tab, outside the router.
+      { label: "United Demos", path: "/united-demos.html", icon: "agt", newTab: true, searchAlias: "united demos airline muse connector meta standalone hosted page" },
       { label: "Workload Agents", path: "/workload-agents", icon: "agt", searchAlias: "workload agents digital assistant obo uc38 uc44 delegated" },
       { label: "Embedded Worker", path: "/embedded-worker", icon: "agt", searchAlias: "embedded worker saas uc45 agent" },
       { label: "OBO Demo", path: "/obo-demo", icon: "lck" },
