@@ -226,6 +226,7 @@
       <a href="#group">Group policy <span class="count">1</span></a>
       <a href="#design">Design &amp; review pages <span class="count">3</span></a>
       <a href="#diagrams">Diagrams <span class="count">5</span></a>
+      <a href="#muse">Muse &mdash; real PingOne agent demo <span class="count">1</span></a>
       <a href="#united">United working draft <span class="count">1</span></a>
       <a href="#learning">Learning Hub <span class="count">2</span></a>
       <a href="#notes">Demo notes <span class="count">3</span></a>
@@ -410,6 +411,31 @@
               <span class="doc-desc">Findings pinned to the nodes that carry them.</span>
             </li>
           </ul>
+        </div>
+      </section>
+
+      <section id="muse">
+        <h2>Muse &mdash; real PingOne agent demo</h2>
+        <p class="sec-note">A standalone app with its own hosted site. Muse is a personal agent that really signs the user in at PingOne (DaVinci, Protect, MFA, agent screen, consent), acts for them with RFC 8693 token exchanges, and reaches the tools through Agent Gateway, Agent Privilege and PingOne Authorize. It is also an OAuth connector for other agents, such as Meta's Muse.</p>
+        <div class="card">
+          <div class="card-top">
+            <h3>Muse</h3>
+            <span class="badge ok">Verified live 2026-10-28</span>
+          </div>
+          <p class="route">https://muse.ai-demo.ping-devops.com/</p>
+          <p>Three paths on one site: <strong>Muse acts for Sam</strong>, <strong>the Airline Connector</strong> (another agent asks Muse), and <strong>just a user</strong> (Sam signs in as himself, no agent, no consent, and his own token is denied at the gateway).</p>
+          <ul class="steps">
+            <li>Press <strong>&ldquo;Show my airline points&rdquo;</strong>. Muse is turned away with a 401 and PingOne signs Sam in.</li>
+            <li>On the <strong>&ldquo;AI agent detected&rdquo;</strong> screen, the agent name is <strong>red</strong> when Protect flagged it and <strong>blue</strong> when only the client ID did, with Protect&rsquo;s verdict underneath.</li>
+            <li>Back on Muse, the answer shows the points and the claims, with <code>act</code> naming Muse.</li>
+            <li>Press <strong>&ldquo;Sign in as Sam (no agent)&rdquo;</strong> to see the human login and the gateway&rsquo;s refusal.</li>
+            <li>Open <strong>Diagram</strong> for the Config tab and three Runtime tabs; press Simulate to walk each one.</li>
+          </ul>
+          <div class="btnrow">
+            <a class="run" href="https://muse.ai-demo.ping-devops.com/" target="_blank" rel="noopener">Run Muse &rarr;</a>
+            <a class="run ghost" href="https://muse.ai-demo.ping-devops.com/diagram" target="_blank" rel="noopener">Diagram</a>
+            <a class="run ghost" href="https://muse.ai-demo.ping-devops.com/how-muse-works.html" target="_blank" rel="noopener">How it works</a>
+          </div>
         </div>
       </section>
 

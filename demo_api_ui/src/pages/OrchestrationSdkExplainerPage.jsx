@@ -19,6 +19,7 @@ import StaticFlowDiagram from "../components/StaticFlowDiagram";
 import { DAVINCI_LIFECYCLE_EDGES, DAVINCI_LIFECYCLE_GROUPS, DAVINCI_LIFECYCLE_NODES } from "../config/davinciSdkLifecycleDiagram";
 import "./OrchestrationSdkExplainerPage.css";
 import PageHeader from '../components/common/PageHeader';
+import DavinciFamilyNav from "../components/davinci/DavinciFamilyNav";
 
 // The three ways a DaVinci flow can reach a user, all three live in this app.
 // `route` is null for the one that has no page of its own (it IS the app login).
@@ -148,6 +149,8 @@ export default function OrchestrationSdkExplainerPage() {
         hands you <strong>collectors</strong> &mdash; a description of what it needs next &mdash;
         and you decide what that looks like. The flow stays editable in DaVinci; your app does not
         ship a release to follow it.</>} />
+
+      <DavinciFamilyNav current="explainer" />
 
       {/* The working page, above everything else. This lesson used to open with
           the three-mode comparison, whose Widget card links out — so the first

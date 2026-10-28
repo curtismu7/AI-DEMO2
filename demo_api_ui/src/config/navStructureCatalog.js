@@ -11,7 +11,7 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Agent Privilege", children: [
     "AI Guard", "Protocol Playground", "AI Guard Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
     "Agent Privilege Guide", "Agent Gateway Authorization", "Agent Privilege Diagrams", "Agent IAM Core",
-    "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege Topologies", "Agent Privilege · MCP",
+    "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege Topologies", "External Agent App Diagrams", "Agent Privilege · MCP",
     "Malicious MCP Catalog", "AI Policies Demo", "PingFederate Token Demo",
     "Agent Privilege Demo",
   ] },
@@ -23,8 +23,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Game Agent", "Context Compaction", "Trading Bot", "Paper Organizer",
   ] },
   { label: "DaVinci", children: [
-    "DaVinci Widget", "DaVinci Login", "DaVinci SDK Login", "DaVinci Orchestration",
-    "DaVinci Orchestration SDK", "Orchestration SDK Guide", "DaVinci Orchestration Overview", "PingFederate DaVinci Integration Kit",
+    "DaVinci SDK Guide", "DaVinci Widget", "DaVinci Orchestration SDK", "PingFederate DaVinci Integration Kit",
   ] },
   { label: "Ping products", children: [
     "PingOne Protect", "PingOne Verify & Recognize", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",

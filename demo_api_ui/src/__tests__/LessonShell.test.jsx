@@ -110,8 +110,9 @@ describe("LessonShell", () => {
 
     renderAcademyRoute(["/academy/delegation/guided"]);
 
-    // The lesson route loads lazily: wait for it once.
-    const runButton = await screen.findByRole("button", { name: /Check live evidence/i });
+    // The lesson route loads lazily: wait for it once. This is the first lazy import in the file, so on a busy CI runner it can take
+    // longer than the 1s default (it failed three PR runs in a row on 2026-10-28 while passing locally).
+    const runButton = await screen.findByRole("button", { name: /Check live evidence/i }, { timeout: 5000 });
     expect(runButton).toBeEnabled();
     fireEvent.click(runButton);
 

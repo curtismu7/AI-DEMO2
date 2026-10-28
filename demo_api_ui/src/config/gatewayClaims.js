@@ -211,7 +211,7 @@ export const POSTURE_GROUPS = [
 // Names below are the demo's own sample app/tool/scope names, not tenant identifiers.
 export const NEXT_RELEASE = {
   version: 'v1.261027',
-  novelty: 'We have not diffed v1.261027 against v1.261024, so we do not know which of these behaviours are new in this tag. They are what we measured on the real gateway.',
+  novelty: 'Binary symbol diff of the gateway image v1.261024 against v1.261027 (2026-10-27). Mainly the two top layers (8 and 9) differ; layers 5 and 6 differ by a few bytes. Ping published no release notes for this tag. The measured results below are separate from the diff: they show what works, not what is new.',
   cedarPolicy: [
     'forbid (principal,',
     '  action in [Action::"mcp:Invoke", Action::"mcp:InvokeUnattended"],',
@@ -232,6 +232,21 @@ export const NEXT_RELEASE_TRAPS = [
   { symptom: 'Policy made through the API never denies', cause: 'It is stored with State "" (a candidate). It is compiled and shadow-evaluated only, and logs mcp_policy_shadow_delta.', fix: 'PUT the policy with State "Active".' },
   { symptom: '401 token_not_found after asking PingFederate for a scope', cause: 'A client_credentials request with scope= is served by a different token manager, with no sub and no act.', fix: 'Send resource=<the agent app URL> so PingFederate picks the token manager the gateway trusts.' },
   { symptom: 'Clearing required claims does nothing', cause: 'PUT with an empty claims map is ignored; the old value stays.', fix: 'Delete the RequiredClaims field from the rule.' },
+];
+
+// Symbols that exist in v1.261027 and not in v1.261024 (strings diff of the mcpgw binary). Nothing here is in the console API
+// baseline of 2026-10-26 and none of it has been run, so every row is UNVERIFIED and the readings are ours.
+export const NEXT_RELEASE_DIFF = [
+  { change: 'More AgentCore posture fields', symbols: 'CallerAccessJSON (gateway); RuntimeCallerAccessJSON, TargetCallerAccessJSON, BypassDiffJSON (account); agentCoreEndpointMissing',
+    reading: 'Builds on section 2: who can call an AgentCore gateway, runtime or target, and how the account differs from the bypass posture.' },
+  { change: 'SIEM provider: new sign-in method', symbols: 'SiemAuthMethod; AuthMethod, AzureTenantId, ClientCertificatePEM, DcrImmutableId, WorkspaceId',
+    reading: 'Reads like sending events to an Azure workspace through a data collection rule, signing in with a client certificate.' },
+  { change: 'Approval action on an AI policy request', symbols: 'aipolicy.Request.ApprovalAction',
+    reading: 'A policy result that asks for approval instead of allow or deny. We have not seen it return one.' },
+  { change: 'A rate and period structure', symbols: 'entries > requests > rate, period',
+    reading: 'A configuration shape for rate limits. We do not know where it is used.' },
+  { change: 'Cedar scope gate', symbols: 'none',
+    reading: 'The diff shows nothing about it. We know it works on v1.261027 but cannot say it is new in this tag.' },
 ];
 
 // ---------------------------------------------------------------------------------------------------------------------
