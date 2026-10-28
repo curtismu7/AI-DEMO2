@@ -99,8 +99,10 @@ describe('GatewayClaimsPage', () => {
     renderPage();
     const sec = screen.getByTestId('gwc-next-release');
     expect(within(sec).getByText(/Newer gateway: v1\.261027/)).toBeTruthy();
-    expect(sec.textContent).toContain('have not diffed v1.261027 against v1.261024');
+    expect(sec.textContent).toContain('Binary symbol diff of the gateway image v1.261024 against v1.261027');
     expect(within(sec).getAllByText('VERIFIED').length).toBe(2);
+    expect(within(screen.getByTestId('gwc-diff')).getByText(/aipolicy\.Request\.ApprovalAction/)).toBeTruthy();
+    expect(within(screen.getByTestId('gwc-diff')).getByText(/cannot say it is new in this tag/)).toBeTruthy();
     expect(screen.getByTestId('gwc-cedar').textContent).toContain('context.token.scopes.contains("opensearch:search")');
     expect(sec.textContent).toContain('State "Active"');
   });

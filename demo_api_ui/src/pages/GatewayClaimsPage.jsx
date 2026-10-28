@@ -6,7 +6,7 @@ import React, { useMemo, useState } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import {
-  DIAGRAM_DETAILS, DIAGRAM_LANES, DOC_PATH, EVIDENCE, GATEWAY_VERSION, MAPPING_ROWS, NEXT_RELEASE, NEXT_RELEASE_RESULTS, NEXT_RELEASE_TRAPS, POSTURE_GROUPS, POSTURE_SAMPLE,
+  DIAGRAM_DETAILS, DIAGRAM_LANES, DOC_PATH, EVIDENCE, GATEWAY_VERSION, MAPPING_ROWS, NEXT_RELEASE, NEXT_RELEASE_DIFF, NEXT_RELEASE_RESULTS, NEXT_RELEASE_TRAPS, POSTURE_GROUPS, POSTURE_SAMPLE,
   REQUIRED_CLAIMS, SCENARIOS, TRAP_ROWS, WHAT_CHANGED, scenarioDiagram,
 } from '../config/gatewayClaims';
 import './GatewayClaimsPage.css';
@@ -167,6 +167,11 @@ export default function GatewayClaimsPage() {
             <li key={r.what}><Tag kind={r.evidence} /> <strong>{r.what}</strong> (measured on {r.gateway}). {r.detail}</li>
           ))}
         </ul>
+        <h3>What the binary diff shows <Tag kind="unverified" /></h3>
+        <table className="gwc-table" aria-label="Symbols new in v1.261027" data-testid="gwc-diff">
+          <thead><tr><th>Change</th><th>Symbols</th><th>Our reading</th></tr></thead>
+          <tbody>{NEXT_RELEASE_DIFF.map((r) => <tr key={r.change}><td>{r.change}</td><td><code>{r.symbols}</code></td><td>{r.reading}</td></tr>)}</tbody>
+        </table>
         <h3>The Cedar policy we ran</h3>
         <pre className="gwc-pre" data-testid="gwc-cedar">{NEXT_RELEASE.cedarPolicy}</pre>
         <h3>Traps we hit</h3>
