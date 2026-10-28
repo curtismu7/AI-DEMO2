@@ -10,6 +10,7 @@ import {
   GATEWAY_VERSION_NEXT, NEXT_DETAILS, NEXT_GROUPS, NEXT_LANES, NEXT_SCENARIOS, nextScenarioDiagram, nextWire,
   REQUIRED_CLAIMS, SCENARIOS, TRAP_ROWS, WHAT_CHANGED, scenarioDiagram,
 } from '../config/gatewayClaims';
+import GatewayAgentcoreLab from './GatewayAgentcoreLab';
 import './GatewayClaimsPage.css';
 
 const show = (v) => (v === undefined ? 'missing' : typeof v === 'string' ? v : JSON.stringify(v));
@@ -85,8 +86,8 @@ export default function GatewayClaimsPage() {
     <main className="gwc-page" data-testid="gateway-claims-page">
       <PageHeader
         eyebrow="Diagrams · Privilege"
-        title={`What Privilege gateway ${GATEWAY_VERSION} and ${GATEWAY_VERSION_NEXT} added`}
-        summary="The gateway can match a rule on a nested claim, such as act.sub inside a PingFederate token, gate a tool call on a token scope in Cedar, and give one agent different tools by scope. It also carries new AgentCore posture metadata. Each statement is labelled by how well we know it."
+        title={`What Privilege gateway ${GATEWAY_VERSION}, ${GATEWAY_VERSION_NEXT} and v1.261028 added`}
+        summary="The gateway can match a rule on a nested claim, such as act.sub inside a PingFederate token, gate a tool call on a token scope in Cedar, and give one agent different tools by scope. It also carries AgentCore posture metadata and, from v1.261028, AgentCore governance checks (read from the binary). Each statement is labelled by how well we know it."
         back={{ to: '/diagrams', label: 'All diagrams' }}
       />
 
@@ -233,6 +234,7 @@ export default function GatewayClaimsPage() {
         </table>
       </section>
       <NextLab />
+      <GatewayAgentcoreLab />
     </main>
   );
 }
