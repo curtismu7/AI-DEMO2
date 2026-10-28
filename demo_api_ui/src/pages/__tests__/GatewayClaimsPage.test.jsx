@@ -112,7 +112,7 @@ describe('GatewayClaimsPage', () => {
 
   it('has the title, back link, evidence legend and both parts', () => {
     renderPage();
-    expect(screen.getByRole('heading', { level: 1, name: /What Privilege gateway v1\.261024 and v1\.261027 added/ })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /What Privilege gateway v1\.261024, v1\.261027 and v1\.261028 added/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: /All diagrams/ }).getAttribute('href')).toBe('/diagrams');
     const legend = screen.getByTestId('gwc-legend');
     for (const l of ['VERIFIED', 'INFERRED', 'UNVERIFIED']) expect(within(legend).getByText(l)).toBeTruthy();
