@@ -298,7 +298,9 @@ jobs:
     # module that fails `vite build` is exactly the false pass demo_api_ui's
     # CLAUDE.md warns about.
     name: UI tests (Vitest) + build
-    needs: [changes, gates]
+    # Not gated on `gates`: the hygiene gate takes 3-4.5 min and the UI job is the long pole, so
+    # serializing them added that to every UI PR. `gates` is still a required upstream of `main-red`.
+    needs: [changes]
     if: needs.changes.outputs['ui'] == 'true'
     runs-on: self-hosted
     timeout-minutes: 60
@@ -342,8 +344,9 @@ jobs:
       - name: Install deps
         run: npm ci --prefix demo_api_ui --no-audit --no-fund
       # ConnectorFlow.integration.test.jsx runs the API server's real connector sandbox, so the UI job needs its dependencies too.
+      # Lockfile-keyed cache: a plain `npm ci` here cost 165-183 s per run under EDR load.
       - name: Install API server deps for the connector sandbox test
-        run: npm ci --prefix demo_api_server --no-audit --no-fund
+        run: bash scripts/ci-cached-npm-ci.sh demo_api_server
       # Vitest, not jest — see demo_api_ui/CLAUDE.md. CI=true keeps the reporter
       # non-interactive and makes `vitest run` exit non-zero on failure.
       # `--prefix` goes BEFORE `run`: after a script name npm's parser is
