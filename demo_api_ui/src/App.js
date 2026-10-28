@@ -268,6 +268,7 @@ import PublicRoutes, {
   PingFederateAiAgentPageRoute,
   AicTokenExchangePageRoute,
   OboDemoPageRoute,
+  SessionLabPageRoute,
   DigitalWorkerPageRoute,
   AuthorizationFlowPageRoute,
   ChatgptLoginPageRoute,
@@ -1545,6 +1546,17 @@ function AppWithAuth() {
                   element={
                     loading ? null : user ? (
                       <AicTokenExchangePageRoute user={user} logout={logout} />
+                    ) : (
+                      <SignInRequired />
+                    )
+                  }
+                />
+                {/* Session Lab: signed-in users only (the top half reads their own BFF session). */}
+                <Route
+                  path="/session-lab"
+                  element={
+                    loading ? null : user ? (
+                      <SessionLabPageRoute user={user} logout={logout} />
                     ) : (
                       <SignInRequired />
                     )

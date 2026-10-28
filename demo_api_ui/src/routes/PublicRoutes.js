@@ -67,6 +67,7 @@ const PingFederateIdJagPage = lazyWithRetry(() => import("../components/PingFede
 const PingFederateAiAgentPage = lazyWithRetry(() => import("../pages/PingFederateAiAgentPage"));
 const AicTokenExchangePage = lazyWithRetry(() => import("../pages/AicTokenExchangePage"));
 const OboDemoPage = lazyWithRetry(() => import("../pages/OboDemoPage"));
+const SessionLabPage = lazyWithRetry(() => import("../pages/SessionLabPage"));
 const DigitalWorkerPage = lazyWithRetry(() => import("../pages/DigitalWorkerPage"));
 const AuthorizationFlowPage = lazyWithRetry(() => import("../pages/AuthorizationFlowPage"));
 const ChatgptLoginPage = lazyWithRetry(() => import("../pages/ChatgptLoginPage"));
@@ -434,6 +435,14 @@ export function OboDemoPageRoute({ user, logout }) {
   return (
     <AppShell user={user} logout={logout}>
       <OboDemoPage />
+    </AppShell>
+  );
+}
+
+export function SessionLabPageRoute({ user, logout }) {
+  return (
+    <AppShell user={user} logout={logout}>
+      <SessionLabPage />
     </AppShell>
   );
 }

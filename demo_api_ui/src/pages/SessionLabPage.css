@@ -1,0 +1,19 @@
+.session-lab { max-width: 1180px; margin: 0 auto; padding: 0 clamp(14px, 4vw, 48px) 56px; color: var(--th-text); }
+.session-lab section { margin-top: 28px; }
+.session-lab h2 { margin: 0 0 12px; font-size: var(--font-size-xl); }
+.session-lab h3 { margin: 16px 0 8px; font-size: var(--font-size-md); }
+.session-lab__grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; }
+.session-lab__table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); border: 1px solid var(--th-border); background: var(--th-bg-card); }
+.session-lab__table th, .session-lab__table td { padding: 8px 12px; border-bottom: 1px solid var(--th-border); text-align: left; overflow-wrap: anywhere; }
+.session-lab__table th { width: 40%; font-weight: 700; color: var(--th-text); }
+.session-lab__buttons { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+.session-lab__buttons button { appearance: none; padding: 8px 14px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); font: inherit; font-weight: 700; cursor: pointer; }
+.session-lab__buttons button:hover { border-color: var(--th-status-info); color: var(--th-status-info); }
+.session-lab__buttons button:focus-visible, .session-lab__buttons select:focus-visible, .session-lab__buttons input:focus-visible { outline: 3px solid color-mix(in srgb, var(--th-status-info) 35%, transparent); outline-offset: 2px; }
+.session-lab__buttons label { display: flex; align-items: center; gap: 6px; font-size: var(--font-size-sm); }
+.session-lab__buttons select, .session-lab__buttons input { padding: 6px 8px; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-bg-card); color: var(--th-text); font: inherit; }
+.session-lab__note, .session-lab__sim, .session-lab__warn { margin: 12px 0 0; padding: 12px 14px; border: 1px solid var(--th-status-warning-border); border-radius: var(--radius-lg); background: var(--th-status-warning-bg); color: var(--th-status-warning-text); font-size: var(--font-size-sm); line-height: 1.5; }
+.session-lab [data-testid="session-lab-result"] { margin: 12px 0 0; min-height: 1.5em; font-weight: 800; }
+.session-lab__ok { color: var(--th-status-success-text); }
+.session-lab__bad { color: var(--th-status-error-text); }
+.session-lab__log { margin: 0; padding-left: 20px; font-size: var(--font-size-sm); line-height: 1.6; }
