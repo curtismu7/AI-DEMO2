@@ -724,3 +724,20 @@ describe("Admin quick link", () => {
     expect(openAdminSignIn).toHaveBeenCalledWith({ returnTo: "/admin" });
   });
 });
+
+describe("AdminSideNav: the gateway claims and third-party exchange pages are searchable", () => {
+  // The menu search matches one contiguous phrase against a label or its search terms, so each phrase a person would type
+  // has to appear in one of them. Admin and a signed-in customer both see these diagram pages.
+  const searches = [
+    ["v1.261028", "/gateway-claims"], ["gateway v1.261028", "/gateway-claims"], ["gateway v1.261027", "/gateway-claims"], ["gateway claims", "/gateway-claims"],
+    ["AgentCore governance", "/gateway-claims"], ["runtime bypass", "/gateway-claims"], ["caller access", "/gateway-claims"], ["RequiredClaims", "/gateway-claims"],
+    ["third party token exchange", "/p1-third-party-exchange"], ["third-party", "/p1-third-party-exchange"], ["p1 third party", "/p1-third-party-exchange"],
+    ["trusted issuer", "/p1-third-party-exchange"], ["Okta", "/p1-third-party-exchange"], ["RFC 8693", "/p1-third-party-exchange"],
+  ];
+  it.each(searches.flatMap(([q, h]) => [["admin", adminUser, q, h], ["customer", customerUser, q, h]]))("%s: %s finds %s", (_who, user, query, href) => {
+    renderNavAsUser(user);
+    const navigation = screen.getByRole("navigation", { name: /primary navigation/i });
+    fireEvent.change(within(navigation).getByLabelText(/search navigation/i), { target: { value: query } });
+    expect(within(navigation).getAllByRole("link").map((a) => a.getAttribute("href"))).toContain(href);
+  });
+});
