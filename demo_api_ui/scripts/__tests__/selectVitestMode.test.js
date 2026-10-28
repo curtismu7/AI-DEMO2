@@ -20,6 +20,11 @@ describe('PR Vitest selection', () => {
     ['shared service', 'demo_api_ui/src/services/apiClient.js'],
     ['shared context', 'demo_api_ui/src/context/AgentUiModeContext.js'],
     ['util', 'demo_api_ui/src/utils/formatAxiosError.js'],
+    ['page stylesheet', 'demo_api_ui/src/pages/MusePage.css'],
+    ['component stylesheet', 'demo_api_ui/src/components/AgentGatewayTester.css'],
+    ['config module', 'demo_api_ui/src/config/navPagePaths.js'],
+    ['route table', 'demo_api_ui/src/routes/PublicRoutes.js'],
+    ['data module', 'demo_api_ui/src/data/example.js'],
   ])('selects related tests for %s changes', (_label, filename) => {
     expect(selectVitestMode([{ filename, status: 'modified' }])).toMatchObject({
       mode: 'related',
@@ -53,9 +58,11 @@ describe('PR Vitest selection', () => {
   it.each([
     ['App shell', 'demo_api_ui/src/App.js'],
     ['theme stylesheet', 'demo_api_ui/src/index.css'],
-    ['component stylesheet', 'demo_api_ui/src/components/AgentGatewayTester.css'],
+    ['global stylesheet', 'demo_api_ui/src/App.css'],
+    ['shared styles dir', 'demo_api_ui/src/styles/tokens.css'],
     ['test setup', 'demo_api_ui/src/setupTests.js'],
     ['build configuration', 'demo_api_ui/vite.config.js'],
+    ['JSON config', 'demo_api_ui/src/config/example.json'],
   ])('runs the full suite for %s changes', (_label, filename) => {
     expect(selectVitestMode([{ filename, status: 'modified' }])).toMatchObject({
       mode: 'full',
