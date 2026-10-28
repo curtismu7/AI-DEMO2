@@ -56,7 +56,6 @@ describe('PR Vitest selection', () => {
   })
 
   it.each([
-    ['App shell', 'demo_api_ui/src/App.js'],
     ['theme stylesheet', 'demo_api_ui/src/index.css'],
     ['global stylesheet', 'demo_api_ui/src/App.css'],
     ['shared styles dir', 'demo_api_ui/src/styles/tokens.css'],
@@ -67,6 +66,41 @@ describe('PR Vitest selection', () => {
     expect(selectVitestMode([{ filename, status: 'modified' }])).toMatchObject({
       mode: 'full',
     })
+  })
+
+  it('runs related tests plus guards for the App root', () => {
+    expect(selectVitestMode([{ filename: 'demo_api_ui/src/App.js', status: 'modified' }])).toMatchObject({
+      mode: 'related',
+      sourceFiles: ['src/App.js'],
+    })
+  })
+
+  it.each([
+    ['Dockerfile', 'demo_api_ui/Dockerfile'],
+    ['public page', 'demo_api_ui/public/united-demos.html'],
+    ['e2e spec', 'demo_api_ui/tests/e2e/session-lab.spec.js'],
+  ])('runs only the filesystem guards for %s changes', (_label, filename) => {
+    expect(selectVitestMode([{ filename, status: 'modified' }])).toEqual({
+      mode: 'related',
+      reason: 'static files read only by filesystem guards',
+      sourceFiles: [],
+      testFiles: [],
+      guardsOnly: true,
+    })
+  })
+
+  it('keeps guards-only files from hiding a real source change', () => {
+    expect(selectVitestMode([
+      { filename: 'demo_api_ui/public/x.html', status: 'modified' },
+      { filename: 'demo_api_ui/src/components/Card.jsx', status: 'modified' },
+    ])).toMatchObject({ mode: 'related', sourceFiles: ['src/components/Card.jsx'], guardsOnly: true })
+  })
+
+  it('still runs everything when a dependency manifest changes alongside static files', () => {
+    expect(selectVitestMode([
+      { filename: 'demo_api_ui/public/x.html', status: 'modified' },
+      { filename: 'demo_api_ui/package-lock.json', status: 'modified' },
+    ])).toMatchObject({ mode: 'full' })
   })
 
   it('fails closed when changed paths are missing or invalid', () => {

@@ -398,7 +398,7 @@ async function runPrRelatedUnitSuite() {
     }
   }
 
-  const guardTests = plan.sourceFiles.length > 0 ? await findFilesystemGuardTests() : []
+  const guardTests = plan.sourceFiles.length > 0 || plan.guardsOnly ? await findFilesystemGuardTests() : []
   const directTests = [...new Set([...plan.testFiles, ...guardTests])]
   if (guardTests.length > 0) {
     console.log(`[vitest-memory-guard] Adding ${guardTests.length} filesystem guard tests to the related run.`)
