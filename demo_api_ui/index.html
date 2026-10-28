@@ -36,7 +36,7 @@
     // flashes small-then-big. Default 1.125; ThemeContext re-applies after mount.
     try {
       var s = Number(localStorage.getItem('ba_font_scale'));
-      document.documentElement.style.zoom = (s === 1 || s === 1.125 || s === 1.25 || s === 1.375) ? String(s) : '1.125';
+      document.documentElement.style.zoom = ([1, 1.125, 1.25, 1.375, 1.5, 1.75, 2].indexOf(s) > -1) ? String(s) : '1.125';
     } catch (e) { /* storage disabled: boot at the default dial */ }
     // /privilege-mcp-client keeps its own light/dark (cur_priv_theme, default dark),
     // so its boot skeleton must match the page, not the app theme: a light skeleton
