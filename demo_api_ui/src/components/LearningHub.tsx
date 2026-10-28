@@ -490,6 +490,16 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         description: "An agent's own PingFederate token on a P1 Privilege Agent App: tools by scope, the token passed through, and what Privilege can't do yet",
         icon: "🔑",
       },
+      {
+        label: "AI policies: Cedar in the gateway",
+        description: "Privilege deciding agent tool calls with Cedar: allowed, refused or held for a human, and where in the path it happens",
+        icon: "🛠",
+      },
+      {
+        label: "Privilege documentation index",
+        description: "Every Privilege guide in one list: gateway, sensor, AI protection and demos",
+        icon: "📚",
+      },
     ],
   },
   {
@@ -732,6 +742,8 @@ export default function LearningHub() {
       "P1 Third-Party Token Exchange": () => navigate("/p1-third-party-exchange"),
       "Privilege for AI — MCP": () => navigate("/ai-products/privilege-mcp"),
       "Federated agents: PingFederate token": () => navigate("/privilege-pf-token"),
+      "AI policies: Cedar in the gateway": () => navigate("/privilege-ai-policies"),
+      "Privilege documentation index": () => navigate("/privilege-docs-index"),
     },
     "standards-architecture": {
       "RFC & Spec Index": () => openEdu(EDU.RFC_INDEX, "index"),
