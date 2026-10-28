@@ -4,6 +4,11 @@ const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/
 // them. Everything else (styles, setup, config, App, theme) is read by tests
 // through the filesystem or global wiring and stays on the full suite.
 const RELATED_SOURCE = /^src\/(?:components|pages|hooks|utils|services|features|context|config|data|constants|routes|lib|learning|copilot|vertical)\/.+\.[jt]sx?$/
+// Co-located stylesheets are imported by the component that owns them, and
+// `vitest related` follows that import (verified for pages/MusePage.css). Global
+// CSS (index.css, App.css, styles/, theme/) is not matched and stays on the
+// full suite; tests that read stylesheets from disk run as filesystem guards.
+const RELATED_STYLE = /^src\/(?:components|pages|features)\/.+\.css$/
 const BARREL_FILE = /(?:^|\/)index\.[cm]?[jt]sx?$/
 
 function fullSuite(reason) {
@@ -49,7 +54,7 @@ export function selectVitestMode(changedFiles) {
       return fullSuite('a non-unit UI test changed')
     }
 
-    if (RELATED_SOURCE.test(relativePath)) {
+    if (RELATED_SOURCE.test(relativePath) || RELATED_STYLE.test(relativePath)) {
       sourceFiles.push(relativePath)
       continue
     }
