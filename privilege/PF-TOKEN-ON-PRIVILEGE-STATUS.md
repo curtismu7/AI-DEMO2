@@ -109,7 +109,7 @@ Settings: `~/.claude/settings.json` allow-lists the scratchpad scripts `grant-tm
 
 ## Still to clean up (after the test)
 
-- Delete `pf-route-c-test` client and `routeCTestAtm` in PF (or keep if the demo needs it).
+- Keep `pf-route-c-test` (client) and `routeCTestAtm` (access-token manager) in PF: they are the permanent demo client and ATM for /privilege-pf-token, renamed "Privilege PF token demo agent" and "Privilege PF token demo access tokens" on 2026-10-28. The ids are unchanged on purpose; renaming an id would break the identity's required `client_id` claim and the demo secret.
 - Decide on Option A (`aiDemoPfJwtAtm` CLIENT_CREDENTIALS mapping). It adds `act`, `Username`, `spiffeId` to all client-credentials tokens from that manager. Remove it unless someone needs it.
 - Revert `PFtoken` audience to `priv-nhi-fa3gvmpkubxvuipp3gyuaolsltbulhkc` if the per-MCP audience is not adopted.
 - Delete the six `cedar-demo-*` Candidate policies (tenant leftovers from the Cedar demo).
