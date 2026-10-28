@@ -8,6 +8,13 @@ const RELATED_SOURCE = /^src\/(?:components|pages|hooks|utils|services|features|
 // `vitest related` follows that import (verified for pages/MusePage.css). Global
 // CSS (index.css, App.css, styles/, theme/) is not matched and stays on the
 // full suite; tests that read stylesheets from disk run as filesystem guards.
+// The app root is imported by the tests that render it, so `vitest related` reaches them; any
+// test that reads App.js from disk is a filesystem guard and runs on every related run anyway.
+const APP_ROOT = /^src\/App\.jsx?$/
+// Static files no unit test imports. Only a filesystem guard can depend on them, and guards run
+// whenever a related run has source files or this flag. Over the last 42 UI PRs these paths
+// (Dockerfile, public/*.html, tests/e2e specs) forced the full suite for 7 of 17 fallbacks.
+const GUARD_ONLY = /^(?:Dockerfile(?:\.dockerignore)?|public\/.+|tests\/e2e\/.+)$/
 const RELATED_STYLE = /^src\/(?:components|pages|features)\/.+\.css$/
 const BARREL_FILE = /(?:^|\/)index\.[cm]?[jt]sx?$/
 
@@ -28,6 +35,7 @@ export function selectVitestMode(changedFiles) {
 
   const sourceFiles = []
   const testFiles = []
+  let guardsOnly = false
 
   for (const entry of changedFiles) {
     const path = changedPath(entry)
@@ -51,10 +59,19 @@ export function selectVitestMode(changedFiles) {
         testFiles.push(relativePath)
         continue
       }
+      if (GUARD_ONLY.test(relativePath)) {
+        guardsOnly = true
+        continue
+      }
       return fullSuite('a non-unit UI test changed')
     }
 
-    if (RELATED_SOURCE.test(relativePath) || RELATED_STYLE.test(relativePath)) {
+    if (GUARD_ONLY.test(relativePath)) {
+      guardsOnly = true
+      continue
+    }
+
+    if (RELATED_SOURCE.test(relativePath) || RELATED_STYLE.test(relativePath) || APP_ROOT.test(relativePath)) {
       sourceFiles.push(relativePath)
       continue
     }
@@ -68,6 +85,7 @@ export function selectVitestMode(changedFiles) {
       reason: 'module source changes',
       sourceFiles,
       testFiles,
+      ...(guardsOnly && { guardsOnly }),
     }
   }
 
@@ -77,6 +95,17 @@ export function selectVitestMode(changedFiles) {
       reason: 'changed unit test files',
       sourceFiles: [],
       testFiles,
+      ...(guardsOnly && { guardsOnly }),
+    }
+  }
+
+  if (guardsOnly) {
+    return {
+      mode: 'related',
+      reason: 'static files read only by filesystem guards',
+      sourceFiles: [],
+      testFiles: [],
+      guardsOnly,
     }
   }
 
