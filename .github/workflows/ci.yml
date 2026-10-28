@@ -54,6 +54,8 @@ jobs:
       unwired-services: ${{ steps.all.outputs['unwired-services'] || steps.nightly.outputs['unwired-services'] || steps.filter.outputs['unwired-services'] }}
       python-agents: ${{ steps.all.outputs['python-agents'] || steps.nightly.outputs['python-agents'] || steps.filter.outputs['python-agents'] }}
       standalone-a2a: ${{ steps.all.outputs['standalone-a2a'] || steps.nightly.outputs['standalone-a2a'] || steps.filter.outputs['standalone-a2a'] }}
+      hygiene-python: ${{ steps.all.outputs['hygiene-python'] || steps.nightly.outputs['hygiene-python'] || steps.filter.outputs['hygiene-python'] }}
+      hygiene-sync-scripts: ${{ steps.all.outputs['hygiene-sync-scripts'] || steps.nightly.outputs['hygiene-sync-scripts'] || steps.filter.outputs['hygiene-sync-scripts'] }}
     steps:
       - name: Validate optional target commit SHA
         if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
@@ -75,6 +77,8 @@ jobs:
             echo "unwired-services=true"
             echo "python-agents=true"
             echo "standalone-a2a=true"
+            echo "hygiene-python=true"
+            echo "hygiene-sync-scripts=true"
           } >> "$GITHUB_OUTPUT"
       - name: Run every suite in nightly CI
         # Nightly is the full-coverage safety net now that push-to-main is
@@ -89,6 +93,8 @@ jobs:
             echo "unwired-services=true"
             echo "python-agents=true"
             echo "standalone-a2a=true"
+            echo "hygiene-python=true"
+            echo "hygiene-sync-scripts=true"
           } >> "$GITHUB_OUTPUT"
       # On a push the path filter diffs with git, so it needs a real checkout
       # and its credentials. Without this step it ran `git fetch` in whatever
@@ -149,6 +155,22 @@ jobs:
               - 'llamaindex_agent/**'
             standalone-a2a:
               - 'standalone/privilege-a2a-anthropic-demo/**'
+            # Heavy hygiene checks that read only these paths (see the gated
+            # steps in `gates`). Editing the chain itself re-arms both.
+            hygiene-python:
+              - '**/*.py'
+              - '**/pytest.ini'
+              - '**/pyproject.toml'
+              - '**/setup.cfg'
+              - '**/tox.ini'
+              - 'scripts/check-pytest-asyncio-markers.js'
+              - 'package.json'
+              - '.github/workflows/ci.yml'
+            hygiene-sync-scripts:
+              - 'scripts/sync-*'
+              - 'scripts/park-main-edits.sh'
+              - 'package.json'
+              - '.github/workflows/ci.yml'
       - name: Collect changed UI paths for related tests
         if: github.event_name == 'pull_request' && steps.filter.outputs.ui == 'true'
         id: ui-files
@@ -203,7 +225,16 @@ jobs:
       - name: Mock-drift gate (jest.mock missing load-bearing exports)
         run: node scripts/check-mock-drift.js
       - name: Fresh-clone hygiene
-        run: npm run hygiene:check
+        run: npm run hygiene:check:core
+      # The two slowest hygiene checks read only a known set of paths, so a PR
+      # that touches neither skips them. Nightly and manual runs set both
+      # outputs, and `npm run hygiene:check` still runs everything locally.
+      - name: Hygiene - pytest-asyncio markers
+        if: needs.changes.outputs['hygiene-python'] == 'true'
+        run: npm run hygiene:check:python-markers
+      - name: Hygiene - sync scripts end-to-end
+        if: needs.changes.outputs['hygiene-sync-scripts'] == 'true'
+        run: npm run hygiene:check:sync-scripts
       # Same sub-gates as `npm run use-cases:check`. check-goldens stops a stale or
       # poisoned replay golden from serving fiction in the demo fallback;
       # check-step-verification fails on any FAIL entry in the step ledger.
