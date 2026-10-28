@@ -11,7 +11,7 @@ import {
   PS_TIMEOUT_MS,
   VITEST_RSS_LIMIT_BYTES,
 } from '../run-vitest-with-memory-guard.mjs'
-import { applyVitestMemoryLimits } from '../vitest-memory-guard.config.mjs'
+import { VITEST_MAX_WORKERS, applyVitestMemoryLimits } from '../vitest-memory-guard.config.mjs'
 
 async function waitForOutput(predicate, getOutput, timeoutMs = 3_000) {
   const startedAt = Date.now()
@@ -63,11 +63,11 @@ describe('Vitest memory guard', () => {
       test: {
         environment: 'jsdom',
         pool: 'forks',
-        maxWorkers: 2,
+        maxWorkers: VITEST_MAX_WORKERS,
         poolOptions: {
           forks: {
             execArgv: ['--max-old-space-size=1400'],
-            maxForks: 2,
+            maxForks: VITEST_MAX_WORKERS,
             minForks: 1,
           },
         },
