@@ -252,3 +252,22 @@ test('the deploy queue reads up to date when nothing is pending and hides when t
   const none = await dashboard([], Date.now(), { insights: { deploy: { available: false }, imageBuilds: [] } });
   assert.equal(none.ids.get('deploy-panel').hidden, true);
 });
+
+test('the deploy queue lists SE US services with real source changes, and the host load lists what is running', async () => {
+  const se = { available: true, head: 'ffffffff0', outOfDate: [{ service: 'frontend', sha: 'aaaaaaaaa', files: 3 }, { service: 'authz-server', sha: 'bbbbbbbbb', files: 1 }],
+    unknown: [{ service: 'tier-manager', sha: 'ccccccccc' }], current: ['llm-proxy', 'mcp-server'] };
+  const host = { load1: 126, cores: 16, top: [], contributors: [{ label: 'CI runner processes', count: 3 }, { label: 'Claude processes', count: 8 }] };
+  const behind = await dashboard([], Date.now(), { insights: { se, host, imageBuilds: [] } });
+  assert.equal(behind.ids.get('deploy-se-state').textContent, 'Behind main');
+  const text = behind.ids.get('deploy-se').textContent;
+  for (const expected of ['frontend', '3 files changed since aaaaaaaaa', '1 file changed since bbbbbbbbb', 'llm-proxy, mcp-server', 'no source changes since their image', 'tier-manager', 'cannot tell']) {
+    assert.ok(text.includes(expected), expected);
+  }
+  assert.ok(behind.ids.get('host-load-content').textContent.includes('Running now: 3 ci runner processes, 8 claude processes.'));
+
+  const synced = await dashboard([], Date.now(), { insights: { se: { available: true, outOfDate: [], unknown: [], current: ['ui'] }, imageBuilds: [] } });
+  assert.equal(synced.ids.get('deploy-se-state').textContent, 'In sync with main');
+
+  const down = await dashboard([], Date.now(), { insights: { se: { available: false }, imageBuilds: [{ id: 1, status: 'completed', conclusion: 'success', sha: 'abc', title: 't', createdAt: '2026-10-01T10:00:00Z', url: '' }] } });
+  assert.ok(down.ids.get('deploy-se').textContent.includes('unavailable'));
+});
