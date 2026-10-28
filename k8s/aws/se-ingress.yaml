@@ -214,6 +214,15 @@ spec:
             name: frontend
             port:
               number: 4000
+      # Muse (personal agent page): PingOne sends the browser back here with a code. The route never relies on the session cookie;
+      # a one-time state value decides, so the wall must not intercept it (it 302'd an arriving browser to the wall login).
+      - path: /api/muse/callback
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
       - path: /api/auth/hosted-access/logout
         pathType: Exact
         backend:
