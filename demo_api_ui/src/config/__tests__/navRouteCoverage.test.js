@@ -59,7 +59,6 @@ const EXEMPT = new Set([
   '/demo-guide-popout',
   '/demo/footprint-mocks',
   '/demo/footprint-picks',
-  '/external-door-diagrams',
   '/feature-flags',
   '/intent-binding-learning',
   '/jev-demos',

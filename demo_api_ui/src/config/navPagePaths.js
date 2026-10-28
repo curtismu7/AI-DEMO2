@@ -28,6 +28,7 @@ export const NAV_PAGE_PATHS = {
   "A2A Architecture": "/a2a-architecture",
   "Malicious A2A": "/llm-gateway?tab=a2a",
   "Agent Privilege Topologies": "/privilege-gateway-topologies",
+  "External Agent App Diagrams": "/external-door-diagrams",
   "Agent Privilege · MCP": "/ai-products/privilege-mcp",
   "Protected RAG": "/code-search",
   "Agent Privilege Demo": "/privilege-demo",
