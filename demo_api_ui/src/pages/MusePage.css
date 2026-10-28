@@ -1,36 +1,40 @@
-.muse { max-width: 60rem; margin: 0 auto; padding: 1rem; color: var(--th-text); }
-.muse__muted { color: var(--th-text-muted); }
+.muse {
+  /* Larger type on this page: the shared scale, re-pointed here (variables, not new literals, so the design-token ratchet stays flat). */
+  --font-size-xs: 0.95rem; --font-size-sm: 1.0625rem; --font-size-md: 1.125rem; --font-size-base: 1.1875rem;
+  max-width: 60rem; margin: 0 auto; padding: 1rem; color: var(--th-text); font-size: var(--font-size-base); line-height: 1.55;
+}
+.muse__muted { color: var(--th-text); font-weight: 500; }
 .muse__center { text-align: center; }
-.muse__small { font-size: var(--font-size-sm); }
+.muse__small { font-size: var(--font-size-sm); color: var(--th-text); font-weight: 500; }
 .muse__bad { color: var(--th-status-error-text); }
 .muse__ok { color: var(--th-status-success-text); }
 .muse__notice { background: var(--th-bg-card); color: var(--th-text); border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); padding: 0.75rem 1rem; }
 .muse__sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
 .muse__chat { background: var(--th-bg-card); color: var(--th-text); border: 1px solid var(--th-border); border-radius: var(--radius-lg); padding: 1rem; margin: 1rem 0; display: grid; gap: 0.75rem; }
 .muse__lanes { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.muse__lanes button, .muse__chip { font: inherit; font-size: var(--font-size-sm); padding: 0.35rem 0.8rem; border: 1px solid var(--th-border-strong); border-radius: var(--radius-pill); background: var(--th-bg-card); color: var(--th-text); cursor: pointer; }
+.muse__lanes button, .muse__chip { font: inherit; font-size: var(--font-size-sm); font-weight: 600; padding: 0.4rem 0.9rem; border: 1px solid var(--th-border-strong); border-radius: var(--radius-pill); background: var(--th-bg-card); color: var(--th-text); cursor: pointer; }
 .muse__lanes button[aria-pressed="true"] { background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); }
 .muse__feed { display: grid; gap: 0.6rem; min-height: 7rem; }
 .muse__msg { display: flex; gap: 0.5rem; align-items: flex-start; }
 .muse__avatar { flex: none; width: 1.75rem; height: 1.75rem; border-radius: var(--radius-pill); background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); display: grid; place-items: center; font-weight: 700; font-size: var(--font-size-sm); }
-.muse__bubble { border-radius: var(--radius-lg); padding: 0.6rem 0.85rem; max-width: 85%; display: grid; gap: 0.5rem; justify-items: start; }
+.muse__bubble { font-weight: 500; border-radius: var(--radius-lg); padding: 0.6rem 0.85rem; max-width: 85%; display: grid; gap: 0.5rem; justify-items: start; }
 .muse__bubble--user { justify-self: end; background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); }
 .muse__bubble--muse { background: var(--th-bg-inset); color: var(--th-text); border: 1px solid var(--th-border); }
 .muse__composer { display: flex; gap: 0.5rem; }
-.muse__composer input { flex: 1; min-width: 0; font: inherit; padding: 0.5rem 0.7rem; background: var(--th-bg-card); color: var(--th-text); border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); }
-.muse__primary { font: inherit; padding: 0.45rem 1rem; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); cursor: pointer; }
+.muse__composer input { flex: 1; min-width: 0; font: inherit; font-size: var(--font-size-base); padding: 0.5rem 0.7rem; background: var(--th-bg-card); color: var(--th-text); border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); }
+.muse__primary { font: inherit; font-size: var(--font-size-sm); font-weight: 600; padding: 0.45rem 1rem; border: 1px solid var(--th-border-strong); border-radius: var(--radius-md); background: var(--th-bg-emphasis); color: var(--th-text-on-emphasis); cursor: pointer; }
 .muse__primary:disabled, .muse__chip:disabled, .muse__lanes button:disabled { opacity: 0.6; cursor: not-allowed; }
 .muse__prompts { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; align-items: center; }
-.muse__toggle { display: inline-flex; gap: 0.4rem; align-items: center; font-size: var(--font-size-sm); }
+.muse__toggle { display: inline-flex; gap: 0.4rem; align-items: center; font-size: var(--font-size-sm); font-weight: 500; }
 .muse__steps { list-style: none; padding: 0; margin: 0.5rem 0; display: grid; gap: 0.5rem; }
 .muse__steps li { background: var(--th-bg-card); color: var(--th-text); border: 1px solid var(--th-border); border-radius: var(--radius-md); padding: 0.5rem 0.75rem; }
 .muse__steps p { margin: 0.25rem 0 0; }
-.muse__head { all: unset; cursor: pointer; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; font-weight: 600; color: var(--th-text); }
+.muse__head { all: unset; cursor: pointer; display: flex; gap: 0.5rem; align-items: center; flex-wrap: wrap; font-weight: 700; font-size: var(--font-size-md); color: var(--th-text); }
 .muse__head:focus-visible { outline: 2px solid var(--th-border-strong); outline-offset: 2px; }
 .muse__head code { font-family: var(--font-mono); font-size: var(--font-size-xs); }
-.muse__skipped { opacity: 0.8; }
+.muse__skipped { opacity: 0.9; }
 .muse__raw pre { overflow-x: auto; background: var(--th-bg-inset); color: var(--th-text); padding: 0.5rem; border-radius: var(--radius-sm); font-family: var(--font-mono); font-size: var(--font-size-xs); white-space: pre-wrap; overflow-wrap: anywhere; }
-.muse code { font-family: var(--font-mono); overflow-wrap: anywhere; }
+.muse code { font-family: var(--font-mono); overflow-wrap: anywhere; font-size: var(--font-size-xs); }
 @media (max-width: 40rem) { .muse__bubble { max-width: 100%; } .muse__composer { flex-wrap: wrap; } }
 
 .muse__user { margin-top: 0.75rem; }
