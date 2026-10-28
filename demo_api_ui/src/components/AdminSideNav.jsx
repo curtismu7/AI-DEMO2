@@ -1401,7 +1401,7 @@ export default function AdminSideNav({
       { from: "PingOne Authorize", rename: "PingOne Authorize", path: "/ai-products/authorize" },
       { from: "Privilege · LLM", rename: "Agent Privilege · LLM" },
       { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
-      { label: "External Agent App Diagrams", path: "/external-door-diagrams", icon: "arc" },
+      { label: "External Agent App Diagrams", path: "/external-door-diagrams", icon: "arc", searchAlias: "external door diagrams topology dual path sequence agent app" },
       { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
       { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },
       {
