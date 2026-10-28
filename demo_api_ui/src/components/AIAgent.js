@@ -10884,7 +10884,7 @@ export default function BankingAgent({
                           type="button"
                           className="ba-actions-trigger"
                           title="Why PingOne DaVinci orchestration — value walkthrough, no live flow required"
-                          onClick={() => { window.location.href = "/davinci-orchestration"; }}
+                          onClick={() => { window.location.href = "/davinci-sdk"; }}
                         >
                           DaVinci Orchestration
                         </button>
@@ -11496,7 +11496,7 @@ export default function BankingAgent({
                           type="button"
                           className="ba-actions-trigger"
                           title="Why PingOne DaVinci orchestration — value walkthrough, no live flow required"
-                          onClick={() => { window.location.href = "/davinci-orchestration"; }}
+                          onClick={() => { window.location.href = "/davinci-sdk"; }}
                         >
                           DaVinci Orchestration
                         </button>

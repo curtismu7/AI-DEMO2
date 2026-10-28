@@ -29,6 +29,7 @@ import StepInspector, { summarizeResponse } from "../components/davinci/StepInsp
 import { createOperationEvent, normalizeTraceEntry } from "../components/davinci/sdkExecutionEvents";
 import DraggableModal from "../components/DraggableModal";
 import DeviceSignInLink from "../components/DeviceSignInLink";
+import DavinciFamilyNav from "../components/davinci/DavinciFamilyNav";
 import { LessonLayout, Section } from "../components/lesson";
 import { authenticateWebAuthn } from "../utils/passkeyCeremony";
 import {
@@ -599,6 +600,7 @@ export default function DavinciSdkLoginPage() {
       pageClassName="dvsdk-lesson-page"
       showSectionNav={false}
     >
+      <DavinciFamilyNav current="sdk" />
       <Section id="try-it-live" title="Try It Live">
         <p>
           The SDK draws each DaVinci step from collectors. Select a reel frame for its code and

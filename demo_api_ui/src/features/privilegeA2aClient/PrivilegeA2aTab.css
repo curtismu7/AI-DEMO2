@@ -576,5 +576,3 @@ body.privilege-a2a-route > .banking-agent-float-root { display: none; }
 .cur-ide .privilege-a2a__path-wrap { display: flex; flex-direction: column; gap: 10px; align-items: flex-end; }
 .cur-ide .privilege-a2a__now { margin: 0; max-width: 460px; text-align: right; font-size: var(--font-size-body); color: var(--a2a-ink); }
 .cur-ide .privilege-a2a__start .privilege-a2a__chips { margin-top: 8px; }
-.cur-ide .privilege-a2a__more-q { margin: 6px 0; font-size: var(--font-size-sm); }
-.cur-ide .privilege-a2a__more-q summary { cursor: pointer; color: var(--a2a-muted); }

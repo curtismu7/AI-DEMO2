@@ -60,13 +60,9 @@ describe("PingOne platform navigation", () => {
 
   it("keeps the DaVinci learning links in their product group", () => {
     expect(group("DaVinci").children).toEqual([
+      "DaVinci SDK Guide",
       "DaVinci Widget",
-      "DaVinci Login",
-      "DaVinci SDK Login",
-      "DaVinci Orchestration",
       "DaVinci Orchestration SDK",
-      "Orchestration SDK Guide",
-      "DaVinci Orchestration Overview",
       "PingFederate DaVinci Integration Kit",
     ]);
   });

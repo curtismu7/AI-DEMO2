@@ -1448,13 +1448,9 @@ export default function AdminSideNav({
       { label: "Paper Organizer", path: "/jev-demos/papers", icon: "arc" },
     ], "agt"),
     productGroup("DaVinci", [
-      { label: "DaVinci Widget", path: "/davinci-widget" },
-      { label: "DaVinci Login", path: "/davinci-login-guide" },
-      { label: "DaVinci SDK Login", path: "/davinci-sdk-login" },
-      { label: "DaVinci Orchestration", path: "/davinci-orchestration" },
-      { label: "DaVinci Orchestration SDK", path: "/davinci-orchestration-sdk" },
-      { label: "Orchestration SDK Guide", path: "/orchestration-sdk" },
-      { label: "DaVinci Orchestration Overview", path: "/davinci-orchestration" },
+      { label: "DaVinci SDK Guide", path: "/davinci-sdk", searchAlias: "DaVinci SDK Login davinci login" },
+      { label: "DaVinci Widget", path: "/davinci-widget", searchAlias: "DaVinci Login widget login" },
+      { label: "DaVinci Orchestration SDK", path: "/davinci-orchestration-sdk", searchAlias: "DaVinci Orchestration Orchestration SDK Guide" },
       { label: "PingFederate DaVinci Integration Kit", path: "/pingfederate-davinci-kit", searchAlias: "pingfederate davinci kit connector integration pf" },
     ], "doc"),
     productGroup("Ping products", [
