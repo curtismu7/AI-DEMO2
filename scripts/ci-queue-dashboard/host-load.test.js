@@ -6,11 +6,11 @@ const { countContributors } = require('./host-load');
 
 test('countContributors groups the process list by kind and omits empty kinds', () => {
   const ps = [
-    '/Users/me/actions-runner-3/_work/_tool/node/22/bin/node vitest.mjs run',
-    '/Users/me/actions-runner/externals/node24/bin/node setup/index.js',
-    '/opt/homebrew/bin/node /Users/me/repo/node_modules/vitest/dist/workers/forks.js',
+    '/home/ci/actions-runner-3/_work/_tool/node/22/bin/node vitest.mjs run',
+    '/home/ci/actions-runner/externals/node24/bin/node setup/index.js',
+    '/opt/homebrew/bin/node /home/ci/repo/node_modules/vitest/dist/workers/forks.js',
     '(claude)',
-    '/Users/me/.local/bin/claude --resume',
+    '/home/ci/.local/bin/claude --resume',
     '/Applications/Safari.app/Contents/MacOS/Safari',
   ].join('\n');
   assert.deepEqual(countContributors(ps), [
