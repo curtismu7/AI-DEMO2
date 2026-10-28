@@ -382,9 +382,19 @@ jobs:
       # runs against the dev server this job starts, with no stack behind it.
       # One chromium download (~40s) on UI PRs only; the alternative has cost a
       # live demo five times.
+      # Skipped only when every changed UI file is a test, a route page or a
+      # public/ asset (demo_api_ui/scripts/reel-guard-needed.mjs); fails closed.
+      - name: Does this change need the movie-reel lock?
+        id: reel
+        working-directory: demo_api_ui
+        run: echo "needed=$(node scripts/reel-guard-needed.mjs)" >> "$GITHUB_OUTPUT"
+        env:
+          VITEST_RELATED_FILES_JSON: ${{ github.event_name == 'pull_request' && needs.changes.outputs['ui-changed-files'] || '[]' }}
       - name: Install chromium for the movie-reel lock
+        if: steps.reel.outputs.needed == 'true'
         run: npm --prefix demo_api_ui exec -- playwright install --with-deps chromium
       - name: Movie reel is on screen (Playwright)
+        if: steps.reel.outputs.needed == 'true'
         working-directory: demo_api_ui
         run: node_modules/.bin/playwright test tests/e2e/movie-reel-visible.spec.js
         env:
