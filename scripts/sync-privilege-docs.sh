@@ -12,7 +12,7 @@ FOLDER=13SG0IDSMTkGyQTJd6NTdG7KTEh3Aw4Nd
 STAGE=$(mktemp -d)
 
 git -C "$REPO" fetch -q origin main
-git -C "$REPO" archive origin/main privilege docs | tar -x -C "$STAGE"
+git -C "$REPO" archive "${REF:-origin/main}" privilege docs | tar -x -C "$STAGE"
 
 rm -rf "$OUT"; mkdir -p "$OUT/screenshots"
 # privilege/*.md and *.pdf. Older guides live on Drive under lowercase
