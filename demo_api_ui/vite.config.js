@@ -233,6 +233,23 @@ export default defineConfig(({ mode }) => {
     build: {
       outDir: 'build',
       sourcemap: mode !== 'production',
+      rolldownOptions: {
+        output: {
+          // Keeps module initialization in import order when modules are merged into shared files.
+          strictExecutionOrder: true,
+          // The first page load needs ~90 small files (the entry's static imports, split into shared pieces) plus ~30
+          // stylesheets. The hosted site's ingress caps concurrent connections per visitor, so that many parallel
+          // requests came back 503 and the page stalled on its splash. Merge exactly the modules the entry needs up
+          // front ('$initial') into a few files: node_modules in one group (rarely changes, stays cached across
+          // deploys), app code in another. Lazy route chunks are untouched, so the bytes downloaded up front do not change.
+          codeSplitting: {
+            groups: [
+              { name: 'vendor-initial', tags: ['$initial'], test: /node_modules/, maxSize: 1500000, priority: 2 },
+              { name: 'app-initial', tags: ['$initial'], maxSize: 1500000, priority: 1 },
+            ],
+          },
+        },
+      },
     },
 
     // Vitest configuration (replaces react-scripts test)
