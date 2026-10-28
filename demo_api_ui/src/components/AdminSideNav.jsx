@@ -1,3 +1,4 @@
+import { navSearchTerms, navSearchText } from "../utils/navSearch";
 import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { applyChildOrder } from "../config/navStructureCatalog";
@@ -1780,10 +1781,15 @@ export default function AdminSideNav({
   // children. A group is kept if its own label/alias matches (all children
   // shown) or if any child matches (only matching children shown). Empty
   // query = show everything.
+  // Every typed word must appear somewhere in the item's label, search alias or URL words (any order, as a
+  // substring), so "gateway v1.261027", "third-party" and "token exchange" find what a person means. Punctuation
+  // is ignored on both sides ("id-jag" = "id jag"); dots stay so version numbers still match.
   const navQuery = navFilter.trim().toLowerCase();
-  const itemMatches = (item) =>
-    String(item?.label || "").toLowerCase().includes(navQuery) ||
-    String(item?.searchAlias || "").toLowerCase().includes(navQuery);
+  const navTerms = navSearchTerms(navQuery);
+  const itemMatches = (item) => {
+    const haystack = navSearchText(item);
+    return navTerms.every((t) => haystack.includes(t));
+  };
   const filterNavItem = (item) => {
     if (!navQuery) return item;
     if (item.children?.length) {
