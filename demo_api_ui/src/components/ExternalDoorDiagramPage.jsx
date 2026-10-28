@@ -127,6 +127,14 @@ export default function ExternalDoorDiagramPage() {
             The bottom flow authenticated with client_credentials — no user ever
             signed in, so there is no PingOne token to hand downstream.</>} />
 
+        <p className="mgof-why" data-testid="mgof-why">
+          <b>Why we care:</b> the bearer decides who the Banking API thinks is calling. With the federated token, the API
+          sees the real person behind the request, so it can apply that person's permissions and the audit log names them.
+          With client_credentials, the API only sees the client application. Whatever that client is allowed to do, anyone
+          holding its secret can do, and nothing downstream can tell the users apart or ask for their consent. Per-user
+          control only works when the person's own PingOne login is in the chain.
+        </p>
+
         <DiagramExportBar
           source={uploadedSeq ?? SEQUENCE_SOURCE}
           sourceFilename="external-door-dual-path.mmd"
