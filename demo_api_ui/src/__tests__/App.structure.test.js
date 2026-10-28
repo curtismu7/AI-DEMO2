@@ -282,7 +282,8 @@ describe("MonitoringRoutes.js — critical imports", () => {
   );
 
   test('imports TokenChainTraceRail', () => {
-    expect(src).toContain('import TokenChainTraceRail from "../components/TokenChainTraceRail"');
+    // Route pages load lazily; the declaration must still name the component and its module.
+    expect(src).toContain('const TokenChainTraceRail = lazyWithRetry(() => import("../components/TokenChainTraceRail"))');
   });
 
   test('token-chain route mounts TokenChainTraceRail', () => {
@@ -320,7 +321,7 @@ describe("EducationRoutes.js — critical imports", () => {
   );
 
   test('imports ArchitectureTabsPanel', () => {
-    expect(src).toContain('import ArchitectureTabsPanel from "../components/ArchitectureTabsPanel"');
+    expect(src).toContain('const ArchitectureTabsPanel = lazyWithRetry(() => import("../components/ArchitectureTabsPanel"))');
   });
 
   test("no stale banking_api_ui paths", () => {

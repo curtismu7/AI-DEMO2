@@ -1,4 +1,5 @@
-import UserDashboardPing2026 from "../components/UserDashboardPing2026";
+import lazyWithRetry from "../utils/lazyWithRetry";
+const UserDashboardPing2026 = lazyWithRetry(() => import("../components/UserDashboardPing2026"));
 
 /**
  * DashboardContent — extracted from App.js so the /dashboard route composition

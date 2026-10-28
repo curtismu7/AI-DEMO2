@@ -28,9 +28,10 @@ function renderPage() {
 }
 
 describe("ReactFlowPocComparePage", () => {
-  it("embeds the live React Flow POC page", () => {
+  it("embeds the live React Flow POC page", async () => {
     renderPage();
-    expect(screen.getByTestId("rfpc-page")).toBeTruthy();
+    // The route page loads lazily: wait for it once.
+    expect(await screen.findByTestId("rfpc-page")).toBeTruthy();
     expect(screen.getByTestId("reactflow-poc-page")).toBeTruthy();
     expect(screen.getByTestId("rfp-explain-panel")).toBeTruthy();
   });

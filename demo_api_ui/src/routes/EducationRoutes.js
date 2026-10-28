@@ -1,18 +1,19 @@
+import lazyWithRetry from "../utils/lazyWithRetry";
 import { Route, Routes } from "react-router-dom";
 import AppShell from "./AppShell";
-import ArchitectureFlowPage from "../components/ArchitectureFlowPage";
-import ArchitectureOverviewPage from "../components/ArchitectureOverviewPage";
-import ArchitectureTabsPanel from "../components/ArchitectureTabsPanel";
-import ArchitectureTokenFlowPage from "../components/ArchitectureTokenFlowPage";
-import Phase266ArchitecturePage from "../components/Phase266ArchitecturePage";
-import A2AArchitecturePage from "../components/A2AArchitecturePage";
-import ArchitectureCanvasPage from "../components/ArchitectureCanvasPage";
-import TokenChainArchitecturePage from "../components/TokenChainArchitecturePage";
-import ReactFlowPocPage from "../components/ReactFlowPocPage";
-import ReactFlowPocComparePage from "../components/ReactFlowPocComparePage";
-import PingFederateIdJagPage from "../components/PingFederateIdJagPage";
-import ObservabilityDiagramPage from "../components/ObservabilityDiagramPage";
-import ServerTopologyPage from "../components/ServerTopologyPage";
+const ArchitectureFlowPage = lazyWithRetry(() => import("../components/ArchitectureFlowPage"));
+const ArchitectureOverviewPage = lazyWithRetry(() => import("../components/ArchitectureOverviewPage"));
+const ArchitectureTabsPanel = lazyWithRetry(() => import("../components/ArchitectureTabsPanel"));
+const ArchitectureTokenFlowPage = lazyWithRetry(() => import("../components/ArchitectureTokenFlowPage"));
+const Phase266ArchitecturePage = lazyWithRetry(() => import("../components/Phase266ArchitecturePage"));
+const A2AArchitecturePage = lazyWithRetry(() => import("../components/A2AArchitecturePage"));
+const ArchitectureCanvasPage = lazyWithRetry(() => import("../components/ArchitectureCanvasPage"));
+const TokenChainArchitecturePage = lazyWithRetry(() => import("../components/TokenChainArchitecturePage"));
+const ReactFlowPocPage = lazyWithRetry(() => import("../components/ReactFlowPocPage"));
+const ReactFlowPocComparePage = lazyWithRetry(() => import("../components/ReactFlowPocComparePage"));
+const PingFederateIdJagPage = lazyWithRetry(() => import("../components/PingFederateIdJagPage"));
+const ObservabilityDiagramPage = lazyWithRetry(() => import("../components/ObservabilityDiagramPage"));
+const ServerTopologyPage = lazyWithRetry(() => import("../components/ServerTopologyPage"));
 
 // /architecture/* sub-routes
 //
