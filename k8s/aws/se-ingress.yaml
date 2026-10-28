@@ -132,10 +132,15 @@ metadata:
   annotations:
     nginx.ingress.kubernetes.io/ssl-redirect: "true"
     # Login and callback endpoints are public by design, so bound them
-    # independently of authenticated application traffic.
-    nginx.ingress.kubernetes.io/limit-rps: "5"
-    nginx.ingress.kubernetes.io/limit-burst-multiplier: "3"
-    nginx.ingress.kubernetes.io/limit-connections: "20"
+    # independently of authenticated application traffic. This ingress also
+    # serves every /assets request (Prefix path below): a single page load
+    # fetches ~30 files in parallel, so the per-visitor caps must leave room for
+    # that or the browser gets 503 on some chunks and the app stalls on its
+    # loading splash. Values match what is live on the SE cluster, which was raised
+    # by hand; this file had drifted at 5 / 3 / 20.
+    nginx.ingress.kubernetes.io/limit-rps: "50"
+    nginx.ingress.kubernetes.io/limit-burst-multiplier: "10"
+    nginx.ingress.kubernetes.io/limit-connections: "300"
     nginx.ingress.kubernetes.io/proxy-body-size: "1m"
 spec:
   ingressClassName: nginx-public
@@ -271,6 +276,22 @@ spec:
       # The bare '/' root is served by ai-demo-spa-ingress (no auth — see the
       # comment there); listing it here too would conflict on the same path.
       - path: /request-access
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      # Public diagram pages for the gateway v1.261024/27/28 findings and the PingOne third-party token
+      # exchange. Static data only; they call no API that needs a session.
+      - path: /gateway-claims
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /p1-third-party-exchange
         pathType: Exact
         backend:
           service:
