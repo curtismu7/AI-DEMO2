@@ -277,7 +277,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       },
       {
         label: "Gateway Nested Claims",
-        description: "What gateway v1.261024 added: act.sub matching, and the AgentCore posture fields (verified vs unverified)",
+        description: "What gateway v1.261024, v1.261027 and v1.261028 added: act.sub matching, the Cedar scope gate, scope tiers, the PingFederate resource= trap, the AgentCore posture fields and the v1.261028 AgentCore governance checks (verified vs inferred)",
         icon: "🔑",
       },
       {
@@ -495,6 +495,16 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         label: "Federated agents: PingFederate token",
         description: "An agent's own PingFederate token on a P1 Privilege Agent App: tools by scope, the token passed through, and what Privilege can't do yet",
         icon: "🔑",
+      },
+      {
+        label: "AI policies: Cedar in the gateway",
+        description: "Privilege deciding agent tool calls with Cedar: allowed, refused or held for a human, and where in the path it happens",
+        icon: "🛠",
+      },
+      {
+        label: "Privilege documentation index",
+        description: "Every Privilege guide in one list: gateway, sensor, AI protection and demos",
+        icon: "📚",
       },
     ],
   },
@@ -739,6 +749,8 @@ export default function LearningHub() {
       "P1 Third-Party Token Exchange": () => navigate("/p1-third-party-exchange"),
       "Privilege for AI — MCP": () => navigate("/ai-products/privilege-mcp"),
       "Federated agents: PingFederate token": () => navigate("/privilege-pf-token"),
+      "AI policies: Cedar in the gateway": () => navigate("/privilege-ai-policies"),
+      "Privilege documentation index": () => navigate("/privilege-docs-index"),
     },
     "standards-architecture": {
       "RFC & Spec Index": () => openEdu(EDU.RFC_INDEX, "index"),

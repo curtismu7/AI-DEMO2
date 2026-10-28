@@ -2407,23 +2407,21 @@ select.cur-input { cursor: pointer; }
   /* Right padding clears the app's floating agent button, which sits over the corner and hid Send. */
   padding: 10px 76px 12px 18px;
   gap: 6px 12px;
-  /* The composer scrolls with the column. It used to be pinned (position: sticky), but at 340 to 500px tall it
-     sat over the walkthrough and the Break-it rows whatever the window height. */
 }
 /* Many suggestions scroll inside their own box instead of growing the composer. */
-.cur-ide .cur-a2a-main .privilege-a2a__chips { max-height: 40px; overflow-y: auto; }
+.cur-ide .cur-a2a-main .privilege-a2a__chips { max-height: 96px; overflow-y: auto; }
 .cur-ide .cur-a2a-main .privilege-a2a__composer textarea { height: 56px; min-height: 48px; }
 /* The hint takes its own row, so Reset, Cancel, Calls and Send keep their width in a narrow column. */
 .cur-ide .cur-a2a-main .privilege-a2a__actions { flex-wrap: wrap; row-gap: 6px; }
 .cur-ide .cur-a2a-main .privilege-a2a__actions > span { flex: 1 1 100%; }
-/* The question box and Send stay at the foot of the column while the walkthrough, Break-it rows and answers scroll
-   under them. At 126px of chips and a 3-row box the composer was 340px of a 400px column, so the box sat out of view. */
 .cur-ide .cur-a2a-main .privilege-a2a__composer {
-  position: sticky;
-  bottom: 0;
-  z-index: 2;
   background: var(--cur-prompt-surface);
 }
+/* The composer is a fixed row at the foot of the column; the conversation (or the suggested questions before the first
+   run) takes what is left and scrolls inside itself, so nothing is ever hidden behind the question box. */
+.cur-ide .cur-a2a-main .privilege-a2a__conversation { overflow: hidden; }
+.cur-ide .cur-a2a-main .privilege-a2a__conversation > .privilege-a2a__start,
+.cur-ide .cur-a2a-main .privilege-a2a__conversation > .privilege-a2a__turns { flex: 1 1 0; min-height: 80px; overflow-y: auto; }
 /* The suggestion chips above already offer every question the select lists. */
 .cur-ide .cur-a2a-main .privilege-a2a__composer label[for="privilege-a2a-demo-question"],
 .cur-ide .cur-a2a-main #privilege-a2a-demo-question { display: none; }

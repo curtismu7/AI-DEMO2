@@ -181,3 +181,31 @@ describe("useDraggablePanel resize keeps the title bar reachable", () => {
     expect(captured.pos.y).toBe(60);
   });
 });
+
+describe("useDraggablePanel under the app's root zoom", () => {
+  afterEach(() => {
+    vi.restoreAllMocks();
+    localStorage.clear();
+  });
+
+  // The app zooms the page (112.5%). left/top are in zoomed pixels, pointer coordinates in window pixels, so a
+  // 225px mouse move must move the panel 200 zoomed pixels or it slides off the cursor.
+  it("moves the panel by the pointer distance divided by the zoom", () => {
+    // jsdom does not report CSS zoom in computed style, so stub what the browser would say.
+    vi.spyOn(window, "getComputedStyle").mockReturnValue({ zoom: "1.125" });
+    localStorage.clear();
+    render(<Probe />);
+    const target = document.createElement("div");
+    document.body.appendChild(target);
+
+    act(() => {
+      captured.handleDragStart({ button: 0, target, currentTarget: target, clientX: 225, clientY: 225, preventDefault: () => {}, pointerId: 1 });
+    });
+    act(() => {
+      target.dispatchEvent(new MouseEvent("pointermove", { clientX: 450, clientY: 225 }));
+    });
+
+    expect(captured.pos).toEqual({ x: 300, y: 100 });
+    document.body.removeChild(target);
+  });
+});

@@ -6,9 +6,11 @@ import React, { useMemo, useState } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
 import {
-  DIAGRAM_DETAILS, DIAGRAM_LANES, DOC_PATH, EVIDENCE, GATEWAY_VERSION, MAPPING_ROWS, POSTURE_GROUPS, POSTURE_SAMPLE,
+  DIAGRAM_DETAILS, DIAGRAM_LANES, DOC_PATH, EVIDENCE, GATEWAY_VERSION, MAPPING_ROWS, NEXT_RELEASE, NEXT_RELEASE_RESULTS, NEXT_RELEASE_TRAPS, POSTURE_GROUPS, POSTURE_SAMPLE,
+  GATEWAY_VERSION_NEXT, NEXT_DETAILS, NEXT_GROUPS, NEXT_LANES, NEXT_SCENARIOS, nextScenarioDiagram, nextWire,
   REQUIRED_CLAIMS, SCENARIOS, TRAP_ROWS, WHAT_CHANGED, scenarioDiagram,
 } from '../config/gatewayClaims';
+import GatewayAgentcoreLab from './GatewayAgentcoreLab';
 import './GatewayClaimsPage.css';
 
 const show = (v) => (v === undefined ? 'missing' : typeof v === 'string' ? v : JSON.stringify(v));
@@ -16,6 +18,62 @@ const show = (v) => (v === undefined ? 'missing' : typeof v === 'string' ? v : J
 function Tag({ kind }) {
   const e = EVIDENCE[kind];
   return <span className={`gwc-tag gwc-tag--${kind}`} title={e.note}>{e.label}</span>;
+}
+
+/** v1.261027 lab: pick a behaviour (Cedar scope gate, PingFederate resource= trap, scope tiers), then a token, and see the wire and the diagram. */
+function NextLab() {
+  const [groupId, setGroupId] = useState('cedar');
+  const [nextId, setNextId] = useState('cedar-missing');
+  const group = NEXT_GROUPS.find((g) => g.id === groupId);
+  const choices = NEXT_SCENARIOS.filter((s) => s.group === groupId);
+  const s = NEXT_SCENARIOS.find((x) => x.id === nextId);
+  const diagram = useMemo(() => nextScenarioDiagram(s), [s]);
+  const wire = useMemo(() => nextWire(s), [s]);
+  const r = s.result;
+  const pickGroup = (id) => { setGroupId(id); setNextId(NEXT_SCENARIOS.find((x) => x.group === id).id); };
+  return (
+    <section className="gwc-card" aria-labelledby="gwc-p4" data-testid="gwc-next-lab">
+      <h2 id="gwc-p4">4. Run the {GATEWAY_VERSION_NEXT} behaviours <Tag kind="verified" /></h2>
+      <p className="gwc-lede">Each run below mirrors a call we made on the real gateway on 2026-10-27. Hosts, ids and tokens are placeholders; the outcomes are the measured ones.</p>
+      <div role="radiogroup" aria-label="Behaviour" className="gwc-scenarios">
+        {NEXT_GROUPS.map((g) => (
+          <button key={g.id} type="button" role="radio" aria-checked={g.id === groupId} className={`gwc-chip${g.id === groupId ? ' gwc-chip--on' : ''}`} data-testid={`gwc-group-${g.id}`} onClick={() => pickGroup(g.id)}>{g.label}</button>
+        ))}
+      </div>
+      <p className="gwc-muted">{group.blurb}</p>
+      <div role="radiogroup" aria-label="Run" className="gwc-scenarios">
+        {choices.map((c) => (
+          <button key={c.id} type="button" role="radio" aria-checked={c.id === nextId} className={`gwc-chip${c.id === nextId ? ' gwc-chip--on' : ''}`} data-testid={`gwc-next-${c.id}`} onClick={() => setNextId(c.id)}>{c.label}</button>
+        ))}
+      </div>
+      <div className={`gwc-verdict gwc-verdict--${r.allowed ? 'ok' : 'bad'}`} role="status" data-testid="gwc-next-verdict" data-allowed={String(r.allowed)} data-status={r.status}>
+        <strong>{r.allowed ? 'ALLOW' : 'DENY'}: HTTP {r.status}</strong>
+        <span> <Tag kind={s.evidence} /></span>
+        <p>{s.story}</p>
+        <p className="gwc-muted">{s.evidenceNote}</p>
+      </div>
+      <div className="gwc-grid">
+        <div>
+          <h3>Request</h3>
+          <pre className="gwc-pre" data-testid="gwc-next-request">{wire.request}</pre>
+          <h3>Decoded token (placeholder values)</h3>
+          <pre className="gwc-pre" data-testid="gwc-next-token">{JSON.stringify(wire.token, null, 2)}</pre>
+        </div>
+        <div>
+          <h3>Response and gateway log</h3>
+          <pre className="gwc-pre" data-testid="gwc-next-response">{wire.response}</pre>
+        </div>
+      </div>
+      <SequenceFlowDiagram
+        key={s.id}
+        source={diagram.source}
+        payloads={diagram.payloads}
+        details={NEXT_DETAILS}
+        lanes={NEXT_LANES}
+        label={`Gateway ${GATEWAY_VERSION_NEXT}: ${s.label}`}
+      />
+    </section>
+  );
 }
 
 export default function GatewayClaimsPage() {
@@ -28,8 +86,8 @@ export default function GatewayClaimsPage() {
     <main className="gwc-page" data-testid="gateway-claims-page">
       <PageHeader
         eyebrow="Diagrams · Privilege"
-        title={`What Privilege gateway ${GATEWAY_VERSION} added`}
-        summary="The gateway can now match a rule on a nested claim, such as act.sub inside a PingFederate token. It also carries new AgentCore posture metadata. This page runs against the real product, so each statement is labelled by how well we know it."
+        title={`What Privilege gateway ${GATEWAY_VERSION}, ${GATEWAY_VERSION_NEXT} and v1.261028 added`}
+        summary="The gateway can match a rule on a nested claim, such as act.sub inside a PingFederate token, gate a tool call on a token scope in Cedar, and give one agent different tools by scope. It also carries AgentCore posture metadata and, from v1.261028, AgentCore governance checks (read from the binary). Each statement is labelled by how well we know it."
         back={{ to: '/diagrams', label: 'All diagrams' }}
       />
 
@@ -159,6 +217,24 @@ export default function GatewayClaimsPage() {
         <pre className="gwc-pre" data-testid="gwc-sample">{JSON.stringify(POSTURE_SAMPLE, null, 2)}</pre>
         <p className="gwc-muted">Every value above is a placeholder to show the shape. The real structure may differ.</p>
       </section>
+      <section className="gwc-card" aria-labelledby="gwc-p3" data-testid="gwc-next-release">
+        <h2 id="gwc-p3">3. Newer gateway: {NEXT_RELEASE.version}</h2>
+        <p className="gwc-warn" role="note">{NEXT_RELEASE.novelty}</p>
+        <ul>
+          {NEXT_RELEASE_RESULTS.map((r) => (
+            <li key={r.what}><Tag kind={r.evidence} /> <strong>{r.what}</strong> (measured on {r.gateway}). {r.detail}</li>
+          ))}
+        </ul>
+        <h3>The Cedar policy we ran</h3>
+        <pre className="gwc-pre" data-testid="gwc-cedar">{NEXT_RELEASE.cedarPolicy}</pre>
+        <h3>Traps we hit</h3>
+        <table className="gwc-table">
+          <thead><tr><th>Symptom</th><th>Cause</th><th>Fix</th></tr></thead>
+          <tbody>{NEXT_RELEASE_TRAPS.map((r) => <tr key={r.symptom}><td>{r.symptom}</td><td>{r.cause}</td><td>{r.fix}</td></tr>)}</tbody>
+        </table>
+      </section>
+      <NextLab />
+      <GatewayAgentcoreLab />
     </main>
   );
 }

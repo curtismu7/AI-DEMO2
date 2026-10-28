@@ -1,7 +1,11 @@
 // demo_api_ui/src/components/shared/JsonView.jsx
+import { Suspense } from 'react';
+import lazyWithRetry from '../../utils/lazyWithRetry';
 import JsonColumnsView from './JsonColumnsView';
-import JsonCrackView from './JsonCrackView';
 import JsonHighlight from './JsonHighlight';
+
+// The node-graph view pulls in a ~2 MB graph library; load it only when the Crack tab is opened.
+const JsonCrackView = lazyWithRetry(() => import('./JsonCrackView'));
 
 // Tab list for InspectorTabs — shared by every JsonView call site so the
 // JSON/Hero/Crack toggle looks and behaves the same everywhere it appears.
@@ -19,6 +23,12 @@ export const JSON_VIEW_TABS = [
  */
 export default function JsonView({ mode = 'json', value, deep, crackHeight }) {
   if (mode === 'hero') return <JsonColumnsView value={value} />;
-  if (mode === 'crack') return <JsonCrackView value={value} height={crackHeight} />;
+  if (mode === 'crack') {
+    return (
+      <Suspense fallback={<div role="status" style={{ height: crackHeight, minHeight: 80 }}>Loading graph…</div>}>
+        <JsonCrackView value={value} height={crackHeight} />
+      </Suspense>
+    );
+  }
   return <JsonHighlight value={value} deep={deep} />;
 }

@@ -94,7 +94,7 @@ describe('PrivilegeA2aTab', () => {
     window.removeEventListener('agent-evidence-open', opened);
   });
 
-  test('the middle trace stays light (kind, text, route); a clicked step shows its JSON and timing in the right panel', async () => {
+  test('each trace step carries its request and response under it; a clicked step adds timing in the right panel', async () => {
     global.fetch.mockResolvedValueOnce(streamResponse([
       { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', fromLabel: 'Care Concierge', toLabel: 'Claims Analyst', text: 'concierge → analyst_agent', request: 'POST http://w/jsonrpc\n\n{"method":"message/send"}', response: 'HTTP 200\n\n{"result":{"kind":"message"}}', elapsedMs: 80 } },
       { event: 'token', data: { text: 'Done.' } },
@@ -107,16 +107,15 @@ describe('PrivilegeA2aTab', () => {
 
     const trace = within(await screen.findByRole('complementary', { name: 'Agent trace' }));
     expect(await trace.findByText('Care Concierge → Claims Analyst')).toBeTruthy();
-    // no JSON or timing in the middle column
-    expect(trace.queryByText('Request')).toBeNull();
-    expect(trace.queryByText(/"method":"message\/send"/)).toBeNull();
+    // the step carries its request and response; timing stays out of the middle column
+    expect(trace.getByText('Request · Response')).toBeTruthy();
+    expect(trace.getByText(/"method":"message\/send"/)).toBeTruthy();
+    expect(trace.getByText(/"kind":"message"/)).toBeTruthy();
     expect(trace.queryByText(/80 ms/)).toBeNull();
 
     const panel = within(screen.getByRole('complementary', { name: 'Step details' }));
-    expect(panel.queryByText(/"method":"message\/send"/)).toBeNull();
     await user.click(trace.getByText('concierge → analyst_agent'));
-    expect(panel.getByText(/"method":"message\/send"/)).toBeTruthy();
-    expect(panel.getByText(/"kind":"message"/)).toBeTruthy();
+    expect(panel.getAllByText(/"method":"message\/send"/).length).toBeGreaterThan(0);
     expect(panel.getByText('Care Concierge → Claims Analyst · 80 ms')).toBeTruthy();
   });
 
@@ -191,6 +190,51 @@ describe('PrivilegeA2aTab', () => {
     }
     await user.click(exchange.getByRole('button', { name: /3\. Reply returned/ }));
     expect(screen.getAllByText('Remote Agent finished').length).toBeGreaterThan(1);
+  });
+
+  test('a status line says what is happening now, and the walkthrough and Break-it rows sit in the guide column', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'Send Message' } },
+      { event: 'trace', data: { kind: 'result', from: 'analyst', to: 'main', text: 'finished' } },
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's1' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+
+    expect(screen.getByRole('status').textContent).toMatch(/Pick a question/);
+    const guide = within(screen.getByRole('complementary', { name: 'Step details' }));
+    expect(guide.getByRole('button', { name: 'Start walkthrough' })).toBeTruthy();
+    expect(guide.getByRole('button', { name: 'Break it: ungranted user' })).toBeTruthy();
+
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    await screen.findByText('Done.');
+    expect(screen.getByRole('status').textContent).toMatch(/Done\. Click any step/);
+  });
+
+  test('shows each step\'s request and response under the step, open on the exchange rows', async () => {
+    global.fetch.mockResolvedValueOnce(streamResponse([
+      { event: 'trace', data: { kind: 'delegate', from: 'main', to: 'analyst', text: 'Send Message', request: 'POST /a2a\n{"method":"message/send"}' } },
+      { event: 'trace', data: { kind: 'mcp-call', from: 'analyst', to: 'mcp', text: 'tools/call', detail: 'listEntitlements(Carol)' } },
+      { event: 'trace', data: { kind: 'result', from: 'analyst', to: 'main', text: 'Remote Agent finished', response: 'HTTP 200\n{"result":{"kind":"message"}}' } },
+      { event: 'token', data: { text: 'Done.' } },
+      { event: 'done', data: { sessionId: 's1' } },
+    ]));
+    const user = userEvent.setup();
+    render(<PrivilegeA2aTab />);
+    await user.type(screen.getByRole('textbox', { name: 'Your question' }), 'Review Carol');
+    await user.click(screen.getByRole('button', { name: 'Send question' }));
+    await screen.findByText('Done.');
+
+    const exchange = within(screen.getByRole('list', { name: 'A2A exchange' }));
+    expect(exchange.getByText(/message\/send/)).toBeTruthy();
+    expect(exchange.getByText(/HTTP 200/)).toBeTruthy();
+    expect(exchange.getByText('listEntitlements(Carol)')).toBeTruthy();
+    const trace = within(screen.getByRole('complementary', { name: 'Agent trace' }));
+    expect(trace.getAllByText('Request').length).toBeGreaterThan(0);
+    expect(trace.getAllByText('Response').length).toBeGreaterThan(0);
+    expect(trace.getAllByText('Detail').length).toBeGreaterThan(0);
   });
 
   test('submits through the same-origin BFF and carries the returned session ID forward', async () => {
