@@ -3,7 +3,7 @@ const TEST_FILE = /\.(?:test|spec)\.[cm]?[jt]sx?$/
 // a React.lazy page), so edits to these modules map to every test that reaches
 // them. Everything else (styles, setup, config, App, theme) is read by tests
 // through the filesystem or global wiring and stays on the full suite.
-const RELATED_SOURCE = /^src\/(?:components|pages|hooks|utils|services|features|context)\/.+\.[jt]sx?$/
+const RELATED_SOURCE = /^src\/(?:components|pages|hooks|utils|services|features|context|config|data|constants|routes|lib|learning|copilot|vertical)\/.+\.[jt]sx?$/
 const BARREL_FILE = /(?:^|\/)index\.[cm]?[jt]sx?$/
 
 function fullSuite(reason) {
