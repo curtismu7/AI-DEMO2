@@ -715,7 +715,7 @@ No change to the identity `PFtoken` or the key `pftoken-agent`. The same token w
 }
 ```
 
-Two layers each cut the tool list: the grant (one tool on this agent app) and the MCP server's own scope filter (only tools whose scope is in the token). Why discovery saw 35 tools when the token carries only `whoami:read` is **not known**; discovery may run with a different credential.
+Two layers each cut the tool list: the grant (one tool on this agent app) and the MCP server's own scope filter (only tools whose scope is in the token). The 35 is most likely the gateway's own scan of the backend when the agent app is created or re-synced (log line `MCP force-sync app=pftoken-rs: LastDiscoveredAt reset — re-scanning`): that scan uses the gateway's credential, not the agent's token, so it sees the backend's whole catalog. This is an inference from the log, not confirmed with Ping; what the agent can list and call is still cut to the grant and the token's scopes (measured: 9 / 3 / 403).
 
 The demo page shows this live: [https://ai-demo.ping-devops.com/privilege-pf-token](https://ai-demo.ping-devops.com/privilege-pf-token), panel "What the backend received": every claim PingFederate put in the token beside the same claim as the backend verified it, one row per claim. The page's sections collapse.
 
