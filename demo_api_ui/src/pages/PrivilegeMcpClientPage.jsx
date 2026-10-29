@@ -5,6 +5,8 @@ import { useLocation, useSearchParams, useNavigate, Link } from 'react-router-do
 import { FootprintSkinPicker } from '../components/aiFootprintMocks/FootprintSkinPicker';
 import { KIBANA_URL } from '../config/observabilityLinks';
 import ToolsTable from '../components/privilege/ToolsTable';
+import ToolWorkbench from '../components/privilege/ToolWorkbench';
+import { hitlToolsFor } from '../config/privilegeAiPoliciesDemo';
 import PrivilegeUserApiKeysPanel from '../components/privilege/PrivilegeUserApiKeysPanel';
 import CimdClientIdentity from '../components/privilege/CimdClientIdentity';
 import JsonHighlight from '../components/shared/JsonHighlight';
@@ -635,6 +637,9 @@ export default function PrivilegeMcpClientPage() {
   // approval. Cleared by any non-held result (the retry) or a new call.
   const [hold, setHold] = useState(null);
   const [retrying, setRetrying] = useState(false);
+  // The simulated approver popup, and the instruction it was last used on (so a retry that is still held can say why).
+  const [showApprover, setShowApprover] = useState(false);
+  const [approverTried, setApproverTried] = useState(null);
   const retryHeldCall = useCallback(async () => {
     if (!hold || retrying) return;
     setRetrying(true);
@@ -645,6 +650,11 @@ export default function PrivilegeMcpClientPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hold, retrying]);
+  const approveFromPopup = useCallback(async () => {
+    setShowApprover(false);
+    setApproverTried(hold?.instructionId || true);
+    await retryHeldCall();
+  }, [hold, retryHeldCall]);
   // Scope picked in the left rail — echoed/highlighted in the right SCOPES table.
   // With a long granted-scope list, clicking a pill on the left jumps to its row.
   const [selectedScope, setSelectedScope] = useState(null);
@@ -1403,10 +1413,11 @@ export default function PrivilegeMcpClientPage() {
   // Per-row executor for the Tools table: returns the pretty-printed result and
   // also records it in the RESULTS terminal tab (which flashes so the user sees
   // fresh output land).
-  const recordResult = useCallback((name, result, ok) => {
+  const recordResult = useCallback((name, result, ok, { reveal = true } = {}) => {
     setToolResults([{ tool: name, result, ok, ts: new Date().toISOString() }]);
     setResultNonce((n) => n + 1);
-    setTerminalTab('results');
+    // A run from the Tools tab shows its response beside the request; only other callers jump to the bottom tab.
+    if (reveal) setTerminalTab('results');
   }, []);
 
   const executeToolCall = async (name, argsStr) => {
@@ -1436,7 +1447,7 @@ export default function PrivilegeMcpClientPage() {
       out = JSON.stringify({ error: handled ? 'Sign in is required for this door.' : err.message }, null, 2);
       ok = false;
     }
-    recordResult(name, out, ok);
+    recordResult(name, out, ok, { reveal: false });
     return out;
   };
 
@@ -1574,6 +1585,31 @@ export default function PrivilegeMcpClientPage() {
                 onClick={() => { setShowSignInModal(false); startAuth(); }}
               >Sign in</button>
               <button className="cur-btn" onClick={() => setShowSignInModal(false)}>Not now</button>
+            </div>
+          </div>
+        </div>
+      </DraggableModal>
+      {/* Simulated approver: shows what a human approver sees in Privilege. It cannot lift the real hold; retrying proves that. */}
+      <DraggableModal
+        isOpen={showApprover && Boolean(hold)}
+        onClose={() => setShowApprover(false)}
+        title="Approver — simulated"
+        footer={null}
+        defaultWidth={460}
+        defaultHeight={340}
+        storageKey="privilege-approver-modal"
+      >
+        <div className="cur-ide cur-dm-scope" data-cur-theme={pageTheme}>
+          <div className="cur-modal cur-modal--in-dm cur-approver">
+            <p className="cur-denial-note">
+              A policy needs a human to approve <code>{hold?.tool}</code> before the gateway lets it through. In Privilege this
+              request is under Access Request Approvals → HITL Requests.
+            </p>
+            <pre className="cur-trace-json cur-approver__args">{hold?.args}</pre>
+            {hold?.instructionId && <p className="cur-hitl-hold__instruction">Instruction <code>{hold.instructionId}</code></p>}
+            <div className="cur-btn-row">
+              <button className="cur-btn cur-btn--primary" onClick={approveFromPopup}>Approve and retry</button>
+              <button className="cur-btn" onClick={() => setShowApprover(false)}>Cancel</button>
             </div>
           </div>
         </div>
@@ -2376,13 +2412,55 @@ export default function PrivilegeMcpClientPage() {
             )}
 
             {demoTab === 'tools' && (
-              <ToolsTable
+              <ToolWorkbench
                 tools={tools}
                 onExecute={executeToolCall}
-                resultInline={false}
+                hitlTools={hitlToolsFor(doorName(config.mcpUrl))}
                 onPresent={() => setShowPresent(true)}
                 selectedTool={selectedTool}
                 selectNonce={toolSelectNonce}
+                response={toolResults.length === 0 && !hold ? null : (
+                  <>
+                    {hold && (
+                      <div className="cur-hitl-hold" data-testid="hitl-hold-card">
+                        <div className="cur-hitl-hold__head">
+                          <span className="cur-hitl-hold__icon" aria-hidden="true">✋</span>
+                          <span className="cur-hitl-hold__title">Waiting for human approval</span>
+                        </div>
+                        <p className="cur-hitl-hold__body">
+                          The gateway held <code>{hold.tool}</code> — policy requires a human decision before this tool runs.
+                          Approve it here (simulated), or for real in the Privilege console under{' '}
+                          <strong>Access Request Approvals → HITL Requests</strong>, then retry.
+                        </p>
+                        {hold.instructionId && (
+                          <p className="cur-hitl-hold__instruction">
+                            Instruction <code>{hold.instructionId}</code>
+                          </p>
+                        )}
+                        {approverTried && (
+                          <p className="cur-hitl-hold__body">
+                            The popup is a stand-in: Privilege still shows this request as pending. Approve the real one in the
+                            Privilege console, then press Retry.
+                          </p>
+                        )}
+                        <button type="button" className="cur-hitl-hold__retry" onClick={() => setShowApprover(true)}>Review approval…</button>{' '}
+                        <button type="button" className="cur-hitl-hold__retry" onClick={retryHeldCall} disabled={retrying}>
+                          {retrying ? 'Retrying…' : 'Retry after approval'}
+                        </button>
+                      </div>
+                    )}
+                    {toolResults.map((r, i) => (
+                      <div key={`${r.ts}-${i}`} className="cur-result-item">
+                        <div className="cur-result-item-head">
+                          <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
+                          <span className="cur-result-item-tool">{r.tool}</span>
+                          <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
+                        </div>
+                        <JsonPane value={r.result} deep label={`${r.tool} result view`} />
+                      </div>
+                    ))}
+                  </>
+                )}
               />
             )}
 
@@ -2393,7 +2471,7 @@ export default function PrivilegeMcpClientPage() {
 
           {/* Terminal panel */}
           <div className="cur-resize-handle cur-resize-handle--h" onPointerDown={startTerminalDrag} />
-          <div className="cur-terminal" ref={terminalRef}>
+          <div className={`cur-terminal${demoTab === 'tools' ? ' cur-terminal--short' : ''}`} ref={terminalRef}>
             {/* TRACE and RESULTS carry the demo and stay here; Relay log and Scopes live in the Inspect drawer. */}
             <div className="cur-terminal-tabs">
               <button className={`cur-terminal-tab ${visibleTerminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
@@ -2442,27 +2520,6 @@ export default function PrivilegeMcpClientPage() {
               )}
               {visibleTerminalTab === 'results' && (
                 <div className="cur-terminal-results">
-                  {hold && (
-                    <div className="cur-hitl-hold" data-testid="hitl-hold-card">
-                      <div className="cur-hitl-hold__head">
-                        <span className="cur-hitl-hold__icon" aria-hidden="true">✋</span>
-                        <span className="cur-hitl-hold__title">Waiting for human approval</span>
-                      </div>
-                      <p className="cur-hitl-hold__body">
-                        The gateway held <code>{hold.tool}</code> — policy requires a human decision before this
-                        tool runs. Approve it in the Privilege console under{' '}
-                        <strong>Access Request Approvals → HITL Requests</strong>, then retry.
-                      </p>
-                      {hold.instructionId && (
-                        <p className="cur-hitl-hold__instruction">
-                          Instruction <code>{hold.instructionId}</code>
-                        </p>
-                      )}
-                      <button type="button" className="cur-hitl-hold__retry" onClick={retryHeldCall} disabled={retrying}>
-                        {retrying ? 'Retrying…' : 'Retry after approval'}
-                      </button>
-                    </div>
-                  )}
                   {toolResults.length === 0 ? (
                     <span className="cur-terminal-empty">No results yet — run a tool to see its output here</span>
                   ) : (

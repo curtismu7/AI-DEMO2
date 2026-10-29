@@ -98,14 +98,16 @@ describe("Clear and Guide buttons", () => {
     await screen.findByText("first_tool");
     fireEvent.click(screen.getByRole("tab", { name: "Tools" }));
 
-    const runButtons = await screen.findAllByRole("button", { name: "Run" });
-    fireEvent.click(runButtons[0]);
-    await waitFor(() => expect(container.querySelector(".cur-terminal-results")).toHaveTextContent("first_tool output"));
+    // The response sits beside the request on the Tools tab; the bottom RESULTS tab only keeps the count.
+    const response = () => container.querySelector('[aria-label="Response"]');
+    fireEvent.click(await screen.findByRole("button", { name: "Run" }));
+    await waitFor(() => expect(response()).toHaveTextContent("first_tool output"));
 
-    fireEvent.click(runButtons[1]);
+    fireEvent.click(screen.getByRole("tab", { name: /second_tool/ }));
+    fireEvent.click(screen.getByRole("button", { name: "Run" }));
 
-    await waitFor(() => expect(container.querySelector(".cur-terminal-results")).toHaveTextContent("second_tool output"));
-    expect(container.querySelector(".cur-terminal-results")).not.toHaveTextContent("first_tool output");
+    await waitFor(() => expect(response()).toHaveTextContent("second_tool output"));
+    expect(response()).not.toHaveTextContent("first_tool output");
     expect(container.querySelector(".cur-terminal-tab-badge")).toHaveTextContent("1");
   });
 });
