@@ -13,6 +13,8 @@
     "issuerSourceRef": "https://local.ping-devops.com:9031/.well-known/openid-configuration#issuer",
     "tokenEndpoint": "https://pingfederate:9031/as/token.oauth2",
     "tokenEndpointSourceRef": "PF_TOKEN_ENDPOINT, which readiness-bff-pingfederate inherits from demo-api-server (docker-compose.readiness.yml extends)",
+    "gatewayExchangerRole": "standard-mcp-exchanger",
+    "gatewayExchangerRoleSourceRef": "PingGateway PF_TE_CLIENT_ID (ai-demo-pf-standard-mcp-exchanger), read from the running ai-demo-ping-gateway 2026-10-29; ping-gateway/scripts/groovy/olb-token-exchange.groovy uses it for Exchange #3 on a PF-issued subject token",
     "tokenEndpointAlias": {
       "origin": "https://pingfederate:9031",
       "aliasOf": "https://local.ping-devops.com:9031",

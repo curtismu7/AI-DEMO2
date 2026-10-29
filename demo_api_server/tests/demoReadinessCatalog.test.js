@@ -190,6 +190,19 @@ describe('demo readiness catalog', () => {
     expect(contract).toMatchObject({ status: 'blocked', sourceGap: { code: 'pf_exact_exchange_contract_source_gap', missingRoleIds: [] } });
   });
 
+  test('PF audiences come from the access token manager each PF exchanger is restricted to; scopes stay the same', () => {
+    const { pingFederateProfiles: pf } = loadDemoReadinessSources();
+    const atmAudience = (roleId) => pf.accessTokenManagers[pf.roles[roleId].baseline.defaultAccessTokenManagerRef].audience;
+    const contract = buildDemoReadinessCatalog().find((row) => row.id === 'UC1').authorizationContractByVertical.healthcare;
+    const override = contract.providerOverrides.pingfederate;
+    expect(override.scopeResources.map((item) => item.audience)).toEqual(contract.scopeResources.map(() => atmAudience('standard-agent-exchanger')));
+    expect(override.scopeResources.map((item) => item.scope)).toEqual(contract.scopeResources.map((item) => item.scope));
+    expect(override.gatewayHop).toEqual({ audience: contract.gatewayHop.audience, scopes: [...contract.gatewayHop.scopes, ...contract.requiredScopes] });
+    expect(override.backendHop).toEqual({ audience: atmAudience(pf.exchangeContract.gatewayExchangerRole), scopes: contract.backendHop.scopes });
+    // The PingOne contract itself is unchanged.
+    expect(contract.backendHop.audience).toBe('mcpserver.ping.demo');
+  });
+
   test('keeps PF A2A feature probes outside the Demo Steps count', () => {
     const sources = loadDemoReadinessSources();
 
