@@ -217,3 +217,12 @@ test('the raw hold JSON folds under the card and is gone once a retry gets throu
   await screen.findAllByText(/Search results: 3 hits/);
   expect(document.querySelector('details.cur-hitl-raw')).toBeNull();
 });
+
+test('SearchIndexTool opens with arguments that can run, on an index that exists', async () => {
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  const box = await screen.findByLabelText(/arguments \(json\)/i);
+  expect(JSON.parse(box.value)).toEqual({ index: 'gateway-events', query_dsl: { query: { match_all: {} } } });
+  expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled();
+});
