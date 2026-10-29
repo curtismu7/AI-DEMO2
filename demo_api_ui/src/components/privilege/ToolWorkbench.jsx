@@ -9,9 +9,12 @@ import './ToolWorkbench.css';
 const DEFAULT_ARGS = {
   SearchIndexTool: { index: 'gateway-events', query_dsl: { query: { match_all: {} } } },
 };
+// Only required fields are pre-filled. A blank optional field is sent as "" and typed tools reject it
+// (OpenSearch: size: "" is not an integer), so optional ones are left out until someone fills them.
 const startingArgs = (tool) => {
-  const seeded = JSON.parse(seedArgs(tool));
-  return JSON.stringify(DEFAULT_ARGS[tool.name] ? { ...seeded, ...DEFAULT_ARGS[tool.name] } : seeded, null, 2);
+  const required = new Set(tool.inputSchema?.required ?? []);
+  const seeded = Object.fromEntries(Object.entries(JSON.parse(seedArgs(tool))).filter(([k]) => required.has(k)));
+  return JSON.stringify({ ...seeded, ...DEFAULT_ARGS[tool.name] }, null, 2);
 };
 
 export default function ToolWorkbench({ tools: rawTools, onExecute, hitlTools = {}, response, onPresent, selectedTool = null, selectNonce = 0 }) {
