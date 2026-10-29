@@ -31,6 +31,7 @@ async function runThroughBff({
   baseUrl,
   token,
   targets = ['local', 'se'],
+  providers = ['pingone', 'pingfederate'],
   onProgress = () => {},
   fetchImpl = fetch,
   sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
@@ -42,7 +43,7 @@ async function runThroughBff({
   let snapshot = await request(fetchImpl, base + JOBS_PATH, {
     method: 'POST',
     headers: { ...headers, 'Content-Type': 'application/json' },
-    body: JSON.stringify({ targets }),
+    body: JSON.stringify({ targets, providers }),
   });
   let lastPhase = null;
 

@@ -6,6 +6,7 @@ const { redactReadinessValue } = require('./demoReadinessReport');
 
 const JOB_TTL_MS = 20 * 60 * 1000;
 const DEFAULT_TARGETS = Object.freeze(['local', 'se']);
+const DEFAULT_PROVIDERS = Object.freeze(['pingone', 'pingfederate']);
 
 class DemoReadinessJobError extends Error {
   constructor(statusCode, code, message) {
@@ -72,7 +73,7 @@ function createDemoReadinessJobStore({
     return job;
   }
 
-  function start({ subject, targets = DEFAULT_TARGETS } = {}) {
+  function start({ subject, targets = DEFAULT_TARGETS, providers = DEFAULT_PROVIDERS } = {}) {
     if (typeof subject !== 'string' || !subject.trim()) {
       throw new DemoReadinessJobError(401, 'authenticated_subject_required', 'A verified administrator subject is required.');
     }
@@ -82,6 +83,12 @@ function createDemoReadinessJobStore({
       throw new DemoReadinessJobError(400, 'invalid_targets', 'targets must be one or both of: local, se.');
     }
     const runTargets = DEFAULT_TARGETS.filter((target) => targets.includes(target));
+    // Likewise one provider is diagnostic; both is the default.
+    if (!Array.isArray(providers) || providers.length === 0 || new Set(providers).size !== providers.length
+        || !providers.every((provider) => DEFAULT_PROVIDERS.includes(provider))) {
+      throw new DemoReadinessJobError(400, 'invalid_providers', 'providers must be one or both of: pingone, pingfederate.');
+    }
+    const runProviders = DEFAULT_PROVIDERS.filter((provider) => providers.includes(provider));
     expireDueJobs();
 
     const createdAt = now();
@@ -134,6 +141,7 @@ function createDemoReadinessJobStore({
 
     job.runPromise = Promise.resolve().then(() => runReadiness({
       targets: runTargets,
+      providers: runProviders,
       onProgress,
       confirmRepairs,
     })).then((result) => {
@@ -183,4 +191,4 @@ function createDemoReadinessJobStore({
   return { start, get, confirm, dispose };
 }
 
-module.exports = { JOB_TTL_MS, DEFAULT_TARGETS, DemoReadinessJobError, createDemoReadinessJobStore };
+module.exports = { JOB_TTL_MS, DEFAULT_TARGETS, DEFAULT_PROVIDERS, DemoReadinessJobError, createDemoReadinessJobStore };
