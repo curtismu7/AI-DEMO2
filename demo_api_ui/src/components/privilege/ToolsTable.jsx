@@ -249,9 +249,19 @@ export default function ToolsTable({ tools: rawTools, presentMode = false, onExe
 }
 
 function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onToggle, args, onArgs, result, resultInline = true, busy, onRun }) {
+  const rowRef = useRef(null);
+  // The table area is short, so opening a row would otherwise leave its Arguments and Execute below the fold with
+  // the tool's own row scrolled away. Bring the row to the top of the table area when it opens.
+  useEffect(() => {
+    const row = rowRef.current;
+    const box = row?.closest('.ptt-scroll');
+    // Scroll the table's own box only: scrollIntoView would also move the page behind it.
+    if (isOpen && !presentMode && box) box.scrollTop += row.getBoundingClientRect().top - box.getBoundingClientRect().top;
+  }, [isOpen, presentMode]);
+
   return (
     <>
-      <tr data-tool-row={tool.name} className={`ptt-row${isOpen ? ' ptt-row--open' : ''}${selected ? ' ptt-row--selected' : ''}${presentMode ? '' : ' ptt-row--click'}`} onClick={onToggle}>
+      <tr ref={rowRef} data-tool-row={tool.name} className={`ptt-row${isOpen ? ' ptt-row--open' : ''}${selected ? ' ptt-row--selected' : ''}${presentMode ? '' : ' ptt-row--click'}`} onClick={onToggle}>
         <td className="ptt-col-tool"><span className="ptt-name">{tool.name}</span></td>
         <td className="ptt-col-desc">{tool.description || ''}</td>
         <td className="ptt-col-res">
