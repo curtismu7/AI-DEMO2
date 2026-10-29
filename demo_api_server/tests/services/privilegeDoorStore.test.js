@@ -117,28 +117,11 @@ describe('privilegeDoorStore', () => {
   });
 });
 
-describe('hold rules (HITL badges)', () => {
-  const cedar = (door, tool, extra = 'unless { context has approval_count && context.approval_count >= 1 }') =>
-    `forbid (principal, action == Action::"mcp:InvokeUnattended", resource == Tool::"${tool}") when { context.app == "${door}" } ${extra};`;
-  const ai = (name, state, c) => ({ name, state, spec: { Cedar: c } });
-
-  test('an Active forbid that lifts on approval names its door and tool', () => {
-    expect(store.holdRulesFrom([ai('hitl-opensearch', 'Active', cedar('opensearch-hitl', 'SearchIndexTool'))]))
-      .toEqual([{ door: 'opensearch-hitl', tool: 'SearchIndexTool', policy: 'hitl-opensearch' }]);
-  });
-
-  test('a candidate, a plain refusal, and a rule with no named tool are not holds', () => {
-    expect(store.holdRulesFrom([
-      ai('cand', 'Candidate', cedar('d', 't')),
-      ai('refuse', 'Active', cedar('d', 't', '')),
-      ai('anytool', 'Active', 'forbid (principal, action, resource) when { context.app == "d" } unless { context has approval_count };'),
-    ])).toEqual([]);
-  });
-
-  test('holdRules survive the store and group by door; a snapshot without them reads null', () => {
-    store.saveInventory({ applications: APPS, policies: [], holdRules: [{ door: 'a', tool: 'x', policy: 'p1' }, { door: 'a', tool: 'y', policy: 'p2' }, { door: 'b', tool: 'z', policy: 'p3' }] });
-    expect(store.holdToolsByDoor(store.getInventory())).toEqual({ a: { x: 'p1', y: 'p2' }, b: { z: 'p3' } });
+describe('hold rules in the snapshot', () => {
+  test('survive the store when given, and are absent (not empty) when the caller could not read AI policies', () => {
+    store.saveInventory({ applications: APPS, policies: [], holdRules: [{ door: 'a', tool: 'x', policy: 'p1' }] });
+    expect(store.getInventory().holdRules).toEqual([{ door: 'a', tool: 'x', policy: 'p1' }]);
     store.saveInventory({ applications: APPS, policies: [] });
-    expect(store.holdToolsByDoor(store.getInventory())).toBeNull();
+    expect(store.getInventory()).not.toHaveProperty('holdRules');
   });
 });

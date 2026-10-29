@@ -8,6 +8,7 @@ const { internalSecret } = require('../utils/internalSecret');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 const { privilegeGatewayBase } = require('../services/privilegeGatewayBase');
 const privilegeDoorStore = require('../services/lmdb/privilegeDoorStore.lmdb');
+const { holdRulesFrom, holdToolsByDoor } = require('../services/privilegeHoldRules');
 const guardrailAttemptLog = require('../services/guardrailAttemptLog');
 const externalGuardrailForwarder = require('../services/externalGuardrailForwarder');
 const { requireSession } = require('../middleware/auth');
@@ -2085,7 +2086,7 @@ router.get('/state', (req, res) => {
     // has connected the console yet and the picker is on the pre-W8 fallback.
     doorDiscovery: discoverySummary(discovery),
     // { door: { tool: policy } } for tools a live policy holds for a human; null = this snapshot has no hold rules yet.
-    hitlTools: privilegeDoorStore.holdToolsByDoor(discovery),
+    hitlTools: holdToolsByDoor(discovery),
     mainAppAuthenticated: mainAppAuth,
     user: req.session?.user || null,
     tools: session.tools,
@@ -2877,7 +2878,7 @@ async function consoleInventory(session) {
   const aiBody = await aiPoliciesPromise;
   const aiPolicies = aiBody && (aiBody.AIPolicys || aiBody.Items || aiBody.items);
   const holdRules = Array.isArray(aiPolicies)
-    ? privilegeDoorStore.holdRulesFrom(aiPolicies.map((p) => ({ name: p.ObjectMeta?.Name, state: p.State, spec: p.Spec })))
+    ? holdRulesFrom(aiPolicies.map((p) => ({ name: p.ObjectMeta?.Name, state: p.State, spec: p.Spec })))
     : undefined;
   return { applications, policies, envId, ...(holdRules ? { holdRules } : {}) };
 }
