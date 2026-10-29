@@ -2003,6 +2003,7 @@ app.get('/.well-known/oauth-protected-resource/api/obo/mcp', oboRoutes.metadataH
 const poppyDiscovery = require('./routes/poppyDiscovery');
 app.use('/.well-known', poppyDiscovery.router);
 app.use('/.well-known/oauth-protected-resource', poppyDiscovery.protectedResourceOnPoppyHost);
+app.use('/poppy/api', require('./routes/poppyApi').createPoppyApiRouter());
 app.use('/.well-known/oauth-protected-resource', protectedResourceMetadataRoutes);
 app.use('/api/rfc9728', protectedResourceMetadataRoutes);
 

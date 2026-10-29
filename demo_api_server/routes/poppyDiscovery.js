@@ -45,8 +45,9 @@ function buildPoppyJson() {
       ),
     },
   };
+  doc.apis = [{ type: 'openapi', url: `https://${domain}/poppy/api/openapi.json`, description: 'Account details for the signed-in user' }];
   if (process.env.POPPY_MCP_URL) {
-    doc.apis = [{ type: 'mcp', url: process.env.POPPY_MCP_URL, description: 'Banking MCP server' }];
+    doc.apis.push({ type: 'mcp', url: process.env.POPPY_MCP_URL, description: 'Banking MCP server' });
   }
   return doc;
 }
@@ -79,4 +80,4 @@ function protectedResourceOnPoppyHost(req, res, next) {
   return res.json(buildProtectedResource());
 }
 
-module.exports = { router, protectedResourceOnPoppyHost, buildPoppyJson, buildProtectedResource, POPPY_SCOPES };
+module.exports = { isPoppyHost, router, protectedResourceOnPoppyHost, buildPoppyJson, buildProtectedResource, POPPY_SCOPES };
