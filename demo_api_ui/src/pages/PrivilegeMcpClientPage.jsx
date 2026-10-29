@@ -1438,6 +1438,7 @@ export default function PrivilegeMcpClientPage() {
         });
       } else {
         setHold(null);
+        setApproverTried(null);
       }
       out = JSON.stringify(data, null, 2);
       ok = !data?.error && !data?.result?.isError;
@@ -2457,16 +2458,25 @@ export default function PrivilegeMcpClientPage() {
                         </button>
                       </div>
                     )}
-                    {toolResults.map((r, i) => (
-                      <div key={`${r.ts}-${i}`} className="cur-result-item">
-                        <div className="cur-result-item-head">
-                          <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
-                          <span className="cur-result-item-tool">{r.tool}</span>
-                          <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
+                    {toolResults.map((r, i) => {
+                      const item = (
+                        <div key={`${r.ts}-${i}`} className="cur-result-item">
+                          <div className="cur-result-item-head">
+                            <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
+                            <span className="cur-result-item-tool">{r.tool}</span>
+                            <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
+                          </div>
+                          <JsonPane value={r.result} deep label={`${r.tool} result view`} />
                         </div>
-                        <JsonPane value={r.result} deep label={`${r.tool} result view`} />
-                      </div>
-                    ))}
+                      );
+                      // The card above already says the call is held; the raw hold JSON stays one click away.
+                      return hold ? (
+                        <details key={`${r.ts}-${i}`} className="cur-hitl-raw">
+                          <summary>Raw response</summary>
+                          {item}
+                        </details>
+                      ) : item;
+                    })}
                   </>
                 )}
               />

@@ -2560,3 +2560,5 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-approver { text-align: left; }
 .cur-ide .cur-approver .cur-denial-note { text-align: left; }
 .cur-ide .cur-approver__args { margin: 8px 0; padding: 8px; border-radius: var(--radius-sm); background: rgba(0, 0, 0, 0.25); white-space: pre-wrap; word-break: break-all; text-align: left; font-weight: 400; }
+
+.cur-ide .cur-hitl-raw > summary { cursor: pointer; margin: 4px 0; font-size: var(--font-size-xs, 11px); opacity: 0.7; }

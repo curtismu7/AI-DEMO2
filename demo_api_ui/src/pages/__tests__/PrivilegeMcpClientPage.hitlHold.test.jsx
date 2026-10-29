@@ -200,3 +200,29 @@ test('a hold announced as a JSON-RPC error still shows the waiting-for-approval 
   expect(await screen.findByText(/waiting for human approval/i)).toBeInTheDocument();
   expect(screen.getByRole('button', { name: /retry after approval/i })).toBeInTheDocument();
 });
+
+test('the stand-in note goes away once a retry gets through, and the raw hold JSON folds under the card', async () => {
+  let held = true;
+  const base = global.fetch;
+  global.fetch = vi.fn(async (url, options = {}) => {
+    if (String(url).endsWith('/tools/call') && !held) {
+      return new Response(JSON.stringify({ jsonrpc: '2.0', id: 4, result: { content: [{ type: 'text', text: 'Search results: 3 hits' }] } }));
+    }
+    return base(url, options);
+  });
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
+  fireEvent.click(await screen.findByRole('button', { name: /review approval/i }));
+  fireEvent.click(await screen.findByRole('button', { name: /approve and retry/i }));
+  expect(await screen.findByText(/the popup is a stand-in/i)).toBeInTheDocument();
+  expect(document.querySelector('details.cur-hitl-raw')).not.toBeNull();
+
+  held = false;
+  fireEvent.click(screen.getByRole('button', { name: /retry after approval/i }));
+  await screen.findAllByText(/Search results: 3 hits/);
+  expect(screen.queryByText(/the popup is a stand-in/i)).not.toBeInTheDocument();
+  expect(document.querySelector('details.cur-hitl-raw')).toBeNull();
+});
