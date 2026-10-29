@@ -19,11 +19,19 @@ function sendJobError(res, error) {
   return res.status(500).json({ error: 'demo_readiness_job_failed', message: 'The readiness job request could not be completed.' });
 }
 
+// The literal `admin` scope is granted only to the readiness CLI's client-credentials app.
+const hasLiteralAdminScope = (user) => Array.isArray(user?.scopes) && user.scopes.includes('admin');
+
 function verifiedAdminAssertion(user) {
+  const scopes = Array.isArray(user?.scopes) ? user.scopes.filter((scope) => scope === 'admin') : [];
+  // A client-credentials token has no user subject. The app holding the `admin` scope is then
+  // identified by its client id, which still binds each job to one owner.
+  const clientSubject = scopes.length > 0 && typeof user?.clientId === 'string' && user.clientId.trim()
+    ? 'client:' + user.clientId.trim()
+    : null;
   const subject = typeof user?.sub === 'string' && user.sub.trim()
     ? user.sub.trim()
-    : typeof user?.id === 'string' && user.id.trim() ? user.id.trim() : null;
-  const scopes = Array.isArray(user?.scopes) ? user.scopes.filter((scope) => scope === 'admin') : [];
+    : typeof user?.id === 'string' && user.id.trim() ? user.id.trim() : clientSubject;
   if (!subject || (user.role !== 'admin' && scopes.length === 0)) return null;
   return Object.freeze({
     subject,
@@ -40,7 +48,11 @@ function unavailableGuard(name) {
 function createDemoReadinessRouter({ store = defaultStore, authenticateToken: injectedAuthentication = authenticateToken } = {}) {
   const router = express.Router();
   const authenticationGuard = typeof injectedAuthentication === 'function' ? injectedAuthentication : unavailableGuard('Authentication');
-  const adminGuard = typeof requireAdmin === 'function' ? requireAdmin : unavailableGuard('Administrator authorization');
+  // requireAdmin takes role admin or admin:read. This route also takes the literal `admin` scope, so
+  // the readiness CLI's app passes here and nowhere else: other admin routes still use requireAdmin.
+  const adminGuard = typeof requireAdmin === 'function'
+    ? (req, res, next) => (hasLiteralAdminScope(req.user) ? next() : requireAdmin(req, res, next))
+    : unavailableGuard('Administrator authorization');
   const configuredAdminScopeGuard = typeof requireScopes === 'function' ? requireScopes(['admin']) : null;
   const adminScopeGuard = typeof configuredAdminScopeGuard === 'function'
     ? configuredAdminScopeGuard
