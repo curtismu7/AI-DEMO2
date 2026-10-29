@@ -8,6 +8,7 @@ const { internalSecret } = require('../utils/internalSecret');
 const privilegeGatewaySession = require('../services/privilegeGatewaySession');
 const { privilegeGatewayBase } = require('../services/privilegeGatewayBase');
 const privilegeDoorStore = require('../services/lmdb/privilegeDoorStore.lmdb');
+const { holdRulesFrom, holdToolsByDoor } = require('../services/privilegeHoldRules');
 const guardrailAttemptLog = require('../services/guardrailAttemptLog');
 const externalGuardrailForwarder = require('../services/externalGuardrailForwarder');
 const { requireSession } = require('../middleware/auth');
@@ -2084,6 +2085,8 @@ router.get('/state', (req, res) => {
     // Where the sibling doors above came from. `persisted: false` means nobody
     // has connected the console yet and the picker is on the pre-W8 fallback.
     doorDiscovery: discoverySummary(discovery),
+    // { door: { tool: policy } } for tools a live policy holds for a human; null = this snapshot has no hold rules yet.
+    hitlTools: holdToolsByDoor(discovery),
     mainAppAuthenticated: mainAppAuth,
     user: req.session?.user || null,
     tools: session.tools,
@@ -2822,6 +2825,8 @@ function doorUrl(gatewayUrl, appName) {
 async function consoleInventory(session) {
   const envId = consoleEnvId();
   if (!envId) throw new Error('PRIVILEGE_SSO_ENV_ID not configured.');
+  // AI policies are read on a best-effort basis: they only feed the HITL badges, so failing to read them must not fail discovery.
+  const aiPoliciesPromise = consoleGet(session, `/api/${envId}/v1/aipolicys`).catch(() => null);
   const [appsBody, polBody] = await Promise.all([
     consoleGet(session, `/api/${envId}/v1/applications?ObjectMeta.Namespace=default`),
     consoleGet(session, `/api/${envId}/v1/pacpolicys`),
@@ -2870,7 +2875,12 @@ async function consoleInventory(session) {
     notBefore: consoleTime(p.NotBefore),
     notAfter: consoleTime(p.NotAfter),
   }));
-  return { applications, policies, envId };
+  const aiBody = await aiPoliciesPromise;
+  const aiPolicies = aiBody && (aiBody.AIPolicys || aiBody.Items || aiBody.items);
+  const holdRules = Array.isArray(aiPolicies)
+    ? holdRulesFrom(aiPolicies.map((p) => ({ name: p.ObjectMeta?.Name, state: p.State, spec: p.Spec })))
+    : undefined;
+  return { applications, policies, envId, ...(holdRules ? { holdRules } : {}) };
 }
 
 // A console timestamp as ISO, or null. The console is Go: an unset time

@@ -55,7 +55,7 @@ function policiesMentioning(policies, appName) {
  * console list is authoritative, so an app that has gone away must disappear
  * from the picker rather than linger as a door that 404s.
  */
-function saveInventory({ envId, gatewayOrigin, applications = [], policies = [] }) {
+function saveInventory({ envId, gatewayOrigin, applications = [], policies = [], holdRules }) {
   const record = {
     envId: envId || '',
     gatewayOrigin: gatewayOrigin || '',
@@ -70,6 +70,8 @@ function saveInventory({ envId, gatewayOrigin, applications = [], policies = [] 
         policies: policiesMentioning(policies, app.name),
       })),
     policyCount: policies.length,
+    // Absent (not []) when the caller could not read AI policies, so "none" and "unknown" stay different.
+    ...(Array.isArray(holdRules) ? { holdRules } : {}),
     discoveredAt: Date.now(),
   };
   _db().putSync(KEY, record);
