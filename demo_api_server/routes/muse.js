@@ -42,6 +42,8 @@ function createMuseRouter({ fetchImpl = (...a) => fetch(...a), getConfig = muse.
     origin: cfg.origin,
     userLogin: Boolean(cfg.userClientId),
     user: w.user ?? null,
+    assistants: cfg.configured ? (cfg.assistants ?? []).map(({ key, name }) => ({ key, name })) : [],
+    assistant: w.assistant ?? null,
     liveAuth: {
       registered: Boolean(w.client), signedIn: Boolean(w.token), claims: w.claims, error: w.error,
       ask: w.ask, answer: w.answer, steps: [...(w.discovery?.steps ?? []).filter((s) => !w.steps.some((x) => x.n === s.n)), ...w.steps].sort((a, b) => a.n - b.n),
@@ -117,6 +119,23 @@ function createMuseRouter({ fetchImpl = (...a) => fetch(...a), getConfig = muse.
     return res.json({ url: r.url });
   });
 
+  // Connect from your assistant: the customer clicked Connect in ChatGPT's, Claude's or Meta AI's directory. The sign-in uses that
+  // assistant's own PingOne app, so Protect and the screens name it; then Muse's server acts for the user with that app and asks for the points.
+  router.post('/assistant-signin', express.json(), requireSession, (req, res) => {
+    const w = workspace(req);
+    const lane = laneOf(req.body?.lane ?? w.lane);
+    const cfg = getConfig(lane);
+    if (!cfg.configured) return res.status(503).json({ error: 'Muse is not configured', need_config: ['pingone_muse_client_secret'] });
+    if (!cfg.laneAvailable) return res.status(409).json({ error: 'That lane has no gateway URL configured.' });
+    const acfg = muse.assistantConfig(cfg, String(req.body?.assistant ?? ''));
+    if (!acfg) return res.status(409).json({ error: 'That assistant is not configured.' });
+    const r = muse.startSignIn(acfg, { mfa: req.body?.mfa !== 'off', connector: true });
+    for (const [k, v] of pending) if (now() - v.at > PENDING_MS) pending.delete(k);
+    pending.set(r.state, { wsId: req.sessionID, verifier: r.verifier, resource: r.resource, lane, kind: 'assistant', assistant: acfg.assistant.key, at: now() });
+    w.assistant = null;
+    return res.json({ url: r.url });
+  });
+
   // Step 6. PingOne sends the browser back here with a code. No session cookie is assumed: the state is the key.
   router.get('/callback', async (req, res) => {
     const state = String(req.query.state ?? '');
@@ -126,6 +145,22 @@ function createMuseRouter({ fetchImpl = (...a) => fetch(...a), getConfig = muse.
     if (!w) return res.status(400).type('text').send('Unknown or expired sign-in. Start again from Muse.');
     const back = () => res.set('Cache-Control', 'no-store').redirect(302, PAGE_PATH);
     if (req.query.error) { w.error = `Sign-in was refused: ${String(req.query.error).slice(0, 60)}.`; return back(); }
+    if (p.kind === 'assistant') {
+      const acfg = muse.assistantConfig(getConfig(p.lane), p.assistant);
+      w.assistant = { ...(acfg?.assistant ?? { key: p.assistant, name: p.assistant }), claims: null, answer: null, error: null, lane: p.lane };
+      try {
+        if (!acfg) throw new Error('assistant gone');
+        const r = await muse.exchangeCode(acfg, fetchImpl, { code: String(req.query.code ?? ''), verifier: p.verifier, resource: p.resource });
+        if (!r.token) { w.assistant.error = r.error ?? 'PingOne did not issue a token.'; return back(); }
+        const d = await muse.delegate(acfg, fetchImpl, r.token);
+        if (!d.token) { w.assistant.error = d.error ?? 'The token exchange was refused.'; return back(); }
+        w.assistant.claims = d.claims ?? null;
+        const steps = await muse.callGateway(acfg, fetchImpl, d.token, { tool: 'loyalty_balance' });
+        w.assistant.answer = muse.answerFrom(steps);
+        if (!w.assistant.answer) w.assistant.error = `The gateway did not answer (${steps.filter((x) => x.response).slice(-1)[0]?.response?.status ?? 'no answer'}).`;
+      } catch (e) { w.assistant.error = failed(e).error; }
+      return back();
+    }
     if (p.kind === 'user') {
       try {
         const cfg = getConfig(p.lane);

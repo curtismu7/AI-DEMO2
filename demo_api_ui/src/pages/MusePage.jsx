@@ -24,6 +24,7 @@ export default function MusePage() {
   const [auto, setAuto] = useState(() => read(AUTO_KEY, "0") === "1");
   const [mfa, setMfa] = useState(() => read(MFA_KEY, "1") !== "0");
   const [lane, setLane] = useState(() => (read(LANE_KEY, "gateway") === "privilege" ? "privilege" : "gateway"));
+  const [assistant, setAssistant] = useState(null);
 
   const refresh = useCallback(async () => {
     try { setState((await apiClient.get("/api/muse/state")).data); setLoadError(null); } catch (e) { setLoadError(errText(e)); }
@@ -49,11 +50,18 @@ export default function MusePage() {
     const r = await apiClient.post("/api/muse/user-signin", { lane, mfa: mfa ? "on" : "off" });
     window.location.assign(r.data.url);
   });
+  const assistantSignIn = (key) => guarded(async () => {
+    const r = await apiClient.post("/api/muse/assistant-signin", { lane, assistant: key, mfa: mfa ? "on" : "off" });
+    window.location.assign(r.data.url);
+  });
   const reset = () => guarded(async () => { await apiClient.post("/api/muse/reset"); await refresh(); setOpen(null); });
 
   if (!state) return <main className="muse"><PageHeader eyebrow="Personal Agents" title="Muse" />{loadError ? <p role="alert" className="muse__bad">{loadError}</p> : <p className="muse__muted">Loading…</p>}</main>;
 
   const la = state.liveAuth;
+  // The tab shown: the one picked, else the one just connected, else the first.
+  const assistants = state.assistants ?? [];
+  const pickedAssistant = assistants.find((x) => x.key === (assistant ?? state.assistant?.key)) ?? assistants[0] ?? { key: null, name: "" };
   const toggleAuto = (on) => { setAuto(on); write(AUTO_KEY, on ? "1" : "0"); };
   const toggleMfa = (on) => { setMfa(on); write(MFA_KEY, on ? "1" : "0"); };
   const pickLane = (l) => { setLane(l); write(LANE_KEY, l); };
@@ -148,6 +156,33 @@ export default function MusePage() {
               {state.user.denied === false && <p className="muse__small" data-testid="muse-user-allowed"><strong>Allowed.</strong> The gateway accepted Sam's own token.</p>}
             </div>
           )}
+        </section>
+      )}
+      {state.assistants?.length > 0 && (
+        <section className="muse__chat muse__user" aria-label="Connect from your assistant" data-testid="muse-assistant-panel">
+          <strong>Connect from your assistant</strong>
+          <p className="muse__small">Customers never type a server address. The airline lists its connector once in each assistant's directory; a customer finds it there, clicks Connect and signs in at PingOne.</p>
+          <div className="muse__lanes seg" role="group" aria-label="Assistant">
+            {state.assistants.map((x) => (
+              <button key={x.key} type="button" aria-pressed={x.key === pickedAssistant.key} onClick={() => setAssistant(x.key)} disabled={busy}>{x.name}</button>
+            ))}
+          </div>
+          <div className="muse__msg" data-testid="muse-assistant-card">
+            <span className="muse__avatar" aria-hidden="true">U</span>
+            <div className="muse__bubble muse__bubble--muse">
+              <span className="muse__small">{pickedAssistant.name}: apps and connectors</span>
+              <span><strong>United Airlines</strong>. Check your points and loyalty status. Published by United.</span>
+              <button type="button" className="muse__primary" onClick={() => assistantSignIn(pickedAssistant.key)} disabled={busy} data-testid="muse-assistant-connect">Connect</button>
+            </div>
+          </div>
+          {state.assistant && state.assistant.key === pickedAssistant.key && (
+            <div data-testid="muse-assistant-result">
+              {state.assistant.answer && <p className="muse__small"><strong>Connected in {state.assistant.name}.</strong> Asked "How many points do I have?": {Number(state.assistant.answer.points).toLocaleString()} points ({state.assistant.answer.tier}).</p>}
+              {state.assistant.claims && <p className="muse__small">Token claims: <code>{JSON.stringify({ sub: state.assistant.claims.sub, act: state.assistant.claims.act ?? "none" })}</code>, {state.assistant.name} acting for the customer.</p>}
+              {state.assistant.error && <p role="alert" className="muse__small muse__bad">{state.assistant.error}</p>}
+            </div>
+          )}
+          <p className="muse__small">The card stands in for the assistant's directory listing; the airline has to be approved by each vendor before it appears. Everything after Connect is real.</p>
         </section>
       )}
       {la.claims && <p className="muse__small" data-testid="claims">Token claims (the token itself stays on the Muse server): <code>{JSON.stringify(la.claims)}</code></p>}
