@@ -2549,7 +2549,14 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-chat-empty .cur-chat-empty-icon { display: none; }
 /* The dock opens at 180px: 150px left the Results pane ~110px, too short to read one tool result. The compact footer pays for it. */
 .cur-ide .cur-terminal { height: 180px; }
+/* On the Tools tab the response sits beside the request, so the dock only needs to hold the trace; the request/response pair gets the room. */
+.cur-ide .cur-terminal--short { height: 110px; }
 .cur-ide .cur-start-guide { color: var(--cur-prompt-ink, #d4d4d4); }
 .cur-ide .cur-chat-empty { gap: 4px; padding: 10px 12px; }
 .cur-ide .cur-start-guide { margin-top: 6px; gap: 4px; }
 .cur-ide .cur-chat-empty .cur-chat-hint { display: none; }  /* the guide below says what to try; this line cost the third step its room */
+
+/* Simulated approver popup: left-aligned request details, not the sign-in modal's centred note. */
+.cur-ide .cur-approver { text-align: left; }
+.cur-ide .cur-approver .cur-denial-note { text-align: left; }
+.cur-ide .cur-approver__args { margin: 8px 0; padding: 8px; border-radius: var(--radius-sm); background: rgba(0, 0, 0, 0.25); white-space: pre-wrap; word-break: break-all; text-align: left; font-weight: 400; }

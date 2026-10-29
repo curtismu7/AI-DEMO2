@@ -188,3 +188,10 @@ export const EVIDENCE = {
   'console-text': 'stated by the console, behaviour not re-run',
   inferred: 'inferred, not run',
 };
+
+// Tools on a door that a live ACTIVE rule holds for a human, as { toolName: policyId }. Read from the same mirror of the
+// console's rules as above, so it only knows the opensearch-hitl door; every other door answers {}.
+export function hitlToolsFor(door) {
+  if (door !== DOOR_NAME) return {};
+  return Object.fromEntries(BASELINE_RULES.filter((r) => r.outcome === 'hold' && r.state === 'Active').map((r) => [r.tool, r.id]));
+}

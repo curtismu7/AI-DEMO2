@@ -8,7 +8,7 @@
 // the approval exists.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
-import { beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 import PrivilegeMcpClientPage from '../PrivilegeMcpClientPage';
 
 const state = {
@@ -43,6 +43,15 @@ const SEARCH_TOOL = {
   },
 };
 
+// Run is disabled until the required arguments are filled in, so type them before pressing it.
+const ARGS = JSON.stringify({ index: 'gateway-events', query_dsl: { query: { match_all: {} } } });
+function runSearch() {
+  fireEvent.change(screen.getByLabelText(/arguments \(json\)/i), { target: { value: ARGS } });
+  fireEvent.click(screen.getByRole('button', { name: 'Run' }));
+}
+
+afterEach(() => { state.config.mcpUrl = 'https://gateway.example/mcp'; });
+
 beforeEach(() => {
   vi.restoreAllMocks();
   global.EventSource = class { addEventListener() {} close() {} };
@@ -73,8 +82,8 @@ test('a held tool call renders a waiting-for-approval card with the instruction 
   fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
 
   // Run the SearchIndexTool row → the BFF relays the gateway's hold.
-  const runButtons = await screen.findAllByRole('button', { name: /run/i });
-  fireEvent.click(runButtons[0]);
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
 
   // The hold is announced in human terms, with the instruction id to approve,
   // not shown as if the search had returned data.
@@ -111,8 +120,8 @@ test('a normal tool result does not render the hold card', async () => {
   render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
   fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
-  const runButtons = await screen.findAllByRole('button', { name: /run/i });
-  fireEvent.click(runButtons[0]);
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
 
   await screen.findAllByText(/Search results from gateway-events/);
   expect(screen.queryByText(/waiting for human approval/i)).not.toBeInTheDocument();
@@ -125,7 +134,8 @@ test('the result has a Copy button that puts the raw JSON on the clipboard', asy
   render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
   fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
-  fireEvent.click((await screen.findAllByRole('button', { name: /run/i }))[0]);
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
   await screen.findByText(/waiting for human approval/i);
 
   fireEvent.click(screen.getAllByRole('button', { name: 'JSON' })[0]);
@@ -133,4 +143,34 @@ test('the result has a Copy button that puts the raw JSON on the clipboard', asy
 
   await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
   expect(JSON.parse(writeText.mock.calls[0][0])).toEqual(HOLD_RESPONSE);
+});
+
+// A policy that holds a tool is announced before anyone runs it, and the hold can be walked through in a popup.
+const HITL_DOOR = 'https://mcpgw.example/opensearch-hitl/mcp';
+
+test('on the HITL door the held tool is badged and says why before it is run', async () => {
+  state.config.mcpUrl = HITL_DOOR;
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+
+  expect(await screen.findByRole('tab', { name: /SearchIndexTool.*HITL/ })).toBeInTheDocument();
+  expect(screen.getByTestId('hitl-tool-note')).toHaveTextContent(/hitl-opensearch/);
+});
+
+test('the simulated approver opens from a hold, retries, and admits Privilege still has it pending', async () => {
+  state.config.mcpUrl = HITL_DOOR;
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
+
+  fireEvent.click(await screen.findByRole('button', { name: /review approval/i }));
+  expect(await screen.findByText(/approver — simulated/i)).toBeInTheDocument();
+  const callsBefore = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/tools/call')).length;
+  fireEvent.click(screen.getByRole('button', { name: /approve and retry/i }));
+
+  await waitFor(() => expect(global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/tools/call')).length).toBe(callsBefore + 1));
+  expect(await screen.findByText(/the popup is a stand-in/i)).toBeInTheDocument();
 });

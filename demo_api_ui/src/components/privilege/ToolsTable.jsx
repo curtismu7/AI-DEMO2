@@ -55,7 +55,7 @@ const PARAM_EXAMPLES_BY_NAME = {
   index: ['_all', '*', 'top_queries-2026.09.05-04062'],
 };
 
-function paramsOf(tool) {
+export function paramsOf(tool) {
   const props = tool.inputSchema?.properties || {};
   const required = new Set(tool.inputSchema?.required ?? []);
   return Object.entries(props).map(([name, schema]) => ({
@@ -70,7 +70,7 @@ function paramsOf(tool) {
 // Best-effort JSON.parse for the args textarea — mid-edit it can be invalid
 // JSON, so every caller treats a parse failure as "no known values" rather
 // than throwing.
-function tryParseArgs(args) {
+export function tryParseArgs(args) {
   try {
     const parsed = JSON.parse(args || '{}');
     return parsed && typeof parsed === 'object' ? parsed : {};
@@ -83,14 +83,14 @@ function tryParseArgs(args) {
 // call this file's own executeToolCall will send has a param that will
 // come through as '' server-side, which is rarely what's intended (see
 // ToolsTable's "Missing required" warning below).
-function missingRequiredParams(params, args) {
+export function missingRequiredParams(params, args) {
   const parsed = tryParseArgs(args);
   return params.filter((p) => p.required && (parsed[p.name] === undefined || parsed[p.name] === null || parsed[p.name] === ''));
 }
 
 // Prefill an args object with one empty entry per property, so the box shows the
 // shape the tool expects instead of a bare {}.
-function seedArgs(tool) {
+export function seedArgs(tool) {
   const props = tool.inputSchema?.properties || {};
   const keys = Object.keys(props);
   if (keys.length === 0) return '{}';
@@ -354,7 +354,7 @@ function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onTo
 // risk of the two disagreeing. A real schema enum is the only valid set; an
 // example list is just a shortcut; the textarea always accepts anything.
 // Nothing renders when the tool has neither.
-function EnumParamFields({ params, args, onArgs }) {
+export function EnumParamFields({ params, args, onArgs }) {
   const quickFillParams = params.filter((p) => p.enumValues || p.examples);
   if (quickFillParams.length === 0) return null;
   const parsed = tryParseArgs(args);
