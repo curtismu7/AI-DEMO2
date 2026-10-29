@@ -98,7 +98,7 @@ describe("Clear and Guide buttons", () => {
     await screen.findByText("first_tool");
     fireEvent.click(screen.getByRole("tab", { name: "Tools" }));
 
-    // The response sits beside the request on the Tools tab; the bottom RESULTS tab only keeps the count.
+    // The response sits beside the request on the Tools tab and holds only the latest run.
     const response = () => container.querySelector('[aria-label="Response"]');
     fireEvent.click(await screen.findByRole("button", { name: "Run" }));
     await waitFor(() => expect(response()).toHaveTextContent("first_tool output"));
@@ -108,6 +108,5 @@ describe("Clear and Guide buttons", () => {
 
     await waitFor(() => expect(response()).toHaveTextContent("second_tool output"));
     expect(response()).not.toHaveTextContent("first_tool output");
-    expect(container.querySelector(".cur-terminal-tab-badge")).toHaveTextContent("1");
   });
 });

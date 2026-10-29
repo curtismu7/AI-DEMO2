@@ -3,7 +3,7 @@
 // policy, verified live 2026-10-13 on the opensearch-hitl door: the gateway
 // answers the tools/call with a pending_approval hold carrying an instruction
 // id, and the call proceeds only after someone approves and the client
-// retries). The RESULTS panel must say that in human terms — not show the raw
+// retries). The response pane must say that in human terms — not show the raw
 // hold JSON as if it were tool output — and offer the Retry that passes once
 // the approval exists.
 import { fireEvent, render, screen, waitFor } from '@testing-library/react';

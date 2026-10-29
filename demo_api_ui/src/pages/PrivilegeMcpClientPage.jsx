@@ -217,8 +217,8 @@ const VIEW_TABS = {
   inspect: ['mcp', 'rpc', 'policies', 'relay', 'scopes'],
 };
 const VIEW_TERMINAL_TABS = {
-  demo: ['trace', 'results'],
-  inspect: ['trace', 'results'],
+  demo: ['trace'],
+  inspect: ['trace'],
 };
 const TAB_LABELS = [
   ['chat', 'Agent Chat'],
@@ -629,10 +629,8 @@ export default function PrivilegeMcpClientPage() {
   // accepted by exactly zero doors, so counting it as gateway auth is what made
   // three surfaces disagree with each other and with the sign-in prompt.
   const gatewayAuth = authenticated ? 'signed-in' : silentAuthPending ? 'connecting' : 'needed';
-  // The latest tool-call result shown in the RESULTS terminal tab. resultNonce
-  // bumps on each new result to flash the tab so the user notices output arrived.
+  // The latest Tools-tab result, shown in the response pane beside the request.
   const [toolResults, setToolResults] = useState([]);
-  const [resultNonce, setResultNonce] = useState(0);
   // The live HITL hold: a tool call the gateway stopped pending a human
   // approval. Cleared by any non-held result (the retry) or a new call.
   const [hold, setHold] = useState(null);
@@ -1387,9 +1385,6 @@ export default function PrivilegeMcpClientPage() {
           setToolPolicy(data.policy || { total: data.tools.length, permitted: data.tools.length, filtered: 0, filteredTools: [] });
           setAuthenticated(true);
         }
-        if (data.decision?.tool && data.execution) {
-          recordResult(data.decision.tool, JSON.stringify(data.execution, null, 2), data.decision.outcome === 'ALLOWED');
-        }
       }
     } catch (err) {
       if (handleAuthChallenge(err)) {
@@ -1407,11 +1402,8 @@ export default function PrivilegeMcpClientPage() {
   // Per-row executor for the Tools table: returns the pretty-printed result and
   // also records it in the RESULTS terminal tab (which flashes so the user sees
   // fresh output land).
-  const recordResult = useCallback((name, result, ok, { reveal = true } = {}) => {
+  const recordResult = useCallback((name, result, ok) => {
     setToolResults([{ tool: name, result, ok, ts: new Date().toISOString() }]);
-    setResultNonce((n) => n + 1);
-    // A run from the Tools tab shows its response beside the request; only other callers jump to the bottom tab.
-    if (reveal) setTerminalTab('results');
   }, []);
 
   // The no-Privilege-access path: nothing is approved anywhere, the call is not re-sent, and the sample result says so.
@@ -1423,7 +1415,7 @@ export default function PrivilegeMcpClientPage() {
       simulated: true,
       note: 'SIMULATED: no approval was recorded in Privilege and the gateway was not called again. This result is a sample.',
       result: { content: [{ type: 'text', text: `Search results from gateway-events: 268 hits (sample, ${hold.tool})` }] },
-    }, null, 2), true, { reveal: false });
+    }, null, 2), true);
   }, [hold, recordResult]);
 
   const executeToolCall = async (name, argsStr) => {
@@ -1461,7 +1453,7 @@ export default function PrivilegeMcpClientPage() {
         ok = false;
       }
     }
-    recordResult(name, out, ok, { reveal: false });
+    recordResult(name, out, ok);
     return out;
   };
 
@@ -2491,18 +2483,10 @@ export default function PrivilegeMcpClientPage() {
           {/* Terminal panel */}
           <div className="cur-resize-handle cur-resize-handle--h" onPointerDown={startTerminalDrag} />
           <div className={`cur-terminal${demoTab === 'tools' ? ' cur-terminal--short' : ''}`} ref={terminalRef}>
-            {/* TRACE and RESULTS carry the demo and stay here; Relay log and Scopes live in the Inspect drawer. */}
+            {/* TRACE stays here; results sit beside the request on the Tools tab, and Relay log and Scopes live in the Inspect drawer. */}
             <div className="cur-terminal-tabs">
               <button className={`cur-terminal-tab ${visibleTerminalTab === 'trace' ? 'cur-terminal-tab--active' : ''}`} onClick={() => setTerminalTab('trace')}>TRACE</button>
-              <button
-                key={`results-tab-${resultNonce}`}
-                className={`cur-terminal-tab ${visibleTerminalTab === 'results' ? 'cur-terminal-tab--active' : ''}${resultNonce > 0 && visibleTerminalTab !== 'results' ? ' cur-terminal-tab--flash' : ''}`}
-                onClick={() => setTerminalTab('results')}
-              >
-                RESULTS{toolResults.length > 0 && <span className="cur-terminal-tab-badge">{toolResults.length}</span>}
-              </button>
               {visibleTerminalTab === 'trace' && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setEvents([])}>Clear</button>}
-              {visibleTerminalTab === 'results' && toolResults.length > 0 && <button className="cur-terminal-tab" style={{marginLeft:'auto',opacity:0.6}} onClick={() => setToolResults([])}>Clear</button>}
             </div>
             <div className="cur-terminal-content">
               {visibleTerminalTab === 'trace' && (
@@ -2535,24 +2519,6 @@ export default function PrivilegeMcpClientPage() {
                       </details>
                     );
                   })}
-                </div>
-              )}
-              {visibleTerminalTab === 'results' && (
-                <div className="cur-terminal-results">
-                  {toolResults.length === 0 ? (
-                    <span className="cur-terminal-empty">No results yet — run a tool to see its output here</span>
-                  ) : (
-                    toolResults.map((r, i) => (
-                      <div key={`${r.ts}-${i}`} className="cur-result-item">
-                        <div className="cur-result-item-head">
-                          <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
-                          <span className="cur-result-item-tool">{r.tool}</span>
-                          <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
-                        </div>
-                        <JsonPane value={r.result} deep label={`${r.tool} result view`} />
-                      </div>
-                    ))
-                  )}
                 </div>
               )}
             </div>

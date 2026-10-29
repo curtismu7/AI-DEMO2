@@ -87,16 +87,15 @@ describe("Demo / Inspect", () => {
     expect(screen.getByRole("tab", { name: "Tools" })).toBeInTheDocument();
   });
 
-  it("keeps TRACE and RESULTS in both views; Relay log and Scopes live in the Inspect drawer", async () => {
+  it("keeps TRACE in both views; Relay log and Scopes live in the Inspect drawer", async () => {
     renderPage();
     await ready();
 
-    // RESULTS is where tool output lands — showing the data that came back is
-    // half of what a demo is for, so it is never an Inspect-only pane.
-    expect(terminalTabNames()).toEqual(["TRACE", "RESULTS"]);
+    // Tool output lands beside the request on the Tools tab, so the dock only carries TRACE.
+    expect(terminalTabNames()).toEqual(["TRACE"]);
 
     fireEvent.click(screen.getByRole("button", { name: "Inspect" }));
-    expect(terminalTabNames()).toEqual(["TRACE", "RESULTS"]);
+    expect(terminalTabNames()).toEqual(["TRACE"]);
     expect(drawerTabNames()).toEqual(["MCP Explorer", "Raw RPC", "Policies", "Relay log", "Scopes"]);
   });
 
