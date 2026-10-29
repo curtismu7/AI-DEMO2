@@ -2562,3 +2562,5 @@ select.cur-input { cursor: pointer; }
 .cur-ide .cur-approver__args { margin: 8px 0; padding: 8px; border-radius: var(--radius-sm); background: rgba(0, 0, 0, 0.25); white-space: pre-wrap; word-break: break-all; text-align: left; font-weight: 400; }
 
 .cur-ide .cur-hitl-raw > summary { cursor: pointer; margin: 4px 0; font-size: var(--font-size-xs, 11px); opacity: 0.7; }
+.cur-ide .cur-hitl-hold__steps { margin: 4px 0 8px; padding-left: 20px; font-size: var(--font-size-sm, 12px); line-height: 1.5; }
+.cur-ide .cur-hitl-hold__retry--quiet { opacity: 0.75; border-style: dashed; }

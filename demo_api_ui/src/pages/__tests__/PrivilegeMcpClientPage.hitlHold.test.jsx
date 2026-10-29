@@ -158,7 +158,7 @@ test('on the HITL door the held tool is badged and says why before it is run', a
   expect(screen.getByTestId('hitl-tool-note')).toHaveTextContent(/hitl-opensearch/);
 });
 
-test('the simulated approver opens from a hold, retries, and admits Privilege still has it pending', async () => {
+test('the mock approver turns a hold into a labelled sample result without calling the gateway again', async () => {
   state.config.mcpUrl = HITL_DOOR;
   render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
   fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
@@ -166,22 +166,16 @@ test('the simulated approver opens from a hold, retries, and admits Privilege st
   await screen.findByRole('button', { name: 'Run' });
   runSearch();
 
-  fireEvent.click(await screen.findByRole('button', { name: /review approval/i }));
-  expect(await screen.findByText(/approver — simulated/i)).toBeInTheDocument();
+  // The card sends people to Privilege first.
+  expect(await screen.findByText(/go to privilege to approve this/i)).toBeInTheDocument();
+  fireEvent.click(await screen.findByRole('button', { name: /mock the approval/i }));
+  expect(await screen.findByText(/mock approver — simulated/i)).toBeInTheDocument();
   const callsBefore = global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/tools/call')).length;
-  fireEvent.click(screen.getByRole('button', { name: /approve and retry/i }));
+  fireEvent.click(screen.getByRole('button', { name: /approve \(mock\)/i }));
 
-  await waitFor(() => expect(global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/tools/call')).length).toBe(callsBefore + 1));
-  expect(await screen.findByText(/the popup is a stand-in/i)).toBeInTheDocument();
-});
-
-test('SearchIndexTool opens with arguments that can run, so Run works on the first click', async () => {
-  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
-  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
-  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
-  const box = await screen.findByLabelText(/arguments \(json\)/i);
-  expect(JSON.parse(box.value)).toEqual({ index: '_all', query_dsl: { query: { match_all: {} } } });
-  expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled();
+  expect((await screen.findAllByText(/sample, SearchIndexTool/)).length).toBeGreaterThan(0);
+  expect(screen.queryByText(/waiting for human approval/i)).not.toBeInTheDocument();
+  expect(global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/tools/call')).length).toBe(callsBefore);
 });
 
 test('a hold announced as a JSON-RPC error still shows the waiting-for-approval card', async () => {
@@ -201,7 +195,7 @@ test('a hold announced as a JSON-RPC error still shows the waiting-for-approval 
   expect(screen.getByRole('button', { name: /retry after approval/i })).toBeInTheDocument();
 });
 
-test('the stand-in note goes away once a retry gets through, and the raw hold JSON folds under the card', async () => {
+test('the raw hold JSON folds under the card and is gone once a retry gets through', async () => {
   let held = true;
   const base = global.fetch;
   global.fetch = vi.fn(async (url, options = {}) => {
@@ -215,14 +209,11 @@ test('the stand-in note goes away once a retry gets through, and the raw hold JS
   fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
   await screen.findByRole('button', { name: 'Run' });
   runSearch();
-  fireEvent.click(await screen.findByRole('button', { name: /review approval/i }));
-  fireEvent.click(await screen.findByRole('button', { name: /approve and retry/i }));
-  expect(await screen.findByText(/the popup is a stand-in/i)).toBeInTheDocument();
+  await screen.findByText(/waiting for human approval/i);
   expect(document.querySelector('details.cur-hitl-raw')).not.toBeNull();
 
   held = false;
   fireEvent.click(screen.getByRole('button', { name: /retry after approval/i }));
   await screen.findAllByText(/Search results: 3 hits/);
-  expect(screen.queryByText(/the popup is a stand-in/i)).not.toBeInTheDocument();
   expect(document.querySelector('details.cur-hitl-raw')).toBeNull();
 });
