@@ -58,12 +58,13 @@ Tests: unit tests per failure mode (bad `typ`, expired delegation, over-24h dele
 
 Five endpoints (`POST {endpoint}`, messages, events, handoff, close). Thin adapter over the existing agent runtime. Defer unless a Personal Agent counterpart exists.
 
-## Open questions (need owner decision)
+## Decisions (owner, 2026-10-29)
 
-1. Which host is the Poppy Company domain: the SE host `ai-demo.ping-devops.com`, a new one, or local only?
-2. Issuer: PF or P1? (PF has CIMD, DPoP, and pairwise options; P1 has none of the first two.)
-3. How to add `protected_resources` to the issuer metadata: wrapper document or proxy?
-4. Is a Personal Agent side wanted later (signer plus CIMD document)? It changes where the test signer lives.
+1. Company domain: SE host `ai-demo.ping-devops.com`.
+2. Issuer: PingFederate.
+3. `protected_resources`: wrapper document copying PF metadata plus the extra field, served by the BFF.
+
+Still open: whether a Personal Agent side (signer plus CIMD document) is wanted later; it changes where the test signer lives.
 
 ## Risks
 
