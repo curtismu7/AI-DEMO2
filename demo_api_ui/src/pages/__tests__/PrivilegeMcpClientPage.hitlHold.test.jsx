@@ -117,3 +117,20 @@ test('a normal tool result does not render the hold card', async () => {
   await screen.findAllByText(/Search results from gateway-events/);
   expect(screen.queryByText(/waiting for human approval/i)).not.toBeInTheDocument();
 });
+
+test('the result has a Copy button that puts the raw JSON on the clipboard', async () => {
+  const writeText = vi.fn().mockResolvedValue(undefined);
+  Object.defineProperty(navigator, 'clipboard', { value: { writeText }, configurable: true });
+
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  fireEvent.click((await screen.findAllByRole('button', { name: /run/i }))[0]);
+  await screen.findByText(/waiting for human approval/i);
+
+  fireEvent.click(screen.getAllByRole('button', { name: 'JSON' })[0]);
+  fireEvent.click(screen.getByRole('button', { name: /copy SearchIndexTool result view as json/i }));
+
+  await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
+  expect(JSON.parse(writeText.mock.calls[0][0])).toEqual(HOLD_RESPONSE);
+});
