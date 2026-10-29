@@ -55,7 +55,11 @@ export default function ToolWorkbench({ tools: rawTools, onExecute, hitlTools = 
       </div>
       <div className="ptw-cols">
         <section className="ptw-col" aria-label="Request">
-          <h3 className="ptw-h">Request <span className="ptw-sub">tools/call · {tool.name}</span></h3>
+          <div className="ptw-head">
+            <h3 className="ptw-h">Request <span className="ptw-sub">tools/call · {tool.name}</span></h3>
+            {/* Up here, not under the JSON: in the short Tools area the old position sat below the fold. */}
+            <button type="button" className="ptw-run" onClick={run} disabled={busy || missing.length > 0} title={missing.length ? `Fill in: ${missing.map((p) => p.name).join(', ')}` : undefined}>{busy ? 'Running…' : 'Run'}</button>
+          </div>
           {tool.description && <p className="ptw-desc">{tool.description}</p>}
           {policy && (
             <p className="ptw-policy" data-testid="hitl-tool-note">
@@ -68,7 +72,6 @@ export default function ToolWorkbench({ tools: rawTools, onExecute, hitlTools = 
           {missing.length > 0 && <div className="ptt-missing-required">Missing required: {missing.map((p) => p.name).join(', ')} — this call will not run until filled in.</div>}
           <div className="ptw-label">Sends</div>
           <pre className="ptw-wire">{request}</pre>
-          <button type="button" className="ptw-run" onClick={run} disabled={busy || missing.length > 0}>{busy ? 'Running…' : 'Run'}</button>
         </section>
         <section className="ptw-col" aria-label="Response">
           <h3 className="ptw-h">Response</h3>
