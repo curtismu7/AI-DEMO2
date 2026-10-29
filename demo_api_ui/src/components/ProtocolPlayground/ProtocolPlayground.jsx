@@ -22,8 +22,15 @@ const IDPS = [
 
 const IDP_LABEL = { pingone: 'PingOne', pingfederate: 'PingFederate' };
 
+// `?idp=pingfederate` (the PingFederate nav group's link) opens on that provider and wins over the session's.
+const requestedIdpFromUrl = () => {
+  const value = new URLSearchParams(window.location.search).get('idp');
+  return IDP_LABEL[value] ? value : null;
+};
+
 const ProtocolPlayground = ({ user = null }) => {
-  const [idp, setIdp] = useState('pingone');
+  const [requestedIdp] = useState(requestedIdpFromUrl);
+  const [idp, setIdp] = useState(requestedIdp || 'pingone');
   // The BFF's live answer: which server signed this session in, and whether a PingFederate token exists.
   const [live, setLive] = useState({ provider: null, pfSignedIn: false });
   const allProtocols = useMemo(() => Object.values(protocolFlows || {}), []);
@@ -55,11 +62,11 @@ const ProtocolPlayground = ({ user = null }) => {
       .then(({ data }) => {
         if (cancelled) return;
         setLive({ provider: IDP_LABEL[data?.sessionProvider] ? data.sessionProvider : null, pfSignedIn: !!data?.pfSignedIn });
-        if (data?.sessionProvider === 'pingfederate') setIdp('pingfederate');
+        if (data?.sessionProvider === 'pingfederate' && !requestedIdp) setIdp('pingfederate');
       })
       .catch(() => {});
     return () => { cancelled = true; };
-  }, []);
+  }, [requestedIdp]);
 
   // The live session wins over the stored user record's copy of the provider.
   const sessionProvider = live.provider || (IDP_LABEL[user?.oauthProvider] ? user.oauthProvider : null);
