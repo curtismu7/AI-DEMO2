@@ -1442,10 +1442,18 @@ export default function PrivilegeMcpClientPage() {
       out = JSON.stringify(data, null, 2);
       ok = !data?.error && !data?.result?.isError;
     } catch (err) {
-      setHold(null);
-      const handled = handleAuthChallenge(err, { silent: true });
-      out = JSON.stringify({ error: handled ? 'Sign in is required for this door.' : err.message }, null, 2);
-      ok = false;
+      // Newer gateways announce a hold as a JSON-RPC error ("action requires human approval") rather than a
+      // pending_approval result. It is the same hold: an approval request is open in Privilege.
+      if (/requires human approval/i.test(err?.message || '')) {
+        setHold({ tool: name, instructionId: null, args: argsStr || '{}' });
+        out = JSON.stringify({ status: 'pending_approval', target: name, message: err.message }, null, 2);
+        ok = true;
+      } else {
+        setHold(null);
+        const handled = handleAuthChallenge(err, { silent: true });
+        out = JSON.stringify({ error: handled ? 'Sign in is required for this door.' : err.message }, null, 2);
+        ok = false;
+      }
     }
     recordResult(name, out, ok, { reveal: false });
     return out;
