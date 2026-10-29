@@ -426,6 +426,29 @@ spec:
             name: frontend
             port:
               number: 4000
+      # PingFederate fetches the PF AI Agent's CIMD document with no session.
+      - path: /api/pf-ai-agent/cimd/client-metadata.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      # Documents that each break one CIMD rule, for PingFederate to refuse in the CIMD tester.
+      - path: /api/pf-ai-agent/cimd/negative/client-id-mismatch.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
+      - path: /api/pf-ai-agent/cimd/negative/shared-secret.json
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
       # The registration page is a React SPA route. Its content-hashed JS/CSS
       # files must also bypass the browser auth annotation or the public form
       # loads HTML successfully but cannot boot.

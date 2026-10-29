@@ -17,7 +17,7 @@ describe('PF AI Agent feature configuration', () => {
   test('keeps feature flags disabled by default and never changes the active provider', () => {
     const store = makeStore();
 
-    expect(getFeatureStatus(store)).toEqual({ cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false, cibaWebApprover: false });
+    expect(getFeatureStatus(store)).toEqual({ cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false, cibaWebApprover: false, dcr: false });
     expect(store.getOAuthProvider()).toBe('pingone');
     expect(store.getEffective).not.toHaveBeenCalledWith('oauth_provider');
   });
@@ -104,5 +104,25 @@ describe('PF AI Agent feature configuration', () => {
       thirdPartyClientId: 'downstream-client',
     }));
     expect(JSON.stringify(getFeatureStatus(store))).not.toContain('test-client-secret');
+  });
+});
+
+describe('PF AI Agent DCR configuration', () => {
+  const { resolveDcrConfig } = require('../../services/pfAiAgentFeatureConfig');
+  const pf = {
+    pf_issuer: 'https://pf.example.test',
+    pf_authorization_endpoint: 'https://pf.example.test/as/authorization.oauth2',
+    pf_token_endpoint: 'https://pf.example.test/as/token.oauth2',
+    pf_jwks_uri: 'https://pf.example.test/pf/JWKS',
+    public_app_url: 'https://app.example.test',
+  };
+
+  test('names the missing initial access token secret and keeps the feature off', () => {
+    const store = makeStore({ ...pf, pf_ai_dcr_enabled: 'true', pf_ai_dcr_iat_client_id: 'iat' });
+    expect(() => resolveDcrConfig(store)).toThrow(expect.objectContaining({
+      code: 'PF_AI_DCR_CONFIG_INVALID',
+      details: expect.objectContaining({ missing: expect.arrayContaining(['PF_AI_DCR_IAT_CLIENT_SECRET']) }),
+    }));
+    expect(getFeatureStatus(store).dcr).toBe(false);
   });
 });

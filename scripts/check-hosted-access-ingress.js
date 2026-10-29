@@ -35,6 +35,10 @@ const REQUIRED_BYPASSES = [
   '/api/cimd/privilege/langchain-agent/client-metadata.json',
   '/api/cimd/privilege/demo-agent-service/client-metadata.json',
   '/api/cimd/privilege/privilege-mcp-client/client-metadata.json',
+  // PingFederate fetches the PF AI Agent's CIMD document with no session.
+  '/api/pf-ai-agent/cimd/client-metadata.json',
+  '/api/pf-ai-agent/cimd/negative/client-id-mismatch.json',
+  '/api/pf-ai-agent/cimd/negative/shared-secret.json',
 ];
 const REQUIRED_PUBLIC_PREFIXES = ['/assets'];
 

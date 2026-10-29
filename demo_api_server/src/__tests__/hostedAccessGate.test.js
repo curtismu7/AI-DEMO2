@@ -28,6 +28,8 @@ describe('hostedAccessGate CIMD client documents', () => {
     expect(isHostedAccessBypassPath(doc, 'GET')).toBe(true);
     expect(isHostedAccessBypassPath(`${doc}?x=1`, 'GET')).toBe(true);
     expect(isHostedAccessBypassPath('/api/cimd/privilege/privilege-mcp-client/client-metadata.json', 'GET')).toBe(true);
+    expect(isHostedAccessBypassPath('/api/pf-ai-agent/cimd/client-metadata.json', 'GET')).toBe(true);
+    expect(isHostedAccessBypassPath('/api/pf-ai-agent/cimd/callback', 'GET')).toBe(false);
   });
 
   test('the readiness check is not public: it fetches, so it stays behind sign-in', () => {
