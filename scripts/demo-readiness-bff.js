@@ -30,6 +30,7 @@ async function request(fetchImpl, url, init) {
 async function runThroughBff({
   baseUrl,
   token,
+  targets = ['local', 'se'],
   onProgress = () => {},
   fetchImpl = fetch,
   sleep = (ms) => new Promise((done) => setTimeout(done, ms)),
@@ -38,7 +39,11 @@ async function runThroughBff({
   const base = baseUrl.replace(/\/+$/, '');
   const headers = { Authorization: 'Bearer ' + token, Accept: 'application/json' };
   const deadline = clock() + DEADLINE_MS;
-  let snapshot = await request(fetchImpl, base + JOBS_PATH, { method: 'POST', headers });
+  let snapshot = await request(fetchImpl, base + JOBS_PATH, {
+    method: 'POST',
+    headers: { ...headers, 'Content-Type': 'application/json' },
+    body: JSON.stringify({ targets }),
+  });
   let lastPhase = null;
 
   for (;;) {

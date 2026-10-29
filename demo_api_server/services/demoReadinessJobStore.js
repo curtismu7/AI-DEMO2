@@ -72,10 +72,16 @@ function createDemoReadinessJobStore({
     return job;
   }
 
-  function start({ subject } = {}) {
+  function start({ subject, targets = DEFAULT_TARGETS } = {}) {
     if (typeof subject !== 'string' || !subject.trim()) {
       throw new DemoReadinessJobError(401, 'authenticated_subject_required', 'A verified administrator subject is required.');
     }
+    // One target is a diagnostic run (never READY); both is the default and the only READY run.
+    if (!Array.isArray(targets) || targets.length === 0 || new Set(targets).size !== targets.length
+        || !targets.every((target) => DEFAULT_TARGETS.includes(target))) {
+      throw new DemoReadinessJobError(400, 'invalid_targets', 'targets must be one or both of: local, se.');
+    }
+    const runTargets = DEFAULT_TARGETS.filter((target) => targets.includes(target));
     expireDueJobs();
 
     const createdAt = now();
@@ -127,7 +133,7 @@ function createDemoReadinessJobStore({
     };
 
     job.runPromise = Promise.resolve().then(() => runReadiness({
-      targets: [...DEFAULT_TARGETS],
+      targets: runTargets,
       onProgress,
       confirmRepairs,
     })).then((result) => {

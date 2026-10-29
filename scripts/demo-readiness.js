@@ -22,9 +22,8 @@ administrator-bound repair. Exit status is 0 only for full READY — BOTH TARGET
 
 BFF lane: set DEMO_READINESS_BFF_URL (the BFF origin) and DEMO_READINESS_BFF_ADMIN_TOKEN (an admin
 access token, never printed) to run the audit inside the BFF, which can read its effective
-configuration. The BFF always runs both targets, so --target is refused with this lane. The CLI
-never confirms a repair; a pending repair preview ends the run and is applied from Admin sidebar
-Reset Demo.
+configuration. --target is passed to the BFF; one target stays diagnostic. The CLI never confirms
+a repair; a pending repair preview ends the run and is applied from Admin sidebar Reset Demo.
 `;
 
 // The BFF lane is chosen by its two environment settings. Setting only one is an error, so a missing
@@ -34,7 +33,7 @@ function bffLane(env = {}, fetchImpl = fetch) {
   const token = env.DEMO_READINESS_BFF_ADMIN_TOKEN;
   if (!baseUrl && !token) return null;
   if (!baseUrl || !token) throw new Error('Set both DEMO_READINESS_BFF_URL and DEMO_READINESS_BFF_ADMIN_TOKEN, or neither.');
-  return ({ onProgress }) => runThroughBff({ baseUrl, token, onProgress, fetchImpl });
+  return ({ targets, onProgress }) => runThroughBff({ baseUrl, token, targets, onProgress, fetchImpl });
 }
 
 function parseArgs(argv = []) {
@@ -104,10 +103,6 @@ async function runCli(argv = process.argv.slice(2), options = {}) {
       start = bffLane(options.env || process.env, options.fetchImpl) || startReadinessRun;
     } catch (error) {
       err.write(error.message + '\n');
-      return 2;
-    }
-    if (start !== startReadinessRun && parsed.targets.join(',') !== 'local,se') {
-      err.write('The BFF lane runs both targets; remove --target.\n');
       return 2;
     }
   }
