@@ -6,6 +6,7 @@ const path = require('node:path');
 const {
   buildDemoReadinessCatalog,
   loadDemoReadinessSources,
+  pfExchangeContractFor,
   validateDemoReadinessCatalog,
 } = require('../services/demoReadinessCatalog');
 
@@ -143,19 +144,32 @@ describe('demo readiness catalog', () => {
     expect(rows.get('UC1').providerFlows.pingfederate).not.toBe('pingfederate-native-id-jag');
   });
 
-  test('attaches source-backed PF role/key contracts and explicitly blocks unresolved literal PF settings', () => {
+  test('attaches source-backed PF role/key contracts: literal values once resolved, an explicit block while unresolved', () => {
     const rows = new Map(buildDemoReadinessCatalog().map((row) => [row.id, row]));
     const ordinary = rows.get('UC1').pfExchangeContract;
     const a2a = rows.get('UC2.5').pfExchangeContract;
     const native = rows.get('UC40').pfExchangeContract;
     const workload = rows.get('UC38').pfExchangeContract;
 
+    // The four standard-exchange roles are resolved with a recorded readback.
     expect(ordinary).toMatchObject({
-      status: 'blocked',
-      issuer: { configurationKey: 'pf_issuer' },
-      endpoint: { configurationKey: 'pf_token_endpoint' },
-      sourceGap: { code: 'pf_exact_exchange_contract_source_gap' },
+      status: 'ready',
+      issuer: 'https://local.ping-devops.com:9031',
+      endpoint: 'https://pingfederate:9031/as/token.oauth2',
+      endpointAlias: 'https://pingfederate:9031',
+      sourceGap: null,
     });
+    expect(ordinary.issuerSourceRef).toEqual(expect.any(String));
+    expect(ordinary.endpointSourceRef).toEqual(expect.any(String));
+    // A2A and UC40 roles are still unresolved, so their rows stay blocked.
+    for (const contract of [a2a, native]) {
+      expect(contract).toMatchObject({
+        status: 'blocked',
+        issuer: { configurationKey: 'pf_issuer' },
+        endpoint: { configurationKey: 'pf_token_endpoint' },
+        sourceGap: { code: 'pf_exact_exchange_contract_source_gap' },
+      });
+    }
     expect(ordinary.credentialRoles.map((role) => role.roleId)).toEqual([
       'standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor',
     ]);
@@ -166,6 +180,14 @@ describe('demo readiness catalog', () => {
     expect(workload.credentialRoles.map((role) => role.roleId)).toEqual([
       'standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor',
     ]);
+  });
+
+  test('resolved PF roles without a recorded readback stay blocked', () => {
+    const { pingFederateProfiles } = loadDemoReadinessSources();
+    const { exchangeContract, ...withoutReadback } = pingFederateProfiles;
+    expect(exchangeContract).toBeTruthy();
+    const contract = pfExchangeContractFor({ id: 'UC1', flowId: 'pingfederate-standard', profiles: withoutReadback });
+    expect(contract).toMatchObject({ status: 'blocked', sourceGap: { code: 'pf_exact_exchange_contract_source_gap', missingRoleIds: [] } });
   });
 
   test('keeps PF A2A feature probes outside the Demo Steps count', () => {

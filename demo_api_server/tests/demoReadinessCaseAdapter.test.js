@@ -44,6 +44,31 @@ test('a standard two-exchange PERMIT satisfies the runner contract, including af
   expect(validate(JSON.parse(JSON.stringify(result)))).toEqual([]);
 });
 
+test('a PingFederate standard two-exchange PERMIT satisfies the resolved PF contract only with the BFF-reported endpoint and roles', () => {
+  const pf = caseRow.pfExchangeContract;
+  expect(pf.status).toBe('ready');
+  const ALL_ROLES = ['standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor'];
+  const pfResponse = (pfExchange) => {
+    const response = invokeResponse();
+    for (const event of response.tokenEvents) if (event.claims?.iss) event.claims.iss = pf.issuer;
+    const final = response.tokenEvents.find((event) => event.id === 'two-ex-final-token');
+    if (pfExchange) final.pfExchange = pfExchange;
+    return response;
+  };
+  const failures = (response) => {
+    const result = evidenceFromAgentInvoke({ response, provider: 'pingfederate', expectedIssuer: pf.issuer, authorization });
+    return [
+      ...(result.observed === 'PERMIT' ? [] : ['observed outcome']),
+      ...evidenceFailures({ evidence: JSON.parse(JSON.stringify(result.evidence)), provider: 'pingfederate', authorization, expected: 'PERMIT', caseRow }),
+    ];
+  };
+  expect(failures(pfResponse({ endpoint: pf.endpoint, credentialRoles: ALL_ROLES }))).toEqual([]);
+  // No PF report from the BFF, a different endpoint, or a missing role: the row fails.
+  expect(failures(pfResponse(null)).join(' ; ')).toMatch(/PF endpoint|configuration is incomplete/);
+  expect(failures(pfResponse({ endpoint: 'https://other.example:9031/as/token.oauth2', credentialRoles: ALL_ROLES })).join(' ; ')).toMatch(/PF endpoint/);
+  expect(failures(pfResponse({ endpoint: pf.endpoint, credentialRoles: ALL_ROLES.slice(0, 3) })).join(' ; ')).toMatch(/credential role/);
+});
+
 test('the report lists expected against observed audience and scopes for each hop', () => {
   const { evidence } = evidenceFromAgentInvoke({ response: invokeResponse(), provider: PROVIDER, expectedIssuer: ISSUER, authorization });
   expect(audienceScopeSummary({ evidence, authorization, expected: 'PERMIT' })).toEqual([

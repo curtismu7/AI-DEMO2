@@ -162,7 +162,9 @@ function pfExchangeContractFor({ id, flowId, profiles = pingFederateProfiles }) 
     unresolved: roles[roleId]?.unresolved !== false,
   }));
   const unresolved = credentialRoles.filter((role) => role.unresolved || !role.objectId);
-  const sourceGap = unresolved.length
+  const exchange = profiles?.exchangeContract;
+  const recorded = Boolean(exchange?.issuer && exchange?.issuerSourceRef && exchange?.tokenEndpoint && exchange?.tokenEndpointSourceRef);
+  const sourceGap = unresolved.length || !recorded
     ? {
       code: 'pf_exact_exchange_contract_source_gap',
       reason: 'A committed PingFederate provisioner or supported PF Admin API readback must record the literal PF issuer, token endpoint, and registered credential roles before this lane can run.',
@@ -170,6 +172,20 @@ function pfExchangeContractFor({ id, flowId, profiles = pingFederateProfiles }) 
       remediation: 'Record the readback in demoReadinessPingFederateProfiles.json, including the resolved issuer, endpoint, and role registration, then mark the role resolved.',
     }
     : null;
+  // Every role resolved and the readback recorded: the literal values the
+  // worker's observed exchange must match.
+  if (!sourceGap) {
+    return {
+      status: 'ready',
+      issuer: exchange.issuer,
+      issuerSourceRef: exchange.issuerSourceRef,
+      endpoint: exchange.tokenEndpoint,
+      endpointSourceRef: exchange.tokenEndpointSourceRef,
+      endpointAlias: exchange.tokenEndpointAlias?.origin || null,
+      credentialRoles,
+      sourceGap: null,
+    };
+  }
   return {
     status: sourceGap ? 'blocked' : 'ready',
     issuer: { configurationKey: 'pf_issuer', sourceRef: 'demo_api_server/services/oauthEndpointResolver.js#issuer' },
@@ -805,8 +821,9 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
       }
       if (provider === 'pingfederate') {
         const pfContract = pfExchangeContractFor({ id, flowId, profiles: sources.pingFederateProfiles });
-        if (pfContract.issuer?.configurationKey !== 'pf_issuer'
-            || pfContract.endpoint?.configurationKey !== 'pf_token_endpoint'
+        const keyed = pfContract.issuer?.configurationKey === 'pf_issuer'
+          && pfContract.endpoint?.configurationKey === 'pf_token_endpoint';
+        if ((!keyed && !hasExactPfFeatureContract(pfContract, true))
             || !Array.isArray(pfContract.credentialRoles) || pfContract.credentialRoles.length === 0) {
           pushIssue(issues, `${id} PingFederate flow lacks its checked-in issuer, endpoint-key, and credential-role contract`);
         }

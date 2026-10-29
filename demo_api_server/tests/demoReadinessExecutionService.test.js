@@ -640,6 +640,28 @@ describe('demo readiness execution service', () => {
     expect(await service.executeReadinessCase({ context, caseRow: actorCase, vertical: 'banking' })).toMatchObject({ status: 'pass' });
   });
 
+  test('accepts a PF token endpoint on the recorded alias origin and refuses any other authority', async () => {
+    const endpoint = 'https://pf-internal:9031/as/token.oauth2';
+    const run = async (endpointAlias) => {
+      const pfCase = { ...CASE, providerFlows: { pingone: null, pingfederate: 'pingfederate-standard' }, pfExchangeContract: { status: 'ready', issuer: 'https://pf.example', endpoint, endpointAlias, credentialRoles: [{ roleId: 'pf-standard-role' }] } };
+      const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => ({
+        ...worker(), provider: 'pingfederate', runtime: {}, cookieJar: {}, sessionStore: {},
+        async executeReadinessCase() { return { observed: 'DENY', evidence: { ...(await worker().executeReadinessCase()).evidence, userSessionProvider: 'pingfederate', tokenIssuer: 'pingfederate', agentIdentityProvider: 'pingfederate', exchangeProvenance: 'pingfederate-standard', pfExchange: { issuer: 'https://pf.example', endpoint, credentialRoles: ['pf-standard-role'], configurationComplete: true, subjectTokenType: 'access_token', registeredToolResult: 'pass' } } }; },
+      })) });
+      const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingfederate', identityRef: 'pf' });
+      return service.executeReadinessCase({ context, caseRow: pfCase, vertical: 'banking' });
+    };
+    const shape = /PF endpoint and issuer must use HTTPS on one authority/;
+    const aliased = await run('https://pf-internal:9031');
+    expect(aliased.evidence.contractFailures || []).not.toEqual(expect.arrayContaining([expect.stringMatching(shape)]));
+    expect(aliased.evidence.contractFailures || []).not.toEqual(expect.arrayContaining([expect.stringMatching(/PF endpoint or issuer does not match|credential role/)]));
+    for (const alias of [null, 'https://elsewhere:9031']) {
+      const refused = await run(alias);
+      expect(refused.status).toBe('fail');
+      expect(refused.evidence.contractFailures).toEqual(expect.arrayContaining([expect.stringMatching(shape)]));
+    }
+  });
+
   test('fails a PF exchange with an incomplete endpoint, wrong token type, or no registered tool result', async () => {
     const pfCase = { ...CASE, providerFlows: { pingone: null, pingfederate: 'pingfederate-standard' }, pfExchangeContract: { issuer: 'https://pf.example', endpoint: 'https://pf.example/token', credentialRole: 'pf-standard-role' } };
     const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => ({

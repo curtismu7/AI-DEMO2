@@ -43,13 +43,16 @@ function pfReadyContract(contract) {
   return Boolean(issuer && endpoint && role);
 }
 
-function pfEndpointShapeMatches(issuer, endpoint) {
+// `alias` is the one other origin the profile records for this PingFederate
+// (its in-Docker name). Any other authority still fails.
+function pfEndpointShapeMatches(issuer, endpoint, alias = null) {
   try {
     const parsedIssuer = new URL(issuer);
     const parsedEndpoint = new URL(endpoint);
+    const aliasOrigin = alias ? new URL(alias).origin : null;
     return parsedIssuer.protocol === 'https:'
       && parsedEndpoint.protocol === 'https:'
-      && parsedIssuer.origin === parsedEndpoint.origin
+      && (parsedIssuer.origin === parsedEndpoint.origin || (aliasOrigin !== null && aliasOrigin === parsedEndpoint.origin))
       && parsedEndpoint.pathname.length > 1;
   } catch {
     return false;
@@ -321,7 +324,7 @@ function evidenceFailures({ evidence, provider, authorization, expected, caseRow
     require(!sourceGap, 'PF exact exchange contract is blocked: ' + (sourceGap?.reason || 'missing issuer, endpoint, or credential-role source'));
     require(pfReadyContract(pfContract), 'PF row has no exact endpoint and credential-role contract');
     require(exchange.issuer === pfContract?.issuer && exchange.endpoint === pfContract?.endpoint, 'PF endpoint or issuer does not match the declared token contract');
-    require(pfEndpointShapeMatches(exchange.issuer, exchange.endpoint), 'PF endpoint and issuer must use HTTPS on one authority with a configured token path');
+    require(pfEndpointShapeMatches(exchange.issuer, exchange.endpoint, pfContract?.endpointAlias), 'PF endpoint and issuer must use HTTPS on one authority (or its recorded alias) with a configured token path');
     const expectedRoles = pfContract?.credentialRoles?.map((role) => role.roleId).filter(Boolean);
     const observedRoles = exchange.credentialRoles || (exchange.credentialRole ? [exchange.credentialRole] : []);
     require(expectedRoles?.length

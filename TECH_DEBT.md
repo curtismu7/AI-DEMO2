@@ -379,6 +379,16 @@ other half, unchanged: the PF exchange contract is still a declared source gap
 and the adapter has no `pfExchange` evidence, so those rows fail on contract
 checks only.
 
+**PARTLY RESOLVED 2026-10-29 (`feat/readiness-pf-roles-resolved`).** The four
+standard-exchange roles are resolved: `exchangeContract` in the profiles file
+records the local PF issuer, the in-Docker token endpoint and its alias origin
+(`https://pingfederate:9031`, which reports the same issuer). The BFF's final
+token event reports the PF endpoint and the roles whose configured clients
+acted, and the adapter maps that to `pfExchange`. Still open: the
+`a2a-specialist`, `uc40-native-id-jag`, `cimd`, `third-party-authorization-server`
+and `rar` roles (no evidence path yet, so UC2/UC2.5/UC2.6/UC40 and the PF feature
+probes stay blocked), and the readback is local only (SE has its own issuer).
+
 ### [ ] 2026-10-01 — The launcher can remove PingFederate and has no way to start it
 
 **What's wrong.** PF is deliberately outside the demo compose project (its own
