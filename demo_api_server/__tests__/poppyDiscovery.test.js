@@ -38,13 +38,13 @@ describe('Poppy discovery', () => {
       expect(['none', 'reversible', 'irreversible']).toContain(hint.changes);
       expect(typeof hint.personal_data).toBe('boolean');
     }
-    expect(res.body.apis).toBeUndefined();
+    expect(res.body.apis).toEqual([expect.objectContaining({ type: 'openapi', url: 'https://poppy.example/poppy/api/openapi.json' })]);
   });
 
   it('lists the MCP api when POPPY_MCP_URL is set', async () => {
     process.env.POPPY_MCP_URL = 'https://poppy.example/mcp';
     const res = await request(app()).get('/.well-known/poppy.json').set('Host', 'poppy.example');
-    expect(res.body.apis).toEqual([expect.objectContaining({ type: 'mcp', url: 'https://poppy.example/mcp' })]);
+    expect(res.body.apis).toContainEqual(expect.objectContaining({ type: 'mcp', url: 'https://poppy.example/mcp' }));
   });
 
   it('404s poppy.json on any other host', async () => {
