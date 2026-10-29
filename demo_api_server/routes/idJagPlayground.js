@@ -293,6 +293,11 @@ async function exchangeAtIssuerPf(req, s, scope) {
   return r.data.access_token;
 }
 
+/** The subject token this request's exchange uses: the issuer-side refresh token, or the session's own. */
+function subjectUsed(req, s) {
+  return usesIssuerSession(req) ? req.session?.idJagIssuer?.refreshToken : subjectToken(req, s.request.subjectTokenType);
+}
+
 async function mintIdJag(req, scopeOverride) {
   const mode = modeOf(req);
   const s = settings(mode);
@@ -303,7 +308,7 @@ async function mintIdJag(req, scopeOverride) {
       subjectToken(req, s.request.subjectTokenType), s.request.subjectTokenType,
       s.request.audience, s.request.resource, scopeList(scope),
     );
-  return { idJag, request: exchangeShown(s, scope) };
+  return { idJag, request: exchangeShown(s, scope, subjectUsed(req, s)) };
 }
 
 // ---- SAML: the server signs an assertion for the signed-in user; PingFederate trades it for the ID-JAG. ----
@@ -374,14 +379,25 @@ function samlGate(req, res, next) {
   return next();
 }
 
-/** The exchange request as the page shows it (the subject token is never shown). */
-function exchangeShown(s, scope) {
+/**
+ * A token as the page may show it: its first 6 and last 4 characters, length and kind. Enough to see which token
+ * was sent and to match it against PingFederate's logs; never enough to use it.
+ */
+function maskToken(token) {
+  const t = String(token || '');
+  if (!t) return '[your session token, never sent to the browser]';
+  const kind = t.split('.').length === 3 ? 'JWT' : 'opaque';
+  return t.length <= 16 ? `[masked, ${t.length} chars, ${kind}]` : `${t.slice(0, 6)}…${t.slice(-4)} [masked, ${t.length} chars, ${kind}]`;
+}
+
+/** The exchange request as the page shows it (the subject token masked, see maskToken). */
+function exchangeShown(s, scope, subject) {
   return {
     endpoint: `POST ${s.idp.tokenEndpoint}`,
     body: {
       grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
       requested_token_type: ID_JAG_TOKEN_TYPE,
-      subject_token: '[your session token, never sent to the browser]',
+      subject_token: maskToken(subject),
       subject_token_type: s.request.subjectTokenType,
       audience: s.request.audience,
       resource: s.request.resource || undefined,
@@ -396,9 +412,9 @@ async function tryMint(req) {
   const s = settings(modeOf(req));
   try {
     await mintIdJag(req);
-    return { ok: true, status: 200, error: null, request: exchangeShown(s, s.request.scope) };
+    return { ok: true, status: 200, error: null, request: exchangeShown(s, s.request.scope, subjectUsed(req, s)) };
   } catch (err) {
-    return { ok: false, status: err.httpStatus || 502, error: err.pfError || null, error_description: err.pfErrorDescription || err.message, request: exchangeShown(s, s.request.scope) };
+    return { ok: false, status: err.httpStatus || 502, error: err.pfError || null, error_description: err.pfErrorDescription || err.message, request: exchangeShown(s, s.request.scope, subjectUsed(req, s)) };
   }
 }
 
