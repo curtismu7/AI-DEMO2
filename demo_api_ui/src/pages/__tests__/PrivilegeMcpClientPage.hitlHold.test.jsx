@@ -174,3 +174,12 @@ test('the simulated approver opens from a hold, retries, and admits Privilege st
   await waitFor(() => expect(global.fetch.mock.calls.filter(([u]) => String(u).endsWith('/tools/call')).length).toBe(callsBefore + 1));
   expect(await screen.findByText(/the popup is a stand-in/i)).toBeInTheDocument();
 });
+
+test('SearchIndexTool opens with arguments that can run, so Run works on the first click', async () => {
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  const box = await screen.findByLabelText(/arguments \(json\)/i);
+  expect(JSON.parse(box.value)).toEqual({ index: '_all', query_dsl: { query: { match_all: {} } } });
+  expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled();
+});

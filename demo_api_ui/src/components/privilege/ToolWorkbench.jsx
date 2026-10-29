@@ -5,6 +5,15 @@ import { useEffect, useMemo, useState } from 'react';
 import { EnumParamFields, missingRequiredParams, normalizeTools, paramsOf, seedArgs, tryParseArgs } from './ToolsTable';
 import './ToolWorkbench.css';
 
+// Starting arguments for tools whose blank form can never run, so the demo works on the first click.
+const DEFAULT_ARGS = {
+  SearchIndexTool: { index: '_all', query_dsl: { query: { match_all: {} } } },
+};
+const startingArgs = (tool) => {
+  const seeded = JSON.parse(seedArgs(tool));
+  return JSON.stringify(DEFAULT_ARGS[tool.name] ? { ...seeded, ...DEFAULT_ARGS[tool.name] } : seeded, null, 2);
+};
+
 export default function ToolWorkbench({ tools: rawTools, onExecute, hitlTools = {}, response, onPresent, selectedTool = null, selectNonce = 0 }) {
   const tools = useMemo(() => normalizeTools(rawTools), [rawTools]);
   const [current, setCurrent] = useState('');
@@ -18,7 +27,7 @@ export default function ToolWorkbench({ tools: rawTools, onExecute, hitlTools = 
   }, [selectNonce]);
   const tool = tools.find((t) => t.name === current) || tools[0] || null;
   const params = useMemo(() => (tool ? paramsOf(tool) : []), [tool]);
-  const args = tool ? (argsByTool[tool.name] ?? seedArgs(tool)) : '{}';
+  const args = tool ? (argsByTool[tool.name] ?? startingArgs(tool)) : '{}';
   const setArgs = (v) => setArgsByTool((m) => ({ ...m, [tool.name]: v }));
   const missing = missingRequiredParams(params, args);
   const policy = tool ? hitlTools[tool.name] : null;
