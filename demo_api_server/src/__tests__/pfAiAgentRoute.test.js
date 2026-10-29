@@ -32,3 +32,15 @@ describe('PF AI Agent namespace status', () => {
     expect(store.getEffective).not.toHaveBeenCalledWith('oauth_provider');
   });
 });
+
+describe('PF AI Agent status: the PingFederate ID-JAG demo switch', () => {
+  test('reports idJagDemoEnabled from pf_id_jag_enabled', async () => {
+    for (const [value, expected] of [['true', true], ['false', false], ['', false]]) {
+      const app = express();
+      app.use((req, res, next) => { req.session = {}; next(); });
+      app.use('/api/pf-ai-agent', createPfAiAgentRouter({ configStore: { getEffective: (k) => (k === 'pf_id_jag_enabled' ? value : '') } }));
+      const response = await request(app).get('/api/pf-ai-agent/status').expect(200);
+      expect(response.body.idJagDemoEnabled).toBe(expected);
+    }
+  });
+});

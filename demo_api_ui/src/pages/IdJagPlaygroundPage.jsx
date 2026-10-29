@@ -43,6 +43,13 @@ const stored = (key, allowed, fallback) => {
   try { const v = localStorage.getItem(key); return allowed.some((a) => a.id === v) ? v : fallback; } catch { return fallback; }
 };
 const store = (key, v) => { try { localStorage.setItem(key, v); } catch { /* storage blocked: not remembered */ } };
+// ?mode=<lane> (for example from the PingFederate AI Agent page) opens on that lane and is remembered like a click.
+const modeFromUrl = () => {
+  const v = new URLSearchParams(window.location.search).get("mode");
+  if (!MODES.some((m) => m.id === v)) return null;
+  store(MODE_KEY, v);
+  return v;
+};
 
 const SPEC_NOTES = {
   issue: "RFC 8693 token exchange at the IdP with requested_token_type=…:id-jag. audience names the resource authorization server; resource names the MCP server. The IdP decides the scope and returns a short-lived JWT typed oauth-id-jag+jwt in access_token, with token_type N_A.",
@@ -514,7 +521,7 @@ function TrustedIdpsPanel({ api, endpoints }) {
 }
 
 export default function IdJagPlaygroundPage() {
-  const [mode, setMode] = useState(() => stored(MODE_KEY, MODES, "oauth-mcp"));
+  const [mode, setMode] = useState(() => modeFromUrl() || stored(MODE_KEY, MODES, "oauth-mcp"));
   const [view, setView] = useState(() => stored(VIEW_KEY, VIEWS, "form"));
   const [protocol, setProtocol] = useState(() => stored(PROTOCOL_KEY, PROTOCOLS, "oidc"));
   const [realModes, setRealModes] = useState(null);

@@ -59,6 +59,8 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       sessionProvider: sessionProvider(req) || 'none',
       features: getFeatureStatus(store),
       nativeIdJagPath: '/pingfederate-id-jag/demo',
+      // The PingFederate ID-JAG demo (playground PingFederate -> PingFederate lane) is on: the page's ID-JAG section points there.
+      idJagDemoEnabled: String(store.getEffective('pf_id_jag_enabled') || '').toLowerCase() === 'true',
       // True once this session has signed in at PingFederate through the CIMD flow and holds a usable PF token.
       pfSignedIn: hasUsablePfToken(req),
       // Safe metadata of this session's last RAR run (outcome, token type, DPoP key thumbprint);

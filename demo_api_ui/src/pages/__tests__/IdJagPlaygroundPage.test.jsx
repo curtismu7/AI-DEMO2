@@ -651,3 +651,23 @@ describe("ID-JAG playground step 4 availability", () => {
     expect(screen.queryByText(reason)).not.toBeInTheDocument();
   });
 });
+
+describe("ID-JAG playground: ?mode= opens a lane", () => {
+  afterEach(() => window.history.pushState({}, "", "/"));
+
+  it("opens on the lane named in the URL and remembers it", async () => {
+    localStorage.setItem("idjag.playground.mode", "mock");
+    window.history.pushState({}, "", "/pingfederate-id-jag/playground?mode=pf-pf");
+    mount(config());
+    const links = await screen.findAllByRole("link", { name: /^View .* diagram ↗$/ });
+    expect(links.map((l) => l.getAttribute("href"))).toContain("/pingfederate-id-jag/playground/diagram/pf-pf");
+    expect(localStorage.getItem("idjag.playground.mode")).toBe("pf-pf");
+  });
+
+  it("ignores a lane it does not know", () => {
+    localStorage.setItem("idjag.playground.mode", "mock");
+    window.history.pushState({}, "", "/pingfederate-id-jag/playground?mode=nope");
+    mount(config());
+    expect(localStorage.getItem("idjag.playground.mode")).toBe("mock");
+  });
+});
