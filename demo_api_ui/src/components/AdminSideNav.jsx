@@ -184,11 +184,10 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
   { id: "a2a", paths: ["/privilege-a2a", "/a2a-protocol-learning", "/a2a-architecture", "/delegation-chain-value", "/ai-products/privilege-a2a"] },
   { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
-  { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role"] },
+  { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role", "/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
-  { id: "pingfederate", paths: ["/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent"] },
   { id: "aic", paths: ["/aic-token-exchange"] },
   { id: "utilities", paths: ["/pingone-test", "/mfa-test", "/oauth-debug-logs", "/token-exchange-tester", "/mgmt-api", "/pingone-setup", "/mcp-discovery", "/check"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
@@ -1354,6 +1353,8 @@ export default function AdminSideNav({
   });
   const childrenFrom = (labels) => labels.map((entry) => {
     if (typeof entry === "string") return findLegacyItem(entry);
+    // A sub-group inside a group (one level only): it expands in place, like Ping products > PingFederate.
+    if (entry.children) return { ...entry, icon: entry.icon || "shld", children: childrenFrom(entry.children) };
     if (entry.rename) return renameLegacyItem(entry.from, entry.rename, entry.path);
     if (entry.path) return { ...entry, icon: entry.icon || "doc" };
     return findLegacyItem(entry.label, entry.path);
@@ -1460,6 +1461,53 @@ export default function AdminSideNav({
       "SDK Login",
       "M2M Client Credentials",
       "Custom Admin Role",
+      // Every PingFederate demo in one place, as a sub-group; the Privilege and DaVinci PF pages stay in their own groups too.
+      {
+        label: "PingFederate",
+        icon: "sec",
+        searchAlias: "pingfederate pf",
+        children: [
+          {
+            label: "PingFederate AI Agent: ID-JAG, CIMD, DCR, RAR, CIBA, DPoP, pi.flow",
+            path: "/pingfederate-ai-agent",
+            searchAlias: "PingFederate PF AI feature comparison AI agent differences ID-JAG XAA cross app access third-party token exchange third party token exchange PAR Pushed Authorization Request RAR Rich Authorization Request CIMD client metadata tester DCR dynamic client registration RFC 7591 CIBA DPoP pi.flow authentication API act claim",
+          },
+          {
+            label: "Protocol Playground (PingFederate)",
+            path: "/protocol-playground?idp=pingfederate",
+            icon: "dbg",
+            searchAlias: "PingFederate PF protocol playground DPoP PAR PKCE RAR CIBA RFC 8693 token exchange act XAA ID-JAG",
+          },
+          { label: "Run ID-JAG Demo", path: "/pingfederate-id-jag/demo" },
+          { label: "How ID-JAG Works", path: "/pingfederate-id-jag" },
+          { label: "ID-JAG Diagram", path: "/pingfederate-id-jag/diagram" },
+          {
+            label: "ID-JAG Implementation (PF + Resource Server)",
+            path: "/pingfederate-id-jag/implementation",
+            searchAlias: "ID-JAG implementation PingFederate oauth-mcp gateway resource server simulate flow diagram jwt-bearer RFC 8693 RFC 7523",
+          },
+          {
+            label: "ID-JAG Playground (try + validate)",
+            path: "/pingfederate-id-jag/playground",
+            searchAlias: "ID-JAG playground XAA cross app access validate test negative tests spec checker PingFederate oauth-mcp",
+          },
+          {
+            label: "ID-JAG Playground diagrams",
+            path: "/pingfederate-id-jag/playground/diagram/oauth-mcp",
+            searchAlias: "ID-JAG playground diagram mock oauth-mcp PingFederate to PingFederate bring your own IdP trusted IdPs simulate flow",
+          },
+          "PingFederate ID-JAG (Node)",
+          "Workload Agents · 3rd-party MCP via ID-JAG",
+          "Enterprise-Managed MCP Auth",
+          {
+            label: "PingFederate Token Demo",
+            path: "/privilege-pf-token",
+            icon: "key",
+            searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent",
+          },
+          { label: "PingFederate DaVinci Integration Kit", path: "/pingfederate-davinci-kit", searchAlias: "pingfederate davinci kit connector integration pf" },
+        ],
+      },
     ], "pol"),
     productGroup("Identity Journeys", [
       "Self-Service Registration",
@@ -1575,51 +1623,6 @@ export default function AdminSideNav({
       "LibreChat (browser)",
       "LM Studio (Mac)",
     ], "mcp"),
-    // Every PingFederate demo in one place; the Privilege and DaVinci PF pages stay in their own groups too.
-    {
-      ...productGroup("PingFederate", [
-      {
-        label: "PingFederate AI Agent: ID-JAG, CIMD, DCR, RAR, CIBA, DPoP, pi.flow",
-        path: "/pingfederate-ai-agent",
-        searchAlias: "PingFederate PF AI feature comparison AI agent differences ID-JAG XAA cross app access third-party token exchange third party token exchange PAR Pushed Authorization Request RAR Rich Authorization Request CIMD client metadata tester DCR dynamic client registration RFC 7591 CIBA DPoP pi.flow authentication API act claim",
-      },
-      {
-        label: "Protocol Playground (PingFederate)",
-        path: "/protocol-playground?idp=pingfederate",
-        icon: "dbg",
-        searchAlias: "PingFederate PF protocol playground DPoP PAR PKCE RAR CIBA RFC 8693 token exchange act XAA ID-JAG",
-      },
-      { label: "Run ID-JAG Demo", path: "/pingfederate-id-jag/demo" },
-      { label: "How ID-JAG Works", path: "/pingfederate-id-jag" },
-      { label: "ID-JAG Diagram", path: "/pingfederate-id-jag/diagram" },
-      {
-        label: "ID-JAG Implementation (PF + Resource Server)",
-        path: "/pingfederate-id-jag/implementation",
-        searchAlias: "ID-JAG implementation PingFederate oauth-mcp gateway resource server simulate flow diagram jwt-bearer RFC 8693 RFC 7523",
-      },
-      {
-        label: "ID-JAG Playground (try + validate)",
-        path: "/pingfederate-id-jag/playground",
-        searchAlias: "ID-JAG playground XAA cross app access validate test negative tests spec checker PingFederate oauth-mcp",
-      },
-      {
-        label: "ID-JAG Playground diagrams",
-        path: "/pingfederate-id-jag/playground/diagram/oauth-mcp",
-        searchAlias: "ID-JAG playground diagram mock oauth-mcp PingFederate to PingFederate bring your own IdP trusted IdPs simulate flow",
-      },
-      "PingFederate ID-JAG (Node)",
-      "Workload Agents · 3rd-party MCP via ID-JAG",
-      "Enterprise-Managed MCP Auth",
-      {
-        label: "PingFederate Token Demo",
-        path: "/privilege-pf-token",
-        icon: "key",
-        searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent",
-      },
-      { label: "PingFederate DaVinci Integration Kit", path: "/pingfederate-davinci-kit", searchAlias: "pingfederate davinci kit connector integration pf" },
-      ], "sec"),
-      searchAlias: "pingfederate pf",
-    },
     productGroup("AIC", [
       {
         label: "AIC Token Exchange",
@@ -1809,7 +1812,8 @@ export default function AdminSideNav({
     if (!navQuery) return item;
     if (item.children?.length) {
       if (itemMatches(item)) return item;
-      const kids = item.children.filter((c) => itemMatches(c));
+      // A sub-group (PingFederate under Ping products) is filtered the same way, one level down.
+      const kids = item.children.map((c) => (c.children?.length ? filterNavItem(c) : itemMatches(c) ? c : null)).filter(Boolean);
       return kids.length ? { ...item, children: kids } : null;
     }
     return itemMatches(item) ? item : null;
@@ -1880,7 +1884,7 @@ export default function AdminSideNav({
 
   const isParentActive = (item) => {
     if (!item.children) return false;
-    return item.children.some((child) => child.path && isActive(child.path));
+    return item.children.some((child) => (child.path && isActive(child.path)) || isParentActive(child));
   };
 
   // Top-level nav sections behave as an accordion: opening one collapses any
@@ -2077,6 +2081,51 @@ export default function AdminSideNav({
     return null;
   };
 
+  // One link (or action button) inside an expanded group or sub-group.
+  const renderChildLink = (child, item, childKey) => {
+    const isAdminFeature = child.adminOnly || item.adminOnly;
+    return child.action ? (
+      <button
+        key={childKey}
+        type="button"
+        className="admin-side-nav__item admin-side-nav__item--child"
+        title={child.label}
+        onClick={child.action}
+      >
+        <NavIcon name={child.icon} />
+        <span className="admin-side-nav__label">{child.label}</span>
+      </button>
+    ) : (
+      <Link
+        key={childKey}
+        to={child.path}
+        {...(child.newTab ? { target: "_blank", rel: "noopener noreferrer" } : diagramLinkProps(child.path))}
+        className={`admin-side-nav__item admin-side-nav__item--child${child.highlight ? " admin-side-nav__item--highlight-danger" : ""}${child.className ? ` ${child.className}` : ""} ${isActive(child.path) ? " admin-side-nav__item--active" : ""}`}
+        title={child.label}
+        aria-current={isActive(child.path) ? "page" : undefined}
+        onClick={
+          child.introGate
+            ? (e) => {
+                e.preventDefault();
+                setControlPlaneIntroPath(child.path);
+              }
+            : !isAdmin && isAdminFeature
+              ? (e) => {
+                  e.preventDefault();
+                  setAdminPromptPath(child.path);
+                }
+              : undefined
+        }
+      >
+        <NavIcon name={child.icon} />
+        <span className="admin-side-nav__label">{child.label}</span>
+        {isAdminFeature && (
+          <span className="admin-side-nav__badge">🔐 admin</span>
+        )}
+      </Link>
+    );
+  };
+
   const renderNavItem = (item, sectionKey, index, forceOpen = false) => {
     // Stable slug-based key (not array position) so expansion state survives
     // reorders/role-filtering. See slugify / sectionIdOf.
@@ -2127,52 +2176,38 @@ export default function AdminSideNav({
                 <div className="admin-side-nav__flyout-title">{item.label}</div>
               )}
               {item.children.map((child) => {
-                const isAdminFeature = child.adminOnly || item.adminOnly;
+                // A sub-group (Ping products > PingFederate): its own row, open while it holds the current page or
+                // a filter matches inside it, otherwise as the person left it. Not part of the top-level accordion.
+                if (child.children?.length) {
+                  const subKey = `sub-${itemKey}-${slugify(child.label)}`;
+                  const subOpen = forceOpen || (expandedSections[subKey] ?? isParentActive(child));
+                  return (
+                    <div key={subKey} className="admin-side-nav__subgroup">
+                      <button
+                        type="button"
+                        className={`admin-side-nav__item admin-side-nav__item--child admin-side-nav__item--subparent${isParentActive(child) ? " admin-side-nav__item--parent-active" : ""}`}
+                        onClick={() => setExpandedSections((prev) => ({ ...prev, [subKey]: !subOpen }))}
+                        aria-expanded={subOpen ? "true" : "false"}
+                        aria-controls={`${subKey}-submenu`}
+                        title={child.label}
+                      >
+                        <NavIcon name={child.icon} />
+                        <span className="admin-side-nav__label">{child.label}</span>
+                        <span className={`admin-side-nav__chevron ${subOpen ? "admin-side-nav__chevron--expanded" : ""}`} aria-hidden="true">→</span>
+                      </button>
+                      {subOpen && (
+                        <div id={`${subKey}-submenu`} role="group" aria-label={child.label} className="admin-side-nav__subgroup-items">
+                          {child.children.map((grandchild) => renderChildLink(grandchild, item, `${subKey}-child-${slugify(grandchild.label)}-${grandchild.path || "action"}`))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                }
                 // A group may intentionally expose two labels for one route
                 // (for example MCP Discovery and MCP Runtime Inventory). The
                 // destination is not a unique React identity; keep the label
                 // in the key so both links retain their own identity.
-                const childKey = `${itemKey}-child-${slugify(child.label)}-${child.path || child.action || "action"}`;
-                return child.action ? (
-                  <button
-                    key={childKey}
-                    type="button"
-                    className="admin-side-nav__item admin-side-nav__item--child"
-                    title={child.label}
-                    onClick={child.action}
-                  >
-                    <NavIcon name={child.icon} />
-                    <span className="admin-side-nav__label">{child.label}</span>
-                  </button>
-                ) : (
-                  <Link
-                    key={childKey}
-                    to={child.path}
-                    {...(child.newTab ? { target: "_blank", rel: "noopener noreferrer" } : diagramLinkProps(child.path))}
-                    className={`admin-side-nav__item admin-side-nav__item--child${child.highlight ? " admin-side-nav__item--highlight-danger" : ""}${child.className ? ` ${child.className}` : ""} ${isActive(child.path) ? " admin-side-nav__item--active" : ""}`}
-                    title={child.label}
-                    aria-current={isActive(child.path) ? "page" : undefined}
-                    onClick={
-                      child.introGate
-                        ? (e) => {
-                            e.preventDefault();
-                            setControlPlaneIntroPath(child.path);
-                          }
-                        : !isAdmin && isAdminFeature
-                          ? (e) => {
-                              e.preventDefault();
-                              setAdminPromptPath(child.path);
-                            }
-                          : undefined
-                    }
-                  >
-                    <NavIcon name={child.icon} />
-                    <span className="admin-side-nav__label">{child.label}</span>
-                    {isAdminFeature && (
-                      <span className="admin-side-nav__badge">🔐 admin</span>
-                    )}
-                  </Link>
-                );
+                return renderChildLink(child, item, `${itemKey}-child-${slugify(child.label)}-${child.path || child.action || "action"}`);
               })}
             </section>
           )}

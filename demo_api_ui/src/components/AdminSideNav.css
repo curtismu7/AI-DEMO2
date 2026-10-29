@@ -440,6 +440,11 @@
   color: #ffffff;
 }
 
+/* A sub-group inside a group (Ping products > PingFederate): its links sit one step further in. */
+.admin-side-nav__item--subparent .admin-side-nav__chevron { margin-left: auto; }
+.admin-side-nav__subgroup-items .admin-side-nav__item--child { padding-left: 44px; }
+.admin-side-nav__subgroup-items .admin-side-nav__item--child:hover { padding-left: 41px; }
+
 .admin-side-nav__item--child:hover {
   color: #fff;
   background: rgba(52, 152, 219, 0.08) !important;
