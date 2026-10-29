@@ -1,7 +1,7 @@
 /* ToolWorkbench — dark by default like ToolsTable; the page's light skin overrides at the bottom. */
 .ptw { display: flex; flex-direction: column; height: 100%; min-height: 0; color: #fff; }
 .ptw--empty { padding: 14px; color: #888; font-style: italic; }
-.ptw-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid #30363d; flex-shrink: 0; }
+.ptw-bar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border-bottom: 1px solid var(--th-border, #30363d); flex-shrink: 0; }
 .ptw-chips { display: flex; gap: 6px; overflow-x: auto; flex: 1; min-width: 0; padding-bottom: 2px; }
 .ptw-chip { flex-shrink: 0; display: inline-flex; align-items: center; gap: 6px; padding: 4px 10px; border: 1px solid #3c3c3c; border-radius: var(--radius-pill); background: transparent; color: #ddd; font-size: var(--font-size-sm, 12px); cursor: pointer; }
 .ptw-chip:hover { border-color: #12538d; }
@@ -14,7 +14,7 @@
 .ptw-col > * { flex-shrink: 0; }
 .ptw-col + .ptw-col { border-left: 1px solid #30363d; }
 .ptw-h { margin: 0; font-size: var(--font-size-base, 13px); font-weight: 700; }
-.ptw-sub { margin-left: 6px; font-weight: 400; color: #8b949e; font-size: var(--font-size-xs, 11px); }
+.ptw-sub { margin-left: 6px; font-weight: 400; color: var(--th-text-muted, #8b949e); font-size: var(--font-size-xs, 11px); }
 .ptw-desc { margin: 0; color: #aaa; font-size: var(--font-size-sm, 12px); line-height: 1.4; }
 .ptw-policy { margin: 0; padding: 6px 8px; border-left: 3px solid #b8860b; border-radius: var(--radius-sm); background: rgba(184, 134, 11, 0.1); font-size: var(--font-size-sm, 12px); line-height: 1.4; }
 .ptw-label { font-size: var(--font-size-xs, 11px); color: #8b949e; text-transform: uppercase; letter-spacing: 0.04em; }
