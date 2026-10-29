@@ -332,6 +332,8 @@ export default function PingFederateAiAgentPage({ user }) {
   const canExchange = (supportedSession || pfSignedIn) && Boolean(status?.features?.crossDomain) && !exchangeBusy;
   const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false, cibaWebApprover: false, dcr: false };
   const rarResult = status?.rarResult || null;
+  // ID-JAG is ready when this page's own exchange is configured or the PingFederate ID-JAG demo is on.
+  const idJagReady = Boolean(features.crossDomain || status?.idJagDemoEnabled);
   const cimdResult = status?.cimdResult || null;
   const rarUserKeyValue = rarUserKey.trim();
   const callbackResult = queryStatus.get("cimd") || queryStatus.get("rar");
@@ -440,7 +442,7 @@ export default function PingFederateAiAgentPage({ user }) {
 
       <section className="pf-ai-agent__overview" aria-label="PF feature readiness">
         <div><span>Client metadata</span><FeatureStatus ready={features.cimd} /></div>
-        <div><span>ID-JAG (third-party exchange)</span><FeatureStatus ready={features.crossDomain} /></div>
+        <div><span>ID-JAG (third-party exchange)</span><FeatureStatus ready={idJagReady} /></div>
         <div><span>Rich authorization</span><FeatureStatus ready={features.rar} /></div>
         <div><span>Human approval (CIBA)</span><FeatureStatus ready={features.ciba} /></div>
         <div><span>Client registration (DCR)</span><FeatureStatus ready={features.dcr} /></div>
@@ -489,9 +491,20 @@ export default function PingFederateAiAgentPage({ user }) {
           <p className="pf-ai-agent__eyebrow">Two explicit token hops</p>
           <h2 id="pf-ai-exchange-title">ID-JAG: third-party token exchange</h2>
           <p>PF issues the ID-JAG. The downstream authorization server redeems it for its own access token.</p>
-          <FeatureStatus ready={features.crossDomain} />
+          <FeatureStatus ready={idJagReady} />
         </div>
         <div className="pf-ai-agent__flow-body">
+          {/* The ID-JAG demo runs on the online PingFederate servers: the SE PF issues, the Acme PF redeems. */}
+          <div className="pf-ai-agent__idjag-demo" data-testid="idjag-demo-links">
+            <p>
+              Run it in the PingFederate ID-JAG demo, with real PingFederate on both sides: one PingFederate issues
+              the ID-JAG, a second PingFederate redeems it. Every request and response is shown.
+            </p>
+            <a className="pf-ai-agent__action" href="/pingfederate-id-jag/playground?mode=pf-pf">Run ID-JAG: PingFederate → PingFederate</a>
+            <a className="pf-ai-agent__secondary-action" href="/pingfederate-id-jag">How ID-JAG works</a>
+          </div>
+          {features.crossDomain && (<>
+          <p className="pf-ai-agent__hint">Or run this page&apos;s own two-hop exchange against the third-party server configured here:</p>
           <div className="pf-ai-agent__hops" aria-label="Token exchange hops">
             <div className="pf-ai-agent__hop">
               <span className="pf-ai-agent__hop-index">1</span>
@@ -526,6 +539,7 @@ export default function PingFederateAiAgentPage({ user }) {
           {pfSignedIn && provider !== "pingfederate" && (
             <p className="pf-ai-agent__hint">Using your PingFederate sign-in from the CIMD card; your PingOne session is not sent.</p>
           )}
+          </>)}
           {exchangeError && (
             <p className="pf-ai-agent__error" role="alert">
               The exchange failed. Review the PF and downstream authorization server settings.
