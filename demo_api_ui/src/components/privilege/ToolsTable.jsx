@@ -110,7 +110,7 @@ export function normalizeTools(raw) {
       : { ...t, description: JSON.stringify(t.description) }));
 }
 
-export default function ToolsTable({ tools: rawTools, presentMode = false, onExecute, onClose, onPresent, selectedTool = null, selectNonce = 0 }) {
+export default function ToolsTable({ tools: rawTools, presentMode = false, onExecute, onClose, onPresent, selectedTool = null, selectNonce = 0, resultInline = true }) {
   const tools = useMemo(() => normalizeTools(rawTools), [rawTools]);
   const [filter, setFilter] = useState('');
   const [expanded, setExpanded] = useState('');
@@ -235,6 +235,7 @@ export default function ToolsTable({ tools: rawTools, presentMode = false, onExe
                   args={argsByTool[t.name] ?? '{}'}
                   onArgs={(v) => setArgsByTool((m) => ({ ...m, [t.name]: v }))}
                   result={resultByTool[t.name]}
+                  resultInline={resultInline}
                   busy={Boolean(busyTools[t.name])}
                   onRun={() => run(t.name, t)}
                 />
@@ -247,7 +248,7 @@ export default function ToolsTable({ tools: rawTools, presentMode = false, onExe
   );
 }
 
-function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onToggle, args, onArgs, result, busy, onRun }) {
+function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onToggle, args, onArgs, result, resultInline = true, busy, onRun }) {
   return (
     <>
       <tr data-tool-row={tool.name} className={`ptt-row${isOpen ? ' ptt-row--open' : ''}${selected ? ' ptt-row--selected' : ''}${presentMode ? '' : ' ptt-row--click'}`} onClick={onToggle}>
@@ -319,11 +320,15 @@ function FragmentRow({ tool, params, isOpen, selected = false, presentMode, onTo
               >
                 {busy ? 'Executing...' : 'Execute'}
               </button>
-              {result !== undefined && (
+              {result !== undefined && resultInline && (
                 <>
                   <div className="ptt-result-label">Result</div>
                   <pre className="ptt-result jh-dark"><JsonHighlight value={result} deep /></pre>
                 </>
+              )}
+              {/* The page shows the output once, in its Results tab; saying so beats a second, cramped copy here. */}
+              {result !== undefined && !resultInline && (
+                <div className="ptt-result-label">Result is in the Results tab</div>
               )}
             </div>
           </td>

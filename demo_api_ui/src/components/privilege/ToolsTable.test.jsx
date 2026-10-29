@@ -61,6 +61,16 @@ describe('ToolsTable', () => {
     expect(screen.getByText('true')).toHaveClass('jh-keyword');
   });
 
+  test('with resultInline off it points to the Results tab instead of repeating the output', async () => {
+    render(<ToolsTable tools={[tool]} onExecute={vi.fn().mockResolvedValue('{"ok":true}')} resultInline={false} />);
+
+    fireEvent.click(screen.getByText('search_records'));
+    fireEvent.click(screen.getByRole('button', { name: 'Execute' }));
+
+    expect(await screen.findByText('Result is in the Results tab')).toBeInTheDocument();
+    expect(screen.queryByText('"ok":')).not.toBeInTheDocument();
+  });
+
   test('renders a dropdown for an enum parameter and writes the selection into the args JSON', () => {
     render(<ToolsTable tools={[accountsTool]} onExecute={vi.fn()} />);
 

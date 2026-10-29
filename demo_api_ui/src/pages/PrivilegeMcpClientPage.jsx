@@ -2363,6 +2363,7 @@ export default function PrivilegeMcpClientPage() {
               <ToolsTable
                 tools={tools}
                 onExecute={executeToolCall}
+                resultInline={false}
                 onPresent={() => setShowPresent(true)}
                 selectedTool={selectedTool}
                 selectNonce={toolSelectNonce}
