@@ -274,9 +274,12 @@ function JsonPane({ value, deep = false, emptyMessage, label = 'Output view' }) 
         >
           JSON
         </button>
-        <button type="button" onClick={copy} aria-label={`Copy ${label} as JSON`}>
-          {copied ? 'Copied' : 'Copy'}
-        </button>
+        {/* The Form view already has its own per-field Copy; this one is for the JSON view, which had none. */}
+        {view === 'json' && (
+          <button type="button" onClick={copy} aria-label={`Copy ${label} as JSON`}>
+            {copied ? 'Copied' : 'Copy'}
+          </button>
+        )}
       </div>
       {view === 'form'
         ? <div className="cur-formview"><JsonFormView value={value} emptyMessage={emptyMessage} /></div>

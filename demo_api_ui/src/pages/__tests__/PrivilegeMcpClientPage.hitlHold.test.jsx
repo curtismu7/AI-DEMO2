@@ -128,6 +128,7 @@ test('the result has a Copy button that puts the raw JSON on the clipboard', asy
   fireEvent.click((await screen.findAllByRole('button', { name: /run/i }))[0]);
   await screen.findByText(/waiting for human approval/i);
 
+  fireEvent.click(screen.getAllByRole('button', { name: 'JSON' })[0]);
   fireEvent.click(screen.getByRole('button', { name: /copy SearchIndexTool result view as json/i }));
 
   await waitFor(() => expect(writeText).toHaveBeenCalledTimes(1));
