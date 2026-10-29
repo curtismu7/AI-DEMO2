@@ -14,7 +14,16 @@ const COVERAGE_LABELS = {
   deny: 'Deny paths',
 };
 
-const COVERAGE_ORDER = ['onboard', 'read', 'governed-write', 'agent-privilege', 'step-up', 'audit', 'deny'];
+// Sets the presenter-only rehearsal note apart from the customer steps.
+// Theme tokens only, no literal colours.
+const PRESENTER_BOX = {
+  margin: '1.5rem 0',
+  padding: '0.75rem 1rem',
+  border: '2px dashed var(--th-border)',
+  borderRadius: 'var(--radius-md)',
+};
+
+const COVERAGE_ORDER =['onboard', 'read', 'governed-write', 'agent-privilege', 'step-up', 'audit', 'deny'];
 
 export default function ExternalAgentLessonPage() {
   const { agentId } = useParams();
@@ -28,6 +37,18 @@ export default function ExternalAgentLessonPage() {
       </div>
     );
   }
+  const isDirectory = agent.path === 'directory';
+  const doorList = (
+    <ul>
+      <li>Standard lane: <code>{agent.doors.standard}</code></li>
+      <li>
+        Agent Privilege lane:{' '}
+        {agent.doors.aiGateway
+          ? <code>{agent.doors.aiGateway}</code>
+          : 'not available for this agent (cloud reachability)'}
+      </li>
+    </ul>
+  );
   return (
     <div className="lesson-page">
       <h1>{agent.name}</h1>
@@ -45,7 +66,18 @@ export default function ExternalAgentLessonPage() {
         <a href={useCaseDiagramPath('UC-MUSE2')}>Agent Privilege lane (UC-MUSE2)</a>
       </p>
 
-      <h2>Set it up to demo</h2>
+      <h2>{isDirectory ? 'How the customer connects' : 'Developer path: set it up'}</h2>
+      {isDirectory ? (
+        <p data-testid="agent-path">
+          <strong>Customer path.</strong> The customer connects only from {agent.assistant}&apos;s app
+          directory. There is no address to type.
+        </p>
+      ) : (
+        <p data-testid="agent-path">
+          <strong>Developer path.</strong> {agent.name} has no app directory, so a developer adds the
+          server URL by hand. Customers never do this.
+        </p>
+      )}
       <ol className="lesson-steps">
         {agent.setup.map((s) => (
           <li key={s.title}>
@@ -55,16 +87,18 @@ export default function ExternalAgentLessonPage() {
         ))}
       </ol>
 
-      <h2>Doors</h2>
-      <ul>
-        <li>Standard lane: <code>{agent.doors.standard}</code></li>
-        <li>
-          Agent Privilege lane:{' '}
-          {agent.doors.aiGateway
-            ? <code>{agent.doors.aiGateway}</code>
-            : 'not available for this agent (cloud reachability)'}
-        </li>
-      </ul>
+      {isDirectory ? (
+        <aside aria-label="Presenter only" data-testid="presenter-rehearsal" style={PRESENTER_BOX}>
+          <h2>Presenter only</h2>
+          <p><strong>Never shown to customers.</strong> {agent.rehearsal}</p>
+          {doorList}
+        </aside>
+      ) : (
+        <>
+          <h2>Doors</h2>
+          {doorList}
+        </>
+      )}
 
       <h2>Use cases this agent covers</h2>
       <ul>

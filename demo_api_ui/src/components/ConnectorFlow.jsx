@@ -121,7 +121,7 @@ export default function ConnectorFlow() {
           <div className="cf-chat__body">
             <section className="cf-directory" aria-label="Connector directory">
               <h4>Connectors</h4>
-              <p className="cf-muted">The member installs nothing. They pick the connector from {CLIENTS[client]}&apos;s directory, or paste its MCP URL. {CLIENTS[client]} discovers the rest.</p>
+              <p className="cf-muted">The member installs nothing. They pick the connector from {CLIENTS[client]}&apos;s directory and click Add. {CLIENTS[client]} discovers the rest.</p>
               <div className="cf-directory__card">
                 <div>
                   <strong>Member benefits</strong>
