@@ -52,7 +52,7 @@ const PARAM_EXAMPLES = {
 // actually exist; a real name is date-stamped and rotates daily, so it is
 // only ever a today-accurate seed, not a promise.
 const PARAM_EXAMPLES_BY_NAME = {
-  index: ['_all', '*', 'top_queries-2026.09.05-04062'],
+  index: ['gateway-events', '_all', '*'],
 };
 
 export function paramsOf(tool) {
