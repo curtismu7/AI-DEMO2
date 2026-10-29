@@ -363,3 +363,44 @@ describe('Muse: just a user (no agent, no consent, own token to the gateway)', (
     expect((await request(app).get('/api/muse/state')).body.user.denied).toBe(false);
   });
 });
+
+describe('Muse: connect from your assistant (each assistant signs in with its own PingOne app)', () => {
+  const AGENTS = JSON.stringify([{ name: 'ChatGPT', hosts: ['chatgpt.com'], clientId: 'gpt-app', clientSecret: 'GPT-SECRET-VALUE' }, { name: 'Broken' }]);
+  afterEach(() => { delete process.env.MUSE_CONNECTOR_AGENTS; });
+
+  test('the page lists the configured assistants plus Meta AI, never a secret; unknown assistants are refused', async () => {
+    process.env.MUSE_CONNECTOR_AGENTS = AGENTS;
+    const app = boot(net().f);
+    const st = (await request(app).get('/api/muse/state')).body;
+    expect(st.assistants).toEqual([{ key: 'chatgpt', name: 'ChatGPT' }, { key: 'meta-ai', name: 'Meta AI' }]);
+    expect(JSON.stringify(st)).not.toContain('GPT-SECRET-VALUE');
+    expect((await request(app).post('/api/muse/assistant-signin').send({ assistant: 'nobody' })).status).toBe(409);
+    delete process.env.MUSE_CONNECTOR_AGENTS;
+    expect((await request(app).get('/api/muse/state')).body.assistants).toEqual([{ key: 'meta-ai', name: 'Meta AI' }]);
+  });
+
+  test('ChatGPT: its own app on the sign-in, the code swap and both exchanges; .conn hint; the points come back', async () => {
+    process.env.MUSE_CONNECTOR_AGENTS = AGENTS;
+    const n = net(); const app = boot(n.f);
+    const u = new URL((await request(app).post('/api/muse/assistant-signin').send({ assistant: 'chatgpt', mfa: 'off' })).body.url);
+    expect(u.searchParams.get('client_id')).toBe('gpt-app');
+    expect(u.searchParams.get('login_hint')).toBe('demouser.conn.nomfa');
+    n.seen.length = 0;
+    const cb = await request(app).get(`/api/muse/callback?code=abc&state=${u.searchParams.get('state')}`);
+    expect(cb.status).toBe(302);
+    const posts = n.seen.filter((s) => s.url === `${AS_BASE}/token`).map((s) => s.form);
+    expect(posts.map((p) => p.grant_type)).toEqual(['authorization_code', 'client_credentials', 'urn:ietf:params:oauth:grant-type:token-exchange', 'urn:ietf:params:oauth:grant-type:token-exchange']);
+    expect(posts.every((p) => p.client_id === 'gpt-app' && p.client_secret === 'GPT-SECRET-VALUE')).toBe(true);
+    const st = (await request(app).get('/api/muse/state')).body;
+    expect(st.assistant).toMatchObject({ key: 'chatgpt', name: 'ChatGPT', answer: { points: 12345, tier: 'Gold' }, error: null });
+    expect(st.liveAuth.signedIn).toBe(false);
+    expect(JSON.stringify(st)).not.toContain(EX2);
+  });
+
+  test('Meta AI keeps Muse\'s app', async () => {
+    const app = boot(net().f);
+    const u = new URL((await request(app).post('/api/muse/assistant-signin').send({ assistant: 'meta-ai' })).body.url);
+    expect(u.searchParams.get('client_id')).toBe('muse-id');
+    expect(u.searchParams.get('login_hint')).toBe('demouser.conn');
+  });
+});

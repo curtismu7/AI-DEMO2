@@ -35,6 +35,27 @@ const learnedFrom = (as) => ({
  * Resolve Muse's configuration. Returns { configured: false } when the client secret is absent so the page can
  * show "Muse is not configured"; never throws and never includes the secret in anything but `idp.clientSecret`.
  */
+/**
+ * The assistants a customer can connect from ("find the airline in your assistant, click Connect"). ChatGPT and Claude come from
+ * MUSE_CONNECTOR_AGENTS (JSON, the hosted Muse's Secret: name, clientId, clientSecret, hosts) and sign in with their own PingOne app,
+ * so Protect and the PingOne screens name them. Meta AI has no app directory and uses Muse's app through the Airline Connector.
+ * A bad entry is dropped. Only key and name ever reach the page.
+ */
+function assistantsFrom(env) {
+  let list = [];
+  try { list = JSON.parse(env.MUSE_CONNECTOR_AGENTS || '[]'); } catch { list = []; }
+  const own = (Array.isArray(list) ? list : []).filter((a) => a && typeof a.clientId === 'string' && a.clientId && typeof a.clientSecret === 'string' && a.clientSecret)
+    .map((a) => { const name = String(a.name ?? 'Agent').slice(0, 40); return { key: name.toLowerCase().replace(/[^a-z0-9]+/g, '-'), name, clientId: a.clientId, clientSecret: a.clientSecret }; });
+  return [...own, { key: 'meta-ai', name: 'Meta AI', clientId: null, clientSecret: null }];
+}
+
+/** The config for one assistant's sign-in: the same lane and endpoints, with that assistant's PingOne app (Meta AI keeps Muse's). */
+function assistantConfig(cfg, key) {
+  const a = (cfg.assistants ?? []).find((x) => x.key === key);
+  if (!a) return null;
+  return { ...cfg, assistant: { key: a.key, name: a.name }, idp: { ...cfg.idp, ...(a.clientId ? { clientId: a.clientId, clientSecret: a.clientSecret } : {}) } };
+}
+
 function museConfig(lane = 'gateway', env = process.env) {
   const envId = configStore.getEffective('pingone_environment_id');
   const region = /^[a-z]{2,4}$/.test(configStore.getEffective('pingone_region') ?? '') ? configStore.getEffective('pingone_region') : 'com';
@@ -71,6 +92,7 @@ function museConfig(lane = 'gateway', env = process.env) {
     // A second PingOne app for "just a user": Sam signs in as himself, no agent, no consent, nothing exchanged. Public client with PKCE.
     userClientId: /^[0-9a-f-]{36}$/i.test(env.MUSE_USER_CLIENT_ID ?? '') ? env.MUSE_USER_CLIENT_ID : null,
     redirectUri: env.MUSE_REDIRECT_URI || DEFAULT_REDIRECT_URI,
+    assistants: assistantsFrom(env),
     idp: {
       clientId, clientSecret, loginHint: env.MUSE_LOGIN_HINT || 'demouser',
       actorScope: 'agent:invoke',
@@ -163,7 +185,7 @@ async function liveDiscovery(cfg, fetchImpl) {
 }
 
 /** Step 5: build the PingOne authorize URL. The `.nomfa` suffix on login_hint is what the DaVinci flow reads to skip MFA. */
-function startSignIn(cfg, { mfa = true } = {}) {
+function startSignIn(cfg, { mfa = true, connector = false } = {}) {
   const verifier = b64u(randomBytes(32));
   const state = b64u(randomBytes(16));
   const u = new URL(cfg.idp.authorizeEndpoint);
@@ -173,7 +195,8 @@ function startSignIn(cfg, { mfa = true } = {}) {
   u.search = new URLSearchParams({
     response_type: 'code', client_id: cfg.idp.clientId, redirect_uri: cfg.redirectUri, state,
     ...(resource ? { resource } : {}), prompt: 'login',
-    login_hint: mfa ? cfg.idp.loginHint : `${cfg.idp.loginHint}.nomfa`,
+    // '.conn' tells the flow this sign-in came through the Airline Connector (an assistant), so its screens name that assistant.
+    login_hint: `${cfg.idp.loginHint}${connector ? '.conn' : ''}${mfa ? '' : '.nomfa'}`,
     code_challenge: b64u(createHash('sha256').update(verifier).digest()), code_challenge_method: 'S256',
     scope: privilege ? 'openid' : `openid ${cfg.idp.gatewayScope}`,
   }).toString();
@@ -274,4 +297,4 @@ function answerFrom(steps) {
   try { const d = JSON.parse(r.body.result.content[0].text).data; return { points: d.points, tier: d.tier }; } catch { return null; }
 }
 
-module.exports = { museConfig, liveDiscovery, startSignIn, startUserSignIn, exchangeUserCode, exchangeCode, delegate, callGateway, answerFrom, claimsOf, DEFAULT_REDIRECT_URI };
+module.exports = { museConfig, assistantConfig, liveDiscovery, startSignIn, startUserSignIn, exchangeUserCode, exchangeCode, delegate, callGateway, answerFrom, claimsOf, DEFAULT_REDIRECT_URI };
