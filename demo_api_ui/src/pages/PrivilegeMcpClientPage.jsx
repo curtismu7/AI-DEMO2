@@ -245,6 +245,16 @@ function gatewayModeDetails(mode, mcpUrl) {
  */
 function JsonPane({ value, deep = false, emptyMessage, label = 'Output view' }) {
   const [view, setView] = useState('form');
+  const [copied, setCopied] = useState(false);
+  // Copies the raw JSON whichever view is showing, so a result can be pasted into a ticket or chat as-is.
+  const copy = async () => {
+    const text = typeof value === 'string' ? value : JSON.stringify(value, null, 2);
+    try {
+      await navigator.clipboard.writeText(text ?? '');
+      setCopied(true);
+      setTimeout(() => setCopied(false), 1500);
+    } catch { /* clipboard blocked: the JSON view still lets the user select the text */ }
+  };
   return (
     <>
       <div className="cur-viewtoggle" role="group" aria-label={label}>
@@ -263,6 +273,9 @@ function JsonPane({ value, deep = false, emptyMessage, label = 'Output view' }) 
           onClick={() => setView('json')}
         >
           JSON
+        </button>
+        <button type="button" onClick={copy} aria-label={`Copy ${label} as JSON`}>
+          {copied ? 'Copied' : 'Copy'}
         </button>
       </div>
       {view === 'form'
