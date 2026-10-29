@@ -1999,6 +1999,10 @@ app.use('/api/connector-sandbox', require('./routes/connectorSandbox'));
 // RFC 9728 — Protected Resource Metadata (public, no authentication required)
 // RFC 9728 metadata for the OBO MCP endpoint (public; must precede the generic handler below).
 app.get('/.well-known/oauth-protected-resource/api/obo/mcp', oboRoutes.metadataHandler);
+// Poppy discovery (Personal Agent Protocol): poppy.json + host-root resource metadata, Poppy host only.
+const poppyDiscovery = require('./routes/poppyDiscovery');
+app.use('/.well-known', poppyDiscovery.router);
+app.use('/.well-known/oauth-protected-resource', poppyDiscovery.protectedResourceOnPoppyHost);
 app.use('/.well-known/oauth-protected-resource', protectedResourceMetadataRoutes);
 app.use('/api/rfc9728', protectedResourceMetadataRoutes);
 
