@@ -75,6 +75,8 @@ const EXACT_BYPASSES = new Set([
   'GET /api/cimd/privilege/langchain-agent/client-metadata.json',
   'GET /api/cimd/privilege/demo-agent-service/client-metadata.json',
   'GET /api/cimd/privilege/privilege-mcp-client/client-metadata.json',
+  // The PingFederate AI Agent's CIMD document: PingFederate fetches it with no session during authorization.
+  'GET /api/pf-ai-agent/cimd/client-metadata.json',
 ]);
 
 // These are the two pre-existing demo identities used to administer and
