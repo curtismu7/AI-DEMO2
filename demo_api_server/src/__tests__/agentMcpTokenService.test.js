@@ -327,6 +327,9 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
       }));
       const finalClaims = JSON.parse(Buffer.from(result.token.split('.')[1], 'base64url').toString('utf8'));
       expect(finalClaims.act).toEqual({ sub: 'pf-mcp-actor', act: { sub: 'commerce-agent' } });
+      // The built-in AI agent did not act, so its readiness role is not claimed.
+      expect(result.tokenEvents.find((event) => event.id === 'two-ex-final-token').pfExchange.credentialRoles)
+        .toEqual(['standard-agent-exchanger', 'standard-mcp-exchanger', 'mcp-service-actor']);
     } finally {
       getRegistration.mockRestore();
       decrypt.mockRestore();
@@ -352,6 +355,12 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
     ]));
     expect(mockPerformTokenExchange).not.toHaveBeenCalled();
     expect(mockPerformTokenExchangeWithActor).not.toHaveBeenCalled();
+    // Readiness evidence: the endpoint both exchanges used and the four
+    // configured clients that filled the PF roles.
+    expect(result.tokenEvents.find((event) => event.id === 'two-ex-final-token').pfExchange).toEqual({
+      endpoint: 'https://pf.example.test/as/token.oauth2',
+      credentialRoles: ['standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor'],
+    });
   });
 
   it('uses Username as the subject when a PF user token has no sub', async () => {

@@ -3187,7 +3187,20 @@ async function _performTwoExchangeDelegation(
         audienceNarrowed: finalAudTarget, audMatches,
         audExpected: finalAudTarget, audActual: mcpTokenAud,
         scopeNarrowed: ex2Scopes.join(' '),
-        ...(ex2ExchangeRequest ? { exchangeRequest: ex2ExchangeRequest } : {}) }
+        ...(ex2ExchangeRequest ? { exchangeRequest: ex2ExchangeRequest } : {}),
+        // PingFederate only: the token endpoint both exchanges were sent to, and
+        // which configured PF client filled each readiness role. A role is named
+        // only when its own configured client was the one used (a registered
+        // agent acting as itself replaces the built-in actor).
+        ...(provider ? { pfExchange: {
+          endpoint: providerConfig.tokenEndpoint || null,
+          credentialRoles: [
+            exchange1Client === opts.providerConfig?.agentExchangeClientId && 'standard-agent-exchanger',
+            exchange2Client === opts.providerConfig?.mcpExchangeClientId && 'standard-mcp-exchanger',
+            aiAgentClientId === opts.providerConfig?.agentActorClientId && 'ai-agent-actor',
+            mcpExchangerClient === opts.providerConfig?.mcpActorClientId && 'mcp-service-actor',
+          ].filter(Boolean),
+        } } : {}) }
     ));
     // JWKS verify the final MCP token (result of Exchange #2)
     await pushJwksVerifyEvent(finalToken, tokenEvents, 'two-ex-final-token-verified', 'Final MCP Token (#2 result)');

@@ -125,6 +125,20 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     // The agent that presented the actor token on a workload run. The runner
     // requires it in the actor chain: a run recorded under another agent fails.
     if (evidence.exchangePath === 'actor-bound-standard-two-exchange') evidence.workloadAgentClientId = agentActor?.claims?.client_id || null;
+    // PingFederate: the exchange as the BFF reports making it, for the runner
+    // to compare with the profile's recorded issuer, endpoint and roles. The
+    // BFF only reaches Exchange #2 once its PF configuration resolved, so an
+    // endpoint on the event means the configuration was complete.
+    if (provider === 'pingfederate') {
+      evidence.pfExchange = {
+        issuer: finalToken.claims?.iss || null,
+        endpoint: finalToken.pfExchange?.endpoint || null,
+        credentialRoles: list(finalToken.pfExchange?.credentialRoles),
+        configurationComplete: Boolean(finalToken.pfExchange?.endpoint),
+        subjectTokenType: 'access_token',
+      };
+      if (authorization?.primaryTool) evidence.pfExchange.registeredToolResult = selectedTool === authorization.primaryTool ? 'pass' : 'fail';
+    }
   }
   // The resource server is defined by which server owns the tool. It is only
   // claimed when the tool that actually ran is the one the contract names.

@@ -1,11 +1,23 @@
 {
   "schemaVersion": 1,
   "purpose": "Secret-free PingFederate readiness contracts. An unresolved role blocks readiness until a committed provisioner and supported PF Admin API readback establish its exact settings.",
-  "baselineNote": "`baseline` and `accessTokenManagers` are an approved export of the local PingFederate's non-secret settings (2026-10-01), read through the Admin API. The audit compares live against them, so they catch drift from that state; they do not prove that state was correct. Only the audit reads them: `unresolved` still gates Demo Step execution and is unchanged. Roles with nothing behind them in that PingFederate (davinci-login, cimd, third-party-authorization-server, rar) carry the settings the demo declares, so they fail until provisioned.",
+  "baselineNote": "`baseline` and `accessTokenManagers` are an approved export of the local PingFederate's non-secret settings (2026-10-01), read through the Admin API. The audit compares live against them, so they catch drift from that state; they do not prove that state was correct. Only the audit reads them: `unresolved` still gates Demo Step execution, and a role is marked resolved only when `exchangeContract` records its readback. Roles with nothing behind them in that PingFederate (davinci-login, cimd, third-party-authorization-server, rar) carry the settings the demo declares, so they fail until provisioned.",
   "accessTokenManagers": {
     "aiDemoPfJwtAtm": { "issuer": "https://local.ping-devops.com:9031", "audience": "enduser.ping.demo" },
     "aiDemoPfMcpGatewayJwtAtm": { "issuer": "https://local.ping-devops.com:9031", "audience": "https://api.ping.demo:3036/mcp" },
     "aiDemoPfAgentGwJwtAtm": { "issuer": "https://local.ping-devops.com:9031", "audience": "https://agentgateway.ping.demo" }
+  },
+  "exchangeContract": {
+    "readback": "2026-10-29, local PingFederate. Issuer and token endpoint from /.well-known/openid-configuration, read from the host and from inside the readiness PF lane BFF (both report the same issuer). The four standard-exchange roles matched their baseline through the PF Admin API in the same day's readiness audit (pingfederate:profile:* all pass).",
+    "issuer": "https://local.ping-devops.com:9031",
+    "issuerSourceRef": "https://local.ping-devops.com:9031/.well-known/openid-configuration#issuer",
+    "tokenEndpoint": "https://pingfederate:9031/as/token.oauth2",
+    "tokenEndpointSourceRef": "PF_TOKEN_ENDPOINT, which readiness-bff-pingfederate inherits from demo-api-server (docker-compose.readiness.yml extends)",
+    "tokenEndpointAlias": {
+      "origin": "https://pingfederate:9031",
+      "aliasOf": "https://local.ping-devops.com:9031",
+      "evidence": "Inside Docker the lane BFF reaches PingFederate by its container name; https://pingfederate:9031/.well-known/openid-configuration reports issuer https://local.ping-devops.com:9031."
+    }
   },
   "roles": {
     "standard-agent-exchanger": {
@@ -14,7 +26,7 @@
       "configurationKeys": ["pf_standard_agent_exchange_client_id", "pf_standard_agent_exchange_token_endpoint_auth_method"],
       "expected": { "grantTypes": "undocumented", "defaultAccessTokenManagerRef": "undocumented", "restrictToDefaultAccessTokenManager": "undocumented" },
       "baseline": { "present": true, "grantTypes": ["CLIENT_CREDENTIALS", "TOKEN_EXCHANGE"], "defaultAccessTokenManagerRef": "aiDemoPfAgentGwJwtAtm", "restrictToDefaultAccessTokenManager": true, "tokenExchangeProcessorPolicyRef": "aiDemoStandardTePolicy" },
-      "unresolved": true,
+      "unresolved": false,
       "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
     },
     "standard-mcp-exchanger": {
@@ -23,7 +35,7 @@
       "configurationKeys": ["pf_standard_token_exchange_client_id", "pf_standard_token_exchange_token_endpoint_auth_method"],
       "expected": { "grantTypes": "undocumented", "tokenExchangeProcessorPolicyRef": "undocumented" },
       "baseline": { "present": true, "grantTypes": ["CLIENT_CREDENTIALS", "TOKEN_EXCHANGE"], "defaultAccessTokenManagerRef": "aiDemoPfMcpGatewayJwtAtm", "restrictToDefaultAccessTokenManager": true, "tokenExchangeProcessorPolicyRef": "aiDemoStandardTePolicy" },
-      "unresolved": true,
+      "unresolved": false,
       "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
     },
     "ai-agent-actor": {
@@ -32,7 +44,7 @@
       "configurationKeys": ["pf_ai_agent_actor_client_id", "pf_ai_agent_actor_token_endpoint_auth_method"],
       "expected": { "grantTypes": "undocumented" },
       "baseline": { "present": true, "grantTypes": ["CLIENT_CREDENTIALS", "TOKEN_EXCHANGE"], "defaultAccessTokenManagerRef": "aiDemoPfJwtAtm" },
-      "unresolved": true,
+      "unresolved": false,
       "sourceRef": "demo_api_server/services/pfStandardTokenExchangeService.js"
     },
     "mcp-service-actor": {
@@ -41,7 +53,7 @@
       "configurationKeys": ["pf_mcp_service_actor_client_id", "pf_mcp_service_actor_token_endpoint_auth_method"],
       "expected": { "grantTypes": ["client_credentials"], "processorPolicyRef": "undocumented" },
       "baseline": { "present": true, "grantTypes": ["CLIENT_CREDENTIALS", "TOKEN_EXCHANGE"], "defaultAccessTokenManagerRef": "aiDemoPfJwtAtm", "tokenExchangeProcessorPolicyRef": "aiDemoPfStep9TePolicy" },
-      "unresolved": true,
+      "unresolved": false,
       "sourceRef": "demo_api_server/services/agentMcpTokenService.js"
     },
     "a2a-specialist": {
