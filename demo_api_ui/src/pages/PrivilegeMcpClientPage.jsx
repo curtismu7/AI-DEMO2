@@ -637,9 +637,8 @@ export default function PrivilegeMcpClientPage() {
   // approval. Cleared by any non-held result (the retry) or a new call.
   const [hold, setHold] = useState(null);
   const [retrying, setRetrying] = useState(false);
-  // The simulated approver popup, and the instruction it was last used on (so a retry that is still held can say why).
+  // The mock approver popup, for people with no Privilege access.
   const [showApprover, setShowApprover] = useState(false);
-  const [approverTried, setApproverTried] = useState(null);
   const retryHeldCall = useCallback(async () => {
     if (!hold || retrying) return;
     setRetrying(true);
@@ -650,11 +649,6 @@ export default function PrivilegeMcpClientPage() {
     }
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [hold, retrying]);
-  const approveFromPopup = useCallback(async () => {
-    setShowApprover(false);
-    setApproverTried(hold?.instructionId || true);
-    await retryHeldCall();
-  }, [hold, retryHeldCall]);
   // Scope picked in the left rail — echoed/highlighted in the right SCOPES table.
   // With a long granted-scope list, clicking a pill on the left jumps to its row.
   const [selectedScope, setSelectedScope] = useState(null);
@@ -1420,6 +1414,18 @@ export default function PrivilegeMcpClientPage() {
     if (reveal) setTerminalTab('results');
   }, []);
 
+  // The no-Privilege-access path: nothing is approved anywhere, the call is not re-sent, and the sample result says so.
+  const mockApprove = useCallback(() => {
+    if (!hold) return;
+    setShowApprover(false);
+    setHold(null);
+    recordResult(hold.tool, JSON.stringify({
+      simulated: true,
+      note: 'SIMULATED: no approval was recorded in Privilege and the gateway was not called again. This result is a sample.',
+      result: { content: [{ type: 'text', text: `Search results from gateway-events: 268 hits (sample, ${hold.tool})` }] },
+    }, null, 2), true, { reveal: false });
+  }, [hold, recordResult]);
+
   const executeToolCall = async (name, argsStr) => {
     let out;
     let ok = true;
@@ -1597,11 +1603,11 @@ export default function PrivilegeMcpClientPage() {
           </div>
         </div>
       </DraggableModal>
-      {/* Simulated approver: shows what a human approver sees in Privilege. It cannot lift the real hold; retrying proves that. */}
+      {/* Mock approver: for a presenter with no Privilege access. Approves nothing for real; the result that follows is a labelled sample. */}
       <DraggableModal
         isOpen={showApprover && Boolean(hold)}
         onClose={() => setShowApprover(false)}
-        title="Approver — simulated"
+        title="Mock approver — simulated"
         footer={null}
         defaultWidth={460}
         defaultHeight={340}
@@ -1610,13 +1616,12 @@ export default function PrivilegeMcpClientPage() {
         <div className="cur-ide cur-dm-scope" data-cur-theme={pageTheme}>
           <div className="cur-modal cur-modal--in-dm cur-approver">
             <p className="cur-denial-note">
-              A policy needs a human to approve <code>{hold?.tool}</code> before the gateway lets it through. In Privilege this
-              request is under Access Request Approvals → HITL Requests.
+              This stands in for the approver in Privilege. Nothing is approved for real and the gateway is not called again:
+              you get a sample result, marked as simulated.
             </p>
             <pre className="cur-trace-json cur-approver__args">{hold?.args}</pre>
-            {hold?.instructionId && <p className="cur-hitl-hold__instruction">Instruction <code>{hold.instructionId}</code></p>}
             <div className="cur-btn-row">
-              <button className="cur-btn cur-btn--primary" onClick={approveFromPopup}>Approve and retry</button>
+              <button className="cur-btn cur-btn--primary" onClick={mockApprove}>Approve (mock)</button>
               <button className="cur-btn" onClick={() => setShowApprover(false)}>Cancel</button>
             </div>
           </div>
@@ -2436,37 +2441,43 @@ export default function PrivilegeMcpClientPage() {
                           <span className="cur-hitl-hold__title">Waiting for human approval</span>
                         </div>
                         <p className="cur-hitl-hold__body">
-                          The gateway held <code>{hold.tool}</code> — policy requires a human decision before this tool runs.
-                          Approve it here (simulated), or for real in the Privilege console under{' '}
-                          <strong>Access Request Approvals → HITL Requests</strong>, then retry.
+                          <strong>Go to Privilege to approve this.</strong> The gateway held <code>{hold.tool}</code> until a person decides.
                         </p>
+                        <ol className="cur-hitl-hold__steps">
+                          <li>Open the Privilege console and go to <strong>Access Request Approvals → HITL Requests</strong>.</li>
+                          <li>Approve the open request for <code>{hold.tool}</code>.</li>
+                          <li>Come back here and press <strong>Retry after approval</strong>.</li>
+                        </ol>
                         {hold.instructionId && (
                           <p className="cur-hitl-hold__instruction">
                             Instruction <code>{hold.instructionId}</code>
                           </p>
                         )}
-                        {approverTried && (
-                          <p className="cur-hitl-hold__body">
-                            The popup is a stand-in: Privilege still shows this request as pending. Approve the real one in the
-                            Privilege console, then press Retry.
-                          </p>
-                        )}
-                        <button type="button" className="cur-hitl-hold__retry" onClick={() => setShowApprover(true)}>Review approval…</button>{' '}
                         <button type="button" className="cur-hitl-hold__retry" onClick={retryHeldCall} disabled={retrying}>
                           {retrying ? 'Retrying…' : 'Retry after approval'}
-                        </button>
+                        </button>{' '}
+                        <button type="button" className="cur-hitl-hold__retry cur-hitl-hold__retry--quiet" onClick={() => setShowApprover(true)}>No Privilege access? Mock the approval…</button>
                       </div>
                     )}
-                    {toolResults.map((r, i) => (
-                      <div key={`${r.ts}-${i}`} className="cur-result-item">
-                        <div className="cur-result-item-head">
-                          <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
-                          <span className="cur-result-item-tool">{r.tool}</span>
-                          <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
+                    {toolResults.map((r, i) => {
+                      const item = (
+                        <div key={`${r.ts}-${i}`} className="cur-result-item">
+                          <div className="cur-result-item-head">
+                            <span className={`cur-result-item-badge ${r.ok ? 'cur-result-item-badge--ok' : 'cur-result-item-badge--err'}`}>{r.ok ? '✓' : '❌'}</span>
+                            <span className="cur-result-item-tool">{r.tool}</span>
+                            <span className="cur-result-item-ts">{r.ts.slice(11, 19)}</span>
+                          </div>
+                          <JsonPane value={r.result} deep label={`${r.tool} result view`} />
                         </div>
-                        <JsonPane value={r.result} deep label={`${r.tool} result view`} />
-                      </div>
-                    ))}
+                      );
+                      // The card above already says the call is held; the raw hold JSON stays one click away.
+                      return hold ? (
+                        <details key={`${r.ts}-${i}`} className="cur-hitl-raw">
+                          <summary>Raw response</summary>
+                          {item}
+                        </details>
+                      ) : item;
+                    })}
                   </>
                 )}
               />
