@@ -1,20 +1,12 @@
 import { useEffect, useMemo, useState } from "react";
 import DraggableModal from "../components/DraggableModal";
-import FlowDiagram from "../components/FlowDiagram";
 import ProtocolTrace from "../components/ProtocolTrace";
 import apiClient from "../services/apiClient";
 import { notifyError, notifySuccess } from "../utils/appToast";
-import { sequenceSource as pfSequenceSource } from "../utils/pfTraceSequence";
+import { FeatureStatus, TraceSequenceDiagram } from "../components/pfAiAgent/shared";
+import PfDcrSection from "../components/pfAiAgent/PfDcrSection";
 import "./PingFederateAiAgentPage.css";
 import PageHeader from '../components/common/PageHeader';
-
-function FeatureStatus({ ready }) {
-  return (
-    <span className={`pf-ai-agent__status ${ready ? "is-ready" : "is-off"}`}>
-      <span aria-hidden="true" />{ready ? "Ready" : "Not configured"}
-    </span>
-  );
-}
 
 function statusLabel(provider) {
   if (provider === "pingone") return "PingOne";
@@ -258,18 +250,6 @@ function cibaOutcome(state) {
   }
 }
 
-// The shape of one captured flow, as a walkable sequence diagram above the
-// raw traffic. Empty trace -> no diagram (ProtocolTrace stays the evidence).
-function TraceSequenceDiagram({ steps, selfCall, testId }) {
-  const source = useMemo(() => pfSequenceSource(steps, { selfCall }), [steps, selfCall]);
-  if (!source) return null;
-  return (
-    <div className="pf-ai-agent__sequence" data-testid={testId}>
-      <FlowDiagram source={source} label="Request sequence" />
-    </div>
-  );
-}
-
 export default function PingFederateAiAgentPage({ user }) {
   const [status, setStatus] = useState(null);
   const [loadingStatus, setLoadingStatus] = useState(true);
@@ -346,7 +326,7 @@ export default function PingFederateAiAgentPage({ user }) {
   const pfSignedIn = Boolean(status?.pfSignedIn);
   const exchangeProvider = pfSignedIn && provider !== "pingfederate" ? "pingfederate" : provider;
   const canExchange = (supportedSession || pfSignedIn) && Boolean(status?.features?.crossDomain) && !exchangeBusy;
-  const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false, cibaWebApprover: false };
+  const features = status?.features || { cimd: false, crossDomain: false, rar: false, rarDpop: false, ciba: false, cibaMock: false, cibaWebApprover: false, dcr: false };
   const rarResult = status?.rarResult || null;
   const cimdResult = status?.cimdResult || null;
   const rarUserKeyValue = rarUserKey.trim();
@@ -459,6 +439,7 @@ export default function PingFederateAiAgentPage({ user }) {
         <div><span>Third-party exchange</span><FeatureStatus ready={features.crossDomain} /></div>
         <div><span>Rich authorization</span><FeatureStatus ready={features.rar} /></div>
         <div><span>Human approval (CIBA)</span><FeatureStatus ready={features.ciba} /></div>
+        <div><span>Client registration (DCR)</span><FeatureStatus ready={features.dcr} /></div>
         {status?.nativeIdJagPath && (
           <a href={status.nativeIdJagPath}>Open the existing PF ID-JAG demo</a>
         )}
@@ -719,6 +700,8 @@ export default function PingFederateAiAgentPage({ user }) {
           )}
         </div>
       </section>
+
+      <PfDcrSection ready={features.dcr} />
 
       <DraggableModal
         isOpen={phoneOpen}

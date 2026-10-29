@@ -17,6 +17,7 @@ const { beginRar, completeRar, userLimits } = require('../services/pfAiAgentRarS
 const { startCiba, pollCiba, mockDecideCiba, decideCiba } = require('../services/pfAiAgentCibaService');
 const cibaWebApprover = require('../services/pfAiAgentCibaWebApproverService');
 const pfTokenExchangeDemo = require('../services/pfTokenExchangeDemoService');
+const pfDcr = require('../services/pfAiAgentDcrService');
 
 function sessionProvider(req) {
   return String(req.session?.oauthProvider || req.session?.user?.oauthProvider || '').toLowerCase();
@@ -189,6 +190,74 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
    * @step 2
    */
   router.post('/token-exchange/mcp', requireApplicationSession, exchangeReply(pfTokenExchangeDemo.mcpHop));
+
+  const dcrReply = (run) => async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(await run(req, { store, fetchImpl }));
+    } catch (error) {
+      const code = errorCode(error, 'pf_ai_dcr_failed');
+      return res.status(error.httpStatus || 502).json({
+        error: code,
+        // Our own sentence plus PingFederate's OAuth error code; never a secret or a token.
+        ...(String(code).startsWith('PF_AI_DCR_') ? { detail: error.message } : {}),
+      });
+    }
+  };
+
+  /**
+   * The client allowed to register others asks PingFederate for an initial access token
+   * (client credentials, scope dcr:register). PingFederate refuses any registration without one.
+   *
+   * @flow dcr-pf
+   * @name Dynamic Client Registration (PingFederate)
+   * @idp pingfederate
+   * @rfc https://datatracker.ietf.org/doc/html/rfc7591 RFC 7591
+   * @why Dynamic Client Registration (RFC 7591) lets software enrol itself as an OAuth client at run time instead of an administrator creating it by hand; RFC 7592 lets that client later read, update or delete its own registration with the registration access token it gets back. PingFederate requires an initial access token, so registration is not open to anyone who can reach the endpoint, and limits what a self-registered client may ask for.
+   * @example A visitor badge desk: a host signs you in, you get a badge with limited access, and you hand it back on the way out.
+   * @ai An agent platform can mint one OAuth client per agent instance on demand, with narrow scopes, and delete it when the agent is retired, so no long-lived shared client is left behind.
+   * @title Get an initial access token
+   * @actor client-app
+   * @to pingfederate
+   * @step 1
+   */
+  router.post('/dcr/initial-token', requireApplicationSession, dcrReply(pfDcr.initialToken));
+
+  /**
+   * Register a client: once with no initial access token (refused), then with it. PingFederate
+   * answers with the new client_id, its secret and a registration access token.
+   *
+   * @flow dcr-pf
+   * @title Register a client
+   * @actor client-app
+   * @to pingfederate
+   * @step 2
+   */
+  router.post('/dcr/register', requireApplicationSession, dcrReply(pfDcr.register));
+
+  /**
+   * Use the new client: a token for the scope it registered for, then a scope PingFederate's
+   * DCR settings do not allow (refused).
+   *
+   * @flow dcr-pf
+   * @title Get a token as the new client
+   * @actor client-app
+   * @to pingfederate
+   * @step 3
+   */
+  router.post('/dcr/token', requireApplicationSession, dcrReply(pfDcr.useClient));
+
+  /**
+   * The client deletes its own registration with its registration access token (RFC 7592);
+   * a token request with its credentials then fails.
+   *
+   * @flow dcr-pf
+   * @title Delete the client
+   * @actor client-app
+   * @to pingfederate
+   * @step 4
+   */
+  router.post('/dcr/delete', requireApplicationSession, dcrReply(pfDcr.remove));
 
   // Called by the PingFederate banking_transaction processor after sign-in, not
   // by a browser: it has no session, so it presents a shared credential.

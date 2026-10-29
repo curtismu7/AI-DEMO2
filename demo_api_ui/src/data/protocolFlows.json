@@ -356,6 +356,87 @@
       "ai": "Every agent hop is a fresh exchange, so the token that reaches a tool server is scoped to that one call, and the nested act chain is a record of every delegation."
     }
   },
+  "dcr-pf": {
+    "id": "dcr-pf",
+    "name": "Dynamic Client Registration (PingFederate)",
+    "description": "Protocol flow: dcr-pf",
+    "actors": [
+      "client-app",
+      "pingfederate"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "pingfederate",
+        "action": "POST /api/pf-ai-agent/dcr/initial-token",
+        "label": "POST /api/pf-ai-agent/dcr/initial-token",
+        "method": "POST",
+        "endpoint": "/api/pf-ai-agent/dcr/initial-token",
+        "step": 1,
+        "title": "Get an initial access token",
+        "description": "The client allowed to register others asks PingFederate for an initial access token (client credentials, scope dcr:register). PingFederate refuses any registration without one.",
+        "body": null,
+        "expected": {}
+      },
+      {
+        "id": "step-2",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "pingfederate",
+        "action": "POST /api/pf-ai-agent/dcr/register",
+        "label": "POST /api/pf-ai-agent/dcr/register",
+        "method": "POST",
+        "endpoint": "/api/pf-ai-agent/dcr/register",
+        "step": 2,
+        "title": "Register a client",
+        "description": "Register a client: once with no initial access token (refused), then with it. PingFederate answers with the new client_id, its secret and a registration access token.",
+        "body": null,
+        "expected": {}
+      },
+      {
+        "id": "step-3",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "pingfederate",
+        "action": "POST /api/pf-ai-agent/dcr/token",
+        "label": "POST /api/pf-ai-agent/dcr/token",
+        "method": "POST",
+        "endpoint": "/api/pf-ai-agent/dcr/token",
+        "step": 3,
+        "title": "Get a token as the new client",
+        "description": "Use the new client: a token for the scope it registered for, then a scope PingFederate's DCR settings do not allow (refused).",
+        "body": null,
+        "expected": {}
+      },
+      {
+        "id": "step-4",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "pingfederate",
+        "action": "POST /api/pf-ai-agent/dcr/delete",
+        "label": "POST /api/pf-ai-agent/dcr/delete",
+        "method": "POST",
+        "endpoint": "/api/pf-ai-agent/dcr/delete",
+        "step": 4,
+        "title": "Delete the client",
+        "description": "The client deletes its own registration with its registration access token (RFC 7592); a token request with its credentials then fails.",
+        "body": null,
+        "expected": {}
+      }
+    ],
+    "branches": [],
+    "idp": "pingfederate",
+    "spec": {
+      "url": "https://datatracker.ietf.org/doc/html/rfc7591",
+      "label": "RFC 7591",
+      "title": "Dynamic Client Registration (PingFederate)",
+      "why": "Dynamic Client Registration (RFC 7591) lets software enrol itself as an OAuth client at run time instead of an administrator creating it by hand; RFC 7592 lets that client later read, update or delete its own registration with the registration access token it gets back. PingFederate requires an initial access token, so registration is not open to anyone who can reach the endpoint, and limits what a self-registered client may ask for.",
+      "example": "A visitor badge desk: a host signs you in, you get a badge with limited access, and you hand it back on the way out.",
+      "ai": "An agent platform can mint one OAuth client per agent instance on demand, with narrow scopes, and delete it when the agent is retired, so no long-lived shared client is left behind."
+    }
+  },
   "ciba-hitl-pf": {
     "id": "ciba-hitl-pf",
     "name": "CIBA / HITL (PingFederate)",
