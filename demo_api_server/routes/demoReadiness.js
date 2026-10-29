@@ -63,7 +63,12 @@ function createDemoReadinessRouter({ store = defaultStore, authenticateToken: in
     try {
       const assertion = verifiedAdminAssertion(req.user);
       if (!assertion) return res.status(403).json({ error: 'admin_identity_required', message: 'A verified administrator identity is required.' });
-      return res.status(202).json(store.start({ subject: assertion.subject }));
+      // An empty body (Admin sidebar Reset Demo) runs both targets; the CLI may name one.
+      const body = req.body && typeof req.body === 'object' ? req.body : {};
+      if (Object.keys(body).some((key) => key !== 'targets')) {
+        return res.status(400).json({ error: 'invalid_start_body', message: 'Starting a job accepts only targets.' });
+      }
+      return res.status(202).json(store.start({ subject: assertion.subject, ...(body.targets === undefined ? {} : { targets: body.targets }) }));
     } catch (error) {
       return sendJobError(res, error);
     }

@@ -124,6 +124,28 @@ describe('admin demo readiness job routes', () => {
     expect(verifiedAdminAssertion({ clientId: 'app-1', scopes: [], role: 'admin' })).toBeNull();
   });
 
+  test('a start body may name one target, which the runner receives', async () => {
+    const { app, runner, previewReady } = fixture();
+    await request(app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer admin-a')
+      .send({ targets: ['local'] }).expect(202);
+    await previewReady.promise;
+    expect(runner.mock.calls[0][0].targets).toEqual(['local']);
+  });
+
+  test.each([
+    [{ targets: [] }, 'invalid_targets'],
+    [{ targets: ['local', 'local'] }, 'invalid_targets'],
+    [{ targets: ['prod'] }, 'invalid_targets'],
+    [{ targets: 'local' }, 'invalid_targets'],
+    [{ targets: ['local'], digest: 'x' }, 'invalid_start_body'],
+  ])('rejects start body %j', async (body, error) => {
+    const { app, runner } = fixture();
+    const response = await request(app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer admin-a').send(body);
+    expect(response.status).toBe(400);
+    expect(response.body.error).toBe(error);
+    expect(runner).not.toHaveBeenCalled();
+  });
+
   test('creates an in-process job with the same runner, streams sanitized progress, and does not reset', async () => {
     jest.spyOn(childProcess, 'spawn');
     jest.spyOn(childProcess, 'exec');

@@ -78,20 +78,32 @@ test('the run gives up after the 16-minute deadline', async () => {
   );
 });
 
-test('setting only one BFF variable is an error, and the BFF lane refuses --target', async () => {
+test('setting only one BFF variable is an error', async () => {
   const errors = [];
   const partial = await runCli([], { env: { DEMO_READINESS_BFF_URL: BASE }, stdout: { write: () => {} }, stderr: { write: (v) => errors.push(v) } });
   assert.equal(partial, 2);
   assert.match(errors.join(''), /Set both DEMO_READINESS_BFF_URL and DEMO_READINESS_BFF_ADMIN_TOKEN/);
+});
 
-  const scoped = [];
-  const single = await runCli(['--target', 'local'], {
+test('the BFF lane sends --target to the job, and one target stays diagnostic', async () => {
+  const bodies = [];
+  const responses = [
+    { status: 202, body: { jobId: 'j6', status: 'running' } },
+    { body: { jobId: 'j6', status: 'not-ready', report: { ready: false, status: 'not-ready', label: 'DIAGNOSTIC — LOCAL ONLY', checks: [] } } },
+  ];
+  const fetchImpl = async (_url, init = {}) => {
+    if (init.body) bodies.push(JSON.parse(init.body));
+    const next = responses.shift();
+    return { ok: (next.status ?? 200) < 400, status: next.status ?? 200, json: async () => next.body };
+  };
+  const code = await runCli(['--target', 'local', '--json'], {
     env: { DEMO_READINESS_BFF_URL: BASE, DEMO_READINESS_BFF_ADMIN_TOKEN: TOKEN },
+    fetchImpl,
     stdout: { write: () => {} },
-    stderr: { write: (v) => scoped.push(v) },
+    stderr: { write: () => {} },
   });
-  assert.equal(single, 2);
-  assert.match(scoped.join(''), /runs both targets/);
+  assert.deepEqual(bodies, [{ targets: ['local'] }]);
+  assert.equal(code, 1);
 });
 
 test('runCli with the BFF lane prints the report and exits 0 only for full READY', async () => {
