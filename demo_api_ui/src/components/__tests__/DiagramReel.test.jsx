@@ -79,3 +79,29 @@ describe("DiagramReel", () => {
     expect(container.firstChild).toBeNull();
   });
 });
+
+describe("DiagramReel details: JSON colour and font size", () => {
+  const jsonNodes = [{ id: "a", label: "A" }, { id: "b", label: "B" }];
+  const nodeDetail = { title: "T", lines: [{ who: "Token", code: 'Header line\n{\n  "iss": "https://x",\n  "exp": 3600,\n  "ok": true\n}' }] };
+  const stepper = { step: -1, goTo: vi.fn() };
+  const steps = buildReelSteps({ edges: [["a", "b", "x"]], nodes: jsonNodes });
+
+  it("colours JSON keys, strings, numbers and literals without changing the text", () => {
+    const { container } = render(<DiagramReel steps={steps} stepper={stepper} nodeDetail={nodeDetail} />);
+    expect(container.querySelector(".dreel-json-key").textContent).toBe('"iss"');
+    expect(container.querySelector(".dreel-json-str").textContent).toBe('"https://x"');
+    expect(container.querySelector(".dreel-json-num").textContent).toBe("3600");
+    expect(container.querySelector(".dreel-json-lit").textContent).toBe("true");
+    expect(container.querySelector(".dreel-code").textContent).toBe(nodeDetail.lines[0].code);
+  });
+
+  it("changes the details font size from the A-/A/A+ buttons", () => {
+    const { container } = render(<DiagramReel steps={steps} stepper={stepper} nodeDetail={nodeDetail} />);
+    const detail = container.querySelector(".dreel-detail");
+    expect(detail.dataset.fontSize).toBe("medium");
+    fireEvent.click(screen.getByLabelText("Increase details font size"));
+    expect(detail.dataset.fontSize).toBe("large");
+    fireEvent.click(screen.getByLabelText("Decrease details font size"));
+    expect(detail.dataset.fontSize).toBe("small");
+  });
+});
