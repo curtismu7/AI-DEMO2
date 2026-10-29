@@ -6,6 +6,9 @@ import { notifyError, notifySuccess } from "../utils/appToast";
 import { FeatureStatus, TraceSequenceDiagram } from "../components/pfAiAgent/shared";
 import PfDcrSection from "../components/pfAiAgent/PfDcrSection";
 import PfCimdTester from "../components/pfAiAgent/PfCimdTester";
+import PfPiFlowSection from "../components/pfAiAgent/PfPiFlowSection";
+import PfDpopSection from "../components/pfAiAgent/PfDpopSection";
+import PfTokenExchangeSection from "../components/pfAiAgent/PfTokenExchangeSection";
 import "./PingFederateAiAgentPage.css";
 import PageHeader from '../components/common/PageHeader';
 
@@ -705,6 +708,12 @@ export default function PingFederateAiAgentPage({ user }) {
       </section>
 
       <PfDcrSection ready={features.dcr} />
+
+      <PfTokenExchangeSection provider={provider} />
+
+      <PfDpopSection ready={features.rarDpop} result={rarResult} />
+
+      <PfPiFlowSection />
 
       <DraggableModal
         isOpen={phoneOpen}

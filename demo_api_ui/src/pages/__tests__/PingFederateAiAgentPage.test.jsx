@@ -69,7 +69,8 @@ describe("PingFederate AI Agent page", () => {
     it("offers no DPoP option unless a DPoP client is configured", async () => {
       render(<PingFederateAiAgentPage user={{ username: "demouser" }} />);
       await screen.findByRole("button", { name: /Run allowed RAR request/i });
-      expect(screen.queryByLabelText(/DPoP/i)).not.toBeInTheDocument();
+      // The RAR form's DPoP box; the separate DPoP section is labelled by its heading.
+      expect(screen.queryByLabelText(/Bind the access token .* DPoP/i)).not.toBeInTheDocument();
       rarForms().forEach((form) => expect(form.querySelector('[name="dpop"]')).toBeNull());
     });
 

@@ -437,6 +437,42 @@
       "ai": "An agent platform can mint one OAuth client per agent instance on demand, with narrow scopes, and delete it when the agent is retired, so no long-lived shared client is left behind."
     }
   },
+  "piflow-pf": {
+    "id": "piflow-pf",
+    "name": "Authentication API (pi.flow, PingFederate)",
+    "description": "Protocol flow: piflow-pf",
+    "actors": [
+      "client-app",
+      "pingfederate"
+    ],
+    "steps": [
+      {
+        "id": "step-1",
+        "actor": "client-app",
+        "fromActor": "client-app",
+        "toActor": "pingfederate",
+        "action": "POST /api/pf-ai-agent/piflow/open",
+        "label": "POST /api/pf-ai-agent/piflow/open",
+        "method": "POST",
+        "endpoint": "/api/pf-ai-agent/piflow/open",
+        "step": 1,
+        "title": "Open a pi.flow and read it back",
+        "description": "Open a PingFederate Authentication API flow: the same authorization request a browser would make, with response_mode=pi.flow, comes back as JSON (status and the actions the client may take) rather than a login page. Then read the flow back from /pf-ws/authn/flows/{id}. No credential is sent.",
+        "body": null,
+        "expected": {}
+      }
+    ],
+    "branches": [],
+    "idp": "pingfederate",
+    "spec": {
+      "url": "https://docs.pingidentity.com/pingfederate/latest/developers_reference_guide/pf_authn_api.html",
+      "label": "PingFederate Authentication API",
+      "title": "Authentication API (pi.flow, PingFederate)",
+      "why": "A browser redirect to a hosted login page does not suit a native app, a CLI or an agent. With response_mode=pi.flow PingFederate returns the sign-in as a JSON state machine: each response names its status (for example USERNAME_PASSWORD_REQUIRED) and the actions the client may post next, and the authorization code arrives in the final response. The app renders every screen itself; PingFederate still runs the policy.",
+      "example": "A self-checkout till: the shop's rules decide every step, but you press the buttons on the till instead of queuing for a cashier.",
+      "ai": "An agent or a native assistant can sign a person in without opening a browser window, and every step is an API call it can log."
+    }
+  },
   "ciba-hitl-pf": {
     "id": "ciba-hitl-pf",
     "name": "CIBA / HITL (PingFederate)",

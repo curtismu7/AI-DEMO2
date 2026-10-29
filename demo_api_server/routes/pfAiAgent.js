@@ -19,6 +19,7 @@ const cibaWebApprover = require('../services/pfAiAgentCibaWebApproverService');
 const pfTokenExchangeDemo = require('../services/pfTokenExchangeDemoService');
 const pfDcr = require('../services/pfAiAgentDcrService');
 const cimdTester = require('../services/pfAiAgentCimdTesterService');
+const pfPiFlow = require('../services/pfAiAgentPiFlowService');
 
 function sessionProvider(req) {
   return String(req.session?.oauthProvider || req.session?.user?.oauthProvider || '').toLowerCase();
@@ -230,7 +231,7 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       return res.status(error.httpStatus || 502).json({
         error: code,
         // Our own sentence plus PingFederate's OAuth error code; never a secret or a token.
-        ...(String(code).startsWith('PF_AI_DCR_') ? { detail: error.message } : {}),
+        ...(/^PF_AI_(DCR|PIFLOW)_/.test(String(code)) ? { detail: error.message } : {}),
       });
     }
   };
@@ -288,6 +289,25 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
    * @step 4
    */
   router.post('/dcr/delete', requireApplicationSession, dcrReply(pfDcr.remove));
+
+  /**
+   * Open a PingFederate Authentication API flow: the same authorization request a browser would make, with
+   * response_mode=pi.flow, comes back as JSON (status and the actions the client may take) rather than a login
+   * page. Then read the flow back from /pf-ws/authn/flows/{id}. No credential is sent.
+   *
+   * @flow piflow-pf
+   * @name Authentication API (pi.flow, PingFederate)
+   * @idp pingfederate
+   * @rfc https://docs.pingidentity.com/pingfederate/latest/developers_reference_guide/pf_authn_api.html PingFederate Authentication API
+   * @why A browser redirect to a hosted login page does not suit a native app, a CLI or an agent. With response_mode=pi.flow PingFederate returns the sign-in as a JSON state machine: each response names its status (for example USERNAME_PASSWORD_REQUIRED) and the actions the client may post next, and the authorization code arrives in the final response. The app renders every screen itself; PingFederate still runs the policy.
+   * @example A self-checkout till: the shop's rules decide every step, but you press the buttons on the till instead of queuing for a cashier.
+   * @ai An agent or a native assistant can sign a person in without opening a browser window, and every step is an API call it can log.
+   * @title Open a pi.flow and read it back
+   * @actor client-app
+   * @to pingfederate
+   * @step 1
+   */
+  router.post('/piflow/open', requireApplicationSession, dcrReply(pfPiFlow.openFlow));
 
   // Called by the PingFederate banking_transaction processor after sign-in, not
   // by a browser: it has no session, so it presents a shared credential.
