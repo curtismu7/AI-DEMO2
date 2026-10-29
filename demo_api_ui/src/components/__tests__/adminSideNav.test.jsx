@@ -327,7 +327,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
     for (const term of ["AI feature comparison", "ID-JAG", "third-party token exchange", "PAR", "RAR"]) {
       fireEvent.change(input, { target: { value: term } });
-      expect(screen.getByRole("link", { name: "CIMD, Token Exchange, and RAR" })).toHaveAttribute(
+      expect(screen.getByRole("link", { name: "PingFederate AI Agent: ID-JAG, CIMD, DCR, RAR, CIBA, DPoP, pi.flow" })).toHaveAttribute(
         "href",
         "/pingfederate-ai-agent",
       );

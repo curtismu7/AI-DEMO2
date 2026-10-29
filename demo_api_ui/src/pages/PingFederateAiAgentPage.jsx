@@ -409,7 +409,7 @@ export default function PingFederateAiAgentPage({ user }) {
 
   return (
     <main className="pf-ai-agent" data-testid="pingfederate-ai-agent-page">
-      <PageHeader className="pf-ai-agent__hero" eyebrow="PingFederate · AI agent authorization" title="PingFederate AI Agent" summary={<>Exercise PF client metadata, third-party token exchange, and rich authorization requests.
+      <PageHeader className="pf-ai-agent__hero" eyebrow="PingFederate · AI agent authorization" title="PingFederate AI Agent" summary={<>ID-JAG, CIMD, dynamic client registration, rich authorization, CIBA, DPoP, token exchange and the Authentication API, each run against PingFederate.
             Each request stays on the PingFederate path.</>}
         actions={<>        <aside className="pf-ai-agent__session" aria-live="polite">
           <span>Current session</span>
@@ -440,10 +440,11 @@ export default function PingFederateAiAgentPage({ user }) {
 
       <section className="pf-ai-agent__overview" aria-label="PF feature readiness">
         <div><span>Client metadata</span><FeatureStatus ready={features.cimd} /></div>
-        <div><span>Third-party exchange</span><FeatureStatus ready={features.crossDomain} /></div>
+        <div><span>ID-JAG (third-party exchange)</span><FeatureStatus ready={features.crossDomain} /></div>
         <div><span>Rich authorization</span><FeatureStatus ready={features.rar} /></div>
         <div><span>Human approval (CIBA)</span><FeatureStatus ready={features.ciba} /></div>
         <div><span>Client registration (DCR)</span><FeatureStatus ready={features.dcr} /></div>
+        <div><span>DPoP</span><FeatureStatus ready={features.rarDpop} /></div>
         {status?.nativeIdJagPath && (
           <a href={status.nativeIdJagPath}>Open the existing PF ID-JAG demo</a>
         )}
@@ -483,10 +484,10 @@ export default function PingFederateAiAgentPage({ user }) {
 
       <PfCimdTester ready={features.cimd} />
 
-      <section className="pf-ai-agent__flow pf-ai-agent__flow--exchange" aria-labelledby="pf-ai-exchange-title">
+      <section className="pf-ai-agent__flow pf-ai-agent__flow--exchange" aria-labelledby="pf-ai-exchange-title" id="id-jag">
         <div className="pf-ai-agent__flow-title">
           <p className="pf-ai-agent__eyebrow">Two explicit token hops</p>
-          <h2 id="pf-ai-exchange-title">Third-party token exchange</h2>
+          <h2 id="pf-ai-exchange-title">ID-JAG: third-party token exchange</h2>
           <p>PF issues the ID-JAG. The downstream authorization server redeems it for its own access token.</p>
           <FeatureStatus ready={features.crossDomain} />
         </div>

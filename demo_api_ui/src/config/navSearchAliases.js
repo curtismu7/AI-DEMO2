@@ -148,7 +148,7 @@ export const NAV_SEARCH_ALIASES = {
   "/ping-ai-test-lab": "check health preflight readiness servers validation chip test verdict ready for demo",
   "/ping-products/verify-recognize": "identity proofing biometric enrollment hosted verification transaction status bff web sdk customer journey",
   "/pingcli": "command line cli terminal commands install configure mfa applications directory agent skills",
-  "/pingfederate-ai-agent": "pf ai agent cimd client metadata third-party token exchange rar rich authorization request ciba",
+  "/pingfederate-ai-agent": "pf ai agent id-jag xaa cimd metadata tester third-party exchange rar rich authorization ciba dcr dynamic client registration dpop pi.flow",
   "/pingfederate-davinci-kit": "idp adapter oidc sign-in widget mode api authentication policy engine node troubleshoot",
   "/pingfederate-id-jag": "pingfederate enterprise-managed authorization mcp trust boundary two servers consent show my balance",
   "/pingfederate-id-jag/demo": "uc40 enterprise-managed mcp authorization pingfederate user identity show my balance oauth-mcp",
