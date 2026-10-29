@@ -80,6 +80,9 @@ const EXACT_BYPASSES = new Set([
   // Documents that each break one CIMD rule, for PingFederate to refuse in the CIMD tester.
   'GET /api/pf-ai-agent/cimd/negative/client-id-mismatch.json',
   'GET /api/pf-ai-agent/cimd/negative/shared-secret.json',
+  // PingFederate's banking_transaction RAR processor reads the user's accounts and limit here, server to server.
+  // No session: the route checks its own shared credential (PF_AI_RAR_LOOKUP_SECRET).
+  'GET /api/pf-ai-agent/rar/user-limits',
 ]);
 
 // These are the two pre-existing demo identities used to administer and

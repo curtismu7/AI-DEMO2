@@ -39,6 +39,7 @@ const REQUIRED_BYPASSES = [
   '/api/pf-ai-agent/cimd/client-metadata.json',
   '/api/pf-ai-agent/cimd/negative/client-id-mismatch.json',
   '/api/pf-ai-agent/cimd/negative/shared-secret.json',
+  '/api/pf-ai-agent/rar/user-limits',
 ];
 const REQUIRED_PUBLIC_PREFIXES = ['/assets'];
 
