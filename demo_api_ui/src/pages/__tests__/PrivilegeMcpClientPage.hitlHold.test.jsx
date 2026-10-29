@@ -183,3 +183,20 @@ test('SearchIndexTool opens with arguments that can run, so Run works on the fir
   expect(JSON.parse(box.value)).toEqual({ index: '_all', query_dsl: { query: { match_all: {} } } });
   expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled();
 });
+
+test('a hold announced as a JSON-RPC error still shows the waiting-for-approval card', async () => {
+  const base = global.fetch;
+  global.fetch = vi.fn(async (url, options = {}) => {
+    if (String(url).endsWith('/tools/call')) {
+      return new Response(JSON.stringify({ error: 'MCP RPC error: action requires human approval' }), { status: 502 });
+    }
+    return base(url, options);
+  });
+  render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+  fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+  fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+  await screen.findByRole('button', { name: 'Run' });
+  runSearch();
+  expect(await screen.findByText(/waiting for human approval/i)).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /retry after approval/i })).toBeInTheDocument();
+});
