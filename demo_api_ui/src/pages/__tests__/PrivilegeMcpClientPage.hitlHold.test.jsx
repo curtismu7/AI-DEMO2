@@ -226,3 +226,39 @@ test('SearchIndexTool opens with arguments that can run, on an index that exists
   expect(JSON.parse(box.value)).toEqual({ index: 'gateway-events', query_dsl: { query: { match_all: {} } }, size: 3 });
   expect(screen.getByRole('button', { name: 'Run' })).toBeEnabled();
 });
+
+test('badges come from the console hold rules when /state carries them, for any door', async () => {
+  state.config.mcpUrl = 'https://mcpgw.example/hostile-mcp-governed/mcp';
+  state.hitlTools = { 'hostile-mcp-governed': { create_transfer: 'hitl' } };
+  const base = global.fetch;
+  global.fetch = vi.fn(async (url, options = {}) => {
+    if (String(url).endsWith('/state')) return new Response(JSON.stringify(state));
+    if (String(url).endsWith('/tools/list')) {
+      return new Response(JSON.stringify({ tools: [{ name: 'create_transfer', inputSchema: { type: 'object', properties: {} } }, { name: 'list_accounts', inputSchema: { type: 'object', properties: {} } }] }));
+    }
+    return base(url, options);
+  });
+  try {
+    render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+    fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+    expect(await screen.findByRole('tab', { name: /create_transfer.*HITL/ })).toBeInTheDocument();
+    expect(screen.getByRole('tab', { name: 'list_accounts' })).toBeInTheDocument();
+  } finally {
+    delete state.hitlTools;
+  }
+});
+
+test('with console hold rules present, the old hard-coded opensearch badge is not shown for a tool they do not name', async () => {
+  state.config.mcpUrl = HITL_DOOR;
+  state.hitlTools = {};
+  try {
+    render(<MemoryRouter><PrivilegeMcpClientPage /></MemoryRouter>);
+    fireEvent.click(await screen.findByRole('button', { name: 'Get MCP Tools' }));
+    fireEvent.click(await screen.findByRole('tab', { name: /tools/i }));
+    await screen.findByRole('tab', { name: 'SearchIndexTool' });
+    expect(screen.queryByTestId('hitl-tool-note')).not.toBeInTheDocument();
+  } finally {
+    delete state.hitlTools;
+  }
+});

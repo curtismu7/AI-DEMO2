@@ -346,6 +346,8 @@ export default function PrivilegeMcpClientPage() {
   const [user, setUser] = useState(null);
   const [grantedScopes, setGrantedScopes] = useState([]);
   const [tools, setTools] = useState([]);
+  // { door: { tool: policy } } the console says a live policy holds for a human; null until a console discovery has recorded them.
+  const [hitlTools, setHitlTools] = useState(null);
   // Discovery goes out to the Agent Privilege, which can take several seconds before
   // it returns a tool list. Without a visible wait state the sidebar just reads
   // "No tools discovered yet" the whole time, which looks like a failure.
@@ -761,6 +763,7 @@ export default function PrivilegeMcpClientPage() {
       setGatewayConfigs(s.gatewayConfigs || { direct: {}, privilege: {}, facade: {} });
       savedMcpUrlRef.current = s.config?.mcpUrl || '';
       setPresets(Array.isArray(s.presets) ? s.presets : []);
+      setHitlTools(s.hitlTools && typeof s.hitlTools === 'object' ? s.hitlTools : null);
       setDoorDiscovery(s.doorDiscovery?.persisted ? s.doorDiscovery : null);
       setClientHints(s.clientHints || {});
       setAuthenticated(Boolean(s.oauth?.authenticated));
@@ -2420,7 +2423,7 @@ export default function PrivilegeMcpClientPage() {
               <ToolWorkbench
                 tools={tools}
                 onExecute={executeToolCall}
-                hitlTools={hitlToolsFor(doorName(config.mcpUrl))}
+                hitlTools={(hitlTools ? hitlTools[doorName(config.mcpUrl)] : null) ?? (hitlTools ? {} : hitlToolsFor(doorName(config.mcpUrl)))}
                 onPresent={() => setShowPresent(true)}
                 selectedTool={selectedTool}
                 selectNonce={toolSelectNonce}

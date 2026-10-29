@@ -31,6 +31,8 @@ jest.mock('../../services/lmdb/privilegeDoorStore.lmdb', () => {
     },
     getInventory: () => saved,
     clearInventory: () => { saved = null; },
+    // Pure parsing, no storage: use the real one so the route's output is what ships.
+    holdRulesFrom: jest.requireActual('../../services/lmdb/privilegeDoorStore.lmdb').holdRulesFrom,
   };
 });
 
@@ -114,7 +116,7 @@ const ACCESS_KEYS = {
   ],
 };
 
-function mockConsole({ sessionTokenBody = { session_id: 'sid-1' }, appsStatus = 200, policyBody = POLICIES } = {}) {
+function mockConsole({ sessionTokenBody = { session_id: 'sid-1' }, appsStatus = 200, policyBody = POLICIES, aiBody = null } = {}) {
   const seen = [];
   global.fetch = jest.fn(async (url, opts) => {
     const u = String(url);
@@ -126,6 +128,7 @@ function mockConsole({ sessionTokenBody = { session_id: 'sid-1' }, appsStatus = 
         : jsonResponse({}, { status: appsStatus });
     }
     if (u.includes('/v1/pacpolicys')) return jsonResponse(policyBody);
+    if (u.includes('/v1/aipolicys') && aiBody) return jsonResponse(aiBody);
     return jsonResponse({}, { status: 404 });
   });
   return seen;
@@ -169,6 +172,20 @@ describe('Privilege console inventory', () => {
     expect(res.body.policies.map((p) => p.name)).toEqual(['cmuir-tools', 'banking-tools']);
     // Spec is passed through untouched — its schema is undocumented.
     expect(res.body.policies[0].spec).toEqual({ Apps: ['cmuir'], Principals: ['someone-else@pingone.com'] });
+  });
+
+  test('reads Active human-approval AI policies into hold rules, and survives AI policies being unreadable', async () => {
+    mockConsole({ aiBody: { AIPolicys: [
+      { ObjectMeta: { Name: 'hold-it' }, State: 'Active', Spec: { Cedar: 'forbid (principal, action == Action::"mcp:InvokeUnattended", resource == Tool::"SearchIndexTool") when { context.app == "door-a" } unless { context has approval_count && context.approval_count >= 1 };' } },
+      { ObjectMeta: { Name: 'draft' }, State: 'Candidate', Spec: { Cedar: 'forbid (principal, action, resource == Tool::"x") when { context.app == "door-b" } unless { context has approval_count };' } },
+    ] } });
+    const ok = await connect(buildApp('hold-rules'));
+    expect(ok.body.holdRules).toEqual([{ door: 'door-a', tool: 'SearchIndexTool', policy: 'hold-it' }]);
+
+    mockConsole();
+    const none = await connect(buildApp('no-ai-policies'));
+    expect(none.status).toBe(200);
+    expect(none.body.holdRules).toBeUndefined();
   });
 
   test('never echoes the console token back to the client', async () => {
