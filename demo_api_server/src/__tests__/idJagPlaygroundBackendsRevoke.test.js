@@ -101,7 +101,9 @@ describe('ID-JAG playground — revoke and prove it', () => {
     expect(axios.post).toHaveBeenCalledWith(`${PF}/as/revoke_token.oauth2`, expect.stringContaining('token=rt-secret'), expect.anything());
     expect(res.body).toEqual(expect.objectContaining({ proved: true, revoke: expect.objectContaining({ status: 200 }) }));
     expect(res.body.revoke.request.body.token).toBe('[your refresh token, never sent to the browser]');
-    expect(res.body.control.request.body.subject_token).toBe('[your session token, never sent to the browser]');
+    // The subject token is shown masked: length and kind only for a short one, never the value.
+    expect(res.body.control.request.body.subject_token).toBe('[masked, 9 chars, opaque]');
+    expect(JSON.stringify(res.body)).not.toContain('rt-secret');
     expect(session.idJagPlayground).toBeUndefined();
   });
 

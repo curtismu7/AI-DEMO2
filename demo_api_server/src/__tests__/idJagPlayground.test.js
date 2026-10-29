@@ -465,3 +465,15 @@ describe('ID-JAG playground — pf-pf redeemer separate from the app login PingF
     expect(res.body.modes.find((x) => x.id === 'pf-pf')).toEqual(expect.objectContaining({ available: false }));
   });
 });
+
+describe('ID-JAG playground — the subject token is shown masked', () => {
+  it('shows the first 6 and last 4 characters, the length and the kind, never the token', async () => {
+    const refreshToken = 'RTabcdefghijklmnopqrstuvwxyz0123456789WXYZ';
+    const session = { oauthProvider: 'pingfederate', oauthTokens: { refreshToken, idToken: 'idt' } };
+    oauthService.performIdJagExchange.mockResolvedValue(goodIdJag());
+    const issued = await post(appWith(session), '/pg/issue');
+    expect(issued.status).toBe(200);
+    expect(issued.body.request.body.subject_token).toBe(`RTabcd…WXYZ [masked, ${refreshToken.length} chars, opaque]`);
+    expect(JSON.stringify(issued.body)).not.toContain(refreshToken);
+  });
+});
