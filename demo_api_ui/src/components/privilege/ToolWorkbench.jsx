@@ -7,7 +7,7 @@ import './ToolWorkbench.css';
 
 // Starting arguments for tools whose blank form can never run, so the demo works on the first click.
 const DEFAULT_ARGS = {
-  SearchIndexTool: { index: 'gateway-events', query_dsl: { query: { match_all: {} } } },
+  SearchIndexTool: { index: 'gateway-events', query_dsl: { query: { match_all: {} } }, size: 3 },
 };
 // Only required fields are pre-filled. A blank optional field is sent as "" and typed tools reject it
 // (OpenSearch: size: "" is not an integer), so optional ones are left out until someone fills them.
