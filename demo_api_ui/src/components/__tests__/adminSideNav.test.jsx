@@ -723,6 +723,7 @@ describe("diagram links open in a new tab", () => {
 
   it("opens the ID-JAG diagram and implementation entries in a new tab, but not the demo", () => {
     renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Ping products/ }));
     fireEvent.click(screen.getByRole("button", { name: /^PingFederate(?! ID-JAG)/ }));
     expect(screen.getByRole("link", { name: "ID-JAG Diagram" })).toHaveAttribute("target", "_blank");
     expect(screen.getByRole("link", { name: "ID-JAG Implementation (PF + Resource Server)" })).toHaveAttribute("target", "_blank");
@@ -765,5 +766,34 @@ describe("AdminSideNav: one PingFederate group holds every PF demo", () => {
     const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
     hrefs.forEach((href) => expect(links).toContain(href));
     expect(screen.queryByRole("button", { name: /^PingFederate (ID-JAG|AI Agent)/ })).toBeNull();
+  });
+});
+
+describe("AdminSideNav: PingFederate is a sub-group of Ping products", () => {
+  it("is not a top-level group, sits inside Ping products and opens itself on a PingFederate page", () => {
+    renderNav("/pingfederate-ai-agent");
+    const products = screen.getByRole("button", { name: /^Ping products/ });
+    expect(products).toHaveAttribute("aria-expanded", "true");
+    const pf = screen.getByRole("button", { name: /^PingFederate(?! ID-JAG)/ });
+    expect(pf.closest(".admin-side-nav__group")).toContainElement(products);
+    expect(pf).toHaveAttribute("aria-expanded", "true");
+    expect(screen.getByRole("group", { name: "PingFederate" })).toHaveTextContent("Protocol Playground (PingFederate)");
+  });
+
+  it("starts closed elsewhere and toggles without closing Ping products", () => {
+    renderNav();
+    fireEvent.click(screen.getByRole("button", { name: /^Ping products/ }));
+    const pf = screen.getByRole("button", { name: /^PingFederate(?! ID-JAG)/ });
+    expect(pf).toHaveAttribute("aria-expanded", "false");
+    expect(screen.queryByRole("link", { name: "Run ID-JAG Demo" })).toBeNull();
+    fireEvent.click(pf);
+    expect(screen.getByRole("link", { name: "Run ID-JAG Demo" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: /^Ping products/ })).toHaveAttribute("aria-expanded", "true");
+  });
+
+  it("search finds a page inside the sub-group", () => {
+    renderNav();
+    fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: "dynamic client registration" } });
+    expect(screen.getByRole("link", { name: /PingFederate AI Agent: ID-JAG/ })).toHaveAttribute("href", "/pingfederate-ai-agent");
   });
 });

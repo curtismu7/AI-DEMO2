@@ -27,6 +27,8 @@ export const NAV_STRUCTURE_CATALOG = [
   ] },
   { label: "Ping products", children: [
     "PingOne Protect", "PingOne Verify & Recognize", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
+    // A sub-group in the side nav (its own links listed under it there); hiding it hides all of them.
+    "PingFederate",
   ] },
   { label: "Identity Journeys", children: [
     "Self-Service Registration", "User Registration", "Login with MFA", "Identity Journey Map",
@@ -67,12 +69,6 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "MCP & Integrations", children: [
     "MCP Inspector", "Agent Gateway Inspector", "Enterprise-Managed MCP Auth", "Ping AI Test Lab",
     "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "LibreChat (browser)", "LM Studio (Mac)",
-  ] },
-  { label: "PingFederate", children: [
-    "PingFederate AI Agent: ID-JAG, CIMD, DCR, RAR, CIBA, DPoP, pi.flow", "Protocol Playground (PingFederate)",
-    "Run ID-JAG Demo", "How ID-JAG Works", "ID-JAG Diagram", "ID-JAG Implementation (PF + Resource Server)", "ID-JAG Playground (try + validate)", "ID-JAG Playground diagrams",
-    "PingFederate ID-JAG (Node)", "Workload Agents · 3rd-party MCP via ID-JAG", "Enterprise-Managed MCP Auth",
-    "PingFederate Token Demo", "PingFederate DaVinci Integration Kit",
   ] },
   { label: "AIC", children: [
     "AIC Token Exchange",
