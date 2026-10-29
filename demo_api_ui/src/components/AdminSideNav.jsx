@@ -188,8 +188,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
-  { id: "pingfederate-id-jag", paths: ["/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag"] },
-  { id: "pingfederate-ai-agent", paths: ["/pingfederate-ai-agent"] },
+  { id: "pingfederate", paths: ["/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent"] },
   { id: "aic", paths: ["/aic-token-exchange"] },
   { id: "utilities", paths: ["/pingone-test", "/mfa-test", "/oauth-debug-logs", "/token-exchange-tester", "/mgmt-api", "/pingone-setup", "/mcp-discovery", "/check"] },
   { id: "delegation-consent", paths: ["/transaction-consent", "/actor-token-education"] },
@@ -1576,7 +1575,20 @@ export default function AdminSideNav({
       "LibreChat (browser)",
       "LM Studio (Mac)",
     ], "mcp"),
-    productGroup("PingFederate ID-JAG", [
+    // Every PingFederate demo in one place; the Privilege and DaVinci PF pages stay in their own groups too.
+    {
+      ...productGroup("PingFederate", [
+      {
+        label: "CIMD, Token Exchange, and RAR",
+        path: "/pingfederate-ai-agent",
+        searchAlias: "PingFederate PF AI feature comparison AI agent differences ID-JAG third-party token exchange third party token exchange PAR Pushed Authorization Request RAR Rich Authorization Request CIMD",
+      },
+      {
+        label: "Protocol Playground (PingFederate)",
+        path: "/protocol-playground?idp=pingfederate",
+        icon: "dbg",
+        searchAlias: "PingFederate PF protocol playground DPoP PAR PKCE RAR CIBA RFC 8693 token exchange act XAA ID-JAG",
+      },
       { label: "Run ID-JAG Demo", path: "/pingfederate-id-jag/demo" },
       { label: "How ID-JAG Works", path: "/pingfederate-id-jag" },
       { label: "ID-JAG Diagram", path: "/pingfederate-id-jag/diagram" },
@@ -1598,14 +1610,16 @@ export default function AdminSideNav({
       "PingFederate ID-JAG (Node)",
       "Workload Agents · 3rd-party MCP via ID-JAG",
       "Enterprise-Managed MCP Auth",
-    ], "sec"),
-    productGroup("PingFederate AI Agent", [
       {
-        label: "CIMD, Token Exchange, and RAR",
-        path: "/pingfederate-ai-agent",
-        searchAlias: "PingFederate PF AI feature comparison AI agent differences ID-JAG third-party token exchange third party token exchange PAR Pushed Authorization Request RAR Rich Authorization Request CIMD",
+        label: "PingFederate Token Demo",
+        path: "/privilege-pf-token",
+        icon: "key",
+        searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent",
       },
-    ], "sec"),
+      { label: "PingFederate DaVinci Integration Kit", path: "/pingfederate-davinci-kit", searchAlias: "pingfederate davinci kit connector integration pf" },
+      ], "sec"),
+      searchAlias: "pingfederate pf",
+    },
     productGroup("AIC", [
       {
         label: "AIC Token Exchange",

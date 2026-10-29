@@ -71,6 +71,7 @@ export const NAV_PAGE_PATHS = {
   "ID-JAG Playground (try + validate)": "/pingfederate-id-jag/playground",
   "ID-JAG Playground diagrams": "/pingfederate-id-jag/playground/diagram/oauth-mcp",
   "CIMD, Token Exchange, and RAR": "/pingfederate-ai-agent",
+  "Protocol Playground (PingFederate)": "/protocol-playground?idp=pingfederate",
   "AIC Token Exchange": "/aic-token-exchange",
   "MCP Discovery": "/mcp-discovery",
   "Ping AI Test Lab": "/ping-ai-test-lab",

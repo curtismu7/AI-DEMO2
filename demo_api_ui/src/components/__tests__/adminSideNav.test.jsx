@@ -340,9 +340,9 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(screen.getByRole("link", { name: "AIC Token Exchange" })).toHaveAttribute("href", "/aic-token-exchange");
   });
 
-  it("opens the PingFederate AI Agent sidebar group on its comparison page", () => {
+  it("opens the PingFederate sidebar group on the AI Agent comparison page", () => {
     renderNav("/pingfederate-ai-agent");
-    expect(screen.getByRole("button", { name: /^PingFederate AI Agent/ })).toHaveAttribute(
+    expect(screen.getByRole("button", { name: /^PingFederate(?! ID-JAG)/ })).toHaveAttribute(
       "aria-expanded",
       "true",
     );
@@ -363,7 +363,8 @@ describe("AdminSideNav — best-of-breed pass", () => {
   ])('searching "%s" finds %s and links to %s', (term, label, href) => {
     renderNav();
     fireEvent.change(screen.getByLabelText(/search navigation/i), { target: { value: term } });
-    expect(screen.getByText(label, { exact: true }).closest("a")).toHaveAttribute("href", href);
+    // A page listed in two groups (the PingFederate group repeats the DaVinci kit) shows twice; every copy links right.
+    screen.getAllByText(label, { exact: true }).forEach((el) => expect(el.closest("a")).toHaveAttribute("href", href));
   });
 
   it('searching "foo" surfaces PromptFoo Evals under Developer Tools', () => {
@@ -722,7 +723,7 @@ describe("diagram links open in a new tab", () => {
 
   it("opens the ID-JAG diagram and implementation entries in a new tab, but not the demo", () => {
     renderNav();
-    fireEvent.click(screen.getByRole("button", { name: /^PingFederate ID-JAG/ }));
+    fireEvent.click(screen.getByRole("button", { name: /^PingFederate(?! ID-JAG)/ }));
     expect(screen.getByRole("link", { name: "ID-JAG Diagram" })).toHaveAttribute("target", "_blank");
     expect(screen.getByRole("link", { name: "ID-JAG Implementation (PF + Resource Server)" })).toHaveAttribute("target", "_blank");
     expect(screen.getByRole("link", { name: "Run ID-JAG Demo" })).not.toHaveAttribute("target");
@@ -751,5 +752,18 @@ describe("AdminSideNav: the gateway claims and third-party exchange pages are se
     const navigation = screen.getByRole("navigation", { name: /primary navigation/i });
     fireEvent.change(within(navigation).getByLabelText(/search navigation/i), { target: { value: query } });
     expect(within(navigation).getAllByRole("link").map((a) => a.getAttribute("href"))).toContain(href);
+  });
+});
+
+describe("AdminSideNav: one PingFederate group holds every PF demo", () => {
+  it("lists the AI Agent page, the PF Playground, ID-JAG and the PF token and DaVinci pages", () => {
+    renderNav("/pingfederate-ai-agent");
+    const hrefs = [
+      "/pingfederate-ai-agent", "/protocol-playground?idp=pingfederate", "/pingfederate-id-jag/demo",
+      "/pingfederate-id-jag/playground", "/privilege-pf-token", "/pingfederate-davinci-kit",
+    ];
+    const links = screen.getAllByRole("link").map((a) => a.getAttribute("href"));
+    hrefs.forEach((href) => expect(links).toContain(href));
+    expect(screen.queryByRole("button", { name: /^PingFederate (ID-JAG|AI Agent)/ })).toBeNull();
   });
 });
