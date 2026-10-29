@@ -64,7 +64,7 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Governance still holds", explain: "The enterprise never governs the dot's private memory, but it governs every tool call: delegated tokens, consent, policy, audit.", demonstrate: "Run a governed action as Dot and read the token chain — same RFC 8693 path as any other personal agent." },
   ],
   "muse-app": [
-    { title: "Connect Muse to the bank", explain: "Meta's consumer Muse creates a custom connector for a hosted MCP endpoint.", demonstrate: "Give Muse the SE-host URL and watch the connector discover the door." },
+    { title: "Connect Muse to the bank", explain: "The bank lists its connector once in Muse's app directory. The customer never types a server address.", demonstrate: "Open Muse's apps directory, find the bank, and click Connect." },
     { title: "Sign in as the customer", explain: "The OAuth browser step proves the person; Sentinel keeps credentials out of the agent.", demonstrate: "Complete the PingOne login on the phone and show the consent." },
     { title: "Read under governance", explain: "Every tool call runs with a delegated token through the gateway and Authorize.", demonstrate: "Ask for the balance and read the token chain on the dashboard." },
   ],
@@ -74,7 +74,7 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Run both lanes", explain: "The standard door and the facade's privilege-gateway door both govern the same agent.", demonstrate: "Run the read, the governed write, then switch doors for lane 2." },
   ],
   "grok-app": [
-    { title: "Create the custom connector", explain: "xAI's connector UI takes any public MCP URL.", demonstrate: "Paste the SE-host door URL in Connectors → Custom." },
+    { title: "Connect from the directory", explain: "The bank lists its connector once in Grok's connector directory. The customer never types a server address.", demonstrate: "Open Grok's connectors directory, find the bank, and click Connect." },
     { title: "Complete the OAuth flow", explain: "The door's discovery and DCR handle registration without xAI-side setup.", demonstrate: "Watch Grok open the PingOne login and return authenticated." },
     { title: "Read under governance", explain: "Tool calls ride the delegated token path, audited end to end.", demonstrate: "Ask for the balance and show the chain on the dashboard." },
   ],
@@ -94,7 +94,7 @@ const WALKTHROUGHS = Object.freeze({
     { title: "Run both lanes", explain: "Two mcpServers entries cover the standard door and the facade door.", demonstrate: "Switch agents in the LibreChat UI and compare the chains." },
   ],
   chatgpt: [
-    { title: "Add the connector", explain: "ChatGPT connectors require a publicly reachable MCP URL.", demonstrate: "Point at the SE-host door and validate." },
+    { title: "Connect from the directory", explain: "The bank lists its connector once in ChatGPT's app directory. The customer never types a server address.", demonstrate: "Open ChatGPT's apps directory, find the bank, and click Connect." },
     { title: "Complete OAuth", explain: "The door's discovery, DCR, and PKCE work with any spec-compliant client.", demonstrate: "Watch the browser login return to ChatGPT." },
     { title: "Read under governance", explain: "The full chain runs: delegated token, gateway, Authorize, audit.", demonstrate: "Ask for the balance and read the dashboard chain." },
   ],
@@ -329,7 +329,7 @@ export const lessonCatalog = Object.freeze([
     agentCategory: "Consumer & Partner Agent",
     productRoles: ["PingOne", "Agent Gateway / Broker"],
     talkingPoints: [
-      "xAI's consumer app connects through its self-serve custom-connector UI — the same door, the same governance.",
+      "The customer connects from Grok's connector directory, where the bank lists itself once. Same governance as every other agent.",
       "DCR compatibility is verified live in Task 1's matrix; fixed-client or Bearer fallbacks are documented.",
       "Cloud-hosted like Muse: the SE host is the door, never a laptop URL.",
     ],
@@ -405,7 +405,7 @@ export const lessonCatalog = Object.freeze([
     agentCategory: "Consumer & Partner Agent",
     productRoles: ["PingOne", "Agent Gateway / Broker"],
     talkingPoints: [
-      "The most mainstream agent surface: ChatGPT connectors need a publicly reachable MCP URL — the SE host.",
+      "The most mainstream agent surface: the customer connects from ChatGPT's app directory, where the bank lists itself once.",
       "Read-path demo carries the full governance chain: discovery, DCR, PKCE, delegated token, audit.",
       "Same reachability constraint as Muse/Grok cloud agents; local stack is out of reach by design.",
     ],
