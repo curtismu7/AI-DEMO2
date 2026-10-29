@@ -1579,9 +1579,9 @@ export default function AdminSideNav({
     {
       ...productGroup("PingFederate", [
       {
-        label: "CIMD, Token Exchange, and RAR",
+        label: "PingFederate AI Agent: ID-JAG, CIMD, DCR, RAR, CIBA, DPoP, pi.flow",
         path: "/pingfederate-ai-agent",
-        searchAlias: "PingFederate PF AI feature comparison AI agent differences ID-JAG third-party token exchange third party token exchange PAR Pushed Authorization Request RAR Rich Authorization Request CIMD",
+        searchAlias: "PingFederate PF AI feature comparison AI agent differences ID-JAG XAA cross app access third-party token exchange third party token exchange PAR Pushed Authorization Request RAR Rich Authorization Request CIMD client metadata tester DCR dynamic client registration RFC 7591 CIBA DPoP pi.flow authentication API act claim",
       },
       {
         label: "Protocol Playground (PingFederate)",

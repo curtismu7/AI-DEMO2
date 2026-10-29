@@ -69,7 +69,7 @@ export const NAV_STRUCTURE_CATALOG = [
     "Capability Tour", "MCP Runtime Inventory", "MCP Scanner", "LibreChat (browser)", "LM Studio (Mac)",
   ] },
   { label: "PingFederate", children: [
-    "CIMD, Token Exchange, and RAR", "Protocol Playground (PingFederate)",
+    "PingFederate AI Agent: ID-JAG, CIMD, DCR, RAR, CIBA, DPoP, pi.flow", "Protocol Playground (PingFederate)",
     "Run ID-JAG Demo", "How ID-JAG Works", "ID-JAG Diagram", "ID-JAG Implementation (PF + Resource Server)", "ID-JAG Playground (try + validate)", "ID-JAG Playground diagrams",
     "PingFederate ID-JAG (Node)", "Workload Agents · 3rd-party MCP via ID-JAG", "Enterprise-Managed MCP Auth",
     "PingFederate Token Demo", "PingFederate DaVinci Integration Kit",

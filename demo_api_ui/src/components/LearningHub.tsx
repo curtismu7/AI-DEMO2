@@ -44,6 +44,7 @@ const LESSON_REGISTRY: Record<string, LessonContract> = {
   "PingOne Authorize": { status: "LIVE / CONFIG", keywords: ["P1AZ", "policy", "permit", "deny", "step-up", "decision"] },
   "MCP Protocol": { status: "LIVE", keywords: ["tools/list", "tools/call", "MCP Inspector", "tool invocation"] },
   "Agent-to-Agent (A2A)": { status: "LIVE", keywords: ["agent card", "nested act", "specialist", "delegation"] },
+  "PingFederate AI Agent": { status: "LIVE / CONFIG", keywords: ["pingfederate", "id-jag", "cimd", "dcr", "dynamic client registration", "rar", "ciba", "dpop", "pi.flow", "token exchange"] },
   "P1 Third-Party Token Exchange": { status: "SIMULATED", keywords: ["third party", "trusted issuer", "actor token", "jwt", "okta", "auth0", "microsoft", "rfc 8693"] },
   "On behalf of the user (OBO)": { status: "LIVE", keywords: ["obo", "on behalf of", "delegation", "act claim", "token exchange"] },
   "Jev: Decision Model": { status: "LIVE / CONFIG", keywords: ["System One", "guardrail", "intent routing", "confidence", "threshold", "Von", "bake-off"] },
@@ -474,6 +475,11 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
         demoStep: { useCaseId: "UC46" },
       },
       {
+        label: "PingFederate AI Agent",
+        description: "ID-JAG, CIMD (with a client.dev-style tester), DCR, RAR, CIBA, DPoP, token exchange and pi.flow, each run against real PingFederate",
+        icon: "🛡",
+      },
+      {
         label: "P1 Third-Party Token Exchange",
         description: "PingOne trusts a JWT from Okta, Auth0, Microsoft or PingFederate as actor token and maps its claims into the issued token",
         icon: "🔄",
@@ -746,6 +752,7 @@ export default function LearningHub() {
       "Privilege for AI — LLM": () => navigate("/ai-products/privilege-llm"),
       "Privilege for AI — A2A": () => navigate("/ai-products/privilege-a2a"),
       "On behalf of the user (OBO)": () => navigate("/obo-demo"),
+      "PingFederate AI Agent": () => navigate("/pingfederate-ai-agent"),
       "P1 Third-Party Token Exchange": () => navigate("/p1-third-party-exchange"),
       "Privilege for AI — MCP": () => navigate("/ai-products/privilege-mcp"),
       "Federated agents: PingFederate token": () => navigate("/privilege-pf-token"),
