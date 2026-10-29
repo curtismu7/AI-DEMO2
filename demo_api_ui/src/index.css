@@ -336,6 +336,11 @@ textarea::placeholder {
   --th-text-invert: #ffffff;
   --th-border: #dbe2ea;
   --th-border-strong: #c3cdd9;
+  /* Edge of unselected buttons, tabs, chips, toggles and inputs (STANDALONE-RULES
+     "dark mode control contrast", WCAG 1.4.11). --th-border / --th-border-strong
+     are ~1.6:1 and stay on cards and dividers. Measured 2026-10-29: 3.74:1 on
+     --th-bg-inset, 3.98 on page, 4.26 on card. */
+  --control-border: #6f7c8a;
   --th-bg-hover: #eef2f7;
   --th-bg: var(--th-bg-page);
   /* Emphasis fill for the one button in a row that leads the group.
@@ -453,6 +458,8 @@ textarea::placeholder {
   --th-text-invert: #ffffff;
   --th-border: #051727;
   --th-border-strong: #34405e;
+  /* Light control edge on the navies: 9.02:1 on inset, 10.13 on card, 11.14 on page. */
+  --control-border: #c3c8d0;
   --th-bg-hover: #1b2540;
   --th-bg: var(--th-bg-page);
   --th-bg-emphasis: #93c5fd;
