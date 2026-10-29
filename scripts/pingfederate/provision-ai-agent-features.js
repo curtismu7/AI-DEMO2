@@ -11,7 +11,8 @@
  *   1. scope `transactions:write` on the authorization server
  *   2. the mkcert root as a trusted CA, so PingFederate can fetch the BFF's
  *      client metadata document over HTTPS
- *   3. CIMD enabled, with one policy restricted to that exact document URL
+ *   3. CIMD enabled, with one policy restricted to that exact document URL, and
+ *      one more per CIMD-tester negative document (PingFederate allows one URL each)
  *   4. a lookup credential in the vault (PF_AI_RAR_LOOKUP_SECRET), created
  *      once, which the RAR processor presents to the BFF
  *   5. a `banking_transaction` authorization detail type, handled by an
@@ -56,6 +57,15 @@ const CIMD_POLICY = {
   requireProofKeyForCodeExchange: true,
   defaultAccessTokenManagerRef: { id: 'aiDemoPfJwtAtm' },
 };
+// PingFederate allows one URL per CIMD policy, so each negative document (one broken rule each, for the
+// CIMD tester to show PingFederate refusing it) gets its own policy, otherwise the same as the real one.
+const CIMD_NEGATIVE_POLICIES = [
+  ['aiDemoPfCimdNegMismatch', 'client-id-mismatch', 'AI Demo CIMD tester: client_id mismatch'],
+  ['aiDemoPfCimdNegSecret', 'shared-secret', 'AI Demo CIMD tester: shared secret'],
+].map(([id, name, label]) => ({
+  ...CIMD_POLICY, id, name: label,
+  metadataUrls: [`${PUBLIC_APP_URL}/api/pf-ai-agent/cimd/negative/${name}.json`],
+}));
 // Where the processor looks up the signed-in user's accounts and limit, and the
 // vault entry holding the credential it presents there. The BFF reads the same
 // entry (PF_AI_RAR_LOOKUP_SECRET) to check it.
@@ -160,14 +170,16 @@ async function main() {
     async () => !(await api('GET', 'oauth/cimd/settings')).cimdEnabled,
     async () => api('PUT', 'oauth/cimd/settings', { ...await api('GET', 'oauth/cimd/settings'), cimdEnabled: true }));
 
-  const policyOk = (policy) => policy && policy.enabled && policy.requireProofKeyForCodeExchange
-    && policy.metadataUrls.length === 1 && policy.metadataUrls[0] === CIMD_POLICY.metadataUrls[0];
-  const findPolicy = async () => ((await api('GET', 'oauth/cimd/policies')).items || []).find((item) => item.id === CIMD_POLICY.id);
-  await step(`CIMD policy ${CIMD_POLICY.id}`,
-    async () => !policyOk(await findPolicy()),
-    async () => (await findPolicy()
-      ? api('PUT', `oauth/cimd/policies/${CIMD_POLICY.id}`, CIMD_POLICY)
-      : api('POST', 'oauth/cimd/policies', CIMD_POLICY)));
+  const policyOk = (policy, desired) => policy && policy.enabled && policy.requireProofKeyForCodeExchange
+    && policy.metadataUrls.length === 1 && policy.metadataUrls[0] === desired.metadataUrls[0];
+  for (const desired of [CIMD_POLICY, ...CIMD_NEGATIVE_POLICIES]) {
+    const findPolicy = async () => ((await api('GET', 'oauth/cimd/policies')).items || []).find((item) => item.id === desired.id);
+    await step(`CIMD policy ${desired.id}`,
+      async () => !policyOk(await findPolicy(), desired),
+      async () => (await findPolicy()
+        ? api('PUT', `oauth/cimd/policies/${desired.id}`, desired)
+        : api('POST', 'oauth/cimd/policies', desired)));
+  }
 
   // The lookup credential is created once and kept; an existing one is never replaced.
   await step(`vault ${RAR_LOOKUP_SECRET}`,

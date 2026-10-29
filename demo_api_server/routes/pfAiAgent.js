@@ -18,6 +18,7 @@ const { startCiba, pollCiba, mockDecideCiba, decideCiba } = require('../services
 const cibaWebApprover = require('../services/pfAiAgentCibaWebApproverService');
 const pfTokenExchangeDemo = require('../services/pfTokenExchangeDemoService');
 const pfDcr = require('../services/pfAiAgentDcrService');
+const cimdTester = require('../services/pfAiAgentCimdTesterService');
 
 function sessionProvider(req) {
   return String(req.session?.oauthProvider || req.session?.user?.oauthProvider || '').toLowerCase();
@@ -76,6 +77,35 @@ function createPfAiAgentRouter({ configStore: store = configStore, fetchImpl = f
       return res.status(error.httpStatus || 503).json({ error: errorCode(error, 'pf_ai_cimd_config_invalid') });
     }
   });
+
+  // Documents that each break one CIMD rule, fetched by PingFederate (its CIMD policy lists these exact URLs)
+  // during the tester's probe. Public, like the real document: PingFederate fetches with no session.
+  router.get('/cimd/negative/:name.json', (req, res) => {
+    try {
+      if (!getFeatureStatus(store).cimd) return res.status(404).json({ error: 'pf_ai_cimd_not_enabled' });
+      const document = cimdTester.negativeDocument(req.params.name, { store });
+      if (!document) return res.status(404).json({ error: 'not_found' });
+      res.set('Cache-Control', 'no-store');
+      return res.json(document);
+    } catch (error) {
+      return res.status(error.httpStatus || 503).json({ error: errorCode(error, 'pf_ai_cimd_config_invalid') });
+    }
+  });
+
+  const testerReply = (run) => async (req, res) => {
+    try {
+      res.set('Cache-Control', 'no-store');
+      return res.json(await run(req));
+    } catch (error) {
+      const code = errorCode(error, 'pf_ai_cimd_tester_failed');
+      return res.status(error.httpStatus || 502).json({ error: code, ...(error.message && /^PF_AI_/.test(code) ? { detail: error.message } : {}) });
+    }
+  };
+  // CIMD tester (after client.dev): the document against the draft's rules, PingFederate's discovery, and
+  // PingFederate's own verdict on good and bad documents.
+  router.post('/cimd/tester/client', requireApplicationSession, testerReply((req) => cimdTester.checkClient(req.body, { store })));
+  router.post('/cimd/tester/server', requireApplicationSession, testerReply(() => cimdTester.checkServer({ store, fetchImpl })));
+  router.post('/cimd/tester/probe', requireApplicationSession, testerReply(() => cimdTester.probePf({ store, fetchImpl })));
 
   router.get('/cimd/start', requireApplicationSession, async (req, res) => {
     try {

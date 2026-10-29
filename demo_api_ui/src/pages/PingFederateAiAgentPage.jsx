@@ -5,6 +5,7 @@ import apiClient from "../services/apiClient";
 import { notifyError, notifySuccess } from "../utils/appToast";
 import { FeatureStatus, TraceSequenceDiagram } from "../components/pfAiAgent/shared";
 import PfDcrSection from "../components/pfAiAgent/PfDcrSection";
+import PfCimdTester from "../components/pfAiAgent/PfCimdTester";
 import "./PingFederateAiAgentPage.css";
 import PageHeader from '../components/common/PageHeader';
 
@@ -476,6 +477,8 @@ export default function PingFederateAiAgentPage({ user }) {
           )}
         </div>
       </section>
+
+      <PfCimdTester ready={features.cimd} />
 
       <section className="pf-ai-agent__flow pf-ai-agent__flow--exchange" aria-labelledby="pf-ai-exchange-title">
         <div className="pf-ai-agent__flow-title">

@@ -23,6 +23,7 @@ function metadataDocument(config) {
   return {
     client_id: config.clientMetadataUrl,
     client_name: 'AI Demo PingFederate Agent',
+    client_uri: new URL(config.clientMetadataUrl).origin,
     redirect_uris: [config.redirectUri],
     grant_types: ['authorization_code'],
     response_types: ['code'],
