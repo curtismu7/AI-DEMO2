@@ -182,7 +182,8 @@ export const POC_FLOW_STEP_DETAILS = [
     "open": "The header name is a placeholder."
   },
   {
-    "what": "The gateway sends Authorize a second policy decision request, now including the identifier header."
+    "what": "The gateway sends Authorize a second policy decision request, now including the identifier header.",
+    "why": "This second decision is what ties the approval to this call. Authorize sees the identifier, checks that the CIBA request it started was accepted, and only then permits. Without the check, the replay would be a way around the denial."
   },
   {
     "what": "Authorize detects the header and checks the CIBA call. The human approved it, so Authorize returns PERMIT.",
@@ -193,23 +194,29 @@ export const POC_FLOW_STEP_DETAILS = [
     "why": "The MCP Server sees the user in sub and the agent in act, so downstream audit shows both."
   },
   {
-    "what": "The MCP Server calls the Resource Server to do the actual work."
+    "what": "The MCP Server calls the Resource Server to do the actual work.",
+    "why": "The MCP Server does the work with the OBO token's identity, so the resource server and its audit trail see the user in sub and the agent in act, not a shared service account."
   },
   {
-    "what": "The Resource Server returns its result to the MCP Server."
+    "what": "The Resource Server returns its result to the MCP Server.",
+    "why": "Nothing special happens here. It shows the result is produced by the resource server and only travels back up the same chain, so the approval earlier covered the whole call."
   },
   {
     "what": "As drawn, the MCP Server's response goes to Authorize on its way back, not straight to the gateway.",
+    "why": "Because the response goes back through Authorize, a policy can inspect or log what is returned, not only what is asked. That is a likely reason for the detour, but the diagram does not say.",
     "open": "The diagram does not say why. It is probably response inspection or audit. Confirm with CJ."
   },
   {
-    "what": "Authorize passes the response to the gateway."
+    "what": "Authorize passes the response to the gateway.",
+    "why": "The gateway stays the single point the agent talks to. Authorize hands the response back to it instead of to the agent, so the agent never calls Authorize directly."
   },
   {
-    "what": "The gateway returns the response to the agent."
+    "what": "The gateway returns the response to the agent.",
+    "why": "The agent gets an ordinary tool response on the replayed call. The earlier JSON-RPC error and the approval are invisible to the model's tool loop, which just sees the call succeed."
   },
   {
     "what": "The agent returns the result to the application, and the user sees it. Done.",
+    "why": "The user approved once and got the result without signing in again or seeing token details. This is the experience the pattern is meant to deliver for a write.",
     "open": "Does the next write need approval again, or does one approval cover a time window? This is the \"once versus per action\" question and it is a policy choice in Authorize."
   }
 ];
