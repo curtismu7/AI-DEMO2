@@ -29,4 +29,13 @@ describe("parseSequence", () => {
     expect(m.items[0]).toMatchObject({ from: "A", to: "R", text: "call\n(Bearer)" });
     expect(m.items[3]).toMatchObject({ over: ["A", "R"], text: "same service" });
   });
+
+  it("reads A<<->>B as one two-way message and <<-->> as its dashed form", () => {
+    const m = parseSequence(`sequenceDiagram
+    A<<->>B: both ways
+    A<<-->>B: both ways, dashed
+    A->>B: one way`);
+    expect(m.items.map((i) => [i.both === true, i.dashed])).toEqual([[true, false], [true, true], [false, false]]);
+    expect(m.items[0]).toMatchObject({ from: "A", to: "B", text: "both ways" });
+  });
 });

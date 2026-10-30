@@ -102,11 +102,11 @@ function BoxBand({ data }) {
   );
 }
 
-function MessageEdge({ id, sourceX, sourceY, targetX, targetY, style, markerEnd, data }) {
+function MessageEdge({ id, sourceX, sourceY, targetX, targetY, style, markerStart, markerEnd, data }) {
   const [path, labelX, labelY] = getStraightPath({ sourceX, sourceY, targetX, targetY });
   return (
     <>
-      <BaseEdge id={id} path={path} style={style} markerEnd={markerEnd} />
+      <BaseEdge id={id} path={path} style={style} markerStart={markerStart} markerEnd={markerEnd} />
       <EdgeLabelRenderer>
         <div
           className="sfx-label nodrag nopan"
@@ -213,6 +213,7 @@ export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {})
         targetHandle: self ? "tr" : rightward ? "tl" : "tr",
         type: self ? "self" : "msg",
         markerEnd: lane ? { ...ARROW, color: stroke } : ARROW,
+        ...(it.both ? { markerStart: lane ? { ...ARROW, color: stroke } : ARROW } : null),
         style: { ...(it.dashed ? { strokeDasharray: "6 4" } : null), ...(lane ? { stroke, strokeWidth: 3 } : null) },
         data: { text, stroke },
         selectable: false,
@@ -297,7 +298,7 @@ export function buildSequenceFlow(source, payloads = [], { lanes, issues } = {})
   return { nodes, edges, steps, bounds, messages, people, rows };
 }
 
-function Inner({ source, step, active, details, driver, payloads, reelSync, lanes, issues }) {
+function Inner({ source, step, active, details, driver, payloads, stepDetails, reelSync, lanes, issues }) {
   const ref = useRef(null);
   const flowRef = useRef(null);
   useFitOnResize(flowRef, FIT);
@@ -332,9 +333,18 @@ function Inner({ source, step, active, details, driver, payloads, reelSync, lane
       if (!reelStepper) return [];
       const built = buildReelSteps({ edges: messages, nodes: people, details });
       // the payload shown under a message is also its request form in the reel's details row
-      return built.map((r, i) => (payloads?.[i] ? { ...r, lines: [...r.lines, { who: "Payload", code: payloads[i] }] } : r));
+      return built.map((r, i) => {
+        const d = stepDetails?.[i];
+        const extra = [
+          ...(d?.what ? [{ who: "What happens", text: d.what }] : []),
+          ...(d?.why ? [{ who: "Why it matters", text: d.why }] : []),
+          ...(d?.open ? [{ who: "Open", text: d.open }] : []),
+          ...(payloads?.[i] ? [{ who: "Payload", code: payloads[i] }] : []),
+        ];
+        return extra.length ? { ...r, lines: [...r.lines, ...extra] } : r;
+      });
     },
-    [reelStepper, messages, people, details, payloads],
+    [reelStepper, messages, people, details, payloads, stepDetails],
   );
   const [nodeDetail, setNodeDetail] = useState(null);
   // Header strip state. Mirrors stepEdges: step < 0 leaves everything shown,
@@ -410,14 +420,15 @@ function Inner({ source, step, active, details, driver, payloads, reelSync, lane
  * Leave `step` and `active` undefined for the built-in Play/Step bar. A page that drives the
  * highlight itself passes `step` (one message in focus, later ones fade) or `active` (an
  * array of message indexes to accent). `details` maps a participant id to the text shown in the
- * movie reel's details row. A page that runs its own simulator passes `driver` ({ step, goTo }, step =
+ * movie reel's details row. `stepDetails` is one { what, why, open } per message, shown in the reel's details row
+ * when that step is picked. A page that runs its own simulator passes `driver` ({ step, goTo }, step =
  * the message index) to get the diagram highlight and the movie reel without a second control bar.
  */
-export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver, payloads, reelSync, lanes, issues }) {
+export default function SequenceFlowDiagram({ source, label = "Sequence diagram", step, active, details, driver, payloads, stepDetails, reelSync, lanes, issues }) {
   return (
     <div className={`sfx${lanes ? " sfx--lanes" : ""}`} role="group" aria-label={label}>
       <ReactFlowProvider>
-        <Inner source={source} step={step} active={active} details={details} driver={driver} payloads={payloads} reelSync={reelSync} lanes={lanes} issues={issues} />
+        <Inner source={source} step={step} active={active} details={details} driver={driver} payloads={payloads} stepDetails={stepDetails} reelSync={reelSync} lanes={lanes} issues={issues} />
       </ReactFlowProvider>
     </div>
   );
