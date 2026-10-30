@@ -1,6 +1,6 @@
 'use strict';
 
-const { createCaseOperations, evidenceFromAgentInvoke } = require('../services/demoReadinessCaseAdapter');
+const { createCaseOperations, evidenceFromAgentInvoke, evidenceFromAttackSim, evidenceFromPageLoad } = require('../services/demoReadinessCaseAdapter');
 const { audienceScopeSummary, evidenceFailures } = require('../services/demoReadinessExecutionService');
 const { buildDemoReadinessCatalog } = require('../services/demoReadinessCatalog');
 
@@ -407,7 +407,7 @@ test('prerequisites the worker cannot verify are blocked without touching the BF
   expect(request).not.toHaveBeenCalled();
 });
 
-test('execute runs the chip as the UI does and refuses modes it has no adapter for', async () => {
+test('execute runs the chip as the UI does and refuses behaviors it has no adapter for', async () => {
   const calls = [];
   const request = async (path, options) => { calls.push({ path, options }); return { status: 200, body: invokeResponse() }; };
   const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
@@ -416,8 +416,120 @@ test('execute runs the chip as the UI does and refuses modes it has no adapter f
   expect(validate(result)).toEqual([]);
   expect(calls[0]).toEqual({ path: '/api/agent/invoke', options: { method: 'POST', body: { prompt: behavior.triggerText, vertical: VERTICAL, useCaseId: 'delegated-access-with-proof' } } });
 
-  await expect(operations.executeReadinessCase({ caseRow, vertical: VERTICAL, mode: 'page', behavior, authorization }))
+  await expect(operations.executeReadinessCase({ caseRow, vertical: VERTICAL, mode: 'education-panel', behavior: { kind: 'education-panel', panel: 'x' }, authorization }))
     .rejects.toMatchObject({ code: 'unsupported-operation' });
+  // A page step with no browser configured is not run either.
+  await expect(operations.executeReadinessCase({ caseRow, vertical: VERTICAL, mode: 'page', behavior: { kind: 'page-load', path: '/weather-mcp', pathname: '/weather-mcp' }, authorization }))
+    .rejects.toMatchObject({ code: 'unsupported-operation' });
+});
+
+test('UC48: a link step whose vertical defines a chip runs that chip through the agent', async () => {
+  const uc48 = buildDemoReadinessCatalog().find((row) => row.id === 'UC48');
+  const calls = [];
+  const request = async (path, options) => { calls.push({ path, options }); return { status: 200, body: invokeResponse() }; };
+  const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+  await operations.executeReadinessCase({ caseRow: uc48, vertical: 'airlines', mode: uc48.executionMode, behavior: uc48.expectedBehaviorByVertical.airlines, authorization: uc48.authorizationContractByVertical.airlines });
+  expect(uc48.executionMode).toBe('page');
+  expect(calls[0]).toEqual({ path: '/api/agent/invoke', options: { method: 'POST', body: { prompt: 'book a flight from San Francisco to Paris for me under $800', vertical: 'airlines', useCaseId: 'consumer-agent-booking' } } });
+});
+
+describe('attack steps', () => {
+  const catalog = buildDemoReadinessCatalog();
+  const uc5 = catalog.find((row) => row.id === 'UC5');
+  const uc10 = catalog.find((row) => row.id === 'UC10');
+  const attackBehavior = (row) => row.expectedBehaviorByVertical.banking;
+  const judge = (row, result) => [
+    ...(result.observed === attackBehavior(row).expectedOutcome ? [] : ['observed outcome']),
+    ...evidenceFailures({ evidence: result.evidence, provider: PROVIDER, authorization: row.authorizationContractByVertical.banking, expected: attackBehavior(row).expectedOutcome, caseRow: row, behavior: attackBehavior(row) }),
+  ];
+  // Shapes of real /api/demo/attack-sim/run responses (local PingFederate lane, 2026-10-30, values replaced).
+  const scopeRefusal = {
+    sim: 'insufficient-scope', status: 403, errorCode: 'insufficient_scope',
+    tokenChainEvents: [
+      { id: 'user-token', status: 'active', claims: { sub: 'user-1', iss: ISSUER } },
+      { id: 'sim-exchange-ok', status: 'active' },
+      { id: 'sim-gateway-deny', status: 'error' },
+    ],
+  };
+  const ownerRefusal = {
+    sim: 'cross-owner-account', status: 403, errorCode: 'resource_owner_mismatch', authorize: { decision: 'DENY', decisionId: 'decision-1' },
+    tokenChainEvents: [{ id: 'user-token', status: 'active', claims: { sub: 'user-1', iss: ISSUER } }],
+  };
+
+  test('the refusal status is the outcome, and the refusal must be on the trace', () => {
+    expect(judge(uc5, evidenceFromAttackSim({ response: scopeRefusal, provider: PROVIDER, expectedIssuer: ISSUER }))).toEqual([]);
+    const silent = { ...scopeRefusal, tokenChainEvents: scopeRefusal.tokenChainEvents.filter((event) => event.status !== 'error') };
+    expect(judge(uc5, evidenceFromAttackSim({ response: silent, provider: PROVIDER, expectedIssuer: ISSUER })))
+      .toEqual(['the refusal is not on the attack trace']);
+  });
+
+  test('an Authorize decision is the outcome when the sim reports one', () => {
+    const result = evidenceFromAttackSim({ response: ownerRefusal, provider: PROVIDER, expectedIssuer: ISSUER });
+    expect(result.observed).toBe('DENY');
+    expect(judge(uc10, result)).toEqual([]);
+  });
+
+  test('a permitted attack, the wrong sim, or another provider\'s session fails', () => {
+    expect(judge(uc5, evidenceFromAttackSim({ response: { ...scopeRefusal, status: 200 }, provider: PROVIDER, expectedIssuer: ISSUER })))
+      .toContain('observed outcome');
+    expect(judge(uc5, evidenceFromAttackSim({ response: { ...scopeRefusal, sim: 'wrong-aud' }, provider: PROVIDER, expectedIssuer: ISSUER })))
+      .toEqual(['attack simulation does not match catalog contract']);
+    expect(judge(uc5, evidenceFromAttackSim({ response: scopeRefusal, provider: PROVIDER, expectedIssuer: 'https://other.example.test' })))
+      .toEqual(['user-session provider is missing or does not match provider lane']);
+  });
+
+  test('execute posts the catalog sim to the attack simulator', async () => {
+    const calls = [];
+    const request = async (path, options) => { calls.push({ path, options }); return { status: 200, body: scopeRefusal }; };
+    const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+    const result = await operations.executeReadinessCase({ caseRow: uc5, vertical: 'banking', mode: uc5.executionMode, behavior: attackBehavior(uc5), authorization: uc5.authorizationContractByVertical.banking });
+    expect(calls).toEqual([{ path: '/api/demo/attack-sim/run', options: { method: 'POST', body: { sim: 'insufficient-scope' } } }]);
+    expect(result.observed).toBe('DENY_403');
+  });
+});
+
+describe('page steps', () => {
+  const uc32 = buildDemoReadinessCatalog().find((row) => row.id === 'UC32');
+  const pageBehavior = uc32.expectedBehaviorByVertical.banking;
+  const judge = (result) => [
+    ...(result.observed === 'page-load' ? [] : ['observed outcome']),
+    ...evidenceFailures({ evidence: result.evidence, provider: PROVIDER, authorization: uc32.authorizationContractByVertical.banking, expected: 'page-load', caseRow: uc32, behavior: pageBehavior }),
+  ];
+  const loaded = {
+    status: 200, finalPathname: '/weather-mcp', rendered: true, errorBoundary: false, pageErrors: [], failedApiCalls: [],
+    session: { authenticated: true, oauthIssuer: ISSUER },
+  };
+  const evidence = (load) => evidenceFromPageLoad({ load, provider: PROVIDER, expectedIssuer: ISSUER });
+
+  test('a page that rendered on its route as the lane user passes', () => {
+    expect(judge(evidence(loaded))).toEqual([]);
+  });
+
+  test('an error screen, a thrown error, a failed API call, a redirect or a signed-out page fails', () => {
+    expect(judge(evidence({ ...loaded, errorBoundary: true }))).toEqual(['observed outcome', 'page showed the error screen']);
+    expect(judge(evidence({ ...loaded, pageErrors: ['TypeError: x is undefined'] }))).toEqual(['page threw an uncaught error']);
+    expect(judge(evidence({ ...loaded, failedApiCalls: ['GET /api/weather 502'] }))).toEqual(['a page API call failed with a server error']);
+    expect(judge(evidence({ ...loaded, finalPathname: '/' }))).toEqual(['page left its route']);
+    expect(judge(evidence({ ...loaded, session: { authenticated: false, oauthIssuer: null } }))).toEqual(['page did not see the lane\'s signed-in session']);
+  });
+
+  test('execute loads the catalog path in the browser', async () => {
+    const load = jest.fn(async () => loaded);
+    const operations = createCaseOperations({ request: jest.fn(), provider: PROVIDER, expectedIssuer: ISSUER, page: { load, freshness: () => ({ current: true }) } });
+    const result = await operations.executeReadinessCase({ caseRow: uc32, vertical: 'banking', mode: 'page', behavior: pageBehavior, authorization: uc32.authorizationContractByVertical.banking });
+    expect(load).toHaveBeenCalledWith('/weather-mcp');
+    expect(judge(result)).toEqual([]);
+  });
+
+  test('a page step is blocked without a browser, or when the UI build is stale', async () => {
+    const prerequisitesFor = uc32.runtimePrerequisitesByVertical.banking;
+    const without = createCaseOperations({ request: jest.fn(), provider: PROVIDER, expectedIssuer: ISSUER });
+    await expect(without.verifyPrerequisites({ caseRow: uc32, vertical: 'banking', prerequisites: prerequisitesFor }))
+      .resolves.toEqual({ status: 'blocked', reason: 'no headless browser is configured for this worker' });
+    const stale = createCaseOperations({ request: jest.fn(), provider: PROVIDER, expectedIssuer: ISSUER, page: { load: jest.fn(), freshness: () => ({ current: false, reason: 'UI build is older than the UI source' }) } });
+    await expect(stale.verifyPrerequisites({ caseRow: uc32, vertical: 'banking', prerequisites: prerequisitesFor }))
+      .resolves.toEqual({ status: 'blocked', reason: 'UI build is older than the UI source' });
+  });
 });
 
 test('a non-200 from the lane BFF is reported as the observed outcome with no evidence', async () => {

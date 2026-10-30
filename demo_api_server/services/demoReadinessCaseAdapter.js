@@ -1,14 +1,16 @@
 'use strict';
 
 /**
- * Readiness worker operations for `agent-chip` Demo Steps.
+ * Readiness worker operations for Demo Steps, chosen by the step's expected
+ * behavior in the vertical being run (a chip, an attack, or a page).
  *
- * A chip is run exactly as the UI runs it — POST /api/agent/invoke on the
- * lane's own BFF as the signed-in readiness identity — and the evidence the
- * runner validates is read from that response's token events. Every evidence
- * field is taken from something the run actually produced. A field the run
- * did not produce is left out, so the runner's contract check fails it; it is
- * never filled in from the catalog to make a row pass.
+ * Each is run exactly as the UI runs it, on the lane's own BFF as the
+ * signed-in readiness identity: a chip through POST /api/agent/invoke, an
+ * attack through POST /api/demo/attack-sim/run, and a page in a headless
+ * browser holding the same session. Every evidence field is taken from
+ * something the run actually produced. A field the run did not produce is
+ * left out, so the runner's contract check fails it; it is never filled in
+ * from the catalog to make a row pass.
  */
 
 const { outcomeFromAgentResponse } = require('./useCaseConformance');
@@ -18,6 +20,9 @@ const { USE_CASES } = require('../config/useCases');
 const slugFor = (caseRow) => USE_CASES.find((useCase) => useCase.id === caseRow?.id)?.useCaseId || null;
 
 const INVOKE_PATH = '/api/agent/invoke';
+const ATTACK_SIM_PATH = '/api/demo/attack-sim/run';
+// The refusal statuses the attack track declares as DENY_<status> outcomes.
+const ATTACK_REFUSAL_STATUSES = new Set([401, 403, 429, 503]);
 const FLAG_ENABLE_PATH = '/api/demo-flags/enable';
 const AGENT_SCOPE = 'agent:invoke';
 const AGENT_STATE_PATH = '/api/agent-builder/state';
@@ -209,11 +214,75 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
 }
 
 /**
+ * Map one attack-sim response onto the runner's evidence contract. An
+ * Authorize decision, when the sim reports one, is the outcome; otherwise the
+ * refusal's status is (DENY_401, DENY_403, DENY_429, DENY_503).
+ * @returns {{ observed: string, evidence: object }}
+ */
+function evidenceFromAttackSim({ response, provider, expectedIssuer }) {
+  const events = Array.isArray(response?.tokenChainEvents) ? response.tokenChainEvents : [];
+  const status = Number(response?.status);
+  const decision = response?.authorize?.decision || null;
+  // The step on the trace that refused: the last event the sim marked failed.
+  const refusalEvent = [...events].reverse().find((event) => event?.status === 'error')?.id || null;
+  let observed = 'UNKNOWN';
+  if (decision === 'DENY') observed = 'DENY';
+  else if (ATTACK_REFUSAL_STATUSES.has(status)) observed = `DENY_${status}`;
+  else if (Number.isFinite(status) && status < 400) observed = 'PERMIT';
+  return {
+    observed,
+    evidence: {
+      userSessionProvider: providerOf(eventById(events, 'user-token')?.claims?.iss, { provider, expectedIssuer }),
+      attack: {
+        sim: response?.sim || null,
+        status: Number.isFinite(status) ? status : null,
+        errorCode: response?.errorCode || null,
+        refusal: decision ? `authorize:${decision}` : refusalEvent,
+      },
+      gateway: { applicable: false },
+      authorize: decision ? { decision, reference: response.authorize.decisionId || null } : { applicable: false },
+    },
+  };
+}
+
+/**
+ * Map one headless page load onto the runner's evidence contract.
+ * @returns {{ observed: string, evidence: object }}
+ */
+function evidenceFromPageLoad({ load, provider, expectedIssuer }) {
+  const loaded = load.status === 200 && load.rendered && !load.errorBoundary;
+  return {
+    observed: loaded ? 'page-load' : load.status === 200 ? 'PAGE_NOT_RENDERED' : `HTTP_${load.status}`,
+    evidence: {
+      // The session the page itself saw, read from inside the page.
+      userSessionProvider: load.session?.authenticated ? providerOf(load.session.oauthIssuer, { provider, expectedIssuer }) : null,
+      page: {
+        finalPathname: load.finalPathname,
+        rendered: load.rendered,
+        errorBoundary: load.errorBoundary,
+        pageErrors: list(load.pageErrors),
+        failedApiCalls: list(load.failedApiCalls),
+      },
+      gateway: { applicable: false },
+      authorize: { applicable: false },
+    },
+  };
+}
+
+/**
  * Session operations bound to one signed-in lane session.
  * `request(path, { method, body })` is the login handle's same-origin request.
+ * `page`, when the lane has a browser, is `{ load(path), freshness() }`.
  */
-function createCaseOperations({ request, provider, expectedIssuer }) {
+function createCaseOperations({ request, provider, expectedIssuer, page = null }) {
   async function verifyPrerequisites({ caseRow, vertical, prerequisites }) {
+    // A page is only judged on the UI build that matches the checkout, in a
+    // browser this lane can reach.
+    if (caseRow?.expectedBehaviorByVertical?.[vertical]?.kind === 'page-load') {
+      if (!page) return { status: 'blocked', reason: 'no headless browser is configured for this worker' };
+      const build = page.freshness();
+      if (!build.current) return { status: 'blocked', reason: build.reason };
+    }
     // Workload-agent steps (UC38, UC44) run as a customer who has registered a
     // workload agent. UC38 also needs that customer to pass MFA, which a
     // headless worker cannot do, so it is blocked rather than run.
@@ -264,21 +333,31 @@ function createCaseOperations({ request, provider, expectedIssuer }) {
       : { status: 'pass' };
   }
 
+  // Dispatched on the behavior, not the case's mode: a step can be a link in
+  // one vertical and a chip in another (UC48 is a chip in airlines).
   async function executeReadinessCase({ caseRow, vertical, mode, behavior, authorization }) {
-    if (mode !== 'agent-chip') {
-      const error = new Error(`worker has no adapter for execution mode ${mode}`);
-      error.code = 'unsupported-operation';
-      throw error;
+    if (behavior?.kind === 'agent-outcome') {
+      const invoked = await request(INVOKE_PATH, {
+        method: 'POST',
+        body: { prompt: behavior.triggerText, vertical, useCaseId: slugFor(caseRow) },
+      });
+      if (invoked.status !== 200) return { observed: `HTTP_${invoked.status}`, evidence: {} };
+      return evidenceFromAgentInvoke({ response: invoked.body, provider, expectedIssuer, authorization });
     }
-    const invoked = await request(INVOKE_PATH, {
-      method: 'POST',
-      body: { prompt: behavior.triggerText, vertical, useCaseId: slugFor(caseRow) },
-    });
-    if (invoked.status !== 200) return { observed: `HTTP_${invoked.status}`, evidence: {} };
-    return evidenceFromAgentInvoke({ response: invoked.body, provider, expectedIssuer, authorization });
+    if (behavior?.kind === 'attack-outcome') {
+      const attacked = await request(ATTACK_SIM_PATH, { method: 'POST', body: { sim: behavior.sim } });
+      if (attacked.status !== 200) return { observed: `HTTP_${attacked.status}`, evidence: {} };
+      return evidenceFromAttackSim({ response: attacked.body, provider, expectedIssuer });
+    }
+    if (behavior?.kind === 'page-load' && page) {
+      return evidenceFromPageLoad({ load: await page.load(behavior.path), provider, expectedIssuer });
+    }
+    const error = new Error(`worker has no adapter for ${behavior?.kind || 'execution mode ' + mode}`);
+    error.code = 'unsupported-operation';
+    throw error;
   }
 
   return { verifyPrerequisites, executeReadinessCase };
 }
 
-module.exports = { createCaseOperations, evidenceFromAgentInvoke };
+module.exports = { createCaseOperations, evidenceFromAgentInvoke, evidenceFromAttackSim, evidenceFromPageLoad };

@@ -167,6 +167,12 @@ async function createDemoReadinessProviderLoginClient({ provider, dedicatedBffUr
         if (headers) throw new Error('Custom session headers are unavailable.');
         return send(method, target.href, body);
       },
+      // The signed-in session's cookies for the lane BFF only, so a headless
+      // browser can load pages as the same identity. Provider cookies stay here.
+      sessionCookies() {
+        assertLive();
+        return [...(jars.get(bff.origin) || new Map())].map(([name, value]) => ({ name, value }));
+      },
       dispose() { disposed = true; jars.clear(); },
     });
   } catch (error) {

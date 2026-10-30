@@ -293,9 +293,26 @@ function authorizationForProvider(authorization, provider) {
   return override ? { ...authorization, ...override } : authorization;
 }
 
-function evidenceFailures({ evidence, provider, authorization: catalogAuthorization, expected, caseRow }) {
+function evidenceFailures({ evidence, provider, authorization: catalogAuthorization, expected, caseRow, behavior = null }) {
   const authorization = authorizationForProvider(catalogAuthorization, provider);
   const failures = []; const require = (condition, message) => { if (!condition) failures.push(message); };
+  // An attack sim and a page load make no delegated tool call of their own, so
+  // they are judged on what they did, as the lane's signed-in user.
+  if (behavior?.kind === 'attack-outcome') {
+    require(evidence.userSessionProvider === provider, 'user-session provider is missing or does not match provider lane');
+    require(evidence.attack?.sim === behavior.sim, 'attack simulation does not match catalog contract');
+    require(Boolean(evidence.attack?.refusal), 'the refusal is not on the attack trace');
+    return failures;
+  }
+  if (behavior?.kind === 'page-load') {
+    require(evidence.userSessionProvider === provider, 'page did not see the lane\'s signed-in session');
+    require(evidence.page?.finalPathname === behavior.pathname, 'page left its route');
+    require(evidence.page?.rendered === true, 'page rendered nothing');
+    require(evidence.page?.errorBoundary === false, 'page showed the error screen');
+    require(Array.isArray(evidence.page?.pageErrors) && evidence.page.pageErrors.length === 0, 'page threw an uncaught error');
+    require(Array.isArray(evidence.page?.failedApiCalls) && evidence.page.failedApiCalls.length === 0, 'a page API call failed with a server error');
+    return failures;
+  }
   // A public-catalog tool (catalog `enforcement`, from the use case's declared
   // evidence) is served with no user token, exchange or Authorize call. Its
   // contract is that the tool ran on that public path and nothing else was
@@ -520,7 +537,7 @@ function createReadinessExecutionService({ createWorker: testWorkerAdapter, prod
     const prerequisite = typeof saved.worker.verifyPrerequisites === 'function' ? await saved.worker.verifyPrerequisites({ caseRow, vertical, prerequisites, deadlineAt }) : { status: 'blocked', reason: 'worker cannot verify runtime prerequisites' };
     if (prerequisite?.status !== 'pass') return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: prerequisite?.reason || 'runtime prerequisites unavailable', prerequisites } });
     if (expired(deadlineAt, now())) return redactReadinessValue({ status: 'not-run', expected, observed: 'deadline-expired', evidence: { reason: 'deadline exceeded before dispatch' } });
-    try { const execution = await saved.worker.executeReadinessCase({ context, caseRow, vertical, mode, behavior, authorization, deadlineAt, abortSignal }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(observed === expected ? [] : ['observed outcome does not match declared outcome']), ...evidenceFailures({ evidence, provider: saved.provider, authorization, expected, caseRow })]; if (failures.length) evidence.contractFailures = failures; evidence.audienceScope = audienceScopeSummary({ evidence, authorization: authorizationForProvider(authorization, saved.provider), expected }); return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'worker execution failed' } }); }
+    try { const execution = await saved.worker.executeReadinessCase({ context, caseRow, vertical, mode, behavior, authorization, deadlineAt, abortSignal }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(observed === expected ? [] : ['observed outcome does not match declared outcome']), ...evidenceFailures({ evidence, provider: saved.provider, authorization, expected, caseRow, behavior })]; if (failures.length) evidence.contractFailures = failures; evidence.audienceScope = audienceScopeSummary({ evidence, authorization: authorizationForProvider(authorization, saved.provider), expected }); return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'worker execution failed' } }); }
   }
   async function executeReadinessFeature({ context, check, deadlineAt, abortSignal }) {
     const saved = contexts.get(context); const expected = check.expectedByProvider?.[saved?.provider] || check.expectedOutcome;
