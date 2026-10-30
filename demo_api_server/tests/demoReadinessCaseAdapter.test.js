@@ -451,7 +451,7 @@ test('execute runs the chip as the UI does and refuses behaviors it has no adapt
 
   const result = await operations.executeReadinessCase({ caseRow, vertical: VERTICAL, mode: 'agent-chip', behavior, authorization });
   expect(validate(result)).toEqual([]);
-  expect(calls[0]).toEqual({ path: '/api/agent/invoke', options: { method: 'POST', body: { prompt: behavior.triggerText, vertical: VERTICAL, useCaseId: 'delegated-access-with-proof' } } });
+  expect(calls.slice(0, 2)).toEqual([{ path: '/api/verticals/active', options: { method: 'POST', body: { id: VERTICAL } } }, { path: '/api/agent/invoke', options: { method: 'POST', body: { prompt: behavior.triggerText, vertical: VERTICAL, useCaseId: 'delegated-access-with-proof' } } }]);
 
   await expect(operations.executeReadinessCase({ caseRow, vertical: VERTICAL, mode: 'education-panel', behavior: { kind: 'education-panel', panel: 'x' }, authorization }))
     .rejects.toMatchObject({ code: 'unsupported-operation' });
@@ -467,7 +467,7 @@ test('UC48: a link step whose vertical defines a chip runs that chip through the
   const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
   await operations.executeReadinessCase({ caseRow: uc48, vertical: 'airlines', mode: uc48.executionMode, behavior: uc48.expectedBehaviorByVertical.airlines, authorization: uc48.authorizationContractByVertical.airlines });
   expect(uc48.executionMode).toBe('page');
-  expect(calls[0]).toEqual({ path: '/api/agent/invoke', options: { method: 'POST', body: { prompt: 'book a flight from San Francisco to Paris for me under $800', vertical: 'airlines', useCaseId: 'consumer-agent-booking' } } });
+  expect(calls).toEqual([{ path: '/api/verticals/active', options: { method: 'POST', body: { id: 'airlines' } } }, { path: '/api/agent/invoke', options: { method: 'POST', body: { prompt: 'book a flight from San Francisco to Paris for me under $800', vertical: 'airlines', useCaseId: 'consumer-agent-booking' } } }]);
 });
 
 describe('attack steps', () => {
@@ -520,7 +520,7 @@ describe('attack steps', () => {
     const request = async (path, options) => { calls.push({ path, options }); return { status: 200, body: scopeRefusal }; };
     const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
     const result = await operations.executeReadinessCase({ caseRow: uc5, vertical: 'banking', mode: uc5.executionMode, behavior: attackBehavior(uc5), authorization: uc5.authorizationContractByVertical.banking });
-    expect(calls).toEqual([{ path: '/api/demo/attack-sim/run', options: { method: 'POST', body: { sim: 'insufficient-scope' } } }]);
+    expect(calls).toEqual([{ path: '/api/verticals/active', options: { method: 'POST', body: { id: 'banking' } } }, { path: '/api/demo/attack-sim/run', options: { method: 'POST', body: { sim: 'insufficient-scope' } } }]);
     expect(result.observed).toBe('DENY_403');
   });
 });
@@ -552,7 +552,7 @@ describe('page steps', () => {
 
   test('execute loads the catalog path in the browser', async () => {
     const load = jest.fn(async () => loaded);
-    const operations = createCaseOperations({ request: jest.fn(), provider: PROVIDER, expectedIssuer: ISSUER, page: { load, freshness: () => ({ current: true }) } });
+    const operations = createCaseOperations({ request: jest.fn(async () => ({ status: 204, body: '' })), provider: PROVIDER, expectedIssuer: ISSUER, page: { load, freshness: () => ({ current: true }) } });
     const result = await operations.executeReadinessCase({ caseRow: uc32, vertical: 'banking', mode: 'page', behavior: pageBehavior, authorization: uc32.authorizationContractByVertical.banking });
     expect(load).toHaveBeenCalledWith('/weather-mcp');
     expect(judge(result)).toEqual([]);
@@ -569,8 +569,17 @@ describe('page steps', () => {
   });
 });
 
+test('each step pins the session to its vertical first, as the UI does, and stops if it cannot', async () => {
+  const request = jest.fn(async () => ({ status: 404, body: { error: 'unknown id' } }));
+  const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
+  await expect(operations.executeReadinessCase({ caseRow, vertical: VERTICAL, mode: 'agent-chip', behavior, authorization }))
+    .resolves.toEqual({ observed: 'VERTICAL_HTTP_404', evidence: {} });
+  expect(request).toHaveBeenCalledTimes(1);
+  expect(request).toHaveBeenCalledWith('/api/verticals/active', { method: 'POST', body: { id: VERTICAL } });
+});
+
 test('a non-200 from the lane BFF is reported as the observed outcome with no evidence', async () => {
-  const operations = createCaseOperations({ request: async () => ({ status: 401, body: {} }), provider: PROVIDER, expectedIssuer: ISSUER });
+  const operations = createCaseOperations({ request: async (path) => (path === '/api/verticals/active' ? { status: 204, body: '' } : { status: 401, body: {} }), provider: PROVIDER, expectedIssuer: ISSUER });
   await expect(operations.executeReadinessCase({ caseRow, vertical: VERTICAL, mode: 'agent-chip', behavior, authorization }))
     .resolves.toEqual({ observed: 'HTTP_401', evidence: {} });
 });
