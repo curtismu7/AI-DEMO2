@@ -118,8 +118,8 @@ describe('demo readiness catalog', () => {
       auth: 'user',
       expectedBehavior: {
         kind: 'page-load',
-        pathname: '/privilege-mcp-client',
-        searchParams: { view: 'demo', tab: 'a2a' },
+        pathname: '/privilege-a2a',
+        searchParams: {},
       },
     });
   });

@@ -161,7 +161,7 @@ The current executable Demo Steps list has 48 unique actions:
 | Admin | 13 | 12 | Admin1–Admin12 execute MCP operations; Admin13 is navigation. |
 | **Total** | **51** | **48** | UC2 and UC40 are cross-lane duplicates; Admin13 is excluded. |
 
-`UC46` is step 25 in the primary Demo Steps sequence. It opens `/privilege-mcp-client?view=demo&tab=a2a` behind the user session, selects the A2A tab without submitting a question, and leaves the three-process MainAgent → WorkerAgent → MCP flow for the presenter to start manually. Its A2A message carries the question and result, not a browser token or RFC 8693 delegation. The existing ADMIN13 destination remains `/privilege-mcp-client`.
+`UC46` is step 25 in the primary Demo Steps sequence. It opens `/privilege-a2a` (its own page since 2026-10-14; the old `/privilege-mcp-client?view=demo&tab=a2a` link redirects there) behind the user session, without submitting a question, and leaves the three-process MainAgent → WorkerAgent → MCP flow for the presenter to start manually. Its A2A message carries the question and result, not a browser token or RFC 8693 delegation. The existing ADMIN13 destination remains `/privilege-mcp-client`.
 
 `UC47` is step 26. It is a page link to `/dashboard` behind the user session; selecting it in Demo Steps also starts the three-deep Privilege A2A chain (main agent → gateway → LangChain agent → gateway → specialist) through `POST /api/privilege-a2a/chain`, and the run's hops stream into the movie reel as `pa2a-*` events. The readiness matrix checks only that the page loads: the chain needs the standalone main agent and agent keys, so it is not executed as a readiness row.
 

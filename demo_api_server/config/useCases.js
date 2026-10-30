@@ -1598,7 +1598,7 @@ const RAW_USE_CASES = [
     title: 'Privilege A2A access review',
     buyerStory: 'Security analysts want to ask an agent to review access and follow how a delegated worker gathers evidence through Privilege-protected tools.',
     pingOneSolution: 'A MainAgent delegates the analyst request to a WorkerAgent over A2A; the worker uses MCP through PingOne Privilege Gateway and returns an evidence-backed answer.',
-    trigger: { type: 'link', path: '/privilege-mcp-client?view=demo&tab=a2a', label: 'Open A2A access review' },
+    trigger: { type: 'link', path: '/privilege-a2a', label: 'Open A2A access review' },
     expectedOutcome: 'A2A_ACCESS_REVIEW',
     evidence: { tokenChain: [], activity: ['a2a', 'mcp', 'llm'] },
     codeRefs: [

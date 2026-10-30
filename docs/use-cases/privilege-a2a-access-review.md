@@ -16,7 +16,7 @@ A MainAgent delegates the analyst request to a WorkerAgent over A2A; the worker 
 
 ## How to Run
 
-**Trigger:** Trigger (link): `{"type":"link","path":"/privilege-mcp-client?view=demo&tab=a2a","label":"Open A2A access review"}`  
+**Trigger:** Trigger (link): `{"type":"link","path":"/privilege-a2a","label":"Open A2A access review"}`  
 **Expected outcome:** `A2A_ACCESS_REVIEW`
 
 ## What to Say
