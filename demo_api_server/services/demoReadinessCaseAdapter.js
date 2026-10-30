@@ -20,6 +20,7 @@ const { USE_CASES } = require('../config/useCases');
 const slugFor = (caseRow) => USE_CASES.find((useCase) => useCase.id === caseRow?.id)?.useCaseId || null;
 
 const INVOKE_PATH = '/api/agent/invoke';
+const ACTIVE_VERTICAL_PATH = '/api/verticals/active';
 const ATTACK_SIM_PATH = '/api/demo/attack-sim/run';
 // The refusal statuses the attack track declares as DENY_<status> outcomes.
 const ATTACK_REFUSAL_STATUSES = new Set([401, 403, 429, 503]);
@@ -356,6 +357,12 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
   // Dispatched on the behavior, not the case's mode: a step can be a link in
   // one vertical and a chip in another (UC48 is a chip in airlines).
   async function executeReadinessCase({ caseRow, vertical, mode, behavior, authorization }) {
+    // Pin this session to the row's vertical, as the UI does whenever its
+    // vertical picker changes. Without it the lane BFF serves the vertical's
+    // account data, and tells the gateway the vertical, from its own global
+    // default: a banking transfer then looked for workforce accounts.
+    const pinned = await request(ACTIVE_VERTICAL_PATH, { method: 'POST', body: { id: vertical } });
+    if (pinned.status < 200 || pinned.status > 299) return { observed: `VERTICAL_HTTP_${pinned.status}`, evidence: {} };
     if (behavior?.kind === 'agent-outcome') {
       const invoked = await request(INVOKE_PATH, {
         method: 'POST',
