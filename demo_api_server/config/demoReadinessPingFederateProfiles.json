@@ -92,7 +92,7 @@
       "objectId": "PF_CIMD_CLIENT",
       "configurationKeys": [],
       "expected": { "cimdPolicy": "undocumented", "issuer": "environment-configured", "jwksUri": "environment-configured" },
-      "baseline": { "present": true, "cimdEnabled": true, "metadataUrls": ["https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/client-metadata.json", "https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/negative/client-id-mismatch.json", "https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/negative/shared-secret.json"], "pkceRequired": true, "advertised": true },
+      "baseline": { "present": true, "cimdEnabled": true, "metadataUrls": ["https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/client-metadata.json", "https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/negative/client-id-mismatch.json", "https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/negative/shared-secret.json", "https://local.ping-devops.com:5450/client.json", "https://local.ping-devops.com:8453/client.json"], "pkceRequired": true, "advertised": true },
       "unresolved": true,
       "sourceRef": "scripts/pingfederate/provision-ai-agent-features.js"
     },
