@@ -370,6 +370,27 @@ describe('startReadinessRun', () => {
     expect(result.status).toBe('not-ready');
   });
 
+  test('one provider runs only that provider\'s matrix and is diagnostic, never READY', async () => {
+    let executed;
+    const { adapters } = harness({
+      audit: async () => [{ id: 'config', status: 'pass' }],
+      planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }),
+      execute: async (args) => { executed = args; return { rows: [{ id: 'required', status: 'pass' }], expectedRowIds: ['required'], categoryCounts: { total: 1 } }; },
+    });
+    const result = await startReadinessRun({ targets: ['local', 'se'], providers: ['pingfederate'], adapters });
+    expect(executed.providers).toEqual(['pingfederate']);
+    expect(result.ready).toBe(false);
+    expect(result.label).toBe('DIAGNOSTIC — PINGFEDERATE ONLY');
+    expect(result.report.providerMatrix).toEqual([{ target: 'local', provider: 'pingfederate' }, { target: 'se', provider: 'pingfederate' }]);
+  });
+
+  test.each([[[]], [['okta']]])('providers %j are refused before any phase runs', async (providers) => {
+    const { calls, adapters } = harness();
+    const result = await startReadinessRun({ targets: ['local', 'se'], providers, adapters });
+    expect(calls).toEqual([]);
+    expect(result.checks).toEqual([expect.objectContaining({ id: 'run:providers', status: 'blocked' })]);
+  });
+
   test('every failed, blocked, unknown, or unfinished matrix row prevents READY', async () => {
     for (const status of ['fail', 'blocked', 'unknown', 'not-run']) {
       const { calls, adapters } = harness({ audit: async () => [{ id: 'config', status: 'pass' }], planRepairs: async () => ({ digest: 'empty', changes: [], blocked: [] }), execute: async () => { calls.push('execute'); return { rows: [{ id: 'required', status }], expectedRowIds: ['required'], categoryCounts: { total: 1 } }; } });

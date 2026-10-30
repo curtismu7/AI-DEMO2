@@ -4,9 +4,12 @@ const test = require('node:test');
 const assert = require('node:assert/strict');
 const { parseArgs, runCli } = require('./demo-readiness');
 
-test('defaults to both targets, supports one diagnostic target and JSON', () => {
-  assert.deepEqual(parseArgs([]), { targets: ['local', 'se'], json: false, help: false });
-  assert.deepEqual(parseArgs(['--target', 'se', '--json']), { targets: ['se'], json: true, help: false });
+test('defaults to both targets and providers, supports one diagnostic target or provider and JSON', () => {
+  const both = ['pingone', 'pingfederate'];
+  assert.deepEqual(parseArgs([]), { targets: ['local', 'se'], providers: both, json: false, help: false });
+  assert.deepEqual(parseArgs(['--target', 'se', '--json']), { targets: ['se'], providers: both, json: true, help: false });
+  assert.deepEqual(parseArgs(['--provider', 'pingfederate']), { targets: ['local', 'se'], providers: ['pingfederate'], json: false, help: false });
+  assert.deepEqual(parseArgs(['--provider', 'both']).providers, both);
   assert.throws(() => parseArgs(['--target', 'bad']), /local\|se\|both/);
 });
 

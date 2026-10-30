@@ -264,24 +264,25 @@ function validateWorker(worker, provider, identities, key) {
   if (typeof worker.executeReadinessCase !== 'function') throw providerIsolationError('worker has no readiness execution adapter');
 }
 
-function featureRows(featureChecks, targets, attackLab) {
-  return featureChecks.filter((check) => Boolean(check.attackLab) === attackLab).flatMap((check) => targets.flatMap((targetId) => (check.providers || []).filter((provider) => PROVIDERS.has(provider)).map((provider) => ({ kind: attackLab ? 'attackLab' : 'feature', check, targetId, provider }))));
+function featureRows(featureChecks, targets, attackLab, providers = [...PROVIDERS]) {
+  return featureChecks.filter((check) => Boolean(check.attackLab) === attackLab).flatMap((check) => targets.flatMap((targetId) => (check.providers || []).filter((provider) => PROVIDERS.has(provider) && providers.includes(provider)).map((provider) => ({ kind: attackLab ? 'attackLab' : 'feature', check, targetId, provider }))));
 }
 
-function deriveExecutionManifest({ catalog = buildDemoReadinessCatalog(), featureChecks = featureCheckSource.checks || [], targets = ['local', 'hosted'] } = {}) {
+// `providers` limits a diagnostic run to one provider's rows.
+function deriveExecutionManifest({ catalog = buildDemoReadinessCatalog(), featureChecks = featureCheckSource.checks || [], targets = ['local', 'hosted'], providers = [...PROVIDERS] } = {}) {
   const core = []; const variants = [];
   for (const caseRow of catalog) {
     for (const group of caseRow.runtimeVerticalGroups || []) {
       const vertical = group.vertical || group.verticals?.[0];
       const behavior = group.expectedBehavior || caseRow.expectedBehaviorByVertical?.[vertical] || caseRow.expectedBehavior;
-      for (const [provider, flow] of Object.entries(caseRow.providerFlows || {})) if (flow) for (const targetId of targets) core.push({ kind: 'core', caseRow, group, targetId, provider, vertical, behavior });
+      for (const [provider, flow] of Object.entries(caseRow.providerFlows || {})) if (flow && providers.includes(provider)) for (const targetId of targets) core.push({ kind: 'core', caseRow, group, targetId, provider, vertical, behavior });
     }
     for (const behavior of caseRow.alternateBehaviors || []) {
       const vertical = Object.keys(caseRow.expectedBehaviorByVertical || {})[0] || 'banking';
-      for (const [provider, flow] of Object.entries(caseRow.providerFlows || {})) if (flow) for (const targetId of targets) variants.push({ kind: 'variant', caseRow, targetId, provider, vertical, behavior });
+      for (const [provider, flow] of Object.entries(caseRow.providerFlows || {})) if (flow && providers.includes(provider)) for (const targetId of targets) variants.push({ kind: 'variant', caseRow, targetId, provider, vertical, behavior });
     }
   }
-  const feature = featureRows(featureChecks, targets, false); const attackLab = featureRows(featureChecks, targets, true);
+  const feature = featureRows(featureChecks, targets, false, providers); const attackLab = featureRows(featureChecks, targets, true, providers);
   return { core, variants, feature, attackLab, counts: { core: core.length, variants: variants.length, feature: feature.length, attackLab: attackLab.length, total: core.length + variants.length + feature.length + attackLab.length } };
 }
 
@@ -570,8 +571,8 @@ function createReadinessExecutionService({ createWorker: testWorkerAdapter, prod
       || row.caseRow?.providerRoleApplicability
       || { userSession: 'provider-bound', agentIdentity: 'provider-bound', tokenIssuer: 'provider-bound' };
   }
-  async function runManifest({ targets = ['local', 'hosted'], identityRefFor, deadlineAt, startedAt = now(), commit, report: suppliedReport, onProgress, inventorySink } = {}) {
-    const manifest = deriveExecutionManifest({ catalog, featureChecks, targets });
+  async function runManifest({ targets = ['local', 'hosted'], providers, identityRefFor, deadlineAt, startedAt = now(), commit, report: suppliedReport, onProgress, inventorySink } = {}) {
+    const manifest = deriveExecutionManifest({ catalog, featureChecks, targets, ...(providers ? { providers } : {}) });
     const hardDeadlineAt = deadlineAt || startedAt + HARD_DEADLINE_MS;
     const report = suppliedReport || createReadinessReport({ runId: crypto.randomUUID(), commit, targets, startedAt, deadlineAt: hardDeadlineAt });
     report.categoryCounts = manifest.counts;

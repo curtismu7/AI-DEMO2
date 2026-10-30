@@ -291,6 +291,9 @@ describe('demo readiness execution service', () => {
       { id: 'PRIV-TOOL-ABUSE', providers: ['pingone', 'pingfederate'], attackLab: true },
     ] });
     expect(service.deriveExecutionManifest({ targets: ['local', 'hosted'] }).counts).toEqual({ core: 6, variants: 0, feature: 6, attackLab: 4, total: 16 });
+    const pfOnly = service.deriveExecutionManifest({ targets: ['local', 'hosted'], providers: ['pingfederate'] });
+    expect(pfOnly.counts).toEqual({ core: 4, variants: 0, feature: 4, attackLab: 2, total: 10 });
+    expect([...pfOnly.core, ...pfOnly.feature, ...pfOnly.attackLab].every((row) => row.provider === 'pingfederate')).toBe(true);
   });
 
   test('derives the full current inventory: 206 unexpanded, 190 groups, and 822 rows with required feature probes', () => {

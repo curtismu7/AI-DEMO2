@@ -132,12 +132,28 @@ describe('admin demo readiness job routes', () => {
     expect(runner.mock.calls[0][0].targets).toEqual(['local']);
   });
 
+  test('a start body may name one provider, which the runner receives; omitted means both', async () => {
+    const named = fixture();
+    await request(named.app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer admin-a')
+      .send({ providers: ['pingfederate'] }).expect(202);
+    await named.previewReady.promise;
+    expect(named.runner.mock.calls[0][0].providers).toEqual(['pingfederate']);
+    const omitted = fixture();
+    await request(omitted.app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer admin-a').send({}).expect(202);
+    await omitted.previewReady.promise;
+    expect(omitted.runner.mock.calls[0][0].providers).toEqual(['pingone', 'pingfederate']);
+  });
+
   test.each([
     [{ targets: [] }, 'invalid_targets'],
     [{ targets: ['local', 'local'] }, 'invalid_targets'],
     [{ targets: ['prod'] }, 'invalid_targets'],
     [{ targets: 'local' }, 'invalid_targets'],
     [{ targets: ['local'], digest: 'x' }, 'invalid_start_body'],
+    [{ providers: [] }, 'invalid_providers'],
+    [{ providers: ['okta'] }, 'invalid_providers'],
+    [{ providers: ['pingone', 'pingone'] }, 'invalid_providers'],
+    [{ providers: 'pingone' }, 'invalid_providers'],
   ])('rejects start body %j', async (body, error) => {
     const { app, runner } = fixture();
     const response = await request(app).post('/api/admin/demo-readiness/jobs').set('Authorization', 'Bearer admin-a').send(body);

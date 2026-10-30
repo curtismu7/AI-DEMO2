@@ -102,8 +102,36 @@ test('the BFF lane sends --target to the job, and one target stays diagnostic', 
     stdout: { write: () => {} },
     stderr: { write: () => {} },
   });
-  assert.deepEqual(bodies, [{ targets: ['local'] }]);
+  assert.deepEqual(bodies, [{ targets: ['local'], providers: ['pingone', 'pingfederate'] }]);
   assert.equal(code, 1);
+});
+
+test('the BFF lane sends --provider to the job, and one provider stays diagnostic even when READY', async () => {
+  const bodies = [];
+  const responses = [
+    { status: 202, body: { jobId: 'j7', status: 'running' } },
+    { body: { jobId: 'j7', status: 'ready', report: { ready: true, status: 'ready', label: 'READY — BOTH TARGETS', checks: [] } } },
+  ];
+  const fetchImpl = async (_url, init = {}) => {
+    if (init.body) bodies.push(JSON.parse(init.body));
+    const next = responses.shift();
+    return { ok: (next.status ?? 200) < 400, status: next.status ?? 200, json: async () => next.body };
+  };
+  const code = await runCli(['--provider', 'pingfederate', '--json'], {
+    env: { DEMO_READINESS_BFF_URL: BASE, DEMO_READINESS_BFF_ADMIN_TOKEN: TOKEN },
+    fetchImpl,
+    stdout: { write: () => {} },
+    stderr: { write: () => {} },
+  });
+  assert.deepEqual(bodies, [{ targets: ['local', 'se'], providers: ['pingfederate'] }]);
+  assert.equal(code, 1);
+});
+
+test('--provider accepts only pingone, pingfederate or both', async () => {
+  const errors = [];
+  const code = await runCli(['--provider', 'okta'], { stdout: { write: () => {} }, stderr: { write: (v) => errors.push(v) } });
+  assert.equal(code, 2);
+  assert.match(errors.join(''), /--provider must be pingone\|pingfederate\|both/);
 });
 
 test('runCli with the BFF lane prints the report and exits 0 only for full READY', async () => {
