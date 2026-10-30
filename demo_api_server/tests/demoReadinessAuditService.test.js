@@ -222,6 +222,21 @@ describe('demo readiness audit service', () => {
     expect(checks.find((item) => item.id === 'pingfederate:profile:specialist')).toEqual(expect.objectContaining({ status: 'pass' }));
   });
 
+  test('a subset baseline passes with other apps\' entries, names them, and still fails a missing one', async () => {
+    const own = ['https://app.example.test/cimd/client.json', 'https://app.example.test/cimd/negative.json'];
+    const extra = 'https://other-app.example.test/client.json';
+    const profiles = { roles: {
+      cimd: { baseline: { cimdEnabled: true, metadataUrls: own }, baselineSubset: ['metadataUrls'], sourceRef: 'provisioner' },
+    } };
+    const audit = (metadataUrls) => createAuditService({
+      adapters: passingAdapters({ pingFederate: { ...passingAdapters().pingFederate, readProfile: jest.fn(async () => ({ cimdEnabled: true, metadataUrls })) } }),
+      pfProfiles: profiles,
+    }).auditPingFederateConfiguration({ baseUrl: 'https://pf.local' }).then((checks) => checks.find((item) => item.id === 'pingfederate:profile:cimd'));
+    expect(await audit([...own, extra])).toEqual(expect.objectContaining({ status: 'pass', observed: { beyondBaseline: { metadataUrls: [extra] } } }));
+    expect(await audit(own)).toEqual(expect.objectContaining({ status: 'pass' }));
+    expect(await audit([own[0], extra])).toEqual(expect.objectContaining({ status: 'fail', observed: { metadataUrls: [own[0], extra] } }));
+  });
+
   test('uses only argument-array docker adapters and never invokes a shell mutation', async () => {
     const execFile = jest.fn(async () => ({ stdout: '{}' }));
     const audit = createAuditService({ adapters: { execFile }, pfProfiles: { roles: {} } });
