@@ -1646,7 +1646,9 @@
     },
     "book_airline_flight": {
       "requiredScopes": ["airlines:read", "airlines:write"],
-      "surface": "gateway"
+      "surface": "gateway",
+      "challengeType": "consent",
+      "requiresAgentMediation": true
     }
   },
   "policy": {
