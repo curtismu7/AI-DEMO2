@@ -355,7 +355,7 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
   # shared nginx-public controller routes on Host, so every namespace must
   # claim its own or two deploys collide silently. Owner namespaces keep the
   # canonical hosts (what's live today); everyone else derives <slug>.* from
-  # their namespace. APP_HOST/MCP_HOST/A2A_HOST override any derivation
+  # their namespace. APP_HOST/MCP_HOST/A2A_HOST/POPPY_HOST override any derivation
   # (loudly logged, e.g. to mirror an existing DNS name).
   owner_slug="${NS#ping-devops-}"
   case "$NS" in
@@ -363,11 +363,13 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
       derived_app_host="ai-demo.ping-devops.com"
       derived_mcp_host="cmuir-mcp.ping-devops.com"
       derived_a2a_host="langchain-a2a.ai-demo.ping-devops.com"
+      derived_poppy_host="poppy.ai-demo.ping-devops.com"
       ;;
     ping-devops-*)
       derived_app_host="${owner_slug}.ai-demo.ping-devops.com"
       derived_mcp_host="${owner_slug}-mcp.ping-devops.com"
       derived_a2a_host="a2a-${owner_slug}.ai-demo.ping-devops.com"
+      derived_poppy_host="poppy-${owner_slug}.ai-demo.ping-devops.com"
       ;;
     *)
       # Non-ping-devops namespaces: still derive from the full name so the
@@ -375,11 +377,13 @@ if [[ -n "$K8S_NAMESPACE" ]]; then
       derived_app_host="${NS}.ai-demo.ping-devops.com"
       derived_mcp_host="${NS}-mcp.ping-devops.com"
       derived_a2a_host="a2a-${NS}.ai-demo.ping-devops.com"
+      derived_poppy_host="poppy-${NS}.ai-demo.ping-devops.com"
       ;;
   esac
   APP_HOST="${APP_HOST:-$derived_app_host}"
   MCP_HOST="${MCP_HOST:-$derived_mcp_host}"
   A2A_HOST="${A2A_HOST:-$derived_a2a_host}"
+  POPPY_HOST="${POPPY_HOST:-$derived_poppy_host}"
   if [[ "${APP_HOST:-}" != "$derived_app_host" || "${MCP_HOST:-}" != "$derived_mcp_host" || "${A2A_HOST:-}" != "$derived_a2a_host" ]]; then
     warn "Hostname override active: APP_HOST=$APP_HOST MCP_HOST=$MCP_HOST A2A_HOST=$A2A_HOST (derived would be $derived_app_host / $derived_mcp_host / $derived_a2a_host)"
   fi
@@ -507,12 +511,21 @@ done
 if [[ -n "$K8S_NAMESPACE" ]]; then
   # Hostnames were derived before the configmap patch (search "Per-engineer
   # hostnames"); APP_HOST etc. are already set here.
-  info "Applying SE cluster ingress (app=$APP_HOST mcp=$MCP_HOST a2a=$A2A_HOST)..."
+  info "Applying SE cluster ingress (app=$APP_HOST mcp=$MCP_HOST a2a=$A2A_HOST poppy=$POPPY_HOST)..."
   sed -e "s|<<NAMESPACE>>|$NS|g" \
       -e "s|<<APP_HOST>>|$APP_HOST|g" \
       -e "s|<<MCP_HOST>>|$MCP_HOST|g" \
       -e "s|<<A2A_HOST>>|$A2A_HOST|g" \
+      -e "s|<<POPPY_HOST>>|$POPPY_HOST|g" \
       "$SCRIPT_DIR/se-ingress.yaml" | kubectl apply -f -
+  # The BFF serves the Poppy discovery documents only on this host. envFrom is read at
+  # pod start, so restart the api-server when the value changes. POPPY_ALLOWED_AGENTS
+  # stays unset (no agent accepted) until an operator lists the agents to trust.
+  prev_poppy_domain="$(kubectl get configmap ai-demo-config -n "$NS" -o jsonpath='{.data.POPPY_DOMAIN}' 2>/dev/null || true)"
+  if [[ "$prev_poppy_domain" != "$POPPY_HOST" ]]; then
+    kubectl patch configmap ai-demo-config -n "$NS" --type merge -p "{\"data\":{\"POPPY_DOMAIN\":\"$POPPY_HOST\"}}"
+    kubectl rollout restart deployment/demo-api-server -n "$NS" 2>/dev/null || true
+  fi
 else
   info "Applying ALB ingress..."
   # ingress.yaml ships with a placeholder ACM cert ARN — substitute the real one

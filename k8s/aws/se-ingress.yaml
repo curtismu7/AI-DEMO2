@@ -2,7 +2,7 @@
 # Ingress for the Ping SE DevOps cluster (ping-dev-aws-us-east-2).
 # Uses the cluster's nginx ingress controller — no ALB/ACM needed.
 # <<NAMESPACE>> is substituted by deploy.sh with the actual namespace (e.g. ping-devops-cmuir).
-# <<APP_HOST>>, <<MCP_HOST>> and <<A2A_HOST>> are substituted by deploy.sh so each
+# <<APP_HOST>>, <<MCP_HOST>>, <<A2A_HOST>> and <<POPPY_HOST>> are substituted by deploy.sh so each
 # engineer's namespace gets its own hostname and shared nginx rules never collide.
 # Owner namespaces (ping-devops-cmuir, ping-devops-curtismuir) keep the canonical
 # ai-demo.ping-devops.com; everyone else gets <slug>.ai-demo.ping-devops.com.
@@ -595,6 +595,67 @@ spec:
             name: langchain-agent
             port:
               number: 8888
+---
+# Poppy (Personal Agent Protocol) host. Spec section 3.2 needs the protected-resource
+# `resource` to be exactly https://{domain}, which the main app host cannot give
+# (it already serves the banking and MCP resources). Only the discovery documents
+# and /poppy/api are routed here, straight to the BFF (the frontend nginx does not
+# proxy them). No sign-in wall: agents authenticate with a PingFederate bearer token
+# plus a Poppy-Session header, both verified by the BFF. external-dns creates the
+# record; the two-label host needs its own cert (see the A2A block above).
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: poppy
+  namespace: <<NAMESPACE>>
+spec:
+  secretName: poppy-tls
+  issuerRef:
+    name: letsencrypt-pdo
+    kind: ClusterIssuer
+  dnsNames:
+    - <<POPPY_HOST>>
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: poppy-ingress
+  namespace: <<NAMESPACE>>
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-redirect: "true"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTPS"
+    nginx.ingress.kubernetes.io/proxy-body-size: "1m"
+spec:
+  ingressClassName: nginx-public
+  tls:
+  - hosts:
+    - <<POPPY_HOST>>
+    secretName: poppy-tls
+  rules:
+  - host: <<POPPY_HOST>>
+    http:
+      paths:
+      - path: /.well-known/poppy.json
+        pathType: Exact
+        backend:
+          service:
+            name: demo-api-server
+            port:
+              number: 3001
+      - path: /.well-known/oauth-protected-resource
+        pathType: Exact
+        backend:
+          service:
+            name: demo-api-server
+            port:
+              number: 3001
+      - path: /poppy/api
+        pathType: Prefix
+        backend:
+          service:
+            name: demo-api-server
+            port:
+              number: 3001
 ---
 # The /mcpgw path-based Ingress that used to live here (ai-demo-mcpgw-ingress,
 # on this same shared host) is REMOVED as of 2026-08-13 — proven live to be
