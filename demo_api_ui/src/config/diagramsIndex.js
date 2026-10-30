@@ -23,6 +23,7 @@ export const DIAGRAMS_INDEX = [
       D("P1 Third-Party Token Exchange", "/p1-third-party-exchange", "PingOne accepting an Okta, Auth0, Microsoft, PingFederate or other-PingOne JWT as actor token, with trusted issuer checks and claim mapping. Simulated."),
       D("Interactive Flow", "/architecture/flow", "Step through the end-to-end flow."),
       D("Sequence Diagram", "/sequence-diagram", "Sequence view of a run."),
+      D("POC flow", "/poc-flow", "The customer POC pattern: one agent token exchange, Authorize deciding each tool call, and CIBA approval for writes. 24 steps in nine groups."),
       D("Canvas Diagram", "/architecture/canvas", "Editable canvas for drawing your own diagram."),
       D("Delegated Access Proof", "/academy/delegation/guided", "Guided proof of delegated access."),
       D("A2A Architecture", "/a2a-architecture", "Agent-to-agent delegation and Agent Card discovery."),

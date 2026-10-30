@@ -311,6 +311,7 @@
     "/group-policy/full": "user",
     "/personal-agent-design": "public",
     "/personal-agent-dual-gateway": "public",
+    "/poc-flow": "user",
     "/uhg-chatgpt-mcp-flow": "user",
     "/united-personal-agent-flow": "public",
     "/personal-agent-flow": "public",

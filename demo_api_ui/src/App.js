@@ -46,6 +46,7 @@ const ResourceServerPlacementPage = lazyWithRetry(() => import("./components/Res
 const PrivilegeFirstGatewayPage = lazyWithRetry(() => import("./components/PrivilegeFirstGatewayPage"));
 const PersonalAgentDesignPage = lazyWithRetry(() => import("./components/personalAgent/PersonalAgentDesignPage"));
 const UhgChatgptMcpFlowPage = lazyWithRetry(() => import("./pages/UhgChatgptMcpFlowPage"));
+const PocFlowPage = lazyWithRetry(() => import("./pages/PocFlowPage"));
 const GatewayClaimsPage = lazyWithRetry(() => import("./pages/GatewayClaimsPage"));
 const UnitedPersonalAgentFlowPage = lazyWithRetry(() => import("./pages/UnitedPersonalAgentFlowPage"));
 const PersonalAgentFlowPage = lazyWithRetry(() => import("./pages/PersonalAgentFlowPage"));
@@ -2480,6 +2481,13 @@ function AppWithAuth() {
                               element={
                                 // Customer architecture: signed-in users only.
                                 loading ? null : user ? <UhgChatgptMcpFlowPage /> : <SignInPrompt message="This customer architecture needs a signed-in session." />
+                              }
+                            />
+                            <Route
+                              path="/poc-flow"
+                              element={
+                                // Customer POC pattern: signed-in users only.
+                                loading ? null : user ? <PocFlowPage /> : <SignInPrompt message="This customer POC pattern needs a signed-in session." />
                               }
                             />
                             <Route
