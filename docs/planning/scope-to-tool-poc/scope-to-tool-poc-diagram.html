@@ -1,0 +1,346 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Agent Token Exchange + CIBA Flow</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@400;600;700&display=swap" rel="stylesheet">
+<link rel="stylesheet" href="https://unpkg.com/reactflow@11.11.4/dist/style.css">
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --ink: #1c2230; --muted: #6b7385; --line: #c4c9d4;
+    --red: #c8102e; --red-soft: #fde8eb;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14171f; --panel: #1d212c; --ink: #eceff5; --muted: #98a0b3; --line: #3a4152;
+            --red: #ff4d63; --red-soft: #3a1c22; }
+  }
+  html, body, #root { height: 100%; margin: 0; }
+  body { background: var(--bg); color: var(--ink); font-family: Montserrat, system-ui, sans-serif; }
+  .app { display: flex; flex-direction: column; height: 100%; }
+  .bar { display: flex; flex-wrap: wrap; gap: 10px 14px; align-items: center; padding: 10px 16px;
+         background: var(--panel); border-bottom: 1px solid var(--line); }
+  .bar h1 { font-size: 15px; margin: 0 12px 0 0; font-weight: 700; }
+  button, select { font: inherit; font-size: 13px; padding: 6px 12px; border-radius: 6px;
+         border: 1px solid var(--line); background: var(--panel); color: var(--ink); cursor: pointer; }
+  button.primary { background: var(--red); border-color: var(--red); color: #fff; font-weight: 600; }
+  label { font-size: 12px; color: var(--muted); display: flex; align-items: center; gap: 6px; }
+  .caption { padding: 10px 16px; min-height: 64px; background: var(--red-soft); font-size: 13px; line-height: 1.45;
+             border-bottom: 1px solid var(--line); box-sizing: border-box; }
+  .caption b { color: var(--red); }
+  .caption pre { margin: 6px 0 0; font-size: 11.5px; font-family: ui-monospace, Menlo, monospace; white-space: pre-wrap; }
+  .main { flex: 1; min-height: 0; display: flex; }
+  .canvas { flex: 1; min-width: 0; }
+  .list { width: 380px; overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel); font-size: 12px; }
+  .item { border-bottom: 1px solid var(--line); }
+  .item .head { padding: 8px 12px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
+  .item .head:hover { background: var(--bg); }
+  .item.on .head { background: var(--red-soft); font-weight: 600; }
+  .item.seen .head { color: var(--muted); }
+  .item .n { color: var(--red); min-width: 20px; font-weight: 700; }
+  .item .chev { margin-left: auto; color: var(--muted); font-size: 10px; }
+  .detail { padding: 4px 14px 12px 40px; font-size: 12px; line-height: 1.55; background: var(--panel); }
+  .detail h4 { margin: 10px 0 2px; font-size: 11px; text-transform: uppercase; letter-spacing: .04em; color: var(--muted); }
+  .detail p { margin: 0; }
+  .detail pre { margin: 4px 0 0; font-size: 11px; font-family: ui-monospace, Menlo, monospace; white-space: pre-wrap;
+                background: var(--bg); padding: 6px 8px; border-radius: 6px; }
+  .detail .open { color: var(--red); }
+  .node { background: var(--panel); border: 2px solid var(--line); border-radius: 10px; padding: 10px 14px;
+          min-width: 190px; min-height: 170px; display: flex; flex-direction: column; justify-content: center;
+          text-align: center; font-size: 13px; font-weight: 600; position: relative; box-sizing: border-box; }
+  .node small { display: block; font-weight: 400; color: var(--muted); font-size: 11px; margin-top: 2px; }
+  .node.authz { border-color: var(--red); }
+  .node.hot { box-shadow: 0 0 0 3px var(--red-soft); border-color: var(--red); }
+  .react-flow__handle { opacity: 0; width: 6px; height: 6px; }
+  .react-flow__edge-textbg { fill: var(--panel); stroke: var(--line); }
+  .react-flow__edge-text { fill: var(--ink); font-size: 11px; font-family: Montserrat, sans-serif; }
+  .react-flow__background { background: var(--bg); }
+  .react-flow__controls button { color: #1c2230; }
+  @media (max-width: 800px) { .list { display: none; } }
+</style>
+</head>
+<body>
+<div id="root"></div>
+<script src="https://unpkg.com/react@18.3.1/umd/react.production.min.js"></script>
+<script src="https://unpkg.com/react-dom@18.3.1/umd/react-dom.production.min.js"></script>
+<script src="https://unpkg.com/reactflow@11.11.4/dist/umd/index.js"></script>
+<script>
+(function () {
+  const h = React.createElement;
+  const Flow = ReactFlow.default || ReactFlow;
+  const { Handle, Position, Background, Controls, MarkerType, useNodesState } = ReactFlow;
+
+  // Handles on every side at 10/30/50/70/90 percent, ids like r30, t70. Loose mode: any handle can be either end.
+  const SIDES = { l: Position.Left, r: Position.Right, t: Position.Top, b: Position.Bottom };
+  const POS = [10, 30, 50, 70, 90];
+
+  function Box(props) {
+    const d = props.data;
+    const kids = [];
+    Object.keys(SIDES).forEach(function (k) {
+      POS.forEach(function (p) {
+        const style = (k === 'l' || k === 'r') ? { top: p + '%' } : { left: p + '%' };
+        kids.push(h(Handle, { key: k + p, id: k + p, type: 'source', position: SIDES[k], style: style }));
+      });
+    });
+    kids.push(h('div', { key: 'n' }, d.label));
+    if (d.sub) kids.push(h('small', { key: 's' }, d.sub));
+    return h('div', { className: 'node' + (d.authz ? ' authz' : '') + (d.hot ? ' hot' : '') }, kids);
+  }
+  const nodeTypes = { box: Box };
+
+  const BASE = [
+    { id: 'browser', x: 0,    y: 150, label: 'Browser' },
+    { id: 'app',     x: 420,  y: 0,   label: 'Application' },
+    { id: 'iam',     x: 860,  y: 0,   label: 'IAM Core', sub: 'PingFederate / PingOne' },
+    { id: 'agent',   x: 420,  y: 330, label: 'Agent' },
+    { id: 'gw',      x: 860,  y: 330, label: 'MCP Gateway' },
+    { id: 'authz',   x: 1300, y: 330, label: 'Authorize', sub: 'policy decision + CIBA', authz: true },
+    { id: 'mcp',     x: 860,  y: 700, label: 'MCP Server' },
+    { id: 'res',     x: 1300, y: 700, label: 'Resource Server' },
+  ];
+
+  // from/to with handle ids. both = arrow at each end.
+  const STEPS = [
+    { f: 'browser', fh: 'r10', t: 'app', th: 'l30', label: 'User initiates login',
+      cap: 'User starts a login from the browser.' },
+    { f: 'app', fh: 'r30', t: 'iam', th: 'l30', label: 'Authorize request',
+      cap: 'Application redirects to IAM Core with the agent client and the full scope set.',
+      code: 'GET https://auth.pingonedemo.org/as/authorize\n  ?clientID=agentClient\n  &scope=api:read api:write api:delete' },
+    { f: 'browser', fh: 'r50', t: 'iam', th: 'l70', both: true, type: 'default', label: 'User authenticates',
+      cap: 'User authenticates with IAM Core.' },
+    { f: 'iam', fh: 'l50', t: 'app', th: 'r70', label: 'User token',
+      cap: 'IAM Core returns a <b>user token</b> to the application.',
+      code: '{ "aud": "https://apigateway.com",\n  "sub": "user",\n  "scopes": "api:read, api:write, api:delete" }' },
+    { f: 'agent', fh: 't50', t: 'iam', th: 'b10', type: 'default', label: 'Agent authenticates',
+      cap: 'The agent authenticates to IAM Core as itself.' },
+    { f: 'iam', fh: 'b30', t: 'agent', th: 't50', type: 'default', label: 'Agent token',
+      cap: 'IAM Core returns an <b>agent token</b>.',
+      code: '{ "sub": "agentID",\n  "aud": ["https://aigateway.com"] }' },
+    { f: 'agent', fh: 't50', t: 'iam', th: 'b50', both: true, type: 'default', label: 'Token exchange: actor + user token',
+      cap: 'Token exchange with the <b>actor token</b> (agent) and the <b>user token</b>. The result is an OBO token that names the user and carries the agent as <b>act</b>.',
+      code: '{ "sub": "user",\n  "aud": ["https://aigateway.com"],\n  "act": { "sub": "agentID" },\n  "scopes": "api:read, api:write, api:delete" }' },
+    { f: 'app', fh: 'b10', t: 'agent', th: 't10', label: 'Write request',
+      cap: 'Application asks the agent to do a write.' },
+    { f: 'agent', fh: 'r10', t: 'gw', th: 'l10', type: 'straight', label: 'Write tool call',
+      cap: 'Agent calls the write tool through the MCP Gateway.' },
+    { f: 'gw', fh: 'r10', t: 'authz', th: 'l10', label: 'Policy decision request',
+      cap: 'Gateway asks Authorize for a policy decision.' },
+    { f: 'authz', fh: 'l30', t: 'gw', th: 'r30', label: '403 with identifier',
+      cap: '<b>Write requires HITL.</b> Authorize triggers CIBA and returns <b>DENY with an identifier</b> (a 403).' },
+    { f: 'gw', fh: 'l30', t: 'agent', th: 'r30', type: 'straight', label: 'JSON-RPC 2.0 error with identifier',
+      cap: 'Gateway <b>rewrites the 403 into a JSON-RPC 2.0 error</b> that carries the identifier. This is what keeps SDKs that treat a raw 403 as fatal (Google ADK, AWS Strands) from killing the session.' },
+    { f: 'agent', fh: 't30', t: 'app', th: 'b30', label: 'Prompt for CIBA acceptance',
+      cap: 'Agent asks the application to prompt the user for the CIBA approval.' },
+    { f: 'app', fh: 'b70', t: 'agent', th: 't70', label: 'Accept / Yes',
+      cap: 'User accepts.' },
+    { f: 'agent', fh: 'r50', t: 'gw', th: 'l50', type: 'straight', label: 'Replay tool call, header has identifier',
+      cap: 'Agent <b>replays the tool call</b> with a header containing the identifier.' },
+    { f: 'gw', fh: 'r50', t: 'authz', th: 'l50', label: 'Policy decision request',
+      cap: 'Gateway asks Authorize again.' },
+    { f: 'authz', fh: 'l70', t: 'gw', th: 'r70', label: 'Permit',
+      cap: 'Authorize <b>detects the header and checks the CIBA call</b>. Approved, so it returns <b>PERMIT</b>.' },
+    { f: 'gw', fh: 'b30', t: 'mcp', th: 't30', label: 'Tool request with OBO token',
+      cap: 'Gateway forwards the tool request to the MCP Server with the OBO token.' },
+    { f: 'mcp', fh: 'r30', t: 'res', th: 'l30', label: 'MCP processing',
+      cap: 'MCP Server calls the Resource Server.' },
+    { f: 'res', fh: 'l70', t: 'mcp', th: 'r70', label: 'Response',
+      cap: 'Resource Server responds.' },
+    { f: 'mcp', fh: 'r50', t: 'authz', th: 'b50', type: 'default', label: 'Response',
+      cap: 'The response goes through Authorize on the way back.' },
+    { f: 'authz', fh: 'l90', t: 'gw', th: 'r90', label: 'Response',
+      cap: 'Authorize passes the response to the gateway.' },
+    { f: 'gw', fh: 'l70', t: 'agent', th: 'r70', type: 'straight', label: 'Response',
+      cap: 'Gateway returns the response to the agent.' },
+    { f: 'agent', fh: 't90', t: 'app', th: 'b90', label: 'Response',
+      cap: 'Agent returns the result to the application. Done.' },
+  ];
+
+
+  const DETAILS = [
+`<h4>What happens</h4><p>The user opens the application in a browser and starts logging in. Nothing agent-specific has happened yet.</p>
+<h4>Why it matters</h4><p>Everything after this hangs off one login session. The user logs in once, not once per tool.</p>`,
+
+`<h4>What happens</h4><p>The application sends an OIDC authorization request to IAM Core for the client <b>agentClient</b>, asking for all three scopes at once.</p>
+<h4>Why it matters</h4><p>This is the only scope consent in the flow. It answers the "does each scope swap need OIDC consent?" question: the user consents once, up front, not per tool call.</p>
+<h4>Open</h4><p class="open">Does the user see a consent screen for each scope, or is consent implied for this client?</p>`,
+
+`<h4>What happens</h4><p>The user authenticates with IAM Core. The arrow is two-way because the browser is redirected to IAM Core and returned afterwards.</p>
+<h4>Why it matters</h4><p>This proves who the human is. The password, MFA and similar steps are whatever the customer's policy requires.</p>`,
+
+`<h4>What happens</h4><p>IAM Core returns a user token to the application.</p>
+<h4>Why it matters</h4><p>Note the audience is the <b>API gateway</b>, not the AI gateway. The exchange in step 7 changes the audience. The token already carries all three scopes.</p>
+<h4>Token</h4><pre>{ "aud": "https://apigateway.com",
+  "sub": "user",
+  "scopes": "api:read, api:write, api:delete" }</pre>`,
+
+`<h4>What happens</h4><p>The agent authenticates to IAM Core as itself, using its own non-human identity.</p>
+<h4>Why it matters</h4><p>The agent gets an identity separate from the user's. That separation lets the later OBO token say "this user, acting through this agent".</p>`,
+
+`<h4>What happens</h4><p>IAM Core returns an agent token.</p>
+<h4>Why it matters</h4><p>It proves who the agent is, but it names no user. It is not used on its own to call tools. It becomes the <b>actor token</b> in step 7.</p>
+<h4>Token</h4><pre>{ "sub": "agentID",
+  "aud": ["https://aigateway.com"] }</pre>`,
+
+`<h4>What happens</h4><p>Token exchange with the <b>actor token</b> (agent) and the <b>user token</b> (subject). The result is the OBO token. The arrow is two-way because the agent sends the request and gets the new token back.</p>
+<h4>Why it matters</h4><p>This is the only token exchange in the whole flow. It answers "do we swap scopes on every tool call?": no. The OBO token carries the full scope set, so the token does not narrow per tool. Authorize does that.</p>
+<h4>Token</h4><pre>{ "sub": "user",
+  "aud": ["https://aigateway.com"],
+  "act": { "sub": "agentID" },
+  "scopes": "api:read, api:write, api:delete" }</pre>
+<h4>Open</h4><p class="open">The exchange changes the audience from the API gateway to the AI gateway. The TE policy must allow that.</p>`,
+
+`<h4>What happens</h4><p>The application asks the agent to do something that needs a write, for example "update this record".</p>
+<h4>Why it matters</h4><p>The agent, not the application, decides which tool to call.</p>`,
+
+`<h4>What happens</h4><p>The agent calls the write tool through the MCP Gateway, carrying the OBO token.</p>
+<h4>Why it matters</h4><p>The gateway sits in front of the MCP Server and intercepts the call before it reaches the tool.</p>`,
+
+`<h4>What happens</h4><p>The gateway asks Authorize for a decision. The inputs are the user (<code>sub</code>), the agent (<code>act</code>), the tool and the action.</p>
+<h4>Why it matters</h4><p>The decision is made on who the user and agent are and which tool is called, not on token scopes alone. Authorize can plug into any gateway, which is why the same flow should work for the Bedrock gateway and the Privilege gateway.</p>`,
+
+`<h4>What happens</h4><p>Policy says <b>write requires HITL</b>. Authorize triggers CIBA and returns <b>DENY with an identifier</b>, as an HTTP 403.</p>
+<h4>Why it matters</h4><p>The identifier is how the later replay (step 15) is tied to this approval. Because Authorize starts the CIBA request, it also holds the audit record.</p>
+<h4>Open</h4><p class="open">Paul has CIBA both started and completed in PAZ. This diagram has the application prompt the user (steps 13-14). Which one do we use?</p>`,
+
+`<h4>What happens</h4><p>The gateway <b>rewrites the 403 into a JSON-RPC 2.0 error</b> that carries the identifier, and returns it to the agent.</p>
+<h4>Why it matters</h4><p>Google ADK and AWS Strands treat a raw 403 as fatal and kill the session (CJ). A JSON-RPC error looks like an ordinary tool error, so the session survives.</p>
+<h4>Example (placeholder shape)</h4><pre>{ "jsonrpc": "2.0", "id": 1,
+  "error": { "code": -32001,
+             "message": "Approval required",
+             "data": { "identifier": "&lt;ciba request id&gt;" } } }</pre>
+<h4>Open</h4><p class="open">Exact error fields are not defined yet. Can the Bedrock gateway do this rewrite, or only the Privilege gateway?</p>`,
+
+`<h4>What happens</h4><p>The agent sees the identifier and asks the application to prompt the user for CIBA acceptance.</p>
+<h4>Why it matters</h4><p>The agent never calls CIBA endpoints itself. It only relays the request to the application. This is the one custom behaviour the customer's AI team has to write.</p>
+<h4>Open</h4><p class="open">CIBA uses a magic link, so the approval channel is flexible (CJ). The application is only one option.</p>`,
+
+`<h4>What happens</h4><p>The user accepts. The application tells the agent "yes".</p>
+<h4>Why it matters</h4><p>This is the human-in-the-loop moment. Approval is recorded against the CIBA request, not trusted from the agent's word.</p>`,
+
+`<h4>What happens</h4><p>The agent <b>replays the same tool call</b> with the same OBO token, adding a header that contains the identifier.</p>
+<h4>Why it matters</h4><p>This is how the approval context gets back to Authorize across the gateway (CJ's question). The agent only echoes the identifier.</p>
+<h4>Open</h4><p class="open">The header name is a placeholder.</p>`,
+
+`<h4>What happens</h4><p>The gateway sends Authorize a second policy decision request, now including the identifier header.</p>`,
+
+`<h4>What happens</h4><p>Authorize <b>detects the header and checks the CIBA call</b>. The human approved it, so Authorize returns <b>PERMIT</b>.</p>
+<h4>Why it matters</h4><p>The agent is not asked to prove the approval. Authorize verifies it. If the request was denied or expired, Authorize denies again.</p>`,
+
+`<h4>What happens</h4><p>The gateway forwards the tool request to the MCP Server with the OBO token.</p>
+<h4>Why it matters</h4><p>The MCP Server sees the user in <code>sub</code> and the agent in <code>act</code>, so downstream audit shows both.</p>`,
+
+`<h4>What happens</h4><p>The MCP Server calls the Resource Server to do the actual work.</p>`,
+
+`<h4>What happens</h4><p>The Resource Server returns its result to the MCP Server.</p>`,
+
+`<h4>What happens</h4><p>As drawn, the MCP Server's response goes to Authorize on its way back, not straight to the gateway.</p>
+<h4>Open</h4><p class="open">The diagram does not say why. It is probably response inspection or audit. Confirm with CJ.</p>`,
+
+`<h4>What happens</h4><p>Authorize passes the response to the gateway.</p>`,
+
+`<h4>What happens</h4><p>The gateway returns the response to the agent.</p>`,
+
+`<h4>What happens</h4><p>The agent returns the result to the application, and the user sees it. Done.</p>
+<h4>Open</h4><p class="open">Does the next write need approval again, or does one approval cover a time window? This is the "once versus per action" question and it is a policy choice in Authorize.</p>`,
+  ];
+  STEPS.forEach(function (s, i) { s.detail = DETAILS[i]; });
+
+  const params = new URLSearchParams(location.search);
+  const startStep = params.has('step') ? parseInt(params.get('step'), 10) : -1;
+
+  function App() {
+    const initNodes = BASE.map(function (n) {
+      return { id: n.id, type: 'box', position: { x: n.x, y: n.y }, data: n };
+    });
+    const ns = useNodesState(initNodes);
+    const nodes = ns[0], setNodes = ns[1], onNodesChange = ns[2];
+    const st = React.useState(Math.min(startStep, STEPS.length - 1));
+    const step = st[0], setStep = st[1];
+    const rn = React.useState(false), running = rn[0], setRunning = rn[1];
+    const sp = React.useState(1), speed = sp[0], setSpeed = sp[1];
+    const op = React.useState(startStep), openIdx = op[0], setOpen = op[1];
+    React.useEffect(function () { if (running) setOpen(step); }, [running, step]);
+
+    React.useEffect(function () {
+      if (!running) return;
+      if (step >= STEPS.length - 1) { setRunning(false); return; }
+      const t = setTimeout(function () { setStep(function (s) { return s + 1; }); }, 2800 / speed);
+      return function () { clearTimeout(t); };
+    }, [running, step, speed]);
+
+    const edges = React.useMemo(function () {
+      return STEPS.map(function (s, i) {
+        const active = i === step, seen = i < step;
+        const color = active ? '#c8102e' : seen ? '#e08a96' : '#8d94a6';
+        const mk = { type: MarkerType.ArrowClosed, color: color };
+        return {
+          id: 'e' + i, source: s.f, sourceHandle: s.fh, target: s.t, targetHandle: s.th,
+          type: s.type || 'smoothstep', animated: active,
+          label: String(i + 1), labelBgPadding: [5, 3], labelBgBorderRadius: 8,
+          labelStyle: { fontWeight: 700 },
+          style: { stroke: color, strokeWidth: active ? 3 : 1.6, opacity: (active || seen || step === -1) ? 1 : 0.4 },
+          markerEnd: mk, markerStart: s.both ? mk : undefined,
+          zIndex: active ? 10 : 1,
+        };
+      });
+    }, [step]);
+
+    const shownNodes = React.useMemo(function () {
+      const hot = step >= 0 ? [STEPS[step].f, STEPS[step].t] : [];
+      return nodes.map(function (n) {
+        return Object.assign({}, n, { data: Object.assign({}, n.data, { hot: hot.indexOf(n.id) >= 0 }) });
+      });
+    }, [nodes, step]);
+
+    function reset() { setRunning(false); setStep(-1); setOpen(-1); setNodes(initNodes); }
+    function simulate() {
+      if (running) { setRunning(false); return; }
+      if (step >= STEPS.length - 1 || step < 0) setStep(0);
+      setRunning(true);
+    }
+
+    let cap = 'Press <b>Simulate</b> to walk the flow step by step, or click a step in the list to expand it. Drag any box to rearrange.';
+    if (step >= 0) {
+      const s = STEPS[step];
+      cap = '<b>Step ' + (step + 1) + ' of ' + STEPS.length + ' · ' + s.label + '.</b> ' + s.cap +
+            (s.code ? '<pre>' + s.code.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre>' : '');
+    }
+
+    const list = STEPS.map(function (s, i) {
+      const isOpen = i === openIdx;
+      return h('div', { key: i, className: 'item ' + (i === step ? 'on' : (i < step ? 'seen' : '')) },
+        h('div', { className: 'head', onClick: function () {
+            setRunning(false); setStep(i); setOpen(isOpen ? -1 : i); } },
+          h('span', { className: 'n' }, i + 1), h('span', null, s.label),
+          h('span', { className: 'chev' }, isOpen ? '\u25B2' : '\u25BC')),
+        isOpen ? h('div', { className: 'detail', dangerouslySetInnerHTML: { __html: s.detail } }) : null);
+    });
+
+    return h('div', { className: 'app' },
+      h('div', { className: 'bar' },
+        h('h1', null, 'Agent token exchange + CIBA HITL flow'),
+        h('button', { className: 'primary', onClick: simulate }, running ? 'Pause' : (step >= STEPS.length - 1 ? 'Replay' : 'Simulate')),
+        h('button', { onClick: function () { setRunning(false); setStep(function (x) { return Math.min(x + 1, STEPS.length - 1); }); } }, 'Next step'),
+        h('button', { onClick: reset }, 'Reset'),
+        h('label', null, 'Speed',
+          h('select', { value: speed, onChange: function (e) { setSpeed(parseFloat(e.target.value)); } },
+            h('option', { value: 0.5 }, '0.5x'), h('option', { value: 1 }, '1x'),
+            h('option', { value: 2 }, '2x'), h('option', { value: 4 }, '4x')))),
+      h('div', { className: 'caption', dangerouslySetInnerHTML: { __html: cap } }),
+      h('div', { className: 'main' },
+        h('div', { className: 'list' }, list),
+        h('div', { className: 'canvas' },
+          h(Flow, {
+            nodes: shownNodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange,
+            connectionMode: 'loose', nodesConnectable: false, fitView: true,
+            fitViewOptions: { padding: 0.1 }, minZoom: 0.3, proOptions: { hideAttribution: true },
+          }, h(Background, { gap: 20, color: '#c4c9d4' }), h(Controls, { showInteractive: false })))));
+  }
+
+  ReactDOM.createRoot(document.getElementById('root')).render(h(App));
+})();
+</script>
+</body>
+</html>
