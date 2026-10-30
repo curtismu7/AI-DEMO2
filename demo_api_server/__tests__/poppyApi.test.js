@@ -74,11 +74,24 @@ describe('Poppy API', () => {
     expect(res.body.error).toBe('invalid_session');
   });
 
-  it('401 with a scope challenge when there is no token', async () => {
+  it('a valid Session alone starts a signed-out Session: 200, no user data', async () => {
     const { app, session } = setup();
     const res = await get(app).set('Poppy-Session', session());
-    expect(res.status).toBe(401);
-    expect(res.headers['www-authenticate']).toBe('Bearer scope="accounts:read"');
+    expect(res.status).toBe(200);
+    expect(res.body).toEqual({ state: 'signed_out', session_id: 'sid-1', agent_id: undefined, scopes: [] });
+    expect(res.body.user_id).toBeUndefined();
+  });
+
+  it('a signed-out Session with a forged delegation is refused as invalid_session', async () => {
+    const { app } = setup();
+    const other = ecKey();
+    const res = await get(app).set('Poppy-Session', signSession({
+      delegation: signDelegation({ clientId: CLIENT_ID, jwksKid: 'k1', jwksPrivateKey: other.privateKey, delegatedPublicJwk: other.publicJwk, now: NOW }),
+      delegatedPrivateKey: other.privateKey, delegatedPublicJwk: other.publicJwk,
+      clientId: CLIENT_ID, issuer: ISSUER, sid: 'sid-x', sub: 'user-x', method: 'GET', url: `https://${HOST}/poppy/api/v1/me`, now: NOW,
+    }));
+    expect(res.status).toBe(400);
+    expect(res.body.error).toBe('invalid_session');
   });
 
   it('401 invalid_token when the token does not validate', async () => {
