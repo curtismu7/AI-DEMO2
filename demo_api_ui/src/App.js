@@ -48,6 +48,7 @@ const PersonalAgentDesignPage = lazyWithRetry(() => import("./components/persona
 const UhgChatgptMcpFlowPage = lazyWithRetry(() => import("./pages/UhgChatgptMcpFlowPage"));
 const PocFlowPage = lazyWithRetry(() => import("./pages/PocFlowPage"));
 const GatewayClaimsPage = lazyWithRetry(() => import("./pages/GatewayClaimsPage"));
+const PoppyPage = lazyWithRetry(() => import("./pages/PoppyPage"));
 const UnitedPersonalAgentFlowPage = lazyWithRetry(() => import("./pages/UnitedPersonalAgentFlowPage"));
 const PersonalAgentFlowPage = lazyWithRetry(() => import("./pages/PersonalAgentFlowPage"));
 const PersonalAgentReviewPage = lazyWithRetry(() => import("./components/personalAgent/PersonalAgentReviewPage"));
@@ -2373,6 +2374,8 @@ function AppWithAuth() {
                               path="/gateway-claims"
                               element={<GatewayClaimsPage />}
                             />
+                            {/* Poppy (Personal Agent Protocol) Company side. Explains only, no live call. */}
+                            <Route path="/poppy" element={<PoppyPage />} />
                             <Route
                               path="/privilege-cedar"
                               element={<Navigate to="/privilege-ai-policies" replace />}

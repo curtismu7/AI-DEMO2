@@ -291,6 +291,13 @@ spec:
             name: frontend
             port:
               number: 4000
+      - path: /poppy
+        pathType: Exact
+        backend:
+          service:
+            name: frontend
+            port:
+              number: 4000
       - path: /p1-third-party-exchange
         pathType: Exact
         backend:
