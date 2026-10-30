@@ -154,21 +154,21 @@ Source: CJ's post in the thread ("Entergy POC (1).png"). Paul's one suggested ch
 
 ![Agent token exchange + CIBA HITL flow](scope-to-tool-poc-diagram.png)
 
-Interactive version: open [scope-to-tool-poc-diagram.html](scope-to-tool-poc-diagram.html) in a browser (needs internet for the ReactFlow and font CDNs). Boxes are draggable, and it has Simulate, Next step, Reset and a speed control. The step list on the left expands each step to show what happens, why it matters, token payloads, and open questions. The caption shows the current step.
+Interactive version: open [scope-to-tool-poc-diagram.html](scope-to-tool-poc-diagram.html) in a browser (needs internet for the ReactFlow and font CDNs). Boxes are draggable, and it has Simulate, Next step, Reset and a speed control. The steps are grouped as in the table below, shown as colored groups in the step list and a legend on the canvas. The step list on the left expands each step to show what happens, why it matters, token payloads, and open questions. The caption shows the current step.
 
 The 24 steps, from the sequence diagram:
 
 | Steps | What happens |
 |---|---|
-| 1-4 | User logs in. The application requests `api:read api:write api:delete`. IAM Core issues a **user token** (`aud` = API gateway, `sub` = user). |
-| 5-6 | Agent authenticates and gets an **agent token** (`sub` = agentID, `aud` = AI gateway). |
-| 7 | **Token exchange** with actor token + user token. Result: `sub` = user, `act.sub` = agentID, scopes `api:read, api:write, api:delete`. |
-| 8-10 | Application asks the agent for a write. The agent calls the write tool through the MCP Gateway. The gateway sends a policy decision request to Authorize. |
-| 11 | Write requires HITL. Authorize triggers **CIBA** and returns **DENY with an identifier** (a 403). |
-| 12 | Gateway **rewrites the 403 into a JSON-RPC 2.0 error** that carries the identifier. |
-| 13-14 | Agent prompts the application for CIBA acceptance. User says yes. |
-| 15-17 | Agent **replays the tool call** with a header containing the identifier. Authorize detects the header, checks the CIBA call, and returns PERMIT. |
-| 18-24 | Gateway sends the tool request with the OBO token to the MCP Server, which calls the Resource Server. The response returns through Authorize and the gateway to the agent and application. |
+| 1-4 · User login and user token | User logs in. The application requests `api:read api:write api:delete`. IAM Core issues a **user token** (`aud` = API gateway, `sub` = user). |
+| 5-6 · Agent identity | Agent authenticates and gets an **agent token** (`sub` = agentID, `aud` = AI gateway). |
+| 7 · Token exchange (OBO) | **Token exchange** with actor token + user token. Result: `sub` = user, `act.sub` = agentID, scopes `api:read, api:write, api:delete`. |
+| 8-10 · Write call reaches Authorize | Application asks the agent for a write. The agent calls the write tool through the MCP Gateway. The gateway sends a policy decision request to Authorize. |
+| 11 · Authorize denies, starts CIBA | Write requires HITL. Authorize triggers **CIBA** and returns **DENY with an identifier** (a 403). |
+| 12 · Gateway rewrites the 403 | Gateway **rewrites the 403 into a JSON-RPC 2.0 error** that carries the identifier. |
+| 13-14 · User approves (CIBA) | Agent prompts the application for CIBA acceptance. User says yes. |
+| 15-17 · Replay and permit | Agent **replays the tool call** with a header containing the identifier. Authorize detects the header, checks the CIBA call, and returns PERMIT. |
+| 18-24 · Tool runs, response returns | Gateway sends the tool request with the OBO token to the MCP Server, which calls the Resource Server. The response returns through Authorize and the gateway to the agent and application. |
 
 What this diagram settles compared with the thread:
 

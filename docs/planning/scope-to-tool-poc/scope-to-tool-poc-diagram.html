@@ -33,7 +33,19 @@
   .main { flex: 1; min-height: 0; display: flex; }
   .canvas { flex: 1; min-width: 0; }
   .list { width: 380px; overflow-y: auto; border-right: 1px solid var(--line); background: var(--panel); font-size: 12px; }
-  .item { border-bottom: 1px solid var(--line); }
+  .grp { display: flex; align-items: center; gap: 8px; padding: 9px 12px; cursor: pointer; font-weight: 700; font-size: 12px;
+         background: var(--bg); border-bottom: 1px solid var(--line); border-left: 6px solid var(--gc); }
+  .grp small { font-weight: 400; color: var(--muted); }
+  .grp .chev { margin-left: auto; color: var(--muted); font-size: 10px; }
+  .grp.on { background: var(--red-soft); }
+  .item { border-bottom: 1px solid var(--line); border-left: 6px solid var(--gc); }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px; max-width: 560px; padding: 8px; background: var(--panel);
+            border: 1px solid var(--line); border-radius: 10px; font-size: 11px; }
+  .chip { display: flex; align-items: center; gap: 6px; padding: 3px 9px; border-radius: 12px; cursor: pointer;
+          border: 1.5px solid var(--gc); color: var(--ink); background: var(--panel); }
+  .chip b { color: var(--gc); }
+  .chip.on { background: var(--gc); color: #fff; }
+  .chip.on b { color: #fff; }
   .item .head { padding: 8px 12px; cursor: pointer; display: flex; gap: 8px; align-items: baseline; }
   .item .head:hover { background: var(--bg); }
   .item.on .head { background: var(--red-soft); font-weight: 600; }
@@ -69,7 +81,7 @@
 (function () {
   const h = React.createElement;
   const Flow = ReactFlow.default || ReactFlow;
-  const { Handle, Position, Background, Controls, MarkerType, useNodesState } = ReactFlow;
+  const { Handle, Position, Background, Controls, Panel, MarkerType, useNodesState } = ReactFlow;
 
   // Handles on every side at 10/30/50/70/90 percent, ids like r30, t70. Loose mode: any handle can be either end.
   const SIDES = { l: Position.Left, r: Position.Right, t: Position.Top, b: Position.Bottom };
@@ -247,6 +259,22 @@
   ];
   STEPS.forEach(function (s, i) { s.detail = DETAILS[i]; });
 
+  // Same grouping as the step table in the doc (section 9b). Steps stay individual; groups only organise them.
+  const GROUPS = [
+    { name: 'User login and user token',   from: 1,  to: 4,  color: '#2f6fdb' },
+    { name: 'Agent identity',              from: 5,  to: 6,  color: '#0f8b8d' },
+    { name: 'Token exchange (OBO)',        from: 7,  to: 7,  color: '#1f7a4d' },
+    { name: 'Write call reaches Authorize', from: 8,  to: 10, color: '#6b7a1a' },
+    { name: 'Authorize denies, starts CIBA', from: 11, to: 11, color: '#c8102e' },
+    { name: 'Gateway rewrites the 403',    from: 12, to: 12, color: '#d98200' },
+    { name: 'User approves (CIBA)',        from: 13, to: 14, color: '#b5497a' },
+    { name: 'Replay and permit',           from: 15, to: 17, color: '#0b6fa8' },
+    { name: 'Tool runs, response returns', from: 18, to: 24, color: '#5b6b7f' },
+  ];
+  STEPS.forEach(function (s, i) {
+    GROUPS.forEach(function (g, gi) { if (i + 1 >= g.from && i + 1 <= g.to) { s.g = gi; } });
+  });
+
   const params = new URLSearchParams(location.search);
   const startStep = params.has('step') ? parseInt(params.get('step'), 10) : -1;
 
@@ -262,6 +290,11 @@
     const sp = React.useState(1), speed = sp[0], setSpeed = sp[1];
     const op = React.useState(startStep), openIdx = op[0], setOpen = op[1];
     React.useEffect(function () { if (running) setOpen(step); }, [running, step]);
+    const cl = React.useState({}), collapsed = cl[0], setCollapsed = cl[1];
+    React.useEffect(function () {
+      if (step >= 0) setCollapsed(function (c) { const n = Object.assign({}, c); delete n[STEPS[step].g]; return n; });
+    }, [step]);
+    const curG = step >= 0 ? STEPS[step].g : -1;
 
     React.useEffect(function () {
       if (!running) return;
@@ -273,14 +306,16 @@
     const edges = React.useMemo(function () {
       return STEPS.map(function (s, i) {
         const active = i === step, seen = i < step;
-        const color = active ? '#c8102e' : seen ? '#e08a96' : '#8d94a6';
+        const color = GROUPS[s.g].color;
         const mk = { type: MarkerType.ArrowClosed, color: color };
         return {
           id: 'e' + i, source: s.f, sourceHandle: s.fh, target: s.t, targetHandle: s.th,
           type: s.type || 'smoothstep', animated: active,
           label: String(i + 1), labelBgPadding: [5, 3], labelBgBorderRadius: 8,
-          labelStyle: { fontWeight: 700 },
-          style: { stroke: color, strokeWidth: active ? 3 : 1.6, opacity: (active || seen || step === -1) ? 1 : 0.4 },
+          labelStyle: { fontWeight: 700, fill: color },
+          labelBgStyle: { fill: '#ffffff', stroke: color, strokeWidth: 1.5 },
+          style: { stroke: color, strokeWidth: active ? 3.5 : 1.8,
+                   opacity: step === -1 ? 0.9 : (active ? 1 : (seen ? 0.7 : 0.3)) },
           markerEnd: mk, markerStart: s.both ? mk : undefined,
           zIndex: active ? 10 : 1,
         };
@@ -304,19 +339,35 @@
     let cap = 'Press <b>Simulate</b> to walk the flow step by step, or click a step in the list to expand it. Drag any box to rearrange.';
     if (step >= 0) {
       const s = STEPS[step];
-      cap = '<b>Step ' + (step + 1) + ' of ' + STEPS.length + ' · ' + s.label + '.</b> ' + s.cap +
+      cap = '<b>' + GROUPS[s.g].name + ' · step ' + (step + 1) + ' of ' + STEPS.length + ' · ' + s.label + '.</b> ' + s.cap +
             (s.code ? '<pre>' + s.code.replace(/&/g, '&amp;').replace(/</g, '&lt;') + '</pre>' : '');
     }
 
-    const list = STEPS.map(function (s, i) {
-      const isOpen = i === openIdx;
-      return h('div', { key: i, className: 'item ' + (i === step ? 'on' : (i < step ? 'seen' : '')) },
-        h('div', { className: 'head', onClick: function () {
-            setRunning(false); setStep(i); setOpen(isOpen ? -1 : i); } },
-          h('span', { className: 'n' }, i + 1), h('span', null, s.label),
-          h('span', { className: 'chev' }, isOpen ? '\u25B2' : '\u25BC')),
-        isOpen ? h('div', { className: 'detail', dangerouslySetInnerHTML: { __html: s.detail } }) : null);
+    const list = [];
+    GROUPS.forEach(function (g, gi) {
+      const closed = !!collapsed[gi];
+      const range = g.from === g.to ? 'step ' + g.from : 'steps ' + g.from + '-' + g.to;
+      list.push(h('div', { key: 'g' + gi, className: 'grp' + (gi === curG ? ' on' : ''), style: { '--gc': g.color },
+          onClick: function () { setCollapsed(function (c) { const n = Object.assign({}, c); if (n[gi]) delete n[gi]; else n[gi] = true; return n; }); } },
+        h('span', null, g.name), h('small', null, range), h('span', { className: 'chev' }, closed ? '\u25BC' : '\u25B2')));
+      if (closed) return;
+      STEPS.forEach(function (s, i) {
+        if (s.g !== gi) return;
+        const isOpen = i === openIdx;
+        list.push(h('div', { key: i, className: 'item ' + (i === step ? 'on' : (i < step ? 'seen' : '')), style: { '--gc': g.color } },
+          h('div', { className: 'head', onClick: function () {
+              setRunning(false); setStep(i); setOpen(isOpen ? -1 : i); } },
+            h('span', { className: 'n' }, i + 1), h('span', null, s.label),
+            h('span', { className: 'chev' }, isOpen ? '\u25B2' : '\u25BC')),
+          isOpen ? h('div', { className: 'detail', dangerouslySetInnerHTML: { __html: s.detail } }) : null));
+      });
     });
+
+    const legend = h('div', { className: 'legend' }, GROUPS.map(function (g, gi) {
+      return h('div', { key: gi, className: 'chip' + (gi === curG ? ' on' : ''), style: { '--gc': g.color },
+          title: g.name, onClick: function () { setRunning(false); setStep(g.from - 1); setOpen(g.from - 1); } },
+        h('b', null, g.from === g.to ? g.from : g.from + '-' + g.to), g.name);
+    }));
 
     return h('div', { className: 'app' },
       h('div', { className: 'bar' },
@@ -336,7 +387,8 @@
             nodes: shownNodes, edges: edges, nodeTypes: nodeTypes, onNodesChange: onNodesChange,
             connectionMode: 'loose', nodesConnectable: false, fitView: true,
             fitViewOptions: { padding: 0.1 }, minZoom: 0.3, proOptions: { hideAttribution: true },
-          }, h(Background, { gap: 20, color: '#c4c9d4' }), h(Controls, { showInteractive: false })))));
+          }, h(Background, { gap: 20, color: '#c4c9d4' }), h(Controls, { showInteractive: false }),
+            h(Panel, { position: 'bottom-left', style: { marginLeft: 56 } }, legend)))));
   }
 
   ReactDOM.createRoot(document.getElementById('root')).render(h(App));
