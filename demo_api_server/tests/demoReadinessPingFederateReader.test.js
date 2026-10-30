@@ -1,6 +1,21 @@
 'use strict';
 
-const { createPingFederateReader, baselineMismatches } = require('../services/demoReadinessPingFederateReader');
+const { createPingFederateReader, baselineMismatches, baselineExtras } = require('../services/demoReadinessPingFederateReader');
+
+describe('baseline comparison', () => {
+  const baseline = { enabled: true, urls: ['a', 'b'] };
+  it('compares arrays as exact sets unless the field is a subset field', () => {
+    expect(baselineMismatches(baseline, { enabled: true, urls: ['b', 'a'] })).toEqual([]);
+    expect(baselineMismatches(baseline, { enabled: true, urls: ['a', 'b', 'c'] })).toEqual(['urls']);
+    expect(baselineMismatches(baseline, { enabled: true, urls: ['a', 'b', 'c'] }, { subsetFields: ['urls'] })).toEqual([]);
+    expect(baselineMismatches(baseline, { enabled: true, urls: ['a', 'c'] }, { subsetFields: ['urls'] })).toEqual(['urls']);
+    expect(baselineMismatches(baseline, { enabled: false, urls: ['a', 'b'] }, { subsetFields: ['urls'] })).toEqual(['enabled']);
+  });
+  it('names the live entries beyond a subset field', () => {
+    expect(baselineExtras(baseline, { urls: ['a', 'b', 'c'] }, { subsetFields: ['urls'] })).toEqual({ urls: ['c'] });
+    expect(baselineExtras(baseline, { urls: ['a', 'b'] }, { subsetFields: ['urls'] })).toEqual({});
+  });
+});
 const { createAuditService } = require('../services/demoReadinessAuditService');
 
 const BASE = 'https://pf.example.test:9999/pf-admin-api/v1';

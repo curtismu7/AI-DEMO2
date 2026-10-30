@@ -92,7 +92,9 @@
       "objectId": "PF_CIMD_CLIENT",
       "configurationKeys": [],
       "expected": { "cimdPolicy": "undocumented", "issuer": "environment-configured", "jwksUri": "environment-configured" },
-      "baseline": { "present": true, "cimdEnabled": true, "metadataUrls": ["https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/client-metadata.json", "https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/negative/client-id-mismatch.json", "https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/negative/shared-secret.json", "https://local.ping-devops.com:5450/client.json", "https://local.ping-devops.com:8453/client.json"], "pkceRequired": true, "advertised": true },
+      "baseline": { "present": true, "cimdEnabled": true, "metadataUrls": ["https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/client-metadata.json", "https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/negative/client-id-mismatch.json", "https://local.ping-devops.com:4000/api/pf-ai-agent/cimd/negative/shared-secret.json"], "pkceRequired": true, "advertised": true },
+      "baselineSubset": ["metadataUrls"],
+      "baselineSubsetNote": "Other apps on this PingFederate add their own CIMD policies (the Poppy agent tester, the CIMD tester sims, client.dev). The demo's own documents must be present and enabled; extras pass and are listed in the audit row.",
       "unresolved": true,
       "sourceRef": "scripts/pingfederate/provision-ai-agent-features.js"
     },
