@@ -1,0 +1,12 @@
+/* /poppy. Tokens only (--th-*, --font-*, --radius-*) so light and dark both work. */
+.poppy-page { max-width: 1280px; margin: 0 auto; padding: 0 16px 48px; color: var(--th-text); font-family: var(--font-primary); }
+.poppy-page h2 { font-size: var(--font-size-lg); font-weight: 700; margin: 0 0 10px; }
+.poppy-page code { font-family: var(--font-mono); font-size: var(--font-size-xs); }
+.poppy-card { background: var(--th-bg-card); border: 1px solid var(--th-border); border-radius: var(--radius-lg); padding: 16px 18px 18px; margin-top: 16px; }
+.poppy-muted { color: var(--th-text-muted); font-size: var(--font-size-sm); }
+.poppy-status { list-style: none; margin: 0; padding: 0; display: grid; gap: 8px; color: var(--th-text-body); }
+.poppy-tag { display: inline-block; padding: 1px 8px; border-radius: var(--radius-sm); border: 1px solid var(--th-border-strong); font-size: var(--font-size-xs); font-weight: 700; letter-spacing: 0.04em; margin-right: 6px; }
+.poppy-tag--ok { color: var(--th-status-success-text); background: var(--th-status-success-bg); border-color: var(--th-status-success-border); }
+.poppy-tag--todo { color: var(--th-status-warning-text); background: var(--th-status-warning-bg); border-color: var(--th-status-warning-border); }
+.poppy-table { width: 100%; border-collapse: collapse; font-size: var(--font-size-sm); }
+.poppy-table th, .poppy-table td { text-align: left; padding: 8px 10px; border-bottom: 1px solid var(--th-border); vertical-align: top; }

@@ -34,6 +34,7 @@ describe('navSearchAliases', () => {
     ['/p1-third-party-exchange', 'okta'],
     ['/mcp-scanner', 'poisoned tool'],
     ['/gateway-claims', 'requiredclaims'],
+    ['/poppy', 'poppy-session'],
     ['/owasp', 'agentic threats'],
     ['/samples/mfa-demo', 'otp'],
   ])('%s is found by "%s"', (p, query) => {

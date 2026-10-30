@@ -51,6 +51,7 @@ export const DIAGRAMS_INDEX = [
       D("United: a member's agent meets the MCP door", "/united-personal-agent-flow", "Sequence of the personal-agent design: discover, register, consent, per-call exchange, gateway, decision, approval, audit."),
       D("ChatGPT to UHG Digital Front Door", "/uhg-chatgpt-mcp-flow", "Sequence of the proposed MCP authorization: HSID authenticates, PingFederate authorizes, RFC 8693 OBO downstream."),
       D("Personal Agent Request Flow", "/personal-agent-flow", "How one Studio request is governed: MFA, gateway, PingOne Authorize, approval."),
+      D("Poppy: Personal Agent Protocol", "/poppy", "How a person's own agent discovers the Company, signs in with a client metadata URL and calls the API with a signed Poppy-Session."),
     ],
   },
   {

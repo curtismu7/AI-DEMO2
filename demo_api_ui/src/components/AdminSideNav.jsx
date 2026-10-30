@@ -1610,6 +1610,7 @@ export default function AdminSideNav({
       { label: "Dual Gateway Design", path: "/personal-agent-dual-gateway", icon: "arc" },
       { label: "Design Review", path: "/personal-agent-review", icon: "log" },
       { label: "Request Flow Diagram", path: "/personal-agent-flow", icon: "arc" },
+      { label: "Poppy Protocol", path: "/poppy", icon: "agt", searchAlias: "poppy personal agent protocol papp poppy-session cimd client metadata document delegation protected resource well-known poppy.json" },
     ], "agt"),
     productGroup("Digital Worker", [digitalWorkerDiagram, authorizationFlow], "agt"),
     productGroup("MCP & Integrations", [
