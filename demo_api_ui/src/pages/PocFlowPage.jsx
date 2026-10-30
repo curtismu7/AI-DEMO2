@@ -4,7 +4,7 @@
 import React from 'react';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
-import { POC_FLOW_PAYLOADS, POC_FLOW_DETAILS, POC_FLOW_SOURCE } from '../config/pocFlow';
+import { POC_FLOW_PAYLOADS, POC_FLOW_DETAILS, POC_FLOW_SOURCE, POC_FLOW_STEP_DETAILS } from '../config/pocFlow';
 
 export default function PocFlowPage() {
   return (
@@ -19,6 +19,7 @@ export default function PocFlowPage() {
         source={POC_FLOW_SOURCE}
         details={POC_FLOW_DETAILS}
         payloads={POC_FLOW_PAYLOADS}
+        stepDetails={POC_FLOW_STEP_DETAILS}
         label="POC flow: agent token exchange and CIBA approval sequence"
       />
     </main>

@@ -3,7 +3,7 @@ import { render, screen } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
 import PocFlowPage from '../PocFlowPage';
 import { parseSequence } from '../../utils/parseSequence';
-import { POC_FLOW_DETAILS, POC_FLOW_PAYLOADS, POC_FLOW_SOURCE } from '../../config/pocFlow';
+import { POC_FLOW_DETAILS, POC_FLOW_PAYLOADS, POC_FLOW_SOURCE, POC_FLOW_STEP_DETAILS } from '../../config/pocFlow';
 
 describe('POC flow sequence', () => {
   const model = parseSequence(POC_FLOW_SOURCE);
@@ -30,6 +30,17 @@ describe('POC flow sequence', () => {
 
   it('has reel details for every participant', () => {
     for (const p of model.participants) expect(POC_FLOW_DETAILS[p.id]).toBeTruthy();
+  });
+
+  it('draws the user login and the token exchange as two-way arrows', () => {
+    expect(messages.filter((m) => m.both).map((m) => [m.from, m.to])).toEqual([['B', 'IAM'], ['AG', 'IAM']]);
+  });
+
+  it('has step details for every message, each saying what happens', () => {
+    expect(POC_FLOW_STEP_DETAILS).toHaveLength(messages.length);
+    for (const d of POC_FLOW_STEP_DETAILS) expect(d.what).toBeTruthy();
+    expect(POC_FLOW_STEP_DETAILS[6].why).toMatch(/only token exchange/);
+    expect(POC_FLOW_STEP_DETAILS[11].open).toMatch(/Bedrock/);
   });
 
   it('renders on its own page with a link back to Diagrams', () => {

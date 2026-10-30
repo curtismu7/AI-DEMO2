@@ -12,4 +12,4 @@ const wrap = (text) => {
   return lines.join('<br/>');
 };
 
-export const wrapMessages = (src) => src.replace(/^(\s*\w+--?>>\w+: )(.*)$/gm, (_, head, text) => head + wrap(text));
+export const wrapMessages = (src) => src.replace(/^(\s*\w+(?:<<--?>>|--?>>)\w+: )(.*)$/gm, (_, head, text) => head + wrap(text));
