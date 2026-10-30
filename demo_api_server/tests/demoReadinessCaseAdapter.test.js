@@ -320,13 +320,50 @@ test('exchange hops report each token\'s own act chain, so a missing act fails a
 test('a STEP_UP step is blocked when the MFA service cannot serve the identity, and runs when it can', async () => {
   const row = buildDemoReadinessCatalog().find((item) => item.expectedBehaviorByVertical?.[VERTICAL]?.expectedOutcome === 'STEP_UP');
   const stepUpPrerequisites = row.runtimePrerequisitesByVertical[VERTICAL];
-  const lane = (mfaStatus) => jest.fn(async (path) => (path === '/api/auth/mfa/devices'
-    ? { status: mfaStatus, body: mfaStatus === 200 ? { devices: [] } : { error: 'list_devices_failed' } }
-    : { status: 200, body: { success: true, flags: stepUpPrerequisites.requiredFlags } }));
+  const lane = (mfaStatus) => jest.fn(async (path) => {
+    if (path === '/api/auth/mfa/devices') return { status: mfaStatus, body: mfaStatus === 200 ? { devices: [] } : { error: 'list_devices_failed' } };
+    if (path === '/api/agent-authorization/status') return { status: 200, body: { authorized: true } };
+    return { status: 200, body: { success: true, flags: stepUpPrerequisites.requiredFlags } };
+  });
   const verify = (request) => createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER })
     .verifyPrerequisites({ caseRow: row, vertical: VERTICAL, prerequisites: stepUpPrerequisites });
   expect(await verify(lane(500))).toEqual({ status: 'blocked', reason: expect.stringMatching(/MFA service.*HTTP 500: list_devices_failed/) });
   expect(await verify(lane(200))).toEqual({ status: 'pass' });
+});
+
+describe('agent consent for consent-gated tools', () => {
+  const catalog = buildDemoReadinessCatalog();
+  const uc48 = catalog.find((row) => row.id === 'UC48');
+  const verify = (request, row, vertical) => createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER })
+    .verifyPrerequisites({ caseRow: row, vertical, prerequisites: row.runtimePrerequisitesByVertical[vertical] });
+  // A lane BFF stub: consent state, the grant, and the flag arming every step needs.
+  const lane = ({ authorized, grant = { status: 200, body: { ok: true } } }) => jest.fn(async (path, options) => {
+    if (path === '/api/agent-authorization/status') return { status: 200, body: { authorized } };
+    if (path === '/api/agent-authorization/grant') return grant;
+    return { status: 200, body: { success: true, flags: uc48.runtimePrerequisitesByVertical.airlines.requiredFlags } };
+  });
+  const paths = (request) => request.mock.calls.map(([path, options]) => `${options?.method} ${path}`);
+
+  test('the readiness user grants consent once, as a presenter would, before a consent-gated step', async () => {
+    expect(uc48.authorizationContractByVertical.airlines.gatewayTool).toMatchObject({ requiresAgentMediation: true, a2aDelegated: false });
+    const request = lane({ authorized: false });
+    await expect(verify(request, uc48, 'airlines')).resolves.toEqual({ status: 'pass' });
+    expect(paths(request).slice(0, 2)).toEqual(['GET /api/agent-authorization/status', 'POST /api/agent-authorization/grant']);
+  });
+
+  test('an existing grant is not granted again, and a failed grant blocks the step', async () => {
+    const granted = lane({ authorized: true });
+    await expect(verify(granted, uc48, 'airlines')).resolves.toEqual({ status: 'pass' });
+    expect(paths(granted)).not.toContain('POST /api/agent-authorization/grant');
+    await expect(verify(lane({ authorized: false, grant: { status: 503, body: { error: 'agent_not_configured' } } }), uc48, 'airlines'))
+      .resolves.toEqual({ status: 'blocked', reason: "lane could not record the user's agent consent (HTTP 503)" });
+  });
+
+  test('a step whose tool is not consent-gated never touches consent', async () => {
+    const request = jest.fn(async () => ({ status: 200, body: { success: true, flags: prerequisites.requiredFlags } }));
+    await verify(request, caseRow, VERTICAL);
+    expect(paths(request).some((call) => call.includes('agent-authorization'))).toBe(false);
+  });
 });
 
 test('a CIBA step is blocked, not run: it needs an approval on a device', async () => {
