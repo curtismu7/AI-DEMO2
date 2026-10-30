@@ -499,11 +499,18 @@ async function dispatchBankingAction(action, params, userId, ctx) {
         toolName = 'get_account_nickname';
         toolArgs = params.accountId ? { account_id: params.accountId } : {};
       } else if (action === 'balance') {
-        if (params.accountId) {
+        // No account named: the vertical's primary account, by type name
+        // ("checking"), which the balance route resolves to the user's own
+        // account in whichever store answers. Listing every account here made
+        // "show my balance" call get_my_accounts while its use cases (UC1,
+        // UC17, UC20, UC25) declare get_account_balance.
+        const primaryType = verticalManifest.loader.get(verticalId)?.manifest?.terminology?.accountTypes?.[0];
+        const accountId = params.accountId || (primaryType ? String(primaryType).toLowerCase() : null);
+        if (accountId) {
+          params = { ...params, accountId };
           toolName = 'get_account_balance';
-          toolArgs = { account_id: params.accountId };
+          toolArgs = { account_id: accountId };
         } else {
-          // No specific account — show all accounts with balances
           toolName = 'get_my_accounts';
           toolArgs = {};
         }
