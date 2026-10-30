@@ -205,6 +205,7 @@ export const NAV_SEARCH_ALIASES = {
   "/transaction-consent": "ciba consent approval step-up mock phone binding message agent pay withdrawal transfer",
   "/transaction-trace": "chain of custody hops authorization decision pdp inferred token privilege gateway filters",
   "/transactions": "transfers deposits withdrawals history review end user date sortable admin",
+  "/poc-flow": "poc customer entergy swa agent token exchange act obo authorize ciba hitl jsonrpc 403 gateway bedrock privilege sequence",
   "/uhg-chatgpt-mcp-flow": "uhg optum hsid pingfederate chatgpt mcp pkce s256 rfc 8693 obo authorization code",
   "/ungoverned-agent": "anti-pattern shadow ai browser session opencli full user power no audit consent",
   "/united-demos.html": "airline personal-agent connector custom meta oauth mcp agent gateway privilege hosted real mode",
