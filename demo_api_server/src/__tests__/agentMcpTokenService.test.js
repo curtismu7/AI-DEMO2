@@ -363,6 +363,21 @@ describe('resolveMcpAccessTokenWithEvents — PingFederate standard exchange aud
     });
   });
 
+  it('a cached replay carries only the token chain, never the previous call\'s gateway events', async () => {
+    // The pipeline pushes each call's own gateway events (audit, filter chain)
+    // onto result.tokenEvents. The cache used to hold that same array, so the
+    // next call replayed them: UC31's DENY response carried UC30's PERMIT audit.
+    const req = { ...makeReq(sampleJwtUserAccessToken), sessionID: 'replay-own-events' };
+    const first = await resolveMcpAccessTokenWithEvents(req, 'get_weather');
+    first.tokenEvents.push({ id: 'gw-mcp-audit', mcpAudit: { how: { decision: 'PERMIT' } } });
+
+    const second = await resolveMcpAccessTokenWithEvents(req, 'get_weather');
+    expect(second.cached).toBe(true);
+    expect(second.tokenEvents[0].id).toBe('mcp-token-cache-replay');
+    expect(second.tokenEvents.map((event) => event.id)).not.toContain('gw-mcp-audit');
+    expect(second.tokenEvents.map((event) => event.id)).toEqual(expect.arrayContaining(['two-ex-final-token']));
+  });
+
   it('uses Username as the subject when a PF user token has no sub', async () => {
     const pfUserToken = makeJwt({
       Username: 'pf-user',

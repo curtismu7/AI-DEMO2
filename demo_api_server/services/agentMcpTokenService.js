@@ -1357,7 +1357,11 @@ async function resolveMcpAccessTokenWithEvents(req, tool, opts = {}) {
   }
   const result = await _resolveMcpAccessTokenWithEventsUncached(req, tool, opts);
   if (result?.token && !opts?.skipCache) {
-    _mcpTokenCache.set(sessionKey, { result, ts: now });
+    // Cache a copy of the chain as resolved. The caller keeps pushing this
+    // call's own events (the gateway's audit, filter chain, backend exchange)
+    // onto result.tokenEvents; caching that same array replayed them on the
+    // next call, so a denied call showed the previous call's PERMIT audit.
+    _mcpTokenCache.set(sessionKey, { result: { ...result, tokenEvents: [...(result.tokenEvents || [])] }, ts: now });
   } else if (result?.token && opts?.skipCache) {
     _mcpTokenCache.delete(sessionKey); // a deliberate live run refreshes the window
   }
