@@ -48,11 +48,19 @@ test('a PingFederate standard two-exchange PERMIT satisfies the resolved PF cont
   const pf = caseRow.pfExchangeContract;
   expect(pf.status).toBe('ready');
   const ALL_ROLES = ['standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor'];
-  const pfResponse = (pfExchange) => {
+  // Audiences and scopes as the local PF lane produced them on 2026-10-29.
+  const pfResponse = (pfExchange, { pingOneShaped = false } = {}) => {
     const response = invokeResponse();
+    const byId = (id) => response.tokenEvents.find((event) => event.id === id);
     for (const event of response.tokenEvents) if (event.claims?.iss) event.claims.iss = pf.issuer;
-    const final = response.tokenEvents.find((event) => event.id === 'two-ex-final-token');
-    if (pfExchange) final.pfExchange = pfExchange;
+    if (!pingOneShaped) {
+      // The tool scope is first held by Exchange #1, not the PF user token.
+      byId('user-token').claims.scope = 'openid ai:agent:read';
+      byId('two-ex-exchange1').claims.aud = ['https://agentgateway.ping.demo'];
+      byId('two-ex-final-token').claims.scope = ['gateway:mcp:invoke', ...authorization.requiredScopes];
+      byId('gw-backend-exchange').audience = 'https://api.ping.demo:3036/mcp';
+    }
+    if (pfExchange) byId('two-ex-final-token').pfExchange = pfExchange;
     return response;
   };
   const failures = (response) => {
@@ -67,6 +75,15 @@ test('a PingFederate standard two-exchange PERMIT satisfies the resolved PF cont
   expect(failures(pfResponse(null)).join(' ; ')).toMatch(/PF endpoint|configuration is incomplete/);
   expect(failures(pfResponse({ endpoint: 'https://other.example:9031/as/token.oauth2', credentialRoles: ALL_ROLES })).join(' ; ')).toMatch(/PF endpoint/);
   expect(failures(pfResponse({ endpoint: pf.endpoint, credentialRoles: ALL_ROLES.slice(0, 3) })).join(' ; ')).toMatch(/credential role/);
+  // PingOne's audiences are not PingFederate's: the PF contract refuses them.
+  expect(failures(pfResponse({ endpoint: pf.endpoint, credentialRoles: ALL_ROLES }, { pingOneShaped: true })).join(' ; '))
+    .toMatch(/audience set does not match|gateway token audience or scope|exchange for the MCP server/);
+});
+
+test('PingOne evidence is still judged against the PingOne contract', () => {
+  // The PF overrides exist on the contract but never apply to a PingOne row.
+  expect(authorization.providerOverrides?.pingfederate).toBeTruthy();
+  expect(validate(evidenceFromAgentInvoke({ response: invokeResponse(), provider: PROVIDER, expectedIssuer: ISSUER, authorization }))).toEqual([]);
 });
 
 test('the report lists expected against observed audience and scopes for each hop', () => {

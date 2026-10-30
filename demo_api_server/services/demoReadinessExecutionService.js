@@ -285,7 +285,15 @@ function deriveExecutionManifest({ catalog = buildDemoReadinessCatalog(), featur
   return { core, variants, feature, attackLab, counts: { core: core.length, variants: variants.length, feature: feature.length, attackLab: attackLab.length, total: core.length + variants.length + feature.length + attackLab.length } };
 }
 
-function evidenceFailures({ evidence, provider, authorization, expected, caseRow }) {
+// The contract a provider's evidence is judged against: the catalog's, with
+// that provider's declared differences (audiences, gateway-token scopes).
+function authorizationForProvider(authorization, provider) {
+  const override = authorization?.providerOverrides?.[provider];
+  return override ? { ...authorization, ...override } : authorization;
+}
+
+function evidenceFailures({ evidence, provider, authorization: catalogAuthorization, expected, caseRow }) {
+  const authorization = authorizationForProvider(catalogAuthorization, provider);
   const failures = []; const require = (condition, message) => { if (!condition) failures.push(message); };
   // A public-catalog tool (catalog `enforcement`, from the use case's declared
   // evidence) is served with no user token, exchange or Authorize call. Its
@@ -511,7 +519,7 @@ function createReadinessExecutionService({ createWorker: testWorkerAdapter, prod
     const prerequisite = typeof saved.worker.verifyPrerequisites === 'function' ? await saved.worker.verifyPrerequisites({ caseRow, vertical, prerequisites, deadlineAt }) : { status: 'blocked', reason: 'worker cannot verify runtime prerequisites' };
     if (prerequisite?.status !== 'pass') return redactReadinessValue({ status: 'blocked', expected, observed: 'not-dispatched', evidence: { reason: prerequisite?.reason || 'runtime prerequisites unavailable', prerequisites } });
     if (expired(deadlineAt, now())) return redactReadinessValue({ status: 'not-run', expected, observed: 'deadline-expired', evidence: { reason: 'deadline exceeded before dispatch' } });
-    try { const execution = await saved.worker.executeReadinessCase({ context, caseRow, vertical, mode, behavior, authorization, deadlineAt, abortSignal }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(observed === expected ? [] : ['observed outcome does not match declared outcome']), ...evidenceFailures({ evidence, provider: saved.provider, authorization, expected, caseRow })]; if (failures.length) evidence.contractFailures = failures; evidence.audienceScope = audienceScopeSummary({ evidence, authorization, expected }); return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'worker execution failed' } }); }
+    try { const execution = await saved.worker.executeReadinessCase({ context, caseRow, vertical, mode, behavior, authorization, deadlineAt, abortSignal }); const evidence = execution?.evidence || {}; const observed = execution?.observed || 'UNKNOWN'; const failures = [...(observed === expected ? [] : ['observed outcome does not match declared outcome']), ...evidenceFailures({ evidence, provider: saved.provider, authorization, expected, caseRow })]; if (failures.length) evidence.contractFailures = failures; evidence.audienceScope = audienceScopeSummary({ evidence, authorization: authorizationForProvider(authorization, saved.provider), expected }); return redactReadinessValue({ status: failures.length ? 'fail' : 'pass', expected, observed, evidence }); } catch (error) { return redactReadinessValue({ status: 'fail', expected, observed: 'execution-error', evidence: { reason: error?.message || 'worker execution failed' } }); }
   }
   async function executeReadinessFeature({ context, check, deadlineAt, abortSignal }) {
     const saved = contexts.get(context); const expected = check.expectedByProvider?.[saved?.provider] || check.expectedOutcome;

@@ -16,7 +16,7 @@ Configuration audit: all 12 PingFederate checks pass, before and after the (empt
 
 Most PingFederate failures are not PingFederate problems. Grouped by cause (79 failed rows):
 
-- **36 rows: right outcome, PingOne-shaped contract** (UC1, UC6, UC17, UC20, UC30). The tool ran and the decision matched, but the catalog's audience and scope contract is written in PingOne names. PingFederate mints scope `accounts:read` where PingOne mints `read`, and audience `https://api.ping.demo:3036/mcp` where the contract expects `mcpserver.ping.demo`; its gateway token also carries the tool scope. Fix: per-provider audience and scope expectations in the catalog, not a PingFederate change.
+- **36 rows: right outcome, PingOne-shaped contract** (UC1, UC6, UC17, UC20, UC30). The tool ran and the decision matched, but the catalog's audience contract is PingOne's. The scopes are the same under both providers (`read`, `write`, `airlines:read`). What differs: PingFederate's Exchange #1 token is for `https://agentgateway.ping.demo` (PingOne: `agentgateway.ping.demo`), its gateway token also carries the tool scope, and the gateway's exchange for the MCP server yields `https://api.ping.demo:3036/mcp` (PingOne: `mcpserver.ping.demo`). (`accounts:read` appears only in the banking UC1 row, where a different tool ran.) Fixed in the catalog by per-provider expectations (`providerOverrides.pingfederate`, from the PF access token managers); against this run's evidence that clears 34 of the 36. The two left are UC1 and UC20 in airlines, where the gateway reported no exchange for the MCP server: a real PingFederate-lane gap.
 - **16 rows: no worker adapter** (UC2.7, UC5, UC10-13, UC18, UC29, UC32, UC43, UC45-48, UC-MUSE1, UC-MUSE2). The readiness worker returns HTTP 501 for `attack` and `page` steps. PingOne fails the same ids the same way.
 - **23 rows: wrong outcome.** UC7 (expected STEP_UP) and UC8 (expected HITL_REQUIRED) return DENY in every vertical, and PingOne fails them the same way, so this is demo-wide. UC-TOOL1 returned UNKNOWN in one vertical where PingOne returned PERMIT: the only PingFederate-specific outcome difference.
 - **3 rows: a different tool ran** (UC1, UC17, UC20, one vertical each).
@@ -163,7 +163,7 @@ None. No id is not-applicable under PingFederate, and no failure above is caused
 ## Next steps
 
 1. Split the run: the 15-minute limit now cuts off 98 rows (ADMIN1-12, UC17, UC25, UC-PAM-*, UC-LEARN11, UC-TOOL3 and all feature probes). A provider filter or a longer limit for diagnostic runs would let the rest run.
-2. Per-provider audience and scope contract in the catalog (clears the 36 contract-shape rows).
+2. Per-provider audience contract in the catalog: done (`providerOverrides.pingfederate`), clears 34 of the 36 contract-shape rows on this run's evidence. Re-run to confirm live; investigate the missing airlines gateway exchange under PingFederate.
 3. Worker adapters for `attack` and `page` steps (both providers).
 4. UC7 / UC8 return DENY instead of STEP_UP / HITL_REQUIRED on both providers.
 5. Evidence paths for the A2A, UC40, CIMD, third-party AS and RAR roles, then resolve them.

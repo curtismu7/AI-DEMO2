@@ -326,6 +326,28 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
       .filter((item) => item?.uri && item !== a2aOwner && [...(item.scopes || []), ...(item.mirroredScopes || [])].includes(a2aCanonicalScope))
       .map((item) => item.uri),
   }] : null;
+  const gatewayHop = topology.servers?.ping_gateway ? {
+    audience: topology.servers.ping_gateway.validatesAudience || null,
+    scopes: [...(topology.resources?.[topology.servers.ping_gateway.resource]?.scopes || [])],
+  } : null;
+  const backendHop = resourceServer?.id === 'olb' ? {
+    audience: topology.resources?.[topology.servers?.demo_mcp_server?.resource]?.uri || null,
+    // Least privilege: the gateway asks the MCP server for this tool's scopes only.
+    scopes: requiredScopes,
+  } : null;
+  // Under PingFederate the audiences come from the access token manager each
+  // exchanger is restricted to (demoReadinessPingFederateProfiles.json), and
+  // the BFF puts the tool scopes on the gateway token as well. The scopes
+  // themselves are the same as PingOne's.
+  const pf = sources.pingFederateProfiles || {};
+  const pfAudienceOf = (roleId) => pf.accessTokenManagers?.[pf.roles?.[roleId]?.baseline?.defaultAccessTokenManagerRef]?.audience || null;
+  const pfAgentAudience = pfAudienceOf('standard-agent-exchanger');
+  const pfBackendAudience = pf.exchangeContract?.gatewayExchangerRole ? pfAudienceOf(pf.exchangeContract.gatewayExchangerRole) : null;
+  const pingfederate = pfAgentAudience ? {
+    scopeResources: scopeResources.map((item) => ({ ...item, audience: pfAgentAudience, mirrorAudiences: [] })),
+    ...(gatewayHop ? { gatewayHop: { ...gatewayHop, scopes: [...new Set([...gatewayHop.scopes, ...requiredScopes])] } } : {}),
+    ...(backendHop && pfBackendAudience ? { backendHop: { ...backendHop, audience: pfBackendAudience } } : {}),
+  } : null;
   const restrictedRole = manifest?.groups?.restrictedTools?.[toolName] || null;
   const restrictedRoleConfig = restrictedRole ? manifest?.groups?.categories?.[restrictedRole] : null;
   if (restrictedRole && !restrictedRoleConfig?.name) {
@@ -350,15 +372,9 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
     ...(a2aScopeResources ? { a2aScopeResources } : {}),
     // The token sent to the gateway, and the one the gateway exchanges for to
     // call the MCP server. Both from scope-topology.json `servers`.
-    gatewayHop: topology.servers?.ping_gateway ? {
-      audience: topology.servers.ping_gateway.validatesAudience || null,
-      scopes: [...(topology.resources?.[topology.servers.ping_gateway.resource]?.scopes || [])],
-    } : null,
-    backendHop: resourceServer?.id === 'olb' ? {
-      audience: topology.resources?.[topology.servers?.demo_mcp_server?.resource]?.uri || null,
-      // Least privilege: the gateway asks the MCP server for this tool's scopes only.
-      scopes: requiredScopes,
-    } : null,
+    gatewayHop,
+    backendHop,
+    ...(pingfederate ? { providerOverrides: { pingfederate } } : {}),
     authorizeToolGroup: restrictedRole ? {
       role: restrictedRole,
       groupName: restrictedRoleConfig?.name || null,
