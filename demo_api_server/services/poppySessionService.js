@@ -74,6 +74,25 @@ function verifySignature(alg, jwk, jws, label) {
   if (!ok) throw invalid(`${label} signature does not verify`);
 }
 
+/**
+ * A Session ID belongs to one User, one agent and one client (spec 5.3). The first verified use binds it; a later use that names a
+ * different User ID, agent or client is refused. Bounded in size and expires after a day.
+ */
+function createSessionBinding({ maxEntries = 10000, ttlSeconds = 24 * 3600 } = {}) {
+  const bound = new Map(); // sid key -> { sub, agentId, clientId, exp }
+  return {
+    /** @returns {boolean} true if the sid is already bound to something else */
+    conflicts(key, { sub, agentId, clientId }, nowSeconds) {
+      for (const [k, v] of bound) if (v.exp <= nowSeconds) bound.delete(k); else break;
+      const hit = bound.get(key);
+      if (hit) return hit.sub !== sub || hit.clientId !== clientId || (hit.agentId ?? null) !== (agentId ?? null);
+      bound.set(key, { sub, agentId, clientId, exp: nowSeconds + ttlSeconds });
+      while (bound.size > maxEntries) bound.delete(bound.keys().next().value);
+      return false;
+    },
+  };
+}
+
 /** In-memory jti replay guard; entries expire with the iat window. */
 function createReplayCache(ttlSeconds = DEFAULT_IAT_WINDOW_SECONDS * 2) {
   const seen = new Map();
@@ -155,6 +174,7 @@ async function verifyPoppySession(p) {
   if (!Number.isFinite(c.iat) || Math.abs(now - c.iat) > window) throw invalid('Poppy-Session iat is outside the accepted window');
   if (c.iat > d.exp) throw invalid('Poppy-Session iat is after the delegation expired');
 
+  if (!p.accessToken && c.ath !== undefined) throw invalid('Poppy-Session has ath but the request has no access token');
   if (p.accessToken) {
     const ath = crypto.createHash('sha256').update(p.accessToken).digest('base64url');
     if (c.ath !== ath) throw invalid('Poppy-Session ath does not match the access token');
@@ -164,6 +184,9 @@ async function verifyPoppySession(p) {
   }
 
   if (p.replayCache.check(`${c.iss}|${c.jti}`, now)) throw invalid('Poppy-Session jti was already used');
+  if (p.sessionBinding && p.sessionBinding.conflicts(`${c.iss}|${c.sid}`, { sub: c.sub, agentId: c.agent_id, clientId: c.iss }, now)) {
+    throw invalid('Poppy-Session sid is bound to another User ID, agent or client');
+  }
 
   return { sub: c.sub, sid: c.sid, agentId: c.agent_id, clientId: c.iss };
 }
@@ -233,6 +256,7 @@ function requirePoppySession({ getIssuer, resolveJwks, replayCache = createRepla
 }
 
 module.exports = {
+  createSessionBinding,
   PoppyError,
   jwkThumbprint,
   createReplayCache,
