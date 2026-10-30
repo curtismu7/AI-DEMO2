@@ -3,6 +3,7 @@
 const crypto = require('node:crypto');
 const { createDemoReadinessProviderLoginClient } = require('./demoReadinessProviderLoginClient');
 const { createCaseOperations } = require('./demoReadinessCaseAdapter');
+const { loadPage: defaultLoadPage, uiBuildFreshness: defaultUiBuildFreshness } = require('./demoReadinessPageBrowser');
 
 const TARGETS = ['local', 'se'];
 const PROVIDERS = ['pingone', 'pingfederate'];
@@ -38,6 +39,9 @@ function loadLaneSettings({ env = process.env, readSecret } = {}) {
   const identityRef = need('DEMO_READINESS_WORKER_IDENTITY_REF', env.DEMO_READINESS_WORKER_IDENTITY_REF);
   const bffUrl = need('DEMO_READINESS_WORKER_BFF_URL', httpsOrigin(env.DEMO_READINESS_WORKER_BFF_URL || ''));
   const expectedIssuer = need('DEMO_READINESS_WORKER_EXPECTED_ISSUER', env.DEMO_READINESS_WORKER_EXPECTED_ISSUER);
+  // Optional: without a browser, page steps are blocked rather than run.
+  const browserWsUrl = env.DEMO_READINESS_WORKER_BROWSER_WS_URL || null;
+  const uiRoot = env.DEMO_READINESS_WORKER_UI_ROOT || '/repo/demo_api_ui';
 
   const secrets = {};
   if (targetId && provider) {
@@ -45,10 +49,10 @@ function loadLaneSettings({ env = process.env, readSecret } = {}) {
     for (const [field, name] of Object.entries(names)) secrets[field] = need(name, readSecret(name));
   }
   if (missing.length) throw new Error(`Readiness worker settings missing or invalid: ${missing.join(', ')}.`);
-  return { targetId, provider, identityRef, bffUrl, expectedIssuer, ...secrets };
+  return { targetId, provider, identityRef, bffUrl, expectedIssuer, browserWsUrl, uiRoot, ...secrets };
 }
 
-function createLaneSessionFactory(settings, { loginClient = createDemoReadinessProviderLoginClient } = {}) {
+function createLaneSessionFactory(settings, { loginClient = createDemoReadinessProviderLoginClient, loadPage = defaultLoadPage, uiBuildFreshness = defaultUiBuildFreshness } = {}) {
   const { targetId, provider, identityRef } = settings;
   return async function createSession(request = {}) {
     if (request.targetId !== targetId || request.provider !== provider || request.identityRef !== identityRef) {
@@ -75,6 +79,10 @@ function createLaneSessionFactory(settings, { loginClient = createDemoReadinessP
         request: (path, options) => handle.request(path, options),
         provider,
         expectedIssuer: settings.expectedIssuer,
+        page: settings.browserWsUrl ? {
+          load: (pagePath) => loadPage({ wsEndpoint: settings.browserWsUrl, origin: settings.bffUrl, cookies: handle.sessionCookies(), path: pagePath }),
+          freshness: () => uiBuildFreshness(settings.uiRoot),
+        } : null,
       }),
     };
     Object.defineProperty(session, 'login', { value: handle, enumerable: false });
