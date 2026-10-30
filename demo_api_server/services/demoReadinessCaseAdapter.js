@@ -29,6 +29,8 @@ const AGENT_STATE_PATH = '/api/agent-builder/state';
 const MFA_DEVICES_PATH = '/api/auth/mfa/devices';
 // UC38's flag: the route behind it refuses to delegate without an MFA acr.
 const MFA_GATED_FLAG = 'ff_personal_agent_concierge';
+const AGENT_CONSENT_STATUS_PATH = '/api/agent-authorization/status';
+const AGENT_CONSENT_GRANT_PATH = '/api/agent-authorization/grant';
 
 const eventById = (events, id) => events.find((event) => event && event.id === id) || null;
 // A scope claim is a space-delimited string from PingOne and a list from PingFederate.
@@ -318,6 +320,24 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
       const devices = await request(MFA_DEVICES_PATH, { method: 'GET' });
       if (devices.status !== 200) {
         return { status: 'blocked', reason: `MFA service cannot serve this identity (HTTP ${devices.status}${devices.body?.error ? `: ${devices.body.error}` : ''}), so the step-up could not be completed` };
+      }
+    }
+    // An agent may drive a consent-gated tool (agent-mediated, not A2A) only for
+    // a user who has said "this agent may act for me"; without it PingOne
+    // Authorize denies UserConsentMissing before any step-up or approval. The
+    // worker gives that consent once, as the readiness user, exactly as a
+    // presenter does. In the default mode it is a record in this lane BFF's
+    // own store. Workload agents are authorized by their own identity instead.
+    const gatewayTool = caseRow?.authorizationContractByVertical?.[vertical]?.gatewayTool;
+    if (gatewayTool?.requiresAgentMediation && !gatewayTool.a2aDelegated
+        && !caseRow?.expectedBehaviorByVertical?.[vertical]?.adaptedFromLink) {
+      const consent = await request(AGENT_CONSENT_STATUS_PATH, { method: 'GET' });
+      if (consent.status !== 200) return { status: 'blocked', reason: `lane could not read the user's agent consent (HTTP ${consent.status})` };
+      if (consent.body?.authorized !== true) {
+        const granted = await request(AGENT_CONSENT_GRANT_PATH, { method: 'POST', body: {} });
+        if (granted.status !== 200 || granted.body?.ok !== true) {
+          return { status: 'blocked', reason: `lane could not record the user's agent consent (HTTP ${granted.status})` };
+        }
       }
     }
     if (!list(prerequisites?.requiredFlags).length) return { status: 'pass' };
