@@ -434,6 +434,31 @@ if (!issuedToken) {
     return Promises.newResultPromise(rpcError(rpcId, -32603, 'No access_token in exchange response'))
 }
 
+// Report what Exchange #3 issued, as olb-token-exchange.groovy does for the OLB
+// hop: audience and scope read from the token itself, never the token, so
+// p1az-decision.groovy puts it on X-Gw-Audit-Trail as `backend` and the BFF
+// records the gw-backend-exchange event. Without it every airlines and invest
+// call's gateway-to-backend hop was invisible. FAIL-SAFE: reporting must never
+// break the tool call.
+try {
+    def issuedParts = issuedToken.split('\\.', -1)
+    def issuedClaims = issuedParts.length == 3
+        ? new JsonSlurper().parseText(new String(java.util.Base64.getUrlDecoder().decode(issuedParts[1]), 'UTF-8'))
+        : [:]
+    def issuedAud = issuedClaims.aud instanceof Collection ? issuedClaims.aud.collect { it?.toString() } : [issuedClaims.aud?.toString()].findAll { it }
+    def issuedScope = issuedClaims.scope instanceof Collection ? issuedClaims.scope.collect { it?.toString() }.join(' ') : (issuedClaims.scope ?: '').toString()
+    attributes['backendExchange'] = [
+        target   : 'resource-server',
+        audience : issuedAud.join(' '),
+        scope    : issuedScope,
+        exchanged: true,
+        cached   : false,
+    ]
+} catch (Exception e) {
+    // No exception text: this script never logs e.message (it can carry token data).
+    logger.warn('[InvestDispatch] could not describe the issued token for the audit trail')
+}
+
 // ── Forward the original JSON-RPC envelope to the resource server ─────────────
 def beResp = httpPostJson(investMcpUrl, bodyStr, issuedToken)
 logger.info('[InvestDispatch] resource server HTTP ' + beResp.code)
