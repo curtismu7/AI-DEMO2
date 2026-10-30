@@ -235,7 +235,8 @@
 <h4>Why it matters</h4><p>This is how the approval context gets back to Authorize across the gateway (CJ's question). The agent only echoes the identifier.</p>
 <h4>Open</h4><p class="open">The header name is a placeholder.</p>`,
 
-`<h4>What happens</h4><p>The gateway sends Authorize a second policy decision request, now including the identifier header.</p>`,
+`<h4>What happens</h4><p>The gateway sends Authorize a second policy decision request, now including the identifier header.</p>
+<h4>Why it matters</h4><p>This second decision is what ties the approval to this call. Authorize sees the identifier, checks that the CIBA request it started was accepted, and only then permits. Without the check, the replay would be a way around the denial.</p>`,
 
 `<h4>What happens</h4><p>Authorize <b>detects the header and checks the CIBA call</b>. The human approved it, so Authorize returns <b>PERMIT</b>.</p>
 <h4>Why it matters</h4><p>The agent is not asked to prove the approval. Authorize verifies it. If the request was denied or expired, Authorize denies again.</p>`,
@@ -243,18 +244,24 @@
 `<h4>What happens</h4><p>The gateway forwards the tool request to the MCP Server with the OBO token.</p>
 <h4>Why it matters</h4><p>The MCP Server sees the user in <code>sub</code> and the agent in <code>act</code>, so downstream audit shows both.</p>`,
 
-`<h4>What happens</h4><p>The MCP Server calls the Resource Server to do the actual work.</p>`,
+`<h4>What happens</h4><p>The MCP Server calls the Resource Server to do the actual work.</p>
+<h4>Why it matters</h4><p>The MCP Server does the work with the OBO token's identity, so the resource server and its audit trail see the user in sub and the agent in act, not a shared service account.</p>`,
 
-`<h4>What happens</h4><p>The Resource Server returns its result to the MCP Server.</p>`,
+`<h4>What happens</h4><p>The Resource Server returns its result to the MCP Server.</p>
+<h4>Why it matters</h4><p>Nothing special happens here. It shows the result is produced by the resource server and only travels back up the same chain, so the approval earlier covered the whole call.</p>`,
 
 `<h4>What happens</h4><p>As drawn, the MCP Server's response goes to Authorize on its way back, not straight to the gateway.</p>
+<h4>Why it matters</h4><p>Because the response goes back through Authorize, a policy can inspect or log what is returned, not only what is asked. That is a likely reason for the detour, but the diagram does not say.</p>
 <h4>Open</h4><p class="open">The diagram does not say why. It is probably response inspection or audit. Confirm with CJ.</p>`,
 
-`<h4>What happens</h4><p>Authorize passes the response to the gateway.</p>`,
+`<h4>What happens</h4><p>Authorize passes the response to the gateway.</p>
+<h4>Why it matters</h4><p>The gateway stays the single point the agent talks to. Authorize hands the response back to it instead of to the agent, so the agent never calls Authorize directly.</p>`,
 
-`<h4>What happens</h4><p>The gateway returns the response to the agent.</p>`,
+`<h4>What happens</h4><p>The gateway returns the response to the agent.</p>
+<h4>Why it matters</h4><p>The agent gets an ordinary tool response on the replayed call. The earlier JSON-RPC error and the approval are invisible to the model's tool loop, which just sees the call succeed.</p>`,
 
 `<h4>What happens</h4><p>The agent returns the result to the application, and the user sees it. Done.</p>
+<h4>Why it matters</h4><p>The user approved once and got the result without signing in again or seeing token details. This is the experience the pattern is meant to deliver for a write.</p>
 <h4>Open</h4><p class="open">Does the next write need approval again, or does one approval cover a time window? This is the "once versus per action" question and it is a policy choice in Authorize.</p>`,
   ];
   STEPS.forEach(function (s, i) { s.detail = DETAILS[i]; });

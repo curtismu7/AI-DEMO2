@@ -36,9 +36,12 @@ describe('POC flow sequence', () => {
     expect(messages.filter((m) => m.both).map((m) => [m.from, m.to])).toEqual([['B', 'IAM'], ['AG', 'IAM']]);
   });
 
-  it('has step details for every message, each saying what happens', () => {
+  it('has step details for every message, each saying what happens and why it matters', () => {
     expect(POC_FLOW_STEP_DETAILS).toHaveLength(messages.length);
-    for (const d of POC_FLOW_STEP_DETAILS) expect(d.what).toBeTruthy();
+    for (const d of POC_FLOW_STEP_DETAILS) {
+      expect(d.what).toBeTruthy();
+      expect(d.why).toBeTruthy();
+    }
     expect(POC_FLOW_STEP_DETAILS[6].why).toMatch(/only token exchange/);
     expect(POC_FLOW_STEP_DETAILS[11].open).toMatch(/Bedrock/);
   });
