@@ -27,7 +27,7 @@ describe('GET /api/use-cases', () => {
       auth: 'user',
       trigger: {
         type: 'link',
-        path: '/privilege-mcp-client?view=demo&tab=a2a',
+        path: '/privilege-a2a',
       },
     });
   });
