@@ -195,3 +195,22 @@ describe('requirePoppySession middleware', () => {
     expect(req.poppy.sub).toBe('user-abc');
   });
 });
+
+describe('Session ID binding and ath without a token (spec 5.3)', () => {
+  const { createSessionBinding } = require('../services/poppySessionService');
+  it('a sid stays bound to the User ID, agent and client that first used it', () => {
+    const b = createSessionBinding();
+    const who = { sub: 'user-1', agentId: 'agent-1', clientId: 'https://agent.example/c.json' };
+    expect(b.conflicts('k|s1', who, 1000)).toBe(false);
+    expect(b.conflicts('k|s1', who, 1001)).toBe(false);
+    expect(b.conflicts('k|s1', { ...who, sub: 'user-2' }, 1002)).toBe(true);
+    expect(b.conflicts('k|s1', { ...who, agentId: 'agent-2' }, 1002)).toBe(true);
+    expect(b.conflicts('k|s1', { ...who, clientId: 'https://other.example/c.json' }, 1002)).toBe(true);
+    expect(b.conflicts('k|s2', { ...who, sub: 'user-2' }, 1002)).toBe(false);
+  });
+  it('a binding expires after its lifetime', () => {
+    const b = createSessionBinding({ ttlSeconds: 10 });
+    expect(b.conflicts('k|s', { sub: 'a', clientId: 'c' }, 0)).toBe(false);
+    expect(b.conflicts('k|s', { sub: 'b', clientId: 'c' }, 11)).toBe(false);
+  });
+});

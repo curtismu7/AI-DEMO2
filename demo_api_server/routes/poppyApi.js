@@ -16,7 +16,7 @@
 const express = require('express');
 const configStore = require('../services/configStore');
 const { validateToken } = require('../services/tokenValidationService');
-const { verifyPoppySession, createReplayCache } = require('../services/poppySessionService');
+const { verifyPoppySession, createReplayCache, createSessionBinding } = require('../services/poppySessionService');
 const { isPoppyHost } = require('./poppyDiscovery');
 
 const REQUIRED_SCOPE = 'accounts:read';
@@ -88,6 +88,7 @@ function createPoppyApiRouter(deps = {}) {
   const verifyToken = deps.validateToken || validateToken;
   const resolveJwks = deps.resolveJwks || createAgentJwksResolver();
   const replayCache = deps.replayCache || createReplayCache();
+  const sessionBinding = deps.sessionBinding || createSessionBinding();
   const now = deps.now || (() => undefined);
   const issuer = () => String(configStore.getEffective('pf_issuer') || '').trim();
 
@@ -111,6 +112,7 @@ function createPoppyApiRouter(deps = {}) {
           issuer: issuer(),
           resolveJwks,
           replayCache,
+          sessionBinding,
           now: now(),
         });
       } catch (err) {
@@ -150,6 +152,7 @@ function createPoppyApiRouter(deps = {}) {
         accessTokenClientId: payload.client_id,
         resolveJwks,
         replayCache,
+        sessionBinding,
         now: now(),
       });
     } catch (err) {

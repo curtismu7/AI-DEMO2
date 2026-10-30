@@ -76,7 +76,7 @@ describe('Poppy API', () => {
 
   it('a valid Session alone starts a signed-out Session: 200, no user data', async () => {
     const { app, session } = setup();
-    const res = await get(app).set('Poppy-Session', session());
+    const res = await get(app).set('Poppy-Session', session({ accessToken: undefined }));
     expect(res.status).toBe(200);
     expect(res.body).toEqual({ state: 'signed_out', session_id: 'sid-1', agent_id: undefined, scopes: [] });
     expect(res.body.user_id).toBeUndefined();
