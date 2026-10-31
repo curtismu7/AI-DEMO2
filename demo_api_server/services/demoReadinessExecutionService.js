@@ -364,7 +364,12 @@ function evidenceFailures({ evidence, provider, authorization: catalogAuthorizat
   if ((caseRow.id === 'UC2' || caseRow.id === 'UC2.5') && provider === 'pingfederate') {
     const hops = evidence.exchangeHops || [];
     require(hops.length === 2 && hops[0]?.step === 'exchange1-id-jag' && hops[0]?.type === 'id-jag' && hops[1]?.step === 'exchange2-access-token' && hops[1]?.type === 'access_token', 'PF A2A requires ordered intermediate ID-JAG then Exchange #2 access token');
-    require(hops.length === 2 && hops.every((hop) => hop?.subject === evidence.subject && orderedValues(hop?.actorChain, evidence.actorChain)), 'PF A2A exchanges must retain the user subject and ordered actor chain');
+    // Exchange #1 names only the generalist; Exchange #2 adds the specialist in
+    // front of it, so the first hop's chain is the final chain without the specialist.
+    const withoutSpecialist = Array.isArray(evidence.actorChain) ? [evidence.actorChain[0], ...evidence.actorChain.slice(2)] : [];
+    require(hops.length === 2 && hops.every((hop) => hop?.subject === evidence.subject)
+      && orderedValues(hops[0]?.actorChain, withoutSpecialist) && orderedValues(hops[1]?.actorChain, evidence.actorChain),
+    'PF A2A exchanges must retain the user subject and ordered actor chain');
   }
   if (caseRow.id === 'UC38' || caseRow.id === 'UC44') {
     const hops = evidence.exchangeHops || [];

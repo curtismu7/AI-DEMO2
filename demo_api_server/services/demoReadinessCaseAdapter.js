@@ -192,7 +192,7 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
       actorChain: [claims.sub, ...actors].filter(Boolean),
       selectedTool: a2aTool,
       audiences: list(claims.aud),
-      scopes: list(String(claims.scope || '').split(/\s+/)),
+      scopes: scopesOf(claims.scope),
       roleApplicability: { userLogin: Boolean(userToken), agentIdentity: eventById(events, 'a2a-agent2-actor')?.status === 'acquired', tokenExchange: true },
       exchangeService: 'token-exchange',
       exchangeProvenance: `${provider}-a2a`,
@@ -200,8 +200,38 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
       subjectTokenType: 'access_token',
     });
     if (a2aTool && a2aTool === authorization?.primaryTool) evidence.resourceServer = authorization.resourceServer;
+    // PingFederate: Exchange #1 issues an ID-JAG that Exchange #2 redeems for an
+    // access token. Each hop as issued (type from the token's own header, chain
+    // from its own act claim), and the endpoint and roles the BFF reports for
+    // each exchange; the two must name one endpoint.
+    if (provider === 'pingfederate') {
+      const hop = (event, step) => {
+        const hopActors = [];
+        for (let act = event.claims?.act; act?.sub; act = act.act) hopActors.push(act.sub);
+        return {
+          step,
+          type: event.tokenTyp === 'oauth-id-jag+jwt' ? 'id-jag' : 'access_token',
+          subject: event.claims?.sub || null,
+          actorChain: [event.claims?.sub, ...hopActors].filter(Boolean),
+        };
+      };
+      evidence.exchangePath = 'a2a-id-jag-then-access';
+      evidence.exchangeHops = [hop(a2aExchange1, 'exchange1-id-jag'), hop(a2aExchange2, 'exchange2-access-token')];
+      const endpoint = a2aExchange1.pfExchange?.endpoint && a2aExchange1.pfExchange.endpoint === a2aExchange2.pfExchange?.endpoint
+        ? a2aExchange2.pfExchange.endpoint
+        : null;
+      evidence.pfExchange = {
+        issuer: claims.iss || null,
+        endpoint,
+        credentialRoles: [...list(a2aExchange1.pfExchange?.credentialRoles), ...list(a2aExchange2.pfExchange?.credentialRoles)],
+        configurationComplete: Boolean(endpoint),
+        subjectTokenType: 'access_token',
+      };
+      if (authorization?.primaryTool) evidence.pfExchange.registeredToolResult = a2aTool === authorization.primaryTool ? 'pass' : 'fail';
+    }
     if (authorization?.primaryTool) {
-      evidence.gateway = { route: challengedRoute, verdict: gatewayAuthorize?.decision || null };
+      // PingGateway reports the route in its audit; the node gateway in its challenge.
+      evidence.gateway = { route: audit?.where?.routePath || challengedRoute, verdict: gatewayAuthorize?.decision || null };
       // `engine` says who decided: this path is decided by the gateway's
       // built-in policy engine unless real PingOne Authorize is wired to it.
       evidence.authorize = {

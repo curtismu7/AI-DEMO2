@@ -451,6 +451,7 @@ async function exchangeAsGeneralist(req, opts = {}) {
       { label: 'A2A Exchange #1', timeoutMs: exchangeTimeoutMs, attempts: exchangeAttempts, retryDelayMs, timers: deps.timers },
     );
     const tAgent1Decoded = decodeJwt(tAgent1);
+    const exchangerClientId = c.pfExchange ? c.pfExchangeClientId : c.agent1ClientId;
     tokenEvents.push(buildA2aEvent(
       'a2a-exchange1',
       'A2A Exchange #1 — User → Agent 1 delegated token (RFC 8693 §2.1)',
@@ -462,15 +463,28 @@ async function exchangeAsGeneralist(req, opts = {}) {
         actPresent: !!tAgent1Decoded?.claims?.act,
         a2aSubtask: subtask,
         vertical,
+        // The issued token's own header type (PingFederate issues an ID-JAG here).
+        tokenTyp: tAgent1Decoded?.header?.typ || null,
         exchangeRequest: {
           grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
           subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
           actor_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+          ...(c.pfExchange ? { requested_token_type: c.pfExchange.requestedTokenType } : {}),
           audience: c.intermediateAud,
           scope: c.intermediateScope,
           has_actor_token: true,
-          exchanger_client_id: c.agent1ClientId,
+          exchanger_client_id: exchangerClientId,
         },
+        // PingFederate only: the token endpoint and which configured PF client
+        // filled each readiness role. A role is named only when its own
+        // configured client was the one used.
+        ...(c.pfExchange ? { pfExchange: {
+          endpoint: oauth.config?.tokenEndpoint || null,
+          credentialRoles: [
+            exchangerClientId && exchangerClientId === cfg.getEffective('pf_standard_agent_exchange_client_id') && 'standard-agent-exchanger',
+            agent1Actor && decodeJwt(agent1Actor)?.claims?.client_id === cfg.getEffective('pf_ai_agent_actor_client_id') && 'ai-agent-actor',
+          ].filter(Boolean),
+        } } : {}),
       },
     ));
 
@@ -604,14 +618,24 @@ async function exchangeAsSpecialist(subjectToken, opts = {}) {
         a2aRole: 'exchange2',
         actPresent: !!act,
         actChainDepth,
+        tokenTyp: tInvestDecoded?.header?.typ || null,
+        // PingFederate only: see a2a-exchange1. The specialist role is named
+        // only when its actor token was issued to the configured specialist client.
+        ...(c.pfExchange ? { pfExchange: {
+          endpoint: oauth.config?.tokenEndpoint || null,
+          credentialRoles: [
+            c.agent2ClientId && decodeJwt(agent2Actor)?.claims?.client_id === c.agent2ClientId && 'a2a-specialist',
+          ].filter(Boolean),
+        } } : {}),
         a2aTool: tool,
         scope: specialistScopes.join(' '),
         vertical,
         specialist: specialist.specialistName,
         exchangeRequest: {
           grant_type: 'urn:ietf:params:oauth:grant-type:token-exchange',
-          subject_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+          subject_token_type: c.pfExchange ? 'urn:ietf:params:oauth:token-type:id-jag' : 'urn:ietf:params:oauth:token-type:access_token',
           actor_token_type: 'urn:ietf:params:oauth:token-type:access_token',
+          ...(c.pfExchange ? { requested_token_type: 'urn:ietf:params:oauth:token-type:access_token' } : {}),
           audience: c.specialistAud,
           scope: specialistScopes.join(' '),
           has_actor_token: true,
