@@ -8,6 +8,8 @@ checks) is the [Agent Field Guide](privilege-agent-field-guide.html).
 Arc: **identity → policy → LLM surface → MCP surface → human control →
 proof.**
 
+**Renamed in the 2026-11-02 release (deck "ID4AI Workforce - H2 2026", slide 35; UNVERIFIED on our tenant):** Non-Human Identity is now **Federated Identity**; NHI Agents Discovery & Enforcement is now **Self-Hosted Agents** (the sensor in row 21 is its first); Workload Agent Discovery & Control is now **AI Platform Agents**. The console API still uses `NonHumanIdentity` (swagger 2026-10-31). New fields in that swagger: `~/Documents/privilege-swagger-baselines/DIFF-2026-10-26-to-2026-10-31.md`.
+
 Text marked **Release notes** comes from the console's Settings → Release Notes
 tab (web release v1.10.0, 10 October 2026), read 2026-10-13. Those lines are
 Ping's release claims and have not been re-verified on our tenant; everything

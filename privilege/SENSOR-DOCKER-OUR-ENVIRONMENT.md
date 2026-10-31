@@ -1,5 +1,8 @@
 # Privilege Sensor and Gateway on Docker: Our Environment
 
+> **Terminology:** Ping's 2026-11-02 release notes (deck "ID4AI Workforce - H2 2026", slide 35) rename **Non-Human Identity** to **Federated Identity** (display name only; the console API object is still `NonHumanIdentity` at `/v1/nonhumanidentities` in the 2026-10-31 swagger). The sensor is the first **Self-Hosted Agent** in the new naming (was "NHI Agents Discovery & Enforcement"). This page was written under the old names and is kept as measured. Not yet seen on our tenant.
+
+
 Oct 1, 2026 · Curtis Muir
 
 ## Contents

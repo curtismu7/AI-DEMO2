@@ -4,7 +4,7 @@
     "name": "Agent Registry",
     "page": "identity",
     "why": "Agents that call models, tool servers and other agents need to be first-class identities with an owner, an expiry, a lifecycle and per-agent policy, not anonymous API keys. Each key has a custodian (the accountable human), which is designed to let the gateway log and policy name who the agent acts as.",
-    "how": "The documented flow is a four-step Add Agent wizard in the Agent Registry. (1) Identity and Access sets the agent name (permanent; renaming means delete and recreate), custodian, expiry and scopes (llm, mcp, a2a). (2) Gateway and Apps sets, for llm, one provider per key, allowed models, requests per minute, tokens per minute and a budget; the real provider key is stored in Privilege and injected server-side, so LLM-scoped keys are created here and need the real provider key in hand. For mcp or a2a, it sets the specific apps (and optionally specific MCP tools) the agent may reach; selecting them is the grant, and saving creates a grant policy for the custodian tied to the key. (3) Runtime Protection sets the AI Guard configuration for that key; AI Guard is configured per agent key, not per app. (4) Review and Create shows the key once, with calling code per scope. The agent then sends the key as a bearer token on every call, with no sign-in or token exchange. The caller's gateway key is never forwarded to a backend. The request-rate cap is enforced natively: 75-request bursts against a capped key had 60 calls admitted in the minute and the rest refused. A budget can also be set on the key, but a budget refusal was not separately tested. App and policy edits take about 4 minutes to reach the gateway; brand-new keys are picked up immediately. For MCP and A2A calls, the only self-describing 403 is 'key not scoped for mcp access'; any other bare 403 needs the gateway log to explain it. Expired keys are documented as edit-locked on step 1 until the expiry moves to a future date. There is no rotate action: the key value is server-generated and immutable, so rotation is delete and recreate under the same name (for llm keys, have the real provider key ready first), and revoking a key sets it to revoked. The documentation also describes a second custodian option, a secretless non-human identity with federation settings (issuer, audience, subject, key set location, maximum token lifetime, required claims). Do not promise customers that this works: gateway acceptance of workload-identity tokens is not proven, and a non-human identity with no key behind it authenticates nobody.",
+    "how": "The documented flow is a four-step Add Agent wizard in the Agent Registry. (1) Identity and Access sets the agent name (permanent; renaming means delete and recreate), custodian, expiry and scopes (llm, mcp, a2a). (2) Gateway and Apps sets, for llm, one provider per key, allowed models, requests per minute, tokens per minute and a budget; the real provider key is stored in Privilege and injected server-side, so LLM-scoped keys are created here and need the real provider key in hand. For mcp or a2a, it sets the specific apps (and optionally specific MCP tools) the agent may reach; selecting them is the grant, and saving creates a grant policy for the custodian tied to the key. (3) Runtime Protection sets the AI Guard configuration for that key; AI Guard is configured per agent key, not per app. (4) Review and Create shows the key once, with calling code per scope. The agent then sends the key as a bearer token on every call, with no sign-in or token exchange. The caller's gateway key is never forwarded to a backend. The request-rate cap is enforced natively: 75-request bursts against a capped key had 60 calls admitted in the minute and the rest refused. A budget can also be set on the key, but a budget refusal was not separately tested. App and policy edits take about 4 minutes to reach the gateway; brand-new keys are picked up immediately. For MCP and A2A calls, the only self-describing 403 is 'key not scoped for mcp access'; any other bare 403 needs the gateway log to explain it. Expired keys are documented as edit-locked on step 1 until the expiry moves to a future date. There is no rotate action: the key value is server-generated and immutable, so rotation is delete and recreate under the same name (for llm keys, have the real provider key ready first), and revoking a key sets it to revoked. The documentation also describes a second custodian option, a secretless non-human identity with federation settings (issuer, audience, subject, key set location, maximum token lifetime, required claims). Do not promise customers that this works: gateway acceptance of workload-identity tokens is not proven, and a Federated Identity with no key behind it authenticates nobody.",
     "userValue": "Operator or SE: one object that shows who owns each agent, which scopes, apps, models and limits it has, when it expires and which guardrail screens it. Accountable owner: each key is tied to a named custodian, so its calls are designed to be attributable to that person. Security team: a per-agent key that can be revoked, expires on schedule and carries its own guardrail and limits, instead of a shared static secret.",
     "components": [
       "Agent Registry console page",
@@ -14,7 +14,7 @@
       "Agent access key",
       "Grant policy created when apps are selected",
       "Per-key Runtime Protection (AI Guard)",
-      "Non-human identity object (optional custodian)",
+      "Federated Identity object (optional custodian)",
       "Privilege gateway (LLM, MCP and A2A routes)",
       "Gateway log",
       "Console audit feed"
@@ -34,7 +34,7 @@
       "Budget refusal was not tested, and the token cap was reproduced only on a different key.",
       "An agent authenticating with a workload identity instead of a key was not tested, and gateway acceptance of workload-identity tokens on MCP and LLM routes is not proven.",
       "Whether two keys can share a name at the same time during rotation was not tested.",
-      "The non-human identity schema was read from the tenant once and was not re-read afterwards.",
+      "The Federated Identity (formerly Non-Human Identity) schema was read from the tenant once and was not re-read afterwards.",
       "With Block Agreement off, a sidecar verdict did not block an A2A message in one test (the call succeeded with an alert only); it was shown to block on the LLM path only.",
       "Which console release introduced the non-human-identity custodian option and per-app guardrail settings comes from release notes and was not re-verified on the tenant.",
       "The size and composition of the agent fleet seen earlier is a past snapshot and may have changed."
@@ -364,7 +364,7 @@
       "Tool-name length limits in some clients may be a problem for prefixed names and were not tested.",
       "The aggregate was measured as plain JSON with no session ID, and behavior with session-bearing clients was not tested.",
       "The refusal wording differs between an aggregate with a tool filter and one without, and was not fully mapped.",
-      "Gateway acceptance of workload-identity tokens through an aggregate is not proven, and a non-human identity with no key behind it authenticates nobody."
+      "Gateway acceptance of workload-identity tokens through an aggregate is not proven, and a Federated Identity with no key behind it authenticates nobody."
     ]
   },
   {
@@ -389,7 +389,7 @@
     ],
     "unverified": [
       "Calling an agent directly on its own public host with a real token was not run, so the agent's acceptance rules are not confirmed by a live call.",
-      "Gateway acceptance of workload-identity tokens is not proven, and a non-human identity with no key behind it authenticates nobody, so this path should not be promised to customers.",
+      "Gateway acceptance of workload-identity tokens is not proven, and a Federated Identity with no key behind it authenticates nobody, so this path should not be promised to customers.",
       "The Pass Agent Token success path was not tested because no caller held a workload identity; only the refusal was measured.",
       "User Token mode for A2A was not exercised with a credential stored in the vault.",
       "Calls made with a person's sign-in were not screened by AI Guard in the one setup tested; other setups were not tested.",
@@ -528,7 +528,7 @@
       "The source documents disagree on whether PingFederate token scopes work in Cedar: one marks them untested and a later one reports a scope-based Cedar block on a single PingFederate-token door. The measurement covers that door only and other routes were not tested.",
       "Token claims, the acting subject and the client id are not readable in Cedar today; the source says this is planned for a later release.",
       "Whether the engine rejects claim attributes that the editor does not list was not tested.",
-      "Whether the gateway accepts workload-identity tokens on the MCP path was not tested, and a non-human identity with no key behind it authenticates nobody.",
+      "Whether the gateway accepts workload-identity tokens on the MCP path was not tested, and a Federated Identity with no key behind it authenticates nobody.",
       "Claim-conditioned tiers using dotted claim paths come from console text, not from a run.",
       "Matching a PingFederate user to a Privilege principal by email alias is inferred and was not tested.",
       "The group-gated hold example is adapted from a template and was not run.",

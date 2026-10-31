@@ -290,7 +290,7 @@ export const DESIGNS = {
     steps: DUAL_STEPS,
     height: 640,
     assumptions: [
-      "Privilege passthrough and claim-based policy are available through the non-human identity route today and native in the next release, as Ping told the team. Neither is in the public documentation, so treat them as assumptions to confirm.",
+      "Privilege passthrough and claim-based policy are available through the Federated Identity route today and native in the next release, as Ping told the team. Neither is in the public documentation, so treat them as assumptions to confirm.",
       "Retire the Agent Gateway one duty at a time. Check that Privilege can (1) make decisions on request arguments, (2) match authorization details to the call, (3) validate or forward the DPoP proof, (4) verify signature and audience and fail closed, and (5) publish protected-resource metadata. When all five pass, Privilege is the only gateway and the diagram loses a box.",
       "Privilege AIGuard guardrails, the agent registry and virtual keys are visible in the console but not yet in public documentation. Treat them as preview features.",
       "Everything after the gateways is unchanged from the first design: agent identity, exchange at each hop, an MCP server that trusts only its own audience, bound approval, a cart-bound checkout link and one audit record per action.",
