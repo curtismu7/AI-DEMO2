@@ -32,6 +32,8 @@ const MFA_DEVICES_PATH = '/api/auth/mfa/devices';
 const MFA_GATED_FLAG = 'ff_personal_agent_concierge';
 const AGENT_CONSENT_STATUS_PATH = '/api/agent-authorization/status';
 const AGENT_CONSENT_GRANT_PATH = '/api/agent-authorization/grant';
+// A held tool's challenge, approved by the signed-in user.
+const HITL_APPROVE_PATH = '/api/mcp/decision';
 
 const eventById = (events, id) => events.find((event) => event && event.id === id) || null;
 // A scope claim is a space-delimited string from PingOne and a list from PingFederate.
@@ -394,12 +396,22 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
     const pinned = await request(ACTIVE_VERTICAL_PATH, { method: 'POST', body: { id: vertical } });
     if (pinned.status < 200 || pinned.status > 299) return { observed: `VERTICAL_HTTP_${pinned.status}`, evidence: {} };
     if (behavior?.kind === 'agent-outcome') {
-      const invoked = await request(INVOKE_PATH, {
-        method: 'POST',
-        body: { prompt: behavior.triggerText, vertical, useCaseId: slugFor(caseRow) },
-      });
+      const body = { prompt: behavior.triggerText, vertical, useCaseId: slugFor(caseRow) };
+      const invoked = await request(INVOKE_PATH, { method: 'POST', body });
       if (invoked.status !== 200) return { observed: `HTTP_${invoked.status}`, evidence: {} };
-      return evidenceFromAgentInvoke({ response: invoked.body, provider, expectedIssuer, authorization });
+      let response = invoked.body;
+      // A2A: the gateway held the specialist's consent tool for the user's
+      // approval. A step that expects it to run is approved as the presenter
+      // does it, then resent once with the challenge; evidence is the retry's.
+      const challengeId = response?.error === 'hitl_required' ? response.hitlChallengeId : null;
+      if (challengeId && authorization?.gatewayTool?.a2aDelegated && behavior.expectedOutcome === 'PERMIT') {
+        const approved = await request(`${HITL_APPROVE_PATH}/${encodeURIComponent(challengeId)}/approve`, { method: 'POST', body: {} });
+        if (approved.status !== 200) return { observed: `HITL_APPROVE_HTTP_${approved.status}`, evidence: {} };
+        const retried = await request(INVOKE_PATH, { method: 'POST', body: { ...body, hitlChallengeId: challengeId } });
+        if (retried.status !== 200) return { observed: `HTTP_${retried.status}`, evidence: {} };
+        response = retried.body;
+      }
+      return evidenceFromAgentInvoke({ response, provider, expectedIssuer, authorization });
     }
     if (behavior?.kind === 'attack-outcome') {
       const attacked = await request(ATTACK_SIM_PATH, { method: 'POST', body: { sim: behavior.sim } });

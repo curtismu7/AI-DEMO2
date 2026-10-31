@@ -516,6 +516,43 @@ describe('PingFederate A2A delegation', () => {
   });
 });
 
+describe('A2A specialist calls held for approval', () => {
+  const uc2 = buildDemoReadinessCatalog().find((row) => row.id === 'UC2');
+  const run = (request, row, vertical) => createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER })
+    .executeReadinessCase({ caseRow: row, vertical, behavior: row.expectedBehaviorByVertical[vertical], authorization: row.authorizationContractByVertical[vertical] });
+  const HELD = { success: false, error: 'hitl_required', hitlChallengeId: 'ch-1', action: 'sensitive_passenger_record', tokenEvents: [] };
+  const lane = ({ approve = { status: 200, body: { status: 'approved' } } } = {}) => {
+    let invokes = 0;
+    return jest.fn(async (path) => {
+      if (path === '/api/verticals/active') return { status: 204, body: null };
+      if (path === '/api/mcp/decision/ch-1/approve') return approve;
+      invokes += 1;
+      return { status: 200, body: invokes === 1 ? HELD : { success: true, tokenEvents: [] } };
+    });
+  };
+  const calls = (request) => request.mock.calls.map(([path, options]) => `${options?.method} ${path}`);
+
+  test('a step that expects the delegated call to run approves it as the presenter does, then resends once with the challenge', async () => {
+    expect(uc2.authorizationContractByVertical.airlines.gatewayTool).toMatchObject({ challengeType: 'consent', a2aDelegated: true });
+    const request = lane();
+    await run(request, uc2, 'airlines');
+    expect(calls(request)).toEqual(['POST /api/verticals/active', 'POST /api/agent/invoke', 'POST /api/mcp/decision/ch-1/approve', 'POST /api/agent/invoke']);
+    expect(request.mock.calls[3][1].body).toMatchObject({ prompt: uc2.expectedBehaviorByVertical.airlines.triggerText, hitlChallengeId: 'ch-1' });
+  });
+
+  test('a failed approval is the outcome; nothing is resent', async () => {
+    const request = lane({ approve: { status: 403, body: { error: 'forbidden' } } });
+    await expect(run(request, uc2, 'airlines')).resolves.toEqual({ observed: 'HITL_APPROVE_HTTP_403', evidence: {} });
+    expect(calls(request).filter((call) => call.endsWith('/api/agent/invoke'))).toHaveLength(1);
+  });
+
+  test('a held call outside A2A delegation is left held', async () => {
+    const request = lane();
+    await run(request, caseRow, VERTICAL);
+    expect(calls(request).some((call) => call.includes('/api/mcp/decision'))).toBe(false);
+  });
+});
+
 describe('attack steps', () => {
   const catalog = buildDemoReadinessCatalog();
   const uc5 = catalog.find((row) => row.id === 'UC5');
