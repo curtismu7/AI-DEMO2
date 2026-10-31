@@ -217,6 +217,10 @@ jobs:
           node-version: 22
           # Skip restoring the >1 GiB npm cache on this shared-runner gate.
           package-manager-cache: false
+      # scripts/check-use-cases-maturity.js shells out to rg (ripgrep), which was
+      # on the old Mac runner but is not guaranteed on a hosted image.
+      - name: Install ripgrep (use-case maturity gate)
+        run: command -v rg >/dev/null || { sudo apt-get update -qq && sudo apt-get install -y -qq --no-install-recommends ripgrep; }
       # Deps install FIRST. hygiene:check used to run against a bare checkout,
       # which worked only while every command in the chain was dependency-free.
       # 04487cdf appended `gen-intent-topology.js check`, and that one loads
