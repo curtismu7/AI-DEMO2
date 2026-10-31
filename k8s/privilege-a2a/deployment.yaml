@@ -45,7 +45,7 @@ spec:
       - name: ghcr-pull-secret
       containers:
       - name: mcpdemo
-        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-ef9918b32
+        image: ghcr.io/ping-sandbox/privilege-a2a-demo:sha-bac9fd784c6d37a944c24335bec05b9c2796fa1e
         imagePullPolicy: Always
         command: ["node", "dist/mcp-server/index.js"]
         ports:
@@ -118,7 +118,7 @@ spec:
       - name: ghcr-pull-secret
       containers:
       - name: workeragentdemo
-        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-a812afe9e
+        image: ghcr.io/ping-sandbox/privilege-a2a-demo:sha-bac9fd784c6d37a944c24335bec05b9c2796fa1e
         imagePullPolicy: Always
         command: ["node", "dist/worker-agent/index.js"]
         ports:
@@ -214,7 +214,7 @@ spec:
       - name: ghcr-pull-secret
       containers:
       - name: mainagentdemo
-        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-a812afe9e
+        image: ghcr.io/ping-sandbox/privilege-a2a-demo:sha-bac9fd784c6d37a944c24335bec05b9c2796fa1e
         imagePullPolicy: Always
         command: ["node", "dist/main-agent/index.js"]
         ports:
