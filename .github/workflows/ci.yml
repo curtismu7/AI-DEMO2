@@ -203,7 +203,9 @@ jobs:
         with:
           ref: ${{ inputs.target_ref || github.sha }}
       - name: Lint GitHub Actions workflows
-        run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
+        run: |
+          bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7 "$RUNNER_TEMP"
+          "$RUNNER_TEMP/actionlint" .github/workflows/ci.yml
       - uses: actions/setup-node@v7
         with:
           node-version: 22
