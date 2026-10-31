@@ -2050,6 +2050,10 @@ services:
       PG_MTLS_KEYSTORE_PATH: "${PG_MTLS_KEYSTORE_PATH:-${MCP_MTLS_ON:+/certs/gw-mtls/gw-client.p12}}"
       PG_MTLS_KEYSTORE_PASSWORD: "${PG_MTLS_KEYSTORE_PASSWORD:-changeit}"
       PG_INVEST_BACKEND_URL: "http://mcp-resource-server:8081"
+      # Readiness lanes' own resource servers, chosen by the lane BFF's
+      # X-Readiness-Lane header (invest-dispatch.groovy, docker-compose.readiness.yml).
+      PG_INVEST_BACKEND_URL_PINGONE: "http://readiness-resource-server-pingone:8081"
+      PG_INVEST_BACKEND_URL_PINGFEDERATE: "http://readiness-resource-server-pingfederate:8081"
       PG_WEATHER_BACKEND_URL: "http://mcp-weather:8896"
       PG_BRAVE_BACKEND_URL: "http://mcp-brave:8897"
       # Unlocks certs/pg-tls/pg-server.p12 for the 8443 TLS connector. IG's

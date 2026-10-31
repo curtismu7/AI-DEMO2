@@ -137,7 +137,15 @@ def pfExchangeConfigValid = {
     }
 }
 def investAudience = System.getenv('PG_MCP_RESOURCE_SERVER_URI') ?: ''
-def investBaseUrl  = System.getenv('PG_INVEST_BACKEND_URL') ?: 'http://mcp-resource-server:8081'
+// Readiness lanes (docker-compose.readiness.yml) share this gateway but run their
+// own resource server, which reads its own lane BFF's data: the presenter's BFF
+// rejects a lane's token (UC2 banking 401'd on the PingFederate lane, 2026-10-31).
+// A lane BFF names itself in X-Readiness-Lane; only a lane with a configured
+// backend is honoured, and the header travels no further.
+def readinessLane = (request.headers.getFirst('X-Readiness-Lane') ?: '').toLowerCase()
+request.headers.remove('X-Readiness-Lane')
+def laneBackendUrl = (readinessLane ==~ /[a-z]+/) ? System.getenv('PG_INVEST_BACKEND_URL_' + readinessLane.toUpperCase()) : null
+def investBaseUrl  = laneBackendUrl ?: (System.getenv('PG_INVEST_BACKEND_URL') ?: 'http://mcp-resource-server:8081')
 def investMcpUrl   = investBaseUrl.replaceAll('/+$', '') + '/mcp'
 
 // ── Read the JSON-RPC envelope ────────────────────────────────────────────────

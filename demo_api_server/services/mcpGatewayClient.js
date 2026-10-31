@@ -367,6 +367,11 @@ async function callToolViaGateway(gatewayUrl, bearerToken, tool, params = {}, op
     if (opts && opts.useCaseId) {
         headers['X-Use-Case-Id'] = String(opts.useCaseId);
     }
+    // A readiness lane BFF (docker-compose.readiness.yml) names its lane so the
+    // shared gateway sends its resource-server calls to the lane's own server.
+    if (process.env.DEMO_READINESS_LANE) {
+        headers['X-Readiness-Lane'] = process.env.DEMO_READINESS_LANE;
+    }
     // Tier (groupToTier) — pre-resolved here because neither gateway can map a
     // PingOne group array to a tier locally (no set-membership operator in either
     // P1AZ's DSL or the gateways' own runtimes). Additive: gateways use this only
