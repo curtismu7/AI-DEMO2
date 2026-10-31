@@ -14,8 +14,9 @@ name: Build A2A demo image
 # built from standalone/privilege-a2a-anthropic-demo as before. Once it holds a
 # 40-character commit of ping-sandbox/privilege-a2a-anthropic-demo-LAB, the image
 # is built from that commit instead (same image name, so the cluster does not
-# change). Reading that repo needs the secret PRIVILEGE_A2A_LAB_READ_TOKEN (a
-# read-only token or fine-grained PAT with Contents: read on that one repo).
+# change). Reading that repo needs ONE of two secrets: PRIVILEGE_A2A_LAB_DEPLOY_KEY (a
+# read-only SSH deploy key added to that repo; needs repo admin only) or
+# PRIVILEGE_A2A_LAB_READ_TOKEN (a fine-grained token with Contents: read on it).
 #
 # ONE-TIME SETUP (UI only, cannot be done from code): on
 # github.com/users/cmuir_pingcorp/packages/container/privilege-a2a-demo open
@@ -67,6 +68,8 @@ jobs:
         with:
           repository: ping-sandbox/privilege-a2a-anthropic-demo-LAB
           ref: ${{ steps.src.outputs.lab_ref }}
+          # Either secret works. With the deploy key set the checkout uses SSH; otherwise it uses the token.
+          ssh-key: ${{ secrets.PRIVILEGE_A2A_LAB_DEPLOY_KEY }}
           token: ${{ secrets.PRIVILEGE_A2A_LAB_READ_TOKEN }}
           path: lab-source
           persist-credentials: false
