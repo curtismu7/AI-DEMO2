@@ -341,6 +341,7 @@
     "/privilege-first-gateway": "public",
     "/privilege-for-ai": "public",
     "/privilege-gateway-topologies": "public",
+    "/gateway-stats": "public",
     "/privilege-mcp-client": "public",
     "/privilege-a2a": "public",
     "/privilege-mcp-diagrams": "public",

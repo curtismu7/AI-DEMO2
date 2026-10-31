@@ -1,0 +1,21 @@
+/* GatewayStatsPage.css — one heading, one hint, one frame that fills the rest of the screen. */
+.gws-page {
+  padding: 16px;
+}
+.gws-page h1 {
+  font-size: var(--font-size-lg, 1.25rem);
+  margin: 0 0 6px;
+}
+.gws-page__hint {
+  color: var(--pmd-ink-2);
+  font-size: var(--font-size-sm);
+  margin: 0 0 10px;
+}
+.gws-page__frame {
+  width: 100%;
+  height: calc(100vh - 200px);
+  min-height: 480px;
+  border: 1px solid var(--pmd-border);
+  border-radius: var(--radius-md);
+  background: var(--pmd-panel);
+}

@@ -632,7 +632,7 @@ describe("AdminSideNav — best-of-breed pass", () => {
 
     stubHidden([
       "Privilege shelf", "Privilege Map", "Agent Privilege Guide", "Agent Privilege Diagrams",
-      "Agent Privilege Topologies", "External Agent App Diagrams", "Privilege Docs Index",
+      "Agent Privilege Topologies", "Gateway stats", "External Agent App Diagrams", "Privilege Docs Index",
     ]);
     renderNav("/privilege-demo");
     expect(await screen.findByText("Observability")).toBeInTheDocument();

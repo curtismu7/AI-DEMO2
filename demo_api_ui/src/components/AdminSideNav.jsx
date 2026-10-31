@@ -1463,6 +1463,7 @@ export default function AdminSideNav({
           { from: "AI Agent Gateway Guide", rename: "Agent Privilege Guide" },
           { from: "AI Agent Gateway Diagrams", rename: "Agent Privilege Diagrams" },
           { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
+          { label: "Gateway stats", path: "/gateway-stats", icon: "arc", searchAlias: "gateway stats load balancer haproxy lb-stats node health sessions" },
           { label: "External Agent App Diagrams", path: "/external-door-diagrams", icon: "arc", searchAlias: "external door diagrams topology dual path sequence agent app" },
           { label: "Privilege Docs Index", path: "/privilege-docs-index", icon: "doc" },
         ],
