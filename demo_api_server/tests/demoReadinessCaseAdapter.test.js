@@ -584,7 +584,7 @@ describe('A2A orchestrator steps', () => {
     const request = lane([DELIVERED]);
     const result = await run(request);
     expect(calls(request)).toEqual(['POST /api/verticals/active', 'POST /api/a2a/init', 'POST /api/a2a/message']);
-    expect(request.mock.calls[2][1].body).toEqual({ message: uc25.expectedBehaviorByVertical.airlines.triggerText, vertical: 'airlines' });
+    expect(request.mock.calls[2][1].body).toEqual({ message: uc25.expectedBehaviorByVertical.airlines.triggerText, vertical: 'airlines', mode: 'heuristics' });
     expect(result.observed).toBe('PERMIT');
   });
 
