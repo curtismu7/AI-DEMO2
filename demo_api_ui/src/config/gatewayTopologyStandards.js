@@ -39,7 +39,7 @@ export const LB_STEPS = [
     claims: { client_id: '2f1c9e84', sub: 'user1@example.com', issued_by: 'gateway-1', aud: 'https://mcpgw.ai-demo.ping-devops.com/aggregate/mcp', exp: 1792314000 },
   }]),
   step(1, `nginx-public terminates TLS, then proxies to Service mcpgw-lb :8623\n  X-Forwarded-For: 203.0.113.24\n  X-Forwarded-Proto: https\n  Host: mcpgw.ai-demo.ping-devops.com`, [INGRESS, FWD, TLS]),
-  step(2, `HAProxy (one of two pods)\n  balance hdr(X-Forwarded-For)   hash-type consistent\n  203.0.113.24  ->  server gateway-1\n\nResponse carries:  X-Served-By: gateway-1`, [FWD, HTTP]),
+  step(2, `HAProxy (one of two pods)\n  balance hash (X-Forwarded-For + app)   hash-type consistent\n  203.0.113.24 + /opensearch  ->  server gateway-1\n\nResponse carries:  X-Served-By: gateway-1`, [FWD, HTTP]),
   step(3, `HAProxy (the other pod hashes identically)\n  198.51.100.9  ->  server gateway-2\n\nResponse carries:  X-Served-By: gateway-2\nHealth check: GET / every 10s; 401 counts as up (fall 2, rise 60)`, [FWD, HTTP]),
   step(4, `gateway-1 reads the client registry from privilege-redis (illustrative key)\n  GET client:2f1c9e84\nRegistrations are shared; access tokens are NOT, so a client moved to another node signs in again.`, [DCR, ...MCP.slice(0, 1)], [{
     note: 'Client registration record · shared in Redis (MOCK shape per RFC 7591)',

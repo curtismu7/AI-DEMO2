@@ -154,6 +154,29 @@ Two additions to `loadbalancer-haproxy.yaml`, both opt-in:
   goes through `gateway1-lb.values.yaml`. The topology page shows the panel to
   signed-in admins only.
 
+## 00a-3. Pin on client + app, /callback by state tag (2026-10-31, PR #1930, live)
+
+HAProxy hashed on `X-Forwarded-For` alone, so one client used one gateway for every app.
+`backend gateways` is now `balance hash var(txn.pin)` with `txn.pin` = `X-Forwarded-For`
++ `|` + the first path segment. One client's apps spread over all gateways; an app's
+`/<app>/register`, `/authorize`, `/token` and `/mcp` stay on one node (the gateways keep
+sign-in state in memory).
+
+The browser callback is the global `/callback?code&state` (no app in the path), so it
+cannot use that key. The authorize 302 to the IdP gets the issuing node appended to
+`state` (`<state>~gateway-2`); `/callback` reads the tag, `use-server` sends it to that
+node, and `set-query` strips the tag so the gateway sees the state it issued. Stateless:
+no stick table, no peers section. An untagged callback, or one tagged for a node that is
+down, falls back to the balancer. Only a 302 whose `Location` contains `%2Fcallback` is
+tagged, so a client's own error redirect is left alone. The log line gains `app=`.
+
+Tested 2026-10-31 (haproxy 3.0.30, three fake gateways, then live): one IP's 8 apps landed
+on all three nodes, and each callback reached the node that issued its authorize. Not yet
+tested: a full browser sign-in through PingOne on an app that hashes to gateway 2 or 3.
+Deploy: the Deployment's `checksum/config` hashes values, not the config, so a config-only
+change needs `kubectl rollout restart deploy/mcpgw-lb`. Pinning moved, so clients
+mid-session sign in once more.
+
 ## 00b. Shared Redis (2026-10-04): what it does, why, how
 
 **What it is.** One small Redis, `privilege-redis` in `ping-devops-cmuir`, that both gateways
@@ -644,7 +667,7 @@ MCP client / browser
 nginx-public ingress (curtismuir)            <- unchanged hostname
         |  Service mcpgw-lb :8623
         v
-mcpgw-lb pods (x2)  -- consistent hash on client address (X-Forwarded-For)
+mcpgw-lb pods (x2)  -- consistent hash on client address (X-Forwarded-For) + app (first path segment)
         |                       |
         v                       v
 gateway 1 (curtismuir)    loopback bridge :8444 -> gateway 2 (cmuir, plain HTTP)
@@ -665,8 +688,9 @@ in and sends HTTP out so one upstream group can hold both gateways.
 ## 4. How the load balancer behaves
 
 - **Pinning:** `hash $stick consistent`, where `$stick` is the `X-Forwarded-For` value
-  (client address) or the connection address if absent. One client always lands on the
-  same gateway while both are healthy. Adding or removing a gateway moves only a share of
+  (client address) or the connection address if absent. HAProxy engine (since PR #1930):
+  the key is the client address plus the first path segment (the app), see section 00a-3.
+  One client's calls to one app always land on the same gateway while it is healthy. Adding or removing a gateway moves only a share of
   clients (consistent hashing).
 - **Every path is pinned.** There is no round-robin path. Sign-in arrives both at the root
   (`/authorize`) and under the app name (`/opensearch22/authorize`); a single `location /`
