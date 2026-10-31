@@ -13,8 +13,14 @@
   - failTimeout is kept as the hold-out: a failed gateway must pass failTimeout/10s
     consecutive checks before it takes clients again (a quick return makes a signed-in
     client sign in twice, see GATEWAY-LOAD-BALANCER.md).
-  Pinning is a consistent hash on X-Forwarded-For, so no stick table and no peers
-  section are needed; the two pods agree because they hash and probe the same way.
+  Pinning is a consistent hash on client address PLUS the first path segment (the
+  app), so one client's apps spread over every gateway while each app's register,
+  authorize, token and MCP calls stay on one node. The browser callback has no app in
+  its path (global /callback), so the authorize redirect to the IdP gets the node name
+  appended to `state` (`<state>~gateway-2`); /callback routes on that tag and strips
+  it before the gateway sees it. No stick table and no peers section are needed: the
+  tag travels with the browser, and the two pods agree because they hash and probe the
+  same way. Without a tag /callback falls back to the hash.
 */ -}}
 {{- $lb := .Values.loadBalancer | default dict }}
 {{- if and $lb.enabled (eq ($lb.engine | default "nginx") "haproxy") }}
@@ -80,16 +86,34 @@ data:
 {{- if $lb.stats }}
       stats auth {{ $lb.stats.auth }}
 {{- end }}
-      # node= is the gateway that answered; xff= is the pin key.
+      # node= is the gateway that answered; xff= and app= are the pin key.
       capture request header X-Forwarded-For len 64
-      log-format '%ci [%t] "%r" %ST %B node=%s xff=%hr'
+      log-format '%ci [%t] "%r" %ST %B node=%s xff=%hr app=%[var(txn.app)]'
       # The ingress always sets X-Forwarded-For; this only keeps a direct hit pinned.
       http-request set-header X-Forwarded-For %[src] unless { req.hdr(X-Forwarded-For) -m found }
+      # Pin key: client address + first path segment (the app).
+      http-request set-var(txn.app) path,field(2,/)
+      http-request set-var(txn.pin) req.hdr(X-Forwarded-For),concat(|,txn.app)
+      # Callback leg: read the node tag the authorize redirect left in `state`, then
+      # strip it so the gateway sees the state it issued.
+      http-request set-var(txn.cbnode) url_param(state),field(2,~) if { path /callback }
+      http-request set-query %[query,regsub(~gateway-[0-9]+,,g)] if { path /callback } { var(txn.cbnode) -m found }
+      # Tag the gateway-to-IdP redirect (its redirect_uri is the global /callback) with
+      # the node that issued it. Other redirects, such as a client's own error
+      # redirect, are left alone.
+      http-request set-var(txn.authz) bool(true) if { path_end /authorize }
+      http-response replace-header Location (.*[?&]state=[^&]*)(.*) \1~%[srv_name]\2 if { var(txn.authz) -m bool } { status 302 } { res.hdr(Location) -m sub %2Fcallback }
       default_backend gateways
 
     backend gateways
-      balance hdr(X-Forwarded-For)
+      balance hash var(txn.pin)
       hash-type consistent
+      # /callback goes to the node named in its state tag; use-server only takes a
+      # fixed name, so one line per node.
+      use-server {{ $ownName }} if { var(txn.cbnode) -m str {{ $ownName }} }
+      {{- range $peer := $lb.peers }}
+      use-server {{ $peer.name }} if { var(txn.cbnode) -m str {{ $peer.name }} }
+      {{- end }}
       option httpchk
       http-check send meth GET uri / ver HTTP/1.1 hdr Host {{ $host }}
       http-check expect rstatus ^[234]
