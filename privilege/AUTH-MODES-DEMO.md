@@ -124,7 +124,7 @@ route).
 
 Confirm what mode an app is in without the UI: the console API exposes it as
 `Spec.McpAppConfig.AuthMode` (the same field the gateway client reads in
-`standalone/ai-gateway-client/server/lib/relay.js`, which also reports
+[`server/lib/relay.js`](https://github.com/ping-sandbox/ai-gateway-client-LAB/blob/main/server/lib/relay.js), which also reports
 `aiGuard.enabled` / `failClosed` per app). See
 [console API recipe](../.claude/skills/privilege-console-api/SKILL.md).
 

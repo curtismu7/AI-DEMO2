@@ -187,7 +187,7 @@ Not tested by us: Claude Desktop, Claude Code, Cursor, VS Code and ChatGPT. Each
 
 ## What the client sees once connected
 
-The client sees a normal MCP server, with a few differences that come from policy. These were taken in the demo's own Agent Privilege Client (`standalone/ai-gateway-client`), connected to the `opensearch22` app through the gateway, in light mode:
+The client sees a normal MCP server, with a few differences that come from policy. These were taken in the demo's own Agent Privilege Client ([ai-gateway-client-LAB](https://github.com/ping-sandbox/ai-gateway-client-LAB)), connected to the `opensearch22` app through the gateway, in light mode:
 
 ![Agent Privilege Client signed in, tools listed](../docs/screenshots/privilege-console-setup/gwclient-tools-list.png)
 _Agent Privilege Client signed in to `opensearch22` through the gateway: the policy-granted tools on the left (ListIndexTool, SearchIndexTool, ClusterHealthTool, ExplainTool), the selected tool's form in the middle, and the gateway URL with Sign out and Refresh tools on top._
