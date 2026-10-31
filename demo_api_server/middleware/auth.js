@@ -651,8 +651,11 @@ const validatePingOneCoreToken = async (token, requestContext = {}) => {
       // audience check on POST /api/transactions and the other write callbacks;
       // those routes then failed open past the banking write-scope gate, because
       // the token's scopes are invest:read rather than read/write.
+      // The resource server calls back for each investment read tool: accounts,
+      // portfolio, balance and transactions. All four are GET-only routes.
       const isInvestPortfolioCallback =
-        baseUrl === '/api/investment' && /^\/accounts\/[^/]+\/portfolio/.test(path);
+        baseUrl === '/api/investment' && method === 'GET'
+        && /^\/accounts(\/[^/]+\/(portfolio|balance|transactions))?\/?$/.test(path);
       const gwAuds = String(MCP_GW_RESOURCE_URI).split(',').map((s) => s.trim()).filter(Boolean);
       if (PINGGATEWAY_RESOURCE_URI && !gwAuds.includes(PINGGATEWAY_RESOURCE_URI)) {
         gwAuds.push(PINGGATEWAY_RESOURCE_URI);

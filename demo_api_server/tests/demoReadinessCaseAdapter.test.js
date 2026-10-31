@@ -506,6 +506,16 @@ describe('PingFederate A2A delegation', () => {
     for (const vertical of ['banking', 'airlines', 'healthcare']) expect(failuresFor(vertical)).toEqual([]);
   });
 
+  test('the tool comes from the gateway\'s audit record when its filter-chain row is missing', () => {
+    // PingGateway\'s audit-trail header sometimes arrives without the chain (about 1 call in 8).
+    const response = a2aResponse('airlines');
+    response.tokenEvents = response.tokenEvents.filter((event) => event.id !== 'gw-filter-chain');
+    const authorization = uc2.authorizationContractByVertical.airlines;
+    const result = evidenceFromAgentInvoke({ response, provider: 'pingfederate', expectedIssuer: pf.issuer, authorization });
+    expect(result.evidence.selectedTool).toBe(authorization.primaryTool);
+    expect(evidenceFailures({ evidence: JSON.parse(JSON.stringify(result.evidence)), provider: 'pingfederate', authorization, expected: 'PERMIT', caseRow: uc2 })).toEqual([]);
+  });
+
   test('a role the BFF did not report, two endpoints, or a first hop that is not an ID-JAG fails', () => {
     expect(failuresFor('airlines', { exchange2: { pfExchange: { endpoint: pf.endpoint, credentialRoles: [] } } }))
       .toContain('PF exchanger credential role does not match the declared PF-only role');

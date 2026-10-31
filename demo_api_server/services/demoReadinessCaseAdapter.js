@@ -185,7 +185,9 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     const claims = a2aExchange2.claims || {};
     const actors = [];
     for (let act = claims.act; act?.sub; act = act.act) actors.push(act.sub);
-    const a2aTool = eventById(events, 'gw-filter-chain')?.tool || null;
+    // The gateway's filter-chain row is built from its audit-trail header, which now and
+    // then arrives without the chain; its own audit record of the call always names the tool.
+    const a2aTool = eventById(events, 'gw-filter-chain')?.tool || audit?.what?.tool || null;
     Object.assign(evidence, {
       agentIdentityProvider: providerOf(eventById(events, 'a2a-agent1-actor')?.claims?.iss, lane),
       tokenIssuer: providerOf(claims.iss, lane),
