@@ -217,6 +217,34 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(protect.closest(".admin-side-nav__group")).toHaveTextContent("Ping products");
   });
 
+  it("gathers the Privilege pages in a Privilege info sub-group under Ping products", () => {
+    renderNav("/privilege-map");
+    // The sub-group opens on one of its own pages.
+    expect(screen.getByRole("button", { name: /^Privilege info/ })).toHaveAttribute("aria-expanded", "true");
+    const expected = [
+      ["Privilege shelf", "/privilege-shelf"],
+      ["Privilege Map", "/privilege-map"],
+      ["Agent Privilege Guide", "/privilege-mcp-learning"],
+      ["Agent Privilege Diagrams", "/privilege-mcp-diagrams"],
+      ["Agent Privilege Topologies", "/privilege-gateway-topologies"],
+      ["External Agent App Diagrams", "/external-door-diagrams"],
+    ];
+    for (const [name, href] of expected) {
+      const link = screen.getAllByRole("link", { name }).find((a) => a.closest(".admin-side-nav__group")?.textContent.includes("Privilege info"));
+      expect(link, name).toBeTruthy();
+      expect(link).toHaveAttribute("href", href);
+    }
+  });
+
+  it("no longer lists the moved pages under Agent Privilege", () => {
+    renderNav("/privilege-demo");
+    fireEvent.click(screen.getByRole("button", { name: /^Agent Privilege/ }));
+    const group = screen.getAllByRole("button", { name: /^Agent Privilege/ })[0].closest(".admin-side-nav__group");
+    for (const name of ["Agent Privilege Guide", "Agent Privilege Diagrams", "Agent Privilege Topologies", "External Agent App Diagrams"]) {
+      expect(within(group).queryByRole("link", { name }), name).toBeNull();
+    }
+  });
+
   it("keeps the DaVinci learning pages together in the DaVinci group", () => {
     renderNav();
     fireEvent.click(screen.getByRole("button", { name: /^DaVinci/ }));

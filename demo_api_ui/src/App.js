@@ -35,6 +35,8 @@ const PrivilegePfTokenDemoPage = lazyWithRetry(() => import("./pages/PrivilegePf
 const P1ThirdPartyExchangePage = lazyWithRetry(() => import("./pages/P1ThirdPartyExchangePage"));
 const PrivilegeGatewayTopologyPage = lazyWithRetry(() => import("./components/PrivilegeGatewayTopologyPage"));
 const PrivilegeDocsIndexPage = lazyWithRetry(() => import("./pages/PrivilegeDocsIndexPage"));
+const PrivilegeShelfPage = lazyWithRetry(() => import("./pages/PrivilegeShelfPage"));
+const PrivilegeMapPage = lazyWithRetry(() => import("./pages/PrivilegeMapPage"));
 const SkillsIndexPage = lazyWithRetry(() => import("./pages/SkillsIndexPage"));
 const InvestDualAuthDiagramPage = lazyWithRetry(() => import("./components/InvestDualAuthDiagramPage"));
 const ExternalDoorDiagramPage = lazyWithRetry(() => import("./components/ExternalDoorDiagramPage"));
@@ -2383,6 +2385,14 @@ function AppWithAuth() {
                             <Route
                               path="/privilege-docs-index"
                               element={<PrivilegeDocsIndexPage />}
+                            />
+                            <Route
+                              path="/privilege-shelf"
+                              element={<PrivilegeShelfPage />}
+                            />
+                            <Route
+                              path="/privilege-map"
+                              element={<PrivilegeMapPage />}
                             />
                             <Route
                               path="/claude-skills"
