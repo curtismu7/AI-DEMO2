@@ -388,7 +388,7 @@ const SECTIONS = [
         repo: "docs/privilege-agent-features.md",
         pdf: null,
         covers:
-          "All 21 Privilege features: the ten agent-facing ones in demo arc order, then eleven more (discovery-gating, aggregates, A2A, CIMD, policy union, Secrets Hub, sensor enforcement and others), each with a description, links to the detailed docs, and how to demo it.",
+          "All 29 Privilege features: the ten agent-facing ones in demo arc order, then eleven more (discovery-gating, aggregates, A2A, CIMD, policy union, Secrets Hub, sensor enforcement and others), then eight added for the 2026-11-02 release (Ping release claims, not tested on our tenant), each with a description, links to the detailed docs, and how to demo it.",
       },
       {
         title: "Privilege Agent Field Guide",
