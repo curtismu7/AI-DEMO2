@@ -470,6 +470,52 @@ test('UC48: a link step whose vertical defines a chip runs that chip through the
   expect(calls).toEqual([{ path: '/api/verticals/active', options: { method: 'POST', body: { id: 'airlines' } } }, { path: '/api/agent/invoke', options: { method: 'POST', body: { prompt: 'book a flight from San Francisco to Paris for me under $800', vertical: 'airlines', useCaseId: 'consumer-agent-booking' } } }]);
 });
 
+describe('PingFederate A2A delegation', () => {
+  const uc2 = buildDemoReadinessCatalog().find((row) => row.id === 'UC2');
+  const pf = uc2.pfExchangeContract;
+  const SUB = 'readiness-pingfederate-local';
+  // Event shapes as the local PF lane produced them for UC2 on 2026-10-31
+  // (client ids replaced): an ID-JAG at Exchange #1, an access token for
+  // PingGateway at Exchange #2, scopes as a list.
+  const a2aResponse = (vertical, { exchange1 = {}, exchange2 = {} } = {}) => {
+    const authorization = uc2.authorizationContractByVertical[vertical];
+    const tool = authorization.primaryTool;
+    const specialistScope = authorization.gatewayTool.a2aDelegatedScope || authorization.requiredScopes[0];
+    return { success: true, toolsCalled: ['delegate_to_specialist'], tokenEvents: [
+      { id: 'user-token', status: 'active', claims: { iss: pf.issuer, aud: 'enduser.ping.demo', sub: SUB, scope: 'openid ai:agent:read' } },
+      { id: 'a2a-agent1-actor', status: 'acquired', claims: { iss: pf.issuer, client_id: 'gen-1' } },
+      { id: 'a2a-exchange1', status: 'exchanged', tokenTyp: 'oauth-id-jag+jwt', claims: { iss: pf.issuer, sub: SUB, act: { sub: 'gen-1' } }, pfExchange: { endpoint: pf.endpoint, credentialRoles: ['standard-agent-exchanger', 'ai-agent-actor'] }, ...exchange1 },
+      { id: 'a2a-agent2-actor', status: 'acquired', claims: { iss: pf.issuer, client_id: 'spec-1' } },
+      { id: 'a2a-exchange2', status: 'exchanged', tokenTyp: 'JWT', claims: { iss: pf.issuer, aud: 'https://api.ping.demo:3036/mcp', sub: SUB, scope: ['gateway:mcp:invoke', specialistScope], act: { sub: 'spec-1', act: { sub: 'gen-1' } } }, pfExchange: { endpoint: pf.endpoint, credentialRoles: ['a2a-specialist'] }, ...exchange2 },
+      { id: 'gw-authorize', status: 'permit', decision: 'PERMIT', url: 'https://api.example.test/decision-endpoints/1', tool },
+      { id: 'gw-mcp-audit', mcpAudit: { who: { userSub: SUB, agentSub: 'spec-1' }, what: { tool }, where: { routePath: '/mcp' }, how: { decision: 'PERMIT' } } },
+      { id: 'gw-filter-chain', status: 'active', tool },
+    ] };
+  };
+  const failuresFor = (vertical, overrides) => {
+    const authorization = uc2.authorizationContractByVertical[vertical];
+    const result = evidenceFromAgentInvoke({ response: a2aResponse(vertical, overrides), provider: 'pingfederate', expectedIssuer: pf.issuer, authorization });
+    return [
+      ...(result.observed === 'PERMIT' ? [] : ['observed outcome']),
+      ...evidenceFailures({ evidence: JSON.parse(JSON.stringify(result.evidence)), provider: 'pingfederate', authorization, expected: 'PERMIT', caseRow: uc2 }),
+    ];
+  };
+
+  test('the resolved PF A2A contract is met by an ID-JAG then an access token, with every role the BFF reports', () => {
+    expect(pf.status).toBe('ready');
+    for (const vertical of ['banking', 'airlines', 'healthcare']) expect(failuresFor(vertical)).toEqual([]);
+  });
+
+  test('a role the BFF did not report, two endpoints, or a first hop that is not an ID-JAG fails', () => {
+    expect(failuresFor('airlines', { exchange2: { pfExchange: { endpoint: pf.endpoint, credentialRoles: [] } } }))
+      .toContain('PF exchanger credential role does not match the declared PF-only role');
+    expect(failuresFor('airlines', { exchange1: { pfExchange: { endpoint: 'https://pingfederate:9031/other', credentialRoles: ['standard-agent-exchanger', 'ai-agent-actor'] } } }))
+      .toContain('PF endpoint or issuer does not match the declared token contract');
+    expect(failuresFor('airlines', { exchange1: { tokenTyp: 'JWT' } }))
+      .toContain('PF A2A requires ordered intermediate ID-JAG then Exchange #2 access token');
+  });
+});
+
 describe('attack steps', () => {
   const catalog = buildDemoReadinessCatalog();
   const uc5 = catalog.find((row) => row.id === 'UC5');

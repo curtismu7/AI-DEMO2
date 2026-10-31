@@ -75,7 +75,10 @@
         ],
         "idJagEnabled": true
       },
-      "unresolved": true,
+      "tokenAccessTokenManagerRef": "aiDemoPfMcpGatewayJwtAtm",
+      "tokenAccessTokenManagerSourceRef": "scripts/pingfederate/provision-a2a-specialist-pf-clients.sh (defaultAccessTokenManagerRef, restrictToDefaultAccessTokenManager)",
+      "unresolved": false,
+      "readback": "2026-10-31, local PingFederate. The 12 A2A resource URIs and ID-JAG matched this baseline in the 2026-10-30 readiness audit (pingfederate:profile:a2a-specialist pass). Live UC2 on the PF lane: Exchange #1 by ai-demo-pf-standard-agent-exchanger with the configured actor, Exchange #2 by each vertical's configured specialist client, both at the recorded token endpoint.",
       "sourceRef": "demo_api_server/config/a2aSpecialists.js"
     },
     "uc40-native-id-jag": {
