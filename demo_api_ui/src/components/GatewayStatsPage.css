@@ -5,9 +5,10 @@
 .gws-page h1 {
   font-size: var(--font-size-lg, 1.25rem);
   margin: 0 0 6px;
+  color: var(--th-text);
 }
 .gws-page__hint {
-  color: var(--pmd-ink-2);
+  color: var(--th-text-muted);
   font-size: var(--font-size-sm);
   margin: 0 0 10px;
 }
@@ -15,7 +16,7 @@
   width: 100%;
   height: calc(100vh - 200px);
   min-height: 480px;
-  border: 1px solid var(--pmd-border);
+  border: 1px solid var(--th-border);
   border-radius: var(--radius-md);
-  background: var(--pmd-panel);
+  background: var(--th-bg-card);
 }
