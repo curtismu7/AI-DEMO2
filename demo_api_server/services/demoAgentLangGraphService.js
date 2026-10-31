@@ -1055,6 +1055,10 @@ async function executeHeuristicBanking(parsed, userId, userToken, req = null, su
 // delegated and executed, just without a rendered card — text reply only.
 const A2A_TOOL_RENDER = { get_portfolio_summary: 'portfolio_summary' };
 
+// The investment tools that require an account_id; the orchestrator's coordinator
+// picks one without arguments, so the delegation fills the user's first portfolio.
+const INVEST_TOOLS_NEEDING_ACCOUNT = new Set(['get_portfolio_summary', 'get_investment_balance', 'get_investment_transactions']);
+
 async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionId, hitlChallengeId = null }) {
   const a2a = require('./a2aDelegationService');
   const events = tokenEvents || [];
@@ -1075,7 +1079,7 @@ async function executeA2aDelegation(activeId, args, { req, tokenEvents, sessionI
   // single portfolio per user, same "first held record" convention used elsewhere
   // (see applyAdminCustomerContext). Only get_portfolio_summary needs it today.
   const toolArgs = { ...((args && args.args) || {}) };
-  if (result.tool === 'get_portfolio_summary' && toolArgs.account_id == null) {
+  if (INVEST_TOOLS_NEEDING_ACCOUNT.has(result.tool) && toolArgs.account_id == null) {
     try {
       const plugin = verticalDispatch.resolvePlugin('investment');
       const portfolios = plugin?.getDataStore()?.get(req?.session?.user?.id)?.portfolios || [];

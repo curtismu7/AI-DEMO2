@@ -270,6 +270,23 @@ describe('demo readiness execution service', () => {
     expect(executeReadinessCase).not.toHaveBeenCalled();
   });
 
+  // UC2/UC2.5 declare DELEGATE_AND_EXECUTE, which completes as a PERMIT once the
+  // specialist returns (useCaseConformance.outcomeConforms). Nothing looser passes.
+  test.each([
+    ['PERMIT', 'pass'],
+    ['DENY', 'fail'],
+    ['HITL_REQUIRED', 'fail'],
+  ])('a declared DELEGATE_AND_EXECUTE accepts an observed %s as %s', async (observed, status) => {
+    const delegating = { ...CASE, expectedBehaviorByVertical: { banking: { kind: 'a2a', expectedOutcome: 'DELEGATE_AND_EXECUTE', triggerText: 'delegate this' } } };
+    const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => worker({
+      executeReadinessCase: async () => ({ observed, evidence: (await worker().executeReadinessCase()).evidence }),
+    })) });
+    const context = await service.createWorkerContext({ targetId: 'local', provider: 'pingone', identityRef: 'readiness-p1' });
+    const result = await service.executeReadinessCase({ context, caseRow: delegating, vertical: 'banking', mode: 'agent-chip' });
+    expect(result.evidence.contractFailures || []).toEqual(status === 'pass' ? [] : expect.arrayContaining(['observed outcome does not match declared outcome']));
+    expect(result.status).toBe(status);
+  });
+
   test('fails mismatched outcome, provenance, and authorization evidence', async () => {
     const service = createReadinessExecutionService({ createWorker: createTrustedWorkerFactory(async () => worker({
       executeReadinessCase: async () => ({ observed: 'PERMIT', evidence: { tokenIssuer: 'pingfederate', audiences: ['wrong'], scopes: ['write'], gateway: { verdict: 'PERMIT' }, authorize: { decision: 'PERMIT' } } }),
