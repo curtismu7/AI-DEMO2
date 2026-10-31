@@ -92,7 +92,7 @@ The frontend will be available at **http://localhost:3000** with:
 - Session management
 
 **Prerequisites for frontend:**
-- Node.js 18+
+- Node.js 26+
 - Backend running on port 8080
 
 ## 🐳 Docker Quick Start

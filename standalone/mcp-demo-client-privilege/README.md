@@ -28,7 +28,7 @@ http://127.0.0.1:33418/auth/callback
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 26+
 - Optional: Ollama at `http://127.0.0.1:11434` with model `llama3.2:1b`
 
 ## Setup

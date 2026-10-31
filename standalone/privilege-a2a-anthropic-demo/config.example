@@ -1,4 +1,4 @@
-# Node.js 22 or later. Copy this file to .env before starting the demo.
+# Node.js 26 or later. Copy this file to .env before starting the demo.
 
 # Process ports. Worker and MCP bind to loopback. For native AI-DEMO2, the main
 # process also binds to loopback; use 0.0.0.0 only when its BFF runs in Docker.

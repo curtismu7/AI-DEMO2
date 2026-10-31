@@ -1,4 +1,4 @@
-FROM node:22-alpine
+FROM node:26-alpine
 # Re-declared after FROM on purpose: an ARG from before it is out of scope here,
 # and the ENV silently resolves to empty without this.
 ARG GIT_SHA=unknown

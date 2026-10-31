@@ -18,7 +18,7 @@ One command bootstraps everything on a fresh Mac — no tooling required beforeh
 curl -fsSL https://raw.githubusercontent.com/cmuir_pingcorp/AI-DEMO2/main/install.sh | bash
 ```
 
-It installs **Homebrew, git, Node 22, Python 3.12, Docker (OrbStack), mkcert, llama.cpp**, and any
+It installs **Homebrew, git, Node 26, Python 3.12, Docker (OrbStack), mkcert, llama.cpp**, and any
 mode-specific tools, then clones the repo, generates TLS certs, and provisions PingOne. It first
 asks **how you want to run** the demo:
 
@@ -161,7 +161,7 @@ Before a live demo, use the [Demo Readiness Master Guide](docs/demo-readiness.md
 
 Runs everything directly as Node/Python processes on your Mac. **No Docker, no Kubernetes, no containers.** This is the lightest-weight option.
 
-**Prerequisites:** Node 22+, Python 3.11+, mkcert
+**Prerequisites:** Node 26+, Python 3.11+, mkcert
 
 ```bash
 # First-time setup
@@ -331,7 +331,7 @@ terraform destroy -var='retain_volumes=false' # also removes persistent data
 ##### Ping SE namespace with Terraform
 
 The namespace must already exist and be assigned to the user. The guided
-installer needs Node.js 22+, Python 3.10+, Git, Docker, Terraform 1.6+, kubectl,
+installer needs Node.js 26+, Python 3.10+, Git, Docker, Terraform 1.6+, kubectl,
 `kubelogin`, and `gh`. The deployer needs access to the existing namespace, GHCR
 publish access, and a PingOne Worker app with `Identity Data Admin`.
 
@@ -442,7 +442,7 @@ docker compose logs -f --tail=100 demo-api-server    # last 100 lines + follow
 
 Runs all services in a local Kubernetes cluster via OrbStack. Same images as production — useful for testing K8s manifests locally before pushing to AWS.
 
-**Prerequisites:** OrbStack with Kubernetes enabled, `kubectl`, Node 22+, Python 3.11+, mkcert
+**Prerequisites:** OrbStack with Kubernetes enabled, `kubectl`, Node 26+, Python 3.11+, mkcert
 
 ```bash
 # First-time setup

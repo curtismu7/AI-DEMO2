@@ -87,7 +87,7 @@ server's log should show no `open_ticket` call.
 
 ## Requirements and local startup
 
-Use Node.js 22 or later. Copy `config.example` to `.env`, set the Privilege
+Use Node.js 26 or later. Copy `config.example` to `.env`, set the Privilege
 gateway URLs, Agent Access keys, model IDs, and shared BFF secret, then install
 dependencies and start all three backend processes:
 

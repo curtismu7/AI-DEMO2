@@ -6,7 +6,7 @@ It shows the same tool call through two paths — **straight at the gateway** (P
 
 ## Installation
 
-**Prerequisites:** Node.js 22+ and npm. Docker is optional (a `Dockerfile` is included).
+**Prerequisites:** Node.js 26+ and npm. Docker is optional (a `Dockerfile` is included).
 
 ```bash
 git clone https://github.com/cmuir_pingcorp/ai-gateway-client.git

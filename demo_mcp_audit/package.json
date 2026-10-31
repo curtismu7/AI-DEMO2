@@ -8,6 +8,6 @@
     "test": "node test/tools.test.js"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=26"
   }
 }

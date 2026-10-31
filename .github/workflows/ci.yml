@@ -206,7 +206,7 @@ jobs:
         run: /opt/homebrew/bin/actionlint .github/workflows/ci.yml
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           # Skip restoring the >1 GiB npm cache on this shared-runner gate.
           package-manager-cache: false
       # Deps install FIRST. hygiene:check used to run against a bare checkout,
@@ -294,7 +294,7 @@ jobs:
           ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           # Shares the oversized npm cache with the gates job.
           package-manager-cache: false
       - name: Install deps
@@ -369,7 +369,7 @@ jobs:
           cp "$RUNNER_TEMP/ci-ui-guard/vitest-memory-guard.config.mjs" demo_api_ui/scripts/
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           # The shared Mac's npm cache is over 1 GiB and costs more time to
           # restore/save than it saves during dependency installation.
           package-manager-cache: false
@@ -460,7 +460,7 @@ jobs:
           ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           package-manager-cache: false
       # demo_agent_service/tests/vault.test.ts imports ACROSS the package
       # boundary — ../demo_api_server/lib/vault/ — which requires argon2, a
@@ -541,7 +541,7 @@ jobs:
           ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           package-manager-cache: false
       - name: Install standalone demo deps
         run: bash scripts/ci-cached-npm-ci.sh standalone/privilege-a2a-anthropic-demo
@@ -584,7 +584,7 @@ jobs:
           ref: ${{ inputs.target_ref || github.sha }}
       - uses: actions/setup-node@v7
         with:
-          node-version: 22
+          node-version: 26
           # Keep the large shared-runner npm cache out of this grouped suite.
           package-manager-cache: false
       - name: Install demo_authz_server deps

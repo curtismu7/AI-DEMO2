@@ -4,7 +4,7 @@ AI-tool-friendly deployment guide. Follow this to get the demo running in under 
 
 ## Requirements
 
-- Node.js 18+
+- Node.js 26+
 - Optional: Ollama local LLM (`llama3.2:1b`)
 
 ## Deploy in 60 seconds

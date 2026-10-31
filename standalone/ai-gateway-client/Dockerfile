@@ -1,11 +1,11 @@
-FROM node:22-alpine AS webbuild
+FROM node:26-alpine AS webbuild
 WORKDIR /app/web
 COPY web/package.json web/package-lock.json* ./
 RUN npm install
 COPY web/ ./
 RUN npm run build
 
-FROM node:22-alpine
+FROM node:26-alpine
 WORKDIR /app
 COPY server/package.json server/package-lock.json* ./
 RUN npm ci --omit=dev || npm install --omit=dev

@@ -5,7 +5,7 @@
   "description": "Three-process A2A and MCP demo using Anthropic through PingOne Privilege",
   "type": "module",
   "engines": {
-    "node": ">=22"
+    "node": ">=26"
   },
   "scripts": {
     "main": "tsx --env-file=.env src/main-agent/index.ts",
