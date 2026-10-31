@@ -423,7 +423,9 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
     if (behavior?.kind === 'a2a') {
       const inited = await request(A2A_INIT_PATH, { method: 'POST', body: {} });
       if (inited.status !== 200) return { observed: `HTTP_${inited.status}`, evidence: {} };
-      const body = { message: behavior.triggerText, vertical };
+      // Heuristics, not the model: which of a multi-tool specialist's tools an LLM
+      // coordinator picks varies run to run, and the contract names one.
+      const body = { message: behavior.triggerText, vertical, mode: 'heuristics' };
       let delivered = await request(A2A_MESSAGE_PATH, { method: 'POST', body });
       const decision = delivered.body?.delegationDecision;
       const challengeId = decision?.error === 'hitl_required' ? decision.result?.challengeId : null;
