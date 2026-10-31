@@ -128,7 +128,10 @@ check "no warning when the gateway is absent"  "$(cat "$ROOT/warnings")" ""
 # Its pingone.env is rebuilt verbatim from a gitignored asset file every run, so
 # it drifts silently on a rotation (2026-09-01). Same alignment, but there is no
 # deployment to bounce — a restart attempt here would only emit a false warning.
-TARGET_SECRET=ping-mcpgw-secrets setup yes
+# Exported, not a `VAR=x setup` prefix: bash 5 (Linux) drops a prefix assignment when the
+# function returns, so the kubectl stub then saw no TARGET_SECRET; bash 3.2 (macOS) kept it.
+export TARGET_SECRET=ping-mcpgw-secrets
+setup yes
 align_gateway_oidc_secret ping-mcpgw-secrets
 OUT="$(patched_env)"
 contains "second holder is re-synced too" "$OUT" "OIDC_CLIENT_SECRET=NEW-secret-after-the-rotation"
