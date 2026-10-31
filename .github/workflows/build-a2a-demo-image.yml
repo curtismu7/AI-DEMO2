@@ -70,7 +70,7 @@ jobs:
           ref: ${{ steps.src.outputs.lab_ref }}
           # Either secret works. With the deploy key set the checkout uses SSH; otherwise it uses the token.
           ssh-key: ${{ secrets.PRIVILEGE_A2A_LAB_DEPLOY_KEY }}
-          token: ${{ secrets.PRIVILEGE_A2A_LAB_READ_TOKEN }}
+          token: ${{ secrets.PRIVILEGE_A2A_LAB_READ_TOKEN || github.token }}
           path: lab-source
           persist-credentials: false
       # The SE cluster nodes are Graviton (arm64) and ubuntu-latest is amd64, so
