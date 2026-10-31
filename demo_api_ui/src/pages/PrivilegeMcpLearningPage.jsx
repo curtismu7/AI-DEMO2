@@ -1,6 +1,8 @@
 import React, { useState } from "react";
 import useDividerDrag from "../hooks/useDividerDrag";
 import StaticFlowDiagram from "../components/StaticFlowDiagram";
+import EmbeddedFlowDiagram from "../components/EmbeddedFlowDiagram";
+import { NHI_ENTITY_DIAGRAM, NHI_CHECK_DIAGRAM } from "../config/privilegeNhiDiagrams";
 import "./PrivilegeMcpLearningPage.css";
 import PageHeader from '../components/common/PageHeader';
 
@@ -53,6 +55,11 @@ const ARCH_SECTIONS = [
     id: "architecture",
     label: "Architecture",
     icon: "\u{1F9E9}",
+  },
+  {
+    id: "nhi",
+    label: "Non-human identity",
+    icon: "\u{1F511}",
   },
   {
     id: "install",
@@ -332,6 +339,27 @@ export default function PrivilegeMcpLearningPage() {
                   not visible in the response. Only Block is.</li>
               </ul>
             </div>
+          </Section>
+
+          {/* ─── Non-human identity ─── */}
+          <Section id="nhi" title="Non-human identity">
+            <p>
+              An agent in Privilege is a non-human identity: one access key that carries its scopes, limits, guardrail and
+              the apps it may reach. The first diagram shows what the key is made of. The second shows the checks the gateway
+              runs on each call, and the refusal each one returns.
+            </p>
+            <EmbeddedFlowDiagram
+              config={NHI_ENTITY_DIAGRAM}
+              title="What an agent identity is made of"
+              lede="Drag any box. Simulate walks the attachments one at a time."
+              testId="nhi-entity"
+            />
+            <EmbeddedFlowDiagram
+              config={NHI_CHECK_DIAGRAM}
+              title="What the gateway checks on each call"
+              lede="Each failing check returns its own refusal. Simulate walks the checks in order."
+              testId="nhi-checks"
+            />
           </Section>
 
           {/* ─── Architecture ─── */}
