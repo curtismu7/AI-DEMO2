@@ -26,7 +26,9 @@ export const NAV_STRUCTURE_CATALOG = [
     "DaVinci SDK Guide", "DaVinci Widget", "DaVinci Orchestration SDK", "PingFederate DaVinci Integration Kit",
   ] },
   { label: "Ping products", children: [
-    // A sub-group in the side nav: the Privilege shelf, Privilege Map, guide, diagrams, topologies and docs index.
+    // A sub-group in the side nav, with its own links listed under it there: "Privilege shelf", "Privilege Map",
+    // "Agent Privilege Guide", "Agent Privilege Diagrams", "Agent Privilege Topologies", "External Agent App Diagrams"
+    // and "Privilege Docs Index". Hiding the group hides all of them; a preset can also hide one of them by label.
     "Privilege info",
     "PingOne Protect", "PingOne Verify & Recognize", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
     // A sub-group in the side nav (its own links listed under it there); hiding it hides all of them.

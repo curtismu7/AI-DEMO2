@@ -602,6 +602,34 @@ describe("AdminSideNav — best-of-breed pass", () => {
     vi.unstubAllGlobals();
   });
 
+  it("honors a hide for a link inside the Privilege info sub-group, and hides the sub-group when all its links are hidden", async () => {
+    const stubHidden = (hiddenLabels) =>
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((url) => {
+          if (String(url).includes("/api/user/nav-config")) {
+            return Promise.resolve({ ok: true, json: () => Promise.resolve({ hiddenLabels, activeConfigId: null, flagOn: true }) });
+          }
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        }),
+      );
+
+    stubHidden(["Agent Privilege Diagrams"]);
+    const first = renderNav("/privilege-map");
+    expect(await screen.findByRole("link", { name: "Privilege Map" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Agent Privilege Diagrams" })).toBeNull();
+    first.unmount();
+
+    stubHidden([
+      "Privilege shelf", "Privilege Map", "Agent Privilege Guide", "Agent Privilege Diagrams",
+      "Agent Privilege Topologies", "External Agent App Diagrams", "Privilege Docs Index",
+    ]);
+    renderNav("/privilege-demo");
+    expect(await screen.findByText("Observability")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Privilege info/ })).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
   it("NAV_ITEM_CATALOG stays in sync with AdminSideNav's real top-level labels", () => {
     renderNavAsUser(customerUser);
     NAV_ITEM_CATALOG.forEach((label) => {

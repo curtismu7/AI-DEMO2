@@ -1749,11 +1749,27 @@ export default function AdminSideNav({
       Array.isArray(item.children)
         ? {
             ...item,
-            children: item.children.filter(
-              (child) =>
-                (!child.customerOnly || !isAdmin) &&
-                (child.label === "Demo Config" || !hiddenNavLabels.includes(child.label)),
-            ),
+            children: item.children
+              .filter(
+                (child) =>
+                  (!child.customerOnly || !isAdmin) &&
+                  (child.label === "Demo Config" || !hiddenNavLabels.includes(child.label)),
+              )
+              // A sub-group (Ping products > Privilege info) honors the same hides for its own links, and
+              // disappears when every one of them is hidden.
+              .map((child) =>
+                Array.isArray(child.children)
+                  ? {
+                      ...child,
+                      children: child.children.filter(
+                        (grandchild) =>
+                          (!grandchild.customerOnly || !isAdmin) &&
+                          (grandchild.label === "Demo Config" || !hiddenNavLabels.includes(grandchild.label)),
+                      ),
+                    }
+                  : child,
+              )
+              .filter((child) => !Array.isArray(child.children) || child.children.length > 0),
           }
         : item,
     );
