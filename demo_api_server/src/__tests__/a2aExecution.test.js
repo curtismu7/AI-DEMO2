@@ -94,6 +94,29 @@ describe('A2A execution wiring', () => {
     expect(tokenEvents.some((e) => e.id === 'a2a-exchange2')).toBe(true);
   });
 
+  // The orchestrator's coordinator picks an investment tool without arguments.
+  it.each(['get_investment_balance', 'get_investment_transactions', 'get_portfolio_summary'])(
+    'fills the first portfolio as account_id for %s, which requires one',
+    async (tool) => {
+      a2a.exchangeAsGeneralist.mockImplementation((_req, opts) => HAPPY_GENERALIST(_req, opts).then((r) => ({ ...r, tool })));
+      client.sendA2aProtocolHandoff.mockImplementation(HAPPY_HANDOFF);
+      require('../../services/verticalManifest').verticalManifest.init();
+      const verticalDispatch = require('../../services/verticalDispatch');
+      jest.spyOn(verticalDispatch, 'resolvePlugin').mockReturnValue({
+        getDataStore: () => ({ get: () => ({ portfolios: [{ id: 'PF-01' }] }) }),
+      });
+      await svc.__test.executeA2aDelegation('banking', { tool }, { req: { sessionID: 's1', session: { user: { id: 'u1' } } }, tokenEvents: [], sessionId: 's1' });
+      expect(client.sendA2aProtocolHandoff.mock.calls[0][0].toolArgs).toMatchObject({ account_id: 'PF-01' });
+    },
+  );
+
+  it('does not invent an account_id for a tool that takes none', async () => {
+    a2a.exchangeAsGeneralist.mockImplementation((_req, opts) => HAPPY_GENERALIST(_req, opts).then((r) => ({ ...r, tool: 'get_investment_accounts' })));
+    client.sendA2aProtocolHandoff.mockImplementation(HAPPY_HANDOFF);
+    await svc.__test.executeA2aDelegation('banking', { tool: 'get_investment_accounts' }, { req: { sessionID: 's1' }, tokenEvents: [], sessionId: 's1' });
+    expect(client.sendA2aProtocolHandoff.mock.calls[0][0].toolArgs).not.toHaveProperty('account_id');
+  });
+
   it('returns delegated:false and runs no tool when Exchange #1 minted nothing', async () => {
     a2a.exchangeAsGeneralist.mockImplementation(() => Promise.resolve({ error: 'A2A delegation is disabled', token: null }));
     const out = await svc.__test.executeA2aDelegation('banking', {}, { req: {}, tokenEvents: [], sessionId: 's' });
