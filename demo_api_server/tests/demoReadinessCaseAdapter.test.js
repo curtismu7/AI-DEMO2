@@ -293,13 +293,20 @@ test('UC38 is blocked without touching the BFF: it needs MFA step-up', async () 
   expect(request).not.toHaveBeenCalled();
 });
 
-test('UC44 is blocked until a workload agent is registered, then runs', async () => {
+test('UC44 registers a workload agent when the readiness identity has none, then runs', async () => {
   const flags = buildDemoReadinessCatalog().find((item) => item.id === 'UC44').runtimePrerequisitesByVertical[VERTICAL].requiredFlags;
-  const lane = (agent) => jest.fn(async (path) => (path === '/api/agent-builder/state'
-    ? { status: 200, body: { agent } }
-    : { status: 200, body: { success: true, flags } }));
-  expect(await workloadPrerequisites('UC44', lane(null))).toEqual({ status: 'blocked', reason: expect.stringMatching(/no workload agent/) });
-  expect(await workloadPrerequisites('UC44', lane({ id: 'agent-app' }))).toEqual({ status: 'pass' });
+  const lane = (agent, createStatus = 201) => jest.fn(async (path, init) => {
+    if (path === '/api/agent-builder/state') return { status: 200, body: { agent } };
+    if (path === '/api/agent-builder/agent' && init.method === 'POST') return { status: createStatus, body: createStatus < 300 ? { created: true } : { error: 'boom' } };
+    return { status: 200, body: { success: true, flags } };
+  });
+  const none = lane(null);
+  expect(await workloadPrerequisites('UC44', none)).toEqual({ status: 'pass' });
+  expect(none).toHaveBeenCalledWith('/api/agent-builder/agent', { method: 'POST', body: {} });
+  const have = lane({ id: 'agent-app' });
+  expect(await workloadPrerequisites('UC44', have)).toEqual({ status: 'pass' });
+  expect(have).not.toHaveBeenCalledWith('/api/agent-builder/agent', expect.anything());
+  expect(await workloadPrerequisites('UC44', lane(null, 500))).toEqual({ status: 'blocked', reason: expect.stringMatching(/could not register a workload agent.*HTTP 500: boom/) });
 });
 
 test('exchange hops report each token\'s own act chain, so a missing act fails an actor-bound step', () => {
@@ -439,8 +446,8 @@ test('UC2: a wrong audience, or a specialist that never authenticated, fails', (
 test('prerequisites the worker cannot verify are blocked without touching the BFF', async () => {
   const request = jest.fn();
   const operations = createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER });
-  const result = await operations.verifyPrerequisites({ caseRow, vertical: VERTICAL, prerequisites: { ...prerequisites, parConfig: true } });
-  expect(result).toEqual({ status: 'blocked', reason: 'worker cannot yet verify: PAR configuration' });
+  const result = await operations.verifyPrerequisites({ caseRow, vertical: VERTICAL, prerequisites: { ...prerequisites, groupRequirement: 'in' } });
+  expect(result).toEqual({ status: 'blocked', reason: 'worker cannot yet verify: group membership' });
   expect(request).not.toHaveBeenCalled();
 });
 

@@ -27,6 +27,7 @@ const ATTACK_REFUSAL_STATUSES = new Set([401, 403, 429, 503]);
 const FLAG_ENABLE_PATH = '/api/demo-flags/enable';
 const AGENT_SCOPE = 'agent:invoke';
 const AGENT_STATE_PATH = '/api/agent-builder/state';
+const AGENT_CREATE_PATH = '/api/agent-builder/agent';
 const MFA_DEVICES_PATH = '/api/auth/mfa/devices';
 // UC38's flag: the route behind it refuses to delegate without an MFA acr.
 const MFA_GATED_FLAG = 'ff_personal_agent_concierge';
@@ -330,14 +331,23 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
         return { status: 'blocked', reason: 'needs the customer to pass MFA step-up, which this worker cannot do' };
       }
       const state = await request(AGENT_STATE_PATH, { method: 'GET' });
-      if (state.status !== 200 || !state.body?.agent) {
-        return { status: 'blocked', reason: 'no workload agent is registered for the readiness identity' };
+      if (state.status !== 200) {
+        return { status: 'blocked', reason: `lane could not read the readiness identity's workload agent (HTTP ${state.status})` };
+      }
+      // Like the user's agent consent below, the worker registers the agent
+      // once, as the readiness user, exactly as a presenter does on the agent
+      // builder page.
+      if (!state.body?.agent) {
+        const created = await request(AGENT_CREATE_PATH, { method: 'POST', body: {} });
+        if (![200, 201].includes(created.status)) {
+          return { status: 'blocked', reason: `lane could not register a workload agent for the readiness identity (HTTP ${created.status}${created.body?.error ? `: ${created.body.error}` : ''})` };
+        }
       }
     }
-    // A2A credentials are not checked here: the run itself acquires the
-    // specialist's actor token, and the evidence fails without it.
+    // A2A credentials and PAR settings are not checked here: the run itself
+    // acquires the specialist's actor token or pushes the authorization
+    // request, and the evidence fails without it.
     const unsupported = [
-      prerequisites?.parConfig && 'PAR configuration',
       prerequisites?.groupRequirement && 'group membership',
     ].filter(Boolean);
     if (unsupported.length) {
