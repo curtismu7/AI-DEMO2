@@ -1,14 +1,14 @@
 # PingFederate edition: readiness baseline
 
-Status: FULL PINGFEDERATE RUN, LOCAL TARGET, 2026-10-30 (evening). Every PingFederate row that runs passes; none fails. Spec: `docs/superpowers/specs/2026-10-03-edition-split-design.md`.
+Status: FULL PINGFEDERATE RUN, LOCAL TARGET, 2026-10-31 (morning). Every PingFederate row that runs passes; none fails. A2A is covered. Spec: `docs/superpowers/specs/2026-10-03-edition-split-design.md`.
 
-Run: `npm run demo:ready -- --target local --provider pingfederate --json` through the BFF lane, with PingGateway, the main BFF, both lane BFFs, both readiness workers and the `readiness-browser` service on main `3ab66c95b`. Finished in 362 s. A single target and a single provider are diagnostic only, so the run is `NOT READY` by design. Local Docker only: the SE lane was not run.
+Run: `npm run demo:ready -- --target local --provider pingfederate --json` through the BFF lane, with PingGateway, the main BFF, both lane BFFs, both readiness workers, the two per-lane resource servers and the `readiness-browser` service on main `b1e12cbf7` (#1934). Finished in 641 s. A single target and a single provider are diagnostic only, so the run is `NOT READY` by design. Local Docker only: the SE lane was not run.
 
 Real id count: 100 (`demo_api_server/config/auth-requirements.json` `useCases`: 87 use cases + 13 admin steps). 52 have a PingFederate scenario; 48 have none.
 
-Totals (PingFederate, per id): pass 31, fail 0, not-applicable 0, not-run 69 (48 no scenario, 21 blocked).
+Totals (PingFederate, per id): pass 34, fail 0, not-applicable 0, not-run 66 (48 no scenario, 18 blocked).
 
-PingFederate rows: 210. pass 109, fail 0, blocked 101, not-run 0. Same day: morning 57 pass / 52 fail; afternoon 97 / 12.
+PingFederate rows: 210. pass 142, fail 0, blocked 68, not-run 0. Same project, run by run: 2026-10-30 morning 57 pass / 52 fail; afternoon 97 / 12; evening 109 / 0 (101 blocked). 2026-10-31, with the A2A rows unblocked: 107 / 23, 116 / 14, 125 / 5, 128 / 2, then 142 / 0 (68 blocked).
 
 Configuration audit: all PingFederate checks pass, before and after the (empty) repair preview. The CIMD check requires only the demo's own documents (#1908) and lists other apps' CIMD documents on this PingFederate as `beyondBaseline`. `pingone:policyReadback` stays `blocked` (not required).
 
@@ -31,29 +31,49 @@ Demo fixes found by the runs (presenters can hit each of these):
 - **Token cache replay (#1918)** carries only the token chain; it no longer replays the previous call's gateway events (UC31 showed UC30's PERMIT audit).
 - **Airlines backend exchange (#1919).** PingGateway's `invest-dispatch.groovy` reports its Exchange #3, so the gateway-to-backend hop of airlines and invest calls is visible.
 
+## What changed on 2026-10-31 (A2A)
+
+Unblocking the 34 A2A rows (the `a2a-specialist` role, #1924) exposed these, in the order the runs found them. Several are bugs a presenter on PingFederate hits too.
+
+- **Specialist call held for approval (#1922).** On PingFederate the specialist's tool call reaches real PingOne Authorize, whose `RequiresHitlConsent` holds every `sensitive_*` tool. The A2A path turned the gateway's 428 into a dead-end `hitl_required`, so 10 of 11 verticals failed. A held call now opens the normal approval prompt and the retry carries the receipt (`_hitl_challenge_id`); the worker approves and resends as a presenter does.
+- **Per-lane resource server (#1923).** The shared invest/airlines resource server read account data from the presenter's BFF, which rejected the lane's token. Each lane has its own (`readiness-resource-server-{pingone,pingfederate}`); PingGateway stays shared and routes by an `X-Readiness-Lane` header.
+- **A2A evidence and role (#1924).** `a2a-specialist` is resolved with its access token manager; the A2A events carry each hop's token type, the endpoint and the roles. Exchange #1's recorded exchanger named the PingOne client on PingFederate; fixed.
+- **Portfolio audience (#1926, #1931).** PingFederate's Exchange #3 reuses the persistent grant, so the forwarded token keeps the PingGateway audience. The BFF's investment callbacks (accounts, portfolio, balance, transactions; GET only) now accept it. Banking and write routes still reject it.
+- **Banking mismatch routing (#1929).** `a2a_generalist_mismatch` was parsed as a banking action ("I don't recognize that action"); also the one PingOne UC2.6 failure.
+- **Missing `account_id` (#1929).** The A2A orchestrator picks an investment tool without arguments; the delegation fills the first portfolio.
+- **Runner outcome (#1929).** PERMIT now satisfies `DELEGATE_AND_EXECUTE` through the documented `outcomeConforms`, and nothing looser.
+- **Gateway tool fallback (#1931).** PingGateway's audit-trail header sometimes arrives without the filter chain (about 1 call in 8, reproduced); the adapter falls back to the gateway's own audit record of the call.
+- **UC2.6 base tool (#1931).** Banking expected `sensitive_holdings`; its Investment Advisor runs `get_portfolio_summary`, as UC2 and UC2.5.
+- **UC2.5 on heuristics (#1934).** The A2A page's LLM coordinator picks among the banking specialist's four tools and varies run to run; the worker sends `mode: 'heuristics'`, which is deterministic.
+
+
 ## What is still not verified
 
-Blocked (101 rows):
+Blocked (68 rows):
 
-- 34: UC2, UC2.5, UC2.6 and UC40, which need the A2A specialist and UC40 native ID-JAG roles, still unresolved.
-- 19: all PF feature and attack-lab probes (A2A, CIMD, third-party AS, ID-JAG, RAR, PRIV-*), also waiting on unresolved roles.
+- 20: the PF feature and attack-lab probes (A2A-FM1-3, CIMD, third-party AS, ID-JAG negatives, RAR, PRIV-*) and UC40, each waiting on its PingFederate role to be recorded as resolved.
 - 12: ADMIN1-12, because the catalog has no complete contract for the `pingone-admin` vertical.
-- 33: UC22 (CIBA needs a device approval), UC38 (needs MFA step-up) and UC44 (no workload agent registered for the readiness identity).
+- 11: UC22, because CIBA needs an approval on a device.
+- 11: UC38, because it needs MFA step-up, which the worker cannot do.
+- 11: UC44, because no workload agent is registered for the readiness identity.
 - 3: UC14 and UC14b, because the worker cannot verify PAR.
 
 Known gaps outside this run:
 
 - **PingOne lane, airlines:** with #1919 the gateway reports the airlines exchange, but on PingOne its audience is the resource server's own, which the catalog's PingOne contract does not list yet.
-- **Lane isolation:** the shared MCP server calls back to the presenter's BFF (`https://demo-api-server:3001`) for account data, so a lane's agent reads and writes the presenter's account store, not the lane's.
+- **Lane isolation:** the investment/airlines resource server is now per lane (#1923). The main MCP server (`ai-demo-mcp-server`, the OLB tools) is still shared and calls back to the presenter's BFF for account data.
+- **A2A page approval prompt:** a delegation the gateway holds for approval shows as a failed delegation on the A2A orchestrator page; the approval prompt exists on the agent chat only (#1922).
+- **Transients under load:** one retail or sporting-goods row (UC1, UC20) returned no result in three of the earlier runs and passed when probed alone; PingOne Authorize rate-limits (HTTP 429) during a run. None recurred in the last run.
+
 
 Legend: an `X` marks the PingFederate result column. An id is `pass` only if every PingFederate row passed, `fail` if any failed; otherwise `not-run`. No id is not-applicable for PingFederate. The PingOne column is from the 2026-10-29 run (`f0a06855`), for comparison only, and predates every fix above; this run did not include PingOne.
 
 | useCaseId | pass | fail | not-applicable | not-run | PingFederate rows | PingOne, 2026-10-29 |
 |---|---|---|---|---|---|---|
 | UC1 | X | - | - | - | 11 pass | 9 pass, 2 fail |
-| UC2 | - | - | - | X | 11 blocked: 11× blocked: `pf_exact_exchange_contract_source_gap` | 10 pass, 1 fail |
-| UC2.5 | - | - | - | X | 11 blocked: 11× blocked: `pf_exact_exchange_contract_source_gap` | 11 fail |
-| UC2.6 | - | - | - | X | 11 blocked: 11× blocked: `pf_exact_exchange_contract_source_gap` | 10 pass, 1 fail |
+| UC2 | X | - | - | - | 11 pass | 10 pass, 1 fail |
+| UC2.5 | X | - | - | - | 11 pass | 11 fail |
+| UC2.6 | X | - | - | - | 11 pass | 10 pass, 1 fail |
 | UC2.7 | X | - | - | - | 1 pass | 1 fail |
 | UC-LEARN15 | - | - | - | X | No readiness scenario (no catalog flow). | - |
 | UC3 | - | - | - | X | No readiness scenario (no catalog flow). | - |
@@ -158,7 +178,6 @@ Legend: an `X` marks the PingFederate result column. An id is `pass` only if eve
 | A2A-FM1 | 1 blocked: blocked: `pf_exact_credential_contract_source_gap` | 1 not-run |
 | A2A-FM2 | 1 blocked: blocked: `pf_exact_credential_contract_source_gap` | 1 not-run |
 | A2A-FM3 | 1 blocked: blocked: `pf_exact_exchange_contract_source_gap` | 1 not-run |
-| PINGONE-AGENT-IAM-CORE | No readiness scenario (no catalog flow). | 1 not-run |
 | PF-CIMD-VALID | 1 blocked: blocked: `pf_cimd_runtime_source_gap` | - |
 | PF-CIMD-REJECTED | 1 blocked: blocked: `pf_cimd_runtime_source_gap` | - |
 | PF-THIRD-PARTY-AS-ALLOW | 1 blocked: blocked: `pf_exact_exchange_contract_source_gap` | - |
@@ -182,12 +201,17 @@ None. No id is not-applicable under PingFederate, and no PingFederate row fails.
 
 ## Next steps
 
-1. Evidence paths for the A2A, UC40, CIMD, third-party AS and RAR roles, then resolve them (53 blocked rows).
-2. A catalog contract for the `pingone-admin` vertical (ADMIN1-12).
-3. A fresh run with both providers, so the PingOne column reflects the same fixes; then the PingOne airlines audience in the catalog contract.
-4. Decide whether readiness lanes should call back to their own BFF instead of the presenter's.
+In this order (effort in brackets):
+
+1. PAR check in the worker, and a workload agent for the readiness identity (UC14, UC14b, UC44; 14 rows) [small].
+2. The PF feature probes and UC40: read each role back from PingFederate, record it as resolved, fix what the first live run shows; A2A-FM1-3 first (20 rows) [medium, per family].
+3. An MFA device for the readiness user, with its secret in the vault, so the worker can answer UC38's step-up (11 rows) [medium].
+4. A catalog contract for the `pingone-admin` vertical (ADMIN1-12) [medium, mostly decisions].
+5. UC22 (CIBA) stays blocked unless a test approver that approves through the API is acceptable, which changes what the row proves.
+6. A fresh run with both providers, so the PingOne column reflects the same fixes; then the PingOne airlines audience in the catalog contract.
+
 
 ## What was run
 
-- Main `3ab66c95b` (#1904-#1919 above). UI rebuilt in the shared checkout (it had been from 2026-10-13); the `ai-demo-mcp-server` image rebuilt for #1914; PingGateway, the main BFF, both lane BFFs and both readiness workers restarted; healthz 200.
-- `demo:ready --target local --provider pingfederate --json` through the BFF lane: exit 1 (diagnostic scope), status `not-ready`, 362 s.
+- Main `b1e12cbf7` (#1904-#1934). UI rebuilt in the shared checkout after the merges (a stale build blocks 12 page-step rows); PingGateway recreated for the per-lane backends; both lane BFFs recreated and the presenter BFF, both workers restarted; the two lane resource servers started; healthz 200.
+- `demo:ready --target local --provider pingfederate --json` through the BFF lane: exit 1 (diagnostic scope), status `not-ready`, 641 s. The `runtime:revision` check fails if the BFFs run older code than the checkout, so restart them after every merge.
