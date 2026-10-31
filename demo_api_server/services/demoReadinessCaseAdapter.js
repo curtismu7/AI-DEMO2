@@ -34,6 +34,8 @@ const AGENT_CONSENT_STATUS_PATH = '/api/agent-authorization/status';
 const AGENT_CONSENT_GRANT_PATH = '/api/agent-authorization/grant';
 // A held tool's challenge, approved by the signed-in user.
 const HITL_APPROVE_PATH = '/api/mcp/decision';
+const A2A_INIT_PATH = '/api/a2a/init';
+const A2A_MESSAGE_PATH = '/api/a2a/message';
 
 const eventById = (events, id) => events.find((event) => event && event.id === id) || null;
 // A scope claim is a space-delimited string from PingOne and a list from PingFederate.
@@ -404,7 +406,7 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
       // approval. A step that expects it to run is approved as the presenter
       // does it, then resent once with the challenge; evidence is the retry's.
       const challengeId = response?.error === 'hitl_required' ? response.hitlChallengeId : null;
-      if (challengeId && authorization?.gatewayTool?.a2aDelegated && behavior.expectedOutcome === 'PERMIT') {
+      if (challengeId && authorization?.gatewayTool?.a2aDelegated && ['PERMIT', 'PERMIT_THEN_DENY'].includes(behavior.expectedOutcome)) {
         const approved = await request(`${HITL_APPROVE_PATH}/${encodeURIComponent(challengeId)}/approve`, { method: 'POST', body: {} });
         if (approved.status !== 200) return { observed: `HITL_APPROVE_HTTP_${approved.status}`, evidence: {} };
         const retried = await request(INVOKE_PATH, { method: 'POST', body: { ...body, hitlChallengeId: challengeId } });
@@ -412,6 +414,24 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
         response = retried.body;
       }
       return evidenceFromAgentInvoke({ response, provider, expectedIssuer, authorization });
+    }
+    // UC2.5 drives the A2A orchestrator page's own routes: init, then a message.
+    // A delegation the gateway held for approval comes back as a failed
+    // delegation naming the challenge; it is approved and resent as for UC2.
+    if (behavior?.kind === 'a2a') {
+      const inited = await request(A2A_INIT_PATH, { method: 'POST', body: {} });
+      if (inited.status !== 200) return { observed: `HTTP_${inited.status}`, evidence: {} };
+      const body = { message: behavior.triggerText, vertical };
+      let delivered = await request(A2A_MESSAGE_PATH, { method: 'POST', body });
+      const decision = delivered.body?.delegationDecision;
+      const challengeId = decision?.error === 'hitl_required' ? decision.result?.challengeId : null;
+      if (challengeId) {
+        const approved = await request(`${HITL_APPROVE_PATH}/${encodeURIComponent(challengeId)}/approve`, { method: 'POST', body: {} });
+        if (approved.status !== 200) return { observed: `HITL_APPROVE_HTTP_${approved.status}`, evidence: {} };
+        delivered = await request(A2A_MESSAGE_PATH, { method: 'POST', body: { ...body, hitlChallengeId: challengeId } });
+      }
+      if (delivered.status !== 200) return { observed: `HTTP_${delivered.status}`, evidence: {} };
+      return evidenceFromAgentInvoke({ response: delivered.body, provider, expectedIssuer, authorization });
     }
     if (behavior?.kind === 'attack-outcome') {
       const attacked = await request(ATTACK_SIM_PATH, { method: 'POST', body: { sim: behavior.sim } });
