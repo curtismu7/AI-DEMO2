@@ -343,7 +343,16 @@ function authorizationContractFor(step, sources, issues, useCaseId, vertical) {
   const pfAudienceOf = (roleId) => pf.accessTokenManagers?.[pf.roles?.[roleId]?.baseline?.defaultAccessTokenManagerRef]?.audience || null;
   const pfAgentAudience = pfAudienceOf('standard-agent-exchanger');
   const pfBackendAudience = pf.exchangeContract?.gatewayExchangerRole ? pfAudienceOf(pf.exchangeContract.gatewayExchangerRole) : null;
+  // A2A: the specialist's Exchange #2 token is minted by the access token
+  // manager the specialist clients are restricted to, and goes straight to
+  // PingGateway, so it carries the gateway's inbound scope and the specialist's.
+  const pfSpecialistAudience = pf.accessTokenManagers?.[pf.roles?.['a2a-specialist']?.tokenAccessTokenManagerRef]?.audience || null;
+  const pfA2aScopeResources = tool?.a2aDelegated && pfSpecialistAudience
+    ? [...new Set([...(gatewayHop?.scopes || []), ...(a2aScope ? [a2aScope] : requiredScopes)])]
+      .map((scope) => ({ scope, canonicalScope: topology.aliases?.[scope] || scope, audience: pfSpecialistAudience, mirrorAudiences: [] }))
+    : null;
   const pingfederate = pfAgentAudience ? {
+    ...(pfA2aScopeResources ? { a2aScopeResources: pfA2aScopeResources } : {}),
     scopeResources: scopeResources.map((item) => ({ ...item, audience: pfAgentAudience, mirrorAudiences: [] })),
     ...(gatewayHop ? { gatewayHop: { ...gatewayHop, scopes: [...new Set([...gatewayHop.scopes, ...requiredScopes])] } } : {}),
     ...(backendHop && pfBackendAudience ? { backendHop: { ...backendHop, audience: pfBackendAudience } } : {}),
