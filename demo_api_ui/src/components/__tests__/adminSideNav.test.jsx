@@ -180,6 +180,16 @@ describe("AdminSideNav — best-of-breed pass", () => {
       .toEqual(["Ag", "Ad", "S", "C", "D", "R"]);
   });
 
+  it("pins the sidebar top and bottom so a zoomed page cannot push its last items off screen", () => {
+    const navCss = readFileSync(path.resolve(__dirname, "../AdminSideNav.css"), "utf8");
+    const block = (navCss.match(/\n\.admin-side-nav \{([\s\S]*?)\n\}/)?.[1] ?? "").replace(/\/\*[\s\S]*?\*\//g, "");
+    expect(block).toMatch(/position: fixed;/);
+    expect(block).toMatch(/top: 0;/);
+    expect(block).toMatch(/bottom: 0;/);
+    // 100vh is scaled by the html zoom the text-size control applies, which made the bar taller than the window.
+    expect(block).not.toMatch(/height: 100vh/);
+  });
+
   it("keeps sidebar readability styles on the shared theme scale", () => {
     const skinCss = readFileSync(path.resolve(__dirname, "../adminSkinPing2026.css"), "utf8");
     expect(skinCss).toMatch(
