@@ -1,0 +1,282 @@
+# Worker agent and MCP server for the Privilege A2A demo, as two Deployments
+# in the cluster. This replaces "run them on the gateway VM" in Ping's
+# reference demo: the gateway reaches each one by its Service name instead of
+# localhost. Register them in Privilege as:
+#
+#   workeragentdemo  Remote Agent  http://workeragentdemo.ping-devops-cmuir.svc.cluster.local  entry path /a2a
+#   mcpdemo          MCP           http://mcpdemo.ping-devops-cmuir.svc.cluster.local          entry path /mcp  (AuthMode none)
+#
+# The worker's Agent Access key (llm + mcp scopes) comes from a Secret:
+#   read -s KEY && kubectl -n ping-devops-cmuir create secret generic privilege-a2a-demo \
+#     --from-literal=WORKER_AGENT_KEY="$KEY"; unset KEY
+#
+# The main agent runs here too (third Deployment, `mainagentdemo`), so the demo
+# does not depend on a process on someone's laptop. It is NOT registered in
+# Privilege: it is a caller, not a remote agent. The demo app's server reaches
+# it in-cluster (PRIVILEGE_A2A_MAIN_URL) with a shared secret. Add its two
+# values to the same Secret:
+#   MAIN_AGENT_KEY          the main agent's Agent Access key (a2a scope; add llm only if the agent calls the
+#                           gateway's LLM route with its own key, as the Google/Anthropic setups did)
+#   A2A_BFF_SHARED_SECRET   the same value as the app server's PRIVILEGE_A2A_BFF_SECRET
+#
+# BUILD FOR arm64 (the SE cluster nodes are Graviton):
+#   docker buildx build --platform linux/arm64 --provenance=false \
+#     -t ghcr.io/cmuir_pingcorp/privilege-a2a-demo:latest --push .
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mcpdemo
+  namespace: ping-devops-cmuir
+  labels:
+    app: mcpdemo
+    component: privilege-a2a-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mcpdemo
+  template:
+    metadata:
+      labels:
+        app: mcpdemo
+        component: privilege-a2a-demo
+    spec:
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      containers:
+      - name: mcpdemo
+        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-ef9918b32
+        imagePullPolicy: Always
+        command: ["node", "dist/mcp-server/index.js"]
+        ports:
+        - containerPort: 3302
+          name: http
+        env:
+        - name: MCP_SERVER_HOST
+          value: "0.0.0.0"
+        - name: MCP_SERVER_PORT
+          value: "3302"
+        # The poisoned record the worker reads back; this is the injection
+        # scenario the guardrail is shown catching.
+        - name: MCP_DEMO_INJECTION
+          value: "true"
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        readinessProbe:
+          httpGet:
+            path: /healthz
+            port: 3302
+          initialDelaySeconds: 5
+          periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mcpdemo
+  namespace: ping-devops-cmuir
+  labels:
+    app: mcpdemo
+    component: privilege-a2a-demo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3302
+    protocol: TCP
+    name: http
+  selector:
+    app: mcpdemo
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: workeragentdemo
+  namespace: ping-devops-cmuir
+  labels:
+    app: workeragentdemo
+    component: privilege-a2a-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: workeragentdemo
+  template:
+    metadata:
+      labels:
+        app: workeragentdemo
+        component: privilege-a2a-demo
+    spec:
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      containers:
+      - name: workeragentdemo
+        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-a812afe9e
+        imagePullPolicy: Always
+        command: ["node", "dist/worker-agent/index.js"]
+        ports:
+        - containerPort: 3301
+          name: http
+        env:
+        - name: WORKER_AGENT_HOST
+          value: "0.0.0.0"
+        - name: WORKER_AGENT_PORT
+          value: "3301"
+        # Published in the agent card, so callers that read the card go through
+        # the gateway. The card is served at /.well-known/agent-card.json, which
+        # is where the console's "Discover A2A agent card" looks.
+        - name: WORKER_PUBLIC_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/worker-agent/a2a/jsonrpc"
+        # Both of the worker's outbound legs go back through the gateway: the
+        # model calls via the custom lane, the tool calls via the MCP door.
+        - name: WORKER_AGENT_PROVIDER
+          value: "anthropic"
+        - name: WORKER_AGENT_MODEL
+          value: "claude-haiku-4-5-20251001"
+        - name: ANTHROPIC_BASE_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/llm/anthropic"
+        - name: ANTHROPIC_AUTH_TOKEN
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-secrets
+              key: PRIVILEGE_LLM_VIRTUAL_KEY_ANTHROPIC
+        - name: MCP_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/a2a-mcp-tools/mcp"
+        - name: WORKER_AGENT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: privilege-a2a-demo
+              key: WORKER_AGENT_KEY
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        readinessProbe:
+          tcpSocket:
+            port: 3301
+          initialDelaySeconds: 5
+          periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: workeragentdemo
+  namespace: ping-devops-cmuir
+  labels:
+    app: workeragentdemo
+    component: privilege-a2a-demo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3301
+    protocol: TCP
+    name: http
+  selector:
+    app: workeragentdemo
+---
+# The main agent: the caller that starts every run. The demo app's server
+# relays a request here with a shared secret; from here every call goes out
+# through the Privilege gateway with this agent's own key.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: mainagentdemo
+  namespace: ping-devops-cmuir
+  labels:
+    app: mainagentdemo
+    component: privilege-a2a-demo
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: mainagentdemo
+  template:
+    metadata:
+      labels:
+        app: mainagentdemo
+        component: privilege-a2a-demo
+    spec:
+      imagePullSecrets:
+      - name: ghcr-pull-secret
+      containers:
+      - name: mainagentdemo
+        image: ghcr.io/cmuir_pingcorp/privilege-a2a-demo:sha-a812afe9e
+        imagePullPolicy: Always
+        command: ["node", "dist/main-agent/index.js"]
+        ports:
+        - containerPort: 3300
+          name: http
+        env:
+        - name: MAIN_AGENT_HOST
+          value: "0.0.0.0"
+        - name: MAIN_AGENT_PORT
+          value: "3300"
+        # The main agent's own model calls go through the gateway's custom lane.
+        - name: MAIN_AGENT_PROVIDER
+          value: "llamacpp"
+        - name: MAIN_AGENT_MODEL
+          value: "llama.cpp"
+        - name: LLAMACPP_BASE_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/llm/custom/v1"
+        - name: LLAMACPP_API_KEY
+          valueFrom:
+            secretKeyRef:
+              name: ai-demo-secrets
+              key: PRIVILEGE_LLM_VIRTUAL_KEY_CUSTOM
+        # Step 25: the worker, through the gateway. Step 26: the middle agent.
+        - name: WORKER_A2A_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/worker-agent/a2a"
+        - name: WORKER_TRACE_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/worker-agent/trace"
+        - name: CHAIN_A2A_URL
+          value: "https://mcpgw.ai-demo.ping-devops.com/langchain-midagent/a2a/jsonrpc"
+        - name: MAIN_AGENT_KEY
+          valueFrom:
+            secretKeyRef:
+              name: privilege-a2a-demo
+              key: MAIN_AGENT_KEY
+        # Only the demo app's server may ask this agent to run anything.
+        - name: A2A_BFF_SHARED_SECRET
+          valueFrom:
+            secretKeyRef:
+              name: privilege-a2a-demo
+              key: A2A_BFF_SHARED_SECRET
+        resources:
+          requests:
+            memory: "64Mi"
+            cpu: "50m"
+          limits:
+            memory: "256Mi"
+            cpu: "250m"
+        readinessProbe:
+          httpGet:
+            path: /status
+            port: 3300
+          initialDelaySeconds: 5
+          periodSeconds: 30
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: mainagentdemo
+  namespace: ping-devops-cmuir
+  labels:
+    app: mainagentdemo
+    component: privilege-a2a-demo
+spec:
+  type: ClusterIP
+  ports:
+  - port: 80
+    targetPort: 3300
+    protocol: TCP
+    name: http
+  selector:
+    app: mainagentdemo
