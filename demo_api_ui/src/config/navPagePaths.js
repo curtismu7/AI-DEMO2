@@ -159,6 +159,8 @@ export const NAV_PAGE_PATHS = {
   "Learning Hub": "/learning",
   "Demo Map": "/demo-map",
   "Privilege Docs Index": "/privilege-docs-index",
+  "Privilege shelf": "/privilege-shelf",
+  "Privilege Map": "/privilege-map",
   "Claude Skills Index": "/claude-skills",
   "Agentic Trust": "/agentic-trust",
   "Agent Guardrails": "/agent-guardrails",

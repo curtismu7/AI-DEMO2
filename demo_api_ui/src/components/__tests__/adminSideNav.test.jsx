@@ -217,6 +217,34 @@ describe("AdminSideNav — best-of-breed pass", () => {
     expect(protect.closest(".admin-side-nav__group")).toHaveTextContent("Ping products");
   });
 
+  it("gathers the Privilege pages in a Privilege info sub-group under Ping products", () => {
+    renderNav("/privilege-map");
+    // The sub-group opens on one of its own pages.
+    expect(screen.getByRole("button", { name: /^Privilege info/ })).toHaveAttribute("aria-expanded", "true");
+    const expected = [
+      ["Privilege shelf", "/privilege-shelf"],
+      ["Privilege Map", "/privilege-map"],
+      ["Agent Privilege Guide", "/privilege-mcp-learning"],
+      ["Agent Privilege Diagrams", "/privilege-mcp-diagrams"],
+      ["Agent Privilege Topologies", "/privilege-gateway-topologies"],
+      ["External Agent App Diagrams", "/external-door-diagrams"],
+    ];
+    for (const [name, href] of expected) {
+      const link = screen.getAllByRole("link", { name }).find((a) => a.closest(".admin-side-nav__group")?.textContent.includes("Privilege info"));
+      expect(link, name).toBeTruthy();
+      expect(link).toHaveAttribute("href", href);
+    }
+  });
+
+  it("no longer lists the moved pages under Agent Privilege", () => {
+    renderNav("/privilege-demo");
+    fireEvent.click(screen.getByRole("button", { name: /^Agent Privilege/ }));
+    const group = screen.getAllByRole("button", { name: /^Agent Privilege/ })[0].closest(".admin-side-nav__group");
+    for (const name of ["Agent Privilege Guide", "Agent Privilege Diagrams", "Agent Privilege Topologies", "External Agent App Diagrams"]) {
+      expect(within(group).queryByRole("link", { name }), name).toBeNull();
+    }
+  });
+
   it("keeps the DaVinci learning pages together in the DaVinci group", () => {
     renderNav();
     fireEvent.click(screen.getByRole("button", { name: /^DaVinci/ }));
@@ -571,6 +599,34 @@ describe("AdminSideNav — best-of-breed pass", () => {
     renderNav();
     expect(await screen.findByText("Observability")).toBeInTheDocument();
     expect(screen.queryByText("Skin Studio")).toBeNull();
+    vi.unstubAllGlobals();
+  });
+
+  it("honors a hide for a link inside the Privilege info sub-group, and hides the sub-group when all its links are hidden", async () => {
+    const stubHidden = (hiddenLabels) =>
+      vi.stubGlobal(
+        "fetch",
+        vi.fn((url) => {
+          if (String(url).includes("/api/user/nav-config")) {
+            return Promise.resolve({ ok: true, json: () => Promise.resolve({ hiddenLabels, activeConfigId: null, flagOn: true }) });
+          }
+          return Promise.resolve({ ok: true, json: () => Promise.resolve({}) });
+        }),
+      );
+
+    stubHidden(["Agent Privilege Diagrams"]);
+    const first = renderNav("/privilege-map");
+    expect(await screen.findByRole("link", { name: "Privilege Map" })).toBeInTheDocument();
+    expect(screen.queryByRole("link", { name: "Agent Privilege Diagrams" })).toBeNull();
+    first.unmount();
+
+    stubHidden([
+      "Privilege shelf", "Privilege Map", "Agent Privilege Guide", "Agent Privilege Diagrams",
+      "Agent Privilege Topologies", "External Agent App Diagrams", "Privilege Docs Index",
+    ]);
+    renderNav("/privilege-demo");
+    expect(await screen.findByText("Observability")).toBeInTheDocument();
+    expect(screen.queryByRole("button", { name: /^Privilege info/ })).toBeNull();
     vi.unstubAllGlobals();
   });
 

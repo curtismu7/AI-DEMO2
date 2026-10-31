@@ -1,0 +1,704 @@
+[
+  {
+    "id": "agent-registry",
+    "name": "Agent Registry",
+    "page": "identity",
+    "why": "Agents that call models, tool servers and other agents need to be first-class identities with an owner, an expiry, a lifecycle and per-agent policy, not anonymous API keys. Each key has a custodian (the accountable human), which is designed to let the gateway log and policy name who the agent acts as.",
+    "how": "The documented flow is a four-step Add Agent wizard in the Agent Registry. (1) Identity and Access sets the agent name (permanent; renaming means delete and recreate), custodian, expiry and scopes (llm, mcp, a2a). (2) Gateway and Apps sets, for llm, one provider per key, allowed models, requests per minute, tokens per minute and a budget; the real provider key is stored in Privilege and injected server-side, so LLM-scoped keys are created here and need the real provider key in hand. For mcp or a2a, it sets the specific apps (and optionally specific MCP tools) the agent may reach; selecting them is the grant, and saving creates a grant policy for the custodian tied to the key. (3) Runtime Protection sets the AI Guard configuration for that key; AI Guard is configured per agent key, not per app. (4) Review and Create shows the key once, with calling code per scope. The agent then sends the key as a bearer token on every call, with no sign-in or token exchange. The caller's gateway key is never forwarded to a backend. Request and token rate caps are enforced natively: a 75-request burst against a capped key returned 60 successes and then 15 rate-limit refusals. A budget can also be set on the key, but a budget refusal was not separately tested. App and policy edits take about 4 minutes to reach the gateway; brand-new keys are picked up immediately. For MCP and A2A calls, the only self-describing 403 is 'key not scoped for mcp access'; any other bare 403 needs the gateway log to explain it. Expired keys are documented as edit-locked on step 1 until the expiry moves to a future date. There is no rotate action: the key value is server-generated and immutable, so rotation is delete and recreate under the same name (for llm keys, have the real provider key ready first), and revoking a key sets it to revoked. The documentation also describes a second custodian option, a secretless non-human identity with federation settings (issuer, audience, subject, key set location, maximum token lifetime, required claims). Do not promise customers that this works: gateway acceptance of workload-identity tokens is not proven, and a non-human identity with no key behind it authenticates nobody.",
+    "userValue": "Operator or SE: one object that shows who owns each agent, which scopes, apps, models and limits it has, when it expires and which guardrail screens it. Accountable owner: each key is tied to a named custodian, so its calls are designed to be attributable to that person. Security team: a per-agent key that can be revoked, expires on schedule and carries its own guardrail and limits, instead of a shared static secret.",
+    "components": [
+      "Agent Registry console page",
+      "Add Agent and Edit Agent wizard",
+      "Custodian (a user who owns the key)",
+      "Scopes: llm, mcp, a2a",
+      "Agent access key",
+      "Grant policy created when apps are selected",
+      "Per-key Runtime Protection (AI Guard)",
+      "Non-human identity object (optional custodian)",
+      "Privilege gateway (LLM, MCP and A2A routes)",
+      "Gateway log",
+      "Console audit feed"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/privilege/GATEWAY-SETTING-UP-A-CALLING-AGENT.md",
+      "AI-DEMO2/privilege/AGENT-REGISTRY-SIDECAR-ROLLOUT.md",
+      "AI-DEMO2/privilege/WORKLOAD-IDENTITY-AGENT-CALLERS.md"
+    ],
+    "unverified": [
+      "The wizard screens and field labels come from documentation and were not walked through in the console for this entry.",
+      "The console menu path to the Agent Registry is named two different ways across the source documents, and they do not settle which is current.",
+      "Whether removing or departing a custodian actually stops the agent was not tested.",
+      "Whether the gateway log and policy name the custodian for each call was not checked for this entry.",
+      "Gateway refusal of an expired key was not tested.",
+      "Budget refusal was not tested; the burst test did not separate request, token and budget caps.",
+      "An agent authenticating with a workload identity instead of a key was not tested, and gateway acceptance of workload-identity tokens on MCP and LLM routes is not proven.",
+      "Whether two keys can share a name at the same time during rotation was not tested.",
+      "The non-human identity schema was read from the tenant once and was not re-read afterwards.",
+      "With Block Agreement off, a sidecar verdict did not block an A2A message in one test (the call succeeded with an alert only); it was shown to block on the LLM path only.",
+      "Which console release introduced the non-human-identity custodian option and per-app guardrail settings comes from release notes and was not re-verified on the tenant.",
+      "The size and composition of the agent fleet seen earlier is a past snapshot and may have changed."
+    ]
+  },
+  {
+    "id": "privilege-agent-desktop-device-bound-identity",
+    "name": "Privilege Agent (desktop device-bound identity)",
+    "page": "identity",
+    "why": "Privilege is designed to refuse access from a machine that is not a paired device, so that access is tied to a specific workstation and a specific person. The desktop Agent is the device identity anchor; it is not an MCP transport.",
+    "how": "The PingOne Privilege desktop app (macOS) pairs one user to one workstation. A user with the Privilege services permission generates a one-time onboarding link, documented as valid for about 2 hours; opening it on the Mac and choosing Launch Agent completes pairing. The device identity is documented as held in the Secure Enclave; the only check made was that nothing readable was found on disk or in the keychain. The agent is documented to hold one tenant at a time, with a Preferred Tenant setting described for agents that serve more than one tenant. Re-pairing is documented to erase the previous tenant's device identity, so generate a fresh onboarding link before disconnecting. The agent's General panel shows connection status, proxy, connected-to, key store, tenant name and tenant ID. Opening Console from the menu-bar icon opens a local console served by the agent. On the one tenant tested, the cloud frontend returned 403 to a request without the device identity, which is the device-bound gate measured directly. In that tenant, MCP traffic ran through the agentless gateways, not through the Agent; MCP through the Agent is described as roadmap.",
+    "userValue": "Security or IT: a paired device identity gates access to the Privilege frontend and console; a request without it was refused on the tenant tested. Admin: console access from a trusted device. End user: access is designed to be tied to their own workstation.",
+    "components": [
+      "PingOne Privilege desktop app",
+      "Onboarding link generated in the PingOne admin console",
+      "Local console served by the agent",
+      "Privilege cloud frontend and its device-identity gate",
+      "PingOne Privilege administrator role"
+    ],
+    "sources": [
+      "AI-DEMO2/privilege/AGENT-MODE-END-TO-END.md",
+      "AI-DEMO2/privilege/SE1-Privilege-Agent-Setup-Mac.md",
+      "AI-DEMO2/privilege/AGENT-CONFIGURATION.md",
+      "AI-DEMO2/docs/privilege-agent-features.md"
+    ],
+    "unverified": [
+      "The onboarding link lifetime of about 2 hours comes from documentation and was not measured.",
+      "MCP through the Agent, with the cloud frontend as the MCP transport, was not tested; it is described as roadmap.",
+      "Two people paired on one Mac were not tested.",
+      "Multi-factor step-up for the Agent was not shown; multi-factor authentication was disabled on the one tenant tested, and whether step-up is available is not confirmed.",
+      "Secure Enclave residency is established only by the negative check that nothing is readable on disk or in the keychain, not by a vendor statement.",
+      "The one-tenant-at-a-time limit, the Preferred Tenant setting and multi-tenant behaviour are described in documentation but were not measured.",
+      "The fix for a blank local console (quit and relaunch) was confirmed on one Mac and not re-verified.",
+      "The erasure of the previous tenant identity on re-pairing comes from a documented warning and was not tested.",
+      "The device-bound 403 was measured on one tenant only, so refusal of an unpaired machine in general is not established."
+    ]
+  },
+  {
+    "id": "cimd-client-documents",
+    "name": "CIMD client documents",
+    "page": "identity",
+    "why": "Each AI client must be known to the authorization server before it can ask a user to sign in. Pre-registration does not scale and needs secrets, and open dynamic client registration lets anyone register with no tie to the real client. Client ID Metadata Documents (CIMD) make the client's identity a URL its owner controls, and the administrator decides which URLs are trusted, with no client secret.",
+    "how": "A client's identifier is an https URL. Privilege fetches that URL and reads a small JSON document describing the client: name, redirect URIs, grant types, response types, and a token endpoint authentication method of none for a public client that uses PKCE. The document must name its own URL, so the client identifier must equal the URL it was fetched from. In the Privilege console, the MCP Client Documents settings hold the list of accepted document URLs. As documented, each entry has a document URL, a type (Public, where Privilege fetches centrally, or Private, where the gateway fetches and caches), a status showing whether the fetch worked and what it contained, and a gateway cache period with a documented default of 24 hours. As documented, an empty list leaves the feature off and dynamic registration continues as before. For the demo, public client documents are hosted so that Privilege can fetch them anonymously (read-only requests, rate limited) without a sign-in redirect. Privilege was observed fetching and reading one public third-party document and reporting a missing document clearly.",
+    "userValue": "Admin: decides which AI clients are recognised by adding or removing a URL, with no secrets to store or rotate. Client owner: a stable, named identity for an agent, backed by a URL it controls. Security: because clients are not self-registered, open registration records are documented not to accumulate, though that was not observed.",
+    "components": [
+      "Privilege console MCP Client Documents settings",
+      "Privilege central fetcher for public documents",
+      "Gateway cache for private documents",
+      "Demo-hosted public client metadata documents",
+      "PKCE with a public client and no secret"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md"
+    ],
+    "unverified": [
+      "Privilege was not shown to accept one of the team's own client documents; only one public third-party document was shown being fetched, and a missing document was reported clearly.",
+      "Privilege accepting the team's chosen redirect URI and completing a sign-in with a CIMD client was not tested.",
+      "The redirect URI choice was made by the team and is not taken from Privilege documentation.",
+      "Server-side agents that use client credentials or token exchange may not fit a document that describes an authorization-code client; this was not tested.",
+      "The Public and Private type semantics, the status output, the 24-hour default gateway cache and the empty-list behaviour are described in documentation and were not reproduced.",
+      "The claim that no open registration records accumulate was not observed.",
+      "The sign-in flow steps other than the document fetch are design implications and were not observed.",
+      "Whether the check that public paths are reachable anonymously is part of automated testing is not verified."
+    ]
+  },
+  {
+    "id": "virtual-keys",
+    "name": "Virtual keys",
+    "page": "llm",
+    "why": "Applications and agents should never hold a model provider's API key. A virtual key is designed to work only through the gateway, for one provider and its allowed models, so the gateway can refuse a call before the provider sees it. Refusals on the model routes name their cause in the response body.",
+    "how": "A virtual key is an LLM-scoped agent key created in the Agent Registry wizard. It needs the real provider key in hand: Privilege stores that key, does not return it on read, and injects it server-side. Each key is bound to one provider (OpenAI, Anthropic, or an OpenAI-compatible custom endpoint) and carries an owner, an allowed-models list, request and token rate limits, a budget, an expiry, scopes and AI Guard settings. AI Guard is configured per agent key, not per app. The application calls the gateway's route for its provider and presents the virtual key as a bearer token or API-key header. The gateway swaps in the real key, and the caller's gateway key is never forwarded to the provider. In the few requests tested, the checks appeared to run in this order: key valid (otherwise a 401), guardrail block (a 400 whose body names the category), key matches the provider (a 403 whose body says wrong provider), then model on the key's list (a 403 whose body says the model is not allowed). Unlike MCP and A2A calls, where the refusal that names its cause is the missing-scope one (for mcp or a2a) and any other bare 403 needs the gateway log, these model-route refusals name their cause in the response body. Request and token rate caps are enforced natively: a 75-request burst against a capped key gave 60 successes, then 15 rate-limit refusals (429) with a retry-after header. The gateway writes one log line per model call with provider, model, token counts, a cost estimate, latency, user and key ID. For wrong-provider and model refusals, the response body is the reliable place to read the reason. App and policy edits take about 4 minutes to reach the gateway; a brand-new key is picked up immediately.",
+    "userValue": "Application team: no provider secret to store, rotate or leak. Security team: key, provider and model checks run at the gateway before the provider, and refusals on the model routes name their cause in the response body. Finance and platform: per-key request and token rate caps are enforced.",
+    "components": [
+      "Privilege gateway model routes",
+      "Virtual key (LLM-scoped agent key in the Agent Registry)",
+      "Real provider key held in Privilege and injected server-side",
+      "Allowed-models list",
+      "Request rate, token rate and budget limits",
+      "Per-key AI Guard guardrail",
+      "OpenAI route",
+      "Anthropic route",
+      "OpenAI-compatible custom route (llama.cpp)",
+      "Gateway log"
+    ],
+    "sources": [
+      "AI-DEMO2/privilege/GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md",
+      "AI-DEMO2/privilege/GATEWAY-SETTING-UP-A-CALLING-AGENT.md",
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/privilege/AGENT-REGISTRY-SIDECAR-ROLLOUT.md"
+    ],
+    "unverified": [
+      "Guardrail screening on the model route is unsettled. A guardrail block on a virtual key was seen in a few requests, but screening of model traffic from an agent key's AI Guard settings is not established, and screening on the MCP leg and on agent-to-agent calls is covered separately in the AI Guard entry.",
+      "Whether a virtual key has guardrail settings separate from the agent key's is not settled by the documentation; this entry treats them as the same settings.",
+      "Whether wrong-provider and model refusals write their reason to the gateway log is unsettled: the documents disagree. The response body is the only place the reason was confirmed.",
+      "Budget refusal was never shown on its own. The 75-request burst did not separate the request-rate, token-rate and budget caps, so budget enforcement is not claimed.",
+      "The Google route was not tested with a working provider key, and in the one configuration seen it was refused as the wrong provider, so its behavior is not claimed.",
+      "Console form labels were not checked, so field names in this entry may differ from the screen.",
+      "Model calls through an agent key and through a standalone virtual key are described differently in the documents, and they do not settle whether both were fully tested.",
+      "The order of the checks (key, guardrail, provider, model) was measured on only a few requests.",
+      "Using two keys for the same provider, and provider rate-limit header behavior on providers other than OpenAI and Anthropic, were not tested.",
+      "How quickly a change to a key's own settings, such as limits, reaches the gateway is not settled.",
+      "That only the base URL changes between providers is a design intent and was not tested with the provider SDKs."
+    ]
+  },
+  {
+    "id": "model-allowlists",
+    "name": "Model allowlists",
+    "page": "llm",
+    "why": "A virtual key should not be able to reach every model its provider offers. Operators need to restrict a key to approved models and have the gateway stop other models before any call is designed to leave for the provider.",
+    "how": "A virtual key carries an Allowed models list, which is a subset of its provider's model catalog. The gateway reads the model field of each request and compares it with the key's list. A model that is not on the list is refused with a 403 whose message says the model is not allowed for this key. Unlike MCP and A2A calls, where the only self-describing 403 is 'key not scoped for mcp access', this model-route refusal names its cause in the response body. A model that exists but is not listed and a model that does not exist got the same refusal. In one test, editing the key's allowlist changed the response from refused to accepted on the next call, with no gateway restart. App and policy edits are documented to take about 4 minutes to reach the gateway, and how that delay applies to a key's allowlist was not settled. The provider's model-list endpoint returns the provider's whole catalog, not the key's list, so a model dropdown built from it does not show which ids are allowed. In the demo chat console, the chosen id is sent as the model field; the demo is designed so that an allowed model answers and a blocked one shows a refusal and 'Reached the model: no'.",
+    "userValue": "Operator: keeps models the organization has not approved, or that cost more, off calls made through the key. Finance and security: a key's model scope is one configured list that can be changed without a redeploy. Presenter: the refusal body is designed to show that the call was stopped before the provider answered.",
+    "components": [
+      "Privilege gateway (enforces the check)",
+      "Virtual key with an Allowed models setting",
+      "Provider model-list endpoint (returns the full catalog, not the allowlist)",
+      "Model field in the request body",
+      "Gateway log",
+      "Demo chat console model selector",
+      "Demo raw request tab (can send a model id the provider does not have)"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/docs/privilege-llm-protection.md",
+      "AI-DEMO2/privilege/GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md"
+    ],
+    "unverified": [
+      "The table of which models answer and which are refused per provider lane was measured once and was not re-measured before this entry was written.",
+      "Allowlist behavior on the Google lane cannot be claimed, because the Google key was misconfigured when tested.",
+      "The source docs give different refusal times for a blocked model, so no speed claim is made and the docs do not settle which is right.",
+      "Whether the refusal is issued without any provider round trip is inferred from design and was not settled by the sources.",
+      "Whether the refused model name is written to the gateway log was not settled by the sources.",
+      "The demo flow that sends a blocked model id was described but not separately run in the source docs.",
+      "Request-rate and budget refusals were not tested together with allowlists.",
+      "An allowlist with an empty model list was not tested.",
+      "The allowlist edit was proven by response behavior only, because the audit endpoint was not exposed to the tenant key.",
+      "The sources do not settle whether an allowlist edit follows the roughly 4-minute delay for app and policy edits or the immediate pickup seen in one test."
+    ]
+  },
+  {
+    "id": "llm-provider-routes-and-wire-shapes",
+    "name": "LLM provider routes and wire shapes",
+    "page": "llm",
+    "why": "Applications built for different provider APIs should not each need their own governance. The gateway is designed to present one route per provider and pass each provider's own request format through without translating it.",
+    "how": "The gateway exposes one route per provider. Anthropic uses the native Messages API, which needs a version header and takes the system prompt as a top-level field. OpenAI uses chat completions. A custom OpenAI-compatible route fronts a local llama.cpp server. The gateway does not translate between formats, so a client must send the wire shape its route expects. The virtual key is accepted as a bearer token or an API-key header. On the OpenAI and Anthropic routes, the gateway's own refusals (401, 403, 400, 429) are described as short JSON bodies that name the cause; only the guardrail block body was reproduced across providers, and provider errors come back in the provider's own style. A Google route is documented as OpenAI-compatible but never worked in testing, so its refusal and wire shapes are not claimed. The demo chat console offers lanes for these providers and a raw request tab that shows the untouched request body.",
+    "userValue": "Developer: the design intends that moving between providers means changing the route and the key, not adopting a new governance tool. Security owner: each virtual key carries its own checks. Presenter: the same prompt can be tried on a lane with the raw request visible.",
+    "components": [
+      "Privilege gateway model routes",
+      "Virtual keys (one per provider, each with its own settings)",
+      "Anthropic route (native Messages API)",
+      "OpenAI route (chat completions)",
+      "Custom OpenAI-compatible route (llama.cpp)",
+      "Demo chat console with a raw request tab",
+      "Provider API keys held in Privilege and injected by the gateway"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/docs/privilege-llm-protection.md",
+      "AI-DEMO2/privilege/GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md"
+    ],
+    "unverified": [
+      "The Google route was not tested, and in the one configuration seen every call was refused as the wrong provider, so its wire shape and refusal format are unverified in practice.",
+      "Moving between providers by changing only the route and key was not tested with the provider SDKs; it is a design intent, not a result.",
+      "One policy across all providers was not shown, because each virtual key carries its own guardrail and allowlist and two keys for the same provider can treat the same prompt differently.",
+      "No run is recorded in which the same prompt was sent down every lane with the same result.",
+      "Pointing the OpenAI and Anthropic SDKs at the gateway base URL was not tested, so keeping the same key model and policy path by changing only the base URL is unproven.",
+      "That one gateway applies the same key, route and guardrail checks whichever provider is used was not shown across all providers.",
+      "The custom llama.cpp route and its behavior are taken from release notes and were not independently confirmed.",
+      "Whether the Agent Registry accepts additional OpenAI-compatible providers was not confirmed.",
+      "Gateway refusal bodies other than the guardrail block were described in documentation but not reproduced across providers."
+    ]
+  },
+  {
+    "id": "attributable-denial",
+    "name": "Attributable denial",
+    "page": "llm",
+    "why": "When a model call is refused, the operator and the auditor need to know which control refused it and why. A bare 403 or 400 leaves the team guessing whether the gateway, a policy or the provider made the decision.",
+    "how": "Two mechanisms can refuse a model call, at different points. First, an AI Guard guardrail runs before the provider is called. In the few requests tested with a virtual key, a block returned a 400 whose message names the category, such as prompt injection. AI Guard is configured per agent key, not per app. Request-side guardrail block events carry OWASP, MITRE ATLAS and NIST mappings. Second, a Cedar policy can withhold content from a response, for example personal data in a completion. The provider has already answered in that case. The one live-verified policy denial of this kind logged the decision, policy IDs, principal and agent key, with no compliance mapping. Wrong-provider and model-allowlist refusals are 403 responses on the model routes whose body names the reason. This differs from MCP and A2A calls, where the refusal that names its cause is the missing-scope one (for mcp or a2a) and any other bare 403 needs the gateway log. The demo includes a Prove-the-policy button intended to send a personal-data prompt and show the provider, route and reason as an explanation rather than a failure.",
+    "userValue": "Security owner: a response-side policy denial is traceable to a named control, and guardrail events are documented with an audit mapping. Developer: a guardrail block on the model route shows a category instead of a silent failure. Presenter: a denial shown with its reason is the control working.",
+    "components": [
+      "Privilege gateway model routes",
+      "AI Guard built-in detectors (prompt injection, personal data and others)",
+      "Cedar AI policies",
+      "Virtual key (an LLM-scoped agent key that carries the guardrail settings)",
+      "Agent key (named in policy events)",
+      "Gateway log",
+      "Audit compliance mappings (OWASP, MITRE ATLAS, NIST AI RMF)",
+      "Demo Prove-the-policy button"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/docs/privilege-llm-protection.md",
+      "AI-DEMO2/privilege/AUDIT-EVIDENCE-COMPLIANCE.md",
+      "AI-DEMO2/privilege/GATEWAY-GUARDRAILS-AND-THE-EXTERNAL-DETECTOR.md",
+      "AI-DEMO2/privilege/GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md",
+      "AI-DEMO2/privilege/HOSTILE-MCP-SIDE-BY-SIDE.md",
+      "AI-DEMO2/docs/privilege-aiguard-training.md"
+    ],
+    "unverified": [
+      "Guardrail screening on the model route is unsettled. The block on a virtual key was seen in a few requests; screening of model traffic from an agent key's AI Guard settings is not established, and it is not shown that both settings are the same. Client-visible attribution text was reproduced across providers only for the guardrail block body.",
+      "On the MCP leg, a block of a hidden instruction in a tool result was seen in one agent-to-agent chain only, and tool-server screening from an agent key is not established.",
+      "For agent-to-agent calls the client error says only that the request was blocked by security policy, and only the gateway log names the detector.",
+      "Whether a model-allowlist or wrong-provider 403 writes a policy event is unsettled: the documents disagree, and this entry does not choose between them.",
+      "The Prove-the-policy personal-data denial has no recorded measured result, and it works only if the active policy denies the prompt.",
+      "The only live-verified Cedar denial is a response-side denial, so a Cedar denial before the provider was not shown.",
+      "The same policy-denied event name is also used for a token rate-limit refusal, so the event name alone does not identify a personal-data or policy denial.",
+      "Response-side Cedar denials were seen carrying decision, policy IDs, principal and agent key without a compliance mapping; whether any policy denial can carry a mapping was not shown.",
+      "The decision and policy ID values in the Cedar event come from one live event on one tenant and may change between releases.",
+      "Personal-data withholding by AI Guard and by Cedar are different mechanisms with different events, and they were not compared on the same request."
+    ]
+  },
+  {
+    "id": "policy-union-model",
+    "name": "Policy union model",
+    "page": "mcp",
+    "why": "Admins need to know why a change to one policy may not remove access. The effective grant is designed to be the union of every non-expired policy that binds the identity, so narrowing one policy may do nothing while a broader one stands. A new app denies everything until a policy exists.",
+    "how": "Creating a policy adds its tools to the identity's combined grant. In one observed case, two policies that share a tool delivered it once. In one test, editing a policy's tool list down did not change the grant while a broader policy still applied; that was measured in a single configuration. Tools outside the grant are removed from the tool list before it is returned, so the client cannot tell they exist. Denied calls look identical to a client, a bare 403, and are told apart only in the gateway log, which distinguishes an identity that is not synced, an app with no policy, and a tool hidden by policy. Policies are per app, with no inheritance across apps. App and policy edits take about 4 minutes to reach the gateway. The documentation says an expired policy silently stops contributing its tools, but another source says it denies the same way as a missing policy, so treat expiry behavior as unsettled.",
+    "userValue": "Operators get a working mental model for access changes: adding a policy widens the grant, and narrowing one policy may change nothing while a broader one stands, which also explains why a tool disappeared or did not. Deleting a policy was not measured, so do not predict its effect. Security reviewers can treat the catalog an agent sees as its privilege level. Agent builders see a smaller tool list with no error, which is the discovery gate working.",
+    "components": [
+      "Tool policy per app",
+      "Policy time window (valid from and until)",
+      "Identity binding and identity sync",
+      "MCP Server application with discovery gating on the tool list",
+      "Gateway log",
+      "Client view of the tool list"
+    ],
+    "sources": [
+      "AI-DEMO2/privilege/PRIVILEGE-POLICIES-IN-DEPTH.md",
+      "AI-DEMO2/privilege/LESSONS-LEARNED.md",
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/privilege/AGENT-MODE-END-TO-END.md"
+    ],
+    "unverified": [
+      "Group-attached policies were not shown to add tools to the combined grant, so they should not be presented as feeding it.",
+      "The three-tool union count is a single observed instance and the tool names were not captured, so the mechanism is the claim, not the number.",
+      "The add, expire and edit behaviour was measured on one app in one configuration.",
+      "Editing a policy down while a broader one stands was measured in one configuration only.",
+      "The source documents disagree on expiry: one says an expired policy silently removes its tools, another says it denies identically to a missing policy. This is unresolved.",
+      "The gateway log wording comes from one gateway release and may change.",
+      "Deleting a policy was not measured, and its effect on the combined grant is unknown."
+    ]
+  },
+  {
+    "id": "mcp-tool-call-inspection",
+    "name": "MCP tool-call policy",
+    "page": "mcp",
+    "why": "Customers need to stop an agent's dangerous tool actions even when a tool server is poisoned. Poisoned tool metadata can look legitimate to the agent, so the control has to sit at the tool call itself.",
+    "how": "The gateway allows or denies MCP tool calls by tool name according to the app's policy. In one side-by-side test, two identical hostile MCP servers sat behind two apps: a governed one whose policy permits every tool except three dangerous ones, and an ungoverned one with an explicit allow-all policy. The same attack reached both. The three dangerous calls were allowed on the ungoverned app and denied on the governed app. The remaining metadata, result, resource and prompt checks were allowed on both, because the gateway polices calls and does not sanitize metadata. A rug-pull change to the tool list did not flip on either app. Tool arguments are not inspected: a hostile instruction inside a valid argument was not caught. An app with no policy denies everything. Policy edits take about 4 minutes to reach the gateway.",
+    "userValue": "Operators can see that, in the tested setup, a poisoned server was survivable when a policy governed the tool-call boundary: dangerous actions were denied while the agent kept working. Security teams get a per-decision gateway log line naming the user, the app and the enforcer. Operators must author the policy to get this, because an app with no policy is refused entirely.",
+    "components": [
+      "Agent Privilege gateway",
+      "Privilege console: MCP Server application and its policy",
+      "Hostile MCP server (demo backend)",
+      "Gateway log"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/privilege/HOSTILE-MCP-SIDE-BY-SIDE.md",
+      "AI-DEMO2/privilege/GATEWAY-GUARDRAILS-FOR-A2A.md",
+      "AI-DEMO2/privilege/GATEWAY-AIGUARD.md",
+      "AI-DEMO2/privilege/RED-TEAM-HOSTILE-A2A.md"
+    ],
+    "unverified": [
+      "Guardrail screening on the MCP leg is unsettled and seen once. In one agent-to-agent chain, a tool result carrying hidden instructions was blocked by AI Guard, which is configured per agent key. That was not reproduced in other chains, and screening of tool-server traffic from an agent key's settings is not established.",
+      "Tool poisoning passed in the tool-call tests, so this control should not be offered as protection against poisoned tool content.",
+      "A hostile instruction inside a valid tool argument was not caught, so tool arguments are not inspected in testing.",
+      "Screening of the model request and response path as a second enforcement point was not re-measured in the tool-call tests.",
+      "The gateway did not sanitize tool metadata, results, resources or prompts in the side-by-side test, so it should not be presented as a metadata sanitizer.",
+      "The rug-pull case did not flip on either app; that the gateway caches the tool list per app is an inference, not a detection result.",
+      "The side-by-side matrix was measured on one gateway release and later releases were not re-measured.",
+      "The dangerous tools are stubs, so no real transfer, deletion or grant was exercised."
+    ]
+  },
+  {
+    "id": "mcp-discovery-gating",
+    "name": "MCP discovery gating",
+    "page": "mcp",
+    "why": "An agent that can see every tool on a server learns what exists and may try to reach tools it should not use. Hiding ungranted tools from the tool list removes that knowledge instead of only blocking calls.",
+    "how": "The gateway is designed to filter the tool list to the set the caller's policy grants. In testing, ungranted tools were removed from the response and the removal was written to the gateway log. An app with no policy denies by default from the first request and returns a bare 403 before the backend is contacted. In testing on an MCP Server app, a refused call was a plain HTTP 403 with no JSON-RPC body, the same as for a nonexistent tool, so the reason lives only in the gateway log. Aggregate apps returned refusals as JSON-RPC errors instead, though the wording varied. For MCP and A2A calls the only self-describing 403 is the message that the key is not scoped for mcp access; any other bare 403 needs the gateway log to explain. The same filtering was observed with an agent key against an aggregate app, which returned only the granted tools. App and policy edits take about 4 minutes to reach the gateway, so a changed grant is not visible immediately.",
+    "userValue": "The agent sees only the tool catalog it is allowed to use, which is intended to reduce wrong-tool attempts and avoid exposing internal tool names. Security teams get a demonstrable deny-by-default posture and a log of removed tools. Admins change access by editing a policy instead of the backend server.",
+    "components": [
+      "Agent Privilege gateway (tool list filter)",
+      "Privilege console: MCP Server application and policy (users or groups, permitted tools, time window)",
+      "Agent Registry agent key with mcp scope",
+      "Aggregate app (per-member tool filter)",
+      "Gateway log"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/privilege/MCP-DISCOVERY-DEMO.md",
+      "AI-DEMO2/privilege/AGGREGATE-APPS-DEMO.md",
+      "AI-DEMO2/privilege/GATEWAY-AGGREGATE-APPS.md"
+    ],
+    "unverified": [
+      "The discovery demo script is out of date because the app it used was deleted, so parts of it cannot be run as written.",
+      "A person's signed-in tool list through an aggregate app was not recorded; only the agent-key path was measured.",
+      "Policy expiry and multi-policy union are only partly confirmed; permit, deny, deny-by-default and a granted identity were confirmed.",
+      "Whether a changed grant applies without a gateway restart was not measured beyond the roughly 4 minute propagation delay for edits.",
+      "The refusal wording differs between an aggregate app with a tool filter and one without, and which wording applies to a given app was not fully mapped.",
+      "Time-window behavior in the console was not measured."
+    ]
+  },
+  {
+    "id": "aggregate-apps",
+    "name": "Aggregate apps",
+    "page": "mcp",
+    "why": "A client that can hold only a few MCP connections, or an operator who wants one address and one central decision about which tools an agent gets, needs many MCP servers behind a single endpoint.",
+    "how": "An MCP Aggregate application has a name that becomes its address and a list of member MCP Server apps. It has no backend or Auth Mode of its own. Each tool is listed as member alias, two underscores, tool name, and the alias defaults to the member app name. The grant on the aggregate, written in prefixed form, decides which tools the caller sees and can call. According to the documentation, when a call arrives the aggregate strips the prefix and opens a session to that member as the calling user, so each member's own policy and Auth Mode still apply. In testing, refusals came back as JSON-RPC errors with HTTP 200 rather than the bare 403 of a plain MCP Server app, so a client that checks only the HTTP status could read them as success; the exact wording varied. In testing with an agent key, the tools listed matched the grant, were prefixed correctly, and ungranted or nonexistent tools were refused identically. Edits to the aggregate or its policy take about 4 minutes to reach the gateway.",
+    "userValue": "A client or agent can hold one connection instead of many, and the security owner decides centrally which cross-server tools an agent may use. Operators can build a small deliberate tool set from several servers.",
+    "components": [
+      "Agent Privilege gateway (MCP aggregate)",
+      "Privilege console: MCP Aggregate application type (name, member list, per-member tool filter)",
+      "Member MCP Server applications, each with its own policy, Auth Mode and backend credential",
+      "Agent Registry agent key with mcp scope",
+      "Gateway log"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/privilege/GATEWAY-AGGREGATE-APPS.md",
+      "AI-DEMO2/privilege/AGGREGATE-APPS-DEMO.md",
+      "AI-DEMO2/privilege/MCP-DISCOVERY-DEMO.md"
+    ],
+    "unverified": [
+      "Creating an aggregate in the console was not walked through, and the create form is not documented in the guide.",
+      "A full person sign-in through an aggregate was not recorded.",
+      "One member hung during testing until a front proxy that rejects GET requests was placed in front of it. The cause is inferred from gateway logs and is not established.",
+      "A listed member can still fail or hang, so listing a member does not prove it answers.",
+      "Tool-name length limits in some clients may be a problem for prefixed names and were not tested.",
+      "The aggregate was measured as plain JSON with no session ID, and behavior with session-bearing clients was not tested.",
+      "The refusal wording differs between an aggregate with a tool filter and one without, and was not fully mapped.",
+      "Gateway acceptance of workload-identity tokens through an aggregate is not proven, and a non-human identity with no key behind it authenticates nobody."
+    ]
+  },
+  {
+    "id": "agent-to-agent-a2a-through-the-gateway",
+    "name": "Agent-to-agent (A2A) through the gateway",
+    "page": "mcp",
+    "why": "Agents that call other agents need the same sign-in, policy and logging as tool traffic, so agent-to-agent calls are not an ungoverned side channel. Customers also need chains of agents to stay auditable.",
+    "how": "A Remote Agent application fronts an A2A agent, which publishes a public agent card and a JSON-RPC endpoint. It uses the same per-app sign-in, policy and logging model as MCP apps. A calling agent identifies itself with an agent key (sent as a bearer token) that has the a2a scope and is selected per remote agent. A person identifies by signing in. The gateway runs three checks in order: sign-in or a valid key, a policy covering the caller and the app, then the app's Auth Mode check. It then forwards the call on any path under the app. The caller's gateway key is never forwarded to the agent; only the credential the Auth Mode supplies reaches it. Key trap: a remote agent set to Pass Agent Token refuses key callers, so an agent that calls with a key needs Static Token. In testing, the agent card was public, an unsigned call got a 401 with a sign-in challenge, a signed-in user with no policy got a 403, and a key without the a2a scope was refused with a message naming the missing scope. That is the only self-describing 403 on this route; any other bare 403 needs the gateway log to explain it. With Static Token the agent answered 200. A chain three agents deep, each hop with its own key, policy and custodian, returned an answer in under a second. An injection was blocked at the first hop with a 400. A hop to a remote agent the caller had no grant for returned 403 at the second hop. App and policy edits take about 4 minutes to reach the gateway. Brand-new keys are picked up immediately.",
+    "userValue": "Operators can let one agent use another without giving it direct access, and calls made with an agent key pass through the gateway's sign-in and policy checks and are screened by that key's AI Guard settings. When a middle agent reports a refusal, the gateway log shows which hop and which policy stopped the work. Key callers must be paired with Static Token, which avoids the most common setup failure. Calls made with a person's sign-in are a weaker story, because they were not screened by AI Guard in the one setup tested.",
+    "components": [
+      "Privilege gateway (Remote Agent application with A2A route)",
+      "Privilege console: Remote Agent application settings (front-end path, backend address, agent card discovery, Auth Mode)",
+      "Agent Registry: calling agent with the a2a scope, custodian, expiry and tool and agent access step",
+      "Agent key",
+      "AI Guard on the calling agent's key",
+      "Remote agent backend (demo A2A agent)",
+      "Gateway log"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/privilege/GATEWAY-AGENT-TO-AGENT-A2A.md"
+    ],
+    "unverified": [
+      "Calling an agent directly on its own public host with a real token was not run, so the agent's acceptance rules are not confirmed by a live call.",
+      "Gateway acceptance of workload-identity tokens is not proven, and a non-human identity with no key behind it authenticates nobody, so this path should not be promised to customers.",
+      "The Pass Agent Token success path was not tested because no caller held a workload identity; only the refusal was measured.",
+      "User Token mode for A2A was not exercised with a credential stored in the vault.",
+      "Calls made with a person's sign-in were not screened by AI Guard in the one setup tested; other setups were not tested.",
+      "Whether every hop in a chain is logged was observed in the one chain tested and not across other chains.",
+      "The agent card address and certificate behavior was observed on a single agent and may differ for others."
+    ]
+  },
+  {
+    "id": "a2a-guardrails",
+    "name": "A2A guardrails",
+    "page": "mcp",
+    "why": "An agent that receives text from another agent can be hit with prompt injection, impersonation, jailbreak or data-exfiltration requests. The gateway needs to screen agent-to-agent messages before the remote agent sees them.",
+    "how": "When an agent calls a Remote Agent through the gateway, the gateway inspects the whole request body (every text part, data part and the metadata, for both single and streaming messages) using the AI Guard settings on the calling agent's key. AI Guard is configured per agent key, not per app, so two callers can be treated differently for the same message. Each detector category has an alert threshold and a block threshold. A score at or above the block threshold stops the message with an HTTP 400 and a JSON-RPC error that does not name the category. A score between the two raises an alert and lets the message through. Threshold values are an operator choice per key, and the values on the one key tested are not product defaults. On that key a plain injection was blocked. Jailbreak, orchestrator-impersonation and some hidden-instruction wording produced alerts only, and the results for the hidden-instruction case varied between runs. Personal data and an outbound-exfiltration request produced no record. In general, most detectors on that key alerted rather than blocked. Each decision writes a plain log line and a structured AI Guard record with OWASP, MITRE ATLAS and NIST AI RMF mappings. When the call used an agent key, replies from the remote agent are also screened; one reply carrying hostile text in its agent card was seen blocked.",
+    "userValue": "Operators can stop the plainest agent-to-agent attacks before they reach the remote agent, and can see which attacks were only alerted. Security and audit teams get structured records they can search. Thresholds are an operator choice per calling agent, but a flagged message is often not blocked, so thresholds need tuning before relying on blocking.",
+    "components": [
+      "Privilege gateway (A2A inspection path)",
+      "AI Guard on the calling agent's key (Runtime Protection: enable switch, Fail Closed, detectors and thresholds)",
+      "Remote Agent application and the agent key's a2a scope",
+      "Demo chain of main agent, worker agent and MCP tool",
+      "Gateway log and AI Guard records"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/privilege/GATEWAY-GUARDRAILS-FOR-A2A.md",
+      "AI-DEMO2/privilege/A2A-GUARDRAILS-DEMO.md",
+      "AI-DEMO2/privilege/GATEWAY-AIGUARD.md"
+    ],
+    "unverified": [
+      "An external detector on A2A calls was not tested; it was off on the measured key.",
+      "Sanitize and alert handling of a remote agent's reply was not tested; only one blocked reply was observed, and its error code rests on that single observation.",
+      "One hidden-instruction injection was blocked in an earlier run but only alerted in a later rerun, so that block did not reproduce; only the plain-injection block is consistently reproduced.",
+      "Personal data and exfiltration were not blocked at the thresholds tested, and the personal-data category has no block threshold on that key.",
+      "Personal data and outbound exfiltration wrote no log record on the measured key, so an operator would not see them without lowering the threshold.",
+      "Calls made with a person's sign-in were found to be unscreened in one setup only; other setups were not tested.",
+      "The release-note claims about per-application AI Guard and skill-targeted policies were not read or measured; the verified behavior here is per agent key.",
+      "The gateway log prints live agent keys in some guardrail lines, and the log should be treated as a secret; whether this is fixed on current builds was not checked."
+    ]
+  },
+  {
+    "id": "backend-auth-modes",
+    "name": "Backend auth modes",
+    "page": "mcp",
+    "why": "Backends need a credential the gateway can send, but the caller's own gateway key must never reach the backend. Customers need to choose, per app, which credential (if any) lands on the last hop.",
+    "how": "Each MCP Server or Remote Agent application has an Auth Mode that decides what the backend receives after sign-in and policy pass. The caller's gateway key is never forwarded. The documentation lists four modes for Remote Agent apps. None sends no Authorization header. Static Token sends a configured bearer token. User Token is documented to send the credential in the user's Privilege vault, and nothing if the vault is empty. Pass Agent Token is documented to forward a workload assertion that the caller presents, and the gateway refuses the call with a 403 when the caller has none. A remote agent set to Pass Agent Token therefore refuses callers that use keys, so key callers need Static Token. Only Pass Agent Token is refused at the gateway. On the other modes the call reaches the backend, which must refuse calls it dislikes. In testing, None reached the agent, which returned its own 401. Static Token returned 200 for a person and for an agent key. User Token with an empty vault forwarded no header and logged that no vault credential was found. Pass Agent Token refused both a person and an agent key. On an MCP aggregate, a member whose backend required a bearer stopped failing as Unauthorized once it was switched to Static Token with a matching backend value. A bare 403 can only be explained from the gateway log, which shows either a policy denial or that a passed-through token was required. App and policy edits generally take about 4 minutes to reach the gateway. For an Auth Mode change, that figure and a quick effect seen in one run have not been reconciled, so after a mode change allow up to about 4 minutes before judging the result.",
+    "userValue": "Operators can connect a backend that needs a bearer without exposing the caller's key, and can compare the modes on the same call. A 403 from Pass Agent Token means the caller presented no workload assertion; it is not proof that the backend expects one. After changing a mode, wait a few minutes before concluding that it did not take.",
+    "components": [
+      "Privilege gateway (credential forwarding per app)",
+      "Privilege console: Add and Edit application, Auth Mode field (Remote Agent and MCP Server apps)",
+      "Static Token field on the application",
+      "Privilege vault (per user and app, for User Token)",
+      "Backend agents and MCP servers that require a bearer",
+      "MCP Aggregate member apps",
+      "Gateway log"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/privilege/GATEWAY-A2A-AUTH-MODES-COMPARED.md",
+      "AI-DEMO2/privilege/AUTH-MODES-DEMO.md",
+      "AI-DEMO2/privilege/AUTH-MODES-MCP-BACKENDS.md",
+      "AI-DEMO2/privilege/GATEWAY-AGGREGATE-APPS.md"
+    ],
+    "unverified": [
+      "The exact set of four Auth Modes comes partly from documentation and may differ by console build.",
+      "How quickly an Auth Mode change reaches the gateway is unresolved: app and policy edits were measured at about 4 minutes, but a mode change on a test app took effect quickly in one run.",
+      "User Token with a credential actually stored in the vault was not tested, and how the vault gets populated was not established.",
+      "A Secrets Hub connection was tested and did not populate the user vault.",
+      "The Pass Agent Token success path was not tested for A2A or MCP, because gateway acceptance of workload-identity tokens is not proven and no demo caller holds one.",
+      "Pass Agent Token on an MCP backend was not tested; the refusal was measured only for Remote Agents.",
+      "The OAuth mode listed for MCP apps did not work in the one test and was not retested, so it is not recommended here.",
+      "Static Token on an MCP backend was measured through an aggregate member only.",
+      "The forwarded bearer value was not confirmed in the gateway log on the first run.",
+      "Which mode applies when none is picked is documented as Static Token if a token is configured and otherwise None; this was not measured."
+    ]
+  },
+  {
+    "id": "per-credential-inspection-policy-aiguard",
+    "name": "Per-credential inspection policy (AI Guard)",
+    "page": "oversight",
+    "why": "A single gateway-wide guardrail cannot fit every caller. Different agents and keys need different treatment, and a team wants to watch a new policy before it enforces it. The policy should attach to the credential, not the network.",
+    "how": "AI Guard is an inspection policy configured per agent key, not per app. It is set in the Runtime Protection step of the Agent Registry wizard. The screen has an Enable AI Guard switch and a Fail Closed switch, where off means fail open. It also has built-in detectors, documented as 11, each with alert, sanitize and block thresholds on a 0 to 1 score, where the strongest threshold reached sets the action. An optional External Guardrail sends text to an operator-run HTTP service, with a URL, timeout, auth header and Block Agreement setting. Screening of agent-to-agent calls made with a key is verified: the key's settings were applied to the message, a plain injection was blocked, and two keys were seen treating the same message differently. Alert is documented to record a finding without blocking, so one key can observe while another enforces. Threshold values seen in testing came from one key and are not defaults. At the settings tested, most detectors alerted rather than blocked. Tool-call arguments are not inspected by this control.",
+    "userValue": "An operator can set different inspection per agent key and read the resulting events. On agent-to-agent calls, a block returns a security error instead of an opaque failure. Alert is documented as a way to observe before enforcing, but that sequence has not been demonstrated end to end. The control should not be offered as protection against poisoned tools.",
+    "components": [
+      "Privilege gateway (inspection runs in the request path)",
+      "Privilege console: Agent Registry wizard, Runtime Protection step",
+      "Agent key",
+      "External Guardrail detector and ML Sidecar (optional HTTP service)",
+      "Fail Closed setting",
+      "Gateway log (AI Guard records)"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/privilege/GATEWAY-AIGUARD.md",
+      "AI-DEMO2/privilege/GATEWAY-GUARDRAILS-AND-THE-EXTERNAL-DETECTOR.md",
+      "AI-DEMO2/privilege/GATEWAY-LLM-ROUTING-AND-VIRTUAL-KEYS.md",
+      "AI-DEMO2/privilege/AUDIT-EVIDENCE-COMPLIANCE.md",
+      "AI-DEMO2/docs/privilege-aiguard-training.md"
+    ],
+    "unverified": [
+      "Screening on the model route and the MCP leg from an agent key's settings is unsettled. Documentation says one key's settings apply to every scope it has, but only agent-to-agent screening is verified. A guardrail block on a virtual key was seen on the model route in a few requests, and a block of a tool result was seen in one agent-to-agent chain only. A sidecar verdict blocked on the model path, and with Block Agreement off it did not block an A2A message in one test.",
+      "Whether virtual-key guardrail settings exist separately from agent-key settings is not settled by the documentation.",
+      "One key set to alert-only with its events followed end to end while another enforced was not recorded on the model route.",
+      "Alert and sanitize actions as seen by a caller were not tested; alerts and sanitized text are documented as never reaching the client, with only the gateway log showing them.",
+      "Fail Closed behavior when the detector errors or times out was not tested; only the intended meaning of the switch is documented.",
+      "The thresholds seen are from one tested key. Documentation says most detectors only alert on default thresholds, and the default was not separately measured.",
+      "The meaning of a threshold set to off as 0 was inferred from the settings screen, not from product documentation.",
+      "Tool-argument content was not caught and tool poisoning passed; the mcp scope filters tools only.",
+      "The console's detector grouping may differ from the grouping in the documents, and the console headings were not checked against the guide.",
+      "The release-note claim of application-level AI Guard conflicts with per-key configuration and was not measured."
+    ]
+  },
+  {
+    "id": "cedar-per-call-policy",
+    "name": "Cedar per-call policy",
+    "page": "oversight",
+    "why": "The customer needs a rule that decides allow, refuse or hold for each individual agent call at the gateway. The rule can depend on who the caller is, which tool and arguments it targets, and what the token or approval state says, and it is written as policy text rather than code.",
+    "how": "An admin writes AI policies in Cedar under Access Management, AI Policies, usually starting from a template card. A policy can refuse a tool call, hold a tool call for a human instead of refusing it, or withhold content from a model reply. The editor exposes the caller (a user, an agent or a group), the tool being called, the application, the scopes on the presented token, the scopes on the agent key, the named arguments of the call, the number of approvals so far, and AI Guard findings such as the kinds of personal data detected. Annotations for the grant, its lifetime, the request lifetime, the approvers and a reason set the hold behaviour. A policy is either Candidate, which is validated and stored but never enforced, or Active, which is enforced. A policy created through the API keeps an empty state until it is set to Active. Denials and holds are written to the gateway log. Cedar reading the scopes of a PingFederate token was measured on one PingFederate-token door only and should not be generalised to other routes. App and policy edits take about 4 minutes to reach the gateway. Separately, grant rules can carry required claims, which narrow a rule to callers presenting particular token claims; that is a claim gate, not Cedar.",
+    "userValue": "A security owner can write a rule such as 'refuse this tool unless the caller holds a given scope' and have the gateway enforce it once the policy has reached the gateway, about 4 minutes after an edit. Scope rules based on a PingFederate token were measured on one door only. The operator can keep a rule at Candidate and switch it to Active when ready.",
+    "components": [
+      "Privilege gateway (MCP and LLM paths)",
+      "AI Policies in the Privilege console (policy text, templates, state)",
+      "Entity registry for users, agents, groups and resources",
+      "Grant rules with required claims (a claim gate, not Cedar)",
+      "Agent key and agent scopes",
+      "AI Guard findings",
+      "Approval requests (hold path)"
+    ],
+    "sources": [
+      "AI-DEMO2/privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md",
+      "AI-DEMO2/privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md",
+      "AI-DEMO2/privilege/AUDIT-EVIDENCE-COMPLIANCE.md",
+      "AI-DEMO2/privilege/AGENT-APPROVALS-DEMO.md",
+      "AI-DEMO2/privilege/PF-TOKEN-ON-PRIVILEGE-STATUS.md"
+    ],
+    "unverified": [
+      "The source documents disagree on whether PingFederate token scopes work in Cedar: one marks them untested and a later one reports a scope-based Cedar block on a single PingFederate-token door. The measurement covers that door only and other routes were not tested.",
+      "Token claims, the acting subject and the client id are not readable in Cedar today; the source says this is planned for a later release.",
+      "Whether the engine rejects claim attributes that the editor does not list was not tested.",
+      "Whether the gateway accepts workload-identity tokens on the MCP path was not tested, and a non-human identity with no key behind it authenticates nobody.",
+      "Claim-conditioned tiers using dotted claim paths come from console text, not from a run.",
+      "Matching a PingFederate user to a Privilege principal by email alias is inferred and was not tested.",
+      "The group-gated hold example is adapted from a template and was not run.",
+      "Using PingFederate as an identity provider for Privilege was not tested.",
+      "Coverage of Cedar attributes beyond those listed was not confirmed.",
+      "Enforcement of a rule that depends on scopes of a PingFederate token on routes other than the one measured was not tested."
+    ]
+  },
+  {
+    "id": "human-in-the-loop-approvals",
+    "name": "Human-in-the-loop approvals",
+    "page": "oversight",
+    "why": "Some agent actions are too high-risk to let an agent finish alone. The customer needs a human to decide before the action proceeds, with a record of who decided.",
+    "how": "There are two separate paths. Policy hold: a Cedar policy can hold a tool call for a human instead of refusing it, and the hold is written to the gateway log. Demo approval path: an approval request is created through the Privilege API (type App, an MCP action on an application, approvers set, one hour expiry) and its status moves from New to Pending. The named approver opens Access Request Approvals, then HITL Requests, finds the request under Awaiting, and approves or denies it. The client retries after approval. Self-approval through the API is refused, so the decision belongs to a person. The console is the only notification path in the demo, because Slack and Mattermost notifications do not dispatch on the agentless demo tenant.",
+    "userValue": "The approver sees who requested which app and tool, the approvers and the expiry, and decides in the console. The operator gets an agent that pauses for a person. The approval is documented to be recorded in the Privilege audit log with the decider, but that entry was not shown in a live run.",
+    "components": [
+      "Privilege gateway (hold path)",
+      "Privilege console: Access Request Approvals, HITL Requests",
+      "Approval request API (MCP tool grants)",
+      "Agent approvals (per-call hold by policy; a different path from approval requests)",
+      "Cedar AI policy with approvers and approval count",
+      "Agent key",
+      "Audit log"
+    ],
+    "sources": [
+      "AI-DEMO2/privilege/AGENT-APPROVALS-DEMO.md",
+      "AI-DEMO2/privilege/PF-CLAIMS-IN-CEDAR-POLICIES.md",
+      "AI-DEMO2/privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md",
+      "AI-DEMO2/docs/privilege-agent-features.md"
+    ],
+    "unverified": [
+      "Teams approval notifications were not tested.",
+      "Release notes describe transaction grants bound to the exact call, capability grants for any call to the target until expiry, multiple approvers and an Archive tab; none of these were tested.",
+      "That decisions are final, that grants expire on schedule, and that requests archive after a day come from documentation and were not observed.",
+      "The audit entry naming the decider was not shown in a live run, so recording of the decider is documented but not demonstrated.",
+      "Treating a Recognize call as a human-in-the-loop step was not tested.",
+      "The Approver Policy wizard offers only infrastructure resource types, so it was not shown to cover MCP tool approvals.",
+      "Whether PingFederate token claims reach an approval was not tested."
+    ]
+  },
+  {
+    "id": "attack-lab",
+    "name": "Attack Lab",
+    "page": "oversight",
+    "why": "A customer needs to see attacks run against the demo agent and to know which component stopped each one. A model refusal or a local validator rejection must not be presented as a Privilege block. The Attack Lab is a demo tool built around Privilege, not a Privilege product feature.",
+    "how": "The Attack Lab is a tab on the LLM gateway demo page. It is designed to run each scenario through an existing safe path and attribute the result to the component that observed it. Tool Abuse is described as going through the demo backend, a token exchange, the Authorize resource-owner check and a balance read; it is a non-mutating simulation and not an AI Guard verdict. Tool Poisoning is described as going from hostile MCP tool metadata to a model proposal to the MCP tool-call boundary. Schema Violation is designed to send invalid arguments to the MCP input-schema boundary and to be labelled a local schema rejection unless the response reports a Privilege decision. Inter-Agent Abuse is designed to send agent-to-agent discovery and message probes to the specialist agent's gate and show the HTTP response. Malicious Content is designed to send a safe awareness sample through the Privilege LLM Gateway to the model provider, only on explicit action. A fixture mode, labelled as not sent to Privilege, is also described. The presenter is advised to read the enforcement component and reachability fields aloud, and to treat 'no gateway decision' as a valid outcome. This description comes from planning and training documents; no live run of the scenarios is recorded.",
+    "userValue": "The tab is designed so a presenter can show which component handled each scenario, and so an operator can tell a Privilege block from a provider refusal. Nothing is meant to be labelled as blocked by Privilege unless a Privilege deny is reported. This attribution has not been shown in a recorded live run.",
+    "components": [
+      "Attack Lab tab on the LLM gateway demo page",
+      "Demo backend and scenario runners",
+      "Privilege token exchange and Authorize resource-owner check (Tool Abuse)",
+      "Hostile MCP demo server (Tool Poisoning)",
+      "MCP input-schema boundary (Schema Violation)",
+      "Agent-to-agent specialist gate (Inter-Agent Abuse)",
+      "Privilege LLM Gateway and model provider (Malicious Content)",
+      "AI Guard (only where a real verdict is reported)"
+    ],
+    "sources": [
+      "AI-DEMO2/docs/privilege-aiguard-training.md",
+      "AI-DEMO2/docs/privilege-agent-features.md"
+    ],
+    "unverified": [
+      "No live run of any scenario is recorded, so the attribution to a named component for each scenario is the design and not a measured result.",
+      "The sources disagree on the number of attack types: one says eight, while the planning document and the AI Guard training guide list five. The count was not settled.",
+      "The planning document's task checkboxes are all unchecked although its status line says the five-scenario tab is implemented.",
+      "A live Tool Poisoning denial needs a specific hostile-server policy and a synced demo identity; this was not confirmed.",
+      "The sequence view that separates gateway deny, local schema rejection, provider refusal and no verdict, and the planned colour-contrast audit, are plan steps that were not confirmed as built.",
+      "The fixture mode and the presenter flow were not shown running."
+    ]
+  },
+  {
+    "id": "audit-evidence",
+    "name": "Audit evidence",
+    "page": "oversight",
+    "why": "At audit close the customer needs evidence of what the gateway decided. AI Guard verdicts carry compliance framework mappings, and policy denials are documented to carry the policy and the principal involved, though not a framework mapping.",
+    "how": "The gateway writes structured events. Three event types were verified. A request-side block by AI Guard carries compliance mappings (MITRE ATLAS, NIST AI RMF, OWASP LLM), findings, and request, span and trace ids for joining to the trace view. A response-side AI Guard withhold of personal data is a separate event. A Cedar policy denial of an LLM reply is a different mechanism from the AI Guard withhold; its event carries the decision, policy ids, principal, agent key and grant shape, and no compliance mapping was shown on it. The demo's Attack Lab is designed to produce these events so they can be shown in the audit feed. Events also carry tenant, user, virtual key id and the framework ids where a mapping exists. The gateway traffic log is kept apart from the SIEM console-audit feed, which is documented as recording who changed a policy or key but not traffic.",
+    "userValue": "The auditor or operator can see, for a call blocked or withheld by AI Guard, which framework control it maps to. For a policy denial they can see which policy decided and which principal was involved, but not a framework mapping.",
+    "components": [
+      "Gateway log",
+      "AI Guard (request and response verdicts)",
+      "Cedar AI policy denials",
+      "Search index and dashboard used for the SIEM feed",
+      "SIEM console-audit feed",
+      "Trace correlation ids",
+      "Attack Lab"
+    ],
+    "sources": [
+      "AI-DEMO2/privilege/AUDIT-EVIDENCE-COMPLIANCE.md",
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "AI-DEMO2/docs/privilege-aiguard-training.md"
+    ],
+    "unverified": [
+      "The feature index says every governed call leaves an event with an enforcement-component field. Only three event types were verified, and that field does not appear in their verified shapes.",
+      "The SIEM index contents were not queried and the console-audit feed's live output was not shown, so who changed a policy or key was not demonstrated and the feed's separation from the traffic log rests on documentation.",
+      "The mapping of controls to frameworks on the sales deck was not checked against a live tenant.",
+      "Verification covers one tenant and one gateway build; other tenants and builds were not covered.",
+      "Whether a policy denial can carry a framework mapping was not shown; none appeared on the verified denial event.",
+      "No Attack Lab run was recorded as producing audit events."
+    ]
+  },
+  {
+    "id": "secrets-hub",
+    "name": "Secrets Hub",
+    "page": "platform",
+    "why": "Customers already keep secrets in an external store, here Google Cloud Secret Manager. Privilege lets an admin see what is in that store and read a value on demand. It is also designed to let an admin define who may read a secret and until when, instead of sharing a credential, but that enforcement for a granted user was not shown.",
+    "how": "An admin adds a hub in the Privilege console (Secrets Hub, Add Hubs, Integrate on the GCP card), names it, chooses an account type (Project, Organization or Folder; the guide recommends Project), and pastes a Google service account key. Syncing calls Google to search projects, list secrets and list secret versions, and reads names and versions, not values. A secret's value is fetched from Google only when an admin clicks View, using the hub's service account. Access is defined with the hub's Policy button: pick a secret, choose Read or Write, name users or groups, and set an expiry. Creating the policy stores it in Privilege and makes no call to Google. The Access Summary tab lists policies with secret, permission, users and expiry. The guide says the Secret Manager Admin role is required and the Cloud Resource Manager API must be enabled or sync shows 0 secrets. The pasted key was observed once in clear text on the saved hub record in the console audit feed.",
+    "userValue": "For an admin, one console shows which external secrets Privilege can reach, a View action that reads the current value from Google on demand, and a stored access policy with an expiry. The secret value is not copied into Privilege on sync. Whether a granted user can actually read the secret under that policy was not tested.",
+    "components": [
+      "Secrets Hub in the Privilege console (GCP hub, Project, Organization or Folder account type)",
+      "Google Cloud Secret Manager (the external store)",
+      "Google Cloud Resource Manager API (needed for sync)",
+      "Google service account key with Secret Manager roles",
+      "Privilege secret access policy (read or write, users or groups, expiry)",
+      "Hub Access Summary tab",
+      "Privilege console audit feed",
+      "Google Cloud audit log"
+    ],
+    "sources": [
+      "AI-DEMO2/privilege/SECRETS-HUB-WITH-GOOGLE-SECRET-MANAGER.md",
+      "AI-DEMO2/privilege/SECRETS-HUB-DEMO.md",
+      "AI-DEMO2/docs/privilege-agent-features.md"
+    ],
+    "unverified": [
+      "Enforcement of a secret access policy for a granted user was not shown: no granted user was tested, so who may read a secret and until when is stored but not shown to be enforced.",
+      "Creating, rotating or deleting a secret from the console was not tested.",
+      "What a granted user sees, or where they read the secret, was not tested, so the expiring grant was not shown working for an end user.",
+      "Organization and Folder hub types were not set up; only Project was tested.",
+      "AWS Secrets Manager, Azure Key Vault, Delinea and CyberArk were not covered.",
+      "The sources disagree on the Privilege audit event for viewing a secret value: the guide says it is recorded, while the demo notes say the matching event was not located. The event is not shown here as fact.",
+      "The sources disagree on whether the feature was run live: the feature index says it came from the guide only, while the demo notes record live console runs. The guide's measurements came from a separate test project.",
+      "Whether least-privilege roles instead of Secret Manager Admin work was not tested.",
+      "The clear-text key in the audit feed was seen once on the saved hub record and was not checked in a SIEM; the guide says later edits did not record it again.",
+      "No test showed a hub supplying a credential to an app or agent.",
+      "In the demo environment an existing long-lived grant already covers the secret, so a demo of expiry needs a user without that grant."
+    ]
+  },
+  {
+    "id": "sensor-enforcement",
+    "name": "Sensor enforcement",
+    "page": "platform",
+    "why": "Detecting AI workloads on a host is not enough when an unapproved program must stop running. Enforcement is designed to let the Privilege sensor terminate processes that a Shadow AI policy denies, so detection can become action on the host.",
+    "how": "The Privilege sensor runs on the host, documented as either a Docker container or a Helm-installed daemonset on Kubernetes, and attaches kernel programs to watch process starts. Only a Docker host was used in testing. Its enforcement mode is set by command-line flags (off, audit or enforce; default off). Only policies with the Deny action lead to termination. In audit mode a denied process runs and is counted as would-kill; in enforce mode it is terminated and counted as killed. Termination happens after the process starts, not before. A sensor refuses to start in enforce mode without a scope, which is documented as a namespace or all namespaces. The docs recommend audit mode first. The sensor reports its capability as a tier, where terminate means it can kill processes; this comes from kernel features rather than extra privileges. For identity, the Docker guide is documented to have the sensor hold its own signing key in a volume, and the Kubernetes guide is documented to have it use a cluster-signed service account token and hold no key; neither was tested.",
+    "userValue": "An operator can run a deny rule in audit mode, read how often it would have fired in the sensor stats line, and then switch to enforce, as demonstrated on a Docker host with standalone flags. With JSON output each event also shows the policy action and rule. Kubernetes behaviour and console-pushed rules were not tested.",
+    "components": [
+      "Privilege sensor (Docker image, or Helm chart on Kubernetes)",
+      "Privilege controller (supplies enforcement policy)",
+      "Shadow AI policy in the console (Allow, Deny, Monitor or Warn; kinds, names, process paths, hosts, tools, namespaces, users and groups)",
+      "Sensor command-line flags for mode, deny, scope, controller and JSON output",
+      "Sensor stats line (read, reported, killed, would-kill, tracked)",
+      "Kernel capabilities needed to attach kernel programs"
+    ],
+    "sources": [
+      "AI-DEMO2/privilege/SENSOR-ENFORCEMENT-POLICIES.md",
+      "AI-DEMO2/privilege/SENSOR-ENFORCEMENT-DEMO.md",
+      "AI-DEMO2/privilege/SENSOR-DOCKER-GUIDE.md",
+      "AI-DEMO2/privilege/SENSOR-KUBERNETES-GUIDE.md",
+      "AI-DEMO2/docs/privilege-agent-features.md"
+    ],
+    "unverified": [
+      "Kubernetes enforcement was not tested; only a Docker host was used. The Helm daemonset install and the namespace scope behaviour come from documentation.",
+      "The identity sections of the Docker and Kubernetes guides were read by keyword search only, so the Docker signing key in a volume and the Kubernetes service account token are documented claims that were not read end to end or tested. The install and verify sections were also not read end to end.",
+      "A deny rule pushed from the console was not tested; the demo ran with standalone flags only, so the console-to-sensor path, and whether console policy overrides the flags, is not demonstrated.",
+      "The feature index says the feature was verified live, but that verification covers the standalone flags-only path; the policy document says a console-sent deny rule was not tested.",
+      "Whether a tenant-wide enforcement switch sets enforce mode, and what turning it off does, was not tested.",
+      "Warn and Monitor actions were not tested.",
+      "Rules matching on path, host or tool were not tested.",
+      "A policy change arriving while the sensor runs was not tested.",
+      "Terminating matching processes that were already running was not tested.",
+      "Docker container-scoped enforcement failed in test with no container attribution, and the cause was not established, so scoping by container name is not shown to work.",
+      "Time before termination is described only as 'a moment' and was not measured.",
+      "Lower capability tiers than terminate were not seen on the test host."
+    ]
+  }
+]
