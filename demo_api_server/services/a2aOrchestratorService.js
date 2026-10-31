@@ -177,7 +177,7 @@ async function llmOrchestration({ message, vertical, stages }) {
  * a keyword heuristic on any LLM failure) then execute delegation.
  * Returns routing, execution, result and token-event evidence; never a bearer token.
  */
-async function orchestrateDelegation({ req, message, vertical, userId, mode, availableSpecialists = [], tokenEvents = [] }) {
+async function orchestrateDelegation({ req, message, vertical, userId, mode, availableSpecialists = [], tokenEvents = [], hitlChallengeId = null }) {
   appEventService.logEvent('a2a', 'info', 'A2A orchestration starting', {
     tag: 'a2a/orchestrate',
     metadata: { vertical, userId },
@@ -251,7 +251,7 @@ async function orchestrateDelegation({ req, message, vertical, userId, mode, ava
       tool: orchestrationResult.tool,
       subtask: message,
       args: {},
-    }, { req, tokenEvents, sessionId: req?.sessionID || '' });
+    }, { req, tokenEvents, sessionId: req?.sessionID || '', hitlChallengeId });
     stages.push({ stage: 'specialist', agent: orchestrationResult.specialist, ms: Date.now() - delegationStart });
     let executionResult;
     try {

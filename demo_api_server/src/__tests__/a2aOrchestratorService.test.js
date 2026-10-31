@@ -55,6 +55,30 @@ describe('a2aOrchestratorService.orchestrateDelegation — LLM path', () => {
     expect(result.agentHeader).toContain('LLM (llama.cpp)');
   });
 
+  test('a held specialist call fails the delegation with the challenge; the resend carries the approved challenge id', async () => {
+    const held = { error: 'hitl_required', challengeId: 'ch-1' };
+    callLlamaCpp.mockResolvedValue(jsonReply({ shouldDelegate: true, reason: 'sensitive record request', sensitivity: 'high' }));
+    executeA2aDelegation.mockResolvedValueOnce(JSON.stringify({
+      delegated: true, specialist: 'Records Specialist', tool: 'sensitive_patient_records',
+      scopes: ['read'], actChainDepth: 2, result: held, toolError: 'hitl_required',
+    }));
+    const first = await orchestrateDelegation({
+      req: reqStub, message: 'please pull the sensitive patient record', vertical: 'healthcare', userId: 'u1',
+    });
+    expect(first).toMatchObject({ success: false, error: 'hitl_required', result: held });
+    expect(executeA2aDelegation.mock.calls[0][2].hitlChallengeId).toBeNull();
+
+    executeA2aDelegation.mockResolvedValueOnce(JSON.stringify({
+      delegated: true, specialist: 'Records Specialist', tool: 'sensitive_patient_records',
+      scopes: ['read'], actChainDepth: 2, result: { record: 'redacted-test-data' }, toolError: null,
+    }));
+    const resent = await orchestrateDelegation({
+      req: reqStub, message: 'please pull the sensitive patient record', vertical: 'healthcare', userId: 'u1', hitlChallengeId: 'ch-1',
+    });
+    expect(executeA2aDelegation.mock.calls[1][2]).toMatchObject({ hitlChallengeId: 'ch-1' });
+    expect(resent.success).toBe(true);
+  });
+
   test('multi-tool vertical (banking): both stages run, coordinator tool reaches delegateToSpecialist', async () => {
     callLlamaCpp
       .mockResolvedValueOnce(jsonReply({ shouldDelegate: true, reason: 'investment question', sensitivity: 'medium' }))

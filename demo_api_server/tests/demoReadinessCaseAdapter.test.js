@@ -553,6 +553,47 @@ describe('A2A specialist calls held for approval', () => {
   });
 });
 
+describe('A2A orchestrator steps', () => {
+  const uc25 = buildDemoReadinessCatalog().find((row) => row.id === 'UC2.5');
+  const run = (request, vertical = 'airlines') => createCaseOperations({ request, provider: PROVIDER, expectedIssuer: ISSUER })
+    .executeReadinessCase({ caseRow: uc25, vertical, behavior: uc25.expectedBehaviorByVertical[vertical], authorization: uc25.authorizationContractByVertical[vertical] });
+  const calls = (request) => request.mock.calls.map(([path, options]) => `${options?.method} ${path}`);
+  const DELIVERED = { status: 200, body: { success: true, toolsCalled: ['orchestrate_delegation'], tokenEvents: [] } };
+  const HELD = { status: 502, body: { success: false, error: 'delegation_execution_failed', delegationDecision: { error: 'hitl_required', result: { error: 'hitl_required', challengeId: 'ch-1' } } } };
+  const lane = (messages, approve = { status: 200, body: {} }) => {
+    const queue = [...messages];
+    return jest.fn(async (path) => {
+      if (path === '/api/verticals/active') return { status: 204, body: null };
+      if (path === '/api/a2a/init') return { status: 200, body: { initialized: true } };
+      if (path === '/api/mcp/decision/ch-1/approve') return approve;
+      return queue.shift();
+    });
+  };
+
+  test('runs init then one message with the step\'s trigger text', async () => {
+    const request = lane([DELIVERED]);
+    const result = await run(request);
+    expect(calls(request)).toEqual(['POST /api/verticals/active', 'POST /api/a2a/init', 'POST /api/a2a/message']);
+    expect(request.mock.calls[2][1].body).toEqual({ message: uc25.expectedBehaviorByVertical.airlines.triggerText, vertical: 'airlines' });
+    expect(result.observed).toBe('PERMIT');
+  });
+
+  test('a delegation the gateway held is approved and resent once with the challenge', async () => {
+    const request = lane([HELD, DELIVERED]);
+    await run(request);
+    expect(calls(request).slice(2)).toEqual(['POST /api/a2a/message', 'POST /api/mcp/decision/ch-1/approve', 'POST /api/a2a/message']);
+    expect(request.mock.calls[4][1].body).toMatchObject({ hitlChallengeId: 'ch-1' });
+  });
+
+  test('a failed approval is the outcome, and a failed init stops the step', async () => {
+    const refused = lane([HELD], { status: 403, body: {} });
+    await expect(run(refused)).resolves.toEqual({ observed: 'HITL_APPROVE_HTTP_403', evidence: {} });
+    expect(calls(refused).filter((call) => call.endsWith('/api/a2a/message'))).toHaveLength(1);
+    const noInit = jest.fn(async (path) => (path === '/api/a2a/init' ? { status: 401, body: {} } : { status: 204, body: null }));
+    await expect(run(noInit)).resolves.toEqual({ observed: 'HTTP_401', evidence: {} });
+  });
+});
+
 describe('attack steps', () => {
   const catalog = buildDemoReadinessCatalog();
   const uc5 = catalog.find((row) => row.id === 'UC5');
