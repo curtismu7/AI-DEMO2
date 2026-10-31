@@ -19,7 +19,7 @@ name: Build A2A demo image
 # PRIVILEGE_A2A_LAB_READ_TOKEN (a fine-grained token with Contents: read on it).
 #
 # ONE-TIME SETUP (UI only, cannot be done from code): on
-# github.com/users/cmuir_pingcorp/packages/container/privilege-a2a-demo open
+# github.com/orgs/ping-sandbox/packages/container/privilege-a2a-demo open
 # Package settings -> "Manage Actions access" and add this repository with the
 # Write role. Until then the push fails with "denied: permission_denied:
 # write_package" — same trap as build-images.yml documents. The Dockerfile's
@@ -44,7 +44,7 @@ permissions:
 jobs:
   build:
     name: Build and push privilege-a2a-demo (arm64)
-    runs-on: [self-hosted, macOS]
+    runs-on: ubuntu-latest
     permissions:
       contents: read
       packages: write
@@ -73,33 +73,11 @@ jobs:
           token: ${{ secrets.PRIVILEGE_A2A_LAB_READ_TOKEN }}
           path: lab-source
           persist-credentials: false
-      # Same job-scoped Docker config and live-socket steps as build-images.yml;
-      # see the comments there for why each one exists (launchd runners cannot
-      # use the keychain, and an OrbStack runner's default socket can be dead).
-      - name: Use a job-scoped Docker config (no keychain)
-        run: |
-          set -euo pipefail
-          cfg="$RUNNER_TEMP/docker-config"
-          mkdir -p "$cfg"
-          ln -s "$HOME/.docker/cli-plugins" "$cfg/cli-plugins"
-          echo '{"auths":{"placeholder.invalid":{}}}' > "$cfg/config.json"
-          echo "DOCKER_CONFIG=$cfg" >> "$GITHUB_ENV"
-      - name: Use a live Docker socket
-        run: |
-          set -euo pipefail
-          if docker info >/dev/null 2>&1; then
-            echo "default Docker socket is live"
-            exit 0
-          fi
-          for s in "$HOME/.orbstack/run/docker.sock" "$HOME/.docker/run/docker.sock"; do
-            if [ -S "$s" ] && DOCKER_HOST="unix://$s" docker info >/dev/null 2>&1; then
-              echo "DOCKER_HOST=unix://$s" >> "$GITHUB_ENV"
-              echo "default Docker socket is dead; using $s"
-              exit 0
-            fi
-          done
-          echo "no live Docker socket found (is OrbStack running on this runner?)" >&2
-          exit 1
+      # The SE cluster nodes are Graviton (arm64) and ubuntu-latest is amd64, so
+      # QEMU emulates arm64 for the buildx build below (see build-images.yml).
+      - uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64
       - uses: docker/setup-buildx-action@v4
       - uses: docker/login-action@v4
         with:
