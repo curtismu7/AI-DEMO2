@@ -503,7 +503,9 @@ const RAW_USE_CASES = [
       gw:    'Not involved in the probe leg — the probe calls the decision endpoint directly, same contract the gateway uses.',
       authz: 'Evaluates ActChainDepth and NestedActClientId; DENYs invalid_a2a_generalist when the actor does not match the registered generalist.',
     },
-    primaryTool: 'sensitive_holdings',
+    // Banking has no per-vertical override, so its base is UC2's: the Investment
+    // Advisor's default tool, not the investment vertical's sensitive_holdings.
+    primaryTool: 'get_portfolio_summary',
     perVertical: A2A_MISMATCH_PER_VERTICAL,
   },
   {

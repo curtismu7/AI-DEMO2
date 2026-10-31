@@ -8,7 +8,7 @@ name: Build A2A demo image
 # `docker buildx build ... --push` did. DEPLOYING stays manual:
 #   kubectl -n <ns> set image deploy/mainagentdemo '*=...:sha-<sha>'
 #   kubectl -n <ns> rollout restart deploy/workeragentdemo   (and mcpdemo if it changed)
-# then bump the pin in standalone/privilege-a2a-anthropic-demo/k8s/deployment.yaml.
+# then bump the pin in k8s/privilege-a2a/deployment.yaml.
 #
 # ONE-TIME SETUP (UI only, cannot be done from code): on
 # github.com/users/cmuir_pingcorp/packages/container/privilege-a2a-demo open

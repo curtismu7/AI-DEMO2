@@ -138,7 +138,7 @@ const LB_GROUPS = {
 export const LB_NODES = [
   { id: "client", group: "client", label: "MCP clients / browser", sub: ["LM Studio · demo Privilege page", "https://mcpgw.ai-demo.ping-devops.com/<App>/mcp"], x: 0, y: 20 },
   { id: "ingress", group: "lb", label: "nginx-public ingress", sub: ["TLS :443 → mcpgw-lb :8623"], x: 330, y: 20 },
-  { id: "lb", group: "lb", label: "mcpgw-lb ×2 · HAProxy 3.0", sub: ["balance hdr(X-Forwarded-For)", "hash-type consistent → one node per client", "health GET / every 10s · fall 2 / rise 60", "X-Served-By: gateway-N"], x: 660, y: 20 },
+  { id: "lb", group: "lb", label: "mcpgw-lb ×2 · HAProxy 3.0", sub: ["balance hash (X-Forwarded-For + app)", "hash-type consistent → one node per client per app", "health GET / every 10s · fall 2 / rise 60", "X-Served-By: gateway-N"], x: 660, y: 20 },
   { id: "redis", group: "state", label: "privilege-redis", sub: ["shared client registry — tokens are NOT shared"], x: 660, y: 240 },
   { id: "gw1", group: "gw", label: "gateway-1", sub: ["agentless-mcpgw · curtismuir", ":8623 https · 9/9 sidecars"], x: 330, y: 460 },
   { id: "gw2", group: "gw", label: "gateway-2", sub: ["agentless-mcpgw · cmuir", ":8623 http · sidecars"], x: 760, y: 460 },
@@ -168,7 +168,7 @@ const LB_STEPS = [
   { heading: "Request path — every call" },
   { n: 1, text: "The client calls https://mcpgw.ai-demo.ping-devops.com/<App>/mcp over HTTPS." },
   { n: 2, text: "The nginx-public ingress terminates TLS and routes to Service mcpgw-lb on :8623." },
-  { n: 3, text: "One of two HAProxy pods answers. balance hdr(X-Forwarded-For) with hash-type consistent pins every request from one client address to the same gateway node — no stick table, both pods hash and probe identically. Every response carries X-Served-By: gateway-N, which is how the demo proves who answered." },
+  { n: 3, text: "One of two HAProxy pods answers. balance hash on client address plus app (the first path segment) with hash-type consistent pins every request for one app from one client to the same gateway node, so one client's apps spread over all gateways. The global /callback follows a node tag the authorize redirect leaves in state — no stick table, both pods hash and probe identically. Every response carries X-Served-By: gateway-N, which is how the demo proves who answered." },
   { n: 4, text: "A different client address can hash to the other node; both pods make the same choice for the same address." },
   { n: 5, text: "Each gateway node reads client registrations from the shared privilege-redis, so a client registered once is known everywhere. Tokens are not shared." },
   { n: 6, text: "The second node reads the same registry — a client moved to it by a failover is known, but signs in again because its token was minted by the other node." },

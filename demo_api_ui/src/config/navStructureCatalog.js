@@ -10,8 +10,8 @@ export const NAV_STRUCTURE_CATALOG = [
   { label: "Skin Studio" },
   { label: "Agent Privilege", children: [
     "AI Guard", "Protocol Playground", "AI Guard Client", "LLM Gateway", "Intent Inspector", "Audit Agent",
-    "Agent Privilege Guide", "Agent Gateway Authorization", "Agent Privilege Diagrams", "Agent IAM Core",
-    "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege Topologies", "External Agent App Diagrams", "Agent Privilege · MCP",
+    "Agent Gateway Authorization", "Agent IAM Core",
+    "Agent Gateway", "PingOne Authorize", "Agent Privilege · LLM", "Agent Privilege · MCP",
     "Malicious MCP Catalog", "AI Policies Demo", "PingFederate Token Demo",
     "Agent Privilege Demo",
   ] },
@@ -26,6 +26,10 @@ export const NAV_STRUCTURE_CATALOG = [
     "DaVinci SDK Guide", "DaVinci Widget", "DaVinci Orchestration SDK", "PingFederate DaVinci Integration Kit",
   ] },
   { label: "Ping products", children: [
+    // A sub-group in the side nav, with its own links listed under it there: "Privilege shelf", "Privilege Map",
+    // "Agent Privilege Guide", "Agent Privilege Diagrams", "Agent Privilege Topologies", "External Agent App Diagrams"
+    // and "Privilege Docs Index". Hiding the group hides all of them; a preset can also hide one of them by label.
+    "Privilege info",
     "PingOne Protect", "PingOne Verify & Recognize", "Headless Identity / PingCLI", "SDK Login", "M2M Client Credentials", "Custom Admin Role",
     // A sub-group in the side nav (its own links listed under it there); hiding it hides all of them.
     "PingFederate",

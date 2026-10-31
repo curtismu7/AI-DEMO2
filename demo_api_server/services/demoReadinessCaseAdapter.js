@@ -185,7 +185,9 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     const claims = a2aExchange2.claims || {};
     const actors = [];
     for (let act = claims.act; act?.sub; act = act.act) actors.push(act.sub);
-    const a2aTool = eventById(events, 'gw-filter-chain')?.tool || null;
+    // The gateway's filter-chain row is built from its audit-trail header, which now and
+    // then arrives without the chain; its own audit record of the call always names the tool.
+    const a2aTool = eventById(events, 'gw-filter-chain')?.tool || audit?.what?.tool || null;
     Object.assign(evidence, {
       agentIdentityProvider: providerOf(eventById(events, 'a2a-agent1-actor')?.claims?.iss, lane),
       tokenIssuer: providerOf(claims.iss, lane),
@@ -421,7 +423,9 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
     if (behavior?.kind === 'a2a') {
       const inited = await request(A2A_INIT_PATH, { method: 'POST', body: {} });
       if (inited.status !== 200) return { observed: `HTTP_${inited.status}`, evidence: {} };
-      const body = { message: behavior.triggerText, vertical };
+      // Heuristics, not the model: which of a multi-tool specialist's tools an LLM
+      // coordinator picks varies run to run, and the contract names one.
+      const body = { message: behavior.triggerText, vertical, mode: 'heuristics' };
       let delivered = await request(A2A_MESSAGE_PATH, { method: 'POST', body });
       const decision = delivered.body?.delegationDecision;
       const challengeId = decision?.error === 'hitl_required' ? decision.result?.challengeId : null;

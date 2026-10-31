@@ -351,6 +351,8 @@
     "/gateway-claims": "public",
     "/poppy": "public",
     "/privilege-docs-index": "public",
+    "/privilege-shelf": "public",
+    "/privilege-map": "public",
     "/privilege-mcp-learning": "public",
     "/privileges-gateway-preview": "public",
     "/claude-skills": "public",

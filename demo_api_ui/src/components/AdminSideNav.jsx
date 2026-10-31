@@ -184,7 +184,7 @@ const AUTO_EXPAND_SECTIONS = [
   { id: "ai-gateway", paths: ["/ai-gateway/shadow-ai-detector", "/privilege-mcp-client", "/llm-gateway", "/agent-gateway-authorization", "/code-search"] },
   { id: "a2a", paths: ["/privilege-a2a", "/a2a-protocol-learning", "/a2a-architecture", "/delegation-chain-value", "/ai-products/privilege-a2a"] },
   { id: "davinci", paths: ["/davinci-sdk", "/davinci-widget", "/davinci-orchestration-sdk", "/pingfederate-davinci-kit"] },
-  { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role", "/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent"] },
+  { id: "ping-products", paths: ["/ping-products/verify-recognize", "/pingcli", "/sdk-login", "/samples/m2m-credentials", "/samples/custom-admin-role", "/pingfederate-id-jag", "/architecture/pingfederate-id-jag", "/demo-arch-slides/id-jag", "/pingfederate-ai-agent", "/privilege-shelf", "/privilege-map", "/privilege-mcp-learning", "/privilege-mcp-diagrams", "/privilege-gateway-topologies", "/external-door-diagrams"] },
   { id: "identity-journeys", paths: ["/self-service", "/samples/user-registration", "/samples/mfa-demo", "/login-flow", "/oauth-academy", "/oas-demo"] },
   { id: "ai-experiences", paths: ["/delegated-commerce", "/use-cases", "/use-cases/live", "/demo-track", "/group-policy", "/agent-lifecycle", "/jev-learning", "/control-plane", "/ai-control-plane", "/agent-registry", "/agent-builder", "/agent-flow-inspector", "/agent-onboarding-flow", "/agent-onboarding-flow-subway", "/langchain", "/ungoverned-agent", "/servers", "/autonomous-agents", "/personal-agent", "/privilege-for-ai"] },
   { id: "mcp-integrations", paths: ["/pingone-mcp-inspector", "/pingone-setup", "/demo/enterprise-mcp", "/ping-ai-test-lab", "/agent-gateway-inspector", "/agent-gateway-capabilities", "/webmcp", "/mcp-scanner", "/personal-agent"] },
@@ -1394,15 +1394,11 @@ export default function AdminSideNav({
       "LLM Gateway",
       "Intent Inspector",
       "Audit Agent",
-      { from: "AI Agent Gateway Guide", rename: "Agent Privilege Guide" },
       "Agent Gateway Authorization",
-      { from: "AI Agent Gateway Diagrams", rename: "Agent Privilege Diagrams" },
       "Agent IAM Core",
       "Agent Gateway",
       { from: "PingOne Authorize", rename: "PingOne Authorize", path: "/ai-products/authorize" },
       { from: "Privilege · LLM", rename: "Agent Privilege · LLM" },
-      { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
-      { label: "External Agent App Diagrams", path: "/external-door-diagrams", icon: "arc", searchAlias: "external door diagrams topology dual path sequence agent app" },
       { from: "Privilege · MCP", rename: "Agent Privilege · MCP" },
       { label: "Malicious MCP Catalog", path: "/llm-gateway?tab=catalog", icon: "key" },
       {
@@ -1456,6 +1452,21 @@ export default function AdminSideNav({
       { label: "PingFederate DaVinci Integration Kit", path: "/pingfederate-davinci-kit", searchAlias: "pingfederate davinci kit connector integration pf" },
     ], "doc"),
     productGroup("Ping products", [
+      // Everything about Privilege in one sub-group: the shelf page, the Privilege Map, the guide, diagrams, topologies and docs.
+      {
+        label: "Privilege info",
+        icon: "shld",
+        searchAlias: "privilege info shelf map features guide diagrams topologies docs index non-human identity nhi cedar",
+        children: [
+          { label: "Privilege shelf", path: "/privilege-shelf", icon: "doc", searchAlias: "privilege shelf everything in one place" },
+          { label: "Privilege Map", path: "/privilege-map", icon: "arc", searchAlias: "privilege map features why how value components standard ui" },
+          { from: "AI Agent Gateway Guide", rename: "Agent Privilege Guide" },
+          { from: "AI Agent Gateway Diagrams", rename: "Agent Privilege Diagrams" },
+          { label: "Agent Privilege Topologies", path: "/privilege-gateway-topologies", icon: "arc" },
+          { label: "External Agent App Diagrams", path: "/external-door-diagrams", icon: "arc", searchAlias: "external door diagrams topology dual path sequence agent app" },
+          { label: "Privilege Docs Index", path: "/privilege-docs-index", icon: "doc" },
+        ],
+      },
       { from: "PingOne Protect", rename: "PingOne Protect", path: "/ai-products/protect" },
       { label: "PingOne Verify & Recognize", path: "/ping-products/verify-recognize", icon: "doc" },
       { from: "Headless Identity Demo", rename: "Headless Identity / PingCLI" },
@@ -1738,11 +1749,27 @@ export default function AdminSideNav({
       Array.isArray(item.children)
         ? {
             ...item,
-            children: item.children.filter(
-              (child) =>
-                (!child.customerOnly || !isAdmin) &&
-                (child.label === "Demo Config" || !hiddenNavLabels.includes(child.label)),
-            ),
+            children: item.children
+              .filter(
+                (child) =>
+                  (!child.customerOnly || !isAdmin) &&
+                  (child.label === "Demo Config" || !hiddenNavLabels.includes(child.label)),
+              )
+              // A sub-group (Ping products > Privilege info) honors the same hides for its own links, and
+              // disappears when every one of them is hidden.
+              .map((child) =>
+                Array.isArray(child.children)
+                  ? {
+                      ...child,
+                      children: child.children.filter(
+                        (grandchild) =>
+                          (!grandchild.customerOnly || !isAdmin) &&
+                          (grandchild.label === "Demo Config" || !hiddenNavLabels.includes(grandchild.label)),
+                      ),
+                    }
+                  : child,
+              )
+              .filter((child) => !Array.isArray(child.children) || child.children.length > 0),
           }
         : item,
     );

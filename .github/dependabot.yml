@@ -25,8 +25,6 @@ updates:
       - "/langchain_agent/frontend"
       - "/lmstudio/demo-steps-plugin"
       - "/oauth-mcp"
-      - "/standalone/ai-gateway-client/server"
-      - "/standalone/ai-gateway-client/web"
       - "/standalone/hostile-a2a-agent"
       - "/standalone/hostile-mcp-server"
       - "/standalone/mcp-inspector/server"
