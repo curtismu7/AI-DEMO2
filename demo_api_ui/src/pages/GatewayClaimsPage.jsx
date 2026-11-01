@@ -1,7 +1,8 @@
-// /gateway-claims: what Privilege gateway (mcpgw) v1.261024 added. Public, no live call: it explains and simulates.
+// /gateway-claims: what Privilege gateway (mcpgw) v1.261024 to v1.261030 added. Public, no live call: it explains and simulates.
 // Part 1 matches a PingFederate token's object-valued act claim against a Privilege RequiredClaims rule (verified live
 // 2026-10-26). Part 2 lists the AgentCore posture fields seen only in the gateway binary (unverified). The diagram is
-// SequenceFlowDiagram (React Flow): Simulate, step speed, Reset and the movie reel.
+// SequenceFlowDiagram (React Flow): Simulate, step speed, Reset and the movie reel. Parts 5 to 7 are the later tags:
+// v1.261028 AgentCore governance, then v1.261029 / v1.261030 and the unmeasured 2026-11-02 release (all UNVERIFIED).
 import React, { useMemo, useState } from 'react';
 import PageHeader from '../components/common/PageHeader';
 import SequenceFlowDiagram from '../components/SequenceFlowDiagram';
@@ -11,6 +12,8 @@ import {
   REQUIRED_CLAIMS, SCENARIOS, TRAP_ROWS, WHAT_CHANGED, scenarioDiagram,
 } from '../config/gatewayClaims';
 import GatewayAgentcoreLab from './GatewayAgentcoreLab';
+import GatewayLatest from './GatewayLatest';
+import { PAGE_VERSIONS } from '../config/gatewayLatest';
 import './GatewayClaimsPage.css';
 
 const show = (v) => (v === undefined ? 'missing' : typeof v === 'string' ? v : JSON.stringify(v));
@@ -86,8 +89,8 @@ export default function GatewayClaimsPage() {
     <main className="gwc-page" data-testid="gateway-claims-page">
       <PageHeader
         eyebrow="Diagrams · Privilege"
-        title={`What Privilege gateway ${GATEWAY_VERSION}, ${GATEWAY_VERSION_NEXT} and v1.261028 added`}
-        summary="The gateway can match a rule on a nested claim, such as act.sub inside a PingFederate token, gate a tool call on a token scope in Cedar, and give one agent different tools by scope. It also carries AgentCore posture metadata and, from v1.261028, AgentCore governance checks (read from the binary). Each statement is labelled by how well we know it."
+        title={`What Privilege gateway ${PAGE_VERSIONS} added`}
+        summary="The gateway can match a rule on a nested claim, such as act.sub inside a PingFederate token, gate a tool call on a token scope in Cedar, and give one agent different tools by scope. It also carries AgentCore posture metadata and, from v1.261028, AgentCore governance checks (read from the binary). v1.261029 and v1.261030 are small later steps, also only read from the binary, and the 2026-11-02 release is not yet measured on our tenant. Each statement is labelled by how well we know it."
         back={{ to: '/diagrams', label: 'All diagrams' }}
       />
 
@@ -240,6 +243,7 @@ export default function GatewayClaimsPage() {
       </section>
       <NextLab />
       <GatewayAgentcoreLab />
+      <GatewayLatest />
     </main>
   );
 }

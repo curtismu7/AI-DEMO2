@@ -7,6 +7,9 @@ import {
   AGENT_ID, DIAGRAM_DETAILS, NEXT_DETAILS, NEXT_SCENARIOS, REQUIRED_CLAIMS, SCENARIOS, TIER_RULES,
   evaluateCedarScope, evaluatePfRequest, evaluateRule, evaluateTiers, flattenClaims, nextScenarioDiagram, nextWire, scenarioDiagram,
 } from '../../config/gatewayClaims';
+import {
+  CHECKED_ON, LATEST_FACTS, NOT_MEASURED, PAGE_VERSIONS, RECHECK_STEPS, RELEASE_DATE, RELEASE_TABLE, SINCE_ROWS, VERSION_LATEST, VERSION_MIDDLE,
+} from '../../config/gatewayLatest';
 
 describe('flattenClaims', () => {
   it('flattens nested objects to dotted paths', () => {
@@ -107,17 +110,56 @@ describe('v1.261027 models', () => {
   });
 });
 
+describe('v1.261029 and v1.261030 config', () => {
+  it('quotes the same version list the nav, hub card and diagram index use', () => {
+    expect(PAGE_VERSIONS).toBe(`v1.261024, v1.261027, v1.261028, ${VERSION_MIDDLE} and ${VERSION_LATEST}`);
+    expect(RELEASE_TABLE.map((r) => r.tag)).toEqual(['v1.261028', VERSION_MIDDLE, VERSION_LATEST]);
+  });
+  it('never claims a binary reading as verified: every row is a reading and every release feature is UNVERIFIED', () => {
+    expect(SINCE_ROWS.length).toBeGreaterThanOrEqual(8);
+    expect(SINCE_ROWS.every((r) => r.change && r.symbols && r.reading)).toBe(true);
+    expect(NOT_MEASURED.map((r) => r.id)).toEqual(['discovery', 'cap', 'obo', 'layers', 'hold']);
+    expect(NOT_MEASURED.every((r) => r.test.length > 40)).toBe(true);
+    expect(LATEST_FACTS.filter((f) => f.evidence === 'unverified')).toHaveLength(1);
+    expect(RECHECK_STEPS).toHaveLength(3);
+    expect(CHECKED_ON).toBe('2026-11-01');
+    expect(RELEASE_DATE).toBe('2026-11-02');
+  });
+  it('holds no tenant ids, customer names or secrets', () => {
+    const all = JSON.stringify({ LATEST_FACTS, RELEASE_TABLE, SINCE_ROWS, NOT_MEASURED, RECHECK_STEPS });
+    expect(all).not.toMatch(/ping-devops|cmuir|pf-route-c-test|01d89b06|sha256:|\bdoors?\b/i);
+  });
+});
+
 describe('GatewayClaimsPage', () => {
   const renderPage = () => render(<MemoryRouter><GatewayClaimsPage /></MemoryRouter>);
 
   it('has the title, back link, evidence legend and both parts', () => {
     renderPage();
-    expect(screen.getByRole('heading', { level: 1, name: /What Privilege gateway v1\.261024, v1\.261027 and v1\.261028 added/ })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /What Privilege gateway v1\.261024, v1\.261027, v1\.261028, v1\.261029 and v1\.261030 added/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: /All diagrams/ }).getAttribute('href')).toBe('/diagrams');
     const legend = screen.getByTestId('gwc-legend');
     for (const l of ['VERIFIED', 'INFERRED', 'UNVERIFIED']) expect(within(legend).getByText(l)).toBeTruthy();
     expect(screen.getByTestId('gwc-posture').textContent).toMatch(/UNVERIFIED, not yet in the console API/);
     expect(screen.getByTestId('gwc-what-changed').textContent).toMatch(/binary symbol diff/i);
+  });
+
+  it('shows parts 6 and 7: what changed since v1.261028 and the unmeasured 2026-11-02 release features, all UNVERIFIED', () => {
+    renderPage();
+    const since = screen.getByTestId('gwc-since');
+    expect(within(since).getByRole('heading', { level: 2 }).textContent).toMatch(/6\. Since v1\.261028: v1\.261029 and v1\.261030/);
+    expect(since.textContent).toMatch(/Ping published no release notes for these tags and we ran nothing against them/);
+    expect(within(screen.getByTestId('gwc-builds')).getAllByRole('row')).toHaveLength(RELEASE_TABLE.length + 1);
+    expect(within(screen.getByTestId('gwc-since-diff')).getAllByRole('row')).toHaveLength(SINCE_ROWS.length + 1);
+    expect(within(screen.getByTestId('gwc-since-rejected-hold')).getByText(/RememberRejected/)).toBeTruthy();
+    const nm = screen.getByTestId('gwc-not-measured');
+    expect(nm.textContent).toMatch(/not published yet/);
+    for (const f of NOT_MEASURED) {
+      const row = within(screen.getByTestId(`gwc-nm-${f.id}`));
+      expect(row.getByText(f.feature)).toBeTruthy();
+      expect(row.getByText('UNVERIFIED')).toBeTruthy();
+    }
+    expect(within(screen.getByTestId('gwc-not-measured-table')).queryAllByText('VERIFIED')).toHaveLength(0);
   });
 
   it('never says "door" in copy', () => {
@@ -170,7 +212,7 @@ describe('GatewayClaimsPage', () => {
   it('labels every cell of a stacked table, so the narrow layout keeps its column headings', () => {
     const { container } = renderPage();
     const stacked = container.querySelectorAll('table.gwc-table--stack');
-    expect(stacked.length).toBeGreaterThanOrEqual(5);
+    expect(stacked.length).toBeGreaterThanOrEqual(8);
     stacked.forEach((t) => {
       const heads = [...t.querySelectorAll('thead th')].map((h) => h.textContent);
       t.querySelectorAll('tbody tr').forEach((row) => {

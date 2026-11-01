@@ -278,7 +278,7 @@ const LEARNING_CATEGORIES: LearningCategory[] = [
       },
       {
         label: "Gateway Nested Claims",
-        description: "What gateway v1.261024, v1.261027 and v1.261028 added: act.sub matching, the Cedar scope gate, scope tiers, the PingFederate resource= trap, the AgentCore posture fields and the v1.261028 AgentCore governance checks (verified vs inferred)",
+        description: "What gateway v1.261024, v1.261027, v1.261028, v1.261029 and v1.261030 added: act.sub matching, the Cedar scope gate, scope tiers, the PingFederate resource= trap, the AgentCore posture fields and the v1.261028 AgentCore governance checks, and what v1.261029 and v1.261030 changed and which 2026-11-02 release features are not yet measured (verified vs inferred vs unverified)",
         icon: "🔑",
       },
       {
