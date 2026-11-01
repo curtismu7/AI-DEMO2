@@ -10,6 +10,13 @@ name: Build A2A demo image
 #   kubectl -n <ns> rollout restart deploy/workeragentdemo   (and mcpdemo if it changed)
 # then bump the pin in k8s/privilege-a2a/deployment.yaml.
 #
+# SOURCE: while k8s/privilege-a2a/LAB_REF holds the word "pending", the image is
+# built from standalone/privilege-a2a-anthropic-demo as before. Once it holds a
+# 40-character commit of ping-sandbox/privilege-a2a-anthropic-demo-LAB, the image
+# is built from that commit instead (same image name, so the cluster does not
+# change). Reading that repo needs the secret PRIVILEGE_A2A_LAB_READ_TOKEN (a
+# read-only token or fine-grained PAT with Contents: read on that one repo).
+#
 # ONE-TIME SETUP (UI only, cannot be done from code): on
 # github.com/users/cmuir_pingcorp/packages/container/privilege-a2a-demo open
 # Package settings -> "Manage Actions access" and add this repository with the
@@ -22,6 +29,7 @@ on:
     branches: [main]
     paths:
       - 'standalone/privilege-a2a-anthropic-demo/**'
+      - 'k8s/privilege-a2a/LAB_REF'
       - '.github/workflows/build-a2a-demo-image.yml'
   workflow_dispatch:
 
@@ -41,6 +49,27 @@ jobs:
       packages: write
     steps:
       - uses: actions/checkout@v7
+      - name: Pick the source (standalone folder or the LAB repo at a pinned commit)
+        id: src
+        run: |
+          set -euo pipefail
+          ref="$(tr -d '[:space:]' < k8s/privilege-a2a/LAB_REF)"
+          if [[ "$ref" =~ ^[0-9a-f]{40}$ ]]; then
+            echo "lab_ref=$ref" >> "$GITHUB_OUTPUT"
+            echo "building from the LAB repo at $ref"
+          else
+            echo "lab_ref=" >> "$GITHUB_OUTPUT"
+            echo "LAB_REF is not a commit (${ref}); building from standalone/privilege-a2a-anthropic-demo"
+          fi
+      - name: Check out the LAB repo at the pinned commit
+        if: steps.src.outputs.lab_ref != ''
+        uses: actions/checkout@v7
+        with:
+          repository: ping-sandbox/privilege-a2a-anthropic-demo-LAB
+          ref: ${{ steps.src.outputs.lab_ref }}
+          token: ${{ secrets.PRIVILEGE_A2A_LAB_READ_TOKEN }}
+          path: lab-source
+          persist-credentials: false
       # Same job-scoped Docker config and live-socket steps as build-images.yml;
       # see the comments there for why each one exists (launchd runners cannot
       # use the keychain, and an OrbStack runner's default socket can be dead).
@@ -80,10 +109,18 @@ jobs:
         run: |
           set -euo pipefail
           BASE="ghcr.io/${{ github.repository_owner }}/privilege-a2a-demo"
+          CONTEXT=standalone/privilege-a2a-anthropic-demo
+          EXTRA=()
+          if [ -n "${{ steps.src.outputs.lab_ref }}" ]; then
+            CONTEXT=lab-source
+            # Keep the package linked to this repo (the LAB Dockerfile labels its own repo).
+            EXTRA=(--label "org.opencontainers.image.source=https://github.com/${{ github.repository }}" --label "io.ping.lab.ref=${{ steps.src.outputs.lab_ref }}")
+          fi
           docker buildx build \
             --platform linux/arm64 \
             --provenance=false \
+            ${EXTRA[@]+"${EXTRA[@]}"} \
             -t "$BASE:sha-${{ github.sha }}" \
             -t "$BASE:latest" \
             --push \
-            standalone/privilege-a2a-anthropic-demo
+            "$CONTEXT"

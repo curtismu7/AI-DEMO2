@@ -27,3 +27,8 @@
   .pmap-split { grid-template-columns: 1fr; }
   .pmap-list { flex-direction: row; flex-wrap: wrap; }
 }
+.pmap-diagram-link { margin: 0 0 4px; font-size: var(--font-size-sm); }
+.pmap-diagram-link a { color: var(--th-status-info-text, var(--th-status-info)); font-weight: 600; text-decoration: none; }
+.pmap-diagram-link a:hover { text-decoration: underline; }
+.pmap-diagram-link a:focus-visible { outline: 2px solid var(--th-status-info); outline-offset: 2px; }
+.pmap-feature h3 { font-weight: 600; }

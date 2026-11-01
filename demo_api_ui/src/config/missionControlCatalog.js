@@ -188,6 +188,7 @@ const definitions = [
       link('Privilege MCP Client', '/privilege-mcp-client'),
       link('Privilege A2A access review', '/privilege-a2a'),
       link('Agent Privilege', '/llm-gateway'),
+      link('Gateway stats (live load balancer)', '/gateway-stats'),
     ],
     diagrams: [
       link('Privilege MCP Architecture', '/privilege-mcp-diagrams'),

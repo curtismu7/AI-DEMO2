@@ -1,7 +1,7 @@
 .pshelf-page { background: var(--th-bg-page); color: var(--th-text); min-height: 100%; }
 .pshelf-body { padding: 16px 24px 32px; max-width: 1200px; margin: 0 auto; }
 .pshelf-section { margin: 0 0 28px; }
-.pshelf-section h2 { margin: 0 0 4px; font-size: var(--font-size-lg); }
+.pshelf-section h2 { margin: 0 0 4px; font-size: var(--font-size-lg); font-weight: 600; }
 .pshelf-blurb { margin: 0 0 12px; color: var(--th-text-muted); font-size: var(--font-size-sm); }
 .pshelf-cards { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); gap: 12px; }
 .pshelf-card {

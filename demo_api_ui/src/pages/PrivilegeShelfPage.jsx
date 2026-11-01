@@ -46,6 +46,14 @@ const SECTIONS = [
       { title: "Agent Privilege Demo", text: "The Privilege demo app.", to: "/privilege-demo" },
     ],
   },
+  {
+    id: "source",
+    title: "Source code",
+    blurb: "The standalone Privilege Map repository on GitHub (private, sign-in required).",
+    cards: [
+      { title: "privilege-map on GitHub", text: "The standalone Privilege Map app: data, diagrams, tests and docs.", href: "https://github.com/cmuir_pingcorp/privilege-map" },
+    ],
+  },
 ];
 
 export default function PrivilegeShelfPage() {
@@ -63,12 +71,19 @@ export default function PrivilegeShelfPage() {
             <p className="pshelf-blurb">{s.blurb}</p>
             <ul className="pshelf-cards">
               {s.cards.map((c) => (
-                <li key={c.to}>
-                  <Link className="pshelf-card" to={c.to}>
-                    <span className="pshelf-card-title">{c.title}</span>
-                    <span className="pshelf-card-text">{c.text}</span>
-                    {c.meta ? <span className="pshelf-card-meta">{c.meta}</span> : null}
-                  </Link>
+                <li key={c.to || c.href}>
+                  {c.href ? (
+                    <a className="pshelf-card" href={c.href} target="_blank" rel="noopener noreferrer">
+                      <span className="pshelf-card-title">{c.title} <span aria-hidden="true">&#8599;</span></span>
+                      <span className="pshelf-card-text">{c.text}</span>
+                    </a>
+                  ) : (
+                    <Link className="pshelf-card" to={c.to}>
+                      <span className="pshelf-card-title">{c.title}</span>
+                      <span className="pshelf-card-text">{c.text}</span>
+                      {c.meta ? <span className="pshelf-card-meta">{c.meta}</span> : null}
+                    </Link>
+                  )}
                 </li>
               ))}
             </ul>

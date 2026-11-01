@@ -45,7 +45,7 @@ jobs:
     # count as passing, and a draft cannot be merged anyway.
     # A closed PR event exists only to cancel the PR's earlier run (see `on`).
     if: github.event_name != 'pull_request' || (!github.event.pull_request.draft && github.event.action != 'closed')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     outputs:
       api-server: ${{ steps.all.outputs['api-server'] || steps.nightly.outputs['api-server'] || steps.filter.outputs['api-server'] }}
       decision-services: ${{ steps.all.outputs['decision-services'] || steps.nightly.outputs['decision-services'] || steps.filter.outputs['decision-services'] }}
@@ -195,7 +195,7 @@ jobs:
     # Run selection first, then run repository gates on the single CI runner.
     # Jobs pin to the event SHA: queued jobs can start after a merge removes
     # the mutable refs/pull/<number>/merge ref used by github.ref.
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     # 15 was too tight: a slow-network `npm ci` alone took 17.5 min and timed out an all-green run.
     timeout-minutes: 30
     steps:
@@ -206,6 +206,12 @@ jobs:
         run: |
           bash <(curl -sSfL https://raw.githubusercontent.com/rhysd/actionlint/v1.7.7/scripts/download-actionlint.bash) 1.7.7 "$RUNNER_TEMP"
           "$RUNNER_TEMP/actionlint" .github/workflows/ci.yml
+      - name: Install ripgrep (the use-case maturity gate shells out to rg)
+        run: sudo apt-get install -y --no-install-recommends ripgrep
+      - name: Install gitleaks (the fresh-clone hygiene step runs it)
+        run: |
+          curl -sSfL https://github.com/gitleaks/gitleaks/releases/download/v8.30.1/gitleaks_8.30.1_linux_x64.tar.gz | tar -xz -C "$RUNNER_TEMP" gitleaks
+          echo "$RUNNER_TEMP" >> "$GITHUB_PATH"
       - uses: actions/setup-node@v7
         with:
           node-version: 26
@@ -288,7 +294,7 @@ jobs:
     name: API server tests (Jest)
     needs: [changes, gates]
     if: needs.changes.outputs['api-server'] == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       - uses: actions/checkout@v7
@@ -336,7 +342,7 @@ jobs:
     # serializing them added that to every UI PR. `gates` is still a required upstream of `main-red`.
     needs: [changes]
     if: needs.changes.outputs['ui'] == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 60
     steps:
       # Older target commits predate the 4 GB Vitest RSS guard. Preserve the
@@ -390,9 +396,9 @@ jobs:
         run: npm --prefix demo_api_ui run test:unit:pr
         env:
           CI: 'true'
-          # 4 workers: full suite measured 1667 s at 2, 961 s at 4 (8 was 569 s but flaked when
-          # three runners ran at once). Related runs only; nightly and pinned runs stay at 2.
-          VITEST_MAX_WORKERS: '4'
+          # Hosted ubuntu-latest has 2 vCPUs: at 4 workers two heavy AIAgent tests hit the 30 s
+          # test timeout. (The old self-hosted Macs measured 1667 s at 2 workers, 961 s at 4.)
+          VITEST_MAX_WORKERS: '2'
           VITEST_RELATED_FILES_JSON: ${{ needs.changes.outputs['ui-changed-files'] }}
       - name: Full Vitest suite for pinned target refs (4 GB guarded)
         if: github.event_name == 'workflow_dispatch' && inputs.target_ref != ''
@@ -454,7 +460,7 @@ jobs:
     name: Unwired service suites (agent, hitl, code-search, token, resource-server)
     needs: [changes, gates]
     if: needs.changes.outputs['unwired-services'] == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -497,7 +503,7 @@ jobs:
     name: Python agent suites (langchain, llamaindex)
     needs: [changes, gates]
     if: needs.changes.outputs['python-agents'] == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 30
     steps:
       - uses: actions/checkout@v7
@@ -535,7 +541,7 @@ jobs:
     name: Standalone A2A demo suite (main agent, worker, MCP)
     needs: [changes, gates]
     if: needs.changes.outputs['standalone-a2a'] == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 20
     steps:
       - uses: actions/checkout@v7
@@ -578,7 +584,7 @@ jobs:
     name: Service suites (authz-server + mcp-gateway + mcp-server + mcp-resource-server)
     needs: [changes, gates]
     if: needs.changes.outputs['decision-services'] == 'true'
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 45
     steps:
       - uses: actions/checkout@v7
@@ -641,7 +647,7 @@ jobs:
     # the upstream jobs "cancelled" — not red. Alerting on that is a false
     # positive, so stay quiet unless every upstream job actually finished.
     if: always() && github.event_name == 'schedule' && github.ref == 'refs/heads/main' && !contains(needs.*.result, 'cancelled')
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 5
     steps:
       - name: Evaluate upstream jobs
