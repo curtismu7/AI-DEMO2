@@ -19,7 +19,7 @@ name: Build A2A demo image
 # PRIVILEGE_A2A_LAB_READ_TOKEN (a fine-grained token with Contents: read on it).
 #
 # ONE-TIME SETUP (UI only, cannot be done from code): on
-# github.com/orgs/ping-sandbox/packages/container/privilege-a2a-demo open
+# github.com/orgs/ping-sandbox/packages/container/ai-demo2-privilege-a2a-demo open
 # Package settings -> "Manage Actions access" and add this repository with the
 # Write role. Until then the push fails with "denied: permission_denied:
 # write_package" — same trap as build-images.yml documents. The Dockerfile's
@@ -89,7 +89,7 @@ jobs:
         # manual build did; the SE cluster nodes are Graviton (arm64).
         run: |
           set -euo pipefail
-          BASE="ghcr.io/${{ github.repository_owner }}/privilege-a2a-demo"
+          BASE="ghcr.io/${{ github.repository_owner }}/ai-demo2-privilege-a2a-demo"
           CONTEXT=standalone/privilege-a2a-anthropic-demo
           EXTRA=()
           if [ -n "${{ steps.src.outputs.lab_ref }}" ]; then

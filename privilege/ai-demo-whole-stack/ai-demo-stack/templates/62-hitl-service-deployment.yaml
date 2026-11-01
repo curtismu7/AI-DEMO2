@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: hitl-service
-        image: "{{ .Values.imageRegistry }}/ai-demo-hitl-service:{{ .Values.imageTag }}"
+        image: "{{ .Values.imageRegistry }}/ai-demo2-hitl-service:{{ .Values.imageTag }}"
         imagePullPolicy: Always
         ports:
         - containerPort: 3009

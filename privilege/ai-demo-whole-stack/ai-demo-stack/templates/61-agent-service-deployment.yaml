@@ -27,7 +27,7 @@ spec:
     spec:
       containers:
       - name: agent-service
-        image: "{{ .Values.imageRegistry }}/ai-demo-agent-service:{{ .Values.imageTag }}"
+        image: "{{ .Values.imageRegistry }}/ai-demo2-agent-service:{{ .Values.imageTag }}"
         imagePullPolicy: Always
         ports:
         - containerPort: 3006
