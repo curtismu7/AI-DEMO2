@@ -64,7 +64,15 @@ function launchAgentExists(label) {
   return fs.existsSync(path.join(os.homedir(), 'Library', 'LaunchAgents', `${label}.plist`));
 }
 
-function createRunnerController({ spawn = nodeSpawn, platform = process.platform, serviceFileExists = launchAgentExists } = {}) {
+function readLaunchAgentFiles() {
+  try {
+    return fs.readdirSync(path.join(os.homedir(), 'Library', 'LaunchAgents')).filter((name) => name.startsWith('actions.runner.'));
+  } catch {
+    return [];
+  }
+}
+
+function createRunnerController({ spawn = nodeSpawn, platform = process.platform, serviceFileExists = launchAgentExists, listLaunchAgentFiles = readLaunchAgentFiles } = {}) {
   async function inspect(repository, runners) {
     const notLocal = (runner) => ({ ...runner, localControlAvailable: false, localPaused: false, localInstalled: false });
     if (platform !== 'darwin') return runners.map(notLocal);
@@ -86,6 +94,34 @@ function createRunnerController({ spawn = nodeSpawn, platform = process.platform
     });
   }
 
+  // GitHub hides the runner list from non-admins, so list this Mac's services for the repo instead.
+  async function listLocal(repository) {
+    if (platform !== 'darwin') return [];
+    const repoName = String(repository || '').split('/')[1];
+    if (!repoName) return [];
+    const escaped = repoName.replace(/[.]/g, '\\.');
+    const pattern = new RegExp(`^actions\\.runner\\..+-${escaped}\\.([A-Za-z0-9_.-]+)$`);
+    let services = [];
+    try {
+      services = parseServiceRows(await runLaunchctl(spawn, ['list']));
+    } catch {
+      return [];
+    }
+    const rows = new Map();
+    for (const service of services) {
+      const match = pattern.exec(service.label);
+      if (match) rows.set(match[1], { name: match[1], localState: service.pid === '-' ? 'stopped' : 'running' });
+    }
+    for (const file of listLaunchAgentFiles()) {
+      const match = pattern.exec(file.replace(/\.plist$/, ''));
+      if (match && !rows.has(match[1])) rows.set(match[1], { name: match[1], localState: 'stopped' });
+    }
+    return [...rows.values()].map((row) => ({
+      id: 0, status: 'unknown', busy: false, labels: [], source: 'local',
+      localControlAvailable: false, localPaused: false, localInstalled: true, ...row,
+    }));
+  }
+
   async function perform(repository, runner, action) {
     if (platform !== 'darwin') throw new RunnerControlError('RUNNER_CONTROL_UNAVAILABLE', 'Runner controls are available only for a matching macOS launchd service.');
     if (!['pause', 'resume'].includes(action)) throw new RunnerControlError('RUNNER_ACTION', 'This runner action is not supported.');
@@ -103,7 +139,7 @@ function createRunnerController({ spawn = nodeSpawn, platform = process.platform
     return { ok: true };
   }
 
-  return { inspect, perform };
+  return { inspect, listLocal, perform };
 }
 
 module.exports = { RunnerControlError, createRunnerController, runnerServiceLabel };

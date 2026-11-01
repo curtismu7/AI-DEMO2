@@ -22,6 +22,10 @@ The command starts the dashboard server. Then open <http://127.0.0.1:57500/>. Ke
 
 You normally don't start it by hand: `./run-docker.sh start` installs a LaunchAgent (`com.aidemo2.ci-dashboard`, via `scripts/install-ci-dashboard-launchd.sh`) that keeps it running across logins and crashes, so the nav entry just opens it. Log: `~/Library/Logs/aidemo2-ci-dashboard.log`. Remove with `bash scripts/install-ci-dashboard-launchd.sh uninstall`.
 
+## Repository and runners
+
+The dashboard reads the repo `gh repo view` reports for this checkout. Set `CI_DASHBOARD_REPO=owner/name` to pin a different one; the LaunchAgent installer pins `ping-sandbox/AI-DEMO2`. GitHub only lists a repo's runners to admins, so when that call is refused the Runners panel shows this Mac's runner services for the repo (running or stopped) instead, without online or busy state.
+
 ## Controls
 
 - **Stop run** cancels a queued or running workflow run. **Rerun failed jobs** retries the failed jobs in a completed run.
