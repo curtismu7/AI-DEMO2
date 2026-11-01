@@ -295,6 +295,26 @@ function reportDiscoveryLogs(output) {
   if (logs) process.stdout.write(`${logs}\n`)
 }
 
+// CI splits the full suite across runners with VITEST_SHARD="i/N". The shard is applied here, to the
+// discovered file list, and never forwarded to Vitest: `vitest --shard` inside each 12-file batch
+// would shard every batch again and silently skip tests.
+export function parseShard(value) {
+  if (value === undefined || value === '') return null
+  const match = /^(\d+)\/(\d+)$/.exec(String(value).trim())
+  const index = match ? Number(match[1]) : 0
+  const count = match ? Number(match[2]) : 0
+  if (!match || index < 1 || count < 1 || index > count) {
+    throw new Error(`VITEST_SHARD must look like "2/4" with 1 <= index <= count, got "${value}"`)
+  }
+  return { index, count }
+}
+
+// Sorted round-robin: deterministic for a given file list, so the shards partition the suite exactly.
+export function selectShard(files, shard) {
+  if (!shard) return files
+  return [...files].sort().filter((_, position) => position % shard.count === shard.index - 1)
+}
+
 function hasTestFileFilters(args) {
   return args.some((arg) =>
     /\.(?:test|spec)\.[cm]?[jt]sx?$/.test(arg) ||
@@ -328,9 +348,24 @@ async function runFullUnitSuite(options) {
     return 1
   }
 
+  let shard
+  try {
+    shard = parseShard(process.env.VITEST_SHARD)
+  } catch (error) {
+    console.error(`[vitest-memory-guard] ${error.message}`)
+    return 1
+  }
+  const discovered = files.length
+  files = selectShard(files, shard)
+  if (files.length === 0) {
+    console.error(`[vitest-memory-guard] Shard ${shard.index}/${shard.count} has no UI test files; refusing an empty run.`)
+    return 1
+  }
+
   const batches = chunkTestFiles(files, TEST_FILES_PER_BATCH)
+  const shardNote = shard ? ` (shard ${shard.index}/${shard.count} of ${discovered})` : ''
   console.log(
-    `[vitest-memory-guard] Running ${files.length} UI test files in ${batches.length} batches of at most ${TEST_FILES_PER_BATCH}; each batch starts fresh workers.`,
+    `[vitest-memory-guard] Running ${files.length} UI test files${shardNote} in ${batches.length} batches of at most ${TEST_FILES_PER_BATCH}; each batch starts fresh workers.`,
   )
 
   for (const [index, batch] of batches.entries()) {
