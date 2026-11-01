@@ -76,4 +76,4 @@ opensearch:
 
 # Pin the gateway image to the deployed build (latest only refreshes on pod recreation).
 image:
-  tag: v1.261027
+  tag: v1.261030
