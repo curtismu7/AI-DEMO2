@@ -5,8 +5,10 @@ import {
   chunkTestFiles,
   findMemoryLimitExceeded,
   monitorVitest,
+  parseShard,
   parseVitestFileList,
   parseProcessTable,
+  selectShard,
   MAX_BLIND_MS,
   PS_TIMEOUT_MS,
   VITEST_RSS_LIMIT_BYTES,
@@ -265,3 +267,40 @@ describe('guard tolerance on a heavily loaded CI host', () => {
   })
 })
 
+
+describe('splitting the full suite across CI shards', () => {
+  const files = Array.from({ length: 23 }, (_, i) => `src/pages/__tests__/Page${String(22 - i).padStart(2, '0')}.test.jsx`)
+
+  it('runs everything when no shard is set', () => {
+    expect(parseShard(undefined)).toBeNull()
+    expect(parseShard('')).toBeNull()
+    expect(selectShard(files, null)).toBe(files)
+  })
+
+  it('parses "index/count" and rejects anything else instead of silently running the whole suite', () => {
+    expect(parseShard('2/4')).toEqual({ index: 2, count: 4 })
+    for (const bad of ['0/4', '5/4', '1/0', '2', 'a/b', '1/4/4', '-1/4']) {
+      expect(() => parseShard(bad), bad).toThrow(/VITEST_SHARD/)
+    }
+  })
+
+  it('partitions the suite: every file lands in exactly one shard, regardless of input order', () => {
+    const count = 4
+    const shards = Array.from({ length: count }, (_, i) => selectShard(files, { index: i + 1, count }))
+    expect(shards.flat().sort()).toEqual([...files].sort())
+    expect(new Set(shards.flat()).size).toBe(files.length)
+    const sizes = shards.map((shard) => shard.length)
+    expect(Math.max(...sizes) - Math.min(...sizes)).toBeLessThanOrEqual(1)
+    expect(selectShard([...files].reverse(), { index: 3, count })).toEqual(shards[2])
+  })
+
+  it('does not mutate the discovered file list', () => {
+    const before = [...files]
+    selectShard(files, { index: 1, count: 3 })
+    expect(files).toEqual(before)
+  })
+
+  it('returns an empty slice when there are fewer files than shards, so the runner can refuse it', () => {
+    expect(selectShard(['a.test.js'], { index: 2, count: 4 })).toEqual([])
+  })
+})
