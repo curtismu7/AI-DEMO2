@@ -1,34 +1,30 @@
-/* GatewayStatsPage.css — one heading, one hint, one frame that fills the rest of the screen. */
-.gws-page {
-  padding: 16px;
-}
-.gws-page h1 {
-  font-size: var(--font-size-lg, 1.25rem);
-  margin: 0 0 6px;
-  color: var(--th-text);
-}
-.gws-page__hint {
-  color: var(--th-text-muted);
-  font-size: var(--font-size-sm);
-  margin: 0 0 10px;
+/* GatewayStatsPage.css — sits on the shared app-page-shell (hero title, lead, body); this file adds only the
+   stats frame and the sign-in / error note. */
+.gws-page__body {
+  display: grid;
+  gap: 1rem;
+  margin-top: 1rem;
 }
 .gws-page__frame {
   width: 100%;
-  height: calc(100vh - 200px);
+  height: calc(100vh - 260px);
   min-height: 480px;
   border: 1px solid var(--th-border-strong);
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
 }
 .gws-page__note {
-  max-width: 640px;
-  padding: 14px 16px;
+  max-width: 40rem;
+  margin: 0;
+  padding: 1rem 1.25rem;
   border: 1px solid var(--th-border-strong);
+  border-left: 4px solid var(--brand-navy, #12538d);
   border-radius: var(--radius-md);
   background: var(--th-bg-card);
   color: var(--th-text);
+  line-height: 1.55;
 }
 .gws-page__note p {
-  margin: 6px 0 12px;
+  margin: 0.4rem 0 0.9rem;
   color: var(--th-text-body);
 }
