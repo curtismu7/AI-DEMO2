@@ -4,7 +4,7 @@
     "name": "Agent Registry",
     "page": "identity",
     "why": "Agents that call models, tool servers and other agents need to be first-class identities with an owner, an expiry, a lifecycle and per-agent policy, not anonymous API keys. Each key has a custodian (the accountable human), which is designed to let the gateway log and policy name who the agent acts as.",
-    "how": "The documented flow is a four-step Add Agent wizard in the Agent Registry. (1) Identity and Access sets the agent name (permanent; renaming means delete and recreate), custodian, expiry and scopes (llm, mcp, a2a). (2) Gateway and Apps sets, for llm, one provider per key, allowed models, requests per minute, tokens per minute and a budget; the real provider key is stored in Privilege and injected server-side, so LLM-scoped keys are created here and need the real provider key in hand. For mcp or a2a, it sets the specific apps (and optionally specific MCP tools) the agent may reach; selecting them is the grant, and saving creates a grant policy for the custodian tied to the key. (3) Runtime Protection sets the AI Guard configuration for that key; AI Guard is configured per agent key, not per app. (4) Review and Create shows the key once, with calling code per scope. The agent then sends the key as a bearer token on every call, with no sign-in or token exchange. The caller's gateway key is never forwarded to a backend. The request-rate cap is enforced natively: 75-request bursts against a capped key had 60 calls admitted in the minute and the rest refused. A budget can also be set on the key, but a budget refusal was not separately tested. App and policy edits take about 4 minutes to reach the gateway; brand-new keys are picked up immediately. For MCP and A2A calls, the only self-describing 403 is 'key not scoped for mcp access'; any other bare 403 needs the gateway log to explain it. Expired keys are documented as edit-locked on step 1 until the expiry moves to a future date. There is no rotate action: the key value is server-generated and immutable, so rotation is delete and recreate under the same name (for llm keys, have the real provider key ready first), and revoking a key sets it to revoked. The documentation also describes a second custodian option, a secretless non-human identity with federation settings (issuer, audience, subject, key set location, maximum token lifetime, required claims). Do not promise customers that this works: gateway acceptance of workload-identity tokens is not proven, and a non-human identity with no key behind it authenticates nobody.",
+    "how": "The documented flow is a four-step Add Agent wizard in the Agent Registry. (1) Identity and Access sets the agent name (permanent; renaming means delete and recreate), custodian, expiry and scopes (llm, mcp, a2a). (2) Gateway and Apps sets, for llm, one provider per key, allowed models, requests per minute, tokens per minute and a budget; the real provider key is stored in Privilege and injected server-side, so LLM-scoped keys are created here and need the real provider key in hand. For mcp or a2a, it sets the specific apps (and optionally specific MCP tools) the agent may reach; selecting them is the grant, and saving creates a grant policy for the custodian tied to the key. (3) Runtime Protection sets the AI Guard configuration for that key; AI Guard is configured per agent key, not per app. (4) Review and Create shows the key once, with calling code per scope. The agent then sends the key as a bearer token on every call, with no sign-in or token exchange. The caller's gateway key is never forwarded to a backend. The request-rate cap is enforced natively: 75-request bursts against a capped key had 60 calls admitted in the minute and the rest refused. A budget can also be set on the key, but a budget refusal was not separately tested. App and policy edits take about 4 minutes to reach the gateway; brand-new keys are picked up immediately. For MCP and A2A calls, the only self-describing 403 is 'key not scoped for mcp access'; any other bare 403 needs the gateway log to explain it. Expired keys are documented as edit-locked on step 1 until the expiry moves to a future date. There is no rotate action: the key value is server-generated and immutable, so rotation is delete and recreate under the same name (for llm keys, have the real provider key ready first), and revoking a key sets it to revoked. The documentation also describes a second custodian option, a secretless Federated Identity (the new display name for Non-Human Identity, 2026-11-02 release; the console API still calls it NonHumanIdentity) with federation settings (issuer, audience, subject, key set location, maximum token lifetime, required claims). Do not promise customers that this works: gateway acceptance of workload-identity tokens is not proven, and a Federated Identity with no key behind it authenticates nobody. Ping's release material (deck slide 40, a Ping claim not tested on our tenant) says an agent access key can now name a Federated Identity as the principal it acts as, instead of borrowing a human owner, so a fully autonomous agent gets a real principal in policy and audit.",
     "userValue": "Operator or SE: one object that shows who owns each agent, which scopes, apps, models and limits it has, when it expires and which guardrail screens it. Accountable owner: each key is tied to a named custodian, so its calls are designed to be attributable to that person. Security team: a per-agent key that can be revoked, expires on schedule and carries its own guardrail and limits, instead of a shared static secret.",
     "components": [
       "Agent Registry console page",
@@ -14,7 +14,7 @@
       "Agent access key",
       "Grant policy created when apps are selected",
       "Per-key Runtime Protection (AI Guard)",
-      "Non-human identity object (optional custodian)",
+      "Federated Identity object (optional custodian)",
       "Privilege gateway (LLM, MCP and A2A routes)",
       "Gateway log",
       "Console audit feed"
@@ -23,7 +23,10 @@
       "AI-DEMO2/docs/privilege-agent-features.md",
       "AI-DEMO2/privilege/GATEWAY-SETTING-UP-A-CALLING-AGENT.md",
       "AI-DEMO2/privilege/AGENT-REGISTRY-SIDECAR-ROLLOUT.md",
-      "AI-DEMO2/privilege/WORKLOAD-IDENTITY-AGENT-CALLERS.md"
+      "AI-DEMO2/privilege/WORKLOAD-IDENTITY-AGENT-CALLERS.md",
+      "Ping deck ID4AI Workforce H2 2026, slide 40",
+      "Ping deck ID4AI Workforce H2 2026, slide 35",
+      "Privilege console swagger 2026-10-31 (schema only)"
     ],
     "unverified": [
       "The wizard screens and field labels come from documentation and were not walked through in the console for this entry.",
@@ -34,10 +37,11 @@
       "Budget refusal was not tested, and the token cap was reproduced only on a different key.",
       "An agent authenticating with a workload identity instead of a key was not tested, and gateway acceptance of workload-identity tokens on MCP and LLM routes is not proven.",
       "Whether two keys can share a name at the same time during rotation was not tested.",
-      "The non-human identity schema was read from the tenant once and was not re-read afterwards.",
+      "The Federated Identity (formerly Non-Human Identity) schema was read from the tenant once and was not re-read afterwards.",
       "With Block Agreement off, a sidecar verdict did not block an A2A message in one test (the call succeeded with an alert only); it was shown to block on the LLM path only.",
-      "Which console release introduced the non-human-identity custodian option and per-app guardrail settings comes from release notes and was not re-verified on the tenant.",
-      "The size and composition of the agent fleet seen earlier is a past snapshot and may have changed."
+      "Which console release introduced the Federated Identity (formerly non-human identity) custodian option and per-app guardrail settings comes from release notes and was not re-verified on the tenant.",
+      "The size and composition of the agent fleet seen earlier is a past snapshot and may have changed.",
+      "The Federated Identity name and the claim that a key can name one as its principal come from the Ping deck for the 2026-11-02 release (slides 35 and 40). The release is not on our tenant, and the console API still uses NonHumanIdentity (swagger 2026-10-31)."
     ]
   },
   {
@@ -340,21 +344,23 @@
     "id": "aggregate-apps",
     "name": "Aggregate apps",
     "page": "mcp",
-    "why": "A client that can hold only a few MCP connections, or an operator who wants one address and one central decision about which tools an agent gets, needs many MCP servers behind a single endpoint.",
-    "how": "An MCP Aggregate application has a name that becomes its address and a list of member MCP Server apps. It has no backend or Auth Mode of its own. Each tool is listed as member alias, two underscores, tool name, and the alias defaults to the member app name. The grant on the aggregate, written in prefixed form, decides which tools the caller sees and can call. According to the documentation, when a call arrives the aggregate strips the prefix and opens a session to that member as the calling user, so each member's own policy and Auth Mode still apply. In testing, refusals came back as JSON-RPC errors with HTTP 200 rather than the bare 403 of a plain MCP Server app, so a client that checks only the HTTP status could read them as success; the exact wording varied. In testing with an agent key, the tools listed matched the grant, were prefixed correctly, and ungranted or nonexistent tools were refused identically. Edits to the aggregate or its policy take about 4 minutes to reach the gateway.",
-    "userValue": "A client or agent can hold one connection instead of many, and the security owner decides centrally which cross-server tools an agent may use. Operators can build a small deliberate tool set from several servers.",
+    "why": "A client that can hold only a few MCP connections, or an operator who wants one address and one central decision about which tools an agent gets, needs many MCP servers behind a single endpoint. Ping's stated challenge (deck slide 37, a Ping claim not tested on our tenant): every agent-server pair needs its own connection, configuration and credential, so integration effort and attack surface grow with each pair, teams delay adding servers and agents stay narrow. Ping's stated technical value: one connection, one policy cap enforced twice and one audit trail across every member server. Ping's stated business value: new servers join by configuration, not project work, with lower per-integration cost and faster rollout of agent capability.",
+    "how": "An MCP Aggregate application has a name that becomes its address and a list of member MCP Server apps. It has no backend or Auth Mode of its own. Each tool is listed as member alias, two underscores, tool name, and the alias defaults to the member app name. The grant on the aggregate, written in prefixed form, decides which tools the caller sees and can call. According to the documentation, when a call arrives the aggregate strips the prefix and opens a session to that member as the calling user, so each member's own policy and Auth Mode still apply. In testing, refusals came back as JSON-RPC errors with HTTP 200 rather than the bare 403 of a plain MCP Server app, so a client that checks only the HTTP status could read them as success; the exact wording varied. In testing with an agent key, the tools listed matched the grant, were prefixed correctly, and ungranted or nonexistent tools were refused identically. Edits to the aggregate or its policy take about 4 minutes to reach the gateway. Ping's deck for the 2026-11-02 release (slide 37) adds three claims that we did not test. First, the aggregate's own policy is the cap: a tool is visible through the aggregate only if the aggregate's policy permits it, and that decision is enforced twice, on the listing and call at the aggregate and again at the member hop, so aggregate traffic is bounded by the aggregate's policy and never wider than what it grants. Second, members are resolved from the applications the tenant already has and connected on demand rather than held open, so an aggregate with many members costs nothing until a tool is called, and a member that is missing or unreachable is reported as such instead of silently dropping its tools. Third, when a member server is itself OAuth-protected, the upstream authorization completes per calling user, using the same two-identity-provider brokering and token refresh as any fronted server, per aggregate member. The deck also says aggregate traffic passes through the same path as any MCP application, with per-user identity, AIGuard inspection, entitlement-aware discovery and tool-call recording unchanged.",
+    "userValue": "A client or agent can hold one connection instead of many, and the security owner decides centrally which cross-server tools an agent may use. Operators can build a small deliberate tool set from several servers. Ping's claim for the new release is that a new server joins an aggregate by configuration rather than project work. We have not tested that.",
     "components": [
       "Agent Privilege gateway (MCP aggregate)",
       "Privilege console: MCP Aggregate application type (name, member list, per-member tool filter)",
       "Member MCP Server applications, each with its own policy, Auth Mode and backend credential",
       "Agent Registry agent key with mcp scope",
-      "Gateway log"
+      "Gateway log",
+      "Aggregate policy (the cap, enforced on the listing, the call and the member hop)"
     ],
     "sources": [
       "AI-DEMO2/docs/privilege-agent-features.md",
       "AI-DEMO2/privilege/GATEWAY-AGGREGATE-APPS.md",
       "AI-DEMO2/privilege/AGGREGATE-APPS-DEMO.md",
-      "AI-DEMO2/privilege/MCP-DISCOVERY-DEMO.md"
+      "AI-DEMO2/privilege/MCP-DISCOVERY-DEMO.md",
+      "Ping deck ID4AI Workforce H2 2026, slide 37"
     ],
     "unverified": [
       "Creating an aggregate in the console was not walked through, and the create form is not documented in the guide.",
@@ -364,7 +370,11 @@
       "Tool-name length limits in some clients may be a problem for prefixed names and were not tested.",
       "The aggregate was measured as plain JSON with no session ID, and behavior with session-bearing clients was not tested.",
       "The refusal wording differs between an aggregate with a tool filter and one without, and was not fully mapped.",
-      "Gateway acceptance of workload-identity tokens through an aggregate is not proven, and a non-human identity with no key behind it authenticates nobody."
+      "Gateway acceptance of workload-identity tokens through an aggregate is not proven, and a Federated Identity with no key behind it authenticates nobody.",
+      "That the aggregate's policy is a cap enforced a second time at the member hop is Ping's claim (deck slide 37). We saw the tools listed match the grant, but did not test the member-hop check separately.",
+      "That members are connected lazily, and that a missing or unreachable member is reported instead of dropped, was not tested. It sits against our own observation that a listed member can still fail or hang, and the two were not reconciled.",
+      "Per-user upstream OAuth through an aggregate member was not tested, and a full person sign-in through an aggregate was never recorded.",
+      "The challenge, technical and business lines in this entry are Ping's wording from the deck, not our measurement."
     ]
   },
   {
@@ -389,7 +399,7 @@
     ],
     "unverified": [
       "Calling an agent directly on its own public host with a real token was not run, so the agent's acceptance rules are not confirmed by a live call.",
-      "Gateway acceptance of workload-identity tokens is not proven, and a non-human identity with no key behind it authenticates nobody, so this path should not be promised to customers.",
+      "Gateway acceptance of workload-identity tokens is not proven, and a Federated Identity with no key behind it authenticates nobody, so this path should not be promised to customers.",
       "The Pass Agent Token success path was not tested because no caller held a workload identity; only the refusal was measured.",
       "User Token mode for A2A was not exercised with a credential stored in the vault.",
       "Calls made with a person's sign-in were not screened by AI Guard in the one setup tested; other setups were not tested.",
@@ -528,7 +538,7 @@
       "The source documents disagree on whether PingFederate token scopes work in Cedar: one marks them untested and a later one reports a scope-based Cedar block on a single PingFederate-token door. The measurement covers that door only and other routes were not tested.",
       "Token claims, the acting subject and the client id are not readable in Cedar today; the source says this is planned for a later release.",
       "Whether the engine rejects claim attributes that the editor does not list was not tested.",
-      "Whether the gateway accepts workload-identity tokens on the MCP path was not tested, and a non-human identity with no key behind it authenticates nobody.",
+      "Whether the gateway accepts workload-identity tokens on the MCP path was not tested, and a Federated Identity with no key behind it authenticates nobody.",
       "Claim-conditioned tiers using dotted claim paths come from console text, not from a run.",
       "Matching a PingFederate user to a Privilege principal by email alias is inferred and was not tested.",
       "The group-gated hold example is adapted from a template and was not run.",
@@ -667,25 +677,29 @@
   },
   {
     "id": "sensor-enforcement",
-    "name": "Sensor enforcement",
+    "name": "Sensor enforcement (Self-Hosted Agents)",
     "page": "platform",
-    "why": "Detecting AI workloads on a host is not enough when an unapproved program must stop running. Enforcement is designed to let the Privilege sensor terminate processes that a Shadow AI policy denies, so detection can become action on the host.",
-    "how": "The Privilege sensor runs on the host, documented as either a Docker container or a Helm-installed daemonset on Kubernetes, and attaches kernel programs to watch process starts. Only a Docker host was used in testing. Its enforcement mode is set by command-line flags (off, audit or enforce; default off). Only policies with the Deny action lead to termination. In audit mode a denied process runs and is counted as would-kill; in enforce mode it is terminated and counted as killed. Termination happens after the process starts, not before. A sensor refuses to start in enforce mode without a scope, which is documented as a namespace or all namespaces. The docs recommend audit mode first. The sensor reports its capability as a tier, where terminate means it can kill processes; this comes from kernel features rather than extra privileges. For identity, the Docker guide is documented to have the sensor hold its own signing key in a volume, and the Kubernetes guide is documented to have it use a cluster-signed service account token and hold no key; neither was tested.",
-    "userValue": "An operator can run a deny rule in audit mode, read how often it would have fired in the sensor stats line, and then switch to enforce, as demonstrated on a Docker host with standalone flags. With JSON output each event also shows the policy action and rule. Kubernetes behaviour and console-pushed rules were not tested.",
+    "why": "Detecting AI workloads on a host is not enough when an unapproved program must stop running. Enforcement is designed to let the Privilege sensor terminate processes that a Shadow AI policy denies, so detection can become action on the host. In the 2026-11-02 release Ping renamed NHI Agents Discovery & Enforcement to Self-Hosted Agents, and the Kubernetes sensor is its first example. Ping's stated challenge (deck slide 41, a Ping claim not tested on our tenant): platform components are implicitly trusted infrastructure, trusted by network position, not verified per request, and outside policy; that trust model fails modern platform reviews and blocks the platform's own adoption. Ping's stated technical value: every component authenticates per request with a platform-issued token, is policy-bound, and is cut off the moment its identity is removed. Ping's stated business value: materially reduces insider and compromise risk on privileged components and simplifies compliance evidence.",
+    "how": "The Privilege sensor runs on the host, documented as either a Docker container or a Helm-installed daemonset on Kubernetes, and attaches kernel programs to watch process starts. Only a Docker host was used in testing. Its enforcement mode is set by command-line flags (off, audit or enforce; default off). Only policies with the Deny action lead to termination. In audit mode a denied process runs and is counted as would-kill; in enforce mode it is terminated and counted as killed. Termination happens after the process starts, not before. A sensor refuses to start in enforce mode without a scope, which is documented as a namespace or all namespaces. The docs recommend audit mode first. The sensor reports its capability as a tier, where terminate means it can kill processes; this comes from kernel features rather than extra privileges. For identity, the Docker guide is documented to have the sensor hold its own signing key in a volume, and the Kubernetes guide is documented to have it use a cluster-signed service account token and hold no key; neither was tested. Ping's deck for the 2026-11-02 release (slide 41) describes the Kubernetes sensor as the first Self-Hosted Agent: the eBPF sensor that discovers AI agents, MCP servers and self-hosted model servers inside Kubernetes pods is enrolled as a self-hosted agent with its own platform-issued identity rather than shipping with a static credential. Each component authenticates every operation with a short-lived, audience-scoped token minted for a Privilege-generated audience at enrollment and projected into the pod, so nothing long-lived is stored on the node. The controller verifies issuer, subject, audience and scope on every report, and the reporting node is taken from the token's claims, not the sender's word, so a compromised agent cannot misattribute its findings (verified, not vouched). Removing the identity cuts the sensor off immediately, and every finding stays attributable to the node that reported it. A policy bound to a Federated Identity decides what that agent may do, scoped to named namespaces or the whole cluster, with modes off, audit and enforce and actions allow, monitor, warn and deny; audit mode records every decision that would have blocked, without blocking. We ran none of this on Kubernetes, and what we did run used standalone command-line flags rather than a policy bound to a Federated Identity.",
+    "userValue": "An operator can run a deny rule in audit mode, read how often it would have fired in the sensor stats line, and then switch to enforce, as demonstrated on a Docker host with standalone flags. With JSON output each event also shows the policy action and rule. Kubernetes behaviour and console-pushed rules were not tested. Ping's claim for the new release is a verified, attributed, revocable identity for the sensor on Kubernetes, with enforcement decided by a policy bound to that identity. We have not tested it.",
     "components": [
       "Privilege sensor (Docker image, or Helm chart on Kubernetes)",
       "Privilege controller (supplies enforcement policy)",
       "Shadow AI policy in the console (Allow, Deny, Monitor or Warn; kinds, names, process paths, hosts, tools, namespaces, users and groups)",
       "Sensor command-line flags for mode, deny, scope, controller and JSON output",
       "Sensor stats line (read, reported, killed, would-kill, tracked)",
-      "Kernel capabilities needed to attach kernel programs"
+      "Kernel capabilities needed to attach kernel programs",
+      "Self-Hosted Agents (new name for NHI Agents Discovery & Enforcement)",
+      "Federated Identity for the sensor (platform-issued token, verified per report)"
     ],
     "sources": [
       "AI-DEMO2/privilege/SENSOR-ENFORCEMENT-POLICIES.md",
       "AI-DEMO2/privilege/SENSOR-ENFORCEMENT-DEMO.md",
       "AI-DEMO2/privilege/SENSOR-DOCKER-GUIDE.md",
       "AI-DEMO2/privilege/SENSOR-KUBERNETES-GUIDE.md",
-      "AI-DEMO2/docs/privilege-agent-features.md"
+      "AI-DEMO2/docs/privilege-agent-features.md",
+      "Ping deck ID4AI Workforce H2 2026, slide 41",
+      "Ping deck ID4AI Workforce H2 2026, slide 35"
     ],
     "unverified": [
       "Kubernetes enforcement was not tested; only a Docker host was used. The Helm daemonset install and the namespace scope behaviour come from documentation.",
@@ -699,7 +713,255 @@
       "Terminating matching processes that were already running was not tested.",
       "Docker container-scoped enforcement failed in test with no container attribution, and the cause was not established, so scoping by container name is not shown to work.",
       "Time before termination is described only as 'a moment' and was not measured.",
-      "Lower capability tiers than terminate were not seen on the test host."
+      "Lower capability tiers than terminate were not seen on the test host.",
+      "The Self-Hosted Agents name, the enrollment with a platform-issued token, and the claim that the reporting node is taken from token claims and not the sender's word are Ping's release claims (deck slides 35 and 41). The release is not on our tenant and none of it was tested.",
+      "That removing the Federated Identity cuts the sensor off immediately, with findings staying attributable to the node, was not tested.",
+      "That a policy bound to a Federated Identity sets the sensor's mode (off, audit or enforce) and actions (allow, monitor, warn, deny) was not tested. Our measured path used command-line flags only.",
+      "The challenge, technical and business lines in this entry are Ping's wording from the deck, not our measurement."
+    ]
+  },
+  {
+    "id": "intent-purpose-behaviour",
+    "name": "Intent, Purpose and Behaviour",
+    "page": "oversight",
+    "why": "A tool name and its arguments do not say what was asked for, whether this agent was ever meant to do it, or whether it normally does. Ping's stated challenge (deck slide 48, a Ping claim not tested on our tenant): policy built on the request alone cannot tell misuse from an agent doing its job. Ping's stated technical value: three separable signals, where deterministic intent patterns and purpose declarations refuse hard, and learned behaviour baselines drive alerts and approval. Ping's stated business value: the enforceable declaration 'this agent exists to reconcile invoices' unblocks unattended agents in processes that could not otherwise approve them.",
+    "how": "Ping's release material says three signals are asked of every call, deliberately not combined into one score. Intent classifies what a request is actually trying to do, such as exfiltrate data, change a payee or look up a single record, rather than what it literally says, combining deterministic patterns with semantic similarity. A policy can refuse on a pattern match outright, or alert and ask for a person above a similarity score. Purpose is whether it was ever in scope: each agent key declares what it exists to do, and policy can refuse calls that fall outside that declaration, violate a specific axis of it, or arrive from a key that declares no purpose. Behaviour is whether this agent normally does this: Privilege learns each agent's normal pattern of calls and scores how far a request departs from it (anomaly level, a target it has not touched, an argument shape it has never used). Enforcement begins only once the baseline is established, so a new agent is never blocked for being new. Hard refusals rest on the deterministic tier; the scored signals drive alerts and human-in-the-loop approval; a model's judgement never silently becomes the enforcement decision. The console swagger shows where this would be configured. An intent object (path /v1/aiintents) has Description, Exemplars, Twins, Patterns, Acts and Floor. An intent configuration with an Encoder (URL, TimeoutMS, FailClosed), Disabled and IntentIDs appears on MCP and HTTP application configs, on agent keys and on coding-agent settings. A PurposeProfile on an agent key has Statement, Methods, Targets, Apps and ArgPrefixes. A BehaviourConfig on an agent key has Disabled, MinObservations and EnforceObservations; its description says it exists to opt out and to move the phase boundaries, and that every context.behaviour policy attribute reads 0 when it is disabled. The swagger does not say what Twins, Acts or the Encoder do, and this entry does not interpret them. None of this was run.",
+    "userValue": "A security owner would be able to write down what an unattended agent is for and have the gateway check every call against it, while a learned baseline raises alerts or asks a person instead of denying on its own. That is Ping's claim. We have not configured an intent, a purpose profile or a behaviour baseline on our tenant, so for a customer this describes what Ping says the release does, and it is not a demonstration.",
+    "components": [
+      "Intent object (description, exemplars, patterns, floor) at /v1/aiintents",
+      "Intent configuration on MCP and HTTP apps, agent keys and coding agents (intent IDs, optional encoder)",
+      "Purpose profile on an agent key (statement, methods, targets, apps, argument prefixes)",
+      "Behaviour configuration on an agent key (minimum and enforcement observation counts)",
+      "Policy attribute context.behaviour",
+      "Alerts and human-in-the-loop approval",
+      "Gateway log"
+    ],
+    "sources": [
+      "Ping deck ID4AI Workforce H2 2026, slide 48",
+      "Ping deck ID4AI Workforce H2 2026, slide 35",
+      "Privilege console swagger 2026-10-31 (schema only)"
+    ],
+    "unverified": [
+      "Everything in this entry is a Ping release claim taken from the deck for the 2026-11-02 release. The release is not on our tenant, and nothing was run, measured or tested for this feature.",
+      "The console swagger names (read 2026-10-31, schema only, nothing was called) prove that a field exists, not how it behaves. Text quoted from swagger field descriptions is Ping's wording of intended behaviour, not something we observed.",
+      "Whether pattern matching, semantic similarity and the similarity floor behave as the deck describes was not tested.",
+      "What the Twins, Acts and Encoder fields do is not stated in the schema and was not tested.",
+      "That a new agent is never blocked for being new, and where the learning and enforcing phases begin, was not tested. The built-in defaults for the observation counts are not known to us.",
+      "That the scored signals can only alert or ask for approval, and never deny on their own, is Ping's claim and was not tested.",
+      "How an unattended agent with no declared purpose is treated, and whether a policy can require a declaration, was not tested."
+    ]
+  },
+  {
+    "id": "on-behalf-of-and-id-jag",
+    "name": "On-behalf-of and ID-JAG",
+    "page": "mcp",
+    "why": "When the gateway forwards a call, the backend either trusts a shared service account or has no way to know who the original caller was. Ping's deck (slide 48, a Ping claim not tested on our tenant) says on-behalf-of lets the backend validate a token issued to it rather than trusting a shared service account, and ID-JAG carries the end user's identity to a third-party app whose identity provider you do not control. The deck's challenge, technical and business value panels on that slide are written for the Intent, Purpose and Behaviour signals and have no separate lines for these two, so none are quoted here.",
+    "how": "Ping's release material describes two steps. On-behalf-of: the gateway swaps the caller's verified token (RFC 8693) for one minted specifically for the downstream MCP server, so the backend validates a token issued to it. The act claim preserves who the original caller was. ID-JAG: where the target application trusts a different identity provider, the exchange returns an identity assertion grant that the gateway redeems at that application's own issuer, so the end user's identity reaches a third-party app with no shared credential and no re-consent. The console swagger shows an OBO block on the MCP application config (MCP apps only) with TokenURL, ClientID, ClientSecret, AuthMethod, Resource, Scope, PrivateKeyPEM, KeyID, SubjectTokenType and RequestedTokenType, plus an optional Redeem block for a second leg with TokenURL, ClientID, ClientSecret, AuthMethod, Scope, PrivateKeyPEM and KeyID. The swagger descriptions say Resource is the RFC 8707 resource indicator that becomes the exchanged token's audience, that the mode is the application Auth Mode 'obo', and that when Redeem is set the exchange result is treated as an assertion grant and redeemed at that endpoint. No exchange was configured or run on our tenant.",
+    "userValue": "A backend would be able to see which user an MCP call is for and validate a token meant for it, instead of trusting a shared service account. With ID-JAG the same user identity would reach an application behind a different identity provider. That is Ping's claim. Nothing was configured or called on our tenant, and our own ID-JAG demo is a separate demo, not a test of this gateway behaviour.",
+    "components": [
+      "MCP Server application OBO settings (token URL, client, resource, scope, token types)",
+      "Verified caller token (input to the exchange)",
+      "Exchanged token with the downstream server as audience and an act claim",
+      "Downstream MCP server (validates the token issued to it)",
+      "Redeem settings (second leg at the target application's own issuer)",
+      "Third-party identity provider (the target application's own issuer)",
+      "Gateway log"
+    ],
+    "sources": [
+      "Ping deck ID4AI Workforce H2 2026, slide 48",
+      "Ping deck ID4AI Workforce H2 2026, slide 35",
+      "Privilege console swagger 2026-10-31 (schema only)"
+    ],
+    "unverified": [
+      "Everything in this entry is a Ping release claim taken from the deck for the 2026-11-02 release. The release is not on our tenant, and nothing was run, measured or tested for this feature.",
+      "The console swagger names (read 2026-10-31, schema only, nothing was called) prove that a field exists, not how it behaves. Text quoted from swagger field descriptions is Ping's wording of intended behaviour, not something we observed.",
+      "Whether the exchanged token carries the backend as audience, carries an act claim and has a valid signature was not checked.",
+      "Whether a wrong audience, expired token, missing act claim, bad signature or replay is refused was not tested.",
+      "Whether the redeem leg runs only when Redeem is configured, and whether an untrusted issuer is refused, was not tested.",
+      "How this relates to the existing Auth Modes (None, Static Token, User Token, Pass Agent Token) in our measurements was not checked. The swagger names the mode 'obo'.",
+      "The deck does not give challenge, technical or business value lines for these two features, so none are quoted."
+    ]
+  },
+  {
+    "id": "coding-agents",
+    "name": "Coding agents",
+    "page": "platform",
+    "why": "A coding agent reads the repository, takes instructions from files in it, calls internal tools and holds the developer's credentials, yet its traffic bypasses every gateway control, so prompts and source leave uninspected. That is Ping's stated challenge (deck slide 49, a Ping claim not tested on our tenant). Ping's stated technical value: prompts, shell commands, file reads, MCP calls and tool results are evaluated at the agent, through its own hook interface. Ping's stated business value: source code and credentials stop leaving through coding agents without a TLS-decryption project, with one policy and one audit trail.",
+    "how": "Ping's release material names six coding agents: Claude Code, Cursor, Codex, Gemini CLI, GitHub Copilot and Antigravity. Each is covered through its own hook interface, written to the machine-level managed configuration that the agent reads, so the control travels with the laptop rather than the project and stays in force however the developer opens the editor. Prompts, shell commands, file reads, MCP calls and tool results are evaluated by the same gateway, policies and detection as LLM and MCP traffic. A decision returns as that agent's native allow, deny or ask response, so a refusal appears in the developer's normal permission dialog. A prompt carrying a credential is stopped outright, so it never reaches the model provider; risky tool arguments raise an alert and stay in the audit trail without interrupting local work. Every evaluation carries the developer's identity and device, taken from the machine's certificate. Developers keep working if the gateway is briefly unreachable and the gap is recorded for review; regulated environments can require a refusal instead, set per tenant. The deck gives the reason for a hook: inspecting a coding agent otherwise means terminating TLS, which needs a certificate on every developer machine and a decryption policy, and a hook only covers agents it is installed into, which is why the endpoint sensor still finds the ones that are not on this list. The console swagger shows a CodingAgent block on the tenant profile with Enabled, FailClosed, Agents (a name-to-on/off map), Gateways, AIGuard, AIIntent and Behaviour. Its descriptions say Enabled is off until a tenant asks, that FailClosed defaults to open, and that an empty Agents list installs hooks for every agent found on the device. No hook was installed or run.",
+    "userValue": "A security team would get one policy and one audit trail for prompts and tool calls made from developer laptops, with refusals shown in the coding agent's own permission dialog. That is Ping's claim. We have installed nothing on a device and enabled nothing on our tenant, so the allow, deny and ask behaviour and the fail-open gap are described here, not shown.",
+    "components": [
+      "Coding-agent settings on the tenant profile (enabled, fail closed, agents, gateways)",
+      "Hook for each agent in its machine-level managed configuration",
+      "Privilege gateway (same policies and detection as LLM and MCP traffic)",
+      "AI Guard, intent and behaviour settings for coding agents",
+      "Developer identity and device from the machine certificate",
+      "Native allow, deny or ask answer in the agent's own permission dialog",
+      "Audit trail, including recorded gateway-unreachable gaps"
+    ],
+    "sources": [
+      "Ping deck ID4AI Workforce H2 2026, slide 49",
+      "Ping deck ID4AI Workforce H2 2026, slide 35",
+      "Privilege console swagger 2026-10-31 (schema only)"
+    ],
+    "unverified": [
+      "Everything in this entry is a Ping release claim taken from the deck for the 2026-11-02 release. The release is not on our tenant, and nothing was run, measured or tested for this feature.",
+      "The console swagger names (read 2026-10-31, schema only, nothing was called) prove that a field exists, not how it behaves. Text quoted from swagger field descriptions is Ping's wording of intended behaviour, not something we observed.",
+      "Whether each of the six agents receives a working hook, and whether its native allow, deny or ask answer appears as described, was not tested.",
+      "Whether a prompt carrying a credential is stopped before it reaches the model provider was not tested.",
+      "Whether identity and device really come from the machine certificate, and how that is enrolled, was not checked.",
+      "The fail-open default, the recorded gap and the per-tenant switch to fail closed were not tested.",
+      "The deck says the endpoint sensor finds coding agents that are not on the hook list. That was not tested, and the sensor tests we did run used a Docker host only."
+    ]
+  },
+  {
+    "id": "data-protection",
+    "name": "Data protection",
+    "page": "oversight",
+    "why": "Authorization cannot see content: an agent following hidden instructions in a retrieved document can exfiltrate data entirely within policy. That is Ping's stated challenge (deck slide 53, a Ping claim not tested on our tenant). Ping's stated technical value: content is inspected in and out on MCP, A2A, LLM and coding-agent traffic, and deterministic rules add no availability dependency. Ping's stated business value: a fraction of the cost of one incident, and framework-mapped evidence for AI governance sign-off.",
+    "how": "The 2026-11-02 release extends AI Guard in three ways, per Ping's material. Personal-data coverage grows from 5 kinds to 23: national identifiers, financial, health and contact details, with each numeric kind checksum-validated and detection selectable per kind. You can write your own detection formats and paste them in gitleaks rule format. The deterministic layer is described as 411 maintained rules, 47 behavioural across the detection categories and 364 secret and credential detectors, running in the request path with no model inference. The console swagger shows PIIKinds on the AI Guard config (the diff notes detector ids such as pii-ssn and pii-credit-card), a custom rule object with ID, Description, Category, Severity, Score, OWASP, AppliesTo, Keywords, Pattern, Entropy, Allowlist and ValueGroup, tenant-level AIGuardRules, and a create-only endpoint /v1/aiguardruleimport that takes Toml and returns Added and Errors. The diff notes that one bad rule refuses the whole paste. None of it was called or tested.",
+    "userValue": "A security owner would be able to choose which personal-data kinds are detected and add organisation-specific secret formats by pasting rules, without writing code. That is Ping's claim. We have not enabled any of the 23 kinds, pasted a rule or counted detectors on our tenant, so the numbers 23, 364 and 411 are the deck's, not ours. Our earlier AI Guard measurements (see the per-credential inspection entry) predate this release.",
+    "components": [
+      "AI Guard configuration (personal-data kinds selected per kind)",
+      "Custom rule in gitleaks rule format (pattern, keywords, entropy, allowlist, OWASP tag)",
+      "Rule import endpoint /v1/aiguardruleimport (Toml in, Added and Errors out)",
+      "Maintained rules and secret detectors (deterministic, no model in the request path)",
+      "Policy decisions: allow, alert, sanitize or block",
+      "Gateway log and audit feed"
+    ],
+    "sources": [
+      "Ping deck ID4AI Workforce H2 2026, slide 53",
+      "Ping deck ID4AI Workforce H2 2026, slide 35",
+      "Privilege console swagger 2026-10-31 (schema only)"
+    ],
+    "unverified": [
+      "Everything in this entry is a Ping release claim taken from the deck for the 2026-11-02 release. The release is not on our tenant, and nothing was run, measured or tested for this feature.",
+      "The console swagger names (read 2026-10-31, schema only, nothing was called) prove that a field exists, not how it behaves. Text quoted from swagger field descriptions is Ping's wording of intended behaviour, not something we observed.",
+      "The counts (5 to 23 personal-data kinds, 364 secret and credential detectors, 411 rules of which 47 are behavioural) are the deck's and were not counted on our tenant.",
+      "Checksum validation, per-kind selection, and the absence of false hits on near-miss values were not tested.",
+      "Whether a gitleaks-format paste is accepted unchanged, and whether one bad rule really refuses the whole paste and lists Errors, was not tested.",
+      "Which of the existing allow, alert, sanitize and block outcomes the new kinds and rules use was not checked.",
+      "Our earlier AI Guard results were measured before this release and do not cover the new kinds or rules."
+    ]
+  },
+  {
+    "id": "prompt-logging",
+    "name": "Prompt logging",
+    "page": "oversight",
+    "why": "Prompts and responses are exactly the content an investigation needs, and exactly the content a vendor should not be able to read, so teams refuse retention that hands the vendor the content and investigations stall. That is Ping's stated challenge (deck slide 50, a Ping claim not tested on our tenant). Ping's stated technical value: content is sealed to your public key and decrypted only in your console session, with Privilege never holding the private half. Ping's stated business value: full forensic retention becomes acceptable to security and legal, and investigations get the record without a data-trust concession.",
+    "how": "Ping's release material says prompts and responses can be retained, encrypted with a public key you supply, and only your private key opens them: you enter it in the console when you read a record, and the content is decrypted in the browser at that moment. Who ran it, which agent, which application, what was detected and what was decided stay readable, so you can find the record you need before decrypting it. It is off until you turn it on: by default the usage record captures metadata only, and full retention is an explicit tenant policy. Agent Insights is the place to read it, with Guard results, Alerts and the prompt record across MCP, A2A, LLM and coding-agent traffic, filterable by agent, application, category, decision, flow and event. The console swagger shows a PromptLog block on the tenant profile with Enabled, PublicKey (an X25519 public JWK), KeyID, Surfaces (llm, mcp, a2a, coding_agent), IncludeResponses and MaxBytes. Its descriptions say Enabled is off until a tenant asks, that nothing is recorded without a public key, that KeyID lets a rotated key still open its old records, that an empty Surfaces list records every surface, and that MaxBytes caps the text of one record. No key was supplied and nothing was recorded.",
+    "userValue": "An investigator would be able to search the metadata, find one record and then open its content with a key only the customer holds. That is Ping's claim. We have not supplied a key, turned logging on or opened a sealed record on our tenant, so the browser-side decryption and the 'Privilege never holds the private key' statement are the deck's, not something we checked.",
+    "components": [
+      "Prompt logging settings on the tenant profile (enabled, public key, key ID, surfaces, include responses, size cap)",
+      "X25519 public key supplied by the customer",
+      "Sealed prompt and response record",
+      "Searchable metadata left in the clear (who, agent, application, detection, decision)",
+      "Agent Insights (Guard results, Alerts, prompt record, filters)",
+      "Private key entered in the console to open a record, decrypted in the browser"
+    ],
+    "sources": [
+      "Ping deck ID4AI Workforce H2 2026, slide 50",
+      "Ping deck ID4AI Workforce H2 2026, slide 35",
+      "Ping deck ID4AI Workforce H2 2026, slide 53",
+      "Privilege console swagger 2026-10-31 (schema only)"
+    ],
+    "unverified": [
+      "Everything in this entry is a Ping release claim taken from the deck for the 2026-11-02 release. The release is not on our tenant, and nothing was run, measured or tested for this feature.",
+      "The console swagger names (read 2026-10-31, schema only, nothing was called) prove that a field exists, not how it behaves. Text quoted from swagger field descriptions is Ping's wording of intended behaviour, not something we observed.",
+      "Whether content is really sealed to the supplied key, and decrypted only in the browser, was not tested.",
+      "That Privilege never holds the private key is Ping's claim and was not verified.",
+      "Whether a tenant with no public key records nothing, and what the size cap and default are, was not tested.",
+      "Whether a rotated KeyID still opens old records, and how the Surfaces filter behaves, was not tested.",
+      "Agent Insights and its filters were not opened on our tenant for this feature."
+    ]
+  },
+  {
+    "id": "agentcore-gateway-governance",
+    "name": "AgentCore gateway governance",
+    "page": "platform",
+    "why": "Agents created in cloud consoles sit outside identity processes: nobody inventoried them and nobody knows what they reach. That is Ping's stated challenge for AI Platform Agents (deck slide 45, a Ping claim not tested on our tenant). Ping's stated technical value: cross-cloud inventory, permission review, 46-finding risk scores, and one console to fix or delete. Ping's stated business value: cuts agent-audit effort sharply and closes exfiltration paths before they are exploited. That panel covers the whole AI Platform Agents slide, not only the gateway items below.",
+    "how": "Ping's release material treats the Amazon Bedrock AgentCore gateway itself as an object of policy, not just a route. The deck lists these actions: enable or disable a tool target, switch the WAF between fail-open and fail-closed, close a bypass route, pin an endpoint, end a session, and flip enforcement from log-only to enforcing, the last behind a typed confirmation. This sits inside AI Platform Agents, the new name for Workload Agent Discovery & Control. The console swagger shows only the data side: the AgentCore account metadata gains GatewayDetailJSON, GatewayScorecardJSON, GatewayBypassPostureJSON, GatewayEnginesJSON, GatewayCallerAccessJSON, RuntimeCallerAccessJSON, TargetCallerAccessJSON, BypassDiffJSON and a Truncated flag. The schema does not say which field backs which action, and this entry does not map them. We have no AgentCore account connected and nothing was fetched.",
+    "userValue": "A cloud or security administrator would manage an AgentCore gateway's tool targets, failure mode, bypass routes and enforcement from the same console as other agents. That is Ping's claim. Nothing was connected, read or changed on our tenant, so the fail-open and fail-closed switch and the typed confirmation are described here, not shown.",
+    "components": [
+      "AgentCore account connection and its gateway metadata (detail, scorecard, bypass posture, engines, caller access, bypass diff)",
+      "Gateway tool targets (enable or disable)",
+      "WAF failure mode (fail-open or fail-closed)",
+      "Bypass routes and endpoint pinning",
+      "Enforcement mode (log-only or enforcing) with a typed confirmation",
+      "Privilege console audit feed"
+    ],
+    "sources": [
+      "Ping deck ID4AI Workforce H2 2026, slide 45",
+      "Ping deck ID4AI Workforce H2 2026, slide 35",
+      "Privilege console swagger 2026-10-31 (schema only)"
+    ],
+    "unverified": [
+      "Everything in this entry is a Ping release claim taken from the deck for the 2026-11-02 release. The release is not on our tenant, and nothing was run, measured or tested for this feature.",
+      "The console swagger names (read 2026-10-31, schema only, nothing was called) prove that a field exists, not how it behaves. Text quoted from swagger field descriptions is Ping's wording of intended behaviour, not something we observed.",
+      "Whether each listed action exists in the console and works as described was not tested.",
+      "Which swagger field backs which action is not stated in the schema and was not checked.",
+      "That the move from log-only to enforcing needs a typed confirmation is the deck's claim and was not tested.",
+      "We have no AgentCore account on our tenant, so nothing about the metadata fields was read or compared."
+    ]
+  },
+  {
+    "id": "private-network-discovery",
+    "name": "Private-network discovery",
+    "page": "platform",
+    "why": "Agents created in cloud consoles sit outside identity processes, and some are reachable only from inside a customer's own network and cloud accounts. Ping's stated challenge for AI Platform Agents (deck slide 45, a Ping claim not tested on our tenant): nobody inventoried them and nobody knows what they reach. Ping's stated technical and business value for that slide: cross-cloud inventory, permission review, 46-finding risk scores and one console to fix or delete, which cuts agent-audit effort and closes exfiltration paths before they are exploited. That panel covers the whole AI Platform Agents slide, not only this item.",
+    "how": "Ping's release material says a workload connector and scanner reach agents inside your own network and cloud accounts (Bedrock, AgentCore and Lex), polling outbound through your proxy. The console swagger shows a tenant-level PrivateNetwork setting with Enabled, and a per-connection PrivateNetwork block on the AI agent account with Enabled and ScannerRunsIn. Its descriptions say a private-network connection's cloud calls run in the customer's Workload Scanner instead of the controller, that ScannerRunsIn names where the scanner runs (an AWS account, an Azure subscription or a GCP project), and that Enabled is fixed once the connection is added. No scanner or connector was deployed and nothing was scanned.",
+    "userValue": "An administrator would be able to inventory agents in a private network without opening it to the controller. That is Ping's claim. We have deployed no connector or scanner and connected no cloud account for this, so it is described here, not shown.",
+    "components": [
+      "Tenant private-network setting (enabled)",
+      "Private-network block on a cloud connection (enabled, where the scanner runs)",
+      "Workload connector and scanner inside the customer's network",
+      "Outbound polling through the customer's proxy",
+      "Cloud agent sources: Bedrock, AgentCore and Lex",
+      "Findings returned to the Privilege console"
+    ],
+    "sources": [
+      "Ping deck ID4AI Workforce H2 2026, slide 45",
+      "Ping deck ID4AI Workforce H2 2026, slide 35",
+      "Privilege console swagger 2026-10-31 (schema only)"
+    ],
+    "unverified": [
+      "Everything in this entry is a Ping release claim taken from the deck for the 2026-11-02 release. The release is not on our tenant, and nothing was run, measured or tested for this feature.",
+      "The console swagger names (read 2026-10-31, schema only, nothing was called) prove that a field exists, not how it behaves. Text quoted from swagger field descriptions is Ping's wording of intended behaviour, not something we observed.",
+      "Whether the scanner reports only what the connector can reach, and whether a tenant with the setting off refuses to add a private-network connection, was not tested.",
+      "How the connector and scanner are installed, and what the proxy requirement is, is not in the sources we have.",
+      "The deck names Bedrock, AgentCore and Lex only for this feature. Whether other sources work in a private network was not checked.",
+      "We have no cloud account connected for this, so nothing was scanned."
+    ]
+  },
+  {
+    "id": "saas-access-management",
+    "name": "SaaS access management",
+    "page": "platform",
+    "why": "Standing access accumulates: a repository grant for one incident, a warehouse role for one migration, none of it expires, and nobody can say who still holds what. Audit findings on standing access stall the review. That is Ping's stated challenge (deck slide 51, a Ping claim not tested on our tenant). Ping's stated technical value: request, approve, expire and revoke as one cycle across six platforms, with a reaper that removes access on expiry and nightly drift detection. Ping's stated business value: audit findings on standing access close without manual clean-up campaigns, with lower risk and less compliance effort, in the same just-in-time model as agents.",
+    "how": "Ping's release material describes just-in-time, time-bound access to six platforms, each with a named mechanism. GitHub: repository collaborator, team membership and team-to-repository, using a personal access token; GitHub Enterprise Server is supported. GitLab: group and project membership with access level, using an administrator token; self-managed is supported. Salesforce: permission sets, permission set groups and profiles, using an OAuth JWT bearer with a connected app. Snowflake: role membership, using key-pair authentication. Databricks: Unity Catalog privileges, using an OAuth service principal. Google Workspace: admin role assignment, using a service account with domain-wide delegation. Requests go through multi-level approval chains with automatic routing to the right approver, self-approval blocked and optional auto-approval by policy. Approvers act directly from Slack or Mattermost; Microsoft Teams, Jira and ServiceNow receive notifications and tickets. Every grant carries an expiry, and a reaper reconciles continuously and removes access from the platform when the window closes, even if the original grant workflow is long finished. Every grant is recorded, reference-counted where several policies overlap, and reconciled nightly against the platform to surface access granted outside Privilege. The deck says the same request, approve, expire and revoke cycle applies to agent access, and that the only difference is the subject. The console swagger has no single object for this. It shows Sync fields on the Databricks, Salesforce and Snowflake account specs, EnableSSO and SSOUrl on Salesforce, TokenOwner and Error on the source-control member object, and Hitl fields on the Jira, ServiceNow and Slack specs. Those are field names only, and none of it was called.",
+    "userValue": "An engineer would request a role or repository grant, the right approver would decide in Slack or the console, and access would disappear at expiry with a receipt kept. That is Ping's claim. We have connected none of the six platforms and run no request, approval, expiry or drift check. Our own test of Slack and Mattermost approval notifications failed to dispatch on our demo tenant (see the human-in-the-loop entry), and that was not repeated for this release.",
+    "components": [
+      "Privilege console access request and approval workflow",
+      "Platform connections: GitHub, GitLab, Salesforce, Snowflake, Databricks, Google Workspace",
+      "Approval chains with self-approval blocked and optional policy auto-approval",
+      "Approver channels: Slack and Mattermost to act, Microsoft Teams, Jira and ServiceNow to be notified",
+      "Reaper that removes expired access from the platform",
+      "Grant receipts and nightly drift detection",
+      "Audit log"
+    ],
+    "sources": [
+      "Ping deck ID4AI Workforce H2 2026, slide 51",
+      "Ping deck ID4AI Workforce H2 2026, slide 35",
+      "Privilege console swagger 2026-10-31 (schema only)"
+    ],
+    "unverified": [
+      "Everything in this entry is a Ping release claim taken from the deck for the 2026-11-02 release. The release is not on our tenant, and nothing was run, measured or tested for this feature.",
+      "The console swagger names (read 2026-10-31, schema only, nothing was called) prove that a field exists, not how it behaves. Text quoted from swagger field descriptions is Ping's wording of intended behaviour, not something we observed.",
+      "Whether a request, approve, expire and revoke cycle works on any of the six platforms was not tested.",
+      "Whether self-approval is blocked, and whether the reaper removes access when the grant workflow has already finished, was not tested.",
+      "Whether nightly drift detection finds access granted outside Privilege was not tested.",
+      "Whether approvers can really act from Slack or Mattermost was not tested for this release. Our earlier test found Slack and Mattermost notifications did not dispatch on our agentless demo tenant.",
+      "The swagger shows field names on some platform accounts only, so it does not confirm all six platforms. The deck's list is the only source for them.",
+      "What access an agent would request through the same model, and how, was not checked."
     ]
   }
 ]

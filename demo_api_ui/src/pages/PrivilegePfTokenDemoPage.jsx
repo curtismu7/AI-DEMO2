@@ -155,7 +155,7 @@ export default function PrivilegePfTokenDemoPage() {
         <h1>PingFederate token on Privilege</h1>
         <p className="ppt-lede">
           An agent presents a <strong>PingFederate-issued JWT</strong> to a P1 Privilege Agent App. The gateway verifies it against a
-          non-human identity, maps it to the agent&apos;s key, applies the key&apos;s grant, and returns the tools. Nothing is mocked.
+          Federated Identity, maps it to the agent&apos;s key, applies the key&apos;s grant, and returns the tools. Nothing is mocked.
         </p>
       </header>
 

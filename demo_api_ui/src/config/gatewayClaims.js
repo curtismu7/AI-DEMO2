@@ -18,7 +18,7 @@ export const AGENT_ID = 'agent-example-01';
 export const ISSUER = 'https://pf.example.com';
 export const AUDIENCE = 'https://mcpgw.example.com/pftoken/mcp';
 
-// The Required claims on the Non-Human Identity (the Privilege policy rule).
+// The Required claims on the Federated Identity (the Privilege policy rule).
 export const REQUIRED_CLAIMS = { client_id: AGENT_ID, 'act.sub': AGENT_ID };
 
 /** Flatten nested objects into dotted paths. Arrays and primitives are leaves; the TEXT "{}" is a leaf, not an object. */
@@ -98,7 +98,7 @@ function sequence(s) {
     '    participant A as Agent\\nthe caller',
     '    participant F as PingFederate\\nissues the token',
     '    participant G as Privilege gateway\\nmcpgw v1.261024',
-    '    participant N as Non-Human Identity\\nRequiredClaims rule',
+    '    participant N as Federated Identity\\nRequiredClaims rule',
     '    participant B as MCP server\\nbehind the Agent App',
     '    rect rgb(255,235,222)',
     '    Note over A,F: 1 Get the token',
@@ -143,7 +143,7 @@ export const DIAGRAM_DETAILS = {
   A: 'The caller. It holds a PingFederate token and presents it as a bearer. It never holds a Privilege-issued key.',
   F: 'PingFederate: signs the token. The token mapping decides what act looks like, so a wrong expression here is the trap.',
   G: 'Privilege gateway, mcpgw. Verifies the signature, issuer and audience, then flattens nested claims and checks the rule.',
-  N: 'The Non-Human Identity trusting the PingFederate issuer. Its RequiredClaims are the rule: client_id and act.sub equal the agent id.',
+  N: 'The Federated Identity trusting the PingFederate issuer. Its RequiredClaims are the rule: client_id and act.sub equal the agent id.',
   B: 'The MCP server behind the P1 Privilege Agent App. In Pass Agent Token mode it receives the verified token.',
 };
 
@@ -156,8 +156,8 @@ export const TRAP_ROWS = [
 export const MAPPING_ROWS = [
   { where: 'PF mapping: sub, client_id', value: 'the client id (the agent id)' },
   { where: 'PF mapping: act', value: '#{"sub": "<agent id>"}  (an object, not the text "{}")' },
-  { where: 'Non-Human Identity: Required claims', value: 'client_id = <agent id>  and  act.sub = <agent id>' },
-  { where: 'Non-Human Identity: Audience', value: 'the P1 Privilege Agent App URL' },
+  { where: 'Federated Identity: Required claims', value: 'client_id = <agent id>  and  act.sub = <agent id>' },
+  { where: 'Federated Identity: Audience', value: 'the P1 Privilege Agent App URL' },
 ];
 
 export const WHAT_CHANGED = {

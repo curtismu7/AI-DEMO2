@@ -509,15 +509,9 @@ jobs:
       - uses: actions/checkout@v7
         with:
           ref: ${{ inputs.target_ref || github.sha }}
-      - name: Use the runner's installed Python 3.12
-        run: |
-          python="$HOME/.local/bin/python3.12"
-          if [ ! -x "$python" ]; then
-            echo "Python 3.12 is not installed at $python" >&2
-            exit 1
-          fi
-          "$python" --version
-          echo "$HOME/.local/bin" >> "$GITHUB_PATH"
+      - uses: actions/setup-python@v7
+        with:
+          python-version: '3.12'
       - name: langchain_agent (blocking — 834 passing)
         run: |
           cd langchain_agent
