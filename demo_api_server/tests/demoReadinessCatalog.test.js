@@ -177,8 +177,9 @@ describe('demo readiness catalog', () => {
       'standard-agent-exchanger', 'ai-agent-actor', 'a2a-specialist',
     ]);
     expect(native.credentialRoles.map((role) => role.roleId)).toEqual(['uc40-native-id-jag']);
+    // The customer's workload agent is the first-hop actor, so no built-in ai-agent-actor role.
     expect(workload.credentialRoles.map((role) => role.roleId)).toEqual([
-      'standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor',
+      'standard-agent-exchanger', 'standard-mcp-exchanger', 'mcp-service-actor',
     ]);
   });
 

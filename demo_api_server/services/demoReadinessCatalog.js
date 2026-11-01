@@ -138,7 +138,9 @@ function pfCredentialRoleIdsFor(id, flowId) {
   if (flowId === 'pingfederate-native-id-jag') return ['uc40-native-id-jag'];
   if (flowId === 'pingfederate-a2a') return ['standard-agent-exchanger', 'ai-agent-actor', 'a2a-specialist'];
   if (flowId === 'pingfederate-workload') {
-    return ['standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor'];
+    // The customer's own workload agent is the first-hop actor, replacing the
+    // built-in ai-agent-actor client.
+    return ['standard-agent-exchanger', 'standard-mcp-exchanger', 'mcp-service-actor'];
   }
   if (flowId === 'pingfederate-admin-mcp') return ['standard-agent-exchanger', 'standard-mcp-exchanger'];
   return ['standard-agent-exchanger', 'standard-mcp-exchanger', 'ai-agent-actor', 'mcp-service-actor'];

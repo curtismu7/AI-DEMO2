@@ -102,6 +102,24 @@ async function createAgentClient({ clientId, clientSecret, name }) {
   return { clientId };
 }
 
+/**
+ * Make sure an agent has a PingFederate client, creating it when it is missing.
+ * A client that already exists is left alone, so a workload agent registered
+ * before PingFederate was in use is picked up on its first run.
+ * @returns {Promise<{clientId: string, created: boolean}>}
+ */
+async function ensureAgentClient({ clientId, clientSecret, name }) {
+  const existing = await call('GET', `/oauth/clients/${encodeURIComponent(clientId)}`);
+  if (existing.status === 200) return { clientId, created: false };
+  if (existing.status !== 404) {
+    throw Object.assign(new Error(`PingFederate returned HTTP ${existing.status} reading the agent client.`), {
+      code: 'pf_agent_client_unavailable', httpStatus: 502,
+    });
+  }
+  await createAgentClient({ clientId, clientSecret, name });
+  return { clientId, created: true };
+}
+
 /** Delete an agent's PingFederate client. A client that is already gone is fine. */
 async function deleteClient(clientId) {
   const res = await call('DELETE', `/oauth/clients/${encodeURIComponent(clientId)}`);
@@ -113,4 +131,4 @@ async function deleteClient(clientId) {
   return res.status === 204;
 }
 
-module.exports = { isConfigured, createAgentClient, deleteClient };
+module.exports = { isConfigured, createAgentClient, ensureAgentClient, deleteClient };

@@ -374,7 +374,14 @@ function evidenceFailures({ evidence, provider, authorization: catalogAuthorizat
   }
   if (caseRow.id === 'UC38' || caseRow.id === 'UC44') {
     const hops = evidence.exchangeHops || [];
-    require(hops.length === 2 && hops.every((hop) => hop?.subject === evidence.subject && orderedValues(hop?.actorChain, evidence.actorChain)), 'actor-bound exchanges must retain the same subject and ordered actor chain at every hop');
+    // PingFederate: Exchange #1 names only the workload agent; Exchange #2 puts
+    // the MCP-service actor in front of it, so the first hop's chain is the
+    // final chain without that second entry.
+    const firstHop = provider === 'pingfederate' && Array.isArray(evidence.actorChain)
+      ? [evidence.actorChain[0], ...evidence.actorChain.slice(2)]
+      : evidence.actorChain;
+    require(hops.length === 2 && hops.every((hop) => hop?.subject === evidence.subject)
+      && orderedValues(hops[0]?.actorChain, firstHop) && orderedValues(hops[1]?.actorChain, evidence.actorChain), 'actor-bound exchanges must retain the same subject and ordered actor chain at every hop');
     require(Boolean(evidence.workloadAgentClientId) && evidence.actorChain.includes(evidence.workloadAgentClientId), 'actor chain must name the workload agent that presented the actor token');
   }
   if (authorization?.primaryTool) {

@@ -101,6 +101,22 @@ describe('pingFederateClientService', () => {
     expect(post.data).not.toHaveProperty('creationDate');
   });
 
+  test('ensureAgentClient leaves an existing client alone and creates a missing one', async () => {
+    mockAxios.mockImplementation(async ({ method, url }) => {
+      if (method === 'GET' && url.endsWith('/oauth/clients/agent-123')) return { status: 200, data: { clientId: 'agent-123' } };
+      if (method === 'GET' && url.endsWith('/oauth/clients/missing')) return { status: 404, data: {} };
+      if (method === 'GET') return { status: 200, data: TEMPLATE };
+      if (method === 'POST') return { status: 201, data: {} };
+      return { status: 500, data: {} };
+    });
+    await expect(pingFederateClientService.ensureAgentClient({ clientId: 'agent-123', clientSecret: 's', name: 'A' }))
+      .resolves.toEqual({ clientId: 'agent-123', created: false });
+    expect(mockAxios.mock.calls.some(([arg]) => arg.method === 'POST')).toBe(false);
+    await expect(pingFederateClientService.ensureAgentClient({ clientId: 'missing', clientSecret: 's', name: 'A' }))
+      .resolves.toEqual({ clientId: 'missing', created: true });
+    expect(mockAxios.mock.calls.some(([arg]) => arg.method === 'POST' && arg.data.clientId === 'missing')).toBe(true);
+  });
+
   test('deleting a client that is already gone is not an error', async () => {
     await expect(pingFederateClientService.deleteClient('gone')).resolves.toBe(false);
     await expect(pingFederateClientService.deleteClient('agent-123')).resolves.toBe(true);

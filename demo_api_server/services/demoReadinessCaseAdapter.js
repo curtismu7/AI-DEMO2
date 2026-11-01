@@ -128,7 +128,6 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
       return { subject: hop.claims?.sub || null, actorChain: [hop.claims?.sub, ...actors].filter(Boolean) };
     });
     evidence.exchangeService = 'token-exchange';
-    evidence.exchangeProvenance = `${provider}-standard`;
     // Actor-bound when the BFF verified a customer-owned workload agent and
     // used it, not the built-in agent, as the actor of the first exchange.
     evidence.exchangePath = eventById(events, 'personal-agent-lookup')?.status === 'active'
@@ -137,6 +136,13 @@ function evidenceFromAgentInvoke({ response, provider, expectedIssuer, authoriza
     evidence.subjectTokenType = 'access_token';
     // The agent that presented the actor token on a workload run. The runner
     // requires it in the actor chain: a run recorded under another agent fails.
+    // PingFederate names its actor-bound flow separately from the standard one.
+    evidence.exchangeProvenance = evidence.exchangePath === 'actor-bound-standard-two-exchange' && provider === 'pingfederate'
+      ? 'pingfederate-workload'
+      : `${provider}-standard`;
+    // PingFederate adds the MCP-service actor on Exchange #2, so the run's actor
+    // chain is the final token's (the audit does not name the workload agent).
+    if (evidence.exchangePath === 'actor-bound-standard-two-exchange' && provider === 'pingfederate') evidence.actorChain = evidence.exchangeHops[1].actorChain;
     if (evidence.exchangePath === 'actor-bound-standard-two-exchange') evidence.workloadAgentClientId = agentActor?.claims?.client_id || null;
     // PingFederate: the exchange as the BFF reports making it, for the runner
     // to compare with the profile's recorded issuer, endpoint and roles. The
@@ -336,9 +342,19 @@ function createCaseOperations({ request, provider, expectedIssuer, page = null }
       }
       // Like the user's agent consent below, the worker registers the agent
       // once, as the readiness user, exactly as a presenter does on the agent
-      // builder page.
-      if (!state.body?.agent) {
-        const created = await request(AGENT_CREATE_PATH, { method: 'POST', body: {} });
+      // builder page. A workload run mints the agent's own client-credentials
+      // actor token, so the agent must hold that grant; one registered without
+      // it is replaced.
+      let agent = state.body?.agent || null;
+      if (agent && !(agent.grantTypes || []).includes('CLIENT_CREDENTIALS')) {
+        const removed = await request(AGENT_CREATE_PATH, { method: 'DELETE' });
+        if (removed.status !== 200) {
+          return { status: 'blocked', reason: `lane could not replace a workload agent that lacks client credentials (HTTP ${removed.status})` };
+        }
+        agent = null;
+      }
+      if (!agent) {
+        const created = await request(AGENT_CREATE_PATH, { method: 'POST', body: { grantTypes: ['CLIENT_CREDENTIALS'] } });
         if (![200, 201].includes(created.status)) {
           return { status: 'blocked', reason: `lane could not register a workload agent for the readiness identity (HTTP ${created.status}${created.body?.error ? `: ${created.body.error}` : ''})` };
         }

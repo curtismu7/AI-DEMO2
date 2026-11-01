@@ -297,15 +297,21 @@ test('UC44 registers a workload agent when the readiness identity has none, then
   const flags = buildDemoReadinessCatalog().find((item) => item.id === 'UC44').runtimePrerequisitesByVertical[VERTICAL].requiredFlags;
   const lane = (agent, createStatus = 201) => jest.fn(async (path, init) => {
     if (path === '/api/agent-builder/state') return { status: 200, body: { agent } };
+    if (path === '/api/agent-builder/agent' && init.method === 'DELETE') return { status: 200, body: { deleted: true } };
     if (path === '/api/agent-builder/agent' && init.method === 'POST') return { status: createStatus, body: createStatus < 300 ? { created: true } : { error: 'boom' } };
     return { status: 200, body: { success: true, flags } };
   });
   const none = lane(null);
   expect(await workloadPrerequisites('UC44', none)).toEqual({ status: 'pass' });
-  expect(none).toHaveBeenCalledWith('/api/agent-builder/agent', { method: 'POST', body: {} });
-  const have = lane({ id: 'agent-app' });
+  expect(none).toHaveBeenCalledWith('/api/agent-builder/agent', { method: 'POST', body: { grantTypes: ['CLIENT_CREDENTIALS'] } });
+  const have = lane({ id: 'agent-app', grantTypes: ['CLIENT_CREDENTIALS'] });
   expect(await workloadPrerequisites('UC44', have)).toEqual({ status: 'pass' });
   expect(have).not.toHaveBeenCalledWith('/api/agent-builder/agent', expect.anything());
+  // An agent registered without client credentials cannot mint an actor token: it is replaced.
+  const wrongGrant = lane({ id: 'agent-app', grantTypes: ['AUTHORIZATION_CODE'] });
+  expect(await workloadPrerequisites('UC44', wrongGrant)).toEqual({ status: 'pass' });
+  expect(wrongGrant).toHaveBeenCalledWith('/api/agent-builder/agent', { method: 'DELETE' });
+  expect(wrongGrant).toHaveBeenCalledWith('/api/agent-builder/agent', { method: 'POST', body: { grantTypes: ['CLIENT_CREDENTIALS'] } });
   expect(await workloadPrerequisites('UC44', lane(null, 500))).toEqual({ status: 'blocked', reason: expect.stringMatching(/could not register a workload agent.*HTTP 500: boom/) });
 });
 
