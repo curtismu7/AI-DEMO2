@@ -1,0 +1,73 @@
+// /gateway-claims parts 6 and 7: gateway v1.261029 and v1.261030 read from the binary (UNVERIFIED), and the 2026-11-02
+// release features we have not measured on our tenant. Nothing here runs; it states what we know and what a test needs.
+import { EVIDENCE } from '../config/gatewayClaims';
+import {
+  BASELINE_VERSION, CHECKED_ON, LATEST_FACTS, NOT_MEASURED, RECHECK_STEPS, RELEASE_DATE, RELEASE_TABLE, SINCE_ROWS, VERSION_LATEST, VERSION_MIDDLE,
+} from '../config/gatewayLatest';
+
+function Tag({ kind }) {
+  const e = EVIDENCE[kind];
+  return <span className={`gwc-tag gwc-tag--${kind}`} title={e.note}>{e.label}</span>;
+}
+
+export default function GatewayLatest() {
+  return (
+    <>
+      <section className="gwc-card" aria-labelledby="gwc-p6" data-testid="gwc-since">
+        <h2 id="gwc-p6">6. Since {BASELINE_VERSION}: {VERSION_MIDDLE} and {VERSION_LATEST} <Tag kind="unverified" /></h2>
+        <p className="gwc-warn" role="note">
+          Ping published no release notes for these tags and we ran nothing against them. Every change below is our reading of the gateway binary
+          (checked {CHECKED_ON}), UNVERIFIED. The two tags are small steps on {BASELINE_VERSION}.
+        </p>
+        <ul>{LATEST_FACTS.map((f) => <li key={f.text}><Tag kind={f.evidence} /> {f.text}</li>)}</ul>
+        <h3>The three builds</h3>
+        <table className="gwc-table gwc-table--stack" aria-label="Gateway builds" data-testid="gwc-builds">
+          <thead><tr><th>Tag</th><th>Built (UTC)</th><th>mcpgw binary (bytes)</th><th>Symbols against the tag before</th></tr></thead>
+          <tbody>
+            {RELEASE_TABLE.map((r) => (
+              <tr key={r.tag}><td data-label="Tag"><code>{r.tag}</code></td><td data-label="Built (UTC)">{r.built}</td><td data-label="mcpgw binary (bytes)">{r.binary}</td><td data-label="Symbols against the tag before">{r.symbols}</td></tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="gwc-muted">Symbol counts include compiler temporaries. They show how big the step was, not how many features changed.</p>
+        <h3>What changed since {BASELINE_VERSION} <Tag kind="unverified" /></h3>
+        <table className="gwc-table gwc-table--stack" aria-label={`Changes since ${BASELINE_VERSION}`} data-testid="gwc-since-diff">
+          <thead><tr><th>Tag</th><th>Change</th><th>Symbols and messages</th><th>Our reading</th></tr></thead>
+          <tbody>
+            {SINCE_ROWS.map((r) => (
+              <tr key={r.id} data-testid={`gwc-since-${r.id}`}>
+                <td data-label="Tag"><code>{r.version}</code></td>
+                <td data-label="Change">{r.change}</td>
+                <td data-label="Symbols and messages"><code>{r.symbols}</code></td>
+                <td data-label="Our reading">{r.reading}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      </section>
+
+      <section className="gwc-card" aria-labelledby="gwc-p7" data-testid="gwc-not-measured">
+        <h2 id="gwc-p7">7. Not yet measured on our tenant: the {RELEASE_DATE} release <Tag kind="unverified" /></h2>
+        <p className="gwc-warn" role="note">
+          The {RELEASE_DATE} Agent Privilege release is not published yet, and our gateway runs {VERSION_LATEST}. The five features below were named to us;
+          none is described in Ping&apos;s public notes and none has been tried here. Each stays UNVERIFIED until a test in the last column has been run.
+        </p>
+        <table className="gwc-table gwc-table--stack" aria-label="Release features not yet measured" data-testid="gwc-not-measured-table">
+          <thead><tr><th>Feature</th><th>Status</th><th>Our reading of the name</th><th>What a test needs</th></tr></thead>
+          <tbody>
+            {NOT_MEASURED.map((r) => (
+              <tr key={r.id} data-testid={`gwc-nm-${r.id}`}>
+                <td data-label="Feature"><strong>{r.feature}</strong></td>
+                <td data-label="Status"><Tag kind="unverified" /></td>
+                <td data-label="Our reading of the name">{r.reading}</td>
+                <td data-label="What a test needs">{r.test}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <h3>When the release lands</h3>
+        <ol>{RECHECK_STEPS.map((s) => <li key={s}>{s}</li>)}</ol>
+      </section>
+    </>
+  );
+}

@@ -93,7 +93,7 @@ export const NAV_SEARCH_ALIASES = {
   "/error-audit": "app events bff server-side event log admin errors failures",
   "/external-door-diagrams": "external agent app mcp door oauth-mcp self registering client claude desktop lm studio inspector authorization_code client_credentials federated token self-issued jwt ingress",
   "/poppy": "poppy personal agent protocol poppy-session cimd client metadata document delegation protected resource well-known poppy.json",
-  "/gateway-claims": "gateway mcpgw v1.261024 v1.261027 v1.261028 nested claim act.sub cedar token scopes requiredclaims flatclaims agentcore posture privilege",
+  "/gateway-claims": "gateway mcpgw release notes what is new v1.261024 v1.261027 v1.261028 v1.261029 v1.261030 nested claim act.sub cedar token scopes requiredclaims agentcore posture privilege",
   "/gateway-enforcement-map": "enforcement checks mcp gateway pinggateway pingone authorize p1az policy decision what each check stops",
   "/governance-timeline": "evidence nhi registration authorization privilege accountable outcomes identity lane",
   "/graphify": "codegraph codebase knowledge graph query path explain agent tooling grep",
