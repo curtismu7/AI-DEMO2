@@ -1,6 +1,6 @@
 # PingFederate edition: readiness baseline
 
-Status: FULL PINGFEDERATE RUN, LOCAL TARGET, 2026-10-31 (morning). Every PingFederate row that runs passes; none fails. A2A is covered. Spec: `docs/superpowers/specs/2026-10-03-edition-split-design.md`.
+Status: FULL PINGFEDERATE RUN, LOCAL TARGET, 2026-11-01 (run on aaae137ad, whose readiness and workload files match main 432cf862a). Every PingFederate row that runs passes except UC14b (no adapter, HTTP 501). A2A is covered. Spec: `docs/superpowers/specs/2026-10-03-edition-split-design.md`.
 
 Run: `npm run demo:ready -- --target local --provider pingfederate --json` through the BFF lane, with PingGateway, the main BFF, both lane BFFs, both readiness workers, the two per-lane resource servers and the `readiness-browser` service on main `b1e12cbf7` (#1934). Finished in 641 s. A single target and a single provider are diagnostic only, so the run is `NOT READY` by design. Local Docker only: the SE lane was not run.
 
@@ -8,7 +8,7 @@ Real id count: 100 (`demo_api_server/config/auth-requirements.json` `useCases`: 
 
 Totals (PingFederate, per id): pass 34, fail 0, not-applicable 0, not-run 66 (48 no scenario, 18 blocked).
 
-PingFederate rows: 210. pass 142, fail 0, blocked 68, not-run 0. Same project, run by run: 2026-10-30 morning 57 pass / 52 fail; afternoon 97 / 12; evening 109 / 0 (101 blocked). 2026-10-31, with the A2A rows unblocked: 107 / 23, 116 / 14, 125 / 5, 128 / 2, then 142 / 0 (68 blocked).
+PingFederate rows: 210. pass 155, fail 1, blocked 54, not-run 0 (560 s, 2026-11-01). The per-id totals above are from 2026-10-31. 2026-10-31 was pass 142, fail 0, blocked 68. Same project, run by run: 2026-10-30 morning 57 pass / 52 fail; afternoon 97 / 12; evening 109 / 0 (101 blocked). 2026-10-31, with the A2A rows unblocked: 107 / 23, 116 / 14, 125 / 5, 128 / 2, then 142 / 0 (68 blocked).
 
 Configuration audit: all PingFederate checks pass, before and after the (empty) repair preview. The CIMD check requires only the demo's own documents (#1908) and lists other apps' CIMD documents on this PingFederate as `beyondBaseline`. `pingone:policyReadback` stays `blocked` (not required).
 
@@ -47,16 +47,25 @@ Unblocking the 34 A2A rows (the `a2a-specialist` role, #1924) exposed these, in 
 - **UC2.5 on heuristics (#1934).** The A2A page's LLM coordinator picks among the banking specialist's four tools and varies run to run; the worker sends `mode: 'heuristics'`, which is deterministic.
 
 
+## What changed on 2026-11-01 (PAR, UC44)
+
+Full run on aaae137ad after the workload-agent change: 155 pass, 1 fail (UC14b), 54 blocked, 560 s. An earlier attempt on a private BFF hit the 15-minute deadline (70 pass, 9 fail, 120 not-run) and is not comparable; a run in between had government, investment and manufacturing UC44 rows fail while another session was moving the shared checkout, and they pass on a quiet stack.
+
+- **PAR (UC14).** The worker verifies PAR; UC14 passes on PingFederate. UC14b (the full-page PAR variant) still has no adapter and returns HTTP 501.
+- **UC44 workload agent (merged as #6 in the now-archived ping-sandbox/AI-DEMO2-internal).** Each workload agent now gets a real PingFederate client (`ensureAgentClient`, created on first use, deleted with the agent), and the agent is the actor of hop 1. The adapter registers the agent with the `CLIENT_CREDENTIALS` grant and replaces one with a different grant.
+- **Token cache bug (also PingOne).** The MCP token cache was keyed by session and tool, so a workload run replayed a token cached for the built-in actor. The key now includes the workload client id.
+- **UC44 result:** 11 of 11 verticals pass on the full run.
+- **Repository.** The work was done in ping-sandbox/AI-DEMO2-internal, which has no CI runners and is now archived. The live repo is ping-sandbox/AI-DEMO2; its readiness and workload files are identical to the ones tested.
+
 ## What is still not verified
 
-Blocked (68 rows):
+Blocked (54 rows):
 
 - 20: the PF feature and attack-lab probes (A2A-FM1-3, CIMD, third-party AS, ID-JAG negatives, RAR, PRIV-*) and UC40, each waiting on its PingFederate role to be recorded as resolved.
 - 12: ADMIN1-12, because the catalog has no complete contract for the `pingone-admin` vertical.
 - 11: UC22, because CIBA needs an approval on a device.
 - 11: UC38, because it needs MFA step-up, which the worker cannot do.
-- 11: UC44, because no workload agent is registered for the readiness identity.
-- 3: UC14 and UC14b, because the worker cannot verify PAR.
+- UC14b fails (3 rows were blocked before): the worker has no adapter for the full-page PAR variant, so it returns HTTP 501. UC14 passes.
 
 Known gaps outside this run:
 
