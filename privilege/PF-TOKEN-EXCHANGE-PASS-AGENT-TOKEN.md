@@ -785,9 +785,9 @@ Ping published no release notes for these two tags, and we ran nothing against t
 | Fact | Value |
 |---|---|
 | Newest tag in the public repository | `v1.261030` (`latest` is the same image). No tag is newer. |
-| Our SE gateway | runs `v1.261030`; one `tools/list` through it returned 6 tools |
+| Our SE gateway | runs `v1.261030`; one `tools/list` through it returned 6 tools (both from the 2026-11-01 00:26 UTC baseline check, not repeated when this section was written) |
 | Console API spec (swagger) | identical to the 2026-10-31 baseline: 447 operations, 644 definitions |
-| Ping's public release notes | nothing for either tag; last entry 2026-07-13 |
+| Ping's public release notes | checked once, nothing found for either tag; last entry 2026-07-13 (an absence seen once, not a statement from Ping) |
 
 | Tag | Built (UTC) | `mcpgw` binary (bytes) | Symbols against the tag before |
 |---|---|---|---|
@@ -820,7 +820,7 @@ The release is dated 2026-11-02 and not yet published, and our gateway runs `v1.
 | Entitlement-aware discovery | `tools/list` shows a caller only the tools its entitlements allow | Two agent keys with different entitlements, the same `tools/list` with each, compare. Creating the lower-entitled key is a tenant write |
 | Aggregate cap | A cap counted across calls together, not per key | A low-cap test key and a small burst until the first refusal. Keep the burst small |
 | OBO redeem | An agent redeems a delegated token for a call made for a user | A PingFederate token that acts for a user, and an agent app set to accept it; compare `sub` and `act` at the backend |
-| Scope layers | Tools layered by token scope; may be the same as section 16 | Repeat the section 16 tiers (9 tools, 3 tools, 403) on the new release |
+| Scope layers | Tools layered by token scope; may be the same as section 16 | Repeat the section 16 tier run on the new release: a token with `opensearch:admin` gave 9 tools, `opensearch:read` gave 3, and a token with neither (for example `openid` alone) gave 403 |
 | Hold | A tool call waits for a human to approve it | An AI policy that returns the approval action, then approve one call, reject one, and retry the rejected one |
 
 **When the release lands**, repeat the three checks the baseline was taken for: look for an image tag newer than `v1.261030`, fetch the console swagger and diff it against the 2026-10-31 baseline, and repeat `tools/list` with the same key and a second, lower-entitled key.

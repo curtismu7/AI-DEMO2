@@ -16,9 +16,10 @@ export const CHECKED_ON = '2026-11-01';
 // What we know for certain: registry facts and what the console API did. VERIFIED = seen on the real thing today.
 export const LATEST_FACTS = [
   { evidence: 'verified', text: `The public image repository has the tags ${BASELINE_VERSION}, ${VERSION_MIDDLE} and ${VERSION_LATEST}, and no tag newer than ${VERSION_LATEST}. The tag latest is the same image as ${VERSION_LATEST} (checked ${CHECKED_ON}).` },
-  { evidence: 'verified', text: `Our SE gateway runs ${VERSION_LATEST} (read ${CHECKED_ON}). One tools/list through the gateway returned 6 tools.` },
-  { evidence: 'verified', text: `The console API spec (swagger), fetched anonymously on ${CHECKED_ON}, is identical to the 2026-10-31 baseline: 447 operations and 644 definitions, nothing added, removed or changed. So none of the changes below is in the console API.` },
-  { evidence: 'verified', text: 'Ping\'s public release notes list nothing for either tag. Their last entry is 2026-07-13 and there is no entry for the 2026-11-02 release yet.' },
+  { evidence: 'verified', text: `Our SE gateway runs ${VERSION_LATEST}, and one tools/list through it returned 6 tools. Both come from the ${CHECKED_ON} baseline check (00:26 UTC) and were not repeated when this page was written.` },
+  { evidence: 'verified', text: `The console API spec (swagger), fetched anonymously on ${CHECKED_ON}, is identical to the 2026-10-31 baseline: 447 operations and 644 definitions, nothing added, removed or changed.` },
+  { evidence: 'inferred', text: `From that unchanged spec we read the changes below as not being in the console API. This is an inference: the gateway can change without the console spec changing.` },
+  { evidence: 'verified', text: `We looked at Ping's public release notes on ${CHECKED_ON} and found nothing for either tag. The last entry is 2026-07-13 and there is none for the ${RELEASE_DATE} release yet. This is a "checked, not found" from one look, not a statement from Ping.` },
   { evidence: 'unverified', text: `What ${VERSION_MIDDLE} and ${VERSION_LATEST} do on our tenant is not known. Nothing was run against them except the one tools/list above. Every row in the tables below is a reading of the binary.` },
 ];
 
@@ -75,7 +76,7 @@ export const NOT_MEASURED = [
     test: 'A PingFederate token that acts for a user and an agent app set up to accept it. Then redeem it and compare the sub and act claims the backend sees against the section 1 token.' },
   { id: 'layers', feature: 'Scope layers',
     reading: 'Tools layered by token scope. We already measured scope tiers with RequiredClaims on v1.261024 (section 3); whether this is the same thing or something new is unknown.',
-    test: 'Repeat the section 3 tier run (admin, read, none) on the new release and compare the tool counts: 9, 3 and 403 are the baseline.' },
+    test: 'Repeat the section 3 tier run on the new release and compare the tool counts. The baseline is a token with opensearch:admin: 9 tools; a token with opensearch:read: 3 tools; a token with neither (openid alone): 403.' },
   { id: 'hold', feature: 'Hold',
     reading: 'A tool call waits for a human to approve it. The v1.261027 diff already shows an approval action and v1.261029 remembers rejections.',
     test: 'An AI policy that returns the approval action, a call that gets held, then one approve and one reject, and a retry of the rejected call to see whether it is held again or refused.' },

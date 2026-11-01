@@ -1,3 +1,5 @@
+import { readFileSync } from 'node:fs';
+import { fileURLToPath } from 'node:url';
 import { describe, it, expect } from 'vitest';
 import { render, screen, fireEvent, within } from '@testing-library/react';
 import { MemoryRouter } from 'react-router-dom';
@@ -10,6 +12,11 @@ import {
 import {
   CHECKED_ON, LATEST_FACTS, NOT_MEASURED, PAGE_VERSIONS, RECHECK_STEPS, RELEASE_DATE, RELEASE_TABLE, SINCE_ROWS, VERSION_LATEST, VERSION_MIDDLE,
 } from '../../config/gatewayLatest';
+import { AGENTCORE_FACTS } from '../../config/gatewayAgentcore';
+import { DIAGRAMS_INDEX } from '../../config/diagramsIndex';
+import { NAV_PAGE_PATHS } from '../../config/navPagePaths';
+
+const sourceOf = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 
 describe('flattenClaims', () => {
   it('flattens nested objects to dotted paths', () => {
@@ -111,9 +118,30 @@ describe('v1.261027 models', () => {
 });
 
 describe('v1.261029 and v1.261030 config', () => {
-  it('quotes the same version list the nav, hub card and diagram index use', () => {
+  it('quotes the same version list the nav, hub card, diagram index and path map use', () => {
     expect(PAGE_VERSIONS).toBe(`v1.261024, v1.261027, v1.261028, ${VERSION_MIDDLE} and ${VERSION_LATEST}`);
     expect(RELEASE_TABLE.map((r) => r.tag)).toEqual(['v1.261028', VERSION_MIDDLE, VERSION_LATEST]);
+    const indexed = [...DIAGRAMS_INDEX.flatMap((g) => g.items)].find((d) => d.path === '/gateway-claims');
+    expect(indexed.title).toContain(PAGE_VERSIONS);
+    expect(Object.entries(NAV_PAGE_PATHS).find(([, path]) => path === '/gateway-claims')[0]).toContain(PAGE_VERSIONS);
+    expect(sourceOf('../../components/AdminSideNav.jsx')).toContain(`label: "Gateway ${PAGE_VERSIONS}: Claims"`);
+    expect(sourceOf('../../components/LearningHub.tsx')).toContain(`What gateway ${PAGE_VERSIONS} added`);
+  });
+  it('words the evidence for parts 5 and 6 without overclaiming', () => {
+    const byStart = (start) => LATEST_FACTS.find((f) => f.text.startsWith(start));
+    expect(byStart('Our SE gateway runs').text).toMatch(/not repeated/);
+    expect(byStart('We looked at Ping').text).toMatch(/checked, not found/);
+    const inferred = LATEST_FACTS.filter((f) => f.evidence === 'inferred');
+    expect(inferred).toHaveLength(1);
+    expect(inferred[0].text).toMatch(/inference/);
+    expect(LATEST_FACTS.filter((f) => f.evidence === 'verified').every((f) => !/\bSo none\b/.test(f.text))).toBe(true);
+    // The part 5 statement about the gateway tag is dated; part 6 says the SE gateway has moved on.
+    expect(AGENTCORE_FACTS[0].text).toMatch(/Superseded for our SE gateway: it now runs v1\.261030/);
+  });
+  it('names the three scopes of the tier baseline, and keeps the release-features row\'s wording', () => {
+    const layers = NOT_MEASURED.find((r) => r.id === 'layers');
+    expect(layers.test).toMatch(/opensearch:admin: 9 tools.*opensearch:read: 3 tools.*neither \(openid alone\): 403/);
+    expect(SINCE_ROWS.find((r) => r.id === 'release-features').reading).toMatch(/^No symbol or message matches entitlement-aware discovery, aggregate cap, OBO redeem or scope layers/);
   });
   it('never claims a binary reading as verified: every row is a reading and every release feature is UNVERIFIED', () => {
     expect(SINCE_ROWS.length).toBeGreaterThanOrEqual(8);

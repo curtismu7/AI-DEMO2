@@ -10,7 +10,7 @@ const INVOKE = 'bedrock-agentcore:InvokeAgentRuntime';
 const GATEWAY_ROLE = 'role/gateway-service';
 
 export const AGENTCORE_FACTS = [
-  { evidence: 'verified', text: 'Both SE gateways and the AI-DEMO2 namespace gateway run the image tag v1.261028 (read from the pod specs on 2026-10-28).' },
+  { evidence: 'verified', text: 'Both SE gateways and the AI-DEMO2 namespace gateway run the image tag v1.261028 (read from the pod specs on 2026-10-28). Superseded for our SE gateway: it now runs v1.261030 (part 6). We did not re-read the other gateways.' },
   { evidence: 'verified', text: 'Against v1.261027 the two gateway binaries gained 84 and 83 symbols and lost 2 and 1, almost all AgentCore code. The console API spec (swagger) is byte-identical to the 2026-10-26 baseline, so none of it is in the console API.' },
   { evidence: 'inferred', text: 'Function names suggest the gateway can CHANGE AgentCore gateways (enforcement mode, rate limits, WAF mode, content check, authorizer, policy engines, Cedar policies, target allowed workloads and headers, runtime gateway-only) and GRADE them (caller access, runtime bypass posture and diff, enforcement health, compliance grade, IAM statement evaluation).' },
   { evidence: 'inferred', text: 'Strings in the binary name three findings: "any principal with bedrock-agentcore:InvokeAgentRuntime in the account can call this runtime directly", "any token from the IdP accepted", and "N of M target(s) without a caller allow-list". The policy audit hook was renamed from auditAIPolicy to auditPolicyEvent.' },
