@@ -1411,7 +1411,7 @@ export default function AdminSideNav({
         label: "PingFederate Token Demo",
         path: "/privilege-pf-token",
         icon: "key",
-        searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent",
+        searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent federated identity",
       },
       {
         label: "Gateway v1.261024, v1.261027 and v1.261028: Claims",
@@ -1456,7 +1456,7 @@ export default function AdminSideNav({
       {
         label: "Privilege info",
         icon: "shld",
-        searchAlias: "privilege info shelf map features guide diagrams topologies docs index non-human identity nhi cedar",
+        searchAlias: "privilege info shelf map features guide diagrams topologies docs index non-human identity nhi cedar federated identity",
         children: [
           { label: "Privilege shelf", path: "/privilege-shelf", icon: "doc", searchAlias: "privilege shelf everything in one place" },
           { label: "Privilege Map", path: "/privilege-map", icon: "arc", searchAlias: "privilege map features why how value components standard ui" },
@@ -1516,7 +1516,7 @@ export default function AdminSideNav({
             label: "PingFederate Token Demo",
             path: "/privilege-pf-token",
             icon: "key",
-            searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent",
+            searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent federated identity",
           },
           { label: "PingFederate DaVinci Integration Kit", path: "/pingfederate-davinci-kit", searchAlias: "pingfederate davinci kit connector integration pf" },
         ],

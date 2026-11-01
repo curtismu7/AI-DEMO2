@@ -29,7 +29,7 @@ export const NAV_SEARCH_ALIASES = {
   "/agent-lifecycle": "register consent scoped token mcp step-up approval revoke self-service orders ciba revocable delegated agent",
   "/agent-onboarding-flow": "enterprise ai governance onboarding agent identity lifecycle privileges managed nhi non-human registry",
   "/agent-onboarding-flow-subway": "enterprise ai governance onboarding agent identity lifecycle privileges nhi non-human subway map",
-  "/agent-registry": "nhi non-human identity spiffe workload granted scopes topology privilege agent keys",
+  "/agent-registry": "nhi non-human identity spiffe workload granted scopes topology privilege agent keys federated",
   "/agent-studio-preview": "onboarding enterprise ai user developer admin discovery iga for agent gateway",
   "/agentic-trust": "trust chain six security pillars credential replay rogue agent impersonation per-hop token exchange rfc 8693 least privilege scope narrowing last mile vault",
   "/ai-control-plane": "revoke shutdown stop agent emergency pingone revocation roster live",

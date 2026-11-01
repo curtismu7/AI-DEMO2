@@ -346,7 +346,8 @@ export default function PrivilegeMcpLearningPage() {
             <p>
               An agent in Privilege is a non-human identity: one access key that carries its scopes, limits, guardrail and
               the apps it may reach. The first diagram shows what the key is made of. The second shows the checks the gateway
-              runs on each call, and the refusal each one returns.
+              runs on each call, and the refusal each one returns. The secretless identity a key can act as is called a
+              Federated Identity (formerly Non-Human Identity, renamed in Ping&apos;s 2026-11-02 release notes).
             </p>
             <EmbeddedFlowDiagram
               config={NHI_ENTITY_DIAGRAM}

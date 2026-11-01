@@ -1,5 +1,8 @@
 # PingFederate token on Privilege: status and restart checklist
 
+> **Terminology:** Ping's 2026-11-02 release notes (deck "ID4AI Workforce - H2 2026", slide 35) rename **Non-Human Identity** to **Federated Identity** (display name only; the console API object is still `NonHumanIdentity` at `/v1/nonhumanidentities` in the 2026-10-31 swagger). This page was written under the old name and is kept as measured. Not yet seen on our tenant.
+
+
 Status as of 2026-10-22 (about 15:00 UTC). Tenant `0428ba4f-169c-436b-aff9-b230496e0e3b`, gateway `mcpgw.ai-demo.ping-devops.com`. No secret values are in this file.
 
 **Bottom line (updated 2026-10-26):** **it works.** A PingFederate-issued token is accepted by the gateway (key `pftoken-agent`) and `tools/list` on the `pftoken` agent app returns 200 with all nine tools. The full working configuration, and every fix it took, is in [`PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md`](PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md), section "Working configuration". The rest of this file is the history up to 2026-10-22.

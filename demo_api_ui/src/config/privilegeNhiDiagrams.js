@@ -1,4 +1,4 @@
-// Non-human identity (NHI) in PingOne Privilege: what an agent identity is made of, and the checks the gateway
+// Federated Identity (formerly Non-Human Identity, renamed in the 2026-11-02 release) in PingOne Privilege: what an agent identity is made of, and the checks the gateway
 // runs on each call. Sources: privilege/GATEWAY-SETTING-UP-A-CALLING-AGENT.md and the privilege-nhi-setup notes.
 // Workload-identity acceptance on the gateway is not yet proven, so the NHI path is drawn as the design, not a tested flow.
 const N = (id, group, label, sub, x, y) => ({ id, group, label, sub, x, y });
@@ -15,7 +15,7 @@ export const NHI_ENTITY_GROUPS = {
 
 export const NHI_ENTITY_NODES = [
   N('custodian', 'who', 'Custodian', ['the human the agent acts as', 'policy is issued to them'], 0, 40),
-  N('nhi', 'who', 'NonHumanIdentity', ['secretless: issuer, audience,', 'subject, expiry'], 0, 300),
+  N('nhi', 'who', 'FederatedIdentity', ['secretless: issuer, audience,', 'subject, expiry'], 0, 300),
   N('key', 'core', 'Agent access key', ["the agent's whole identity", 'Bearer key on every call'], 300, 170),
   N('apps', 'target', 'Apps and models', ['MCP servers, A2A agents,', 'LLM providers'], 0, 170),
   N('scopes', 'attr', 'Scopes', ['llm · mcp · a2a'], 600, 40),

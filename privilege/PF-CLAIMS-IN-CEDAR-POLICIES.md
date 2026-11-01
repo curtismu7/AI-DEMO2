@@ -1,5 +1,8 @@
 # Protecting on PingFederate identity in Privilege AI policies (Cedar)
 
+> **Terminology:** Ping's 2026-11-02 release notes (deck "ID4AI Workforce - H2 2026", slide 35) rename **Non-Human Identity** to **Federated Identity** (display name only; the console API object is still `NonHumanIdentity` at `/v1/nonhumanidentities` in the 2026-10-31 swagger). This page was written under the old name and is kept as measured. Not yet seen on our tenant.
+
+
 2026-10-20. Read-only investigation of the demo tenant (`0428ba4f-…`, "AI Agent") and the SE gateway
 (`mcpgw.ai-demo.ping-devops.com`, door `opensearch-hitl`). **Nothing was changed on the console.**
 This guide separates what was measured from what is a design guess, because the answer to "can a PF token
