@@ -1054,6 +1054,12 @@ export default function AdminSideNav({
         },
         { label: "Run Reports", path: "/reports", icon: "rpt" },
         {
+          label: "Gateway stats",
+          path: "/gateway-stats",
+          icon: "log",
+          searchAlias: "gateway stats load balancer haproxy lb-stats node health sessions",
+        },
+        {
           label: "Error Audit Log",
           path: "/error-audit",
           icon: "log",
