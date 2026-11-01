@@ -3,7 +3,7 @@ ARG GIT_SHA=unknown
 # upstream GitHub release. It is not built here, so we cannot guarantee
 # CGO_ENABLED=0 — and a cgo-linked binary will not run against musl. glibc is
 # the safe base for a third-party binary we do not compile.
-FROM node:22-slim
+FROM node:26-slim
 LABEL org.opencontainers.image.source=https://github.com/cmuir_pingcorp/AI-DEMO2
 # Re-declared after FROM: an ARG before FROM is global and is NOT in scope in
 # the build stage, so `ENV GIT_SHA=$GIT_SHA` alone resolves to empty.

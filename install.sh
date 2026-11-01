@@ -12,7 +12,7 @@
 #        • K8s / EKS       (./run-k8.sh aws-all) — Docker + kubectl + AWS CLI
 #   2. Installs Homebrew if missing (macOS).
 #   3. Installs git via Homebrew if missing.
-#   4. Installs nvm + Node 22 if Node is missing or below v22.
+#   4. Installs nvm + Node 26 if Node is missing or below v26.
 #   5. Installs GitHub CLI (gh) — used for GHCR image pushes on the EKS path.
 #   6. Installs Python 3.12 via Homebrew if Python 3.10+ is not present
 #      (required by the AI agent services on all paths).
@@ -60,8 +60,8 @@ set -euo pipefail
 REPO_URL="${REPO_URL:-https://github.com/cmuir_pingcorp/AI-DEMO2.git}"
 BRANCH="${BANKING_BRANCH:-main}"
 DEFAULT_DIR_NAME="AI-demo"
-NODE_REQUIRED_MAJOR="22"
-NODE_MIN_MAJOR="22"
+NODE_REQUIRED_MAJOR="26"
+NODE_MIN_MAJOR="26"
 DEPLOYMENT_ONLY="${DEPLOYMENT_ONLY:-0}"
 
 # ── Style ─────────────────────────────────────────────────────────────────────
@@ -1262,7 +1262,7 @@ main() {
   # ── Pre-flight — install what this run mode needs ──────────────────────────
   ensure_homebrew    # must be first; all brew installs depend on it
   ensure_git
-  ensure_node        # installs nvm + Node 22 if missing or too old
+  ensure_node        # installs nvm + Node 26 if missing or too old
   install_gh_cli
   ensure_python      # Python 3.10+ for the AI agents (all modes)
   ensure_mkcert      # mkcert binary + root CA trust (all modes need TLS certs)

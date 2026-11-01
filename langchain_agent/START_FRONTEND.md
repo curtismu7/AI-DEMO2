@@ -46,7 +46,7 @@ The backend should show:
 ## Troubleshooting
 
 ### Frontend won't start
-- Make sure Node.js 18+ is installed
+- Make sure Node.js 26+ is installed
 - Run `cd frontend && npm install` to install dependencies
 
 ### Can't connect to backend

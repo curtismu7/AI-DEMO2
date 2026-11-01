@@ -2,7 +2,7 @@
 # Multi-stage build for production optimization
 
 # Build stage
-FROM node:22-alpine AS builder
+FROM node:26-alpine AS builder
 
 # Set working directory
 WORKDIR /app
@@ -26,7 +26,7 @@ RUN npm prune --production
 
 # Production stage
 ARG GIT_SHA=unknown
-FROM node:22-alpine AS production
+FROM node:26-alpine AS production
 
 # Half of what CI needs to push this image to GHCR: this links the package to
 # the repo on push. The other half is NOT in this repo — the package's

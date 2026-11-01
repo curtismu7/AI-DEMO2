@@ -6,7 +6,7 @@ No account, no cloud service: it runs on your machine, talks directly to the MCP
 
 ## Installation
 
-**Prerequisites:** Node.js 22+ and npm. Docker is optional (a `Dockerfile` is included).
+**Prerequisites:** Node.js 26+ and npm. Docker is optional (a `Dockerfile` is included).
 
 ```bash
 git clone https://github.com/cmuir_pingcorp/mcp-inspector.git

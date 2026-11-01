@@ -81,11 +81,11 @@ if command -v node &> /dev/null; then
             cd ..
         fi
     else
-        echo "⚠️  Node.js 18+ recommended for frontend. Found: $(node --version)"
+        echo "⚠️  Node.js 26+ recommended for frontend. Found: $(node --version)"
     fi
 else
     echo "⚠️  Node.js not found. Frontend setup skipped."
-    echo "Install Node.js 18+ from https://nodejs.org/ to run the frontend"
+    echo "Install Node.js 26+ from https://nodejs.org/ to run the frontend"
 fi
 
 # Run basic tests to verify setup

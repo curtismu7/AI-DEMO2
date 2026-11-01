@@ -24,7 +24,7 @@ passed to `setup:fresh` and are not Terraform variables.
 
 - macOS for the guided installer; other operating systems need the tools below
   installed directly.
-- Node.js 22+, Python 3.10+, Git, mkcert, Terraform 1.6+, and Docker with its
+- Node.js 26+, Python 3.10+, Git, mkcert, Terraform 1.6+, and Docker with its
   daemon running (OrbStack or Docker Desktop on Mac).
 - A PingOne Worker application with the `Identity Data Admin` role, plus its
   Environment ID, Client ID, and Client Secret.
@@ -87,7 +87,7 @@ The supported profiles are the same profiles documented by Compose, including
 ## SE namespace deployment
 
 Terraform does not create or delete an SE namespace. The namespace must already
-be provisioned for the user. The guided installer requires Node.js 22+, Python
+be provisioned for the user. The guided installer requires Node.js 26+, Python
 3.10+, Git, Docker, Terraform 1.6+, kubectl, `kubelogin`, and `gh`. The deployer
 needs cluster access and permission to manage the app's Kubernetes resources in
 the namespace (including Deployments and PersistentVolumeClaims), a GitHub

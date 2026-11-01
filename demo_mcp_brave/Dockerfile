@@ -1,5 +1,5 @@
 ARG GIT_SHA=unknown
-FROM node:22-alpine
+FROM node:26-alpine
 LABEL org.opencontainers.image.source=https://github.com/cmuir_pingcorp/AI-DEMO2
 ENV GIT_SHA=$GIT_SHA
 
