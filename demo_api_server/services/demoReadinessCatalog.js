@@ -126,6 +126,7 @@ function executionModeFor(id, trigger, isAdmin) {
 function providerFlowFor(id, isAdmin, provider) {
   if (isAdmin) return provider === 'pingone' ? 'pingone-admin-mcp' : 'pingfederate-admin-mcp';
   if (id === 'UC40' && provider === 'pingone') return null;
+  if (id === 'UC14b' && provider === 'pingfederate') return null;
   // UC2.6 runs the same real delegation as UC2 before its mismatch probe.
   if (provider === 'pingone') return ['UC2', 'UC2.5', 'UC2.6'].includes(id) ? 'pingone-a2a' : 'pingone-standard';
   if (id === 'UC40') return 'pingfederate-native-id-jag';
@@ -822,9 +823,10 @@ function validateDemoReadinessCatalog(sources, { uiInventory, educationPanelIds 
       pingone: providerFlowFor(id, isAdmin, 'pingone'),
       pingfederate: providerFlowFor(id, isAdmin, 'pingfederate'),
     };
-    const providerNotApplicableReasons = id === 'UC40'
-      ? { pingone: 'UC40 is a native PingFederate ID-JAG journey and requires a PingFederate-authenticated session' }
-      : {};
+    const providerNotApplicableReasons = {
+      ...(id === 'UC40' ? { pingone: 'UC40 is a native PingFederate ID-JAG journey and requires a PingFederate-authenticated session' } : {}),
+      ...(id === 'UC14b' ? { pingfederate: 'UC14b is a PingOne PAR (RFC 9126) intent-binding flow; PingFederate has no PAR path in this demo' } : {}),
+    };
     for (const [provider, flowId] of Object.entries(providerFlows)) {
       if (!flowId) {
         if (!providerNotApplicableReasons[provider]) {

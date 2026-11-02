@@ -313,14 +313,14 @@ describe('demo readiness execution service', () => {
     expect([...pfOnly.core, ...pfOnly.feature, ...pfOnly.attackLab].every((row) => row.provider === 'pingfederate')).toBe(true);
   });
 
-  test('derives the full current inventory: 206 unexpanded, 190 groups, and 822 rows with required feature probes', () => {
+  test('derives the full current inventory: 204 unexpanded, 190 groups, and 818 rows with required feature probes', () => {
     const { buildDemoReadinessCatalog } = require('../services/demoReadinessCatalog');
     const catalog = buildDemoReadinessCatalog();
     const unexpanded = catalog.reduce((count, row) => count + (row.providerFlows.pingone ? 2 : 0) + (row.providerFlows.pingfederate ? 2 : 0), 0);
-    expect(unexpanded).toBe(206);
+    expect(unexpanded).toBe(204);
     expect(catalog.reduce((count, row) => count + row.runtimeVerticalGroups.length, 0)).toBe(190);
     expect(createReadinessExecutionService({ catalog }).deriveExecutionManifest().counts)
-      .toEqual({ core: 758, variants: 4, feature: 40, attackLab: 20, total: 822 });
+      .toEqual({ core: 756, variants: 2, feature: 40, attackLab: 20, total: 818 });
   });
 
   test('executes every manifest category, preserves UC14b full-page behavior, and records report rows', async () => {
