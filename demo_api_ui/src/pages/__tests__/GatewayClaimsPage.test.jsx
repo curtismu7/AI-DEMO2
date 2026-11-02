@@ -10,7 +10,7 @@ import {
   evaluateCedarScope, evaluatePfRequest, evaluateRule, evaluateTiers, flattenClaims, nextScenarioDiagram, nextWire, scenarioDiagram,
 } from '../../config/gatewayClaims';
 import {
-  CHECKED_ON, LATEST_FACTS, NOT_MEASURED, PAGE_VERSIONS, RECHECK_STEPS, RELEASE_DATE, RELEASE_TABLE, SINCE_ROWS, VERSION_LATEST, VERSION_MIDDLE,
+  CHECKED_ON, IMAGE_COMPARE, IMAGE_DIGESTS, LATEST_FACTS, NOT_MEASURED, PAGE_VERSIONS, RECHECK_STEPS, RELEASE_DATE, RELEASE_TABLE, SINCE_ROWS, VERSION_LATEST, VERSION_MIDDLE, VERSION_THIRD,
 } from '../../config/gatewayLatest';
 import { AGENTCORE_FACTS } from '../../config/gatewayAgentcore';
 import { DIAGRAMS_INDEX } from '../../config/diagramsIndex';
@@ -117,10 +117,11 @@ describe('v1.261027 models', () => {
   });
 });
 
-describe('v1.261029 and v1.261030 config', () => {
+describe('v1.261029, v1.261030 and v1.261102 config', () => {
   it('quotes the same version list the nav, hub card, diagram index and path map use', () => {
-    expect(PAGE_VERSIONS).toBe(`v1.261024, v1.261027, v1.261028, ${VERSION_MIDDLE} and ${VERSION_LATEST}`);
-    expect(RELEASE_TABLE.map((r) => r.tag)).toEqual(['v1.261028', VERSION_MIDDLE, VERSION_LATEST]);
+    expect(PAGE_VERSIONS).toBe(`v1.261024, v1.261027, v1.261028, ${VERSION_MIDDLE}, ${VERSION_THIRD} and ${VERSION_LATEST}`);
+    expect(VERSION_LATEST).toBe('v1.261102');
+    expect(RELEASE_TABLE.map((r) => r.tag)).toEqual(['v1.261028', VERSION_MIDDLE, VERSION_THIRD, VERSION_LATEST]);
     const indexed = [...DIAGRAMS_INDEX.flatMap((g) => g.items)].find((d) => d.path === '/gateway-claims');
     expect(indexed.title).toContain(PAGE_VERSIONS);
     expect(Object.entries(NAV_PAGE_PATHS).find(([, path]) => path === '/gateway-claims')[0]).toContain(PAGE_VERSIONS);
@@ -129,14 +130,19 @@ describe('v1.261029 and v1.261030 config', () => {
   });
   it('words the evidence for parts 5 and 6 without overclaiming', () => {
     const byStart = (start) => LATEST_FACTS.find((f) => f.text.startsWith(start));
-    expect(byStart('Our SE gateway runs').text).toMatch(/not repeated/);
+    const se = byStart('Our SE gateway was rolled from v1.261030 to v1.261102');
+    expect(se.evidence).toBe('verified');
+    expect(se.text).toMatch(/ran on our SE gateway and the new pod became ready \(10 of 10 containers, 0 restarts\)/);
+    expect(se.text).toMatch(/did not repeat tools\/list/);
+    expect(se.text).toMatch(/tried none of the release features/);
+    expect(se.text).not.toMatch(/\b(works|working|supports|proves)\b/i);
     expect(byStart('We looked at Ping').text).toMatch(/checked, not found/);
     const inferred = LATEST_FACTS.filter((f) => f.evidence === 'inferred');
     expect(inferred).toHaveLength(1);
     expect(inferred[0].text).toMatch(/inference/);
     expect(LATEST_FACTS.filter((f) => f.evidence === 'verified').every((f) => !/\bSo none\b/.test(f.text))).toBe(true);
     // The part 5 statement about the gateway tag is dated; part 6 says the SE gateway has moved on.
-    expect(AGENTCORE_FACTS[0].text).toMatch(/Superseded for our SE gateway: it now runs v1\.261030/);
+    expect(AGENTCORE_FACTS[0].text).toMatch(/Superseded for our SE gateway: it now runs v1\.261102/);
   });
   it('names the three scopes of the tier baseline, and keeps the release-features row\'s wording', () => {
     const layers = NOT_MEASURED.find((r) => r.id === 'layers');
@@ -150,11 +156,31 @@ describe('v1.261029 and v1.261030 config', () => {
     expect(NOT_MEASURED.every((r) => r.test.length > 40)).toBe(true);
     expect(LATEST_FACTS.filter((f) => f.evidence === 'unverified')).toHaveLength(1);
     expect(RECHECK_STEPS).toHaveLength(3);
-    expect(CHECKED_ON).toBe('2026-11-01');
+    expect(CHECKED_ON).toBe('2026-11-02');
     expect(RELEASE_DATE).toBe('2026-11-02');
   });
+  it('states the registry facts: both index digests, latest still on v1.261030, and no newer tag', () => {
+    expect(IMAGE_DIGESTS[VERSION_THIRD]).toBe('sha256:62037874a437b4fb60c85f5f7f889909e9fdb66b9f27558002f331917ee98298');
+    expect(IMAGE_DIGESTS[VERSION_LATEST]).toBe('sha256:36d29c0a0ea0575706819f23f2783e4f3a6aeb5f604d6d1717de66333b8eae47');
+    const tags = LATEST_FACTS[0];
+    expect(tags.evidence).toBe('verified');
+    expect(tags.text).toMatch(/no tag newer than v1\.261102/);
+    expect(tags.text).toMatch(/latest is still the same image as v1\.261030/);
+    expect(IMAGE_COMPARE.map((r) => r.id)).toEqual(['digest', 'built', 'layers', 'size', 'binaries', 'config']);
+    expect(IMAGE_COMPARE[0].a).toBe(IMAGE_DIGESTS[VERSION_THIRD]);
+    expect(IMAGE_COMPARE[0].b).toBe(IMAGE_DIGESTS[VERSION_LATEST]);
+    expect(RELEASE_TABLE[3]).toMatchObject({ tag: 'v1.261102', binary: '244,584,504' });
+  });
+  it('says the two newest binaries differ by named additions only, and keeps every v1.261102 row a reading', () => {
+    const rows = SINCE_ROWS.filter((r) => r.version === VERSION_LATEST);
+    expect(rows.map((r) => r.id)).toEqual(['idp-claims', 'unplaced', 'rebuild-1102', 'release-features-1102']);
+    expect(rows.find((r) => r.id === 'rebuild-1102').reading).toMatch(/^Apart from the rows above, the two binaries show no meaningful difference/);
+    expect(rows.find((r) => r.id === 'idp-claims').symbols).toMatch(/withIDPClaims.*carries no usable claims/);
+    expect(rows.find((r) => r.id === 'release-features-1102').reading).toMatch(/cannot tie them to any of the five/);
+    expect(rows.every((r) => !/\b(verified|proven|confirmed)\b/i.test(r.reading))).toBe(true);
+  });
   it('holds no tenant ids, customer names or secrets', () => {
-    const all = JSON.stringify({ LATEST_FACTS, RELEASE_TABLE, SINCE_ROWS, NOT_MEASURED, RECHECK_STEPS });
+    const all = JSON.stringify({ LATEST_FACTS, IMAGE_COMPARE: IMAGE_COMPARE.filter((r) => r.id !== 'digest'), RELEASE_TABLE, SINCE_ROWS, NOT_MEASURED, RECHECK_STEPS });
     expect(all).not.toMatch(/ping-devops|cmuir|pf-route-c-test|01d89b06|sha256:|\bdoors?\b/i);
   });
 });
@@ -164,7 +190,7 @@ describe('GatewayClaimsPage', () => {
 
   it('has the title, back link, evidence legend and both parts', () => {
     renderPage();
-    expect(screen.getByRole('heading', { level: 1, name: /What Privilege gateway v1\.261024, v1\.261027, v1\.261028, v1\.261029 and v1\.261030 added/ })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /What Privilege gateway v1\.261024, v1\.261027, v1\.261028, v1\.261029, v1\.261030 and v1\.261102 added/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: /All diagrams/ }).getAttribute('href')).toBe('/diagrams');
     const legend = screen.getByTestId('gwc-legend');
     for (const l of ['VERIFIED', 'INFERRED', 'UNVERIFIED']) expect(within(legend).getByText(l)).toBeTruthy();
@@ -175,13 +201,19 @@ describe('GatewayClaimsPage', () => {
   it('shows parts 6 and 7: what changed since v1.261028 and the unmeasured 2026-11-02 release features, all UNVERIFIED', () => {
     renderPage();
     const since = screen.getByTestId('gwc-since');
-    expect(within(since).getByRole('heading', { level: 2 }).textContent).toMatch(/6\. Since v1\.261028: v1\.261029 and v1\.261030/);
-    expect(since.textContent).toMatch(/Ping published no release notes for these tags and we ran nothing against them/);
+    expect(within(since).getByRole('heading', { level: 2 }).textContent).toMatch(/6\. Since v1\.261028: v1\.261029, v1\.261030 and v1\.261102/);
+    expect(since.textContent).toMatch(/We found no Ping release notes for these tags .*tried none of their features/);
     expect(within(screen.getByTestId('gwc-builds')).getAllByRole('row')).toHaveLength(RELEASE_TABLE.length + 1);
+    const images = within(screen.getByTestId('gwc-image-compare'));
+    expect(images.getAllByRole('row')).toHaveLength(IMAGE_COMPARE.length + 1);
+    expect(images.getByText(IMAGE_DIGESTS[VERSION_LATEST])).toBeTruthy();
+    expect(images.getByText(IMAGE_DIGESTS[VERSION_THIRD])).toBeTruthy();
     expect(within(screen.getByTestId('gwc-since-diff')).getAllByRole('row')).toHaveLength(SINCE_ROWS.length + 1);
     expect(within(screen.getByTestId('gwc-since-rejected-hold')).getByText(/RememberRejected/)).toBeTruthy();
     const nm = screen.getByTestId('gwc-not-measured');
-    expect(nm.textContent).toMatch(/not published yet/);
+    expect(nm.textContent).toMatch(/do not describe the 2026-11-02 Agent Privilege release/);
+    expect(nm.textContent).toMatch(/not confirmed that v1\.261102/);
+    expect(since.textContent).toMatch(/pod becoming ready|became ready/);
     for (const f of NOT_MEASURED) {
       const row = within(screen.getByTestId(`gwc-nm-${f.id}`));
       expect(row.getByText(f.feature)).toBeTruthy();
@@ -240,7 +272,7 @@ describe('GatewayClaimsPage', () => {
   it('labels every cell of a stacked table, so the narrow layout keeps its column headings', () => {
     const { container } = renderPage();
     const stacked = container.querySelectorAll('table.gwc-table--stack');
-    expect(stacked.length).toBeGreaterThanOrEqual(8);
+    expect(stacked.length).toBeGreaterThanOrEqual(9);
     stacked.forEach((t) => {
       const heads = [...t.querySelectorAll('thead th')].map((h) => h.textContent);
       t.querySelectorAll('tbody tr').forEach((row) => {

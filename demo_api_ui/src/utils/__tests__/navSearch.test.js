@@ -1,6 +1,6 @@
 import { navItemMatches, navSearchTerms, navSearchText } from '../navSearch';
 
-const gw = { label: 'Gateway v1.261024, v1.261027, v1.261028, v1.261029 and v1.261030: Claims', path: '/gateway-claims', searchAlias: 'mcpgw nested claim act.sub Cedar' };
+const gw = { label: 'Gateway v1.261024, v1.261027, v1.261028, v1.261029, v1.261030 and v1.261102: Claims', path: '/gateway-claims', searchAlias: 'mcpgw nested claim act.sub Cedar' };
 
 describe('navSearch', () => {
   it('splits a query into lower-case words and ignores punctuation', () => {

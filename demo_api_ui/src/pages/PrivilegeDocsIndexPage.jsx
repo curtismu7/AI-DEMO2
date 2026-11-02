@@ -564,7 +564,7 @@ const SECTIONS = [
         repo: "privilege/PF-TOKEN-EXCHANGE-PASS-AGENT-TOKEN.md",
         pdf: null,
         covers:
-          "Step-by-step setup (parts A to I, with console screenshots) for an agent that presents its own PingFederate token to a P1 Privilege Agent App: the PingFederate client, token manager and scopes, the identity with required claims, the agent app, the key and grant. What Privilege does and can't do here, tools by scope with RequiredClaims tiers, the token passed through to the MCP server, Cedar blocking a tool by token scope, and every failure with its gateway log line. Measured 2026-10-26 and 2026-10-27. Section 17 (2026-11-01) covers what gateway v1.261029 and v1.261030 changed, read from the binary and unverified, and the 2026-11-02 release features not yet measured. Live demo: PingFederate Token Demo.",
+          "Step-by-step setup (parts A to I, with console screenshots) for an agent that presents its own PingFederate token to a P1 Privilege Agent App: the PingFederate client, token manager and scopes, the identity with required claims, the agent app, the key and grant. What Privilege does and can't do here, tools by scope with RequiredClaims tiers, the token passed through to the MCP server, Cedar blocking a tool by token scope, and every failure with its gateway log line. Measured 2026-10-26 and 2026-10-27. Section 17 (2026-11-01 and 2026-11-02) covers what gateway v1.261029, v1.261030 and v1.261102 changed, read from the binary and unverified, and the 2026-11-02 release features not yet measured. Live demo: PingFederate Token Demo.",
       },
       {
         title: "PF identity in Cedar policies",

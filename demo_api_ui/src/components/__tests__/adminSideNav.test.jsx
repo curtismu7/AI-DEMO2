@@ -809,7 +809,7 @@ describe("AdminSideNav: the gateway claims and third-party exchange pages are se
   // The menu search matches one contiguous phrase against a label or its search terms, so each phrase a person would type
   // has to appear in one of them. Admin and a signed-in customer both see these diagram pages.
   const searches = [
-    ["v1.261028", "/gateway-claims"], ["v1.261029", "/gateway-claims"], ["v1.261030", "/gateway-claims"], ["gateway release notes", "/gateway-claims"], ["what is new", "/gateway-claims"], ["gateway v1.261028", "/gateway-claims"], ["gateway v1.261027", "/gateway-claims"], ["gateway claims", "/gateway-claims"],
+    ["v1.261028", "/gateway-claims"], ["v1.261029", "/gateway-claims"], ["v1.261030", "/gateway-claims"], ["v1.261102", "/gateway-claims"], ["gateway release notes", "/gateway-claims"], ["what is new", "/gateway-claims"], ["gateway v1.261028", "/gateway-claims"], ["gateway v1.261027", "/gateway-claims"], ["gateway claims", "/gateway-claims"],
     ["AgentCore governance", "/gateway-claims"], ["runtime bypass", "/gateway-claims"], ["caller access", "/gateway-claims"], ["RequiredClaims", "/gateway-claims"],
     ["third party token exchange", "/p1-third-party-exchange"], ["third-party", "/p1-third-party-exchange"], ["p1 third party", "/p1-third-party-exchange"],
     ["trusted issuer", "/p1-third-party-exchange"], ["Okta", "/p1-third-party-exchange"], ["RFC 8693", "/p1-third-party-exchange"],

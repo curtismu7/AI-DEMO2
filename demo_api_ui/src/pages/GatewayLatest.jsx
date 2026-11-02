@@ -1,8 +1,8 @@
-// /gateway-claims parts 6 and 7: gateway v1.261029 and v1.261030 read from the binary (UNVERIFIED), and the 2026-11-02
+// /gateway-claims parts 6 and 7: gateway v1.261029, v1.261030 and v1.261102 read from the binary (UNVERIFIED), and the 2026-11-02
 // release features we have not measured on our tenant. Nothing here runs; it states what we know and what a test needs.
 import { EVIDENCE } from '../config/gatewayClaims';
 import {
-  BASELINE_VERSION, CHECKED_ON, LATEST_FACTS, NOT_MEASURED, RECHECK_STEPS, RELEASE_DATE, RELEASE_TABLE, SINCE_ROWS, VERSION_LATEST, VERSION_MIDDLE,
+  BASELINE_VERSION, CHECKED_ON, IMAGE_COMPARE, LATEST_FACTS, NOT_MEASURED, RECHECK_STEPS, RELEASE_DATE, RELEASE_TABLE, SINCE_ROWS, VERSION_LATEST, VERSION_MIDDLE, VERSION_THIRD,
 } from '../config/gatewayLatest';
 
 function Tag({ kind }) {
@@ -14,13 +14,13 @@ export default function GatewayLatest() {
   return (
     <>
       <section className="gwc-card" aria-labelledby="gwc-p6" data-testid="gwc-since">
-        <h2 id="gwc-p6">6. Since {BASELINE_VERSION}: {VERSION_MIDDLE} and {VERSION_LATEST} <Tag kind="unverified" /></h2>
+        <h2 id="gwc-p6">6. Since {BASELINE_VERSION}: {VERSION_MIDDLE}, {VERSION_THIRD} and {VERSION_LATEST} <Tag kind="unverified" /></h2>
         <p className="gwc-warn" role="note">
-          Ping published no release notes for these tags and we ran nothing against them. Every change below is our reading of the gateway binary
-          (checked {CHECKED_ON}), UNVERIFIED. The two tags are small steps on {BASELINE_VERSION}.
+          We found no Ping release notes for these tags (checked {CHECKED_ON}) and tried none of their features; the only run is the {VERSION_LATEST} pod
+          starting on our SE gateway. Every change below is our reading of the gateway binary, UNVERIFIED. The three tags are small steps on {BASELINE_VERSION}.
         </p>
         <ul>{LATEST_FACTS.map((f) => <li key={f.text}><Tag kind={f.evidence} /> {f.text}</li>)}</ul>
-        <h3>The three builds</h3>
+        <h3>The four builds</h3>
         <table className="gwc-table gwc-table--stack" aria-label="Gateway builds" data-testid="gwc-builds">
           <thead><tr><th>Tag</th><th>Built (UTC)</th><th>mcpgw binary (bytes)</th><th>Symbols against the tag before</th></tr></thead>
           <tbody>
@@ -30,6 +30,20 @@ export default function GatewayLatest() {
           </tbody>
         </table>
         <p className="gwc-muted">Symbol counts include compiler temporaries. They show how big the step was, not how many features changed.</p>
+        <h3>The two newest images, from the registry <Tag kind="verified" /></h3>
+        <table className="gwc-table gwc-table--stack" aria-label={`${VERSION_THIRD} and ${VERSION_LATEST} images`} data-testid="gwc-image-compare">
+          <thead><tr><th>Registry fact</th><th>{VERSION_THIRD}</th><th>{VERSION_LATEST}</th></tr></thead>
+          <tbody>
+            {IMAGE_COMPARE.map((r) => (
+              <tr key={r.id} data-testid={`gwc-image-${r.id}`}>
+                <td data-label="Registry fact">{r.item}</td>
+                <td data-label={VERSION_THIRD} style={{ overflowWrap: 'anywhere' }}>{r.id === 'digest' ? <code>{r.a}</code> : r.a}</td>
+                <td data-label={VERSION_LATEST} style={{ overflowWrap: 'anywhere' }}>{r.id === 'digest' ? <code>{r.b}</code> : r.b}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+        <p className="gwc-muted">These are facts about the image files. They say nothing about what the gateway does.</p>
         <h3>What changed since {BASELINE_VERSION} <Tag kind="unverified" /></h3>
         <table className="gwc-table gwc-table--stack" aria-label={`Changes since ${BASELINE_VERSION}`} data-testid="gwc-since-diff">
           <thead><tr><th>Tag</th><th>Change</th><th>Symbols and messages</th><th>Our reading</th></tr></thead>
@@ -49,7 +63,8 @@ export default function GatewayLatest() {
       <section className="gwc-card" aria-labelledby="gwc-p7" data-testid="gwc-not-measured">
         <h2 id="gwc-p7">7. Not yet measured on our tenant: the {RELEASE_DATE} release <Tag kind="unverified" /></h2>
         <p className="gwc-warn" role="note">
-          The {RELEASE_DATE} Agent Privilege release is not published yet, and our gateway runs {VERSION_LATEST}. The five features below were named to us;
+          Ping&apos;s public release notes do not describe the {RELEASE_DATE} Agent Privilege release (checked {CHECKED_ON}), and we have not confirmed that {VERSION_LATEST},
+          the tag dated that day, is that release. Our SE gateway runs {VERSION_LATEST}, and only its pod becoming ready was observed. The five features below were named to us;
           none is described in Ping&apos;s public notes and none has been tried here. Each stays UNVERIFIED until a test in the last column has been run.
         </p>
         <table className="gwc-table gwc-table--stack" aria-label="Release features not yet measured" data-testid="gwc-not-measured-table">
@@ -65,7 +80,7 @@ export default function GatewayLatest() {
             ))}
           </tbody>
         </table>
-        <h3>When the release lands</h3>
+        <h3>When the release is confirmed</h3>
         <ol>{RECHECK_STEPS.map((s) => <li key={s}>{s}</li>)}</ol>
       </section>
     </>
