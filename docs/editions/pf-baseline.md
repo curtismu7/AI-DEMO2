@@ -1,6 +1,6 @@
 # PingFederate edition: readiness baseline
 
-Status: FULL PINGFEDERATE RUN, LOCAL TARGET, 2026-11-01 (run on aaae137ad, whose readiness and workload files match main 432cf862a). Every PingFederate row that runs passes except UC14b (no adapter, HTTP 501). A2A is covered. Spec: `docs/superpowers/specs/2026-10-03-edition-split-design.md`.
+Status: FULL PINGFEDERATE RUN, LOCAL TARGET, 2026-11-01 (run on aaae137ad; decisions to 2026-11-02 are below, whose readiness and workload files match main 432cf862a). Every PingFederate row that runs passes except UC14b (no adapter, HTTP 501). A2A is covered. Spec: `docs/superpowers/specs/2026-10-03-edition-split-design.md`.
 
 Run: `npm run demo:ready -- --target local --provider pingfederate --json` through the BFF lane, with PingGateway, the main BFF, both lane BFFs, both readiness workers, the two per-lane resource servers and the `readiness-browser` service on main `b1e12cbf7` (#1934). Finished in 641 s. A single target and a single provider are diagnostic only, so the run is `NOT READY` by design. Local Docker only: the SE lane was not run.
 
@@ -57,15 +57,22 @@ Full run on aaae137ad after the workload-agent change: 155 pass, 1 fail (UC14b),
 - **UC44 result:** 11 of 11 verticals pass on the full run.
 - **Repository.** The work was done in ping-sandbox/AI-DEMO2-internal, which has no CI runners and is now archived. The live repo is ping-sandbox/AI-DEMO2; its readiness and workload files are identical to the ones tested.
 
+## What changed on 2026-11-02 (decisions and tooling)
+
+- **Cloud parity probe (#1958).** `verifyAuthorizeCloudParity.js` reported two UC21 tier rules as MISSING. They are live: the permit cases were denied `no_user_consent` because the probe never sent `MayActSub`, which consent tools require. The permit case now sends the actor as consent. Against the live tenant all 8 authored Authorize rules are live.
+- **Authorize policy restore.** A sanitized P1AZ snapshot (`policy/ai-demo-p1az.standalone.snapshot.json` in ping-sandbox/AI-DEMO-Standalone) was imported into the AI-DEMO2 tenant by mistake, and it denied normal calls. The AI-DEMO2 snapshot was re-imported; the control probe PERMITs again. The sanitized file is for other tenants only.
+- **Readiness decisions.** The Attack Lab, PF feature and A2A-role rows stay blocked (see the blocked list above). The contract change for the five A2A-role rows was dropped, since it only changed the blocked reason.
+- **Not re-run.** The numbers at the top are from the 2026-11-01 run on `aaae137ad`. Live main has moved since (through PR #1958); a fresh full run is still to do.
+
 ## What is still not verified
 
-Blocked (54 rows):
+Blocked (54 rows), with the decision for each:
 
-- 20: the PF feature and attack-lab probes (A2A-FM1-3, CIMD, third-party AS, ID-JAG negatives, RAR, PRIV-*) and UC40, each waiting on its PingFederate role to be recorded as resolved.
+- 20: the PF feature and attack-lab probes (A2A-FM1-3, CIMD, third-party AS, ID-JAG negatives, RAR, PRIV-*) and UC40. Stays blocked by decision (2026-11-02). Each probe needs its feature executor in the worker, and none exists yet; the readbacks alone would only change the reason to HTTP 501. The PF A2A-role probes also need a PF readback the repo records as unresolved. The four Attack Lab rows (PRIV-TOOL-ABUSE, PRIV-TOOL-POISONING, PRIV-SCHEMA-VIOLATION, PRIV-INTER-AGENT-ABUSE) depend on `authorize-policy-definition`, which the worker cannot read, and the schema row needs a validator branch for gateway-rejection evidence. Not needed for the demo.
 - 12: ADMIN1-12, because the catalog has no complete contract for the `pingone-admin` vertical.
-- 11: UC22, because CIBA needs an approval on a device.
+- 11: UC22, because CIBA needs an approval on a device (by design).
 - 11: UC38, because it needs MFA step-up, which the worker cannot do.
-- UC14b fails (3 rows were blocked before): the worker has no adapter for the full-page PAR variant, so it returns HTTP 501. UC14 passes.
+- UC14b fails with HTTP 501: the PAR flow is PingOne-only, so it is to be marked not applicable on PingFederate (decision 2026-11-02). Not yet implemented in the catalog; until it is, it still counts as a failure.
 
 Known gaps outside this run:
 
