@@ -776,28 +776,31 @@ A plain string value is refused with 400 `cannot unmarshal string into Go value 
 
 **The page.** Run mints three tokens for the same agent: `openid opensearch:admin whoami:read` (also used for the main answer and `whoami`), `openid opensearch:read`, and `openid whoami:read`, and shows what the agent app answered for each.
 
-## 17. Gateway v1.261029 and v1.261030 (read 2026-11-01, not run)
+## 17. Gateway v1.261029, v1.261030 and v1.261102 (read 2026-11-01 and 2026-11-02, not run)
 
-Ping published no release notes for these two tags, and we ran nothing against them. This section is what we can read from the public image repository, the `mcpgw` binary in each image and the console API spec. It is **[expected]** at best: every "what it does" line is our reading of a symbol or message name. The live page is `/gateway-claims`, parts 6 and 7. The v1.261028 step (AgentCore governance) is part 5 of that page.
+We found no Ping release notes for these tags, and we tried none of their features; the only runs are gateway 2 of our SE mesh running `v1.261102` and a `tools/list` sent to it (below). This section is what we can read from the public image repository, the `mcpgw` binary in each image and the console API spec. It is **[expected]** at best: every "what it does" line is our reading of a symbol or message name. The live page is `/gateway-claims`, parts 6 and 7. The v1.261028 step (AgentCore governance) is part 5 of that page.
 
-**[measured]** on 2026-11-01:
+**Method.** Anonymous registry reads only (public ECR token, then tag list, manifests and blobs; nothing sent to a tenant, cluster or gateway). Take the `linux/amd64` manifest (the index also lists two attestation manifests with no `config`; skip them), download the `mcpgw` and `cyctl` layer blobs, check each blob's SHA-256 against its digest, and extract only `/procyon/bin/mcpgw` and `/procyon/bin/cyctl`. No Go toolchain was available, so symbols were listed with `llvm-nm` (type letter and full name kept), `sort -u`, and the two lists compared with `comm`; strings were listed the same way with `strings -a -n 8`. The string diff is noisy because Go packs strings together, so a changed line is not a changed string: read names and messages by searching the binary for them. Counted this way `v1.261029` to `v1.261030` gives 25 added and 22 removed, against the 24 and 22 in the table below, which are left as they were. Keeping only the first whitespace-separated word of each name (2,703 names contain spaces and get cut) gives 25 and 21; keeping the full name without the type letter gives 25 and 22 again.
+
+**[measured]** on 2026-11-02 (the swagger and registry rows re-read that day):
 
 | Fact | Value |
 |---|---|
-| Newest tag in the public repository | `v1.261030` (`latest` is the same image). No tag is newer. |
-| Our SE gateway | runs `v1.261030`; one `tools/list` through it returned 6 tools (both from the 2026-11-01 00:26 UTC baseline check, not repeated when this section was written) |
-| Console API spec (swagger) | identical to the 2026-10-31 baseline: 447 operations, 644 definitions |
-| Ping's public release notes | checked once, nothing found for either tag; last entry 2026-07-13 (an absence seen once, not a statement from Ping) |
+| Newest tag in the public repository | `v1.261102` (index digest `sha256:36d29c0a0ea0575706819f23f2783e4f3a6aeb5f604d6d1717de66333b8eae47`, built 2026-11-02 15:43 UTC). No tag is newer. `latest` is still `v1.261030` (digest `sha256:62037874a437b4fb60c85f5f7f889909e9fdb66b9f27558002f331917ee98298`). |
+| Our SE mesh | mixed-version on 2026-11-02. Gateway 2 (the namespace we rolled: gateway container only, explicit tag, not `latest`) ran `v1.261102`: pod became ready, 10 of 10 containers, 0 restarts, empty log tail. Gateway 1, the front node in a different namespace, still runs `v1.261030`, and the public hostname may route to either node. One `initialize` and `tools/list` returned 6 tools, the same as the 2026-11-01 baseline, once through the public gateway hostname with the worker key and once sent straight to gateway 2's in-cluster service. A comparison with a second, lower-entitled key was **not** done, and no release feature was tried |
+| Console API spec (swagger) | byte for byte identical to the 2026-10-31 baseline (and to the 2026-11-01 fetch): 447 operations, 644 definitions |
+| Ping's public release notes | checked 2026-11-02 (PingOne Privilege release notes page and a web search), nothing found for any of these tags or the five features below; last entry 2026-07-13 (an absence seen from one look, not a statement from Ping) |
 
 | Tag | Built (UTC) | `mcpgw` binary (bytes) | Symbols against the tag before |
 |---|---|---|---|
 | `v1.261028` | 2026-10-28 17:30 | 244,454,104 | base |
 | `v1.261029` | 2026-10-29 09:15 | 244,558,704 | 80 added, 26 removed |
 | `v1.261030` | 2026-10-30 16:01 | 244,570,600 | 24 added, 22 removed |
+| `v1.261102` | 2026-11-02 15:43 | 244,584,504 | 32 added, 25 removed (25 of each are compiler temporaries: 7 named added, 0 named removed) |
 
-Symbol counts include compiler temporaries. Only the `mcpgw` and `cyctl` layers and a small time-zone data layer differ between the tags.
+Symbol counts include compiler temporaries. Only the `mcpgw` and `cyctl` layers and a small time-zone data layer differ between the tags. Between `v1.261030` and `v1.261102`, 4 of 10 layers differ (time-zone data, directory setup, `mcpgw`, `cyctl`) and 6 are byte-identical, on both `linux/amd64` and `linux/arm64`; the start command (`/procyon/bin/mcpgw`, no entrypoint), the 7 environment variable names and the 3 labels are identical. Compressed layers: 286,802,980 to 286,812,214 bytes (`amd64`), 262,394,144 to 262,402,758 (`arm64`); `cyctl` goes 239,959,232 to 239,959,016 bytes.
 
-**[expected]** what changed since `v1.261028` (readings of the binary, none run):
+**[expected]** what changed since `v1.261028` (readings of the binary, none run). All `v1.261102` rows were read on 2026-11-02:
 
 | Tag | Change | Evidence in the binary |
 |---|---|---|
@@ -808,22 +811,26 @@ Symbol counts include compiler temporaries. Only the `mcpgw` and `cyctl` layers 
 | `v1.261029` | More AgentCore inventory and rate-limit helpers | `aws.MergeAgentCoreInventoryJSON`, `RegionFromARN`, `listGatewayRateLimits`, `updateGatewayRateLimit` |
 | `v1.261029` | Workload pinning steered to the runtime authorizer | one message naming runtime-level pinning (`hostingEnvironments`) as the supported control |
 | `v1.261030` | AgentCore rate-limit delete, resource-policy grading, rule listing | `aws.DeleteAgentCoreGatewayRateLimit`, `gradeResourcePolicy`, `listOneGatewayRules`; the message says `<gatewayID>/<rateLimitID>` where `v1.261029` says `<ruleID>` |
+| `v1.261102` | Claims read from the sign-in token, and a warning when there are none | `mcpgw.withIDPClaims`, `(*AccessToken).EndUserResolved`, `(*AccessToken).KeyType`; `workloadid.SessionClaims`, `readClaims`, `ErrNotJWT`; `llmgw.endUserOf`; message "[mcpgw] login token for app %s carries no usable claims, so claim-conditioned rules will not match". We do not know when it triggers or what `KeyType` returns |
+| `v1.261102` | Two names we cannot place | `RequesterResolved` and `routingError`, neither in `v1.261030` |
 
 The second binary in the image, `cyctl`, gained the same AgentCore helpers and lost none. We have no confirmed reason for the `v1.261030` rebuild.
 
+Apart from the `v1.261102` rows above, the two binaries show no meaningful difference beyond build metadata: the embedded version string, the build time (`Built on` 2026-11-02 15:37 against 2026-10-30 15:55) and the source revision. `cyctl` gains the one symbol `workloadid.ErrNotJWT`. None of this was run.
+
 ### Not yet measured: the 2026-11-02 Agent Privilege release
 
-The release is dated 2026-11-02 and not yet published, and our gateway runs `v1.261030`. No symbol or message in either tag matches these five features. All are **UNVERIFIED** on our tenant:
+Ping's public notes do not describe the 2026-11-02 release (checked 2026-11-02), and we have not confirmed that `v1.261102`, the tag dated that day, is that release. Gateway 2 of our SE mesh ran `v1.261102` and gateway 1 still runs `v1.261030`; only that pod becoming ready and the same 6 tools from `tools/list` were observed. No symbol or message in `v1.261029`, `v1.261030` or `v1.261102` matches these five features (the nearest, in `v1.261102`, are the claim and end-user names above, which we cannot tie to any of them). All are **UNVERIFIED** on our tenant:
 
 | Feature | Our reading of the name | What a test needs |
 |---|---|---|
 | Entitlement-aware discovery | `tools/list` shows a caller only the tools its entitlements allow | Two agent keys with different entitlements, the same `tools/list` with each, compare. Creating the lower-entitled key is a tenant write |
 | Aggregate cap | A cap counted across calls together, not per key | A low-cap test key and a small burst until the first refusal. Keep the burst small |
 | OBO redeem | An agent redeems a delegated token for a call made for a user | A PingFederate token that acts for a user, and an agent app set to accept it; compare `sub` and `act` at the backend |
-| Scope layers | Tools layered by token scope; may be the same as section 16 | Repeat the section 16 tier run on the new release: a token with `opensearch:admin` gave 9 tools, `opensearch:read` gave 3, and a token with neither (for example `openid` alone) gave 403 |
+| Scope layers | Tools layered by token scope; may be the same as section 16 | Repeat the section 16 tier run on `v1.261102`: a token with `opensearch:admin` gave 9 tools, `opensearch:read` gave 3, and a token with neither (for example `openid` alone) gave 403 |
 | Hold | A tool call waits for a human to approve it | An AI policy that returns the approval action, then approve one call, reject one, and retry the rejected one |
 
-**When the release lands**, repeat the three checks the baseline was taken for: look for an image tag newer than `v1.261030`, fetch the console swagger and diff it against the 2026-10-31 baseline, and repeat `tools/list` with the same key and a second, lower-entitled key.
+**When the release is confirmed**, repeat the three checks the baseline was taken for: look for an image tag newer than `v1.261102` (and whether `latest` has moved off `v1.261030`), fetch the console swagger and diff it against the 2026-10-31 baseline, and repeat `tools/list` with a second, lower-entitled key as well as the worker key (6 tools on `v1.261030` and on `v1.261102`), on `v1.261102`.
 
 ## Related
 

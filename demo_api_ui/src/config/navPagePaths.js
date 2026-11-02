@@ -34,7 +34,7 @@ export const NAV_PAGE_PATHS = {
   "Agent Privilege Demo": "/privilege-demo",
   "AI Policies Demo": "/privilege-ai-policies",
   "PingFederate Token Demo": "/privilege-pf-token",
-  "Gateway v1.261024, v1.261027, v1.261028, v1.261029 and v1.261030: Claims": "/gateway-claims",
+  "Gateway v1.261024, v1.261027, v1.261028, v1.261029, v1.261030 and v1.261102: Claims": "/gateway-claims",
   "Skin Studio": "/admin/skin-studio",
   "Weather MCP": "/weather-mcp",
   "Brave Search MCP": "/brave-mcp",

@@ -10,11 +10,13 @@ import {
   evaluateCedarScope, evaluatePfRequest, evaluateRule, evaluateTiers, flattenClaims, nextScenarioDiagram, nextWire, scenarioDiagram,
 } from '../../config/gatewayClaims';
 import {
-  CHECKED_ON, LATEST_FACTS, NOT_MEASURED, PAGE_VERSIONS, RECHECK_STEPS, RELEASE_DATE, RELEASE_TABLE, SINCE_ROWS, VERSION_LATEST, VERSION_MIDDLE,
+  CHECKED_ON, IMAGE_COMPARE, IMAGE_DIGESTS, LATEST_FACTS, NOT_MEASURED, PAGE_VERSIONS, RECHECK_STEPS, RELEASE_DATE, RELEASE_TABLE, SINCE_ROWS, VERSION_LATEST, VERSION_MIDDLE, VERSION_THIRD,
 } from '../../config/gatewayLatest';
 import { AGENTCORE_FACTS } from '../../config/gatewayAgentcore';
 import { DIAGRAMS_INDEX } from '../../config/diagramsIndex';
 import { NAV_PAGE_PATHS } from '../../config/navPagePaths';
+import { NAV_SEARCH_ALIASES } from '../../config/navSearchAliases';
+import measured from './gatewayV1261102.measured.json';
 
 const sourceOf = (rel) => readFileSync(fileURLToPath(new URL(rel, import.meta.url)), 'utf8');
 
@@ -117,26 +119,51 @@ describe('v1.261027 models', () => {
   });
 });
 
-describe('v1.261029 and v1.261030 config', () => {
+describe('v1.261029, v1.261030 and v1.261102 config', () => {
   it('quotes the same version list the nav, hub card, diagram index and path map use', () => {
-    expect(PAGE_VERSIONS).toBe(`v1.261024, v1.261027, v1.261028, ${VERSION_MIDDLE} and ${VERSION_LATEST}`);
-    expect(RELEASE_TABLE.map((r) => r.tag)).toEqual(['v1.261028', VERSION_MIDDLE, VERSION_LATEST]);
+    expect(PAGE_VERSIONS).toBe(`v1.261024, v1.261027, v1.261028, ${VERSION_MIDDLE}, ${VERSION_THIRD} and ${VERSION_LATEST}`);
+    expect(VERSION_LATEST).toBe('v1.261102');
+    expect(RELEASE_TABLE.map((r) => r.tag)).toEqual(['v1.261028', VERSION_MIDDLE, VERSION_THIRD, VERSION_LATEST]);
     const indexed = [...DIAGRAMS_INDEX.flatMap((g) => g.items)].find((d) => d.path === '/gateway-claims');
     expect(indexed.title).toContain(PAGE_VERSIONS);
     expect(Object.entries(NAV_PAGE_PATHS).find(([, path]) => path === '/gateway-claims')[0]).toContain(PAGE_VERSIONS);
     expect(sourceOf('../../components/AdminSideNav.jsx')).toContain(`label: "Gateway ${PAGE_VERSIONS}: Claims"`);
     expect(sourceOf('../../components/LearningHub.tsx')).toContain(`What gateway ${PAGE_VERSIONS} added`);
   });
+  it('lists every version in the page version list in both search-alias sources, so searching a version finds the page', () => {
+    const versions = PAGE_VERSIONS.match(/v1\.\d{6}/g);
+    expect(versions).toHaveLength(6);
+    for (const v of versions) {
+      expect(NAV_SEARCH_ALIASES['/gateway-claims'], `navSearchAliases lacks ${v}`).toContain(v);
+    }
+    const nav = sourceOf('../../components/AdminSideNav.jsx');
+    const entry = nav.slice(nav.indexOf('path: "/gateway-claims"'), nav.indexOf('path: "/gateway-claims"') + 900);
+    const alias = entry.slice(entry.indexOf('searchAlias:'), entry.indexOf('\n', entry.indexOf('searchAlias:')));
+    for (const v of versions) expect(alias, `AdminSideNav searchAlias lacks ${v}`).toContain(v);
+  });
   it('words the evidence for parts 5 and 6 without overclaiming', () => {
     const byStart = (start) => LATEST_FACTS.find((f) => f.text.startsWith(start));
-    expect(byStart('Our SE gateway runs').text).toMatch(/not repeated/);
+    const se = byStart('Our SE mesh is mixed-version');
+    expect(se.evidence).toBe('verified');
+    expect(se.text).toMatch(/Gateway 2 \(the namespace we rolled: gateway container only, explicit tag, not latest\) ran v1\.261102: its pod became ready \(10 of 10 containers, 0 restarts\) and its log tail was empty/);
+    expect(se.text).toMatch(/Gateway 1, the front node in a different namespace, still runs v1\.261030, and the public hostname may route to either node/);
+    expect(se.text).toMatch(/returned 6 tools, the same as the 2026-11-01 baseline, once through the public gateway hostname with the worker key and once sent straight to gateway 2/);
+    expect(se.text).toMatch(/did not compare with a second, lower-entitled key, and we tried no release feature/);
+    // Neither node is said to run the new tag alone, the old "not repeated" wording is gone, and no earlier attempt is mentioned.
+    expect(se.text).not.toMatch(/\bour SE gateway (now )?runs v1\.261102/i);
+    expect(se.text).not.toMatch(/did not repeat|not repeated/i);
+    expect(se.text).not.toMatch(/\bfail(ed|ure)?\b|rolled back|rollback|attempt/i);
+    expect(se.text).not.toMatch(/\b(works|working|supports|proves)\b/i);
+    const stale = JSON.stringify({ LATEST_FACTS, NOT_MEASURED, RECHECK_STEPS });
+    expect(stale).not.toMatch(/did not repeat tools\/list|not repeated|has not been repeated/i);
     expect(byStart('We looked at Ping').text).toMatch(/checked, not found/);
     const inferred = LATEST_FACTS.filter((f) => f.evidence === 'inferred');
     expect(inferred).toHaveLength(1);
     expect(inferred[0].text).toMatch(/inference/);
     expect(LATEST_FACTS.filter((f) => f.evidence === 'verified').every((f) => !/\bSo none\b/.test(f.text))).toBe(true);
     // The part 5 statement about the gateway tag is dated; part 6 says the SE gateway has moved on.
-    expect(AGENTCORE_FACTS[0].text).toMatch(/Superseded for our SE gateway: it now runs v1\.261030/);
+    expect(AGENTCORE_FACTS[0].text).toMatch(/Superseded for our two SE gateways: on 2026-11-02 gateway 2 ran v1\.261102 and gateway 1 still runs v1\.261030/);
+    expect(AGENTCORE_FACTS[0].text).not.toMatch(/our SE gateway: it now runs/);
   });
   it('names the three scopes of the tier baseline, and keeps the release-features row\'s wording', () => {
     const layers = NOT_MEASURED.find((r) => r.id === 'layers');
@@ -150,12 +177,112 @@ describe('v1.261029 and v1.261030 config', () => {
     expect(NOT_MEASURED.every((r) => r.test.length > 40)).toBe(true);
     expect(LATEST_FACTS.filter((f) => f.evidence === 'unverified')).toHaveLength(1);
     expect(RECHECK_STEPS).toHaveLength(3);
-    expect(CHECKED_ON).toBe('2026-11-01');
+    expect(CHECKED_ON).toBe('2026-11-02');
     expect(RELEASE_DATE).toBe('2026-11-02');
   });
+  it('states the registry facts: both index digests, latest still on v1.261030, and no newer tag', () => {
+    expect(IMAGE_DIGESTS[VERSION_THIRD]).toBe('sha256:62037874a437b4fb60c85f5f7f889909e9fdb66b9f27558002f331917ee98298');
+    expect(IMAGE_DIGESTS[VERSION_LATEST]).toBe('sha256:36d29c0a0ea0575706819f23f2783e4f3a6aeb5f604d6d1717de66333b8eae47');
+    const tags = LATEST_FACTS[0];
+    expect(tags.evidence).toBe('verified');
+    expect(tags.text).toMatch(/no tag newer than v1\.261102/);
+    expect(tags.text).toMatch(/latest is still the same image as v1\.261030/);
+    expect(IMAGE_COMPARE.map((r) => r.id)).toEqual(['digest', 'built', 'layers', 'size', 'binaries', 'config']);
+    expect(IMAGE_COMPARE[0].a).toBe(IMAGE_DIGESTS[VERSION_THIRD]);
+    expect(IMAGE_COMPARE[0].b).toBe(IMAGE_DIGESTS[VERSION_LATEST]);
+    expect(RELEASE_TABLE[3]).toMatchObject({ tag: 'v1.261102', binary: '244,584,504' });
+  });
+  it('says the two newest binaries differ by named additions only, and keeps every v1.261102 row a reading', () => {
+    const rows = SINCE_ROWS.filter((r) => r.version === VERSION_LATEST);
+    expect(rows.map((r) => r.id)).toEqual(['idp-claims', 'unplaced', 'rebuild-1102', 'release-features-1102']);
+    expect(rows.find((r) => r.id === 'rebuild-1102').reading).toMatch(/^Apart from the rows above, the two binaries show no meaningful difference/);
+    expect(rows.find((r) => r.id === 'idp-claims').symbols).toMatch(/withIDPClaims.*carries no usable claims/);
+    expect(rows.find((r) => r.id === 'release-features-1102').reading).toMatch(/cannot tie them to any of the five/);
+    expect(rows.every((r) => !/\b(verified|proven|confirmed)\b/i.test(r.reading))).toBe(true);
+  });
   it('holds no tenant ids, customer names or secrets', () => {
-    const all = JSON.stringify({ LATEST_FACTS, RELEASE_TABLE, SINCE_ROWS, NOT_MEASURED, RECHECK_STEPS });
+    const all = JSON.stringify({ LATEST_FACTS, IMAGE_COMPARE: IMAGE_COMPARE.filter((r) => r.id !== 'digest'), RELEASE_TABLE, SINCE_ROWS, NOT_MEASURED, RECHECK_STEPS });
     expect(all).not.toMatch(/ping-devops|cmuir|pf-route-c-test|01d89b06|sha256:|\bdoors?\b/i);
+  });
+});
+
+describe('v1.261102 measured values: the config and the rendered page match the recorded measurements', () => {
+  const fmt = (n) => n.toLocaleString('en-US');
+  const cells = (row) => within(row).getAllByRole('cell').map((c) => c.textContent);
+  const renderPart6 = () => {
+    render(<MemoryRouter><GatewayClaimsPage /></MemoryRouter>);
+    return screen.getByTestId('gwc-since');
+  };
+  const imageRow = (id) => cells(screen.getByTestId(`gwc-image-${id}`));
+  const buildRow = (tag) => {
+    const row = within(screen.getByTestId('gwc-builds')).getAllByRole('row').find((r) => within(r).queryByText(tag));
+    return cells(row);
+  };
+
+  it('digests and build times: right tag in the right column, and the same build time in both tables', () => {
+    expect(IMAGE_DIGESTS).toEqual(measured.digests);
+    renderPart6();
+    expect(imageRow('digest').slice(1)).toEqual([measured.digests[VERSION_THIRD], measured.digests[VERSION_LATEST]]);
+    expect(imageRow('built').slice(1)).toEqual([measured.built[VERSION_THIRD], measured.built[VERSION_LATEST]]);
+    expect(buildRow(VERSION_THIRD)[1]).toBe(measured.built[VERSION_THIRD]);
+    expect(buildRow(VERSION_LATEST)[1]).toBe(measured.built[VERSION_LATEST]);
+  });
+  it('layers: the counts add up to the total and the differing layers named are as many as are counted', () => {
+    const { total, identical, differing } = measured.layers;
+    expect(identical + differing).toBe(total);
+    renderPart6();
+    const [, a, b] = imageRow('layers');
+    expect(a).toBe(String(total));
+    expect(b).toMatch(new RegExp(`^${total}, of which ${identical} are byte-identical`));
+    expect(b).toMatch(new RegExp(`The ${differing} that differ are (.+)$`));
+    const named = b.match(/The \d+ that differ are (.+)$/)[1].split(/, | and /);
+    expect(named).toHaveLength(differing);
+  });
+  it('sizes: compressed layers and binaries, each in its own column', () => {
+    renderPart6();
+    const size = (t) => `${fmt(measured.compressedBytes[t].amd64)} and ${fmt(measured.compressedBytes[t].arm64)}`;
+    expect(imageRow('size').slice(1)).toEqual([size(VERSION_THIRD), size(VERSION_LATEST)]);
+    const bin = (t) => `${fmt(measured.binaryBytes[t].mcpgw)} and ${fmt(measured.binaryBytes[t].cyctl)}`;
+    expect(imageRow('binaries').slice(1)).toEqual([bin(VERSION_THIRD), bin(VERSION_LATEST)]);
+    for (const [tag, b] of Object.entries(measured.binaryBytes)) expect(buildRow(tag)[2], tag).toBe(fmt(b.mcpgw));
+  });
+  it('swagger: the operation and definition counts are in the verified fact and on the page', () => {
+    const text = `${fmt(measured.swagger.operations)} operations and ${fmt(measured.swagger.definitions)} definitions`;
+    expect(LATEST_FACTS.find((f) => f.text.startsWith('The console API spec')).text).toContain(text);
+    expect(renderPart6().textContent).toContain(text);
+  });
+  it('symbols: the raw counts, the compiler-temporary split and the seven named additions all agree', () => {
+    const s = measured.symbols[VERSION_LATEST];
+    expect(s.namedAdded).toHaveLength(s.added - s.compilerTemporariesEach);
+    renderPart6();
+    const named = s.added - s.compilerTemporariesEach;
+    const expected = `${s.added} added, ${s.removed} removed (${s.compilerTemporariesEach} of each are compiler temporaries, so ${named} named added, ${s.removed - s.compilerTemporariesEach} named removed)`;
+    expect(buildRow(VERSION_LATEST)[3]).toBe(expected);
+    const row = screen.getByTestId('gwc-since-idp-claims').textContent;
+    for (const name of s.namedAdded) expect(row, name).toMatch(new RegExp(`(^|[^A-Za-z])${name}([^A-Za-z]|$)`));
+    expect(screen.getByTestId('gwc-since-rebuild-1102').textContent).toContain('workloadid.ErrNotJWT');
+  });
+  it('the 6-tool baseline is quoted for v1.261030 and is the count in the SE line', () => {
+    const n = `${measured.tools.baselineCount} tools`;
+    expect(LATEST_FACTS.find((f) => f.text.startsWith('Our SE mesh')).text).toContain(`returned ${n}`);
+    expect(NOT_MEASURED.find((r) => r.id === 'discovery').test).toContain(`${n} on ${VERSION_THIRD}`);
+    expect(RECHECK_STEPS[2]).toContain(`(${n} on ${VERSION_THIRD} and on ${VERSION_LATEST})`);
+  });
+  it('part 6 heading and sub-headings carry the right evidence tag: UNVERIFIED for readings, VERIFIED for registry facts', () => {
+    const since = renderPart6();
+    expect(within(since).getByRole('heading', { level: 2 }).textContent).toMatch(/UNVERIFIED$/);
+    const h3 = within(since).getAllByRole('heading', { level: 3 }).map((h) => h.textContent);
+    expect(h3.find((t) => /^What changed since/.test(t))).toMatch(/UNVERIFIED$/);
+    const images = h3.find((t) => /^The two newest images/.test(t));
+    expect(images).toMatch(/ VERIFIED$/);
+    expect(images).not.toMatch(/UNVERIFIED/);
+  });
+  it('never says a release feature works, on the page or in the facts', () => {
+    const since = renderPart6();
+    const text = `${since.textContent} ${screen.getByTestId('gwc-not-measured').textContent}`;
+    expect(text).not.toMatch(/\bworks\b|\bproven\b|\bproves\b|\bfeatures? (work|worked|is working|are working|is supported|are supported)\b/i);
+    expect(text).not.toMatch(/\bour SE gateway (now )?runs v1\.261102/i);
+    expect(text).not.toMatch(/did not repeat|not repeated/i);
   });
 });
 
@@ -164,7 +291,7 @@ describe('GatewayClaimsPage', () => {
 
   it('has the title, back link, evidence legend and both parts', () => {
     renderPage();
-    expect(screen.getByRole('heading', { level: 1, name: /What Privilege gateway v1\.261024, v1\.261027, v1\.261028, v1\.261029 and v1\.261030 added/ })).toBeTruthy();
+    expect(screen.getByRole('heading', { level: 1, name: /What Privilege gateway v1\.261024, v1\.261027, v1\.261028, v1\.261029, v1\.261030 and v1\.261102 added/ })).toBeTruthy();
     expect(screen.getByRole('link', { name: /All diagrams/ }).getAttribute('href')).toBe('/diagrams');
     const legend = screen.getByTestId('gwc-legend');
     for (const l of ['VERIFIED', 'INFERRED', 'UNVERIFIED']) expect(within(legend).getByText(l)).toBeTruthy();
@@ -175,13 +302,20 @@ describe('GatewayClaimsPage', () => {
   it('shows parts 6 and 7: what changed since v1.261028 and the unmeasured 2026-11-02 release features, all UNVERIFIED', () => {
     renderPage();
     const since = screen.getByTestId('gwc-since');
-    expect(within(since).getByRole('heading', { level: 2 }).textContent).toMatch(/6\. Since v1\.261028: v1\.261029 and v1\.261030/);
-    expect(since.textContent).toMatch(/Ping published no release notes for these tags and we ran nothing against them/);
+    expect(within(since).getByRole('heading', { level: 2 }).textContent).toMatch(/6\. Since v1\.261028: v1\.261029, v1\.261030 and v1\.261102/);
+    expect(since.textContent).toMatch(/We found no Ping release notes for these tags .*tried none of their features/);
     expect(within(screen.getByTestId('gwc-builds')).getAllByRole('row')).toHaveLength(RELEASE_TABLE.length + 1);
+    const images = within(screen.getByTestId('gwc-image-compare'));
+    expect(images.getAllByRole('row')).toHaveLength(IMAGE_COMPARE.length + 1);
+    expect(images.getByText(IMAGE_DIGESTS[VERSION_LATEST])).toBeTruthy();
+    expect(images.getByText(IMAGE_DIGESTS[VERSION_THIRD])).toBeTruthy();
     expect(within(screen.getByTestId('gwc-since-diff')).getAllByRole('row')).toHaveLength(SINCE_ROWS.length + 1);
     expect(within(screen.getByTestId('gwc-since-rejected-hold')).getByText(/RememberRejected/)).toBeTruthy();
     const nm = screen.getByTestId('gwc-not-measured');
-    expect(nm.textContent).toMatch(/not published yet/);
+    expect(nm.textContent).toMatch(/do not describe the 2026-11-02 Agent Privilege release/);
+    expect(nm.textContent).toMatch(/not confirmed that v1\.261102/);
+    expect(since.textContent).toMatch(/became ready/);
+    expect(nm.textContent).toMatch(/Gateway 2 of our SE mesh ran v1\.261102 and gateway 1 still runs v1\.261030/);
     for (const f of NOT_MEASURED) {
       const row = within(screen.getByTestId(`gwc-nm-${f.id}`));
       expect(row.getByText(f.feature)).toBeTruthy();
@@ -240,7 +374,7 @@ describe('GatewayClaimsPage', () => {
   it('labels every cell of a stacked table, so the narrow layout keeps its column headings', () => {
     const { container } = renderPage();
     const stacked = container.querySelectorAll('table.gwc-table--stack');
-    expect(stacked.length).toBeGreaterThanOrEqual(8);
+    expect(stacked.length).toBeGreaterThanOrEqual(9);
     stacked.forEach((t) => {
       const heads = [...t.querySelectorAll('thead th')].map((h) => h.textContent);
       t.querySelectorAll('tbody tr').forEach((row) => {

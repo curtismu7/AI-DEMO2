@@ -1420,10 +1420,10 @@ export default function AdminSideNav({
         searchAlias: "PingFederate PF token JWT workload identity NHI non-human identity act.sub pass agent token federated agent federated identity",
       },
       {
-        label: "Gateway v1.261024, v1.261027, v1.261028, v1.261029 and v1.261030: Claims",
+        label: "Gateway v1.261024, v1.261027, v1.261028, v1.261029, v1.261030 and v1.261102: Claims",
         path: "/gateway-claims",
         icon: "key",
-        searchAlias: "gateway mcpgw release notes what is new v1.261024 v1.261027 v1.261028 v1.261029 v1.261030 AgentCore governance runtime bypass caller access nested claim act.sub Cedar token scopes tiers resource RequiredClaims FlatClaims AgentCore posture policy engine scorecard",
+        searchAlias: "gateway mcpgw release notes what is new v1.261024 v1.261027 v1.261028 v1.261029 v1.261030 v1.261102 AgentCore governance runtime bypass caller access nested claim act.sub Cedar token scopes tiers resource RequiredClaims FlatClaims AgentCore posture policy engine scorecard",
       },
       { from: "Privilege Demo", rename: "Agent Privilege Demo" },
     ]),
